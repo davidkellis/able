@@ -114,9 +114,11 @@ Variable identifiers may take the following form:
 
 ## Packages
 
-package io
-
 There must be one, and only one, package definition per file, preferably at the top of the file.
+
+```
+package io
+```
 
 A package introduces a new variable scope that forms the root scope for any other scopes introduced within the package.
 
@@ -169,6 +171,8 @@ References:
 
 ## Strings
 
+All string literals are double quoted.
+
 ```
 name = "Herbert"
 greeting = "Hello $name"
@@ -207,9 +211,7 @@ Pair syntax is just syntactic sugar for expressing 2-tuples.
 
 ## Structs
 
-// Note: need to define structs here.
-
-Struct type definitions define both a type and a constructor function of the same name as the type)
+Struct type definitions define both a type and a constructor function of the same name as the type.
 
 ### Definition with Positional Fields
 ```
