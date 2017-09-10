@@ -1,5 +1,112 @@
 # Able Language
 
+Able is a programming language that aims to be pleasant to use (on par with greenfield development in Ruby or Python), relatively small (on par with Go), and relatively fast (in the same ballpark as Java or Go).
+
+Here are a few sample programs to give you a feel for the language:
+
+**Hello World**
+
+```
+package main
+
+fn main() {
+  puts("Hello world.")
+}
+```
+
+**Factorial**
+
+```
+// recursive
+fn factorial(n: UInt) => n < 2 ? 1 : n * factorial(n - 1)
+
+// tail recursive
+fn factorial(n) => factorial(n, 1)
+fn factorial(n: UInt, product: UInt) -> UInt {
+  if n < 2 then product else factorial(n - 1, n * product)
+}
+
+// iterative
+fn factorial(n: UInt) {
+  return 1 if n < 2
+  for i in 2...n { n *= i }
+  n
+}
+
+// reduce
+fn factorial(n: UInt) {
+  return 1 if n <= 1
+  (2..n).reduce(*)
+}
+```
+
+**Primes**
+
+```
+fn primesLessThan(max) => max < 2 ? List() : primesLessThan(max, 2, List())
+fn primesLessThan(max: Uint, i: UInt, primesFound: List UInt) -> List UInt {
+  return primesFound if i > max
+  if primesFound.any? { p => i % p == 0 }
+    primesLessThan(max, i + 1, primesFound)
+  else
+    primesLessThan(max, i + 1, primesFound + i)
+}
+```
+
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**
+
+- [Identifiers](#identifiers)
+- [Packages](#packages)
+  - [Importing Packages](#importing-packages)
+- [Type Expressions](#type-expressions)
+- [Strings](#strings)
+- [Arrays](#arrays)
+- [Maps](#maps)
+- [Tuples](#tuples)
+  - [Pairs](#pairs)
+- [Structs](#structs)
+  - [Definition with Positional Fields](#definition-with-positional-fields)
+  - [Definition with Named Fields](#definition-with-named-fields)
+- [Unions](#unions)
+  - [Union definitions referencing predefined types](#union-definitions-referencing-predefined-types)
+  - [Union definitions referencing new struct types](#union-definitions-referencing-new-struct-types)
+- [Blocks](#blocks)
+- [Functions](#functions)
+  - [Named function syntax](#named-function-syntax)
+  - [Anonymous function syntax](#anonymous-function-syntax)
+  - [Lambda expression syntax](#lambda-expression-syntax)
+    - [Implicit Lambda Expressions via Placeholder Syntax (a.k.a. Placeholder Lambdas)](#implicit-lambda-expressions-via-placeholder-syntax-aka-placeholder-lambdas)
+      - [Special case](#special-case)
+  - [Function definition examples](#function-definition-examples)
+    - [Define non-generic functions](#define-non-generic-functions)
+    - [Define generic functions](#define-generic-functions)
+    - [Lambda Expressions](#lambda-expressions)
+  - [Function Application](#function-application)
+    - [Normal Application](#normal-application)
+      - [Special cases](#special-cases)
+    - [Named argument application](#named-argument-application)
+    - [Partial application](#partial-application)
+    - [Method application](#method-application)
+    - [Pipeline application](#pipeline-application)
+    - [Operator application](#operator-application)
+      - [Right-associative operators](#right-associative-operators)
+      - [Special operators](#special-operators)
+- [Interfaces](#interfaces)
+  - [Interface Definitions](#interface-definitions)
+  - [Interface Implementations](#interface-implementations)
+  - [Interface Usage](#interface-usage)
+- [Pattern Matching](#pattern-matching)
+- [Destructuring](#destructuring)
+  - [Assignment Destructuring](#assignment-destructuring)
+  - [Parameter Destructuring](#parameter-destructuring)
+  - [Pattern Matching Destructuring](#pattern-matching-destructuring)
+- [Breakpoints / Non-local Return](#breakpoints--non-local-return)
+- [Exceptions](#exceptions)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 ## Identifiers
 
 Variable identifiers may take the following form:
@@ -43,7 +150,7 @@ A package introduces a new variable scope that forms the root scope for any othe
   ```
   import io.{puts as p}
   import internationalization as i18n.{Unicode}
-  p("#{Unicode.abbreviation} is Unicode; #{i18n.Ascii.abbreviation} is Ascii")
+  p("${Unicode.abbreviation} is Unicode; ${i18n.Ascii.abbreviation} is Ascii")
   ```
 
 ## Type Expressions
@@ -275,7 +382,7 @@ Lambda expressions may also be represented implicitly with a special convenience
 
 An expression may be parameterized with placeholder symbols - each of which may be either an underscore, _, or a numbered underscore, e.g. _1, _2, etc.
 
-A placeholder symbol may be used in place of any value-representing subexpression, such as an argument to a function, an operator argument, a conditional variable in an if statement, etc. Placeholder symbols may not be used in place of language keywords, e.g. in place of “if”, “package”, etc.
+A placeholder symbol may be used in place of any value-representing subexpression, such as an argument to a function, an operator argument, a conditional variable in an if statement, etc. Placeholder symbols may not be used in place of language keywords, e.g. in place of "if", "package", etc.
 
 The scope of a lambda expression implicitly defined through the use of placeholder symbols extends to the smallest subexpression that, if considered as the body of an anonymous function, would represent a function with the same function signature as what the containing expression expects.
 
@@ -465,9 +572,14 @@ is equivalent to
 
 Operators are functions too. The only distinction between operator functions and non-operator functions is that operator functions additionally have an associated operator precedence and are associative. Non-operator functions are non-associative, and have no operator precedence.
 
-By default, operators are left-associative. For example, `a + b + c` is evaluated as `(a + b) + c`
+By default, operators are left-associative. For example, `a + b + c` is evaluated as `((a + b) + c)`
 
-Just as in Scala, operators that have a trailing colon are right-associative.
+Operators that have a trailing apostrophe are right-associative. For example, `a +' b +' c` is evaluated as `(a +' (b +' c))`
+
+##### Right-associative operators
+
+1. Exponentiation operator: `**`
+   The exponentiation operator is a right-associative operator with precedence that is higher than addition, subtraction, multiplication, and division.
 
 ##### Special operators
 
@@ -475,14 +587,18 @@ Some operators have special semantics, and may not be overridden.
 
 1. Assignment operator: `=`
    The assignment operator is used in assignment expressions to assign the value expressed in the right hand side (RHS) of the assignment expression to the identifier or identifiers specified in the left hand side (LHS) of the assignment expression. The assignment operator is right-associative. The assignment operator is not a function, and as a result, is not a first-class object that may be used as a value.
-2. Exponentiation operator: `**`
-   The exponentiation operator is a right-associative operator with precedence that is higher than addition, subtraction, multiplication, and division.
 
 ## Interfaces
 
-An interface is a set of functions that are guaranteed to be defined for a given type or type constructor.
+An interface is a set of functions that are guaranteed to be defined for a given type.
 
-An interface can be used as either a constraint on a type, or a type expression. When used as a constraint on a type, the type being constrained is deemed to implement the interface. When used as a type expression, the interface represents a constrained view of the type being represented.
+An interface can be used to represent either (1) an abstract type, or (2) a constraint on a type or type variable.
+
+When used as an abstract type, the interface functions as a lens through which we see and interact with some underlying type that implements the interface. This form of polymorphism allows us to use different types as if they were the same type. For example, if the concrete types Int and Float both implement an interface called Numeric, then one could create an `Array Numeric` consisting of both `Int` and `Float` values.
+
+When used as a constraint on a type, the interpretation is that some context needs to reference the underlying type, while also making a claim or guarantee that the underlying type implements the interface.
+
+### Interface Definitions
 
 Interfaces are defined with the following syntax:
 ```
@@ -493,26 +609,241 @@ interface A [B C ...] for D [E F ...] {
 ```
 where A is the name of the interface optionally parameterized with type parameters, B, C, etc., and where D is a type variable deemed to implement interface A.
 
-The type expression in the for clause is called the interface's "self type variable". The self type variable is a type variable representing the type or type constructor that will implement the interface. In the syntax above, `D [E F ...]` is the self type variable.
+The type expression in the for clause is called the interface's *self type*. The self type is a concrete or polymorphic type representing the type that will implement the interface. In the syntax above, `D [E F ...]` represents the self type.
 
-D may represent either a concrete type or a type constructor depending on whether D's type parameters (if applicable) are specified with named types and type variables (e.g. E, F, Int, Float, etc.) or left unspecified with type placeholders (i.e. underscores, `_`). If D's type parameters are fully specified with named types and type variables, then D is considered to be a concrete type. If D's type parameters are specified with underscores, then D is considered to be a type constructor of N type parameters, where N is the number of type parameters that were left unspecified through the use of placeholder syntax (i.e. underscores supplied as type parameters).
+D may represent either a concrete type or a polymorphic type depending on whether D's type parameters (if applicable) are bound or unbound (see [Type Expressions](#type-expressions) for more on bound vs. unbound type parameters).
+
+Here are a few example interface definitions:
+
+```
+// Stringable interface
+interface Stringable for T {
+  fn toString(T) -> String
+}
+
+// Comparable interface
+interface Comparable for T {
+  fn compare(T, T) -> Int
+}
+
+// Enumerable interface
+interface Enumerable T for E {
+  fn each(E, T -> Unit) -> Unit
+  fn iterator(e: E) -> Iterator T = buildIterator { e.each(yield) }
+}
+
+// Mappable interface (Functor to you Haskell folks)
+interface Mappable A for M _ {
+  fn map(m: M A, convert: A -> B) -> M B
+}
+```
+
+### Interface Implementations
+
+Interface implementations are defined with the following syntax:
+```
+impl [X, Y, Z, ...] A [B C ...] for D [E F ...] {
+	fn foo(T1, T2, ...) -> T3 { ... }
+	...
+}
+```
+where X, Y, and Z are free type parameters and type constraints that are scoped to the implementation of the interface (i.e. the types bound to those type variables are constant within a specific implementation of the interface), A is the name of the interface parameterized with type parameters B, C, etc., and where `D [E F ...]` is the type that is implementing interface A.
+
+Here are some example interface implementations:
+
+```
+struct Person { name: String, address: String }
+impl Stringable for Person {
+  fn toString(p: Person) -> String => "Name: ${p.Name}\nAddress: ${p.Address}"
+}
+
+impl Comparable for Person {
+  fn compare(p1, p2) => compare(p1.Name, p2.Name)
+}
+
+impl Enumerable T for Array T {
+  fn each(array: Array T, visit: T -> Unit) -> Unit {
+    i = 0
+    length = array.length()
+    while i < length {
+      visit(array[i])
+      i += 1
+    }
+  }
+}
+
+struct OddNumbers { start: Int, end: Int }
+impl Enumerable Int for OddNumbers {
+  fn each(oddNumbersRange: OddNumbers, visit: Int -> Unit) {
+    for i in start..end { visit(i) }
+  }
+}
+
+impl Mappable A for Array {
+  fn map(arr: Array A, convert: A -> B) -> Array B {
+    ab = ArrayBuilder(0, arr.length)  # length, capacity
+    arr.each { element => convert(element) |> ab.add }
+    ab.toArray
+  }
+}
+```
+
+### Interface Usage
 
 When calling a function defined in an interface, a client may supply either (1) a value of a type that implements the interface or (2) a value of the interface type to the function in any argument that is typed as the interface's self type.
+
 For example, given:
 ```
-interface Enumerable T for E T {
-  fn each(E T, T -> Unit) -> Unit
+interface Enumerable T for E {
+  fn each(E, T -> Unit) -> Unit
+  ...
 }
 ```
 a client may call the `each` function by supplying a value of type `Enumerable T` as the first argument to `each`, like this:
 ```
 // assuming Array T implements the Enumerable T interface
-e: Enumerable Int = Array(1, 2, 3)
+e: Enumerable Int = Array(1, 2, 3)    // e has type Enumerable Int
 each(e, puts)
 ```
 or `each` may be called by supplying a value of type `Array T` as the first argument, like this:
 ```
 // assuming Array T implements the Enumerable T interface
-e = Array(1, 2, 3)
+e = Array(1, 2, 3)    // e has type Array Int
 each(e, puts)
 ```
+
+## Pattern Matching
+
+Pattern matching expression take the following general form:
+
+```
+<expression0> match {
+  case <pattern1> => <expression1>
+  case <pattern2> => <expression2>
+  case _ => <expression3>
+}
+```
+
+For example:
+
+```
+union House =
+  | TinyHouse { sqft: Float }
+  | SmallHouse { sqft: Float } 
+  | MediumHouse { sqft: Float } 
+  | LargeHouse { sqft: Float }
+  | HugeHouse { sqft: Float, pools: Int }
+
+fn buildHouse(h: House) => h match {
+  case TinyHouse | SmallHouse => puts("build a small house")
+  case m: MediumHouse => puts("build a modest house - $m")
+  case LargeHouse(area) => puts ("build a large house of $area sq. ft.")
+  case HugeHouse(_, poolCount) => puts ("build a huge house with $poolCount pools!")
+}
+```
+
+## Destructuring
+
+Destructuring is the binding of variable names to positional or named values within a data structure. Destructuring may be used in assignment expressions, function parameter lists, and pattern matching case expressions.
+
+Structs, tuples, pairs, arrays, and maps support destructuring. Unions do not support destructuring.
+
+The following three sections demonstrate destructuring in three different contexts. The examples assume the following Person structure definition:
+
+```
+struct Person {
+  name: String
+  height: Float
+  weight: Float
+  age: Int
+}
+```
+
+### Assignment Destructuring
+
+```
+fn printPersonInfo(p: Person) {
+  Person(n,h,w,a) = p
+  puts("name=$n   height=$h   weight=$w   age=$a")
+}
+
+printPersonInfo(Person("Jim", 6.0833, 170, 25))
+```
+
+### Parameter Destructuring
+
+```
+fn printPersonInfo(p: Person(n, h, w, a)) {
+  puts("name=$n   height=$h   weight=$w   age=$a")
+}
+
+printPersonInfo(Person("Jim", 6.0833, 170, 25))
+```
+
+### Pattern Matching Destructuring
+
+```
+// assuming h is of type House
+h match {
+  case TinyHouse | SmallHouse => puts("build a small house")
+  case m: MediumHouse => puts("build a modest house - $m")
+  case LargeHouse(area) => puts ("build a large house of $area sq. ft.")
+  case HugeHouse(poolCount=pools) => puts ("build a huge house with $poolCount pools!")
+}
+```
+
+## Breakpoints / Non-local Return
+
+Breakpoints are labels that correspond to a position in the call stack, such that, if a `break <label> <value>` statement is evaluated, the call stack is unwound up to the point at which the the breakpoint was established, and the breakpoint expression resolves to the value supplied to the `break` statement.
+
+Breakpoint expressions take the following form:
+
+```
+breakpoint <label> {
+  ...
+  break <label> <value> if <condition>
+  ...
+}
+```
+
+To following example demonstrates an implementation of short circuiting logic, achieved via breakpoints. The example implements the `all?` function defined within the `Enumerable` interface. The combination of the breakpoint and the `break` within the `each` block implements immediate return from `all?` upon the first observation of a false evaluation of the predicate function. This short-circuiting logic prevents further unnecessary evaluations of the predicate function once the first observation of a false return value is observed:
+
+```
+fn all?(enumerable: E, predicate: T -> Boolean) -> Boolean {
+  breakpoint :stop {
+    enumerable.each { t => break :stop false unless predicate(t) }
+    true
+  }
+}
+```
+
+## Exceptions
+
+```
+struct Foo {code: Int, msg: String}
+
+fn pp(w: Widget) {
+  raise Foo(msg = "", code=5) if w.type.undefined?
+}
+
+fn foo() {
+  bar()
+  try {
+    baz()
+  } catch {
+    case Foo(m=msg) => "puts foo error!"
+  }
+  qux()
+}
+
+fn main() {
+  pp(Widget(name = "card shuffler"))
+} catch {
+  case f: Foo(m=msg) => puts "foo error = $f"
+  case _ => puts "other error"
+} ensure {
+  puts("ensure block called!")
+}
+```
+
+Expressions that need to be evaluated prior to function return should be placed in an ensure block. Ensure blocks may be used to suffix try/catch expression, or they may be used to suffix function definitions.
