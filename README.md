@@ -1,6 +1,6 @@
 # Able Language
 
-Able is a programming language that aims to be pleasant to use, relatively small (on par with Go), and relatively fast (in the same ballpark as Java or Go).
+Able is a programming language that aims to be pleasant to use, relatively small, and relatively fast (in the same ballpark as Java or Go).
 
 Here are a few sample programs to give you a feel for the language:
 
