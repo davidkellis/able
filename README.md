@@ -99,12 +99,21 @@ fn primesLessThan(max: Uint, i: UInt, primesFound: List UInt) -> List UInt {
   - [Interface Definitions](#interface-definitions)
   - [Interface Implementations](#interface-implementations)
   - [Interface Usage](#interface-usage)
-- [Pattern Matching](#pattern-matching)
+- [Control Flow Expressions](#control-flow-expressions)
+  - [If](#if)
+    - [Suffix Syntax](#suffix-syntax)
+    - [Ternary Syntax](#ternary-syntax)
+  - [Unless Suffix Syntax](#unless-suffix-syntax)
+  - [Pattern Matching](#pattern-matching)
+  - [Looping](#looping)
+    - [while](#while)
+    - [for](#for)
+    - [break/continue](#breakcontinue)
+  - [Jump-points / Non-local Return](#jump-points--non-local-return)
 - [Destructuring](#destructuring)
   - [Assignment Destructuring](#assignment-destructuring)
   - [Parameter Destructuring](#parameter-destructuring)
   - [Pattern Matching Destructuring](#pattern-matching-destructuring)
-- [Breakpoints / Non-local Return](#breakpoints--non-local-return)
 - [Exceptions](#exceptions)
 - [Lazy Evaluation](#lazy-evaluation)
   - [By-name Evaluation (not memoized)](#by-name-evaluation-not-memoized)
@@ -877,7 +886,56 @@ e = Array(1, 2, 3)    // e has type Array Int
 each(e, puts)
 ```
 
-## Pattern Matching
+## Control Flow Expressions
+
+### If
+
+All `if` statements are expressions, evaluating to the last expression in the branch taken. In cases that an if expression
+doesn't define a possible branch and that branch is taken, the if expression evaluates to nil.
+
+```
+if <condition> {
+  ...
+}
+```
+
+```
+if <condition> {
+  ...
+} else {
+  ...
+}
+```
+
+```
+if <condition> {
+  ...
+} elsif {
+  ...
+} else {
+  ...
+}
+```
+
+#### Suffix Syntax
+
+```
+<expression> if <condition>
+```
+
+#### Ternary Syntax
+
+```
+<condition> ? <true branch expression> : <false branch expression>
+```
+
+### Unless Suffix Syntax
+
+```
+<expression> unless <condition>
+```
+
+### Pattern Matching
 
 Pattern matching expression take the following general form:
 
@@ -904,6 +962,54 @@ fn buildHouse(h: House) => h match {
   case m: MediumHouse => puts("build a modest house - $m")
   case LargeHouse(area) => puts ("build a large house of $area sq. ft.")
   case HugeHouse(_, poolCount) => puts ("build a huge house with $poolCount pools!")
+}
+```
+
+### Looping
+
+#### while
+
+```
+while <condition> {
+  ...
+}
+```
+
+#### for
+
+```
+for <variable> in <Iterator value> {
+  ...
+}
+```
+
+#### break/continue
+
+`break` and `continue` may be used within any looping construct in order to break out of the loop or continue to
+the next iteration of the loop, just as in most C-like languages.
+
+### Jump-points / Non-local Return
+
+Jump-points are labels that correspond to a position in the call stack, such that, if a `jump <label> <value>` statement is evaluated, the call stack is unwound up to the point at which the jump-point was established, and the `jumppoint` expression resolves to the value supplied to the `jump` statement.
+
+Jump-point expressions take the following form:
+
+```
+jumppoint <label> {
+  ...
+  jump <label> <value>
+  ...
+}
+```
+
+To following example demonstrates an implementation of short circuiting logic, achieved via jump-points. The example implements the `all?` function defined within the `Enumerable` interface. The combination of the `jumppoint` and the `jump` within the `each` block implements immediate return from `all?` upon the first observation of a false evaluation of the predicate function. This short-circuiting logic prevents further unnecessary evaluations of the predicate function once the first observation of a false return value is observed:
+
+```
+fn all?(enumerable: E, predicate: T -> Boolean) -> Boolean {
+  jumppoint :stop {
+    enumerable.each { t => jump :stop false unless predicate(t) }
+    true
+  }
 }
 ```
 
@@ -954,31 +1060,6 @@ h match {
   case m: MediumHouse => puts("build a modest house - $m")
   case LargeHouse(area) => puts ("build a large house of $area sq. ft.")
   case HugeHouse(poolCount=pools) => puts ("build a huge house with $poolCount pools!")
-}
-```
-
-## Breakpoints / Non-local Return
-
-Breakpoints are labels that correspond to a position in the call stack, such that, if a `break <label> <value>` statement is evaluated, the call stack is unwound up to the point at which the breakpoint was established, and the breakpoint expression resolves to the value supplied to the `break` statement.
-
-Breakpoint expressions take the following form:
-
-```
-breakpoint <label> {
-  ...
-  break <label> <value>
-  ...
-}
-```
-
-To following example demonstrates an implementation of short circuiting logic, achieved via breakpoints. The example implements the `all?` function defined within the `Enumerable` interface. The combination of the breakpoint and the `break` within the `each` block implements immediate return from `all?` upon the first observation of a false evaluation of the predicate function. This short-circuiting logic prevents further unnecessary evaluations of the predicate function once the first observation of a false return value is observed:
-
-```
-fn all?(enumerable: E, predicate: T -> Boolean) -> Boolean {
-  breakpoint :stop {
-    enumerable.each { t => break :stop false unless predicate(t) }
-    true
-  }
 }
 ```
 
