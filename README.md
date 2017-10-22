@@ -1141,6 +1141,53 @@ By-need evaluation is supported through the `Lazy` marker type.
 
 The `Lazy` marker type has the same semantics as the `Thunk` marker type, with the exception that the value produced by the first access is memoized, such that subsequent accesses of the value return the same instance of the value.
 
+
+## Macros
+
+Able supports meta-programming in the form of compile-time macros.
+
+Macros are special code-emitting functions that capture a code template and emit a filled in template at each call site. When a macro is invoked, the expressions supplied as arguments remain unevaluated, and are passed in as AST nodes. Within the body of the macro function, any placeholders in the code template are filled in, or replaced, by interpolating the function's arguments into the template at the placeholder locations.
+
+For example:
+```
+macro defineJsonEncoder(type) {
+  fn encode(val: {{type}}) -> String {
+    b = StringBuilder()
+    {% for (fieldName, fieldType) in typeof(type).fields %}
+      b << json.encode{{fieldType}}Field("{{fieldName}}", val.{{fieldName}})
+    {% end %}
+    b.toString
+  }
+}
+
+struct Person { name: String, age: Int }
+defineJsonEncoder(Person)
+// this call emits the following
+// fn encode(val: Person) -> String {
+//   b = StringBuilder()
+//   b << json.encodeStringField("name", val.name)
+//   b << json.encodeIntField("age", val.age)
+//   b.toString
+// }
+
+
+struct Address { name: String, address1: String, address2: String, city: String, state: String, zip: String }
+defineJsonEncoder(Address)
+// this call emits the following
+// fn encode(val: Address) -> String {
+//   b = StringBuilder()
+//   b << json.encodeStringField("name", val.name)
+//   b << json.encodeStringField("address1", val.address1)
+//   b << json.encodeStringField("address2", val.address2)
+//   b << json.encodeStringField("city", val.city)
+//   b << json.encodeStringField("state", val.state)
+//   b << json.encodeStringField("zip", val.zip)
+//   b.toString
+// }
+```
+
+
+
 ## Concurrency
 
 Able supports the following concurrency mechanisms:
