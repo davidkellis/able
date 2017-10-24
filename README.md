@@ -118,6 +118,7 @@ fn primesLessThan(max: Uint, i: UInt, primesFound: List UInt) -> List UInt {
 - [Lazy Evaluation](#lazy-evaluation)
   - [By-name Evaluation (not memoized)](#by-name-evaluation-not-memoized)
   - [By-need Evaluation (memoized)](#by-need-evaluation-memoized)
+- [Macros](#macros)
 - [Concurrency](#concurrency)
   - [Call stacks (threads of execution)](#call-stacks-threads-of-execution)
     - [Semantics](#semantics)
@@ -241,6 +242,10 @@ x: Array Float = Array(5.6, 5.7, 8)
 
 ```
 m = Map(1 :: "Foo", 2 :: "Bar")
+m = Map(
+  1 :: "Foo",
+  2 :: "Bar"
+)
 m[3] = "Baz"
 m << 4::"Qux"
 ```
@@ -725,7 +730,7 @@ Some operators have special semantics, and may not be overridden.
    paintHouse(color)   // value of type Color
    ```
 
-5. When passing a value of a union type to a function, the function must either be defined in terms of a parameter of the union type, or be defined for each member of the union type. If both alternatives are fully defined, then the function defined in terms of the union type is preferred.
+5. When passing a value of a union type to a function, the function must either be defined in terms of a parameter of the union type, or be defined for each member of the union type. If both alternatives are fully defined, then the function defined in terms of the union type is preferred; however, if the function is called with a value of one of the union's member types, then the function defined in terms of the member type is preferred (see special case #6 for more information).
 
    For example, given
    ```
@@ -1148,16 +1153,32 @@ Able supports meta-programming in the form of compile-time macros.
 
 Macros are special code-emitting functions that capture a code template and emit a filled in template at each call site. When a macro is invoked, the expressions supplied as arguments remain unevaluated, and are passed in as AST nodes. Within the body of the macro function, any placeholders in the code template are filled in, or replaced, by interpolating the function's arguments into the template at the placeholder locations.
 
+Macro definitions take the form:
+```
+macro <name of macro function>(<parameters>) {
+  <pre-template logic goes here>
+  `<template goes here>`
+}
+```
+
+All macros return a value of type AstNode. The backtick-enclosed template is a syntax-literal representation of an AstNode.
+
+Templates may include tags that inject values into the template or evaluate arbitrary code. The two types of supported tags are
+- <%= expression %> - Value or expression insertion tags
+- <% expression %> - Code evaluation tags
+
 For example:
 ```
 macro defineJsonEncoder(type) {
-  fn encode(val: {{type}}) -> String {
+  `
+  fn encode(val: <%= type %>) -> String {
     b = StringBuilder()
-    {% for (fieldName, fieldType) in typeof(type).fields %}
-      b << json.encode{{fieldType}}Field("{{fieldName}}", val.{{fieldName}})
-    {% end %}
+    <% for (fieldName, fieldType) in typeof(type).fields { %>
+      b << json.encode<%= fieldType %>Field("<%= fieldName %>", val.<%= fieldName %>)
+    <%= } %>
     b.toString
   }
+  `
 }
 
 struct Person { name: String, age: Int }
@@ -1185,7 +1206,6 @@ defineJsonEncoder(Address)
 //   b.toString
 // }
 ```
-
 
 
 ## Concurrency
