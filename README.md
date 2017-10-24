@@ -1167,6 +1167,8 @@ Templates may include tags that inject values into the template or evaluate arbi
 - <%= expression %> - Value or expression insertion tags
 - <% expression %> - Code evaluation tags
 
+The invocation of a macro function injects the returned AstNode into the AST - or equivalently, substitutes the returned expression into the source code - at the call site.
+
 For example:
 ```
 macro defineJsonEncoder(type) {
