@@ -192,6 +192,27 @@ References:
 
 - https://www.haskell.org/tutorial/goodies.html has a good article on types, type expressions, type variables, etc.
 
+### Type Constraints
+
+In places where type parameters may be constrained, the following constraints may be used:
+- Implements constraint
+- Union superset constraint
+
+#### Implements Constraint
+
+`T: I` is read as type T implements interface I.
+
+`T: I + J + K` is read as type T implements interface I and J and K.
+
+#### Union Superset Constraint
+
+`T supersetOf X|Y|Z` is read as type T is a superset of the type union X|Y|Z.
+
+The right-hand-side of the supersetOf type operator may be a single-member set, for example `T supersetOf Nil` would means
+`T` is a union type that has Nil as a member type; the superset may be Nil, Nil | Int, Nil | Int | String, etc.
+
+The supersetOf type operator doesn't imply that the left-hand-side is a proper superset of the right-hand-side; the two type unions may be equal.
+
 ## Variables
 
 Variables are defined with the following syntax:
@@ -212,6 +233,7 @@ and if the type can be inferred, then the definition may be shortened to:
 - Array
 - Map
 - Tuple
+- Ranges
 - Struct
 - Union
 - Function
@@ -264,6 +286,13 @@ if record._1 == 1 then puts("you're in first place!")
 Pair syntax is just syntactic sugar for expressing 2-tuples.
 
 `(1, "Foo")` can be written as `1 :: "Foo"` or `1::"Foo"`
+
+## Ranges
+
+```
+1..10 |> toArray   // Array(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+0...10 |> toArray  // Array(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)
+```
 
 ## Structs
 
@@ -1177,7 +1206,7 @@ macro defineJsonEncoder(type) {
     b = StringBuilder()
     <% for (fieldName, fieldType) in typeof(type).fields { %>
       b << json.encode<%= fieldType %>Field("<%= fieldName %>", val.<%= fieldName %>)
-    <%= } %>
+    <% } %>
     b.toString
   }
   `
