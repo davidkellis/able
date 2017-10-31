@@ -592,15 +592,13 @@ For example:
 
 With explicit return type:
 
-1. fn createPair(a, b: Int) -> Pair Int { Pair(a, b) }<br>
+1. fn createPair(a, b: Int) -> Pair Int { Pair(a, b) }
    fn createPair(a, b: Int) -> Pair Int => Pair(a, b)
-
-2. createPair = fn(a, b: Int) -> Pair Int { Pair(a, b) }<br>
+2. createPair = fn(a, b: Int) -> Pair Int { Pair(a, b) }
    createPair = fn(a, b: Int) -> Pair Int => Pair(a, b)
 
 3. createPair = (a, b: Int) -> Pair Int { Pair(a,b) }<br>
    createPair = (a, b: Int) -> Pair Int => Pair(a, b)
-
 4. createPair = { a, b: Int -> Pair Int => Pair(a,b) }
 
 With inferred return type:
