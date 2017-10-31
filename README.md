@@ -256,8 +256,7 @@ In places where type parameters may be constrained, the following constraints ma
 
 `T supersetOf X|Y|Z` is read as type T is a superset of the type union X|Y|Z.
 
-The right-hand-side of the supersetOf type operator may be a single-member set, for example `T supersetOf Nil` would means
-`T` is a union type that has Nil as a member type; the superset may be Nil, Nil | Int, Nil | Int | String, etc.
+The right-hand-side of the supersetOf type operator may be a single-member set, for example `T supersetOf Nil` would mean `T` is a union type that has Nil as a member type. For example, the superset may be `Nil`, `Nil | Int`, `Nil | Int | String`, etc.
 
 The supersetOf type operator doesn't imply that the left-hand-side is a proper superset of the right-hand-side; the two type unions may be equal.
 
@@ -897,12 +896,14 @@ When used as a constraint on a type, the interpretation is that some context nee
 
 Interfaces are defined with the following syntax:
 ```
-interface A [B C ...] for D [E F ...] {
+interface A [B C ...] [for D [E F ...]]{
 	fn foo(T1, T2, ...) -> T3
 	...
 }
 ```
-where A is the name of the interface optionally parameterized with type parameters, B, C, etc., and where D is a type variable deemed to implement interface A.
+where A is the name of the interface optionally parameterized with type parameters, B, C, etc.
+
+The `for` clause is optional. When present, the `for` clause specifies that a type variable, D, is deemed to implement interface A. If no `for` clause is specified, then the interface serves as a type constraint on types A, B, C, etc.
 
 The type expression in the for clause is called the interface's *self type*. The self type is a concrete or polymorphic type representing the type that will implement the interface. In the syntax above, `D [E F ...]` represents the self type.
 
@@ -931,18 +932,24 @@ interface Enumerable T for E {
 interface Mappable A for M _ {
   fn map(m: M A, convert: A -> B) -> M B
 }
+
+// Types that satisfy the Range interface may be used with range literal syntax (e.g. S..E, or S...E) to represent a range of values.
+interface Range S E Out {
+  fn inclusiveRange(start: S, end: E) -> Enumerable Out
+  fn exclusiveRange(start: S, end: E) -> Enumerable Out
+}
 ```
 
 ### Interface Implementations
 
 Interface implementations are defined with the following syntax:
 ```
-impl [X, Y, Z, ...] A <B C ...> for D <E F ...> {
+impl [X, Y, Z, ...] A <B C ...> [for D <E F ...>] {
 	fn foo(T1, T2, ...) -> T3 { ... }
 	...
 }
 ```
-where X, Y, and Z are free type parameters and type constraints that are scoped to the implementation of the interface (i.e. the types bound to those type variables are constant within a specific implementation of the interface) and enclosed in square brackets, A is the name of the interface parameterized with type parameters B, C, etc. (if applicable), and where `D <E F ...>` is the type that is implementing interface A.
+where X, Y, and Z are free type parameters and type constraints that are scoped to the implementation of the interface (i.e. the types bound to those type variables are constant within a specific implementation of the interface) and enclosed in square brackets, A is the name of the interface parameterized with type parameters B, C, etc. (if applicable), and where `D <E F ...>` is the type that is implementing interface A. In the case that an interface was specified without a `for` clause, then the `for` clause in an implementation of the interface would be omitted.
 
 Here are some example interface implementations:
 
@@ -981,6 +988,12 @@ impl Mappable A for Array {
     ab.toArray
   }
 }
+
+// implement Range for Float start and end values (e.g. 1.2..4.5, and 1.2...4.5)
+impl Range Float Float Int {
+  fn inclusiveRange(start: Float, end: Float) -> Enumerable Int => start.ceil..end.floor
+  fn exclusiveRange(start: Float, end: Float) -> Enumerable Int => start.ceil...end.floor
+}
 ```
 
 ### Interface Usage
@@ -1006,6 +1019,14 @@ or `each` may be called by supplying a value of type `Array T` as the first argu
 e = Array(1, 2, 3)    // e has type Array Int
 each(e, puts)
 ```
+
+In cases where the interface was defined without a `for` clause, then the interface may only be used as a type constraint. For example:
+
+```
+fn buildIntRange[S, E, Range S E Int](start: S, end: E) -> Enumerable Int => start..end
+```
+
+
 
 ## Control Flow Expressions
 
