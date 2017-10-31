@@ -19,20 +19,26 @@ fn main() {
 ```
 // recursive
 fn factorial(n: UInt) => n < 2 ? 1 : n * factorial(n - 1)
+```
 
+```
 // tail recursive
 fn factorial(n) => factorial(n, 1)
 fn factorial(n: UInt, product: UInt) -> UInt {
   if n < 2 then product else factorial(n - 1, n * product)
 }
+```
 
+```
 // iterative
 fn factorial(n: UInt) {
   return 1 if n < 2
   for i in 2...n { n *= i }
   n
 }
+```
 
+```
 // reduce
 fn factorial(n: UInt) {
   return 1 if n <= 1
@@ -178,7 +184,42 @@ A package introduces a new variable scope that forms the root scope for any othe
   p("${Unicode.abbreviation} is Unicode; ${i18n.Ascii.abbreviation} is Ascii")
   ```
 
-## Type Expressions
+## Variables
+
+Variables are defined with the following syntax:
+
+```
+<variable name>: <type name> = <value expression>
+```
+
+and if the type can be inferred, then the definition may be shortened to:
+
+```
+<variable name> = <value expression>
+```
+
+## Types
+
+### Built-In Types
+
+- Boolean
+- Integer types - Int8, Int16, Int32 (Int), Int64, UInt8 (Byte), UInt16, UInt32 (UInt), UInt64
+- Floating point types - Float, Double
+- String
+- Array
+- Map
+- Range
+- Tuple
+- Struct
+- Union
+- Function
+- Interface
+- Thunk
+- Lazy
+- CallStackLocal
+- Channel
+
+### Type Expressions
 
 A type is a name given to a set of values, and every value has an associated type. For example, `Boolean` is the name given to the set `{true, false}`, and the value `true` is of type `Boolean`.  `TwoBitUnsignedInt` might be the type name we give to the set `{0, 1, 2, 3}`, such that `3` would be a value of type `TwoBitUnsignedInt`.
 
@@ -213,18 +254,7 @@ The right-hand-side of the supersetOf type operator may be a single-member set, 
 
 The supersetOf type operator doesn't imply that the left-hand-side is a proper superset of the right-hand-side; the two type unions may be equal.
 
-## Variables
-
-Variables are defined with the following syntax:
-```
-<variable name>: <type name> = <value expression>
-```
-and if the type can be inferred, then the definition may be shortened to:
-```
-<variable name> = <value expression>
-```
-
-### Built-In Types
+## Primitive Types
 
 - Boolean
 - Integer types - Int8, Int16, Int32 (Int), Int64, UInt8 (Byte), UInt16, UInt32 (UInt), UInt64
@@ -232,18 +262,14 @@ and if the type can be inferred, then the definition may be shortened to:
 - String
 - Array
 - Map
+- Range
 - Tuple
-- Ranges
-- Struct
-- Union
-- Function
-- Interface
-- Thunk
-- Lazy
-- CallStackLocal
-- Channel
 
-## Strings
+### Boolean
+
+There are two boolean literals: `true` and `false`
+
+### String
 
 All string literals are double quoted.
 
@@ -253,14 +279,18 @@ greeting = "Hello $name"
 greeting2 = "Hello ${name}"
 ```
 
-## Arrays
+### Array
+
+There is no array literal syntax. Rather, arrays are created with the `Array` constructor function.
 
 ```
 x = Array(1,2,3)
 x: Array Float = Array(5.6, 5.7, 8)
 ```
 
-## Maps
+### Map
+
+As with arrays, there are no map literals. Maps are created with the `Map` constructor function.
 
 ```
 m = Map(1 :: "Foo", 2 :: "Bar")
@@ -271,6 +301,65 @@ m = Map(
 m[3] = "Baz"
 m << 4::"Qux"
 ```
+
+### Range
+
+Ranges take the following form:
+
+```
+// inclusive range
+<expression>..<expression>
+
+// exclusive range
+<expression>...<expression>
+```
+
+For example:
+
+```
+// inclusive range
+1..10 |> toArray   // Array(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+
+// exclusive range
+0...10 |> toArray  // Array(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)
+```
+
+Ranges may be created with any set of types that fulfill the `Range` interface, defined below:
+
+```
+interface Range S E Out {
+  fn inclusiveRange(start: S, end: E) -> Enumerable Out
+  fn exclusiveRange(start: S, end: E) -> Enumerable Out
+}
+```
+
+There are several default implementations of the `Range` interface, for example, here is the default one for `Int` ranges:
+
+```
+impl Range Int Int Int {
+  fn inclusiveRange(start: Int, end: Int) -> Enumerable Int {
+    buildIterator {
+      i = start
+      while i <= end {
+        yield(i)
+        i += 1
+      }
+    }
+  }
+
+  fn exclusiveRange(start: Int, end: Int) -> Enumerable Out {
+    buildIterator {
+      i = start
+      while i < end {
+        yield(i)
+        i += 1
+      }
+    }
+  }
+}
+```
+
+By implementing the `Range` interface, user programs may take advantage of the range literal syntax for user-defined types.
 
 ## Tuples
 
@@ -286,13 +375,6 @@ if record._1 == 1 then puts("you're in first place!")
 Pair syntax is just syntactic sugar for expressing 2-tuples.
 
 `(1, "Foo")` can be written as `1 :: "Foo"` or `1::"Foo"`
-
-## Ranges
-
-```
-1..10 |> toArray   // Array(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
-0...10 |> toArray  // Array(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)
-```
 
 ## Structs
 
@@ -506,13 +588,13 @@ With explicit return type:
 1. fn createPair(a, b: Int) -> Pair Int { Pair(a, b) }<br>
    fn createPair(a, b: Int) -> Pair Int => Pair(a, b)
 
-3. createPair = fn(a, b: Int) -> Pair Int { Pair(a, b) }<br>
+2. createPair = fn(a, b: Int) -> Pair Int { Pair(a, b) }<br>
    createPair = fn(a, b: Int) -> Pair Int => Pair(a, b)
 
-4. createPair = (a, b: Int) -> Pair Int { Pair(a,b) }<br>
+3. createPair = (a, b: Int) -> Pair Int { Pair(a,b) }<br>
    createPair = (a, b: Int) -> Pair Int => Pair(a, b)
 
-5. createPair = { a, b: Int -> Pair Int => Pair(a,b) }
+4. createPair = { a, b: Int -> Pair Int => Pair(a,b) }
 
 With inferred return type:
 
@@ -721,7 +803,7 @@ Some operators have special semantics, and may not be overridden.
    For example, rather than writing:
       ```
    Array(1,2,3).reduce(0, { sum, x => sum + x})
-   ```
+      ```
    you may write
    ```
    ​Array(1,2,3).reduce(0) { sum, x => sum + x }
@@ -775,10 +857,10 @@ Some operators have special semantics, and may not be overridden.
    ```
    is allowable only if:
    - `paintHouse(Color)` has been defined
-   <br>OR
+     <br>OR
    - `paintHouse(Red)` has been defined, and<br>
-   `paintHouse(Green)` has been defined, and<br>
-   `paintHouse(Blue)` has been defined
+     `paintHouse(Green)` has been defined, and<br>
+     `paintHouse(Blue)` has been defined
 
    If `paintHouse(Color)` as well as `paintHouse(Red)`, `paintHouse(Green)`, and `paintHouse(Blue)` are all defined, then `paintHouse(Color)` is preferred.
 
@@ -1171,9 +1253,9 @@ References:
 
 In by-need evaluation, the expression is evaluated once, on the first occasion that the expression's value is needed, and the resulting value is memoized for future use.
 
-By-need evaluation is supported through the `Lazy` marker type.
+By-need evaluation is supported through the `Lazy` type.
 
-The `Lazy` marker type has the same semantics as the `Thunk` marker type, with the exception that the value produced by the first access is memoized, such that subsequent accesses of the value return the same instance of the value.
+The `Lazy` type has the same semantics as the `Thunk` type, with the exception that the value produced by the first access is memoized, such that subsequent accesses of the value return the same instance of the value.
 
 
 ## Macros
@@ -1193,8 +1275,8 @@ macro <name of macro function>(<parameters>) {
 All macros return a value of type AstNode. The backtick-enclosed template is a syntax-literal representation of an AstNode.
 
 Templates may include tags that inject values into the template or evaluate arbitrary code. The two types of supported tags are
-- <%= expression %> - Value or expression insertion tags
-- <% expression %> - Code evaluation tags
+- `<%= expression %>` - Value or expression insertion tags
+- `<% expression %>` - Code evaluation tags
 
 The invocation of a macro function injects the returned AstNode into the AST - or equivalently, substitutes the returned expression into the source code - at the call site.
 
