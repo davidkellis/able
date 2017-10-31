@@ -592,9 +592,9 @@ For example:
 
 With explicit return type:
 
-1. fn createPair(a, b: Int) -> Pair Int { Pair(a, b) }
+1. fn createPair(a, b: Int) -> Pair Int { Pair(a, b) }<br>
    fn createPair(a, b: Int) -> Pair Int => Pair(a, b)
-2. createPair = fn(a, b: Int) -> Pair Int { Pair(a, b) }
+2. createPair = fn(a, b: Int) -> Pair Int { Pair(a, b) }<br>
    createPair = fn(a, b: Int) -> Pair Int => Pair(a, b)
 
 3. createPair = (a, b: Int) -> Pair Int { Pair(a,b) }<br>
