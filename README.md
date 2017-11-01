@@ -148,6 +148,10 @@ Variable and function identifiers must conform to the pattern
 Package identifiers must conform to the pattern
 `[a-zA-Z0-9][a-zA-Z0-9_]*[a-zA-Z0-9_]?`
 
+There are two namespaces for identifiers. There is a type namespace and a value namespace. Within a package, type identifiers must be unique with respect to other type identifiers, and value identifiers must be unique with respect to other value identifiers. Is it valid to use the same identifier for both a type and a value, within the same package.
+
+Value identifiers introduced in a local scope will shadow any identifiers of the same name in any encompasing scope, so long as their types are different. If a value identifier used in a local scope shares the same name as an identifier in an encompasing scope and shares the same type, then the identifier in the local scope is treated as the same identifier in the encompasing scope, rather than as a new distinct identifier.
+
 ## Packages
 
 There must be one, and only one, package definition per file, specified at the top of the file.
@@ -664,8 +668,10 @@ createPair = { a, b: T => Pair(a, b) }
 
 #### Normal application
 
+Functions may be invoked with the normal function application syntax `<function object>(<arg>, <arg>, ...)`, as in:
+
 ```
-f(1,2,3)
+sum(Array(1,2,3)
 f(1,2,*xs)
 buildPair(1,2)
 map(Array(1,2,3), square)
@@ -860,8 +866,7 @@ Some operators have special semantics, and may not be overridden.
    paintHouse(color)
    ```
    is allowable only if:
-   - `paintHouse(Color)` has been defined
-     <br>OR
+   - `paintHouse(Color)` has been defined<br>OR
    - `paintHouse(Red)` has been defined, and<br>
      `paintHouse(Green)` has been defined, and<br>
      `paintHouse(Blue)` has been defined
@@ -881,6 +886,28 @@ Some operators have special semantics, and may not be overridden.
    fn paintHouse(c: Red) -> Boolean { ... }
    ```
    the expression `paintHouse(Red(5))` invokes the function defined by `fn paintHouse(c: Red) -> Boolean { ... }`.
+
+7. A value of type T may be treated as a function, and invoked with normal function application syntax, if a function named `apply`, defined with a first parameter of type T is in scope at the call site.
+
+   For example:
+   ```
+   fn apply(key: String, map: Map String V) -> Option V => map.get(key)
+   nameRankPairs = Map("joe" :: 1, "bob" :: 2, "tom" :: 3)
+   tomRank = "tom"(nameRankPairs)   // returns Some(3)
+   ```
+
+   Another example:
+   ```
+   fn apply(i, j: Int) -> Int => i * j
+   5(6)    // returns 30
+   ```
+
+   Apply functions may also be invoked with method syntax, as in the following:
+   ```
+   fn apply(i, j: Int) -> Int => i * j
+   5.apply(6)    // returns 30
+   ```
+
 
 ## Interfaces
 
@@ -1082,10 +1109,10 @@ if <condition> {
 Pattern matching expression take the following general form:
 
 ```
-<expression0> match {
-  case <pattern1> => <expression1>
-  case <pattern2> => <expression2>
-  case _ => <expression3>
+<expression> match {
+  case <pattern> => <expression>
+  case <pattern> => <expression>
+  case _ => <expression>
 }
 ```
 
@@ -1500,3 +1527,11 @@ spawn { c.receive |> puts }
 // at this point, both send operations will have completed,
 // and the receive buffer is full
 ```
+
+## Unsolved Problems
+
+- heterogeneous lists and maps
+- dynamic type
+- overlapping interface implementations
+- https://github.com/matthiasn/talk-transcripts/blob/master/Hickey_Rich/EffectivePrograms.md
+  - ability to cope with sparse data/composable information constructs (heterogeneous lists and maps)​
