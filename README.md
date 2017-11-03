@@ -1,4 +1,4 @@
-# Able Language
+# Able Programming Language
 
 Able is a programming language that aims to be pleasant to use, relatively small, and relatively fast (in the same ballpark as Java or Go).
 
@@ -150,7 +150,7 @@ Package identifiers must conform to the pattern
 
 There are two namespaces for identifiers. There is a type namespace and a value namespace. Within a package, type identifiers must be unique with respect to other type identifiers, and value identifiers must be unique with respect to other value identifiers. Is it valid to use the same identifier for both a type and a value, within the same package.
 
-Value identifiers introduced in a local scope will shadow any identifiers of the same name in any encompasing scope, so long as their types are different. If a value identifier used in a local scope shares the same name as an identifier in an encompasing scope and shares the same type, then the identifier in the local scope is treated as the same identifier in the encompasing scope, rather than as a new distinct identifier.
+Value identifiers introduced in a local scope will shadow any identifiers of the same name in any encompasing scope, so long as their types are different. If a value identifier used in a local scope shares the same name and type as an identifier in an encompasing scope, then the identifier in the local scope is treated as the same identifier in the encompasing scope, rather than as a new distinct identifier.
 
 ## Packages
 
@@ -871,7 +871,7 @@ Some operators have special semantics, and may not be overridden.
      `paintHouse(Green)` has been defined, and<br>
      `paintHouse(Blue)` has been defined
 
-   If `paintHouse(Color)` as well as `paintHouse(Red)`, `paintHouse(Green)`, and `paintHouse(Blue)` are all defined, then `paintHouse(Color)` is preferred.
+   If `paintHouse(Color)` as well as `paintHouse(Red)`, `paintHouse(Green)`, and `paintHouse(Blue)` are all defined, then the more specialized implementation - `paintHouse(Red)`, in this case - is preferred.
 
 6. If a function has been defined for both a union type, e.g. `union U = U1 | U2`, and an individual member of the union type, e.g. `U1`, and the function is called with a value of type `U1`, then the function that gets called is the one defined for the individual member of the union type.
 
@@ -1530,8 +1530,8 @@ spawn { c.receive |> puts }
 
 ## Unsolved Problems
 
-- heterogeneous lists and maps
-- dynamic type
+- special case #5 of function application
+- dynamic/any type - a union of all types
 - overlapping interface implementations
 - https://github.com/matthiasn/talk-transcripts/blob/master/Hickey_Rich/EffectivePrograms.md
-  - ability to cope with sparse data/composable information constructs (heterogeneous lists and maps)​
+  - ability to cope with sparse data/composable information constructs (heterogeneous lists and maps)
