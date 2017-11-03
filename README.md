@@ -1530,8 +1530,7 @@ spawn { c.receive |> puts }
 
 ## Unsolved Problems
 
-- special case #5 of function application
-- dynamic/any type - a union of all types
-- overlapping interface implementations
+- dynamic/**any** type - **a union of all types**
+- overlapping interface implementations - a simplified version of https://github.com/rust-lang/rfcs/blob/master/text/1210-impl-specialization.md
 - https://github.com/matthiasn/talk-transcripts/blob/master/Hickey_Rich/EffectivePrograms.md
   - ability to cope with sparse data/composable information constructs (heterogeneous lists and maps)
