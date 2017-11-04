@@ -87,6 +87,8 @@ fn primesLessThan(max: Uint, i: UInt, primesFound: List UInt) -> List UInt {
 - [Unions](#unions)
   - [Union definitions referencing predefined types](#union-definitions-referencing-predefined-types)
   - [Union definitions referencing new struct types](#union-definitions-referencing-new-struct-types)
+  - [Generic Unions](#generic-unions)
+  - [Any Type](#any-type)
 - [Blocks](#blocks)
 - [Functions](#functions)
   - [Named function syntax](#named-function-syntax)
@@ -112,6 +114,7 @@ fn primesLessThan(max: Uint, i: UInt, primesFound: List UInt) -> List UInt {
   - [Interface Definitions](#interface-definitions)
   - [Interface Implementations](#interface-implementations)
   - [Interface Usage](#interface-usage)
+  - [Overlapping Implementations / Impl Specificity](#overlapping-implementations--impl-specificity)
 - [Control Flow Expressions](#control-flow-expressions)
   - [If](#if)
     - [Suffix Syntax](#suffix-syntax)
@@ -137,6 +140,7 @@ fn primesLessThan(max: Uint, i: UInt, primesFound: List UInt) -> List UInt {
     - [Semantics](#semantics)
     - [Call stack local variables](#call-stack-local-variables)
   - [Channels](#channels)
+- [Unsolved Problems](#unsolved-problems)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
