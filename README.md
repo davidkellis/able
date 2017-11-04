@@ -443,6 +443,8 @@ Struct definitions can only appear in package scope.
 
 ## Unions
 
+Unions in Able are similar to discriminated unions in F#, enums in Rust, and algebraic data types in Haskell. A union type is a type made up of one or more member types, each of which can be any other type, even other union types.
+
 ### Union definitions referencing predefined types
 
 ```
@@ -483,6 +485,37 @@ struct MediumHouse { sqft: Float }
 struct LargeHouse { sqft: Float }
 union House = SmallHouse | MediumHouse | LargeHouse
 ```
+
+### Generic Unions
+
+Union types may be defined generically, as in the following examples.
+
+**With named fields:**
+
+``` 
+union Tree T = Leaf T { value: T } | Node T { value: T, left: Tree T, right: Tree T }
+
+// would be internally translated into
+struct Leaf T { value: T }
+struct Node T { value: T, left: Tree T, right: Tree T }
+union Tree T = Leaf T | Node T
+```
+
+**With positional fields:**
+
+```
+union Tree T = Leaf T { T } | Node T { T, Tree T, Tree T }
+
+// would be internally translated into
+struct Leaf T { T }
+struct Node T { T, Tree T, Tree T }
+union Tree T = Leaf T | Node T
+```
+
+
+### Any Type
+
+The `Any` type is a special union type that is the union of all types known to the compiler at compile time.
 
 ## Blocks
 
@@ -1055,6 +1088,28 @@ fn buildIntRange[S, E, Range S E Int](start: S, end: E) -> Enumerable Int => sta
 
 
 
+### Overlapping Implementations / Impl Specificity
+
+Since it is possible to define interface implementations that conflict, or overlap, with one another, we need some means to decide which one to use. In some cases, competing implementations are not clearly more specific than one another, but a good deal of the time, we can clearly define one implemention to be more specific than another.
+
+The following implementations, written without their implementation body, conflict with one another:
+
+```
+// overlap when T = Int
+impl Foo for T {}
+impl Foo for Int {}
+
+// overlap when T = Int
+impl Foo for Array T {}
+impl Foo for Array Int {}
+
+// overlap when T = U such that U: Bar
+impl Foo for T {}
+impl Foo for U: Bar {}
+```
+
+
+
 ## Control Flow Expressions
 
 ### If
@@ -1530,7 +1585,5 @@ spawn { c.receive |> puts }
 
 ## Unsolved Problems
 
-- dynamic/**any** type - **a union of all types**
-- overlapping interface implementations - a simplified version of https://github.com/rust-lang/rfcs/blob/master/text/1210-impl-specialization.md
 - https://github.com/matthiasn/talk-transcripts/blob/master/Hickey_Rich/EffectivePrograms.md
-  - ability to cope with sparse data/composable information constructs (heterogeneous lists and maps)
+  - ~~ability to cope with sparse data/composable information constructs (heterogeneous lists and maps)~~
