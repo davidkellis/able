@@ -950,9 +950,9 @@ Some operators have special semantics, and may not be overridden.
 
 An interface is a set of functions that are guaranteed to be defined for a given type.
 
-An interface can be used to represent either (1) an abstract type, or (2) a constraint on a type or type variable.
+An interface can be used to represent either (1) a type, or (2) a constraint on a type or type variable.
 
-When used as an abstract type, the interface functions as a lens through which we see and interact with some underlying type that implements the interface. This form of polymorphism allows us to use different types as if they were the same type. For example, if the concrete types Int and Float both implement an interface called Numeric, then one could create an `Array Numeric` consisting of both `Int` and `Float` values.
+When used as a type, the interface functions as a lens through which we see and interact with some underlying type that implements the interface. This form of polymorphism allows us to use different types as if they were the same type. For example, if the concrete types `Int` and `Float` both implement an interface called `Numeric`, then one could create an `Array Numeric` consisting of both `Int` and `Float` values.
 
 When used as a constraint on a type, the interpretation is that some context needs to reference the underlying type, while also making a claim or guarantee that the underlying type implements the interface.
 
@@ -967,7 +967,7 @@ interface A [B C ...] [for D [E F ...]]{
 ```
 where A is the name of the interface optionally parameterized with type parameters, B, C, etc.
 
-The `for` clause is optional. When present, the `for` clause specifies that a type variable, D, is deemed to implement interface A. If no `for` clause is specified, then the interface serves as a type constraint on types A, B, C, etc.
+The `for` clause is optional. When present, the `for` clause specifies that a type variable, D, is deemed to implement interface A. If no `for` clause is specified, then the interface serves as a type constraint on types B, C, etc.
 
 The type expression in the for clause is called the interface's *self type*. The self type is a concrete or polymorphic type representing the type that will implement the interface. In the syntax above, `D [E F ...]` represents the self type.
 
@@ -1008,12 +1008,12 @@ interface Range S E Out {
 
 Interface implementations are defined with the following syntax:
 ```
-impl [X, Y, Z, ...] A <B C ...> [for D <E F ...>] {
+[implName =] impl [X, Y, Z, ...] A <B C ...> [for D <E F ...>] {
 	fn foo(T1, T2, ...) -> T3 { ... }
 	...
 }
 ```
-where X, Y, and Z are free type parameters and type constraints that are scoped to the implementation of the interface (i.e. the types bound to those type variables are constant within a specific implementation of the interface) and enclosed in square brackets, A is the name of the interface parameterized with type parameters B, C, etc. (if applicable), and where `D <E F ...>` is the type that is implementing interface A. In the case that an interface was specified without a `for` clause, then the `for` clause in an implementation of the interface would be omitted.
+where `implName` is an optional implementation name, X, Y, and Z are free type parameters and type constraints that are scoped to the implementation of the interface (i.e. the types bound to those type variables are constant within a specific implementation of the interface) and enclosed in square brackets, A is the name of the interface parameterized with type parameters B, C, etc. (if applicable), and where `D <E F ...>` is the type that is implementing interface A. In the case that an interface was specified without a `for` clause, then the `for` clause in an implementation of the interface would be omitted.
 
 Here are some example interface implementations:
 
@@ -1060,6 +1060,30 @@ impl Range Float Float Int {
 }
 ```
 
+Implementations may be named in order to cope with situations where the same type implements the same interface with differing semantics. When an implementation is named, function calls that might otherwise be ambiguous can be fully qualified in order to disambiguate the function call. For example:
+
+```
+// given
+interface Monoid for T {
+  fn id() -> T
+  fn op(T, T) -> T
+}
+Sum = impl Monoid for Int {
+  fn id() -> Int = 0
+  fn op(x, y: Int) -> Int = x + y
+}
+Product = impl Monoid for Int {
+  fn id() -> Int = 1
+  fn op(x, y: Int) -> Int = x * y
+}
+
+// since both of the following are ambiguous
+id()
+Monoid#id()
+// you have to qualify the function call with the name of the implementation, like
+Sum#id()
+```
+
 ### Interface Usage
 
 When calling a function defined in an interface, a client may supply either (1) a value of a type that implements the interface or (2) a value of the interface type to the function in any argument that is typed as the interface's self type.
@@ -1096,6 +1120,8 @@ fn buildIntRange[S, E, Range S E Int](start: S, end: E) -> Enumerable Int => sta
 
 Since it is possible to define interface implementations that conflict, or overlap, with one another, we need some means to decide which one to use. In some cases, competing implementations are not clearly more specific than one another, but a good deal of the time, we can clearly define one implemention to be more specific than another.
 
+Able's specificity logic is a derivative of Rust's impl specialization proposal at https://github.com/nox/rust-rfcs/blob/master/text/1210-impl-specialization.md. Much of this specification is taken from Rust's specialization RFC.
+
 The following implementations, written without their implementation body, conflict with one another:
 
 ```
@@ -1107,9 +1133,56 @@ impl Foo for Int {}
 impl Foo for Array T {}
 impl Foo for Array Int {}
 
-// overlap when T = U such that U: Bar
+// overlap because Array T implements Enumerable T
+impl Foo for Enumerable T {}
+impl Foo for Array T {}
+
+// overlap when T implements Bar
 impl Foo for T {}
-impl Foo for U: Bar {}
+impl Foo for T: Bar {}
+
+// overlap when T implements Bar and Baz
+impl Foo for T: Bar {}
+impl Foo for T: Baz {}
+
+// overlap when T = U such that A supersetOf Nil | Int
+impl [A supersetOf Nil] Foo A for T {}
+impl [A supersetOf Nil | Int] Foo A for U {}
+```
+
+The patterns of overlap that we're going to solve for are:
+
+1. Concrete types are more specific than type variables. For example:
+   - `Int` is more specific than `T`
+   - `Array Int` is more specific than `Array T`
+2. Concrete types are more specific than interfaces. For example:
+   - `Array T` is more specific than `Enumerable T`
+3. Constrained type variables are more specific than unconstrained type variables. For example:
+   - `T: Enumerable` is more specific than `T`
+   - `T supersetOf Nil` is more specific than `T`
+4. Given two sets of comparable type constraints, ConstraintSet1 and ConstraintSet2, if ConstraintSet1 is a proper subset of ConstraintSet2, then ConstraintSet1 imposes fewer constraints, and is therefore less specific than ConstraintSet2. In other words, the constraint set that is a proper superset of the other is the most specific constraint set. If the constraint sets are not a proper subset/superset of one another, then the constraint sets are not comparable, and which means that the competing interface implementations are not comparable either. This rule captures rule (3). For example:
+   - `T: Enumerable` is more specific than `T` (with no type constraints), because `{Enumerable}` is a proper superset of `{}` (note: `{}` represents the set of no type constraints).
+   - `T supersetOf Nil` is more specific than `T` (with no type constraints) because `{T supersetOf Nil}` is a proper superset of `{}`.
+   - `A supersetOf Nil | Int` is more specific than `A supersetOf Nil`, because `{A supersetOf Nil | Int}` is equivalent to `{A supersetOf Nil, A supersetOf Int}`, which is a proper superset of `{A supersetOf Nil}`.
+
+There are many potential cases where the type constraints in competing interface implementations can't be compared. In those cases, the compiler will emit an error saying that the competing interface implementations are not comparable, and so the expression is ambiguous.
+
+Ambiguities that cannot be resolved by these specialization rules must be resolved manually, by qualifying the relevant function call with either the name of the interface or the name of the implementation. For example:
+
+```
+// assuming Array T implements both Enumerable T and BetterEnumerable T
+impl Enumerable T for Array T { ... }
+impl BetterEnumerable T for Array T { ... }
+
+// an expression like
+Array(1,2,3).each { elem => puts(elem) }
+// would be ambiguous
+
+// however, the expressions
+Array(1,2,3).BetterEnumerable#each { elem => puts(elem) }
+BetterEnumerable#each(Array(1,2,3)) { elem => puts(elem) }
+Array(1,2,3) |> BetterEnumerable#each { elem => puts(elem) }
+// are not ambiguous
 ```
 
 
