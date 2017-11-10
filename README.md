@@ -1424,6 +1424,7 @@ fn runAfterDelay[T](expr: Thunk T) -> T {
   sleep(10.seconds)
   expr
 }
+runAfterDelay(sendAndReceiveMail())
 
 // 3. using the Thunk function
 Thunk(sendAndReceiveMail())
