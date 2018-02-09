@@ -156,6 +156,16 @@ There are two namespaces for identifiers. There is a type namespace and a value 
 
 Value identifiers introduced in a local scope will shadow any identifiers of the same name in any encompasing scope, so long as their types are different. If a value identifier used in a local scope shares the same name and type as an identifier in an encompasing scope, then the identifier in the local scope is treated as the same identifier in the encompasing scope, rather than as a new distinct identifier.
 
+### Naming Conventions
+
+Naming conventions are similar to that of Rust (https://aturon.github.io/style/naming.html), Python (https://www.python.org/dev/peps/pep-0008/#prescriptive-naming-conventions), and Ruby (https://github.com/bbatsov/ruby-style-guide#naming):
+
+- Prefer snake_case for file names, package names, variable names, and function names.
+
+- Prefer PascalCase for type names.
+
+Why is snake_case preferred over camelCase? Subjectively, snake_case seems easier to quickly scan and read, even at the expense of it being slower to type than camelCase. Objectively, https://whathecode.wordpress.com/2013/02/16/camelcase-vs-underscores-revisited/ suggests programmers are more efficient at reading snake_case than camelCase identifiers.
+
 ## Packages
 
 There must be one, and only one, package definition per file, specified at the top of the file.
@@ -394,6 +404,8 @@ Pair syntax is just syntactic sugar for expressing 2-tuples.
 
 Struct type definitions define both a type and a constructor function of the same name as the type.
 
+Struct definitions can only appear in package scope.
+
 ### Definition with Positional Fields
 ```
 struct Foo T { Int, Float, T }
@@ -426,11 +438,12 @@ struct Foo T {
 }
 ```
 
-Create instances of structs
+### Instantiate structs
 
+#### Via constructor functions
 ```
-Foo(1,2,t1)
-Foo(x=1, y=2, z=t1)
+Foo(1,2,t1)           # positional function application
+Foo(x=1, y=2, z=t1)   # named argument function application
 Foo(
   x = 1,
   y = 2,
@@ -443,7 +456,29 @@ Foo(
 )
 ```
 
-Struct definitions can only appear in package scope.
+Instantiation via constructor functions require that every argument be supplied.
+
+#### Via struct literal expressions
+```
+Foo { 1 }               # struct literal with fields supplied by position
+Foo { 1, 2, t1 }        # struct literal with fields supplied by position
+Foo { x=1 }             # struct literal with fields supplied by name
+Foo { x=1, y=2, z=t1 }  # struct literal with fields supplied by name
+Foo {
+  x = 1,
+  y = 2,
+  z = t1
+}
+Foo {
+  x = 1
+  y = 2
+  z = t1
+}
+```
+
+Instantiation via struct literal expressions do **not** require that every field be supplied.
+Fields that are omitted are given a zero value appropriate for their type.
+
 
 ## Unions
 
@@ -708,7 +743,7 @@ createPair = { a, b: T => Pair(a, b) }
 Functions may be invoked with the normal function application syntax `<function object>(<arg>, <arg>, ...)`, as in:
 
 ```
-sum(Array(1,2,3)
+sum(Array(1,2,3))
 f(1,2,*xs)
 buildPair(1,2)
 map(Array(1,2,3), square)
@@ -831,7 +866,7 @@ Some operators have special semantics, and may not be overridden.
 1. Assignment operator: `=`
    The assignment operator is used in assignment expressions to assign the value expressed in the right hand side (RHS) of the assignment expression to the identifier or identifiers specified in the left hand side (LHS) of the assignment expression. The assignment operator is right-associative. The assignment operator is not a function, and as a result, is not a first-class object that may be used as a value. The assignment operator may not be redefined or overridden.
 
-#### Special cases
+#### Special application cases
 
 1. When invoking a function of arity-1 with method syntax, the empty parenthesis may be omitted.
 
@@ -1661,7 +1696,54 @@ spawn { c.receive |> puts }
 // and the receive buffer is full
 ```
 
+## Reference
+
+### Unary Prefix Operators
+
+- `-` - negation operator performs arithmetic negation
+- `!` - logical not operator performs logical negation of its Boolean-valued operand
+- `~` - bitwise not operator produces the bitwise complement of its Boolean or Integer-valued operand
+
+### Binary Operators
+
+- `+` - addition
+- `-` - subtraction
+- `*` - multiplication
+- `^` - exponentiation
+- `/` - real division
+- `\` - integer division
+- `%` - modulus operator
+- `\%` - divmod operator returns a 2-tuple (pair) consisting of the (quotient, remainder)
+
 ## Unsolved Problems
 
 - https://github.com/matthiasn/talk-transcripts/blob/master/Hickey_Rich/EffectivePrograms.md
   - ~~ability to cope with sparse data/composable information constructs (heterogeneous lists and maps)~~
+
+## To do
+
+- Unit type will be called `Unit`, and will have a singleton value, `()`.
+  - Unit type will behave like Scala's Unit type: http://joelabrahamsson.com/learning-scala-part-eight-scalas-type-hierarchy-and-object-equality/
+- Need to come up with safe navigation operator
+  - it might behave like Rust's questionmark operator: https://m4rw3r.github.io/rust-questionmark-operator
+- Define how yield works, and what contexts it is available in.
+  - For example, buildIterator { yield(1) } yields an Iterator Int that has an infinite number of Int elements.
+- Coroutines will be implemented with call stacks and channels. Coroutines will implement generators, which make use of the yield keyword.
+- Variadic functions supported via splat operator.
+  - fn(ints: *Int)
+  - fn(*ints)
+  - see: http://blog.honeybadger.io/ruby-splat-array-manipulation-destructuring/
+
+## Not going to do
+
+- Support the implementation of anonymous impls, for example, the ability to implement Iterable by supplying an anonymous impl of Iterator T interface.
+  - Something like this?
+    ```
+    impl Iterable Int for Int {
+      fn iterator(i: Int) -> impl Iterator Int for struct { state: Int } {
+        fn next(it: this) -> Option T {
+
+        }
+      }
+    }
+    ```
