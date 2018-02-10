@@ -73,6 +73,7 @@ fn primesLessThan(max: Uint, i: UInt, primesFound: List UInt) -> List UInt {
          * [Implements Constraint](#implements-constraint)
          * [Union Superset Constraint](#union-superset-constraint)
    * [Primitive Types](#primitive-types)
+      * [Unit](#unit)
       * [Boolean](#boolean)
       * [String](#string)
       * [Array](#array)
@@ -94,6 +95,7 @@ fn primesLessThan(max: Uint, i: UInt, primesFound: List UInt) -> List UInt {
    * [Blocks](#blocks)
    * [Functions](#functions)
       * [Named function syntax](#named-function-syntax)
+         * [Point-free style](#point-free-style)
       * [Anonymous function syntax](#anonymous-function-syntax)
       * [Lambda expression syntax](#lambda-expression-syntax)
          * [Implicit Lambda Expressions via Placeholder Syntax (a.k.a. Placeholder Lambdas)](#implicit-lambda-expressions-via-placeholder-syntax-aka-placeholder-lambdas)
@@ -136,6 +138,8 @@ fn primesLessThan(max: Uint, i: UInt, primesFound: List UInt) -> List UInt {
    * [Lazy Evaluation](#lazy-evaluation)
       * [By-name Evaluation (not memoized)](#by-name-evaluation-not-memoized)
       * [By-need Evaluation (memoized)](#by-need-evaluation-memoized)
+   * [Special Evaluation Rules](#special-evaluation-rules)
+      * [Value Discarding](#value-discarding)
    * [Macros](#macros)
    * [Concurrency](#concurrency)
       * [Call stacks (threads of execution)](#call-stacks-threads-of-execution)
@@ -232,6 +236,7 @@ and if the type can be inferred, then the definition may be shortened to:
 
 ### Built-In Types
 
+- Unit
 - Boolean
 - Integer types - Int8, Int16, Int32 (Int), Int64, UInt8 (Byte), UInt16, UInt32 (UInt), UInt64
 - Floating point types - Float, Double
@@ -285,6 +290,7 @@ The supersetOf type operator doesn't imply that the left-hand-side is a proper s
 
 ## Primitive Types
 
+- Unit
 - Boolean
 - Integer types - Int8, Int16, Int32 (Int), Int64, UInt8 (Byte), UInt16, UInt32 (UInt), UInt64
 - Floating point types - Float, Double
@@ -293,6 +299,13 @@ The supersetOf type operator doesn't imply that the left-hand-side is a proper s
 - Map
 - Range
 - Tuple
+
+### Unit
+
+The unit type, named `Unit`, has a single value, `()`.
+
+It works like Scala's Unit type, see http://blog.bruchez.name/2012/10/implicit-conversion-to-unit-type-in.html and
+http://joelabrahamsson.com/learning-scala-part-eight-scalas-type-hierarchy-and-object-equality/ for more information.
 
 ### Boolean
 
@@ -602,6 +615,42 @@ or
 
 The style allows type constraints to be captured in the type parameter list (e.g. `fn convertToString[T: Parsable + Stringable](a: T) => toString(a)` )
 
+#### Point-free style
+
+Named functions may also be defined in an abbreviated form, as the partial application of some other function.
+
+Point-free syntax may only be used with named functions, and takes the following form:
+
+`fn <function name>[<optional type paramter list>] = <function object OR partial application expression OR placeholder lambda expression>`
+
+Partial application is documented in the section [Partial application](#partial-application), and placeholder lambda expressions are covered in the section [Implicit Lambda Expressions via Placeholder Syntax (a.k.a. Placeholder Lambdas)](#implicit-lambda-expressions-via-placeholder-syntax-aka-placeholder-lambdas).
+
+The following examples give a feel for what point-free style looks like:
+
+```
+// puts is an alias for the printLn function
+fn puts = printLn
+
+// given:
+fn add(a: Int, b: Int) -> Int => a + b
+fn foldRight(it: Iterator T, initial: V, accumulate: (T, V) -> V) -> V {
+  it.reverse.foldLeft(initial) { acc, val => accumulate(val, acc) }
+}
+
+// add1, add5, and add10 are partial applications of the add function
+// sum is the partially applied foldRight function
+fn add1 = add(1)
+fn add5 = add(5,)
+fn add10 = add(, 5)
+fn sum = foldRight(, 0, +)
+
+// definitions in terms of placeholder lambda expressions
+fn add10AndDouble = 2 * add(_, 10)
+fn printLnIfDebug = printLn(_) if APP_CFG.debug
+fn sum = _.foldRight(0, +)
+fn sum = foldRight(_, 0, +)
+```
+
 ### Anonymous function syntax
 
 Anonymous function syntax allows one to define a function object that may be immediately supplied as an argument to a function, or assigned to a variable for later use. Anonymous function syntax takes the following form:
@@ -660,7 +709,7 @@ For example:
 
 ##### Special case
 
-If a placeholder lambda is enclosed within a block, and the scope of the placeholder lambda extends to the boundaries of the block’s delimiters, then the full block is considered a lambda expression having the same parameters as that of the contained placeholder lambda.
+If a placeholder lambda is enclosed within a block, and the scope of the placeholder lambda extends to the boundaries of the block's delimiters, then the full block is considered a lambda expression having the same parameters as that of the contained placeholder lambda.
 
 For example:
 `5.times { puts("Greeting number $_") }` is treated as `5.times { i => puts("Greeting number $_") }`
@@ -1484,6 +1533,15 @@ By-need evaluation is supported through the `Lazy` type.
 The `Lazy` type has the same semantics as the `Thunk` type, with the exception that the value produced by the first access is memoized, such that subsequent accesses of the value return the same instance of the value.
 
 
+## Special Evaluation Rules
+
+### Value Discarding
+
+If an expression, e, is used in a context that expects a value of type Unit, then regardless of the expression's type, the expression will be transformed into the expression { e; () }.
+
+This evaluation rule is very similar to Scala's Value Discarding rule. See section 6.26.1 of the Scala language reference at http://www.scala-lang.org/docu/files/ScalaReference.pdf.
+
+
 ## Macros
 
 Able supports meta-programming in the form of compile-time macros.
@@ -1727,13 +1785,11 @@ spawn { c.receive |> puts }
 
 ## To do
 
-- Unit type will be called `Unit`, and will have a singleton value, `()`.
-  - Unit type will behave like Scala's Unit type: http://joelabrahamsson.com/learning-scala-part-eight-scalas-type-hierarchy-and-object-equality/
-- Need to come up with safe navigation operator
+- Decide on safe navigation operator
   - it might behave like Rust's questionmark operator: https://m4rw3r.github.io/rust-questionmark-operator
-- Define how yield works, and what contexts it is available in.
-  - For example, buildIterator { yield(1) } yields an Iterator Int that has an infinite number of Int elements.
 - Coroutines will be implemented with call stacks and channels. Coroutines will implement generators, which make use of the yield keyword.
+  - Define how generators works, and what contexts the yield function is available in.
+    - For example, buildIterator { while true { yield(1) } } yields an Iterator Int that has an infinite number of Int elements.
 - Variadic functions supported via splat operator.
   - fn(ints: *Int)
   - fn(*ints)
