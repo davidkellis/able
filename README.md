@@ -61,97 +61,104 @@ fn primesLessThan(max: Uint, i: UInt, primesFound: List UInt) -> List UInt {
 
 ## Table of Contents
 
-   * [Identifiers](#identifiers)
-      * [Naming Conventions](#naming-conventions)
-   * [Packages](#packages)
-      * [Importing Packages](#importing-packages)
-   * [Variables](#variables)
-   * [Types](#types)
-      * [Built-In Types](#built-in-types)
-      * [Type Expressions](#type-expressions)
-      * [Type Constraints](#type-constraints)
-         * [Implements Constraint](#implements-constraint)
-         * [Union Superset Constraint](#union-superset-constraint)
-   * [Primitive Types](#primitive-types)
-      * [Unit](#unit)
-      * [Boolean](#boolean)
-      * [String](#string)
-      * [Array](#array)
-      * [Map](#map)
-      * [Range](#range)
-   * [Tuples](#tuples)
-      * [Pairs](#pairs)
-   * [Structs](#structs)
-      * [Definition with Positional Fields](#definition-with-positional-fields)
-      * [Definition with Named Fields](#definition-with-named-fields)
-      * [Instantiate structs](#instantiate-structs)
-         * [Via constructor functions](#via-constructor-functions)
-         * [Via struct literal expressions](#via-struct-literal-expressions)
-   * [Unions](#unions)
-      * [Union definitions referencing predefined types](#union-definitions-referencing-predefined-types)
-      * [Union definitions referencing new struct types](#union-definitions-referencing-new-struct-types)
-      * [Generic Unions](#generic-unions)
-      * [Any Type](#any-type)
-   * [Blocks](#blocks)
-   * [Functions](#functions)
-      * [Named function syntax](#named-function-syntax)
-         * [Point-free style](#point-free-style)
-      * [Anonymous function syntax](#anonymous-function-syntax)
-      * [Lambda expression syntax](#lambda-expression-syntax)
-         * [Implicit Lambda Expressions via Placeholder Syntax (a.k.a. Placeholder Lambdas)](#implicit-lambda-expressions-via-placeholder-syntax-aka-placeholder-lambdas)
-            * [Special case](#special-case)
-      * [Function definition examples](#function-definition-examples)
-         * [Define non-generic functions](#define-non-generic-functions)
-         * [Define generic functions](#define-generic-functions)
-         * [Lambda Expressions](#lambda-expressions)
-      * [Function Application](#function-application)
-         * [Normal application](#normal-application)
-         * [Named argument application](#named-argument-application)
-         * [Partial application](#partial-application)
-         * [Method application](#method-application)
-         * [Pipeline application](#pipeline-application)
-         * [Operator application](#operator-application)
-            * [Right-associative operators](#right-associative-operators)
-            * [Special operators](#special-operators)
-         * [Special application cases](#special-application-cases)
-   * [Interfaces](#interfaces)
-      * [Interface Definitions](#interface-definitions)
-      * [Interface Implementations](#interface-implementations)
-      * [Interface Usage](#interface-usage)
-      * [Overlapping Implementations / Impl Specificity](#overlapping-implementations--impl-specificity)
-   * [Control Flow Expressions](#control-flow-expressions)
-      * [If](#if)
-         * [Suffix Syntax](#suffix-syntax)
-         * [Ternary Syntax](#ternary-syntax)
-      * [Unless Suffix Syntax](#unless-suffix-syntax)
-      * [Pattern Matching](#pattern-matching)
-      * [Looping](#looping)
-         * [while](#while)
-         * [for](#for)
-         * [break/continue](#breakcontinue)
-      * [Jump-points / Non-local Return](#jump-points--non-local-return)
-   * [Destructuring](#destructuring)
-      * [Assignment Destructuring](#assignment-destructuring)
-      * [Parameter Destructuring](#parameter-destructuring)
-      * [Pattern Matching Destructuring](#pattern-matching-destructuring)
-   * [Exceptions](#exceptions)
-   * [Lazy Evaluation](#lazy-evaluation)
-      * [By-name Evaluation (not memoized)](#by-name-evaluation-not-memoized)
-      * [By-need Evaluation (memoized)](#by-need-evaluation-memoized)
-   * [Special Evaluation Rules](#special-evaluation-rules)
-      * [Value Discarding](#value-discarding)
-   * [Macros](#macros)
-   * [Concurrency](#concurrency)
-      * [Call stacks (threads of execution)](#call-stacks-threads-of-execution)
-         * [Semantics](#semantics)
-         * [Call stack local variables](#call-stack-local-variables)
-      * [Channels](#channels)
-   * [Reference](#reference)
-      * [Unary Prefix Operators](#unary-prefix-operators)
-      * [Binary Operators](#binary-operators)
-   * [Unsolved Problems](#unsolved-problems)
-   * [To do](#to-do)
-   * [Not going to do](#not-going-to-do)
+   * [Able Programming Language](#able-programming-language)
+      * [Table of Contents](#table-of-contents)
+      * [Identifiers](#identifiers)
+         * [Naming Conventions](#naming-conventions)
+      * [Packages](#packages)
+         * [Importing Packages](#importing-packages)
+      * [Variables](#variables)
+      * [Types](#types)
+         * [Built-In Types](#built-in-types)
+         * [Type Expressions](#type-expressions)
+         * [Type Constraints](#type-constraints)
+            * [Implements Constraint](#implements-constraint)
+            * [Union Superset Constraint](#union-superset-constraint)
+      * [Primitive Types](#primitive-types)
+         * [Unit](#unit)
+         * [Boolean](#boolean)
+         * [String](#string)
+         * [Array](#array)
+         * [Map](#map)
+         * [Range](#range)
+      * [Tuples](#tuples)
+         * [Pairs](#pairs)
+      * [Structs](#structs)
+         * [Definition with Positional Fields](#definition-with-positional-fields)
+         * [Definition with Named Fields](#definition-with-named-fields)
+         * [Instantiate structs](#instantiate-structs)
+            * [Via constructor functions](#via-constructor-functions)
+            * [Via struct literal expressions](#via-struct-literal-expressions)
+      * [Unions](#unions)
+         * [Union definitions referencing predefined types](#union-definitions-referencing-predefined-types)
+         * [Union definitions referencing new struct types](#union-definitions-referencing-new-struct-types)
+         * [Generic Unions](#generic-unions)
+         * [Any Type](#any-type)
+      * [Blocks](#blocks)
+      * [Functions](#functions)
+         * [Named function syntax](#named-function-syntax)
+            * [Point-free style](#point-free-style)
+         * [Anonymous function syntax](#anonymous-function-syntax)
+         * [Lambda expression syntax](#lambda-expression-syntax)
+            * [Implicit Lambda Expressions via Placeholder Expression Syntax (a.k.a. Placeholder Lambdas)](#implicit-lambda-expressions-via-placeholder-expression-syntax-aka-placeholder-lambdas)
+               * [Special case](#special-case)
+         * [Variadic functions](#variadic-functions)
+            * [Variadic disambiguation rule](#variadic-disambiguation-rule)
+         * [Function definition examples](#function-definition-examples)
+            * [Define non-generic functions](#define-non-generic-functions)
+            * [Define generic functions](#define-generic-functions)
+            * [Lambda Expressions](#lambda-expressions)
+         * [Function Application](#function-application)
+            * [Normal application](#normal-application)
+            * [Named argument application](#named-argument-application)
+            * [Partial application](#partial-application)
+            * [Method application](#method-application)
+            * [Pipeline application](#pipeline-application)
+            * [Operator application](#operator-application)
+               * [Right-associative operators](#right-associative-operators)
+               * [Special operators](#special-operators)
+            * [Special application cases](#special-application-cases)
+      * [Interfaces](#interfaces)
+         * [Interface Definitions](#interface-definitions)
+         * [Interface Implementations](#interface-implementations)
+         * [Interface Usage](#interface-usage)
+         * [Overlapping Implementations / Impl Specificity](#overlapping-implementations--impl-specificity)
+      * [Control Flow Expressions](#control-flow-expressions)
+         * [If](#if)
+            * [Suffix Syntax](#suffix-syntax)
+            * [Ternary Syntax](#ternary-syntax)
+         * [Unless Suffix Syntax](#unless-suffix-syntax)
+         * [Pattern Matching](#pattern-matching)
+         * [Looping](#looping)
+            * [while](#while)
+            * [for](#for)
+            * [break/continue](#breakcontinue)
+         * [Jump-points / Non-local Return](#jump-points--non-local-return)
+         * [Generators](#generators)
+      * [Destructuring](#destructuring)
+         * [Assignment Destructuring](#assignment-destructuring)
+         * [Parameter Destructuring](#parameter-destructuring)
+         * [Pattern Matching Destructuring](#pattern-matching-destructuring)
+      * [Exceptions](#exceptions)
+      * [Lazy Evaluation](#lazy-evaluation)
+         * [By-name Evaluation (not memoized)](#by-name-evaluation-not-memoized)
+         * [By-need Evaluation (memoized)](#by-need-evaluation-memoized)
+      * [Special Evaluation Rules](#special-evaluation-rules)
+         * [Value Discarding](#value-discarding)
+      * [Macros](#macros)
+      * [Concurrency](#concurrency)
+         * [Call stacks (threads of execution)](#call-stacks-threads-of-execution)
+            * [Semantics](#semantics)
+            * [Call stack local variables](#call-stack-local-variables)
+         * [Channels](#channels)
+      * [Reference](#reference)
+         * [Unary Prefix Operators](#unary-prefix-operators)
+         * [Binary Operators](#binary-operators)
+      * [Unsolved Problems](#unsolved-problems)
+      * [To do](#to-do)
+      * [Not going to do](#not-going-to-do)
+   * [Able Tooling](#able-tooling)
+      * [Build tool and package manager](#build-tool-and-package-manager)
 
 ## Identifiers
 
@@ -569,10 +576,10 @@ struct Node T { T, Tree T, Tree T }
 union Tree T = Leaf T | Node T
 ```
 
-
 ### Any Type
 
 The `Any` type is a special union type that is the union of all types known to the compiler at compile time.
+
 
 ## Blocks
 
@@ -623,7 +630,7 @@ Point-free syntax may only be used with named functions, and takes the following
 
 `fn <function name>[<optional type paramter list>] = <function object OR partial application expression OR placeholder lambda expression>`
 
-Partial application is documented in the section [Partial application](#partial-application), and placeholder lambda expressions are covered in the section [Implicit Lambda Expressions via Placeholder Syntax (a.k.a. Placeholder Lambdas)](#implicit-lambda-expressions-via-placeholder-syntax-aka-placeholder-lambdas).
+Partial application is documented in the section [Partial application](#partial-application), and placeholder lambda expressions are covered in the section [Implicit Lambda Expressions via Placeholder Expression Syntax (a.k.a. Placeholder Lambdas)](#implicit-lambda-expressions-via-placeholder-expression-syntax-aka-placeholder-lambdas).
 
 The following examples give a feel for what point-free style looks like:
 
@@ -685,9 +692,9 @@ or
 randomInt: fn()->Int = { Random.int() }
 ```
 
-#### Implicit Lambda Expressions via Placeholder Syntax (a.k.a. Placeholder Lambdas)
+#### Implicit Lambda Expressions via Placeholder Expression Syntax (a.k.a. Placeholder Lambdas)
 
-Lambda expressions may also be represented implicitly with a special convenience syntax called placeholder syntax.
+Lambda expressions may also be represented implicitly with a special convenience syntax called placeholder expression syntax.
 
 An expression may be parameterized with placeholder symbols - each of which may be either an underscore, _, or a numbered underscore, e.g. _1, _2, etc.
 
@@ -709,10 +716,50 @@ For example:
 
 ##### Special case
 
-If a placeholder lambda is enclosed within a block, and the scope of the placeholder lambda extends to the boundaries of the block's delimiters, then the full block is considered a lambda expression having the same parameters as that of the contained placeholder lambda.
+If a placeholder lambda is enclosed within a block, and the scope of the placeholder lambda expression extends to the boundaries of the block's delimiters, then the full block is considered a lambda expression having the same parameters as that of the contained placeholder lambda.
 
 For example:
 `5.times { puts("Greeting number $_") }` is treated as `5.times { i => puts("Greeting number $_") }`
+
+
+### Variadic functions
+
+If a function is defined such that its last parameter has a type name suffixed with `*` (e.g. String*), 
+then the function is considered to have variable arity and is called a variadic function.
+
+The last parameter of a variadic function is called the variadic parameter. A variadic parameter may be supplied with zero or more arguments.
+
+Within the body of a variadic function, the variadic parameter is treated as if it were defined as an Array.
+
+For example:
+
+```
+Given:
+fn puts(vals: Any*)
+
+puts()
+puts("Greetings!")
+puts("Hello!", "Goodbye!")
+puts("Hello!", *Array("A", "B", "C"), "Goodbye!")
+```
+
+#### Variadic disambiguation rule
+
+If two functions are defined, one variadic and one non-variadic, and their function signatures conflict/overlap,
+then an invocation of the ambiguous signature will dipatch to the non-variadic function.
+
+For example:
+
+```
+Given:
+fn log(label: String)
+fn log(label: String, val: Any)
+fn log(label: String, vals: Any*)
+
+log("foo")                    // ambiguous; invokes non-variadic signature, log(String)
+log("foo", 123)               // ambiguous; invokes non-variadic signature, log(String, Any)
+log("foo", 123, "bar")        // not ambiguous; invokes variadic signature, puts(String, Any*)
+```
 
 
 ### Function definition examples
@@ -789,6 +836,7 @@ createPair = { a, b: Int => Pair(a, b) }
 createPair = { a, b: T -> Pair T => Pair(a, b) }
 createPair = { a, b: T => Pair(a, b) }
 ```
+
 
 ### Function Application
 
@@ -1403,6 +1451,26 @@ fn all?(enumerable: E, predicate: T -> Boolean) -> Boolean {
 }
 ```
 
+### Generators
+
+Able supports generators through the `yield` special function. Any function that invokes the `yield` function is considered a generator function, and therefore **must** return an Iterator.
+
+The following are examples of generator functions:
+```
+fn() -> Iterator Int => for i in 1..10 { yield i }
+() -> Iterator Int => for i in 1..10 { yield i }
+{ => for i in 1..10 { yield i } }
+{ (1..10).each(yield) }   // this may look like a block, but since `yield` is invoked within the block, the block is interpreted as a lambda expression
+```
+
+A generator function may not `return` any value except the unit value, `()`. In order to signal the end of the iterator, a generator function must return, either explicitly or implicitly, the unit value.
+
+The `Iterator` function invokes the supplied generator function and returns the resulting `Iterator T`. For example:
+```
+Iterator { i = 1; while true { yield(i); i += 1 } }
+```
+
+
 ## Destructuring
 
 Destructuring is the binding of variable names to positional or named values within a data structure. Destructuring may be used in assignment expressions, function parameter lists, and pattern matching case expressions.
@@ -1787,13 +1855,7 @@ spawn { c.receive |> puts }
 
 - Decide on safe navigation operator
   - it might behave like Rust's questionmark operator: https://m4rw3r.github.io/rust-questionmark-operator
-- Coroutines will be implemented with call stacks and channels. Coroutines will implement generators, which make use of the yield keyword.
-  - Define how generators works, and what contexts the yield function is available in.
-    - For example, buildIterator { while true { yield(1) } } yields an Iterator Int that has an infinite number of Int elements.
-- Variadic functions supported via splat operator.
-  - fn(ints: *Int)
-  - fn(*ints)
-  - see: http://blog.honeybadger.io/ruby-splat-array-manipulation-destructuring/
+- Coroutines will be implemented with call stacks and channels.
 
 ## Not going to do
 
@@ -1808,3 +1870,12 @@ spawn { c.receive |> puts }
       }
     }
     ```
+
+# Able Tooling
+
+## Build tool and package manager
+
+A single tool (name TBD) functions as both the build tool and the package manager. The build tool functions very much like the Cargo package management tool in the Rust ecosystem.
+
+Every project must have a Buildfile (name TBD) that defines build directives, dependencies, and other metadata.
+
