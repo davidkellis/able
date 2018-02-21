@@ -1,0 +1,64 @@
+package able.collections.linked_list
+
+struct List T {
+  first: Node T | Nil,
+  last: Node T | Nil
+}
+// creates fn List(first: Node T | Nil, last: Node T | Nil) -> List T
+
+struct Node T {
+  prev: Node T | Nil,
+  next: Node T | Nil,
+  data: T
+}
+
+fn List[T]() -> List T {
+  List T {
+    first = nil
+    last = nil
+  }
+  // or equivalently, List T {}
+}
+
+fn List(values: T*) -> List T {
+  list = List(nil, nil)
+  values.each(list.append)
+  list
+}
+
+fn append(list: List T, value: T) -> Node T {
+  old_last = list.last
+  new_last = Node(old_last, nil, value)
+  list.last = new_last
+  if !old_last {
+    list.first = new_last
+  }
+  new_last
+}
+
+fn prepend(list: List T, value: T) -> Node T {
+  old_first = list.first
+  new_first = Node(nil, old_first, value)
+  list.first = new_first
+  if !old_first {
+    list.last = new_first
+  }
+  new_first
+}
+
+fn clear(list: List T) -> List T {
+  list.first = nil
+  list.last = nil
+  list
+}
+
+
+impl Iterable T for List T {
+  fn each(list: List T, f: T -> Unit) -> Unit {
+    node = list.first
+    while node != nil {
+      f(node)
+      node = node.next
+    }
+  }
+}
