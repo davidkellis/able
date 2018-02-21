@@ -377,8 +377,8 @@ Ranges may be created with any set of types that fulfill the `Range` interface, 
 
 ```
 interface Range S E Out {
-  fn inclusiveRange(start: S, end: E) -> Enumerable Out
-  fn exclusiveRange(start: S, end: E) -> Enumerable Out
+  fn inclusiveRange(start: S, end: E) -> Iterable Out
+  fn exclusiveRange(start: S, end: E) -> Iterable Out
 }
 ```
 
@@ -386,8 +386,8 @@ There are several default implementations of the `Range` interface, for example,
 
 ```
 impl Range Int Int Int {
-  fn inclusiveRange(start: Int, end: Int) -> Enumerable Int {
-    buildIterator {
+  fn inclusiveRange(start: Int, end: Int) -> Iterable Int {
+    Iterator {
       i = start
       while i <= end {
         yield(i)
@@ -396,8 +396,8 @@ impl Range Int Int Int {
     }
   }
 
-  fn exclusiveRange(start: Int, end: Int) -> Enumerable Out {
-    buildIterator {
+  fn exclusiveRange(start: Int, end: Int) -> Iterable Out {
+    Iterator {
       i = start
       while i < end {
         yield(i)
@@ -1123,10 +1123,10 @@ interface Comparable for T {
   fn compare(T, T) -> Int
 }
 
-// Enumerable interface
-interface Enumerable T for E {
+// Iterable interface
+interface Iterable T for E {
   fn each(E, T -> Unit) -> Unit
-  fn iterator(e: E) -> Iterator T = buildIterator { e.each(yield) }
+  fn iterator(e: E) -> Iterator T = Iterator { e.each(yield) }
 }
 
 // Mappable interface (Functor to you Haskell folks)
@@ -1136,8 +1136,8 @@ interface Mappable A for M _ {
 
 // Types that satisfy the Range interface may be used with range literal syntax (e.g. S..E, or S...E) to represent a range of values.
 interface Range S E Out {
-  fn inclusiveRange(start: S, end: E) -> Enumerable Out
-  fn exclusiveRange(start: S, end: E) -> Enumerable Out
+  fn inclusiveRange(start: S, end: E) -> Iterable Out
+  fn exclusiveRange(start: S, end: E) -> Iterable Out
 }
 ```
 
@@ -1164,7 +1164,7 @@ impl Comparable for Person {
   fn compare(p1, p2) => compare(p1.Name, p2.Name)
 }
 
-impl Enumerable T for Array T {
+impl Iterable T for Array T {
   fn each(array: Array T, visit: T -> Unit) -> Unit {
     i = 0
     length = array.length()
@@ -1176,7 +1176,7 @@ impl Enumerable T for Array T {
 }
 
 struct OddNumbers { start: Int, end: Int }
-impl Enumerable Int for OddNumbers {
+impl Iterable Int for OddNumbers {
   fn each(oddNumbersRange: OddNumbers, visit: Int -> Unit) {
     for i in start..end { visit(i) }
   }
@@ -1192,8 +1192,8 @@ impl Mappable A for Array {
 
 // implement Range for Float start and end values (e.g. 1.2..4.5, and 1.2...4.5)
 impl Range Float Float Int {
-  fn inclusiveRange(start: Float, end: Float) -> Enumerable Int => start.ceil..end.floor
-  fn exclusiveRange(start: Float, end: Float) -> Enumerable Int => start.ceil...end.floor
+  fn inclusiveRange(start: Float, end: Float) -> Iterable Int => start.ceil..end.floor
+  fn exclusiveRange(start: Float, end: Float) -> Iterable Int => start.ceil...end.floor
 }
 ```
 
@@ -1227,20 +1227,20 @@ When calling a function defined in an interface, a client may supply either (1) 
 
 For example, given:
 ```
-interface Enumerable T for E {
+interface Iterable T for E {
   fn each(E, T -> Unit) -> Unit
   ...
 }
 ```
-a client may call the `each` function by supplying a value of type `Enumerable T` as the first argument to `each`, like this:
+a client may call the `each` function by supplying a value of type `Iterable T` as the first argument to `each`, like this:
 ```
-// assuming Array T implements the Enumerable T interface
-e: Enumerable Int = Array(1, 2, 3)    // e has type Enumerable Int
+// assuming Array T implements the Iterable T interface
+e: Iterable Int = Array(1, 2, 3)    // e has type Iterable Int
 each(e, puts)
 ```
 or `each` may be called by supplying a value of type `Array T` as the first argument, like this:
 ```
-// assuming Array T implements the Enumerable T interface
+// assuming Array T implements the Iterable T interface
 e = Array(1, 2, 3)    // e has type Array Int
 each(e, puts)
 ```
@@ -1248,9 +1248,8 @@ each(e, puts)
 In cases where the interface was defined without a `for` clause, then the interface may only be used as a type constraint. For example:
 
 ```
-fn buildIntRange[S, E, Range S E Int](start: S, end: E) -> Enumerable Int => start..end
+fn buildIntRange[S, E, Range S E Int](start: S, end: E) -> Iterable Int => start..end
 ```
-
 
 
 ### Overlapping Implementations / Impl Specificity
@@ -1270,8 +1269,8 @@ impl Foo for Int {}
 impl Foo for Array T {}
 impl Foo for Array Int {}
 
-// overlap because Array T implements Enumerable T
-impl Foo for Enumerable T {}
+// overlap because Array T implements Iterable T
+impl Foo for Iterable T {}
 impl Foo for Array T {}
 
 // overlap when T implements Bar
@@ -1293,12 +1292,12 @@ The patterns of overlap that we're going to solve for are:
    - `Int` is more specific than `T`
    - `Array Int` is more specific than `Array T`
 2. Concrete types are more specific than interfaces. For example:
-   - `Array T` is more specific than `Enumerable T`
+   - `Array T` is more specific than `Iterable T`
 3. Constrained type variables are more specific than unconstrained type variables. For example:
-   - `T: Enumerable` is more specific than `T`
+   - `T: Iterable` is more specific than `T`
    - `T supersetOf Nil` is more specific than `T`
 4. Given two sets of comparable type constraints, ConstraintSet1 and ConstraintSet2, if ConstraintSet1 is a proper subset of ConstraintSet2, then ConstraintSet1 imposes fewer constraints, and is therefore less specific than ConstraintSet2. In other words, the constraint set that is a proper superset of the other is the most specific constraint set. If the constraint sets are not a proper subset/superset of one another, then the constraint sets are not comparable, and which means that the competing interface implementations are not comparable either. This rule captures rule (3). For example:
-   - `T: Enumerable` is more specific than `T` (with no type constraints), because `{Enumerable}` is a proper superset of `{}` (note: `{}` represents the set of no type constraints).
+   - `T: Iterable` is more specific than `T` (with no type constraints), because `{Iterable}` is a proper superset of `{}` (note: `{}` represents the set of no type constraints).
    - `T supersetOf Nil` is more specific than `T` (with no type constraints) because `{T supersetOf Nil}` is a proper superset of `{}`.
    - `A supersetOf Nil | Int` is more specific than `A supersetOf Nil`, because `{A supersetOf Nil | Int}` is equivalent to `{A supersetOf Nil, A supersetOf Int}`, which is a proper superset of `{A supersetOf Nil}`.
 
@@ -1307,21 +1306,71 @@ There are many potential cases where the type constraints in competing interface
 Ambiguities that cannot be resolved by these specialization rules must be resolved manually, by qualifying the relevant function call with either the name of the interface or the name of the implementation. For example:
 
 ```
-// assuming Array T implements both Enumerable T and BetterEnumerable T
-impl Enumerable T for Array T { ... }
-impl BetterEnumerable T for Array T { ... }
+// assuming Array T implements both Iterable T and BetterIterable T, and both define an each function
+impl Iterable T for Array T { ... }
+impl BetterIterable T for Array T { ... }
 
 // an expression like
 Array(1,2,3).each { elem => puts(elem) }
 // would be ambiguous
 
 // however, the expressions
-Array(1,2,3).BetterEnumerable#each { elem => puts(elem) }
-BetterEnumerable#each(Array(1,2,3)) { elem => puts(elem) }
-Array(1,2,3) |> BetterEnumerable#each { elem => puts(elem) }
+Array(1,2,3).BetterIterable#each { elem => puts(elem) }
+BetterIterable#each(Array(1,2,3)) { elem => puts(elem) }
+Array(1,2,3) |> BetterIterable#each { elem => puts(elem) }
 // are not ambiguous
 ```
 
+
+## Zero Values
+
+Every type has a zero value. The following sections document the zero value for every type.
+
+### Zero values for primitive types
+
+- Nil - `nil`
+- Unit - `()`
+- Boolean - `false`
+- Integer types: Int8, Int16, Int32 (Int), Int64, UInt8 (Byte), UInt16, UInt32 (UInt), UInt64 - `0`
+- Floating point types: Float, Double - `0.0`
+- String - `""`
+- Array - `Array[T]()` or `Array T{}`
+- Map - `Map[K,V]()` or `Map K V{}`
+
+### Zero values for compound types
+
+#### Range
+
+A range is an interface with three type parameters, and therefore has the zero value of an interface with three type parameters.
+
+#### Tuple
+
+A tuple of type `(A, B, C, ...)` with type parameters `A`, `B`, `C`, etc. has a zero value of
+`(A', B', C', ...)` where `A'` is the zero value for type `A`, `B'` is the zero value for type `B`, `C'` is
+the zero value for type `C`, etc.
+
+#### Struct
+
+A struct of type `struct S { a: A, b: B, c: C, ... }` with type parameters `A`, `B`, `C`, etc. has a zero value
+of `S { a = A', b = B', c = C', ... }` where `A'` is the zero value for type `A`, `B'` is the zero value for type `B`, `C'` is
+the zero value for type `C`, etc.
+
+#### Union
+
+Union `A | B | C | Nil` has a zero value of `nil`. If the union type does not have `Nil` as a member, then the zero value `zero[A]()`.
+
+A union with `Nil` as a type member has a zero value of `nil`.
+
+The `Any` type has a zero value of `nil`.
+
+#### Function
+
+The zero type for a function with signature `(A, B, C, ...)->Z` with type parameters `A` through `Z` is
+the function `fn[A,B,C,...,Z](a:A, b:B, ...)->Z { zero[Z]() }`.
+
+#### Interface
+
+#### Impl
 
 
 ## Control Flow Expressions
@@ -1398,12 +1447,14 @@ union House =
 fn buildHouse(h: House) => h match {
   case TinyHouse | SmallHouse => puts("build a small house")
   case m: MediumHouse => puts("build a modest house - $m")
-  case LargeHouse(area) => puts ("build a large house of $area sq. ft.")
-  case HugeHouse(_, poolCount) => puts ("build a huge house with $poolCount pools!")
+  case LargeHouse{area} => puts ("build a large house of $area sq. ft.")
+  case HugeHouse{_, poolCount} => puts ("build a huge house with $poolCount pools!")
 }
 ```
 
 ### Looping
+
+There are two looping constructs: `while`, and `for`.
 
 #### while
 
@@ -1416,7 +1467,7 @@ while <condition> {
 #### for
 
 ```
-for <variable> in <Iterator value> {
+for <variable> in <Iterable value> {
   ...
 }
 ```
@@ -1440,12 +1491,12 @@ jumppoint <label> {
 }
 ```
 
-To following example demonstrates an implementation of short circuiting logic, achieved via jump-points. The example implements the `all?` function defined within the `Enumerable` interface. The combination of the `jumppoint` and the `jump` within the `each` block implements immediate return from `all?` upon the first observation of a false evaluation of the predicate function. This short-circuiting logic prevents further unnecessary evaluations of the predicate function once the first observation of a false return value is observed:
+To following example demonstrates an implementation of short circuiting logic, achieved via jump-points. The example implements the `all?` function defined within the `Iterable` interface. The combination of the `jumppoint` and the `jump` within the `each` block implements immediate return from `all?` upon the first observation of a false evaluation of the predicate function. This short-circuiting logic prevents further unnecessary evaluations of the predicate function once the first observation of a false return value is observed:
 
 ```
-fn all?(enumerable: E, predicate: T -> Boolean) -> Boolean {
+fn all?(iterable: I, predicate: T -> Boolean) -> Boolean {
   jumppoint :stop {
-    enumerable.each { t => jump :stop false unless predicate(t) }
+    iterable.each { t => jump :stop false unless predicate(t) }
     true
   }
 }
@@ -1873,9 +1924,21 @@ spawn { c.receive |> puts }
 
 # Able Tooling
 
-## Build tool and package manager
+A single tool, `able`, handles builds, dependency management, package management, running tests, etc.
 
-A single tool (name TBD) functions as both the build tool and the package manager. The build tool functions very much like the Cargo package management tool in the Rust ecosystem.
+A single file, `build.toml`, defines a project's build, dependencies, package metadata, etc.
 
-Every project must have a Buildfile (name TBD) that defines build directives, dependencies, and other metadata.
+A primary goal of having a single tool is to enable the quick spin-up of a development environment. Download a single binary and start working.
 
+## Building
+
+`able build`
+
+## Testing
+
+`able test`
+
+## Package Management
+
+`able pkg build`
+`able pkg publish`
