@@ -1,0 +1,144 @@
+package able.collections
+
+/*
+Iterable is modeled after:
+https://www.scala-lang.org/blog/2017/02/28/collections-rework.html
+https://github.com/scala/collection-strawman/blob/master/collections/src/main/scala/strawman/collection/Iterable.scala
+https://github.com/scala/collection-strawman/blob/master/collections/src/main/scala/strawman/collection/Iterator.scala
+https://clojure.org/reference/sequences
+https://ruby-doc.org/core-2.4.2/Enumerable.html
+
+Types that implement Iterable must either implement #each or #iterator, or both.
+
+#each supports internal iteration
+#iterator return an Iterator T, that supports external iteration
+
+Clients can choose to use whichever style of iteration is most appropriate for their use case.
+
+The collections package defines a suite of interfaces much like the type hierarchy that Scala 
+defines - see http://docs.scala-lang.org/overviews/collections/overview.html - however, since Able does not support
+inheritance, the association between interfaces is less a hierarchy than it is a suite of interfaces that may implement
+other interfaces. The following demonstrates the relationships between interfaces:
+
+Iterable T
+  each(I, T -> Unit) -> Unit
+  iterator(I) -> Iterator T
+Seq T implements Iterable T
+  apply(Int) -> Option T
+Set T implements Iterable T
+  contains?(T) -> Boolean
+  add(T) -> Set T
+  remove(T) -> Set T
+  intersect(Set T, Set T) -> Set T  ; also & operator
+  union(Set T, Set T) -> Set T      ; also | operator
+  difference(Set T, Set T) -> Set T ; also - operator
+Map K V implements Iterable (K, V)
+  apply(K) -> Option V
+  add(K, V) -> 
+Map K V implements Iterable K
+  same as previous
+Map K V implements Iterable V
+  same as previous
+IndexedSeq implements Seq
+LinearSeq implements Seq
+SortedSet implements Set
+BitSet implements SortedSet
+SortedMap K V implements Map K V
+Array T implements IndexedSeq T
+List T implements LinearSeq T
+*/
+interface Iterable T for I {
+  fn each(it: I, f: T -> Unit) -> Unit {
+    for item in iterator(it) {
+      f(item)
+    }
+  }
+
+  fn iterator(it: I) -> Iterator T => Iterator { it.each(yield) }
+
+
+  // everything else is defined in terms of either #each or #iterator
+
+  /*
+  Tests whether a predicate holds for all elements of the collection.
+  
+  @param  p   the predicate used to test elements.
+  @return     `true` if collection is empty or the given predicate `p` holds for all elements of the collection; otherwise `false`.
+  */
+  fn all?(it: I, predicate: T -> Boolean) -> Boolean {
+    jumppoint :stop {
+      it.each { item => jump(:stop, false) unless predicate(item) }
+      true
+    }
+    /*
+    retval = true
+    for item in it.iterator {
+      if !predicate(item) {
+        retval = false
+        break
+      }
+    }
+    retval
+    */
+  }
+
+  /*
+  Tests whether a predicate holds for at least one element of the collection.
+  
+  @param  p   the predicate used to test elements.
+  @return     `true` if the given predicate `p` is satisfied by at least one element of the collection; otherwise `false`.
+  */
+  fn any?(it: I, predicate: T -> Boolean) -> Boolean {
+    jumppoint :stop {
+      it.each { item => jump(:stop, true) if predicate(item) }
+      false
+    }
+  }
+
+  // Counts the number of elements in the collection.
+  fn count(it: I) -> Int => it.reduce(0, +)
+
+  // Counts the number of elements in the collection that satisfy the given predicate function.
+  fn count(it: I, predicate: T -> Boolean) -> Int => it.reduce(0) { sum, item => predicate(item) ? sum + 1 : sum }
+
+  // Returns the first element in the collection.
+  fn first(it: I) -> Option T => it.iterator.next
+
+  // Returns the first element of the collection satisfying the given predicate function. If none is found, returns None.
+  fn first(it: I, predicate: T -> Boolean) -> Option T {
+    jumppoint :stop {
+      it.each { item => jump(:stop, Some(item)) if predicate(item) }
+      None
+    }
+  }
+
+  fn reverse(it: I) -> Iterable T {
+    list = linked_list.List()
+    it.each(list.prepend)
+    list
+  }
+
+  fn reduce[V](it: I, initial: V, accumulate: (V, T) -> V) -> V {
+    accumulator = initial
+    it.each { item => accumulator = accumulate(accumulator, item) }
+    accumulator
+  }
+
+  fn foldRight[V](it: I, initial: V, accumulate: (T, V) -> V) -> V {
+    it.reverse.foldLeft(initial) { acc, val => accumulate(val, acc) }
+  }
+
+  # chunk
+  # chunkWhile
+}
+
+// impl Iterable Int for Range Int {
+//   fn each(r, visit) {
+//     i = r.start
+//     op = r.inclusive? ? <= : <
+//     while i `op r.end {
+//       visit(i)
+//       i += 1
+//     }
+//   }
+// }

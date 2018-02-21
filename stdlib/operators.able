@@ -1,0 +1,53 @@
+package able
+
+
+// forward pipe operator (|> operator)
+
+// 1 argument function
+fn |>(a: A, f: (A) -> B) -> B => f(a)
+
+// 2 argument function
+fn |>(a: A, f: (A, B) -> C) -> (B) -> C => f(a)
+
+// 3 argument function
+fn |>(a: A, f: (A, B, C) -> D) -> (B, C) -> D => f(a)
+
+// 4 argument function
+fn |>(a: A, f: (A, B, C, D) -> E) -> (B, C, D) -> E => f(a)
+
+// 5 argument function
+fn |>(a: A, f: (A, B, C, D, E) -> F) => f(a)
+
+// 6 argument function
+fn |>(a: A, f: (A, B, C, D, E, F) -> G) => f(a)
+
+// 7 argument function
+fn |>(a: A, f: (A, B, C, D, E, F, G) -> H) => f(a)
+
+// todo: need to generate the alternatives for the remaining overloaded implementations
+
+
+// backward pipe operator (<| operator)
+
+// 1 argument function
+fn <|(f: (A) -> B, a: A) -> B => f(a)
+
+// 2 argument function
+fn <|(f: (A, B) -> C, a: A) -> (B) -> C => f(a)
+
+// 3 argument function
+fn <|(f: (A, B, C) -> D, a: A) -> (B, C) -> D => f(a)
+
+// 4 argument function
+fn <|(f: (A, B, C, D) -> E, a: A) -> (B, C, D) -> E => f(a)
+
+// 5 argument function
+fn <|(f: (A, B, C, D, E) -> F, a: A) => f(a)
+
+// 6 argument function
+fn <|(f: (A, B, C, D, E, F) -> G, a: A) => f(a)
+
+// 7 argument function
+fn <|(f: (A, B, C, D, E, F, G) -> H, a: A) => f(a)
+
+// todo: need to generate the alternatives for the remaining overloaded implementations
