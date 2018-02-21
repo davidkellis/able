@@ -1,0 +1,33 @@
+package main
+
+// A solution to https://www.reddit.com/r/dailyprogrammer/comments/6jr76h/20170627_challenge_321_easy_talking_clock/
+// that mirrors the python solution listed at https://www.reddit.com/r/dailyprogrammer/comments/6jr76h/20170627_challenge_321_easy_talking_clock/dlf6e3b/
+
+fn main() {
+  Array(hour, min) = gets().split(":").map(to_int)
+
+  (am_pm, h) = h \% 12
+
+  msg = "It's "
+  msg += Array("twelve", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven")(h)
+  msg += " "
+}
+
+// units = ['','one','two','three','four','five','six','seven','eight','nine']
+// teens = ['','eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen']
+// tens  = ['','ten','twenty','thirty','forty','fifty']
+// hours = ['twelve','one','two','three','four','five','six','seven','eight','nine','ten','eleven']
+// ap    = ['am','pm']
+// 
+// def dec(x):
+//     d,m = divmod(x,10)
+//     if 10 < x < 19: return teens[x-10]
+//     else:           return tens[d] +' '*bool(m)+ units[m]
+// 
+// def say_it(inx):
+//     x,y = map(int,inx.split(':'))
+//     return 'It\'s {0}{1}{2} {3}'.format(*[hours[x%12],
+//                                           ' oh'*(0<y<10),
+//                                           ' '*(0<y)+dec(y),
+//                                           ap[x//12]])
+// say_it(input())

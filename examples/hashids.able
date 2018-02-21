@@ -1,0 +1,205 @@
+package hashids
+
+MinAlphabetLength = 16
+SepDiv = 3.5
+GuardDiv = 12
+
+DefaultAlphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
+DefaultSeps = "cfhistuCFHISTU"
+
+struct Encoder {
+  salt: String
+  minHashLength: Int
+  alphabet: String
+  seps: String
+  guards: String
+}
+
+fn NewEncoder(salt: String, minHashLength: Int) -> Encoder = NewEncoder(salt, minHashLength, DefaultAlphabet, DefaultSeps)
+
+fn NewEncoder(salt: String, minHashLength: Int, candidateAlphabet: String, candidateSeps: String) -> Encoder = {
+  validate(minHashLength, candidateAlphabet)
+  (alphabet, seps, guards) = setup(salt, minHashLength, candidateAlphabet, candidateSeps)
+
+  Encoder(salt, minHashLength, alphabet, seps, guards)
+}
+
+fn validate(minHashLength: Int, alphabet: String) {
+  raise "The alphabet may not include spaces." if alphabet.include?(" ")
+  raise "The alphabet must include at least $MinAlphabetLength unique characters." if alphabet.chars.uniq.count < MinAlphabetLength
+  raise "The min length must be greater than or equal to 0." if minHashLength < 0
+}
+
+// set up alphabet, seps, and guards
+fn setup(salt: String, minHashLength: Int, alphabet: String, seps: String) -> (String, String, String) {
+  alphaChars = alphabet.chars.to[LinkedHashSet Char]  // http://docs.oracle.com/javase/8/docs/api/java/util/LinkedHashSet.html
+  sepsChars = seps.chars.to[LinkedHashSet Char]
+  commonChars = sepsChars.intersection(alphaChars)    // could also use sepsChars & alphaChars, but the order of the operands
+                                                      // would be significant (because we want the order of the elements
+                                                      // in sepsChars to remain intact), which might be unintuitive
+  alphabet = (alphaChars - commonChars).join
+  seps = commonChars.join                             // the order here is correct, because `sepsChars & alphaChars` maintains
+                                                      // the relative order of the elements as they existed in sepsChars
+
+  seps = shuffle(seps, salt)
+
+  if seps.empty? || (alphabet.length / seps.length) > SepDiv {
+    sepsLength = (alphabet.length / SepDiv).ceil
+    sepsLength = 2 if sepsLength == 1
+
+    if sepsLength > seps.length {
+      diff = sepsLength - seps.length
+      seps += alphabet.take(diff)
+      alphabet = alphabet.drop(diff)
+    } else {
+      seps = seps.take(sepsLength)
+    }
+  }
+
+  alphabet = shuffle(alphabet, salt)
+
+  // set up guards
+  gc = (alphabet.length / GuardDiv).ceil
+
+  if alphabet.length < 3 {
+    guards = seps.take(gc)
+    seps = seps.drop(gc)
+  } else {
+    guards = alphabet.take(gc)
+    alphabet = alphabet.drop(gc)
+  }
+
+  (alphabet, seps, guards)
+}
+
+fn shuffle(alphabet: String, salt: String) -> String {
+  return alphabet if salt.empty?
+
+  v = 0
+  p = 0
+  chars = alphabet.chars.toArray
+  slen = salt.length
+  (alphabet.length-1).to(1).each { i =>
+    v = v % slen
+    p += n = salt[v].codePoint
+    j  = (n + v + p) % i
+
+    chars[i], chars[j] = chars[j], chars[i]
+
+    v += 1
+  }
+
+  chars.join
+}
+
+fn encode(e: Encoder, numbers: *Int) -> String {
+  return "" if numbers.empty? || numbers.any?(_ < 0)
+
+  alphabet = e.alphabet
+  length = numbers.length
+  hashInt = numbers.iterWithIndex.reduce(0) { sum, (n, i) => sum + n % (i + 100) }
+
+  lottery = ret = alphabet[hashInt % alphabet.length]
+
+  length.times { i =>
+    num = numbers[i]
+    buffer = lottery + e.salt + alphabet
+
+    alphabet = shuffle(alphabet, buffer.take(alphabet.length))
+    last = hash(num, alphabet)
+
+    ret += last
+
+    if i + 1 < length {
+      num %= last.codePoint + i
+      ret += seps[num % seps.length]
+    }
+  }
+
+  if ret.length < e.MinHashLength {
+    ret = guards[(hashInt + ret[0].codePoint) % guards.length] + ret
+
+    if ret.length < e.MinHashLength {
+      ret += guards[(hashInt + ret[2].codePoint) % guards.length]
+    }
+  }
+
+  halfLength = alphabet.length \ 2   // integer division
+
+  while ret.length < e.MinHashLength {
+    alphabet = shuffle(alphabet, alphabet)
+    firstHalf, lastHalf = alphabet.takeDrop(halfLength)
+    ret = lastHalf + ret + firstHalf
+
+    excess = ret.length - e.MinHashLength
+    ret = ret.substring(excess \ 2, e.MinHashLength) if excess > 0
+  }
+
+  ret
+}
+
+fn decode(e: Encoder, hash: String) -> Array Int {
+  return array.empty if hash.empty?
+
+  ret = array.empty[Int]
+
+  breakdown = hash.translate(e.guards, " ")
+  array = breakdown.split(" ")
+
+  i = array.length.in?(2..3) ? 1 : 0
+
+  breakdown = array[i]
+  if !breakdown.empty? {
+    lottery = breakdown.first
+    breakdown = breakdown.drop(1).translate(@seps, " ")
+    array = breakdown.split(" ")
+
+    array.length.times { j =>
+      subHash = array[j]
+      buffer = lottery + e.salt + alphabet
+      alphabet = shuffle(alphabet, buffer.take(alphabet.length))
+
+      ret << unhash(subHash, alphabet)
+    }
+
+    ret = array.empty[Int] if e.encode(ret) != hash
+  }
+
+  ret
+}
+
+fn hash(input: Int, alphabet: String) -> String {
+  len = alphabet.length
+  hash = ""
+
+  loop {
+    input, rem = input.divmod(len)
+    hash << alphabet[rem]
+    break if input == 0
+  }
+
+  hash.reverse
+}
+
+fn unhash(input: String, alphabet: String) -> Int {
+  num = 0
+
+  input.length.times { i =>
+    pos = alphabet.index(input[i])
+
+    raise InvalidInput("unable to unhash") unless pos
+
+    num += pos * alphabet.length ** (input.length - i - 1)
+  }
+
+  num
+}
+
+
+fn main() {
+  e = NewEncoder("foo", 8)
+  encodedId = e.encode(1)
+  puts(encodedId)
+  decodedId = e.decode(encodedId)
+  puts(decodedId)
+}

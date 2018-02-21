@@ -1,0 +1,6 @@
+package main
+
+fn main() {
+  Array(1,2,3).each { value => puts("$value - ${value ** 2}") }
+  Map(1::"Foo", 2::"Bar").each{ (k, v) => puts("$k -> $v") }
+}
