@@ -1,3 +1,5 @@
+Note: This specification is a work in progress. It is currently incomplete. There are several inconsistencies that still need to be reconciled with one another.
+
 # Able Programming Language
 
 Able is a programming language that aims to be pleasant to use, relatively small, and relatively fast (in the same ballpark as Java or Go).
