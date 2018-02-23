@@ -125,6 +125,16 @@ fn primesLessThan(max: Uint, i: UInt, primesFound: List UInt) -> List UInt {
          * [Interface Implementations](#interface-implementations)
          * [Interface Usage](#interface-usage)
          * [Overlapping Implementations / Impl Specificity](#overlapping-implementations--impl-specificity)
+      * [Zero Values](#zero-values)
+         * [Zero values for primitive types](#zero-values-for-primitive-types)
+         * [Zero values for compound types](#zero-values-for-compound-types)
+            * [Range](#range-1)
+            * [Tuple](#tuple)
+            * [Struct](#struct)
+            * [Union](#union)
+            * [Function](#function)
+            * [Interface](#interface)
+            * [Impl](#impl)
       * [Control Flow Expressions](#control-flow-expressions)
          * [If](#if)
             * [Suffix Syntax](#suffix-syntax)
@@ -160,7 +170,9 @@ fn primesLessThan(max: Uint, i: UInt, primesFound: List UInt) -> List UInt {
       * [To do](#to-do)
       * [Not going to do](#not-going-to-do)
    * [Able Tooling](#able-tooling)
-      * [Build tool and package manager](#build-tool-and-package-manager)
+      * [Building](#building)
+      * [Testing](#testing)
+      * [Package Management](#package-management)
 
 ## Identifiers
 
