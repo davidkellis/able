@@ -1545,7 +1545,7 @@ struct Person {
 
 ```
 fn printPersonInfo(p: Person) {
-  Person(n,h,w,a) = p
+  Person{n,h,w,a} = p
   puts("name=$n   height=$h   weight=$w   age=$a")
 }
 
@@ -1555,7 +1555,7 @@ printPersonInfo(Person("Jim", 6.0833, 170, 25))
 ### Parameter Destructuring
 
 ```
-fn printPersonInfo(p: Person(n, h, w, a)) {
+fn printPersonInfo(p: Person{n, h, w, a}) {
   puts("name=$n   height=$h   weight=$w   age=$a")
 }
 
@@ -1569,8 +1569,8 @@ printPersonInfo(Person("Jim", 6.0833, 170, 25))
 h match {
   case TinyHouse | SmallHouse => puts("build a small house")
   case m: MediumHouse => puts("build a modest house - $m")
-  case LargeHouse(area) => puts ("build a large house of $area sq. ft.")
-  case HugeHouse(poolCount=pools) => puts ("build a huge house with $poolCount pools!")
+  case LargeHouse{area} => puts ("build a large house of $area sq. ft.")
+  case HugeHouse{poolCount=pools} => puts ("build a huge house with $poolCount pools!")
 }
 ```
 
@@ -1765,13 +1765,13 @@ Like Goroutines, call stacks...
 
 Depending on how many CPU cores are available, concurrently running call stacks may be interleaved onto the same CPU core, or they may run in parallel on multiple CPU cores.
 
-New call stacks may be created with the `spawn` function. `spawn` has the function signature `fn spawn(() -> T) -> Lazy T` and may be used in the style of:
+New call stacks may be created with the `spawn` function. `spawn` has the function signature `fn spawn(() -> T) -> Future T` and may be used in the style of:
 ```
-lazyResult = spawn(fireMissiles)
+futureResult = spawn(fireMissiles)
 ```
 or
 ```
-lazyResult = spawn { doThis(); fireMissiles(); doThat() }
+futureResult = spawn { doThis(); fireMissiles(); doThat() }
 ```
 
 For example:
@@ -1796,12 +1796,12 @@ Call stack local variables are supported through the use of the `CallStackLocal`
 
 There are two ways to use the `CallStackLocal` type.
 
-1. Call stack local variables may be declared, but left undefined, so long as the type representing the call-stack-local value is a union type with `Nil` as one of its members, as in:
+1. Call stack local variables may be declared, and implicitly given an appropriate zero value, as in:
    ```
-   <variable name>: CallStackLocal (<type> | Nil)
+   <variable name>: CallStackLocal <type>
    ```
 
-   `Nil` must be one of the members of the wrapped type union because the declaration of a call stack local variable causes the variable to exist in every call stack and none of them will have been assigned a value, so they are all implicitly assigned a default value of `nil`.
+   Since a call stack local variable causes the variable to exist in every call stack and none of them will have been assigned an initial value, the call stack local variable is given a default initial value of the zero value of the appropriate type. For example, if the call stack variable is of type `CallStackLocal A`, then the initial value is the zero value for the type A, `zero[A]()`.
 
 2. Call stack local variables may be declared *and* defined with the `CallStackLocal` constructor function, as in:
    ```
@@ -1822,7 +1822,7 @@ There are special semantics around accessing and assigning to a `CallStackLocal`
 
 The following examples demonstrate how to use CallStackLocal variables.
 ```
-name: CallStackLocal (String | Nil)   // declaration only
+name: CallStackLocal (String | Nil)   // declaration only; default initial value of nil
 
 name1 = spawn { name = "Bob" }
 name2 = spawn { name = "Tom" }
