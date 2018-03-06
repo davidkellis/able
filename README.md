@@ -449,6 +449,7 @@ Struct definitions can only appear in package scope.
 ```
 struct Foo T { Int, Float, T }
 struct Foo T { Int, Float, T, }
+struct Foo T [T: Iterable] { Int, Float, T }
 struct Foo T {
   Int,
   Float,
@@ -465,6 +466,7 @@ struct Foo T {
 ```
 struct Foo T { x: Int, y: Float, z: T }
 struct Foo T { x: Int, y: Float, z: T, }
+struct Foo T [T: Iterable] { x: Int, y: Float, z: T }
 struct Foo T {
   x: Int,
   x: Float,
@@ -542,6 +544,11 @@ union House = SmallHouse { sqft: Float }
   | LargeHouse { sqft: Float }
 
 union House =
+  SmallHouse { sqft: Float }
+  | MediumHouse { sqft: Float }
+  | LargeHouse { sqft: Float }
+
+union House =
   | SmallHouse { sqft: Float }
   | MediumHouse { sqft: Float }
   | LargeHouse { sqft: Float }
@@ -577,6 +584,12 @@ union Tree T = Leaf T { value: T } | Node T { value: T, left: Tree T, right: Tre
 struct Leaf T { value: T }
 struct Node T { value: T, left: Tree T, right: Tree T }
 union Tree T = Leaf T | Node T
+
+// other examples:
+
+union Foo T [T: Blah] = 
+  | Bar A [A: Stringable] { a: A, t: T }
+  | Baz B [B: Qux] { b: B, t: T }
 ```
 
 **With positional fields:**
@@ -588,6 +601,14 @@ union Tree T = Leaf T { T } | Node T { T, Tree T, Tree T }
 struct Leaf T { T }
 struct Node T { T, Tree T, Tree T }
 union Tree T = Leaf T | Node T
+
+// other examples:
+
+union Option A = Some A {A} | None A {}
+union Result A B = Success A {A} | Failure B {B}
+union ContrivedResult A B [A: Fooable, B: Barable] = 
+  | Success A X [X: Stringable] {A, X} 
+  | Failure B Y [Y: Serializable] {B, Y}
 ```
 
 ### Any Type
@@ -687,6 +708,8 @@ or
 `(<parameter list>) -> <optional return type> => <function body>`
 
 The style with the explicit free type parameter list is the only way to capture type constraints (e.g. `fn[T: Parsable + Stringable](a: T) => toString(a)` )
+
+When the optional return type is omitted, then the `->` return type delimiter that immediately follows the parameter list and preceeds the function body should also be omitted.
 
 ### Lambda expression syntax
 
@@ -1915,6 +1938,7 @@ spawn { c.receive |> puts }
 
 - https://github.com/matthiasn/talk-transcripts/blob/master/Hickey_Rich/EffectivePrograms.md
   - ~~ability to cope with sparse data/composable information constructs (heterogeneous lists and maps)~~
+- Should blocks be removed in favor of a helper function like `do(()->Unit) -> Unit` (e.g. `do { foo() }`)?
 
 ## To do
 
