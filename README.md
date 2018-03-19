@@ -1484,7 +1484,7 @@ union House =
 fn buildHouse(h: House) => h match {
   case TinyHouse | SmallHouse => puts("build a small house")
   case m: MediumHouse => puts("build a modest house - $m")
-  case LargeHouse{area} => puts ("build a large house of $area sq. ft.")
+  case l: LargeHouse{area} => puts ("build a large house of $area sq. ft. - $l")
   case HugeHouse{_, poolCount} => puts ("build a huge house with $poolCount pools!")
 }
 ```
@@ -1620,25 +1620,33 @@ fn pp(w: Widget) {
 
 fn foo() {
   bar()
-  try {
+  do {
     baz()
-  } catch {
+  catch:
     case Foo(m=msg) => "puts foo error!"
+  ensure:
+    puts("done!")
   }
   qux()
 }
 
+fn foo() => baz() catch: case Foo(m=msg) => "puts foo error!" ensure: puts("done!")
+
 fn main() {
   pp(Widget(name = "card shuffler"))
-} catch {
+catch:
   case f: Foo(m=msg) => puts "foo error = $f"
   case _ => puts "other error"
-} ensure {
+ensure:
   puts("ensure block called!")
 }
+
+fn main() => pp(Widget(name = "card shuffler")) catch: case f: Foo(m=msg) => puts "foo error = $f"; case _ => puts "other error" ensure: puts("ensure block called!")
 ```
 
 Expressions that need to be evaluated prior to function return should be placed in an ensure block. Ensure blocks may be used to suffix try/catch expression, or they may be used to suffix function definitions.
+
+How should ensure blocks affect the return value of the function?
 
 ## Lazy Evaluation
 
