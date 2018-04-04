@@ -148,9 +148,14 @@ fn primesLessThan(max: Uint, i: UInt, primesFound: List UInt) -> List UInt {
          * [Jump-points / Non-local Return](#jump-points--non-local-return)
          * [Generators](#generators)
       * [Destructuring](#destructuring)
-         * [Assignment Destructuring](#assignment-destructuring)
-         * [Parameter Destructuring](#parameter-destructuring)
-         * [Pattern Matching Destructuring](#pattern-matching-destructuring)
+         * [Destructuring Forms](#destructuring-forms)
+            * [Struct Destructuring](#struct-destructuring)
+            * [Tuple Destructuring](#tuple-destructuring)
+            * [Sequence Destructuring](#sequence-destructuring)
+         * [Destructuring Contexts](#destructuring-contexts)
+            * [Assignment Destructuring](#assignment-destructuring)
+            * [Function Parameter Destructuring](#function-parameter-destructuring)
+            * [Pattern Matching Destructuring](#pattern-matching-destructuring)
       * [Exceptions](#exceptions)
       * [Lazy Evaluation](#lazy-evaluation)
          * [By-name Evaluation (not memoized)](#by-name-evaluation-not-memoized)
@@ -437,7 +442,7 @@ if record._1 == 1 then puts("you're in first place!")
 
 Pair syntax is just syntactic sugar for expressing 2-tuples.
 
-`(1, "Foo")` can be written as `1 :: "Foo"` or `1::"Foo"`
+`(1, "Foo")` can be written as `1 :: "Foo"` or `1::"Foo"`, all of which have type (Int, String).
 
 ## Structs
 
@@ -766,7 +771,7 @@ then the function is considered to have variable arity and is called a variadic 
 
 The last parameter of a variadic function is called the variadic parameter. A variadic parameter may be supplied with zero or more arguments.
 
-Within the body of a variadic function, the variadic parameter is treated as if it were defined as an Array.
+Within the body of a variadic function, the variadic parameter is treated as if it were defined as an Iterable.
 
 For example:
 
@@ -834,16 +839,16 @@ All the functions defined above are of type:
 
 With explicit free type parameter and explicit return type:
 
-1. fn createPair T(a, b: T) -> Pair T { Pair(a, b) }<br>
-   fn createPair T(a, b: T) -> Pair T => Pair(a, b)
+1. fn createPair[T](a, b: T) -> Pair T { Pair(a, b) }<br>
+   fn createPair[T](a, b: T) -> Pair T => Pair(a, b)
 
 2. createPair = fn[T](a, b: T) -> Pair T { Pair(a, b) }<br>
    createPair = fn[T](a, b: T) -> Pair T => Pair(a, b)
 
 With explicit free type parameter and inferred return type:
 
-1. fn createPair T(a, b: T) { Pair(a, b) }<br>
-   fn createPair T(a, b: T) => Pair(a, b)
+1. fn createPair[T](a, b: T) { Pair(a, b) }<br>
+   fn createPair[T](a, b: T) => Pair(a, b)
 
 2. createPair = fn[T](a, b: T) { Pair(a, b) }<br>
    createPair = fn[T](a, b: T) => Pair(a, b)
@@ -1563,9 +1568,11 @@ Iterator { i = 1; while true { yield(i); i += 1 } }
 
 Destructuring is the binding of variable names to positional or named values within a data structure. Destructuring may be used in assignment expressions, function parameter lists, and pattern matching case expressions.
 
-Structs, tuples, pairs, arrays, and maps support destructuring. Unions do not support destructuring.
+There are three destructuring forms, depending on the type of thing being destructured. These three forms support the destructuring of structs, tuples, pairs, and types implementing the Iterable interface all support destructuring. Unions do not support destructuring.
 
-The following three sections demonstrate destructuring in three different contexts. The examples assume the following Person structure definition:
+There are three different contexts in which destructuring may be used.
+
+The following sections demonstrate the three destructuring forms and how they can be used in each of the three different destructuring contexts. The examples assume the following Person and Address structure definitions:
 
 ```
 struct Person {
@@ -1573,31 +1580,152 @@ struct Person {
   height: Float
   weight: Float
   age: Int
+  address: Address
+}
+
+struct Address {
+  street: String
+  state: String
+  zip: Int
 }
 ```
 
-### Assignment Destructuring
+
+### Destructuring Forms
+
+#### Struct Destructuring
+
+Structs may be destructured positionally with the syntax:
+```
+p: Person { n, h, w, a, addr: Address {street, state, zip} }
+```
+
+In positional destructuring expressions, local variable identifiers may be bound to field values within the struct. Bindings are established by matching up local variable identifiers with fields based on the relative position of those variable identifiers and corresponding fields. For example, if a struct has three fields - named or not - then the fields may be bound to local variable identifiers by inserting variable names at the position within the destructuring expression at which those fields appear in the struct definition.
+
+Structs may also be destructured via named field destructuring, which takes the following form:
+```
+// if it is desirable to reference p.address via the local identifier addr, then do the following:
+p: Person { a=age, h=height, w=weight, addr: Address{z=zip}=address }
+
+// or
+
+// if it isn't necessary to reference p.address via a local identifier, then do the following:
+p: Person { a=age, h=height, w=weight, Address{z=zip}=address }
+```
+
+Named field destructuring uses the assignment operator to denote that a local variable identifier should be bound to a particular named field within the struct; the syntax takes the form `local_variable_identifier=field_name_from_struct`.
+
+In cases where named field destructuring expressions need to be recursively destructured, the left hand side of the assignment operator may take one of two forms, (1) `local_identifier: AnotherStruct {...}`, or (2) `AnotherStruct {...}`. The first form is used when it is desirable to bind the full value that is being recursively destructured to a local identifier, while the second form is used when it is unnecessary to reference the full value that is being recursively destructured.
+
+#### Tuple Destructuring
+
+Tuples are destructured in the same way that structs are, except that (1) tuples are destructured without a leading type name and (2) tuples are destructured with a set of surrounding parenthesis instead of curly braces.
+
+Destructuring a tuple positionally takes the form:
+```
+triple: ( a, b, c: Address { street, state, zip } )
+```
+
+Destructuring a tuple via "named" field destructuring takes the form:
+```
+triple: ( a=_0, b=_1, c: Address { z=zip }=_2 )
+```
+
+NOTE: In some contexts, the type of the positional fields may be necessary for type disambiguation purposes. In those cases, the type may be notated immediately following the name of the local variable identifier, as in the following two examples:
+
+1. Destructuring a tuple positionally with explicit positional field types:
+```
+triple: ( a: Int, b: Int, c: Address { street, state, zip } )
+```
+
+2. Destructuring a tuple via "named" field destructuring with explicit named field types:
+```
+triple: ( a: Int=_0, b: Int=_1, c: Address { z=zip }=_2 )
+```
+
+#### Sequence Destructuring
+
+Sequence destructuring may be used anywhere that struct destructuring may be used, and the syntax is the same
+with the exception that square brackets are used instead of curly braces.
+
+The syntax for sequence destructuring is:
+```
+<sequence struct that implements Iterable>[<var1>, <var2>, <...>, <varN>, *<remainder sequence>]
+```
+where `<var1>`, `<var2>`, `<...>`, and `<varN>` represent variable bindings and `*<remainder sequence>` represents
+an optional variable binding capturing an iterator over the remaining part of the sequence that was not consumed
+by the leading variable bindings.
+
+For example:
+```
+Array[a, b, c] = Array(1..100)
+Array[a, b, c, *rest] = Array(1..100)
+List[x, y, z, *rest] = List(1..100)
+```
+
+Sequence destructuring is available to any struct that implements the Iterable interface.
+
+
+### Destructuring Contexts
+
+#### Assignment Destructuring
 
 ```
+// positional destructuring form; assignment context
 fn printPersonInfo(p: Person) {
   Person{n,h,w,a} = p
   puts("name=$n   height=$h   weight=$w   age=$a")
 }
 
-printPersonInfo(Person("Jim", 6.0833, 170, 25))
-```
+// or
 
-### Parameter Destructuring
-
-```
-fn printPersonInfo(p: Person{n, h, w, a}) {
+// named field destructuring form; assignment context
+fn printPersonInfo(p: Person) {
+  Person{a=age, h=height, w=weight, n=name} = p
   puts("name=$n   height=$h   weight=$w   age=$a")
 }
 
 printPersonInfo(Person("Jim", 6.0833, 170, 25))
+
+
+// positional tuple destructuring form; assignment context
+fn printPair(pair: (Int, String)) {
+  (i, str) = pair
+  puts("i=$i   str=$str")
+}
+
+printPair( (4, "Bill") )
+printPair( 4::"Bill" )
 ```
 
-### Pattern Matching Destructuring
+#### Function Parameter Destructuring
+
+```
+// 3 equivalent parameter destructuring examples;
+fn printPersonInfo(p: Person{n, h, w, a}) {
+  puts("name=$n   height=$h   weight=$w   age=$a")
+}
+// or
+fn printPersonInfo(_: Person{n, h, w=weight, a}) {
+  puts("name=$n   height=$h   weight=$w   age=$a")
+}
+// or
+fn printPersonInfo(Person{n, h, w, a}) {
+  puts("name=$n   height=$h   weight=$w   age=$a")
+}
+
+printPersonInfo(Person("Jim", 6.0833, 170, 25))
+
+
+fn printPair(pair: (i: Int, str: String)) {
+  puts("i=$i   str=$str")
+}
+
+printPair( (4, "Bill") )
+printPair( 4::"Bill" )
+```
+
+#### Pattern Matching Destructuring
 
 ```
 // assuming h is of type House
@@ -1608,6 +1736,7 @@ h match {
   case HugeHouse{poolCount=pools} => puts ("build a huge house with $poolCount pools!")
 }
 ```
+
 
 ## Exceptions
 
@@ -1953,6 +2082,7 @@ spawn { c.receive |> puts }
 - Decide on safe navigation operator
   - it might behave like Rust's questionmark operator: https://m4rw3r.github.io/rust-questionmark-operator
 - Coroutines will be implemented with call stacks and channels.
+- Handle integer overflow like https://golang.org/ref/spec#Integer_overflow
 
 ## Not going to do
 
