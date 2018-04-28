@@ -282,7 +282,7 @@ and if the type can be inferred, then the definition may be shortened to:
 
 ### Type Expressions
 
-A type is a name given to a set of values, and every value has an associated type. For example, `Boolean` is the name given to the set `{true, false}`, and the value `true` is of type `Boolean`.  `TwoBitUnsignedInt` might be the type name we give to the set `{0, 1, 2, 3}`, such that `3` would be a value of type `TwoBitUnsignedInt`.
+A type is a name given to a set of values, and every value has an associated type. For example, `Boolean` is the name given to the set `{true, false}`, and since the value `true` is a member of the set `{true, false}`, it is of type `Boolean`.  `TwoBitUnsignedInt` might be the type name we give to the set `{0, 1, 2, 3}`, such that `3` would be a value of type `TwoBitUnsignedInt`.
 
 A type is denoted by a type expression. All types are parametric types, in that all types have zero or more type parameters.
 
@@ -298,21 +298,21 @@ References:
 
 In places where type parameters may be constrained, the following constraints may be used:
 - Implements constraint
-- Union superset constraint
+- ~~Union superset constraint~~
 
 #### Implements Constraint
 
 `T: I` is read as type T implements interface I.
 
-`T: I + J + K` is read as type T implements interface I and J and K.
+`T: I & J & K` is read as type T implements interface I and J and K.
 
-#### Union Superset Constraint
+#### ~~Union Superset Constraint~~
 
-`T supersetOf X|Y|Z` is read as type T is a superset of the type union X|Y|Z.
+~~`T supersetOf X|Y|Z` is read as type T is a superset of the type union X|Y|Z.~~
 
-The right-hand-side of the supersetOf type operator may be a single-member set, for example `T supersetOf Nil` would mean `T` is a union type that has Nil as a member type. For example, the superset may be `Nil`, `Nil | Int`, `Nil | Int | String`, etc.
+~~The right-hand-side of the supersetOf type operator may be a single-member set, for example `T supersetOf Nil` would mean `T` is a union type that has Nil as a member type. For example, the superset may be `Nil`, `Nil | Int`, `Nil | Int | String`, etc.~~
 
-The supersetOf type operator doesn't imply that the left-hand-side is a proper superset of the right-hand-side; the two type unions may be equal.
+~~The supersetOf type operator doesn't imply that the left-hand-side is a proper superset of the right-hand-side; the two type unions may be equal.~~
 
 ## Primitive Types
 
@@ -406,20 +406,20 @@ There are several default implementations of the `Range` interface, for example,
 ```
 impl Range Int Int Int {
   fn inclusiveRange(start: Int, end: Int) -> Iterable Int {
-    Iterator {
+    Iterator { gen =>
       i = start
       while i <= end {
-        yield(i)
+        gen.yield(i)
         i += 1
       }
     }
   }
 
   fn exclusiveRange(start: Int, end: Int) -> Iterable Out {
-    Iterator {
+    Iterator { gen =>
       i = start
       while i < end {
-        yield(i)
+        gen.yield(i)
         i += 1
       }
     }
@@ -449,6 +449,28 @@ Pair syntax is just syntactic sugar for expressing 2-tuples.
 Struct type definitions define both a type and a constructor function of the same name as the type.
 
 Struct definitions can only appear in package scope.
+
+### Singleton Structs
+
+Structs that have a single value are called singleton structs.
+
+The type name of a singleton struct, as well as the single value that it represents, share the same identifier. In contexts where a type name is expected, the identifer represents the type, otherwise the identifier represents the singleton value.
+
+```
+struct Red
+struct Green
+struct Blue
+```
+
+TODO: Revisit whether generic singleton structs are useful. I don't think it makes sense to have generic singleton structs. See https://stackoverflow.com/questions/22065358/what-is-the-type-of-nothing-in-haskell
+
+Singleton structs may also have type parameters, as in the following:
+
+```
+struct Foo T
+```
+
+Though specializations of a parametric singleton struct type are all variants of the generic type, each specialization is treated as an independent type. The implication is that two different specializations of the same generic type will not unify. For example, it would not be allowed to assign a `Foo Int` value to a variable of type `Foo Float`.
 
 ### Definition with Positional Fields
 ```
@@ -528,7 +550,7 @@ Fields that are omitted are given a zero value appropriate for their type.
 
 ## Unions
 
-Unions in Able are similar to discriminated unions in F#, enums in Rust, and algebraic data types in Haskell. A union type is a type made up of one or more member types, each of which can be any other type, even other union types.
+Unions in Able are similar to discriminated unions in F#, enums in Rust, and algebraic data types in Haskell. A union type is a type made up of two or more member types, each of which can be any other type, even other union types.
 
 ### Union definitions referencing predefined types
 
@@ -544,6 +566,8 @@ union Color = Red | Green | Blue
 ### Union definitions referencing new struct types
 
 ```
+union SmallInt = One | Two | Three
+
 union House = SmallHouse { sqft: Float }
   | MediumHouse { sqft: Float }
   | LargeHouse { sqft: Float }
@@ -568,7 +592,6 @@ union House = SmallHouse { sqft: Float }
 ```
 
 is internally translated into:
-
 ```
 struct SmallHouse { sqft: Float }
 struct MediumHouse { sqft: Float }
@@ -576,9 +599,28 @@ struct LargeHouse { sqft: Float }
 union House = SmallHouse | MediumHouse | LargeHouse
 ```
 
+The same is true for unions that reference singleton struct types:
+```
+union SmallInt = One | Two | Three
+```
+
+is internally translated into:
+```
+struct One
+struct Two
+struct Three
+union SmallInt = One | Two | Three
+```
+
 ### Generic Unions
 
 Union types may be defined generically, as in the following examples.
+
+**With Singleton Struct Alternatives**
+
+```
+union Option T = Some T { val: T } | None
+```
 
 **With named fields:**
 
@@ -623,11 +665,13 @@ The `Any` type is a special union type that is the union of all types known to t
 
 ## Blocks
 
-A block is a sequence of expressions enclosed in a set of curly braces. A block is itself an expression that evaluates to the value returned by the last expression in the block. A block introduces a new variable scope, but may reference identifiers from any enclosing scopes.
+A block is a sequence of expressions enclosed in a set of curly braces, prefixed with the `do` keyword.
+
+A block is itself an expression that evaluates to the value returned by the last expression in the block. A block introduces a new local variable scope, but may reference identifiers from any enclosing scope.
 
 For example:
 ```
-{
+do {
   a = 5 + 7
   puts(a)
   a
@@ -635,7 +679,7 @@ For example:
 ```
 or
 ```
-{ a = 5 + 7; puts(a); a }
+do { a = 5 + 7; puts(a); a }
 ```
 
 ## Functions
@@ -660,7 +704,7 @@ Named function syntax allows one to define a named function in the current lexic
 or
 `fn <function name>[<optional type paramter list>](<parameter list>) -> <optional return type> => <function body>`
 
-The style allows type constraints to be captured in the type parameter list (e.g. `fn convertToString[T: Parsable + Stringable](a: T) => toString(a)` )
+This style allows type constraints to be captured in the type parameter list (e.g. `fn convertToString[T: Parsable & Stringable](a: T) => toString(a)` )
 
 #### Point-free style
 
@@ -712,7 +756,7 @@ Additionally, you can omit the leading `fn` at the expense of not being able to 
 or
 `(<parameter list>) -> <optional return type> => <function body>`
 
-The style with the explicit free type parameter list is the only way to capture type constraints (e.g. `fn[T: Parsable + Stringable](a: T) => toString(a)` )
+The style with the explicit free type parameter list is the only way to capture type constraints (e.g. `fn[T: Parsable & Stringable](a: T) => toString(a)` )
 
 When the optional return type is omitted, then the `->` return type delimiter that immediately follows the parameter list and preceeds the function body should also be omitted.
 
@@ -721,18 +765,7 @@ When the optional return type is omitted, then the `->` return type delimiter th
 Lambda expressions are defined in the lambda expression syntax:
 ```{ <paramter list> -> <return type> => expression }```
 
-Lambda expressions may be defined without any parameters, but depending on the context, the "fat arrow", `=>`, may be necessary to disambiguate whether the expression represents a block or a zero-argument lambda.
-
-As an example of an ambiguous expression, `randomInt = { Random.int() }` may represent an expression of type `Int`, or it may represent an expression of type `()->Int`.
-
-When the compiler can't infer the correct return type, the expression must be made more explicit. For example, to disambiguate `randomInt = { Random.int() }`, either of the following would work:
-```
-randomInt = { => Random.int() }
-```
-or
-```
-randomInt: fn()->Int = { Random.int() }
-```
+The parameter list and the return type declarations are optional.
 
 #### Implicit Lambda Expressions via Placeholder Expression Syntax (a.k.a. Placeholder Lambdas)
 
@@ -1046,64 +1079,71 @@ Some operators have special semantics, and may not be overridden.
    Array(1,2,3).map { x => x^2 }
    ```
 
-4. If a function is defined with a parameter of a union type, then the function may be called by suppling either a value whose type is the union type or a value whose type is any one of the members of the union.
+4. Functions of unions have the following invocation behavior:
 
-   For example, given
-   ```
-   struct Red { level: Int }
-   struct Green { level: Int }
-   struct Blue { level: Int }
-   union Color = Red | Green | Blue
-
-   fn paintHouse(c: Color) -> Boolean { ... }
-   ```
-   the `paintHouse` function may be invoked with either of the following:
-   ```
-   paintHouse(Red(5))   // value of type Red
-   ```
-   OR
-   ```
-   color: Color = Red(5)
-   paintHouse(color)   // value of type Color
-   ```
-
-5. When passing a value of a union type to a function, the function must either be defined in terms of a parameter of the union type, or be defined for each member of the union type. If both alternatives are fully defined, then the function defined in terms of the union type is preferred; however, if the function is called with a value of one of the union's member types, then the function defined in terms of the member type is preferred (see special case #6 for more information).
-
-   For example, given
+   Given the following definitions:
    ```
    struct Red { level: Int }
    struct Green { level: Int }
    struct Blue { level: Int }
    union Color = Red | Green | Blue
    ```
-   the expression
-   ```
-   color: Color = Red
-   paintHouse(color)
-   ```
-   is allowable only if:
-   - `paintHouse(Color)` has been defined<br>OR
-   - `paintHouse(Red)` has been defined, and<br>
-     `paintHouse(Green)` has been defined, and<br>
-     `paintHouse(Blue)` has been defined
 
-   If `paintHouse(Color)` as well as `paintHouse(Red)`, `paintHouse(Green)`, and `paintHouse(Blue)` are all defined, then the more specialized implementation - `paintHouse(Red)`, in this case - is preferred.
+   1. If the following is defined:
+      ```
+      fn paintHouse(Color) -> Boolean
+      ```
+      and the following are not defined:
+      ```
+      fn paintHouse(Red) -> Boolean
+      fn paintHouse(Green) -> Boolean
+      fn paintHouse(Blue) -> Boolean
+      ```
+      then
+      ```
+      c: Color = Red()
+      paintHouse(c)           // invokes paintHouse(Color)
+      paintHouse(Red())       // invokes paintHouse(Color)
+      paintHouse(Green())     // invokes paintHouse(Color)
+      paintHouse(Blue())      // invokes paintHouse(Color)
+      ```
 
-6. If a function has been defined for both a union type, e.g. `union U = U1 | U2`, and an individual member of the union type, e.g. `U1`, and the function is called with a value of type `U1`, then the function that gets called is the one defined for the individual member of the union type.
+   2. If the following are defined:
+      ```
+      fn paintHouse(Color) -> Boolean
+      fn paintHouse(Red) -> Boolean
+      fn paintHouse(Green) -> Boolean
+      fn paintHouse(Blue) -> Boolean
+      ```
+      then
+      ```
+      c: Color = Red()
+      paintHouse(c)           // invokes paintHouse(Color)
+      paintHouse(Red())       // invokes paintHouse(Red)
+      paintHouse(Green())     // invokes paintHouse(Green)
+      paintHouse(Blue())      // invokes paintHouse(Blue)
+      ```
+   
+   3. If the following are defined:
+      ```
+      fn paintHouse(Red) -> Boolean
+      fn paintHouse(Green) -> Boolean
+      fn paintHouse(Blue) -> Boolean
+      ```
+      and the following is not defined:
+      ```
+      fn paintHouse(Color) -> Boolean
+      ```
+      then
+      ```
+      c: Color = Red()
+      paintHouse(c)           // is not a valid function invocation
+      paintHouse(Red())       // invokes paintHouse(Red)
+      paintHouse(Green())     // invokes paintHouse(Green)
+      paintHouse(Blue())      // invokes paintHouse(Blue)
+      ```
 
-   For example, given
-   ```
-   struct Red { level: Int }
-   struct Green { level: Int }
-   struct Blue { level: Int }
-   union Color = Red | Green | Blue
-
-   fn paintHouse(c: Color) -> Boolean { ... }
-   fn paintHouse(c: Red) -> Boolean { ... }
-   ```
-   the expression `paintHouse(Red(5))` invokes the function defined by `fn paintHouse(c: Red) -> Boolean { ... }`.
-
-7. A value of type T may be treated as a function, and invoked with normal function application syntax, if a function named `apply`, defined with a first parameter of type T is in scope at the call site.
+5. A value of type T may be treated as a function, and invoked with normal function application syntax, if a function named `apply`, defined with a first parameter of type T is in scope at the call site.
 
    For example:
    ```
@@ -1120,7 +1160,7 @@ Some operators have special semantics, and may not be overridden.
 
    Apply functions may also be invoked with method syntax, as in the following:
    ```
-   fn apply(i, j: Int) -> Int => i * j
+   fn apply(i: Int, j: Int) -> Int => i * j
    5.apply(6)    // returns 30
    ```
 
@@ -1148,7 +1188,7 @@ where A is the name of the interface optionally parameterized with type paramete
 
 The `for` clause is optional. When present, the `for` clause specifies that a type variable, D, is deemed to implement interface A. If no `for` clause is specified, then the interface serves as a type constraint on types B, C, etc.
 
-The type expression in the for clause is called the interface's *self type*. The self type is a concrete or polymorphic type representing the type that will implement the interface. In the syntax above, `D [E F ...]` represents the self type.
+The type expression in the for clause is called the interface's <a name="self-type"></a>*self type*. The self type is a concrete or polymorphic type representing the type that will implement the interface. In the syntax above, `D [E F ...]` represents the self type.
 
 D may represent either a concrete type or a polymorphic type depending on whether D's type parameters (if applicable) are bound or unbound (see [Type Expressions](#type-expressions) for more on bound vs. unbound type parameters).
 
@@ -1168,7 +1208,7 @@ interface Comparable for T {
 // Iterable interface
 interface Iterable T for E {
   fn each(E, T -> Unit) -> Unit
-  fn iterator(e: E) -> Iterator T = Iterator { e.each(yield) }
+  fn iterator(e: E) -> Iterator T => Iterator { gen => e.each(gen.yield) }
 }
 
 // Mappable interface (Functor to you Haskell folks)
@@ -1182,6 +1222,26 @@ interface Range S E Out {
   fn exclusiveRange(start: S, end: E) -> Iterable Out
 }
 ```
+
+#### Interface Aliases and Interface Intersection Types
+
+Much like intersection types in Scala 3/Dotty (http://dotty.epfl.ch/docs/reference/intersection-types.html), interfaces may be defined as the intersection of two or more interfaces, under the interpretation that, if a type implements all of the enumerated interfaces, then the type is also deemed to implement the intersection interface. Intersection interfaces are not implemented directly.
+
+Additionally, an interface may be defined as an alias of another interface. The most common reason to define an alias would be to define a named type where a type parameter of another interface is fixed to a single specific type.
+
+Intersection interfaces may be defined with the following syntax:
+```
+interface A [B C ...] = D [E F ...] [& G [H I ...] & J [K L ...] ...]
+```
+where A is the name of the intersection interface and D, G, and J are the members of the intersection set.
+
+Some contrived examples of intersection types:
+```
+interface WebEncodable T = XmlEncodable T & JsonEncodable T
+interface Repository T = Collection T & Searchable T
+interface Collection T = Countable T & Addable T & Removable T & Getable T
+```
+
 
 ### Interface Implementations
 
@@ -1265,7 +1325,7 @@ Sum#id()
 
 ### Interface Usage
 
-When calling a function defined in an interface, a client may supply either (1) a value of a type that implements the interface or (2) a value of the interface type to the function in any argument that is typed as the interface's self type.
+When calling a function defined in an interface, a client may supply either (1) a value of a type that implements the interface - the interface's [self type](#self-type) - or (2) a value of the interface type to the function in any argument that is typed as the interface's self type.
 
 For example, given:
 ```
@@ -1323,25 +1383,46 @@ impl Foo for T: Bar {}
 impl Foo for T: Bar {}
 impl Foo for T: Baz {}
 
-// overlap when T = U such that A supersetOf Nil | Int
-impl [A supersetOf Nil] Foo A for T {}
-impl [A supersetOf Nil | Int] Foo A for U {}
+// overlap when T = Float
+impl Foo for Int | Float {}
+impl Foo for Int | T {}
+
+// overlap when two type unions implement the same interface, s.t. one type union is a proper subset of the other
+impl Foo for Int | Float | Double {}
+impl Foo for Int | Float {}
 ```
 
-The patterns of overlap that we're going to solve for are:
+~~// overlap when T = U such that A supersetOf Nil | Int~~
+~~impl [A supersetOf Nil] Foo A for T {}~~
+~~impl [A supersetOf Nil | Int] Foo A for U {}~~
+
+The following specificity/disambiguation rules resolve the patterns of overlap/conflict that are most common:
 
 1. Concrete types are more specific than type variables. For example:
    - `Int` is more specific than `T`
    - `Array Int` is more specific than `Array T`
 2. Concrete types are more specific than interfaces. For example:
    - `Array T` is more specific than `Iterable T`
-3. Constrained type variables are more specific than unconstrained type variables. For example:
+3. Interface types are more specific than unconstrained type variables. For example:
+   - `Iterable T` is more specific than `T`
+4. Constrained type variables are more specific than unconstrained type variables. For example:
    - `T: Iterable` is more specific than `T`
-   - `T supersetOf Nil` is more specific than `T`
-4. Given two sets of comparable type constraints, ConstraintSet1 and ConstraintSet2, if ConstraintSet1 is a proper subset of ConstraintSet2, then ConstraintSet1 imposes fewer constraints, and is therefore less specific than ConstraintSet2. In other words, the constraint set that is a proper superset of the other is the most specific constraint set. If the constraint sets are not a proper subset/superset of one another, then the constraint sets are not comparable, and which means that the competing interface implementations are not comparable either. This rule captures rule (3). For example:
+   - ~~`T supersetOf Nil` is more specific than `T`~~
+5. ~~Open unions with a larger number of enumerated members is more specific than open unions with a smaller number of enumerated members. For example:~~
+   - ~~`A | B | ...` is more specific than `A | ...`~~
+   - ~~`A | B | C | D | ...` is more specific than `A | B | Z | ...`~~
+   
+   ~~The reasoning is as follows. Given a population of types, P, consisting of N type members (i.e. cardinality of P is N), the total number of possible subsets of types from P (i.e. the powerset of P) has cardinality 2^N. In an open union with 3 enumerated members, the number of possible subsets of P that include all 3 enumerated members is 2^(N - 3). In an open union with 2 enumerated members, the number of possible subsets of P that include both enumberated members is 2^(N - 2). When comparing the number of possible subsets of P that include 3 enumerated members with the number of possible subsets of P that include 2 enumerated members, the open union with 3 enumerated members is deemed more specific than the open union with 2 enumerated members, since 2^(N - 3) is a smaller number of subsets than 2^(N - 2). Generalizing from this observation, the rule is that open unions with more enumerated members are more specific than open unions with fewer enumerated members.~~
+6. A union type that is a proper subset of another union type is more specific than its superset. For example:
+   - `Int | Float` is more specific than `Int | Float | Double`
+7. Given two unions that differ only in a single type member, such that the member is concrete in one union and generic in the other union, the union that references the concrete member is more specific than the union that references the generic member.
+   - `Int | Float` is more specific than `Int | T`
+8. Given two unions that differ only in a single type member, such that the member is concrete in one union and an interface in the other union, the untion that references the concrete member is more specific than the union that references the interface member.
+   - `Int | Float` is more specific than `Int | FloatingPointNumeric`
+9. Given two sets of comparable type constraints, ConstraintSet1 and ConstraintSet2, if ConstraintSet1 is a proper subset of ConstraintSet2, then ConstraintSet1 imposes fewer constraints, and is therefore less specific than ConstraintSet2. In other words, the constraint set that is a proper superset of the other is the most specific constraint set. If the constraint sets are not a proper subset/superset of one another, then the constraint sets are not comparable, which means that the competing interface implementations are not comparable either. This rule captures rule (4). For example:
    - `T: Iterable` is more specific than `T` (with no type constraints), because `{Iterable}` is a proper superset of `{}` (note: `{}` represents the set of no type constraints).
-   - `T supersetOf Nil` is more specific than `T` (with no type constraints) because `{T supersetOf Nil}` is a proper superset of `{}`.
-   - `A supersetOf Nil | Int` is more specific than `A supersetOf Nil`, because `{A supersetOf Nil | Int}` is equivalent to `{A supersetOf Nil, A supersetOf Int}`, which is a proper superset of `{A supersetOf Nil}`.
+   - ~~`T supersetOf Nil` is more specific than `T` (with no type constraints) because `{T supersetOf Nil}` is a proper superset of `{}`.~~
+   - ~~`A supersetOf Nil | Int` is more specific than `A supersetOf Nil`, because `{A supersetOf Nil | Int}` is equivalent to `{A supersetOf Nil, A supersetOf Int}`, which is a proper superset of `{A supersetOf Nil}`.~~
 
 There are many potential cases where the type constraints in competing interface implementations can't be compared. In those cases, the compiler will emit an error saying that the competing interface implementations are not comparable, and so the expression is ambiguous.
 
@@ -1399,20 +1480,32 @@ the zero value for type `C`, etc.
 
 #### Union
 
-Union `A | B | C | Nil` has a zero value of `nil`. If the union type does not have `Nil` as a member, then the zero value `zero[A]()`.
+Any union type in which `Nil` is a member has a zero value of `nil`. The `Any` type has a zero value of `nil`.
 
-A union with `Nil` as a type member has a zero value of `nil`.
-
-The `Any` type has a zero value of `nil`.
+The zero value of any other union is arbitrarily chosen as the zero value of one of the member types of the union. It is undefined which member of the union will be chosen as the type used to produce a zero value. For example, for the type `A | B | C`, the zero value is arbitrarily/randomly chosen to be either the zero value for A, the zero value for B, or the zero value for C.
 
 #### Function
 
 The zero type for a function with signature `(A, B, C, ...)->Z` with type parameters `A` through `Z` is
-the function `fn[A,B,C,...,Z](a:A, b:B, ...)->Z { zero[Z]() }`.
+the function `fn[A,B,C,...,Z](a:A, b:B, ...)->Z { Z' }`, where `Z'` represents the zero value for type `Z`.
 
-#### Interface
+#### Interface/Impl
 
-#### Impl
+The zero value for an interface with signature:
+```
+interface Foo for T {
+  fn bar[A,B](a: A, b:B, ...) -> C
+  fn baz[D,E](d:D, e:E, ...) -> F
+}
+```
+is the value `nil`. The reason why is that all interfaces define a default implementation for the Nil type, such that each function returns a zero value of the function's return type, for example, `Nil` implicitly implements the previously defined `Foo` interface with a randomly generated impl of the form:
+```
+Foo1887678 = impl Foo for Nil {
+  fn bar[A,B](a: A, b:B, ...) -> C { C' }
+  fn baz[D,E](d:D, e:E, ...) -> F { F' }
+}
+```
+where `C'` and `F'` represent the zero values for types `C` and `F` respectively.
 
 
 ## Control Flow Expressions
@@ -1466,12 +1559,12 @@ if <condition> {
 
 ### Pattern Matching
 
-Pattern matching expression take the following general form:
+Pattern matching expressions take the following general form:
 
 ```
 <expression> match {
-  case <pattern> => <expression>
-  case <pattern> => <expression>
+  case <destructuring pattern> => <expression>
+  case <destructuring pattern> => <expression>
   case _ => <expression>
 }
 ```
@@ -1546,21 +1639,21 @@ fn all?(iterable: I, predicate: T -> Boolean) -> Boolean {
 
 ### Generators
 
-Able supports generators through the `yield` special function. Any function that invokes the `yield` function is considered a generator function, and therefore **must** return an Iterator.
+Able supports generators through the `Iterator[T]( Generator T -> Unit ) -> Iterator T` function. The `Iterator` function accepts a value-producing function - the generator function - and returns an `Iterator T` that iterates over the values produced by the generator.
 
-The following are examples of generator functions:
+The following are examples of generator expressions:
 ```
-fn() -> Iterator Int => for i in 1..10 { yield i }
-() -> Iterator Int => for i in 1..10 { yield i }
-{ => for i in 1..10 { yield i } }
-{ (1..10).each(yield) }   // this may look like a block, but since `yield` is invoked within the block, the block is interpreted as a lambda expression
+Iterator { gen => for i in 1..10 { gen.yield(i) } }
+Iterator { gen => (1..10).each(gen.yield) }
 ```
 
-A generator function may not `return` any value except the unit value, `()`. In order to signal the end of the iterator, a generator function must return, either explicitly or implicitly, the unit value.
+In order to signal the end of the iterator, the generator function must either explicitly or implicitly return. The returned value is irrelevant. If the generator function never returns, then the generator produces an infinite Iterator.
 
-The `Iterator` function invokes the supplied generator function and returns the resulting `Iterator T`. For example:
+The Generator T interface is defined as:
 ```
-Iterator { i = 1; while true { yield(i); i += 1 } }
+interface Generator A for T {
+  fn yield(T, A) -> T
+}
 ```
 
 
@@ -1973,7 +2066,7 @@ There are two ways to use the `CallStackLocal` type.
    <variable name>: CallStackLocal <type>
    ```
 
-   Since a call stack local variable causes the variable to exist in every call stack and none of them will have been assigned an initial value, the call stack local variable is given a default initial value of the zero value of the appropriate type. For example, if the call stack variable is of type `CallStackLocal A`, then the initial value is the zero value for the type A, `zero[A]()`.
+   Since a call stack local variable causes the variable to exist in every call stack and none of them will have been assigned an initial value, the call stack local variable is given a default initial value of the zero value of the appropriate type. For example, if the call stack variable is of type `CallStackLocal A`, then the initial value is the zero value for the type A.
 
 2. Call stack local variables may be declared *and* defined with the `CallStackLocal` constructor function, as in:
    ```
@@ -2075,12 +2168,11 @@ spawn { c.receive |> puts }
 
 - https://github.com/matthiasn/talk-transcripts/blob/master/Hickey_Rich/EffectivePrograms.md
   - ~~ability to cope with sparse data/composable information constructs (heterogeneous lists and maps)~~
-- Should blocks be removed in favor of a helper function like `do(()->Unit) -> Unit` (e.g. `do { foo() }`)?
+- Support something like Rust's questionmark operator: https://m4rw3r.github.io/rust-questionmark-operator ??
 
 ## To do
 
-- Decide on safe navigation operator
-  - it might behave like Rust's questionmark operator: https://m4rw3r.github.io/rust-questionmark-operator
+- Use `&.` as safe navigation operator
 - Coroutines will be implemented with call stacks and channels.
 - Handle integer overflow like https://golang.org/ref/spec#Integer_overflow
 
