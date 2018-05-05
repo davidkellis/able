@@ -204,10 +204,28 @@ Why is snake_case preferred over camelCase? Subjectively, snake_case seems easie
 
 ## Packages
 
-There must be one, and only one, package definition per file, specified at the top of the file.
+There must be one, and only one, package definition per file, specified at the top of the file. 
 
 ```
 package io
+```
+
+Every package has both a name and a path. The package definition specifies the package name. The package path is determined by the directory structure that the file capturing the package definition resides in. The parts of a package path correspond to directories within the project root directory. If a package name matches the directory that the source file resides in, then the package name is not treated as distinct from the package that the directory corresponds to, and therefore the package name isn't treated as a suffix that gets tacked onto the end of the fully qualified package name of the directory.
+
+A fully qualified package name captures both the package path and the package name, joined together by a period.
+
+For example, the following directory structure and corresponding packages might exist:
+```
+~/Projects/widget         // this is the project root directory; it corresponds to the "widget" package
+|-- foo.able              // if this file says `package foo`, then the fully qualified packge would be "widget.foo"
+|-- qux.able              // if this file says `package widget`, then the fully qualified package would be "widget"
+|-- components            // this directory corresponds to the "widget.components" package
+|   |-- bar.able          // if this file says `package bar`, then the fully qualified package would be "widget.components.bar"
+|   |-- quux.able         // if this file says `package components`, then the fully qualified package would be "widget.components"
+|   |-- motion            // this directory corresponds to the "widget.components.motion" package
+|   |   |-- baz.abel      // if this file says `package baz`, then the full package name is "widget.components.motion.baz"
+|   |-- actuator          // this directory corresponds to the "widget.components.actuator" package
+|-- integration_test      // this directory corresponds to the "widget.integration_test" package
 ```
 
 A package introduces a new variable scope that forms the root scope for any other scopes introduced within the package.
@@ -359,7 +377,7 @@ x: Array Float = Array(5.6, 5.7, 8)
 
 ### Map
 
-As with arrays, there are no map literals. Maps are created with the `Map` constructor function.
+There is no map literal syntax. Maps are created with the `Map` constructor function.
 
 ```
 m = Map(1 :: "Foo", 2 :: "Bar")
@@ -1212,8 +1230,8 @@ interface Iterable T for E {
   fn iterator(e: E) -> Iterator T => Iterator { gen => e.each(gen.yield) }
 }
 
-// Mappable interface (Functor to you Haskell folks)
-interface Mappable A for M _ {
+// Mappable interface (something approximating Functor in Haskell-land - see https://wiki.haskell.org/Typeclassopedia#Functor)
+interface Mappable for M _ {
   fn map(m: M A, convert: A -> B) -> M B
 }
 
@@ -1353,6 +1371,8 @@ In cases where the interface was defined without a `for` clause, then the interf
 ```
 fn buildIntRange[S, E, Range S E Int](start: S, end: E) -> Iterable Int => start..end
 ```
+
+Less frequently, a function in an interface may be defined to accept two or more parameters of the interface's self type. If the self type is polymorphic, and the function is invoked with a value of the interface type as an argument in place of one of the self type parameters, then the other self type parameters must also reference the same underlying type (either directly as a value of the underlying type, or indirectly through an interface value that represents the underlying type), so that the multiple self type parameters all remain consistent with respect to one another - i.e. so that they all reference the same underlying type.
 
 
 ### Overlapping Implementations / Impl Specificity
