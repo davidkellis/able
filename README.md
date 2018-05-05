@@ -20,20 +20,20 @@ fn main() {
 
 ```
 // recursive
-fn factorial(n: UInt) => n < 2 ? 1 : n * factorial(n - 1)
+fn factorial(n: u32) => n < 2 ? 1 : n * factorial(n - 1)
 ```
 
 ```
 // tail recursive
 fn factorial(n) => factorial(n, 1)
-fn factorial(n: UInt, product: UInt) -> UInt {
+fn factorial(n: u32, product: u32) -> u32 {
   if n < 2 then product else factorial(n - 1, n * product)
 }
 ```
 
 ```
 // iterative
-fn factorial(n: UInt) {
+fn factorial(n: u32) {
   return 1 if n < 2
   for i in 2...n { n *= i }
   n
@@ -42,7 +42,7 @@ fn factorial(n: UInt) {
 
 ```
 // reduce
-fn factorial(n: UInt) {
+fn factorial(n: u32) {
   return 1 if n <= 1
   (2..n).reduce(*)
 }
@@ -52,7 +52,7 @@ fn factorial(n: UInt) {
 
 ```
 fn primesLessThan(max) => max < 2 ? List() : primesLessThan(max, 2, List())
-fn primesLessThan(max: Uint, i: UInt, primesFound: List UInt) -> List UInt {
+fn primesLessThan(max: u32, i: u32, primesFound: List u32) -> List u32 {
   return primesFound if i > max
   if primesFound.any? { p => i % p == 0 }
     primesLessThan(max, i + 1, primesFound)
@@ -194,7 +194,7 @@ Value identifiers introduced in a local scope will shadow any identifiers of the
 
 ### Naming Conventions
 
-Naming conventions are similar to that of Rust (https://aturon.github.io/style/naming.html), Python (https://www.python.org/dev/peps/pep-0008/#prescriptive-naming-conventions), and Ruby (https://github.com/bbatsov/ruby-style-guide#naming):
+Naming conventions are similar to that of Rust (https://github.com/rust-lang/rfcs/blob/master/text/0430-finalizing-naming-conventions.md), Python (https://www.python.org/dev/peps/pep-0008/#prescriptive-naming-conventions), and Ruby (https://github.com/bbatsov/ruby-style-guide#naming):
 
 - Prefer snake_case for file names, package names, variable names, and function names.
 
@@ -281,10 +281,10 @@ and if the type can be inferred, then the definition may be shortened to:
 
 ### Built-In Types
 
-- Unit
-- Boolean
-- Integer types - Int8, Int16, Int32 (Int), Int64, UInt8 (Byte), UInt16, UInt32 (UInt), UInt64
-- Floating point types - Float, Double
+- Unit - `unit`
+- Boolean - `bool`
+- Integer types - `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64`
+- Floating point types - `f32`, `f64`
 - String
 - Array
 - Map
@@ -336,9 +336,9 @@ In places where type parameters may be constrained, the following constraints ma
 ## Primitive Types
 
 - Unit
-- Boolean
-- Integer types - Int8, Int16, Int32 (Int), Int64, UInt8 (Byte), UInt16, UInt32 (UInt), UInt64
-- Floating point types - Float, Double
+- Boolean - `bool`
+- Integer types - `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64`
+- Floating point types - `f32`, `f64`
 - String
 - Array
 - Map
@@ -354,7 +354,7 @@ http://joelabrahamsson.com/learning-scala-part-eight-scalas-type-hierarchy-and-o
 
 ### Boolean
 
-There are two boolean literals: `true` and `false`
+The boolean type, named `bool`, has two values: `true` and `false`
 
 ### String
 
@@ -1475,8 +1475,8 @@ Every type has a zero value. The following sections document the zero value for 
 - Nil - `nil`
 - Unit - `()`
 - Boolean - `false`
-- Integer types: Int8, Int16, Int32 (Int), Int64, UInt8 (Byte), UInt16, UInt32 (UInt), UInt64 - `0`
-- Floating point types: Float, Double - `0.0`
+- Integer types - `0`
+- Floating point types - `0.0`
 - String - `""`
 - Array - `Array[T]()` or `Array T{}`
 - Map - `Map[K,V]()` or `Map K V{}`
