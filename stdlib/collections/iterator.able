@@ -4,12 +4,11 @@ interface Iterator T for I {
   fn next(I) -> Option T
 }
 
-fn Iterator[T](iterator_builder: ()->Iterator T) -> Iterator T = iterator_builder()
-
-// impl Iterable T for I : Iterator T {
-//   fn each(it: I, visit: T -> Unit) { ... }
-//   fn iterator(it: I) -> Iterator T => it
-// }
+fn Iterator[T](generate: Generator T -> Unit) -> Iterator T {
+  gen = Generator()
+  spawn { generate(gen) }
+  gen
+}
 
 // It would be sufficient to define either #each or #iterator in isolation
 impl Iterable T for Iterator T {
