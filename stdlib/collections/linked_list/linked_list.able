@@ -46,6 +46,31 @@ fn prepend(list: List T, value: T) -> Node T {
   new_first
 }
 
+fn find_node(list: List T, value: T) -> Nil | Node T => list.find(_.data == value).get_or_else(nil)
+
+fn remove(list: List T, value: T) -> Nil | Node T {
+  node = list.find_node(value)
+  list.remove_node(node) if node
+  node
+}
+
+fn remove_node(list: List T, node: Node T {prev, next}) -> Unit {
+  (prev, next) match {
+    case (prev: Node T, next: Node T) => {   // interior node
+      next.prev = prev
+      prev.next = next
+    }
+    case (nil, next: Node T) => {            // first node
+      list.first = next
+      next.prev = nil
+    }
+    case (prev: Node T, nil) => {            // last node
+      list.last = prev
+      prev.next = nil
+    }
+  }
+}
+
 fn clear(list: List T) -> List T {
   list.first = nil
   list.last = nil
@@ -53,7 +78,19 @@ fn clear(list: List T) -> List T {
 }
 
 
-impl Iterable T for List T {
+////////////////////////////////// Interface implementations //////////////////////////////////
+
+ListValues = impl Iterable T for List T {
+  fn each(list: List T, f: T -> Unit) -> Unit {
+    node = list.first
+    while node != nil {
+      f(node.data)
+      node = node.next
+    }
+  }
+}
+
+ListNodes = impl Iterable Node.T for List T {
   fn each(list: List T, f: T -> Unit) -> Unit {
     node = list.first
     while node != nil {

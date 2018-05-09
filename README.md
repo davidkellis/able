@@ -301,7 +301,7 @@ and if the type can be inferred, then the definition may be shortened to:
 
 ### Type Expressions
 
-A type is a name given to a set of values, and every value has an associated type. For example, `Boolean` is the name given to the set `{true, false}`, and since the value `true` is a member of the set `{true, false}`, it is of type `Boolean`.  `TwoBitUnsignedInt` might be the type name we give to the set `{0, 1, 2, 3}`, such that `3` would be a value of type `TwoBitUnsignedInt`.
+A type is a name given to a set of values, and every value has an associated type. For example, `bool` is the name given to the set `{true, false}`, and since the value `true` is a member of the set `{true, false}`, it is of type `bool`.  `TwoBitUnsignedInt` might be the type name we give to the set `{0, 1, 2, 3}`, such that `3` would be a value of type `TwoBitUnsignedInt`.
 
 A type is denoted by a type expression. All types are parametric types, in that all types have zero or more type parameters.
 
@@ -329,7 +329,7 @@ In places where type parameters may be constrained, the following constraints ma
 
 ~~`T supersetOf X|Y|Z` is read as type T is a superset of the type union X|Y|Z.~~
 
-~~The right-hand-side of the supersetOf type operator may be a single-member set, for example `T supersetOf Nil` would mean `T` is a union type that has Nil as a member type. For example, the superset may be `Nil`, `Nil | Int`, `Nil | Int | String`, etc.~~
+~~The right-hand-side of the supersetOf type operator may be a single-member set, for example `T supersetOf Nil` would mean `T` is a union type that has Nil as a member type. For example, the superset may be `Nil`, `Nil | i32`, `Nil | i32 | String`, etc.~~
 
 ~~The supersetOf type operator doesn't imply that the left-hand-side is a proper superset of the right-hand-side; the two type unions may be equal.~~
 
@@ -372,7 +372,7 @@ There is no array literal syntax. Rather, arrays are created with the `Array` co
 
 ```
 x = Array(1,2,3)
-x: Array Float = Array(5.6, 5.7, 8)
+x: Array f32 = Array(5.6, 5.7, 8)
 ```
 
 ### Map
@@ -385,7 +385,7 @@ m = Map(
   1 :: "Foo",
   2 :: "Bar"
 )
-m[3] = "Baz"
+m(3) = "Baz"
 m << 4::"Qux"
 ```
 
@@ -420,11 +420,11 @@ interface Range S E Out {
 }
 ```
 
-There are several default implementations of the `Range` interface, for example, here is the default one for `Int` ranges:
+There are several default implementations of the `Range` interface, for example, here is the default one for `i32` ranges:
 
 ```
-impl Range Int Int Int {
-  fn inclusiveRange(start: Int, end: Int) -> Iterable Int {
+impl Range i32 i32 i32 {
+  fn inclusiveRange(start: i32, end: i32) -> Iterable i32 {
     Iterator { gen =>
       i = start
       while i <= end {
@@ -434,7 +434,7 @@ impl Range Int Int Int {
     }
   }
 
-  fn exclusiveRange(start: Int, end: Int) -> Iterable Out {
+  fn exclusiveRange(start: i32, end: i32) -> Iterable Out {
     Iterator { gen =>
       i = start
       while i < end {
@@ -455,13 +455,13 @@ record = (1, "Foo")
 if record._1 == 1 then puts("you're in first place!")
 ```
 
-`record` is of type (Int, String)
+`record` is of type (i32, String)
 
 ### Pairs
 
 Pair syntax is just syntactic sugar for expressing 2-tuples.
 
-`(1, "Foo")` can be written as `1 :: "Foo"` or `1::"Foo"`, all of which have type (Int, String).
+`(1, "Foo")` can be written as `1 :: "Foo"` or `1::"Foo"`, all of which have type (i32, String).
 
 ## Structs
 
@@ -489,38 +489,38 @@ Singleton structs may also have type parameters, as in the following:
 struct Foo T
 ```
 
-Though specializations of a parametric singleton struct type are all variants of the generic type, each specialization is treated as an independent type. The implication is that two different specializations of the same generic type will not unify. For example, it would not be allowed to assign a `Foo Int` value to a variable of type `Foo Float`.
+Though specializations of a parametric singleton struct type are all variants of the generic type, each specialization is treated as an independent type. The implication is that two different specializations of the same generic type will not unify. For example, it would not be allowed to assign a `Foo i32` value to a variable of type `Foo f32`.
 
 ### Definition with Positional Fields
 ```
-struct Foo T { Int, Float, T }
-struct Foo T { Int, Float, T, }
-struct Foo T [T: Iterable] { Int, Float, T }
+struct Foo T { i32, f32, T }
+struct Foo T { i32, f32, T, }
+struct Foo T [T: Iterable] { i32, f32, T }
 struct Foo T {
-  Int,
-  Float,
+  i32,
+  f32,
   T,
 }
 struct Foo T {
-  Int
-  Float
+  i32
+  f32
   T
 }
 ```
 
 ### Definition with Named Fields
 ```
-struct Foo T { x: Int, y: Float, z: T }
-struct Foo T { x: Int, y: Float, z: T, }
-struct Foo T [T: Iterable] { x: Int, y: Float, z: T }
+struct Foo T { x: i32, y: f32, z: T }
+struct Foo T { x: i32, y: f32, z: T, }
+struct Foo T [T: Iterable] { x: i32, y: f32, z: T }
 struct Foo T {
-  x: Int,
-  x: Float,
+  x: i32,
+  x: f32,
   y: T,
 }
 struct Foo T {
-  x: Int
-  y: Float
+  x: i32
+  y: f32
   z: T
 }
 ```
@@ -566,6 +566,18 @@ Foo {
 Instantiation via struct literal expressions do **not** require that every field be supplied.
 Fields that are omitted are given a zero value appropriate for their type.
 
+### Using struct instances
+
+```
+struct Foo T { i32, f32, T }
+struct Bar T { a: i32, b: f32, c: T }
+
+foo = Foo { 1, 2.0, "foo" }
+bar = Bar { a=1, b=2.0, c="bar" }
+
+puts("foo is a Foo String(${foo._1}, ${foo._2}, ${foo._3})")
+puts("bar is a Bar String(a: ${bar.a}, b: ${bar.b}, c: ${foo.c})")
+```
 
 ## Unions
 
@@ -576,9 +588,9 @@ Unions in Able are similar to discriminated unions in F#, enums in Rust, and alg
 ```
 union String? = String | Nil
 
-struct Red { level: Int }
-struct Green { level: Int }
-struct Blue { level: Int }
+struct Red { level: i32 }
+struct Green { level: i32 }
+struct Blue { level: i32 }
 union Color = Red | Green | Blue
 ```
 
@@ -587,34 +599,34 @@ union Color = Red | Green | Blue
 ```
 union SmallInt = One | Two | Three
 
-union House = SmallHouse { sqft: Float }
-  | MediumHouse { sqft: Float }
-  | LargeHouse { sqft: Float }
+union House = SmallHouse { sqft: f32 }
+  | MediumHouse { sqft: f32 }
+  | LargeHouse { sqft: f32 }
 
 union House =
-  SmallHouse { sqft: Float }
-  | MediumHouse { sqft: Float }
-  | LargeHouse { sqft: Float }
+  SmallHouse { sqft: f32 }
+  | MediumHouse { sqft: f32 }
+  | LargeHouse { sqft: f32 }
 
 union House =
-  | SmallHouse { sqft: Float }
-  | MediumHouse { sqft: Float }
-  | LargeHouse { sqft: Float }
+  | SmallHouse { sqft: f32 }
+  | MediumHouse { sqft: f32 }
+  | LargeHouse { sqft: f32 }
 ```
 
 Union definitions that define new types is syntactic sugar. For example:
 
 ```
-union House = SmallHouse { sqft: Float }
-  | MediumHouse { sqft: Float }
-  | LargeHouse { sqft: Float }
+union House = SmallHouse { sqft: f32 }
+  | MediumHouse { sqft: f32 }
+  | LargeHouse { sqft: f32 }
 ```
 
 is internally translated into:
 ```
-struct SmallHouse { sqft: Float }
-struct MediumHouse { sqft: Float }
-struct LargeHouse { sqft: Float }
+struct SmallHouse { sqft: f32 }
+struct MediumHouse { sqft: f32 }
+struct LargeHouse { sqft: f32 }
 union House = SmallHouse | MediumHouse | LargeHouse
 ```
 
@@ -742,7 +754,7 @@ The following examples give a feel for what point-free style looks like:
 fn puts = printLn
 
 // given:
-fn add(a: Int, b: Int) -> Int => a + b
+fn add(a: i32, b: i32) -> i32 => a + b
 fn foldRight(it: Iterator T, initial: V, accumulate: (T, V) -> V) -> V {
   it.reverse.foldLeft(initial) { acc, val => accumulate(val, acc) }
 }
@@ -862,30 +874,30 @@ log("foo", 123, "bar")        // not ambiguous; invokes variadic signature, puts
 
 With explicit return type:
 
-1. fn createPair(a, b: Int) -> Pair Int { Pair(a, b) }<br>
-   fn createPair(a, b: Int) -> Pair Int => Pair(a, b)
-2. createPair = fn(a, b: Int) -> Pair Int { Pair(a, b) }<br>
-   createPair = fn(a, b: Int) -> Pair Int => Pair(a, b)
+1. fn createPair(a, b: i32) -> Pair i32 { Pair(a, b) }<br>
+   fn createPair(a, b: i32) -> Pair i32 => Pair(a, b)
+2. createPair = fn(a, b: i32) -> Pair i32 { Pair(a, b) }<br>
+   createPair = fn(a, b: i32) -> Pair i32 => Pair(a, b)
 
-3. createPair = (a, b: Int) -> Pair Int { Pair(a,b) }<br>
-   createPair = (a, b: Int) -> Pair Int => Pair(a, b)
-4. createPair = { a, b: Int -> Pair Int => Pair(a,b) }
+3. createPair = (a, b: i32) -> Pair i32 { Pair(a,b) }<br>
+   createPair = (a, b: i32) -> Pair i32 => Pair(a, b)
+4. createPair = { a, b: i32 -> Pair i32 => Pair(a,b) }
 
 With inferred return type:
 
-1. fn createPair(a, b: Int) { Pair(a, b) }<br>
-   fn createPair(a, b: Int) => Pair(a, b)
+1. fn createPair(a, b: i32) { Pair(a, b) }<br>
+   fn createPair(a, b: i32) => Pair(a, b)
 
-2. createPair = fn(a, b: Int) { Pair(a, b) }<br>
-   createPair = fn(a, b: Int) => Pair(a, b)
+2. createPair = fn(a, b: i32) { Pair(a, b) }<br>
+   createPair = fn(a, b: i32) => Pair(a, b)
 
-3. createPair = (a, b: Int) { Pair(a,b) }<br>
-   createPair = (a, b: Int) => Pair(a, b)
+3. createPair = (a, b: i32) { Pair(a,b) }<br>
+   createPair = (a, b: i32) => Pair(a, b)
 
-4. createPair = { a, b: Int => Pair(a,b) }
+4. createPair = { a, b: i32 => Pair(a,b) }
 
 All the functions defined above are of type:
-`(Int, Int) -> Pair Int`
+`(i32, i32) -> Pair i32`
 
 #### Define generic functions
 
@@ -925,8 +937,8 @@ All the functions defined above are of type:
 #### Lambda Expressions
 
 ```
-createPair = { a, b: Int -> Pair Int => Pair(a, b) }
-createPair = { a, b: Int => Pair(a, b) }
+createPair = { a, b: i32 -> Pair i32 => Pair(a, b) }
+createPair = { a, b: i32 => Pair(a, b) }
 createPair = { a, b: T -> Pair T => Pair(a, b) }
 createPair = { a, b: T => Pair(a, b) }
 ```
@@ -949,7 +961,7 @@ map(Array(1,2,3), square)
 
 Given the following function definition:
 ```
-fn createPerson(age: Int, name: String, address: Address) -> Person { ... }
+fn createPerson(age: i32, name: String, address: Address) -> Person { ... }
 ```
 
 the `createPerson` function may be invoked in any of the following ways:
@@ -979,7 +991,7 @@ createPerson(
 
 Given:
 ```
-f = fn(a,b,c,d,e: Int) => Tuple5(a,b,c,d,e)
+f = fn(a: i32, b: i32, c: i32, d: i32, e: i32) => Tuple5(a,b,c,d,e)
 ```
 
 Partial application of the trailing arguments
@@ -997,12 +1009,12 @@ Implied partial application of the leading arguments
 f(1,2,3)
 ```
 
-Partial application of the first, third, and fifth arguments; returns a function with the signature (Int, Int) -> Tuple5
+Partial application of the first, third, and fifth arguments; returns a function with the signature (i32, i32) -> Tuple5
 ```
 f(1, _, 2, _, 3)
 ```
 
-Partial application of the first, third, and fifth arguments; returns a function with the signature (Int) -> Tuple5
+Partial application of the first, third, and fifth arguments; returns a function with the signature (i32) -> Tuple5
 ```
 f(1, _1, 2, _1, 3)
 ```
@@ -1032,7 +1044,7 @@ is equivalent to
 #### Pipeline application
 
 Given:
-`struct Coord {Int, Int}`
+`struct Coord {i32, i32}`
 
 `5 |> Coord(_1, _1)`
 is equivalent to
@@ -1074,7 +1086,7 @@ Some operators have special semantics, and may not be overridden.
 
    Attempting to invoke a function of arity-2+ using method syntax without supplying any parenthesis will yield a partially applied function.
 
-   For example, given `fn add(a, b: Int) -> Int { a + b }`, the expression `1.add` represents a partially applied function object of type (Int)->Int.
+   For example, given `fn add(a: i32, b: i32) -> i32 { a + b }`, the expression `1.add` represents a partially applied function object of type (i32)->i32.
 
 2. If supplying a lambda expression to a function as its last argument, then the lambda may be supplied immediately following the closing paren surrounding the argument list.
 
@@ -1102,21 +1114,21 @@ Some operators have special semantics, and may not be overridden.
 
    Given the following definitions:
    ```
-   struct Red { level: Int }
-   struct Green { level: Int }
-   struct Blue { level: Int }
+   struct Red { level: i32 }
+   struct Green { level: i32 }
+   struct Blue { level: i32 }
    union Color = Red | Green | Blue
    ```
 
    1. If the following is defined:
       ```
-      fn paintHouse(Color) -> Boolean
+      fn paintHouse(Color) -> bool
       ```
       and the following are not defined:
       ```
-      fn paintHouse(Red) -> Boolean
-      fn paintHouse(Green) -> Boolean
-      fn paintHouse(Blue) -> Boolean
+      fn paintHouse(Red) -> bool
+      fn paintHouse(Green) -> bool
+      fn paintHouse(Blue) -> bool
       ```
       then
       ```
@@ -1129,10 +1141,10 @@ Some operators have special semantics, and may not be overridden.
 
    2. If the following are defined:
       ```
-      fn paintHouse(Color) -> Boolean
-      fn paintHouse(Red) -> Boolean
-      fn paintHouse(Green) -> Boolean
-      fn paintHouse(Blue) -> Boolean
+      fn paintHouse(Color) -> bool
+      fn paintHouse(Red) -> bool
+      fn paintHouse(Green) -> bool
+      fn paintHouse(Blue) -> bool
       ```
       then
       ```
@@ -1145,13 +1157,13 @@ Some operators have special semantics, and may not be overridden.
    
    3. If the following are defined:
       ```
-      fn paintHouse(Red) -> Boolean
-      fn paintHouse(Green) -> Boolean
-      fn paintHouse(Blue) -> Boolean
+      fn paintHouse(Red) -> bool
+      fn paintHouse(Green) -> bool
+      fn paintHouse(Blue) -> bool
       ```
       and the following is not defined:
       ```
-      fn paintHouse(Color) -> Boolean
+      fn paintHouse(Color) -> bool
       ```
       then
       ```
@@ -1173,13 +1185,13 @@ Some operators have special semantics, and may not be overridden.
 
    Another example:
    ```
-   fn apply(i, j: Int) -> Int => i * j
+   fn apply(i, j: i32) -> i32 => i * j
    5(6)    // returns 30
    ```
 
    Apply functions may also be invoked with method syntax, as in the following:
    ```
-   fn apply(i: Int, j: Int) -> Int => i * j
+   fn apply(i: i32, j: i32) -> i32 => i * j
    5.apply(6)    // returns 30
    ```
 
@@ -1190,7 +1202,7 @@ An interface is a set of functions that are guaranteed to be defined for a given
 
 An interface can be used to represent either (1) a type, or (2) a constraint on a type or type variable.
 
-When used as a type, the interface functions as a lens through which we see and interact with some underlying type that implements the interface. This form of polymorphism allows us to use different types as if they were the same type. For example, if the concrete types `Int` and `Float` both implement an interface called `Numeric`, then one could create an `Array Numeric` consisting of both `Int` and `Float` values.
+When used as a type, the interface functions as a lens through which we see and interact with some underlying type that implements the interface. This form of polymorphism allows us to use different types as if they were the same type. For example, if the concrete types `i32` and `f32` both implement an interface called `Numeric`, then one could create an `Array Numeric` consisting of both `i32` and `f32` values.
 
 When used as a constraint on a type, the interpretation is that some context needs to reference the underlying type, while also making a claim or guarantee that the underlying type implements the interface.
 
@@ -1221,7 +1233,7 @@ interface Stringable for T {
 
 // Comparable interface
 interface Comparable for T {
-  fn compare(T, T) -> Int
+  fn compare(T, T) -> i32
 }
 
 // Iterable interface
@@ -1290,15 +1302,15 @@ impl Iterable T for Array T {
     i = 0
     length = array.length()
     while i < length {
-      visit(array[i])
+      visit(array(i))
       i += 1
     }
   }
 }
 
-struct OddNumbers { start: Int, end: Int }
-impl Iterable Int for OddNumbers {
-  fn each(oddNumbersRange: OddNumbers, visit: Int -> Unit) {
+struct OddNumbers { start: i32, end: i32 }
+impl Iterable i32 for OddNumbers {
+  fn each(oddNumbersRange: OddNumbers, visit: i32 -> Unit) {
     for i in start..end { visit(i) }
   }
 }
@@ -1311,10 +1323,10 @@ impl Mappable A for Array {
   }
 }
 
-// implement Range for Float start and end values (e.g. 1.2..4.5, and 1.2...4.5)
-impl Range Float Float Int {
-  fn inclusiveRange(start: Float, end: Float) -> Iterable Int => start.ceil..end.floor
-  fn exclusiveRange(start: Float, end: Float) -> Iterable Int => start.ceil...end.floor
+// implement Range for f32 start and end values (e.g. 1.2..4.5, and 1.2...4.5)
+impl Range f32 f32 i32 {
+  fn inclusiveRange(start: f32, end: f32) -> Iterable i32 => start.ceil..end.floor
+  fn exclusiveRange(start: f32, end: f32) -> Iterable i32 => start.ceil...end.floor
 }
 ```
 
@@ -1326,13 +1338,13 @@ interface Monoid for T {
   fn id() -> T
   fn op(T, T) -> T
 }
-Sum = impl Monoid for Int {
-  fn id() -> Int = 0
-  fn op(x, y: Int) -> Int = x + y
+Sum = impl Monoid for i32 {
+  fn id() -> i32 = 0
+  fn op(x, y: i32) -> i32 = x + y
 }
-Product = impl Monoid for Int {
-  fn id() -> Int = 1
-  fn op(x, y: Int) -> Int = x * y
+Product = impl Monoid for i32 {
+  fn id() -> i32 = 1
+  fn op(x, y: i32) -> i32 = x * y
 }
 
 // since both of the following are ambiguous
@@ -1356,20 +1368,20 @@ interface Iterable T for E {
 a client may call the `each` function by supplying a value of type `Iterable T` as the first argument to `each`, like this:
 ```
 // assuming Array T implements the Iterable T interface
-e: Iterable Int = Array(1, 2, 3)    // e has type Iterable Int
+e: Iterable i32 = Array(1, 2, 3)    // e has type Iterable i32
 each(e, puts)
 ```
 or `each` may be called by supplying a value of type `Array T` as the first argument, like this:
 ```
 // assuming Array T implements the Iterable T interface
-e = Array(1, 2, 3)    // e has type Array Int
+e = Array(1, 2, 3)    // e has type Array i32
 each(e, puts)
 ```
 
 In cases where the interface was defined without a `for` clause, then the interface may only be used as a type constraint. For example:
 
 ```
-fn buildIntRange[S, E, Range S E Int](start: S, end: E) -> Iterable Int => start..end
+fn buildIntRange[S, E, Range S E i32](start: S, end: E) -> Iterable i32 => start..end
 ```
 
 Less frequently, a function in an interface may be defined to accept two or more parameters of the interface's self type. If the self type is polymorphic, and the function is invoked with a value of the interface type as an argument in place of one of the self type parameters, then the other self type parameters must also reference the same underlying type (either directly as a value of the underlying type, or indirectly through an interface value that represents the underlying type), so that the multiple self type parameters all remain consistent with respect to one another - i.e. so that they all reference the same underlying type.
@@ -1384,13 +1396,13 @@ Able's specificity logic is a derivative of Rust's impl specialization proposal 
 The following implementations, written without their implementation body, conflict with one another:
 
 ```
-// overlap when T = Int
+// overlap when T = i32
 impl Foo for T {}
-impl Foo for Int {}
+impl Foo for i32 {}
 
-// overlap when T = Int
+// overlap when T = i32
 impl Foo for Array T {}
-impl Foo for Array Int {}
+impl Foo for Array i32 {}
 
 // overlap because Array T implements Iterable T
 impl Foo for Iterable T {}
@@ -1404,24 +1416,24 @@ impl Foo for T: Bar {}
 impl Foo for T: Bar {}
 impl Foo for T: Baz {}
 
-// overlap when T = Float
-impl Foo for Int | Float {}
-impl Foo for Int | T {}
+// overlap when T = f32
+impl Foo for i32 | f32 {}
+impl Foo for i32 | T {}
 
 // overlap when two type unions implement the same interface, s.t. one type union is a proper subset of the other
-impl Foo for Int | Float | Double {}
-impl Foo for Int | Float {}
+impl Foo for i32 | f32 | f64 {}
+impl Foo for i32 | f32 {}
 ```
 
-~~// overlap when T = U such that A supersetOf Nil | Int~~
+~~// overlap when T = U such that A supersetOf Nil | i32~~
 ~~impl [A supersetOf Nil] Foo A for T {}~~
-~~impl [A supersetOf Nil | Int] Foo A for U {}~~
+~~impl [A supersetOf Nil | i32] Foo A for U {}~~
 
 The following specificity/disambiguation rules resolve the patterns of overlap/conflict that are most common:
 
 1. Concrete types are more specific than type variables. For example:
-   - `Int` is more specific than `T`
-   - `Array Int` is more specific than `Array T`
+   - `i32` is more specific than `T`
+   - `Array i32` is more specific than `Array T`
 2. Concrete types are more specific than interfaces. For example:
    - `Array T` is more specific than `Iterable T`
 3. Interface types are more specific than unconstrained type variables. For example:
@@ -1435,15 +1447,15 @@ The following specificity/disambiguation rules resolve the patterns of overlap/c
    
    ~~The reasoning is as follows. Given a population of types, P, consisting of N type members (i.e. cardinality of P is N), the total number of possible subsets of types from P (i.e. the powerset of P) has cardinality 2^N. In an open union with 3 enumerated members, the number of possible subsets of P that include all 3 enumerated members is 2^(N - 3). In an open union with 2 enumerated members, the number of possible subsets of P that include both enumberated members is 2^(N - 2). When comparing the number of possible subsets of P that include 3 enumerated members with the number of possible subsets of P that include 2 enumerated members, the open union with 3 enumerated members is deemed more specific than the open union with 2 enumerated members, since 2^(N - 3) is a smaller number of subsets than 2^(N - 2). Generalizing from this observation, the rule is that open unions with more enumerated members are more specific than open unions with fewer enumerated members.~~
 6. A union type that is a proper subset of another union type is more specific than its superset. For example:
-   - `Int | Float` is more specific than `Int | Float | Double`
+   - `i32 | f32` is more specific than `i32 | f32 | f64`
 7. Given two unions that differ only in a single type member, such that the member is concrete in one union and generic in the other union, the union that references the concrete member is more specific than the union that references the generic member.
-   - `Int | Float` is more specific than `Int | T`
+   - `i32 | f32` is more specific than `i32 | T`
 8. Given two unions that differ only in a single type member, such that the member is concrete in one union and an interface in the other union, the untion that references the concrete member is more specific than the union that references the interface member.
-   - `Int | Float` is more specific than `Int | FloatingPointNumeric`
+   - `i32 | f32` is more specific than `i32 | FloatingPointNumeric`
 9. Given two sets of comparable type constraints, ConstraintSet1 and ConstraintSet2, if ConstraintSet1 is a proper subset of ConstraintSet2, then ConstraintSet1 imposes fewer constraints, and is therefore less specific than ConstraintSet2. In other words, the constraint set that is a proper superset of the other is the most specific constraint set. If the constraint sets are not a proper subset/superset of one another, then the constraint sets are not comparable, which means that the competing interface implementations are not comparable either. This rule captures rule (4). For example:
    - `T: Iterable` is more specific than `T` (with no type constraints), because `{Iterable}` is a proper superset of `{}` (note: `{}` represents the set of no type constraints).
    - ~~`T supersetOf Nil` is more specific than `T` (with no type constraints) because `{T supersetOf Nil}` is a proper superset of `{}`.~~
-   - ~~`A supersetOf Nil | Int` is more specific than `A supersetOf Nil`, because `{A supersetOf Nil | Int}` is equivalent to `{A supersetOf Nil, A supersetOf Int}`, which is a proper superset of `{A supersetOf Nil}`.~~
+   - ~~`A supersetOf Nil | i32` is more specific than `A supersetOf Nil`, because `{A supersetOf Nil | i32}` is equivalent to `{A supersetOf Nil, A supersetOf i32}`, which is a proper superset of `{A supersetOf Nil}`.~~
 
 There are many potential cases where the type constraints in competing interface implementations can't be compared. In those cases, the compiler will emit an error saying that the competing interface implementations are not comparable, and so the expression is ambiguous.
 
@@ -1584,9 +1596,9 @@ Pattern matching expressions take the following general form:
 
 ```
 <expression> match {
-  case <destructuring pattern> => <expression>
-  case <destructuring pattern> => <expression>
-  case _ => <expression>
+  <destructuring pattern> => <expression>
+  <destructuring pattern> => <expression>
+  <destructuring pattern> => <expression>
 }
 ```
 
@@ -1594,17 +1606,17 @@ For example:
 
 ```
 union House =
-  | TinyHouse { sqft: Float }
-  | SmallHouse { sqft: Float }
-  | MediumHouse { sqft: Float }
-  | LargeHouse { sqft: Float }
-  | HugeHouse { sqft: Float, pools: Int }
+  | TinyHouse { sqft: f32 }
+  | SmallHouse { sqft: f32 }
+  | MediumHouse { sqft: f32 }
+  | LargeHouse { sqft: f32 }
+  | HugeHouse { sqft: f32, pools: i32 }
 
 fn buildHouse(h: House) => h match {
-  case TinyHouse | SmallHouse => puts("build a small house")
-  case m: MediumHouse => puts("build a modest house - $m")
-  case l: LargeHouse{area} => puts ("build a large house of $area sq. ft. - $l")
-  case HugeHouse{_, poolCount} => puts ("build a huge house with $poolCount pools!")
+  TinyHouse | SmallHouse => puts("build a small house")
+  m: MediumHouse => puts("build a modest house - $m")
+  l: LargeHouse{area} => puts ("build a large house of $area sq. ft. - $l")
+  HugeHouse{_, poolCount} => puts ("build a huge house with $poolCount pools!")
 }
 ```
 
@@ -1650,7 +1662,7 @@ jumppoint <label> {
 To following example demonstrates an implementation of short circuiting logic, achieved via jump-points. The example implements the `all?` function defined within the `Iterable` interface. The combination of the `jumppoint` and the `jump` within the `each` block implements immediate return from `all?` upon the first observation of a false evaluation of the predicate function. This short-circuiting logic prevents further unnecessary evaluations of the predicate function once the first observation of a false return value is observed:
 
 ```
-fn all?(iterable: I, predicate: T -> Boolean) -> Boolean {
+fn all?(iterable: I, predicate: T -> bool) -> bool {
   jumppoint :stop {
     iterable.each { t => jump :stop false unless predicate(t) }
     true
@@ -1680,7 +1692,7 @@ interface Generator A for T {
 
 ## Destructuring
 
-Destructuring is the binding of variable names to positional or named values within a data structure. Destructuring may be used in assignment expressions, function parameter lists, and pattern matching case expressions.
+Destructuring is the binding of variable names to positional or named values within a data structure. Destructuring may be used in assignment expressions, function parameter lists, and pattern matching alternatives.
 
 There are three destructuring forms, depending on the type of thing being destructured. These three forms support the destructuring of structs, tuples, pairs, and types implementing the Iterable interface all support destructuring. Unions do not support destructuring.
 
@@ -1691,16 +1703,16 @@ The following sections demonstrate the three destructuring forms and how they ca
 ```
 struct Person {
   name: String
-  height: Float
-  weight: Float
-  age: Int
+  height: f32
+  weight: f32
+  age: i32
   address: Address
 }
 
 struct Address {
   street: String
   state: String
-  zip: Int
+  zip: i32
 }
 ```
 
@@ -1749,12 +1761,12 @@ NOTE: In some contexts, the type of the positional fields may be necessary for t
 
 1. Destructuring a tuple positionally with explicit positional field types:
 ```
-triple: ( a: Int, b: Int, c: Address { street, state, zip } )
+triple: ( a: i32, b: i32, c: Address { street, state, zip } )
 ```
 
 2. Destructuring a tuple via "named" field destructuring with explicit named field types:
 ```
-triple: ( a: Int=_0, b: Int=_1, c: Address { z=zip }=_2 )
+triple: ( a: i32=_0, b: i32=_1, c: Address { z=zip }=_2 )
 ```
 
 #### Sequence Destructuring
@@ -1803,7 +1815,7 @@ printPersonInfo(Person("Jim", 6.0833, 170, 25))
 
 
 // positional tuple destructuring form; assignment context
-fn printPair(pair: (Int, String)) {
+fn printPair(pair: (i32, String)) {
   (i, str) = pair
   puts("i=$i   str=$str")
 }
@@ -1831,7 +1843,7 @@ fn printPersonInfo(Person{n, h, w, a}) {
 printPersonInfo(Person("Jim", 6.0833, 170, 25))
 
 
-fn printPair(pair: (i: Int, str: String)) {
+fn printPair(pair: (i: i32, str: String)) {
   puts("i=$i   str=$str")
 }
 
@@ -1844,10 +1856,10 @@ printPair( 4::"Bill" )
 ```
 // assuming h is of type House
 h match {
-  case TinyHouse | SmallHouse => puts("build a small house")
-  case m: MediumHouse => puts("build a modest house - $m")
-  case LargeHouse{area} => puts ("build a large house of $area sq. ft.")
-  case HugeHouse{poolCount=pools} => puts ("build a huge house with $poolCount pools!")
+  TinyHouse | SmallHouse => puts("build a small house")
+  m: MediumHouse => puts("build a modest house - $m")
+  LargeHouse{area} => puts ("build a large house of $area sq. ft.")
+  HugeHouse{poolCount=pools} => puts ("build a huge house with $poolCount pools!")
 }
 ```
 
@@ -1855,7 +1867,7 @@ h match {
 ## Exceptions
 
 ```
-struct Foo {code: Int, msg: String}
+struct Foo {code: i32, msg: String}
 
 fn pp(w: Widget) {
   raise Foo(msg = "", code=5) if w.type.undefined?
@@ -1866,25 +1878,25 @@ fn foo() {
   do {
     baz()
   catch:
-    case Foo(m=msg) => "puts foo error!"
+    Foo(m=msg) => "puts foo error!"
   ensure:
     puts("done!")
   }
   qux()
 }
 
-fn foo() => baz() catch: case Foo(m=msg) => "puts foo error!" ensure: puts("done!")
+fn foo() => baz() catch: Foo(m=msg) => "puts foo error!" ensure: puts("done!")
 
 fn main() {
   pp(Widget(name = "card shuffler"))
 catch:
-  case f: Foo(m=msg) => puts "foo error = $f"
-  case _ => puts "other error"
+  f: Foo(m=msg) => puts "foo error = $f"
+  _ => puts "other error"
 ensure:
   puts("ensure block called!")
 }
 
-fn main() => pp(Widget(name = "card shuffler")) catch: case f: Foo(m=msg) => puts "foo error = $f"; case _ => puts "other error" ensure: puts("ensure block called!")
+fn main() => pp(Widget(name = "card shuffler")) catch: f: Foo(m=msg) => puts "foo error = $f"; _ => puts "other error" ensure: puts("ensure block called!")
 ```
 
 Expressions that need to be evaluated prior to function return should be placed in an ensure block. Ensure blocks may be used to suffix try/catch expression, or they may be used to suffix function definitions.
@@ -1985,7 +1997,7 @@ macro defineJsonEncoder(type) {
   `
 }
 
-struct Person { name: String, age: Int }
+struct Person { name: String, age: i32 }
 defineJsonEncoder(Person)
 // this call emits the following
 // fn encode(val: Person) -> String {
@@ -2062,7 +2074,7 @@ futureResult = spawn { doThis(); fireMissiles(); doThat() }
 
 For example:
 ```
-fn fireMissiles() -> Int {
+fn fireMissiles() -> i32 {
   missiles = launchAllMissiles()
   missiles.count
 }
@@ -2100,7 +2112,7 @@ There are two ways to use the `CallStackLocal` type.
 
 There are special semantics around accessing and assigning to a `CallStackLocal` variable.
 
-1. Assignment to a call stack local variable requires that the type of the right-hand-side of an assignment expression matches the type wrapped by the `CallStackLocal` wrapper type. For example, if `x` is of type `CallStackLocal Int`, then `x = 5` is what an assignment expression should look like, rather than `x = CallStackLocal(5)`.
+1. Assignment to a call stack local variable requires that the type of the right-hand-side of an assignment expression matches the type wrapped by the `CallStackLocal` wrapper type. For example, if `x` is of type `CallStackLocal i32`, then `x = 5` is what an assignment expression should look like, rather than `x = CallStackLocal(5)`.
 
 2. Assigning a value to a call stack local variable only binds the value to that variable name within the scope of the call stack that evaluated the assignment expression.
 
@@ -2124,7 +2136,7 @@ puts("name3 = $name3")
 ```
 and
 ```
-nameCache = CallStackLocal(Map[Int, String](1::"Bob"))   // declare and define
+nameCache = CallStackLocal(Map[i32, String](1::"Bob"))   // declare and define
 
 names1 = spawn { nameCache[2] = "Tom"; nameCache.values.join(", ") }
 names2 = spawn { nameCache[1] = "Jim"; nameCache.values.join(", ") }
@@ -2152,13 +2164,13 @@ Channels are implemented with the `Channel` type and support two operations: `se
 For example:
 
 ```
-c = Channel[Int]()	// this is an unbuffered channel
+c = Channel[i32]()	// this is an unbuffered channel
 spawn { c.send(5) }
 spawn { c.receive |> puts }
 ```
 and
 ```
-c = Channel[Int](1)	// this is a buffered channel, with a buffer of one message
+c = Channel[i32](1)	// this is a buffered channel, with a buffer of one message
 spawn { c.send(5) }
 spawn { c.send(10) }
 spawn { c.receive |> puts }
@@ -2202,8 +2214,8 @@ spawn { c.receive |> puts }
 - Support the implementation of anonymous impls, for example, the ability to implement Iterable by supplying an anonymous impl of Iterator T interface.
   - Something like this?
     ```
-    impl Iterable Int for Int {
-      fn iterator(i: Int) -> impl Iterator Int for struct { state: Int } {
+    impl Iterable i32 for i32 {
+      fn iterator(i: i32) -> impl Iterator i32 for struct { state: i32 } {
         fn next(it: this) -> Option T {
 
         }

@@ -1,5 +1,7 @@
 package able.collections
 
+// fn get(a: Array T) -> Nil | T
+
 impl Iterable T for Array T {
   fn each(array: Array T, f: T -> Unit) -> Unit {
     i = 0

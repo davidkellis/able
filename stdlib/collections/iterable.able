@@ -54,7 +54,7 @@ interface Iterable T for I {
     }
   }
 
-  fn iterator(it: I) -> Iterator T => Iterator { it.each(yield) }
+  fn iterator(it: I) -> Iterator T => Iterator { gen => it.each(gen.yield) }
 
 
   // everything else is defined in terms of either #each or #iterator
