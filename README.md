@@ -333,7 +333,7 @@ In places where type parameters may be constrained, the following constraints ma
 
 ~~The supersetOf type operator doesn't imply that the left-hand-side is a proper superset of the right-hand-side; the two type unions may be equal.~~
 
-## Primitive Types
+## Built-In Types
 
 - Unit
 - Boolean - `bool`
@@ -347,7 +347,7 @@ In places where type parameters may be constrained, the following constraints ma
 
 ### Unit
 
-The unit type, named `Unit`, has a single value, `()`.
+The unit type, named `Unit`, has a single literal value, `()`.
 
 It works like Scala's Unit type, see http://blog.bruchez.name/2012/10/implicit-conversion-to-unit-type-in.html and
 http://joelabrahamsson.com/learning-scala-part-eight-scalas-type-hierarchy-and-object-equality/ for more information.
@@ -355,6 +355,79 @@ http://joelabrahamsson.com/learning-scala-part-eight-scalas-type-hierarchy-and-o
 ### Boolean
 
 The boolean type, named `bool`, has two values: `true` and `false`
+
+### Integer Types
+
+See https://doc.rust-lang.org/1.7.0/reference.html#integer-literals
+
+A decimal literal starts with a decimal digit and continues with any mixture of decimal digits and underscores.
+
+A binary literal starts with the character sequence U+0030 U+0062 (0b) and continues as any mixture of binary digits and underscores.
+
+A hex literal starts with the character sequence U+0030 U+0078 (0x) and continues as any mixture of hex digits and underscores.
+
+An octal literal starts with the character sequence U+0030 U+006F (0o) and continues as any mixture of octal digits and underscores.
+
+Any integer literal may be suffixed with a type suffix indicating its type.
+
+The following are examples of integer literals:
+```
+123
+0123
+0x123
+0b11001
+0o123
+123i8
+123u8
+123i32
+123_456
+123_456u32
+123_456_u32
+0x123f_u32
+```
+
+### Floating Point Types
+
+See https://doc.rust-lang.org/1.7.0/reference.html#floating-point-literals
+
+A floating point literal may start with a decimal literal followed by a period character U+002E (.), optionally followed by another decimal literal, with an optional exponent.
+
+A floating point literal may start with a decimal literal followed by an exponent.
+
+A floating point literal may start with a period character U+002E (.) followed by a decimal literal, with an optional exponent.
+
+An exponent is notated with the syntax `( 'e' | 'E' ) ( '+' | '-' )? DECIMAL_LITERAL`, e.g. `e9`, `E3`, `E+9`, `e-9`, `E-3`.
+
+Any floating point literal may optionally be suffixed with a type suffix, i.e. `f32` or `f64`, indicating its type.
+
+The following are examples of floating point literals:
+```
+12.0
+5.4e3
+5.4e+3
+5.4e-3
+5.4e3f32
+5.4e+3f32
+5.4e-3f64
+5.4e3f_32
+5.4e+3_f32
+5.4e-3_f64
+123e3
+123f64
+123e-3f32
+123_e3
+123_f64
+123_e-3_f32
+.4e3
+.4e+3
+.4e-3
+.4e3f32
+.4e+3f32
+.4e-3f64
+.4e3f_32
+.4e+3_f32
+.4e-3_f64
+```
 
 ### String
 
@@ -364,6 +437,14 @@ All string literals are double quoted.
 name = "Herbert"
 greeting = "Hello $name"
 greeting2 = "Hello ${name}"
+```
+
+#### Byte String Literals
+
+See https://doc.rust-lang.org/1.7.0/reference.html#byte-string-literals
+
+```
+bytes: Array u8 = b"hello"
 ```
 
 ### Array
@@ -414,7 +495,7 @@ For example:
 Ranges may be created with any set of types that fulfill the `Range` interface, defined below:
 
 ```
-interface Range S E Out {
+interface Range Out for (S, E) {
   fn inclusiveRange(start: S, end: E) -> Iterable Out
   fn exclusiveRange(start: S, end: E) -> Iterable Out
 }
@@ -423,7 +504,7 @@ interface Range S E Out {
 There are several default implementations of the `Range` interface, for example, here is the default one for `i32` ranges:
 
 ```
-impl Range i32 i32 i32 {
+impl Range i32 for (i32, i32) {
   fn inclusiveRange(start: i32, end: i32) -> Iterable i32 {
     Iterator { gen =>
       i = start
@@ -1069,10 +1150,39 @@ Operators that have a trailing apostrophe are right-associative. For example, `a
 
 ##### Special operators
 
-Some operators have special semantics, and may not be overridden.
+Some operators have special semantics:
 
-1. Assignment operator: `=`
+1. Assignment operator (infix), e.g. `a = 5`:
    The assignment operator is used in assignment expressions to assign the value expressed in the right hand side (RHS) of the assignment expression to the identifier or identifiers specified in the left hand side (LHS) of the assignment expression. The assignment operator is right-associative. The assignment operator is not a function, and as a result, is not a first-class object that may be used as a value. The assignment operator may not be redefined or overridden.
+
+   A single-assignment expression (e.g. `a = <expression>`) evaluates to the value on the RHS of the assignment operator.
+   A multiple-assignment expression (e.g. `a, b = <expression>, <expression>`) evaluates to a tuple consisting of the values of the RHS of the assignment operator. For example, `a, b, c = 1, 2, 3` evaluates to `(1,2,3)`.
+2. Function application operator (suffix), e.g. `array(5)`:
+   The function application operator is used to apply a function to a given set of arguments. The function application operator may be defined on an arbitrary type in order to be able to treat that type as a function of some set of arguments. For example, an array, a map, or a string value may be viewed as a function of an index argument that retrieves the given array element, map value, or character within an array, map, or string, respectively.
+   
+   In short, a value of type T may be treated as a function, and invoked with normal function application syntax, if a function named `apply`, defined with a first parameter of type T, is in scope at the call site. [Special application rule #5](#special-application-rule-5) explains further.
+3. Index update expression, e.g. `array(5) = b`:
+   An index update expression - an assignment expression with a function application expression on the left-hand-side (LHS) - is interpreted as an assignment to an index position of some structure. Assigning a value to an index position of an array, or assigning a value to a key in a map are the two most common uses of this facility.
+
+   The index update expression is syntactic sugar for calling the `update` function where the first argument is the structure value being updated, the next arguments are the components of the index position (most commonly, this will be a single value), and the last argument is the value being assigned to the specified index of the structure. The `update` function is expected to return the updated structure, so its return type must match the type of the first argument.
+
+   For example, the `update` function for `Array` is defined as:
+   ```
+   fn update(a: Array T, index: u64) -> Array T
+   ```
+   and may be used as:
+   ```
+   a = Array(1,2,3)
+   a(0) = 5
+   // a == Array(5,2,3)
+   ```
+4. TODO: Include this? Use `<-`, or `:=`, or `=?` ? 
+   Destructuring assignment (infix), e.g. `a: Person(name) <- person`:
+   The destructuring assignment operator has the same semantics as the normal assignment operator, except that it evaluates to a boolean `true` or `false` depending on whether the destructuring assignment succeeds or not.
+   
+   If the destructuring assignment succeeds, then the expression evaluates to `true`. If the destructuring assignment fails, then the expression evaluates to `false`, and all the variable identifiers that need to be bound to a value are assigned the appropriate zero value for their type.
+
+   If the destructuring assignment expression is a multiple-assignment expression, e.g. `Person(name1), Person(name2) <- p1, p2`, then the assignment expression evaluates to `true` if all the individual assignments succeed. If any of the individual assignments fail, then the assignment expression evaluates to `false`, and all the variable identifiers in the LHS that need to be bound to a value are assigned the appropriate zero value for their type.
 
 #### Special application cases
 
@@ -1174,7 +1284,7 @@ Some operators have special semantics, and may not be overridden.
       paintHouse(Blue())      // invokes paintHouse(Blue)
       ```
 
-5. A value of type T may be treated as a function, and invoked with normal function application syntax, if a function named `apply`, defined with a first parameter of type T is in scope at the call site.
+5. <a name="special-application-rule-5"></a>A value of type T may be treated as a function, and invoked with normal function application syntax, if a function named `apply`, defined with a first parameter of type T, is in scope at the call site.
 
    For example:
    ```
@@ -1324,7 +1434,7 @@ impl Mappable A for Array {
 }
 
 // implement Range for f32 start and end values (e.g. 1.2..4.5, and 1.2...4.5)
-impl Range f32 f32 i32 {
+impl Range i32 for (f32, f32) {
   fn inclusiveRange(start: f32, end: f32) -> Iterable i32 => start.ceil..end.floor
   fn exclusiveRange(start: f32, end: f32) -> Iterable i32 => start.ceil...end.floor
 }
@@ -1543,7 +1653,7 @@ where `C'` and `F'` represent the zero values for types `C` and `F` respectively
 
 ## Control Flow Expressions
 
-### If
+### If Statement
 
 All `if` statements are expressions, evaluating to the last expression in the branch taken. In cases that an if expression
 doesn't define a possible branch and that branch is taken, the if expression evaluates to nil.
@@ -1572,7 +1682,7 @@ if <condition> {
 }
 ```
 
-#### Suffix Syntax
+#### If Suffix Syntax
 
 ```
 <expression> if <condition>
@@ -1588,6 +1698,12 @@ if <condition> {
 
 ```
 <expression> unless <condition>
+```
+
+### While Suffix Syntax
+
+```
+<expression> while <condition>
 ```
 
 ### Pattern Matching
@@ -1635,9 +1751,18 @@ while <condition> {
 #### for
 
 ```
-for <variable> in <Iterable value> {
+for <destructuring expression> in <Iterable value> {
   ...
 }
+```
+
+Examples:
+```
+for i in 1..10 { puts(i) }
+
+for (i, ch) in (1..10).zip("a".."j") { puts("$i -> $ch") }
+
+for p: Person(n=name, a=address, z=zip) in personRepo.all() { puts("name: $n, address: $a, zip: $z") }
 ```
 
 #### break/continue
@@ -1965,33 +2090,33 @@ This evaluation rule is very similar to Scala's Value Discarding rule. See secti
 
 Able supports meta-programming in the form of compile-time macros.
 
-Macros are special code-emitting functions that capture a code template and emit a filled in template at each call site. When a macro is invoked, the expressions supplied as arguments remain unevaluated, and are passed in as AST nodes. Within the body of the macro function, any placeholders in the code template are filled in, or replaced, by interpolating the function's arguments into the template at the placeholder locations.
+Macros are special code-emitting functions that capture a code template and emit a filled in template at each call site. Macro function parameters all have type `AstNode`. When a macro is invoked, the expressions supplied as arguments remain unevaluated, and are passed in as AST nodes. Within the body of the macro function, any placeholders in the code template are filled in, or replaced, by interpolating the function's arguments into the template at the placeholder locations.
 
 Macro definitions take the form:
 ```
-macro <name of macro function>(<parameters>) {
+macro <name of macro function>(<parameters>) -> AstNode {
   <pre-template logic goes here>
   `<template goes here>`
 }
 ```
 
-All macros return a value of type AstNode. The backtick-enclosed template is a syntax-literal representation of an AstNode.
+All macro functions return a value of type `AstNode`. The backtick-enclosed template is a syntax-literal representation of an `AstNode` - when a backtick-enclosed template is evaluated at a call site, the backtick expression evaluates to an `AstNode` value. The resulting `AstNode` value may be bound to a local variable identifier and inspected/printed if desired, and/or may be immediately returned from the macro function.
 
-Templates may include tags that inject values into the template or evaluate arbitrary code. The two types of supported tags are
-- `<%= expression %>` - Value or expression insertion tags
-- `<% expression %>` - Code evaluation tags
+Templates may include jinja-style placeholders/"tags" that inject values into the template or evaluate arbitrary code when the template is realized/evaluated. The two placeholder notations are:
+- `{{ expression }}` - Value or expression insertion
+- `{% expression %}` - Code evaluation
 
-The invocation of a macro function injects the returned AstNode into the AST - or equivalently, substitutes the returned expression into the source code - at the call site.
+The invocation of a macro function injects the returned `AstNode` into the AST - or equivalently, substitutes the returned expression into the source code - at the call site.
 
 For example:
 ```
 macro defineJsonEncoder(type) {
   `
-  fn encode(val: <%= type %>) -> String {
+  fn encode(val: {{ type }}) -> String {
     b = StringBuilder()
-    <% for (fieldName, fieldType) in typeof(type).fields { %>
-      b << json.encode<%= fieldType %>Field("<%= fieldName %>", val.<%= fieldName %>)
-    <% } %>
+    {% for (fieldName, fieldType) in typeof(type).fields { %}
+      b << json.encode{{ fieldType }}Field("{{ fieldName }}", val.{{ fieldName }})
+    {% } %}
     b.toString
   }
   `
@@ -2006,7 +2131,6 @@ defineJsonEncoder(Person)
 //   b << json.encodeIntField("age", val.age)
 //   b.toString
 // }
-
 
 struct Address { name: String, address1: String, address2: String, city: String, state: String, zip: String }
 defineJsonEncoder(Address)
