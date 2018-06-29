@@ -2359,6 +2359,10 @@ A primary goal of having a single tool is to enable the quick spin-up of a devel
 
 `able build`
 
+## Read-Eval-Print-Loop (REPL)
+
+`able repl`
+
 ## Testing
 
 `able test`

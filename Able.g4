@@ -1,7 +1,7 @@
 grammar Able;
 
 sourceFile
-  : packageDecl eos ( importDecl eos )* ( packageLevelDecl eos)* EOF
+  : packageDecl eos ( packageLevelDecl eos)* EOF
   ;
 
 // package foo
@@ -35,7 +35,8 @@ importDecl
 // assignment expressions
 // struct/union/function/interface/impl/macro definitions
 packageLevelDecl
-  : assignmentExpr
+  : importDecl
+  | assignmentExpr
   | variableDecl
   | structDefn
   | unionDefn
@@ -60,22 +61,20 @@ assignmentExpr
   | optionallyTypedIdentifier LWS? infixAssignmentOperator LWS? expression  # AssignmentExprOperatorAssignment
   ;
 
+// Only operators that produce a value in the same domain as their arguments (i.e. operators whose domain and range are the same) should be allowed here.
+// It wouldn't make sense to allow =< or =>, because those would return bool, when the arguments would likely be numeric, and you couldn't assign a bool to a numeric type.
+infixAssignmentOperator
+  : '=' ('+' | '-' | '*' | '/' | '\\' | '%' | '**' | '&' | '|' | '&&' | '||' | '<<' | '>>')
+  ;
+
 multipleAssignmentLhs
   : (assignmentLhs LWS? ',')* LWS? assignmentLhs
   ;
 
 assignmentLhs
-  : identifier LWS? ':' LWS? destructuringAssignmentLhsPattern        # AssignmentLhsDestructuringPatternWithIdent
-  | identifier LWS? ':' LWS? typeName                                 # AssignmentLhsTypedIdent
-  | destructuringAssignmentLhsPattern                                 # AssignmentLhsDestructuringPatternOnly
-  | functionCall                                                      # AssignmentLhsIndexAssignment  // todo: change this from functionCall to indexAssignment
-  | identifier                                                        # AssignmentLhsIdent
-  ;
-
-destructuringAssignmentLhsPattern
-  : destructuringTuple
-  | destructuringSequence
-  | destructuringStruct
+  : identifier LWS? ':' LWS? destructuringTypePrimitive         # AssignmentLhsDestructuringPatternWithIdent
+  | destructuringPrimitive                                      # AssignmentLhsDestructuringPatternOnly
+  | functionCall                                                # AssignmentLhsIndexAssignment  // todo: change this from functionCall to indexAssignment
   ;
 
 // id1
@@ -313,7 +312,10 @@ anonymousFunctionDefn
 
 // { <paramter list> -> <return type> => expression }
 lambdaExpression
-  : '{' WS? parameterList? WS? ('->' type) WS? '=>'? WS? expressions WS? '}'
+  : '{' WS? parameterList WS? '->' WS? typeName WS? '=>' WS? expressions WS? '}'    # LambdaParamsAndReturn
+  | '{' WS? parameterList WS? '=>' WS? expressions WS? '}'                          # LambdaParamsOnly
+	| '{' WS? '->' WS? typeName WS? '=>' WS? expressions WS? '}'                      # LambdaReturnOnly
+  | '{' WS? expressions WS? '}'                                                     # LambdaExpressionsOnly
   ;
 
 functionAliasExpression
@@ -324,9 +326,36 @@ functionAliasExpression
   ;
 
 functionSignature
-  : '(' WS? parameterList WS? ')'                         # FunctionSignatureParameterList
-  | '(' WS? parameterList WS? ')' WS? '->' WS? typeName   # FunctionSignatureParameterListAndReturnType
+  : '(' WS? parameterList WS? ')'                           # FunctionSignatureParameterList
+  | '(' WS? parameterList WS? ')' WS? '->' WS? typeName     # FunctionSignatureParameterListAndReturnType
   ;
+
+parameterList
+  : (fnParameter WS? ',')* WS? fnParameter
+  ;
+
+fnParameter
+  : identifier LWS? ':' LWS? destructuringTypePrimitive     # FnParameterDestructuringPatternWithIdent
+	| destructuringPrimitive                                  # FnParameterDestructuringPatternOnly
+  | functionCall                                            # FnParameterIndexAssignment  // todo: change this from functionCall to indexAssignment
+  ;
+
+destructuringPrimitive
+  : destructuringTuple
+  | destructuringPrimitive '::' destructuringPrimitive      # DestructuringPrimitiveTuplePair
+  | destructuringSequence
+  | destructuringStruct
+  | identifier
+  ;
+
+destructuringTypePrimitive
+  : destructuringTuple
+  | destructuringTypePrimitive '::' destructuringTypePrimitive    # DestructuringTypePrimitiveTuplePair
+  | destructuringSequence
+  | destructuringStruct
+  | typeName
+  ;
+
 
 functionBody
   : block
@@ -421,6 +450,7 @@ pattern
   : typeName
   | unionOfTypes
   | destructuringTuple
+  | destructuringPrimitive '::' destructuringPrimitive      # PatternDestructuringTuplePair
   | destructuringSequence
   | destructuringStruct
   | literal
@@ -433,8 +463,7 @@ unionOfTypes: typeName (WS '|' WS typeName)+ ;
 // (v1, v2)
 // v1::v2
 destructuringTuple
-  : '(' WS? fqIdentifierList WS? ')'      # DestructuringTupleIdentifierList
-  | fqIdentifier '::' fqIdentifier        # DestructuringTuplePair
+  : '(' WS? destructuringPrimitive WS? ')'
   ;
 
 // Array[x]
@@ -443,16 +472,16 @@ destructuringTuple
 // Array Int [x, y, zs*]
 // List[1, x, 3]
 destructuringSequence
-  : typeName '[' (WS? identifier WS? ',')* (WS? identifier WS?) ']'       # DestructuringSequenceIdentifierList
-  | typeName '[' (WS? identifier WS? ',')* (WS? identifier '*' WS?) ']'   # DestructuringSequenceIdentifierListWithSplatArgument
+  : typeName '[' (WS? destructuringPrimitive WS? ',')* (WS? destructuringPrimitive WS?) ']'     # DestructuringSequence
+	| typeName '[' (WS? destructuringPrimitive WS? ',')* (WS? identifier '*' WS?) ']'             # DestructuringSequenceWithSplatArgument
   ;
 
 // MyStruct{v1, v2}
 // MyStruct{v1=name, v2=age}
 // MyStruct Int {v1, v2}
 destructuringStruct
-  : typeName LWS? '{' (WS? identifier WS? ',')* (WS? identifier WS?) '}'    # DestructuringStructIdentifierList
-  | typeName LWS? '{' (WS? identifier WS? '=' WS? identifier WS? ',')* (WS? identifier WS? '=' WS? identifier WS?) '}'    # DestructuringStructNamedIdentifierList
+  : typeName LWS? '{' (WS? destructuringPrimitive WS? ',')* (WS? destructuringPrimitive WS?) '}'    # DestructuringStruct
+  | typeName LWS? '{' (WS? identifier WS? '=' WS? destructuringPrimitive WS? ',')* (WS? identifier WS? '=' WS? destructuringPrimitive WS?) '}'    # DestructuringStructWithNamedIdentifiers
   ;
 
 // references:
@@ -497,6 +526,11 @@ expression
   | expression WS? 'if' condition=expression                            # ExpressionIfSuffixExpr
   | expression WS? 'unless' condition=expression                        # ExpressionUnlessSuffixExpr
   | expression WS? 'while' condition=expression                         # ExpressionWhileSuffixExpr
+  ;
+
+// a label takes the form of a one-word Symbol in Ruby - e.g. :foo, :stop, :ThisLittlePiggyWentToMarket
+label
+  : ':' identifier
   ;
 
 doExpr
