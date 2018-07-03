@@ -64,17 +64,17 @@ assignmentExpr
 // Only operators that produce a value in the same domain as their arguments (i.e. operators whose domain and range are the same) should be allowed here.
 // It wouldn't make sense to allow =< or =>, because those would return bool, when the arguments would likely be numeric, and you couldn't assign a bool to a numeric type.
 infixAssignmentOperator
-  : EQUAL (PLUS | MINUS | STAR | DIVIDE | BACKSLASH | MOD | '**' | AMP | PIPE | AND | OR | '<<' | '>>')
+  : EQUAL (PLUS | MINUS | STAR | DIVIDE | BACKSLASH | MOD | POW | AMP | PIPE | AND | OR | LSHIFT | RSHIFT)
   ;
 
 multipleAssignmentLhs
-  : (assignmentLhs LWS? ',')* LWS? assignmentLhs
+  : (assignmentLhs LWS? COMMA)* LWS? assignmentLhs
   ;
 
 assignmentLhs
-  : identifier LWS? ':' LWS? destructuringTypePrimitive   # AssignmentLhsDestructuringPatternWithIdent
-  | destructuringPrimitive                                # AssignmentLhsDestructuringPatternOnly
-  | functionCall                                          # AssignmentLhsIndexAssignment  // todo: change this from functionCall to indexAssignment
+  : identifier LWS? COLON LWS? destructuringTypePrimitive   # AssignmentLhsDestructuringPatternWithIdent
+  | destructuringPrimitive                                  # AssignmentLhsDestructuringPatternOnly
+  | functionCall                                            # AssignmentLhsIndexAssignment  // todo: change this from functionCall to indexAssignment
   ;
 
 // id1
@@ -82,39 +82,39 @@ assignmentLhs
 // id1: type1
 // id1: type1, id2: type2
 // optionallyTypedIdentifierList
-//   : (optionallyTypedIdentifier LWS? ',')* LWS? optionallyTypedIdentifier
+//   : (optionallyTypedIdentifier LWS? COMMA)* LWS? optionallyTypedIdentifier
 //   ;
 
 // id1
 // id1: type1
 optionallyTypedIdentifier
-  : identifier (LWS? ':' LWS? typeName)?
+  : identifier (LWS? COLON LWS? typeName)?
   ;
 
 // id: Int
 // id: CallStackLocal Int
 // id: CallStackLocal (Array Int)
 variableDecl
-  : identifier LWS? ':' LWS? typeName
+  : identifier LWS? COLON LWS? typeName
   ;
 
 
 // id1
 // id1, id2
 identifierList
-  : identifier ( WS? ',' WS? identifier )*
+  : identifier ( WS? COMMA WS? identifier )*
   ;
 
 // id1
 // id1, id2
 fqIdentifierList
-  : fqIdentifier ( WS? ',' WS? fqIdentifier )*
+  : fqIdentifier ( WS? COMMA WS? fqIdentifier )*
   ;
 
 // id1
 // id1, id2
 localIdentifierList
-  : identifier ( WS? ',' WS? identifier )*
+  : identifier ( WS? COMMA WS? identifier )*
   ;
 
 // <expr> ; <expr>
@@ -125,7 +125,7 @@ expressions
 
 // <expr> , <expr>
 expressionList
-  : expression ( WS? ',' WS? expression )*
+  : expression ( WS? COMMA WS? expression )*
   ;
 
 // struct Foo T [T: Iterable] { Int, Float, T }
@@ -153,18 +153,18 @@ expressionList
 //   z: T
 // }
 structDefn
-  : 'struct' LWS inlineStructDefn
+  : STRUCT LWS inlineStructDefn
   ;
 
 inlineStructDefn
-  : typeName (LWS typeParametersDecl)? LWS? '{' WS? commaDelimitedTypeNameList WS? '}'    # InlineStructDefnCommaDelimitedPositionalTypes
-  | typeName (LWS typeParametersDecl)? LWS? '{' WS? newlineDelimitedTypeNameList WS? '}'  # InlineStructDefnNewlineDelimitedPositionalTypes
-  | typeName (LWS typeParametersDecl)? LWS? '{' WS? commaDelimitedFieldList WS? '}'       # InlineStructDefnCommaDelimitedFieldList
-  | typeName (LWS typeParametersDecl)? LWS? '{' WS? newlineDelimitedFieldList WS? '}'     # InlineStructDefnNewlineDelimitedFieldList
+  : typeName (LWS typeParametersDecl)? LWS? LBRACE WS? commaDelimitedTypeNameList WS? RBRACE    # InlineStructDefnCommaDelimitedPositionalTypes
+  | typeName (LWS typeParametersDecl)? LWS? LBRACE WS? newlineDelimitedTypeNameList WS? RBRACE  # InlineStructDefnNewlineDelimitedPositionalTypes
+  | typeName (LWS typeParametersDecl)? LWS? LBRACE WS? commaDelimitedFieldList WS? RBRACE       # InlineStructDefnCommaDelimitedFieldList
+  | typeName (LWS typeParametersDecl)? LWS? LBRACE WS? newlineDelimitedFieldList WS? RBRACE     # InlineStructDefnNewlineDelimitedFieldList
   ;
 
 typeParametersDecl
-  :	'[' (WS? freeTypeParameter WS? ',')* (WS? freeTypeParameter  WS?) ']'
+  :	LBRACKET (WS? freeTypeParameter WS? COMMA)* (WS? freeTypeParameter  WS?) RBRACKET
   ;
 
 // T : Foo
@@ -181,8 +181,8 @@ freeTypeParameter
 // supersetOf X
 // supersetOf X|Y|Z
 typeConstraint
-  : ':' LWS? intersectionType         # TypeConstraintImplementsIntersectionType
-  | ':' LWS? typeName                 # TypeConstraintImplementsInterface
+  : COLON LWS? intersectionType         # TypeConstraintImplementsIntersectionType
+  | COLON LWS? typeName                 # TypeConstraintImplementsInterface
 //   | SUPERSET_OF LWS typeIdentifier (LWS? PIPE LWS? typeIdentifier)*  # TypeConstraintSupersetOfConstraint
   ;
 
@@ -207,7 +207,7 @@ typeName
 
 typeNameSubRule
   : typeIdentifier (DOT freeTypeIdentifier)* 
-  | '(' LWS? typeName LWS? ')'
+  | LPAREN LWS? typeName LWS? RPAREN
   ;
 
 // Int, Float, T
@@ -216,7 +216,7 @@ typeNameSubRule
 //  Float,
 //  T,
 commaDelimitedTypeNameList
-  : typeName ( WS? ',' WS? typeName )* (WS? ',')?
+  : typeName ( WS? COMMA WS? typeName )* (WS? COMMA)?
   ;
 
 /*
@@ -234,7 +234,7 @@ newlineDelimitedTypeNameList
 //   y: Float, 
 //   z: T,
 commaDelimitedFieldList
-  : typedIdentifier ( WS? ',' WS? typedIdentifier )* (WS? ',')?
+  : typedIdentifier ( WS? COMMA WS? typedIdentifier )* (WS? COMMA)?
   ;
 
 /*
@@ -249,7 +249,7 @@ newlineDelimitedFieldList
 
 // id1: type1
 typedIdentifier
-  :	WS? identifier LWS? ':' LWS? typeName WS?;
+  :	WS? identifier LWS? COLON LWS? typeName WS?;
 
 // Union definition:
 // union String? = String | Nil
@@ -263,7 +263,7 @@ typedIdentifier
 // union Result A B = Success A {A} | Failure B {B}
 // union ContrivedResult A B [A: Fooable, B: Barable] = Success A X [X: Stringable] {A, X} | Failure B Y [Y: Serializable] {B, Y}
 unionDefn
-  : 'union' LWS typeName (LWS typeParametersDecl)? LWS? EQUAL 
+  : UNION LWS typeName (LWS typeParametersDecl)? LWS? EQUAL 
       WS? (NL+ WS? PIPE WS?)? unionAlternative (WS? PIPE WS? unionAlternative WS?)+
   ;
 
@@ -296,8 +296,8 @@ functionDefnList
 // fn <function name>[<optional type paramter list>](<parameter list>) -> <optional return type> { <function body> }
 // fn <function name>[<optional type paramter list>](<parameter list>) -> <optional return type> => <function body>
 functionDefn
-  : FN LWS identifier (LWS typeParametersDecl)? WS? '=>' WS? functionAliasExpression   # FunctionDefnAlias
-  | FN LWS identifier (LWS typeParametersDecl)? functionSignature WS? functionBody     # FunctionDefnFull
+  : FN LWS identifier (LWS typeParametersDecl)? WS? DOUBLEARROW WS? functionAliasExpression   # FunctionDefnAlias
+  | FN LWS identifier (LWS typeParametersDecl)? functionSignature WS? functionBody            # FunctionDefnFull
   ;
 
 // fn[<optional type paramter list>](<parameter list>) -> <optional return type> { <function body> }
@@ -306,16 +306,16 @@ functionDefn
 // (<parameter list>) -> <optional return type> => <function body>
 anonymousFunctionDefn
   : FN typeParametersDecl? functionSignature WS? functionBody   # AnonymousFunctionDefnLong
-  | functionSignature WS? functionBody                            # AnonymousFunctionDefnShort
-  | lambdaExpression                                              # AnonymousFunctionLambda
+  | functionSignature WS? functionBody                          # AnonymousFunctionDefnShort
+  | lambdaExpression                                            # AnonymousFunctionLambda
   ;
 
 // { <paramter list> -> <return type> => expression }
 lambdaExpression
-  : '{' WS? parameterList WS? '->' WS? typeName WS? '=>' WS? expressions WS? '}'    # LambdaParamsAndReturn
-  | '{' WS? parameterList WS? '=>' WS? expressions WS? '}'                          # LambdaParamsOnly
-	| '{' WS? '->' WS? typeName WS? '=>' WS? expressions WS? '}'                      # LambdaReturnOnly
-  | '{' WS? expressions WS? '}'                                                     # LambdaExpressionsOnly
+  : LBRACE WS? parameterList WS? ARROW WS? typeName WS? DOUBLEARROW WS? expressions WS? RBRACE   # LambdaParamsAndReturn
+  | LBRACE WS? parameterList WS? DOUBLEARROW WS? expressions WS? RBRACE                          # LambdaParamsOnly
+	| LBRACE WS? ARROW WS? typeName WS? DOUBLEARROW WS? expressions WS? RBRACE                     # LambdaReturnOnly
+  | LBRACE WS? expressions WS? RBRACE                                                            # LambdaExpressionsOnly
   ;
 
 functionAliasExpression
@@ -326,53 +326,53 @@ functionAliasExpression
   ;
 
 functionSignature
-  : '(' WS? parameterList WS? ')'                           # FunctionSignatureParameterList
-  | '(' WS? parameterList WS? ')' WS? '->' WS? typeName     # FunctionSignatureParameterListAndReturnType
+  : LPAREN WS? parameterList WS? RPAREN                           # FunctionSignatureParameterList
+  | LPAREN WS? parameterList WS? RPAREN WS? ARROW WS? typeName     # FunctionSignatureParameterListAndReturnType
   ;
 
 parameterList
-  : (fnParameter WS? ',')* WS? fnParameter
+  : (fnParameter WS? COMMA)* WS? fnParameter
   ;
 
 fnParameter
-  : identifier LWS? ':' LWS? destructuringTypePrimitive     # FnParameterDestructuringPatternWithIdent
+  : identifier LWS? COLON LWS? destructuringTypePrimitive   # FnParameterDestructuringPatternWithIdent
 	| destructuringPrimitive                                  # FnParameterDestructuringPatternOnly
   | functionCall                                            # FnParameterIndexAssignment  // todo: change this from functionCall to indexAssignment
   ;
 
 destructuringPrimitive
-  : destructuringTuple                                      # DestructuringPrimitiveTuple
-  | destructuringPrimitive '::' destructuringPrimitive      # DestructuringPrimitiveTuplePair
-  | destructuringSequence                                   # DestructuringPrimitiveSequence
-  | destructuringStruct                                     # DestructuringPrimitiveStruct
-  | identifier                                              # DestructuringPrimitiveIdentifier
+  : destructuringTuple                                          # DestructuringPrimitiveTuple
+  | destructuringPrimitive DOUBLECOLON destructuringPrimitive   # DestructuringPrimitiveTuplePair
+  | destructuringSequence                                       # DestructuringPrimitiveSequence
+  | destructuringStruct                                         # DestructuringPrimitiveStruct
+  | identifier                                                  # DestructuringPrimitiveIdentifier
   ;
 
 destructuringTypePrimitive
-  : destructuringTuple                                            # DestructuringTypePrimitiveTuple
-  | destructuringTypePrimitive '::' destructuringTypePrimitive    # DestructuringTypePrimitiveTuplePair
-  | destructuringSequence                                         # DestructuringTypePrimitiveSequence
-  | destructuringStruct                                           # DestructuringTypePrimitiveStruct
-  | typeName                                                      # DestructuringTypePrimitiveTypeName
+  : destructuringTuple                                                  # DestructuringTypePrimitiveTuple
+  | destructuringTypePrimitive DOUBLECOLON destructuringTypePrimitive   # DestructuringTypePrimitiveTuplePair
+  | destructuringSequence                                               # DestructuringTypePrimitiveSequence
+  | destructuringStruct                                                 # DestructuringTypePrimitiveStruct
+  | typeName                                                            # DestructuringTypePrimitiveTypeName
   ;
 
 
 functionBody
   : block
-  | '=>' WS? expression
+  | DOUBLEARROW WS? expression
   ;
 
 // { expressions }
 // { expressions catch: patternMatchAlternatives ensure: expressions }
 block
-  : '{' WS? expressions (WS 'catch' WS patternMatchAlternatives (WS 'ensure' WS expressions)? )? WS? '}'
+  : LBRACE WS? expressions (WS CATCH WS patternMatchAlternatives (WS ENSURE WS expressions)? )? WS? RBRACE
   ;
 
 // interface Foo T [T: Iterable] {
 //   fn foo() -> i32
 // }
 interfaceDefn
-  : 'interface' LWS typeName (LWS typeParametersDecl)? LWS? '{' WS? functionDeclList? WS? '}'
+  : 'interface' LWS typeName (LWS typeParametersDecl)? LWS? LBRACE WS? functionDeclList? WS? RBRACE
   ;
 
 // [implName =] impl [X, Y, Z, ...] A <B C ...> for D <E F ...> {
@@ -389,7 +389,7 @@ implDefn
 //   ...
 // }
 anonymousImplDefn
-  : 'impl' (LWS typeParametersDecl)? LWS typeName LWS 'for' LWS typeName LWS? '{' WS? functionDefnList? WS? '}'
+  : 'impl' (LWS typeParametersDecl)? LWS typeName LWS FOR LWS typeName LWS? LBRACE WS? functionDefnList? WS? RBRACE
   ;
 
 // macro <name of macro function>(<parameters>) {
@@ -397,13 +397,13 @@ anonymousImplDefn
 //   `<template goes here>`
 // }
 macroDefn
-  : 'macro' LWS identifier '(' WS? localIdentifierList WS? ')' WS? macroBlock
+  : 'macro' LWS identifier LPAREN WS? localIdentifierList WS? RPAREN WS? macroBlock
   ;
 
 // { expressions }
 // { expressions catch: patternMatchAlternatives ensure: expressions }
 macroBlock
-  : '{' WS? macroExpressions (WS 'catch' WS patternMatchAlternatives (WS 'ensure' WS expressions)? )? WS? '}'
+  : LBRACE WS? macroExpressions (WS CATCH WS patternMatchAlternatives (WS ENSURE WS expressions)? )? WS? RBRACE
   ;
 
 // <expr> ; <expr>
@@ -438,11 +438,11 @@ patternMatchAlternatives
 // l: LargeHouse{area} => puts ("build a large house of $area sq. ft. - $l")
 // HugeHouse{_, poolCount} => puts ("build a huge house with $poolCount pools!")
 caseClause
-  : patternWithOptionalIdentifier WS '=>' WS expression
+  : patternWithOptionalIdentifier WS DOUBLEARROW WS expression
   ;
 
 patternWithOptionalIdentifier
-  : identifier LWS? ':' LWS? pattern        # PatternWithOptionalIdentifierPatternWithIdent
+  : identifier LWS? COLON LWS? pattern        # PatternWithOptionalIdentifierPatternWithIdent
   | pattern                                 # PatternWithOptionalIdentifierPatternOnly
   ;
 
@@ -450,7 +450,7 @@ pattern
   : typeName                                                # PatternTypeName
   | unionOfTypes                                            # PatternUnionOfTypes
   | destructuringTuple                                      # PatternDestructuringTuple
-  | destructuringPrimitive '::' destructuringPrimitive      # PatternDestructuringTuplePair
+  | destructuringPrimitive DOUBLECOLON destructuringPrimitive      # PatternDestructuringTuplePair
   | destructuringSequence                                   # PatternDestructuringSequence
   | destructuringStruct                                     # PatternDestructuringStruct
   | literal                                                 # PatternLiteral
@@ -463,7 +463,7 @@ unionOfTypes: typeName (WS PIPE WS typeName)+ ;
 // (v1, v2)
 // v1::v2
 destructuringTuple
-  : '(' WS? destructuringPrimitive WS? ')'
+  : LPAREN WS? destructuringPrimitive WS? RPAREN
   ;
 
 // Array[x]
@@ -472,23 +472,23 @@ destructuringTuple
 // Array Int [x, y, zs*]
 // List[1, x, 3]
 destructuringSequence
-  : typeName '[' (WS? destructuringPrimitive WS? ',')* (WS? destructuringPrimitive WS?) ']'     # DestructuringSequenceNoSplatArgument
-	| typeName '[' (WS? destructuringPrimitive WS? ',')* (WS? identifier STAR WS?) ']'             # DestructuringSequenceWithSplatArgument
+  : typeName LBRACKET (WS? destructuringPrimitive WS? COMMA)* (WS? destructuringPrimitive WS?) RBRACKET     # DestructuringSequenceNoSplatArgument
+	| typeName LBRACKET (WS? destructuringPrimitive WS? COMMA)* (WS? identifier STAR WS?) RBRACKET             # DestructuringSequenceWithSplatArgument
   ;
 
 // MyStruct{v1, v2}
 // MyStruct{v1=name, v2=age}
 // MyStruct Int {v1, v2}
 destructuringStruct
-  : typeName LWS? '{' (WS? destructuringPrimitive WS? ',')* (WS? destructuringPrimitive WS?) '}'    # DestructuringStructWithPositionalFields
-  | typeName LWS? '{' (WS? identifier WS? EQUAL WS? destructuringPrimitive WS? ',')* (WS? identifier WS? EQUAL WS? destructuringPrimitive WS?) '}'    # DestructuringStructWithNamedFields
+  : typeName LWS? LBRACE (WS? destructuringPrimitive WS? COMMA)* (WS? destructuringPrimitive WS?) RBRACE    # DestructuringStructWithPositionalFields
+  | typeName LWS? LBRACE (WS? identifier WS? EQUAL WS? destructuringPrimitive WS? COMMA)* (WS? identifier WS? EQUAL WS? destructuringPrimitive WS?) RBRACE    # DestructuringStructWithNamedFields
   ;
 
 // references:
 // - http://kotlinlang.org/docs/reference/grammar.html#expression
 // - https://docs.julialang.org/en/release-0.4/manual/mathematical-operations/
 expression
-  : '(' WS? expression WS? ')'                                          # ExpressionSubExpression
+  : LPAREN WS? expression WS? RPAREN                                          # ExpressionSubExpression
   | fqIdentifier                                                        # ExpressionIdentifier
   | placeholderIdentifier                                               # ExpressionPlaceholderIdentifier
   | literal                                                             # ExpressionLiteral
@@ -497,13 +497,13 @@ expression
 	| anonymousFunctionDefn                                               # ExpressionAnonymousFunctionDefn
   | doExpr                                                              # ExpressionDoExpr
   | ifExpr                                                              # ExpressionIfExpr
-	| expression WS 'match' WS '{' WS? patternMatchAlternatives WS? '}'   # ExpressionMatchExpr
+	| expression WS 'match' WS LBRACE WS? patternMatchAlternatives WS? RBRACE   # ExpressionMatchExpr
   | whileExpr                                                           # ExpressionWhileExpr
   | forExpr                                                             # ExpressionForExpr
   | returnStatement                                                     # ExpressionReturnExpr
   | 'break'                                                             # ExpressionBreakExpr
   | 'continue'                                                          # ExpressionContinueExpr
-	| 'jumppoint' WS label WS '{' WS? expressions WS? '}'                 # ExpressionJumpPointDefn
+	| 'jumppoint' WS label WS LBRACE WS? expressions WS? RBRACE                 # ExpressionJumpPointDefn
 	| 'jump' WS label WS expression                                       # ExpressionJumpExpr
 
   | functionCall                                                        # ExpressionFunctionCall
@@ -512,7 +512,7 @@ expression
 
 	| op=(PLUS | MINUS | BANG | '~') expression                               # ExpressionUnaryPrefixExpr
   | expression WS AS WS typeName                                      # ExpressionAsExpr            // todo: may not be needed
-  | lhs=expression WS op='**' WS rhs=expression                         # ExpressionExponentiationExpr
+  | lhs=expression WS op=POW WS rhs=expression                         # ExpressionExponentiationExpr
   | lhs=expression WS op=(STAR | DIVIDE | BACKSLASH | MOD) WS rhs=expression     # ExpressionMultiplicativeExpr
   | lhs=expression WS op=(PLUS | MINUS) WS rhs=expression                  # ExpressionAdditiveExpr
 	| lhs=expression '..' rhs=expression                                  # ExpressionInclusiveRange
@@ -527,12 +527,12 @@ expression
 
   | expression WS? 'if' condition=expression                            # ExpressionIfSuffixExpr
   | expression WS? 'unless' condition=expression                        # ExpressionUnlessSuffixExpr
-  | expression WS? 'while' condition=expression                         # ExpressionWhileSuffixExpr
+  | expression WS? WHILE condition=expression                         # ExpressionWhileSuffixExpr
   ;
 
 // a label takes the form of a one-word Symbol in Ruby - e.g. :foo, :stop, :ThisLittlePiggyWentToMarket
 label
-  : ':' identifier
+  : COLON identifier
   ;
 
 doExpr
@@ -540,18 +540,18 @@ doExpr
   ;
 
 functionCall
-  : fqIdentifier LWS? '(' WS? argumentList WS? ')'    // todo: the stuff prior to the open-paren needs to be redone
+  : fqIdentifier LWS? LPAREN WS? argumentList WS? RPAREN    // todo: the stuff prior to the open-paren needs to be redone
   ;
 
 // <expr> , <expr>
 // <expr> , , <expr>
 argumentList
-  : expression? ( WS? ',' WS? expression? )*   // expressions are optional to allow for partial application of functions
+  : expression? ( WS? COMMA WS? expression? )*   // expressions are optional to allow for partial application of functions
   ;
 
 
 ifExpr
-  : 'if' LWS expression WS? '{' WS? expressions WS? '}' WS? 'else' WS? '{' WS? expressions WS? '}'
+  : 'if' LWS expression WS? LBRACE WS? expressions WS? RBRACE WS? 'else' WS? LBRACE WS? expressions WS? RBRACE
   ;
 
 literal
@@ -564,20 +564,20 @@ literal
   ;
 
 returnStatement
-  : 'return' expression?
+  : RETURN expression?
   ;
 
 whileExpr
-  : 'while' WS expression WS '{' WS? expressions WS? '}'
+  : WHILE WS expression WS LBRACE WS? expressions WS? RBRACE
   ;
 
 forExpr
-  : 'for' WS forExprVariable WS 'in' WS expression WS '{' WS? expressions WS? '}'
+  : FOR WS forExprVariable WS IN WS expression WS LBRACE WS? expressions WS? RBRACE
   ;
 
 forExprVariable
-  : identifier LWS? ':' LWS? destructuringTypePrimitive         # ForExprVariableDestructuringPatternWithIdent
-  | destructuringPrimitive                                      # ForExprVariableDestructuringPatternOnly
+  : identifier LWS? COLON LWS? destructuringTypePrimitive    # ForExprVariableDestructuringPatternWithIdent
+  | destructuringPrimitive                                   # ForExprVariableDestructuringPatternOnly
   ;
 
 eol
@@ -585,7 +585,7 @@ eol
   ;
 
 eos
-  : (WS? (';' | NL))+ WS?
+  : (WS? (SEMICOLON | NL))+ WS?
   ;
 
 
@@ -611,7 +611,16 @@ freeTypeIdentifier: LETTER ( LETTER | UNICODE_DIGIT)*;
 PACKAGE: 'package';
 IMPORT: 'import';
 AS: 'as';
+IN: 'in';
 FN: 'fn';
+UNION: 'union';
+STRUCT: 'struct';
+CATCH: 'catch';
+ENSURE: 'ensure';
+RETURN: 'return';
+WHILE: 'while';
+FOR: 'for';
+
 
 EQUAL: '=';
 EQ: '==';
@@ -629,6 +638,11 @@ AND: '&&';
 OR: '||';
 AMP: '&';
 PIPE: '|';
+LSHIFT: '<<';
+RSHIFT: '>>';
+POW: '**';
+ARROW: '->';
+DOUBLEARROW: '=>';
 
 DOT: '.';
 COMMA: ',';
@@ -636,9 +650,14 @@ LBRACE: '{';
 RBRACE: '}';
 LBRACKET: '[';
 RBRACKET: ']';
+LPAREN: '(';
+RPAREN: ')';
 QUESTION: '?';
 BANG: '!';
 STAR: '*';
+COLON: ':';
+DOUBLECOLON: '::';
+SEMICOLON: ';';
 
 
 // integer literals - similar to https://golang.org/ref/spec#Integer_literals
