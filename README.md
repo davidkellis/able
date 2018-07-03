@@ -2110,7 +2110,9 @@ All macro functions return a value of type `AstNode`. The backtick-enclosed temp
 
 Templates may include jinja-style placeholders/"tags" that inject values into the template or evaluate arbitrary code when the template is realized/evaluated. The two placeholder notations are:
 - `{{ expression }}` - Value or expression insertion
+{% raw %}
 - `{% expression %}` - Code evaluation
+{% endraw %}
 
 The invocation of a macro function injects the returned `AstNode` into the AST - or equivalently, substitutes the returned expression into the source code - at the call site.
 
