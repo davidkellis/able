@@ -1,0 +1,94 @@
+interface Serializer Format for T {
+  fn encode(T) -> Format
+  fn decode(Format) -> T
+}
+
+struct Person { name: String, age: Int }
+
+JsonSerializer = impl Serializer String for Person {
+  fn encode(p: Person) -> String {
+    b = StringBuilder()
+    for field in typeof(Person).fields {
+      field.type match {
+        case Int => field.get(p)
+        case String => "${field.get(p)}"
+      }
+    }
+    b.toString
+  }
+}
+
+JsonSerializer = impl Serializer String for Person {
+  fn encode(p: Person) -> String {
+    b = StringBuilder()
+    {% for (fieldName, fieldType) in Person.fields %}
+      b << json.encode{{fieldType}}Field("{{fieldName}}", p.{{fieldName}})
+    {% end %}
+    b.toString
+  }
+}
+
+would expand into this:
+
+JsonSerializer = impl Serializer String for Person {
+  fn encode(p: Person) -> String {
+    b = StringBuilder()
+    b << json.encodeStringField("name", p.name)
+    b << json.encodeIntField("age", p.age)
+    b.toString
+  }
+
+  fn decode(str: String) -> Person {
+    jsonValue = json.parse(str)
+    jsonObj <- jsonValue.jObject
+    name <-
+    jsonValue.jObject.map { obj =>  }
+    jsonObj = jsonValue as JObject else throw("JSON parse failure: $str cannot be parsed as a Person")
+    name = jsonObj.field("name")&.stringValue || throw("")
+    Person(name, age)
+  }
+}
+
+macro defineJsonSerializer(type) {
+  fn encode(val: {{type}}) -> String {
+    b = StringBuilder()
+    {% for (fieldName, fieldType) in typeof(type).fields %}
+      b << json.encode{{fieldType}}Field("{{fieldName}}", val.{{fieldName}})
+    {% end %}
+    b.toString
+  }
+
+  fn decode(str: String) -> {{type}} {
+    ...
+  }
+}
+
+struct Person { name: String, age: Int }
+defineJsonSerializer(Person)
+
+struct Address { name: String, address1: String, address2: String, city: String, state: String, zip: String }
+defineJsonSerializer(Address)
+
+union TypeKind = Boolean | Int8 | Int16 | Int32 | Int64 | UInt8 | UInt16 | UInt32 | UInt64 | Float | Double | String | Array | Map | Tuple | Struct | Union | Function | Interface | Thunk | Lazy | CallStackLocal | Channel
+
+struct Field StructType FieldType {
+  name: String
+  get: (StructType) -> FieldType
+  set: (StructType, FieldType) -> FieldType
+}
+
+struct Type T {
+  name: String
+  kind: TypeKind
+  fields: Array (Field T Any)
+}
+
+a: Any = 5
+i = a as Int
+a as String else 4
+
+a match {
+  Int => a * 5
+  Float => a * 5.0
+  String => "$a is nice"
+}
