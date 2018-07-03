@@ -1,0 +1,49 @@
+interface Enumerable T for E {
+  fn each(E, T -> Unit) -> Unit
+}
+impl Enumerable T for Array T {
+  fn each(array: Array T, f: T -> Unit) -> Unit { ... }
+}
+impl Enumerable T for I : Iterator T {
+  fn each(it: I, visit: T -> Unit) = ...
+}
+impl Enumerable T for Iterator T {
+  fn each(it: Iterator T, visit: T -> Unit) = ...
+}
+KeyIterator = impl Enumerable K for Map K V {
+  fn each(m: Map K V, visit: K -> Unit) -> Unit { ... }
+}
+ValueIterator = impl Enumerable V for Map K V {
+  fn each(m: Map K V, visit: V -> Unit) -> Unit { ... }
+}
+impl Enumerable (K,V) for Map K V
+  fn each(map: Map K V, f: ( (K,V) ) -> Unit) -> Unit { ... }
+}
+
+
+interface Iterator T for I {
+  fn has_next?(I) -> Bool
+  fn next(I) -> Option T
+}
+
+
+// John created https://gist.github.com/archer884/555d7989e0419e22d9a80bfd8c166f21 in this vein
+interface Mappable Out for In {
+  fn map[A,B](m: In, convert: A -> B) -> Out     // A and B must be consistent with In and Out
+}
+impl Mappable (Array B) for Array A {
+  fn map(a: Array A, convert: A -> B) -> Array B
+}
+impl Mappable (Iterator B) for Iterator A {
+  fn map(a: Iterator A, convert: A -> B) -> Iterator B
+}
+
+KeyMapper = impl Mappable (Map K2 V) for Map K V {
+  fn map(m: Map K V, convert: K -> K2) -> Map K2 V { ... }
+}
+ValueMapper = impl Mappable (Map K V2) for Map K V {
+  fn map(m: Map K V, convert: V -> V2) -> Map K V2 { ... }
+}
+
+
+iterators = Array[Iterator Int](Array(1,2,3), List(4,5,6), Range(10, 20))
