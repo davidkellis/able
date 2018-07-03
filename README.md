@@ -2117,6 +2117,7 @@ Templates may include jinja-style placeholders/"tags" that inject values into th
 The invocation of a macro function injects the returned `AstNode` into the AST - or equivalently, substitutes the returned expression into the source code - at the call site.
 
 For example:
+{% raw %}
 ```
 macro defineJsonEncoder(type) {
   `
@@ -2129,6 +2130,7 @@ macro defineJsonEncoder(type) {
   }
   `
 }
+{% endraw %}
 
 struct Person { name: String, age: i32 }
 defineJsonEncoder(Person)
