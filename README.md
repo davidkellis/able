@@ -1370,6 +1370,42 @@ interface Range S E Out {
 }
 ```
 
+#### Self Type
+
+There is a special type named `Self` that may be used within an interface definition or an implementation of an interface to reference the [self type](#self-type) captured in the for clause of the interface or implementation.
+
+For example:
+```
+// Stringable interface
+interface Stringable for T {
+  fn to_string(T) -> String
+}
+```
+could also be written as:
+```
+interface Stringable for T {
+  fn to_string(Self) -> String
+}
+```
+
+
+In cases where the [self type](#self-type) is polymorphic, i.e. the self type has one or more unbound type parameters, the special `Self` type may be used as a type constructor and supplied with type arguments.
+
+For example:
+```
+// Mappable interface (something approximating Functor in Haskell-land - see https://wiki.haskell.org/Typeclassopedia#Functor)
+interface Mappable for M _ {
+  fn map(m: M A, convert: A -> B) -> M B
+}
+```
+could be written as:
+```
+// Mappable interface (something approximating Functor in Haskell-land - see https://wiki.haskell.org/Typeclassopedia#Functor)
+interface Mappable for M _ {
+  fn map(m: Self A, convert: A -> B) -> Self B
+}
+```
+
 #### Interface Aliases and Interface Intersection Types
 
 Much like intersection types in Scala 3/Dotty (http://dotty.epfl.ch/docs/reference/intersection-types.html), interfaces may be defined as the intersection of two or more interfaces, under the interpretation that, if a type implements all of the enumerated interfaces, then the type is also deemed to implement the intersection interface. Intersection interfaces are not implemented directly.
