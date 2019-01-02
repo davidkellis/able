@@ -1,0 +1,185 @@
+// This is a port of https://github.com/archer884/crockford into Able
+
+UPPERCASE_ENCODING: Array u8 = "0123456789ABCDEFGHJKMNPQRSTVWXYZ".bytes
+
+// Represents writable buffer capable of receiving encoded data.
+//
+// Write is implemented on `Vec<u8>` and `String`, but you are free to implement it on your own types. 
+// One conceivable purpose would be to allow for lowercase encoding output by inverting the cap bit before writing.
+interface Write for T {
+  // Writes a single byte (or, more precisely, a 5-bit group) to the output.
+  fn write(T, u8) -> Unit
+}
+
+impl Write for String {
+  fn write(str: String, byte: u8) {
+    // UPPERCASE_ENCODING contains only ASCII bytes.
+    str.append(byte)
+  }
+}
+
+impl Write for Array u8 {
+  fn write(arr: Array u8, byte: u8) {
+    arr.append(byte)
+  }
+}
+
+// Encodes a `u64` value as a Crockford Base32-encoded string.
+fn encode(n: u64) -> String {
+  // The longest possible representation of u64 in Base32 is 13 digits.
+  buffer = array.empty(13)
+  buffer.write(n)
+
+  String(buffer)
+}
+
+// Used for the initial shift.
+QUAD_SHIFT = 60
+QUAD_RESET = 4
+
+// Used for all subsequent shifts.
+FIVE_SHIFT = 59
+FIVE_RESET = 5
+
+// After we clear the four most significant bits, the four least significant bits will be replaced with 0001.
+// We can then know to stop once the four most significant bits are, likewise, 0001.
+STOP_BIT: u64 = 1 << QUAD_SHIFT
+
+// Encodes a `u64` value as Crockford Base32 and writes it to the provided output.
+fn write(w: Write, n: u64) -> Unit {
+  if n == 0 {
+    w.write(0)
+    return
+  }
+
+  // Start by getting the most significant four bits. We get four here because these would be leftovers when starting
+  // from the least significant bits. In either case, tag the four least significant bits with our stop bit.
+  (n >> QUAD_SHIFT) match {
+    // Eat leading zero-bits. This should not be done if the first four bits were non-zero.
+    // Additionally, we *must* do this in increments of five bits.
+    0 => {
+      n <<= QUAD_RESET
+      n |= 1
+      n <<= n.leading_zeros() / 5 * 5
+    }
+
+    // Write value of first four bytes.
+    i => {
+      n <<= QUAD_RESET
+      n |= 1
+      w.write(UPPERCASE_ENCODING(i))
+    }
+  }
+
+  // From now until we reach the stop bit, take the five most significant bits and then shift left by five bits.
+  while n != STOP_BIT {
+    w.write(UPPERCASE_ENCODING(n >> FIVE_SHIFT)
+    n <<= FIVE_RESET
+  }
+}
+
+BASE: u64 = 0x20
+
+// Attempts to decode a Crockford Base32-encoded string into a `u64` value.
+fn decode(input: String) -> Result u64 {
+  input.length match {
+    0 => Err("Encoded input string is empty.")
+    n if n > 13 => Err("Encoded value is too large")
+    _ => {
+      place = BASE ** (input.length() - 1)
+      n = 0
+
+      for (idx, u) in input.bytes() {
+        digit = to_normal_digit(idx, u)?
+        n += u64::from(digit).wrapping_mul(place)
+        place >>= 5;
+      }
+
+      Ok(n)
+    }
+  }
+}
+
+// Attempts to convert an ascii digit to a normalized form.
+fn to_normal_digit(idx: usize, u: u8) -> Result<u8> {
+    static VALUE_MAPPING: [i8; 256] = include!("../resources/u8-mapping.txt");
+
+    unsafe {
+        match *VALUE_MAPPING.get_unchecked(u as usize) {
+            -1 => Err(Error::new(
+                Kind::InvalidDigit(idx, u),
+                "Invalid encoded digit.",
+            )),
+            -2 => Err(Error::new(
+                Kind::CheckDigitUnsupported(idx, u),
+                "Check digits not currently supported.",
+            )),
+            result => Ok(result as u8),
+        }
+    }
+}
+
+macro def_tests(body: () -> Unit)
+
+def_tests {
+  "zero returns zero" :: {
+    input = 0
+    expected = "0"
+    actual = encode(input)
+
+    assert_eq(expected, actual)
+  }
+
+  "large value returns correct large value" :: {
+    input = 65535
+    expected = "1ZZZ"
+    actual = encode(input)
+
+    assert_eq(expected, actual)
+  }
+
+  "5111 is encoded as 4ZQ" :: {
+    assert_eq("4ZQ", encode(5111))
+  }
+
+  "18446744073709551615 is encoded as FZZZZZZZZZZZZ" :: {
+    assert_eq("FZZZZZZZZZZZZ", encode(18446744073709551615))
+  }
+
+  "large odd number" :: {
+    x = 0b10000000_00000000_00000000_00000000_00000000_00000000_00000000_00000001
+    y = encode(x) |> decode
+
+    assert_eq(x, y)
+  }
+
+  "large even number" :: {
+    x = 0b10000000_00000000_00000000_00000000_00000000_00000000_00000000_00000000
+    y = encode(x) |> decode
+
+    assert_eq(x, y)
+  }
+
+  "tiny number" :: {
+    x = 1
+    y = encode(x) |> decode
+
+    assert_eq(x, y)
+  }
+
+  "round trips" :: {
+    s = Array()
+
+    for n in 0..20_000_001 {
+      s.encode(n)
+      assert_eq(n, decode(s))
+      s.clear()
+    }
+
+    for n in (u64::max_value() - 20_000_000)..u64::max_value() {
+      s.encode(n)
+      assert_eq(n, decode(s))
+      s.clear()
+    }
+  }
+}

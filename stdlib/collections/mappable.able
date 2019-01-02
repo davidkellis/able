@@ -1,0 +1,50 @@
+package able.collections
+
+interface Mappable for M _ {
+  fn map[A, B](m: M A, convert: A -> B) -> M B
+}
+
+impl Mappable for Array {
+  fn map(arr: Array A, convert: A -> B) -> Array B {
+    ab = ArrayBuilder(0, arr.length)  # length, capacity
+    arr.each { element => convert(element) |> ab.add }
+    ab.toArray
+  }
+}
+
+impl Mappable for List {
+  fn map(list: List T, convert: T -> U) -> List U {
+    lb = ListBuilder(0, list.length)  # length, capacity
+    list.each { element => convert(element) |> lb.add }
+    lb.toList
+  }
+}
+
+impl Mappable for Iterator {
+  fn map(it: Iterator A, convert: A -> B) -> Iterator B = Iterator { gen => it.each(convert(_) |> gen.yield) }
+}
+
+impl Mappable for Iterable {
+  fn map(enum: Iterable A, convert: A -> B) -> Iterable B = Iterator { gen => it.each(convert(_) |> gen.yield) }
+}
+
+
+
+interface Buildable A for B {
+  fn add(B, A) -> B
+  fn empty(): B => val: B     // declare val as a value of type B; val will be assigned the zero value for type B
+}
+
+impl Buildable A for Array A {
+  // fn empty() -> Array A = Array[A]()  // unnecessary to define this member, since the default empty() definition returns the zero value of an array, which is just an empty array
+  fn add(as: Array A, a: A) -> Array A = as.append(a)
+}
+
+// this implements Mappable for any type constructor M such that, given free type parameters A and B,
+// M A is Iterable A and M B is Buildable B
+impl Mappable for M _ {
+  fn map[M A : Iterable A, M B : Buildable B](m: M A, convert: A -> B) -> M B {
+    b: M B = empty()
+    m.each(b.add)
+  }
+}

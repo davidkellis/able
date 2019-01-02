@@ -1,0 +1,6 @@
+// The Equal interface may be minimally implemented by impleemnting either the == funtion or the != function, 
+// though both may be implemented.
+interface Equal for T {
+  fn ==(a: T, b: T) -> Boolean => !(a != b)
+  fn !=(a: T, b: T) -> Boolean => !(a == b)
+}

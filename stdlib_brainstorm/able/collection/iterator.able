@@ -1,0 +1,101 @@
+package able.collections
+
+interface Iterator[T] for U {
+  fn hasNext?(U) -> Boolean
+  fn next(U) -> Option[T]
+}
+
+impl Enumerable[T] for E: Iterator[T] {
+  fn each(it: E, visit: T -> Unit) {
+    while it.hasNext? {
+      visit(it.next)
+    }
+  }
+
+  fn iterator(it: E[T]) -> Iterator[T] = it
+}
+
+impl Enumerable[T] for Iterator[T] {
+  fn each(it: Iterator[T], visit: T -> Unit) {
+    while it.hasNext? {
+      visit(it.next)
+    }
+  }
+
+  fn iterator(it: Iterator[T]) -> Iterator[T] = it
+}
+
+# Range[Int] implements Enumerable[Int] {
+impl Enumerable[Int] for Range[Int] {
+  fn each(r, visit) {
+    i = r.start
+    op = r.inclusive? ? <= : <
+    while i `op r.end {
+      visit(i)
+      i += 1
+    }
+  }
+}
+
+########################################################################################################################
+
+package able.collections
+
+interface Iterator T for I {
+  fn has_next?(I) -> Bool
+  fn next(I) -> Option T
+}
+
+impl Enumerable T for I : Iterator T {
+  fn each(it: I, visit: T -> Unit) = while it.has_next? { visit(it.next) }
+  fn iterator(it: I) -> Iterator T = it
+}
+
+impl Enumerable T for Iterator T {
+  fn each(it: Iterator T, visit: T -> Unit) = while it.hasNext? { visit(it.next) }
+  fn iterator(it: Iterator T) -> Iterator[T] = it
+}
+
+########################################################################################################################
+
+package able.collections
+
+interface Iterator I._ T {
+  fn has_next?(I T) -> Bool
+  fn next(I T) -> Option T
+}
+
+impl Enumerable I._ T if Iterator I._ T {
+  fn each(it: I T, visit: T -> Unit) = while it.has_next? { visit(it.next) }
+  fn iterator(it: I T) -> Iterator I T = it
+}
+
+impl Enumerable Range.Int Int {
+  fn each(r: Range Int, visit: Int -> Unit) {
+    i = r.start
+    op = r.inclusive? ? <= : <
+    while i `op r.end {
+      visit(i)
+      i += 1
+    }
+  }
+}
+
+########################################################################################################################
+
+package able.collections
+
+interface Iterator for Self, T {
+  fn has_next?(Self) -> Bool
+  fn next(Self) -> T
+}
+
+impl Enumerable for I : Iterator, T {
+  fn each(it: I, visit: T -> Unit) = while it.has_next? { visit(it.next) }
+  fn iterator(it: I) -> Iterator = it
+}
+
+impl Enumerable for Iterator, T {
+  fn each(it: Iterator, visit: T -> Unit) = while it.hasNext? { visit(it.next) }
+  fn iterator(it: Iterator) -> Iterator[T] = it
+}

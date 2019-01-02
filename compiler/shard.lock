@@ -1,0 +1,10 @@
+version: 1.0
+shards:
+  arborist:
+    github: davidkellis/arborist
+    commit: b0f20325c480c4ccd72723faa0d6b23518ecbf50
+
+  msgpack:
+    github: crystal-community/msgpack-crystal
+    version: 0.14.2
+

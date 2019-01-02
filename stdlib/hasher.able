@@ -1,0 +1,44 @@
+interface Hasher for T {
+  fn hash(T) -> UInt64
+  fn write(T, byte: UInt8)
+  
+  fn write(hasher: T, bytes: Iterable UInt8) => bytes.each(hasher.write)
+  fn write(hasher: T, str: String) => hasher.write(str.bytes)
+  fn write(hasher: T, i: Int8) => hasher.write(i.bytes)
+  fn write(hasher: T, i: Int16) => hasher.write(i.bytes)
+  fn write(hasher: T, i: Int32) => hasher.write(i.bytes)
+  fn write(hasher: T, i: Int64) => hasher.write(i.bytes)
+  fn write(hasher: T, i: UInt16) => hasher.write(i.bytes)
+  fn write(hasher: T, i: UInt32) => hasher.write(i.bytes)
+  fn write(hasher: T, i: UInt64) => hasher.write(i.bytes)
+
+  fn hash(hasher: T, bytes: Iterable UInt8) { hasher.write(bytes); hasher.hash() }
+  fn hash(hasher: T, str: String) { hasher.write(str); hasher.hash() }
+  fn hash(hasher: T, i: Int8) { hasher.write(i); hasher.hash() }
+  fn hash(hasher: T, i: Int16) { hasher.write(i); hasher.hash() }
+  fn hash(hasher: T, i: Int32) { hasher.write(i); hasher.hash() }
+  fn hash(hasher: T, i: Int64) { hasher.write(i); hasher.hash() }
+  fn hash(hasher: T, i: UInt16) { hasher.write(i); hasher.hash() }
+  fn hash(hasher: T, i: UInt32) { hasher.write(i); hasher.hash() }
+  fn hash(hasher: T, i: UInt64) { hasher.write(i); hasher.hash() }
+}
+
+struct DefaultHasher = ModHasher
+
+struct ModHasher {
+  buffer: UInt64
+}
+
+impl Hasher for ModHasher {
+  fn hash(h: ModHasher) -> UInt64 {
+    value = h.buffer
+    h.buffer = 0
+    value
+  }
+
+  fn write(h: ModHasher, byte: UInt8) {
+    // per https://golang.org/ref/spec#Integer_overflow, "For unsigned integer values, 
+    // the operations +, -, *, and << are computed modulo 2n, where n is the bit width of the unsigned integer's type."
+    h.buffer += byte
+  }
+}

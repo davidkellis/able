@@ -2,11 +2,9 @@ package able.collections
 
 /*
 Iterable is modeled after:
-https://www.scala-lang.org/blog/2017/02/28/collections-rework.html
-https://github.com/scala/collection-strawman/blob/master/collections/src/main/scala/strawman/collection/Iterable.scala
-https://github.com/scala/collection-strawman/blob/master/collections/src/main/scala/strawman/collection/Iterator.scala
+https://ruby-doc.org/core-2.5.1/Enumerable.html
+https://docs.scala-lang.org/overviews/collections/overview.html
 https://clojure.org/reference/sequences
-https://ruby-doc.org/core-2.4.2/Enumerable.html
 
 Types that implement Iterable must either implement #each or #iterator, or both.
 
@@ -16,25 +14,33 @@ Types that implement Iterable must either implement #each or #iterator, or both.
 Clients can choose to use whichever style of iteration is most appropriate for their use case.
 
 The collections package defines a suite of interfaces much like the type hierarchy that Scala 
-defines - see http://docs.scala-lang.org/overviews/collections/overview.html - however, since Able does not support
+defines - see https://docs.scala-lang.org/overviews/collections/overview.html - however, since Able does not support
 inheritance, the association between interfaces is less a hierarchy than it is a suite of interfaces that may implement
 other interfaces. The following demonstrates the relationships between interfaces:
 
 Iterable T
-  each(I, T -> Unit) -> Unit
-  iterator(I) -> Iterator T
+  # this combines the Traversable trait (see https://docs.scala-lang.org/overviews/collections/trait-traversable.html) and
+  # the iterable trait (see https://docs.scala-lang.org/overviews/collections/trait-iterable.html)
+  each(Self, T -> Unit) -> Unit
+  iterator(Self) -> Iterator T
 Seq T implements Iterable T
+  # The Seq trait represents sequences. A sequence is a kind of iterable that has a length and 
+  # whose elements have fixed index positions, starting from 0.
   apply(Int) -> Option T
+  length() -> i64
 Set T implements Iterable T
-  contains?(T) -> Boolean
+  contains?(T) *or* include?(T) -> Boolean
   add(T) -> Set T
   remove(T) -> Set T
   intersect(Set T, Set T) -> Set T  ; also & operator
   union(Set T, Set T) -> Set T      ; also | operator
   difference(Set T, Set T) -> Set T ; also - operator
-Map K V implements Iterable (K, V)
+Map K V implements Iterable (K, V), Iterable K, Iterable V
   apply(K) -> Option V
-  add(K, V) -> 
+  get(K) -> V ; raises KeyNotFound if key doesn't exist
+  get_or_else(K, V)
+  contains?(T) *or* include?(T) -> Boolean
+  add(K, V) -> Map K V
 Map K V implements Iterable K
   same as previous
 Map K V implements Iterable V
@@ -48,31 +54,41 @@ Array T implements IndexedSeq T
 List T implements LinearSeq T
 */
 interface Iterable T for I {
-  fn each(it: I, f: T -> Unit) -> Unit {
-    for item in iterator(it) {
+  fn each(self: Self, f: T -> Unit) -> Unit {
+    for item in iterator(self) {
       f(item)
     }
   }
 
-  fn iterator(it: I) -> Iterator T => Iterator { gen => it.each(gen.yield) }
+  fn iterator(self: Self) -> Iterator T => Iterator { gen => self.each(gen.yield) }
 
 
-  // everything else is defined in terms of either #each or #iterator
+  # NOTE: everything else is defined in terms of either #each or #iterator
 
-  /*
-  Tests whether a predicate holds for all elements of the collection.
-  
-  @param  p   the predicate used to test elements.
-  @return     `true` if collection is empty or the given predicate `p` holds for all elements of the collection; otherwise `false`.
-  */
-  fn all?(it: I, predicate: T -> Boolean) -> Boolean {
+  fn transform(self: Self, transform_fn: (Builder U, T) -> Builder U, builder: Builder U) -> U {
+    empty = builder.empty()
+    self.each { item => transform_fn() }
+    builder.build
+  }
+
+  fn cursor(self: Self) -> Curstor T => self.iterator.cursor
+
+  fn cursor(self: Self, n: Int) -> Curstor T => self.iterator.cursor(n)
+
+  # Tests whether a predicate holds for all elements of the collection.
+  #
+  # @predicate  the predicate used to test elements.
+  # @return     `true` if collection is empty or the given predicate `p` holds for all elements of the collection; otherwise `false`.
+  fn all?(self: Self, predicate: T -> Boolean) -> Boolean {
     jumppoint :stop {
-      it.each { item => jump(:stop, false) unless predicate(item) }
+      self.each { item => jump(:stop, false) unless predicate(item) }
       true
     }
+
     /*
+    # alternatively
     retval = true
-    for item in it.iterator {
+    for item in self.iterator {
       if !predicate(item) {
         retval = false
         break
@@ -82,54 +98,265 @@ interface Iterable T for I {
     */
   }
 
-  /*
-  Tests whether a predicate holds for at least one element of the collection.
-  
-  @param  p   the predicate used to test elements.
-  @return     `true` if the given predicate `p` is satisfied by at least one element of the collection; otherwise `false`.
-  */
-  fn any?(it: I, predicate: T -> Boolean) -> Boolean {
+  # Tests whether a predicate holds for at least one element of the collection.
+  #
+  # @predicate  the predicate used to test elements.
+  # @return     `true` if the given predicate `p` is satisfied by at least one element of the collection; otherwise `false`.
+  fn any?(self: Self, predicate: T -> Boolean) -> Boolean {
     jumppoint :stop {
-      it.each { item => jump(:stop, true) if predicate(item) }
+      self.each { item => jump(:stop, true) if predicate(item) }
       false
     }
   }
 
-  // Counts the number of elements in the collection.
-  fn count(it: I) -> Int => it.reduce(0, +)
+  # Iterates over the items, chunking them together based on the return value of the @chunk_key_fn function.
+  #
+  # Consecutive elements which return the same chunk key value are chunked together.
+  #
+  # For example:
+  # ```
+  # List(3, 1, 4, 1, 5, 9, 2, 6, 5, 3, 5).chunk { _.even? }
+  # => [ false :: [3, 1], 
+  #      true :: [4],
+  #      false :: [1, 5, 9],
+  #      true :: [2, 6],
+  #      false :: [5, 3, 5]  ]
+  # ```
+  fn chunk[A](self: Self, chunk_key_fn: T -> A) -> Iterable (A, List T) {
+    #iterator = self.iterator
+    #first_item = iterator.next
+    #
+    #return List() unless first_item.defined?
+    #
+    #prev_key = key = chunk_key_fn(first_item.value)
+    #list = List(first_item.value)
+    #
+    #Iterator { gen =>
+    #  iterator.each { item =>
+    #    key = chunk_key_fn(item)
+    #    if key == prev_key {
+    #      list.add(item)
+    #    } else {
+    #      gen.yield(list)
+    #      list = List(item)
+    #    }
+    #  }
+    #}
 
-  // Counts the number of elements in the collection that satisfy the given predicate function.
-  fn count(it: I, predicate: T -> Boolean) -> Int => it.reduce(0) { sum, item => predicate(item) ? sum + 1 : sum }
+    # alternative
+    first_item = self.first()
 
-  // Returns the first element in the collection.
-  fn first(it: I) -> Option T => it.iterator.next
+    return List() unless first_item.defined?
 
-  // Returns the first element of the collection satisfying the given predicate function. If none is found, returns None.
-  fn first(it: I, predicate: T -> Boolean) -> Option T {
+    prev_key = key = chunk_key_fn(first_item.value)
+    list = List(first_item.value)
+
+    Iterator { gen =>
+      self.drop(1).each { item =>
+        key = chunk_key_fn(item)
+        if key == prev_key {
+          list.add(item)
+        } else {
+          gen.yield(list)
+          list = List(item)
+        }
+      }
+    }
+  }
+
+  # Creates an enumerator for each chunked elements. The beginnings of chunks are defined by @chunk_predicate_fn.
+  # 
+  # This method split each chunk using adjacent elements, elt_before and elt_after, in the receiver enumerator. This method split chunks between elt_before and elt_after where the block returns false.
+  # 
+  # The block is called the length of the receiver enumerator minus one.
+  # 
+  # The result iterable yields the chunked elements as a list.
+  fn chunk_while[A](self: Self, chunk_predicate_fn: (T, T) -> bool) -> Iterable List.T {
+    first_item = self.first()
+
+    return List() unless first_item.defined?
+
+    prev_item = first_item.value
+    list = List(prev_item)
+
+    Iterator { gen =>
+      self.drop(1).each { item =>
+        if chunk_predicate_fn(prev_item, item) {
+          list.add(item)
+        } else {
+          gen.yield(list)
+          list = List(item)
+        }
+        prev_item = item
+      }
+    }
+  }
+
+  # Counts the number of elements in the collection.
+  fn count(self: Self) -> Int => self.reduce(0, +)
+
+  # Counts the number of elements in teh collection that are equal to the given value, @search_val.
+  fn count(self: Self, search_val: T) -> Int => self.count(_ == search_val)
+
+  # Counts the number of elements in the collection that satisfy the given predicate function.
+  fn count(self: Self, predicate: T -> Boolean) -> Int {
+    self.reduce(0) { sum, item => predicate(item) ? sum + 1 : sum }
+  }
+
+  # Returns an iterator that iterates over this collection an infinite number of times.
+  fn cycle(self: Self) -> Iterable T {
+    Iterator { gen =>
+      while true {
+        self.each(gen.yield)
+      }
+    }
+  }
+
+  # Returns an iterator that iterates over this collection @n times.
+  fn cycle(self: Self, n: Int) -> Iterable T {
+    Iterator { gen =>
+      n.times {
+        self.each(gen.yield)
+      }
+    }
+  }
+
+  # Drops first n elements and returns an iterator that iterates over the remaining elements in the collection.
+  fn drop(self: Self, n: Int) -> Iterable T {
+    i = n
+    Iterator { gen =>
+      self.each { item =>
+        if i <= 0 {
+          gen.yield(item)
+        } else {
+          i -= 1
+        }
+      }
+    }
+  }
+
+  fn drop_while(self: Self, predicate: T -> bool) -> Iterable T {
+    # continue_dropping = true
+    # Iterator { gen =>
+    #   self.each { item =>
+    #     if continue_dropping =&& predicate(item) {
+    #       # do nothing
+    #     } else {
+    #       gen.yield(item)
+    #     }
+    #   }
+    # }
+
+    cursor = self.cursor
+    
+    Iterator { gen =>
+      cursor.take_while(predicate)
+      cursor.each(gen.yield)
+    }
+  }
+
+  # Implements Ruby's Enumerable#each_cons
+  fn overlapping_slices(n: Int) -> Iterable List.T {
+
+  }
+
+  # returns an iterator that iterates over the first n elements in the collection
+  fn take(self: Self, n: Int) -> Iterable T {
+    i = n
+
+    cursor = self.cursor
+    Iterator { gen =>
+      cursor.each { item =>
+        if i > 0 {
+          gen.yield(item)
+          i -= 1
+        } else {
+          cursor.prev
+          jump(:stop)
+        }
+      }
+    }
+  }
+
+  // todo: figure this one out
+  fn head_and_tail(self: Self, n: Int) -> (Iterable T, Iterable T) {
+    head = List()
+    tail_gen = Generator()
+
+    spawn {
+      i = n
+      self.each { item =>
+        if i > 0 {
+          head.add(item)
+          i -= 1
+        } else {
+          tail_gen.yield(item)
+        }
+      }
+    }
+    
+    (head, tail_gen)
+  }
+
+  fn take_while(self: Self, predicate: T -> bool) -> Iterable T {
+    cursor = self.cursor
+
+    Iterator { gen =>
+      jumppoint :stop {
+        cursor.each { item =>
+          if predicate(item) {
+            gen.yield(item)
+          } else {
+            cursor.prev   # move the cursor back one step so subsequent call to cursor#next will re-visit current item
+            jump(:stop)
+          }
+        }
+      }
+    }
+  }
+
+
+
+  # Returns the first element in the collection.
+  # fn first(self: Self) -> Option T => self.iterator.next
+  fn first(self: Self) -> Option T {
     jumppoint :stop {
-      it.each { item => jump(:stop, Some(item)) if predicate(item) }
+      self.each { item => jump(:stop, item) }
       None
     }
   }
 
-  fn reverse(it: I) -> Iterable T {
+  # Returns the first element of the collection satisfying the given predicate function. If none is found, returns None.
+  fn first(self: Self, predicate: T -> Boolean) -> Option T {
+    jumppoint :stop {
+      self.each { item => jump(:stop, item) if predicate(item) }
+      None
+    }
+  }
+
+  fn reverse(self: Self) -> Iterable T {
     list = linked_list.List()
-    it.each(list.prepend)
+    self.each(list.prepend)
     list
   }
 
-  fn reduce[V](it: I, initial: V, accumulate: (V, T) -> V) -> V {
+  fn reduce(self: Self, accumulate_fn: (T, T) -> V) -> V {
+    iterator = self.iterator
+    accumulator = iterator.next
+
+    iterator.fold_left(accumulator, accumulate_fn)
+  }
+
+  fn fold_left[V](self: Self, initial: V, accumulate_fn: (V, T) -> V) -> V {
     accumulator = initial
-    it.each { item => accumulator = accumulate(accumulator, item) }
+    self.each { item => accumulator = accumulate_fn(accumulator, item) }
     accumulator
   }
 
-  fn foldRight[V](it: I, initial: V, accumulate: (T, V) -> V) -> V {
-    it.reverse.foldLeft(initial) { acc, val => accumulate(val, acc) }
+  fn fold_right[V](self: Self, initial: V, accumulate_fn: (T, V) -> V) -> V {
+    self.reverse.fold_left(initial) { acc, val => accumulate_fn(val, acc) }
   }
 
-  # chunk
-  # chunkWhile
 }
 
 // impl Iterable Int for Range Int {
