@@ -5,8 +5,46 @@ Able {
   // package internationalization
   PackageDecl <- "package" package_ident
 
+  PackageLevelDecl
+    <- import_decl
+
+  // import io
+  // import io.*
+  // import io.{puts, gets}
+  // import io.{puts as p}
+  // import internationalization as i18n
+  // import internationalization as i18n.{Unicode}
+  // import davidkellis.matrix as mat.{Matrix, Vector as Vec}
+  // import davidkellis.matrix as mat.{Matrix, Vector as Vec,}
+  // import davidkellis.matrix as mat.{
+  //   Matrix as Mat,
+  //   Vector as Vec,
+  // }
+  import_decl
+    <- "import" lws fq_package_ident (lws "as" lws package_ident)? ".*"       -- all_members
+    / "import" lws fq_package_ident (lws "as" lws package_ident)? 
+        ".{" (ws? ident (lws "as" lws ident)? ws?) 
+             (listSep ws? ident (lws "as" lws ident)?)* listSep? ws? "}"      -- specific_members
+    / "import" lws fq_package_ident (lws "as" lws package_ident)?             -- base_package
+
+
   // identifiers
   package_ident <- letter (letter / digit)*
+  fq_package_ident <- package_ident ("." package_ident)*
+  ident <- letter (letter | digit)*
+
+
+  // whitespace
+
+  inline_whitespace
+    <- "\t"
+    | "\x0B"    // vertical_tab
+    | "\x0C"    // form_feed
+    | " "
+    | "\u00A0"  // non_breaking_space
+    | "\uFEFF"  // byte_order_mark
+    | "\u2000".."\u200B" | "\u3000"     // unicode space separator
+  lws <- inline_whitespace+
 
   space
     <- "\t" | "\n" | " "
@@ -18,6 +56,24 @@ Able {
   comment
     <- "//" (!"\n" .)* "\n"  -- singleLine
     / "/*" (!"*/" .)* "*/"  -- multiLine
+
+  eos <- (semi_sep / nl_sep)+    // end of statement
+  list_sep <- (comma_sep / nl_sep)+   // list separator
+  semi_sep <- ws? ";" ws?
+  comma_sep <- ws? "," ws?
+  amp_sep <- ws? "&" ws?
+  pipe_sep <- ws? "|" ws?
+
+  nl_sep = space_with_nl_or_comment+
+  space_with_nl_or_comment <- (lws / comment)? nl (lws / comment)?
+
+  ws <- (lws / nl / comment)+
+
+  eol = "\n" / "\r" !"\n" / "\u2028" / "\u2029" / "\r\n"
+  nl = eol+
+
+
+  // digits, hex-digits, alpha, alphanumeric, letters, unicode character classes, etc.
 
   alnum
     <- unicode_letter
