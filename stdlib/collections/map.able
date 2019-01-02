@@ -1,0 +1,76 @@
+package able.collections
+
+interface Map K V [K: Hash & Equal] for M K V {
+  fn add(m: M K V, k: K, v: V)
+  fn add(m: M K V, kv_pairs: (K, V)*) {
+    kv_pairs.each { (k, v) => add(k, v) }
+  }
+  fn keys(m: M K V) -> Iterable K
+  fn values(m: M K V) -> Iterable V
+}
+
+
+struct HashMap K V [K: Hash & Equal] {
+  load_factor: Float
+  buckets: Array (Nil | linked_list.List.(K, V))
+  hasher: Hasher
+}
+
+fn HashMap[K, V]() -> Map K V => HashMap(0.75, Array(), DefaultHasher())
+
+fn HashMap(kv_pairs: (K, V)*) -> Map K V {
+  m = HashMap[K, V]()
+  kv_pairs.each(m.add)
+  m
+}
+
+fn capacity(m: HashMap K V) -> UInt => m.buckets.length
+
+fn add(m: HashMap K V, kv_pair: (k: K, v: V)) {
+  hash = m.hasher.hash(k)
+  bucket_index = hash % m.capacity
+  ll = m.buckets.get(bucket_index) || linked_list.List()
+  ll.append(kv_pair)
+}
+
+fn remove(m: HashMap K V, key: K) {
+  hash = m.hasher.hash(k)
+  bucket_index = hash % m.capacity
+  ll = m.buckets.get(bucket_index)
+  
+  return unless ll
+
+  node = ll.find_node(key)
+  list.remove_node(node)
+}
+
+fn keys(m: HashMap K V) -> Iterable K {
+  Iterator { gen =>
+    m.buckets.select(identity).each { ll => ll.each { gen.yield() }
+  }
+}
+
+
+////////////////////////////////// Interface implementations //////////////////////////////////
+
+KeyValueMapper = impl Enumerable (K,V) for Map K V
+  fn each(map: Map K V, f: ( (K,V) ) -> Unit) -> Unit {
+    map.keys.each { k => f( (k, map[k]) ) }
+  }
+}
+
+KeyMapper = impl Mappable K for Map K V
+  fn map(m: Map K V, convert: K -> K2) -> Map K2 V {
+    m2 = HashMap[K2,V]()
+    m.keys.each { k => convert(k) |> m2.add(_, m[k]) }
+    m2
+  }
+}
+
+ValueMapper = impl Mappable V for Map K V {
+  fn map(m: Map K V, convert: V -> W) -> Map K W {
+    m2 = HashMap[K,W]()
+    m.keys.each { k => convert(m[k]) |> m2.add(k, _) }
+    m2
+  }
+}

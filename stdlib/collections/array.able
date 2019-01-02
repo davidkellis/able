@@ -1,6 +1,10 @@
 package able.collections
 
-// fn get(a: Array T) -> Nil | T
+impl Array T {
+  fn apply(self: Self, index: Int) -> Nilable T => ???
+
+  fn get(self: Self, index: Int) -> Option T => Option(self(index))
+}
 
 impl Iterable T for Array T {
   fn each(array: Array T, f: T -> Unit) -> Unit {

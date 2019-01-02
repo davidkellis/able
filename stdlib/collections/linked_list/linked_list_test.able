@@ -27,3 +27,29 @@ s.spec("prepend adds elements to the beginning of the list") {
   assert_eq(list.count, 2)
   assert_eq(list.first, 6)
 }
+
+def_tests {
+  "append adds elements to the end of the list" :: {
+    list = List()
+
+    assert_eq(list.count, 0)
+
+    list.append(5)
+    list.append(6)
+
+    assert_eq(list.count, 2)
+    assert_eq(list.last, 6)
+  }
+
+  "prepend adds elements to the beginning of the list" :: {
+    list = List()
+
+    assert_eq(list.count, 0)
+
+    list.prepend(5)
+    list.prepend(6)
+
+    assert_eq(list.count, 2)
+    assert_eq(list.first, 6)
+  }
+}

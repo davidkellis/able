@@ -1,0 +1,17 @@
+name: able
+version: 0.1.0
+
+authors:
+  - David Ellis <davidkellis@gmail.com>
+
+targets:
+  able:
+    main: src/cli.cr
+
+crystal: 0.27.0
+
+license: MIT
+
+dependencies:
+  arborist:
+    github: davidkellis/arborist

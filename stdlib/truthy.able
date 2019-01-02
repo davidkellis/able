@@ -1,0 +1,30 @@
+package able
+
+interface Truthy for T {
+  fn truthy?(T) -> Boolean
+  fn falsy?(t: T) -> Boolean => !truthy?(t)
+}
+
+
+impl Truthy for Boolean {
+  fn truthy?(v: Boolean) => v
+}
+
+impl Truthy for Nil {
+  fn truthy?(v: Nil) => false
+}
+
+impl Truthy for Option Any {
+  fn truthy?(self: Self) => self.defined? && self.value.truthy?
+}
+
+impl Truthy for Nilable Any {
+  fn truthy?(self: Self) => self.defined? && self.value.truthy?
+}
+
+impl Truthy for Any {
+  fn truthy?(v: Any) => v match {
+    Nil => false
+    _ => true
+  }
+}

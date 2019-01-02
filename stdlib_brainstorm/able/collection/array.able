@@ -1,0 +1,85 @@
+package able.collections
+
+type Array[T] = nativetype {
+  go {
+    fn create()
+  }
+  ruby = Array
+}
+
+# impl Enumerable[T] for Array[T] {
+Array[T] implements Enumerable[T] {
+  fn each(array: Array[T], f: T -> Unit) -> Unit {
+    i = 0
+    length = array.length()
+    while(i < length) {
+      f(array[i])
+      i += 1
+    }
+  }
+}
+
+# impl Seq[T] for Array[T]
+Array[T] implements Seq[T] {
+  fn [](seq: Array[T], i: Int) -> Option[T] = native {
+    go {
+      if i < len(seq) {
+        return Some(seq[i])
+      } else {
+        return None
+      }
+    }
+  }
+  fn length(seq: Array[T]) -> Int = native {
+    go {
+      return len(seq)
+    }
+  }
+}
+
+# impl Mappable for Array[T]
+Array[T] implements Mappable {
+  fn map(arr: Array[T], convert: T -> U) -> Array[U] {
+    ab = ArrayBuilder(0, arr.length)  # length, capacity
+    arr.each { element => convert(element) |> ab.add }
+    ab.toArray
+  }
+}
+
+########################################################################################################################
+
+impl Enumerable T for Array T {
+  fn each(array: Array T, f: T -> Unit) -> Unit {
+    i = 0
+    length = array.length()
+    while(i < length) {
+      f(array[i])
+      i += 1
+    }
+  }
+}
+
+impl Seq T for Array T {
+  fn [](seq: Array T, i: Int) -> Option[T] = native {
+    go {
+      if i < len(seq) {
+        return Some(seq[i])
+      } else {
+        return None
+      }
+    }
+  }
+  fn length(seq: Array T) -> Int = native {
+    go {
+      return len(seq)
+    }
+  }
+}
+
+impl Mappable T for Array T {
+  fn map(arr: Array T, convert: T -> U) -> Array U {
+    ab = ArrayBuilder(0, arr.length)  # length, capacity
+    arr.each { element => convert(element) |> ab.add }
+    ab.toArray
+  }
+}

@@ -1,7 +1,7 @@
 grammar Able;
 
 sourceFile
-  : packageDecl eos ( packageLevelDecl eos)* EOF
+  : LINE_COMMENT? packageDecl eos ( packageLevelDecl eos)* EOF
   ;
 
 // package foo
@@ -164,7 +164,7 @@ inlineStructDefn
   ;
 
 typeParametersDecl
-  :	LBRACKET (WS? freeTypeParameter WS? COMMA)* (WS? freeTypeParameter  WS?) RBRACKET
+  :	LBRACKET (WS? freeTypeParameter WS? COMMA)* (WS? freeTypeParameter WS?) RBRACKET
   ;
 
 // T : Foo
@@ -363,7 +363,7 @@ functionBody
   ;
 
 // { expressions }
-// { expressions catch: patternMatchAlternatives ensure: expressions }
+// { expressions catch patternMatchAlternatives ensure expressions }
 block
   : LBRACE WS? expressions (WS CATCH WS patternMatchAlternatives (WS ENSURE WS expressions)? )? WS? RBRACE
   ;
@@ -381,7 +381,7 @@ interfaceDefn
 // }
 implDefn
   : identifier LWS? EQUAL LWS? anonymousImplDefn    # ImplDefnNamedImplDefn
-  | anonymousImplDefn                             # ImplDefnAnonymousImplDefn
+  | anonymousImplDefn                               # ImplDefnAnonymousImplDefn
   ;
 
 // impl [X, Y, Z, ...] A <B C ...> for D <E F ...> {
@@ -429,8 +429,10 @@ macroTemplate
 //   LargeHouse{area} => puts ("build a large house of $area sq. ft.")
 //   HugeHouse{poolCount=pools} => puts ("build a huge house with $poolCount pools!")
 // }
+// OR
+// opt match { None => false | _ => true }
 patternMatchAlternatives
-  : (caseClause eos)* caseClause
+  : (caseClause (WS? (PIPE | NL))+ WS?)* caseClause
   ;
 
 // TinyHouse | SmallHouse => puts("build a small house")
@@ -442,18 +444,18 @@ caseClause
   ;
 
 patternWithOptionalIdentifier
-  : identifier LWS? COLON LWS? pattern        # PatternWithOptionalIdentifierPatternWithIdent
+  : identifier LWS? COLON LWS? pattern      # PatternWithOptionalIdentifierPatternWithIdent
   | pattern                                 # PatternWithOptionalIdentifierPatternOnly
   ;
 
 pattern
-  : typeName                                                # PatternTypeName
-  | unionOfTypes                                            # PatternUnionOfTypes
-  | destructuringTuple                                      # PatternDestructuringTuple
-  | destructuringPrimitive DOUBLECOLON destructuringPrimitive      # PatternDestructuringTuplePair
-  | destructuringSequence                                   # PatternDestructuringSequence
-  | destructuringStruct                                     # PatternDestructuringStruct
-  | literal                                                 # PatternLiteral
+  : typeName                                                    # PatternTypeName
+  | unionOfTypes                                                # PatternUnionOfTypes
+  | destructuringTuple                                          # PatternDestructuringTuple
+  | destructuringPrimitive DOUBLECOLON destructuringPrimitive   # PatternDestructuringTuplePair
+  | destructuringSequence                                       # PatternDestructuringSequence
+  | destructuringStruct                                         # PatternDestructuringStruct
+  | literal                                                     # PatternLiteral
   ;
 
 // Array A | bool | String
@@ -473,7 +475,7 @@ destructuringTuple
 // List[1, x, 3]
 destructuringSequence
   : typeName LBRACKET (WS? destructuringPrimitive WS? COMMA)* (WS? destructuringPrimitive WS?) RBRACKET     # DestructuringSequenceNoSplatArgument
-	| typeName LBRACKET (WS? destructuringPrimitive WS? COMMA)* (WS? identifier STAR WS?) RBRACKET             # DestructuringSequenceWithSplatArgument
+	| typeName LBRACKET (WS? destructuringPrimitive WS? COMMA)* (WS? identifier STAR WS?) RBRACKET            # DestructuringSequenceWithSplatArgument
   ;
 
 // MyStruct{v1, v2}
@@ -488,7 +490,7 @@ destructuringStruct
 // - http://kotlinlang.org/docs/reference/grammar.html#expression
 // - https://docs.julialang.org/en/release-0.4/manual/mathematical-operations/
 expression
-  : LPAREN WS? expression WS? RPAREN                                          # ExpressionSubExpression
+  : LPAREN WS? expression WS? RPAREN                                    # ExpressionSubExpression
   | fqIdentifier                                                        # ExpressionIdentifier
   | placeholderIdentifier                                               # ExpressionPlaceholderIdentifier
   | literal                                                             # ExpressionLiteral
@@ -503,31 +505,31 @@ expression
   | returnStatement                                                     # ExpressionReturnExpr
   | 'break'                                                             # ExpressionBreakExpr
   | 'continue'                                                          # ExpressionContinueExpr
-	| 'jumppoint' WS label WS LBRACE WS? expressions WS? RBRACE                 # ExpressionJumpPointDefn
+	| 'jumppoint' WS label WS LBRACE WS? expressions WS? RBRACE           # ExpressionJumpPointDefn
 	| 'jump' WS label WS expression                                       # ExpressionJumpExpr
 
   | functionCall                                                        # ExpressionFunctionCall
   | lhs=expression WS? op=(DOT | '&.') WS? rhs=expression               # ExpressionNavigation
   | expression op='!!'                                                  # ExpressionUnaryPostfixExpr  // todo: may not be needed
 
-	| op=(PLUS | MINUS | BANG | '~') expression                               # ExpressionUnaryPrefixExpr
-  | expression WS AS WS typeName                                      # ExpressionAsExpr            // todo: may not be needed
-  | lhs=expression WS op=POW WS rhs=expression                         # ExpressionExponentiationExpr
+	| op=(PLUS | MINUS | BANG | '~') expression                           # ExpressionUnaryPrefixExpr
+  | expression WS AS WS typeName                                        # ExpressionAsExpr            // todo: may not be needed
+  | lhs=expression WS op=POW WS rhs=expression                          # ExpressionExponentiationExpr
   | lhs=expression WS op=(STAR | DIVIDE | BACKSLASH | MOD) WS rhs=expression     # ExpressionMultiplicativeExpr
-  | lhs=expression WS op=(PLUS | MINUS) WS rhs=expression                  # ExpressionAdditiveExpr
+  | lhs=expression WS op=(PLUS | MINUS) WS rhs=expression               # ExpressionAdditiveExpr
 	| lhs=expression '..' rhs=expression                                  # ExpressionInclusiveRange
 	| lhs=expression '...' rhs=expression                                 # ExpressionExclusiveRange
-  | lhs=expression WS op=(LT | GT | GTE | LTE) WS rhs=expression    # ExpressionComparison
+  | lhs=expression WS op=(LT | GT | GTE | LTE) WS rhs=expression        # ExpressionComparison
   | lhs=expression WS op=(EQ | NEQ) WS rhs=expression                   # ExpressionEqualityComparison
-  | lhs=expression WS AND WS rhs=expression                            # ExpressionConjunction
-  | lhs=expression WS OR WS rhs=expression                            # ExpressionDisjunction
+  | lhs=expression WS AND WS rhs=expression                             # ExpressionConjunction
+  | lhs=expression WS OR WS rhs=expression                              # ExpressionDisjunction
 
   | assignmentExpr                                                      # ExpressionAssignmentExpr
   | variableDecl                                                        # ExpressionVariableDecl
 
-  | expression WS? 'if' condition=expression                            # ExpressionIfSuffixExpr
-  | expression WS? 'unless' condition=expression                        # ExpressionUnlessSuffixExpr
-  | expression WS? WHILE condition=expression                         # ExpressionWhileSuffixExpr
+  | expression WS? IF condition=expression                              # ExpressionIfSuffixExpr
+  | expression WS? UNLESS condition=expression                          # ExpressionUnlessSuffixExpr
+  | expression WS? WHILE condition=expression                           # ExpressionWhileSuffixExpr
   ;
 
 // a label takes the form of a one-word Symbol in Ruby - e.g. :foo, :stop, :ThisLittlePiggyWentToMarket
@@ -551,7 +553,7 @@ argumentList
 
 
 ifExpr
-  : 'if' LWS expression WS? LBRACE WS? expressions WS? RBRACE WS? 'else' WS? LBRACE WS? expressions WS? RBRACE
+  : IF LWS expression WS? LBRACE WS? expressions WS? RBRACE WS? 'else' WS? LBRACE WS? expressions WS? RBRACE
   ;
 
 literal
@@ -618,6 +620,8 @@ STRUCT: 'struct';
 CATCH: 'catch';
 ENSURE: 'ensure';
 RETURN: 'return';
+IF: 'if';
+UNLESS: 'unless';
 WHILE: 'while';
 FOR: 'for';
 
@@ -827,5 +831,8 @@ COMMENT
   ;
 
 LINE_COMMENT
-  : '//' ~[\r\n]* -> skip
+  : (
+      ('//' ~[\r\n]*)
+      | (WS+ '#' ~[\r\n]*)
+    ) -> skip
   ;

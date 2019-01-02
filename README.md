@@ -2,15 +2,15 @@ Note: This specification is a work in progress. It is currently incomplete. Ther
 
 # Able Programming Language
 
-Able is a programming language that aims to be pleasant to use, relatively small, and relatively fast (in the same ballpark as Java or Go).
+Able is a programming language that aims to be pleasant to use, relatively small, and relatively fast (in the same ballpark as Java or Go). You can kind of view Able as a hybrid between Go and Kotlin. Another reasonable characterization would be Rust + GC - ownership.
+
+Able has the feel of a hybrid OO/functional language.
 
 Here are a few sample programs to give you a feel for the language:
 
 **Hello World**
 
 ```
-package main
-
 fn main() {
   puts("Hello world.")
 }
@@ -19,12 +19,12 @@ fn main() {
 **Factorial**
 
 ```
-// recursive
+# recursive
 fn factorial(n: u32) => n < 2 ? 1 : n * factorial(n - 1)
 ```
 
 ```
-// tail recursive
+# tail recursive
 fn factorial(n) => factorial(n, 1)
 fn factorial(n: u32, product: u32) -> u32 {
   if n < 2 then product else factorial(n - 1, n * product)
@@ -32,7 +32,7 @@ fn factorial(n: u32, product: u32) -> u32 {
 ```
 
 ```
-// iterative
+# iterative
 fn factorial(n: u32) {
   return 1 if n < 2
   for i in 2...n { n *= i }
@@ -207,6 +207,26 @@ Naming conventions are similar to that of Rust (https://github.com/rust-lang/rfc
 - Prefer PascalCase for type names.
 
 Why is snake_case preferred over camelCase? Subjectively, snake_case seems easier to quickly scan and read, even at the expense of it being slower to type than camelCase. Objectively, https://whathecode.wordpress.com/2013/02/16/camelcase-vs-underscores-revisited/ suggests programmers are more efficient at reading snake_case than camelCase identifiers.
+
+
+## Comments
+
+Comments take one of three forms:
+1. Line comments:
+   ```
+   // comments follow the double forward-slash
+   ```
+   or
+   ```
+   # comments follow the pound sign
+   ```
+2. Block comments:
+   ```
+   /*
+   foo bar baz
+   */
+   ```
+
 
 ## Packages
 
@@ -1326,7 +1346,7 @@ When used as a constraint on a type, the interpretation is that some context nee
 
 Interfaces are defined with the following syntax:
 ```
-interface A [B C ...] [for D [E F ...]]{
+interface A [B C ...] [for D [E F ...]] [where <type constraints>]{
 	fn foo(T1, T2, ...) -> T3
 	...
 }
@@ -1430,7 +1450,7 @@ interface Collection T = Countable T & Addable T & Removable T & Getable T
 
 Interface implementations are defined with the following syntax:
 ```
-[implName =] impl [X, Y, Z, ...] A <B C ...> [for D <E F ...>] {
+[implName =] impl [X, Y, Z, ...] A <B C ...> [for D <E F ...>] [where <type constraints>] {
 	fn foo(T1, T2, ...) -> T3 { ... }
 	...
 }
@@ -1501,9 +1521,9 @@ Product = impl Monoid for i32 {
 
 // since both of the following are ambiguous
 id()
-Monoid#id()
+Monoid.id()
 // you have to qualify the function call with the name of the implementation, like
-Sum#id()
+Sum.id()
 ```
 
 ### Interface Usage
@@ -1519,8 +1539,8 @@ interface Iterable T for E {
 ```
 a client may call the `each` function by supplying a value of type `Iterable T` as the first argument to `each`, like this:
 ```
-// assuming Array T implements the Iterable T interface
-e: Iterable i32 = Array(1, 2, 3)    // e has type Iterable i32
+// assuming List T implements the Iterable T interface
+e: Iterable i32 = List(1, 2, 3)    // e has type Iterable i32
 each(e, puts)
 ```
 or `each` may be called by supplying a value of type `Array T` as the first argument, like this:
@@ -1623,10 +1643,17 @@ Array(1,2,3).each { elem => puts(elem) }
 // would be ambiguous
 
 // however, the expressions
-Array(1,2,3).BetterIterable#each { elem => puts(elem) }
-BetterIterable#each(Array(1,2,3)) { elem => puts(elem) }
-Array(1,2,3) |> BetterIterable#each { elem => puts(elem) }
+BetterIterable.each(Array(1,2,3)) { elem => puts(elem) }
+Array(1,2,3) |> BetterIterable.each { elem => puts(elem) }
 // are not ambiguous
+```
+
+
+## Type Aliases
+
+```
+type Int32 = i32
+type BinaryOperator A = (A, A) -> A
 ```
 
 
@@ -1757,7 +1784,12 @@ Pattern matching expressions take the following general form:
   <destructuring pattern> => <expression>
   <destructuring pattern> => <expression>
   <destructuring pattern> => <expression>
+  ...
 }
+
+# OR
+
+<expression> match { <destructuring pattern> => <expression> | <destructuring pattern> => <expression> | ... }
 ```
 
 For example:
@@ -2393,11 +2425,19 @@ spawn { c.receive |> puts }
     }
     ```
 
+
+# Style Guide
+
+- strive for readability
+- 2 or 4 space indentation (2 space preferred); no tabs; no mixed indentation in a single file
+- open curly brace on same line as if/while/for expressions, function definitions, etc.
+
+
 # Able Tooling
 
 A single tool, `able`, handles builds, dependency management, package management, running tests, etc.
 
-A single file, `build.toml`, defines a project's build, dependencies, package metadata, etc.
+A single file, `build.cf`, defines a project's build, dependencies, package metadata, etc.
 
 A primary goal of having a single tool is to enable the quick spin-up of a development environment. Download a single binary and start working.
 
@@ -2408,6 +2448,10 @@ A primary goal of having a single tool is to enable the quick spin-up of a devel
 ## Read-Eval-Print-Loop (REPL)
 
 `able repl`
+
+## Running
+
+`able run <file>`
 
 ## Testing
 

@@ -1,0 +1,509 @@
+// This is a port of https://gist.github.com/archer884/b22d89f394cca6d239b6f4238b6a155f, which is in Rust.
+
+struct CardRanks = HashMap<u8, u8>
+
+fn invert_map(map: CardRanks) -> CardRanks => map.map(k::v => k::v)
+
+// Given a list of poker hands, return a list of those hands which win.
+//
+// Note the type signature: this function should return _the same_ reference to
+// the winning hand(s) as were passed in, not reconstructed strings which happen to be equal.
+fn winning_hands(hands: Array String) -> Array String {
+  ranked_hands = hands.map(h => (h, total_rank(h)).sort_by(_._2).reverse
+  best_hand_rank_pair = ranked_hands.first
+  best_hands = ranked_hands.take_while(_._2 == best_hand_rank_pair._2).map(_._1)
+}
+
+// Here, I have defined a straight flush to use the ordering for a
+// straight. Basically this means that there is such a thing as a
+// five-high straight flush. I do not know if this is exercised in
+// the test suite. Neither do I know if this is valid by the rules.
+
+union Hand =
+  | HighCard
+  | OnePair
+  | TwoPair
+  | ThreeOf
+  | Straight
+  | Flush
+  | FullHouse
+  | FourOf
+  | StraightFlush
+  | RoyalFlush
+
+
+#[derive(Debug, Eq, PartialEq, Ord)]
+union Ranking = {
+  HighCard(HighCard),
+  OnePair(OnePair),
+  TwoPair(TwoPair),
+  ThreeOf(ThreeOf),
+  Straight(Straight),
+  Flush(HighCard),
+  FullHouse(FullHouse),
+  FourOf(FourOf),
+  StraightFlush(Straight),
+  RoyalFlush,
+}
+
+#[derive(Debug, Eq, PartialEq, Ord)]
+struct HighCard(Vec<u8>);
+
+impl HighCard {
+    fn new(cards: &[Card]) -> Self {
+        HighCard(cards.iter().map(|card| card.rank()).collect())
+    }
+}
+
+// High card comparisons MUST BE REVERSED.
+impl PartialOrd for HighCard {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        let pairs = self.0.iter().zip(&other.0).rev();
+        for (left, right) in pairs {
+            match left.cmp(right) {
+                Ordering::Equal => continue,
+                other => return Some(other),
+            }
+        }
+        Some(Ordering::Equal)
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd)]
+struct OnePair {
+    pair: u8,
+    kickers: Vec<u8>,
+}
+
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd)]
+struct TwoPair {
+    high: u8,
+    low: u8,
+    kicker: u8,
+}
+
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd)]
+struct ThreeOf {
+    trips: u8,
+    kickers: Vec<u8>,
+}
+
+#[derive(Debug, Eq, PartialEq, Ord)]
+struct Straight(Vec<u8>);
+
+impl Straight {
+    fn new(cards: &[Card]) -> Self {
+        Straight(cards.iter().map(|card| card.rank()).collect())
+    }
+}
+
+// Straight scoring is nominally similar to high card scoring except
+// in the case of a five-high straight. Because why would you want
+// a card game to make sense, huh?
+//
+// This implementation exists because I was originally going to handle
+// five-high straights as a special case in sorting, but I decided to
+// handle those as a special case in the constructor instead. As such,
+// this code is now identical to the code used to provide ordering for
+// high card hands. Still, it's easier to provide an implementation
+// for straights than it is to deduplicate the code.
+//
+// Yolo.
+impl PartialOrd for Straight {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        let pairs = self.0.iter().zip(&other.0).rev();
+        for (left, right) in pairs {
+            match left.cmp(right) {
+                Ordering::Equal => continue,
+                other => return Some(other),
+            }
+        }
+        Some(Ordering::Equal)
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd)]
+struct FullHouse {
+    over: u8,
+    under: u8,
+}
+
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd)]
+struct FourOf {
+    quads: u8,
+    kicker: u8,
+}
+
+fn Ranking(s: String) -> Option<Ranking> {
+  let mut cards: Vec<Card> = s.split_whitespace()
+      .filter_map(|s| s.parse().ok())
+      .collect();
+
+  if cards.is_empty() {
+      return None;
+  }
+
+  cards.sort_by_key(|card| card.rank());
+  if is_five_high_straight(&cards) {
+      // I can't believe borrowck didn't murder me.
+      cards.pop().map(|card| cards.insert(0, card.set_rank(1)));
+  }
+
+  // And now we painstakingly examine our hand for each ranking type
+  // in turn, because I got no other ideas. Jesus. -.-
+
+  let straight = is_straight(&cards);
+  let flush = is_flush(&cards);
+
+  if straight && flush {
+      return match cards.last().map(Card::rank) {
+          // You will never in your life see one of these, so just
+          // bask in the glory of the code instead.
+          Some(14) => Some(Ranking::RoyalFlush),
+          Some(_) => Some(Ranking::StraightFlush(Straight::new(&cards))),
+
+          None => unreachable!("We already covered this case..."),
+      };
+  }
+
+  // We need this for four of a kind, three of a kind, two pair,
+  // and one pair, so let's just get it and keep it around.
+  let rank_count = get_rank_count(&cards);
+
+  if is_four(&rank_count) {
+      let by_count = invert_map(rank_count);
+      return Some(Ranking::FourOf(FourOf {
+          quads: by_count[&4],
+          kicker: by_count[&1],
+      }));
+  }
+
+  if is_full(&rank_count) {
+      let by_count = invert_map(rank_count);
+      return Some(Ranking::FullHouse(FullHouse {
+          over: by_count[&3],
+          under: by_count[&2],
+      }));
+  }
+
+  if flush {
+      return Some(Ranking::Flush(HighCard::new(&cards)));
+  }
+
+  if straight {
+      return Some(Ranking::Straight(Straight::new(&cards)));
+  }
+
+  if is_three(&rank_count) {
+      let by_count = invert_map(rank_count);
+      let trips = by_count[&3];
+      let kickers = cards.iter()
+          .map(|card| card.rank())
+          .filter(|&rank| rank != trips)
+          .collect();
+
+      return Some(Ranking::ThreeOf(ThreeOf {
+          trips,
+          kickers,
+      }));
+  }
+
+  if is_two_pair(&rank_count) {
+      let mut ranks = rank_count.into_iter();
+      let (rank_a, a) = ranks.next().unwrap();
+      let (rank_b, b) = ranks.next().unwrap();
+      let (rank_c, c) = ranks.next().unwrap();
+
+      match (a, b, c) {
+          (1, _, _) => {
+              return Some(Ranking::TwoPair(TwoPair {
+                  high: if rank_b > rank_c { rank_b } else { rank_c },
+                  low: if rank_b > rank_c { rank_c } else { rank_b },
+                  kicker: rank_a,
+              }))
+          }
+          (_, 1, _) => {
+              return Some(Ranking::TwoPair(TwoPair {
+                  high: if rank_a > rank_c { rank_a } else { rank_c },
+                  low: if rank_a > rank_c { rank_c } else { rank_a },
+                  kicker: rank_b,
+              }))
+          }
+          (_, _, 1) => {
+              return Some(Ranking::TwoPair(TwoPair {
+                  high: if rank_a > rank_b { rank_a } else { rank_b },
+                  low: if rank_a > rank_b { rank_b } else { rank_a },
+                  kicker: rank_c,
+              }))
+          }
+
+          _ => unreachable!("Go to hell."),
+      }
+  }
+
+  if is_pair(&rank_count) {
+      let by_count = invert_map(rank_count);
+      let pair = by_count[&2];
+      let kickers = cards.iter()
+          .map(|card| card.rank())
+          .filter(|&n| n != pair)
+          .collect();
+
+      return Some(Ranking::OnePair(OnePair {
+          pair,
+          kickers,
+      }))
+  }
+
+  Some(Ranking::HighCard(HighCard::new(&cards)))
+}
+
+
+impl Ranking {
+    fn rank_order(&self) -> u8 {
+        use self::Ranking::*;
+
+        match *self {
+            HighCard { .. } => 1,
+            OnePair { .. } => 2,
+            TwoPair { .. } => 3,
+            ThreeOf { .. } => 4,
+            Straight { .. } => 5,
+            Flush { .. } => 6,
+            FullHouse { .. } => 7,
+            FourOf { .. } => 8,
+            StraightFlush { .. } => 9,
+            RoyalFlush => 10,
+        }
+    }
+
+    fn as_high_card(&self) -> Option<&HighCard> {
+        match self {
+            | Ranking::HighCard(ref hand)
+            | Ranking::Flush(ref hand) => Some(hand),
+
+            _ => None,
+        }
+    }
+
+    fn as_one_pair(&self) -> Option<&OnePair> {
+        match self {
+            Ranking::OnePair(ref hand) => Some(hand),
+            _ => None,
+        }
+    }
+
+    fn as_two_pair(&self) -> Option<&TwoPair> {
+        match self {
+            Ranking::TwoPair(ref hand) => Some(hand),
+            _ => None,
+        }
+    }
+
+    fn as_three_of(&self) -> Option<&ThreeOf> {
+        match self {
+            Ranking::ThreeOf(ref hand) => Some(hand),
+            _ => None,
+        }
+    }
+
+    fn as_straight(&self) -> Option<&Straight> {
+        match self {
+            | Ranking::Straight(ref hand)
+            | Ranking::StraightFlush(ref hand) => Some(hand),
+
+            _ => None,
+        }
+    }
+
+    fn as_full_house(&self) -> Option<&FullHouse> {
+        match self {
+            Ranking::FullHouse(ref hand) => Some(hand),
+            _ => None,
+        }
+    }
+
+    fn as_four_of(&self) -> Option<&FourOf> {
+        match self {
+            Ranking::FourOf(ref hand) => Some(hand),
+            _ => None,
+        }
+    }
+}
+
+fn get_rank_count(cards: &[Card]) -> CardRanks {
+    cards.iter()
+        .map(|card| card.rank())
+        .fold(HashMap::with_capacity(14), |mut map, rank| {
+            *map.entry(rank).or_insert(0) += 1;
+            map
+        })
+}
+
+// Pretty sweet little function! :p
+fn is_flush(cards: &[Card]) -> bool {
+    let mut suit = None;
+    cards.iter().all(|card| card.suit() == *suit.get_or_insert(card.suit()))
+}
+
+// Not nearly as sweet. Whatever.
+fn is_straight(cards: &[Card]) -> bool {
+    let mut rank = None;
+    cards.iter().all(|card| {
+        match rank.take() {
+            None => {
+                rank = Some(card.rank());
+                true
+            }
+
+            Some(value) => {
+                rank = Some(value + 1);
+                card.rank() == value + 1
+            }
+        }
+    })
+}
+
+fn is_five_high_straight(cards: &[Card]) -> bool {
+    static FIVE_HIGH_STRAIGHT: &[u8] = &[2, 3, 4, 5, 14];
+    cards.iter().zip(FIVE_HIGH_STRAIGHT).all(|(left, &right)| left.rank() == right)
+}
+
+fn is_four(ranks: &CardRanks) -> bool {
+    ranks.len() == 2 && *ranks.values().max().unwrap() == 4
+}
+
+fn is_full(ranks: &CardRanks) -> bool {
+    ranks.len() == 2 && {
+        let (left, right) = ranks.iter().fold((false, false), |mut state, rank| {
+            match *rank.1 {
+                3 => state.0 = true,
+                2 => state.1 = true,
+
+                _ => (),
+            }
+            state
+        });
+
+        left && right
+    }
+}
+
+fn is_three(ranks: &CardRanks) -> bool {
+    ranks.len() == 3 && *ranks.values().max().unwrap() == 3
+}
+
+fn is_two_pair(ranks: &CardRanks) -> bool {
+    ranks.len() == 3 && *ranks.values().max().unwrap() == 2
+}
+
+fn is_pair(ranks: &CardRanks) -> bool {
+    ranks.len() == 4 && *ranks.values().max().unwrap() == 2
+}
+
+struct Card(u8, u8);
+
+impl Card {
+    fn rank(&self) -> u8 {
+        self.0
+    }
+
+    fn suit(&self) -> u8 {
+        self.1
+    }
+
+    fn set_rank(&self, rank: u8) -> Card {
+        Card(rank, self.suit())
+    }
+}
+
+impl FromStr for Card {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, ()> {
+        use std::str;
+
+        let s = s.as_bytes();
+
+        // As you can see below, we are just treating the suit as a u8 value in itself.
+        // We can get away with that because the actual value is irrelevant; what
+        // matters is that each suit is uniquely identified.
+        match s.get(0).ok_or(())? {
+            // Face cards
+            b'A' => Ok(Card(14, *s.get(1).ok_or(())?)),
+            b'K' => Ok(Card(13, *s.get(1).ok_or(())?)),
+            b'Q' => Ok(Card(12, *s.get(1).ok_or(())?)),
+            b'J' => Ok(Card(11, *s.get(1).ok_or(())?)),
+
+            // Number cards
+            _ => {
+                let idx = s.iter().position(|u| u.is_ascii_alphabetic()).ok_or(())?;
+                let (left, right) = s.split_at(idx);
+
+                // Technically unsafe, but remember this was already a string and we
+                // split at a valid character border.
+                let rank = unsafe { str::from_utf8_unchecked(left).parse().map_err(|_| ())? };
+
+                let suit = *right.first().ok_or(())?;
+
+                Ok(Card(rank, suit))
+            }
+        }
+    }
+}
+
+// Ranking is subject to a total order, not a partial order, but the way
+// Rust works is that the sort order is implemented as partial and Ord
+// is a marker trait that provides a total order.
+impl PartialOrd for Ranking {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        use self::Ranking::*;
+
+        // Wish I knew of some way to avoid these as_x method calls.
+        match self.rank_order().cmp(&other.rank_order()) {
+            Ordering::Equal => match *self {
+                HighCard(ref hand) => Some(hand.cmp(other.as_high_card().unwrap())),
+                OnePair(ref hand) => Some(hand.cmp(other.as_one_pair().unwrap())),
+                TwoPair(ref hand) => Some(hand.cmp(other.as_two_pair().unwrap())),
+                ThreeOf(ref hand) => Some(hand.cmp(other.as_three_of().unwrap())),
+                Straight(ref hand) => Some(hand.cmp(other.as_straight().unwrap())),
+                Flush(ref hand) => Some(hand.cmp(other.as_high_card().expect("High card should provide total order"))),
+                FullHouse(ref hand) => Some(hand.cmp(other.as_full_house().unwrap())),
+                FourOf(ref hand) => Some(hand.cmp(other.as_four_of().unwrap())),
+                StraightFlush(ref hand) => Some(hand.cmp(other.as_straight().unwrap())),
+                RoyalFlush => Some(Ordering::Equal),
+            },
+
+            order => Some(order),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Ranking;
+
+    #[test]
+    fn straight_high() {
+        let input = "10D JH QS KD AC";
+        let ranking = Ranking::from_str(input).unwrap();
+
+        assert_eq!(5, ranking.rank_order(), "{:?}", ranking);
+    }
+
+    #[test]
+    fn straight_low() {
+        let input = "4D AH 3S 2D 5C";
+        let ranking = Ranking::from_str(input).unwrap();
+
+        assert_eq!(5, ranking.rank_order(), "{:?}", ranking);
+    }
+
+    #[test]
+    fn flush_cascade() {
+        let left = Ranking::from_str("4H 7H 8H 9H 6H").unwrap();
+        let right = Ranking::from_str("2S 4S 5S 6S 7S").unwrap();
+
+        assert!(left > right);
+    }
+}

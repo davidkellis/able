@@ -1,7 +1,12 @@
 package able.collections
 
 interface Iterator T for I {
-  fn next(I) -> Option T
+  fn next(Self) -> Option T
+
+  # fn peekable(self: Self) -> Peekable T => PeekableIterator(self)
+
+  fn cursor(self: Self, n: Int) -> Cursor T => Cursor(self, n)
+  fn cursor(self: Self) -> Cursor T => self.cursor(1)
 }
 
 fn Iterator[T](generate: Generator T -> Unit) -> Iterator T {
@@ -10,15 +15,96 @@ fn Iterator[T](generate: Generator T -> Unit) -> Iterator T {
   gen
 }
 
-// It would be sufficient to define either #each or #iterator in isolation
+# It would be sufficient to define either #each or #iterator in isolation
 impl Iterable T for Iterator T {
-  fn each(it: Iterator T, visit: T -> Unit) {
-    // this is effectively what for loops will translate into
+  fn each(self: Self, visit: T -> Unit) {
+    # this is effectively what for loops will translate into
     next = it.next
-    while next.defined? {
+    while next {
       visit(next.value)
-      next = it.next
+      next = self.next
     }
   }
-  fn iterator(it: Iterator T) -> Iterator T => it
+
+  fn iterator(self: Self) -> Iterator T => self
 }
+
+
+
+struct LookbackCursor T {
+  iterator: Iterator T
+  lookback_array: Array T
+  pos: Int
+}
+
+fn Cursor(it: Iterator T, n: Int) -> Cursor T => LookbackCursor { it, FixedLengthArray(n), 0 }
+
+# The Cursor interface guarantees at least 1 element of lookback
+interface Cursor T for C {
+  fn current(self: Self) -> Option T
+  fn next(self: Self, n: Int) -> Option T
+  fn prev(self: Self, n: Int) -> Option T
+
+  fn next(self: Self) -> Option T => self.next(1)
+  fn prev(self: Self) -> Option T => self.prev(1)
+}
+
+impl Cursor T for LookbackCursor T {
+  fn current(self: Self) -> Option T {
+    self.lookback_array.get(self.pos)
+  }
+
+  fn next(self: Self, n: Int) -> Option T {
+    self.pos -= n
+    while self.pos < 0 {
+      new_val = self.iterator.next
+      self.lookback_array.prepend(new_val)    # FixedLengthArray#prepend will not grow the array; any excess elements get shifted off and lost forever
+      self.pos += 1
+    }
+    self.current
+  }
+
+  fn prev(self: Self, n: Int) -> Option T {
+    raise "cursor lookback exceeded" if self.pos + n > self.lookback_array.max_index
+
+    self.pos += n
+    self.current
+  }
+}
+
+impl Iterator T for Cursor T {
+  fn next(self: Self) -> Option T => self |> Cursor.next()
+  fn cursor(self: Self, n: Int) -> Cursor T => self
+}
+
+impl Iterable T for Cursor T {
+  fn iterator(self: Self) -> Iterator T => self
+}
+
+
+
+
+# struct PeekableIterator I where I : Iterator T {
+#   iterator: I
+#   peek_value: Option Option.T
+# }
+# 
+# interface Peekable T for I where I : Iterator T {
+#   fn next(Self) -> Option T
+#   fn peek(Self) -> Option T
+# }
+# 
+# impl Peekable T for PeekableIterator I where I : Iterator T {
+#   fn next(self: Self) -> Option T {
+#     next_value = self.peek_value.get_or_else(self.iterator.next)
+#     self.peek_value = None
+#     next_value
+#   }
+# 
+#   fn peekable(self: Self) -> Peekable T => self
+# 
+#   fn peek(self: Self) -> Option T {
+#     self.peek_value ||= Some(self.iterator.next)
+#     self.peek_value.value
+#   }
+# }

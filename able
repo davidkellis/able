@@ -1,0 +1,45 @@
+#!/usr/bin/env ruby
+
+require "optparse"
+
+def parse_args
+  command = ARGV.shift
+  options = {command: command}
+  OptionParser.new do |opts|
+    opts.banner = "Usage: able command [options]"
+
+    opts.on("-v", "--[no-]verbose", "Verbose output") do |v|
+      options[:verbose] = v
+    end
+
+    opts.on("")
+  end.parse!
+  options
+end
+
+def build_parser
+  puts "building parser"
+  output = `java -jar lib/antlr-4.7.1-complete.jar -Werror -o tmp/ Able.g4 && javac tmp/Able*.java`
+  puts output
+end
+
+def main
+  args = parse_args
+
+  build_parser
+
+  case args[:command]
+  when "run"
+  when "build"
+    puts "building"
+  when "repl"
+  when "run"
+  when "test"
+  when "pkg"
+    
+  else
+    puts "Unknown command: #{args[:command]}"
+  end
+end
+
+main

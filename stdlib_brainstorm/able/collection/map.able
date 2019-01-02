@@ -1,0 +1,95 @@
+package able.collections
+
+type Map[K,V] = nativetype {
+  go = map[K]V
+  ruby = Hash
+}
+
+# impl Enumerable[(K,V)] for Map[K,V]
+Map[K,V] implements Enumerable[(K,V)] {
+  fn each(map: Map[K,V], f: ( (K,V) ) -> Unit) -> Unit {
+    map.keys().each { k => f( (k, map[k]) ) }
+  }
+}
+
+# KeyMapper = impl Mappable for Map[K,V]
+KeyMapper = Map[K,V] implements Mappable {
+  fn map(m: Map[K,V], convert: K -> K2) -> Map[K2,V] {
+    m2 = map.empty[K2,V]()
+    m.keys().each { k => convert(k) |> m2.add(_, m[k]) }
+    m2
+  }
+}
+
+# ValueMapper = impl Mappable for Map[K,V]
+ValueMapper = Map[K,V] implements Mappable {
+  fn map(m: Map[K,V], convert: V -> W) -> Map[K,W] {
+    m2 = map.empty[K,W]()
+    m.keys().each { k => convert(m[k]) |> m2.add(k, _) }
+    m2
+  }
+}
+
+########################################################################################################################
+
+// this one is the best candidate
+
+package able.collections
+
+type Map K V = nativetype {
+  go = map[K]V
+  ruby = Hash
+}
+
+impl Enumerable (K,V) for Map K V
+  fn each(map: Map K V, f: ( (K,V) ) -> Unit) -> Unit {
+    map.keys().each { k => f( (k, map[k]) ) }
+  }
+}
+
+KeyMapper = impl Mappable K for Map K V
+  fn map(m: Map K V, convert: K -> K2) -> Map K2 V {
+    m2 = map.empty[K2,V]()
+    m.keys().each { k => convert(k) |> m2.add(_, m[k]) }
+    m2
+  }
+}
+
+ValueMapper = impl Mappable V for Map K V {
+  fn map(m: Map K V, convert: V -> W) -> Map K W {
+    m2 = map.empty[K,W]()
+    m.keys().each { k => convert(m[k]) |> m2.add(k, _) }
+    m2
+  }
+}
+
+########################################################################################################################
+
+package able.collections
+
+type Map K V = nativetype {
+  go = map[K]V
+  ruby = Hash
+}
+
+PairMapper = impl Enumerable for Map K V
+  fn each(map: Map K V, f: ( (K,V) ) -> Unit) -> Unit {
+    map.keys().each { k => f( (k, map[k]) ) }
+  }
+}
+
+KeyMapper = impl Mappable for Map K V
+  fn map(m: Map K V, convert: K -> K2) -> Map K2 V {
+    m2 = map.empty[K2,V]()
+    m.keys().each { k => convert(k) |> m2.add(_, m[k]) }
+    m2
+  }
+}
+
+ValueMapper = impl Mappable for Map K V {
+  fn map(m: Map K V, convert: V -> W) -> Map K W {
+    m2 = map.empty[K,W]()
+    m.keys().each { k => convert(m[k]) |> m2.add(k, _) }
+    m2
+  }
+}
