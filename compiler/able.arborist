@@ -1,12 +1,13 @@
 Able {
-  File <- PackageDecl !.
+  file <- ws? PackageDecl (eos PackageLevelDecl)* eos? !.
 
   // package foo
   // package internationalization
   PackageDecl <- "package" package_ident
 
   PackageLevelDecl
-    <- import_decl
+    <- import_decl      -- import_decl
+    / assignment_expr   -- assignment_expr
 
   // import io
   // import io.*
@@ -21,12 +22,13 @@ Able {
   //   Vector as Vec,
   // }
   import_decl
-    <- "import" lws fq_package_ident (lws "as" lws package_ident)? ".*"       -- all_members
-    / "import" lws fq_package_ident (lws "as" lws package_ident)? 
-        ".{" (ws? ident (lws "as" lws ident)? ws?) 
-             (listSep ws? ident (lws "as" lws ident)?)* listSep? ws? "}"      -- specific_members
-    / "import" lws fq_package_ident (lws "as" lws package_ident)?             -- base_package
+    <- "import" lws package_name=fq_package_ident (lws "as" lws package_alias=package_ident)? ".*"        -- all
+    / "import" lws package_name=fq_package_ident (lws "as" lws package_alias=package_ident)? 
+        ".{" members=(ws? member_name=ident (lws "as" lws member_alias=ident)? ws?) 
+             members=(list_sep member_name=ident (lws "as" lws member_alias=ident)?)* list_sep? ws? "}"   -- some
+    / "import" lws package_name=fq_package_ident (lws "as" lws package_alias=package_ident)?              -- package
 
+  assignment_expr <- "a=5"
 
   // identifiers
   package_ident <- letter (letter / digit)*
@@ -57,20 +59,19 @@ Able {
     <- "//" (!"\n" .)* "\n"  -- singleLine
     / "/*" (!"*/" .)* "*/"  -- multiLine
 
-  eos <- (semi_sep / nl_sep)+    // end of statement
+  eos <- (semi_sep / nl_sep)+         // end of statement
   list_sep <- (comma_sep / nl_sep)+   // list separator
   semi_sep <- ws? ";" ws?
   comma_sep <- ws? "," ws?
   amp_sep <- ws? "&" ws?
   pipe_sep <- ws? "|" ws?
-
-  nl_sep = space_with_nl_or_comment+
-  space_with_nl_or_comment <- (lws / comment)? nl (lws / comment)?
+  nl_sep <- nl_with_surrounding_lws+
+  nl_with_surrounding_lws <- (lws / comment)? nl (lws / comment)?
 
   ws <- (lws / nl / comment)+
 
-  eol = "\n" / "\r" !"\n" / "\u2028" / "\u2029" / "\r\n"
-  nl = eol+
+  eol <- "\n" / "\r" !"\n" / "\u2028" / "\u2029" / "\r\n"
+  nl <- eol+
 
 
   // digits, hex-digits, alpha, alphanumeric, letters, unicode character classes, etc.

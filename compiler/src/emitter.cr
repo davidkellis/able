@@ -12,11 +12,22 @@ class GoEmitter
       // package declaration
       #{emit(ast.package_declaration)}
 
-      // top level declarations
-      // go here...
+      // package level declarations
+      #{ast.package_level_declarations.map {|decl_node| emit(decl_node).as(String) }.join("\n")}
       EOF
     when Ast::PackageDecl
       "package #{ast.name}"
+    when Ast::ImportDecl
+      case ast.type
+      when :all
+        "import all"    # todo: finish these import lines
+      when :some
+        "import some"
+      when :package
+        "import package"
+      else
+        raise "unexpected ImportDecl type"
+      end
     else
       raise "boom !"
     end
