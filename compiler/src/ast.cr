@@ -167,10 +167,13 @@ module Ast
 
     visitor.on("PackageLevelDecl_import_decl") do |node|
       puts "*" * 80
-      node.capture("import_decl").visit(visitor)
-      # import_decl_seq_node = node.capture("import_decl")
-      # import_decl_apply_node = import_decl_seq_node.capture("import_decl")
-      # import_decl_apply_node.visit(visitor)
+      # todo: this is needed if we go with Option 2 in arborist/src/grammar_semantics.cr:355
+      # node.capture("import_decl").visit(visitor)    
+
+      # todo: this is needed if we go with Option 1 in arborist/src/grammar_semantics.cr:351
+      import_decl_seq_node = node.capture("import_decl")
+      import_decl_apply_node = import_decl_seq_node.capture("import_decl")
+      import_decl_apply_node.visit(visitor)
     end
 
     visitor.on("import_decl_all") do |node|

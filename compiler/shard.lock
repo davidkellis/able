@@ -2,7 +2,7 @@ version: 1.0
 shards:
   arborist:
     github: davidkellis/arborist
-    commit: 21f947a5b5762fab3c2b5815b949d2e3519c9a04
+    commit: 0a7f5fc850bcedd597be7be3dc77d2bd69cd0d03
 
   msgpack:
     github: crystal-community/msgpack-crystal
