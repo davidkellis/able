@@ -1,27 +1,38 @@
+t1 = Time.now
+puts "starting up"
 require "option_parser"
 require "arborist"
 
 require "./ast"
 require "./emitter"
 require "./compiler"
+t2 = Time.now; puts "#{t2-t1} seconds elapsed"; t1 = t2;
 
 def run(input_file_path)
-  # puts "loading grammar:"
+  t1 = Time.now
+  puts "loading grammar:"
   grammar = Arborist::Grammar.new("./able.arborist")
-  # puts "parsing input file:"
+  t2 = Time.now; puts "#{t2-t1} seconds elapsed"; t1 = t2;
+
+  puts "parsing input file:"
   parse_tree = grammar.parse_file(input_file_path)
+  t2 = Time.now; puts "#{t2-t1} seconds elapsed"; t1 = t2;
+
   if parse_tree
     puts "parse tree:"
     puts parse_tree.s_exp
+    t2 = Time.now; puts "#{t2-t1} seconds elapsed"; t1 = t2;
 
     ast = Ast.build(parse_tree)
     puts "ast:"
     puts ast.s_exp
+    t2 = Time.now; puts "#{t2-t1} seconds elapsed"; t1 = t2;
 
     emitter = GoEmitter.new
     puts
     puts "golang:"
     puts emitter.emit(ast)
+    t2 = Time.now; puts "#{t2-t1} seconds elapsed"; t1 = t2;
   else
     grammar.print_match_failure_error
     STDERR.puts "Failed parsing."
