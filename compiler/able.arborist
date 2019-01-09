@@ -8,6 +8,13 @@ Able {
   PackageLevelDecl
     <- import_decl      -- import_decl
     / assignment_expr   -- assignment_expr
+    / variable_decl     -- variable_decl
+    / struct_defn
+    / union_defn
+    / function_defn
+    / interface_defn
+    / impl_defn
+    / macro_defn
 
   // import io
   // import io.*
@@ -28,12 +35,396 @@ Able {
              members=(list_sep member_name=ident (lws "as" lws member_alias=ident)?)* list_sep? ws? "}"   -- some
     / "import" lws package_name=fq_package_ident (lws "as" lws package_alias=package_ident)?              -- package
 
-  assignment_expr <- "a=5"
+  // <expr> ; <expr>
+  // <expr> <nl> <expr>
+  // <expr>
+  expressions
+    <- expression ( eos expression )*
+
+  expression
+    <- loop_suffix_expr
+
+  loop_suffix_expr
+    <- conditional_suffix_expr lws "while" lws expression
+    / conditional_suffix_expr
+
+  // a if b if c is treated as (a if (b if c))
+  // a unless b unless c is treated as (a unless (b unless c))
+  conditional_suffix_expr
+    <- assignment_expr lws "if" lws expression
+    / assignment_expr lws "unless" lws expression
+    / assignment_expr
+
+
+  // v = expr
+  // v: type = expr
+  // v1, v2 = expr, expr              # parallel assignment
+  // v1: type, v2: type = expr, expr  # parallel assignment
+  // (v1, v2) = expr
+  // Array{v1, v2, v3*} = expr
+  // MyStruct{v1, v2} = expr
+  // v += expr
+  // v -= expr
+  // v *= expr
+  // v: i32
+  assignment_expr
+    <- operator_assignment   -- operator_assignment
+    / multiple_assignment    -- multiple_assignment
+    / variable_decl          -- variable_decl
+    / disjunction            -- disjunction
+
+  operator_assignment
+    <- optionally_typed_ident lws? infix_assignment_operator lws? expression
+
+  // Only operators that produce a value in the same domain as their arguments (i.e. operators whose domain and range are the same) are allowed here.
+  // It wouldn't make sense to allow =< or =>, because those would return bool, when the arguments would likely be numeric, and you couldn't assign a bool to a numeric type.
+  infix_assignment_operator
+    <- "=" ("+" | "-" | "*" | "/" | "\\" | "%" | "^" | "&&" | "||" | "&" | "|" | "<<" | ">>")
+
+  multiple_assignment
+    <- multiple_assignment_lhs ws? "=" ws? expression_list
+
+  multiple_assignment_lhs
+    <- assignment_lhs (comma_sep assignment_lhs)
+
+  assignment_lhs
+    <- pattern_with_ident             -- pattern_with_ident
+    / destructuring_primitive         -- pattern_only
+    / index_assignment_lhs            -- index_assignment_lhs
+
+  pattern_with_ident
+    <- ident lws? ":" lws? destructuring_type_primitive
+
+  destructuring_primitive
+    <- destructuring_tuple                                          -- tuple
+    / destructuring_primitive "::" destructuring_primitive          -- tuplePair
+    / destructuring_sequence                                        -- sequence
+    / destructuring_struct                                          -- struct
+    / ident                                                         -- identifier
+
+  // (v1)
+  // (v1, v2)
+  // v1::v2
+  // v1 :: v2
+  destructuring_tuple
+    <- "(" ws? destructuridestructuring_primitivengPrimitive (comma_sep destructuring_primitive)* ws? ")"
+
+  destructuring_tuple_pair
+    <- destructuring_primitive lws? "::" lws? destructuring_primitive
+
+  // Array[x]
+  // Array[_, x]
+  // Array[x, y, zs*]
+  // Array Int [x, y, zs*]
+  // List[1, x, 3]
+  destructuring_sequence
+    <- destructuring_sequence_with_splat_argument
+    / destructuring_sequence_no_splat_argument
+
+  destructuring_sequence_no_splat_argument
+    <- type_name "[" ws? destructuring_primitive (comma_sep destructuring_primitive) ws? "]"
+
+  destructuring_sequence_with_splat_argument
+    <- type_name "[" ws? destructuring_primitive (comma_sep destructuring_primitive) (comma_sep ident "*") ws? "]"
+
+  // MyStruct{v1, v2}
+  // MyStruct{v1=name, v2=age}
+  // MyStruct Int {v1, v2}
+  destructuring_struct
+    <- destructuring_struct_with_positional_fields
+    / destructuring_struct_withNamedFields
+
+  destructuring_struct_with_positional_fields
+    <- type_name lws? "{" (ws? destructuring_primitive ws? ",")* 
+                          (ws? destructuring_primitive ws? ","?)? ws? "}"
+
+  destructuring_struct_withNamedFields
+    <- type_name lws? "{" (ws? ident ws? "=" ws? destructuring_primitive ws? ",")* 
+                          (ws? ident ws? "=" ws? destructuring_primitive ws? ","?) ws? "}"
+
+  // e.g. names_map("david")
+  index_assignment_lhs
+    <- expression "(" ws? expression ws? ")"
+
+  // <expr> , <expr>
+  expression_list
+    <- expression ( commaSep expression )*
+
+
+  // id: Int
+  // id: CallStackLocal Int
+  // id: CallStackLocal (Array Int)
+  variable_decl
+    <- ident lws? ":" lws? type_name
+
+
+  // struct Foo T [T: Iterable] { Int, Float, T }
+  // struct Foo T { Int, Float, T, }
+  // struct Foo T {
+  //   Int,
+  //   Float,
+  //   T,
+  // }
+  // struct Foo T {
+  //   Int
+  //   Float
+  //   T
+  // }
+  // struct Foo T [T: Iterable] { x: Int, y: Float, z: T }
+  // struct Foo T { x: Int, y: Float, z: T, }
+  // struct Foo T {
+  //   x: Int,
+  //   x: Float,
+  //   y: T,
+  // }
+  // struct Foo T {
+  //   x: Int
+  //   y: Float
+  //   z: T
+  // }
+  structDefn
+    <- "struct" lws inline_struct_defn
+
+  inline_struct_defn
+    <- type_name (lws type_parameters_decl)? lws? "{" ws? comma_delimited_type_name_list ws? "}"   --  comma_delimited_positional_types
+    / type_name (lws type_parameters_decl)? lws? "{" ws? newline_delimited_type_name_list ws? "}"  --  newline_delimited_positional_types
+    / type_name (lws type_parameters_decl)? lws? "{" ws? comma_delimited_field_list ws? "}"        --  comma_delimited_field_list
+    / type_name (lws type_parameters_decl)? lws? "{" ws? newline_delimited_field_list ws? "}"      --  newline_delimited_field_list
+
+  type_parameters_decl
+    <- "[" ws? free_type_parameter (comma_sep free_type_parameter) ws? "]"
+
+  // T : Foo
+  // T _ : Mappable
+  // T : Foo + Bar
+  // T supersetOf X
+  // T supersetOf X|Y|Z
+  free_type_parameter
+    <- type_name (lws? type_constraint)?
+
+  // : Foo
+  // : Foo & Bar
+  // supersetOf X
+  // supersetOf X|Y|Z
+  type_constraint
+    <- ":" lws? intersection_type        -- intersection_type
+    / ":" lws? type_name                 -- interface
+  //   / "supersetOf" lws type_ident (lws? "|" lws? type_ident)*  # TypeConstraintSupersetOfConstraint
+
+
+  // Buildable & Mappable
+  intersection_type
+    <- type_name (ampSep type_name)+
+
+  // T
+  // Array T
+  // Iterable T
+  // Iterable _
+  // Iterable.T
+  // Iterable._
+  // Foo A B C
+  // Foo A (B C)
+  // Foo A B.C
+  // Foo A (B C D)
+  // Foo A B.C.D
+  type_name
+    <- space_parameterized_type
+    / dot_parameterized_type
+    / parenthesized_type_name
+    / type_ident
+
+  space_parameterized_type <- type_ident (" " (dot_parameterized_type | parenthesized_type_name | free_type_ident))+
+  dot_parameterized_type <- type_ident ("." (parenthesized_type_name | free_type_ident))+
+  parenthesized_type_name <- "(" lws? type_name lws? ")"
+
+  // Int, Float, T
+  // Int, Float, T,
+  //  Int,
+  //  Float,
+  //  T,
+  comma_delimited_type_name_list
+    <- type_name ( commaSep type_name )* (ws? ",")?
+
+  /*
+    Int
+    Float
+    T
+  */
+  newline_delimited_type_name_list 
+    <- type_name ( nl_sep type_name )* (ws? nl)?
+
+  // x: Int, y: Float, z: T
+  // x: Int, y: Float, z: T,
+  //   x: Int,
+  //   y: Float, 
+  //   z: T,
+  comma_delimited_field_list
+    <- typed_ident ( comma_sep typed_ident )* (ws? ",")?
+
+  /*
+    x: Int
+    y: Float
+    z: T
+  */
+  newline_delimited_field_list
+    <- typed_ident ( nl_sep typed_ident )* (ws? nl)?
+
+
+  // id1: type1
+  typed_ident
+    <- ident lws? ":" lws? type_name
+
+
+  disjunction
+    <- disjunction ws? "||" ws? conjunction
+    / conjunction
+
+  conjunction
+    <- conjunction ws? "&&" ws? equality_comparison
+    / equality_comparison
+
+  equality_comparison
+    <- inequality_comparison ws? equality_operator ws? inequality_comparison
+    / inequality_comparison
+
+  equality_operator <- "==" / "!="
+
+  inequality_comparison
+    <- range_expression ws? inequality_operator ws? range_expression
+    / range_expression
+
+  inequality_operator
+    <- "<=" / ">=" / "<" / ">"
+
+  range_expression
+    <- additive_expression ws? "..." ws? rhs=additive_expression    -- exclusive_range_expr
+    / additive_expression ws? ".." ws? rhs=additive_expression      -- inclusive_range_expr
+    / additive_expression
+
+  additive_expression
+    <- additive_expression ws? additive_operator ws? multiplicative_expression
+    / multiplicative_expression
+
+  additive_operator
+    <- "+" / "-"
+
+  multiplicative_expression
+    <- multiplicative_expression ws? multipicative_operator ws? exponentiation_expression
+    / exponentiation_expression
+
+  multipicative_operator
+    <- "*" / "/%" / "/" / "\\" / "%"     // multiply, divmod, int division, float division, modulus
+
+  exponentiation_expression
+    <- type_cast_expression "^" exponentiation_expression
+    / type_cast_expression
+
+  // todo: this may not be needed
+  type_cast_expression
+    <- unary_prefix_expression ws "as" ws type_name
+    / unary_prefix_expression
+
+  unary_prefix_expression
+    <- unary_prefix_operator unary_postfix_expression
+    / unary_postfix_expression
+
+  unary_prefix_operator
+    <- "+" / "-" / "!" / "~"
+
+  unary_postfix_expression
+    <- simple_expression unary_postfix_operator
+    / simple_expression function_call_suffix              -- function_call
+    / (unaryPostfixExpression ".")* simple_expression     -- navigation_expr
+    / simple_expression
+
+  unary_postfix_operator
+    <- "!!"
+
+  function_call_suffix
+    <- ("[" ws? type_list ws? "]" lws?)? "(" ws? expression_list? ws? ")"
+
+  type_list
+    <- type_name (comma_sep type_name)
+
+  simple_expression
+    <- parenthesized_expression
+    / ident
+    / literal
+    / do_expr
+    / if_expr
+    / while_expr
+    / for_expr
+    / return_expr
+    / break_expr
+    / continue_expr
+
+  parenthesized_expression
+    <- "(" ws? expression ws? ")"
+
+  do_expr
+    <- "do" ws? block
+
+  if_expr
+    <- "if" lws expression ws? "{" ws? expressions ws? "}" (ws? "elsif" lws expression ws? "{" ws? expressions ws? "}")* ws? "else" ws? "{" ws? expressions ws? "}"     -- multi_branch
+    / "if" lws expression ws? "{" ws? expressions ws? "}"       -- single_branch
+
+  return_expr
+    <- "return" expression?
+
+  break_expr
+    <- "break"
+
+  continue_expr
+    <- "continue"
+
+  // while true { puts("hi) }
+  while_expr
+    <- "while" ws expression ws? "{" ws? expressions ws? "}"
+
+  // for x in Array(1,2,3) { puts(x) }
+  for_expr
+    <- "for" ws for_expr_variable ws "in" ws expression ws "{" ws? expressions ws? "}"
+
+  for_expr_variable
+    <- for_expr_variable_destructuring_pattern_with_ident
+    / destructuring_primitive                         -- for_expr_variable_destructuring_pattern_only
+
+  for_expr_variable_destructuring_pattern_with_ident
+    <- ident lws? ":" lws? destructuring_type_primitive
+
+  jump_point
+    <- "jumppoint" ws label ws block
+
+  // a label takes the form of a one-word Symbol in Ruby - e.g. :foo, :stop, :ThisLittlePiggyWentToMarket, :that_thing_looks_funny
+  label
+    <- ":" ident
+
+  jump
+    <- "jump" ws label ws expression
+
+  literal
+    <- "()"                 -- unit_literal
+    / "nil"                 -- nil_literal
+    / bool_literal
+  //  / intLiteral
+  //  / floatLiteral
+  //  / stringLiteral
+
+  bool_literal <- "true" / "false"
+
 
   // identifiers
+
   package_ident <- letter (letter / digit)*
   fq_package_ident <- package_ident ("." package_ident)*
   ident <- letter (letter | digit)*
+
+  // id1
+  // id1: type1
+  // id1 : type1
+  // id1 :type1
+  optionally_typed_ident
+    <- ident (lws? ":" lws? type_name)?
 
 
   // whitespace
