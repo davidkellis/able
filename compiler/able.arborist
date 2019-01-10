@@ -148,7 +148,7 @@ Able {
 
   // <expr> , <expr>
   expression_list
-    <- expression ( commaSep expression )*
+    <- expression ( comma_sep expression )*
 
 
   // id: Int
@@ -243,7 +243,7 @@ Able {
   //  Float,
   //  T,
   comma_delimited_type_name_list
-    <- type_name ( commaSep type_name )* (ws? ",")?
+    <- type_name ( comma_sep type_name )* (ws? ",")?
 
   /*
     Int
@@ -273,6 +273,120 @@ Able {
   // id1: type1
   typed_ident
     <- ident lws? ":" lws? type_name
+
+
+  // Union definition:
+  // union String? = String | Nil
+  // union House = SmallHouse { sqft: Float }
+  //  | MediumHouse { sqft: Float }
+  //  | LargeHouse { sqft: Float }
+  // union Foo T [T: Blah] = 
+  //  | Bar A [A: Stringable] { a: A, t: T }
+  //  | Baz B [B: Qux] { b: B, t: T }
+  // union Option A = Some A {A} | None A {}
+  // union Result A B = Success A {A} | Failure B {B}
+  // union ContrivedResult A B [A: Fooable, B: Barable] = Success A X [X: Stringable] {A, X} | Failure B Y [Y: Serializable] {B, Y}
+  union_defn
+    <- "union" lws type_name (lws type_parameters_decl)? lws? "=" ws? (nl ws? "|" ws?)? union_alternative (pipe_sep union_alternative ws?)+
+
+  union_alternative
+    <- type_name
+    / inline_struct_defn
+
+
+  /*
+  fn func1[<optional type paramter list>](<parameter list>) -> <optional return type>
+  fn func2[<optional type paramter list>](<parameter list>) -> <optional return type>
+  */
+  function_decl_list <- function_decl ( nl_sep function_decl )*
+
+  // fn <function name>[<optional type paramter list>](<parameter list>) -> <optional return type>
+  function_decl <- "fn" lws ident (lws type_parameters_decl)? function_signature
+
+  /*
+  fn func1[<optional type paramter list>](<parameter list>) -> <optional return type> => <expr>
+  fn func2[<optional type paramter list>](<parameter list>) -> <optional return type> { <expr>; <expr>; ... }
+  */
+  function_defn_list <- function_defn ( nl_sep function_defn )*
+
+  // fn <function name>[<optional type paramter list>] = <function object OR partial application expression OR placeholder lambda expression>
+  // fn <function name>[<optional type paramter list>](<parameter list>) -> <optional return type> { <function body> }
+  // fn <function name>[<optional type paramter list>](<parameter list>) -> <optional return type> => <function body>
+  function_defn
+    <- function_defn_full
+    / function_defn_alias
+
+  function_defn_full
+    <- "fn" lws ident (lws type_parameters_decl)? function_signature ws? function_body
+
+  function_defn_alias
+    <- "fn" lws ident (lws type_parameters_decl)? ws? "=>" ws? functionAliasExpression
+
+  // fn[<optional type paramter list>](<parameter list>) -> <optional return type> { <function body> }
+  // fn[<optional type paramter list>](<parameter list>) -> <optional return type> => <function body>
+  // (<parameter list>) -> <optional return type> { <function body> }
+  // (<parameter list>) -> <optional return type> => <function body>
+  anonymous_function_defn
+    <- anonymous_function_long_form
+    / anonymous_function_short_form
+    / lambda_expression
+
+  anonymous_function_long_form
+    <- "fn" type_parameters_decl? function_signature ws? function_body
+
+  anonymous_function_short_form
+    <- function_signature ws? function_body
+
+  // { <paramter list> -> <return type> => expression }
+  lambda_expression
+    <- lambda_params_and_return
+    / lambda_params_only
+    / lambda_return_only
+    / lambda_expressions_only
+
+  lambda_params_and_return
+    <- "{" ws? parameter_list ws? "->" ws? type_name ws? "=>" ws? expressions ws? "}"
+
+  lambda_params_only
+    <- "{" ws? parameter_list ws? "=>" ws? expressions ws? "}"
+
+  lambda_return_only
+    <- "{" ws? "->" ws? type_name ws? "=>" ws? expressions ws? "}"
+
+  lambda_expressions_only
+    <- "{" ws? expressions ws? "}"
+
+  functionAliasExpression
+    <- anonymous_function_defn
+    / ident
+    // / partialApplicationExpr   // implicit through the use of missing arguments and placeholder identifiers/symbols
+    // / placeholderLambdaExpr    // implicit through the use of placeholder identifiers/symbols
+
+  function_signature
+    <- function_signature_parameter_list_and_return_type
+    / function_signature_parameter_list
+
+  function_signature_parameter_list_and_return_type
+    <- "(" ws? parameter_list ws? ")" ws? "->" ws? type_name
+  function_signature_parameter_list
+    <- "(" ws? parameter_list ws? ")"
+
+  parameter_list
+    <- fn_parameter (comma_sep fn_parameter)*
+
+  fn_parameter
+    <- destructuring_pattern_with_ident
+    / destructuring_primitive                              -- destructuring_pattern_only
+
+  destructuring_pattern_with_ident <- ident lws? ":" lws? destructuring_type_primitive
+
+  destructuring_type_primitive
+    <- destructuring_tuple                                              -- tuple
+    / destructuring_type_primitive "::" destructuring_type_primitive    -- tuplePair
+    / destructuring_sequence                                            -- sequence
+    / destructuring_struct                                              -- struct
+    / type_name                                                         -- type_name
+
 
 
   disjunction
