@@ -51,13 +51,13 @@ fn factorial(n: u32) {
 **Primes**
 
 ```
-fn primesLessThan(max) => max < 2 ? List() : primesLessThan(max, 2, List())
-fn primesLessThan(max: u32, i: u32, primesFound: List u32) -> List u32 {
-  return primesFound if i > max
-  if primesFound.any? { p => i % p == 0 }
-    primesLessThan(max, i + 1, primesFound)
+fn primes_less_than(max) => max < 2 ? List() : primes_less_than(max, 2, List())
+fn primes_less_than(max: u32, i: u32, primes_found: List u32) -> List u32 {
+  return primes_found if i > max
+  if primes_found.any? { p => i % p == 0 }
+    primes_less_than(max, i + 1, primes_found)
   else
-    primesLessThan(max, i + 1, primesFound + i)
+    primes_less_than(max, i + 1, primes_found + i)
 }
 ```
 
@@ -188,13 +188,13 @@ fn primesLessThan(max: u32, i: u32, primesFound: List u32) -> List u32 {
 
 ## Identifiers
 
-Variable and function identifiers must conform to the pattern
-`[a-zA-Z0-9][a-zA-Z0-9_]*[a-zA-Z0-9_?!]?`
+All identifiers must conform to the pattern `[a-zA-Z0-9][a-zA-Z0-9_]*`
 
-Package identifiers must conform to the pattern
-`[a-zA-Z0-9][a-zA-Z0-9_]*[a-zA-Z0-9_]?`
+There are two namespaces for identifiers: a type namespace and a value namespace.
 
-There are two namespaces for identifiers. There is a type namespace and a value namespace. Within a package, type identifiers must be unique with respect to other type identifiers, and value identifiers must be unique with respect to other value identifiers. Is it valid to use the same identifier for both a type and a value, within the same package.
+Within a package, type identifiers must be unique with respect to other type identifiers, and value identifiers must be unique with respect to other value identifiers.
+
+Is it valid to use the same identifier for both a type and a value, within the same package.
 
 Value identifiers introduced in a local scope will shadow any identifiers of the same name in any encompasing scope, so long as their types are different. If a value identifier used in a local scope shares the same name and type as an identifier in an encompasing scope, then the identifier in the local scope is treated as the same identifier in the encompasing scope, rather than as a new distinct identifier.
 
@@ -203,7 +203,6 @@ Value identifiers introduced in a local scope will shadow any identifiers of the
 Naming conventions are similar to that of Rust (https://github.com/rust-lang/rfcs/blob/master/text/0430-finalizing-naming-conventions.md), Python (https://www.python.org/dev/peps/pep-0008/#prescriptive-naming-conventions), and Ruby (https://github.com/bbatsov/ruby-style-guide#naming):
 
 - Prefer snake_case for file names, package names, variable names, and function names.
-
 - Prefer PascalCase for type names.
 
 Why is snake_case preferred over camelCase? Subjectively, snake_case seems easier to quickly scan and read, even at the expense of it being slower to type than camelCase. Objectively, https://whathecode.wordpress.com/2013/02/16/camelcase-vs-underscores-revisited/ suggests programmers are more efficient at reading snake_case than camelCase identifiers.
@@ -230,21 +229,32 @@ Comments take one of three forms:
 
 ## Packages
 
-There must be one, and only one, package definition per file, specified at the top of the file. 
+todo: figure out how to determine root package
 
+Every project has a base package name determined by the `package.name` attribute of the project configuration file, `project.cf`, as in the following:
 ```
-package io
+package:
+  name: my_project
 ```
 
-Every package has both a name and a path. The package definition specifies the package name. The package path is determined by the directory structure that the file capturing the package definition resides in. The parts of a package path correspond to directories within the project root directory. If a package name matches the directory that the source file resides in, then the package name is not treated as distinct from the package that the directory corresponds to, and therefore the package name isn't treated as a suffix that gets tacked onto the end of the fully qualified package name of the directory.
+If a project doesn't have a `project.cf` file, as may be the case in throw-away projects or short scripts, then the base package name is `top` and the project's root directory is the directory that contains the source file existing highest in the tree of package names.
+
+
+Every source file should start with a package definition of the form `package <unqualified name>`, for example `package io`.
+
+Every package has both a name and a path. The package definition specifies the package name. A source file's package path is determined by the directory structure that the source file resides in. The parts of a package path correspond to directories within the project root directory. If a package name matches the directory that the source file resides in, then the package name is not treated as distinct from the package that the directory corresponds to, and therefore the package name isn't treated as a suffix that gets tacked onto the end of the fully qualified package name of the directory.
 
 A fully qualified package name captures both the package path and the package name, joined together by a period.
 
+A project's base package name (i.e. the first component of the ) component of a package path is the package name as defined in the `project.cf` 
+
 For example, the following directory structure and corresponding packages might exist:
 ```
-~/Projects/widget         // this is the project root directory; it corresponds to the "widget" package
+~/Projects/best-widget    // this is the project root directory because it contains the package.cf file
+|-- package.cf            // package: {name: widget}
 |-- foo.able              // if this file says `package foo`, then the fully qualified packge would be "widget.foo"
 |-- qux.able              // if this file says `package widget`, then the fully qualified package would be "widget"
+|-- fox.able              // if this file has no package definition, then the fully qualified package would be "widget"
 |-- components            // this directory corresponds to the "widget.components" package
 |   |-- bar.able          // if this file says `package bar`, then the fully qualified package would be "widget.components.bar"
 |   |-- quux.able         // if this file says `package components`, then the fully qualified package would be "widget.components"
@@ -289,19 +299,18 @@ A package introduces a new variable scope that forms the root scope for any othe
   p("${Unicode.abbreviation} is Unicode; ${i18n.Ascii.abbreviation} is Ascii")
   ```
 
+todo: figure out how to resolve identifier conflicts when importing into an existing scope that an identifier has already been identified
+
 ## Variables
 
 Variables are defined with the following syntax:
 
 ```
-<variable name>: <type name> = <value expression>
+<variable name>: <type name>                        # assigned the zero value for <type name>
+<variable name>: <type name> = <value expression>   # assigned the specified initial value
+<variable name> = <value expression>                # assigned the specified initial value and the type is inferred from the type of <value expression> and the use of <variable name>
 ```
 
-and if the type can be inferred, then the definition may be shortened to:
-
-```
-<variable name> = <value expression>
-```
 
 ## Types
 
@@ -329,7 +338,7 @@ and if the type can be inferred, then the definition may be shortened to:
 
 A type is a name given to a set of values, and every value has an associated type. For example, `bool` is the name given to the set `{true, false}`, and since the value `true` is a member of the set `{true, false}`, it is of type `bool`.  `TwoBitUnsignedInt` might be the type name we give to the set `{0, 1, 2, 3}`, such that `3` would be a value of type `TwoBitUnsignedInt`.
 
-A type is denoted by a type expression. All types are parametric types, in that all types have zero or more type parameters.
+A type is denoted by a type expression. A type expression is a string. All types are parametric types, in that all types have zero or more type parameters.
 
 Type parameters may be bound or unbound. A bound type parameter is a type parameter for which either a named type variable or a preexisting type name has been substituted. An unbound type parameter is a type parameter that is either unspecified or substituted by the placeholder type variable, denoted by `_`.
 
@@ -341,28 +350,16 @@ References:
 
 ### Type Constraints
 
-In places where type parameters may be constrained, the following constraints may be used:
-- Implements constraint
-- ~~Union superset constraint~~
-
-#### Implements Constraint
+There is one supported type constraint, the "implements" constraint:
 
 `T: I` is read as type T implements interface I.
 
 `T: I & J & K` is read as type T implements interface I and J and K.
 
-#### ~~Union Superset Constraint~~
-
-~~`T supersetOf X|Y|Z` is read as type T is a superset of the type union X|Y|Z.~~
-
-~~The right-hand-side of the supersetOf type operator may be a single-member set, for example `T supersetOf Nil` would mean `T` is a union type that has Nil as a member type. For example, the superset may be `Nil`, `Nil | i32`, `Nil | i32 | String`, etc.~~
-
-~~The supersetOf type operator doesn't imply that the left-hand-side is a proper superset of the right-hand-side; the two type unions may be equal.~~
-
-## Built-In Types
+### Built-In Types
 
 - Unit
-- Boolean - `bool`
+- Boolean - `Bool`
 - Integer types - `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64`
 - Floating point types - `f32`, `f64`
 - String
@@ -370,21 +367,29 @@ In places where type parameters may be constrained, the following constraints ma
 - Map
 - Range
 - Tuple
+- Struct
+- Union
+- Function
+- Interface
+- Thunk
+- Lazy
+- CallStackLocal
+- Channel
 
 ### Unit
 
 The unit type, named `Unit`, has a single literal value, `()`.
 
-It works like Scala's Unit type, see http://blog.bruchez.name/2012/10/implicit-conversion-to-unit-type-in.html and
+It works like Scala's Unit type.
+
+See http://blog.bruchez.name/2012/10/implicit-conversion-to-unit-type-in.html and
 http://joelabrahamsson.com/learning-scala-part-eight-scalas-type-hierarchy-and-object-equality/ for more information.
 
 ### Boolean
 
-The boolean type, named `bool`, has two values: `true` and `false`
+The boolean type, named `Bool`, has two values: `true` and `false`
 
 ### Integer Types
-
-See https://doc.rust-lang.org/1.7.0/reference.html#integer-literals
 
 A decimal literal starts with a decimal digit and continues with any mixture of decimal digits and underscores.
 
@@ -412,19 +417,15 @@ The following are examples of integer literals:
 0x123f_u32
 ```
 
+See https://doc.rust-lang.org/1.7.0/reference.html#integer-literals
+
 ### Floating Point Types
 
-See https://doc.rust-lang.org/1.7.0/reference.html#floating-point-literals
+A floating point literal conforms to the pattern: `(decimal_literal (\. decimal_literal)? exp?) | (\. decimal_literal exp?)`
 
-A floating point literal may start with a decimal literal followed by a period character U+002E (.), optionally followed by another decimal literal, with an optional exponent.
+An exponent (denoted by `exp`) conforms to the pattern: `('e'|'E') ( '+' | '-' )? decimal_literal`, e.g. `e9`, `E3`, `E+9`, `e-9`, `E-3`.
 
-A floating point literal may start with a decimal literal followed by an exponent.
-
-A floating point literal may start with a period character U+002E (.) followed by a decimal literal, with an optional exponent.
-
-An exponent is notated with the syntax `( 'e' | 'E' ) ( '+' | '-' )? DECIMAL_LITERAL`, e.g. `e9`, `E3`, `E+9`, `e-9`, `E-3`.
-
-Any floating point literal may optionally be suffixed with a type suffix, i.e. `f32` or `f64`, indicating its type.
+Any floating point literal may be suffixed with `_?f(32|64)`
 
 The following are examples of floating point literals:
 ```
@@ -455,9 +456,13 @@ The following are examples of floating point literals:
 .4e-3_f64
 ```
 
+See https://doc.rust-lang.org/1.7.0/reference.html#floating-point-literals
+
 ### String
 
-All string literals are double quoted.
+All string literals are UTF-8 encoded strings wrapped in double quotes.
+
+String interpolation is notated with either $variable_name or ${expression}
 
 ```
 name = "Herbert"
@@ -466,6 +471,8 @@ greeting2 = "Hello ${name}"
 ```
 
 #### Byte String Literals
+
+todo: figure out whether to support this or not
 
 See https://doc.rust-lang.org/1.7.0/reference.html#byte-string-literals
 
@@ -487,13 +494,13 @@ x: Array f32 = Array(5.6, 5.7, 8)
 There is no map literal syntax. Maps are created with the `Map` constructor function.
 
 ```
-m = Map(1 :: "Foo", 2 :: "Bar")
+m = Map(1 : "Foo", 2 : "Bar")
 m = Map(
-  1 :: "Foo",
-  2 :: "Bar"
+  1 : "Foo",
+  2 : "Bar"
 )
 m(3) = "Baz"
-m << 4::"Qux"
+m << 4:"Qux"
 ```
 
 ### Range
@@ -501,29 +508,28 @@ m << 4::"Qux"
 Ranges take the following form:
 
 ```
-// inclusive range
+# inclusive range
 <expression>..<expression>
 
-// exclusive range
+# exclusive range
 <expression>...<expression>
 ```
 
 For example:
-
 ```
-// inclusive range
-1..10 |> toArray   // Array(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+# inclusive range
+1..5 |> to_a   # Array(1, 2, 3, 4, 5)
 
-// exclusive range
-0...10 |> toArray  // Array(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)
+# exclusive range
+1...5 |> to_a  # Array(1, 2, 3, 4)
 ```
 
 Ranges may be created with any set of types that fulfill the `Range` interface, defined below:
 
 ```
-interface Range Out for (S, E) {
-  fn inclusiveRange(start: S, end: E) -> Iterable Out
-  fn exclusiveRange(start: S, end: E) -> Iterable Out
+interface Range O for (S, E) {
+  fn inclusive_range(start: S, end: E) -> Iterable O
+  fn exclusive_range(start: S, end: E) -> Iterable O
 }
 ```
 
@@ -558,21 +564,22 @@ By implementing the `Range` interface, user programs may take advantage of the r
 ## Tuples
 
 ```
-record = (1, "Foo")
+record = (1, "Foo", :bar)    # this has type (i32, String, Symbol)
 if record._1 == 1 then puts("you're in first place!")
 ```
 
-`record` is of type (i32, String)
+Single element tuples are a special case notated by `( <expression> , )`:
+```
+(100, )    # this has type (i32)
+```
 
 ### Pairs
 
 Pair syntax is just syntactic sugar for expressing 2-tuples.
 
-`(1, "Foo")` can be written as `1 :: "Foo"` or `1::"Foo"`, all of which have type (i32, String).
+`(1, "Foo")` can be written as `1 : "Foo"` or `1:"Foo"`, all of which have type (i32, String).
 
 ## Structs
-
-Struct type definitions define both a type and a constructor function of the same name as the type.
 
 Struct definitions can only appear in package scope.
 
@@ -600,13 +607,18 @@ Though specializations of a parametric singleton struct type are all variants of
 
 ### Definition with Positional Fields
 ```
-struct Foo T { i32, f32, T }
-struct Foo T { i32, f32, T, }
-struct Foo T [T: Iterable] { i32, f32, T }
-struct Foo T {
+# non-generic definition
+struct Point { i32, i32 }
+
+# generic definitions
+struct Foo T U { i32, f32, T, U }
+struct Foo T U { i32, f32, T, U, }
+struct Foo T U [T: Iterable, U: Stringable] { i32, f32, T, U }
+struct Foo T:Iterable U:Stringable {
   i32,
   f32,
   T,
+  U,
 }
 struct Foo T {
   i32
@@ -617,6 +629,10 @@ struct Foo T {
 
 ### Definition with Named Fields
 ```
+# non-generic definition
+struct Point { x: i32, y: i32 }
+
+# generic definitions
 struct Foo T { x: i32, y: f32, z: T }
 struct Foo T { x: i32, y: f32, z: T, }
 struct Foo T [T: Iterable] { x: i32, y: f32, z: T }
@@ -633,26 +649,6 @@ struct Foo T {
 ```
 
 ### Instantiate structs
-
-#### Via constructor functions
-```
-Foo(1,2,t1)           # positional function application
-Foo(x=1, y=2, z=t1)   # named argument function application
-Foo(
-  x = 1,
-  y = 2,
-  z = t1
-)
-Foo(
-  x = 1
-  y = 2
-  z = t1
-)
-```
-
-Instantiation via constructor functions require that every argument be supplied.
-
-#### Via struct literal expressions
 ```
 Foo { 1 }               # struct literal with fields supplied by position
 Foo { 1, 2, t1 }        # struct literal with fields supplied by position
@@ -670,11 +666,10 @@ Foo {
 }
 ```
 
-Instantiation via struct literal expressions do **not** require that every field be supplied.
+Struct literal expressions do **not** require that every field be supplied.
 Fields that are omitted are given a zero value appropriate for their type.
 
 ### Using struct instances
-
 ```
 struct Foo T { i32, f32, T }
 struct Bar T { a: i32, b: f32, c: T }
@@ -682,8 +677,8 @@ struct Bar T { a: i32, b: f32, c: T }
 foo = Foo { 1, 2.0, "foo" }
 bar = Bar { a=1, b=2.0, c="bar" }
 
-puts("foo is a Foo String(${foo._1}, ${foo._2}, ${foo._3})")
-puts("bar is a Bar String(a: ${bar.a}, b: ${bar.b}, c: ${foo.c})")
+puts("foo is a Foo String { ${foo._1}, ${foo._2}, ${foo._3} }")
+puts("bar is a Bar String { a: ${bar.a}, b: ${bar.b}, c: ${foo.c} }")
 ```
 
 ## Unions
@@ -765,12 +760,12 @@ union Option T = Some T { val: T } | None
 ``` 
 union Tree T = Leaf T { value: T } | Node T { value: T, left: Tree T, right: Tree T }
 
-// would be internally translated into
+# would be internally translated into
 struct Leaf T { value: T }
 struct Node T { value: T, left: Tree T, right: Tree T }
 union Tree T = Leaf T | Node T
 
-// other examples:
+# other examples:
 
 union Foo T [T: Blah] = 
   | Bar A [A: Stringable] { a: A, t: T }
@@ -782,12 +777,12 @@ union Foo T [T: Blah] =
 ```
 union Tree T = Leaf T { T } | Node T { T, Tree T, Tree T }
 
-// would be internally translated into
+# would be internally translated into
 struct Leaf T { T }
 struct Node T { T, Tree T, Tree T }
 union Tree T = Leaf T | Node T
 
-// other examples:
+# other examples:
 
 union Option A = Some A {A} | None A {}
 union Result A B = Success A {A} | Failure B {B}
@@ -832,7 +827,12 @@ All functions are first class objects, and each of the three syntaxes produces t
 
 In each of the three syntaxes, the return type may be omitted unless the return type is ambiguous and type inference is unable to determine what the return type is supposed to be. If type inference fails to determine the return type, then the return type must be explicitly provided.
 
-In the two syntaxes that provide a means to capture an optional type parameter list, the type parameter list may also capture constraints on type parameters.
+In the two syntaxes that provide a means to capture an optional type parameter list - named function syntax and anonymous function syntax - the type parameter list may also capture constraints on type parameters.
+
+Function types are denoted with the syntax:
+```
+(<parameter type>, <parameter type>, <parameter type>, ...) -> <return type>
+```
 
 ### Named function syntax
 
@@ -862,22 +862,22 @@ fn puts = printLn
 
 // given:
 fn add(a: i32, b: i32) -> i32 => a + b
-fn foldRight(it: Iterator T, initial: V, accumulate: (T, V) -> V) -> V {
-  it.reverse.foldLeft(initial) { acc, val => accumulate(val, acc) }
+fn fold_right(it: Iterator T, initial: V, accumulate: (T, V) -> V) -> V {
+  it.reverse.fold_left(initial) { acc, val => accumulate(val, acc) }
 }
 
 // add1, add5, and add10 are partial applications of the add function
-// sum is the partially applied foldRight function
+// sum is the partially applied fold_right function
 fn add1 = add(1)
 fn add5 = add(5,)
 fn add10 = add(, 5)
-fn sum = foldRight(, 0, +)
+fn sum = fold_right(, 0, +)
 
 // definitions in terms of placeholder lambda expressions
 fn add10AndDouble = 2 * add(_, 10)
 fn printLnIfDebug = printLn(_) if APP_CFG.debug
-fn sum = _.foldRight(0, +)
-fn sum = foldRight(_, 0, +)
+fn sum = _.fold_right(0, +)
+fn sum = fold_right(_, 0, +)
 ```
 
 ### Anonymous function syntax
@@ -1315,7 +1315,7 @@ Some operators have special semantics:
    For example:
    ```
    fn apply(key: String, map: Map String V) -> Option V => map.get(key)
-   nameRankPairs = Map("joe" :: 1, "bob" :: 2, "tom" :: 3)
+   nameRankPairs = Map("joe" : 1, "bob" : 2, "tom" : 3)
    tomRank = "tom"(nameRankPairs)   // returns Some(3)
    ```
 
@@ -2020,7 +2020,7 @@ fn printPair(pair: (i32, String)) {
 }
 
 printPair( (4, "Bill") )
-printPair( 4::"Bill" )
+printPair( 4:"Bill" )
 ```
 
 #### Function Parameter Destructuring
@@ -2047,7 +2047,7 @@ fn printPair(pair: (i: i32, str: String)) {
 }
 
 printPair( (4, "Bill") )
-printPair( 4::"Bill" )
+printPair( 4:"Bill" )
 ```
 
 #### Pattern Matching Destructuring
@@ -2338,7 +2338,7 @@ puts("name3 = $name3")
 ```
 and
 ```
-nameCache = CallStackLocal(Map[i32, String](1::"Bob"))   // declare and define
+nameCache = CallStackLocal(Map[i32, String](1:"Bob"))   // declare and define
 
 names1 = spawn { nameCache[2] = "Tom"; nameCache.values.join(", ") }
 names2 = spawn { nameCache[1] = "Jim"; nameCache.values.join(", ") }
@@ -2437,7 +2437,7 @@ spawn { c.receive |> puts }
 
 A single tool, `able`, handles builds, dependency management, package management, running tests, etc.
 
-A single file, `build.cf`, defines a project's build, dependencies, package metadata, etc.
+A single file, `project.cf`, defines a project's build configuration, dependencies, package metadata, etc.
 
 A primary goal of having a single tool is to enable the quick spin-up of a development environment. Download a single binary and start working.
 

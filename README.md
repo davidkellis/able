@@ -1,5 +1,3 @@
-Note: This specification is a work in progress. It is currently incomplete. There are several inconsistencies that still need to be reconciled with one another.
-
 # Able Programming Language
 
 Able is a programming language that aims to be pleasant to use, relatively small, and relatively fast (in the same ballpark as Java or Go). You can kind of view Able as a hybrid between Go and Kotlin. Another reasonable characterization would be Rust + GC - ownership.
@@ -41,7 +39,7 @@ fn factorial(n: u32) {
 ```
 
 ```
-// reduce
+# reduce
 fn factorial(n: u32) {
   return 1 if n <= 1
   (2..n).reduce(*)
@@ -51,264 +49,107 @@ fn factorial(n: u32) {
 **Primes**
 
 ```
-fn primesLessThan(max) => max < 2 ? List() : primesLessThan(max, 2, List())
-fn primesLessThan(max: u32, i: u32, primesFound: List u32) -> List u32 {
-  return primesFound if i > max
-  if primesFound.any? { p => i % p == 0 }
-    primesLessThan(max, i + 1, primesFound)
+fn primes_less_than(max) => max < 2 ? List() : primes_less_than(max, 2, List())
+fn primes_less_than(max: u32, i: u32, primes_found: List u32) -> List u32 {
+  return primes_found if i > max
+  if primes_found.any? { p => i % p == 0 }
+    primes_less_than(max, i + 1, primes_found)
   else
-    primesLessThan(max, i + 1, primesFound + i)
+    primes_less_than(max, i + 1, primes_found + i)
 }
 ```
 
-## Table of Contents
+## Language Specification
 
-   * [Able Programming Language](#able-programming-language)
-      * [Table of Contents](#table-of-contents)
-      * [Identifiers](#identifiers)
-         * [Naming Conventions](#naming-conventions)
-      * [Packages](#packages)
-         * [Importing Packages](#importing-packages)
-      * [Variables](#variables)
-      * [Types](#types)
-         * [Built-In Types](#built-in-types)
-         * [Type Expressions](#type-expressions)
-         * [Type Constraints](#type-constraints)
-            * [Implements Constraint](#implements-constraint)
-            * [<del>Union Superset Constraint</del>](#union-superset-constraint)
-      * [Built-In Types](#built-in-types-1)
-         * [Unit](#unit)
-         * [Boolean](#boolean)
-         * [Integer Types](#integer-types)
-         * [Floating Point Types](#floating-point-types)
-         * [String](#string)
-            * [Byte String Literals](#byte-string-literals)
-         * [Array](#array)
-         * [Map](#map)
-         * [Range](#range)
-      * [Tuples](#tuples)
-         * [Pairs](#pairs)
-      * [Structs](#structs)
-         * [Singleton Structs](#singleton-structs)
-         * [Definition with Positional Fields](#definition-with-positional-fields)
-         * [Definition with Named Fields](#definition-with-named-fields)
-         * [Instantiate structs](#instantiate-structs)
-            * [Via constructor functions](#via-constructor-functions)
-            * [Via struct literal expressions](#via-struct-literal-expressions)
-         * [Using struct instances](#using-struct-instances)
-      * [Unions](#unions)
-         * [Union definitions referencing predefined types](#union-definitions-referencing-predefined-types)
-         * [Union definitions referencing new struct types](#union-definitions-referencing-new-struct-types)
-         * [Generic Unions](#generic-unions)
-         * [Any Type](#any-type)
-      * [Blocks](#blocks)
-      * [Functions](#functions)
-         * [Named function syntax](#named-function-syntax)
-            * [Point-free style](#point-free-style)
-         * [Anonymous function syntax](#anonymous-function-syntax)
-         * [Lambda expression syntax](#lambda-expression-syntax)
-            * [Implicit Lambda Expressions via Placeholder Expression Syntax (a.k.a. Placeholder Lambdas)](#implicit-lambda-expressions-via-placeholder-expression-syntax-aka-placeholder-lambdas)
-               * [Special case](#special-case)
-         * [Variadic functions](#variadic-functions)
-            * [Variadic disambiguation rule](#variadic-disambiguation-rule)
-         * [Function definition examples](#function-definition-examples)
-            * [Define non-generic functions](#define-non-generic-functions)
-            * [Define generic functions](#define-generic-functions)
-            * [Lambda Expressions](#lambda-expressions)
-         * [Function Application](#function-application)
-            * [Normal application](#normal-application)
-            * [Named argument application](#named-argument-application)
-            * [Partial application](#partial-application)
-            * [Method application](#method-application)
-            * [Pipeline application](#pipeline-application)
-            * [Operator application](#operator-application)
-               * [Right-associative operators](#right-associative-operators)
-               * [Special operators](#special-operators)
-            * [Special application cases](#special-application-cases)
-      * [Interfaces](#interfaces)
-         * [Interface Definitions](#interface-definitions)
-            * [Interface Aliases and Interface Intersection Types](#interface-aliases-and-interface-intersection-types)
-         * [Interface Implementations](#interface-implementations)
-         * [Interface Usage](#interface-usage)
-         * [Overlapping Implementations / Impl Specificity](#overlapping-implementations--impl-specificity)
-      * [Zero Values](#zero-values)
-         * [Zero values for primitive types](#zero-values-for-primitive-types)
-         * [Zero values for compound types](#zero-values-for-compound-types)
-            * [Range](#range-1)
-            * [Tuple](#tuple)
-            * [Struct](#struct)
-            * [Union](#union)
-            * [Function](#function)
-            * [Interface/Impl](#interfaceimpl)
-      * [Control Flow Expressions](#control-flow-expressions)
-         * [If Statement](#if-statement)
-            * [If Suffix Syntax](#if-suffix-syntax)
-            * [Ternary Syntax](#ternary-syntax)
-         * [Unless Suffix Syntax](#unless-suffix-syntax)
-         * [While Suffix Syntax](#while-suffix-syntax)
-         * [Pattern Matching](#pattern-matching)
-         * [Looping](#looping)
-            * [while](#while)
-            * [for](#for)
-            * [break/continue](#breakcontinue)
-         * [Jump-points / Non-local Return](#jump-points--non-local-return)
-         * [Generators](#generators)
-      * [Destructuring](#destructuring)
-         * [Destructuring Forms](#destructuring-forms)
-            * [Struct Destructuring](#struct-destructuring)
-            * [Tuple Destructuring](#tuple-destructuring)
-            * [Sequence Destructuring](#sequence-destructuring)
-         * [Destructuring Contexts](#destructuring-contexts)
-            * [Assignment Destructuring](#assignment-destructuring)
-            * [Function Parameter Destructuring](#function-parameter-destructuring)
-            * [Pattern Matching Destructuring](#pattern-matching-destructuring)
-      * [Exceptions](#exceptions)
-      * [Lazy Evaluation](#lazy-evaluation)
-         * [By-name Evaluation (not memoized)](#by-name-evaluation-not-memoized)
-         * [By-need Evaluation (memoized)](#by-need-evaluation-memoized)
-      * [Special Evaluation Rules](#special-evaluation-rules)
-         * [Value Discarding](#value-discarding)
-      * [Macros](#macros)
-      * [Concurrency](#concurrency)
-         * [Call stacks (threads of execution)](#call-stacks-threads-of-execution)
-            * [Semantics](#semantics)
-            * [Call stack local variables](#call-stack-local-variables)
-         * [Channels](#channels)
-      * [Reference](#reference)
-         * [Unary Prefix Operators](#unary-prefix-operators)
-         * [Binary Operators](#binary-operators)
-      * [Unsolved Problems](#unsolved-problems)
-      * [To do](#to-do)
-      * [Not going to do](#not-going-to-do)
-   * [Able Tooling](#able-tooling)
-      * [Building](#building)
-      * [Read-Eval-Print-Loop (REPL)](#read-eval-print-loop-repl)
-      * [Testing](#testing)
-      * [Package Management](#package-management)
+The full language specification may be found in [language_spec.md](language_spec.md).
+
+What follows is a summary of the language specification, and should be enough quickly get up to speed with Able.
+
 
 ## Identifiers
 
-Variable and function identifiers must conform to the pattern
-`[a-zA-Z0-9][a-zA-Z0-9_]*[a-zA-Z0-9_?!]?`
+All identifiers must conform to the pattern `[a-zA-Z0-9][a-zA-Z0-9_]*`
 
-Package identifiers must conform to the pattern
-`[a-zA-Z0-9][a-zA-Z0-9_]*[a-zA-Z0-9_]?`
-
-There are two namespaces for identifiers. There is a type namespace and a value namespace. Within a package, type identifiers must be unique with respect to other type identifiers, and value identifiers must be unique with respect to other value identifiers. Is it valid to use the same identifier for both a type and a value, within the same package.
-
-Value identifiers introduced in a local scope will shadow any identifiers of the same name in any encompasing scope, so long as their types are different. If a value identifier used in a local scope shares the same name and type as an identifier in an encompasing scope, then the identifier in the local scope is treated as the same identifier in the encompasing scope, rather than as a new distinct identifier.
+There are two namespaces for identifiers: a type namespace and a value namespace.
 
 ### Naming Conventions
 
-Naming conventions are similar to that of Rust (https://github.com/rust-lang/rfcs/blob/master/text/0430-finalizing-naming-conventions.md), Python (https://www.python.org/dev/peps/pep-0008/#prescriptive-naming-conventions), and Ruby (https://github.com/bbatsov/ruby-style-guide#naming):
-
 - Prefer snake_case for file names, package names, variable names, and function names.
-
 - Prefer PascalCase for type names.
-
-Why is snake_case preferred over camelCase? Subjectively, snake_case seems easier to quickly scan and read, even at the expense of it being slower to type than camelCase. Objectively, https://whathecode.wordpress.com/2013/02/16/camelcase-vs-underscores-revisited/ suggests programmers are more efficient at reading snake_case than camelCase identifiers.
-
 
 ## Comments
 
-Comments take one of three forms:
-1. Line comments:
-   ```
-   // comments follow the double forward-slash
-   ```
-   or
-   ```
-   # comments follow the pound sign
-   ```
-2. Block comments:
-   ```
-   /*
-   foo bar baz
-   */
-   ```
-
+```
+# comments follow the pound sign to the end of the line
+```
 
 ## Packages
 
-There must be one, and only one, package definition per file, specified at the top of the file. 
+todo: figure out how to determine root package
 
-```
-package io
-```
+Every source file should start with a package definition of the form `package <unqualified name>`, for example `package io`.
 
-Every package has both a name and a path. The package definition specifies the package name. The package path is determined by the directory structure that the file capturing the package definition resides in. The parts of a package path correspond to directories within the project root directory. If a package name matches the directory that the source file resides in, then the package name is not treated as distinct from the package that the directory corresponds to, and therefore the package name isn't treated as a suffix that gets tacked onto the end of the fully qualified package name of the directory.
+If a package definition isn't specified, then the file is interpreted as if the package definition of `package main` were specified.
 
-A fully qualified package name captures both the package path and the package name, joined together by a period.
+Every package has both a name and a path. The fully qualified package path is determined as in the following example:
 
 For example, the following directory structure and corresponding packages might exist:
 ```
-~/Projects/widget         // this is the project root directory; it corresponds to the "widget" package
-|-- foo.able              // if this file says `package foo`, then the fully qualified packge would be "widget.foo"
-|-- qux.able              // if this file says `package widget`, then the fully qualified package would be "widget"
-|-- components            // this directory corresponds to the "widget.components" package
-|   |-- bar.able          // if this file says `package bar`, then the fully qualified package would be "widget.components.bar"
-|   |-- quux.able         // if this file says `package components`, then the fully qualified package would be "widget.components"
-|   |-- motion            // this directory corresponds to the "widget.components.motion" package
-|   |   |-- baz.abel      // if this file says `package baz`, then the full package name is "widget.components.motion.baz"
-|   |-- actuator          // this directory corresponds to the "widget.components.actuator" package
-|-- integration_test      // this directory corresponds to the "widget.integration_test" package
+~/Projects/widget         # project root directory -> introduces "widget" package
+|-- foo.able              # no package definition  -> fully qualified package is "widget.main"
+|-- qux.able              # `package widget`       -> fully qualified package is "widget"
+|-- flub.able             # `package flub`         -> fully qualified package is "widget.flub"
+|-- components            # introduces "widget.components" package
+|   |-- bar.able          # `package bar`          -> "widget.components.bar"
+|   |-- quux.able         # `package components`   -> "widget.components"
+|   |-- motion            # introduces "widget.components.motion" package
+|   |   |-- baz.able      # `package baz`          -> "widget.components.motion.baz"
+|   |-- actuator          # introduces "widget.components.actuator" package
+|-- integration_test      # introduces "widget.integration_test" package
 ```
-
-A package introduces a new variable scope that forms the root scope for any other scopes introduced within the package.
 
 ### Importing Packages
 
-1. Import package:
+- Package import: `import io`
+- Wildcard import: `import io.*`
+- Selective import: `import io.{puts, gets, SomeType}`
+- Aliased import: `import internationalization as i18n.{transform as tf}`
 
-  ```
-  import io
-  io.puts("hi")
-  ```
-
-2. Wildcard import:
-
-  ```
-  import io.*
-  puts("enter your name:")
-  name = gets()
-  ```
-
-3. Import individual types/functions from a package:
-
-  ```
-  import io.{puts, gets}
-  puts("enter your name:")
-  name = gets()
-  ```
-
-4. Import package and/or individual types/functions from a package with a different local identifier:
-
-  ```
-  import io.{puts as p}
-  import internationalization as i18n.{Unicode}
-  p("${Unicode.abbreviation} is Unicode; ${i18n.Ascii.abbreviation} is Ascii")
-  ```
+Imports may occur in package scope or any local scope.
 
 ## Variables
 
-Variables are defined with the following syntax:
+```
+<variable name>: <type name>                        # assigned the zero value for <type name>
+<variable name>: <type name> = <value expression>   # assigned the specified initial value
+<variable name> = <value expression>                # assigned the specified initial value and the type is inferred from the type of <value expression> and the use of <variable name>
+```
 
-```
-<variable name>: <type name> = <value expression>
-```
-
-and if the type can be inferred, then the definition may be shortened to:
-
-```
-<variable name> = <value expression>
-```
 
 ## Types
 
+### Type Expressions
+
+A type is a name given to a set of values, and every value has an associated type. For example, `bool` is the name given to the set `{true, false}`, and since the value `true` is a member of the set `{true, false}`, it is of type `bool`.  `TwoBitUnsignedInt` might be the type name we give to the set `{0, 1, 2, 3}`, such that `3` would be a value of type `TwoBitUnsignedInt`.
+
+A type is denoted by a type expression. A type expression is a string. All types are parametric types, in that all types have zero or more type parameters.
+
+Type parameters may be bound or unbound. A bound type parameter is a type parameter for which either a named type variable or a preexisting type name has been substituted. An unbound type parameter is a type parameter that is either unspecified or substituted by the placeholder type variable, denoted by `_`.
+
+A type that has all its type parameters bound is called a concrete type. A type that has any of its type parameters unbound is called a polymorphic type, and a type expression that represents a polymorphic type is called a type constructor.
+
+### Type Constraints
+
+There is one supported type constraint, the "implements" constraint:
+
+`T: I` is read as type T implements interface I.
+
+`T: I & J & K` is read as type T implements interface I and J and K.
+
 ### Built-In Types
 
-- Unit - `unit`
-- Boolean - `bool`
+- Unit
+- Boolean - `Bool`
 - Integer types - `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64`
 - Floating point types - `f32`, `f64`
 - String
@@ -325,78 +166,24 @@ and if the type can be inferred, then the definition may be shortened to:
 - CallStackLocal
 - Channel
 
-### Type Expressions
-
-A type is a name given to a set of values, and every value has an associated type. For example, `bool` is the name given to the set `{true, false}`, and since the value `true` is a member of the set `{true, false}`, it is of type `bool`.  `TwoBitUnsignedInt` might be the type name we give to the set `{0, 1, 2, 3}`, such that `3` would be a value of type `TwoBitUnsignedInt`.
-
-A type is denoted by a type expression. All types are parametric types, in that all types have zero or more type parameters.
-
-Type parameters may be bound or unbound. A bound type parameter is a type parameter for which either a named type variable or a preexisting type name has been substituted. An unbound type parameter is a type parameter that is either unspecified or substituted by the placeholder type variable, denoted by `_`.
-
-A type that has all its type parameters bound is called a concrete type. A type that has any of its type parameters unbound is called a polymorphic type, and a type expression that represents a polymorphic type is called a type constructor.
-
-References:
-
-- https://www.haskell.org/tutorial/goodies.html has a good article on types, type expressions, type variables, etc.
-
-### Type Constraints
-
-In places where type parameters may be constrained, the following constraints may be used:
-- Implements constraint
-- ~~Union superset constraint~~
-
-#### Implements Constraint
-
-`T: I` is read as type T implements interface I.
-
-`T: I & J & K` is read as type T implements interface I and J and K.
-
-#### ~~Union Superset Constraint~~
-
-~~`T supersetOf X|Y|Z` is read as type T is a superset of the type union X|Y|Z.~~
-
-~~The right-hand-side of the supersetOf type operator may be a single-member set, for example `T supersetOf Nil` would mean `T` is a union type that has Nil as a member type. For example, the superset may be `Nil`, `Nil | i32`, `Nil | i32 | String`, etc.~~
-
-~~The supersetOf type operator doesn't imply that the left-hand-side is a proper superset of the right-hand-side; the two type unions may be equal.~~
-
-## Built-In Types
-
-- Unit
-- Boolean - `bool`
-- Integer types - `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64`
-- Floating point types - `f32`, `f64`
-- String
-- Array
-- Map
-- Range
-- Tuple
-
 ### Unit
 
 The unit type, named `Unit`, has a single literal value, `()`.
 
-It works like Scala's Unit type, see http://blog.bruchez.name/2012/10/implicit-conversion-to-unit-type-in.html and
-http://joelabrahamsson.com/learning-scala-part-eight-scalas-type-hierarchy-and-object-equality/ for more information.
-
 ### Boolean
 
-The boolean type, named `bool`, has two values: `true` and `false`
+The boolean type, named `Bool`, has two values: `true` and `false`
 
 ### Integer Types
 
-See https://doc.rust-lang.org/1.7.0/reference.html#integer-literals
+Decimal literal (denoted by `:decimal_literal:`) conforms to the pattern: `[0-9][0-9_]*`
+Binary literal conforms to the pattern: `0b[01_]+`
+Hex literal conforms to the pattern: `0x[0-9a-fA-F_]+`
+Octal literal conforms to the pattern: `0o[0-8_]+`
 
-A decimal literal starts with a decimal digit and continues with any mixture of decimal digits and underscores.
+Any of the integer literals may be suffixed with `_?((i|u)(8|16|32|64))?`
 
-A binary literal starts with the character sequence U+0030 U+0062 (0b) and continues as any mixture of binary digits and underscores.
-
-A hex literal starts with the character sequence U+0030 U+0078 (0x) and continues as any mixture of hex digits and underscores.
-
-An octal literal starts with the character sequence U+0030 U+006F (0o) and continues as any mixture of octal digits and underscores.
-
-Any integer literal may be suffixed with a type suffix indicating its type.
-
-The following are examples of integer literals:
+Examples:
 ```
 123
 0123
@@ -414,19 +201,13 @@ The following are examples of integer literals:
 
 ### Floating Point Types
 
-See https://doc.rust-lang.org/1.7.0/reference.html#floating-point-literals
+A floating point literal conforms to the pattern: `(decimal_literal (\. decimal_literal)? exp?) | (\. decimal_literal exp?)`
 
-A floating point literal may start with a decimal literal followed by a period character U+002E (.), optionally followed by another decimal literal, with an optional exponent.
+An exponent (denoted by `exp`) conforms to the pattern: `('e'|'E') ( '+' | '-' )? decimal_literal`, e.g. `e9`, `E3`, `E+9`, `e-9`, `E-3`.
 
-A floating point literal may start with a decimal literal followed by an exponent.
+Any floating point literal may be suffixed with `_?f(32|64)`
 
-A floating point literal may start with a period character U+002E (.) followed by a decimal literal, with an optional exponent.
-
-An exponent is notated with the syntax `( 'e' | 'E' ) ( '+' | '-' )? DECIMAL_LITERAL`, e.g. `e9`, `E3`, `E+9`, `e-9`, `E-3`.
-
-Any floating point literal may optionally be suffixed with a type suffix, i.e. `f32` or `f64`, indicating its type.
-
-The following are examples of floating point literals:
+Examples:
 ```
 12.0
 5.4e3
@@ -457,20 +238,14 @@ The following are examples of floating point literals:
 
 ### String
 
-All string literals are double quoted.
+All string literals are UTF-8 encoded strings wrapped in double quotes.
+
+String interpolation is notated with either $variable_name or ${expression}
 
 ```
 name = "Herbert"
 greeting = "Hello $name"
 greeting2 = "Hello ${name}"
-```
-
-#### Byte String Literals
-
-See https://doc.rust-lang.org/1.7.0/reference.html#byte-string-literals
-
-```
-bytes: Array u8 = b"hello"
 ```
 
 ### Array
@@ -487,13 +262,13 @@ x: Array f32 = Array(5.6, 5.7, 8)
 There is no map literal syntax. Maps are created with the `Map` constructor function.
 
 ```
-m = Map(1 :: "Foo", 2 :: "Bar")
+m = Map(1 : "Foo", 2 : "Bar")
 m = Map(
-  1 :: "Foo",
-  2 :: "Bar"
+  1 : "Foo",
+  2 : "Bar"
 )
 m(3) = "Baz"
-m << 4::"Qux"
+m << 4:"Qux"
 ```
 
 ### Range
@@ -501,78 +276,50 @@ m << 4::"Qux"
 Ranges take the following form:
 
 ```
-// inclusive range
+# inclusive range
 <expression>..<expression>
 
-// exclusive range
+# exclusive range
 <expression>...<expression>
 ```
 
 For example:
-
 ```
-// inclusive range
-1..10 |> toArray   // Array(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+# inclusive range
+1..5 |> to_a   # Array(1, 2, 3, 4, 5)
 
-// exclusive range
-0...10 |> toArray  // Array(0, 1, 2, 3, 4, 5, 6, 7, 8, 9)
+# exclusive range
+1...5 |> to_a  # Array(1, 2, 3, 4)
 ```
 
 Ranges may be created with any set of types that fulfill the `Range` interface, defined below:
 
 ```
-interface Range Out for (S, E) {
-  fn inclusiveRange(start: S, end: E) -> Iterable Out
-  fn exclusiveRange(start: S, end: E) -> Iterable Out
+interface Range O for (S, E) {
+  fn inclusive_range(start: S, end: E) -> Iterable O
+  fn exclusive_range(start: S, end: E) -> Iterable O
 }
 ```
-
-There are several default implementations of the `Range` interface, for example, here is the default one for `i32` ranges:
-
-```
-impl Range i32 for (i32, i32) {
-  fn inclusiveRange(start: i32, end: i32) -> Iterable i32 {
-    Iterator { gen =>
-      i = start
-      while i <= end {
-        gen.yield(i)
-        i += 1
-      }
-    }
-  }
-
-  fn exclusiveRange(start: i32, end: i32) -> Iterable Out {
-    Iterator { gen =>
-      i = start
-      while i < end {
-        gen.yield(i)
-        i += 1
-      }
-    }
-  }
-}
-```
-
-By implementing the `Range` interface, user programs may take advantage of the range literal syntax for user-defined types.
 
 ## Tuples
 
 ```
-record = (1, "Foo")
+record = (1, "Foo", :bar)    # this has type (i32, String, Symbol)
 if record._1 == 1 then puts("you're in first place!")
 ```
 
-`record` is of type (i32, String)
+Single element tuples are a special case notated by `( <expression> , )`:
+```
+(100, )    # this has type (i32)
+```
 
 ### Pairs
 
 Pair syntax is just syntactic sugar for expressing 2-tuples.
 
-`(1, "Foo")` can be written as `1 :: "Foo"` or `1::"Foo"`, all of which have type (i32, String).
+`(1, "Foo")` can be written as `1 : "Foo"` or `1:"Foo"`, all of which have type (i32, String).
 
 ## Structs
-
-Struct type definitions define both a type and a constructor function of the same name as the type.
 
 Struct definitions can only appear in package scope.
 
@@ -588,25 +335,20 @@ struct Green
 struct Blue
 ```
 
-TODO: Revisit whether generic singleton structs are useful. I don't think it makes sense to have generic singleton structs. See https://stackoverflow.com/questions/22065358/what-is-the-type-of-nothing-in-haskell
-
-Singleton structs may also have type parameters, as in the following:
-
-```
-struct Foo T
-```
-
-Though specializations of a parametric singleton struct type are all variants of the generic type, each specialization is treated as an independent type. The implication is that two different specializations of the same generic type will not unify. For example, it would not be allowed to assign a `Foo i32` value to a variable of type `Foo f32`.
-
 ### Definition with Positional Fields
 ```
-struct Foo T { i32, f32, T }
-struct Foo T { i32, f32, T, }
-struct Foo T [T: Iterable] { i32, f32, T }
-struct Foo T {
+# non-generic definition
+struct Point { i32, i32 }
+
+# generic definitions
+struct Foo T U { i32, f32, T, U }
+struct Foo T U { i32, f32, T, U, }
+struct Foo T U [T: Iterable, U: Stringable] { i32, f32, T, U }
+struct Foo T:Iterable U:Stringable {
   i32,
   f32,
   T,
+  U,
 }
 struct Foo T {
   i32
@@ -617,6 +359,10 @@ struct Foo T {
 
 ### Definition with Named Fields
 ```
+# non-generic definition
+struct Point { x: i32, y: i32 }
+
+# generic definitions
 struct Foo T { x: i32, y: f32, z: T }
 struct Foo T { x: i32, y: f32, z: T, }
 struct Foo T [T: Iterable] { x: i32, y: f32, z: T }
@@ -633,26 +379,6 @@ struct Foo T {
 ```
 
 ### Instantiate structs
-
-#### Via constructor functions
-```
-Foo(1,2,t1)           # positional function application
-Foo(x=1, y=2, z=t1)   # named argument function application
-Foo(
-  x = 1,
-  y = 2,
-  z = t1
-)
-Foo(
-  x = 1
-  y = 2
-  z = t1
-)
-```
-
-Instantiation via constructor functions require that every argument be supplied.
-
-#### Via struct literal expressions
 ```
 Foo { 1 }               # struct literal with fields supplied by position
 Foo { 1, 2, t1 }        # struct literal with fields supplied by position
@@ -670,11 +396,10 @@ Foo {
 }
 ```
 
-Instantiation via struct literal expressions do **not** require that every field be supplied.
+Struct literal expressions do **not** require that every field be supplied.
 Fields that are omitted are given a zero value appropriate for their type.
 
 ### Using struct instances
-
 ```
 struct Foo T { i32, f32, T }
 struct Bar T { a: i32, b: f32, c: T }
@@ -682,8 +407,8 @@ struct Bar T { a: i32, b: f32, c: T }
 foo = Foo { 1, 2.0, "foo" }
 bar = Bar { a=1, b=2.0, c="bar" }
 
-puts("foo is a Foo String(${foo._1}, ${foo._2}, ${foo._3})")
-puts("bar is a Bar String(a: ${bar.a}, b: ${bar.b}, c: ${foo.c})")
+puts("foo is a Foo String { ${foo._1}, ${foo._2}, ${foo._3} }")
+puts("bar is a Bar String { a: ${bar.a}, b: ${bar.b}, c: ${foo.c} }")
 ```
 
 ## Unions
@@ -721,35 +446,6 @@ union House =
   | LargeHouse { sqft: f32 }
 ```
 
-Union definitions that define new types is syntactic sugar. For example:
-
-```
-union House = SmallHouse { sqft: f32 }
-  | MediumHouse { sqft: f32 }
-  | LargeHouse { sqft: f32 }
-```
-
-is internally translated into:
-```
-struct SmallHouse { sqft: f32 }
-struct MediumHouse { sqft: f32 }
-struct LargeHouse { sqft: f32 }
-union House = SmallHouse | MediumHouse | LargeHouse
-```
-
-The same is true for unions that reference singleton struct types:
-```
-union SmallInt = One | Two | Three
-```
-
-is internally translated into:
-```
-struct One
-struct Two
-struct Three
-union SmallInt = One | Two | Three
-```
-
 ### Generic Unions
 
 Union types may be defined generically, as in the following examples.
@@ -765,12 +461,12 @@ union Option T = Some T { val: T } | None
 ``` 
 union Tree T = Leaf T { value: T } | Node T { value: T, left: Tree T, right: Tree T }
 
-// would be internally translated into
+# would be internally translated into
 struct Leaf T { value: T }
 struct Node T { value: T, left: Tree T, right: Tree T }
 union Tree T = Leaf T | Node T
 
-// other examples:
+# other examples:
 
 union Foo T [T: Blah] = 
   | Bar A [A: Stringable] { a: A, t: T }
@@ -782,12 +478,12 @@ union Foo T [T: Blah] =
 ```
 union Tree T = Leaf T { T } | Node T { T, Tree T, Tree T }
 
-// would be internally translated into
+# would be internally translated into
 struct Leaf T { T }
 struct Node T { T, Tree T, Tree T }
 union Tree T = Leaf T | Node T
 
-// other examples:
+# other examples:
 
 union Option A = Some A {A} | None A {}
 union Result A B = Success A {A} | Failure B {B}
@@ -828,11 +524,14 @@ Functions may be defined with one of three different function definition syntaxe
 2. Anonymous function syntax
 3. Lambda expression syntax
 
-All functions are first class objects, and each of the three syntaxes produces the same kind of function object.
+The return type may be omitted from a function definition unless type inference is unable to determine what the return type should be, in which case the return type must be explicitly provided.
 
-In each of the three syntaxes, the return type may be omitted unless the return type is ambiguous and type inference is unable to determine what the return type is supposed to be. If type inference fails to determine the return type, then the return type must be explicitly provided.
+In the two syntaxes that provide a means to capture an optional type parameter list - named function syntax and anonymous function syntax - the type parameter list may also capture constraints on type parameters.
 
-In the two syntaxes that provide a means to capture an optional type parameter list, the type parameter list may also capture constraints on type parameters.
+Function types are denoted with the syntax:
+```
+(<parameter type>, <parameter type>, <parameter type>, ...) -> <return type>
+```
 
 ### Named function syntax
 
@@ -857,27 +556,27 @@ Partial application is documented in the section [Partial application](#partial-
 The following examples give a feel for what point-free style looks like:
 
 ```
-// puts is an alias for the printLn function
+# puts is an alias for the printLn function
 fn puts = printLn
 
-// given:
+# given:
 fn add(a: i32, b: i32) -> i32 => a + b
-fn foldRight(it: Iterator T, initial: V, accumulate: (T, V) -> V) -> V {
-  it.reverse.foldLeft(initial) { acc, val => accumulate(val, acc) }
+fn fold_right(it: Iterator T, initial: V, accumulate: (T, V) -> V) -> V {
+  it.reverse.fold_left(initial) { acc, val => accumulate(val, acc) }
 }
 
-// add1, add5, and add10 are partial applications of the add function
-// sum is the partially applied foldRight function
+# add1, add5, and add10 are partial applications of the add function
+# sum is the partially applied fold_right function
 fn add1 = add(1)
 fn add5 = add(5,)
 fn add10 = add(, 5)
-fn sum = foldRight(, 0, +)
+fn sum = fold_right(, 0, +)
 
-// definitions in terms of placeholder lambda expressions
-fn add10AndDouble = 2 * add(_, 10)
-fn printLnIfDebug = printLn(_) if APP_CFG.debug
-fn sum = _.foldRight(0, +)
-fn sum = foldRight(_, 0, +)
+# definitions in terms of placeholder lambda expressions
+fn add10_and_double = 2 * add(_, 10)
+fn println_if_debug = println(_) if APP_CFG.debug
+fn sum = _.fold_right(0, +)
+fn sum = fold_right(_, 0, +)
 ```
 
 ### Anonymous function syntax
@@ -969,9 +668,9 @@ fn log(label: String)
 fn log(label: String, val: Any)
 fn log(label: String, vals: Any*)
 
-log("foo")                    // ambiguous; invokes non-variadic signature, log(String)
-log("foo", 123)               // ambiguous; invokes non-variadic signature, log(String, Any)
-log("foo", 123, "bar")        // not ambiguous; invokes variadic signature, puts(String, Any*)
+log("foo")                    # ambiguous; invokes non-variadic signature, log(String)
+log("foo", 123)               # ambiguous; invokes non-variadic signature, log(String, Any)
+log("foo", 123, "bar")        # not ambiguous; invokes variadic signature, puts(String, Any*)
 ```
 
 
@@ -981,27 +680,27 @@ log("foo", 123, "bar")        // not ambiguous; invokes variadic signature, puts
 
 With explicit return type:
 
-1. fn createPair(a, b: i32) -> Pair i32 { Pair(a, b) }<br>
-   fn createPair(a, b: i32) -> Pair i32 => Pair(a, b)
-2. createPair = fn(a, b: i32) -> Pair i32 { Pair(a, b) }<br>
-   createPair = fn(a, b: i32) -> Pair i32 => Pair(a, b)
+1. fn createPair(a, b: i32) -> Pair i32 { Pair{a, b} }<br>
+   fn createPair(a, b: i32) -> Pair i32 => Pair{a, b}
+2. createPair = fn(a, b: i32) -> Pair i32 { Pair{a, b} }<br>
+   createPair = fn(a, b: i32) -> Pair i32 => Pair{a, b}
 
-3. createPair = (a, b: i32) -> Pair i32 { Pair(a,b) }<br>
-   createPair = (a, b: i32) -> Pair i32 => Pair(a, b)
-4. createPair = { a, b: i32 -> Pair i32 => Pair(a,b) }
+3. createPair = (a, b: i32) -> Pair i32 { Pair{a, b} }<br>
+   createPair = (a, b: i32) -> Pair i32 => Pair{a, b}
+4. createPair = { a, b: i32 -> Pair i32 => Pair{a, b} }
 
 With inferred return type:
 
-1. fn createPair(a, b: i32) { Pair(a, b) }<br>
-   fn createPair(a, b: i32) => Pair(a, b)
+1. fn createPair(a, b: i32) { Pair{a, b} }<br>
+   fn createPair(a, b: i32) => Pair{a, b}
 
-2. createPair = fn(a, b: i32) { Pair(a, b) }<br>
-   createPair = fn(a, b: i32) => Pair(a, b)
+2. createPair = fn(a, b: i32) { Pair{a, b} }<br>
+   createPair = fn(a, b: i32) => Pair{a, b}
 
-3. createPair = (a, b: i32) { Pair(a,b) }<br>
-   createPair = (a, b: i32) => Pair(a, b)
+3. createPair = (a, b: i32) { Pair{a, b} }<br>
+   createPair = (a, b: i32) => Pair{a, b}
 
-4. createPair = { a, b: i32 => Pair(a,b) }
+4. createPair = { a, b: i32 => Pair{a, b} }
 
 All the functions defined above are of type:
 `(i32, i32) -> Pair i32`
@@ -1010,33 +709,33 @@ All the functions defined above are of type:
 
 With explicit free type parameter and explicit return type:
 
-1. fn createPair[T](a, b: T) -> Pair T { Pair(a, b) }<br>
-   fn createPair[T](a, b: T) -> Pair T => Pair(a, b)
+1. fn createPair[T](a, b: T) -> Pair T { Pair{a, b} }<br>
+   fn createPair[T](a, b: T) -> Pair T => Pair{a, b}
 
-2. createPair = fn[T](a, b: T) -> Pair T { Pair(a, b) }<br>
-   createPair = fn[T](a, b: T) -> Pair T => Pair(a, b)
+2. createPair = fn[T](a, b: T) -> Pair T { Pair{a, b} }<br>
+   createPair = fn[T](a, b: T) -> Pair T => Pair{a, b}
 
 With explicit free type parameter and inferred return type:
 
-1. fn createPair[T](a, b: T) { Pair(a, b) }<br>
-   fn createPair[T](a, b: T) => Pair(a, b)
+1. fn createPair[T](a, b: T) { Pair{a, b} }<br>
+   fn createPair[T](a, b: T) => Pair{a, b}
 
-2. createPair = fn[T](a, b: T) { Pair(a, b) }<br>
-   createPair = fn[T](a, b: T) => Pair(a, b)
+2. createPair = fn[T](a, b: T) { Pair{a, b} }<br>
+   createPair = fn[T](a, b: T) => Pair{a, b}
 
 With implied free type parameter and explicit return type:
 
-1. createPair = (a, b: T) -> Pair T { Pair(a,b) }<br>
-   createPair = (a, b: T) -> Pair T => Pair(a, b)
+1. createPair = (a, b: T) -> Pair T { Pair{a, b} }<br>
+   createPair = (a, b: T) -> Pair T => Pair{a, b}
 
-2. createPair = { a, b: T -> Pair T => Pair(a, b) }
+2. createPair = { a, b: T -> Pair T => Pair{a, b} }
 
 With implied free type parameter and inferred return type:
 
-1. createPair = (a, b: T) { Pair(a,b) }<br>
-   createPair = (a, b: T) => Pair(a, b)
+1. createPair = (a, b: T) { Pair{a, b} }<br>
+   createPair = (a, b: T) => Pair{a, b}
 
-2. createPair = { a, b: T => Pair(a, b) }
+2. createPair = { a, b: T => Pair{a, b} }
 
 All the functions defined above are of type:
 `(T, T) -> Pair T`
@@ -1044,10 +743,10 @@ All the functions defined above are of type:
 #### Lambda Expressions
 
 ```
-createPair = { a, b: i32 -> Pair i32 => Pair(a, b) }
-createPair = { a, b: i32 => Pair(a, b) }
-createPair = { a, b: T -> Pair T => Pair(a, b) }
-createPair = { a, b: T => Pair(a, b) }
+createPair = { a, b: i32 -> Pair i32 => Pair{a, b} }
+createPair = { a, b: i32 => Pair{a, b} }
+createPair = { a, b: T -> Pair T => Pair{a, b} }
+createPair = { a, b: T => Pair{a, b} }
 ```
 
 
@@ -1098,7 +797,7 @@ createPerson(
 
 Given:
 ```
-f = fn(a: i32, b: i32, c: i32, d: i32, e: i32) => Tuple5(a,b,c,d,e)
+f = fn(a: i32, b: i32, c: i32, d: i32, e: i32) => (a,b,c,d,e)
 ```
 
 Partial application of the trailing arguments
@@ -1116,17 +815,17 @@ Implied partial application of the leading arguments
 f(1,2,3)
 ```
 
-Partial application of the first, third, and fifth arguments; returns a function with the signature (i32, i32) -> Tuple5
+Partial application of the first, third, and fifth arguments; returns a function with the signature (i32, i32) -> (i32, i32, i32, i32, i32)
 ```
 f(1, _, 2, _, 3)
 ```
 
-Partial application of the first, third, and fifth arguments; returns a function with the signature (i32) -> Tuple5
+Partial application of the first, third, and fifth arguments; returns a function with the signature (i32) -> (i32, i32, i32, i32, i32)
 ```
 f(1, _1, 2, _1, 3)
 ```
 
-Partial application of all the arguments; returns a function with the signature () -> Tuple5
+Partial application of all the arguments; returns a function with the signature () -> (i32, i32, i32, i32, i32)
 ```
 f(1, 2, 3, 4, 5,)
 or
@@ -1153,13 +852,13 @@ is equivalent to
 Given:
 `struct Coord {i32, i32}`
 
-`5 |> Coord(_1, _1)`
+`5 |> Coord {_1, _1}`
 is equivalent to
-`Coord(5, 5)`
+`Coord{5, 5}`
 
-`1 |> plusTwo |> f(1, 2, _, 4, 5)`
+`1 |> plus_two |> f(1, 2, _, 4, 5)`
 is equivalent to
-`f(1, 2, plusTwo(1), 4, 5)`
+`f(1, 2, plus_two(1), 4, 5)`
 
 #### Operator application
 
@@ -1181,8 +880,7 @@ Some operators have special semantics:
 1. Assignment operator (infix), e.g. `a = 5`:
    The assignment operator is used in assignment expressions to assign the value expressed in the right hand side (RHS) of the assignment expression to the identifier or identifiers specified in the left hand side (LHS) of the assignment expression. The assignment operator is right-associative. The assignment operator is not a function, and as a result, is not a first-class object that may be used as a value. The assignment operator may not be redefined or overridden.
 
-   A single-assignment expression (e.g. `a = <expression>`) evaluates to the value on the RHS of the assignment operator.
-   A multiple-assignment expression (e.g. `a, b = <expression>, <expression>`) evaluates to a tuple consisting of the values of the RHS of the assignment operator. For example, `a, b, c = 1, 2, 3` evaluates to `(1,2,3)`.
+   An assignment expression evaluates to the value on the RHS of the assignment operator.
 2. Function application operator (suffix), e.g. `array(5)`:
    The function application operator is used to apply a function to a given set of arguments. The function application operator may be defined on an arbitrary type in order to be able to treat that type as a function of some set of arguments. For example, an array, a map, or a string value may be viewed as a function of an index argument that retrieves the given array element, map value, or character within an array, map, or string, respectively.
    
@@ -1192,7 +890,7 @@ Some operators have special semantics:
 
    The index update expression is syntactic sugar for calling the `update` function where the first argument is the structure value being updated, the next arguments are the components of the index position (most commonly, this will be a single value), and the last argument is the value being assigned to the specified index of the structure. The `update` function is expected to return the updated structure, so its return type must match the type of the first argument.
 
-   For example, the `update` function for `Array` is defined as:
+   For example, the `update` function for the `Array` type is defined as:
    ```
    fn update(a: Array T, index: u64) -> Array T
    ```
@@ -1200,15 +898,8 @@ Some operators have special semantics:
    ```
    a = Array(1,2,3)
    a(0) = 5
-   // a == Array(5,2,3)
+   # a == Array(5,2,3)
    ```
-4. TODO: Include this? Use `<-`, or `:=`, or `=?` ? 
-   Destructuring assignment (infix), e.g. `a: Person(name) <- person`:
-   The destructuring assignment operator has the same semantics as the normal assignment operator, except that it evaluates to a boolean `true` or `false` depending on whether the destructuring assignment succeeds or not.
-   
-   If the destructuring assignment succeeds, then the expression evaluates to `true`. If the destructuring assignment fails, then the expression evaluates to `false`, and all the variable identifiers that need to be bound to a value are assigned the appropriate zero value for their type.
-
-   If the destructuring assignment expression is a multiple-assignment expression, e.g. `Person(name1), Person(name2) <- p1, p2`, then the assignment expression evaluates to `true` if all the individual assignments succeed. If any of the individual assignments fail, then the assignment expression evaluates to `false`, and all the variable identifiers in the LHS that need to be bound to a value are assigned the appropriate zero value for their type.
 
 #### Special application cases
 
@@ -1239,11 +930,11 @@ Some operators have special semantics:
 
    For example,
    ```
-   ​Array(1,2,3).map() { x => x^2 }
+   ​Array(1,2,3).map() { x => x**2 }
    ```
    may be shortened to
    ```
-   Array(1,2,3).map { x => x^2 }
+   Array(1,2,3).map { x => x**2 }
    ```
 
 4. Functions of unions have the following invocation behavior:
@@ -1258,56 +949,56 @@ Some operators have special semantics:
 
    1. If the following is defined:
       ```
-      fn paintHouse(Color) -> bool
+      fn paint_house(Color) -> bool
       ```
       and the following are not defined:
       ```
-      fn paintHouse(Red) -> bool
-      fn paintHouse(Green) -> bool
-      fn paintHouse(Blue) -> bool
+      fn paint_house(Red) -> bool
+      fn paint_house(Green) -> bool
+      fn paint_house(Blue) -> bool
       ```
       then
       ```
-      c: Color = Red()
-      paintHouse(c)           // invokes paintHouse(Color)
-      paintHouse(Red())       // invokes paintHouse(Color)
-      paintHouse(Green())     // invokes paintHouse(Color)
-      paintHouse(Blue())      // invokes paintHouse(Color)
+      c: Color = Red{}
+      paint_house(c)           # invokes paint_house(Color)
+      paint_house(Red{})       # invokes paint_house(Color)
+      paint_house(Green{})     # invokes paint_house(Color)
+      paint_house(Blue{})      # invokes paint_house(Color)
       ```
 
    2. If the following are defined:
       ```
-      fn paintHouse(Color) -> bool
-      fn paintHouse(Red) -> bool
-      fn paintHouse(Green) -> bool
-      fn paintHouse(Blue) -> bool
+      fn paint_house(Color) -> bool
+      fn paint_house(Red) -> bool
+      fn paint_house(Green) -> bool
+      fn paint_house(Blue) -> bool
       ```
       then
       ```
-      c: Color = Red()
-      paintHouse(c)           // invokes paintHouse(Color)
-      paintHouse(Red())       // invokes paintHouse(Red)
-      paintHouse(Green())     // invokes paintHouse(Green)
-      paintHouse(Blue())      // invokes paintHouse(Blue)
+      c: Color = Red{}
+      paint_house(c)           # invokes paint_house(Color)
+      paint_house(Red{})       # invokes paint_house(Red)
+      paint_house(Green{})     # invokes paint_house(Green)
+      paint_house(Blue{})      # invokes paint_house(Blue)
       ```
    
    3. If the following are defined:
       ```
-      fn paintHouse(Red) -> bool
-      fn paintHouse(Green) -> bool
-      fn paintHouse(Blue) -> bool
+      fn paint_house(Red) -> bool
+      fn paint_house(Green) -> bool
+      fn paint_house(Blue) -> bool
       ```
       and the following is not defined:
       ```
-      fn paintHouse(Color) -> bool
+      fn paint_house(Color) -> bool
       ```
       then
       ```
-      c: Color = Red()
-      paintHouse(c)           // is not a valid function invocation
-      paintHouse(Red())       // invokes paintHouse(Red)
-      paintHouse(Green())     // invokes paintHouse(Green)
-      paintHouse(Blue())      // invokes paintHouse(Blue)
+      c: Color = Red{}
+      paint_house(c)           # is not a valid function invocation
+      paint_house(Red{})       # invokes paint_house(Red)
+      paint_house(Green{})     # invokes paint_house(Green)
+      paint_house(Blue{})      # invokes paint_house(Blue)
       ```
 
 5. <a name="special-application-rule-5"></a>A value of type T may be treated as a function, and invoked with normal function application syntax, if a function named `apply`, defined with a first parameter of type T, is in scope at the call site.
@@ -1315,20 +1006,20 @@ Some operators have special semantics:
    For example:
    ```
    fn apply(key: String, map: Map String V) -> Option V => map.get(key)
-   nameRankPairs = Map("joe" :: 1, "bob" :: 2, "tom" :: 3)
-   tomRank = "tom"(nameRankPairs)   // returns Some(3)
+   name_rank_pairs = Map("joe" : 1, "bob" : 2, "tom" : 3)
+   tom_rank = "tom"(name_rank_pairs)   # returns Some(3)
    ```
 
    Another example:
    ```
-   fn apply(i, j: i32) -> i32 => i * j
-   5(6)    // returns 30
+   fn apply(i: i32, j: i32) -> i32 => i * j
+   5(6)    # returns 30
    ```
 
    Apply functions may also be invoked with method syntax, as in the following:
    ```
    fn apply(i: i32, j: i32) -> i32 => i * j
-   5.apply(6)    // returns 30
+   5.apply(6)    # returns 30
    ```
 
 
@@ -1362,31 +1053,31 @@ D may represent either a concrete type or a polymorphic type depending on whethe
 Here are a few example interface definitions:
 
 ```
-// Stringable interface
+# Stringable interface
 interface Stringable for T {
-  fn toString(T) -> String
+  fn to_s(T) -> String
 }
 
-// Comparable interface
+# Comparable interface
 interface Comparable for T {
   fn compare(T, T) -> i32
 }
 
-// Iterable interface
+# Iterable interface
 interface Iterable T for E {
   fn each(E, T -> Unit) -> Unit
   fn iterator(e: E) -> Iterator T => Iterator { gen => e.each(gen.yield) }
 }
 
-// Mappable interface (something approximating Functor in Haskell-land - see https://wiki.haskell.org/Typeclassopedia#Functor)
+# Mappable interface (something approximating Functor in Haskell-land - see https://wiki.haskell.org/Typeclassopedia#Functor)
 interface Mappable for M _ {
   fn map(m: M A, convert: A -> B) -> M B
 }
 
-// Types that satisfy the Range interface may be used with range literal syntax (e.g. S..E, or S...E) to represent a range of values.
+# Types that satisfy the Range interface may be used with range literal syntax (e.g. S..E, or S...E) to represent a range of values.
 interface Range S E Out {
-  fn inclusiveRange(start: S, end: E) -> Iterable Out
-  fn exclusiveRange(start: S, end: E) -> Iterable Out
+  fn inclusive_range(start: S, end: E) -> Iterable Out
+  fn exclusive_range(start: S, end: E) -> Iterable Out
 }
 ```
 
@@ -1396,15 +1087,15 @@ There is a special type named `Self` that may be used within an interface defini
 
 For example:
 ```
-// Stringable interface
+# Stringable interface
 interface Stringable for T {
-  fn to_string(T) -> String
+  fn to_s(T) -> String
 }
 ```
 could also be written as:
 ```
 interface Stringable for T {
-  fn to_string(Self) -> String
+  fn to_s(Self) -> String
 }
 ```
 
@@ -1413,14 +1104,14 @@ In cases where the [self type](#self-type) is polymorphic, i.e. the self type ha
 
 For example:
 ```
-// Mappable interface (something approximating Functor in Haskell-land - see https://wiki.haskell.org/Typeclassopedia#Functor)
+# Mappable interface (something approximating Functor in Haskell-land - see https://wiki.haskell.org/Typeclassopedia#Functor)
 interface Mappable for M _ {
   fn map(m: M A, convert: A -> B) -> M B
 }
 ```
 could be written as:
 ```
-// Mappable interface (something approximating Functor in Haskell-land - see https://wiki.haskell.org/Typeclassopedia#Functor)
+# Mappable interface (something approximating Functor in Haskell-land - see https://wiki.haskell.org/Typeclassopedia#Functor)
 interface Mappable for M _ {
   fn map(m: Self A, convert: A -> B) -> Self B
 }
@@ -1450,19 +1141,19 @@ interface Collection T = Countable T & Addable T & Removable T & Getable T
 
 Interface implementations are defined with the following syntax:
 ```
-[implName =] impl [X, Y, Z, ...] A <B C ...> [for D <E F ...>] [where <type constraints>] {
+[ImplName =] impl [X, Y, Z, ...] A <B C ...> [for D <E F ...>] [where <type constraints>] {
 	fn foo(T1, T2, ...) -> T3 { ... }
 	...
 }
 ```
-where `implName` is an optional implementation name, X, Y, and Z are free type parameters and type constraints that are scoped to the implementation of the interface (i.e. the types bound to those type variables are constant within a specific implementation of the interface) and enclosed in square brackets, A is the name of the interface parameterized with type parameters B, C, etc. (if applicable), and where `D <E F ...>` is the type that is implementing interface A. In the case that an interface was specified without a `for` clause, then the `for` clause in an implementation of the interface would be omitted.
+where `ImplName` is an optional implementation name, X, Y, and Z are free type parameters and type constraints that are scoped to the implementation of the interface (i.e. the types bound to those type variables are constant within a specific implementation of the interface) and enclosed in square brackets, A is the name of the interface parameterized with type parameters B, C, etc. (if applicable), and where `D <E F ...>` is the type that is implementing interface A. In the case that an interface was specified without a `for` clause, then the `for` clause in an implementation of the interface would be omitted.
 
 Here are some example interface implementations:
 
 ```
 struct Person { name: String, address: String }
 impl Stringable for Person {
-  fn toString(p: Person) -> String => "Name: ${p.Name}\nAddress: ${p.Address}"
+  fn to_s(p: Person) -> String => "Name: ${p.Name}\nAddress: ${p.Address}"
 }
 
 impl Comparable for Person {
@@ -1482,8 +1173,13 @@ impl Iterable T for Array T {
 
 struct OddNumbers { start: i32, end: i32 }
 impl Iterable i32 for OddNumbers {
-  fn each(oddNumbersRange: OddNumbers, visit: i32 -> Unit) {
-    for i in start..end { visit(i) }
+  fn each(odd_numbers_range: OddNumbers, visit: i32 -> Unit) {
+    start = odd_numbers_range.start.even? ? odd_numbers_range.start + 1 : odd_numbers_range.start
+    end = odd_numbers_range.end.even? ? odd_numbers_range.end - 1 : odd_numbers_range.end
+    while start <= end {
+      visit(start)
+      start += 2
+    }
   }
 }
 
@@ -1491,38 +1187,38 @@ impl Mappable A for Array {
   fn map(arr: Array A, convert: A -> B) -> Array B {
     ab = ArrayBuilder(0, arr.length)  # length, capacity
     arr.each { element => convert(element) |> ab.add }
-    ab.toArray
+    ab.to_a
   }
 }
 
-// implement Range for f32 start and end values (e.g. 1.2..4.5, and 1.2...4.5)
+# implement Range for f32 start and end values (e.g. 1.2..4.5, and 1.2...4.5)
 impl Range i32 for (f32, f32) {
-  fn inclusiveRange(start: f32, end: f32) -> Iterable i32 => start.ceil..end.floor
-  fn exclusiveRange(start: f32, end: f32) -> Iterable i32 => start.ceil...end.floor
+  fn inclusive_range(start: f32, end: f32) -> Iterable i32 => start.ceil..end.floor
+  fn exclusive_range(start: f32, end: f32) -> Iterable i32 => start.ceil...end.floor
 }
 ```
 
 Implementations may be named in order to cope with situations where the same type implements the same interface with differing semantics. When an implementation is named, function calls that might otherwise be ambiguous can be fully qualified in order to disambiguate the function call. For example:
 
 ```
-// given
+# given
 interface Monoid for T {
   fn id() -> T
   fn op(T, T) -> T
 }
 Sum = impl Monoid for i32 {
   fn id() -> i32 = 0
-  fn op(x, y: i32) -> i32 = x + y
+  fn op(x: i32, y: i32) -> i32 = x + y
 }
 Product = impl Monoid for i32 {
   fn id() -> i32 = 1
-  fn op(x, y: i32) -> i32 = x * y
+  fn op(x: i32, y: i32) -> i32 = x * y
 }
 
-// since both of the following are ambiguous
+# since both of the following are ambiguous
 id()
 Monoid.id()
-// you have to qualify the function call with the name of the implementation, like
+# you have to qualify the function call with the name of the implementation, like
 Sum.id()
 ```
 
@@ -1539,21 +1235,21 @@ interface Iterable T for E {
 ```
 a client may call the `each` function by supplying a value of type `Iterable T` as the first argument to `each`, like this:
 ```
-// assuming List T implements the Iterable T interface
-e: Iterable i32 = List(1, 2, 3)    // e has type Iterable i32
+# assuming List T implements the Iterable T interface
+e: Iterable i32 = List(1, 2, 3)    # e has type Iterable i32
 each(e, puts)
 ```
 or `each` may be called by supplying a value of type `Array T` as the first argument, like this:
 ```
-// assuming Array T implements the Iterable T interface
-e = Array(1, 2, 3)    // e has type Array i32
+# assuming Array T implements the Iterable T interface
+e = Array(1, 2, 3)    # e has type Array i32
 each(e, puts)
 ```
 
 In cases where the interface was defined without a `for` clause, then the interface may only be used as a type constraint. For example:
 
 ```
-fn buildIntRange[S, E, Range S E i32](start: S, end: E) -> Iterable i32 => start..end
+fn build_int_range[S, E, Range S E i32](start: S, end: E) -> Iterable i32 => start..end
 ```
 
 Less frequently, a function in an interface may be defined to accept two or more parameters of the interface's self type. If the self type is polymorphic, and the function is invoked with a value of the interface type as an argument in place of one of the self type parameters, then the other self type parameters must also reference the same underlying type (either directly as a value of the underlying type, or indirectly through an interface value that represents the underlying type), so that the multiple self type parameters all remain consistent with respect to one another - i.e. so that they all reference the same underlying type.
@@ -1568,38 +1264,34 @@ Able's specificity logic is a derivative of Rust's impl specialization proposal 
 The following implementations, written without their implementation body, conflict with one another:
 
 ```
-// overlap when T = i32
+# overlap when T = i32
 impl Foo for T {}
 impl Foo for i32 {}
 
-// overlap when T = i32
+# overlap when T = i32
 impl Foo for Array T {}
 impl Foo for Array i32 {}
 
-// overlap because Array T implements Iterable T
+# overlap because Array T implements Iterable T
 impl Foo for Iterable T {}
 impl Foo for Array T {}
 
-// overlap when T implements Bar
+# overlap when T implements Bar
 impl Foo for T {}
 impl Foo for T: Bar {}
 
-// overlap when T implements Bar and Baz
+# overlap when T implements Bar and Baz
 impl Foo for T: Bar {}
 impl Foo for T: Baz {}
 
-// overlap when T = f32
+# overlap when T = f32
 impl Foo for i32 | f32 {}
 impl Foo for i32 | T {}
 
-// overlap when two type unions implement the same interface, s.t. one type union is a proper subset of the other
+# overlap when two type unions implement the same interface, s.t. one type union is a proper subset of the other
 impl Foo for i32 | f32 | f64 {}
 impl Foo for i32 | f32 {}
 ```
-
-~~// overlap when T = U such that A supersetOf Nil | i32~~
-~~impl [A supersetOf Nil] Foo A for T {}~~
-~~impl [A supersetOf Nil | i32] Foo A for U {}~~
 
 The following specificity/disambiguation rules resolve the patterns of overlap/conflict that are most common:
 
@@ -1612,40 +1304,34 @@ The following specificity/disambiguation rules resolve the patterns of overlap/c
    - `Iterable T` is more specific than `T`
 4. Constrained type variables are more specific than unconstrained type variables. For example:
    - `T: Iterable` is more specific than `T`
-   - ~~`T supersetOf Nil` is more specific than `T`~~
-5. ~~Open unions with a larger number of enumerated members is more specific than open unions with a smaller number of enumerated members. For example:~~
-   - ~~`A | B | ...` is more specific than `A | ...`~~
-   - ~~`A | B | C | D | ...` is more specific than `A | B | Z | ...`~~
-   
-   ~~The reasoning is as follows. Given a population of types, P, consisting of N type members (i.e. cardinality of P is N), the total number of possible subsets of types from P (i.e. the powerset of P) has cardinality 2^N. In an open union with 3 enumerated members, the number of possible subsets of P that include all 3 enumerated members is 2^(N - 3). In an open union with 2 enumerated members, the number of possible subsets of P that include both enumberated members is 2^(N - 2). When comparing the number of possible subsets of P that include 3 enumerated members with the number of possible subsets of P that include 2 enumerated members, the open union with 3 enumerated members is deemed more specific than the open union with 2 enumerated members, since 2^(N - 3) is a smaller number of subsets than 2^(N - 2). Generalizing from this observation, the rule is that open unions with more enumerated members are more specific than open unions with fewer enumerated members.~~
-6. A union type that is a proper subset of another union type is more specific than its superset. For example:
+5. A union type that is a proper subset of another union type is more specific than its superset. For example:
    - `i32 | f32` is more specific than `i32 | f32 | f64`
-7. Given two unions that differ only in a single type member, such that the member is concrete in one union and generic in the other union, the union that references the concrete member is more specific than the union that references the generic member.
+6. Given two unions that differ only in a single type member, such that the member is concrete in one union and generic in the other union, the union that references the concrete member is more specific than the union that references the generic member.
    - `i32 | f32` is more specific than `i32 | T`
-8. Given two unions that differ only in a single type member, such that the member is concrete in one union and an interface in the other union, the untion that references the concrete member is more specific than the union that references the interface member.
+7. Given two unions that differ only in a single type member, such that the member is concrete in one union and an interface in the other union, the untion that references the concrete member is more specific than the union that references the interface member.
    - `i32 | f32` is more specific than `i32 | FloatingPointNumeric`
-9. Given two sets of comparable type constraints, ConstraintSet1 and ConstraintSet2, if ConstraintSet1 is a proper subset of ConstraintSet2, then ConstraintSet1 imposes fewer constraints, and is therefore less specific than ConstraintSet2. In other words, the constraint set that is a proper superset of the other is the most specific constraint set. If the constraint sets are not a proper subset/superset of one another, then the constraint sets are not comparable, which means that the competing interface implementations are not comparable either. This rule captures rule (4). For example:
+8. Given two sets of comparable type constraints, ConstraintSet1 and ConstraintSet2, if ConstraintSet1 is a proper subset of ConstraintSet2, then ConstraintSet1 imposes fewer constraints, and is therefore less specific than ConstraintSet2. In other words, the constraint set that is a proper superset of the other is the most specific constraint set. If the constraint sets are not a proper subset/superset of one another, then the constraint sets are not comparable, which means that the competing interface implementations are not comparable either. This rule captures rule (4).
+For example:
    - `T: Iterable` is more specific than `T` (with no type constraints), because `{Iterable}` is a proper superset of `{}` (note: `{}` represents the set of no type constraints).
-   - ~~`T supersetOf Nil` is more specific than `T` (with no type constraints) because `{T supersetOf Nil}` is a proper superset of `{}`.~~
-   - ~~`A supersetOf Nil | i32` is more specific than `A supersetOf Nil`, because `{A supersetOf Nil | i32}` is equivalent to `{A supersetOf Nil, A supersetOf i32}`, which is a proper superset of `{A supersetOf Nil}`.~~
+   - `T: Iterable & Stringable` is more specific than `T: Iterable` because `{Iterable, Stringable}` is a proper superset of `{Iterable}`
 
 There are many potential cases where the type constraints in competing interface implementations can't be compared. In those cases, the compiler will emit an error saying that the competing interface implementations are not comparable, and so the expression is ambiguous.
 
 Ambiguities that cannot be resolved by these specialization rules must be resolved manually, by qualifying the relevant function call with either the name of the interface or the name of the implementation. For example:
 
 ```
-// assuming Array T implements both Iterable T and BetterIterable T, and both define an each function
+# assuming Array T implements both Iterable T and BetterIterable T, and both define an each function
 impl Iterable T for Array T { ... }
 impl BetterIterable T for Array T { ... }
 
-// an expression like
+# an expression like
 Array(1,2,3).each { elem => puts(elem) }
-// would be ambiguous
+# would be ambiguous
 
-// however, the expressions
+# however, the expressions
 BetterIterable.each(Array(1,2,3)) { elem => puts(elem) }
 Array(1,2,3) |> BetterIterable.each { elem => puts(elem) }
-// are not ambiguous
+# are not ambiguous
 ```
 
 
@@ -1929,12 +1615,12 @@ In positional destructuring expressions, local variable identifiers may be bound
 
 Structs may also be destructured via named field destructuring, which takes the following form:
 ```
-// if it is desirable to reference p.address via the local identifier addr, then do the following:
+# if it is desirable to reference p.address via the local identifier addr, then do the following:
 p: Person { a=age, h=height, w=weight, addr: Address{z=zip}=address }
 
-// or
+# or
 
-// if it isn't necessary to reference p.address via a local identifier, then do the following:
+# if it isn't necessary to reference p.address via a local identifier, then do the following:
 p: Person { a=age, h=height, w=weight, Address{z=zip}=address }
 ```
 
@@ -1996,15 +1682,15 @@ Sequence destructuring is available to any struct that implements the Iterable i
 #### Assignment Destructuring
 
 ```
-// positional destructuring form; assignment context
+# positional destructuring form; assignment context
 fn printPersonInfo(p: Person) {
   Person{n,h,w,a} = p
   puts("name=$n   height=$h   weight=$w   age=$a")
 }
 
-// or
+# or
 
-// named field destructuring form; assignment context
+# named field destructuring form; assignment context
 fn printPersonInfo(p: Person) {
   Person{a=age, h=height, w=weight, n=name} = p
   puts("name=$n   height=$h   weight=$w   age=$a")
@@ -2013,28 +1699,28 @@ fn printPersonInfo(p: Person) {
 printPersonInfo(Person("Jim", 6.0833, 170, 25))
 
 
-// positional tuple destructuring form; assignment context
+# positional tuple destructuring form; assignment context
 fn printPair(pair: (i32, String)) {
   (i, str) = pair
   puts("i=$i   str=$str")
 }
 
 printPair( (4, "Bill") )
-printPair( 4::"Bill" )
+printPair( 4:"Bill" )
 ```
 
 #### Function Parameter Destructuring
 
 ```
-// 3 equivalent parameter destructuring examples;
+# 3 equivalent parameter destructuring examples;
 fn printPersonInfo(p: Person{n, h, w, a}) {
   puts("name=$n   height=$h   weight=$w   age=$a")
 }
-// or
+# or
 fn printPersonInfo(_: Person{n, h, w=weight, a}) {
   puts("name=$n   height=$h   weight=$w   age=$a")
 }
-// or
+# or
 fn printPersonInfo(Person{n, h, w, a}) {
   puts("name=$n   height=$h   weight=$w   age=$a")
 }
@@ -2047,13 +1733,13 @@ fn printPair(pair: (i: i32, str: String)) {
 }
 
 printPair( (4, "Bill") )
-printPair( 4::"Bill" )
+printPair( 4:"Bill" )
 ```
 
 #### Pattern Matching Destructuring
 
 ```
-// assuming h is of type House
+# assuming h is of type House
 h match {
   TinyHouse | SmallHouse => puts("build a small house")
   m: MediumHouse => puts("build a modest house - $m")
@@ -2123,17 +1809,17 @@ A thunk can be created in one of three ways:
 
 For example
 ```
-// 1. assignment to variable of type Thunk T
+# 1. assignment to variable of type Thunk T
 mail: Thunk Mail = sendAndReceiveMail()
 
-// 2. supplying an expression to a function parameter of type Thunk T
+# 2. supplying an expression to a function parameter of type Thunk T
 fn runAfterDelay[T](expr: Thunk T) -> T {
   sleep(10.seconds)
   expr
 }
 runAfterDelay(sendAndReceiveMail())
 
-// 3. using the Thunk function
+# 3. using the Thunk function
 Thunk(sendAndReceiveMail())
 ```
 
@@ -2202,27 +1888,27 @@ macro defineJsonEncoder(type) {
 
 struct Person { name: String, age: i32 }
 defineJsonEncoder(Person)
-// this call emits the following
-// fn encode(val: Person) -> String {
-//   b = StringBuilder()
-//   b << json.encodeStringField("name", val.name)
-//   b << json.encodeIntField("age", val.age)
-//   b.toString
-// }
+# this call emits the following
+# fn encode(val: Person) -> String {
+#   b = StringBuilder()
+#   b << json.encodeStringField("name", val.name)
+#   b << json.encodeIntField("age", val.age)
+#   b.toString
+# }
 
 struct Address { name: String, address1: String, address2: String, city: String, state: String, zip: String }
 defineJsonEncoder(Address)
-// this call emits the following
-// fn encode(val: Address) -> String {
-//   b = StringBuilder()
-//   b << json.encodeStringField("name", val.name)
-//   b << json.encodeStringField("address1", val.address1)
-//   b << json.encodeStringField("address2", val.address2)
-//   b << json.encodeStringField("city", val.city)
-//   b << json.encodeStringField("state", val.state)
-//   b << json.encodeStringField("zip", val.zip)
-//   b.toString
-// }
+# this call emits the following
+# fn encode(val: Address) -> String {
+#   b = StringBuilder()
+#   b << json.encodeStringField("name", val.name)
+#   b << json.encodeStringField("address1", val.address1)
+#   b << json.encodeStringField("address2", val.address2)
+#   b << json.encodeStringField("city", val.city)
+#   b << json.encodeStringField("state", val.state)
+#   b << json.encodeStringField("zip", val.zip)
+#   b.toString
+# }
 ```
 
 
@@ -2322,7 +2008,7 @@ There are special semantics around accessing and assigning to a `CallStackLocal`
 
 The following examples demonstrate how to use CallStackLocal variables.
 ```
-name: CallStackLocal (String | Nil)   // declaration only; default initial value of nil
+name: CallStackLocal (String | Nil)   # declaration only; default initial value of nil
 
 name1 = spawn { name = "Bob" }
 name2 = spawn { name = "Tom" }
@@ -2331,14 +2017,14 @@ puts("name1 = $name1")
 puts("name2 = $name2")
 puts("name3 = $name3")
 
-// prints
-// name1 = Bob
-// name2 = Tom
-// name3 = nil
+# prints
+# name1 = Bob
+# name2 = Tom
+# name3 = nil
 ```
 and
 ```
-nameCache = CallStackLocal(Map[i32, String](1::"Bob"))   // declare and define
+nameCache = CallStackLocal(Map[i32, String](1:"Bob"))   # declare and define
 
 names1 = spawn { nameCache[2] = "Tom"; nameCache.values.join(", ") }
 names2 = spawn { nameCache[1] = "Jim"; nameCache.values.join(", ") }
@@ -2347,10 +2033,10 @@ puts("names1 = $names1")
 puts("names2 = $names2")
 puts("names3 = $names3")
 
-// prints
-// names1 = Bob, Tom
-// names2 = Jim
-// names3 = Bob
+# prints
+# names1 = Bob, Tom
+# names2 = Jim
+# names3 = Bob
 ```
 
 ### Channels
@@ -2366,18 +2052,18 @@ Channels are implemented with the `Channel` type and support two operations: `se
 For example:
 
 ```
-c = Channel[i32]()	// this is an unbuffered channel
+c = Channel[i32]()	# this is an unbuffered channel
 spawn { c.send(5) }
 spawn { c.receive |> puts }
 ```
 and
 ```
-c = Channel[i32](1)	// this is a buffered channel, with a buffer of one message
+c = Channel[i32](1)	# this is a buffered channel, with a buffer of one message
 spawn { c.send(5) }
 spawn { c.send(10) }
 spawn { c.receive |> puts }
-// at this point, both send operations will have completed,
-// and the receive buffer is full
+# at this point, both send operations will have completed,
+# and the receive buffer is full
 ```
 
 ## Reference
@@ -2437,7 +2123,7 @@ spawn { c.receive |> puts }
 
 A single tool, `able`, handles builds, dependency management, package management, running tests, etc.
 
-A single file, `build.cf`, defines a project's build, dependencies, package metadata, etc.
+A single file, `project.cf`, defines a project's build configuration, dependencies, package metadata, etc.
 
 A primary goal of having a single tool is to enable the quick spin-up of a development environment. Download a single binary and start working.
 

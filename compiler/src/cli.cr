@@ -4,6 +4,7 @@ require "option_parser"
 require "arborist"
 
 require "./ast"
+require "./ast_builder"
 require "./emitter"
 require "./compiler"
 t2 = Time.now; puts "#{t2-t1} seconds elapsed"; t1 = t2;

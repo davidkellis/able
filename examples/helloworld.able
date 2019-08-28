@@ -4,3 +4,4 @@ import io
 import net.http.{server}
 import lang.*
 
+fn main() {}
