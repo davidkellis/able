@@ -1,5 +1,3 @@
-require "arborist"
-
 module Ast
   class Node
     property parent : Node?
@@ -142,66 +140,75 @@ module Ast
   class AssignmentExpr < Node
   end
 
-  def self.build(parse_tree : Arborist::ParseTree) : Node
-    matcher = Arborist::Matcher.new
+  class FunctionDefn < Node
+    @name : String
+    @type_parameters : Array(TypeParameter)
+    @parameters : Array(FnParameter)
+    @body : Expression
+    @return_type : TypeName?
 
-    visitor = Arborist::Visitor(Node).new
-
-    visitor.on("file") do |node|
-      file_ast = File.new
-      file_ast.package_declaration = node.capture("PackageDecl").visit(visitor).as(PackageDecl)
-      # file_ast.package_level_declarations = node.captures("PackageLevelDecl").map(&.visit(visitor).as(ImportDecl | AssignmentExpr))
-      node.captures("PackageLevelDecl").each do |node|
-        # todo: fix this; we want to visit the PackageLevelDecl node, which should return an ImportDecl node or a AssignmentExpr node, which we then want to add to the 
-        package_level_decl_node = node.visit(visitor)
-        file_ast.add_package_level_declaration(package_level_decl_node)
-      end
-      file_ast
+    def initialize(@name, @body)
+      @type_parameters = Array(TypeParameter).new
+      @parameters = Array(FnParameter).new
     end
 
-    visitor.on("PackageDecl") do |node|
-      package_decl_ast = PackageDecl.new
-      package_decl_ast.name = node.capture("package_ident").text
-      package_decl_ast
+    def type_parameters=(@type_parameters : Array(TypeParameter))
+      self
     end
 
-    visitor.on("PackageLevelDecl_import_decl") do |node|
-      puts "*" * 80
-      # todo: this is needed if we go with Option 2 in arborist/src/grammar_semantics.cr:355
-      # node.capture("import_decl").visit(visitor)    
-
-      # todo: this is needed if we go with Option 1 in arborist/src/grammar_semantics.cr:351
-      import_decl_seq_node = node.capture("import_decl")
-      import_decl_apply_node = import_decl_seq_node.capture("import_decl")
-      import_decl_apply_node.visit(visitor)
+    def parameters=(@parameters : Array(FnParameter))
+      self
     end
-
-    visitor.on("import_decl_all") do |node|
-      puts "1" * 80
-      package_name = node.capture("package_name").text
-      package_alias = node.capture?("package_alias").try(&.text)
-      ImportDecl.all(package_name, package_alias)
-    end
-
-    visitor.on("import_decl_some") do |node|
-      puts "2" * 80
-      package_name = node.capture("package_name").text
-      package_alias = node.capture?("package_alias").try(&.text)
-      members : Hash(String,String) = node.captures("members").map do |member_node|
-        member_name = member_node.capture("member_name").text
-        member_alias = member_node.capture?("member_alias").try(&.text) || member_name    # if no member alias is defined, then we define the alias to be the original member name
-        [member_name, member_alias]
-      end.to_h
-      ImportDecl.some(package_name, package_alias, members)
-    end
-
-    visitor.on("import_decl_package") do |node|
-      puts "3" * 80
-      package_name = node.capture("package_name").text
-      package_alias = node.capture?("package_alias").try(&.text)
-      ImportDecl.package(package_name, package_alias)
-    end
-
-    visitor.visit(parse_tree)
   end
+
+  class TypeParameter < Node
+    @type_name : TypeName
+    @type_constraint : TypeConstraint?
+
+    def initialize(@type_name, @type_constraint)
+    end
+  end
+
+  # abstract
+  class TypeConstraint < Node
+  end
+
+  class ImplementsTypeConstraint < TypeConstraint
+    @type_name : TypeName
+
+    def initialize(@type_name : TypeName)
+    end
+  end
+
+  class TypeName < Node
+    @name : String
+    @type_parameters : Array(TypeName)
+    
+    def initialize(@name : String, @type_parameters : Array(TypeName))
+    end
+
+    def placeholder?
+      @name == "_"
+    end
+  end
+
+  class FnParameter < Node
+    @name : String
+    @type : TypeName
+
+    def initialize(@name, @type)
+    end
+  end
+
+  # abstract
+  class Expression < Node
+  end
+
+  class BlockExpr < Expression
+    @expressions : Array(Expression)
+
+    def initialize(@expressions)
+    end
+  end
+
 end

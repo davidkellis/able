@@ -2,13 +2,13 @@ name: able
 version: 0.1.0
 
 authors:
-  - David Ellis <davidkellis@gmail.com>
+  - David Ellis <david@conquerthelawn.com>
 
 targets:
   able:
     main: src/cli.cr
 
-crystal: 0.27.0
+crystal: 0.31.1
 
 license: MIT
 

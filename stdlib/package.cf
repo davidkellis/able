@@ -1,26 +1,6 @@
-# another example: https://gist.github.com/davidkellis/afaed7352b60e71ef4ead0f6c7a053e5
+name: "stdlib"
+version: "1.0.0"
 
-name: "confefe"
-version: "1.2.0"
-tags:
-- "foo"
-- "bar"
-- "baz"
-authors: ["Bill", "Bob"]
-
-dependencies: [             # dependencies captured in a nested array
-  ["stdlib", "~> 1.2"],
-  ["unicode", "~> 9.0"]
-]
-
-dependencies:               # dependencies captured in a nested array
-  -
-    - "stdlib"
-    - "~> 1.2.0"
-  -
-    - "unicode"
-    - "~> 9.0"
-
-dependencies:               # dependencies captured in a map
+dependencies:
   stdlib: "~> 1.2"
   unicode: "~> 9.0"
