@@ -857,25 +857,25 @@ Partial application is documented in the section [Partial application](#partial-
 The following examples give a feel for what point-free style looks like:
 
 ```
-// puts is an alias for the printLn function
-fn puts = printLn
+# puts is an alias for the println function
+fn puts = println
 
-// given:
+# given:
 fn add(a: i32, b: i32) -> i32 => a + b
 fn fold_right(it: Iterator T, initial: V, accumulate: (T, V) -> V) -> V {
   it.reverse.fold_left(initial) { acc, val => accumulate(val, acc) }
 }
 
-// add1, add5, and add10 are partial applications of the add function
-// sum is the partially applied fold_right function
+# add1, add5, and add10 are partial applications of the add function
+# sum is the partially applied fold_right function
 fn add1 = add(1)
 fn add5 = add(5,)
 fn add10 = add(, 5)
 fn sum = fold_right(, 0, +)
 
-// definitions in terms of placeholder lambda expressions
-fn add10AndDouble = 2 * add(_, 10)
-fn printLnIfDebug = printLn(_) if APP_CFG.debug
+# definitions in terms of placeholder lambda expressions
+fn add10_and_double = 2 * add(_, 10)
+fn println_if_debug = println(_) if APP_CFG.debug
 fn sum = _.fold_right(0, +)
 fn sum = fold_right(_, 0, +)
 ```
@@ -1068,29 +1068,29 @@ map(Array(1,2,3), square)
 
 Given the following function definition:
 ```
-fn createPerson(age: i32, name: String, address: Address) -> Person { ... }
+fn create_person(age: i32, name: String, address: Address) -> Person { ... }
 ```
 
-the `createPerson` function may be invoked in any of the following ways:
+the `create_person` function may be invoked in any of the following ways:
 
 ```
-createPerson(name = "Bob", age = 20, address = Address("123 Wide Street"))
+create_person(@name: "Bob", @age: 20, @address: Address("123 Wide Street"))
 
-createPerson(
-  name = "Bob",
-  age = 20,
-  address = Address("123 Wide Street")
+create_person(
+  @name: "Bob",
+  @age: 20,
+  @address: Address("123 Wide Street")
 )
 
-createPerson(
-  name = "Bob"
-  age = 20
-  address = Address("123 Wide Street"))
+create_person(
+  @name: "Bob"
+  @age: 20
+  @address: Address("123 Wide Street"))
 )
 
-createPerson(
-  name = "Bob", age = 20
-  address = Address("123 Wide Street"),
+create_person(
+  @name: "Bob", @age: 20
+  @address: Address("123 Wide Street"),
 )
 ```
 
@@ -1135,7 +1135,7 @@ f(,1, 2, 3, 4, 5)
 
 Partial application of a named argument
 ```
-f(c = 30)
+f(@c: 30)
 ```
 
 #### Method application
@@ -1153,13 +1153,13 @@ is equivalent to
 Given:
 `struct Coord {i32, i32}`
 
-`5 |> Coord(_1, _1)`
+`5 |> Coord {_1, _1}`
 is equivalent to
-`Coord(5, 5)`
+`Coord{5, 5}`
 
-`1 |> plusTwo |> f(1, 2, _, 4, 5)`
+`1 |> plus_two |> f(1, 2, _, 4, 5)`
 is equivalent to
-`f(1, 2, plusTwo(1), 4, 5)`
+`f(1, 2, plus_two(1), 4, 5)`
 
 #### Operator application
 

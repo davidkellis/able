@@ -87,26 +87,7 @@ There are two namespaces for identifiers: a type namespace and a value namespace
 
 todo: figure out how to determine root package
 
-Every source file should start with a package definition of the form `package <unqualified name>`, for example `package io`.
-
-If a package definition isn't specified, then the file is interpreted as if the package definition of `package main` were specified.
-
-Every package has both a name and a path. The fully qualified package path is determined as in the following example:
-
-For example, the following directory structure and corresponding packages might exist:
-```
-~/Projects/widget         # project root directory -> introduces "widget" package
-|-- foo.able              # no package definition  -> fully qualified package is "widget.main"
-|-- qux.able              # `package widget`       -> fully qualified package is "widget"
-|-- flub.able             # `package flub`         -> fully qualified package is "widget.flub"
-|-- components            # introduces "widget.components" package
-|   |-- bar.able          # `package bar`          -> "widget.components.bar"
-|   |-- quux.able         # `package components`   -> "widget.components"
-|   |-- motion            # introduces "widget.components.motion" package
-|   |   |-- baz.able      # `package baz`          -> "widget.components.motion.baz"
-|   |-- actuator          # introduces "widget.components.actuator" package
-|-- integration_test      # introduces "widget.integration_test" package
-```
+Every source file should start with a package definition of the form `package <unqualified name>`, for example `package io`; otherwise, the file is interpreted as if `package main` were specified.
 
 ### Importing Packages
 
@@ -292,15 +273,6 @@ For example:
 1...5 |> to_a  # Array(1, 2, 3, 4)
 ```
 
-Ranges may be created with any set of types that fulfill the `Range` interface, defined below:
-
-```
-interface Range O for (S, E) {
-  fn inclusive_range(start: S, end: E) -> Iterable O
-  fn exclusive_range(start: S, end: E) -> Iterable O
-}
-```
-
 ## Tuples
 
 ```
@@ -325,17 +297,14 @@ Struct definitions can only appear in package scope.
 
 ### Singleton Structs
 
-Structs that have a single value are called singleton structs.
-
-The type name of a singleton struct, as well as the single value that it represents, share the same identifier. In contexts where a type name is expected, the identifer represents the type, otherwise the identifier represents the singleton value.
+Structs that have a single value are called singleton structs; their type name name and their single value share the same identifier.
 
 ```
 struct Red
-struct Green
-struct Blue
 ```
 
 ### Definition with Positional Fields
+
 ```
 # non-generic definition
 struct Point { i32, i32 }
@@ -358,6 +327,7 @@ struct Foo T {
 ```
 
 ### Definition with Named Fields
+
 ```
 # non-generic definition
 struct Point { x: i32, y: i32 }
@@ -379,6 +349,7 @@ struct Foo T {
 ```
 
 ### Instantiate structs
+
 ```
 Foo { 1 }               # struct literal with fields supplied by position
 Foo { 1, 2, t1 }        # struct literal with fields supplied by position
@@ -400,6 +371,7 @@ Struct literal expressions do **not** require that every field be supplied.
 Fields that are omitted are given a zero value appropriate for their type.
 
 ### Using struct instances
+
 ```
 struct Foo T { i32, f32, T }
 struct Bar T { a: i32, b: f32, c: T }
@@ -413,7 +385,7 @@ puts("bar is a Bar String { a: ${bar.a}, b: ${bar.b}, c: ${foo.c} }")
 
 ## Unions
 
-Unions in Able are similar to discriminated unions in F#, enums in Rust, and algebraic data types in Haskell. A union type is a type made up of two or more member types, each of which can be any other type, even other union types.
+Union types are similar to discriminated unions in F#, enums in Rust, and algebraic data types in Haskell. A union type is a type made up of two or more member types, each of which can be any other type, even other union types.
 
 ### Union definitions referencing predefined types
 
@@ -501,8 +473,6 @@ The `Any` type is a special union type that is the union of all types known to t
 
 A block is a sequence of expressions enclosed in a set of curly braces, prefixed with the `do` keyword.
 
-A block is itself an expression that evaluates to the value returned by the last expression in the block. A block introduces a new local variable scope, but may reference identifiers from any enclosing scope.
-
 For example:
 ```
 do {
@@ -524,10 +494,6 @@ Functions may be defined with one of three different function definition syntaxe
 2. Anonymous function syntax
 3. Lambda expression syntax
 
-The return type may be omitted from a function definition unless type inference is unable to determine what the return type should be, in which case the return type must be explicitly provided.
-
-In the two syntaxes that provide a means to capture an optional type parameter list - named function syntax and anonymous function syntax - the type parameter list may also capture constraints on type parameters.
-
 Function types are denoted with the syntax:
 ```
 (<parameter type>, <parameter type>, <parameter type>, ...) -> <return type>
@@ -535,17 +501,13 @@ Function types are denoted with the syntax:
 
 ### Named function syntax
 
-Named function syntax allows one to define a named function in the current lexical scope. Named function syntax take the following form:
-
 `fn <function name>[<optional type paramter list>](<parameter list>) -> <optional return type> { <function body> }`
 or
 `fn <function name>[<optional type paramter list>](<parameter list>) -> <optional return type> => <function body>`
 
-This style allows type constraints to be captured in the type parameter list (e.g. `fn convertToString[T: Parsable & Stringable](a: T) => toString(a)` )
+This style allows type constraints to be captured in the type parameter list (e.g. `fn convert_to_string[T: Parsable & Stringable](a: T) => to_string(a)` )
 
 #### Point-free style
-
-Named functions may also be defined in an abbreviated form, as the partial application of some other function.
 
 Point-free syntax may only be used with named functions, and takes the following form:
 
@@ -553,11 +515,10 @@ Point-free syntax may only be used with named functions, and takes the following
 
 Partial application is documented in the section [Partial application](#partial-application), and placeholder lambda expressions are covered in the section [Implicit Lambda Expressions via Placeholder Expression Syntax (a.k.a. Placeholder Lambdas)](#implicit-lambda-expressions-via-placeholder-expression-syntax-aka-placeholder-lambdas).
 
-The following examples give a feel for what point-free style looks like:
-
+For example:
 ```
-# puts is an alias for the printLn function
-fn puts = printLn
+# puts is an alias for the println function
+fn puts = println
 
 # given:
 fn add(a: i32, b: i32) -> i32 => a + b
@@ -581,13 +542,11 @@ fn sum = fold_right(_, 0, +)
 
 ### Anonymous function syntax
 
-Anonymous function syntax allows one to define a function object that may be immediately supplied as an argument to a function, or assigned to a variable for later use. Anonymous function syntax takes the following form:
-
 `fn[<optional type paramter list>](<parameter list>) -> <optional return type> { <function body> }`
 or
 `fn[<optional type paramter list>](<parameter list>) -> <optional return type> => <function body>`
 
-Additionally, you can omit the leading `fn` at the expense of not being able to capture constraints on generic type parameters:
+You may omit the leading `fn` at the expense of not being able to capture constraints on generic type parameters:
 
 `(<parameter list>) -> <optional return type> { <function body> }`
 or
@@ -610,7 +569,7 @@ Lambda expressions may also be represented implicitly with a special convenience
 
 An expression may be parameterized with placeholder symbols - each of which may be either an underscore, _, or a numbered underscore, e.g. _1, _2, etc.
 
-A placeholder symbol may be used in place of any value-representing subexpression, such as an argument to a function, an operator argument, a conditional variable in an if statement, etc. Placeholder symbols may not be used in place of language keywords, e.g. in place of "if", "package", etc.
+A placeholder symbol may be used in place of any value-representing subexpression.
 
 The scope of a lambda expression implicitly defined through the use of placeholder symbols extends to the smallest subexpression that, if considered as the body of an anonymous function, would represent a function with the same function signature as what the containing expression expects.
 
@@ -635,15 +594,6 @@ For example:
 
 
 ### Variadic functions
-
-If a function is defined such that its last parameter has a type name suffixed with `*` (e.g. String*), 
-then the function is considered to have variable arity and is called a variadic function.
-
-The last parameter of a variadic function is called the variadic parameter. A variadic parameter may be supplied with zero or more arguments.
-
-Within the body of a variadic function, the variadic parameter is treated as if it were defined as an Iterable.
-
-For example:
 
 ```
 Given:
@@ -767,29 +717,29 @@ map(Array(1,2,3), square)
 
 Given the following function definition:
 ```
-fn createPerson(age: i32, name: String, address: Address) -> Person { ... }
+fn create_person(age: i32, name: String, address: Address) -> Person { ... }
 ```
 
-the `createPerson` function may be invoked in any of the following ways:
+the `create_person` function may be invoked in any of the following ways:
 
 ```
-createPerson(name = "Bob", age = 20, address = Address("123 Wide Street"))
+create_person(@name: "Bob", @age: 20, @address: Address("123 Wide Street"))
 
-createPerson(
-  name = "Bob",
-  age = 20,
-  address = Address("123 Wide Street")
+create_person(
+  @name: "Bob",
+  @age: 20,
+  @address: Address("123 Wide Street")
 )
 
-createPerson(
-  name = "Bob"
-  age = 20
-  address = Address("123 Wide Street"))
+create_person(
+  @name: "Bob"
+  @age: 20
+  @address: Address("123 Wide Street"))
 )
 
-createPerson(
-  name = "Bob", age = 20
-  address = Address("123 Wide Street"),
+create_person(
+  @name: "Bob", @age: 20
+  @address: Address("123 Wide Street"),
 )
 ```
 
@@ -834,7 +784,7 @@ f(,1, 2, 3, 4, 5)
 
 Partial application of a named argument
 ```
-f(c = 30)
+f(@c: 30)
 ```
 
 #### Method application
@@ -1119,10 +1069,6 @@ interface Mappable for M _ {
 
 #### Interface Aliases and Interface Intersection Types
 
-Much like intersection types in Scala 3/Dotty (http://dotty.epfl.ch/docs/reference/intersection-types.html), interfaces may be defined as the intersection of two or more interfaces, under the interpretation that, if a type implements all of the enumerated interfaces, then the type is also deemed to implement the intersection interface. Intersection interfaces are not implemented directly.
-
-Additionally, an interface may be defined as an alias of another interface. The most common reason to define an alias would be to define a named type where a type parameter of another interface is fixed to a single specific type.
-
 Intersection interfaces may be defined with the following syntax:
 ```
 interface A [B C ...] = D [E F ...] [& G [H I ...] & J [K L ...] ...]
@@ -1146,7 +1092,6 @@ Interface implementations are defined with the following syntax:
 	...
 }
 ```
-where `ImplName` is an optional implementation name, X, Y, and Z are free type parameters and type constraints that are scoped to the implementation of the interface (i.e. the types bound to those type variables are constant within a specific implementation of the interface) and enclosed in square brackets, A is the name of the interface parameterized with type parameters B, C, etc. (if applicable), and where `D <E F ...>` is the type that is implementing interface A. In the case that an interface was specified without a `for` clause, then the `for` clause in an implementation of the interface would be omitted.
 
 Here are some example interface implementations:
 
