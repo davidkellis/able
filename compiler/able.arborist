@@ -1,5 +1,5 @@
 Able {
-  file <- ws? package_decl (eos package_level_decl)* ws? eos? !.
+  file <- ws? (package_decl / package_level_decl)? (eos package_level_decl)* ws? eos? eof
 
   // package foo
   // package internationalization
@@ -7,25 +7,13 @@ Able {
 
   package_level_decl
     <- import_decl
-    / package_level_assignment_expr
-    / variable_decl
+    / assignment
     / struct_defn
     / union_defn
     / function_defn
     / interface_defn
     / impl_defn
     / macro_defn
-
-  // package_level_decl
-  //   <- import_decl                    -- import_decl
-  //   / package_level_assignment_expr   -- package_level_assignment_expr
-  //   / variable_decl                   -- variable_decl
-  //   / struct_defn                     -- struct_defn
-  //   / union_defn                      -- union_defn
-  //   / function_defn                   -- function_defn
-  //   / interface_defn                  -- interface_defn
-  //   / impl_defn                       -- impl_defn
-  //   / macro_defn                      -- macro_defn
 
   // import io
   // import io.*
@@ -46,13 +34,12 @@ Able {
              members=(list_sep member_name=ident (lws "as" lws member_alias=ident)?)* list_sep? ws? "}"   -- some
     / "import" lws package_name=fq_package_ident (lws "as" lws package_alias=package_ident)?              -- package
 
-  package_level_assignment_expr
-    <- operator_assignment   -- operator_assignment
-    / multiple_assignment    -- multiple_assignment
-    / variable_decl          -- variable_decl
+  assignment
+    <- operator_shorthand_assignment
+    / multiple_assignment
+    / variable_decl
 
-
-  operator_assignment
+  operator_shorthand_assignment
     <- optionally_typed_ident lws? infix_assignment_operator lws? expression
 
   // Only operators that produce a value in the same domain as their arguments (i.e. operators whose domain and range are the same) are allowed here.
@@ -64,7 +51,7 @@ Able {
     <- multiple_assignment_lhs ws? "=" ws? expression_list
 
   multiple_assignment_lhs
-    <- assignment_lhs (comma_sep assignment_lhs)
+    <- assignment_lhs (comma_sep assignment_lhs)*
 
   assignment_lhs
     <- pattern_with_ident             -- pattern_with_ident
@@ -76,18 +63,18 @@ Able {
 
   destructuring_primitive
     <- destructuring_tuple                                          -- tuple
-    / destructuring_primitive "::" destructuring_primitive          -- tuplePair
+    / destructuring_primitive "::" destructuring_primitive          -- tuple_pair
     / destructuring_sequence                                        -- sequence
     / destructuring_struct                                          -- struct
     / ident                                                         -- identifier
 
   // (v1)
   // (v1, v2)
+  destructuring_tuple
+    <- "(" ws? destructuring_primitive (comma_sep destructuring_primitive)* ws? ")"
+
   // v1::v2
   // v1 :: v2
-  destructuring_tuple
-    <- "(" ws? destructuridestructuring_primitivengPrimitive (comma_sep destructuring_primitive)* ws? ")"
-
   destructuring_tuple_pair
     <- destructuring_primitive lws? "::" lws? destructuring_primitive
 
@@ -101,10 +88,10 @@ Able {
     / destructuring_sequence_no_splat_argument
 
   destructuring_sequence_no_splat_argument
-    <- type_name "[" ws? destructuring_primitive (comma_sep destructuring_primitive) ws? "]"
+    <- type_name "[" ws? destructuring_primitive (comma_sep destructuring_primitive)* ws? "]"
 
   destructuring_sequence_with_splat_argument
-    <- type_name "[" ws? destructuring_primitive (comma_sep destructuring_primitive) (comma_sep ident "*") ws? "]"
+    <- type_name "[" ws? destructuring_primitive (comma_sep destructuring_primitive)* (comma_sep ident "*") ws? "]"
 
   // MyStruct{v1, v2}
   // MyStruct{v1=name, v2=age}
@@ -121,7 +108,7 @@ Able {
     <- type_name lws? "{" (ws? ident ws? "=" ws? destructuring_primitive ws? ",")* 
                           (ws? ident ws? "=" ws? destructuring_primitive ws? ","?) ws? "}"
 
-  // e.g. names_map("david")
+  // e.g. some.complex.expression.names_map("david")
   index_assignment_lhs
     <- expression "(" ws? expression ws? ")"
 
@@ -161,35 +148,31 @@ Able {
   //   y: Float
   //   z: T
   // }
+  // struct None
   struct_defn
     <- "struct" lws inline_struct_defn
 
   inline_struct_defn
-    <- type_name (lws type_parameters_decl)? lws? "{" ws? comma_delimited_type_name_list ws? "}"   --  comma_delimited_positional_types
-    / type_name (lws type_parameters_decl)? lws? "{" ws? newline_delimited_type_name_list ws? "}"  --  newline_delimited_positional_types
-    / type_name (lws type_parameters_decl)? lws? "{" ws? comma_delimited_field_list ws? "}"        --  comma_delimited_field_list
-    / type_name (lws type_parameters_decl)? lws? "{" ws? newline_delimited_field_list ws? "}"      --  newline_delimited_field_list
+    <- type_name (lws type_parameters_decl)? lws? "{" ws? comma_delimited_type_name_list ws? "}"   -- comma_delimited_positional_types
+    / type_name (lws type_parameters_decl)? lws? "{" ws? newline_delimited_type_name_list ws? "}"  -- newline_delimited_positional_types
+    / type_name (lws type_parameters_decl)? lws? "{" ws? comma_delimited_field_list ws? "}"        -- comma_delimited_field_list
+    / type_name (lws type_parameters_decl)? lws? "{" ws? newline_delimited_field_list ws? "}"      -- newline_delimited_field_list
+    / type_name                                                                                    -- singleton_struct
 
   type_parameters_decl
-    <- "[" ws? free_type_parameter (comma_sep free_type_parameter) ws? "]"
+    <- "[" ws? free_type_parameter (comma_sep free_type_parameter)* ws? "]"
 
   // T : Foo
   // T _ : Mappable
   // T : Foo & Bar
-  // T supersetOf X
-  // T supersetOf X|Y|Z
   free_type_parameter
     <- type_name (lws? type_constraint)?
 
   // : Foo
   // : Foo & Bar
-  // supersetOf X
-  // supersetOf X|Y|Z
   type_constraint
     <- ":" lws? intersection_type        -- intersection_type
     / ":" lws? type_name                 -- interface
-  //   / "supersetOf" lws type_ident (lws? "|" lws? type_ident)*  # TypeConstraintSupersetOfConstraint
-
 
   // Buildable & Mappable
   intersection_type
@@ -254,24 +237,22 @@ Able {
     <- ident lws? ":" lws? type_name
 
 
-  // Union definition:
   // union String? = String | Nil
+  // union House = SmallHouse { sqft: Float } | BigHouse { sqft: Float }
   // union House = SmallHouse { sqft: Float }
   //  | MediumHouse { sqft: Float }
   //  | LargeHouse { sqft: Float }
   // union Foo T [T: Blah] = 
   //  | Bar A [A: Stringable] { a: A, t: T }
   //  | Baz B [B: Qux] { b: B, t: T }
-  // union Option A = Some A {A} | None A {}
+  // union Option A = Some A {A} | None
   // union Result A B = Success A {A} | Failure B {B}
   // union ContrivedResult A B [A: Fooable, B: Barable] = Success A X [X: Stringable] {A, X} | Failure B Y [Y: Serializable] {B, Y}
   union_defn
-    <- "union" lws type_name (lws type_parameters_decl)? lws? "=" ws? (nl ws? "|" ws?)? union_alternative (pipe_sep union_alternative ws?)+
+    <- "union" lws type_name (lws type_parameters_decl)? lws? "=" (lws? nl ws? "|")? ws? union_alternative (pipe_sep union_alternative)+
 
   union_alternative
-    <- type_name
-    / inline_struct_defn
-
+    <- inline_struct_defn
 
   /*
   fn func1[<optional type paramter list>](<parameter list>) -> <optional return type>
@@ -288,12 +269,14 @@ Able {
   */
   function_defn_list <- function_defn ( nl_sep function_defn )*
 
-  // fn <function name>[<optional type paramter list>] = <function object OR partial application expression OR placeholder lambda expression>
+  // full definition:
   // fn <function name>[<optional type paramter list>](<parameter list>) -> <optional return type> { <function body> }
   // fn <function name>[<optional type paramter list>](<parameter list>) -> <optional return type> => <function body>
+  // alias definition:
+  // fn <function name>[<optional type paramter list>] = <function object OR partial application expression OR placeholder lambda expression>
   function_defn
-    <- "fn" lws ident (lws type_parameters_decl)? function_signature ws? function_body  -- full
-    / "fn" lws ident (lws type_parameters_decl)? ws? "=>" ws? function_alias_expression   -- alias
+    <- "fn" lws ident (lws type_parameters_decl)? function_signature ws? function_body    -- full
+    / "fn" lws ident (lws type_parameters_decl)? ws? "=" ws? function_alias_expression    -- alias
 
   // fn[<optional type paramter list>](<parameter list>) -> <optional return type> { <function body> }
   // fn[<optional type paramter list>](<parameter list>) -> <optional return type> => <function body>
@@ -304,8 +287,11 @@ Able {
     / anonymous_function_short_form
     / lambda_expression
 
+  // fn [T](a) { puts(a) }
+  // fn [T] (a) { puts(a) }
+  // fn [T] (a) puts(a) end
   anonymous_function_long_form
-    <- "fn" type_parameters_decl? function_signature ws? function_body
+    <- "fn" lws? type_parameters_decl? lws? function_signature ws? function_body
 
   anonymous_function_short_form
     <- function_signature ws? function_body
@@ -349,7 +335,7 @@ Able {
 
   destructuring_type_primitive
     <- destructuring_tuple                                              -- tuple
-    / destructuring_type_primitive "::" destructuring_type_primitive    -- tuplePair
+    / destructuring_type_primitive "::" destructuring_type_primitive    -- tuple_pair
     / destructuring_sequence                                            -- sequence
     / destructuring_struct                                              -- struct
     / type_name                                                         -- type_name
@@ -359,12 +345,14 @@ Able {
     <- block
     / function_body_single_expr
 
-  function_body_single_expr <- "=>" ws? expression
-
   // { expressions }
   // { expressions catch pattern_match_alternatives ensure expressions }
+  // "\n" expressions catch pattern_match_alternatives ensure expressions end
   block
     <- "{" ws? expressions? (ws "catch" ws pattern_match_alternatives (ws "ensure" ws expressions)? )? ws? "}"
+    / lws? nl ws? expressions? (ws "catch" ws pattern_match_alternatives (ws "ensure" ws expressions)? )? ws "end"
+
+  function_body_single_expr <- "=>" ws? expression
 
 
   // interface Foo T [T: Iterable] {
@@ -399,7 +387,7 @@ Able {
     <- "macro" lws ident "(" ws? local_identifier_list ws? ")" ws? macro_block
 
   // { expressions }
-  // { expressions catch: pattern_match_alternatives ensure: expressions }
+  // { expressions catch pattern_match_alternatives ensure expressions }
   macro_block
     <- "{" ws? macro_expression (ws "catch" ws pattern_match_alternatives (ws "ensure" ws expressions)? )? ws? "}"
 
@@ -489,8 +477,8 @@ Able {
   // v *= expr
   // v: i32
   assignment_expr
-    <- package_level_assignment_expr    -- assignment
-    / disjunction                       -- disjunction
+    <- assignment
+    / disjunction
 
   disjunction
     <- disjunction ws? "||" ws? conjunction
@@ -523,14 +511,14 @@ Able {
     / multiplicative_expression
 
   additive_operator
-    <- "+" / "-"
+    <- "+" | "-"
 
   multiplicative_expression
     <- multiplicative_expression ws? multipicative_operator ws? exponentiation_expression
     / exponentiation_expression
 
   multipicative_operator
-    <- "*" / "/%" / "/" / "\\" / "%"     // multiply, divmod, int division, float division, modulus
+    <- "*" / "/%" / "/" / "//" / "%"     // multiply, divmod, float division, int division, modulus
 
   exponentiation_expression
     <- type_cast_expression "^" exponentiation_expression
@@ -561,7 +549,7 @@ Able {
     <- ("[" ws? type_list ws? "]" lws?)? "(" ws? expression_list? ws? ")"
 
   type_list
-    <- type_name (comma_sep type_name)
+    <- type_name (comma_sep type_name)*
 
   simple_expression
     <- parenthesized_expression
@@ -631,35 +619,35 @@ Able {
 
   // integer literals - similar to https://golang.org/ref/spec#Integer_literals
   int_literal
-    <- decimalLiteral intWidth?
-    / binaryLiteral intWidth?
-    / octalLiteral intWidth?
-    / intWidth intWidth?
+    <- decimal_literal int_width?
+    / binary_literal int_width?
+    / octal_literal int_width?
+    / int_width int_width?
 
-  decimalLiteral
+  decimal_literal
     <- digit+ ("_" / digit)*
 
-  binaryLiteral
+  binary_literal
     <- "0b" binary_digit+ ("_" / binary_digit)*
 
-  octalLiteral
+  octal_literal
     <- "0o" octal_digit+ ("_" / octal_digit)*
 
-  hexLiteral
+  hex_literal
     <- "0x" hex_digit+ ("_" / hex_digit)*
 
-  intWidth
+  int_width
     <- "i8" / "i16" / "i32" / "i64" / "u8" / "u16" / "u32" / "u64"
 
 
   // floating-point literals
   float_literal
-    <- decimalLiteral "." decimalLiteral exponent? float_width?
-    / decimalLiteral (exponent float_width / exponent / float_width)
-    / "." decimalLiteral exponent? float_width?
+    <- decimal_literal "." decimal_literal exponent? float_width?
+    / decimal_literal (exponent float_width / exponent / float_width)
+    / "." decimal_literal exponent? float_width?
 
   exponent
-    <- ( "e" / "E" ) ( "+" / "-" )? decimalLiteral
+    <- ( "e" / "E" ) ( "+" / "-" )? decimal_literal
 
   float_width
     <- "f32" / "f64"
@@ -667,16 +655,16 @@ Able {
 
   // string literals - similar to https://golang.org/ref/spec#String_literals
   string_literal
-    <- "\"" (unicodeValue / unicode_new_line / byteValue)* "\""
-  //  / "\"\"\"" (unicodeValue / unicode_new_line / byteValue)* "\"\"\""   // heredoc behaves like Ruby's <<~ heredoc
+    <- "\"" (unicode_value / unicode_new_line / byte_value)* "\""
+  //  / "\"\"\"" (unicode_value / unicode_new_line / byte_value)* "\"\"\""   // heredoc behaves like Ruby's <<~ heredoc
 
-  unicodeValue    <- unicodeChar / littleUValue / bigUValue / escapedChar
-  byteValue       <- octalByteValue / hexByteValue
-  octalByteValue  <- "\\" octal_digit octal_digit octal_digit
-  hexByteValue    <- "\\x" hex_digit hex_digit
-  littleUValue    <- "\\u" hex_digit hex_digit hex_digit hex_digit
-  bigUValue       <- "\\U" hex_digit hex_digit hex_digit hex_digit hex_digit hex_digit hex_digit hex_digit
-  escapedChar     <- "\\" ( "a" / "b" / "f" / "n" / "r" / "t" / "v" / "\\" / "'" / "\"" )
+  unicode_value    <- unicodeChar / little_u_value / big_u_value / escaped_char
+  byte_value       <- octal_byte_value / hex_byte_value
+  octal_byte_value  <- "\\" octal_digit octal_digit octal_digit
+  hex_byte_value    <- "\\x" hex_digit hex_digit
+  little_u_value    <- "\\u" hex_digit hex_digit hex_digit hex_digit
+  big_u_value       <- "\\U" hex_digit hex_digit hex_digit hex_digit hex_digit hex_digit hex_digit hex_digit
+  escaped_char     <- "\\" ( "a" / "b" / "f" / "n" / "r" / "t" / "v" / "\\" / "'" / "\"" )
 
 
 
@@ -719,8 +707,8 @@ Able {
     <- space
 
   comment
-    <- "//" (!"\n" .)* "\n"  -- singleLine
-    / "/*" (!"*/" .)* "*/"  -- multiLine
+    <- "#" (!nl .)* (eol / eof)
+    / "/*" (!"*/" .)* "*/"
 
   eos <- (semi_sep / nl_sep)+         // end of statement
   list_sep <- (comma_sep / nl_sep)+   // list separator
@@ -734,7 +722,9 @@ Able {
   ws <- (lws / nl / comment)+
 
   eol <- "\n" / "\r" !"\n" / "\u2028" / "\u2029" / "\r\n"
-  nl <- eol+
+  nl <- eol+      // nl should really be synonymous with eol, but we are defining nl to be 1+ end-of-lines
+
+  eof <- !.
 
 
   // digits, hex-digits, alpha, alphanumeric, letters, unicode character classes, etc.

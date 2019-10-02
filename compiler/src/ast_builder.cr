@@ -100,7 +100,7 @@ module Ast
   end
 
   # type_parameters_decl <- "[" ws? free_type_parameter (comma_sep free_type_parameter) ws? "]"
-  def get_type_parameters_from_type_parameters_decl(ast_visitor : Arborist::Visitor, type_parameters_decl_node : Arborist::ParseTree) : Array(TypeParameter)
+  def self.get_type_parameters_from_type_parameters_decl(ast_visitor : Arborist::Visitor, type_parameters_decl_node : Arborist::ParseTree) : Array(TypeParameter)
     free_type_parameter_nodes = type_parameters_decl_node.captures("free_type_parameter")
     free_type_parameter_nodes.map do |free_type_parameter_node|
       type_name = free_type_parameter_node.capture("type_name").visit(ast_visitor).as(TypeName)
@@ -111,7 +111,7 @@ module Ast
   end
 
   # function_signature <- "(" ws? parameter_list? ws? ")" (ws? "->" ws? type_name)?
-  def get_parameters_from_function_signature(ast_visitor : Arborist::Visitor, function_signature_node : Arborist::ParseTree) : {parameters: Array(FnParameter), return_type: TypeName?}
+  def self.get_parameters_from_function_signature(ast_visitor : Arborist::Visitor, function_signature_node : Arborist::ParseTree) : {parameters: Array(FnParameter), return_type: TypeName?}
     parameter_list_node = function_signature_node.capture?("parameter_list")
     parameters = Array(FnParameter).new
     if parameter_list_node
@@ -121,17 +121,17 @@ module Ast
     {parameters: parameters, return_type: return_type}
   end
 
-  def fn_parameter_to_ast(fn_parameter_node : Arborist::ParseTree) : FnParameter
+  def self.fn_parameter_to_ast(fn_parameter_node : Arborist::ParseTree) : FnParameter
     case top_level_alternative_label(fn_parameter_node)
     when ""
-    when ""
+      raise "boom!"
     else
       raise ""
     end
   end
 
-  def top_level_alternative_label(parse_tree : ParseTree) : String
-    parse_tree = parse_tree.child if parse_tree.is_a?(ApplyTree)
+  def self.top_level_alternative_label(parse_tree : Arborist::ParseTree) : String
+    parse_tree = parse_tree.child if parse_tree.is_a?(Arborist::ApplyTree)
     if child_tree_label = parse_tree.child.label()
       child_tree_label
     else

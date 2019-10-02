@@ -1,7 +1,5 @@
 package helloworld
 
-import io
-import net.http.{server}
-import lang.*
-
-fn main() {}
+fn main() {
+  a = 1
+}
