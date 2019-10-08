@@ -122,7 +122,7 @@ SRC
     src = <<-SRC
     fn foo() { a = 5 }
     fn foo() -> i32 { a = 5; b = 8; a + b }
-    # fn foo() { puts(5) }
+    fn foo() { puts(5) }
 SRC
     parse_tree = GRAMMAR.parse(src)
     parse_tree.should_not eq(nil)

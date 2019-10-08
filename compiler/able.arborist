@@ -199,6 +199,9 @@ Able {
   dot_parameterized_type <- type_ident ("." (parenthesized_type_name / free_type_ident))+
   parenthesized_type_name <- "(" lws? type_name lws? ")"
 
+  type_name_list
+    <- type_name (comma_sep type_name)*
+
   // Int, Float, T
   // Int, Float, T,
   //  Int,
@@ -530,26 +533,22 @@ Able {
     / unary_prefix_expression
 
   unary_prefix_expression
-    <- unary_prefix_operator unary_postfix_expression
-    / unary_postfix_expression
+    <- unary_prefix_operator function_call
+    / function_call
 
   unary_prefix_operator
     <- "+" / "-" / "!" / "~"
 
-  unary_postfix_expression
-    <- simple_expression unary_postfix_operator
-    / simple_expression function_call_suffix                -- function_call
-    / (unary_postfix_expression ".")* simple_expression     -- navigation_expr
-    / simple_expression
-
-  unary_postfix_operator
-    <- "!!"
+  function_call
+    <- navigation_expr function_call_suffix  -- function_call
+    / navigation_expr
 
   function_call_suffix
-    <- ("[" ws? type_list ws? "]" lws?)? "(" ws? expression_list? ws? ")"
+    <- ("[" ws? type_name_list ws? "]" lws?)? "(" ws? expression_list? ws? ")"
 
-  type_list
-    <- type_name (comma_sep type_name)*
+  navigation_expr
+    <- simple_expression "." simple_expression     -- navigation_expr
+    / simple_expression
 
   simple_expression
     <- parenthesized_expression
