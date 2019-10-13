@@ -34,6 +34,17 @@ Able {
              members=(list_sep member_name=ident (lws "as" lws member_alias=ident)?)* list_sep? ws? "}"   -- some
     / "import" lws package_name=fq_package_ident (lws "as" lws package_alias=package_ident)?              -- package
 
+  // v = expr
+  // v: type = expr
+  // v1, v2 = expr, expr              # parallel assignment
+  // v1: type, v2: type = expr, expr  # parallel assignment
+  // (v1, v2) = expr
+  // Array{v1, v2, v3*} = expr
+  // MyStruct{v1, v2} = expr
+  // v += expr
+  // v -= expr
+  // v *= expr
+  // v: i32
   assignment
     <- operator_shorthand_assignment
     / multiple_assignment
@@ -47,6 +58,7 @@ Able {
   infix_assignment_operator
     <- "=" ("+" / "-" / "*" / "/" / "\\" / "%" / "^" / "&&" / "||" / "&" / "|" / "<<" / ">>")
 
+  // assignment is right-associative
   multiple_assignment
     <- multiple_assignment_lhs ws? "=" ws? expression_list
 
@@ -406,6 +418,8 @@ Able {
   macro_template
     <- "`" ( !"`" . )* "`"
 
+  match_block
+    <- "{" ws? pattern_match_alternatives ws? "}"
 
   // assuming h is of type House
   // h match {
@@ -454,106 +468,68 @@ Able {
   expressions
     <- expression ( eos expression )*
 
-  expression
-    <- loop_suffix_expr
-
-  loop_suffix_expr
-    <- conditional_suffix_expr lws "while" lws expression
-    / conditional_suffix_expr
-
-  // a if b if c is treated as (a if (b if c))
-  // a unless b unless c is treated as (a unless (b unless c))
-  conditional_suffix_expr
-    <- assignment_expr lws "if" lws expression
-    / assignment_expr lws "unless" lws expression
-    / assignment_expr
-
-  // v = expr
-  // v: type = expr
-  // v1, v2 = expr, expr              # parallel assignment
-  // v1: type, v2: type = expr, expr  # parallel assignment
-  // (v1, v2) = expr
-  // Array{v1, v2, v3*} = expr
-  // MyStruct{v1, v2} = expr
-  // v += expr
-  // v -= expr
-  // v *= expr
-  // v: i32
-  assignment_expr
-    <- assignment
-    / disjunction
-
-  disjunction
-    <- disjunction ws? "||" ws? conjunction
-    / conjunction
-
-  conjunction
-    <- conjunction ws? "&&" ws? equality_comparison
-    / equality_comparison
-
-  equality_comparison
-    <- inequality_comparison ws? equality_operator ws? inequality_comparison
-    / inequality_comparison
-
-  equality_operator <- "==" / "!="
-
-  inequality_comparison
-    <- range_expression ws? inequality_operator ws? range_expression
-    / range_expression
-
+  pipeline_operator
+    <- "|>"
+  equality_operator
+    <- "==" / "!="
   inequality_operator
     <- "<=" / ">=" / "<" / ">"
-
-  range_expression
-    <- additive_expression ws? "..." ws? rhs=additive_expression    -- exclusive_range_expr
-    / additive_expression ws? ".." ws? rhs=additive_expression      -- inclusive_range_expr
-    / additive_expression
-
-  additive_expression
-    <- additive_expression ws? additive_operator ws? multiplicative_expression
-    / multiplicative_expression
-
-  additive_operator
+  sum_operator
     <- "+" | "-"
-
-  multiplicative_expression
-    <- multiplicative_expression ws? multipicative_operator ws? exponentiation_expression
-    / exponentiation_expression
-
-  multipicative_operator
+  product_operator
     <- "*" / "/%" / "/" / "//" / "%"     // multiply, divmod, float division, int division, modulus
-
-  exponentiation_expression
-    <- type_cast_expression "^" exponentiation_expression
-    / type_cast_expression
-
-  // todo: this may not be needed
-  type_cast_expression
-    <- unary_prefix_expression ws "as" ws type_name
-    / unary_prefix_expression
-
-  unary_prefix_expression
-    <- unary_prefix_operator function_call
-    / function_call
-
   unary_prefix_operator
     <- "+" / "-" / "!" / "~"
-
-  function_call
-    <- navigation_expr function_call_suffix  -- function_call
-    / navigation_expr
+  navigation_operator
+    <- "." / ".?"
 
   function_call_suffix
     <- ("[" ws? type_name_list ws? "]" lws?)? "(" ws? expression_list? ws? ")"
 
-  navigation_expr
-    <- simple_expression "." simple_expression     -- navigation_expr
+  expression
+    // a while b while c is treated as ((a while b) while c)
+    <- expression lws loop_type=("while" / "until") lws expression  -- loop_suffix
+
+    // a if b if c is treated as ((a if b) if c)
+    // a unless b unless c is treated as ((a unless b) unless c)
+    / expression lws branch_type=("if" / "unless") lws expression   -- branch_suffix
+
+    / expression ws? "match" ws? match_block              -- match
+
+    / assignment                                          -- assignment
+
+    / expression ws? pipeline_operator ws? expression     -- pipeline
+
+    / expression ws? "||" ws? expression                  -- disjunction
+
+    / expression ws? "&&" ws? expression                  -- conjunction
+
+    / expression ws? equality_operator ws? expression     -- equality
+
+    / expression ws? inequality_operator ws? expression   -- inequality
+
+    // this is where another rule for other infix operators would go if we want to allow additional user-defined operators
+
+    / lhs=expression ws? "..." ws? rhs=expression         -- exclusive_range
+    / lhs=expression ws? ".." ws? rhs=expression          -- inclusive_range
+
+    / expression ws? sum_operator ws? expression          -- sum
+
+    / expression ws? product_operator ws? expression      -- product
+
+    / function_call "^" expression                        -- power
+
+    / function_call
+
+  function_call
+    <- function_call function_call_suffix                       -- function_call
+    / function_call ws? navigation_operator ws? function_call   -- navigation
     / simple_expression
 
   simple_expression
     <- parenthesized_expression
-    / ident
     / literal
+    / ident
     / do_expr
     / if_expr
     / while_expr
@@ -561,6 +537,8 @@ Able {
     / return_expr
     / break_expr
     / continue_expr
+    / jump_point
+    / jump
 
   parenthesized_expression
     <- "(" ws? expression ws? ")"
@@ -605,23 +583,23 @@ Able {
 
   jump
     <- "jump" ws label ws expression
-
+  
   literal
     <- "()"                 -- unit_literal
     / "nil"                 -- nil_literal
     / bool_literal
-    / int_literal
     / float_literal
+    / int_literal
     / string_literal
 
   bool_literal <- "true" / "false"
 
   // integer literals - similar to https://golang.org/ref/spec#Integer_literals
   int_literal
-    <- decimal_literal int_width?
-    / binary_literal int_width?
+    <- binary_literal int_width?
     / octal_literal int_width?
-    / int_width int_width?
+    / hex_literal int_width?
+    / decimal_literal int_width?
 
   decimal_literal
     <- digit+ ("_" / digit)*
@@ -657,7 +635,7 @@ Able {
     <- "\"" (unicode_value / unicode_new_line / byte_value)* "\""
   //  / "\"\"\"" (unicode_value / unicode_new_line / byte_value)* "\"\"\""   // heredoc behaves like Ruby's <<~ heredoc
 
-  unicode_value    <- unicodeChar / little_u_value / big_u_value / escaped_char
+  unicode_value    <- little_u_value / big_u_value / escaped_char / unicode_char
   byte_value       <- octal_byte_value / hex_byte_value
   octal_byte_value  <- "\\" octal_digit octal_digit octal_digit
   hex_byte_value    <- "\\x" hex_digit hex_digit
@@ -748,8 +726,8 @@ Able {
   //newline <- /* the Unicode code point U+000A */ .
   unicode_new_line <- "\u000A"
 
-  // unicode_char   <- /* an arbitrary Unicode code point except newline */ .
-  unicodeChar <- !unicode_new_line .
+  // unicode_char   <- /* an arbitrary Unicode code point except newline and double quote */ .
+  unicode_char <- !unicode_new_line !"\"" .
 
   // taken from https://golang.org/ref/spec#Letters_and_digits
   letter_ <- letter | "_"

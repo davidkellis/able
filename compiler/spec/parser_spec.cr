@@ -61,7 +61,22 @@ SRC
 
   it "recognizes package level variable assignment" do
     src = <<-SRC
+    a = ()
+    a = nil
+    a = true
+    a = false
     a = 5
+    a = 5i8
+    a = 5u64
+    a = 0b0101100
+    a = 0b0101100u16
+    a = 1.2
+    a = 1.2e9f32
+    a = 1e9_f32
+    a = 8f64
+    a = 8_f64
+    a = ""
+    a = "foo"
 SRC
     parse_tree = GRAMMAR.parse(src)
     parse_tree.should_not eq(nil)
@@ -121,8 +136,14 @@ SRC
   it "recognizes package level function definitions" do
     src = <<-SRC
     fn foo() { a = 5 }
+    fn foo() {
+      a = 5
+    }
     fn foo() -> i32 { a = 5; b = 8; a + b }
     fn foo() { puts(5) }
+    fn foo() {
+      puts(5)
+    }
 SRC
     parse_tree = GRAMMAR.parse(src)
     parse_tree.should_not eq(nil)
