@@ -632,16 +632,16 @@ Able {
 
   // string literals - similar to https://golang.org/ref/spec#String_literals
   string_literal
-    <- "\"" (unicode_value / unicode_new_line / byte_value)* "\""
-  //  / "\"\"\"" (unicode_value / unicode_new_line / byte_value)* "\"\"\""   // heredoc behaves like Ruby's <<~ heredoc
+    <- "\"" (unicode_value / byte_value / unicode_char)* "\""
+  //  / "\"\"\"" (unicode_value / byte_value / unicode_char)* "\"\"\""   // heredoc behaves like Ruby's <<~ heredoc
 
-  unicode_value    <- little_u_value / big_u_value / escaped_char / unicode_char
-  byte_value       <- octal_byte_value / hex_byte_value
-  octal_byte_value  <- "\\" octal_digit octal_digit octal_digit
-  hex_byte_value    <- "\\x" hex_digit hex_digit
+  unicode_value    <- little_u_value / big_u_value / escaped_char / unicode_new_line
   little_u_value    <- "\\u" hex_digit hex_digit hex_digit hex_digit
   big_u_value       <- "\\U" hex_digit hex_digit hex_digit hex_digit hex_digit hex_digit hex_digit hex_digit
   escaped_char     <- "\\" ( "a" / "b" / "f" / "n" / "r" / "t" / "v" / "\\" / "'" / "\"" )
+  byte_value       <- octal_byte_value / hex_byte_value
+  octal_byte_value  <- "\\" octal_digit octal_digit octal_digit
+  hex_byte_value    <- "\\x" hex_digit hex_digit
 
 
 
