@@ -77,6 +77,7 @@ SRC
     a = 8_f64
     a = ""
     a = "foo"
+    a = "Here Be Dragons©"
 SRC
     parse_tree = GRAMMAR.parse(src)
     parse_tree.should_not eq(nil)
