@@ -56,7 +56,7 @@ Able {
   // Only operators that produce a value in the same domain as their arguments (i.e. operators whose domain and range are the same) are allowed here.
   // It wouldn't make sense to allow =< or =>, because those would return bool, when the arguments would likely be numeric, and you couldn't assign a bool to a numeric type.
   infix_assignment_operator
-    <- "=" ("+" / "-" / "*" / "/" / "\\" / "%" / "^" / "&&" / "||" / "&" / "|" / "<<" / ">>")
+    <- ("+" / "-" / "*" / "/" / "\\" / "%" / "^" / "&&" / "||" / "&" / "|" / "<<" / ">>") "="
 
   // assignment is right-associative
   multiple_assignment
@@ -684,17 +684,20 @@ Able {
     <- space
 
   comment
-    <- "#" (!nl .)* (eol / eof)
-    / "/*" (!"*/" .)* "*/"
+    <- inline_comment
+    / multiline_comment
 
-  eos <- (semi_sep / nl_sep)+         // end of statement
-  list_sep <- (comma_sep / nl_sep)+   // list separator
+  inline_comment <- "#" (!eol .)* (eol / eof)
+  multiline_comment <- "/*" (!"*/" .)* "*/"
+
+  eos <- (semi_sep / nl_sep)+         # end of statement
+  list_sep <- (comma_sep / nl_sep)+   # list separator
   semi_sep <- ws? ";" ws?
   comma_sep <- ws? "," ws?
   amp_sep <- ws? "&" ws?
   pipe_sep <- ws? "|" ws?
   nl_sep <- nl_with_surrounding_lws+
-  nl_with_surrounding_lws <- (lws / comment)? nl (lws / comment)?
+  nl_with_surrounding_lws <- (lws / multiline_comment)? (nl / inline_comment) (lws / multiline_comment)?
 
   ws <- (lws / nl / comment)+
 

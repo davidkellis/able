@@ -78,6 +78,9 @@ SRC
     a = ""
     a = "foo"
     a = "Here Be Dragons©"
+    
+    # operator shorthand assignment
+    v += 1
 SRC
     parse_tree = GRAMMAR.parse(src)
     parse_tree.should_not eq(nil)
