@@ -353,8 +353,16 @@ Able {
     / destructuring_type_primitive "::" destructuring_type_primitive    -- tuple_pair
     / destructuring_sequence                                            -- sequence
     / destructuring_struct                                              -- struct
+    / function_type                                                     -- function_type
     / type_name                                                         -- type_name
 
+  # (A, B, C) -> D
+  # (A) -> B
+  # () -> B
+  # A -> B
+  function_type
+    <- "(" ws? type_name_list?  ws? ")" ws? "->" ws? type_name
+    / type_name lws? "->" lws? type_name
 
   function_body
     <- block

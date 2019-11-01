@@ -499,6 +499,11 @@ Function types are denoted with the syntax:
 (<parameter type>, <parameter type>, <parameter type>, ...) -> <return type>
 ```
 
+As a special case, if a function only has a single parameter, the function type may be denoted with:
+```
+<parameter type> -> <return type>
+```
+
 ### Named function syntax
 
 `fn <function name>[<optional type paramter list>](<parameter list>) -> <optional return type> { <function body> }`
