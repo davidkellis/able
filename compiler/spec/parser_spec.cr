@@ -149,6 +149,20 @@ SRC
     fn foo() {
       puts(5)
     }
+    fn foo(self: Self, f: T -> Unit) -> Unit { 5 }
+SRC
+    parse_tree = GRAMMAR.parse(src)
+    parse_tree.should_not eq(nil)
+  end
+
+  it "recognizes package level interface definitions" do
+    src = <<-SRC
+    interface Stringable for T {
+      fn to_s(T) -> String
+    }
+    interface Iterable T for I {
+      fn each(self: Self, f: T -> Unit) -> Unit
+    }
 SRC
     parse_tree = GRAMMAR.parse(src)
     parse_tree.should_not eq(nil)
