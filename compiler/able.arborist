@@ -172,12 +172,14 @@ Able {
     / type_name                                                                                    -- singleton_struct
 
   type_parameters_decl
-    <- "[" ws? free_type_parameter (comma_sep free_type_parameter)* ws? "]"
+    <- "[" ws? type_parameter_list ws? "]"
+
+  type_parameter_list <- type_parameter (comma_sep type_parameter)*
 
   // T : Foo
   // T _ : Mappable
   // T : Foo & Bar
-  free_type_parameter
+  type_parameter
     <- type_name (lws? type_constraint)?
 
   // : Foo
@@ -277,6 +279,10 @@ Able {
 
   // fn <function name>[<optional type paramter list>](<parameter list>) -> <optional return type>
   function_decl <- "fn" lws ident (lws type_parameters_decl)? function_signature
+
+  function_decl_or_defn_list <- function_decl_or_defn ( nl_sep function_decl_or_defn )*
+
+  function_decl_or_defn <- function_defn / function_decl
 
   /*
   fn func1[<optional type paramter list>](<parameter list>) -> <optional return type> => <expr>
@@ -378,11 +384,12 @@ Able {
   function_body_single_expr <- "=>" ws? expression
 
 
-  // interface Foo T [T: Iterable] {
-  //   fn foo() -> i32
-  // }
+  # interface A [B C ...] for D [E F ...] [where <type constraints>]{
+  # 	fn foo(T1, T2, ...) -> T3
+  # 	...
+  # }
   interface_defn
-    <- "interface" lws type_name (lws type_parameters_decl)? lws? "{" ws? function_decl_list? ws? "}"
+    <- "interface" lws type_name lws "for" lws type_name (ws "where" ws type_parameter_list)? lws? "{" ws? function_decl_or_defn_list? ws? "}"
 
   // [implName =] impl [X, Y, Z, ...] A <B C ...> for D <E F ...> {
   //   fn foo(T1, T2, ...) -> T3 { ... }
@@ -400,7 +407,7 @@ Able {
   //   ...
   // }
   anonymous_impl_defn
-    <- "impl" (lws type_parameters_decl)? lws type_name lws "for" lws type_name lws? "{" ws? functionDefnList? ws? "}"
+    <- "impl" (lws type_parameters_decl)? lws type_name lws "for" lws type_name lws? "{" ws? function_defn_list? ws? "}"
 
   // macro <name of macro function>(<parameters>) {
   //   <pre-template logic goes here>
@@ -659,9 +666,11 @@ Able {
   package_ident <- letter (letter / digit)*
   fq_package_ident <- package_ident ("." package_ident)*
   ident <- letter (letter | digit)*
-  placeholder_ident <- "_" digit*
-  type_ident <- letter (letter | digit)* "?"?
-  free_type_ident <- letter ( letter | digit)*
+  # placeholder_ident <- "_" digit*
+  type_ident <- !keywords (letter (letter | digit)* "?"?)
+  free_type_ident <- !keywords (letter ( letter | digit)*)
+
+  keywords <- "for"
 
   // id1
   // id1: type1

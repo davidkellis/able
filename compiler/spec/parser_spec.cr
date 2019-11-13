@@ -157,25 +157,49 @@ SRC
 
   it "recognizes package level interface definitions" do
     src = <<-SRC
-    interface Stringable for T {
-      fn to_s(T) -> String
+    interface Stringable for S {
+      fn to_s(S) -> String
+    }
+    interface Stringable for S {
+      fn to_s(S) -> String
+      fn inspect(S) -> String { "foo" }
+    }
+    interface Stringable for S {
+      fn to_s(Self) -> String
     }
     interface Iterable T for I {
       fn each(self: Self, f: T -> Unit) -> Unit
+    }
+    interface Comparable for T {
+      fn compare(T, T) -> i32
+    }
+    interface Mappable for M _ {
+      fn map(m: M A, convert: A -> B) -> M B
     }
 SRC
     parse_tree = GRAMMAR.parse(src)
     parse_tree.should_not eq(nil)
   end
 
-#   it "recognizes hello world program" do
-#     src = <<-SRC
-#     fn main() {
-#       io.puts("hello world")
-#     }
-# SRC
-#     parse_tree = GRAMMAR.parse(src)
-#     parse_tree.should_not eq(nil)
-#   end
+  it "recognizes package level interface implementations" do
+    src = <<-SRC
+    impl Stringable for Foo { }
+    impl Stringable for Foo {
+      fn to_s(Self) -> String { "foo" }
+    }
+SRC
+    parse_tree = GRAMMAR.parse(src)
+    parse_tree.should_not eq(nil)
+  end
+
+  it "recognizes hello world program" do
+    src = <<-SRC
+    fn main() {
+      io.puts("hello world")
+    }
+SRC
+    parse_tree = GRAMMAR.parse(src)
+    parse_tree.should_not eq(nil)
+  end
 
 end
