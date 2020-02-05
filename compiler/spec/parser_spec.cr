@@ -10,6 +10,7 @@ describe "Parser" do
     # bar
 SRC
     parse_tree = GRAMMAR.parse(src)
+    GRAMMAR.print_match_failure_error unless parse_tree
     parse_tree.should_not eq(nil)
 
     src = <<-SRC
@@ -19,6 +20,7 @@ SRC
     */
 SRC
     parse_tree = GRAMMAR.parse(src)
+    GRAMMAR.print_match_failure_error unless parse_tree
     parse_tree.should_not eq(nil)
   end
 
@@ -27,6 +29,7 @@ SRC
     package foo
 SRC
     parse_tree = GRAMMAR.parse(src)
+    GRAMMAR.print_match_failure_error unless parse_tree
     parse_tree.should_not eq(nil)
   end
 
@@ -46,6 +49,7 @@ SRC
     }
 SRC
     parse_tree = GRAMMAR.parse(src)
+    GRAMMAR.print_match_failure_error unless parse_tree
     parse_tree.should_not eq(nil)
   end
 
@@ -56,6 +60,7 @@ SRC
     a : i32
 SRC
     parse_tree = GRAMMAR.parse(src)
+    GRAMMAR.print_match_failure_error unless parse_tree
     parse_tree.should_not eq(nil)
   end
 
@@ -84,6 +89,7 @@ SRC
     a /= 1
 SRC
     parse_tree = GRAMMAR.parse(src)
+    GRAMMAR.print_match_failure_error unless parse_tree
     parse_tree.should_not eq(nil)
   end
 
@@ -117,6 +123,7 @@ SRC
     struct SmallHouse { sqft: Float }
 SRC
     parse_tree = GRAMMAR.parse(src)
+    GRAMMAR.print_match_failure_error unless parse_tree
     parse_tree.should_not eq(nil)
   end
 
@@ -135,6 +142,7 @@ SRC
     union ContrivedResult A B [A: Fooable, B: Barable] = Success A X [X: Stringable] {A, X} | Failure B Y [Y: Serializable] {B, Y}
 SRC
     parse_tree = GRAMMAR.parse(src)
+    GRAMMAR.print_match_failure_error unless parse_tree
     parse_tree.should_not eq(nil)
   end
 
@@ -144,7 +152,7 @@ SRC
     fn foo() {
       a = 5
     }
-    fn foo() -> i32 { a = 5; b = 8; a + b }
+    fn foo() -> i32 { a = 5 }
     fn foo() { puts(5) }
     fn foo() {
       puts(5)
@@ -152,6 +160,7 @@ SRC
     fn foo(self: Self, f: T -> Unit) -> Unit { 5 }
 SRC
     parse_tree = GRAMMAR.parse(src)
+    GRAMMAR.print_match_failure_error unless parse_tree
     parse_tree.should_not eq(nil)
   end
 
@@ -178,6 +187,7 @@ SRC
     }
 SRC
     parse_tree = GRAMMAR.parse(src)
+    GRAMMAR.print_match_failure_error unless parse_tree
     parse_tree.should_not eq(nil)
   end
 
@@ -189,6 +199,7 @@ SRC
     }
 SRC
     parse_tree = GRAMMAR.parse(src)
+    GRAMMAR.print_match_failure_error unless parse_tree
     parse_tree.should_not eq(nil)
   end
 
@@ -199,7 +210,136 @@ SRC
     }
 SRC
     parse_tree = GRAMMAR.parse(src)
+    GRAMMAR.print_match_failure_error unless parse_tree
     parse_tree.should_not eq(nil)
+  end
+
+  it "recognizes various forms of assignment within a function definition" do
+    src = <<-SRC
+    fn main() {
+      a = ()
+      a = nil
+      a = true
+      a = false
+      a = 5
+      a = 5i8
+      a = 5u64
+      a = 0b0101100
+      a = 0b0101100u16
+      a = 1.2
+      a = 1.2e9f32
+      a = 1e9_f32
+      a = 8f64
+      a = 8_f64
+      a = ""
+      a = "foo"
+      a = "Here Be Dragons©"
+      
+      # operator shorthand assignment
+      a += 1
+      a /= 1
+
+      # arr(5) = 123
+    }
+SRC
+    parse_tree = GRAMMAR.parse(src)
+    GRAMMAR.print_match_failure_error unless parse_tree
+    parse_tree.should_not eq(nil)
+  end
+
+  it "recognizes various expressions within a function definition" do
+    src = <<-SRC
+    fn main() {
+      a while b
+      a until b
+      a if b
+      a unless b
+      a match {
+        Foo => 1
+        Bar => 2
+        _ => 3
+      }
+      a |> b |> c
+      a || b || c
+      a && b && c
+      a == b == c
+      a <= b <= c
+      a >= b >= c
+      a..b
+      a...b
+    }
+SRC
+    parse_tree = GRAMMAR.parse(src)
+    GRAMMAR.print_match_failure_error unless parse_tree
+    parse_tree.should_not eq(nil)
+  end
+
+  describe "recognizes expressions" do
+    it "recognizes expressions" do
+      src = <<-SRC
+      a while b
+      a until b
+      a if b
+      a unless b
+      a match {
+        Foo => 1
+        Bar => 2
+        _ => 3
+      }
+      a = 1
+      a |> b |> c
+      a || b || c
+      a && b && c
+      a == b == c
+      a <= b <= c
+      a >= b >= c
+      a..b
+      a...b
+      a+a+a
+      a*a*a
+      a^a^a
+      foo()
+      a.b.c()
+      (a + b)
+      (a && b)
+SRC
+      src = <<-SRC
+(a && b)
+SRC
+      # Arborist::GlobalDebug.enable!
+      parse_tree = GRAMMAR.parse(src, "unit_test_expressions")
+      GRAMMAR.print_match_failure_error unless parse_tree
+      # Arborist::GlobalDebug.disable!
+      parse_tree.should_not eq(nil)
+    end
+
+    it "recognizes simple_expressions" do
+      src = <<-SRC
+# parenthesized expression
+(123)
+
+# literal
+()
+nil
+true
+false
+123.123
+123
+"foo"
+
+# control flow
+return
+break
+continue
+
+# jumps and jumppoints
+#jumppoint :foo { 123 }
+#jump :foo 123
+SRC
+      parse_tree = GRAMMAR.parse(src, "unit_test_expressions")
+      GRAMMAR.print_match_failure_error unless parse_tree
+      parse_tree.should_not eq(nil)
+    end
   end
 
 end
