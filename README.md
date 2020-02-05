@@ -305,6 +305,8 @@ struct Red
 
 ### Definition with Positional Fields
 
+Structs defined with positional fields might also be called named tuples.
+
 ```
 # non-generic definition
 struct Point { i32, i32 }
@@ -2030,16 +2032,17 @@ spawn { c.receive |> puts }
 - `-` - subtraction
 - `*` - multiplication
 - `^` - exponentiation
-- `/` - real division
-- `\` - integer division
+- `/` - floating point division
+- `//` - integer division
 - `%` - modulus operator
-- `\%` - divmod operator returns a 2-tuple (pair) consisting of the (quotient, remainder)
+- `/%` - divmod operator returns a 2-tuple (pair) consisting of the (quotient, remainder)
 
 ## Unsolved Problems
 
 - https://github.com/matthiasn/talk-transcripts/blob/master/Hickey_Rich/EffectivePrograms.md
   - ~~ability to cope with sparse data/composable information constructs (heterogeneous lists and maps)~~
-- Support something like Rust's questionmark operator: https://m4rw3r.github.io/rust-questionmark-operator ??
+- Support something like Rust's questionmark operator: https://m4rw3r.github.io/rust-questionmark-operator ?
+- Combined Option/Result type as in V (see https://vlang.io/docs#option) ?
 
 ## To do
 
