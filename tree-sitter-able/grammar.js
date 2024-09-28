@@ -2,10 +2,10 @@
 // @ts-check
 
 module.exports = grammar({
-  name: 'able',
+  name: "able",
 
   rules: {
     // TODO: add the actual grammar rules
-    source_file: $ => 'hello'
+    source_file: $ => "hello"
   }
 });
