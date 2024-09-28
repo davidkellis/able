@@ -1,0 +1,134 @@
+#####################################################
+# Loops, labels, break, and continue
+
+loop {
+  puts("hello")
+  break
+}
+
+loop
+  puts("hello")
+  break
+end
+
+@outer loop {
+  @inner loop {
+    puts("running")
+    if rand() < 0.5
+      break @inner 1
+    else
+      break @outer 2
+    end
+  }
+}
+
+running = true
+while running
+  puts("running")
+  running = false
+end
+
+running = true
+@outer while true
+  puts("running outer")
+  while running
+    puts("running inner")
+    if rand() < 0.5
+      running = false
+    else
+      break @outer
+    end
+  end
+end
+
+A break statement without a label jumps to the execution point immediately after the nearest enclosing loop.
+A break statement with a label jumps to the execution point immediately after the loop marked with that label.
+A continue statement without a label jumps to the next iteration of the nearest enclosing loop.
+A continue statement with a label jumps to the next iteration of the loop marked with that label.
+
+break and continue may be used with 0, 1, or 2 arguments:
+1. break
+2. break @label
+3. break @label <expression>
+
+In (1), break jumps to the execution point immediately following the nearest enclosing loop/block, and the loop/block evaluates to nil.
+In (2), break jumps to the execution point immediately following the loop/block tagged with the label `@label`, and the loop evaluates to nil.
+In (3), break jumps to the execution point immediately following the loop/block tagged with the label `@label`, and the loop evaluates to <expression>.
+
+
+Blocks may tagged with a label. A label is an identifier prefixed with an `@`, as in `@foo`.
+`break` may be used to perform a non-local jump back up the call stack, if you view the stack growing down 
+(or jump back down the call stack, if you view the stack growing up) to the 
+expression following a block tagged with a label.
+
+@foo do
+  puts("foo")
+  break @foo false
+  puts("bar")
+end
+
+@foo do {
+  puts("foo")
+  break @foo
+  puts("bar")
+}
+
+fn all?(iterable Iterable T, predicate T -> bool) -> bool {
+  @stopearly do {
+    iterable.each { t => break @stopearly false unless predicate(t) }
+    true
+  }
+}
+
+
+#####################################################
+# Branching
+
+if condition {
+  foo
+} else {
+  bar
+}
+
+if condition
+  foo
+else
+  bar
+end
+
+a = b if condition
+
+b = b unless condition
+
+
+Pattern matching expressions take the following general form:
+```
+<expression> match {
+  <destructuring pattern> => <expression>
+  <destructuring pattern> => <expression>
+  <destructuring pattern> => <expression>
+  ...
+}
+
+# OR
+
+<expression> match { <destructuring pattern> => <expression> | <destructuring pattern> => <expression> | ... }
+```
+
+For example:
+
+```
+union House =
+  | TinyHouse { sqft f32 }
+  | SmallHouse { sqft f32 }
+  | MediumHouse { sqft f32 }
+  | LargeHouse { sqft f32 }
+  | HugeHouse { sqft f32, pools i32 }
+
+fn buildHouse(h: House) => h match {
+  TinyHouse | SmallHouse => puts("build a small house")
+  m MediumHouse => puts("build a modest house - $m")
+  l LargeHouse{area} => puts ("build a large house of $area sq. ft. - $l")
+  HugeHouse{_, poolCount} => puts ("build a huge house with $poolCount pools!")
+}
+```

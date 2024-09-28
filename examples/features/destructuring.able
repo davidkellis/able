@@ -1,0 +1,15 @@
+#####################################################
+# Destructuring tuples
+
+(a, b, c) = (1, 2, 3)
+
+
+#####################################################
+# Destructuring structs
+
+Person{name, age} = Person{name: "Joe", age: 22}
+
+
+#####################################################
+# Destructuring sequences
+

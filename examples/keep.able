@@ -1,0 +1,104 @@
+# ported from https://gist.github.com/archer884/fdc4a514c750c6ed4c6fe0dd2e44456e
+
+struct Opts
+  key: String?,           # The name of a pooled value
+  command: Command?,      
+  verbose: bool,
+end
+
+union Command =
+  | Add { value: i32 }      # Add to a pooled value (health, ki, etc.)
+  | Note { note: String }   # Append a note
+  | Set { value: i32 }      # Set a pooled value
+  | Sub { value: i32 }      # Subtract from a pooled value
+
+struct Character {
+  pools: Map String i32,
+  notes: Array String,
+}
+
+impl Character {
+  fn get_pool(self, name: impl Into<String>) -> i32
+    self.pools.entry(name.into()).or_default()
+  end
+
+  fn add_note(self, note: impl Into<String>)
+    self.notes.push(note.into());
+  end
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let Opts {
+        key,
+        command,
+        verbose,
+    } = Opts::parse();
+    let path = storage_path()?;
+
+    if verbose {
+        println!("{:?}\n{:?}\n{:?}", key, command, path);
+    }
+
+    let mut character = read_character(&path)?;
+
+    if let Some(Command::Note { note }) = command {
+        character.add_note(note);
+        write_character(&path, &character)?;
+        return Ok(());
+    }
+
+    // FIXME: use a custom-build clap app definition to avoid
+    // needing to do this kind of crap.
+    let key = match key {
+        Some(key) => key,
+        None => {
+            eprintln!("pool operations require a key");
+            process::exit(1);
+        }
+    };
+
+    let pool = character.get_pool(key);
+
+    match command {
+        Some(Command::Add { value }) => {
+            *pool += value;
+            println!("{}", pool);
+        }
+        Some(Command::Set { value }) => {
+            *pool = value;
+            println!("{}", pool);
+        }
+        Some(Command::Sub { value }) => {
+            *pool -= value;
+            println!("{}", pool);
+        }
+        Some(Command::Note { .. }) => unreachable!(),
+        None => {
+            println!("{}", pool);
+        }
+    }
+
+    Ok(write_character(&path, &character)?)
+}
+
+fn read_character(path: &Path) -> io::Result<Character> {
+    if path.exists() {
+        let mut file = File::open(path)?;
+        Ok(serde_json::from_reader(&mut file)?)
+    } else {
+        Ok(Character::new())
+    }
+}
+
+fn write_character(path: &Path, character: &Character) -> io::Result<()> {
+    // FIXME: I'm 92% sure that OpenOptions aren't necessary here.
+    let mut file = OpenOptions::new().create(true).write(true).open(&path)?;
+    serde_json::to_writer_pretty(&mut file, character)?;
+    Ok(())
+}
+
+fn storage_path() -> io::Result<PathBuf> {
+    BaseDirs::new()
+        .map(|x| x.home_dir().join(".keep"))
+        .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "No home directory"))
+}

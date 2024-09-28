@@ -1,0 +1,42 @@
+# a port of https://github.com/archer884/morse/blob/master/src/main.rs
+
+ENCODED_SEQUENCES = [
+  ".-", "-...", "-.-.", "-..", ".", "..-.", "--.", "....", "..", ".---",
+  "-.-", ".-..", "--", "-.", "---", ".--.", "--.-", ".-.", "...", "-", 
+  "..-", "...-", ".--", "-..-", "-.--", "--..", "-----", ".----", "..---", "...--", 
+  "....-", ".....", "-....", "--...", "---..", "----.",
+]
+
+DECODING_ARRAY Array (Char | Nil) = [
+  "0", nil, nil, nil, "9", nil, "O", nil, nil, nil, 
+  nil, nil, "8", nil, "M", nil, nil, nil, "Q", nil, 
+  nil, nil, "G", nil, nil, nil, "Z", nil, "7", nil, 
+  "T", nil, nil, nil, "Y", nil, nil, nil, "K", nil,
+  nil, nil, "C", nil, nil, nil, "N", nil, nil, nil,
+  "X", nil, nil, nil, "D", nil, nil, nil, "B", nil,
+  "6", nil, nil, nil, "1", nil, "J", nil, nil, nil,
+  "W", nil, nil, nil, "P", nil, nil, nil, "A", nil,
+  nil, nil, nil, nil, nil, nil, "R", nil, nil, nil,
+  "L", nil, nil, nil, "E", nil, "2", nil, nil, nil,
+  nil, nil, "U", nil, nil, nil, "F", nil, nil, nil,
+  "I", nil, "3", nil, "V", nil, nil, nil, "S", nil,
+  "4", nil, "H", nil, "5",
+]
+
+union Opts = Encode | Decode
+
+union Error = Encode{ char } | Decode{String} | Io {Error}
+
+impl Display for Error
+  fn format(self, out Writable)
+    self match {
+      Encode(u) => out.puts("unable to encode value: $u")
+      Decode(code) => out.puts("unable to decode sequence: $code")
+      Io(e) => e.format(out)
+    }
+  end
+end
+
+fn main()
+
+end
