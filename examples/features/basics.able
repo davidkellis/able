@@ -1,0 +1,270 @@
+#####################################################
+# Comments
+
+# comments are prefixed with the hash/pound/octothorpe symbol and run to the end of the line
+
+
+#####################################################
+# Variables
+
+a = "foo"
+b String = "foo"
+c Array i32 = [1, 2, 3]
+d Map i32 String = {1: "foo", 2: "bar", 3: "baz"}
+
+variables_are_named_with_snakecase = "blah"
+
+
+#####################################################
+# Semicolons and Newlines
+
+# Semicolons seperate expressions if they are on the same line, as in:
+puts("foo"); puts("bar"); 1+2*3
+
+# Newlines seperate expressions, as in:
+puts("foo")
+puts("bar")
+1+2*3
+
+
+#####################################################
+# Integers
+
+# Signed integer types: i8, i16, i32, i64
+# Unsigned integer types: u8, u16, u32, u64
+
+# Literals:
+
+# Decimal:
+123
+0123
+123i8
+123u8
+123i32
+123_456
+123_456u32
+123_456_u32
+
+# Octal:
+0o123
+
+# Binary:
+0b11001
+
+# Hex:
+0x123
+0x123f_u32
+
+
+#####################################################
+# Floating point numbers
+
+# Floating point types: f32, f64
+
+# Literals:
+
+# Single precision:
+5.4e3f32
+5.4e+3f32
+5.4e3f_32
+5.4e+3_f32
+123e-3f32
+123_e-3_f32
+.4e3f32
+.4e+3f32
+.4e3f_32
+.4e+3_f32
+
+# Double precision:
+12.0
+5.4e3
+5.4e+3
+5.4e-3
+123e3
+123_e3
+5.4e-3f64
+5.4e-3_f64
+123f64
+123_f64
+.4e3
+.4e+3
+.4e-3
+.4e-3f64
+.4e-3_f64
+
+
+#####################################################
+# Booleans
+
+# Type: Bool
+# Literals: true or false
+
+true
+false
+
+
+#####################################################
+# Nil
+
+# Type: Nil
+# Literals: nil
+
+nil
+
+
+#####################################################
+# Maps
+
+coord1 = { "x": 1, "y": 5 }
+coord1 Map String i32 = { "x": 1, "y": 5 }
+
+coord2 = { "x": 1, "y": 5, 10: "ten", 30: "thirty" }
+coord2 Map (String | i32) String = { "x": 1, "y": 5, 10: "ten", 30: "thirty" }
+
+
+#####################################################
+# Arrays
+
+array1 = [ 1, 2, 3 ]
+array1 Array i32 = [ 1, 2, 3 ]
+
+array2 = [ 1, 2, 3, "foo" ]
+array2 Array (i32 | String) = [ 1, 2, 3, "foo" ]
+
+
+#####################################################
+# Blocks
+
+do {
+  puts("hi")
+  input = gets()
+  puts("You entered ${input}")
+  input
+}
+
+do
+  puts("goodbye")
+  fire_missiles()
+end
+
+
+#####################################################
+# Tuples
+
+record = (1, "Foo", "bar")    # this has type (i32, String, String)
+if record.@1 == 1 then puts("you're in first place!")
+
+#Single element tuples are a special case denoted by `( <expression> , )`:
+(100, )    # this has type (i32)
+
+
+#####################################################
+# Structs
+
+Struct definitions create a constructor function that may be used to create instances of the newly defined struct.
+Alternatively, struct instances can be created with struct literal syntax: `<type name> { <field name> : <value>, <field name2> : value, ... }`
+
+### Definition with Positional Fields
+
+# non-generic definition
+struct Point { i32, i32 }
+
+# generic definitions
+struct Foo T { i32, f32, T }
+
+# usage
+Point(1,2)
+Point{1,2}
+Foo(1, 2, "hi")
+Foo String(1, 2, "hi")
+
+### Definition with Named Fields
+
+# non-generic definition
+struct Point { x i32, y i32 }
+
+# generic definitions
+struct Foo T { x i32, y f32, z T }
+struct Foo T { x i32, y f32, z T, }
+struct Foo T [T: Iterable] { x i32, y f32, z T }
+struct Foo T {
+  x i32,
+  y f32,
+  z T,
+}
+struct Foo T {
+  x i32
+  y f32
+  z T
+}
+
+# usage
+Point(x: 1, y: 2)
+Point{x: 1, y: 2}
+Foo(x: 1, x: 2, z: "hi")
+Foo String(x: 1, x: 2, z: "hi")
+Foo{x: 1, x: 2, z: "hi"}
+
+
+#####################################################
+# Unions
+
+### Union definitions referencing predefined types
+
+```
+union String? = String | Nil
+
+struct Red { level i32 }
+struct Green { level i32 }
+struct Blue { level i32 }
+union Color = Red | Green | Blue
+```
+
+### Union definitions referencing new struct types
+
+```
+union SmallInt = One | Two | Three
+
+union House = SmallHouse { sqft f32 }
+  | MediumHouse { sqft f32 }
+  | LargeHouse { sqft f32 }
+
+union House =
+  SmallHouse { sqft f32 }
+  | MediumHouse { sqft f32 }
+  | LargeHouse { sqft f32 }
+
+union House =
+  | SmallHouse { sqft f32 }
+  | MediumHouse { sqft f32 }
+  | LargeHouse { sqft f32 }
+```
+
+
+#####################################################
+# Functions
+
+3 
+
+### Named functions
+
+```
+fn <function name>[<optional type paramter list>](<parameter list>) -> <return type> { <function body> }
+
+or
+
+fn <function name>[<optional type paramter list>](<parameter list>) -> <return type>
+  <function body>
+end
+```
+
+# examples
+```
+fn add(a, b) { a + b }
+fn add(a i32, b i32) { a + b }
+fn add(a i32, b i32) -> i32 { a + b }
+
+fn launch_missiles(n int32)
+  
+end
+```

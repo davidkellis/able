@@ -1,0 +1,14 @@
+fn main() {
+  File.read_lines("#{__DIR__}/input.txt")
+    .map(@.to_i)
+    .map { mass => fuel(mass) }
+    .sum
+  |> puts
+}
+
+# This is for part 2: for part 1 it's just `mass // 3 - 2`
+fn fuel(mass) {
+  fuel = mass // 3 - 2
+  fuel += fuel(fuel) if fuel > 0
+  fuel
+}

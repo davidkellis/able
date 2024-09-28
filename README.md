@@ -12,6 +12,10 @@ Here are a few sample programs to give you a feel for the language:
 fn main() {
   puts("Hello world.")
 }
+
+fn main()
+  puts("Hello world.")
+end
 ```
 
 **Factorial**
@@ -1570,13 +1574,19 @@ Structs may also be destructured via named field destructuring, which takes the 
 # if it is desirable to reference p.address via the local identifier addr, then do the following:
 p: Person { a=age, h=height, w=weight, addr: Address{z=zip}=address }
 
+p Person{ age, h as height, w as weight, addr Address{z as zip} as address, Profile{billing}}
+p Person{ age, h = height, w = weight, addr Address{z as zip} = address}
+p Person{ age, h = height, w = weight, addr Address{z as zip} = address, Profile{billing} = profile}
+
+p Person{@age: age, h as height, w as weight, addr Address{z as zip} as address}
+
 # or
 
 # if it isn't necessary to reference p.address via a local identifier, then do the following:
 p: Person { a=age, h=height, w=weight, Address{z=zip}=address }
 ```
 
-Named field destructuring uses the assignment operator to denote that a local variable identifier should be bound to a particular named field within the struct; the syntax takes the form `local_variable_identifier=field_name_from_struct`.
+Named field destructuring uses the assignment operator to denote that a local variable identifier should be bound to a particular named field within the struct; the syntax takes the form `local_variable_identifier = field_name_from_struct`.
 
 In cases where named field destructuring expressions need to be recursively destructured, the left hand side of the assignment operator may take one of two forms, (1) `local_identifier: AnotherStruct {...}`, or (2) `AnotherStruct {...}`. The first form is used when it is desirable to bind the full value that is being recursively destructured to a local identifier, while the second form is used when it is unnecessary to reference the full value that is being recursively destructured.
 
@@ -2100,3 +2110,9 @@ A primary goal of having a single tool is to enable the quick spin-up of a devel
 
 - `able pkg build`
 - `able pkg publish`
+
+## Known Issues
+
+These issues are on my todo list, but I don't have a fix for them yet.
+
+- The parser doesn't currently detect empty rule bodies, and the application of a rule that has no body will never terminate.

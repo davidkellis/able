@@ -20,23 +20,29 @@ Able {
   
   expression <-
     assignment
-    / expression function_call_suffix
-    / expression ws? navigation_operator ws? expression
+    / function_call
+    / navigation_expression
     / primary_expression
+  
+  navigation_expression <-
+    expression ws? navigation_operator ws? member_access_suffix
+
+  # SumMonoid#op
+  # Iterable[String]#foo
+  # foo
+  member_access_suffix <-
+    bracket_parameterized_type "#" ident
+    / ident
 
 
   ################################## Assignment Expression ##################################
-
-  #assignment_expression <-
-  #  assignment
-  #  / member_expression
 
   # v = expr
   # v: type = expr
   # v1, v2 = expr, expr              # parallel assignment
   # v1: type, v2: type = expr, expr  # parallel assignment
   # (v1, v2) = expr
-  # Array{v1, v2, v3*} = expr
+  # Array[v1, v2, v3*] = expr
   # MyStruct{v1, v2} = expr
   # v += expr
   # v -= expr
@@ -52,28 +58,14 @@ Able {
     operator_shorthand_assignment_lhs lws? infix_assignment_operator lws? expression
   
   operator_shorthand_assignment_lhs <-
-    index_assignment_lhs
+    function_call
+    / navigation_expression
     / ident
 
   # Only operators that produce a value in the same domain as their arguments (i.e. operators whose domain and range are the same) are allowed here.
   # It wouldn't make sense to allow =< or =>, because those would return bool, when the arguments would likely be numeric, and you couldn't assign a bool to a numeric type.
   infix_assignment_operator <-
     ("+" / "-" / "*" / "/" / "\\" / "%" / "^" / "&&" / "||" / "&" / "|" / "<<" / ">>") "="
-
-  # e.g. some.complex.expression.names_map("david")
-  index_assignment_lhs
-    <- member_access_or_function_call
-  
-  member_access_or_function_call <-
-    primary_expression (ws? navigation_operator ws? member_access_suffix function_call_suffix? )+ function_call_suffix*     -- member_access
-    / primary_expression function_call_suffix+                                                                              -- function_call
-
-  # SumMonoid#op
-  # Iterable[String]#foo
-  # foo
-  member_access_suffix <-
-    bracket_parameterized_type "#" ident
-    / ident
 
 
   # assignment is right-associative
@@ -84,9 +76,11 @@ Able {
     assignment_lhs (comma_sep assignment_lhs)*
 
   assignment_lhs <-
-    destructuring_type_with_identifier
+    function_call
+    / navigation_expression
+    / destructuring_type_with_identifier
     / destructuring_primitive
-    / index_assignment_lhs
+    / ident
 
   destructuring_type_with_identifier
     <- ident lws? ":" lws? destructuring_type_primitive
@@ -121,14 +115,7 @@ Able {
   # Array Int [x, y, zs*]
   # List[1, x, 3]
   destructuring_sequence <-
-    destructuring_sequence_with_splat_argument
-    / destructuring_sequence_no_splat_argument
-
-  destructuring_sequence_no_splat_argument <-
-    type_name "[" ws? destructuring_primitive (comma_sep destructuring_primitive)* ws? "]"
-
-  destructuring_sequence_with_splat_argument <-
-    type_name "[" ws? destructuring_primitive (comma_sep destructuring_primitive)* (comma_sep ident "*") ws? "]"
+    type_name lws? "[" ws? destructuring_primitive (comma_sep destructuring_primitive)* splat_op="*"? ws? "]"
 
   # MyStruct{v1, v2}
   # MyStruct{v1=name, v2=age}
@@ -173,6 +160,8 @@ Able {
   #      ws? "." ws? property=ident
   #    )*
 
+  function_call <-
+    expression function_call_suffix
   
   function_call_suffix <-
     (lws type_parameters_decl)? lws? "(" ws? argument_list? ws? ")"
@@ -241,7 +230,7 @@ Able {
 
   type_parameters_decl <-
     type_parameter_list
-    # "[" ws? type_parameter_list ws? "]"     # I don't think the square brackets are necessary
+    #"[" ws? type_parameter_list ws? "]"     # I don't think the square brackets are necessary
 
   type_parameter_list <-
     type_parameter (comma_sep type_parameter)*

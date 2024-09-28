@@ -9,29 +9,29 @@ DefaultSeps = "cfhistuCFHISTU"
 
 struct Encoder {
   salt: String
-  minHashLength: i32
+  min_hash_length: i32
   alphabet: String
   seps: String
   guards: String
 }
 
-fn NewEncoder(salt: String, minHashLength: i32) -> Encoder = NewEncoder(salt, minHashLength, DefaultAlphabet, DefaultSeps)
+fn NewEncoder(salt: String, min_hash_length: i32) -> Encoder = NewEncoder(salt, min_hash_length, DefaultAlphabet, DefaultSeps)
 
-fn NewEncoder(salt: String, minHashLength: i32, candidateAlphabet: String, candidateSeps: String) -> Encoder = {
-  validate(minHashLength, candidateAlphabet)
-  (alphabet, seps, guards) = setup(salt, minHashLength, candidateAlphabet, candidateSeps)
+fn NewEncoder(salt: String, min_hash_length: i32, candidate_alphabet: String, candidate_seps: String) -> Encoder = {
+  validate(min_hash_length, candidate_alphabet)
+  (alphabet, seps, guards) = setup(salt, min_hash_length, candidate_alphabet, candidate_seps)
 
-  Encoder(salt, minHashLength, alphabet, seps, guards)
+  Encoder(salt, min_hash_length, alphabet, seps, guards)
 }
 
-fn validate(minHashLength: i32, alphabet: String) {
+fn validate(min_hash_length: i32, alphabet: String) {
   raise "The alphabet may not include spaces." if alphabet.include?(" ")
   raise "The alphabet must include at least $MinAlphabetLength unique characters." if alphabet.chars.uniq.count < MinAlphabetLength
-  raise "The min length must be greater than or equal to 0." if minHashLength < 0
+  raise "The min length must be greater than or equal to 0." if min_hash_length < 0
 }
 
 // set up alphabet, seps, and guards
-fn setup(salt: String, minHashLength: i32, alphabet: String, seps: String) -> (String, String, String) {
+fn setup(salt: String, min_hash_length: i32, alphabet: String, seps: String) -> (String, String, String) {
   alphaChars = alphabet.chars.to[LinkedHashSet Char]  // http://docs.oracle.com/javase/8/docs/api/java/util/LinkedHashSet.html
   sepsChars = seps.chars.to[LinkedHashSet Char]
   commonChars = sepsChars.intersection(alphaChars)    // could also use sepsChars & alphaChars, but the order of the operands
@@ -116,23 +116,23 @@ fn encode(e: Encoder, numbers: i32*) -> String {
     }
   }
 
-  if ret.length < e.MinHashLength {
+  if ret.length < e.min_hash_length {
     ret = guards((hashInt + ret(0).codePoint) % guards.length) + ret
 
-    if ret.length < e.MinHashLength {
+    if ret.length < e.min_hash_length {
       ret += guards((hashInt + ret(2).codePoint) % guards.length)
     }
   }
 
   halfLength = alphabet.length \ 2   // integer division
 
-  while ret.length < e.MinHashLength {
+  while ret.length < e.min_hash_length {
     alphabet = shuffle(alphabet, alphabet)
     firstHalf, lastHalf = alphabet.takeDrop(halfLength)
     ret = lastHalf + ret + firstHalf
 
-    excess = ret.length - e.MinHashLength
-    ret = ret.substring(excess \ 2, e.MinHashLength) if excess > 0
+    excess = ret.length - e.min_hash_length
+    ret = ret.substring(excess \ 2, e.min_hash_length) if excess > 0
   }
 
   ret
@@ -198,8 +198,8 @@ fn unhash(input: String, alphabet: String) -> i32 {
 
 fn main() {
   e = NewEncoder("foo", 8)
-  encodedId = e.encode(1)
-  puts(encodedId)
-  decodedId = e.decode(encodedId)
-  puts(decodedId)
+  encoded_id = e.encode(1)
+  puts(encoded_id)
+  decoded_id = e.decode(encoded_id)
+  puts(decoded_id)
 }

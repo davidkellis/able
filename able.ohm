@@ -35,8 +35,8 @@ Able {
   // }
   importDecl
     = "import" lws fqPackageIdent (lws "as" lws packageIdent)? ".*"       -- allMembers
-    | "import" lws fqPackageIdent (lws "as" lws packageIdent)? 
-        ".{" (ws? ident (lws "as" lws ident)? ws?) 
+    | "import" lws fqPackageIdent (lws "as" lws packageIdent)?
+        ".{" (ws? ident (lws "as" lws ident)? ws?)
              (listSep ws? ident (lws "as" lws ident)?)* listSep? ws? "}"  -- specificMembers
     | "import" lws fqPackageIdent (lws "as" lws packageIdent)?            -- basePackage
 
@@ -161,13 +161,13 @@ Able {
     Float
     T
   */
-  newlineDelimitedTypeNameList 
+  newlineDelimitedTypeNameList
     = typeName ( nlSep typeName )* (ws? nl)?
 
   // x: Int, y: Float, z: T
   // x: Int, y: Float, z: T,
   //   x: Int,
-  //   y: Float, 
+  //   y: Float,
   //   z: T,
   commaDelimitedFieldList
     = typedIdent ( commaSep typedIdent )* (ws? ",")?
@@ -190,14 +190,14 @@ Able {
   // union House = SmallHouse { sqft: Float }
   //  | MediumHouse { sqft: Float }
   //  | LargeHouse { sqft: Float }
-  // union Foo T [T: Blah] = 
+  // union Foo T [T: Blah] =
   //  | Bar A [A: Stringable] { a: A, t: T }
   //  | Baz B [B: Qux] { b: B, t: T }
   // union Option A = Some A {A} | None A {}
   // union Result A B = Success A {A} | Failure B {B}
   // union ContrivedResult A B [A: Fooable, B: Barable] = Success A X [X: Stringable] {A, X} | Failure B Y [Y: Serializable] {B, Y}
   unionDefn
-    = "union" lws typeName (lws typeParametersDecl)? lws? "=" 
+    = "union" lws typeName (lws typeParametersDecl)? lws? "="
         ws? (nl ws? "|" ws?)? unionAlternative (pipeSep unionAlternative ws?)+
 
   unionAlternative
@@ -437,11 +437,11 @@ destructuringStruct
   | destructuringStructWithNamedFields
 
 destructuringStructWithPositionalFields
-  = typeName lws? "{" (ws? destructuringPrimitive WS? ",")* 
+  = typeName lws? "{" (ws? destructuringPrimitive WS? ",")*
                       (ws? destructuringPrimitive ws? ","?)? ws? "}"
 
 destructuringStructWithNamedFields
-  = typeName lws? "{" (ws? ident ws? "=" ws? destructuringPrimitive ws? ",")* 
+  = typeName lws? "{" (ws? ident ws? "=" ws? destructuringPrimitive ws? ",")*
                       (ws? ident ws? "=" ws? destructuringPrimitive ws? ","?) ws? "}"
 
 // references:
@@ -791,7 +791,7 @@ hexDigit
   //space := (ws | comment)+        // Override Ohm's built-in definition of space.
 
   nlSep (whitespace and comments, with at least one newline) = spaceWithNlOrComment+
-  spaceWithNlOrComment 
+  spaceWithNlOrComment
     = (lws | comment)? nl (lws | comment)? -- spaceWithNl
 
   ws (whitespace) = (lws | nl | comment)+

@@ -1,0 +1,38 @@
+#####################################################
+# String literals
+
+a_string = "literal string"
+
+multiline_literal = """
+This string may have newlines
+that will be captured in the representation
+of the string.
+"""
+
+
+#####################################################
+# String interpolation
+
+name = "Joe"
+age = 22
+puts("$name is $age years old. This time next year, $name will be ${age + 1} years old.")
+
+
+#####################################################
+# Unicode
+
+All strings are UTF-8 encoded.
+
+
+#####################################################
+# Characters
+
+Able defines a character as a Unicode grapheme cluster.
+
+A grapheme cluster, per https://unicode.org/reports/tr29/, is defined as:
+"It is important to recognize that what the user thinks of as a "character"—a basic unit of a writing system for a language—may not be just a single Unicode code point.
+Instead, that basic unit may be made up of multiple Unicode code points. 
+To avoid ambiguity with the computer use of the term character, this is called a user-perceived character. 
+For example, “G” + grave-accent is a user-perceived character: users think of it as a single character, yet is actually represented by two Unicode code points. 
+These user-perceived characters are approximated by what is called a grapheme cluster, which can be determined programmatically."
+
