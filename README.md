@@ -69,7 +69,6 @@ The full language specification may be found in [language_spec.md](language_spec
 
 What follows is a summary of the language specification, and should be enough quickly get up to speed with Able.
 
-
 ## Identifiers
 
 All identifiers must conform to the pattern `[a-zA-Z0-9][a-zA-Z0-9_]*`
@@ -110,12 +109,11 @@ Imports may occur in package scope or any local scope.
 <variable name> = <value expression>                # assigned the specified initial value and the type is inferred from the type of <value expression> and the use of <variable name>
 ```
 
-
 ## Types
 
 ### Type Expressions
 
-A type is a name given to a set of values, and every value has an associated type. For example, `bool` is the name given to the set `{true, false}`, and since the value `true` is a member of the set `{true, false}`, it is of type `bool`.  `TwoBitUnsignedInt` might be the type name we give to the set `{0, 1, 2, 3}`, such that `3` would be a value of type `TwoBitUnsignedInt`.
+A type is a name given to a set of values, and every value has an associated type. For example, `bool` is the name given to the set `{true, false}`, and since the value `true` is a member of the set `{true, false}`, it is of type `bool`. `TwoBitUnsignedInt` might be the type name we give to the set `{0, 1, 2, 3}`, such that `3` would be a value of type `TwoBitUnsignedInt`.
 
 A type is denoted by a type expression. A type expression is a string. All types are parametric types, in that all types have zero or more type parameters.
 
@@ -169,6 +167,7 @@ Octal literal conforms to the pattern: `0o[0-8_]+`
 Any of the integer literals may be suffixed with `_?((i|u)(8|16|32|64))?`
 
 Examples:
+
 ```
 123
 0123
@@ -193,6 +192,7 @@ An exponent (denoted by `exp`) conforms to the pattern: `('e'|'E') ( '+' | '-' )
 Any floating point literal may be suffixed with `_?f(32|64)`
 
 Examples:
+
 ```
 12.0
 5.4e3
@@ -269,6 +269,7 @@ Ranges take the following form:
 ```
 
 For example:
+
 ```
 # inclusive range
 1..5 |> to_a   # Array(1, 2, 3, 4, 5)
@@ -285,6 +286,7 @@ if record._1 == 1 then puts("you're in first place!")
 ```
 
 Single element tuples are a special case notated by `( <expression> , )`:
+
 ```
 (100, )    # this has type (i32)
 ```
@@ -436,7 +438,7 @@ union Option T = Some T { val: T } | None
 
 **With named fields:**
 
-``` 
+```
 union Tree T = Leaf T { value: T } | Node T { value: T, left: Tree T, right: Tree T }
 
 # would be internally translated into
@@ -446,7 +448,7 @@ union Tree T = Leaf T | Node T
 
 # other examples:
 
-union Foo T [T: Blah] = 
+union Foo T [T: Blah] =
   | Bar A [A: Stringable] { a: A, t: T }
   | Baz B [B: Qux] { b: B, t: T }
 ```
@@ -465,8 +467,8 @@ union Tree T = Leaf T | Node T
 
 union Option A = Some A {A} | None A {}
 union Result A B = Success A {A} | Failure B {B}
-union ContrivedResult A B [A: Fooable, B: Barable] = 
-  | Success A X [X: Stringable] {A, X} 
+union ContrivedResult A B [A: Fooable, B: Barable] =
+  | Success A X [X: Stringable] {A, X}
   | Failure B Y [Y: Serializable] {B, Y}
 ```
 
@@ -474,12 +476,12 @@ union ContrivedResult A B [A: Fooable, B: Barable] =
 
 The `Any` type is a special union type that is the union of all types known to the compiler at compile time.
 
-
 ## Blocks
 
 A block is a sequence of expressions enclosed in a set of curly braces, prefixed with the `do` keyword.
 
 For example:
+
 ```
 do {
   a = 5 + 7
@@ -487,7 +489,9 @@ do {
   a
 }
 ```
+
 or
+
 ```
 do { a = 5 + 7; puts(a); a }
 ```
@@ -501,11 +505,13 @@ Functions may be defined with one of three different function definition syntaxe
 3. Lambda expression syntax
 
 Function types are denoted with the syntax:
+
 ```
 (<parameter type>, <parameter type>, <parameter type>, ...) -> <return type>
 ```
 
 As a special case, if a function only has a single parameter, the function type may be denoted with:
+
 ```
 <parameter type> -> <return type>
 ```
@@ -527,6 +533,7 @@ Point-free syntax may only be used with named functions, and takes the following
 Partial application is documented in the section [Partial application](#partial-application), and placeholder lambda expressions are covered in the section [Implicit Lambda Expressions via Placeholder Expression Syntax (a.k.a. Placeholder Lambdas)](#implicit-lambda-expressions-via-placeholder-expression-syntax-aka-placeholder-lambdas).
 
 For example:
+
 ```
 # puts is an alias for the println function
 fn puts = println
@@ -570,7 +577,7 @@ When the optional return type is omitted, then the `->` return type delimiter th
 ### Lambda expression syntax
 
 Lambda expressions are defined in the lambda expression syntax:
-```{ <paramter list> -> <return type> => expression }```
+`{ <paramter list> -> <return type> => expression }`
 
 The parameter list and the return type declarations are optional.
 
@@ -578,7 +585,7 @@ The parameter list and the return type declarations are optional.
 
 Lambda expressions may also be represented implicitly with a special convenience syntax called placeholder expression syntax.
 
-An expression may be parameterized with placeholder symbols - each of which may be either an underscore, _, or a numbered underscore, e.g. _1, _2, etc.
+An expression may be parameterized with placeholder symbols - each of which may be either an underscore, \_, or a numbered underscore, e.g. \_1, \_2, etc.
 
 A placeholder symbol may be used in place of any value-representing subexpression.
 
@@ -602,7 +609,6 @@ If a placeholder lambda is enclosed within a block, and the scope of the placeho
 
 For example:
 `5.times { puts("Greeting number $_") }` is treated as `5.times { i => puts("Greeting number $_") }`
-
 
 ### Variadic functions
 
@@ -633,7 +639,6 @@ log("foo")                    # ambiguous; invokes non-variadic signature, log(S
 log("foo", 123)               # ambiguous; invokes non-variadic signature, log(String, Any)
 log("foo", 123, "bar")        # not ambiguous; invokes variadic signature, puts(String, Any*)
 ```
-
 
 ### Function definition examples
 
@@ -710,7 +715,6 @@ createPair = { a, b: T -> Pair T => Pair{a, b} }
 createPair = { a, b: T => Pair{a, b} }
 ```
 
-
 ### Function Application
 
 #### Normal application
@@ -727,6 +731,7 @@ map(Array(1,2,3), square)
 #### Named argument application
 
 Given the following function definition:
+
 ```
 fn create_person(age: i32, name: String, address: Address) -> Person { ... }
 ```
@@ -757,36 +762,43 @@ create_person(
 #### Partial application
 
 Given:
+
 ```
 f = fn(a: i32, b: i32, c: i32, d: i32, e: i32) => (a,b,c,d,e)
 ```
 
 Partial application of the trailing arguments
+
 ```
 f(,1,2,3)
 ```
 
 Explicit partial application of the leading arguments
+
 ```
 f(1,2,3,)
 ```
 
 Implied partial application of the leading arguments
+
 ```
 f(1,2,3)
 ```
 
 Partial application of the first, third, and fifth arguments; returns a function with the signature (i32, i32) -> (i32, i32, i32, i32, i32)
+
 ```
 f(1, _, 2, _, 3)
 ```
 
 Partial application of the first, third, and fifth arguments; returns a function with the signature (i32) -> (i32, i32, i32, i32, i32)
+
 ```
 f(1, _1, 2, _1, 3)
 ```
 
 Partial application of all the arguments; returns a function with the signature () -> (i32, i32, i32, i32, i32)
+
 ```
 f(1, 2, 3, 4, 5,)
 or
@@ -794,6 +806,7 @@ f(,1, 2, 3, 4, 5)
 ```
 
 Partial application of a named argument
+
 ```
 f(@c: 30)
 ```
@@ -842,20 +855,25 @@ Some operators have special semantics:
    The assignment operator is used in assignment expressions to assign the value expressed in the right hand side (RHS) of the assignment expression to the identifier or identifiers specified in the left hand side (LHS) of the assignment expression. The assignment operator is right-associative. The assignment operator is not a function, and as a result, is not a first-class object that may be used as a value. The assignment operator may not be redefined or overridden.
 
    An assignment expression evaluates to the value on the RHS of the assignment operator.
+
 2. Function application operator (suffix), e.g. `array(5)`:
    The function application operator is used to apply a function to a given set of arguments. The function application operator may be defined on an arbitrary type in order to be able to treat that type as a function of some set of arguments. For example, an array, a map, or a string value may be viewed as a function of an index argument that retrieves the given array element, map value, or character within an array, map, or string, respectively.
-   
+
    In short, a value of type T may be treated as a function, and invoked with normal function application syntax, if a function named `apply`, defined with a first parameter of type T, is in scope at the call site. [Special application rule #5](#special-application-rule-5) explains further.
+
 3. Index update expression, e.g. `array(5) = b`:
    An index update expression - an assignment expression with a function application expression on the left-hand-side (LHS) - is interpreted as an assignment to an index position of some structure. Assigning a value to an index position of an array, or assigning a value to a key in a map are the two most common uses of this facility.
 
    The index update expression is syntactic sugar for calling the `update` function where the first argument is the structure value being updated, the next arguments are the components of the index position (most commonly, this will be a single value), and the last argument is the value being assigned to the specified index of the structure. The `update` function is expected to return the updated structure, so its return type must match the type of the first argument.
 
    For example, the `update` function for the `Array` type is defined as:
+
    ```
    fn update(a: Array T, index: u64) -> Array T
    ```
+
    and may be used as:
+
    ```
    a = Array(1,2,3)
    a(0) = 5
@@ -867,6 +885,7 @@ Some operators have special semantics:
 1. When invoking a function of arity-1 with method syntax, the empty parenthesis may be omitted.
 
    For example, either of the following are acceptable:
+
    - `Array(1,2,3).length()`
    - `Array(1,2,3).length`
 
@@ -879,10 +898,13 @@ Some operators have special semantics:
 2. If supplying a lambda expression to a function as its last argument, then the lambda may be supplied immediately following the closing paren surrounding the argument list.
 
    For example, rather than writing:
-      ```
+
+   ```
    Array(1,2,3).reduce(0, { sum, x => sum + x})
-      ```
+   ```
+
    you may write
+
    ```
    ​Array(1,2,3).reduce(0) { sum, x => sum + x }
    ```
@@ -890,10 +912,13 @@ Some operators have special semantics:
 3. In cases where a lambda expression is supplied immediately following the closing paren of a function call, if the argument list is empty, then the parenthesis may be omitted.
 
    For example,
+
    ```
    ​Array(1,2,3).map() { x => x**2 }
    ```
+
    may be shortened to
+
    ```
    Array(1,2,3).map { x => x**2 }
    ```
@@ -901,6 +926,7 @@ Some operators have special semantics:
 4. Functions of unions have the following invocation behavior:
 
    Given the following definitions:
+
    ```
    struct Red { level: i32 }
    struct Green { level: i32 }
@@ -909,16 +935,21 @@ Some operators have special semantics:
    ```
 
    1. If the following is defined:
+
       ```
       fn paint_house(Color) -> bool
       ```
+
       and the following are not defined:
+
       ```
       fn paint_house(Red) -> bool
       fn paint_house(Green) -> bool
       fn paint_house(Blue) -> bool
       ```
+
       then
+
       ```
       c: Color = Red{}
       paint_house(c)           # invokes paint_house(Color)
@@ -928,13 +959,16 @@ Some operators have special semantics:
       ```
 
    2. If the following are defined:
+
       ```
       fn paint_house(Color) -> bool
       fn paint_house(Red) -> bool
       fn paint_house(Green) -> bool
       fn paint_house(Blue) -> bool
       ```
+
       then
+
       ```
       c: Color = Red{}
       paint_house(c)           # invokes paint_house(Color)
@@ -942,7 +976,7 @@ Some operators have special semantics:
       paint_house(Green{})     # invokes paint_house(Green)
       paint_house(Blue{})      # invokes paint_house(Blue)
       ```
-   
+
    3. If the following are defined:
       ```
       fn paint_house(Red) -> bool
@@ -965,6 +999,7 @@ Some operators have special semantics:
 5. <a name="special-application-rule-5"></a>A value of type T may be treated as a function, and invoked with normal function application syntax, if a function named `apply`, defined with a first parameter of type T, is in scope at the call site.
 
    For example:
+
    ```
    fn apply(key: String, map: Map String V) -> Option V => map.get(key)
    name_rank_pairs = Map("joe" : 1, "bob" : 2, "tom" : 3)
@@ -972,17 +1007,18 @@ Some operators have special semantics:
    ```
 
    Another example:
+
    ```
    fn apply(i: i32, j: i32) -> i32 => i * j
    5(6)    # returns 30
    ```
 
    Apply functions may also be invoked with method syntax, as in the following:
+
    ```
    fn apply(i: i32, j: i32) -> i32 => i * j
    5.apply(6)    # returns 30
    ```
-
 
 ## Interfaces
 
@@ -997,17 +1033,19 @@ When used as a constraint on a type, the interpretation is that some context nee
 ### Interface Definitions
 
 Interfaces are defined with the following syntax:
+
 ```
 interface A [B C ...] [for D [E F ...]] [where <type constraints>]{
 	fn foo(T1, T2, ...) -> T3
 	...
 }
 ```
+
 where A is the name of the interface optionally parameterized with type parameters, B, C, etc.
 
 The `for` clause is optional. When present, the `for` clause specifies that a type variable, D, is deemed to implement interface A. If no `for` clause is specified, then the interface serves as a type constraint on types B, C, etc.
 
-The type expression in the for clause is called the interface's <a name="self-type"></a>*self type*. The self type is a concrete or polymorphic type representing the type that will implement the interface. In the syntax above, `D [E F ...]` represents the self type.
+The type expression in the for clause is called the interface's <a name="self-type"></a>_self type_. The self type is a concrete or polymorphic type representing the type that will implement the interface. In the syntax above, `D [E F ...]` represents the self type.
 
 D may represent either a concrete type or a polymorphic type depending on whether D's type parameters (if applicable) are bound or unbound (see [Type Expressions](#type-expressions) for more on bound vs. unbound type parameters).
 
@@ -1047,30 +1085,35 @@ interface Range S E Out {
 There is a special type named `Self` that may be used within an interface definition or an implementation of an interface to reference the [self type](#self-type) captured in the for clause of the interface or implementation.
 
 For example:
+
 ```
 # Stringable interface
 interface Stringable for T {
   fn to_s(T) -> String
 }
 ```
+
 could also be written as:
+
 ```
 interface Stringable for T {
   fn to_s(Self) -> String
 }
 ```
 
-
 In cases where the [self type](#self-type) is polymorphic, i.e. the self type has one or more unbound type parameters, the special `Self` type may be used as a type constructor and supplied with type arguments.
 
 For example:
+
 ```
 # Mappable interface (something approximating Functor in Haskell-land - see https://wiki.haskell.org/Typeclassopedia#Functor)
 interface Mappable for M _ {
   fn map(m: M A, convert: A -> B) -> M B
 }
 ```
+
 could be written as:
+
 ```
 # Mappable interface (something approximating Functor in Haskell-land - see https://wiki.haskell.org/Typeclassopedia#Functor)
 interface Mappable for M _ {
@@ -1081,22 +1124,25 @@ interface Mappable for M _ {
 #### Interface Aliases and Interface Intersection Types
 
 Intersection interfaces may be defined with the following syntax:
+
 ```
 interface A [B C ...] = D [E F ...] [& G [H I ...] & J [K L ...] ...]
 ```
+
 where A is the name of the intersection interface and D, G, and J are the members of the intersection set.
 
 Some contrived examples of intersection types:
+
 ```
 interface WebEncodable T = XmlEncodable T & JsonEncodable T
 interface Repository T = Collection T & Searchable T
 interface Collection T = Countable T & Addable T & Removable T & Getable T
 ```
 
-
 ### Interface Implementations
 
 Interface implementations are defined with the following syntax:
+
 ```
 [ImplName =] impl [X, Y, Z, ...] A <B C ...> [for D <E F ...>] [where <type constraints>] {
 	fn foo(T1, T2, ...) -> T3 { ... }
@@ -1183,19 +1229,24 @@ Sum.id()
 When calling a function defined in an interface, a client may supply either (1) a value of a type that implements the interface - the interface's [self type](#self-type) - or (2) a value of the interface type to the function in any argument that is typed as the interface's self type.
 
 For example, given:
+
 ```
 interface Iterable T for E {
   fn each(E, T -> Unit) -> Unit
   ...
 }
 ```
+
 a client may call the `each` function by supplying a value of type `Iterable T` as the first argument to `each`, like this:
+
 ```
 # assuming List T implements the Iterable T interface
 e: Iterable i32 = List(1, 2, 3)    # e has type Iterable i32
 each(e, puts)
 ```
+
 or `each` may be called by supplying a value of type `Array T` as the first argument, like this:
+
 ```
 # assuming Array T implements the Iterable T interface
 e = Array(1, 2, 3)    # e has type Array i32
@@ -1209,7 +1260,6 @@ fn build_int_range[S, E, Range S E i32](start: S, end: E) -> Iterable i32 => sta
 ```
 
 Less frequently, a function in an interface may be defined to accept two or more parameters of the interface's self type. If the self type is polymorphic, and the function is invoked with a value of the interface type as an argument in place of one of the self type parameters, then the other self type parameters must also reference the same underlying type (either directly as a value of the underlying type, or indirectly through an interface value that represents the underlying type), so that the multiple self type parameters all remain consistent with respect to one another - i.e. so that they all reference the same underlying type.
-
 
 ### Overlapping Implementations / Impl Specificity
 
@@ -1267,7 +1317,7 @@ The following specificity/disambiguation rules resolve the patterns of overlap/c
 7. Given two unions that differ only in a single type member, such that the member is concrete in one union and an interface in the other union, the untion that references the concrete member is more specific than the union that references the interface member.
    - `i32 | f32` is more specific than `i32 | FloatingPointNumeric`
 8. Given two sets of comparable type constraints, ConstraintSet1 and ConstraintSet2, if ConstraintSet1 is a proper subset of ConstraintSet2, then ConstraintSet1 imposes fewer constraints, and is therefore less specific than ConstraintSet2. In other words, the constraint set that is a proper superset of the other is the most specific constraint set. If the constraint sets are not a proper subset/superset of one another, then the constraint sets are not comparable, which means that the competing interface implementations are not comparable either. This rule captures rule (4).
-For example:
+   For example:
    - `T: Iterable` is more specific than `T` (with no type constraints), because `{Iterable}` is a proper superset of `{}` (note: `{}` represents the set of no type constraints).
    - `T: Iterable & Stringable` is more specific than `T: Iterable` because `{Iterable, Stringable}` is a proper superset of `{Iterable}`
 
@@ -1290,14 +1340,12 @@ Array(1,2,3) |> BetterIterable.each { elem => puts(elem) }
 # are not ambiguous
 ```
 
-
 ## Type Aliases
 
 ```
 type Int32 = i32
 type BinaryOperator A = (A, A) -> A
 ```
-
 
 ## Zero Values
 
@@ -1346,21 +1394,24 @@ the function `fn[A,B,C,...,Z](a:A, b:B, ...)->Z { Z' }`, where `Z'` represents t
 #### Interface/Impl
 
 The zero value for an interface with signature:
+
 ```
 interface Foo for T {
   fn bar[A,B](a: A, b:B, ...) -> C
   fn baz[D,E](d:D, e:E, ...) -> F
 }
 ```
+
 is the value `nil`. The reason why is that all interfaces define a default implementation for the Nil type, such that each function returns a zero value of the function's return type, for example, `Nil` implicitly implements the previously defined `Foo` interface with a randomly generated impl of the form:
+
 ```
 Foo1887678 = impl Foo for Nil {
   fn bar[A,B](a: A, b:B, ...) -> C { C' }
   fn baz[D,E](d:D, e:E, ...) -> F { F' }
 }
 ```
-where `C'` and `F'` represent the zero values for types `C` and `F` respectively.
 
+where `C'` and `F'` represent the zero values for types `C` and `F` respectively.
 
 ## Control Flow Expressions
 
@@ -1473,6 +1524,7 @@ for <destructuring expression> in <Iterable value> {
 ```
 
 Examples:
+
 ```
 for i in 1..10 { puts(i) }
 
@@ -1516,6 +1568,7 @@ fn all?(iterable: I, predicate: T -> bool) -> bool {
 Able supports generators through the `Iterator[T]( Generator T -> Unit ) -> Iterator T` function. The `Iterator` function accepts a value-producing function - the generator function - and returns an `Iterator T` that iterates over the values produced by the generator.
 
 The following are examples of generator expressions:
+
 ```
 Iterator { gen => for i in 1..10 { gen.yield(i) } }
 Iterator { gen => (1..10).each(gen.yield) }
@@ -1524,12 +1577,12 @@ Iterator { gen => (1..10).each(gen.yield) }
 In order to signal the end of the iterator, the generator function must either explicitly or implicitly return. The returned value is irrelevant. If the generator function never returns, then the generator produces an infinite Iterator.
 
 The Generator T interface is defined as:
+
 ```
 interface Generator A for T {
   fn yield(T, A) -> T
 }
 ```
-
 
 ## Destructuring
 
@@ -1557,12 +1610,12 @@ struct Address {
 }
 ```
 
-
 ### Destructuring Forms
 
 #### Struct Destructuring
 
 Structs may be destructured positionally with the syntax:
+
 ```
 p: Person { n, h, w, a, addr: Address {street, state, zip} }
 ```
@@ -1570,6 +1623,7 @@ p: Person { n, h, w, a, addr: Address {street, state, zip} }
 In positional destructuring expressions, local variable identifiers may be bound to field values within the struct. Bindings are established by matching up local variable identifiers with fields based on the relative position of those variable identifiers and corresponding fields. For example, if a struct has three fields - named or not - then the fields may be bound to local variable identifiers by inserting variable names at the position within the destructuring expression at which those fields appear in the struct definition.
 
 Structs may also be destructured via named field destructuring, which takes the following form:
+
 ```
 # if it is desirable to reference p.address via the local identifier addr, then do the following:
 p: Person { a=age, h=height, w=weight, addr: Address{z=zip}=address }
@@ -1595,11 +1649,13 @@ In cases where named field destructuring expressions need to be recursively dest
 Tuples are destructured in the same way that structs are, except that (1) tuples are destructured without a leading type name and (2) tuples are destructured with a set of surrounding parenthesis instead of curly braces.
 
 Destructuring a tuple positionally takes the form:
+
 ```
 triple: ( a, b, c: Address { street, state, zip } )
 ```
 
 Destructuring a tuple via "named" field destructuring takes the form:
+
 ```
 triple: ( a=_0, b=_1, c: Address { z=zip }=_2 )
 ```
@@ -1607,11 +1663,13 @@ triple: ( a=_0, b=_1, c: Address { z=zip }=_2 )
 NOTE: In some contexts, the type of the positional fields may be necessary for type disambiguation purposes. In those cases, the type may be notated immediately following the name of the local variable identifier, as in the following two examples:
 
 1. Destructuring a tuple positionally with explicit positional field types:
+
 ```
 triple: ( a: i32, b: i32, c: Address { street, state, zip } )
 ```
 
 2. Destructuring a tuple via "named" field destructuring with explicit named field types:
+
 ```
 triple: ( a: i32=_0, b: i32=_1, c: Address { z=zip }=_2 )
 ```
@@ -1622,14 +1680,17 @@ Sequence destructuring may be used anywhere that struct destructuring may be use
 with the exception that square brackets are used instead of curly braces.
 
 The syntax for sequence destructuring is:
+
 ```
 <sequence struct that implements Iterable>[<var1>, <var2>, <...>, <varN>, *<remainder sequence>]
 ```
+
 where `<var1>`, `<var2>`, `<...>`, and `<varN>` represent variable bindings and `*<remainder sequence>` represents
 an optional variable binding capturing an iterator over the remaining part of the sequence that was not consumed
 by the leading variable bindings.
 
 For example:
+
 ```
 Array[a, b, c] = Array(1..100)
 Array[a, b, c, *rest] = Array(1..100)
@@ -1637,7 +1698,6 @@ List[x, y, z, *rest] = List(1..100)
 ```
 
 Sequence destructuring is available to any struct that implements the Iterable interface.
-
 
 ### Destructuring Contexts
 
@@ -1710,7 +1770,6 @@ h match {
 }
 ```
 
-
 ## Exceptions
 
 ```
@@ -1765,11 +1824,13 @@ By-name evaluation is supported through the `Thunk` type.
 A thunk represents an unevaluated value.
 
 A thunk can be created in one of three ways:
+
 1. assignment to a variable of type Thunk T
 2. supplying an expression to a function parameter of type Thunk T
 3. explicitly with the Thunk function.
 
 For example
+
 ```
 # 1. assignment to variable of type Thunk T
 mail: Thunk Mail = sendAndReceiveMail()
@@ -1787,8 +1848,8 @@ Thunk(sendAndReceiveMail())
 
 References:
 
- - https://en.wikipedia.org/wiki/Thunk
- - https://wiki.haskell.org/Thunk
+- https://en.wikipedia.org/wiki/Thunk
+- https://wiki.haskell.org/Thunk
 
 ### By-need Evaluation (memoized)
 
@@ -1798,7 +1859,6 @@ By-need evaluation is supported through the `Lazy` type.
 
 The `Lazy` type has the same semantics as the `Thunk` type, with the exception that the value produced by the first access is memoized, such that subsequent accesses of the value return the same instance of the value.
 
-
 ## Special Evaluation Rules
 
 ### Value Discarding
@@ -1807,7 +1867,6 @@ If an expression, e, is used in a context that expects a value of type Unit, the
 
 This evaluation rule is very similar to Scala's Value Discarding rule. See section 6.26.1 of the Scala language reference at http://www.scala-lang.org/docu/files/ScalaReference.pdf.
 
-
 ## Macros
 
 Able supports meta-programming in the form of compile-time macros.
@@ -1815,6 +1874,7 @@ Able supports meta-programming in the form of compile-time macros.
 Macros are special code-emitting functions that capture a code template and emit a filled in template at each call site. Macro function parameters all have type `AstNode`. When a macro is invoked, the expressions supplied as arguments remain unevaluated, and are passed in as AST nodes. Within the body of the macro function, any placeholders in the code template are filled in, or replaced, by interpolating the function's arguments into the template at the placeholder locations.
 
 Macro definitions take the form:
+
 ```
 macro <name of macro function>(<parameters>) -> AstNode {
   <pre-template logic goes here>
@@ -1825,15 +1885,17 @@ macro <name of macro function>(<parameters>) -> AstNode {
 All macro functions return a value of type `AstNode`. The backtick-enclosed template is a syntax-literal representation of an `AstNode` - when a backtick-enclosed template is evaluated at a call site, the backtick expression evaluates to an `AstNode` value. The resulting `AstNode` value may be bound to a local variable identifier and inspected/printed if desired, and/or may be immediately returned from the macro function.
 
 Templates may include jinja-style placeholders/"tags" that inject values into the template or evaluate arbitrary code when the template is realized/evaluated. The two placeholder notations are:
+
 - `{{ expression }}` - Value or expression insertion
-{% raw %}
+  {% raw %}
 - `{% expression %}` - Code evaluation
-{% endraw %}
+  {% endraw %}
 
 The invocation of a macro function injects the returned `AstNode` into the AST - or equivalently, substitutes the returned expression into the source code - at the call site.
 
 For example:
 {% raw %}
+
 ```
 macro defineJsonEncoder(type) {
   `
@@ -1873,7 +1935,6 @@ defineJsonEncoder(Address)
 # }
 ```
 
-
 ## Concurrency
 
 Able supports the following concurrency mechanisms:
@@ -1899,9 +1960,9 @@ Depending on the compilation target, a call stack may be implemented by a gorout
 
 Call stack semantics closely follow Goroutine semantics. The following references explain Goroutine semantics:
 
- - https://golang.org/doc/effective_go.html#goroutines
- - http://blog.nindalf.com/how-goroutines-work/
- - https://softwareengineering.stackexchange.com/a/222694
+- https://golang.org/doc/effective_go.html#goroutines
+- http://blog.nindalf.com/how-goroutines-work/
+- https://softwareengineering.stackexchange.com/a/222694
 
 Like Goroutines, call stacks...
 
@@ -1914,15 +1975,19 @@ Like Goroutines, call stacks...
 Depending on how many CPU cores are available, concurrently running call stacks may be interleaved onto the same CPU core, or they may run in parallel on multiple CPU cores.
 
 New call stacks may be created with the `spawn` function. `spawn` has the function signature `fn spawn(() -> T) -> Future T` and may be used in the style of:
+
 ```
 futureResult = spawn(fireMissiles)
 ```
+
 or
+
 ```
 futureResult = spawn { doThis(); fireMissiles(); doThat() }
 ```
 
 For example:
+
 ```
 fn fireMissiles() -> i32 {
   missiles = launchAllMissiles()
@@ -1945,13 +2010,15 @@ Call stack local variables are supported through the use of the `CallStackLocal`
 There are two ways to use the `CallStackLocal` type.
 
 1. Call stack local variables may be declared, and implicitly given an appropriate zero value, as in:
+
    ```
    <variable name>: CallStackLocal <type>
    ```
 
    Since a call stack local variable causes the variable to exist in every call stack and none of them will have been assigned an initial value, the call stack local variable is given a default initial value of the zero value of the appropriate type. For example, if the call stack variable is of type `CallStackLocal A`, then the initial value is the zero value for the type A.
 
-2. Call stack local variables may be declared *and* defined with the `CallStackLocal` constructor function, as in:
+2. Call stack local variables may be declared _and_ defined with the `CallStackLocal` constructor function, as in:
+
    ```
    <variable name> = CallStackLocal(<value expression>)
    ```
@@ -1969,6 +2036,7 @@ There are special semantics around accessing and assigning to a `CallStackLocal`
 3. Accessing a call stack local variable returns whatever value is bound to that variable name within the scope of the call stack that evaluated the access expression.
 
 The following examples demonstrate how to use CallStackLocal variables.
+
 ```
 name: CallStackLocal (String | Nil)   # declaration only; default initial value of nil
 
@@ -1984,7 +2052,9 @@ puts("name3 = $name3")
 # name2 = Tom
 # name3 = nil
 ```
+
 and
+
 ```
 nameCache = CallStackLocal(Map[i32, String](1:"Bob"))   # declare and define
 
@@ -2018,7 +2088,9 @@ c = Channel[i32]()	# this is an unbuffered channel
 spawn { c.send(5) }
 spawn { c.receive |> puts }
 ```
+
 and
+
 ```
 c = Channel[i32](1)	# this is a buffered channel, with a buffer of one message
 spawn { c.send(5) }
@@ -2063,7 +2135,9 @@ spawn { c.receive |> puts }
 ## Not going to do
 
 - Support the implementation of anonymous impls, for example, the ability to implement Iterable by supplying an anonymous impl of Iterator T interface.
+
   - Something like this?
+
     ```
     impl Iterable i32 for i32 {
       fn iterator(i: i32) -> impl Iterator i32 for struct { state: i32 } {
@@ -2074,13 +2148,11 @@ spawn { c.receive |> puts }
     }
     ```
 
-
 # Style Guide
 
 - strive for readability
 - 2 or 4 space indentation (2 space preferred); no tabs; no mixed indentation in a single file
 - open curly brace on same line as if/while/for expressions, function definitions, etc.
-
 
 # Able Tooling
 
