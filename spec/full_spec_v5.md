@@ -914,6 +914,23 @@ Required for many features.
 *   **Default Values:** `Default`.
 *   **Ranges:** `Range`.
 
+### Iterable and Iterator Interfaces
+
+```able
+## Marker type indicating end of iteration
+struct IteratorEnd;
+
+## Iterator interface: produces a sequence of values of type T
+interface Iterator T for Self {
+    fn next(self: Self) -> T | IteratorEnd;
+}
+
+## Iterable interface: can produce an Iterator over its elements
+interface Iterable T for Self {
+    fn iterator(self: Self) -> Iterator T;
+}
+```
+
 ## 15. To Be Defined / Refined
 
 *   **Standard Library Implementation:** Core types (`Array`, `Map`?, `Set`?, `Range`, `Option`/`Result` details, `Proc`, `Thunk`), IO, String methods, Math, `Iterable`/`Iterator` protocol, Operator interfaces. Definition of standard `Error` interface.
