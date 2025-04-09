@@ -127,11 +127,11 @@ There is one supported type constraint, the "implements" constraint:
 
 `T: I` is read as type T implements interface I.
 
-`T: I & J & K` is read as type T implements interface I and J and K.
+`T: I + J + K` is read as type T implements interface I and J and K.
 
 ### Built-In Types
 
-- Unit
+- void
 - Boolean - `Bool`
 - Integer types - `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, `u64`
 - Floating point types - `f32`, `f64`
@@ -149,9 +149,9 @@ There is one supported type constraint, the "implements" constraint:
 - CallStackLocal
 - Channel
 
-### Unit
+### void
 
-The unit type, named `Unit`, has a single literal value, `()`.
+The void type, named `void`, has a single literal value, `()`.
 
 ### Boolean
 
@@ -343,7 +343,7 @@ struct Point { x: i32, y: i32 }
 # generic definitions
 struct Foo T { x: i32, y: f32, z: T }
 struct Foo T { x: i32, y: f32, z: T, }
-struct Foo T [T: Iterable] { x: i32, y: f32, z: T }
+struct Foo T:Iterable { x: i32, y: f32, z: T }
 struct Foo T {
   x: i32,
   x: f32,
@@ -361,17 +361,17 @@ struct Foo T {
 ```
 Foo { 1 }               # struct literal with fields supplied by position
 Foo { 1, 2, t1 }        # struct literal with fields supplied by position
-Foo { x=1 }             # struct literal with fields supplied by name
-Foo { x=1, y=2, z=t1 }  # struct literal with fields supplied by name
+Foo { x: 1 }             # struct literal with fields supplied by name
+Foo { x: 1, y: 2, z: t1 }  # struct literal with fields supplied by name
 Foo {
-  x = 1,
-  y = 2,
-  z = t1
+  x: 1,
+  y: 2,
+  z: t1
 }
 Foo {
-  x = 1
-  y = 2
-  z = t1
+  x: 1
+  y: 2
+  z: t1
 }
 ```
 
@@ -1064,7 +1064,7 @@ interface Comparable for T {
 
 # Iterable interface
 interface Iterable T for E {
-  fn each(E, T -> Unit) -> Unit
+  fn each(E, T -> void) -> void
   fn iterator(e: E) -> Iterator T => Iterator { gen => e.each(gen.yield) }
 }
 
@@ -1126,7 +1126,7 @@ interface Mappable for M _ {
 Intersection interfaces may be defined with the following syntax:
 
 ```
-interface A [B C ...] = D [E F ...] [& G [H I ...] & J [K L ...] ...]
+interface A [B C ...] = D [E F ...] [+ G [H I ...] + J [K L ...] ...]
 ```
 
 where A is the name of the intersection interface and D, G, and J are the members of the intersection set.
@@ -1134,9 +1134,9 @@ where A is the name of the intersection interface and D, G, and J are the member
 Some contrived examples of intersection types:
 
 ```
-interface WebEncodable T = XmlEncodable T & JsonEncodable T
-interface Repository T = Collection T & Searchable T
-interface Collection T = Countable T & Addable T & Removable T & Getable T
+interface WebEncodable T = XmlEncodable T + JsonEncodable T
+interface Repository T = Collection T + Searchable T
+interface Collection T = Countable T + Addable T + Removable T + Getable T
 ```
 
 ### Interface Implementations
@@ -1163,7 +1163,7 @@ impl Comparable for Person {
 }
 
 impl Iterable T for Array T {
-  fn each(array: Array T, visit: T -> Unit) -> Unit {
+  fn each(array: Array T, visit: T -> void) -> void {
     i = 0
     length = array.length()
     while i < length {
@@ -1175,7 +1175,7 @@ impl Iterable T for Array T {
 
 struct OddNumbers { start: i32, end: i32 }
 impl Iterable i32 for OddNumbers {
-  fn each(odd_numbers_range: OddNumbers, visit: i32 -> Unit) {
+  fn each(odd_numbers_range: OddNumbers, visit: i32 -> void) {
     start = odd_numbers_range.start.even? ? odd_numbers_range.start + 1 : odd_numbers_range.start
     end = odd_numbers_range.end.even? ? odd_numbers_range.end - 1 : odd_numbers_range.end
     while start <= end {
@@ -1232,7 +1232,7 @@ For example, given:
 
 ```
 interface Iterable T for E {
-  fn each(E, T -> Unit) -> Unit
+  fn each(E, T -> void) -> void
   ...
 }
 ```
@@ -1354,7 +1354,7 @@ Every type has a zero value. The following sections document the zero value for 
 ### Zero values for primitive types
 
 - Nil - `nil`
-- Unit - `()`
+- void - `()`
 - Boolean - `false`
 - Integer types - `0`
 - Floating point types - `0.0`
@@ -1565,7 +1565,7 @@ fn all?(iterable: I, predicate: T -> bool) -> bool {
 
 ### Generators
 
-Able supports generators through the `Iterator[T]( Generator T -> Unit ) -> Iterator T` function. The `Iterator` function accepts a value-producing function - the generator function - and returns an `Iterator T` that iterates over the values produced by the generator.
+Able supports generators through the `Iterator[T]( Generator T -> void ) -> Iterator T` function. The `Iterator` function accepts a value-producing function - the generator function - and returns an `Iterator T` that iterates over the values produced by the generator.
 
 The following are examples of generator expressions:
 
@@ -1863,7 +1863,7 @@ The `Lazy` type has the same semantics as the `Thunk` type, with the exception t
 
 ### Value Discarding
 
-If an expression, e, is used in a context that expects a value of type Unit, then regardless of the expression's type, the expression will be transformed into the expression { e; () }.
+If an expression, e, is used in a context that expects a value of type void, then regardless of the expression's type, the expression will be transformed into the expression { e; () }.
 
 This evaluation rule is very similar to Scala's Value Discarding rule. See section 6.26.1 of the Scala language reference at http://www.scala-lang.org/docu/files/ScalaReference.pdf.
 
