@@ -719,76 +719,249 @@ add_five := 5.add
 
 ## 8. Control Flow
 
+This section details the constructs Able uses to control the flow of execution, including conditional branching, pattern matching, looping, range expressions, and non-local jumps.
+
 ### 8.1. Branching Constructs
 
-Expressions evaluating to a value.
+Branching constructs allow choosing different paths of execution based on conditions or patterns. Both `if/or` and `match` are expressions.
 
 #### 8.1.1. Conditional Chain (`if`/`or`)
 
-*   **Syntax:** `if Cond1 { Blk1 } [or Cond2 { Blk2 }] ... [or { DefBlk }]`
-*   **Semantics:** Executes first true block or default `or {}`. Evaluates to block result or `nil`. Types must be compatible (`?Type` if `nil` possible).
+This construct evaluates conditions sequentially and executes the block associated with the first true condition. It replaces traditional `if/else if/else`.
+
+##### Syntax
+
+```able
+if Condition1 { ExpressionList1 }
+[or Condition2 { ExpressionList2 }]
+...
+[or ConditionN { ExpressionListN }]
+[or { DefaultExpressionList }] // Final 'or' without condition acts as 'else'
+```
+
+-   **`if Condition1 { ExpressionList1 }`**: Required start. Executes `ExpressionList1` if `Condition1` (`bool`) is true.
+-   **`or ConditionX { ExpressionListX }`**: Optional clauses. Executes `ExpressionListX` if its `ConditionX` (`bool`) is the first true condition in the chain.
+-   **`or { DefaultExpressionList }`**: Optional final default block, executed if no preceding conditions were true.
+-   **`ExpressionList`**: Sequence of expressions; the last expression's value is the result of the block.
+
+##### Semantics
+
+1.  **Sequential Evaluation**: Conditions are evaluated strictly in order.
+2.  **First True Wins**: Execution stops at the first true `ConditionX`. The corresponding `ExpressionListX` is executed, and its result becomes the value of the `if/or` chain.
+3.  **Default Clause**: Executes if no conditions are true and the clause exists.
+4.  **Result Value**: The `if/or` chain evaluates to the result of the executed block. If no block executes (no conditions true and no default `or {}`), it evaluates to `nil`.
+5.  **Type Compatibility**:
+    *   If a default `or {}` guarantees execution, all result expressions must have compatible types. The chain's type is this common type.
+    *   If no default `or {}` exists, non-`nil` results must be compatible. The chain's type is `?CompatibleType`.
+
+##### Example
+
+```able
+grade = if score >= 90 { "A" }
+        or score >= 80 { "B" }
+        or { "C or lower" } ## Guarantees String result
+```
 
 #### 8.1.2. Pattern Matching Expression (`match`)
 
-*   **Syntax:** `Subj match { case Pat [if Grd] => Blk, ... [case _ => DefBlk] }`
-*   **Semantics:** Evaluates `Subj`, executes block of first matching `case`. Evaluates to block result. Should be exhaustive. Types must be compatible.
+Selects a branch by matching a subject expression against a series of patterns, executing the code associated with the first successful match. `match` is an expression.
+
+##### Syntax
+
+```able
+SubjectExpression match {
+  case Pattern1 [if Guard1] => ResultExpressionList1
+  [ , case Pattern2 [if Guard2] => ResultExpressionList2 ]
+  ...
+  [ , case PatternN [if GuardN] => ResultExpressionListN ]
+  [ , case _ => DefaultResultExpressionList ] ## Optional wildcard clause
+}
+```
+
+-   **`SubjectExpression`**: The value to be matched.
+-   **`match`**: Keyword initiating matching.
+-   **`{ ... }`**: Block containing match clauses separated by commas `,`.
+-   **`case PatternX [if GuardX] => ResultExpressionListX`**: A match clause.
+    *   **`case`**: Keyword.
+    *   **`PatternX`**: Pattern to match (Literal, Identifier, `_`, Type/Variant, Struct `{}`, Array `[]`). Bound variables are local to this clause. See Section [5.2](#52-patterns).
+    *   **`[if GuardX]`**: Optional `bool` guard expression using pattern variables.
+    *   **`=>`**: Separator.
+    *   **`ResultExpressionListX`**: Expressions executed if clause chosen; last expression's value is the result.
+
+##### Semantics
+
+1.  **Sequential Evaluation**: `SubjectExpression` evaluated once. `case` clauses checked top-to-bottom.
+2.  **First Match Wins**: The first `PatternX` that matches *and* whose `GuardX` (if present) is true selects the clause.
+3.  **Execution & Result**: The chosen `ResultExpressionListX` is executed. The `match` expression evaluates to the value of the last expression in that list.
+4.  **Exhaustiveness**: Compiler SHOULD check for exhaustiveness (especially for unions). Non-exhaustive matches MAY warn/error at compile time and SHOULD panic at runtime. A `case _ => ...` usually ensures exhaustiveness.
+5.  **Type Compatibility**: All `ResultExpressionListX` must yield compatible types. The `match` expression's type is this common type.
+
+##### Example
+
+```able
+## Assuming Option T = T | nil and Some is a struct { value: T }
+description = maybe_num match {
+  case Some { value: x } if x > 0 => `Positive: ${x}`,
+  case Some { value: 0 } => "Zero",
+  case Some { value: x } => `Negative: ${x}`,
+  case nil => "Nothing"
+}
+```
 
 ### 8.2. Looping Constructs
 
-Loops evaluate to `nil`. Use `breakpoint`/`break` for early exit.
+Loops execute blocks of code repeatedly. Loop expressions (`while`, `for`) evaluate to `nil`.
 
 #### 8.2.1. While Loop (`while`)
 
-*   **Syntax:** `while Condition { Body }`
+Repeats execution as long as a condition is true.
+
+##### Syntax
+
+```able
+while Condition {
+  BodyExpressionList
+}
+```
+
+-   **`while`**: Keyword.
+-   **`Condition`**: `bool` expression evaluated before each iteration.
+-   **`{ BodyExpressionList }`**: Loop body executed if `Condition` is true.
+
+##### Semantics
+
+-   `Condition` checked. If `true`, body executes. Loop repeats. If `false`, loop terminates.
+-   Always evaluates to `nil`.
+-   Loop exit occurs when `Condition` is false or via a non-local jump (`break`).
+
+##### Example
+
+```able
+counter = 0
+while counter < 3 {
+  print(counter)
+  counter = counter + 1
+} ## Prints 0, 1, 2. Result is nil.
+```
 
 #### 8.2.2. For Loop (`for`)
 
-Iterates over values produced by an expression whose type implements the `Iterable T` interface.
+Iterates over a sequence produced by an expression whose type implements the `Iterable` interface.
 
-*   **Syntax:** `for Pattern in IterableExpression { BodyExpressionList }`
-*   **Semantics:**
-    1.  The `IterableExpression` is evaluated. Its type must implement the `Iterable T` interface for some element type `T`.
-    2.  The `iterator()` method is called on the result, producing a value that implements `Iterator T`. Let's call this the *iterator instance*.
-    3.  The loop begins:
-        *   The `next()` method is called on the *iterator instance*.
-        *   The result of `next()` is matched:
-            *   If it matches the `Pattern` (meaning it's a value of type `T`), the pattern variables are bound, and the `BodyExpressionList` is executed. The loop continues to the next iteration.
-            *   If it is the value `IteratorEnd`, the loop terminates.
-            *   If it's a value of type `T` but doesn't match the `Pattern`, a runtime error/panic occurs.
-    4.  The `for` loop expression always evaluates to `nil`.
-    5.  Loop exit occurs when the iterator yields `IteratorEnd` or via a non-local jump (`break`).
-*   **Example:**
-    ```able
-    items := ["a", "b", "c"] ## Assuming Array string implements Iterable string
-    for item in items {
-        print(item) ## Prints "a", "b", "c"
-    }
+##### Syntax
 
-    total := 0
-    for i in 1..3 { ## Assuming Range implements Iterable i32
-        total = total + i
-    } ## total becomes 6
-    ```
+```able
+for Pattern in IterableExpression {
+  BodyExpressionList
+}
+```
+
+-   **`for`**: Keyword.
+-   **`Pattern`**: Pattern to bind/deconstruct the current element yielded by the iterator. See Section [5.2](#52-patterns).
+-   **`in`**: Keyword.
+-   **`IterableExpression`**: Expression evaluating to a value implementing `Iterable T` for some `T`.
+-   **`{ BodyExpressionList }`**: Loop body executed for each element. Pattern bindings are available.
+
+##### Semantics
+
+-   The `IterableExpression` produces an iterator (details governed by the `Iterable` interface implementation, see Section [14](#14-standard-library-interfaces-conceptual--tbd)).
+-   The body executes once per element yielded by the iterator, matching the element against `Pattern`.
+-   Always evaluates to `nil`.
+-   Loop terminates when the iterator is exhausted or via a non-local jump (`break`).
+-   If an element yielded by the iterator does not match the `Pattern`, a runtime error/panic occurs.
+
+##### Example
+
+```able
+items = ["a", "b"] ## Array implements Iterable
+for item in items { print(item) } ## Prints "a", "b"
+
+total = 0
+for i in 1..3 { ## Range 1..3 implements Iterable
+  total = total + i
+} ## total becomes 6 (1+2+3)
+```
 
 #### 8.2.3. Range Expressions
 
-*   **Syntax:** `StartExpr .. EndExpr` (inclusive), `StartExpr ... EndExpr` (exclusive). Creates `Iterable` range objects.
+Provide a concise way to create iterable sequences of integers.
+
+##### Syntax
+
+```able
+StartExpr .. EndExpr   // Inclusive range [StartExpr, EndExpr]
+StartExpr ... EndExpr  // Exclusive range [StartExpr, EndExpr)
+```
+
+-   **`StartExpr`, `EndExpr`**: Integer expressions.
+-   **`..` / `...`**: Operators creating range values.
+
+##### Semantics
+
+-   Syntactic sugar for creating values (e.g., via `Range.inclusive`/`Range.exclusive`) that implement the `Iterable` interface (and likely a `Range` interface). See Section [14](#14-standard-library-interfaces-conceptual--tbd).
 
 ### 8.3. Non-Local Jumps (`breakpoint` / `break`)
 
-Mechanism for early exit from a labeled block, returning a value.
+Provides a mechanism for early exit from a designated block (`breakpoint`), returning a value and unwinding the call stack if necessary. Replaces traditional `break`/`continue`.
 
 #### 8.3.1. Defining an Exit Point (`breakpoint`)
 
-*   **Syntax:** `breakpoint 'LabelName { ExpressionList }` (Is an expression).
+Marks a block that can be exited early. `breakpoint` is an expression.
+
+##### Syntax
+
+```able
+breakpoint 'LabelName {
+  ExpressionList
+}
+```
+
+-   **`breakpoint`**: Keyword.
+-   **`'LabelName`**: A label identifier (single quote prefix) uniquely naming this point within its lexical scope.
+-   **`{ ExpressionList }`**: The block of code associated with the breakpoint.
 
 #### 8.3.2. Performing the Jump (`break`)
 
-*   **Syntax:** `break 'LabelName ValueExpression`
+Initiates an early exit targeting a labeled `breakpoint` block.
+
+##### Syntax
+
+```able
+break 'LabelName ValueExpression
+```
+
+-   **`break`**: Keyword.
+-   **`'LabelName`**: The label identifying the target `breakpoint` block. Must match a lexically enclosing `breakpoint`. Compile error if not found.
+-   **`ValueExpression`**: Expression whose result becomes the value of the exited `breakpoint` block.
 
 #### 8.3.3. Semantics
 
-*   `break` jumps to enclosing `breakpoint 'LabelName`, making it return `ValueExpression`. Unwinds stack. Normal completion returns last expression. Type must be compatible.
+1.  **`breakpoint` Block Execution**:
+    *   Evaluates `ExpressionList`.
+    *   If execution finishes normally, the `breakpoint` expression evaluates to the result of the *last expression* in `ExpressionList`.
+    *   If a `break 'LabelName ...` targeting this block occurs during execution (possibly in nested calls), execution stops immediately.
+2.  **`break` Execution**:
+    *   Finds the innermost lexically enclosing `breakpoint` with the matching `'LabelName`.
+    *   Evaluates `ValueExpression`.
+    *   Unwinds the call stack up to the target `breakpoint` block.
+    *   Causes the target `breakpoint` expression itself to evaluate to the result of `ValueExpression`.
+3.  **Type Compatibility**: The type of the `breakpoint` expression must be compatible with both the type of its block's final expression *and* the type(s) of the `ValueExpression`(s) from any `break` statements targeting it.
+
+#### 8.3.4. Example
+
+```able
+search_result = breakpoint 'finder {
+  data = [1, 5, -2, 8]
+  for item in data {
+    if item < 0 {
+      break 'finder item ## Exit early, return the negative item
+    }
+    ## ... process positive items ...
+  }
+  nil ## Default result if loop completes without breaking
+}
+## search_result is -2
+```
 
 ## 9. Inherent Methods (`methods`)
 
@@ -1120,158 +1293,492 @@ for item in displayables {
 
 ## 11. Error Handling
 
-Combines explicit `return`, Option/Result types with operators, and exceptions.
+Able provides multiple mechanisms for handling errors and exceptional situations:
+
+1.  **Explicit `return`:** Allows early exit from functions.
+2.  **`Option T` (`?Type`) and `Result T` (`!Type`) types:** Used with V-lang style propagation (`!`) and handling (`else {}`) for expected errors or absence.
+3.  **Exceptions:** For exceptional conditions, using `raise` and `rescue`. Panics are implemented via exceptions.
 
 ### 11.1. Explicit `return` Statement
 
-Used for early exit. See Section [7.3](#73-explicit-return-statement).
+Functions can return a value before reaching the end of their body using the `return` keyword. (See also Section [7.3](#73-explicit-return-statement)).
 
-### 11.2. Option/Result Types and Operators (`?Type`, `!Type`, `!`, `else`)
+#### Syntax
+```able
+return Expression
+return // Equivalent to 'return void' if function returns void
+```
 
-Preferred for expected errors or absence.
+-   **`return`**: Keyword initiating an early return.
+-   **`Expression`**: Optional expression whose value is returned from the function. Its type must match the function's declared or inferred return type.
+-   If `Expression` is omitted, the function must have a `void` return type, and `void` is implicitly returned.
+
+#### Semantics
+-   Immediately terminates the execution of the current function.
+-   The value of `Expression` (or `void`) is returned to the caller.
+-   If used within nested blocks (like loops or `do` blocks) inside a function, it still returns from the *function*, not just the inner block.
+
+#### Example
+```able
+fn find_first_negative(items: Array i32) -> ?i32 {
+  for item in items {
+    if item < 0 {
+      ## Assuming Option T = T | nil and Some is struct { value: T }
+      return Some { value: item } ## Early return with value
+    }
+  }
+  return nil ## Return nil if no negative found
+}
+
+fn process_or_skip(item: i32) -> void {
+    if item == 0 {
+        log("Skipping zero")
+        return ## Early return void
+    }
+    process_item(item)
+}
+```
+
+### 11.2. V-Lang Style Error Handling (`Option`/`Result`, `!`, `else`)
+
+This mechanism is preferred for handling *expected* errors or optional values gracefully without exceptions.
 
 #### 11.2.1. Core Types (`?Type`, `!Type`)
 
-*   **`Option T` (`?Type`)**: Represents optional values. Union `nil | T`.
-*   **`Result T` (`!Type`)**: Represents success (`T`) or failure (`Error`).
-    *   Requires a standard `Error` interface (TBD). Conceptually: `interface Error for T { fn message(self: Self) -> string; }`
-    *   `!Type` is **syntactic sugar** for the union `Type | Error`. (The underlying type might still be referred to as `Result Type Error` in compiler messages/internals).
-    *   Example function signatures:
-        ```able
-        fn find_user(id: u64) -> ?User
-        fn read_file(path: string) -> !string
-        ```
-
-#### 11.2.2. Propagation (`!`)
-
-Postfix `!` operator unwraps success (`T`) or returns `nil`/`Error` from the current function.
-
-*   **Syntax:** `ExpressionReturningOptionOrResult!`
-*   **Semantics:**
-    *   If expr is `T` -> result is `T`.
-    *   If expr is `nil` or `Error` -> current function returns that `nil` or `Error`.
-    *   Containing function must return compatible `?U` or `!U`.
-*   **Example:**
+-   **`Option T` (`?Type`)**: Represents optional values. Defined implicitly as the union `nil | T`. Used when a value might be absent. (See Section [4.6.2](#462-nullable-type-shorthand-)).
     ```able
-    fn process_file(path: string) -> !Data {
-      content := read_file(path)!  ## Returns Error if read_file fails
-      parse_data(content)!       ## Returns Error if parse_data fails
-                                 ## Returns Data on success
+    user: ?User = find_user(id) ## find_user returns nil or User
+    ```
+-   **`Result T` (`!Type`)**: Represents the result of an operation that can succeed with a value of type `T` or fail with an error. Defined implicitly as the union `T | Error`.
+    ```able
+    ## The 'Error' interface (built-in or standard library, TBD)
+    ## Conceptually:
+    interface Error for T {
+        fn message(self: Self) -> string;
+        ## Potentially other methods like cause(), stacktrace()
     }
+
+    ## Result T is implicitly: union Result T = T | Error
+    ## !Type is syntactic sugar for Result T
+
+    ## Example function signature
+    fn read_file(path: string) -> !string { ... } ## Returns string or Error
     ```
 
-#### 11.2.3. Handling (`else {}`)
+#### 11.2.2. Error/Option Propagation (`!`)
 
-Handles `nil` or `Error` case immediately.
+The postfix `!` operator simplifies propagating `nil` from `Option` types or `Error` from `Result` types up the call stack.
 
-*   **Syntax:**
-    ```able
-    ExpressionReturningOptionOrResult else { BlockExpression }
-    ExpressionReturningOptionOrResult else { err => BlockExpression } // Capture error
-    ```
-*   **Semantics:**
-    *   If expr is `T` -> result is `T`. `else` block skipped.
-    *   If expr is `nil` or `Error`:
-        *   `BlockExpression` is executed.
-        *   If `err => ...` form used and value is `Error`, `err` is bound within the block.
-        *   The entire `... else { ... }` expression evaluates to the result of `BlockExpression`.
-    *   **Type Compatibility:** `T` and `BlockExpression` result must be compatible.
-*   **Example:**
-    ```able
-    port := config_lookup("port") else { 8080 } ## Default if nil/Error
-    user := find_user(id) else { err =>
-        log(`Failed: ${err.message()}`)
-        create_guest_user()
-    }
-    ```
+##### Syntax
+```able
+ExpressionReturningOptionOrResult!
+```
+
+##### Semantics
+-   Applies to an expression whose type is `?T` (`nil | T`) or `!T` (`T | Error`).
+-   If the expression evaluates to the "successful" variant (`T`), the `!` operator unwraps it, and the overall expression evaluates to the unwrapped value (of type `T`).
+-   If the expression evaluates to the "failure" variant (`nil` or an `Error`), the `!` operator causes the **current function** to immediately **`return`** that `nil` or `Error` value.
+-   **Requirement:** The function containing the `!` operator must itself return a compatible `Option` or `Result` type (or a supertype union) that can accommodate the propagated `nil` or `Error`.
+
+##### Example
+```able
+## Assuming read_file returns !string (string | Error)
+## Assuming parse_data returns !Data (Data | Error)
+fn load_and_parse(path: string) -> !Data {
+    content = read_file(path)! ## If read_file returns Err, load_and_parse returns it.
+                               ## Otherwise, content is string.
+    data = parse_data(content)! ## If parse_data returns Err, load_and_parse returns it.
+                                ## Otherwise, data is Data.
+    return data ## Return the successful Data value (implicitly wrapped in Result)
+}
+
+## Option example
+fn get_nested_value(data: ?Container) -> ?Value {
+    container = data! ## If data is nil, return nil from get_nested_value
+    inner = container.get_inner()! ## Assuming get_inner returns ?Inner, propagate nil
+    value = inner.get_value()! ## Assuming get_value returns ?Value, propagate nil
+    return value
+}
+```
+
+#### 11.2.3. Error/Option Handling (`else {}`)
+
+Provides a way to handle the `nil` or `Error` case of an `Option` or `Result` immediately, typically providing a default value or executing alternative logic.
+
+##### Syntax
+```able
+ExpressionReturningOptionOrResult else { BlockExpression }
+ExpressionReturningOptionOrResult else { |err| BlockExpression } // Capture error
+```
+
+##### Semantics
+-   Applies to an expression whose type is `?T` (`nil | T`) or `!T` (`T | Error`).
+-   If the expression evaluates to the "successful" variant (`T`), the overall expression evaluates to that unwrapped value (`T`). The `else` block is *not* executed.
+-   If the expression evaluates to the "failure" variant (`nil` or an `Error`):
+    *   The `BlockExpression` inside the `else { ... }` is executed.
+    *   If the form `else { |err| ... }` is used *and* the failure value was an `Error`, the error value is bound to the identifier `err` (or chosen name) within the scope of the `BlockExpression`. If the failure value was `nil`, `err` is not bound or has a `nil`-like value (TBD - let's assume it's only bound for `Error`).
+    *   The entire `Expression else { ... }` expression evaluates to the result of the `BlockExpression`.
+-   **Type Compatibility:** The type of the "successful" variant (`T`) and the type returned by the `BlockExpression` must be compatible. The overall expression has this common compatible type.
+
+##### Example
+```able
+## Option handling
+config_port: ?i32 = read_port_config()
+port = config_port else { 8080 } ## Provide default value if config_port is nil
+## port is i32
+
+## Result Handling with error capture
+user: ?User = find_user(id) else { |err| ## Assuming find_user returns !User
+    log(`Failed to find user: ${err.message()}`)
+    nil ## Return nil if lookup failed
+}
+
+## Result Handling without capturing error detail
+data = load_data() else { ## Assuming load_data returns !Array T
+    log("Loading failed, using empty.")
+    [] ## Return empty array
+}
+```
 
 ### 11.3. Exceptions (`raise` / `rescue`)
 
-For exceptional conditions. Division/Modulo by zero raises an exception.
+For handling truly *exceptional* situations that disrupt normal control flow, often originating from deeper library levels or representing programming errors discovered at runtime. Panics are implemented as a specific kind of exception. Division/Modulo by zero raises an exception.
 
 #### 11.3.1. Raising Exceptions (`raise`)
 
-*   **Syntax:** `raise ExceptionValue` (Should implement `Error`).
+The `raise` keyword throws an exception value, immediately interrupting normal execution and searching up the call stack for a matching `rescue` block.
+
+##### Syntax
+```able
+raise ExceptionValue
+```
+-   **`raise`**: Keyword initiating the exception throw.
+-   **`ExceptionValue`**: An expression evaluating to the value to be raised. This value should typically implement the standard `Error` interface, but technically any value *could* be raised (TBD - restricting to `Error` types is safer).
+
+##### Example
+```able
+struct DivideByZeroError {} ## Implement Error interface
+impl Error for DivideByZeroError { fn message(self: Self) -> string { "Division by zero" } }
+
+fn divide(a: i32, b: i32) -> i32 {
+    if b == 0 {
+        raise DivideByZeroError {}
+    }
+    a / b
+}
+```
 
 #### 11.3.2. Rescuing Exceptions (`rescue`)
 
-Catches exceptions. `rescue` is an expression.
+The `rescue` keyword provides a mechanism to catch exceptions raised during the evaluation of an expression. It functions similarly to `match` but operates on exceptions caught during the primary expression's execution. `rescue` forms an expression.
 
-*   **Syntax:** `MonitoredExpr rescue { case Pat [if Grd] => Blk, ... }`
-*   **Semantics:** If `MonitoredExpr` raises, matches exception against `case`. Executes first matching block. Result is normal result or rescue block result. Unmatched exceptions propagate.
+##### Syntax
+```able
+MonitoredExpression rescue {
+  case Pattern1 [if Guard1] => ResultExpressionList1,
+  case Pattern2 [if Guard2] => ResultExpressionList2,
+  ...
+  [case _ => DefaultResultExpressionList] ## Catches any other exception
+}
+```
+
+-   **`MonitoredExpression`**: The expression whose execution is monitored for exceptions.
+-   **`rescue`**: Keyword initiating the exception handling block.
+-   **`{ case PatternX [if GuardX] => ResultExpressionListX, ... }`**: Clauses similar to `match`.
+    *   Execution starts by evaluating `MonitoredExpression`.
+    *   **If No Exception:** The `rescue` block is skipped. The entire `rescue` expression evaluates to the normal result of `MonitoredExpression`.
+    *   **If Exception Raised:** Execution of `MonitoredExpression` stops. The *raised exception value* becomes the subject matched against the `PatternX` in the `case` clauses sequentially.
+    *   The first clause whose `PatternX` matches the exception value (and whose optional `GuardX` passes) is chosen.
+    *   The corresponding `ResultExpressionListX` is executed. Its result becomes the value of the entire `rescue` expression.
+    *   If no pattern matches the raised exception, the exception continues propagating up the call stack. A final `case _ => ...` can catch any otherwise unhandled exception within this `rescue`.
+-   **Type Compatibility:** The normal result type of `MonitoredExpression` must be compatible with the result types of all `ResultExpressionListX` in the `rescue` block.
+
+##### Example
+```able
+result = do {
+            divide(10, 0) ## This will raise DivideByZeroError
+         } rescue {
+            case e: DivideByZeroError => {
+                log("Caught division by zero!")
+                0 ## Return 0 as the result of the rescue expression
+            },
+            case e: Error => { ## Catch any other Error
+                log(`Caught other error: ${e.message()}`)
+                -1
+            },
+            ## No final 'case _', other exceptions would propagate
+         }
+## result is 0
+
+value = risky_operation() rescue { case _ => default_value } ## Provide default on any error
+```
 
 #### 11.3.3. Panics
 
-Built-in `panic(message: string)` raises a special `PanicError` (TBD). Avoid rescuing unless for cleanup.
+Panics are implemented as a specific, severe type of exception (e.g., `PanicError` implementing `Error`). Calling the built-in `panic(message: string)` function is equivalent to `raise PanicError { message: message }`. Typically, `rescue` blocks should *avoid* catching `PanicError` unless performing essential cleanup before potentially re-raising or terminating, as panics signal unrecoverable states or bugs. The default top-level program handler usually catches unhandled panics, prints details, and terminates.
 
 ## 12. Concurrency
 
-Lightweight, Go-inspired primitives.
+Able provides lightweight concurrency primitives inspired by Go, allowing asynchronous execution of functions and blocks using the `proc` and `spawn` keywords.
 
 ### 12.1. Concurrency Model Overview
 
-*   Supports concurrent execution. Mechanism implementation-defined.
-*   Synchronization primitives TBD (stdlib).
+-   Able supports concurrent execution, allowing multiple tasks to run seemingly in parallel.
+-   The underlying mechanism (e.g., OS threads, green threads, thread pool, event loop) is implementation-defined but guarantees the potential for concurrent progress.
+-   Communication and synchronization between concurrent tasks (e.g., channels, mutexes) are not defined in this section but would typically be provided by the standard library.
 
 ### 12.2. Asynchronous Execution (`proc`)
 
-Starts async task, returns `Proc T` handle.
+The `proc` keyword initiates asynchronous execution of a function call or a block, returning a handle (`Proc T`) to manage the asynchronous process.
 
 #### 12.2.1. Syntax
 
-`proc FuncCall`, `proc do { ... }`
+```able
+proc FunctionCall
+proc BlockExpression
+```
+
+-   **`proc`**: Keyword initiating asynchronous execution.
+-   **`FunctionCall`**: A standard function or method call expression (e.g., `my_function(arg1)`, `instance.method()`).
+-   **`BlockExpression`**: A `do { ... }` block expression.
 
 #### 12.2.2. Semantics
 
-Starts async task, returns `Proc T` immediately. `T` is return type.
+1.  **Asynchronous Start**: The target `FunctionCall` or `BlockExpression` begins execution asynchronously, potentially on a different thread or logical task. The current thread does *not* block.
+2.  **Return Value**: The `proc` expression immediately returns a value whose type implements the `Proc T` interface.
+    -   `T` is the return type of the `FunctionCall` or the type of the value the `BlockExpression` evaluates to.
+    -   If the function/block returns `void`, the return type is `Proc void`.
+3.  **Independent Execution**: The asynchronous task runs independently until it completes, fails, or is cancelled.
 
-#### 12.2.3. Process Handle (`Proc T` Interface)
+#### 12.2.3. Example
 
-Conceptual interface: `status()`, `get_value() -> !T`, `cancel()`.
+```able
+fn fetch_data(url: string) -> string {
+  ## ... perform network request ...
+  "Data from {url}"
+}
+
+proc_handle = proc fetch_data("http://example.com") ## Starts fetching data
+## proc_handle has type `Proc string`
+
+computation_handle = proc do {
+  x = compute_part1()
+  y = compute_part2()
+  x + y ## Block evaluates to the sum
+} ## computation_handle has type `Proc i32` (assuming sum is i32)
+
+side_effect_proc = proc { log_message("Starting background task...") } ## Returns Proc void
+```
+
+#### 12.2.4. Process Handle (`Proc T` Interface)
+
+The `Proc T` interface provides methods to interact with an ongoing asynchronous process started by `proc`. (See Section [14](#14-standard-library-interfaces-conceptual--tbd) for conceptual definition).
+
+##### Definition (Conceptual)
+
+```able
+## Represents the status of an asynchronous process
+union ProcStatus = Pending | Resolved | Cancelled | Failed ProcError
+
+## Represents an error occurring during process execution (details TBD)
+## Could wrap panic information or specific error types.
+struct ProcError { details: string } ## Example structure
+
+## Interface for interacting with a process handle
+interface Proc T for HandleType { ## HandleType is the concrete type returned by 'proc'
+  ## Get the current status of the process
+  fn status(self: Self) -> ProcStatus;
+
+  ## Attempt to retrieve the result value.
+  ## Blocks the *calling* thread until the process status is Resolved, Failed, or Cancelled.
+  ## Returns Ok(T) on success, Err(ProcError) on failure or if cancelled before resolution.
+  fn get_value(self: Self) -> Result T ProcError; ## Note: Result T is T | Error
+
+  ## Request cancellation of the asynchronous process.
+  ## This is a non-blocking request. Cancellation is cooperative; the async task
+  ## must potentially check for cancellation requests to terminate early.
+  ## Guarantees no specific timing or success, only signals intent.
+  fn cancel(self: Self) -> void;
+}
+```
+
+##### Semantics of Methods
+
+-   **`status()`**: Returns the current state (`Pending`, `Resolved`, `Cancelled`, `Failed`) without blocking.
+-   **`get_value()`**: Blocks the caller until the process finishes (resolves, fails, or is definitively cancelled).
+    -   If `Resolved`, returns `Ok(value)` where `value` has type `T`. For `Proc void`, returns `Ok(void)` conceptually (or `Ok(nil)` if `void` cannot be wrapped? TBD). Let's assume `Ok(value)` works even for `T=void`.
+    -   If `Failed`, returns `Err(ProcError)` containing error details.
+    -   If `Cancelled`, returns `Err(ProcError)` indicating cancellation.
+-   **`cancel()`**: Sends a cancellation signal to the asynchronous task. The task is not guaranteed to stop immediately or at all unless designed to check for cancellation signals.
+
+##### Example Usage
+
+```able
+data_proc: Proc string = proc fetch_data("http://example.com")
+
+## Check status without blocking
+current_status = data_proc.status()
+if match current_status { case Pending => true } { print("Still working...") }
+
+## Block until done and get result (handle potential errors)
+result = data_proc.get_value()
+final_data = result match {
+  case Ok { value: d } => `Success: ${d}`,
+  case Err { error: e } => `Failed: ${e.details}` ## Assuming Result T = T | Error
+}
+print(final_data)
+
+## Request cancellation (fire and forget)
+data_proc.cancel()
+```
 
 ### 12.3. Thunk-Based Asynchronous Execution (`spawn`)
 
-Starts async task, returns `Thunk T`. Evaluation blocks implicitly.
+The `spawn` keyword also initiates asynchronous execution but returns a `Thunk T` value, which implicitly blocks and yields the result when evaluated.
 
 #### 12.3.1. Syntax
 
-`spawn FuncCall`, `spawn do { ... }`
+```able
+spawn FunctionCall
+spawn BlockExpression
+```
+
+-   **`spawn`**: Keyword initiating thunk-based asynchronous execution.
+-   **`FunctionCall` / `BlockExpression`**: Same as for `proc`.
 
 #### 12.3.2. Semantics
 
-Starts async task, returns `Thunk T`. Evaluating `Thunk T` blocks until completion, yields `T` or propagates panic.
+1.  **Asynchronous Start**: Starts the function or block execution asynchronously, similar to `proc`. The current thread does not block.
+2.  **Return Value**: Immediately returns a value of the special built-in type `Thunk T`.
+    -   `T` is the return type of the function or the evaluation type of the block.
+    *   If the function/block returns `void`, the return type is `Thunk void`.
+3.  **Implicit Blocking Evaluation**: The core feature of `Thunk T` is its evaluation behavior. When a value of type `Thunk T` is used in a context requiring a value of type `T` (e.g., assignment, passing as argument, part of an expression), the current thread **blocks** until the associated asynchronous computation completes.
+    *   If the computation completes successfully with value `v` (type `T`), the evaluation of the `Thunk T` yields `v`.
+    *   If the computation fails (e.g., panics), that panic is **propagated** to the thread evaluating the `Thunk T`.
+    *   Evaluating a `Thunk void` blocks until completion and then yields `void` (effectively synchronizing).
+
+#### 12.3.3. Example
+
+```able
+fn expensive_calc(n: i32) -> i32 {
+  ## ... time-consuming work ...
+  n * n
+}
+
+thunk_result: Thunk i32 = spawn expensive_calc(10)
+thunk_void: Thunk void = spawn { log_message("Background log started...") }
+
+print("Spawned tasks...") ## Executes immediately
+
+## Evaluation blocks here until expensive_calc(10) finishes:
+final_value = thunk_result
+print(`Calculation result: ${final_value}`) ## Prints "Calculation result: 100"
+
+## Evaluation blocks here until the logging block finishes:
+_ = thunk_void ## Assigning to _ forces evaluation/synchronization
+print("Background log finished.")
+```
 
 ### 12.4. Key Differences (`proc` vs `spawn`)
 
-*   `proc` -> Explicit handle (`Proc T`), `spawn` -> Implicit future (`Thunk T`).
-*   `Proc T` gives control (status, cancel, error handling).
-*   `Thunk T` blocks implicitly on use.
+-   **Return Type:** `proc` returns `Proc T` (an interface handle); `spawn` returns `Thunk T` (a special type).
+-   **Control:** `Proc T` offers explicit control (check status, attempt cancellation, get result via method call potentially handling errors).
+-   **Result Access:** `Thunk T` provides implicit result access; evaluating the thunk blocks and returns the value directly (or propagates panic). It lacks fine-grained status checks or cancellation via the handle itself.
+-   **Use Cases:**
+    *   `proc` is suitable when you need to manage the lifecycle of the async task, check its progress, handle failures explicitly, or potentially cancel it.
+    *   `spawn` is simpler for "fire and forget" tasks where you only need the final result eventually and are okay with blocking for it implicitly (or propagating panics).
 
 ## 13. Packages and Modules
 
-Organizes code.
+Packages form a tree of namespaces rooted at the name of the library, and the hierarchy follows the directory structure of the source files within the library.
 
 ### 13.1. Package Naming and Structure
 
-*   Tree structure based on `package.yml` name and directories.
-*   Qualified names: `root.dir.subdir`. Hyphens in dir -> underscore.
+*   **Root Package Name**: Every package has a root package name, defined by the `name` field in the `package.yml` file located in the package's root directory.
+*   **Unqualified Names**: All individual package name segments (directory names, names declared with `package`) must be valid identifiers.
+*   **Qualified Names**: Package paths are composed of segments delimited by periods (`.`), e.g., `root_package.sub_dir.module_name`.
+*   **Directory Mapping**: Directory names containing source files are part of the package path. Hyphens (`-`) in directory names are treated as underscores (`_`) when used in the package path. Example: A directory `my-utils` becomes `my_utils` in the package path.
 
-### 13.2. Package Configuration (`package.yml`)
+### 13.2. Package Declaration in Source Files
 
-*   Root file defining `name`, `version`, `dependencies`, etc.
+*   **Optional Declaration**: A source file can optionally declare which sub-package its contents belong to using `package <unqualified-name>;`.
+*   **Implicit Package**:
+    *   If a file `src/foo/bar.able` contains `package my_bar;`, and the root package name is `my_pkg`, its fully qualified package is `my_pkg.foo.my_bar`.
+    *   If a file `src/foo/baz.able` has *no* `package` declaration, its fully qualified package is determined by its directory path relative to the root: `my_pkg.foo`.
+*   **Multiple Files**: Multiple files can contribute to the same fully qualified package name, either by residing in the same directory (without `package` declarations) or by declaring the same package name within different directories.
 
-### 13.3. Package Declaration in Source Files
+#### Example
 
-*   Optional `package name;` influences qualified name.
+Assume a package root `/home/david/projects/hello-world` with `package.yml` specifying `name: hello_world`.
+
+```
+/home/david/projects/hello-world/
+├── package.yml         (name: hello_world)
+├── foo.able            (no package declaration)
+├── bar.able            (contains: package bar;)
+├── utils/
+│   ├── helpers.able    (no package declaration)
+│   └── formatters.able (contains: package fmt;)
+└── my-data/
+    └── models.able     (contains: package data_models;)
+
+```
+
+This structure defines the following packages:
+
+*   `hello_world`: Contains definitions from `foo.able`.
+*   `hello_world.bar`: Contains definitions from `bar.able`.
+*   `hello_world.utils`: Contains definitions from `utils/helpers.able`.
+*   `hello_world.utils.fmt`: Contains definitions from `utils/formatters.able`.
+*   `hello_world.my_data.data_models`: Contains definitions from `my-data/models.able`. (Note `my-data` -> `my_data`).
+
+### 13.3. Package Configuration (`package.yml`)
+
+A single file, `package.yml`, defines a project's build configuration, dependencies, package metadata, etc. The directory containing `package.yml` is the root of the library.
+
+```yaml
+name: hello_world
+version: 1.0.0
+license: MIT
+
+authors:
+- David <david@conquerthelawn.com>
+
+dependencies:
+  collections:
+    github: davidkellis/able-collections
+    version: ~>0.16.0 ## Example version constraint
+```
 
 ### 13.4. Importing Packages (`import`)
 
-*   `import path`, `import path.*`, `import path.{id}`, `import path as alias`, etc.
+The `import` statement makes identifiers from other packages available in the current scope.
+
+*   **Syntax Forms**:
+    *   Package import: `import io;` (makes `io.puts` etc. available)
+    *   Wildcard import: `import io.*;` (brings all public identifiers from `io` into scope - use with caution)
+    *   Selective import: `import io.{puts, gets, SomeType};` (brings specific identifiers into scope)
+    *   Aliased import: `import internationalization as i18n;` (imports package under alias)
+    *   Aliased selective import: `import io.{puts as print_line, gets};` (imports specific items with aliases)
+*   **Scope**: Imports can occur at the top level of a file (package scope) or within any local scope (e.g., inside a function).
+*   **Binding Semantics**: Importing an identifier creates a new binding in the current scope. This binding refers to the same underlying definition (function, type, etc.) as the original identifier in the imported package.
 
 ### 13.5. Visibility and Exports (`private`)
 
-*   Top-level definitions public by default.
-*   `private` keyword restricts visibility to current package.
+*   **Default**: All identifiers defined at the top level (package scope) are public and exported by default.
+*   **`private` Keyword**: Prefixing a top-level definition with `private` restricts its visibility to the current package only. Private identifiers cannot be imported or accessed directly from other packages.
+
+```able
+## In package 'my_pkg'
+
+foo = "bar" ## Public
+
+private baz = "qux" ## Private to my_pkg
+
+fn public_func() { ... }
+
+private fn helper() { ... } ## Private to my_pkg
+```
 
 ## 14. Standard Library Interfaces (Conceptual / TBD)
 
