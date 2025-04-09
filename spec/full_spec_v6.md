@@ -310,100 +310,223 @@ display_name = maybe_name match {
 
 ## 5. Bindings, Assignment, and Destructuring
 
-Able uses `:=` for declaration and initialization, and `=` for reassignment or mutation. Bindings are mutable by default.
+This section defines variable binding, assignment, and destructuring in Able. Able uses `=` and `:=` for binding identifiers within patterns to values. `=` primarily handles reassignment but can also introduce initial bindings, while `:=` is used explicitly for declaring new bindings, especially for shadowing. Bindings are mutable by default.
 
 ### 5.1. Operators (`:=`, `=`)
 
 *   **Declaration (`:=`)**: `Pattern := Expression`
-    *   Declares **new** mutable bindings for all identifiers introduced in `Pattern` within the **current** scope.
-    *   Initializes these bindings using the corresponding values from `Expression` via matching.
-    *   It is a compile-time error if any identifier introduced by `Pattern` already exists as a binding in the *current* scope.
-    *   Shadowing: If an identifier introduced by `Pattern` has the same name as a binding in an *outer* scope, the new binding shadows the outer one within the current scope.
-    *   For example:
-        x = 10
-        do {
-          x := 20  ## Shadows outer x within this block
-          print(x)  // prints 20
+    *   **Always** declares **new** mutable bindings for all identifiers introduced in `Pattern` within the **current** lexical scope.
+    *   Initializes these new bindings using the corresponding values from `Expression` via matching.
+    *   This is the **required** operator for **shadowing**: if an identifier introduced by `Pattern` has the same name as a binding in an *outer* scope, `:=` creates a new, distinct binding in the current scope that shadows the outer one.
+    *   It is a compile-time error if any identifier introduced by `Pattern` already exists as a binding *within the current scope*.
+    *   Example (Shadowing):
+        ```able
+        package_var := 10 ## Assume declared at package level
+
+        fn my_func() {
+          ## package_var is accessible here (value 10)
+          package_var := 20  ## Declares NEW local binding 'package_var', shadows package-level one
+          print(package_var)  ## prints 20 (local)
+
+          ## To modify the package-level variable, use '=':
+          # package_var = 30 ## This would be an error if the local 'package_var := 20' exists.
+                           ## If the local didn't exist, this would modify the package var.
         }
-        print(x)  // prints 10
-*   **Assignment/Mutation (`=`)**: `LHS = Expression`
-    *   Assigns the value of `Expression` to existing, accessible, and mutable locations specified by `LHS`.
+        my_func()
+        print(package_var)  ## prints 10 (package-level was unaffected by local :=)
+        ```
+
+*   **Assignment / Initial Binding (`=`)**: `LHS = Expression`
+    *   Performs one of two actions based on the `LHS` and current scope:
+        1.  **Reassignment/Mutation:** If `LHS` refers to existing, accessible, and mutable locations (bindings, fields, indices) found through lexical scoping rules (checking current scope first, then enclosing scopes), it assigns the value of `Expression` to those locations.
+        2.  **Initial Binding:** If `LHS` is a `Pattern` and *none* of the identifiers introduced by the pattern exist as accessible bindings via lexical scoping, it declares **new** mutable bindings for those identifiers in the **current** scope and initializes them. This is effectively a convenience for initial declaration when shadowing is not intended or possible.
+    *   **Precedence:** Reassignment (Action 1) takes precedence. `=` will modify an existing accessible binding before creating a new one with the same name. To guarantee a new binding and shadow an outer variable, use `:=`.
     *   `LHS` can be:
-        *   An identifier (`x = value`) referring to an existing mutable binding.
+        *   An identifier (`x = value`).
         *   A mutable field access (`instance.field = value`).
         *   A mutable index access (`array[index] = value`).
-        *   A pattern (`{x, y} = point`) where all identifiers/locations within the pattern refer to existing, accessible, and mutable bindings/locations.
-    *   It is a compile-time error if `LHS` refers to bindings/locations that do not exist, are not accessible, or are not mutable.
+        *   A pattern (`{x, y} = point`) where identifiers either refer to existing mutable locations or introduce new bindings (if no existing binding is found).
+    *   It is a compile-time error if `LHS` refers to bindings/locations that do not exist (and cannot be created via initial binding), are not accessible, or are not mutable.
+    *   Example (Initial Binding vs. Reassignment):
+        ```able
+        ## Initial binding (assuming 'a' doesn't exist yet)
+        a = 10
+
+        ## Reassignment
+        a = 20
+
+        b := 100 ## Declare 'b' in current scope
+        b = 200  ## Reassign 'b' in current scope
+
+        do {
+          c = 5 ## Initial binding of 'c' in inner scope using '='
+          a = 30 ## Reassigns 'a' from outer scope using '='
+          b := 50 ## Declares NEW 'b' in inner scope using ':=' (shadows outer 'b')
+          b = 60  ## Reassigns inner 'b' using '='
+        }
+        print(a) ## prints 30
+        print(b) ## prints 200 (outer 'b' was shadowed, not reassigned)
+        ## 'c' is out of scope here
+        ```
 
 ### 5.2. Patterns
 
-Patterns are used on the left-hand side of `:=` and `=` to declare or assign to structured data.
+Patterns are used on the left-hand side of `:=` (declaration) and `=` (assignment/initial binding) to determine how the value from the `Expression` is deconstructed and which identifiers are bound or assigned to.
 
 #### 5.2.1. Identifier Pattern
 
+The simplest pattern binds the entire result of the `Expression` to a single identifier.
+
 *   **Syntax**: `Identifier`
-*   **Usage:**
-    *   `x := 10` (Declare and initialize `x`)
-    *   `x = 20` (Reassign existing `x`)
+*   **Usage (`:=`)**: Declares a new binding `Identifier`.
+    ```able
+    x := 42
+    user_name := fetch_user_name()
+    my_func := { a, b => a + b }
+    ```
+*   **Usage (`=`)**: Reassigns an existing mutable binding `Identifier`, or creates an initial binding if `Identifier` doesn't exist lexically.
+    ```able
+    x = 50 ## Reassigns existing x, or initial binding if x doesn't exist
+    ```
 
 #### 5.2.2. Wildcard Pattern (`_`)
 
-Matches any value but binds nothing. Used to ignore parts.
+The wildcard `_` matches any value but does not bind it to any identifier. It's used to ignore parts of a value during destructuring.
 
 *   **Syntax**: `_`
-*   **Usage:** `{ x: _, y } := point`, `_ = side_effect_func()`
+*   **Usage**: Primarily used *within* composite patterns (structs, arrays). Using `_` as the entire pattern (`_ = Expression`) is allowed and simply evaluates the expression, discarding its result.
+*   **Example**:
+    ```able
+    { x: _, y } := get_point() ## Declare y, ignore x
+    [_, second, _] := get_three_items() ## Declare second, ignore first and third
+    _ = function_with_side_effects() ## Evaluate function, ignore result
+    ```
 
 #### 5.2.3. Struct Pattern (Named Fields)
 
+Destructures instances of structs defined with named fields.
+
 *   **Syntax**: `[StructTypeName] { Field1: PatternA, Field2 @ BindingB: PatternC, ShorthandField, ... }`
-*   **Usage (`:=`)**: Declares new bindings specified in nested patterns.
+    *   `StructTypeName`: Optional, the name of the struct type. If omitted, the type is inferred or checked against the expected type.
+    *   `Field: Pattern`: Matches the value of `Field` against the nested `PatternA`.
+    *   `Field @ Binding: Pattern`: Matches the value of `Field` against nested `PatternC` and binds the original field value to the new identifier `BindingB` (only valid with `:=`).
+    *   `ShorthandField`: Equivalent to `ShorthandField: ShorthandField`. Binds the value of the field `ShorthandField` to an identifier with the same name.
+    *   `...`: (Not currently supported) Might be considered to ignore remaining fields explicitly. Currently, extra fields in the value not mentioned in the pattern are ignored.
+*   **Example**:
     ```able
-    Point { x: x_coord, y } := get_point() ## Declares x_coord and y
+    struct Point { x: f64, y: f64 }
+    struct User { id: u64, name: String, address: String }
+
+    p := Point { x: 1.0, y: 2.0 }
+    u := User { id: 101, name: "Alice", address: "123 Main St" }
+
+    ## Destructure Point (Declaration :=)
+    Point { x: x_coord, y: y_coord } := p ## Declares x_coord=1.0, y_coord=2.0
+    { x, y } := p                       ## Shorthand declaration, declares x=1.0, y=2.0
+
+    ## Destructure User (Declaration :=)
+    { id, name @ user_name, address: addr } := u
+    ## Declares id=101, user_name="Alice", addr="123 Main St"
+
+    ## Ignore fields (Declaration :=)
+    { id, name: _ } := u ## Declares id=101, ignores name, ignores address implicitly
+
+    ## Reassignment / Initial Binding Example (=)
+    existing_x = 0.0 ## Assume initial binding or reassignment
+    existing_y = 0.0 ## Assume initial binding or reassignment
+    { x: existing_x, y: existing_y } = Point { x: 5.0, y: 6.0 } ## Assigns 5.0 to existing_x, 6.0 to existing_y
+    { id: new_id, name: new_name } = u ## Initial binding for new_id, new_name (if they don't exist)
     ```
-*   **Usage (`=`)**: Assigns to existing bindings/locations specified in nested patterns.
-    ```able
-    { x: existing_x, y: point.y } = new_values ## Assigns to existing_x and point.y
-    ```
+*   **Semantics**: Matches fields by name. If `StructTypeName` is present, checks if the `Expression` value is of that type. Fails if a field mentioned in the pattern doesn't exist in the value.
 
 #### 5.2.4. Struct Pattern (Positional Fields / Named Tuples)
 
-*   **Syntax**: `[StructTypeName] { Pattern0, Pattern1, ... }`
-*   **Usage (`:=`)**: Declares new bindings.
+Destructures instances of structs defined with positional fields.
+
+*   **Syntax**: `[StructTypeName] { Pattern0, Pattern1, ..., PatternN }`
+    *   `StructTypeName`: Optional, the name of the struct type.
+    *   `Pattern0, Pattern1, ...`: Patterns corresponding to the fields by their zero-based index. The number of patterns must match the number of fields defined for the struct type.
+*   **Example**:
     ```able
-    IntPair { first, second } := make_pair() ## Declares first and second
+    struct IntPair { i32, i32 }
+    struct Coord3D { f64, f64, f64 }
+
+    pair := IntPair { 10, 20 }
+    coord := Coord3D { 1.0, -2.5, 0.0 }
+
+    ## Declaration (:=)
+    IntPair { first, second } := pair ## Declares first=10, second=20
+    { x, y, z } := coord           ## Declares x=1.0, y=-2.5, z=0.0
+
+    ## Ignore positional fields (Declaration :=)
+    { _, y_val, _ } := coord       ## Declares y_val=-2.5
+
+    ## Reassignment / Initial Binding Example (=)
+    existing_a = 0 ## Assume initial binding or reassignment
+    existing_b = 0 ## Assume initial binding or reassignment
+    { existing_a, existing_b } = IntPair { 100, 200 } ## Assigns 100 to existing_a, 200 to existing_b
+    { new_x, new_y, new_z } = coord ## Initial binding for new_x, new_y, new_z (if they don't exist)
     ```
-*   **Usage (`=`)**: Assigns to existing bindings/locations.
-    ```able
-    { var1, arr[0] } = calculation() ## Assigns to existing var1 and arr[0]
-    ```
+*   **Semantics**: Matches fields by position. If `StructTypeName` is present, checks the type. Fails if the number of patterns does not match the number of fields in the value's type.
 
 #### 5.2.5. Array Pattern
 
-*   **Syntax**: `[Pattern1, ..., ...RestIdentifier]` or `[Pattern1, ..., ...]`
-*   **Usage (`:=`)**: Declares new bindings.
+Destructures instances of the built-in `Array` type.
+
+*   **Syntax**: `[Pattern1, Pattern2, ..., ...RestIdentifier]` or `[Pattern1, ..., ...]`
+    *   `Pattern1, Pattern2, ...`: Patterns matching array elements by position from the start.
+    *   `...RestIdentifier`: Optional. If present, matches all remaining elements *after* the preceding positional patterns and binds them as a *new* `Array` to `RestIdentifier` (only valid with `:=`).
+    *   `...`: If `...` is used without an identifier, it matches remaining elements but does not bind them.
+*   **Example**:
     ```able
-    [head, ...tail] := my_list ## Declares head and tail
+    data := [10, 20, 30, 40]
+
+    ## Declaration (:=)
+    [a, b, c, d] := data ## Declares a=10, b=20, c=30, d=40
+    [first, second, ...rest] := data ## Declares first=10, second=20, rest=[30, 40]
+    [x, _, y, ...] := data ## Declares x=10, y=30, ignores second element and rest
+    [single] := [99] ## Declares single=99
+    [] := [] ## Matches an empty array (declares nothing)
+
+    ## Reassignment / Initial Binding Example (=)
+    existing_head = 0 ## Assume initial binding or reassignment
+    ## Note: Assigning to a rest pattern with '=' is likely invalid or needs careful definition.
+    ##       Typically, '=' would assign to existing elements by index/pattern.
+    [existing_head, element_1] = [1, 2] ## Assigns 1 to existing_head, assigns 2 to element_1 (initial binding if needed)
     ```
-*   **Usage (`=`)**: Assigns to existing bindings/locations.
-    ```able
-    [x, y, _] = three_items ## Assigns to existing x and y
-    ```
-*   **Mutability:** Array elements are mutable (via index assignment `arr[idx] = val`). Requires `Array` type to support `IndexMut` interface (TBD).
+*   **Semantics**: Matches elements by position. Fails if the array has fewer elements than required by the non-rest patterns.
+*   **Mutability:** Array elements themselves are mutable (via index assignment `arr[idx] = val`). Requires `Array` type to support `IndexMut` interface (TBD).
 
 #### 5.2.6. Nested Patterns
 
-Patterns can be nested arbitrarily for both `:=` and `=`.
+Patterns can be nested arbitrarily within struct and array patterns for both `:=` and `=`.
+
+*   **Example (`:=`)**:
+    ```able
+    struct Point { x: f64, y: f64 } ## Assuming Point is defined elsewhere
+    struct Data { id: u32, point: Point }
+    struct Container { items: Array Data }
+
+    val := Container { items: [ Data { id: 1, point: Point { x: 1.0, y: 2.0 } },
+                               Data { id: 2, point: Point { x: 3.0, y: 4.0 } } ] }
+
+    Container { items: [ Data { id: first_id, point: { x: first_x, y: _ }}, ...rest_data ] } := val
+    ## Declares first_id = 1
+    ## Declares first_x = 1.0
+    ## Ignores y of the first point
+    ## Declares rest_data = [ Data { id: 2, point: Point { x: 3.0, y: 4.0 } } ]
+    ```
 
 ### 5.3. Semantics of Assignment/Declaration
 
-1.  **Evaluation Order**: `Expression` (RHS) evaluated first.
-2.  **Matching & Binding/Assignment**:
-    *   **`:=`**: Resulting value matched against `Pattern` (LHS). New mutable bindings created in current scope. Error if identifiers already exist *in current scope*.
-    *   **`=`**: Resulting value matched against `LHS` pattern/location specifier. Values assigned to existing, accessible, mutable bindings/locations. Error if target doesn't exist, isn't accessible, or isn't mutable.
-    *   Match Failure: If the value's structure doesn't match the pattern, a runtime error/panic occurs for both `:=` and `=`.
-3.  **Mutability**: Bindings introduced via `:=` are mutable. `=` requires the target to be mutable.
-4.  **Scope**: `:=` introduces bindings into the current lexical scope. `=` operates on existing bindings found according to lexical scoping rules.
-5.  **Type Checking**: Compiler checks compatibility between `Expression` type and `Pattern`/`LHS` structure. Inference applies.
+1.  **Evaluation Order**: The `Expression` (right-hand side) is evaluated first to produce a value.
+2.  **Matching & Binding/Assignment**: The resulting value is then matched against the `Pattern` or `LHS` (left-hand side).
+    *   **`:=`**: Resulting value matched against `Pattern` (LHS). New mutable bindings created in current scope for identifiers introduced in the pattern. It is a compile-time error if any introduced identifier already exists as a binding *in the current scope*.
+    *   **`=`**: Resulting value matched against `LHS` pattern/location specifier. Values assigned to existing, accessible, mutable bindings/locations identified within the LHS. It is a compile-time error if any target location does not exist, is not accessible, or is not mutable.
+    *   **Match Failure**: If the value's structure or type does not match the pattern/LHS, a runtime error/panic occurs for both `:=` and `=`.
+3.  **Mutability**: Bindings introduced via `:=` are mutable by default. The `=` operator requires the target location(s) (variable, field, index) to be mutable.
+4.  **Scope**: `:=` introduces bindings into the current lexical scope. `=` operates on existing bindings/locations found according to lexical scoping rules.
+5.  **Type Checking**: The compiler checks for compatibility between the type of the `Expression` and the structure expected by the `Pattern`/`LHS`. Type inference applies where possible.
 6.  **Result Value**: Both assignment (`=`) and declaration (`:=`) expressions evaluate to the **value of the RHS** after successful binding/assignment.
 
 ## 6. Expressions
@@ -694,85 +817,304 @@ When resolving `receiver.name(args...)`:
 
 ## 10. Interfaces and Implementations
 
-Define contracts and provide implementations.
+This section defines **interfaces**, which specify shared functionality (contracts), and **implementations** (`impl`), which provide the concrete behavior for specific types or type constructors conforming to an interface. This system enables polymorphism, code reuse, and abstraction.
 
 ### 10.1. Interfaces
 
-Define a contract of function signatures, potentially with default implementations.
+An interface defines a contract consisting of a set of function signatures. A type or type constructor fulfills this contract by providing implementations for these functions.
 
 #### 10.1.1. Interface Usage Models
 
-1.  **As Constraints:** (`T: Interface`). Compile-time polymorphism.
-2.  **As Types (Lens/Existential Type):** (`Array (Display)` or `dyn Display` - TBD). Enables **dynamic dispatch**.
+Interfaces serve two primary purposes:
+
+1.  **As Constraints:** They restrict the types allowable for generic parameters, ensuring those types provide the necessary functionality defined by the interface. This is compile-time polymorphism.
+    ```able
+    fn print_item<T: Display>(item: T) { ... } ## T must implement Display
+    ```
+2.  **As Types (Lens/Existential Type):** An interface name can be used as a type itself, representing *any* value whose concrete type implements the interface. This allows treating different concrete types uniformly through the common interface. This typically involves dynamic dispatch.
+    ```able
+    ## Assuming Circle and Square implement Display
+    shapes: Array (Display) = [Circle{...}, Square{...}] ## Array holds values seen through the Display "lens"
+    for shape in shapes {
+        print(shape.to_string()) ## Calls the appropriate to_string via dynamic dispatch
+    }
+    ```
+    *(Note: The exact syntax and mechanism for interface types like `Array (Display)` or `dyn Display` need further specification, but the concept is adopted. See Section [10.3.4](#1034-interface-types-dynamic-dispatch).)*
 
 #### 10.1.2. Interface Definition
 
-*   **Syntax:**
-    ```able
-    interface Name [Gens] for SelfTypePattern [where...] {
-      fn signature(...);                 ## Signature only
-      fn name_with_default(...) { ... } ## Signature with default body
-    }
-    ```
-    *   `for SelfTypePattern` is mandatory.
-    *   Note: Interface definitions may include default method implementations. Implementations of the interface are allowed to override these default definitions with specialized behavior.
+Interfaces are defined using the `interface` keyword. There are two primary forms:
+
+**Syntax Form 1 (Explicit Self Type Pattern):**
+
+```able
+interface InterfaceName [GenericParamList] for SelfTypePattern [where <ConstraintList>] {
+  [FunctionSignatureList]
+}
+```
+
+-   **`interface`**: Keyword.
+-   **`InterfaceName`**: The identifier naming the interface (e.g., `Display`, `Mappable`).
+-   **`[GenericParamList]`**: Optional space-delimited generic parameters for the interface itself (e.g., `T`, `K V`). Constraints use `Param: Bound`.
+-   **`for`**: Keyword introducing the self type pattern (mandatory in this form).
+-   **`SelfTypePattern`**: Specifies the structure of the type(s) that can implement this interface. This defines the meaning of `Self` (see Section [10.1.3](#1013-self-keyword-interpretation)).
+    *   **Concrete Type:** `TypeName [TypeArguments]` (e.g., `for Point`, `for Array i32`).
+    *   **Generic Type Variable:** `TypeVariable` (e.g., `for T`).
+    *   **Type Constructor (HKT):** `TypeConstructor _ ...` (e.g., `for M _`, `for Map K _`). `_` denotes unbound parameters.
+    *   **Generic Type Constructor:** `TypeConstructor TypeVariable ...` (e.g., `for Array T`).
+-   **`[where <ConstraintList>]`**: Optional constraints on generic parameters used in `GenericParamList` or `SelfTypePattern`.
+-   **`{ [FunctionSignatureList] }`**: Block containing function signatures (methods).
+    *   Each signature follows `fn name[<MethodGenerics>]([Param1: Type1, ...]) -> ReturnType;`.
+    *   Methods can be instance methods (typically taking `self: Self` as the first parameter) or static methods (no `self: Self` parameter).
+    *   Interface definitions may include default method implementations: `fn name(...) { ... }`. Implementations of the interface are allowed to override these default definitions.
+
+**Syntax Form 2 (Implicit Self Type):**
+
+```able
+interface InterfaceName [GenericParamList] [where <ConstraintList>] {
+  [FunctionSignatureList]
+}
+```
+
+-   This form omits the `for SelfTypePattern` clause.
+-   **Semantics:**
+    *   The `Self` type within the `FunctionSignatureList` refers directly to the concrete type that implements the interface.
+    *   Implementations (`impl`) for this form of interface **cannot** target a type constructor (like `Array` or `Map K _`). They must target specific types (like `i32`, `Point`, `Array i32`, or a generic type variable `T` constrained elsewhere). This form is unsuitable for defining HKT interfaces like `Mappable`.
 
 #### 10.1.3. `Self` Keyword Interpretation
 
-`Self` refers to the type matching `SelfTypePattern`.
+Within the interface definition (and corresponding `impl` blocks):
 
-#### 10.1.4. Composite Interfaces (Interface Aliases)
+*   **If `interface ... for SelfTypePattern ...` is used:**
+    *   If `SelfTypePattern` is `MyType Arg1`, `Self` means `MyType Arg1`.
+    *   If `SelfTypePattern` is `T`, `Self` means `T`.
+    *   If `SelfTypePattern` is `MyConstructor _`, `Self` refers to the constructor `MyConstructor`. `Self Arg` means `MyConstructor Arg`. This is used for HKTs.
+    *   If `SelfTypePattern` is `MyConstructor T`, `Self` means `MyConstructor T`.
+*   **If `interface ... { ... }` (without `for`) is used:**
+    *   `Self` refers to the concrete type provided in the `impl ... for Target` block (e.g., if `impl MyIface for i32`, then `Self` is `i32` within that impl).
 
-*   **Syntax:** `interface NewName = Iface1 + Iface2 ...`
-*   Requires implementing all constituents.
+#### 10.1.4. Examples of Interface Definitions
+
+```able
+## Form 1: Explicit 'for T' (Generic over implementing type)
+interface Display for T {
+  fn to_string(self: Self) -> String;
+}
+
+interface Clone for T {
+  fn clone(self: Self) -> Self;
+}
+
+## Form 1: Explicit 'for Array i32' (Specific generic type application)
+interface IntArrayOps for Array i32 {
+  fn sum(self: Self) -> i32;
+}
+
+## Form 1: Explicit 'for M _' (HKT - Type Constructor)
+interface Mappable A for M _ {
+  fn map<B>(self: Self A, f: (A -> B)) -> Self B; ## Self=M, Self A = M A
+}
+
+## Form 1: Static method example
+interface Zeroable for T {
+  fn zero() -> Self; ## Static method, returns an instance of the implementing type T
+}
+
+## Form 2: Implicit Self Type (Cannot be used for HKTs)
+interface Hashable {
+  fn hash(self: Self) -> u64; ## Self will be the implementing type (e.g., i32, Point)
+}
+
+## Form 2: Interface with default implementation
+interface Greeter {
+    fn greet(self: Self) -> string { "Hello!" } ## Default implementation
+}
+```
+
+#### 10.1.5. Composite Interfaces (Interface Aliases)
+
+Define an interface as a combination of other interfaces.
+
+**Syntax:**
+```able
+interface NewInterfaceName [GenericParams] [for SelfTypePattern] = Interface1 [Args] + Interface2 [Args] + ...
+```
+-   Implementing `NewInterfaceName` requires implementing all constituent interfaces (`Interface1`, `Interface2`, etc.).
+-   *(TBD: The exact rules for how `for` clauses (or their absence) interact across constituents and the composite definition need clarification. Assume for now that if a `for` clause is present, it must be consistent across all constituents that require one. If constituents use the implicit self type form, the composite likely inherits that semantic.)*
+
+**Example:**
+```able
+## Assuming Reader, Writer interfaces exist (likely using 'for T' or implicit self)
+interface ReadWrite = Reader + Writer
+
+## Assuming Display/Clone are defined 'for T'
+interface DisplayClone for T = Display + Clone
+
+## Assuming Hashable/Eq use implicit self type
+interface HashableEq = Hashable + Eq
+```
 
 ### 10.2. Implementations (`impl`)
 
-Provide concrete function bodies for an interface for a specific target.
+Implementations provide the concrete function bodies for an interface for a specific type or type constructor.
 
 #### 10.2.1. Implementation Declaration
 
-*   **Syntax:**
-    ```able
-    [ImplName =] impl [<ImplGens>] IfaceName [Args] for Target [where...] {
-      ## Must provide bodies for signatures without defaults in interface.
-      fn required_method(...) { ... }
+Provides bodies for interface methods. Can use `fn #method` shorthand if desired.
 
-      ## May override default implementations from interface.
-      [fn method_with_default(...) { ... }]
-    }
-    ```
+**Syntax:**
+```able
+[ImplName =] impl [<ImplGenericParams>] InterfaceName [InterfaceArgs] for Target [where <ConstraintList>] {
+  [ConcreteFunctionDefinitions]
+}
+```
 
-#### 10.2.2. HKT Implementation Syntax
+-   **`[ImplName =]`**: Optional name for the implementation, used for disambiguation. Followed by `=`.
+-   **`impl`**: Keyword.
+-   **`[<ImplGenericParams>]`**: Optional comma-separated generics for the implementation itself (e.g., `<T: Numeric>`). Use `<>` delimiters.
+-   **`InterfaceName`**: The name of the interface being implemented.
+-   **`[InterfaceArgs]`**: Space-delimited type arguments for the interface's generic parameters (if any).
+-   **`for`**: Keyword (mandatory).
+-   **`Target`**: The specific type or type constructor implementing the interface.
+    *   If the interface was defined using `interface ... for SelfTypePattern ...`, the `Target` must structurally match the `SelfTypePattern`.
+        *   If interface is `for Point`, `Target` must be `Point`.
+        *   If interface is `for T`, `Target` can be any type `SomeType` (or a type variable `T` in generic impls).
+        *   If interface is `for M _`, `Target` must be `TypeConstructor` (e.g., `Array`). See HKT syntax below.
+        *   If interface is `for Array T`, `Target` must be `Array U` (where `U` might be constrained).
+    *   If the interface was defined using `interface ... { ... }` (without `for`), the `Target` **must not** be a bare type constructor (like `Array`). It must be a specific type (e.g., `i32`, `Point`, `Array i32`, or a type variable `T`).
+-   **`[where <ConstraintList>]`**: Optional constraints on `ImplGenericParams`.
+-   **`{ [ConcreteFunctionDefinitions] }`**: Block containing the full definitions (`fn name(...) { body }`) for all functions required by the interface (unless they have defaults). Signatures must match. May override defaults.
 
-See previous specification version for details. Example: `impl Mappable A for Array { ... }`.
+-   **Distinction from `methods`:** `methods Type { ... }` defines *inherent* methods (part of the type's own API). `impl Interface for Type { ... }` fulfills an *external contract* defined by the interface. An inherent method defined in `methods Type` may be used to explicitly satisfy an interface requirement in an `impl` block, but the `impl Interface for Type` block is still needed to declare the conformance.
 
-#### 10.2.3. Overlapping Implementations and Specificity
+#### 10.2.2. HKT Implementation Syntax (Refined)
 
-Compiler uses specificity rules (most specific wins) to resolve `impl`. Ambiguity is error. (See previous spec version for rule details).
+To implement an interface defined `for M _` (like `Mappable`) for a concrete constructor like `Array`:
+
+```able
+[ImplName =] impl [<ImplGenerics>] InterfaceName TypeParamName for TypeConstructor [where ...] {
+  ## 'TypeParamName' (e.g., A) is bound here and usable below.
+  fn method<B>(self: TypeConstructor TypeParamName, ...) -> TypeConstructor B { ... }
+}
+## Example:
+impl Mappable A for Array {
+  fn map<B>(self: Array A, f: (A -> B)) -> Array B { ... }
+}
+
+## Example for Option (assuming 'union Option T = T | nil')
+union Option T = T | nil
+impl Mappable A for Option {
+  fn map<B>(self: Self A, f: A -> B) -> Self B { self match { case a: A => f(a), case nil => nil } }
+}
+```
+*(Note: This syntax is only applicable when the interface was defined using the `for M _` pattern.)*
+
+#### 10.2.3. Examples of Implementations
+
+```able
+## Implementing Display (defined 'for T') for Point
+impl Display for Point {
+  fn to_string(self: Self) -> String { `Point({self.x}, {self.y})` } ## Self is Point
+}
+
+## Implementing Hashable (defined without 'for') for i32
+impl Hashable for i32 {
+  fn hash(self: Self) -> u64 { compute_i32_hash(self) } ## Self is i32
+}
+
+## Implementing Hashable for Point
+impl Hashable for Point {
+    fn hash(self: Self) -> u64 { compute_point_hash(self.x, self.y) } ## Self is Point
+}
+
+## ERROR: Cannot implement Hashable (no 'for') for a type constructor
+# impl Hashable A for Array { ... }
+
+## Implementing Zeroable (defined 'for T', static method) for i32
+impl Zeroable for i32 {
+  fn zero() -> Self { 0 } ## Self is i32 here
+}
+
+## Implementing Zeroable for Array T (Requires generic impl)
+impl<T> Zeroable for Array T {
+  fn zero() -> Self { [] } ## Self is Array T
+}
+
+## Named Monoid Implementations for i32 (Assuming 'interface Monoid for T')
+Sum = impl Monoid for i32 {
+  fn id() -> Self { 0 }
+  fn op(self: Self, other: Self) -> Self { self + other }
+}
+Product = impl Monoid for i32 {
+  fn id() -> Self { 1 }
+  fn op(self: Self, other: Self) -> Self { self * other }
+}
+
+## Overriding a default method
+struct MyGreeter;
+impl Greeter for MyGreeter {
+    fn greet(self: Self) -> string { "Hi from MyGreeter!" } ## Overrides default
+}
+```
+
+#### 10.2.4. Overlapping Implementations and Specificity
+
+When multiple `impl` blocks could apply to a given type and interface, Able uses specificity rules to choose the *most specific* implementation. If no single implementation is more specific, it results in a compile-time ambiguity error. Rules (derived from Rust RFC 1210, simplified):
+
+1.  **Concrete vs. Generic:** Implementations for concrete types (`impl ... for i32`) are more specific than implementations for type variables (`impl ... for T`). (`Array i32` is more specific than `Array T`).
+2.  **Concrete vs. Interface Bound:** Implementations for concrete types (`impl ... for Array T`) are more specific than implementations for types bound by an interface (`impl ... for T: Iterable`).
+3.  **Interface Bound vs. Unconstrained:** Implementations for constrained type variables (`impl ... for T: Iterable`) are more specific than for unconstrained variables (`impl ... for T`).
+4.  **Subset Unions:** Implementations for union types that are proper subsets are more specific (`impl ... for i32 | f32` is more specific than `impl ... for i32 | f32 | f64`).
+5.  **Constraint Set Specificity:** An `impl` whose type parameters have a constraint set that is a proper superset of another `impl`'s constraints is more specific (`impl<T: A + B> ...` is more specific than `impl<T: A> ...`).
+
+Ambiguities must be resolved manually, typically by qualifying the method call (see Section [10.3.3](#1033-disambiguation-named-impls)).
 
 ### 10.3. Usage
 
 #### 10.3.1. Instance Method Calls
 
-`value.method(...)`. Resolved via Section [9.3](#93-method-call-syntax-resolution-initial-rules).
+Use dot notation on a value whose type implements the interface. Resolution follows rules in Section [9.3](#93-method-call-syntax-resolution-initial-rules), considering specificity.
+```able
+p = Point { x: 1, y: 2 }
+s = p.to_string() ## Calls Point's impl of Display.to_string
+
+arr = [1, 2, 3]
+arr_mapped = arr.map({ x => x * 2 }) ## Calls Array's impl of Mappable.map
+```
 
 #### 10.3.2. Static Method Calls
 
-`TypeName.static_method(...)`.
+Use `TypeName.static_method(...)` notation. The `TypeName` must have an `impl` for the interface containing the static method.
+```able
+zero_int = i32.zero()          ## Calls i32's impl of Zeroable.zero
+empty_f64_array = (Array f64).zero() ## Calls Array T's impl of Zeroable.zero
+## TBD: Syntax for calling static methods on generic types like Array needs confirmation.
+## Maybe Array.zero<f64>() or (Array f64).zero() ? Let's assume the latter for now.
+```
 
 #### 10.3.3. Disambiguation (Named Impls)
 
-Qualify static call: `ImplName.static_method(...)`. Instance call TBD.
+If multiple implementations exist (e.g., `Sum` and `Product` for `Monoid for i32`), qualify the call with the implementation name:
+```able
+sum_id = Sum.id()             ## 0
+prod_id = Product.id()         ## 1
+res = Sum.op(5, 6)          ## 11 (Calls Sum's op)
+res2 = Product.op(5, 6)       ## 30
+
+## TBD: Interaction between named impls and instance method call syntax
+## (`value.ImplName.method(...)`) needs confirmation/specification.
+## For now, assume named impls primarily disambiguate static calls or free functions.
+```
 
 #### 10.3.4. Interface Types (Dynamic Dispatch)
 
-Using interface name as type (e.g., `dyn Display` - TBD) allows heterogeneous collections and uses **dynamic dispatch** for method calls.
+Using an interface as a type allows storing heterogeneous values implementing the same interface. Method calls typically use dynamic dispatch. The exact syntax is TBD (`dyn Iface` or `(Iface)`).
 
 ```able
-displayables: Array (dyn Display) := [1, "hello", Point{x:0, y:0}]
+## Assuming syntax 'dyn Iface'
+displayables: Array (dyn Display) = [1, "hello", Point{...}]
 for item in displayables {
-  print(item.to_string()) ## Dynamic dispatch
+  print(item.to_string()) ## Dynamic dispatch selects correct to_string impl
 }
 ```
 
