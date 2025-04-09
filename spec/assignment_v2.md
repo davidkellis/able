@@ -1,6 +1,3 @@
-Okay, let's consolidate the specification for assignment and destructuring based on our discussions. This reflects the current state where bindings are mutable by default and clarifies how patterns work with different struct types.
-
----
 
 # Able Language Specification: Assignment and Destructuring
 
