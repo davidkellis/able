@@ -1,0 +1,69 @@
+package stdlib;
+
+import stdlib.core.{Ordering, Less, Equal, Greater}; ## Import Ordering enum
+
+## Comparison Interfaces
+
+## Eq
+## Checks for equality (==, !=).
+interface Eq for A {
+  fn #eq<B>(other: B) -> bool {
+    !#ne(other)
+  }
+
+  ## Default implementation for !=
+  fn #ne<B>(other: B) -> bool {
+    !#eq(other)
+  }
+}
+
+## Ord
+## Defines inequality operators (<, <=, >, >=).
+interface Ord for T {
+  ## Returns Less, Equal, Greater wrapped in an Option (?Ordering),
+  ## or nil if the values are not comparable.
+  fn #cmp<Rhs>(other: Rhs) -> ?Ordering;
+
+  ## Default implementations for comparison operators based on cmp
+  fn #lt<Rhs>(other: Rhs) -> bool {
+    match #cmp(other) {
+      case Less => true,
+      _ => false ## Includes Equal, Greater, and nil cases
+    }
+  }
+
+  fn #le<Rhs>(other: Rhs) -> bool {
+     match #cmp(other) {
+      case Less | Equal => true,
+      _ => false ## Includes Greater and nil cases
+    }
+  }
+
+  fn #gt<Rhs>(other: Rhs) -> bool {
+     match #cmp(other) {
+      case Greater => true,
+      _ => false ## Includes Less, Equal, and nil cases
+    }
+  }
+
+  fn #ge<Rhs>(other: Rhs) -> bool {
+     match #cmp(other) {
+      case Greater | Equal => true,
+      _ => false ## Includes Less and nil cases
+    }
+  }
+}
+
+
+## Operator Interfaces (Example: Add)
+## Defines behavior for operators like +, -, *, etc.
+
+## Add
+## Defines behavior for the '+' operator.
+interface Add Rhs Output for T {
+  fn #add(rhs: Rhs) -> Output;
+}
+
+## Note: Similar interfaces would be defined for:
+## Sub, Mul, Div, Rem (Remainder/Modulo), Neg (Unary Minus),
+## Not (Bitwise ~), BitAnd (&), BitOr (|), BitXor (^), Shl (<<), Shr (>>)
