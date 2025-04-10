@@ -2360,7 +2360,6 @@ interface Iterable T for SelfType {
 *   **Type System Details:** Full inference rules, Variance, Coercion (if any), "Interface type" syntax (`dyn Display`?) and mechanism details, HKT limitations/capabilities.
 *   **Error Handling:** `ProcError`/`PanicError` structure. Panic cleanup (`defer`?). Raising non-`Error` values? `|err|` binding for `nil`. `DivisionByZeroError` details.
 *   **Concurrency:** Synchronization primitives (channels, mutexes?), Cancellation details. Scheduler guarantees.
-*   **Mutability:** Final decision on "mutable by default" vs `let`/`var`. Need for immutable data structures.
 *   **Arrays:** Formal definition (`Array T`), including mutability of elements via `IndexMut`.
 *   **FFI:** Mechanism for calling external code.
 *   **Metaprogramming:** Macros?
