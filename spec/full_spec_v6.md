@@ -171,13 +171,87 @@ Able is statically and strongly typed.
 
 ### 4.1. Type System Fundamentals
 
-*   **Type:** A named classification representing a set of possible values (e.g., `bool` represents `{true, false}`). Every value has a single, specific type.
-*   **Parametric Nature:** All types are conceptually parametric (zero or more type parameters).
-*   **Type Expressions:** Syntax for denoting types (type names, space-delimited arguments, parentheses for grouping).
-*   **Parameter Binding:** Parameters are **bound** when specific types/variables are provided, otherwise **unbound** (`_` or omitted).
-*   **Concrete Type:** All type parameters are bound. Values have concrete types.
-*   **Polymorphic Type / Type Constructor:** Has unbound parameters (e.g., `Array`, `Map string _`). Used in HKT contexts.
-*   **Constraints:** Restrict generic parameters using interfaces (`T: Interface1 + Interface2`). Applied in definitions using `:` or `where` clauses.
+A type is a name given to a set of values, and every value has an associated type. For example, `bool` is the name given to the set `{true, false}`, and since the value `true` is a member of the set `{true, false}`, it is of type `bool`. `TwoBitUnsignedInt` might be the type name we give to the set `{0, 1, 2, 3}`, such that `3` would be a value of type `TwoBitUnsignedInt`.
+
+A type is denoted by a type expression. A type expression is a string. All types are parametric types, in that all types have zero or more type parameters.
+
+Type parameters may be bound or unbound. A bound type parameter is a type parameter for which either a named type variable or a preexisting type name has been substituted. An unbound type parameter is a type parameter that is either unspecified or substituted by the placeholder type variable, denoted by `_`.
+
+A type that has all its type parameters bound is called a concrete type. A type that has any of its type parameters unbound is called a polymorphic type, and a type expression that represents a polymorphic type is called a type constructor.
+
+#### 4.1.1. Types and Values
+
+*   **Value:** Any piece of data that can be computed and manipulated within the Able language (e.g., the number `42`, the string `"hello"`, the boolean `true`, an instance of a `struct`).
+*   **Type:** A type is a named classification representing a set of possible values. Every value in Able has a specific, well-defined type.
+    *   Example: The type `bool` represents the set of values `{true, false}`. The value `true` has type `bool`.
+    *   Example: If `struct Point { x: f64, y: f64 }` is defined, then `Point` is a type representing the set of all possible point structures with `f64` fields `x` and `y`. An instance `Point { x: 1.0, y: 0.0 }` has type `Point`.
+
+#### 4.1.2. Type Expressions
+
+A type expression is the syntactic representation used in the Able source code to denote a type.
+
+*   **Syntax:** Type expressions are composed of:
+    *   **Type Names:** Identifiers that name a type (e.g., `i32`, `string`, `bool`, `Array`, `Point`, `Option`).
+    *   **Type Arguments:** Other type expressions provided as parameters to a type name (e.g., `i32` in `Array i32`). Arguments are space-delimited.
+    *   **Parentheses:** Used for grouping type sub-expressions to control application order (e.g., `Map string (Array i32)`).
+    *   **Nullable Shorthand:** `?TypeName` (desugars to a union `nil | TypeName`). See Section [4.6.2](#462-nullable-type-shorthand-).
+    *   **Result Shorthand:** `!TypeName` (desugars to a union `TypeName | Error`). See Section [11.2.1](#1121-core-types-type-type).
+    *   **Function Type Syntax:** `(ArgType1, ArgType2, ...) -> ReturnType`. See Section [7](#7-functions).
+    *   **Wildcard Placeholder:** `_` used to explicitly denote an unbound type parameter. See Section [4.4](#44-reserved-identifier-_-in-types).
+
+#### 4.1.3. Parametric Nature of Types
+
+*   **Universally Parametric:** Conceptually, *all* types in Able are parametric, meaning they have zero or more type parameters associated with their definition.
+    *   A primitive type like `i32` has zero type parameters.
+    *   A generic type like `Array` (as defined) intrinsically has one type parameter (the element type).
+    *   A generic type like `Map` intrinsically has two type parameters (key and value types).
+*   **Type Parameters:** These act as placeholders in a type's definition that can be filled in (bound) with specific types (arguments) when the type is used.
+
+#### 4.1.4. Parameter Binding, Polymorphism, and Type Constructors
+
+*   **Bound Type Parameter:** A type parameter is considered **bound** when a specific type (which could be a concrete type, a type variable from an enclosing scope, or another type constructor) is provided as an argument for it.
+    *   In `Array i32`, the single type parameter of `Array` is bound to the concrete type `i32`.
+    *   In `Map string User`, the two type parameters of `Map` are bound to `string` and `User`.
+    *   In `struct Foo T { value: T }`, within the scope of `Foo`, `T` is a type variable acting as a bound parameter.
+*   **Unbound Type Parameter:** A type parameter is considered **unbound** if:
+    *   An argument for it is not specified.
+    *   The wildcard placeholder `_` is explicitly used in its position. See Section [4.4](#44-reserved-identifier-_-in-types).
+*   **Concrete Type:** A type expression denotes a **concrete type** if *all* of its inherent type parameters (and those of any nested types) are bound to specific types or type variables. Values can only have concrete types.
+    *   Examples: `i32`, `string`, `Array bool`, `Map string (Array i32)`, `Point`, `?string`.
+*   **Polymorphic Type / Type Constructor:** A type expression denotes a **polymorphic type** (or acts as a **type constructor**) if it has one or more unbound type parameters. Type constructors cannot be the type of a runtime value directly but are used in contexts like interface implementations (`impl Mappable A for Array`) or potentially as type arguments themselves (if full HKTs are supported).
+    *   Examples:
+        *   `Array` (parameter is unspecified) - represents the "Array-ness" ready to accept an element type.
+        *   `Array _` (parameter explicitly unbound) - same as above.
+        *   `Map string` (second parameter unspecified) - represents a map constructor fixed to `string` keys, awaiting a value type. Equivalent to `Map string _`.
+        *   `Map _ bool` (first parameter unbound) - represents a map constructor fixed to `bool` values, awaiting a key type.
+        *   `Map` (both parameters unspecified) - represents the map constructor itself. Equivalent to `Map _ _`.
+        *   `?` (desugared from `nil | _` ?) - potentially the nullable type constructor.
+
+#### 4.1.5. Type Constraints
+
+Type constraints restrict the types that can be used for a generic type parameter. They ensure that a given type implements one or more specified interfaces.
+
+*   **Syntax:**
+    *   `TypeParameter : Interface1` (Requires `TypeParameter` to implement `Interface1`)
+    *   `TypeParameter : Interface1 + Interface2 + ...` (Requires implementation of all listed interfaces)
+*   **Usage Locations:**
+    1.  **Generic Parameter Lists:** Directly within angle brackets `< >` (if used) or space-delimited lists for function, struct, interface, or impl definitions.
+        ```able
+        fn process<T: Display>(item: T) { ... }
+        struct Container T: Numeric + Clone { data: T }
+        impl<T: Debug> Display for MyType T { ... }
+        ```
+    2.  **`where` Clauses:** For more complex constraints or better layout.
+        ```able
+        fn complex_op<K, V, R>(...)
+          where K: Hash + Display,
+                V: Numeric,
+                R: Default {
+          ...
+        }
+        ```
+
+*   **Semantics:** The compiler enforces these constraints. If a type argument provided for a constrained parameter does not implement the required interface(s), a compile-time error occurs. Constraints allow the code within the generic scope to safely use the methods defined by the required interfaces on values of the constrained type parameter.
 
 ### 4.2. Primitive Types
 
@@ -187,18 +261,18 @@ Able is statically and strongly typed.
 | `i16`    | 16-bit signed integer (-32,768 to 32,767)       | `-32768`, `1000`, `32767_i16`        |                                                 |
 | `i32`    | 32-bit signed integer (-2³¹ to 2³¹-1)           | `-2_147_483_648`, `0`, `42_i32`      | Default type for integer literals (TBC).        |
 | `i64`    | 64-bit signed integer (-2⁶³ to 2⁶³-1)           | `-9_223_..._i64`, `1_000_000_000_i64`| Underscores `_` allowed for readability.        |
-| `i128`   | 128-bit signed integer (-2¹²⁷ to 2¹²⁷-1)      | `-170_..._i128`, `0_i128`, `170_...`|                                                 |
+| `i128`   | 128-bit signed integer (-2¹²⁷ to 2¹²⁷-1)      | `-170_..._i128`, `0_i128`, `170_..._i128`|                                                 |
 | `u8`     | 8-bit unsigned integer (0 to 255)             | `0`, `10_u8`, `255_u8`              |                                                 |
 | `u16`    | 16-bit unsigned integer (0 to 65,535)           | `0_u16`, `1000`, `65535_u16`        |                                                 |
 | `u32`    | 32-bit unsigned integer (0 to 2³²-1)            | `0`, `4_294_967_295_u32`            | Underscores `_` allowed for readability.        |
-| `u64`    | 64-bit unsigned integer (0 to 2⁶⁴-1)            | `0_u64`, `18_446_...`               |                                                 |
+| `u64`    | 64-bit unsigned integer (0 to 2⁶⁴-1)            | `0_u64`, `18_446_..._u64`           |                                                 |
 | `u128`   | 128-bit unsigned integer (0 to 2¹²⁸-1)          | `0`, `340_..._u128`                 |                                                 |
-| `f32`    | 32-bit float (IEEE 754 single-precision)      | `3.14_f32`, `-0.5_f32`, `1e-10_f32`  | Suffix `_f32`.                                  |
-| `f64`    | 64-bit float (IEEE 754 double-precision)      | `3.14159`, `-0.001`, `1e-10`, `2.0`  | Default type for float literals (TBC). Suffix `_f64`. |
+| `f32`    | 32-bit float (IEEE 754 single-precision)      | `3.14_f32`, `-0.5_f32`, `1e-10_f32`, `2.0_f32` | Suffix `_f32`.                                  |
+| `f64`    | 64-bit float (IEEE 754 double-precision)      | `3.14159`, `-0.001`, `1e-10`, `2.0`  | Default type for float literals (TBC). Suffix `_f64` optional if default. |
 | `string` | Immutable sequence of Unicode chars (UTF-8) | `"hello"`, `""`, `` `interp ${val}` `` | Double quotes or backticks (interpolation).      |
 | `bool`   | Boolean logical values                        | `true`, `false`                     |                                                 |
 | `char`   | Single Unicode scalar value (UTF-32)        | `'a'`, `'π'`, `'💡'`, `'\n'`, `'\u{1F604}'` | Single quotes. Supports escape sequences.       |
-| `nil`    | Singleton type representing **absence of data**. | `nil`                               | **Type and value are both `nil` (lowercase)**. Used with `?Type`. |
+| `nil`    | Singleton type representing **absence of data**. | `nil`                               | **Type and value are both `nil` (lowercase)**. Often used with `?Type`. |
 | `void`   | Type with **no values** (empty set).          | *(No literal value)*                | Represents computations completing without data. |
 
 *(See Section [6.1](#61-literals) for detailed literal syntax.)*
@@ -219,71 +293,174 @@ The underscore `_` can be used in type expressions to explicitly denote an unbou
 
 ### 4.5. Structs
 
-Structs aggregate named or positional data fields into a single type. Fields are mutable. A single struct definition must be exclusively one kind (singleton, named-field, or positional-field).
+Structs aggregate named or positional data fields into a single type. Able supports three kinds of struct definitions: singleton, named-field, and positional-field. A single struct definition must be exclusively one kind. All fields are mutable.
 
 #### 4.5.1. Singleton Structs
 
-Represent types with exactly one value, identical to the type name itself.
+Represent types with exactly one value, identical to the type name itself. Useful for simple enumeration variants or tags.
 
-*   **Declaration:** `struct Identifier;` (or `struct Identifier {}`)
-*   **Usage:** Use the identifier directly as the value: `status = Success`. Matched as `case Success => ...`.
+##### Declaration
+```able
+struct Identifier
+```
+*(Optionally `struct Identifier {}`)*
+
+-   **`Identifier`**: Names the type and its unique value (e.g., `Red`, `EOF`, `Success`).
+
+##### Instantiation & Usage
+Use the identifier directly as the value.
+```able
+status = Success
+color_val: Color = Red ## Assuming 'union Color = Red | ...'
+```
+Matched using the identifier in patterns: `case Red => ...`.
 
 #### 4.5.2. Structs with Named Fields
 
 Group data under named fields.
 
-*   **Declaration:** `struct Identifier [GenericParamList] { FieldName1: Type1, FieldName2: Type2 ... }`
-*   **Instantiation:** Use `{ FieldName: Value, ... }`. Order irrelevant. All fields must be initialized. Field init shorthand `{ name }` supported.
-    ```able
-    p := Point { x: 1.0, y: 2.0 }
-    username := "Alice"
-    u := User { id: 101, username, is_active: true } ## Shorthand
-    ```
-*   **Field Access:** Dot notation: `instance.FieldName`. Example: `p.x`.
-*   **Functional Update:** Create a new instance based on others using `...Source`. Later sources/fields override earlier ones.
-    ```able
-    addr2 := Address { ...addr1, zip: "90210" }
-    ```
-*   **Field Mutation:** Modify fields in-place using assignment (`=`): `instance.FieldName = NewValue`. Example: `p.x = 3.0`. Requires `p` to be an existing mutable binding.
+##### Declaration
+```able
+struct Identifier [GenericParamList] {
+  FieldName1: Type1,
+  FieldName2: Type2
+  FieldName3: Type3 ## Comma or newline separated, trailing comma ok
+}
+```
+-   **`Identifier`**: Struct type name.
+-   **`[GenericParamList]`**: Optional space-delimited generics (e.g., `T`, `K V: Display`).
+-   **`FieldName: Type`**: Defines a field with a unique name within the struct.
+
+##### Instantiation
+Use `{ FieldName: Value, ... }`. Order doesn't matter. All fields must be initialized. Field init shorthand `{ name }` is supported.
+```able
+Identifier [GenericArgs] { Field1: Value1, Field2: Value2, ... }
+## GenericArgs space-delimited if explicit, often inferred.
+p = Point { x: 1.0, y: 2.0 }
+username = "Alice" ## Assume username exists
+u = User { id: 101, username, is_active: true } ## Shorthand
+```
+
+##### Field Access
+Dot notation: `instance.FieldName`.
+```able
+x_coord = p.x
+```
+
+##### Functional Update
+Create a new instance based on others using `...Source`. Later sources/fields override earlier ones.
+```able
+StructType { ...Source1, ...Source2, FieldOverride: NewValue, ... }
+addr = Address { ...base_addr, zip: "90210" }
+```
+
+##### Field Mutation
+Modify fields in-place using assignment (`=`). Requires the binding (`instance`) to be mutable.
+```able
+instance.FieldName = NewValue
+p.x = p.x + 10.0
+```
 
 #### 4.5.3. Structs with Positional Fields (Named Tuples)
 
 Define fields by their position and type. Accessed by index.
 
-*   **Declaration:** `struct Identifier [GenericParamList] { Type1, Type2 ... }`
-*   **Instantiation:** Use `{ Value1, Value2, ... }`. Values must be provided in the defined order. All fields must be initialized.
-    ```able
-    pair := IntPair { 10, 20 }
-    ```
-*   **Field Access:** Dot notation with zero-based integer index: `instance.Index`. Example: `first := pair.0`.
-*   **Functional Update:** Not supported via `...Source` syntax.
-*   **Field Mutation:** Modify fields in-place using indexed assignment (`=`): `instance.Index = NewValue`. Example: `pair.0 = 15`. Requires `pair` to be an existing mutable binding.
+##### Declaration
+```able
+struct Identifier [GenericParamList] {
+  Type1,
+  Type2
+  Type3 ## Comma or newline separated, trailing comma ok
+}
+```
+-   **`Identifier`**: Struct type name (e.g., `IntPair`, `Coord3D`).
+-   **`[GenericParamList]`**: Optional space-delimited generics.
+-   **`Type`**: Defines a field by its type at a specific zero-based position.
+
+##### Instantiation
+Use `{ Value1, Value2, ... }`. Values must be provided in the defined order. All fields must be initialized.
+```able
+Identifier [GenericArgs] { Value1, Value2, ... }
+pair = IntPair { 10, 20 }
+```
+
+##### Field Access
+Dot notation with zero-based integer index: `instance.Index`.
+```able
+first = pair.0 ## Accesses 10
+second = pair.1 ## Accesses 20
+```
+Compile-time error preferred for invalid literal indices. Runtime error otherwise.
+
+##### Functional Update
+Not supported via `...Source` syntax for positional structs. Create new instances explicitly.
+
+##### Field Mutation
+Modify fields in-place using indexed assignment (`=`). Requires the binding (`instance`) to be mutable.
+```able
+instance.Index = NewValue
+pair.0 = pair.0 + 5
+```
 
 ### 4.6. Union Types (Sum Types / ADTs)
 
-Represent values that can be one of several different types (variants).
+Represent values that can be one of several different types (variants). Essential for modeling alternatives (e.g., success/error, presence/absence, different kinds of related data).
 
 #### 4.6.1. Union Declaration
 
 Define a new type as a composition of existing variant types using `|`.
 
-*   **Syntax:** `union UnionTypeName [GenericParamList] = VariantType1 | VariantType2 | ... | VariantTypeN`
-*   **Example:**
-    ```able
-    struct Red; struct Green; struct Blue;
-    union Color = Red | Green | Blue
-    union IntOrString = i32 | string
-    union Option T = T | nil
-    union Result T ErrorType = T | ErrorType
-    ```
+##### Syntax
+```able
+union UnionTypeName [GenericParamList] = VariantType1 | VariantType2 | ... | VariantTypeN
+```
+-   **`union`**: Keyword.
+-   **`UnionTypeName`**: The name of the new union type being defined.
+-   **`[GenericParamList]`**: Optional space-delimited generic parameters applicable to the union itself.
+-   **`=`**: Separator.
+-   **`VariantType1 | VariantType2 | ...`**: List of one or more variant types separated by `|`.
+    -   Each `VariantType` must be a pre-defined, valid type name (e.g., primitive, struct, another union, generic type application).
+
+##### Examples
+```able
+## Simple enumeration using singleton structs
+struct Red; struct Green; struct Blue;
+union Color = Red | Green | Blue
+
+## Option type (conceptual - assumes Some struct exists)
+## struct Some T { value: T }
+union Option T = Some T | nil ## More direct using 'nil' type
+
+## Result type (conceptual - assumes Ok/Err structs exist)
+## struct Ok T { value: T }
+## struct Err E { error: E }
+## union Result T E = Ok T | Err E
+
+## Mixing types
+union IntOrString = i32 | string
+```
 
 #### 4.6.2. Nullable Type Shorthand (`?`)
 
-Concise syntax for types that can be `nil` or a specific type.
+Provides concise syntax for types that can be either a specific type or `nil`.
 
-*   **Syntax:** `?Type`
-*   **Equivalence:** `?Type` is syntactic sugar for the union `nil | Type`.
-*   **Example:** `maybe_user: ?User = find_user(id)`
+##### Syntax
+```able
+?Type
+```
+-   **`?`**: Prefix operator indicating nullability.
+-   **`Type`**: Any valid type expression.
+
+##### Equivalence
+`?Type` is syntactic sugar for the union `nil | Type`.
+*(Note: Defined as `nil | Type` rather than `Type | nil`)*
+
+##### Examples
+```able
+name: ?string = "Alice"
+age: ?i32 = nil
+maybe_user: ?User = find_user(id)
+```
 
 *(See Section [11.2.1](#1121-core-types-type-type) for `!Type` shorthand)*
 
@@ -293,17 +470,34 @@ Create a value of the union type by creating a value of one of its variant types
 
 ```able
 c: Color = Green
-opt_val: ?i32 = 42
-maybe_error: !string = "Success value"
+opt_val: Option i32 = Some i32 { value: 42 } ## Assuming Some struct definition
+opt_nothing: Option i32 = nil
+
+## Assuming Ok/Err struct definitions
+# res_ok: Result string string = Ok string { value: "Data loaded" }
+# res_err: Result string string = Err string { error: "File not found" }
+
+val: IntOrString = 100
+val2: IntOrString = "hello"
 ```
 
 #### 4.6.4. Using Union Values
 
-Primarily used with `match` expressions (See Section [8.1.2](#812-pattern-matching-expression-match)).
+The primary way to interact with union values is via `match` expressions (See Section [8.1.2](#812-pattern-matching-expression-match)), which allow safely deconstructing the value based on its current variant.
 
 ```able
+## Assuming struct F { deg: f64 }, struct C { deg: f64 }, struct K { deg: f64 }
+## and union Temp = F | C | K
+# temp: Temp = F { deg: 32.0 }
+# desc = temp match {
+#   case F { deg } => `Fahrenheit: ${deg}`,
+#   case C { deg } => `Celsius: ${deg}`,
+#   case K { deg } => `Kelvin: ${deg}`
+# }
+
+maybe_name: ?string = get_name_option()
 display_name = maybe_name match {
-  case s: string => s,
+  case s: string => s, ## Matches non-nil string
   case nil      => "Guest"
 }
 ```
@@ -535,24 +729,58 @@ Units of code that evaluate to a value.
 
 ### 6.1. Literals
 
-Source code representations of fixed values.
+Literals are the source code representation of fixed values.
 
-*   **Integers:**
-    *   Decimal: `123`, `0`, `1_000_000`
-    *   Hexadecimal: `0xff`, `0xDEAD_BEEF`
-    *   Binary: `0b1010`, `0b1111_0000`
-    *   Octal: `0o777`, `0o123_456`
-    *   Type Suffixes: `_i8`, `_u8`, `_i16`, `_u16`, `_i32`, `_u32`, `_i64`, `_u64`, `_i128`, `_u128`. Example: `42_i64`, `255_u8`, `0xff_u32`.
-    *   Default Type: `i32` (TBC) if no suffix.
-*   **Floats:** `3.14`, `0.0`, `-1.2e-5`, `1_000.0`.
-    *   Type Suffixes: `_f32`, `_f64`. Example: `2.718_f32`, `1.0_f64`.
-    *   Default Type: `f64` (TBC) if no suffix.
-*   **Booleans:** `true`, `false`.
-*   **Characters:** `'a'`, `' '`, `'\n'`, `'\u{1F604}'`. Single quotes. Escape sequences (`\n`, `\t`, `\\`, `\'`, `\u{...}`).
-*   **Strings:** `"Hello"`, `""`, `` `Val: ${x}` ``. Double quotes or backticks (interpolation). Escape sequences same as char.
-*   **Nil:** `nil`. Represents absence of data.
-*   **Arrays:** `[1, 2, 3]`, `["a", "b"]`, `[]`. (Requires `Array` type definition in stdlib).
-*   **Structs:** `{ field: val }`, `{ val1, val2 }`. (See Section [4.5](#45-structs)).
+#### 6.1.1. Integer Literals
+
+-   **Syntax:** A sequence of digits `0-9`. Underscores `_` can be included anywhere except the start/end for readability and are ignored. Prefixes `0x` (hex), `0o` (octal), `0b` (binary) are supported.
+-   **Type:** By default, integer literals are inferred as `i32` (this default is configurable/TBC). Type suffixes can explicitly specify the type: `_i8`, `_u8`, `_i16`, `_u16`, `_i32`, `_u32`, `_i64`, `_u64`, `_i128`, `_u128`.
+-   **Examples:** `123`, `0`, `1_000_000`, `42_i64`, `255_u8`, `0xff`, `0b1010_1111`, `0o777_i16`.
+
+#### 6.1.2. Floating-Point Literals
+
+-   **Syntax:** Include a decimal point (`.`) or use scientific notation (`e` or `E`). Underscores `_` are allowed for readability.
+-   **Type:** By default, float literals are inferred as `f64`. The suffixes `_f32` and `_f64` explicitly denote the type.
+-   **Examples:** `3.14`, `0.0`, `-123.456`, `1e10`, `6.022e23`, `2.718_f32`, `_1.618_`, `1_000.0`, `1.0_f64`.
+
+#### 6.1.3. Boolean Literals
+
+-   **Syntax:** `true`, `false`.
+-   **Type:** `bool`.
+
+#### 6.1.4. Character Literals
+
+-   **Syntax:** A single Unicode character enclosed in single quotes `'`. Special characters can be represented using escape sequences:
+    *   Common escapes: `\n` (newline), `\r` (carriage return), `\t` (tab), `\\` (backslash), `\'` (single quote), `\"` (double quote - though not strictly needed in char literal).
+    *   Unicode escape: `\u{XXXXXX}` where `XXXXXX` are 1-6 hexadecimal digits representing the Unicode code point.
+-   **Type:** `char`.
+-   **Examples:** `'a'`, `' '`, `'%'`, `'\n'`, `'\u{1F604}'`.
+
+#### 6.1.5. String Literals
+
+-   **Syntax:**
+    1.  **Standard:** Sequence of characters enclosed in double quotes `"`. Supports the same escape sequences as character literals.
+    2.  **Interpolated:** Sequence of characters enclosed in backticks `` ` ``. Can embed expressions using `${Expression}`. Escapes like `` \` `` and `\$` are used for literal backticks or dollar signs before braces. See Section [6.6](#66-string-interpolation).
+-   **Type:** `string`. Strings are immutable.
+-   **Examples:** `"Hello, world!\n"`, `""`, `` `User: ${user.name}, Age: ${user.age}` ``, `` `Literal: \` or \${` ``.
+
+#### 6.1.6. Nil Literal
+
+-   **Syntax:** `nil`.
+-   **Type:** `nil`. The type `nil` has only one value, also written `nil`.
+-   **Usage:** Represents the absence of meaningful data. Often used with the `?Type` (equivalent to `nil | Type`) union shorthand. `nil` itself *only* has type `nil`, but can be assigned to variables of type `?SomeType`.
+
+#### 6.1.7. Void Type (No Literal)
+
+-   **Type Name:** `void`.
+-   **Values:** The `void` type represents the empty set; it has **no values**.
+-   **Usage:** Primarily used as a return type for functions that perform actions (side effects) but do not produce any resulting data. It signifies successful completion without a value.
+-   **Distinction from `nil`:** The type `nil` has one value (`nil`); the type `void` has zero values.
+
+#### 6.1.8. Other Literals (Conceptual)
+
+-   **Arrays:** `[1, 2, 3]`, `["a", "b"]`, `[]`. (Requires `Array` type definition in stdlib).
+-   **Structs:** `{ field: val }`, `{ val1, val2 }`. (See Section [4.5](#45-structs)).
 
 ### 6.2. Block Expressions (`do`)
 
@@ -564,11 +792,11 @@ Execute a sequence of expressions within a new lexical scope.
 
 ### 6.3. Operators
 
-Symbols performing operations.
+This section defines the standard operators available in Able, their syntax, semantics, precedence, and associativity, closely following Rust's precedence model but using `~` for bitwise NOT.
 
 #### 6.3.1. Operator Precedence and Associativity
 
-(Follows Rust model, `~` for bitwise NOT)
+Operators are evaluated in a specific order determined by precedence (higher binds tighter) and associativity (order for operators of the same precedence).
 
 | Precedence | Operator(s)           | Description                             | Associativity | Notes                                                     |
 | :--------- | :-------------------- | :-------------------------------------- | :------------ | :-------------------------------------------------------- |
@@ -589,30 +817,38 @@ Symbols performing operations.
 | 4          | `&&`                  | Logical AND (short-circuiting)          | Left-to-right |                                                           |
 | 3          | `||`                  | Logical OR (short-circuiting)           | Left-to-right |                                                           |
 | 2          | `..`, `...`           | Range Creation (inclusive, exclusive)   | Non-assoc     |                                                           |
-| 1          | `:=`                  | **Declaration and Initialization**      | Right-to-left |                                                           |
-| 1          | `=`                   | **Reassignment / Mutation**             | Right-to-left |                                                           |
+| 1          | `:=`                  | **Declaration and Initialization**      | Right-to-left | See Section [5.1](#51-operators---)                     |
+| 1          | `=`                   | **Reassignment / Mutation**             | Right-to-left | See Section [5.1](#51-operators---)                     |
 | 1          | `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `^=`, `<<=`, `>>=` | Compound Assignment (TBD)               | Right-to-left | (Needs formal definition, acts like `=`)                  |
 | 0          | `\|>`                 | Pipe Forward                            | Left-to-right | (Lowest precedence)                                       |
 
+*(Note: Precedence levels are relative; specific numerical values may vary but the order shown is based on Rust.)*
+
 #### 6.3.2. Operator Semantics
 
-*   Arithmetic (`+`, `-`, `*`, `/`, `%`): Standard math operations. Division (`/`) or remainder (`%`) by zero **raises a runtime exception** (e.g., `DivisionByZeroError`).
-*   Comparison (`>`, `<`, `>=`, `<=`, `==`, `!=`): Result `bool`. Relies on standard library interfaces (`Eq`, `Ord`).
-*   Logical (`&&`, `||`, `!`): Short-circuiting `&&`, `||` on `bool`. `!` negates `bool`.
-*   Bitwise (`&`, `|`, `^`, `<<`, `>>`, `~`): Standard operations on integer types. `~` is complement.
-*   Unary (`-`): Arithmetic negation.
-*   Member Access (`.`): Access fields/methods, UFCS.
-*   Function Call (`()`): Invokes functions/methods.
-*   Indexing (`[]`): Access elements within indexable collections (relies on `Index`/`IndexMut`).
-*   Range (`..`, `...`): Create `Range` objects.
-*   Declaration (`:=`): Declares/initializes new variables. Evaluates to RHS.
-*   Assignment (`=`): Reassigns existing variables or mutates locations. Evaluates to RHS.
-*   Compound Assignment (`+=`, etc. TBD): Shorthand (e.g., `a += b` like `a = a + b`). Acts like `=`.
-*   Pipe Forward (`|>`): `x |> f` evaluates to `f(x)`.
+*   **Arithmetic (`+`, `-`, `*`, `/`, `%`):** Standard math operations on numeric types. Division (`/`) or remainder (`%`) by zero **raises a runtime exception** (e.g., `DivisionByZeroError`). See Section [11.3](#113-exceptions-raise--rescue).
+*   **Comparison (`>`, `<`, `>=`, `<=`, `==`, `!=`):** Compare values, result `bool`. Equality/ordering behavior relies on standard library interfaces (`PartialEq`, `Eq`, `PartialOrd`, `Ord`). See Section [14](#14-standard-library-interfaces-conceptual--tbd).
+*   **Logical (`&&`, `||`, `!`):**
+    *   `&&` (Logical AND): Short-circuiting on `bool` values.
+    *   `||` (Logical OR): Short-circuiting on `bool` values.
+    *   `!` (Logical NOT): Unary operator, negates a `bool` value.
+*   **Bitwise (`&`, `|`, `^`, `<<`, `>>`, `~`):**
+    *   `&`, `|`, `^`: Standard bitwise AND, OR, XOR on integer types (`i*`, `u*`).
+    *   `<<`, `>>`: Bitwise left shift, right shift on integer types.
+    *   `~` (Bitwise NOT): Unary operator, performs bitwise complement on integer types.
+*   **Unary (`-`):** Arithmetic negation for numeric types.
+*   **Member Access (`.`):** Access fields/methods, UFCS, static methods. See Section [9.3](#93-method-call-syntax-resolution-initial-rules).
+*   **Function Call (`()`):** Invokes functions/methods. See Section [7.4](#74-function-invocation).
+*   **Indexing (`[]`):** Access elements within indexable collections (e.g., `Array`). Relies on standard library interfaces (`Index`, `IndexMut`). See Section [14](#14-standard-library-interfaces-conceptual--tbd).
+*   **Range (`..`, `...`):** Create `Range` objects (inclusive `..`, exclusive `...`). See Section [8.2.3](#823-range-expressions).
+*   **Declaration (`:=`):** Declares/initializes new variables. Evaluates to RHS. See Section [5.1](#51-operators---).
+*   **Assignment (`=`):** Reassigns existing variables or mutates locations. Evaluates to RHS. See Section [5.1](#51-operators---).
+*   **Compound Assignment (`+=`, etc. TBD):** Shorthand (e.g., `a += b` is like `a = a + b`). Need formal definition. Acts like `=`.
+*   **Pipe Forward (`|>`):** `x |> f` evaluates to `f(x)`.
 
 #### 6.3.3. Overloading (Via Interfaces)
 
-Behavior for non-primitive types relies on implementing standard library interfaces (e.g., `Add`, `Sub`, `Mul`, `Div`, `Rem`, `Neg`, `Not` (for `~`), `BitAnd`, `BitOr`, `BitXor`, `Shl`, `Shr`, `PartialEq`, `Eq`, `PartialOrd`, `Ord`, `Index`, `IndexMut`). Logical `!` typically not overloaded. See Section [14](#14-standard-library-interfaces-conceptual--tbd).
+Behavior for non-primitive types relies on implementing standard library interfaces (e.g., `Add`, `Sub`, `Mul`, `Div`, `Rem`, `Neg` (for `-`), `Not` (for bitwise `~`), `BitAnd`, `BitOr`, `BitXor`, `Shl`, `Shr`, `PartialEq`, `Eq`, `PartialOrd`, `Ord`, `Index`, `IndexMut`). These interfaces need definition (See Section [14](#14-standard-library-interfaces-conceptual--tbd)). Note that logical `!` is typically not overloaded.
 
 ### 6.4. Function Calls
 
@@ -1179,28 +1415,71 @@ search_result = breakpoint 'finder {
 
 ## 9. Inherent Methods (`methods`)
 
-Define methods directly associated with a type.
+Define methods (instance or static) directly associated with a specific struct type using a `methods` block. This is distinct from implementing interfaces (Section [10](#10-interfaces-and-implementations)).
 
 ### 9.1. Syntax
 
 ```able
-methods [Gens] TypeName [Args] { [FunctionDefinitionList] }
+methods [GenericParams] TypeName [GenericArgs] {
+  [FunctionDefinitionList]
+}
 ```
+-   **`methods`**: Keyword initiating the block for defining inherent methods.
+-   **`[GenericParams]`**: Optional generics `<...>` for the block itself (rare).
+-   **`TypeName`**: The struct type name (e.g., `Point`, `User`).
+-   **`[GenericArgs]`**: Generic arguments if `TypeName` is generic (e.g., `methods Pair A B { ... }`).
+-   **`{ [FunctionDefinitionList] }`**: Contains standard `fn` definitions.
 
 ### 9.2. Method Definitions
 
-Within `methods TypeName`:
-1.  **Instance Methods:** `fn name(self: Self, ...)` or `fn #name(...)`.
-2.  **Static Methods:** `fn name(...)` (no `self` or `#`).
+Within a `methods TypeName { ... }` block:
 
-### 9.3. Method Call Syntax Resolution (Initial Rules)
+1.  **Instance Methods:** Operate on an instance of `TypeName`. Defined using:
+    *   Explicit `self`: `fn method_name(self: Self, ...) { ... }`
+    *   Shorthand `fn #`: `fn #method_name(...) { ... }` (implicitly adds `self: Self` as the first parameter). See Section [7.6.2](#762-implicit-self-parameter-definition-fn-method).
+    *   `Self` refers to `TypeName` (with its generic arguments, if any).
+2.  **Static Methods:** Associated with the type itself, not a specific instance. Defined *without* `self` as the first parameter and *without* using the `#` prefix shorthand.
+    *   `fn static_name(...) { ... }`
+    *   Often used for constructors or type-level operations.
+
+### 9.3. Example: `methods` block for `Address`
+
+```able
+struct Address { house_number: u16, street: string, city: string, state: string, zip: u16 }
+
+methods Address {
+  ## Instance method using shorthand definition and access
+  fn #to_s() -> string {
+    ## #house_number is shorthand for self.house_number, etc. See Section 7.6.1
+    `${#house_number} ${#street}\n${#city}, ${#state} ${#zip}`
+  }
+
+  ## Instance method using explicit self
+  fn update_zip(self: Self, zip_code: u16) -> void {
+    self.zip = zip_code ## Could also use #zip here
+  }
+
+  ## Static method (constructor pattern)
+  fn from_parts(hn: u16, st: string, ct: string, sta: string, zp: u16) -> Self {
+    Address { house_number: hn, street: st, city: ct, state: sta, zip: zp }
+  }
+}
+
+## Usage
+addr = Address.from_parts(123, "Main St", "Anytown", "CA", 90210) ## Call static method
+addr_string = addr.to_s()     ## Call instance method
+addr.update_zip(90211)        ## Call instance method (mutates addr)
+```
+
+### 9.4. Method Call Syntax Resolution (Initial Rules)
 
 When resolving `receiver.name(args...)`:
-1.  Check for **field** `name`.
-2.  Check for **inherent method** `name`.
-3.  Check for **interface method** `name` (use specificity).
-4.  Check for **free function** `name` (UFCS).
-5.  Ambiguity or not found -> error.
+1.  Check for **field** `name` on the `receiver`. If found and callable (implements `Apply`), call it. If found and not callable, error (unless accessing the field value was the intent).
+2.  Check for **inherent method** `name` defined in a `methods TypeName { ... }` block for the type of `receiver`.
+3.  Check for **interface method** `name` from interfaces implemented by the type of `receiver`. Use specificity rules (See Section [10.2.4](#1024-overlapping-implementations-and-specificity)) if multiple interfaces provide `name`.
+4.  Check for **free function** `name` in scope that takes `receiver` as its first argument (Universal Function Call Syntax - UFCS).
+5.  If multiple steps match (e.g., inherent and interface method), inherent methods typically take precedence (TBD - confirm precedence rules).
+6.  If ambiguity remains or no match is found, result in a compile-time error.
 
 ## 10. Interfaces and Implementations
 
