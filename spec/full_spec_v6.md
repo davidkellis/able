@@ -632,90 +632,304 @@ See Section [7.4](#74-function-invocation).
 
 ## 7. Functions
 
-First-class values, support closures.
+This section defines the syntax and semantics for function definition, invocation, partial application, and related concepts like closures and anonymous functions in Able. Functions are first-class values.
 
 ### 7.1. Named Function Definition
 
+Defines a function with a specific identifier in the current scope.
+
+#### 7.1.1. Syntax
 ```able
 fn Identifier[<GenericParamList>] ([ParameterList]) [-> ReturnType] {
   ExpressionList
 }
 ```
 
-*   Uses `fn`. Returns last expression implicitly, or uses explicit `return`.
+-   **`fn`**: Keyword introducing a function definition.
+-   **`Identifier`**: The function name (e.g., `add`, `process_data`).
+-   **`[<GenericParamList>]`**: Optional space-delimited generic parameters and constraints (e.g., `<T>`, `<T: Display>`). Use `<>` delimiters for the list.
+-   **`([ParameterList])`**: Required parentheses enclosing the parameter list.
+    -   **`ParameterList`**: Comma-separated list of parameters, each defined as `Identifier: Type` (e.g., `a: i32`, `user: User`). Type annotations are generally required unless future inference rules allow omission.
+    -   May be empty: `()`.
+-   **`[-> ReturnType]`**: Optional return type annotation. If omitted, the return type is inferred from the body's final expression or explicit `return` statements. If the body's last expression evaluates to `nil` (e.g., assignment, loop) and there's no explicit `return`, the return type is `nil`. If the function is intended to return nothing, use `-> void`.
+-   **`{ ExpressionList }`**: The function body block. Contains one or more expressions separated by newlines or semicolons.
+    -   **Return Value**: The value of the *last expression* in `ExpressionList` is implicitly returned, *unless* an explicit `return` statement is encountered.
+
+#### 7.1.2. Examples
+```able
+## Simple function (implicit return)
+fn add(a: i32, b: i32) -> i32 { a + b }
+
+## Generic function (implicit return)
+fn identity<T>(val: T) -> T { val }
+
+## Function with side effects and explicit void return
+fn greet(name: String) -> void {
+  message = `Hello, ${name}!`
+  print(message) ## Assuming print returns nil or void
+  return ## Explicit return void
+}
+
+## Function with side effects and inferred nil return type
+fn log_and_nil(name: String) { ## Implicitly returns nil
+  message = `Logging: ${name}`
+  print(message)
+}
+
+
+## Multi-expression body (implicit return)
+fn process(x: i32) -> String {
+  y = x * 2
+  z = y + 1
+  `Result: ${z}` ## Last expression is the return value
+}
+```
+
+#### 7.1.3. Semantics
+-   Introduces the `Identifier` into the current scope, bound to the defined function value.
+-   Parameters are bound to argument values during invocation and are local to the function body scope.
+-   The function body executes sequentially.
+-   The type of a function is `(ParamType1, ParamType2, ...) -> ReturnType`.
 
 ### 7.2. Anonymous Functions and Closures
 
-Capture lexical environment.
+Functions can be created without being bound to a name at definition time. They capture their lexical environment (forming closures).
 
 #### 7.2.1. Verbose Anonymous Function Syntax
 
+Mirrors named function definition but omits the identifier. Useful for complex lambdas or when explicit generics are needed.
+
+##### Syntax
 ```able
 fn[<GenericParamList>] ([ParameterList]) [-> ReturnType] { ExpressionList }
 ```
 
+##### Example
+```able
+mapper = fn(x: i32) -> String { `Value: ${x}` }
+generic_fn = fn<T: Display>(item: T) -> void { print(item.to_string()) }
+```
+
 #### 7.2.2. Lambda Expression Syntax
 
+Concise syntax, primarily for single-expression bodies.
+
+##### Syntax
 ```able
 { [LambdaParameterList] [-> ReturnType] => Expression }
 ```
+-   **`{ ... }`**: Lambda delimiters.
+-   **`[LambdaParameterList]`**: Comma-separated identifiers, optional types (`ident: Type`). No parentheses used. Zero parameters represented by empty list before `=>`.
+-   **`[-> ReturnType]`**: Optional return type.
+-   **`=>`**: Separator.
+-   **`Expression`**: Single expression defining the return value.
 
-*   Zero params: `{ => ... }`.
+##### Examples
+```able
+increment = { x => x + 1 }
+adder = { x: i32, y: i32 => x + y }
+get_zero = { => 0 }
+complex_lambda = { x, y => do { temp = x + y; temp * temp } } ## Using a block expression
+```
 
 #### 7.2.3. Closures
 
-Both forms create closures.
+Both anonymous function forms create closures. They capture variables from the scope where they are defined. Captured variables are accessed according to the mutability rules of the original binding (currently mutable by default).
+
+```able
+fn make_adder(amount: i32) -> (i32 -> i32) {
+  adder_lambda = { value => value + amount } ## Captures 'amount'
+  ## Explicit return needed here as last expression is an assignment
+  return adder_lambda
+}
+add_5 = make_adder(5)
+result = add_5(10) ## result is 15
+```
 
 ### 7.3. Explicit `return` Statement
 
-Provides early exit from a function.
+Provides early exit from a function. (See also Section [11.1](#111-explicit-return-statement)).
 
-*   **Syntax:** `return Expression` or `return` (for `void` functions).
-*   **Semantics:** Immediately terminates function, returning value. See Section [11.1](#111-explicit-return-statement).
+#### Syntax
+```able
+return Expression
+return // Equivalent to 'return void' if function returns void
+```
+
+#### Semantics
+-   Immediately terminates the execution of the current function.
+-   The value of `Expression` (or `void`) is returned to the caller.
+-   If used within nested blocks (like loops or `do` blocks) inside a function, it still returns from the *function*, not just the inner block.
 
 ### 7.4. Function Invocation
 
 #### 7.4.1. Standard Call
 
-`FunctionName ( ArgumentList )`
+Parentheses enclose comma-separated arguments.
+```able
+Identifier ( ArgumentList )
+```
+```able
+add(5, 3)
+identity<String>("hello") ## Explicit generic argument
+```
 
 #### 7.4.2. Trailing Lambda Syntax
 
-`Function(Args) { Lambda }` or `Function { Lambda }`
+```able
+Function ( [OtherArgs] ) LambdaExpr
+Function LambdaExpr ## If lambda is only argument
+```
+
+If the last argument is a lambda, it can follow the closing parenthesis. If it's the *only* argument, parentheses can be omitted.
+```able
+items.reduce(0) { acc, x => acc + x }
+items.map { item => item.process() }
+```
 
 #### 7.4.3. Method Call Syntax
 
-`ReceiverExpression . FunctionOrMethodName ( RemainingArgumentList )`
-(See Section [9.3](#93-method-call-syntax-resolution-initial-rules) for resolution).
+Allows calling functions (both inherent/interface methods and qualifying free functions) using dot notation on the first argument. (See Section [9.3](#93-method-call-syntax-resolution-initial-rules) for resolution details).
+
+##### Syntax
+```able
+ReceiverExpression . FunctionOrMethodName ( RemainingArgumentList )
+```
+
+##### Semantics (Simplified - see Section 9.3 for full rules)
+When `receiver.name(args...)` is encountered:
+1.  Check for field `name`.
+2.  Check for inherent method `name`.
+3.  Check for interface method `name`.
+4.  Check for free function `name` applicable via UFCS (Universal Function Call Syntax).
+5.  Invoke the first match found, passing `receiver` appropriately.
+6.  Ambiguity or no match results in an error.
+
+##### Example (Method Call Syntax on Free Function)
+```able
+fn add(a: i32, b: i32) -> i32 { a + b }
+res = 4.add(5) ## Resolved via Method Call Syntax to add(4, 5) -> 9
+```
 
 #### 7.4.4. Callable Value Invocation (`Apply` Interface)
 
-If `value` implements `Apply`, `value(args...)` desugars to `value.apply(args...)`.
+If `value` implements the `Apply` interface, `value(args...)` desugars to `value.apply(args...)`. (See Section [14](#14-standard-library-interfaces-conceptual--tbd)).
+```able
+## Conceptual Example
+# impl Apply for Integer { fn apply(self: Integer, a: Integer) -> Integer { self * a } }
+# thirty = 5(6) ## Calls 5.apply(6)
+```
 
 ### 7.5. Partial Function Application
 
-Use `_` as placeholder for arguments. Creates a closure.
+Create a new function by providing some arguments and using `_` as a placeholder for others.
 
+#### 7.5.1. Syntax
+Use `_` in place of arguments in a function or method call expression.
 ```able
-add_10 := add(_, 10)
-add_five := 5.add
+function_name(Arg1, _, Arg3, ...)
+instance.method_name(_, Arg2, ...)
+```
+
+#### 7.5.2. Syntax & Semantics
+-   `function_name(Arg1, _, ...)` creates a closure.
+-   `receiver.method_name(_, Arg2, ...)` creates a closure capturing `receiver`.
+-   `TypeName::method_name(_, Arg2, ...)` (if static access is needed/allowed) creates a closure expecting `self` as the first argument.
+-   `receiver.free_function_name` (using Method Call Syntax access without `()`) creates a closure equivalent to `free_function_name(receiver, _, ...)`.
+
+#### 7.5.3. Examples
+```able
+add_10 = add(_, 10)      ## Function expects one arg: add(arg, 10)
+result = add_10(5)       ## result is 15
+
+## Assuming prepend exists: fn prepend(prefix: string, body: string) -> string
+# prefix_hello = prepend("Hello, ", _) ## Function expects one arg
+# msg = prefix_hello("World")          ## msg is "Hello, World"
+
+## method call syntax access creates partially applied function
+add_five = 5.add ## Creates function add(5, _) via Method Call Syntax access
+result_pa = add_five(20)  ## result_pa is 25
 ```
 
 ### 7.6. Shorthand Notations
 
 #### 7.6.1. Implicit First Argument Access (`#member`)
 
-**Allowed in any function body.**
+Within the body of any function (named, anonymous, lambda, or method), the syntax `#Identifier` provides shorthand access to a field or method of the function's *first parameter*.
 
-*   **Syntax:** `#Identifier`
-*   **Semantics:** Sugar for `param1.Identifier` where `param1` is the first parameter.
+##### Syntax
+```able
+#Identifier
+```
+
+##### Semantics
+-   Syntactic sugar for `param1.Identifier`, where `param1` is the **first parameter** of the function the `#member` expression appears within.
+-   If the function has *no* parameters, using `#member` is a compile-time error.
+-   Inside a function `fn func_name(param1: Type1, param2: Type2, ...) { ... }`, an expression `#member` within the function body is syntactic sugar for `param1.member`.
+-   This relies on the *convention* that the first parameter often represents the primary object or context (`self`).
+-   The `param1` value must have a field or method named `member` accessible via the dot (`.`) operator.
+-   This applies regardless of whether the first parameter is explicitly named `self`.
+
+##### Example
+```able
+struct Data { value: i32, name: string }
+methods Data {
+    ## Inside an instance method, #value means self.value
+    fn display(self: Self) -> void {
+        print(`Data '${#name}' has value ${#value}`)
+    }
+}
+
+## Inside a free function
+fn process_data(d: Data, factor: i32) -> i32 {
+  ## #value is shorthand for d.value
+  incremented = #value + 1
+  incremented * factor
+}
+
+d = Data { value: 10, name: "Test" }
+d.display() ## Prints "Data 'Test' has value 10"
+result = process_data(d, 5) ## result is (10 + 1) * 5 = 55
+```
 
 #### 7.6.2. Implicit Self Parameter Definition (`fn #method`)
 
-**Allowed only within `methods` or `impl` blocks.**
+**Allowed only when defining functions within a `methods TypeName { ... }` block or an `impl Interface for Type { ... }` block.**
 
-*   **Syntax:** `fn #method_name(...) { ... }`
-*   **Semantics:** Defines instance method, implicitly adds `self: Self` as first parameter.
+##### Syntax
+```able
+fn #method_name ([param2: Type2, ...]) [-> ReturnType] { ... }
+```
+
+##### Semantics
+-   Syntactic sugar for defining an **instance method**. Automatically adds `self: Self` as the first parameter.
+-   `fn #method(p2) { ... }` is equivalent to `fn method(self: Self, p2) { ... }`.
+-   `Self` refers to the type the `methods` or `impl` block is for.
+
+##### Example
+```able
+struct Counter { value: i32 }
+methods Counter {
+  ## Define increment using shorthand
+  fn #increment() -> void {
+    #value = #value + 1 ## #value means self.value
+  }
+
+  ## Equivalent explicit definition:
+  # fn increment(self: Self) -> void {
+  #  self.value = self.value + 1
+  # }
+
+  ## Define add using shorthand
+  fn #add(amount: i32) -> void {
+    #value = #value + amount
+  }
+}
+
+c = Counter { value: 5 }
+c.increment() ## c.value becomes 6
+c.add(10)     ## c.value becomes 16
+```
 
 ## 8. Control Flow
 
