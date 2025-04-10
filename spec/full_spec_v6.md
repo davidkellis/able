@@ -241,17 +241,35 @@ Type constraints restrict the types that can be used for a generic type paramete
         struct Container T: Numeric + Clone { data: T }
         impl<T: Debug> Display for MyType T { ... }
         ```
-    2.  **`where` Clauses:** For more complex constraints or better layout.
+    2.  **`where` Clauses:** As an alternative or addition to inline constraints, a `where` clause can be placed after the parameter list (for functions) or the type/interface declaration (for structs, interfaces, impls) to specify constraints. This is often preferred for readability with multiple or complex constraints.
         ```able
-        fn complex_op<K, V, R>(...)
-          where K: Hash + Display,
-                V: Numeric,
-                R: Default {
-          ...
+        ## Function with where clause
+        fn complex_fn<A, B, C>(a: A, b: B) -> C
+          where A: Hash, B: Display, C: Default + Cmp B {
+          ## ... function body ...
+        }
+
+        ## Struct with where clause
+        struct ConstrainedContainer<K, V>
+          where K: Hash + Eq, V: Clone {
+          key: K,
+          value: V
+        }
+
+        ## Interface with where clause
+        interface AdvancedMappable<A> for M _
+          where M: Iterable A {
+          ## ... signatures ...
+        }
+
+        ## Implementation with where clause
+        impl<T> Display for MyType<T>
+          where T: Numeric + Default {
+          ## ... implementation ...
         }
         ```
 
-*   **Semantics:** The compiler enforces these constraints. If a type argument provided for a constrained parameter does not implement the required interface(s), a compile-time error occurs. Constraints allow the code within the generic scope to safely use the methods defined by the required interfaces on values of the constrained type parameter.
+*   **Semantics:** The compiler enforces these constraints regardless of whether they are defined inline or in a `where` clause. If a type argument provided for a constrained parameter does not implement the required interface(s), a compile-time error occurs. Constraints allow the code within the generic scope to safely use the methods defined by the required interfaces on values of the constrained type parameter.
 
 ### 4.2. Primitive Types
 
@@ -321,14 +339,15 @@ Group data under named fields.
 
 ##### Declaration
 ```able
-struct Identifier [GenericParamList] {
+struct Identifier [GenericParamList] [where <ConstraintList>] {
   FieldName1: Type1,
   FieldName2: Type2
   FieldName3: Type3 ## Comma or newline separated, trailing comma ok
 }
 ```
 -   **`Identifier`**: Struct type name.
--   **`[GenericParamList]`**: Optional space-delimited generics (e.g., `T`, `K V: Display`).
+-   **`[GenericParamList]`**: Optional space-delimited generics (e.g., `T`, `K V: Display`). Constraints can be inline or in the `where` clause.
+-   **`[where <ConstraintList>]`**: Optional clause for specifying constraints on `GenericParamList`.
 -   **`FieldName: Type`**: Defines a field with a unique name within the struct.
 
 ##### Instantiation
@@ -367,14 +386,15 @@ Define fields by their position and type. Accessed by index.
 
 ##### Declaration
 ```able
-struct Identifier [GenericParamList] {
+struct Identifier [GenericParamList] [where <ConstraintList>] {
   Type1,
   Type2
   Type3 ## Comma or newline separated, trailing comma ok
 }
 ```
 -   **`Identifier`**: Struct type name (e.g., `IntPair`, `Coord3D`).
--   **`[GenericParamList]`**: Optional space-delimited generics.
+-   **`[GenericParamList]`**: Optional space-delimited generics. Constraints can be inline or in the `where` clause.
+-   **`[where <ConstraintList>]`**: Optional clause for specifying constraints on `GenericParamList`.
 -   **`Type`**: Defines a field by its type at a specific zero-based position.
 
 ##### Instantiation
@@ -876,18 +896,19 @@ Defines a function with a specific identifier in the current scope.
 
 #### 7.1.1. Syntax
 ```able
-fn Identifier[<GenericParamList>] ([ParameterList]) [-> ReturnType] {
+fn Identifier[<GenericParamList>] ([ParameterList]) [-> ReturnType] [where <ConstraintList>] {
   ExpressionList
 }
 ```
 
 -   **`fn`**: Keyword introducing a function definition.
 -   **`Identifier`**: The function name (e.g., `add`, `process_data`).
--   **`[<GenericParamList>]`**: Optional space-delimited generic parameters and constraints (e.g., `<T>`, `<T: Display>`). Use `<>` delimiters for the list.
+-   **`[<GenericParamList>]`**: Optional space-delimited generic parameters and constraints (e.g., `<T>`, `<T: Display>`). Use `<>` delimiters for the list. Constraints can be specified inline here or in the `where` clause.
 -   **`([ParameterList])`**: Required parentheses enclosing the parameter list.
     -   **`ParameterList`**: Comma-separated list of parameters, each defined as `Identifier: Type` (e.g., `a: i32`, `user: User`). Type annotations are generally required unless future inference rules allow omission.
     -   May be empty: `()`.
 -   **`[-> ReturnType]`**: Optional return type annotation. If omitted, the return type is inferred from the body's final expression or explicit `return` statements. If the body's last expression evaluates to `nil` (e.g., assignment, loop) and there's no explicit `return`, the return type is `nil`. If the function is intended to return nothing, use `-> void`.
+-   **`[where <ConstraintList>]`**: Optional clause placed after the return type (or parameter list if no return type) to specify constraints on `GenericParamList`.
 -   **`{ ExpressionList }`**: The function body block. Contains one or more expressions separated by newlines or semicolons.
     -   **Return Value**: The value of the *last expression* in `ExpressionList` is implicitly returned, *unless* an explicit `return` statement is encountered.
 
@@ -1521,14 +1542,14 @@ interface InterfaceName [GenericParamList] for SelfTypePattern [where <Constrain
 
 -   **`interface`**: Keyword.
 -   **`InterfaceName`**: The identifier naming the interface (e.g., `Display`, `Mappable`).
--   **`[GenericParamList]`**: Optional space-delimited generic parameters for the interface itself (e.g., `T`, `K V`). Constraints use `Param: Bound`.
+-   **`[GenericParamList]`**: Optional space-delimited generic parameters for the interface itself (e.g., `T`, `K V`). Constraints use `Param: Bound` inline or in the `where` clause.
 -   **`for`**: Keyword introducing the self type pattern (mandatory in this form).
 -   **`SelfTypePattern`**: Specifies the structure of the type(s) that can implement this interface. This defines the meaning of `Self` (see Section [10.1.3](#1013-self-keyword-interpretation)).
     *   **Concrete Type:** `TypeName [TypeArguments]` (e.g., `for Point`, `for Array i32`).
     *   **Generic Type Variable:** `TypeVariable` (e.g., `for T`).
     *   **Type Constructor (HKT):** `TypeConstructor _ ...` (e.g., `for M _`, `for Map K _`). `_` denotes unbound parameters.
     *   **Generic Type Constructor:** `TypeConstructor TypeVariable ...` (e.g., `for Array T`).
--   **`[where <ConstraintList>]`**: Optional constraints on generic parameters used in `GenericParamList` or `SelfTypePattern`.
+-   **`[where <ConstraintList>]`**: Optional clause for specifying constraints on generic parameters used in `GenericParamList` or `SelfTypePattern`.
 -   **`{ [FunctionSignatureList] }`**: Block containing function signatures (methods).
     *   Each signature follows `fn name[<MethodGenerics>]([Param1: Type1, ...]) -> ReturnType;`.
     *   Methods can be instance methods (typically taking `self: Self` as the first parameter) or static methods (no `self: Self` parameter).
@@ -1543,6 +1564,8 @@ interface InterfaceName [GenericParamList] [where <ConstraintList>] {
 ```
 
 -   This form omits the `for SelfTypePattern` clause.
+-   **`[GenericParamList]`**: Optional space-delimited generic parameters for the interface itself. Constraints use `Param: Bound` inline or in the `where` clause.
+-   **`[where <ConstraintList>]`**: Optional clause for specifying constraints on `GenericParamList`.
 -   **Semantics:**
     *   The `Self` type within the `FunctionSignatureList` refers directly to the concrete type that implements the interface.
     *   Implementations (`impl`) for this form of interface **cannot** target a type constructor (like `Array` or `Map K _`). They must target specific types (like `i32`, `Point`, `Array i32`, or a generic type variable `T` constrained elsewhere). This form is unsuitable for defining HKT interfaces like `Mappable`.
@@ -1637,7 +1660,7 @@ Provides bodies for interface methods. Can use `fn #method` shorthand if desired
 
 -   **`[ImplName =]`**: Optional name for the implementation, used for disambiguation. Followed by `=`.
 -   **`impl`**: Keyword.
--   **`[<ImplGenericParams>]`**: Optional comma-separated generics for the implementation itself (e.g., `<T: Numeric>`). Use `<>` delimiters.
+-   **`[<ImplGenericParams>]`**: Optional comma-separated generics for the implementation itself (e.g., `<T: Numeric>`). Use `<>` delimiters. Constraints can be specified inline here or in the `where` clause.
 -   **`InterfaceName`**: The name of the interface being implemented.
 -   **`[InterfaceArgs]`**: Space-delimited type arguments for the interface's generic parameters (if any).
 -   **`for`**: Keyword (mandatory).
@@ -1648,7 +1671,7 @@ Provides bodies for interface methods. Can use `fn #method` shorthand if desired
         *   If interface is `for M _`, `Target` must be `TypeConstructor` (e.g., `Array`). See HKT syntax below.
         *   If interface is `for Array T`, `Target` must be `Array U` (where `U` might be constrained).
     *   If the interface was defined using `interface ... { ... }` (without `for`), the `Target` **must not** be a bare type constructor (like `Array`). It must be a specific type (e.g., `i32`, `Point`, `Array i32`, or a type variable `T`).
--   **`[where <ConstraintList>]`**: Optional constraints on `ImplGenericParams`.
+-   **`[where <ConstraintList>]`**: Optional clause for specifying constraints on `ImplGenericParams`.
 -   **`{ [ConcreteFunctionDefinitions] }`**: Block containing the full definitions (`fn name(...) { body }`) for all functions required by the interface (unless they have defaults). Signatures must match. May override defaults.
 
 -   **Distinction from `methods`:** `methods Type { ... }` defines *inherent* methods (part of the type's own API). `impl Interface for Type { ... }` fulfills an *external contract* defined by the interface. An inherent method defined in `methods Type` may be used to explicitly satisfy an interface requirement in an `impl` block, but the `impl Interface for Type` block is still needed to declare the conformance.
