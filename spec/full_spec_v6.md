@@ -236,6 +236,16 @@ Type constraints restrict the types that can be used for a generic type paramete
     *   `TypeParameter : Interface1 + Interface2 + ...` (Requires implementation of all listed interfaces)
 *   **Usage Locations:**
     1.  **Generic Parameter Lists:** Directly within angle brackets `< >` (if used) or space-delimited lists for function, struct, interface, or impl definitions.
+
+        > **Delimiter Rules for Generic Parameters**
+        >
+        > - When generic parameters are enclosed in angle brackets `<...>`, **parameters must be comma-delimited**.
+        >   **Example:** `<A, B, C>`, `<T: Display, U: Clone>`
+        >
+        > - When generic parameters are specified **without** angle brackets (such as in type applications, struct or union declarations, or interface headers), **parameters are space-delimited**.
+        >   **Example:** `Array i32`, `Map string User`, `struct Pair T U`, `interface Mappable K V`
+        >
+        > - Constraints on parameters can be specified inline (e.g., `T: Display`) or in a `where` clause, regardless of delimiter style.
         ```able
         fn process<T: Display>(item: T) { ... }
         struct Container T: Numeric + Clone { data: T }
@@ -250,20 +260,20 @@ Type constraints restrict the types that can be used for a generic type paramete
         }
 
         ## Struct with where clause
-        struct ConstrainedContainer<K, V>
+        struct ConstrainedContainer K V
           where K: Hash + Eq, V: Clone {
           key: K,
           value: V
         }
 
         ## Interface with where clause
-        interface AdvancedMappable<A> for M _
+        interface AdvancedMappable A for M _
           where M: Iterable A {
           ## ... signatures ...
         }
 
         ## Implementation with where clause
-        impl<T> Display for MyType<T>
+        impl<T> Display for MyType T
           where T: Numeric + Default {
           ## ... implementation ...
         }
@@ -903,7 +913,7 @@ fn Identifier[<GenericParamList>] ([ParameterList]) [-> ReturnType] [where <Cons
 
 -   **`fn`**: Keyword introducing a function definition.
 -   **`Identifier`**: The function name (e.g., `add`, `process_data`).
--   **`[<GenericParamList>]`**: Optional space-delimited generic parameters and constraints (e.g., `<T>`, `<T: Display>`). Use `<>` delimiters for the list. Constraints can be specified inline here or in the `where` clause.
+-   **`[<GenericParamList>]`**: Optional **comma-delimited** generic parameters and constraints enclosed in angle brackets (e.g., `<T>`, `<T: Display>`, `<A, B, C>`). Constraints can be specified inline here or in the `where` clause.
 -   **`([ParameterList])`**: Required parentheses enclosing the parameter list.
     -   **`ParameterList`**: Comma-separated list of parameters, each defined as `Identifier: Type` (e.g., `a: i32`, `user: User`). Type annotations are generally required unless future inference rules allow omission.
     -   May be empty: `()`.
