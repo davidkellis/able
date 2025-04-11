@@ -49,7 +49,8 @@
     "test": "node --test bindings/node/*_test.js",
     "gen": "tree-sitter generate",
     "corpus": "tree-sitter generate && tree-sitter test",
-    "prebuildify": "prebuildify --napi --strip"
+    "prebuildify": "prebuildify --napi --strip",
+    "rebuild-node": "tree-sitter generate && prebuildify --napi --strip"
   },
   "tree-sitter": [
     {
