@@ -301,7 +301,7 @@ Type constraints restrict the types that can be used for a generic type paramete
 | `bool`   | Boolean logical values                        | `true`, `false`                     |                                                 |
 | `char`   | Single Unicode scalar value (UTF-32)        | `'a'`, `'π'`, `'💡'`, `'\n'`, `'\u{1F604}'` | Single quotes. Supports escape sequences.       |
 | `nil`    | Singleton type representing **absence of data**. | `nil`                               | **Type and value are both `nil` (lowercase)**. Often used with `?Type`. |
-| `void`   | Type with **no values** (empty set).          | *(No literal value)*                | Represents computations completing without data. |
+| `void`   | Type with **no values** (empty set).          | *(No literal value)*                | Represents computations completing without data. In specific contexts like `Proc void` or `Thunk void`, it acts as a signal of successful completion. |
 
 *(See Section [6.1](#61-literals) for detailed literal syntax.)*
 
@@ -438,7 +438,7 @@ Represent values that can be one of several different types (variants). Essentia
 
 #### 4.6.1. Union Declaration
 
-Define a new type as a composition of existing variant types using `|`.
+Define a new type as a composition of existing variant types using `|`. The order of variants in the definition (`A | B` vs `B | A`) is generally not significant for type checking but might influence runtime representation or default pattern matching order (TBD). For consistency, this specification prefers the order `FailureVariant | SuccessVariant` where applicable (e.g., `nil | T`, `Error | T`).
 
 ##### Syntax
 ```able
@@ -482,8 +482,7 @@ Provides concise syntax for types that can be either a specific type or `nil`.
 -   **`Type`**: Any valid type expression.
 
 ##### Equivalence
-`?Type` is syntactic sugar for the union `nil | Type`.
-*(Note: Defined as `nil | Type` rather than `Type | nil`)*
+`?Type` is syntactic sugar for the union `nil | Type`. This follows the `FailureVariant | SuccessVariant` convention.
 
 ##### Examples
 ```able
@@ -561,16 +560,18 @@ This section defines variable binding, assignment, and destructuring in Able. Ab
         ```
 
 *   **Assignment / Initial Binding (`=`)**: `LHS = Expression`
-    *   Performs one of two actions based on the `LHS` and current scope:
-        1.  **Reassignment/Mutation:** If `LHS` refers to existing, accessible, and mutable locations (bindings, fields, indices) found through lexical scoping rules (checking current scope first, then enclosing scopes), it assigns the value of `Expression` to those locations.
-        2.  **Initial Binding:** If `LHS` is a `Pattern` and *none* of the identifiers introduced by the pattern exist as accessible bindings via lexical scoping, it declares **new** mutable bindings for those identifiers in the **current** scope and initializes them. This is effectively a convenience for initial declaration when shadowing is not intended or possible.
-    *   **Precedence:** Reassignment (Action 1) takes precedence. `=` will modify an existing accessible binding before creating a new one with the same name. To guarantee a new binding and shadow an outer variable, use `:=`.
-    *   `LHS` can be:
-        *   An identifier (`x = value`).
-        *   A mutable field access (`instance.field = value`).
-        *   A mutable index access (`array[index] = value`).
-        *   A pattern (`{x, y} = point`) where identifiers either refer to existing mutable locations or introduce new bindings (if no existing binding is found).
-    *   It is a compile-time error if `LHS` refers to bindings/locations that do not exist (and cannot be created via initial binding), are not accessible, or are not mutable.
+    *   Handles both reassignment of existing bindings and initial binding of new ones, depending on the `LHS` and lexical context.
+    *   **If `LHS` is an Identifier:**
+        *   If `Identifier` exists as an accessible, mutable binding (found via lexical scoping, checking current scope first), it **reassigns** that binding.
+        *   If `Identifier` does not exist lexically, it declares a **new** mutable binding in the **current** scope (initial binding).
+    *   **If `LHS` is a Destructuring Pattern (e.g., `{x, y}`, `[a, b]`):**
+        *   For each identifier within the `Pattern`:
+            *   If the identifier matches an existing, accessible, mutable binding (found via lexical scoping), that existing binding is **reassigned**.
+            *   If the identifier does *not* match any existing accessible binding, a **new** mutable binding is created in the **current** scope (initial binding).
+    *   **If `LHS` is a Field/Index Access (`instance.field`, `array[index]`):**
+        *   Performs **mutation** on the specified field or element, provided it's accessible and mutable.
+    *   **Precedence:** Reassignment of existing bindings takes precedence over creating new ones if an identifier matches. To guarantee a new binding that shadows an outer one, use `:=`.
+    *   It is a compile-time error if `LHS` attempts to reassign bindings/locations that are not accessible or not mutable, or access fields/indices that do not exist.
     *   Example (Initial Binding vs. Reassignment):
         ```able
         ## Initial binding (assuming 'a' doesn't exist yet)
@@ -745,8 +746,11 @@ Patterns can be nested arbitrarily within struct and array patterns for both `:=
 
 1.  **Evaluation Order**: The `Expression` (right-hand side) is evaluated first to produce a value.
 2.  **Matching & Binding/Assignment**: The resulting value is then matched against the `Pattern` or `LHS` (left-hand side).
-    *   **`:=`**: Resulting value matched against `Pattern` (LHS). New mutable bindings created in current scope for identifiers introduced in the pattern. It is a compile-time error if any introduced identifier already exists as a binding *in the current scope*.
-    *   **`=`**: Resulting value matched against `LHS` pattern/location specifier. Values assigned to existing, accessible, mutable bindings/locations identified within the LHS. It is a compile-time error if any target location does not exist, is not accessible, or is not mutable.
+    *   **`:=`**: Resulting value matched against `Pattern` (LHS). **Always** creates new mutable bindings in the current scope for identifiers introduced in the pattern, potentially shadowing outer bindings. It is a compile-time error if any introduced identifier already exists as a binding *in the current scope*.
+    *   **`=`**: Resulting value matched against `LHS` pattern/location specifier.
+        *   If `LHS` is a destructuring pattern, identifiers within it are either **reassigned** (if they match existing accessible bindings) or cause **new initial bindings** to be created in the current scope (if they don't match existing bindings).
+        *   If `LHS` is an identifier or field/index access, it performs **reassignment** or **mutation** on the existing target.
+        *   It is a compile-time error if any target location for reassignment/mutation does not exist, is not accessible, or is not mutable.
     *   **Match Failure**: If the value's structure or type does not match the pattern/LHS, a runtime error/panic occurs for both `:=` and `=`.
 3.  **Mutability**: Bindings introduced via `:=` are mutable by default. The `=` operator requires the target location(s) (variable, field, index) to be mutable.
 4.  **Scope**: `:=` introduces bindings into the current lexical scope. `=` operates on existing bindings/locations found according to lexical scoping rules.
@@ -1502,15 +1506,22 @@ addr_string = addr.to_s()     ## Call instance method
 addr.update_zip(90211)        ## Call instance method (mutates addr)
 ```
 
-### 9.4. Method Call Syntax Resolution (Initial Rules)
+### 9.4. Method Call Syntax Resolution
 
 When resolving `receiver.name(args...)`:
 1.  Check for **field** `name` on the `receiver`. If found and callable (implements `Apply`), call it. If found and not callable, error (unless accessing the field value was the intent).
 2.  Check for **inherent method** `name` defined in a `methods TypeName { ... }` block for the type of `receiver`.
-3.  Check for **interface method** `name` from interfaces implemented by the type of `receiver`. Use specificity rules (See Section [10.2.4](#1024-overlapping-implementations-and-specificity)) if multiple interfaces provide `name`.
-4.  Check for **free function** `name` in scope that takes `receiver` as its first argument (Universal Function Call Syntax - UFCS).
-5.  If multiple steps match (e.g., inherent and interface method), inherent methods typically take precedence (TBD - confirm precedence rules).
-6.  If ambiguity remains or no match is found, result in a compile-time error.
+3.  Check for **interface method** `name` from interfaces implemented by the type of `receiver`.
+    *   If multiple interfaces provide `name`, use specificity rules (See Section [10.2.4](#1024-overlapping-implementations-and-specificity)).
+    *   If ambiguity remains after specificity rules (e.g., two unrelated interfaces provide the same method), check for named implementations.
+4.  Check for **named implementation method** `receiver.ImplName.name(...)` if the syntax is used (See Section [10.3.3](#1033-disambiguation-named-impls)). This explicitly selects an implementation.
+5.  Check for **free function** `name` in scope that takes `receiver` as its first argument (Universal Function Call Syntax - UFCS).
+6.  **Precedence:**
+    *   Field access (Step 1) takes highest precedence.
+    *   Inherent methods (Step 2) take precedence over interface methods (Step 3) and UFCS (Step 5).
+    *   Named implementation calls (Step 4) are explicit and bypass ambiguity between Step 2 and 3 if applicable.
+    *   Interface methods (Step 3) take precedence over UFCS (Step 5).
+7.  If ambiguity remains (e.g., multiple equally specific interface methods without named implementation) or no match is found, result in a compile-time error.
 
 ## 10. Interfaces and Implementations
 
@@ -1680,7 +1691,7 @@ Provides bodies for interface methods. Can use `fn #method` shorthand if desired
         *   If interface is `for T`, `Target` can be any type `SomeType` (or a type variable `T` in generic impls).
         *   If interface is `for M _`, `Target` must be `TypeConstructor` (e.g., `Array`). See HKT syntax below.
         *   If interface is `for Array T`, `Target` must be `Array U` (where `U` might be constrained).
-    *   If the interface was defined using `interface ... { ... }` (without `for`), the `Target` **must not** be a bare type constructor (like `Array`). It must be a specific type (e.g., `i32`, `Point`, `Array i32`, or a type variable `T`).
+    *   If the interface was defined using `interface ... { ... }` (without `for`), the `Target` **must not** be a bare type constructor (like `Array` or `Map K _`). It must be a concrete type (e.g., `i32`, `Point`), a fully bound generic type (e.g., `Array i32`), or a type variable `T` constrained elsewhere. Implementing such an interface for a type constructor requires the interface to use the `for M _` pattern. **Compile-time error:** Attempting to `impl InterfaceWithoutFor for TypeConstructor` is an error.
 -   **`[where <ConstraintList>]`**: Optional clause for specifying constraints on `ImplGenericParams`.
 -   **`{ [ConcreteFunctionDefinitions] }`**: Block containing the full definitions (`fn name(...) { body }`) for all functions required by the interface (unless they have defaults). Signatures must match. May override defaults.
 
@@ -1875,20 +1886,20 @@ This mechanism is preferred for handling *expected* errors or optional values gr
     ```able
     user: ?User = find_user(id) ## find_user returns nil or User
     ```
--   **`Result T` (`!Type`)**: Represents the result of an operation that can succeed with a value of type `T` or fail with an error. Defined implicitly as the union `T | Error`.
+-   **`Result T` (`!Type`)**: Represents the result of an operation that can succeed with a value of type `T` or fail with an error. Defined implicitly as the union `Error | T`. This follows the `FailureVariant | SuccessVariant` convention.
     ```able
     ## The 'Error' interface (built-in or standard library, TBD)
     ## Conceptually:
-    interface Error for T {
+    interface Error for T { ## Or maybe implicit self type: interface Error { ... }
         fn message(self: Self) -> string;
         ## Potentially other methods like cause(), stacktrace()
     }
 
-    ## Result T is implicitly: union Result T = T | Error
+    ## Result T is implicitly: union Result T = Error | T
     ## !Type is syntactic sugar for Result T
 
     ## Example function signature
-    fn read_file(path: string) -> !string { ... } ## Returns string or Error
+    fn read_file(path: string) -> !string { ... } ## Returns Error or string
     ```
 
 #### 11.2.2. Error/Option Propagation (`!`)
@@ -2113,18 +2124,18 @@ struct ProcError { details: string } ## Example structure
 ## Interface for interacting with a process handle
 interface Proc T for HandleType { ## HandleType is the concrete type returned by 'proc'
   ## Get the current status of the process
-  fn status(self: Self) -> ProcStatus;
+  fn status(self: Self) -> ProcStatus
 
   ## Attempt to retrieve the result value.
   ## Blocks the *calling* thread until the process status is Resolved, Failed, or Cancelled.
   ## Returns Ok(T) on success, Err(ProcError) on failure or if cancelled before resolution.
-  fn get_value(self: Self) -> Result T ProcError; ## Note: Result T is T | Error
+  fn get_value(self: Self) -> !T
 
   ## Request cancellation of the asynchronous process.
   ## This is a non-blocking request. Cancellation is cooperative; the async task
   ## must potentially check for cancellation requests to terminate early.
   ## Guarantees no specific timing or success, only signals intent.
-  fn cancel(self: Self) -> void;
+  fn cancel(self: Self) -> void
 }
 ```
 
@@ -2132,9 +2143,9 @@ interface Proc T for HandleType { ## HandleType is the concrete type returned by
 
 -   **`status()`**: Returns the current state (`Pending`, `Resolved`, `Cancelled`, `Failed`) without blocking.
 -   **`get_value()`**: Blocks the caller until the process finishes (resolves, fails, or is definitively cancelled).
-    -   If `Resolved`, returns `Ok(value)` where `value` has type `T`. For `Proc void`, returns `Ok(void)` conceptually (or `Ok(nil)` if `void` cannot be wrapped? TBD). Let's assume `Ok(value)` works even for `T=void`.
-    -   If `Failed`, returns `Err(ProcError)` containing error details.
-    -   If `Cancelled`, returns `Err(ProcError)` indicating cancellation.
+    -   If `Resolved`, returns `value` where `value` has type `T`. For `Proc void`, this returns `void` (representing successful completion without data, see Section [4.2](#42-primitive-types)).
+    -   If `Failed`, returns `ProcError` containing error details (which might wrap a panic or other error). ProcError implements the Error interface.
+    -   If `Cancelled`, returns `ProcError` indicating cancellation.
 -   **`cancel()`**: Sends a cancellation signal to the asynchronous task. The task is not guaranteed to stop immediately or at all unless designed to check for cancellation signals.
 
 ##### Example Usage
@@ -2180,8 +2191,8 @@ spawn BlockExpression
     *   If the function/block returns `void`, the return type is `Thunk void`.
 3.  **Implicit Blocking Evaluation**: The core feature of `Thunk T` is its evaluation behavior. When a value of type `Thunk T` is used in a context requiring a value of type `T` (e.g., assignment, passing as argument, part of an expression), the current thread **blocks** until the associated asynchronous computation completes.
     *   If the computation completes successfully with value `v` (type `T`), the evaluation of the `Thunk T` yields `v`.
-    *   If the computation fails (e.g., panics), that panic is **propagated** to the thread evaluating the `Thunk T`.
-    *   Evaluating a `Thunk void` blocks until completion and then yields `void` (effectively synchronizing).
+    *   If the computation fails (e.g., panics or raises an unhandled exception), the evaluation of the `Thunk T` results in an **error** being returned or raised in the evaluating thread. Specifically, it should yield a value compatible with `Result T ProcError`, similar to `Proc T.get_value()`. The `ProcError` would encapsulate the failure details (e.g., a wrapped `PanicError`). This aligns error handling between `proc` and `spawn`.
+    *   Evaluating a `Thunk void` blocks until completion. If successful, it yields `void` (effectively synchronizing). If the underlying task fails, evaluating the `Thunk void` yields an appropriate `ProcError`.
 
 #### 12.3.3. Example
 

@@ -6,47 +6,47 @@ import stdlib.core.{Ordering, Less, Equal, Greater}; ## Import Ordering enum
 
 ## Eq
 ## Checks for equality (==, !=).
-interface Eq for A {
-  fn #eq<B>(other: B) -> bool {
+interface Eq B {
+  fn #eq(other: B) -> bool {
     !#ne(other)
   }
 
   ## Default implementation for !=
-  fn #ne<B>(other: B) -> bool {
+  fn #ne(other: B) -> bool {
     !#eq(other)
   }
 }
 
 ## Ord
 ## Defines inequality operators (<, <=, >, >=).
-interface Ord for T {
+interface Ord Rhs {
   ## Returns Less, Equal, Greater wrapped in an Option (?Ordering),
-  ## or nil if the values are not comparable.
-  fn #cmp<Rhs>(other: Rhs) -> ?Ordering;
+  ## or nil if the values are not comparable, like NaN, even though NaN is in the set of f32 and f64
+  fn #cmp(other: Rhs) -> ?Ordering;
 
   ## Default implementations for comparison operators based on cmp
-  fn #lt<Rhs>(other: Rhs) -> bool {
+  fn #lt(other: Rhs) -> bool {
     match #cmp(other) {
       case Less => true,
       _ => false ## Includes Equal, Greater, and nil cases
     }
   }
 
-  fn #le<Rhs>(other: Rhs) -> bool {
+  fn #le(other: Rhs) -> bool {
      match #cmp(other) {
       case Less | Equal => true,
       _ => false ## Includes Greater and nil cases
     }
   }
 
-  fn #gt<Rhs>(other: Rhs) -> bool {
+  fn #gt(other: Rhs) -> bool {
      match #cmp(other) {
       case Greater => true,
       _ => false ## Includes Less, Equal, and nil cases
     }
   }
 
-  fn #ge<Rhs>(other: Rhs) -> bool {
+  fn #ge(other: Rhs) -> bool {
      match #cmp(other) {
       case Greater | Equal => true,
       _ => false ## Includes Less and nil cases

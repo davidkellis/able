@@ -1,4 +1,4 @@
-"""Able grammar for tree-sitter"""
+"""Able programming langauge"""
 
 from importlib.resources import files as _files
 
