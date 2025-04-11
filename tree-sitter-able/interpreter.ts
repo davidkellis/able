@@ -1,4 +1,5 @@
 import * as TreeSitter from "tree-sitter";
+// import { AbleParser } from "./parser";
 import { AbleParser } from "./parser";
 
 // Runtime value type for Able primitives
@@ -75,17 +76,11 @@ export class AbleInterpreter {
 
     let value: number | bigint;
     if (baseText.startsWith("0x") || baseText.startsWith("-0x")) {
-      value = BigInt(baseText); // Hex
+      value = BigInt(baseText.replace(/_/g, "")); // Hex
     } else if (baseText.startsWith("0o") || baseText.startsWith("-0o")) {
-      value = BigInt.parseInt(
-        baseText.replace("0o", "").replace("-0o", "-"),
-        8
-      ); // Octal
+      value = BigInt(baseText.replace(/_/g, "").replace("0o", "").replace("-0o", "-")); // Octal
     } else if (baseText.startsWith("0b") || baseText.startsWith("-0b")) {
-      value = BigInt.parseInt(
-        baseText.replace("0b", "").replace("-0b", "-"),
-        2
-      ); // Binary
+      value = BigInt(baseText.replace(/_/g, "").replace("0b", "").replace("-0b", "-")); // Binary
     } else {
       value = baseText.includes("_")
         ? BigInt(baseText.replace(/_/g, ""))
