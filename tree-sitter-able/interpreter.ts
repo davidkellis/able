@@ -72,7 +72,7 @@ export class AbleInterpreter {
   private parseIntegerLiteral(text: string): AbleValue {
     const suffixMatch = text.match(/(i|u)(8|16|32|64|128)$/);
     const baseText = suffixMatch ? text.slice(0, -suffixMatch[0].length) : text;
-    const suffix = suffixMatch ? suffixMatch[0] : "32";
+    const suffix = suffixMatch ? suffixMatch[0] : "i32";
 
     let value: number | bigint;
     if (baseText.startsWith("0x") || baseText.startsWith("-0x")) {
