@@ -37,10 +37,10 @@ module.exports = grammar({
         seq(
           optional(/[+-]/),
           choice(
-            /[0-9][0-9_]*/, // Decimal
-            /0[xX][0-9a-fA-F][0-9a-fA-F_]*/, // Hex
-            /0[oO][0-7][0-7_]*/, // Octal
-            /0[bB][0-1][0-1_]*/ // Binary
+            /[0-9][0-9_]*?/, // Decimal
+            /0[xX][0-9a-fA-F][0-9a-fA-F_]*?/, // Hex
+            /0[oO][0-7][0-7_]*?/, // Octal
+            /0[bB][0-1][0-1_]*?/ // Binary
           ),
           optional(
             seq(
