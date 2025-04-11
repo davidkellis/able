@@ -1,0 +1,17 @@
+==================
+strings
+==================
+
+
+"hello world"
+"string with \"quotes\" and \\ backslash"
+"escaped \n newline"
+
+`plain string`
+`string with ${1 + 2} interpolation`
+`escaped backtick \` and dollar \$ not followed by brace`
+`nested ${ "string inside ${ true } expression" }`
+
+---
+
+()

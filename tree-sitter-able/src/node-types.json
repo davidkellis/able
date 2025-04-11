@@ -5,7 +5,51 @@
     "fields": {}
   },
   {
-    "type": "expression_statement",
+    "type": "char_literal",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": false,
+      "types": [
+        {
+          "type": "escape_sequence",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "float_literal",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "integer_literal",
+    "named": true,
+    "fields": {}
+  },
+  {
+    "type": "interpolated_string_literal",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "escape_sequence",
+          "named": true
+        },
+        {
+          "type": "interpolation",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "interpolation",
     "named": true,
     "fields": {},
     "children": {
@@ -29,6 +73,10 @@
           "named": true
         },
         {
+          "type": "interpolated_string_literal",
+          "named": true
+        },
+        {
           "type": "nil_literal",
           "named": true
         },
@@ -40,16 +88,6 @@
     }
   },
   {
-    "type": "float_literal",
-    "named": true,
-    "fields": {}
-  },
-  {
-    "type": "integer_literal",
-    "named": true,
-    "fields": {}
-  },
-  {
     "type": "source_file",
     "named": true,
     "fields": {},
@@ -58,66 +96,81 @@
       "required": false,
       "types": [
         {
-          "type": "expression_statement",
+          "type": "boolean_literal",
+          "named": true
+        },
+        {
+          "type": "char_literal",
+          "named": true
+        },
+        {
+          "type": "float_literal",
+          "named": true
+        },
+        {
+          "type": "integer_literal",
+          "named": true
+        },
+        {
+          "type": "interpolated_string_literal",
+          "named": true
+        },
+        {
+          "type": "nil_literal",
+          "named": true
+        },
+        {
+          "type": "string_literal",
           "named": true
         }
       ]
     }
   },
   {
-    "type": "\n",
+    "type": "string_literal",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "escape_sequence",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "\"",
     "named": false
   },
   {
-    "type": ";",
+    "type": "${",
     "named": false
   },
   {
-    "type": "_",
+    "type": "'",
     "named": false
   },
   {
-    "type": "char_literal",
+    "type": "`",
+    "named": false
+  },
+  {
+    "type": "escape_sequence",
     "named": true
-  },
-  {
-    "type": "f32",
-    "named": false
-  },
-  {
-    "type": "f64",
-    "named": false
   },
   {
     "type": "false",
     "named": false
   },
   {
-    "type": "i128",
-    "named": false
-  },
-  {
-    "type": "i16",
-    "named": false
-  },
-  {
-    "type": "i32",
-    "named": false
-  },
-  {
-    "type": "i64",
-    "named": false
-  },
-  {
-    "type": "i8",
-    "named": false
-  },
-  {
-    "type": "nil_literal",
+    "type": "line_comment",
     "named": true
   },
   {
-    "type": "string_literal",
+    "type": "nil_literal",
     "named": true
   },
   {
@@ -125,23 +178,7 @@
     "named": false
   },
   {
-    "type": "u128",
-    "named": false
-  },
-  {
-    "type": "u16",
-    "named": false
-  },
-  {
-    "type": "u32",
-    "named": false
-  },
-  {
-    "type": "u64",
-    "named": false
-  },
-  {
-    "type": "u8",
+    "type": "}",
     "named": false
   }
 ]
