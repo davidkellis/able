@@ -52,7 +52,7 @@ module.exports = grammar({
     _integer_literal_base: ($) =>
       token(
         choice(
-          /\d[\d_]*\d/, // Decimal
+          /\d[\d_]*/, // Decimal (allow single digit)
           seq(/0[xX]/, /[a-fA-F0-9][a-fA-F0-9_]*/), // Hexadecimal
           seq(/0[oO]/, /[0-7][0-7_]*/), // Octal
           seq(/0[bB]/, /[01][01_]*/) // Binary
@@ -67,9 +67,16 @@ module.exports = grammar({
       ),
 
     float_literal: ($) =>
-      seq(
-        $._float_literal_base,
-        optional($._float_type_suffix)
+      choice(
+        seq(
+          $._float_literal_base,
+          optional($._float_type_suffix)
+        ),
+        // Allow integer base + required float type suffix (e.g., 3_f32)
+        seq(
+          $._integer_literal_base,
+          $._float_type_suffix
+        )
       ),
 
     _float_literal_base: ($) =>
