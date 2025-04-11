@@ -10,3 +10,10 @@ floats
 
 ---
 
+(source_file
+  (float_literal)
+  (float_literal)
+  (float_literal)
+  (float_literal)
+  (float_literal)
+)

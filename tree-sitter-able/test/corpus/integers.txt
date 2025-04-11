@@ -12,3 +12,12 @@ integers
 
 ---
 
+(source_file
+  (integer_literal)
+  (integer_literal)
+  (integer_literal)
+  (integer_literal)
+  (integer_literal)
+  (integer_literal)
+  (integer_literal)
+)
