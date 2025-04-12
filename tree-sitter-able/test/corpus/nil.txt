@@ -6,4 +6,6 @@ nil
 
 ---
 
-()
+(source_file
+  (nil_literal)
+)
