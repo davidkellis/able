@@ -20,16 +20,6 @@
     }
   },
   {
-    "type": "float_literal",
-    "named": true,
-    "fields": {}
-  },
-  {
-    "type": "integer_literal",
-    "named": true,
-    "fields": {}
-  },
-  {
     "type": "interpolated_string_literal",
     "named": true,
     "fields": {},
@@ -164,6 +154,14 @@
   {
     "type": "false",
     "named": false
+  },
+  {
+    "type": "float_literal",
+    "named": true
+  },
+  {
+    "type": "integer_literal",
+    "named": true
   },
   {
     "type": "line_comment",
