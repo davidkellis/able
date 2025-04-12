@@ -116,7 +116,7 @@ module.exports = grammar({
     // Handles \n, \r, \t, \\, \', \", \`, \$ and \u{...}
     // Note: Added \` and \$ explicitly here for clarity, though \\. covers them.
     escape_sequence: ($) =>
-      token.immediate(/\\(?:[nrt\\'"`$]|\\[uU]\{[0-9a-fA-F]{1,6}\})/), // Match \ followed by specific chars or unicode sequence
+      token.immediate(/\\(?:[nrt\\'"`$]|[uU]\{[0-9a-fA-F]{1,6}\})/), // Match \ followed by specific chars or unicode sequence
 
     // Alternative escape_sequence using simpler `\\.` if the above is too restrictive
     // escape_sequence: $ => token.immediate(/\\./), // Matches \ followed by ANY single character
