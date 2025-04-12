@@ -46,237 +46,49 @@
       ]
     },
     "integer_literal": {
-      "type": "SEQ",
-      "members": [
-        {
-          "type": "SYMBOL",
-          "name": "_integer_literal_base"
-        },
-        {
-          "type": "CHOICE",
-          "members": [
-            {
-              "type": "SYMBOL",
-              "name": "_integer_type_suffix"
-            },
-            {
-              "type": "BLANK"
-            }
-          ]
-        }
-      ]
-    },
-    "_integer_literal_base": {
       "type": "TOKEN",
       "content": {
         "type": "CHOICE",
         "members": [
           {
             "type": "PATTERN",
-            "value": "\\d[\\d_]*\\d"
-          },
-          {
-            "type": "SEQ",
-            "members": [
-              {
-                "type": "PATTERN",
-                "value": "0[xX]"
-              },
-              {
-                "type": "PATTERN",
-                "value": "[a-fA-F0-9][a-fA-F0-9_]*"
-              }
-            ]
-          },
-          {
-            "type": "SEQ",
-            "members": [
-              {
-                "type": "PATTERN",
-                "value": "0[oO]"
-              },
-              {
-                "type": "PATTERN",
-                "value": "[0-7][0-7_]*"
-              }
-            ]
-          },
-          {
-            "type": "SEQ",
-            "members": [
-              {
-                "type": "PATTERN",
-                "value": "0[bB]"
-              },
-              {
-                "type": "PATTERN",
-                "value": "[01][01_]*"
-              }
-            ]
-          }
-        ]
-      }
-    },
-    "_integer_type_suffix": {
-      "type": "TOKEN",
-      "content": {
-        "type": "CHOICE",
-        "members": [
-          {
-            "type": "PATTERN",
-            "value": "_i8"
+            "value": "\\d[\\d_]*(_i8|_u8|_i16|_u16|_i32|_u32|_i64|_u64|_i128|_u128)?"
           },
           {
             "type": "PATTERN",
-            "value": "_u8"
+            "value": "0[xX][a-fA-F0-9][a-fA-F0-9_]*(_i8|_u8|_i16|_u16|_i32|_u32|_i64|_u64|_i128|_u128)?"
           },
           {
             "type": "PATTERN",
-            "value": "_i16"
+            "value": "0[oO][0-7][0-7_]*(_i8|_u8|_i16|_u16|_i32|_u32|_i64|_u64|_i128|_u128)?"
           },
           {
             "type": "PATTERN",
-            "value": "_u16"
-          },
-          {
-            "type": "PATTERN",
-            "value": "_i32"
-          },
-          {
-            "type": "PATTERN",
-            "value": "_u32"
-          },
-          {
-            "type": "PATTERN",
-            "value": "_i64"
-          },
-          {
-            "type": "PATTERN",
-            "value": "_u64"
-          },
-          {
-            "type": "PATTERN",
-            "value": "_i128"
-          },
-          {
-            "type": "PATTERN",
-            "value": "_u128"
+            "value": "0[bB][01][01_]*(_i8|_u8|_i16|_u16|_i32|_u32|_i64|_u64|_i128|_u128)?"
           }
         ]
       }
     },
     "float_literal": {
-      "type": "SEQ",
-      "members": [
-        {
-          "type": "SYMBOL",
-          "name": "_float_literal_base"
-        },
-        {
-          "type": "CHOICE",
-          "members": [
-            {
-              "type": "SYMBOL",
-              "name": "_float_type_suffix"
-            },
-            {
-              "type": "BLANK"
-            }
-          ]
-        }
-      ]
-    },
-    "_float_literal_base": {
       "type": "TOKEN",
       "content": {
         "type": "CHOICE",
         "members": [
           {
-            "type": "SEQ",
-            "members": [
-              {
-                "type": "PATTERN",
-                "value": "\\d[\\d_]*\\.(\\d[\\d_]*)?"
-              },
-              {
-                "type": "CHOICE",
-                "members": [
-                  {
-                    "type": "SEQ",
-                    "members": [
-                      {
-                        "type": "PATTERN",
-                        "value": "[eE]"
-                      },
-                      {
-                        "type": "CHOICE",
-                        "members": [
-                          {
-                            "type": "PATTERN",
-                            "value": "[+-]"
-                          },
-                          {
-                            "type": "BLANK"
-                          }
-                        ]
-                      },
-                      {
-                        "type": "PATTERN",
-                        "value": "\\d[\\d_]*"
-                      }
-                    ]
-                  },
-                  {
-                    "type": "BLANK"
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "type": "SEQ",
-            "members": [
-              {
-                "type": "PATTERN",
-                "value": "\\d[\\d_]*"
-              },
-              {
-                "type": "PATTERN",
-                "value": "[eE]"
-              },
-              {
-                "type": "CHOICE",
-                "members": [
-                  {
-                    "type": "PATTERN",
-                    "value": "[+-]"
-                  },
-                  {
-                    "type": "BLANK"
-                  }
-                ]
-              },
-              {
-                "type": "PATTERN",
-                "value": "\\d[\\d_]*"
-              }
-            ]
-          }
-        ]
-      }
-    },
-    "_float_type_suffix": {
-      "type": "IMMEDIATE_TOKEN",
-      "content": {
-        "type": "CHOICE",
-        "members": [
-          {
             "type": "PATTERN",
-            "value": "_f32"
+            "value": "\\d[\\d_]*\\.\\d[\\d_]*(?:[eE][+-]?\\d[\\d_]*)?(_f32|_f64)?"
           },
           {
             "type": "PATTERN",
-            "value": "_f64"
+            "value": "\\d[\\d_]*\\.(?:[eE][+-]?\\d[\\d_]*)?(_f32|_f64)?"
+          },
+          {
+            "type": "PATTERN",
+            "value": "\\d[\\d_]*[eE][+-]?\\d[\\d_]*(_f32|_f64)?"
+          },
+          {
+            "type": "PATTERN",
+            "value": "\\d[\\d_]*(_f32|_f64)"
           }
         ]
       }

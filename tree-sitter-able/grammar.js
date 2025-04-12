@@ -44,53 +44,30 @@ module.exports = grammar({
 
     // --- Other Literals (Unchanged from previous correct version) ---
     integer_literal: ($) =>
-      seq(
-        $._integer_literal_base,
-        optional($._integer_type_suffix)
-      ),
-
-    _integer_literal_base: ($) =>
       token(
         choice(
-          /\d[\d_]*/, // Decimal (allow single digit)
-          seq(/0[xX]/, /[a-fA-F0-9][a-fA-F0-9_]*/), // Hexadecimal
-          seq(/0[oO]/, /[0-7][0-7_]*/), // Octal
-          seq(/0[bB]/, /[01][01_]*/) // Binary
-        )
-      ),
-
-    _integer_type_suffix: ($) =>
-      token(
-        choice(
-          /_i8/, /_u8/, /_i16/, /_u16/, /_i32/, /_u32/, /_i64/, /_u64/, /_i128/, /_u128/
+          // Decimal with optional underscores and optional type suffix
+          /\d[\d_]*(_i8|_u8|_i16|_u16|_i32|_u32|_i64|_u64|_i128|_u128)?/,
+          // Hexadecimal with optional underscores and optional type suffix
+          /0[xX][a-fA-F0-9][a-fA-F0-9_]*(_i8|_u8|_i16|_u16|_i32|_u32|_i64|_u64|_i128|_u128)?/,
+          // Octal with optional underscores and optional type suffix
+          /0[oO][0-7][0-7_]*(_i8|_u8|_i16|_u16|_i32|_u32|_i64|_u64|_i128|_u128)?/,
+          // Binary with optional underscores and optional type suffix
+          /0[bB][01][01_]*(_i8|_u8|_i16|_u16|_i32|_u32|_i64|_u64|_i128|_u128)?/
         )
       ),
 
     float_literal: ($) =>
-      choice(
-        seq(
-          $._float_literal_base,
-          optional($._float_type_suffix)
-        ),
-        // Allow integer base + required float type suffix (e.g., 3_f32)
-        seq(
-          $._integer_literal_base,
-          $._float_type_suffix
-        )
-      ),
-
-    _float_literal_base: ($) =>
       token(
         choice(
-          seq(/\d[\d_]*\.(\d[\d_]*)?/, optional(seq(/[eE]/, optional(/[+-]/), /\d[\d_]*/))), // Decimal with optional exponent
-          seq(/\d[\d_]*/, /[eE]/, optional(/[+-]/), /\d[\d_]*/) // Exponent-only form
-        )
-      ),
-
-    _float_type_suffix: ($) =>
-      token.immediate(
-        choice(
-          /_f32/, /_f64/
+          // Decimal float with optional underscores, optional exponent, and optional type suffix
+          /\d[\d_]*\.\d[\d_]*(?:[eE][+-]?\d[\d_]*)?(_f32|_f64)?/,
+          // Decimal float with no fractional part, but with exponent and optional type suffix
+          /\d[\d_]*\.(?:[eE][+-]?\d[\d_]*)?(_f32|_f64)?/,
+          // Integer with exponent and optional type suffix
+          /\d[\d_]*[eE][+-]?\d[\d_]*(_f32|_f64)?/,
+          // Integer with float type suffix (e.g., 3_f32)
+          /\d[\d_]*(_f32|_f64)/
         )
       ),
 
