@@ -14,4 +14,18 @@ strings
 
 ---
 
-()
+(source_file
+  (string_literal)
+  (string_literal
+    (escape_sequence)
+    (escape_sequence))
+  (string_literal
+    (escape_sequence))
+  (interpolated_string_literal)
+  (interpolated_string_literal)
+  (interpolated_string_literal
+    (escape_sequence)
+    (escape_sequence))
+  (interpolated_string_literal)
+  (interpolated_string_literal)
+)

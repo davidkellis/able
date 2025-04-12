@@ -242,7 +242,7 @@
       "type": "IMMEDIATE_TOKEN",
       "content": {
         "type": "PATTERN",
-        "value": "\\\\(?:[nrt\\\\'\"`$]|\\\\[uU]\\{[0-9a-fA-F]{1,6}\\})"
+        "value": "\\\\(?:[nrt\\\\'\"`$]|[uU]\\{[0-9a-fA-F]{1,6}\\})"
       }
     },
     "nil_literal": {
