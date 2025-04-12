@@ -134,5 +134,3 @@ class RaiseSignal {
     constructor(public value: AbleValue) {}
 }
 
-// --- Environment ---
-class Environment
