@@ -185,26 +185,48 @@
         {
           "type": "REPEAT",
           "content": {
-            "type": "CHOICE",
-            "members": [
-              {
-                "type": "SYMBOL",
-                "name": "interpolation"
-              },
-              {
-                "type": "SYMBOL",
-                "name": "escape_sequence"
-              },
-              {
-                "type": "SYMBOL",
-                "name": "_interpolated_content"
-              }
-            ]
+            "type": "SYMBOL",
+            "name": "interpolated_string_part"
           }
         },
         {
           "type": "STRING",
           "value": "`"
+        }
+      ]
+    },
+    "interpolated_string_part": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "REPEAT1",
+              "content": {
+                "type": "CHOICE",
+                "members": [
+                  {
+                    "type": "SYMBOL",
+                    "name": "_interpolated_content"
+                  },
+                  {
+                    "type": "SYMBOL",
+                    "name": "escape_sequence"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
+            "name": "interpolation"
+          },
+          "named": true,
+          "value": "interpolation_expression"
         }
       ]
     },
@@ -276,9 +298,18 @@
       "name": "line_comment"
     }
   ],
-  "conflicts": [],
+  "conflicts": [
+    [
+      "interpolated_string_part"
+    ],
+    [
+      "interpolated_string_literal"
+    ]
+  ],
   "precedences": [],
   "externals": [],
-  "inline": [],
+  "inline": [
+    "interpolated_string_part"
+  ],
   "supertypes": []
 }

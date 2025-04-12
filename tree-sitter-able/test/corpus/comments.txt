@@ -6,4 +6,5 @@ comments
 
 ---
 
-(source_file)
+(source_file
+  (line_comment))
