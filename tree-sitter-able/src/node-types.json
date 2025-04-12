@@ -32,14 +32,14 @@
           "named": true
         },
         {
-          "type": "interpolation",
+          "type": "interpolation_expression",
           "named": true
         }
       ]
     }
   },
   {
-    "type": "interpolation",
+    "type": "interpolation_expression",
     "named": true,
     "fields": {},
     "children": {

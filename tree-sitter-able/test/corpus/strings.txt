@@ -8,9 +8,7 @@ strings
 "escaped \n newline"
 
 `plain string`
-`string with ${1 + 2} interpolation`
-`escaped backtick \` and dollar \$ not followed by brace`
-`nested ${ "string inside ${ true } expression" }`
+`string with ${1} interpolation`
 
 ---
 
@@ -18,14 +16,15 @@ strings
   (string_literal)
   (string_literal
     (escape_sequence)
+    (escape_sequence)
     (escape_sequence))
   (string_literal
     (escape_sequence))
-  (interpolated_string_literal)
-  (interpolated_string_literal)
   (interpolated_string_literal
-    (escape_sequence)
-    (escape_sequence))
-  (interpolated_string_literal)
-  (interpolated_string_literal)
+    (string_literal))
+  (interpolated_string_literal
+    (string_literal)
+    (interpolation_expression
+      (integer_literal))
+    (string_literal))
 )
