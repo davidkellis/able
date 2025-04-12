@@ -24,7 +24,14 @@ module.exports = grammar({
 
   precedences: ($) => [],
 
-  conflicts: ($) => [],
+  inline: ($) => [
+    $.interpolated_string_part
+  ],
+
+  conflicts: ($) => [
+    [$.interpolated_string_part],
+    [$.interpolated_string_literal]
+  ],
 
   rules: {
     source_file: ($) => repeat($._expression),
@@ -88,14 +95,23 @@ module.exports = grammar({
     interpolated_string_literal: ($) =>
       seq(
         "`",
-        repeat(
-          choice(
-            $.interpolation, // Handles ${expression}
-            $.escape_sequence, // Handles \`, \$, \\, etc. (using the common rule)
-            $._interpolated_content // Handles any other character sequence
+        repeat($.interpolated_string_part),
+        "`"
+      ),
+
+    interpolated_string_part: ($) =>
+      choice(
+        // One or more _interpolated_content or escape_sequence as a string_literal
+        seq(
+          repeat1(
+            choice(
+              $._interpolated_content,
+              $.escape_sequence
+            )
           )
         ),
-        "`"
+        // Interpolation as interpolation_expression
+        alias($.interpolation, $.interpolation_expression)
       ),
 
     // **Corrected Token** for content within interpolated string
