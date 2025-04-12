@@ -127,6 +127,7 @@ type AbleValue =
   | AbleThunk // Added
   | AbleArray // Added
   | AbleRange // Added
+  | AbleIterator // Added for for-loops
   ;
 
 // Special object to signal a `return` occurred
@@ -134,16 +135,24 @@ class ReturnSignal {
     constructor(public value: AbleValue) {}
 }
 // Special object to signal a `raise` occurred
-class RaiseSignal {
-    constructor(public value: AbleValue) {} // Should typically be AbleError
+class RaiseSignal extends Error { // Inherit from Error for better stack traces?
+    constructor(public value: AbleValue) { // Should typically be AbleError
+        super(`RaiseSignal: ${JSON.stringify(value)}`); // Add message for debugging
+        this.name = 'RaiseSignal';
+    }
 }
 // Special object to signal a `break` occurred
-class BreakSignal {
-    constructor(public label: string, public value: AbleValue) {}
+class BreakSignal extends Error {
+    constructor(public label: string, public value: AbleValue) {
+        super(`BreakSignal: '${label}' with ${JSON.stringify(value)}`);
+        this.name = 'BreakSignal';
+    }
 }
+// Add IteratorEnd signal/value
+const IteratorEnd: AblePrimitive = { kind: 'nil', value: null }; // Use nil for now, maybe dedicated type later
 
-// Type for results that might be signals
-type EvaluationResult = AbleValue | ReturnSignal | RaiseSignal | BreakSignal;
+// Type for results that might be signals - Now signals are thrown, so this isn't used directly for return values
+// type EvaluationResult = AbleValue | ReturnSignal | RaiseSignal | BreakSignal;
 
 
 // --- Environment ---
@@ -230,71 +239,63 @@ class Interpreter {
     interpretModule(moduleNode: AST.Module): void {
         // TODO: Handle package and import statements first
         // For now, just evaluate the body in the global scope
-        let finalResult: EvaluationResult | undefined;
         try {
-            finalResult = this.evaluateStatements(moduleNode.body, this.globalEnv);
-            // Check for uncaught signals from the module body evaluation
-            if (finalResult instanceof RaiseSignal) {
-                console.error("Uncaught Exception:", this.valueToString(finalResult.value));
-                return;
+            // Evaluate definitions first (simple pass, doesn't handle complex dependencies)
+            for (const stmt of moduleNode.body) {
+                if (stmt.type === 'FunctionDefinition' || stmt.type === 'StructDefinition' || stmt.type === 'UnionDefinition' || stmt.type === 'InterfaceDefinition' || stmt.type === 'ImplementationDefinition' || stmt.type === 'MethodsDefinition') {
+                     this.evaluate(stmt, this.globalEnv);
+                }
             }
-             if (finalResult instanceof ReturnSignal || finalResult instanceof BreakSignal) {
-                console.error("Interpreter Error: Unexpected return/break at module level.");
-                return;
-            }
-
             // Find and call the 'main' function if it exists
-            let mainFunc: AbleValue | undefined;
-            try {
-                 mainFunc = this.globalEnv.get('main');
-            } catch (e) {
-                // 'main' not defined is okay
-            }
-
-            if (mainFunc && mainFunc.kind === 'function') {
-                this.executeFunction(mainFunc, [], this.globalEnv); // Call main with no args
-            } else {
-                console.warn("Warning: No 'main' function found or 'main' is not a function.");
-            }
-        } catch (error) {
-            // Catch runtime errors from the interpreter itself (including uncaught signals from main)
-             if (error instanceof RaiseSignal) {
-                 console.error("Uncaught Exception:", this.valueToString(error.value));
-             } else if (error instanceof ReturnSignal || error instanceof BreakSignal) {
-                 console.error("Interpreter Error: Unexpected return/break at module level.");
-             } else {
-                console.error("Interpreter Runtime Error:", error);
+             let mainFunc: AbleValue | undefined;
+             try {
+                  mainFunc = this.globalEnv.get('main');
+             } catch (e) {
+                 // 'main' not defined is okay
              }
+
+             if (mainFunc && mainFunc.kind === 'function') {
+                 this.executeFunction(mainFunc, [], this.globalEnv); // Call main with no args
+             } else {
+                 // Only warn if main exists but isn't a function. Don't warn if it doesn't exist.
+                 if (mainFunc) {
+                    console.warn("Warning: 'main' was found but is not a function.");
+                 }
+                 // If no main, maybe evaluate top-level expressions? For now, do nothing else.
+             }
+        } catch (error) {
+             // Catch runtime errors from the interpreter itself (including uncaught signals from main)
+              if (error instanceof RaiseSignal) {
+                  console.error("Uncaught Exception:", this.valueToString(error.value));
+              } else if (error instanceof ReturnSignal || error instanceof BreakSignal) {
+                  console.error("Interpreter Error: Unexpected return/break at module level.");
+              } else if (error instanceof Error) { // Catch standard JS errors too
+                 console.error("Interpreter Runtime Error:", error.message, error.stack);
+              } else {
+                 console.error("Unknown Interpreter Error:", error);
+              }
         }
     }
 
-    // Evaluates statements, returning the last value or propagating signals
-    private evaluateStatements(statements: AST.Statement[], environment: Environment): EvaluationResult {
+    // Evaluates statements, returning the last value. Throws signals.
+    private evaluateStatements(statements: AST.Statement[], environment: Environment): AbleValue {
         let lastValue: AbleValue = { kind: 'nil', value: null }; // Default result of a block is nil unless specified
 
         for (const stmt of statements) {
-            try {
-                lastValue = this.evaluate(stmt, environment);
-                // evaluate should throw signals, so we shouldn't see them here directly
-            } catch (signal) {
-                // Catch signals thrown by evaluate and propagate them immediately
-                if (signal instanceof ReturnSignal || signal instanceof RaiseSignal || signal instanceof BreakSignal) {
-                    return signal; // Return the signal to be handled by the caller
-                } else {
-                    throw signal; // Re-throw other errors
-                }
-            }
+            // Evaluate each statement. Signals are thrown and caught by callers.
+            lastValue = this.evaluate(stmt, environment);
         }
         return lastValue; // Return the normal value of the last statement/expression
     }
 
     // The core evaluation dispatcher - returns AbleValue, throws signals
     evaluate(node: AST.AstNode | null, environment: Environment): AbleValue {
-        if (!node) return { kind: 'nil', value: null }; // Handle null nodes if they appear
+        try { // Add try block to help pinpoint errors
+            if (!node) return { kind: 'nil', value: null }; // Handle null nodes if they appear
 
-        // Use type assertions within each case block for clarity and safety
-        switch (node.type) {
-            // --- Literals ---
+            // Use type assertions within each case block for clarity and safety
+            switch (node.type) {
+                // --- Literals ---
             case 'StringLiteral': {
                 const typedNode = node as AST.StringLiteral;
                 return { kind: 'string', value: typedNode.value };
@@ -336,18 +337,10 @@ class Interpreter {
                 const typedNode = node as AST.Identifier;
                 return environment.get(typedNode.name);
             }
-            case 'BlockExpression': {
-                const typedNode = node as AST.BlockExpression;
-                const blockEnv = new Environment(environment); // Create new scope for the block
-                const blockResult = this.evaluateStatements(typedNode.body, blockEnv);
-                // If a signal occurred within the block, propagate it up by throwing
-                if (blockResult instanceof ReturnSignal || blockResult instanceof RaiseSignal || blockResult instanceof BreakSignal) {
-                    throw blockResult;
-                }
-                return blockResult; // Return the normal value
-            }
-            case 'UnaryExpression':
-                return this.evaluateUnaryExpression(node as AST.UnaryExpression, environment);
+            case 'BlockExpression':
+                return this.evaluateBlockExpression(node as AST.BlockExpression, environment);
+             case 'UnaryExpression':
+                 return this.evaluateUnaryExpression(node as AST.UnaryExpression, environment);
             case 'BinaryExpression':
                 return this.evaluateBinaryExpression(node as AST.BinaryExpression, environment);
             case 'AssignmentExpression':
@@ -401,12 +394,25 @@ class Interpreter {
 
             default:
                 // Use a type assertion to catch unhandled node types
-                const _exhaustiveCheck: never = node;
-                throw new Error(`Interpreter Error: Unknown AST node type: ${(_exhaustiveCheck as any).type}`);
+                 const _exhaustiveCheck: never = node;
+                 throw new Error(`Interpreter Error: Unknown AST node type: ${(_exhaustiveCheck as any).type}`);
+         }
+        } catch (e) {
+            // Add context to errors
+            if (e instanceof Error && !(e instanceof ReturnSignal || e instanceof RaiseSignal || e instanceof BreakSignal)) {
+                 console.error(`Error during evaluation of ${node?.type} node:`, node);
+            }
+            throw e; // Re-throw signal or error
         }
     }
 
     // --- Specific Evaluators ---
+
+    private evaluateBlockExpression(node: AST.BlockExpression, environment: Environment): AbleValue {
+        const blockEnv = new Environment(environment); // Create new scope for the block
+        // evaluateStatements now throws signals directly
+        return this.evaluateStatements(node.body, blockEnv);
+    }
 
     private evaluateUnaryExpression(node: AST.UnaryExpression, environment: Environment): AbleValue {
         const operand = this.evaluate(node.operand, environment);
@@ -1022,10 +1028,10 @@ class Interpreter {
     }
 
     // Convert runtime value to string for printing (basic)
-    private valueToString(value: AbleValue | EvaluationResult): string {
-        if (value instanceof ReturnSignal) return `<return ${this.valueToString(value.value)}>`;
-        if (value instanceof RaiseSignal) return `<raise ${this.valueToString(value.value)}>`;
-        if (value instanceof BreakSignal) return `<break '${value.label}' ${this.valueToString(value.value)}>`;
+    private valueToString(value: AbleValue): string { // Removed EvaluationResult as signals are errors now
+        // if (value instanceof ReturnSignal) return `<return ${this.valueToString(value.value)}>`; // Handled by catching Error
+        // if (value instanceof RaiseSignal) return `<raise ${this.valueToString(value.value)}>`; // Handled by catching Error
+        // if (value instanceof BreakSignal) return `<break '${value.label}' ${this.valueToString(value.value)}>`; // Handled by catching Error
 
         if (value === null || value === undefined) return "<?>"; // Should not happen with typed values
 
@@ -1072,6 +1078,7 @@ class Interpreter {
             case 'proc_handle': return `<proc ${value.id}>`;
             case 'thunk': return `<thunk ${value.id}>`;
             case 'range': return `${value.start}${value.inclusive ? '..' : '...'}${value.end}`;
+            case 'AbleIterator': return `<iterator>`; // Placeholder for iterator representation
             default:
                  // Use type assertion for exhaustive check
                  const _exhaustiveCheck: never = value;
