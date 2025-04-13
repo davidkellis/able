@@ -363,75 +363,107 @@ class Interpreter {
 
       switch (node.type) {
         // --- Literals ---
-        case "StringLiteral":           return { kind: "string", value: (node as AST.StringLiteral).value };
+        case "StringLiteral":
+          return { kind: "string", value: (node as AST.StringLiteral).value };
         case "IntegerLiteral": {
-            const typedNode = node as AST.IntegerLiteral;
-            const intType = typedNode.integerType || "i32";
-            if (["i64", "i128", "u64", "u128"].includes(intType)) {
-                return { kind: intType as any, value: BigInt(typedNode.value.toString()) };
-            } else {
-                return { kind: intType as any, value: Number(typedNode.value) };
-            }
+          const typedNode = node as AST.IntegerLiteral;
+          const intType = typedNode.integerType || "i32";
+          if (["i64", "i128", "u64", "u128"].includes(intType)) {
+            return { kind: intType as any, value: BigInt(typedNode.value.toString()) };
+          } else {
+            return { kind: intType as any, value: Number(typedNode.value) };
+          }
         }
-        case "FloatLiteral":            return { kind: (node as AST.FloatLiteral).floatType || "f64", value: (node as AST.FloatLiteral).value };
-        case "BooleanLiteral":          return { kind: "bool", value: (node as AST.BooleanLiteral).value };
-        case "NilLiteral":              return { kind: "nil", value: null };
-        case "CharLiteral":             return { kind: "char", value: (node as AST.CharLiteral).value };
+        case "FloatLiteral":
+          return { kind: (node as AST.FloatLiteral).floatType || "f64", value: (node as AST.FloatLiteral).value };
+        case "BooleanLiteral":
+          return { kind: "bool", value: (node as AST.BooleanLiteral).value };
+        case "NilLiteral":
+          return { kind: "nil", value: null };
+        case "CharLiteral":
+          return { kind: "char", value: (node as AST.CharLiteral).value };
         case "ArrayLiteral": {
-            const typedNode = node as AST.ArrayLiteral;
-            const elements = typedNode.elements.map((el) => this.evaluate(el, environment));
-            return { kind: "array", elements };
+          const typedNode = node as AST.ArrayLiteral;
+          const elements = typedNode.elements.map((el) => this.evaluate(el, environment));
+          return { kind: "array", elements };
         }
 
         // --- Expressions ---
-        case "Identifier":              return environment.get((node as AST.Identifier).name);
-        case "BlockExpression":         return this.evaluateBlockExpression(node as AST.BlockExpression, environment);
-        case "UnaryExpression":         return this.evaluateUnaryExpression(node as AST.UnaryExpression, environment);
-        case "BinaryExpression":        return this.evaluateBinaryExpression(node as AST.BinaryExpression, environment);
-        case "AssignmentExpression":    return this.evaluateAssignmentExpression(node as AST.AssignmentExpression, environment);
-        case "FunctionCall":            return this.evaluateFunctionCall(node as AST.FunctionCall, environment);
-        case "IfExpression":            return this.evaluateIfExpression(node as AST.IfExpression, environment);
-        case "StructLiteral":           return this.evaluateStructLiteral(node as AST.StructLiteral, environment);
-        case "MemberAccessExpression":  return this.evaluateMemberAccess(node as AST.MemberAccessExpression, environment);
-        case "StringInterpolation":     return this.evaluateStringInterpolation(node as AST.StringInterpolation, environment);
-        case "LambdaExpression":        return this.evaluateLambdaExpression(node as AST.LambdaExpression, environment); // Added call
-        case "RangeExpression":         return this.evaluateRangeExpression(node as AST.RangeExpression, environment);
-        case "MatchExpression":         /* TODO */ return { kind: "nil", value: null };
-        case "ProcExpression":          /* TODO */ return { kind: "nil", value: null };
-        case "SpawnExpression":         /* TODO */ return { kind: "nil", value: null };
-        case "BreakpointExpression":    /* TODO */ return { kind: "nil", value: null };
-        case "RescueExpression":        /* TODO */ return { kind: "nil", value: null };
-        case "PropagationExpression":   /* TODO */ return { kind: "nil", value: null };
-        case "OrElseExpression":        /* TODO */ return { kind: "nil", value: null };
+        case "Identifier":
+          return environment.get((node as AST.Identifier).name);
+        case "BlockExpression":
+          return this.evaluateBlockExpression(node as AST.BlockExpression, environment);
+        case "UnaryExpression":
+          return this.evaluateUnaryExpression(node as AST.UnaryExpression, environment);
+        case "BinaryExpression":
+          return this.evaluateBinaryExpression(node as AST.BinaryExpression, environment);
+        case "AssignmentExpression":
+          return this.evaluateAssignmentExpression(node as AST.AssignmentExpression, environment);
+        case "FunctionCall":
+          return this.evaluateFunctionCall(node as AST.FunctionCall, environment);
+        case "IfExpression":
+          return this.evaluateIfExpression(node as AST.IfExpression, environment);
+        case "StructLiteral":
+          return this.evaluateStructLiteral(node as AST.StructLiteral, environment);
+        case "MemberAccessExpression":
+          return this.evaluateMemberAccess(node as AST.MemberAccessExpression, environment);
+        case "StringInterpolation":
+          return this.evaluateStringInterpolation(node as AST.StringInterpolation, environment);
+        case "LambdaExpression":
+          return this.evaluateLambdaExpression(node as AST.LambdaExpression, environment); // Added call
+        case "RangeExpression":
+          return this.evaluateRangeExpression(node as AST.RangeExpression, environment);
+        case "MatchExpression":
+          /* TODO */ return { kind: "nil", value: null };
+        case "ProcExpression":
+          /* TODO */ return { kind: "nil", value: null };
+        case "SpawnExpression":
+          /* TODO */ return { kind: "nil", value: null };
+        case "BreakpointExpression":
+          /* TODO */ return { kind: "nil", value: null };
+        case "RescueExpression":
+          /* TODO */ return { kind: "nil", value: null };
+        case "PropagationExpression":
+          /* TODO */ return { kind: "nil", value: null };
+        case "OrElseExpression":
+          /* TODO */ return { kind: "nil", value: null };
 
         // --- Statements/Definitions (Evaluate definition, return nil) ---
         case "FunctionDefinition":
-            this.evaluateFunctionDefinition(node as AST.FunctionDefinition, environment);
-            return { kind: "nil", value: null };
+          this.evaluateFunctionDefinition(node as AST.FunctionDefinition, environment);
+          return { kind: "nil", value: null };
         case "StructDefinition":
-            this.evaluateStructDefinition(node as AST.StructDefinition, environment);
-            return { kind: "nil", value: null };
-        case "UnionDefinition":         /* TODO: Store definition */ return { kind: "nil", value: null };
-        case "InterfaceDefinition":     /* TODO: Store definition */ return { kind: "nil", value: null };
-        case "ImplementationDefinition":/* TODO: Store definition */ return { kind: "nil", value: null };
-        case "MethodsDefinition":       /* TODO: Store definition */ return { kind: "nil", value: null };
+          this.evaluateStructDefinition(node as AST.StructDefinition, environment);
+          return { kind: "nil", value: null };
+        case "UnionDefinition":
+          /* TODO: Store definition */ return { kind: "nil", value: null };
+        case "InterfaceDefinition":
+          /* TODO: Store definition */ return { kind: "nil", value: null };
+        case "ImplementationDefinition":
+          /* TODO: Store definition */ return { kind: "nil", value: null };
+        case "MethodsDefinition":
+          /* TODO: Store definition */ return { kind: "nil", value: null };
 
         // --- Statements (Control Flow / Side Effects) ---
         case "ReturnStatement": {
-            const typedNode = node as AST.ReturnStatement;
-            const returnValue = typedNode.argument ? this.evaluate(typedNode.argument, environment) : ({ kind: "void", value: undefined } as AblePrimitive);
-            throw new ReturnSignal(returnValue); // Throw signal
+          const typedNode = node as AST.ReturnStatement;
+          const returnValue = typedNode.argument ? this.evaluate(typedNode.argument, environment) : ({ kind: "void", value: undefined } as AblePrimitive);
+          throw new ReturnSignal(returnValue); // Throw signal
         }
-        case "RaiseStatement":          /* TODO */ return { kind: "nil", value: null };
-        case "BreakStatement":          /* TODO */ return { kind: "nil", value: null };
-        case "WhileLoop":               /* TODO */ return { kind: "nil", value: null };
-        case "ForLoop":                 /* TODO */ return { kind: "nil", value: null };
+        case "RaiseStatement":
+          /* TODO */ return { kind: "nil", value: null };
+        case "BreakStatement":
+          /* TODO */ return { kind: "nil", value: null };
+        case "WhileLoop":
+          /* TODO */ return { kind: "nil", value: null };
+        case "ForLoop":
+          /* TODO */ return { kind: "nil", value: null };
 
         // --- Module Structure (Handled elsewhere or ignored at runtime) ---
-        case "PackageStatement":        // Handled in interpretModule
-        case "ImportStatement":         // Handled in processImports
-        case "ImportSelector":          // Part of ImportStatement
-            return { kind: "nil", value: null };
+        case "PackageStatement": // Handled in interpretModule
+        case "ImportStatement": // Handled in processImports
+        case "ImportSelector": // Part of ImportStatement
+          return { kind: "nil", value: null };
 
         // --- Types & Patterns (Not directly evaluated) ---
         case "SimpleTypeExpression":
@@ -445,17 +477,17 @@ class Interpreter {
         case "WhereClauseConstraint":
         case "FunctionParameter":
         case "StructFieldDefinition":
-        case "StructFieldInitializer":  // Part of StructLiteral
-        case "FunctionSignature":       // Part of Interface/Impl/Methods
-        case "OrClause":                // Part of IfExpression
-        case "MatchClause":             // Part of MatchExpression/RescueExpression
-        case "WildcardPattern":         // Part of Assignment/Match
-        case "LiteralPattern":          // Part of Assignment/Match
-        case "StructPattern":           // Part of Assignment/Match
-        case "ArrayPattern":            // Part of Assignment/Match
-        case "StructPatternField":      // Part of StructPattern
-            // These nodes are structural or type-related, not evaluated directly for a value.
-            return { kind: "nil", value: null };
+        case "StructFieldInitializer": // Part of StructLiteral
+        case "FunctionSignature": // Part of Interface/Impl/Methods
+        case "OrClause": // Part of IfExpression
+        case "MatchClause": // Part of MatchExpression/RescueExpression
+        case "WildcardPattern": // Part of Assignment/Match
+        case "LiteralPattern": // Part of Assignment/Match
+        case "StructPattern": // Part of Assignment/Match
+        case "ArrayPattern": // Part of Assignment/Match
+        case "StructPatternField": // Part of StructPattern
+          // These nodes are structural or type-related, not evaluated directly for a value.
+          return { kind: "nil", value: null };
 
         default:
           // This case should ideally be unreachable if all AST node types are handled above.
