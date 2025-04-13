@@ -257,7 +257,7 @@ class Interpreter {
     // 1. Handle Package Declaration (if any) - Placeholder
     if (moduleNode.package) {
       // Correct access using 'path' based on AST definition
-      console.log(`Interpreting package: ${moduleNode.package.path.map((id) => id.name).join(".")}`);
+      console.log(`Interpreting package: ${moduleNode.package.namePath.map((id) => id.name).join(".")}`);
     }
 
     // 2. Handle Imports
@@ -316,7 +316,7 @@ class Interpreter {
   private processImports(imports: AST.ImportStatement[], environment: Environment): void {
     for (const imp of imports) {
       // Correct access using 'path' based on AST definition
-      const modulePath = imp.path.map((id) => id.name).join(".");
+      const modulePath = imp.packagePath.map((id) => id.name).join(".");
       // For now, only handle selective import of builtins like io.print
       if (imp.selectors) {
         for (const selector of imp.selectors) {
@@ -359,136 +359,107 @@ class Interpreter {
   // The core evaluation dispatcher - returns AbleValue, throws signals
   evaluate(node: AST.AstNode | null, environment: Environment): AbleValue {
     try {
-      // Add try block to help pinpoint errors
-      if (!node) return { kind: "nil", value: null }; // Handle null nodes if they appear
+      if (!node) return { kind: "nil", value: null };
 
-      // Use type assertions within each case block for clarity and safety
       switch (node.type) {
         // --- Literals ---
-        case "StringLiteral": {
-          const typedNode = node as AST.StringLiteral;
-          return { kind: "string", value: typedNode.value };
-        }
+        case "StringLiteral":           return { kind: "string", value: (node as AST.StringLiteral).value };
         case "IntegerLiteral": {
-          const typedNode = node as AST.IntegerLiteral;
-          const intType = typedNode.integerType || "i32";
-          // Ensure value is treated correctly based on target type
-          if (["i64", "i128", "u64", "u128"].includes(intType)) {
-            // Use BigInt for 64-bit+ integers
-            return { kind: intType as any, value: BigInt(typedNode.value.toString()) };
-          } else {
-            // Use Number for smaller integers
-            return { kind: intType as any, value: Number(typedNode.value) };
-          }
+            const typedNode = node as AST.IntegerLiteral;
+            const intType = typedNode.integerType || "i32";
+            if (["i64", "i128", "u64", "u128"].includes(intType)) {
+                return { kind: intType as any, value: BigInt(typedNode.value.toString()) };
+            } else {
+                return { kind: intType as any, value: Number(typedNode.value) };
+            }
         }
-        case "FloatLiteral": {
-          const typedNode = node as AST.FloatLiteral;
-          return { kind: typedNode.floatType || "f64", value: typedNode.value };
-        }
-        case "BooleanLiteral": {
-          const typedNode = node as AST.BooleanLiteral;
-          return { kind: "bool", value: typedNode.value };
-        }
-        case "NilLiteral":
-          return { kind: "nil", value: null };
-        case "CharLiteral": {
-          const typedNode = node as AST.CharLiteral;
-          return { kind: "char", value: typedNode.value };
-        }
+        case "FloatLiteral":            return { kind: (node as AST.FloatLiteral).floatType || "f64", value: (node as AST.FloatLiteral).value };
+        case "BooleanLiteral":          return { kind: "bool", value: (node as AST.BooleanLiteral).value };
+        case "NilLiteral":              return { kind: "nil", value: null };
+        case "CharLiteral":             return { kind: "char", value: (node as AST.CharLiteral).value };
         case "ArrayLiteral": {
-          const typedNode = node as AST.ArrayLiteral;
-          const elements = typedNode.elements.map((el) => this.evaluate(el, environment));
-          return { kind: "array", elements };
+            const typedNode = node as AST.ArrayLiteral;
+            const elements = typedNode.elements.map((el) => this.evaluate(el, environment));
+            return { kind: "array", elements };
         }
 
         // --- Expressions ---
-        case "Identifier": {
-          const typedNode = node as AST.Identifier;
-          return environment.get(typedNode.name);
-        }
-        case "BlockExpression":
-          return this.evaluateBlockExpression(node as AST.BlockExpression, environment);
-        case "UnaryExpression":
-          return this.evaluateUnaryExpression(node as AST.UnaryExpression, environment);
-        case "BinaryExpression":
-          return this.evaluateBinaryExpression(node as AST.BinaryExpression, environment);
-        case "AssignmentExpression":
-          return this.evaluateAssignmentExpression(node as AST.AssignmentExpression, environment);
-        case "FunctionCall":
-          return this.evaluateFunctionCall(node as AST.FunctionCall, environment);
-        case "IfExpression":
-          return this.evaluateIfExpression(node as AST.IfExpression, environment);
-        case "StructLiteral":
-          return this.evaluateStructLiteral(node as AST.StructLiteral, environment);
-        case "MemberAccessExpression":
-          return this.evaluateMemberAccess(node as AST.MemberAccessExpression, environment);
-        case "StringInterpolation":
-          return this.evaluateStringInterpolation(node as AST.StringInterpolation, environment);
-        case "LambdaExpression":
-          return this.evaluateLambdaExpression(node as AST.LambdaExpression, environment);
-        case "RangeExpression":
-          return this.evaluateRangeExpression(node as AST.RangeExpression, environment);
+        case "Identifier":              return environment.get((node as AST.Identifier).name);
+        case "BlockExpression":         return this.evaluateBlockExpression(node as AST.BlockExpression, environment);
+        case "UnaryExpression":         return this.evaluateUnaryExpression(node as AST.UnaryExpression, environment);
+        case "BinaryExpression":        return this.evaluateBinaryExpression(node as AST.BinaryExpression, environment);
+        case "AssignmentExpression":    return this.evaluateAssignmentExpression(node as AST.AssignmentExpression, environment);
+        case "FunctionCall":            return this.evaluateFunctionCall(node as AST.FunctionCall, environment);
+        case "IfExpression":            return this.evaluateIfExpression(node as AST.IfExpression, environment);
+        case "StructLiteral":           return this.evaluateStructLiteral(node as AST.StructLiteral, environment);
+        case "MemberAccessExpression":  return this.evaluateMemberAccess(node as AST.MemberAccessExpression, environment);
+        case "StringInterpolation":     return this.evaluateStringInterpolation(node as AST.StringInterpolation, environment);
+        case "LambdaExpression":        return this.evaluateLambdaExpression(node as AST.LambdaExpression, environment); // Added call
+        case "RangeExpression":         return this.evaluateRangeExpression(node as AST.RangeExpression, environment);
+        case "MatchExpression":         /* TODO */ return { kind: "nil", value: null };
+        case "ProcExpression":          /* TODO */ return { kind: "nil", value: null };
+        case "SpawnExpression":         /* TODO */ return { kind: "nil", value: null };
+        case "BreakpointExpression":    /* TODO */ return { kind: "nil", value: null };
+        case "RescueExpression":        /* TODO */ return { kind: "nil", value: null };
+        case "PropagationExpression":   /* TODO */ return { kind: "nil", value: null };
+        case "OrElseExpression":        /* TODO */ return { kind: "nil", value: null };
 
-        // --- Statements/Definitions ---
+        // --- Statements/Definitions (Evaluate definition, return nil) ---
         case "FunctionDefinition":
-          this.evaluateFunctionDefinition(node as AST.FunctionDefinition, environment);
-          return { kind: "nil", value: null }; // Definitions don't produce a value themselves
+            this.evaluateFunctionDefinition(node as AST.FunctionDefinition, environment);
+            return { kind: "nil", value: null };
         case "StructDefinition":
-          this.evaluateStructDefinition(node as AST.StructDefinition, environment);
-          return { kind: "nil", value: null };
+            this.evaluateStructDefinition(node as AST.StructDefinition, environment);
+            return { kind: "nil", value: null };
+        case "UnionDefinition":         /* TODO: Store definition */ return { kind: "nil", value: null };
+        case "InterfaceDefinition":     /* TODO: Store definition */ return { kind: "nil", value: null };
+        case "ImplementationDefinition":/* TODO: Store definition */ return { kind: "nil", value: null };
+        case "MethodsDefinition":       /* TODO: Store definition */ return { kind: "nil", value: null };
+
+        // --- Statements (Control Flow / Side Effects) ---
         case "ReturnStatement": {
-          const typedNode = node as AST.ReturnStatement;
-          const returnValue = typedNode.argument ? this.evaluate(typedNode.argument, environment) : ({ kind: "void", value: undefined } as AblePrimitive);
-          // Throw signal to unwind stack
-          throw new ReturnSignal(returnValue);
+            const typedNode = node as AST.ReturnStatement;
+            const returnValue = typedNode.argument ? this.evaluate(typedNode.argument, environment) : ({ kind: "void", value: undefined } as AblePrimitive);
+            throw new ReturnSignal(returnValue); // Throw signal
         }
+        case "RaiseStatement":          /* TODO */ return { kind: "nil", value: null };
+        case "BreakStatement":          /* TODO */ return { kind: "nil", value: null };
+        case "WhileLoop":               /* TODO */ return { kind: "nil", value: null };
+        case "ForLoop":                 /* TODO */ return { kind: "nil", value: null };
 
-        // --- Placeholders for other nodes ---
-        case "UnionDefinition":
-        case "InterfaceDefinition":
-        case "ImplementationDefinition":
-        case "MethodsDefinition":
-        case "ImportStatement":
-        case "PackageStatement": // Handled in interpretModule
-        case "ImportStatement": // Handled in processImports
-          return { kind: "nil", value: null };
+        // --- Module Structure (Handled elsewhere or ignored at runtime) ---
+        case "PackageStatement":        // Handled in interpretModule
+        case "ImportStatement":         // Handled in processImports
+        case "ImportSelector":          // Part of ImportStatement
+            return { kind: "nil", value: null };
 
-        // --- Control Flow & Others (Placeholders) ---
-        // Assuming RaiseStatement/BreakStatement are the correct AST types for now
-        case "RaiseStatement":
-        case "BreakStatement":
-        case "WhileLoop":
-        case "ForLoop":
-        case "MatchExpression":
-        case "ProcExpression":
-        case "SpawnExpression":
-        case "BreakpointExpression":
-        case "RescueExpression":
-        case "PropagationExpression":
-        case "OrElseExpression":
         // --- Types & Patterns (Not directly evaluated) ---
         case "SimpleTypeExpression":
+        case "GenericTypeExpression":
         case "FunctionTypeExpression":
+        case "NullableTypeExpression":
+        case "ResultTypeExpression":
+        case "WildcardTypeExpression":
+        case "InterfaceConstraint":
         case "GenericParameter":
+        case "WhereClauseConstraint":
         case "FunctionParameter":
         case "StructFieldDefinition":
-        case "StructFieldInitializer": // Handled within StructLiteral eval
-        case "ImportSelector": // Handled within ImportStatement eval
-        case "OrClause": // Handled within IfExpression eval
-        case "MatchClause": // Handled within MatchExpression eval
-        case "WildcardPattern": // Handled within assignment/match
-        case "LiteralPattern": // Handled within assignment/match
-        case "StructPattern": // Handled within assignment/match
-        case "ArrayPattern": // Handled within assignment/match
-        case "FunctionSignature": // Not evaluated directly
-          // These nodes are part of other structures or declarations and aren't evaluated standalone.
-          // console.warn(`Interpreter Warning: Evaluation not applicable for node type ${node.type}`);
-          return { kind: "nil", value: null };
+        case "StructFieldInitializer":  // Part of StructLiteral
+        case "FunctionSignature":       // Part of Interface/Impl/Methods
+        case "OrClause":                // Part of IfExpression
+        case "MatchClause":             // Part of MatchExpression/RescueExpression
+        case "WildcardPattern":         // Part of Assignment/Match
+        case "LiteralPattern":          // Part of Assignment/Match
+        case "StructPattern":           // Part of Assignment/Match
+        case "ArrayPattern":            // Part of Assignment/Match
+        case "StructPatternField":      // Part of StructPattern
+            // These nodes are structural or type-related, not evaluated directly for a value.
+            return { kind: "nil", value: null };
 
         default:
-          // Use type assertion for exhaustive check
-          const _exhaustiveCheck: never = node;
-          throw new Error(`Interpreter Error: Unknown or unhandled AST node type: ${(_exhaustiveCheck as any).type}`);
+          // This case should ideally be unreachable if all AST node types are handled above.
+          throw new Error(`Interpreter Error: Unknown or unhandled AST node type: ${(node as any).type}`);
       }
     } catch (e) {
       // Add context to errors
