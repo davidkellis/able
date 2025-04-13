@@ -163,6 +163,74 @@ class BreakSignal extends Error {
 // Add IteratorEnd signal/value
 const IteratorEnd: AblePrimitive = { kind: "nil", value: null }; // Use nil for now, maybe dedicated type later
 
+
+// --- Iterator Helpers ---
+
+// Helper to create an iterator for an AbleArray
+function createArrayIterator(array: AbleArray): AbleIterator {
+  let index = 0;
+  return {
+    kind: "AbleIterator",
+    next: () => {
+      if (index < array.elements.length) {
+        const value = array.elements[index];
+        index++;
+        return value;
+      } else {
+        return IteratorEnd; // Use the constant defined earlier
+      }
+    },
+  };
+}
+
+// Helper to create an iterator for an AbleRange
+function createRangeIterator(range: AbleRange): AbleIterator {
+  let current = range.start;
+  const end = range.end;
+  const inclusive = range.inclusive;
+  // Determine step direction based on start/end
+  const step = typeof current === 'bigint' ? (current <= end ? 1n : -1n) : (current <= end ? 1 : -1);
+
+  return {
+    kind: "AbleIterator",
+    next: () => {
+      let done: boolean;
+      // Check if iteration is finished based on direction and inclusivity
+      if (typeof current === 'bigint' && typeof end === 'bigint') {
+         done = step > 0n ? (inclusive ? current > end : current >= end) : (inclusive ? current < end : current <= end);
+      } else if (typeof current === 'number' && typeof end === 'number') {
+         done = step > 0 ? (inclusive ? current > end : current >= end) : (inclusive ? current < end : current <= end);
+      } else {
+          // Should not happen if range creation is validated
+          throw new Error("Interpreter Error: Mismatched types in range iterator.");
+      }
+
+      if (done) {
+        return IteratorEnd;
+      } else {
+        const valueToReturn = current;
+        // Increment/decrement current value
+         if (typeof current === 'bigint' && typeof step === 'bigint') {
+            current = current + step;
+         } else if (typeof current === 'number' && typeof step === 'number') {
+            current = current + step;
+         }
+        // Need to return the correct AblePrimitive type
+        // This is a simplification; ideally, the range itself would know its type
+        let valueKind: AblePrimitive['kind'] = 'i32'; // Default guess
+        if(typeof valueToReturn === 'bigint') {
+            valueKind = 'i64'; // Guess i64 for bigint ranges
+        } else if (typeof valueToReturn === 'number') {
+             valueKind = 'i32'; // Guess i32 for number ranges
+        }
+
+        return { kind: valueKind, value: valueToReturn } as AblePrimitive;
+      }
+    },
+  };
+}
+
+
 // --- Environment ---
 
 class Environment {
@@ -454,10 +522,8 @@ class Interpreter {
           /* TODO */ return { kind: "nil", value: null };
         case "BreakStatement":
           /* TODO */ return { kind: "nil", value: null };
-        case "WhileLoop":
-          /* TODO */ return { kind: "nil", value: null };
-        case "ForLoop":
-          /* TODO */ return { kind: "nil", value: null };
+        case "WhileLoop":               return this.evaluateWhileLoop(node as AST.WhileLoop, environment);
+        case "ForLoop":                 return this.evaluateForLoop(node as AST.ForLoop, environment);
 
         // --- Module Structure (Handled elsewhere or ignored at runtime) ---
         case "PackageStatement": // Handled in interpretModule
@@ -1222,8 +1288,100 @@ class Interpreter {
     }
   }
 
-  // --- Helpers ---
+  private evaluateWhileLoop(node: AST.WhileLoop, environment: Environment): AbleValue {
+    while (true) {
+      const conditionValue = this.evaluate(node.condition, environment);
+      if (!this.isTruthy(conditionValue)) {
+        break; // Exit loop if condition is false
+      }
+      // Evaluate the body. Need to handle potential signals (break, return, raise) from the body.
+      try {
+        // Evaluate body in its own scope for each iteration? No, while loop shares scope.
+        // But the body itself might be a block expression, which creates its own scope.
+        this.evaluate(node.body, environment); // Evaluate block for side effects
+      } catch (signal) {
+        // TODO: Handle break/continue specific to this loop using labels if implemented
+        // For now, only re-throw signals that exit the function (Return, Raise)
+        if (signal instanceof ReturnSignal || signal instanceof RaiseSignal) {
+          throw signal;
+        }
+        // If it was a BreakSignal for this loop (or unlabeled break), we'd handle it here.
+        // If it was a BreakSignal for an outer loop, re-throw.
+        // If it was Continue, we'd skip to the next iteration.
+        // For simplicity now, let's assume break isn't fully implemented with labels yet.
+        // If we add unlabeled break, it would break here.
+        // If we add continue, it would continue here.
+        // For now, just re-throw BreakSignal if it occurs.
+        if (signal instanceof BreakSignal) {
+             // Check if the label matches this loop (if loops had labels)
+             // If unlabeled break, break here.
+             // If labeled break for outer loop, re-throw.
+             // For now, assume unlabeled break exits innermost loop.
+             // Let's refine this when Breakpoint/Break are fully implemented.
+             // For now, let's just break the JS loop for any BreakSignal.
+             console.warn("Interpreter Warning: Basic 'break' encountered in 'while', exiting loop. Labelled breaks not fully supported yet.");
+             break; // Exit JS while loop
+        }
+        // Re-throw other errors
+        throw signal;
+      }
+    }
+    return { kind: "nil", value: null }; // While loops evaluate to nil
+  }
 
+  private evaluateForLoop(node: AST.ForLoop, environment: Environment): AbleValue {
+    const iterableValue = this.evaluate(node.iterable, environment);
+    let iterator: AbleIterator;
+
+    // Get iterator based on iterable type
+    if (iterableValue.kind === "array") {
+        iterator = createArrayIterator(iterableValue);
+    } else if (iterableValue.kind === "range") {
+        iterator = createRangeIterator(iterableValue);
+    }
+    // TODO: Add support for calling .iterator() method via Iterable interface
+    else {
+        throw new Error(`Interpreter Error: Type '${iterableValue.kind}' is not iterable.`);
+    }
+
+    while (true) {
+        const nextValue = iterator.next();
+
+        if (nextValue === IteratorEnd) {
+            break; // End of iteration
+        }
+
+        // Create a new environment for each iteration to scope the loop variable(s)
+        const loopBodyEnv = new Environment(environment);
+
+        try {
+            // Bind the value to the pattern in the loop body environment
+            // Use true for isDeclaration as it's a new binding each iteration
+            this.evaluatePatternAssignment(node.pattern, nextValue, loopBodyEnv, true);
+
+            // Evaluate the loop body in the new environment
+            this.evaluate(node.body, loopBodyEnv);
+
+        } catch (signal) {
+            // Handle signals similarly to while loop
+            if (signal instanceof ReturnSignal || signal instanceof RaiseSignal) {
+                throw signal; // Propagate function exit signals
+            }
+            if (signal instanceof BreakSignal) {
+                // TODO: Check label if implemented
+                console.warn("Interpreter Warning: Basic 'break' encountered in 'for', exiting loop. Labelled breaks not fully supported yet.");
+                break; // Exit the JS while loop for the 'for' construct
+            }
+            // TODO: Handle continue signal if implemented (would skip to next iterator.next())
+            throw signal; // Re-throw other errors/signals
+        }
+    }
+
+    return { kind: "nil", value: null }; // For loops evaluate to nil
+  }
+
+
+  // --- Helpers ---
   // Determine truthiness according to Able rules (Spec TBD, basic version here)
   private isTruthy(value: AbleValue): boolean {
     if (value.kind === "bool") {
