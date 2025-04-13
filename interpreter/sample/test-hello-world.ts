@@ -1,4 +1,4 @@
 import { interpret } from '../interpreter';
-import helloWorldAst from './sample2';
+import helloWorldAst from './hello-world';
 
 interpret(helloWorldAst);
