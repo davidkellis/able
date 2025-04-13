@@ -520,8 +520,7 @@ class Interpreter {
         }
         case "RaiseStatement":
           /* TODO */ return { kind: "nil", value: null };
-        case "BreakStatement":
-          /* TODO */ return { kind: "nil", value: null };
+        case "BreakStatement":          return this.evaluateBreakStatement(node as AST.BreakStatement, environment); // Added call
         case "WhileLoop":               return this.evaluateWhileLoop(node as AST.WhileLoop, environment);
         case "ForLoop":                 return this.evaluateForLoop(node as AST.ForLoop, environment);
 
@@ -1313,20 +1312,23 @@ class Interpreter {
         // If we add continue, it would continue here.
         // For now, just re-throw BreakSignal if it occurs.
         if (signal instanceof BreakSignal) {
-             // Check if the label matches this loop (if loops had labels)
-             // If unlabeled break, break here.
-             // If labeled break for outer loop, re-throw.
-             // For now, assume unlabeled break exits innermost loop.
-             // Let's refine this when Breakpoint/Break are fully implemented.
-             // For now, let's just break the JS loop for any BreakSignal.
-             console.warn("Interpreter Warning: Basic 'break' encountered in 'while', exiting loop. Labelled breaks not fully supported yet.");
-             break; // Exit JS while loop
+             // TODO: Check label if implemented (signal.label === this loop's label?)
+             // For now, any break signal breaks the innermost loop.
+             break; // Exit the JS while loop
         }
         // Re-throw other errors
         throw signal;
       }
     }
     return { kind: "nil", value: null }; // While loops evaluate to nil
+  }
+
+  // Evaluates a break statement, throwing a signal
+  private evaluateBreakStatement(node: AST.BreakStatement, environment: Environment): never {
+      const value = this.evaluate(node.value, environment);
+      // For now, the label isn't used for matching as breakpoint isn't implemented,
+      // but we include it in the signal as per the AST/spec.
+      throw new BreakSignal(node.label.name, value);
   }
 
   private evaluateForLoop(node: AST.ForLoop, environment: Environment): AbleValue {
@@ -1368,8 +1370,8 @@ class Interpreter {
                 throw signal; // Propagate function exit signals
             }
             if (signal instanceof BreakSignal) {
-                // TODO: Check label if implemented
-                console.warn("Interpreter Warning: Basic 'break' encountered in 'for', exiting loop. Labelled breaks not fully supported yet.");
+                // TODO: Check label if implemented (signal.label === this loop's label?)
+                // For now, any break signal breaks the innermost loop.
                 break; // Exit the JS while loop for the 'for' construct
             }
             // TODO: Handle continue signal if implemented (would skip to next iterator.next())
