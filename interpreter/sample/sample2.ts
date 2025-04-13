@@ -1,4 +1,4 @@
-import * as ast from './ast';
+import * as ast from '../ast';
 
 // Helper to create simple type expressions
 const type = (name: string) => ast.simpleTypeExpression(name);
