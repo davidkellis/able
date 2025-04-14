@@ -441,13 +441,18 @@ class Interpreter {
 
   // Evaluates statements, returning the last value. Throws signals.
   private evaluateStatements(statements: AST.Statement[], environment: Environment): AbleValue {
-    let lastValue: AbleValue = { kind: "nil", value: null }; // Default result of a block is nil unless specified
+    let lastValue: AbleValue = { kind: "nil", value: null }; // Default result if block is empty or ends with non-expression
 
     for (const stmt of statements) {
       // Evaluate each statement. Signals are thrown and caught by callers.
       lastValue = this.evaluate(stmt, environment);
+
+      // If the statement was a definition, the block's value shouldn't become nil
+      // Reset lastValue to nil only if it wasn't a definition? This seems complex.
+      // Let's stick to the simpler rule: the value of the last evaluated statement/expression counts.
+      // Definitions evaluate to nil, so a block ending in a definition returns nil.
     }
-    return lastValue; // Return the normal value of the last statement/expression
+    return lastValue; // Return the value of the last statement/expression evaluated
   }
 
   // The core evaluation dispatcher - returns AbleValue, throws signals
@@ -494,6 +499,7 @@ class Interpreter {
         case "AssignmentExpression":
           return this.evaluateAssignmentExpression(node as AST.AssignmentExpression, environment);
         case "FunctionCall":
+          // Function calls can throw signals (Return, Raise) or return normally
           return this.evaluateFunctionCall(node as AST.FunctionCall, environment);
         case "IfExpression":
           return this.evaluateIfExpression(node as AST.IfExpression, environment);
@@ -605,7 +611,8 @@ class Interpreter {
 
   private evaluateBlockExpression(node: AST.BlockExpression, environment: Environment): AbleValue {
     const blockEnv = new Environment(environment); // Create new scope for the block
-    // evaluateStatements now throws signals directly
+    // evaluateStatements returns the value of the last statement/expression
+    // Signals (Return, Raise, Break) are thrown by evaluateStatements/evaluate
     return this.evaluateStatements(node.body, blockEnv);
   }
 
