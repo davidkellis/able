@@ -90,7 +90,11 @@ const test7_outer_if = ast.ifExpression(
             binaryOp('!=', int(10), int(10)), // false
             ast.blockExpression([string("Test 7: Inner if SHOULD NOT EXECUTE")]),
             [
-                ast.orClause(ast.blockExpression([string("Test 7: Inner else executed")])) // Inner else
+                ast.orClause(
+                  ast.blockExpression([
+                    printCall(string("Test 7: Inner else executed"))
+                  ])
+                ) // Inner else
             ]
         )
     ]),
