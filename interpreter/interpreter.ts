@@ -115,7 +115,6 @@ interface AbleArray {
 
 // Represents a runtime Range (placeholder)
 interface AbleRange {
-  kind: "range";
   start: number | bigint;
   end: number | bigint;
   inclusive: boolean;
@@ -348,22 +347,22 @@ class Interpreter {
     this.processImports(moduleNode.imports, moduleEnv);
 
     // 3. Evaluate Definitions First
-    const definitionTypes = new Set([
-        "FunctionDefinition",
-        "StructDefinition",
-        "UnionDefinition",
-        "InterfaceDefinition",
-        "ImplementationDefinition",
-        "MethodsDefinition"
-    ]);
-    const definitions = moduleNode.body.filter(stmt => definitionTypes.has(stmt.type));
-    const otherStatements = moduleNode.body.filter(stmt => !definitionTypes.has(stmt.type));
+    const definitionTypes = new Set(["FunctionDefinition", "StructDefinition", "UnionDefinition", "InterfaceDefinition", "ImplementationDefinition", "MethodsDefinition"]);
+    const definitions = moduleNode.body.filter((stmt) => definitionTypes.has(stmt.type));
+    const otherStatements = moduleNode.body.filter((stmt) => !definitionTypes.has(stmt.type));
 
     try {
       // Evaluate all definitions in the module environment
       for (const def of definitions) {
-          // We know these are definition types due to the filter above
-          this.evaluate(def, moduleEnv);
+        // We know these are definition types due to the filter above
+        this.evaluate(def, moduleEnv);
+      }
+
+      // --- Evaluate Top-Level Assignments ---
+      for (const stmt of otherStatements) {
+        if (stmt.type === "AssignmentExpression" && stmt.operator === ":=") {
+          this.evaluate(stmt, this.globalEnv); // Evaluate in the global environment
+        }
       }
 
       // 4. Find 'main' function (optional)
@@ -386,7 +385,7 @@ class Interpreter {
         // If no main, evaluate other top-level statements sequentially
         console.log("--- Evaluating top-level statements ---"); // Indicate script-like execution
         for (const stmt of otherStatements) {
-            this.evaluate(stmt, moduleEnv); // Evaluate for side effects or results
+          this.evaluate(stmt, moduleEnv); // Evaluate for side effects or results
         }
         console.log("--- Top-level statements finished ---");
       }
@@ -928,6 +927,15 @@ class Interpreter {
         throw new Error(`Interpreter Error: Cannot assign to member of type ${obj.kind}.`);
       }
     } else {
+      // Handle destructuring assignment
+      if (node.left.type === "StructPattern" || node.left.type === "ArrayPattern") {
+        if (node.operator !== ":=" && node.operator !== "=") {
+          throw new Error(`Interpreter Error: Compound assignment not supported with destructuring patterns.`);
+        }
+        this.evaluatePatternAssignment(node.left, valueToAssign, environment, node.operator === ":=");
+        return valueToAssign;
+      }
+
       // Destructuring assignment (:= or =)
       if (node.operator !== ":=" && node.operator !== "=") {
         throw new Error(`Interpreter Error: Compound assignment not supported with destructuring patterns.`);
@@ -1131,16 +1139,17 @@ class Interpreter {
 
     // Check if object is undefined BEFORE trying to access .kind
     if (object === undefined) {
-        // console.error("[evaluateMemberAccess] CRITICAL ERROR: Object evaluated to undefined. AST:", objectExpr); // REMOVED DEBUG LOG
-        // Optionally, try to inspect the environment here
-        // console.log("[evaluateMemberAccess] Environment keys:", Array.from((environment as any).values.keys()));
-        throw new Error("Internal Interpreter Error: Object evaluated to undefined during member access.");
+      // console.error("[evaluateMemberAccess] CRITICAL ERROR: Object evaluated to undefined. AST:", objectExpr); // REMOVED DEBUG LOG
+      // Optionally, try to inspect the environment here
+      // console.log("[evaluateMemberAccess] Environment keys:", Array.from((environment as any).values.keys()));
+      throw new Error("Internal Interpreter Error: Object evaluated to undefined during member access.");
     }
 
     const memberName = node.member.type === "Identifier" ? node.member.name : node.member.value.toString();
     // console.log(`[evaluateMemberAccess] Accessing member '${memberName}' on object kind '${object.kind}'`);
 
-    if (object.kind === "struct_instance") { // Error was happening here
+    if (object.kind === "struct_instance") {
+      // Error was happening here
       const member = node.member;
       if (member.type === "Identifier") {
         // Named field access
@@ -1237,8 +1246,8 @@ class Interpreter {
 
     // Argument count check - skip if it's a bound method, as 'self' is added implicitly
     if (!func.isBoundMethod && args.length !== funcDef.params.length) {
-        const funcName = funcDef.type === "FunctionDefinition" && funcDef.id ? funcDef.id.name : "(anonymous)";
-        throw new Error(`Interpreter Error: Expected ${funcDef.params.length} arguments but got ${args.length} for function '${funcName}'.`);
+      const funcName = funcDef.type === "FunctionDefinition" && funcDef.id ? funcDef.id.name : "(anonymous)";
+      throw new Error(`Interpreter Error: Expected ${funcDef.params.length} arguments but got ${args.length} for function '${funcName}'.`);
     }
     // For bound methods, the check happens inside bindMethod's apply -> executeFunction
 
@@ -1246,18 +1255,21 @@ class Interpreter {
     // Enclosing scope is the environment where the function was DEFINED (closure)
     const funcEnv = new Environment(func.closureEnv);
 
-    // Bind arguments to parameters
+    // Bind arguments to parameters (support destructuring patterns)
     for (let i = 0; i < funcDef.params.length; i++) {
-      const paramName = funcDef.params[i].name.name; // Get param name
-      const argValue = args[i]; // Get corresponding arg value
-      // Ensure argValue is not undefined before accessing kind (though it shouldn't be here)
-      const valueKind = argValue ? argValue.kind : 'undefined';
-      console.log(`[executeFunction] Defining param '${paramName}' with value kind '${valueKind}'`); // DEBUG LOG
-      if (argValue === undefined) {
-          console.error(`[executeFunction] CRITICAL ERROR: Argument value for param '${paramName}' is undefined.`);
-          // Potentially throw an error here if this state is invalid
+      const param = funcDef.params[i];
+      const argValue = args[i];
+      // Support destructuring patterns as function parameters
+      if (param.name.type === "Identifier") {
+        // Simple parameter
+        funcEnv.define(param.name.name, argValue);
+      } else if (param.name.type === "StructPattern" || param.name.type === "ArrayPattern" || param.name.type === "WildcardPattern" || param.name.type === "LiteralPattern") {
+        // Destructuring parameter (struct, array, wildcard, literal)
+        this.evaluatePatternAssignment(param.name, argValue, funcEnv, true);
+      } else {
+        // Defensive fallback for unknown pattern types
+        throw new Error(`Interpreter Error: Unsupported parameter pattern type: ${param.name.type}`);
       }
-      funcEnv.define(paramName, argValue);
     }
 
     // Execute the function body
@@ -1547,7 +1559,8 @@ class Interpreter {
     const typeImpls = this.implementations.get(targetTypeName)!;
 
     // TODO: Handle overlapping implementations (named impls, specificity). For now, last one wins.
-    if (typeImpls.has(ifaceName) && !node.implName) { // Only warn if not a named impl potentially overwriting default
+    if (typeImpls.has(ifaceName) && !node.implName) {
+      // Only warn if not a named impl potentially overwriting default
       console.warn(`Interpreter Warning: Overwriting existing implementation of '${ifaceName}' for type '${targetTypeName}'.`);
     }
     // Store using interface name (and potentially implName later)
