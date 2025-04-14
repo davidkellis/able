@@ -28,6 +28,7 @@ interface AbleFunction {
   kind: "function"; // Added kind for type narrowing
   node: AST.FunctionDefinition | AST.LambdaExpression; // Allow both definition types
   closureEnv: Environment; // Environment captured at definition time
+  isBoundMethod?: boolean; // Flag to indicate if 'self' is implicitly bound
 }
 
 // Represents a runtime struct definition
@@ -346,22 +347,26 @@ class Interpreter {
     const moduleEnv = new Environment(this.globalEnv);
     this.processImports(moduleNode.imports, moduleEnv);
 
-    // 3. Evaluate Definitions in Module Scope
+    // 3. Evaluate Definitions First
+    const definitionTypes = new Set([
+        "FunctionDefinition",
+        "StructDefinition",
+        "UnionDefinition",
+        "InterfaceDefinition",
+        "ImplementationDefinition",
+        "MethodsDefinition"
+    ]);
+    const definitions = moduleNode.body.filter(stmt => definitionTypes.has(stmt.type));
+    const otherStatements = moduleNode.body.filter(stmt => !definitionTypes.has(stmt.type));
+
     try {
-      for (const stmt of moduleNode.body) {
-        if (
-          stmt.type === "FunctionDefinition" ||
-          stmt.type === "StructDefinition" ||
-          stmt.type === "UnionDefinition" ||
-          stmt.type === "InterfaceDefinition" ||
-          stmt.type === "ImplementationDefinition" ||
-          stmt.type === "MethodsDefinition"
-        ) {
-          this.evaluate(stmt, moduleEnv); // Use moduleEnv
-        }
+      // Evaluate all definitions in the module environment
+      for (const def of definitions) {
+          // We know these are definition types due to the filter above
+          this.evaluate(def, moduleEnv);
       }
 
-      // 4. Find and call the 'main' function if it exists in the module scope
+      // 4. Find 'main' function (optional)
       let mainFunc: AbleValue | undefined;
       try {
         mainFunc = moduleEnv.get("main"); // Look in moduleEnv
@@ -369,18 +374,25 @@ class Interpreter {
         // 'main' not defined is okay
       }
 
+      // 5. Execute 'main' OR evaluate remaining top-level statements
       if (mainFunc && mainFunc.kind === "function") {
+        console.log("--- Running main function ---"); // Indicate main execution
         this.executeFunction(mainFunc, [], moduleEnv); // Call main with moduleEnv as call site env
+        console.log("--- main function finished ---");
       } else {
         if (mainFunc) {
           console.warn("Warning: 'main' was found but is not a function.");
         }
-        // If no main, evaluate remaining top-level expressions? (Spec TBD)
-        // For now, evaluate all statements sequentially if no main? Or require main?
-        // Let's assume 'main' is the entry point if present.
+        // If no main, evaluate other top-level statements sequentially
+        console.log("--- Evaluating top-level statements ---"); // Indicate script-like execution
+        for (const stmt of otherStatements) {
+            this.evaluate(stmt, moduleEnv); // Evaluate for side effects or results
+        }
+        console.log("--- Top-level statements finished ---");
       }
     } catch (error) {
       // Catch runtime errors from the interpreter itself (including uncaught signals)
+      // Removed duplicated definition check logic from here
       if (error instanceof RaiseSignal) {
         console.error("Uncaught Exception:", this.valueToString(error.value));
       } else if (error instanceof ReturnSignal || error instanceof BreakSignal) {
@@ -518,7 +530,9 @@ class Interpreter {
           this.evaluateStructDefinition(node as AST.StructDefinition, environment);
           return { kind: "nil", value: null };
         case "UnionDefinition":
-          /* TODO: Store definition */ return { kind: "nil", value: null };
+          /* TODO: Store definition */
+          console.warn("Interpreter Warning: Union definition evaluation not implemented.");
+          return { kind: "nil", value: null };
         case "InterfaceDefinition":
           this.evaluateInterfaceDefinition(node as AST.InterfaceDefinition, environment);
           return { kind: "nil", value: null };
@@ -1103,24 +1117,43 @@ class Interpreter {
   }
 
   private evaluateMemberAccess(node: AST.MemberAccessExpression, environment: Environment): AbleValue {
-    const object = this.evaluate(node.object, environment);
+    const objectExpr = node.object; // Get the AST node for the object part
+    // console.log(`[evaluateMemberAccess] Evaluating object expression:`, objectExpr); // REMOVED DEBUG LOG
+    const object = this.evaluate(objectExpr, environment);
+    // console.log(`[evaluateMemberAccess] Object evaluated to:`, object); // REMOVED DEBUG LOG
 
-    if (object.kind === "struct_instance") {
+    // Check if object is undefined BEFORE trying to access .kind
+    if (object === undefined) {
+        // console.error("[evaluateMemberAccess] CRITICAL ERROR: Object evaluated to undefined. AST:", objectExpr); // REMOVED DEBUG LOG
+        // Optionally, try to inspect the environment here
+        // console.log("[evaluateMemberAccess] Environment keys:", Array.from((environment as any).values.keys()));
+        throw new Error("Internal Interpreter Error: Object evaluated to undefined during member access.");
+    }
+
+    const memberName = node.member.type === "Identifier" ? node.member.name : node.member.value.toString();
+    // console.log(`[evaluateMemberAccess] Accessing member '${memberName}' on object kind '${object.kind}'`);
+
+    if (object.kind === "struct_instance") { // Error was happening here
       const member = node.member;
       if (member.type === "Identifier") {
         // Named field access
         if (!(object.values instanceof Map)) throw new Error(`Interpreter Error: Expected named fields map for struct instance '${object.definition.name}'.`);
         const fieldName = member.name;
         if (object.values.has(fieldName)) {
-          return object.values.get(fieldName)!;
+          const fieldValue = object.values.get(fieldName)!;
+          // console.log(`[evaluateMemberAccess] Found field '${fieldName}', returning value kind '${fieldValue.kind}'`); // REMOVED DEBUG LOG
+          return fieldValue;
         } else {
           // --- Method Call Check ---
+          // console.log(`[evaluateMemberAccess] Field '${fieldName}' not found, checking for methods...`); // REMOVED DEBUG LOG
           const method = this.findMethod(object, fieldName);
           if (method) {
+            // console.log(`[evaluateMemberAccess] Found method '${fieldName}', returning bound method.`); // REMOVED DEBUG LOG
             // Return a bound method (closure) that includes 'self'
             return this.bindMethod(object, method);
           }
           // --- End Method Call Check ---
+          // console.error(`[evaluateMemberAccess] Error: Struct '${object.definition.name}' has no field or method named '${fieldName}'.`); // REMOVED DEBUG LOG
           throw new Error(`Interpreter Error: Struct '${object.definition.name}' has no field or method named '${fieldName}'.`);
         } // <-- Corrected closing brace
       } else {
@@ -1128,24 +1161,32 @@ class Interpreter {
         if (!Array.isArray(object.values)) throw new Error(`Interpreter Error: Expected positional fields array for struct instance '${object.definition.name}'.`);
         const index = Number(member.value); // Assuming integer literal for index
         if (index < 0 || index >= object.values.length) {
+          // console.error(`[evaluateMemberAccess] Error: Index ${index} out of bounds for struct '${object.definition.name}'.`); // REMOVED DEBUG LOG
           throw new Error(`Interpreter Error: Index ${index} out of bounds for struct '${object.definition.name}'.`);
         }
-        return object.values[index];
+        const positionalValue = object.values[index];
+        // console.log(`[evaluateMemberAccess] Found positional field at index ${index}, returning value kind '${positionalValue.kind}'`); // REMOVED DEBUG LOG
+        return positionalValue;
       }
     } else if (object.kind === "array") {
       // Handle array indexing
       if (node.member.type !== "IntegerLiteral") throw new Error("Interpreter Error: Array index must be an integer literal.");
       const index = Number(node.member.value);
       if (index < 0 || index >= object.elements.length) {
+        // console.error(`[evaluateMemberAccess] Error: Array index ${index} out of bounds (length ${object.elements.length}).`); // REMOVED DEBUG LOG
         throw new Error(`Interpreter Error: Array index ${index} out of bounds (length ${object.elements.length}).`);
       }
-      return object.elements[index];
+      const arrayElement = object.elements[index];
+      // console.log(`[evaluateMemberAccess] Found array element at index ${index}, returning value kind '${arrayElement.kind}'`); // REMOVED DEBUG LOG
+      return arrayElement;
     }
     // --- Method Call Check for Array (and potentially other types) ---
     if (node.member.type === "Identifier") {
       const methodName = node.member.name;
+      // console.log(`[evaluateMemberAccess] Checking for method '${methodName}' on object kind '${object.kind}'...`); // REMOVED DEBUG LOG
       const method = this.findMethod(object, methodName);
       if (method) {
+        // console.log(`[evaluateMemberAccess] Found method '${methodName}', returning bound method.`); // REMOVED DEBUG LOG
         return this.bindMethod(object, method);
       }
     }
@@ -1153,14 +1194,19 @@ class Interpreter {
 
     // TODO: Handle static method access (e.g., Point.origin()) - might need different AST node or check object type
 
-    throw new Error(`Interpreter Error: Cannot access member '${node.member.type === "Identifier" ? node.member.name : node.member.value}' on type ${object.kind}.`);
+    // memberName is already declared at the top of the function scope
+    // console.error(`[evaluateMemberAccess] Error: Cannot access member '${memberName}' on type ${object.kind}.`); // REMOVED DEBUG LOG
+    throw new Error(`Interpreter Error: Cannot access member '${memberName}' on type ${object.kind}.`);
   }
 
   private evaluateFunctionCall(node: AST.FunctionCall, environment: Environment): AbleValue {
+    // console.log(`[evaluateFunctionCall] Evaluating callee:`, node.callee); // REMOVED DEBUG LOG 1
     const callee = this.evaluate(node.callee, environment);
+    // console.log(`[evaluateFunctionCall] Callee evaluated to kind: ${callee.kind}`); // REMOVED DEBUG LOG 2
 
     if (callee.kind !== "function") {
       // TODO: Check for callable objects implementing Apply interface
+      // console.error(`[evaluateFunctionCall] Error: Cannot call non-function type ${callee.kind}. Callee AST:`, node.callee); // REMOVED DEBUG LOG 3
       throw new Error(`Interpreter Error: Cannot call non-function type ${callee.kind}.`);
     }
 
@@ -1182,10 +1228,12 @@ class Interpreter {
     const funcDef = func.node; // AST.FunctionDefinition or AST.LambdaExpression
     if (!funcDef) throw new Error("Interpreter Error: Function definition node is missing."); // Should not happen
 
-    if (args.length !== funcDef.params.length) {
-      const funcName = funcDef.type === "FunctionDefinition" && funcDef.id ? funcDef.id.name : "(anonymous)";
-      throw new Error(`Interpreter Error: Expected ${funcDef.params.length} arguments but got ${args.length} for function '${funcName}'.`);
+    // Argument count check - skip if it's a bound method, as 'self' is added implicitly
+    if (!func.isBoundMethod && args.length !== funcDef.params.length) {
+        const funcName = funcDef.type === "FunctionDefinition" && funcDef.id ? funcDef.id.name : "(anonymous)";
+        throw new Error(`Interpreter Error: Expected ${funcDef.params.length} arguments but got ${args.length} for function '${funcName}'.`);
     }
+    // For bound methods, the check happens inside bindMethod's apply -> executeFunction
 
     // Create new environment for the function call
     // Enclosing scope is the environment where the function was DEFINED (closure)
@@ -1193,7 +1241,16 @@ class Interpreter {
 
     // Bind arguments to parameters
     for (let i = 0; i < funcDef.params.length; i++) {
-      funcEnv.define(funcDef.params[i].name.name, args[i]);
+      const paramName = funcDef.params[i].name.name; // Get param name
+      const argValue = args[i]; // Get corresponding arg value
+      // Ensure argValue is not undefined before accessing kind (though it shouldn't be here)
+      const valueKind = argValue ? argValue.kind : 'undefined';
+      console.log(`[executeFunction] Defining param '${paramName}' with value kind '${valueKind}'`); // DEBUG LOG
+      if (argValue === undefined) {
+          console.error(`[executeFunction] CRITICAL ERROR: Argument value for param '${paramName}' is undefined.`);
+          // Potentially throw an error here if this state is invalid
+      }
+      funcEnv.define(paramName, argValue);
     }
 
     // Execute the function body
@@ -1419,6 +1476,11 @@ class Interpreter {
   // --- Definition Evaluators ---
 
   private evaluateInterfaceDefinition(node: AST.InterfaceDefinition, environment: Environment): void {
+    // TODO: Handle generics, where clauses, base interfaces, privacy
+    if (this.interfaces.has(node.id.name)) {
+      // Allow redefinition for now? Or error?
+      console.warn(`Interpreter Warning: Redefining interface '${node.id.name}'.`);
+    }
     const ifaceDef: AbleInterfaceDefinition = {
       kind: "interface_definition",
       name: node.id.name,
@@ -1426,11 +1488,12 @@ class Interpreter {
     };
     // Store globally for now
     this.interfaces.set(node.id.name, ifaceDef);
-    // Also define in current env? Maybe not needed if lookup is global.
+    // Also define in current env? Maybe not needed if lookup is global. Let's skip for now.
     // environment.define(node.id.name, ifaceDef);
   }
 
   private evaluateImplementationDefinition(node: AST.ImplementationDefinition, environment: Environment): void {
+    // TODO: Handle generics (<T>), interface args ([A]), where clauses, named impls
     // 1. Find the interface definition
     const ifaceName = node.interfaceName.name;
     const ifaceDef = this.interfaces.get(ifaceName);
@@ -1476,11 +1539,12 @@ class Interpreter {
     }
     const typeImpls = this.implementations.get(targetTypeName)!;
 
-    // TODO: Handle overlapping implementations (named impls, specificity)
-    if (typeImpls.has(ifaceName)) {
-      console.warn(`Warning: Overwriting existing implementation of '${ifaceName}' for type '${targetTypeName}'.`);
+    // TODO: Handle overlapping implementations (named impls, specificity). For now, last one wins.
+    if (typeImpls.has(ifaceName) && !node.implName) { // Only warn if not a named impl potentially overwriting default
+      console.warn(`Interpreter Warning: Overwriting existing implementation of '${ifaceName}' for type '${targetTypeName}'.`);
     }
-    typeImpls.set(ifaceName, implDef);
+    // Store using interface name (and potentially implName later)
+    typeImpls.set(ifaceName, implDef); // TODO: Use node.implName if present? Needs map structure change.
   }
 
   private evaluateMethodsDefinition(node: AST.MethodsDefinition, environment: Environment): void {
@@ -1545,11 +1609,15 @@ class Interpreter {
     }
 
     // 2. Check interface implementations
-    const typeImpls = this.implementations.get(typeName);
-    if (typeImpls) {
-      for (const impl of typeImpls.values()) {
+    const typeImplsMap = this.implementations.get(typeName);
+    if (typeImplsMap) {
+      // Iterate through all interfaces implemented for this type
+      for (const impl of typeImplsMap.values()) {
+        // Check if this specific implementation provides the method
         if (impl.methods.has(methodName)) {
-          // TODO: Handle ambiguity if multiple interfaces provide the same method
+          // Found the method in this implementation
+          // TODO: Handle ambiguity if multiple interfaces provide the same method name.
+          //       For now, return the first one found. Need specificity rules later.
           return impl.methods.get(methodName)!;
         }
       }
@@ -1568,6 +1636,7 @@ class Interpreter {
       kind: "function",
       node: method.node, // Keep original node for info
       closureEnv: method.closureEnv, // Keep original closure env
+      isBoundMethod: true, // Mark this as a bound method
       // The 'apply' here is a JS function, not an Able concept
       apply: (args: AbleValue[]) => {
         // Prepend 'selfValue' to the arguments passed to the bound method call
