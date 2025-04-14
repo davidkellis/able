@@ -471,12 +471,20 @@ export function unionDefinition(
 
 export interface FunctionParameter extends AstNode {
     type: 'FunctionParameter';
-    name: Identifier;
+    name: Pattern; // CHANGED: was Identifier, now Pattern to allow destructuring
     paramType?: TypeExpression; // Type annotation (optional for lambdas?)
 }
-export function functionParameter(name: Identifier | string, paramType?: TypeExpression): FunctionParameter {
-    const id = typeof name === 'string' ? identifier(name) : name;
-    return { type: 'FunctionParameter', name: id, paramType };
+export function functionParameter(name: Pattern | Identifier | string, paramType?: TypeExpression): FunctionParameter {
+    // Accept Pattern, Identifier, or string for convenience
+    let pattern: Pattern;
+    if (typeof name === 'string') {
+        pattern = identifier(name);
+    } else if ((name as Identifier).type === 'Identifier') {
+        pattern = name as Identifier;
+    } else {
+        pattern = name as Pattern;
+    }
+    return { type: 'FunctionParameter', name: pattern, paramType };
 }
 
 // Represents `fn name(...) { ... }`

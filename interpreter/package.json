@@ -1,0 +1,18 @@
+{
+  "name": "interpreter",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "vitest": "^3.1.1"
+  },
+  "scripts": {
+    "test": "vitest --run --reporter=verbose",
+    "test:watch": "vitest --reporter=verbose",
+    "test:coverage": "vitest --coverage"
+  }
+}

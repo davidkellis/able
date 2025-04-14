@@ -1,12 +1,12 @@
 import { interpret } from "../interpreter";
-import functionsSampleModule from "./functions";
+import assignmentsModule from "./assignments";
 
-console.log("--- Running Functions Sample ---");
+console.log("--- Running Assignments Sample ---");
 try {
-  interpret(functionsSampleModule);
-  console.log("--- Functions Sample Finished ---");
+  interpret(assignmentsModule);
+  console.log("--- Assignments Sample Finished ---");
 } catch (error) {
-  console.error("--- Functions Sample Failed ---");
+  console.error("--- Assignments Sample Failed ---");
   if (error instanceof Error) {
     console.error("Error:", error.message);
     console.error("Stack:", error.stack);
