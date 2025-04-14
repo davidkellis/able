@@ -1,12 +1,12 @@
 import { interpret } from "../interpreter";
-import conditionalsModule from "./conditionals";
+import interfacesModule from "./interfaces"; // Import the AST module
 
-console.log("--- Running Conditionals Sample ---");
+console.log("--- Running Interfaces Sample ---");
 try {
-  interpret(conditionalsModule);
-  console.log("--- Conditionals Sample Finished ---");
+  interpret(interfacesModule);
+  console.log("--- Interfaces Sample Finished ---");
 } catch (error) {
-  console.error("--- Conditionals Sample Failed ---");
+  console.error("--- Interfaces Sample Failed ---");
   if (error instanceof Error) {
     console.error("Error:", error.message);
     console.error("Stack:", error.stack);

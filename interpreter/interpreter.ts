@@ -58,18 +58,24 @@ interface AbleInterfaceDefinition {
   definitionNode: AST.InterfaceDefinition;
 }
 
-// Represents a runtime implementation definition (placeholder)
+// Represents a runtime implementation definition
 interface AbleImplementationDefinition {
   kind: "implementation_definition";
   implNode: AST.ImplementationDefinition;
-  // Link to interface and target type info
+  interfaceDef: AbleInterfaceDefinition; // Link to the interface being implemented
+  // Target type info can be derived from implNode.targetType during lookup
+  // Store concrete method implementations (closures) keyed by method name
+  methods: Map<string, AbleFunction>;
+  closureEnv: Environment; // Environment where the impl block was defined
 }
 
-// Represents a runtime methods definition (placeholder)
-interface AbleMethodsDefinition {
-  kind: "methods_definition";
-  methodsNode: AST.MethodsDefinition;
-  // Link to target type info
+// Represents a runtime collection of inherent methods for a type
+interface AbleMethodsCollection {
+  kind: "methods_collection";
+  methodsNode: AST.MethodsDefinition; // The original definition node
+  // Store concrete method implementations (closures) keyed by method name
+  methods: Map<string, AbleFunction>;
+  closureEnv: Environment; // Environment where the methods block was defined
 }
 
 // Represents a runtime error value (for !, rescue)
@@ -127,8 +133,8 @@ type AbleValue =
   | AbleStructInstance
   | AbleUnionDefinition // Added
   | AbleInterfaceDefinition // Added
-  | AbleImplementationDefinition // Added
-  | AbleMethodsDefinition // Added
+  | AbleImplementationDefinition
+  | AbleMethodsCollection // Renamed from AbleMethodsDefinition
   | AbleError // Added
   | AbleProcHandle // Added
   | AbleThunk // Added
@@ -163,7 +169,6 @@ class BreakSignal extends Error {
 // Add IteratorEnd signal/value
 const IteratorEnd: AblePrimitive = { kind: "nil", value: null }; // Use nil for now, maybe dedicated type later
 
-
 // --- Iterator Helpers ---
 
 // Helper to create an iterator for an AbleArray
@@ -189,20 +194,20 @@ function createRangeIterator(range: AbleRange): AbleIterator {
   const end = range.end;
   const inclusive = range.inclusive;
   // Determine step direction based on start/end
-  const step = typeof current === 'bigint' ? (current <= end ? 1n : -1n) : (current <= end ? 1 : -1);
+  const step = typeof current === "bigint" ? (current <= end ? 1n : -1n) : current <= end ? 1 : -1;
 
   return {
     kind: "AbleIterator",
     next: () => {
       let done: boolean;
       // Check if iteration is finished based on direction and inclusivity
-      if (typeof current === 'bigint' && typeof end === 'bigint') {
-         done = step > 0n ? (inclusive ? current > end : current >= end) : (inclusive ? current < end : current <= end);
-      } else if (typeof current === 'number' && typeof end === 'number') {
-         done = step > 0 ? (inclusive ? current > end : current >= end) : (inclusive ? current < end : current <= end);
+      if (typeof current === "bigint" && typeof end === "bigint") {
+        done = step > 0n ? (inclusive ? current > end : current >= end) : inclusive ? current < end : current <= end;
+      } else if (typeof current === "number" && typeof end === "number") {
+        done = step > 0 ? (inclusive ? current > end : current >= end) : inclusive ? current < end : current <= end;
       } else {
-          // Should not happen if range creation is validated
-          throw new Error("Interpreter Error: Mismatched types in range iterator.");
+        // Should not happen if range creation is validated
+        throw new Error("Interpreter Error: Mismatched types in range iterator.");
       }
 
       if (done) {
@@ -210,18 +215,18 @@ function createRangeIterator(range: AbleRange): AbleIterator {
       } else {
         const valueToReturn = current;
         // Increment/decrement current value
-         if (typeof current === 'bigint' && typeof step === 'bigint') {
-            current = current + step;
-         } else if (typeof current === 'number' && typeof step === 'number') {
-            current = current + step;
-         }
+        if (typeof current === "bigint" && typeof step === "bigint") {
+          current = current + step;
+        } else if (typeof current === "number" && typeof step === "number") {
+          current = current + step;
+        }
         // Need to return the correct AblePrimitive type
         // This is a simplification; ideally, the range itself would know its type
-        let valueKind: AblePrimitive['kind'] = 'i32'; // Default guess
-        if(typeof valueToReturn === 'bigint') {
-            valueKind = 'i64'; // Guess i64 for bigint ranges
-        } else if (typeof valueToReturn === 'number') {
-             valueKind = 'i32'; // Guess i32 for number ranges
+        let valueKind: AblePrimitive["kind"] = "i32"; // Default guess
+        if (typeof valueToReturn === "bigint") {
+          valueKind = "i64"; // Guess i64 for bigint ranges
+        } else if (typeof valueToReturn === "number") {
+          valueKind = "i32"; // Guess i32 for number ranges
         }
 
         return { kind: valueKind, value: valueToReturn } as AblePrimitive;
@@ -229,7 +234,6 @@ function createRangeIterator(range: AbleRange): AbleIterator {
     },
   };
 }
-
 
 // --- Environment ---
 
@@ -284,6 +288,14 @@ class Interpreter {
 
   // Store builtins separately for potential import resolution
   private builtins: Map<string, AbleValue> = new Map();
+
+  // Storage for runtime definitions
+  // Key: Interface Name (string)
+  private interfaces: Map<string, AbleInterfaceDefinition> = new Map();
+  // Key: Type Name (string) -> Interface Name (string) -> Implementation
+  private implementations: Map<string, Map<string, AbleImplementationDefinition>> = new Map();
+  // Key: Type Name (string) -> Methods Collection
+  private inherentMethods: Map<string, AbleMethodsCollection> = new Map();
 
   constructor() {
     this.defineBuiltins();
@@ -506,11 +518,14 @@ class Interpreter {
         case "UnionDefinition":
           /* TODO: Store definition */ return { kind: "nil", value: null };
         case "InterfaceDefinition":
-          /* TODO: Store definition */ return { kind: "nil", value: null };
+          this.evaluateInterfaceDefinition(node as AST.InterfaceDefinition, environment);
+          return { kind: "nil", value: null };
         case "ImplementationDefinition":
-          /* TODO: Store definition */ return { kind: "nil", value: null };
+          this.evaluateImplementationDefinition(node as AST.ImplementationDefinition, environment);
+          return { kind: "nil", value: null };
         case "MethodsDefinition":
-          /* TODO: Store definition */ return { kind: "nil", value: null };
+          this.evaluateMethodsDefinition(node as AST.MethodsDefinition, environment);
+          return { kind: "nil", value: null };
 
         // --- Statements (Control Flow / Side Effects) ---
         case "ReturnStatement": {
@@ -520,9 +535,12 @@ class Interpreter {
         }
         case "RaiseStatement":
           /* TODO */ return { kind: "nil", value: null };
-        case "BreakStatement":          return this.evaluateBreakStatement(node as AST.BreakStatement, environment); // Added call
-        case "WhileLoop":               return this.evaluateWhileLoop(node as AST.WhileLoop, environment);
-        case "ForLoop":                 return this.evaluateForLoop(node as AST.ForLoop, environment);
+        case "BreakStatement":
+          return this.evaluateBreakStatement(node as AST.BreakStatement, environment); // Added call
+        case "WhileLoop":
+          return this.evaluateWhileLoop(node as AST.WhileLoop, environment);
+        case "ForLoop":
+          return this.evaluateForLoop(node as AST.ForLoop, environment);
 
         // --- Module Structure (Handled elsewhere or ignored at runtime) ---
         case "PackageStatement": // Handled in interpretModule
@@ -1094,9 +1112,15 @@ class Interpreter {
         if (object.values.has(fieldName)) {
           return object.values.get(fieldName)!;
         } else {
-          // TODO: Check for inherent/interface methods here
+          // --- Method Call Check ---
+          const method = this.findMethod(object, fieldName);
+          if (method) {
+            // Return a bound method (closure) that includes 'self'
+            return this.bindMethod(object, method);
+          }
+          // --- End Method Call Check ---
           throw new Error(`Interpreter Error: Struct '${object.definition.name}' has no field or method named '${fieldName}'.`);
-        }
+        } // <-- Corrected closing brace
       } else {
         // Positional field access (IntegerLiteral)
         if (!Array.isArray(object.values)) throw new Error(`Interpreter Error: Expected positional fields array for struct instance '${object.definition.name}'.`);
@@ -1115,10 +1139,19 @@ class Interpreter {
       }
       return object.elements[index];
     }
-    // TODO: Handle method calls via member access (UFCS, inherent, interface)
+    // --- Method Call Check for Array (and potentially other types) ---
+    if (node.member.type === "Identifier") {
+      const methodName = node.member.name;
+      const method = this.findMethod(object, methodName);
+      if (method) {
+        return this.bindMethod(object, method);
+      }
+    }
+    // --- End Method Call Check ---
+
     // TODO: Handle static method access (e.g., Point.origin()) - might need different AST node or check object type
 
-    throw new Error(`Interpreter Error: Cannot access member on type ${object.kind}.`);
+    throw new Error(`Interpreter Error: Cannot access member '${node.member.type === "Identifier" ? node.member.name : node.member.value}' on type ${object.kind}.`);
   }
 
   private evaluateFunctionCall(node: AST.FunctionCall, environment: Environment): AbleValue {
@@ -1312,9 +1345,9 @@ class Interpreter {
         // If we add continue, it would continue here.
         // For now, just re-throw BreakSignal if it occurs.
         if (signal instanceof BreakSignal) {
-             // TODO: Check label if implemented (signal.label === this loop's label?)
-             // For now, any break signal breaks the innermost loop.
-             break; // Exit the JS while loop
+          // TODO: Check label if implemented (signal.label === this loop's label?)
+          // For now, any break signal breaks the innermost loop.
+          break; // Exit the JS while loop
         }
         // Re-throw other errors
         throw signal;
@@ -1325,10 +1358,10 @@ class Interpreter {
 
   // Evaluates a break statement, throwing a signal
   private evaluateBreakStatement(node: AST.BreakStatement, environment: Environment): never {
-      const value = this.evaluate(node.value, environment);
-      // For now, the label isn't used for matching as breakpoint isn't implemented,
-      // but we include it in the signal as per the AST/spec.
-      throw new BreakSignal(node.label.name, value);
+    const value = this.evaluate(node.value, environment);
+    // For now, the label isn't used for matching as breakpoint isn't implemented,
+    // but we include it in the signal as per the AST/spec.
+    throw new BreakSignal(node.label.name, value);
   }
 
   private evaluateForLoop(node: AST.ForLoop, environment: Environment): AbleValue {
@@ -1337,51 +1370,224 @@ class Interpreter {
 
     // Get iterator based on iterable type
     if (iterableValue.kind === "array") {
-        iterator = createArrayIterator(iterableValue);
+      iterator = createArrayIterator(iterableValue);
     } else if (iterableValue.kind === "range") {
-        iterator = createRangeIterator(iterableValue);
+      iterator = createRangeIterator(iterableValue);
     }
     // TODO: Add support for calling .iterator() method via Iterable interface
     else {
-        throw new Error(`Interpreter Error: Type '${iterableValue.kind}' is not iterable.`);
+      throw new Error(`Interpreter Error: Type '${iterableValue.kind}' is not iterable.`);
     }
 
     while (true) {
-        const nextValue = iterator.next();
+      const nextValue = iterator.next();
 
-        if (nextValue === IteratorEnd) {
-            break; // End of iteration
+      if (nextValue === IteratorEnd) {
+        break; // End of iteration
+      }
+
+      // Create a new environment for each iteration to scope the loop variable(s)
+      const loopBodyEnv = new Environment(environment);
+
+      try {
+        // Bind the value to the pattern in the loop body environment
+        // Use true for isDeclaration as it's a new binding each iteration
+        this.evaluatePatternAssignment(node.pattern, nextValue, loopBodyEnv, true);
+
+        // Evaluate the loop body in the new environment
+        this.evaluate(node.body, loopBodyEnv);
+      } catch (signal) {
+        // Handle signals similarly to while loop
+        if (signal instanceof ReturnSignal || signal instanceof RaiseSignal) {
+          throw signal; // Propagate function exit signals
         }
-
-        // Create a new environment for each iteration to scope the loop variable(s)
-        const loopBodyEnv = new Environment(environment);
-
-        try {
-            // Bind the value to the pattern in the loop body environment
-            // Use true for isDeclaration as it's a new binding each iteration
-            this.evaluatePatternAssignment(node.pattern, nextValue, loopBodyEnv, true);
-
-            // Evaluate the loop body in the new environment
-            this.evaluate(node.body, loopBodyEnv);
-
-        } catch (signal) {
-            // Handle signals similarly to while loop
-            if (signal instanceof ReturnSignal || signal instanceof RaiseSignal) {
-                throw signal; // Propagate function exit signals
-            }
-            if (signal instanceof BreakSignal) {
-                // TODO: Check label if implemented (signal.label === this loop's label?)
-                // For now, any break signal breaks the innermost loop.
-                break; // Exit the JS while loop for the 'for' construct
-            }
-            // TODO: Handle continue signal if implemented (would skip to next iterator.next())
-            throw signal; // Re-throw other errors/signals
+        if (signal instanceof BreakSignal) {
+          // TODO: Check label if implemented (signal.label === this loop's label?)
+          // For now, any break signal breaks the innermost loop.
+          break; // Exit the JS while loop for the 'for' construct
         }
+        // TODO: Handle continue signal if implemented (would skip to next iterator.next())
+        throw signal; // Re-throw other errors/signals
+      }
     }
 
     return { kind: "nil", value: null }; // For loops evaluate to nil
   }
 
+  // --- Definition Evaluators ---
+
+  private evaluateInterfaceDefinition(node: AST.InterfaceDefinition, environment: Environment): void {
+    const ifaceDef: AbleInterfaceDefinition = {
+      kind: "interface_definition",
+      name: node.id.name,
+      definitionNode: node,
+    };
+    // Store globally for now
+    this.interfaces.set(node.id.name, ifaceDef);
+    // Also define in current env? Maybe not needed if lookup is global.
+    // environment.define(node.id.name, ifaceDef);
+  }
+
+  private evaluateImplementationDefinition(node: AST.ImplementationDefinition, environment: Environment): void {
+    // 1. Find the interface definition
+    const ifaceName = node.interfaceName.name;
+    const ifaceDef = this.interfaces.get(ifaceName);
+    if (!ifaceDef) {
+      throw new Error(`Interpreter Error: Cannot implement unknown interface '${ifaceName}'.`);
+    }
+
+    // 2. Determine the target type name (simplistic for now)
+    // TODO: Handle complex target types (Array T, generics etc.)
+    let targetTypeName: string | null = null;
+    if (node.targetType.type === "SimpleTypeExpression") {
+      targetTypeName = node.targetType.name.name;
+    } else {
+      // For now, only support simple type targets
+      throw new Error(`Interpreter Error: Implementation target type evaluation not fully implemented for ${node.targetType.type}.`);
+    }
+    if (!targetTypeName) {
+      throw new Error(`Interpreter Error: Could not determine target type name for implementation.`);
+    }
+
+    // 3. Create runtime method closures
+    const methodsMap = new Map<string, AbleFunction>();
+    for (const funcDef of node.definitions) {
+      const method: AbleFunction = {
+        kind: "function",
+        node: funcDef,
+        closureEnv: environment, // Capture impl block's environment
+      };
+      methodsMap.set(funcDef.id.name, method);
+    }
+
+    // 4. Create and store the implementation definition
+    const implDef: AbleImplementationDefinition = {
+      kind: "implementation_definition",
+      implNode: node,
+      interfaceDef: ifaceDef,
+      methods: methodsMap,
+      closureEnv: environment,
+    };
+
+    if (!this.implementations.has(targetTypeName)) {
+      this.implementations.set(targetTypeName, new Map());
+    }
+    const typeImpls = this.implementations.get(targetTypeName)!;
+
+    // TODO: Handle overlapping implementations (named impls, specificity)
+    if (typeImpls.has(ifaceName)) {
+      console.warn(`Warning: Overwriting existing implementation of '${ifaceName}' for type '${targetTypeName}'.`);
+    }
+    typeImpls.set(ifaceName, implDef);
+  }
+
+  private evaluateMethodsDefinition(node: AST.MethodsDefinition, environment: Environment): void {
+    // 1. Determine the target type name (simplistic for now)
+    let targetTypeName: string | null = null;
+    if (node.targetType.type === "SimpleTypeExpression") {
+      targetTypeName = node.targetType.name.name;
+    } else {
+      throw new Error(`Interpreter Error: Methods target type evaluation not fully implemented for ${node.targetType.type}.`);
+    }
+    if (!targetTypeName) {
+      throw new Error(`Interpreter Error: Could not determine target type name for methods block.`);
+    }
+
+    // 2. Create runtime method closures
+    const methodsMap = new Map<string, AbleFunction>();
+    for (const funcDef of node.definitions) {
+      const method: AbleFunction = {
+        kind: "function",
+        node: funcDef,
+        closureEnv: environment, // Capture methods block's environment
+      };
+      methodsMap.set(funcDef.id.name, method);
+    }
+
+    // 3. Create and store the methods collection
+    const methodsCollection: AbleMethodsCollection = {
+      kind: "methods_collection",
+      methodsNode: node,
+      methods: methodsMap,
+      closureEnv: environment,
+    };
+
+    // TODO: Handle merging if multiple methods blocks for the same type?
+    if (this.inherentMethods.has(targetTypeName)) {
+      console.warn(`Warning: Overwriting existing inherent methods for type '${targetTypeName}'.`);
+    }
+    this.inherentMethods.set(targetTypeName, methodsCollection);
+  }
+
+  // --- Method Lookup & Binding ---
+
+  // Finds a method (inherent or interface) for a given object and name
+  private findMethod(object: AbleValue, methodName: string): AbleFunction | null {
+    let typeName: string | null = null;
+
+    // Determine type name (simplistic)
+    if (object.kind === "struct_instance") {
+      typeName = object.definition.name;
+    } else if (object.kind === "array") {
+      typeName = "Array"; // TODO: Need generic type info (Array T)
+    } else if (object.kind === "string") {
+      typeName = "string";
+    } // Add other types that can have methods
+
+    if (!typeName) return null;
+
+    // 1. Check inherent methods
+    const inherent = this.inherentMethods.get(typeName);
+    if (inherent && inherent.methods.has(methodName)) {
+      return inherent.methods.get(methodName)!;
+    }
+
+    // 2. Check interface implementations
+    const typeImpls = this.implementations.get(typeName);
+    if (typeImpls) {
+      for (const impl of typeImpls.values()) {
+        if (impl.methods.has(methodName)) {
+          // TODO: Handle ambiguity if multiple interfaces provide the same method
+          return impl.methods.get(methodName)!;
+        }
+      }
+    }
+
+    // 3. TODO: Check UFCS (Universal Function Call Syntax) - requires searching env
+
+    return null; // Not found
+  }
+
+  // Creates a bound method closure that implicitly passes 'self'
+  private bindMethod(selfValue: AbleValue, method: AbleFunction): AbleFunction {
+    // Create a new function value that wraps the original method
+    // This wrapper will insert 'selfValue' as the first argument when called
+    const boundMethod: AbleFunction = {
+      kind: "function",
+      node: method.node, // Keep original node for info
+      closureEnv: method.closureEnv, // Keep original closure env
+      // The 'apply' here is a JS function, not an Able concept
+      apply: (args: AbleValue[]) => {
+        // Prepend 'selfValue' to the arguments passed to the bound method call
+        const finalArgs = [selfValue, ...args];
+
+        // --- Parameter Check ---
+        // Ensure the original method definition expects 'self' + args
+        const expectedParamCount = method.node?.params.length ?? 0;
+        if (finalArgs.length !== expectedParamCount) {
+          const funcName = method.node?.type === "FunctionDefinition" && method.node.id ? method.node.id.name : "(method)";
+          console.error(`Internal Error: Bound method argument count mismatch for '${funcName}'. Expected ${expectedParamCount}, got ${finalArgs.length} (including self).`);
+          // Decide how to handle this - throw an internal error?
+          throw new Error(`Internal Interpreter Error: Bound method argument count mismatch for '${funcName}'.`);
+        }
+        // --- End Parameter Check ---
+
+        // Execute the *original* method's logic using its environment and the new args
+        return this.executeFunction(method, finalArgs, method.closureEnv); // Use original closureEnv
+      },
+    } as any; // Use 'as any' because we added a JS 'apply' for internal use
+    return boundMethod;
+  }
 
   // --- Helpers ---
   // Determine truthiness according to Able rules (Spec TBD, basic version here)
@@ -1449,6 +1655,11 @@ class Interpreter {
       case "void":
         return "void";
       case "function":
+        // Check if it's a bound method (has internal apply)
+        if (typeof (value as any).apply === "function" && value.node) {
+          const funcName = value.node?.type === "FunctionDefinition" && value.node.id ? value.node.id.name : "(bound method)";
+          return `<function ${funcName}>`;
+        }
         const funcName = value.node?.type === "FunctionDefinition" && value.node.id ? value.node.id.name : "(anonymous)";
         return `<function ${funcName}>`;
       case "struct_definition":
@@ -1479,7 +1690,7 @@ class Interpreter {
         // Need a way to represent targetType better
         const targetTypeName = (value.implNode.targetType as any)?.name?.name ?? "?"; // Basic attempt
         return `<impl ${ifaceName} for ${targetTypeName}>`;
-      case "methods_definition":
+      case "methods_collection": // Updated kind name
         // Need a way to represent targetType better
         const methodsTargetTypeName = (value.methodsNode.targetType as any)?.name?.name ?? "?"; // Basic attempt
         return `<methods for ${methodsTargetTypeName}>`;
@@ -1497,7 +1708,7 @@ class Interpreter {
         return `<${(_exhaustiveCheck as any).kind}>`; // Use kind property for unknown types
     }
   }
-}
+} // <-- End of Interpreter class
 
 // --- Entry Point ---
 
