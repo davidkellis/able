@@ -1,5 +1,7 @@
 import * as AST from "./ast"; // Import our AST definitions
 
+// This interpreter implements programs represented as AST nodes representing the various language constructs defined in the v6 language spec.
+
 // --- Runtime Values ---
 // More closely aligned with spec types
 type AblePrimitive =
