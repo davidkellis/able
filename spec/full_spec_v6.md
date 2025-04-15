@@ -75,7 +75,8 @@
 9.  [Inherent Methods (`methods`)](#9-inherent-methods-methods)
     *   [9.1. Syntax](#91-syntax)
     *   [9.2. Method Definitions](#92-method-definitions)
-    *   [9.3. Method Call Syntax Resolution (Initial Rules)](#93-method-call-syntax-resolution-initial-rules)
+    *   [9.3. Example: `methods` block for `Address`](#93-example-methods-block-for-address)
+    *   [9.4. Method Call Syntax Resolution](#94-method-call-syntax-resolution)
 10. [Interfaces and Implementations](#10-interfaces-and-implementations)
     *   [10.1. Interfaces](#101-interfaces)
         *   [10.1.1. Interface Usage Models](#1011-interface-usage-models)
@@ -871,7 +872,7 @@ Operators are evaluated in a specific order determined by precedence (higher bin
     *   `<<`, `>>`: Bitwise left shift, right shift on integer types.
     *   `~` (Bitwise NOT): Unary operator, performs bitwise complement on integer types.
 *   **Unary (`-`):** Arithmetic negation for numeric types.
-*   **Member Access (`.`):** Access fields/methods, UFCS, static methods. See Section [9.3](#93-method-call-syntax-resolution-initial-rules).
+*   **Member Access (`.`):** Access fields/methods, UFCS, static methods. See Section [9.4](#94-method-call-syntax-resolution).
 *   **Function Call (`()`):** Invokes functions/methods. See Section [7.4](#74-function-invocation).
 *   **Indexing (`[]`):** Access elements within indexable collections (e.g., `Array`). Relies on standard library interfaces (`Index`, `IndexMut`). See Section [14](#14-standard-library-interfaces-conceptual--tbd).
 *   **Range (`..`, `...`):** Create `Range` objects (inclusive `..`, exclusive `...`). See Section [8.2.3](#823-range-expressions).
@@ -1060,14 +1061,14 @@ items.map { item => item.process() }
 
 #### 7.4.3. Method Call Syntax
 
-Allows calling functions (both inherent/interface methods and qualifying free functions) using dot notation on the first argument. (See Section [9.3](#93-method-call-syntax-resolution-initial-rules) for resolution details).
+Allows calling functions (both inherent/interface methods and qualifying free functions) using dot notation on the first argument. (See Section [9.4](#94-method-call-syntax-resolution) for resolution details).
 
 ##### Syntax
 ```able
 ReceiverExpression . FunctionOrMethodName ( RemainingArgumentList )
 ```
 
-##### Semantics (Simplified - see Section 9.3 for full rules)
+##### Semantics (Simplified - see Section 9.4 for full rules)
 When `receiver.name(args...)` is encountered:
 1.  Check for field `name`.
 2.  Check for inherent method `name`.
@@ -1506,22 +1507,45 @@ addr_string = addr.to_s()     ## Call instance method
 addr.update_zip(90211)        ## Call instance method (mutates addr)
 ```
 
-### 9.4. Method Call Syntax Resolution
+### 9.4 Method Call Syntax Resolution
 
-When resolving `receiver.name(args...)`:
-1.  Check for **field** `name` on the `receiver`. If found and callable (implements `Apply`), call it. If found and not callable, error (unless accessing the field value was the intent).
-2.  Check for **inherent method** `name` defined in a `methods TypeName { ... }` block for the type of `receiver`.
-3.  Check for **interface method** `name` from interfaces implemented by the type of `receiver`.
-    *   If multiple interfaces provide `name`, use specificity rules (See Section [10.2.4](#1024-overlapping-implementations-and-specificity)).
-    *   If ambiguity remains after specificity rules (e.g., two unrelated interfaces provide the same method), check for named implementations.
-4.  Check for **named implementation method** `receiver.ImplName.name(...)` if the syntax is used (See Section [10.3.3](#1033-disambiguation-named-impls)). This explicitly selects an implementation.
-5.  Check for **free function** `name` in scope that takes `receiver` as its first argument (Universal Function Call Syntax - UFCS).
-6.  **Precedence:**
-    *   Field access (Step 1) takes highest precedence.
-    *   Inherent methods (Step 2) take precedence over interface methods (Step 3) and UFCS (Step 5).
-    *   Named implementation calls (Step 4) are explicit and bypass ambiguity between Step 2 and 3 if applicable.
-    *   Interface methods (Step 3) take precedence over UFCS (Step 5).
-7.  If ambiguity remains (e.g., multiple equally specific interface methods without named implementation) or no match is found, result in a compile-time error.
+This section details the step-by-step process the Able compiler uses to determine *which* function or method to call when encountering the method call syntax: `ReceiverExpression.Identifier(ArgumentList)`.
+
+**Resolution Steps:**
+
+Let `ReceiverType` be the static type of the `ReceiverExpression`. The compiler attempts to resolve `Identifier` in the following order:
+
+1.  **Check for Field Access:**
+    *   Determine if `ReceiverType` has a field named `Identifier`.
+    *   If a field exists:
+        *   If the field's type implements the `Apply` interface (making it callable), the call resolves to invoking the `apply` method on the field's value (`ReceiverExpression.Identifier.apply(ArgumentList)`).
+        *   If the field's type does *not* implement `Apply`, and parentheses `()` with arguments are present, this is a **compile-time error** (cannot call a non-callable field).
+        *   If parentheses are absent (`ReceiverExpression.Identifier`), it resolves to accessing the field's value.
+
+2.  **Check for Inherent Methods:**
+    *   Determine if an inherent method named `Identifier` is defined for `ReceiverType` within a `methods ReceiverType { ... }` block.
+    *   If found, the call resolves to this inherent method. `ReceiverExpression` is passed as the `self` argument (or equivalent first argument).
+
+3.  **Check for Interface Methods (Trait Methods):**
+    *   Identify *all* interfaces `I` that `ReceiverType` is known to implement (either directly via `impl I for ReceiverType` or through generic bounds like `T: I`).
+    *   Filter this set to interfaces `I` that define a method named `Identifier`.
+    *   **If exactly one such interface `I` is found:** The call resolves to the implementation of `Identifier` provided by the `impl I for ReceiverType` block.
+    *   **If multiple such interfaces are found:** Apply the **Specificity Rules** (See Section [10.2.4](#1024-overlapping-implementations-and-specificity)) to find the *single most specific* implementation among the candidates.
+        *   If a single most specific implementation exists, the call resolves to that implementation.
+        *   If no single implementation is more specific than all others (ambiguity), this step fails, and resolution continues (or results in an error if no further steps match). **Note:** Explicit disambiguation might be required (See Section [10.3.3](#1033-disambiguation-named-impls)).
+    *   **If no such interfaces are found:** This step fails.
+
+4.  **Check for Universal Function Call Syntax (UFCS):**
+    *   Search the current scope for a free (non-method) function named `Identifier` whose *first parameter* type is compatible with `ReceiverType`.
+    *   If exactly one such function is found, the call resolves to this function, passing `ReceiverExpression` as the first argument (`Identifier(ReceiverExpression, ArgumentList)`).
+    *   If multiple such functions exist (e.g., due to overloading based on later arguments, if supported) or none exist, this step fails.
+
+**Precedence and Error Handling:**
+
+*   The resolution stops at the **first step** that successfully finds a match.
+*   **Precedence Order:** Field Access (Callable) > Inherent Method > Interface Method (after specificity) > UFCS.
+*   If **ambiguity** arises within Step 3 (multiple equally specific interface implementations) and is not resolved by later steps (which is unlikely given the precedence), a **compile-time error** occurs, requiring explicit disambiguation.
+*   If **no match** is found after all steps, a **compile-time error** occurs ("method not found").
 
 ## 10. Interfaces and Implementations
 
@@ -1666,7 +1690,7 @@ interface HashableEq = Hashable + Eq
 
 ### 10.2. Implementations (`impl`)
 
-Implementations provide the concrete function bodies for an interface for a specific type or type constructor.
+Implementations provide the concrete function bodies for an interface for a specific type or type constructor. They establish the link showing that a type *satisfies* an interface contract.
 
 #### 10.2.1. Implementation Declaration
 
@@ -1695,9 +1719,17 @@ Provides bodies for interface methods. Can use `fn #method` shorthand if desired
 -   **`[where <ConstraintList>]`**: Optional clause for specifying constraints on `ImplGenericParams`.
 -   **`{ [ConcreteFunctionDefinitions] }`**: Block containing the full definitions (`fn name(...) { body }`) for all functions required by the interface (unless they have defaults). Signatures must match. May override defaults.
 
--   **Distinction from `methods`:** `methods Type { ... }` defines *inherent* methods (part of the type's own API). `impl Interface for Type { ... }` fulfills an *external contract* defined by the interface. An inherent method defined in `methods Type` may be used to explicitly satisfy an interface requirement in an `impl` block, but the `impl Interface for Type` block is still needed to declare the conformance.
+-   **Method Availability:** An `impl` block associates the defined methods with the `Target` type for the specific `InterfaceName`. These methods become available through method call syntax (`value.method()`) on values of the `Target` type, subject to the resolution rules (Section [9.4](#94-method-call-syntax-resolution)). They are not directly imported into the scope like names via `import`; instead, the compiler finds them during method lookup based on the receiver's type and the implemented interfaces.
 
-#### 10.2.2. HKT Implementation Syntax (Refined)
+#### 10.2.2. Semantic Effect of `impl`
+
+*   **Association, Not Scoping:** An `impl InterfaceName for TargetType { ... }` block does **not** directly add the defined methods (`ConcreteFunctionDefinitions`) into the namespace or scope of `TargetType` itself. Inherent methods defined in a `methods TargetType { ... }` block are directly associated with the type's scope.
+*   **Contract Fulfillment:** The primary role of an `impl` block is to **register** with the compiler that `TargetType` conforms to `InterfaceName`. It provides the necessary evidence (the concrete method bodies) for this conformance.
+*   **Method Lookup Table:** Conceptually, the compiler maintains a mapping: for each pair `(InterfaceName, TargetType)`, it knows the location of the function implementations provided by the corresponding `impl` block. This mapping is crucial for method resolution (Section [9.4](#94-method-call-syntax-resolution-revised-and-expanded)).
+*   **Visibility:** The `impl` block itself follows the visibility rules of where it's defined. However, the *association* it creates between the type and interface becomes known wherever both the `TargetType` and `InterfaceName` are visible. Public types implementing public interfaces can be used polymorphically across package boundaries. Private types or implementations for private interfaces are restricted.
+*   **Dispatch:** When an interface method is called (e.g., `receiver.interface_method()`), the compiler uses the type of `receiver` and the method name to look up the correct implementation via the `(InterfaceName, TargetType)` mapping established by the `impl` block (details in Section [9.4](#94-method-call-syntax-resolution-revised-and-expanded) and Section [10.3](#103-usage-revised)).
+
+#### 10.2.3. HKT Implementation Syntax (Refined)
 
 To implement an interface defined `for M _` (like `Mappable`) for a concrete constructor like `Array`:
 
@@ -1719,7 +1751,7 @@ impl Mappable A for Option {
 ```
 *(Note: This syntax is only applicable when the interface was defined using the `for M _` pattern.)*
 
-#### 10.2.3. Examples of Implementations
+#### 10.2.4. Examples of Implementations
 
 ```able
 ## Implementing Display (defined 'for T') for Point
@@ -1767,7 +1799,7 @@ impl Greeter for MyGreeter {
 }
 ```
 
-#### 10.2.4. Overlapping Implementations and Specificity
+#### 10.2.5. Overlapping Implementations and Specificity
 
 When multiple `impl` blocks could apply to a given type and interface, Able uses specificity rules to choose the *most specific* implementation. If no single implementation is more specific, it results in a compile-time ambiguity error. Rules (derived from Rust RFC 1210, simplified):
 
@@ -1781,52 +1813,122 @@ Ambiguities must be resolved manually, typically by qualifying the method call (
 
 ### 10.3. Usage
 
-#### 10.3.1. Instance Method Calls
+This section explains how interface methods are invoked and how different dispatch mechanisms work.
 
-Use dot notation on a value whose type implements the interface. Resolution follows rules in Section [9.3](#93-method-call-syntax-resolution-initial-rules), considering specificity.
+#### 10.3.1. Instance Method Calls and Dispatch
+
+When calling a method using dot notation `receiver.method_name(args...)`:
+
+*   **Resolution:** The compiler follows the steps outlined in Section [9.4](#94-method-call-syntax-resolution-revised-and-expanded). If resolution points to an interface method implementation (Step 3), the specific `impl` block is identified.
+*   **Static Dispatch (Monomorphization):**
+    *   If the `receiver` has a **concrete type** (`Point`, `Array i32`, etc.) at the call site, the compiler knows the exact `impl` block to use. It typically generates code that directly calls the specific function defined within that `impl` block.
+    *   This also applies when the `receiver` has a **generic type `T` constrained by the interface** (e.g., `fn process<T: Display>(item: T) { item.to_string() }`). During compilation (often through monomorphization), the compiler generates specialized versions of `process` for each concrete type `T` used, and the `item.to_string()` call within each specialized version directly calls the correct implementation for that concrete type.
+    *   This is the most common form of dispatch – efficient and resolved at compile time.
+*   **Dynamic Dispatch:**
+    *   This occurs when the `receiver` has an **interface type** (e.g., `dyn Display` - see Section [10.3.4](#1034-interface-types-dynamic-dispatch-revised)). The actual concrete type of the value is not known at compile time.
+    *   The call `receiver.method_name(args...)` is dispatched at *runtime*. The `receiver` value (often represented as a "fat pointer" containing a pointer to the data and a pointer to a **vtable**) uses the vtable to find the address of the correct `method_name` implementation for the underlying concrete type and then calls it.
+    *   This enables runtime polymorphism but incurs a small runtime overhead compared to static dispatch.
+
 ```able
-p = Point { x: 1, y: 2 }
-s = p.to_string() ## Calls Point's impl of Display.to_string
+p = Point { x: 1, y: 2 } ## Concrete type Point
+s = p.to_string()       ## Static dispatch to 'impl Display for Point'
 
-arr = [1, 2, 3]
-arr_mapped = arr.map({ x => x * 2 }) ## Calls Array's impl of Mappable.map
+fn print_any<T: Display>(item: T) {
+  print(item.to_string()) ## Static dispatch within monomorphized versions of print_any
+}
+print_any(p)      ## Instantiates print_any<Point>, calls Point's to_string
+print_any("hi")   ## Instantiates print_any<string>, calls string's to_string
+
+## Dynamic dispatch example (see 10.3.4)
+displayables: Array (dyn Display) = [p, "hi"]
+for item in displayables {
+  print(item.to_string()) ## Dynamic dispatch via vtable based on item's concrete type
+}
 ```
 
 #### 10.3.2. Static Method Calls
 
-Use `TypeName.static_method(...)` notation. The `TypeName` must have an `impl` for the interface containing the static method.
-```able
-zero_int = i32.zero()          ## Calls i32's impl of Zeroable.zero
-empty_f64_array = (Array f64).zero() ## Calls Array T's impl of Zeroable.zero
-## TBD: Syntax for calling static methods on generic types like Array needs confirmation.
-## Maybe Array.zero<f64>() or (Array f64).zero() ? Let's assume the latter for now.
-```
+Static methods defined within an interface (those not taking `self`) are called using syntax that qualifies the interface and often the type.
 
-#### 10.3.3. Disambiguation (Named Impls)
+*   **Unambiguous Static Call:** If `TargetType` implements `InterfaceName` uniquely (or via the most specific `impl`), and `static_method` is defined in `InterfaceName`:
+    ```able
+    ## Preferred Syntax (if TargetType is concrete):
+    TargetType.static_method(args...)
 
-If multiple implementations exist (e.g., `Sum` and `Product` for `Monoid for i32`), qualify the call with the implementation name:
-```able
-sum_id = Sum.id()             ## 0
-prod_id = Product.id()         ## 1
-res = Sum.op(5, 6)          ## 11 (Calls Sum's op)
-res2 = Product.op(5, 6)       ## 30
+    ## Fully Qualified Syntax (more explicit, works for generics):
+    InterfaceName::static_method<TargetType>(args...)
+    ```
+    *Example:*
+    ```able
+    zero_int = i32.zero() ## Calls impl Zeroable for i32
+    zero_int_explicit = Zeroable::zero<i32>()
 
-## TBD: Interaction between named impls and instance method call syntax
-## (`value.ImplName.method(...)`) needs confirmation/specification.
-## For now, assume named impls primarily disambiguate static calls or free functions.
-```
+    ## Assuming Array T implements Zeroable
+    empty_f64_arr = Array::zero<f64>() ## TBD: Need precise syntax for generic type application here.
+                                      ## Perhaps Zeroable::zero<(Array f64)>() is clearer? Let's favour this:
+    empty_f64_arr_fq = Zeroable::zero<(Array f64)>()
+    ```
+*   **Disambiguation using Named Impls:** If multiple `impl` blocks could provide the static method (e.g., `Sum` and `Product` implementing `Monoid`), use the implementation name:
+    ```able
+    sum_id = Sum.id()       ## Calls static 'id' from 'Sum = impl Monoid for i32'
+    prod_id = Product.id()    ## Calls static 'id' from 'Product = impl Monoid for i32'
+    ```
 
-#### 10.3.4. Interface Types (Dynamic Dispatch)
+#### 10.3.3. Disambiguation (Named Impls and Explicit Paths)
 
-Using an interface as a type allows storing heterogeneous values implementing the same interface. Method calls typically use dynamic dispatch. The exact syntax is TBD (`dyn Iface` or `(Iface)`).
+When method call resolution (Section [9.4](#94-method-call-syntax-resolution-revised-and-expanded)) results in ambiguity (multiple equally specific interface methods) or when you need to explicitly choose a non-default implementation, use more qualified syntax:
 
-```able
-## Assuming syntax 'dyn Iface'
-displayables: Array (dyn Display) = [1, "hello", Point{...}]
-for item in displayables {
-  print(item.to_string()) ## Dynamic dispatch selects correct to_string impl
-}
-```
+1.  **Named Implementation Calls:** If an implementation was named (`MyImplName = impl ...`), you can select its methods explicitly.
+    *   **Static Methods:** `ImplName.static_method(args...)` (as shown above).
+    *   **Instance Methods (TBD Syntax):** A mechanism is needed to call an instance method via a specific named implementation. Potential syntaxes:
+        *   `InterfaceName::method_name<ImplName=MyImplName>(receiver, args...)`
+        *   `receiver.(MyImplName.method_name)(args...)` *(Less conventional)*
+        *   Let's tentatively specify the first form for clarity, similar to Rust's UFCS for traits:
+          ```able
+          ## Assuming Sum/Product impl Monoid for i32
+          num = 5
+          ## Call 'op' from the 'Sum' implementation explicitly:
+          res_sum = Monoid::op<ImplName=Sum>(num, 6) ## res_sum = 11
+
+          ## Call 'op' from the 'Product' implementation explicitly:
+          res_prod = Monoid::op<ImplName=Product>(num, 6) ## res_prod = 30
+          ```
+        *   **Note:** This syntax *bypasses* the normal resolution (Section 9.4) and specificity rules (Section 10.2.4) for this specific call, directly selecting the method from the named `impl`.
+
+2.  **Fully Qualified Interface Calls:** To resolve ambiguity between interfaces even without named implementations, you can specify the interface explicitly:
+    ```able
+    ## Assume Type implements InterfaceA and InterfaceB, both having 'conflicting_method'.
+    val: Type = ...
+    ## Explicitly call InterfaceA's version:
+    result_a = InterfaceA::conflicting_method(val, args...)
+    ## Explicitly call InterfaceB's version:
+    result_b = InterfaceB::conflicting_method(val, args...)
+    ```
+    *   **Note:** This relies on the compiler being able to determine the correct `impl` for `InterfaceA for Type` and `InterfaceB for Type` respectively (which should be unambiguous if the ambiguity was *between* interfaces, not *within* multiple impls for the *same* interface). If ambiguity still exists (e.g., multiple `impl InterfaceA for Type`), named implementations are likely necessary.
+
+#### 10.3.4. Interface Types (Dynamic Dispatch) (Revised)
+
+Using an interface name as a type allows creating collections of different concrete types that all conform to the same interface, enabling runtime polymorphism.
+
+*   **Syntax (Tentative):** `dyn InterfaceName` or `(InterfaceName)`. Let's use `dyn InterfaceName`.
+    ```able
+    struct Circle { radius: f64 }
+    struct Square { side: f64 }
+
+    impl Display for Circle { fn to_string(self: Self) -> string { $"Circle({self.radius})" } }
+    impl Display for Square { fn to_string(self: Self) -> string { $"Square({self.side})" } }
+
+    ## Create an array holding values viewed through the 'Display' interface lens
+    shapes: Array (dyn Display) = [Circle { radius: 1.0 }, Square { side: 2.0 }]
+    ```
+*   **Representation:** A value of type `dyn InterfaceName` (an "interface object" or "trait object") is typically represented internally as a pair of pointers:
+    1.  A pointer to the actual data (the instance of `Circle` or `Square`).
+    2.  A pointer to a **Virtual Method Table (vtable)** associated with the *concrete type's implementation* of `InterfaceName`. The vtable contains function pointers for each method defined in `InterfaceName`.
+*   **Method Calls:** When a method is called on an interface object (`item.to_string()` where `item` has type `dyn Display`), the following happens at runtime:
+    1.  The specific method (`to_string`) is looked up in the `item`'s vtable.
+    2.  The function pointer retrieved from the vtable is called, passing the `item`'s data pointer as the `self` argument.
+*   **Semantics:** This allows treating heterogeneous collections uniformly based on shared interface conformance, with the correct method implementation being chosen dynamically at runtime.
+
 
 ## 11. Error Handling
 
@@ -2220,7 +2322,7 @@ print("Background log finished.")
 
 -   **Return Type:** `proc` returns `Proc T` (an interface handle); `spawn` returns `Thunk T` (a special type).
 -   **Control:** `Proc T` offers explicit control (check status, attempt cancellation, get result via method call potentially handling errors).
--   **Result Access:** `Thunk T` provides implicit result access; evaluating the thunk blocks and returns the value directly (or propagates panic). It lacks fine-grained status checks or cancellation via the handle itself.
+-   **Result Access:** `Thunk T` provides implicit result access; evaluating the thunk blocks and returns the value directly (or propagates panics). It lacks fine-grained status checks or cancellation via the handle itself.
 -   **Use Cases:**
     *   `proc` is suitable when you need to manage the lifecycle of the async task, check its progress, handle failures explicitly, or potentially cancel it.
     *   `spawn` is simpler for "fire and forget" tasks where you only need the final result eventually and are okay with blocking for it implicitly (or propagating panics).
