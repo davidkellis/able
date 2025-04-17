@@ -358,10 +358,10 @@ class Interpreter {
         this.evaluate(def, moduleEnv);
       }
 
-      // --- Evaluate Top-Level Assignments ---
+      // --- Evaluate Top-Level Assignments --- // MODIFIED: Evaluate in moduleEnv
       for (const stmt of otherStatements) {
         if (stmt.type === "AssignmentExpression" && stmt.operator === ":=") {
-          this.evaluate(stmt, this.globalEnv); // Evaluate in the global environment
+          this.evaluate(stmt, moduleEnv); // Evaluate in the module environment
         }
       }
 
@@ -1229,6 +1229,23 @@ class Interpreter {
     const func = callee as AbleFunction; // Runtime function value
     const args = node.arguments.map((arg) => this.evaluate(arg, environment));
 
+    // === ADDED: Handle Bound Methods ===
+    // Check if it's a bound method (which has its own apply logic)
+    if (func.isBoundMethod && typeof (func as any).apply === 'function') {
+      // Invoke the bound method's internal JS apply, which handles 'self'
+      // Note: The 'args' here are the *explicit* arguments from the call site (e.g., empty for user1.format())
+      try {
+          return (func as any).apply(args);
+      } catch (e: any) {
+           // Propagate signals directly, wrap other errors
+           if (e instanceof ReturnSignal || e instanceof RaiseSignal || e instanceof BreakSignal) {
+              throw e;
+           }
+          throw createError(e.message || "Bound method execution error", e);
+      }
+    }
+    // === END ADDED ===
+
     // Handle native functions (identified by null node and having 'apply')
     if (func.node === null && typeof (func as any).apply === "function") {
       // Native functions might throw errors directly or return AbleError values
@@ -1258,7 +1275,15 @@ class Interpreter {
     // Bind arguments to parameters (support destructuring patterns)
     for (let i = 0; i < funcDef.params.length; i++) {
       const param = funcDef.params[i];
-      const argValue = args[i];
+      const argValue = args[i]; // Get corresponding argument value
+      if (!param) {
+          throw new Error(`Interpreter Error: Parameter definition missing at index ${i}`);
+      }
+      if (argValue === undefined) {
+          // This might indicate an issue upstream if args weren't prepared correctly
+          throw new Error(`Interpreter Error: Argument value undefined for parameter at index ${i}`);
+      }
+
       // Support destructuring patterns as function parameters
       if (param.name.type === "Identifier") {
         // Simple parameter
@@ -1268,7 +1293,8 @@ class Interpreter {
         this.evaluatePatternAssignment(param.name, argValue, funcEnv, true);
       } else {
         // Defensive fallback for unknown pattern types
-        throw new Error(`Interpreter Error: Unsupported parameter pattern type: ${param.name.type}`);
+        const unknownPattern: never = param.name;
+        throw new Error(`Interpreter Error: Unsupported parameter pattern type: ${(unknownPattern as any).type}`);
       }
     }
 
@@ -1300,11 +1326,30 @@ class Interpreter {
     if (!funcDef) throw new Error("Interpreter Error: Function definition node is missing.");
 
     if (args.length !== funcDef.params.length) {
-      throw new Error(`Interpreter Error: Argument count mismatch during direct function execution.`);
+      const funcName = funcDef.type === "FunctionDefinition" && funcDef.id ? funcDef.id.name : "(method/lambda)";
+      throw new Error(`Interpreter Error: Argument count mismatch during direct function execution for '${funcName}'. Expected ${funcDef.params.length}, got ${args.length}.`);
     }
     const funcEnv = new Environment(func.closureEnv);
     for (let i = 0; i < funcDef.params.length; i++) {
-      funcEnv.define(funcDef.params[i].name.name, args[i]);
+      const param = funcDef.params[i];
+      const argValue = args[i]; // Get corresponding argument value
+      if (!param) {
+          throw new Error(`Interpreter Error: Parameter definition missing at index ${i} in executeFunction.`);
+      }
+      if (argValue === undefined) {
+          throw new Error(`Interpreter Error: Argument value undefined for parameter at index ${i} in executeFunction.`);
+      }
+
+      // Bind parameter using pattern (handle Identifier, StructPattern, etc.)
+      if (param.name.type === "Identifier") {
+        funcEnv.define(param.name.name, argValue);
+      } else if (param.name.type === "StructPattern" || param.name.type === "ArrayPattern" || param.name.type === "WildcardPattern" || param.name.type === "LiteralPattern") {
+        this.evaluatePatternAssignment(param.name, argValue, funcEnv, true);
+      } else {
+        // Defensive fallback for unknown pattern types
+        const unknownPattern: never = param.name;
+        throw new Error(`Interpreter Error: Unsupported parameter pattern type in executeFunction: ${(unknownPattern as any).type}`);
+      }
     }
     // Execute and handle signals similar to evaluateFunctionCall
     try {
