@@ -531,7 +531,7 @@ class Interpreter {
         case "BreakpointExpression":
           /* TODO */ return { kind: "nil", value: null };
         case "RescueExpression":
-          /* TODO */ return { kind: "nil", value: null };
+          return this.evaluateRescueExpression(node as AST.RescueExpression, environment);
         case "PropagationExpression":
           /* TODO */ return { kind: "nil", value: null };
         case "OrElseExpression":
@@ -565,7 +565,9 @@ class Interpreter {
           throw new ReturnSignal(returnValue); // Throw signal
         }
         case "RaiseStatement":
-          /* TODO */ return { kind: "nil", value: null };
+          this.evaluateRaiseStatement(node as AST.RaiseStatement, environment); // Throws RaiseSignal
+          // This line should be unreachable because evaluateRaiseStatement always throws
+          return { kind: "nil", value: null };
         case "BreakStatement":
           return this.evaluateBreakStatement(node as AST.BreakStatement, environment); // Added call
         case "WhileLoop":
@@ -622,7 +624,13 @@ class Interpreter {
     const blockEnv = new Environment(environment); // Create new scope for the block
     // evaluateStatements returns the value of the last statement/expression
     // Signals (Return, Raise, Break) are thrown by evaluateStatements/evaluate
-    return this.evaluateStatements(node.body, blockEnv);
+    try {
+      return this.evaluateStatements(node.body, blockEnv);
+    } catch (signal) {
+      // Block expressions themselves don't handle signals, they propagate them up.
+      // RescueExpression is the primary mechanism for catching RaiseSignal.
+      throw signal;
+    }
   }
 
   private evaluateUnaryExpression(node: AST.UnaryExpression, environment: Environment): AbleValue {
@@ -1997,6 +2005,55 @@ class Interpreter {
     // If no clauses matched
     // TODO: Check spec for exhaustiveness requirements. For now, throw error.
     throw new Error(`Interpreter Error: Non-exhaustive match expression for value ${this.valueToString(subjectValue)}`);
+  }
+
+  private evaluateRaiseStatement(node: AST.RaiseStatement, environment: Environment): never {
+    const errorValue = this.evaluate(node.expression, environment);
+    // TODO: Spec discussion - should we enforce wrapping in AbleError?
+    // For now, raise the evaluated value directly.
+    throw new RaiseSignal(errorValue);
+  }
+
+  private evaluateRescueExpression(node: AST.RescueExpression, environment: Environment): AbleValue {
+    try {
+        // Evaluate the expression that might raise an error
+        return this.evaluate(node.monitoredExpression, environment);
+    } catch (signal) {
+        if (signal instanceof RaiseSignal) {
+            // A raise occurred, try to rescue it
+            const raisedValue = signal.value;
+
+            for (const clause of node.clauses) {
+                 // 1. Attempt to match the pattern against the *raised value*
+                 // Pass the current environment for pattern literal evaluation, but the bindings
+                 // will go into a new environment derived from the current one.
+                const matchEnv = this.matchPattern(clause.pattern, raisedValue, environment);
+
+                if (matchEnv) {
+                    // Pattern matched!
+                    let guardResult = true;
+                    // 2. Evaluate the guard condition (if present) in the match environment
+                    if (clause.guard) {
+                    const guardValue = this.evaluate(clause.guard, matchEnv); // Use matchEnv with bindings
+                    guardResult = this.isTruthy(guardValue);
+                    }
+
+                    // 3. If guard passed (or no guard), evaluate the body
+                    if (guardResult) {
+                    // Evaluate the body in the environment created by the match (with bindings)
+                    return this.evaluate(clause.body, matchEnv);
+                    }
+                }
+                // If pattern didn't match or guard failed, continue to the next clause
+            }
+            // If no rescue clause matched, re-throw the original signal
+            throw signal;
+        } else {
+             // If it wasn't a RaiseSignal (e.g., ReturnSignal, BreakSignal, JS Error),
+             // propagate it up. Rescue only catches 'raise'.
+            throw signal;
+        }
+    }
   }
 } // <-- End of Interpreter class
 
