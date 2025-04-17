@@ -144,6 +144,16 @@ type AbleValue =
   | AbleRange // Added
   | AbleIterator; // Added for for-loops
 
+// Type guard to check if a value is an AblePrimitive
+function isAblePrimitive(value: AbleValue): value is AblePrimitive {
+  return value !== null && typeof value === 'object' && 'value' in value && (
+    value.kind === "i8" || value.kind === "i16" || value.kind === "i32" || value.kind === "i64" || value.kind === "i128" ||
+    value.kind === "u8" || value.kind === "u16" || value.kind === "u32" || value.kind === "u64" || value.kind === "u128" ||
+    value.kind === "f32" || value.kind === "f64" || value.kind === "string" || value.kind === "bool" || value.kind === "char" ||
+    value.kind === "nil" || value.kind === "void"
+  );
+}
+
 // Special object to signal a `return` occurred
 class ReturnSignal extends Error {
   // Inherit from Error for stack trace
@@ -513,7 +523,7 @@ class Interpreter {
         case "RangeExpression":
           return this.evaluateRangeExpression(node as AST.RangeExpression, environment);
         case "MatchExpression":
-          /* TODO */ return { kind: "nil", value: null };
+          return this.evaluateMatchExpression(node as AST.MatchExpression, environment);
         case "ProcExpression":
           /* TODO */ return { kind: "nil", value: null };
         case "SpawnExpression":
@@ -1421,25 +1431,29 @@ class Interpreter {
     return func;
   }
 
-  private evaluateRangeExpression(node: AST.RangeExpression, environment: Environment): AbleRange {
+  private evaluateRangeExpression(node: AST.RangeExpression, environment: Environment): AbleValue { // Return AbleValue, not AbleRange
     const startVal = this.evaluate(node.start, environment);
     const endVal = this.evaluate(node.end, environment);
 
     // Add type guards before accessing .value
-    if ("value" in startVal && "value" in endVal) {
+    if (isAblePrimitive(startVal) && isAblePrimitive(endVal)) {
       // Basic validation - ensure both are numbers or both are bigints
       if (!((typeof startVal.value === "number" && typeof endVal.value === "number") || (typeof startVal.value === "bigint" && typeof endVal.value === "bigint"))) {
         throw new Error(`Interpreter Error: Range boundaries must be both numbers or both bigints. Got ${startVal.kind} and ${endVal.kind}.`);
       }
 
+      // Return an AbleRange *value* object
       return {
-        kind: "range",
+        kind: "range", // Add kind property
         start: startVal.value as number | bigint, // Cast is safe due to check above
         end: endVal.value as number | bigint,
         inclusive: node.inclusive,
-      };
+      } as AbleRange; // Explicitly cast to the interface type
     } else {
-      throw new Error(`Interpreter Error: Range boundaries must be primitive types. Got ${startVal.kind} and ${endVal.kind}.`);
+      // Use kind property safely after checking if they are primitives
+      const startKind = isAblePrimitive(startVal) ? startVal.kind : typeof startVal;
+      const endKind = isAblePrimitive(endVal) ? endVal.kind : typeof endVal;
+      throw new Error(`Interpreter Error: Range boundaries must be primitive types. Got ${startKind} and ${endKind}.`);
     }
   }
 
@@ -1843,6 +1857,146 @@ class Interpreter {
         const _exhaustiveCheck: never = value;
         return `<${(_exhaustiveCheck as any).kind}>`; // Use kind property for unknown types
     }
+  }
+
+  // --- Pattern Matching Logic ---
+
+  // Checks if a value matches a pattern. Returns null if no match,
+  // or a new Environment containing bindings if it matches.
+  private matchPattern(pattern: AST.Pattern, value: AbleValue, environment: Environment): Environment | null {
+    switch (pattern.type) {
+      case "Identifier":
+        // Identifier pattern always matches and binds the value to the name.
+        const matchEnv = new Environment(environment); // Create new env for bindings
+        matchEnv.define(pattern.name, value);
+        return matchEnv;
+
+      case "WildcardPattern":
+        // Wildcard always matches, no bindings created.
+        return new Environment(environment); // Return new env, but no bindings
+
+      case "LiteralPattern":
+        const patternVal = this.evaluate(pattern.literal, environment);
+        // TODO: Implement proper deep equality check based on Eq interface later
+        if (isAblePrimitive(value) && isAblePrimitive(patternVal)) {
+           if (value.kind === patternVal.kind && value.value === patternVal.value) {
+               return new Environment(environment); // Match, no bindings
+           }
+        }
+        return null; // No match
+
+      case "StructPattern":
+        if (!value || value.kind !== "struct_instance") return null;
+        // Optional: Check type name
+        if (pattern.structType && value.definition.name !== pattern.structType.name) return null;
+
+        let structMatchEnv = new Environment(environment);
+        if (pattern.isPositional) {
+            if (!Array.isArray(value.values)) return null; // Expect positional values
+            if (pattern.fields.length !== value.values.length) return null; // Length mismatch
+
+            for (let i = 0; i < pattern.fields.length; i++) {
+                const fieldPatternNode = pattern.fields[i];
+                const fieldValue = value.values[i];
+                if (!fieldPatternNode || fieldValue === undefined) return null; // Should not happen with valid AST/value
+
+                const subMatchEnv = this.matchPattern(fieldPatternNode.pattern, fieldValue, structMatchEnv);
+                if (!subMatchEnv) return null; // Inner pattern mismatch
+                structMatchEnv = subMatchEnv; // Carry over bindings
+            }
+        } else {
+            // Named fields
+            if (!(value.values instanceof Map)) return null; // Expect named values
+            const matchedFields = new Set<string>();
+
+            for (const fieldPatternNode of pattern.fields) {
+                if (!fieldPatternNode.fieldName) return null; // Named pattern must have name
+                const fieldName = fieldPatternNode.fieldName.name;
+                if (!value.values.has(fieldName)) return null; // Field missing in value
+
+                const fieldValue = value.values.get(fieldName)!;
+                const subMatchEnv = this.matchPattern(fieldPatternNode.pattern, fieldValue, structMatchEnv);
+                if (!subMatchEnv) return null; // Inner pattern mismatch
+                structMatchEnv = subMatchEnv; // Carry over bindings
+                matchedFields.add(fieldName);
+            }
+            // Optional: Check exhaustiveness (if pattern has fewer fields than value)
+            // Spec TBD - for now, allow extra fields in value
+        }
+        return structMatchEnv; // Successful match
+
+      case "ArrayPattern":
+        if (!value || value.kind !== "array") return null;
+
+        const minLen = pattern.elements.length;
+        const hasRest = !!pattern.restPattern;
+
+        // Check minimum length requirement
+        if (value.elements.length < minLen) return null;
+        // Check exact length if no rest pattern
+        if (!hasRest && value.elements.length !== minLen) return null;
+
+        let arrayMatchEnv = new Environment(environment);
+        // Match fixed elements
+        for (let i = 0; i < minLen; i++) {
+            const elemPattern = pattern.elements[i];
+            const elemValue = value.elements[i];
+            if (!elemPattern || elemValue === undefined) return null; // Should not happen
+
+            const subMatchEnv = this.matchPattern(elemPattern, elemValue, arrayMatchEnv);
+            if (!subMatchEnv) return null; // Inner pattern mismatch
+            arrayMatchEnv = subMatchEnv; // Carry over bindings
+        }
+
+        // Match rest element
+        if (hasRest && pattern.restPattern) {
+            const restValue: AbleArray = { kind: "array", elements: value.elements.slice(minLen) };
+            // Rest pattern must be Identifier or Wildcard
+            if (pattern.restPattern.type === "Identifier" || pattern.restPattern.type === "WildcardPattern") {
+                 const subMatchEnv = this.matchPattern(pattern.restPattern, restValue, arrayMatchEnv);
+                 if (!subMatchEnv) return null; // This should ideally not fail for Ident/Wildcard, but check anyway
+                 arrayMatchEnv = subMatchEnv;
+            } else {
+                return null; // Invalid rest pattern type in AST
+            }
+        }
+        return arrayMatchEnv; // Successful match
+
+      default:
+         // Ensure exhaustive check with `never`
+        const _exhaustiveCheck: never = pattern;
+        throw new Error(`Interpreter Error: Unsupported pattern type in matchPattern: ${(_exhaustiveCheck as any).type}`);
+    }
+  }
+
+  private evaluateMatchExpression(node: AST.MatchExpression, environment: Environment): AbleValue {
+    const subjectValue = this.evaluate(node.subject, environment);
+
+    for (const clause of node.clauses) {
+      // 1. Attempt to match the pattern
+      const matchEnv = this.matchPattern(clause.pattern, subjectValue, environment);
+
+      if (matchEnv) {
+        // Pattern matched!
+        let guardResult = true;
+        // 2. Evaluate the guard condition (if present) in the match environment
+        if (clause.guard) {
+          const guardValue = this.evaluate(clause.guard, matchEnv); // Use matchEnv with bindings
+          guardResult = this.isTruthy(guardValue);
+        }
+
+        // 3. If guard passed (or no guard), evaluate the body
+        if (guardResult) {
+          // Evaluate the body in the environment created by the match (with bindings)
+          return this.evaluate(clause.body, matchEnv);
+        }
+      }
+      // If pattern didn't match or guard failed, continue to the next clause
+    }
+
+    // If no clauses matched
+    // TODO: Check spec for exhaustiveness requirements. For now, throw error.
+    throw new Error(`Interpreter Error: Non-exhaustive match expression for value ${this.valueToString(subjectValue)}`);
   }
 } // <-- End of Interpreter class
 
