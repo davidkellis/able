@@ -1,0 +1,21 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Interpreter Sample - exceptions > should produce the expected output (including errors) > stderr 1`] = `""`;
+
+exports[`Interpreter Sample - exceptions > should produce the expected output (including errors) > stdout 1`] = `
+"--- Running main function ---
+
+--- Exception Handling Tests ---
+
+Test Case 1: 10 / 2
+Result 1: 5
+
+Test Case 2: 5 / 0
+Result 2: Rescued successfully: Division by zero!
+
+Test Case 3: raise string
+Result 3: Caught generic error: A manually raised string error
+
+Test Case 4: Unrescued 1 / 0 (will terminate if uncommented)
+--- main function finished ---"
+`;
