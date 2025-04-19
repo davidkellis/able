@@ -1,0 +1,10 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Interpreter Sample - static_methods > should produce the expected output 1`] = `
+"--- Running main function ---
+
+--- Static Method Tests ---
+Counter created via static origin(): Counter { value: 0 }
+Counter after c1.increment() x2: Counter { value: 2 }
+--- main function finished ---"
+`;

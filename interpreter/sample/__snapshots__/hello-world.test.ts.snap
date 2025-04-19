@@ -1,0 +1,7 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Interpreter Sample - hello-world > should produce the expected output 1`] = `
+"--- Running main function ---
+hello world
+--- main function finished ---"
+`;

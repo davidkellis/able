@@ -115,6 +115,7 @@ interface AbleArray {
 
 // Represents a runtime Range (placeholder)
 interface AbleRange {
+  kind: "range"; // ADDED kind discriminator
   start: number | bigint;
   end: number | bigint;
   inclusive: boolean;
@@ -144,6 +145,13 @@ type AbleValue =
   | AbleRange // Added
   | AbleIterator; // Added for for-loops
 
+// --- Type Guards ---
+
+// Checks if a value has a 'kind' property (basic check for our union)
+function hasKind<K extends string>(value: any, kind: K): value is { kind: K } {
+  return value !== null && typeof value === 'object' && value.kind === kind;
+}
+
 // Type guard to check if a value is an AblePrimitive
 function isAblePrimitive(value: AbleValue): value is AblePrimitive {
   return value !== null && typeof value === 'object' && 'value' in value && (
@@ -152,6 +160,31 @@ function isAblePrimitive(value: AbleValue): value is AblePrimitive {
     value.kind === "f32" || value.kind === "f64" || value.kind === "string" || value.kind === "bool" || value.kind === "char" ||
     value.kind === "nil" || value.kind === "void"
   );
+}
+
+// Type guard for AbleFunction
+function isAbleFunction(value: AbleValue): value is AbleFunction {
+  return hasKind(value, "function");
+}
+
+// Type guard for AbleStructInstance
+function isAbleStructInstance(value: AbleValue): value is AbleStructInstance {
+  return hasKind(value, "struct_instance");
+}
+
+// Type guard for AbleStructDefinition
+function isAbleStructDefinition(value: AbleValue): value is AbleStructDefinition {
+    return hasKind(value, "struct_definition");
+}
+
+// Type guard for AbleArray
+function isAbleArray(value: AbleValue): value is AbleArray {
+  return hasKind(value, "array");
+}
+
+// Type guard for AbleRange
+function isAbleRange(value: AbleValue): value is AbleRange {
+    return hasKind(value, "range");
 }
 
 // Special object to signal a `return` occurred
@@ -188,10 +221,14 @@ function createArrayIterator(array: AbleArray): AbleIterator {
   let index = 0;
   return {
     kind: "AbleIterator",
-    next: () => {
+    next: (): AbleValue | typeof IteratorEnd => { // Explicit return type
       if (index < array.elements.length) {
         const value = array.elements[index];
         index++;
+        // Ensure we don't return undefined if elements are somehow undefined
+        if (value === undefined) {
+            throw new Error("Internal Interpreter Error: Undefined element found in array during iteration.");
+        }
         return value;
       } else {
         return IteratorEnd; // Use the constant defined earlier
@@ -308,6 +345,8 @@ class Interpreter {
   private implementations: Map<string, Map<string, AbleImplementationDefinition>> = new Map();
   // Key: Type Name (string) -> Methods Collection
   private inherentMethods: Map<string, AbleMethodsCollection> = new Map();
+  // Key: Union Name (string) -> Union Definition
+  private unions: Map<string, AbleUnionDefinition> = new Map();
 
   constructor() {
     this.defineBuiltins();
@@ -384,7 +423,7 @@ class Interpreter {
       }
 
       // 5. Execute 'main' OR evaluate remaining top-level statements
-      if (mainFunc && mainFunc.kind === "function") {
+      if (mainFunc && isAbleFunction(mainFunc)) {
         console.log("--- Running main function ---"); // Indicate main execution
         this.executeFunction(mainFunc, [], moduleEnv); // Call main with moduleEnv as call site env
         console.log("--- main function finished ---");
@@ -545,8 +584,7 @@ class Interpreter {
           this.evaluateStructDefinition(node as AST.StructDefinition, environment);
           return { kind: "nil", value: null };
         case "UnionDefinition":
-          /* TODO: Store definition */
-          console.warn("Interpreter Warning: Union definition evaluation not implemented.");
+          this.evaluateUnionDefinition(node as AST.UnionDefinition, environment);
           return { kind: "nil", value: null };
         case "InterfaceDefinition":
           this.evaluateInterfaceDefinition(node as AST.InterfaceDefinition, environment);
@@ -639,22 +677,22 @@ class Interpreter {
     switch (node.operator) {
       case "-":
         // Add checks for other numeric kinds (i8, i16, etc.)
-        if (operand.kind === "i32" && typeof operand.value === "number") return { kind: "i32", value: -operand.value };
-        if (operand.kind === "f64" && typeof operand.value === "number") return { kind: "f64", value: -operand.value };
-        if (operand.kind === "i64" && typeof operand.value === "bigint") return { kind: "i64", value: -operand.value };
+        if (hasKind(operand, "i32") && typeof operand.value === "number") return { kind: "i32", value: -operand.value };
+        if (hasKind(operand, "f64") && typeof operand.value === "number") return { kind: "f64", value: -operand.value };
+        if (hasKind(operand, "i64") && typeof operand.value === "bigint") return { kind: "i64", value: -operand.value };
         // Add other bigint types (i128, u64, u128 - though negation might change type for unsigned)
-        throw new Error(`Interpreter Error: Unary '-' not supported for type ${operand.kind}`);
+        throw new Error(`Interpreter Error: Unary '-' not supported for type ${operand?.kind ?? typeof operand}`);
       case "!":
-        if (operand.kind === "bool") {
+        if (hasKind(operand, "bool")) {
           return { kind: "bool", value: !operand.value };
         }
-        throw new Error(`Interpreter Error: Unary '!' not supported for type ${operand.kind}`);
+        throw new Error(`Interpreter Error: Unary '!' not supported for type ${operand?.kind ?? typeof operand}`);
       case "~":
         // Add checks for all integer kinds
-        if (operand.kind === "i32" && typeof operand.value === "number") return { kind: "i32", value: ~operand.value };
-        if (operand.kind === "i64" && typeof operand.value === "bigint") return { kind: "i64", value: ~operand.value };
+        if (hasKind(operand, "i32") && typeof operand.value === "number") return { kind: "i32", value: ~operand.value };
+        if (hasKind(operand, "i64") && typeof operand.value === "bigint") return { kind: "i64", value: ~operand.value };
         // Add other integer types
-        throw new Error(`Interpreter Error: Unary '~' not supported for type ${operand.kind}`);
+        throw new Error(`Interpreter Error: Unary '~' not supported for type ${operand?.kind ?? typeof operand}`);
     }
     throw new Error(`Interpreter Error: Unknown unary operator ${node.operator}`);
   }
@@ -663,17 +701,17 @@ class Interpreter {
     const left = this.evaluate(node.left, environment);
     // Handle short-circuiting operators first
     if (node.operator === "&&") {
-      if (left.kind !== "bool") throw new Error("Interpreter Error: Left operand of && must be boolean");
+      if (!hasKind(left, "bool")) throw new Error("Interpreter Error: Left operand of && must be boolean");
       if (!left.value) return { kind: "bool", value: false }; // Short-circuit
       const right = this.evaluate(node.right, environment);
-      if (right.kind !== "bool") throw new Error("Interpreter Error: Right operand of && must be boolean");
+      if (!hasKind(right, "bool")) throw new Error("Interpreter Error: Right operand of && must be boolean");
       return right;
     }
     if (node.operator === "||") {
-      if (left.kind !== "bool") throw new Error("Interpreter Error: Left operand of || must be boolean");
+      if (!hasKind(left, "bool")) throw new Error("Interpreter Error: Left operand of || must be boolean");
       if (left.value) return { kind: "bool", value: true }; // Short-circuit
       const right = this.evaluate(node.right, environment);
-      if (right.kind !== "bool") throw new Error("Interpreter Error: Right operand of || must be boolean");
+      if (!hasKind(right, "bool")) throw new Error("Interpreter Error: Right operand of || must be boolean");
       return right;
     }
 
@@ -738,7 +776,9 @@ class Interpreter {
         }
       }
       // TODO: Add type promotion rules (e.g., i32 + f64 -> f64)
-      throw new Error(`Interpreter Error: Operator '${node.operator}' not supported for types ${left.kind} and ${right.kind}`);
+      throw new Error(
+        `Interpreter Error: Operator '${node.operator}' not supported for types ${left?.kind ?? typeof left} and ${right?.kind ?? typeof right}`
+      );
     }
 
     // --- Comparison --- (Needs refinement for different types)
@@ -793,7 +833,9 @@ class Interpreter {
         // TODO: Implement Eq/PartialEq interface checks
         if (node.operator === "==") return { kind: "bool", value: false }; // Default non-primitive comparison
         if (node.operator === "!=") return { kind: "bool", value: true };
-        throw new Error(`Interpreter Error: Comparison operator '${node.operator}' not supported for non-primitive types ${left.kind} and ${right.kind}`);
+        throw new Error(
+          `Interpreter Error: Comparison operator '${node.operator}' not supported for non-primitive types ${left?.kind ?? typeof left} and ${right?.kind ?? typeof right}`
+        );
       }
       //  } else {
       //      // Handle comparison involving non-primitives (structs, arrays etc.) - likely false for ==/!= unless Eq implemented
@@ -845,7 +887,9 @@ class Interpreter {
           }
         }
       }
-      throw new Error(`Interpreter Error: Bitwise operator '${node.operator}' not supported for types ${left.kind} and ${right.kind}`);
+      throw new Error(
+        `Interpreter Error: Bitwise operator '${node.operator}' not supported for types ${left?.kind ?? typeof left} and ${right?.kind ?? typeof right}`
+      );
     }
 
     throw new Error(`Interpreter Error: Unknown binary operator ${node.operator}`);
@@ -888,7 +932,9 @@ class Interpreter {
       }
       // Add many more cases for other operators and type combinations...
       else {
-        throw new Error(`Interpreter Error: Compound operator ${node.operator} not fully implemented for ${leftVal.kind} and ${rightVal.kind}`);
+        throw new Error(
+          `Interpreter Error: Compound operator ${node.operator} not fully implemented for ${leftVal?.kind ?? typeof leftVal} and ${rightVal?.kind ?? typeof rightVal}`
+        );
       }
       // --- End re-implementation ---
     }
@@ -909,7 +955,7 @@ class Interpreter {
       const obj = this.evaluate(node.left.object, environment);
       const member = node.left.member;
 
-      if (obj.kind === "struct_instance") {
+      if (isAbleStructInstance(obj)) {
         if (member.type === "Identifier") {
           // Named field access
           if (!(obj.values instanceof Map)) throw new Error("Interpreter Error: Expected named fields map for struct instance.");
@@ -933,7 +979,7 @@ class Interpreter {
           }
           obj.values[index] = valueToAssign; // Use valueToAssign
         }
-      } else if (obj.kind === "array") {
+      } else if (isAbleArray(obj)) {
         // Handle array mutation obj.elements[index] = valueToAssign;
         if (member.type !== "IntegerLiteral") throw new Error("Interpreter Error: Array index must be an integer literal.");
         const index = Number(member.value);
@@ -942,7 +988,7 @@ class Interpreter {
         }
         obj.elements[index] = valueToAssign;
       } else {
-        throw new Error(`Interpreter Error: Cannot assign to member of type ${obj.kind}.`);
+        throw new Error(`Interpreter Error: Cannot assign to member of type ${obj?.kind ?? typeof obj}.`);
       }
     } else {
       // Handle destructuring assignment
@@ -986,7 +1032,7 @@ class Interpreter {
           if (value.kind !== patternVal.kind || value.value !== patternVal.value) {
             throw new Error(`Interpreter Error: Pattern mismatch. Expected literal ${this.valueToString(patternVal)}, got ${this.valueToString(value)}.`);
           }
-        } else if (value.kind === "nil" && patternVal.kind === "nil") {
+        } else if (hasKind(value, "nil") && hasKind(patternVal, "nil")) {
           // Specifically allow nil to match nil literal
         } else {
           throw new Error(`Interpreter Error: Cannot match literal pattern ${this.valueToString(patternVal)} against non-primitive value ${this.valueToString(value)}.`);
@@ -994,8 +1040,9 @@ class Interpreter {
         break;
       }
       case "StructPattern": {
-        if (value.kind !== "struct_instance") {
-          throw new Error(`Interpreter Error: Cannot destructure non-struct value (got ${value.kind}) with a struct pattern.`);
+        // Use type guard
+        if (!isAbleStructInstance(value)) {
+           throw new Error(`Interpreter Error: Cannot destructure non-struct value (got ${value?.kind ?? typeof value}) with a struct pattern.`);
         }
         // Optional: Check value.definition.name against pattern.structType?.name
         if (pattern.structType && value.definition.name !== pattern.structType.name) {
@@ -1003,14 +1050,19 @@ class Interpreter {
         }
 
         if (pattern.isPositional) {
-          if (!Array.isArray(value.values)) throw new Error("Interpreter Error: Expected positional struct values.");
-          if (pattern.fields.length !== value.values.length) {
-            throw new Error(`Interpreter Error: Pattern field count (${pattern.fields.length}) does not match struct field count (${value.values.length}).`);
-          }
-          for (let i = 0; i < pattern.fields.length; i++) {
-            // Positional patterns in AST don't have fieldName, use index
-            this.evaluatePatternAssignment(pattern.fields[i].pattern, value.values[i], environment, isDeclaration);
-          }
+            if (!Array.isArray(value.values)) throw new Error("Interpreter Error: Expected positional struct values.");
+            if (pattern.fields.length !== value.values.length) {
+              throw new Error(`Interpreter Error: Pattern field count (${pattern.fields.length}) does not match struct field count (${value.values.length}).`);
+            }
+            for (let i = 0; i < pattern.fields.length; i++) {
+              // Ensure field pattern and value exist before recursing
+              const fieldPatternNode = pattern.fields[i];
+              const fieldValue = value.values[i];
+              if (!fieldPatternNode?.pattern || fieldValue === undefined) {
+                 throw new Error(`Internal Interpreter Error: Missing pattern or value at index ${i} during positional struct assignment.`);
+              }
+              this.evaluatePatternAssignment(fieldPatternNode.pattern, fieldValue, environment, isDeclaration);
+            }
         } else {
           // Named fields
           if (!(value.values instanceof Map)) throw new Error("Interpreter Error: Expected named struct values map.");
@@ -1030,8 +1082,9 @@ class Interpreter {
         break;
       }
       case "ArrayPattern": {
-        if (value.kind !== "array") {
-          throw new Error(`Interpreter Error: Cannot destructure non-array value (got ${value.kind}) with an array pattern.`);
+        // Use type guard
+        if (!isAbleArray(value)) {
+          throw new Error(`Interpreter Error: Cannot destructure non-array value (got ${value?.kind ?? typeof value}) with an array pattern.`);
         }
         const minLen = pattern.elements.length;
         const hasRest = !!pattern.restPattern;
@@ -1043,7 +1096,13 @@ class Interpreter {
         }
         // Match fixed elements
         for (let i = 0; i < minLen; i++) {
-          this.evaluatePatternAssignment(pattern.elements[i], value.elements[i], environment, isDeclaration);
+          // Ensure element pattern and value exist before recursing
+          const elemPattern = pattern.elements[i];
+          const elemValue = value.elements[i];
+           if (!elemPattern || elemValue === undefined) {
+                 throw new Error(`Internal Interpreter Error: Missing pattern or value at index ${i} during array assignment.`);
+           }
+          this.evaluatePatternAssignment(elemPattern, elemValue, environment, isDeclaration);
         }
         // Match rest element
         if (hasRest && pattern.restPattern) {
@@ -1083,10 +1142,11 @@ class Interpreter {
   private evaluateStructLiteral(node: AST.StructLiteral, environment: Environment): AbleStructInstance {
     const structDefVal = node.structType ? environment.get(node.structType.name) : null;
     // TODO: Infer struct type if node.structType is null (requires type checking info)
-    if (!structDefVal || structDefVal.kind !== "struct_definition") {
+    if (!structDefVal || !isAbleStructDefinition(structDefVal)) {
       throw new Error(`Interpreter Error: Cannot instantiate unknown or non-struct type '${node.structType?.name}'.`);
     }
-    const structDef = structDefVal as AbleStructDefinition;
+    // const structDef = structDefVal as AbleStructDefinition; // No longer need cast
+    const structDef = structDefVal;
 
     let instanceValues: AbleValue[] | Map<string, AbleValue>;
 
@@ -1109,7 +1169,7 @@ class Interpreter {
       // Handle functional update source first
       if (node.functionalUpdateSource) {
         const sourceVal = this.evaluate(node.functionalUpdateSource, environment);
-        if (sourceVal.kind !== "struct_instance" || sourceVal.definition !== structDef) {
+        if (!isAbleStructInstance(sourceVal) || sourceVal.definition !== structDef) {
           throw new Error(`Interpreter Error: Functional update source must be an instance of the same struct '${structDef.name}'.`);
         }
         // Ensure source has named fields (Map) before iterating
@@ -1166,8 +1226,8 @@ class Interpreter {
     const memberName = node.member.type === "Identifier" ? node.member.name : node.member.value.toString();
     // console.log(`[evaluateMemberAccess] Accessing member '${memberName}' on object kind '${object.kind}'`);
 
-    if (object.kind === "struct_instance") {
-      // Error was happening here
+    // --- Instance Member/Method Access ---
+    if (isAbleStructInstance(object)) {
       const member = node.member;
       if (member.type === "Identifier") {
         // Named field access
@@ -1199,10 +1259,13 @@ class Interpreter {
           throw new Error(`Interpreter Error: Index ${index} out of bounds for struct '${object.definition.name}'.`);
         }
         const positionalValue = object.values[index];
-        // console.log(`[evaluateMemberAccess] Found positional field at index ${index}, returning value kind '${positionalValue.kind}'`); // REMOVED DEBUG LOG
+        // Add check for undefined
+        if (positionalValue === undefined) {
+            throw new Error(`Internal Interpreter Error: Undefined positional value at index ${index} for struct ${object.definition.name}`);
+        }
         return positionalValue;
       }
-    } else if (object.kind === "array") {
+    } else if (isAbleArray(object)) {
       // Handle array indexing
       if (node.member.type !== "IntegerLiteral") throw new Error("Interpreter Error: Array index must be an integer literal.");
       const index = Number(node.member.value);
@@ -1211,26 +1274,43 @@ class Interpreter {
         throw new Error(`Interpreter Error: Array index ${index} out of bounds (length ${object.elements.length}).`);
       }
       const arrayElement = object.elements[index];
-      // console.log(`[evaluateMemberAccess] Found array element at index ${index}, returning value kind '${arrayElement.kind}'`); // REMOVED DEBUG LOG
+       // Add check for undefined
+       if (arrayElement === undefined) {
+            throw new Error(`Internal Interpreter Error: Undefined array element at index ${index}`);
+       }
       return arrayElement;
     }
-    // --- Method Call Check for Array (and potentially other types) ---
-    if (node.member.type === "Identifier") {
-      const methodName = node.member.name;
-      // console.log(`[evaluateMemberAccess] Checking for method '${methodName}' on object kind '${object.kind}'...`); // REMOVED DEBUG LOG
-      const method = this.findMethod(object, methodName);
-      if (method) {
-        // console.log(`[evaluateMemberAccess] Found method '${methodName}', returning bound method.`); // REMOVED DEBUG LOG
-        return this.bindMethod(object, method);
-      }
+
+    // --- Static Method Access ---
+    if (isAbleStructDefinition(object)) {
+        if (node.member.type === "Identifier") {
+            const staticMethodName = node.member.name;
+            const typeName = object.name;
+            const inherent = this.inherentMethods.get(typeName);
+            if (inherent && inherent.methods.has(staticMethodName)) {
+                const staticMethod = inherent.methods.get(staticMethodName)!;
+                // TODO: Verify this method is actually static (e.g., no self param?) - relies on correct definition for now
+                return staticMethod; // Return the unbound function
+            }
+            throw new Error(`Interpreter Error: No static method named '${staticMethodName}' found on struct '${typeName}'.`);
+        } else {
+            throw new Error(`Interpreter Error: Cannot access static member using index.`);
+        }
     }
-    // --- End Method Call Check ---
 
-    // TODO: Handle static method access (e.g., Point.origin()) - might need different AST node or check object type
+    // --- Instance Method Check for other types (Array, String etc.) ---
+    // Check inherent methods first for other types like Array, string
+    if (node.member.type === "Identifier") {
+        const methodName = node.member.name;
+        const method = this.findMethod(object, methodName); // findMethod handles inherent lookups
+        if (method) {
+          return this.bindMethod(object, method); // Bind self for instance methods
+        }
+    }
+    // --- End Instance Method Check ---
 
-    // memberName is already declared at the top of the function scope
-    // console.error(`[evaluateMemberAccess] Error: Cannot access member '${memberName}' on type ${object.kind}.`); // REMOVED DEBUG LOG
-    throw new Error(`Interpreter Error: Cannot access member '${memberName}' on type ${object.kind}.`);
+    // If none of the above matched
+    throw new Error(`Interpreter Error: Cannot access member '${memberName}' on type ${object?.kind ?? typeof object}.`);
   }
 
   private evaluateFunctionCall(node: AST.FunctionCall, environment: Environment): AbleValue {
@@ -1238,10 +1318,11 @@ class Interpreter {
     const callee = this.evaluate(node.callee, environment);
     // console.log(`[evaluateFunctionCall] Callee evaluated to kind: ${callee.kind}`); // REMOVED DEBUG LOG 2
 
-    if (callee.kind !== "function") {
+    // Use type guard
+    if (!isAbleFunction(callee)) {
       // TODO: Check for callable objects implementing Apply interface
       // console.error(`[evaluateFunctionCall] Error: Cannot call non-function type ${callee.kind}. Callee AST:`, node.callee); // REMOVED DEBUG LOG 3
-      throw new Error(`Interpreter Error: Cannot call non-function type ${callee.kind}.`);
+      throw new Error(`Interpreter Error: Cannot call non-function type ${callee?.kind ?? typeof callee}.`);
     }
 
     const func = callee as AbleFunction; // Runtime function value
@@ -1514,14 +1595,14 @@ class Interpreter {
     let iterator: AbleIterator;
 
     // Get iterator based on iterable type
-    if (iterableValue.kind === "array") {
+    if (isAbleArray(iterableValue)) {
       iterator = createArrayIterator(iterableValue);
-    } else if (iterableValue.kind === "range") {
-      iterator = createRangeIterator(iterableValue);
+    } else if (isAbleRange(iterableValue)) {
+      iterator = createRangeIterator(iterableValue); // createRangeIterator already expects AbleRange
     }
     // TODO: Add support for calling .iterator() method via Iterable interface
     else {
-      throw new Error(`Interpreter Error: Type '${iterableValue.kind}' is not iterable.`);
+      throw new Error(`Interpreter Error: Type '${iterableValue?.kind ?? typeof iterableValue}' is not iterable.`);
     }
 
     while (true) {
@@ -1672,6 +1753,23 @@ class Interpreter {
     this.inherentMethods.set(targetTypeName, methodsCollection);
   }
 
+  private evaluateUnionDefinition(node: AST.UnionDefinition, environment: Environment): void {
+    // TODO: Handle generics, privacy? Currently AST doesn't support privacy marker here.
+    if (this.unions.has(node.id.name)) {
+        // Allow redefinition for now? Or error?
+        console.warn(`Interpreter Warning: Redefining union '${node.id.name}'.`);
+    }
+    const unionDef: AbleUnionDefinition = {
+        kind: "union_definition",
+        name: node.id.name,
+        definitionNode: node,
+    };
+    // Store globally for now, similar to interfaces
+    this.unions.set(node.id.name, unionDef);
+    // Also define in the current environment so it can be referenced (e.g., potentially later for type checks?)
+    environment.define(node.id.name, unionDef);
+  }
+
   // --- Method Lookup & Binding ---
 
   // Finds a method (inherent or interface) for a given object and name
@@ -1679,11 +1777,11 @@ class Interpreter {
     let typeName: string | null = null;
 
     // Determine type name (simplistic)
-    if (object.kind === "struct_instance") {
+    if (isAbleStructInstance(object)) {
       typeName = object.definition.name;
-    } else if (object.kind === "array") {
+    } else if (isAbleArray(object)) {
       typeName = "Array"; // TODO: Need generic type info (Array T)
-    } else if (object.kind === "string") {
+    } else if (hasKind(object, "string")) {
       typeName = "string";
     } // Add other types that can have methods
 
@@ -1750,29 +1848,29 @@ class Interpreter {
   // --- Helpers ---
   // Determine truthiness according to Able rules (Spec TBD, basic version here)
   private isTruthy(value: AbleValue): boolean {
-    if (value.kind === "bool") {
+    if (hasKind(value, "bool")) {
       return value.value;
     }
-    if (value.kind === "nil" || value.kind === "void") {
+    if (hasKind(value, "nil") || hasKind(value, "void")) {
       return false;
     }
     // TODO: Define truthiness for other types (numbers != 0, strings not empty, collections not empty etc.)
     // Per discussion, let's make 0, 0n, "" false for now.
     if (
-      (value.kind === "i32" ||
-        value.kind === "f64" ||
-        value.kind === "i8" ||
-        value.kind === "i16" ||
-        value.kind === "u8" ||
-        value.kind === "u16" ||
-        value.kind === "u32" ||
-        value.kind === "f32") &&
-      value.value === 0
+      ((hasKind(value, "i32") ||
+        hasKind(value, "f64") ||
+        hasKind(value, "i8") ||
+        hasKind(value, "i16") ||
+        hasKind(value, "u8") ||
+        hasKind(value, "u16") ||
+        hasKind(value, "u32") ||
+        hasKind(value, "f32")) &&
+      value.value === 0)
     )
       return false;
-    if ((value.kind === "i64" || value.kind === "i128" || value.kind === "u64" || value.kind === "u128") && value.value === 0n) return false;
-    if (value.kind === "string" && value.value === "") return false;
-    if (value.kind === "array" && value.elements.length === 0) return false;
+    if (((hasKind(value, "i64") || hasKind(value, "i128") || hasKind(value, "u64") || hasKind(value, "u128")) && value.value === 0n)) return false;
+    if (hasKind(value, "string") && value.value === "") return false;
+    if (isAbleArray(value) && value.elements.length === 0) return false;
 
     // Most other things are truthy by default
     return true;
@@ -1894,7 +1992,7 @@ class Interpreter {
         return null; // No match
 
       case "StructPattern":
-        if (!value || value.kind !== "struct_instance") return null;
+        if (!value || !isAbleStructInstance(value)) return null;
         // Optional: Check type name
         if (pattern.structType && value.definition.name !== pattern.structType.name) return null;
 
@@ -1906,7 +2004,12 @@ class Interpreter {
             for (let i = 0; i < pattern.fields.length; i++) {
                 const fieldPatternNode = pattern.fields[i];
                 const fieldValue = value.values[i];
-                if (!fieldPatternNode || fieldValue === undefined) return null; // Should not happen with valid AST/value
+                // Add checks for undefined fieldPatternNode and fieldValue
+                if (!fieldPatternNode?.pattern || fieldValue === undefined) {
+                    // This indicates an issue either with the AST or the struct instance construction
+                    console.error("Internal Error: Invalid field pattern or value during struct pattern matching.", { fieldPatternNode, fieldValue });
+                    return null;
+                }
 
                 const subMatchEnv = this.matchPattern(fieldPatternNode.pattern, fieldValue, structMatchEnv);
                 if (!subMatchEnv) return null; // Inner pattern mismatch
@@ -1934,7 +2037,7 @@ class Interpreter {
         return structMatchEnv; // Successful match
 
       case "ArrayPattern":
-        if (!value || value.kind !== "array") return null;
+        if (!value || !isAbleArray(value)) return null;
 
         const minLen = pattern.elements.length;
         const hasRest = !!pattern.restPattern;
@@ -1949,7 +2052,11 @@ class Interpreter {
         for (let i = 0; i < minLen; i++) {
             const elemPattern = pattern.elements[i];
             const elemValue = value.elements[i];
-            if (!elemPattern || elemValue === undefined) return null; // Should not happen
+            // Add checks for undefined elemPattern and elemValue
+            if (!elemPattern || elemValue === undefined) {
+                console.error("Internal Error: Invalid element pattern or value during array pattern matching.", { elemPattern, elemValue });
+                return null;
+            }
 
             const subMatchEnv = this.matchPattern(elemPattern, elemValue, arrayMatchEnv);
             if (!subMatchEnv) return null; // Inner pattern mismatch

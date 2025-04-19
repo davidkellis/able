@@ -1,0 +1,13 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Interpreter Sample - assignments-and-closures > should produce the expected output 1`] = `
+"--- Running main function ---
+Initial globalVar = 100
+Inside modifyGlobalVar:
+  globalVar = 150
+Inside closureExample:
+  Inside closureFunc:
+    globalVar = 150
+  closureFunc() = 300
+--- main function finished ---"
+`;
