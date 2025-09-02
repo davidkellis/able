@@ -2901,12 +2901,12 @@ for the operand types.
 
 *   **Standard Library Implementation:** Core types (`Array`, `Map`?, `Set`?, `Range`, `Option`/`Result` details, `Proc`, `Thunk`), IO, String methods, Math, `Iterable`/`Iterator` protocol, Operator interfaces. Definition of standard `Error` interface.
 *   **Type System Details:** Full inference rules, Variance, Coercion (if any), HKT limitations/capabilities.
-*   **Concurrency:** Synchronization primitives (channels, mutexes?), Cancellation details. Scheduler guarantees.
+*   **Concurrency:** Synchronization primitives (channels, mutexes?).
 *   **FFI:** Mechanism for calling external code.
-*   **Metaprogramming:** Macros?
+*   **Metaprogramming:** Dynamic metaprogramming. Compile-time macros later.
 *   **Object Safety Rules:** Which interface methods are callable from interface-typed values; any boxing/erasure rules; formal vtable capture at upcast.
 *   **Slices/Views:** Copy vs view semantics (we currently return copies); future immutable collections enabling safe concurrent iteration.
-*   **Static Method Generic Calls:** Finalize explicit generic-call syntax for static interface methods.
+*   **Static Method Generic Calls:** Finalize explicit generic-call syntax for static interface methods. Remove the `::` syntax for static method calls in favor of method call syntax.
 *   **Pattern Exhaustiveness:** Rules for open sets like `Error` and refutability constraints.
 *   **Re-exports and Named Impl Aliasing:** Precise import/alias collision rules and diagnostics.
 *   **Ranges:** Concrete type vs existential for `..` and `...` results.
