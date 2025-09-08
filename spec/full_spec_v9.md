@@ -1,7 +1,7 @@
 # Able Language Specification (Draft)
 
-**Version:** As of 2023-10-27 conversation (incorporating v2/v3 revisions and user updates)
-**Status:** Incomplete Draft - Requires Standard Library definition and further refinement on TBD items.
+**Version:** 2025-09-05
+**Status:** Draft
 
 ## Table of Contents
 
@@ -101,14 +101,14 @@
     *   [11.3. Exceptions (`raise` / `rescue`)](#113-exceptions-raise--rescue)
         *   [11.3.1. Raising Exceptions (`raise`)](#1131-raising-exceptions-raise)
         *   [11.3.2. Rescuing Exceptions (`rescue`)](#1132-rescuing-exceptions-rescue)
-        *   [11.3.3. Panics](#1133-panics)
+        *   [11.3.3. Runtime Exceptions (no panic abstraction)](#1133-runtime-exceptions-no-panic-abstraction)
 12. [Concurrency](#12-concurrency)
     *   [12.1. Concurrency Model Overview](#121-concurrency-model-overview)
     *   [12.2. Asynchronous Execution (`proc`)](#122-asynchronous-execution-proc)
         *   [12.2.1. Syntax](#1221-syntax)
         *   [12.2.2. Semantics](#1222-semantics)
         *   [12.2.3. Process Handle (`Proc T` Interface)](#1223-process-handle-proc-t-interface)
-    *   [12.3. Thunk-Based Asynchronous Execution (`spawn`)](#123-thunk-based-asynchronous-execution-spawn)
+    *   [12.3. Future-Based Asynchronous Execution (`spawn`)](#123-future-based-asynchronous-execution-spawn)
         *   [12.3.1. Syntax](#1231-syntax)
         *   [12.3.2. Semantics](#1232-semantics)
     *   [12.4. Key Differences (`proc` vs `spawn`)](#124-key-differences-proc-vs-spawn)
@@ -142,7 +142,7 @@ Defines how raw text is converted into tokens.
 
 *   **Character Set:** UTF-8 source files are recommended.
 *   **Identifiers:** Start with a letter (`a-z`, `A-Z`) or underscore (`_`), followed by letters, digits (`0-9`), or underscores. Typically `[a-zA-Z_][a-zA-Z0-9_]*`. Identifiers are case-sensitive. Package/directory names mapping to identifiers treat hyphens (`-`) as underscores. The identifier `_` is reserved as the wildcard pattern (see Section [5.2.2](#522-wildcard-pattern-_)) and for unbound type parameters (see Section [4.4](#44-reserved-identifier-_-in-types)). The tokens `@` and `@n` (e.g., `@1`, `@2`, ...) are reserved for expression placeholders and cannot be used as identifiers.
-*   **Keywords:** Reserved words that cannot be used as identifiers: `fn`, `struct`, `union`, `interface`, `impl`, `methods`, `type`, `package`, `import`, `dynimport`, `extern`, `prelude`, `private`, `Self`, `do`, `return`, `if`, `or`, `else`, `while`, `for`, `in`, `match`, `case`, `breakpoint`, `break`, `raise`, `rescue`, `ensure`, `rethrow`, `proc`, `spawn`, `as`, `nil`, `true`, `false`, `void`.
+*   **Keywords:** Reserved words that cannot be used as identifiers: `fn`, `struct`, `union`, `interface`, `impl`, `methods`, `type`, `package`, `import`, `dynimport`, `extern`, `prelude`, `private`, `Self`, `do`, `return`, `if`, `or`, `else`, `while`, `for`, `in`, `match`, `case`, `breakpoint`, `break`, `raise`, `rescue`, `ensure`, `rethrow`, `proc`, `spawn`, `as`, `nil`, `true`, `false`.
 *   **Reserved Tokens (non-identifiers):** `@` and numbered placeholders `@n` (e.g., `@1`, `@2`, ...), used for expression placeholder lambdas.
 *   **Operators:** Symbols with specific meanings (See Section [6.3](#63-operators)). Includes assignment/declaration operators `:=` and `=`.
 *   **Literals:** Source code representations of fixed values (See Section [4.2](#42-primitive-types) and Section [6.1](#61-literals)).
@@ -164,7 +164,7 @@ Defines how raw text is converted into tokens.
     *   Control flow branches (`if ... { ... }`, `match ... { case => ... }`, `else { ... }` etc.)
     *   `methods`/`impl` bodies (`methods Type { ... }`)
     *   `do` blocks (`do { ... }`) (See Section [6.2](#62-block-expressions-do))
-*   **Expression Separation:** Within blocks, expressions are evaluated sequentially. They are separated by **newlines** or optionally by **semicolons** (`;`). The last expression in a block determines its value unless otherwise specified (e.g., loops, assignments).
+*   **Expression Separation:** Within blocks, expressions are evaluated sequentially. They are separated by **newlines** or optionally by **semicolons** (`;`). The last expression in a block determines its value unless otherwise specified (e.g., loops).
 *   **Expression-Oriented:** Most constructs are expressions evaluating to a value (e.g., `if/or`, `match`, `breakpoint`, `rescue`, `do` blocks, assignment/declaration (`=`, `:=`)). Loops (`while`, `for`) evaluate to `nil`.
 
 ## 4. Types
@@ -197,7 +197,7 @@ A type expression is the syntactic representation used in the Able source code t
     *   **Type Arguments:** Other type expressions provided as parameters to a type name (e.g., `i32` in `Array i32`). Arguments are space-delimited.
     *   **Parentheses:** Used for grouping type sub-expressions to control application order (e.g., `Map string (Array i32)`).
     *   **Nullable Shorthand:** `?TypeName` (desugars to a union `nil | TypeName`). See Section [4.6.2](#462-nullable-type-shorthand-).
-    *   **Result Shorthand:** `!TypeName` (desugars to a union `TypeName | Error`). See Section [11.2.1](#1121-core-types-type-type).
+    *   **Result Shorthand:** `!TypeName` (desugars to a union `Error | TypeName`). See Section [11.2.1](#1121-core-types-type-type).
     *   **Function Type Syntax:** `(ArgType1, ArgType2, ...) -> ReturnType`. See Section [7](#7-functions).
     *   **Wildcard Placeholder:** `_` used to explicitly denote an unbound type parameter. See Section [4.4](#44-reserved-identifier-_-in-types).
 
@@ -220,14 +220,14 @@ A type expression is the syntactic representation used in the Able source code t
     *   The wildcard placeholder `_` is explicitly used in its position. See Section [4.4](#44-reserved-identifier-_-in-types).
 *   **Concrete Type:** A type expression denotes a **concrete type** if *all* of its inherent type parameters (and those of any nested types) are bound to specific types or type variables. Values can only have concrete types.
     *   Examples: `i32`, `string`, `Array bool`, `Map string (Array i32)`, `Point`, `?string`.
-*   **Polymorphic Type / Type Constructor:** A type expression denotes a **polymorphic type** (or acts as a **type constructor**) if it has one or more unbound type parameters. Type constructors cannot be the type of a runtime value directly but are used in contexts like interface implementations (`impl Mappable A for Array`) or potentially as type arguments themselves (if full HKTs are supported).
+*   **Polymorphic Type / Type Constructor:** A type expression denotes a **polymorphic type** (or acts as a **type constructor**) if it has one or more unbound type parameters. Type constructors cannot be the type of a runtime value directly but are used in contexts like interface implementations (`impl Mappable A for Array`) or potentially as type arguments themselves (if full HKTs are supported). Interface-typed existentials such as `Display` are concrete runtime types; `Display _` (an interface with an unbound parameter) is not a concrete type unless all its parameters are bound. When using interface names in type positions (existential/dynamic types), all interface type parameters must be fully bound. For example, `Display` is valid, `Display string` (if parameterized) is valid, but `Mappable _` is not a valid type and cannot appear in type positions.
     *   Examples:
         *   `Array` (parameter is unspecified) - represents the "Array-ness" ready to accept an element type.
         *   `Array _` (parameter explicitly unbound) - same as above.
         *   `Map string` (second parameter unspecified) - represents a map constructor fixed to `string` keys, awaiting a value type. Equivalent to `Map string _`.
         *   `Map _ bool` (first parameter unbound) - represents a map constructor fixed to `bool` values, awaiting a key type.
         *   `Map` (both parameters unspecified) - represents the map constructor itself. Equivalent to `Map _ _`.
-        *   `?` (desugared from `nil | _` ?) - potentially the nullable type constructor.
+        *   `?` (type-level operator) denotes the nullable constructor mapping `T` to `nil | T`; it is not a standalone type.
 
 #### 4.1.5. Type Constraints
 
@@ -303,7 +303,7 @@ Type constraints restrict the types that can be used for a generic type paramete
 | `bool`   | Boolean logical values                        | `true`, `false`                     |                                                 |
 | `char`   | Single Unicode scalar value (UTF-32)        | `'a'`, `'π'`, `'💡'`, `'\n'`, `'\u{1F604}'` | Single quotes. Supports escape sequences.       |
 | `nil`    | Singleton type representing **absence of data**. | `nil`                               | **Type and value are both `nil` (lowercase)**. Often used with `?Type`. |
-| `void`   | Type with **no values** (empty set).          | *(No literal value)*                | Represents computations completing without data. In specific contexts like `Proc void` or `Thunk void`, it acts as a signal of successful completion. |
+| `void`   | Type with **no values** (empty set).          | *(No literal value)*                | (Removed) Use `nil` to represent successful completion without data. |
 
 *(See Section [6.1](#61-literals) for detailed literal syntax.)*
 
@@ -440,7 +440,7 @@ Represent values that can be one of several different types (variants). Essentia
 
 #### 4.6.1. Union Declaration
 
-Define a new type as a composition of existing variant types using `|`. The order of variants in the definition (`A | B` vs `B | A`) is generally not significant for type checking but might influence runtime representation or default pattern matching order (TBD). For consistency, this specification prefers the order `FailureVariant | SuccessVariant` where applicable (e.g., `nil | T`, `Error | T`).
+Define a new type as a composition of existing variant types using `|`. The order of variants in the definition (`A | B` vs `B | A`) is not semantically significant for type checking. Implementations may choose any internal representation; authors should not rely on variant position. For readability the spec adopts the conventional order `FailureVariant | SuccessVariant` where applicable (e.g., `nil | T`, `Error | T`). Operators such as propagation (`!`) are defined by the presence of specific failure variants (`nil` for `Option`, a value implementing `Error` for `Result`), not by their position in the union.
 
 ##### Syntax
 ```able
@@ -489,7 +489,7 @@ Provides concise syntax for types that can be either a specific type or `nil`.
 -   **`Type`**: Any valid type expression.
 
 ##### Equivalence
-`?Type` is syntactic sugar for the union `nil | Type`. This follows the `FailureVariant | SuccessVariant` convention.
+`?Type` is syntactic sugar for the union `nil | Type`. This follows the `FailureVariant | SuccessVariant` convention. The `?` operator applies only to type positions (it does not prefix expressions or constructors).
 
 ##### Examples
 ```able
@@ -557,16 +557,24 @@ shape_area = shape1 match {
 
 ## 5. Bindings, Assignment, and Destructuring
 
-This section defines variable binding, assignment, and destructuring in Able. Able uses `=` and `:=` for binding identifiers within patterns to values. `=` primarily handles reassignment but can also introduce initial bindings, while `:=` is used explicitly for declaring new bindings, especially for shadowing. Bindings are mutable by default.
+This section defines variable binding, assignment, and destructuring in Able. Able uses `=` and `:=` for binding identifiers within patterns to values. `=` handles reassignment and mutation only; `:=` is used explicitly for declaring new bindings (and shadowing) and may simultaneously reassign existing names in the same pattern when at least one new name is introduced. Bindings are mutable by default.
+
+### 5.0. Mutability Model
+
+-   **Binding vs Value mutability:** There is a strong distinction between a binding (the name-to-location association) and the value bound to it. These are independent:
+    -   Binding mutability (rebinding): By default, bindings may be reassigned; `=` can rebind an existing name to a new value; `:=` declares new bindings (and may reassign existing names in the same pattern when at least one new name is introduced).
+    -   Value mutability (in-place mutation): Values are not assumed to be immutable. Unless a type or API is explicitly documented as immutable, values are generally mutable (e.g., struct fields, array elements, map entries) and can be changed in place.
+-   **Important distinction:** Rebinding a name (e.g., `x = ...`) replaces which value the name refers to. Mutating a value (e.g., `x.field = ...`, `arr[i] = ...`) changes the underlying value itself. Even if you avoid rebinding `x`, mutating through `x` will update the value that any other aliasing references observe.
+-   **Design note:** Favor immutable designs where appropriate by using types that expose no mutators or are explicitly documented as immutable. Projects may also adopt single-assignment discipline by policy; the language does not add per-binding mutability annotations.
 
 ### 5.1. Operators (`:=`, `=`)
 
 *   **Declaration (`:=`)**: `Pattern := Expression`
-    *   **Always** declares **new** mutable bindings for all identifiers introduced in `Pattern` within the **current** lexical scope.
-    *   Initializes these new bindings using the corresponding values from `Expression` via matching.
-    *   This is the **required** operator for **shadowing**: if an identifier introduced by `Pattern` has the same name as a binding in an *outer* scope, `:=` creates a new, distinct binding in the current scope that shadows the outer one.
-    *   It is a compile-time error if any identifier introduced by `Pattern` already exists as a binding *within the current scope*.
-    *   Example (Shadowing):
+    *   Declares **new** mutable bindings in the **current** lexical scope for identifiers introduced by `Pattern` that do not already exist in the current scope, and
+    *   Reassigns identifiers in `Pattern` that already exist in the current scope.
+    *   At least one identifier in the `Pattern` must be new to the current scope; otherwise, it is a compile-time error ("no new bindings on left side of :=").
+    *   This is the **required** operator for **shadowing**: if an identifier introduced by `Pattern` has the same name as a binding in an *outer* scope but not in the current scope, `:=` creates a new, distinct binding in the current scope that shadows the outer one.
+    *   Example (Shadowing and update):
         ```able
         package_var := 10 ## Assume declared at package level
 
@@ -575,31 +583,28 @@ This section defines variable binding, assignment, and destructuring in Able. Ab
           package_var := 20  ## Declares NEW local binding 'package_var', shadows package-level one
           print(package_var)  ## prints 20 (local)
 
-          ## To modify the package-level variable, use '=':
-          # package_var = 30 ## This would be an error if the local 'package_var := 20' exists.
-                           ## If the local didn't exist, this would modify the package var.
+          ## '=' reassigns the innermost binding in scope. With a local 'package_var',
+          ## this modifies the local, not the package-level binding.
+          package_var = 30  ## Reassigns the local 'package_var'
         }
         my_func()
-        print(package_var)  ## prints 10 (package-level was unaffected by local :=)
+        print(package_var)  ## prints 10 (package-level was unaffected by local ':=')
         ```
 
-*   **Assignment / Initial Binding (`=`)**: `LHS = Expression`
-    *   Handles both reassignment of existing bindings and initial binding of new ones, depending on the `LHS` and lexical context.
+*   **Assignment (`=`)**: `LHS = Expression`
+    *   Performs **reassignment** of existing bindings or **mutation** of fields/elements. It never creates new bindings.
     *   **If `LHS` is an Identifier:**
-        *   If `Identifier` exists as an accessible, mutable binding (found via lexical scoping, checking current scope first), it **reassigns** that binding.
-        *   If `Identifier` does not exist lexically, it declares a **new** mutable binding in the **current** scope (initial binding).
+        *   The `Identifier` must exist as an accessible, mutable binding (found via lexical scoping). Otherwise, it is a compile-time error.
     *   **If `LHS` is a Destructuring Pattern (e.g., `{x, y}`, `[a, b]`):**
-        *   For each identifier within the `Pattern`:
-            *   If the identifier matches an existing, accessible, mutable binding (found via lexical scoping), that existing binding is **reassigned**.
-            *   If the identifier does *not* match any existing accessible binding, a **new** mutable binding is created in the **current** scope (initial binding).
+        *   All identifiers within the `Pattern` must already exist as accessible, mutable bindings. Otherwise, it is a compile-time error. Use `:=` to declare new bindings.
     *   **If `LHS` is a Field/Index Access (`instance.field`, `array[index]`):**
         *   Performs **mutation** on the specified field or element, provided it's accessible and mutable.
-    *   **Precedence:** Reassignment of existing bindings takes precedence over creating new ones if an identifier matches. To guarantee a new binding that shadows an outer one, use `:=`.
+    *   **Precedence:** `=` never declares. To declare or shadow, use `:=`.
     *   It is a compile-time error if `LHS` attempts to reassign bindings/locations that are not accessible or not mutable, or access fields/indices that do not exist.
-    *   Example (Initial Binding vs. Reassignment):
+    *   Example (Declaration vs. Reassignment):
         ```able
-        ## Initial binding (assuming 'a' doesn't exist yet)
-        a = 10
+        ## Declaration
+        a := 10
 
         ## Reassignment
         a = 20
@@ -608,7 +613,7 @@ This section defines variable binding, assignment, and destructuring in Able. Ab
         b = 200  ## Reassign 'b' in current scope
 
         do {
-          c = 5 ## Initial binding of 'c' in inner scope using '='
+          c := 5 ## Declare 'c' in inner scope using ':='
           a = 30 ## Reassigns 'a' from outer scope using '='
           b := 50 ## Declares NEW 'b' in inner scope using ':=' (shadows outer 'b')
           b = 60  ## Reassigns inner 'b' using '='
@@ -620,7 +625,7 @@ This section defines variable binding, assignment, and destructuring in Able. Ab
 
 ### 5.2. Patterns
 
-Patterns are used on the left-hand side of `:=` (declaration) and `=` (assignment/initial binding) to determine how the value from the `Expression` is deconstructed and which identifiers are bound or assigned to.
+Patterns are used on the left-hand side of `:=` (declaration) and `=` (assignment) to determine how the value from the `Expression` is deconstructed and which identifiers are bound or assigned to.
 
 #### 5.2.1. Identifier Pattern
 
@@ -633,9 +638,9 @@ The simplest pattern binds the entire result of the `Expression` to a single ide
     user_name := fetch_user_name()
     my_func := { a, b => a + b }
     ```
-*   **Usage (`=`)**: Reassigns an existing mutable binding `Identifier`, or creates an initial binding if `Identifier` doesn't exist lexically.
+*   **Usage (`=`)**: Reassigns an existing mutable binding `Identifier`. It never declares a new binding.
     ```able
-    x = 50 ## Reassigns existing x, or initial binding if x doesn't exist
+    x = 50 ## Reassigns existing x; '=' never declares a new binding
     ```
 
 #### 5.2.2. Wildcard Pattern (`_`)
@@ -681,10 +686,10 @@ Destructures instances of structs defined with named fields.
     { id, name: _ } := u ## Declares id=101, ignores name, ignores address implicitly
 
     ## Reassignment / Initial Binding Example (=)
-    existing_x = 0.0 ## Assume initial binding or reassignment
-    existing_y = 0.0 ## Assume initial binding or reassignment
+    existing_x = 0.0 ## existing binding
+    existing_y = 0.0 ## existing binding
     { x: existing_x, y: existing_y } = Point { x: 5.0, y: 6.0 } ## Assigns 5.0 to existing_x, 6.0 to existing_y
-    { id: new_id, name: new_name } = u ## Initial binding for new_id, new_name (if they don't exist)
+    { id: new_id, name: new_name } := u ## Declare new_id, new_name in current scope
     ```
 *   **Semantics**: Matches fields by name. If `StructTypeName` is present, checks if the `Expression` value is of that type. Fails if a field mentioned in the pattern doesn't exist in the value.
 
@@ -711,10 +716,10 @@ Destructures instances of structs defined with positional fields.
     { _, y_val, _ } := coord       ## Declares y_val=-2.5
 
     ## Reassignment / Initial Binding Example (=)
-    existing_a = 0 ## Assume initial binding or reassignment
-    existing_b = 0 ## Assume initial binding or reassignment
+    existing_a = 0 ## existing binding
+    existing_b = 0 ## existing binding
     { existing_a, existing_b } = IntPair { 100, 200 } ## Assigns 100 to existing_a, 200 to existing_b
-    { new_x, new_y, new_z } = coord ## Initial binding for new_x, new_y, new_z (if they don't exist)
+    { new_x, new_y, new_z } := coord ## Declare new_x, new_y, new_z in current scope
     ```
 *   **Semantics**: Matches fields by position. If `StructTypeName` is present, checks the type. Fails if the number of patterns does not match the number of fields in the value's type.
 
@@ -738,10 +743,10 @@ Destructures instances of the built-in `Array` type.
     [] := [] ## Matches an empty array (declares nothing)
 
     ## Reassignment / Initial Binding Example (=)
-    existing_head = 0 ## Assume initial binding or reassignment
+    existing_head = 0 ## existing binding
     ## Note: Assigning to a rest pattern with '=' is likely invalid or needs careful definition.
     ##       Typically, '=' would assign to existing elements by index/pattern.
-    [existing_head, element_1] = [1, 2] ## Assigns 1 to existing_head, assigns 2 to element_1 (initial binding if needed)
+    [existing_head, element_1] = [1, 2] ## Assigns 1 to existing_head; element_1 must already exist
     ```
 *   **Semantics**: Matches elements by position. Fails if the array has fewer elements than required by the non-rest patterns.
 *   **Mutability:** Array elements themselves are mutable (via index assignment `arr[idx] = val`). Requires `Array` type to support `IndexMut` interface (TBD).
@@ -785,18 +790,18 @@ Patterns can be nested arbitrarily within struct and array patterns for both `:=
 
 ### 5.3. Semantics of Assignment/Declaration
 
-1.  **Evaluation Order**: The `Expression` (right-hand side) is evaluated first to produce a value.
+1.  **Evaluation Order**: The `Expression` (right-hand side) is evaluated first to produce a value. Any side effects of the RHS occur before any binding or reassignment effects on the LHS.
 2.  **Matching & Binding/Assignment**: The resulting value is then matched against the `Pattern` or `LHS` (left-hand side).
-    *   **`:=`**: Resulting value matched against `Pattern` (LHS). **Always** creates new mutable bindings in the current scope for identifiers introduced in the pattern, potentially shadowing outer bindings. It is a compile-time error if any introduced identifier already exists as a binding *in the current scope*.
+    *   **`:=`**: Resulting value matched against `Pattern` (LHS). Declares new bindings in the current scope for names not already bound in the current scope and reassigns names that already exist in the current scope. At least one new name must be introduced; otherwise, it is a compile-time error.
     *   **`=`**: Resulting value matched against `LHS` pattern/location specifier.
-        *   If `LHS` is a destructuring pattern, identifiers within it are either **reassigned** (if they match existing accessible bindings) or cause **new initial bindings** to be created in the current scope (if they don't match existing bindings).
+        *   If `LHS` is a destructuring pattern, all identifiers within it must already exist as accessible, mutable bindings. Otherwise, it is a compile-time error. Use `:=` to declare new bindings.
         *   If `LHS` is an identifier or field/index access, it performs **reassignment** or **mutation** on the existing target.
         *   It is a compile-time error if any target location for reassignment/mutation does not exist, is not accessible, or is not mutable.
-    *   **Match Failure**: If the value's structure or type does not match the pattern/LHS, a runtime error/panic occurs for both `:=` and `=`.
+    *   **Match Failure**: If the value's structure or type does not match the pattern/LHS, the assignment/declaration expression evaluates to an `Error` value (a value whose type implements `Error`).
 3.  **Mutability**: Bindings introduced via `:=` are mutable by default. The `=` operator requires the target location(s) (variable, field, index) to be mutable.
 4.  **Scope**: `:=` introduces bindings into the current lexical scope. `=` operates on existing bindings/locations found according to lexical scoping rules.
 5.  **Type Checking**: The compiler checks for compatibility between the type of the `Expression` and the structure expected by the `Pattern`/`LHS`. Type inference applies where possible.
-6.  **Result Value**: Both assignment (`=`) and declaration (`:=`) expressions evaluate to the **value of the RHS** after successful binding/assignment.
+6.  **Result Value**: Both assignment (`=`) and declaration (`:=`) expressions evaluate to the **value of the RHS** after successful binding/assignment; on match failure they evaluate to an `Error` value.
 
 ## 6. Expressions
 
@@ -845,14 +850,7 @@ Literals are the source code representation of fixed values.
 -   **Type:** `nil`. The type `nil` has only one value, also written `nil`.
 -   **Usage:** Represents the absence of meaningful data. Often used with the `?Type` (equivalent to `nil | Type`) union shorthand. `nil` itself *only* has type `nil`, but can be assigned to variables of type `?SomeType`.
 
-#### 6.1.7. Void Type (No Literal)
-
--   **Type Name:** `void`.
--   **Values:** The `void` type represents the empty set; it has **no values**.
--   **Usage:** Primarily used as a return type for functions that perform actions (side effects) but do not produce any resulting data. It signifies successful completion without a value.
--   **Distinction from `nil`:** The type `nil` has one value (`nil`); the type `void` has zero values.
-
-#### 6.1.8. Other Literals (Conceptual)
+#### 6.1.7. Other Literals (Conceptual)
 
 -   **Arrays:** `[1, 2, 3]`, `["a", "b"]`, `[]`. (Requires `Array` type definition in stdlib).
 -   **Structs:** `{ field: val }`, `{ val1, val2 }`. (See Section [4.5](#45-structs)).
@@ -878,6 +876,7 @@ Operators are evaluated in a specific order determined by precedence (higher bin
 | 15         | `.`                   | Member Access (fields, methods, UFCS)   | Left-to-right |                                                           |
 | 14         | `()`                  | Function/Method Call                    | Left-to-right |                                                           |
 | 14         | `[]`                  | Indexing                                | Left-to-right |                                                           |
+| 14         | `!` (postfix)         | Propagate `?T`/`!T`                     | Left-to-right | Applies to expressions like `arr[i]!`, `foo()!`, `a.b()!` |
 | 13         | `^`                   | Exponentiation                          | Right-to-left | Binds tighter than unary `-`. `-x^2` == `-(x^2)`          |
 | 12         | `-` (unary)           | Arithmetic Negation                     | Non-assoc     | (Effectively Right-to-left in practice)                 |
 | 12         | `!` (unary)           | **Logical NOT**                         | Non-assoc     | (Effectively Right-to-left in practice)                 |
@@ -908,7 +907,7 @@ Operators are evaluated in a specific order determined by precedence (higher bin
         -   Integer with float promotes to the float kind (e.g., `i32` with `f64` → `f64`).
         -   No implicit narrowing (including signed/unsigned). Use explicit casts for non-widening conversions.
     *   Integer overflow (O1):
-        -   Checked by default. On overflow in `+`, `-`, `*`, raises a runtime exception `PanicError { message: "integer overflow" }`.
+        -   Checked by default. On overflow in `+`, `-`, `*`, raises a runtime exception `OverflowError { message: "integer overflow" }`.
         -   Division and remainder by zero already raise `DivisionByZeroError`.
         -   Library provides explicit alternatives (names TBD): `wrapping_add/sub/mul`, `saturating_add/sub/mul`, `checked_add/sub/mul -> ?T` for performance-critical or specific semantics.
 *   **Comparison (`>`, `<`, `>=`, `<=`, `==`, `!=`):** Compare values, result `bool`. Equality/ordering behavior relies on standard library interfaces (`PartialEq`, `Eq`, `PartialOrd`, `Ord`). See Section [14](#14-standard-library-interfaces-conceptual--tbd).
@@ -919,7 +918,7 @@ Operators are evaluated in a specific order determined by precedence (higher bin
 *   **Bitwise (`&`, `|`, `\xor`, `<<`, `>>`, `~`):**
     *   `&`, `|`, `\xor`: Standard bitwise AND, OR, XOR on integer types (`i*`, `u*`).
     *   `<<`, `>>` (Shift semantics, S1):
-        -   Shift count must be in range `0..bits` for the left operand's type. Out-of-range shift counts raise `PanicError { message: "shift out of range" }`.
+        -   Shift count must be in range `0..bits` for the left operand's type. Out-of-range shift counts raise `ShiftOutOfRangeError { message: "shift out of range" }`.
         -   Right shift of signed integers is arithmetic (sign-extending), matching Go semantics; right shift of unsigned integers is logical (zero-filling).
     *   `~` (Bitwise NOT): Unary operator, performs bitwise complement on integer types.
 *   **Unary (`-`):** Arithmetic negation for numeric types.
@@ -951,6 +950,8 @@ See Section [7.4](#74-function-invocation).
 
 `if/or`, `match`, `breakpoint`, `rescue`, `do`, `:=`, `=` evaluate to values. See Section [8](#8-control-flow) and Section [11](#11-error-handling). Loops (`while`, `for`) evaluate to `nil`.
 
+Assignment/Declaration results: Both `=` and `:=` evaluate to the RHS value on successful matching/binding. If the pattern fails to match, the expression evaluates to an `Error` value (see §5.3).
+
 ### 6.6. String Interpolation
 
 `` `Literal text ${Expression} more text` ``
@@ -980,9 +981,11 @@ Iterator T { gen => ExpressionList }        ## Optional element type annotation
 
 #### Generator Driver API (within the body)
 
+Note: `IteratorEnd` is a singleton struct used to signal end of iteration; see Section 14 (Core Iteration Protocol) for its definition.
+
 ```able
-gen.yield(value: T) -> void   ## Yield a value and suspend until next() is called again
-gen.stop() -> void            ## Terminate the generator early (subsequent next() => IteratorEnd)
+gen.yield(value: T) -> nil   ## Yield a value and suspend until next() is called again
+gen.stop() -> nil            ## Terminate the generator early (subsequent next() => IteratorEnd)
 ```
 
 #### Typing
@@ -1066,7 +1069,7 @@ arr: Array i32 = []   ## Explicit type annotation
 
 #### Core Operations
 
-Indexing (panics on out-of-bounds):
+Indexing (raises on out-of-bounds):
 ```able
 x = arr[i]                 ## Read element (may raise IndexError if i out of bounds)
 arr[i] = v                 ## Write element (may raise IndexError)
@@ -1075,7 +1078,7 @@ arr[i] = v                 ## Write element (may raise IndexError)
 Safe access:
 ```able
 arr.get(i)    -> ?T        ## nil if out of bounds
-arr.set(i, v) -> !void     ## Error if out of bounds
+arr.set(i, v) -> !nil      ## Error if out of bounds
 ```
 
 Length/capacity:
@@ -1085,7 +1088,7 @@ arr.size()     -> u64
 
 Push/pop:
 ```able
-arr.push(v)   -> void
+arr.push(v)   -> nil
 arr.pop()     -> ?T        ## nil if empty
 ```
 
@@ -1185,7 +1188,7 @@ dyn.def_package(fully_qualified_name: string) -> !dyn.Package
 methods dyn.Package {
   ## Define declarations inside this package's namespace using Able source text (interpreted).
   ## Valid constructs: interfaces, impls, package-level functions, structs, unions, methods.
-  fn def(self: Self, code: string) -> !void
+  fn def(self: Self, code: string) -> !nil
 }
 ```
 
@@ -1223,7 +1226,7 @@ Special-form block sugar:
 
 #### Performance and Deployment
 
--   Optional interpreter: Projects may exclude the interpreter in AOT builds. Dynamic facilities are only available when the interpreter is present.
+-   The interpreter is part of the standard Able runtime when dynamic features are used; dynamic facilities are available whenever the interpreter is present.
 -   Implementations may JIT or bytecode-compile dynamic functions internally; this is not visible at the language level.
 
 #### Examples
@@ -1277,7 +1280,7 @@ fn Identifier[<GenericParamList>] ([ParameterList]) [-> ReturnType] [where <Cons
 -   **`([ParameterList])`**: Required parentheses enclosing the parameter list.
     -   **`ParameterList`**: Comma-separated list of parameters, each defined as `Identifier: Type` (e.g., `a: i32`, `user: User`). Type annotations are generally required unless future inference rules allow omission.
     -   May be empty: `()`.
--   **`[-> ReturnType]`**: Optional return type annotation. If omitted, the return type is inferred from the body's final expression or explicit `return` statements. If the body's last expression evaluates to `nil` (e.g., assignment, loop) and there's no explicit `return`, the return type is `nil`. If the function is intended to return nothing, use `-> void`.
+-   **`[-> ReturnType]`**: Optional return type annotation. If omitted, the return type is inferred from the body's final expression or explicit `return` statements. If the body's last expression evaluates to `nil` (e.g., assignment, loop) and there's no explicit `return`, the return type is `nil`. If the function is intended to return nothing, use `-> nil`.
 -   **`[where <ConstraintList>]`**: Optional clause placed after the return type (or parameter list if no return type) to specify constraints on `GenericParamList`.
 -   **`{ ExpressionList }`**: The function body block. Contains one or more expressions separated by newlines or semicolons.
     -   **Return Value**: The value of the *last expression* in `ExpressionList` is implicitly returned, *unless* an explicit `return` statement is encountered.
@@ -1290,11 +1293,11 @@ fn add(a: i32, b: i32) -> i32 { a + b }
 ## Generic function (implicit return)
 fn identity<T>(val: T) -> T { val }
 
-## Function with side effects and explicit void return
-fn greet(name: String) -> void {
+## Function with side effects and explicit nil return
+fn greet(name: String) -> nil {
   message = `Hello, ${name}!`
-  print(message) ## Assuming print returns nil or void
-  return ## Explicit return void
+  print(message) ## Assuming print returns nil
+  return ## Explicit return nil
 }
 
 ## Function with side effects and inferred nil return type
@@ -1334,7 +1337,7 @@ fn[<GenericParamList>] ([ParameterList]) [-> ReturnType] { ExpressionList }
 ##### Example
 ```able
 mapper = fn(x: i32) -> String { `Value: ${x}` }
-generic_fn = fn<T: Display>(item: T) -> void { print(item.to_string()) }
+generic_fn = fn<T: Display>(item: T) -> nil { print(item.to_string()) }
 ```
 
 #### 7.2.2. Lambda Expression Syntax
@@ -1380,12 +1383,12 @@ Provides early exit from a function. (See also Section [11.1](#111-explicit-retu
 #### Syntax
 ```able
 return Expression
-return // Equivalent to 'return void' if function returns void
+return // Equivalent to 'return nil' if function returns nil
 ```
 
 #### Semantics
 -   Immediately terminates the execution of the current function.
--   The value of `Expression` (or `void`) is returned to the caller.
+-   The value of `Expression` (or `nil`) is returned to the caller.
 -   If used within nested blocks (like loops or `do` blocks) inside a function, it still returns from the *function*, not just the inner block.
 
 ### 7.4. Function Invocation
@@ -1502,7 +1505,7 @@ Within the body of any function (named, anonymous, lambda, or method), the synta
 struct Data { value: i32, name: string }
 methods Data {
     ## Inside an instance method, #value means self.value
-    fn display(self: Self) -> void {
+    fn display(self: Self) -> nil {
         print(`Data '${#name}' has value ${#value}`)
     }
 }
@@ -1554,17 +1557,17 @@ fn #method_name ([param2: Type2, ...]) [-> ReturnType] { ... }
 struct Counter { value: i32 }
 methods Counter {
   ## Define increment using shorthand
-  fn #increment() -> void {
+  fn #increment() -> nil {
     #value = #value + 1 ## #value means self.value
   }
 
   ## Equivalent explicit definition:
-  # fn increment(self: Self) -> void {
+  # fn increment(self: Self) -> nil {
   #  self.value = self.value + 1
   # }
 
   ## Define add using shorthand
-  fn #add(amount: i32) -> void {
+  fn #add(amount: i32) -> nil {
     #value = #value + amount
   }
 }
@@ -1664,7 +1667,7 @@ SubjectExpression match {
 1.  **Sequential Evaluation**: `SubjectExpression` evaluated once. `case` clauses checked top-to-bottom.
 2.  **First Match Wins**: The first `PatternX` that matches *and* whose `GuardX` (if present) is true selects the clause.
 3.  **Execution & Result**: The chosen `ResultExpressionListX` is executed. The `match` expression evaluates to the value of the last expression in that list.
-4.  **Exhaustiveness**: Compiler SHOULD check for exhaustiveness (especially for unions). Non-exhaustive matches MAY warn/error at compile time and SHOULD panic at runtime. A `case _ => ...` usually ensures exhaustiveness.
+4.  **Exhaustiveness**: Compiler SHOULD check for exhaustiveness (especially for unions). Non-exhaustive matches MAY warn/error at compile time and SHOULD raise an exception at runtime. A `case _ => ...` usually ensures exhaustiveness.
 5.  **Type Compatibility**: All `ResultExpressionListX` must yield compatible types. The `match` expression's type is this common type.
     *   Unification rules as for `if/or`:
         -   Union common supertype (C1); `nil` with `T` yields `?T` (N1).
@@ -1751,7 +1754,7 @@ for Pattern in IterableExpression {
 -   The body executes once per element yielded by the iterator, matching the element against `Pattern`.
 -   Always evaluates to `nil`.
 -   Loop terminates when the iterator is exhausted or via a non-local jump (`break`).
--   If an element yielded by the iterator does not match the `Pattern`, a runtime error/panic occurs.
+-   If an element yielded by the iterator does not match the `Pattern`, the assignment expression evaluates to an `Error` value (some value implementating `Error`).
 
 ##### Example
 
@@ -1901,7 +1904,7 @@ methods Address {
   }
 
   ## Instance method using explicit self
-  fn update_zip(self: Self, zip_code: u16) -> void {
+  fn update_zip(self: Self, zip_code: u16) -> nil {
     self.zip = zip_code ## Could also use #zip here
   }
 
@@ -2341,16 +2344,16 @@ Functions can return a value before reaching the end of their body using the `re
 #### Syntax
 ```able
 return Expression
-return // Equivalent to 'return void' if function returns void
+return // Equivalent to 'return nil' if function returns nil
 ```
 
 -   **`return`**: Keyword initiating an early return.
 -   **`Expression`**: Optional expression whose value is returned from the function. Its type must match the function's declared or inferred return type.
--   If `Expression` is omitted, the function must have a `void` return type, and `void` is implicitly returned.
+-   If `Expression` is omitted, the function must have a `nil` return type, and `nil` is implicitly returned.
 
 #### Semantics
 -   Immediately terminates the execution of the current function.
--   The value of `Expression` (or `void`) is returned to the caller.
+-   The value of `Expression` (or `nil`) is returned to the caller.
 -   If used within nested blocks (like loops or `do` blocks) inside a function, it still returns from the *function*, not just the inner block.
 
 #### Example
@@ -2362,10 +2365,10 @@ fn find_first_negative(items: Array i32) -> ?i32 {
   return nil
 }
 
-fn process_or_skip(item: i32) -> void {
+fn process_or_skip(item: i32) -> nil {
     if item == 0 {
         log("Skipping zero")
-        return ## Early return void
+        return ## Early return nil
     }
     process_item(item)
 }
@@ -2373,7 +2376,11 @@ fn process_or_skip(item: i32) -> void {
 
 ### 11.2. V-Lang Style Error Handling (`Option`/`Result`, `!`, `else`)
 
-This mechanism is preferred for handling *expected* errors or optional values gracefully without exceptions.
+This mechanism is the default for handling *expected* errors or optional values gracefully without exceptions.
+
+Policy:
+-   Public and internal APIs that can fail in expected ways SHOULD return `!T` (or `?T` when absence is not an error) and use `!`/`else {}` at call sites.
+-   Use exceptions only for truly exceptional conditions (see Section 11.3), not for routine control flow or recoverable failures.
 
 #### 11.2.1. Core Types (`?Type`, `!Type`)
 
@@ -2381,7 +2388,7 @@ This mechanism is preferred for handling *expected* errors or optional values gr
     ```able
     user: ?User = find_user(id) ## find_user returns nil or User
     ```
--   **`Result T` (`!Type`)**: Represents the result of an operation that can succeed with a value of type `T` or fail with an error. Defined implicitly as the union `Error | T`. This follows the `FailureVariant | SuccessVariant` convention.
+-   **`Result T` (`!Type`)**: Represents the result of an operation that can succeed with a value of type `T` or fail with an error. Defined implicitly as the union `Error | T`. This follows the `FailureVariant | SuccessVariant` convention. The `!` shorthand is purely syntactic and does not depend on the variant order in user-declared unions.
     ```able
     ## The 'Error' interface (built-in or standard library, TBD)
     interface Error {
@@ -2396,6 +2403,9 @@ This mechanism is preferred for handling *expected* errors or optional values gr
     fn read_file(path: string) -> !string { ... } ## Returns Error or string
     ```
 
+    Notes:
+    - Shorthands compose positionally in types and apply to the immediate type to their right. For example, `?(!T)` denotes `nil | (Error | T)`. Parentheses are recommended when combining shorthands for readability.
+
 #### 11.2.2. Error/Option Propagation (`!`)
 
 The postfix `!` operator simplifies propagating `nil` from `Option` types or `Error` from `Result` types up the call stack.
@@ -2409,7 +2419,7 @@ ExpressionReturningOptionOrResult!
 -   Applies to an expression whose type is `?T` (`nil | T`) or `!T` (`Error | T`).
 -   If the expression evaluates to the "successful" variant (`T`), the `!` operator unwraps it, and the overall expression evaluates to the unwrapped value (of type `T`).
 -   If the expression evaluates to the "failure" variant (`nil` or an `Error`), the `!` operator causes the **current function** to immediately **`return`** that `nil` or `Error` value.
--   **Requirement:** The function containing the `!` operator must itself return a compatible `Option` or `Result` type (or a supertype union) that can accommodate the propagated `nil` or `Error`.
+-   **Requirement:** The function containing the `!` operator must itself return a compatible `Option` or `Result` type, or a supertype union that contains `nil` and/or `Error` respectively. For example, a function returning `nil | Error | T` may use `!` on both `?U` and `!V` values.
 
 ##### Example
 ```able
@@ -2449,7 +2459,7 @@ ExpressionReturningOptionOrResult else { |err| BlockExpression } // Capture erro
     *   The `BlockExpression` inside the `else { ... }` is executed.
     *   If the form `else { |err| ... }` is used *and* the failure value was an `Error`, the error value is bound to the identifier `err` (or chosen name) within the scope of the `BlockExpression`. If the failure value was `nil`, `err` is not bound or has a `nil`-like value (TBD - let's assume it's only bound for `Error`).
     *   The entire `Expression else { ... }` expression evaluates to the result of the `BlockExpression`.
--   **Type Compatibility:** The type of the "successful" variant (`T`) and the type returned by the `BlockExpression` must be compatible. The overall expression has this common compatible type.
+-   **Type Compatibility:** The type of the "successful" variant (`T`) and the type returned by the `BlockExpression` must be compatible. The overall expression has this common compatible type. If the two types are distinct and no expected type is provided by the surrounding context, the overall type is inferred as their union.
 
 ##### Example
 ```able
@@ -2473,7 +2483,13 @@ data = load_data() else { ## Assuming load_data returns !Array T
 
 ### 11.3. Exceptions (`raise` / `rescue`)
 
-For handling truly *exceptional* situations that disrupt normal control flow, often originating from deeper library levels or representing programming errors discovered at runtime. Division/Modulo by zero raises an exception.
+For handling truly *exceptional* situations that disrupt normal control flow, often originating from deeper library levels or representing programming errors discovered at runtime. Division/Modulo by zero raises an exception. Exceptions are orthogonal to `Option`/`Result`: the `!` propagation operator does not interact with exceptions; use `rescue` to handle them.
+
+Policy:
+-   Exceptions (via `raise`) are reserved for unrecoverable errors: programmer bugs (e.g., out-of-bounds, integer overflow), invariant/contract violations, resource corruption, or OS-level fatal errors.
+-   Do not use exceptions for expected error cases in library or application APIs. Prefer returning `!T` and handling with `!`/`else {}`.
+-   Interop: Exceptions from host languages should be converted to `!T` at the boundary where feasible (see Section 16). Use `rescue` sparingly for top-level fault containment.
+-   Tooling note: Projects may enable lints/warnings to discourage `raise`/`rescue` in API implementations, except for approved exceptional cases.
 
 #### 11.3.1. Raising Exceptions (`raise`)
 
@@ -2525,7 +2541,7 @@ MonitoredExpression rescue {
     *   The first clause whose `PatternX` matches the exception value (and whose optional `GuardX` passes) is chosen.
     *   The corresponding `ResultExpressionListX` is executed. Its result becomes the value of the entire `rescue` expression.
     *   If no pattern matches the raised exception, the exception continues propagating up the call stack. A final `case _ => ...` can catch any otherwise unhandled exception within this `rescue`.
--   **Type Compatibility:** The normal result type of `MonitoredExpression` must be compatible with the result types of all `ResultExpressionListX` in the `rescue` block.
+-   **Type Compatibility:** The normal result type of `MonitoredExpression` must be compatible with the result types of all `ResultExpressionListX` in the `rescue` block. If multiple handler branches produce distinct types and no common supertype is otherwise constrained by context, the overall type is the least upper bound (typically a union) of the normal and handler result types.
 
 ##### Example
 ```able
@@ -2566,9 +2582,6 @@ The standard library defines a small set of core error types implementing `Error
 struct DivisionByZeroError {}
 impl Error for DivisionByZeroError { fn message(self: Self) -> string { "division by zero" } fn cause(self: Self) -> ?Error { nil } }
 
-struct PanicError { message: string, cause: ?Error }
-impl Error for PanicError { fn message(self: Self) -> string { self.message } fn cause(self: Self) -> ?Error { self.cause } }
-
 ## Indexing
 struct IndexError { index: u64, length: u64 }
 impl Error for IndexError { fn message(self: Self) -> string { `index ${self.index} out of bounds for length ${self.length}` } fn cause(self: Self) -> ?Error { nil } }
@@ -2577,7 +2590,7 @@ impl Error for IndexError { fn message(self: Self) -> string { `index ${self.ind
 Language-defined raises map to these errors:
 
 -   Division or remainder by zero raises `DivisionByZeroError`.
--   Integer overflow and shift-out-of-range raise `PanicError { message: ..., cause: nil }`.
+-   Integer overflow raises `OverflowError { message: "integer overflow" }`; shift-out-of-range raises `ShiftOutOfRangeError { message: "shift out of range" }`.
 -   Array out-of-bounds indexing raises `IndexError { index, length }`.
 
 ##### Raising Rules
@@ -2601,9 +2614,9 @@ data = risky() rescue {
 
 An `ensure` block always runs after normal completion or `rescue`. Its value is discarded; it cannot override the result unless it raises.
 
-#### 11.3.3. Panics
+#### 11.3.3. Runtime Exceptions (no panic abstraction)
 
-Not supported. Use `raise`/`rescue` with `Error` values.
+Able does not have a distinct panic mechanism. All exceptional conditions are modeled as exceptions (values implementing `Error`) and handled via `raise`/`rescue`.
 
 ## 12. Concurrency
 
@@ -2635,7 +2648,7 @@ proc BlockExpression
 1.  **Asynchronous Start**: The target `FunctionCall` or `BlockExpression` begins execution asynchronously, potentially on a different thread or logical task. The current thread does *not* block.
 2.  **Return Value**: The `proc` expression immediately returns a value whose type implements the `Proc T` interface.
     -   `T` is the return type of the `FunctionCall` or the type of the value the `BlockExpression` evaluates to.
-    -   If the function/block returns `void`, the return type is `Proc void`.
+    -   If the function/block returns `nil`, the return type is `Proc nil`.
 3.  **Independent Execution**: The asynchronous task runs independently until it completes, fails, or is cancelled.
 
 #### 12.2.3. Example
@@ -2655,7 +2668,7 @@ computation_handle = proc do {
   x + y ## Block evaluates to the sum
 } ## computation_handle has type `Proc i32` (assuming sum is i32)
 
-side_effect_proc = proc { log_message("Starting background task...") } ## Returns Proc void
+side_effect_proc = proc { log_message("Starting background task...") } ## Returns Proc nil
 ```
 
 #### 12.2.4. Process Handle (`Proc T` Interface)
@@ -2674,7 +2687,7 @@ struct Failed { error: ProcError }
 union ProcStatus = Pending | Resolved | Cancelled | Failed
 
 ## Represents an error occurring during process execution (details TBD)
-## Could wrap panic information or specific error types.
+## Could wrap exception information or specific error types.
 struct ProcError { details: string } ## Example structure
 impl Error for ProcError {
   fn message(self: Self) -> string { self.details }
@@ -2694,7 +2707,7 @@ interface Proc T for HandleType { ## HandleType is the concrete type returned by
   ## Request cancellation of the asynchronous process.
   ## Best-effort and idempotent: if Pending, may transition to Cancelled; if Resolved, no effect.
   ## Races are allowed; whichever terminal state is reached first wins.
-  fn cancel(self: Self) -> void
+  fn cancel(self: Self) -> nil
 }
 ```
 
@@ -2702,7 +2715,7 @@ interface Proc T for HandleType { ## HandleType is the concrete type returned by
 
 -   **`status()`**: Returns the current state (`Pending`, `Resolved`, `Cancelled`, `Failed`) without blocking.
 -   **`value()`**: Blocks the caller until the process finishes (resolves, fails, or is definitively cancelled).
-    -   If `Resolved`, returns `value` where `value` has type `T`. For `Proc void`, this returns `void` (successful completion without data).
+    -   If `Resolved`, returns `value` where `value` has type `T`. For `Proc nil`, this returns `nil` (successful completion without data).
     -   If `Failed`, returns an error value of type `ProcError` (which implements `Error`) containing error details.
     -   If `Cancelled`, returns an error value of type `ProcError` indicating cancellation.
 -   **`cancel()`**: Sends a cancellation signal to the asynchronous task. The task is not guaranteed to stop immediately or at all unless designed to check for cancellation signals.
@@ -2728,9 +2741,9 @@ print(final_data)
 data_proc.cancel()
 ```
 
-### 12.3. Thunk-Based Asynchronous Execution (`spawn`)
+### 12.3. Future-Based Asynchronous Execution (`spawn`)
 
-The `spawn` keyword also initiates asynchronous execution but returns a `Thunk T` value, which implicitly blocks and yields the result when evaluated. The result of a `Thunk T` is memoized: the first evaluation computes the result; subsequent evaluations return the memoized value (or error).
+The `spawn` keyword initiates asynchronous execution and returns a `Future T` value, which implicitly blocks and yields the result when evaluated in a `T` context. The result of a `Future T` is memoized: the first evaluation computes the result; subsequent evaluations return the memoized value (or error).
 
 #### 12.3.1. Syntax
 
@@ -2745,13 +2758,14 @@ spawn BlockExpression
 #### 12.3.2. Semantics
 
 1.  **Asynchronous Start**: Starts the function or block execution asynchronously, similar to `proc`. The current thread does not block.
-2.  **Return Value**: Immediately returns a value of the special built-in type `Thunk T`.
+2.  **Return Value**: Immediately returns a value of the special built-in type `Future T`.
     -   `T` is the return type of the function or the evaluation type of the block.
-    *   If the function/block returns `void`, the return type is `Thunk void`.
-3.  **Implicit Blocking Evaluation**: The core feature of `Thunk T` is its evaluation behavior. When a value of type `Thunk T` is used in a context requiring a value of type `T` (e.g., assignment, passing as argument, part of an expression), the current thread **blocks** until the associated asynchronous computation completes.
-    *   If the computation completes successfully with value `v` (type `T`), the evaluation of the `Thunk T` yields `v`.
-    *   If the computation fails (e.g., panics or raises an unhandled exception), evaluating the `Thunk T` yields an error value that implements `Error` (typically `ProcError`). This aligns error handling between `proc` and `spawn`.
-    *   Evaluating a `Thunk void` blocks until completion. If successful, it yields `void`. If the underlying task fails, it yields a `ProcError` (which implements `Error`).
+    *   If the function/block returns `nil`, the return type is `Future nil`.
+3.  **Implicit Blocking Evaluation**: The core feature of `Future T` is its evaluation behavior. When a value of type `Future T` is used in a context requiring a value of type `T` (e.g., assignment, passing as argument, part of an expression), the current thread **blocks** until the associated asynchronous computation completes.
+    *   If the computation completes successfully with value `v` (type `T`), the evaluation of the `Future T` yields `v`.
+    *   If the computation fails (raises an unhandled exception), evaluating the `Future T` re-raises that exception in the evaluating context. Use `rescue` to handle such failures.
+    *   If the computation itself returns a `!T` (i.e., the underlying function returns `Error | T`), evaluating the `Future !T` yields that union value unchanged; no implicit wrapping occurs beyond memoization.
+    *   Evaluating a `Future nil` blocks until completion. If successful, it yields `nil`. If the underlying task fails, it raises the exception to the evaluating context.
 
 #### 12.3.3. Example
 
@@ -2761,28 +2775,29 @@ fn expensive_calc(n: i32) -> i32 {
   n * n
 }
 
-thunk_result: Thunk i32 = spawn expensive_calc(10)
-thunk_void: Thunk void = spawn { log_message("Background log started...") }
+future_result: Future i32 = spawn expensive_calc(10)
+future_nil: Future nil = spawn { log_message("Background log started...") }
 
 print("Spawned tasks...") ## Executes immediately
 
 ## Evaluation blocks here until expensive_calc(10) finishes:
-final_value = thunk_result
+final_value = future_result
 print(`Calculation result: ${final_value}`) ## Prints "Calculation result: 100"
 
 ## Evaluation blocks here until the logging block finishes:
-_ = thunk_void ## Assigning to _ forces evaluation/synchronization
+_ = future_nil ## Assigning to _ forces evaluation/synchronization
 print("Background log finished.")
 ```
 
-### 12.4. Key Differences (`proc` vs `spawn`)
+### 12.4. Using `proc` vs `spawn`
 
--   **Return Type:** `proc` returns `Proc T` (an interface handle); `spawn` returns `Thunk T` (a special type).
+-   **Return Type:** `proc` returns `Proc T` (an interface handle); `spawn` returns `Future T` (a transparent, memoized result).
 -   **Control:** `Proc T` offers explicit control (check status, attempt cancellation, get result via method call potentially handling errors).
--   **Result Access:** `Thunk T` provides implicit result access; evaluating the thunk blocks and returns the value directly (or propagates panics). It lacks fine-grained status checks or cancellation via the handle itself.
+-   **Result Access:** `Future T` provides implicit result access; evaluating the future blocks and returns the value directly. If the underlying computation raises, evaluation re-raises that exception in the evaluating context; use `rescue` to handle it.
+    -   Accessing a `Future T` value has the same semantics as accessing a variable of type `T`; the access blocks until the value is available and yields the value directly (or re-raises on failure).
 -   **Use Cases:**
-    *   `proc` is suitable when you need to manage the lifecycle of the async task, check its progress, handle failures explicitly, or potentially cancel it.
-    *   `spawn` is simpler for "fire and forget" tasks where you only need the final result eventually and are okay with blocking for it implicitly (or propagating panics).
+    *   Use `proc` when you need to manage the lifecycle of the async task, check its progress, handle failures explicitly, or potentially cancel it.
+    *   Use `spawn` for minimal syntax and transparent, memoized result delivery.
 
 ### 12.5. Synchronization Primitives (Crystal-style APIs, Go semantics)
 
@@ -2805,7 +2820,7 @@ Core API:
 ```able
 methods Channel T {
   ## Send a value. Blocks if the buffer is full (or if unbuffered until a receiver is ready).
-  fn send(self: Self, value: T) -> void
+  fn send(self: Self, value: T) -> nil
 
   ## Receive a value. Blocks until a value is available or the channel is closed and drained.
   ## Returns nil when the channel has been closed and drained (Go's (x, ok) with ok=false).
@@ -2818,7 +2833,7 @@ methods Channel T {
   fn try_receive(self: Self) -> ?T
 
   ## Close the channel. Further sends raise an error; receivers drain any buffered values, then receive() yields nil.
-  fn close(self: Self) -> void
+  fn close(self: Self) -> nil
 
   ## Returns true if the channel has been closed.
   fn is_closed(self: Self) -> bool
@@ -2828,10 +2843,10 @@ methods Channel T {
 Semantics (Go-compatible):
 -   Unbuffered channels (capacity 0) are rendezvous; send/receive both block until paired.
 -   Buffered channels block send when full and block receive when empty; element order is FIFO.
--   `close()` may be called by the last sender; multiple closes panic.
--   Sending on a closed channel panics.
+-   `close()` may be called by the last sender; multiple closes raise a `ClosedChannelError`.
+-   Sending on a closed channel raises a `SendOnClosedChannelError`.
 -   `receive()` returns `?T` and yields `nil` when the channel is closed and drained.
--   Nil channels (uninitialized variables) block forever on send/receive; closing a nil channel panics.
+-   Nil channels (uninitialized variables) block forever on send/receive; closing a nil channel raises a `NilChannelError`.
 -   Happens-before: a send happens-before the corresponding receive; closing happens-before a receive that returns the closed indication.
 
 Iteration:
@@ -2854,7 +2869,7 @@ for v in ch { print(v) } ## Ends when channel is closed and drained
 
 Notes:
 -   Multiplexing/select can be provided via library helpers or timer channels (`os.after(d)`); dedicated `select` syntax is TBD.
--   Timeouts and cancellation can be modeled using auxiliary channels or higher-level APIs.
+-   Timeouts and cancellation can be modeled using auxiliary channels or higher-level APIs. Long-running tasks should periodically check for cancellation via user-defined channels or flags; there is no implicit ambient cancellation context.
 
 #### Mutex
 
@@ -2880,7 +2895,7 @@ val = with_lock(m, fn() { compute() })
 
 Semantics:
 -   Non-reentrant: locking a mutex already held by the current task blocks (deadlock).
--   No poisoning: if a panic occurs while the mutex is held, subsequent lockers proceed; ensuring state consistency is the user's responsibility.
+-   No poisoning: if an exception occurs while the mutex is held, subsequent lockers proceed; ensuring state consistency is the user's responsibility.
 
 ## 13. Packages and Modules
 
@@ -2959,7 +2974,7 @@ The `import` statement makes identifiers from other packages available in the cu
 
 #### Dynamic Imports (`dynimport`)
 
-The `dynimport` statement binds identifiers from dynamically defined packages (created or extended at runtime via dynamic metaprogramming). It is resolved at runtime (interpreted context) and is invalid at compile time (AOT mode) unless an embedded interpreter is present and enabled.
+The `dynimport` statement binds identifiers from dynamically defined packages (created or extended at runtime via dynamic metaprogramming). It is resolved at runtime in the interpreter and is always available in Able builds that include the interpreter.
 
 *   **Syntax Forms**:
     *   Package import: `dynimport foo;`
@@ -2968,7 +2983,7 @@ The `dynimport` statement binds identifiers from dynamically defined packages (c
 *   **Resolution**:
     *   Looks up a dynamic package object via `dyn.package("foo")` and binds requested names from its current dynamic namespace.
     *   Fails at runtime with `Error` if the package or names do not exist.
-*   **Scope**: May appear at top level or in local scopes of interpreted execution. No effect in pure AOT contexts.
+*   **Scope**: May appear at top level or in local scopes of interpreted execution.
 *   **Interoperability**: Dynamic imports can coexist with static imports; identical names follow normal shadowing rules (innermost wins).
 
 ### 13.5. Visibility and Exports (`private`)
@@ -3023,7 +3038,7 @@ Many language features rely on interfaces expected to be in the standard library
     *   `struct IteratorEnd;` (Singleton type signalling end of iteration).
     *   `interface Iterator T for SelfType { fn next(self: Self) -> T | IteratorEnd; }`
     *   `interface Iterable T for SelfType { fn iterator(self: Self) -> (Iterator T); }`
-*   **Operators:** `Add`, `Sub`, `Mul`, `Div`, `Rem`, `Neg`, `Not` (Bitwise `~`), `BitAnd`, `BitOr`, `BitXor`, `Shl`, `Shr`.
+*   **Operators:** `Add`, `Sub`, `Mul`, `Div`, `Rem`, `Neg`, `Not` (Bitwise `~`), `BitAnd`, `BitOr`, `BitXor`, `Shl`, `Shr`. Operator overloading is realized via these interfaces; concrete operator behavior is determined solely by which of these interfaces a type implements in scope.
 *   **Comparison:** `PartialEq`, `Eq`, `PartialOrd`, `Ord`.
 *   **Functions:** `Apply` (for callable values `value(args)`).
 *   **Collections Indexing:** `Index`, `IndexMut`.
@@ -3058,7 +3073,7 @@ interface Iterable T for SelfType {
   ## Default: iterate by visiting each element. If 'each' isn't overridden,
   ## it is defined in terms of 'iterator'. Users may implement either 'each'
   ## or 'iterator' to make a type Iterable; the other is provided by default.
-  fn each(self: Self, visit: T -> void) -> void {
+  fn each(self: Self, visit: T -> nil) -> nil {
     it = self.iterator()
     loop {
       nxt = it.next()
@@ -3101,11 +3116,11 @@ Able programs may define one or more executables via `main` functions located in
 
 ### 15.1. Location and Multiplicity
 
--   Multiple binaries are supported: any package that defines a non-private, top-level `fn main() -> void` produces an executable named after that package path (build tooling may provide renaming).
+-   Multiple binaries are supported: any package that defines a non-private, top-level `fn main() -> nil` produces an executable named after that package path (build tooling may provide renaming). If dependencies also define `main`, they produce their own binaries when built as roots; they do not affect the current package's binary unless explicitly selected by tooling.
 
 ### 15.2. Signature and Arguments
 
--   Signature: `fn main() -> void`.
+-   Signature: `fn main() -> nil`.
 -   Command-line arguments are accessed at runtime via `os.args()`.
 
 ### 15.3. Exit Behavior
@@ -3135,7 +3150,7 @@ fn main() {
 
 ## 16. Host Interop (Target-Language Inline Code)
 
-Able allows embedding function bodies and package-scope preludes written in the target host language (e.g., Go, Crystal, TypeScript, Python, Ruby). This is distinct from FFI: host interop is for writing target-language code that is compiled/linked as part of the same binary the Able code compiles into.
+Able allows embedding function bodies and package-scope preludes written in the target host language (e.g., Go, Crystal, TypeScript, Python, Ruby). This is distinct from FFI: host interop is for writing target-language code that is compiled/linked as part of the same binary the Able code compiles into. Structs/unions are not implicitly mapped across the boundary; only the core primitive and container mappings listed below are supported. Passing complex data structures requires explicit serialization or manually mirrored struct definitions on the host side with adapter code.
 
 ### 16.1. Syntax
 
@@ -3151,7 +3166,7 @@ prelude ruby { require "securerandom" }
 
 Rules:
 -   May appear only at package scope. Multiple preludes per target are allowed; they are concatenated in order.
--   Host code inside a prelude must follow the host language’s top-level syntax rules (e.g., imports for Go).
+-   Host code inside a prelude must follow the host language's top-level syntax rules (e.g., imports for Go).
 
 #### 16.1.2. Extern Host Function Bodies
 
@@ -3191,20 +3206,20 @@ The following table summarizes mappings. Implementations MUST enforce copy-in/co
 -   Bool → bool (Go); Bool (Crystal); boolean (TS); bool (Python); TrueClass/FalseClass (Ruby)
 -   String → string (Go/TS); String (Crystal/Ruby/Python)
 -   Array T → []T (Go); Array(T) (Crystal); T[] (TS); list[T] (Python); Array(T) (Ruby) — copy-in/copy-out
--   ?T (Option) → nil/None/null for “no value” in the host; otherwise T mapping above
+-   ?T (Option) → nil/None/null for "no value" in the host; otherwise T mapping above
 -   !T (Result) →
     -   Go: (T, error)
     -   Crystal/TS/Python/Ruby: return T or raise/throw; uncaught becomes Able Error
 
 ### 16.3. Error Mapping
 
--   Provide `host_error(message: string)` helper inside extern bodies to produce an Able `Error`.
--   Go: return (zero, err) or panic → Able `Error` at boundary.
+-   Provide `host_error(message: string)` helper inside extern bodies to produce an Able `Error`. The helper's name and signature are standardized across targets; implementations MUST expose it wherever extern bodies are permitted.
+-   Go: return (zero, err) → Able `Error` at boundary when `err != nil`.
 -   Crystal/TypeScript/Python/Ruby: raise/throw → Able `Error` at boundary.
 
 ### 16.4. Concurrency and Execution
 
--   Extern bodies execute in the caller’s goroutine/fiber/thread and may block.
+-   Extern bodies execute in the caller's goroutine/fiber/thread and may block.
 -   Target-specific constraints (e.g., Go package import placement, Crystal fibers) apply within preludes/bodies.
 
 ### 16.5. Placement and Hygiene
@@ -3261,11 +3276,11 @@ extern ruby fn new_uuid() -> string { SecureRandom.uuid }
 
 # Todo
 
-*   **Standard Library Implementation:** Core types (`Array`, `Map`?, `Set`?, `Range`, `Option`/`Result` details, `Proc`, `Thunk`), IO, String methods, Math, `Iterable`/`Iterator` protocol, Operator interfaces. Definition of standard `Error` interface.
+*   **Standard Library Implementation:** Core types (`Array`, `Map`?, `Set`?, `Range`, `Option`/`Result` details, `Proc`, `Future`), IO, String methods, Math, `Iterable`/`Iterator` protocol, Operator interfaces. Definition of standard `Error` interface.
 *   **Type System Details:** Full inference rules, Variance, Coercion (if any), HKT limitations/capabilities.
-*   **Concurrency:** Synchronization primitives (channels, mutexes?).
 *   **Object Safety Rules:** Which interface methods are callable from interface-typed values; any boxing/erasure rules; formal vtable capture at upcast.
 *   **Pattern Exhaustiveness:** Rules for open sets like `Error` and refutability constraints.
 *   **Re-exports and Named Impl Aliasing:** Precise import/alias collision rules and diagnostics.
 *   **Ranges:** Concrete type vs existential for `..` and `...` results.
 *   **Tooling:** Compiler, Package manager commands, Testing framework.
+
