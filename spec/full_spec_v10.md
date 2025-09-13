@@ -144,7 +144,7 @@ Defines how raw text is converted into tokens.
 *   **Character Set:** UTF-8 source files are recommended.
 *   **Identifiers:** Start with a letter (`a-z`, `A-Z`) or underscore (`_`), followed by letters, digits (`0-9`), or underscores. Typically `[a-zA-Z_][a-zA-Z0-9_]*`. Identifiers are case-sensitive. Package/directory names mapping to identifiers treat hyphens (`-`) as underscores. The identifier `_` is reserved as the wildcard pattern (see Section [5.2.2](#522-wildcard-pattern-_)) and for unbound type parameters (see Section [4.4](#44-reserved-identifier-_-in-types)). The tokens `@` and `@n` (e.g., `@1`, `@2`, ...) are reserved for expression placeholders and cannot be used as identifiers.
 *   **Keywords:** Reserved words that cannot be used as identifiers: `fn`, `struct`, `union`, `interface`, `impl`, `methods`, `type`, `package`, `import`, `dynimport`, `extern`, `prelude`, `private`, `Self`, `do`, `return`, `if`, `or`, `else`, `while`, `for`, `in`, `match`, `case`, `breakpoint`, `break`, `raise`, `rescue`, `ensure`, `rethrow`, `proc`, `spawn`, `as`, `nil`, `void`, `true`, `false`.
-*   **Reserved Tokens (non-identifiers):** `@` and numbered placeholders `@n` (e.g., `@1`, `@2`, ...), used for expression placeholder lambdas.
+*   **Reserved Tokens (non-identifiers):** `@` and numbered placeholders `@n` (e.g., `@1`, `@2`, ...), used for expression placeholder lambdas; `%` as the pipe-topic token usable only within the right-hand side of `|>`.
 *   **Operators:** Symbols with specific meanings (See Section [6.3](#63-operators)). Includes assignment/declaration operators `:=` and `=`.
 *   **Literals:** Source code representations of fixed values (See Section [4.2](#42-primitive-types) and Section [6.1](#61-literals)).
 *   **Comments:** Line comments start with `##` and continue to the end of the line. Block comment syntax is TBD.
@@ -230,6 +230,29 @@ A type expression is the syntactic representation used in the Able source code t
         *   `Map` (both parameters unspecified) - represents the map constructor itself. Equivalent to `Map _ _`.
         *   `?` (type-level operator) denotes the nullable constructor mapping `T` to `nil | T`; it is not a standalone type.
 
+
+    Value positions require concrete types (no unbound parameters):
+
+    - A parameter, variable, field, or return type annotation must be a concrete type. Using a type constructor with unbound parameters (e.g., `Array`, `Map string _`, `Mappable _`) in a value position is invalid.
+    - Instead, make the function/definition generic and bind the parameters via type variables.
+
+    ```able
+    ## VALID (generic binds the element type)
+    fn len<T>(xs: Array T) -> u64 { ... }
+
+    ## INVALID (unbound element type in value position)
+    # fn bad(x: Array) -> u64 { ... }
+
+    ## VALID (map with generic value type)
+    fn keys<V>(m: Map string V) -> Array string { ... }
+    ```
+
+    - Call-site inference binds generic parameters from arguments/results; annotations that leave parameters unbound are rejected. This reconciles the rule “values can only have concrete types” with convenient polymorphism at call sites.
+
+    Interface/existential use must be fully bound in type positions:
+
+    - Using an interface name as a type denotes a dynamic/existential type and must be fully bound with all its own parameters (if any). `Display` (no params) and `Display string` (if parameterized) are valid types; `Mappable _` is not.
+
 #### 4.1.5. Type Constraints
 
 Type constraints restrict the types that can be used for a generic type parameter. They ensure that a given type implements one or more specified interfaces.
@@ -284,6 +307,13 @@ Type constraints restrict the types that can be used for a generic type paramete
 
 *   **Semantics:** The compiler enforces these constraints regardless of whether they are defined inline or in a `where` clause. If a type argument provided for a constrained parameter does not implement the required interface(s), a compile-time error occurs. Constraints allow the code within the generic scope to safely use the methods defined by the required interfaces on values of the constrained type parameter.
 
+#### 4.1.6. Subtyping and Inference (clarifications)
+
+- There is no general structural subtyping in Able. Interface implementations do not create a static subtyping lattice. Instead, use:
+  - Algebraic unions for disjunction of alternatives.
+  - Existential/interface types for dynamic dispatch views.
+- Type argument inference occurs at function call sites from argument and expected return types. It does not permit leaving unbound parameters in value annotations. Where the compiler cannot infer generics, specify them explicitly, e.g., `identity<i64>(0)`.
+
 ### 4.2. Primitive Types
 
 | Type     | Description                                   | Literal Examples                    | Notes                                           |
@@ -325,6 +355,8 @@ The underscore `_` can be used in type expressions to explicitly denote an unbou
 ### 4.5. Structs
 
 Structs aggregate named or positional data fields into a single type. Able supports three kinds of struct definitions: singleton, named-field, and positional-field. A single struct definition must be exclusively one kind. All fields are mutable.
+
+Note on immutability: The language does not provide `const`/`immutable` qualifiers for bindings or fields. Immutability is achieved by design (e.g., exposing no mutators, returning new values) or by using library-provided persistent data structures. Projects may adopt conventions enforcing single-assignment or immutable APIs; the core language does not enforce it.
 
 #### 4.5.1. Singleton Structs
 
@@ -478,6 +510,31 @@ union Shape = Circle | Rectangle | Triangle
 
 Note: Each `VariantType` in a union may be a concrete type (e.g., `i32`, `Point`), another union, a generic application (e.g., `Array i32`), or an interface type (e.g., `Error`, `Display`). Using an interface name as a variant denotes an existential value implementing that interface (dynamic dispatch). For example, `Result T = Error | T` is valid and corresponds to values that are either a concrete error type implementing `Error` or a success value of type `T`.
 
+Interface variants: construction and matching
+
+- Construction/upcast: When a union lists an interface like `Error`, any concrete value whose type implements that interface can be used directly; the upcast to the existential interface variant is implicit.
+
+``` able
+res1: !string = "ok"              ## success variant
+res2: !string = IndexError { index: 5, length: 2 } ## implicitly upcasts to Error | string
+```
+
+- Matching/narrowing: Pattern matching can use typed patterns to narrow existential interface variants either to the interface itself or to specific concrete error types.
+
+``` able
+r: !i32 = some_op()
+msg = r match {
+  case n: i32       => `ok:${n}`,      ## success
+  case e: Error     => e.message(),    ## interface-wide handler (open set)
+}
+
+msg2 = r match {
+  case n: i32             => `ok:${n}`,
+  case e: IndexError      => `bad index ${e.index}`,
+  case _: Error           => "failed",  ## ensure coverage of other errors
+}
+```
+
 #### 4.6.2. Nullable Type Shorthand (`?`)
 
 Provides concise syntax for types that can be either a specific type or `nil`.
@@ -568,6 +625,8 @@ This section defines variable binding, assignment, and destructuring in Able. Ab
 -   **Important distinction:** Rebinding a name (e.g., `x = ...`) replaces which value the name refers to. Mutating a value (e.g., `x.field = ...`, `arr[i] = ...`) changes the underlying value itself. Even if you avoid rebinding `x`, mutating through `x` will update the value that any other aliasing references observe.
 -   **Design note:** Favor immutable designs where appropriate by using types that expose no mutators or are explicitly documented as immutable. Projects may also adopt single-assignment discipline by policy; the language does not add per-binding mutability annotations.
 
+Additional note: There is no `const` keyword and no per-field immutability modifier. Mutation control is expressed by API design and by choosing value vs. rebinding operations.
+
 ### 5.1. Operators (`:=`, `=`)
 
 *   **Declaration (`:=`)**: `Pattern := Expression`
@@ -656,6 +715,13 @@ The wildcard `_` matches any value but does not bind it to any identifier. It's 
     [_, second, _] := get_three_items() ## Declare second, ignore first and third
     _ = function_with_side_effects() ## Evaluate function, ignore result
     ```
+
+Note on `_` vs `%` vs `@`:
+
+- `_` in patterns: wildcard (ignore value) — only valid in pattern positions (§5.2). Not an identifier.
+- `_` in types: unbound type parameter placeholder (§4.4). Forms a polymorphic type constructor.
+- `%` in expressions: pipe-topic token, valid only in the RHS of `|>` (§6.3.2).
+- `@`, `@n` in expressions: placeholder lambdas (§7.6.3).
 
 #### 5.2.3. Struct Pattern (Named Fields)
 
@@ -770,6 +836,22 @@ Typed patterns refine a match by requiring the value to conform to a given type.
     }
     ```
 *   **Semantics**: Acts as a runtime type guard within `match`/`rescue`. This does not introduce new static subtyping; it narrows within the matched branch only.
+
+Typed patterns in `:=`/`=`:
+
+- Typed patterns are also permitted on the left-hand side of `:=` and `=` within struct, array, or standalone identifier patterns. The assignment/declaration succeeds only if the runtime value conforms to the annotated type; otherwise, per §5.3 the expression yields an `Error` value.
+
+``` able
+## Union destructuring with typed pattern in assignment
+val: ?i32 = get_opt()
+x: i32 = 0
+_ = { x: i32 } = val   ## succeeds only if val is a non-nil i32; else yields Error
+
+## Direct typed identifier in declaration (:=) from a dynamic value
+{ n: i32 } := next_value()  ## declares n if next_value() is an i32; else Error
+```
+
+Union values are destructured with `match` (§8.1.2). Assignment/declaration does not perform variant selection; use `match` to branch on variants, then use typed patterns inside the selected branch as needed.
 
 Patterns can be nested arbitrarily within struct and array patterns for both `:=` and `=`.
 
@@ -940,7 +1022,17 @@ Operators are evaluated in a specific order determined by precedence (higher bin
 *   **Declaration (`:=`):** Declares/initializes new variables. Evaluates to RHS. See Section [5.1](#51-operators---).
 *   **Assignment (`=`):** Reassigns existing variables or mutates locations. Evaluates to RHS. See Section [5.1](#51-operators---).
 *   **Compound Assignment (`+=`, etc.):** Shorthand (e.g., `a += b` is like `a = a + b`). Acts like `=`.
-*   **Pipe Forward (`|>`):** `x |> f` evaluates to `f(x)`.
+*   **Pipe Forward (`|>`) — Hack-style topic semantics:**
+    - Form 1 (topic-body): `subject |> Expr(%)` binds `%` to `subject` within `Expr`. The RHS must contain `%`; otherwise it is a compile-time error.
+    - Form 2 (callable-body fallback): If the RHS contains no `%`, it is evaluated; if it evaluates to a unary callable, it is invoked with `subject` as its sole argument; otherwise, it is an error.
+    - `%` is valid only inside the RHS of `|>` and refers to that step’s subject. It cannot be shadowed or used elsewhere.
+    - Member/field/package resolution is unchanged. Topic merely places the subject explicitly:
+      - Package/static path: `subject |> pkg.fn(%)`
+      - Callable field: `subject |> (obj.fn)(%)`
+      - Method on subject: `subject |> %.m(args...)`
+      - UFCS: `subject |> name(%, args...)`
+    - Placeholders (`@`, `@n`) remain orthogonal and can be used inside the RHS to build callables or additional arguments when desired.
+    - Combined with placeholder lambdas, `x |> (@ + 1)` is valid and applies the lambda to `x`.
 
 Compound assignment semantics:
 *   Supported forms: `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `\xor=`, `<<=`, `>>=`. The exponent form `^=` is not supported.
@@ -951,7 +1043,20 @@ Compound assignment semantics:
 
 #### 6.3.3. Overloading (Via Interfaces)
 
-Behavior for non-primitive types relies on implementing standard library interfaces (e.g., `Add`, `Sub`, `Mul`, `Div`, `Rem`, `Neg` (for `-`), `Not` (for bitwise `~`), `BitAnd`, `BitOr`, `BitXor`, `Shl`, `Shr`, `PartialEq`, `Eq`, `PartialOrd`, `Ord`, `Index`, `IndexMut`). These interfaces need definition (See Section [14](#14-standard-library-interfaces-conceptual--tbd)). Note that logical `!` is typically not overloaded.
+Behavior for non-primitive types relies on implementing standard library interfaces (e.g., `Add`, `Sub`, `Mul`, `Div`, `Rem`, `Neg` (for unary `-`), `Not` (for bitwise `~`), `BitAnd`, `BitOr`, `BitXor`, `Shl`, `Shr`, `PartialEq`, `Eq`, `PartialOrd`, `Ord`, `Index`, `IndexMut`). These interfaces need definition (See Section [14](#14-standard-library-interfaces-conceptual--tbd)). Note that logical `!` is not overloaded.
+
+Operator-to-interface mapping (when operands are not primitives):
+
+- `+` → `Add`
+- `-` (binary) → `Sub`; `-` (unary) → `Neg`
+- `*` → `Mul`; `/` → `Div`; `%` → `Rem`
+- `&` → `BitAnd`; `|` → `BitOr`; `\xor` → `BitXor`
+- `<<` → `Shl`; `>>` → `Shr`; `~` → `Not` (bitwise complement)
+- `==`, `!=` → `PartialEq`/`Eq`
+- `<`, `>`, `<=`, `>=` → `PartialOrd`/`Ord`
+- `[]` (indexing) → `Index`; `[]=` (mutation) → `IndexMut`
+
+These operations are available only when a single applicable implementation is visible in scope per the import-scoped model.
 
 ### 6.4. Function Calls
 
@@ -1303,6 +1408,8 @@ if { x, y } = try_pair() { use(x, y) } or { handle_fail() }
 if do { log("side-effect"); void } { ok() } or { unreachable() }
 ```
 
+Note: Empty collections (e.g., `Array T` with size 0) are truthy. Only `false`, `nil`, and any value implementing `Error` are falsy.
+
 ## 7. Functions
 
 This section defines the syntax and semantics for function definition, invocation, partial application, and related concepts like closures and anonymous functions in Able. Functions are first-class values.
@@ -1364,6 +1471,13 @@ fn process(x: i32) -> String {
 -   Parameters are bound to argument values during invocation and are local to the function body scope.
 -   The function body executes sequentially.
 -   The type of a function is `(ParamType1, ParamType2, ...) -> ReturnType`.
+
+#### 7.1.4. Generic Argument Inference and Annotation Rules
+
+- Generic parameters in `fn` definitions may be omitted at call sites; the compiler infers them from argument types and, when needed, the expected return type at the call site.
+- Annotations in value positions must be concrete. To accept values of a polymorphic family (e.g., any `Array T`), introduce a generic parameter and use it in the annotation: `fn f<T>(xs: Array T) { ... }`.
+- When inference is insufficient or ambiguous, provide explicit generics: `identity<i64>(0)`.
+- It is a compile-time error to annotate parameters, locals, or fields with unbound type constructors (e.g., `Array`, `Map string _`).
 
 ### 7.2. Anonymous Functions and Closures
 
@@ -1487,7 +1601,7 @@ res = 4.add(5) ## Resolved via Method Call Syntax to add(4, 5) -> 9
 
 #### 7.4.4. Callable Value Invocation (`Apply` Interface)
 
-If `value` implements the `Apply` interface, `value(args...)` desugars to `value.apply(args...)`. (See Section [14](#14-standard-library-interfaces-conceptual--tbd)).
+If `value` implements the `Apply` interface, `value(args...)` desugars to `value.apply(args...)`. (See Section [14](#14-standard-library-interfaces-conceptual--tbd)). All ordinary function values and closures produced by placeholder lambdas implement `Apply` implicitly with their natural arity; user-defined types may implement `Apply` to become callable.
 ```able
 ## Conceptual Example
 # impl Apply for Integer { fn apply(self: Integer, a: Integer) -> Integer { self * a } }
@@ -1524,6 +1638,8 @@ result = add_10(5)       ## result is 15
 add_five = 5.add ## Creates function add(5, @) via Method Call Syntax access
 result_pa = add_five(20)  ## result_pa is 25
 ```
+
+Note: Expression placeholders use `@`/`@n` only. The underscore `_` is not an expression placeholder; it is reserved for wildcard patterns (§5.2.2) and unbound type parameters in type expressions (§4.4).
 
 ### 7.6. Shorthand Notations
 
@@ -1582,6 +1698,11 @@ Placeholders in expression positions create anonymous functions.
 *   Errors:
     *   Using `@`/`@n` where a named identifier is required (outside expression placeholders) is a compile-time error.
     *   Arity mismatches between inferred placeholder lambdas and the expected function type at the call site are compile-time errors.
+
+Interaction with `|>` topic semantics:
+
+- In a pipe step, either use the topic `%` somewhere in the RHS, or the RHS must evaluate to a unary callable which is then applied to the subject. Placeholders can be used to construct such callables: e.g., `x |> add(@, 1)`.
+- `%` and `@`/`@n` are orthogonal. `%` binds the current subject value; `@`/`@n` construct anonymous functions within ordinary expressions.
 
 
 **Allowed only when defining functions within a `methods TypeName { ... }` block or an `impl Interface for Type { ... }` block.**
@@ -1712,6 +1833,7 @@ SubjectExpression match {
 2.  **First Match Wins**: The first `PatternX` that matches *and* whose `GuardX` (if present) is true selects the clause.
 3.  **Execution & Result**: The chosen `ResultExpressionListX` is executed. The `match` expression evaluates to the value of the last expression in that list.
 4.  **Exhaustiveness**: Compiler SHOULD check for exhaustiveness (especially for unions). Non-exhaustive matches MAY warn/error at compile time and SHOULD raise an exception at runtime. A `case _ => ...` usually ensures exhaustiveness.
+    *   Open sets: When matching on an existential/interface type (e.g., `Error`), the set of possible concrete variants is open. Exhaustiveness for that component requires either a wildcard `case _ => ...` or at least `case _: Error => ...` to cover the open set.
 5.  **Type Compatibility**: All `ResultExpressionListX` must yield compatible types. The `match` expression's type is this common type.
     *   Unification rules as for `if/or`:
         -   Union common supertype (C1); `nil` with `T` yields `?T` (N1).
@@ -1889,6 +2011,8 @@ break 'LabelName ValueExpression
       if c { break 'mix 1 } else { break 'mix "a" }
     }                    ## i32 | string (C1/B1)
     ```
+
+4.  **Asynchrony boundary**: `break` only unwinds the current synchronous call stack. It cannot cross asynchronous boundaries introduced by `proc` or `spawn`. Attempting to target a `breakpoint` that is not in the current synchronous stack is a compile-time error when detectable, otherwise a runtime error.
 
 #### 8.3.4. Example
 
@@ -2369,8 +2493,14 @@ Using an interface name as a type denotes a dynamic/existential interface value:
 *   **Static vs Dynamic Use:**
     -   In constraint positions (`T: Display` or `where T: Display`), `Display` is a static bound; calls are resolved at compile time.
     -   In type positions (`x: Display`, `Array Display`, `Error | T`), `Display` is a dynamic/existential; calls are resolved at runtime.
-*   **Object Safety:** Only methods that are object-safe (no unconstrained generic method parameters, no returning `Self` except where boxed/erased is defined) are callable through interface-typed values. Object-safety rules are TBD and will be specified; non-object-safe methods are unavailable via interface values but usable via static bounds.
+*   **Object Safety (minimum rule-set):** Methods callable via interface-typed values must be object-safe:
+    -   No generic method parameters that are not fully constrained by the interface’s type parameters.
+    -   No `Self` in return position unless wrapped in an interface-typed existential (or otherwise erased) defined by the interface.
+    -   `self: Self` receiver only (no by-value moves across dynamic boundary unless the interface specifies the ownership model).
+    Non-object-safe methods remain callable under static bounds (e.g., `T: Interface`) but are unavailable through interface-typed values.
 *   **Import-Scoped Model:** The concrete implementation used for a dynamic/interface-typed value is fixed at the upcast site (where a concrete value is converted to an interface type) based on impls in scope there. Consumers do not need that impl in scope to call methods on the received interface value.
+
+*   **Exhaustiveness reminder:** Because interface types represent open sets of implementors, pattern matching on an interface-typed value is only exhaustively covered with a wildcard or an explicit `case _: Interface` clause.
 
 
 ## 11. Error Handling
@@ -2449,6 +2579,7 @@ Policy:
 
     Notes:
     - Shorthands compose positionally in types and apply to the immediate type to their right. For example, `?(!T)` denotes `nil | (Error | T)`. Parentheses are recommended when combining shorthands for readability.
+    - The shorthands commute: `?(!T)` and `!(?T)` both denote `nil | Error | T`.
 
 #### 11.2.2. Error/Option Propagation (`!`)
 
@@ -2464,6 +2595,19 @@ ExpressionReturningOptionOrResult!
 -   If the expression evaluates to the "successful" variant (`T`), the `!` operator unwraps it, and the overall expression evaluates to the unwrapped value (of type `T`).
 -   If the expression evaluates to the "failure" variant (`nil` or an `Error`), the `!` operator causes the **current function** to immediately **`return`** that `nil` or `Error` value.
 -   **Requirement:** The function containing the `!` operator must itself return a compatible `Option` or `Result` type, or a supertype union that contains `nil` and/or `Error` respectively. For example, a function returning `nil | Error | T` may use `!` on both `?U` and `!V` values.
+
+Nested and composite cases:
+
+- If the operand’s type is a union that may include both `nil` and `Error` (e.g., `nil | Error | T`, possibly arising from `?(!T)`), `expr!` unwraps the `T` on success and returns early on either `nil` or `Error`.
+
+- For `?(!T)` and `!(?T)`, a single postfix `!` is sufficient and unambiguous: if the value is `nil`, return `nil`; if it is an `Error`, return that error; otherwise yield the `T` value. There is no need to chain `!`.
+    - Symmetry: the same behavior applies to `!(?T)` since both forms normalize to `nil | Error | T`. A single postfix `!` on a `nil | Error | T` union is unambiguous: `nil` and `Error` are mutually exclusive failure variants.
+
+``` able
+## Single-step propagation/unwrap across both nil and Error
+## !(?i32) ≡ nil | Error | i32
+fn flatten(x: ?(!i32)) -> !(?i32) { x! }
+```
 
 ##### Example
 ```able
@@ -2785,6 +2929,24 @@ print(final_data)
 data_proc.cancel()
 ```
 
+Propagation inside `proc` tasks:
+
+- Within a `proc` task body, the postfix `!` operator behaves as usual inside the task. Early returns triggered by `!` return from the task’s function. Observers then see the resulting `Proc` state:
+  - If the task function returns `!T`, callers of `value()` receive that `!T` as-is (success or error) wrapped in the `Proc` protocol.
+  - If the task function raises an exception (unhandled), `value()` returns `ProcError` describing the failure (or re-raises under a target that maps exceptions directly).
+
+Cancellation example:
+
+``` able
+handle = proc do {
+  ch = Channel.new(0)
+  ## ... periodically check a user-provided cancellation flag or channel ...
+  ## on cancel, exit early (return void)
+}
+handle.cancel()
+st = handle.status()
+```
+
 ### 12.3. Future-Based Asynchronous Execution (`spawn`)
 
 The `spawn` keyword initiates asynchronous execution and returns a `Future T` value, which implicitly blocks and yields the result when evaluated in a `T` context. The result of a `Future T` is memoized: the first evaluation computes the result; subsequent evaluations return the memoized value (or error).
@@ -2810,6 +2972,10 @@ spawn BlockExpression
     *   If the computation fails (raises an unhandled exception), evaluating the `Future T` re-raises that exception in the evaluating context. Use `rescue` to handle such failures.
     *   If the computation itself returns a `!T` (i.e., the underlying function returns `Error | T`), evaluating the `Future !T` yields that union value unchanged; no implicit wrapping occurs beyond memoization.
     *   Evaluating a `Future void` blocks until completion. If successful, it yields `void`. If the underlying task fails, it raises the exception to the evaluating context.
+
+    Interaction with `!`:
+
+    - Since `Future !T` evaluates to `!T`, the postfix `!` operator can be applied directly to a `Future !T` value. `future_result!` will block until completion, then propagate the `Error` early or return the unwrapped `T`.
 
 #### 12.3.3. Example
 
@@ -2951,6 +3117,7 @@ Packages form a tree of namespaces rooted at the name of the library, and the hi
 *   **Unqualified Names**: All individual package name segments (directory names, names declared with `package`) must be valid identifiers.
 *   **Qualified Names**: Package paths are composed of segments delimited by periods (`.`), e.g., `root_package.sub_dir.module_name`.
 *   **Directory Mapping**: Directory names containing source files are part of the package path. Hyphens (`-`) in directory names are treated as underscores (`_`) when used in the package path. Example: A directory `my-utils` becomes `my_utils` in the package path.
+    -   Imports use the mapped identifier form. For a directory `my-utils`, write `import my_utils;` (not `import my-pkg;`).
 
 ### 13.2. Package Declaration in Source Files
 
@@ -3044,6 +3211,8 @@ The `dynimport` statement binds identifiers from dynamically defined packages (c
     -   Named implementations are never chosen implicitly. They require explicit selection (see Named Impl Invocation TBD) and follow the same visibility/import rules as other top-level items. Named impl identifiers must be unique within the importing scope; if collisions occur, use selective import with aliasing.
     -   No orphan restriction: Packages may define `impl Interface for TargetType` even if they do not own the interface or the type. Which implementation is used is determined solely by what impls are in scope in the using package (via its imports).
 
+    -   Specificity with multiple visible impls: If more than one unnamed `impl` is visible for the same `(Interface, TargetType)`, and one is strictly more specific (§10.2.5), the more specific one is chosen; otherwise, ambiguity is a compile-time error. Use imports to hide the undesired impl or call explicitly via a named implementation.
+
 ```able
 ## In package 'my_pkg'
 
@@ -3074,9 +3243,20 @@ fn make_display() -> Display { Hidden { value: 42 } }
 # ## each consuming package chooses which one to import; only imported impls participate.
 ```
 
+Typing and dynamic imports:
+
+- Names brought in via `dynimport` are late-bound and not statically typed. In statically compiled code, they can be:
+  - Called dynamically (raising an Error at runtime if shape/arity is incompatible), or
+  - Adapted to interface types explicitly via `dyn.as_interface(value, Interface)` to cross into statically typed APIs.
+- Using `dynimport`ed values directly in static type positions (e.g., as a parameter with a specific static type) is not permitted unless adapted as above.
+
 ## 14. Standard Library Interfaces (Conceptual / TBD)
 
 Many language features rely on interfaces expected to be in the standard library. These require full definition.
+
+Editorial note on built-ins vs. stdlib:
+
+- Aside from primitives (`i*`, `u*`, `f*`, `bool`, `char`, `string`, `nil`, `void`), core collection/concurrency types used in this spec (e.g., `Array T`, `Map K V`, `Channel T`, `Mutex`, `Range`) are defined in the standard library. Syntactic constructs that reference them (array literals/patterns, indexing, ranges `..`/`...`) rely on those stdlib interfaces being in scope (e.g., `Index`, `Iterable`, `Range`). Implementations MUST provide a canonical stdlib that satisfies these expectations for the syntax to be usable.
 
 *   **Iteration:**
     *   `struct IteratorEnd;` (Singleton type signalling end of iteration).
