@@ -314,6 +314,15 @@ Type constraints restrict the types that can be used for a generic type paramete
   - Existential/interface types for dynamic dispatch views.
 - Type argument inference occurs at function call sites from argument and expected return types. It does not permit leaving unbound parameters in value annotations. Where the compiler cannot infer generics, specify them explicitly, e.g., `identity<i64>(0)`.
 
+#### 4.1.7. Variance, Coercion, and Higher-Kinded Types (minimal rules)
+
+- Variance:
+  - Type parameters are invariant unless a type explicitly declares variance in its definition (TBD syntax). Stdlib containers are invariant by default (`Array T` is invariant in `T`).
+- Coercion:
+  - There is no implicit subtyping-based coercion. Coercions occur only via explicit constructors/conversions or unions (upcast into a union). Numeric widening follows operator rules in §6.3.2; no silent narrowing.
+- HKTs (higher-kinded interfaces):
+  - Supported at the interface level via `for M _` patterns (e.g., `interface Mappable A for M _`). Implementations target type constructors as in §10.2.3. HKTs for concrete types beyond interface usage (e.g., first-class type constructors in arbitrary positions) are intentionally limited and may be expanded later.
+
 ### 4.2. Primitive Types
 
 | Type     | Description                                   | Literal Examples                    | Notes                                           |
@@ -357,6 +366,17 @@ The underscore `_` can be used in type expressions to explicitly denote an unbou
 Structs aggregate named or positional data fields into a single type. Able supports three kinds of struct definitions: singleton, named-field, and positional-field. A single struct definition must be exclusively one kind. All fields are mutable.
 
 Note on immutability: The language does not provide `const`/`immutable` qualifiers for bindings or fields. Immutability is achieved by design (e.g., exposing no mutators, returning new values) or by using library-provided persistent data structures. Projects may adopt conventions enforcing single-assignment or immutable APIs; the core language does not enforce it.
+
+#### 4.5.4. Immutability Patterns (Guidance)
+
+- Prefer API designs that avoid in-place mutation. Provide “with-” style constructors that copy and override selected fields:
+  ```able
+  Address { ...base, zip: 90210 }
+  ```
+- Expose read-only accessors and avoid exporting mutators; keep mutating helpers internal.
+- Offer persistent data structures in stdlib for common types (e.g., vectors/maps) and document their semantics.
+- Use builders for complex construction, then hand out values with no mutators.
+- Concurrency: prefer sharing immutable data across tasks to avoid coordination costs; if mutation is required, use `Mutex` or channels (§12.5).
 
 #### 4.5.1. Singleton Structs
 
@@ -2208,6 +2228,10 @@ Within the interface definition (and corresponding `impl` blocks):
 *   **If `interface ... { ... }` (without `for`) is used:**
     *   `Self` refers to the concrete type provided in the `impl ... for Target` block (e.g., if `impl MyIface for i32`, then `Self` is `i32` within that impl).
 
+Note on recursive `Self` constraints:
+
+- Interfaces may reference `Self` in their own signatures (e.g., `fn next(self: Self) -> ?Self`). Recursive constraints over `Self` (e.g., requiring `Self: Interface` within the same interface) are allowed only when well-founded (no infinite regress) and remain an advanced feature; implementations must satisfy such constraints explicitly. Full formal rules are out of scope for v10 and may be tightened in a future revision.
+
 #### 10.1.4. Examples of Interface Definitions
 
 ```able
@@ -2393,6 +2417,29 @@ When multiple `impl` blocks could apply to a given type and interface, Able uses
 5.  **Constraint Set Specificity:** An `impl` whose type parameters have a constraint set that is a proper superset of another `impl`'s constraints is more specific (`impl<T: A + B> ...` is more specific than `impl<T: A> ...`).
 
 Ambiguities must be resolved manually, typically by qualifying the method call (see Section [10.3.3](#1033-disambiguation-named-impls)).
+
+Examples:
+
+```able
+interface Show for T { fn show(self: Self) -> string }
+
+impl Show for i32 { fn show(self: Self) -> string { `i32:${self}` } }
+impl<T> Show for Array T { fn show(self: Self) -> string { `arr(${self.size()})` } }
+
+## More specific than Array T
+impl Show for Array i32 { fn show(self: Self) -> string { `arr<i32>(${self.size()})` } }
+
+xs_i32: Array i32 = [1,2,3]
+xs_str: Array string = ["a"]
+
+xs_i32.show()  ## uses Array i32 impl (more specific)
+xs_str.show()  ## uses Array T impl
+
+## Named impl ergonomics
+ShowNums = impl Show for Array i32 { fn show(self: Self) -> string { `nums(${self.size()})` } }
+## Instance method syntax does not select named impls; use qualified call:
+res = ShowNums.show(xs_i32)
+```
 
 ### 10.3. Usage
 
@@ -3081,6 +3128,13 @@ Notes:
 -   Multiplexing/select can be provided via library helpers or timer channels (`os.after(d)`); dedicated `select` syntax is TBD.
 -   Timeouts and cancellation can be modeled using auxiliary channels or higher-level APIs. Long-running tasks should periodically check for cancellation via user-defined channels or flags; there is no implicit ambient cancellation context.
 
+Shared-data guidance and patterns:
+
+- Prefer message passing (channels) over shared mutable memory. Design APIs to transfer ownership or pass immutable snapshots between tasks.
+- When sharing mutable values across tasks, guard all access with `Mutex` and keep critical sections minimal. Avoid holding a lock across blocking operations (e.g., channel send/receive, I/O).
+- Use `with_lock` helpers to guarantee unlock on early returns/exceptions.
+- Consider copy-on-write or persistent structures when contention is high.
+
 #### Mutex
 
 Mutual exclusion primitive to protect shared data.
@@ -3508,3 +3562,10 @@ extern ruby fn new_uuid() -> string { SecureRandom.uuid }
 *   **Ranges:** Concrete type vs existential for `..` and `...` results.
 *   **Tooling:** Compiler, Package manager commands, Testing framework.
 
+# Unresolved questions
+
+* Struct Mutability (4.5): Unresolved—awaiting "immutability patterns" subsection.
+* Overlapping Implementations (10.2.3): Partially resolved but open for specificity lattice/examples (10.2.5).
+* Shared Data in Concurrency (12.5): Unresolved—awaiting "races and ownership patterns" note with examples.
+* HKTs/Variance/Coercion: Unresolved—awaiting minimal rules.
+* Self Interpretation (10.1.3): Unresolved—no recursive details yet.
