@@ -12,12 +12,16 @@ export type V10Value =
   | { kind: "nil"; value: null }
   | { kind: "i32"; value: number }
   | { kind: "f64"; value: number }
-  | { kind: "array"; elements: V10Value[] };
+  | { kind: "array"; elements: V10Value[] }
+  | { kind: "range"; start: number; end: number; inclusive: boolean };
 
 export class Environment {
   private values: Map<string, V10Value> = new Map();
   constructor(private enclosing: Environment | null = null) {}
-  define(name: string, value: V10Value): void { this.values.set(name, value); }
+  define(name: string, value: V10Value): void {
+    if (this.values.has(name)) throw new Error(`Redefinition in current scope: ${name}`);
+    this.values.set(name, value);
+  }
   assign(name: string, value: V10Value): void {
     if (this.values.has(name)) { this.values.set(name, value); return; }
     if (this.enclosing) { this.enclosing.assign(name, value); return; }
@@ -58,6 +62,135 @@ export class InterpreterV10 {
       case "ArrayLiteral": {
         const arr = (node as AST.ArrayLiteral).elements.map(e => this.evaluate(e, env));
         return { kind: "array", elements: arr };
+      }
+
+      // --- Unary ---
+      case "UnaryExpression": {
+        const u = node as AST.UnaryExpression;
+        const v = this.evaluate(u.operand, env);
+        if (u.operator === "-") {
+          if (v.kind === "i32") return { kind: "i32", value: -v.value };
+          if (v.kind === "f64") return { kind: "f64", value: -v.value };
+          throw new Error("Unary '-' requires numeric operand");
+        }
+        if (u.operator === "!") {
+          if (v.kind === "bool") return { kind: "bool", value: !v.value };
+          throw new Error("Unary '!' requires boolean operand");
+        }
+        if (u.operator === "~") {
+          if (v.kind === "i32") return { kind: "i32", value: ~v.value };
+          throw new Error("Unary '~' requires i32 operand");
+        }
+        throw new Error(`Unknown unary operator ${u.operator}`);
+      }
+
+      // --- Binary ---
+      case "BinaryExpression": {
+        const b = node as AST.BinaryExpression;
+        // Logical short-circuit
+        if (b.operator === "&&" || b.operator === "||") {
+          const lv = this.evaluate(b.left, env);
+          if (lv.kind !== "bool") throw new Error("Logical operands must be bool");
+          if (b.operator === "&&") {
+            if (!lv.value) return { kind: "bool", value: false };
+            const rv = this.evaluate(b.right, env);
+            if (rv.kind !== "bool") throw new Error("Logical operands must be bool");
+            return { kind: "bool", value: lv.value && rv.value };
+          } else {
+            if (lv.value) return { kind: "bool", value: true };
+            const rv = this.evaluate(b.right, env);
+            if (rv.kind !== "bool") throw new Error("Logical operands must be bool");
+            return { kind: "bool", value: lv.value || rv.value };
+          }
+        }
+
+        const left = this.evaluate(b.left, env);
+        const right = this.evaluate(b.right, env);
+
+        // String concatenation
+        if (b.operator === "+" && left.kind === "string" && right.kind === "string") {
+          return { kind: "string", value: left.value + right.value };
+        }
+
+        // Numeric helpers
+        const isNum = (v: V10Value) => v.kind === "i32" || v.kind === "f64";
+        const asNumber = (v: V10Value): number => v.kind === "i32" || v.kind === "f64" ? v.value : NaN;
+        const resultKind = (a: V10Value, c: V10Value): "i32" | "f64" => (a.kind === "f64" || c.kind === "f64") ? "f64" : "i32";
+
+        // Arithmetic
+        if (["+","-","*","/","%"].includes(b.operator)) {
+          if (!isNum(left) || !isNum(right)) throw new Error("Arithmetic requires numeric operands");
+          const kind = resultKind(left, right);
+          const l = asNumber(left);
+          const r = asNumber(right);
+          switch (b.operator) {
+            case "+": return kind === "i32" ? { kind, value: (l + r) | 0 } : { kind, value: l + r };
+            case "-": return kind === "i32" ? { kind, value: (l - r) | 0 } : { kind, value: l - r };
+            case "*": return kind === "i32" ? { kind, value: (l * r) | 0 } : { kind, value: l * r };
+            case "/": {
+              if (r === 0) throw new Error("Division by zero");
+              return kind === "i32" ? { kind, value: (l / r) | 0 } : { kind, value: l / r };
+            }
+            case "%": {
+              if (r === 0) throw new Error("Division by zero");
+              return { kind, value: kind === "i32" ? (l % r) | 0 : l % r };
+            }
+          }
+        }
+
+        // Comparisons
+        if ([">","<",">=","<=","==","!="].includes(b.operator)) {
+          if (isNum(left) && isNum(right)) {
+            const l = asNumber(left); const r = asNumber(right);
+            switch (b.operator) {
+              case ">": return { kind: "bool", value: l > r };
+              case "<": return { kind: "bool", value: l < r };
+              case ">=": return { kind: "bool", value: l >= r };
+              case "<=": return { kind: "bool", value: l <= r };
+              case "==": return { kind: "bool", value: l === r };
+              case "!=": return { kind: "bool", value: l !== r };
+            }
+          }
+          if (left.kind === "string" && right.kind === "string") {
+            switch (b.operator) {
+              case ">": return { kind: "bool", value: left.value > right.value };
+              case "<": return { kind: "bool", value: left.value < right.value };
+              case ">=": return { kind: "bool", value: left.value >= right.value };
+              case "<=": return { kind: "bool", value: left.value <= right.value };
+              case "==": return { kind: "bool", value: left.value === right.value };
+              case "!=": return { kind: "bool", value: left.value !== right.value };
+            }
+          }
+          // Fallback: only equal if same kind and deep-equal of value for simple cases
+          if (b.operator === "==") return { kind: "bool", value: JSON.stringify(left) === JSON.stringify(right) };
+          if (b.operator === "!=") return { kind: "bool", value: JSON.stringify(left) !== JSON.stringify(right) };
+          throw new Error("Unsupported comparison operands");
+        }
+
+        // Bitwise on i32
+        if (["&","|","^","<<",">>"] .includes(b.operator)) {
+          if (left.kind !== "i32" || right.kind !== "i32") throw new Error("Bitwise requires i32 operands");
+          switch (b.operator) {
+            case "&": return { kind: "i32", value: left.value & right.value };
+            case "|": return { kind: "i32", value: left.value | right.value };
+            case "^": return { kind: "i32", value: left.value ^ right.value };
+            case "<<": return { kind: "i32", value: left.value << right.value };
+            case ">>": return { kind: "i32", value: left.value >> right.value };
+          }
+        }
+
+        throw new Error(`Unknown binary operator ${b.operator}`);
+      }
+
+      // --- Range ---
+      case "RangeExpression": {
+        const r = node as AST.RangeExpression;
+        const s = this.evaluate(r.start, env);
+        const e = this.evaluate(r.end, env);
+        const sNum = (s.kind === "i32" || s.kind === "f64") ? s.value : NaN;
+        const eNum = (e.kind === "i32" || e.kind === "f64") ? e.value : NaN;
+        if (Number.isNaN(sNum) || Number.isNaN(eNum)) throw new Error("Range boundaries must be numeric");
+        return { kind: "range", start: sNum, end: eNum, inclusive: r.inclusive };
       }
 
       // --- Expressions scaffold we will fill later ---
