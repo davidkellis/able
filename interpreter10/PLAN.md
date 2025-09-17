@@ -68,6 +68,7 @@ This document tracks the implementation plan for the v10 interpreter inside `int
 - Use Bun’s built-in test runner (`bun test`).
 - For each milestone:
   - Add focused test file(s) under `test/`, covering success and error cases.
+  - Include at least one evaluation test that constructs an AST using the new feature in isolation and asserts the evaluated result (e.g., `2 + 3` evaluates to `5`).
   - Keep tests deterministic; use snapshots only where helpful.
   - Prefer direct `evaluate` calls for unit tests; add module tests where relevant.
 
@@ -76,4 +77,49 @@ This document tracks the implementation plan for the v10 interpreter inside `int
 - All new tests passing with high coverage.
 - TODO item checked off.
 
+
+### Status
+- Milestones implemented in this pass: 1–12 (runtime core, blocks/assignments, ops/ranges, functions/lambdas, control flow, structs/member access, string interpolation, pattern matching, error handling, module/imports, interfaces/impls/methods, proc/spawn placeholders).
+- Extras implemented:
+  - Static methods on struct definitions
+  - Destructuring in function parameters and assignments (array/struct/typed)
+  - Array member access via `.index`
+  - Basic privacy enforcement for imports (private functions cannot be imported)
+  - TypedPattern runtime checks (minimal)
+
+### Next steps (prioritized)
+1) Privacy model expansion
+   - Enforce `isPrivate` on structs/unions/interfaces/methods during import and access
+   - Tests: importing private types/methods fails; intra-module access allowed
+
+2) Imports and packaging
+   - Wildcard import selectors; module aliasing (`import io as I`); dynamic import shape
+   - Tests: wildcard + aliasing define expected bindings in module env
+
+3) Generics and constraints (incremental runtime checks)
+   - Enforce simple where-clauses and interface constraints at call boundaries where feasible
+   - Accept and carry generic args through function/method calls (already accepted syntactically)
+   - Tests: constrained functions reject mismatched runtime shapes
+
+4) Interfaces/impls semantics
+   - Resolve method name conflicts (inherent vs impl) with clear precedence
+   - Support named impls (metadata) and simple overlap checks
+   - Tests: precedence and ambiguity cases
+
+5) Concurrency semantics (beyond placeholders)
+   - Define `proc`/`spawn` behavior (handles/futures) with stubbed scheduling
+   - Tests: spawn returns a handle; handle join returns value
+
+6) Performance and maintainability
+   - Env lookups and method cache (map hot-paths); micro-benchmarks in tests
+   - Split interpreter into modules (values, env, eval nodes)
+
+7) Developer experience
+   - Expand examples; README/PLAN alignment; doc comments for evaluator helpers
+   - Add coverage target and CI script (bun test --coverage)
+
+### Acceptance criteria for the above
+- New behavior covered by focused tests (positive and failure paths)
+- No regressions in existing suite; lints remain clean
+- PLAN.md updated per milestone completion
 
