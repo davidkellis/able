@@ -31,11 +31,11 @@ bun run typecheck      # TypeScript typecheck (no emit)
   - `struct_def`, `struct_instance` (named/positional fields)
   - `error` (message, optional value)
 - `Environment` provides lexical scoping (`define`, `assign`, `get`) with nesting.
-- Control-flow uses signals (Errors): `ReturnSignal`, `RaiseSignal`, internal `BreakSignal` shim.
+- Control-flow uses signals (Errors): `ReturnSignal`, `RaiseSignal`, internal `BreakSignal` shim, and `BreakLabelSignal` for labeled non-local jumps.
 - Method lookup merges:
   - Inherent methods from `MethodsDefinition` per type.
   - Interface methods from `ImplementationDefinition` per type.
-  - Member access on structs first tries fields, then methods; bound methods inject `self` at call.
+- Member access on structs first tries fields, then methods; UFCS fallback searches free functions; bound methods inject `self` at call.
 - Pattern system helpers:
   - `tryMatchPattern` implements match-time patterning (id, wildcard, literal, struct, array, typed).
   - `assignByPattern` implements destructuring assignment and parameter binding.
@@ -47,7 +47,7 @@ bun run typecheck      # TypeScript typecheck (no emit)
 - Operators: arithmetic, comparison, logical, bitwise; ranges
 - Arrays: literals, index read/write, and `.index` member-access on arrays
 - Control flow: `if/or`, `while` (with `break`), `for` (arrays/ranges)
-- Functions/lambdas: closures; destructuring parameters; arity checks
+- Functions/lambdas: closures; destructuring parameters; arity checks; minimal runtime param type checks
 - Structs: `StructDefinition`, named/positional `StructLiteral`, member access, static methods, mutation
 - Pattern matching: identifier, wildcard, literal, struct, array, typed patterns
 - Error handling: `raise`, `rescue` + guards, `else` (or-else), propagation `expr!`, `ensure`, `rethrow`

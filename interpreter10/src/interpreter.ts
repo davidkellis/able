@@ -304,14 +304,15 @@ export class InterpreterV10 {
         const iterable = this.evaluate(fl.iterable, env);
         const bodyEnvBase = new Environment(env);
         const bindPattern = (value: V10Value, targetEnv: Environment) => {
-          // Only Identifier and WildcardPattern for now
           if (fl.pattern.type === "Identifier") {
             targetEnv.define(fl.pattern.name, value);
-          } else if (fl.pattern.type === "WildcardPattern") {
-            // ignore
-          } else {
-            throw new Error("Only Identifier and Wildcard patterns supported in for-loop for now");
+            return;
           }
+          if (fl.pattern.type === "WildcardPattern") {
+            return;
+          }
+          // Use full destructuring semantics for struct/array/typed/literal patterns
+          this.assignByPattern(fl.pattern as AST.Pattern, value, targetEnv, true);
         };
 
         if (iterable.kind === "array") {
@@ -1000,6 +1001,7 @@ export class InterpreterV10 {
   private isTruthy(v: V10Value): boolean {
     if (v.kind === "nil") return false;
     if (v.kind === "bool") return v.value;
+    if (v.kind === "error") return false;
     if (v.kind === "i32" || v.kind === "f64") return v.value !== 0;
     if (v.kind === "string") return v.value.length > 0;
     return true;
@@ -1209,6 +1211,7 @@ export class InterpreterV10 {
         if (name === "char") return v.kind === "char";
         if (name === "i32") return v.kind === "i32";
         if (name === "f64") return v.kind === "f64";
+        if (name === "Error") return v.kind === "error";
         // Treat other simple names as struct types
         return v.kind === "struct_instance" && v.def.id.name === name;
       }
