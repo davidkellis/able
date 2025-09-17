@@ -30,21 +30,21 @@ For the complete v10 language definition and semantics, see: [full_spec_v10.md](
 
 The interpreter evaluates AST nodes directly (tree-walk). Key pieces:
 
-- Runtime value union (`V10Value`): string, bool, char, nil, i32, f64, array, range, function, struct_def, struct_instance, error, bound_method.
+- Runtime value union (`V10Value`): string, bool, char, nil, i32, f64, array, range, function, struct_def, struct_instance, error, bound_method, interface_def, union_def, package, impl_namespace, dyn_package, dyn_ref.
 - `Environment`: nested lexical scopes with `define`, `assign`, and `get`.
-- Control-flow signals: `ReturnSignal`, `RaiseSignal`, and an internal break signal.
-- Method lookup: inherent methods (`MethodsDefinition`) and interface `ImplementationDefinition` registered by type name.
+- Control-flow signals: `ReturnSignal`, `RaiseSignal`, loop-only break signal, and labeled `BreakLabelSignal` for non-local jumps to `breakpoint`.
+- Method lookup: inherent methods (`MethodsDefinition`) and interface `ImplementationDefinition` registered by type name. Named `impl` blocks are exposed as `impl_namespace` values (explicit calls only).
 
 High-level evaluation flow:
 
 1) Literals and identifiers return their corresponding runtime value or env binding.
-2) Expressions: unary/binary ops, calls, blocks, ranges, indexing, string interpolation, member access.
+2) Expressions: unary/binary ops, calls, blocks, ranges, indexing, string interpolation (prefers `to_string` on structs), member access (fields/methods) with UFCS fallback to free functions.
 3) Control flow: if/or, while (with break), for (arrays/ranges).
 4) Data: `StructDefinition`, `StructLiteral`, named/positional fields, member access, static methods.
 5) Functions/lambdas: closures capture the defining environment; parameters support destructuring patterns.
 6) Pattern matching: identifier, wildcard, literal, struct, array, typed patterns (minimal runtime checks).
 7) Error handling: raise, rescue (with guards), or-else, propagation `expr!`, ensure, rethrow (with raise stack).
-8) Modules/imports: executes body in a module/global env; selector imports and aliasing; private functions cannot be imported.
+8) Modules/imports: executes body in a module/global env; selector imports and aliasing; privacy enforced for functions/types/interfaces/unions. Wildcard imports bring only public symbols. `import pkg as Alias` binds a `package` value exposing public members. `dynimport` binds late-resolving `dyn_ref`s or `dyn_package` aliases.
 9) Concurrency placeholders: `proc` and `spawn` evaluate their inner expression synchronously for now.
 
 ### Feature coverage (implemented)
@@ -54,11 +54,11 @@ High-level evaluation flow:
 - Operators: arithmetic, comparison, logical, bitwise, ranges
 - Control flow: if/or, while (break), for over arrays/ranges
 - Functions/lambdas: closures, destructuring params, call arity checks
-- Blocks/assignments: declarations `:=`, reassign `=`, destructuring assignment
+- Blocks/assignments: declarations `:=`, reassign `=`, destructuring assignment, compound assignments (`+=`, `-=`, `*=`, `/=`, `%=` and `&=`, `|=`, `^=`, `<<=`, `>>=`)
 - Structs: definitions, literals (named/positional), member access, static methods
 - Pattern matching: identifier, wildcard, literal, struct, array, typed patterns
 - Error handling: raise, rescue (guards), or-else, propagation `!`, ensure, rethrow
-- Modules/imports: selector import, aliasing, privacy for private functions
+- Modules/imports: selector import, aliasing, privacy for private functions/types/interfaces/unions; wildcard imports; package alias; dynimport selectors/alias/wildcard
 - Methods/impls: inherent methods and interface impl methods with bound `self`
 
 ### Using the interpreter
@@ -92,7 +92,28 @@ const result = interp.evaluate(mod as any); // { kind: 'i32', value: 5 }
 - Integers default to i32; floats default to f64.
 - Type arguments on calls are accepted but not typechecked at runtime.
 - Privacy is enforced on import for functions (more privacy rules TBD).
-- Destructuring and TypedPattern checks are best-effort runtime validations, not full typechecking.
+- Destructuring and TypedPattern checks are best-effort runtime validations, not full typechecking. Function parameters with type annotations are validated minimally at call time via `matchesType`.
+- Truthiness: `false`, `nil`, and any value of kind `error` are falsy; all others are truthy.
+
+### How the new logic works (high level)
+
+- Package registry and imports:
+  - Modules with `package` declarations register top-level definitions in an internal registry keyed by package path. Qualified names (e.g., `pkg.name`) are placed in globals for selector imports. Wildcard imports copy only public symbols into the importing env. `import pkg as Alias` binds a `package` value whose `Alias.member` yields the symbol. `dynimport` binds `dyn_ref` and `dyn_package` placeholders that resolve at use-time.
+
+- Named `impl` exposure:
+  - Named `impl` blocks are exposed as `impl_namespace` values (not packages). Methods are accessed as `ImplName.method(...)`. Unnamed impls populate the implicit method tables for instance method calls.
+
+- UFCS fallback:
+  - If `receiver.name(...)` doesn’t match a field or method, the interpreter searches for a free function `name` in scope and returns a bound-method-like callable injecting `receiver` as the first argument.
+
+- Labeled `breakpoint`/`break`:
+  - `breakpoint 'label { ... }` evaluates the body and returns its last value unless a `break 'label expr` is encountered, in which case the breakpoint returns `expr`. Loop frames propagate labeled breaks to allow unwinding.
+
+- Compound assignments and shifts:
+  - Compound ops update identifiers, struct fields, and array indices with single-target evaluation. Left/right shifts validate the count is within 0..31 for `i32`.
+
+- String interpolation and Display:
+  - Interpolated expressions are formatted with `valueToStringWithEnv`. For struct instances, the interpreter attempts to call a `to_string(self)` method; if it returns a string, its value is used; otherwise a structural `{ field: value }` is emitted.
 
 ### Extending the interpreter
 
