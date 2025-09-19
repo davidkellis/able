@@ -27,19 +27,21 @@ bun run typecheck      # TypeScript typecheck (no emit)
 - Runtime values are a tagged union `V10Value` with kinds:
   - `string`, `bool`, `char`, `nil`, `i32`, `f64`
   - `array`, `range`
-  - `function` (closure with `node` + `closureEnv`), `bound_method` (function + `self`)
+  - `function` (closure with `node` + `closureEnv`), `bound_method` (function + `self`), `native_function`, `native_bound_method`
   - `struct_def`, `struct_instance` (named/positional fields)
-  - `error` (message, optional value)
+  - `interface_def`, `interface_value` (dynamic wrapper around a concrete value implementing the interface)
+  - `proc_handle`, `future`
+  - `error` (message, optional value / `ProcError` payload)
 - `Environment` provides lexical scoping (`define`, `assign`, `get`) with nesting.
 - Control-flow uses signals (Errors): `ReturnSignal`, `RaiseSignal`, internal `BreakSignal` shim, and `BreakLabelSignal` for labeled non-local jumps.
 - Method lookup merges:
   - Inherent methods from `MethodsDefinition` per type.
   - Interface methods from `ImplementationDefinition` per type.
-- Member access on structs first tries fields, then methods; UFCS fallback searches free functions; bound methods inject `self` at call.
+- Member access on structs first tries fields, then methods; UFCS fallback searches free functions; bound methods inject `self` at call. Interface-typed values forward member access to the underlying concrete type’s implementation.
 - Pattern system helpers:
   - `tryMatchPattern` implements match-time patterning (id, wildcard, literal, struct, array, typed).
-  - `assignByPattern` implements destructuring assignment and parameter binding.
-  - `matchesType` provides minimal runtime checks for `TypedPattern` (simple names, Array T, nullable, etc.).
+  - `assignByPattern` implements destructuring assignment and parameter binding (typed patterns coerce interface values automatically).
+  - `matchesType` provides minimal runtime checks for `TypedPattern` (simple names, Array T, nullable, etc.), including interface names.
 
 ### Feature coverage (implemented)
 
@@ -52,8 +54,14 @@ bun run typecheck      # TypeScript typecheck (no emit)
 - Pattern matching: identifier, wildcard, literal, struct, array, typed patterns
 - Error handling: `raise`, `rescue` + guards, `else` (or-else), propagation `expr!`, `ensure`, `rethrow`
 - Modules/imports: executes in global module env; selector imports + aliasing; private functions cannot be imported
-- Methods/impls: inherent and interface-based, with precedence resolved by explicit lookup order
-- Concurrency placeholders: `proc`/`spawn` evaluate the inner expression synchronously (future: async handles)
+- Methods/impls: inherent and interface-based, with precedence resolved by explicit lookup order. Interface signatures may supply default bodies; impls that omit them inherit the default. Interface-typed bindings coerce to dynamic wrappers so method calls dispatch to the underlying type’s implementation.
+  - Union-target impls participate in resolution; smaller variant sets win over larger ones. Constraint supersets (inheriting interface requirements) rank higher, and ambiguity errors now surface candidate details. Dynamic interface containers (arrays/ranges) automatically pick the most specific impl during iteration.
+- Concurrency handles: `proc`/`spawn` schedule work asynchronously and return handles exposing `status()`, `value()` (`!T` – success or `ProcError`), and `cancel()`.
+  - We keep scheduling inside the interpreter (simple cooperative queue) rather than using JavaScript `async`/`await` so evaluation stays synchronous/ deterministic and cancellation can flip pending tasks immediately without relying on host promise semantics.
+  - Cooperative helpers are available to Able code: `proc_yield()` triggers a `ProcYieldSignal`, re-queueing the current runner, and `proc_cancelled()` surfaces the `cancelRequested` flag on the active handle. The interpreter keeps an `asyncContextStack` so these helpers know which async value is executing.
+  - `runProcHandle`/`runFuture` push the active handle on the stack before evaluating and pop it in `finally`. They also prevent cancellation from short-circuiting once evaluation has begun via a `hasStarted` flag.
+  - `procHandleCancel` now schedules the existing runner instead of marking the handle immediately; cancellation is finalized inside the next `runProcHandle` tick so task code can poll `proc_cancelled()` and exit cooperatively. Tests may call `runProcHandle` directly (via `InterpreterV10` cast to `any`) when they need fine-grained control over staging.
+  - When you add additional async helpers, mirror this pattern: throw a dedicated signal, schedule the existing runner if the task should resume, and avoid leaking the helper into normal synchronous execution.
 
 See `README.md` for human-facing details and examples.
 
@@ -133,13 +141,11 @@ Per-feature checklist:
 
 ### Next steps (short)
 
-See `PLAN.md` for the prioritized backlog. Near-term items typically include:
+See `PLAN.md` for the prioritized backlog. Near-term items currently include:
 
-- Privacy model expansion for types/methods
-- Improved imports (wildcards, module aliasing)
-- Incremental generics/where-constraint checks at runtime
-- Richer `proc`/`spawn` semantics with handles
-- Small perf improvements (lookup caches, env hot paths)
+- Concurrency ergonomics (yield hooks, cancellation observability, proc/future stress tests)
+- Interface & impl completeness (higher-kinded constraint chains, mixed visibility cases, disambiguation guidance)
+- Dynamic interface collections (ranges/maps of interface values, nested containers) and remaining privacy/import spec gaps
 
 ### Handy AST DSL examples
 
@@ -169,5 +175,3 @@ const pointLit = AST.structLiteral([
 ```
 
 If in doubt, search the tests in `test/` for ready-made examples of each feature.
-
-
