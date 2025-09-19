@@ -66,6 +66,7 @@ export interface GenericTypeExpression extends AstNode { type: 'GenericTypeExpre
 export interface FunctionTypeExpression extends AstNode { type: 'FunctionTypeExpression'; paramTypes: TypeExpression[]; returnType: TypeExpression; }
 export interface NullableTypeExpression extends AstNode { type: 'NullableTypeExpression'; innerType: TypeExpression; }
 export interface ResultTypeExpression extends AstNode { type: 'ResultTypeExpression'; innerType: TypeExpression; }
+export interface UnionTypeExpression extends AstNode { type: 'UnionTypeExpression'; members: TypeExpression[]; }
 export interface WildcardTypeExpression extends AstNode { type: 'WildcardTypeExpression'; }
 
 export type TypeExpression =
@@ -74,6 +75,7 @@ export type TypeExpression =
   | FunctionTypeExpression
   | NullableTypeExpression
   | ResultTypeExpression
+  | UnionTypeExpression
   | WildcardTypeExpression;
 
 export function simpleTypeExpression(name: Identifier | string): SimpleTypeExpression {
@@ -87,6 +89,7 @@ export function functionTypeExpression(paramTypes: TypeExpression[], returnType:
 }
 export function nullableTypeExpression(innerType: TypeExpression): NullableTypeExpression { return { type: 'NullableTypeExpression', innerType }; }
 export function resultTypeExpression(innerType: TypeExpression): ResultTypeExpression { return { type: 'ResultTypeExpression', innerType }; }
+export function unionTypeExpression(members: TypeExpression[]): UnionTypeExpression { return { type: 'UnionTypeExpression', members }; }
 export function wildcardTypeExpression(): WildcardTypeExpression { return { type: 'WildcardTypeExpression' }; }
 
 // Generics and constraints
@@ -288,9 +291,29 @@ export function structFieldInitializer(value: Expression, name?: Identifier | st
   return { type: 'StructFieldInitializer', name: typeof name === 'string' ? identifier(name) : name, value, isShorthand };
 }
 
-export interface StructLiteral extends AstNode { type: 'StructLiteral'; structType?: Identifier; fields: StructFieldInitializer[]; isPositional: boolean; functionalUpdateSource?: Expression; }
-export function structLiteral(fields: StructFieldInitializer[], isPositional: boolean, structType?: Identifier | string, functionalUpdateSource?: Expression): StructLiteral {
-  return { type: 'StructLiteral', structType: typeof structType === 'string' ? identifier(structType) : structType, fields, isPositional, functionalUpdateSource };
+export interface StructLiteral extends AstNode {
+  type: 'StructLiteral';
+  structType?: Identifier;
+  fields: StructFieldInitializer[];
+  isPositional: boolean;
+  functionalUpdateSource?: Expression;
+  typeArguments?: TypeExpression[];
+}
+export function structLiteral(
+  fields: StructFieldInitializer[],
+  isPositional: boolean,
+  structType?: Identifier | string,
+  functionalUpdateSource?: Expression,
+  typeArguments?: TypeExpression[],
+): StructLiteral {
+  return {
+    type: 'StructLiteral',
+    structType: typeof structType === 'string' ? identifier(structType) : structType,
+    fields,
+    isPositional,
+    functionalUpdateSource,
+    typeArguments,
+  };
 }
 
 export interface UnionDefinition extends AstNode { type: 'UnionDefinition'; id: Identifier; genericParams?: GenericParameter[]; variants: TypeExpression[]; whereClause?: WhereClauseConstraint[]; isPrivate?: boolean; }
@@ -477,6 +500,7 @@ export const gen = genericTypeExpression;
 export const fnType = functionTypeExpression;
 export const nullable = nullableTypeExpression;
 export const result = resultTypeExpression;
+export const unionT = unionTypeExpression;
 export const wildT = wildcardTypeExpression;
 
 // Patterns
@@ -590,4 +614,3 @@ export const ret = returnStatement;
 // Host interop
 export const prelude = preludeStatement;
 export const extern = externFunctionBody;
-
