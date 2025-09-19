@@ -91,21 +91,41 @@ This document tracks the implementation plan for the v10 interpreter inside `int
   - String interpolation prefers struct `to_string`
   - Compound assignments across id/member/index; i32 shift range checks (0..31)
   - TypedPattern and minimal param type checks (primitives, arrays, structs, Error)
+  - Minimal generics support: accept type args on calls; enforce interface-based where-constraints at call sites; type-arg count checks
+  - Tests now cover constraints on both free functions and instance methods
+  - Bind generic type arguments into function env as `${T}_type` strings for introspection; tests added
+  - Struct instantiation enforces generic constraints and propagates type arguments for downstream impl lookup
+  - Interface method resolution honors inherent-method precedence, selects the most specific impl, and raises on ambiguous overlaps
+  - Named impl namespaces expose metadata (`interface`, `target`, `interface_args`) for inspection
+  - Concurrency handles: `proc` now returns a status/value/cancel handle and `spawn` returns a memoized future handle
+  - Proc/Future `status` expose `ProcStatus` structs and `value()` yields `!T` (success or `ProcError`), enabling propagation with `!`
+  - Interfaces support default methods, dynamic dispatch via interface-typed values, and stricter constraint specificity resolution
 
 ### Next steps (prioritized)
-1) Generics and constraints (incremental runtime checks)
-   - Enforce simple where-clauses and interface constraints at call boundaries where feasible
-   - Accept and carry generic args through function/method calls (already accepted syntactically)
-   - Tests: constrained functions reject mismatched runtime shapes
+1) Full v10 concurrency semantics (partially complete)
+   - ✅ Cooperative scheduler queues `proc`/`spawn` runners so they progress without explicit joins; tests cover background completion
+   - ✅ Cancellation now transitions pending tasks to `Cancelled` with `ProcError` payloads and leaves resolved tasks untouched; coverage exercises both paths
+   - ✅ Cooperative helpers (`proc_yield`, `proc_cancelled`) let tasks interleave and proactively observe cancellation, with stress tests covering multi-handle fairness (`ABC` trace ordering) and cooperative cancellation (`wx` trace) via direct runner control
+   - Remaining: add broader stress tests for nested yields / future combinations and document recommended usage patterns for library authors
 
-2) Interfaces/impls semantics
-   - Resolve method name conflicts (inherent vs impl) with clear precedence
-   - Support named impls (metadata) and simple overlap checks
-   - Tests: precedence and ambiguity cases
+2) Interface & impl completeness (partially complete)
+   - ✅ Union-target impls now compare subset precedence (smaller unions win) with improved ambiguity diagnostics when ties remain
+   - ✅ Constraint superset precedence now considers inherited interfaces, with coverage for multi-parameter where clauses and dynamic interface dispatch
+   - Remaining: higher-kinded/parameterised base-interface chains, mixed visibility/import scenarios, and explicit tooling guidance for disambiguation
+   - Tests: overlapping impl resolution edge cases (higher-order generics), interface inheritance in collections, explicit/named impl disambiguation
 
-3) Concurrency semantics (beyond placeholders)
-   - Define `proc`/`spawn` behavior (handles/futures) with stubbed scheduling
-   - Tests: spawn returns a handle; handle join returns value
+3) Remaining spec gaps
+   - Enforce full privacy model across packages (functions/types/interfaces/impls) and import visibility rules
+   - Expand wildcard/import semantics (wildcards with aliasing, dyn package privacy) and expose standard `Proc`/`Future` interface structures
+   - Tests: privacy enforcement, import variations, interface struct coverage
+
+4) Concurrency ergonomics
+   - ✅ Surface cooperative yielding APIs, cancellation observers, and ensure futures/procs participate cleanly in collections per spec
+   - Remaining: long-running proc stress tests, mixed sync/async loops, `value()` re-entrancy safeguards, and documenting best practices for polling `proc_cancelled`
+
+5) Dynamic interface collections & iterables
+   - Extend coverage to ranges/maps of interface values, ensure iteration and higher-order combinators honour most-specific dispatch
+   - Tests: `for`/`while` loops over mixed interface unions, comprehension-like patterns, nested collections
 
 4) Performance and maintainability
    - Env lookups and method cache (map hot-paths); micro-benchmarks in tests
@@ -119,4 +139,3 @@ This document tracks the implementation plan for the v10 interpreter inside `int
 - New behavior covered by focused tests (positive and failure paths)
 - No regressions in existing suite; lints remain clean
 - PLAN.md updated per milestone completion
-

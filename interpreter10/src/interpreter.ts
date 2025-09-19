@@ -4,6 +4,16 @@ import * as AST from "./ast";
 // v10 Interpreter (initial scaffold)
 // =============================================================================
 
+type ConstraintSpec = { typeParam: string; ifaceType: AST.TypeExpression };
+type ImplMethodEntry = {
+  def: AST.ImplementationDefinition;
+  methods: Map<string, Extract<V10Value, { kind: "function" }>>;
+  targetArgTemplates: AST.TypeExpression[];
+  genericParams: AST.GenericParameter[];
+  whereClause?: AST.WhereClauseConstraint[];
+  unionVariantSignatures?: string[];
+};
+
 // Runtime value union (start with primitives & array)
 export type V10Value =
   | { kind: "string"; value: string }
@@ -16,15 +26,20 @@ export type V10Value =
   | { kind: "range"; start: number; end: number; inclusive: boolean }
   | { kind: "function"; node: AST.FunctionDefinition | AST.LambdaExpression; closureEnv: Environment }
   | { kind: "struct_def"; def: AST.StructDefinition }
-  | { kind: "struct_instance"; def: AST.StructDefinition; values: V10Value[] | Map<string, V10Value> }
+  | { kind: "struct_instance"; def: AST.StructDefinition; values: V10Value[] | Map<string, V10Value>; typeArguments?: AST.TypeExpression[]; typeArgMap?: Map<string, AST.TypeExpression> }
   | { kind: "interface_def"; def: AST.InterfaceDefinition }
   | { kind: "union_def"; def: AST.UnionDefinition }
   | { kind: "package"; name: string; symbols: Map<string, V10Value> }
-  | { kind: "impl_namespace"; def: AST.ImplementationDefinition; symbols: Map<string, V10Value> }
+  | { kind: "impl_namespace"; def: AST.ImplementationDefinition; symbols: Map<string, V10Value>; meta: { interfaceName: string; target: AST.TypeExpression; interfaceArgs?: AST.TypeExpression[] } }
   | { kind: "dyn_package"; name: string }
   | { kind: "dyn_ref"; pkg: string; name: string }
   | { kind: "error"; message: string; value?: V10Value }
-  | { kind: "bound_method"; func: Extract<V10Value, { kind: "function" }>; self: V10Value };
+  | { kind: "bound_method"; func: Extract<V10Value, { kind: "function" }>; self: V10Value }
+  | { kind: "interface_value"; interfaceName: string; value: V10Value; typeArguments?: AST.TypeExpression[]; typeArgMap?: Map<string, AST.TypeExpression> }
+  | { kind: "proc_handle"; state: "pending" | "resolved" | "failed" | "cancelled"; expression: AST.FunctionCall | AST.BlockExpression; env: Environment; runner: (() => void) | null; result?: V10Value; error?: V10Value; failureInfo?: V10Value; isEvaluating?: boolean; cancelRequested?: boolean; hasStarted?: boolean }
+  | { kind: "future"; state: "pending" | "resolved" | "failed"; expression: AST.FunctionCall | AST.BlockExpression; env: Environment; runner: (() => void) | null; result?: V10Value; error?: V10Value; failureInfo?: V10Value; isEvaluating?: boolean }
+  | { kind: "native_function"; name: string; arity: number; impl: (interpreter: InterpreterV10, args: V10Value[]) => V10Value }
+  | { kind: "native_bound_method"; func: Extract<V10Value, { kind: "native_function" }>; self: V10Value };
 
 class ReturnSignal extends Error {
   constructor(public value: V10Value) { super("ReturnSignal"); }
@@ -34,6 +49,7 @@ class RaiseSignal extends Error {
 }
 class BreakSignalShim extends Error { constructor(){ super("BreakSignal"); } }
 class BreakLabelSignal extends Error { constructor(public label: string, public value: V10Value){ super("BreakLabelSignal"); } }
+class ProcYieldSignal extends Error { constructor(){ super("ProcYieldSignal"); } }
 
 export class Environment {
   private values: Map<string, V10Value> = new Map();
@@ -57,13 +73,82 @@ export class Environment {
 export class InterpreterV10 {
   readonly globals = new Environment();
   private interfaces: Map<string, AST.InterfaceDefinition> = new Map();
+  private interfaceEnvs: Map<string, Environment> = new Map();
   private inherentMethods: Map<string, Map<string, Extract<V10Value, { kind: "function" }>>> = new Map();
-  private implMethods: Map<string, Map<string, Extract<V10Value, { kind: "function" }>>> = new Map();
-  private unnamedImplsSeen: Set<string> = new Set();
+  private implMethods: Map<string, ImplMethodEntry[]> = new Map();
+  private unnamedImplsSeen: Map<string, Map<string, Set<string>>> = new Map();
   private raiseStack: V10Value[] = [];
   private packageRegistry: Map<string, Map<string, V10Value>> = new Map();
   private currentPackage: string | null = null;
   private breakpointStack: string[] = [];
+  private procNativeMethods: {
+    status: Extract<V10Value, { kind: "native_function" }>;
+    value: Extract<V10Value, { kind: "native_function" }>;
+    cancel: Extract<V10Value, { kind: "native_function" }>;
+  };
+  private futureNativeMethods: {
+    status: Extract<V10Value, { kind: "native_function" }>;
+    value: Extract<V10Value, { kind: "native_function" }>;
+  };
+  private concurrencyBuiltinsInitialized = false;
+  private procErrorStruct!: AST.StructDefinition;
+  private procStatusStructs!: {
+    Pending: AST.StructDefinition;
+    Resolved: AST.StructDefinition;
+    Cancelled: AST.StructDefinition;
+    Failed: AST.StructDefinition;
+  };
+  private procStatusPendingValue!: V10Value;
+  private procStatusResolvedValue!: V10Value;
+  private procStatusCancelledValue!: V10Value;
+  private schedulerQueue: Array<() => void> = [];
+  private schedulerScheduled = false;
+  private schedulerActive = false;
+  private schedulerMaxSteps = 1024;
+  private asyncContextStack: Array<
+    { kind: "proc"; handle: Extract<V10Value, { kind: "proc_handle" }> } |
+    { kind: "future"; handle: Extract<V10Value, { kind: "future" }> }
+  > = [];
+
+  constructor() {
+    this.initConcurrencyBuiltins();
+    this.procNativeMethods = {
+      status: this.makeNativeFunction("Proc.status", 1, (interp, args) => {
+        const self = args[0];
+        if (!self || self.kind !== "proc_handle") throw new Error("Proc.status called on non-proc handle");
+        return interp.procHandleStatus(self);
+      }),
+      value: this.makeNativeFunction("Proc.value", 1, (interp, args) => {
+        const self = args[0];
+        if (!self || self.kind !== "proc_handle") throw new Error("Proc.value called on non-proc handle");
+        return interp.procHandleValue(self);
+      }),
+      cancel: this.makeNativeFunction("Proc.cancel", 1, (interp, args) => {
+        const self = args[0];
+        if (!self || self.kind !== "proc_handle") throw new Error("Proc.cancel called on non-proc handle");
+        interp.procHandleCancel(self);
+        return { kind: "nil", value: null };
+      }),
+    };
+
+    this.futureNativeMethods = {
+      status: this.makeNativeFunction("Future.status", 1, (interp, args) => {
+        const self = args[0];
+        if (!self || self.kind !== "future") throw new Error("Future.status called on non-future");
+        return interp.futureStatus(self);
+      }),
+      value: this.makeNativeFunction("Future.value", 1, (interp, args) => {
+        const self = args[0];
+        if (!self || self.kind !== "future") throw new Error("Future.value called on non-future");
+        return interp.futureValue(self);
+      }),
+    };
+
+    const procYieldFn = this.makeNativeFunction("proc_yield", 0, (interp) => interp.procYield());
+    const procCancelledFn = this.makeNativeFunction("proc_cancelled", 0, (interp) => interp.procCancelled());
+    this.globals.define("proc_yield", procYieldFn);
+    this.globals.define("proc_cancelled", procCancelledFn);
+  }
 
   private registerSymbol(name: string, value: V10Value): void {
     if (!this.currentPackage) return;
@@ -488,7 +573,8 @@ export class InterpreterV10 {
       case "FunctionCall": {
         const call = node as AST.FunctionCall;
         const calleeEvaluated = this.evaluate(call.callee, env);
-        let funcValue: Extract<V10Value, { kind: "function" }>;
+        let funcValue: Extract<V10Value, { kind: "function" }> | null = null;
+        let nativeFunc: Extract<V10Value, { kind: "native_function" }> | null = null;
         let injectedArgs: V10Value[] = [];
         if (calleeEvaluated.kind === "bound_method") {
           funcValue = calleeEvaluated.func;
@@ -501,14 +587,32 @@ export class InterpreterV10 {
           const sym = bucket?.get(calleeEvaluated.name);
           if (!sym || sym.kind !== "function") throw new Error(`dyn ref '${calleeEvaluated.pkg}.${calleeEvaluated.name}' is not callable`);
           funcValue = sym;
+        } else if (calleeEvaluated.kind === "native_bound_method") {
+          nativeFunc = calleeEvaluated.func;
+          injectedArgs = [calleeEvaluated.self];
+        } else if (calleeEvaluated.kind === "native_function") {
+          nativeFunc = calleeEvaluated;
         } else {
           throw new Error("Cannot call non-function");
         }
+        const callArgs = call.arguments.map(a => this.evaluate(a, env));
+        if (nativeFunc) {
+          const evalArgs = [...injectedArgs, ...callArgs];
+          if (evalArgs.length !== nativeFunc.arity) {
+            throw new Error(`Arity mismatch calling ${nativeFunc.name}: expected ${nativeFunc.arity}, got ${evalArgs.length}`);
+          }
+          return nativeFunc.impl(this, evalArgs);
+        }
+        if (!funcValue) throw new Error("Callable target missing function value");
         const funcNode = funcValue.node;
+        // Enforce minimal generic/interface constraints if present
+        this.enforceGenericConstraintsIfAny(funcNode, call);
         const funcEnv = new Environment(funcValue.closureEnv);
+        // Bind generic type arguments into function environment for introspection (as `${T}_type` strings)
+        this.bindTypeArgumentsIfAny(funcNode, call, funcEnv);
         // Bind params (identifier-only for now)
         const params = funcNode.type === "FunctionDefinition" ? funcNode.params : funcNode.params;
-        const evalArgs: V10Value[] = [...injectedArgs, ...call.arguments.map(a => this.evaluate(a, env))];
+        const evalArgs: V10Value[] = [...injectedArgs, ...callArgs];
         if (evalArgs.length !== params.length) {
           const name = (funcNode as any).id?.name ?? "(lambda)";
           throw new Error(`Arity mismatch calling ${name}: expected ${params.length}, got ${evalArgs.length}`);
@@ -525,13 +629,15 @@ export class InterpreterV10 {
               throw new Error(`Parameter type mismatch for '${pname}'`);
             }
           }
+          const coercedArg = p.paramType ? this.coerceValueToType(p.paramType, argVal) : argVal;
+          evalArgs[i] = coercedArg;
           if (p.name.type === "Identifier") {
-            funcEnv.define(p.name.name, argVal);
+            funcEnv.define(p.name.name, coercedArg);
           } else if (p.name.type === "WildcardPattern") {
             // ignore
           } else if (p.name.type === "StructPattern" || p.name.type === "ArrayPattern" || p.name.type === "LiteralPattern") {
             // destructuring param
-            this.assignByPattern(p.name as any, argVal, funcEnv, true);
+            this.assignByPattern(p.name as any, coercedArg, funcEnv, true);
           } else {
             throw new Error("Only simple identifier and destructuring params supported for now");
           }
@@ -569,10 +675,22 @@ export class InterpreterV10 {
         const defVal = env.get(sl.structType.name);
         if (defVal.kind !== "struct_def") throw new Error(`'${sl.structType.name}' is not a struct type`);
         const structDef = defVal.def;
+        const generics = structDef.genericParams;
+        const constraints = this.collectConstraintSpecs(generics, structDef.whereClause);
+        let typeArguments: AST.TypeExpression[] | undefined = sl.typeArguments;
+        let typeArgMap: Map<string, AST.TypeExpression> | undefined;
+        if (generics && generics.length > 0) {
+          typeArgMap = this.mapTypeArguments(generics, typeArguments, `instantiating ${structDef.id.name}`);
+          if (constraints.length > 0) {
+            this.enforceConstraintSpecs(constraints, typeArgMap, `struct ${structDef.id.name}`);
+          }
+        } else if (sl.typeArguments && sl.typeArguments.length > 0) {
+          throw new Error(`Type '${structDef.id.name}' does not accept type arguments`);
+        }
         if (sl.isPositional) {
           // Positional: build array values in order
           const vals: V10Value[] = sl.fields.map(f => this.evaluate(f.value, env));
-          return { kind: "struct_instance", def: structDef, values: vals };
+          return { kind: "struct_instance", def: structDef, values: vals, typeArguments, typeArgMap: typeArgMap ? new Map(typeArgMap) : undefined };
         } else {
           // Named: build map with optional functional update source
           const map = new Map<string, V10Value>();
@@ -581,6 +699,18 @@ export class InterpreterV10 {
             if (baseVal.kind !== "struct_instance") throw new Error("Functional update source must be a struct instance");
             if (baseVal.def.id.name !== structDef.id.name) throw new Error("Functional update source must be same struct type");
             if (!(baseVal.values instanceof Map)) throw new Error("Functional update only supported for named structs");
+            if (typeArguments && baseVal.typeArguments) {
+              if (typeArguments.length !== baseVal.typeArguments.length) {
+                throw new Error("Functional update must use same type arguments as source");
+              }
+              for (let i = 0; i < typeArguments.length; i++) {
+                const ta = typeArguments[i]!;
+                const baseTa = baseVal.typeArguments[i]!;
+                if (!this.typeExpressionsEqual(ta, baseTa)) {
+                  throw new Error("Functional update must use same type arguments as source");
+                }
+              }
+            }
             for (const [k, v] of (baseVal.values as Map<string, V10Value>).entries()) {
               map.set(k, v);
             }
@@ -594,7 +724,7 @@ export class InterpreterV10 {
             const val = this.evaluate(f.value, env);
             map.set(fname, val);
           }
-          return { kind: "struct_instance", def: structDef, values: map };
+          return { kind: "struct_instance", def: structDef, values: map, typeArguments, typeArgMap: typeArgMap ? new Map(typeArgMap) : undefined };
         }
       }
       case "MemberAccessExpression": {
@@ -619,8 +749,51 @@ export class InterpreterV10 {
           if (sym.kind === "union_def" && sym.def.isPrivate) throw new Error(`dyn package '${obj.name}' member '${ma.member.name}' is private`);
           return { kind: "dyn_ref", pkg: obj.name, name: ma.member.name };
         }
+        if (obj.kind === "interface_value") {
+          if (ma.member.type !== "Identifier") throw new Error("Interface member access expects identifier");
+          const underlying = obj.value;
+          const typeName = this.getTypeNameForValue(underlying);
+          if (!typeName) throw new Error(`No method '${ma.member.name}' for interface ${obj.interfaceName}`);
+          const typeArgs = underlying.kind === "struct_instance" ? underlying.typeArguments : undefined;
+          const typeArgMap = underlying.kind === "struct_instance" ? underlying.typeArgMap : undefined;
+          const method = this.findMethod(typeName, ma.member.name, {
+            typeArgs,
+            typeArgMap,
+            interfaceName: obj.interfaceName,
+          });
+          if (!method) throw new Error(`No method '${ma.member.name}' for interface ${obj.interfaceName}`);
+          if (method.node.type === "FunctionDefinition" && method.node.isPrivate) {
+            throw new Error(`Method '${ma.member.name}' on ${typeName} is private`);
+          }
+          return { kind: "bound_method", func: method, self: underlying };
+        }
+        if (obj.kind === "proc_handle") {
+          if (ma.member.type !== "Identifier") throw new Error("Proc handle member access expects identifier");
+          const fn = (this.procNativeMethods as Record<string, Extract<V10Value, { kind: "native_function" }>>)[ma.member.name];
+          if (!fn) throw new Error(`Unknown proc handle method '${ma.member.name}'`);
+          return this.bindNativeMethod(fn, obj);
+        }
+        if (obj.kind === "future") {
+          if (ma.member.type !== "Identifier") throw new Error("Future member access expects identifier");
+          const fn = (this.futureNativeMethods as Record<string, Extract<V10Value, { kind: "native_function" }>>)[ma.member.name];
+          if (!fn) throw new Error(`Unknown future method '${ma.member.name}'`);
+          return this.bindNativeMethod(fn, obj);
+        }
         if (obj.kind === "impl_namespace") {
           if (ma.member.type !== "Identifier") throw new Error("Impl namespace member access expects identifier");
+          if (ma.member.name === "interface") {
+            return { kind: "string", value: obj.meta.interfaceName };
+          }
+          if (ma.member.name === "target") {
+            return { kind: "string", value: this.typeExpressionToString(obj.meta.target) };
+          }
+          if (ma.member.name === "interface_args") {
+            const args = obj.meta.interfaceArgs ?? [];
+            return {
+              kind: "array",
+              elements: args.map(a => ({ kind: "string", value: this.typeExpressionToString(a) } as V10Value)),
+            };
+          }
           const sym = obj.symbols.get(ma.member.name);
           if (!sym) throw new Error(`No method '${ma.member.name}' on impl ${obj.def.implName?.name ?? "<unnamed>"}`);
           return sym;
@@ -653,7 +826,7 @@ export class InterpreterV10 {
           }
           // Not a field; try method lookup
           const typeName = obj.def.id.name;
-          const method = this.findMethod(typeName, ma.member.name);
+          const method = this.findMethod(typeName, ma.member.name, { typeArgs: obj.typeArguments, typeArgMap: obj.typeArgMap });
           if (method) {
             // Enforce instance method privacy before binding
             if (method.node.type === "FunctionDefinition" && method.node.isPrivate) {
@@ -789,14 +962,35 @@ export class InterpreterV10 {
         throw new RaiseSignal(err);
       }
 
-      // --- Concurrency (sync placeholders) ---
+      // --- Concurrency Handles ---
       case "ProcExpression": {
         const pr = node as AST.ProcExpression;
-        return this.evaluate(pr.expression, env);
+        const capturedEnv = new Environment(env);
+        const handle: Extract<V10Value, { kind: "proc_handle" }> = {
+          kind: "proc_handle",
+          state: "pending",
+          expression: pr.expression,
+          env: capturedEnv,
+          runner: null,
+          cancelRequested: false,
+        };
+        handle.runner = () => this.runProcHandle(handle);
+        this.scheduleAsync(handle.runner);
+        return handle;
       }
       case "SpawnExpression": {
         const sp = node as AST.SpawnExpression;
-        return this.evaluate(sp.expression, env);
+        const capturedEnv = new Environment(env);
+        const future: Extract<V10Value, { kind: "future" }> = {
+          kind: "future",
+          state: "pending",
+          expression: sp.expression,
+          env: capturedEnv,
+          runner: null,
+        };
+        future.runner = () => this.runFuture(future);
+        this.scheduleAsync(future.runner);
+        return future;
       }
 
       // --- Module & Imports (minimal) ---
@@ -928,6 +1122,7 @@ export class InterpreterV10 {
       case "InterfaceDefinition": {
         const idef = node as AST.InterfaceDefinition;
         this.interfaces.set(idef.id.name, idef);
+        this.interfaceEnvs.set(idef.id.name, env);
         // Expose interface symbol in env for imports / visibility tests
         env.define(idef.id.name, { kind: "interface_def", def: idef });
         this.registerSymbol(idef.id.name, { kind: "interface_def", def: idef });
@@ -962,39 +1157,217 @@ export class InterpreterV10 {
       }
       case "ImplementationDefinition": {
         const imp = node as AST.ImplementationDefinition;
-        // Only SimpleTypeExpression target supported for now
-        if (imp.targetType.type !== "SimpleTypeExpression") throw new Error("Only simple target types supported in impl");
-        const typeName = imp.targetType.name.name;
+        const variants = this.expandImplementationTargetVariants(imp.targetType);
+        const unionVariantSignatures = imp.targetType.type === "UnionTypeExpression"
+          ? [...new Set(variants.map(v => v.signature))].sort()
+          : undefined;
+        const unionSignatureKey = unionVariantSignatures ? unionVariantSignatures.join("|") : null;
         const funcs = new Map<string, Extract<V10Value, { kind: "function" }>>();
         for (const def of imp.definitions) {
           funcs.set(def.id.name, { kind: "function", node: def, closureEnv: env });
         }
+        this.attachDefaultInterfaceMethods(imp, funcs);
         if (imp.implName) {
           // Named impl: expose as its own impl_namespace value; do not register for implicit resolution
           const name = imp.implName.name;
           const symMap = new Map<string, V10Value>();
           for (const [k, v] of funcs.entries()) symMap.set(k, v);
-          const implVal: V10Value = { kind: "impl_namespace", def: imp, symbols: symMap };
+          const implVal: V10Value = {
+            kind: "impl_namespace",
+            def: imp,
+            symbols: symMap,
+            meta: { interfaceName: imp.interfaceName.name, target: imp.targetType, interfaceArgs: imp.interfaceArgs },
+          };
           env.define(name, implVal);
           this.registerSymbol(name, implVal);
           const qn = this.qualifiedName(name);
           if (qn) { try { this.globals.define(qn, implVal); } catch {} }
         } else {
           // Unnamed impl: participates in implicit method resolution
-          const key = `${imp.interfaceName.name}::${typeName}`;
-          if (this.unnamedImplsSeen.has(key)) {
-            throw new Error(`Unnamed impl for (${imp.interfaceName.name}, ${typeName}) already exists`);
+          const constraintSpecs = this.collectConstraintSpecs(imp.genericParams, imp.whereClause);
+          const baseConstraintSig = constraintSpecs
+            .map(c => `${c.typeParam}->${this.typeExpressionToString(c.ifaceType)}`)
+            .sort()
+            .join("&") || "<none>";
+          for (const variant of variants) {
+            const typeName = variant.typeName;
+            const targetArgTemplates = variant.argTemplates;
+            const key = `${imp.interfaceName.name}::${typeName}`;
+            if (!this.unnamedImplsSeen.has(key)) this.unnamedImplsSeen.set(key, new Map());
+            const templateKeyBase = targetArgTemplates.length === 0
+              ? "<none>"
+              : targetArgTemplates.map(t => this.typeExpressionToString(t)).join("|");
+            const templateKey = unionSignatureKey ? `${unionSignatureKey}::${templateKeyBase}` : templateKeyBase;
+            const templateBucket = this.unnamedImplsSeen.get(key)!;
+            if (!templateBucket.has(templateKey)) templateBucket.set(templateKey, new Set());
+            const constraintKey = unionSignatureKey ? `${unionSignatureKey}::${baseConstraintSig}` : baseConstraintSig;
+            const constraintSet = templateBucket.get(templateKey)!;
+            if (constraintSet.has(constraintKey)) {
+              throw new Error(`Unnamed impl for (${imp.interfaceName.name}, ${this.typeExpressionToString(imp.targetType)}) already exists`);
+            }
+            constraintSet.add(constraintKey);
+            if (!this.implMethods.has(typeName)) this.implMethods.set(typeName, []);
+            this.implMethods.get(typeName)!.push({
+              def: imp,
+              methods: funcs,
+              targetArgTemplates,
+              genericParams: imp.genericParams ?? [],
+              whereClause: imp.whereClause,
+              unionVariantSignatures,
+            });
           }
-          this.unnamedImplsSeen.add(key);
-          if (!this.implMethods.has(typeName)) this.implMethods.set(typeName, new Map());
-          const bucket = this.implMethods.get(typeName)!;
-          for (const [k, v] of funcs.entries()) bucket.set(k, v);
         }
         return { kind: "nil", value: null };
       }
 
       default:
         throw new Error(`Not implemented in milestone: ${node.type}`);
+    }
+  }
+
+  private enforceGenericConstraintsIfAny(funcNode: AST.FunctionDefinition | AST.LambdaExpression, call: AST.FunctionCall): void {
+    const generics = (funcNode as any).genericParams as AST.GenericParameter[] | undefined;
+    const where = (funcNode as any).whereClause as AST.WhereClauseConstraint[] | undefined;
+    const typeArgs = call.typeArguments ?? [];
+    const genericCount = generics ? generics.length : 0;
+    if (genericCount > 0 && typeArgs.length !== genericCount) {
+      const name = (funcNode as any).id?.name ?? "(lambda)";
+      throw new Error(`Type arguments count mismatch calling ${name}: expected ${genericCount}, got ${typeArgs.length}`);
+    }
+    const constraints = this.collectConstraintSpecs(generics, where);
+    if (constraints.length === 0) return;
+    const name = (funcNode as any).id?.name ?? "(lambda)";
+    const typeArgMap = this.mapTypeArguments(generics, typeArgs, `calling ${name}`);
+    this.enforceConstraintSpecs(constraints, typeArgMap, `function ${name}`);
+  }
+
+  private collectConstraintSpecs(generics?: AST.GenericParameter[], where?: AST.WhereClauseConstraint[]): ConstraintSpec[] {
+    const all: ConstraintSpec[] = [];
+    if (generics) {
+      for (const gp of generics) {
+        if (!gp.constraints) continue;
+        for (const c of gp.constraints) {
+          all.push({ typeParam: gp.name.name, ifaceType: c.interfaceType });
+        }
+      }
+    }
+    if (where) {
+      for (const clause of where) {
+        for (const c of clause.constraints) {
+          all.push({ typeParam: clause.typeParam.name, ifaceType: c.interfaceType });
+        }
+      }
+    }
+    return all;
+  }
+
+  private mapTypeArguments(
+    generics: AST.GenericParameter[] | undefined,
+    provided: AST.TypeExpression[] | undefined,
+    context: string,
+  ): Map<string, AST.TypeExpression> {
+    const map = new Map<string, AST.TypeExpression>();
+    if (!generics || generics.length === 0) return map;
+    const actual = provided ?? [];
+    if (actual.length !== generics.length) {
+      throw new Error(`Type arguments count mismatch ${context}: expected ${generics.length}, got ${actual.length}`);
+    }
+    for (let i = 0; i < generics.length; i++) {
+      const gp = generics[i]!;
+      const ta = actual[i];
+      if (!ta) {
+        throw new Error(`Missing type argument for '${gp.name.name}' required by ${context}`);
+      }
+      map.set(gp.name.name, ta);
+    }
+    return map;
+  }
+
+  private enforceConstraintSpecs(constraints: ConstraintSpec[], typeArgMap: Map<string, AST.TypeExpression>, context: string): void {
+    for (const c of constraints) {
+      const actual = typeArgMap.get(c.typeParam);
+      if (!actual) {
+        throw new Error(`Missing type argument for '${c.typeParam}' required by constraints`);
+      }
+      const typeInfo = this.parseTypeExpression(actual);
+      if (!typeInfo) continue;
+      this.ensureTypeSatisfiesInterface(typeInfo, c.ifaceType, c.typeParam, new Set());
+    }
+  }
+
+  private ensureTypeSatisfiesInterface(
+    typeInfo: { name: string; typeArgs: AST.TypeExpression[] },
+    interfaceType: AST.TypeExpression,
+    context: string,
+    visited: Set<string>,
+  ): void {
+    const ifaceInfo = this.parseTypeExpression(interfaceType);
+    if (!ifaceInfo) return;
+    if (visited.has(ifaceInfo.name)) return;
+    visited.add(ifaceInfo.name);
+    const iface = this.interfaces.get(ifaceInfo.name);
+    if (!iface) throw new Error(`Unknown interface '${ifaceInfo.name}' in constraint on '${context}'`);
+    for (const base of iface.baseInterfaces ?? []) {
+      this.ensureTypeSatisfiesInterface(typeInfo, base, context, visited);
+    }
+    for (const sig of iface.signatures) {
+      const methodName = sig.name.name;
+      const method = this.findMethod(typeInfo.name, methodName, { typeArgs: typeInfo.typeArgs, interfaceName: ifaceInfo.name });
+      if (!method) {
+        throw new Error(`Type '${typeInfo.name}' does not satisfy interface '${ifaceInfo.name}': missing method '${methodName}'`);
+      }
+    }
+  }
+
+  private parseTypeExpression(t: AST.TypeExpression): { name: string; typeArgs: AST.TypeExpression[] } | null {
+    if (t.type === "SimpleTypeExpression") {
+      return { name: t.name.name, typeArgs: [] };
+    }
+    if (t.type === "GenericTypeExpression") {
+      if (t.base.type === "SimpleTypeExpression") {
+        return { name: t.base.name.name, typeArgs: t.arguments ?? [] };
+      }
+      return null;
+    }
+    return null;
+  }
+
+  private typeExpressionsEqual(a: AST.TypeExpression, b: AST.TypeExpression): boolean {
+    return this.typeExpressionToString(a) === this.typeExpressionToString(b);
+  }
+
+  private bindTypeArgumentsIfAny(funcNode: AST.FunctionDefinition | AST.LambdaExpression, call: AST.FunctionCall, env: Environment): void {
+    const generics = (funcNode as any).genericParams as AST.GenericParameter[] | undefined;
+    if (!generics || generics.length === 0) return;
+    const args = call.typeArguments ?? [];
+    // Do not throw for count mismatch here; constraints enforcement handles strictness when needed
+    const count = Math.min(generics.length, args.length);
+    for (let i = 0; i < count; i++) {
+      const gp = generics[i]!;
+      const ta = args[i]!;
+      const name = `${gp.name.name}_type`;
+      const s = this.typeExpressionToString(ta);
+      try { env.define(name, { kind: "string", value: s }); } catch {}
+    }
+  }
+
+  private typeExpressionToString(t: AST.TypeExpression): string {
+    switch (t.type) {
+      case "SimpleTypeExpression":
+        return t.name.name;
+      case "GenericTypeExpression": {
+        const base = this.typeExpressionToString(t.base);
+        const args = (t.arguments ?? []).map(a => this.typeExpressionToString(a)).join(", ");
+        return `${base}<${args}>`;
+      }
+      case "NullableTypeExpression":
+        return `${this.typeExpressionToString(t.innerType)}?`;
+      case "FunctionTypeExpression":
+        return `fn(${t.paramTypes.map(p => this.typeExpressionToString(p)).join(", ")}) -> ${this.typeExpressionToString(t.returnType)}`;
+      case "UnionTypeExpression":
+        return t.members.map(m => this.typeExpressionToString(m)).join(" | ");
+      default:
+        return "<?>";
     }
   }
 
@@ -1026,7 +1399,7 @@ export class InterpreterV10 {
       case "union_def": return `<union ${v.def.id.name}>`;
       case "struct_instance": {
         // Prefer to_string if available
-        const toStr = this.findMethod(v.def.id.name, 'to_string');
+        const toStr = this.findMethod(v.def.id.name, 'to_string', { typeArgs: v.typeArguments, typeArgMap: v.typeArgMap });
         if (toStr) {
           try {
             const funcNode = toStr.node;
@@ -1051,6 +1424,12 @@ export class InterpreterV10 {
           return `${v.def.id.name} { ${Array.from(v.values.entries()).map(([k, val]) => `${k}: ${this.valueToString(val)}`).join(", ")} }`;
         }
       }
+      case "interface_value":
+        return `<interface ${v.interfaceName}>`;
+      case "proc_handle": return `<proc ${v.state}>`;
+      case "future": return `<future ${v.state}>`;
+      case "native_function": return `<native ${v.name}>`;
+      case "native_bound_method": return `<native bound ${v.func.name}>`;
       case "error": return `<error ${v.message}>`;
     }
     return "<?>";
@@ -1131,7 +1510,8 @@ export class InterpreterV10 {
     if ((pattern as any).type === "TypedPattern") {
       const tp = pattern as AST.TypedPattern;
       if (!this.matchesType(tp.typeAnnotation, value)) return null;
-      return this.tryMatchPattern(tp.pattern, value, baseEnv);
+      const coerced = this.coerceValueToType(tp.typeAnnotation, value);
+      return this.tryMatchPattern(tp.pattern, coerced, baseEnv);
     }
     return null;
   }
@@ -1194,7 +1574,8 @@ export class InterpreterV10 {
     if ((pattern as any).type === "TypedPattern") {
       const tp = pattern as AST.TypedPattern;
       if (!this.matchesType(tp.typeAnnotation, value)) throw new Error("Typed pattern mismatch in assignment");
-      this.assignByPattern(tp.pattern, value, env, isDeclaration);
+      const coerced = this.coerceValueToType(tp.typeAnnotation, value);
+      this.assignByPattern(tp.pattern, coerced, env, isDeclaration);
       return;
     }
     throw new Error(`Unsupported pattern in assignment: ${(pattern as any).type}`);
@@ -1212,6 +1593,12 @@ export class InterpreterV10 {
         if (name === "i32") return v.kind === "i32";
         if (name === "f64") return v.kind === "f64";
         if (name === "Error") return v.kind === "error";
+        if (this.interfaces.has(name)) {
+          if (v.kind === "interface_value") return v.interfaceName === name;
+          const typeName = this.getTypeNameForValue(v);
+          if (!typeName) return false;
+          return this.typeImplementsInterface(typeName, name);
+        }
         // Treat other simple names as struct types
         return v.kind === "struct_instance" && v.def.id.name === name;
       }
@@ -1233,6 +1620,8 @@ export class InterpreterV10 {
       case "ResultTypeExpression":
         // Minimal: treat like inner type
         return this.matchesType(t.innerType, v);
+      case "UnionTypeExpression":
+        return t.members.some(member => this.matchesType(member, v));
       default:
         return true;
     }
@@ -1276,12 +1665,858 @@ export class InterpreterV10 {
     }
     throw new Error(`Unsupported compound operator ${op}`);
   }
-  private findMethod(typeName: string, methodName: string): Extract<V10Value, { kind: "function" }> | null {
+  private findMethod(
+    typeName: string,
+    methodName: string,
+    opts?: { typeArgs?: AST.TypeExpression[]; typeArgMap?: Map<string, AST.TypeExpression>; interfaceName?: string },
+  ): Extract<V10Value, { kind: "function" }> | null {
     const inherent = this.inherentMethods.get(typeName);
     if (inherent && inherent.has(methodName)) return inherent.get(methodName)!;
-    const impls = this.implMethods.get(typeName);
-    if (impls && impls.has(methodName)) return impls.get(methodName)!;
-    return null;
+    const entries = this.implMethods.get(typeName);
+    let constraintError: Error | null = null;
+    const matches: Array<{
+      method: Extract<V10Value, { kind: "function" }>;
+      score: number;
+      entry: ImplMethodEntry;
+      constraints: ConstraintSpec[];
+    }> = [];
+    if (entries) {
+      for (const entry of entries) {
+        if (opts?.interfaceName && entry.def.interfaceName.name !== opts.interfaceName) continue;
+        const bindings = this.matchImplEntry(entry, opts);
+        if (!bindings) continue;
+        const constraints = this.collectConstraintSpecs(entry.genericParams, entry.whereClause);
+        if (constraints.length > 0) {
+          try {
+            this.enforceConstraintSpecs(constraints, bindings, `impl ${entry.def.interfaceName.name} for ${typeName}`);
+          } catch (err) {
+            if (!constraintError && err instanceof Error) constraintError = err;
+            continue;
+          }
+        }
+        const method = entry.methods.get(methodName);
+        if (!method) continue;
+        const score = this.computeImplSpecificity(entry, bindings, constraints);
+        matches.push({ method, score, entry, constraints });
+      }
+    }
+    if (matches.length === 0) {
+      if (constraintError) throw constraintError;
+      return null;
+    }
+    const [firstMatch, ...remainingMatches] = matches;
+    let best = firstMatch!;
+    let contenders: typeof matches = [best];
+    for (const candidate of remainingMatches) {
+      const cmp = this.compareMethodMatches(candidate, best);
+      if (cmp > 0) {
+        best = candidate;
+        contenders = [candidate];
+        continue;
+      }
+      if (cmp === 0) {
+        const reverse = this.compareMethodMatches(best, candidate);
+        if (reverse < 0) {
+          best = candidate;
+          contenders = [candidate];
+        } else if (reverse === 0) {
+          contenders.push(candidate);
+        }
+      }
+    }
+    if (contenders.length > 1) {
+      const detail = Array.from(new Set(contenders.map(c => this.typeExpressionToString(c.entry.def.targetType)))).join(", ");
+      throw new Error(`Ambiguous method '${methodName}' for type '${typeName}' (candidates: ${detail})`);
+    }
+    return best.method;
+  }
+
+  private compareMethodMatches(
+    a: { score: number; entry: ImplMethodEntry; constraints: ConstraintSpec[] },
+    b: { score: number; entry: ImplMethodEntry; constraints: ConstraintSpec[] },
+  ): number {
+    if (a.score > b.score) return 1;
+    if (a.score < b.score) return -1;
+    const aUnion = a.entry.unionVariantSignatures;
+    const bUnion = b.entry.unionVariantSignatures;
+    if (aUnion && !bUnion) return -1;
+    if (!aUnion && bUnion) return 1;
+    if (aUnion && bUnion) {
+      if (this.isProperSubset(aUnion, bUnion)) return 1;
+      if (this.isProperSubset(bUnion, aUnion)) return -1;
+      if (aUnion.length !== bUnion.length) {
+        return aUnion.length < bUnion.length ? 1 : -1;
+      }
+    }
+    const aConstraints = this.buildConstraintKeySet(a.constraints);
+    const bConstraints = this.buildConstraintKeySet(b.constraints);
+    if (this.isConstraintSuperset(aConstraints, bConstraints)) return 1;
+    if (this.isConstraintSuperset(bConstraints, aConstraints)) return -1;
+    return 0;
+  }
+
+  private buildConstraintKeySet(constraints: ConstraintSpec[]): Set<string> {
+    const set = new Set<string>();
+    for (const c of constraints) {
+      const expanded = this.collectInterfaceConstraintExpressions(c.ifaceType);
+      for (const expr of expanded) {
+        set.add(`${c.typeParam}->${this.typeExpressionToString(expr)}`);
+      }
+    }
+    return set;
+  }
+
+  private isConstraintSuperset(a: Set<string>, b: Set<string>): boolean {
+    if (a.size <= b.size) return false;
+    for (const key of b) {
+      if (!a.has(key)) return false;
+    }
+    return true;
+  }
+
+  private isProperSubset(a: string[], b: string[]): boolean {
+    const aSet = new Set(a);
+    const bSet = new Set(b);
+    if (aSet.size >= bSet.size) return false;
+    for (const val of aSet) {
+      if (!bSet.has(val)) return false;
+    }
+    return true;
+  }
+
+  private collectInterfaceConstraintExpressions(typeExpr: AST.TypeExpression, memo: Set<string> = new Set()): AST.TypeExpression[] {
+    const key = this.typeExpressionToString(typeExpr);
+    if (memo.has(key)) return [];
+    memo.add(key);
+    const expressions: AST.TypeExpression[] = [typeExpr];
+    if (typeExpr.type === "SimpleTypeExpression") {
+      const iface = this.interfaces.get(typeExpr.name.name);
+      if (iface && iface.baseInterfaces) {
+        for (const base of iface.baseInterfaces) {
+          const cloned = this.cloneTypeExpression(base);
+          expressions.push(...this.collectInterfaceConstraintExpressions(cloned, memo));
+        }
+      }
+    }
+    return expressions;
+  }
+
+  private matchImplEntry(
+    entry: ImplMethodEntry,
+    opts?: { typeArgs?: AST.TypeExpression[]; typeArgMap?: Map<string, AST.TypeExpression> },
+  ): Map<string, AST.TypeExpression> | null {
+    const bindings = new Map<string, AST.TypeExpression>();
+    const genericNames = new Set(entry.genericParams.map(g => g.name.name));
+    const expectedArgs = entry.targetArgTemplates;
+    const actualArgs = opts?.typeArgs;
+    if (expectedArgs.length > 0) {
+      if (!actualArgs || actualArgs.length !== expectedArgs.length) return null;
+      for (let i = 0; i < expectedArgs.length; i++) {
+        const template = expectedArgs[i]!;
+        const actual = actualArgs[i]!;
+        if (!this.matchTypeExpressionTemplate(template, actual, genericNames, bindings)) return null;
+      }
+    }
+    if (opts?.typeArgMap) {
+      for (const [k, v] of opts.typeArgMap.entries()) {
+        if (!bindings.has(k)) bindings.set(k, v);
+      }
+    }
+    for (const gp of entry.genericParams) {
+      if (!bindings.has(gp.name.name)) return null;
+    }
+    return bindings;
+  }
+
+  private matchTypeExpressionTemplate(
+    template: AST.TypeExpression,
+    actual: AST.TypeExpression,
+    genericNames: Set<string>,
+    bindings: Map<string, AST.TypeExpression>,
+  ): boolean {
+    if (template.type === "SimpleTypeExpression") {
+      const name = template.name.name;
+      if (genericNames.has(name)) {
+        const existing = bindings.get(name);
+        if (existing) return this.typeExpressionsEqual(existing, actual);
+        bindings.set(name, actual);
+        return true;
+      }
+      return this.typeExpressionsEqual(template, actual);
+    }
+    if (template.type === "GenericTypeExpression") {
+      if (actual.type !== "GenericTypeExpression") return false;
+      if (!this.matchTypeExpressionTemplate(template.base, actual.base, genericNames, bindings)) return false;
+      const templateArgs = template.arguments ?? [];
+      const actualArgs = actual.arguments ?? [];
+      if (templateArgs.length !== actualArgs.length) return false;
+      for (let i = 0; i < templateArgs.length; i++) {
+        if (!this.matchTypeExpressionTemplate(templateArgs[i]!, actualArgs[i]!, genericNames, bindings)) return false;
+      }
+      return true;
+    }
+    return this.typeExpressionsEqual(template, actual);
+  }
+
+  private expandImplementationTargetVariants(
+    target: AST.TypeExpression,
+  ): Array<{ typeName: string; argTemplates: AST.TypeExpression[]; signature: string }> {
+    if (target.type === "UnionTypeExpression") {
+      const expanded: Array<{ typeName: string; argTemplates: AST.TypeExpression[]; signature: string }> = [];
+      for (const member of target.members) {
+        const memberVariants = this.expandImplementationTargetVariants(member);
+        for (const variant of memberVariants) expanded.push(variant);
+      }
+      const seen = new Set<string>();
+      const unique: Array<{ typeName: string; argTemplates: AST.TypeExpression[]; signature: string }> = [];
+      for (const variant of expanded) {
+        if (seen.has(variant.signature)) continue;
+        seen.add(variant.signature);
+        unique.push(variant);
+      }
+      if (unique.length === 0) {
+        throw new Error("Union target must contain at least one concrete type");
+      }
+      return unique;
+    }
+    if (target.type === "SimpleTypeExpression") {
+      const signature = this.typeExpressionToString(target);
+      return [{ typeName: target.name.name, argTemplates: [], signature }];
+    }
+    if (target.type === "GenericTypeExpression" && target.base.type === "SimpleTypeExpression") {
+      const signature = this.typeExpressionToString(target);
+      return [{ typeName: target.base.name.name, argTemplates: target.arguments ?? [], signature }];
+    }
+    throw new Error("Only simple, generic, or union target types supported in impl");
+  }
+
+  private computeImplSpecificity(
+    entry: ImplMethodEntry,
+    bindings: Map<string, AST.TypeExpression>,
+    constraints: ConstraintSpec[],
+  ): number {
+    const genericNames = new Set(entry.genericParams.map(g => g.name.name));
+    let concreteScore = 0;
+    for (const template of entry.targetArgTemplates) {
+      concreteScore += this.measureTemplateSpecificity(template, genericNames);
+    }
+    const constraintScore = constraints.length;
+    const bindingScore = bindings.size;
+    const unionPenalty = entry.unionVariantSignatures ? entry.unionVariantSignatures.length : 0;
+    return concreteScore * 100 + constraintScore * 10 + bindingScore - unionPenalty;
+  }
+
+  private measureTemplateSpecificity(t: AST.TypeExpression, genericNames: Set<string>): number {
+    switch (t.type) {
+      case "SimpleTypeExpression":
+        return genericNames.has(t.name.name) ? 0 : 1;
+      case "GenericTypeExpression": {
+        let score = this.measureTemplateSpecificity(t.base, genericNames);
+        for (const arg of t.arguments ?? []) {
+          score += this.measureTemplateSpecificity(arg, genericNames);
+        }
+        return score;
+      }
+      case "NullableTypeExpression":
+      case "ResultTypeExpression":
+        return this.measureTemplateSpecificity(t.innerType, genericNames);
+      case "UnionTypeExpression":
+        return t.members.reduce((acc, member) => acc + this.measureTemplateSpecificity(member, genericNames), 0);
+      default:
+        return 0;
+    }
+  }
+
+  private attachDefaultInterfaceMethods(
+    imp: AST.ImplementationDefinition,
+    funcs: Map<string, Extract<V10Value, { kind: "function" }>>,
+  ): void {
+    const interfaceName = imp.interfaceName.name;
+    const iface = this.interfaces.get(interfaceName);
+    if (!iface) return;
+    const ifaceEnv = this.interfaceEnvs.get(interfaceName) ?? this.globals;
+    const targetType = imp.targetType;
+    for (const sig of iface.signatures) {
+      if (!sig.defaultImpl) continue;
+      const methodName = sig.name.name;
+      if (funcs.has(methodName)) continue;
+      const defaultFunc = this.createDefaultMethodFunction(sig, ifaceEnv, targetType);
+      if (defaultFunc) funcs.set(methodName, defaultFunc);
+    }
+  }
+
+  private createDefaultMethodFunction(
+    sig: AST.FunctionSignature,
+    env: Environment,
+    targetType: AST.TypeExpression,
+  ): Extract<V10Value, { kind: "function" }> | null {
+    if (!sig.defaultImpl) return null;
+    const params = sig.params.map(param => {
+      const substitutedPattern = this.substituteSelfInPattern(param.name as AST.Pattern, targetType);
+      const substitutedType = this.substituteSelfTypeExpression(param.paramType, targetType);
+      if (substitutedPattern === param.name && substitutedType === param.paramType) return param;
+      return { type: "FunctionParameter", name: substitutedPattern, paramType: substitutedType } as AST.FunctionParameter;
+    });
+    const returnType = this.substituteSelfTypeExpression(sig.returnType, targetType) ?? sig.returnType;
+    const fnDef: AST.FunctionDefinition = {
+      type: "FunctionDefinition",
+      id: sig.name,
+      params,
+      returnType,
+      genericParams: sig.genericParams,
+      whereClause: sig.whereClause,
+      body: sig.defaultImpl,
+      isMethodShorthand: false,
+      isPrivate: false,
+    };
+    return { kind: "function", node: fnDef, closureEnv: env };
+  }
+
+  private substituteSelfTypeExpression(
+    t: AST.TypeExpression | undefined,
+    target: AST.TypeExpression,
+  ): AST.TypeExpression | undefined {
+    if (!t) return t;
+    switch (t.type) {
+      case "SimpleTypeExpression":
+        if (t.name.name === "Self") return this.cloneTypeExpression(target);
+        return t;
+      case "GenericTypeExpression": {
+        const base = this.substituteSelfTypeExpression(t.base, target) ?? t.base;
+        const args = t.arguments?.map(arg => this.substituteSelfTypeExpression(arg, target) ?? arg) ?? [];
+        if (base === t.base && args.every((arg, idx) => arg === (t.arguments ?? [])[idx])) return t;
+        return { type: "GenericTypeExpression", base, arguments: args };
+      }
+      case "FunctionTypeExpression": {
+        const paramTypes = t.paramTypes.map(pt => this.substituteSelfTypeExpression(pt, target) ?? pt);
+        const returnType = this.substituteSelfTypeExpression(t.returnType, target) ?? t.returnType;
+        if (paramTypes.every((pt, idx) => pt === t.paramTypes[idx]) && returnType === t.returnType) return t;
+        return { type: "FunctionTypeExpression", paramTypes, returnType };
+      }
+      case "NullableTypeExpression": {
+        const inner = this.substituteSelfTypeExpression(t.innerType, target) ?? t.innerType;
+        if (inner === t.innerType) return t;
+        return { type: "NullableTypeExpression", innerType: inner };
+      }
+      case "ResultTypeExpression": {
+        const inner = this.substituteSelfTypeExpression(t.innerType, target) ?? t.innerType;
+        if (inner === t.innerType) return t;
+        return { type: "ResultTypeExpression", innerType: inner };
+      }
+      case "UnionTypeExpression": {
+        let changed = false;
+        const members = t.members.map(member => {
+          const next = this.substituteSelfTypeExpression(member, target) ?? member;
+          if (next !== member) changed = true;
+          return next;
+        });
+        if (!changed) return t;
+        return { type: "UnionTypeExpression", members };
+      }
+      case "WildcardTypeExpression":
+      default:
+        return t;
+    }
+  }
+
+  private substituteSelfInPattern(pattern: AST.Pattern, target: AST.TypeExpression): AST.Pattern {
+    if ((pattern as any).type === "TypedPattern") {
+      const tp = pattern as AST.TypedPattern;
+      const inner = this.substituteSelfInPattern(tp.pattern, target);
+      const typeAnnotation = this.substituteSelfTypeExpression(tp.typeAnnotation, target) ?? tp.typeAnnotation;
+      if (inner === tp.pattern && typeAnnotation === tp.typeAnnotation) return tp;
+      return { type: "TypedPattern", pattern: inner, typeAnnotation };
+    }
+    if (pattern.type === "StructPattern") {
+      let changed = false;
+      const fields = pattern.fields.map(field => {
+        const newPattern = this.substituteSelfInPattern(field.pattern, target);
+        if (newPattern !== field.pattern) {
+          changed = true;
+          return { ...field, pattern: newPattern };
+        }
+        return field;
+      });
+      let structType = pattern.structType;
+      if (structType && structType.name === "Self" && target.type === "SimpleTypeExpression") {
+        structType = AST.identifier(target.name.name);
+        changed = true;
+      }
+      if (!changed) return pattern;
+      return { ...pattern, fields, structType };
+    }
+    if (pattern.type === "ArrayPattern") {
+      let changed = false;
+      const elements = pattern.elements.map(el => {
+        if (!el) return el;
+        const newEl = this.substituteSelfInPattern(el, target);
+        if (newEl !== el) changed = true;
+        return newEl ?? el;
+      });
+      const restPattern = pattern.restPattern
+        ? (this.substituteSelfInPattern(pattern.restPattern, target) as AST.Identifier | AST.WildcardPattern)
+        : undefined;
+      if (restPattern !== pattern.restPattern) changed = true;
+      if (!changed) return pattern;
+      return { ...pattern, elements, restPattern };
+    }
+    return pattern;
+  }
+
+  private cloneTypeExpression(t: AST.TypeExpression): AST.TypeExpression {
+    switch (t.type) {
+      case "SimpleTypeExpression":
+        return { type: "SimpleTypeExpression", name: AST.identifier(t.name.name) };
+      case "GenericTypeExpression":
+        return {
+          type: "GenericTypeExpression",
+          base: this.cloneTypeExpression(t.base),
+          arguments: (t.arguments ?? []).map(arg => this.cloneTypeExpression(arg)),
+        };
+      case "FunctionTypeExpression":
+        return {
+          type: "FunctionTypeExpression",
+          paramTypes: t.paramTypes.map(pt => this.cloneTypeExpression(pt)),
+          returnType: this.cloneTypeExpression(t.returnType),
+        };
+      case "NullableTypeExpression":
+        return { type: "NullableTypeExpression", innerType: this.cloneTypeExpression(t.innerType) };
+      case "ResultTypeExpression":
+        return { type: "ResultTypeExpression", innerType: this.cloneTypeExpression(t.innerType) };
+      case "UnionTypeExpression":
+        return { type: "UnionTypeExpression", members: t.members.map(member => this.cloneTypeExpression(member)) };
+      case "WildcardTypeExpression":
+      default:
+        return { type: "WildcardTypeExpression" };
+    }
+  }
+
+  private typeImplementsInterface(typeName: string, interfaceName: string): boolean {
+    const entries = this.implMethods.get(typeName);
+    if (!entries) return false;
+    for (const entry of entries) {
+      if (entry.def.interfaceName.name === interfaceName) return true;
+    }
+    return false;
+  }
+
+  private getTypeNameForValue(value: V10Value): string | null {
+    switch (value.kind) {
+      case "struct_instance":
+        return value.def.id.name;
+      case "interface_value":
+        return this.getTypeNameForValue(value.value);
+      case "i32":
+        return "i32";
+      case "f64":
+        return "f64";
+      case "string":
+        return "string";
+      case "bool":
+        return "bool";
+      case "char":
+        return "char";
+      case "array":
+        return "Array";
+      case "range":
+        return "Range";
+      default:
+        return null;
+    }
+  }
+
+  private coerceValueToType(typeExpr: AST.TypeExpression | undefined, value: V10Value): V10Value {
+    if (!typeExpr) return value;
+    if (typeExpr.type === "SimpleTypeExpression") {
+      const name = typeExpr.name.name;
+      if (this.interfaces.has(name)) {
+        return this.toInterfaceValue(name, value);
+      }
+    }
+    return value;
+  }
+
+  private toInterfaceValue(interfaceName: string, rawValue: V10Value): V10Value {
+    if (!this.interfaces.has(interfaceName)) {
+      throw new Error(`Unknown interface '${interfaceName}'`);
+    }
+    if (rawValue.kind === "interface_value") {
+      if (rawValue.interfaceName === interfaceName) return rawValue;
+      return this.toInterfaceValue(interfaceName, rawValue.value);
+    }
+    const typeName = this.getTypeNameForValue(rawValue);
+    if (!typeName || !this.typeImplementsInterface(typeName, interfaceName)) {
+      throw new Error(`Type '${typeName ?? "<unknown>"}' does not implement interface '${interfaceName}'`);
+    }
+    let typeArguments: AST.TypeExpression[] | undefined;
+    let typeArgMap: Map<string, AST.TypeExpression> | undefined;
+    if (rawValue.kind === "struct_instance") {
+      typeArguments = rawValue.typeArguments;
+      typeArgMap = rawValue.typeArgMap;
+    }
+    return { kind: "interface_value", interfaceName, value: rawValue, typeArguments, typeArgMap };
+  }
+
+  private initConcurrencyBuiltins(): void {
+    if (this.concurrencyBuiltinsInitialized) return;
+    this.concurrencyBuiltinsInitialized = true;
+
+    const procErrorDefAst = AST.structDefinition(
+      "ProcError",
+      [AST.structFieldDefinition(AST.simpleTypeExpression("string"), "details")],
+      "named"
+    );
+    const pendingDefAst = AST.structDefinition("Pending", [], "named");
+    const resolvedDefAst = AST.structDefinition("Resolved", [], "named");
+    const cancelledDefAst = AST.structDefinition("Cancelled", [], "named");
+    const failedDefAst = AST.structDefinition(
+      "Failed",
+      [AST.structFieldDefinition(AST.simpleTypeExpression("ProcError"), "error")],
+      "named"
+    );
+
+    this.evaluate(procErrorDefAst, this.globals);
+    this.evaluate(pendingDefAst, this.globals);
+    this.evaluate(resolvedDefAst, this.globals);
+    this.evaluate(cancelledDefAst, this.globals);
+    this.evaluate(failedDefAst, this.globals);
+    this.evaluate(
+      AST.unionDefinition(
+        "ProcStatus",
+        [
+          AST.simpleTypeExpression("Pending"),
+          AST.simpleTypeExpression("Resolved"),
+          AST.simpleTypeExpression("Cancelled"),
+          AST.simpleTypeExpression("Failed"),
+        ],
+        undefined,
+        undefined,
+        false
+      ),
+      this.globals,
+    );
+
+    const getStructDef = (name: string): AST.StructDefinition => {
+      const val = this.globals.get(name);
+      if (val.kind !== "struct_def") throw new Error(`Failed to initialize struct '${name}'`);
+      return val.def;
+    };
+
+    this.procErrorStruct = getStructDef("ProcError");
+    this.procStatusStructs = {
+      Pending: getStructDef("Pending"),
+      Resolved: getStructDef("Resolved"),
+      Cancelled: getStructDef("Cancelled"),
+      Failed: getStructDef("Failed"),
+    };
+
+    this.procStatusPendingValue = this.makeNamedStructInstance(this.procStatusStructs.Pending, []);
+    this.procStatusResolvedValue = this.makeNamedStructInstance(this.procStatusStructs.Resolved, []);
+    this.procStatusCancelledValue = this.makeNamedStructInstance(this.procStatusStructs.Cancelled, []);
+  }
+
+  private scheduleAsync(fn: () => void): void {
+    this.schedulerQueue.push(fn);
+    this.ensureSchedulerTick();
+  }
+
+  private ensureSchedulerTick(): void {
+    if (this.schedulerScheduled || this.schedulerActive) return;
+    this.schedulerScheduled = true;
+    const runner = () => this.processScheduler();
+    if (typeof queueMicrotask === "function") {
+      queueMicrotask(runner);
+    } else if (typeof setTimeout === "function") {
+      setTimeout(runner, 0);
+    } else {
+      runner();
+    }
+  }
+
+  private currentAsyncContext():
+    | { kind: "proc"; handle: Extract<V10Value, { kind: "proc_handle" }> }
+    | { kind: "future"; handle: Extract<V10Value, { kind: "future" }> }
+    | null {
+    if (this.asyncContextStack.length === 0) return null;
+    return this.asyncContextStack[this.asyncContextStack.length - 1];
+  }
+
+  private procYield(): V10Value {
+    const ctx = this.currentAsyncContext();
+    if (!ctx) throw new Error("proc_yield must be called inside an asynchronous task");
+    throw new ProcYieldSignal();
+  }
+
+  private procCancelled(): V10Value {
+    const ctx = this.currentAsyncContext();
+    if (!ctx) throw new Error("proc_cancelled must be called inside an asynchronous task");
+    if (ctx.kind === "proc") {
+      return { kind: "bool", value: !!ctx.handle.cancelRequested };
+    }
+    return { kind: "bool", value: false };
+  }
+
+  private processScheduler(limit: number = this.schedulerMaxSteps): void {
+    if (this.schedulerActive) return;
+    this.schedulerActive = true;
+    this.schedulerScheduled = false;
+    let steps = 0;
+    while (this.schedulerQueue.length > 0 && steps < limit) {
+      const task = this.schedulerQueue.shift()!;
+      task();
+      steps += 1;
+    }
+    this.schedulerActive = false;
+    if (this.schedulerQueue.length > 0) this.ensureSchedulerTick();
+  }
+
+  private makeNamedStructInstance(def: AST.StructDefinition, entries: Array<[string, V10Value]>): V10Value {
+    const map = new Map<string, V10Value>();
+    for (const [key, value] of entries) map.set(key, value);
+    return { kind: "struct_instance", def, values: map };
+  }
+
+  private makeProcError(details: string): V10Value {
+    return this.makeNamedStructInstance(this.procErrorStruct, [["details", { kind: "string", value: details }]]);
+  }
+
+  private getProcErrorDetails(procError: V10Value): string {
+    if (procError.kind === "struct_instance" && procError.def.id.name === "ProcError") {
+      const map = procError.values as Map<string, V10Value>;
+      const detailsVal = map.get("details");
+      if (detailsVal && detailsVal.kind === "string") return detailsVal.value;
+    }
+    return "unknown failure";
+  }
+
+  private makeProcStatusFailed(procError: V10Value): V10Value {
+    return this.makeNamedStructInstance(this.procStatusStructs.Failed, [["error", procError]]);
+  }
+
+  private markProcCancelled(handle: Extract<V10Value, { kind: "proc_handle" }>, message = "Proc cancelled"): void {
+    const procErr = this.makeProcError(message);
+    handle.state = "cancelled";
+    handle.result = undefined;
+    handle.failureInfo = procErr;
+    handle.error = this.makeRuntimeError(message, procErr);
+    handle.runner = null;
+  }
+
+  private procHandleStatus(handle: Extract<V10Value, { kind: "proc_handle" }>): V10Value {
+    switch (handle.state) {
+      case "pending":
+        return this.procStatusPendingValue;
+      case "resolved":
+        return this.procStatusResolvedValue;
+      case "cancelled":
+        return this.procStatusCancelledValue;
+      case "failed": {
+        const procErr = handle.failureInfo ?? this.makeProcError("unknown failure");
+        return this.makeProcStatusFailed(procErr);
+      }
+      default:
+        return this.procStatusPendingValue;
+    }
+  }
+
+  private futureStatus(future: Extract<V10Value, { kind: "future" }>): V10Value {
+    switch (future.state) {
+      case "pending":
+        return this.procStatusPendingValue;
+      case "resolved":
+        return this.procStatusResolvedValue;
+      case "failed": {
+        const procErr = future.failureInfo ?? this.makeProcError("unknown failure");
+        return this.makeProcStatusFailed(procErr);
+      }
+      default:
+        return this.procStatusPendingValue;
+    }
+  }
+
+  private toProcError(value: V10Value | undefined, fallback: string): V10Value {
+    if (value) {
+      if (value.kind === "struct_instance" && value.def.id.name === "ProcError") {
+        return value;
+      }
+      if (value.kind === "error") {
+        if (value.value && value.value.kind === "struct_instance" && value.value.def.id.name === "ProcError") {
+          return value.value;
+        }
+        return this.makeProcError(value.message ?? fallback);
+      }
+      return this.makeProcError(this.valueToString(value));
+    }
+    return this.makeProcError(fallback);
+  }
+
+  private makeNativeFunction(
+    name: string,
+    arity: number,
+    impl: (interpreter: InterpreterV10, args: V10Value[]) => V10Value,
+  ): Extract<V10Value, { kind: "native_function" }> {
+    return { kind: "native_function", name, arity, impl };
+  }
+
+  private bindNativeMethod(
+    func: Extract<V10Value, { kind: "native_function" }>,
+    self: V10Value,
+  ): Extract<V10Value, { kind: "native_bound_method" }> {
+    return { kind: "native_bound_method", func, self };
+  }
+
+  private procHandleValue(handle: Extract<V10Value, { kind: "proc_handle" }>): V10Value {
+    if (handle.state === "pending") {
+      if (handle.runner) {
+        const runner = handle.runner;
+        handle.runner = null;
+        runner();
+      } else {
+        this.runProcHandle(handle);
+      }
+    }
+    if (handle.state === "pending") {
+      this.runProcHandle(handle);
+    }
+    switch (handle.state) {
+      case "resolved":
+        return handle.result ?? { kind: "nil", value: null };
+      case "failed":
+        return handle.error ?? this.makeRuntimeError("Proc failed", this.makeProcError("Proc failed"));
+      case "cancelled":
+        return handle.error ?? this.makeRuntimeError("Proc cancelled", this.makeProcError("Proc cancelled"));
+      default:
+        return this.makeRuntimeError("Proc pending", this.makeProcError("Proc pending"));
+    }
+  }
+
+  private procHandleCancel(handle: Extract<V10Value, { kind: "proc_handle" }>): void {
+    if (handle.state === "resolved" || handle.state === "failed" || handle.state === "cancelled") return;
+    handle.cancelRequested = true;
+    if (handle.state === "pending" && !handle.isEvaluating) {
+      if (!handle.runner) handle.runner = () => this.runProcHandle(handle);
+      this.scheduleAsync(handle.runner);
+    }
+  }
+
+  private futureValue(future: Extract<V10Value, { kind: "future" }>): V10Value {
+    if (future.state === "pending") {
+      if (future.runner) {
+        const runner = future.runner;
+        future.runner = null;
+        runner();
+      } else {
+        this.runFuture(future);
+      }
+    }
+    if (future.state === "pending") {
+      this.runFuture(future);
+    }
+    switch (future.state) {
+      case "failed":
+        return future.error ?? this.makeRuntimeError("Future failed", this.makeProcError("Future failed"));
+      case "resolved":
+        return future.result ?? { kind: "nil", value: null };
+      case "pending":
+        return this.makeRuntimeError("Future pending", this.makeProcError("Future pending"));
+    }
+  }
+
+  private runProcHandle(handle: Extract<V10Value, { kind: "proc_handle" }>): void {
+    if (handle.state !== "pending" || handle.isEvaluating) return;
+    if (!handle.runner) {
+      handle.runner = () => this.runProcHandle(handle);
+    }
+    if (handle.cancelRequested && !handle.hasStarted) {
+      this.markProcCancelled(handle);
+      return;
+    }
+    handle.hasStarted = true;
+    handle.isEvaluating = true;
+    this.asyncContextStack.push({ kind: "proc", handle });
+    try {
+      const value = this.evaluate(handle.expression, handle.env);
+      if (handle.cancelRequested) {
+        this.markProcCancelled(handle);
+      } else {
+        handle.result = value;
+        handle.state = "resolved";
+        handle.error = undefined;
+        handle.failureInfo = undefined;
+      }
+    } catch (e) {
+      if (e instanceof ProcYieldSignal) {
+        if (handle.runner) {
+          this.scheduleAsync(handle.runner);
+        }
+      } else if (e instanceof RaiseSignal) {
+        const procErr = this.toProcError(e.value, "Proc task failed");
+        const details = this.getProcErrorDetails(procErr);
+        handle.failureInfo = procErr;
+        handle.error = this.makeRuntimeError(`Proc failed: ${details}`, procErr);
+        handle.state = "failed";
+      } else {
+        const msg = e instanceof Error ? e.message : "Proc execution error";
+        const procErr = this.makeProcError(msg);
+        handle.failureInfo = procErr;
+        handle.error = this.makeRuntimeError(`Proc failed: ${msg}`, procErr);
+        handle.state = "failed";
+      }
+    } finally {
+      this.asyncContextStack.pop();
+      handle.isEvaluating = false;
+      if (handle.state !== "pending") {
+        handle.runner = null;
+      } else if (!handle.runner) {
+        handle.runner = () => this.runProcHandle(handle);
+      }
+    }
+  }
+
+  private runFuture(future: Extract<V10Value, { kind: "future" }>): void {
+    if (future.state !== "pending" || future.isEvaluating) return;
+    if (!future.runner) {
+      future.runner = () => this.runFuture(future);
+    }
+    future.isEvaluating = true;
+    this.asyncContextStack.push({ kind: "future", handle: future });
+    try {
+      const value = this.evaluate(future.expression, future.env);
+      future.result = value;
+      future.state = "resolved";
+       future.error = undefined;
+       future.failureInfo = undefined;
+    } catch (e) {
+      if (e instanceof ProcYieldSignal) {
+        if (future.runner) {
+          this.scheduleAsync(future.runner);
+        }
+      } else if (e instanceof RaiseSignal) {
+        const procErr = this.toProcError(e.value, "Future task failed");
+        const details = this.getProcErrorDetails(procErr);
+        future.failureInfo = procErr;
+        future.error = this.makeRuntimeError(`Future failed: ${details}`, procErr);
+        future.state = "failed";
+      } else {
+        const msg = e instanceof Error ? e.message : "Future execution error";
+        const procErr = this.makeProcError(msg);
+        future.failureInfo = procErr;
+        future.error = this.makeRuntimeError(`Future failed: ${msg}`, procErr);
+        future.state = "failed";
+      }
+    } finally {
+      this.asyncContextStack.pop();
+      future.isEvaluating = false;
+      if (future.state !== "pending") {
+        future.runner = null;
+      } else if (!future.runner) {
+        future.runner = () => this.runFuture(future);
+      }
+    }
+  }
+
+  private makeRuntimeError(message: string, value?: V10Value): V10Value {
+    return { kind: "error", message, value };
   }
 
   private tryUfcs(env: Environment, funcName: string, receiver: V10Value): Extract<V10Value, { kind: "bound_method" }> | null {
@@ -1298,5 +2533,3 @@ export class InterpreterV10 {
 export function evaluate(node: AST.AstNode | null, env?: Environment): V10Value {
   return new InterpreterV10().evaluate(node, env);
 }
-
-

@@ -6,7 +6,7 @@ describe("v10 interpreter - rethrow", () => {
   test("inner rescue rethrows to outer rescue", () => {
     const I = new InterpreterV10();
     const inner = AST.rescueExpression(
-      AST.raiseStatement(AST.stringLiteral("oops")),
+      AST.blockExpression([AST.raiseStatement(AST.stringLiteral("oops"))]),
       [AST.matchClause(AST.wildcardPattern(), AST.blockExpression([AST.rethrowStatement()]))]
     );
     const outer = AST.rescueExpression(
@@ -16,5 +16,4 @@ describe("v10 interpreter - rethrow", () => {
     expect(I.evaluate(outer)).toEqual({ kind: 'string', value: 'handled' });
   });
 });
-
 
