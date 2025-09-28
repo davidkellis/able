@@ -1,0 +1,10 @@
+{
+  "description": "For loop over range with break",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": 3
+    }
+  },
+  "entry": "module.json"
+}

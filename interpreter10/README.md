@@ -18,6 +18,7 @@ bun run typecheck
 ### Language spec
 
 For the complete v10 language definition and semantics, see: [full_spec_v10.md](../spec/full_spec_v10.md).
+The Go interpreter is the designated reference runtime, but every interpreter in this repository must match the written specification and share the same AST contract—any behavioural drift is treated as a spec or implementation bug that we fix immediately.
 
 ### What’s in this package
 
@@ -25,6 +26,9 @@ For the complete v10 language definition and semantics, see: [full_spec_v10.md](
 - `src/interpreter.ts`: v10 reference interpreter (single pass evaluator).
 - `test/*.test.ts`: Jest-compatible Bun tests covering interpreter features.
 - `index.ts`: exports `AST` and `V10` (interpreter) for external use.
+- `scripts/export-fixtures.ts`: writes canonical JSON AST fixtures under `fixtures/ast`.
+- `scripts/run-fixtures.ts`: executes every fixture module against this interpreter and checks manifest expectations (also used to keep the Go harness in sync).
+- `fixtures/ast/`: JSON fixtures and manifests shared with the Go interpreter and future runtimes.
 
 ### Interpreter architecture
 
@@ -55,22 +59,6 @@ High-level evaluation flow:
 7) Error handling: raise, rescue (with guards), or-else, propagation `expr!`, ensure, rethrow (with raise stack).
 8) Modules/imports: executes body in a module/global env; selector imports and aliasing; privacy enforced for functions/types/interfaces/unions. Wildcard imports bring only public symbols. `import pkg as Alias` binds a `package` value exposing public members. `dynimport` binds late-resolving `dyn_ref`s or `dyn_package` aliases.
 9) Concurrency: `proc` returns a lightweight handle (`status`, `value`, `cancel`) backed by `ProcStatus` (`Pending`, `Resolved`, `Cancelled`, `Failed`) and `ProcError`; `spawn` returns a memoizing future handle with the same `status`/`value` API. Tasks start asynchronously; `value()` blocks and returns `!T` (either the underlying value or an `error` whose payload is a `ProcError`, so `!`/pattern matching work naturally).
-
-### Feature coverage (implemented)
-
-- Primitives: string, bool, char, nil, i32, f64
-- Arrays: literals, index read/write, member-access by integer `.n`
-- Operators: arithmetic, comparison, logical, bitwise, ranges
-- Control flow: if/or, while (break), for over arrays/ranges
-- Functions/lambdas: closures, destructuring params, call arity checks
-- Blocks/assignments: declarations `:=`, reassign `=`, destructuring assignment, compound assignments (`+=`, `-=`, `*=`, `/=`, `%=` and `&=`, `|=`, `^=`, `<<=`, `>>=`)
-- Structs: definitions, literals (named/positional), member access, static methods
-- Pattern matching: identifier, wildcard, literal, struct, array, typed patterns
-- Error handling: raise, rescue (guards), or-else, propagation `!`, ensure, rethrow
-- Modules/imports: selector import, aliasing, privacy for private functions/types/interfaces/unions; wildcard imports; package alias; dynimport selectors/alias/wildcard
-- Methods/impls: inherent methods and interface impl methods with bound `self`, interface default methods, dynamic dispatch via interface-typed values (`interface`-typed bindings coerce to dynamic wrappers)
-  - Resolution now ranks union-target impls by subset size, honours constraint supersets (including inherited interfaces) and surfaces richer ambiguity diagnostics.
-  - Dynamic interface containers (e.g., arrays of `Show`) dispatch using the most specific impl in scope.
 
 ### Using the interpreter
 
@@ -172,3 +160,4 @@ bun run typecheck   # TypeScript typecheck
 ```
 
 This project was created using `bun init` in bun v1.2.19. [Bun](https://bun.sh/) is a fast all-in-one JavaScript runtime.
+- **Shared fixtures**: when you add a new AST fixture, update `scripts/export-fixtures.ts`, run `bun run scripts/export-fixtures.ts`, then `bun run scripts/run-fixtures.ts` to verify the manifests. The Go interpreter consumes the same JSON via `go test ./pkg/interpreter`, so always keep fixtures passing in both runtimes.

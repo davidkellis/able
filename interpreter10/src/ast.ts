@@ -240,7 +240,7 @@ export interface MatchClause extends AstNode { type: 'MatchClause'; pattern: Pat
 export interface MatchExpression extends AstNode { type: 'MatchExpression'; subject: Expression; clauses: MatchClause[]; }
 export interface WhileLoop extends AstNode { type: 'WhileLoop'; condition: Expression; body: BlockExpression; }
 export interface ForLoop extends AstNode { type: 'ForLoop'; pattern: Pattern; iterable: Expression; body: BlockExpression; }
-export interface BreakStatement extends AstNode { type: 'BreakStatement'; label: Identifier; value: Expression; }
+export interface BreakStatement extends AstNode { type: 'BreakStatement'; label?: Identifier; value?: Expression; }
 
 export function orClause(body: BlockExpression, condition?: Expression): OrClause { return { type: 'OrClause', condition, body }; }
 export function ifExpression(ifCondition: Expression, ifBody: BlockExpression, orClauses: OrClause[] = []): IfExpression { return { type: 'IfExpression', ifCondition, ifBody, orClauses }; }
@@ -248,7 +248,12 @@ export function matchClause(pattern: Pattern, body: Expression, guard?: Expressi
 export function matchExpression(subject: Expression, clauses: MatchClause[]): MatchExpression { return { type: 'MatchExpression', subject, clauses }; }
 export function whileLoop(condition: Expression, body: BlockExpression): WhileLoop { return { type: 'WhileLoop', condition, body }; }
 export function forLoop(pattern: Pattern, iterable: Expression, body: BlockExpression): ForLoop { return { type: 'ForLoop', pattern, iterable, body }; }
-export function breakStatement(label: Identifier | string, value: Expression): BreakStatement { return { type: 'BreakStatement', label: typeof label === 'string' ? identifier(label) : label, value }; }
+export function breakStatement(label?: Identifier | string, value?: Expression): BreakStatement {
+  const stmt: BreakStatement = { type: 'BreakStatement' };
+  if (label !== undefined) stmt.label = typeof label === 'string' ? identifier(label) : label;
+  if (value !== undefined) stmt.value = value;
+  return stmt;
+}
 
 // -----------------------------------------------------------------------------
 // Error Handling

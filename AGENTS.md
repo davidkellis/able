@@ -3,10 +3,13 @@
 Welcome! This document gives contributors the context required to work across the Able v10 effort (TypeScript + Go interpreters, spec, and tooling).
 
 ## Mission & Principles
-- Keep the Able v10 language spec (`spec/full_spec_v10.md`) authoritative; report divergences immediately.
-- Treat the AST as part of the language contract with the Go definitions as canonical. Every interpreter must share the same structure and field semantics.
+- Keep the Able v10 language spec (`spec/full_spec_v10.md`) authoritative; report divergences immediately. The spec is the ultimate arbiter for every runtime feature.
+- Treat the AST as part of the language contract with the Go definitions as canonical. Every interpreter must share the same structure and field semantics, and the v10 spec will eventually codify this canonical AST form and its evaluation rules.
+- Use the Go interpreter as the reference implementation while ensuring the TypeScript interpreter—and any future runtimes—match the same v10 semantics defined in the spec.
 - Prefer incremental, well-tested changes. Mirror behavior across interpreters whenever possible.
 - Document reasoning (design notes in `design/`, issue trackers) so future agents can follow decisions.
+- Keep shared fixtures (`fixtures/ast`) green in both interpreters; every fixture change must be exercised by `bun run scripts/run-fixtures.ts` and the Go parity tests (`go test ./pkg/interpreter`).
+- Align code changes with the current design notes (e.g., `design/pattern-break-alignment.md`) and update `spec/todo.md`/`LOG.md` when work lands.
 
 ## Repository Map
 - `interpreter10/`: Bun/TypeScript interpreter, AST definition, and comprehensive tests. Source of inspiration and a compatibility target.
@@ -25,8 +28,11 @@ Welcome! This document gives contributors the context required to work across th
 
 ## Collaboration Guidelines
 - Update relevant PLAN files when you start/finish roadmap items.
+- Keep `spec/todo.md` current when implementation work exposes gaps that need spec wording updates.
 - When adding Go features, port or mirror the corresponding TypeScript tests (or vice versa) to keep coverage consistent.
+- When adding or modifying fixtures in `fixtures/ast`, update `interpreter10/scripts/export-fixtures.ts`, run the exporter + TS harness, and confirm the Go parity test (`go test ./pkg/interpreter`) still passes.
 - Use concise, high-signal comments in code. Avoid speculative abstractions; match the TS design unless we have a strong reason to diverge.
+- Update the spec (`spec/full_spec_v10.md`) once behaviour becomes canonical; log the change in `LOG.md` and check off items in `spec/todo.md`.
 
 ## Concurrency Expectations
 - TypeScript interpreter uses a cooperative scheduler to emulate Able `proc`/`spawn` semantics.

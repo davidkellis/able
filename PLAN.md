@@ -1,9 +1,9 @@
 # Able Project Roadmap (v10 focus)
 
 ## Scope
-- Maintain a canonical Able v10 language definition across interpreters and tooling.
+- Maintain a canonical Able v10 language definition across interpreters and tooling, with the written specification remaining the source of truth for behaviour.
 - Build and ship a Go reference interpreter that evaluates any AST produced by the v10 spec; this becomes the authoritative runtime implementation.
-- Keep the TypeScript and Go AST representations structurally identical so tree-sitter output can feed either runtime (and future targets like Crystal).
+- Keep the TypeScript and Go AST representations structurally identical so tree-sitter output can feed either runtime (and future targets like Crystal); codify that AST contract inside the v10 specification once validated.
 - Document process and responsibilities so contributors can iterate confidently.
 
 ## Existing Assets (2025-09-05)
@@ -81,10 +81,9 @@ For each milestone: port representative TS tests into Go, add new cases where Go
 - **Future interpreters**: keep AST schema + conformance harness generic to support planned Crystal implementation.
 
 ## Immediate Next Actions
-1. Capture the canonical AST schema (draft in `design/ast-schema-v10.md`) and confirm every node needed for Go implementation.
-2. Scaffold `interpreter10-go/` with `go.mod`, `pkg/ast`, and basic tooling.
-3. Implement the Go AST structs and builder helpers; document them as the canonical definitions.
-4. Audit the TypeScript AST for discrepancies and plan follow-up changes where alignment is required.
+1. Port the remaining struct scenarios from the TypeScript suite to Go (mutating fields, static methods, functional update edge cases) and mirror any missing TS coverage.
+2. Extend shared fixtures when new struct behaviour lands (e.g., functional update, method access) and keep both harnesses passing (`bun run scripts/run-fixtures.ts`, `go test ./pkg/interpreter`).
+3. Continue folding design-note behaviour into `spec/full_spec_v10.md` as milestones complete; add new todos to `spec/todo.md` when gaps appear.
 
 ## Tracking & Reporting
 - Update this plan as milestones progress; log decisions in `design/`.
