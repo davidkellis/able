@@ -587,3 +587,12 @@ To continue this session, run codex resume 01998c66-1bcb-7530-afdb-b26619aebd9f.
   - PLAN.md immediate actions now point to: (1) port remaining TS struct tests to Go, (2) extend fixtures as struct behaviour grows, (3) keep folding design-note behaviour into the spec and record new gaps.
 
   Next session can pick up with those PLAN items, starting with porting any remaining struct/method tests.
+
+> Updates
+
+  - Added an interpreter-level method registry and module return guard so top-level code can’t leak return signals (interpreter10-go/pkg/interpreter/interpreter.go:12, interpreter10-go/pkg/interpreter/interpreter.go:31).
+  - Implemented named/positional struct member assignment plus regression coverage to confirm mutations touch only the targeted field (interpreter10-go/pkg/interpreter/interpreter.go:325, interpreter10-go/pkg/interpreter/
+  interpreter_test.go:245).
+  - Introduced return-signal flow, user-defined function invocation, and inherent method lookup so static methods on struct definitions can execute and return new instances (interpreter10-go/pkg/interpreter/
+  interpreter.go:209, interpreter10-go/pkg/interpreter/interpreter.go:551, interpreter10-go/pkg/interpreter/interpreter.go:845, interpreter10-go/pkg/interpreter/interpreter.go:1014, interpreter10-go/pkg/interpreter/
+  interpreter_test.go:473).

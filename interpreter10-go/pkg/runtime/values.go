@@ -244,6 +244,7 @@ func (v UnionDefinitionValue) Kind() Kind { return KindUnionDefinition }
 
 type InterfaceDefinitionValue struct {
 	Node *ast.InterfaceDefinition
+	Env  *Environment
 }
 
 func (v InterfaceDefinitionValue) Kind() Kind { return KindInterfaceDefinition }

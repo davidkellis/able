@@ -29,6 +29,7 @@ Welcome! This document gives contributors the context required to work across th
 ## Collaboration Guidelines
 - Update relevant PLAN files when you start/finish roadmap items.
 - Keep `spec/todo.md` current when implementation work exposes gaps that need spec wording updates.
+- Treat the shared AST contract as canonical: when introducing new node structures or runtime semantics, implement them in both interpreters and update fixtures so every runtime interprets them identically.
 - When adding Go features, port or mirror the corresponding TypeScript tests (or vice versa) to keep coverage consistent.
 - When adding or modifying fixtures in `fixtures/ast`, update `interpreter10/scripts/export-fixtures.ts`, run the exporter + TS harness, and confirm the Go parity test (`go test ./pkg/interpreter`) still passes.
 - Use concise, high-signal comments in code. Avoid speculative abstractions; match the TS design unless we have a strong reason to diverge.

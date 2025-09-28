@@ -10,12 +10,63 @@ import (
 
 // Interpreter drives evaluation of Able v10 AST nodes.
 type Interpreter struct {
-	global *runtime.Environment
+	global          *runtime.Environment
+	inherentMethods map[string]map[string]*runtime.FunctionValue
+	interfaces      map[string]*runtime.InterfaceDefinitionValue
+	implMethods     map[string][]implEntry
+}
+
+type implEntry struct {
+	interfaceName string
+	methods       map[string]*runtime.FunctionValue
+	definition    *ast.ImplementationDefinition
+	targetCount   int
+	matchScore    int
+}
+
+func collectImplementationTargetNames(target ast.TypeExpression) ([]string, int, error) {
+	var names []string
+	score, err := gatherImplementationTargets(target, &names)
+	if err != nil {
+		return nil, 0, err
+	}
+	if score == 0 {
+		score = len(names)
+	}
+	return names, score, nil
+}
+
+func gatherImplementationTargets(target ast.TypeExpression, out *[]string) (int, error) {
+	switch t := target.(type) {
+	case *ast.SimpleTypeExpression:
+		if t.Name == nil {
+			return 0, fmt.Errorf("Implementation target requires identifier")
+		}
+		*out = append(*out, t.Name.Name)
+		return 1, nil
+	case *ast.UnionTypeExpression:
+		score := 0
+		for _, member := range t.Members {
+			memberScore, err := gatherImplementationTargets(member, out)
+			if err != nil {
+				return 0, err
+			}
+			score += memberScore
+		}
+		return score, nil
+	default:
+		return 0, fmt.Errorf("Implementation target type %T is not supported", target)
+	}
 }
 
 // New returns an interpreter with an empty global environment.
 func New() *Interpreter {
-	return &Interpreter{global: runtime.NewEnvironment(nil)}
+	return &Interpreter{
+		global:          runtime.NewEnvironment(nil),
+		inherentMethods: make(map[string]map[string]*runtime.FunctionValue),
+		interfaces:      make(map[string]*runtime.InterfaceDefinitionValue),
+		implMethods:     make(map[string][]implEntry),
+	}
 }
 
 // GlobalEnvironment returns the interpreter’s global environment.
@@ -33,6 +84,9 @@ func (i *Interpreter) EvaluateModule(module *ast.Module) (runtime.Value, *runtim
 			if rs, ok := err.(raiseSignal); ok {
 				return nil, moduleEnv, rs
 			}
+			if _, ok := err.(returnSignal); ok {
+				return nil, nil, fmt.Errorf("return outside function")
+			}
 			return nil, nil, err
 		}
 		last = val
@@ -47,6 +101,12 @@ func (i *Interpreter) evaluateStatement(node ast.Statement, env *runtime.Environ
 		return i.evaluateExpression(n, env)
 	case *ast.StructDefinition:
 		return i.evaluateStructDefinition(n, env)
+	case *ast.MethodsDefinition:
+		return i.evaluateMethodsDefinition(n, env)
+	case *ast.InterfaceDefinition:
+		return i.evaluateInterfaceDefinition(n, env)
+	case *ast.ImplementationDefinition:
+		return i.evaluateImplementationDefinition(n, env)
 	case *ast.WhileLoop:
 		return i.evaluateWhileLoop(n, env)
 	case *ast.ForLoop:
@@ -55,6 +115,8 @@ func (i *Interpreter) evaluateStatement(node ast.Statement, env *runtime.Environ
 		return i.evaluateRaiseStatement(n, env)
 	case *ast.BreakStatement:
 		return i.evaluateBreakStatement(n, env)
+	case *ast.ReturnStatement:
+		return i.evaluateReturnStatement(n, env)
 	default:
 		return nil, fmt.Errorf("unsupported statement type: %s", n.NodeType())
 	}
@@ -141,6 +203,9 @@ func (i *Interpreter) evaluateBlock(block *ast.BlockExpression, env *runtime.Env
 	for _, stmt := range block.Body {
 		val, err := i.evaluateStatement(stmt, scope)
 		if err != nil {
+			if _, ok := err.(returnSignal); ok {
+				return nil, err
+			}
 			return nil, err
 		}
 		result = val
@@ -173,6 +238,8 @@ func (i *Interpreter) evaluateWhileLoop(loop *ast.WhileLoop, env *runtime.Enviro
 				continue
 			case raiseSignal:
 				return nil, sig
+			case returnSignal:
+				return nil, sig
 			default:
 				return nil, err
 			}
@@ -188,6 +255,18 @@ func (i *Interpreter) evaluateRaiseStatement(stmt *ast.RaiseStatement, env *runt
 	}
 	errVal := makeErrorValue(val)
 	return nil, raiseSignal{value: errVal}
+}
+
+func (i *Interpreter) evaluateReturnStatement(stmt *ast.ReturnStatement, env *runtime.Environment) (runtime.Value, error) {
+	var result runtime.Value = runtime.NilValue{}
+	if stmt.Argument != nil {
+		val, err := i.evaluateExpression(stmt.Argument, env)
+		if err != nil {
+			return nil, err
+		}
+		result = val
+	}
+	return nil, returnSignal{value: result}
 }
 
 func (i *Interpreter) evaluateForLoop(loop *ast.ForLoop, env *runtime.Environment) (runtime.Value, error) {
@@ -260,6 +339,8 @@ func (i *Interpreter) evaluateForLoop(loop *ast.ForLoop, env *runtime.Environmen
 				continue
 			case raiseSignal:
 				return nil, sig
+			case returnSignal:
+				return nil, sig
 			default:
 				return nil, err
 			}
@@ -303,6 +384,46 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 			}
 		default:
 			return nil, fmt.Errorf("unsupported assignment operator %s", assign.Operator)
+		}
+	case *ast.MemberAccessExpression:
+		if assign.Operator == ast.AssignmentDeclare {
+			return nil, fmt.Errorf("Cannot use := on member access")
+		}
+		if assign.Operator != ast.AssignmentAssign {
+			return nil, fmt.Errorf("unsupported assignment operator %s", assign.Operator)
+		}
+		target, err := i.evaluateExpression(lhs.Object, env)
+		if err != nil {
+			return nil, err
+		}
+		switch inst := target.(type) {
+		case *runtime.StructInstanceValue:
+			switch member := lhs.Member.(type) {
+			case *ast.Identifier:
+				if inst.Fields == nil {
+					return nil, fmt.Errorf("Expected named struct instance")
+				}
+				if _, ok := inst.Fields[member.Name]; !ok {
+					return nil, fmt.Errorf("No field named '%s'", member.Name)
+				}
+				inst.Fields[member.Name] = value
+			case *ast.IntegerLiteral:
+				if inst.Positional == nil {
+					return nil, fmt.Errorf("Expected positional struct instance")
+				}
+				if member.Value == nil {
+					return nil, fmt.Errorf("Struct field index out of bounds")
+				}
+				idx := int(member.Value.Int64())
+				if idx < 0 || idx >= len(inst.Positional) {
+					return nil, fmt.Errorf("Struct field index out of bounds")
+				}
+				inst.Positional[idx] = value
+			default:
+				return nil, fmt.Errorf("Unsupported member assignment target %s", member.NodeType())
+			}
+		default:
+			return nil, fmt.Errorf("Member assignment requires struct instance")
 		}
 	case ast.Pattern:
 		if isCompound {
@@ -456,7 +577,71 @@ func (i *Interpreter) evaluateFunctionCall(call *ast.FunctionCall, env *runtime.
 	if err != nil {
 		return nil, err
 	}
-	args := make([]runtime.Value, 0, len(call.Arguments))
+	var injected []runtime.Value
+	var funcValue *runtime.FunctionValue
+	switch fn := calleeVal.(type) {
+	case runtime.NativeFunctionValue:
+		args := make([]runtime.Value, 0, len(call.Arguments))
+		for _, argExpr := range call.Arguments {
+			val, err := i.evaluateExpression(argExpr, env)
+			if err != nil {
+				return nil, err
+			}
+			args = append(args, val)
+		}
+		ctx := &runtime.NativeCallContext{Env: env}
+		return fn.Impl(ctx, args)
+	case *runtime.NativeFunctionValue:
+		args := make([]runtime.Value, 0, len(call.Arguments))
+		for _, argExpr := range call.Arguments {
+			val, err := i.evaluateExpression(argExpr, env)
+			if err != nil {
+				return nil, err
+			}
+			args = append(args, val)
+		}
+		ctx := &runtime.NativeCallContext{Env: env}
+		return fn.Impl(ctx, args)
+	case runtime.NativeBoundMethodValue:
+		args := make([]runtime.Value, 0, len(call.Arguments)+1)
+		args = append(args, fn.Receiver)
+		for _, argExpr := range call.Arguments {
+			val, err := i.evaluateExpression(argExpr, env)
+			if err != nil {
+				return nil, err
+			}
+			args = append(args, val)
+		}
+		ctx := &runtime.NativeCallContext{Env: env}
+		return fn.Method.Impl(ctx, args)
+	case *runtime.NativeBoundMethodValue:
+		args := make([]runtime.Value, 0, len(call.Arguments)+1)
+		args = append(args, fn.Receiver)
+		for _, argExpr := range call.Arguments {
+			val, err := i.evaluateExpression(argExpr, env)
+			if err != nil {
+				return nil, err
+			}
+			args = append(args, val)
+		}
+		ctx := &runtime.NativeCallContext{Env: env}
+		return fn.Method.Impl(ctx, args)
+	case *runtime.BoundMethodValue:
+		funcValue = fn.Method
+		injected = append(injected, fn.Receiver)
+	case runtime.BoundMethodValue:
+		funcValue = fn.Method
+		injected = append(injected, fn.Receiver)
+	case *runtime.FunctionValue:
+		funcValue = fn
+	default:
+		return nil, fmt.Errorf("calling non-function value of kind %s", calleeVal.Kind())
+	}
+	if funcValue == nil {
+		return nil, fmt.Errorf("call target missing function value")
+	}
+	args := make([]runtime.Value, 0, len(injected)+len(call.Arguments))
+	args = append(args, injected...)
 	for _, argExpr := range call.Arguments {
 		val, err := i.evaluateExpression(argExpr, env)
 		if err != nil {
@@ -464,21 +649,47 @@ func (i *Interpreter) evaluateFunctionCall(call *ast.FunctionCall, env *runtime.
 		}
 		args = append(args, val)
 	}
-	switch fn := calleeVal.(type) {
-	case runtime.NativeFunctionValue:
-		ctx := &runtime.NativeCallContext{Env: env}
-		return fn.Impl(ctx, args)
-	case *runtime.NativeFunctionValue:
-		ctx := &runtime.NativeCallContext{Env: env}
-		return fn.Impl(ctx, args)
-	case runtime.NativeBoundMethodValue:
-		ctx := &runtime.NativeCallContext{Env: env}
-		return fn.Method.Impl(ctx, append([]runtime.Value{fn.Receiver}, args...))
-	case *runtime.NativeBoundMethodValue:
-		ctx := &runtime.NativeCallContext{Env: env}
-		return fn.Method.Impl(ctx, append([]runtime.Value{fn.Receiver}, args...))
+	return i.invokeFunction(funcValue, args)
+}
+
+func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.Value) (runtime.Value, error) {
+	switch decl := fn.Declaration.(type) {
+	case *ast.FunctionDefinition:
+		if decl.Body == nil {
+			return runtime.NilValue{}, nil
+		}
+		if len(args) != len(decl.Params) {
+			name := "<anonymous>"
+			if decl.ID != nil {
+				name = decl.ID.Name
+			}
+			return nil, fmt.Errorf("Function '%s' expects %d arguments, got %d", name, len(decl.Params), len(args))
+		}
+		localEnv := runtime.NewEnvironment(fn.Closure)
+		for idx, param := range decl.Params {
+			if param == nil {
+				return nil, fmt.Errorf("function parameter %d is nil", idx)
+			}
+			if err := i.assignPattern(param.Name, args[idx], localEnv, true); err != nil {
+				return nil, err
+			}
+		}
+		result, err := i.evaluateBlock(decl.Body, localEnv)
+		if err != nil {
+			if ret, ok := err.(returnSignal); ok {
+				if ret.value == nil {
+					return runtime.NilValue{}, nil
+				}
+				return ret.value, nil
+			}
+			return nil, err
+		}
+		if result == nil {
+			return runtime.NilValue{}, nil
+		}
+		return result, nil
 	default:
-		return nil, fmt.Errorf("calling non-function value of kind %s", calleeVal.Kind())
+		return nil, fmt.Errorf("calling unsupported function declaration %T", fn.Declaration)
 	}
 }
 
@@ -684,6 +895,14 @@ func (r raiseSignal) Error() string {
 	return valueToString(r.value)
 }
 
+type returnSignal struct {
+	value runtime.Value
+}
+
+func (r returnSignal) Error() string {
+	return "return"
+}
+
 func makeErrorValue(val runtime.Value) runtime.ErrorValue {
 	if errVal, ok := val.(runtime.ErrorValue); ok {
 		return errVal
@@ -718,6 +937,90 @@ func (i *Interpreter) evaluateStructDefinition(def *ast.StructDefinition, env *r
 	}
 	structVal := &runtime.StructDefinitionValue{Node: def}
 	env.Define(def.ID.Name, structVal)
+	return runtime.NilValue{}, nil
+}
+
+func (i *Interpreter) evaluateInterfaceDefinition(def *ast.InterfaceDefinition, env *runtime.Environment) (runtime.Value, error) {
+	if def.ID == nil {
+		return nil, fmt.Errorf("Interface definition requires identifier")
+	}
+	ifaceVal := &runtime.InterfaceDefinitionValue{Node: def, Env: env}
+	env.Define(def.ID.Name, ifaceVal)
+	i.interfaces[def.ID.Name] = ifaceVal
+	return runtime.NilValue{}, nil
+}
+
+func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDefinition, env *runtime.Environment) (runtime.Value, error) {
+	if def.InterfaceName == nil {
+		return nil, fmt.Errorf("Implementation requires interface name")
+	}
+	ifaceName := def.InterfaceName.Name
+	ifaceDef, ok := i.interfaces[ifaceName]
+	if !ok {
+		return nil, fmt.Errorf("Interface '%s' is not defined", ifaceName)
+	}
+	targetNames, matchScore, err := collectImplementationTargetNames(def.TargetType)
+	if err != nil {
+		return nil, err
+	}
+	if len(targetNames) == 0 {
+		return nil, fmt.Errorf("Implementation target must reference at least one concrete type")
+	}
+	methods := make(map[string]*runtime.FunctionValue)
+	for _, fn := range def.Definitions {
+		if fn == nil || fn.ID == nil {
+			return nil, fmt.Errorf("Implementation method requires identifier")
+		}
+		methods[fn.ID.Name] = &runtime.FunctionValue{Declaration: fn, Closure: env}
+	}
+	if ifaceDef.Node != nil {
+		for _, sig := range ifaceDef.Node.Signatures {
+			if sig == nil || sig.Name == nil {
+				continue
+			}
+			name := sig.Name.Name
+			if _, ok := methods[name]; ok {
+				continue
+			}
+			if sig.DefaultImpl == nil {
+				continue
+			}
+			defaultDef := ast.NewFunctionDefinition(sig.Name, sig.Params, sig.DefaultImpl, sig.ReturnType, sig.GenericParams, sig.WhereClause, false, false)
+			methods[name] = &runtime.FunctionValue{Declaration: defaultDef, Closure: ifaceDef.Env}
+		}
+	}
+	for _, targetName := range targetNames {
+		entry := implEntry{
+			interfaceName: ifaceName,
+			methods:       methods,
+			definition:    def,
+			targetCount:   len(targetNames),
+			matchScore:    matchScore,
+		}
+		i.implMethods[targetName] = append(i.implMethods[targetName], entry)
+	}
+	// Expose named impls as values (future work). For now, only register behaviourally.
+	_ = ifaceDef
+	return runtime.NilValue{}, nil
+}
+
+func (i *Interpreter) evaluateMethodsDefinition(def *ast.MethodsDefinition, env *runtime.Environment) (runtime.Value, error) {
+	simpleType, ok := def.TargetType.(*ast.SimpleTypeExpression)
+	if !ok || simpleType.Name == nil {
+		return nil, fmt.Errorf("MethodsDefinition requires simple target type")
+	}
+	typeName := simpleType.Name.Name
+	bucket, ok := i.inherentMethods[typeName]
+	if !ok {
+		bucket = make(map[string]*runtime.FunctionValue)
+		i.inherentMethods[typeName] = bucket
+	}
+	for _, fn := range def.Definitions {
+		if fn == nil || fn.ID == nil {
+			return nil, fmt.Errorf("Method definition requires identifier")
+		}
+		bucket[fn.ID.Name] = &runtime.FunctionValue{Declaration: fn, Closure: env}
+	}
 	return runtime.NilValue{}, nil
 }
 
@@ -830,8 +1133,14 @@ func (i *Interpreter) evaluateMemberAccess(expr *ast.MemberAccessExpression, env
 		return nil, err
 	}
 	switch v := obj.(type) {
+	case *runtime.StructDefinitionValue:
+		return i.structDefinitionMember(v, expr.Member)
+	case runtime.StructDefinitionValue:
+		return i.structDefinitionMember(&v, expr.Member)
 	case *runtime.StructInstanceValue:
 		return i.structInstanceMember(v, expr.Member)
+	case *runtime.InterfaceValue:
+		return i.interfaceMember(v, expr.Member)
 	default:
 		return nil, fmt.Errorf("Member access only supported on structs/arrays in this milestone")
 	}
@@ -847,6 +1156,25 @@ func (i *Interpreter) structInstanceMember(inst *runtime.StructInstanceValue, me
 		}
 		if val, ok := inst.Fields[ident.Name]; ok {
 			return val, nil
+		}
+		if inst.Definition == nil || inst.Definition.Node == nil || inst.Definition.Node.ID == nil {
+			return nil, fmt.Errorf("No field or method named '%s'", ident.Name)
+		}
+		typeName := inst.Definition.Node.ID.Name
+		if bucket, ok := i.inherentMethods[typeName]; ok {
+			if method, ok := bucket[ident.Name]; ok {
+				if fnDef, ok := method.Declaration.(*ast.FunctionDefinition); ok && fnDef.IsPrivate {
+					return nil, fmt.Errorf("Method '%s' on %s is private", ident.Name, typeName)
+				}
+				return &runtime.BoundMethodValue{Receiver: inst, Method: method}, nil
+			}
+		}
+		method, err := i.selectStructMethod(typeName, ident.Name)
+		if err != nil {
+			return nil, err
+		}
+		if method != nil {
+			return &runtime.BoundMethodValue{Receiver: inst, Method: method}, nil
 		}
 		return nil, fmt.Errorf("No field or method named '%s'", ident.Name)
 	}
@@ -864,6 +1192,65 @@ func (i *Interpreter) structInstanceMember(inst *runtime.StructInstanceValue, me
 		return inst.Positional[idx], nil
 	}
 	return nil, fmt.Errorf("Member access only supported on structs/arrays in this milestone")
+}
+
+func (i *Interpreter) structDefinitionMember(def *runtime.StructDefinitionValue, member ast.Expression) (runtime.Value, error) {
+	ident, ok := member.(*ast.Identifier)
+	if !ok {
+		return nil, fmt.Errorf("Static access expects identifier member")
+	}
+	if def == nil || def.Node == nil || def.Node.ID == nil {
+		return nil, fmt.Errorf("struct definition missing identifier")
+	}
+	typeName := def.Node.ID.Name
+	bucket := i.inherentMethods[typeName]
+	if bucket == nil {
+		return nil, fmt.Errorf("No static method '%s' for %s", ident.Name, typeName)
+	}
+	method, ok := bucket[ident.Name]
+	if !ok {
+		return nil, fmt.Errorf("No static method '%s' for %s", ident.Name, typeName)
+	}
+	if fnDef, ok := method.Declaration.(*ast.FunctionDefinition); ok && fnDef.IsPrivate {
+		return nil, fmt.Errorf("Method '%s' on %s is private", ident.Name, typeName)
+	}
+	return method, nil
+}
+
+func (i *Interpreter) interfaceMember(val *runtime.InterfaceValue, member ast.Expression) (runtime.Value, error) {
+	if val == nil {
+		return nil, fmt.Errorf("Interface value is nil")
+	}
+	ident, ok := member.(*ast.Identifier)
+	if !ok {
+		return nil, fmt.Errorf("Interface member access expects identifier")
+	}
+	ifaceName := ""
+	if val.Interface != nil && val.Interface.Node != nil && val.Interface.Node.ID != nil {
+		ifaceName = val.Interface.Node.ID.Name
+	}
+	if ifaceName == "" {
+		return nil, fmt.Errorf("Unknown interface for member access")
+	}
+	var method *runtime.FunctionValue
+	if val.Methods != nil {
+		method = val.Methods[ident.Name]
+	}
+	if method == nil {
+		// Try to resolve lazily in case Methods map not populated
+		if structName, ok := i.getTypeNameForValue(val.Underlying); ok {
+			if entry, ok := i.lookupImplEntry(structName, ifaceName); ok {
+				method = entry.methods[ident.Name]
+			}
+		}
+	}
+	if method == nil {
+		return nil, fmt.Errorf("No method '%s' for interface %s", ident.Name, ifaceName)
+	}
+	if fnDef, ok := method.Declaration.(*ast.FunctionDefinition); ok && fnDef.IsPrivate {
+		return nil, fmt.Errorf("Method '%s' on %s is private", ident.Name, ifaceName)
+	}
+	return &runtime.BoundMethodValue{Receiver: val.Underlying, Method: method}, nil
 }
 
 func toStructDefinitionValue(val runtime.Value, name string) (*runtime.StructDefinitionValue, error) {
@@ -1016,6 +1403,122 @@ func declareOrAssign(env *runtime.Environment, name string, value runtime.Value,
 	return env.Assign(name, value)
 }
 
+func (i *Interpreter) getTypeNameForValue(value runtime.Value) (string, bool) {
+	switch v := value.(type) {
+	case *runtime.StructInstanceValue:
+		if v.Definition != nil && v.Definition.Node != nil && v.Definition.Node.ID != nil {
+			return v.Definition.Node.ID.Name, true
+		}
+	case *runtime.InterfaceValue:
+		return i.getTypeNameForValue(v.Underlying)
+	}
+	return "", false
+}
+
+func (i *Interpreter) lookupImplEntry(structName, interfaceName string) (*implEntry, bool) {
+	entries := i.implMethods[structName]
+	bestIdx := -1
+	for idx := range entries {
+		entry := entries[idx]
+		if entry.interfaceName != interfaceName {
+			continue
+		}
+		score := entry.matchScore
+		if score == 0 {
+			score = entry.targetCount
+		}
+		if bestIdx == -1 {
+			bestIdx = idx
+			entries[bestIdx].matchScore = score
+			continue
+		}
+		currentScore := entries[bestIdx].matchScore
+		if currentScore == 0 {
+			currentScore = entries[bestIdx].targetCount
+		}
+		if score < currentScore {
+			bestIdx = idx
+			entries[bestIdx].matchScore = score
+		} else if score == currentScore {
+			// ambiguous; prefer to signal absence so callers can raise an error later
+			return nil, false
+		}
+	}
+	if bestIdx == -1 {
+		return nil, false
+	}
+	i.implMethods[structName] = entries
+	return &entries[bestIdx], true
+}
+
+func (i *Interpreter) interfaceMatches(val *runtime.InterfaceValue, interfaceName string) bool {
+	if val == nil {
+		return false
+	}
+	if val.Interface != nil && val.Interface.Node != nil && val.Interface.Node.ID != nil {
+		if val.Interface.Node.ID.Name == interfaceName {
+			return true
+		}
+	}
+	if structName, ok := i.getTypeNameForValue(val.Underlying); ok {
+		_, ok := i.lookupImplEntry(structName, interfaceName)
+		return ok
+	}
+	return false
+}
+
+func (i *Interpreter) selectStructMethod(typeName, methodName string) (*runtime.FunctionValue, error) {
+	entries := i.implMethods[typeName]
+	bestScore := int(^uint(0) >> 1)
+	var selected *runtime.FunctionValue
+	ambiguous := false
+	for idx := range entries {
+		entry := &entries[idx]
+		method := entry.methods[methodName]
+		if method == nil {
+			if ifaceDef, ok := i.interfaces[entry.interfaceName]; ok && ifaceDef.Node != nil {
+				for _, sig := range ifaceDef.Node.Signatures {
+					if sig == nil || sig.Name == nil || sig.Name.Name != methodName || sig.DefaultImpl == nil {
+						continue
+					}
+					defaultDef := ast.NewFunctionDefinition(sig.Name, sig.Params, sig.DefaultImpl, sig.ReturnType, sig.GenericParams, sig.WhereClause, false, false)
+					method = &runtime.FunctionValue{Declaration: defaultDef, Closure: ifaceDef.Env}
+					if entry.methods == nil {
+						entry.methods = make(map[string]*runtime.FunctionValue)
+					}
+					entry.methods[methodName] = method
+					break
+				}
+			}
+		}
+		if method == nil {
+			continue
+		}
+		score := entry.matchScore
+		if score == 0 {
+			score = entry.targetCount
+		}
+		if score < bestScore {
+			bestScore = score
+			selected = method
+			ambiguous = false
+		} else if score == bestScore {
+			ambiguous = true
+		}
+	}
+	i.implMethods[typeName] = entries
+	if selected == nil {
+		return nil, nil
+	}
+	if ambiguous {
+		return nil, fmt.Errorf("Ambiguous method '%s' for type '%s'", methodName, typeName)
+	}
+	if fnDef, ok := selected.Declaration.(*ast.FunctionDefinition); ok && fnDef.IsPrivate {
+		return nil, fmt.Errorf("Method '%s' on %s is private", methodName, typeName)
+	}
+	return selected, nil
+}
+
 func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Value) bool {
 	switch t := typeExpr.(type) {
 	case *ast.WildcardTypeExpression:
@@ -1051,6 +1554,21 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 			_, ok := value.(runtime.ErrorValue)
 			return ok
 		default:
+			if _, ok := i.interfaces[name]; ok {
+				switch v := value.(type) {
+				case *runtime.InterfaceValue:
+					return i.interfaceMatches(v, name)
+				case runtime.InterfaceValue:
+					return i.interfaceMatches(&v, name)
+				default:
+					if structName, ok := i.getTypeNameForValue(value); ok {
+						if _, ok := i.lookupImplEntry(structName, name); ok {
+							return true
+						}
+					}
+					return false
+				}
+			}
 			if structVal, ok := value.(*runtime.StructInstanceValue); ok {
 				if structVal.Definition != nil && structVal.Definition.Node != nil && structVal.Definition.Node.ID != nil {
 					return structVal.Definition.Node.ID.Name == name
@@ -1099,8 +1617,46 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 }
 
 func (i *Interpreter) coerceValueToType(typeExpr ast.TypeExpression, value runtime.Value) (runtime.Value, error) {
-	// Future work: coerce to interface values or other wrappers when the runtime supports them.
+	switch t := typeExpr.(type) {
+	case *ast.SimpleTypeExpression:
+		if t.Name != nil {
+			name := t.Name.Name
+			if _, ok := i.interfaces[name]; ok {
+				return i.coerceToInterfaceValue(name, value)
+			}
+		}
+	}
 	return value, nil
+}
+
+func (i *Interpreter) coerceToInterfaceValue(interfaceName string, value runtime.Value) (runtime.Value, error) {
+	if ifaceVal, ok := value.(*runtime.InterfaceValue); ok {
+		if i.interfaceMatches(ifaceVal, interfaceName) {
+			return value, nil
+		}
+	}
+	if ifaceVal, ok := value.(runtime.InterfaceValue); ok {
+		if i.interfaceMatches(&ifaceVal, interfaceName) {
+			return value, nil
+		}
+	}
+	ifaceDef, ok := i.interfaces[interfaceName]
+	if !ok {
+		return nil, fmt.Errorf("Interface '%s' is not defined", interfaceName)
+	}
+	structName, ok := i.getTypeNameForValue(value)
+	if !ok {
+		return nil, fmt.Errorf("Value does not implement interface %s", interfaceName)
+	}
+	entry, ok := i.lookupImplEntry(structName, interfaceName)
+	if !ok {
+		return nil, fmt.Errorf("Type '%s' does not implement interface %s", structName, interfaceName)
+	}
+	methods := make(map[string]*runtime.FunctionValue, len(entry.methods))
+	for name, fn := range entry.methods {
+		methods[name] = fn
+	}
+	return &runtime.InterfaceValue{Interface: ifaceDef, Underlying: value, Methods: methods}, nil
 }
 
 func rescueMatches(pattern ast.Pattern, err runtime.Value, env *runtime.Environment) bool {
