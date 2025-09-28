@@ -1,0 +1,101 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "arr"
+      },
+      "right": {
+        "type": "ArrayLiteral",
+        "elements": [
+          {
+            "type": "IntegerLiteral",
+            "value": 1
+          },
+          {
+            "type": "IntegerLiteral",
+            "value": 2
+          },
+          {
+            "type": "IntegerLiteral",
+            "value": 3
+          },
+          {
+            "type": "IntegerLiteral",
+            "value": 4
+          }
+        ]
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "ArrayPattern",
+        "elements": [
+          {
+            "type": "Identifier",
+            "name": "first"
+          },
+          {
+            "type": "Identifier",
+            "name": "second"
+          }
+        ],
+        "restPattern": {
+          "type": "Identifier",
+          "name": "rest"
+        }
+      },
+      "right": {
+        "type": "Identifier",
+        "name": "arr"
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "ArrayPattern",
+        "elements": [
+          {
+            "type": "Identifier",
+            "name": "third"
+          },
+          {
+            "type": "Identifier",
+            "name": "fourth"
+          }
+        ]
+      },
+      "right": {
+        "type": "Identifier",
+        "name": "rest"
+      }
+    },
+    {
+      "type": "BinaryExpression",
+      "operator": "+",
+      "left": {
+        "type": "Identifier",
+        "name": "first"
+      },
+      "right": {
+        "type": "BinaryExpression",
+        "operator": "+",
+        "left": {
+          "type": "Identifier",
+          "name": "second"
+        },
+        "right": {
+          "type": "Identifier",
+          "name": "third"
+        }
+      }
+    }
+  ]
+}

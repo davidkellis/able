@@ -3,21 +3,23 @@
 Able is an experimental programming language. This workspace hosts the Able v10 language specification, reference interpreters, and supporting tooling.
 
 ## Project Highlights
-- **Spec-first**: `spec/full_spec_v10.md` captures the current Able v10 semantics.
-- **Go reference interpreter**: `interpreter10-go/` (in progress) will be the canonical implementation of the v10 semantics, using Go-native concurrency primitives while matching the spec exactly.
-- **TypeScript interpreter**: `interpreter10/` remains a mature implementation and source of design inspiration; its AST definition (`src/ast.ts`) must stay structurally aligned with the Go AST.
+- **Spec-first**: `spec/full_spec_v10.md` captures the current Able v10 semantics and will ultimately codify the canonical AST structure plus its evaluation rules.
+- **Go reference interpreter**: `interpreter10-go/` (in progress) is the reference runtime for v10, but it must still match the specification exactly and stay behaviourally aligned with the other interpreters.
+- **TypeScript interpreter**: `interpreter10/` remains a mature implementation and source of design inspiration; its AST definition (`src/ast.ts`) must stay structurally aligned with the Go AST so both follow the same spec-defined contract.
+- **Canonical AST & semantics**: every Able v10 interpreter is expected to consume the same AST shapes and produce identical observable behaviour per the spec; divergence is treated as a spec or implementation bug.
 - **Future parser**: Once both interpreters align on the AST, a tree-sitter grammar will emit compatible nodes for all runtimes.
 
 ## Repository Layout
 - `spec/` — Language specs (v1–v10) and topic supplements.
+- `spec/todo.md` — Open items that must land in the canonical spec (keep in sync with design notes).
 - `interpreter10/` — Bun/TypeScript interpreter, tests, and AST builders.
 - `interpreter6/`, `old/compiler/`, `old/design/` — Historical artifacts and explorations.
 - `examples/`, `stdlib*/` — Sample programs and standard library sketches used in conformance work.
 - `README.md`, `PLAN.md`, `AGENTS.md` — Workspace docs you are reading now.
 
 ## How We Work
-1. Start with the spec. Treat it as source of truth and update it when semantics change.
-2. Keep the AST structure identical across interpreters, with the Go definitions serving as canonical. Document any mismatches and schedule fixes immediately.
+1. Start with the spec. Treat it as source of truth—if behaviour changes, update the spec (including the canonical AST contract) before or alongside code.
+2. Keep the AST structure identical across interpreters, with the Go definitions serving as canonical while remaining faithful to the spec. Document any mismatches and schedule fixes immediately.
 3. Mirror features and tests between interpreters so behavior stays consistent.
 4. Use `PLAN.md` for roadmap updates and `AGENTS.md` for onboarding guidance.
 
