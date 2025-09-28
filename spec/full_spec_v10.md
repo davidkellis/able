@@ -437,6 +437,9 @@ Create a new instance based on others using `...Source`. Later sources/fields ov
 StructType { ...Source1, ...Source2, FieldOverride: NewValue, ... }
 addr = Address { ...base_addr, zip: "90210" }
 ```
+-   The source must be an instance of the same struct type (after type argument substitution). Mixing types is an error (`"Functional update source must be same struct type"`).
+-   Only named structs support functional updates. Attempting to spread a positional struct raises `"Functional update only supported for named structs"`.
+-   Fields provided explicitly override the copied fields; shorthand initializers follow the same rule. The source instance is not mutated.
 
 ##### Field Mutation
 Modify fields in-place using assignment (`=`). Requires the binding (`instance`) to be mutable.
@@ -476,6 +479,7 @@ first = pair.0 ## Accesses 10
 second = pair.1 ## Accesses 20
 ```
 Compile-time error preferred for invalid literal indices. Runtime error otherwise.
+-   The number of values supplied in a positional literal must match the field count. Otherwise evaluation raises `"Struct 'Identifier' expects N fields, got M"`.
 
 ##### Functional Update
 Not supported via `...Source` syntax for positional structs. Create new instances explicitly.
@@ -778,7 +782,7 @@ Destructures instances of structs defined with named fields.
     { x: existing_x, y: existing_y } = Point { x: 5.0, y: 6.0 } ## Assigns 5.0 to existing_x, 6.0 to existing_y
     { id: new_id, name: new_name } := u ## Declare new_id, new_name in current scope
     ```
-*   **Semantics**: Matches fields by name. If `StructTypeName` is present, checks if the `Expression` value is of that type. Fails if a field mentioned in the pattern doesn't exist in the value.
+*   **Semantics**: Matches fields by name. If `StructTypeName` is present, the value must be an instance of that struct type; otherwise evaluation fails (`"struct type mismatch in destructuring"`). Each referenced field must exist (`"Missing field 'name' during destructuring"`).
 
 #### 5.2.4. Struct Pattern (Positional Fields / Named Tuples)
 
@@ -808,7 +812,7 @@ Destructures instances of structs defined with positional fields.
     { existing_a, existing_b } = IntPair { 100, 200 } ## Assigns 100 to existing_a, 200 to existing_b
     { new_x, new_y, new_z } := coord ## Declare new_x, new_y, new_z in current scope
     ```
-*   **Semantics**: Matches fields by position. If `StructTypeName` is present, checks the type. Fails if the number of patterns does not match the number of fields in the value's type.
+*   **Semantics**: Matches fields by position. If `StructTypeName` is present, the value must be an instance of that struct type; otherwise the match fails. The number of patterns must equal the field arity (`"struct field count mismatch in destructuring"`). Patterns expect positional instances (`"expected positional struct value"`).
 
 #### 5.2.5. Array Pattern
 
@@ -835,7 +839,7 @@ Destructures instances of the built-in `Array` type.
     ##       Typically, '=' would assign to existing elements by index/pattern.
     [existing_head, element_1] = [1, 2] ## Assigns 1 to existing_head; element_1 must already exist
     ```
-*   **Semantics**: Matches elements by position. Fails if the array has fewer elements than required by the non-rest patterns.
+*   **Semantics**: Matches elements by position. Fails if the array has fewer elements than required by the non-rest patterns. Rest patterns must be identifiers or `_`; other forms raise `"unsupported rest pattern type"`.
 *   **Mutability:** Array elements themselves are mutable (via index assignment `arr[idx] = val`). Requires `Array` type to support `IndexMut` interface (TBD).
 
 #### 5.2.6. Nested Patterns
@@ -859,7 +863,7 @@ Typed patterns refine a match by requiring the value to conform to a given type.
 
 Typed patterns in `:=`/`=`:
 
-- Typed patterns are also permitted on the left-hand side of `:=` and `=` within struct, array, or standalone identifier patterns. The assignment/declaration succeeds only if the runtime value conforms to the annotated type; otherwise, per §5.3 the expression yields an `Error` value.
+- Typed patterns are also permitted on the left-hand side of `:=` and `=` within struct, array, or standalone identifier patterns. The assignment/declaration succeeds only if the runtime value conforms to the annotated type; otherwise evaluation raises `"Typed pattern mismatch in assignment"`.
 
 ``` able
 ## Union destructuring with typed pattern in assignment
@@ -1999,12 +2003,12 @@ Initiates an early exit targeting a labeled `breakpoint` block.
 ##### Syntax
 
 ```able
-break 'LabelName ValueExpression
+break ['LabelName] [ValueExpression]
 ```
 
 -   **`break`**: Keyword.
--   **`'LabelName`**: The label identifying the target `breakpoint` block. Must match a lexically enclosing `breakpoint`. Compile error if not found.
--   **`ValueExpression`**: Expression whose result becomes the value of the exited `breakpoint` block.
+-   **`'LabelName`** (optional): A label identifying a target `breakpoint`. When present, must match a lexically enclosing `breakpoint`. When omitted inside a loop, the loop itself is the target.
+-   **`ValueExpression`** (optional): Expression whose result becomes the value of the exited construct. Defaults to `nil` when omitted.
 
 #### 8.3.3. Semantics
 
@@ -2013,10 +2017,11 @@ break 'LabelName ValueExpression
     *   If execution finishes normally, the `breakpoint` expression evaluates to the result of the *last expression* in `ExpressionList`.
     *   If a `break 'LabelName ...` targeting this block occurs during execution (possibly in nested calls), execution stops immediately.
 2.  **`break` Execution**:
-    *   Finds the innermost lexically enclosing `breakpoint` with the matching `'LabelName`.
-    *   Evaluates `ValueExpression`.
-    *   Unwinds the call stack up to the target `breakpoint` block.
-    *   Causes the target `breakpoint` expression itself to evaluate to the result of `ValueExpression`.
+    *   If a label is provided, finds the innermost lexically enclosing `breakpoint` with the matching `'LabelName`; otherwise, targets the innermost loop.
+    *   Evaluates `ValueExpression` (or `nil` if omitted).
+    *   Unwinds the call stack up to the target construct.
+    *   Causes the target expression (loop or `breakpoint`) to evaluate to the result of `ValueExpression` (or `nil`).
+    *   Labeled breaks targeting loops are not permitted in this revision and must raise an implementation error.
 3.  **Type Compatibility**: The type of the `breakpoint` expression must be compatible with both the type of its block's final expression *and* the type(s) of the `ValueExpression`(s) from any `break` statements targeting it.
     *   Unification follows the same rules as `if/or` (C1, N1, R1/R2, E1). All normal block exits and `break` payloads are unified to produce the `breakpoint` expression's type (B1).
 
@@ -3569,3 +3574,8 @@ extern ruby fn new_uuid() -> string { SecureRandom.uuid }
 * Shared Data in Concurrency (12.5): Unresolved—awaiting "races and ownership patterns" note with examples.
 * HKTs/Variance/Coercion: Unresolved—awaiting minimal rules.
 * Self Interpretation (10.1.3): Unresolved—no recursive details yet.
+
+### 8.3.5. Loop Break Result
+
+Break statements without a label target the innermost loop. The loop evaluates to the break value (or `nil` if the break omits a value). When the loop completes normally, the loop expression evaluates to the last expression in the loop body (or `nil` for an empty body).
+

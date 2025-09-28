@@ -11,6 +11,8 @@
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "bun test"
+    "test": "bun test",
+    "export:fixtures": "bun run scripts/export-fixtures.ts",
+    "test:fixtures": "bun run scripts/run-fixtures.ts"
   }
 }

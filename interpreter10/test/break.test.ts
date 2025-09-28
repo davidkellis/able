@@ -12,7 +12,7 @@ describe("v10 interpreter - break statement", () => {
         AST.assignmentExpression("=", AST.identifier("i"), AST.binaryExpression("+", AST.identifier("i"), AST.integerLiteral(1))),
         AST.ifExpression(
           AST.binaryExpression("==", AST.identifier("i"), AST.integerLiteral(3)),
-          AST.blockExpression([AST.breakStatement("label" as any, AST.integerLiteral(0) as any) as any]),
+          AST.blockExpression([AST.breakStatement(undefined, AST.integerLiteral(0))]),
           []
         )
       ])
@@ -21,5 +21,4 @@ describe("v10 interpreter - break statement", () => {
     expect(I.evaluate(AST.identifier("i"))).toEqual({ kind: 'i32', value: 3 });
   });
 });
-
 

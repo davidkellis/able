@@ -1,0 +1,9 @@
+{
+  "description": "Rescue guard selects matching clause",
+  "expect": {
+    "result": {
+      "kind": "nil"
+    }
+  },
+  "entry": "module.json"
+}

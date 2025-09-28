@@ -1,0 +1,40 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "value"
+      },
+      "right": {
+        "type": "StringLiteral",
+        "value": "nope"
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "TypedPattern",
+        "pattern": {
+          "type": "Identifier",
+          "name": "n"
+        },
+        "typeAnnotation": {
+          "type": "SimpleTypeExpression",
+          "name": {
+            "type": "Identifier",
+            "name": "i32"
+          }
+        }
+      },
+      "right": {
+        "type": "Identifier",
+        "name": "value"
+      }
+    }
+  ]
+}

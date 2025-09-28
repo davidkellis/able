@@ -47,7 +47,11 @@ class ReturnSignal extends Error {
 class RaiseSignal extends Error {
   constructor(public value: V10Value) { super("RaiseSignal"); }
 }
-class BreakSignalShim extends Error { constructor(){ super("BreakSignal"); } }
+class BreakSignal extends Error {
+  constructor(public label: string | null, public value: V10Value) {
+    super("BreakSignal");
+  }
+}
 class BreakLabelSignal extends Error { constructor(public label: string, public value: V10Value){ super("BreakLabelSignal"); } }
 class ProcYieldSignal extends Error { constructor(){ super("ProcYieldSignal"); } }
 
@@ -356,31 +360,34 @@ export class InterpreterV10 {
       // --- While ---
       case "WhileLoop": {
         const wl = node as AST.WhileLoop;
+        let result: V10Value = { kind: "nil", value: null };
         while (true) {
           const c = this.evaluate(wl.condition, env);
-          if (!this.isTruthy(c)) break;
+          if (!this.isTruthy(c)) {
+            return result;
+          }
           const bodyEnv = new Environment(env);
           try {
-            this.evaluate(wl.body, bodyEnv);
+            result = this.evaluate(wl.body, bodyEnv);
           } catch (e) {
-            if ((e as any) instanceof BreakSignalShim) break;
+            if (e instanceof BreakSignal) {
+              if (e.label) throw new Error("Labeled break not supported");
+              return e.value;
+            }
             if (e instanceof BreakLabelSignal) throw e;
             throw e;
           }
         }
-        return { kind: "nil", value: null };
       }
 
       case "BreakStatement": {
         const br = node as AST.BreakStatement;
-        const labelName = br.label.name;
-        // If targeting an active breakpoint label, throw labeled break with value
-        if (this.breakpointStack.includes(labelName)) {
-          const val = this.evaluate(br.value, env);
-          throw new BreakLabelSignal(labelName, val);
+        const labelName = br.label ? br.label.name : null;
+        const value = br.value ? this.evaluate(br.value, env) : { kind: "nil", value: null };
+        if (labelName && this.breakpointStack.includes(labelName)) {
+          throw new BreakLabelSignal(labelName, value);
         }
-        // Otherwise treat as loop break
-        throw new BreakSignalShim();
+        throw new BreakSignal(labelName, value);
       }
 
       // --- For --- (arrays & ranges)
@@ -400,32 +407,53 @@ export class InterpreterV10 {
           this.assignByPattern(fl.pattern as AST.Pattern, value, targetEnv, true);
         };
 
+        const values: V10Value[] = [];
         if (iterable.kind === "array") {
-          for (const el of iterable.elements) {
-            const iterEnv = new Environment(bodyEnvBase);
-            bindPattern(el, iterEnv);
-            this.evaluate(fl.body, iterEnv);
-          }
-          return { kind: "nil", value: null };
-        }
-        if (iterable.kind === "range") {
-          const step = iterable.start <= iterable.end ? 1 : -1;
-          if (step > 0) {
-            for (let i = iterable.start; i < (iterable.inclusive ? iterable.end + 1 : iterable.end); i += 1) {
-              const iterEnv = new Environment(bodyEnvBase);
-              bindPattern({ kind: "i32", value: i }, iterEnv);
-              this.evaluate(fl.body, iterEnv);
+          values.push(...iterable.elements);
+        } else if (iterable.kind === "range") {
+          const toEndpoint = (value: number): number => {
+            if (!Number.isFinite(value)) throw new Error("Range endpoint must be finite");
+            return Math.trunc(value);
+          };
+          const start = toEndpoint(iterable.start);
+          const end = toEndpoint(iterable.end);
+          const step = start <= end ? 1 : -1;
+          for (let current = start; ; current += step) {
+            if (step > 0) {
+              if (iterable.inclusive) {
+                if (current > end) break;
+              } else if (current >= end) {
+                break;
+              }
+            } else {
+              if (iterable.inclusive) {
+                if (current < end) break;
+              } else if (current <= end) {
+                break;
+              }
             }
-          } else {
-            for (let i = iterable.start; i > (iterable.inclusive ? iterable.end - 1 : iterable.end); i -= 1) {
-              const iterEnv = new Environment(bodyEnvBase);
-              bindPattern({ kind: "i32", value: i }, iterEnv);
-              this.evaluate(fl.body, iterEnv);
-            }
+            values.push({ kind: "i32", value: current });
           }
-          return { kind: "nil", value: null };
+        } else {
+          throw new Error("ForLoop iterable must be array or range");
         }
-        throw new Error("ForLoop iterable must be array or range");
+
+        let result: V10Value = { kind: "nil", value: null };
+        for (const el of values) {
+          const iterEnv = new Environment(bodyEnvBase);
+          bindPattern(el, iterEnv);
+          try {
+            result = this.evaluate(fl.body, iterEnv);
+          } catch (e) {
+            if (e instanceof BreakSignal) {
+              if (e.label) throw new Error("Labeled break not supported");
+              return e.value;
+            }
+            if (e instanceof BreakLabelSignal) throw e;
+            throw e;
+          }
+        }
+        return result;
       }
 
       // --- Match ---

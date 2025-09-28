@@ -14,7 +14,7 @@ describe("v10 interpreter - labeled breakpoint/break", () => {
           AST.assignmentExpression("=", AST.identifier("sum"), AST.binaryExpression("+", AST.identifier("sum"), AST.identifier("n"))),
           AST.ifExpression(
             AST.binaryExpression("==", AST.identifier("n"), AST.integerLiteral(3)),
-            AST.blockExpression([AST.breakStatement("exit" as any, AST.stringLiteral("done") as any) as any]),
+            AST.blockExpression([AST.breakStatement("exit", AST.stringLiteral("done"))]),
             []
           )
         ])
@@ -37,5 +37,4 @@ describe("v10 interpreter - labeled breakpoint/break", () => {
     expect(res).toEqual({ kind: "i32", value: 2 });
   });
 });
-
 
