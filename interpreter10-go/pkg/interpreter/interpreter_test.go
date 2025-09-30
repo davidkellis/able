@@ -8,6 +8,14 @@ import (
 	"able/interpreter10-go/pkg/runtime"
 )
 
+func keysOf(m map[string]runtime.Value) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
 func TestEvaluateStringLiteral(t *testing.T) {
 	interp := New()
 	module := ast.Mod([]ast.Statement{ast.Str("hello")}, nil, nil)
@@ -73,6 +81,972 @@ func TestEvaluateBinaryAddition(t *testing.T) {
 	iv, ok := result.(runtime.IntegerValue)
 	if !ok || iv.Val.Cmp(bigInt(3)) != 0 {
 		t.Fatalf("expected integer 3, got %#v", result)
+	}
+}
+
+func TestStringInterpolationEvaluatesParts(t *testing.T) {
+	interp := New()
+	module := ast.Mod([]ast.Statement{
+		ast.Assign(ast.ID("x"), ast.Int(2)),
+		ast.Interp(
+			ast.Str("x = "),
+			ast.ID("x"),
+			ast.Str(", sum = "),
+			ast.Bin("+", ast.Int(3), ast.Int(4)),
+		),
+	}, nil, nil)
+
+	result, _, err := interp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	str, ok := result.(runtime.StringValue)
+	if !ok {
+		t.Fatalf("expected string result, got %#v", result)
+	}
+	if str.Val != "x = 2, sum = 7" {
+		t.Fatalf("unexpected interpolation output: %q", str.Val)
+	}
+}
+
+func TestStringInterpolationUsesToStringMethod(t *testing.T) {
+	interp := New()
+	module := ast.Mod([]ast.Statement{
+		ast.StructDef(
+			"Point",
+			[]*ast.StructFieldDefinition{
+				ast.FieldDef(ast.Ty("i32"), "x"),
+				ast.FieldDef(ast.Ty("i32"), "y"),
+			},
+			ast.StructKindNamed,
+			nil,
+			nil,
+			false,
+		),
+		ast.Methods(
+			ast.Ty("Point"),
+			[]*ast.FunctionDefinition{
+				ast.Fn(
+					"to_string",
+					[]*ast.FunctionParameter{ast.Param("self", nil)},
+					[]ast.Statement{
+						ast.Ret(ast.Interp(
+							ast.Str("Point("),
+							ast.Member(ast.ID("self"), "x"),
+							ast.Str(","),
+							ast.Member(ast.ID("self"), "y"),
+							ast.Str(")"),
+						)),
+					},
+					nil,
+					nil,
+					nil,
+					false,
+					false,
+				),
+			},
+			nil,
+			nil,
+		),
+		ast.Assign(
+			ast.ID("p"),
+			ast.StructLit(
+				[]*ast.StructFieldInitializer{
+					ast.FieldInit(ast.Int(1), "x"),
+					ast.FieldInit(ast.Int(2), "y"),
+				},
+				false,
+				"Point",
+				nil,
+				nil,
+			),
+		),
+		ast.Interp(
+			ast.Str("P= "),
+			ast.ID("p"),
+		),
+	}, nil, nil)
+
+	result, _, err := interp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	str, ok := result.(runtime.StringValue)
+	if !ok {
+		t.Fatalf("expected string result, got %#v", result)
+	}
+	if str.Val != "P= Point(1,2)" {
+		t.Fatalf("unexpected interpolation output: %q", str.Val)
+	}
+}
+
+func TestMatchExpressionWithIdentifierAndLiteral(t *testing.T) {
+	interp := New()
+	module := ast.Mod([]ast.Statement{
+		ast.Match(
+			ast.Int(2),
+			ast.Mc(ast.LitP(ast.Int(1)), ast.Int(10)),
+			ast.Mc(ast.ID("x"), ast.Bin("+", ast.ID("x"), ast.Int(5))),
+		),
+	}, nil, nil)
+
+	result, _, err := interp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	intVal, ok := result.(runtime.IntegerValue)
+	if !ok || intVal.Val.Cmp(bigInt(7)) != 0 {
+		t.Fatalf("expected integer 7, got %#v", result)
+	}
+}
+
+func TestMatchExpressionStructGuard(t *testing.T) {
+	interp := New()
+	module := ast.Mod([]ast.Statement{
+		ast.StructDef(
+			"Point",
+			[]*ast.StructFieldDefinition{
+				ast.FieldDef(ast.Ty("i32"), "x"),
+				ast.FieldDef(ast.Ty("i32"), "y"),
+			},
+			ast.StructKindNamed,
+			nil,
+			nil,
+			false,
+		),
+		ast.Match(
+			ast.StructLit(
+				[]*ast.StructFieldInitializer{
+					ast.FieldInit(ast.Int(1), "x"),
+					ast.FieldInit(ast.Int(2), "y"),
+				},
+				false,
+				"Point",
+				nil,
+				nil,
+			),
+			ast.Mc(
+				ast.StructP([]*ast.StructPatternField{
+					ast.FieldP(ast.ID("a"), "x", nil),
+					ast.FieldP(ast.ID("b"), "y", nil),
+				}, false, "Point"),
+				ast.Bin("+", ast.ID("a"), ast.ID("b")),
+				ast.Bin(">", ast.ID("b"), ast.ID("a")),
+			),
+		),
+	}, nil, nil)
+
+	result, _, err := interp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	intVal, ok := result.(runtime.IntegerValue)
+	if !ok || intVal.Val.Cmp(bigInt(3)) != 0 {
+		t.Fatalf("expected integer 3, got %#v", result)
+	}
+}
+
+func TestOrElseExpressionHandlesRaise(t *testing.T) {
+	interp := New()
+	module := ast.Mod([]ast.Statement{
+		ast.OrElse(
+			ast.Prop(ast.Block(ast.Raise(ast.Str("x")))),
+			"e",
+			ast.Str("handled"),
+		),
+	}, nil, nil)
+
+	result, _, err := interp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	str, ok := result.(runtime.StringValue)
+	if !ok || str.Val != "handled" {
+		t.Fatalf("expected 'handled', got %#v", result)
+	}
+}
+
+func TestRescueExpressionTypedPattern(t *testing.T) {
+	interp := New()
+	module := ast.Mod([]ast.Statement{
+		ast.Rescue(
+			ast.Block(
+				ast.Raise(ast.Str("boom")),
+			),
+			ast.Mc(
+				ast.TypedP(ast.ID("err"), ast.Ty("Error")),
+				ast.Str("caught"),
+			),
+		),
+	}, nil, nil)
+
+	result, _, err := interp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	str, ok := result.(runtime.StringValue)
+	if !ok || str.Val != "caught" {
+		t.Fatalf("expected 'caught', got %#v", result)
+	}
+}
+
+func TestEnsureExpressionRunsFinally(t *testing.T) {
+	interp := New()
+	module := ast.Mod([]ast.Statement{
+		ast.Assign(ast.ID("flag"), ast.Str("")),
+		ast.Assign(
+			ast.ID("value"),
+			ast.Ensure(
+				ast.Rescue(
+					ast.Block(ast.Raise(ast.Str("oops"))),
+					ast.Mc(ast.Wc(), ast.Str("rescued")),
+				),
+				ast.AssignOp(ast.AssignmentAssign, ast.ID("flag"), ast.Str("done")),
+			),
+		),
+		ast.ID("value"),
+	}, nil, nil)
+
+	result, env, err := interp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if str, ok := result.(runtime.StringValue); !ok || str.Val != "rescued" {
+		t.Fatalf("expected ensure to return 'rescued', got %#v", result)
+	}
+	rescued, err := env.Get("flag")
+	if err != nil {
+		t.Fatalf("expected binding for flag: %v", err)
+	}
+	if str, ok := rescued.(runtime.StringValue); !ok || str.Val != "done" {
+		t.Fatalf("expected final flag value 'done', got %#v", rescued)
+	}
+}
+
+func TestRethrowStatementBubblesToOuterRescue(t *testing.T) {
+	interp := New()
+	module := ast.Mod([]ast.Statement{
+		ast.Assign(
+			ast.ID("result"),
+			ast.Rescue(
+				ast.Rescue(
+					ast.Block(ast.Raise(ast.Str("oops"))),
+					ast.Mc(ast.Wc(), ast.Block(ast.Rethrow())),
+				),
+				ast.Mc(ast.Wc(), ast.Str("handled")),
+			),
+		),
+		ast.ID("result"),
+	}, nil, nil)
+
+	value, _, err := interp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if str, ok := value.(runtime.StringValue); !ok || str.Val != "handled" {
+		t.Fatalf("expected 'handled', got %#v", value)
+	}
+}
+
+func TestErrorPayloadDestructuring(t *testing.T) {
+	interp := New()
+	module := ast.Mod([]ast.Statement{
+		ast.Rescue(
+			ast.Block(ast.Raise(ast.Str("fail"))),
+			ast.Mc(
+				ast.StructP([]*ast.StructPatternField{
+					ast.FieldP(ast.ID("value"), "value", nil),
+				}, false, nil),
+				ast.Str("handled"),
+			),
+		),
+	}, nil, nil)
+
+	result, _, err := interp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if str, ok := result.(runtime.StringValue); !ok || str.Val != "handled" {
+		t.Fatalf("expected 'handled', got %#v", result)
+	}
+}
+
+func TestPackageWildcardImport(t *testing.T) {
+	interp := New()
+	modulePkg := ast.Mod([]ast.Statement{
+		ast.Fn(
+			"hello",
+			[]*ast.FunctionParameter{},
+			[]ast.Statement{ast.Ret(ast.Str("hi"))},
+			nil,
+			nil,
+			nil,
+			false,
+			false,
+		),
+		ast.Fn(
+			"secret",
+			[]*ast.FunctionParameter{},
+			[]ast.Statement{ast.Ret(ast.Str("nope"))},
+			nil,
+			nil,
+			nil,
+			false,
+			true,
+		),
+		ast.StructDef("Thing", nil, ast.StructKindNamed, nil, nil, false),
+		ast.StructDef("Hidden", nil, ast.StructKindNamed, nil, nil, true),
+		ast.Iface("PublicI", nil, nil, nil, nil, nil, false),
+		ast.Iface("HiddenI", nil, nil, nil, nil, nil, true),
+	}, nil, ast.Pkg([]interface{}{"example"}, false))
+
+	if _, _, err := interp.EvaluateModule(modulePkg); err != nil {
+		t.Fatalf("package module evaluation failed: %v", err)
+	}
+	if bucket, ok := interp.packageRegistry["example"]; ok {
+		if _, ok := bucket["Thing"]; !ok {
+			t.Fatalf("expected package registry to include struct 'Thing'")
+		}
+	}
+
+	moduleUse := ast.Mod(
+		[]ast.Statement{ast.Call("hello")},
+		[]*ast.ImportStatement{ast.Imp([]interface{}{"example"}, true, nil, nil)},
+		nil,
+	)
+
+	result, env, err := interp.EvaluateModule(moduleUse)
+	if err != nil {
+		t.Fatalf("consumer module evaluation failed: %v", err)
+	}
+	str, ok := result.(runtime.StringValue)
+	if !ok || str.Val != "hi" {
+		t.Fatalf("expected 'hi', got %#v", result)
+	}
+	if _, err := env.Get("secret"); err == nil {
+		t.Fatalf("expected private symbol to remain unavailable")
+	}
+}
+
+func TestPackageAliasFiltersPrivate(t *testing.T) {
+	interp := New()
+	modulePkg := ast.Mod([]ast.Statement{
+		ast.Fn(
+			"hello",
+			[]*ast.FunctionParameter{},
+			[]ast.Statement{ast.Ret(ast.Str("hi"))},
+			nil,
+			nil,
+			nil,
+			false,
+			false,
+		),
+		ast.Fn(
+			"secret",
+			[]*ast.FunctionParameter{},
+			[]ast.Statement{ast.Ret(ast.Str("nope"))},
+			nil,
+			nil,
+			nil,
+			false,
+			true,
+		),
+		ast.StructDef("Thing", nil, ast.StructKindNamed, nil, nil, false),
+		ast.StructDef("Hidden", nil, ast.StructKindNamed, nil, nil, true),
+		ast.Iface("PublicI", nil, nil, nil, nil, nil, false),
+		ast.Iface("HiddenI", nil, nil, nil, nil, nil, true),
+	}, nil, ast.Pkg([]interface{}{"example"}, false))
+
+	if _, _, err := interp.EvaluateModule(modulePkg); err != nil {
+		t.Fatalf("package module evaluation failed: %v", err)
+	}
+
+	moduleAlias := ast.Mod(
+		[]ast.Statement{
+			ast.Assign(ast.ID("result"), ast.CallExpr(ast.Member(ast.ID("pkg"), "hello"))),
+			ast.ID("result"),
+		},
+		[]*ast.ImportStatement{ast.Imp([]interface{}{"example"}, false, nil, "pkg")},
+		nil,
+	)
+
+	value, env, err := interp.EvaluateModule(moduleAlias)
+	if err != nil {
+		t.Fatalf("alias module evaluation failed: %v", err)
+	}
+	strResult, ok := value.(runtime.StringValue)
+	if !ok || strResult.Val != "hi" {
+		t.Fatalf("expected alias call to return 'hi', got %#v", value)
+	}
+	pkgValRaw, err := env.Get("pkg")
+	if err != nil {
+		t.Fatalf("expected package binding: %v", err)
+	}
+	pkgVal, ok := pkgValRaw.(runtime.PackageValue)
+	if !ok {
+		t.Fatalf("expected PackageValue, got %#v", pkgValRaw)
+	}
+	if _, ok := pkgVal.Public["hello"]; !ok {
+		t.Fatalf("expected public symbol 'hello' in package")
+	}
+	if _, ok := pkgVal.Public["secret"]; ok {
+		t.Fatalf("did not expect private symbol 'secret' to be exported")
+	}
+	if _, ok := pkgVal.Public["Thing"]; !ok {
+		t.Fatalf("expected public struct 'Thing' to be exported; got keys %#v", keysOf(pkgVal.Public))
+	}
+
+	if _, err := interp.evaluateExpression(ast.Member(ast.ID("pkg"), "secret"), env); err == nil {
+		t.Fatalf("expected private function access via alias to fail")
+	}
+	if _, err := interp.evaluateExpression(ast.Member(ast.ID("pkg"), "Hidden"), env); err == nil {
+		t.Fatalf("expected private struct access via alias to fail")
+	}
+
+	if _, err := interp.evaluateExpression(ast.Member(ast.ID("pkg"), "HiddenI"), env); err == nil {
+		t.Fatalf("expected private interface access via alias to fail")
+	}
+
+	if val, err := interp.evaluateExpression(ast.Member(ast.ID("pkg"), "Thing"), env); err != nil {
+		t.Fatalf("expected public struct access via alias to succeed: %v", err)
+	} else if _, ok := val.(*runtime.StructDefinitionValue); !ok {
+		t.Fatalf("expected struct definition through alias, got %#v", val)
+	}
+}
+
+func TestImportingPrivateFunctionFails(t *testing.T) {
+	interp := New()
+	packageModule := ast.Mod([]ast.Statement{
+		ast.Fn(
+			"secret",
+			[]*ast.FunctionParameter{},
+			[]ast.Statement{ast.Ret(ast.Int(1))},
+			nil,
+			nil,
+			nil,
+			false,
+			true,
+		),
+	}, nil, ast.Pkg([]interface{}{"core"}, false))
+
+	if _, _, err := interp.EvaluateModule(packageModule); err != nil {
+		t.Fatalf("package evaluation failed: %v", err)
+	}
+
+	importModule := ast.Mod(
+		[]ast.Statement{},
+		[]*ast.ImportStatement{ast.Imp([]interface{}{"core"}, false, []*ast.ImportSelector{ast.ImpSel("secret", "alias")}, nil)},
+		nil,
+	)
+
+	if _, _, err := interp.EvaluateModule(importModule); err == nil {
+		t.Fatalf("expected private import to fail")
+	} else {
+		expected := "Import error: function 'secret' is private"
+		if err.Error() != expected {
+			t.Fatalf("expected error %q, got %q", expected, err.Error())
+		}
+	}
+}
+
+func TestImportSelectorAliasBindsFunction(t *testing.T) {
+	interp := New()
+	packageModule := ast.Mod([]ast.Statement{
+		ast.Fn(
+			"foo",
+			nil,
+			[]ast.Statement{ast.Ret(ast.Int(42))},
+			nil,
+			nil,
+			nil,
+			false,
+			false,
+		),
+	}, nil, ast.Pkg([]interface{}{"core"}, false))
+
+	if _, _, err := interp.EvaluateModule(packageModule); err != nil {
+		t.Fatalf("package evaluation failed: %v", err)
+	}
+
+	selectors := []*ast.ImportSelector{ast.ImpSel("foo", "bar")}
+	consumer := ast.Mod(
+		[]ast.Statement{
+			ast.Assign(ast.ID("result"), ast.Call("bar")),
+			ast.ID("result"),
+		},
+		[]*ast.ImportStatement{ast.Imp([]interface{}{"core"}, false, selectors, nil)},
+		nil,
+	)
+
+	value, env, err := interp.EvaluateModule(consumer)
+	if err != nil {
+		t.Fatalf("consumer module evaluation failed: %v", err)
+	}
+	intVal, ok := value.(runtime.IntegerValue)
+	if !ok || intVal.Val.Cmp(bigInt(42)) != 0 {
+		t.Fatalf("expected 42 from alias call, got %#v", value)
+	}
+
+	aliasBinding, err := env.Get("bar")
+	if err != nil {
+		t.Fatalf("expected alias binding for 'bar': %v", err)
+	}
+	if aliasBinding.Kind() != runtime.KindFunction {
+		t.Fatalf("expected alias to bind a function, got %#v", aliasBinding)
+	}
+
+	if _, err := env.Get("foo"); err == nil {
+		t.Fatalf("original symbol 'foo' should not be bound after alias import")
+	}
+
+	resultBinding, err := env.Get("result")
+	if err != nil {
+		t.Fatalf("expected module binding for 'result': %v", err)
+	}
+	resultVal, ok := resultBinding.(runtime.IntegerValue)
+	if !ok || resultVal.Val.Cmp(bigInt(42)) != 0 {
+		t.Fatalf("expected result binding 42, got %#v", resultBinding)
+	}
+}
+
+func TestImportingPrivateStructFails(t *testing.T) {
+	interp := New()
+	packageModule := ast.Mod([]ast.Statement{
+		ast.StructDef("Hidden", nil, ast.StructKindNamed, nil, nil, true),
+		ast.StructDef("Public", nil, ast.StructKindNamed, nil, nil, false),
+	}, nil, ast.Pkg([]interface{}{"pkg"}, false))
+
+	if _, _, err := interp.EvaluateModule(packageModule); err != nil {
+		t.Fatalf("package evaluation failed: %v", err)
+	}
+
+	privateImport := ast.Mod(
+		[]ast.Statement{},
+		[]*ast.ImportStatement{ast.Imp([]interface{}{"pkg"}, false, []*ast.ImportSelector{ast.ImpSel("Hidden", nil)}, nil)},
+		nil,
+	)
+
+	if _, _, err := interp.EvaluateModule(privateImport); err == nil {
+		t.Fatalf("expected private struct import to fail")
+	} else {
+		expected := "Import error: struct 'Hidden' is private"
+		if err.Error() != expected {
+			t.Fatalf("expected error %q, got %q", expected, err.Error())
+		}
+	}
+
+	publicImport := ast.Mod(
+		[]ast.Statement{},
+		[]*ast.ImportStatement{ast.Imp([]interface{}{"pkg"}, false, []*ast.ImportSelector{ast.ImpSel("Public", "Pub")}, nil)},
+		nil,
+	)
+
+	_, env, err := interp.EvaluateModule(publicImport)
+	if err != nil {
+		t.Fatalf("public struct import should succeed: %v", err)
+	}
+	val, err := env.Get("Pub")
+	if err != nil {
+		t.Fatalf("expected alias binding: %v", err)
+	}
+	if _, ok := val.(*runtime.StructDefinitionValue); !ok {
+		t.Fatalf("expected StructDefinitionValue, got %#v", val)
+	}
+}
+
+func TestPrivateStaticMethodNotAccessible(t *testing.T) {
+	interp := New()
+	defModule := ast.Mod([]ast.Statement{
+		ast.StructDef(
+			"Point",
+			[]*ast.StructFieldDefinition{
+				ast.FieldDef(ast.Ty("i32"), "x"),
+				ast.FieldDef(ast.Ty("i32"), "y"),
+			},
+			ast.StructKindNamed,
+			nil,
+			nil,
+			false,
+		),
+		ast.Methods(
+			ast.Ty("Point"),
+			[]*ast.FunctionDefinition{
+				ast.Fn(
+					"hidden_static",
+					nil,
+					[]ast.Statement{
+						ast.Ret(
+							ast.StructLit(
+								[]*ast.StructFieldInitializer{
+									ast.FieldInit(ast.Int(0), "x"),
+									ast.FieldInit(ast.Int(0), "y"),
+								},
+								false,
+								"Point",
+								nil,
+								nil,
+							),
+						),
+					},
+					nil,
+					nil,
+					nil,
+					false,
+					true,
+				),
+				ast.Fn(
+					"origin",
+					nil,
+					[]ast.Statement{
+						ast.Ret(
+							ast.StructLit(
+								[]*ast.StructFieldInitializer{
+									ast.FieldInit(ast.Int(0), "x"),
+									ast.FieldInit(ast.Int(0), "y"),
+								},
+								false,
+								"Point",
+								nil,
+								nil,
+							),
+						),
+					},
+					nil,
+					nil,
+					nil,
+					false,
+					false,
+				),
+			},
+			nil,
+			nil,
+		),
+	}, nil, nil)
+
+	if _, _, err := interp.EvaluateModule(defModule); err != nil {
+		t.Fatalf("setup module evaluation failed: %v", err)
+	}
+
+	callHidden := ast.Mod([]ast.Statement{
+		ast.CallExpr(ast.Member(ast.ID("Point"), "hidden_static")),
+	}, nil, nil)
+
+	if _, _, err := interp.EvaluateModule(callHidden); err == nil {
+		t.Fatalf("expected private static method call to fail")
+	} else {
+		expected := "Method 'hidden_static' on Point is private"
+		if err.Error() != expected {
+			t.Fatalf("expected error %q, got %q", expected, err.Error())
+		}
+	}
+
+	callPublic := ast.Mod([]ast.Statement{
+		ast.CallExpr(ast.Member(ast.ID("Point"), "origin")),
+	}, nil, nil)
+
+	result, _, err := interp.EvaluateModule(callPublic)
+	if err != nil {
+		t.Fatalf("public static method call failed: %v", err)
+	}
+	if _, ok := result.(*runtime.StructInstanceValue); !ok {
+		t.Fatalf("expected struct instance result, got %#v", result)
+	}
+}
+
+func TestPrivateInstanceMethodNotAccessible(t *testing.T) {
+	interp := New()
+	defModule := ast.Mod([]ast.Statement{
+		ast.StructDef(
+			"Counter",
+			[]*ast.StructFieldDefinition{
+				ast.FieldDef(ast.Ty("i32"), "value"),
+			},
+			ast.StructKindNamed,
+			nil,
+			nil,
+			false,
+		),
+		ast.Methods(
+			ast.Ty("Counter"),
+			[]*ast.FunctionDefinition{
+				ast.Fn(
+					"hidden",
+					[]*ast.FunctionParameter{ast.Param("self", nil)},
+					[]ast.Statement{ast.Ret(ast.Int(1))},
+					nil,
+					nil,
+					nil,
+					false,
+					true,
+				),
+				ast.Fn(
+					"get",
+					[]*ast.FunctionParameter{ast.Param("self", nil)},
+					[]ast.Statement{
+						ast.Ret(ast.Member(ast.ID("self"), "value")),
+					},
+					nil,
+					nil,
+					nil,
+					false,
+					false,
+				),
+			},
+			nil,
+			nil,
+		),
+	}, nil, nil)
+
+	if _, _, err := interp.EvaluateModule(defModule); err != nil {
+		t.Fatalf("setup module evaluation failed: %v", err)
+	}
+
+	instanceModule := ast.Mod([]ast.Statement{
+		ast.Assign(
+			ast.ID("counter"),
+			ast.StructLit(
+				[]*ast.StructFieldInitializer{ast.FieldInit(ast.Int(5), "value")},
+				false,
+				"Counter",
+				nil,
+				nil,
+			),
+		),
+	}, nil, nil)
+
+	if _, _, err := interp.EvaluateModule(instanceModule); err != nil {
+		t.Fatalf("instance setup failed: %v", err)
+	}
+
+	callHidden := ast.Mod([]ast.Statement{
+		ast.CallExpr(ast.Member(ast.ID("counter"), "hidden")),
+	}, nil, nil)
+
+	if _, _, err := interp.EvaluateModule(callHidden); err == nil {
+		t.Fatalf("expected private instance method call to fail")
+	} else {
+		expected := "Method 'hidden' on Counter is private"
+		if err.Error() != expected {
+			t.Fatalf("expected error %q, got %q", expected, err.Error())
+		}
+	}
+
+	callPublic := ast.Mod([]ast.Statement{
+		ast.CallExpr(ast.Member(ast.ID("counter"), "get")),
+	}, nil, nil)
+
+	result, _, err := interp.EvaluateModule(callPublic)
+	if err != nil {
+		t.Fatalf("public instance method call failed: %v", err)
+	}
+	intResult, ok := result.(runtime.IntegerValue)
+	if !ok || intResult.Val.Cmp(bigInt(5)) != 0 {
+		t.Fatalf("expected 5 from get(), got %#v", result)
+	}
+}
+
+func TestImportingPrivateInterfaceFails(t *testing.T) {
+	interp := New()
+	packageModule := ast.Mod([]ast.Statement{
+		ast.Iface("HiddenI", nil, nil, nil, nil, nil, true),
+		ast.Iface("PublicI", nil, nil, nil, nil, nil, false),
+	}, nil, ast.Pkg([]interface{}{"pkg"}, false))
+
+	if _, _, err := interp.EvaluateModule(packageModule); err != nil {
+		t.Fatalf("package evaluation failed: %v", err)
+	}
+
+	privateImport := ast.Mod(
+		[]ast.Statement{},
+		[]*ast.ImportStatement{ast.Imp([]interface{}{"pkg"}, false, []*ast.ImportSelector{ast.ImpSel("HiddenI", nil)}, nil)},
+		nil,
+	)
+
+	if _, _, err := interp.EvaluateModule(privateImport); err == nil {
+		t.Fatalf("expected private interface import to fail")
+	} else {
+		expected := "Import error: interface 'HiddenI' is private"
+		if err.Error() != expected {
+			t.Fatalf("expected error %q, got %q", expected, err.Error())
+		}
+	}
+
+	publicImport := ast.Mod(
+		[]ast.Statement{},
+		[]*ast.ImportStatement{ast.Imp([]interface{}{"pkg"}, false, []*ast.ImportSelector{ast.ImpSel("PublicI", "PI")}, nil)},
+		nil,
+	)
+
+	_, env, err := interp.EvaluateModule(publicImport)
+	if err != nil {
+		t.Fatalf("public interface import should succeed: %v", err)
+	}
+	val, err := env.Get("PI")
+	if err != nil {
+		t.Fatalf("expected alias binding: %v", err)
+	}
+	if _, ok := val.(*runtime.InterfaceDefinitionValue); !ok {
+		t.Fatalf("expected InterfaceDefinitionValue, got %#v", val)
+	}
+}
+
+func TestDynImportSelectorsAndAlias(t *testing.T) {
+	interp := New()
+	packageModule := ast.Mod([]ast.Statement{
+		ast.Fn(
+			"f",
+			nil,
+			[]ast.Statement{ast.Ret(ast.Int(11))},
+			nil,
+			nil,
+			nil,
+			false,
+			false,
+		),
+		ast.Fn(
+			"hidden",
+			nil,
+			[]ast.Statement{ast.Ret(ast.Int(1))},
+			nil,
+			nil,
+			nil,
+			false,
+			true,
+		),
+	}, nil, ast.Pkg([]interface{}{"dynp"}, false))
+
+	if _, _, err := interp.EvaluateModule(packageModule); err != nil {
+		t.Fatalf("package evaluation failed: %v", err)
+	}
+
+	selectorsModule := ast.Mod([]ast.Statement{
+		ast.DynImp([]interface{}{"dynp"}, false, []*ast.ImportSelector{ast.ImpSel("f", "ff")}, nil),
+		ast.Assign(ast.ID("x"), ast.Call("ff")),
+	}, nil, nil)
+
+	value, _, err := interp.EvaluateModule(selectorsModule)
+	if err != nil {
+		t.Fatalf("dyn import selectors failed: %v", err)
+	}
+	intVal, ok := value.(runtime.IntegerValue)
+	if !ok || intVal.Val.Cmp(bigInt(11)) != 0 {
+		t.Fatalf("expected 11 from dyn selector, got %#v", value)
+	}
+
+	aliasModule := ast.Mod([]ast.Statement{
+		ast.DynImp([]interface{}{"dynp"}, false, nil, "D"),
+		ast.Assign(ast.ID("y"), ast.CallExpr(ast.Member(ast.ID("D"), "f"))),
+	}, nil, nil)
+
+	aliasResult, env, err := interp.EvaluateModule(aliasModule)
+	if err != nil {
+		t.Fatalf("dyn import alias failed: %v", err)
+	}
+	aliasInt, ok := aliasResult.(runtime.IntegerValue)
+	if !ok || aliasInt.Val.Cmp(bigInt(11)) != 0 {
+		t.Fatalf("expected 11 from dyn alias, got %#v", aliasResult)
+	}
+	aliasPkg, err := env.Get("D")
+	if err != nil {
+		t.Fatalf("expected dyn package alias binding: %v", err)
+	}
+	dynPkg, ok := aliasPkg.(runtime.DynPackageValue)
+	if !ok {
+		t.Fatalf("expected DynPackageValue for alias, got %#v", aliasPkg)
+	}
+	if dynPkg.Name != "dynp" {
+		t.Fatalf("expected dyn package name 'dynp', got %q", dynPkg.Name)
+	}
+	if len(dynPkg.NamePath) != 1 || dynPkg.NamePath[0] != "dynp" {
+		t.Fatalf("expected name path ['dynp'], got %#v", dynPkg.NamePath)
+	}
+}
+
+func TestDynImportWildcardSkipsPrivate(t *testing.T) {
+	interp := New()
+	packageModule := ast.Mod([]ast.Statement{
+		ast.Fn(
+			"f",
+			nil,
+			[]ast.Statement{ast.Ret(ast.Int(11))},
+			nil,
+			nil,
+			nil,
+			false,
+			false,
+		),
+		ast.Fn(
+			"hidden",
+			nil,
+			[]ast.Statement{ast.Ret(ast.Int(1))},
+			nil,
+			nil,
+			nil,
+			false,
+			true,
+		),
+	}, nil, ast.Pkg([]interface{}{"dynp"}, false))
+
+	if _, _, err := interp.EvaluateModule(packageModule); err != nil {
+		t.Fatalf("package evaluation failed: %v", err)
+	}
+
+	wildcardModule := ast.Mod([]ast.Statement{
+		ast.DynImp([]interface{}{"dynp"}, true, nil, nil),
+		ast.Assign(ast.ID("z"), ast.Call("f")),
+	}, nil, nil)
+
+	result, env, err := interp.EvaluateModule(wildcardModule)
+	if err != nil {
+		t.Fatalf("dyn wildcard import failed: %v", err)
+	}
+	intVal, ok := result.(runtime.IntegerValue)
+	if !ok || intVal.Val.Cmp(bigInt(11)) != 0 {
+		t.Fatalf("expected 11 from dyn wildcard, got %#v", result)
+	}
+	if env == nil {
+		env = interp.GlobalEnvironment()
+	}
+	if _, err := env.Get("hidden"); err == nil {
+		t.Fatalf("expected hidden not to be imported via wildcard")
+	}
+
+	moduleCheck := ast.Mod([]ast.Statement{ast.ID("hidden")}, nil, nil)
+	if _, _, err := interp.EvaluateModule(moduleCheck); err == nil {
+		t.Fatalf("expected evaluating hidden after dyn wildcard to fail")
+	}
+}
+
+func TestDynImportPrivateSelectorFails(t *testing.T) {
+	interp := New()
+	packageModule := ast.Mod([]ast.Statement{
+		ast.Fn(
+			"hidden",
+			nil,
+			[]ast.Statement{ast.Ret(ast.Int(1))},
+			nil,
+			nil,
+			nil,
+			false,
+			true,
+		),
+	}, nil, ast.Pkg([]interface{}{"dynp"}, false))
+
+	if _, _, err := interp.EvaluateModule(packageModule); err != nil {
+		t.Fatalf("package evaluation failed: %v", err)
+	}
+
+	privateSelector := ast.Mod([]ast.Statement{
+		ast.DynImp([]interface{}{"dynp"}, false, []*ast.ImportSelector{ast.ImpSel("hidden", nil)}, nil),
+	}, nil, nil)
+
+	if _, _, err := interp.EvaluateModule(privateSelector); err == nil {
+		t.Fatalf("expected dynimport of private symbol to fail")
+	} else {
+		expected := "dynimport error: function 'hidden' is private"
+		if err.Error() != expected {
+			t.Fatalf("expected error %q, got %q", expected, err.Error())
+		}
 	}
 }
 
@@ -145,6 +1119,67 @@ func TestForLoopArrayPattern(t *testing.T) {
 	sum, ok := result.(runtime.IntegerValue)
 	if !ok || sum.Val.Cmp(bigInt(4)) != 0 {
 		t.Fatalf("expected sum 4, got %#v", result)
+	}
+}
+
+func TestForLoopContinueSkipsElements(t *testing.T) {
+	interp := New()
+	module := ast.Mod([]ast.Statement{
+		ast.Assign(ast.ID("sum"), ast.Int(0)),
+		ast.ForLoopPattern(
+			ast.ID("x"),
+			ast.Arr(ast.Int(1), ast.Int(2), ast.Int(3)),
+			ast.Block(
+				ast.Iff(
+					ast.Bin("==", ast.ID("x"), ast.Int(2)),
+					ast.Block(ast.Cont(nil)),
+				),
+				ast.AssignOp(ast.AssignmentAssign, ast.ID("sum"), ast.Bin("+", ast.ID("sum"), ast.ID("x"))),
+			),
+		),
+		ast.ID("sum"),
+	}, nil, nil)
+
+	result, _, err := interp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	intVal, ok := result.(runtime.IntegerValue)
+	if !ok || intVal.Val.Cmp(bigInt(4)) != 0 {
+		t.Fatalf("expected 4 from continue loop, got %#v", result)
+	}
+}
+
+func TestBreakpointLabeledBreak(t *testing.T) {
+	interp := New()
+	module := ast.Mod([]ast.Statement{
+		ast.Assign(ast.ID("sum"), ast.Int(0)),
+		ast.Breakpoint(
+			"exit",
+			ast.Block(
+				ast.ForLoopPattern(
+					ast.ID("n"),
+					ast.Range(ast.Int(1), ast.Int(5), true),
+					ast.Block(
+						ast.AssignOp(ast.AssignmentAssign, ast.ID("sum"), ast.Bin("+", ast.ID("sum"), ast.ID("n"))),
+						ast.Iff(
+							ast.Bin("==", ast.ID("n"), ast.Int(3)),
+							ast.Block(ast.Brk("exit", ast.Str("done"))),
+						),
+					),
+				),
+				ast.Str("fallthrough"),
+			),
+		),
+	}, nil, nil)
+
+	result, _, err := interp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	str, ok := result.(runtime.StringValue)
+	if !ok || str.Val != "done" {
+		t.Fatalf("expected 'done', got %#v", result)
 	}
 }
 

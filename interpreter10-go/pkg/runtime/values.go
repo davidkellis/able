@@ -29,6 +29,8 @@ const (
 	KindInterfaceValue
 	KindUnionDefinition
 	KindPackage
+	KindDynPackage
+	KindDynRef
 	KindError
 	KindBoundMethod
 	KindNativeBoundMethod
@@ -71,6 +73,10 @@ func (k Kind) String() string {
 		return "union_def"
 	case KindPackage:
 		return "package"
+	case KindDynPackage:
+		return "dyn_package"
+	case KindDynRef:
+		return "dyn_ref"
 	case KindError:
 		return "error"
 	case KindBoundMethod:
@@ -276,6 +282,20 @@ type PackageValue struct {
 }
 
 func (v PackageValue) Kind() Kind { return KindPackage }
+
+type DynPackageValue struct {
+	NamePath []string
+	Name     string
+}
+
+func (v DynPackageValue) Kind() Kind { return KindDynPackage }
+
+type DynRefValue struct {
+	Package string
+	Name    string
+}
+
+func (v DynRefValue) Kind() Kind { return KindDynRef }
 
 type ErrorValue struct {
 	TypeName *ast.Identifier

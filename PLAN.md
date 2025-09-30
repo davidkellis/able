@@ -2,7 +2,7 @@
 
 ## Scope
 - Maintain a canonical Able v10 language definition across interpreters and tooling, with the written specification remaining the source of truth for behaviour.
-- Build and ship a Go reference interpreter that evaluates any AST produced by the v10 spec; this becomes the authoritative runtime implementation.
+- Prioritise the Go interpreter until it matches the TypeScript implementation feature-for-feature (the only intentional divergence is that Go uses goroutines/channels while TypeScript simulates concurrency with a cooperative scheduler).
 - Keep the TypeScript and Go AST representations structurally identical so tree-sitter output can feed either runtime (and future targets like Crystal); codify that AST contract inside the v10 specification once validated.
 - Document process and responsibilities so contributors can iterate confidently.
 
@@ -81,11 +81,26 @@ For each milestone: port representative TS tests into Go, add new cases where Go
 - **Future interpreters**: keep AST schema + conformance harness generic to support planned Crystal implementation.
 
 ## Immediate Next Actions
-1. Port the remaining struct scenarios from the TypeScript suite to Go (mutating fields, static methods, functional update edge cases) and mirror any missing TS coverage.
-2. Extend shared fixtures when new struct behaviour lands (e.g., functional update, method access) and keep both harnesses passing (`bun run scripts/run-fixtures.ts`, `go test ./pkg/interpreter`).
-3. Continue folding design-note behaviour into `spec/full_spec_v10.md` as milestones complete; add new todos to `spec/todo.md` when gaps appear.
+1. Finish module/import parity by implementing multi-hop re-export chains, nested manifest setups, and dyn-import metadata instrumentation so Go mirrors the remaining TS suites.
+2. Draft the Go concurrency scheduler design (goroutines vs cooperative TS scheduler) so the upcoming proc/spawn milestone can start with shared direction.
+3. Harden module privacy enforcement in Go (functions, structs, methods, interfaces), mirroring the TypeScript diagnostics before expanding dyn-import coverage.
+
+### Next steps (prioritized)
+1. **Go feature parity** – Work through the parity checklist and port any remaining TypeScript behaviours (modules/import privacy, advanced pattern matching, generics, interface resolution) into the Go interpreter.
+2. **Go concurrency semantics** – Implement Able’s v10 concurrency using Go goroutines/channels per spec, including scheduling guarantees, cancellation, memoisation, and stress suites.
+3. **Interface & generics completeness** – Finish higher-order interface inheritance, unnamed/named impl diagnostics, and visibility rules; mirror TS tests.
+4. **Spec & privacy alignment** – Enforce the full privacy model in Go, broaden wildcard/dyn import semantics, and keep `spec/todo.md` in sync as gaps close.
+5. **Performance & maintainability** – Optimise hot paths (environment lookups, method caches), add micro-benchmarks, and refactor interpreter modules for clarity.
+6. **Developer experience** – Update docs/examples, ensure PLAN/README stay accurate, and add coverage/CI targets (Go + Bun) once parity stabilises.
 
 ## Tracking & Reporting
 - Update this plan as milestones progress; log decisions in `design/`.
 - Keep `AGENTS.md` synced with onboarding steps for new contributors.
 - Short weekly status notes can live in `PLAN.md` under a future "Status Log" section when work begins.
+
+## Status Log
+
+### 2025-09-29
+- Static import parity expanded: shared fixtures now cover wildcard/alias success + privacy errors along with a two-hop re-export chain; Go tests mirror the new scenarios (`interpreter10-go/pkg/interpreter/interpreter_test.go`).
+- Dyn import alias metadata verified in Go (alias binds `DynPackageValue` with expected name/path) and environment error casing aligned with TypeScript so fixture diagnostics stay in sync.
+- **Next focus:** extend re-export coverage to deeper chains + nested manifests, record dyn-import metadata for parity harnesses, and draft the Go goroutine scheduler design note before starting proc/spawn work.

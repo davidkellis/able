@@ -1,0 +1,9 @@
+{
+  "description": "Calling a private static method raises an error",
+  "expect": {
+    "errors": [
+      "Method 'hidden_static' on Point is private"
+    ]
+  },
+  "entry": "module.json"
+}

@@ -10,6 +10,7 @@ const FIXTURE_ROOT = path.resolve(__dirname, "../../fixtures/ast");
 type Manifest = {
   description?: string;
   entry?: string;
+  setup?: string[];
   expect?: {
     result?: { kind: string; value?: unknown };
     stdout?: string[];
@@ -30,17 +31,27 @@ async function main() {
 
   for (const fixtureDir of fixtures) {
     const manifest = await readManifest(fixtureDir);
-    const entry = manifest.entry ?? "module.json";
-    const entryPath = path.join(fixtureDir, entry);
-    const moduleAst = await readModule(entryPath);
-
     const interpreter = new V10.InterpreterV10();
     ensurePrint(interpreter);
     const stdout: string[] = [];
     let evaluationError: unknown;
+    const entry = manifest.entry ?? "module.json";
+    const entryPath = path.join(fixtureDir, entry);
+    const moduleAst = await readModule(entryPath);
+    const setupModules: AST.Module[] = [];
+    if (manifest.setup) {
+      for (const setupFile of manifest.setup) {
+        const setupPath = path.join(fixtureDir, setupFile);
+        const setupModule = await readModule(setupPath);
+        setupModules.push(setupModule);
+      }
+    }
     let result: V10.V10Value | undefined;
     interceptStdout(stdout, () => {
       try {
+        for (const setupModule of setupModules) {
+          interpreter.evaluate(setupModule);
+        }
         result = interpreter.evaluate(moduleAst);
       } catch (err) {
         evaluationError = err;

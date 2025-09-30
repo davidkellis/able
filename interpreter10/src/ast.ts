@@ -241,6 +241,7 @@ export interface MatchExpression extends AstNode { type: 'MatchExpression'; subj
 export interface WhileLoop extends AstNode { type: 'WhileLoop'; condition: Expression; body: BlockExpression; }
 export interface ForLoop extends AstNode { type: 'ForLoop'; pattern: Pattern; iterable: Expression; body: BlockExpression; }
 export interface BreakStatement extends AstNode { type: 'BreakStatement'; label?: Identifier; value?: Expression; }
+export interface ContinueStatement extends AstNode { type: 'ContinueStatement'; label?: Identifier; }
 
 export function orClause(body: BlockExpression, condition?: Expression): OrClause { return { type: 'OrClause', condition, body }; }
 export function ifExpression(ifCondition: Expression, ifBody: BlockExpression, orClauses: OrClause[] = []): IfExpression { return { type: 'IfExpression', ifCondition, ifBody, orClauses }; }
@@ -253,6 +254,9 @@ export function breakStatement(label?: Identifier | string, value?: Expression):
   if (label !== undefined) stmt.label = typeof label === 'string' ? identifier(label) : label;
   if (value !== undefined) stmt.value = value;
   return stmt;
+}
+export function continueStatement(label?: Identifier | string): ContinueStatement {
+  return { type: 'ContinueStatement', label: label !== undefined ? (typeof label === 'string' ? identifier(label) : label) : undefined };
 }
 
 // -----------------------------------------------------------------------------
@@ -438,6 +442,7 @@ export type Statement =
   | RaiseStatement
   | RethrowStatement
   | BreakStatement
+  | ContinueStatement
   | WhileLoop
   | ForLoop
   | PreludeStatement
@@ -573,6 +578,7 @@ export function forIn(pattern: Pattern | string, iterable: Expression, ...stmts:
   return forLoop(p, iterable, blockExpression(stmts));
 }
 export const brk = breakStatement;
+export const cont = continueStatement;
 
 // Error handling
 export const raise = raiseStatement;

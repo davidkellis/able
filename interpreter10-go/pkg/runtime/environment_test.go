@@ -44,6 +44,9 @@ func TestEnvironmentAssignUnknownFails(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error when assigning undefined variable")
 	}
+	if err.Error() != "Undefined variable 'missing'" {
+		t.Fatalf("unexpected error message: %q", err.Error())
+	}
 }
 
 func bigInt(v int64) *big.Int {

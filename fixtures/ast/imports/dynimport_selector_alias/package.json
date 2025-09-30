@@ -1,0 +1,59 @@
+{
+  "type": "Module",
+  "package": {
+    "type": "PackageStatement",
+    "namePath": [
+      {
+        "type": "Identifier",
+        "name": "dynp"
+      }
+    ]
+  },
+  "imports": [],
+  "body": [
+    {
+      "type": "FunctionDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "f"
+      },
+      "params": [],
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "argument": {
+              "type": "IntegerLiteral",
+              "value": 11
+            }
+          }
+        ]
+      },
+      "isMethodShorthand": false,
+      "isPrivate": false
+    },
+    {
+      "type": "FunctionDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "hidden"
+      },
+      "params": [],
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "argument": {
+              "type": "IntegerLiteral",
+              "value": 1
+            }
+          }
+        ]
+      },
+      "isMethodShorthand": false,
+      "isPrivate": true
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "x"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 2
+      }
+    },
+    {
+      "type": "StringInterpolation",
+      "parts": [
+        {
+          "type": "StringLiteral",
+          "value": "x = "
+        },
+        {
+          "type": "Identifier",
+          "name": "x"
+        },
+        {
+          "type": "StringLiteral",
+          "value": ", sum = "
+        },
+        {
+          "type": "BinaryExpression",
+          "operator": "+",
+          "left": {
+            "type": "IntegerLiteral",
+            "value": 3
+          },
+          "right": {
+            "type": "IntegerLiteral",
+            "value": 4
+          }
+        }
+      ]
+    }
+  ]
+}

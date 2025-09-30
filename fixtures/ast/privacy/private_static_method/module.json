@@ -1,0 +1,176 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "StructDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "Point"
+      },
+      "fields": [
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "x"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        },
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "y"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        }
+      ],
+      "kind": "named"
+    },
+    {
+      "type": "MethodsDefinition",
+      "targetType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "Point"
+        }
+      },
+      "definitions": [
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "hidden_static"
+          },
+          "params": [],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "ReturnStatement",
+                "argument": {
+                  "type": "StructLiteral",
+                  "structType": {
+                    "type": "Identifier",
+                    "name": "Point"
+                  },
+                  "fields": [
+                    {
+                      "type": "StructFieldInitializer",
+                      "name": {
+                        "type": "Identifier",
+                        "name": "x"
+                      },
+                      "value": {
+                        "type": "IntegerLiteral",
+                        "value": 0
+                      },
+                      "isShorthand": false
+                    },
+                    {
+                      "type": "StructFieldInitializer",
+                      "name": {
+                        "type": "Identifier",
+                        "name": "y"
+                      },
+                      "value": {
+                        "type": "IntegerLiteral",
+                        "value": 0
+                      },
+                      "isShorthand": false
+                    }
+                  ],
+                  "isPositional": false
+                }
+              }
+            ]
+          },
+          "isMethodShorthand": false,
+          "isPrivate": true
+        },
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "origin"
+          },
+          "params": [],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "ReturnStatement",
+                "argument": {
+                  "type": "StructLiteral",
+                  "structType": {
+                    "type": "Identifier",
+                    "name": "Point"
+                  },
+                  "fields": [
+                    {
+                      "type": "StructFieldInitializer",
+                      "name": {
+                        "type": "Identifier",
+                        "name": "x"
+                      },
+                      "value": {
+                        "type": "IntegerLiteral",
+                        "value": 0
+                      },
+                      "isShorthand": false
+                    },
+                    {
+                      "type": "StructFieldInitializer",
+                      "name": {
+                        "type": "Identifier",
+                        "name": "y"
+                      },
+                      "value": {
+                        "type": "IntegerLiteral",
+                        "value": 0
+                      },
+                      "isShorthand": false
+                    }
+                  ],
+                  "isPositional": false
+                }
+              }
+            ]
+          },
+          "isMethodShorthand": false,
+          "isPrivate": false
+        }
+      ]
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "MemberAccessExpression",
+        "object": {
+          "type": "Identifier",
+          "name": "Point"
+        },
+        "member": {
+          "type": "Identifier",
+          "name": "hidden_static"
+        }
+      },
+      "arguments": [],
+      "isTrailingLambda": false
+    }
+  ]
+}

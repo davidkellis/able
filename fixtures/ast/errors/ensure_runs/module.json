@@ -1,0 +1,55 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "EnsureExpression",
+      "tryExpression": {
+        "type": "RescueExpression",
+        "monitoredExpression": {
+          "type": "BlockExpression",
+          "body": [
+            {
+              "type": "RaiseStatement",
+              "expression": {
+                "type": "StringLiteral",
+                "value": "oops"
+              }
+            }
+          ]
+        },
+        "clauses": [
+          {
+            "type": "MatchClause",
+            "pattern": {
+              "type": "WildcardPattern"
+            },
+            "body": {
+              "type": "StringLiteral",
+              "value": "rescued"
+            }
+          }
+        ]
+      },
+      "ensureBlock": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "FunctionCall",
+            "callee": {
+              "type": "Identifier",
+              "name": "print"
+            },
+            "arguments": [
+              {
+                "type": "StringLiteral",
+                "value": "ensure"
+              }
+            ],
+            "isTrailingLambda": false
+          }
+        ]
+      }
+    }
+  ]
+}
