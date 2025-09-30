@@ -1,0 +1,37 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "DynImportStatement",
+      "packagePath": [
+        {
+          "type": "Identifier",
+          "name": "dynp"
+        }
+      ],
+      "isWildcard": true
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "value"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "Identifier",
+          "name": "f"
+        },
+        "arguments": [],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "Identifier",
+      "name": "value"
+    }
+  ]
+}

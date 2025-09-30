@@ -58,6 +58,14 @@
   - Taught the Go fixture harness to hydrate integer/identifier/assignment/binary nodes from JSON and to assert typed expectations (including suffix-aware integers)
   (interpreter10-go/pkg/interpreter/fixtures_test.go:1).
   - Added a TypeScript fixture runner that executes each fixture/manifest pair through the TS interpreter (interpreter10/scripts/run-fixtures.ts:1).
+
+> Session (2025-09-27)
+
+  - Refocused the roadmap on bringing the Go interpreter to full parity with the TypeScript implementation (PLAN.md:3, PLAN.md:100).
+  - Added a Go parity checklist documenting remaining feature gaps and mapping TypeScript test suites to current Go coverage (interpreter10-go/PARITY.md:1).
+  - Updated onboarding guidance to emphasise end-of-session documentation (AGENTS.md:39).
+  - Current state: Go interpreter handles literals through basic struct/interface dispatch; key omissions include modules/imports, advanced pattern matching, generics, privacy rules, UFCS, and the full concurrency semantics described in the v10 spec. TypeScript interpreter already exercises these behaviours. Fixtures and both test harnesses remain green.
+  - Next immediate steps: audit TypeScript tests feature-by-feature, prioritise Go parity work (modules/imports, interfaces/generics, privacy), port the corresponding tests, and extend fixtures while keeping both harnesses passing.
   - Introduced an expressions/int_addition fixture and wired the exporter to emit it (interpreter10/scripts/export-fixtures.ts:1, fixtures/ast/expressions/
   int_addition/manifest.json:1).
 
@@ -596,3 +604,97 @@ To continue this session, run codex resume 01998c66-1bcb-7530-afdb-b26619aebd9f.
   - Introduced return-signal flow, user-defined function invocation, and inherent method lookup so static methods on struct definitions can execute and return new instances (interpreter10-go/pkg/interpreter/
   interpreter.go:209, interpreter10-go/pkg/interpreter/interpreter.go:551, interpreter10-go/pkg/interpreter/interpreter.go:845, interpreter10-go/pkg/interpreter/interpreter.go:1014, interpreter10-go/pkg/interpreter/
   interpreter_test.go:473).
+
+> String Interpolation
+
+  - Implemented string interpolation evaluation in the Go interpreter, including struct `to_string` method invocation and richer value-to-string fallbacks (interpreter10-go/pkg/interpreter/interpreter.go:163).
+  - Added Go unit coverage for interpolation basics and struct method usage plus fixture decoding support for method definitions and return statements (interpreter10-go/pkg/interpreter/interpreter_test.go:79, interpreter10-go/pkg/interpreter/fixtures_test.go:236, interpreter10-go/pkg/interpreter/fixtures_test.go:381, interpreter10-go/pkg/interpreter/fixtures_test.go:470, interpreter10-go/pkg/interpreter/fixtures_test.go:574).
+  - Exported shared fixtures for interpolation scenarios and verified both harnesses run clean (`fixtures/ast/strings/**`, `bun run scripts/run-fixtures.ts`, `GOCACHE=/tmp/gocache go test ./...`).
+
+> Match Expression
+
+  - Added `MatchExpression` evaluation to the Go interpreter with guard handling and environment binding via pattern matches (interpreter10-go/pkg/interpreter/interpreter.go:494, interpreter10-go/pkg/interpreter/interpreter.go:1609).
+  - Ported core match tests (identifier/literal fallthrough, struct guard) to Go (interpreter10-go/pkg/interpreter/interpreter_test.go:175, interpreter10-go/pkg/interpreter/interpreter_test.go:195) and extended the fixture decoder to hydrate match expressions (interpreter10-go/pkg/interpreter/fixtures_test.go:274).
+  - Created shared fixtures for basic and guard-enabled matches to drive cross-interpreter parity (`fixtures/ast/match/**`, interpreter10/scripts/export-fixtures.ts:106) and reran both harnesses (`bun run scripts/run-fixtures.ts`, `GOCACHE=/tmp/gocache go test ./...`).
+
+> Error Handling
+
+  - Implemented propagation (`!`), `or else`, `ensure`, and `rethrow` expressions in the Go interpreter, including structured error payload destructuring, so error flows mirror the TypeScript runtime (interpreter10-go/pkg/interpreter/interpreter.go:504, interpreter10-go/pkg/interpreter/interpreter.go:588, interpreter10-go/pkg/interpreter/interpreter.go:1779).
+  - Added Go tests covering or-else bindings, ensure finalizers, typed rescue patterns, rethrow bubbling, and error payload destructuring (interpreter10-go/pkg/interpreter/interpreter_test.go:206, interpreter10-go/pkg/interpreter/interpreter_test.go:241, interpreter10-go/pkg/interpreter/interpreter_test.go:269, interpreter10-go/pkg/interpreter/interpreter_test.go:339).
+  - Updated the fixture harness to decode the new nodes and exported shared fixtures for typed rescue, or-else, and ensure scenarios (`fixtures/ast/errors/**`, interpreter10/scripts/export-fixtures.ts:132); both harnesses stay green (`bun run scripts/run-fixtures.ts`, `GOCACHE=/tmp/gocache go test ./...`).
+
+> Packages & Imports
+
+  - Added package registry bookkeeping, static import handling (selectors, wildcard, alias), and package-scoped symbol registration in the Go interpreter (interpreter10-go/pkg/interpreter/interpreter.go:94, interpreter10-go/pkg/interpreter/interpreter.go:130, interpreter10-go/pkg/interpreter/interpreter.go:588).
+  - Introduced Go tests exercising wildcard imports and package alias privacy filtering (interpreter10-go/pkg/interpreter/interpreter_test.go:310).
+> Flow Control & Fixture Harness (2025-03-??)
+
+  - Promoted `continue` to a first-class AST node and wired both interpreters to handle unlabeled continues; labeled continues deliberately still raise an error so we can document the spec decision later (`interpreter10/src/ast.ts`, `interpreter10/src/interpreter.ts`, `interpreter10-go/pkg/ast/ast.go`, `interpreter10-go/pkg/interpreter/interpreter.go`).
+  - Go’s breakpoint handling now understands labeled `break` by tracking an active label stack; parity tests cover the scenario (`interpreter10-go/pkg/interpreter/interpreter.go`, `interpreter10-go/pkg/interpreter/interpreter_test.go`).
+  - Added shared fixtures for loop `continue` plus multi-module dyn-import scenarios using the new manifest `setup` hook; both harnesses export/run them cleanly (`fixtures/ast/control/for_continue`, `interpreter10/scripts/export-fixtures.ts`, `interpreter10/scripts/run-fixtures.ts`).
+  - Fixture loaders (TS/Go) now hydrate `ContinueStatement`, package blocks, and import/dyn-import nodes so JSON fixtures remain portable (`interpreter10-go/pkg/interpreter/fixtures_test.go`).
+
+  Tests
+
+  - bun run scripts/export-fixtures.ts
+  - bun run scripts/run-fixtures.ts
+  - bun test
+  - GOCACHE=/tmp/gocache go test ./...
+
+  Next Steps
+
+  1. Decide how labeled `continue` should behave; implement once the spec direction is clear and mirror tests/fixtures across interpreters.
+  2. Expand the fixture suite with static import alias/wildcard combinations, leveraging the new `setup` support to preload package modules.
+  3. Begin drafting the Go concurrency scheduler design so we can start on proc/spawn parity soon.
+
+> - Logged the session in LOG.md with the new flow-control work, multi-module fixtures, test commands, and explicit follow-up bullets. Updated PLAN.md immediate
+  actions so the next contributor picks up labeled continue, import parity, and the concurrency design note. Tweaked design/pattern-break-alignment.md to document the
+  continue decision and note the new fixture support, and added an onboarding hint in AGENTS.md about using manifest setup modules.
+  - Untracked additions to keep an eye on: fixtures/ast/control/for_continue, the expanded dyn-import/privacy fixture directories, and the parity tracker
+  interpreter10-go/PARITY.md.
+  - Current state: both interpreters handle unlabeled continue, Go now respects labeled break via breakpoints, and the shared fixture harness supports setup modules.
+  Go’s fixture decoder/test suite mirror the new scenarios.
+
+  Next steps:
+
+  1. Decide on labeled continue semantics (or explicitly document the rejection) and implement/tests once agreed.
+  2. Port the remaining TS import/alias suites into Go with shared fixtures using the new setup mechanism.
+  3. Draft the Go concurrency scheduler design note to unblock proc/spawn parity work.
+
+> Labeled Continue Decision (2025-03-??)
+
+  - Finalised the language stance that labeled `continue` is not part of Able v10: updated `spec/full_spec_v10.md` with the dedicated continue section, clarified the shared error string, and refreshed `design/pattern-break-alignment.md` to mark the decision as resolved.
+  - Aligned the Go interpreter error message casing with the TypeScript runtime (`"Labeled continue not supported"`) so fixtures and parity harnesses observe identical behaviour (interpreter10-go/pkg/interpreter/interpreter.go:470, interpreter10/src/interpreter.ts:384).
+  - Adjusted the project roadmap to drop the outstanding decision item and highlight module import/privacy work plus the Go concurrency scheduler design as the next focus areas (PLAN.md:83).
+  - Captured the resolution in `interpreter10-go/PARITY.md`, removing the pending backlog item for labeled `continue` and reinforcing privacy/import parity as the next milestone.
+  - Began the import parity push by porting the TypeScript selector-alias test, ensuring Go binds the alias function correctly and retains privacy rules (interpreter10-go/pkg/interpreter/interpreter_test.go:523).
+
+  Tests
+
+  - GOCACHE=/tmp/gocache go test ./pkg/interpreter
+
+  Next Steps
+
+  1. Port the remaining TS import/alias suites into Go with shared fixtures using the new setup mechanism.
+  2. Harden Go’s module privacy enforcement alongside the fixture updates.
+  3. Draft the Go concurrency scheduler design note to unblock proc/spawn parity work.
+
+> Import Alias & Package Parity (2025-03-??)
+
+  - Extended Go parity coverage for imports: package alias access now mirrors the TypeScript expectations, including callable functions, public struct/interface exposure, and privacy rejections for hidden members (`interpreter10-go/pkg/interpreter/interpreter_test.go:431`).
+  - Confirmed the package registry exports public structs/interfaces so alias objects surface the same metadata as the TS runtime, giving fixture harnesses consistent visibility (`interpreter10-go/pkg/interpreter/interpreter_test.go:438`).
+  - Added shared static import fixtures (wildcard + alias success and privacy errors) so both harnesses exercise the new scenarios and keep error strings aligned (`fixtures/ast/imports/static_*`, `interpreter10/scripts/run-fixtures.ts`).
+  - Verified dyn import alias metadata by asserting the Go alias binding exposes `DynPackageValue` with the expected name/path, matching the TS runtime (`interpreter10-go/pkg/interpreter/interpreter_test.go:893`).
+  - Normalised environment error casing to `"Undefined variable ..."` so wildcard privacy fixtures produce identical diagnostics across interpreters (`interpreter10-go/pkg/runtime/environment.go:28`).
+  - Added a re-export fixture that chains packages via setup modules so both interpreters prove import-through-import scenarios behave identically (`fixtures/ast/imports/static_reexport/**`).
+
+  Tests
+
+  - bun run test:fixtures
+  - GOCACHE=/tmp/gocache go test ./pkg/interpreter
+
+  Next Steps
+
+  1. Broaden import parity to cover wildcard re-exports and dyn-import metadata before expanding fixtures.
+  2. Capture the goroutine scheduler design so proc/spawn work can begin with shared direction.
+  3. Mirror TS privacy diagnostics for method/interface imports and document any remaining gaps in `interpreter10-go/PARITY.md`.

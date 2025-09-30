@@ -53,6 +53,11 @@ class BreakSignal extends Error {
   }
 }
 class BreakLabelSignal extends Error { constructor(public label: string, public value: V10Value){ super("BreakLabelSignal"); } }
+class ContinueSignal extends Error {
+  constructor(public label: string | null) {
+    super("ContinueSignal");
+  }
+}
 class ProcYieldSignal extends Error { constructor(){ super("ProcYieldSignal"); } }
 
 export class Environment {
@@ -375,6 +380,10 @@ export class InterpreterV10 {
               return e.value;
             }
             if (e instanceof BreakLabelSignal) throw e;
+            if (e instanceof ContinueSignal) {
+              if (e.label) throw new Error("Labeled continue not supported");
+              continue;
+            }
             throw e;
           }
         }
@@ -388,6 +397,12 @@ export class InterpreterV10 {
           throw new BreakLabelSignal(labelName, value);
         }
         throw new BreakSignal(labelName, value);
+      }
+      case "ContinueStatement": {
+        const cs = node as AST.ContinueStatement;
+        const labelName = cs.label ? cs.label.name : null;
+        if (labelName) throw new Error("Labeled continue not supported");
+        throw new ContinueSignal(null);
       }
 
       // --- For --- (arrays & ranges)
@@ -450,6 +465,10 @@ export class InterpreterV10 {
               return e.value;
             }
             if (e instanceof BreakLabelSignal) throw e;
+            if (e instanceof ContinueSignal) {
+              if (e.label) throw new Error("Labeled continue not supported");
+              continue;
+            }
             throw e;
           }
         }

@@ -1,0 +1,50 @@
+{
+  "type": "Module",
+  "package": {
+    "type": "PackageStatement",
+    "namePath": [
+      { "type": "Identifier", "name": "util_static" }
+    ]
+  },
+  "imports": [],
+  "body": [
+    {
+      "type": "FunctionDefinition",
+      "id": { "type": "Identifier", "name": "foo" },
+      "params": [],
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "argument": { "type": "IntegerLiteral", "value": 3 }
+          }
+        ]
+      },
+      "isMethodShorthand": false,
+      "isPrivate": false
+    },
+    {
+      "type": "FunctionDefinition",
+      "id": { "type": "Identifier", "name": "hidden" },
+      "params": [],
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "argument": { "type": "IntegerLiteral", "value": 1 }
+          }
+        ]
+      },
+      "isMethodShorthand": false,
+      "isPrivate": true
+    },
+    {
+      "type": "StructDefinition",
+      "id": { "type": "Identifier", "name": "Thing" },
+      "fields": [],
+      "kind": "named"
+    }
+  ]
+}

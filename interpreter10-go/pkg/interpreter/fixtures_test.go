@@ -16,8 +16,9 @@ import (
 )
 
 type fixtureManifest struct {
-	Description string `json:"description"`
-	Entry       string `json:"entry"`
+	Description string   `json:"description"`
+	Entry       string   `json:"entry"`
+	Setup       []string `json:"setup"`
 	Expect      struct {
 		Result *struct {
 			Kind  string      `json:"kind"`
@@ -51,6 +52,15 @@ func TestFixtureParityStringLiteral(t *testing.T) {
 			}
 			modulePath := filepath.Join(dir, entryFile)
 			module := readModule(t, modulePath)
+			if len(manifest.Setup) > 0 {
+				for _, setupFile := range manifest.Setup {
+					setupPath := filepath.Join(dir, setupFile)
+					setupModule := readModule(t, setupPath)
+					if _, _, err := interp.EvaluateModule(setupModule); err != nil {
+						t.Fatalf("fixture %s setup module %s failed: %v", dir, setupFile, err)
+					}
+				}
+			}
 			result, _, err := interp.EvaluateModule(module)
 			if len(manifest.Expect.Errors) > 0 {
 				if err == nil {
@@ -134,6 +144,19 @@ func decodeNode(node map[string]any) (ast.Node, error) {
 	typ, _ := node["type"].(string)
 	switch typ {
 	case "Module":
+		importsVal, _ := node["imports"].([]any)
+		imports := make([]*ast.ImportStatement, 0, len(importsVal))
+		for _, raw := range importsVal {
+			child, ok := raw.(map[string]any)
+			if !ok {
+				return nil, fmt.Errorf("invalid import entry %T", raw)
+			}
+			imp, err := decodeImportStatement(child)
+			if err != nil {
+				return nil, err
+			}
+			imports = append(imports, imp)
+		}
 		bodyVal, _ := node["body"].([]any)
 		stmts := make([]ast.Statement, 0, len(bodyVal))
 		for _, raw := range bodyVal {
@@ -147,7 +170,15 @@ func decodeNode(node map[string]any) (ast.Node, error) {
 			}
 			stmts = append(stmts, stmt)
 		}
-		return ast.NewModule(stmts, nil, nil), nil
+		var pkg *ast.PackageStatement
+		if pkgNode, ok := node["package"].(map[string]any); ok {
+			decoded, err := decodePackageStatement(pkgNode)
+			if err != nil {
+				return nil, err
+			}
+			pkg = decoded
+		}
+		return ast.NewModule(stmts, imports, pkg), nil
 	case "StringLiteral":
 		val, _ := node["value"].(string)
 		return ast.NewStringLiteral(val), nil
@@ -233,6 +264,25 @@ func decodeNode(node map[string]any) (ast.Node, error) {
 			return nil, fmt.Errorf("invalid binary right %T", rightNode)
 		}
 		return ast.NewBinaryExpression(op, left, right), nil
+	case "StringInterpolation":
+		partsVal, _ := node["parts"].([]any)
+		parts := make([]ast.Expression, 0, len(partsVal))
+		for _, raw := range partsVal {
+			childNode, ok := raw.(map[string]any)
+			if !ok {
+				return nil, fmt.Errorf("invalid interpolation part %T", raw)
+			}
+			decoded, err := decodeNode(childNode)
+			if err != nil {
+				return nil, err
+			}
+			expr, ok := decoded.(ast.Expression)
+			if !ok {
+				return nil, fmt.Errorf("invalid interpolation expression %T", decoded)
+			}
+			parts = append(parts, expr)
+		}
+		return ast.NewStringInterpolation(parts), nil
 	case "RangeExpression":
 		startNode, err := decodeNode(node["start"].(map[string]any))
 		if err != nil {
@@ -252,6 +302,87 @@ func decodeNode(node map[string]any) (ast.Node, error) {
 		}
 		inclusive, _ := node["inclusive"].(bool)
 		return ast.NewRangeExpression(start, endExpr, inclusive), nil
+	case "MatchExpression":
+		subjectNode, err := decodeNode(node["subject"].(map[string]any))
+		if err != nil {
+			return nil, err
+		}
+		subject, ok := subjectNode.(ast.Expression)
+		if !ok {
+			return nil, fmt.Errorf("invalid match subject %T", subjectNode)
+		}
+		clausesVal, _ := node["clauses"].([]any)
+		clauses := make([]*ast.MatchClause, 0, len(clausesVal))
+		for _, raw := range clausesVal {
+			clauseNode, ok := raw.(map[string]any)
+			if !ok {
+				return nil, fmt.Errorf("invalid match clause %T", raw)
+			}
+			clause, err := decodeMatchClause(clauseNode)
+			if err != nil {
+				return nil, err
+			}
+			clauses = append(clauses, clause)
+		}
+		return ast.NewMatchExpression(subject, clauses), nil
+	case "PropagationExpression":
+		exprNode, err := decodeNode(node["expression"].(map[string]any))
+		if err != nil {
+			return nil, err
+		}
+		expr, ok := exprNode.(ast.Expression)
+		if !ok {
+			return nil, fmt.Errorf("invalid propagation expression %T", exprNode)
+		}
+		return ast.NewPropagationExpression(expr), nil
+	case "OrElseExpression":
+		exprNode, err := decodeNode(node["expression"].(map[string]any))
+		if err != nil {
+			return nil, err
+		}
+		expression, ok := exprNode.(ast.Expression)
+		if !ok {
+			return nil, fmt.Errorf("invalid or-else expression %T", exprNode)
+		}
+		handlerNode, err := decodeNode(node["handler"].(map[string]any))
+		if err != nil {
+			return nil, err
+		}
+		handler, ok := handlerNode.(*ast.BlockExpression)
+		if !ok {
+			return nil, fmt.Errorf("or-else handler must be block, got %T", handlerNode)
+		}
+		var binding *ast.Identifier
+		if bindingRaw, ok := node["errorBinding"].(map[string]any); ok {
+			decoded, err := decodeNode(bindingRaw)
+			if err != nil {
+				return nil, err
+			}
+			id, ok := decoded.(*ast.Identifier)
+			if !ok {
+				return nil, fmt.Errorf("invalid or-else binding %T", decoded)
+			}
+			binding = id
+		}
+		return ast.NewOrElseExpression(expression, handler, binding), nil
+	case "EnsureExpression":
+		tryNode, err := decodeNode(node["tryExpression"].(map[string]any))
+		if err != nil {
+			return nil, err
+		}
+		tryExpr, ok := tryNode.(ast.Expression)
+		if !ok {
+			return nil, fmt.Errorf("invalid ensure try expression %T", tryNode)
+		}
+		blockNode, err := decodeNode(node["ensureBlock"].(map[string]any))
+		if err != nil {
+			return nil, err
+		}
+		ensureBlock, ok := blockNode.(*ast.BlockExpression)
+		if !ok {
+			return nil, fmt.Errorf("ensure block must be block expression, got %T", blockNode)
+		}
+		return ast.NewEnsureExpression(tryExpr, ensureBlock), nil
 	case "WhileLoop":
 		condNode, err := decodeNode(node["condition"].(map[string]any))
 		if err != nil {
@@ -359,6 +490,69 @@ func decodeNode(node map[string]any) (ast.Node, error) {
 			args = append(args, expr)
 		}
 		return ast.NewFunctionCall(callee, args, nil, false), nil
+	case "FunctionParameter":
+		nameNode, err := decodeNode(node["name"].(map[string]any))
+		if err != nil {
+			return nil, err
+		}
+		pattern, ok := nameNode.(ast.Pattern)
+		if !ok {
+			return nil, fmt.Errorf("invalid function parameter name %T", nameNode)
+		}
+		var paramType ast.TypeExpression
+		if typeRaw, ok := node["paramType"].(map[string]any); ok {
+			typeExpr, err := decodeTypeExpression(typeRaw)
+			if err != nil {
+				return nil, err
+			}
+			paramType = typeExpr
+		}
+		return ast.NewFunctionParameter(pattern, paramType), nil
+	case "FunctionDefinition":
+		idNode, err := decodeNode(node["id"].(map[string]any))
+		if err != nil {
+			return nil, err
+		}
+		id, ok := idNode.(*ast.Identifier)
+		if !ok {
+			return nil, fmt.Errorf("invalid function identifier %T", idNode)
+		}
+		paramsVal, _ := node["params"].([]any)
+		params := make([]*ast.FunctionParameter, 0, len(paramsVal))
+		for _, raw := range paramsVal {
+			paramNode, ok := raw.(map[string]any)
+			if !ok {
+				return nil, fmt.Errorf("invalid function parameter node %T", raw)
+			}
+			decoded, err := decodeNode(paramNode)
+			if err != nil {
+				return nil, err
+			}
+			param, ok := decoded.(*ast.FunctionParameter)
+			if !ok {
+				return nil, fmt.Errorf("invalid function parameter %T", decoded)
+			}
+			params = append(params, param)
+		}
+		bodyNode, err := decodeNode(node["body"].(map[string]any))
+		if err != nil {
+			return nil, err
+		}
+		body, ok := bodyNode.(*ast.BlockExpression)
+		if !ok {
+			return nil, fmt.Errorf("function body must be block, got %T", bodyNode)
+		}
+		var returnType ast.TypeExpression
+		if retRaw, ok := node["returnType"].(map[string]any); ok {
+			rt, err := decodeTypeExpression(retRaw)
+			if err != nil {
+				return nil, err
+			}
+			returnType = rt
+		}
+		isMethodShorthand, _ := node["isMethodShorthand"].(bool)
+		isPrivate, _ := node["isPrivate"].(bool)
+		return ast.NewFunctionDefinition(id, params, body, returnType, nil, nil, isMethodShorthand, isPrivate), nil
 	case "StructDefinition":
 		idNode, err := decodeNode(node["id"].(map[string]any))
 		if err != nil {
@@ -385,6 +579,33 @@ func decodeNode(node map[string]any) (ast.Node, error) {
 		kind := ast.StructKind(kindStr)
 		isPrivate, _ := node["isPrivate"].(bool)
 		return ast.NewStructDefinition(id, fields, kind, nil, nil, isPrivate), nil
+	case "MethodsDefinition":
+		targetRaw, ok := node["targetType"].(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("methods definition missing target type")
+		}
+		targetType, err := decodeTypeExpression(targetRaw)
+		if err != nil {
+			return nil, err
+		}
+		defsVal, _ := node["definitions"].([]any)
+		defs := make([]*ast.FunctionDefinition, 0, len(defsVal))
+		for _, raw := range defsVal {
+			defNode, ok := raw.(map[string]any)
+			if !ok {
+				return nil, fmt.Errorf("invalid methods definition entry %T", raw)
+			}
+			decoded, err := decodeNode(defNode)
+			if err != nil {
+				return nil, err
+			}
+			fn, ok := decoded.(*ast.FunctionDefinition)
+			if !ok {
+				return nil, fmt.Errorf("invalid methods definition function %T", decoded)
+			}
+			defs = append(defs, fn)
+		}
+		return ast.NewMethodsDefinition(targetType, defs, nil, nil), nil
 	case "StructLiteral":
 		fieldsVal, _ := node["fields"].([]any)
 		fields := make([]*ast.StructFieldInitializer, 0, len(fieldsVal))
@@ -442,6 +663,32 @@ func decodeNode(node map[string]any) (ast.Node, error) {
 		return decodeStructFieldDefinition(node)
 	case "StructFieldInitializer":
 		return decodeStructFieldInitializer(node)
+	case "ContinueStatement":
+		var label *ast.Identifier
+		if labelRaw, ok := node["label"].(map[string]any); ok {
+			decoded, err := decodeNode(labelRaw)
+			if err != nil {
+				return nil, err
+			}
+			id, ok := decoded.(*ast.Identifier)
+			if !ok {
+				return nil, fmt.Errorf("invalid continue label %T", decoded)
+			}
+			label = id
+		}
+		return ast.NewContinueStatement(label), nil
+	case "ImportStatement":
+		imp, err := decodeImportStatement(node)
+		if err != nil {
+			return nil, err
+		}
+		return imp, nil
+	case "DynImportStatement":
+		imp, err := decodeDynImportStatement(node)
+		if err != nil {
+			return nil, err
+		}
+		return imp, nil
 	case "MemberAccessExpression":
 		objectNode, err := decodeNode(node["object"].(map[string]any))
 		if err != nil {
@@ -462,6 +709,20 @@ func decodeNode(node map[string]any) (ast.Node, error) {
 		return ast.NewMemberAccessExpression(object, memberExpr), nil
 	case "WildcardPattern", "LiteralPattern", "StructPattern", "ArrayPattern", "TypedPattern":
 		return decodePattern(node)
+	case "ReturnStatement":
+		var argument ast.Expression
+		if argRaw, ok := node["argument"].(map[string]any); ok {
+			decoded, err := decodeNode(argRaw)
+			if err != nil {
+				return nil, err
+			}
+			expr, ok := decoded.(ast.Expression)
+			if !ok {
+				return nil, fmt.Errorf("invalid return argument %T", decoded)
+			}
+			argument = expr
+		}
+		return ast.NewReturnStatement(argument), nil
 	case "RaiseStatement":
 		exprNode, err := decodeNode(node["expression"].(map[string]any))
 		if err != nil {
@@ -919,6 +1180,134 @@ func decodeStructFieldInitializer(node map[string]any) (*ast.StructFieldInitiali
 	}
 	isShorthand, _ := node["isShorthand"].(bool)
 	return ast.NewStructFieldInitializer(valueExpr, name, isShorthand), nil
+}
+
+func decodePackageStatement(node map[string]any) (*ast.PackageStatement, error) {
+	namePathVal, _ := node["namePath"].([]any)
+	namePath, err := decodeIdentifierList(namePathVal)
+	if err != nil {
+		return nil, err
+	}
+	isPrivate, _ := node["isPrivate"].(bool)
+	return ast.NewPackageStatement(namePath, isPrivate), nil
+}
+
+func decodeImportStatement(node map[string]any) (*ast.ImportStatement, error) {
+	pathVal, _ := node["packagePath"].([]any)
+	packagePath, err := decodeIdentifierList(pathVal)
+	if err != nil {
+		return nil, err
+	}
+	isWildcard, _ := node["isWildcard"].(bool)
+	selectorsVal, _ := node["selectors"].([]any)
+	selectors := make([]*ast.ImportSelector, 0, len(selectorsVal))
+	for _, raw := range selectorsVal {
+		selectorNode, ok := raw.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("invalid import selector %T", raw)
+		}
+		selector, err := decodeImportSelector(selectorNode)
+		if err != nil {
+			return nil, err
+		}
+		selectors = append(selectors, selector)
+	}
+	var alias *ast.Identifier
+	if aliasNode, ok := node["alias"].(map[string]any); ok {
+		decoded, err := decodeNode(aliasNode)
+		if err != nil {
+			return nil, err
+		}
+		id, ok := decoded.(*ast.Identifier)
+		if !ok {
+			return nil, fmt.Errorf("invalid import alias %T", decoded)
+		}
+		alias = id
+	}
+	return ast.NewImportStatement(packagePath, isWildcard, selectors, alias), nil
+}
+
+func decodeDynImportStatement(node map[string]any) (*ast.DynImportStatement, error) {
+	pathVal, _ := node["packagePath"].([]any)
+	packagePath, err := decodeIdentifierList(pathVal)
+	if err != nil {
+		return nil, err
+	}
+	isWildcard, _ := node["isWildcard"].(bool)
+	selectorsVal, _ := node["selectors"].([]any)
+	selectors := make([]*ast.ImportSelector, 0, len(selectorsVal))
+	for _, raw := range selectorsVal {
+		selectorNode, ok := raw.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("invalid dynimport selector %T", raw)
+		}
+		selector, err := decodeImportSelector(selectorNode)
+		if err != nil {
+			return nil, err
+		}
+		selectors = append(selectors, selector)
+	}
+	var alias *ast.Identifier
+	if aliasNode, ok := node["alias"].(map[string]any); ok {
+		decoded, err := decodeNode(aliasNode)
+		if err != nil {
+			return nil, err
+		}
+		id, ok := decoded.(*ast.Identifier)
+		if !ok {
+			return nil, fmt.Errorf("invalid dynimport alias %T", decoded)
+		}
+		alias = id
+	}
+	return ast.NewDynImportStatement(packagePath, isWildcard, selectors, alias), nil
+}
+
+func decodeImportSelector(node map[string]any) (*ast.ImportSelector, error) {
+	nameNode, ok := node["name"].(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("import selector missing name")
+	}
+	decodedName, err := decodeNode(nameNode)
+	if err != nil {
+		return nil, err
+	}
+	name, ok := decodedName.(*ast.Identifier)
+	if !ok {
+		return nil, fmt.Errorf("invalid import selector name %T", decodedName)
+	}
+	var alias *ast.Identifier
+	if aliasNode, ok := node["alias"].(map[string]any); ok {
+		decodedAlias, err := decodeNode(aliasNode)
+		if err != nil {
+			return nil, err
+		}
+		id, ok := decodedAlias.(*ast.Identifier)
+		if !ok {
+			return nil, fmt.Errorf("invalid import selector alias %T", decodedAlias)
+		}
+		alias = id
+	}
+	return ast.NewImportSelector(name, alias), nil
+}
+
+func decodeIdentifierList(values []any) ([]*ast.Identifier, error) {
+	ids := make([]*ast.Identifier, 0, len(values))
+	for _, raw := range values {
+		node, ok := raw.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("invalid identifier entry %T", raw)
+		}
+		decoded, err := decodeNode(node)
+		if err != nil {
+			return nil, err
+		}
+		id, ok := decoded.(*ast.Identifier)
+		if !ok {
+			return nil, fmt.Errorf("invalid identifier node %T", decoded)
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
 }
 
 func decodeMatchClause(node map[string]any) (*ast.MatchClause, error) {

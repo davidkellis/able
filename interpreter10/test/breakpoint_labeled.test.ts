@@ -37,4 +37,3 @@ describe("v10 interpreter - labeled breakpoint/break", () => {
     expect(res).toEqual({ kind: "i32", value: 2 });
   });
 });
-

@@ -1,0 +1,12 @@
+{
+  "description": "Wildcard import does not expose private function",
+  "expect": {
+    "errors": [
+      "Undefined variable 'priv_fn'"
+    ]
+  },
+  "entry": "module.json",
+  "setup": [
+    "package.json"
+  ]
+}

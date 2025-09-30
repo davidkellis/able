@@ -32,8 +32,10 @@ Welcome! This document gives contributors the context required to work across th
 - Treat the shared AST contract as canonical: when introducing new node structures or runtime semantics, implement them in both interpreters and update fixtures so every runtime interprets them identically.
 - When adding Go features, port or mirror the corresponding TypeScript tests (or vice versa) to keep coverage consistent.
 - When adding or modifying fixtures in `fixtures/ast`, update `interpreter10/scripts/export-fixtures.ts`, run the exporter + TS harness, and confirm the Go parity test (`go test ./pkg/interpreter`) still passes.
+- Fixture manifests can include an optional `setup` array when multi-module scenarios are required (e.g., dyn-import packages); both harnesses evaluate those modules before the entry `module.json`.
 - Use concise, high-signal comments in code. Avoid speculative abstractions; match the TS design unless we have a strong reason to diverge.
 - Update the spec (`spec/full_spec_v10.md`) once behaviour becomes canonical; log the change in `LOG.md` and check off items in `spec/todo.md`.
+- At the end of every session: document progress, current state, and next steps; update PLAN/todo/docs accordingly; capture lessons/process adjustments in `LOG.md` or design notes so the next contributor can resume seamlessly.
 
 ## Concurrency Expectations
 - TypeScript interpreter uses a cooperative scheduler to emulate Able `proc`/`spawn` semantics.

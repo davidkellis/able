@@ -51,6 +51,7 @@ const (
 	NodeWhileLoop                NodeType = "WhileLoop"
 	NodeForLoop                  NodeType = "ForLoop"
 	NodeBreakStatement           NodeType = "BreakStatement"
+	NodeContinueStatement        NodeType = "ContinueStatement"
 	NodeRaiseStatement           NodeType = "RaiseStatement"
 	NodeRescueExpression         NodeType = "RescueExpression"
 	NodeEnsureExpression         NodeType = "EnsureExpression"
@@ -785,6 +786,17 @@ type BreakStatement struct {
 
 func NewBreakStatement(label *Identifier, value Expression) *BreakStatement {
 	return &BreakStatement{nodeImpl: newNodeImpl(NodeBreakStatement), Label: label, Value: value}
+}
+
+type ContinueStatement struct {
+	nodeImpl
+	statementMarker
+
+	Label *Identifier `json:"label"`
+}
+
+func NewContinueStatement(label *Identifier) *ContinueStatement {
+	return &ContinueStatement{nodeImpl: newNodeImpl(NodeContinueStatement), Label: label}
 }
 
 // Error handling
