@@ -1,0 +1,12 @@
+{
+  "description": "Dyn import selector rejects private symbols",
+  "expect": {
+    "errors": [
+      "dynimport error: function 'hidden' is private"
+    ]
+  },
+  "entry": "module.json",
+  "setup": [
+    "package.json"
+  ]
+}

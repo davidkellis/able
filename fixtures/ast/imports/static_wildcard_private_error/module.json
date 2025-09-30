@@ -1,0 +1,18 @@
+{
+  "type": "Module",
+  "imports": [
+    {
+      "type": "ImportStatement",
+      "packagePath": [
+        { "type": "Identifier", "name": "example_static" }
+      ],
+      "isWildcard": true
+    }
+  ],
+  "body": [
+    {
+      "type": "Identifier",
+      "name": "priv_fn"
+    }
+  ]
+}

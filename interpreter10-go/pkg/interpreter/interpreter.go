@@ -3,6 +3,8 @@ package interpreter
 import (
 	"fmt"
 	"math/big"
+	"sort"
+	"strings"
 
 	"able/interpreter10-go/pkg/ast"
 	"able/interpreter10-go/pkg/runtime"
@@ -14,6 +16,10 @@ type Interpreter struct {
 	inherentMethods map[string]map[string]*runtime.FunctionValue
 	interfaces      map[string]*runtime.InterfaceDefinitionValue
 	implMethods     map[string][]implEntry
+	raiseStack      []runtime.Value
+	packageRegistry map[string]map[string]runtime.Value
+	currentPackage  string
+	breakpoints     []string
 }
 
 type implEntry struct {
@@ -59,6 +65,168 @@ func gatherImplementationTargets(target ast.TypeExpression, out *[]string) (int,
 	}
 }
 
+func identifiersToStrings(ids []*ast.Identifier) []string {
+	parts := make([]string, 0, len(ids))
+	for _, id := range ids {
+		if id == nil {
+			continue
+		}
+		parts = append(parts, id.Name)
+	}
+	return parts
+}
+
+func joinIdentifierNames(ids []*ast.Identifier) string {
+	parts := identifiersToStrings(ids)
+	if len(parts) == 0 {
+		return ""
+	}
+	return strings.Join(parts, ".")
+}
+
+func (i *Interpreter) qualifiedName(name string) string {
+	if i.currentPackage == "" {
+		return ""
+	}
+	return i.currentPackage + "." + name
+}
+
+func (i *Interpreter) pushBreakpoint(label string) {
+	i.breakpoints = append(i.breakpoints, label)
+}
+
+func (i *Interpreter) popBreakpoint() {
+	if len(i.breakpoints) == 0 {
+		return
+	}
+	i.breakpoints = i.breakpoints[:len(i.breakpoints)-1]
+}
+
+func (i *Interpreter) hasBreakpoint(label string) bool {
+	for idx := len(i.breakpoints) - 1; idx >= 0; idx-- {
+		if i.breakpoints[idx] == label {
+			return true
+		}
+	}
+	return false
+}
+
+func (i *Interpreter) registerSymbol(name string, value runtime.Value) {
+	if i.currentPackage == "" {
+		return
+	}
+	bucket, ok := i.packageRegistry[i.currentPackage]
+	if !ok {
+		bucket = make(map[string]runtime.Value)
+		i.packageRegistry[i.currentPackage] = bucket
+	}
+	bucket[name] = value
+	if qn := i.qualifiedName(name); qn != "" {
+		i.global.Define(qn, value)
+	}
+}
+
+func isPrivateSymbol(val runtime.Value) bool {
+	switch v := val.(type) {
+	case *runtime.FunctionValue:
+		if fn, ok := v.Declaration.(*ast.FunctionDefinition); ok {
+			return fn.IsPrivate
+		}
+	case *runtime.StructDefinitionValue:
+		return v.Node != nil && v.Node.IsPrivate
+	case runtime.StructDefinitionValue:
+		return v.Node != nil && v.Node.IsPrivate
+	case *runtime.InterfaceDefinitionValue:
+		return v.Node != nil && v.Node.IsPrivate
+	case runtime.InterfaceDefinitionValue:
+		return v.Node != nil && v.Node.IsPrivate
+	case *runtime.UnionDefinitionValue:
+		return v.Node != nil && v.Node.IsPrivate
+	case runtime.UnionDefinitionValue:
+		return v.Node != nil && v.Node.IsPrivate
+	}
+	return false
+}
+
+func importPrivacyError(name string, val runtime.Value) error {
+	switch v := val.(type) {
+	case *runtime.FunctionValue:
+		if fn, ok := v.Declaration.(*ast.FunctionDefinition); ok && fn.IsPrivate {
+			return fmt.Errorf("Import error: function '%s' is private", name)
+		}
+	case *runtime.StructDefinitionValue:
+		if v.Node != nil && v.Node.IsPrivate {
+			return fmt.Errorf("Import error: struct '%s' is private", name)
+		}
+	case runtime.StructDefinitionValue:
+		if v.Node != nil && v.Node.IsPrivate {
+			return fmt.Errorf("Import error: struct '%s' is private", name)
+		}
+	case *runtime.InterfaceDefinitionValue:
+		if v.Node != nil && v.Node.IsPrivate {
+			return fmt.Errorf("Import error: interface '%s' is private", name)
+		}
+	case runtime.InterfaceDefinitionValue:
+		if v.Node != nil && v.Node.IsPrivate {
+			return fmt.Errorf("Import error: interface '%s' is private", name)
+		}
+	case *runtime.UnionDefinitionValue:
+		if v.Node != nil && v.Node.IsPrivate {
+			return fmt.Errorf("Import error: union '%s' is private", name)
+		}
+	case runtime.UnionDefinitionValue:
+		if v.Node != nil && v.Node.IsPrivate {
+			return fmt.Errorf("Import error: union '%s' is private", name)
+		}
+	}
+	return fmt.Errorf("Import error: symbol '%s' is private", name)
+}
+
+func dynImportPrivacyError(name string, val runtime.Value) error {
+	switch v := val.(type) {
+	case *runtime.FunctionValue:
+		if fn, ok := v.Declaration.(*ast.FunctionDefinition); ok && fn.IsPrivate {
+			return fmt.Errorf("dynimport error: function '%s' is private", name)
+		}
+	case *runtime.StructDefinitionValue:
+		if v.Node != nil && v.Node.IsPrivate {
+			return fmt.Errorf("dynimport error: struct '%s' is private", name)
+		}
+	case runtime.StructDefinitionValue:
+		if v.Node != nil && v.Node.IsPrivate {
+			return fmt.Errorf("dynimport error: struct '%s' is private", name)
+		}
+	case *runtime.InterfaceDefinitionValue:
+		if v.Node != nil && v.Node.IsPrivate {
+			return fmt.Errorf("dynimport error: interface '%s' is private", name)
+		}
+	case runtime.InterfaceDefinitionValue:
+		if v.Node != nil && v.Node.IsPrivate {
+			return fmt.Errorf("dynimport error: interface '%s' is private", name)
+		}
+	case *runtime.UnionDefinitionValue:
+		if v.Node != nil && v.Node.IsPrivate {
+			return fmt.Errorf("dynimport error: union '%s' is private", name)
+		}
+	case runtime.UnionDefinitionValue:
+		if v.Node != nil && v.Node.IsPrivate {
+			return fmt.Errorf("dynimport error: union '%s' is private", name)
+		}
+	}
+	return fmt.Errorf("dynimport error: symbol '%s' is private", name)
+}
+
+func copyPublicSymbols(bucket map[string]runtime.Value) map[string]runtime.Value {
+	public := make(map[string]runtime.Value)
+	for name, val := range bucket {
+		if isPrivateSymbol(val) {
+			continue
+		}
+		public[name] = val
+	}
+	return public
+}
+
 // New returns an interpreter with an empty global environment.
 func New() *Interpreter {
 	return &Interpreter{
@@ -66,6 +234,9 @@ func New() *Interpreter {
 		inherentMethods: make(map[string]map[string]*runtime.FunctionValue),
 		interfaces:      make(map[string]*runtime.InterfaceDefinitionValue),
 		implMethods:     make(map[string][]implEntry),
+		raiseStack:      make([]runtime.Value, 0),
+		packageRegistry: make(map[string]map[string]runtime.Value),
+		breakpoints:     make([]string, 0),
 	}
 }
 
@@ -77,6 +248,26 @@ func (i *Interpreter) GlobalEnvironment() *runtime.Environment {
 // EvaluateModule executes a module node and returns the last evaluated value and environment.
 func (i *Interpreter) EvaluateModule(module *ast.Module) (runtime.Value, *runtime.Environment, error) {
 	moduleEnv := i.global
+	prevPackage := i.currentPackage
+	defer func() { i.currentPackage = prevPackage }()
+
+	if module.Package != nil {
+		moduleEnv = runtime.NewEnvironment(i.global)
+		pkgName := joinIdentifierNames(module.Package.NamePath)
+		i.currentPackage = pkgName
+		if _, ok := i.packageRegistry[pkgName]; !ok {
+			i.packageRegistry[pkgName] = make(map[string]runtime.Value)
+		}
+	} else {
+		i.currentPackage = ""
+	}
+
+	for _, imp := range module.Imports {
+		if _, err := i.evaluateImportStatement(imp, moduleEnv); err != nil {
+			return nil, nil, err
+		}
+	}
+
 	var last runtime.Value = runtime.NilValue{}
 	for _, stmt := range module.Body {
 		val, err := i.evaluateStatement(stmt, moduleEnv)
@@ -107,6 +298,8 @@ func (i *Interpreter) evaluateStatement(node ast.Statement, env *runtime.Environ
 		return i.evaluateInterfaceDefinition(n, env)
 	case *ast.ImplementationDefinition:
 		return i.evaluateImplementationDefinition(n, env)
+	case *ast.FunctionDefinition:
+		return i.evaluateFunctionDefinition(n, env)
 	case *ast.WhileLoop:
 		return i.evaluateWhileLoop(n, env)
 	case *ast.ForLoop:
@@ -115,8 +308,18 @@ func (i *Interpreter) evaluateStatement(node ast.Statement, env *runtime.Environ
 		return i.evaluateRaiseStatement(n, env)
 	case *ast.BreakStatement:
 		return i.evaluateBreakStatement(n, env)
+	case *ast.ContinueStatement:
+		return i.evaluateContinueStatement(n, env)
 	case *ast.ReturnStatement:
 		return i.evaluateReturnStatement(n, env)
+	case *ast.RethrowStatement:
+		return i.evaluateRethrowStatement(n, env)
+	case *ast.PackageStatement:
+		return runtime.NilValue{}, nil
+	case *ast.ImportStatement:
+		return i.evaluateImportStatement(n, env)
+	case *ast.DynImportStatement:
+		return i.evaluateDynImportStatement(n, env)
 	default:
 		return nil, fmt.Errorf("unsupported statement type: %s", n.NodeType())
 	}
@@ -158,6 +361,29 @@ func (i *Interpreter) evaluateExpression(node ast.Expression, env *runtime.Envir
 			values = append(values, val)
 		}
 		return &runtime.ArrayValue{Elements: values}, nil
+	case *ast.StringInterpolation:
+		var builder strings.Builder
+		for _, part := range n.Parts {
+			if part == nil {
+				return nil, fmt.Errorf("string interpolation contains nil part")
+			}
+			if lit, ok := part.(*ast.StringLiteral); ok {
+				builder.WriteString(lit.Value)
+				continue
+			}
+			val, err := i.evaluateExpression(part, env)
+			if err != nil {
+				return nil, err
+			}
+			str, err := i.stringifyValue(val, env)
+			if err != nil {
+				return nil, err
+			}
+			builder.WriteString(str)
+		}
+		return runtime.StringValue{Val: builder.String()}, nil
+	case *ast.BreakpointExpression:
+		return i.evaluateBreakpointExpression(n, env)
 	case *ast.RangeExpression:
 		start, err := i.evaluateExpression(n.Start, env)
 		if err != nil {
@@ -170,6 +396,14 @@ func (i *Interpreter) evaluateExpression(node ast.Expression, env *runtime.Envir
 		return &runtime.RangeValue{Start: start, End: endExpr, Inclusive: n.Inclusive}, nil
 	case *ast.StructLiteral:
 		return i.evaluateStructLiteral(n, env)
+	case *ast.MatchExpression:
+		return i.evaluateMatchExpression(n, env)
+	case *ast.PropagationExpression:
+		return i.evaluatePropagationExpression(n, env)
+	case *ast.OrElseExpression:
+		return i.evaluateOrElseExpression(n, env)
+	case *ast.EnsureExpression:
+		return i.evaluateEnsureExpression(n, env)
 	case *ast.MemberAccessExpression:
 		return i.evaluateMemberAccess(n, env)
 	case *ast.UnaryExpression:
@@ -228,12 +462,12 @@ func (i *Interpreter) evaluateWhileLoop(loop *ast.WhileLoop, env *runtime.Enviro
 			switch sig := err.(type) {
 			case breakSignal:
 				if sig.label != "" {
-					return nil, fmt.Errorf("labeled break not supported")
+					return nil, sig
 				}
 				return sig.value, nil
 			case continueSignal:
 				if sig.label != "" {
-					return nil, fmt.Errorf("labeled continue not supported")
+					return nil, fmt.Errorf("Labeled continue not supported")
 				}
 				continue
 			case raiseSignal:
@@ -329,12 +563,12 @@ func (i *Interpreter) evaluateForLoop(loop *ast.ForLoop, env *runtime.Environmen
 			switch sig := err.(type) {
 			case breakSignal:
 				if sig.label != "" {
-					return nil, fmt.Errorf("labeled break not supported")
+					return nil, sig
 				}
 				return sig.value, nil
 			case continueSignal:
 				if sig.label != "" {
-					return nil, fmt.Errorf("labeled continue not supported")
+					return nil, fmt.Errorf("Labeled continue not supported")
 				}
 				continue
 			case raiseSignal:
@@ -362,8 +596,52 @@ func (i *Interpreter) evaluateBreakStatement(stmt *ast.BreakStatement, env *runt
 	label := ""
 	if stmt.Label != nil {
 		label = stmt.Label.Name
+		if !i.hasBreakpoint(label) {
+			return nil, fmt.Errorf("Unknown break label '%s'", label)
+		}
 	}
 	return nil, breakSignal{label: label, value: val}
+}
+
+func (i *Interpreter) evaluateContinueStatement(stmt *ast.ContinueStatement, env *runtime.Environment) (runtime.Value, error) {
+	label := ""
+	if stmt.Label != nil {
+		label = stmt.Label.Name
+		return nil, fmt.Errorf("Labeled continue not supported")
+	}
+	return nil, continueSignal{label: label}
+}
+
+func (i *Interpreter) evaluateBreakpointExpression(expr *ast.BreakpointExpression, env *runtime.Environment) (runtime.Value, error) {
+	if expr.Label == nil {
+		return nil, fmt.Errorf("Breakpoint expression requires label")
+	}
+	label := expr.Label.Name
+	i.pushBreakpoint(label)
+	defer i.popBreakpoint()
+	for {
+		val, err := i.evaluateBlock(expr.Body, env)
+		if err != nil {
+			switch sig := err.(type) {
+			case breakSignal:
+				if sig.label == label {
+					return sig.value, nil
+				}
+				return nil, sig
+			case continueSignal:
+				if sig.label == label {
+					continue
+				}
+				return nil, sig
+			default:
+				return nil, err
+			}
+		}
+		if val == nil {
+			return runtime.NilValue{}, nil
+		}
+		return val, nil
+	}
 }
 
 func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *runtime.Environment) (runtime.Value, error) {
@@ -466,6 +744,33 @@ func (i *Interpreter) evaluateIfExpression(expr *ast.IfExpression, env *runtime.
 	return runtime.NilValue{}, nil
 }
 
+func (i *Interpreter) evaluateMatchExpression(expr *ast.MatchExpression, env *runtime.Environment) (runtime.Value, error) {
+	subject, err := i.evaluateExpression(expr.Subject, env)
+	if err != nil {
+		return nil, err
+	}
+	for _, clause := range expr.Clauses {
+		if clause == nil {
+			continue
+		}
+		clauseEnv, matched := i.matchPattern(clause.Pattern, subject, env)
+		if !matched {
+			continue
+		}
+		if clause.Guard != nil {
+			guardVal, err := i.evaluateExpression(clause.Guard, clauseEnv)
+			if err != nil {
+				return nil, err
+			}
+			if !isTruthy(guardVal) {
+				continue
+			}
+		}
+		return i.evaluateExpression(clause.Body, clauseEnv)
+	}
+	return nil, fmt.Errorf("Non-exhaustive match")
+}
+
 func (i *Interpreter) evaluateRescueExpression(expr *ast.RescueExpression, env *runtime.Environment) (runtime.Value, error) {
 	result, err := i.evaluateExpression(expr.MonitoredExpression, env)
 	if err == nil {
@@ -476,22 +781,238 @@ func (i *Interpreter) evaluateRescueExpression(expr *ast.RescueExpression, env *
 		return nil, err
 	}
 	for _, clause := range expr.Clauses {
-		clauseEnv := runtime.NewEnvironment(env)
-		if !rescueMatches(clause.Pattern, rs.value, clauseEnv) {
+		clauseEnv, matched := i.matchPattern(clause.Pattern, rs.value, env)
+		if !matched {
 			continue
 		}
+		i.raiseStack = append(i.raiseStack, rs.value)
 		if clause.Guard != nil {
 			guardVal, gErr := i.evaluateExpression(clause.Guard, clauseEnv)
 			if gErr != nil {
+				i.raiseStack = i.raiseStack[:len(i.raiseStack)-1]
 				return nil, gErr
 			}
 			if !isTruthy(guardVal) {
+				i.raiseStack = i.raiseStack[:len(i.raiseStack)-1]
 				continue
 			}
 		}
-		return i.evaluateExpression(clause.Body, clauseEnv)
+		result, bodyErr := i.evaluateExpression(clause.Body, clauseEnv)
+		i.raiseStack = i.raiseStack[:len(i.raiseStack)-1]
+		if bodyErr != nil {
+			return nil, bodyErr
+		}
+		return result, nil
 	}
 	return nil, rs
+}
+
+func (i *Interpreter) evaluatePropagationExpression(expr *ast.PropagationExpression, env *runtime.Environment) (runtime.Value, error) {
+	val, err := i.evaluateExpression(expr.Expression, env)
+	if err != nil {
+		return nil, err
+	}
+	if errVal, ok := val.(runtime.ErrorValue); ok {
+		return nil, raiseSignal{value: errVal}
+	}
+	return val, nil
+}
+
+func (i *Interpreter) evaluateOrElseExpression(expr *ast.OrElseExpression, env *runtime.Environment) (runtime.Value, error) {
+	val, err := i.evaluateExpression(expr.Expression, env)
+	if err != nil {
+		if rs, ok := err.(raiseSignal); ok {
+			handlerEnv := runtime.NewEnvironment(env)
+			if expr.ErrorBinding != nil {
+				handlerEnv.Define(expr.ErrorBinding.Name, rs.value)
+			}
+			result, handlerErr := i.evaluateBlock(expr.Handler, handlerEnv)
+			if handlerErr != nil {
+				return nil, handlerErr
+			}
+			if result == nil {
+				return runtime.NilValue{}, nil
+			}
+			return result, nil
+		}
+		return nil, err
+	}
+	return val, nil
+}
+
+func (i *Interpreter) evaluateEnsureExpression(expr *ast.EnsureExpression, env *runtime.Environment) (runtime.Value, error) {
+	var tryResult runtime.Value = runtime.NilValue{}
+	val, err := i.evaluateExpression(expr.TryExpression, env)
+	if err == nil {
+		if val != nil {
+			tryResult = val
+		}
+	}
+	if expr.EnsureBlock != nil {
+		if _, ensureErr := i.evaluateBlock(expr.EnsureBlock, env); ensureErr != nil {
+			return nil, ensureErr
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+	if tryResult == nil {
+		return runtime.NilValue{}, nil
+	}
+	return tryResult, nil
+}
+
+func (i *Interpreter) evaluateImportStatement(imp *ast.ImportStatement, env *runtime.Environment) (runtime.Value, error) {
+	return i.processImport(imp.PackagePath, imp.IsWildcard, imp.Selectors, imp.Alias, env, false)
+}
+
+func (i *Interpreter) evaluateDynImportStatement(imp *ast.DynImportStatement, env *runtime.Environment) (runtime.Value, error) {
+	return i.processImport(imp.PackagePath, imp.IsWildcard, imp.Selectors, imp.Alias, env, true)
+}
+
+func (i *Interpreter) processImport(packagePath []*ast.Identifier, isWildcard bool, selectors []*ast.ImportSelector, alias *ast.Identifier, env *runtime.Environment, dynamic bool) (runtime.Value, error) {
+	pkgParts := identifiersToStrings(packagePath)
+	pkgName := strings.Join(pkgParts, ".")
+
+	if dynamic {
+		return i.processDynImport(pkgName, pkgParts, isWildcard, selectors, alias, env)
+	}
+
+	if alias != nil && !isWildcard && len(selectors) == 0 {
+		bucket, ok := i.packageRegistry[pkgName]
+		if !ok {
+			return nil, fmt.Errorf("Import error: package '%s' not found", pkgName)
+		}
+		public := copyPublicSymbols(bucket)
+		env.Define(alias.Name, runtime.PackageValue{NamePath: pkgParts, Public: public})
+		return runtime.NilValue{}, nil
+	}
+
+	if isWildcard {
+		bucket, ok := i.packageRegistry[pkgName]
+		if !ok {
+			return nil, fmt.Errorf("Import error: package '%s' not found", pkgName)
+		}
+		for name, val := range bucket {
+			if isPrivateSymbol(val) {
+				continue
+			}
+			env.Define(name, val)
+		}
+		return runtime.NilValue{}, nil
+	}
+
+	if len(selectors) > 0 {
+		for _, sel := range selectors {
+			if sel == nil || sel.Name == nil {
+				return nil, fmt.Errorf("Import selector missing name")
+			}
+			original := sel.Name.Name
+			aliasName := original
+			if sel.Alias != nil {
+				aliasName = sel.Alias.Name
+			}
+			val, err := i.lookupImportSymbol(pkgName, original)
+			if err != nil {
+				return nil, err
+			}
+			if isPrivateSymbol(val) {
+				return nil, importPrivacyError(original, val)
+			}
+			env.Define(aliasName, val)
+		}
+		return runtime.NilValue{}, nil
+	}
+
+	if pkgName != "" && alias == nil {
+		bucket, ok := i.packageRegistry[pkgName]
+		if !ok {
+			return nil, fmt.Errorf("Import error: package '%s' not found", pkgName)
+		}
+		public := copyPublicSymbols(bucket)
+		env.Define(pkgName, runtime.PackageValue{NamePath: pkgParts, Public: public})
+	}
+
+	return runtime.NilValue{}, nil
+}
+
+func (i *Interpreter) processDynImport(pkgName string, pkgParts []string, isWildcard bool, selectors []*ast.ImportSelector, alias *ast.Identifier, env *runtime.Environment) (runtime.Value, error) {
+	bucket, ok := i.packageRegistry[pkgName]
+	if !ok {
+		return nil, fmt.Errorf("dynimport error: package '%s' not found", pkgName)
+	}
+
+	if alias != nil && !isWildcard && len(selectors) == 0 {
+		env.Define(alias.Name, runtime.DynPackageValue{NamePath: pkgParts, Name: pkgName})
+		return runtime.NilValue{}, nil
+	}
+
+	if isWildcard {
+		for name, val := range bucket {
+			if isPrivateSymbol(val) {
+				continue
+			}
+			env.Define(name, runtime.DynRefValue{Package: pkgName, Name: name})
+		}
+		return runtime.NilValue{}, nil
+	}
+
+	if len(selectors) > 0 {
+		for _, sel := range selectors {
+			if sel == nil || sel.Name == nil {
+				return nil, fmt.Errorf("dynimport selector missing name")
+			}
+			original := sel.Name.Name
+			aliasName := original
+			if sel.Alias != nil {
+				aliasName = sel.Alias.Name
+			}
+			sym, ok := bucket[original]
+			if !ok {
+				return nil, fmt.Errorf("dynimport error: '%s' not found in '%s'", original, pkgName)
+			}
+			if isPrivateSymbol(sym) {
+				return nil, dynImportPrivacyError(original, sym)
+			}
+			env.Define(aliasName, runtime.DynRefValue{Package: pkgName, Name: original})
+		}
+		return runtime.NilValue{}, nil
+	}
+
+	if pkgName != "" && alias == nil {
+		env.Define(pkgName, runtime.DynPackageValue{NamePath: pkgParts, Name: pkgName})
+	}
+
+	return runtime.NilValue{}, nil
+}
+
+func (i *Interpreter) lookupImportSymbol(pkgName, symbol string) (runtime.Value, error) {
+	if pkgName != "" {
+		if bucket, ok := i.packageRegistry[pkgName]; ok {
+			if val, ok := bucket[symbol]; ok {
+				return val, nil
+			}
+		}
+		if val, err := i.global.Get(pkgName + "." + symbol); err == nil {
+			return val, nil
+		}
+	}
+	if val, err := i.global.Get(symbol); err == nil {
+		return val, nil
+	}
+	if pkgName != "" {
+		return nil, fmt.Errorf("Import error: symbol '%s' from '%s' not found", symbol, pkgName)
+	}
+	return nil, fmt.Errorf("Import error: symbol '%s' not found", symbol)
+}
+
+func (i *Interpreter) evaluateRethrowStatement(_ *ast.RethrowStatement, env *runtime.Environment) (runtime.Value, error) {
+	_ = env
+	if len(i.raiseStack) == 0 {
+		return nil, fmt.Errorf("rethrow outside rescue")
+	}
+	current := i.raiseStack[len(i.raiseStack)-1]
+	return nil, raiseSignal{value: current}
 }
 
 func (i *Interpreter) evaluateUnaryExpression(expr *ast.UnaryExpression, env *runtime.Environment) (runtime.Value, error) {
@@ -626,6 +1147,21 @@ func (i *Interpreter) evaluateFunctionCall(call *ast.FunctionCall, env *runtime.
 		}
 		ctx := &runtime.NativeCallContext{Env: env}
 		return fn.Method.Impl(ctx, args)
+	case runtime.DynRefValue:
+		resolved, resErr := i.resolveDynRef(fn)
+		if resErr != nil {
+			return nil, resErr
+		}
+		funcValue = resolved
+	case *runtime.DynRefValue:
+		if fn == nil {
+			return nil, fmt.Errorf("dyn ref is nil")
+		}
+		resolved, resErr := i.resolveDynRef(*fn)
+		if resErr != nil {
+			return nil, resErr
+		}
+		funcValue = resolved
 	case *runtime.BoundMethodValue:
 		funcValue = fn.Method
 		injected = append(injected, fn.Receiver)
@@ -908,7 +1444,70 @@ func makeErrorValue(val runtime.Value) runtime.ErrorValue {
 		return errVal
 	}
 	message := valueToString(val)
-	return runtime.ErrorValue{Message: message}
+	payload := map[string]runtime.Value{
+		"value": val,
+	}
+	return runtime.ErrorValue{Message: message, Payload: payload}
+}
+
+func (i *Interpreter) stringifyValue(val runtime.Value, env *runtime.Environment) (string, error) {
+	_ = env
+	if inst, ok := val.(*runtime.StructInstanceValue); ok {
+		if str, ok := i.invokeStructToString(inst); ok {
+			return str, nil
+		}
+	}
+	return valueToString(val), nil
+}
+
+func (i *Interpreter) invokeStructToString(inst *runtime.StructInstanceValue) (string, bool) {
+	if inst == nil {
+		return "", false
+	}
+	typeName := structTypeName(inst)
+	if typeName == "" {
+		return "", false
+	}
+	if bucket, ok := i.inherentMethods[typeName]; ok {
+		if method := bucket["to_string"]; method != nil {
+			if str, ok := i.callStringMethod(method, inst); ok {
+				return str, true
+			}
+		}
+	}
+	if method, err := i.selectStructMethod(typeName, "to_string"); err == nil && method != nil {
+		if str, ok := i.callStringMethod(method, inst); ok {
+			return str, true
+		}
+	}
+	return "", false
+}
+
+func (i *Interpreter) callStringMethod(fn *runtime.FunctionValue, receiver runtime.Value) (string, bool) {
+	if fn == nil {
+		return "", false
+	}
+	result, err := i.invokeFunction(fn, []runtime.Value{receiver})
+	if err != nil {
+		return "", false
+	}
+	if result == nil {
+		return "", false
+	}
+	if strVal, ok := result.(runtime.StringValue); ok {
+		return strVal.Val, true
+	}
+	return "", false
+}
+
+func structTypeName(inst *runtime.StructInstanceValue) string {
+	if inst == nil {
+		return ""
+	}
+	if inst.Definition != nil && inst.Definition.Node != nil && inst.Definition.Node.ID != nil {
+		return inst.Definition.Node.ID.Name
+	}
+	return ""
 }
 
 func valueToString(val runtime.Value) string {
@@ -920,15 +1519,127 @@ func valueToString(val runtime.Value) string {
 			return "true"
 		}
 		return "false"
+	case runtime.CharValue:
+		return string(v.Val)
 	case runtime.IntegerValue:
 		return v.Val.String()
 	case runtime.FloatValue:
 		return fmt.Sprintf("%g", v.Val)
 	case runtime.NilValue:
 		return "nil"
+	case *runtime.ArrayValue:
+		parts := make([]string, 0, len(v.Elements))
+		for _, el := range v.Elements {
+			parts = append(parts, valueToString(el))
+		}
+		return fmt.Sprintf("[%s]", strings.Join(parts, ", "))
+	case *runtime.RangeValue:
+		start := valueToString(v.Start)
+		end := valueToString(v.End)
+		delim := "..."
+		if v.Inclusive {
+			delim = ".."
+		}
+		return fmt.Sprintf("%s%s%s", start, delim, end)
+	case *runtime.StructInstanceValue:
+		return structInstanceToString(v)
+	case runtime.StructDefinitionValue:
+		name := "struct"
+		if v.Node != nil && v.Node.ID != nil {
+			name = v.Node.ID.Name
+		}
+		return fmt.Sprintf("<struct %s>", name)
+	case *runtime.StructDefinitionValue:
+		name := "struct"
+		if v.Node != nil && v.Node.ID != nil {
+			name = v.Node.ID.Name
+		}
+		return fmt.Sprintf("<struct %s>", name)
+	case *runtime.InterfaceDefinitionValue:
+		name := "interface"
+		if v.Node != nil && v.Node.ID != nil {
+			name = v.Node.ID.Name
+		}
+		return fmt.Sprintf("<interface %s>", name)
+	case runtime.InterfaceDefinitionValue:
+		name := "interface"
+		if v.Node != nil && v.Node.ID != nil {
+			name = v.Node.ID.Name
+		}
+		return fmt.Sprintf("<interface %s>", name)
+	case *runtime.InterfaceValue:
+		name := "interface"
+		if v.Interface != nil && v.Interface.Node != nil && v.Interface.Node.ID != nil {
+			name = v.Interface.Node.ID.Name
+		}
+		return fmt.Sprintf("<interface %s>", name)
+	case *runtime.FunctionValue:
+		return "<function>"
+	case runtime.NativeFunctionValue:
+		return fmt.Sprintf("<native %s>", v.Name)
+	case *runtime.NativeFunctionValue:
+		return fmt.Sprintf("<native %s>", v.Name)
+	case runtime.BoundMethodValue:
+		return "<bound method>"
+	case *runtime.BoundMethodValue:
+		return "<bound method>"
+	case runtime.NativeBoundMethodValue:
+		return fmt.Sprintf("<native bound %s>", v.Method.Name)
+	case *runtime.NativeBoundMethodValue:
+		return fmt.Sprintf("<native bound %s>", v.Method.Name)
+	case runtime.PackageValue:
+		return fmt.Sprintf("<package %s>", strings.Join(v.NamePath, "::"))
+	case runtime.ErrorValue:
+		return v.Message
 	default:
-		return fmt.Sprintf("[%s]", v.Kind())
+		if val == nil {
+			return "<nil>"
+		}
+		return fmt.Sprintf("[%s]", val.Kind())
 	}
+}
+
+func structInstanceToString(inst *runtime.StructInstanceValue) string {
+	if inst == nil {
+		return "<struct> {}"
+	}
+	name := structTypeName(inst)
+	if name == "" {
+		name = "<struct>"
+	}
+	if inst.Positional != nil {
+		parts := make([]string, 0, len(inst.Positional))
+		for _, el := range inst.Positional {
+			parts = append(parts, valueToString(el))
+		}
+		return fmt.Sprintf("%s { %s }", name, strings.Join(parts, ", "))
+	}
+	if inst.Fields != nil {
+		keys := make([]string, 0, len(inst.Fields))
+		for k := range inst.Fields {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		parts := make([]string, 0, len(keys))
+		for _, k := range keys {
+			parts = append(parts, fmt.Sprintf("%s: %s", k, valueToString(inst.Fields[k])))
+		}
+		return fmt.Sprintf("%s { %s }", name, strings.Join(parts, ", "))
+	}
+	return fmt.Sprintf("%s { }", name)
+}
+
+func (i *Interpreter) evaluateFunctionDefinition(def *ast.FunctionDefinition, env *runtime.Environment) (runtime.Value, error) {
+	if def.ID == nil {
+		return nil, fmt.Errorf("Function definition requires identifier")
+	}
+	fnVal := &runtime.FunctionValue{Declaration: def, Closure: env}
+	env.Define(def.ID.Name, fnVal)
+	i.registerSymbol(def.ID.Name, fnVal)
+	if qn := i.qualifiedName(def.ID.Name); qn != "" {
+		i.global.Define(qn, fnVal)
+	}
+	return runtime.NilValue{}, nil
 }
 
 func (i *Interpreter) evaluateStructDefinition(def *ast.StructDefinition, env *runtime.Environment) (runtime.Value, error) {
@@ -937,6 +1648,10 @@ func (i *Interpreter) evaluateStructDefinition(def *ast.StructDefinition, env *r
 	}
 	structVal := &runtime.StructDefinitionValue{Node: def}
 	env.Define(def.ID.Name, structVal)
+	i.registerSymbol(def.ID.Name, structVal)
+	if qn := i.qualifiedName(def.ID.Name); qn != "" {
+		i.global.Define(qn, structVal)
+	}
 	return runtime.NilValue{}, nil
 }
 
@@ -947,6 +1662,10 @@ func (i *Interpreter) evaluateInterfaceDefinition(def *ast.InterfaceDefinition, 
 	ifaceVal := &runtime.InterfaceDefinitionValue{Node: def, Env: env}
 	env.Define(def.ID.Name, ifaceVal)
 	i.interfaces[def.ID.Name] = ifaceVal
+	i.registerSymbol(def.ID.Name, ifaceVal)
+	if qn := i.qualifiedName(def.ID.Name); qn != "" {
+		i.global.Define(qn, ifaceVal)
+	}
 	return runtime.NilValue{}, nil
 }
 
@@ -1137,6 +1856,14 @@ func (i *Interpreter) evaluateMemberAccess(expr *ast.MemberAccessExpression, env
 		return i.structDefinitionMember(v, expr.Member)
 	case runtime.StructDefinitionValue:
 		return i.structDefinitionMember(&v, expr.Member)
+	case runtime.PackageValue:
+		return i.packageMemberAccess(v, expr.Member)
+	case *runtime.PackageValue:
+		return i.packageMemberAccess(*v, expr.Member)
+	case runtime.DynPackageValue:
+		return i.dynPackageMemberAccess(v, expr.Member)
+	case *runtime.DynPackageValue:
+		return i.dynPackageMemberAccess(*v, expr.Member)
 	case *runtime.StructInstanceValue:
 		return i.structInstanceMember(v, expr.Member)
 	case *runtime.InterfaceValue:
@@ -1217,6 +1944,51 @@ func (i *Interpreter) structDefinitionMember(def *runtime.StructDefinitionValue,
 	return method, nil
 }
 
+func (i *Interpreter) packageMemberAccess(pkg runtime.PackageValue, member ast.Expression) (runtime.Value, error) {
+	ident, ok := member.(*ast.Identifier)
+	if !ok {
+		return nil, fmt.Errorf("Package member access expects identifier")
+	}
+	if pkg.Public == nil {
+		return nil, fmt.Errorf("Package has no public members")
+	}
+	val, ok := pkg.Public[ident.Name]
+	if !ok {
+		pkgName := strings.Join(pkg.NamePath, ".")
+		if pkgName == "" {
+			pkgName = "<package>"
+		}
+		return nil, fmt.Errorf("No public member '%s' on package %s", ident.Name, pkgName)
+	}
+	return val, nil
+}
+
+func (i *Interpreter) dynPackageMemberAccess(pkg runtime.DynPackageValue, member ast.Expression) (runtime.Value, error) {
+	ident, ok := member.(*ast.Identifier)
+	if !ok {
+		return nil, fmt.Errorf("Dyn package member access expects identifier")
+	}
+	pkgName := pkg.Name
+	if pkgName == "" {
+		pkgName = strings.Join(pkg.NamePath, ".")
+	}
+	if pkgName == "" {
+		return nil, fmt.Errorf("Dyn package missing name")
+	}
+	bucket, ok := i.packageRegistry[pkgName]
+	if !ok {
+		return nil, fmt.Errorf("dyn package '%s' not found", pkgName)
+	}
+	sym, ok := bucket[ident.Name]
+	if !ok {
+		return nil, fmt.Errorf("dyn package '%s' has no member '%s'", pkgName, ident.Name)
+	}
+	if isPrivateSymbol(sym) {
+		return nil, fmt.Errorf("dyn package '%s' member '%s' is private", pkgName, ident.Name)
+	}
+	return runtime.DynRefValue{Package: pkgName, Name: ident.Name}, nil
+}
+
 func (i *Interpreter) interfaceMember(val *runtime.InterfaceValue, member ast.Expression) (runtime.Value, error) {
 	if val == nil {
 		return nil, fmt.Errorf("Interface value is nil")
@@ -1253,6 +2025,21 @@ func (i *Interpreter) interfaceMember(val *runtime.InterfaceValue, member ast.Ex
 	return &runtime.BoundMethodValue{Receiver: val.Underlying, Method: method}, nil
 }
 
+func (i *Interpreter) resolveDynRef(ref runtime.DynRefValue) (*runtime.FunctionValue, error) {
+	bucket, ok := i.packageRegistry[ref.Package]
+	if !ok {
+		return nil, fmt.Errorf("dyn ref '%s.%s' not found", ref.Package, ref.Name)
+	}
+	val, ok := bucket[ref.Name]
+	if !ok {
+		return nil, fmt.Errorf("dyn ref '%s.%s' not found", ref.Package, ref.Name)
+	}
+	if fn, ok := val.(*runtime.FunctionValue); ok {
+		return fn, nil
+	}
+	return nil, fmt.Errorf("dyn ref '%s.%s' is not callable", ref.Package, ref.Name)
+}
+
 func toStructDefinitionValue(val runtime.Value, name string) (*runtime.StructDefinitionValue, error) {
 	switch v := val.(type) {
 	case *runtime.StructDefinitionValue:
@@ -1284,6 +2071,12 @@ func (i *Interpreter) assignPattern(pattern ast.Pattern, value runtime.Value, en
 		}
 		return nil
 	case *ast.StructPattern:
+		if errVal, ok := value.(runtime.ErrorValue); ok {
+			value = errorValueToStructInstance(errVal)
+		}
+		if errValPtr, ok := value.(*runtime.ErrorValue); ok {
+			value = errorValueToStructInstance(*errValPtr)
+		}
 		structVal, ok := value.(*runtime.StructInstanceValue)
 		if !ok {
 			return fmt.Errorf("cannot destructure non-struct value")
@@ -1393,6 +2186,28 @@ func (i *Interpreter) assignPattern(pattern ast.Pattern, value runtime.Value, en
 	default:
 		return fmt.Errorf("unsupported pattern %s", pattern.NodeType())
 	}
+}
+
+func errorValueToStructInstance(err runtime.ErrorValue) *runtime.StructInstanceValue {
+	fields := make(map[string]runtime.Value)
+	if err.Payload != nil {
+		for k, v := range err.Payload {
+			fields[k] = v
+		}
+	}
+	fields["message"] = runtime.StringValue{Val: err.Message}
+	return &runtime.StructInstanceValue{Fields: fields}
+}
+
+func (i *Interpreter) matchPattern(pattern ast.Pattern, value runtime.Value, base *runtime.Environment) (*runtime.Environment, bool) {
+	if pattern == nil {
+		return nil, false
+	}
+	matchEnv := runtime.NewEnvironment(base)
+	if err := i.assignPattern(pattern, value, matchEnv, true); err != nil {
+		return nil, false
+	}
+	return matchEnv, true
 }
 
 func declareOrAssign(env *runtime.Environment, name string, value runtime.Value, isDeclaration bool) error {
@@ -1657,23 +2472,6 @@ func (i *Interpreter) coerceToInterfaceValue(interfaceName string, value runtime
 		methods[name] = fn
 	}
 	return &runtime.InterfaceValue{Interface: ifaceDef, Underlying: value, Methods: methods}, nil
-}
-
-func rescueMatches(pattern ast.Pattern, err runtime.Value, env *runtime.Environment) bool {
-	switch p := pattern.(type) {
-	case *ast.Identifier:
-		env.Define(p.Name, err)
-		return true
-	case *ast.WildcardPattern:
-		return true
-	case *ast.LiteralPattern:
-		if strLit, ok := p.Literal.(*ast.StringLiteral); ok {
-			return valueToString(err) == strLit.Value
-		}
-		return false
-	default:
-		return false
-	}
 }
 
 func rangeEndpoint(val runtime.Value) (int, error) {

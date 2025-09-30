@@ -1,0 +1,10 @@
+{
+  "description": "Or else handler runs when propagation raises",
+  "expect": {
+    "result": {
+      "kind": "string",
+      "value": "handled"
+    }
+  },
+  "entry": "module.json"
+}

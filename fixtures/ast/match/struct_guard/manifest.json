@@ -1,0 +1,10 @@
+{
+  "description": "Match struct pattern binds fields and guard filters clauses",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": 3
+    }
+  },
+  "entry": "module.json"
+}

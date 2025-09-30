@@ -1,0 +1,28 @@
+{
+  "type": "Module",
+  "package": {
+    "type": "PackageStatement",
+    "namePath": [
+      { "type": "Identifier", "name": "static_base" }
+    ]
+  },
+  "imports": [],
+  "body": [
+    {
+      "type": "FunctionDefinition",
+      "id": { "type": "Identifier", "name": "base_value" },
+      "params": [],
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "argument": { "type": "IntegerLiteral", "value": 41 }
+          }
+        ]
+      },
+      "isMethodShorthand": false,
+      "isPrivate": false
+    }
+  ]
+}

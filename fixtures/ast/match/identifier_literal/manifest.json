@@ -1,0 +1,10 @@
+{
+  "description": "Match falls through literal clause and binds identifier",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": 7
+    }
+  },
+  "entry": "module.json"
+}

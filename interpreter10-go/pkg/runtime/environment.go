@@ -47,7 +47,7 @@ func (e *Environment) Assign(name string, value Value) error {
 	if e.parent != nil {
 		return e.parent.Assign(name, value)
 	}
-	return fmt.Errorf("undefined variable '%s'", name)
+	return fmt.Errorf("Undefined variable '%s'", name)
 }
 
 // Get retrieves a binding, searching outward through the scope chain.
@@ -58,7 +58,7 @@ func (e *Environment) Get(name string) (Value, error) {
 	if e.parent != nil {
 		return e.parent.Get(name)
 	}
-	return nil, fmt.Errorf("undefined variable '%s'", name)
+	return nil, fmt.Errorf("Undefined variable '%s'", name)
 }
 
 // Keys returns the bindings in sorted order (useful for determinism in tests).

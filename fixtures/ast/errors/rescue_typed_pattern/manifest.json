@@ -1,0 +1,10 @@
+{
+  "description": "Typed pattern catches raised error",
+  "expect": {
+    "result": {
+      "kind": "string",
+      "value": "caught"
+    }
+  },
+  "entry": "module.json"
+}

@@ -1958,7 +1958,33 @@ for i in 1..3 { ## Range 1..3 implements Iterable
 } ## total becomes 6 (1+2+3)
 ```
 
-#### 8.2.3. Range Expressions
+#### 8.2.3. Continue Statement (`continue`)
+
+Skips the remainder of the current loop iteration and proceeds with the next iteration of the innermost enclosing `for` or `while` loop.
+
+##### Syntax
+
+```able
+continue
+```
+
+##### Semantics
+
+-   `continue` statements may only appear inside a loop. Encountering `continue` transfers control to the loop's next iteration (or terminates the loop if its condition is now false or the iterator is exhausted).
+-   `continue` never carries a value and always evaluates to `nil`.
+-   **Labeled continues are not part of Able v10.** Attempting to write `continue 'label` (or any variant with a label) is a static error when detectable by tooling; interpreters must raise a runtime error with message `"Labeled continue not supported"` if such syntax is executed.
+
+##### Example
+
+```able
+sum = 0
+for n in numbers {
+  if n < 0 { continue } ## Skip negative values
+  sum = sum + n
+}
+```
+
+#### 8.2.4. Range Expressions
 
 Provide a concise way to create iterable sequences of integers.
 
@@ -3578,4 +3604,3 @@ extern ruby fn new_uuid() -> string { SecureRandom.uuid }
 ### 8.3.5. Loop Break Result
 
 Break statements without a label target the innermost loop. The loop evaluates to the break value (or `nil` if the break omits a value). When the loop completes normally, the loop expression evaluates to the last expression in the loop body (or `nil` for an empty body).
-

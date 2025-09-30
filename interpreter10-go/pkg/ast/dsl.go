@@ -278,6 +278,10 @@ func Brk(label interface{}, value Expression) *BreakStatement {
 	return NewBreakStatement(identifierPtr(label), value)
 }
 
+func Cont(label interface{}) *ContinueStatement {
+	return NewContinueStatement(identifierPtr(label))
+}
+
 // Error handling helpers.
 
 func Raise(expression Expression) *RaiseStatement {
