@@ -1,0 +1,51 @@
+{
+  "type": "Module",
+  "package": {
+    "type": "PackageStatement",
+    "namePath": [
+      { "type": "Identifier", "name": "static_middle_multihop" }
+    ]
+  },
+  "imports": [
+    {
+      "type": "ImportStatement",
+      "packagePath": [
+        { "type": "Identifier", "name": "static_base_multihop" }
+      ],
+      "selectors": [
+        {
+          "type": "ImportSelector",
+          "name": { "type": "Identifier", "name": "base_value" }
+        }
+      ]
+    }
+  ],
+  "body": [
+    {
+      "type": "FunctionDefinition",
+      "id": { "type": "Identifier", "name": "middle_value" },
+      "params": [],
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "argument": {
+              "type": "BinaryExpression",
+              "operator": "+",
+              "left": {
+                "type": "FunctionCall",
+                "callee": { "type": "Identifier", "name": "base_value" },
+                "arguments": [],
+                "isTrailingLambda": false
+              },
+              "right": { "type": "IntegerLiteral", "value": 1 }
+            }
+          }
+        ]
+      },
+      "isMethodShorthand": false,
+      "isPrivate": false
+    }
+  ]
+}

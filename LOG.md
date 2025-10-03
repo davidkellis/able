@@ -1,4 +1,4 @@
-  - Root docs now call out the Go runtime as the canonical interpreter and redirect contributors accordingly (README.md:5, AGENTS.md:5, PLAN.md:3).
+- Root docs now call out the Go runtime as the canonical interpreter and redirect contributors accordingly (README.md:5, AGENTS.md:5, PLAN.md:3).
   - Added a Go workspace stub with module metadata and package README to anchor the new interpreter efforts (interpreter10-go/go.mod:1, interpreter10-go/README.md:1).
   - Implemented the full v10 AST in Go, mirroring the TypeScript structure: tagged node hierarchy, patterns, definitions, control flow, and concurrency nodes (interpreter10-go/pkg/ast/ast.go:1).
   - Built a rich DSL of helper builders so tests/fixtures can construct ASTs as ergonomically as in TypeScript (interpreter10-go/pkg/ast/dsl.go:5).
@@ -149,9 +149,9 @@
     □ Add new fixtures (range for-loop, labeled break/continue, multi-clause rescue) and confirm parity in TS/Go harnesses.
 
 • Explored
-  └ Search case \"RangeExpression\" in interpreter.ts
+  └ Search case "RangeExpression" in interpreter.ts
     Read interpreter.ts
-    Search case \"ForLoop\" in interpreter.ts
+    Search case "ForLoop" in interpreter.ts
 
 • Ran gofmt -w interpreter10-go/pkg/interpreter/interpreter.go
 
@@ -280,8 +280,8 @@
 • Edited interpreter10-go/pkg/interpreter/interpreter.go (+11 -0)
     713    }
     714   +
-    715   +func rangeEndpoint(val runtime.Value) (int, error) {
-    716   +	switch v := val.(type) {
+    715   +	func rangeEndpoint(val runtime.Value) (int, error) {
+    716   +	case v := val.(type) {
     717   +	case runtime.IntegerValue:
     718   +		return int(v.Val.Int64()), nil
     719   +	case runtime.FloatValue:
@@ -317,29 +317,29 @@
 
 • Edited interpreter10/scripts/export-fixtures.ts (+23 -0)
     121      {
-    122   +    name: "control/for_range_break",
-    123   +    module: AST.module([
-    124   +      AST.assign("sum", AST.int(0)),
-    125   +      AST.forIn(
-    126   +        "n",
-    127   +        AST.range(AST.int(0), AST.int(5), false),
-    128   +        AST.block(
-    129   +          AST.assign("sum", AST.bin("+", AST.id("sum"), AST.id("n")), "="),
-    130   +          AST.ifExpression(
-    131   +            AST.bin(">=", AST.id("n"), AST.int(2)),
-    132   +            AST.block(AST.brk(undefined, AST.id("sum"))),
-    133   +          ),
-    134   +        ),
-    135   +      ),
-    136   +    ]),
-    137   +    manifest: {
-    138   +      description: "For loop over range with break",
-    139   +      expect: {
-    140   +        result: { kind: "i32", value: 3 },
-    141   +      },
-    142   +    },
-    143   +  },
-    144   +  {
+    122   +	    name: "control/for_range_break",
+    123   +	    module: AST.module([
+    124   +	      AST.assign("sum", AST.int(0)),
+    125   +	      AST.forIn(
+    126   +	        "n",
+    127   +	        AST.range(AST.int(0), AST.int(5), false),
+    128   +	        AST.block(
+    129   +	          AST.assign("sum", AST.bin("+", AST.id("sum"), AST.id("n"))), "="),
+    130   +	          AST.ifExpression(
+    131   +	            AST.bin(">=", AST.id("n"), AST.int(2)),
+    132   +	            AST.block(AST.brk(undefined, AST.id("sum"))),
+    133   +	          ),
+    134   +	        ),
+    135   +	      ),
+    136   +	    ]),
+    137   +	    manifest: {
+    138   +	      description: "For loop over range with break",
+    139   +	      expect: {
+    140   +	        result: { kind: "i32", value: 3 },
+    141   +	      },
+    142   +	    },
+    143   +	  },
+    144   +	  {
     145        name: "errors/rescue_guard",
 
 • Ran cd interpreter10 && bun run scripts/export-fixtures.ts
@@ -401,8 +401,8 @@
 • Edited interpreter10-go/pkg/interpreter/interpreter.go (+11 -0)
     731    }
     732   +
-    733   +func rangeEndpoint(val runtime.Value) (int, error) {
-    734   +	switch v := val.(type) {
+    733   +	func rangeEndpoint(val runtime.Value) (int, error) {
+    734   +	case v := val.(type) {
     735   +	case runtime.IntegerValue:
     736   +		return int(v.Val.Int64()), nil
     737   +	case runtime.FloatValue:
@@ -449,8 +449,8 @@
 • Edited interpreter10-go/pkg/interpreter/interpreter.go (+0 -11)
     724    }
     725   -
-    726   -func rangeEndpoint(val runtime.Value) (int, error) {
-    727   -	switch v := val.(type) {
+    726   -	func rangeEndpoint(val runtime.Value) (int, error) {
+    727   -	case v := val.(type) {
     728   -	case runtime.IntegerValue:
     729   -		return int(v.Val.Int64()), nil
     730   -	case runtime.FloatValue:
@@ -465,7 +465,7 @@
 • Ran GOCACHE=/tmp/gocache go test ./...
 
 • Explored
-  └ Search case \*ast.RangeExpression in interpreter.go
+  └ Search case *ast.RangeExpression in interpreter.go
 
 • Edited interpreter10-go/pkg/interpreter/interpreter.go (+10 -0)
     96     		return &runtime.ArrayValue{Elements: values}, nil
@@ -498,8 +498,8 @@
 
 • Edited interpreter10/scripts/export-fixtures.ts (+1 -1)
     149            [
-    150   -          AST.mc(AST.str("ignore"), AST.str("ignored")),
-    150   +          AST.mc(AST.litP(AST.str("ignore")), AST.str("ignored")),
+    150   -		  AST.mc(AST.str("ignore"), AST.str("ignored")),
+    150   +		  AST.mc(AST.litP(AST.str("ignore")), AST.str("ignored")),
     151              AST.mc(
 
 • Ran cd interpreter10 && bun run scripts/export-fixtures.ts
@@ -517,17 +517,17 @@
     279   -		if !ok {
     280   -			return nil, fmt.Errorf("invalid for-loop pattern %T", patternNode)
     281   -		}
-    274   +	pattern, err := decodePattern(node["pattern"].(map[string]any))
-    275   +	if err != nil {
-    276   +		return nil, err
-    277   +	}
+    274   +		pattern, err := decodePattern(node["pattern"].(map[string]any))
+    275   +		if err != nil {
+    276   +			return nil, err
+    277   +		}
     278    		iterNode, err := decodeNode(node["iterable"].(map[string]any))
     ⋮
     514    func decodeMatchClause(node map[string]any) (*ast.MatchClause, error) {
-    519   -	patternNode, err := decodeNode(node["pattern"].(map[string]any))
-    515   +	pattern, err := decodePattern(node["pattern"].(map[string]any))
-    516    	if err != nil {
-    517    		return nil, err
+    519   -		patternNode, err := decodeNode(node["pattern"].(map[string]any))
+    515   +		pattern, err := decodePattern(node["pattern"].(map[string]any))
+    516    		if err != nil {
+    517    			return nil, err
     522   -	}
     523   -	pattern, ok := patternNode.(ast.Pattern)
     524   -	if !ok {
@@ -585,13 +585,13 @@ To continue this session, run codex resume 01998c66-1bcb-7530-afdb-b26619aebd9f.
     84    -1. Port representative struct tests from TypeScript to Go (including member updates and access/mutation) to expand coverage.
     85    -2. Extend fixtures once functional update and method lookups land in Go so parity harnesses cover those scenarios.
     86    -3. Fold the break/pattern + struct semantics into `spec/full_spec_v10.md`, clearing the corresponding items in `spec/todo.md`.
-    84    +1. Port the remaining struct scenarios from the TypeScript suite to Go (mutating fields, static methods, functional update edge cases) and mirror any missing TS coverage.
-    85    +2. Extend shared fixtures when new struct behaviour lands (e.g., functional update, method access) and keep both harnesses passing (`bun run scripts/run-fixtures.ts`, `go test ./pkg/interpreter`).
-    86    +3. Continue folding design-note behaviour into `spec/full_spec_v10.md` as milestones complete; add new todos to `spec/todo.md` when gaps appear.
+    84    +	1. Port the remaining struct scenarios from the TypeScript suite to Go (mutating fields, static methods, functional update edge cases) and mirror any missing TS coverage.
+    85    +	2. Extend shared fixtures when new struct behaviour lands (e.g., functional update, method access) and keep both harnesses passing (`bun run scripts/run-fixtures.ts`, `go test ./pkg/interpreter`).
+    86    +	3. Continue folding design-note behaviour into `spec/full_spec_v10.md` as milestones complete; add new todos to `spec/todo.md` when gaps appear.
     87
 
 > - Spec now codifies the shared behaviour (break, patterns, structs) and onboarding docs emphasize syncing fixtures, tests, and spec updates (spec/full_spec_v10.md, spec/todo.md, AGENTS.md, LOG.md).
-  - Go test suite ports more struct scenarios from TypeScript, keeping parity green (interpreter10-go/pkg/interpreter/interpreter_test.go, bun test, bun run scripts/run-fixtures.ts, GOCACHE=/tmp/gocache go test ./...).
+  - Go test suite ports more struct scenarios from TypeScript, keeping parity green (interpreter10-go/pkg/interpreter/interpreter_test.go, bun test, bun run scripts/run-fixtures.ts, GOCACHE=/tmp/gocache go test ./...). 
   - PLAN.md immediate actions now point to: (1) port remaining TS struct tests to Go, (2) extend fixtures as struct behaviour grows, (3) keep folding design-note behaviour into the spec and record new gaps.
 
   Next session can pick up with those PLAN items, starting with porting any remaining struct/method tests.
@@ -698,3 +698,13 @@ To continue this session, run codex resume 01998c66-1bcb-7530-afdb-b26619aebd9f.
   1. Broaden import parity to cover wildcard re-exports and dyn-import metadata before expanding fixtures.
   2. Capture the goroutine scheduler design so proc/spawn work can begin with shared direction.
   3. Mirror TS privacy diagnostics for method/interface imports and document any remaining gaps in `interpreter10-go/PARITY.md`.
+> Import Alias & Package Parity (2025-10-01)
+
+- Added a multi-hop re-export fixture to exercise deeper import chains (`fixtures/ast/imports/static_reexport_multihop/**`).
+- Both the TypeScript and Go interpreters pass the new fixture, ensuring parity for multi-hop re-exports.
+- Drafted the Go concurrency scheduler design document (`design/go-concurrency-scheduler.md`), outlining the approach for implementing `proc` and `spawn` using goroutines and channels.
+
+Next Steps
+
+1. Implement the Go concurrency scheduler as outlined in the design document.
+2. Harden module privacy enforcement in Go.

@@ -1,0 +1,15 @@
+{
+  "description": "Import through a multi-hop re-exporting package chain",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": 42
+    }
+  },
+  "entry": "module.json",
+  "setup": [
+    "base.json",
+    "middle.json",
+    "top.json"
+  ]
+}

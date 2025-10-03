@@ -1329,6 +1329,122 @@ func TestStructMemberAssignmentMutation(t *testing.T) {
 	}
 }
 
+func TestArrayIndexRead(t *testing.T) {
+	interp := New()
+	module := ast.Mod([]ast.Statement{
+		ast.Assign(ast.ID("a"), ast.Arr(ast.Int(10), ast.Int(20), ast.Int(30))),
+		ast.Index(ast.ID("a"), ast.Int(1)),
+	}, nil, nil)
+
+	result, _, err := interp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	intVal, ok := result.(runtime.IntegerValue)
+	if !ok || intVal.Val.Cmp(bigInt(20)) != 0 {
+		t.Fatalf("expected index read 20, got %#v", result)
+	}
+}
+
+func TestArrayIndexAssignment(t *testing.T) {
+	interp := New()
+	module := ast.Mod([]ast.Statement{
+		ast.Assign(ast.ID("a"), ast.Arr(ast.Int(1), ast.Int(2))),
+		ast.AssignOp(ast.AssignmentAssign, ast.Index(ast.ID("a"), ast.Int(1)), ast.Int(9)),
+		ast.Index(ast.ID("a"), ast.Int(1)),
+	}, nil, nil)
+
+	result, env, err := interp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	intVal, ok := result.(runtime.IntegerValue)
+	if !ok || intVal.Val.Cmp(bigInt(9)) != 0 {
+		t.Fatalf("expected updated index value 9, got %#v", result)
+	}
+	arrVal, err := env.Get("a")
+	if err != nil {
+		t.Fatalf("expected array binding for 'a': %v", err)
+	}
+	arr, ok := arrVal.(*runtime.ArrayValue)
+	if !ok {
+		t.Fatalf("expected array value, got %#v", arrVal)
+	}
+	if len(arr.Elements) != 2 {
+		t.Fatalf("expected array length 2, got %d", len(arr.Elements))
+	}
+	if elem, ok := arr.Elements[1].(runtime.IntegerValue); !ok || elem.Val.Cmp(bigInt(9)) != 0 {
+		t.Fatalf("expected element 1 == 9, got %#v", arr.Elements[1])
+	}
+}
+
+func TestCompoundAssignments(t *testing.T) {
+	interp := New()
+	module := ast.Mod([]ast.Statement{
+		ast.Assign(ast.ID("x"), ast.Int(2)),
+		ast.AssignOp(ast.AssignmentAdd, ast.ID("x"), ast.Int(3)),
+		ast.AssignOp(ast.AssignmentShiftL, ast.ID("x"), ast.Int(1)),
+		ast.StructDef(
+			"Point",
+			[]*ast.StructFieldDefinition{
+				ast.FieldDef(ast.Ty("i32"), "x"),
+				ast.FieldDef(ast.Ty("i32"), "y"),
+			},
+			ast.StructKindNamed,
+			nil,
+			nil,
+			false,
+		),
+		ast.Assign(
+			ast.ID("p"),
+			ast.StructLit(
+				[]*ast.StructFieldInitializer{
+					ast.FieldInit(ast.Int(1), "x"),
+					ast.FieldInit(ast.Int(2), "y"),
+				},
+				false,
+				"Point",
+				nil,
+				nil,
+			),
+		),
+		ast.AssignOp(ast.AssignmentAdd, ast.Member(ast.ID("p"), "x"), ast.Int(4)),
+		ast.Assign(ast.ID("arr"), ast.Arr(ast.Int(3), ast.Int(4))),
+		ast.AssignOp(ast.AssignmentMul, ast.Index(ast.ID("arr"), ast.Int(1)), ast.Int(2)),
+		ast.ID("x"),
+	}, nil, nil)
+
+	result, env, err := interp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if intVal, ok := result.(runtime.IntegerValue); !ok || intVal.Val.Cmp(bigInt(10)) != 0 {
+		t.Fatalf("expected x == 10, got %#v", result)
+	}
+	pVal, err := env.Get("p")
+	if err != nil {
+		t.Fatalf("expected struct binding for 'p': %v", err)
+	}
+	inst, ok := pVal.(*runtime.StructInstanceValue)
+	if !ok {
+		t.Fatalf("expected struct instance, got %#v", pVal)
+	}
+	if field, ok := inst.Fields["x"].(runtime.IntegerValue); !ok || field.Val.Cmp(bigInt(5)) != 0 {
+		t.Fatalf("expected struct field x == 5, got %#v", inst.Fields["x"])
+	}
+	arrVal, err := env.Get("arr")
+	if err != nil {
+		t.Fatalf("expected array binding for 'arr': %v", err)
+	}
+	arr, ok := arrVal.(*runtime.ArrayValue)
+	if !ok {
+		t.Fatalf("expected array value, got %#v", arrVal)
+	}
+	if elem, ok := arr.Elements[1].(runtime.IntegerValue); !ok || elem.Val.Cmp(bigInt(8)) != 0 {
+		t.Fatalf("expected array element 1 == 8, got %#v", arr.Elements[1])
+	}
+}
+
 func TestStructLiteralMissingFieldError(t *testing.T) {
 	interp := New()
 	module := ast.Mod([]ast.Statement{

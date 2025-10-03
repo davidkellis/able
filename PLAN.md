@@ -81,9 +81,8 @@ For each milestone: port representative TS tests into Go, add new cases where Go
 - **Future interpreters**: keep AST schema + conformance harness generic to support planned Crystal implementation.
 
 ## Immediate Next Actions
-1. Finish module/import parity by implementing multi-hop re-export chains, nested manifest setups, and dyn-import metadata instrumentation so Go mirrors the remaining TS suites.
-2. Draft the Go concurrency scheduler design (goroutines vs cooperative TS scheduler) so the upcoming proc/spawn milestone can start with shared direction.
-3. Harden module privacy enforcement in Go (functions, structs, methods, interfaces), mirroring the TypeScript diagnostics before expanding dyn-import coverage.
+1. **Implement the Go concurrency scheduler** as outlined in `design/go-concurrency-scheduler.md`.
+2. Harden module privacy enforcement in Go (functions, structs, methods, interfaces), mirroring the TypeScript diagnostics before expanding dyn-import coverage.
 
 ### Next steps (prioritized)
 1. **Go feature parity** – Work through the parity checklist and port any remaining TypeScript behaviours (modules/import privacy, advanced pattern matching, generics, interface resolution) into the Go interpreter.
