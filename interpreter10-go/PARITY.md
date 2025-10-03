@@ -26,8 +26,8 @@ This document tracks the remaining gaps between the two interpreters. For each f
 | Interfaces & impls | `methods_impls.test.ts`, `interface_dynamic_dispatch.test.ts`, `interface_default_methods.test.ts`, `impl_resolution.test.ts`, `impl_generic_constraints.test.ts`, `impl_ambiguity.test.ts` | ⚠️ basic dispatch/default methods only |
 | Generics & constraints | `generic_constraints.test.ts`, `method_generic_constraints.test.ts`, `generic_type_introspection.test.ts`, `type_args.test.ts` | ❌ missing |
 | UFCS | `ufcs.test.ts` | ❌ missing |
-| Index assignment/read | `index_assign.test.ts`, `index_read.test.ts` | ❌ missing |
-| Compound assignments | `compound_assign.test.ts` | ❌ missing |
+| Index assignment/read | `index_assign.test.ts`, `index_read.test.ts` | ✅ basic cases |
+| Compound assignments | `compound_assign.test.ts` | ✅ basic cases |
 | Bitshifts & range validation | `bitshift_range.test.ts` | ❌ missing |
 | Breakpoints | `breakpoint.test.ts` | ❌ missing |
 | Concurrency (`proc`, `spawn`, futures) | `proc_spawn.test.ts` | ❌ missing |
@@ -40,7 +40,7 @@ The table above captures line-item status; the following themes summarise what s
 - **Control flow coverage** — While unlabeled `continue` and labeled `break` now align, Go still lacks thorough testing for while/range edge cases, labeled `continue` rejection scenarios, and the full `if/or` short-circuit suite.
 - **Modules & imports** — Re-export chains, nested manifest setups, and dyn-import metadata aren’t implemented yet. Privacy diagnostics for interfaces/methods must match TS strings exactly.
 - **Interfaces, impls, and generics** — Go is missing UFCS, default methods, advanced impl resolution, generic constraints/introspection, and named/unnamed impl ambiguity checks exercised in TS.
-- **Data access & operators** — Index reads/writes, compound assignments, bitshift operators, and mixed numeric comparison semantics are outstanding.
+- **Data access & operators** — Bitshift operators and range validation remain, but index reads/writes and compound assignments now have basic coverage.
 - **Error reporting** — Deeper rescue/raise diagnostics and payload metadata still diverge from TS expectations.
 - **Concurrency** — No goroutine-based scheduler exists yet; `proc`/`spawn` handles, futures, cancellation, and cooperative helpers remain unimplemented.
 - **Tooling parity** — Breakpoint signalling and dyn-import privacy metadata are absent, so debugger fixtures and parity diffing can’t run end-to-end.
@@ -67,8 +67,8 @@ The table above captures line-item status; the following themes summarise what s
 - [ ] Map type metadata on runtime values so introspection helpers used in TS tests have Go equivalents.
 
 ### Data access & operators
-- [ ] Add compound assignment operators (`+=`, `-=`, `*=`, `/=`, etc.) for identifiers, members, and indexed accesses (`compound_assign.test.ts`).
-- [ ] Implement index read/write on arrays, strings, and maps once the underlying runtime types exist (`index_read.test.ts`, `index_assign.test.ts`).
+- [x] Add compound assignment operators (`+=`, `-=`, `*=`, `/=`, etc.) for identifiers, members, and indexed accesses (`compound_assign.test.ts`).
+- [x] Implement index read/write on arrays (`index_read.test.ts`, `index_assign.test.ts`); extend to strings/maps when those runtime types arrive.
 - [ ] Complete the bitshift operators and range validation diagnostics (`bitshift_range.test.ts`).
 - [ ] Expand arithmetic/comparison coverage to handle float/integer mixing consistent with TS semantics.
 
