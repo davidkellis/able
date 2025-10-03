@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"fmt"
+	"math"
 	"math/big"
 	"sort"
 	"strings"
@@ -406,6 +407,8 @@ func (i *Interpreter) evaluateExpression(node ast.Expression, env *runtime.Envir
 		return i.evaluateEnsureExpression(n, env)
 	case *ast.MemberAccessExpression:
 		return i.evaluateMemberAccess(n, env)
+	case *ast.IndexExpression:
+		return i.evaluateIndexExpression(n, env)
 	case *ast.UnaryExpression:
 		return i.evaluateUnaryExpression(n, env)
 	case *ast.Identifier:
@@ -649,7 +652,7 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 	if err != nil {
 		return nil, err
 	}
-	isCompound := assign.Operator != ast.AssignmentDeclare && assign.Operator != ast.AssignmentAssign
+	binaryOp, isCompound := binaryOpForAssignment(assign.Operator)
 
 	switch lhs := assign.Left.(type) {
 	case *ast.Identifier:
@@ -661,14 +664,25 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 				return nil, err
 			}
 		default:
-			return nil, fmt.Errorf("unsupported assignment operator %s", assign.Operator)
+			if !isCompound {
+				return nil, fmt.Errorf("unsupported assignment operator %s", assign.Operator)
+			}
+			current, err := env.Get(lhs.Name)
+			if err != nil {
+				return nil, err
+			}
+			computed, err := applyBinaryOperator(binaryOp, current, value)
+			if err != nil {
+				return nil, err
+			}
+			if err := env.Assign(lhs.Name, computed); err != nil {
+				return nil, err
+			}
+			return computed, nil
 		}
 	case *ast.MemberAccessExpression:
 		if assign.Operator == ast.AssignmentDeclare {
 			return nil, fmt.Errorf("Cannot use := on member access")
-		}
-		if assign.Operator != ast.AssignmentAssign {
-			return nil, fmt.Errorf("unsupported assignment operator %s", assign.Operator)
 		}
 		target, err := i.evaluateExpression(lhs.Object, env)
 		if err != nil {
@@ -681,10 +695,23 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 				if inst.Fields == nil {
 					return nil, fmt.Errorf("Expected named struct instance")
 				}
-				if _, ok := inst.Fields[member.Name]; !ok {
+				current, ok := inst.Fields[member.Name]
+				if !ok {
 					return nil, fmt.Errorf("No field named '%s'", member.Name)
 				}
-				inst.Fields[member.Name] = value
+				if assign.Operator == ast.AssignmentAssign {
+					inst.Fields[member.Name] = value
+					return value, nil
+				}
+				if !isCompound {
+					return nil, fmt.Errorf("unsupported assignment operator %s", assign.Operator)
+				}
+				computed, err := applyBinaryOperator(binaryOp, current, value)
+				if err != nil {
+					return nil, err
+				}
+				inst.Fields[member.Name] = computed
+				return computed, nil
 			case *ast.IntegerLiteral:
 				if inst.Positional == nil {
 					return nil, fmt.Errorf("Expected positional struct instance")
@@ -696,13 +723,90 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 				if idx < 0 || idx >= len(inst.Positional) {
 					return nil, fmt.Errorf("Struct field index out of bounds")
 				}
-				inst.Positional[idx] = value
+				if assign.Operator == ast.AssignmentAssign {
+					inst.Positional[idx] = value
+					return value, nil
+				}
+				if !isCompound {
+					return nil, fmt.Errorf("unsupported assignment operator %s", assign.Operator)
+				}
+				current := inst.Positional[idx]
+				computed, err := applyBinaryOperator(binaryOp, current, value)
+				if err != nil {
+					return nil, err
+				}
+				inst.Positional[idx] = computed
+				return computed, nil
 			default:
 				return nil, fmt.Errorf("Unsupported member assignment target %s", member.NodeType())
 			}
+		case *runtime.ArrayValue:
+			arrayVal := inst
+			intMember, ok := lhs.Member.(*ast.IntegerLiteral)
+			if !ok {
+				return nil, fmt.Errorf("Array member assignment requires integer member")
+			}
+			if intMember.Value == nil {
+				return nil, fmt.Errorf("Array index out of bounds")
+			}
+			idx := int(intMember.Value.Int64())
+			if idx < 0 || idx >= len(arrayVal.Elements) {
+				return nil, fmt.Errorf("Array index out of bounds")
+			}
+			if assign.Operator == ast.AssignmentAssign {
+				arrayVal.Elements[idx] = value
+				return value, nil
+			}
+			if !isCompound {
+				return nil, fmt.Errorf("unsupported assignment operator %s", assign.Operator)
+			}
+			current := arrayVal.Elements[idx]
+			computed, err := applyBinaryOperator(binaryOp, current, value)
+			if err != nil {
+				return nil, err
+			}
+			arrayVal.Elements[idx] = computed
+			return computed, nil
 		default:
-			return nil, fmt.Errorf("Member assignment requires struct instance")
+			return nil, fmt.Errorf("Member assignment requires struct or array")
 		}
+	case *ast.IndexExpression:
+		if assign.Operator == ast.AssignmentDeclare {
+			return nil, fmt.Errorf("Cannot use := on index assignment")
+		}
+		arrObj, err := i.evaluateExpression(lhs.Object, env)
+		if err != nil {
+			return nil, err
+		}
+		arr, err := toArrayValue(arrObj)
+		if err != nil {
+			return nil, err
+		}
+		idxVal, err := i.evaluateExpression(lhs.Index, env)
+		if err != nil {
+			return nil, err
+		}
+		idx, err := indexFromValue(idxVal)
+		if err != nil {
+			return nil, err
+		}
+		if idx < 0 || idx >= len(arr.Elements) {
+			return nil, fmt.Errorf("Array index out of bounds")
+		}
+		if assign.Operator == ast.AssignmentAssign {
+			arr.Elements[idx] = value
+			return value, nil
+		}
+		if !isCompound {
+			return nil, fmt.Errorf("unsupported assignment operator %s", assign.Operator)
+		}
+		current := arr.Elements[idx]
+		computed, err := applyBinaryOperator(binaryOp, current, value)
+		if err != nil {
+			return nil, err
+		}
+		arr.Elements[idx] = computed
+		return computed, nil
 	case ast.Pattern:
 		if isCompound {
 			return nil, fmt.Errorf("compound assignment not supported with patterns")
@@ -719,6 +823,33 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 	}
 
 	return value, nil
+}
+
+func binaryOpForAssignment(op ast.AssignmentOperator) (string, bool) {
+	switch op {
+	case ast.AssignmentAdd:
+		return "+", true
+	case ast.AssignmentSub:
+		return "-", true
+	case ast.AssignmentMul:
+		return "*", true
+	case ast.AssignmentDiv:
+		return "/", true
+	case ast.AssignmentMod:
+		return "%", true
+	case ast.AssignmentBitAnd:
+		return "&", true
+	case ast.AssignmentBitOr:
+		return "|", true
+	case ast.AssignmentBitXor:
+		return "^", true
+	case ast.AssignmentShiftL:
+		return "<<", true
+	case ast.AssignmentShiftR:
+		return ">>", true
+	default:
+		return "", false
+	}
 }
 
 func (i *Interpreter) evaluateIfExpression(expr *ast.IfExpression, env *runtime.Environment) (runtime.Value, error) {
@@ -1046,22 +1177,7 @@ func (i *Interpreter) evaluateBinaryExpression(expr *ast.BinaryExpression, env *
 	if err != nil {
 		return nil, err
 	}
-	rightVal, err := i.evaluateExpression(expr.Right, env)
-	if err != nil {
-		return nil, err
-	}
-
 	switch expr.Operator {
-	case "+", "-", "*", "/":
-		return evaluateArithmetic(expr.Operator, leftVal, rightVal)
-	case "<", "<=", ">", ">=":
-		return evaluateComparison(expr.Operator, leftVal, rightVal)
-	case "==", "!=":
-		eg := valuesEqual(leftVal, rightVal)
-		if expr.Operator == "!=" {
-			eg = !eg
-		}
-		return runtime.BoolValue{Val: eg}, nil
 	case "&&":
 		lb, ok := leftVal.(runtime.BoolValue)
 		if !ok {
@@ -1069,6 +1185,10 @@ func (i *Interpreter) evaluateBinaryExpression(expr *ast.BinaryExpression, env *
 		}
 		if !lb.Val {
 			return runtime.BoolValue{Val: false}, nil
+		}
+		rightVal, err := i.evaluateExpression(expr.Right, env)
+		if err != nil {
+			return nil, err
 		}
 		rb, ok := rightVal.(runtime.BoolValue)
 		if !ok {
@@ -1083,14 +1203,122 @@ func (i *Interpreter) evaluateBinaryExpression(expr *ast.BinaryExpression, env *
 		if lb.Val {
 			return runtime.BoolValue{Val: true}, nil
 		}
+		rightVal, err := i.evaluateExpression(expr.Right, env)
+		if err != nil {
+			return nil, err
+		}
 		rb, ok := rightVal.(runtime.BoolValue)
 		if !ok {
 			return nil, fmt.Errorf("right operand of || must be bool")
 		}
 		return runtime.BoolValue{Val: rb.Val}, nil
 	default:
-		return nil, fmt.Errorf("unsupported binary operator %s", expr.Operator)
+		rightVal, err := i.evaluateExpression(expr.Right, env)
+		if err != nil {
+			return nil, err
+		}
+		return applyBinaryOperator(expr.Operator, leftVal, rightVal)
 	}
+}
+
+func applyBinaryOperator(op string, left runtime.Value, right runtime.Value) (runtime.Value, error) {
+	switch op {
+	case "+", "-", "*", "/":
+		return evaluateArithmetic(op, left, right)
+	case "%":
+		return evaluateModulo(left, right)
+	case "<", "<=", ">", ">=":
+		return evaluateComparison(op, left, right)
+	case "==":
+		return runtime.BoolValue{Val: valuesEqual(left, right)}, nil
+	case "!=":
+		return runtime.BoolValue{Val: !valuesEqual(left, right)}, nil
+	case "&", "|", "^", "<<", ">>":
+		return evaluateBitwise(op, left, right)
+	default:
+		return nil, fmt.Errorf("unsupported binary operator %s", op)
+	}
+}
+
+func evaluateModulo(left runtime.Value, right runtime.Value) (runtime.Value, error) {
+	switch lv := left.(type) {
+	case runtime.IntegerValue:
+		rv, ok := right.(runtime.IntegerValue)
+		if !ok {
+			return nil, fmt.Errorf("mixed numeric types not supported in modulo")
+		}
+		if rv.Val == nil || rv.Val.Sign() == 0 {
+			return nil, fmt.Errorf("Division by zero")
+		}
+		result := new(big.Int).Rem(runtime.CloneBigInt(lv.Val), rv.Val)
+		return runtime.IntegerValue{Val: result, TypeSuffix: lv.TypeSuffix}, nil
+	case runtime.FloatValue:
+		rv, ok := right.(runtime.FloatValue)
+		if !ok {
+			return nil, fmt.Errorf("mixed numeric types not supported in modulo")
+		}
+		if rv.Val == 0 {
+			return nil, fmt.Errorf("Division by zero")
+		}
+		return runtime.FloatValue{Val: math.Mod(lv.Val, rv.Val), TypeSuffix: lv.TypeSuffix}, nil
+	default:
+		return nil, fmt.Errorf("unsupported operands for modulo")
+	}
+}
+
+func evaluateBitwise(op string, left runtime.Value, right runtime.Value) (runtime.Value, error) {
+	lv, ok := left.(runtime.IntegerValue)
+	if !ok {
+		return nil, fmt.Errorf("bitwise requires i32 operands")
+	}
+	rv, ok := right.(runtime.IntegerValue)
+	if !ok {
+		return nil, fmt.Errorf("bitwise requires i32 operands")
+	}
+	l, err := int32FromIntegerValue(lv)
+	if err != nil {
+		return nil, err
+	}
+	r, err := int32FromIntegerValue(rv)
+	if err != nil {
+		return nil, err
+	}
+	var result int32
+	switch op {
+	case "&":
+		result = l & r
+	case "|":
+		result = l | r
+	case "^":
+		result = l ^ r
+	case "<<":
+		if r < 0 || r >= 32 {
+			return nil, fmt.Errorf("shift out of range")
+		}
+		result = l << uint(r)
+	case ">>":
+		if r < 0 || r >= 32 {
+			return nil, fmt.Errorf("shift out of range")
+		}
+		result = l >> uint(r)
+	default:
+		return nil, fmt.Errorf("unsupported bitwise operator %s", op)
+	}
+	return runtime.IntegerValue{Val: big.NewInt(int64(result)), TypeSuffix: runtime.IntegerI32}, nil
+}
+
+func int32FromIntegerValue(val runtime.IntegerValue) (int32, error) {
+	if val.TypeSuffix != runtime.IntegerI32 {
+		return 0, fmt.Errorf("bitwise requires i32 operands")
+	}
+	if val.Val == nil || !val.Val.IsInt64() {
+		return 0, fmt.Errorf("bitwise requires i32 operands")
+	}
+	raw := val.Val.Int64()
+	if raw < math.MinInt32 || raw > math.MaxInt32 {
+		return 0, fmt.Errorf("bitwise requires i32 operands")
+	}
+	return int32(raw), nil
 }
 
 func (i *Interpreter) evaluateFunctionCall(call *ast.FunctionCall, env *runtime.Environment) (runtime.Value, error) {
@@ -1870,6 +2098,60 @@ func (i *Interpreter) evaluateMemberAccess(expr *ast.MemberAccessExpression, env
 		return i.interfaceMember(v, expr.Member)
 	default:
 		return nil, fmt.Errorf("Member access only supported on structs/arrays in this milestone")
+	}
+}
+
+func (i *Interpreter) evaluateIndexExpression(expr *ast.IndexExpression, env *runtime.Environment) (runtime.Value, error) {
+	obj, err := i.evaluateExpression(expr.Object, env)
+	if err != nil {
+		return nil, err
+	}
+	idxVal, err := i.evaluateExpression(expr.Index, env)
+	if err != nil {
+		return nil, err
+	}
+	arr, err := toArrayValue(obj)
+	if err != nil {
+		return nil, err
+	}
+	idx, err := indexFromValue(idxVal)
+	if err != nil {
+		return nil, err
+	}
+	if idx < 0 || idx >= len(arr.Elements) {
+		return nil, fmt.Errorf("Array index out of bounds")
+	}
+	val := arr.Elements[idx]
+	if val == nil {
+		return nil, fmt.Errorf("Array index out of bounds")
+	}
+	return val, nil
+}
+
+func toArrayValue(val runtime.Value) (*runtime.ArrayValue, error) {
+	switch v := val.(type) {
+	case *runtime.ArrayValue:
+		return v, nil
+	default:
+		return nil, fmt.Errorf("Indexing is only supported on arrays")
+	}
+}
+
+func indexFromValue(val runtime.Value) (int, error) {
+	switch v := val.(type) {
+	case runtime.IntegerValue:
+		if v.Val == nil || !v.Val.IsInt64() {
+			return 0, fmt.Errorf("Array index must be within int range")
+		}
+		return int(v.Val.Int64()), nil
+	case runtime.FloatValue:
+		if math.IsNaN(v.Val) || math.IsInf(v.Val, 0) {
+			return 0, fmt.Errorf("Array index must be a number")
+		}
+		idx := int(math.Trunc(v.Val))
+		return idx, nil
+	default:
+		return 0, fmt.Errorf("Array index must be a number")
 	}
 }
 
