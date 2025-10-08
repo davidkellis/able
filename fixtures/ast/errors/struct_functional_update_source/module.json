@@ -1,0 +1,31 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "StructDefinition",
+      "id": { "type": "Identifier", "name": "Point" },
+      "fields": [
+        { "type": "StructFieldDefinition", "name": { "type": "Identifier", "name": "x" }, "fieldType": { "type": "SimpleTypeExpression", "name": { "type": "Identifier", "name": "i32" } } }
+      ],
+      "kind": "named"
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": { "type": "Identifier", "name": "updated" },
+      "right": {
+        "type": "StructLiteral",
+        "structType": { "type": "Identifier", "name": "Point" },
+        "fields": [
+          { "type": "StructFieldInitializer", "name": { "type": "Identifier", "name": "x" }, "value": { "type": "IntegerLiteral", "value": 1 } }
+        ],
+        "isPositional": false,
+        "functionalUpdateSource": {
+          "type": "ArrayLiteral",
+          "elements": [ { "type": "IntegerLiteral", "value": 1 } ]
+        }
+      }
+    }
+  ]
+}
