@@ -1,0 +1,57 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "StructDefinition",
+      "id": { "type": "Identifier", "name": "Point" },
+      "fields": [
+        { "type": "StructFieldDefinition", "name": { "type": "Identifier", "name": "x" }, "fieldType": { "type": "SimpleTypeExpression", "name": { "type": "Identifier", "name": "i32" } } },
+        { "type": "StructFieldDefinition", "name": { "type": "Identifier", "name": "y" }, "fieldType": { "type": "SimpleTypeExpression", "name": { "type": "Identifier", "name": "i32" } } }
+      ],
+      "kind": "named"
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": { "type": "Identifier", "name": "p" },
+      "right": {
+        "type": "StructLiteral",
+        "structType": { "type": "Identifier", "name": "Point" },
+        "fields": [
+          { "type": "StructFieldInitializer", "name": { "type": "Identifier", "name": "x" }, "value": { "type": "IntegerLiteral", "value": 1 } },
+          { "type": "StructFieldInitializer", "name": { "type": "Identifier", "name": "y" }, "value": { "type": "IntegerLiteral", "value": 2 } }
+        ],
+        "isPositional": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": { "type": "Identifier", "name": "updated" },
+      "right": {
+        "type": "StructLiteral",
+        "structType": { "type": "Identifier", "name": "Point" },
+        "fields": [
+          { "type": "StructFieldInitializer", "name": { "type": "Identifier", "name": "x" }, "value": { "type": "IntegerLiteral", "value": 5 } }
+        ],
+        "isPositional": false,
+        "functionalUpdateSource": { "type": "Identifier", "name": "p" }
+      }
+    },
+    {
+      "type": "BinaryExpression",
+      "operator": "+",
+      "left": {
+        "type": "MemberAccessExpression",
+        "object": { "type": "Identifier", "name": "updated" },
+        "member": { "type": "Identifier", "name": "x" }
+      },
+      "right": {
+        "type": "MemberAccessExpression",
+        "object": { "type": "Identifier", "name": "updated" },
+        "member": { "type": "Identifier", "name": "y" }
+      }
+    }
+  ]
+}

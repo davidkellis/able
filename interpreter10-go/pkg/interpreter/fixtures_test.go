@@ -193,6 +193,14 @@ func decodeNode(node map[string]any) (ast.Node, error) {
 			suffixPtr = &stype
 		}
 		return ast.NewIntegerLiteral(bi, suffixPtr), nil
+	case "FloatLiteral":
+		val, _ := node["value"].(float64)
+		var suffixPtr *ast.FloatType
+		if s, ok := node["floatType"].(string); ok {
+			stype := ast.FloatType(s)
+			suffixPtr = &stype
+		}
+		return ast.NewFloatLiteral(val, suffixPtr), nil
 	case "ArrayLiteral":
 		elementsVal, _ := node["elements"].([]any)
 		exprs := make([]ast.Expression, 0, len(elementsVal))
@@ -479,7 +487,11 @@ func decodeNode(node map[string]any) (ast.Node, error) {
 		argsVal, _ := node["arguments"].([]any)
 		args := make([]ast.Expression, 0, len(argsVal))
 		for _, raw := range argsVal {
-			argNode, err := decodeNode(raw.(map[string]any))
+			argMap, ok := raw.(map[string]any)
+			if !ok {
+				return nil, fmt.Errorf("invalid argument node %T", raw)
+			}
+			argNode, err := decodeNode(argMap)
 			if err != nil {
 				return nil, err
 			}
@@ -489,7 +501,28 @@ func decodeNode(node map[string]any) (ast.Node, error) {
 			}
 			args = append(args, expr)
 		}
-		return ast.NewFunctionCall(callee, args, nil, false), nil
+		var typeArgs []ast.TypeExpression
+		if taRaw, ok := node["typeArguments"].([]any); ok {
+			typeArgs = make([]ast.TypeExpression, 0, len(taRaw))
+			for _, raw := range taRaw {
+				taNode, ok := raw.(map[string]any)
+				if !ok {
+					return nil, fmt.Errorf("invalid type argument %T", raw)
+				}
+				taExpr, err := decodeTypeExpression(taNode)
+				if err != nil {
+					return nil, err
+				}
+				typeArgs = append(typeArgs, taExpr)
+			}
+		}
+		return ast.NewFunctionCall(callee, args, typeArgs, false), nil
+	case "FunctionSignature":
+		sig, err := decodeFunctionSignature(node)
+		if err != nil {
+			return nil, err
+		}
+		return sig, nil
 	case "FunctionParameter":
 		nameNode, err := decodeNode(node["name"].(map[string]any))
 		if err != nil {
@@ -550,9 +583,24 @@ func decodeNode(node map[string]any) (ast.Node, error) {
 			}
 			returnType = rt
 		}
+		var generics []*ast.GenericParameter
+		if gpRaw, ok := node["genericParams"].([]any); ok {
+			generics = make([]*ast.GenericParameter, 0, len(gpRaw))
+			for _, raw := range gpRaw {
+				gpNode, ok := raw.(map[string]any)
+				if !ok {
+					return nil, fmt.Errorf("invalid generic parameter node %T", raw)
+				}
+				gp, err := decodeGenericParameter(gpNode)
+				if err != nil {
+					return nil, err
+				}
+				generics = append(generics, gp)
+			}
+		}
 		isMethodShorthand, _ := node["isMethodShorthand"].(bool)
 		isPrivate, _ := node["isPrivate"].(bool)
-		return ast.NewFunctionDefinition(id, params, body, returnType, nil, nil, isMethodShorthand, isPrivate), nil
+		return ast.NewFunctionDefinition(id, params, body, returnType, generics, nil, isMethodShorthand, isPrivate), nil
 	case "StructDefinition":
 		idNode, err := decodeNode(node["id"].(map[string]any))
 		if err != nil {
@@ -606,6 +654,83 @@ func decodeNode(node map[string]any) (ast.Node, error) {
 			defs = append(defs, fn)
 		}
 		return ast.NewMethodsDefinition(targetType, defs, nil, nil), nil
+	case "InterfaceDefinition":
+		idNode, err := decodeNode(node["id"].(map[string]any))
+		if err != nil {
+			return nil, err
+		}
+		id, ok := idNode.(*ast.Identifier)
+		if !ok {
+			return nil, fmt.Errorf("invalid interface identifier %T", idNode)
+		}
+		sigsVal, _ := node["signatures"].([]any)
+		signatures := make([]*ast.FunctionSignature, 0, len(sigsVal))
+		for _, raw := range sigsVal {
+			sigNode, ok := raw.(map[string]any)
+			if !ok {
+				return nil, fmt.Errorf("invalid interface signature %T", raw)
+			}
+			sig, err := decodeFunctionSignature(sigNode)
+			if err != nil {
+				return nil, err
+			}
+			signatures = append(signatures, sig)
+		}
+		var generics []*ast.GenericParameter
+		if gpRaw, ok := node["genericParams"].([]any); ok {
+			generics = make([]*ast.GenericParameter, 0, len(gpRaw))
+			for _, raw := range gpRaw {
+				gpNode, ok := raw.(map[string]any)
+				if !ok {
+					return nil, fmt.Errorf("invalid interface generic %T", raw)
+				}
+				gp, err := decodeGenericParameter(gpNode)
+				if err != nil {
+					return nil, err
+				}
+				generics = append(generics, gp)
+			}
+		}
+		var selfType ast.TypeExpression
+		if selfRaw, ok := node["selfTypePattern"].(map[string]any); ok {
+			typeExpr, err := decodeTypeExpression(selfRaw)
+			if err != nil {
+				return nil, err
+			}
+			selfType = typeExpr
+		}
+		var whereClause []*ast.WhereClauseConstraint
+		if wcRaw, ok := node["whereClause"].([]any); ok {
+			whereClause = make([]*ast.WhereClauseConstraint, 0, len(wcRaw))
+			for _, raw := range wcRaw {
+				wcNode, ok := raw.(map[string]any)
+				if !ok {
+					return nil, fmt.Errorf("invalid where clause %T", raw)
+				}
+				wc, err := decodeWhereClauseConstraint(wcNode)
+				if err != nil {
+					return nil, err
+				}
+				whereClause = append(whereClause, wc)
+			}
+		}
+		var baseInterfaces []ast.TypeExpression
+		if baseRaw, ok := node["baseInterfaces"].([]any); ok {
+			baseInterfaces = make([]ast.TypeExpression, 0, len(baseRaw))
+			for _, raw := range baseRaw {
+				baseNode, ok := raw.(map[string]any)
+				if !ok {
+					return nil, fmt.Errorf("invalid base interface %T", raw)
+				}
+				typeExpr, err := decodeTypeExpression(baseNode)
+				if err != nil {
+					return nil, err
+				}
+				baseInterfaces = append(baseInterfaces, typeExpr)
+			}
+		}
+		isPrivate, _ := node["isPrivate"].(bool)
+		return ast.NewInterfaceDefinition(id, signatures, generics, selfType, whereClause, baseInterfaces, isPrivate), nil
 	case "StructLiteral":
 		fieldsVal, _ := node["fields"].([]any)
 		fields := make([]*ast.StructFieldInitializer, 0, len(fieldsVal))
@@ -1037,6 +1162,110 @@ func decodeTypeExpression(node map[string]any) (ast.TypeExpression, error) {
 	}
 }
 
+func decodeFunctionSignature(node map[string]any) (*ast.FunctionSignature, error) {
+	nameNode, err := decodeNode(node["name"].(map[string]any))
+	if err != nil {
+		return nil, err
+	}
+	id, ok := nameNode.(*ast.Identifier)
+	if !ok {
+		return nil, fmt.Errorf("invalid function signature name %T", nameNode)
+	}
+	paramsVal, _ := node["params"].([]any)
+	params := make([]*ast.FunctionParameter, 0, len(paramsVal))
+	for _, raw := range paramsVal {
+		paramNode, ok := raw.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("invalid function signature parameter %T", raw)
+		}
+		decoded, err := decodeNode(paramNode)
+		if err != nil {
+			return nil, err
+		}
+		param, ok := decoded.(*ast.FunctionParameter)
+		if !ok {
+			return nil, fmt.Errorf("invalid function signature parameter %T", decoded)
+		}
+		params = append(params, param)
+	}
+	var returnType ast.TypeExpression
+	if retRaw, ok := node["returnType"].(map[string]any); ok {
+		rt, err := decodeTypeExpression(retRaw)
+		if err != nil {
+			return nil, err
+		}
+		returnType = rt
+	}
+	var generics []*ast.GenericParameter
+	if gpRaw, ok := node["genericParams"].([]any); ok {
+		generics = make([]*ast.GenericParameter, 0, len(gpRaw))
+		for _, raw := range gpRaw {
+			gpNode, ok := raw.(map[string]any)
+			if !ok {
+				return nil, fmt.Errorf("invalid signature generic %T", raw)
+			}
+			gp, err := decodeGenericParameter(gpNode)
+			if err != nil {
+				return nil, err
+			}
+			generics = append(generics, gp)
+		}
+	}
+	var whereClause []*ast.WhereClauseConstraint
+	if wcRaw, ok := node["whereClause"].([]any); ok {
+		whereClause = make([]*ast.WhereClauseConstraint, 0, len(wcRaw))
+		for _, raw := range wcRaw {
+			wcNode, ok := raw.(map[string]any)
+			if !ok {
+				return nil, fmt.Errorf("invalid signature where clause %T", raw)
+			}
+			wc, err := decodeWhereClauseConstraint(wcNode)
+			if err != nil {
+				return nil, err
+			}
+			whereClause = append(whereClause, wc)
+		}
+	}
+	var defaultImpl *ast.BlockExpression
+	if defRaw, ok := node["defaultImpl"].(map[string]any); ok {
+		decoded, err := decodeNode(defRaw)
+		if err != nil {
+			return nil, err
+		}
+		block, ok := decoded.(*ast.BlockExpression)
+		if !ok {
+			return nil, fmt.Errorf("invalid default implementation %T", decoded)
+		}
+		defaultImpl = block
+	}
+	return ast.NewFunctionSignature(id, params, returnType, generics, whereClause, defaultImpl), nil
+}
+
+func decodeWhereClauseConstraint(node map[string]any) (*ast.WhereClauseConstraint, error) {
+	typeParamNode, err := decodeNode(node["typeParam"].(map[string]any))
+	if err != nil {
+		return nil, err
+	}
+	typeParam, ok := typeParamNode.(*ast.Identifier)
+	if !ok {
+		return nil, fmt.Errorf("invalid where clause type param %T", typeParamNode)
+	}
+	constraintsRaw, _ := node["constraints"].([]any)
+	constraints := make([]*ast.InterfaceConstraint, 0, len(constraintsRaw))
+	for _, raw := range constraintsRaw {
+		consNode, ok := raw.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("invalid where clause constraint %T", raw)
+		}
+		cons, err := decodeInterfaceConstraint(consNode)
+		if err != nil {
+			return nil, err
+		}
+		constraints = append(constraints, cons)
+	}
+	return ast.NewWhereClauseConstraint(typeParam, constraints), nil
+}
+
 func assertResult(t *testing.T, dir string, manifest fixtureManifest, result runtime.Value, stdout []string) {
 	t.Helper()
 	if manifest.Expect.Result == nil {
@@ -1106,6 +1335,47 @@ func assertResult(t *testing.T, dir string, manifest fixtureManifest, result run
 			t.Fatalf("fixture %s expected stdout %v, got %v", dir, manifest.Expect.Stdout, stdout)
 		}
 	}
+}
+
+func decodeGenericParameter(node map[string]any) (*ast.GenericParameter, error) {
+	nameNode, ok := node["name"].(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("generic parameter missing name")
+	}
+	decodedName, err := decodeNode(nameNode)
+	if err != nil {
+		return nil, err
+	}
+	id, ok := decodedName.(*ast.Identifier)
+	if !ok {
+		return nil, fmt.Errorf("invalid generic parameter name %T", decodedName)
+	}
+	constraintsRaw, _ := node["constraints"].([]any)
+	constraints := make([]*ast.InterfaceConstraint, 0, len(constraintsRaw))
+	for _, raw := range constraintsRaw {
+		constraintNode, ok := raw.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("invalid interface constraint %T", raw)
+		}
+		constraint, err := decodeInterfaceConstraint(constraintNode)
+		if err != nil {
+			return nil, err
+		}
+		constraints = append(constraints, constraint)
+	}
+	return ast.NewGenericParameter(id, constraints), nil
+}
+
+func decodeInterfaceConstraint(node map[string]any) (*ast.InterfaceConstraint, error) {
+	typeNode, ok := node["interfaceType"].(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("interface constraint missing interfaceType")
+	}
+	ifaceType, err := decodeTypeExpression(typeNode)
+	if err != nil {
+		return nil, err
+	}
+	return ast.NewInterfaceConstraint(ifaceType), nil
 }
 
 func parseBigInt(value interface{}) *big.Int {

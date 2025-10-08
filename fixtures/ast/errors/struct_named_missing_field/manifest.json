@@ -1,0 +1,9 @@
+{
+  "description": "Named struct pattern requires matching field",
+  "expect": {
+    "errors": [
+      "Missing field 'z' during destructuring"
+    ]
+  },
+  "entry": "module.json"
+}

@@ -1,0 +1,10 @@
+{
+  "description": "Mixed numeric equality compares using value semantics",
+  "expect": {
+    "result": {
+      "kind": "bool",
+      "value": true
+    }
+  },
+  "entry": "module.json"
+}

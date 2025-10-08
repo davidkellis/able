@@ -1,0 +1,9 @@
+{
+  "description": "Range boundaries must be numeric",
+  "expect": {
+    "errors": [
+      "Range boundaries must be numeric"
+    ]
+  },
+  "entry": "module.json"
+}

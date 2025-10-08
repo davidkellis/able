@@ -235,9 +235,10 @@ type StructDefinitionValue struct {
 func (v StructDefinitionValue) Kind() Kind { return KindStructDefinition }
 
 type StructInstanceValue struct {
-	Definition *StructDefinitionValue
-	Fields     map[string]Value
-	Positional []Value
+	Definition    *StructDefinitionValue
+	Fields        map[string]Value
+	Positional    []Value
+	TypeArguments []ast.TypeExpression
 }
 
 func (v *StructInstanceValue) Kind() Kind { return KindStructInstance }
@@ -267,7 +268,7 @@ type ImplementationNamespaceValue struct {
 	Name          *ast.Identifier
 	InterfaceName *ast.Identifier
 	TargetType    ast.TypeExpression
-	Definitions   []*FunctionValue
+	Methods       map[string]*FunctionValue
 }
 
 func (v ImplementationNamespaceValue) Kind() Kind { return KindImplementationNamespace }

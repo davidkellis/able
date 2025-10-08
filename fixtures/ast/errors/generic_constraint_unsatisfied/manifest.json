@@ -1,0 +1,9 @@
+{
+  "description": "Generic constraint failure when type argument lacks required interface",
+  "expect": {
+    "errors": [
+      "Type 'i32' does not satisfy interface 'Show': missing method 'to_string'"
+    ]
+  },
+  "entry": "module.json"
+}

@@ -81,8 +81,9 @@ For each milestone: port representative TS tests into Go, add new cases where Go
 - **Future interpreters**: keep AST schema + conformance harness generic to support planned Crystal implementation.
 
 ## Immediate Next Actions
-1. **Implement the Go concurrency scheduler** as outlined in `design/go-concurrency-scheduler.md`.
-2. Harden module privacy enforcement in Go (functions, structs, methods, interfaces), mirroring the TypeScript diagnostics before expanding dyn-import coverage.
+1. Port remaining interface/impl diagnostics (named/unnamed impl conflicts, method lookup) and update shared parity fixtures accordingly.
+2. Begin implementing the Go concurrency scheduler using `design/go-concurrency-scheduler.md` once generics/interfaces are aligned.
+3. Expand generics/interface parity coverage (named impl namespaces, constraint precedence) and refresh `interpreter10-go/PARITY.md`.
 
 ### Next steps (prioritized)
 1. **Go feature parity** – Work through the parity checklist and port any remaining TypeScript behaviours (modules/import privacy, advanced pattern matching, generics, interface resolution) into the Go interpreter.
@@ -103,3 +104,8 @@ For each milestone: port representative TS tests into Go, add new cases where Go
 - Static import parity expanded: shared fixtures now cover wildcard/alias success + privacy errors along with a two-hop re-export chain; Go tests mirror the new scenarios (`interpreter10-go/pkg/interpreter/interpreter_test.go`).
 - Dyn import alias metadata verified in Go (alias binds `DynPackageValue` with expected name/path) and environment error casing aligned with TypeScript so fixture diagnostics stay in sync.
 - **Next focus:** extend re-export coverage to deeper chains + nested manifests, record dyn-import metadata for parity harnesses, and draft the Go goroutine scheduler design note before starting proc/spawn work.
+
+### 2025-10-04
+- Shared fixtures now cover generic function application, generic constraint errors, and struct functional updates; Go fixtures/tests load the new AST shapes.
+- Go normalises destructuring/logical error strings and validates unknown generic interfaces during definition, matching TS diagnostics.
+- **Next focus:** enforce generics at call time, port interface/impl diagnostics with fixtures, then resume the goroutine scheduler implementation.

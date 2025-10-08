@@ -1,0 +1,9 @@
+{
+  "description": "Generic constraint violation raises error",
+  "expect": {
+    "errors": [
+      "Unknown interface 'Error' in constraint on 'T'"
+    ]
+  },
+  "entry": "module.json"
+}
