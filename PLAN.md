@@ -81,16 +81,17 @@ For each milestone: port representative TS tests into Go, add new cases where Go
 - **Future interpreters**: keep AST schema + conformance harness generic to support planned Crystal implementation.
 
 ## Immediate Next Actions
-1. Port remaining interface/impl diagnostics (named/unnamed impl conflicts, method lookup) and update shared parity fixtures accordingly.
-2. Begin implementing the Go concurrency scheduler using `design/go-concurrency-scheduler.md` once generics/interfaces are aligned.
-3. Expand generics/interface parity coverage (named impl namespaces, constraint precedence) and refresh `interpreter10-go/PARITY.md`.
+1. **Stabilise modular interpreter layout** – ensure every new file (`interpreter_*`, `eval_*`, `definitions.go`, `imports.go`, `impl_resolution.go`) is tracked in git, update `interpreter10-go/PARITY.md` with the split, and confirm the TypeScript mirror still maps 1:1 to guide future porting.
+2. **Parity audit pass** – re-run the parity checklist against the new Go test suites (imports, numeric, patterns, structs, interfaces) and identify the highest-priority feature gaps (privacy edge cases, advanced pattern matching, concurrency stubs) to tackle next.
+3. **Concurrency design close-out** – finalise the goroutine scheduler design note (`design/go-concurrency-scheduler.md`) and line up implementation tasks so `proc`/`spawn` work can begin once the remaining parity gaps are addressed.
+4. **Documentation & onboarding** – capture the modularisation rationale and testing strategy in `LOG.md` + `interpreter10-go/README.md`, and adjust onboarding guidance so new contributors jump straight into the split codebase.
 
 ### Next steps (prioritized)
 1. **Go feature parity** – Work through the parity checklist and port any remaining TypeScript behaviours (modules/import privacy, advanced pattern matching, generics, interface resolution) into the Go interpreter.
-2. **Go concurrency semantics** – Implement Able’s v10 concurrency using Go goroutines/channels per spec, including scheduling guarantees, cancellation, memoisation, and stress suites.
+2. **Concurrency semantics** – Implement Able’s v10 concurrency using Go goroutines/channels per spec, including scheduling guarantees, cancellation, memoisation, and stress suites.
 3. **Interface & generics completeness** – Finish higher-order interface inheritance, unnamed/named impl diagnostics, and visibility rules; mirror TS tests.
 4. **Spec & privacy alignment** – Enforce the full privacy model in Go, broaden wildcard/dyn import semantics, and keep `spec/todo.md` in sync as gaps close.
-5. **Performance & maintainability** – Optimise hot paths (environment lookups, method caches), add micro-benchmarks, and refactor interpreter modules for clarity.
+5. **Performance & maintainability** – Optimise hot paths (environment lookups, method caches), add micro-benchmarks, and refine modular boundaries as the interpreter grows.
 6. **Developer experience** – Update docs/examples, ensure PLAN/README stay accurate, and add coverage/CI targets (Go + Bun) once parity stabilises.
 
 ## Tracking & Reporting
@@ -109,3 +110,8 @@ For each milestone: port representative TS tests into Go, add new cases where Go
 - Shared fixtures now cover generic function application, generic constraint errors, and struct functional updates; Go fixtures/tests load the new AST shapes.
 - Go normalises destructuring/logical error strings and validates unknown generic interfaces during definition, matching TS diagnostics.
 - **Next focus:** enforce generics at call time, port interface/impl diagnostics with fixtures, then resume the goroutine scheduler implementation.
+
+### 2025-10-06
+- Split the Go interpreter into feature-specific files (`eval_statements.go`, `eval_expressions.go`, `definitions.go`, `imports.go`, `impl_resolution.go`) so each subsystem can evolve independently; mirrored the split on the test side and updated the README with the new layout.
+- Refreshed immediate actions/next steps to include finishing the modularisation work before resuming concurrency and remaining parity backlog.
+- **Next focus:** migrate pattern-matching helpers/runtime utilities into dedicated files, then continue the parity checklist (interface diagnostics, concurrency scheduler).
