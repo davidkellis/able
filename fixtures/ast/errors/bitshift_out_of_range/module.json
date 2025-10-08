@@ -1,0 +1,12 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "BinaryExpression",
+      "operator": "<<",
+      "left": { "type": "IntegerLiteral", "value": 1 },
+      "right": { "type": "IntegerLiteral", "value": 32 }
+    }
+  ]
+}

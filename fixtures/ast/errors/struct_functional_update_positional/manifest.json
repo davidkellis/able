@@ -1,0 +1,9 @@
+{
+  "description": "Functional update requires named struct",
+  "expect": {
+    "errors": [
+      "Functional update only supported for named structs"
+    ]
+  },
+  "entry": "module.json"
+}

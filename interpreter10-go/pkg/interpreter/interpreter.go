@@ -11,12 +11,15 @@ import (
 	"able/interpreter10-go/pkg/runtime"
 )
 
+const numericEpsilon = 1e-9
+
 // Interpreter drives evaluation of Able v10 AST nodes.
 type Interpreter struct {
 	global          *runtime.Environment
 	inherentMethods map[string]map[string]*runtime.FunctionValue
 	interfaces      map[string]*runtime.InterfaceDefinitionValue
 	implMethods     map[string][]implEntry
+	unnamedImpls    map[string]map[string]map[string]struct{}
 	raiseStack      []runtime.Value
 	packageRegistry map[string]map[string]runtime.Value
 	currentPackage  string
@@ -27,42 +30,91 @@ type implEntry struct {
 	interfaceName string
 	methods       map[string]*runtime.FunctionValue
 	definition    *ast.ImplementationDefinition
-	targetCount   int
-	matchScore    int
+	argTemplates  []ast.TypeExpression
+	genericParams []*ast.GenericParameter
+	whereClause   []*ast.WhereClauseConstraint
+	unionVariants []string
+	defaultOnly   bool
 }
 
-func collectImplementationTargetNames(target ast.TypeExpression) ([]string, int, error) {
-	var names []string
-	score, err := gatherImplementationTargets(target, &names)
-	if err != nil {
-		return nil, 0, err
-	}
-	if score == 0 {
-		score = len(names)
-	}
-	return names, score, nil
+type implCandidate struct {
+	entry       *implEntry
+	bindings    map[string]ast.TypeExpression
+	constraints []constraintSpec
+	score       int
 }
 
-func gatherImplementationTargets(target ast.TypeExpression, out *[]string) (int, error) {
+type methodMatch struct {
+	candidate implCandidate
+	method    *runtime.FunctionValue
+}
+
+type constraintSpec struct {
+	typeParam string
+	ifaceType ast.TypeExpression
+}
+
+type typeInfo struct {
+	name     string
+	typeArgs []ast.TypeExpression
+}
+
+type targetVariant struct {
+	typeName     string
+	argTemplates []ast.TypeExpression
+	signature    string
+}
+
+func expandImplementationTargetVariants(target ast.TypeExpression) ([]targetVariant, []string, error) {
 	switch t := target.(type) {
 	case *ast.SimpleTypeExpression:
 		if t.Name == nil {
-			return 0, fmt.Errorf("Implementation target requires identifier")
+			return nil, nil, fmt.Errorf("Implementation target requires identifier")
 		}
-		*out = append(*out, t.Name.Name)
-		return 1, nil
+		signature := typeExpressionToString(t)
+		return []targetVariant{{typeName: t.Name.Name, argTemplates: nil, signature: signature}}, nil, nil
+	case *ast.GenericTypeExpression:
+		simple, ok := t.Base.(*ast.SimpleTypeExpression)
+		if !ok || simple.Name == nil {
+			return nil, nil, fmt.Errorf("Implementation target requires simple base type")
+		}
+		signature := typeExpressionToString(t)
+		return []targetVariant{{
+			typeName:     simple.Name.Name,
+			argTemplates: append([]ast.TypeExpression(nil), t.Arguments...),
+			signature:    signature,
+		}}, nil, nil
 	case *ast.UnionTypeExpression:
-		score := 0
+		var variants []targetVariant
+		signatureSet := make(map[string]struct{})
 		for _, member := range t.Members {
-			memberScore, err := gatherImplementationTargets(member, out)
+			childVariants, childSigs, err := expandImplementationTargetVariants(member)
 			if err != nil {
-				return 0, err
+				return nil, nil, err
 			}
-			score += memberScore
+			for _, v := range childVariants {
+				if _, seen := signatureSet[v.signature]; seen {
+					continue
+				}
+				signatureSet[v.signature] = struct{}{}
+				variants = append(variants, v)
+			}
+			for _, sig := range childSigs {
+				signatureSet[sig] = struct{}{}
+			}
 		}
-		return score, nil
+		if len(variants) == 0 {
+			return nil, nil, fmt.Errorf("Union target must contain at least one concrete type")
+		}
+		// Build union signature list for penalty/book-keeping
+		unionSigs := make([]string, 0, len(signatureSet))
+		for sig := range signatureSet {
+			unionSigs = append(unionSigs, sig)
+		}
+		sort.Strings(unionSigs)
+		return variants, unionSigs, nil
 	default:
-		return 0, fmt.Errorf("Implementation target type %T is not supported", target)
+		return nil, nil, fmt.Errorf("Implementation target type %T is not supported", target)
 	}
 }
 
@@ -235,6 +287,7 @@ func New() *Interpreter {
 		inherentMethods: make(map[string]map[string]*runtime.FunctionValue),
 		interfaces:      make(map[string]*runtime.InterfaceDefinitionValue),
 		implMethods:     make(map[string][]implEntry),
+		unnamedImpls:    make(map[string]map[string]map[string]struct{}),
 		raiseStack:      make([]runtime.Value, 0),
 		packageRegistry: make(map[string]map[string]runtime.Value),
 		breakpoints:     make([]string, 0),
@@ -393,6 +446,9 @@ func (i *Interpreter) evaluateExpression(node ast.Expression, env *runtime.Envir
 		endExpr, err := i.evaluateExpression(n.End, env)
 		if err != nil {
 			return nil, err
+		}
+		if !isNumericValue(start) || !isNumericValue(endExpr) {
+			return nil, fmt.Errorf("Range boundaries must be numeric")
 		}
 		return &runtime.RangeValue{Start: start, End: endExpr, Inclusive: n.Inclusive}, nil
 	case *ast.StructLiteral:
@@ -1132,9 +1188,9 @@ func (i *Interpreter) lookupImportSymbol(pkgName, symbol string) (runtime.Value,
 		return val, nil
 	}
 	if pkgName != "" {
-		return nil, fmt.Errorf("Import error: symbol '%s' from '%s' not found", symbol, pkgName)
+		return nil, fmt.Errorf("Import error: symbol '%s' from '%s' not found in globals", symbol, pkgName)
 	}
-	return nil, fmt.Errorf("Import error: symbol '%s' not found", symbol)
+	return nil, fmt.Errorf("Import error: symbol '%s' not found in globals", symbol)
 }
 
 func (i *Interpreter) evaluateRethrowStatement(_ *ast.RethrowStatement, env *runtime.Environment) (runtime.Value, error) {
@@ -1181,7 +1237,7 @@ func (i *Interpreter) evaluateBinaryExpression(expr *ast.BinaryExpression, env *
 	case "&&":
 		lb, ok := leftVal.(runtime.BoolValue)
 		if !ok {
-			return nil, fmt.Errorf("left operand of && must be bool")
+			return nil, fmt.Errorf("Logical operands must be bool")
 		}
 		if !lb.Val {
 			return runtime.BoolValue{Val: false}, nil
@@ -1192,13 +1248,13 @@ func (i *Interpreter) evaluateBinaryExpression(expr *ast.BinaryExpression, env *
 		}
 		rb, ok := rightVal.(runtime.BoolValue)
 		if !ok {
-			return nil, fmt.Errorf("right operand of && must be bool")
+			return nil, fmt.Errorf("Logical operands must be bool")
 		}
 		return runtime.BoolValue{Val: rb.Val}, nil
 	case "||":
 		lb, ok := leftVal.(runtime.BoolValue)
 		if !ok {
-			return nil, fmt.Errorf("left operand of || must be bool")
+			return nil, fmt.Errorf("Logical operands must be bool")
 		}
 		if lb.Val {
 			return runtime.BoolValue{Val: true}, nil
@@ -1209,13 +1265,25 @@ func (i *Interpreter) evaluateBinaryExpression(expr *ast.BinaryExpression, env *
 		}
 		rb, ok := rightVal.(runtime.BoolValue)
 		if !ok {
-			return nil, fmt.Errorf("right operand of || must be bool")
+			return nil, fmt.Errorf("Logical operands must be bool")
 		}
 		return runtime.BoolValue{Val: rb.Val}, nil
 	default:
 		rightVal, err := i.evaluateExpression(expr.Right, env)
 		if err != nil {
 			return nil, err
+		}
+		if expr.Operator == "+" {
+			if ls, ok := leftVal.(runtime.StringValue); ok {
+				rs, ok := rightVal.(runtime.StringValue)
+				if !ok {
+					return nil, fmt.Errorf("Arithmetic requires numeric operands")
+				}
+				return runtime.StringValue{Val: ls.Val + rs.Val}, nil
+			}
+			if _, ok := rightVal.(runtime.StringValue); ok {
+				return nil, fmt.Errorf("Arithmetic requires numeric operands")
+			}
 		}
 		return applyBinaryOperator(expr.Operator, leftVal, rightVal)
 	}
@@ -1240,40 +1308,65 @@ func applyBinaryOperator(op string, left runtime.Value, right runtime.Value) (ru
 	}
 }
 
-func evaluateModulo(left runtime.Value, right runtime.Value) (runtime.Value, error) {
-	switch lv := left.(type) {
-	case runtime.IntegerValue:
-		rv, ok := right.(runtime.IntegerValue)
-		if !ok {
-			return nil, fmt.Errorf("mixed numeric types not supported in modulo")
-		}
-		if rv.Val == nil || rv.Val.Sign() == 0 {
-			return nil, fmt.Errorf("Division by zero")
-		}
-		result := new(big.Int).Rem(runtime.CloneBigInt(lv.Val), rv.Val)
-		return runtime.IntegerValue{Val: result, TypeSuffix: lv.TypeSuffix}, nil
-	case runtime.FloatValue:
-		rv, ok := right.(runtime.FloatValue)
-		if !ok {
-			return nil, fmt.Errorf("mixed numeric types not supported in modulo")
-		}
-		if rv.Val == 0 {
-			return nil, fmt.Errorf("Division by zero")
-		}
-		return runtime.FloatValue{Val: math.Mod(lv.Val, rv.Val), TypeSuffix: lv.TypeSuffix}, nil
+func isNumericValue(val runtime.Value) bool {
+	switch val.(type) {
+	case runtime.IntegerValue, runtime.FloatValue:
+		return true
 	default:
-		return nil, fmt.Errorf("unsupported operands for modulo")
+		return false
 	}
+}
+
+func numericToFloat(val runtime.Value) (float64, error) {
+	switch v := val.(type) {
+	case runtime.FloatValue:
+		return v.Val, nil
+	case runtime.IntegerValue:
+		int32Val, err := int32FromIntegerValue(v)
+		if err != nil {
+			return 0, err
+		}
+		return float64(int32Val), nil
+	default:
+		return 0, fmt.Errorf("Arithmetic requires numeric operands")
+	}
+}
+
+func evaluateModulo(left runtime.Value, right runtime.Value) (runtime.Value, error) {
+	if !isNumericValue(left) || !isNumericValue(right) {
+		return nil, fmt.Errorf("Arithmetic requires numeric operands")
+	}
+	if lv, ok := left.(runtime.IntegerValue); ok {
+		if rv, ok := right.(runtime.IntegerValue); ok {
+			if rv.Val == nil || rv.Val.Sign() == 0 {
+				return nil, fmt.Errorf("division by zero")
+			}
+			result := new(big.Int).Rem(runtime.CloneBigInt(lv.Val), rv.Val)
+			return runtime.IntegerValue{Val: result, TypeSuffix: lv.TypeSuffix}, nil
+		}
+	}
+	leftFloat, err := numericToFloat(left)
+	if err != nil {
+		return nil, err
+	}
+	rightFloat, err := numericToFloat(right)
+	if err != nil {
+		return nil, err
+	}
+	if rightFloat == 0 {
+		return nil, fmt.Errorf("division by zero")
+	}
+	return runtime.FloatValue{Val: math.Mod(leftFloat, rightFloat), TypeSuffix: runtime.FloatF64}, nil
 }
 
 func evaluateBitwise(op string, left runtime.Value, right runtime.Value) (runtime.Value, error) {
 	lv, ok := left.(runtime.IntegerValue)
 	if !ok {
-		return nil, fmt.Errorf("bitwise requires i32 operands")
+		return nil, fmt.Errorf("Bitwise requires i32 operands")
 	}
 	rv, ok := right.(runtime.IntegerValue)
 	if !ok {
-		return nil, fmt.Errorf("bitwise requires i32 operands")
+		return nil, fmt.Errorf("Bitwise requires i32 operands")
 	}
 	l, err := int32FromIntegerValue(lv)
 	if err != nil {
@@ -1309,14 +1402,14 @@ func evaluateBitwise(op string, left runtime.Value, right runtime.Value) (runtim
 
 func int32FromIntegerValue(val runtime.IntegerValue) (int32, error) {
 	if val.TypeSuffix != runtime.IntegerI32 {
-		return 0, fmt.Errorf("bitwise requires i32 operands")
+		return 0, fmt.Errorf("Bitwise requires i32 operands")
 	}
 	if val.Val == nil || !val.Val.IsInt64() {
-		return 0, fmt.Errorf("bitwise requires i32 operands")
+		return 0, fmt.Errorf("Bitwise requires i32 operands")
 	}
 	raw := val.Val.Int64()
 	if raw < math.MinInt32 || raw > math.MaxInt32 {
-		return 0, fmt.Errorf("bitwise requires i32 operands")
+		return 0, fmt.Errorf("Bitwise requires i32 operands")
 	}
 	return int32(raw), nil
 }
@@ -1413,14 +1506,19 @@ func (i *Interpreter) evaluateFunctionCall(call *ast.FunctionCall, env *runtime.
 		}
 		args = append(args, val)
 	}
-	return i.invokeFunction(funcValue, args)
+	return i.invokeFunction(funcValue, args, call)
 }
 
-func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.Value) (runtime.Value, error) {
+func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.Value, call *ast.FunctionCall) (runtime.Value, error) {
 	switch decl := fn.Declaration.(type) {
 	case *ast.FunctionDefinition:
 		if decl.Body == nil {
 			return runtime.NilValue{}, nil
+		}
+		if call != nil {
+			if err := i.enforceGenericConstraintsIfAny(decl, call); err != nil {
+				return nil, err
+			}
 		}
 		if len(args) != len(decl.Params) {
 			name := "<anonymous>"
@@ -1430,6 +1528,9 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 			return nil, fmt.Errorf("Function '%s' expects %d arguments, got %d", name, len(decl.Params), len(args))
 		}
 		localEnv := runtime.NewEnvironment(fn.Closure)
+		if call != nil {
+			i.bindTypeArgumentsIfAny(decl, call, localEnv)
+		}
 		for idx, param := range decl.Params {
 			if param == nil {
 				return nil, fmt.Errorf("function parameter %d is nil", idx)
@@ -1457,6 +1558,790 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 	}
 }
 
+func (i *Interpreter) enforceGenericConstraintsIfAny(funcNode ast.Node, call *ast.FunctionCall) error {
+	if funcNode == nil || call == nil {
+		return nil
+	}
+	generics, whereClause := extractFunctionGenerics(funcNode)
+	if len(generics) == 0 {
+		return nil
+	}
+	name := functionNameForErrors(funcNode)
+	if len(call.TypeArguments) != len(generics) {
+		return fmt.Errorf("Type arguments count mismatch calling %s: expected %d, got %d", name, len(generics), len(call.TypeArguments))
+	}
+	constraints := collectConstraintSpecs(generics, whereClause)
+	if len(constraints) == 0 {
+		return nil
+	}
+	typeArgMap, err := mapTypeArguments(generics, call.TypeArguments, fmt.Sprintf("calling %s", name))
+	if err != nil {
+		return err
+	}
+	return i.enforceConstraintSpecs(constraints, typeArgMap)
+}
+
+func (i *Interpreter) bindTypeArgumentsIfAny(funcNode ast.Node, call *ast.FunctionCall, env *runtime.Environment) {
+	if funcNode == nil || call == nil {
+		return
+	}
+	generics, _ := extractFunctionGenerics(funcNode)
+	if len(generics) == 0 {
+		return
+	}
+	count := len(generics)
+	if len(call.TypeArguments) < count {
+		count = len(call.TypeArguments)
+	}
+	for idx := 0; idx < count; idx++ {
+		gp := generics[idx]
+		if gp == nil || gp.Name == nil {
+			continue
+		}
+		ta := call.TypeArguments[idx]
+		if ta == nil {
+			continue
+		}
+		name := gp.Name.Name + "_type"
+		value := runtime.StringValue{Val: typeExpressionToString(ta)}
+		env.Define(name, value)
+	}
+}
+
+func extractFunctionGenerics(funcNode ast.Node) ([]*ast.GenericParameter, []*ast.WhereClauseConstraint) {
+	switch fn := funcNode.(type) {
+	case *ast.FunctionDefinition:
+		return fn.GenericParams, fn.WhereClause
+	case *ast.LambdaExpression:
+		return fn.GenericParams, fn.WhereClause
+	default:
+		return nil, nil
+	}
+}
+
+func functionNameForErrors(funcNode ast.Node) string {
+	switch fn := funcNode.(type) {
+	case *ast.FunctionDefinition:
+		if fn.ID != nil && fn.ID.Name != "" {
+			return fn.ID.Name
+		}
+	case *ast.LambdaExpression:
+		return "(lambda)"
+	}
+	return "(lambda)"
+}
+
+func collectConstraintSpecs(generics []*ast.GenericParameter, whereClause []*ast.WhereClauseConstraint) []constraintSpec {
+	var specs []constraintSpec
+	for _, gp := range generics {
+		if gp == nil || gp.Name == nil {
+			continue
+		}
+		for _, constraint := range gp.Constraints {
+			if constraint == nil || constraint.InterfaceType == nil {
+				continue
+			}
+			specs = append(specs, constraintSpec{typeParam: gp.Name.Name, ifaceType: constraint.InterfaceType})
+		}
+	}
+	for _, clause := range whereClause {
+		if clause == nil || clause.TypeParam == nil {
+			continue
+		}
+		for _, constraint := range clause.Constraints {
+			if constraint == nil || constraint.InterfaceType == nil {
+				continue
+			}
+			specs = append(specs, constraintSpec{typeParam: clause.TypeParam.Name, ifaceType: constraint.InterfaceType})
+		}
+	}
+	return specs
+}
+
+func constraintSignature(specs []constraintSpec) string {
+	if len(specs) == 0 {
+		return "<none>"
+	}
+	parts := make([]string, 0, len(specs))
+	for _, spec := range specs {
+		parts = append(parts, fmt.Sprintf("%s->%s", spec.typeParam, typeExpressionToString(spec.ifaceType)))
+	}
+	sort.Strings(parts)
+	return strings.Join(parts, "&")
+}
+
+func (i *Interpreter) registerUnnamedImpl(ifaceName string, variant targetVariant, unionSignatures []string, baseConstraintSig string, targetDescription string) error {
+	key := ifaceName + "::" + variant.typeName
+	bucket, ok := i.unnamedImpls[key]
+	if !ok {
+		bucket = make(map[string]map[string]struct{})
+		i.unnamedImpls[key] = bucket
+	}
+	templateKey := "<none>"
+	if len(variant.argTemplates) > 0 {
+		parts := make([]string, 0, len(variant.argTemplates))
+		for _, tmpl := range variant.argTemplates {
+			parts = append(parts, typeExpressionToString(tmpl))
+		}
+		templateKey = strings.Join(parts, "|")
+	}
+	if len(unionSignatures) > 0 {
+		prefix := strings.Join(unionSignatures, "::")
+		templateKey = prefix + "::" + templateKey
+	}
+	constraintKey := baseConstraintSig
+	if len(unionSignatures) > 0 {
+		prefix := strings.Join(unionSignatures, "::")
+		constraintKey = prefix + "::" + baseConstraintSig
+	}
+	constraintSet, ok := bucket[templateKey]
+	if !ok {
+		constraintSet = make(map[string]struct{})
+		bucket[templateKey] = constraintSet
+	}
+	if _, exists := constraintSet[constraintKey]; exists {
+		return fmt.Errorf("Unnamed impl for (%s, %s) already exists", ifaceName, targetDescription)
+	}
+	constraintSet[constraintKey] = struct{}{}
+	return nil
+}
+
+func genericNameSet(params []*ast.GenericParameter) map[string]struct{} {
+	set := make(map[string]struct{})
+	for _, gp := range params {
+		if gp == nil || gp.Name == nil {
+			continue
+		}
+		set[gp.Name.Name] = struct{}{}
+	}
+	return set
+}
+
+func measureTemplateSpecificity(expr ast.TypeExpression, genericNames map[string]struct{}) int {
+	if expr == nil {
+		return 0
+	}
+	switch t := expr.(type) {
+	case *ast.SimpleTypeExpression:
+		if t.Name == nil {
+			return 0
+		}
+		if _, ok := genericNames[t.Name.Name]; ok {
+			return 0
+		}
+		return 1
+	case *ast.GenericTypeExpression:
+		score := measureTemplateSpecificity(t.Base, genericNames)
+		for _, arg := range t.Arguments {
+			score += measureTemplateSpecificity(arg, genericNames)
+		}
+		return score
+	case *ast.NullableTypeExpression:
+		return measureTemplateSpecificity(t.InnerType, genericNames)
+	case *ast.ResultTypeExpression:
+		return measureTemplateSpecificity(t.InnerType, genericNames)
+	case *ast.UnionTypeExpression:
+		score := 0
+		for _, member := range t.Members {
+			score += measureTemplateSpecificity(member, genericNames)
+		}
+		return score
+	default:
+		return 0
+	}
+}
+
+func computeImplSpecificity(entry *implEntry, bindings map[string]ast.TypeExpression, constraints []constraintSpec) int {
+	genericNames := genericNameSet(entry.genericParams)
+	concreteScore := 0
+	for _, tmpl := range entry.argTemplates {
+		concreteScore += measureTemplateSpecificity(tmpl, genericNames)
+	}
+	constraintScore := len(constraints)
+	bindingScore := len(bindings)
+	unionPenalty := len(entry.unionVariants)
+	defaultPenalty := 0
+	if entry.defaultOnly {
+		defaultPenalty = 1
+	}
+	return concreteScore*100 + constraintScore*10 + bindingScore - unionPenalty - defaultPenalty
+}
+
+func typeExpressionsEqual(a, b ast.TypeExpression) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	switch ta := a.(type) {
+	case *ast.SimpleTypeExpression:
+		tb, ok := b.(*ast.SimpleTypeExpression)
+		if !ok {
+			return false
+		}
+		if ta.Name == nil || tb.Name == nil {
+			return ta.Name == nil && tb.Name == nil
+		}
+		return ta.Name.Name == tb.Name.Name
+	case *ast.GenericTypeExpression:
+		tb, ok := b.(*ast.GenericTypeExpression)
+		if !ok {
+			return false
+		}
+		if !typeExpressionsEqual(ta.Base, tb.Base) {
+			return false
+		}
+		if len(ta.Arguments) != len(tb.Arguments) {
+			return false
+		}
+		for idx := range ta.Arguments {
+			if !typeExpressionsEqual(ta.Arguments[idx], tb.Arguments[idx]) {
+				return false
+			}
+		}
+		return true
+	case *ast.NullableTypeExpression:
+		tb, ok := b.(*ast.NullableTypeExpression)
+		if !ok {
+			return false
+		}
+		return typeExpressionsEqual(ta.InnerType, tb.InnerType)
+	case *ast.ResultTypeExpression:
+		tb, ok := b.(*ast.ResultTypeExpression)
+		if !ok {
+			return false
+		}
+		return typeExpressionsEqual(ta.InnerType, tb.InnerType)
+	case *ast.FunctionTypeExpression:
+		tb, ok := b.(*ast.FunctionTypeExpression)
+		if !ok {
+			return false
+		}
+		if len(ta.ParamTypes) != len(tb.ParamTypes) {
+			return false
+		}
+		for idx := range ta.ParamTypes {
+			if !typeExpressionsEqual(ta.ParamTypes[idx], tb.ParamTypes[idx]) {
+				return false
+			}
+		}
+		return typeExpressionsEqual(ta.ReturnType, tb.ReturnType)
+	case *ast.UnionTypeExpression:
+		tb, ok := b.(*ast.UnionTypeExpression)
+		if !ok || len(ta.Members) != len(tb.Members) {
+			return false
+		}
+		for idx := range ta.Members {
+			if !typeExpressionsEqual(ta.Members[idx], tb.Members[idx]) {
+				return false
+			}
+		}
+		return true
+	case *ast.WildcardTypeExpression:
+		_, ok := b.(*ast.WildcardTypeExpression)
+		return ok
+	default:
+		return false
+	}
+}
+
+func matchTypeExpressionTemplate(template, actual ast.TypeExpression, genericNames map[string]struct{}, bindings map[string]ast.TypeExpression) bool {
+	switch t := template.(type) {
+	case *ast.SimpleTypeExpression:
+		if t.Name == nil {
+			return actual == nil
+		}
+		name := t.Name.Name
+		if _, isGeneric := genericNames[name]; isGeneric {
+			if existing, ok := bindings[name]; ok {
+				return typeExpressionsEqual(existing, actual)
+			}
+			bindings[name] = actual
+			return true
+		}
+		return typeExpressionsEqual(template, actual)
+	case *ast.GenericTypeExpression:
+		other, ok := actual.(*ast.GenericTypeExpression)
+		if !ok {
+			return false
+		}
+		if !matchTypeExpressionTemplate(t.Base, other.Base, genericNames, bindings) {
+			return false
+		}
+		if len(t.Arguments) != len(other.Arguments) {
+			return false
+		}
+		for idx := range t.Arguments {
+			if !matchTypeExpressionTemplate(t.Arguments[idx], other.Arguments[idx], genericNames, bindings) {
+				return false
+			}
+		}
+		return true
+	case *ast.NullableTypeExpression:
+		other, ok := actual.(*ast.NullableTypeExpression)
+		if !ok {
+			return false
+		}
+		return matchTypeExpressionTemplate(t.InnerType, other.InnerType, genericNames, bindings)
+	case *ast.ResultTypeExpression:
+		other, ok := actual.(*ast.ResultTypeExpression)
+		if !ok {
+			return false
+		}
+		return matchTypeExpressionTemplate(t.InnerType, other.InnerType, genericNames, bindings)
+	case *ast.UnionTypeExpression:
+		other, ok := actual.(*ast.UnionTypeExpression)
+		if !ok || len(t.Members) != len(other.Members) {
+			return false
+		}
+		for idx := range t.Members {
+			if !matchTypeExpressionTemplate(t.Members[idx], other.Members[idx], genericNames, bindings) {
+				return false
+			}
+		}
+		return true
+	default:
+		return typeExpressionsEqual(template, actual)
+	}
+}
+
+func (i *Interpreter) matchImplEntry(entry *implEntry, info typeInfo) (map[string]ast.TypeExpression, bool) {
+	if entry == nil {
+		return nil, false
+	}
+	bindings := make(map[string]ast.TypeExpression)
+	genericNames := genericNameSet(entry.genericParams)
+	if len(entry.argTemplates) > 0 {
+		if len(info.typeArgs) != len(entry.argTemplates) {
+			return nil, false
+		}
+		for idx, tmpl := range entry.argTemplates {
+			if !matchTypeExpressionTemplate(tmpl, info.typeArgs[idx], genericNames, bindings) {
+				return nil, false
+			}
+		}
+	} else if len(info.typeArgs) > 0 {
+		return nil, false
+	}
+	for _, gp := range entry.genericParams {
+		if gp == nil || gp.Name == nil {
+			continue
+		}
+		if _, ok := bindings[gp.Name.Name]; !ok {
+			return nil, false
+		}
+	}
+	return bindings, true
+}
+
+func (i *Interpreter) collectImplCandidates(info typeInfo, interfaceFilter string) ([]implCandidate, error) {
+	if info.name == "" {
+		return nil, nil
+	}
+	entries := i.implMethods[info.name]
+	matches := make([]implCandidate, 0)
+	var constraintErr error
+	for idx := range entries {
+		entry := &entries[idx]
+		if interfaceFilter != "" && entry.interfaceName != interfaceFilter {
+			continue
+		}
+		bindings, ok := i.matchImplEntry(entry, info)
+		if !ok {
+			continue
+		}
+		constraints := collectConstraintSpecs(entry.genericParams, entry.whereClause)
+		if len(constraints) > 0 {
+			if err := i.enforceConstraintSpecs(constraints, bindings); err != nil {
+				if constraintErr == nil {
+					constraintErr = err
+				}
+				continue
+			}
+		}
+		score := computeImplSpecificity(entry, bindings, constraints)
+		matches = append(matches, implCandidate{
+			entry:       entry,
+			bindings:    bindings,
+			constraints: constraints,
+			score:       score,
+		})
+	}
+	if len(matches) == 0 {
+		return nil, constraintErr
+	}
+	return matches, nil
+}
+
+func (i *Interpreter) compareMethodMatches(a, b implCandidate) int {
+	if a.score > b.score {
+		return 1
+	}
+	if a.score < b.score {
+		return -1
+	}
+	aUnion := a.entry.unionVariants
+	bUnion := b.entry.unionVariants
+	if len(aUnion) > 0 && len(bUnion) == 0 {
+		return -1
+	}
+	if len(aUnion) == 0 && len(bUnion) > 0 {
+		return 1
+	}
+	if len(aUnion) > 0 && len(bUnion) > 0 {
+		if isProperSubset(aUnion, bUnion) {
+			return 1
+		}
+		if isProperSubset(bUnion, aUnion) {
+			return -1
+		}
+		if len(aUnion) != len(bUnion) {
+			if len(aUnion) < len(bUnion) {
+				return 1
+			}
+			return -1
+		}
+	}
+	aConstraints := i.buildConstraintKeySet(a.constraints)
+	bConstraints := i.buildConstraintKeySet(b.constraints)
+	if isConstraintSuperset(aConstraints, bConstraints) {
+		return 1
+	}
+	if isConstraintSuperset(bConstraints, aConstraints) {
+		return -1
+	}
+	return 0
+}
+
+func (i *Interpreter) buildConstraintKeySet(constraints []constraintSpec) map[string]struct{} {
+	set := make(map[string]struct{})
+	for _, c := range constraints {
+		if c.ifaceType == nil {
+			continue
+		}
+		expressions := i.collectInterfaceConstraintStrings(c.ifaceType, make(map[string]struct{}))
+		for _, expr := range expressions {
+			key := fmt.Sprintf("%s->%s", c.typeParam, expr)
+			set[key] = struct{}{}
+		}
+	}
+	return set
+}
+
+func (i *Interpreter) collectInterfaceConstraintStrings(typeExpr ast.TypeExpression, memo map[string]struct{}) []string {
+	if typeExpr == nil {
+		return nil
+	}
+	key := typeExpressionToString(typeExpr)
+	if _, seen := memo[key]; seen {
+		return nil
+	}
+	memo[key] = struct{}{}
+	results := []string{key}
+	if simple, ok := typeExpr.(*ast.SimpleTypeExpression); ok && simple.Name != nil {
+		if iface, exists := i.interfaces[simple.Name.Name]; exists && iface.Node != nil {
+			for _, base := range iface.Node.BaseInterfaces {
+				results = append(results, i.collectInterfaceConstraintStrings(base, memo)...)
+			}
+		}
+	}
+	return results
+}
+
+func isConstraintSuperset(a, b map[string]struct{}) bool {
+	if len(a) <= len(b) {
+		return false
+	}
+	for key := range b {
+		if _, ok := a[key]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func isProperSubset(a, b []string) bool {
+	if len(a) == 0 {
+		return len(b) > 0
+	}
+	setA := make(map[string]struct{}, len(a))
+	for _, val := range a {
+		setA[val] = struct{}{}
+	}
+	setB := make(map[string]struct{}, len(b))
+	for _, val := range b {
+		setB[val] = struct{}{}
+	}
+	if len(setA) >= len(setB) {
+		return false
+	}
+	for val := range setA {
+		if _, ok := setB[val]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func (i *Interpreter) selectBestMethodCandidate(matches []methodMatch) (*methodMatch, []methodMatch) {
+	if len(matches) == 0 {
+		return nil, nil
+	}
+	bestIdx := 0
+	contenders := []int{0}
+	for idx := 1; idx < len(matches); idx++ {
+		cmp := i.compareMethodMatches(matches[idx].candidate, matches[bestIdx].candidate)
+		if cmp > 0 {
+			bestIdx = idx
+			contenders = []int{idx}
+		} else if cmp == 0 {
+			reverse := i.compareMethodMatches(matches[bestIdx].candidate, matches[idx].candidate)
+			if reverse < 0 {
+				bestIdx = idx
+				contenders = []int{idx}
+			} else if reverse == 0 {
+				contenders = append(contenders, idx)
+			}
+		}
+	}
+	if len(contenders) > 1 {
+		ambiguous := make([]methodMatch, 0, len(contenders))
+		for _, idx := range contenders {
+			ambiguous = append(ambiguous, matches[idx])
+		}
+		return nil, ambiguous
+	}
+	return &matches[bestIdx], nil
+}
+
+func (i *Interpreter) selectBestCandidate(matches []implCandidate) (*implCandidate, []implCandidate) {
+	if len(matches) == 0 {
+		return nil, nil
+	}
+	bestIdx := 0
+	contenders := []int{0}
+	for idx := 1; idx < len(matches); idx++ {
+		cmp := i.compareMethodMatches(matches[idx], matches[bestIdx])
+		if cmp > 0 {
+			bestIdx = idx
+			contenders = []int{idx}
+		} else if cmp == 0 {
+			reverse := i.compareMethodMatches(matches[bestIdx], matches[idx])
+			if reverse < 0 {
+				bestIdx = idx
+				contenders = []int{idx}
+			} else if reverse == 0 {
+				contenders = append(contenders, idx)
+			}
+		}
+	}
+	if len(contenders) > 1 {
+		ambiguous := make([]implCandidate, 0, len(contenders))
+		for _, idx := range contenders {
+			ambiguous = append(ambiguous, matches[idx])
+		}
+		return nil, ambiguous
+	}
+	return &matches[bestIdx], nil
+}
+
+func (i *Interpreter) typeInfoFromStructInstance(inst *runtime.StructInstanceValue) (typeInfo, bool) {
+	if inst == nil || inst.Definition == nil || inst.Definition.Node == nil || inst.Definition.Node.ID == nil {
+		return typeInfo{}, false
+	}
+	info := typeInfo{name: inst.Definition.Node.ID.Name}
+	if len(inst.TypeArguments) > 0 {
+		info.typeArgs = append([]ast.TypeExpression(nil), inst.TypeArguments...)
+	}
+	return info, true
+}
+
+func typeInfoToString(info typeInfo) string {
+	if info.name == "" {
+		return "<unknown>"
+	}
+	if len(info.typeArgs) == 0 {
+		return info.name
+	}
+	parts := make([]string, 0, len(info.typeArgs))
+	for _, arg := range info.typeArgs {
+		parts = append(parts, typeExpressionToString(arg))
+	}
+	return fmt.Sprintf("%s<%s>", info.name, strings.Join(parts, ", "))
+}
+
+func descriptionsFromMethodMatches(matches []methodMatch) []string {
+	set := make(map[string]struct{})
+	for _, match := range matches {
+		if match.candidate.entry == nil || match.candidate.entry.definition == nil {
+			continue
+		}
+		desc := typeExpressionToString(match.candidate.entry.definition.TargetType)
+		set[desc] = struct{}{}
+	}
+	return sortedKeys(set)
+}
+
+func descriptionsFromCandidates(matches []implCandidate) []string {
+	set := make(map[string]struct{})
+	for _, match := range matches {
+		if match.entry == nil || match.entry.definition == nil {
+			continue
+		}
+		desc := typeExpressionToString(match.entry.definition.TargetType)
+		set[desc] = struct{}{}
+	}
+	return sortedKeys(set)
+}
+
+func sortedKeys(set map[string]struct{}) []string {
+	if len(set) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(set))
+	for k := range set {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func mapTypeArguments(generics []*ast.GenericParameter, provided []ast.TypeExpression, context string) (map[string]ast.TypeExpression, error) {
+	result := make(map[string]ast.TypeExpression)
+	if len(generics) == 0 {
+		return result, nil
+	}
+	if len(provided) != len(generics) {
+		return nil, fmt.Errorf("Type arguments count mismatch %s: expected %d, got %d", context, len(generics), len(provided))
+	}
+	for idx, gp := range generics {
+		if gp == nil || gp.Name == nil {
+			continue
+		}
+		ta := provided[idx]
+		if ta == nil {
+			return nil, fmt.Errorf("Missing type argument for '%s' required by %s", gp.Name.Name, context)
+		}
+		result[gp.Name.Name] = ta
+	}
+	return result, nil
+}
+
+func (i *Interpreter) enforceConstraintSpecs(constraints []constraintSpec, typeArgMap map[string]ast.TypeExpression) error {
+	for _, spec := range constraints {
+		actual, ok := typeArgMap[spec.typeParam]
+		if !ok {
+			return fmt.Errorf("Missing type argument for '%s' required by constraints", spec.typeParam)
+		}
+		tInfo, ok := parseTypeExpression(actual)
+		if !ok {
+			continue
+		}
+		if err := i.ensureTypeSatisfiesInterface(tInfo, spec.ifaceType, spec.typeParam, make(map[string]struct{})); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (i *Interpreter) ensureTypeSatisfiesInterface(tInfo typeInfo, ifaceExpr ast.TypeExpression, context string, visited map[string]struct{}) error {
+	ifaceInfo, ok := parseTypeExpression(ifaceExpr)
+	if !ok {
+		return nil
+	}
+	if _, seen := visited[ifaceInfo.name]; seen {
+		return nil
+	}
+	visited[ifaceInfo.name] = struct{}{}
+	ifaceDef, ok := i.interfaces[ifaceInfo.name]
+	if !ok {
+		return fmt.Errorf("Unknown interface '%s' in constraint on '%s'", ifaceInfo.name, context)
+	}
+	if ifaceDef.Node != nil {
+		for _, base := range ifaceDef.Node.BaseInterfaces {
+			if err := i.ensureTypeSatisfiesInterface(tInfo, base, context, visited); err != nil {
+				return err
+			}
+		}
+		for _, sig := range ifaceDef.Node.Signatures {
+			if sig == nil || sig.Name == nil {
+				continue
+			}
+			methodName := sig.Name.Name
+			if !i.typeHasMethod(tInfo, methodName, ifaceInfo.name) {
+				return fmt.Errorf("Type '%s' does not satisfy interface '%s': missing method '%s'", tInfo.name, ifaceInfo.name, methodName)
+			}
+		}
+	}
+	return nil
+}
+
+func (i *Interpreter) typeHasMethod(info typeInfo, methodName, ifaceName string) bool {
+	if info.name == "" {
+		return false
+	}
+	if bucket, ok := i.inherentMethods[info.name]; ok {
+		if _, exists := bucket[methodName]; exists {
+			return true
+		}
+	}
+	method, err := i.findMethod(info, methodName, ifaceName)
+	return err == nil && method != nil
+}
+
+func parseTypeExpression(expr ast.TypeExpression) (typeInfo, bool) {
+	switch t := expr.(type) {
+	case *ast.SimpleTypeExpression:
+		if t.Name == nil {
+			return typeInfo{}, false
+		}
+		return typeInfo{name: t.Name.Name, typeArgs: nil}, true
+	case *ast.GenericTypeExpression:
+		tInfo, ok := parseTypeExpression(t.Base)
+		if !ok {
+			return typeInfo{}, false
+		}
+		tInfo.typeArgs = append([]ast.TypeExpression(nil), t.Arguments...)
+		return tInfo, true
+	default:
+		return typeInfo{}, false
+	}
+}
+
+func typeExpressionToString(expr ast.TypeExpression) string {
+	switch t := expr.(type) {
+	case *ast.SimpleTypeExpression:
+		if t.Name == nil {
+			return "<?>"
+		}
+		return t.Name.Name
+	case *ast.GenericTypeExpression:
+		base := typeExpressionToString(t.Base)
+		args := make([]string, 0, len(t.Arguments))
+		for _, arg := range t.Arguments {
+			args = append(args, typeExpressionToString(arg))
+		}
+		return fmt.Sprintf("%s<%s>", base, strings.Join(args, ", "))
+	case *ast.NullableTypeExpression:
+		return typeExpressionToString(t.InnerType) + "?"
+	case *ast.FunctionTypeExpression:
+		parts := make([]string, 0, len(t.ParamTypes))
+		for _, p := range t.ParamTypes {
+			parts = append(parts, typeExpressionToString(p))
+		}
+		return fmt.Sprintf("fn(%s) -> %s", strings.Join(parts, ", "), typeExpressionToString(t.ReturnType))
+	case *ast.UnionTypeExpression:
+		parts := make([]string, 0, len(t.Members))
+		for _, member := range t.Members {
+			parts = append(parts, typeExpressionToString(member))
+		}
+		return strings.Join(parts, " | ")
+	default:
+		return "<?>"
+	}
+}
+
 // bigFromLiteral normalizes numeric literals (number or bigint) to *big.Int.
 func bigFromLiteral(val interface{}) *big.Int {
 	switch v := val.(type) {
@@ -1479,66 +2364,69 @@ func bigFromLiteral(val interface{}) *big.Int {
 }
 
 func evaluateArithmetic(op string, left runtime.Value, right runtime.Value) (runtime.Value, error) {
-	switch lv := left.(type) {
-	case runtime.IntegerValue:
-		rv, ok := right.(runtime.IntegerValue)
-		if !ok {
-			return nil, fmt.Errorf("mixed numeric types not supported")
-		}
-		result := new(big.Int)
-		switch op {
-		case "+":
-			result.Add(lv.Val, rv.Val)
-		case "-":
-			result.Sub(lv.Val, rv.Val)
-		case "*":
-			result.Mul(lv.Val, rv.Val)
-		case "/":
-			if rv.Val.Sign() == 0 {
-				return nil, fmt.Errorf("division by zero")
-			}
-			result.Quo(lv.Val, rv.Val)
-		default:
-			return nil, fmt.Errorf("unsupported arithmetic operator %s", op)
-		}
-		return runtime.IntegerValue{Val: result, TypeSuffix: lv.TypeSuffix}, nil
-	case runtime.FloatValue:
-		rv, ok := right.(runtime.FloatValue)
-		if !ok {
-			return nil, fmt.Errorf("mixed numeric types not supported")
-		}
-		var val float64
-		switch op {
-		case "+":
-			val = lv.Val + rv.Val
-		case "-":
-			val = lv.Val - rv.Val
-		case "*":
-			val = lv.Val * rv.Val
-		case "/":
-			if rv.Val == 0 {
-				return nil, fmt.Errorf("division by zero")
-			}
-			val = lv.Val / rv.Val
-		default:
-			return nil, fmt.Errorf("unsupported arithmetic operator %s", op)
-		}
-		return runtime.FloatValue{Val: val, TypeSuffix: lv.TypeSuffix}, nil
-	case runtime.StringValue:
-		if op == "+" {
-			rStr, ok := right.(runtime.StringValue)
-			if !ok {
-				return nil, fmt.Errorf("string concatenation requires both operands to be strings")
-			}
-			return runtime.StringValue{Val: lv.Val + rStr.Val}, nil
-		}
-		return nil, fmt.Errorf("operator %s not supported for strings", op)
-	default:
-		return nil, fmt.Errorf("unsupported operand types for %s", op)
+	if !isNumericValue(left) || !isNumericValue(right) {
+		return nil, fmt.Errorf("Arithmetic requires numeric operands")
 	}
+	if lv, ok := left.(runtime.IntegerValue); ok {
+		if rv, ok := right.(runtime.IntegerValue); ok {
+			result := new(big.Int)
+			switch op {
+			case "+":
+				result.Add(lv.Val, rv.Val)
+			case "-":
+				result.Sub(lv.Val, rv.Val)
+			case "*":
+				result.Mul(lv.Val, rv.Val)
+			case "/":
+				if rv.Val.Sign() == 0 {
+					return nil, fmt.Errorf("division by zero")
+				}
+				result.Quo(lv.Val, rv.Val)
+			default:
+				return nil, fmt.Errorf("unsupported arithmetic operator %s", op)
+			}
+			return runtime.IntegerValue{Val: result, TypeSuffix: lv.TypeSuffix}, nil
+		}
+	}
+	leftFloat, err := numericToFloat(left)
+	if err != nil {
+		return nil, err
+	}
+	rightFloat, err := numericToFloat(right)
+	if err != nil {
+		return nil, err
+	}
+	var val float64
+	switch op {
+	case "+":
+		val = leftFloat + rightFloat
+	case "-":
+		val = leftFloat - rightFloat
+	case "*":
+		val = leftFloat * rightFloat
+	case "/":
+		if rightFloat == 0 {
+			return nil, fmt.Errorf("division by zero")
+		}
+		val = leftFloat / rightFloat
+	default:
+		return nil, fmt.Errorf("unsupported arithmetic operator %s", op)
+	}
+	return runtime.FloatValue{Val: val, TypeSuffix: runtime.FloatF64}, nil
 }
 
 func valuesEqual(left runtime.Value, right runtime.Value) bool {
+	if isNumericValue(left) && isNumericValue(right) {
+		lf, err := numericToFloat(left)
+		if err != nil {
+			return false
+		}
+		rf, err := numericToFloat(right)
+		if err != nil {
+			return false
+		}
+		return math.Abs(lf-rf) < numericEpsilon
+	}
 	switch lv := left.(type) {
 	case runtime.StringValue:
 		if rv, ok := right.(runtime.StringValue); ok {
@@ -1561,38 +2449,34 @@ func valuesEqual(left runtime.Value, right runtime.Value) bool {
 		}
 	case runtime.FloatValue:
 		if rv, ok := right.(runtime.FloatValue); ok {
-			return lv.Val == rv.Val
+			return math.Abs(lv.Val-rv.Val) < numericEpsilon
 		}
 	}
 	return false
 }
 
 func evaluateComparison(op string, left runtime.Value, right runtime.Value) (runtime.Value, error) {
-	switch lv := left.(type) {
-	case runtime.IntegerValue:
-		rv, ok := right.(runtime.IntegerValue)
-		if !ok {
-			return nil, fmt.Errorf("mixed numeric types not supported in comparison")
-		}
-		cmp := lv.Val.Cmp(rv.Val)
-		return runtime.BoolValue{Val: comparisonOp(op, cmp)}, nil
-	case runtime.FloatValue:
-		rv, ok := right.(runtime.FloatValue)
-		if !ok {
-			return nil, fmt.Errorf("mixed numeric types not supported in comparison")
-		}
-		var cmp int
-		if lv.Val < rv.Val {
-			cmp = -1
-		} else if lv.Val > rv.Val {
-			cmp = 1
-		} else {
-			cmp = 0
-		}
-		return runtime.BoolValue{Val: comparisonOp(op, cmp)}, nil
-	default:
-		return nil, fmt.Errorf("unsupported operands for comparison %s", op)
+	if !isNumericValue(left) || !isNumericValue(right) {
+		return nil, fmt.Errorf("Arithmetic requires numeric operands")
 	}
+	leftFloat, err := numericToFloat(left)
+	if err != nil {
+		return nil, err
+	}
+	rightFloat, err := numericToFloat(right)
+	if err != nil {
+		return nil, err
+	}
+	cmp := 0
+	diff := leftFloat - rightFloat
+	if math.Abs(diff) < numericEpsilon {
+		cmp = 0
+	} else if diff < 0 {
+		cmp = -1
+	} else {
+		cmp = 1
+	}
+	return runtime.BoolValue{Val: comparisonOp(op, cmp)}, nil
 }
 
 func comparisonOp(op string, cmp int) bool {
@@ -1703,7 +2587,7 @@ func (i *Interpreter) invokeStructToString(inst *runtime.StructInstanceValue) (s
 			}
 		}
 	}
-	if method, err := i.selectStructMethod(typeName, "to_string"); err == nil && method != nil {
+	if method, err := i.selectStructMethod(inst, "to_string"); err == nil && method != nil {
 		if str, ok := i.callStringMethod(method, inst); ok {
 			return str, true
 		}
@@ -1715,7 +2599,7 @@ func (i *Interpreter) callStringMethod(fn *runtime.FunctionValue, receiver runti
 	if fn == nil {
 		return "", false
 	}
-	result, err := i.invokeFunction(fn, []runtime.Value{receiver})
+	result, err := i.invokeFunction(fn, []runtime.Value{receiver}, nil)
 	if err != nil {
 		return "", false
 	}
@@ -1736,6 +2620,16 @@ func structTypeName(inst *runtime.StructInstanceValue) string {
 		return inst.Definition.Node.ID.Name
 	}
 	return ""
+}
+
+func simpleTypeName(expr ast.TypeExpression) (string, bool) {
+	switch t := expr.(type) {
+	case *ast.SimpleTypeExpression:
+		if t.Name != nil {
+			return t.Name.Name, true
+		}
+	}
+	return "", false
 }
 
 func valueToString(val runtime.Value) string {
@@ -1861,6 +2755,9 @@ func (i *Interpreter) evaluateFunctionDefinition(def *ast.FunctionDefinition, en
 	if def.ID == nil {
 		return nil, fmt.Errorf("Function definition requires identifier")
 	}
+	if err := i.validateGenericConstraints(def); err != nil {
+		return nil, err
+	}
 	fnVal := &runtime.FunctionValue{Declaration: def, Closure: env}
 	env.Define(def.ID.Name, fnVal)
 	i.registerSymbol(def.ID.Name, fnVal)
@@ -1906,19 +2803,21 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 	if !ok {
 		return nil, fmt.Errorf("Interface '%s' is not defined", ifaceName)
 	}
-	targetNames, matchScore, err := collectImplementationTargetNames(def.TargetType)
+	variants, unionSignatures, err := expandImplementationTargetVariants(def.TargetType)
 	if err != nil {
 		return nil, err
 	}
-	if len(targetNames) == 0 {
+	if len(variants) == 0 {
 		return nil, fmt.Errorf("Implementation target must reference at least one concrete type")
 	}
 	methods := make(map[string]*runtime.FunctionValue)
+	hasExplicit := false
 	for _, fn := range def.Definitions {
 		if fn == nil || fn.ID == nil {
 			return nil, fmt.Errorf("Implementation method requires identifier")
 		}
 		methods[fn.ID.Name] = &runtime.FunctionValue{Declaration: fn, Closure: env}
+		hasExplicit = true
 	}
 	if ifaceDef.Node != nil {
 		for _, sig := range ifaceDef.Node.Signatures {
@@ -1936,19 +2835,68 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 			methods[name] = &runtime.FunctionValue{Declaration: defaultDef, Closure: ifaceDef.Env}
 		}
 	}
-	for _, targetName := range targetNames {
-		entry := implEntry{
-			interfaceName: ifaceName,
-			methods:       methods,
-			definition:    def,
-			targetCount:   len(targetNames),
-			matchScore:    matchScore,
+	constraintSpecs := collectConstraintSpecs(def.GenericParams, def.WhereClause)
+	baseConstraintSig := constraintSignature(constraintSpecs)
+	targetDescription := typeExpressionToString(def.TargetType)
+	for _, variant := range variants {
+		if def.ImplName == nil {
+			if err := i.registerUnnamedImpl(ifaceName, variant, unionSignatures, baseConstraintSig, targetDescription); err != nil {
+				return nil, err
+			}
+			entry := implEntry{
+				interfaceName: ifaceName,
+				methods:       methods,
+				definition:    def,
+				argTemplates:  variant.argTemplates,
+				genericParams: def.GenericParams,
+				whereClause:   def.WhereClause,
+				defaultOnly:   !hasExplicit,
+			}
+			if len(unionSignatures) > 0 {
+				entry.unionVariants = append([]string(nil), unionSignatures...)
+			}
+			i.implMethods[variant.typeName] = append(i.implMethods[variant.typeName], entry)
 		}
-		i.implMethods[targetName] = append(i.implMethods[targetName], entry)
 	}
-	// Expose named impls as values (future work). For now, only register behaviourally.
-	_ = ifaceDef
+	if def.ImplName != nil {
+		name := def.ImplName.Name
+		implVal := runtime.ImplementationNamespaceValue{
+			Name:          def.ImplName,
+			InterfaceName: def.InterfaceName,
+			TargetType:    def.TargetType,
+			Methods:       methods,
+		}
+		env.Define(name, implVal)
+		i.registerSymbol(name, implVal)
+		if qn := i.qualifiedName(name); qn != "" {
+			i.global.Define(qn, implVal)
+		}
+	}
 	return runtime.NilValue{}, nil
+}
+
+func (i *Interpreter) validateGenericConstraints(def *ast.FunctionDefinition) error {
+	if def == nil || len(def.GenericParams) == 0 {
+		return nil
+	}
+	for _, param := range def.GenericParams {
+		if param == nil || param.Name == nil {
+			continue
+		}
+		for _, constraint := range param.Constraints {
+			if constraint == nil || constraint.InterfaceType == nil {
+				continue
+			}
+			ifaceName, ok := simpleTypeName(constraint.InterfaceType)
+			if !ok || ifaceName == "" {
+				return fmt.Errorf("Unknown interface in constraint on '%s'", param.Name.Name)
+			}
+			if _, exists := i.interfaces[ifaceName]; !exists {
+				return fmt.Errorf("Unknown interface '%s' in constraint on '%s'", ifaceName, param.Name.Name)
+			}
+		}
+	}
+	return nil
 }
 
 func (i *Interpreter) evaluateMethodsDefinition(def *ast.MethodsDefinition, env *runtime.Environment) (runtime.Value, error) {
@@ -1988,12 +2936,7 @@ func (i *Interpreter) evaluateStructLiteral(lit *ast.StructLiteral, env *runtime
 	if structDef == nil {
 		return nil, fmt.Errorf("struct definition '%s' unavailable", structName)
 	}
-	if len(lit.TypeArguments) > 0 {
-		if len(structDef.GenericParams) == 0 {
-			return nil, fmt.Errorf("Type '%s' does not accept type arguments", structName)
-		}
-		return nil, fmt.Errorf("Struct generics are not implemented in this interpreter yet")
-	}
+	explicitTypeArgs := append([]ast.TypeExpression(nil), lit.TypeArguments...)
 	if lit.IsPositional {
 		if structDef.Kind != ast.StructKindPositional && structDef.Kind != ast.StructKindSingleton {
 			return nil, fmt.Errorf("Positional struct literal not allowed for struct '%s'", structName)
@@ -2009,21 +2952,27 @@ func (i *Interpreter) evaluateStructLiteral(lit *ast.StructLiteral, env *runtime
 			}
 			values[idx] = val
 		}
-		return &runtime.StructInstanceValue{Definition: structDefVal, Positional: values}, nil
+		typeArgs, err := i.resolveStructTypeArguments(structDef, explicitTypeArgs, nil)
+		if err != nil {
+			return nil, err
+		}
+		return &runtime.StructInstanceValue{Definition: structDefVal, Positional: values, TypeArguments: typeArgs}, nil
 	}
-	if structDef.Kind == ast.StructKindPositional {
+	if structDef.Kind == ast.StructKindPositional && lit.FunctionalUpdateSource == nil {
 		return nil, fmt.Errorf("Named struct literal not allowed for positional struct '%s'", structName)
 	}
 	if lit.FunctionalUpdateSource != nil && structDef.Kind == ast.StructKindPositional {
 		return nil, fmt.Errorf("Functional update only supported for named structs")
 	}
 	fields := make(map[string]runtime.Value)
+	var baseStruct *runtime.StructInstanceValue
 	if lit.FunctionalUpdateSource != nil {
 		base, err := i.evaluateExpression(lit.FunctionalUpdateSource, env)
 		if err != nil {
 			return nil, err
 		}
-		baseStruct, ok := base.(*runtime.StructInstanceValue)
+		var ok bool
+		baseStruct, ok = base.(*runtime.StructInstanceValue)
 		if !ok {
 			return nil, fmt.Errorf("Functional update source must be a struct instance")
 		}
@@ -2071,7 +3020,44 @@ func (i *Interpreter) evaluateStructLiteral(lit *ast.StructLiteral, env *runtime
 			}
 		}
 	}
-	return &runtime.StructInstanceValue{Definition: structDefVal, Fields: fields}, nil
+	typeArgs, err := i.resolveStructTypeArguments(structDef, explicitTypeArgs, baseStruct)
+	if err != nil {
+		return nil, err
+	}
+	return &runtime.StructInstanceValue{Definition: structDefVal, Fields: fields, TypeArguments: typeArgs}, nil
+}
+
+func (i *Interpreter) resolveStructTypeArguments(def *ast.StructDefinition, explicit []ast.TypeExpression, base *runtime.StructInstanceValue) ([]ast.TypeExpression, error) {
+	if def == nil {
+		return nil, fmt.Errorf("Struct definition missing")
+	}
+	structName := "<anonymous>"
+	if def.ID != nil && def.ID.Name != "" {
+		structName = def.ID.Name
+	}
+	genericCount := len(def.GenericParams)
+	if genericCount == 0 {
+		if len(explicit) > 0 {
+			return nil, fmt.Errorf("Type '%s' does not accept type arguments", structName)
+		}
+		if base != nil && len(base.TypeArguments) > 0 {
+			return nil, fmt.Errorf("Type '%s' does not accept type arguments", structName)
+		}
+		return nil, nil
+	}
+	if len(explicit) > 0 {
+		if len(explicit) != genericCount {
+			return nil, fmt.Errorf("Type '%s' expects %d type arguments, got %d", structName, genericCount, len(explicit))
+		}
+		return append([]ast.TypeExpression(nil), explicit...), nil
+	}
+	if base != nil {
+		if len(base.TypeArguments) != genericCount {
+			return nil, fmt.Errorf("Type '%s' expects %d type arguments, got %d", structName, genericCount, len(base.TypeArguments))
+		}
+		return append([]ast.TypeExpression(nil), base.TypeArguments...), nil
+	}
+	return nil, fmt.Errorf("Type '%s' requires type arguments", structName)
 }
 
 func (i *Interpreter) evaluateMemberAccess(expr *ast.MemberAccessExpression, env *runtime.Environment) (runtime.Value, error) {
@@ -2088,15 +3074,24 @@ func (i *Interpreter) evaluateMemberAccess(expr *ast.MemberAccessExpression, env
 		return i.packageMemberAccess(v, expr.Member)
 	case *runtime.PackageValue:
 		return i.packageMemberAccess(*v, expr.Member)
+	case runtime.ImplementationNamespaceValue:
+		return i.implNamespaceMember(v, expr.Member)
+	case *runtime.ImplementationNamespaceValue:
+		return i.implNamespaceMember(*v, expr.Member)
 	case runtime.DynPackageValue:
 		return i.dynPackageMemberAccess(v, expr.Member)
 	case *runtime.DynPackageValue:
 		return i.dynPackageMemberAccess(*v, expr.Member)
 	case *runtime.StructInstanceValue:
-		return i.structInstanceMember(v, expr.Member)
+		return i.structInstanceMember(v, expr.Member, env)
 	case *runtime.InterfaceValue:
 		return i.interfaceMember(v, expr.Member)
 	default:
+		if ident, ok := expr.Member.(*ast.Identifier); ok {
+			if bound, ok := i.tryUfcs(env, ident.Name, obj); ok {
+				return bound, nil
+			}
+		}
 		return nil, fmt.Errorf("Member access only supported on structs/arrays in this milestone")
 	}
 }
@@ -2155,7 +3150,7 @@ func indexFromValue(val runtime.Value) (int, error) {
 	}
 }
 
-func (i *Interpreter) structInstanceMember(inst *runtime.StructInstanceValue, member ast.Expression) (runtime.Value, error) {
+func (i *Interpreter) structInstanceMember(inst *runtime.StructInstanceValue, member ast.Expression, env *runtime.Environment) (runtime.Value, error) {
 	if inst == nil {
 		return nil, fmt.Errorf("Member access only supported on structs/arrays in this milestone")
 	}
@@ -2167,6 +3162,9 @@ func (i *Interpreter) structInstanceMember(inst *runtime.StructInstanceValue, me
 			return val, nil
 		}
 		if inst.Definition == nil || inst.Definition.Node == nil || inst.Definition.Node.ID == nil {
+			if bound, ok := i.tryUfcs(env, ident.Name, inst); ok {
+				return bound, nil
+			}
 			return nil, fmt.Errorf("No field or method named '%s'", ident.Name)
 		}
 		typeName := inst.Definition.Node.ID.Name
@@ -2178,12 +3176,15 @@ func (i *Interpreter) structInstanceMember(inst *runtime.StructInstanceValue, me
 				return &runtime.BoundMethodValue{Receiver: inst, Method: method}, nil
 			}
 		}
-		method, err := i.selectStructMethod(typeName, ident.Name)
+		method, err := i.selectStructMethod(inst, ident.Name)
 		if err != nil {
 			return nil, err
 		}
 		if method != nil {
 			return &runtime.BoundMethodValue{Receiver: inst, Method: method}, nil
+		}
+		if bound, ok := i.tryUfcs(env, ident.Name, inst); ok {
+			return bound, nil
 		}
 		return nil, fmt.Errorf("No field or method named '%s'", ident.Name)
 	}
@@ -2201,6 +3202,20 @@ func (i *Interpreter) structInstanceMember(inst *runtime.StructInstanceValue, me
 		return inst.Positional[idx], nil
 	}
 	return nil, fmt.Errorf("Member access only supported on structs/arrays in this milestone")
+}
+
+func (i *Interpreter) tryUfcs(env *runtime.Environment, funcName string, receiver runtime.Value) (runtime.Value, bool) {
+	if env == nil {
+		return nil, false
+	}
+	val, err := env.Get(funcName)
+	if err != nil {
+		return nil, false
+	}
+	if fn, ok := val.(*runtime.FunctionValue); ok {
+		return &runtime.BoundMethodValue{Receiver: receiver, Method: fn}, true
+	}
+	return nil, false
 }
 
 func (i *Interpreter) structDefinitionMember(def *runtime.StructDefinitionValue, member ast.Expression) (runtime.Value, error) {
@@ -2271,6 +3286,25 @@ func (i *Interpreter) dynPackageMemberAccess(pkg runtime.DynPackageValue, member
 	return runtime.DynRefValue{Package: pkgName, Name: ident.Name}, nil
 }
 
+func (i *Interpreter) implNamespaceMember(ns runtime.ImplementationNamespaceValue, member ast.Expression) (runtime.Value, error) {
+	ident, ok := member.(*ast.Identifier)
+	if !ok {
+		return nil, fmt.Errorf("Impl namespace member access expects identifier")
+	}
+	if ns.Methods == nil {
+		return nil, fmt.Errorf("Impl namespace has no methods")
+	}
+	method, ok := ns.Methods[ident.Name]
+	if !ok {
+		name := "<impl>"
+		if ns.Name != nil {
+			name = ns.Name.Name
+		}
+		return nil, fmt.Errorf("No method '%s' on impl %s", ident.Name, name)
+	}
+	return method, nil
+}
+
 func (i *Interpreter) interfaceMember(val *runtime.InterfaceValue, member ast.Expression) (runtime.Value, error) {
 	if val == nil {
 		return nil, fmt.Errorf("Interface value is nil")
@@ -2291,10 +3325,17 @@ func (i *Interpreter) interfaceMember(val *runtime.InterfaceValue, member ast.Ex
 		method = val.Methods[ident.Name]
 	}
 	if method == nil {
-		// Try to resolve lazily in case Methods map not populated
-		if structName, ok := i.getTypeNameForValue(val.Underlying); ok {
-			if entry, ok := i.lookupImplEntry(structName, ifaceName); ok {
-				method = entry.methods[ident.Name]
+		if info, ok := i.getTypeInfoForValue(val.Underlying); ok {
+			resolved, err := i.findMethod(info, ident.Name, ifaceName)
+			if err != nil {
+				return nil, err
+			}
+			method = resolved
+			if method != nil {
+				if val.Methods == nil {
+					val.Methods = make(map[string]*runtime.FunctionValue)
+				}
+				val.Methods[ident.Name] = method
 			}
 		}
 	}
@@ -2361,20 +3402,20 @@ func (i *Interpreter) assignPattern(pattern ast.Pattern, value runtime.Value, en
 		}
 		structVal, ok := value.(*runtime.StructInstanceValue)
 		if !ok {
-			return fmt.Errorf("cannot destructure non-struct value")
+			return fmt.Errorf("Cannot destructure non-struct value")
 		}
 		if p.StructType != nil {
 			def := structVal.Definition
 			if def == nil || def.Node == nil || def.Node.ID == nil || def.Node.ID.Name != p.StructType.Name {
-				return fmt.Errorf("struct type mismatch in destructuring")
+				return fmt.Errorf("Struct type mismatch in destructuring")
 			}
 		}
 		if p.IsPositional {
 			if structVal.Positional == nil {
-				return fmt.Errorf("expected positional struct value")
+				return fmt.Errorf("Expected positional struct")
 			}
 			if len(p.Fields) != len(structVal.Positional) {
-				return fmt.Errorf("struct field count mismatch in destructuring")
+				return fmt.Errorf("Struct field count mismatch")
 			}
 			for idx, field := range p.Fields {
 				if field == nil {
@@ -2396,15 +3437,15 @@ func (i *Interpreter) assignPattern(pattern ast.Pattern, value runtime.Value, en
 			return nil
 		}
 		if structVal.Fields == nil {
-			return fmt.Errorf("expected named struct value")
+			return fmt.Errorf("Expected named struct")
 		}
 		for _, field := range p.Fields {
 			if field.FieldName == nil {
-				return fmt.Errorf("named struct pattern missing field name")
+				return fmt.Errorf("Named struct pattern missing field name")
 			}
 			fieldVal, ok := structVal.Fields[field.FieldName.Name]
 			if !ok {
-				return fmt.Errorf("missing field '%s' during destructuring", field.FieldName.Name)
+				return fmt.Errorf("Missing field '%s' during destructuring", field.FieldName.Name)
 			}
 			if err := i.assignPattern(field.Pattern, fieldVal, env, isDeclaration); err != nil {
 				return err
@@ -2422,13 +3463,13 @@ func (i *Interpreter) assignPattern(pattern ast.Pattern, value runtime.Value, en
 		case *runtime.ArrayValue:
 			elements = arr.Elements
 		default:
-			return fmt.Errorf("cannot destructure non-array value")
-		}
-		if len(elements) < len(p.Elements) {
-			return fmt.Errorf("array too short for destructuring")
+			return fmt.Errorf("Cannot destructure non-array value")
 		}
 		if p.RestPattern == nil && len(elements) != len(p.Elements) {
-			return fmt.Errorf("array length mismatch in destructuring")
+			return fmt.Errorf("Array length mismatch in destructuring")
+		}
+		if len(elements) < len(p.Elements) {
+			return fmt.Errorf("Array too short for destructuring")
 		}
 		for idx, elemPattern := range p.Elements {
 			if elemPattern == nil {
@@ -2500,52 +3541,85 @@ func declareOrAssign(env *runtime.Environment, name string, value runtime.Value,
 	return env.Assign(name, value)
 }
 
-func (i *Interpreter) getTypeNameForValue(value runtime.Value) (string, bool) {
+func (i *Interpreter) getTypeInfoForValue(value runtime.Value) (typeInfo, bool) {
 	switch v := value.(type) {
 	case *runtime.StructInstanceValue:
-		if v.Definition != nil && v.Definition.Node != nil && v.Definition.Node.ID != nil {
-			return v.Definition.Node.ID.Name, true
-		}
+		return i.typeInfoFromStructInstance(v)
 	case *runtime.InterfaceValue:
-		return i.getTypeNameForValue(v.Underlying)
+		return i.getTypeInfoForValue(v.Underlying)
+	default:
+		return typeInfo{}, false
 	}
-	return "", false
 }
 
-func (i *Interpreter) lookupImplEntry(structName, interfaceName string) (*implEntry, bool) {
-	entries := i.implMethods[structName]
-	bestIdx := -1
-	for idx := range entries {
-		entry := entries[idx]
-		if entry.interfaceName != interfaceName {
+func (i *Interpreter) lookupImplEntry(info typeInfo, interfaceName string) (*implCandidate, error) {
+	matches, err := i.collectImplCandidates(info, interfaceName)
+	if len(matches) == 0 {
+		return nil, err
+	}
+	best, ambiguous := i.selectBestCandidate(matches)
+	if ambiguous != nil {
+		detail := descriptionsFromCandidates(ambiguous)
+		typeDesc := typeInfoToString(info)
+		if typeDesc == "<unknown>" {
+			typeDesc = info.name
+		}
+		return nil, fmt.Errorf("Ambiguous impl for interface '%s' on type '%s' (candidates: %s)", interfaceName, typeDesc, strings.Join(detail, ", "))
+	}
+	if best == nil {
+		return nil, nil
+	}
+	return best, nil
+}
+
+func (i *Interpreter) findMethod(info typeInfo, methodName string, interfaceFilter string) (*runtime.FunctionValue, error) {
+	matches, err := i.collectImplCandidates(info, interfaceFilter)
+	if len(matches) == 0 {
+		return nil, err
+	}
+	methodMatches := make([]methodMatch, 0, len(matches))
+	for _, cand := range matches {
+		method := cand.entry.methods[methodName]
+		if method == nil {
+			if ifaceDef, ok := i.interfaces[cand.entry.interfaceName]; ok && ifaceDef.Node != nil {
+				for _, sig := range ifaceDef.Node.Signatures {
+					if sig == nil || sig.Name == nil || sig.Name.Name != methodName || sig.DefaultImpl == nil {
+						continue
+					}
+					defaultDef := ast.NewFunctionDefinition(sig.Name, sig.Params, sig.DefaultImpl, sig.ReturnType, sig.GenericParams, sig.WhereClause, false, false)
+					method = &runtime.FunctionValue{Declaration: defaultDef, Closure: ifaceDef.Env}
+					if cand.entry.methods == nil {
+						cand.entry.methods = make(map[string]*runtime.FunctionValue)
+					}
+					cand.entry.methods[methodName] = method
+					break
+				}
+			}
+		}
+		if method == nil {
 			continue
 		}
-		score := entry.matchScore
-		if score == 0 {
-			score = entry.targetCount
-		}
-		if bestIdx == -1 {
-			bestIdx = idx
-			entries[bestIdx].matchScore = score
-			continue
-		}
-		currentScore := entries[bestIdx].matchScore
-		if currentScore == 0 {
-			currentScore = entries[bestIdx].targetCount
-		}
-		if score < currentScore {
-			bestIdx = idx
-			entries[bestIdx].matchScore = score
-		} else if score == currentScore {
-			// ambiguous; prefer to signal absence so callers can raise an error later
-			return nil, false
-		}
+		methodMatches = append(methodMatches, methodMatch{candidate: cand, method: method})
 	}
-	if bestIdx == -1 {
-		return nil, false
+	if len(methodMatches) == 0 {
+		return nil, err
 	}
-	i.implMethods[structName] = entries
-	return &entries[bestIdx], true
+	best, ambiguous := i.selectBestMethodCandidate(methodMatches)
+	if ambiguous != nil {
+		detail := descriptionsFromMethodMatches(ambiguous)
+		typeDesc := typeInfoToString(info)
+		if typeDesc == "<unknown>" {
+			typeDesc = info.name
+		}
+		return nil, fmt.Errorf("Ambiguous method '%s' for type '%s' (candidates: %s)", methodName, typeDesc, strings.Join(detail, ", "))
+	}
+	if best == nil {
+		return nil, nil
+	}
+	if fnDef, ok := best.method.Declaration.(*ast.FunctionDefinition); ok && fnDef.IsPrivate {
+		return nil, fmt.Errorf("Method '%s' on %s is private", methodName, info.name)
+	}
+	return best.method, nil
 }
 
 func (i *Interpreter) interfaceMatches(val *runtime.InterfaceValue, interfaceName string) bool {
@@ -2557,63 +3631,23 @@ func (i *Interpreter) interfaceMatches(val *runtime.InterfaceValue, interfaceNam
 			return true
 		}
 	}
-	if structName, ok := i.getTypeNameForValue(val.Underlying); ok {
-		_, ok := i.lookupImplEntry(structName, interfaceName)
-		return ok
+	info, ok := i.getTypeInfoForValue(val.Underlying)
+	if !ok {
+		return false
 	}
-	return false
+	entry, err := i.lookupImplEntry(info, interfaceName)
+	return err == nil && entry != nil
 }
 
-func (i *Interpreter) selectStructMethod(typeName, methodName string) (*runtime.FunctionValue, error) {
-	entries := i.implMethods[typeName]
-	bestScore := int(^uint(0) >> 1)
-	var selected *runtime.FunctionValue
-	ambiguous := false
-	for idx := range entries {
-		entry := &entries[idx]
-		method := entry.methods[methodName]
-		if method == nil {
-			if ifaceDef, ok := i.interfaces[entry.interfaceName]; ok && ifaceDef.Node != nil {
-				for _, sig := range ifaceDef.Node.Signatures {
-					if sig == nil || sig.Name == nil || sig.Name.Name != methodName || sig.DefaultImpl == nil {
-						continue
-					}
-					defaultDef := ast.NewFunctionDefinition(sig.Name, sig.Params, sig.DefaultImpl, sig.ReturnType, sig.GenericParams, sig.WhereClause, false, false)
-					method = &runtime.FunctionValue{Declaration: defaultDef, Closure: ifaceDef.Env}
-					if entry.methods == nil {
-						entry.methods = make(map[string]*runtime.FunctionValue)
-					}
-					entry.methods[methodName] = method
-					break
-				}
-			}
-		}
-		if method == nil {
-			continue
-		}
-		score := entry.matchScore
-		if score == 0 {
-			score = entry.targetCount
-		}
-		if score < bestScore {
-			bestScore = score
-			selected = method
-			ambiguous = false
-		} else if score == bestScore {
-			ambiguous = true
-		}
-	}
-	i.implMethods[typeName] = entries
-	if selected == nil {
+func (i *Interpreter) selectStructMethod(inst *runtime.StructInstanceValue, methodName string) (*runtime.FunctionValue, error) {
+	if inst == nil {
 		return nil, nil
 	}
-	if ambiguous {
-		return nil, fmt.Errorf("Ambiguous method '%s' for type '%s'", methodName, typeName)
+	info, ok := i.typeInfoFromStructInstance(inst)
+	if !ok {
+		return nil, nil
 	}
-	if fnDef, ok := selected.Declaration.(*ast.FunctionDefinition); ok && fnDef.IsPrivate {
-		return nil, fmt.Errorf("Method '%s' on %s is private", methodName, typeName)
-	}
-	return selected, nil
+	return i.findMethod(info, methodName, "")
 }
 
 func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Value) bool {
@@ -2658,10 +3692,12 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 				case runtime.InterfaceValue:
 					return i.interfaceMatches(&v, name)
 				default:
-					if structName, ok := i.getTypeNameForValue(value); ok {
-						if _, ok := i.lookupImplEntry(structName, name); ok {
-							return true
-						}
+					info, ok := i.getTypeInfoForValue(value)
+					if !ok {
+						return false
+					}
+					if candidate, err := i.lookupImplEntry(info, name); err == nil && candidate != nil {
+						return true
 					}
 					return false
 				}
@@ -2741,16 +3777,23 @@ func (i *Interpreter) coerceToInterfaceValue(interfaceName string, value runtime
 	if !ok {
 		return nil, fmt.Errorf("Interface '%s' is not defined", interfaceName)
 	}
-	structName, ok := i.getTypeNameForValue(value)
+	info, ok := i.getTypeInfoForValue(value)
 	if !ok {
 		return nil, fmt.Errorf("Value does not implement interface %s", interfaceName)
 	}
-	entry, ok := i.lookupImplEntry(structName, interfaceName)
-	if !ok {
-		return nil, fmt.Errorf("Type '%s' does not implement interface %s", structName, interfaceName)
+	candidate, err := i.lookupImplEntry(info, interfaceName)
+	if err != nil {
+		return nil, err
 	}
-	methods := make(map[string]*runtime.FunctionValue, len(entry.methods))
-	for name, fn := range entry.methods {
+	if candidate == nil || candidate.entry == nil {
+		typeDesc := typeInfoToString(info)
+		if typeDesc == "<unknown>" {
+			typeDesc = info.name
+		}
+		return nil, fmt.Errorf("Type '%s' does not implement interface %s", typeDesc, interfaceName)
+	}
+	methods := make(map[string]*runtime.FunctionValue, len(candidate.entry.methods))
+	for name, fn := range candidate.entry.methods {
 		methods[name] = fn
 	}
 	return &runtime.InterfaceValue{Interface: ifaceDef, Underlying: value, Methods: methods}, nil

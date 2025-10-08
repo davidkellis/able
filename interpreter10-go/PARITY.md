@@ -23,9 +23,9 @@ This document tracks the remaining gaps between the two interpreters. For each f
 | Privacy (modules/interfaces/methods) | `privacy_import.test.ts`, `privacy_methods.test.ts`, `privacy_interface_import.test.ts` | ❌ missing |
 | Structs & functional update | `structs.test.ts`, `struct_functional_update.test.ts` | ✅ |
 | Static methods | `static_methods.test.ts` | ✅ |
-| Interfaces & impls | `methods_impls.test.ts`, `interface_dynamic_dispatch.test.ts`, `interface_default_methods.test.ts`, `impl_resolution.test.ts`, `impl_generic_constraints.test.ts`, `impl_ambiguity.test.ts` | ⚠️ basic dispatch/default methods only |
+| Interfaces & impls | `methods_impls.test.ts`, `interface_dynamic_dispatch.test.ts`, `interface_default_methods.test.ts`, `impl_resolution.test.ts`, `impl_generic_constraints.test.ts`, `impl_ambiguity.test.ts` | ⚠️ default methods, dynamic dispatch, union specificity, and constraint precedence covered; generic introspection tooling pending |
 | Generics & constraints | `generic_constraints.test.ts`, `method_generic_constraints.test.ts`, `generic_type_introspection.test.ts`, `type_args.test.ts` | ❌ missing |
-| UFCS | `ufcs.test.ts` | ❌ missing |
+| UFCS | `ufcs.test.ts` | ✅ |
 | Index assignment/read | `index_assign.test.ts`, `index_read.test.ts` | ✅ basic cases |
 | Compound assignments | `compound_assign.test.ts` | ✅ basic cases |
 | Bitshifts & range validation | `bitshift_range.test.ts` | ❌ missing |
@@ -60,9 +60,10 @@ The table above captures line-item status; the following themes summarise what s
 - [ ] Capture dyn-import metadata (package path, privacy) within `runtime.PackageValue` so TS ↔ Go fixtures can assert parity (`dynimport.test.ts`).
 
 ### Interfaces, generics & dispatch
-- [ ] Implement interface definitions, method lookup, and UFCS fallbacks (`methods_impls.test.ts`, `ufcs.test.ts`). The Go runtime needs the same trait resolution order as TS.
-- [ ] Add support for default interface methods and override priority (`interface_default_methods.test.ts`, `interface_dynamic_dispatch.test.ts`).
-- [ ] Port the impl resolution + ambiguity diagnostics (`impl_resolution.test.ts`, `impl_ambiguity.test.ts`, `named_impls.test.ts`) so conflict errors line up.
+- [x] Implement UFCS fallback so free functions act as methods when missing inherent/impl coverage (`ufcs.test.ts`).
+- [ ] Implement remaining interface method lookup nuances and dispatch precedence (`methods_impls.test.ts`). The Go runtime needs the same trait resolution order as TS.
+- [x] Add support for default interface methods and override priority (`interface_default_methods.test.ts`, `interface_dynamic_dispatch.test.ts`).
+- [ ] Port the impl resolution + ambiguity diagnostics (`impl_resolution.test.ts`, `impl_ambiguity.test.ts`, `named_impls.test.ts`) so conflict errors line up (union specificity, where-clause precedence, and interface inheritance now covered; spec-introspection hooks still outstanding).
 - [ ] Introduce generic type parameters for functions and structs, along with constraint enforcement (`generic_constraints.test.ts`, `method_generic_constraints.test.ts`, `generic_type_introspection.test.ts`, `type_args.test.ts`, `struct_generic_constraints.test.ts`).
 - [ ] Map type metadata on runtime values so introspection helpers used in TS tests have Go equivalents.
 

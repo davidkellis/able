@@ -1,0 +1,9 @@
+{
+  "description": "Struct pattern type must match value type",
+  "expect": {
+    "errors": [
+      "Struct type mismatch in destructuring"
+    ]
+  },
+  "entry": "module.json"
+}

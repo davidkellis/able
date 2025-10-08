@@ -708,3 +708,32 @@ Next Steps
 
 1. Implement the Go concurrency scheduler as outlined in the design document.
 2. Harden module privacy enforcement in Go.
+
+> Generics & Struct Parity (2025-10-04)
+
+- Added shared fixtures for generic function application/errors and struct functional updates so TS/Go remain aligned (`fixtures/ast/functions/generic_application`, `fixtures/ast/errors/generic_type_mismatch`, `fixtures/ast/structs/functional_update`, `fixtures/ast/errors/struct_functional_update_*`).
+- Expanded the Go fixture decoder to hydrate generic parameters and interface constraints, enabling future generics parity work (`interpreter10-go/pkg/interpreter/fixtures_test.go:111`).
+- Normalised Go error strings for array/struct destructuring and logical operands to match TS diagnostics, updating unit tests accordingly (`interpreter10-go/pkg/interpreter/interpreter.go:1158`, `:2412`, `interpreter10-go/pkg/interpreter/interpreter_test.go:1008`).
+- Began validating generic constraints during Go function definition so unknown interfaces now raise the same error observed in TS (`interpreter10-go/pkg/interpreter/interpreter.go:1911`).
+
+Next Steps
+
+1. Enforce generic constraints at call sites (type argument mapping + interface satisfaction) and add corresponding fixtures/tests.
+2. Port remaining interface/impl diagnostics (named vs unnamed conflicts, method resolution) and update `interpreter10-go/PARITY.md`.
+3. Resume the goroutine scheduler implementation once generics/interfaces parity stabilises.
+
+> Generic Constraint Enforcement (2025-10-05)
+
+- Enforced Go call-site generic constraints, validating type argument counts and interface satisfaction before invocation (`interpreter10-go/pkg/interpreter/interpreter.go`).
+- Bound function call type arguments into the local environment for `${T}_type` introspection and aligned error messaging/tests (`interpreter10-go/pkg/interpreter/interpreter_test.go`).
+- Extended the fixture decoder to handle float literals, function signatures, interface definitions, and call-site type arguments so shared fixtures cover generics (`interpreter10-go/pkg/interpreter/fixtures_test.go`).
+- Added a shared failure fixture for unmet interface constraints to keep TS/Go parity (`fixtures/ast/errors/generic_constraint_unsatisfied/**`).
+- Implemented UFCS fallback so free functions can be invoked as methods across primitives/struct instances, matching the TS semantics (`interpreter10-go/pkg/interpreter/interpreter.go`, `interpreter10-go/pkg/interpreter/interpreter_test.go:1204`).
+- Added impl specificity scoring and unnamed-impl duplicate tracking so Go matches TS method-resolution precedence and coherence (`interpreter10-go/pkg/interpreter/interpreter.go`, `interpreter10-go/pkg/interpreter/interpreter_test.go:1335`).
+- Exposed named impl namespaces so ambiguous method calls can be disambiguated via namespace handles (e.g., `ActA.act`), aligning with TS behaviour (`interpreter10-go/pkg/interpreter/interpreter.go`, `interpreter10-go/pkg/runtime/values.go`, `interpreter10-go/pkg/interpreter/interpreter_test.go:1335`).
+- Exposed named impl namespaces so ambiguous calls can be resolved via `ActA.method` style access, aligning Go with the TS behaviour (`interpreter10-go/pkg/interpreter/interpreter.go`, `interpreter10-go/pkg/interpreter/interpreter_test.go:1335`).
+
+Tests
+
+- GOCACHE=/tmp/gocache go test ./pkg/interpreter
+- bun run test:fixtures

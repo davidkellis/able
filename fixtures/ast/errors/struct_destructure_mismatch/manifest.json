@@ -1,0 +1,9 @@
+{
+  "description": "Positional struct destructuring count mismatch",
+  "expect": {
+    "errors": [
+      "Struct field count mismatch"
+    ]
+  },
+  "entry": "module.json"
+}
