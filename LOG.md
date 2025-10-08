@@ -1,3 +1,8 @@
+- Session (2025-10-15)
+  - Split the monolithic Go interpreter into cohesive modules (`interpreter_operations.go`, `interpreter_members.go`, `interpreter_patterns.go`, `interpreter_types.go`, etc.) plus matching test suites so feature work lands in self-contained files and newcomers can navigate by subsystem.
+  - Mirrored the split in the Go interpreter docs: README now enumerates every module and test file, PLAN immediate actions call out the parity/concurrency follow-ups, and onboarding instructions highlight the new layout.
+  - Captured remaining work: parity audit, concurrency scheduler design, and documentation tasks were added to PLAN so the next contributor can resume with clear priorities.
+
 - Root docs now call out the Go runtime as the canonical interpreter and redirect contributors accordingly (README.md:5, AGENTS.md:5, PLAN.md:3).
   - Added a Go workspace stub with module metadata and package README to anchor the new interpreter efforts (interpreter10-go/go.mod:1, interpreter10-go/README.md:1).
   - Implemented the full v10 AST in Go, mirroring the TypeScript structure: tagged node hierarchy, patterns, definitions, control flow, and concurrency nodes (interpreter10-go/pkg/ast/ast.go:1).
@@ -737,3 +742,13 @@ Tests
 
 - GOCACHE=/tmp/gocache go test ./pkg/interpreter
 - bun run test:fixtures
+
+> Interpreter File Split (2025-10-06)
+
+- Split the Go interpreter into feature-focused files: `interpreter.go` now owns shared state/utilities, `eval_statements.go` covers statement evaluation, `eval_expressions.go` handles expression + function-call logic, `definitions.go` manages definition/registration logic and struct literals, `impl_resolution.go` encapsulates impl lookup/constraint logic, and `imports.go` handles import/dynimport pipelines.
+- Moved the impl-resolution parity tests into `impl_resolution_test.go` to mirror the runtime structure and keep `interpreter_test.go` manageable.
+- Updated `interpreter10-go/README.md` with the new layout so future contributors know where to extend feature-specific logic.
+
+Tests
+
+- GOCACHE=$(pwd)/.gocache go test ./...
