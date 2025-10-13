@@ -10,6 +10,7 @@ Welcome! This document gives contributors the context required to work across th
 - Document reasoning (design notes in `design/`, issue trackers) so future agents can follow decisions.
 - Keep shared fixtures (`fixtures/ast`) green in both interpreters; every fixture change must be exercised by `bun run scripts/run-fixtures.ts` and the Go parity tests (`go test ./pkg/interpreter`).
 - Align code changes with the current design notes (e.g., `design/pattern-break-alignment.md`) and update `spec/todo.md`/`LOG.md` when work lands.
+- Modularize larger features into smaller, self-contained modules. Try to keep each module's LOC under 1000.
 
 ## Repository Map
 - `interpreter10/`: Bun/TypeScript interpreter, AST definition, and comprehensive tests. Source of inspiration and a compatibility target.

@@ -145,6 +145,81 @@ func TestForLoopArrayPattern(t *testing.T) {
 	}
 }
 
+func TestForLoopStructDestructuring(t *testing.T) {
+	interp := New()
+	module := ast.Mod([]ast.Statement{
+		ast.StructDef(
+			"Point",
+			[]*ast.StructFieldDefinition{
+				ast.FieldDef(ast.Ty("i32"), "x"),
+				ast.FieldDef(ast.Ty("i32"), "y"),
+			},
+			ast.StructKindNamed,
+			nil,
+			nil,
+			false,
+		),
+		ast.Assign(
+			ast.ID("points"),
+			ast.Arr(
+				ast.StructLit(
+					[]*ast.StructFieldInitializer{
+						ast.FieldInit(ast.Int(1), "x"),
+						ast.FieldInit(ast.Int(2), "y"),
+					},
+					false,
+					"Point",
+					nil,
+					nil,
+				),
+				ast.StructLit(
+					[]*ast.StructFieldInitializer{
+						ast.FieldInit(ast.Int(3), "x"),
+						ast.FieldInit(ast.Int(4), "y"),
+					},
+					false,
+					"Point",
+					nil,
+					nil,
+				),
+			),
+		),
+		ast.Assign(ast.ID("sum"), ast.Int(0)),
+		ast.ForLoopPattern(
+			ast.StructP(
+				[]*ast.StructPatternField{
+					ast.FieldP(ast.PatternFrom("x"), "x", nil),
+					ast.FieldP(ast.PatternFrom("y"), "y", nil),
+				},
+				false,
+				"Point",
+			),
+			ast.ID("points"),
+			ast.Block(
+				ast.AssignOp(
+					ast.AssignmentAssign,
+					ast.ID("sum"),
+					ast.Bin(
+						"+",
+						ast.ID("sum"),
+						ast.Bin("+", ast.ID("x"), ast.ID("y")),
+					),
+				),
+			),
+		),
+		ast.ID("sum"),
+	}, nil, nil)
+
+	result, _, err := interp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	intVal, ok := result.(runtime.IntegerValue)
+	if !ok || intVal.Val.Cmp(bigInt(10)) != 0 {
+		t.Fatalf("expected sum 10, got %#v", result)
+	}
+}
+
 func TestForLoopContinueSkipsElements(t *testing.T) {
 	interp := New()
 	module := ast.Mod([]ast.Statement{

@@ -104,6 +104,180 @@ func TestFunctionCallGenericConstraintViolation(t *testing.T) {
 	}
 }
 
+func TestGenericTypeIntrospectionBindsTypeNames(t *testing.T) {
+	interp := New()
+	mustEvalModule(t, interp, ast.Mod([]ast.Statement{
+		ast.Fn(
+			"showT",
+			[]*ast.FunctionParameter{ast.Param("value", nil)},
+			[]ast.Statement{ast.Ret(ast.ID("T_type"))},
+			ast.Ty("string"),
+			[]*ast.GenericParameter{ast.GenericParam("T")},
+			nil,
+			false,
+			false,
+		),
+	}, nil, nil))
+
+	callScalar := ast.Mod([]ast.Statement{
+		ast.CallT(ast.ID("showT"), []ast.TypeExpression{ast.Ty("i32")}, ast.Int(1)),
+	}, nil, nil)
+	result, _, err := interp.EvaluateModule(callScalar)
+	if err != nil {
+		t.Fatalf("call evaluation failed: %v", err)
+	}
+	str, ok := result.(runtime.StringValue)
+	if !ok || str.Val != "i32" {
+		t.Fatalf("expected \"i32\", got %#v", result)
+	}
+
+	callGeneric := ast.Mod([]ast.Statement{
+		ast.CallT(
+			ast.ID("showT"),
+			[]ast.TypeExpression{ast.Gen(ast.Ty("Array"), ast.Ty("i32"))},
+			ast.Arr(ast.Int(1)),
+		),
+	}, nil, nil)
+	result, _, err = interp.EvaluateModule(callGeneric)
+	if err != nil {
+		t.Fatalf("call evaluation failed: %v", err)
+	}
+	str, ok = result.(runtime.StringValue)
+	if !ok || str.Val != "Array<i32>" {
+		t.Fatalf("expected \"Array<i32>\", got %#v", result)
+	}
+}
+
+func TestGenericTypeArgumentCountMismatch(t *testing.T) {
+	interp := New()
+	mustEvalModule(t, interp, ast.Mod([]ast.Statement{
+		ast.Fn(
+			"id",
+			[]*ast.FunctionParameter{ast.Param("value", nil)},
+			[]ast.Statement{ast.Ret(ast.ID("value"))},
+			nil,
+			[]*ast.GenericParameter{ast.GenericParam("T")},
+			nil,
+			false,
+			false,
+		),
+	}, nil, nil))
+
+	module := ast.Mod([]ast.Statement{
+		ast.CallT(ast.ID("id"), nil, ast.Int(1)),
+	}, nil, nil)
+	if _, _, err := interp.EvaluateModule(module); err == nil || !strings.Contains(err.Error(), "Type arguments count mismatch") {
+		t.Fatalf("expected mismatch error, got %v", err)
+	}
+}
+
+func TestStructGenericConstraintsEnforced(t *testing.T) {
+	interp := New()
+	setupShowPoint(t, interp)
+
+	boxDef := ast.StructDef(
+		"Box",
+		[]*ast.StructFieldDefinition{
+			ast.FieldDef(ast.Ty("T"), "value"),
+		},
+		ast.StructKindNamed,
+		[]*ast.GenericParameter{
+			ast.GenericParam("T", ast.InterfaceConstr(ast.Ty("Show"))),
+		},
+		nil,
+		false,
+	)
+	mustEvalModule(t, interp, ast.Mod([]ast.Statement{boxDef}, nil, nil))
+
+	pointLiteral := ast.StructLit(
+		[]*ast.StructFieldInitializer{
+			ast.FieldInit(ast.Int(1), "x"),
+			ast.FieldInit(ast.Int(2), "y"),
+		},
+		false,
+		"Point",
+		nil,
+		nil,
+	)
+
+	okModule := ast.Mod([]ast.Statement{
+		ast.StructLit(
+			[]*ast.StructFieldInitializer{ast.FieldInit(pointLiteral, "value")},
+			false,
+			"Box",
+			nil,
+			[]ast.TypeExpression{ast.Ty("Point")},
+		),
+	}, nil, nil)
+	if _, _, err := interp.EvaluateModule(okModule); err != nil {
+		t.Fatalf("expected Box<Point> literal to succeed: %v", err)
+	}
+
+	badModule := ast.Mod([]ast.Statement{
+		ast.StructLit(
+			[]*ast.StructFieldInitializer{ast.FieldInit(ast.Int(5), "value")},
+			false,
+			"Box",
+			nil,
+			[]ast.TypeExpression{ast.Ty("i32")},
+		),
+	}, nil, nil)
+	if _, _, err := interp.EvaluateModule(badModule); err == nil || !strings.Contains(err.Error(), "does not satisfy interface 'Show'") {
+		t.Fatalf("expected constraint violation, got %v", err)
+	}
+
+	missingArgs := ast.Mod([]ast.Statement{
+		ast.StructLit(
+			[]*ast.StructFieldInitializer{ast.FieldInit(pointLiteral, "value")},
+			false,
+			"Box",
+			nil,
+			nil,
+		),
+	}, nil, nil)
+	if _, _, err := interp.EvaluateModule(missingArgs); err == nil || !strings.Contains(err.Error(), "Type 'Box' requires type arguments") {
+		t.Fatalf("expected missing type arguments error, got %v", err)
+	}
+}
+
+func TestMethodGenericConstraintEnforced(t *testing.T) {
+	interp := New()
+	setupShowPoint(t, interp)
+
+	pointLiteral := ast.StructLit(
+		[]*ast.StructFieldInitializer{
+			ast.FieldInit(ast.Int(3), "x"),
+			ast.FieldInit(ast.Int(4), "y"),
+		},
+		false,
+		"Point",
+		nil,
+		nil,
+	)
+
+	okModule := ast.Mod([]ast.Statement{
+		ast.CallT(
+			ast.Member(pointLiteral, "accept_show"),
+			[]ast.TypeExpression{ast.Ty("Point")},
+			pointLiteral,
+		),
+	}, nil, nil)
+	if _, _, err := interp.EvaluateModule(okModule); err != nil {
+		t.Fatalf("expected accept_show<Point> to succeed: %v", err)
+	}
+
+	badModule := ast.Mod([]ast.Statement{
+		ast.CallT(
+			ast.Member(pointLiteral, "accept_show"),
+			[]ast.TypeExpression{ast.Ty("i32")},
+			ast.Int(5),
+		),
+	}, nil, nil)
+	if _, _, err := interp.EvaluateModule(badModule); err == nil || !strings.Contains(err.Error(), "does not satisfy interface 'Show'") {
+		t.Fatalf("expected constraint violation, got %v", err)
+	}
+}
+
 func TestUfcsOnPrimitiveValue(t *testing.T) {
 	interp := New()
 	module := ast.Mod(

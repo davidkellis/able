@@ -200,7 +200,10 @@ func (i *Interpreter) packageMemberAccess(pkg runtime.PackageValue, member ast.E
 	}
 	val, ok := pkg.Public[ident.Name]
 	if !ok {
-		pkgName := strings.Join(pkg.NamePath, ".")
+		pkgName := pkg.Name
+		if pkgName == "" {
+			pkgName = strings.Join(pkg.NamePath, ".")
+		}
 		if pkgName == "" {
 			pkgName = "<package>"
 		}

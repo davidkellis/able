@@ -212,6 +212,9 @@ func (i *Interpreter) evaluateStructLiteral(lit *ast.StructLiteral, env *runtime
 		if err != nil {
 			return nil, err
 		}
+		if err := i.enforceStructConstraints(structDef, typeArgs, structName); err != nil {
+			return nil, err
+		}
 		return &runtime.StructInstanceValue{Definition: structDefVal, Positional: values, TypeArguments: typeArgs}, nil
 	}
 	if structDef.Kind == ast.StructKindPositional && lit.FunctionalUpdateSource == nil {
@@ -280,6 +283,9 @@ func (i *Interpreter) evaluateStructLiteral(lit *ast.StructLiteral, env *runtime
 	if err != nil {
 		return nil, err
 	}
+	if err := i.enforceStructConstraints(structDef, typeArgs, structName); err != nil {
+		return nil, err
+	}
 	return &runtime.StructInstanceValue{Definition: structDefVal, Fields: fields, TypeArguments: typeArgs}, nil
 }
 
@@ -314,4 +320,19 @@ func (i *Interpreter) resolveStructTypeArguments(def *ast.StructDefinition, expl
 		return append([]ast.TypeExpression(nil), base.TypeArguments...), nil
 	}
 	return nil, fmt.Errorf("Type '%s' requires type arguments", structName)
+}
+
+func (i *Interpreter) enforceStructConstraints(def *ast.StructDefinition, typeArgs []ast.TypeExpression, structName string) error {
+	if def == nil || len(def.GenericParams) == 0 {
+		return nil
+	}
+	constraints := collectConstraintSpecs(def.GenericParams, def.WhereClause)
+	if len(constraints) == 0 {
+		return nil
+	}
+	bindings, err := mapTypeArguments(def.GenericParams, typeArgs, fmt.Sprintf("instantiating %s", structName))
+	if err != nil {
+		return err
+	}
+	return i.enforceConstraintSpecs(constraints, bindings)
 }

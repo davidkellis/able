@@ -131,7 +131,13 @@ func (i *Interpreter) processImport(packagePath []*ast.Identifier, isWildcard bo
 			return nil, fmt.Errorf("Import error: package '%s' not found", pkgName)
 		}
 		public := copyPublicSymbols(bucket)
-		env.Define(alias.Name, runtime.PackageValue{NamePath: pkgParts, Public: public})
+		meta := i.getPackageMeta(pkgName, pkgParts)
+		env.Define(alias.Name, runtime.PackageValue{
+			Name:      pkgName,
+			NamePath:  meta.namePath,
+			IsPrivate: meta.isPrivate,
+			Public:    public,
+		})
 		return runtime.NilValue{}, nil
 	}
 
@@ -177,7 +183,13 @@ func (i *Interpreter) processImport(packagePath []*ast.Identifier, isWildcard bo
 			return nil, fmt.Errorf("Import error: package '%s' not found", pkgName)
 		}
 		public := copyPublicSymbols(bucket)
-		env.Define(pkgName, runtime.PackageValue{NamePath: pkgParts, Public: public})
+		meta := i.getPackageMeta(pkgName, pkgParts)
+		env.Define(pkgName, runtime.PackageValue{
+			Name:      pkgName,
+			NamePath:  meta.namePath,
+			IsPrivate: meta.isPrivate,
+			Public:    public,
+		})
 	}
 
 	return runtime.NilValue{}, nil
@@ -190,7 +202,12 @@ func (i *Interpreter) processDynImport(pkgName string, pkgParts []string, isWild
 	}
 
 	if alias != nil && !isWildcard && len(selectors) == 0 {
-		env.Define(alias.Name, runtime.DynPackageValue{NamePath: pkgParts, Name: pkgName})
+		meta := i.getPackageMeta(pkgName, pkgParts)
+		env.Define(alias.Name, runtime.DynPackageValue{
+			Name:      pkgName,
+			NamePath:  meta.namePath,
+			IsPrivate: meta.isPrivate,
+		})
 		return runtime.NilValue{}, nil
 	}
 
@@ -227,7 +244,12 @@ func (i *Interpreter) processDynImport(pkgName string, pkgParts []string, isWild
 	}
 
 	if pkgName != "" && alias == nil {
-		env.Define(pkgName, runtime.DynPackageValue{NamePath: pkgParts, Name: pkgName})
+		meta := i.getPackageMeta(pkgName, pkgParts)
+		env.Define(pkgName, runtime.DynPackageValue{
+			Name:      pkgName,
+			NamePath:  meta.namePath,
+			IsPrivate: meta.isPrivate,
+		})
 	}
 
 	return runtime.NilValue{}, nil
@@ -256,7 +278,7 @@ func (i *Interpreter) lookupImportSymbol(pkgName, symbol string) (runtime.Value,
 func (i *Interpreter) evaluateRethrowStatement(_ *ast.RethrowStatement, env *runtime.Environment) (runtime.Value, error) {
 	_ = env
 	if len(i.raiseStack) == 0 {
-		return nil, fmt.Errorf("rethrow outside rescue")
+		return nil, raiseSignal{value: runtime.ErrorValue{Message: "Unknown rethrow"}}
 	}
 	current := i.raiseStack[len(i.raiseStack)-1]
 	return nil, raiseSignal{value: current}
