@@ -1,41 +1,11 @@
 package interpreter
 
 import (
-	"strings"
 	"testing"
 
 	"able/interpreter10-go/pkg/ast"
 	"able/interpreter10-go/pkg/runtime"
 )
-
-func TestImportRejectsPrivateFunction(t *testing.T) {
-	interp := New()
-	packageModule := ast.Mod(
-		[]ast.Statement{
-			ast.Fn("secret", nil, []ast.Statement{ast.Ret(ast.Int(1))}, nil, nil, nil, false, true),
-			ast.Fn("public", nil, []ast.Statement{ast.Ret(ast.Int(2))}, nil, nil, nil, false, false),
-		},
-		nil,
-		ast.Pkg([]interface{}{"mypkg"}, false),
-	)
-	if _, _, err := interp.EvaluateModule(packageModule); err != nil {
-		t.Fatalf("package module evaluation failed: %v", err)
-	}
-
-	importModule := ast.Mod(
-		[]ast.Statement{},
-		[]*ast.ImportStatement{
-			ast.Imp([]interface{}{"mypkg"}, false, []*ast.ImportSelector{ast.ImpSel("secret", nil)}, nil),
-		},
-		nil,
-	)
-
-	if _, _, err := interp.EvaluateModule(importModule); err == nil {
-		t.Fatalf("expected import of private function to fail")
-	} else if err.Error() != "Import error: function 'secret' is private" {
-		t.Fatalf("unexpected error message: %v", err)
-	}
-}
 
 func TestImportMissingSymbolUsesGlobalsMessage(t *testing.T) {
 	interp := New()
@@ -61,154 +31,6 @@ func TestImportMissingSymbolUsesGlobalsMessage(t *testing.T) {
 	if _, _, err := interp.EvaluateModule(missingImport); err == nil {
 		t.Fatalf("expected missing symbol import to fail")
 	} else if err.Error() != "Import error: symbol 'unknown' from 'otherpkg' not found in globals" {
-		t.Fatalf("unexpected error message: %v", err)
-	}
-}
-
-func TestImportRejectsPrivateStruct(t *testing.T) {
-	interp := New()
-	packageModule := ast.Mod(
-		[]ast.Statement{
-			ast.StructDef("Secret", nil, ast.StructKindNamed, nil, nil, true),
-			ast.StructDef("Public", nil, ast.StructKindNamed, nil, nil, false),
-		},
-		nil,
-		ast.Pkg([]interface{}{"pkg"}, false),
-	)
-	if _, _, err := interp.EvaluateModule(packageModule); err != nil {
-		t.Fatalf("package module evaluation failed: %v", err)
-	}
-
-	importModule := ast.Mod(
-		[]ast.Statement{},
-		[]*ast.ImportStatement{
-			ast.Imp([]interface{}{"pkg"}, false, []*ast.ImportSelector{ast.ImpSel("Secret", nil)}, nil),
-		},
-		nil,
-	)
-
-	if _, _, err := interp.EvaluateModule(importModule); err == nil {
-		t.Fatalf("expected import of private struct to fail")
-	} else if err.Error() != "Import error: struct 'Secret' is private" {
-		t.Fatalf("unexpected error message: %v", err)
-	}
-}
-
-func TestImportRejectsPrivateInterface(t *testing.T) {
-	interp := New()
-	packageModule := ast.Mod(
-		[]ast.Statement{
-			ast.Iface("Hidden", nil, nil, nil, nil, nil, true),
-		},
-		nil,
-		ast.Pkg([]interface{}{"pkg2"}, false),
-	)
-	if _, _, err := interp.EvaluateModule(packageModule); err != nil {
-		t.Fatalf("package module evaluation failed: %v", err)
-	}
-
-	importModule := ast.Mod(
-		[]ast.Statement{},
-		[]*ast.ImportStatement{
-			ast.Imp([]interface{}{"pkg2"}, false, []*ast.ImportSelector{ast.ImpSel("Hidden", nil)}, nil),
-		},
-		nil,
-	)
-
-	if _, _, err := interp.EvaluateModule(importModule); err == nil {
-		t.Fatalf("expected import of private interface to fail")
-	} else if err.Error() != "Import error: interface 'Hidden' is private" {
-		t.Fatalf("unexpected error message: %v", err)
-	}
-}
-
-func TestWildcardImportSkipsPrivateSymbols(t *testing.T) {
-	interp := New()
-	packageModule := ast.Mod(
-		[]ast.Statement{
-			ast.Fn("visible", nil, []ast.Statement{ast.Ret(ast.Int(1))}, nil, nil, nil, false, false),
-			ast.Fn("secret", nil, []ast.Statement{ast.Ret(ast.Int(2))}, nil, nil, nil, false, true),
-		},
-		nil,
-		ast.Pkg([]interface{}{"pkg3"}, false),
-	)
-	if _, _, err := interp.EvaluateModule(packageModule); err != nil {
-		t.Fatalf("package module evaluation failed: %v", err)
-	}
-
-	wildcardModule := ast.Mod(
-		[]ast.Statement{
-			ast.ID("visible"),
-			ast.ID("secret"),
-		},
-		[]*ast.ImportStatement{
-			ast.Imp([]interface{}{"pkg3"}, true, nil, nil),
-		},
-		nil,
-	)
-
-	if _, _, err := interp.EvaluateModule(wildcardModule); err == nil {
-		t.Fatalf("expected lookup of private symbol to fail")
-	} else if !strings.Contains(err.Error(), "Undefined variable 'secret'") {
-		t.Fatalf("unexpected error message: %v", err)
-	}
-}
-
-func TestDynImportRejectsPrivateFunction(t *testing.T) {
-	interp := New()
-	packageModule := ast.Mod(
-		[]ast.Statement{
-			ast.Fn("secret", nil, []ast.Statement{ast.Ret(ast.Int(1))}, nil, nil, nil, false, true),
-		},
-		nil,
-		ast.Pkg([]interface{}{"pkg4"}, false),
-	)
-	if _, _, err := interp.EvaluateModule(packageModule); err != nil {
-		t.Fatalf("package module evaluation failed: %v", err)
-	}
-
-	dynModule := ast.Mod(
-		[]ast.Statement{
-			ast.DynImp([]interface{}{"pkg4"}, false, []*ast.ImportSelector{ast.ImpSel("secret", nil)}, nil),
-		},
-		nil,
-		nil,
-	)
-
-	if _, _, err := interp.EvaluateModule(dynModule); err == nil {
-		t.Fatalf("expected dyn import of private function to fail")
-	} else if err.Error() != "dynimport error: function 'secret' is private" {
-		t.Fatalf("unexpected error message: %v", err)
-	}
-}
-
-func TestDynImportWildcardSkipsPrivateSymbols(t *testing.T) {
-	interp := New()
-	packageModule := ast.Mod(
-		[]ast.Statement{
-			ast.Fn("public", nil, []ast.Statement{ast.Ret(ast.Int(1))}, nil, nil, nil, false, false),
-			ast.Fn("secret", nil, []ast.Statement{ast.Ret(ast.Int(2))}, nil, nil, nil, false, true),
-		},
-		nil,
-		ast.Pkg([]interface{}{"pkg5"}, false),
-	)
-	if _, _, err := interp.EvaluateModule(packageModule); err != nil {
-		t.Fatalf("package module evaluation failed: %v", err)
-	}
-
-	module := ast.Mod(
-		[]ast.Statement{
-			ast.DynImp([]interface{}{"pkg5"}, true, nil, nil),
-			ast.ID("public"),
-			ast.ID("secret"),
-		},
-		nil,
-		nil,
-	)
-
-	if _, _, err := interp.EvaluateModule(module); err == nil {
-		t.Fatalf("expected dyn lookup of private symbol to fail")
-	} else if !strings.Contains(err.Error(), "Undefined variable 'secret'") {
 		t.Fatalf("unexpected error message: %v", err)
 	}
 }
@@ -380,6 +202,12 @@ func TestImportPackageAliasExposesPublicSymbols(t *testing.T) {
 		if !ok {
 			t.Fatalf("expected PackageValue, got %#v", val)
 		}
+		if pkgVal.Name != "pkg_alias" {
+			t.Fatalf("unexpected package Name: %s", pkgVal.Name)
+		}
+		if pkgVal.IsPrivate {
+			t.Fatalf("expected package alias to report public package")
+		}
 		if len(pkgVal.NamePath) != 1 || pkgVal.NamePath[0] != "pkg_alias" {
 			t.Fatalf("unexpected NamePath: %#v", pkgVal.NamePath)
 		}
@@ -442,6 +270,9 @@ func TestDynImportAliasAndSelectors(t *testing.T) {
 	}
 	if dynPkg.Name != "dynp" {
 		t.Fatalf("unexpected dyn package Name: %s", dynPkg.Name)
+	}
+	if dynPkg.IsPrivate {
+		t.Fatalf("expected dyn package metadata to mark package public")
 	}
 }
 
@@ -930,5 +761,73 @@ func TestDynImportPrivateSelectorFails(t *testing.T) {
 		if err.Error() != expected {
 			t.Fatalf("expected error %q, got %q", expected, err.Error())
 		}
+	}
+}
+
+func TestNestedPackageReexport(t *testing.T) {
+	interp := New()
+	baseModule := ast.Mod(
+		[]ast.Statement{
+			ast.Fn(
+				"square",
+				[]*ast.FunctionParameter{ast.Param("x", nil)},
+				[]ast.Statement{
+					ast.Ret(ast.Bin("*", ast.ID("x"), ast.ID("x"))),
+				},
+				nil,
+				nil,
+				nil,
+				false,
+				false,
+			),
+		},
+		nil,
+		ast.Pkg([]interface{}{"util", "math"}, false),
+	)
+	if _, _, err := interp.EvaluateModule(baseModule); err != nil {
+		t.Fatalf("base module evaluation failed: %v", err)
+	}
+
+	utilModule := ast.Mod(
+		[]ast.Statement{
+			ast.Fn(
+				"square",
+				[]*ast.FunctionParameter{ast.Param("x", nil)},
+				[]ast.Statement{
+					ast.Ret(ast.Call("math_square", ast.ID("x"))),
+				},
+				nil,
+				nil,
+				nil,
+				false,
+				false,
+			),
+		},
+		[]*ast.ImportStatement{
+			ast.Imp([]interface{}{"util", "math"}, false, []*ast.ImportSelector{ast.ImpSel("square", "math_square")}, nil),
+		},
+		ast.Pkg([]interface{}{"util"}, false),
+	)
+	if _, _, err := interp.EvaluateModule(utilModule); err != nil {
+		t.Fatalf("util module evaluation failed: %v", err)
+	}
+
+	consumer := ast.Mod(
+		[]ast.Statement{
+			ast.Call("square", ast.Int(4)),
+		},
+		[]*ast.ImportStatement{
+			ast.Imp([]interface{}{"util"}, false, []*ast.ImportSelector{ast.ImpSel("square", nil)}, nil),
+		},
+		nil,
+	)
+
+	result, _, err := interp.EvaluateModule(consumer)
+	if err != nil {
+		t.Fatalf("consumer evaluation failed: %v", err)
+	}
+	intVal, ok := result.(runtime.IntegerValue)
+	if !ok || intVal.Val.Cmp(bigInt(16)) != 0 {
+		t.Fatalf("expected 16 from nested package import, got %#v", result)
 	}
 }

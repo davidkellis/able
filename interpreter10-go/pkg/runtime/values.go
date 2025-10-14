@@ -278,15 +278,18 @@ func (v ImplementationNamespaceValue) Kind() Kind { return KindImplementationNam
 //-----------------------------------------------------------------------------
 
 type PackageValue struct {
-	NamePath []string
-	Public   map[string]Value
+	Name      string
+	NamePath  []string
+	IsPrivate bool
+	Public    map[string]Value
 }
 
 func (v PackageValue) Kind() Kind { return KindPackage }
 
 type DynPackageValue struct {
-	NamePath []string
-	Name     string
+	Name      string
+	NamePath  []string
+	IsPrivate bool
 }
 
 func (v DynPackageValue) Kind() Kind { return KindDynPackage }
