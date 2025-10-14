@@ -1,4 +1,16 @@
-- Session (2025-10-15)
+> Concurrency Design (2025-10-13)
+
+  - Captured the Go concurrency execution strategy using a lightweight executor abstraction that wraps goroutines/contexts instead of introducing a bespoke scheduler (`design/go-concurrency-scheduler.md`).
+  - Updated `PLAN.md` to prioritise implementing the executor, wiring `proc`/`spawn`, and building dedicated test suites before moving on to remaining backlog items.
+  - Clarified that the Go interpreter shares the same runtime state across tasks; user code remains responsible for making shared data structures safe when accessed concurrently.
+
+- Session (2025-10-18)
+  - Implemented the executor abstraction and default goroutine/serial executors, wiring them into the interpreter (`interpreter10-go/pkg/interpreter/executor.go`, `interpreter10-go/pkg/interpreter/interpreter.go`).
+  - Added full `proc`/`spawn` support with handle/future lifecycle helpers, status/value/cancel natives, and runtime updates (`interpreter10-go/pkg/interpreter/interpreter_concurrency.go`, `interpreter10-go/pkg/runtime/values.go`).
+  - Extended runtime unit tests and introduced interpreter-level concurrency tests covering resolved/failed proc handles and futures (`interpreter10-go/pkg/runtime/proc_future_test.go`, `interpreter10-go/pkg/interpreter/interpreter_concurrency_test.go`).
+  - Updated `PLAN.md` immediate actions and parity tracker to reflect the new concurrency baseline.
+
+- Session (2025-10-08)
   - Split the monolithic Go interpreter into cohesive modules (`interpreter_operations.go`, `interpreter_members.go`, `interpreter_patterns.go`, `interpreter_types.go`, etc.) plus matching test suites so feature work lands in self-contained files and newcomers can navigate by subsystem.
   - Mirrored the split in the Go interpreter docs: README now enumerates every module and test file, PLAN immediate actions call out the parity/concurrency follow-ups, and onboarding instructions highlight the new layout.
   - Captured remaining work: parity audit, concurrency scheduler design, and documentation tasks were added to PLAN so the next contributor can resume with clear priorities.
@@ -23,7 +35,7 @@
   interpreter10/package.json:12, fixtures/ast/basics/string_literal/manifest.json:1).
   - Updated the roadmap’s immediate next actions to reflect evaluator implementation and dual-harness goals (PLAN.md:83).
 
-  - Added the first Go evaluator pass for literals, identifiers, assignments (:=/=), and block scoping, wiring it into the interpreter skeleton (interpreter10-go/pkg/
+- Added the first Go evaluator pass for literals, identifiers, assignments (:=/=), and block scoping, wiring it into the interpreter skeleton (interpreter10-go/pkg/
   interpreter/interpreter.go:1).
   - Exercised these behaviours with unit tests covering literal evaluation, identifier lookup, and block-local bindings (interpreter10-go/pkg/interpreter/
   interpreter_test.go:1).
@@ -48,7 +60,6 @@
   Roadmap
 
   - Immediate actions in PLAN.md now point at the next interpreter milestones after landing both harnesses (PLAN.md:83).
-
 
 > Go Evaluator & Runtime
 
@@ -596,7 +607,7 @@ To continue this session, run codex resume 01998c66-1bcb-7530-afdb-b26619aebd9f.
     87
 
 > - Spec now codifies the shared behaviour (break, patterns, structs) and onboarding docs emphasize syncing fixtures, tests, and spec updates (spec/full_spec_v10.md, spec/todo.md, AGENTS.md, LOG.md).
-  - Go test suite ports more struct scenarios from TypeScript, keeping parity green (interpreter10-go/pkg/interpreter/interpreter_test.go, bun test, bun run scripts/run-fixtures.ts, GOCACHE=/tmp/gocache go test ./...). 
+  - Go test suite ports more struct scenarios from TypeScript, keeping parity green (interpreter10-go/pkg/interpreter/interpreter_test.go, bun test, bun run scripts/run-fixtures.ts, GOCACHE=/tmp/gocache go test ./...).
   - PLAN.md immediate actions now point to: (1) port remaining TS struct tests to Go, (2) extend fixtures as struct behaviour grows, (3) keep folding design-note behaviour into the spec and record new gaps.
 
   Next session can pick up with those PLAN items, starting with porting any remaining struct/method tests.
@@ -748,6 +759,18 @@ Tests
 - Split the Go interpreter into feature-focused files: `interpreter.go` now owns shared state/utilities, `eval_statements.go` covers statement evaluation, `eval_expressions.go` handles expression + function-call logic, `definitions.go` manages definition/registration logic and struct literals, `impl_resolution.go` encapsulates impl lookup/constraint logic, and `imports.go` handles import/dynimport pipelines.
 - Moved the impl-resolution parity tests into `impl_resolution_test.go` to mirror the runtime structure and keep `interpreter_test.go` manageable.
 - Updated `interpreter10-go/README.md` with the new layout so future contributors know where to extend feature-specific logic.
+
+Tests
+
+- GOCACHE=$(pwd)/.gocache go test ./...
+
+> Go Concurrency Coverage (2025-10-18)
+
+- Added targeted Go interpreter tests for concurrency handles covering cancellation-before-start, cooperative `proc_cancelled` observation, future memoisation, and failure propagation (`interpreter10-go/pkg/interpreter/interpreter_concurrency_test.go`).
+- Updated async task environment capture to use child environments (rather than deep clones) so proc/future bodies mutate outer bindings the same way the TypeScript interpreter does (`interpreter10-go/pkg/interpreter/interpreter_concurrency.go`).
+- Added shared AST fixtures for proc cancellation and future memoisation so both interpreters exercise the new scenarios via the parity harness (`fixtures/ast/concurrency/*`, `interpreter10/scripts/export-fixtures.ts`).
+- Expanded concurrency fixtures to cover `proc_cancelled()` usage and misuse so cooperative helper semantics remain in lockstep across interpreters (`fixtures/ast/concurrency/proc_cancelled_*`), and introduced the `proc_flush()` builtin to drive the cooperative scheduler from Able code.
+- Refreshed the parity tracker to reflect the new coverage and note the remaining shared-fixture work.
 
 Tests
 

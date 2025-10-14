@@ -37,13 +37,35 @@
             "type": "Identifier",
             "name": "msg"
           },
-          "guard": {
-            "type": "BooleanLiteral",
-            "value": true
-          },
           "body": {
-            "type": "StringLiteral",
-            "value": "handled"
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "IfExpression",
+                "ifCondition": {
+                  "type": "BinaryExpression",
+                  "operator": "==",
+                  "left": {
+                    "type": "Identifier",
+                    "name": "msg"
+                  },
+                  "right": {
+                    "type": "StringLiteral",
+                    "value": "boom"
+                  }
+                },
+                "ifBody": {
+                  "type": "BlockExpression",
+                  "body": [
+                    {
+                      "type": "StringLiteral",
+                      "value": "handled"
+                    }
+                  ]
+                },
+                "orClauses": []
+              }
+            ]
           }
         }
       ]

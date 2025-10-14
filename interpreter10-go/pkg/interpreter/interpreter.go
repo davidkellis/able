@@ -3,6 +3,7 @@ package interpreter
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	"able/interpreter10-go/pkg/ast"
 	"able/interpreter10-go/pkg/runtime"
@@ -25,6 +26,16 @@ type Interpreter struct {
 	packageMetadata map[string]packageMeta
 	currentPackage  string
 	breakpoints     []string
+	executor        Executor
+
+	concurrencyReady    bool
+	procErrorStruct     *runtime.StructDefinitionValue
+	procStatusStructs   map[string]*runtime.StructDefinitionValue
+	procStatusPending   runtime.Value
+	procStatusResolved  runtime.Value
+	procStatusCancelled runtime.Value
+	asyncMu             sync.Mutex
+	currentAsyncContext *asyncContextPayload
 }
 
 func identifiersToStrings(ids []*ast.Identifier) []string {
@@ -90,7 +101,15 @@ func (i *Interpreter) registerSymbol(name string, value runtime.Value) {
 
 // New returns an interpreter with an empty global environment.
 func New() *Interpreter {
-	return &Interpreter{
+	return NewWithExecutor(NewSerialExecutor(nil))
+}
+
+// NewWithExecutor allows configuring the executor used for asynchronous tasks.
+func NewWithExecutor(exec Executor) *Interpreter {
+	if exec == nil {
+		exec = NewSerialExecutor(nil)
+	}
+	i := &Interpreter{
 		global:          runtime.NewEnvironment(nil),
 		inherentMethods: make(map[string]map[string]*runtime.FunctionValue),
 		interfaces:      make(map[string]*runtime.InterfaceDefinitionValue),
@@ -100,7 +119,16 @@ func New() *Interpreter {
 		packageRegistry: make(map[string]map[string]runtime.Value),
 		packageMetadata: make(map[string]packageMeta),
 		breakpoints:     make([]string, 0),
+		executor:        exec,
+		procStatusStructs: map[string]*runtime.StructDefinitionValue{
+			"Pending":   nil,
+			"Resolved":  nil,
+			"Cancelled": nil,
+			"Failed":    nil,
+		},
 	}
+	i.initConcurrencyBuiltins()
+	return i
 }
 
 // GlobalEnvironment returns the interpreter’s global environment.

@@ -114,6 +114,16 @@ func (i *Interpreter) evaluateExpression(node ast.Expression, env *runtime.Envir
 		return i.evaluateIfExpression(n, env)
 	case *ast.RescueExpression:
 		return i.evaluateRescueExpression(n, env)
+	case *ast.ProcExpression:
+		i.ensureConcurrencyBuiltins()
+		task := i.makeAsyncTask(asyncContextProc, n.Expression, env)
+		handle := i.executor.RunProc(task)
+		return handle, nil
+	case *ast.SpawnExpression:
+		i.ensureConcurrencyBuiltins()
+		task := i.makeAsyncTask(asyncContextFuture, n.Expression, env)
+		future := i.executor.RunFuture(task)
+		return future, nil
 	default:
 		return nil, fmt.Errorf("unsupported expression type: %s", n.NodeType())
 	}
@@ -450,7 +460,7 @@ func (i *Interpreter) evaluateFunctionCall(call *ast.FunctionCall, env *runtime.
 			}
 			args = append(args, val)
 		}
-		ctx := &runtime.NativeCallContext{Env: env}
+		ctx := &runtime.NativeCallContext{Env: env, State: i.currentAsyncContext}
 		return fn.Impl(ctx, args)
 	case *runtime.NativeFunctionValue:
 		args := make([]runtime.Value, 0, len(call.Arguments))
@@ -461,7 +471,7 @@ func (i *Interpreter) evaluateFunctionCall(call *ast.FunctionCall, env *runtime.
 			}
 			args = append(args, val)
 		}
-		ctx := &runtime.NativeCallContext{Env: env}
+		ctx := &runtime.NativeCallContext{Env: env, State: i.currentAsyncContext}
 		return fn.Impl(ctx, args)
 	case runtime.NativeBoundMethodValue:
 		args := make([]runtime.Value, 0, len(call.Arguments)+1)
@@ -473,7 +483,7 @@ func (i *Interpreter) evaluateFunctionCall(call *ast.FunctionCall, env *runtime.
 			}
 			args = append(args, val)
 		}
-		ctx := &runtime.NativeCallContext{Env: env}
+		ctx := &runtime.NativeCallContext{Env: env, State: i.currentAsyncContext}
 		return fn.Method.Impl(ctx, args)
 	case *runtime.NativeBoundMethodValue:
 		args := make([]runtime.Value, 0, len(call.Arguments)+1)
@@ -485,7 +495,7 @@ func (i *Interpreter) evaluateFunctionCall(call *ast.FunctionCall, env *runtime.
 			}
 			args = append(args, val)
 		}
-		ctx := &runtime.NativeCallContext{Env: env}
+		ctx := &runtime.NativeCallContext{Env: env, State: i.currentAsyncContext}
 		return fn.Method.Impl(ctx, args)
 	case runtime.DynRefValue:
 		resolved, resErr := i.resolveDynRef(fn)

@@ -106,7 +106,7 @@ This document tracks the implementation plan for the v10 interpreter inside `int
    - ✅ Cooperative scheduler queues `proc`/`spawn` runners so they progress without explicit joins; tests cover background completion
    - ✅ Cancellation now transitions pending tasks to `Cancelled` with `ProcError` payloads and leaves resolved tasks untouched; coverage exercises both paths
    - ✅ Cooperative helpers (`proc_yield`, `proc_cancelled`) let tasks interleave and proactively observe cancellation, with stress tests covering multi-handle fairness (`ABC` trace ordering) and cooperative cancellation (`wx` trace) via direct runner control
-   - Remaining: add broader stress tests for nested yields / future combinations and document recommended usage patterns for library authors
+   - ✅ Added nested proc/future stress tests covering nested yields and updated README with recommended usage patterns for library authors
 
 2) Interface & impl completeness (partially complete)
    - ✅ Union-target impls now compare subset precedence (smaller unions win) with improved ambiguity diagnostics when ties remain
