@@ -8,6 +8,11 @@ import (
 	"able/interpreter10-go/pkg/runtime"
 )
 
+type packageMeta struct {
+	namePath  []string
+	isPrivate bool
+}
+
 // Interpreter drives evaluation of Able v10 AST nodes.
 type Interpreter struct {
 	global          *runtime.Environment
@@ -17,6 +22,7 @@ type Interpreter struct {
 	unnamedImpls    map[string]map[string]map[string]struct{}
 	raiseStack      []runtime.Value
 	packageRegistry map[string]map[string]runtime.Value
+	packageMetadata map[string]packageMeta
 	currentPackage  string
 	breakpoints     []string
 }
@@ -92,6 +98,7 @@ func New() *Interpreter {
 		unnamedImpls:    make(map[string]map[string]map[string]struct{}),
 		raiseStack:      make([]runtime.Value, 0),
 		packageRegistry: make(map[string]map[string]runtime.Value),
+		packageMetadata: make(map[string]packageMeta),
 		breakpoints:     make([]string, 0),
 	}
 }
@@ -109,10 +116,15 @@ func (i *Interpreter) EvaluateModule(module *ast.Module) (runtime.Value, *runtim
 
 	if module.Package != nil {
 		moduleEnv = runtime.NewEnvironment(i.global)
-		pkgName := joinIdentifierNames(module.Package.NamePath)
+		pkgParts := identifiersToStrings(module.Package.NamePath)
+		pkgName := strings.Join(pkgParts, ".")
 		i.currentPackage = pkgName
 		if _, ok := i.packageRegistry[pkgName]; !ok {
 			i.packageRegistry[pkgName] = make(map[string]runtime.Value)
+		}
+		i.packageMetadata[pkgName] = packageMeta{
+			namePath:  pkgParts,
+			isPrivate: module.Package.IsPrivate,
 		}
 	} else {
 		i.currentPackage = ""
@@ -139,4 +151,13 @@ func (i *Interpreter) EvaluateModule(module *ast.Module) (runtime.Value, *runtim
 		last = val
 	}
 	return last, moduleEnv, nil
+}
+
+func (i *Interpreter) getPackageMeta(pkgName string, namePath []string) packageMeta {
+	if meta, ok := i.packageMetadata[pkgName]; ok {
+		return meta
+	}
+	dup := make([]string, len(namePath))
+	copy(dup, namePath)
+	return packageMeta{namePath: dup, isPrivate: false}
 }

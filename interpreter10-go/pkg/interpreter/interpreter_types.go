@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"fmt"
+	"math"
 	"strings"
 
 	"able/interpreter10-go/pkg/ast"
@@ -271,7 +272,10 @@ func rangeEndpoint(val runtime.Value) (int, error) {
 	case runtime.IntegerValue:
 		return int(v.Val.Int64()), nil
 	case runtime.FloatValue:
-		return int(v.Val), nil
+		if math.IsNaN(v.Val) || math.IsInf(v.Val, 0) {
+			return 0, fmt.Errorf("Range endpoint must be finite")
+		}
+		return int(math.Trunc(v.Val)), nil
 	default:
 		return 0, fmt.Errorf("range endpoint must be numeric, got %s", val.Kind())
 	}

@@ -260,3 +260,82 @@ func TestRangeBoundariesMustBeNumeric(t *testing.T) {
 		t.Fatalf("unexpected error for end: %v", err)
 	}
 }
+
+func TestBitshiftRangeChecks(t *testing.T) {
+	interp := New()
+	env := interp.GlobalEnvironment()
+	cases := []struct {
+		name string
+		expr ast.Expression
+	}{
+		{"ShiftLeftOutOfRange", ast.Bin("<<", ast.Int(1), ast.Int(32))},
+		{"ShiftRightOutOfRange", ast.Bin(">>", ast.Int(1), ast.Int(33))},
+	}
+	for _, tc := range cases {
+		if _, err := interp.evaluateExpression(tc.expr, env); err == nil {
+			t.Fatalf("%s: expected shift out of range error", tc.name)
+		} else if err.Error() != "shift out of range" {
+			t.Fatalf("%s: unexpected error %v", tc.name, err)
+		}
+	}
+
+	errModule := ast.Mod([]ast.Statement{
+		ast.Assign(ast.ID("x"), ast.Int(1)),
+		ast.AssignOp(ast.AssignmentShiftL, ast.ID("x"), ast.Int(32)),
+	}, nil, nil)
+	if _, _, err := interp.EvaluateModule(errModule); err == nil {
+		t.Fatalf("expected compound shift to fail")
+	} else if err.Error() != "shift out of range" {
+		t.Fatalf("unexpected error from compound shift: %v", err)
+	}
+
+	okModule := ast.Mod([]ast.Statement{
+		ast.Assign(ast.ID("x"), ast.Int(1)),
+		ast.AssignOp(ast.AssignmentShiftL, ast.ID("x"), ast.Int(3)),
+		ast.ID("x"),
+	}, nil, nil)
+	result, _, err := interp.EvaluateModule(okModule)
+	if err != nil {
+		t.Fatalf("compound shift module failed: %v", err)
+	}
+	intVal, ok := result.(runtime.IntegerValue)
+	if !ok || intVal.Val.Cmp(bigInt(8)) != 0 {
+		t.Fatalf("expected 8 after shift, got %#v", result)
+	}
+}
+
+func TestMixedNumericOperations(t *testing.T) {
+	interp := New()
+	env := interp.GlobalEnvironment()
+
+	sum := ast.Bin("+", ast.Int(2), ast.Flt(1.5))
+	val, err := interp.evaluateExpression(sum, env)
+	if err != nil {
+		t.Fatalf("mixed arithmetic failed: %v", err)
+	}
+	flt, ok := val.(runtime.FloatValue)
+	if !ok {
+		t.Fatalf("expected float result, got %#v", val)
+	}
+	if math.Abs(flt.Val-3.5) > 1e-9 {
+		t.Fatalf("expected 3.5, got %v", flt.Val)
+	}
+
+	eq := ast.Bin("==", ast.Int(3), ast.Flt(3.0))
+	eqVal, err := interp.evaluateExpression(eq, env)
+	if err != nil {
+		t.Fatalf("mixed equality failed: %v", err)
+	}
+	if b, ok := eqVal.(runtime.BoolValue); !ok || !b.Val {
+		t.Fatalf("expected equality to hold, got %#v", eqVal)
+	}
+
+	lt := ast.Bin("<", ast.Int(2), ast.Flt(3.5))
+	ltVal, err := interp.evaluateExpression(lt, env)
+	if err != nil {
+		t.Fatalf("mixed comparison failed: %v", err)
+	}
+	if b, ok := ltVal.(runtime.BoolValue); !ok || !b.Val {
+		t.Fatalf("expected comparison to be true, got %#v", ltVal)
+	}
+}

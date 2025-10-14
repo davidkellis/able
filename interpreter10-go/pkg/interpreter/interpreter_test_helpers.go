@@ -16,6 +16,15 @@ func keysOf(m map[string]runtime.Value) []string {
 	return keys
 }
 
+func mustEvalModule(t *testing.T, interp *Interpreter, module *ast.Module) runtime.Value {
+	t.Helper()
+	val, _, err := interp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("module evaluation failed: %v", err)
+	}
+	return val
+}
+
 func setupShowPoint(t *testing.T, interp *Interpreter) {
 	t.Helper()
 	show := ast.Iface(

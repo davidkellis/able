@@ -316,3 +316,19 @@ func TestErrorPayloadDestructuring(t *testing.T) {
 		t.Fatalf("expected 'handled', got %#v", result)
 	}
 }
+
+func TestRethrowOutsideRescueProducesUnknownError(t *testing.T) {
+	interp := New()
+	module := ast.Mod([]ast.Statement{ast.Rethrow()}, nil, nil)
+	_, _, err := interp.EvaluateModule(module)
+	if err == nil {
+		t.Fatalf("expected rethrow outside rescue to fail")
+	}
+	rs, ok := err.(raiseSignal)
+	if !ok {
+		t.Fatalf("expected raiseSignal, got %T", err)
+	}
+	if rs.Error() != "Unknown rethrow" {
+		t.Fatalf("expected 'Unknown rethrow', got %q", rs.Error())
+	}
+}

@@ -157,7 +157,14 @@ func valueToString(val runtime.Value) string {
 	case *runtime.NativeBoundMethodValue:
 		return fmt.Sprintf("<native bound %s>", v.Method.Name)
 	case runtime.PackageValue:
-		return fmt.Sprintf("<package %s>", strings.Join(v.NamePath, "::"))
+		name := v.Name
+		if name == "" {
+			name = strings.Join(v.NamePath, "::")
+		}
+		if name == "" {
+			name = "<package>"
+		}
+		return fmt.Sprintf("<package %s>", name)
 	case runtime.ErrorValue:
 		return v.Message
 	default:
