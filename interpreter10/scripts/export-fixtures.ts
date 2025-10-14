@@ -616,6 +616,144 @@ const fixtures: Fixture[] = [
     },
   },
   {
+    name: "concurrency/proc_cancel_value",
+    module: AST.module([
+      AST.assign(
+        "handle",
+        AST.procExpression(AST.blockExpression([AST.integerLiteral(0)])),
+      ),
+      AST.assign(
+        "_cancelResult",
+        AST.functionCall(
+          AST.memberAccessExpression(AST.identifier("handle"), "cancel"),
+          [],
+        ),
+      ),
+      AST.assign(
+        "result",
+        AST.functionCall(
+          AST.memberAccessExpression(AST.identifier("handle"), "value"),
+          [],
+        ),
+      ),
+      AST.identifier("result"),
+    ]),
+    manifest: {
+      description: "Proc cancellation before start returns an error value",
+      expect: {
+        result: { kind: "error" },
+      },
+    },
+  },
+  {
+    name: "concurrency/future_memoization",
+    module: AST.module([
+      AST.assign("count", AST.integerLiteral(0)),
+      AST.assign(
+        "future",
+        AST.spawnExpression(
+          AST.blockExpression([
+            AST.assignmentExpression(
+              "+=",
+              AST.identifier("count"),
+              AST.integerLiteral(1),
+            ),
+            AST.integerLiteral(1),
+          ]),
+        ),
+      ),
+      AST.assign(
+        "first",
+        AST.functionCall(
+          AST.memberAccessExpression(AST.identifier("future"), "value"),
+          [],
+        ),
+      ),
+      AST.assign(
+        "second",
+        AST.functionCall(
+          AST.memberAccessExpression(AST.identifier("future"), "value"),
+          [],
+        ),
+      ),
+      AST.identifier("count"),
+    ]),
+    manifest: {
+      description: "Future value memoises results and runs the task only once",
+      expect: {
+        result: { kind: "i32", value: 1 },
+      },
+    },
+  },
+  {
+    name: "concurrency/proc_cancelled_outside_error",
+    module: AST.module([
+      AST.functionCall(AST.identifier("proc_cancelled"), []),
+    ]),
+    manifest: {
+      description: "proc_cancelled raises when called outside of proc/spawn",
+      expect: {
+        errors: ["proc_cancelled must be called inside an asynchronous task"],
+      },
+    },
+  },
+  {
+    name: "concurrency/proc_cancelled_helper",
+    module: AST.module([
+      AST.assign("trace", AST.stringLiteral("")),
+      AST.assign(
+        "handle",
+        AST.procExpression(
+          AST.blockExpression([
+            AST.assignmentExpression(
+              "=",
+              AST.identifier("trace"),
+              AST.binaryExpression(
+                "+",
+                AST.identifier("trace"),
+                AST.stringLiteral("A"),
+              ),
+            ),
+            AST.functionCall(
+              AST.memberAccessExpression(AST.identifier("handle"), "cancel"),
+              [],
+            ),
+            AST.ifExpression(
+              AST.functionCall(AST.identifier("proc_cancelled"), []),
+              AST.blockExpression([
+                AST.assignmentExpression(
+                  "=",
+                  AST.identifier("trace"),
+                  AST.binaryExpression(
+                    "+",
+                    AST.identifier("trace"),
+                    AST.stringLiteral("C"),
+                  ),
+                ),
+              ]),
+              [],
+            ),
+            AST.integerLiteral(0),
+          ]),
+        ),
+      ),
+      AST.assign(
+        "_result",
+        AST.functionCall(
+          AST.memberAccessExpression(AST.identifier("handle"), "value"),
+          [],
+        ),
+      ),
+      AST.identifier("trace"),
+    ]),
+    manifest: {
+      description: "Proc uses proc_cancelled() after yielding to observe cancellation flag",
+      expect: {
+        result: { kind: "string", value: "AC" },
+      },
+    },
+  },
+  {
     name: "errors/rescue_guard",
     module: AST.module([
       AST.rescue(

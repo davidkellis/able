@@ -26,6 +26,7 @@ Welcome! This document gives contributors the context required to work across th
    - **Go**: Go ≥ 1.22, `go test ./...` inside `interpreter10-go/`.
    - **TypeScript**: Bun ≥ 1.2 (`bun install`, `bun test`).
 4. Before changing the AST, confirm alignment implications for every interpreter and the future parser.
+5. Use the root-level `./run_all_tests.sh` helper to run TypeScript unit tests, fixtures, and the Go suite together before handing work off.
 
 ## Collaboration Guidelines
 - Update relevant PLAN files when you start/finish roadmap items.
@@ -39,8 +40,8 @@ Welcome! This document gives contributors the context required to work across th
 - At the end of every session: document progress, current state, and next steps; update PLAN/todo/docs accordingly; capture lessons/process adjustments in `LOG.md` or design notes so the next contributor can resume seamlessly.
 
 ## Concurrency Expectations
-- TypeScript interpreter uses a cooperative scheduler to emulate Able `proc`/`spawn` semantics.
-- Go interpreter must implement these semantics with goroutines/channels while preserving observable behavior (status, value, cancellation, cooperative helpers).
+- TypeScript interpreter uses a cooperative scheduler to emulate Able `proc`/`spawn` semantics; the helper functions `proc_yield()`, `proc_cancelled()`, and `proc_flush()` are available inside Able code so fixtures/tests can drive the scheduler deterministically.
+- Go interpreter must implement these semantics with goroutines/channels while preserving observable behavior (status, value, cancellation, cooperative helpers). The Go runtime exposes the same helper surface (including `proc_flush`) via native functions.
 - Document any deviations or extensions; tests should exercise cancellation, yielding, and memoization scenarios.
 
 ## When in Doubt

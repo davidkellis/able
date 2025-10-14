@@ -35,6 +35,10 @@ func (i *Interpreter) evaluateMemberAccess(expr *ast.MemberAccessExpression, env
 		return i.structInstanceMember(v, expr.Member, env)
 	case *runtime.InterfaceValue:
 		return i.interfaceMember(v, expr.Member)
+	case *runtime.ProcHandleValue:
+		return i.procHandleMember(v, expr.Member)
+	case *runtime.FutureValue:
+		return i.futureMember(v, expr.Member)
 	default:
 		if ident, ok := expr.Member.(*ast.Identifier); ok {
 			if bound, ok := i.tryUfcs(env, ident.Name, obj); ok {

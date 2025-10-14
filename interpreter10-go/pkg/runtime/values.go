@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"context"
 	"fmt"
 	"math/big"
 	"sync"
@@ -196,7 +197,8 @@ func (v *FunctionValue) Kind() Kind { return KindFunction }
 // NativeCallContext provides hooks for native functions. Fields will be
 // populated as interpreter functionality grows.
 type NativeCallContext struct {
-	Env *Environment
+	Env   *Environment
+	State any
 }
 
 type NativeFunc func(*NativeCallContext, []Value) (Value, error)
@@ -328,21 +330,64 @@ type ProcHandleValue struct {
 	result          Value
 	err             Value // usually ErrorValue wrapping ProcError
 	cancelRequested bool
+	ctx             context.Context
+	cancel          context.CancelFunc
+	started         bool
 	done            *sync.Cond
 }
 
 func NewProcHandle() *ProcHandleValue {
-	h := &ProcHandleValue{}
+	return NewProcHandleWithContext(context.Background(), nil)
+}
+
+func NewProcHandleWithContext(ctx context.Context, cancel context.CancelFunc) *ProcHandleValue {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	h := &ProcHandleValue{
+		ctx:    ctx,
+		cancel: cancel,
+	}
 	h.done = sync.NewCond(&h.mu)
 	return h
 }
 
 func (v *ProcHandleValue) Kind() Kind { return KindProcHandle }
 
+func (v *ProcHandleValue) Context() context.Context {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	return v.ctx
+}
+
+func (v *ProcHandleValue) CancelFunc() context.CancelFunc {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	return v.cancel
+}
+
+func (v *ProcHandleValue) MarkStarted() {
+	v.mu.Lock()
+	v.started = true
+	v.mu.Unlock()
+}
+
+func (v *ProcHandleValue) Started() bool {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	return v.started
+}
+
 func (v *ProcHandleValue) Status() ProcStatus {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	return v.status
+}
+
+func (v *ProcHandleValue) Snapshot() (Value, Value, ProcStatus) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	return v.result, v.err, v.status
 }
 
 func (v *ProcHandleValue) Await() (Value, Value, ProcStatus) {
@@ -387,8 +432,13 @@ func (v *ProcHandleValue) Cancel(err Value) {
 
 func (v *ProcHandleValue) RequestCancel() {
 	v.mu.Lock()
+	already := v.cancelRequested
+	cancel := v.cancel
 	v.cancelRequested = true
 	v.mu.Unlock()
+	if !already && cancel != nil {
+		cancel()
+	}
 }
 
 func (v *ProcHandleValue) CancelRequested() bool {
@@ -397,37 +447,26 @@ func (v *ProcHandleValue) CancelRequested() bool {
 	return v.cancelRequested
 }
 
-// FutureValue memoizes a deferred computation triggered on first observe.
+// FutureValue references a ProcHandleValue and exposes its result memoization.
 type FutureValue struct {
-	once   sync.Once
-	done   chan struct{}
-	value  Value
-	err    Value
-	runner func() (Value, Value)
+	handle *ProcHandleValue
 }
 
-func NewFutureValue(runner func() (Value, Value)) *FutureValue {
-	return &FutureValue{
-		done:   make(chan struct{}),
-		runner: runner,
-	}
+func NewFutureFromHandle(handle *ProcHandleValue) *FutureValue {
+	return &FutureValue{handle: handle}
 }
 
 func (v *FutureValue) Kind() Kind { return KindFuture }
 
-func (v *FutureValue) force() (Value, Value) {
-	v.once.Do(func() {
-		if v.runner == nil {
-			close(v.done)
-			return
-		}
-		val, err := v.runner()
-		v.value = val
-		v.err = err
-		close(v.done)
-	})
-	<-v.done
-	return v.value, v.err
+func (v *FutureValue) Handle() *ProcHandleValue {
+	return v.handle
+}
+
+func (v *FutureValue) Await() (Value, Value, ProcStatus) {
+	if v.handle == nil {
+		return nil, nil, ProcResolved
+	}
+	return v.handle.Await()
 }
 
 //-----------------------------------------------------------------------------

@@ -1,0 +1,15 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "Identifier",
+        "name": "proc_cancelled"
+      },
+      "arguments": [],
+      "isTrailingLambda": false
+    }
+  ]
+}

@@ -391,6 +391,26 @@ func decodeNode(node map[string]any) (ast.Node, error) {
 			return nil, fmt.Errorf("ensure block must be block expression, got %T", blockNode)
 		}
 		return ast.NewEnsureExpression(tryExpr, ensureBlock), nil
+	case "ProcExpression":
+		exprNode, err := decodeNode(node["expression"].(map[string]any))
+		if err != nil {
+			return nil, err
+		}
+		expr, ok := exprNode.(ast.Expression)
+		if !ok {
+			return nil, fmt.Errorf("invalid proc expression body %T", exprNode)
+		}
+		return ast.NewProcExpression(expr), nil
+	case "SpawnExpression":
+		exprNode, err := decodeNode(node["expression"].(map[string]any))
+		if err != nil {
+			return nil, err
+		}
+		expr, ok := exprNode.(ast.Expression)
+		if !ok {
+			return nil, fmt.Errorf("invalid spawn expression body %T", exprNode)
+		}
+		return ast.NewSpawnExpression(expr), nil
 	case "WhileLoop":
 		condNode, err := decodeNode(node["condition"].(map[string]any))
 		if err != nil {

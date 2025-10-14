@@ -42,7 +42,7 @@ The interpreter evaluates AST nodes directly (tree-walk). Key pieces:
 ### Recent updates
 
 - Concurrency handles now execute asynchronously, expose `ProcStatus` structs, and surface `ProcError` payloads through `value()` so downstream code can use `!`/pattern matching without special cases.
-- Cooperative helpers `proc_yield()` and `proc_cancelled()` allow long-running tasks to yield control and observe cancellation from inside the task body.
+- Cooperative helpers `proc_yield()`, `proc_cancelled()`, and `proc_flush()` allow long-running tasks to yield control, observe cancellation, and force queued work to run from the current step respectively.
 - Cancellation requests queue the handle’s runner instead of flipping state immediately, so tasks can poll `proc_cancelled()` and clean up before `status()` reports `Cancelled`.
 - Interfaces support default method bodies; impls inherit them automatically, with `Self` substituted for the concrete target type.
 - Values typed as an interface are wrapped as dynamic `interface_value` instances so member access dispatches to the underlying implementation.
@@ -126,12 +126,19 @@ const result = interp.evaluate(mod as any); // { kind: 'i32', value: 5 }
 
 ### Cooperative concurrency helpers
 
-`proc_yield()` and `proc_cancelled()` are exposed as global native functions so Able code can cooperate with the interpreter’s scheduler:
+`proc_yield()`, `proc_cancelled()`, and `proc_flush()` are exposed as global native functions so Able code can cooperate with the interpreter’s scheduler:
 
 - `proc_yield()` throws an internal `ProcYieldSignal`. The interpreter catches it, re-queues the current task’s runner, and unwinds to the scheduler. Use it inside tight loops to give other work an opportunity to progress.
 - `proc_cancelled()` returns a boolean indicating whether cancellation has been requested on the current `proc` handle. Tasks can poll it and exit early with their own clean-up logic.
+- `proc_flush()` drains the cooperative scheduler queue immediately, ensuring any pending procs/futures run to completion before control returns to Able code.
 
 Under the hood the interpreter maintains an `asyncContextStack` so helper invocations can discover the active async value. Both helpers must run inside a `proc`/`spawn` body or they will raise an error. Tests in `test/proc_spawn.test.ts` exercise interleaving (`trace` becomes "ABC") and cooperative cancellation (`trace` becomes "wx" when a loop notices cancellation before the interpreter finalises the handle).
+
+#### Recommended concurrency patterns
+
+- Let helpers or recursive routines call `proc_yield()` directly. The interpreter keeps the active handle on `asyncContextStack`, so even yields several frames deep reschedule the correct task without losing progress.
+- Combine `proc` and `spawn` orchestration freely: a proc can spawn futures, yield, and later call `future.value()` to drive nested work to completion. `value()` will run the future through any additional `proc_yield()` calls before returning, so callers can treat the result like a regular `!T`.
+- Persist handles in a shared scope when you need monitoring. Assign them to module-level bindings (e.g., `future_handle := spawn ...`) so other code can poll `status()` or `value()` after cooperative scheduling completes—mirroring the patterns used in `test/concurrency/proc_spawn.test.ts`.
 
 #### Interface defaults & dynamic dispatch
 
@@ -157,6 +164,7 @@ Under the hood the interpreter maintains an `asyncContextStack` so helper invoca
 bun test            # run all tests
 bun test --watch    # watch mode
 bun run typecheck   # TypeScript typecheck
+./run_all_tests.sh  # repo root helper: runs TS tests, fixtures, and Go tests
 ```
 
 This project was created using `bun init` in bun v1.2.19. [Bun](https://bun.sh/) is a fast all-in-one JavaScript runtime.
