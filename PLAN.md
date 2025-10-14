@@ -81,18 +81,22 @@ For each milestone: port representative TS tests into Go, add new cases where Go
 - **Future interpreters**: keep AST schema + conformance harness generic to support planned Crystal implementation.
 
 ## Immediate Next Actions
-1. **Stabilise modular interpreter layout** – ensure every new file (`interpreter_*`, `eval_*`, `definitions.go`, `imports.go`, `impl_resolution.go`) is tracked in git, update `interpreter10-go/PARITY.md` with the split, and confirm the TypeScript mirror still maps 1:1 to guide future porting.
-2. **Parity audit pass** – re-run the parity checklist against the new Go test suites (imports, numeric, patterns, structs, interfaces) and identify the highest-priority feature gaps (privacy edge cases, advanced pattern matching, concurrency stubs) to tackle next.
-3. **Concurrency design close-out** – finalise the goroutine scheduler design note (`design/go-concurrency-scheduler.md`) and line up implementation tasks so `proc`/`spawn` work can begin once the remaining parity gaps are addressed.
-4. **Documentation & onboarding** – capture the modularisation rationale and testing strategy in `LOG.md` + `interpreter10-go/README.md`, and adjust onboarding guidance so new contributors jump straight into the split codebase.
+1. **TypeScript interpreter modularisation** – design a folder layout mirroring the Go interpreter split (`interpreter10/src/interpreter/{eval_expressions,eval_statements,definitions,imports,impl_resolution,...}`), refactor the TypeScript interpreter and its tests into feature-focused modules (<1k LOC target), and rerun `bun run test:fixtures` + `bun test` to confirm behaviour parity.
+2. **Go layout stabilisation** – ensure every new Go interpreter file (`interpreter_*`, `eval_*`, `definitions.go`, `imports.go`, `impl_resolution.go`) is tracked in git, update `interpreter10-go/PARITY.md` with the split, and confirm the TypeScript mirror maps 1:1 for future ports.
+3. **Parity audit pass** – re-run the parity checklist against the refreshed Go/TS layouts (imports, numeric, patterns, structs, interfaces) and identify the highest-priority feature gaps (privacy edge cases, advanced pattern matching, concurrency stubs) to tackle next.
+4. **Concurrency design close-out** – finalise the goroutine scheduler design note (`design/go-concurrency-scheduler.md`) and line up implementation tasks so `proc`/`spawn` work can begin once the remaining parity gaps are addressed.
+5. **Documentation & onboarding** – capture the modularisation rationale and testing strategy in `LOG.md`, `interpreter10/README.md`, and `interpreter10-go/README.md`, and adjust onboarding guidance so new contributors jump straight into the split codebases.
 
 ### Next steps (prioritized)
-1. **Go feature parity** – Work through the parity checklist and port any remaining TypeScript behaviours (modules/import privacy, advanced pattern matching, generics, interface resolution) into the Go interpreter.
-2. **Concurrency semantics** – Implement Able’s v10 concurrency using Go goroutines/channels per spec, including scheduling guarantees, cancellation, memoisation, and stress suites.
-3. **Interface & generics completeness** – Finish higher-order interface inheritance, unnamed/named impl diagnostics, and visibility rules; mirror TS tests.
-4. **Spec & privacy alignment** – Enforce the full privacy model in Go, broaden wildcard/dyn import semantics, and keep `spec/todo.md` in sync as gaps close.
-5. **Performance & maintainability** – Optimise hot paths (environment lookups, method caches), add micro-benchmarks, and refine modular boundaries as the interpreter grows.
-6. **Developer experience** – Update docs/examples, ensure PLAN/README stay accurate, and add coverage/CI targets (Go + Bun) once parity stabilises.
+1. **TypeScript ↔ Go modular parity** – Complete the TS interpreter/test split, mirror naming/layout conventions across both runtimes, and validate shared fixtures + unit suites stay green.
+2. **Go feature parity** – Work through the parity checklist and port any remaining TypeScript behaviours (modules/import privacy, advanced pattern matching, generics, interface resolution) into the Go interpreter.
+3. **Reference interpreter transition** – Once parity is proven, designate the Go runtime as canonical, documenting the handover criteria and updating onboarding/docs.
+4. **Concurrency semantics** – Implement Able’s v10 concurrency using Go goroutines/channels per spec, including scheduling guarantees, cancellation, memoisation, and stress suites.
+5. **Interface & generics completeness** – Finish higher-order interface inheritance, unnamed/named impl diagnostics, and visibility rules; mirror TS tests.
+6. **Spec & privacy alignment** – Enforce the full privacy model in Go, broaden wildcard/dyn import semantics, and keep `spec/todo.md` in sync as gaps close.
+7. **Performance & maintainability** – Optimise hot paths (environment lookups, method caches), add micro-benchmarks, and refine modular boundaries as the interpreter grows.
+8. **Tree-sitter pipeline** – After both interpreters stabilise, begin mapping the canonical AST to parser production rules and build the tree-sitter grammar that emits interoperable AST JSON.
+9. **Developer experience** – Update docs/examples, ensure PLAN/README stay accurate, and add coverage/CI targets (Go + Bun) once parity stabilises.
 
 ## Tracking & Reporting
 - Update this plan as milestones progress; log decisions in `design/`.
@@ -115,3 +119,8 @@ For each milestone: port representative TS tests into Go, add new cases where Go
 - Split the Go interpreter into feature-specific files (`eval_statements.go`, `eval_expressions.go`, `definitions.go`, `imports.go`, `impl_resolution.go`) so each subsystem can evolve independently; mirrored the split on the test side and updated the README with the new layout.
 - Refreshed immediate actions/next steps to include finishing the modularisation work before resuming concurrency and remaining parity backlog.
 - **Next focus:** migrate pattern-matching helpers/runtime utilities into dedicated files, then continue the parity checklist (interface diagnostics, concurrency scheduler).
+
+### 2025-10-07
+- Captured the cross-interpreter modularisation plan: TypeScript interpreter/tests will be split into feature-focused files mirroring the Go layout, with sub-1k LOC targets and parity test runs guarding behaviour.
+- Immediate roadmap updated to tackle TS modularisation first, then stabilise the Go layout, run a parity audit, and sequence the Go reference handoff followed by the tree-sitter parser effort.
+- **Next focus:** execute the TS interpreter split, keep fixtures/tests green, and document any deviations for the Go parity follow-up.
