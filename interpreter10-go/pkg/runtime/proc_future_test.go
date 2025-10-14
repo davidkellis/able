@@ -39,31 +39,22 @@ func TestProcHandleCancel(t *testing.T) {
 	}
 }
 
-func TestFutureValueRunner(t *testing.T) {
-	calls := 0
-	future := NewFutureValue(func() (Value, Value) {
-		calls++
-		return IntegerValue{Val: bigInt(5), TypeSuffix: IntegerI32}, nil
-	})
+func TestFutureValueAwaitResolved(t *testing.T) {
+	handle := NewProcHandle()
+	future := NewFutureFromHandle(handle)
 
-	val, err := future.force()
+	expected := IntegerValue{Val: bigInt(5), TypeSuffix: IntegerI32}
+	handle.Resolve(expected)
+
+	val, err, status := future.Await()
+	if status != ProcResolved {
+		t.Fatalf("expected resolved status, got %v", status)
+	}
 	if err != nil {
 		t.Fatalf("unexpected error: %#v", err)
 	}
 	iv, ok := val.(IntegerValue)
 	if !ok || iv.Val.Cmp(bigInt(5)) != 0 {
 		t.Fatalf("unexpected future value: %#v", val)
-	}
-
-	// Second force should reuse cached result.
-	val2, err2 := future.force()
-	if err2 != nil {
-		t.Fatalf("unexpected error on second force: %#v", err2)
-	}
-	if val2.Kind() != KindInteger {
-		t.Fatalf("unexpected kind on second force: %v", val2.Kind())
-	}
-	if calls != 1 {
-		t.Fatalf("expected runner called once, got %d", calls)
 	}
 }

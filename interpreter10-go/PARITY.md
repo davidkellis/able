@@ -30,7 +30,7 @@ This document tracks the remaining gaps between the two interpreters. For each f
 | Compound assignments | `compound_assign.test.ts` | ✅ basic cases |
 | Bitshifts & range validation | `bitshift_range.test.ts` | ✅ Covered (`interpreter_numeric_test.go`) |
 | Breakpoints | `breakpoint.test.ts` | ✅ Covered (`interpreter_control_flow_test.go`) |
-| Concurrency (`proc`, `spawn`, futures) | `proc_spawn.test.ts` | ❌ missing |
+| Concurrency (`proc`, `spawn`, futures) | `proc_spawn.test.ts` | ✅ Initial executor + handle/future semantics implemented; add cancellation/yield fixtures |
 | Dyn import privacy & metadata | `privacy_interface_import.test.ts`, `dynimport.test.ts` | ✅ Metadata captured via package/dyn-package handles |
 
 ## Outstanding Gaps (Go vs TypeScript)
@@ -38,11 +38,11 @@ This document tracks the remaining gaps between the two interpreters. For each f
 The table above captures line-item status; the following themes summarise what still blocks full parity:
 
 - **Control flow coverage** — Core while/range/if-or semantics and for-loop destructuring now mirror the TS suite (`interpreter_control_flow_test.go`, `interpreter_patterns_test.go`), leaving no outstanding control-flow gaps.
-- **Modules & imports** — Static/dynamic imports (including nested re-exports) now align with TS; only concurrency work remains outstanding.
+- **Modules & imports** — Static/dynamic imports (including nested re-exports) now align with TS; only concurrency polish (cancellation/yield fixtures) remains before full parity.
 - **Interfaces & generics** — Dispatch precedence, default methods, constraints, and named impl disambiguation mirror TS coverage.
 - **Data access & operators** — Bitshift/range checks and mixed numeric comparisons now match TS semantics.
 - **Error reporting** — Raise/rescue/or-else/rethrow diagnostics now mirror TS behaviour.
-- **Concurrency** — No goroutine-based scheduler exists yet; `proc`/`spawn` handles, futures, cancellation, and cooperative helpers remain unimplemented.
+- **Concurrency** — Executor-backed `proc`/`spawn` landed; remaining gaps cover cancellation/yield stress cases and cross-interpreter fixture parity.
 - **Tooling parity** — Dyn-import metadata and breakpoint signalling are now covered; future work can focus on enhanced debugging hooks.
 
 ## Parity backlog (theme-by-theme)
@@ -78,9 +78,10 @@ The table above captures line-item status; the following themes summarise what s
 - [x] Ensure raise-stack metadata surfaces identical payloads for nested errors so typed-pattern fixtures remain consistent across runtimes.
 
 ### Concurrency & scheduling
-- [ ] Design and implement the goroutine-based scheduler covering `proc` handles, `spawn`, futures, cancellation, and memoisation (`proc_spawn.test.ts`). This includes mapping Able’s cooperative helpers to deterministic Go primitives.
-- [ ] Add runtime structs for `ProcStatus`, `ProcError`, and plumbing for `value()`, `status()`, and `cancel()` so tests observe the same state transitions as TS.
-- [ ] Extend fixtures under `fixtures/ast` to cover basic proc scenarios once the Go runtime can execute them; mirror expectations in manifests.
+- [x] Design and implement the goroutine-based executor covering `proc` handles, `spawn`, futures, cancellation hooks, and memoisation (`proc_spawn.test.ts` parity baseline).
+- [x] Add runtime structs for `ProcStatus`, `ProcError`, and plumbing for `value()`, `status()`, and `cancel()` so tests observe the same state transitions as TS.
+- [ ] Extend fixtures (Go + TS) to cover remaining concurrency helpers now that handles/futures are wired up (shared fixtures now cover cancellation, future memoisation, and `proc_cancelled` usage/error; yield fairness scenarios still pending).
+- [ ] Port the executor semantics to the TypeScript interpreter and mirror the new fixture coverage.
 
 ### Tooling & observability
 - [x] Implement breakpoint signalling (`breakpoint.test.ts`) so debugger fixtures can validate hook behaviour.
@@ -88,8 +89,8 @@ The table above captures line-item status; the following themes summarise what s
 
 ## Immediate next actions
 
-1. Plan and begin the Go concurrency scheduler implementation (`proc`/`spawn`) with deterministic primitives.
-2. Update fixtures/tests to exercise proc/future handles once the scheduler scaffolding lands.
+1. Promote the remaining concurrency scenarios (`proc_cancelled`, yield fairness) into shared fixtures and mirror them in TS so parity harnesses exercise the cooperative helpers as well.
+2. Teach the TypeScript interpreter to use the executor contract so `proc`/`spawn` helpers match Go semantics.
 3. Keep this backlog in sync with each milestone—when a theme moves forward, update the relevant checklist items, add fixtures, and note progress in `LOG.md` and `PLAN.md`.
 
 _NOTE:_ The only intentional difference between the interpreters is the concurrency implementation detail (Go goroutines/channels vs TypeScript cooperative scheduler). All observable Able semantics must remain identical.

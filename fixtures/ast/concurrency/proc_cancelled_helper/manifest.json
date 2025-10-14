@@ -1,0 +1,10 @@
+{
+  "description": "Proc uses proc_cancelled() after yielding to observe cancellation flag",
+  "expect": {
+    "result": {
+      "kind": "string",
+      "value": "AC"
+    }
+  },
+  "entry": "module.json"
+}

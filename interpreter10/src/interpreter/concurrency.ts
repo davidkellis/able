@@ -12,6 +12,7 @@ declare module "./index" {
     currentAsyncContext(): { kind: "proc"; handle: Extract<V10Value, { kind: "proc_handle" }> } | { kind: "future"; handle: Extract<V10Value, { kind: "future" }> } | null;
     procYield(): V10Value;
     procCancelled(): V10Value;
+    procFlush(): V10Value;
     processScheduler(limit?: number): void;
     makeNamedStructInstance(def: AST.StructDefinition, entries: Array<[string, V10Value]>): V10Value;
     makeProcError(details: string): V10Value;
@@ -127,6 +128,11 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
       return { kind: "bool", value: !!ctx.handle.cancelRequested };
     }
     return { kind: "bool", value: false };
+  };
+
+  cls.prototype.procFlush = function procFlush(this: InterpreterV10): V10Value {
+    this.processScheduler(this.schedulerMaxSteps);
+    return { kind: "nil", value: null };
   };
 
   cls.prototype.processScheduler = function processScheduler(this: InterpreterV10, limit: number = this.schedulerMaxSteps): void {

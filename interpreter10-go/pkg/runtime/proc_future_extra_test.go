@@ -14,12 +14,17 @@ func TestProcHandleCancelRequestedFlag(t *testing.T) {
 	}
 }
 
-func TestFutureValueRunnerError(t *testing.T) {
-	errFuture := NewFutureValue(func() (Value, Value) {
-		return nil, ErrorValue{Message: "boom"}
-	})
+func TestFutureValueAwaitFailure(t *testing.T) {
+	handle := NewProcHandle()
+	future := NewFutureFromHandle(handle)
 
-	val, err := errFuture.force()
+	errVal := ErrorValue{Message: "boom"}
+	handle.Fail(errVal)
+
+	val, err, status := future.Await()
+	if status != ProcFailed {
+		t.Fatalf("expected failed status, got %v", status)
+	}
 	if val != nil {
 		t.Fatalf("expected nil value, got %#v", val)
 	}

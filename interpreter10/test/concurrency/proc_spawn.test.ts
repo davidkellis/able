@@ -19,6 +19,29 @@ const expectStructInstance = (value: V10Value | undefined, structName: string) =
   return value;
 };
 
+const appendToTrace = (literal: string) =>
+  AST.assignmentExpression(
+    "=",
+    AST.identifier("trace"),
+    AST.binaryExpression(
+      "+",
+      AST.identifier("trace"),
+      AST.stringLiteral(literal)
+    )
+  );
+
+const drainScheduler = (interp: InterpreterV10, maxTicks = 32) => {
+  const runtime = interp as any;
+  let ticks = 0;
+  while (runtime.schedulerQueue.length > 0) {
+    runtime.processScheduler();
+    ticks += 1;
+    if (ticks > maxTicks) {
+      throw new Error("scheduler queue did not drain");
+    }
+  }
+};
+
 describe("v10 interpreter - proc & spawn handles", () => {
   test("proc handle supports status, value, and cancel", async () => {
     const I = new InterpreterV10();
@@ -608,6 +631,336 @@ describe("v10 interpreter - proc & spawn handles", () => {
     const fastStatus = I.evaluate(fastStatusCall) as any;
     expect(fastStatus.kind).toBe("struct_instance");
     expect(fastStatus.def.id.name).toBe("Resolved");
+  });
+
+  test("proc and future interleave across multiple yields", () => {
+    const I = new InterpreterV10();
+
+    I.evaluate(
+      AST.assignmentExpression(
+        ":=",
+        AST.identifier("trace"),
+        AST.stringLiteral("")
+      )
+    );
+    I.evaluate(
+      AST.assignmentExpression(
+        ":=",
+        AST.identifier("worker_stage"),
+        AST.integerLiteral(0)
+      )
+    );
+    I.evaluate(
+      AST.assignmentExpression(
+        ":=",
+        AST.identifier("future_stage"),
+        AST.integerLiteral(0)
+      )
+    );
+
+    I.evaluate(
+      AST.assignmentExpression(
+        ":=",
+        AST.identifier("worker"),
+        AST.procExpression(
+          AST.blockExpression([
+            AST.ifExpression(
+              AST.binaryExpression(
+                "==",
+                AST.identifier("worker_stage"),
+                AST.integerLiteral(0)
+              ),
+              AST.blockExpression([
+                appendToTrace("A1"),
+                AST.assignmentExpression(
+                  "=",
+                  AST.identifier("worker_stage"),
+                  AST.integerLiteral(1)
+                ),
+                AST.functionCall(AST.identifier("proc_yield"), []),
+                AST.integerLiteral(0),
+              ]),
+              [
+                AST.orClause(
+                  AST.blockExpression([
+                    appendToTrace("A2"),
+                    AST.assignmentExpression(
+                      "=",
+                      AST.identifier("worker_stage"),
+                      AST.integerLiteral(2)
+                    ),
+                    AST.functionCall(AST.identifier("proc_yield"), []),
+                    AST.integerLiteral(0),
+                  ]),
+                  AST.binaryExpression(
+                    "==",
+                    AST.identifier("worker_stage"),
+                    AST.integerLiteral(1)
+                  )
+                ),
+                AST.orClause(
+                  AST.blockExpression([
+                    appendToTrace("A3"),
+                    AST.assignmentExpression(
+                      "=",
+                      AST.identifier("worker_stage"),
+                      AST.integerLiteral(3)
+                    ),
+                    AST.integerLiteral(0),
+                  ]),
+                  AST.binaryExpression(
+                    "==",
+                    AST.identifier("worker_stage"),
+                    AST.integerLiteral(2)
+                  )
+                ),
+              ]
+            ),
+            AST.integerLiteral(0),
+          ])
+        )
+      )
+    );
+
+    I.evaluate(
+      AST.assignmentExpression(
+        ":=",
+        AST.identifier("future"),
+        AST.spawnExpression(
+          AST.blockExpression([
+            AST.ifExpression(
+              AST.binaryExpression(
+                "==",
+                AST.identifier("future_stage"),
+                AST.integerLiteral(0)
+              ),
+              AST.blockExpression([
+                appendToTrace("B1"),
+                AST.assignmentExpression(
+                  "=",
+                  AST.identifier("future_stage"),
+                  AST.integerLiteral(1)
+                ),
+                AST.functionCall(AST.identifier("proc_yield"), []),
+                AST.integerLiteral(0),
+              ]),
+              [
+                AST.orClause(
+                  AST.blockExpression([
+                    appendToTrace("B2"),
+                    AST.assignmentExpression(
+                      "=",
+                      AST.identifier("future_stage"),
+                      AST.integerLiteral(2)
+                    ),
+                    AST.integerLiteral(0),
+                  ]),
+                  AST.binaryExpression(
+                    "==",
+                    AST.identifier("future_stage"),
+                    AST.integerLiteral(1)
+                  )
+                ),
+              ]
+            ),
+            AST.integerLiteral(0),
+          ])
+        )
+      )
+    );
+
+    drainScheduler(I);
+
+    const traceVal = I.evaluate(AST.identifier("trace"));
+    expect(traceVal).toEqual({ kind: "string", value: "A1B1A2B2A3" });
+
+    const workerStatusCall = AST.functionCall(
+      AST.memberAccessExpression(AST.identifier("worker"), "status"),
+      []
+    );
+    const futureStatusCall = AST.functionCall(
+      AST.memberAccessExpression(AST.identifier("future"), "status"),
+      []
+    );
+    const workerValueCall = AST.functionCall(
+      AST.memberAccessExpression(AST.identifier("worker"), "value"),
+      []
+    );
+    const futureValueCall = AST.functionCall(
+      AST.memberAccessExpression(AST.identifier("future"), "value"),
+      []
+    );
+
+    const workerStatus = I.evaluate(workerStatusCall) as any;
+    expect(workerStatus.kind).toBe("struct_instance");
+    expect(workerStatus.def.id.name).toBe("Resolved");
+
+    const futureStatus = I.evaluate(futureStatusCall) as any;
+    expect(futureStatus.kind).toBe("struct_instance");
+    expect(futureStatus.def.id.name).toBe("Resolved");
+
+    expect(I.evaluate(workerValueCall)).toEqual({ kind: "i32", value: 0 });
+    expect(I.evaluate(futureValueCall)).toEqual({ kind: "i32", value: 0 });
+  });
+
+  test("proc awaiting future with nested yields resolves cleanly", () => {
+    const I = new InterpreterV10();
+
+    I.evaluate(
+      AST.assignmentExpression(
+        ":=",
+        AST.identifier("trace"),
+        AST.stringLiteral("")
+      )
+    );
+    I.evaluate(
+      AST.assignmentExpression(
+        ":=",
+        AST.identifier("future_handle"),
+        AST.nilLiteral()
+      )
+    );
+    I.evaluate(
+      AST.assignmentExpression(
+        ":=",
+        AST.identifier("outer_stage"),
+        AST.integerLiteral(0)
+      )
+    );
+    I.evaluate(
+      AST.assignmentExpression(
+        ":=",
+        AST.identifier("inner_stage"),
+        AST.integerLiteral(0)
+      )
+    );
+
+    I.evaluate(
+      AST.assignmentExpression(
+        ":=",
+        AST.identifier("outer"),
+        AST.procExpression(
+          AST.blockExpression([
+            AST.ifExpression(
+              AST.binaryExpression(
+                "==",
+                AST.identifier("outer_stage"),
+                AST.integerLiteral(0)
+              ),
+              AST.blockExpression([
+                appendToTrace("A"),
+                AST.assignmentExpression(
+                  "=",
+                  AST.identifier("future_handle"),
+                  AST.spawnExpression(
+                    AST.blockExpression([
+                      AST.ifExpression(
+                        AST.binaryExpression(
+                          "==",
+                          AST.identifier("inner_stage"),
+                          AST.integerLiteral(0)
+                        ),
+                        AST.blockExpression([
+                          appendToTrace("B"),
+                          AST.assignmentExpression(
+                            "=",
+                            AST.identifier("inner_stage"),
+                            AST.integerLiteral(1)
+                          ),
+                          AST.functionCall(AST.identifier("proc_yield"), []),
+                          AST.integerLiteral(7),
+                        ]),
+                        [
+                          AST.orClause(
+                            AST.blockExpression([
+                              appendToTrace("D"),
+                              AST.assignmentExpression(
+                                "=",
+                                AST.identifier("inner_stage"),
+                                AST.integerLiteral(2)
+                              ),
+                              AST.integerLiteral(7),
+                            ]),
+                            AST.binaryExpression(
+                              "==",
+                              AST.identifier("inner_stage"),
+                              AST.integerLiteral(1)
+                            )
+                          ),
+                        ]
+                      ),
+                      AST.integerLiteral(7),
+                    ])
+                  )
+                ),
+                AST.assignmentExpression(
+                  "=",
+                  AST.identifier("outer_stage"),
+                  AST.integerLiteral(1)
+                ),
+                AST.functionCall(AST.identifier("proc_yield"), []),
+                AST.integerLiteral(0),
+              ]),
+              [
+                AST.orClause(
+                  AST.blockExpression([
+                    appendToTrace("C"),
+                    AST.assignmentExpression(
+                      ":=",
+                      AST.identifier("result"),
+                      AST.functionCall(
+                        AST.memberAccessExpression(AST.identifier("future_handle"), "value"),
+                        []
+                      )
+                    ),
+                    AST.assignmentExpression(
+                      "=",
+                      AST.identifier("outer_stage"),
+                      AST.integerLiteral(2)
+                    ),
+                    AST.identifier("result"),
+                  ]),
+                  AST.binaryExpression(
+                    "==",
+                    AST.identifier("outer_stage"),
+                    AST.integerLiteral(1)
+                  )
+                ),
+              ]
+            ),
+          ])
+        )
+      )
+    );
+
+    drainScheduler(I);
+
+    const traceVal = I.evaluate(AST.identifier("trace"));
+    expect(traceVal).toEqual({ kind: "string", value: "ABCD" });
+
+    const futureStatusCall = AST.functionCall(
+      AST.memberAccessExpression(AST.identifier("future_handle"), "status"),
+      []
+    );
+    const outerStatusCall = AST.functionCall(
+      AST.memberAccessExpression(AST.identifier("outer"), "status"),
+      []
+    );
+    const outerValueCall = AST.functionCall(
+      AST.memberAccessExpression(AST.identifier("outer"), "value"),
+      []
+    );
+
+    const futureStatus = I.evaluate(futureStatusCall) as any;
+    expect(futureStatus.kind).toBe("struct_instance");
+    expect(futureStatus.def.id.name).toBe("Resolved");
+
+    const outerStatus = I.evaluate(outerStatusCall) as any;
+    expect(outerStatus.kind).toBe("struct_instance");
+    expect(outerStatus.def.id.name).toBe("Resolved");
+
+    const outerValue = I.evaluate(outerValueCall);
+    expect(outerValue).toEqual({ kind: "i32", value: 7 });
   });
 
   test("proc task observes cancellation cooperatively", () => {
