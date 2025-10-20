@@ -2,7 +2,11 @@
   "description": "Named struct pattern requires matching field",
   "expect": {
     "errors": [
-      "Missing field 'z' during destructuring"
+      "Missing field 'z' during destructuring",
+      "typechecker: struct pattern field 'z' not found"
+    ],
+    "typecheckDiagnostics": [
+      "typechecker: struct pattern field 'z' not found"
     ]
   },
   "entry": "module.json"

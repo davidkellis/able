@@ -1,0 +1,74 @@
+package main
+
+## The string "PAYPALISHIRING" is written in a zigzag pattern on a given number of rows 
+## and then read line by line: "PAHNAPLSIIGYIR"
+
+fn convert(s: string, num_rows: i32) -> string {
+  if num_rows <= 1 or num_rows >= s.length {
+    return s
+  }
+  
+  rows := []
+  i := 0
+  while i < num_rows {
+    rows.push("")
+    i = i + 1
+  }
+  
+  current_row := 0
+  going_down := false
+  
+  i := 0
+  while i < s.length {
+    rows[current_row] = rows[current_row] + s[i]
+    
+    if current_row == 0 or current_row == num_rows - 1 {
+      going_down = not going_down
+    }
+    
+    current_row = if going_down { current_row + 1 } else { current_row - 1 }
+    i = i + 1
+  }
+  
+  ## Combine all rows
+  result := ""
+  i := 0
+  while i < rows.length {
+    result = result + rows[i]
+    i = i + 1
+  }
+  
+  result
+}
+
+fn main() -> void {
+  test_cases := [
+    ("PAYPALISHIRING", 3, "PAHNAPLSIIGYIR"),
+    ("PAYPALISHIRING", 4, "PINALSIGYAHRPI"),
+    ("A", 1, "A"),
+    ("AB", 1, "AB"),
+    ("ABC", 2, "ACB"),
+    ("", 3, ""),
+    ("HELLO", 10, "HELLO")
+  ]
+  
+  i := 0
+  while i < test_cases.length {
+    input := test_cases[i].0
+    num_rows := test_cases[i].1
+    expected := test_cases[i].2
+    result := convert(input, num_rows)
+    
+    print(`Test case ${i + 1}:`)
+    print(`Input: "${input}", rows: ${num_rows}`)
+    print(`Expected: "${expected}", Got: "${result}"`)
+    if result == expected {
+      print("✓ PASSED")
+    } else {
+      print("✗ FAILED")
+    }
+    print("")
+    
+    i = i + 1
+  }
+}

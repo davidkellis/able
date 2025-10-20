@@ -1,5 +1,5 @@
 package helloworld
 
 fn main() {
-  a = 1
+  print("Hello, World!")
 }

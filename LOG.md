@@ -764,6 +764,39 @@ Tests
 
 - GOCACHE=$(pwd)/.gocache go test ./...
 
+> Method-Set Self Constraints (2025-10-23)
+
+- Added coverage for `Self`-scoped method-set where clauses so `Formatter<string>` obligations now surface contextually annotated diagnostics; broadened `typesEquivalentForSignature` to treat applied struct targets and struct instances as equivalent (`interpreter10-go/pkg/typechecker/checker_expressions_constraints_test.go`, `implementation_validation.go`).
+
+Tests
+
+- (cd interpreter10-go && GOCACHE=$(pwd)/.gocache go test ./pkg/typechecker)
+
+> Constraint Solver Diagnostics (2025-10-21)
+
+- Tightened the method-set regression by asserting the `"via method 'format'"` and `"via method set"` contexts appear on unsatisfied obligations now that substitution drops redundant type parameters (`interpreter10-go/pkg/typechecker/checker_expressions_constraints_test.go`).
+
+Tests
+
+- (cd interpreter10-go && GOCACHE=$(pwd)/.gocache go test ./pkg/typechecker)
+
+> Go Concurrency Parallelism (2025-10-19)
+
+- Hardened the Go runtime environment with `sync.RWMutex` protection and per-environment metadata so concurrent `proc`/`spawn` tasks can safely share global scopes without corrupting bindings (`interpreter10-go/pkg/runtime/environment.go`).
+- Moved breakpoint/raise bookkeeping into per-task `evalState` instances attached to async payloads, eliminating the global serialization mutex and allowing goroutine-backed executors to run tasks in parallel (`interpreter10-go/pkg/interpreter/interpreter.go`, `interpreter10-go/pkg/interpreter/interpreter_concurrency.go`).
+- Ported parity-inspired concurrency coverage: added explicit diagnostics for `proc_cancelled()` misuse and a shared-state stress test that uses user-provided mutexes to coordinate concurrent procs (`interpreter10-go/pkg/interpreter/interpreter_concurrency_test.go`).
+
+Tests
+
+- (cd interpreter10-go && GOCACHE=$(pwd)/.gocache go test ./...)
+
+> AST & Typechecker Roadmap (2025-10-19)
+
+- Documented the v10 AST contract to keep the shared node structure stable for the upcoming typechecker/parser work (`design/ast-contract.md`), and captured the typechecker architecture plan (`design/typechecker-plan.md`).
+- Outlined the parser implementation roadmap with clear prerequisites and end-to-end testing strategy, keeping the future grammar aligned with the frozen AST (`design/parser-roadmap.md`).
+- Updated parity notes to focus concurrency fixture porting on goroutine-compatible scenarios, deferring TS-specific fairness traces (`interpreter10-go/PARITY.md`).
+- Scaffolded the Go typechecker package with literal typing, identifier lookup, and inference tracking, including the first README and unit tests (`interpreter10-go/pkg/typechecker`).
+
 > Go Concurrency Coverage (2025-10-18)
 
 - Added targeted Go interpreter tests for concurrency handles covering cancellation-before-start, cooperative `proc_cancelled` observation, future memoisation, and failure propagation (`interpreter10-go/pkg/interpreter/interpreter_concurrency_test.go`).

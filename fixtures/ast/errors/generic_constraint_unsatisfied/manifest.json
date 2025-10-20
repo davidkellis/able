@@ -2,7 +2,11 @@
   "description": "Generic constraint failure when type argument lacks required interface",
   "expect": {
     "errors": [
-      "Type 'i32' does not satisfy interface 'Show': missing method 'to_string'"
+      "Type 'i32' does not satisfy interface 'Show': missing method 'to_string'",
+      "typechecker: methods for Struct:Point::accept_show constraint on T is not satisfied: i32 does not implement Show"
+    ],
+    "typecheckDiagnostics": [
+      "typechecker: methods for Struct:Point::accept_show constraint on T is not satisfied: i32 does not implement Show"
     ]
   },
   "entry": "module.json"

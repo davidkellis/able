@@ -1,0 +1,90 @@
+package main
+
+## Given a string s, return the longest palindromic substring in s.
+
+fn longest_palindrome(s: string) -> string {
+  if s.length <= 1 {
+    return s
+  }
+  
+  start := 0
+  max_length := 1
+  
+  i := 0
+  while i < s.length {
+    ## Check for odd length palindromes (center at i)
+    len1 := expand_around_center(s, i, i)
+    ## Check for even length palindromes (center between i and i+1)
+    len2 := expand_around_center(s, i, i + 1)
+    
+    current_max := if len1 > len2 { len1 } else { len2 }
+    
+    if current_max > max_length {
+      max_length = current_max
+      start = i - (current_max - 1) / 2
+    }
+    
+    i = i + 1
+  }
+  
+  end := start + max_length
+  s.substring(start, end)
+}
+
+fn expand_around_center(s: string, left: i32, right: i32) -> i32 {
+  while left >= 0 and right < s.length and s[left] == s[right] {
+    left = left - 1
+    right = right + 1
+  }
+  
+  right - left - 1
+}
+
+fn main() -> void {
+  test_cases := [
+    ("babad", "bab"),  ## "aba" is also valid
+    ("cbbd", "bb"),
+    ("a", "a"),
+    ("ac", "a"),      ## "c" is also valid
+    ("racecar", "racecar"),
+    ("", ""),
+    ("aaaa", "aaaa"),
+    ("abcda", "a"),
+    ("abacdfgdcaba", "aba")
+  ]
+  
+  i := 0
+  while i < test_cases.length {
+    input := test_cases[i].0
+    expected := test_cases[i].1
+    result := longest_palindrome(input)
+    
+    print(`Test case ${i + 1}:`)
+    print(`Input: "${input}"`)
+    print(`Expected: "${expected}", Got: "${result}"`)
+    ## For cases with multiple valid answers, check length
+    if result.length == expected.length and is_palindrome(result) {
+      print("✓ PASSED")
+    } else {
+      print("✗ FAILED")
+    }
+    print("")
+    
+    i = i + 1
+  }
+}
+
+fn is_palindrome(s: string) -> bool {
+  left := 0
+  right := s.length - 1
+  
+  while left < right {
+    if s[left] != s[right] {
+      return false
+    }
+    left = left + 1
+    right = right - 1
+  }
+  
+  true
+}

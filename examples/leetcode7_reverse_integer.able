@@ -1,0 +1,59 @@
+package main
+
+## Given a 32-bit signed integer, reverse digits of an integer.
+
+fn reverse(x: i32) -> i32 {
+  sign := if x < 0 { -1 } else { 1 }
+  x_abs := if x < 0 { -x } else { x }
+  
+  reversed := 0
+  
+  while x_abs > 0 {
+    digit := x_abs % 10
+    reversed = reversed * 10 + digit
+    x_abs = x_abs / 10
+  }
+  
+  result := sign * reversed
+  
+  ## Check for 32-bit integer overflow
+  if result < -2147483648 or result > 2147483647 {
+    return 0
+  }
+  
+  result
+}
+
+fn main() -> void {
+  test_cases := [
+    (123, 321),
+    (-123, -321),
+    (120, 21),
+    (0, 0),
+    (1534236469, 0),  ## Overflow case
+    (-2147483648, 0), ## Overflow case
+    (1, 1),
+    (-1, -1),
+    (10, 1),
+    (-10, -1)
+  ]
+  
+  i := 0
+  while i < test_cases.length {
+    input := test_cases[i].0
+    expected := test_cases[i].1
+    result := reverse(input)
+    
+    print(`Test case ${i + 1}:`)
+    print(`Input: ${input}`)
+    print(`Expected: ${expected}, Got: ${result}`)
+    if result == expected {
+      print("✓ PASSED")
+    } else {
+      print("✗ FAILED")
+    }
+    print("")
+    
+    i = i + 1
+  }
+}

@@ -2,7 +2,11 @@
   "description": "Struct pattern type must match value type",
   "expect": {
     "errors": [
-      "Struct type mismatch in destructuring"
+      "Struct type mismatch in destructuring",
+      "typechecker: struct pattern field 'dx' not found"
+    ],
+    "typecheckDiagnostics": [
+      "typechecker: struct pattern field 'dx' not found"
     ]
   },
   "entry": "module.json"

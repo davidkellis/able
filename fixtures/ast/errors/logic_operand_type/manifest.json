@@ -2,7 +2,11 @@
   "description": "Logical operators require boolean operands",
   "expect": {
     "errors": [
-      "Logical operands must be bool"
+      "Logical operands must be bool",
+      "typechecker: '&&' left operand must be bool (got String)"
+    ],
+    "typecheckDiagnostics": [
+      "typechecker: '&&' left operand must be bool (got String)"
     ]
   },
   "entry": "module.json"

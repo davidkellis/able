@@ -3,15 +3,76 @@ package interpreter
 import (
 	"fmt"
 	"strings"
-	"sync"
 
 	"able/interpreter10-go/pkg/ast"
 	"able/interpreter10-go/pkg/runtime"
+	"able/interpreter10-go/pkg/typechecker"
 )
 
 type packageMeta struct {
 	namePath  []string
 	isPrivate bool
+}
+
+type evalState struct {
+	raiseStack  []runtime.Value
+	breakpoints []string
+}
+
+func newEvalState() *evalState {
+	return &evalState{
+		raiseStack:  make([]runtime.Value, 0),
+		breakpoints: make([]string, 0),
+	}
+}
+
+func (s *evalState) pushBreakpoint(label string) {
+	if s == nil {
+		return
+	}
+	s.breakpoints = append(s.breakpoints, label)
+}
+
+func (s *evalState) popBreakpoint() {
+	if s == nil || len(s.breakpoints) == 0 {
+		return
+	}
+	s.breakpoints = s.breakpoints[:len(s.breakpoints)-1]
+}
+
+func (s *evalState) hasBreakpoint(label string) bool {
+	if s == nil {
+		return false
+	}
+	for idx := len(s.breakpoints) - 1; idx >= 0; idx-- {
+		if s.breakpoints[idx] == label {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *evalState) pushRaise(val runtime.Value) {
+	if s == nil {
+		return
+	}
+	s.raiseStack = append(s.raiseStack, val)
+}
+
+func (s *evalState) popRaise() (runtime.Value, bool) {
+	if s == nil || len(s.raiseStack) == 0 {
+		return nil, false
+	}
+	last := s.raiseStack[len(s.raiseStack)-1]
+	s.raiseStack = s.raiseStack[:len(s.raiseStack)-1]
+	return last, true
+}
+
+func (s *evalState) peekRaise() (runtime.Value, bool) {
+	if s == nil || len(s.raiseStack) == 0 {
+		return nil, false
+	}
+	return s.raiseStack[len(s.raiseStack)-1], true
 }
 
 // Interpreter drives evaluation of Able v10 AST nodes.
@@ -21,12 +82,11 @@ type Interpreter struct {
 	interfaces      map[string]*runtime.InterfaceDefinitionValue
 	implMethods     map[string][]implEntry
 	unnamedImpls    map[string]map[string]map[string]struct{}
-	raiseStack      []runtime.Value
 	packageRegistry map[string]map[string]runtime.Value
 	packageMetadata map[string]packageMeta
 	currentPackage  string
-	breakpoints     []string
 	executor        Executor
+	rootState       *evalState
 
 	concurrencyReady    bool
 	procErrorStruct     *runtime.StructDefinitionValue
@@ -34,8 +94,11 @@ type Interpreter struct {
 	procStatusPending   runtime.Value
 	procStatusResolved  runtime.Value
 	procStatusCancelled runtime.Value
-	asyncMu             sync.Mutex
-	currentAsyncContext *asyncContextPayload
+
+	typecheckerEnabled   bool
+	typecheckerStrict    bool
+	typechecker          *typechecker.Checker
+	typecheckDiagnostics []typechecker.Diagnostic
 }
 
 func identifiersToStrings(ids []*ast.Identifier) []string {
@@ -64,24 +127,21 @@ func (i *Interpreter) qualifiedName(name string) string {
 	return i.currentPackage + "." + name
 }
 
-func (i *Interpreter) pushBreakpoint(label string) {
-	i.breakpoints = append(i.breakpoints, label)
-}
-
-func (i *Interpreter) popBreakpoint() {
-	if len(i.breakpoints) == 0 {
-		return
-	}
-	i.breakpoints = i.breakpoints[:len(i.breakpoints)-1]
-}
-
-func (i *Interpreter) hasBreakpoint(label string) bool {
-	for idx := len(i.breakpoints) - 1; idx >= 0; idx-- {
-		if i.breakpoints[idx] == label {
-			return true
+func (i *Interpreter) stateFromEnv(env *runtime.Environment) *evalState {
+	if env != nil {
+		if data := env.RuntimeData(); data != nil {
+			if payload, ok := data.(*asyncContextPayload); ok {
+				if payload.state == nil {
+					payload.state = newEvalState()
+				}
+				return payload.state
+			}
 		}
 	}
-	return false
+	if i.rootState == nil {
+		i.rootState = newEvalState()
+	}
+	return i.rootState
 }
 
 func (i *Interpreter) registerSymbol(name string, value runtime.Value) {
@@ -115,11 +175,10 @@ func NewWithExecutor(exec Executor) *Interpreter {
 		interfaces:      make(map[string]*runtime.InterfaceDefinitionValue),
 		implMethods:     make(map[string][]implEntry),
 		unnamedImpls:    make(map[string]map[string]map[string]struct{}),
-		raiseStack:      make([]runtime.Value, 0),
 		packageRegistry: make(map[string]map[string]runtime.Value),
 		packageMetadata: make(map[string]packageMeta),
-		breakpoints:     make([]string, 0),
 		executor:        exec,
+		rootState:       newEvalState(),
 		procStatusStructs: map[string]*runtime.StructDefinitionValue{
 			"Pending":   nil,
 			"Resolved":  nil,
@@ -141,6 +200,25 @@ func (i *Interpreter) EvaluateModule(module *ast.Module) (runtime.Value, *runtim
 	moduleEnv := i.global
 	prevPackage := i.currentPackage
 	defer func() { i.currentPackage = prevPackage }()
+
+	i.typecheckDiagnostics = nil
+	if i.typecheckerEnabled {
+		if i.typechecker == nil {
+			i.typechecker = typechecker.New()
+		}
+		diags, err := i.typechecker.CheckModule(module)
+		if err != nil {
+			return nil, nil, err
+		}
+		i.typecheckDiagnostics = append(i.typecheckDiagnostics[:0], diags...)
+		if i.typecheckerStrict && len(diags) > 0 {
+			msg := diags[0].Message
+			if !strings.HasPrefix(msg, "typechecker:") {
+				msg = "typechecker: " + msg
+			}
+			return nil, nil, fmt.Errorf("%s", msg)
+		}
+	}
 
 	if module.Package != nil {
 		moduleEnv = runtime.NewEnvironment(i.global)

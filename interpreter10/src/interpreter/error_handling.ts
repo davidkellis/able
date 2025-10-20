@@ -20,6 +20,7 @@ export function evaluateRescueExpression(ctx: InterpreterV10, node: AST.RescueEx
     return ctx.evaluate(node.monitoredExpression, env);
   } catch (e) {
     if (e instanceof RaiseSignal) {
+      ctx.raiseStack.push(e.value);
       for (const clause of node.clauses) {
         const matchEnv = ctx.tryMatchPattern(clause.pattern, e.value, env);
         if (matchEnv) {
@@ -27,9 +28,14 @@ export function evaluateRescueExpression(ctx: InterpreterV10, node: AST.RescueEx
             const g = ctx.evaluate(clause.guard, matchEnv);
             if (!ctx.isTruthy(g)) continue;
           }
-          return ctx.evaluate(clause.body, matchEnv);
+          try {
+            return ctx.evaluate(clause.body, matchEnv);
+          } finally {
+            ctx.raiseStack.pop();
+          }
         }
       }
+      ctx.raiseStack.pop();
       throw e;
     }
     throw e;
@@ -43,7 +49,12 @@ export function evaluateOrElseExpression(ctx: InterpreterV10, node: AST.OrElseEx
     if (e instanceof RaiseSignal) {
       const handlerEnv = new Environment(env);
       if (node.errorBinding) handlerEnv.define(node.errorBinding.name, e.value);
-      return ctx.evaluate(node.handler, handlerEnv);
+      ctx.raiseStack.push(e.value);
+      try {
+        return ctx.evaluate(node.handler, handlerEnv);
+      } finally {
+        ctx.raiseStack.pop();
+      }
     }
     throw e;
   }

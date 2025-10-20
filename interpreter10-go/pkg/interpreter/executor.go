@@ -37,6 +37,7 @@ type asyncContextPayload struct {
 	kind   asyncContextKind
 	handle *runtime.ProcHandleValue
 	future *runtime.FutureValue
+	state  *evalState
 }
 
 type asyncContextKey struct{}

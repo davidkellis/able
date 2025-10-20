@@ -1,0 +1,104 @@
+package main
+
+## Definition for singly-linked list.
+struct ListNode {
+  val: i32,
+  next: ?ListNode
+}
+
+## You are given two non-empty linked lists representing two non-negative integers.
+## The digits are stored in reverse order, and each of their nodes contains a single digit.
+## Add the two numbers and return the sum as a linked list.
+
+fn add_two_numbers(l1: ?ListNode, l2: ?ListNode) -> ?ListNode {
+  dummy_head := ListNode { val: 0, next: nil }
+  current := dummy_head
+  carry := 0
+
+  p := l1
+  q := l2
+
+  while p != nil or q != nil {
+    x :=  if p != nil { p.val } or { 0 }
+    y :=  if q != nil { q.val } or { 0 }
+
+    sum := carry + x + y
+    carry = sum / 10
+    current.next = ListNode { val: sum % 10, next: nil }
+    current = current.next!
+
+    p = get_node_next(p)
+    q = get_node_next(q)
+  }
+
+  if carry > 0 {
+    current.next = ListNode { val: carry, next: nil }
+  }
+
+  dummy_head.next
+}
+
+## Helper function to create a linked list from an array
+fn create_list(nums: Array i32) -> ?ListNode {
+  if nums.length == 0 {
+    return nil
+  }
+
+  head := ListNode { val: nums[0], next: nil }
+  current := head
+
+  i := 1
+  while i < nums.length {
+    current.next = ListNode { val: nums[i], next: nil }
+    current = current.next!
+    i = i + 1
+  }
+
+  head
+}
+
+## Helper function to safely get next from optional node
+fn get_node_next(node: ?ListNode) -> ?ListNode {
+  node.next else { nil }
+}
+
+## Helper function to convert linked list to array for printing
+fn list_to_array(head: ?ListNode) -> Array i32 {
+  result := []
+  current := head
+
+  while current != nil {
+    result.push(current.val)
+    current = current.next
+  }
+
+  result
+}
+
+fn main() -> void {
+  ## Test case 1: 342 + 465 = 807
+  l1 := create_list([2, 4, 3])
+  l2 := create_list([5, 6, 4])
+  result1 := add_two_numbers(l1, l2)
+  print("Test case 1: 342 + 465 = 807")
+  print(`Input: [2,4,3] + [5,6,4]`)
+  print(`Output: ${list_to_array(result1)}`)
+  print("")
+
+  ## Test case 2: 0 + 0 = 0
+  l3 := create_list([0])
+  l4 := create_list([0])
+  result2 := add_two_numbers(l3, l4)
+  print("Test case 2: 0 + 0 = 0")
+  print(`Input: [0] + [0]`)
+  print(`Output: ${list_to_array(result2)}`)
+  print("")
+
+  ## Test case 3: 999 + 999 = 1998
+  l5 := create_list([9, 9, 9])
+  l6 := create_list([9, 9, 9])
+  result3 := add_two_numbers(l5, l6)
+  print("Test case 3: 999 + 999 = 1998")
+  print(`Input: [9,9,9] + [9,9,9]`)
+  print(`Output: ${list_to_array(result3)}`)
+}

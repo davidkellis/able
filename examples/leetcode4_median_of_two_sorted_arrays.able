@@ -1,0 +1,75 @@
+package main
+
+## Given two sorted arrays nums1 and nums2 of size m and n respectively, 
+## return the median of the two sorted arrays.
+## The overall run time complexity should be O(log (m+n)).
+
+fn find_median_sorted_arrays(nums1: Array f64, nums2: Array f64) -> f64 {
+  ## Ensure nums1 is the smaller array
+  if nums1.length > nums2.length {
+    return find_median_sorted_arrays(nums2, nums1)
+  }
+  
+  m := nums1.length
+  n := nums2.length
+  left := 0
+  right := m
+  
+  while left <= right {
+    partition1 := (left + right) / 2
+    partition2 := (m + n + 1) / 2 - partition1
+    
+    max_left1 := if partition1 == 0 { -inf } else { nums1[partition1 - 1] }
+    min_right1 := if partition1 == m { inf } else { nums1[partition1] }
+    
+    max_left2 := if partition2 == 0 { -inf } else { nums2[partition2 - 1] }
+    min_right2 := if partition2 == n { inf } else { nums2[partition2] }
+    
+    if max_left1 <= min_right2 and max_left2 <= min_right1 {
+      ## Found correct partition
+      if (m + n) % 2 == 0 {
+        return (max(max_left1, max_left2) + min(min_right1, min_right2)) / 2.0
+      } else {
+        return max(max_left1, max_left2)
+      }
+    } else if max_left1 > min_right2 {
+      right = partition1 - 1
+    } else {
+      left = partition1 + 1
+    }
+  }
+  
+  0.0  ## Should not reach here for valid input
+}
+
+fn main() -> void {
+  test_cases := [
+    ([1.0, 3.0], [2.0], 2.0),
+    ([1.0, 2.0], [3.0, 4.0], 2.5),
+    ([], [1.0], 1.0),
+    ([0.0, 0.0], [0.0, 0.0], 0.0),
+    ([], [], 0.0),
+    ([2.0], [], 2.0),
+    ([1.0, 3.0, 8.0, 9.0, 15.0], [7.0, 11.0, 18.0, 19.0, 21.0, 25.0], 11.0)
+  ]
+  
+  i := 0
+  while i < test_cases.length {
+    nums1 := test_cases[i].0
+    nums2 := test_cases[i].1
+    expected := test_cases[i].2
+    result := find_median_sorted_arrays(nums1, nums2)
+    
+    print(`Test case ${i + 1}:`)
+    print(`Input: [${nums1}], [${nums2}]`)
+    print(`Expected: ${expected}, Got: ${result}`)
+    if result == expected {
+      print("✓ PASSED")
+    } else {
+      print("✗ FAILED")
+    }
+    print("")
+    
+    i = i + 1
+  }
+}
