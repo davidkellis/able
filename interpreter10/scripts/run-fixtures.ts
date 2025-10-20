@@ -6,6 +6,15 @@ import { AST, V10 } from "../index";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_ROOT = path.resolve(__dirname, "../../fixtures/ast");
+const TYPECHECK_MODE = resolveTypecheckMode(process.env.ABLE_TYPECHECK_FIXTURES);
+
+if (TYPECHECK_MODE !== "off") {
+  const note =
+    `ABLE_TYPECHECK_FIXTURES=${TYPECHECK_MODE} requested; ` +
+    "TypeScript fixture runner does not yet support static typechecking. " +
+    "Diagnostics will be enforced during the Go fixture run.";
+  console.warn(note);
+}
 
 type Manifest = {
   description?: string;
@@ -15,6 +24,7 @@ type Manifest = {
     result?: { kind: string; value?: unknown };
     stdout?: string[];
     errors?: string[];
+    typecheckDiagnostics?: string[];
   };
 };
 
@@ -263,3 +273,18 @@ main().catch((err) => {
   console.error(err);
   process.exitCode = 1;
 });
+
+function resolveTypecheckMode(raw: string | undefined): "off" | "warn" | "strict" {
+  if (!raw) return "off";
+  const normalized = raw.trim().toLowerCase();
+  if (normalized === "" || normalized === "0" || normalized === "off" || normalized === "false") {
+    return "off";
+  }
+  if (normalized === "strict" || normalized === "fail" || normalized === "error" || normalized === "1" || normalized === "true") {
+    return "strict";
+  }
+  if (normalized === "warn" || normalized === "warning") {
+    return "warn";
+  }
+  return "warn";
+}

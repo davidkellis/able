@@ -193,20 +193,21 @@ func (i *Interpreter) evaluateRescueExpression(expr *ast.RescueExpression, env *
 		if !matched {
 			continue
 		}
-		i.raiseStack = append(i.raiseStack, rs.value)
+		state := i.stateFromEnv(clauseEnv)
+		state.pushRaise(rs.value)
 		if clause.Guard != nil {
 			guardVal, gErr := i.evaluateExpression(clause.Guard, clauseEnv)
 			if gErr != nil {
-				i.raiseStack = i.raiseStack[:len(i.raiseStack)-1]
+				state.popRaise()
 				return nil, gErr
 			}
 			if !isTruthy(guardVal) {
-				i.raiseStack = i.raiseStack[:len(i.raiseStack)-1]
+				state.popRaise()
 				continue
 			}
 		}
 		result, bodyErr := i.evaluateExpression(clause.Body, clauseEnv)
-		i.raiseStack = i.raiseStack[:len(i.raiseStack)-1]
+		state.popRaise()
 		if bodyErr != nil {
 			return nil, bodyErr
 		}
@@ -249,20 +250,25 @@ func (i *Interpreter) evaluateOrElseExpression(expr *ast.OrElseExpression, env *
 }
 
 func (i *Interpreter) evaluateEnsureExpression(expr *ast.EnsureExpression, env *runtime.Environment) (runtime.Value, error) {
-	var tryResult runtime.Value = runtime.NilValue{}
+	var (
+		tryResult runtime.Value = runtime.NilValue{}
+		execErr   error
+	)
 	val, err := i.evaluateExpression(expr.TryExpression, env)
 	if err == nil {
 		if val != nil {
 			tryResult = val
 		}
+	} else {
+		execErr = err
 	}
 	if expr.EnsureBlock != nil {
 		if _, ensureErr := i.evaluateBlock(expr.EnsureBlock, env); ensureErr != nil {
 			return nil, ensureErr
 		}
 	}
-	if err != nil {
-		return nil, err
+	if execErr != nil {
+		return nil, execErr
 	}
 	if tryResult == nil {
 		return runtime.NilValue{}, nil
@@ -275,8 +281,9 @@ func (i *Interpreter) evaluateBreakpointExpression(expr *ast.BreakpointExpressio
 		return nil, fmt.Errorf("Breakpoint expression requires label")
 	}
 	label := expr.Label.Name
-	i.pushBreakpoint(label)
-	defer i.popBreakpoint()
+	state := i.stateFromEnv(env)
+	state.pushBreakpoint(label)
+	defer state.popBreakpoint()
 	for {
 		val, err := i.evaluateBlock(expr.Body, env)
 		if err != nil {
@@ -450,6 +457,10 @@ func (i *Interpreter) evaluateFunctionCall(call *ast.FunctionCall, env *runtime.
 	}
 	var injected []runtime.Value
 	var funcValue *runtime.FunctionValue
+	var callState any
+	if env != nil {
+		callState = env.RuntimeData()
+	}
 	switch fn := calleeVal.(type) {
 	case runtime.NativeFunctionValue:
 		args := make([]runtime.Value, 0, len(call.Arguments))
@@ -460,7 +471,7 @@ func (i *Interpreter) evaluateFunctionCall(call *ast.FunctionCall, env *runtime.
 			}
 			args = append(args, val)
 		}
-		ctx := &runtime.NativeCallContext{Env: env, State: i.currentAsyncContext}
+		ctx := &runtime.NativeCallContext{Env: env, State: callState}
 		return fn.Impl(ctx, args)
 	case *runtime.NativeFunctionValue:
 		args := make([]runtime.Value, 0, len(call.Arguments))
@@ -471,7 +482,7 @@ func (i *Interpreter) evaluateFunctionCall(call *ast.FunctionCall, env *runtime.
 			}
 			args = append(args, val)
 		}
-		ctx := &runtime.NativeCallContext{Env: env, State: i.currentAsyncContext}
+		ctx := &runtime.NativeCallContext{Env: env, State: callState}
 		return fn.Impl(ctx, args)
 	case runtime.NativeBoundMethodValue:
 		args := make([]runtime.Value, 0, len(call.Arguments)+1)
@@ -483,7 +494,7 @@ func (i *Interpreter) evaluateFunctionCall(call *ast.FunctionCall, env *runtime.
 			}
 			args = append(args, val)
 		}
-		ctx := &runtime.NativeCallContext{Env: env, State: i.currentAsyncContext}
+		ctx := &runtime.NativeCallContext{Env: env, State: callState}
 		return fn.Method.Impl(ctx, args)
 	case *runtime.NativeBoundMethodValue:
 		args := make([]runtime.Value, 0, len(call.Arguments)+1)
@@ -495,7 +506,7 @@ func (i *Interpreter) evaluateFunctionCall(call *ast.FunctionCall, env *runtime.
 			}
 			args = append(args, val)
 		}
-		ctx := &runtime.NativeCallContext{Env: env, State: i.currentAsyncContext}
+		ctx := &runtime.NativeCallContext{Env: env, State: callState}
 		return fn.Method.Impl(ctx, args)
 	case runtime.DynRefValue:
 		resolved, resErr := i.resolveDynRef(fn)

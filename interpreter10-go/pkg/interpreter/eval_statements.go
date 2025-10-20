@@ -212,7 +212,8 @@ func (i *Interpreter) evaluateBreakStatement(stmt *ast.BreakStatement, env *runt
 	label := ""
 	if stmt.Label != nil {
 		label = stmt.Label.Name
-		if !i.hasBreakpoint(label) {
+		state := i.stateFromEnv(env)
+		if !state.hasBreakpoint(label) {
 			return nil, fmt.Errorf("Unknown break label '%s'", label)
 		}
 	}

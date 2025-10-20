@@ -1,0 +1,99 @@
+package main
+
+## Given an integer x, return true if x is a palindrome.
+
+fn is_palindrome(x: i32) -> bool {
+  ## Negative numbers are not palindromes
+  if x < 0 {
+    return false
+  }
+  
+  ## Numbers ending with 0 (except 0 itself) are not palindromes
+  if x != 0 and x % 10 == 0 {
+    return false
+  }
+  
+  original := x
+  reversed := 0
+  
+  while x > 0 {
+    digit := x % 10
+    reversed = reversed * 10 + digit
+    x = x / 10
+  }
+  
+  original == reversed
+}
+
+## Alternative solution without converting to string
+fn is_palindrome_half(x: i32) -> bool {
+  if x < 0 or (x != 0 and x % 10 == 0) {
+    return false
+  }
+  
+  reversed_half := 0
+  
+  while x > reversed_half {
+    reversed_half = reversed_half * 10 + x % 10
+    x = x / 10
+  }
+  
+  ## For odd length numbers, reversed_half/10 removes the middle digit
+  x == reversed_half or x == reversed_half / 10
+}
+
+fn main() -> void {
+  test_cases := [
+    (121, true),
+    (-121, false),
+    (10, false),
+    (0, true),
+    (1, true),
+    (11, true),
+    (12321, true),
+    (123321, true),
+    (12345, false),
+    (1001, true),
+    (100, false)
+  ]
+  
+  print("Testing is_palindrome:")
+  i := 0
+  while i < test_cases.length {
+    input := test_cases[i].0
+    expected := test_cases[i].1
+    result := is_palindrome(input)
+    
+    print(`Test case ${i + 1}:`)
+    print(`Input: ${input}`)
+    print(`Expected: ${expected}, Got: ${result}`)
+    if result == expected {
+      print("✓ PASSED")
+    } else {
+      print("✗ FAILED")
+    }
+    print("")
+    
+    i = i + 1
+  }
+  
+  print("Testing is_palindrome_half (optimized version):")
+  i := 0
+  while i < test_cases.length {
+    input := test_cases[i].0
+    expected := test_cases[i].1
+    result := is_palindrome_half(input)
+    
+    print(`Test case ${i + 1}:`)
+    print(`Input: ${input}`)
+    print(`Expected: ${expected}, Got: ${result}`)
+    if result == expected {
+      print("✓ PASSED")
+    } else {
+      print("✗ FAILED")
+    }
+    print("")
+    
+    i = i + 1
+  }
+}

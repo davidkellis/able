@@ -130,9 +130,17 @@ func (i *Interpreter) makeAsyncTask(kind asyncContextKind, node ast.Expression, 
 }
 
 func (i *Interpreter) runAsyncEvaluation(payload *asyncContextPayload, node ast.Expression, env *runtime.Environment) (runtime.Value, error) {
-	result, evalErr := i.withAsyncContext(payload, func() (runtime.Value, error) {
-		return i.evaluateExpression(node, env)
-	})
+	if payload == nil {
+		payload = &asyncContextPayload{kind: asyncContextNone}
+	}
+	if payload.state == nil {
+		payload.state = newEvalState()
+	}
+	if env != nil {
+		env.SetRuntimeData(payload)
+		defer env.SetRuntimeData(nil)
+	}
+	result, evalErr := i.evaluateExpression(node, env)
 	if evalErr != nil {
 		return nil, i.asyncFailure(payload, evalErr)
 	}
@@ -173,25 +181,6 @@ func (i *Interpreter) procFailure(payload *asyncContextPayload, value runtime.Va
 	message := fmt.Sprintf("%s failed: %s", label, details)
 	runtimeErr := i.makeProcRuntimeError(message, procErr)
 	return newTaskFailure(runtimeErr, runtimeErr.Message)
-}
-
-func (i *Interpreter) withAsyncContext(ctxPayload *asyncContextPayload, fn func() (runtime.Value, error)) (runtime.Value, error) {
-	i.asyncMu.Lock()
-	prevCtx := i.currentAsyncContext
-	prevRaise := i.raiseStack
-	prevBreak := i.breakpoints
-	prevPkg := i.currentPackage
-	i.currentAsyncContext = ctxPayload
-	i.raiseStack = make([]runtime.Value, 0)
-	i.breakpoints = make([]string, 0)
-	defer func() {
-		i.currentAsyncContext = prevCtx
-		i.raiseStack = prevRaise
-		i.breakpoints = prevBreak
-		i.currentPackage = prevPkg
-		i.asyncMu.Unlock()
-	}()
-	return fn()
 }
 
 func (i *Interpreter) procHandleStatus(handle *runtime.ProcHandleValue) runtime.Value {

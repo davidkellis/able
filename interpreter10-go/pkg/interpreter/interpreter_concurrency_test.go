@@ -1,6 +1,10 @@
 package interpreter
 
 import (
+	"context"
+	"fmt"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -339,6 +343,193 @@ func TestFutureFailurePropagates(t *testing.T) {
 	}
 }
 
+func TestProcCancelledOutsideProc(t *testing.T) {
+	interp := New()
+	global := interp.GlobalEnvironment()
+
+	if _, err := interp.evaluateExpression(ast.Call("proc_cancelled"), global); err == nil {
+		t.Fatalf("expected proc_cancelled outside async context to error")
+	} else if !strings.Contains(err.Error(), "proc_cancelled must be called inside an asynchronous task") {
+		t.Fatalf("unexpected error message %q", err.Error())
+	}
+}
+
+func TestProcFlushDelegatesToExecutor(t *testing.T) {
+	interp := New()
+	stub := &stubExecutor{}
+	interp.executor = stub
+	global := interp.GlobalEnvironment()
+
+	val, err := interp.evaluateExpression(ast.Call("proc_flush"), global)
+	if err != nil {
+		t.Fatalf("proc_flush evaluation failed: %v", err)
+	}
+	if _, ok := val.(runtime.NilValue); !ok {
+		t.Fatalf("expected proc_flush to return nil, got %#v", val)
+	}
+	if stub.flushCalls != 1 {
+		t.Fatalf("expected executor flush to be called exactly once, got %d", stub.flushCalls)
+	}
+}
+
+func TestConcurrentProcsSharedStateWithMutex(t *testing.T) {
+	interp := New()
+	if serial, ok := interp.executor.(*SerialExecutor); ok {
+		serial.Close()
+	}
+	interp.executor = NewGoroutineExecutor(nil)
+	global := interp.GlobalEnvironment()
+
+	var mu sync.Mutex
+	acquire := &runtime.NativeFunctionValue{
+		Name:  "lock_acquire",
+		Arity: 0,
+		Impl: func(_ *runtime.NativeCallContext, _ []runtime.Value) (runtime.Value, error) {
+			mu.Lock()
+			return runtime.NilValue{}, nil
+		},
+	}
+	release := &runtime.NativeFunctionValue{
+		Name:  "lock_release",
+		Arity: 0,
+		Impl: func(_ *runtime.NativeCallContext, _ []runtime.Value) (runtime.Value, error) {
+			mu.Unlock()
+			return runtime.NilValue{}, nil
+		},
+	}
+	global.Define("lock_acquire", acquire)
+	global.Define("lock_release", release)
+
+	mustEval := func(expr ast.Expression) runtime.Value {
+		val, err := interp.evaluateExpression(expr, global)
+		if err != nil {
+			t.Fatalf("expression evaluation failed: %v", err)
+		}
+		return val
+	}
+
+	mustEval(ast.Assign(ast.ID("trace"), ast.Str("")))
+
+	letters := []string{"A", "B", "C", "D"}
+	handles := make([]*runtime.ProcHandleValue, 0, len(letters))
+	for _, letter := range letters {
+		handleVal := mustEval(ast.Proc(ast.Block(
+			ast.Call("lock_acquire"),
+			ast.AssignOp(
+				ast.AssignmentAssign,
+				ast.ID("trace"),
+				ast.Bin("+", ast.ID("trace"), ast.Str(letter)),
+			),
+			ast.Call("lock_release"),
+			ast.Int(0),
+		)))
+		handle, ok := handleVal.(*runtime.ProcHandleValue)
+		if !ok {
+			t.Fatalf("expected proc handle, got %#v", handleVal)
+		}
+		handles = append(handles, handle)
+	}
+
+	for _, handle := range handles {
+		val := interp.procHandleValue(handle)
+		if _, ok := val.(runtime.IntegerValue); !ok {
+			if _, isNil := val.(runtime.NilValue); !isNil {
+				t.Fatalf("expected proc to resolve with value, got %#v", val)
+			}
+		}
+	}
+
+	traceVal, err := global.Get("trace")
+	if err != nil {
+		t.Fatalf("failed to read trace: %v", err)
+	}
+	traceStr, ok := traceVal.(runtime.StringValue)
+	if !ok {
+		t.Fatalf("expected trace to be string, got %#v", traceVal)
+	}
+	if len(traceStr.Val) != len(letters) {
+		t.Fatalf("expected trace length %d, got %d", len(letters), len(traceStr.Val))
+	}
+	for _, letter := range letters {
+		if strings.Count(traceStr.Val, letter) != 1 {
+			t.Fatalf("expected trace to contain %q exactly once, got %q", letter, traceStr.Val)
+		}
+	}
+}
+
+func TestGoroutineExecutorRunsProcsInParallel(t *testing.T) {
+	interp := New()
+	if serial, ok := interp.executor.(*SerialExecutor); ok {
+		serial.Close()
+	}
+	interp.executor = NewGoroutineExecutor(nil)
+	global := interp.GlobalEnvironment()
+
+	sleepFn := &runtime.NativeFunctionValue{
+		Name:  "sleep_ms",
+		Arity: 1,
+		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+			if len(args) != 1 {
+				return nil, fmt.Errorf("sleep_ms expects 1 argument")
+			}
+			intVal, ok := args[0].(runtime.IntegerValue)
+			if !ok || intVal.Val == nil {
+				return nil, fmt.Errorf("sleep_ms expects integer argument")
+			}
+			ms := intVal.Val.Int64()
+			if ms < 0 {
+				return nil, fmt.Errorf("sleep_ms expects non-negative duration")
+			}
+			time.Sleep(time.Duration(ms) * time.Millisecond)
+			return runtime.NilValue{}, nil
+		},
+	}
+	global.Define("sleep_ms", sleepFn)
+
+	const (
+		taskCount  = 4
+		sleepDelay = 30
+	)
+
+	start := time.Now()
+	handles := make([]*runtime.ProcHandleValue, 0, taskCount)
+	for idx := 0; idx < taskCount; idx++ {
+		handleVal, err := interp.evaluateExpression(
+			ast.Proc(ast.Block(
+				ast.Call("sleep_ms", ast.Int(sleepDelay)),
+				ast.Int(int64(idx)),
+			)),
+			global,
+		)
+		if err != nil {
+			t.Fatalf("proc evaluation failed: %v", err)
+		}
+		handle, ok := handleVal.(*runtime.ProcHandleValue)
+		if !ok {
+			t.Fatalf("expected proc handle, got %#v", handleVal)
+		}
+		handles = append(handles, handle)
+	}
+
+	for _, handle := range handles {
+		result := interp.procHandleValue(handle)
+		if _, ok := result.(runtime.IntegerValue); !ok {
+			t.Fatalf("expected integer result, got %#v", result)
+		}
+	}
+
+	elapsed := time.Since(start)
+	sleepDuration := time.Duration(sleepDelay) * time.Millisecond
+	serialDuration := sleepDuration * taskCount
+	parallelThreshold := serialDuration/2 + sleepDuration
+	if elapsed >= serialDuration {
+		t.Fatalf("expected goroutine executor to run tasks concurrently; elapsed %v >= serial duration %v", elapsed, serialDuration)
+	}
+	if elapsed > parallelThreshold {
+		t.Fatalf("expected elapsed time %v to be <= %v when running in parallel", elapsed, parallelThreshold)
+	}
+}
+
 func waitForStatus(handle *runtime.ProcHandleValue, desired runtime.ProcStatus, timeout time.Duration) bool {
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
@@ -384,4 +575,31 @@ func mustGetBool(t *testing.T, env *runtime.Environment, name string) bool {
 		t.Fatalf("expected %s to be bool, got %#v", name, val)
 	}
 	return boolVal.Val
+}
+
+type stubExecutor struct {
+	flushCalls int
+}
+
+func (s *stubExecutor) RunProc(task ProcTask) *runtime.ProcHandleValue {
+	handle := runtime.NewProcHandle()
+	go func() {
+		if task != nil {
+			if _, err := task(context.Background()); err != nil {
+				handle.Fail(runtime.ErrorValue{Message: err.Error()})
+				return
+			}
+		}
+		handle.Resolve(runtime.NilValue{})
+	}()
+	return handle
+}
+
+func (s *stubExecutor) RunFuture(task ProcTask) *runtime.FutureValue {
+	handle := s.RunProc(task)
+	return runtime.NewFutureFromHandle(handle)
+}
+
+func (s *stubExecutor) Flush() {
+	s.flushCalls++
 }

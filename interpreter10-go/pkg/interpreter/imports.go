@@ -276,10 +276,9 @@ func (i *Interpreter) lookupImportSymbol(pkgName, symbol string) (runtime.Value,
 }
 
 func (i *Interpreter) evaluateRethrowStatement(_ *ast.RethrowStatement, env *runtime.Environment) (runtime.Value, error) {
-	_ = env
-	if len(i.raiseStack) == 0 {
-		return nil, raiseSignal{value: runtime.ErrorValue{Message: "Unknown rethrow"}}
+	state := i.stateFromEnv(env)
+	if val, ok := state.peekRaise(); ok {
+		return nil, raiseSignal{value: val}
 	}
-	current := i.raiseStack[len(i.raiseStack)-1]
-	return nil, raiseSignal{value: current}
+	return nil, raiseSignal{value: runtime.ErrorValue{Message: "Unknown rethrow"}}
 }

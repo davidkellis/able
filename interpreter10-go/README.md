@@ -2,13 +2,9 @@
 
 This package hosts the Go reference interpreter for the Able v10 language. The Go implementation is the canonical runtime that must match `spec/full_spec_v10.md` exactly and stay in lockstep with other interpreters on the shared AST and semantics.
 
-Current focus:
-- Define the canonical AST in Go (`pkg/ast`).
-- Mirror the TypeScript AST helpers so shared fixtures remain compatible.
-- Build the evaluator and runtime using Go-native concurrency primitives once the AST is complete.
-- Keep the JSON fixtures under `fixtures/ast` green by running `go test ./pkg/interpreter` after any change to `interpreter10/scripts/export-fixtures.ts` (the tests hydrate every fixture to ensure parity with the TypeScript interpreter).
-
-Development checklist and milestones live in the workspace root `PLAN.md` until this package grows its own detailed plan.
+This repository now hosts the stable, canonical runtime. Shared AST fixtures
+(`fixtures/ast`) and the strict test harness keep the Go and Bun interpreters in
+lockstep with the specification (`./run_all_tests.sh --typecheck-fixtures=strict`).
 
 ## Package layout
 
@@ -43,6 +39,34 @@ Test suites:
 - `pkg/interpreter/impl_resolution_test.go` – focused trait resolution parity cases carried over from TypeScript.
 
 This separation mirrors the TypeScript interpreter’s feature boundaries, keeps diffs small, and allows future contributors to extend a subsystem without wading through a monolithic file. When adding new language features, prefer extending the relevant feature file or creating a new one instead of growing `interpreter.go` or the umbrella tests.
+
+## Concurrency model
+
+- **Executors:** `New()` boots with `SerialExecutor` to keep tests deterministic; production callers should swap to `NewGoroutineExecutor` for real concurrency. Both implementations satisfy the same `Executor` contract.
+- **Thread-safe environments:** `runtime.Environment` guards scope maps with an `RWMutex`, allowing goroutines spawned by `proc`/`spawn` to share globals safely.
+- **Async task state:** Breakpoint and raise stacks live inside an `evalState` that is stored on the async payload, so each goroutine carries its own interpreter state without serialising the entire runtime.
+- **Cooperative helpers:** `proc_yield`, `proc_cancelled`, and `proc_flush` are exposed as native functions. `proc_cancelled` now errors when called outside an async task; tests cover the happy path and misuse.
+- **User-managed synchronisation:** The runtime ensures its internal structures are safe; user code must still guard shared data (e.g. via native mutex helpers) when true parallelism is enabled.
+
+See `design/go-concurrency.md` for a deeper dive and open follow-ups.
+
+## Typechecker status
+
+- The Go-native typechecker in `pkg/typechecker` now covers the full v10 surface
+  (declarations, expressions, patterns, constraint solving).
+- Design notes and future enhancement ideas live in `design/typechecker.md` and
+  `design/typechecker-plan.md` (spans, incremental checking, TS parity).
+- Use the checker to gate fixtures with `ABLE_TYPECHECK_FIXTURES=strict` before
+  running the interpreter; diagnostics surface contextual method-set failures
+  (e.g., `"via method 'format'"`, `"via method set"`).
+
+### Typechecker integration
+
+- `Interpreter.EnableTypechecker` wires the checker into module evaluation. Use
+  `TypecheckConfig{FailFast: true}` to abort execution on diagnostics.
+- Fixture runs can enable the checker via `ABLE_TYPECHECK_FIXTURES=warn` (log
+  diagnostics) or `ABLE_TYPECHECK_FIXTURES=strict` (fail before evaluation).
+  The default remains disabled so existing fixtures continue to run unchanged.
 
 ## Design decisions & contributor guidance
 
