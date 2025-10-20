@@ -3,11 +3,11 @@
 Able is an experimental programming language. This workspace hosts the Able v10 language specification, reference interpreters, and supporting tooling.
 
 ## Project Highlights
-- **Spec-first**: `spec/full_spec_v10.md` captures the current Able v10 semantics and will ultimately codify the canonical AST structure plus its evaluation rules.
-- **Go reference interpreter**: `interpreter10-go/` (in progress) is the reference runtime for v10, but it must still match the specification exactly and stay behaviourally aligned with the other interpreters.
+- **Spec-first**: `spec/full_spec_v10.md` captures the current Able v10 semantics and codifies the canonical AST structure plus its evaluation rules.
+- **Go reference interpreter**: `interpreter10-go/` is the canonical v10 runtime; it defines the shared AST in Go (`pkg/ast`), runs the static typechecker by default, and must remain in lockstep with the written spec.
 - **TypeScript interpreter**: `interpreter10/` remains a mature implementation and source of design inspiration; its AST definition (`src/ast.ts`) must stay structurally aligned with the Go AST so both follow the same spec-defined contract.
 - **Canonical AST & semantics**: every Able v10 interpreter is expected to consume the same AST shapes and produce identical observable behaviour per the spec; divergence is treated as a spec or implementation bug.
-- **Future parser**: Once both interpreters align on the AST, a tree-sitter grammar will emit compatible nodes for all runtimes.
+- **Future parser**: With the Go runtime solid, the next milestone is building the tree-sitter grammar that emits compatible nodes for all runtimes.
 
 ## Repository Layout
 - `spec/` — Language specs (v1–v10) and topic supplements.
@@ -24,9 +24,20 @@ Able is an experimental programming language. This workspace hosts the Able v10 
 4. Use `PLAN.md` for roadmap updates and `AGENTS.md` for onboarding guidance.
 
 ## Getting Started
-- **Go interpreter**: follow `PLAN.md` to help build the reference implementation. Once scaffolded, run `go test ./...` inside `interpreter10-go/`.
+- **Go interpreter (canonical)**: install Go ≥ 1.22, run `go test ./...` inside `interpreter10-go/`, and prefer `./run_all_tests.sh --typecheck-fixtures=strict` before sending code for review.
 - **TypeScript interpreter**: inside `interpreter10/`, run `bun install` then `bun test`.
-- **Specs**: browse `spec/full_spec_v10.md`
+- **Specs**: browse `spec/full_spec_v10.md`.
+
+Combined test suites:
+
+```bash
+# Run TypeScript + Go tests and shared fixtures
+./run_all_tests.sh
+
+# Include Go fixture typechecking (warn logs diagnostics, strict enforces them)
+./run_all_tests.sh --typecheck-fixtures=warn
+./run_all_tests.sh --typecheck-fixtures=strict
+```
 
 ## Contributing
 - Follow the roadmap in `PLAN.md`; update it when work progresses.

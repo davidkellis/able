@@ -80,7 +80,7 @@ The table above captures line-item status; the following themes summarise what s
 ### Concurrency & scheduling
 - [x] Design and implement the goroutine-based executor covering `proc` handles, `spawn`, futures, cancellation hooks, and memoisation (`proc_spawn.test.ts` parity baseline).
 - [x] Add runtime structs for `ProcStatus`, `ProcError`, and plumbing for `value()`, `status()`, and `cancel()` so tests observe the same state transitions as TS.
-- [ ] Extend fixtures (Go + TS) to cover remaining concurrency helpers now that handles/futures are wired up (shared fixtures now cover cancellation, future memoisation, and `proc_cancelled` usage/error; yield fairness scenarios still pending).
+- [ ] Extend fixtures (Go + TS) to cover remaining concurrency helpers now that handles/futures are wired up. Candidate fixtures that align with the goroutine executor: `concurrency/proc_cancel_value`, `concurrency/future_memoization`, `concurrency/proc_cancelled_outside_error`, `concurrency/proc_cancelled_helper`. Skip TS-only fairness traces (e.g. `ABC` scheduler ordering) unless we introduce equivalent coordination helpers on the Go side.
 - [ ] Port the executor semantics to the TypeScript interpreter and mirror the new fixture coverage.
 
 ### Tooling & observability
@@ -89,8 +89,8 @@ The table above captures line-item status; the following themes summarise what s
 
 ## Immediate next actions
 
-1. Promote the remaining concurrency scenarios (`proc_cancelled`, yield fairness) into shared fixtures and mirror them in TS so parity harnesses exercise the cooperative helpers as well.
+1. Port goroutine-compatible concurrency fixtures (`proc_cancel_value`, `future_memoization`, `proc_cancelled_outside_error`, `proc_cancelled_helper`) to the Go suite and parity harness; defer TS fairness-specific traces until we have matching coordination primitives.
 2. Teach the TypeScript interpreter to use the executor contract so `proc`/`spawn` helpers match Go semantics.
-3. Keep this backlog in sync with each milestone—when a theme moves forward, update the relevant checklist items, add fixtures, and note progress in `LOG.md` and `PLAN.md`.
+3. Keep this backlog in sync with each milestone—when a theme moves forward, update the relevant checklist items, add fixtures, and note progress in `PLAN.md`.
 
 _NOTE:_ The only intentional difference between the interpreters is the concurrency implementation detail (Go goroutines/channels vs TypeScript cooperative scheduler). All observable Able semantics must remain identical.

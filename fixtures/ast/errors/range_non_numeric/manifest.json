@@ -2,7 +2,11 @@
   "description": "Range boundaries must be numeric",
   "expect": {
     "errors": [
-      "Range boundaries must be numeric"
+      "Range boundaries must be numeric",
+      "typechecker: range start must be numeric"
+    ],
+    "typecheckDiagnostics": [
+      "typechecker: range start must be numeric"
     ]
   },
   "entry": "module.json"

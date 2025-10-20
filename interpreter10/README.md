@@ -30,6 +30,8 @@ The Go interpreter is the designated reference runtime, but every interpreter in
 - `scripts/run-fixtures.ts`: executes every fixture module against this interpreter and checks manifest expectations (also used to keep the Go harness in sync).
 - `fixtures/ast/`: JSON fixtures and manifests shared with the Go interpreter and future runtimes.
 
+> Tip: set `ABLE_TYPECHECK_FIXTURES=warn` or `ABLE_TYPECHECK_FIXTURES=strict` when running `scripts/run-fixtures.ts` to keep behaviour aligned with the Go runner. The TypeScript harness currently only reports the requested mode; typechecking enforcement happens in the Go suite.
+
 ### Interpreter architecture
 
 The interpreter evaluates AST nodes directly (tree-walk). Key pieces:

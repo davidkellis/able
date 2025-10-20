@@ -1,0 +1,66 @@
+package main
+
+## Given a string s, find the length of the longest substring without repeating characters.
+
+fn length_of_longest_substring(s: string) -> i32 {
+  ## Use a hash map to store the last seen position of each character
+  char_index := Map char i32 {}
+  max_length := 0
+  start := 0  ## Left boundary of the current window
+  
+  i := 0
+  while i < s.length {
+    current_char := s[i]
+    
+    ## Check if character has been seen and is within current window
+    if char_index.has_key(current_char) and char_index[current_char] >= start {
+      ## Move start to one position after the previous occurrence
+      start = char_index[current_char] + 1
+    }
+    
+    ## Update the last seen position of current character
+    char_index[current_char] = i
+    
+    ## Update max length if current window is longer
+    current_length := i - start + 1
+    if current_length > max_length {
+      max_length = current_length
+    }
+    
+    i = i + 1
+  }
+  
+  max_length
+}
+
+fn main() -> void {
+  ## Test cases
+  test_cases := [
+    ("abcabcbb", 3),  ## "abc"
+    ("bbbbb", 1),     ## "b"
+    ("pwwkew", 3),    ## "wke"
+    ("", 0),          ## empty string
+    ("au", 2),        ## "au"
+    ("dvdf", 3),      ## "vdf"
+    ("anviaj", 5)     ## "nviaj"
+  ]
+  
+  i := 0
+  while i < test_cases.length {
+    input := test_cases[i].0
+    expected := test_cases[i].1
+    result := length_of_longest_substring(input)
+    
+    print(`Test case ${i + 1}:`)
+    print(`Input: "${input}"`)
+    print(`Expected: ${expected}, Got: ${result}`)
+    if result == expected {
+      print("✓ PASSED")
+    } else {
+      print("✗ FAILED")
+    }
+    print("")
+    
+    i = i + 1
+  }
+}
