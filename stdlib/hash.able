@@ -1,8 +1,10 @@
+package able
+
 interface Hasher {
   fn #finish() -> u64
   fn #write(bytes: array u8)
 
-  // Provided methods
+  ## Provided methods – runtimes override with efficient implementations.
   fn #write_u8(i: u8) { ... }
   fn #write_u16(i: u16) { ... }
   fn #write_u32(i: u32) { ... }

@@ -13,12 +13,19 @@ type declarationCollector struct {
 	impls       []ImplementationSpec
 	methodSets  []MethodSetSpec
 	obligations []ConstraintObligation
+	exports     []exportRecord
 }
 
 func (c *Checker) collectDeclarations(module *ast.Module) []Diagnostic {
 	builtinEnv := NewEnvironment(nil)
 	registerBuiltins(builtinEnv)
-	collector := &declarationCollector{env: NewEnvironment(builtinEnv)}
+	rootEnv := NewEnvironment(builtinEnv)
+	if c.preludeEnv != nil {
+		c.preludeEnv.ForEach(func(name string, typ Type) {
+			rootEnv.Define(name, typ)
+		})
+	}
+	collector := &declarationCollector{env: rootEnv}
 	// Register built-in primitives in the global scope for convenience.
 	collector.env.Define("true", PrimitiveType{Kind: PrimitiveBool})
 	collector.env.Define("false", PrimitiveType{Kind: PrimitiveBool})
@@ -32,6 +39,7 @@ func (c *Checker) collectDeclarations(module *ast.Module) []Diagnostic {
 	c.implementations = collector.impls
 	c.methodSets = collector.methodSets
 	c.obligations = collector.obligations
+	c.publicDeclarations = collector.exports
 	return collector.diags
 }
 
@@ -109,6 +117,30 @@ func (c *declarationCollector) declare(name string, typ Type, node ast.Node) {
 		return
 	}
 	c.env.Define(name, typ)
+	if shouldExportTopLevel(node) {
+		c.exports = append(c.exports, exportRecord{name: name, node: node})
+	}
+}
+
+func shouldExportTopLevel(node ast.Node) bool {
+	switch def := node.(type) {
+	case *ast.StructDefinition:
+		return def != nil && def.ID != nil && !def.IsPrivate
+	case *ast.UnionDefinition:
+		return def != nil && def.ID != nil && !def.IsPrivate
+	case *ast.InterfaceDefinition:
+		return def != nil && def.ID != nil && !def.IsPrivate
+	case *ast.FunctionDefinition:
+		if def == nil || def.ID == nil {
+			return false
+		}
+		if def.IsPrivate || def.IsMethodShorthand {
+			return false
+		}
+		return true
+	default:
+		return false
+	}
 }
 
 func (c *declarationCollector) resolveTypeExpression(expr ast.TypeExpression, typeParams map[string]Type) Type {
@@ -320,27 +352,96 @@ func registerBuiltins(env *Environment) {
 		return
 	}
 
+	nilType := PrimitiveType{Kind: PrimitiveNil}
+	boolType := PrimitiveType{Kind: PrimitiveBool}
+	i32Type := IntegerType{Suffix: "i32"}
+	i64Type := IntegerType{Suffix: "i64"}
+
 	procYield := FunctionType{
 		Params: nil,
-		Return: PrimitiveType{Kind: PrimitiveNil},
+		Return: nilType,
 	}
 	procCancelled := FunctionType{
 		Params: nil,
-		Return: PrimitiveType{Kind: PrimitiveBool},
+		Return: boolType,
 	}
 	procFlush := FunctionType{
 		Params: nil,
-		Return: PrimitiveType{Kind: PrimitiveNil},
+		Return: nilType,
 	}
 	printFn := FunctionType{
 		Params: []Type{UnknownType{}},
-		Return: PrimitiveType{Kind: PrimitiveNil},
+		Return: nilType,
 	}
 
 	env.Define("proc_yield", procYield)
 	env.Define("proc_cancelled", procCancelled)
 	env.Define("proc_flush", procFlush)
 	env.Define("print", printFn)
+
+	env.Define("__able_channel_new", FunctionType{
+		Params: []Type{i32Type},
+		Return: i64Type,
+	})
+	env.Define("__able_channel_send", FunctionType{
+		Params: []Type{
+			i64Type,
+			TypeParameterType{ParameterName: "T"},
+		},
+		Return: nilType,
+		TypeParams: []GenericParamSpec{
+			{Name: "T"},
+		},
+	})
+	env.Define("__able_channel_receive", FunctionType{
+		Params: []Type{i64Type},
+		Return: NullableType{
+			Inner: TypeParameterType{ParameterName: "T"},
+		},
+		TypeParams: []GenericParamSpec{
+			{Name: "T"},
+		},
+	})
+	env.Define("__able_channel_try_send", FunctionType{
+		Params: []Type{
+			i64Type,
+			TypeParameterType{ParameterName: "T"},
+		},
+		Return: boolType,
+		TypeParams: []GenericParamSpec{
+			{Name: "T"},
+		},
+	})
+	env.Define("__able_channel_try_receive", FunctionType{
+		Params: []Type{i64Type},
+		Return: NullableType{
+			Inner: TypeParameterType{ParameterName: "T"},
+		},
+		TypeParams: []GenericParamSpec{
+			{Name: "T"},
+		},
+	})
+	env.Define("__able_channel_close", FunctionType{
+		Params: []Type{i64Type},
+		Return: nilType,
+	})
+	env.Define("__able_channel_is_closed", FunctionType{
+		Params: []Type{i64Type},
+		Return: boolType,
+	})
+
+	env.Define("__able_mutex_new", FunctionType{
+		Params: nil,
+		Return: i64Type,
+	})
+	env.Define("__able_mutex_lock", FunctionType{
+		Params: []Type{i64Type},
+		Return: nilType,
+	})
+	env.Define("__able_mutex_unlock", FunctionType{
+		Params: []Type{i64Type},
+		Return: nilType,
+	})
 }
 
 func (c *declarationCollector) functionTypeFromDefinition(def *ast.FunctionDefinition, parentScope map[string]Type, owner string, node ast.Node) FunctionType {

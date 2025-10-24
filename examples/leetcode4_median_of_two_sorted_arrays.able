@@ -1,75 +1,47 @@
-package main
+package leetcode4
 
-## Given two sorted arrays nums1 and nums2 of size m and n respectively, 
-## return the median of the two sorted arrays.
-## The overall run time complexity should be O(log (m+n)).
+## Merges two sorted arrays and returns the median as a float.
+fn combined_median(left: Array i32, right: Array i32) -> f64 {
+  merged := merge_sorted(left, right)
+  total := merged.size()
 
-fn find_median_sorted_arrays(nums1: Array f64, nums2: Array f64) -> f64 {
-  ## Ensure nums1 is the smaller array
-  if nums1.length > nums2.length {
-    return find_median_sorted_arrays(nums2, nums1)
+  if total == 0 {
+    return 0.0
   }
-  
-  m := nums1.length
-  n := nums2.length
-  left := 0
-  right := m
-  
-  while left <= right {
-    partition1 := (left + right) / 2
-    partition2 := (m + n + 1) / 2 - partition1
-    
-    max_left1 := if partition1 == 0 { -inf } else { nums1[partition1 - 1] }
-    min_right1 := if partition1 == m { inf } else { nums1[partition1] }
-    
-    max_left2 := if partition2 == 0 { -inf } else { nums2[partition2 - 1] }
-    min_right2 := if partition2 == n { inf } else { nums2[partition2] }
-    
-    if max_left1 <= min_right2 and max_left2 <= min_right1 {
-      ## Found correct partition
-      if (m + n) % 2 == 0 {
-        return (max(max_left1, max_left2) + min(min_right1, min_right2)) / 2.0
-      } else {
-        return max(max_left1, max_left2)
-      }
-    } else if max_left1 > min_right2 {
-      right = partition1 - 1
+  mid := total / 2
+  if total % 2 == 1 {
+    return merged[mid] as f64
+  }
+  (merged[mid - 1] + merged[mid]) as f64 / 2.0
+}
+
+fn merge_sorted(left: Array i32, right: Array i32) -> Array i32 {
+  result := []
+  i := 0
+  j := 0
+  left_len := left.size()
+  right_len := right.size()
+
+  while i < left_len or j < right_len {
+    if j >= right_len or (i < left_len and left[i] <= right[j]) {
+      result.push(left[i])
+      i = i + 1
     } else {
-      left = partition1 + 1
+      result.push(right[j])
+      j = j + 1
     }
   }
-  
-  0.0  ## Should not reach here for valid input
+
+  result
+}
+
+fn show_median(left: Array i32, right: Array i32) -> void {
+  print(`Left: ${left}, Right: ${right}, Median: ${combined_median(left, right)}`)
 }
 
 fn main() -> void {
-  test_cases := [
-    ([1.0, 3.0], [2.0], 2.0),
-    ([1.0, 2.0], [3.0, 4.0], 2.5),
-    ([], [1.0], 1.0),
-    ([0.0, 0.0], [0.0, 0.0], 0.0),
-    ([], [], 0.0),
-    ([2.0], [], 2.0),
-    ([1.0, 3.0, 8.0, 9.0, 15.0], [7.0, 11.0, 18.0, 19.0, 21.0, 25.0], 11.0)
-  ]
-  
-  i := 0
-  while i < test_cases.length {
-    nums1 := test_cases[i].0
-    nums2 := test_cases[i].1
-    expected := test_cases[i].2
-    result := find_median_sorted_arrays(nums1, nums2)
-    
-    print(`Test case ${i + 1}:`)
-    print(`Input: [${nums1}], [${nums2}]`)
-    print(`Expected: ${expected}, Got: ${result}`)
-    if result == expected {
-      print("✓ PASSED")
-    } else {
-      print("✗ FAILED")
-    }
-    print("")
-    
-    i = i + 1
-  }
+  show_median([1, 3], [2])
+  show_median([1, 2], [3, 4])
+  show_median([], [1])
+  show_median([2], [])
 }

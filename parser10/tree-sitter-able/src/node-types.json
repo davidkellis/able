@@ -416,6 +416,10 @@
           "named": true
         },
         {
+          "type": "lambda_expression",
+          "named": true
+        },
+        {
           "type": "member_access",
           "named": true
         },
@@ -425,6 +429,10 @@
         },
         {
           "type": "propagate_suffix",
+          "named": true
+        },
+        {
+          "type": "type_arguments",
           "named": true
         }
       ]
@@ -921,7 +929,7 @@
     "fields": {},
     "children": {
       "multiple": true,
-      "required": false,
+      "required": true,
       "types": [
         {
           "type": "identifier",
@@ -929,6 +937,10 @@
         },
         {
           "type": "import_selector",
+          "named": true
+        },
+        {
+          "type": "import_wildcard_clause",
           "named": true
         }
       ]
@@ -1142,6 +1154,73 @@
     }
   },
   {
+    "type": "lambda_expression",
+    "named": true,
+    "fields": {
+      "body": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      },
+      "parameters": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "lambda_parameter_list",
+            "named": true
+          }
+        ]
+      },
+      "return_type": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "type_expression",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "lambda_parameter",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "lambda_parameter_list",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "lambda_parameter",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "literal_pattern",
     "named": true,
     "fields": {},
@@ -1305,6 +1384,10 @@
         },
         {
           "type": "proc_expression",
+          "named": true
+        },
+        {
+          "type": "rescue_expression",
           "named": true
         },
         {
@@ -1611,6 +1694,10 @@
           "named": true
         },
         {
+          "type": "lambda_expression",
+          "named": true
+        },
+        {
           "type": "member_access",
           "named": true
         },
@@ -1620,6 +1707,10 @@
         },
         {
           "type": "propagate_suffix",
+          "named": true
+        },
+        {
+          "type": "type_arguments",
           "named": true
         }
       ]
@@ -1669,6 +1760,10 @@
         },
         {
           "type": "if_expression",
+          "named": true
+        },
+        {
+          "type": "lambda_expression",
           "named": true
         },
         {
@@ -2119,6 +2214,21 @@
     "type": "topic_reference",
     "named": true,
     "fields": {}
+  },
+  {
+    "type": "type_arguments",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "type_expression",
+          "named": true
+        }
+      ]
+    }
   },
   {
     "type": "type_arrow",
@@ -2671,6 +2781,10 @@
   {
     "type": "import",
     "named": false
+  },
+  {
+    "type": "import_wildcard_clause",
+    "named": true
   },
   {
     "type": "in",

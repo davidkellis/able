@@ -3,6 +3,7 @@ package interpreter
 import (
 	"fmt"
 	"strings"
+	"sync"
 
 	"able/interpreter10-go/pkg/ast"
 	"able/interpreter10-go/pkg/runtime"
@@ -95,6 +96,19 @@ type Interpreter struct {
 	procStatusResolved  runtime.Value
 	procStatusCancelled runtime.Value
 
+	channelMutexReady bool
+	channelMu         sync.Mutex
+	channels          map[int64]*channelState
+	nextChannelHandle int64
+	mutexMu           sync.Mutex
+	mutexes           map[int64]*mutexState
+	nextMutexHandle   int64
+
+	arrayReady   bool
+	hashMapReady bool
+
+	generatorStack []*generatorInstance
+
 	typecheckerEnabled   bool
 	typecheckerStrict    bool
 	typechecker          *typechecker.Checker
@@ -185,8 +199,13 @@ func NewWithExecutor(exec Executor) *Interpreter {
 			"Cancelled": nil,
 			"Failed":    nil,
 		},
+		channels: make(map[int64]*channelState),
+		mutexes:  make(map[int64]*mutexState),
 	}
 	i.initConcurrencyBuiltins()
+	i.initChannelMutexBuiltins()
+	i.initArrayBuiltins()
+	i.initHashMapBuiltins()
 	return i
 }
 
@@ -203,6 +222,12 @@ func (i *Interpreter) EvaluateModule(module *ast.Module) (runtime.Value, *runtim
 
 	i.typecheckDiagnostics = nil
 	if i.typecheckerEnabled {
+		if module == nil {
+			return nil, nil, fmt.Errorf("typechecker: module is nil")
+		}
+		// When evaluating standalone modules without a prelude, fall back to the
+		// legacy per-module typecheck. Callers that use MultiModuleEvaluator should
+		// seed the typechecker explicitly before invoking EvaluateModule.
 		if i.typechecker == nil {
 			i.typechecker = typechecker.New()
 		}

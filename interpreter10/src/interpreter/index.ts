@@ -8,6 +8,7 @@ import { applyMemberAugmentations } from "./members";
 import { applyImplResolutionAugmentations } from "./impl_resolution";
 import { applyEvaluationAugmentations } from "./eval_expressions";
 import { applyConcurrencyAugmentations } from "./concurrency";
+import { applyIteratorAugmentations } from "./iterators";
 import "./definitions";
 import "./imports";
 
@@ -113,6 +114,7 @@ applyPatternAugmentations(InterpreterV10);
 applyTypesAugmentations(InterpreterV10);
 applyMemberAugmentations(InterpreterV10);
 applyImplResolutionAugmentations(InterpreterV10);
+applyIteratorAugmentations(InterpreterV10);
 applyEvaluationAugmentations(InterpreterV10);
 applyConcurrencyAugmentations(InterpreterV10);
 

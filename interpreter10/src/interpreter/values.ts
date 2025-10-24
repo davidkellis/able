@@ -20,6 +20,8 @@ export type V10Value =
   | { kind: "f64"; value: number }
   | { kind: "array"; elements: V10Value[] }
   | { kind: "range"; start: number; end: number; inclusive: boolean }
+  | IteratorValue
+  | IteratorEndValue
   | { kind: "function"; node: AST.FunctionDefinition | AST.LambdaExpression; closureEnv: Environment }
   | { kind: "struct_def"; def: AST.StructDefinition }
   | {
@@ -93,3 +95,20 @@ export type ConstraintSpec = {
   typeParam: string;
   ifaceType: AST.TypeExpression;
 };
+
+export type IteratorStep = {
+  value: V10Value;
+  done: boolean;
+};
+
+export interface IteratorValue {
+  kind: "iterator";
+  iterator: {
+    next: () => IteratorStep;
+    close: () => void;
+  };
+}
+
+export interface IteratorEndValue {
+  kind: "iterator_end";
+}

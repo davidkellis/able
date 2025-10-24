@@ -11,3 +11,15 @@ second = 6
 rest = [7]
 --- main function finished ---"
 `;
+
+exports[`Interpreter Sample - functions-with-destructuring should produce the expected output 1`] = `
+"--- Running main function ---
+Test 1: Struct Destructuring
+x = 3
+y = 4
+Test 2: Array Destructuring
+first = 5
+second = 6
+rest = [7]
+--- main function finished ---"
+`;

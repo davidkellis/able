@@ -35,17 +35,27 @@ func (i *Interpreter) evaluateMemberAccess(expr *ast.MemberAccessExpression, env
 		return i.structInstanceMember(v, expr.Member, env)
 	case *runtime.InterfaceValue:
 		return i.interfaceMember(v, expr.Member)
+	case *runtime.ArrayValue:
+		i.ensureArrayBuiltins()
+		return i.arrayMember(v, expr.Member)
+	case *runtime.HashMapValue:
+		i.ensureHashMapBuiltins()
+		return i.hashMapMember(v, expr.Member)
+	case *runtime.HasherValue:
+		return i.hasherMember(v, expr.Member)
 	case *runtime.ProcHandleValue:
 		return i.procHandleMember(v, expr.Member)
 	case *runtime.FutureValue:
 		return i.futureMember(v, expr.Member)
+	case *runtime.IteratorValue:
+		return i.iteratorMember(v, expr.Member)
 	default:
 		if ident, ok := expr.Member.(*ast.Identifier); ok {
 			if bound, ok := i.tryUfcs(env, ident.Name, obj); ok {
 				return bound, nil
 			}
 		}
-		return nil, fmt.Errorf("Member access only supported on structs/arrays in this milestone")
+		return nil, fmt.Errorf("Member access only supported on structs in this milestone")
 	}
 }
 
@@ -155,6 +165,46 @@ func (i *Interpreter) structInstanceMember(inst *runtime.StructInstanceValue, me
 		return inst.Positional[idx], nil
 	}
 	return nil, fmt.Errorf("Member access only supported on structs/arrays in this milestone")
+}
+
+func (i *Interpreter) iteratorMember(iter *runtime.IteratorValue, member ast.Expression) (runtime.Value, error) {
+	if iter == nil {
+		return nil, fmt.Errorf("iterator receiver is nil")
+	}
+	ident, ok := member.(*ast.Identifier)
+	if !ok {
+		return nil, fmt.Errorf("iterator member access expects identifier")
+	}
+	switch ident.Name {
+	case "next":
+		fn := runtime.NativeFunctionValue{
+			Name:  "iterator.next",
+			Arity: 0,
+			Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+				if len(args) != 1 {
+					return nil, fmt.Errorf("next expects only a receiver")
+				}
+				receiver, ok := args[0].(*runtime.IteratorValue)
+				if !ok {
+					return nil, fmt.Errorf("next receiver must be an iterator")
+				}
+				value, done, err := receiver.Next()
+				if err != nil {
+					return nil, err
+				}
+				if done {
+					return runtime.IteratorEnd, nil
+				}
+				if value == nil {
+					return runtime.NilValue{}, nil
+				}
+				return value, nil
+			},
+		}
+		return &runtime.NativeBoundMethodValue{Receiver: iter, Method: fn}, nil
+	default:
+		return nil, fmt.Errorf("iterator has no member '%s'", ident.Name)
+	}
 }
 
 func (i *Interpreter) tryUfcs(env *runtime.Environment, funcName string, receiver runtime.Value) (runtime.Value, bool) {

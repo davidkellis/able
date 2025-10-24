@@ -12,3 +12,16 @@ Test 7: Outer if true
 Test 7: Inner else executed
 --- main function finished ---"
 `;
+
+exports[`Interpreter Sample - conditionals should produce the expected output 1`] = `
+"--- Running main function ---
+Test 1: Simple if (true) executed
+nil
+Test 3: if/or - First branch executed
+Test 4: if/or - Second branch executed
+Test 5: if/or/else - Else branch executed
+Test 6: if result = Result A
+Test 7: Outer if true
+Test 7: Inner else executed
+--- main function finished ---"
+`;

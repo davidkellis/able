@@ -1,0 +1,123 @@
+package core
+
+## Ordering enumeration used by comparison interfaces.
+struct Less;
+struct Equal;
+struct Greater;
+union Ordering = Less | Equal | Greater;
+
+## Displayable values produce user-facing strings (used by interpolation).
+interface Display for T {
+  fn to_string(self: Self) -> string;
+}
+
+## Cloneable values provide a logical copy operation.
+interface Clone for T {
+  fn clone(self: Self) -> Self;
+}
+
+## Default constructible values expose a zero-argument constructor.
+interface Default for T {
+  fn default() -> Self;
+}
+
+## Hashing support for map/set keys.
+interface Hasher {
+  fn finish(self: Self) -> u64;
+  fn write_bytes(self: Self, bytes: string) -> void;
+}
+
+interface Hash for T {
+  fn hash(self: Self, hasher: Hasher) -> u64;
+}
+
+## Error values participate in raise/rescue.
+interface Error for T {
+  fn message(self: Self) -> string;
+  fn cause(self: Self) -> ?Error;
+}
+
+## Partial equality comparison. Full Eq types must implement these semantics.
+interface PartialEq Rhs for T {
+  fn eq(self: Self, other: Rhs) -> bool;
+  fn ne(self: Self, other: Rhs) -> bool { !self.eq(other) }
+}
+
+## Equality comparison (total); mirrors PartialEq but with stronger semantic expectations.
+interface Eq Rhs for T {
+  fn eq(self: Self, other: Rhs) -> bool;
+  fn ne(self: Self, other: Rhs) -> bool { !self.eq(other) }
+}
+
+## Partial ordering returning Ordering or nil.
+interface PartialOrd Rhs for T {
+  fn partial_cmp(self: Self, other: Rhs) -> ?Ordering;
+}
+
+## Total ordering comparison returning Ordering.
+interface Ord Rhs for T {
+  fn cmp(self: Self, other: Rhs) -> Ordering;
+}
+
+## Operator families.
+interface Add Rhs Output for T {
+  fn add(self: Self, rhs: Rhs) -> Output;
+}
+
+interface Sub Rhs Output for T {
+  fn sub(self: Self, rhs: Rhs) -> Output;
+}
+
+interface Mul Rhs Output for T {
+  fn mul(self: Self, rhs: Rhs) -> Output;
+}
+
+interface Div Rhs Output for T {
+  fn div(self: Self, rhs: Rhs) -> Output;
+}
+
+interface Rem Rhs Output for T {
+  fn rem(self: Self, rhs: Rhs) -> Output;
+}
+
+interface Neg Output for T {
+  fn neg(self: Self) -> Output;
+}
+
+interface BitAnd Rhs Output for T {
+  fn bitand(self: Self, rhs: Rhs) -> Output;
+}
+
+interface BitOr Rhs Output for T {
+  fn bitor(self: Self, rhs: Rhs) -> Output;
+}
+
+interface BitXor Rhs Output for T {
+  fn bitxor(self: Self, rhs: Rhs) -> Output;
+}
+
+interface Shl Rhs Output for T {
+  fn shl(self: Self, rhs: Rhs) -> Output;
+}
+
+interface Shr Rhs Output for T {
+  fn shr(self: Self, rhs: Rhs) -> Output;
+}
+
+interface Not Output for T {
+  fn bit_not(self: Self) -> Output;
+}
+
+## Callable values implement Apply (function call operator).
+interface Apply Args Result for T {
+  fn call(self: Self, args: Args) -> Result;
+}
+
+## Indexing protocol used by [].
+interface Index Idx Output for T {
+  fn index(self: Self, idx: Idx) -> Output;
+}
+
+interface IndexMut Idx Output for T {
+  fn assign(mut self: Self, idx: Idx, value: Output) -> void;
+}

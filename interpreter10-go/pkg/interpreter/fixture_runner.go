@@ -2,7 +2,13 @@ package interpreter
 
 import (
 	"path/filepath"
+	"sort"
+	"strings"
 	"testing"
+
+	"able/interpreter10-go/pkg/ast"
+	"able/interpreter10-go/pkg/driver"
+	"able/interpreter10-go/pkg/typechecker"
 )
 
 // runFixtureWithExecutor replays a fixture directory using the provided executor.
@@ -20,22 +26,38 @@ func runFixtureWithExecutor(t testingT, dir string, executor Executor) {
 	modulePath := filepath.Join(dir, entry)
 	module := readModule(underlying, modulePath)
 
-	interpreter := NewWithExecutor(executor)
-	mode := configureFixtureTypechecker(interpreter)
+	interp := NewWithExecutor(executor)
+	mode := configureFixtureTypechecker(interp)
 	var stdout []string
-	registerPrint(interpreter, &stdout)
+	registerPrint(interp, &stdout)
 
-	if len(manifest.Setup) > 0 {
-		for _, setup := range manifest.Setup {
-			setupModule := readModule(underlying, filepath.Join(dir, setup))
-			if _, _, err := interpreter.EvaluateModule(setupModule); err != nil {
-				t.Fatalf("setup module %s failed: %v", setup, err)
-			}
-		}
+	var programModules []*driver.Module
+	for _, setup := range manifest.Setup {
+		setupPath := filepath.Join(dir, setup)
+		setupModule := readModule(underlying, setupPath)
+		programModules = append(programModules, fixtureDriverModule(setupModule, setupPath))
 	}
 
-	result, _, err := interpreter.EvaluateModule(module)
-	diags := interpreter.TypecheckDiagnostics()
+	entryModule := fixtureDriverModule(module, modulePath)
+	programModules = append(programModules, entryModule)
+	program := &driver.Program{
+		Entry:   entryModule,
+		Modules: programModules,
+	}
+
+	value, _, moduleDiags, err := interp.EvaluateProgram(program, ProgramEvaluationOptions{
+		SkipTypecheck:    mode == typecheckModeOff,
+		AllowDiagnostics: mode == typecheckModeWarn,
+	})
+
+	checkerDiags := extractDiagnostics(moduleDiags)
+	checkFixtureTypecheckDiagnostics(underlying, mode, manifest.Expect.TypecheckDiagnostics, checkerDiags)
+
+	if len(moduleDiags) > 0 && mode != typecheckModeWarn {
+		// Diagnostics prevented evaluation; nothing further to assert.
+		return
+	}
+
 	if len(manifest.Expect.Errors) > 0 {
 		if err == nil {
 			t.Fatalf("expected evaluation error")
@@ -44,18 +66,74 @@ func runFixtureWithExecutor(t testingT, dir string, executor Executor) {
 		if !contains(manifest.Expect.Errors, msg) {
 			t.Fatalf("expected error in %v, got %s", manifest.Expect.Errors, msg)
 		}
-		checkFixtureTypecheckDiagnostics(underlying, mode, manifest.Expect.TypecheckDiagnostics, diags)
 		return
 	}
 	if err != nil {
 		t.Fatalf("evaluation error: %v", err)
 	}
-	checkFixtureTypecheckDiagnostics(underlying, mode, manifest.Expect.TypecheckDiagnostics, diags)
-	assertResult(underlying, dir, manifest, result, stdout)
+	assertResult(underlying, dir, manifest, value, stdout)
 }
 
 // testingT captures the subset of testing.T used by fixture helpers.
 type testingT interface {
 	Helper()
 	Fatalf(format string, args ...interface{})
+}
+
+func fixtureDriverModule(module *ast.Module, file string) *driver.Module {
+	var pkgName string
+	if module != nil && module.Package != nil {
+		parts := make([]string, 0, len(module.Package.NamePath))
+		for _, id := range module.Package.NamePath {
+			if id == nil || id.Name == "" {
+				continue
+			}
+			parts = append(parts, id.Name)
+		}
+		pkgName = strings.Join(parts, ".")
+	}
+	importSet := make(map[string]struct{})
+	for _, imp := range module.Imports {
+		if imp == nil {
+			continue
+		}
+		parts := make([]string, 0, len(imp.PackagePath))
+		for _, id := range imp.PackagePath {
+			if id == nil || id.Name == "" {
+				continue
+			}
+			parts = append(parts, id.Name)
+		}
+		if len(parts) == 0 {
+			continue
+		}
+		importSet[strings.Join(parts, ".")] = struct{}{}
+	}
+	imports := make([]string, 0, len(importSet))
+	for name := range importSet {
+		imports = append(imports, name)
+	}
+	sort.Strings(imports)
+
+	files := []string{}
+	if file != "" {
+		files = []string{file}
+	}
+	return &driver.Module{
+		Package: pkgName,
+		AST:     module,
+		Files:   files,
+		Imports: imports,
+	}
+}
+
+func extractDiagnostics(diags []ModuleDiagnostic) []typechecker.Diagnostic {
+	if len(diags) == 0 {
+		return nil
+	}
+	out := make([]typechecker.Diagnostic, len(diags))
+	for i, diag := range diags {
+		out[i] = diag.Diagnostic
+	}
+	return out
 }

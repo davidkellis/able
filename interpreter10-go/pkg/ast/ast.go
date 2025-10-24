@@ -73,6 +73,8 @@ const (
 	NodeModule                   NodeType = "Module"
 	NodeReturnStatement          NodeType = "ReturnStatement"
 	NodeDynImportStatement       NodeType = "DynImportStatement"
+	NodeIteratorLiteral          NodeType = "IteratorLiteral"
+	NodeYieldStatement           NodeType = "YieldStatement"
 	NodePreludeStatement         NodeType = "PreludeStatement"
 	NodeExternFunctionBody       NodeType = "ExternFunctionBody"
 )
@@ -525,6 +527,18 @@ func NewBlockExpression(body []Statement) *BlockExpression {
 	return &BlockExpression{nodeImpl: newNodeImpl(NodeBlockExpression), Body: body}
 }
 
+type IteratorLiteral struct {
+	nodeImpl
+	expressionMarker
+	statementMarker
+
+	Body []Statement `json:"body"`
+}
+
+func NewIteratorLiteral(body []Statement) *IteratorLiteral {
+	return &IteratorLiteral{nodeImpl: newNodeImpl(NodeIteratorLiteral), Body: body}
+}
+
 type AssignmentOperator string
 
 const (
@@ -810,6 +824,17 @@ type RaiseStatement struct {
 
 func NewRaiseStatement(expression Expression) *RaiseStatement {
 	return &RaiseStatement{nodeImpl: newNodeImpl(NodeRaiseStatement), Expression: expression}
+}
+
+type YieldStatement struct {
+	nodeImpl
+	statementMarker
+
+	Expression Expression `json:"expression,omitempty"`
+}
+
+func NewYieldStatement(expression Expression) *YieldStatement {
+	return &YieldStatement{nodeImpl: newNodeImpl(NodeYieldStatement), Expression: expression}
 }
 
 type RescueExpression struct {

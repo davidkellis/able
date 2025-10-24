@@ -1,0 +1,72 @@
+package concurrency
+
+import able.core.interfaces{Error}
+import able.core.iteration{Iterable, Iterator}
+
+struct ChannelClosed;
+struct ChannelNil;
+struct ChannelSendOnClosed;
+
+impl Error for ChannelClosed {
+  fn message(self: Self) -> string { "channel already closed" }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+impl Error for ChannelNil {
+  fn message(self: Self) -> string { "nil channel" }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+impl Error for ChannelSendOnClosed {
+  fn message(self: Self) -> string { "send on closed channel" }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+struct Channel T {
+  capacity: i32,
+  handle: i64
+}
+
+methods Channel T {
+  fn new(capacity: i32) -> Channel T {
+    handle = __able_channel_new(capacity)
+    Channel T { capacity: capacity, handle: handle }
+  }
+
+  fn send(self: Self, value: T) -> void {
+    __able_channel_send(self.handle, value)
+  }
+
+  fn receive(self: Self) -> ?T {
+    __able_channel_receive(self.handle)
+  }
+
+  fn try_send(self: Self, value: T) -> bool {
+    __able_channel_try_send(self.handle, value)
+  }
+
+  fn try_receive(self: Self) -> ?T {
+    __able_channel_try_receive(self.handle)
+  }
+
+  fn close(self: Self) -> void {
+    __able_channel_close(self.handle)
+  }
+
+  fn is_closed(self: Self) -> bool {
+    __able_channel_is_closed(self.handle)
+  }
+}
+
+impl Iterable T for Channel T {
+  fn iterator(self: Self) -> (Iterator T) {
+    Iterator { gen =>
+      loop {
+        match self.receive() {
+          case value: T => gen.yield(value),
+          case nil => break
+        }
+      }
+    }
+  }
+}

@@ -19,3 +19,23 @@ c1.2 (b): 128
 c1 after mutation: Color { 255, 100, 128 }
 --- main function finished ---"
 `;
+
+exports[`Interpreter Sample - structs should produce the expected output 1`] = `
+"--- Running main function ---
+--- Singleton Struct ---
+Singleton instance: <struct MySingleton>
+--- Named Fields Struct ---
+p1: Point { x: 10, y: 20 }
+p1.x: 10
+p1.y: 20
+p1 after mutation: Point { x: 15, y: 20 }
+p2 (functional update from p1): Point { x: 15, y: 99 }
+p1 (should be unchanged): Point { x: 15, y: 20 }
+--- Positional Fields Struct ---
+c1: Color { 255, 0, 128 }
+c1.0 (r): 255
+c1.1 (g): 0
+c1.2 (b): 128
+c1 after mutation: Color { 255, 100, 128 }
+--- main function finished ---"
+`;

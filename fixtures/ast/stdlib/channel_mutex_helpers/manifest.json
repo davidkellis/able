@@ -1,0 +1,10 @@
+{
+  "description": "Channel.new and Mutex.new expose runtime handles via stdlib helpers",
+  "expect": {
+    "result": {
+      "kind": "bool",
+      "value": true
+    }
+  },
+  "entry": "module.json"
+}

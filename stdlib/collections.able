@@ -1,6 +1,6 @@
-package stdlib;
+package able;
 
-import stdlib.core.{IteratorEnd}; ## Import the end-of-iteration marker
+import able.{IteratorEnd}; ## Import the end-of-iteration marker
 
 ## Iteration Interfaces
 ## Fundamental for 'for' loops and consuming sequences.

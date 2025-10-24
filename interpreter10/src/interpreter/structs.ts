@@ -157,6 +157,12 @@ export function evaluateMemberAccessExpression(ctx: InterpreterV10, node: AST.Me
     if (!fn) throw new Error(`Unknown future method '${node.member.name}'`);
     return ctx.bindNativeMethod(fn, obj);
   }
+  if (obj.kind === "iterator") {
+    if (node.member.type !== "Identifier") throw new Error("Iterator member access expects identifier");
+    const fn = (ctx.iteratorNativeMethods as Record<string, Extract<V10Value, { kind: "native_function" }>>)[node.member.name];
+    if (!fn) throw new Error(`Unknown iterator method '${node.member.name}'`);
+    return ctx.bindNativeMethod(fn, obj);
+  }
   if (node.member.type === "Identifier" && obj.kind !== "struct_instance" && obj.kind !== "array") {
     const ufcs = ctx.tryUfcs(env, node.member.name, obj);
     if (ufcs) return ufcs;

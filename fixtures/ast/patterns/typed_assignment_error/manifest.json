@@ -2,11 +2,7 @@
   "description": "Typed pattern mismatch raises error",
   "expect": {
     "errors": [
-      "Typed pattern mismatch in assignment",
-      "typechecker: pattern expected type Int:i32, got String"
-    ],
-    "typecheckDiagnostics": [
-      "typechecker: pattern expected type Int:i32, got String"
+      "Typed pattern mismatch in assignment"
     ]
   },
   "entry": "module.json"

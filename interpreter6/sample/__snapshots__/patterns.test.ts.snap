@@ -15,3 +15,19 @@ Match result 3 (subj=p1): Point at (10, 20)
 Match result 4 (subj=[100, 200]): Starts with: 100, 200
 --- main function finished ---"
 `;
+
+exports[`Interpreter Sample - patterns should produce the expected output 1`] = `
+"--- Running main function ---
+
+--- Destructuring Assignment ---
+Destructured p1: x=10, y=20
+Destructured array: first=1
+Rest of array: [3, 4]
+
+--- Match Expression ---
+Match result 1 (val=5): five
+Match result 2 (subj=10): matched n (>=10): 10
+Match result 3 (subj=p1): Point at (10, 20)
+Match result 4 (subj=[100, 200]): Starts with: 100, 200
+--- main function finished ---"
+`;

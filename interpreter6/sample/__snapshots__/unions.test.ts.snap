@@ -15,3 +15,19 @@ Processing Point (falls through):
 It is some other shape or value.
 --- main function finished ---"
 `;
+
+exports[`Interpreter Sample - unions should produce the expected output 1`] = `
+"--- Running main function ---
+
+--- Union Tests ---
+
+Processing Circle:
+It is a Circle with radius: 5
+
+Processing Rectangle:
+It is a Rectangle with width 4 and height 6
+
+Processing Point (falls through):
+It is some other shape or value.
+--- main function finished ---"
+`;

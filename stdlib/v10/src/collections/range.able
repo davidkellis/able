@@ -1,0 +1,68 @@
+package collections
+
+import able.core.iteration{IteratorEnd, Iterator, Iterable, Range}
+
+struct IntRange {
+  start: i32,
+  end: i32,
+  inclusive: bool
+}
+
+struct IntRangeIterator {
+  current: i32,
+  end: i32,
+  step: i32,
+  inclusive: bool
+}
+
+impl Iterator i32 for IntRangeIterator {
+  fn next(mut self: Self) -> i32 | IteratorEnd {
+    if self.step == 0 {
+      return IteratorEnd
+    }
+
+    if self.step > 0 {
+      if self.current > self.end {
+        return IteratorEnd
+      }
+      if !self.inclusive && self.current == self.end {
+        return IteratorEnd
+      }
+    } else {
+      if self.current < self.end {
+        return IteratorEnd
+      }
+      if !self.inclusive && self.current == self.end {
+        return IteratorEnd
+      }
+    }
+
+    value = self.current
+    self.current = self.current + self.step
+    return value
+  }
+}
+
+impl Iterable i32 for IntRange {
+  fn iterator(self: Self) -> (Iterator i32) {
+    step = if self.end >= self.start { 1 } else { -1 }
+    IntRangeIterator {
+      current: self.start,
+      end: self.end,
+      step: step,
+      inclusive: self.inclusive
+    }
+  }
+}
+
+struct IntRangeFactory;
+
+impl Range i32 i32 i32 for IntRangeFactory {
+  fn inclusive_range(start: i32, finish: i32) -> Iterable i32 {
+    IntRange { start: start, end: finish, inclusive: true }
+  }
+
+  fn exclusive_range(start: i32, finish: i32) -> Iterable i32 {
+    IntRange { start: start, end: finish, inclusive: false }
+  }
+}
