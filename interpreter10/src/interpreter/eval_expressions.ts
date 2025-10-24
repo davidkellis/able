@@ -12,6 +12,7 @@ import { evaluateMemberAccessExpression, evaluateStructDefinition, evaluateStruc
 import { evaluateLiteral } from "./literals";
 import { evaluateIndexExpression, evaluateRangeExpression, evaluateBinaryExpression, evaluateUnaryExpression } from "./operations";
 import { evaluateProcExpression, evaluateSpawnExpression, evaluateBreakpointExpression, evaluateStringInterpolation } from "./runtime_extras";
+import { evaluateIteratorLiteral, evaluateYieldStatement } from "./iterators";
 import type { V10Value } from "./values";
 
 declare module "./index" {
@@ -99,6 +100,10 @@ export function applyEvaluationAugmentations(cls: typeof InterpreterV10): void {
         return evaluateProcExpression(this, node as AST.ProcExpression, env);
       case "SpawnExpression":
         return evaluateSpawnExpression(this, node as AST.SpawnExpression, env);
+      case "IteratorLiteral":
+        return evaluateIteratorLiteral(this, node as AST.IteratorLiteral, env);
+      case "YieldStatement":
+        return evaluateYieldStatement(this, node as AST.YieldStatement, env);
       case "Module":
         return evaluateModule(this, node as AST.Module);
       case "PackageStatement":

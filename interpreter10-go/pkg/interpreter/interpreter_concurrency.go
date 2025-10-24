@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	goRuntime "runtime"
@@ -142,6 +143,9 @@ func (i *Interpreter) runAsyncEvaluation(payload *asyncContextPayload, node ast.
 	}
 	result, evalErr := i.evaluateExpression(node, env)
 	if evalErr != nil {
+		if errors.Is(evalErr, context.Canceled) {
+			return nil, context.Canceled
+		}
 		return nil, i.asyncFailure(payload, evalErr)
 	}
 	if payload != nil && payload.handle != nil && payload.handle.CancelRequested() {

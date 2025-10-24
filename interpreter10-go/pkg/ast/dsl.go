@@ -262,6 +262,10 @@ func While(condition Expression, body *BlockExpression) *WhileLoop {
 	return NewWhileLoop(condition, body)
 }
 
+func IteratorLit(statements ...Statement) *IteratorLiteral {
+	return NewIteratorLiteral(statements)
+}
+
 func Wloop(condition Expression, statements ...Statement) *WhileLoop {
 	return While(condition, Block(statements...))
 }
@@ -283,6 +287,10 @@ func Cont(label interface{}) *ContinueStatement {
 }
 
 // Error handling helpers.
+
+func Yield(expr Expression) *YieldStatement {
+	return NewYieldStatement(expr)
+}
 
 func Raise(expression Expression) *RaiseStatement {
 	return NewRaiseStatement(expression)

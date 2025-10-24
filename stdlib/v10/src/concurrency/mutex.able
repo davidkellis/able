@@ -1,0 +1,26 @@
+package concurrency
+
+struct Mutex {
+  handle: i64
+}
+
+methods Mutex {
+  fn new() -> Mutex {
+    Mutex { handle: __able_mutex_new() }
+  }
+
+  fn lock(self: Self) -> void {
+    __able_mutex_lock(self.handle)
+  }
+
+  fn unlock(self: Self) -> void {
+    __able_mutex_unlock(self.handle)
+  }
+}
+
+fn with_lock T (m: Mutex, f: () -> T) -> T {
+  m.lock()
+  f() ensure {
+    m.unlock()
+  }
+}

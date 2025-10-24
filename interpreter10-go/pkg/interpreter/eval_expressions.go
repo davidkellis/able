@@ -110,6 +110,8 @@ func (i *Interpreter) evaluateExpression(node ast.Expression, env *runtime.Envir
 		return i.evaluateAssignment(n, env)
 	case *ast.BlockExpression:
 		return i.evaluateBlock(n, env)
+	case *ast.IteratorLiteral:
+		return i.evaluateIteratorLiteral(n, env)
 	case *ast.IfExpression:
 		return i.evaluateIfExpression(n, env)
 	case *ast.RescueExpression:
@@ -124,6 +126,8 @@ func (i *Interpreter) evaluateExpression(node ast.Expression, env *runtime.Envir
 		task := i.makeAsyncTask(asyncContextFuture, n.Expression, env)
 		future := i.executor.RunFuture(task)
 		return future, nil
+	case *ast.LambdaExpression:
+		return i.evaluateLambdaExpression(n, env)
 	default:
 		return nil, fmt.Errorf("unsupported expression type: %s", n.NodeType())
 	}
@@ -330,6 +334,27 @@ func (i *Interpreter) evaluateUnaryExpression(expr *ast.UnaryExpression, env *ru
 			return runtime.BoolValue{Val: !bv.Val}, nil
 		}
 		return nil, fmt.Errorf("unary '!' expects bool, got %T", operand)
+	case "~":
+		switch v := operand.(type) {
+		case runtime.IntegerValue:
+			if strings.HasPrefix(string(v.TypeSuffix), "u") {
+				width := integerBitWidth(v.TypeSuffix)
+				if width <= 0 {
+					return nil, fmt.Errorf("unsupported integer width for bitwise not")
+				}
+				mask := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), uint(width)), big.NewInt(1))
+				val := new(big.Int).Set(v.Val)
+				if val.Sign() < 0 {
+					return nil, fmt.Errorf("bitwise not on unsigned requires non-negative operand")
+				}
+				result := new(big.Int).Xor(mask, val)
+				return runtime.IntegerValue{Val: result, TypeSuffix: v.TypeSuffix}, nil
+			}
+			neg := new(big.Int).Neg(new(big.Int).Add(v.Val, big.NewInt(1)))
+			return runtime.IntegerValue{Val: neg, TypeSuffix: v.TypeSuffix}, nil
+		default:
+			return nil, fmt.Errorf("unary '~' not supported for %T", operand)
+		}
 	default:
 		return nil, fmt.Errorf("unsupported unary operator %s", expr.Operator)
 	}
@@ -593,6 +618,35 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 			return runtime.NilValue{}, nil
 		}
 		return result, nil
+	case *ast.LambdaExpression:
+		if call != nil {
+			if err := i.enforceGenericConstraintsIfAny(decl, call); err != nil {
+				return nil, err
+			}
+		}
+		if len(args) != len(decl.Params) {
+			return nil, fmt.Errorf("Lambda expects %d arguments, got %d", len(decl.Params), len(args))
+		}
+		localEnv := runtime.NewEnvironment(fn.Closure)
+		if call != nil {
+			i.bindTypeArgumentsIfAny(decl, call, localEnv)
+		}
+		for idx, param := range decl.Params {
+			if param == nil {
+				return nil, fmt.Errorf("lambda parameter %d is nil", idx)
+			}
+			if err := i.assignPattern(param.Name, args[idx], localEnv, true); err != nil {
+				return nil, err
+			}
+		}
+		result, err := i.evaluateExpression(decl.Body, localEnv)
+		if err != nil {
+			return nil, err
+		}
+		if result == nil {
+			return runtime.NilValue{}, nil
+		}
+		return result, nil
 	default:
 		return nil, fmt.Errorf("calling unsupported function declaration %T", fn.Declaration)
 	}
@@ -847,4 +901,36 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 	}
 
 	return value, nil
+}
+
+func (i *Interpreter) evaluateIteratorLiteral(expr *ast.IteratorLiteral, env *runtime.Environment) (runtime.Value, error) {
+	iterEnv := runtime.NewEnvironment(env)
+	instance := newGeneratorInstance(i, iterEnv, expr.Body)
+	return runtime.NewIteratorValue(func() (runtime.Value, bool, error) {
+		return instance.next()
+	}, instance.close), nil
+}
+
+func (i *Interpreter) evaluateLambdaExpression(expr *ast.LambdaExpression, env *runtime.Environment) (runtime.Value, error) {
+	if expr == nil {
+		return nil, fmt.Errorf("lambda expression is nil")
+	}
+	return &runtime.FunctionValue{Declaration: expr, Closure: env}, nil
+}
+
+func integerBitWidth(t runtime.IntegerType) int {
+	switch t {
+	case runtime.IntegerI8, runtime.IntegerU8:
+		return 8
+	case runtime.IntegerI16, runtime.IntegerU16:
+		return 16
+	case runtime.IntegerI32, runtime.IntegerU32:
+		return 32
+	case runtime.IntegerI64, runtime.IntegerU64:
+		return 64
+	case runtime.IntegerI128, runtime.IntegerU128:
+		return 128
+	default:
+		return 0
+	}
 }

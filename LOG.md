@@ -790,6 +790,34 @@ Tests
 
 - (cd interpreter10-go && GOCACHE=$(pwd)/.gocache go test ./...)
 
+> Channel Iteration & Generator Laziness (2025-10-23)
+
+- Filled in the Able-facing `Channel.iterator` generator to receive until closed and migrated `with_lock` to use an `ensure` block so mutexes always unlock even on errors (`stdlib/v10/src/concurrency/channel.able`, `stdlib/v10/src/concurrency/mutex.able`).
+- Reworked Go generator literals to return lazy iterators: introduced `runtime.IteratorValue`/`IteratorEnd`, coroutine-backed iterator instances with re-entrancy guards, and a native `next()` binding (`interpreter10-go/pkg/runtime/values.go`, `interpreter10-go/pkg/interpreter/interpreter_iterators.go`, `interpreter_members.go`, `interpreter_stringify.go`).
+- Updated Go `for` loops to drive the iteration protocol (resolving `iterator()` when needed, closing generators on early exit) and added iterator tests validating lazy consumption and error propagation (`interpreter10-go/pkg/interpreter/eval_statements.go`, `interpreter10-go/pkg/interpreter/interpreter_iterators_test.go`).
+
+Tests
+
+- ./run_all_tests.sh
+
+> TS Iterator Runtime Bring-up (2025-10-23)
+
+- Added iterator value kinds and sentinel handling to the TypeScript interpreter (`interpreter10/src/interpreter/values.ts`, `stringify.ts`, `signals.ts`).
+- Implemented generator contexts, iterator natives, and `IteratorLiteral` evaluation, including lazy `for`-loop consumption (`interpreter10/src/interpreter/iterators.ts`, `eval_expressions.ts`, `control_flow.ts`, `structs.ts`, `index.ts`).
+- Added generator-aware block/loop state tracking so `for`/`while` bodies resume mid-iteration without replaying earlier statements (`interpreter10/src/interpreter/iterators.ts`, `control_flow.ts`).
+- Extended continuation state to `if`/`match` expressions to avoid re-evaluating side-effectful conditions/subjects across yields (`interpreter10/src/interpreter/control_flow.ts`, `interpreter10/src/interpreter/match.ts`).
+- Exercised the new behaviour with Bun tests covering lazy yields, `for` loop integration, `gen.stop()`, error propagation, explicit iterator closing semantics, and control-flow resumption (`interpreter10/test/runtime/iterators.test.ts`).
+- Ported the iterator continuation tests to Go to keep both interpreters locked in parity (`interpreter10-go/pkg/interpreter/interpreter_iterators_test.go`).
+- Added fixture-runner stubs for channel/mutex externs so the TypeScript harness can execute stdlib fixtures without the real runtime wiring (`interpreter10/scripts/run-fixtures.ts`).
+- Left advanced control-flow suspension (nested loops/match) for follow-up; iterator frame capture still targets straight-line yields.
+
+> TS Generator Continuations Design (2025-10-23)
+
+- Captured the continuation strategy for lazily evaluating generator literals in the TypeScript interpreter, comparing proc reuse vs. dedicated frame stacks and committing to the latter (`design/ts-generator-continuations.md`).
+- Outlined the runtime shape (`IteratorValue`, `IteratorEnd`, generator controller) plus incremental milestones for straight-line yields, control-flow coverage, and stdlib integration.
+- Updated the interpreter plan to track the new generator workstream ahead of concurrency ergonomics (`interpreter10/PLAN.md`).
+- No code changes yet—upcoming sessions will implement the value kinds, signals, and frame-saving mechanics before mirroring the Go iterator tests.
+
 > AST & Typechecker Roadmap (2025-10-19)
 
 - Documented the v10 AST contract to keep the shared node structure stable for the upcoming typechecker/parser work (`design/ast-contract.md`), and captured the typechecker architecture plan (`design/typechecker-plan.md`).
@@ -808,3 +836,24 @@ Tests
 Tests
 
 - GOCACHE=$(pwd)/.gocache go test ./...
+> Parser Corpus Imports & Breakpoints (2025-10-22)
+
+- Added import-clause variants (wildcard, selector list, module alias) to the grammar with tighter tokenization so the wildcard doesn't conflict with struct patterns (`parser10/tree-sitter-able/grammar.js`).
+- Kept `rescue` in the pipeable expression set so `ensure` + `rescue` combinations remain legal after the ensure refactor (`parser10/tree-sitter-able/grammar.js`).
+- Regenerated parser artifacts for the updated grammar (`parser10/tree-sitter-able/src/*.json`, `parser10/tree-sitter-able/src/parser.c`).
+- Expanded the tree-sitter corpus to cover declarations, control flow, async pipelines, import clauses, and breakpoint expressions for regression safety (`parser10/tree-sitter-able/test/corpus/*.txt`).
+
+Tests
+
+- HOME=$(pwd)/parser10/tree-sitter-able TREE_SITTER_CACHE_DIR=$(pwd)/parser10/tree-sitter-able/.tree-sitter-cache tree-sitter test
+
+> Go Parser Bootstrap (2025-10-22)
+
+- Upgraded the Go toolchain dependency to `github.com/tree-sitter/go-tree-sitter v0.25.0` so the runtime matches the new ABI15 grammar (`interpreter10-go/go.mod`).
+- Introduced a lightweight Able language binding that references the generated C parser directly from the workspace (`interpreter10-go/pkg/parser/language/language.go`).
+- Added a `ModuleParser` that maps package/import/dynimport constructs and now basic function definitions (identifier params, simple expression bodies with literals/binary `+`, and simple return types like `string`) into the canonical AST representation, backed by parser regression tests (`interpreter10-go/pkg/parser/*`).
+
+Tests
+
+- (cd interpreter10-go && GOMODCACHE=$(pwd)/.gomodcache GOCACHE=$(pwd)/.gocache go test ./pkg/parser)
+- (cd interpreter10-go && GOMODCACHE=$(pwd)/.gomodcache GOCACHE=$(pwd)/.gocache go test ./...)

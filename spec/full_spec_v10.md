@@ -3089,7 +3089,7 @@ print("Background log finished.")
 
 ### 12.5. Synchronization Primitives (Crystal-style APIs, Go semantics)
 
-Able provides standard library types `Channel T` and `Mutex` with APIs similar to Crystal, but the semantics are aligned with Go.
+Able provides standard library types `Channel T` and `Mutex` with APIs similar to Crystal, but the semantics are aligned with Go. These types are declared in Able source and use `extern <target>` bodies plus `prelude` initialisation to call into host-provided helpers; interpreters MUST expose the required native helpers so the APIs function uniformly across targets.
 
 #### Channel T
 
@@ -3158,6 +3158,7 @@ for v in ch { print(v) } ## Ends when channel is closed and drained
 Notes:
 -   Multiplexing/select can be provided via library helpers or timer channels (`os.after(d)`); dedicated `select` syntax is TBD.
 -   Timeouts and cancellation can be modeled using auxiliary channels or higher-level APIs. Long-running tasks should periodically check for cancellation via user-defined channels or flags; there is no implicit ambient cancellation context.
+-   Implementation note: no dedicated AST nodes exist for channels or mutexes. All operations are ordinary method calls; runtimes must extend their value representations (e.g., `V10Value`) with host-backed channel/mutex variants and integrate blocking operations with the cooperative scheduler.
 
 Shared-data guidance and patterns:
 

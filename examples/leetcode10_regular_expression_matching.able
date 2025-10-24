@@ -1,136 +1,37 @@
-package main
-## Given an input string s and a pattern p, implement regular expression matching with support for '.' and '*' where:
-## '.' Matches any single character.
-## '*' Matches zero or more of the preceding element.
+package leetcode10
 
-fn is_match(s: string, p: string) -> bool {
-  m := s.length
-  n := p.length
-  
-  ## dp[i][j] represents if s[i:] matches p[j:]
-  dp := []
-  i := 0
-  while i < m + 1 {
-    row := []
-    j := 0
-    while j < n + 1 {
-      row.push(false)
-      j = j + 1
-    }
-    dp.push(row)
-    i = i + 1
-  }
-  
-  dp[m][n] = true  ## Empty string matches empty pattern
-  
-  ## Fill the table from bottom to top, right to left
-  i := m
-  while i >= 0 {
-    j := n - 1
-    while j >= 0 {
-      first_match := i < m and (p[j] == s[i] or p[j] == '.')
-      
-      if j + 1 < n and p[j + 1] == '*' {
-        dp[i][j] = dp[i][j + 2] or (first_match and dp[i + 1][j])
-      } else {
-        dp[i][j] = first_match and dp[i + 1][j + 1]
-      }
-      
-      j = j - 1
-    }
-    i = i - 1
-  }
-  
-  dp[0][0]
+fn is_match(text: Array char, pattern: Array char) -> bool {
+  match_from(text, 0, pattern, 0)
 }
 
-## Recursive solution with memoization
-fn is_match_recursive(s: string, p: string) -> bool {
-  memo := Map string bool {}
-  is_match_helper(s, 0, p, 0, memo)
+fn match_from(text: Array char, ti: i32, pattern: Array char, pi: i32) -> bool {
+  if pi == pattern.size() {
+    return ti == text.size()
+  }
+
+  first := false
+  if ti < text.size() {
+    if pattern[pi] == '.' or pattern[pi] == text[ti] {
+      first = true
+    }
+  }
+
+  has_star := pi + 1 < pattern.size() and pattern[pi + 1] == '*'
+  if has_star {
+    return match_from(text, ti, pattern, pi + 2) or (first and match_from(text, ti + 1, pattern, pi))
+  }
+
+  first and match_from(text, ti + 1, pattern, pi + 1)
 }
 
-fn is_match_helper(s: string, i: i32, p: string, j: i32, memo: Map string bool) -> bool {
-  key := `${i},${j}`
-  if memo.has_key(key) {
-    return memo[key]
-  }
-  
-  if j == p.length {
-    result := i == s.length
-    memo[key] = result
-    return result
-  }
-  
-  first_match := i < s.length and (p[j] == s[i] or p[j] == '.')
-  
-  result := false
-  if j + 1 < p.length and p[j + 1] == '*' {
-    result = is_match_helper(s, i, p, j + 2, memo) or 
-             (first_match and is_match_helper(s, i + 1, p, j, memo))
-  } else {
-    result = first_match and is_match_helper(s, i + 1, p, j + 1, memo)
-  }
-  
-  memo[key] = result
-  result
+fn show_match(text: Array char, pattern: Array char) -> void {
+  print(`text=${text}, pattern=${pattern} -> ${is_match(text, pattern)}`)
 }
 
 fn main() -> void {
-  test_cases := [
-    ("aa", "a", false),
-    ("aa", "a*", true),
-    ("ab", ".*", true),
-    ("aab", "c*a*b", true),
-    ("mississippi", "mis*is*p*.", false),
-    ("", ".*", true),
-    ("", "", true),
-    ("a", "", false),
-    ("", "a*", true),
-    ("ab", ".*c", false),
-    ("aaa", "a*a", true),
-    ("ab", ".*..", true)
-  ]
-  
-  print("Testing DP solution:")
-  i := 0
-  while i < test_cases.length {
-    s := test_cases[i].0
-    p := test_cases[i].1
-    expected := test_cases[i].2
-    result := is_match(s, p)
-    
-    print(`Test case ${i + 1}:`)
-    print(`Input: s="${s}", p="${p}"`)
-    print(`Expected: ${expected}, Got: ${result}`)
-    if result == expected {
-      print("✓ PASSED")
-    } else {
-      print("✗ FAILED")
-    }
-    print("")
-    
-    i = i + 1
-  }
-  
-  print("Testing recursive solution:")
-  i := 0
-  while i < test_cases.length {
-    s := test_cases[i].0
-    p := test_cases[i].1
-    expected := test_cases[i].2
-    result := is_match_recursive(s, p)
-    
-    print(`Test case ${i + 1}:`)
-    print(`Input: s="${s}", p="${p}"`)
-    print(`Expected: ${expected}, Got: ${result}`)
-    if result == expected {
-      print("✓ PASSED")
-    } else {
-      print("✗ FAILED")
-    }
-    print("")
-    
-    i = i + 1
-  }
+  show_match(['a','a'], ['a'])
+  show_match(['a','a'], ['a','*'])
+  show_match(['a','b'], ['.','*'])
+  show_match(['a','a','b'], ['c','*','a','*','b'])
+  show_match(['m','i','s','s','i','s','s','i','p','p','i'], ['m','i','s','*','i','s','*','p','*','.'])
 }

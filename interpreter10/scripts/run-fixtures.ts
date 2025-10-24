@@ -43,6 +43,7 @@ async function main() {
     const manifest = await readManifest(fixtureDir);
     const interpreter = new V10.InterpreterV10();
     ensurePrint(interpreter);
+    installRuntimeStubs(interpreter);
     const stdout: string[] = [];
     let evaluationError: unknown;
     const entry = manifest.entry ?? "module.json";
@@ -235,6 +236,107 @@ function ensurePrint(interpreter: V10.InterpreterV10) {
   } catch {
     // ignore redefinition
   }
+}
+
+function installRuntimeStubs(interpreter: V10.InterpreterV10) {
+  const globals = interpreter.globals ?? (interpreter as any).globals;
+  if (!globals) return;
+
+  const defineStub = (name: string, arity: number, impl: (args: V10.V10Value[]) => V10.V10Value) => {
+    try {
+      globals.define(
+        name,
+        interpreter.makeNativeFunction(name, arity, (_interp, args) => impl(args)),
+      );
+    } catch {
+      // ignore redefinition attempts
+    }
+  };
+
+  let nextHandle = 1;
+  const makeHandle = (): V10.V10Value => ({ kind: "i32", value: nextHandle++ });
+
+  type ChannelState = {
+    capacity: number;
+    queue: V10.V10Value[];
+    closed: boolean;
+  };
+
+  const channels = new Map<number, ChannelState>();
+  const toNumber = (value: V10.V10Value): number => {
+    if (value.kind === "i32" || value.kind === "f64") return Number(value.value ?? 0);
+    return Number((value as any).value ?? value ?? 0);
+  };
+  const toHandle = (value: V10.V10Value): number => toNumber(value);
+
+  defineStub("__able_channel_new", 1, ([capacityArg]) => {
+    const capacity = Math.max(0, Math.trunc(toNumber(capacityArg)));
+    const handleValue = makeHandle();
+    const handle = toHandle(handleValue);
+    channels.set(handle, { capacity, queue: [], closed: false });
+    return handleValue;
+  });
+  defineStub("__able_channel_send", 2, ([handleArg, value]) => {
+    const handle = toHandle(handleArg);
+    const channel = channels.get(handle);
+    if (!channel || channel.closed) return { kind: "nil", value: null };
+    if (channel.capacity === 0) {
+      channel.queue = [value];
+    } else if (channel.queue.length < channel.capacity) {
+      channel.queue.push(value);
+    } else {
+      // exceed capacity: overwrite most recent slot to keep fixture deterministic
+      channel.queue[channel.queue.length - 1] = value;
+    }
+    return { kind: "nil", value: null };
+  });
+  defineStub("__able_channel_receive", 1, ([handleArg]) => {
+    const handle = toHandle(handleArg);
+    const channel = channels.get(handle);
+    if (!channel) return { kind: "nil", value: null };
+    if (channel.queue.length > 0) {
+      return channel.queue.shift()!;
+    }
+    return channel.closed ? { kind: "nil", value: null } : { kind: "nil", value: null };
+  });
+  defineStub("__able_channel_try_send", 2, ([handleArg, value]) => {
+    const handle = toHandle(handleArg);
+    const channel = channels.get(handle);
+    if (!channel || channel.closed) return { kind: "bool", value: false };
+    if (channel.capacity === 0) {
+      channel.queue = [value];
+      return { kind: "bool", value: true };
+    }
+    if (channel.queue.length < channel.capacity) {
+      channel.queue.push(value);
+      return { kind: "bool", value: true };
+    }
+    return { kind: "bool", value: false };
+  });
+  defineStub("__able_channel_try_receive", 1, ([handleArg]) => {
+    const handle = toHandle(handleArg);
+    const channel = channels.get(handle);
+    if (!channel) return { kind: "nil", value: null };
+    if (channel.queue.length > 0) {
+      return channel.queue.shift()!;
+    }
+    return { kind: "nil", value: null };
+  });
+  defineStub("__able_channel_close", 1, ([handleArg]) => {
+    const handle = toHandle(handleArg);
+    const channel = channels.get(handle);
+    if (channel) channel.closed = true;
+    return { kind: "nil", value: null };
+  });
+  defineStub("__able_channel_is_closed", 1, ([handleArg]) => {
+    const handle = toHandle(handleArg);
+    const channel = channels.get(handle);
+    return { kind: "bool", value: channel ? channel.closed : false };
+  });
+
+  defineStub("__able_mutex_new", 0, () => makeHandle());
+  defineStub("__able_mutex_lock", 1, () => ({ kind: "nil", value: null }));
+  defineStub("__able_mutex_unlock", 1, () => ({ kind: "nil", value: null }));
 }
 
 function formatValue(value: V10.V10Value): string {

@@ -75,6 +75,38 @@ With the v10 surface covered, future iterations should focus on:
 3. **TypeScript parity** – mirror the Go checker behaviour in the Bun
    interpreter so `ABLE_TYPECHECK_FIXTURES` can be enforced on both runtimes.
 
+### Multi-package typechecking roadmap (v10 alignment)
+
+- **Session model** – introduce a `ProgramChecker` (or similar) that owns a
+  single `Checker`, a registry of package exports, and the dependency-ordered
+  module list returned by `driver.Loader`. The session walks each module once,
+  guaranteeing that imported packages have already populated their export
+  surface before downstream modules are checked.
+- **Export surfaces** – extend declaration collection to record public
+  definitions (`struct`, `union`, `interface`, `fn`, constants) and impl/method
+  metadata while respecting `private` visibility. The runtime already filters
+  privacy in `pkg/interpreter/imports.go`; mirror that behaviour so exported type
+  information matches the v10 spec.
+- **Package namespace types** – model `import foo;` bindings by introducing a
+  dedicated package namespace type that exposes the exported identifiers via
+  member access (`foo.Bar`, `foo.main`). Selective and aliased imports bind the
+  same export entries directly into scope, and `import foo.*;` splats every
+  public symbol (detecting duplicates per v10 rules).
+- **Impl propagation** – ensure implementations and method sets defined in one
+  package remain available when another package imports it. The checker’s
+  existing `implementations` / `methodSets` tables should be merged into the
+  session-wide registry during export capture so cross-package interface
+  resolution follows the spec’s visibility and coherence rules.
+- **CLI integration** – replace the per-module `Interpreter.EnableTypechecker`
+  call with a `CheckProgram` pass inside `able run`. Abort execution on the
+  first diagnostic, printing the package-qualified name and a
+  representative source path to help users fix multi-package issues before the
+  interpreter runs.
+- **Fixtures/tests** – add cross-package fixtures that exercise imports,
+  privacy, aliasing, wildcard splats, and impl visibility. Gate them in both the
+  Go CLI tests and the checker’s unit suite so parity with the v10 spec stays
+  enforced.
+
 ## Dependencies / assumptions
 
 - AST contract is frozen as described in `design/ast-contract.md`.

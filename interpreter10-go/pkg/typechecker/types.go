@@ -79,6 +79,18 @@ type InterfaceType struct {
 
 func (i InterfaceType) Name() string { return "Interface:" + i.InterfaceName }
 
+type PackageType struct {
+	Package string
+	Symbols map[string]Type
+}
+
+func (p PackageType) Name() string {
+	if p.Package == "" {
+		return "Package:<unknown>"
+	}
+	return "Package:" + p.Package
+}
+
 type UnionType struct {
 	UnionName  string
 	TypeParams []GenericParamSpec

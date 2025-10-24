@@ -1,50 +1,40 @@
-package twosum
+package leetcode1
 
-## Given an array of integers nums and an integer target,
-## return indices of the two numbers such that they add up to target.
-## You may assume that each input would have exactly one solution,
-## and you may not use the same element twice.
-
-fn two_sum(nums: Array i32, target: i32) -> (i32, i32) {
-  ## Use a hash map to store complement values
-  seen := Map i32 i32 {}
-
+## Brute-force two sum for arrays of integers.
+## Returns the first pair of indices whose values add to the target,
+## or an empty array when no pair exists.
+fn two_sum(nums: Array i32, target: i32) -> Array i32 {
   i := 0
-  while i < nums.length {
-    num := nums[i]
-    complement := target - num
+  count := nums.size()
 
-    if seen.has_key(complement) {
-      return (seen[complement], i)
+  while i < count {
+    j := i + 1
+    while j < count {
+      if nums[i] + nums[j] == target {
+        return [i, j]
+      }
+      j = j + 1
     }
-
-    seen[num] = i
     i = i + 1
   }
 
-  ## This should never happen given the problem constraints
-  (-1, -1)
+  []
+}
+
+fn show_result(nums: Array i32, target: i32) -> void {
+  result := two_sum(nums, target)
+  print(`Input: ${nums}, target ${target}`)
+  if result.size() == 2 {
+    print(`Found indices: ${result}`)
+    print(`Values: ${nums[result[0]]} + ${nums[result[1]]}`)
+  } else {
+    print("No solution found.")
+  }
+  print("")
 }
 
 fn main() -> void {
-  ## Test cases
-  nums1 := [2, 7, 11, 15]
-  target1 := 22
-  result1 := two_sum(nums1, target1)
-  print(`Input: ${nums1}, Target: ${target1}`)
-  print(`Output: ${result1}`)
-  print("")
-
-  nums2 := [3, 2, 4]
-  target2 := 6
-  result2 := two_sum(nums2, target2)
-  print(`Input: ${nums2}, Target: ${target2}`)
-  print(`Output: ${result2}`)
-  print("")
-
-  nums3 := [3, 3]
-  target3 := 6
-  result3 := two_sum(nums3, target3)
-  print(`Input: ${nums3}, Target: ${target3}`)
-  print(`Output: ${result3}`)
+  show_result([2, 7, 11, 15], 9)
+  show_result([3, 2, 4], 6)
+  show_result([3, 3], 6)
 }

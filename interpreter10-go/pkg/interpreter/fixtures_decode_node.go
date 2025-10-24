@@ -48,9 +48,34 @@ func decodeNode(node map[string]any) (ast.Node, error) {
 			pkg = decoded
 		}
 		return ast.NewModule(stmts, imports, pkg), nil
+	case "PreludeStatement":
+		target, _ := node["target"].(string)
+		code, _ := node["code"].(string)
+		return ast.NewPreludeStatement(ast.HostTarget(target), code), nil
+	case "ExternFunctionBody":
+		sigRaw, ok := node["signature"].(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("extern function body missing signature")
+		}
+		sigNode, err := decodeNode(sigRaw)
+		if err != nil {
+			return nil, err
+		}
+		signature, ok := sigNode.(*ast.FunctionDefinition)
+		if !ok {
+			return nil, fmt.Errorf("invalid extern signature %T", sigNode)
+		}
+		target, _ := node["target"].(string)
+		body, _ := node["body"].(string)
+		return ast.NewExternFunctionBody(ast.HostTarget(target), signature, body), nil
 	case "StringLiteral":
 		val, _ := node["value"].(string)
 		return ast.NewStringLiteral(val), nil
+	case "CharLiteral":
+		val, _ := node["value"].(string)
+		return ast.NewCharLiteral(val), nil
+	case "NilLiteral":
+		return ast.NewNilLiteral(), nil
 	case "BooleanLiteral":
 		val, _ := node["value"].(bool)
 		return ast.NewBooleanLiteral(val), nil
@@ -107,6 +132,22 @@ func decodeNode(node map[string]any) (ast.Node, error) {
 			return nil, fmt.Errorf("invalid assignment expression right %T", rightNode)
 		}
 		return ast.NewAssignmentExpression(ast.AssignmentOperator(op), left, right), nil
+	case "UnaryExpression":
+		op, _ := node["operator"].(string)
+		operandNode, ok := node["operand"].(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("unary expression missing operand")
+		}
+		decoded, err := decodeNode(operandNode)
+		if err != nil {
+			return nil, err
+		}
+		expr, ok := decoded.(ast.Expression)
+		if !ok {
+			return nil, fmt.Errorf("invalid unary operand %T", decoded)
+		}
+		return ast.NewUnaryExpression(ast.UnaryOperator(op), expr), nil
+
 	case "BlockExpression":
 		bodyVal, _ := node["body"].([]any)
 		stmts := make([]ast.Statement, 0, len(bodyVal))
@@ -364,6 +405,72 @@ func decodeNode(node map[string]any) (ast.Node, error) {
 			clauses = append(clauses, ast.NewOrClause(body, clauseCond))
 		}
 		return ast.NewIfExpression(condition, ifBody, clauses), nil
+	case "LambdaExpression":
+		paramsRaw, _ := node["params"].([]any)
+		params := make([]*ast.FunctionParameter, 0, len(paramsRaw))
+		for _, raw := range paramsRaw {
+			paramNode, ok := raw.(map[string]any)
+			if !ok {
+				return nil, fmt.Errorf("invalid lambda parameter %T", raw)
+			}
+			decoded, err := decodeNode(paramNode)
+			if err != nil {
+				return nil, err
+			}
+			param, ok := decoded.(*ast.FunctionParameter)
+			if !ok {
+				return nil, fmt.Errorf("invalid lambda parameter %T", decoded)
+			}
+			params = append(params, param)
+		}
+		bodyNode, err := decodeNode(node["body"].(map[string]any))
+		if err != nil {
+			return nil, err
+		}
+		bodyExpr, ok := bodyNode.(ast.Expression)
+		if !ok {
+			return nil, fmt.Errorf("invalid lambda body %T", bodyNode)
+		}
+		var returnType ast.TypeExpression
+		if rtRaw, ok := node["returnType"].(map[string]any); ok {
+			RT, err := decodeTypeExpression(rtRaw)
+			if err != nil {
+				return nil, err
+			}
+			returnType = RT
+		}
+		var generics []*ast.GenericParameter
+		if gpRaw, ok := node["genericParams"].([]any); ok {
+			generics = make([]*ast.GenericParameter, 0, len(gpRaw))
+			for _, raw := range gpRaw {
+				gpNode, ok := raw.(map[string]any)
+				if !ok {
+					return nil, fmt.Errorf("invalid lambda generic param %T", raw)
+				}
+				gp, err := decodeGenericParameter(gpNode)
+				if err != nil {
+					return nil, err
+				}
+				generics = append(generics, gp)
+			}
+		}
+		var whereClause []*ast.WhereClauseConstraint
+		if wcRaw, ok := node["whereClause"].([]any); ok {
+			whereClause = make([]*ast.WhereClauseConstraint, 0, len(wcRaw))
+			for _, raw := range wcRaw {
+				wcNode, ok := raw.(map[string]any)
+				if !ok {
+					return nil, fmt.Errorf("invalid lambda where clause %T", raw)
+				}
+				wc, err := decodeWhereClauseConstraint(wcNode)
+				if err != nil {
+					return nil, err
+				}
+				whereClause = append(whereClause, wc)
+			}
+		}
+		isVerbose, _ := node["isVerboseSyntax"].(bool)
+		return ast.NewLambdaExpression(params, bodyExpr, returnType, generics, whereClause, isVerbose), nil
 	case "FunctionCall":
 		calleeNode, err := decodeNode(node["callee"].(map[string]any))
 		if err != nil {
@@ -490,6 +597,99 @@ func decodeNode(node map[string]any) (ast.Node, error) {
 		isMethodShorthand, _ := node["isMethodShorthand"].(bool)
 		isPrivate, _ := node["isPrivate"].(bool)
 		return ast.NewFunctionDefinition(id, params, body, returnType, generics, nil, isMethodShorthand, isPrivate), nil
+	case "ImplementationDefinition":
+		ifaceNode, err := decodeNode(node["interfaceName"].(map[string]any))
+		if err != nil {
+			return nil, err
+		}
+		ifaceID, ok := ifaceNode.(*ast.Identifier)
+		if !ok {
+			return nil, fmt.Errorf("invalid implementation interface name %T", ifaceNode)
+		}
+		targetRaw, ok := node["targetType"].(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("implementation definition missing target type")
+		}
+		targetType, err := decodeTypeExpression(targetRaw)
+		if err != nil {
+			return nil, err
+		}
+		defsVal, _ := node["definitions"].([]any)
+		defs := make([]*ast.FunctionDefinition, 0, len(defsVal))
+		for _, raw := range defsVal {
+			fnNode, ok := raw.(map[string]any)
+			if !ok {
+				return nil, fmt.Errorf("invalid implementation function %T", raw)
+			}
+			decoded, err := decodeNode(fnNode)
+			if err != nil {
+				return nil, err
+			}
+			fn, ok := decoded.(*ast.FunctionDefinition)
+			if !ok {
+				return nil, fmt.Errorf("invalid implementation function %T", decoded)
+			}
+			defs = append(defs, fn)
+		}
+		var implName *ast.Identifier
+		if implRaw, ok := node["implName"].(map[string]any); ok {
+			decoded, err := decodeNode(implRaw)
+			if err != nil {
+				return nil, err
+			}
+			id, ok := decoded.(*ast.Identifier)
+			if !ok {
+				return nil, fmt.Errorf("invalid implementation name %T", decoded)
+			}
+			implName = id
+		}
+		var generics []*ast.GenericParameter
+		if gpRaw, ok := node["genericParams"].([]any); ok {
+			generics = make([]*ast.GenericParameter, 0, len(gpRaw))
+			for _, raw := range gpRaw {
+				gpNode, ok := raw.(map[string]any)
+				if !ok {
+					return nil, fmt.Errorf("invalid implementation generic param %T", raw)
+				}
+				gp, err := decodeGenericParameter(gpNode)
+				if err != nil {
+					return nil, err
+				}
+				generics = append(generics, gp)
+			}
+		}
+		var interfaceArgs []ast.TypeExpression
+		if iaRaw, ok := node["interfaceArgs"].([]any); ok {
+			interfaceArgs = make([]ast.TypeExpression, 0, len(iaRaw))
+			for _, raw := range iaRaw {
+				argNode, ok := raw.(map[string]any)
+				if !ok {
+					return nil, fmt.Errorf("invalid implementation interface arg %T", raw)
+				}
+				expr, err := decodeTypeExpression(argNode)
+				if err != nil {
+					return nil, err
+				}
+				interfaceArgs = append(interfaceArgs, expr)
+			}
+		}
+		var whereClause []*ast.WhereClauseConstraint
+		if wcRaw, ok := node["whereClause"].([]any); ok {
+			whereClause = make([]*ast.WhereClauseConstraint, 0, len(wcRaw))
+			for _, raw := range wcRaw {
+				wcNode, ok := raw.(map[string]any)
+				if !ok {
+					return nil, fmt.Errorf("invalid implementation where clause %T", raw)
+				}
+				wc, err := decodeWhereClauseConstraint(wcNode)
+				if err != nil {
+					return nil, err
+				}
+				whereClause = append(whereClause, wc)
+			}
+		}
+		isPrivate, _ := node["isPrivate"].(bool)
+		return ast.NewImplementationDefinition(ifaceID, targetType, defs, implName, generics, interfaceArgs, whereClause, isPrivate), nil
 	case "StructDefinition":
 		idNode, err := decodeNode(node["id"].(map[string]any))
 		if err != nil {
@@ -512,10 +712,95 @@ func decodeNode(node map[string]any) (ast.Node, error) {
 			}
 			fields = append(fields, field)
 		}
+		var generics []*ast.GenericParameter
+		if gpRaw, ok := node["genericParams"].([]any); ok {
+			generics = make([]*ast.GenericParameter, 0, len(gpRaw))
+			for _, raw := range gpRaw {
+				gpNode, ok := raw.(map[string]any)
+				if !ok {
+					return nil, fmt.Errorf("invalid struct generic param %T", raw)
+				}
+				gp, err := decodeGenericParameter(gpNode)
+				if err != nil {
+					return nil, err
+				}
+				generics = append(generics, gp)
+			}
+		}
+		var whereClause []*ast.WhereClauseConstraint
+		if wcRaw, ok := node["whereClause"].([]any); ok {
+			whereClause = make([]*ast.WhereClauseConstraint, 0, len(wcRaw))
+			for _, raw := range wcRaw {
+				wcNode, ok := raw.(map[string]any)
+				if !ok {
+					return nil, fmt.Errorf("invalid struct where clause %T", raw)
+				}
+				wc, err := decodeWhereClauseConstraint(wcNode)
+				if err != nil {
+					return nil, err
+				}
+				whereClause = append(whereClause, wc)
+			}
+		}
 		kindStr, _ := node["kind"].(string)
 		kind := ast.StructKind(kindStr)
 		isPrivate, _ := node["isPrivate"].(bool)
-		return ast.NewStructDefinition(id, fields, kind, nil, nil, isPrivate), nil
+		return ast.NewStructDefinition(id, fields, kind, generics, whereClause, isPrivate), nil
+	case "UnionDefinition":
+		idNode, err := decodeNode(node["id"].(map[string]any))
+		if err != nil {
+			return nil, err
+		}
+		id, ok := idNode.(*ast.Identifier)
+		if !ok {
+			return nil, fmt.Errorf("invalid union identifier %T", idNode)
+		}
+		variantsVal, _ := node["variants"].([]any)
+		variants := make([]ast.TypeExpression, 0, len(variantsVal))
+		for _, raw := range variantsVal {
+			variantNode, ok := raw.(map[string]any)
+			if !ok {
+				return nil, fmt.Errorf("invalid union variant %T", raw)
+			}
+			variant, err := decodeTypeExpression(variantNode)
+			if err != nil {
+				return nil, err
+			}
+			variants = append(variants, variant)
+		}
+		var generics []*ast.GenericParameter
+		if gpRaw, ok := node["genericParams"].([]any); ok {
+			generics = make([]*ast.GenericParameter, 0, len(gpRaw))
+			for _, raw := range gpRaw {
+				gpNode, ok := raw.(map[string]any)
+				if !ok {
+					return nil, fmt.Errorf("invalid union generic param %T", raw)
+				}
+				gp, err := decodeGenericParameter(gpNode)
+				if err != nil {
+					return nil, err
+				}
+				generics = append(generics, gp)
+			}
+		}
+		var whereClause []*ast.WhereClauseConstraint
+		if wcRaw, ok := node["whereClause"].([]any); ok {
+			whereClause = make([]*ast.WhereClauseConstraint, 0, len(wcRaw))
+			for _, raw := range wcRaw {
+				wcNode, ok := raw.(map[string]any)
+				if !ok {
+					return nil, fmt.Errorf("invalid union where clause %T", raw)
+				}
+				wc, err := decodeWhereClauseConstraint(wcNode)
+				if err != nil {
+					return nil, err
+				}
+				whereClause = append(whereClause, wc)
+			}
+		}
+		isPrivate, _ := node["isPrivate"].(bool)
+		return ast.NewUnionDefinition(id, variants, generics, whereClause, isPrivate), nil
+
 	case "MethodsDefinition":
 		targetRaw, ok := node["targetType"].(map[string]any)
 		if !ok {
@@ -703,6 +988,26 @@ func decodeNode(node map[string]any) (ast.Node, error) {
 			return nil, err
 		}
 		return imp, nil
+	case "IteratorLiteral":
+		bodyVal, _ := node["body"].([]any)
+		body := make([]ast.Statement, 0, len(bodyVal))
+		for _, raw := range bodyVal {
+			stmtNode, ok := raw.(map[string]any)
+			if !ok {
+				return nil, fmt.Errorf("invalid iterator body statement %T", raw)
+			}
+			decoded, err := decodeNode(stmtNode)
+			if err != nil {
+				return nil, err
+			}
+			stmt, ok := decoded.(ast.Statement)
+			if !ok {
+				return nil, fmt.Errorf("invalid iterator body node %T", decoded)
+			}
+			body = append(body, stmt)
+		}
+		return ast.NewIteratorLiteral(body), nil
+
 	case "MemberAccessExpression":
 		objectNode, err := decodeNode(node["object"].(map[string]any))
 		if err != nil {
@@ -721,6 +1026,24 @@ func decodeNode(node map[string]any) (ast.Node, error) {
 			return nil, fmt.Errorf("invalid member expression %T", memberNode)
 		}
 		return ast.NewMemberAccessExpression(object, memberExpr), nil
+	case "IndexExpression":
+		objectNode, err := decodeNode(node["object"].(map[string]any))
+		if err != nil {
+			return nil, err
+		}
+		object, ok := objectNode.(ast.Expression)
+		if !ok {
+			return nil, fmt.Errorf("invalid index object %T", objectNode)
+		}
+		indexNode, err := decodeNode(node["index"].(map[string]any))
+		if err != nil {
+			return nil, err
+		}
+		indexExpr, ok := indexNode.(ast.Expression)
+		if !ok {
+			return nil, fmt.Errorf("invalid index expression %T", indexNode)
+		}
+		return ast.NewIndexExpression(object, indexExpr), nil
 	case "WildcardPattern", "LiteralPattern", "StructPattern", "ArrayPattern", "TypedPattern":
 		return decodePattern(node)
 	case "ReturnStatement":
@@ -792,6 +1115,45 @@ func decodeNode(node map[string]any) (ast.Node, error) {
 			clauses = append(clauses, clauseNode)
 		}
 		return ast.NewRescueExpression(monExpr, clauses), nil
+	case "BreakpointExpression":
+		var label *ast.Identifier
+		if labelRaw, ok := node["label"].(map[string]any); ok {
+			decoded, err := decodeNode(labelRaw)
+			if err != nil {
+				return nil, err
+			}
+			id, ok := decoded.(*ast.Identifier)
+			if !ok {
+				return nil, fmt.Errorf("invalid breakpoint label %T", decoded)
+			}
+			label = id
+		}
+		bodyNode, err := decodeNode(node["body"].(map[string]any))
+		if err != nil {
+			return nil, err
+		}
+		body, ok := bodyNode.(*ast.BlockExpression)
+		if !ok {
+			return nil, fmt.Errorf("breakpoint body must be block expression, got %T", bodyNode)
+		}
+		return ast.NewBreakpointExpression(label, body), nil
+	case "YieldStatement":
+		var expr ast.Expression
+		if exprRaw, ok := node["expression"].(map[string]any); ok {
+			decoded, err := decodeNode(exprRaw)
+			if err != nil {
+				return nil, err
+			}
+			exprVal, ok := decoded.(ast.Expression)
+			if !ok {
+				return nil, fmt.Errorf("invalid yield expression %T", decoded)
+			}
+			expr = exprVal
+		}
+		return ast.NewYieldStatement(expr), nil
+
+	case "RethrowStatement":
+		return ast.NewRethrowStatement(), nil
 	default:
 		return nil, fs.ErrInvalid
 	}

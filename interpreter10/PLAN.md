@@ -119,15 +119,21 @@ This document tracks the implementation plan for the v10 interpreter inside `int
    - Expand wildcard/import semantics (wildcards with aliasing, dyn package privacy) and expose standard `Proc`/`Future` interface structures
    - Tests: privacy enforcement, import variations, interface struct coverage
 
-4) Concurrency ergonomics
+4) Generator laziness & iterator parity
+   - Draft design for suspend/resume continuations that mirror the Go runtime ✅ (see `design/ts-generator-continuations.md`)
+   - ✅ Implement iterator value kinds + sentinel + generator context (straight-line yields first)
+   - Extend frame saving across control flow (if/while/for/match) and port Go iterator tests (control-flow coverage achieved; Go parity still pending)
+   - Update stdlib helpers (`Channel.iterator`, range iterators) once the runtime hooks land; refresh fixtures
+
+5) Concurrency ergonomics
    - ✅ Surface cooperative yielding APIs, cancellation observers, and ensure futures/procs participate cleanly in collections per spec
    - Remaining: long-running proc stress tests, mixed sync/async loops, `value()` re-entrancy safeguards, and documenting best practices for polling `proc_cancelled`
 
-5) Dynamic interface collections & iterables
+6) Dynamic interface collections & iterables
    - Extend coverage to ranges/maps of interface values, ensure iteration and higher-order combinators honour most-specific dispatch
    - Tests: `for`/`while` loops over mixed interface unions, comprehension-like patterns, nested collections
 
-4) Performance and maintainability
+7) Performance and maintainability
    - Env lookups and method cache (map hot-paths); micro-benchmarks in tests
    - Split interpreter into modules (values, env, eval nodes)
 

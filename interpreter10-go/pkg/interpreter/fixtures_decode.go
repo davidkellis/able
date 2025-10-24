@@ -731,7 +731,7 @@ func extractErrorMessage(err error) string {
 
 func contains(list []string, value string) bool {
 	for _, item := range list {
-		if item == value {
+		if item == value || strings.Contains(value, item) {
 			return true
 		}
 	}

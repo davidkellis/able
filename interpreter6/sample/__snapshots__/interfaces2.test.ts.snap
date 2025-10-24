@@ -13,3 +13,17 @@ Area: 50
 Perimeter: 30
 --- main function finished ---"
 `;
+
+exports[`Interpreter Sample - interfaces2 should produce the expected output 1`] = `
+"--- Running main function ---
+Circle info:
+Shape info: Circle with radius 5
+Area: 78.53975
+Perimeter: 31.4159
+
+Rectangle info:
+Shape info: Rectangle with width 10 and height 5
+Area: 50
+Perimeter: 30
+--- main function finished ---"
+`;

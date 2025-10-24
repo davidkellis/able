@@ -1,6 +1,6 @@
-package stdlib;
+package able;
 
-import stdlib.core.{Ordering, Less, Equal, Greater}; ## Import Ordering enum
+import able.{Ordering, Less, Equal, Greater}; ## Import Ordering enum
 
 ## Comparison Interfaces
 

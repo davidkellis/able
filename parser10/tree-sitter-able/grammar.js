@@ -8,6 +8,7 @@
 // @ts-check
 
 const PREC = {
+  lambda: 0,
   pipe: 1,
   assignment: 2,
   range: 3,
@@ -112,6 +113,7 @@ module.exports = grammar({
     [$.literal, $.literal_pattern],
     [$.pattern_base, $.struct_pattern_field],
     [$.primary_expression, $.pattern_base, $.struct_pattern_field],
+    [$.lambda_parameter, $.pattern_base, $.struct_pattern_field],
     [$.proc_expression, $.primary_expression],
     [$.spawn_expression, $.primary_expression],
     [$.array_literal, $.array_pattern],
@@ -142,8 +144,13 @@ module.exports = grammar({
     ),
 
     import_clause: $ => choice(
-      seq(".", "*"),
-      seq(".", "{", commaSep1($.import_selector), optional(","), "}"),
+      alias(token(".*"), $.import_wildcard_clause),
+      seq(
+        alias(token(seq(".", "{")), "{"),
+        commaSep1($.import_selector),
+        optional(","),
+        "}"
+      ),
       seq("as", $.identifier),
     ),
 
@@ -440,6 +447,7 @@ module.exports = grammar({
 
     matchable_expression: $ => choice(
       $.ensure_expression,
+      $.rescue_expression,
       $.proc_expression,
       $.spawn_expression,
       $.breakpoint_expression,
@@ -650,11 +658,13 @@ module.exports = grammar({
       seq(
         $.primary_expression,
         repeat(choice(
+          $.type_arguments,
           $.call_suffix,
           $.index_suffix,
           $.propagate_suffix,
           $.member_access,
         )),
+        optional($.lambda_expression),
       ),
     ),
 
@@ -663,26 +673,36 @@ module.exports = grammar({
       seq(
         $.primary_expression,
         repeat(choice(
+          $.type_arguments,
           $.member_access,
           $.index_suffix,
           $.propagate_suffix,
         )),
         $.call_suffix,
         repeat(choice(
+          $.type_arguments,
           $.call_suffix,
           $.index_suffix,
           $.propagate_suffix,
           $.member_access,
         )),
+        optional($.lambda_expression),
       ),
     ),
 
-    call_suffix: $ => seq(
+    call_suffix: $ => prec.dynamic(-1, seq(
       token.immediate("("),
       commaSep($.expression),
       optional(","),
       ")",
-    ),
+    )),
+
+    type_arguments: $ => prec.dynamic(1, seq(
+      token.immediate("<"),
+      commaSep1($.type_expression),
+      optional(","),
+      ">",
+    )),
 
     index_suffix: $ => seq(
       "[",
@@ -708,8 +728,29 @@ module.exports = grammar({
       $.topic_reference,
       $.if_expression,
       $.do_expression,
+      $.lambda_expression,
       $.parenthesized_expression,
     ),
+
+    lambda_expression: $ => prec.right(
+      PREC.lambda,
+      seq(
+        "{",
+        optional(field("parameters", $.lambda_parameter_list)),
+        optional(seq("->", field("return_type", $.type_expression))),
+        "=>",
+        field("body", $.expression),
+        "}",
+      ),
+    ),
+
+    lambda_parameter_list: $ => seq(
+      $.lambda_parameter,
+      repeat(seq(",", $.lambda_parameter)),
+      optional(","),
+    ),
+
+    lambda_parameter: $ => field("name", $.identifier),
 
     if_expression: $ => seq(
       "if",

@@ -157,6 +157,7 @@ export interface SpawnExpression extends AstNode { type: 'SpawnExpression'; expr
 export interface PropagationExpression extends AstNode { type: 'PropagationExpression'; expression: Expression; }
 export interface OrElseExpression extends AstNode { type: 'OrElseExpression'; expression: Expression; handler: BlockExpression; errorBinding?: Identifier; }
 export interface BreakpointExpression extends AstNode { type: 'BreakpointExpression'; label: Identifier; body: BlockExpression; }
+export interface IteratorLiteral extends AstNode { type: 'IteratorLiteral'; body: Statement[]; }
 
 export type Expression =
   | Identifier
@@ -176,6 +177,7 @@ export type Expression =
   | PropagationExpression
   | OrElseExpression
   | BreakpointExpression
+  | IteratorLiteral
   | IfExpression
   | MatchExpression
   | StructLiteral
@@ -230,6 +232,10 @@ export function breakpointExpression(label: Identifier | string, body: BlockExpr
   return { type: 'BreakpointExpression', label: typeof label === 'string' ? identifier(label) : label, body };
 }
 
+export function iteratorLiteral(body: Statement[]): IteratorLiteral {
+  return { type: 'IteratorLiteral', body };
+}
+
 // -----------------------------------------------------------------------------
 // Control Flow
 // -----------------------------------------------------------------------------
@@ -242,6 +248,7 @@ export interface WhileLoop extends AstNode { type: 'WhileLoop'; condition: Expre
 export interface ForLoop extends AstNode { type: 'ForLoop'; pattern: Pattern; iterable: Expression; body: BlockExpression; }
 export interface BreakStatement extends AstNode { type: 'BreakStatement'; label?: Identifier; value?: Expression; }
 export interface ContinueStatement extends AstNode { type: 'ContinueStatement'; label?: Identifier; }
+export interface YieldStatement extends AstNode { type: 'YieldStatement'; expression?: Expression; }
 
 export function orClause(body: BlockExpression, condition?: Expression): OrClause { return { type: 'OrClause', condition, body }; }
 export function ifExpression(ifCondition: Expression, ifBody: BlockExpression, orClauses: OrClause[] = []): IfExpression { return { type: 'IfExpression', ifCondition, ifBody, orClauses }; }
@@ -257,6 +264,10 @@ export function breakStatement(label?: Identifier | string, value?: Expression):
 }
 export function continueStatement(label?: Identifier | string): ContinueStatement {
   return { type: 'ContinueStatement', label: label !== undefined ? (typeof label === 'string' ? identifier(label) : label) : undefined };
+}
+
+export function yieldStatement(expression?: Expression): YieldStatement {
+  return { type: 'YieldStatement', expression };
 }
 
 // -----------------------------------------------------------------------------
@@ -445,6 +456,7 @@ export type Statement =
   | ContinueStatement
   | WhileLoop
   | ForLoop
+  | YieldStatement
   | PreludeStatement
   | ExternFunctionBody
   | DynImportStatement;
@@ -566,6 +578,7 @@ export function orelse(expression: Expression, handlerStmts: Statement[], errorB
 export function bp(label: Identifier | string, ...stmts: Statement[]): BreakpointExpression {
   return breakpointExpression(label, blockExpression(stmts));
 }
+export const iter = iteratorLiteral;
 
 // Control flow
 export function iff(condition: Expression, ...stmts: Statement[]): IfExpression {
@@ -621,6 +634,7 @@ export const mod = module;
 
 // Statements
 export const ret = returnStatement;
+export const yld = yieldStatement;
 
 // Host interop
 export const prelude = preludeStatement;

@@ -6,3 +6,10 @@ User(name=Alice, age=30)
 Product(id=abc-123, price=99.95)
 --- Top-level statements finished ---"
 `;
+
+exports[`Interpreter Sample - interfaces should produce the expected output 1`] = `
+"--- Evaluating top-level statements ---
+User(name=Alice, age=30)
+Product(id=abc-123, price=99.95)
+--- Top-level statements finished ---"
+`;

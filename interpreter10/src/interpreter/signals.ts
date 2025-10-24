@@ -35,3 +35,15 @@ export class ProcYieldSignal extends Error {
     super("ProcYieldSignal");
   }
 }
+
+export class GeneratorYieldSignal extends Error {
+  constructor() {
+    super("GeneratorYieldSignal");
+  }
+}
+
+export class GeneratorStopSignal extends Error {
+  constructor() {
+    super("GeneratorStopSignal");
+  }
+}

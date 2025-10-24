@@ -60,6 +60,8 @@ export function applyStringifyAugmentations(cls: typeof InterpreterV10): void {
       case "interface_value": return `<interface ${v.interfaceName}>`;
       case "proc_handle": return `<proc ${v.state}>`;
       case "future": return `<future ${v.state}>`;
+      case "iterator": return "<iterator>";
+      case "iterator_end": return "IteratorEnd";
       case "native_function": return `<native ${v.name}>`;
       case "native_bound_method": return `<native bound ${v.func.name}>`;
       case "error": return `<error ${v.message}>`;
