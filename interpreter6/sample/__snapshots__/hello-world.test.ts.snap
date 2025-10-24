@@ -5,3 +5,9 @@ exports[`Interpreter Sample - hello-world > should produce the expected output 1
 hello world
 --- main function finished ---"
 `;
+
+exports[`Interpreter Sample - hello-world should produce the expected output 1`] = `
+"--- Running main function ---
+hello world
+--- main function finished ---"
+`;

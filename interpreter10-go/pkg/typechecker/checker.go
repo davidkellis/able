@@ -21,12 +21,30 @@ type Checker struct {
 	obligations         []ConstraintObligation
 	constraintStack     []map[string][]Type
 	allowDynamicLookups bool
+	preludeEnv          *Environment
+	preludeImpls        []ImplementationSpec
+	preludeMethodSets   []MethodSetSpec
+	preludeImplCount    int
+	preludeMethodCount  int
+	publicDeclarations  []exportRecord
 }
 
 // Diagnostic represents a type-checking error or warning.
 type Diagnostic struct {
 	Message string
 	Node    ast.Node
+}
+
+type exportRecord struct {
+	name string
+	node ast.Node
+}
+
+// ExportedSymbol describes a public binding produced by a module.
+type ExportedSymbol struct {
+	Name string
+	Type Type
+	Node ast.Node
 }
 
 // New returns a checker instance.
@@ -37,6 +55,18 @@ func New() *Checker {
 		returnTypeStack: nil,
 		rescueDepth:     0,
 	}
+}
+
+// SetPrelude seeds the checker with bindings and implementation metadata that
+// should be visible before processing the next module.
+func (c *Checker) SetPrelude(env *Environment, impls []ImplementationSpec, methods []MethodSetSpec) {
+	if env != nil {
+		c.preludeEnv = env.Clone()
+	} else {
+		c.preludeEnv = nil
+	}
+	c.preludeImpls = append(c.preludeImpls[:0], impls...)
+	c.preludeMethodSets = append(c.preludeMethodSets[:0], methods...)
 }
 
 // CheckModule performs typechecking on a module AST and returns diagnostics.
@@ -57,9 +87,29 @@ func (c *Checker) CheckModule(module *ast.Module) ([]Diagnostic, error) {
 	c.obligations = nil
 	c.constraintStack = nil
 	c.allowDynamicLookups = false
+	c.publicDeclarations = nil
+	c.preludeImplCount = 0
+	c.preludeMethodCount = 0
 	declDiags := c.collectDeclarations(module)
 	var diagnostics []Diagnostic
 	diagnostics = append(diagnostics, declDiags...)
+
+	if len(c.preludeImpls) > 0 {
+		base := make([]ImplementationSpec, len(c.preludeImpls))
+		copy(base, c.preludeImpls)
+		c.implementations = append(base, c.implementations...)
+		c.preludeImplCount = len(base)
+	} else {
+		c.preludeImplCount = 0
+	}
+	if len(c.preludeMethodSets) > 0 {
+		base := make([]MethodSetSpec, len(c.preludeMethodSets))
+		copy(base, c.preludeMethodSets)
+		c.methodSets = append(base, c.methodSets...)
+		c.preludeMethodCount = len(base)
+	} else {
+		c.preludeMethodCount = 0
+	}
 
 	env := c.global.Extend()
 	c.applyImports(env, module.Imports)
@@ -90,6 +140,9 @@ func (c *Checker) applyImports(env *Environment, imports []*ast.ImportStatement)
 			c.allowDynamicLookups = true
 		}
 		if imp.Alias != nil && imp.Alias.Name != "" {
+			if _, exists := env.Lookup(imp.Alias.Name); exists {
+				continue
+			}
 			env.Define(imp.Alias.Name, placeholder)
 			continue
 		}
@@ -98,12 +151,70 @@ func (c *Checker) applyImports(env *Environment, imports []*ast.ImportStatement)
 				continue
 			}
 			if sel.Alias != nil && sel.Alias.Name != "" {
+				if _, exists := env.Lookup(sel.Alias.Name); exists {
+					continue
+				}
 				env.Define(sel.Alias.Name, placeholder)
 				continue
 			}
 			if sel.Name != nil && sel.Name.Name != "" {
+				if _, exists := env.Lookup(sel.Name.Name); exists {
+					continue
+				}
 				env.Define(sel.Name.Name, placeholder)
 			}
 		}
 	}
+}
+
+// ExportedSymbols returns the public bindings declared in the last module that was checked.
+func (c *Checker) ExportedSymbols() []ExportedSymbol {
+	if len(c.publicDeclarations) == 0 || c.global == nil {
+		return nil
+	}
+	out := make([]ExportedSymbol, 0, len(c.publicDeclarations))
+	for _, rec := range c.publicDeclarations {
+		if rec.name == "" {
+			continue
+		}
+		typ, ok := c.global.Lookup(rec.name)
+		if !ok || typ == nil {
+			continue
+		}
+		out = append(out, ExportedSymbol{
+			Name: rec.name,
+			Type: typ,
+			Node: rec.node,
+		})
+	}
+	return out
+}
+
+// ModuleImplementations returns the implementation specs declared in the last module, excluding prelude entries.
+func (c *Checker) ModuleImplementations() []ImplementationSpec {
+	total := len(c.implementations)
+	if total == 0 || c.preludeImplCount >= total {
+		return nil
+	}
+	count := total - c.preludeImplCount
+	out := make([]ImplementationSpec, count)
+	copy(out, c.implementations[c.preludeImplCount:])
+	return out
+}
+
+// ModuleMethodSets returns the method-set specs declared in the last module, excluding prelude entries.
+func (c *Checker) ModuleMethodSets() []MethodSetSpec {
+	total := len(c.methodSets)
+	if total == 0 || c.preludeMethodCount >= total {
+		return nil
+	}
+	count := total - c.preludeMethodCount
+	out := make([]MethodSetSpec, count)
+	copy(out, c.methodSets[c.preludeMethodCount:])
+	return out
+}
+
+// GlobalEnvironment exposes the checker’s global environment (read-only).
+func (c *Checker) GlobalEnvironment() *Environment {
+	return c.global
 }

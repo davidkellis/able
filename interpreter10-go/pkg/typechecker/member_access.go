@@ -180,6 +180,28 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 		diags = append(diags, futureDiags...)
 		c.infer.set(expr, fnType)
 		return diags, fnType
+	case PackageType:
+		if positionalAccess {
+			diags = append(diags, Diagnostic{
+				Message: "typechecker: positional member access not supported on packages",
+				Node:    expr,
+			})
+			break
+		}
+		if ty.Symbols != nil {
+			if symbolType, ok := ty.Symbols[memberName]; ok && symbolType != nil {
+				c.infer.set(expr, symbolType)
+				return diags, symbolType
+			}
+		}
+		label := ty.Package
+		if label == "" {
+			label = "<unknown>"
+		}
+		diags = append(diags, Diagnostic{
+			Message: fmt.Sprintf("typechecker: package '%s' has no symbol '%s'", label, memberName),
+			Node:    expr,
+		})
 	case UnknownType:
 		c.infer.set(expr, UnknownType{})
 		return diags, UnknownType{}

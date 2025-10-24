@@ -164,6 +164,244 @@ const fixtures: Fixture[] = [
     },
   },
   {
+    name: "control/iterator_for_loop",
+    module: AST.module([
+      AST.assign("sum", AST.integerLiteral(0)),
+      AST.assign(
+        "iter",
+        AST.iteratorLiteral([
+          AST.forLoop(
+            AST.identifier("item"),
+            AST.arrayLiteral([
+              AST.integerLiteral(1),
+              AST.integerLiteral(2),
+              AST.integerLiteral(3),
+            ]),
+            AST.blockExpression([
+              AST.functionCall(
+                AST.memberAccessExpression(AST.identifier("gen"), "yield"),
+                [AST.identifier("item")],
+              ),
+            ]),
+          ),
+        ]),
+      ),
+      AST.forLoop(
+        AST.identifier("value"),
+        AST.identifier("iter"),
+        AST.blockExpression([
+          AST.assignmentExpression(
+            "=",
+            AST.identifier("sum"),
+            AST.binaryExpression(
+              "+",
+              AST.identifier("sum"),
+              AST.identifier("value"),
+            ),
+          ),
+        ]),
+      ),
+      AST.identifier("sum"),
+    ]),
+    manifest: {
+      description: "For loop drives iterator literal lazily",
+      expect: {
+        result: { kind: "i32", value: 6 },
+      },
+    },
+  },
+  {
+    name: "control/iterator_while_loop",
+    module: AST.module([
+      AST.assign("count", AST.integerLiteral(0)),
+      AST.assign(
+        "iter",
+        AST.iteratorLiteral([
+          AST.whileLoop(
+            AST.binaryExpression("<", AST.identifier("count"), AST.integerLiteral(3)),
+            AST.blockExpression([
+              AST.functionCall(
+                AST.memberAccessExpression(AST.identifier("gen"), "yield"),
+                [AST.identifier("count")],
+              ),
+              AST.assignmentExpression(
+                "=",
+                AST.identifier("count"),
+                AST.binaryExpression(
+                  "+",
+                  AST.identifier("count"),
+                  AST.integerLiteral(1),
+                ),
+              ),
+            ]),
+          ),
+        ]),
+      ),
+      AST.assign("total", AST.integerLiteral(0)),
+      AST.forLoop(
+        AST.identifier("n"),
+        AST.identifier("iter"),
+        AST.blockExpression([
+          AST.assignmentExpression(
+            "=",
+            AST.identifier("total"),
+            AST.binaryExpression(
+              "+",
+              AST.identifier("total"),
+              AST.identifier("n"),
+            ),
+          ),
+        ]),
+      ),
+      AST.arrayLiteral([
+        AST.identifier("total"),
+        AST.identifier("count"),
+      ]),
+    ]),
+    manifest: {
+      description: "While loop inside iterator literal updates captured state lazily",
+      expect: {
+        result: {
+          kind: "array",
+          elements: [
+            { kind: "i32", value: 3 },
+            { kind: "i32", value: 3 },
+          ],
+        },
+      },
+    },
+  },
+  {
+    name: "control/iterator_if_match",
+    module: AST.module([
+      AST.assign("calls", AST.integerLiteral(0)),
+      AST.functionDefinition(
+        "tick",
+        [],
+        AST.blockExpression([
+          AST.assignmentExpression(
+            "=",
+            AST.identifier("calls"),
+            AST.binaryExpression(
+              "+",
+              AST.identifier("calls"),
+              AST.integerLiteral(1),
+            ),
+          ),
+          AST.returnStatement(AST.booleanLiteral(true)),
+        ]),
+      ),
+      AST.assign("subject_calls", AST.integerLiteral(0)),
+      AST.assign("guard_calls", AST.integerLiteral(0)),
+      AST.functionDefinition(
+        "get_subject",
+        [],
+        AST.blockExpression([
+          AST.assignmentExpression(
+            "=",
+            AST.identifier("subject_calls"),
+            AST.binaryExpression(
+              "+",
+              AST.identifier("subject_calls"),
+              AST.integerLiteral(1),
+            ),
+          ),
+          AST.returnStatement(AST.integerLiteral(1)),
+        ]),
+      ),
+      AST.functionDefinition(
+        "guard_check",
+        [AST.functionParameter("value")],
+        AST.blockExpression([
+          AST.assignmentExpression(
+            "=",
+            AST.identifier("guard_calls"),
+            AST.binaryExpression(
+              "+",
+              AST.identifier("guard_calls"),
+              AST.integerLiteral(1),
+            ),
+          ),
+          AST.returnStatement(AST.booleanLiteral(true)),
+        ]),
+      ),
+      AST.assign(
+        "iter",
+        AST.iteratorLiteral([
+          AST.ifExpression(
+            AST.functionCall(AST.identifier("tick"), []),
+            AST.blockExpression([
+              AST.functionCall(
+                AST.memberAccessExpression(AST.identifier("gen"), "yield"),
+                [AST.integerLiteral(10)],
+              ),
+              AST.functionCall(
+                AST.memberAccessExpression(AST.identifier("gen"), "yield"),
+                [AST.integerLiteral(20)],
+              ),
+            ]),
+          ),
+          AST.matchExpression(
+            AST.functionCall(AST.identifier("get_subject"), []),
+            [
+              AST.matchClause(
+                AST.literalPattern(AST.integerLiteral(1)),
+                AST.blockExpression([
+                  AST.functionCall(
+                    AST.memberAccessExpression(AST.identifier("gen"), "yield"),
+                    [AST.integerLiteral(30)],
+                  ),
+                  AST.functionCall(
+                    AST.memberAccessExpression(AST.identifier("gen"), "yield"),
+                    [AST.integerLiteral(40)],
+                  ),
+                  AST.integerLiteral(0),
+                ]),
+                AST.functionCall(AST.identifier("guard_check"), [AST.integerLiteral(1)]),
+              ),
+            ],
+          ),
+        ]),
+      ),
+      AST.assign("total", AST.integerLiteral(0)),
+      AST.forLoop(
+        AST.identifier("value"),
+        AST.identifier("iter"),
+        AST.blockExpression([
+          AST.assignmentExpression(
+            "=",
+            AST.identifier("total"),
+            AST.binaryExpression(
+              "+",
+              AST.identifier("total"),
+              AST.identifier("value"),
+            ),
+          ),
+        ]),
+      ),
+      AST.arrayLiteral([
+        AST.identifier("total"),
+        AST.identifier("calls"),
+        AST.identifier("subject_calls"),
+        AST.identifier("guard_calls"),
+      ]),
+    ]),
+    manifest: {
+      description: "Iterator literal preserves single evaluation of if conditions and match guards",
+      expect: {
+        result: {
+          kind: "array",
+          elements: [
+            { kind: "i32", value: 100 },
+            { kind: "i32", value: 1 },
+            { kind: "i32", value: 1 },
+            { kind: "i32", value: 1 },
+          ],
+        },
+      },
+    },
+  },
+  {
     name: "expressions/int_addition",
     module: AST.module([
       AST.assign("a", AST.int(1)),
@@ -750,6 +988,629 @@ const fixtures: Fixture[] = [
       description: "Proc uses proc_cancelled() after yielding to observe cancellation flag",
       expect: {
         result: { kind: "string", value: "AC" },
+      },
+    },
+  },
+  {
+    name: "concurrency/channel_basic_ops",
+    module: AST.module([
+      AST.structDefinition(
+        "Channel",
+        [
+          AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "capacity"),
+          AST.structFieldDefinition(AST.simpleTypeExpression("i64"), "handle"),
+        ],
+        "named",
+      ),
+      AST.methodsDefinition(
+        AST.simpleTypeExpression("Channel"),
+        [
+          AST.functionDefinition(
+            "new",
+            [AST.functionParameter("capacity", AST.simpleTypeExpression("i32"))],
+            AST.blockExpression([
+              AST.assignmentExpression(
+                ":=",
+                AST.identifier("handle"),
+                AST.functionCall(AST.identifier("__able_channel_new"), [
+                  AST.identifier("capacity"),
+                ]),
+              ),
+              AST.returnStatement(
+                AST.structLiteral(
+                  [
+                    AST.structFieldInitializer(AST.identifier("capacity"), "capacity"),
+                    AST.structFieldInitializer(AST.identifier("handle"), "handle"),
+                  ],
+                  false,
+                  "Channel",
+                ),
+              ),
+            ]),
+            AST.simpleTypeExpression("Channel"),
+          ),
+          AST.functionDefinition(
+            "send",
+            [AST.functionParameter("self"), AST.functionParameter("value")],
+            AST.blockExpression([
+              AST.functionCall(
+                AST.identifier("__able_channel_send"),
+                [
+                  AST.memberAccessExpression(AST.identifier("self"), "handle"),
+                  AST.identifier("value"),
+                ],
+              ),
+            ]),
+          ),
+          AST.functionDefinition(
+            "receive",
+            [AST.functionParameter("self")],
+            AST.blockExpression([
+              AST.returnStatement(
+                AST.functionCall(
+                  AST.identifier("__able_channel_receive"),
+                  [AST.memberAccessExpression(AST.identifier("self"), "handle")],
+                ),
+              ),
+            ]),
+          ),
+          AST.functionDefinition(
+            "try_send",
+            [AST.functionParameter("self"), AST.functionParameter("value")],
+            AST.blockExpression([
+              AST.returnStatement(
+                AST.functionCall(
+                  AST.identifier("__able_channel_try_send"),
+                  [
+                    AST.memberAccessExpression(AST.identifier("self"), "handle"),
+                    AST.identifier("value"),
+                  ],
+                ),
+              ),
+            ]),
+          ),
+          AST.functionDefinition(
+            "try_receive",
+            [AST.functionParameter("self")],
+            AST.blockExpression([
+              AST.returnStatement(
+                AST.functionCall(
+                  AST.identifier("__able_channel_try_receive"),
+                  [AST.memberAccessExpression(AST.identifier("self"), "handle")],
+                ),
+              ),
+            ]),
+          ),
+          AST.functionDefinition(
+            "close",
+            [AST.functionParameter("self")],
+            AST.blockExpression([
+              AST.functionCall(
+                AST.identifier("__able_channel_close"),
+                [AST.memberAccessExpression(AST.identifier("self"), "handle")],
+              ),
+            ]),
+          ),
+          AST.functionDefinition(
+            "is_closed",
+            [AST.functionParameter("self")],
+            AST.blockExpression([
+              AST.returnStatement(
+                AST.functionCall(
+                  AST.identifier("__able_channel_is_closed"),
+                  [AST.memberAccessExpression(AST.identifier("self"), "handle")],
+                ),
+              ),
+            ]),
+          ),
+        ],
+      ),
+      AST.assign(
+        "channel",
+        AST.functionCall(
+          AST.memberAccessExpression(AST.identifier("Channel"), "new"),
+          [AST.integerLiteral(1)],
+        ),
+      ),
+      AST.assign("score", AST.integerLiteral(0)),
+      AST.functionCall(
+        AST.memberAccessExpression(AST.identifier("channel"), "send"),
+        [AST.integerLiteral(11)],
+      ),
+      AST.assign(
+        "first",
+        AST.functionCall(
+          AST.memberAccessExpression(AST.identifier("channel"), "receive"),
+          [],
+        ),
+      ),
+      AST.ifExpression(
+        AST.binaryExpression(
+          "==",
+          AST.identifier("first"),
+          AST.integerLiteral(11),
+        ),
+        AST.blockExpression([
+          AST.assignmentExpression(
+            "+=",
+            AST.identifier("score"),
+            AST.integerLiteral(1),
+          ),
+        ]),
+        [],
+      ),
+      AST.assign(
+        "try_success",
+        AST.functionCall(
+          AST.memberAccessExpression(AST.identifier("channel"), "try_send"),
+          [AST.integerLiteral(21)],
+        ),
+      ),
+      AST.ifExpression(
+        AST.identifier("try_success"),
+        AST.blockExpression([
+          AST.assignmentExpression(
+            "+=",
+            AST.identifier("score"),
+            AST.integerLiteral(1),
+          ),
+        ]),
+        [],
+      ),
+      AST.assign(
+        "try_receive_value",
+        AST.functionCall(
+          AST.memberAccessExpression(AST.identifier("channel"), "try_receive"),
+          [],
+        ),
+      ),
+      AST.ifExpression(
+        AST.binaryExpression(
+          "==",
+          AST.identifier("try_receive_value"),
+          AST.integerLiteral(21),
+        ),
+        AST.blockExpression([
+          AST.assignmentExpression(
+            "+=",
+            AST.identifier("score"),
+            AST.integerLiteral(1),
+          ),
+        ]),
+        [],
+      ),
+      AST.assign(
+        "second_try",
+        AST.functionCall(
+          AST.memberAccessExpression(AST.identifier("channel"), "try_send"),
+          [AST.integerLiteral(31)],
+        ),
+      ),
+      AST.ifExpression(
+        AST.identifier("second_try"),
+        AST.blockExpression([
+          AST.assignmentExpression(
+            "+=",
+            AST.identifier("score"),
+            AST.integerLiteral(1),
+          ),
+        ]),
+        [],
+      ),
+      AST.assign(
+        "try_fail",
+        AST.functionCall(
+          AST.memberAccessExpression(AST.identifier("channel"), "try_send"),
+          [AST.integerLiteral(41)],
+        ),
+      ),
+      AST.ifExpression(
+        AST.binaryExpression(
+          "==",
+          AST.identifier("try_fail"),
+          AST.booleanLiteral(false),
+        ),
+        AST.blockExpression([
+          AST.assignmentExpression(
+            "+=",
+            AST.identifier("score"),
+            AST.integerLiteral(1),
+          ),
+        ]),
+        [],
+      ),
+      AST.assign(
+        "second",
+        AST.functionCall(
+          AST.memberAccessExpression(AST.identifier("channel"), "receive"),
+          [],
+        ),
+      ),
+      AST.ifExpression(
+        AST.binaryExpression(
+          "==",
+          AST.identifier("second"),
+          AST.integerLiteral(31),
+        ),
+        AST.blockExpression([
+          AST.assignmentExpression(
+            "+=",
+            AST.identifier("score"),
+            AST.integerLiteral(1),
+          ),
+        ]),
+        [],
+      ),
+      AST.functionCall(
+        AST.memberAccessExpression(AST.identifier("channel"), "close"),
+        [],
+      ),
+      AST.assign(
+        "closed",
+        AST.functionCall(
+          AST.memberAccessExpression(AST.identifier("channel"), "is_closed"),
+          [],
+        ),
+      ),
+      AST.ifExpression(
+        AST.identifier("closed"),
+        AST.blockExpression([
+          AST.assignmentExpression(
+            "+=",
+            AST.identifier("score"),
+            AST.integerLiteral(1),
+          ),
+        ]),
+        [],
+      ),
+      AST.assign(
+        "final_receive",
+        AST.functionCall(
+          AST.memberAccessExpression(AST.identifier("channel"), "receive"),
+          [],
+        ),
+      ),
+      AST.ifExpression(
+        AST.binaryExpression(
+          "==",
+          AST.identifier("final_receive"),
+          AST.nilLiteral(),
+        ),
+        AST.blockExpression([
+          AST.assignmentExpression(
+            "+=",
+            AST.identifier("score"),
+            AST.integerLiteral(1),
+          ),
+        ]),
+        [],
+      ),
+      AST.assign(
+        "try_receive_nil",
+        AST.functionCall(
+          AST.memberAccessExpression(AST.identifier("channel"), "try_receive"),
+          [],
+        ),
+      ),
+      AST.ifExpression(
+        AST.binaryExpression(
+          "==",
+          AST.identifier("try_receive_nil"),
+          AST.nilLiteral(),
+        ),
+        AST.blockExpression([
+          AST.assignmentExpression(
+            "+=",
+            AST.identifier("score"),
+            AST.integerLiteral(1),
+          ),
+        ]),
+        [],
+      ),
+      AST.binaryExpression(
+        "==",
+        AST.identifier("score"),
+        AST.integerLiteral(9),
+      ),
+    ]),
+    manifest: {
+      description:
+        "Channel.new, send/receive, non-blocking ops, and close/is_closed behave as expected",
+      expect: {
+        result: { kind: "bool", value: true },
+      },
+    },
+  },
+  {
+    name: "concurrency/mutex_locking",
+    module: AST.module([
+      AST.structDefinition(
+        "Mutex",
+        [AST.structFieldDefinition(AST.simpleTypeExpression("i64"), "handle")],
+        "named",
+      ),
+      AST.methodsDefinition(
+        AST.simpleTypeExpression("Mutex"),
+        [
+          AST.functionDefinition(
+            "new",
+            [],
+            AST.blockExpression([
+              AST.assignmentExpression(
+                ":=",
+                AST.identifier("handle"),
+                AST.functionCall(AST.identifier("__able_mutex_new"), []),
+              ),
+              AST.returnStatement(
+                AST.structLiteral(
+                  [AST.structFieldInitializer(AST.identifier("handle"), "handle")],
+                  false,
+                  "Mutex",
+                ),
+              ),
+            ]),
+            AST.simpleTypeExpression("Mutex"),
+          ),
+          AST.functionDefinition(
+            "lock",
+            [AST.functionParameter("self")],
+            AST.blockExpression([
+              AST.functionCall(
+                AST.identifier("__able_mutex_lock"),
+                [AST.memberAccessExpression(AST.identifier("self"), "handle")],
+              ),
+            ]),
+          ),
+          AST.functionDefinition(
+            "unlock",
+            [AST.functionParameter("self")],
+            AST.blockExpression([
+              AST.functionCall(
+                AST.identifier("__able_mutex_unlock"),
+                [AST.memberAccessExpression(AST.identifier("self"), "handle")],
+              ),
+            ]),
+          ),
+        ],
+      ),
+      AST.assign(
+        "mutex",
+        AST.functionCall(
+          AST.memberAccessExpression(AST.identifier("Mutex"), "new"),
+          [],
+        ),
+      ),
+      AST.assign("trace", AST.stringLiteral("")),
+      AST.functionCall(
+        AST.memberAccessExpression(AST.identifier("mutex"), "lock"),
+        [],
+      ),
+      AST.assignmentExpression(
+        "=",
+        AST.identifier("trace"),
+        AST.binaryExpression(
+          "+",
+          AST.identifier("trace"),
+          AST.stringLiteral("A"),
+        ),
+      ),
+      AST.functionCall(
+        AST.memberAccessExpression(AST.identifier("mutex"), "unlock"),
+        [],
+      ),
+      AST.functionCall(
+        AST.memberAccessExpression(AST.identifier("mutex"), "lock"),
+        [],
+      ),
+      AST.assignmentExpression(
+        "=",
+        AST.identifier("trace"),
+        AST.binaryExpression(
+          "+",
+          AST.identifier("trace"),
+          AST.stringLiteral("B"),
+        ),
+      ),
+      AST.functionCall(
+        AST.memberAccessExpression(AST.identifier("mutex"), "unlock"),
+        [],
+      ),
+      AST.identifier("trace"),
+    ]),
+    manifest: {
+      description: "Mutex lock/unlock methods mutate in sequence",
+      expect: {
+        result: { kind: "string", value: "AB" },
+      },
+    },
+  },
+  {
+    name: "stdlib/channel_mutex_helpers",
+    module: AST.module([
+      AST.structDefinition(
+        "Channel",
+        [
+          AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "capacity"),
+          AST.structFieldDefinition(AST.simpleTypeExpression("i64"), "handle"),
+        ],
+        "named",
+      ),
+      AST.methodsDefinition(
+        AST.simpleTypeExpression("Channel"),
+        [
+          AST.functionDefinition(
+            "new",
+            [],
+            AST.blockExpression([
+              AST.assignmentExpression(
+                ":=",
+                AST.identifier("handle"),
+                AST.functionCall(AST.identifier("__able_channel_new"), [
+                  AST.integerLiteral(0),
+                ]),
+              ),
+              AST.returnStatement(
+                AST.structLiteral(
+                  [
+                    AST.structFieldInitializer(AST.integerLiteral(0), "capacity"),
+                    AST.structFieldInitializer(AST.identifier("handle"), "handle"),
+                  ],
+                  false,
+                  "Channel",
+                ),
+              ),
+            ]),
+            AST.simpleTypeExpression("Channel"),
+          ),
+        ],
+      ),
+      AST.structDefinition(
+        "Mutex",
+        [AST.structFieldDefinition(AST.simpleTypeExpression("i64"), "handle")],
+        "named",
+      ),
+      AST.methodsDefinition(
+        AST.simpleTypeExpression("Mutex"),
+        [
+          AST.functionDefinition(
+            "new",
+            [],
+            AST.blockExpression([
+              AST.assignmentExpression(
+                ":=",
+                AST.identifier("handle"),
+                AST.functionCall(AST.identifier("__able_mutex_new"), []),
+              ),
+              AST.returnStatement(
+                AST.structLiteral(
+                  [AST.structFieldInitializer(AST.identifier("handle"), "handle")],
+                  false,
+                  "Mutex",
+                ),
+              ),
+            ]),
+            AST.simpleTypeExpression("Mutex"),
+          ),
+        ],
+      ),
+      AST.fn(
+        "channel_handle",
+        [AST.param("capacity", AST.simpleTypeExpression("i32"))],
+        [AST.ret(AST.call("__able_channel_new", AST.id("capacity")))],
+        AST.simpleTypeExpression("i64"),
+      ),
+      AST.fn(
+        "mutex_handle",
+        [],
+        [AST.ret(AST.call("__able_mutex_new"))],
+        AST.simpleTypeExpression("i64"),
+      ),
+      AST.assign(
+        "channel_handle_value",
+        AST.call("channel_handle", AST.integerLiteral(0)),
+      ),
+      AST.assign(
+        "channel_instance",
+        AST.call(
+          AST.memberAccessExpression(AST.identifier("Channel"), "new"),
+        ),
+      ),
+      AST.assign(
+        "mutex_instance",
+        AST.call(
+          AST.memberAccessExpression(AST.identifier("Mutex"), "new"),
+        ),
+      ),
+      AST.assign(
+        "mutex_handle_value",
+        AST.call("mutex_handle"),
+      ),
+      AST.assign("score", AST.integerLiteral(0)),
+      AST.ifExpression(
+        AST.binaryExpression(
+          "!=",
+          AST.memberAccessExpression(AST.identifier("channel_instance"), "handle"),
+          AST.integerLiteral(0),
+        ),
+        AST.blockExpression([
+          AST.assignmentExpression(
+            "+=",
+            AST.identifier("score"),
+            AST.integerLiteral(1),
+          ),
+        ]),
+        [],
+      ),
+      AST.ifExpression(
+        AST.binaryExpression(
+          "==",
+          AST.memberAccessExpression(AST.identifier("channel_instance"), "capacity"),
+          AST.integerLiteral(0),
+        ),
+        AST.blockExpression([
+          AST.assignmentExpression(
+            "+=",
+            AST.identifier("score"),
+            AST.integerLiteral(1),
+          ),
+        ]),
+        [],
+      ),
+      AST.ifExpression(
+        AST.binaryExpression(
+          "!=",
+          AST.identifier("channel_handle_value"),
+          AST.integerLiteral(0),
+        ),
+        AST.blockExpression([
+          AST.assignmentExpression(
+            "+=",
+            AST.identifier("score"),
+            AST.integerLiteral(1),
+          ),
+        ]),
+        [],
+      ),
+      AST.ifExpression(
+        AST.binaryExpression(
+          "!=",
+          AST.memberAccessExpression(AST.identifier("mutex_instance"), "handle"),
+          AST.integerLiteral(0),
+        ),
+        AST.blockExpression([
+          AST.assignmentExpression(
+            "+=",
+            AST.identifier("score"),
+            AST.integerLiteral(1),
+          ),
+        ]),
+        [],
+      ),
+      AST.ifExpression(
+        AST.binaryExpression(
+          "!=",
+          AST.identifier("mutex_handle_value"),
+          AST.integerLiteral(0),
+        ),
+        AST.blockExpression([
+          AST.assignmentExpression(
+            "+=",
+            AST.identifier("score"),
+            AST.integerLiteral(1),
+          ),
+        ]),
+        [],
+      ),
+      AST.binaryExpression(
+        "==",
+        AST.identifier("score"),
+        AST.integerLiteral(5),
+      ),
+    ]),
+    manifest: {
+      description: "Channel.new and Mutex.new expose runtime handles via stdlib helpers",
+      expect: {
+        result: { kind: "bool", value: true },
       },
     },
   },

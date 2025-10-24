@@ -167,6 +167,12 @@ func valueToString(val runtime.Value) string {
 		return fmt.Sprintf("<package %s>", name)
 	case runtime.ErrorValue:
 		return v.Message
+	case *runtime.IteratorValue:
+		return "<iterator>"
+	case runtime.IteratorEndValue:
+		return "IteratorEnd"
+	case *runtime.IteratorEndValue:
+		return "IteratorEnd"
 	default:
 		if val == nil {
 			return "<nil>"

@@ -1,0 +1,10 @@
+name: able
+version: 0.1.0
+license: MIT
+
+authors:
+  - David Ellis <david@conquerthelawn.com>
+
+targets:
+  stdlib:
+    type: library

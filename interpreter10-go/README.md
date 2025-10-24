@@ -68,6 +68,24 @@ See `design/go-concurrency.md` for a deeper dive and open follow-ups.
   diagnostics) or `ABLE_TYPECHECK_FIXTURES=strict` (fail before evaluation).
   The default remains disabled so existing fixtures continue to run unchanged.
 
+## Running the Go test suites
+
+- **Prime the module cache:** run `go mod download` once while online so
+  dependency sources are available locally (`~/go/pkg/mod` by default).
+- **Sandbox-friendly cache:** when running tests inside sanboxed environments,
+  point the Go build cache at the repo (for example
+  `GOCACHE=$(pwd)/.gocache go test ./pkg/typechecker`).
+- **Interpreter + CLI tests:** after priming the cache, the full suites run
+  offline with:
+
+  ```bash
+  GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter
+  GOCACHE=$(pwd)/.gocache go test ./cmd/able
+  ```
+
+- `go test ./...` also works with the same `GOCACHE` override once the module
+  cache is populated.
+
 ## Design decisions & contributor guidance
 
 - **One responsibility per file:** each `interpreter_*.go` file owns a tight slice of behaviour (operations, patterns, members, type info). New helpers should be colocated with their subsystem; resist adding shared “misc” files.

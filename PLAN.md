@@ -6,10 +6,59 @@
 - Keep the TypeScript and Go AST representations structurally identical so tree-sitter output can feed either runtime (and future targets like Crystal); codify that AST contract inside the v10 specification once validated.
 - Document process and responsibilities so contributors can iterate confidently.
 
-## Existing Assets (2025-09-05)
+## Existing Assets
 - `spec/full_spec_v10.md`: authoritative semantics.
 - `interpreter10/`: Bun-based TypeScript interpreter + AST definition (`src/ast.ts`) and extensive tests.
+- `interpreter10-go/`: Go interpreter and canonical Able v10 runtime. Go-specific design docs live under `design/` (see `go-concurrency.md`, `typechecker.md`).
 - Legacy work: `interpreter6/`, assorted design notes in `design/`, early stdlib sketches.
+
+## Current Focus — Parser & AST Coverage
+- Track parser + AST fixture completeness via `design/parser-ast-coverage.md`.
+- Sequence of work:
+  1. Fill the shared AST fixture suite (`fixtures/ast`) so every spec feature is represented.
+  2. Ensure both interpreters execute those fixtures with full behavioral assertions.
+  3. Add exhaustive parser tests that round-trip the surface syntax to the canonical AST.
+- Near-term emphasis: expand the Go interpreter's fixture parity harness (`interpreter10-go/pkg/interpreter/fixtures_parity_test.go`) until every language feature is exercised and green, then circle back to the TypeScript runtime and AST evaluator once Go coverage is exhaustive.
+- Blocker work until the checklist is entirely `Done`; prioritize filling `TODO`/`Partial` rows before broader feature work resumes.
+- Documented host-backed design for `Channel<T>`/`Mutex` (see `design/channels-mutexes.md`); interpreters must add channel/mutex value kinds and native helpers so stdlib externs can wire in the real semantics and the remaining AST fixtures can land.
+
+## Phase α — Channel & Mutex Runtime Bring-up
+1. **Runtime Foundations (TS first, Go in lock-step)**
+   - Extend `V10Value`/Go equivalents with `channel` and `mutex` variants + scheduling metadata.
+   - Register native helpers (`__able_channel_new/send/recv/close`, `__able_mutex_new/lock/unlock`) and surface them via `prelude`.
+   - Integrate send/recv/lock/unlock with the cooperative scheduler (block/yield/resume semantics, FIFO queues).
+   - Mirror the implementation in Go (wrap native `chan`/`sync.Mutex` while preserving semantics).
+   - Add unit tests covering core operations (buffered/unbuffered channels, close behaviour, mutex ownership errors) at the interpreter level.
+2. **Stdlib Wiring**
+   - Implement `Channel<T>` / `Mutex` structs in `stdlib/v10/concurrency` using extern bodies that call the native helpers; add high-level helpers (`with_lock`, iteration).
+   - Ensure extern implementations exist for both TS and Go targets (Crystal host remains TODO until the runtime exists).
+3. **Fixtures & Coverage**
+   - Add AST fixtures covering channel send/recv across procs, closing, iteration, mutex lock/unlock, and failure cases.
+   - Update `design/parser-ast-coverage.md` rows 121–122 to `Partial`/`Done` once fixtures land.
+   - Record semantic notes in the spec (already captured) and cross-link from stdlib docs.
+
+## Phase β — End-to-End AST Evaluation Completion
+1. **Fixture audit**
+   - Sweep `design/parser-ast-coverage.md` to confirm every language feature is represented; open tickets for any remaining `TODO` fixtures.
+   - Current uncovered items: round out channel iteration/error fixtures (e.g., iteration, nil/closed semantics) and mutex contention scenarios so Go parity tests exercise all §12.5 behaviours before porting back to TS.
+   - Add missing fixtures (e.g., remaining concurrency edge cases, select/timeout stubs if spec settles).
+2. **Interpreter verification**
+   - Ensure both interpreters run the entire fixture suite with assertions (value, stdout, error cases). Add targeted unit tests where fixture coverage is insufficient (e.g., helper corner cases).
+   - Automate fixture execution in CI (TS `bun run scripts/run-fixtures.ts`, Go parity harness).
+3. **Regression safety nets**
+   - Consider property tests / fuzzing around `Channel` and `Mutex` semantics (enqueue/dequeue ordering, contention).
+   - Document residual risks in `design/` for future contributors.
+
+## Phase γ — Parser Exhaustiveness & AST Round-trip
+1. **Parser test suite expansion**
+   - For each feature row in `design/parser-ast-coverage.md`, add parser unit tests that assert the CST → AST transformation matches expectations (`pkg/parser` in Go, TS parser harness).
+   - Include negative tests (syntax errors, malformed constructs) where the spec defines them.
+2. **Round-trip validation**
+   - Ensure CST → AST → interpreter evaluation produces the same results as fixtures for representative programs.
+   - Add snapshot tests where appropriate to lock down AST shape (Go golden files vs TS snapshots).
+3. **Completion criteria**
+   - Mark coverage rows `Done` only after parser + AST fixtures + runtime behaviour align.
+   - Update documentation/spec where parser behaviour needs clarification.
 
 ## Phase 0 — Canonical AST Alignment
 1. Inventory every node defined in `interpreter10/src/ast.ts` (types, helpers, DSL aliases).
@@ -107,59 +156,31 @@ For each milestone: port representative TS tests into Go, add new cases where Go
 
 ## Status Log
 
-### 2025-09-29
-- Static import parity expanded: shared fixtures now cover wildcard/alias success + privacy errors along with a two-hop re-export chain; Go tests mirror the new scenarios (`interpreter10-go/pkg/interpreter/interpreter_test.go`).
-- Dyn import alias metadata verified in Go (alias binds `DynPackageValue` with expected name/path) and environment error casing aligned with TypeScript so fixture diagnostics stay in sync.
-- **Next focus:** extend re-export coverage to deeper chains + nested manifests, record dyn-import metadata for parity harnesses, and draft the Go goroutine scheduler design note before starting proc/spawn work.
+### 2025-10-20
+- Drafted `design/package-management.md`, outlining manifest (`package.yml`), lock file, CLI surface, and cache layout inspired by Crystal’s UX with Cargo-style dependency resolution.
+- Loader now respects Able package rules, combining per-package modules and preserving declared package names during evaluation (`interpreter10-go/pkg/driver/loader.go`).
+- CLI evaluates spec-ordered packages and reports package-qualified errors; local binary rebuilt at `.bin/able`.
+- **Next focus:** implement manifest parsing, lockfile writer, and `able deps install` to populate `$ABLE_HOME/pkg`; package the stdlib as a regular dependency and extend the loader to search `$ABLE_HOME/pkg/src`.
 
-### 2025-10-04
-- Shared fixtures now cover generic function application, generic constraint errors, and struct functional updates; Go fixtures/tests load the new AST shapes.
-- Go normalises destructuring/logical error strings and validates unknown generic interfaces during definition, matching TS diagnostics.
-- **Next focus:** enforce generics at call time, port interface/impl diagnostics with fixtures, then resume the goroutine scheduler implementation.
-
-### 2025-10-06
-- Split the Go interpreter into feature-specific files (`eval_statements.go`, `eval_expressions.go`, `definitions.go`, `imports.go`, `impl_resolution.go`) so each subsystem can evolve independently; mirrored the split on the test side and updated the README with the new layout.
-- Refreshed immediate actions/next steps to include finishing the modularisation work before resuming concurrency and remaining parity backlog.
-- **Next focus:** migrate pattern-matching helpers/runtime utilities into dedicated files, then continue the parity checklist (interface diagnostics, concurrency scheduler).
-
-### 2025-10-07
-- Captured the cross-interpreter modularisation plan: TypeScript interpreter/tests will be split into feature-focused files mirroring the Go layout, with sub-1k LOC targets and parity test runs guarding behaviour.
-- Immediate roadmap updated to tackle TS modularisation first, then stabilise the Go layout, run a parity audit, and sequence the Go reference handoff followed by the tree-sitter parser effort.
-- **Next focus:** execute the TS interpreter split, keep fixtures/tests green, and document any deviations for the Go parity follow-up.
-
-### 2025-10-14
-- Hardened the Go concurrency suite with focused unit tests covering cancellation-before-start, cooperative cancellation observation (`proc_cancelled`), and future memoisation/error propagation (`interpreter10-go/pkg/interpreter/interpreter_concurrency_test.go`).
-- Added a native `proc_flush()` helper in both interpreters so tests/fixtures can deterministically drain the cooperative scheduler, and exported shared fixtures for proc cancellation, `proc_cancelled` misuse, and future memoisation (`fixtures/ast/concurrency/**`).
-- **Tests:** `GOCACHE=$(pwd)/.gocache go test ./...`
-- **Next focus:** design a portable yield-fairness fixture now that `proc_flush()` exists, then mirror it across TS/Go once scheduling semantics are aligned.
-
-### 2025-10-15
-
-› I forgot that I want to add a safe navigation operator so that users can do foo?.bar?.baz() in the v10 language spec. does that conflict with any language features
-  in the v10 language spec?
-• No direct clash. In v10 the only places ? is spoken for are:
-
-  - the nullable shorthand at the type level (?T → nil | T, §4.6.2 of spec/full_spec_v10.md);
-  - the wider Option/Result discussion that builds on that shorthand (§11.2).
-
-  Expression‑level syntax never uses a bare ?, identifiers cannot contain ?, and the propagation operator is the postfix !, not ?. Member access today is just ..
-  Because ?. isn’t currently tokenised or given semantics, introducing it as a “safe member access” operator would sit alongside . without colliding with existing
-  grammar or operators—you’d just need to teach the lexer/parser to prefer a ?. token where appropriate and spell out its precedence/behaviour in the spec.
-
-  So you’re clear to add foo?.bar?.baz(); the main follow-up work is defining how it short‑circuits (likely returning nil to mesh with the existing ?T unions) and
-  updating the spec/AST/interpreters accordingly.
-
-- We will plan to add the safe member access operator to the language spec and the canonical AST as well as to the interpreters and the typechecker.
+### 2025-10-20
+- `go test ./...` currently fails on `TestParseModuleImports` after the trailing-lambda folding work; need a follow-up pass to reconcile the expected AST with the updated parser behaviour and restore the parser suite before landing additional CLI changes.
+- Scaffolded a versioned Able v10 stdlib under `stdlib/v10/` with the foundational interfaces (`Display`, `Clone`, `Hash`, operator traits, PartialEq/PartialOrd), iteration protocol, runtime/concurrency error structs, canonical `Option`/`Result` (with unwrap/map/or-else/ok-or helpers), plus opaque `Array`/`HashMap`/`Channel`/`Mutex`/`Proc`/`Future` shells. Bodies remain `TODO` pending host-runtime wiring; next steps are to back these with real implementations, range constructors, and hash utilities.
+- Go runtime now backs `Array.new`, `push`, `pop`, `clone`, `size`, `get`, `set` plus `HashMap.new`, `set`, `get`, `remove`, `contains`, `size`, `clear`, using deterministic FNV-1a hashing for supported key types so the stdlib can rely on concrete behaviour while we continue wiring hashing utilities and host-backed data structures.
 
 ### 2025-10-21
-- Split the Go constraint-solver expression tests so the heavy cases now live in `interpreter10-go/pkg/typechecker/checker_expressions_constraints_test.go`, keeping every test file comfortably under the 1k LOC ceiling.
-- Shifted the struct/interface/module definitions into `interpreter10-go/pkg/ast/definitions.go`, leaving `pkg/ast/ast.go` below the 1k target without touching the AST contract.
-- Normalised method-set instantiation by stripping substituted type parameters/where clauses in `type_utils.go`, which unblocked the `Formatter<T>` satisfaction tests and keeps `go test ./pkg/typechecker` green.
-- Tightened the method-set regression by asserting the `"via method 'format'"` and `"via method set"` contexts appear on unsatisfied obligations, covering the new substitution behaviour.
-- **Next focus:** continue the Go typechecker hardening (start with additional method-set + where-clause edge cases) and then move back into parser prep once the constraint solver dust settles.
+- Able CLI now loads the nearest `package.yml`, selects the first executable target when `able run` is invoked without arguments, and supports running named manifest targets alongside the legacy file-path flow; manifest parsing preserves target order/sanitised lookups to make this reliable.
+- Added manifest-root search path injection plus helpers for resolving target entrypoints, and exposed `able --help/--version` for basic ergonomics while keeping `.able` file execution functional as a fallback.
+- `able run` now consults `package.lock`, requiring it when dependencies are declared, and augments loader search paths with cached packages under `$ABLE_HOME/pkg/src` or manifest-local overrides; new unit tests cover lockfile loading and dependency path plumbing.
+- Implemented the first pass of `able deps install`: resolves manifest dependencies (currently stdlib + local path deps), records them in `package.lock`, and surfaces the resolved source locations so the runtime loader can find modules via the manifest `lib/` directory or the global cache; added guardrails for unsupported descriptors so future registry/git work can hook in cleanly.
+- Loader now indexes dependency search paths, so imports that resolve to cached/path dependencies are discovered alongside the entry project; covered by a new integration-style unit test.
+- `able deps install` understands versioned registry packages (sourced from `$ABLE_REGISTRY` or the default cache) and git dependencies, materialising them into `$ABLE_HOME/pkg/src` with checksums and updating `package.lock`; added unit tests for registry/path/git flows.
+- Git support currently clones a specific ref without submodule or sparse-checkout handling; park this on the backlog until the dependency cache solidifies.
+- Verified the updated packages with `go test ./cmd/able ./pkg/driver` and now `go test ./...` passes after repairing the trailing-lambda folding in the parser block walker.
+- Next focus: lock git dependencies to committed revisions (git branch/tag installs should write `<ref>@<commit>` versions), add an end-to-end CLI test that exercises `able deps install` + `able run` with a cached dependency, then return to the stdlib hashing shims and `Hash`/`Hasher` interfaces.
 
-### 2025-10-23
-- Extended the Go typechecker’s constraint coverage with two `Self`-scoped method-set cases so `Formatter<string>`-style where clauses now propagate context into diagnostics; updated `typesEquivalentForSignature` to treat applied struct targets and struct instances as equivalent so those obligations resolve cleanly (`interpreter10-go/pkg/typechecker/implementation_validation.go`, `checker_expressions_constraints_test.go`).
-- Verified the new scenarios with `GOCACHE=$(pwd)/.gocache go test ./pkg/typechecker`.
-- Logged parser prep as the next major milestone: derive the concrete operator table, enumerate tokens, and scaffold the tree-sitter grammar in `parser10/tree-sitter-able`.
-- **Next focus:** finish documenting the parser plan (token/precedence tables, AST mapping) and bootstrap the tree-sitter grammar without the deferred safe-navigation operator (planned for v11).
+### 2025-10-22
+- Landed native hashers in the Go runtime plus interface-aware equality so HashMap keys that implement `hash`/`eq` behave like real language values (`interpreter10-go/pkg/runtime/hash.go`, `interpreter10-go/pkg/interpreter/interpreter_hashmap.go`, `hash_map_builtins_test.go`).
+- Paused the TypeScript interpreter track temporarily to focus on strengthening the Go CLI and the standard library contracts; revisit the TS parity sweep once the package manager + stdlib surface stabilises.
+- Completed the transitive dependency work: path/registry/git manifests now flow through dependency resolution recursively, `package.lock` records dependency edges for nested packages, and registry installs copy manifest metadata into the cache so the loader can assemble cross-package graphs. Added CLI integration tests exercising transitive path, registry, and git dependency execution (`cmd/able/main_test.go`).
+- Normalised git lock entries to use the dependency’s canonical manifest name while retaining `<ref>@<commit>` versions, captured remote URLs + commit hashes in the lockfile metadata, and added coverage to prove `able run` succeeds offline once the registry payload is cached.
+- **Next focus:** wire up `able deps update` (build/test commands stay parked until the compiler + testing plan solidify); TypeScript work resumes only after the Go compiler is in place, and safe-navigation/operator extras, optional dependencies, and feature flags are explicitly deferred to the v11 spec cycle.

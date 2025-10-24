@@ -279,6 +279,7 @@ func NewPreludeStatement(target HostTarget, code string) *PreludeStatement {
 
 type ExternFunctionBody struct {
 	nodeImpl
+	statementMarker
 
 	Target    HostTarget          `json:"target"`
 	Signature *FunctionDefinition `json:"signature"`

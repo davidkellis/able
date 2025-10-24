@@ -1,0 +1,44 @@
+package collections
+
+import able.core.interfaces{Default, Clone, Iterable, Iterator, Index, IndexMut}
+import able.core.errors{IndexError}
+
+## Opaque runtime-managed array storing contiguous elements of type T.
+struct Array T {
+  length: i32,
+  capacity: i32,
+  storage_handle: i64 ## Runtime handle for the backing buffer.
+}
+
+## Constructors and mutation helpers will be provided by the host runtime.
+methods Array T {
+  fn new() -> Array T { ... }
+  fn with_capacity(capacity: i32) -> Array T { ... }
+  fn push(mut self: Self, value: T) -> void { ... }
+  fn pop(mut self: Self) -> ?T { ... }
+  fn clear(mut self: Self) -> void { ... }
+
+  fn len(self: Self) -> i32 { self.length }
+  fn capacity(self: Self) -> i32 { self.capacity }
+  fn is_empty(self: Self) -> bool { self.length == 0 }
+}
+
+impl Default for Array T {
+  fn default() -> Array T { Array T { length: 0, capacity: 0, storage_handle: 0 } }
+}
+
+impl Clone for Array T {
+  fn clone(self: Self) -> Array T { ... }
+}
+
+impl Iterable T for Array T {
+  fn iterator(self: Self) -> (Iterator T) { ... }
+}
+
+impl Index i32 T for Array T {
+  fn index(self: Self, idx: i32) -> T | IndexError { ... }
+}
+
+impl IndexMut i32 T for Array T {
+  fn assign(mut self: Self, idx: i32, value: T) -> void | IndexError { ... }
+}

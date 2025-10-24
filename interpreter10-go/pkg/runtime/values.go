@@ -21,6 +21,8 @@ const (
 	KindInteger
 	KindFloat
 	KindArray
+	KindHashMap
+	KindHasher
 	KindRange
 	KindFunction
 	KindNativeFunction
@@ -38,6 +40,8 @@ const (
 	KindImplementationNamespace
 	KindProcHandle
 	KindFuture
+	KindIterator
+	KindIteratorEnd
 )
 
 func (k Kind) String() string {
@@ -56,6 +60,10 @@ func (k Kind) String() string {
 		return "float"
 	case KindArray:
 		return "array"
+	case KindHashMap:
+		return "hash_map"
+	case KindHasher:
+		return "hasher"
 	case KindRange:
 		return "range"
 	case KindFunction:
@@ -90,6 +98,10 @@ func (k Kind) String() string {
 		return "proc_handle"
 	case KindFuture:
 		return "future"
+	case KindIterator:
+		return "iterator"
+	case KindIteratorEnd:
+		return "iterator_end"
 	default:
 		return fmt.Sprintf("unknown_kind_%d", int(k))
 	}
@@ -173,6 +185,86 @@ type ArrayValue struct {
 }
 
 func (v *ArrayValue) Kind() Kind { return KindArray }
+
+type HashMapEntry struct {
+	Key   Value
+	Value Value
+	Hash  uint64
+}
+
+type HashMapValue struct {
+	Entries []HashMapEntry
+}
+
+func (v *HashMapValue) Kind() Kind { return KindHashMap }
+
+type HasherValue struct {
+	state uint64
+}
+
+func (v *HasherValue) Kind() Kind { return KindHasher }
+
+// IteratorValue represents a lazily evaluated iterator produced by generator literals.
+type IteratorValue struct {
+	mu     sync.Mutex
+	next   func() (Value, bool, error)
+	closer func()
+	closed bool
+}
+
+// NewIteratorValue constructs an iterator with the provided driver function.
+func NewIteratorValue(step func() (Value, bool, error), finalize func()) *IteratorValue {
+	if step == nil {
+		step = func() (Value, bool, error) { return IteratorEnd, true, nil }
+	}
+	return &IteratorValue{next: step, closer: finalize}
+}
+
+func (v *IteratorValue) Kind() Kind { return KindIterator }
+
+// Next advances the iterator. The bool result reports whether iteration has completed.
+func (v *IteratorValue) Next() (Value, bool, error) {
+	if v == nil {
+		return IteratorEnd, true, nil
+	}
+	v.mu.Lock()
+	if v.closed {
+		v.mu.Unlock()
+		return IteratorEnd, true, nil
+	}
+	step := v.next
+	v.mu.Unlock()
+	if step == nil {
+		return IteratorEnd, true, nil
+	}
+	return step()
+}
+
+// Close releases any resources held by the iterator.
+func (v *IteratorValue) Close() {
+	if v == nil {
+		return
+	}
+	v.mu.Lock()
+	if v.closed {
+		v.mu.Unlock()
+		return
+	}
+	v.closed = true
+	closer := v.closer
+	v.mu.Unlock()
+	if closer != nil {
+		closer()
+	}
+}
+
+// IteratorEndValue is a sentinel returned once an iterator is exhausted.
+type IteratorEndValue struct{}
+
+func (IteratorEndValue) Kind() Kind { return KindIteratorEnd }
+
+// IteratorEnd is the singleton sentinel shared by all iterators.
+var IteratorEnd = IteratorEndValue{}
 
 // RangeValue matches Able’s numeric range semantics.
 type RangeValue struct {

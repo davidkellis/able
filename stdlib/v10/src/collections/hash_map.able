@@ -1,0 +1,46 @@
+package collections
+
+import able.core.interfaces{Hash, Eq, Default, Clone}
+
+struct MapEntry K V {
+  key: K,
+  value: V
+}
+
+interface Map K V for T where K: Hash + Eq K {
+  fn get(self: Self, key: K) -> ?V;
+  fn set(mut self: Self, key: K, value: V) -> void;
+  fn remove(mut self: Self, key: K) -> ?V;
+  fn contains(self: Self, key: K) -> bool;
+  fn size(self: Self) -> i32;
+  fn is_empty(self: Self) -> bool { self.size() == 0 }
+}
+
+## Hash map backed by open addressing (runtime implementation TBD).
+struct HashMap K V {
+  buckets: i32,
+  size: i32,
+  storage_handle: i64 ## Runtime handle for entries array.
+}
+
+methods HashMap K V {
+  fn new() -> HashMap K V { ... }
+  fn with_capacity(capacity: i32) -> HashMap K V { ... }
+  fn clear(mut self: Self) -> void { ... }
+}
+
+impl Default for HashMap K V {
+  fn default() -> HashMap K V { HashMap K V { buckets: 0, size: 0, storage_handle: 0 } }
+}
+
+impl Clone for HashMap K V {
+  fn clone(self: Self) -> HashMap K V { ... }
+}
+
+impl Map K V for HashMap K V where K: Hash + Eq K {
+  fn get(self: Self, key: K) -> ?V { ... }
+  fn set(mut self: Self, key: K, value: V) -> void { ... }
+  fn remove(mut self: Self, key: K) -> ?V { ... }
+  fn contains(self: Self, key: K) -> bool { ... }
+  fn size(self: Self) -> i32 { self.size }
+}
