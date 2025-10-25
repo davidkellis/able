@@ -40,7 +40,7 @@
 ## Phase β — End-to-End AST Evaluation Completion
 1. **Fixture audit**
    - Sweep `design/parser-ast-coverage.md` to confirm every language feature is represented; open tickets for any remaining `TODO` fixtures.
-   - Current uncovered items: round out channel iteration/error fixtures (e.g., iteration, nil/closed semantics) and mutex contention scenarios so Go parity tests exercise all §12.5 behaviours before porting back to TS.
+   - §12.5 fixtures now cover buffered ops, nil-channel cancellation, closed-channel errors, and mutex contention; next up are parser assertions and mirroring the behaviour in the TypeScript runtime.
    - Add missing fixtures (e.g., remaining concurrency edge cases, select/timeout stubs if spec settles).
 2. **Interpreter verification**
    - Ensure both interpreters run the entire fixture suite with assertions (value, stdout, error cases). Add targeted unit tests where fixture coverage is insufficient (e.g., helper corner cases).

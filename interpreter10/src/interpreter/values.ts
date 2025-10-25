@@ -67,6 +67,7 @@ export type V10Value =
       isEvaluating?: boolean;
       cancelRequested?: boolean;
       hasStarted?: boolean;
+      waitingMutex?: unknown;
     }
   | {
       kind: "future";

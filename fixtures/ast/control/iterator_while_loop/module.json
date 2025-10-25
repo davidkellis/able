@@ -1,0 +1,153 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "count"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 0
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "iter"
+      },
+      "right": {
+        "type": "IteratorLiteral",
+        "body": [
+          {
+            "type": "WhileLoop",
+            "condition": {
+              "type": "BinaryExpression",
+              "operator": "<",
+              "left": {
+                "type": "Identifier",
+                "name": "count"
+              },
+              "right": {
+                "type": "IntegerLiteral",
+                "value": 3
+              }
+            },
+            "body": {
+              "type": "BlockExpression",
+              "body": [
+                {
+                  "type": "FunctionCall",
+                  "callee": {
+                    "type": "MemberAccessExpression",
+                    "object": {
+                      "type": "Identifier",
+                      "name": "gen"
+                    },
+                    "member": {
+                      "type": "Identifier",
+                      "name": "yield"
+                    }
+                  },
+                  "arguments": [
+                    {
+                      "type": "Identifier",
+                      "name": "count"
+                    }
+                  ],
+                  "isTrailingLambda": false
+                },
+                {
+                  "type": "AssignmentExpression",
+                  "operator": "=",
+                  "left": {
+                    "type": "Identifier",
+                    "name": "count"
+                  },
+                  "right": {
+                    "type": "BinaryExpression",
+                    "operator": "+",
+                    "left": {
+                      "type": "Identifier",
+                      "name": "count"
+                    },
+                    "right": {
+                      "type": "IntegerLiteral",
+                      "value": 1
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "total"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 0
+      }
+    },
+    {
+      "type": "ForLoop",
+      "pattern": {
+        "type": "Identifier",
+        "name": "n"
+      },
+      "iterable": {
+        "type": "Identifier",
+        "name": "iter"
+      },
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "AssignmentExpression",
+            "operator": "=",
+            "left": {
+              "type": "Identifier",
+              "name": "total"
+            },
+            "right": {
+              "type": "BinaryExpression",
+              "operator": "+",
+              "left": {
+                "type": "Identifier",
+                "name": "total"
+              },
+              "right": {
+                "type": "Identifier",
+                "name": "n"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "ArrayLiteral",
+      "elements": [
+        {
+          "type": "Identifier",
+          "name": "total"
+        },
+        {
+          "type": "Identifier",
+          "name": "count"
+        }
+      ]
+    }
+  ]
+}

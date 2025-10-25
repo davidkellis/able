@@ -857,3 +857,8 @@ Tests
 
 - (cd interpreter10-go && GOMODCACHE=$(pwd)/.gomodcache GOCACHE=$(pwd)/.gocache go test ./pkg/parser)
 - (cd interpreter10-go && GOMODCACHE=$(pwd)/.gomodcache GOCACHE=$(pwd)/.gocache go test ./...)
+- Session (2025-10-24)
+  - Completed the parser grammar expansion: added numeric/character/string literal variants, struct literals, handler expressions, iterator literals, and complex pattern/type coverage (parser10/tree-sitter-able/grammar.js).
+  - Added dedicated tree-sitter corpus fixtures exercising each new construct (character_literals, numeric_literals, string_interpolation, struct_literals, option_handling, iterator_literals, complex_patterns, type_expressions) so the grammar surface is fully tested.
+  - Clarified onboarding guidance to keep AST wiring on hold until grammar fixtures are green, and updated PLAN.md with the parser status for the next contributor.
+

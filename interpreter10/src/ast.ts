@@ -158,6 +158,9 @@ export interface PropagationExpression extends AstNode { type: 'PropagationExpre
 export interface OrElseExpression extends AstNode { type: 'OrElseExpression'; expression: Expression; handler: BlockExpression; errorBinding?: Identifier; }
 export interface BreakpointExpression extends AstNode { type: 'BreakpointExpression'; label: Identifier; body: BlockExpression; }
 export interface IteratorLiteral extends AstNode { type: 'IteratorLiteral'; body: Statement[]; }
+export interface ImplicitMemberExpression extends AstNode { type: 'ImplicitMemberExpression'; member: Identifier; }
+export interface PlaceholderExpression extends AstNode { type: 'PlaceholderExpression'; index?: number; }
+export interface TopicReferenceExpression extends AstNode { type: 'TopicReferenceExpression'; }
 
 export type Expression =
   | Identifier
@@ -178,6 +181,9 @@ export type Expression =
   | OrElseExpression
   | BreakpointExpression
   | IteratorLiteral
+  | ImplicitMemberExpression
+  | PlaceholderExpression
+  | TopicReferenceExpression
   | IfExpression
   | MatchExpression
   | StructLiteral
@@ -234,6 +240,18 @@ export function breakpointExpression(label: Identifier | string, body: BlockExpr
 
 export function iteratorLiteral(body: Statement[]): IteratorLiteral {
   return { type: 'IteratorLiteral', body };
+}
+
+export function implicitMemberExpression(member: Identifier | string): ImplicitMemberExpression {
+  return { type: 'ImplicitMemberExpression', member: typeof member === 'string' ? identifier(member) : member };
+}
+
+export function placeholderExpression(index?: number): PlaceholderExpression {
+  return index === undefined ? { type: 'PlaceholderExpression' } : { type: 'PlaceholderExpression', index };
+}
+
+export function topicReferenceExpression(): TopicReferenceExpression {
+  return { type: 'TopicReferenceExpression' };
 }
 
 // -----------------------------------------------------------------------------

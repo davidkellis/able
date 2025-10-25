@@ -906,6 +906,7 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 func (i *Interpreter) evaluateIteratorLiteral(expr *ast.IteratorLiteral, env *runtime.Environment) (runtime.Value, error) {
 	iterEnv := runtime.NewEnvironment(env)
 	instance := newGeneratorInstance(i, iterEnv, expr.Body)
+	iterEnv.Define("gen", instance.controllerValue())
 	return runtime.NewIteratorValue(func() (runtime.Value, bool, error) {
 		return instance.next()
 	}, instance.close), nil

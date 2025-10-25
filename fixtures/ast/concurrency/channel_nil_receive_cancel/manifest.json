@@ -1,0 +1,10 @@
+{
+  "description": "Nil channel receive blocks until the proc is cancelled",
+  "expect": {
+    "result": {
+      "kind": "string",
+      "value": "Cancelled"
+    }
+  },
+  "entry": "module.json"
+}

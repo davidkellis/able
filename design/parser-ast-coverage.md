@@ -11,6 +11,8 @@
 - `Partial` – Some coverage exists but is incomplete (e.g., only one interpreter, limited scenarios).
 - `Done` – Parser tests and AST fixtures both cover the feature with representative scenarios.
 
+> **Note:** As of the latest audit, every feature now has AST fixtures (`TODO` appears only in the “Parser Tests” column). Remaining `TODO` entries indicate missing parser assertions, not fixture gaps.
+
 > **Note:** “Parser Tests” refers to focused assertions in `interpreter10-go/pkg/parser/*`. “AST Fixtures” refers to entries under `fixtures/ast` exported via `interpreter10/scripts/export-fixtures.ts`.
 
 ---
@@ -115,11 +117,11 @@
 ## Concurrency & Async
 | Feature | Spec Reference | AST Fixtures | Parser Tests | Status | Notes |
 |---------|----------------|--------------|--------------|--------|-------|
-| `proc` block/expression | §12.2 | `concurrency/proc_cancel_value`, `concurrency/proc_yield_flush` | TODO | Partial | Parser coverage pending; fixtures exercise cancellation and resolution paths. |
+| `proc` block/expression | §12.2 | `concurrency/proc_cancel_value`, `concurrency/proc_yield_flush` | TODO | Partial | Parser coverage pending; fixtures exercise cancellation and scheduler flush paths. |
 | `proc` helpers (`proc_yield`, etc.) | §12.2.4 | `concurrency/proc_cancelled_helper`, `concurrency/proc_yield_flush` | TODO | Partial | Parser tests should cover helper invocation sites (`proc_yield`, `proc_cancelled`, `proc_flush`). |
 | `spawn` expression | §12.3 | `concurrency/future_memoization` | TODO | Partial | Parser assertions pending for `spawn` syntax and future member calls. |
-| Channel literal/ops | §12.5 | `concurrency/channel_basic_ops` | TODO | Partial | Fixture exercises new/send/receive/try/close/is_closed semantics; parser assertions still needed. |
-| Mutex helper (`mutex`) | §12.5 | `concurrency/mutex_locking` | TODO | Partial | Fixture covers sequential lock/unlock usage; extend once concurrency helpers exist. |
+| Channel literal/ops | §12.5 | `concurrency/channel_basic_ops`, `concurrency/channel_receive_loop`, `concurrency/channel_send_on_closed_error`, `concurrency/channel_nil_send_cancel`, `concurrency/channel_nil_receive_cancel` | TODO | Partial | Fixtures cover buffered operations, closed-channel errors, and nil-channel cancellation; parser assertions still needed. |
+| Mutex helper (`mutex`) | §12.5 | `concurrency/mutex_locking`, `concurrency/mutex_contention` | TODO | Partial | Fixtures cover basic lock/unlock and contention behaviour; parser assertions still needed. |
 
 ## Error Handling & Options
 | Feature | Spec Reference | AST Fixtures | Parser Tests | Status | Notes |
