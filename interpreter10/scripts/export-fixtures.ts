@@ -936,6 +936,179 @@ const fixtures: Fixture[] = [
     },
   },
   {
+    name: "concurrency/proc_yield_flush",
+    module: AST.module([
+      AST.assign("stage", AST.integerLiteral(0)),
+      AST.assign("trace", AST.stringLiteral("")),
+      AST.assign(
+        "handle",
+        AST.procExpression(
+          AST.blockExpression([
+            AST.ifExpression(
+              AST.binaryExpression(
+                "==",
+                AST.identifier("stage"),
+                AST.integerLiteral(0),
+              ),
+              AST.blockExpression([
+                AST.assignmentExpression(
+                  "=",
+                  AST.identifier("trace"),
+                  AST.binaryExpression(
+                    "+",
+                    AST.identifier("trace"),
+                    AST.stringLiteral("A"),
+                  ),
+                ),
+                AST.assignmentExpression(
+                  "=",
+                  AST.identifier("stage"),
+                  AST.integerLiteral(1),
+                ),
+                AST.functionCall(AST.identifier("proc_yield"), []),
+              ]),
+              [],
+            ),
+            AST.ifExpression(
+              AST.binaryExpression(
+                "==",
+                AST.identifier("stage"),
+                AST.integerLiteral(1),
+              ),
+              AST.blockExpression([
+                AST.assignmentExpression(
+                  "=",
+                  AST.identifier("trace"),
+                  AST.binaryExpression(
+                    "+",
+                    AST.identifier("trace"),
+                    AST.stringLiteral("B"),
+                  ),
+                ),
+                AST.assignmentExpression(
+                  "=",
+                  AST.identifier("stage"),
+                  AST.integerLiteral(2),
+                ),
+              ]),
+              [],
+            ),
+            AST.stringLiteral("done"),
+          ]),
+        ),
+      ),
+      AST.assign(
+        "status_before",
+        AST.matchExpression(
+          AST.functionCall(
+            AST.memberAccessExpression(AST.identifier("handle"), "status"),
+            [],
+          ),
+          [
+            AST.matchClause(
+              AST.structPattern([], false, "Pending"),
+              AST.stringLiteral("Pending"),
+            ),
+            AST.matchClause(
+              AST.structPattern([], false, "Resolved"),
+              AST.stringLiteral("Resolved"),
+            ),
+            AST.matchClause(
+              AST.structPattern([], false, "Cancelled"),
+              AST.stringLiteral("Cancelled"),
+            ),
+            AST.matchClause(
+              AST.structPattern([], false, "Failed"),
+              AST.stringLiteral("Failed"),
+            ),
+            AST.matchClause(AST.wildcardPattern(), AST.stringLiteral("Other")),
+          ],
+        ),
+      ),
+      AST.functionCall(AST.identifier("proc_flush"), []),
+      AST.assign(
+        "status_mid",
+        AST.matchExpression(
+          AST.functionCall(
+            AST.memberAccessExpression(AST.identifier("handle"), "status"),
+            [],
+          ),
+          [
+            AST.matchClause(
+              AST.structPattern([], false, "Pending"),
+              AST.stringLiteral("Pending"),
+            ),
+            AST.matchClause(
+              AST.structPattern([], false, "Resolved"),
+              AST.stringLiteral("Resolved"),
+            ),
+            AST.matchClause(
+              AST.structPattern([], false, "Cancelled"),
+              AST.stringLiteral("Cancelled"),
+            ),
+            AST.matchClause(
+              AST.structPattern([], false, "Failed"),
+              AST.stringLiteral("Failed"),
+            ),
+            AST.matchClause(AST.wildcardPattern(), AST.stringLiteral("Other")),
+          ],
+        ),
+      ),
+      AST.assign(
+        "result",
+        AST.functionCall(
+          AST.memberAccessExpression(AST.identifier("handle"), "value"),
+          [],
+        ),
+      ),
+      AST.assign(
+        "status_after",
+        AST.matchExpression(
+          AST.functionCall(
+            AST.memberAccessExpression(AST.identifier("handle"), "status"),
+            [],
+          ),
+          [
+            AST.matchClause(
+              AST.structPattern([], false, "Pending"),
+              AST.stringLiteral("Pending"),
+            ),
+            AST.matchClause(
+              AST.structPattern([], false, "Resolved"),
+              AST.stringLiteral("Resolved"),
+            ),
+            AST.matchClause(
+              AST.structPattern([], false, "Cancelled"),
+              AST.stringLiteral("Cancelled"),
+            ),
+            AST.matchClause(
+              AST.structPattern([], false, "Failed"),
+              AST.stringLiteral("Failed"),
+            ),
+            AST.matchClause(AST.wildcardPattern(), AST.stringLiteral("Other")),
+          ],
+        ),
+      ),
+      AST.stringInterpolation([
+        AST.identifier("status_before"),
+        AST.stringLiteral(":"),
+        AST.identifier("status_mid"),
+        AST.stringLiteral(":"),
+        AST.identifier("status_after"),
+        AST.stringLiteral(":"),
+        AST.identifier("trace"),
+        AST.stringLiteral(":"),
+        AST.identifier("result"),
+      ]),
+    ]),
+    manifest: {
+      description: "proc_yield cooperates with proc_flush to resume the task",
+      expect: {
+        result: { kind: "string", value: "Pending:Resolved:Resolved:AB:done" },
+      },
+    },
+  },
+  {
     name: "concurrency/proc_cancelled_helper",
     module: AST.module([
       AST.assign("trace", AST.stringLiteral("")),
@@ -1322,6 +1495,254 @@ const fixtures: Fixture[] = [
     },
   },
   {
+    name: "concurrency/channel_receive_loop",
+    module: AST.module([
+      AST.structDefinition(
+        "Channel",
+        [
+          AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "capacity"),
+          AST.structFieldDefinition(AST.simpleTypeExpression("i64"), "handle"),
+        ],
+        "named",
+      ),
+      AST.methodsDefinition(
+        AST.simpleTypeExpression("Channel"),
+        [
+          AST.functionDefinition(
+            "new",
+            [AST.functionParameter("capacity", AST.simpleTypeExpression("i32"))],
+            AST.blockExpression([
+              AST.assignmentExpression(
+                ":=",
+                AST.identifier("handle"),
+                AST.functionCall(AST.identifier("__able_channel_new"), [
+                  AST.identifier("capacity"),
+                ]),
+              ),
+              AST.returnStatement(
+                AST.structLiteral(
+                  [
+                    AST.structFieldInitializer(AST.identifier("capacity"), "capacity"),
+                    AST.structFieldInitializer(AST.identifier("handle"), "handle"),
+                  ],
+                  false,
+                  "Channel",
+                ),
+              ),
+            ]),
+            AST.simpleTypeExpression("Channel"),
+          ),
+          AST.functionDefinition(
+            "send",
+            [AST.functionParameter("self"), AST.functionParameter("value")],
+            AST.blockExpression([
+              AST.functionCall(
+                AST.identifier("__able_channel_send"),
+                [
+                  AST.memberAccessExpression(AST.identifier("self"), "handle"),
+                  AST.identifier("value"),
+                ],
+              ),
+            ]),
+          ),
+          AST.functionDefinition(
+            "receive",
+            [AST.functionParameter("self")],
+            AST.blockExpression([
+              AST.returnStatement(
+                AST.functionCall(
+                  AST.identifier("__able_channel_receive"),
+                  [AST.memberAccessExpression(AST.identifier("self"), "handle")],
+                ),
+              ),
+            ]),
+          ),
+          AST.functionDefinition(
+            "close",
+            [AST.functionParameter("self")],
+            AST.blockExpression([
+              AST.functionCall(
+                AST.identifier("__able_channel_close"),
+                [AST.memberAccessExpression(AST.identifier("self"), "handle")],
+              ),
+            ]),
+          ),
+        ],
+      ),
+      AST.assign(
+        "channel",
+        AST.functionCall(
+          AST.memberAccessExpression(AST.identifier("Channel"), "new"),
+          [AST.integerLiteral(3)],
+        ),
+      ),
+      AST.functionCall(
+        AST.memberAccessExpression(AST.identifier("channel"), "send"),
+        [AST.integerLiteral(2)],
+      ),
+      AST.functionCall(
+        AST.memberAccessExpression(AST.identifier("channel"), "send"),
+        [AST.integerLiteral(3)],
+      ),
+      AST.functionCall(
+        AST.memberAccessExpression(AST.identifier("channel"), "close"),
+        [],
+      ),
+      AST.assign("sum", AST.integerLiteral(0)),
+      AST.assign("value", AST.nilLiteral()),
+      AST.whileLoop(
+        AST.booleanLiteral(true),
+        AST.blockExpression([
+          AST.assignmentExpression(
+            ":=",
+            AST.identifier("value"),
+            AST.functionCall(
+              AST.memberAccessExpression(AST.identifier("channel"), "receive"),
+              [],
+            ),
+          ),
+          AST.ifExpression(
+            AST.binaryExpression(
+              "==",
+              AST.identifier("value"),
+              AST.nilLiteral(),
+            ),
+            AST.blockExpression([AST.breakStatement()]),
+            [AST.orClause(
+              AST.blockExpression([
+                AST.assignmentExpression(
+                  "+=",
+                  AST.identifier("sum"),
+                  AST.identifier("value"),
+                ),
+              ]),
+            )],
+          ),
+        ]),
+      ),
+      AST.identifier("sum"),
+    ]),
+    manifest: {
+      description: "Channel.receive drains buffered values and returns nil after close",
+      expect: {
+        result: { kind: "i32", value: 5 },
+      },
+    },
+  },
+  {
+    name: "concurrency/channel_send_on_closed_error",
+    module: AST.module([
+      AST.assign(
+        "handle",
+        AST.functionCall(AST.identifier("__able_channel_new"), [AST.integerLiteral(0)]),
+      ),
+      AST.functionCall(
+        AST.identifier("__able_channel_close"),
+        [AST.identifier("handle")],
+      ),
+      AST.functionCall(
+        AST.identifier("__able_channel_send"),
+        [AST.identifier("handle"), AST.integerLiteral(1)],
+      ),
+    ]),
+    manifest: {
+      description: "Sending on a closed channel raises an error",
+      expect: {
+        errors: ["send on closed channel"],
+      },
+    },
+  },
+  {
+    name: "concurrency/channel_nil_send_cancel",
+    module: AST.module([
+      AST.assign(
+        "handle",
+        AST.procExpression(
+          AST.blockExpression([
+            AST.functionCall(
+              AST.identifier("__able_channel_send"),
+              [AST.integerLiteral(0), AST.stringLiteral("value")],
+            ),
+            AST.integerLiteral(1),
+          ]),
+        ),
+      ),
+      AST.functionCall(
+        AST.memberAccessExpression(AST.identifier("handle"), "cancel"),
+        [],
+      ),
+      AST.functionCall(AST.identifier("proc_flush"), []),
+      AST.assign(
+        "status",
+        AST.functionCall(
+          AST.memberAccessExpression(AST.identifier("handle"), "status"),
+          [],
+        ),
+      ),
+      AST.matchExpression(
+        AST.identifier("status"),
+        [
+          AST.matchClause(
+            AST.structPattern([], false, "Cancelled"),
+            AST.stringLiteral("Cancelled"),
+          ),
+          AST.matchClause(AST.wildcardPattern(), AST.stringLiteral("Other")),
+        ],
+      ),
+    ]),
+    manifest: {
+      description: "Nil channel send blocks until the proc is cancelled",
+      expect: {
+        result: { kind: "string", value: "Cancelled" },
+      },
+    },
+  },
+  {
+    name: "concurrency/channel_nil_receive_cancel",
+    module: AST.module([
+      AST.assign(
+        "handle",
+        AST.procExpression(
+          AST.blockExpression([
+            AST.functionCall(
+              AST.identifier("__able_channel_receive"),
+              [AST.integerLiteral(0)],
+            ),
+            AST.integerLiteral(1),
+          ]),
+        ),
+      ),
+      AST.functionCall(
+        AST.memberAccessExpression(AST.identifier("handle"), "cancel"),
+        [],
+      ),
+      AST.functionCall(AST.identifier("proc_flush"), []),
+      AST.assign(
+        "status",
+        AST.functionCall(
+          AST.memberAccessExpression(AST.identifier("handle"), "status"),
+          [],
+        ),
+      ),
+      AST.matchExpression(
+        AST.identifier("status"),
+        [
+          AST.matchClause(
+            AST.structPattern([], false, "Cancelled"),
+            AST.stringLiteral("Cancelled"),
+          ),
+          AST.matchClause(AST.wildcardPattern(), AST.stringLiteral("Other")),
+        ],
+      ),
+    ]),
+    manifest: {
+      description: "Nil channel receive blocks until the proc is cancelled",
+      expect: {
+        result: { kind: "string", value: "Cancelled" },
+      },
+    },
+  },
+  {
     name: "concurrency/mutex_locking",
     module: AST.module([
       AST.structDefinition(
@@ -1421,6 +1842,138 @@ const fixtures: Fixture[] = [
       description: "Mutex lock/unlock methods mutate in sequence",
       expect: {
         result: { kind: "string", value: "AB" },
+      },
+    },
+  },
+  {
+    name: "concurrency/mutex_contention",
+    module: AST.module([
+      AST.assign(
+        "mutex",
+        AST.functionCall(AST.identifier("__able_mutex_new"), []),
+      ),
+      AST.assign("trace", AST.stringLiteral("")),
+      AST.functionCall(
+        AST.identifier("__able_mutex_lock"),
+        [AST.identifier("mutex")],
+      ),
+      AST.assignmentExpression(
+        "=",
+        AST.identifier("trace"),
+        AST.binaryExpression(
+          "+",
+          AST.identifier("trace"),
+          AST.stringLiteral("A"),
+        ),
+      ),
+      AST.assign(
+        "worker",
+        AST.procExpression(
+          AST.blockExpression([
+            AST.functionCall(
+              AST.identifier("__able_mutex_lock"),
+              [AST.identifier("mutex")],
+            ),
+            AST.assignmentExpression(
+              "=",
+              AST.identifier("trace"),
+              AST.binaryExpression(
+                "+",
+                AST.identifier("trace"),
+                AST.stringLiteral("C"),
+              ),
+            ),
+            AST.functionCall(
+              AST.identifier("__able_mutex_unlock"),
+              [AST.identifier("mutex")],
+            ),
+            AST.nilLiteral(),
+          ]),
+        ),
+      ),
+      AST.functionCall(AST.identifier("proc_flush"), []),
+      AST.assign(
+        "status_initial",
+        AST.matchExpression(
+          AST.functionCall(
+            AST.memberAccessExpression(AST.identifier("worker"), "status"),
+            [],
+          ),
+          [
+            AST.matchClause(
+              AST.structPattern([], false, "Pending"),
+              AST.stringLiteral("Pending"),
+            ),
+            AST.matchClause(
+              AST.structPattern([], false, "Resolved"),
+              AST.stringLiteral("Resolved"),
+            ),
+            AST.matchClause(
+              AST.structPattern([], false, "Cancelled"),
+              AST.stringLiteral("Cancelled"),
+            ),
+            AST.matchClause(
+              AST.structPattern([], false, "Failed"),
+              AST.stringLiteral("Failed"),
+            ),
+            AST.matchClause(AST.wildcardPattern(), AST.stringLiteral("Other")),
+          ],
+        ),
+      ),
+      AST.assignmentExpression(
+        "=",
+        AST.identifier("trace"),
+        AST.binaryExpression(
+          "+",
+          AST.identifier("trace"),
+          AST.stringLiteral("B"),
+        ),
+      ),
+      AST.functionCall(
+        AST.identifier("__able_mutex_unlock"),
+        [AST.identifier("mutex")],
+      ),
+      AST.functionCall(AST.identifier("proc_flush"), []),
+      AST.assign(
+        "status_final",
+        AST.matchExpression(
+          AST.functionCall(
+            AST.memberAccessExpression(AST.identifier("worker"), "status"),
+            [],
+          ),
+          [
+            AST.matchClause(
+              AST.structPattern([], false, "Pending"),
+              AST.stringLiteral("Pending"),
+            ),
+            AST.matchClause(
+              AST.structPattern([], false, "Resolved"),
+              AST.stringLiteral("Resolved"),
+            ),
+            AST.matchClause(
+              AST.structPattern([], false, "Cancelled"),
+              AST.stringLiteral("Cancelled"),
+            ),
+            AST.matchClause(
+              AST.structPattern([], false, "Failed"),
+              AST.stringLiteral("Failed"),
+            ),
+            AST.matchClause(AST.wildcardPattern(), AST.stringLiteral("Other")),
+          ],
+        ),
+      ),
+      AST.stringInterpolation([
+        AST.identifier("status_initial"),
+        AST.stringLiteral(":"),
+        AST.identifier("status_final"),
+        AST.stringLiteral(":"),
+        AST.identifier("trace"),
+      ]),
+    ]),
+    manifest: {
+      description: "Mutex contention ensures the waiting proc resumes only after unlock",
+      expect: {
+        result: { kind: "string", value: "Pending:Resolved:ABC" },
       },
     },
   },

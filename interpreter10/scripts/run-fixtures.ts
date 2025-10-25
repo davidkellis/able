@@ -242,14 +242,30 @@ function installRuntimeStubs(interpreter: V10.InterpreterV10) {
   const globals = interpreter.globals ?? (interpreter as any).globals;
   if (!globals) return;
 
-  const defineStub = (name: string, arity: number, impl: (args: V10.V10Value[]) => V10.V10Value) => {
+  const defineStub = (
+    name: string,
+    arity: number,
+    impl: (interp: V10.InterpreterV10, args: V10.V10Value[]) => V10.V10Value | null,
+  ) => {
     try {
       globals.define(
         name,
-        interpreter.makeNativeFunction(name, arity, (_interp, args) => impl(args)),
+        interpreter.makeNativeFunction(name, arity, (innerInterp, args) => {
+          const result = impl(innerInterp as V10.InterpreterV10, args);
+          return result ?? { kind: "nil", value: null };
+        }),
       );
     } catch {
       // ignore redefinition attempts
+    }
+  };
+
+  const hasGlobal = (name: string): boolean => {
+    try {
+      globals.get(name);
+      return true;
+    } catch {
+      return false;
     }
   };
 
@@ -263,23 +279,53 @@ function installRuntimeStubs(interpreter: V10.InterpreterV10) {
   };
 
   const channels = new Map<number, ChannelState>();
+  type MutexState = {
+    locked: boolean;
+  };
+  const mutexes = new Map<number, MutexState>();
+
   const toNumber = (value: V10.V10Value): number => {
     if (value.kind === "i32" || value.kind === "f64") return Number(value.value ?? 0);
     return Number((value as any).value ?? value ?? 0);
   };
   const toHandle = (value: V10.V10Value): number => toNumber(value);
 
-  defineStub("__able_channel_new", 1, ([capacityArg]) => {
+  const checkCancelled = (interp: V10.InterpreterV10): boolean => {
+    try {
+      const cancelled = interp.procCancelled();
+      return cancelled.kind === "bool" && cancelled.value;
+    } catch {
+      return false;
+    }
+  };
+
+  const blockOnNilChannel = (interp: V10.InterpreterV10): V10.V10Value | null => {
+    if (checkCancelled(interp)) {
+      return { kind: "nil", value: null };
+    }
+    interp.procYield();
+    return null;
+  };
+
+  if (!hasGlobal("__able_channel_new")) defineStub("__able_channel_new", 1, (_interp, [capacityArg]) => {
     const capacity = Math.max(0, Math.trunc(toNumber(capacityArg)));
     const handleValue = makeHandle();
     const handle = toHandle(handleValue);
     channels.set(handle, { capacity, queue: [], closed: false });
     return handleValue;
   });
-  defineStub("__able_channel_send", 2, ([handleArg, value]) => {
+
+  if (!hasGlobal("__able_channel_send")) defineStub("__able_channel_send", 2, (interp, [handleArg, value]) => {
     const handle = toHandle(handleArg);
     const channel = channels.get(handle);
-    if (!channel || channel.closed) return { kind: "nil", value: null };
+    if (!channel) {
+      const blocked = blockOnNilChannel(interp);
+      if (blocked) return blocked;
+      return { kind: "nil", value: null };
+    }
+    if (channel.closed) {
+      throw new Error("send on closed channel");
+    }
     if (channel.capacity === 0) {
       channel.queue = [value];
     } else if (channel.queue.length < channel.capacity) {
@@ -290,19 +336,31 @@ function installRuntimeStubs(interpreter: V10.InterpreterV10) {
     }
     return { kind: "nil", value: null };
   });
-  defineStub("__able_channel_receive", 1, ([handleArg]) => {
+
+  if (!hasGlobal("__able_channel_receive")) defineStub("__able_channel_receive", 1, (interp, [handleArg]) => {
     const handle = toHandle(handleArg);
     const channel = channels.get(handle);
-    if (!channel) return { kind: "nil", value: null };
+    if (!channel) {
+      const blocked = blockOnNilChannel(interp);
+      if (blocked) return blocked;
+      return { kind: "nil", value: null };
+    }
     if (channel.queue.length > 0) {
       return channel.queue.shift()!;
     }
-    return channel.closed ? { kind: "nil", value: null } : { kind: "nil", value: null };
+    if (channel.closed) {
+      return { kind: "nil", value: null };
+    }
+    const blocked = blockOnNilChannel(interp);
+    if (blocked) return blocked;
+    return { kind: "nil", value: null };
   });
-  defineStub("__able_channel_try_send", 2, ([handleArg, value]) => {
+
+  if (!hasGlobal("__able_channel_try_send")) defineStub("__able_channel_try_send", 2, (_interp, [handleArg, value]) => {
     const handle = toHandle(handleArg);
     const channel = channels.get(handle);
-    if (!channel || channel.closed) return { kind: "bool", value: false };
+    if (!channel) return { kind: "bool", value: false };
+    if (channel.closed) throw new Error("send on closed channel");
     if (channel.capacity === 0) {
       channel.queue = [value];
       return { kind: "bool", value: true };
@@ -313,30 +371,58 @@ function installRuntimeStubs(interpreter: V10.InterpreterV10) {
     }
     return { kind: "bool", value: false };
   });
-  defineStub("__able_channel_try_receive", 1, ([handleArg]) => {
+
+  if (!hasGlobal("__able_channel_try_receive")) defineStub("__able_channel_try_receive", 1, (_interp, [handleArg]) => {
     const handle = toHandle(handleArg);
     const channel = channels.get(handle);
     if (!channel) return { kind: "nil", value: null };
     if (channel.queue.length > 0) {
       return channel.queue.shift()!;
     }
-    return { kind: "nil", value: null };
+    return channel.closed ? { kind: "nil", value: null } : { kind: "nil", value: null };
   });
-  defineStub("__able_channel_close", 1, ([handleArg]) => {
+
+  if (!hasGlobal("__able_channel_close")) defineStub("__able_channel_close", 1, (_interp, [handleArg]) => {
     const handle = toHandle(handleArg);
     const channel = channels.get(handle);
     if (channel) channel.closed = true;
     return { kind: "nil", value: null };
   });
-  defineStub("__able_channel_is_closed", 1, ([handleArg]) => {
+
+  if (!hasGlobal("__able_channel_is_closed")) defineStub("__able_channel_is_closed", 1, (_interp, [handleArg]) => {
     const handle = toHandle(handleArg);
     const channel = channels.get(handle);
     return { kind: "bool", value: channel ? channel.closed : false };
   });
 
-  defineStub("__able_mutex_new", 0, () => makeHandle());
-  defineStub("__able_mutex_lock", 1, () => ({ kind: "nil", value: null }));
-  defineStub("__able_mutex_unlock", 1, () => ({ kind: "nil", value: null }));
+  if (!hasGlobal("__able_mutex_new")) defineStub("__able_mutex_new", 0, () => makeHandle());
+  if (!hasGlobal("__able_mutex_lock")) defineStub("__able_mutex_lock", 1, (interp, [handleArg]) => {
+    const handle = toHandle(handleArg);
+    let state = mutexes.get(handle);
+    if (!state) {
+      state = { locked: false };
+      mutexes.set(handle, state);
+    }
+    if (!state.locked) {
+      state.locked = true;
+      return { kind: "nil", value: null };
+    }
+    if (checkCancelled(interp)) {
+      return { kind: "nil", value: null };
+    }
+    interp.procYield();
+    return null;
+  });
+  if (!hasGlobal("__able_mutex_unlock")) defineStub("__able_mutex_unlock", 1, (_interp, [handleArg]) => {
+    const handle = toHandle(handleArg);
+    let state = mutexes.get(handle);
+    if (!state) {
+      state = { locked: false };
+      mutexes.set(handle, state);
+    }
+    state.locked = false;
+    return { kind: "nil", value: null };
+  });
 }
 
 function formatValue(value: V10.V10Value): string {

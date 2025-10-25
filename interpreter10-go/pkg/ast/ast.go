@@ -74,6 +74,9 @@ const (
 	NodeReturnStatement          NodeType = "ReturnStatement"
 	NodeDynImportStatement       NodeType = "DynImportStatement"
 	NodeIteratorLiteral          NodeType = "IteratorLiteral"
+	NodeImplicitMemberExpression NodeType = "ImplicitMemberExpression"
+	NodePlaceholderExpression    NodeType = "PlaceholderExpression"
+	NodeTopicReferenceExpression NodeType = "TopicReferenceExpression"
 	NodeYieldStatement           NodeType = "YieldStatement"
 	NodePreludeStatement         NodeType = "PreludeStatement"
 	NodeExternFunctionBody       NodeType = "ExternFunctionBody"
@@ -537,6 +540,41 @@ type IteratorLiteral struct {
 
 func NewIteratorLiteral(body []Statement) *IteratorLiteral {
 	return &IteratorLiteral{nodeImpl: newNodeImpl(NodeIteratorLiteral), Body: body}
+}
+
+type ImplicitMemberExpression struct {
+	nodeImpl
+	expressionMarker
+	statementMarker
+	assignmentTargetMarker
+
+	Member *Identifier `json:"member"`
+}
+
+func NewImplicitMemberExpression(member *Identifier) *ImplicitMemberExpression {
+	return &ImplicitMemberExpression{nodeImpl: newNodeImpl(NodeImplicitMemberExpression), Member: member}
+}
+
+type PlaceholderExpression struct {
+	nodeImpl
+	expressionMarker
+	statementMarker
+
+	Index *int `json:"index,omitempty"`
+}
+
+func NewPlaceholderExpression(index *int) *PlaceholderExpression {
+	return &PlaceholderExpression{nodeImpl: newNodeImpl(NodePlaceholderExpression), Index: index}
+}
+
+type TopicReferenceExpression struct {
+	nodeImpl
+	expressionMarker
+	statementMarker
+}
+
+func NewTopicReferenceExpression() *TopicReferenceExpression {
+	return &TopicReferenceExpression{nodeImpl: newNodeImpl(NodeTopicReferenceExpression)}
 }
 
 type AssignmentOperator string

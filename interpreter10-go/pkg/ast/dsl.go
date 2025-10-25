@@ -200,6 +200,23 @@ func Lam(params []*FunctionParameter, body Expression) *LambdaExpression {
 	return NewLambdaExpression(params, body, nil, nil, nil, false)
 }
 
+func ImplicitMember(name interface{}) *ImplicitMemberExpression {
+	return NewImplicitMemberExpression(identifierPtr(name))
+}
+
+func Placeholder() *PlaceholderExpression {
+	return NewPlaceholderExpression(nil)
+}
+
+func PlaceholderN(index int) *PlaceholderExpression {
+	idx := index
+	return NewPlaceholderExpression(&idx)
+}
+
+func TopicRef() *TopicReferenceExpression {
+	return NewTopicReferenceExpression()
+}
+
 func LamBlock(params []*FunctionParameter, body *BlockExpression) *LambdaExpression {
 	return NewLambdaExpression(params, body, nil, nil, nil, true)
 }

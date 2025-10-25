@@ -1,0 +1,128 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "handle"
+      },
+      "right": {
+        "type": "ProcExpression",
+        "expression": {
+          "type": "BlockExpression",
+          "body": [
+            {
+              "type": "FunctionCall",
+              "callee": {
+                "type": "Identifier",
+                "name": "__able_channel_send"
+              },
+              "arguments": [
+                {
+                  "type": "IntegerLiteral",
+                  "value": 0
+                },
+                {
+                  "type": "StringLiteral",
+                  "value": "value"
+                }
+              ],
+              "isTrailingLambda": false
+            },
+            {
+              "type": "IntegerLiteral",
+              "value": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "MemberAccessExpression",
+        "object": {
+          "type": "Identifier",
+          "name": "handle"
+        },
+        "member": {
+          "type": "Identifier",
+          "name": "cancel"
+        }
+      },
+      "arguments": [],
+      "isTrailingLambda": false
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "Identifier",
+        "name": "proc_flush"
+      },
+      "arguments": [],
+      "isTrailingLambda": false
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "status"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "handle"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "status"
+          }
+        },
+        "arguments": [],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "MatchExpression",
+      "subject": {
+        "type": "Identifier",
+        "name": "status"
+      },
+      "clauses": [
+        {
+          "type": "MatchClause",
+          "pattern": {
+            "type": "StructPattern",
+            "structType": {
+              "type": "Identifier",
+              "name": "Cancelled"
+            },
+            "fields": [],
+            "isPositional": false
+          },
+          "body": {
+            "type": "StringLiteral",
+            "value": "Cancelled"
+          }
+        },
+        {
+          "type": "MatchClause",
+          "pattern": {
+            "type": "WildcardPattern"
+          },
+          "body": {
+            "type": "StringLiteral",
+            "value": "Other"
+          }
+        }
+      ]
+    }
+  ]
+}
