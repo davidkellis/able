@@ -1,9 +1,0 @@
-package foo
-
-fn add(a, b)
-  a + b
-end
-
-fn main()
-  b = { a, b, c => add(5) }
-end

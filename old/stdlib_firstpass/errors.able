@@ -1,3 +1,0 @@
-package able
-
-struct Error { message: string }
