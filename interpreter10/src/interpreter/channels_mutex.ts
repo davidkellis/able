@@ -231,9 +231,6 @@ export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void
         })();
 
         if (state.locked) {
-          if (procHandle && state.owner === procHandle) {
-            return NIL;
-          }
           if (!procHandle) {
             throw new Error("Mutex already locked");
           }
@@ -262,21 +259,17 @@ export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void
           return NIL;
         }
 
+        state.locked = false;
+        state.owner = null;
         if (state.waiters.length > 0) {
           const next = state.waiters.shift()!;
-          state.owner = next;
-          const procHandle = next;
-          if ((procHandle as any).waitingMutex === state) {
-            delete (procHandle as any).waitingMutex;
+          if ((next as any).waitingMutex === state) {
+            delete (next as any).waitingMutex;
           }
-          if (!procHandle.runner) {
-            procHandle.runner = () => interp.runProcHandle(procHandle);
+          if (!next.runner) {
+            next.runner = () => interp.runProcHandle(next);
           }
-          state.locked = true;
-          interp.scheduleAsync(procHandle.runner);
-        } else {
-          state.locked = false;
-          state.owner = null;
+          interp.scheduleAsync(next.runner);
         }
 
         return NIL;

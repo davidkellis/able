@@ -16,14 +16,22 @@ type packageMeta struct {
 }
 
 type evalState struct {
-	raiseStack  []runtime.Value
-	breakpoints []string
+	raiseStack        []runtime.Value
+	breakpoints       []string
+	implicitReceivers []runtime.Value
+	topicStack        []runtime.Value
+	topicUsage        []bool
+	placeholderStack  []placeholderFrame
 }
 
 func newEvalState() *evalState {
 	return &evalState{
-		raiseStack:  make([]runtime.Value, 0),
-		breakpoints: make([]string, 0),
+		raiseStack:        make([]runtime.Value, 0),
+		breakpoints:       make([]string, 0),
+		implicitReceivers: make([]runtime.Value, 0),
+		topicStack:        make([]runtime.Value, 0),
+		topicUsage:        make([]bool, 0),
+		placeholderStack:  make([]placeholderFrame, 0),
 	}
 }
 
@@ -74,6 +82,139 @@ func (s *evalState) peekRaise() (runtime.Value, bool) {
 		return nil, false
 	}
 	return s.raiseStack[len(s.raiseStack)-1], true
+}
+
+func (s *evalState) pushImplicitReceiver(val runtime.Value) {
+	if s == nil {
+		return
+	}
+	s.implicitReceivers = append(s.implicitReceivers, val)
+}
+
+func (s *evalState) popImplicitReceiver() {
+	if s == nil || len(s.implicitReceivers) == 0 {
+		return
+	}
+	s.implicitReceivers = s.implicitReceivers[:len(s.implicitReceivers)-1]
+}
+
+func (s *evalState) currentImplicitReceiver() (runtime.Value, bool) {
+	if s == nil || len(s.implicitReceivers) == 0 {
+		return nil, false
+	}
+	return s.implicitReceivers[len(s.implicitReceivers)-1], true
+}
+
+func (s *evalState) pushTopic(val runtime.Value) {
+	if s == nil {
+		return
+	}
+	s.topicStack = append(s.topicStack, val)
+	s.topicUsage = append(s.topicUsage, false)
+}
+
+func (s *evalState) popTopic() {
+	if s == nil || len(s.topicStack) == 0 {
+		return
+	}
+	s.topicStack = s.topicStack[:len(s.topicStack)-1]
+	s.topicUsage = s.topicUsage[:len(s.topicUsage)-1]
+}
+
+func (s *evalState) currentTopic() (runtime.Value, bool) {
+	if s == nil || len(s.topicStack) == 0 {
+		return nil, false
+	}
+	return s.topicStack[len(s.topicStack)-1], true
+}
+
+func (s *evalState) markTopicUsed() {
+	if s == nil || len(s.topicUsage) == 0 {
+		return
+	}
+	s.topicUsage[len(s.topicUsage)-1] = true
+}
+
+func (s *evalState) topicWasUsed() bool {
+	if s == nil || len(s.topicUsage) == 0 {
+		return false
+	}
+	return s.topicUsage[len(s.topicUsage)-1]
+}
+
+func (s *evalState) pushPlaceholderFrame(explicit map[int]struct{}, paramCount int, args []runtime.Value) {
+	if s == nil {
+		return
+	}
+	frameExplicit := make(map[int]struct{}, len(explicit))
+	for idx := range explicit {
+		frameExplicit[idx] = struct{}{}
+	}
+	frame := placeholderFrame{
+		args:             args,
+		explicit:         frameExplicit,
+		implicitAssigned: make(map[int]struct{}),
+		nextImplicit:     1,
+		paramCount:       paramCount,
+	}
+	s.placeholderStack = append(s.placeholderStack, frame)
+}
+
+func (s *evalState) popPlaceholderFrame() {
+	if s == nil || len(s.placeholderStack) == 0 {
+		return
+	}
+	s.placeholderStack = s.placeholderStack[:len(s.placeholderStack)-1]
+}
+
+func (s *evalState) currentPlaceholderFrame() (*placeholderFrame, bool) {
+	if s == nil || len(s.placeholderStack) == 0 {
+		return nil, false
+	}
+	return &s.placeholderStack[len(s.placeholderStack)-1], true
+}
+
+func (s *evalState) hasPlaceholderFrame() bool {
+	return s != nil && len(s.placeholderStack) > 0
+}
+
+type placeholderFrame struct {
+	args             []runtime.Value
+	explicit         map[int]struct{}
+	implicitAssigned map[int]struct{}
+	nextImplicit     int
+	paramCount       int
+}
+
+func (f *placeholderFrame) valueAt(index int) (runtime.Value, error) {
+	if index <= 0 || index > len(f.args) {
+		return nil, fmt.Errorf("Placeholder index @%d is out of range", index)
+	}
+	return f.args[index-1], nil
+}
+
+func (f *placeholderFrame) nextImplicitIndex() (int, error) {
+	if f == nil {
+		return 0, fmt.Errorf("placeholder frame missing")
+	}
+	idx := f.nextImplicit
+	if idx < 1 {
+		idx = 1
+	}
+	for idx <= f.paramCount {
+		if _, reserved := f.explicit[idx]; reserved {
+			idx++
+			continue
+		}
+		if _, used := f.implicitAssigned[idx]; used {
+			idx++
+			continue
+		}
+		f.implicitAssigned[idx] = struct{}{}
+		f.nextImplicit = idx + 1
+		return idx, nil
+	}
+	return 0, fmt.Errorf("no implicit placeholder slots available")
 }
 
 // Interpreter drives evaluation of Able v10 AST nodes.

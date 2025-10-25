@@ -689,6 +689,16 @@
           }
         ]
       },
+      "method_shorthand": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "#",
+            "named": false
+          }
+        ]
+      },
       "name": {
         "multiple": false,
         "required": true,
@@ -1022,72 +1032,6 @@
         "types": [
           {
             "type": "identifier",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
-    "type": "implicit_method_definition",
-    "named": true,
-    "fields": {
-      "body": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "block",
-            "named": true
-          }
-        ]
-      },
-      "name": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "identifier",
-            "named": true
-          }
-        ]
-      },
-      "parameters": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "parameter_list",
-            "named": true
-          }
-        ]
-      },
-      "return_type": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "return_type",
-            "named": true
-          }
-        ]
-      },
-      "type_parameters": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "type_parameter_list",
-            "named": true
-          }
-        ]
-      },
-      "where_clause": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "where_clause",
             "named": true
           }
         ]
@@ -1656,10 +1600,6 @@
       "types": [
         {
           "type": "function_definition",
-          "named": true
-        },
-        {
-          "type": "implicit_method_definition",
           "named": true
         }
       ]
@@ -2244,6 +2184,7 @@
   {
     "type": "source_file",
     "named": true,
+    "root": true,
     "fields": {
       "imports": {
         "multiple": true,
@@ -3144,7 +3085,8 @@
   },
   {
     "type": "comment",
-    "named": true
+    "named": true,
+    "extra": true
   },
   {
     "type": "continue",

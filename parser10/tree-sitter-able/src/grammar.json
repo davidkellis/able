@@ -1,4 +1,5 @@
 {
+  "$schema": "https://tree-sitter.github.io/tree-sitter/assets/schemas/grammar.schema.json",
   "name": "able",
   "word": "identifier",
   "rules": {
@@ -381,100 +382,19 @@
         },
         {
           "type": "FIELD",
-          "name": "name",
-          "content": {
-            "type": "SYMBOL",
-            "name": "identifier"
-          }
-        },
-        {
-          "type": "FIELD",
-          "name": "type_parameters",
+          "name": "method_shorthand",
           "content": {
             "type": "CHOICE",
             "members": [
               {
-                "type": "SYMBOL",
-                "name": "type_parameter_list"
+                "type": "STRING",
+                "value": "#"
               },
               {
                 "type": "BLANK"
               }
             ]
           }
-        },
-        {
-          "type": "FIELD",
-          "name": "parameters",
-          "content": {
-            "type": "SYMBOL",
-            "name": "parameter_list"
-          }
-        },
-        {
-          "type": "FIELD",
-          "name": "return_type",
-          "content": {
-            "type": "CHOICE",
-            "members": [
-              {
-                "type": "SYMBOL",
-                "name": "return_type"
-              },
-              {
-                "type": "BLANK"
-              }
-            ]
-          }
-        },
-        {
-          "type": "FIELD",
-          "name": "where_clause",
-          "content": {
-            "type": "CHOICE",
-            "members": [
-              {
-                "type": "SYMBOL",
-                "name": "where_clause"
-              },
-              {
-                "type": "BLANK"
-              }
-            ]
-          }
-        },
-        {
-          "type": "FIELD",
-          "name": "body",
-          "content": {
-            "type": "SYMBOL",
-            "name": "block"
-          }
-        }
-      ]
-    },
-    "implicit_method_definition": {
-      "type": "SEQ",
-      "members": [
-        {
-          "type": "CHOICE",
-          "members": [
-            {
-              "type": "STRING",
-              "value": "private"
-            },
-            {
-              "type": "BLANK"
-            }
-          ]
-        },
-        {
-          "type": "STRING",
-          "value": "fn"
-        },
-        {
-          "type": "STRING",
-          "value": "#"
         },
         {
           "type": "FIELD",
@@ -1632,10 +1552,6 @@
         {
           "type": "SYMBOL",
           "name": "function_definition"
-        },
-        {
-          "type": "SYMBOL",
-          "name": "implicit_method_definition"
         }
       ]
     },
@@ -4951,5 +4867,6 @@
     "type_expression",
     "pattern",
     "literal"
-  ]
+  ],
+  "reserved": {}
 }

@@ -78,9 +78,10 @@ Expression :=
   Identifier | Literal | UnaryExpression | BinaryExpression |
   FunctionCall | BlockExpression | AssignmentExpression |
   RangeExpression | StringInterpolation | MemberAccessExpression |
-  IndexExpression | LambdaExpression | ProcExpression |
-  SpawnExpression | PropagationExpression | OrElseExpression |
-  BreakpointExpression | IfExpression | MatchExpression |
+  IndexExpression | ImplicitMemberExpression | LambdaExpression |
+  ProcExpression | SpawnExpression | PropagationExpression |
+  OrElseExpression | BreakpointExpression | PlaceholderExpression |
+  TopicReferenceExpression | IfExpression | MatchExpression |
   StructLiteral | RescueExpression | EnsureExpression
 ```
 
@@ -97,14 +98,17 @@ Node definitions:
 | `StringInterpolation` | `parts: (StringLiteral or Expression)[]`
 | `MemberAccessExpression` | `object: Expression`, `member: Identifier | IntegerLiteral`
 | `IndexExpression` | `object: Expression`, `index: Expression`
+| `ImplicitMemberExpression` | `member: Identifier` *(shorthand `#member`; treated as an `Expression` and valid assignment target)*
 | `LambdaExpression` | `generic_params?: GenericParameter[]`, `params: FunctionParameter[]`, `return_type?: TypeExpression`, `body: Expression | BlockExpression`, `where_clause?: WhereClauseConstraint[]`, `is_verbose_syntax: bool`
 | `ProcExpression` | `expression: FunctionCall | BlockExpression`
 | `SpawnExpression` | `expression: FunctionCall | BlockExpression`
 | `PropagationExpression` | `expression: Expression` (postfix `!`)
 | `OrElseExpression` | `expression: Expression`, `handler: BlockExpression`, `error_binding?: Identifier`
 | `BreakpointExpression` | `label: Identifier`, `body: BlockExpression`
+| `PlaceholderExpression` | `index?: integer` *(un-numbered `@` omits `index`; numbered `@n` stores 1-based `index`)* 
+| `TopicReferenceExpression` | *(represents pipe-topic `%` while piping expressions)*
 
-Assignment targets are any `Pattern`, `MemberAccessExpression`, `IndexExpression`, or `Identifier`.
+Assignment targets are any `Pattern`, `MemberAccessExpression`, `ImplicitMemberExpression`, `IndexExpression`, or `Identifier`.
 
 ---
 ## 6. Control Flow
