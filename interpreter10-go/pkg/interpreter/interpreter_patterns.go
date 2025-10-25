@@ -70,6 +70,9 @@ func (i *Interpreter) assignPattern(pattern ast.Pattern, value runtime.Value, en
 			return nil
 		}
 		if structVal.Fields == nil {
+			if len(p.Fields) == 0 {
+				return nil
+			}
 			return fmt.Errorf("Expected named struct")
 		}
 		for _, field := range p.Fields {

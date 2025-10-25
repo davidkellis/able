@@ -154,11 +154,13 @@ type serialTask struct {
 type SerialExecutor struct {
 	executorBase
 
-	mu     sync.Mutex
-	cond   *sync.Cond
-	queue  []serialTask
-	closed bool
-	active bool
+	mu      sync.Mutex
+	cond    *sync.Cond
+	queue   []serialTask
+	closed  bool
+	active  bool
+	current *runtime.ProcHandleValue
+	paused  bool
 }
 
 func NewSerialExecutor(panicHandler panicValueFunc) *SerialExecutor {
@@ -209,6 +211,8 @@ func (e *SerialExecutor) loop() {
 		task := e.queue[0]
 		e.queue = e.queue[1:]
 		e.active = true
+		e.paused = false
+		e.current = task.handle
 		e.mu.Unlock()
 
 		ctx := task.handle.Context()
@@ -223,6 +227,8 @@ func (e *SerialExecutor) loop() {
 
 		e.mu.Lock()
 		e.active = false
+		e.paused = false
+		e.current = nil
 		e.cond.Broadcast()
 		e.mu.Unlock()
 	}
@@ -237,8 +243,34 @@ func (e *SerialExecutor) Close() {
 
 func (e *SerialExecutor) Flush() {
 	e.mu.Lock()
-	for (len(e.queue) > 0 || e.active) && !e.closed {
+	for (len(e.queue) > 0 || (e.active && !e.paused)) && !e.closed {
 		e.cond.Wait()
+	}
+	e.mu.Unlock()
+}
+
+func (e *SerialExecutor) suspendCurrent(handle *runtime.ProcHandleValue) {
+	if handle == nil {
+		return
+	}
+	e.mu.Lock()
+	if e.current == handle && !e.paused {
+		e.paused = true
+		e.active = false
+		e.cond.Broadcast()
+	}
+	e.mu.Unlock()
+}
+
+func (e *SerialExecutor) resumeCurrent(handle *runtime.ProcHandleValue) {
+	if handle == nil {
+		return
+	}
+	e.mu.Lock()
+	if e.current == handle && e.paused {
+		e.paused = false
+		e.active = true
+		e.cond.Broadcast()
 	}
 	e.mu.Unlock()
 }

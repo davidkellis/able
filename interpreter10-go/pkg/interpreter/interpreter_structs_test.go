@@ -198,6 +198,159 @@ func TestPrivateInstanceMethodNotAccessible(t *testing.T) {
 	}
 }
 
+func TestMethodShorthandImplicitMember(t *testing.T) {
+	interp := New()
+	structDef := ast.StructDef(
+		"Counter",
+		[]*ast.StructFieldDefinition{
+			ast.FieldDef(ast.Ty("i32"), "value"),
+		},
+		ast.StructKindNamed,
+		nil,
+		nil,
+		false,
+	)
+	incrementBody := []ast.Statement{
+		ast.AssignOp(
+			ast.AssignmentAssign,
+			ast.ImplicitMember("value"),
+			ast.Bin(
+				"+",
+				ast.ImplicitMember("value"),
+				ast.Int(1),
+			),
+		),
+	}
+	addBody := []ast.Statement{
+		ast.AssignOp(
+			ast.AssignmentAssign,
+			ast.ImplicitMember("value"),
+			ast.Bin(
+				"+",
+				ast.ImplicitMember("value"),
+				ast.ID("amount"),
+			),
+		),
+	}
+	methods := ast.Methods(
+		ast.Ty("Counter"),
+		[]*ast.FunctionDefinition{
+			ast.Fn(
+				"increment",
+				nil,
+				incrementBody,
+				nil,
+				nil,
+				nil,
+				true,
+				false,
+			),
+			ast.Fn(
+				"add",
+				[]*ast.FunctionParameter{
+					ast.Param("amount", nil),
+				},
+				addBody,
+				nil,
+				nil,
+				nil,
+				true,
+				false,
+			),
+		},
+		nil,
+		nil,
+	)
+	setupModule := ast.Mod([]ast.Statement{
+		structDef,
+		methods,
+		ast.Assign(
+			ast.ID("counter"),
+			ast.StructLit(
+				[]*ast.StructFieldInitializer{
+					ast.FieldInit(ast.Int(5), "value"),
+				},
+				false,
+				"Counter",
+				nil,
+				nil,
+			),
+		),
+		ast.CallExpr(ast.Member(ast.ID("counter"), "increment")),
+		ast.CallExpr(ast.Member(ast.ID("counter"), "add"), ast.Int(3)),
+		ast.Member(ast.ID("counter"), "value"),
+	}, nil, nil)
+
+	result, _, err := interp.EvaluateModule(setupModule)
+	if err != nil {
+		t.Fatalf("method shorthand evaluation failed: %v", err)
+	}
+	intResult, ok := result.(runtime.IntegerValue)
+	if !ok {
+		t.Fatalf("expected integer result, got %#v", result)
+	}
+	if intResult.Val.Cmp(bigInt(9)) != 0 {
+		t.Fatalf("expected counter.value == 9, got %#v", intResult.Val)
+	}
+}
+
+func TestImplicitMemberInFreeFunction(t *testing.T) {
+	interp := New()
+	structDef := ast.StructDef(
+		"Counter",
+		[]*ast.StructFieldDefinition{
+			ast.FieldDef(ast.Ty("i32"), "value"),
+		},
+		ast.StructKindNamed,
+		nil,
+		nil,
+		false,
+	)
+	valueOfFn := ast.Fn(
+		"value_of",
+		[]*ast.FunctionParameter{
+			ast.Param("counter", ast.Ty("Counter")),
+		},
+		[]ast.Statement{
+			ast.Ret(ast.ImplicitMember("value")),
+		},
+		ast.Ty("i32"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+	module := ast.Mod([]ast.Statement{
+		structDef,
+		valueOfFn,
+		ast.Assign(
+			ast.ID("counter"),
+			ast.StructLit(
+				[]*ast.StructFieldInitializer{
+					ast.FieldInit(ast.Int(42), "value"),
+				},
+				false,
+				"Counter",
+				nil,
+				nil,
+			),
+		),
+		ast.CallExpr(ast.ID("value_of"), ast.ID("counter")),
+	}, nil, nil)
+
+	result, _, err := interp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("free function implicit member failed: %v", err)
+	}
+	intResult, ok := result.(runtime.IntegerValue)
+	if !ok {
+		t.Fatalf("expected integer result, got %#v", result)
+	}
+	if intResult.Val.Cmp(bigInt(42)) != 0 {
+		t.Fatalf("expected 42 from value_of, got %#v", intResult.Val)
+	}
+}
+
 func TestStructLiteralNamed(t *testing.T) {
 	interp := New()
 	module := ast.Mod([]ast.Statement{

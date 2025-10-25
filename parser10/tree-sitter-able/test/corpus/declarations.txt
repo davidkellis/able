@@ -365,7 +365,7 @@ impl Display for Counter {
                 (qualified_identifier
                   (identifier))))))))
     (method_member
-      (implicit_method_definition
+      (function_definition
         (identifier)
         (parameter_list)
         (block
@@ -404,7 +404,7 @@ impl Display for Counter {
                                                 (primary_expression
                                                   (number_literal))))))))))))))))))))))))
     (method_member
-      (implicit_method_definition
+      (function_definition
         (identifier)
         (parameter_list
           (parameter
@@ -466,7 +466,7 @@ impl Display for Counter {
                 (qualified_identifier
                   (identifier))))))))
     (method_member
-      (implicit_method_definition
+      (function_definition
         (identifier)
         (parameter_list)
         (return_type

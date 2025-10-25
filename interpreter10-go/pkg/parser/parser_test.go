@@ -127,7 +127,7 @@ func TestParseImplicitMethods(t *testing.T) {
 			ast.NewFunctionDefinition(
 				ast.ID("add"),
 				[]*ast.FunctionParameter{
-					ast.NewFunctionParameter(ast.ID("amount"), nil),
+					ast.NewFunctionParameter(ast.ID("amount"), ast.Ty("i32")),
 				},
 				addBody,
 				nil,
@@ -172,6 +172,7 @@ func TestParseImplicitMethods(t *testing.T) {
 	)
 
 	expected := ast.NewModule([]ast.Statement{structDef, methodsDef, implDef}, nil, nil)
+	expected.Imports = []*ast.ImportStatement{}
 	assertModulesEqual(t, expected, mod)
 }
 
@@ -229,6 +230,7 @@ func TestParsePlaceholderExpressions(t *testing.T) {
 			false,
 		),
 	}, nil, nil)
+	expected.Imports = []*ast.ImportStatement{}
 
 	assertModulesEqual(t, expected, mod)
 }
