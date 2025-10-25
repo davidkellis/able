@@ -1,6 +1,0 @@
-package able
-
-interface Truthy for T {
-  fn truthy(T) -> Boolean
-  fn falsy(t: T) -> Boolean = !truthy(t)
-}

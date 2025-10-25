@@ -1,6 +1,0 @@
-package able.collections
-
-interface Seq[T] for U[T] where U[T]: Enumerable[T] {
-  fn [](U[T], Int) -> Option[T]
-  fn length(U[T]) -> Int
-}

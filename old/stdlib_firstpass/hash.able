@@ -1,3 +1,0 @@
-interface Hash for T {
-  fn hash(a: T, hasher: Hasher) -> Int64
-}

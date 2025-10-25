@@ -1,6 +1,0 @@
-name: "stdlib"
-version: "1.0.0"
-
-dependencies:
-  stdlib: "~> 1.2"
-  unicode: "~> 9.0"
