@@ -102,6 +102,11 @@ func isPrimitiveInt(t Type) bool {
 // typeAssignable performs a shallow compatibility check between two types.
 // It intentionally permits Unknown/TypeParam targets so later passes can refine them.
 func typeAssignable(from, to Type) bool {
+	if to != nil {
+		if name, ok := structName(to); ok && name == "void" {
+			return true
+		}
+	}
 	if to == nil || isUnknownType(to) {
 		return true
 	}

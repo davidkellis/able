@@ -207,18 +207,7 @@ module.exports = grammar({
     function_definition: $ => seq(
       optional("private"),
       "fn",
-      field("name", $.identifier),
-      field("type_parameters", optional($.type_parameter_list)),
-      field("parameters", $.parameter_list),
-      field("return_type", optional($.return_type)),
-      field("where_clause", optional($.where_clause)),
-      field("body", $.block),
-    ),
-
-    implicit_method_definition: $ => seq(
-      optional("private"),
-      "fn",
-      "#",
+      field("method_shorthand", optional("#")),
       field("name", $.identifier),
       field("type_parameters", optional($.type_parameter_list)),
       field("parameters", $.parameter_list),
@@ -403,7 +392,6 @@ module.exports = grammar({
 
     method_member: $ => choice(
       $.function_definition,
-      $.implicit_method_definition,
     ),
 
     named_implementation_definition: $ => seq(

@@ -290,7 +290,7 @@ func parseFunctionDefinition(node *sitter.Node, source []byte) (*ast.FunctionDef
 		return nil, fmt.Errorf("parser: expected function_definition node")
 	}
 
-	name, generics, params, returnType, whereClause, body, isPrivate, err := parseFunctionCore(node, source)
+	name, generics, params, returnType, whereClause, body, isMethodShorthand, isPrivate, err := parseFunctionCore(node, source)
 	if err != nil {
 		return nil, err
 	}
@@ -302,52 +302,28 @@ func parseFunctionDefinition(node *sitter.Node, source []byte) (*ast.FunctionDef
 		returnType,
 		generics,
 		whereClause,
-		false,
+		isMethodShorthand,
 		isPrivate,
 	)
 
 	return fn, nil
 }
 
-func parseImplicitMethodDefinition(node *sitter.Node, source []byte) (*ast.FunctionDefinition, error) {
-	if node == nil || node.Kind() != "implicit_method_definition" {
-		return nil, fmt.Errorf("parser: expected implicit_method_definition node")
-	}
-
-	name, generics, params, returnType, whereClause, body, isPrivate, err := parseFunctionCore(node, source)
-	if err != nil {
-		return nil, err
-	}
-
-	fn := ast.NewFunctionDefinition(
-		name,
-		params,
-		body,
-		returnType,
-		generics,
-		whereClause,
-		true,
-		isPrivate,
-	)
-
-	return fn, nil
-}
-
-func parseFunctionCore(node *sitter.Node, source []byte) (*ast.Identifier, []*ast.GenericParameter, []*ast.FunctionParameter, ast.TypeExpression, []*ast.WhereClauseConstraint, *ast.BlockExpression, bool, error) {
+func parseFunctionCore(node *sitter.Node, source []byte) (*ast.Identifier, []*ast.GenericParameter, []*ast.FunctionParameter, ast.TypeExpression, []*ast.WhereClauseConstraint, *ast.BlockExpression, bool, bool, error) {
 	name, err := parseIdentifier(node.ChildByFieldName("name"), source)
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, false, err
+		return nil, nil, nil, nil, nil, nil, false, false, err
 	}
 
 	params, err := parseParameterList(node.ChildByFieldName("parameters"), source)
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, false, err
+		return nil, nil, nil, nil, nil, nil, false, false, err
 	}
 
 	bodyNode := node.ChildByFieldName("body")
 	fnBody, err := parseBlock(bodyNode, source)
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, false, err
+		return nil, nil, nil, nil, nil, nil, false, false, err
 	}
 
 	isPrivate := false
@@ -362,15 +338,17 @@ func parseFunctionCore(node *sitter.Node, source []byte) (*ast.Identifier, []*as
 	returnType := parseReturnType(node.ChildByFieldName("return_type"), source)
 	generics, err := parseTypeParameters(node.ChildByFieldName("type_parameters"), source)
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, false, err
+		return nil, nil, nil, nil, nil, nil, false, false, err
 	}
 
 	whereClause, err := parseWhereClause(node.ChildByFieldName("where_clause"), source)
 	if err != nil {
-		return nil, nil, nil, nil, nil, nil, false, err
+		return nil, nil, nil, nil, nil, nil, false, false, err
 	}
 
-	return name, generics, params, returnType, whereClause, fnBody, isPrivate, nil
+	methodShorthand := node.ChildByFieldName("method_shorthand") != nil
+
+	return name, generics, params, returnType, whereClause, fnBody, methodShorthand, isPrivate, nil
 }
 
 func parseParameterList(node *sitter.Node, source []byte) ([]*ast.FunctionParameter, error) {
@@ -474,8 +452,10 @@ func parseStructFieldDefinition(node *sitter.Node, source []byte) (*ast.StructFi
 				}
 				name = id
 			}
-		case "type_expression":
-			fieldType = parseTypeExpression(child, source)
+		default:
+			if fieldType == nil {
+				fieldType = parseTypeExpression(child, source)
+			}
 		}
 	}
 
@@ -527,12 +507,18 @@ func parseMethodsDefinition(node *sitter.Node, source []byte) (ast.Statement, er
 				return nil, err
 			}
 			definitions = append(definitions, fn)
-		case "implicit_method_definition":
-			fn, err := parseImplicitMethodDefinition(child, source)
-			if err != nil {
-				return nil, err
+		case "method_member":
+			for j := uint(0); j < child.NamedChildCount(); j++ {
+				memberChild := child.NamedChild(j)
+				if memberChild == nil || memberChild.Kind() != "function_definition" {
+					continue
+				}
+				fn, err := parseFunctionDefinition(memberChild, source)
+				if err != nil {
+					return nil, err
+				}
+				definitions = append(definitions, fn)
 			}
-			definitions = append(definitions, fn)
 		}
 	}
 
@@ -598,12 +584,18 @@ func parseImplementationDefinitionNode(node *sitter.Node, source []byte) (*ast.I
 				return nil, err
 			}
 			definitions = append(definitions, fn)
-		case "implicit_method_definition":
-			fn, err := parseImplicitMethodDefinition(child, source)
-			if err != nil {
-				return nil, err
+		case "method_member":
+			for j := uint(0); j < child.NamedChildCount(); j++ {
+				memberChild := child.NamedChild(j)
+				if memberChild == nil || memberChild.Kind() != "function_definition" {
+					continue
+				}
+				fn, err := parseFunctionDefinition(memberChild, source)
+				if err != nil {
+					return nil, err
+				}
+				definitions = append(definitions, fn)
 			}
-			definitions = append(definitions, fn)
 		}
 	}
 
@@ -668,8 +660,13 @@ func parseParameter(node *sitter.Node, source []byte) (*ast.FunctionParameter, e
 		return nil, err
 	}
 
-	// TODO: parse parameter types
-	return ast.NewFunctionParameter(pattern, nil), nil
+	var paramType ast.TypeExpression
+	if typed, ok := pattern.(*ast.TypedPattern); ok {
+		pattern = typed.Pattern
+		paramType = typed.TypeAnnotation
+	}
+
+	return ast.NewFunctionParameter(pattern, paramType), nil
 }
 
 func parsePattern(node *sitter.Node, source []byte) (ast.Pattern, error) {
@@ -689,6 +686,21 @@ func parsePattern(node *sitter.Node, source []byte) (ast.Pattern, error) {
 		return parseIdentifier(node, source)
 	case "_":
 		return ast.Wc(), nil
+	case "typed_pattern":
+		if node.NamedChildCount() < 2 {
+			return nil, fmt.Errorf("parser: malformed typed pattern")
+		}
+		innerPattern, err := parsePattern(node.NamedChild(0), source)
+		if err != nil {
+			return nil, err
+		}
+		typeExpr := parseTypeExpression(node.NamedChild(1), source)
+		if typeExpr == nil {
+			return nil, fmt.Errorf("parser: typed pattern missing type expression")
+		}
+		return ast.NewTypedPattern(innerPattern, typeExpr), nil
+	case "pattern", "pattern_base":
+		return parsePattern(node.NamedChild(0), source)
 	default:
 		return nil, fmt.Errorf("parser: unsupported pattern kind %q", node.Kind())
 	}

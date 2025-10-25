@@ -6,6 +6,16 @@ import (
 	"able/interpreter10-go/pkg/ast"
 )
 
+func isVoidType(t Type) bool {
+	if t == nil {
+		return false
+	}
+	if name, ok := structName(t); ok && name == "void" {
+		return true
+	}
+	return false
+}
+
 func (c *Checker) checkFunctionDefinition(env *Environment, def *ast.FunctionDefinition) []Diagnostic {
 	if def == nil {
 		return nil
@@ -61,6 +71,10 @@ func (c *Checker) checkFunctionDefinition(env *Environment, def *ast.FunctionDef
 	if def.Body != nil {
 		bodyDiags, bodyType := c.checkExpression(bodyEnv, def.Body)
 		diags = append(diags, bodyDiags...)
+
+		if isVoidType(expectedReturn) {
+			bodyType = expectedReturn
+		}
 
 		if expectedReturn != nil && !isUnknownType(expectedReturn) && bodyType != nil && !isUnknownType(bodyType) {
 			if !typeAssignable(bodyType, expectedReturn) {
@@ -126,6 +140,10 @@ func (c *Checker) checkLambdaExpression(env *Environment, expr *ast.LambdaExpres
 	diags = append(diags, bodyDiags...)
 	bodyType = inferredReturn
 
+	if isVoidType(expectedReturn) {
+		bodyType = expectedReturn
+	}
+
 	if expectedReturn != nil && !isUnknownType(expectedReturn) {
 		if bodyType != nil && !isUnknownType(bodyType) && !typeAssignable(bodyType, expectedReturn) {
 			diags = append(diags, Diagnostic{
@@ -168,6 +186,10 @@ func (c *Checker) checkReturnStatement(env *Environment, stmt *ast.ReturnStateme
 		argDiags, argType := c.checkExpression(env, stmt.Argument)
 		diags = append(diags, argDiags...)
 		returnType = argType
+	}
+
+	if isVoidType(expected) {
+		returnType = expected
 	}
 
 	if expected != nil && !isUnknownType(expected) {

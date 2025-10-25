@@ -18,7 +18,11 @@ type channelState struct {
 }
 
 type mutexState struct {
-	mu sync.Mutex
+	mu      sync.Mutex
+	cond    *sync.Cond
+	locked  bool
+	owner   *runtime.ProcHandleValue
+	waiters int
 }
 
 func (i *Interpreter) ensureChannelMutexBuiltins() {
@@ -381,6 +385,7 @@ func (i *Interpreter) initChannelMutexBuiltins() {
 		Arity: 0,
 		Impl: func(_ *runtime.NativeCallContext, _ []runtime.Value) (runtime.Value, error) {
 			state := &mutexState{}
+			state.cond = sync.NewCond(&state.mu)
 			i.mutexMu.Lock()
 			handle := i.nextMutexHandle
 			i.nextMutexHandle++
@@ -393,7 +398,7 @@ func (i *Interpreter) initChannelMutexBuiltins() {
 	mutexLock := runtime.NativeFunctionValue{
 		Name:  "__able_mutex_lock",
 		Arity: 1,
-		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+		Impl: func(callCtx *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 			if len(args) != 1 {
 				return nil, fmt.Errorf("__able_mutex_lock expects handle argument")
 			}
@@ -405,8 +410,88 @@ func (i *Interpreter) initChannelMutexBuiltins() {
 			if err != nil {
 				return nil, err
 			}
+			if state.cond == nil {
+				state.cond = sync.NewCond(&state.mu)
+			}
+			ctx := contextFromCall(callCtx)
+			var procHandle *runtime.ProcHandleValue
+			if callCtx != nil {
+				if payload := payloadFromState(callCtx.State); payload != nil && payload.handle != nil {
+					procHandle = payload.handle
+				}
+			}
+			var serialExec *SerialExecutor
+			if procHandle != nil {
+				if exec, ok := i.executor.(*SerialExecutor); ok {
+					serialExec = exec
+				}
+			}
+
 			state.mu.Lock()
-			return runtime.NilValue{}, nil
+			defer state.mu.Unlock()
+
+			if !state.locked {
+				state.locked = true
+				state.owner = procHandle
+				return runtime.NilValue{}, nil
+			}
+
+			registered := false
+			defer func() {
+				if registered {
+					state.waiters--
+				}
+			}()
+			for {
+				if !state.locked {
+					state.locked = true
+					state.owner = procHandle
+					if registered {
+						state.waiters--
+						registered = false
+					}
+					state.cond.Signal()
+					return runtime.NilValue{}, nil
+				}
+				if !registered {
+					state.waiters++
+					registered = true
+				}
+				if serialExec != nil {
+					serialExec.suspendCurrent(procHandle)
+				}
+				if ctx != nil {
+					select {
+					case <-ctx.Done():
+						if serialExec != nil {
+							serialExec.resumeCurrent(procHandle)
+						}
+						if registered {
+							state.waiters--
+							registered = false
+							state.cond.Signal()
+						}
+						return nil, ctx.Err()
+					default:
+					}
+				}
+				state.cond.Wait()
+				if serialExec != nil {
+					serialExec.resumeCurrent(procHandle)
+				}
+				if ctx != nil {
+					select {
+					case <-ctx.Done():
+						if registered {
+							state.waiters--
+							registered = false
+							state.cond.Signal()
+						}
+						return nil, ctx.Err()
+					default:
+					}
+				}
+			}
 		},
 	}
 
@@ -425,15 +510,23 @@ func (i *Interpreter) initChannelMutexBuiltins() {
 			if err != nil {
 				return nil, err
 			}
-			defer func() {
-				if r := recover(); r != nil {
-					err = fmt.Errorf("mutex unlock failed: %v", r)
-				}
-			}()
-			state.mu.Unlock()
-			if err != nil {
-				return nil, err
+			if state.cond == nil {
+				state.cond = sync.NewCond(&state.mu)
 			}
+			state.mu.Lock()
+			if !state.locked {
+				state.mu.Unlock()
+				return runtime.NilValue{}, nil
+			}
+			state.locked = false
+			state.owner = nil
+			if state.waiters > 0 {
+				state.cond.Signal()
+				for state.waiters > 0 && !state.locked {
+					state.cond.Wait()
+				}
+			}
+			state.mu.Unlock()
 			return runtime.NilValue{}, nil
 		},
 	}

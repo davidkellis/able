@@ -14,49 +14,65 @@ func (i *Interpreter) evaluateMemberAccess(expr *ast.MemberAccessExpression, env
 	if err != nil {
 		return nil, err
 	}
+	return i.memberAccessOnValue(obj, expr.Member, env)
+}
+
+func (i *Interpreter) memberAccessOnValue(obj runtime.Value, member ast.Expression, env *runtime.Environment) (runtime.Value, error) {
 	switch v := obj.(type) {
 	case *runtime.StructDefinitionValue:
-		return i.structDefinitionMember(v, expr.Member)
+		return i.structDefinitionMember(v, member)
 	case runtime.StructDefinitionValue:
-		return i.structDefinitionMember(&v, expr.Member)
+		return i.structDefinitionMember(&v, member)
 	case runtime.PackageValue:
-		return i.packageMemberAccess(v, expr.Member)
+		return i.packageMemberAccess(v, member)
 	case *runtime.PackageValue:
-		return i.packageMemberAccess(*v, expr.Member)
+		return i.packageMemberAccess(*v, member)
 	case runtime.ImplementationNamespaceValue:
-		return i.implNamespaceMember(v, expr.Member)
+		return i.implNamespaceMember(v, member)
 	case *runtime.ImplementationNamespaceValue:
-		return i.implNamespaceMember(*v, expr.Member)
+		return i.implNamespaceMember(*v, member)
 	case runtime.DynPackageValue:
-		return i.dynPackageMemberAccess(v, expr.Member)
+		return i.dynPackageMemberAccess(v, member)
 	case *runtime.DynPackageValue:
-		return i.dynPackageMemberAccess(*v, expr.Member)
+		return i.dynPackageMemberAccess(*v, member)
 	case *runtime.StructInstanceValue:
-		return i.structInstanceMember(v, expr.Member, env)
+		return i.structInstanceMember(v, member, env)
 	case *runtime.InterfaceValue:
-		return i.interfaceMember(v, expr.Member)
+		return i.interfaceMember(v, member)
 	case *runtime.ArrayValue:
 		i.ensureArrayBuiltins()
-		return i.arrayMember(v, expr.Member)
+		return i.arrayMember(v, member)
 	case *runtime.HashMapValue:
 		i.ensureHashMapBuiltins()
-		return i.hashMapMember(v, expr.Member)
+		return i.hashMapMember(v, member)
 	case *runtime.HasherValue:
-		return i.hasherMember(v, expr.Member)
+		return i.hasherMember(v, member)
 	case *runtime.ProcHandleValue:
-		return i.procHandleMember(v, expr.Member)
+		return i.procHandleMember(v, member)
 	case *runtime.FutureValue:
-		return i.futureMember(v, expr.Member)
+		return i.futureMember(v, member)
 	case *runtime.IteratorValue:
-		return i.iteratorMember(v, expr.Member)
+		return i.iteratorMember(v, member)
 	default:
-		if ident, ok := expr.Member.(*ast.Identifier); ok {
+		if ident, ok := member.(*ast.Identifier); ok {
 			if bound, ok := i.tryUfcs(env, ident.Name, obj); ok {
 				return bound, nil
 			}
 		}
 		return nil, fmt.Errorf("Member access only supported on structs in this milestone")
 	}
+}
+
+func (i *Interpreter) evaluateImplicitMemberExpression(expr *ast.ImplicitMemberExpression, env *runtime.Environment) (runtime.Value, error) {
+	if expr == nil || expr.Member == nil {
+		return nil, fmt.Errorf("Implicit member requires identifier")
+	}
+	state := i.stateFromEnv(env)
+	receiver, ok := state.currentImplicitReceiver()
+	if !ok {
+		return nil, fmt.Errorf("Implicit member '#%s' requires enclosing function with a first parameter", expr.Member.Name)
+	}
+	return i.memberAccessOnValue(receiver, expr.Member, env)
 }
 
 func (i *Interpreter) evaluateIndexExpression(expr *ast.IndexExpression, env *runtime.Environment) (runtime.Value, error) {

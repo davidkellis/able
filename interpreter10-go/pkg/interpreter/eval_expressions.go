@@ -10,6 +10,17 @@ import (
 )
 
 func (i *Interpreter) evaluateExpression(node ast.Expression, env *runtime.Environment) (runtime.Value, error) {
+	if node == nil {
+		return runtime.NilValue{}, nil
+	}
+	state := i.stateFromEnv(env)
+	if !state.hasPlaceholderFrame() {
+		if value, ok, err := i.tryBuildPlaceholderFunction(node, env); err != nil {
+			return nil, err
+		} else if ok {
+			return value, nil
+		}
+	}
 	switch n := node.(type) {
 	case *ast.StringLiteral:
 		return runtime.StringValue{Val: n.Value}, nil
@@ -92,10 +103,16 @@ func (i *Interpreter) evaluateExpression(node ast.Expression, env *runtime.Envir
 		return i.evaluateEnsureExpression(n, env)
 	case *ast.MemberAccessExpression:
 		return i.evaluateMemberAccess(n, env)
+	case *ast.ImplicitMemberExpression:
+		return i.evaluateImplicitMemberExpression(n, env)
 	case *ast.IndexExpression:
 		return i.evaluateIndexExpression(n, env)
 	case *ast.UnaryExpression:
 		return i.evaluateUnaryExpression(n, env)
+	case *ast.TopicReferenceExpression:
+		return i.evaluateTopicReferenceExpression(n, env)
+	case *ast.PlaceholderExpression:
+		return i.evaluatePlaceholderExpression(n, env)
 	case *ast.Identifier:
 		val, err := env.Get(n.Name)
 		if err != nil {
@@ -365,6 +382,9 @@ func (i *Interpreter) evaluateBinaryExpression(expr *ast.BinaryExpression, env *
 	if err != nil {
 		return nil, err
 	}
+	if expr.Operator == "|>" {
+		return i.evaluatePipeExpression(leftVal, expr.Right, env)
+	}
 	switch expr.Operator {
 	case "&&":
 		lb, ok := leftVal.(runtime.BoolValue)
@@ -480,98 +500,15 @@ func (i *Interpreter) evaluateFunctionCall(call *ast.FunctionCall, env *runtime.
 	if err != nil {
 		return nil, err
 	}
-	var injected []runtime.Value
-	var funcValue *runtime.FunctionValue
-	var callState any
-	if env != nil {
-		callState = env.RuntimeData()
-	}
-	switch fn := calleeVal.(type) {
-	case runtime.NativeFunctionValue:
-		args := make([]runtime.Value, 0, len(call.Arguments))
-		for _, argExpr := range call.Arguments {
-			val, err := i.evaluateExpression(argExpr, env)
-			if err != nil {
-				return nil, err
-			}
-			args = append(args, val)
-		}
-		ctx := &runtime.NativeCallContext{Env: env, State: callState}
-		return fn.Impl(ctx, args)
-	case *runtime.NativeFunctionValue:
-		args := make([]runtime.Value, 0, len(call.Arguments))
-		for _, argExpr := range call.Arguments {
-			val, err := i.evaluateExpression(argExpr, env)
-			if err != nil {
-				return nil, err
-			}
-			args = append(args, val)
-		}
-		ctx := &runtime.NativeCallContext{Env: env, State: callState}
-		return fn.Impl(ctx, args)
-	case runtime.NativeBoundMethodValue:
-		args := make([]runtime.Value, 0, len(call.Arguments)+1)
-		args = append(args, fn.Receiver)
-		for _, argExpr := range call.Arguments {
-			val, err := i.evaluateExpression(argExpr, env)
-			if err != nil {
-				return nil, err
-			}
-			args = append(args, val)
-		}
-		ctx := &runtime.NativeCallContext{Env: env, State: callState}
-		return fn.Method.Impl(ctx, args)
-	case *runtime.NativeBoundMethodValue:
-		args := make([]runtime.Value, 0, len(call.Arguments)+1)
-		args = append(args, fn.Receiver)
-		for _, argExpr := range call.Arguments {
-			val, err := i.evaluateExpression(argExpr, env)
-			if err != nil {
-				return nil, err
-			}
-			args = append(args, val)
-		}
-		ctx := &runtime.NativeCallContext{Env: env, State: callState}
-		return fn.Method.Impl(ctx, args)
-	case runtime.DynRefValue:
-		resolved, resErr := i.resolveDynRef(fn)
-		if resErr != nil {
-			return nil, resErr
-		}
-		funcValue = resolved
-	case *runtime.DynRefValue:
-		if fn == nil {
-			return nil, fmt.Errorf("dyn ref is nil")
-		}
-		resolved, resErr := i.resolveDynRef(*fn)
-		if resErr != nil {
-			return nil, resErr
-		}
-		funcValue = resolved
-	case *runtime.BoundMethodValue:
-		funcValue = fn.Method
-		injected = append(injected, fn.Receiver)
-	case runtime.BoundMethodValue:
-		funcValue = fn.Method
-		injected = append(injected, fn.Receiver)
-	case *runtime.FunctionValue:
-		funcValue = fn
-	default:
-		return nil, fmt.Errorf("calling non-function value of kind %s", calleeVal.Kind())
-	}
-	if funcValue == nil {
-		return nil, fmt.Errorf("call target missing function value")
-	}
-	args := make([]runtime.Value, 0, len(injected)+len(call.Arguments))
-	args = append(args, injected...)
+	argValues := make([]runtime.Value, 0, len(call.Arguments))
 	for _, argExpr := range call.Arguments {
 		val, err := i.evaluateExpression(argExpr, env)
 		if err != nil {
 			return nil, err
 		}
-		args = append(args, val)
+		argValues = append(argValues, val)
 	}
-	return i.invokeFunction(funcValue, args, call)
+	return i.callCallableValue(calleeVal, argValues, env, call)
 }
 
 func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.Value, call *ast.FunctionCall) (runtime.Value, error) {
@@ -585,24 +522,58 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 				return nil, err
 			}
 		}
-		if len(args) != len(decl.Params) {
+		paramCount := len(decl.Params)
+		expectedArgs := paramCount
+		if decl.IsMethodShorthand {
+			expectedArgs++
+		}
+		if len(args) != expectedArgs {
 			name := "<anonymous>"
 			if decl.ID != nil {
 				name = decl.ID.Name
 			}
-			return nil, fmt.Errorf("Function '%s' expects %d arguments, got %d", name, len(decl.Params), len(args))
+			return nil, fmt.Errorf("Function '%s' expects %d arguments, got %d", name, expectedArgs, len(args))
 		}
 		localEnv := runtime.NewEnvironment(fn.Closure)
 		if call != nil {
 			i.bindTypeArgumentsIfAny(decl, call, localEnv)
 		}
+		bindArgs := args
+		var implicitReceiver runtime.Value
+		hasImplicit := false
+		if decl.IsMethodShorthand {
+			implicitReceiver = args[0]
+			hasImplicit = true
+			if len(args) > 1 {
+				bindArgs = args[1:]
+			} else {
+				bindArgs = nil
+			}
+		} else {
+			if paramCount > 0 && len(args) > 0 {
+				implicitReceiver = args[0]
+				hasImplicit = true
+			}
+		}
+		if len(bindArgs) != paramCount {
+			name := "<anonymous>"
+			if decl.ID != nil {
+				name = decl.ID.Name
+			}
+			return nil, fmt.Errorf("Function '%s' expects %d arguments, got %d", name, paramCount, len(bindArgs))
+		}
 		for idx, param := range decl.Params {
 			if param == nil {
 				return nil, fmt.Errorf("function parameter %d is nil", idx)
 			}
-			if err := i.assignPattern(param.Name, args[idx], localEnv, true); err != nil {
+			if err := i.assignPattern(param.Name, bindArgs[idx], localEnv, true); err != nil {
 				return nil, err
 			}
+		}
+		state := i.stateFromEnv(localEnv)
+		if hasImplicit {
+			state.pushImplicitReceiver(implicitReceiver)
+			defer state.popImplicitReceiver()
 		}
 		result, err := i.evaluateBlock(decl.Body, localEnv)
 		if err != nil {
@@ -631,6 +602,12 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 		if call != nil {
 			i.bindTypeArgumentsIfAny(decl, call, localEnv)
 		}
+		var implicitReceiver runtime.Value
+		hasImplicit := false
+		if len(decl.Params) > 0 && len(args) > 0 {
+			implicitReceiver = args[0]
+			hasImplicit = true
+		}
 		for idx, param := range decl.Params {
 			if param == nil {
 				return nil, fmt.Errorf("lambda parameter %d is nil", idx)
@@ -638,6 +615,11 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 			if err := i.assignPattern(param.Name, args[idx], localEnv, true); err != nil {
 				return nil, err
 			}
+		}
+		state := i.stateFromEnv(localEnv)
+		if hasImplicit {
+			state.pushImplicitReceiver(implicitReceiver)
+			defer state.popImplicitReceiver()
 		}
 		result, err := i.evaluateExpression(decl.Body, localEnv)
 		if err != nil {
@@ -650,6 +632,663 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 	default:
 		return nil, fmt.Errorf("calling unsupported function declaration %T", fn.Declaration)
 	}
+}
+
+func (i *Interpreter) callCallableValue(callee runtime.Value, args []runtime.Value, env *runtime.Environment, call *ast.FunctionCall) (runtime.Value, error) {
+	if callee == nil {
+		return nil, fmt.Errorf("call target missing function value")
+	}
+	var callState any
+	if env != nil {
+		callState = env.RuntimeData()
+	}
+	switch fn := callee.(type) {
+	case runtime.NativeFunctionValue:
+		ctx := &runtime.NativeCallContext{Env: env, State: callState}
+		return fn.Impl(ctx, args)
+	case *runtime.NativeFunctionValue:
+		ctx := &runtime.NativeCallContext{Env: env, State: callState}
+		return fn.Impl(ctx, args)
+	case runtime.NativeBoundMethodValue:
+		combined := append([]runtime.Value{fn.Receiver}, args...)
+		ctx := &runtime.NativeCallContext{Env: env, State: callState}
+		return fn.Method.Impl(ctx, combined)
+	case *runtime.NativeBoundMethodValue:
+		if fn == nil {
+			return nil, fmt.Errorf("native bound method is nil")
+		}
+		combined := append([]runtime.Value{fn.Receiver}, args...)
+		ctx := &runtime.NativeCallContext{Env: env, State: callState}
+		return fn.Method.Impl(ctx, combined)
+	case runtime.DynRefValue:
+		resolved, err := i.resolveDynRef(fn)
+		if err != nil {
+			return nil, err
+		}
+		return i.invokeFunction(resolved, args, call)
+	case *runtime.DynRefValue:
+		if fn == nil {
+			return nil, fmt.Errorf("dyn ref is nil")
+		}
+		resolved, err := i.resolveDynRef(*fn)
+		if err != nil {
+			return nil, err
+		}
+		return i.invokeFunction(resolved, args, call)
+	case runtime.BoundMethodValue:
+		combined := append([]runtime.Value{fn.Receiver}, args...)
+		return i.invokeFunction(fn.Method, combined, call)
+	case *runtime.BoundMethodValue:
+		if fn == nil {
+			return nil, fmt.Errorf("bound method is nil")
+		}
+		combined := append([]runtime.Value{fn.Receiver}, args...)
+		return i.invokeFunction(fn.Method, combined, call)
+	case *runtime.FunctionValue:
+		return i.invokeFunction(fn, args, call)
+	default:
+		return nil, fmt.Errorf("calling non-function value of kind %s", callee.Kind())
+	}
+}
+
+func (i *Interpreter) evaluatePipeExpression(subject runtime.Value, rhs ast.Expression, env *runtime.Environment) (runtime.Value, error) {
+	state := i.stateFromEnv(env)
+	state.pushTopic(subject)
+	rhsVal, err := i.evaluateExpression(rhs, env)
+	used := state.topicWasUsed()
+	state.popTopic()
+	if err != nil {
+		return nil, err
+	}
+	if used {
+		if rhsVal == nil {
+			return runtime.NilValue{}, nil
+		}
+		return rhsVal, nil
+	}
+	result, err := i.callCallableValue(rhsVal, []runtime.Value{subject}, env, nil)
+	if err != nil {
+		return nil, fmt.Errorf("pipe RHS must be callable when '%%' is not used: %w", err)
+	}
+	if result == nil {
+		return runtime.NilValue{}, nil
+	}
+	return result, nil
+}
+
+func (i *Interpreter) evaluateTopicReferenceExpression(_ *ast.TopicReferenceExpression, env *runtime.Environment) (runtime.Value, error) {
+	state := i.stateFromEnv(env)
+	val, ok := state.currentTopic()
+	if !ok {
+		return nil, fmt.Errorf("Topic reference '%%' used outside of pipe expression")
+	}
+	state.markTopicUsed()
+	if val == nil {
+		return runtime.NilValue{}, nil
+	}
+	return val, nil
+}
+
+func (i *Interpreter) evaluatePlaceholderExpression(expr *ast.PlaceholderExpression, env *runtime.Environment) (runtime.Value, error) {
+	state := i.stateFromEnv(env)
+	frame, ok := state.currentPlaceholderFrame()
+	if !ok {
+		return nil, fmt.Errorf("Expression placeholder used outside of placeholder lambda")
+	}
+	if expr.Index != nil {
+		idx := *expr.Index
+		val, err := frame.valueAt(idx)
+		if err != nil {
+			return nil, err
+		}
+		if val == nil {
+			return runtime.NilValue{}, nil
+		}
+		return val, nil
+	}
+	idx, err := frame.nextImplicitIndex()
+	if err != nil {
+		return nil, err
+	}
+	val, err := frame.valueAt(idx)
+	if err != nil {
+		return nil, err
+	}
+	if val == nil {
+		return runtime.NilValue{}, nil
+	}
+	return val, nil
+}
+
+func (i *Interpreter) tryBuildPlaceholderFunction(node ast.Expression, env *runtime.Environment) (runtime.Value, bool, error) {
+	plan, ok, err := analyzePlaceholderExpression(node)
+	if err != nil {
+		return nil, false, err
+	}
+	if !ok {
+		return nil, false, nil
+	}
+	if call, isCall := node.(*ast.FunctionCall); isCall {
+		calleeHas := expressionContainsPlaceholder(call.Callee)
+		argsHave := false
+		for _, arg := range call.Arguments {
+			if expressionContainsPlaceholder(arg) {
+				argsHave = true
+				break
+			}
+		}
+		if calleeHas && !argsHave {
+			return nil, false, nil
+		}
+	}
+	closure := &placeholderClosure{
+		interpreter: i,
+		expression:  node,
+		env:         env,
+		plan:        plan,
+	}
+	fn := runtime.NativeFunctionValue{
+		Name:  "<placeholder>",
+		Arity: plan.paramCount,
+		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+			return closure.invoke(args)
+		},
+	}
+	return fn, true, nil
+}
+
+type placeholderPlan struct {
+	explicitIndices map[int]struct{}
+	paramCount      int
+}
+
+type placeholderContext int
+
+const (
+	contextRoot placeholderContext = iota
+	contextCallCallee
+	contextOther
+)
+
+type placeholderAnalyzer struct {
+	explicit        map[int]struct{}
+	implicitCount   int
+	highestExplicit int
+	hasPlaceholder  bool
+	relevant        bool
+}
+
+func expressionContainsPlaceholder(expr ast.Expression) bool {
+	if expr == nil {
+		return false
+	}
+	switch e := expr.(type) {
+	case *ast.PlaceholderExpression:
+		return true
+	case *ast.BinaryExpression:
+		return expressionContainsPlaceholder(e.Left) || expressionContainsPlaceholder(e.Right)
+	case *ast.UnaryExpression:
+		return expressionContainsPlaceholder(e.Operand)
+	case *ast.FunctionCall:
+		if expressionContainsPlaceholder(e.Callee) {
+			return true
+		}
+		for _, arg := range e.Arguments {
+			if expressionContainsPlaceholder(arg) {
+				return true
+			}
+		}
+		return false
+	case *ast.MemberAccessExpression:
+		if expressionContainsPlaceholder(e.Object) {
+			return true
+		}
+		if memberExpr, ok := e.Member.(ast.Expression); ok {
+			return expressionContainsPlaceholder(memberExpr)
+		}
+		return false
+	case *ast.ImplicitMemberExpression:
+		return false
+	case *ast.IndexExpression:
+		return expressionContainsPlaceholder(e.Object) || expressionContainsPlaceholder(e.Index)
+	case *ast.BlockExpression:
+		for _, stmt := range e.Body {
+			if statementContainsPlaceholder(stmt) {
+				return true
+			}
+		}
+		return false
+	case *ast.AssignmentExpression:
+		if expressionContainsPlaceholder(e.Right) {
+			return true
+		}
+		if targetExpr, ok := e.Left.(ast.Expression); ok {
+			return expressionContainsPlaceholder(targetExpr)
+		}
+		return false
+	case *ast.StringInterpolation:
+		for _, part := range e.Parts {
+			if expressionContainsPlaceholder(part) {
+				return true
+			}
+		}
+		return false
+	case *ast.StructLiteral:
+		for _, field := range e.Fields {
+			if field != nil && expressionContainsPlaceholder(field.Value) {
+				return true
+			}
+		}
+		if e.FunctionalUpdateSource != nil && expressionContainsPlaceholder(e.FunctionalUpdateSource) {
+			return true
+		}
+		return false
+	case *ast.ArrayLiteral:
+		for _, el := range e.Elements {
+			if expressionContainsPlaceholder(el) {
+				return true
+			}
+		}
+		return false
+	case *ast.RangeExpression:
+		return expressionContainsPlaceholder(e.Start) || expressionContainsPlaceholder(e.End)
+	case *ast.MatchExpression:
+		if expressionContainsPlaceholder(e.Subject) {
+			return true
+		}
+		for _, clause := range e.Clauses {
+			if clause == nil {
+				continue
+			}
+			if clause.Guard != nil && expressionContainsPlaceholder(clause.Guard) {
+				return true
+			}
+			if expressionContainsPlaceholder(clause.Body) {
+				return true
+			}
+		}
+		return false
+	case *ast.OrElseExpression:
+		return expressionContainsPlaceholder(e.Expression) || expressionContainsPlaceholder(e.Handler)
+	case *ast.RescueExpression:
+		if expressionContainsPlaceholder(e.MonitoredExpression) {
+			return true
+		}
+		for _, clause := range e.Clauses {
+			if clause == nil {
+				continue
+			}
+			if clause.Guard != nil && expressionContainsPlaceholder(clause.Guard) {
+				return true
+			}
+			if expressionContainsPlaceholder(clause.Body) {
+				return true
+			}
+		}
+		return false
+	case *ast.EnsureExpression:
+		return expressionContainsPlaceholder(e.TryExpression) || expressionContainsPlaceholder(e.EnsureBlock)
+	case *ast.IfExpression:
+		if expressionContainsPlaceholder(e.IfCondition) || expressionContainsPlaceholder(e.IfBody) {
+			return true
+		}
+		for _, clause := range e.OrClauses {
+			if clause == nil {
+				continue
+			}
+			if clause.Condition != nil && expressionContainsPlaceholder(clause.Condition) {
+				return true
+			}
+			if expressionContainsPlaceholder(clause.Body) {
+				return true
+			}
+		}
+		return false
+	case *ast.IteratorLiteral:
+		for _, stmt := range e.Body {
+			if statementContainsPlaceholder(stmt) {
+				return true
+			}
+		}
+		return false
+	case *ast.LambdaExpression:
+		return expressionContainsPlaceholder(e.Body)
+	case *ast.TopicReferenceExpression,
+		*ast.Identifier,
+		*ast.IntegerLiteral,
+		*ast.FloatLiteral,
+		*ast.BooleanLiteral,
+		*ast.StringLiteral,
+		*ast.CharLiteral,
+		*ast.NilLiteral:
+		return false
+	default:
+		return false
+	}
+}
+
+func statementContainsPlaceholder(stmt ast.Statement) bool {
+	if stmt == nil {
+		return false
+	}
+	if expr, ok := stmt.(ast.Expression); ok {
+		return expressionContainsPlaceholder(expr)
+	}
+	switch s := stmt.(type) {
+	case *ast.ReturnStatement:
+		if s.Argument != nil {
+			return expressionContainsPlaceholder(s.Argument)
+		}
+	case *ast.RaiseStatement:
+		if s.Expression != nil {
+			return expressionContainsPlaceholder(s.Expression)
+		}
+	case *ast.ForLoop:
+		if expressionContainsPlaceholder(s.Iterable) {
+			return true
+		}
+		return expressionContainsPlaceholder(s.Body)
+	case *ast.WhileLoop:
+		if expressionContainsPlaceholder(s.Condition) {
+			return true
+		}
+		return expressionContainsPlaceholder(s.Body)
+	case *ast.BreakStatement:
+		if s.Value != nil {
+			return expressionContainsPlaceholder(s.Value)
+		}
+	case *ast.ContinueStatement:
+		return false
+	case *ast.YieldStatement:
+		if s.Expression != nil {
+			return expressionContainsPlaceholder(s.Expression)
+		}
+	case *ast.PreludeStatement, *ast.ExternFunctionBody, *ast.ImportStatement, *ast.DynImportStatement, *ast.PackageStatement:
+		return false
+	default:
+		return false
+	}
+	return false
+}
+
+func analyzePlaceholderExpression(expr ast.Expression) (placeholderPlan, bool, error) {
+	analyzer := &placeholderAnalyzer{
+		explicit: make(map[int]struct{}),
+	}
+	if err := analyzer.visitExpression(expr); err != nil {
+		return placeholderPlan{}, false, err
+	}
+	if !analyzer.hasPlaceholder {
+		return placeholderPlan{}, false, nil
+	}
+	paramCount := analyzer.highestExplicit
+	implicitTotal := len(analyzer.explicit) + analyzer.implicitCount
+	if implicitTotal > paramCount {
+		paramCount = implicitTotal
+	}
+	return placeholderPlan{
+		explicitIndices: analyzer.explicit,
+		paramCount:      paramCount,
+	}, true, nil
+}
+
+func (p *placeholderAnalyzer) visitExpression(expr ast.Expression) error {
+	if expr == nil {
+		return nil
+	}
+	switch e := expr.(type) {
+	case *ast.PlaceholderExpression:
+		p.hasPlaceholder = true
+		if e.Index != nil {
+			idx := *e.Index
+			if idx <= 0 {
+				return fmt.Errorf("Placeholder index must be positive, found @%d", idx)
+			}
+			p.explicit[idx] = struct{}{}
+			if idx > p.highestExplicit {
+				p.highestExplicit = idx
+			}
+		} else {
+			p.implicitCount++
+		}
+	case *ast.BinaryExpression:
+		if err := p.visitExpression(e.Left); err != nil {
+			return err
+		}
+		return p.visitExpression(e.Right)
+	case *ast.UnaryExpression:
+		return p.visitExpression(e.Operand)
+	case *ast.FunctionCall:
+		if err := p.visitExpression(e.Callee); err != nil {
+			return err
+		}
+		for _, arg := range e.Arguments {
+			if err := p.visitExpression(arg); err != nil {
+				return err
+			}
+		}
+		return nil
+	case *ast.MemberAccessExpression:
+		if err := p.visitExpression(e.Object); err != nil {
+			return err
+		}
+		if memberExpr, ok := e.Member.(ast.Expression); ok {
+			return p.visitExpression(memberExpr)
+		}
+		return nil
+	case *ast.ImplicitMemberExpression:
+		return nil
+	case *ast.IndexExpression:
+		if err := p.visitExpression(e.Object); err != nil {
+			return err
+		}
+		return p.visitExpression(e.Index)
+	case *ast.BlockExpression:
+		for _, stmt := range e.Body {
+			if err := p.visitStatement(stmt); err != nil {
+				return err
+			}
+		}
+		return nil
+	case *ast.AssignmentExpression:
+		if err := p.visitExpression(e.Right); err != nil {
+			return err
+		}
+		if targetExpr, ok := e.Left.(ast.Expression); ok {
+			return p.visitExpression(targetExpr)
+		}
+		return nil
+	case *ast.StringInterpolation:
+		for _, part := range e.Parts {
+			if err := p.visitExpression(part); err != nil {
+				return err
+			}
+		}
+		return nil
+	case *ast.StructLiteral:
+		for _, field := range e.Fields {
+			if field != nil {
+				if err := p.visitExpression(field.Value); err != nil {
+					return err
+				}
+			}
+		}
+		if e.FunctionalUpdateSource != nil {
+			if err := p.visitExpression(e.FunctionalUpdateSource); err != nil {
+				return err
+			}
+		}
+		return nil
+	case *ast.ArrayLiteral:
+		for _, el := range e.Elements {
+			if err := p.visitExpression(el); err != nil {
+				return err
+			}
+		}
+		return nil
+	case *ast.RangeExpression:
+		if err := p.visitExpression(e.Start); err != nil {
+			return err
+		}
+		return p.visitExpression(e.End)
+	case *ast.MatchExpression:
+		if err := p.visitExpression(e.Subject); err != nil {
+			return err
+		}
+		for _, clause := range e.Clauses {
+			if clause == nil {
+				continue
+			}
+			if clause.Guard != nil {
+				if err := p.visitExpression(clause.Guard); err != nil {
+					return err
+				}
+			}
+			if err := p.visitExpression(clause.Body); err != nil {
+				return err
+			}
+		}
+		return nil
+	case *ast.OrElseExpression:
+		if err := p.visitExpression(e.Expression); err != nil {
+			return err
+		}
+		return p.visitExpression(e.Handler)
+	case *ast.RescueExpression:
+		if err := p.visitExpression(e.MonitoredExpression); err != nil {
+			return err
+		}
+		for _, clause := range e.Clauses {
+			if clause == nil {
+				continue
+			}
+			if clause.Guard != nil {
+				if err := p.visitExpression(clause.Guard); err != nil {
+					return err
+				}
+			}
+			if err := p.visitExpression(clause.Body); err != nil {
+				return err
+			}
+		}
+		return nil
+	case *ast.EnsureExpression:
+		if err := p.visitExpression(e.TryExpression); err != nil {
+			return err
+		}
+		return p.visitExpression(e.EnsureBlock)
+	case *ast.IfExpression:
+		if err := p.visitExpression(e.IfCondition); err != nil {
+			return err
+		}
+		if err := p.visitExpression(e.IfBody); err != nil {
+			return err
+		}
+		for _, clause := range e.OrClauses {
+			if clause == nil {
+				continue
+			}
+			if clause.Condition != nil {
+				if err := p.visitExpression(clause.Condition); err != nil {
+					return err
+				}
+			}
+			if err := p.visitExpression(clause.Body); err != nil {
+				return err
+			}
+		}
+		return nil
+	case *ast.IteratorLiteral:
+		for _, stmt := range e.Body {
+			if err := p.visitStatement(stmt); err != nil {
+				return err
+			}
+		}
+		return nil
+	case *ast.LambdaExpression:
+		return p.visitExpression(e.Body)
+	case *ast.TopicReferenceExpression,
+		*ast.Identifier,
+		*ast.IntegerLiteral,
+		*ast.FloatLiteral,
+		*ast.BooleanLiteral,
+		*ast.StringLiteral,
+		*ast.CharLiteral,
+		*ast.NilLiteral:
+		return nil
+	default:
+		return nil
+	}
+	return nil
+}
+
+func (p *placeholderAnalyzer) visitStatement(stmt ast.Statement) error {
+	if stmt == nil {
+		return nil
+	}
+	if expr, ok := stmt.(ast.Expression); ok {
+		return p.visitExpression(expr)
+	}
+	switch s := stmt.(type) {
+	case *ast.ReturnStatement:
+		if s.Argument != nil {
+			return p.visitExpression(s.Argument)
+		}
+	case *ast.RaiseStatement:
+		if s.Expression != nil {
+			return p.visitExpression(s.Expression)
+		}
+	case *ast.ForLoop:
+		if err := p.visitExpression(s.Iterable); err != nil {
+			return err
+		}
+		return p.visitExpression(s.Body)
+	case *ast.WhileLoop:
+		if err := p.visitExpression(s.Condition); err != nil {
+			return err
+		}
+		return p.visitExpression(s.Body)
+	case *ast.BreakStatement:
+		if s.Value != nil {
+			return p.visitExpression(s.Value)
+		}
+	case *ast.ContinueStatement:
+		return nil
+	case *ast.YieldStatement:
+		if s.Expression != nil {
+			return p.visitExpression(s.Expression)
+		}
+	case *ast.PreludeStatement, *ast.ExternFunctionBody, *ast.ImportStatement, *ast.DynImportStatement, *ast.PackageStatement:
+		return nil
+	default:
+		return nil
+	}
+	return nil
+}
+
+type placeholderClosure struct {
+	interpreter *Interpreter
+	expression  ast.Expression
+	env         *runtime.Environment
+	plan        placeholderPlan
+}
+
+func (p *placeholderClosure) invoke(args []runtime.Value) (runtime.Value, error) {
+	if len(args) != p.plan.paramCount {
+		return nil, fmt.Errorf("Placeholder lambda expects %d arguments, got %d", p.plan.paramCount, len(args))
+	}
+	callEnv := runtime.NewEnvironment(p.env)
+	state := p.interpreter.stateFromEnv(callEnv)
+	state.pushPlaceholderFrame(p.plan.explicitIndices, p.plan.paramCount, args)
+	defer state.popPlaceholderFrame()
+	result, err := p.interpreter.evaluateExpression(p.expression, callEnv)
+	if err != nil {
+		return nil, err
+	}
+	if result == nil {
+		return runtime.NilValue{}, nil
+	}
+	return result, nil
 }
 
 func (i *Interpreter) enforceGenericConstraintsIfAny(funcNode ast.Node, call *ast.FunctionCall) error {
@@ -768,56 +1407,7 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 		}
 		switch inst := target.(type) {
 		case *runtime.StructInstanceValue:
-			switch member := lhs.Member.(type) {
-			case *ast.Identifier:
-				if inst.Fields == nil {
-					return nil, fmt.Errorf("Expected named struct instance")
-				}
-				current, ok := inst.Fields[member.Name]
-				if !ok {
-					return nil, fmt.Errorf("No field named '%s'", member.Name)
-				}
-				if assign.Operator == ast.AssignmentAssign {
-					inst.Fields[member.Name] = value
-					return value, nil
-				}
-				if !isCompound {
-					return nil, fmt.Errorf("unsupported assignment operator %s", assign.Operator)
-				}
-				computed, err := applyBinaryOperator(binaryOp, current, value)
-				if err != nil {
-					return nil, err
-				}
-				inst.Fields[member.Name] = computed
-				return computed, nil
-			case *ast.IntegerLiteral:
-				if inst.Positional == nil {
-					return nil, fmt.Errorf("Expected positional struct instance")
-				}
-				if member.Value == nil {
-					return nil, fmt.Errorf("Struct field index out of bounds")
-				}
-				idx := int(member.Value.Int64())
-				if idx < 0 || idx >= len(inst.Positional) {
-					return nil, fmt.Errorf("Struct field index out of bounds")
-				}
-				if assign.Operator == ast.AssignmentAssign {
-					inst.Positional[idx] = value
-					return value, nil
-				}
-				if !isCompound {
-					return nil, fmt.Errorf("unsupported assignment operator %s", assign.Operator)
-				}
-				current := inst.Positional[idx]
-				computed, err := applyBinaryOperator(binaryOp, current, value)
-				if err != nil {
-					return nil, err
-				}
-				inst.Positional[idx] = computed
-				return computed, nil
-			default:
-				return nil, fmt.Errorf("Unsupported member assignment target %s", member.NodeType())
-			}
+			return assignStructMember(inst, lhs.Member, value, assign.Operator, binaryOp, isCompound)
 		case *runtime.ArrayValue:
 			arrayVal := inst
 			intMember, ok := lhs.Member.(*ast.IntegerLiteral)
@@ -847,6 +1437,27 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 			return computed, nil
 		default:
 			return nil, fmt.Errorf("Member assignment requires struct or array")
+		}
+	case *ast.ImplicitMemberExpression:
+		if assign.Operator == ast.AssignmentDeclare {
+			if lhs.Member != nil {
+				return nil, fmt.Errorf("Cannot use := on implicit member '#%s'", lhs.Member.Name)
+			}
+			return nil, fmt.Errorf("Cannot use := on implicit member")
+		}
+		state := i.stateFromEnv(env)
+		receiver, ok := state.currentImplicitReceiver()
+		if !ok || receiver == nil {
+			if lhs.Member != nil {
+				return nil, fmt.Errorf("Implicit member '#%s' used outside of function with implicit receiver", lhs.Member.Name)
+			}
+			return nil, fmt.Errorf("Implicit member used outside of function with implicit receiver")
+		}
+		switch inst := receiver.(type) {
+		case *runtime.StructInstanceValue:
+			return assignStructMember(inst, lhs.Member, value, assign.Operator, binaryOp, isCompound)
+		default:
+			return nil, fmt.Errorf("Implicit member assignments supported only on struct instances")
 		}
 	case *ast.IndexExpression:
 		if assign.Operator == ast.AssignmentDeclare {
@@ -901,6 +1512,62 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 	}
 
 	return value, nil
+}
+
+func assignStructMember(inst *runtime.StructInstanceValue, member ast.Expression, value runtime.Value, operator ast.AssignmentOperator, binaryOp string, isCompound bool) (runtime.Value, error) {
+	if inst == nil {
+		return nil, fmt.Errorf("struct instance is nil")
+	}
+	switch mem := member.(type) {
+	case *ast.Identifier:
+		if inst.Fields == nil {
+			return nil, fmt.Errorf("Expected named struct instance")
+		}
+		current, ok := inst.Fields[mem.Name]
+		if !ok {
+			return nil, fmt.Errorf("No field named '%s'", mem.Name)
+		}
+		if operator == ast.AssignmentAssign {
+			inst.Fields[mem.Name] = value
+			return value, nil
+		}
+		if !isCompound {
+			return nil, fmt.Errorf("unsupported assignment operator %s", operator)
+		}
+		computed, err := applyBinaryOperator(binaryOp, current, value)
+		if err != nil {
+			return nil, err
+		}
+		inst.Fields[mem.Name] = computed
+		return computed, nil
+	case *ast.IntegerLiteral:
+		if inst.Positional == nil {
+			return nil, fmt.Errorf("Expected positional struct instance")
+		}
+		if mem.Value == nil {
+			return nil, fmt.Errorf("Struct field index out of bounds")
+		}
+		idx := int(mem.Value.Int64())
+		if idx < 0 || idx >= len(inst.Positional) {
+			return nil, fmt.Errorf("Struct field index out of bounds")
+		}
+		if operator == ast.AssignmentAssign {
+			inst.Positional[idx] = value
+			return value, nil
+		}
+		if !isCompound {
+			return nil, fmt.Errorf("unsupported assignment operator %s", operator)
+		}
+		current := inst.Positional[idx]
+		computed, err := applyBinaryOperator(binaryOp, current, value)
+		if err != nil {
+			return nil, err
+		}
+		inst.Positional[idx] = computed
+		return computed, nil
+	default:
+		return nil, fmt.Errorf("Unsupported member assignment target %s", mem.NodeType())
+	}
 }
 
 func (i *Interpreter) evaluateIteratorLiteral(expr *ast.IteratorLiteral, env *runtime.Environment) (runtime.Value, error) {

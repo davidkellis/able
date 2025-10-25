@@ -343,7 +343,7 @@ Type constraints restrict the types that can be used for a generic type paramete
 | `bool`   | Boolean logical values                        | `true`, `false`                     |                                                 |
 | `char`   | Single Unicode scalar value (UTF-32)        | `'a'`, `'π'`, `'💡'`, `'\n'`, `'\u{1F604}'` | Single quotes. Supports escape sequences.       |
 | `nil`    | Singleton type representing **absence of data**. | `nil`                               | **Type and value are both `nil` (lowercase)**. Often used with `?Type`. Falsy. |
-| `void`   | Singleton unit type with exactly one value.   | `void`                              | Represents successful completion without data. Distinct from `nil`. Truthy. |
+| `void`   | Singleton unit type with exactly one value.   | `void`                              | Represents successful completion without data. Distinct from `nil`. Truthy. Any expression may be implicitly coerced to `void`; the produced value is discarded. |
 
 *(See Section [6.1](#61-literals) for detailed literal syntax.)*
 
@@ -1455,7 +1455,7 @@ fn Identifier[<GenericParamList>] ([ParameterList]) [-> ReturnType] [where <Cons
 -   **`([ParameterList])`**: Required parentheses enclosing the parameter list.
     -   **`ParameterList`**: Comma-separated list of parameters, each defined as `Identifier: Type` (e.g., `a: i32`, `user: User`). Type annotations are generally required unless future inference rules allow omission.
     -   May be empty: `()`.
--   **`[-> ReturnType]`**: Optional return type annotation. If omitted, the return type is inferred from the body's final expression or explicit `return` statements. If the body's last expression evaluates to `void` (e.g., a loop or a function that performs only side effects) and there's no explicit `return`, the return type is `void`. If the function is intended to return no data, use `-> void`.
+-   **`[-> ReturnType]`**: Optional return type annotation. If omitted, the return type is inferred from the body's final expression or explicit `return` statements. If the body's last expression evaluates to `void` (e.g., a loop or a function that performs only side effects) and there's no explicit `return`, the return type is `void`. If the function is intended to return no data, use `-> void`. When the declared return type is `void`, the value of the last expression (or any explicit `return` expression) is ignored and the function is considered to return `void`.
 -   **`[where <ConstraintList>]`**: Optional clause placed after the return type (or parameter list if no return type) to specify constraints on `GenericParamList`.
 -   **`{ ExpressionList }`**: The function body block. Contains one or more expressions separated by newlines or semicolons.
     -   **Return Value**: The value of the *last expression* in `ExpressionList` is implicitly returned, *unless* an explicit `return` statement is encountered.
@@ -1570,6 +1570,7 @@ return // Equivalent to 'return void' if function returns void
 
 #### Semantics
 -   Immediately terminates the execution of the current function.
+-   If the surrounding function's return type is `void`, `return` with no expression is equivalent to `return void`; any expression used with `return` is coerced to `void` before the function completes.
 -   The value of `Expression` (or `nil`) is returned to the caller.
 -   If used within nested blocks (like loops or `do` blocks) inside a function, it still returns from the *function*, not just the inner block.
 
@@ -3190,7 +3191,7 @@ val = with_lock(m, fn() { compute() })
 ```
 
 Semantics:
--   Non-reentrant: locking a mutex already held by the current task blocks (deadlock).
+-   Non-reentrant: locking a mutex already held by the current task blocks permanently. This matches Go’s `sync.Mutex`: the waiter never acquires the lock, so programs must ensure a task releases the mutex before calling `lock()` again (for example, by structuring critical sections carefully or using `with_lock` helpers).
 -   No poisoning: if an exception occurs while the mutex is held, subsequent lockers proceed; ensuring state consistency is the user's responsibility.
 
 ## 13. Packages and Modules
