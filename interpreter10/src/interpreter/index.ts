@@ -9,6 +9,7 @@ import { applyImplResolutionAugmentations } from "./impl_resolution";
 import { applyEvaluationAugmentations } from "./eval_expressions";
 import { applyConcurrencyAugmentations } from "./concurrency";
 import { applyIteratorAugmentations } from "./iterators";
+import { applyChannelMutexAugmentations } from "./channels_mutex";
 import "./definitions";
 import "./imports";
 
@@ -55,6 +56,12 @@ export class InterpreterV10 {
   procStatusResolvedValue!: V10Value;
   procStatusCancelledValue!: V10Value;
 
+  channelMutexBuiltinsInitialized = false;
+  nextChannelHandle = 1;
+  channelStates: Map<number, any> = new Map();
+  nextMutexHandle = 1;
+  mutexStates: Map<number, any> = new Map();
+
   schedulerQueue: Array<() => void> = [];
   schedulerScheduled = false;
   schedulerActive = false;
@@ -66,6 +73,7 @@ export class InterpreterV10 {
 
   constructor() {
     this.initConcurrencyBuiltins();
+    this.ensureChannelMutexBuiltins();
     this.procNativeMethods = {
       status: this.makeNativeFunction("Proc.status", 1, (interp, args) => {
         const self = args[0];
@@ -115,6 +123,7 @@ applyTypesAugmentations(InterpreterV10);
 applyMemberAugmentations(InterpreterV10);
 applyImplResolutionAugmentations(InterpreterV10);
 applyIteratorAugmentations(InterpreterV10);
+applyChannelMutexAugmentations(InterpreterV10);
 applyEvaluationAugmentations(InterpreterV10);
 applyConcurrencyAugmentations(InterpreterV10);
 

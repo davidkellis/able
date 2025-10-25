@@ -28,6 +28,7 @@ type generatorInstance struct {
 	done    bool
 	err     error
 	closed  bool
+	control runtime.Value
 }
 
 func newGeneratorInstance(i *Interpreter, env *runtime.Environment, body []ast.Statement) *generatorInstance {
@@ -184,4 +185,47 @@ func (i *Interpreter) currentGenerator() *generatorInstance {
 		return nil
 	}
 	return i.generatorStack[len(i.generatorStack)-1]
+}
+
+func (g *generatorInstance) controllerValue() runtime.Value {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.control != nil {
+		return g.control
+	}
+
+	yieldFn := runtime.NativeFunctionValue{
+		Name:  "__iterator_controller_yield",
+		Arity: 1,
+		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+			var value runtime.Value = runtime.NilValue{}
+			if len(args) > 0 {
+				if len(args) > 1 {
+					return nil, fmt.Errorf("gen.yield expects at most one argument")
+				}
+				value = args[0]
+			}
+			if err := g.emit(value); err != nil {
+				return nil, err
+			}
+			return runtime.NilValue{}, nil
+		},
+	}
+
+	closeFn := runtime.NativeFunctionValue{
+		Name:  "__iterator_controller_close",
+		Arity: 0,
+		Impl: func(_ *runtime.NativeCallContext, _ []runtime.Value) (runtime.Value, error) {
+			g.close()
+			return runtime.NilValue{}, nil
+		},
+	}
+
+	g.control = &runtime.StructInstanceValue{
+		Fields: map[string]runtime.Value{
+			"yield": yieldFn,
+			"close": closeFn,
+		},
+	}
+	return g.control
 }

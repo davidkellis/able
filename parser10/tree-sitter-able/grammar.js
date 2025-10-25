@@ -71,6 +71,7 @@ const KEYWORDS = [
   "true",
   "false",
   "where",
+  "Iterator",
 ];
 
 const ASSIGN_OPERATORS = [
@@ -87,6 +88,24 @@ const ASSIGN_OPERATORS = [
   '<<=',
   '>>=',
 ];
+
+const DECIMAL_DIGITS = "[0-9](?:_?[0-9])*";
+const BINARY_DIGITS = "[01](?:_?[01])*";
+const OCTAL_DIGITS = "[0-7](?:_?[0-7])*";
+const HEX_DIGITS = "[0-9a-fA-F](?:_?[0-9a-fA-F])*";
+const EXPONENT_PART = "[eE][+-]?[0-9](?:_?[0-9])*";
+const INTEGER_SUFFIX = "_(?:i|u)(?:8|16|32|64|128)";
+const FLOAT_SUFFIX = "_(?:f32|f64)";
+const INTEGER_BODY = `(?:${DECIMAL_DIGITS}|0[bB]${BINARY_DIGITS}|0[oO]${OCTAL_DIGITS}|0[xX]${HEX_DIGITS})`;
+const INTEGER_LITERAL_PATTERN = `${INTEGER_BODY}(?:${INTEGER_SUFFIX})?`;
+const DECIMAL_FLOAT = `${DECIMAL_DIGITS}\\.${DECIMAL_DIGITS}(?:${EXPONENT_PART})?`;
+const DECIMAL_EXPONENT = `${DECIMAL_DIGITS}${EXPONENT_PART}`;
+const FLOAT_CORE = `(?:${DECIMAL_FLOAT}|${DECIMAL_EXPONENT})`;
+const FLOAT_LITERAL_PATTERN = `${FLOAT_CORE}(?:${FLOAT_SUFFIX})?`;
+const FLOAT_SUFFIX_ONLY_PATTERN = `${DECIMAL_DIGITS}${FLOAT_SUFFIX}`;
+const CHARACTER_LITERAL_PATTERN = "'(?:[^'\\\\\\n]|\\\\[nrt0'\"\\\\]|\\\\u\\{[0-9a-fA-F]{1,6}\\})'";
+const INTERPOLATION_CHUNK_PATTERN = "(?:[^`\\\\$]+|\\\\[`$\\\\]|\\\\.)";
+const ITERATOR_KEYWORD = token(seq("Iterator", /[A-Za-z_0-9]*/));
 
 module.exports = grammar({
   name: "able",
@@ -118,6 +137,12 @@ module.exports = grammar({
     [$.spawn_expression, $.primary_expression],
     [$.array_literal, $.array_pattern],
     [$.pattern, $.typed_pattern],
+    [$.struct_literal, $.struct_pattern],
+    [$.primary_expression, $.struct_literal_shorthand_field, $.pattern_base, $.struct_pattern_field],
+    [$.struct_literal_field, $.pattern_base, $.struct_pattern_field],
+    [$.primary_expression, $.struct_literal_shorthand_field],
+    [$.struct_literal_field, $.pattern_base],
+    [$.block, $.struct_pattern],
   ],
 
   rules: {
@@ -182,6 +207,18 @@ module.exports = grammar({
     function_definition: $ => seq(
       optional("private"),
       "fn",
+      field("name", $.identifier),
+      field("type_parameters", optional($.type_parameter_list)),
+      field("parameters", $.parameter_list),
+      field("return_type", optional($.return_type)),
+      field("where_clause", optional($.where_clause)),
+      field("body", $.block),
+    ),
+
+    implicit_method_definition: $ => seq(
+      optional("private"),
+      "fn",
+      "#",
       field("name", $.identifier),
       field("type_parameters", optional($.type_parameter_list)),
       field("parameters", $.parameter_list),
@@ -346,7 +383,7 @@ module.exports = grammar({
       field("target", $.type_expression),
       field("where_clause", optional($.where_clause)),
       "{",
-      repeat($.function_definition),
+      repeat($.method_member),
       "}",
     ),
 
@@ -360,8 +397,13 @@ module.exports = grammar({
       field("target", $.type_expression),
       field("where_clause", optional($.where_clause)),
       "{",
-      repeat($.function_definition),
+      repeat($.method_member),
       "}",
+    ),
+
+    method_member: $ => choice(
+      $.function_definition,
+      $.implicit_method_definition,
     ),
 
     named_implementation_definition: $ => seq(
@@ -408,8 +450,8 @@ module.exports = grammar({
     break_statement: $ => prec.left(seq(
       "break",
       optional(choice(
-        seq(field("label", $.label), optional(field("value", prec.dynamic(1, $.expression)))),
-        field("value", prec.dynamic(1, $.expression)),
+        seq(field("label", $.label), optional(field("value", $.expression))),
+        field("value", $.expression),
       )),
       optional(";"),
     )),
@@ -448,23 +490,45 @@ module.exports = grammar({
     matchable_expression: $ => choice(
       $.ensure_expression,
       $.rescue_expression,
+      $.handling_expression,
       $.proc_expression,
       $.spawn_expression,
-      $.breakpoint_expression,
-      $.match_expression,
-      $.assignment_expression,
-    ),
+    $.breakpoint_expression,
+    $.match_expression,
+    $.assignment_expression,
+  ),
 
     ensure_expression: $ => seq(
-      choice($.rescue_expression, $.assignment_expression),
+      choice($.rescue_expression, $.handling_expression, $.assignment_expression),
       "ensure",
       field("ensure", $.block),
     ),
 
     rescue_expression: $ => seq(
-      $.assignment_expression,
+      choice($.handling_expression, $.assignment_expression),
       "rescue",
       field("rescue", $.rescue_block),
+    ),
+
+    handling_expression: $ => prec.left(seq(
+      $.assignment_expression,
+      repeat1($.else_clause),
+    )),
+
+    else_clause: $ => seq(
+      "else",
+      field("handler", $.handling_block),
+    ),
+
+    handling_block: $ => seq(
+      "{",
+      optional(seq(
+        "|",
+        field("binding", $.identifier),
+        "|",
+      )),
+      repeat($.statement),
+      "}",
     ),
 
     match_expression: $ => seq(
@@ -517,7 +581,7 @@ module.exports = grammar({
       $.block,
     ),
 
-    label: $ => seq("'", $.identifier),
+    label: _ => token(prec(-1, seq("'", /[A-Za-z_][A-Za-z0-9_]*/))),
 
     assignment_expression: $ => choice(
       prec.right(
@@ -656,7 +720,12 @@ module.exports = grammar({
     postfix_expression: $ => prec.left(
       PREC.call,
       seq(
-        $.primary_expression,
+        choice(
+          $.primary_expression,
+          $.proc_expression,
+          $.spawn_expression,
+          $.breakpoint_expression,
+        ),
         repeat(choice(
           $.type_arguments,
           $.call_suffix,
@@ -671,7 +740,12 @@ module.exports = grammar({
     call_target: $ => prec.left(
       PREC.call,
       seq(
-        $.primary_expression,
+        choice(
+          $.primary_expression,
+          $.proc_expression,
+          $.spawn_expression,
+          $.breakpoint_expression,
+        ),
         repeat(choice(
           $.type_arguments,
           $.member_access,
@@ -725,9 +799,11 @@ module.exports = grammar({
       $.literal,
       $.identifier,
       $.placeholder_expression,
+      $.implicit_member_expression,
       $.topic_reference,
       $.if_expression,
       $.do_expression,
+      $.iterator_literal,
       $.lambda_expression,
       $.parenthesized_expression,
     ),
@@ -752,17 +828,19 @@ module.exports = grammar({
 
     lambda_parameter: $ => field("name", $.identifier),
 
-    if_expression: $ => seq(
+    if_expression: $ => prec.right(
+      PREC.logical_or,
+      seq(
       "if",
       field("condition", $.expression),
       field("consequence", $.block),
       repeat(field("or_clause", $.or_clause)),
       optional(seq("else", $.block)),
-    ),
+    )),
 
     or_clause: $ => seq(
       "or",
-      field("condition", $.expression),
+      field("condition", optional($.expression)),
       field("consequence", $.block),
     ),
 
@@ -777,9 +855,24 @@ module.exports = grammar({
       ")",
     ),
 
+    iterator_literal: $ => seq(
+      "Iterator",
+      optional(field("element_type", $.type_expression)),
+      "{",
+      field("binding", $.identifier),
+      "=>",
+      field("body", $.iterator_body),
+      "}",
+    ),
+
+    iterator_body: $ => seq($.statement, repeat($.statement)),
+
     literal: $ => choice(
       $.number_literal,
+      $.character_literal,
       $.string_literal,
+      $.interpolated_string,
+      $.struct_literal,
       $.boolean_literal,
       $.nil_literal,
       $.array_literal,
@@ -787,6 +880,7 @@ module.exports = grammar({
 
     literal_pattern: $ => choice(
       $.number_literal,
+      $.character_literal,
       $.string_literal,
       $.boolean_literal,
       $.nil_literal,
@@ -797,6 +891,37 @@ module.exports = grammar({
       commaSep($.expression),
       optional(","),
       "]",
+    ),
+
+    struct_literal: $ => seq(
+      field("type", $.qualified_identifier),
+      field("type_arguments", optional($.type_arguments)),
+      "{",
+      optional(seq(
+        commaSep1($.struct_literal_element),
+        optional(","),
+      )),
+      "}",
+    ),
+
+    struct_literal_element: $ => choice(
+      $.struct_literal_spread,
+      $.struct_literal_field,
+      $.struct_literal_shorthand_field,
+      $.expression,
+    ),
+
+    struct_literal_field: $ => seq(
+      field("name", $.identifier),
+      ":",
+      field("value", $.expression),
+    ),
+
+    struct_literal_shorthand_field: $ => field("name", $.identifier),
+
+    struct_literal_spread: $ => seq(
+      "...",
+      field("source", $.expression),
     ),
 
     pattern: $ => choice(
@@ -911,18 +1036,45 @@ module.exports = grammar({
     )),
 
     placeholder_expression: _ => token(choice("@", /@[1-9][0-9]*/)),
+    implicit_member_expression: $ => seq(
+      "#",
+      field("member", $.identifier),
+    ),
 
     topic_reference: _ => token("%"),
 
     identifier: _ => token(prec(-1, /[A-Za-z_][A-Za-z0-9_]*/)),
 
-    number_literal: _ => token(/[0-9][0-9_]*/),
+    number_literal: _ => token(choice(
+      new RegExp(FLOAT_LITERAL_PATTERN),
+      new RegExp(FLOAT_SUFFIX_ONLY_PATTERN),
+      new RegExp(INTEGER_LITERAL_PATTERN),
+    )),
+
+    character_literal: _ => token(prec(1, new RegExp(CHARACTER_LITERAL_PATTERN))),
 
     string_literal: _ => token(seq(
       '"',
       repeat(choice(/[^"\\\n]+/, /\\./)),
       '"',
     )),
+
+    interpolated_string: $ => seq(
+      "`",
+      repeat(choice(
+        $.interpolation_text,
+        $.string_interpolation,
+      )),
+      "`",
+    ),
+
+    interpolation_text: _ => token(prec(1, new RegExp(`${INTERPOLATION_CHUNK_PATTERN}+`))),
+
+    string_interpolation: $ => seq(
+      token.immediate("${"),
+      field("expression", $.expression),
+      "}",
+    ),
 
     boolean_literal: _ => choice("true", "false"),
 
