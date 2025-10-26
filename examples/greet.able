@@ -1,7 +1,7 @@
 package greet
 
 fn greet(name: string) -> string {
-  "Hello ${name}"
+  `Hello ${name}`
 }
 
 fn main() {
