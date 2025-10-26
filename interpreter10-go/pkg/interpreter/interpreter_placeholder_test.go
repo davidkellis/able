@@ -251,3 +251,67 @@ func TestPipeImplicitMethodShorthand(t *testing.T) {
 		t.Fatalf("expected 42, got %#v", intResult.Val)
 	}
 }
+
+func TestPipeUfcsFunction(t *testing.T) {
+	interp := New()
+	module := ast.Mod([]ast.Statement{
+		ast.StructDef(
+			"Point",
+			[]*ast.StructFieldDefinition{
+				ast.FieldDef(ast.Ty("i32"), "x"),
+			},
+			ast.StructKindNamed,
+			nil,
+			nil,
+			false,
+		),
+		ast.Fn(
+			"translate",
+			[]*ast.FunctionParameter{
+				ast.Param("point", nil),
+			},
+			[]ast.Statement{
+				ast.AssignMember(
+					ast.ID("point"),
+					"x",
+					ast.Bin("+", ast.Member(ast.ID("point"), "x"), ast.Int(5)),
+				),
+				ast.Ret(ast.ID("point")),
+			},
+			nil,
+			nil,
+			nil,
+			false,
+			false,
+		),
+		ast.Assign(
+			ast.ID("point"),
+			ast.StructLit(
+				[]*ast.StructFieldInitializer{
+					ast.FieldInit(ast.Int(2), "x"),
+				},
+				false,
+				"Point",
+				nil,
+				nil,
+			),
+		),
+		ast.Assign(
+			ast.ID("result"),
+			ast.Bin("|>", ast.ID("point"), ast.ID("translate")),
+		),
+		ast.Member(ast.ID("result"), "x"),
+	}, nil, nil)
+
+	result, _, err := interp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("pipe UFCS function failed: %v", err)
+	}
+	intResult, ok := result.(runtime.IntegerValue)
+	if !ok {
+		t.Fatalf("expected integer result, got %#v", result)
+	}
+	if intResult.Val.Cmp(bigInt(7)) != 0 {
+		t.Fatalf("expected 7, got %#v", intResult.Val)
+	}
+}

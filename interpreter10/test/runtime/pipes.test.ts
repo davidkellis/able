@@ -101,4 +101,42 @@ describe("v10 interpreter - pipes", () => {
     );
     expect(I.evaluate(expr)).toEqual({ kind: "i32", value: 10 });
   });
+
+  test("UFCS free function via pipe", () => {
+    const I = new InterpreterV10();
+    const Point = AST.structDefinition(
+      "Point",
+      [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "x")],
+      "named"
+    );
+    I.evaluate(Point);
+    const translate = AST.functionDefinition(
+      "translate",
+      [AST.functionParameter("point")],
+      AST.blockExpression([
+        AST.assignmentExpression(
+          "=",
+          AST.memberAccessExpression(AST.identifier("point"), "x"),
+          AST.binaryExpression("+", AST.memberAccessExpression(AST.identifier("point"), "x"), AST.integerLiteral(5))
+        ),
+        AST.returnStatement(AST.identifier("point")),
+      ]),
+    );
+    I.evaluate(translate);
+    const pointLiteral = AST.structLiteral(
+      [AST.structFieldInitializer(AST.integerLiteral(2), "x")],
+      false,
+      "Point"
+    );
+    I.evaluate(AST.assignmentExpression(":=", AST.identifier("point"), pointLiteral));
+    I.evaluate(
+      AST.assignmentExpression(
+        ":=",
+        AST.identifier("result"),
+        AST.binaryExpression("|>", AST.identifier("point"), AST.identifier("translate")),
+      ),
+    );
+    const result = I.evaluate(AST.memberAccessExpression(AST.identifier("result"), "x"));
+    expect(result).toEqual({ kind: "i32", value: 7 });
+  });
 });
