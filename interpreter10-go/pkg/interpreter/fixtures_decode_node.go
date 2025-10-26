@@ -1026,6 +1026,16 @@ func decodeNode(node map[string]any) (ast.Node, error) {
 			return nil, fmt.Errorf("invalid member expression %T", memberNode)
 		}
 		return ast.NewMemberAccessExpression(object, memberExpr), nil
+	case "ImplicitMemberExpression":
+		memberNode, err := decodeNode(node["member"].(map[string]any))
+		if err != nil {
+			return nil, err
+		}
+		ident, ok := memberNode.(*ast.Identifier)
+		if !ok {
+			return nil, fmt.Errorf("implicit member expects identifier, got %T", memberNode)
+		}
+		return ast.NewImplicitMemberExpression(ident), nil
 	case "IndexExpression":
 		objectNode, err := decodeNode(node["object"].(map[string]any))
 		if err != nil {

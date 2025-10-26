@@ -1,0 +1,9 @@
+{
+  "description": "Pipe uses topic reference to call implicit methods",
+  "expect": {
+    "result": {
+      "kind": "string",
+      "value": "6,10"
+    }
+  }
+}

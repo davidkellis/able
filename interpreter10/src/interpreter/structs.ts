@@ -80,113 +80,112 @@ export function evaluateStructLiteral(ctx: InterpreterV10, node: AST.StructLiter
   };
 }
 
-export function evaluateMemberAccessExpression(ctx: InterpreterV10, node: AST.MemberAccessExpression, env: Environment): V10Value {
-  const obj = ctx.evaluate(node.object, env);
-  if (obj.kind === "struct_def" && node.member.type === "Identifier") {
+function memberAccessOnValue(ctx: InterpreterV10, obj: V10Value, member: AST.Identifier | AST.IntegerLiteral, env: Environment): V10Value {
+  if (obj.kind === "struct_def" && member.type === "Identifier") {
     const typeName = obj.def.id.name;
-    const method = ctx.findMethod(typeName, node.member.name);
-    if (!method) throw new Error(`No static method '${node.member.name}' for ${typeName}`);
+    const method = ctx.findMethod(typeName, member.name);
+    if (!method) throw new Error(`No static method '${member.name}' for ${typeName}`);
     if (method.node.type === "FunctionDefinition" && method.node.isPrivate) {
-      throw new Error(`Method '${node.member.name}' on ${typeName} is private`);
+      throw new Error(`Method '${member.name}' on ${typeName} is private`);
     }
     return method;
   }
   if (obj.kind === "package") {
-    if (node.member.type !== "Identifier") throw new Error("Package member access expects identifier");
-    const sym = obj.symbols.get(node.member.name);
-    if (!sym) throw new Error(`No public member '${node.member.name}' on package ${obj.name}`);
+    if (member.type !== "Identifier") throw new Error("Package member access expects identifier");
+    const sym = obj.symbols.get(member.name);
+    if (!sym) throw new Error(`No public member '${member.name}' on package ${obj.name}`);
     return sym;
   }
   if (obj.kind === "dyn_package") {
-    if (node.member.type !== "Identifier") throw new Error("Dyn package member access expects identifier");
+    if (member.type !== "Identifier") throw new Error("Dyn package member access expects identifier");
     const bucket = ctx.packageRegistry.get(obj.name);
-    const sym = bucket?.get(node.member.name);
-    if (!sym) throw new Error(`dyn package '${obj.name}' has no member '${node.member.name}'`);
-    if (sym.kind === "function" && sym.node.type === "FunctionDefinition" && sym.node.isPrivate) throw new Error(`dyn package '${obj.name}' member '${node.member.name}' is private`);
-    if (sym.kind === "struct_def" && sym.def.isPrivate) throw new Error(`dyn package '${obj.name}' member '${node.member.name}' is private`);
-    if (sym.kind === "interface_def" && sym.def.isPrivate) throw new Error(`dyn package '${obj.name}' member '${node.member.name}' is private`);
-    if (sym.kind === "union_def" && sym.def.isPrivate) throw new Error(`dyn package '${obj.name}' member '${node.member.name}' is private`);
-    return { kind: "dyn_ref", pkg: obj.name, name: node.member.name };
+    const sym = bucket?.get(member.name);
+    if (!sym) throw new Error(`dyn package '${obj.name}' has no member '${member.name}'`);
+    if (sym.kind === "function" && sym.node.type === "FunctionDefinition" && sym.node.isPrivate) throw new Error(`dyn package '${obj.name}' member '${member.name}' is private`);
+    if (sym.kind === "struct_def" && sym.def.isPrivate) throw new Error(`dyn package '${obj.name}' member '${member.name}' is private`);
+    if (sym.kind === "interface_def" && sym.def.isPrivate) throw new Error(`dyn package '${obj.name}' member '${member.name}' is private`);
+    if (sym.kind === "union_def" && sym.def.isPrivate) throw new Error(`dyn package '${obj.name}' member '${member.name}' is private`);
+    return { kind: "dyn_ref", pkg: obj.name, name: member.name };
   }
   if (obj.kind === "impl_namespace") {
-    if (node.member.type !== "Identifier") throw new Error("Impl namespace member access expects identifier");
-    if (node.member.name === "interface") {
+    if (member.type !== "Identifier") throw new Error("Impl namespace member access expects identifier");
+    if (member.name === "interface") {
       return { kind: "string", value: obj.meta.interfaceName };
     }
-    if (node.member.name === "target") {
+    if (member.name === "target") {
       return { kind: "string", value: ctx.typeExpressionToString(obj.meta.target) };
     }
-    if (node.member.name === "interface_args") {
+    if (member.name === "interface_args") {
       const args = obj.meta.interfaceArgs ?? [];
       return {
         kind: "array",
         elements: args.map(a => ({ kind: "string", value: ctx.typeExpressionToString(a) } as V10Value)),
       };
     }
-    const sym = obj.symbols.get(node.member.name);
-    if (!sym) throw new Error(`No method '${node.member.name}' on impl ${obj.def.implName?.name ?? "<unnamed>"}`);
+    const sym = obj.symbols.get(member.name);
+    if (!sym) throw new Error(`No method '${member.name}' on impl ${obj.def.implName?.name ?? "<unnamed>"}`);
     return sym;
   }
   if (obj.kind === "interface_value") {
-    if (node.member.type !== "Identifier") throw new Error("Interface member access expects identifier");
+    if (member.type !== "Identifier") throw new Error("Interface member access expects identifier");
     const underlying = obj.value;
     const typeName = ctx.getTypeNameForValue(underlying);
-    if (!typeName) throw new Error(`No method '${node.member.name}' for interface ${obj.interfaceName}`);
+    if (!typeName) throw new Error(`No method '${member.name}' for interface ${obj.interfaceName}`);
     const typeArgs = underlying.kind === "struct_instance" ? underlying.typeArguments : undefined;
     const typeArgMap = underlying.kind === "struct_instance" ? underlying.typeArgMap : undefined;
-    const method = ctx.findMethod(typeName, node.member.name, {
+    const method = ctx.findMethod(typeName, member.name, {
       typeArgs,
       typeArgMap,
       interfaceName: obj.interfaceName,
     });
-    if (!method) throw new Error(`No method '${node.member.name}' for interface ${obj.interfaceName}`);
+    if (!method) throw new Error(`No method '${member.name}' for interface ${obj.interfaceName}`);
     if (method.node.type === "FunctionDefinition" && method.node.isPrivate) {
-      throw new Error(`Method '${node.member.name}' on ${typeName} is private`);
+      throw new Error(`Method '${member.name}' on ${typeName} is private`);
     }
     return { kind: "bound_method", func: method, self: underlying };
   }
   if (obj.kind === "proc_handle") {
-    if (node.member.type !== "Identifier") throw new Error("Proc handle member access expects identifier");
-    const fn = (ctx.procNativeMethods as Record<string, Extract<V10Value, { kind: "native_function" }>>)[node.member.name];
-    if (!fn) throw new Error(`Unknown proc handle method '${node.member.name}'`);
+    if (member.type !== "Identifier") throw new Error("Proc handle member access expects identifier");
+    const fn = (ctx.procNativeMethods as Record<string, Extract<V10Value, { kind: "native_function" }>>)[member.name];
+    if (!fn) throw new Error(`Unknown proc handle method '${member.name}'`);
     return ctx.bindNativeMethod(fn, obj);
   }
   if (obj.kind === "future") {
-    if (node.member.type !== "Identifier") throw new Error("Future member access expects identifier");
-    const fn = (ctx.futureNativeMethods as Record<string, Extract<V10Value, { kind: "native_function" }>>)[node.member.name];
-    if (!fn) throw new Error(`Unknown future method '${node.member.name}'`);
+    if (member.type !== "Identifier") throw new Error("Future member access expects identifier");
+    const fn = (ctx.futureNativeMethods as Record<string, Extract<V10Value, { kind: "native_function" }>>)[member.name];
+    if (!fn) throw new Error(`Unknown future method '${member.name}'`);
     return ctx.bindNativeMethod(fn, obj);
   }
   if (obj.kind === "iterator") {
-    if (node.member.type !== "Identifier") throw new Error("Iterator member access expects identifier");
-    const fn = (ctx.iteratorNativeMethods as Record<string, Extract<V10Value, { kind: "native_function" }>>)[node.member.name];
-    if (!fn) throw new Error(`Unknown iterator method '${node.member.name}'`);
+    if (member.type !== "Identifier") throw new Error("Iterator member access expects identifier");
+    const fn = (ctx.iteratorNativeMethods as Record<string, Extract<V10Value, { kind: "native_function" }>>)[member.name];
+    if (!fn) throw new Error(`Unknown iterator method '${member.name}'`);
     return ctx.bindNativeMethod(fn, obj);
   }
-  if (node.member.type === "Identifier" && obj.kind !== "struct_instance" && obj.kind !== "array") {
-    const ufcs = ctx.tryUfcs(env, node.member.name, obj);
+  if (member.type === "Identifier" && obj.kind !== "struct_instance" && obj.kind !== "array") {
+    const ufcs = ctx.tryUfcs(env, member.name, obj);
     if (ufcs) return ufcs;
     throw new Error("Member access only supported on structs/arrays in this milestone");
   }
   if (obj.kind === "struct_instance") {
-    if (node.member.type === "Identifier") {
+    if (member.type === "Identifier") {
       if (!(obj.values instanceof Map)) throw new Error("Expected named struct instance");
-      if (obj.values.has(node.member.name)) {
-        return obj.values.get(node.member.name)!;
+      if (obj.values.has(member.name)) {
+        return obj.values.get(member.name)!;
       }
       const typeName = obj.def.id.name;
-      const method = ctx.findMethod(typeName, node.member.name, { typeArgs: obj.typeArguments, typeArgMap: obj.typeArgMap });
+      const method = ctx.findMethod(typeName, member.name, { typeArgs: obj.typeArguments, typeArgMap: obj.typeArgMap });
       if (method) {
         if (method.node.type === "FunctionDefinition" && method.node.isPrivate) {
-          throw new Error(`Method '${node.member.name}' on ${typeName} is private`);
+          throw new Error(`Method '${member.name}' on ${typeName} is private`);
         }
         return { kind: "bound_method", func: method, self: obj };
       }
-      const ufcs = ctx.tryUfcs(env, node.member.name, obj);
+      const ufcs = ctx.tryUfcs(env, member.name, obj);
       if (ufcs) return ufcs;
-      throw new Error(`No field or method named '${node.member.name}'`);
+      throw new Error(`No field or method named '${member.name}'`);
     }
-    const idx = Number(node.member.value);
+    const idx = Number(member.value);
     if (!Array.isArray(obj.values)) throw new Error("Expected positional struct instance");
     if (idx < 0 || idx >= obj.values.length) throw new Error("Struct field index out of bounds");
     const val = obj.values[idx];
@@ -194,15 +193,32 @@ export function evaluateMemberAccessExpression(ctx: InterpreterV10, node: AST.Me
     return val;
   }
   if (obj.kind === "array") {
-    const idx = Number(node.member.value);
+    const idx = Number(member.value);
     if (idx < 0 || idx >= obj.elements.length) throw new Error("Array index out of bounds");
     const el = obj.elements[idx];
     if (el === undefined) throw new Error("Internal error: array element undefined");
     return el;
   }
-  if (node.member.type === "Identifier") {
-    const ufcs = ctx.tryUfcs(env, node.member.name, obj);
+  if (member.type === "Identifier") {
+    const ufcs = ctx.tryUfcs(env, member.name, obj);
     if (ufcs) return ufcs;
   }
   throw new Error("Member access only supported on structs/arrays in this milestone");
+}
+
+export function evaluateMemberAccessExpression(ctx: InterpreterV10, node: AST.MemberAccessExpression, env: Environment): V10Value {
+  const obj = ctx.evaluate(node.object, env);
+  return memberAccessOnValue(ctx, obj, node.member, env);
+}
+
+export function evaluateImplicitMemberExpression(ctx: InterpreterV10, node: AST.ImplicitMemberExpression, env: Environment): V10Value {
+  if (node.member.type !== "Identifier") throw new Error("Implicit member expects identifier");
+  if (ctx.implicitReceiverStack.length === 0) {
+    throw new Error(`Implicit member '#${node.member.name}' used outside of function with implicit receiver`);
+  }
+  const receiver = ctx.implicitReceiverStack[ctx.implicitReceiverStack.length - 1];
+  if (receiver === undefined) {
+    throw new Error(`Implicit member '#${node.member.name}' used outside of function with implicit receiver`);
+  }
+  return memberAccessOnValue(ctx, receiver, node.member, env);
 }

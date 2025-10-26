@@ -1720,9 +1720,21 @@ Placeholders in expression positions create anonymous functions.
 *   Mixing is allowed; arity is the maximum of the highest numbered placeholder and the count of unnumbered placeholders:
     *   `f(@1, @, @3)` → `{ x, y, z => f(x, y, z) }`
 *   Scope: The smallest enclosing expression that expects a function determines the lambda boundary. If a placeholder spans a whole block, the entire block becomes the lambda body. Parentheses may be used for clarity without changing scope.
+*   Nesting: Placeholders inside an explicit lambda (`{ ... }`), iterator body, `proc`, or `spawn` are scoped to that construct; they do not implicitly convert the outer expression into a placeholder lambda.
 *   Errors:
     *   Using `@`/`@n` where a named identifier is required (outside expression placeholders) is a compile-time error.
     *   Arity mismatches between inferred placeholder lambdas and the expected function type at the call site are compile-time errors.
+
+Example (nested placeholders remain local):
+```able
+builder = { ## explicit lambda; returns a callable that doubles its input
+  fn_from_placeholder = (@ * 2)   ## placeholder inside lambda produces a separate function
+  fn_from_placeholder
+}
+
+double = builder()
+double(5) ## => 10; the outer lambda stays a normal function, only the placeholder expression becomes callable
+```
 
 Interaction with `|>` topic semantics:
 
