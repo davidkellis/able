@@ -6,6 +6,7 @@ import { applyPatternAugmentations } from "./patterns";
 import { applyTypesAugmentations } from "./types";
 import { applyMemberAugmentations } from "./members";
 import { applyImplResolutionAugmentations } from "./impl_resolution";
+import { applyPlaceholderAugmentations } from "./placeholders";
 import { applyEvaluationAugmentations } from "./eval_expressions";
 import { applyConcurrencyAugmentations } from "./concurrency";
 import { applyIteratorAugmentations } from "./iterators";
@@ -32,6 +33,10 @@ export class InterpreterV10 {
   packageRegistry: Map<string, Map<string, V10Value>> = new Map();
   currentPackage: string | null = null;
   breakpointStack: string[] = [];
+  implicitReceiverStack: V10Value[] = [];
+  topicStack: V10Value[] = [];
+  topicUsageStack: boolean[] = [];
+  placeholderFrames: PlaceholderFrame[] = [];
 
   procNativeMethods!: {
     status: Extract<V10Value, { kind: "native_function" }>;
@@ -122,6 +127,7 @@ applyPatternAugmentations(InterpreterV10);
 applyTypesAugmentations(InterpreterV10);
 applyMemberAugmentations(InterpreterV10);
 applyImplResolutionAugmentations(InterpreterV10);
+applyPlaceholderAugmentations(InterpreterV10);
 applyIteratorAugmentations(InterpreterV10);
 applyChannelMutexAugmentations(InterpreterV10);
 applyEvaluationAugmentations(InterpreterV10);
@@ -132,6 +138,7 @@ export type { ConstraintSpec as InterpreterConstraintSpec } from "./values";
 export { Environment } from "./environment";
 export type { V10Value } from "./values";
 
+export type { PlaceholderFrame } from "./placeholders";
 // Side-effectful module imports attach feature-specific behaviour to InterpreterV10.
 
 export function evaluate(node: AST.AstNode | null, env?: Environment): V10Value {

@@ -20,6 +20,7 @@ type Manifest = {
   description?: string;
   entry?: string;
   setup?: string[];
+  skipTargets?: string[];
   expect?: {
     result?: { kind: string; value?: unknown };
     stdout?: string[];
@@ -41,6 +42,9 @@ async function main() {
 
   for (const fixtureDir of fixtures) {
     const manifest = await readManifest(fixtureDir);
+    if (manifest.skipTargets?.includes("ts")) {
+      continue;
+    }
     const interpreter = new V10.InterpreterV10();
     ensurePrint(interpreter);
     installRuntimeStubs(interpreter);

@@ -862,3 +862,24 @@ Tests
   - Added dedicated tree-sitter corpus fixtures exercising each new construct (character_literals, numeric_literals, string_interpolation, struct_literals, option_handling, iterator_literals, complex_patterns, type_expressions) so the grammar surface is fully tested.
   - Clarified onboarding guidance to keep AST wiring on hold until grammar fixtures are green, and updated PLAN.md with the parser status for the next contributor.
 
+> TypeScript Pipe Semantics (2025-10-24)
+
+- Added topic/implicit receiver stacks to the TS interpreter so pipe subjects provide both `%%` and shorthand method receivers, and taught `BinaryExpression '|>'` to reuse callable invocation semantics (`interpreter10/src/interpreter/index.ts`, `interpreter10/src/interpreter/operations.ts`, `interpreter10/src/interpreter/functions.ts`).
+- Implemented implicit-member evaluation against the active receiver and enabled the shared fixture plus new unit coverage for topic/implicit-member pipes (`interpreter10/src/interpreter/structs.ts`, `interpreter10/src/interpreter/eval_expressions.ts`, `interpreter10/test/runtime/pipes.test.ts`, `fixtures/ast/pipes/member_topic/manifest.json`).
+- Refactored callable invocation into `callCallableValue` so pipes and regular calls share arity/type enforcement and implicit receiver handling.
+
+> Pipe Edge Sweep (2025-10-24)
+
+- Added a dedicated placeholder evaluator for the TS runtime (mirroring Go’s plan analysis and frame stack) so expressions like `add(@, 1)` and indexed placeholders work across modules and pipes (`interpreter10/src/interpreter/placeholders.ts`, `interpreter10/src/interpreter/index.ts`, `interpreter10/src/interpreter/eval_expressions.ts`).
+- Updated pipe evaluation to skip placeholder wrapping on the whole `|>` node while still honouring topic semantics, and extended the runtime tests to cover UFCS + placeholder pipelines (`interpreter10/src/interpreter/operations.ts`, `interpreter10/test/runtime/pipes.test.ts`).
+- Backfilled standalone placeholder unit coverage, including direct native invocation, mixed explicit indices, and lambda bodies that return placeholder callables (`interpreter10/test/functions/placeholder.test.ts`).
+
+Tests
+
+- (cd interpreter10 && bun test)
+- (cd interpreter10 && bun run scripts/run-fixtures.ts --filter pipes/member_topic)
+
+Tests
+
+- (cd interpreter10 && bun test)
+- (cd interpreter10 && bun run scripts/run-fixtures.ts --filter pipes/member_topic)

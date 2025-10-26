@@ -41,6 +41,7 @@
 1. **Fixture audit**
    - Sweep `design/parser-ast-coverage.md` to confirm every language feature is represented; open tickets for any remaining `TODO` fixtures.
    - §12.5 fixtures now cover buffered ops, nil-channel cancellation, closed-channel errors, and mutex contention; next up are parser assertions and mirroring the behaviour in the TypeScript runtime.
+   - TypeScript interpreter now runs the shared `pipes/member_topic` fixture and covers UFCS/placeholder pipe edges via unit tests; parity notes updated accordingly.
    - Add missing fixtures (e.g., remaining concurrency edge cases, select/timeout stubs if spec settles).
 2. **Interpreter verification**
    - Ensure both interpreters run the entire fixture suite with assertions (value, stdout, error cases). Add targeted unit tests where fixture coverage is insufficient (e.g., helper corner cases).

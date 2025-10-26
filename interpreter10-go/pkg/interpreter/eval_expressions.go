@@ -694,7 +694,9 @@ func (i *Interpreter) callCallableValue(callee runtime.Value, args []runtime.Val
 func (i *Interpreter) evaluatePipeExpression(subject runtime.Value, rhs ast.Expression, env *runtime.Environment) (runtime.Value, error) {
 	state := i.stateFromEnv(env)
 	state.pushTopic(subject)
+	state.pushImplicitReceiver(subject)
 	rhsVal, err := i.evaluateExpression(rhs, env)
+	state.popImplicitReceiver()
 	used := state.topicWasUsed()
 	state.popTopic()
 	if err != nil {
@@ -706,7 +708,12 @@ func (i *Interpreter) evaluatePipeExpression(subject runtime.Value, rhs ast.Expr
 		}
 		return rhsVal, nil
 	}
-	result, err := i.callCallableValue(rhsVal, []runtime.Value{subject}, env, nil)
+	callArgs := []runtime.Value{subject}
+	switch rhsVal.(type) {
+	case runtime.BoundMethodValue, *runtime.BoundMethodValue, runtime.NativeBoundMethodValue, *runtime.NativeBoundMethodValue:
+		callArgs = nil
+	}
+	result, err := i.callCallableValue(rhsVal, callArgs, env, nil)
 	if err != nil {
 		return nil, fmt.Errorf("pipe RHS must be callable when '%%' is not used: %w", err)
 	}
@@ -945,14 +952,11 @@ func expressionContainsPlaceholder(expr ast.Expression) bool {
 		}
 		return false
 	case *ast.IteratorLiteral:
-		for _, stmt := range e.Body {
-			if statementContainsPlaceholder(stmt) {
-				return true
-			}
-		}
 		return false
 	case *ast.LambdaExpression:
-		return expressionContainsPlaceholder(e.Body)
+		return false
+	case *ast.ProcExpression, *ast.SpawnExpression:
+		return false
 	case *ast.TopicReferenceExpression,
 		*ast.Identifier,
 		*ast.IntegerLiteral,
@@ -1199,14 +1203,11 @@ func (p *placeholderAnalyzer) visitExpression(expr ast.Expression) error {
 		}
 		return nil
 	case *ast.IteratorLiteral:
-		for _, stmt := range e.Body {
-			if err := p.visitStatement(stmt); err != nil {
-				return err
-			}
-		}
 		return nil
 	case *ast.LambdaExpression:
-		return p.visitExpression(e.Body)
+		return nil
+	case *ast.ProcExpression, *ast.SpawnExpression:
+		return nil
 	case *ast.TopicReferenceExpression,
 		*ast.Identifier,
 		*ast.IntegerLiteral,
