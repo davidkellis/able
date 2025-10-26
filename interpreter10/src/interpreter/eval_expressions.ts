@@ -8,9 +8,9 @@ import { evaluateFunctionCall, evaluateFunctionDefinition, evaluateLambdaExpress
 import { evaluateDynImportStatement, evaluateImportStatement, evaluateModule, evaluatePackageStatement } from "./imports";
 import { evaluateImplementationDefinition, evaluateInterfaceDefinition, evaluateMethodsDefinition, evaluateUnionDefinition } from "./definitions";
 import { evaluateMatchExpression } from "./match";
-import { evaluateMemberAccessExpression, evaluateStructDefinition, evaluateStructLiteral } from "./structs";
+import { evaluateMemberAccessExpression, evaluateStructDefinition, evaluateStructLiteral, evaluateImplicitMemberExpression } from "./structs";
 import { evaluateLiteral } from "./literals";
-import { evaluateIndexExpression, evaluateRangeExpression, evaluateBinaryExpression, evaluateUnaryExpression } from "./operations";
+import { evaluateIndexExpression, evaluateRangeExpression, evaluateBinaryExpression, evaluateUnaryExpression, evaluateTopicReferenceExpression } from "./operations";
 import { evaluateProcExpression, evaluateSpawnExpression, evaluateBreakpointExpression, evaluateStringInterpolation } from "./runtime_extras";
 import { evaluateIteratorLiteral, evaluateYieldStatement } from "./iterators";
 import type { V10Value } from "./values";
@@ -22,10 +22,50 @@ declare module "./index" {
 }
 
 const NIL: V10Value = { kind: "nil", value: null };
+const EXPRESSION_TYPES = new Set<AST.AstNode["type"]>([
+  "Identifier",
+  "StringLiteral",
+  "BooleanLiteral",
+  "CharLiteral",
+  "NilLiteral",
+  "FloatLiteral",
+  "IntegerLiteral",
+  "ArrayLiteral",
+  "UnaryExpression",
+  "BinaryExpression",
+  "FunctionCall",
+  "BlockExpression",
+  "AssignmentExpression",
+  "RangeExpression",
+  "StringInterpolation",
+  "MemberAccessExpression",
+  "IndexExpression",
+  "LambdaExpression",
+  "ProcExpression",
+  "SpawnExpression",
+  "PropagationExpression",
+  "OrElseExpression",
+  "BreakpointExpression",
+  "IteratorLiteral",
+  "ImplicitMemberExpression",
+  "PlaceholderExpression",
+  "TopicReferenceExpression",
+  "IfExpression",
+  "MatchExpression",
+  "StructLiteral",
+  "RescueExpression",
+  "EnsureExpression",
+]);
 
 export function applyEvaluationAugmentations(cls: typeof InterpreterV10): void {
   cls.prototype.evaluate = function evaluate(this: InterpreterV10, node: AST.AstNode | null, env: Environment = this.globals): V10Value {
     if (!node) return NIL;
+    if (EXPRESSION_TYPES.has(node.type as AST.AstNode["type"]) && !this.hasPlaceholderFrame()) {
+      const placeholderFn = this.tryBuildPlaceholderFunction(node as AST.Expression, env);
+      if (placeholderFn) {
+        return placeholderFn;
+      }
+    }
     switch (node.type) {
       case "StringLiteral":
       case "BooleanLiteral":
@@ -78,6 +118,10 @@ export function applyEvaluationAugmentations(cls: typeof InterpreterV10): void {
         return evaluateStructLiteral(this, node as AST.StructLiteral, env);
       case "MemberAccessExpression":
         return evaluateMemberAccessExpression(this, node as AST.MemberAccessExpression, env);
+      case "ImplicitMemberExpression":
+        return evaluateImplicitMemberExpression(this, node as AST.ImplicitMemberExpression, env);
+      case "PlaceholderExpression":
+        return this.evaluatePlaceholderExpression(node as AST.PlaceholderExpression, env);
       case "StringInterpolation":
         return evaluateStringInterpolation(this, node as AST.StringInterpolation, env);
       case "BreakpointExpression":
@@ -104,6 +148,8 @@ export function applyEvaluationAugmentations(cls: typeof InterpreterV10): void {
         return evaluateIteratorLiteral(this, node as AST.IteratorLiteral, env);
       case "YieldStatement":
         return evaluateYieldStatement(this, node as AST.YieldStatement, env);
+      case "TopicReferenceExpression":
+        return evaluateTopicReferenceExpression(this);
       case "Module":
         return evaluateModule(this, node as AST.Module);
       case "PackageStatement":

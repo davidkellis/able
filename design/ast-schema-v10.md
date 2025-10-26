@@ -105,7 +105,7 @@ Node definitions:
 | `PropagationExpression` | `expression: Expression` (postfix `!`)
 | `OrElseExpression` | `expression: Expression`, `handler: BlockExpression`, `error_binding?: Identifier`
 | `BreakpointExpression` | `label: Identifier`, `body: BlockExpression`
-| `PlaceholderExpression` | `index?: integer` *(un-numbered `@` omits `index`; numbered `@n` stores 1-based `index`)* 
+| `PlaceholderExpression` | `index?: integer` *(un-numbered `@` omits `index`; numbered `@n` stores 1-based `index`)* — detection is expression-local; placeholders nested inside explicit lambdas, iterator literals, `proc`, or `spawn` remain scoped to those constructs per §7.6.3. 
 | `TopicReferenceExpression` | *(represents pipe-topic `%` while piping expressions)*
 
 Assignment targets are any `Pattern`, `MemberAccessExpression`, `ImplicitMemberExpression`, `IndexExpression`, or `Identifier`.

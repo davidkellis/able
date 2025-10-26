@@ -2,6 +2,7 @@ import * as AST from "../ast";
 import type { Environment } from "./environment";
 import type { InterpreterV10 } from "./index";
 import type { V10Value } from "./values";
+import { callCallableValue } from "./functions";
 
 declare module "./index" {
   interface InterpreterV10 {
@@ -42,6 +43,31 @@ export function evaluateBinaryExpression(ctx: InterpreterV10, node: AST.BinaryEx
     const rv = ctx.evaluate(b.right, env);
     if (rv.kind !== "bool") throw new Error("Logical operands must be bool");
     return { kind: "bool", value: lv.value || rv.value };
+  }
+
+  if (b.operator === "|>") {
+    const subject = ctx.evaluate(b.left, env);
+    ctx.topicStack.push(subject);
+    ctx.topicUsageStack.push(false);
+    ctx.implicitReceiverStack.push(subject);
+    try {
+      const rhsVal = ctx.evaluate(b.right, env);
+      const topicUsed = ctx.topicUsageStack[ctx.topicUsageStack.length - 1] ?? false;
+      if (topicUsed) {
+        return rhsVal;
+      }
+      const callArgs = (rhsVal.kind === "bound_method" || rhsVal.kind === "native_bound_method") ? [] : [subject];
+      try {
+        return callCallableValue(ctx, rhsVal, callArgs, env);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        throw new Error(`pipe RHS must be callable when '%' is not used: ${message}`);
+      }
+    } finally {
+      ctx.implicitReceiverStack.pop();
+      ctx.topicUsageStack.pop();
+      ctx.topicStack.pop();
+    }
   }
 
   const left = ctx.evaluate(b.left, env);
@@ -144,6 +170,15 @@ export function evaluateIndexExpression(ctx: InterpreterV10, node: AST.IndexExpr
   const el = obj.elements[idx];
   if (el === undefined) throw new Error("Internal error: array element undefined");
   return el;
+}
+
+export function evaluateTopicReferenceExpression(ctx: InterpreterV10): V10Value {
+  if (ctx.topicStack.length === 0 || ctx.topicUsageStack.length === 0) {
+    throw new Error("Topic reference '%' used outside of pipe expression");
+  }
+  ctx.topicUsageStack[ctx.topicUsageStack.length - 1] = true;
+  const current = ctx.topicStack[ctx.topicStack.length - 1];
+  return current;
 }
 
 export function applyOperationsAugmentations(cls: typeof InterpreterV10): void {

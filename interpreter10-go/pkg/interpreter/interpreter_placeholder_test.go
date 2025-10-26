@@ -1,6 +1,7 @@
 package interpreter
 
 import (
+	"strings"
 	"testing"
 
 	"able/interpreter10-go/pkg/ast"
@@ -136,6 +137,111 @@ func TestPipeCallableRhs(t *testing.T) {
 	result, _, err := interp.EvaluateModule(module)
 	if err != nil {
 		t.Fatalf("pipe callable evaluation failed: %v", err)
+	}
+	intResult, ok := result.(runtime.IntegerValue)
+	if !ok {
+		t.Fatalf("expected integer result, got %#v", result)
+	}
+	if intResult.Val.Cmp(bigInt(42)) != 0 {
+		t.Fatalf("expected 42, got %#v", intResult.Val)
+	}
+}
+
+func TestLambdaContainingPlaceholderRemainsExplicitFunction(t *testing.T) {
+	interp := New()
+	module := ast.Mod([]ast.Statement{
+		ast.Assign(
+			ast.ID("builder"),
+			ast.LamBlock(nil, ast.Block(ast.Placeholder())),
+		),
+		ast.Call("builder"),
+	}, nil, nil)
+
+	result, env, err := interp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("lambda placeholder module failed: %v", err)
+	}
+	builderVal, err := env.Get("builder")
+	if err != nil {
+		t.Fatalf("expected builder in environment: %v", err)
+	}
+	if _, ok := builderVal.(*runtime.FunctionValue); !ok {
+		t.Fatalf("expected builder to be FunctionValue, got %#v", builderVal)
+	}
+	native, ok := result.(runtime.NativeFunctionValue)
+	if !ok {
+		t.Fatalf("expected builder() to return placeholder function, got %#v", result)
+	}
+	if native.Arity != 1 {
+		t.Fatalf("expected placeholder arity 1, got %d", native.Arity)
+	}
+}
+
+func TestPipeRhsMustBeCallableWithoutTopic(t *testing.T) {
+	interp := New()
+	module := ast.Mod([]ast.Statement{
+		ast.Bin("|>", ast.Int(5), ast.Int(3)),
+	}, nil, nil)
+
+	_, _, err := interp.EvaluateModule(module)
+	if err == nil {
+		t.Fatalf("expected pipe to error when RHS is not callable")
+	}
+	if !strings.Contains(err.Error(), "pipe RHS must be callable") {
+		t.Fatalf("expected error about pipe RHS, got %v", err)
+	}
+}
+
+func TestPipeImplicitMethodShorthand(t *testing.T) {
+	interp := New()
+	module := ast.Mod([]ast.Statement{
+		ast.StructDef(
+			"Data",
+			[]*ast.StructFieldDefinition{
+				ast.FieldDef(ast.Ty("i32"), "value"),
+			},
+			ast.StructKindNamed,
+			nil,
+			nil,
+			false,
+		),
+		ast.Methods(
+			ast.Ty("Data"),
+			[]*ast.FunctionDefinition{
+				ast.Fn(
+					"increment",
+					nil,
+					[]ast.Statement{
+						ast.Ret(ast.Bin("+", ast.ImplicitMember("value"), ast.Int(1))),
+					},
+					ast.Ty("i32"),
+					nil,
+					nil,
+					true,
+					false,
+				),
+			},
+			nil,
+			nil,
+		),
+		ast.Assign(
+			ast.ID("item"),
+			ast.StructLit(
+				[]*ast.StructFieldInitializer{
+					ast.FieldInit(ast.Int(41), "value"),
+				},
+				false,
+				"Data",
+				nil,
+				nil,
+			),
+		),
+		ast.Bin("|>", ast.ID("item"), ast.ImplicitMember("increment")),
+	}, nil, nil)
+
+	result, _, err := interp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("pipe implicit method failed: %v", err)
 	}
 	intResult, ok := result.(runtime.IntegerValue)
 	if !ok {
