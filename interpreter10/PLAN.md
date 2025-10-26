@@ -141,6 +141,11 @@ This document tracks the implementation plan for the v10 interpreter inside `int
    - Expand examples; README/PLAN alignment; doc comments for evaluator helpers
    - Add coverage target and CI script (bun test --coverage)
 
+8) Pipe semantics parity
+   - ✅ placeholder-generated callables and implicit-member pipes now have TS coverage matching Go
+   - ✅ UFCS free-function pipelines verified in both interpreters (TS runtime tests + Go parity tests)
+   - Remaining: multi-stage pipeline fixtures combining placeholders, topics, and bound methods; document any divergent behaviour in PLAN/log as new cases arise
+
 ### Acceptance criteria for the above
 - New behavior covered by focused tests (positive and failure paths)
 - No regressions in existing suite; lints remain clean

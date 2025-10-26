@@ -873,6 +873,7 @@ Tests
 - Added a dedicated placeholder evaluator for the TS runtime (mirroring Go’s plan analysis and frame stack) so expressions like `add(@, 1)` and indexed placeholders work across modules and pipes (`interpreter10/src/interpreter/placeholders.ts`, `interpreter10/src/interpreter/index.ts`, `interpreter10/src/interpreter/eval_expressions.ts`).
 - Updated pipe evaluation to skip placeholder wrapping on the whole `|>` node while still honouring topic semantics, and extended the runtime tests to cover UFCS + placeholder pipelines (`interpreter10/src/interpreter/operations.ts`, `interpreter10/test/runtime/pipes.test.ts`).
 - Backfilled standalone placeholder unit coverage, including direct native invocation, mixed explicit indices, and lambda bodies that return placeholder callables (`interpreter10/test/functions/placeholder.test.ts`).
+- Added TS+Go parity tests for UFCS free-function pipes (`interpreter10/test/runtime/pipes.test.ts`, `interpreter10-go/pkg/interpreter/interpreter_placeholder_test.go`) so the free function receives the pipe subject exactly once.
 
 Tests
 
