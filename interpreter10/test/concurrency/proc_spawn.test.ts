@@ -32,12 +32,18 @@ const appendToTrace = (literal: string) =>
 
 const drainScheduler = (interp: InterpreterV10, maxTicks = 32) => {
   const runtime = interp as any;
+  const executor = runtime.executor as { flush: (limit?: number) => void; pendingTasks?: () => number };
+  if (!executor || typeof executor.flush !== "function") {
+    throw new Error("executor with flush() required for drainScheduler");
+  }
   let ticks = 0;
-  while (runtime.schedulerQueue.length > 0) {
-    runtime.processScheduler();
+  while (true) {
+    executor.flush();
     ticks += 1;
+    const pending = typeof executor.pendingTasks === "function" ? executor.pendingTasks() : 0;
+    if (pending === 0) break;
     if (ticks > maxTicks) {
-      throw new Error("scheduler queue did not drain");
+      throw new Error("executor queue did not drain");
     }
   }
 };
@@ -1078,5 +1084,72 @@ describe("v10 interpreter - proc & spawn handles", () => {
     const trace = I.evaluate(AST.identifier("trace"));
     expect(trace.kind).toBe("string");
     expect(trace.value).toBe("wx");
+  });
+
+  test("automatic time slicing yields progress without explicit proc_yield", () => {
+    const I = new InterpreterV10({ schedulerMaxSteps: 4 });
+
+    I.evaluate(AST.assignmentExpression(":=", AST.identifier("counter"), AST.integerLiteral(0)));
+    I.evaluate(AST.assignmentExpression(":=", AST.identifier("done"), AST.booleanLiteral(false)));
+
+    const handleProc = AST.procExpression(
+      AST.blockExpression([
+        AST.assignmentExpression(":=", AST.identifier("i"), AST.integerLiteral(0)),
+        AST.whileLoop(
+          AST.binaryExpression("<", AST.identifier("i"), AST.integerLiteral(10)),
+          AST.blockExpression([
+            AST.assignmentExpression("=", AST.identifier("counter"), AST.identifier("i")),
+            AST.assignmentExpression(
+              "=",
+              AST.identifier("i"),
+              AST.binaryExpression("+", AST.identifier("i"), AST.integerLiteral(1))
+            ),
+          ])
+        ),
+        AST.assignmentExpression("=", AST.identifier("done"), AST.booleanLiteral(true)),
+      ])
+    );
+
+    I.evaluate(
+      AST.assignmentExpression(
+        ":=",
+        AST.identifier("slice_handle"),
+        handleProc,
+      ),
+    );
+
+    const flushCall = AST.functionCall(AST.identifier("proc_flush"), []);
+    I.evaluate(flushCall);
+
+    const doneValue = I.evaluate(AST.identifier("done")) as any;
+    expect(doneValue).toEqual({ kind: "bool", value: false });
+
+    const counterValue = I.evaluate(AST.identifier("counter")) as any;
+    expect(counterValue.kind).toBe("i32");
+    expect(counterValue.value).toBeGreaterThan(0);
+    expect(counterValue.value).toBeLessThan(10);
+
+    const statusCall = AST.functionCall(
+      AST.memberAccessExpression(AST.identifier("slice_handle"), "status"),
+      [],
+    );
+
+    for (let n = 0; n < 5; n += 1) {
+      I.evaluate(flushCall);
+      const stillPending = I.evaluate(statusCall) as any;
+      if (stillPending.def.id.name === "Resolved") {
+        break;
+      }
+    }
+
+    const finalStatus = I.evaluate(statusCall) as any;
+    expect(finalStatus.def.id.name).toBe("Resolved");
+
+    const finalDone = I.evaluate(AST.identifier("done")) as any;
+    expect(finalDone).toEqual({ kind: "bool", value: true });
+
+    const finalCounter = I.evaluate(AST.identifier("counter")) as any;
+    expect(finalCounter.kind).toBe("i32");
+    expect(finalCounter.value).toBe(9);
   });
 });

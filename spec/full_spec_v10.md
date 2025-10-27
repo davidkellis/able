@@ -440,6 +440,7 @@ addr = Address { ...base_addr, zip: "90210" }
 -   The source must be an instance of the same struct type (after type argument substitution). Mixing types is an error (`"Functional update source must be same struct type"`).
 -   Only named structs support functional updates. Attempting to spread a positional struct raises `"Functional update only supported for named structs"`.
 -   Fields provided explicitly override the copied fields; shorthand initializers follow the same rule. The source instance is not mutated.
+-   Generic structs follow the same rules: `Point T { x: T, y: T }` permits `Point { ...p, x: 0 }` only when the source instance’s concrete type arguments match the literal. Behaviour for more advanced update patterns (multiple spreads, cross-package partial updates, diagnostic wording) is being refined for v11; see `spec/TODO_v11.md`.
 
 ##### Field Mutation
 Modify fields in-place using assignment (`=`). Requires the binding (`instance`) to be mutable.
@@ -2924,7 +2925,7 @@ proc BlockExpression
 
 #### 12.2.2. Semantics
 
-1.  **Asynchronous Start**: The target `FunctionCall` or `BlockExpression` begins execution asynchronously, potentially on a different thread or logical task. The current thread does *not* block.
+1.  **Asynchronous Start**: The target `FunctionCall` or `BlockExpression` is submitted to the runtime *executor*—a scheduling abstraction that may be backed by goroutines/threads (Go) or a cooperative queue (TypeScript). Execution starts independently of the caller, and the current task does *not* block.
 2.  **Return Value**: The `proc` expression immediately returns a value whose type implements the `Proc T` interface.
     -   `T` is the return type of the `FunctionCall` or the type of the value the `BlockExpression` evaluates to.
     -   If the function/block returns `void`, the return type is `Proc void`.
@@ -3038,6 +3039,31 @@ handle.cancel()
 st = handle.status()
 ```
 
+#### 12.2.5. Runtime Helpers and Scheduling
+
+Able exposes a small set of helper functions for coordinating asynchronous work. These functions are implemented natively by each runtime but share the same observable behaviour:
+
+-   **`proc_yield()`** &mdash; May only be called from inside a `proc`/`spawn` task. Signals the executor that the current task is willing to yield so other queued work can run. Cooperative executors MUST requeue the yielding task behind any currently runnable work (providing a round-robin effect when multiple tasks yield). On Go’s goroutine executor the call is a no-op advisory hint: Go’s scheduler decides when the goroutine runs next. Programs MUST NOT rely on fairness guarantees beyond “other tasks have an opportunity to make progress”.
+-   **`proc_cancelled()`** &mdash; May be called from inside a `proc` task to observe whether cancellation has been requested. Returns `true` when the task’s handle has been cancelled; `false` otherwise. Calling it outside asynchronous context raises a runtime error. Implementations SHOULD integrate this check with their cancellation primitives (e.g., Go `context.Context`).
+-   **`proc_flush(limit?: i32)`** &mdash; Drains work from the executor’s queue up to an optional step limit (defaulting to 1024). Provided primarily for deterministic testing and fixture harnesses. Production runtimes with preemptive schedulers (e.g., Go) may treat it as a no-op because work progresses independently; cooperative schedulers MUST honour the limit to avoid starvation.
+
+The helpers rely on the executor contract:
+
+```able
+## Conceptual interface implemented by each runtime.
+interface Executor {
+  fn schedule(task: () -> void) -> void
+  fn ensure_tick() -> void
+  fn flush(limit: i32 = 1024) -> void
+}
+```
+
+Runtimes can provide different executor implementations (goroutine-backed, cooperative queue, deterministic serial) as long as the observable semantics described above are preserved.
+
+##### Scheduler fairness
+
+Runtime schedulers are expected to provide eventual forward progress for runnable procs, matching the behaviour of the Go runtime. Hosts that already provide pre-emptive scheduling—such as Go—inherit this property automatically and require no additional instrumentation. Cooperative implementations SHOULD emulate the same effect (for example, by yielding after bounded interpreter work or after blocking operations) so user-visible semantics remain aligned across runtimes. Implementations may offer additional test-only executors that enforce deterministic interleavings (e.g., always running the next ready task after a `proc_yield()`), but those guarantees are outside the core language contract.
+
 ### 12.3. Future-Based Asynchronous Execution (`spawn`)
 
 The `spawn` keyword initiates asynchronous execution and returns a `Future T` value, which implicitly blocks and yields the result when evaluated in a `T` context. The result of a `Future T` is memoized: the first evaluation computes the result; subsequent evaluations return the memoized value (or error).
@@ -3148,6 +3174,7 @@ Semantics (Go-compatible):
 -   Sending on a closed channel raises a `SendOnClosedChannelError`.
 -   `receive()` returns `?T` and yields `nil` when the channel is closed and drained.
 -   Nil channels (uninitialized variables) block forever on send/receive; closing a nil channel raises a `NilChannelError`.
+-   Cancellation is cooperative: if a suspended send/receive observes that its owning `proc` has been cancelled before progress is made, it unwinds with a cancellation error (mirroring Go’s `context` cancellation). Cancellation does **not** implicitly close the channel.
 -   Happens-before: a send happens-before the corresponding receive; closing happens-before a receive that returns the closed indication.
 
 Iteration:

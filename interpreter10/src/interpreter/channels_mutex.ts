@@ -5,11 +5,22 @@ type ProcHandleValue = Extract<V10Value, { kind: "proc_handle" }>;
 type BoolValue = Extract<V10Value, { kind: "bool" }>;
 type NilValue = Extract<V10Value, { kind: "nil" }>;
 
+interface ChannelSendWaiter {
+  handle: ProcHandleValue;
+  value: V10Value;
+}
+
+interface ChannelReceiveWaiter {
+  handle: ProcHandleValue;
+}
+
 interface ChannelState {
   id: number;
   capacity: number;
   queue: V10Value[];
   closed: boolean;
+  sendWaiters: ChannelSendWaiter[];
+  receiveWaiters: ChannelReceiveWaiter[];
 }
 
 interface MutexState {
@@ -35,6 +46,19 @@ declare module "./index" {
 declare module "./values" {
   interface ProcHandleValue {
     waitingMutex?: MutexState;
+    waitingChannelSend?: {
+      state: ChannelState;
+      value: V10Value;
+      delivered?: boolean;
+      error?: string;
+    };
+    waitingChannelReceive?: {
+      state: ChannelState;
+      ready?: boolean;
+      value?: V10Value;
+      closed?: boolean;
+      error?: string;
+    };
   }
 }
 
@@ -70,6 +94,26 @@ function requireProcContext(interp: InterpreterV10, action: string): ProcHandleV
   return ctx.handle;
 }
 
+function scheduleProc(interp: InterpreterV10, handle: ProcHandleValue): void {
+  if (!handle.runner) {
+    handle.runner = () => interp.runProcHandle(handle);
+  }
+  interp.scheduleAsync(handle.runner);
+}
+
+function getChannelState(interp: InterpreterV10, handle: number): ChannelState | undefined {
+  const state = interp.channelStates.get(handle);
+  if (state) {
+    if (!state.sendWaiters) {
+      state.sendWaiters = [];
+    }
+    if (!state.receiveWaiters) {
+      state.receiveWaiters = [];
+    }
+  }
+  return state;
+}
+
 export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void {
   cls.prototype.ensureChannelMutexBuiltins = function ensureChannelMutexBuiltins(this: InterpreterV10): void {
     if (this.channelMutexBuiltinsInitialized) return;
@@ -92,7 +136,14 @@ export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void
       this.makeNativeFunction("__able_channel_new", 1, (interp, args) => {
         const capacity = args[0] ? Math.max(0, Math.trunc(toHandleNumber(args[0], "capacity"))) : 0;
         const handle = interp.nextChannelHandle++;
-        interp.channelStates.set(handle, { id: handle, capacity, queue: [], closed: false });
+        interp.channelStates.set(handle, {
+          id: handle,
+          capacity,
+          queue: [],
+          closed: false,
+          sendWaiters: [],
+          receiveWaiters: [],
+        });
         return { kind: "i32", value: handle };
       }),
     );
@@ -100,78 +151,248 @@ export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void
     defineIfMissing("__able_channel_send", () =>
       this.makeNativeFunction("__able_channel_send", 2, (interp, args) => {
         const handleValue = args[0];
-        const payload = args[1];
-        const handle = toHandleNumber(handleValue, "channel handle");
-        if (handle === 0) {
+        const incomingPayload = args[1];
+        const handleNumber = toHandleNumber(handleValue, "channel handle");
+        if (handleNumber === 0) {
           return blockOnNilChannel(interp);
         }
-        const state = interp.channelStates.get(handle);
+        const state = getChannelState(interp, handleNumber);
         if (!state) {
           throw new Error("Invalid channel handle");
         }
+
+        const ctx = interp.currentAsyncContext();
+        const procHandle = ctx && ctx.kind === "proc" ? ctx.handle : null;
+        let payload = incomingPayload;
+        const pending = procHandle ? (procHandle as any).waitingChannelSend : undefined;
+
+        if (pending && pending.state !== state) {
+          delete (procHandle as any).waitingChannelSend;
+        }
+
+        if (pending && pending.state === state) {
+          payload = pending.value;
+          if (pending.error) {
+            delete (procHandle as any).waitingChannelSend;
+            throw new Error(pending.error);
+          }
+          if (pending.delivered) {
+            delete (procHandle as any).waitingChannelSend;
+            return NIL;
+          }
+        }
+
+        if (procHandle && procHandle.cancelRequested) {
+          state.sendWaiters = state.sendWaiters.filter((entry) => entry.handle !== procHandle);
+          delete (procHandle as any).waitingChannelSend;
+          throw new Error("Proc cancelled");
+        }
+
         if (state.closed) {
           throw new Error("send on closed channel");
         }
-        if (state.capacity > 0 && state.queue.length >= state.capacity) {
-          // Drop oldest item to keep behaviour deterministic but non-blocking.
-          state.queue.shift();
+
+        if (state.receiveWaiters.length > 0) {
+          const receiver = state.receiveWaiters.shift()!;
+          const receiverHandle = receiver.handle;
+          const receiverPending = (receiverHandle as any).waitingChannelReceive;
+          if (receiverPending && receiverPending.state === state) {
+            receiverPending.ready = true;
+            receiverPending.value = payload;
+          }
+          scheduleProc(interp, receiverHandle);
+          if (procHandle) {
+            delete (procHandle as any).waitingChannelSend;
+          }
+          return NIL;
         }
-        state.queue.push(payload);
+
+        if (state.capacity > 0 && state.queue.length < state.capacity) {
+          state.queue.push(payload);
+          if (procHandle) {
+            delete (procHandle as any).waitingChannelSend;
+          }
+          return NIL;
+        }
+
+        if (!procHandle) {
+          throw new Error("Channel send would block outside of proc context");
+        }
+
+        const existing = (procHandle as any).waitingChannelSend;
+        if (!existing || existing.state !== state) {
+          (procHandle as any).waitingChannelSend = { state, value: payload };
+        } else {
+          existing.value = payload;
+          existing.delivered = false;
+          existing.error = undefined;
+        }
+        if (!state.sendWaiters.some((entry) => entry.handle === procHandle)) {
+          state.sendWaiters.push({ handle: procHandle, value: payload });
+        } else {
+          for (const entry of state.sendWaiters) {
+            if (entry.handle === procHandle) {
+              entry.value = payload;
+              break;
+            }
+          }
+        }
+        interp.procYield();
         return NIL;
       }),
     );
 
     defineIfMissing("__able_channel_receive", () =>
       this.makeNativeFunction("__able_channel_receive", 1, (interp, args) => {
-        const handle = toHandleNumber(args[0], "channel handle");
-        if (handle === 0) {
+        const handleNumber = toHandleNumber(args[0], "channel handle");
+        if (handleNumber === 0) {
           return blockOnNilChannel(interp);
         }
-        const state = interp.channelStates.get(handle);
+        const state = getChannelState(interp, handleNumber);
         if (!state) {
           throw new Error("Invalid channel handle");
         }
-        if (state.queue.length > 0) {
-          return state.queue.shift()!;
+
+        const ctx = interp.currentAsyncContext();
+        const procHandle = ctx && ctx.kind === "proc" ? ctx.handle : null;
+        const pending = procHandle ? (procHandle as any).waitingChannelReceive : undefined;
+
+        if (pending && pending.state !== state) {
+          delete (procHandle as any).waitingChannelReceive;
         }
+
+        if (pending && pending.state === state) {
+          if (pending.error) {
+            delete (procHandle as any).waitingChannelReceive;
+            throw new Error(pending.error);
+          }
+          if (pending.ready) {
+            const result = pending.closed ? NIL : pending.value ?? NIL;
+            delete (procHandle as any).waitingChannelReceive;
+            return result;
+          }
+        }
+
+        if (procHandle && procHandle.cancelRequested) {
+          state.receiveWaiters = state.receiveWaiters.filter((entry) => entry.handle !== procHandle);
+          delete (procHandle as any).waitingChannelReceive;
+          throw new Error("Proc cancelled");
+        }
+
+        if (state.queue.length > 0) {
+          const value = state.queue.shift()!;
+          if (state.capacity > 0 && state.sendWaiters.length > 0) {
+            const nextSender = state.sendWaiters.shift()!;
+            const senderPending = (nextSender.handle as any).waitingChannelSend;
+            state.queue.push(nextSender.value);
+            if (senderPending && senderPending.state === state) {
+              senderPending.delivered = true;
+            }
+            scheduleProc(interp, nextSender.handle);
+          }
+          return value ?? NIL;
+        }
+
+        if (state.sendWaiters.length > 0) {
+          const sender = state.sendWaiters.shift()!;
+          const senderPending = (sender.handle as any).waitingChannelSend;
+          if (senderPending && senderPending.state === state) {
+            senderPending.delivered = true;
+          }
+          scheduleProc(interp, sender.handle);
+          return sender.value ?? NIL;
+        }
+
         if (state.closed) {
           return NIL;
         }
+
+        if (!procHandle) {
+          throw new Error("Channel receive would block outside of proc context");
+        }
+
+        const existing = (procHandle as any).waitingChannelReceive;
+        if (!existing || existing.state !== state) {
+          (procHandle as any).waitingChannelReceive = { state };
+        } else {
+          existing.ready = false;
+          existing.closed = false;
+          existing.value = undefined;
+        }
+        if (!state.receiveWaiters.some((entry) => entry.handle === procHandle)) {
+          state.receiveWaiters.push({ handle: procHandle });
+        }
+        interp.procYield();
         return NIL;
       }),
     );
 
     defineIfMissing("__able_channel_try_send", () =>
       this.makeNativeFunction("__able_channel_try_send", 2, (interp, args) => {
-        const handle = toHandleNumber(args[0], "channel handle");
+        const handleNumber = toHandleNumber(args[0], "channel handle");
         const payload = args[1];
-        if (handle === 0) {
+        if (handleNumber === 0) {
           return { kind: "bool", value: false };
         }
-        const state = interp.channelStates.get(handle);
-        if (!state || state.closed) {
-          return { kind: "bool", value: false };
+        const state = getChannelState(interp, handleNumber);
+        if (!state) {
+          throw new Error("Invalid channel handle");
         }
-        if (state.capacity > 0 && state.queue.length >= state.capacity) {
-          return { kind: "bool", value: false };
+        if (state.closed) {
+          throw new Error("send on closed channel");
         }
-        state.queue.push(payload);
-        return { kind: "bool", value: true };
+        if (state.receiveWaiters.length > 0) {
+          const receiver = state.receiveWaiters.shift()!;
+          const receiverPending = (receiver.handle as any).waitingChannelReceive;
+          if (receiverPending && receiverPending.state === state) {
+            receiverPending.ready = true;
+            receiverPending.value = payload;
+          }
+          scheduleProc(interp, receiver.handle);
+          return { kind: "bool", value: true };
+        }
+        if (state.capacity > 0 && state.queue.length < state.capacity) {
+          state.queue.push(payload);
+          return { kind: "bool", value: true };
+        }
+        return { kind: "bool", value: false };
       }),
     );
 
     defineIfMissing("__able_channel_try_receive", () =>
       this.makeNativeFunction("__able_channel_try_receive", 1, (interp, args) => {
-        const handle = toHandleNumber(args[0], "channel handle");
-        if (handle === 0) {
+        const handleNumber = toHandleNumber(args[0], "channel handle");
+        if (handleNumber === 0) {
           return NIL;
         }
-        const state = interp.channelStates.get(handle);
+        const state = getChannelState(interp, handleNumber);
         if (!state) {
           throw new Error("Invalid channel handle");
         }
         if (state.queue.length > 0) {
-          return state.queue.shift()!;
+          const value = state.queue.shift()!;
+          if (state.capacity > 0 && state.sendWaiters.length > 0) {
+            const nextSender = state.sendWaiters.shift()!;
+            const senderPending = (nextSender.handle as any).waitingChannelSend;
+            state.queue.push(nextSender.value);
+            if (senderPending && senderPending.state === state) {
+              senderPending.delivered = true;
+            }
+            scheduleProc(interp, nextSender.handle);
+          }
+          return value ?? NIL;
+        }
+        if (state.sendWaiters.length > 0) {
+          const sender = state.sendWaiters.shift()!;
+          const senderPending = (sender.handle as any).waitingChannelSend;
+          if (senderPending && senderPending.state === state) {
+            senderPending.delivered = true;
+          }
+          scheduleProc(interp, sender.handle);
+          return sender.value ?? NIL;
+        }
+        if (state.closed) {
+          return NIL;
         }
         return NIL;
       }),
@@ -179,11 +400,11 @@ export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void
 
     defineIfMissing("__able_channel_close", () =>
       this.makeNativeFunction("__able_channel_close", 1, (interp, args) => {
-        const handle = toHandleNumber(args[0], "channel handle");
-        if (handle === 0) {
+        const handleNumber = toHandleNumber(args[0], "channel handle");
+        if (handleNumber === 0) {
           throw new Error("close of nil channel");
         }
-        const state = interp.channelStates.get(handle);
+        const state = getChannelState(interp, handleNumber);
         if (!state) {
           throw new Error("Invalid channel handle");
         }
@@ -191,17 +412,38 @@ export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void
           throw new Error("close of closed channel");
         }
         state.closed = true;
+
+        while (state.receiveWaiters.length > 0) {
+          const receiver = state.receiveWaiters.shift()!;
+          const pending = (receiver.handle as any).waitingChannelReceive;
+          if (pending && pending.state === state) {
+            pending.ready = true;
+            pending.closed = true;
+            pending.value = undefined;
+          }
+          scheduleProc(interp, receiver.handle);
+        }
+
+        while (state.sendWaiters.length > 0) {
+          const sender = state.sendWaiters.shift()!;
+          const pending = (sender.handle as any).waitingChannelSend;
+          if (pending && pending.state === state) {
+            pending.error = "send on closed channel";
+          }
+          scheduleProc(interp, sender.handle);
+        }
+
         return NIL;
       }),
     );
 
     defineIfMissing("__able_channel_is_closed", () =>
       this.makeNativeFunction("__able_channel_is_closed", 1, (interp, args) => {
-        const handle = toHandleNumber(args[0], "channel handle");
-        if (handle === 0) {
+        const handleNumber = toHandleNumber(args[0], "channel handle");
+        if (handleNumber === 0) {
           return { kind: "bool", value: false };
         }
-        const state = interp.channelStates.get(handle);
+        const state = getChannelState(interp, handleNumber);
         if (!state) {
           throw new Error("Invalid channel handle");
         }

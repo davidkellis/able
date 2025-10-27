@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Able v10 Manual — Variables</title>
+    <link rel="stylesheet" href="manual.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <nav class="sidebar">
+        <span class="brand">Able v10 Manual</span>
+        <ul>
+          <li><a href="index.html">Getting Started</a></li>
+          <li><a href="variables.html" class="active">Variables</a></li>
+          <li><a href="control-flow.html">Control Flow</a></li>
+          <li><a href="functions.html">Functions</a></li>
+          <li><a href="types.html">Types</a></li>
+          <li><a href="methods.html">Methods</a></li>
+          <li><a href="constructors.html">Constructors & Updates</a></li>
+          <li><a href="pattern-matching.html">Pattern Matching &amp; Unions</a></li>
+          <li><a href="modules.html">Modules</a></li>
+          <li><a href="error-handling.html">Error Handling</a></li>
+          <li><a href="concurrency.html">Concurrency</a></li>
+          <li><a href="tooling.html">Tooling &amp; Next Steps</a></li>
+        </ul>
+      </nav>
+      <main class="content">
+        <h1>2. Variables</h1>
+        <p>
+          Able separates declaration (<code>:=</code>) from assignment
+          (<code>=</code>). Bindings are mutable by default and values may be
+          mutated in-place.
+        </p>
+        <pre><code class="language-able">x := 5
+y := x * 2
+x = 8
+
+point := Point { x: 1, y: 2 }
+point.x = point.x + 1</code></pre>
+        <p>
+          Patterns can appear in declarations, assignment, parameter lists,
+          <code>for</code>, and <code>match</code>.
+        </p>
+        <pre><code class="language-able">Point { x, y } := point
+{x, y} = { x + 1, y * 2 }
+
+[first, ...rest] := numbers
+Container { items: [ Data { id, ... }, ...others ] } := payload</code></pre>
+        <pre><code class="language-able">if user := maybe_lookup() {
+  greet(user)
+} or {
+  log("not found")
+}</code></pre>
+        <p>
+          The underscore <code>_</code> ignores a position. Pattern mismatches
+          yield <code>Error</code> values, which are falsy (spec §6.11).
+        </p>
+        <footer class="manual-footer">
+          Able v10 manual · Variables
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>
