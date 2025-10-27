@@ -1165,6 +1165,426 @@ const fixtures: Fixture[] = [
     },
   },
   {
+    name: "concurrency/fairness_proc_round_robin",
+    module: AST.module([
+      AST.assign("trace", AST.stringLiteral("")),
+      AST.assign("stage_a", AST.integerLiteral(0)),
+      AST.assign("stage_b", AST.integerLiteral(0)),
+      AST.assign(
+        "worker",
+        AST.procExpression(
+          AST.blockExpression([
+            AST.ifExpression(
+              AST.binaryExpression(
+                "==",
+                AST.identifier("stage_a"),
+                AST.integerLiteral(0),
+              ),
+              AST.blockExpression([
+                AST.assignmentExpression(
+                  "=",
+                  AST.identifier("trace"),
+                  AST.binaryExpression(
+                    "+",
+                    AST.identifier("trace"),
+                    AST.stringLiteral("A1"),
+                  ),
+                ),
+                AST.assignmentExpression(
+                  "=",
+                  AST.identifier("stage_a"),
+                  AST.integerLiteral(1),
+                ),
+                AST.functionCall(AST.identifier("proc_yield"), []),
+              ]),
+              [],
+            ),
+            AST.ifExpression(
+              AST.binaryExpression(
+                "==",
+                AST.identifier("stage_a"),
+                AST.integerLiteral(1),
+              ),
+              AST.blockExpression([
+                AST.assignmentExpression(
+                  "=",
+                  AST.identifier("trace"),
+                  AST.binaryExpression(
+                    "+",
+                    AST.identifier("trace"),
+                    AST.stringLiteral("A2"),
+                  ),
+                ),
+                AST.assignmentExpression(
+                  "=",
+                  AST.identifier("stage_a"),
+                  AST.integerLiteral(2),
+                ),
+              ]),
+              [],
+            ),
+            AST.integerLiteral(0),
+          ]),
+        ),
+      ),
+      AST.assign(
+        "other",
+        AST.procExpression(
+          AST.blockExpression([
+            AST.ifExpression(
+              AST.binaryExpression(
+                "==",
+                AST.identifier("stage_b"),
+                AST.integerLiteral(0),
+              ),
+              AST.blockExpression([
+                AST.assignmentExpression(
+                  "=",
+                  AST.identifier("trace"),
+                  AST.binaryExpression(
+                    "+",
+                    AST.identifier("trace"),
+                    AST.stringLiteral("B1"),
+                  ),
+                ),
+                AST.assignmentExpression(
+                  "=",
+                  AST.identifier("stage_b"),
+                  AST.integerLiteral(1),
+                ),
+                AST.functionCall(AST.identifier("proc_yield"), []),
+              ]),
+              [],
+            ),
+            AST.ifExpression(
+              AST.binaryExpression(
+                "==",
+                AST.identifier("stage_b"),
+                AST.integerLiteral(1),
+              ),
+              AST.blockExpression([
+                AST.assignmentExpression(
+                  "=",
+                  AST.identifier("trace"),
+                  AST.binaryExpression(
+                    "+",
+                    AST.identifier("trace"),
+                    AST.stringLiteral("B2"),
+                  ),
+                ),
+                AST.assignmentExpression(
+                  "=",
+                  AST.identifier("stage_b"),
+                  AST.integerLiteral(2),
+                ),
+              ]),
+              [],
+            ),
+            AST.integerLiteral(0),
+          ]),
+        ),
+      ),
+      AST.functionCall(AST.identifier("proc_flush"), []),
+      AST.assign(
+        "status_worker",
+        AST.matchExpression(
+          AST.functionCall(
+            AST.memberAccessExpression(AST.identifier("worker"), "status"),
+            [],
+          ),
+          [
+            AST.matchClause(
+              AST.structPattern([], false, "Pending"),
+              AST.stringLiteral("Pending"),
+            ),
+            AST.matchClause(
+              AST.structPattern([], false, "Resolved"),
+              AST.stringLiteral("Resolved"),
+            ),
+            AST.matchClause(
+              AST.structPattern([], false, "Cancelled"),
+              AST.stringLiteral("Cancelled"),
+            ),
+            AST.matchClause(
+              AST.structPattern([], false, "Failed"),
+              AST.stringLiteral("Failed"),
+            ),
+            AST.matchClause(AST.wildcardPattern(), AST.stringLiteral("Other")),
+          ],
+        ),
+      ),
+      AST.assign(
+        "status_other",
+        AST.matchExpression(
+          AST.functionCall(
+            AST.memberAccessExpression(AST.identifier("other"), "status"),
+            [],
+          ),
+          [
+            AST.matchClause(
+              AST.structPattern([], false, "Pending"),
+              AST.stringLiteral("Pending"),
+            ),
+            AST.matchClause(
+              AST.structPattern([], false, "Resolved"),
+              AST.stringLiteral("Resolved"),
+            ),
+            AST.matchClause(
+              AST.structPattern([], false, "Cancelled"),
+              AST.stringLiteral("Cancelled"),
+            ),
+            AST.matchClause(
+              AST.structPattern([], false, "Failed"),
+              AST.stringLiteral("Failed"),
+            ),
+            AST.matchClause(AST.wildcardPattern(), AST.stringLiteral("Other")),
+          ],
+        ),
+      ),
+      AST.stringInterpolation([
+        AST.identifier("trace"),
+        AST.stringLiteral(":"),
+        AST.identifier("status_worker"),
+        AST.stringLiteral(":"),
+        AST.identifier("status_other"),
+      ]),
+    ]),
+    manifest: {
+      description: "Serial executor yields alternate between procs when proc_yield is used",
+      expect: {
+        result: { kind: "string", value: "A1B1A2B2:Resolved:Resolved" },
+      },
+    },
+  },
+  {
+    name: "concurrency/fairness_proc_future",
+    module: AST.module([
+      AST.assign("trace", AST.stringLiteral("")),
+      AST.assign("stage_proc", AST.integerLiteral(0)),
+      AST.assign("stage_future", AST.integerLiteral(0)),
+      AST.assign(
+        "worker",
+        AST.procExpression(
+          AST.blockExpression([
+            AST.ifExpression(
+              AST.binaryExpression(
+                "==",
+                AST.identifier("stage_proc"),
+                AST.integerLiteral(0),
+              ),
+              AST.blockExpression([
+                AST.assignmentExpression(
+                  "=",
+                  AST.identifier("trace"),
+                  AST.binaryExpression(
+                    "+",
+                    AST.identifier("trace"),
+                    AST.stringLiteral("A1"),
+                  ),
+                ),
+                AST.assignmentExpression(
+                  "=",
+                  AST.identifier("stage_proc"),
+                  AST.integerLiteral(1),
+                ),
+                AST.functionCall(AST.identifier("proc_yield"), []),
+              ]),
+              [],
+            ),
+            AST.ifExpression(
+              AST.binaryExpression(
+                "==",
+                AST.identifier("stage_proc"),
+                AST.integerLiteral(1),
+              ),
+              AST.blockExpression([
+                AST.assignmentExpression(
+                  "=",
+                  AST.identifier("trace"),
+                  AST.binaryExpression(
+                    "+",
+                    AST.identifier("trace"),
+                    AST.stringLiteral("A2"),
+                  ),
+                ),
+                AST.assignmentExpression(
+                  "=",
+                  AST.identifier("stage_proc"),
+                  AST.integerLiteral(2),
+                ),
+                AST.functionCall(AST.identifier("proc_yield"), []),
+              ]),
+              [],
+            ),
+            AST.ifExpression(
+              AST.binaryExpression(
+                "==",
+                AST.identifier("stage_proc"),
+                AST.integerLiteral(2),
+              ),
+              AST.blockExpression([
+                AST.assignmentExpression(
+                  "=",
+                  AST.identifier("trace"),
+                  AST.binaryExpression(
+                    "+",
+                    AST.identifier("trace"),
+                    AST.stringLiteral("A3"),
+                  ),
+                ),
+                AST.assignmentExpression(
+                  "=",
+                  AST.identifier("stage_proc"),
+                  AST.integerLiteral(3),
+                ),
+              ]),
+              [],
+            ),
+            AST.integerLiteral(0),
+          ]),
+        ),
+      ),
+      AST.assign(
+        "future",
+        AST.spawnExpression(
+          AST.blockExpression([
+            AST.ifExpression(
+              AST.binaryExpression(
+                "==",
+                AST.identifier("stage_future"),
+                AST.integerLiteral(0),
+              ),
+              AST.blockExpression([
+                AST.assignmentExpression(
+                  "=",
+                  AST.identifier("trace"),
+                  AST.binaryExpression(
+                    "+",
+                    AST.identifier("trace"),
+                    AST.stringLiteral("B1"),
+                  ),
+                ),
+                AST.assignmentExpression(
+                  "=",
+                  AST.identifier("stage_future"),
+                  AST.integerLiteral(1),
+                ),
+                AST.functionCall(AST.identifier("proc_yield"), []),
+                AST.integerLiteral(0),
+              ]),
+              [
+                AST.orClause(
+                  AST.blockExpression([
+                    AST.assignmentExpression(
+                      "=",
+                      AST.identifier("trace"),
+                      AST.binaryExpression(
+                        "+",
+                        AST.identifier("trace"),
+                        AST.stringLiteral("B2"),
+                      ),
+                    ),
+                    AST.assignmentExpression(
+                      "=",
+                      AST.identifier("stage_future"),
+                      AST.integerLiteral(2),
+                    ),
+                    AST.integerLiteral(0),
+                  ]),
+                  AST.binaryExpression(
+                    "==",
+                    AST.identifier("stage_future"),
+                    AST.integerLiteral(1),
+                  ),
+                ),
+              ],
+            ),
+            AST.integerLiteral(0),
+          ]),
+        ),
+      ),
+      AST.functionCall(AST.identifier("proc_flush"), []),
+      AST.assign(
+        "worker_status",
+        AST.matchExpression(
+          AST.functionCall(
+            AST.memberAccessExpression(AST.identifier("worker"), "status"),
+            [],
+          ),
+          [
+            AST.matchClause(
+              AST.structPattern([], false, "Pending"),
+              AST.stringLiteral("Pending"),
+            ),
+            AST.matchClause(
+              AST.structPattern([], false, "Resolved"),
+              AST.stringLiteral("Resolved"),
+            ),
+            AST.matchClause(
+              AST.structPattern([], false, "Cancelled"),
+              AST.stringLiteral("Cancelled"),
+            ),
+            AST.matchClause(
+              AST.structPattern([], false, "Failed"),
+              AST.stringLiteral("Failed"),
+            ),
+            AST.matchClause(AST.wildcardPattern(), AST.stringLiteral("Other")),
+          ],
+        ),
+      ),
+      AST.assign(
+        "future_status",
+        AST.matchExpression(
+          AST.functionCall(
+            AST.memberAccessExpression(AST.identifier("future"), "status"),
+            [],
+          ),
+          [
+            AST.matchClause(
+              AST.structPattern([], false, "Pending"),
+              AST.stringLiteral("Pending"),
+            ),
+            AST.matchClause(
+              AST.structPattern([], false, "Resolved"),
+              AST.stringLiteral("Resolved"),
+            ),
+            AST.matchClause(
+              AST.structPattern([], false, "Cancelled"),
+              AST.stringLiteral("Cancelled"),
+            ),
+            AST.matchClause(
+              AST.structPattern([], false, "Failed"),
+              AST.stringLiteral("Failed"),
+            ),
+            AST.matchClause(AST.wildcardPattern(), AST.stringLiteral("Other")),
+          ],
+        ),
+      ),
+      AST.assign(
+        "future_result",
+        AST.functionCall(
+          AST.memberAccessExpression(AST.identifier("future"), "value"),
+          [],
+        ),
+      ),
+      AST.stringInterpolation([
+        AST.identifier("trace"),
+        AST.stringLiteral(":"),
+        AST.identifier("worker_status"),
+        AST.stringLiteral(":"),
+        AST.identifier("future_status"),
+        AST.stringLiteral(":"),
+        AST.identifier("future_result"),
+      ]),
+    ]),
+    manifest: {
+      description: "Proc and future alternate via proc_yield under the serial executor",
+      expect: {
+        result: { kind: "string", value: "A1B1A2B2A3:Resolved:Resolved:0" },
+      },
+    },
+  },
+  {
     name: "concurrency/channel_basic_ops",
     module: AST.module([
       AST.structDefinition(

@@ -27,6 +27,7 @@
    - Extend `V10Value`/Go equivalents with `channel` and `mutex` variants + scheduling metadata.
    - Register native helpers (`__able_channel_new/send/recv/close`, `__able_mutex_new/lock/unlock`) and surface them via `prelude`.
    - Integrate send/recv/lock/unlock with the cooperative scheduler (block/yield/resume semantics, FIFO queues).
+   - TypeScript runtime now mirrors Go-style blocking semantics, including waiter queues for send/receive, cancellation cleanup, and dedicated Bun tests (`test/concurrency/channel_mutex.test.ts`).
    - Mirror the implementation in Go (wrap native `chan`/`sync.Mutex` while preserving semantics).
    - Add unit tests covering core operations (buffered/unbuffered channels, close behaviour, mutex ownership errors) at the interpreter level.
 2. **Stdlib Wiring**
@@ -37,12 +38,14 @@
    - Update `design/parser-ast-coverage.md` rows 121–122 to `Partial`/`Done` once fixtures land.
    - Record semantic notes in the spec (already captured) and cross-link from stdlib docs.
 
-## Phase β — End-to-End AST Evaluation Completion
+## Phase β — End-to-End AST Evaluation Completion *(AST evaluator coverage complete ✅)*
 1. **Fixture audit**
    - Sweep `design/parser-ast-coverage.md` to confirm every language feature is represented; open tickets for any remaining `TODO` fixtures.
    - §12.5 fixtures now cover buffered ops, nil-channel cancellation, closed-channel errors, and mutex contention; next up are parser assertions and mirroring the behaviour in the TypeScript runtime.
+   - TypeScript interpreter now shares the executor contract with Go (`src/interpreter/executor.ts`), so the concurrency fixture harness runs the same cancellation/yield scenarios across both runtimes.
    - TypeScript interpreter now runs the shared `pipes/member_topic` fixture and covers UFCS/placeholder pipe edges via unit tests; parity notes updated accordingly.
    - Add missing fixtures (e.g., remaining concurrency edge cases, select/timeout stubs if spec settles).
+   - Fairness-focused concurrency fixtures now exercise round-robin proc/proc+future scheduling via the serial executor coordination helper; see `design/concurrency-fixture-plan.md` for details.
 2. **Interpreter verification**
    - Ensure both interpreters run the entire fixture suite with assertions (value, stdout, error cases). Add targeted unit tests where fixture coverage is insufficient (e.g., helper corner cases).
    - Automate fixture execution in CI (TS `bun run scripts/run-fixtures.ts`, Go parity harness).

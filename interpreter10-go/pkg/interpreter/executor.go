@@ -25,6 +25,8 @@ type executorBase struct {
 	panicValue panicValueFunc
 }
 
+var errSerialYield = errors.New("serial executor yield requested")
+
 type asyncContextKind int
 
 const (
@@ -223,7 +225,6 @@ func (e *SerialExecutor) loop() {
 		ctx = contextWithPayload(ctx, payload)
 		task.handle.MarkStarted()
 		result, err := e.safeInvoke(ctx, task.task)
-		e.applyOutcome(task.handle, result, err)
 
 		e.mu.Lock()
 		e.active = false
@@ -231,6 +232,13 @@ func (e *SerialExecutor) loop() {
 		e.current = nil
 		e.cond.Broadcast()
 		e.mu.Unlock()
+
+		if errors.Is(err, errSerialYield) {
+			e.enqueue(task)
+			continue
+		}
+
+		e.applyOutcome(task.handle, result, err)
 	}
 }
 

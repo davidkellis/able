@@ -13,49 +13,28 @@ func TestFixtureParityStringLiteral(t *testing.T) {
 		t.Fatalf("reading fixtures: %v", err)
 	}
 
+	concurrencyFixtures := map[string]struct{}{
+		"concurrency/proc_cancel_value":            {},
+		"concurrency/future_memoization":           {},
+		"concurrency/proc_cancelled_outside_error": {},
+		"concurrency/proc_cancelled_helper":        {},
+	}
+
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
 		}
 		fixtureDir := filepath.Join(root, entry.Name())
 		walkFixtures(t, fixtureDir, func(dir string) {
-			interp := New()
-			mode := configureFixtureTypechecker(interp)
-			var stdout []string
-			registerPrint(interp, &stdout)
-			manifest := readManifest(t, dir)
-			entryFile := manifest.Entry
-			if entryFile == "" {
-				entryFile = "module.json"
-			}
-			modulePath := filepath.Join(dir, entryFile)
-			module := readModule(t, modulePath)
-			if len(manifest.Setup) > 0 {
-				for _, setupFile := range manifest.Setup {
-					setupPath := filepath.Join(dir, setupFile)
-					setupModule := readModule(t, setupPath)
-					if _, _, err := interp.EvaluateModule(setupModule); err != nil {
-						t.Fatalf("fixture %s setup module %s failed: %v", dir, setupFile, err)
-					}
-				}
-			}
-			result, _, err := interp.EvaluateModule(module)
-			if len(manifest.Expect.Errors) > 0 {
-				if err == nil {
-					t.Fatalf("fixture %s expected evaluation error", dir)
-				}
-				msg := extractErrorMessage(err)
-				if !contains(manifest.Expect.Errors, msg) {
-					t.Fatalf("fixture %s expected error message in %v, got %s", dir, manifest.Expect.Errors, msg)
-				}
-				checkFixtureTypecheckDiagnostics(t, mode, manifest.Expect.TypecheckDiagnostics, interp.TypecheckDiagnostics())
-				return
-			}
+			rel, err := filepath.Rel(root, dir)
 			if err != nil {
-				t.Fatalf("fixture %s evaluation error: %v", dir, err)
+				t.Fatalf("computing relative path for %s: %v", dir, err)
 			}
-			checkFixtureTypecheckDiagnostics(t, mode, manifest.Expect.TypecheckDiagnostics, interp.TypecheckDiagnostics())
-			assertResult(t, dir, manifest, result, stdout)
+			var exec Executor
+			if _, ok := concurrencyFixtures[rel]; ok {
+				exec = NewGoroutineExecutor(nil)
+			}
+			runFixtureWithExecutor(t, dir, exec)
 		})
 	}
 }

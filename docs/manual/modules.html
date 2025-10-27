@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Able v10 Manual — Modules</title>
+    <link rel="stylesheet" href="manual.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <nav class="sidebar">
+        <span class="brand">Able v10 Manual</span>
+        <ul>
+          <li><a href="index.html">Getting Started</a></li>
+          <li><a href="variables.html">Variables</a></li>
+          <li><a href="control-flow.html">Control Flow</a></li>
+          <li><a href="functions.html">Functions</a></li>
+          <li><a href="types.html">Types</a></li>
+          <li><a href="methods.html">Methods</a></li>
+          <li><a href="constructors.html">Constructors & Updates</a></li>
+          <li><a href="pattern-matching.html">Pattern Matching &amp; Unions</a></li>
+          <li><a href="modules.html" class="active">Modules</a></li>
+          <li><a href="error-handling.html">Error Handling</a></li>
+          <li><a href="concurrency.html">Concurrency</a></li>
+          <li><a href="tooling.html">Tooling &amp; Next Steps</a></li>
+        </ul>
+      </nav>
+      <main class="content">
+        <h1>9. Modules</h1>
+        <p>
+          Package paths mirror directory structure (hyphen → underscore).
+          Declare subpackages with <code>package analytics.reports</code>. Top-level
+          definitions are public unless marked <code>private</code>.
+        </p>
+        <pre><code class="language-able">import math
+import math.{sqrt, pow}
+import io as console
+import io.{print as println}</code></pre>
+        <p>
+          <code>import pkg.*</code> pulls every public name—prefer selective
+          imports. <code>dynimport</code> resolves runtime-defined packages in
+          interpreter builds.
+        </p>
+        <p>
+          Executables arise from packages defining <code>fn main()</code>.
+          Access CLI arguments via <code>os.args()</code> and exit with
+          <code>os.exit(code)</code>.
+        </p>
+        <footer class="manual-footer">
+          Able v10 manual · Modules
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>

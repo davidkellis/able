@@ -1,7 +1,7 @@
 # Go Concurrency Design
 
 This document captures the implementation strategy for Able v10 concurrency inside the Go interpreter.  
-The guiding requirement is to **express Able’s `proc`/`spawn` semantics directly in terms of Go’s native concurrency primitives** (goroutines, channels, contexts, sync utilities) while keeping the runtime abstraction as thin as possible. The TypeScript interpreter will continue to emulate the same semantics on top of its cooperative scheduler; the Go implementation should therefore present a clear contract that the TS runtime can mirror.
+The guiding requirement is to **express Able’s `proc`/`spawn` semantics directly in terms of Go’s native concurrency primitives** (goroutines, channels, contexts, sync utilities) while keeping the runtime abstraction as thin as possible. The TypeScript interpreter now implements the same executor contract (see `design/concurrency-executor-contract.md`) on top of its cooperative scheduler, so both runtimes share identical helper semantics.
 
 ## 1. Goals and Constraints
 
@@ -124,6 +124,5 @@ Key decisions captured during implementation:
 Outstanding work before we call concurrency “done”:
 
 1. Exercise cancellation/yield paths (including repeated `value()` calls) in dedicated Go tests and parity fixtures.
-2. Port the executor/handle contract to the TypeScript interpreter so both runtimes share identical helper APIs.
-3. Harden serial executor fairness (e.g., explicit `proc_yield` interleavings) and document the scheduling guarantees we expect fixtures to rely on.
-4. Update spec prose/fixtures once the TypeScript side lands, especially around error payload structure (`ProcError`) and helper semantics.
+2. Harden serial executor fairness (e.g., explicit `proc_yield` interleavings) and document the scheduling guarantees we expect fixtures to rely on.
+3. Update spec prose/fixtures to capture the shared executor guarantees (error payload structure, cancellation helpers) now that both runtimes align.

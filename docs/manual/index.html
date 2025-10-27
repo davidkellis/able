@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Able v10 Manual — Getting Started</title>
+    <link rel="stylesheet" href="manual.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <nav class="sidebar">
+        <span class="brand">Able v10 Manual</span>
+        <ul>
+          <li><a href="index.html" class="active">Getting Started</a></li>
+          <li><a href="variables.html">Variables</a></li>
+          <li><a href="control-flow.html">Control Flow</a></li>
+          <li><a href="functions.html">Functions</a></li>
+          <li><a href="types.html">Types</a></li>
+          <li><a href="methods.html">Methods</a></li>
+          <li><a href="constructors.html">Constructors & Updates</a></li>
+          <li><a href="pattern-matching.html">Pattern Matching &amp; Unions</a></li>
+          <li><a href="modules.html">Modules</a></li>
+          <li><a href="error-handling.html">Error Handling</a></li>
+          <li><a href="concurrency.html">Concurrency</a></li>
+          <li><a href="tooling.html">Tooling &amp; Next Steps</a></li>
+        </ul>
+      </nav>
+      <main class="content">
+        <h1>1. Getting Started</h1>
+        <p>
+          Able programs live inside package directories. Top-level
+          <code>fn main() -&gt; void</code> definitions produce executables,
+          mirroring <code>examples/hello_world.able</code>.
+        </p>
+        <pre><code class="language-able">package helloworld
+
+fn main() {
+  print("Hello, Able!")
+}</code></pre>
+        <p>
+          A dedicated REPL is not yet part of the toolchain, but both
+          interpreters accept module inputs and can run fixtures or tests from
+          the command line.
+        </p>
+        <h2 id="resources">1.1 Resources</h2>
+        <ul>
+          <li>Specification: <code>spec/full_spec_v10.md</code></li>
+          <li>TypeScript interpreter: <code>interpreter10/README.md</code></li>
+          <li>Go interpreter overview: <code>interpreter10-go/</code> and <code>interpreter10-go/PARITY.md</code></li>
+          <li>Design notes: <code>design/</code> (for example <code>pattern-break-alignment.md</code>, <code>typechecker-plan.md</code>)</li>
+          <li>Shared fixtures: <code>fixtures/ast</code> with <code>interpreter10/scripts/run-fixtures.ts</code></li>
+        </ul>
+        <h2 id="installation">1.2 Installation</h2>
+        <p>Install both interpreters to keep behaviour aligned.</p>
+        <pre><code class="language-bash"># TypeScript interpreter
+bun install
+bun test
+
+# Go interpreter
+go mod tidy      # initial setup
+go test ./pkg/interpreter
+
+# Unified test runner
+./run_all_tests.sh --typecheck-fixtures=strict</code></pre>
+        <p>Use Bun ≥ 1.2 and Go ≥ 1.22. Windows users can run through WSL2.</p>
+        <h2 id="running">1.3 Running Able Code</h2>
+        <p>Harness the existing interpreters:</p>
+        <pre><code class="language-bash"># Execute shared AST fixtures with the TypeScript interpreter
+bun run scripts/run-fixtures.ts --filter hello_world
+
+# Run Go interpreter parity tests (executes Able fixtures and typechecks)
+go test ./pkg/interpreter</code></pre>
+        <p>
+          For ad-hoc exploration, add <code>.able</code> files under
+          <code>examples/</code> or create new fixtures, then export them with
+          <code>scripts/export-fixtures.ts</code>.
+        </p>
+        <footer class="manual-footer">
+          Able v10 manual · Generated from repository documentation
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>

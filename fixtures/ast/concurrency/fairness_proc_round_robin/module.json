@@ -1,0 +1,552 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "trace"
+      },
+      "right": {
+        "type": "StringLiteral",
+        "value": ""
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "stage_a"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 0
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "stage_b"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 0
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "worker"
+      },
+      "right": {
+        "type": "ProcExpression",
+        "expression": {
+          "type": "BlockExpression",
+          "body": [
+            {
+              "type": "IfExpression",
+              "ifCondition": {
+                "type": "BinaryExpression",
+                "operator": "==",
+                "left": {
+                  "type": "Identifier",
+                  "name": "stage_a"
+                },
+                "right": {
+                  "type": "IntegerLiteral",
+                  "value": 0
+                }
+              },
+              "ifBody": {
+                "type": "BlockExpression",
+                "body": [
+                  {
+                    "type": "AssignmentExpression",
+                    "operator": "=",
+                    "left": {
+                      "type": "Identifier",
+                      "name": "trace"
+                    },
+                    "right": {
+                      "type": "BinaryExpression",
+                      "operator": "+",
+                      "left": {
+                        "type": "Identifier",
+                        "name": "trace"
+                      },
+                      "right": {
+                        "type": "StringLiteral",
+                        "value": "A1"
+                      }
+                    }
+                  },
+                  {
+                    "type": "AssignmentExpression",
+                    "operator": "=",
+                    "left": {
+                      "type": "Identifier",
+                      "name": "stage_a"
+                    },
+                    "right": {
+                      "type": "IntegerLiteral",
+                      "value": 1
+                    }
+                  },
+                  {
+                    "type": "FunctionCall",
+                    "callee": {
+                      "type": "Identifier",
+                      "name": "proc_yield"
+                    },
+                    "arguments": [],
+                    "isTrailingLambda": false
+                  }
+                ]
+              },
+              "orClauses": []
+            },
+            {
+              "type": "IfExpression",
+              "ifCondition": {
+                "type": "BinaryExpression",
+                "operator": "==",
+                "left": {
+                  "type": "Identifier",
+                  "name": "stage_a"
+                },
+                "right": {
+                  "type": "IntegerLiteral",
+                  "value": 1
+                }
+              },
+              "ifBody": {
+                "type": "BlockExpression",
+                "body": [
+                  {
+                    "type": "AssignmentExpression",
+                    "operator": "=",
+                    "left": {
+                      "type": "Identifier",
+                      "name": "trace"
+                    },
+                    "right": {
+                      "type": "BinaryExpression",
+                      "operator": "+",
+                      "left": {
+                        "type": "Identifier",
+                        "name": "trace"
+                      },
+                      "right": {
+                        "type": "StringLiteral",
+                        "value": "A2"
+                      }
+                    }
+                  },
+                  {
+                    "type": "AssignmentExpression",
+                    "operator": "=",
+                    "left": {
+                      "type": "Identifier",
+                      "name": "stage_a"
+                    },
+                    "right": {
+                      "type": "IntegerLiteral",
+                      "value": 2
+                    }
+                  }
+                ]
+              },
+              "orClauses": []
+            },
+            {
+              "type": "IntegerLiteral",
+              "value": 0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "other"
+      },
+      "right": {
+        "type": "ProcExpression",
+        "expression": {
+          "type": "BlockExpression",
+          "body": [
+            {
+              "type": "IfExpression",
+              "ifCondition": {
+                "type": "BinaryExpression",
+                "operator": "==",
+                "left": {
+                  "type": "Identifier",
+                  "name": "stage_b"
+                },
+                "right": {
+                  "type": "IntegerLiteral",
+                  "value": 0
+                }
+              },
+              "ifBody": {
+                "type": "BlockExpression",
+                "body": [
+                  {
+                    "type": "AssignmentExpression",
+                    "operator": "=",
+                    "left": {
+                      "type": "Identifier",
+                      "name": "trace"
+                    },
+                    "right": {
+                      "type": "BinaryExpression",
+                      "operator": "+",
+                      "left": {
+                        "type": "Identifier",
+                        "name": "trace"
+                      },
+                      "right": {
+                        "type": "StringLiteral",
+                        "value": "B1"
+                      }
+                    }
+                  },
+                  {
+                    "type": "AssignmentExpression",
+                    "operator": "=",
+                    "left": {
+                      "type": "Identifier",
+                      "name": "stage_b"
+                    },
+                    "right": {
+                      "type": "IntegerLiteral",
+                      "value": 1
+                    }
+                  },
+                  {
+                    "type": "FunctionCall",
+                    "callee": {
+                      "type": "Identifier",
+                      "name": "proc_yield"
+                    },
+                    "arguments": [],
+                    "isTrailingLambda": false
+                  }
+                ]
+              },
+              "orClauses": []
+            },
+            {
+              "type": "IfExpression",
+              "ifCondition": {
+                "type": "BinaryExpression",
+                "operator": "==",
+                "left": {
+                  "type": "Identifier",
+                  "name": "stage_b"
+                },
+                "right": {
+                  "type": "IntegerLiteral",
+                  "value": 1
+                }
+              },
+              "ifBody": {
+                "type": "BlockExpression",
+                "body": [
+                  {
+                    "type": "AssignmentExpression",
+                    "operator": "=",
+                    "left": {
+                      "type": "Identifier",
+                      "name": "trace"
+                    },
+                    "right": {
+                      "type": "BinaryExpression",
+                      "operator": "+",
+                      "left": {
+                        "type": "Identifier",
+                        "name": "trace"
+                      },
+                      "right": {
+                        "type": "StringLiteral",
+                        "value": "B2"
+                      }
+                    }
+                  },
+                  {
+                    "type": "AssignmentExpression",
+                    "operator": "=",
+                    "left": {
+                      "type": "Identifier",
+                      "name": "stage_b"
+                    },
+                    "right": {
+                      "type": "IntegerLiteral",
+                      "value": 2
+                    }
+                  }
+                ]
+              },
+              "orClauses": []
+            },
+            {
+              "type": "IntegerLiteral",
+              "value": 0
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "Identifier",
+        "name": "proc_flush"
+      },
+      "arguments": [],
+      "isTrailingLambda": false
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "status_worker"
+      },
+      "right": {
+        "type": "MatchExpression",
+        "subject": {
+          "type": "FunctionCall",
+          "callee": {
+            "type": "MemberAccessExpression",
+            "object": {
+              "type": "Identifier",
+              "name": "worker"
+            },
+            "member": {
+              "type": "Identifier",
+              "name": "status"
+            }
+          },
+          "arguments": [],
+          "isTrailingLambda": false
+        },
+        "clauses": [
+          {
+            "type": "MatchClause",
+            "pattern": {
+              "type": "StructPattern",
+              "structType": {
+                "type": "Identifier",
+                "name": "Pending"
+              },
+              "fields": [],
+              "isPositional": false
+            },
+            "body": {
+              "type": "StringLiteral",
+              "value": "Pending"
+            }
+          },
+          {
+            "type": "MatchClause",
+            "pattern": {
+              "type": "StructPattern",
+              "structType": {
+                "type": "Identifier",
+                "name": "Resolved"
+              },
+              "fields": [],
+              "isPositional": false
+            },
+            "body": {
+              "type": "StringLiteral",
+              "value": "Resolved"
+            }
+          },
+          {
+            "type": "MatchClause",
+            "pattern": {
+              "type": "StructPattern",
+              "structType": {
+                "type": "Identifier",
+                "name": "Cancelled"
+              },
+              "fields": [],
+              "isPositional": false
+            },
+            "body": {
+              "type": "StringLiteral",
+              "value": "Cancelled"
+            }
+          },
+          {
+            "type": "MatchClause",
+            "pattern": {
+              "type": "StructPattern",
+              "structType": {
+                "type": "Identifier",
+                "name": "Failed"
+              },
+              "fields": [],
+              "isPositional": false
+            },
+            "body": {
+              "type": "StringLiteral",
+              "value": "Failed"
+            }
+          },
+          {
+            "type": "MatchClause",
+            "pattern": {
+              "type": "WildcardPattern"
+            },
+            "body": {
+              "type": "StringLiteral",
+              "value": "Other"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "status_other"
+      },
+      "right": {
+        "type": "MatchExpression",
+        "subject": {
+          "type": "FunctionCall",
+          "callee": {
+            "type": "MemberAccessExpression",
+            "object": {
+              "type": "Identifier",
+              "name": "other"
+            },
+            "member": {
+              "type": "Identifier",
+              "name": "status"
+            }
+          },
+          "arguments": [],
+          "isTrailingLambda": false
+        },
+        "clauses": [
+          {
+            "type": "MatchClause",
+            "pattern": {
+              "type": "StructPattern",
+              "structType": {
+                "type": "Identifier",
+                "name": "Pending"
+              },
+              "fields": [],
+              "isPositional": false
+            },
+            "body": {
+              "type": "StringLiteral",
+              "value": "Pending"
+            }
+          },
+          {
+            "type": "MatchClause",
+            "pattern": {
+              "type": "StructPattern",
+              "structType": {
+                "type": "Identifier",
+                "name": "Resolved"
+              },
+              "fields": [],
+              "isPositional": false
+            },
+            "body": {
+              "type": "StringLiteral",
+              "value": "Resolved"
+            }
+          },
+          {
+            "type": "MatchClause",
+            "pattern": {
+              "type": "StructPattern",
+              "structType": {
+                "type": "Identifier",
+                "name": "Cancelled"
+              },
+              "fields": [],
+              "isPositional": false
+            },
+            "body": {
+              "type": "StringLiteral",
+              "value": "Cancelled"
+            }
+          },
+          {
+            "type": "MatchClause",
+            "pattern": {
+              "type": "StructPattern",
+              "structType": {
+                "type": "Identifier",
+                "name": "Failed"
+              },
+              "fields": [],
+              "isPositional": false
+            },
+            "body": {
+              "type": "StringLiteral",
+              "value": "Failed"
+            }
+          },
+          {
+            "type": "MatchClause",
+            "pattern": {
+              "type": "WildcardPattern"
+            },
+            "body": {
+              "type": "StringLiteral",
+              "value": "Other"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "StringInterpolation",
+      "parts": [
+        {
+          "type": "Identifier",
+          "name": "trace"
+        },
+        {
+          "type": "StringLiteral",
+          "value": ":"
+        },
+        {
+          "type": "Identifier",
+          "name": "status_worker"
+        },
+        {
+          "type": "StringLiteral",
+          "value": ":"
+        },
+        {
+          "type": "Identifier",
+          "name": "status_other"
+        }
+      ]
+    }
+  ]
+}
