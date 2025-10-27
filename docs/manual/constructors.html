@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Able v10 Manual — Constructors &amp; Updates</title>
+    <link rel="stylesheet" href="manual.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <nav class="sidebar">
+        <span class="brand">Able v10 Manual</span>
+        <ul>
+          <li><a href="index.html">Getting Started</a></li>
+          <li><a href="variables.html">Variables</a></li>
+          <li><a href="control-flow.html">Control Flow</a></li>
+          <li><a href="functions.html">Functions</a></li>
+          <li><a href="types.html">Types</a></li>
+          <li><a href="methods.html">Methods</a></li>
+          <li><a href="constructors.html" class="active">Constructors &amp; Updates</a></li>
+          <li><a href="pattern-matching.html">Pattern Matching &amp; Unions</a></li>
+          <li><a href="modules.html">Modules</a></li>
+          <li><a href="error-handling.html">Error Handling</a></li>
+          <li><a href="concurrency.html">Concurrency</a></li>
+          <li><a href="tooling.html">Tooling &amp; Next Steps</a></li>
+        </ul>
+      </nav>
+      <main class="content">
+        <h1>7. Constructors &amp; Updates</h1>
+        <p>
+          Struct literals require all fields. Positional structs use tuple-style
+          syntax. Singleton structs carry a single value identical to their type
+          name.
+        </p>
+        <pre><code class="language-able">origin := Point { x: 0, y: 0 }
+
+polar := Polar { radius: 1.0, theta: 0.0 }
+polar = Polar { ...polar, theta: pi / 2.0 }
+
+state := Active</code></pre>
+        <p>
+          Arrays, ranges, channels, and maps rely on helpers in the standard
+          library sketches (see <code>stdlib/</code> and
+          <code>design/channels-mutexes.md</code>).
+        </p>
+        <footer class="manual-footer">
+          Able v10 manual · Constructors &amp; Updates
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>

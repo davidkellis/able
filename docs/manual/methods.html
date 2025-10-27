@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Able v10 Manual — Methods</title>
+    <link rel="stylesheet" href="manual.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <nav class="sidebar">
+        <span class="brand">Able v10 Manual</span>
+        <ul>
+          <li><a href="index.html">Getting Started</a></li>
+          <li><a href="variables.html">Variables</a></li>
+          <li><a href="control-flow.html">Control Flow</a></li>
+          <li><a href="functions.html">Functions</a></li>
+          <li><a href="types.html">Types</a></li>
+          <li><a href="methods.html" class="active">Methods</a></li>
+          <li><a href="constructors.html">Constructors & Updates</a></li>
+          <li><a href="pattern-matching.html">Pattern Matching &amp; Unions</a></li>
+          <li><a href="modules.html">Modules</a></li>
+          <li><a href="error-handling.html">Error Handling</a></li>
+          <li><a href="concurrency.html">Concurrency</a></li>
+          <li><a href="tooling.html">Tooling &amp; Next Steps</a></li>
+        </ul>
+      </nav>
+      <main class="content">
+        <h1>6. Methods</h1>
+        <h2>6.1 Inherent Methods</h2>
+        <p>
+          <code>methods Type { ... }</code> attaches behaviour directly to a
+          struct. Inside the block, <code>#field</code> touches the first
+          parameter (conventionally <code>self</code>).
+        </p>
+        <pre><code class="language-able">struct Counter { value: i32 }
+
+methods Counter {
+  fn new(start: i32) -&gt; Self { Counter { value: start } }
+
+  fn #increment(by: i32 = 1) -&gt; void {
+    #value = #value + by
+  }
+}</code></pre>
+        <h2>6.2 Interfaces &amp; Implementations</h2>
+        <p>
+          Interfaces capture behaviour; <code>impl</code> blocks provide
+          concrete implementations. Defaults are supported.
+        </p>
+        <pre><code class="language-able">interface Display for T {
+  fn to_string(self: Self) -&gt; string
+}
+
+impl Display for User {
+  fn to_string(self: Self) -&gt; string {
+    `User(${self.id}, ${self.name})`
+  }
+}</code></pre>
+        <p>
+          Specificity prefers concrete implementations over generic ones.
+          Name an <code>impl</code> to disambiguate.
+        </p>
+        <pre><code class="language-able">Sum = impl Monoid for i32 {
+  fn id() -&gt; Self { 0 }
+  fn op(self: Self, other: Self) -&gt; Self { self + other }
+}
+
+total = Sum.op(2, 3)</code></pre>
+        <p>
+          Values typed as interfaces dispatch dynamically:
+        </p>
+        <pre><code class="language-able">fn render(value: Display) -&gt; string {
+  value.to_string()
+}</code></pre>
+        <footer class="manual-footer">
+          Able v10 manual · Methods
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>

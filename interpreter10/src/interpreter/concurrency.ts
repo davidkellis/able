@@ -1,6 +1,7 @@
 import * as AST from "../ast";
 import { Environment } from "./environment";
 import type { InterpreterV10 } from "./index";
+import type { Executor } from "./executor";
 import { ProcYieldSignal, RaiseSignal } from "./signals";
 import type { V10Value } from "./values";
 
@@ -30,6 +31,7 @@ declare module "./index" {
     runProcHandle(handle: Extract<V10Value, { kind: "proc_handle" }>): void;
     runFuture(future: Extract<V10Value, { kind: "future" }>): void;
     makeRuntimeError(message: string, value?: V10Value): V10Value;
+    executor: Executor;
   }
 }
 
@@ -93,21 +95,11 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
   };
 
   cls.prototype.scheduleAsync = function scheduleAsync(this: InterpreterV10, fn: () => void): void {
-    this.schedulerQueue.push(fn);
-    this.ensureSchedulerTick();
+    this.executor.schedule(fn);
   };
 
   cls.prototype.ensureSchedulerTick = function ensureSchedulerTick(this: InterpreterV10): void {
-    if (this.schedulerScheduled || this.schedulerActive) return;
-    this.schedulerScheduled = true;
-    const runner = () => this.processScheduler();
-    if (typeof queueMicrotask === "function") {
-      queueMicrotask(runner);
-    } else if (typeof setTimeout === "function") {
-      setTimeout(runner, 0);
-    } else {
-      runner();
-    }
+    this.executor.ensureTick();
   };
 
   cls.prototype.currentAsyncContext = function currentAsyncContext(this: InterpreterV10): { kind: "proc"; handle: Extract<V10Value, { kind: "proc_handle" }> } | { kind: "future"; handle: Extract<V10Value, { kind: "future" }> } | null {
@@ -136,17 +128,7 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
   };
 
   cls.prototype.processScheduler = function processScheduler(this: InterpreterV10, limit: number = this.schedulerMaxSteps): void {
-    if (this.schedulerActive) return;
-    this.schedulerActive = true;
-    this.schedulerScheduled = false;
-    let steps = 0;
-    while (this.schedulerQueue.length > 0 && steps < limit) {
-      const task = this.schedulerQueue.shift()!;
-      task();
-      steps += 1;
-    }
-    this.schedulerActive = false;
-    if (this.schedulerQueue.length > 0) this.ensureSchedulerTick();
+    this.executor.flush(limit);
   };
 
   cls.prototype.makeNamedStructInstance = function makeNamedStructInstance(this: InterpreterV10, def: AST.StructDefinition, entries: Array<[string, V10Value]>): V10Value {
@@ -173,6 +155,30 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
   };
 
   cls.prototype.markProcCancelled = function markProcCancelled(this: InterpreterV10, handle: Extract<V10Value, { kind: "proc_handle" }>, message = "Proc cancelled"): void {
+    const pendingSend = (handle as any).waitingChannelSend as
+      | {
+          state: any;
+          value: V10Value;
+        }
+      | undefined;
+    if (pendingSend) {
+      pendingSend.state.sendWaiters = pendingSend.state.sendWaiters.filter((entry: any) => entry.handle !== handle);
+      delete (handle as any).waitingChannelSend;
+    }
+    const pendingReceive = (handle as any).waitingChannelReceive as
+      | {
+          state: any;
+        }
+      | undefined;
+    if (pendingReceive) {
+      pendingReceive.state.receiveWaiters = pendingReceive.state.receiveWaiters.filter((entry: any) => entry.handle !== handle);
+      delete (handle as any).waitingChannelReceive;
+    }
+    if ((handle as any).waitingMutex) {
+      const state = (handle as any).waitingMutex as any;
+      state.waiters = state.waiters.filter((entry: any) => entry !== handle);
+      delete (handle as any).waitingMutex;
+    }
     const procErr = this.makeProcError(message);
     handle.state = "cancelled";
     handle.result = undefined;
@@ -301,6 +307,7 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
       this.markProcCancelled(handle);
       return;
     }
+    this.resetTimeSlice();
     handle.hasStarted = true;
     handle.isEvaluating = true;
     this.asyncContextStack.push({ kind: "proc", handle });
@@ -325,6 +332,9 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
         handle.failureInfo = procErr;
         handle.error = this.makeRuntimeError(`Proc failed: ${details}`, procErr);
         handle.state = "failed";
+      } else if (handle.cancelRequested) {
+        const msg = e instanceof Error ? e.message : "Proc cancelled";
+        this.markProcCancelled(handle, msg || "Proc cancelled");
       } else {
         const msg = e instanceof Error ? e.message : "Proc execution error";
         const procErr = this.makeProcError(msg);
@@ -348,6 +358,7 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
     if (!future.runner) {
       future.runner = () => this.runFuture(future);
     }
+    this.resetTimeSlice();
     future.isEvaluating = true;
     this.asyncContextStack.push({ kind: "future", handle: future });
     try {

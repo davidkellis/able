@@ -8,6 +8,7 @@ Able is an experimental programming language. This workspace hosts the Able v10 
 - **TypeScript interpreter**: `interpreter10/` remains a mature implementation and source of design inspiration; its AST definition (`src/ast.ts`) must stay structurally aligned with the Go AST so both follow the same spec-defined contract.
 - **Canonical AST & semantics**: every Able v10 interpreter is expected to consume the same AST shapes and produce identical observable behaviour per the spec; divergence is treated as a spec or implementation bug.
 - **Future parser**: With the Go runtime solid, the next milestone is building the tree-sitter grammar that emits compatible nodes for all runtimes.
+- **Quick language tour**: read the new [Able v10 manual](docs/manual/index.html) for a Julia-style walkthrough of the language with runnable examples.
 
 ## Repository Layout
 - `spec/` — Language specs (v1–v10) and topic supplements.

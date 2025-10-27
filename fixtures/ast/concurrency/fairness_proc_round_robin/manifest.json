@@ -1,0 +1,10 @@
+{
+  "description": "Serial executor yields alternate between procs when proc_yield is used",
+  "expect": {
+    "result": {
+      "kind": "string",
+      "value": "A1B1A2B2:Resolved:Resolved"
+    }
+  },
+  "entry": "module.json"
+}

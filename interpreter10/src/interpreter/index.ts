@@ -16,10 +16,17 @@ import "./imports";
 
 import { Environment } from "./environment";
 import type { ImplMethodEntry, V10Value, ConstraintSpec } from "./values";
+import { CooperativeExecutor, type Executor } from "./executor";
+import { ProcYieldSignal } from "./signals";
 
 // =============================================================================
 // v10 Interpreter (modular layout)
 // =============================================================================
+
+export type InterpreterOptions = {
+  executor?: Executor;
+  schedulerMaxSteps?: number;
+};
 
 export class InterpreterV10 {
   readonly globals = new Environment();
@@ -67,16 +74,19 @@ export class InterpreterV10 {
   nextMutexHandle = 1;
   mutexStates: Map<number, any> = new Map();
 
-  schedulerQueue: Array<() => void> = [];
-  schedulerScheduled = false;
-  schedulerActive = false;
   schedulerMaxSteps = 1024;
+  executor: Executor;
+  timeSliceCounter = 0;
   asyncContextStack: Array<
     { kind: "proc"; handle: Extract<V10Value, { kind: "proc_handle" }> } |
     { kind: "future"; handle: Extract<V10Value, { kind: "future" }> }
   > = [];
 
-  constructor() {
+  constructor(options: InterpreterOptions = {}) {
+    if (options.schedulerMaxSteps !== undefined) {
+      this.schedulerMaxSteps = options.schedulerMaxSteps;
+    }
+    this.executor = options.executor ?? new CooperativeExecutor({ maxSteps: this.schedulerMaxSteps });
     this.initConcurrencyBuiltins();
     this.ensureChannelMutexBuiltins();
     this.procNativeMethods = {
@@ -118,6 +128,19 @@ export class InterpreterV10 {
     this.globals.define("proc_cancelled", procCancelledFn);
     this.globals.define("proc_flush", procFlushFn);
   }
+
+  resetTimeSlice(): void {
+    this.timeSliceCounter = 0;
+  }
+
+  checkTimeSlice(): void {
+    if (this.asyncContextStack.length === 0) return;
+    this.timeSliceCounter += 1;
+    if (this.timeSliceCounter >= this.schedulerMaxSteps) {
+      this.timeSliceCounter = 0;
+      throw new ProcYieldSignal();
+    }
+  }
 }
 
 applyHelperAugmentations(InterpreterV10);
@@ -137,6 +160,8 @@ export type { ConstraintSpec as InterpreterConstraintSpec } from "./values";
 
 export { Environment } from "./environment";
 export type { V10Value } from "./values";
+export type { Executor } from "./executor";
+export { CooperativeExecutor } from "./executor";
 
 export type { PlaceholderFrame } from "./placeholders";
 // Side-effectful module imports attach feature-specific behaviour to InterpreterV10.

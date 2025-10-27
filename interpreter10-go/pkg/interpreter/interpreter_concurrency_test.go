@@ -372,6 +372,123 @@ func TestProcFlushDelegatesToExecutor(t *testing.T) {
 	}
 }
 
+func TestSerialExecutorProcYieldFairness(t *testing.T) {
+	interp := New()
+	if _, ok := interp.executor.(*SerialExecutor); !ok {
+		t.Fatalf("expected SerialExecutor by default")
+	}
+	global := interp.GlobalEnvironment()
+
+	mustEval := func(expr ast.Expression) runtime.Value {
+		val, err := interp.evaluateExpression(expr, global)
+		if err != nil {
+			t.Fatalf("expression evaluation failed: %v", err)
+		}
+		return val
+	}
+
+	mustEval(ast.Assign(ast.ID("trace"), ast.Str("")))
+	mustEval(ast.Assign(ast.ID("stage_a"), ast.Int(0)))
+	mustEval(ast.Assign(ast.ID("stage_b"), ast.Int(0)))
+
+	appendTrace := func(prefix string) ast.Expression {
+		return ast.AssignOp(
+			ast.AssignmentAssign,
+			ast.ID("trace"),
+			ast.Bin("+", ast.ID("trace"), ast.Str(prefix)),
+		)
+	}
+
+	assignStage := func(name string, value int64) ast.Expression {
+		return ast.AssignOp(ast.AssignmentAssign, ast.ID(name), ast.Int(value))
+	}
+
+	mustEval(ast.Assign(ast.ID("worker"), ast.Proc(ast.Block(
+		ast.IfExpr(
+			ast.Bin("==", ast.ID("stage_a"), ast.Int(0)),
+			ast.Block(
+				appendTrace("A1"),
+				assignStage("stage_a", 1),
+				ast.Call("proc_yield"),
+			),
+		),
+		ast.IfExpr(
+			ast.Bin("==", ast.ID("stage_a"), ast.Int(1)),
+			ast.Block(
+				appendTrace("A2"),
+				assignStage("stage_a", 2),
+			),
+		),
+		ast.Int(0),
+	))))
+
+	mustEval(ast.Assign(ast.ID("other"), ast.Proc(ast.Block(
+		ast.IfExpr(
+			ast.Bin("==", ast.ID("stage_b"), ast.Int(0)),
+			ast.Block(
+				appendTrace("B1"),
+				assignStage("stage_b", 1),
+				ast.Call("proc_yield"),
+			),
+		),
+		ast.IfExpr(
+			ast.Bin("==", ast.ID("stage_b"), ast.Int(1)),
+			ast.Block(
+				appendTrace("B2"),
+				assignStage("stage_b", 2),
+			),
+		),
+		ast.Int(0),
+	))))
+
+	mustEval(ast.Call("proc_flush"))
+
+	traceVal := mustEval(ast.ID("trace"))
+	traceStr, ok := traceVal.(runtime.StringValue)
+	if !ok {
+		t.Fatalf("expected trace to be a string, got %#v", traceVal)
+	}
+	if traceStr.Val != "A1B1A2B2" {
+		t.Fatalf("expected trace to be A1B1A2B2, got %q", traceStr.Val)
+	}
+
+	getStatusName := func(handle *runtime.ProcHandleValue) string {
+		val := interp.procHandleStatus(handle)
+		inst, ok := val.(*runtime.StructInstanceValue)
+		if !ok {
+			t.Fatalf("expected struct instance status, got %#v", val)
+		}
+		if inst.Definition == nil || inst.Definition.Node == nil || inst.Definition.Node.ID == nil {
+			t.Fatalf("status definition not initialised: %#v", inst)
+		}
+		return inst.Definition.Node.ID.Name
+	}
+
+	workerHandleVal, err := global.Get("worker")
+	if err != nil {
+		t.Fatalf("failed to read worker handle: %v", err)
+	}
+	workerHandle, ok := workerHandleVal.(*runtime.ProcHandleValue)
+	if !ok {
+		t.Fatalf("expected worker handle, got %#v", workerHandleVal)
+	}
+	otherHandleVal, err := global.Get("other")
+	if err != nil {
+		t.Fatalf("failed to read other handle: %v", err)
+	}
+	otherHandle, ok := otherHandleVal.(*runtime.ProcHandleValue)
+	if !ok {
+		t.Fatalf("expected other handle, got %#v", otherHandleVal)
+	}
+
+	if status := getStatusName(workerHandle); status != "Resolved" {
+		t.Fatalf("expected worker status Resolved, got %s", status)
+	}
+	if status := getStatusName(otherHandle); status != "Resolved" {
+		t.Fatalf("expected other status Resolved, got %s", status)
+	}
+}
+
 func TestConcurrentProcsSharedStateWithMutex(t *testing.T) {
 	interp := New()
 	if serial, ok := interp.executor.(*SerialExecutor); ok {

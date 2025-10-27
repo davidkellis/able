@@ -84,7 +84,17 @@ func (i *Interpreter) initConcurrencyBuiltins() {
 	procYield := &runtime.NativeFunctionValue{
 		Name:  "proc_yield",
 		Arity: 0,
-		Impl: func(_ *runtime.NativeCallContext, _ []runtime.Value) (runtime.Value, error) {
+		Impl: func(callCtx *runtime.NativeCallContext, _ []runtime.Value) (runtime.Value, error) {
+			if callCtx == nil {
+				return nil, fmt.Errorf("proc_yield must be called inside an asynchronous task")
+			}
+			payload := payloadFromState(callCtx.State)
+			if payload == nil || (payload.kind != asyncContextProc && payload.kind != asyncContextFuture) {
+				return nil, fmt.Errorf("proc_yield must be called inside an asynchronous task")
+			}
+			if _, ok := i.executor.(*SerialExecutor); ok {
+				return nil, errSerialYield
+			}
 			goRuntime.Gosched()
 			return runtime.NilValue{}, nil
 		},
@@ -155,6 +165,9 @@ func (i *Interpreter) runAsyncEvaluation(payload *asyncContextPayload, node ast.
 }
 
 func (i *Interpreter) asyncFailure(payload *asyncContextPayload, err error) error {
+	if errors.Is(err, errSerialYield) {
+		return err
+	}
 	switch sig := err.(type) {
 	case raiseSignal:
 		return i.procFailure(payload, sig.value, "task failed")
