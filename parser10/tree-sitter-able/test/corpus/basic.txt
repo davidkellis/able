@@ -18,8 +18,7 @@ main := greet()
         (pattern_base
           (identifier))))
     (block
-      (return_statement)
-      (expression_statement
+      (return_statement
         (pipe_expression
           (matchable_expression
             (assignment_expression

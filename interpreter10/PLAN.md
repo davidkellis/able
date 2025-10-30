@@ -113,6 +113,7 @@ This document tracks the implementation plan for the v10 interpreter inside `int
    - ✅ Constraint superset precedence now considers inherited interfaces, with coverage for multi-parameter where clauses and dynamic interface dispatch
    - Remaining: higher-kinded/parameterised base-interface chains, mixed visibility/import scenarios, and explicit tooling guidance for disambiguation
    - Tests: overlapping impl resolution edge cases (higher-order generics), interface inheritance in collections, explicit/named impl disambiguation
+   - TODO: Reintroduce `Display`/`Clone` interface definitions (and any required stubs) to the TS runtime so the shared `types/generic_where_constraint` fixture no longer needs `skipTargets: ["ts"]`; once the interfaces are available, drop the skip and ensure `bun run scripts/run-fixtures.ts` covers it.
 
 3) Remaining spec gaps
    - Enforce full privacy model across packages (functions/types/interfaces/impls) and import visibility rules
@@ -127,7 +128,8 @@ This document tracks the implementation plan for the v10 interpreter inside `int
 
 5) Concurrency ergonomics
    - ✅ Surface cooperative yielding APIs, cancellation observers, and ensure futures/procs participate cleanly in collections per spec
-   - Remaining: long-running proc stress tests, mixed sync/async loops, `value()` re-entrancy safeguards, and documenting best practices for polling `proc_cancelled`
+   - ✅ Scheduler now advances long-running procs automatically via `schedulerMaxSteps`; automatic time-slicing coverage re-enabled in `proc_spawn.test.ts`
+   - Remaining (queued for a future pass): long-running proc stress fixtures, mixed proc/channel fairness scenarios, `value()` re-entrancy safeguards, executor diagnostics (`schedulerMaxSteps` tuning notes), and a Go parity audit that mirrors the revived time-slicing tests under both `SerialExecutor` and `GoroutineExecutor`
 
 6) Dynamic interface collections & iterables
    - Extend coverage to ranges/maps of interface values, ensure iteration and higher-order combinators honour most-specific dispatch
@@ -150,3 +152,13 @@ This document tracks the implementation plan for the v10 interpreter inside `int
 - New behavior covered by focused tests (positive and failure paths)
 - No regressions in existing suite; lints remain clean
 - PLAN.md updated per milestone completion
+
+### Parser Progress & Next Steps
+- **Progress (current session)**  
+  - Added shared AST fixtures for `if/or` chains, assignment variants (`:=`, `=`, compound), breakpoint expressions, lambdas, and trailing-lambda calls.  
+  - Regenerated the tree-sitter corpus and confirmed `npx tree-sitter test` succeeds with the new grammar expectations.  
+  - Invoked Go parser tests to validate the grammar updates; deferred wiring the new fixtures into the Go harness until the syntax gaps are resolved.
+- **Pending follow-up**  
+  1. Teach the Able grammar + Go parser to recognise `value! else { … }` and mark the `OrElseExpression` fixture green.  
+  2. Extend the parser to emit trailing-lambda ASTs (including `isTrailingLambda` metadata) and add the corresponding Go test coverage.  
+  3. After the above land, hook the new fixtures into the Go `functionFixtures`/`expressionFixtures` arrays and backfill the TypeScript-side parser assertions.

@@ -33,6 +33,285 @@ const fixtures: Fixture[] = [
     },
   },
   {
+    name: "basics/bool_literal",
+    module: AST.module([AST.bool(true)]),
+    manifest: {
+      description: "Evaluates a boolean literal",
+      expect: {
+        result: { kind: "bool", value: true },
+      },
+    },
+  },
+  {
+    name: "basics/nil_literal",
+    module: AST.module([AST.nil()]),
+    manifest: {
+      description: "Evaluates the nil literal",
+      expect: {
+        result: { kind: "nil" },
+      },
+    },
+  },
+  {
+    name: "basics/char_literal",
+    module: AST.module([AST.chr("a")]),
+    manifest: {
+      description: "Evaluates a character literal",
+      expect: {
+        result: { kind: "char", value: "a" },
+      },
+    },
+  },
+  {
+    name: "expressions/array_literal_empty",
+    module: AST.module([AST.arr()]),
+    manifest: {
+      description: "Evaluates an empty array literal",
+      expect: {
+        result: { kind: "array", elements: [] },
+      },
+    },
+  },
+  {
+    name: "expressions/unary_negation",
+    module: AST.module([AST.un("-", AST.int(5))]),
+    manifest: {
+      description: "Negates an integer literal",
+      expect: {
+        result: { kind: "i32", value: -5 },
+      },
+    },
+  },
+  {
+    name: "expressions/block_expression",
+    module: AST.module([
+      AST.block(
+        AST.assign("x", AST.int(1)),
+        AST.identifier("x"),
+      ),
+    ]),
+    manifest: {
+      description: "Evaluates a block expression and returns its final expression",
+      expect: {
+        result: { kind: "i32", value: 1 },
+      },
+    },
+  },
+  {
+    name: "expressions/integer_suffix",
+    module: AST.module([AST.integerLiteral(42, "i64")]),
+    manifest: {
+      description: "Evaluates an integer literal with an i64 suffix",
+      expect: {
+        result: { kind: "i32", value: 42 },
+      },
+    },
+  },
+  {
+    name: "expressions/float_suffix",
+    module: AST.module([AST.floatLiteral(3.5, "f32")]),
+    manifest: {
+      description: "Evaluates a float literal with an f32 suffix",
+      expect: {
+        result: { kind: "f64", value: 3.5 },
+      },
+    },
+  },
+  {
+    name: "expressions/assignment_declare",
+    module: AST.module([
+      AST.assign("value", AST.int(1)),
+      AST.id("value"),
+    ]),
+    manifest: {
+      description: "Declaration assignment binds a new identifier",
+      expect: {
+        result: { kind: "i32", value: 1 },
+      },
+    },
+  },
+  {
+    name: "expressions/reassignment",
+    module: AST.module([
+      AST.assign("value", AST.int(1)),
+      AST.assign("value", AST.bin("+", AST.id("value"), AST.int(2)), "="),
+      AST.id("value"),
+    ]),
+    manifest: {
+      description: "Reassignment updates an existing binding",
+      expect: {
+        result: { kind: "i32", value: 3 },
+      },
+    },
+  },
+  {
+    name: "expressions/compound_assignment",
+    module: AST.module([
+      AST.assign("value", AST.int(2)),
+      AST.assign("value", AST.int(5), "+="),
+      AST.id("value"),
+    ]),
+    manifest: {
+      description: "Compound assignment applies operator to existing value",
+      expect: {
+        result: { kind: "i32", value: 7 },
+      },
+    },
+  },
+  {
+    name: "expressions/breakpoint_value",
+    module: AST.module([
+      AST.assign(
+        "result",
+        AST.breakpointExpression(
+          "exit",
+          AST.block(
+            AST.breakStatement("exit", AST.int(42)),
+          ),
+        ),
+      ),
+      AST.id("result"),
+    ]),
+    manifest: {
+      description: "Breakpoint expression returns value from labeled break",
+      expect: {
+        result: { kind: "i32", value: 42 },
+      },
+    },
+  },
+  {
+    name: "functions/lambda_expression",
+    module: AST.module([
+      AST.assign(
+        "adder",
+        AST.lambdaExpression(
+          [AST.param("x"), AST.param("y")],
+          AST.bin("+", AST.id("x"), AST.id("y")),
+        ),
+      ),
+      AST.functionCall(AST.id("adder"), [AST.int(2), AST.int(3)]),
+    ]),
+    manifest: {
+      description: "Lambda expression returns computed sum",
+      expect: {
+        result: { kind: "i32", value: 5 },
+      },
+    },
+  },
+  {
+    name: "functions/trailing_lambda_call",
+    module: AST.module([
+      AST.functionDefinition(
+        "for_each",
+        [AST.param("items"), AST.param("callback")],
+        AST.blockExpression([
+          AST.forIn(
+            "item",
+            AST.id("items"),
+            AST.functionCall(AST.id("callback"), [AST.id("item")]),
+          ),
+        ]),
+        undefined,
+        undefined,
+        undefined,
+        false,
+        false,
+      ),
+      AST.assign("numbers", AST.arr(AST.int(1), AST.int(2), AST.int(3))),
+      AST.assign("total", AST.int(0)),
+      AST.functionCall(
+        AST.id("for_each"),
+        [
+          AST.id("numbers"),
+          AST.lambdaExpression(
+            [AST.param("n")],
+            AST.assign("total", AST.id("n"), "+="),
+          ),
+        ],
+        undefined,
+        true,
+      ),
+      AST.id("total"),
+    ]),
+    manifest: {
+      description: "Trailing lambda iterates array and accumulates values",
+      expect: {
+        result: { kind: "i32", value: 6 },
+      },
+    },
+  },
+  {
+    name: "expressions/index_access",
+    module: AST.module([
+      AST.assign("arr", AST.arr(AST.int(1), AST.int(2), AST.int(3))),
+      AST.index(AST.id("arr"), AST.int(1)),
+    ]),
+    manifest: {
+      description: "Index expression reads array element by position",
+      expect: {
+        result: { kind: "i32", value: 2 },
+      },
+    },
+  },
+  {
+    name: "expressions/or_else_success",
+    module: AST.module([
+      AST.assign("value", AST.stringLiteral("ok")),
+      AST.assign(
+        "result",
+        AST.orElseExpression(
+          AST.propagationExpression(AST.identifier("value")),
+          AST.blockExpression([AST.stringLiteral("fallback")]),
+        ),
+      ),
+      AST.identifier("result"),
+    ]),
+    manifest: {
+      description: "Propagation succeeds without invoking handler",
+      expect: {
+        result: { kind: "string", value: "ok" },
+      },
+    },
+  },
+  {
+    name: "expressions/rescue_success",
+    module: AST.module([
+      AST.rescueExpression(
+        AST.blockExpression([AST.stringLiteral("safe")]),
+        [
+          AST.matchClause(
+            AST.wildcardPattern(),
+            AST.stringLiteral("handled"),
+          ),
+        ],
+      ),
+    ]),
+    manifest: {
+      description: "Rescue expression returns original value when no error is raised",
+      expect: {
+        result: { kind: "string", value: "safe" },
+      },
+    },
+  },
+  {
+    name: "expressions/ensure_success",
+    module: AST.module([
+      AST.ensureExpression(
+        AST.blockExpression([AST.stringLiteral("body")]),
+        AST.blockExpression([
+          AST.functionCall(AST.identifier("print"), [AST.stringLiteral("ensure")]),
+        ]),
+      ),
+    ]),
+    manifest: {
+      description: "Ensure block runs even when try expression succeeds",
+      expect: {
+        stdout: ["ensure"],
+        result: { kind: "string", value: "body" },
+      },
+    },
+  },
+  {
     name: "strings/interpolation_basic",
     module: AST.module([
       AST.assign("x", AST.int(2)),
@@ -129,6 +408,63 @@ const fixtures: Fixture[] = [
     },
   },
   {
+    name: "match/guard_clause",
+    module: AST.module([
+      AST.matchExpression(
+        AST.integerLiteral(3),
+        [
+          AST.matchClause(
+            AST.identifier("value"),
+            AST.binaryExpression(
+              "*",
+              AST.identifier("value"),
+              AST.integerLiteral(2),
+            ),
+            AST.binaryExpression(
+              ">",
+              AST.identifier("value"),
+              AST.integerLiteral(2),
+            ),
+          ),
+          AST.matchClause(
+            AST.wildcardPattern(),
+            AST.integerLiteral(0),
+          ),
+        ],
+      ),
+    ]),
+    manifest: {
+      description: "Match guard executes only when predicate passes",
+      expect: {
+        result: { kind: "i32", value: 6 },
+      },
+    },
+  },
+  {
+    name: "match/wildcard_pattern",
+    module: AST.module([
+      AST.matchExpression(
+        AST.integerLiteral(0),
+        [
+          AST.matchClause(
+            AST.literalPattern(AST.integerLiteral(1)),
+            AST.stringLiteral("One"),
+          ),
+          AST.matchClause(
+            AST.wildcardPattern(),
+            AST.stringLiteral("Other"),
+          ),
+        ],
+      ),
+    ]),
+    manifest: {
+      description: "Wildcard fallback handles unmatched cases",
+      expect: {
+        result: { kind: "string", value: "Other" },
+      },
+    },
+  },
+  {
     name: "match/struct_guard",
     module: AST.module([
       AST.structDefinition(
@@ -160,6 +496,56 @@ const fixtures: Fixture[] = [
       description: "Match struct pattern binds fields and guard filters clauses",
       expect: {
         result: { kind: "i32", value: 3 },
+      },
+    },
+  },
+  {
+    name: "match/struct_positional_pattern",
+    module: AST.module([
+      AST.structDefinition(
+        "Pair",
+        [
+          AST.structFieldDefinition(AST.simpleTypeExpression("i32")),
+          AST.structFieldDefinition(AST.simpleTypeExpression("i32")),
+        ],
+        "positional",
+      ),
+      AST.matchExpression(
+        AST.structLiteral(
+          [
+            AST.structFieldInitializer(AST.integerLiteral(4)),
+            AST.structFieldInitializer(AST.integerLiteral(8)),
+          ],
+          true,
+          "Pair",
+        ),
+        [
+          AST.matchClause(
+            AST.structPattern(
+              [
+                AST.structPatternField(AST.identifier("first")),
+                AST.structPatternField(AST.identifier("second")),
+              ],
+              true,
+              "Pair",
+            ),
+            AST.binaryExpression(
+              "+",
+              AST.identifier("first"),
+              AST.identifier("second"),
+            ),
+          ),
+          AST.matchClause(
+            AST.wildcardPattern(),
+            AST.integerLiteral(0),
+          ),
+        ],
+      ),
+    ]),
+    manifest: {
+      description: "Positional struct match destructures tuple-style structs",
+      expect: {
+        result: { kind: "i32", value: 12 },
       },
     },
   },
@@ -475,6 +861,33 @@ const fixtures: Fixture[] = [
     },
   },
   {
+    name: "control/if_or_else",
+    module: AST.module([
+      AST.assign("score", AST.int(85)),
+      AST.assign(
+        "grade",
+        AST.ifExpression(
+          AST.bin(">=", AST.id("score"), AST.int(90)),
+          AST.block(AST.str("A")),
+          [
+            AST.orClause(
+              AST.block(AST.str("B")),
+              AST.bin(">=", AST.id("score"), AST.int(80)),
+            ),
+            AST.orClause(AST.block(AST.str("C or lower"))),
+          ],
+        ),
+      ),
+      AST.id("grade"),
+    ]),
+    manifest: {
+      description: "If-or chain picks first matching clause with default fallback",
+      expect: {
+        result: { kind: "string", value: "B" },
+      },
+    },
+  },
+  {
     name: "control/for_sum",
     module: AST.module([
       AST.assign("sum", AST.int(0)),
@@ -536,6 +949,24 @@ const fixtures: Fixture[] = [
     },
   },
   {
+    name: "control/range_inclusive",
+    module: AST.module([
+      AST.assign("sum", AST.int(0)),
+      AST.forIn(
+        "n",
+        AST.range(AST.int(0), AST.int(5), true),
+        AST.assign("sum", AST.bin("+", AST.id("sum"), AST.id("n")), "="),
+      ),
+      AST.id("sum"),
+    ]),
+    manifest: {
+      description: "Inclusive range includes upper bound during iteration",
+      expect: {
+        result: { kind: "i32", value: 15 },
+      },
+    },
+  },
+  {
     name: "patterns/array_destructuring",
     module: AST.module([
       AST.assign("arr", AST.arr(AST.int(1), AST.int(2), AST.int(3), AST.int(4))),
@@ -547,6 +978,176 @@ const fixtures: Fixture[] = [
       description: "Array destructuring assignment extracts prefix and rest",
       expect: {
         result: { kind: "i32", value: 6 },
+      },
+    },
+  },
+  {
+    name: "patterns/struct_positional_destructuring",
+    module: AST.module([
+      AST.structDefinition(
+        "Pair",
+        [
+          AST.structFieldDefinition(AST.simpleTypeExpression("i32")),
+          AST.structFieldDefinition(AST.simpleTypeExpression("i32")),
+        ],
+        "positional",
+      ),
+      AST.assign(
+        "pair",
+        AST.structLiteral(
+          [
+            AST.structFieldInitializer(AST.integerLiteral(4)),
+            AST.structFieldInitializer(AST.integerLiteral(8)),
+          ],
+          true,
+          "Pair",
+        ),
+      ),
+      AST.assign(
+        AST.structPattern(
+          [
+            AST.structPatternField(AST.identifier("first")),
+            AST.structPatternField(AST.identifier("second")),
+          ],
+          true,
+          "Pair",
+        ),
+        AST.identifier("pair"),
+      ),
+      AST.binaryExpression(
+        "+",
+        AST.identifier("first"),
+        AST.identifier("second"),
+      ),
+    ]),
+    manifest: {
+      description: "Positional struct destructuring assignment binds tuple fields",
+      expect: {
+        result: { kind: "i32", value: 12 },
+      },
+    },
+  },
+  {
+    name: "patterns/nested_struct_destructuring",
+    module: AST.module([
+      AST.structDefinition(
+        "Point",
+        [
+          AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "x"),
+          AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "y"),
+        ],
+        "named",
+      ),
+      AST.structDefinition(
+        "Wrapper",
+        [
+          AST.structFieldDefinition(AST.simpleTypeExpression("Point"), "left"),
+          AST.structFieldDefinition(AST.simpleTypeExpression("Point"), "right"),
+          AST.structFieldDefinition(
+            AST.genericTypeExpression(
+              AST.simpleTypeExpression("Array"),
+              [AST.simpleTypeExpression("i32")],
+            ),
+            "values",
+          ),
+        ],
+        "named",
+      ),
+      AST.assign(
+        "wrapper",
+        AST.structLiteral(
+          [
+            AST.structFieldInitializer(
+              AST.structLiteral(
+                [
+                  AST.structFieldInitializer(AST.integerLiteral(1), "x"),
+                  AST.structFieldInitializer(AST.integerLiteral(2), "y"),
+                ],
+                false,
+                "Point",
+              ),
+              "left",
+            ),
+            AST.structFieldInitializer(
+              AST.structLiteral(
+                [
+                  AST.structFieldInitializer(AST.integerLiteral(3), "x"),
+                  AST.structFieldInitializer(AST.integerLiteral(4), "y"),
+                ],
+                false,
+                "Point",
+              ),
+              "right",
+            ),
+            AST.structFieldInitializer(
+              AST.arrayLiteral([
+                AST.integerLiteral(10),
+                AST.integerLiteral(20),
+                AST.integerLiteral(30),
+              ]),
+              "values",
+            ),
+          ],
+          false,
+          "Wrapper",
+        ),
+      ),
+      AST.assign(
+        AST.structPattern(
+          [
+            AST.structPatternField(
+              AST.structPattern(
+                [
+                  AST.structPatternField(AST.identifier("left_x"), "x"),
+                  AST.structPatternField(AST.identifier("left_y"), "y"),
+                ],
+                false,
+                "Point",
+              ),
+              "left",
+            ),
+            AST.structPatternField(
+              AST.structPattern(
+                [
+                  AST.structPatternField(AST.wildcardPattern(), "x"),
+                  AST.structPatternField(AST.identifier("right_y"), "y"),
+                ],
+                false,
+                "Point",
+              ),
+              "right",
+            ),
+            AST.structPatternField(
+              AST.arrayPattern(
+                [AST.identifier("first_value")],
+                "rest_values",
+              ),
+              "values",
+            ),
+          ],
+          false,
+          "Wrapper",
+        ),
+        AST.identifier("wrapper"),
+      ),
+      AST.binaryExpression(
+        "+",
+        AST.binaryExpression(
+          "+",
+          AST.binaryExpression(
+            "+",
+            AST.identifier("left_x"),
+            AST.identifier("right_y"),
+          ),
+          AST.identifier("first_value"),
+        ),
+        AST.index(AST.identifier("rest_values"), AST.integerLiteral(0)),
+      ),
+    ]),
+    manifest: {
+      description: "Nested struct and array patterns destructure composite value",
+      expect: {
+        result: { kind: "i32", value: 35 },
       },
     },
   },
@@ -2585,6 +3186,207 @@ const fixtures: Fixture[] = [
       expect: {
         result: { kind: "bool", value: true },
       },
+    },
+  },
+  {
+    name: "types/generic_type_expression",
+    module: AST.module([
+      AST.structDefinition(
+        "Box",
+        [
+          AST.structFieldDefinition(
+            AST.genericTypeExpression(
+              AST.simpleTypeExpression("Array"),
+              [AST.simpleTypeExpression("i32")],
+            ),
+            "values",
+          ),
+        ],
+        "named",
+      ),
+      AST.assign(
+        "box",
+        AST.structLiteral(
+          [
+            AST.structFieldInitializer(
+              AST.arrayLiteral([
+                AST.integerLiteral(1),
+                AST.integerLiteral(2),
+                AST.integerLiteral(3),
+              ]),
+              "values",
+            ),
+          ],
+          false,
+          "Box",
+        ),
+      ),
+      AST.memberAccessExpression(AST.identifier("box"), "values"),
+    ]),
+    manifest: {
+      description: "Struct field uses generic type annotation",
+      expect: {
+        result: {
+          kind: "array",
+          elements: [
+            { kind: "i32", value: 1 },
+            { kind: "i32", value: 2 },
+            { kind: "i32", value: 3 },
+          ],
+        },
+      },
+    },
+  },
+  {
+    name: "types/function_type_expression",
+    module: AST.module([
+      AST.fn(
+        "apply",
+        [
+          AST.param("value", AST.simpleTypeExpression("i32")),
+          AST.param(
+            "cb",
+            AST.functionTypeExpression(
+              [AST.simpleTypeExpression("i32")],
+              AST.simpleTypeExpression("i32"),
+            ),
+          ),
+        ],
+        [AST.call("cb", AST.identifier("value"))],
+        AST.simpleTypeExpression("i32"),
+      ),
+      AST.fn(
+        "double",
+        [AST.param("n", AST.simpleTypeExpression("i32"))],
+        [
+          AST.binaryExpression(
+            "*",
+            AST.identifier("n"),
+            AST.integerLiteral(2),
+          ),
+        ],
+        AST.simpleTypeExpression("i32"),
+      ),
+      AST.call("apply", AST.integerLiteral(3), AST.identifier("double")),
+    ]),
+    manifest: {
+      description: "Function parameter uses arrow type annotation",
+      expect: {
+        result: { kind: "i32", value: 6 },
+      },
+    },
+  },
+  {
+    name: "types/nullable_type_expression",
+    module: AST.module([
+      AST.fn(
+        "maybe_identity",
+        [
+          AST.param(
+            "value",
+            AST.nullableTypeExpression(AST.simpleTypeExpression("string")),
+          ),
+        ],
+        [AST.identifier("value")],
+        AST.nullableTypeExpression(AST.simpleTypeExpression("string")),
+      ),
+      AST.call("maybe_identity", AST.stringLiteral("ready")),
+    ]),
+    manifest: {
+      description: "Function parameter and return use nullable type",
+      expect: {
+        result: { kind: "string", value: "ready" },
+      },
+    },
+  },
+  {
+    name: "types/result_type_expression",
+    module: AST.module([
+      AST.fn(
+        "always_ok",
+        [],
+        [AST.integerLiteral(7)],
+        AST.resultTypeExpression(AST.simpleTypeExpression("i32")),
+      ),
+      AST.call("always_ok"),
+    ]),
+    manifest: {
+      description: "Function returns a result-wrapped type",
+      expect: {
+        result: { kind: "i32", value: 7 },
+      },
+    },
+  },
+  {
+    name: "types/union_type_expression",
+    module: AST.module([
+      AST.fn(
+        "identity_union",
+        [
+          AST.param(
+            "value",
+            AST.unionTypeExpression([
+              AST.simpleTypeExpression("string"),
+              AST.simpleTypeExpression("i32"),
+            ]),
+          ),
+        ],
+        [AST.identifier("value")],
+        AST.unionTypeExpression([
+          AST.simpleTypeExpression("string"),
+          AST.simpleTypeExpression("i32"),
+        ]),
+      ),
+      AST.call("identity_union", AST.stringLiteral("hello")),
+    ]),
+    manifest: {
+      description: "Function uses union type in parameter and return",
+      expect: {
+        result: { kind: "string", value: "hello" },
+      },
+    },
+  },
+  {
+    name: "types/generic_where_constraint",
+    module: AST.module([
+      AST.fn(
+        "choose_first",
+        [
+          AST.param("first", AST.simpleTypeExpression("T")),
+          AST.param("second", AST.simpleTypeExpression("U")),
+        ],
+        [AST.identifier("first")],
+        AST.simpleTypeExpression("T"),
+        [
+          AST.genericParameter("T"),
+          AST.genericParameter("U"),
+        ],
+        [
+          AST.whereClauseConstraint("T", [
+            AST.interfaceConstraint(AST.simpleTypeExpression("Display")),
+            AST.interfaceConstraint(AST.simpleTypeExpression("Clone")),
+          ]),
+          AST.whereClauseConstraint("U", [
+            AST.interfaceConstraint(AST.simpleTypeExpression("Display")),
+          ]),
+        ],
+      ),
+      AST.callT(
+        "choose_first",
+        [
+          AST.simpleTypeExpression("string"),
+          AST.simpleTypeExpression("i32"),
+        ],
+        AST.stringLiteral("winner"),
+        AST.integerLiteral(1),
+      ),
+    ]),
+    manifest: {
+      description: "Function where clause constrains generic parameters",
+      expect: {
+        result: { kind: "string", value: "winner" },
+      },
+      skipTargets: ["ts"],
     },
   },
   {

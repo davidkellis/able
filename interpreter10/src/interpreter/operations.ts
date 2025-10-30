@@ -129,12 +129,12 @@ export function evaluateBinaryExpression(ctx: InterpreterV10, node: AST.BinaryEx
     throw new Error("Unsupported comparison operands");
   }
 
-  if (["&","|","^","<<",">>"] .includes(b.operator)) {
+  if (["&","|","\\xor","<<",">>"] .includes(b.operator)) {
     if (left.kind !== "i32" || right.kind !== "i32") throw new Error("Bitwise requires i32 operands");
     switch (b.operator) {
       case "&": return { kind: "i32", value: left.value & right.value };
       case "|": return { kind: "i32", value: left.value | right.value };
-      case "^": return { kind: "i32", value: left.value ^ right.value };
+      case "\\xor": return { kind: "i32", value: left.value ^ right.value };
       case "<<": {
         const count = right.value;
         if (count < 0 || count >= 32) throw new Error("shift out of range");
@@ -207,12 +207,12 @@ export function applyOperationsAugmentations(cls: typeof InterpreterV10): void {
       }
     }
 
-    if (["&","|","^","<<",">>"] .includes(op)) {
+    if (["&","|","\\xor","<<",">>"] .includes(op)) {
       if (left.kind !== "i32" || right.kind !== "i32") throw new Error("Bitwise requires i32 operands");
       switch (op) {
         case "&": return { kind: "i32", value: left.value & right.value };
         case "|": return { kind: "i32", value: left.value | right.value };
-        case "^": return { kind: "i32", value: left.value ^ right.value };
+        case "\\xor": return { kind: "i32", value: left.value ^ right.value };
         case "<<": {
           const count = right.value;
           if (count < 0 || count >= 32) throw new Error("shift out of range");

@@ -1,0 +1,10 @@
+{
+  "description": "Nested struct and array patterns destructure composite value",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": 35
+    }
+  },
+  "entry": "module.json"
+}

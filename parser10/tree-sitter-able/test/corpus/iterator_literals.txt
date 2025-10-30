@@ -63,8 +63,8 @@ fn ad_hoc(xs) {
                                                         (type_identifier
                                                           (qualified_identifier
                                                             (identifier))))))))
-                                              (identifier)
-                                              (iterator_body
+                                              (iterator_block
+                                                (identifier)
                                                 (expression_statement
                                                   (pipe_expression
                                                     (matchable_expression
@@ -243,8 +243,8 @@ fn ad_hoc(xs) {
                                         (postfix_expression
                                           (primary_expression
                                             (iterator_literal
-                                              (identifier)
-                                              (iterator_body
+                                              (iterator_block
+                                                (identifier)
                                                 (for_statement
                                                   (pattern_base
                                                     (identifier))

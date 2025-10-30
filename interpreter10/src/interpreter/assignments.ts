@@ -5,7 +5,7 @@ import type { V10Value } from "./values";
 
 export function evaluateAssignmentExpression(ctx: InterpreterV10, node: AST.AssignmentExpression, env: Environment): V10Value {
   const value = ctx.evaluate(node.right, env);
-  const isCompound = ["+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<=", ">>="].includes(node.operator);
+  const isCompound = ["+=", "-=", "*=", "/=", "%=", "&=", "|=", "\\xor=", "<<=", ">>="].includes(node.operator);
 
   if (node.left.type === "Identifier") {
     if (node.operator === ":=") {

@@ -1,0 +1,10 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "ArrayLiteral",
+      "elements": []
+    }
+  ]
+}

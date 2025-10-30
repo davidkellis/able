@@ -594,9 +594,24 @@ func decodeNode(node map[string]any) (ast.Node, error) {
 				generics = append(generics, gp)
 			}
 		}
+		var whereClause []*ast.WhereClauseConstraint
+		if wcRaw, ok := node["whereClause"].([]any); ok {
+			whereClause = make([]*ast.WhereClauseConstraint, 0, len(wcRaw))
+			for _, raw := range wcRaw {
+				wcNode, ok := raw.(map[string]any)
+				if !ok {
+					return nil, fmt.Errorf("invalid where clause node %T", raw)
+				}
+				wc, err := decodeWhereClauseConstraint(wcNode)
+				if err != nil {
+					return nil, err
+				}
+				whereClause = append(whereClause, wc)
+			}
+		}
 		isMethodShorthand, _ := node["isMethodShorthand"].(bool)
 		isPrivate, _ := node["isPrivate"].(bool)
-		return ast.NewFunctionDefinition(id, params, body, returnType, generics, nil, isMethodShorthand, isPrivate), nil
+		return ast.NewFunctionDefinition(id, params, body, returnType, generics, whereClause, isMethodShorthand, isPrivate), nil
 	case "ImplementationDefinition":
 		ifaceNode, err := decodeNode(node["interfaceName"].(map[string]any))
 		if err != nil {
@@ -932,9 +947,14 @@ func decodeNode(node map[string]any) (ast.Node, error) {
 			structType = id
 		}
 		isPositional, _ := node["isPositional"].(bool)
-		var update ast.Expression
-		if updateRaw, ok := node["functionalUpdateSource"].(map[string]any); ok {
-			updNode, err := decodeNode(updateRaw)
+		updateVals, _ := node["functionalUpdateSources"].([]any)
+		updates := make([]ast.Expression, 0, len(updateVals))
+		for _, raw := range updateVals {
+			updateMap, ok := raw.(map[string]any)
+			if !ok {
+				return nil, fmt.Errorf("invalid functional update source %T", raw)
+			}
+			updNode, err := decodeNode(updateMap)
 			if err != nil {
 				return nil, err
 			}
@@ -942,7 +962,20 @@ func decodeNode(node map[string]any) (ast.Node, error) {
 			if !ok {
 				return nil, fmt.Errorf("invalid functional update source %T", updNode)
 			}
-			update = expr
+			updates = append(updates, expr)
+		}
+		if len(updates) == 0 {
+			if updateRaw, ok := node["functionalUpdateSource"].(map[string]any); ok {
+				updNode, err := decodeNode(updateRaw)
+				if err != nil {
+					return nil, err
+				}
+				expr, ok := updNode.(ast.Expression)
+				if !ok {
+					return nil, fmt.Errorf("invalid functional update source %T", updNode)
+				}
+				updates = append(updates, expr)
+			}
 		}
 		typeArgsVal, _ := node["typeArguments"].([]any)
 		typeArgs := make([]ast.TypeExpression, 0, len(typeArgsVal))
@@ -957,7 +990,7 @@ func decodeNode(node map[string]any) (ast.Node, error) {
 			}
 			typeArgs = append(typeArgs, typeExpr)
 		}
-		return ast.NewStructLiteral(fields, isPositional, structType, update, typeArgs), nil
+		return ast.NewStructLiteral(fields, isPositional, structType, updates, typeArgs), nil
 	case "StructFieldDefinition":
 		return decodeStructFieldDefinition(node)
 	case "StructFieldInitializer":

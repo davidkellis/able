@@ -641,7 +641,7 @@ export function propagationExpression(expression: Expression): PropagationExpres
 }
 
 export interface OrElseExpression extends AstNode {
-    type: 'OrElseExpression'; // Represents `expr else { handler }` or `expr else |err| { handler }`
+    type: 'OrElseExpression'; // Represents `expr else { handler }` or `expr else { |err| handler }`
     expression: Expression;
     handler: BlockExpression;
     errorBinding?: Identifier; // Optional binding for the error in `|err|`

@@ -21,10 +21,12 @@
           { "type": "StructFieldInitializer", "name": { "type": "Identifier", "name": "x" }, "value": { "type": "IntegerLiteral", "value": 1 } }
         ],
         "isPositional": false,
-        "functionalUpdateSource": {
-          "type": "ArrayLiteral",
-          "elements": [ { "type": "IntegerLiteral", "value": 1 } ]
-        }
+        "functionalUpdateSources": [
+          {
+            "type": "ArrayLiteral",
+            "elements": [ { "type": "IntegerLiteral", "value": 1 } ]
+          }
+        ]
       }
     }
   ]

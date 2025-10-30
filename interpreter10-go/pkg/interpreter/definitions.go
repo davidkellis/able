@@ -217,31 +217,43 @@ func (i *Interpreter) evaluateStructLiteral(lit *ast.StructLiteral, env *runtime
 		}
 		return &runtime.StructInstanceValue{Definition: structDefVal, Positional: values, TypeArguments: typeArgs}, nil
 	}
-	if structDef.Kind == ast.StructKindPositional && lit.FunctionalUpdateSource == nil {
+	updateCount := len(lit.FunctionalUpdateSources)
+	if structDef.Kind == ast.StructKindPositional && updateCount == 0 {
 		return nil, fmt.Errorf("Named struct literal not allowed for positional struct '%s'", structName)
 	}
-	if lit.FunctionalUpdateSource != nil && structDef.Kind == ast.StructKindPositional {
+	if updateCount > 0 && structDef.Kind == ast.StructKindPositional {
 		return nil, fmt.Errorf("Functional update only supported for named structs")
 	}
 	fields := make(map[string]runtime.Value)
 	var baseStruct *runtime.StructInstanceValue
-	if lit.FunctionalUpdateSource != nil {
-		base, err := i.evaluateExpression(lit.FunctionalUpdateSource, env)
+	for idx, srcExpr := range lit.FunctionalUpdateSources {
+		base, err := i.evaluateExpression(srcExpr, env)
 		if err != nil {
 			return nil, err
 		}
-		var ok bool
-		baseStruct, ok = base.(*runtime.StructInstanceValue)
+		instance, ok := base.(*runtime.StructInstanceValue)
 		if !ok {
 			return nil, fmt.Errorf("Functional update source must be a struct instance")
 		}
-		if baseStruct.Definition == nil || baseStruct.Definition.Node == nil || baseStruct.Definition.Node.ID == nil || baseStruct.Definition.Node.ID.Name != structName {
+		if instance.Definition == nil || instance.Definition.Node == nil || instance.Definition.Node.ID == nil || instance.Definition.Node.ID.Name != structName {
 			return nil, fmt.Errorf("Functional update source must be same struct type")
 		}
-		if baseStruct.Fields == nil {
+		if instance.Fields == nil {
 			return nil, fmt.Errorf("Functional update only supported for named structs")
 		}
-		for k, v := range baseStruct.Fields {
+		if idx == 0 {
+			baseStruct = instance
+		} else if baseStruct != nil {
+			if len(baseStruct.TypeArguments) != len(instance.TypeArguments) {
+				return nil, fmt.Errorf("Functional update sources must share type arguments")
+			}
+			for argIdx := range baseStruct.TypeArguments {
+				if !typeExpressionsEqual(baseStruct.TypeArguments[argIdx], instance.TypeArguments[argIdx]) {
+					return nil, fmt.Errorf("Functional update sources must share type arguments")
+				}
+			}
+		}
+		for k, v := range instance.Fields {
 			fields[k] = v
 		}
 	}
