@@ -1,0 +1,10 @@
+{
+  "description": "Reassignment updates an existing binding",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": 3
+    }
+  },
+  "entry": "module.json"
+}

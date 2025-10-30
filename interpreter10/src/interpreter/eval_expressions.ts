@@ -60,7 +60,6 @@ const EXPRESSION_TYPES = new Set<AST.AstNode["type"]>([
 export function applyEvaluationAugmentations(cls: typeof InterpreterV10): void {
   cls.prototype.evaluate = function evaluate(this: InterpreterV10, node: AST.AstNode | null, env: Environment = this.globals): V10Value {
     if (!node) return NIL;
-    this.checkTimeSlice();
     if (EXPRESSION_TYPES.has(node.type as AST.AstNode["type"]) && !this.hasPlaceholderFrame()) {
       const placeholderFn = this.tryBuildPlaceholderFunction(node as AST.Expression, env);
       if (placeholderFn) {

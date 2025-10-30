@@ -1,0 +1,13 @@
+{
+  "description": "Function where clause constrains generic parameters",
+  "expect": {
+    "result": {
+      "kind": "string",
+      "value": "winner"
+    }
+  },
+  "skipTargets": [
+    "ts"
+  ],
+  "entry": "module.json"
+}

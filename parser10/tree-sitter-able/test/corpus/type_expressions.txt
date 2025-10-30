@@ -19,15 +19,15 @@ fn type_examples(arr: Array i32, pair: (i32, string), cb: (i32, string) -> ?Resu
             (type_arrow
               (type_suffix
                 (type_prefix
-                  (type_atom
-                    (type_identifier
-                      (qualified_identifier
-                        (identifier)))))
-                (type_prefix
-                  (type_atom
-                    (type_identifier
-                      (qualified_identifier
-                        (identifier))))))))))
+                  (type_generic_application
+                    (type_atom
+                      (type_identifier
+                        (qualified_identifier
+                          (identifier))))
+                    (type_atom
+                      (type_identifier
+                        (qualified_identifier
+                          (identifier)))))))))))
       (parameter
         (typed_pattern
           (pattern_base
@@ -84,30 +84,30 @@ fn type_examples(arr: Array i32, pair: (i32, string), cb: (i32, string) -> ?Resu
                 (type_suffix
                   (type_prefix
                     (type_prefix
-                      (type_atom
-                        (type_identifier
-                          (qualified_identifier
-                            (identifier))))))
-                  (type_prefix
-                    (type_atom
-                      (type_identifier
-                        (qualified_identifier
-                          (identifier))))))))))))
+                      (type_generic_application
+                        (type_atom
+                          (type_identifier
+                            (qualified_identifier
+                              (identifier))))
+                        (type_atom
+                          (type_identifier
+                            (qualified_identifier
+                              (identifier))))))))))))))
     (return_type
       (type_union
         (type_arrow
           (type_suffix
             (type_prefix
               (type_prefix
-                (type_atom
-                  (type_identifier
-                    (qualified_identifier
-                      (identifier))))))
-            (type_prefix
-              (type_atom
-                (type_identifier
-                  (qualified_identifier
-                    (identifier)))))))))
+                (type_generic_application
+                  (type_atom
+                    (type_identifier
+                      (qualified_identifier
+                        (identifier))))
+                  (type_atom
+                    (type_identifier
+                      (qualified_identifier
+                        (identifier)))))))))))
     (block
       (expression_statement
         (pipe_expression

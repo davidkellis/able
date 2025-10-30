@@ -1,6 +1,7 @@
 import * as AST from "../ast";
 import type { Environment } from "./environment";
 import type { InterpreterV10 } from "./index";
+import type { ProcContinuationContext } from "./proc_continuations";
 
 export type ImplMethodEntry = {
   def: AST.ImplementationDefinition;
@@ -68,6 +69,7 @@ export type V10Value =
       cancelRequested?: boolean;
       hasStarted?: boolean;
       waitingMutex?: unknown;
+      continuation?: ProcContinuationContext;
     }
   | {
       kind: "future";

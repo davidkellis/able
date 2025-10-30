@@ -77,8 +77,8 @@ func (c *Checker) checkStructLiteral(env *Environment, expr *ast.StructLiteral) 
 		positional = make([]Type, len(expr.Fields))
 	}
 
-	if expr.FunctionalUpdateSource != nil {
-		sourceDiags, sourceType := c.checkExpression(env, expr.FunctionalUpdateSource)
+	for _, src := range expr.FunctionalUpdateSources {
+		sourceDiags, sourceType := c.checkExpression(env, src)
 		diags = append(diags, sourceDiags...)
 		switch st := sourceType.(type) {
 		case StructInstanceType:
@@ -180,10 +180,6 @@ func (c *Checker) checkStructLiteral(env *Environment, expr *ast.StructLiteral) 
 				positional[idx] = chosen
 			}
 		}
-	}
-
-	if expr.FunctionalUpdateSource != nil {
-		// already checked above to seed field information
 	}
 
 	instance := StructInstanceType{

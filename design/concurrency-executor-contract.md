@@ -50,6 +50,13 @@ underlying scheduling strategy.
     when called outside a proc/future context.
   - `proc_flush` delegates to `executor.flush(limit)` to advance the queue
     deterministically.
+  - Interpreters are expected to charge cooperative “time slices” at safe evaluation
+    boundaries (statement iterations, loop bodies, pattern matches). Once a task
+    reaches the configured `schedulerMaxSteps`, it should raise the shared yield
+    signal, persist its evaluation state, and reschedule itself so long-running
+    procs make forward progress even without explicit `proc_yield` calls. Manual
+    `proc_yield` invocations must remain supported and should not re-run already
+    completed statements when resumed.
 
 - **Determinism expectations.** Fixtures and unit tests assume that calling
   `flush()` without a limit drains at most `schedulerMaxSteps` tasks (1024 by
@@ -66,14 +73,28 @@ underlying scheduling strategy.
     at interpreter internals.
   - Fixtures automatically pick up the updated behaviour; no additional wiring
     is required.
+  - The evaluator records continuation state for blocks, loops, and match expressions.
+    When a `ProcYieldSignal` is raised (either by `proc_yield` or because
+    `checkTimeSlice()` saw `schedulerMaxSteps` ticks), the interpreter snapshots
+    the current node state, unwinds, and later resumes from the recorded point.
+    This continuation layer is what lets a single-threaded JS host emulate Go-like
+    pre-emption without user code changes.
 
 - **Go (`interpreter10-go/`).**
-  - `SerialExecutor` implements the same contract for deterministic tests.
-  - `GoroutineExecutor` ignores `ensureTick` and `flush` (no-op), providing a
-    “real” asynchronous executor for production runs while still satisfying the
-    interface.
-  - The parity harness now swaps in `GoroutineExecutor` for the cancellation and
-    memoisation fixtures to validate behaviour under true concurrency.
+  - **Production executor.** `GoroutineExecutor` launches each Able `proc`/`spawn`
+    as a native goroutine. Go’s scheduler handles suspension, resumption, and
+    fair progress automatically; we do not maintain an explicit continuation layer.
+    The interpreter simply exposes the same Proc/Future API (`status`, `value`,
+    `cancel`), delegating real concurrency to the host runtime.
+  - **Deterministic test executor.** `SerialExecutor` keeps the same `Executor`
+    surface for parity tests. It queues goroutine entry functions and drives them
+    in FIFO order to make interleavings predictable. Importantly, each task still
+    runs inside a goroutine, so stack/state preservation is provided by Go itself—
+    no AST-level continuation bookkeeping is required.
+  - The parity harness swaps between executors: `SerialExecutor` for deterministic
+    unit tests, `GoroutineExecutor` for integration scenarios that should run under
+    true concurrency. In both cases Able programs see the same observable semantics
+    as the TypeScript interpreter.
 
 ## Testing guidance
 

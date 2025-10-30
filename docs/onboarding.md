@@ -311,11 +311,10 @@ data := risky_operation()!
 # }
 
 # Error handling with else
-result := risky_operation()
-else |err| {
+result := (risky_operation() else { |err|
   print(`Operation failed: ${err}`)
   return nil
-}
+})
 ```
 
 ### Exceptions
@@ -332,8 +331,8 @@ fn validate(age: i32) -> void {
 process := fn() -> string {
   validate(user_age)
   "success"
-} rescue |err| {
-  `Validation failed: ${err}`
+} rescue {
+  case err => `Validation failed: ${err}`
 }
 ```
 

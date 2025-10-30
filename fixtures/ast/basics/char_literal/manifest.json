@@ -1,0 +1,10 @@
+{
+  "description": "Evaluates a character literal",
+  "expect": {
+    "result": {
+      "kind": "char",
+      "value": "a"
+    }
+  },
+  "entry": "module.json"
+}

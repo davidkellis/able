@@ -54,15 +54,15 @@ type StructLiteral struct {
 	expressionMarker
 	statementMarker
 
-	StructType             *Identifier               `json:"structType,omitempty"`
-	Fields                 []*StructFieldInitializer `json:"fields"`
-	IsPositional           bool                      `json:"isPositional"`
-	FunctionalUpdateSource Expression                `json:"functionalUpdateSource,omitempty"`
-	TypeArguments          []TypeExpression          `json:"typeArguments,omitempty"`
+	StructType              *Identifier               `json:"structType,omitempty"`
+	Fields                  []*StructFieldInitializer `json:"fields"`
+	IsPositional            bool                      `json:"isPositional"`
+	FunctionalUpdateSources []Expression              `json:"functionalUpdateSources,omitempty"`
+	TypeArguments           []TypeExpression          `json:"typeArguments,omitempty"`
 }
 
-func NewStructLiteral(fields []*StructFieldInitializer, isPositional bool, structType *Identifier, functionalUpdateSource Expression, typeArgs []TypeExpression) *StructLiteral {
-	return &StructLiteral{nodeImpl: newNodeImpl(NodeStructLiteral), StructType: structType, Fields: fields, IsPositional: isPositional, FunctionalUpdateSource: functionalUpdateSource, TypeArguments: typeArgs}
+func NewStructLiteral(fields []*StructFieldInitializer, isPositional bool, structType *Identifier, functionalUpdateSources []Expression, typeArgs []TypeExpression) *StructLiteral {
+	return &StructLiteral{nodeImpl: newNodeImpl(NodeStructLiteral), StructType: structType, Fields: fields, IsPositional: isPositional, FunctionalUpdateSources: functionalUpdateSources, TypeArguments: typeArgs}
 }
 
 type UnionDefinition struct {

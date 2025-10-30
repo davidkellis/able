@@ -886,8 +886,10 @@ func expressionContainsPlaceholder(expr ast.Expression) bool {
 				return true
 			}
 		}
-		if e.FunctionalUpdateSource != nil && expressionContainsPlaceholder(e.FunctionalUpdateSource) {
-			return true
+		for _, src := range e.FunctionalUpdateSources {
+			if expressionContainsPlaceholder(src) {
+				return true
+			}
 		}
 		return false
 	case *ast.ArrayLiteral:
@@ -1117,8 +1119,8 @@ func (p *placeholderAnalyzer) visitExpression(expr ast.Expression) error {
 				}
 			}
 		}
-		if e.FunctionalUpdateSource != nil {
-			if err := p.visitExpression(e.FunctionalUpdateSource); err != nil {
+		for _, src := range e.FunctionalUpdateSources {
+			if err := p.visitExpression(src); err != nil {
 				return err
 			}
 		}

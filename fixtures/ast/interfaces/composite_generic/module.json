@@ -1,0 +1,63 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "InterfaceDefinition",
+      "id": { "type": "Identifier", "name": "Display" },
+      "signatures": [
+        {
+          "type": "FunctionSignature",
+          "name": { "type": "Identifier", "name": "to_string" },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": { "type": "Identifier", "name": "self" },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": { "type": "Identifier", "name": "Self" }
+              }
+            }
+          ],
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": { "type": "Identifier", "name": "string" }
+          }
+        }
+      ],
+      "genericParams": []
+    },
+    {
+      "type": "InterfaceDefinition",
+      "id": { "type": "Identifier", "name": "Feed" },
+      "genericParams": [
+        {
+          "type": "GenericParameter",
+          "name": { "type": "Identifier", "name": "T" }
+        }
+      ],
+      "baseInterfaces": [
+        {
+          "type": "GenericTypeExpression",
+          "base": {
+            "type": "SimpleTypeExpression",
+            "name": { "type": "Identifier", "name": "Iterable" }
+          },
+          "arguments": [
+            {
+              "type": "SimpleTypeExpression",
+              "name": { "type": "Identifier", "name": "string" }
+            }
+          ]
+        },
+        {
+          "type": "SimpleTypeExpression",
+          "name": { "type": "Identifier", "name": "Sized" }
+        }
+      ]
+    },
+    {
+      "type": "NilLiteral"
+    }
+  ]
+}

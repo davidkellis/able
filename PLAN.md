@@ -22,6 +22,10 @@
 - Blocker work until the checklist is entirely `Done`; prioritize filling `TODO`/`Partial` rows before broader feature work resumes.
 - Documented host-backed design for `Channel<T>`/`Mutex` (see `design/channels-mutexes.md`); interpreters must add channel/mutex value kinds and native helpers so stdlib externs can wire in the real semantics and the remaining AST fixtures can land.
 
+**Latest parser progress (2025-01-XX):**
+- Shared AST corpus now includes fixtures for `if/or`, assignment variants, breakpoint expressions, and lambda/trailing-lambda calls; TypeScript interpreter and tree-sitter grammar have been regenerated and verified (`bun run scripts/export-fixtures.ts`, `npx tree-sitter test`).
+- Go parser harness still needs to wire these fixtures in once grammar support lands (notably `value! else { … }` and trailing-lambda metadata) — see `interpreter10/PLAN.md` for follow-up.
+
 ## Phase α — Channel & Mutex Runtime Bring-up
 1. **Runtime Foundations (TS first, Go in lock-step)**
    - Extend `V10Value`/Go equivalents with `channel` and `mutex` variants + scheduling metadata.

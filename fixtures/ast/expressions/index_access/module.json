@@ -1,0 +1,42 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "arr"
+      },
+      "right": {
+        "type": "ArrayLiteral",
+        "elements": [
+          {
+            "type": "IntegerLiteral",
+            "value": 1
+          },
+          {
+            "type": "IntegerLiteral",
+            "value": 2
+          },
+          {
+            "type": "IntegerLiteral",
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "type": "IndexExpression",
+      "object": {
+        "type": "Identifier",
+        "name": "arr"
+      },
+      "index": {
+        "type": "IntegerLiteral",
+        "value": 1
+      }
+    }
+  ]
+}

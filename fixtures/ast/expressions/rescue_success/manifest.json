@@ -1,0 +1,10 @@
+{
+  "description": "Rescue expression returns original value when no error is raised",
+  "expect": {
+    "result": {
+      "kind": "string",
+      "value": "safe"
+    }
+  },
+  "entry": "module.json"
+}

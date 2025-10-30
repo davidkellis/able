@@ -214,8 +214,10 @@ class PlaceholderAnalyzer {
           if (!field) continue;
           this.visitExpression(field.value);
         }
-        if (expr.functionalUpdateSource) {
-          this.visitExpression(expr.functionalUpdateSource);
+        const legacySource = (expr as any).functionalUpdateSource as AST.Expression | undefined;
+        const updateSources = expr.functionalUpdateSources ?? (legacySource ? [legacySource] : []);
+        for (const src of updateSources) {
+          this.visitExpression(src);
         }
         return;
       case "ArrayLiteral":
@@ -348,7 +350,13 @@ function expressionContainsPlaceholder(expr: AST.Expression | null | undefined):
       return expr.parts.some((part) => expressionContainsPlaceholder(part));
     case "StructLiteral":
       if (expr.fields.some((field) => field && expressionContainsPlaceholder(field.value))) return true;
-      if (expr.functionalUpdateSource && expressionContainsPlaceholder(expr.functionalUpdateSource)) return true;
+      {
+        const legacySource = (expr as any).functionalUpdateSource as AST.Expression | undefined;
+        const updateSources = expr.functionalUpdateSources ?? (legacySource ? [legacySource] : []);
+        for (const src of updateSources) {
+          if (expressionContainsPlaceholder(src)) return true;
+        }
+      }
       return false;
     case "ArrayLiteral":
       return expr.elements.some((el) => expressionContainsPlaceholder(el));
