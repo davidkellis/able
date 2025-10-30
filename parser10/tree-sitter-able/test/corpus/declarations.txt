@@ -179,15 +179,15 @@ methods Point i32 {
       (type_arrow
         (type_suffix
           (type_prefix
-            (type_atom
-              (type_identifier
-                (qualified_identifier
-                  (identifier)))))
-          (type_prefix
-            (type_atom
-              (type_identifier
-                (qualified_identifier
-                  (identifier))))))))
+            (type_generic_application
+              (type_atom
+                (type_identifier
+                  (qualified_identifier
+                    (identifier))))
+              (type_atom
+                (type_identifier
+                  (qualified_identifier
+                    (identifier)))))))))
     (method_member
       (function_definition
         (identifier)
@@ -237,15 +237,15 @@ methods Point i32 {
       (type_arrow
         (type_suffix
           (type_prefix
-            (type_atom
-              (type_identifier
-                (qualified_identifier
-                  (identifier)))))
-          (type_prefix
-            (type_atom
-              (type_identifier
-                (qualified_identifier
-                  (identifier))))))))
+            (type_generic_application
+              (type_atom
+                (type_identifier
+                  (qualified_identifier
+                    (identifier))))
+              (type_atom
+                (type_identifier
+                  (qualified_identifier
+                    (identifier)))))))))
     (method_member
       (function_definition
         (identifier)

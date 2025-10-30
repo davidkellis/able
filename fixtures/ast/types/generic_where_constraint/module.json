@@ -1,0 +1,161 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "FunctionDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "choose_first"
+      },
+      "params": [
+        {
+          "type": "FunctionParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "first"
+          },
+          "paramType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "T"
+            }
+          }
+        },
+        {
+          "type": "FunctionParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "second"
+          },
+          "paramType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "U"
+            }
+          }
+        }
+      ],
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "Identifier",
+            "name": "first"
+          }
+        ]
+      },
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "T"
+        }
+      },
+      "genericParams": [
+        {
+          "type": "GenericParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "T"
+          }
+        },
+        {
+          "type": "GenericParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "U"
+          }
+        }
+      ],
+      "whereClause": [
+        {
+          "type": "WhereClauseConstraint",
+          "typeParam": {
+            "type": "Identifier",
+            "name": "T"
+          },
+          "constraints": [
+            {
+              "type": "InterfaceConstraint",
+              "interfaceType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Display"
+                }
+              }
+            },
+            {
+              "type": "InterfaceConstraint",
+              "interfaceType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Clone"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "type": "WhereClauseConstraint",
+          "typeParam": {
+            "type": "Identifier",
+            "name": "U"
+          },
+          "constraints": [
+            {
+              "type": "InterfaceConstraint",
+              "interfaceType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Display"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "isMethodShorthand": false,
+      "isPrivate": false
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "Identifier",
+        "name": "choose_first"
+      },
+      "arguments": [
+        {
+          "type": "StringLiteral",
+          "value": "winner"
+        },
+        {
+          "type": "IntegerLiteral",
+          "value": 1
+        }
+      ],
+      "typeArguments": [
+        {
+          "type": "SimpleTypeExpression",
+          "name": {
+            "type": "Identifier",
+            "name": "string"
+          }
+        },
+        {
+          "type": "SimpleTypeExpression",
+          "name": {
+            "type": "Identifier",
+            "name": "i32"
+          }
+        }
+      ],
+      "isTrailingLambda": false
+    }
+  ]
+}

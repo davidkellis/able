@@ -346,8 +346,8 @@ func ShorthandField(name interface{}) *StructFieldInitializer {
 	return NewStructFieldInitializer(id, id, true)
 }
 
-func StructLit(fields []*StructFieldInitializer, isPositional bool, structType interface{}, functionalUpdateSource Expression, typeArgs []TypeExpression) *StructLiteral {
-	return NewStructLiteral(fields, isPositional, identifierPtr(structType), functionalUpdateSource, typeArgs)
+func StructLit(fields []*StructFieldInitializer, isPositional bool, structType interface{}, functionalUpdateSources []Expression, typeArgs []TypeExpression) *StructLiteral {
+	return NewStructLiteral(fields, isPositional, identifierPtr(structType), functionalUpdateSources, typeArgs)
 }
 
 func UnionDef(name interface{}, variants []TypeExpression, generics []*GenericParameter, whereClause []*WhereClauseConstraint, isPrivate bool) *UnionDefinition {

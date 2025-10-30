@@ -26,6 +26,8 @@ const PREC = {
   exponent: 15,
   call: 16,
   member: 17,
+  type_application: 18,
+  return_stmt: 19,
 };
 
 const commaSep = rule => optional(commaSep1(rule));
@@ -423,11 +425,14 @@ module.exports = grammar({
 
     host_code_chunk: _ => token(prec(-1, /[^{}]+/)),
 
-    return_statement: $ => prec.left(seq(
-      "return",
-      optional($.expression),
-      optional(";"),
-    )),
+    return_statement: $ => choice(
+      prec.left(PREC.return_stmt, seq(
+        "return",
+        field("argument", $.expression),
+        optional(";"),
+      )),
+      seq("return", optional(";")),
+    ),
 
     raise_statement: $ => seq(
       "raise",
@@ -767,19 +772,19 @@ module.exports = grammar({
     )),
 
     index_suffix: $ => seq(
-      "[",
+      token.immediate("["),
       $.expression,
       optional(seq(":", $.expression)),
       "]",
     ),
 
-    propagate_suffix: $ => "!",
+    propagate_suffix: $ => token.immediate("!"),
 
     member_access: $ => prec.left(
       PREC.member,
       seq(
         ".",
-        $.identifier,
+        field("member", choice($.identifier, $.numeric_member)),
       ),
     ),
 
@@ -846,14 +851,18 @@ module.exports = grammar({
     iterator_literal: $ => seq(
       "Iterator",
       optional(field("element_type", $.type_expression)),
-      "{",
-      field("binding", $.identifier),
-      "=>",
-      field("body", $.iterator_body),
-      "}",
+      field("body", $.iterator_block),
     ),
 
-    iterator_body: $ => seq($.statement, repeat($.statement)),
+    iterator_block: $ => seq(
+      "{",
+      optional(seq(
+        field("binding", $.identifier),
+        "=>",
+      )),
+      repeat($.statement),
+      "}",
+    ),
 
     literal: $ => choice(
       $.number_literal,
@@ -989,12 +998,26 @@ module.exports = grammar({
       $.type_suffix,
     ),
 
-    type_suffix: $ => prec.left(seq($.type_prefix, repeat($.type_prefix))),
+    type_suffix: $ => prec.left(
+      seq(
+        $.type_prefix,
+        repeat(choice($.type_prefix, $.type_arguments)),
+      ),
+    ),
 
     type_prefix: $ => choice(
       seq("?", $.type_prefix),
       seq("!", $.type_prefix),
+      $.type_generic_application,
       $.type_atom,
+    ),
+
+    type_generic_application: $ => prec.left(
+      PREC.type_application,
+      seq(
+        $.type_atom,
+        repeat1($.type_atom),
+      ),
     ),
 
     type_atom: $ => choice(
@@ -1032,6 +1055,8 @@ module.exports = grammar({
     topic_reference: _ => token("%"),
 
     identifier: _ => token(prec(-1, /[A-Za-z_][A-Za-z0-9_]*/)),
+
+    numeric_member: _ => token.immediate(/[0-9]+/),
 
     number_literal: _ => token(choice(
       new RegExp(FLOAT_LITERAL_PATTERN),

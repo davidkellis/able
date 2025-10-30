@@ -589,7 +589,7 @@ const (
 	AssignmentMod     AssignmentOperator = "%="
 	AssignmentBitAnd  AssignmentOperator = "&="
 	AssignmentBitOr   AssignmentOperator = "|="
-	AssignmentBitXor  AssignmentOperator = "^="
+	AssignmentBitXor  AssignmentOperator = `\xor=`
 	AssignmentShiftL  AssignmentOperator = "<<="
 	AssignmentShiftR  AssignmentOperator = ">>="
 )

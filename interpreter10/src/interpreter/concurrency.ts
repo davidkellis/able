@@ -4,6 +4,7 @@ import type { InterpreterV10 } from "./index";
 import type { Executor } from "./executor";
 import { ProcYieldSignal, RaiseSignal } from "./signals";
 import type { V10Value } from "./values";
+import { ProcContinuationContext } from "./proc_continuations";
 
 declare module "./index" {
   interface InterpreterV10 {
@@ -32,6 +33,10 @@ declare module "./index" {
     runFuture(future: Extract<V10Value, { kind: "future" }>): void;
     makeRuntimeError(message: string, value?: V10Value): V10Value;
     executor: Executor;
+    pushProcContext(ctx: ProcContinuationContext): void;
+    popProcContext(ctx: ProcContinuationContext): void;
+    currentProcContext(): ProcContinuationContext | null;
+    procContextStack: ProcContinuationContext[];
   }
 }
 
@@ -102,6 +107,26 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
     this.executor.ensureTick();
   };
 
+  cls.prototype.pushProcContext = function pushProcContext(this: InterpreterV10, ctx: ProcContinuationContext): void {
+    if (!this.procContextStack) {
+      this.procContextStack = [];
+    }
+    this.procContextStack.push(ctx);
+  };
+
+  cls.prototype.popProcContext = function popProcContext(this: InterpreterV10, ctx: ProcContinuationContext): void {
+    if (!this.procContextStack || this.procContextStack.length === 0) return;
+    const top = this.procContextStack[this.procContextStack.length - 1];
+    if (top === ctx) {
+      this.procContextStack.pop();
+    }
+  };
+
+  cls.prototype.currentProcContext = function currentProcContext(this: InterpreterV10): ProcContinuationContext | null {
+    if (!this.procContextStack || this.procContextStack.length === 0) return null;
+    return this.procContextStack[this.procContextStack.length - 1]!;
+  };
+
   cls.prototype.currentAsyncContext = function currentAsyncContext(this: InterpreterV10): { kind: "proc"; handle: Extract<V10Value, { kind: "proc_handle" }> } | { kind: "future"; handle: Extract<V10Value, { kind: "future" }> } | null {
     if (this.asyncContextStack.length === 0) return null;
     return this.asyncContextStack[this.asyncContextStack.length - 1];
@@ -110,6 +135,7 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
   cls.prototype.procYield = function procYield(this: InterpreterV10): V10Value {
     const ctx = this.currentAsyncContext();
     if (!ctx) throw new Error("proc_yield must be called inside an asynchronous task");
+    this.manualYieldRequested = true;
     throw new ProcYieldSignal();
   };
 
@@ -310,6 +336,12 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
     this.resetTimeSlice();
     handle.hasStarted = true;
     handle.isEvaluating = true;
+    let procContext = handle.continuation as ProcContinuationContext | undefined;
+    if (!procContext) {
+      procContext = new ProcContinuationContext();
+      (handle as any).continuation = procContext;
+    }
+    this.pushProcContext(procContext);
     this.asyncContextStack.push({ kind: "proc", handle });
     try {
       const value = this.evaluate(handle.expression, handle.env);
@@ -323,6 +355,11 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
       }
     } catch (e) {
       if (e instanceof ProcYieldSignal) {
+        const manualYield = this.manualYieldRequested;
+        this.manualYieldRequested = false;
+        if (manualYield) {
+          procContext.reset();
+        }
         if (handle.runner) {
           this.scheduleAsync(handle.runner);
         }
@@ -344,8 +381,12 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
       }
     } finally {
       this.asyncContextStack.pop();
+      this.popProcContext(procContext);
       handle.isEvaluating = false;
+      this.manualYieldRequested = false;
       if (handle.state !== "pending") {
+        procContext.reset();
+        delete (handle as any).continuation;
         handle.runner = null;
       } else if (!handle.runner) {
         handle.runner = () => this.runProcHandle(handle);

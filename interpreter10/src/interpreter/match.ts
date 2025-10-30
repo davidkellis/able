@@ -2,35 +2,57 @@ import * as AST from "../ast";
 import type { Environment } from "./environment";
 import type { InterpreterV10 } from "./index";
 import type { V10Value } from "./values";
-import { GeneratorYieldSignal } from "./signals";
+import { GeneratorYieldSignal, ProcYieldSignal } from "./signals";
+import type { ContinuationContext } from "./continuations";
+
+function isContinuationYield(context: ContinuationContext, err: unknown): boolean {
+  if (context.kind === "generator") {
+    return err instanceof GeneratorYieldSignal;
+  }
+  return err instanceof ProcYieldSignal;
+}
 
 export function evaluateMatchExpression(ctx: InterpreterV10, node: AST.MatchExpression, env: Environment): V10Value {
-  const generator = ctx.currentGeneratorContext();
-  if (!generator) {
-    const value = ctx.evaluate(node.subject, env);
-    for (const clause of node.clauses) {
-      const matchEnv = ctx.tryMatchPattern(clause.pattern, value, env);
-      if (matchEnv) {
-        if (clause.guard) {
-          const guard = ctx.evaluate(clause.guard, matchEnv);
-          if (!ctx.isTruthy(guard)) continue;
-        }
-        return ctx.evaluate(clause.body, matchEnv);
-      }
-    }
-    throw new Error("Non-exhaustive match");
+  const procContext = ctx.currentProcContext ? ctx.currentProcContext() : null;
+  if (procContext) {
+    return evaluateMatchExpressionWithContinuation(ctx, node, env, procContext);
   }
+  const generator = ctx.currentGeneratorContext();
+  if (generator) {
+    return evaluateMatchExpressionWithContinuation(ctx, node, env, generator);
+  }
+  const value = ctx.evaluate(node.subject, env);
+  for (const clause of node.clauses) {
+    ctx.checkTimeSlice();
+    const matchEnv = ctx.tryMatchPattern(clause.pattern, value, env);
+    if (matchEnv) {
+      if (clause.guard) {
+        const guard = ctx.evaluate(clause.guard, matchEnv);
+        if (!ctx.isTruthy(guard)) continue;
+      }
+      return ctx.evaluate(clause.body, matchEnv);
+    }
+  }
+  throw new Error("Non-exhaustive match");
+}
 
-  let state = generator.getMatchState(node);
+function evaluateMatchExpressionWithContinuation(
+  ctx: InterpreterV10,
+  node: AST.MatchExpression,
+  env: Environment,
+  continuation: ContinuationContext,
+): V10Value {
+  let state = continuation.getMatchState(node);
   if (!state) {
     state = {
       stage: "subject",
       clauseIndex: 0,
     };
-    generator.setMatchState(node, state);
+    continuation.setMatchState(node, state);
   }
 
   while (true) {
+    ctx.checkTimeSlice();
     switch (state.stage) {
       case "subject": {
         try {
@@ -39,17 +61,17 @@ export function evaluateMatchExpression(ctx: InterpreterV10, node: AST.MatchExpr
           state.stage = "clause";
           continue;
         } catch (err) {
-          if (err instanceof GeneratorYieldSignal) {
-            generator.markStatementIncomplete();
+          if (isContinuationYield(continuation, err)) {
+            continuation.markStatementIncomplete();
           } else {
-            generator.clearMatchState(node);
+            continuation.clearMatchState(node);
           }
           throw err;
         }
       }
       case "clause": {
         if (state.clauseIndex >= node.clauses.length) {
-          generator.clearMatchState(node);
+          continuation.clearMatchState(node);
           throw new Error("Non-exhaustive match");
         }
         const clause = node.clauses[state.clauseIndex]!;
@@ -90,10 +112,10 @@ export function evaluateMatchExpression(ctx: InterpreterV10, node: AST.MatchExpr
           state.stage = "clause";
           continue;
         } catch (err) {
-          if (err instanceof GeneratorYieldSignal) {
-            generator.markStatementIncomplete();
+          if (isContinuationYield(continuation, err)) {
+            continuation.markStatementIncomplete();
           } else {
-            generator.clearMatchState(node);
+            continuation.clearMatchState(node);
           }
           throw err;
         }
@@ -108,19 +130,19 @@ export function evaluateMatchExpression(ctx: InterpreterV10, node: AST.MatchExpr
         }
         try {
           const result = ctx.evaluate(clause.body, matchEnv);
-          generator.clearMatchState(node);
+          continuation.clearMatchState(node);
           return result;
         } catch (err) {
-          if (err instanceof GeneratorYieldSignal) {
-            generator.markStatementIncomplete();
+          if (isContinuationYield(continuation, err)) {
+            continuation.markStatementIncomplete();
           } else {
-            generator.clearMatchState(node);
+            continuation.clearMatchState(node);
           }
           throw err;
         }
       }
       default:
-        generator.clearMatchState(node);
+        continuation.clearMatchState(node);
         throw new Error("Non-exhaustive match");
     }
   }

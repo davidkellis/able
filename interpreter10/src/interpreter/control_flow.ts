@@ -1,28 +1,49 @@
 import { Environment } from "./environment";
 import type { InterpreterV10 } from "./index";
-import { BreakLabelSignal, BreakSignal, ContinueSignal, GeneratorYieldSignal, ReturnSignal } from "./signals";
+import { BreakLabelSignal, BreakSignal, ContinueSignal, GeneratorYieldSignal, ProcYieldSignal, ReturnSignal } from "./signals";
 import type { IteratorValue, V10Value } from "./values";
 import * as AST from "../ast";
+import type { ContinuationContext } from "./continuations";
+
+function isContinuationYield(context: ContinuationContext, err: unknown): boolean {
+  if (context.kind === "generator") {
+    return err instanceof GeneratorYieldSignal;
+  }
+  return err instanceof ProcYieldSignal;
+}
 
 export function evaluateBlockExpression(ctx: InterpreterV10, node: AST.BlockExpression, env: Environment): V10Value {
-  const generator = ctx.currentGeneratorContext();
-  if (!generator) {
-    const blockEnv = new Environment(env);
-    let result: V10Value = { kind: "nil", value: null };
-    for (const statement of node.body) {
-      result = ctx.evaluate(statement, blockEnv);
-    }
-    return result;
+  const procContext = ctx.currentProcContext ? ctx.currentProcContext() : null;
+  if (procContext) {
+    return evaluateBlockExpressionWithContinuation(ctx, node, env, procContext);
   }
+  const generator = ctx.currentGeneratorContext();
+  if (generator) {
+    return evaluateBlockExpressionWithContinuation(ctx, node, env, generator);
+  }
+  const blockEnv = new Environment(env);
+  let result: V10Value = { kind: "nil", value: null };
+  for (const statement of node.body) {
+    ctx.checkTimeSlice();
+    result = ctx.evaluate(statement, blockEnv);
+  }
+  return result;
+}
 
-  let state = generator.getBlockState(node);
+function evaluateBlockExpressionWithContinuation(
+  ctx: InterpreterV10,
+  node: AST.BlockExpression,
+  env: Environment,
+  continuation: ContinuationContext,
+): V10Value {
+  let state = continuation.getBlockState(node);
   if (!state) {
     state = {
       env: new Environment(env),
       index: 0,
       result: { kind: "nil", value: null },
     };
-    generator.setBlockState(node, state);
+    continuation.setBlockState(node, state);
   }
 
   const blockEnv = state.env;
@@ -32,17 +53,21 @@ export function evaluateBlockExpression(ctx: InterpreterV10, node: AST.BlockExpr
   while (index < node.body.length) {
     const statement = node.body[index]!;
     try {
+      ctx.checkTimeSlice();
       result = ctx.evaluate(statement, blockEnv);
     } catch (err) {
-      if (err instanceof GeneratorYieldSignal) {
-        if (statement.type === "YieldStatement" || isGenYieldCall(statement)) {
+      if (isContinuationYield(continuation, err)) {
+        if (
+          continuation.kind === "generator" &&
+          (statement.type === "YieldStatement" || isGenYieldCall(statement))
+        ) {
           index += 1;
         }
         state.index = index;
         state.result = result;
         throw err;
       }
-      generator.clearBlockState(node);
+      continuation.clearBlockState(node);
       throw err;
     }
     index += 1;
@@ -50,7 +75,7 @@ export function evaluateBlockExpression(ctx: InterpreterV10, node: AST.BlockExpr
     state.result = result;
   }
 
-  generator.clearBlockState(node);
+  continuation.clearBlockState(node);
   return result;
 }
 
@@ -66,29 +91,41 @@ function isGenYieldCall(statement: AST.Statement): boolean {
 }
 
 export function evaluateIfExpression(ctx: InterpreterV10, node: AST.IfExpression, env: Environment): V10Value {
-  const generator = ctx.currentGeneratorContext();
-  if (!generator) {
-    const cond = ctx.evaluate(node.ifCondition, env);
-    if (ctx.isTruthy(cond)) return ctx.evaluate(node.ifBody, env);
-    for (const clause of node.orClauses) {
-      if (clause.condition) {
-        const c = ctx.evaluate(clause.condition, env);
-        if (ctx.isTruthy(c)) return ctx.evaluate(clause.body, env);
-      } else {
-        return ctx.evaluate(clause.body, env);
-      }
-    }
-    return { kind: "nil", value: null };
+  const procContext = ctx.currentProcContext ? ctx.currentProcContext() : null;
+  if (procContext) {
+    return evaluateIfExpressionWithContinuation(ctx, node, env, procContext);
   }
+  const generator = ctx.currentGeneratorContext();
+  if (generator) {
+    return evaluateIfExpressionWithContinuation(ctx, node, env, generator);
+  }
+  const cond = ctx.evaluate(node.ifCondition, env);
+  if (ctx.isTruthy(cond)) return ctx.evaluate(node.ifBody, env);
+  for (const clause of node.orClauses) {
+    if (clause.condition) {
+      const c = ctx.evaluate(clause.condition, env);
+      if (ctx.isTruthy(c)) return ctx.evaluate(clause.body, env);
+    } else {
+      return ctx.evaluate(clause.body, env);
+    }
+  }
+  return { kind: "nil", value: null };
+}
 
-  let state = generator.getIfState(node);
+function evaluateIfExpressionWithContinuation(
+  ctx: InterpreterV10,
+  node: AST.IfExpression,
+  env: Environment,
+  continuation: ContinuationContext,
+): V10Value {
+  let state = continuation.getIfState(node);
   if (!state) {
     state = {
       stage: "if_condition",
       orIndex: 0,
       result: { kind: "nil", value: null },
     };
-    generator.setIfState(node, state);
+    continuation.setIfState(node, state);
   }
 
   while (true) {
@@ -104,10 +141,10 @@ export function evaluateIfExpression(ctx: InterpreterV10, node: AST.IfExpression
           state.orIndex = 0;
           continue;
         } catch (err) {
-          if (err instanceof GeneratorYieldSignal) {
-            generator.markStatementIncomplete();
+          if (isContinuationYield(continuation, err)) {
+            continuation.markStatementIncomplete();
           } else {
-            generator.clearIfState(node);
+            continuation.clearIfState(node);
           }
           throw err;
         }
@@ -115,20 +152,20 @@ export function evaluateIfExpression(ctx: InterpreterV10, node: AST.IfExpression
       case "if_body": {
         try {
           const result = ctx.evaluate(node.ifBody, env);
-          generator.clearIfState(node);
+          continuation.clearIfState(node);
           return result;
         } catch (err) {
-          if (err instanceof GeneratorYieldSignal) {
-            generator.markStatementIncomplete();
+          if (isContinuationYield(continuation, err)) {
+            continuation.markStatementIncomplete();
           } else {
-            generator.clearIfState(node);
+            continuation.clearIfState(node);
           }
           throw err;
         }
       }
       case "or_condition": {
         if (state.orIndex >= node.orClauses.length) {
-          generator.clearIfState(node);
+          continuation.clearIfState(node);
           return { kind: "nil", value: null };
         }
         const clause = node.orClauses[state.orIndex]!;
@@ -145,10 +182,10 @@ export function evaluateIfExpression(ctx: InterpreterV10, node: AST.IfExpression
           state.orIndex += 1;
           continue;
         } catch (err) {
-          if (err instanceof GeneratorYieldSignal) {
-            generator.markStatementIncomplete();
+          if (isContinuationYield(continuation, err)) {
+            continuation.markStatementIncomplete();
           } else {
-            generator.clearIfState(node);
+            continuation.clearIfState(node);
           }
           throw err;
         }
@@ -157,31 +194,36 @@ export function evaluateIfExpression(ctx: InterpreterV10, node: AST.IfExpression
         const clause = node.orClauses[state.orIndex]!;
         try {
           const result = ctx.evaluate(clause.body, env);
-          generator.clearIfState(node);
+          continuation.clearIfState(node);
           return result;
         } catch (err) {
-          if (err instanceof GeneratorYieldSignal) {
-            generator.markStatementIncomplete();
+          if (isContinuationYield(continuation, err)) {
+            continuation.markStatementIncomplete();
           } else {
-            generator.clearIfState(node);
+            continuation.clearIfState(node);
           }
           throw err;
         }
       }
       default:
-        generator.clearIfState(node);
+        continuation.clearIfState(node);
         return { kind: "nil", value: null };
     }
   }
 }
 
 export function evaluateWhileLoop(ctx: InterpreterV10, node: AST.WhileLoop, env: Environment): V10Value {
+  const procContext = ctx.currentProcContext ? ctx.currentProcContext() : null;
+  if (procContext) {
+    return evaluateWhileLoopWithContinuation(ctx, node, env, procContext);
+  }
   const generator = ctx.currentGeneratorContext();
   if (generator) {
-    return evaluateWhileLoopWithGenerator(ctx, node, env, generator);
+    return evaluateWhileLoopWithContinuation(ctx, node, env, generator);
   }
   let result: V10Value = { kind: "nil", value: null };
   while (true) {
+    ctx.checkTimeSlice();
     const condition = ctx.evaluate(node.condition, env);
     if (!ctx.isTruthy(condition)) {
       return result;
@@ -204,15 +246,15 @@ export function evaluateWhileLoop(ctx: InterpreterV10, node: AST.WhileLoop, env:
   }
 }
 
-function evaluateWhileLoopWithGenerator(
+function evaluateWhileLoopWithContinuation(
   ctx: InterpreterV10,
   node: AST.WhileLoop,
   env: Environment,
-  generator: ReturnType<InterpreterV10["currentGeneratorContext"]>,
+  continuation: ContinuationContext,
 ): V10Value {
-  if (!generator) throw new Error("Generator context missing");
+  if (!continuation) throw new Error("Continuation context missing");
 
-  let state = generator.getWhileLoopState(node);
+  let state = continuation.getWhileLoopState(node);
   if (!state) {
     state = {
       baseEnv: env,
@@ -221,7 +263,7 @@ function evaluateWhileLoopWithGenerator(
       loopEnv: undefined,
       conditionInProgress: false,
     };
-    generator.setWhileLoopState(node, state);
+    continuation.setWhileLoopState(node, state);
   }
 
   let result = state.result ?? { kind: "nil", value: null };
@@ -232,24 +274,25 @@ function evaluateWhileLoopWithGenerator(
   };
 
   while (true) {
+    ctx.checkTimeSlice();
     if (!state.inBody) {
       state.conditionInProgress = true;
       let condition: V10Value;
       try {
         condition = ctx.evaluate(node.condition, env);
       } catch (err) {
-        if (err instanceof GeneratorYieldSignal) {
+        if (isContinuationYield(continuation, err)) {
           state.result = result;
-          generator.markStatementIncomplete();
+          continuation.markStatementIncomplete();
           throw err;
         }
-        generator.clearWhileLoopState(node);
+        continuation.clearWhileLoopState(node);
         throw err;
       } finally {
         state.conditionInProgress = false;
       }
       if (!ctx.isTruthy(condition)) {
-        generator.clearWhileLoopState(node);
+        continuation.clearWhileLoopState(node);
         return result;
       }
       state.inBody = true;
@@ -264,32 +307,32 @@ function evaluateWhileLoopWithGenerator(
       resetBody();
       continue;
     } catch (err) {
-      if (err instanceof GeneratorYieldSignal) {
+      if (isContinuationYield(continuation, err)) {
         state.result = result;
-        generator.markStatementIncomplete();
+        continuation.markStatementIncomplete();
         throw err;
       }
       if (err instanceof BreakSignal) {
         if (err.label) {
-          generator.clearWhileLoopState(node);
+          continuation.clearWhileLoopState(node);
           throw err;
         }
-        generator.clearWhileLoopState(node);
+        continuation.clearWhileLoopState(node);
         return err.value;
       }
       if (err instanceof BreakLabelSignal) {
-        generator.clearWhileLoopState(node);
+        continuation.clearWhileLoopState(node);
         throw err;
       }
       if (err instanceof ContinueSignal) {
         if (err.label) {
-          generator.clearWhileLoopState(node);
+          continuation.clearWhileLoopState(node);
           throw new Error("Labeled continue not supported");
         }
         resetBody();
         continue;
       }
-      generator.clearWhileLoopState(node);
+      continuation.clearWhileLoopState(node);
       throw err;
     }
   }
@@ -312,9 +355,13 @@ export function evaluateContinueStatement(ctx: InterpreterV10, node: AST.Continu
 
 export function evaluateForLoop(ctx: InterpreterV10, node: AST.ForLoop, env: Environment): V10Value {
   const iterableValue = ctx.evaluate(node.iterable, env);
+  const procContext = ctx.currentProcContext ? ctx.currentProcContext() : null;
+  if (procContext) {
+    return evaluateForLoopWithContinuation(ctx, node, env, procContext, iterableValue);
+  }
   const generator = ctx.currentGeneratorContext();
   if (generator) {
-    return evaluateForLoopWithGenerator(ctx, node, env, generator, iterableValue);
+    return evaluateForLoopWithContinuation(ctx, node, env, generator, iterableValue);
   }
   const baseEnv = new Environment(env);
   const values: V10Value[] = [];
@@ -353,6 +400,7 @@ export function evaluateForLoop(ctx: InterpreterV10, node: AST.ForLoop, env: Env
 
   let last: V10Value = { kind: "nil", value: null };
   for (const value of values) {
+    ctx.checkTimeSlice();
     const loopEnv = new Environment(baseEnv);
     bindPattern(ctx, node.pattern, value, loopEnv);
     try {
@@ -377,6 +425,7 @@ function iterateDynamicIterator(ctx: InterpreterV10, loop: AST.ForLoop, baseEnv:
   let result: V10Value = { kind: "nil", value: null };
   try {
     while (true) {
+      ctx.checkTimeSlice();
       let step;
       try {
         step = iterator.iterator.next();
@@ -409,18 +458,18 @@ function iterateDynamicIterator(ctx: InterpreterV10, loop: AST.ForLoop, baseEnv:
   }
 }
 
-function evaluateForLoopWithGenerator(
+function evaluateForLoopWithContinuation(
   ctx: InterpreterV10,
   loop: AST.ForLoop,
   env: Environment,
-  generator: ReturnType<InterpreterV10["currentGeneratorContext"]>,
+  continuation: ContinuationContext,
   iterableValue: V10Value,
 ): V10Value {
-  if (!generator) {
-    throw new Error("Generator context missing");
+  if (!continuation) {
+    throw new Error("Continuation context missing");
   }
 
-  let state = generator.getForLoopState(loop);
+  let state = continuation.getForLoopState(loop);
   if (!state) {
     const baseEnv = new Environment(env);
     const initialResult: V10Value = { kind: "nil", value: null };
@@ -486,7 +535,7 @@ function evaluateForLoopWithGenerator(
         awaitingBody: false,
       };
     }
-    generator.setForLoopState(loop, state);
+    continuation.setForLoopState(loop, state);
   }
 
   const baseEnv = state.baseEnv;
@@ -499,10 +548,11 @@ function evaluateForLoopWithGenerator(
       } catch {}
       state.iteratorClosed = true;
     }
-    generator.clearForLoopState(loop);
+    continuation.clearForLoopState(loop);
   };
 
   while (true) {
+    ctx.checkTimeSlice();
     let iterationEnv = state.iterationEnv;
     let value: V10Value | undefined;
     if (state.awaitingBody && iterationEnv) {
@@ -556,9 +606,9 @@ function evaluateForLoopWithGenerator(
       state.index += 1;
       continue;
     } catch (err) {
-      if (err instanceof GeneratorYieldSignal) {
+      if (isContinuationYield(continuation, err)) {
         state.result = result;
-        generator.markStatementIncomplete();
+        continuation.markStatementIncomplete();
         throw err;
       }
       if (err instanceof BreakSignal) {

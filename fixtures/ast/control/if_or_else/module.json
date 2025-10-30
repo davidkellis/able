@@ -1,0 +1,92 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "score"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 85
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "grade"
+      },
+      "right": {
+        "type": "IfExpression",
+        "ifCondition": {
+          "type": "BinaryExpression",
+          "operator": ">=",
+          "left": {
+            "type": "Identifier",
+            "name": "score"
+          },
+          "right": {
+            "type": "IntegerLiteral",
+            "value": 90
+          }
+        },
+        "ifBody": {
+          "type": "BlockExpression",
+          "body": [
+            {
+              "type": "StringLiteral",
+              "value": "A"
+            }
+          ]
+        },
+        "orClauses": [
+          {
+            "type": "OrClause",
+            "condition": {
+              "type": "BinaryExpression",
+              "operator": ">=",
+              "left": {
+                "type": "Identifier",
+                "name": "score"
+              },
+              "right": {
+                "type": "IntegerLiteral",
+                "value": 80
+              }
+            },
+            "body": {
+              "type": "BlockExpression",
+              "body": [
+                {
+                  "type": "StringLiteral",
+                  "value": "B"
+                }
+              ]
+            }
+          },
+          {
+            "type": "OrClause",
+            "body": {
+              "type": "BlockExpression",
+              "body": [
+                {
+                  "type": "StringLiteral",
+                  "value": "C or lower"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Identifier",
+      "name": "grade"
+    }
+  ]
+}

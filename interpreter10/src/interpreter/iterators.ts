@@ -3,48 +3,17 @@ import { Environment } from "./environment";
 import type { InterpreterV10 } from "./index";
 import { GeneratorStopSignal, GeneratorYieldSignal, ReturnSignal } from "./signals";
 import type { IteratorStep, IteratorValue, V10Value } from "./values";
+import type {
+  BlockState,
+  ContinuationContext,
+  ForLoopState,
+  IfExpressionState,
+  MatchExpressionState,
+  WhileLoopState,
+} from "./continuations";
 
-type BlockState = {
-  env: Environment;
-  index: number;
-  result: V10Value;
-};
-
-type ForLoopState = {
-  mode: "static" | "iterator";
-  values?: V10Value[];
-  iterator?: IteratorValue;
-  baseEnv: Environment;
-  index: number;
-  result: V10Value;
-  iterationEnv?: Environment;
-  awaitingBody: boolean;
-  pendingValue?: V10Value;
-  iteratorClosed?: boolean;
-};
-
-type WhileLoopState = {
-  baseEnv: Environment;
-  result: V10Value;
-  inBody: boolean;
-  loopEnv?: Environment;
-  conditionInProgress: boolean;
-};
-
-type IfExpressionState = {
-  stage: "if_condition" | "if_body" | "or_condition" | "or_body";
-  orIndex: number;
-  result?: V10Value;
-};
-
-type MatchExpressionState = {
-  stage: "subject" | "clause" | "guard" | "body";
-  clauseIndex: number;
-  subject?: V10Value;
-  matchEnv?: Environment;
-};
-
-class GeneratorContext {
+class GeneratorContext implements ContinuationContext {
+  readonly kind = "generator" as const;
   readonly iteratorValue: IteratorValue;
 
   private index = 0;

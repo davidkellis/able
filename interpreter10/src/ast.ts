@@ -146,7 +146,7 @@ export interface UnaryExpression extends AstNode { type: 'UnaryExpression'; oper
 export interface BinaryExpression extends AstNode { type: 'BinaryExpression'; operator: string; left: Expression; right: Expression; }
 export interface FunctionCall extends AstNode { type: 'FunctionCall'; callee: Expression; arguments: Expression[]; typeArguments?: TypeExpression[]; isTrailingLambda: boolean; }
 export interface BlockExpression extends AstNode { type: 'BlockExpression'; body: Statement[]; }
-export interface AssignmentExpression extends AstNode { type: 'AssignmentExpression'; operator: ':=' | '=' | '+=' | '-=' | '*=' | '/=' | '%=' | '&=' | '|=' | '^=' | '<<=' | '>>='; left: Pattern | MemberAccessExpression | IndexExpression; right: Expression; }
+export interface AssignmentExpression extends AstNode { type: 'AssignmentExpression'; operator: ':=' | '=' | '+=' | '-=' | '*=' | '/=' | '%=' | '&=' | '|=' | '\\xor=' | '<<=' | '>>='; left: Pattern | MemberAccessExpression | IndexExpression; right: Expression; }
 export interface RangeExpression extends AstNode { type: 'RangeExpression'; start: Expression; end: Expression; inclusive: boolean; }
 export interface StringInterpolation extends AstNode { type: 'StringInterpolation'; parts: (StringLiteral | Expression)[]; }
 export interface MemberAccessExpression extends AstNode { type: 'MemberAccessExpression'; object: Expression; member: Identifier | IntegerLiteral; }
@@ -334,14 +334,14 @@ export interface StructLiteral extends AstNode {
   structType?: Identifier;
   fields: StructFieldInitializer[];
   isPositional: boolean;
-  functionalUpdateSource?: Expression;
+  functionalUpdateSources?: Expression[];
   typeArguments?: TypeExpression[];
 }
 export function structLiteral(
   fields: StructFieldInitializer[],
   isPositional: boolean,
   structType?: Identifier | string,
-  functionalUpdateSource?: Expression,
+  functionalUpdateSources?: Expression[],
   typeArguments?: TypeExpression[],
 ): StructLiteral {
   return {
@@ -349,7 +349,7 @@ export function structLiteral(
     structType: typeof structType === 'string' ? identifier(structType) : structType,
     fields,
     isPositional,
-    functionalUpdateSource,
+    functionalUpdateSources,
     typeArguments,
   };
 }

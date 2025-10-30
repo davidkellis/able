@@ -1,0 +1,10 @@
+{
+  "description": "Compound assignment applies operator to existing value",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": 7
+    }
+  },
+  "entry": "module.json"
+}

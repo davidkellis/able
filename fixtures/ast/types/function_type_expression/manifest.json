@@ -1,0 +1,10 @@
+{
+  "description": "Function parameter uses arrow type annotation",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": 6
+    }
+  },
+  "entry": "module.json"
+}

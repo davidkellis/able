@@ -1,0 +1,13 @@
+{
+  "description": "Ensure block runs even when try expression succeeds",
+  "expect": {
+    "stdout": [
+      "ensure"
+    ],
+    "result": {
+      "kind": "string",
+      "value": "body"
+    }
+  },
+  "entry": "module.json"
+}

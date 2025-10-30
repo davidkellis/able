@@ -1,0 +1,64 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "adder"
+      },
+      "right": {
+        "type": "LambdaExpression",
+        "params": [
+          {
+            "type": "FunctionParameter",
+            "name": {
+              "type": "Identifier",
+              "name": "x"
+            }
+          },
+          {
+            "type": "FunctionParameter",
+            "name": {
+              "type": "Identifier",
+              "name": "y"
+            }
+          }
+        ],
+        "body": {
+          "type": "BinaryExpression",
+          "operator": "+",
+          "left": {
+            "type": "Identifier",
+            "name": "x"
+          },
+          "right": {
+            "type": "Identifier",
+            "name": "y"
+          }
+        },
+        "isVerboseSyntax": false
+      }
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "Identifier",
+        "name": "adder"
+      },
+      "arguments": [
+        {
+          "type": "IntegerLiteral",
+          "value": 2
+        },
+        {
+          "type": "IntegerLiteral",
+          "value": 3
+        }
+      ],
+      "isTrailingLambda": false
+    }
+  ]
+}

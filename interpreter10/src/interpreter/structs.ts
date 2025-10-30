@@ -41,11 +41,30 @@ export function evaluateStructLiteral(ctx: InterpreterV10, node: AST.StructLiter
     };
   }
   const map = new Map<string, V10Value>();
-  if (node.functionalUpdateSource) {
-    const base = ctx.evaluate(node.functionalUpdateSource, env);
+  const legacySource = (node as any).functionalUpdateSource as AST.Expression | undefined;
+  const updateSources = node.functionalUpdateSources ?? (legacySource ? [legacySource] : []);
+  let canonicalBaseTypeArgs: AST.TypeExpression[] | undefined;
+  for (const src of updateSources) {
+    const base = ctx.evaluate(src, env);
     if (base.kind !== "struct_instance") throw new Error("Functional update source must be a struct instance");
     if (base.def.id.name !== structDef.id.name) throw new Error("Functional update source must be same struct type");
     if (!(base.values instanceof Map)) throw new Error("Functional update only supported for named structs");
+    if (canonicalBaseTypeArgs && base.typeArguments) {
+      if (canonicalBaseTypeArgs.length !== base.typeArguments.length) {
+        throw new Error("Functional update sources must share type arguments");
+      }
+      for (let i = 0; i < canonicalBaseTypeArgs.length; i++) {
+        const expected = canonicalBaseTypeArgs[i]!;
+        const actual = base.typeArguments[i]!;
+        if (!ctx.typeExpressionsEqual(expected, actual)) {
+          throw new Error("Functional update sources must share type arguments");
+        }
+      }
+    } else if (!canonicalBaseTypeArgs && base.typeArguments) {
+      canonicalBaseTypeArgs = base.typeArguments;
+    } else if (canonicalBaseTypeArgs && !base.typeArguments && canonicalBaseTypeArgs.length > 0) {
+      throw new Error("Functional update sources must share type arguments");
+    }
     if (typeArguments && base.typeArguments) {
       if (typeArguments.length !== base.typeArguments.length) {
         throw new Error("Functional update must use same type arguments as source");

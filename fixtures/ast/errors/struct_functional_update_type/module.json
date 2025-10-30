@@ -42,7 +42,9 @@
           { "type": "StructFieldInitializer", "name": { "type": "Identifier", "name": "dx" }, "value": { "type": "IntegerLiteral", "value": 5 } }
         ],
         "isPositional": false,
-        "functionalUpdateSource": { "type": "Identifier", "name": "p" }
+        "functionalUpdateSources": [
+          { "type": "Identifier", "name": "p" }
+        ]
       }
     }
   ]

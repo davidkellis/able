@@ -718,7 +718,7 @@ func TestStructFunctionalUpdate(t *testing.T) {
 				},
 				false,
 				"User",
-				ast.ID("base"),
+				[]ast.Expression{ast.ID("base")},
 				nil,
 			),
 		),
@@ -743,6 +743,77 @@ func TestStructFunctionalUpdate(t *testing.T) {
 	}
 	if field, ok := baseStruct.Fields["name"].(runtime.StringValue); !ok || field.Val != "Alice" {
 		t.Fatalf("base struct mutated unexpectedly: %#v", baseStruct.Fields["name"])
+	}
+}
+
+func TestStructFunctionalUpdateMultipleSources(t *testing.T) {
+	interp := New()
+	module := ast.Mod([]ast.Statement{
+		ast.StructDef(
+			"Point",
+			[]*ast.StructFieldDefinition{
+				ast.FieldDef(ast.Ty("i32"), "x"),
+				ast.FieldDef(ast.Ty("i32"), "y"),
+			},
+			ast.StructKindNamed,
+			nil,
+			nil,
+			false,
+		),
+		ast.Assign(
+			ast.ID("merged"),
+			ast.StructLit(
+				[]*ast.StructFieldInitializer{
+					ast.FieldInit(ast.Int(99), "x"),
+				},
+				false,
+				"Point",
+				[]ast.Expression{
+					ast.StructLit(
+						[]*ast.StructFieldInitializer{
+							ast.FieldInit(ast.Int(1), "x"),
+							ast.FieldInit(ast.Int(10), "y"),
+						},
+						false,
+						"Point",
+						nil,
+						nil,
+					),
+					ast.StructLit(
+						[]*ast.StructFieldInitializer{
+							ast.FieldInit(ast.Int(2), "x"),
+							ast.FieldInit(ast.Int(20), "y"),
+						},
+						false,
+						"Point",
+						nil,
+						nil,
+					),
+				},
+				nil,
+			),
+		),
+		ast.Member(ast.ID("merged"), "y"),
+	}, nil, nil)
+
+	result, env, err := interp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	yVal, ok := result.(runtime.IntegerValue)
+	if !ok || yVal.Val.Int64() != 20 {
+		t.Fatalf("expected merged.y == 20, got %#v", result)
+	}
+	mergedVal, err := env.Get("merged")
+	if err != nil {
+		t.Fatalf("expected merged binding: %v", err)
+	}
+	mergedStruct, ok := mergedVal.(*runtime.StructInstanceValue)
+	if !ok || mergedStruct.Fields == nil {
+		t.Fatalf("expected named struct merged, got %#v", mergedVal)
+	}
+	if field, ok := mergedStruct.Fields["x"].(runtime.IntegerValue); !ok || field.Val.Int64() != 99 {
+		t.Fatalf("merged.x incorrect, got %#v", mergedStruct.Fields["x"])
 	}
 }
 
@@ -777,7 +848,7 @@ func TestStructFunctionalUpdateWrongType(t *testing.T) {
 			ast.ID("b"),
 			ast.StructLit([]*ast.StructFieldInitializer{ast.FieldInit(ast.Int(20), "y")}, false, "B", nil, nil),
 		),
-		ast.StructLit([]*ast.StructFieldInitializer{}, false, "A", ast.ID("b"), nil),
+		ast.StructLit([]*ast.StructFieldInitializer{}, false, "A", []ast.Expression{ast.ID("b")}, nil),
 	}, nil, nil)
 
 	_, _, err := interp.EvaluateModule(module)

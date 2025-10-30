@@ -18,6 +18,7 @@ import { Environment } from "./environment";
 import type { ImplMethodEntry, V10Value, ConstraintSpec } from "./values";
 import { CooperativeExecutor, type Executor } from "./executor";
 import { ProcYieldSignal } from "./signals";
+import type { ProcContinuationContext } from "./proc_continuations";
 
 // =============================================================================
 // v10 Interpreter (modular layout)
@@ -77,10 +78,12 @@ export class InterpreterV10 {
   schedulerMaxSteps = 1024;
   executor: Executor;
   timeSliceCounter = 0;
+  manualYieldRequested = false;
   asyncContextStack: Array<
     { kind: "proc"; handle: Extract<V10Value, { kind: "proc_handle" }> } |
     { kind: "future"; handle: Extract<V10Value, { kind: "future" }> }
   > = [];
+  procContextStack: ProcContinuationContext[] = [];
 
   constructor(options: InterpreterOptions = {}) {
     if (options.schedulerMaxSteps !== undefined) {
