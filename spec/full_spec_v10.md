@@ -1709,39 +1709,6 @@ result = process_data(d, 5) ## result is (10 + 1) * 5 = 55
 ```
 
 #### 7.6.2. Implicit Self Parameter Definition (`fn #method`)
-#### 7.6.3. Placeholder Lambdas (`@`, `@n`)
-
-Placeholders in expression positions create anonymous functions.
-
-*   `@` without a number introduces fresh parameters left-to-right within the expression:
-    *   `@ + 1` → `{ x => x + 1 }`
-    *   `@ * @` → `{ x, y => x * y }`
-*   Numbered placeholders refer to specific parameter positions; repeats reuse the same parameter:
-    *   `@1 + @1` → `{ x => x + x }`
-*   Mixing is allowed; arity is the maximum of the highest numbered placeholder and the count of unnumbered placeholders:
-    *   `f(@1, @, @3)` → `{ x, y, z => f(x, y, z) }`
-*   Scope: The smallest enclosing expression that expects a function determines the lambda boundary. If a placeholder spans a whole block, the entire block becomes the lambda body. Parentheses may be used for clarity without changing scope.
-*   Nesting: Placeholders inside an explicit lambda (`{ ... }`), iterator body, `proc`, or `spawn` are scoped to that construct; they do not implicitly convert the outer expression into a placeholder lambda.
-*   Errors:
-    *   Using `@`/`@n` where a named identifier is required (outside expression placeholders) is a compile-time error.
-    *   Arity mismatches between inferred placeholder lambdas and the expected function type at the call site are compile-time errors.
-
-Example (nested placeholders remain local):
-```able
-builder = { ## explicit lambda; returns a callable that doubles its input
-  fn_from_placeholder = (@ * 2)   ## placeholder inside lambda produces a separate function
-  fn_from_placeholder
-}
-
-double = builder()
-double(5) ## => 10; the outer lambda stays a normal function, only the placeholder expression becomes callable
-```
-
-Interaction with `|>` topic semantics:
-
-- In a pipe step, either use the topic `%` somewhere in the RHS, or the RHS must evaluate to a unary callable which is then applied to the subject. Placeholders can be used to construct such callables: e.g., `x |> add(@, 1)`.
-- `%` and `@`/`@n` are orthogonal. `%` binds the current subject value; `@`/`@n` construct anonymous functions within ordinary expressions.
-
 
 **Allowed only when defining functions within a `methods TypeName { ... }` block or an `impl Interface for Type { ... }` block.**
 
@@ -1779,6 +1746,40 @@ c = Counter { value: 5 }
 c.increment() ## c.value becomes 6
 c.add(10)     ## c.value becomes 16
 ```
+
+#### 7.6.3. Placeholder Lambdas (`@`, `@n`)
+
+Placeholders in expression positions create anonymous functions.
+
+*   `@` without a number introduces fresh parameters left-to-right within the expression:
+    *   `@ + 1` → `{ x => x + 1 }`
+    *   `@ * @` → `{ x, y => x * y }`
+*   Numbered placeholders refer to specific parameter positions; repeats reuse the same parameter:
+    *   `@1 + @1` → `{ x => x + x }`
+*   Mixing is allowed; arity is the maximum of the highest numbered placeholder and the count of unnumbered placeholders:
+    *   `f(@1, @, @3)` → `{ x, y, z => f(x, y, z) }`
+*   Scope: The smallest enclosing expression that expects a function determines the lambda boundary. If a placeholder spans a whole block, the entire block becomes the lambda body. Parentheses may be used for clarity without changing scope.
+*   Nesting: Placeholders inside an explicit lambda (`{ ... }`), iterator body, `proc`, or `spawn` are scoped to that construct; they do not implicitly convert the outer expression into a placeholder lambda.
+*   Errors:
+    *   Using `@`/`@n` where a named identifier is required (outside expression placeholders) is a compile-time error.
+    *   Arity mismatches between inferred placeholder lambdas and the expected function type at the call site are compile-time errors.
+
+Example (nested placeholders remain local):
+```able
+builder = { ## explicit lambda; returns a callable that doubles its input
+  fn_from_placeholder = (@ * 2)   ## placeholder inside lambda produces a separate function
+  fn_from_placeholder
+}
+
+double = builder()
+double(5) ## => 10; the outer lambda stays a normal function, only the placeholder expression becomes callable
+```
+
+Interaction with `|>` topic semantics:
+
+- In a pipe step, either use the topic `%` somewhere in the RHS, or the RHS must evaluate to a unary callable which is then applied to the subject. Placeholders can be used to construct such callables: e.g., `x |> add(@, 1)`.
+- `%` and `@`/`@n` are orthogonal. `%` binds the current subject value; `@`/`@n` construct anonymous functions within ordinary expressions.
+
 
 ## 8. Control Flow
 
