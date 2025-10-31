@@ -145,6 +145,7 @@ module.exports = grammar({
     [$.primary_expression, $.struct_literal_shorthand_field],
     [$.struct_literal_field, $.pattern_base],
     [$.block, $.struct_pattern],
+    [$.struct_record, $.struct_tuple],
   ],
 
   rules: {
@@ -311,10 +312,10 @@ module.exports = grammar({
     ),
 
     struct_tuple: $ => seq(
-      "(",
+      "{",
       commaSep($.type_expression),
       optional(","),
-      ")",
+      "}",
     ),
 
     union_definition: $ => seq(

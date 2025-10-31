@@ -3,8 +3,11 @@
   "module": "index.ts",
   "type": "module",
   "private": true,
+  "license": "EPL-2.0",
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "tree-sitter": "^0.22.4",
+    "web-tree-sitter": "^0.25.10"
   },
   "peerDependencies": {
     "typescript": "^5"

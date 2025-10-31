@@ -19,6 +19,9 @@ func runFixtureWithExecutor(t testingT, dir string, executor Executor) {
 		panic("runFixtureWithExecutor expects *testing.T")
 	}
 	manifest := readManifest(underlying, dir)
+	if shouldSkipTarget(manifest.SkipTargets, "go") {
+		return
+	}
 	entry := manifest.Entry
 	if entry == "" {
 		entry = "module.json"
@@ -72,6 +75,19 @@ func runFixtureWithExecutor(t testingT, dir string, executor Executor) {
 		t.Fatalf("evaluation error: %v", err)
 	}
 	assertResult(underlying, dir, manifest, value, stdout)
+}
+
+func shouldSkipTarget(skip []string, target string) bool {
+	if len(skip) == 0 {
+		return false
+	}
+	target = strings.ToLower(target)
+	for _, entry := range skip {
+		if strings.ToLower(strings.TrimSpace(entry)) == target {
+			return true
+		}
+	}
+	return false
 }
 
 // testingT captures the subset of testing.T used by fixture helpers.

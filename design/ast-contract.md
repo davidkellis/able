@@ -10,6 +10,28 @@ and highlights the metadata that downstream tooling (typechecker, parser,
 compiler) can rely on. The AST is shared across interpreters; changes must be
 treated as breaking for all runtimes and fixture exporters.
 
+## Testing separation requirements
+
+To keep semantics well-defined and detect regressions early, the language
+project maintains three independent test layers around the AST contract:
+
+1. **AST evaluation in isolation** — Interpreter suites construct `ast.*`
+   nodes directly (Go: `pkg/interpreter/*_test.go`, TS: `test/{basics,control_flow,…}`)
+   and execute them without invoking parsers. These guarantee that evaluation
+   honours the AST contract independently of any surface syntax.
+2. **Parser (CST) conformance** — The tree-sitter grammar corpus (`parser10/tree-sitter-able/test/corpus`
+   and Go `pkg/parser/parser_test.go`) exercises pure parsing, asserting that
+   Able source text yields the expected concrete syntax trees.
+3. **Parser→AST mapping** — Mapper tests (Go: `pkg/parser/parser_test.go`,
+   TS: `test/parser/fixtures_mapper.test.ts`) convert parse trees into AST
+   nodes and compare them against the canonical `module.json` fixtures.
+
+These layers must remain independent: AST semantics do not rely on parser
+output, and parser regressions cannot silently skew interpreter behaviour.
+End-to-end fixture runs (`pkg/interpreter/fixtures_parity_test.go`,
+`interpreter10/scripts/run-fixtures.ts`) sit on top of the three layers to
+verify the full pipeline but do not replace the isolated suites.
+
 ## Top-level module structure
 
 | Node                     | Notes |
