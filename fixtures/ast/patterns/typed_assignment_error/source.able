@@ -1,0 +1,2 @@
+value := "nope"
+n: i32 := value

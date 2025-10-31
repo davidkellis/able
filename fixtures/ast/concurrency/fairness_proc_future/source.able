@@ -1,0 +1,51 @@
+trace := ""
+stage_proc := 0
+stage_future := 0
+worker := proc {
+  if stage_proc == 0 {
+    trace = trace + "A1"
+    stage_proc = 1
+    proc_yield()
+  }
+  if stage_proc == 1 {
+    trace = trace + "A2"
+    stage_proc = 2
+    proc_yield()
+  }
+  if stage_proc == 2 {
+    trace = trace + "A3"
+    stage_proc = 3
+  }
+  0
+}
+future := spawn {
+  if stage_future == 0 {
+    trace = trace + "B1"
+    stage_future = 1
+    proc_yield()
+    0
+  }
+or stage_future == 1 {
+    trace = trace + "B2"
+    stage_future = 2
+    0
+  }
+  0
+}
+proc_flush()
+worker_status := (worker.status() match {
+  case Pending {  } => "Pending",
+  case Resolved {  } => "Resolved",
+  case Cancelled {  } => "Cancelled",
+  case Failed {  } => "Failed",
+  case _ => "Other"
+})
+future_status := (future.status() match {
+  case Pending {  } => "Pending",
+  case Resolved {  } => "Resolved",
+  case Cancelled {  } => "Cancelled",
+  case Failed {  } => "Failed",
+  case _ => "Other"
+})
+future_result := future.value()
+`${trace}:${worker_status}:${future_status}:${future_result}`

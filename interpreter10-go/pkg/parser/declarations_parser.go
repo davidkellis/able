@@ -234,7 +234,6 @@ func parseMethodsDefinition(node *sitter.Node, source []byte) (ast.Statement, er
 			if err != nil {
 				return nil, err
 			}
-			fn.IsMethodShorthand = true
 			definitions = append(definitions, fn)
 		case "method_member":
 			for j := uint(0); j < child.NamedChildCount(); j++ {
@@ -246,7 +245,6 @@ func parseMethodsDefinition(node *sitter.Node, source []byte) (ast.Statement, er
 				if err != nil {
 					return nil, err
 				}
-				fn.IsMethodShorthand = true
 				definitions = append(definitions, fn)
 			}
 		}
@@ -317,7 +315,6 @@ func parseImplementationDefinitionNode(node *sitter.Node, source []byte) (*ast.I
 			if err != nil {
 				return nil, err
 			}
-			fn.IsMethodShorthand = true
 			definitions = append(definitions, fn)
 		case "method_member":
 			for j := uint(0); j < child.NamedChildCount(); j++ {
@@ -329,7 +326,6 @@ func parseImplementationDefinitionNode(node *sitter.Node, source []byte) (*ast.I
 				if err != nil {
 					return nil, err
 				}
-				fn.IsMethodShorthand = true
 				definitions = append(definitions, fn)
 			}
 		}

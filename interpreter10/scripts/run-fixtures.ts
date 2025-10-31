@@ -3,6 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { AST, V10 } from "../index";
+import { mapSourceFile } from "../src/parser/tree-sitter-mapper";
+import { getTreeSitterParser } from "../src/parser/tree-sitter-loader";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_ROOT = path.resolve(__dirname, "../../fixtures/ast");
@@ -51,13 +53,12 @@ async function main() {
     const stdout: string[] = [];
     let evaluationError: unknown;
     const entry = manifest.entry ?? "module.json";
-    const entryPath = path.join(fixtureDir, entry);
-    const moduleAst = await readModule(entryPath);
+    const moduleAst = await loadModuleFromFixture(fixtureDir, entry);
     const setupModules: AST.Module[] = [];
     if (manifest.setup) {
       for (const setupFile of manifest.setup) {
         const setupPath = path.join(fixtureDir, setupFile);
-        const setupModule = await readModule(setupPath);
+        const setupModule = await loadModuleFromPath(setupPath);
         setupModules.push(setupModule);
       }
     }
@@ -121,6 +122,53 @@ async function readManifest(dir: string): Promise<Manifest> {
 async function readModule(filePath: string): Promise<AST.Module> {
   const raw = JSON.parse(await fs.readFile(filePath, "utf8"));
   return hydrateNode(raw) as AST.Module;
+}
+
+async function loadModuleFromFixture(dir: string, relativePath: string): Promise<AST.Module> {
+  const absolute = path.join(dir, relativePath);
+  return loadModuleFromPath(absolute);
+}
+
+async function loadModuleFromPath(filePath: string): Promise<AST.Module> {
+  if (filePath.endsWith(".json")) {
+    const directory = path.dirname(filePath);
+    const sourceCandidate = path.join(directory, "source.able");
+    const fromSource = await parseModuleFromSource(sourceCandidate);
+    if (fromSource) {
+      return fromSource;
+    }
+  }
+  return readModule(filePath);
+}
+
+async function parseModuleFromSource(sourcePath: string): Promise<AST.Module | null> {
+  if (!(await fileExists(sourcePath))) {
+    return null;
+  }
+  try {
+    const source = await fs.readFile(sourcePath, "utf8");
+    const parser = await getTreeSitterParser();
+    const tree = parser.parse(source);
+    if (tree.rootNode.type !== "source_file") {
+      throw new Error(`tree-sitter returned unexpected root ${tree.rootNode.type}`);
+    }
+    if ((tree.rootNode as unknown as { hasError?: boolean }).hasError) {
+      throw new Error("tree-sitter reported syntax errors");
+    }
+    return mapSourceFile(tree.rootNode, source);
+  } catch (error) {
+    console.warn(`Failed to parse ${sourcePath} via tree-sitter; falling back to module.json.`, error);
+    return null;
+  }
+}
+
+async function fileExists(filePath: string): Promise<boolean> {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function hydrateNode(value: unknown): unknown {

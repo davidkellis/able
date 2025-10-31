@@ -1,6 +1,7 @@
 {
   "name": "interpreter",
   "private": true,
+  "license": "EPL-2.0",
   "devDependencies": {
     "@types/bun": "latest"
   },

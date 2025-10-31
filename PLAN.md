@@ -60,6 +60,7 @@
 ## Phase γ — Parser Exhaustiveness & AST Round-trip
 1. **Parser test suite expansion**
    - For each feature row in `design/parser-ast-coverage.md`, add parser unit tests that assert the CST → AST transformation matches expectations (`pkg/parser` in Go, TS parser harness).
+   - TypeScript now exercises fixtures with `source.able` by shelling out to the Go parser CLI (`interpreter10/test/parser/fixtures_parser.test.ts`); replace this bridge with a native Bun/tree-sitter harness once the TS parser bindings exist.
    - Include negative tests (syntax errors, malformed constructs) where the spec defines them.
 2. **Round-trip validation**
    - Ensure CST → AST → interpreter evaluation produces the same results as fixtures for representative programs.
@@ -147,9 +148,18 @@ For each milestone: port representative TS tests into Go, add new cases where Go
 - **Future interpreters**: keep AST schema + conformance harness generic to support planned Crystal implementation.
 
 ## Immediate Next Actions
-1. **Parser groundwork** – start the tree-sitter grammar effort now that the Go runtime + checker are canonical (design parser milestones, confirm AST emission format, bootstrap repository scaffolding).
-2. **TypeScript parity follow-up** – mirror the finalised Go semantics (checker integration hooks, strict fixture mode) in the Bun interpreter so both runtimes expose the same behaviour ahead of parser integration.
-3. **Documentation refresh** – finish updating onboarding/README/PARITY notes to reflect the Go interpreter’s canonical status and document the parser handoff expectations.
+1. **Parser groundwork**
+   - Start the tree-sitter grammar effort now that the Go runtime + checker are canonical (design parser milestones, confirm AST emission format, bootstrap repository scaffolding).
+   - Replace the interim TypeScript harness that shells out to `go run cmd/parse-module` with a Bun-native parser binding once the grammar is exported.
+   - Audit remaining fixtures missing `source.able` files and backfill them so the parity suite exercises the whole corpus.
+2. **CLI & package manager follow-up**
+   - Land the remaining CLI surface (`able build`, `able test`, `able check`, `able env`, formatter stubs).
+   - Expand coverage for `able deps install/update` (multi-target manifests, selective updates) and document failure modes.
+   - Finish stdlib packaging: flesh out `stdlib/v10/src/**` implementations and ensure they ship via the cache/manifest flow.
+3. **Concurrency hardening**
+   - Add stress fixtures/property tests for `proc_flush`, nil-channel cancellation, and fairness across the goroutine executor to match the design notes.
+   - Document the semantics in `design/channels-mutexes.md` once the additional coverage lands.
+4. **Documentation refresh** – finish updating onboarding/README/PARITY notes to reflect the Go interpreter’s canonical status and document the parser handoff expectations.
 
 ### Next steps (prioritized)
 1. **Tree-sitter parser** – finalise grammar design, emit canonical AST JSON, and wire parser → interpreter integration tests.

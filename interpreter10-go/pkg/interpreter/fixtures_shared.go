@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"able/interpreter10-go/pkg/ast"
 )
@@ -12,6 +13,7 @@ type fixtureManifest struct {
 	Description string   `json:"description"`
 	Entry       string   `json:"entry"`
 	Setup       []string `json:"setup"`
+	SkipTargets []string `json:"skipTargets"`
 	Expect      struct {
 		Result *struct {
 			Kind  string      `json:"kind"`
@@ -42,6 +44,21 @@ func readManifest(t testingT, dir string) fixtureManifest {
 
 func readModule(t testingT, path string) *ast.Module {
 	t.Helper()
+	if strings.HasSuffix(path, ".able") {
+		mod, err := parseSourceModule(path)
+		if err != nil {
+			t.Fatalf("parse source module %s: %v", path, err)
+		}
+		return mod
+	}
+	if strings.HasSuffix(path, ".json") {
+		sourcePath := filepath.Join(filepath.Dir(path), "source.able")
+		if _, err := os.Stat(sourcePath); err == nil {
+			if mod, err := parseSourceModule(sourcePath); err == nil {
+				return mod
+			}
+		}
+	}
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read module %s: %v", path, err)

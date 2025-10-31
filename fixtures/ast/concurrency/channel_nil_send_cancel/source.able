@@ -1,0 +1,11 @@
+handle := proc {
+  __able_channel_send(0, "value")
+  1
+}
+handle.cancel()
+proc_flush()
+status := handle.status()
+status match {
+  case Cancelled {  } => "Cancelled",
+  case _ => "Other"
+}

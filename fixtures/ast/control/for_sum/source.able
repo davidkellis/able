@@ -1,0 +1,6 @@
+sum := 0
+items := [1, 2, 3]
+for n in items {
+  sum = sum + n
+}
+sum

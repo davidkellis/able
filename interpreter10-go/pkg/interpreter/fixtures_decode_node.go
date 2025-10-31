@@ -512,7 +512,8 @@ func decodeNode(node map[string]any) (ast.Node, error) {
 				typeArgs = append(typeArgs, taExpr)
 			}
 		}
-		return ast.NewFunctionCall(callee, args, typeArgs, false), nil
+		isTrailing, _ := node["isTrailingLambda"].(bool)
+		return ast.NewFunctionCall(callee, args, typeArgs, isTrailing), nil
 	case "FunctionSignature":
 		sig, err := decodeFunctionSignature(node)
 		if err != nil {

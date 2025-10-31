@@ -110,7 +110,24 @@ func (p *ModuleParser) ParseModule(source []byte) (*ast.Module, error) {
 			if stmt == nil {
 				return nil, fmt.Errorf("parser: unsupported top-level node %q", node.Kind())
 			}
-			body = append(body, stmt)
+			if stmt != nil {
+				if lambda, ok := stmt.(*ast.LambdaExpression); ok && len(body) > 0 {
+					switch prev := body[len(body)-1].(type) {
+					case *ast.FunctionCall:
+						if len(prev.Arguments) == 0 || prev.Arguments[len(prev.Arguments)-1] != lambda {
+							prev.Arguments = append(prev.Arguments, lambda)
+						}
+						prev.IsTrailingLambda = true
+						continue
+					case ast.Expression:
+						call := ast.NewFunctionCall(prev, nil, nil, true)
+						call.Arguments = []ast.Expression{lambda}
+						body[len(body)-1] = call
+						continue
+					}
+				}
+				body = append(body, stmt)
+			}
 		}
 	}
 

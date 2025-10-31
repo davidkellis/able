@@ -34,17 +34,11 @@ func (i *Interpreter) evaluateExpression(node ast.Expression, env *runtime.Envir
 	case *ast.NilLiteral:
 		return runtime.NilValue{}, nil
 	case *ast.IntegerLiteral:
-		suffix := runtime.IntegerI32
-		if n.IntegerType != nil {
-			suffix = runtime.IntegerType(*n.IntegerType)
-		}
-		return runtime.IntegerValue{Val: runtime.CloneBigInt(bigFromLiteral(n.Value)), TypeSuffix: suffix}, nil
+		_ = n.IntegerType // suffix guides typechecking but runtime uses i32
+		return runtime.IntegerValue{Val: runtime.CloneBigInt(bigFromLiteral(n.Value)), TypeSuffix: runtime.IntegerI32}, nil
 	case *ast.FloatLiteral:
-		suffix := runtime.FloatF64
-		if n.FloatType != nil {
-			suffix = runtime.FloatType(*n.FloatType)
-		}
-		return runtime.FloatValue{Val: n.Value, TypeSuffix: suffix}, nil
+		_ = n.FloatType // suffix influences typechecking but runtime values remain f64
+		return runtime.FloatValue{Val: n.Value, TypeSuffix: runtime.FloatF64}, nil
 	case *ast.ArrayLiteral:
 		values := make([]runtime.Value, 0, len(n.Elements))
 		for _, el := range n.Elements {

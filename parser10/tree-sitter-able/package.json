@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Able language parser (v10 spec)",
   "repository": "https://github.com/davidkellis/able",
-  "license": "epl-2.0",
+  "license": "EPL-2.0",
   "author": {
     "name": "David Ellis",
     "email": "david@conquerthelawn.com"
