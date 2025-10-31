@@ -26,7 +26,7 @@
         "type": "StructLiteral",
         "structType": { "type": "Identifier", "name": "Point" },
         "fields": [
-          { "type": "StructFieldInitializer", "name": { "type": "Identifier", "name": "x" }, "value": { "type": "IntegerLiteral", "value": 1 } }
+          { "type": "StructFieldInitializer", "name": { "type": "Identifier", "name": "x" }, "value": { "type": "IntegerLiteral", "value": 1 }, "isShorthand": false }
         ],
         "isPositional": false
       }

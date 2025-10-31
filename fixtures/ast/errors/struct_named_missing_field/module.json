@@ -19,8 +19,8 @@
         "type": "StructLiteral",
         "structType": { "type": "Identifier", "name": "Point" },
         "fields": [
-          { "type": "StructFieldInitializer", "name": { "type": "Identifier", "name": "x" }, "value": { "type": "IntegerLiteral", "value": 1 } },
-          { "type": "StructFieldInitializer", "name": { "type": "Identifier", "name": "y" }, "value": { "type": "IntegerLiteral", "value": 2 } }
+          { "type": "StructFieldInitializer", "name": { "type": "Identifier", "name": "x" }, "value": { "type": "IntegerLiteral", "value": 1 }, "isShorthand": false },
+          { "type": "StructFieldInitializer", "name": { "type": "Identifier", "name": "y" }, "value": { "type": "IntegerLiteral", "value": 2 }, "isShorthand": false }
         ],
         "isPositional": false
       }
@@ -31,6 +31,7 @@
       "left": {
         "type": "StructPattern",
         "isPositional": false,
+        "structType": { "type": "Identifier", "name": "Point" },
         "fields": [
           { "type": "StructPatternField", "fieldName": { "type": "Identifier", "name": "x" }, "pattern": { "type": "Identifier", "name": "x" } },
           { "type": "StructPatternField", "fieldName": { "type": "Identifier", "name": "z" }, "pattern": { "type": "Identifier", "name": "z" } }

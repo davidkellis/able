@@ -6,6 +6,7 @@
       "packagePath": [
         { "type": "Identifier", "name": "static_top_multihop" }
       ],
+      "isWildcard": false,
       "selectors": [
         {
           "type": "ImportSelector",

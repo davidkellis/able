@@ -5,6 +5,7 @@
     {
       "type": "InterfaceDefinition",
       "id": { "type": "Identifier", "name": "Show" },
+      "isPrivate": false,
       "signatures": [
         {
           "type": "FunctionSignature",
@@ -95,6 +96,10 @@
               }
             ]
           },
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": { "type": "Identifier", "name": "string" }
+          },
           "isMethodShorthand": false,
           "isPrivate": false
         },
@@ -112,7 +117,11 @@
             },
             {
               "type": "FunctionParameter",
-              "name": { "type": "Identifier", "name": "x" }
+              "name": { "type": "Identifier", "name": "x" },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": { "type": "Identifier", "name": "T" }
+              }
             }
           ],
           "body": {
@@ -168,12 +177,14 @@
           {
             "type": "StructFieldInitializer",
             "name": { "type": "Identifier", "name": "x" },
-            "value": { "type": "IntegerLiteral", "value": 1 }
+            "value": { "type": "IntegerLiteral", "value": 1 },
+            "isShorthand": false
           },
           {
             "type": "StructFieldInitializer",
             "name": { "type": "Identifier", "name": "y" },
-            "value": { "type": "IntegerLiteral", "value": 2 }
+            "value": { "type": "IntegerLiteral", "value": 2 },
+            "isShorthand": false
           }
         ],
         "isPositional": false

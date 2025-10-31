@@ -31,7 +31,9 @@
             }
           ]
         }
-      ]
+      ],
+      "isMethodShorthand": false,
+      "isPrivate": false
     },
     {
       "type": "FunctionCall",

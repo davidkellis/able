@@ -5,6 +5,7 @@
     {
       "type": "InterfaceDefinition",
       "id": { "type": "Identifier", "name": "Display" },
+      "isPrivate": false,
       "signatures": [
         {
           "type": "FunctionSignature",
@@ -24,18 +25,19 @@
             "name": { "type": "Identifier", "name": "string" }
           }
         }
-      ],
-      "genericParams": []
+      ]
     },
     {
       "type": "InterfaceDefinition",
       "id": { "type": "Identifier", "name": "Feed" },
+      "isPrivate": false,
       "genericParams": [
         {
           "type": "GenericParameter",
           "name": { "type": "Identifier", "name": "T" }
         }
       ],
+      "signatures": [],
       "baseInterfaces": [
         {
           "type": "GenericTypeExpression",
@@ -51,13 +53,19 @@
           ]
         },
         {
-          "type": "SimpleTypeExpression",
-          "name": { "type": "Identifier", "name": "Sized" }
+          "type": "GenericTypeExpression",
+          "base": {
+            "type": "SimpleTypeExpression",
+            "name": { "type": "Identifier", "name": "Sized" }
+          },
+          "arguments": [
+            {
+              "type": "SimpleTypeExpression",
+              "name": { "type": "Identifier", "name": "nil" }
+            }
+          ]
         }
       ]
-    },
-    {
-      "type": "NilLiteral"
     }
   ]
 }

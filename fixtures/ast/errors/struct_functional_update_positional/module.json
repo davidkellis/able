@@ -6,8 +6,8 @@
       "type": "StructDefinition",
       "id": { "type": "Identifier", "name": "Pair" },
       "fields": [
-        { "type": "StructFieldDefinition", "name": { "type": "Identifier", "name": "x" }, "fieldType": { "type": "SimpleTypeExpression", "name": { "type": "Identifier", "name": "i32" } } },
-        { "type": "StructFieldDefinition", "name": { "type": "Identifier", "name": "y" }, "fieldType": { "type": "SimpleTypeExpression", "name": { "type": "Identifier", "name": "i32" } } }
+        { "type": "StructFieldDefinition", "fieldType": { "type": "SimpleTypeExpression", "name": { "type": "Identifier", "name": "i32" } } },
+        { "type": "StructFieldDefinition", "fieldType": { "type": "SimpleTypeExpression", "name": { "type": "Identifier", "name": "i32" } } }
       ],
       "kind": "positional"
     },
@@ -33,7 +33,7 @@
         "type": "StructLiteral",
         "structType": { "type": "Identifier", "name": "Pair" },
         "fields": [
-          { "type": "StructFieldInitializer", "name": { "type": "Identifier", "name": "x" }, "value": { "type": "IntegerLiteral", "value": 10 } }
+          { "type": "StructFieldInitializer", "name": { "type": "Identifier", "name": "x" }, "value": { "type": "IntegerLiteral", "value": 10 }, "isShorthand": false }
         ],
         "isPositional": false,
         "functionalUpdateSources": [

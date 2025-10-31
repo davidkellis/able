@@ -31,6 +31,10 @@ output, and parser regressions cannot silently skew interpreter behaviour.
 End-to-end fixture runs (`pkg/interpreter/fixtures_parity_test.go`,
 `interpreter10/scripts/run-fixtures.ts`) sit on top of the three layers to
 verify the full pipeline but do not replace the isolated suites.
+Fixture manifests may include setup modules (for example, `package.json`) that
+now point at dedicated `<name>.able` sources; loader helpers fall back to
+`source.able` only for the primary module, keeping multi-module fixtures in
+sync across interpreters.
 
 ## Top-level module structure
 

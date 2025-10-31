@@ -53,6 +53,11 @@ Owner: Able Agents
      the canonical `fixtures/ast/**/module.json` files.
   3. Interpreter tests that evaluate ASTs built by hand (no parser) so runtime
      semantics remain tied to the AST contract instead of parser behaviour.
+- Fixture runners now prefer `<entry>.able` when a JSON manifest references an
+  alternate entry (e.g., `package.json`); fall back to `source.able` only for
+  the root module. Multi-module fixtures must ship explicit `.able` sources for
+  each setup payload so both interpreters parse identical bodies during parity
+  runs.
 - Reuse existing fixtures by re-parsing their Able source (when available) and
   comparing serialised AST output; fall back to JSON when no source exists.
 - Introduce parser-specific regression suites covering tricky grammar cases

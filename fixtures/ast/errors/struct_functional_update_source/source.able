@@ -1,0 +1,5 @@
+struct Point {
+  x: i32
+}
+
+updated := Point { ...[1], x: 1 }

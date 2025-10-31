@@ -31,6 +31,7 @@
       "left": {
         "type": "StructPattern",
         "isPositional": false,
+        "structType": { "type": "Identifier", "name": "Point" },
         "fields": [
           { "type": "StructPatternField", "fieldName": { "type": "Identifier", "name": "x" }, "pattern": { "type": "Identifier", "name": "x" } },
           { "type": "StructPatternField", "fieldName": { "type": "Identifier", "name": "y" }, "pattern": { "type": "Identifier", "name": "y" } }
