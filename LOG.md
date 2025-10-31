@@ -884,3 +884,14 @@ Tests
 
 - (cd interpreter10 && bun test)
 - (cd interpreter10 && bun run scripts/run-fixtures.ts --filter pipes/member_topic)
+
+> Parser Artifact Sync (2025-10-31)
+
+- Rebuilt the tree-sitter-able artifacts so the regenerated C parser (with interface-composition handling) and `.wasm` payload are checked in; now using the native Emscripten toolchain so `tree-sitter build --wasm` runs locally without container fallbacks (`parser10/tree-sitter-able`).
+- Cleared stale Go build caches and spot-checked the parser package under a fresh cache to ensure the new grammar ships cleanly before the next full-suite run.
+
+Tests
+
+- (cd parser10/tree-sitter-able && npm run build)
+- (cd interpreter10-go && GOCACHE=$(pwd)/.gocache go test ./pkg/parser)
+- ./run_all_tests.sh

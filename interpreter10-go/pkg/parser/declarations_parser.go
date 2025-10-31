@@ -53,7 +53,10 @@ func parseFunctionCore(node *sitter.Node, source []byte) (*ast.Identifier, []*as
 	isPrivate := false
 	for i := uint(0); i < node.ChildCount(); i++ {
 		child := node.Child(i)
-		if child != nil && child.Kind() == "private" {
+		if child == nil || isIgnorableNode(child) {
+			continue
+		}
+		if child.Kind() == "private" {
 			isPrivate = true
 			break
 		}

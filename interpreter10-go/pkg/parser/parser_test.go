@@ -20,6 +20,39 @@ type fixtureCase struct {
 	source string
 }
 
+func TestParseModuleIgnoresComments(t *testing.T) {
+	mp, err := parser.NewModuleParser()
+	if err != nil {
+		t.Fatalf("NewModuleParser: %v", err)
+	}
+	t.Cleanup(func() { mp.Close() })
+
+	source := []byte(`
+## Leading comment
+package sample
+
+## function comment
+fn main() -> void { }
+`)
+
+	mod, err := mp.ParseModule(source)
+	if err != nil {
+		t.Fatalf("ParseModule returned error: %v", err)
+	}
+	if mod == nil {
+		t.Fatalf("ParseModule returned nil module")
+	}
+	if mod.Package == nil || len(mod.Package.NamePath) == 0 || mod.Package.NamePath[0] == nil || mod.Package.NamePath[0].Name != "sample" {
+		t.Fatalf("expected package sample, got %#v", mod.Package)
+	}
+	if len(mod.Body) != 1 {
+		t.Fatalf("expected single statement in module body, got %d", len(mod.Body))
+	}
+	if _, ok := mod.Body[0].(*ast.FunctionDefinition); !ok {
+		t.Fatalf("expected first body element to be FunctionDefinition, got %T", mod.Body[0])
+	}
+}
+
 func collectFixtureCases(t testing.TB, category string) []fixtureCase {
 	t.Helper()
 
@@ -590,6 +623,161 @@ fn build() {
 			false,
 		),
 	}, nil, nil)
+	expected.Imports = []*ast.ImportStatement{}
+
+	assertModulesEqual(t, expected, mod)
+}
+
+func TestParseStructLiteralIgnoresComments(t *testing.T) {
+	t.Skip("tree-sitter grammar currently rejects comments inside struct literals")
+	source := `struct Point {
+	x: i32,
+	y: i32,
+}
+
+base := Point {
+	## keep base values
+	x: 1,
+	## second field
+	y: 2,
+}
+
+updated := Point {
+	## spread original
+	...base,
+	## override x only
+	x: 3,
+}
+`
+
+	p, err := parser.NewModuleParser()
+	if err != nil {
+		t.Fatalf("NewModuleParser error: %v", err)
+	}
+	defer p.Close()
+
+	mod, err := p.ParseModule([]byte(source))
+	if err != nil {
+		t.Fatalf("ParseModule error: %v", err)
+	}
+
+	pointStruct := ast.NewStructDefinition(
+		ast.ID("Point"),
+		[]*ast.StructFieldDefinition{
+			ast.NewStructFieldDefinition(ast.Ty("i32"), ast.ID("x")),
+			ast.NewStructFieldDefinition(ast.Ty("i32"), ast.ID("y")),
+		},
+		ast.StructKindNamed,
+		nil,
+		nil,
+		false,
+	)
+
+	baseLiteral := ast.NewStructLiteral(
+		[]*ast.StructFieldInitializer{
+			ast.NewStructFieldInitializer(ast.Int(1), ast.ID("x"), false),
+			ast.NewStructFieldInitializer(ast.Int(2), ast.ID("y"), false),
+		},
+		false,
+		ast.ID("Point"),
+		nil,
+		nil,
+	)
+
+	updatedLiteral := ast.NewStructLiteral(
+		[]*ast.StructFieldInitializer{
+			ast.NewStructFieldInitializer(ast.Int(3), ast.ID("x"), false),
+		},
+		false,
+		ast.ID("Point"),
+		[]ast.Expression{ast.ID("base")},
+		nil,
+	)
+
+	expected := ast.NewModule(
+		[]ast.Statement{
+			pointStruct,
+			ast.Assign(ast.ID("base"), baseLiteral),
+			ast.Assign(ast.ID("updated"), updatedLiteral),
+		},
+		nil,
+		nil,
+	)
+	expected.Imports = []*ast.ImportStatement{}
+
+	assertModulesEqual(t, expected, mod)
+}
+
+func TestParseStructPatternIgnoresComments(t *testing.T) {
+	t.Skip("tree-sitter grammar currently rejects comments inside struct patterns")
+	source := `struct Point {
+	x: i32,
+	y: i32,
+}
+
+fn project(point: Point) -> i32 {
+	match point {
+		## capture fields with comments
+		Point {
+			## x binding
+			x: px,
+			## y binding
+			y: py,
+		} => px + py,
+		## fallback
+		_ => 0,
+	}
+}
+`
+
+	p, err := parser.NewModuleParser()
+	if err != nil {
+		t.Fatalf("NewModuleParser error: %v", err)
+	}
+	defer p.Close()
+
+	mod, err := p.ParseModule([]byte(source))
+	if err != nil {
+		t.Fatalf("ParseModule error: %v", err)
+	}
+
+	pointStruct := ast.NewStructDefinition(
+		ast.ID("Point"),
+		[]*ast.StructFieldDefinition{
+			ast.NewStructFieldDefinition(ast.Ty("i32"), ast.ID("x")),
+			ast.NewStructFieldDefinition(ast.Ty("i32"), ast.ID("y")),
+		},
+		ast.StructKindNamed,
+		nil,
+		nil,
+		false,
+	)
+
+	structPattern := ast.StructP(
+		[]*ast.StructPatternField{
+			ast.FieldP(ast.ID("px"), "x", nil),
+			ast.FieldP(ast.ID("py"), "y", nil),
+		},
+		false,
+		"Point",
+	)
+
+	clause := ast.Mc(structPattern, ast.NewBinaryExpression("+", ast.ID("px"), ast.ID("py")))
+	defaultClause := ast.Mc(ast.Wc(), ast.Int(0))
+	matchExpr := ast.Match(ast.ID("point"), clause, defaultClause)
+
+	fn := ast.Fn(
+		"project",
+		[]*ast.FunctionParameter{ast.Param(ast.ID("point"), ast.Ty("Point"))},
+		[]ast.Statement{matchExpr},
+		ast.Ty("i32"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	expected := ast.NewModule([]ast.Statement{pointStruct, fn}, nil, nil)
 	expected.Imports = []*ast.ImportStatement{}
 
 	assertModulesEqual(t, expected, mod)
@@ -2401,6 +2589,38 @@ func TestParsePipeChainExpression(t *testing.T) {
 	first := ast.NewBinaryExpression("|>", ast.ID("value"), ast.ID("inc"))
 	chain := ast.NewBinaryExpression("|>", first, ast.ID("double"))
 	expected := ast.NewModule([]ast.Statement{chain}, nil, nil)
+	expected.Imports = []*ast.ImportStatement{}
+
+	assertModulesEqual(t, expected, mod)
+}
+
+func TestParsePipeTopicAndPlaceholderSteps(t *testing.T) {
+	source := `result := (value |> (% + 2) |> add(@, 3) |> %.double())`
+
+	p, err := parser.NewModuleParser()
+	if err != nil {
+		t.Fatalf("NewModuleParser error: %v", err)
+	}
+	defer p.Close()
+
+	mod, err := p.ParseModule([]byte(source))
+	if err != nil {
+		t.Fatalf("ParseModule error: %v", err)
+	}
+
+	step1 := ast.NewBinaryExpression("|>", ast.ID("value"), ast.NewBinaryExpression("+", ast.TopicRef(), ast.Int(2)))
+	step2 := ast.NewBinaryExpression("|>", step1, ast.Call("add", ast.Placeholder(), ast.Int(3)))
+	topicMethod := ast.Member(ast.TopicRef(), "double")
+	topicCall := ast.NewFunctionCall(topicMethod, []ast.Expression{}, nil, false)
+	step3 := ast.NewBinaryExpression("|>", step2, topicCall)
+
+	expected := ast.NewModule(
+		[]ast.Statement{
+			ast.Assign(ast.ID("result"), step3),
+		},
+		nil,
+		nil,
+	)
 	expected.Imports = []*ast.ImportStatement{}
 
 	assertModulesEqual(t, expected, mod)

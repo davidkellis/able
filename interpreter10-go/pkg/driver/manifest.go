@@ -34,24 +34,13 @@ type Manifest struct {
 type TargetSpec struct {
 	Name         string
 	OriginalName string
-	Type         TargetType
 	Main         string
-	Dependencies map[string]*DependencySpec
 }
 
 type manifestTargetEntry struct {
 	sanitized string
 	spec      *TargetSpec
 }
-
-// TargetType enumerates supported target kinds.
-type TargetType string
-
-const (
-	TargetTypeExecutable TargetType = "executable"
-	TargetTypeLibrary    TargetType = "library"
-	TargetTypeTest       TargetType = "test"
-)
 
 // DependencySpec describes a dependency descriptor in the manifest.
 type DependencySpec struct {
@@ -147,22 +136,8 @@ func (m *Manifest) validate() error {
 		} else {
 			targetNames[key] = target.OriginalName
 		}
-		if target.Type == "" {
-			errs.Issues = append(errs.Issues, fmt.Sprintf("target %q missing type", target.OriginalName))
-		} else if !target.Type.IsValid() {
-			errs.Issues = append(errs.Issues, fmt.Sprintf("target %q has unsupported type %q", target.OriginalName, target.Type))
-		}
-		if target.Type.RequiresMain() && target.Main == "" {
-			errs.Issues = append(errs.Issues, fmt.Sprintf("target %q requires a main entrypoint", target.OriginalName))
-		}
-		for depName, dep := range target.Dependencies {
-			if dep == nil {
-				continue
-			}
-			dep.normalize()
-			for _, issue := range dep.validate(false) {
-				errs.Issues = append(errs.Issues, fmt.Sprintf("targets.%s.dependencies.%s: %s", target.OriginalName, depName, issue))
-			}
+		if strings.TrimSpace(target.Main) == "" {
+			errs.Issues = append(errs.Issues, fmt.Sprintf("target %q requires an entrypoint file", target.OriginalName))
 		}
 	}
 
@@ -188,42 +163,20 @@ func (m *Manifest) validate() error {
 	return nil
 }
 
-// IsValid reports whether the target type is recognised.
-func (t TargetType) IsValid() bool {
-	switch t {
-	case TargetTypeExecutable, TargetTypeLibrary, TargetTypeTest:
-		return true
-	default:
-		return false
-	}
-}
+var ErrNoTargets = errors.New("manifest: no targets defined")
 
-// RequiresMain reports if the target requires a main entrypoint.
-func (t TargetType) RequiresMain() bool {
-	switch t {
-	case TargetTypeExecutable, TargetTypeTest:
-		return true
-	default:
-		return false
-	}
-}
-
-var ErrNoExecutableTarget = errors.New("manifest: no executable targets defined")
-
-// DefaultExecutableTarget returns the first executable target in manifest order.
-func (m *Manifest) DefaultExecutableTarget() (*TargetSpec, error) {
+// DefaultTarget returns the first declared target in manifest order.
+func (m *Manifest) DefaultTarget() (*TargetSpec, error) {
 	if m == nil {
-		return nil, ErrNoExecutableTarget
+		return nil, ErrNoTargets
 	}
 	for _, entry := range m.targetEntries {
 		if entry.spec == nil {
 			continue
 		}
-		if entry.spec.Type == TargetTypeExecutable {
-			return entry.spec, nil
-		}
+		return entry.spec, nil
 	}
-	return nil, ErrNoExecutableTarget
+	return nil, ErrNoTargets
 }
 
 // FindTarget looks up a target by sanitized or original name.
@@ -330,19 +283,13 @@ type manifestFile struct {
 	Workspace         map[string]any `yaml:"workspace"`
 }
 
-type targetYAML struct {
-	Type         TargetType    `yaml:"type"`
-	Main         string        `yaml:"main"`
-	Dependencies dependencyMap `yaml:"dependencies"`
-}
-
 type targetMap struct {
 	items []targetMapEntry
 }
 
 type targetMapEntry struct {
 	name string
-	spec *targetYAML
+	path string
 }
 
 func (tm *targetMap) UnmarshalYAML(value *yaml.Node) error {
@@ -370,13 +317,17 @@ func (tm *targetMap) UnmarshalYAML(value *yaml.Node) error {
 		if key == "" {
 			return fmt.Errorf("manifest: targets must not use empty keys")
 		}
-		entry := new(targetYAML)
-		if err := valueNode.Decode(entry); err != nil {
+		var entry string
+		if err := valueNode.Decode(&entry); err != nil {
 			return fmt.Errorf("manifest: target %q: %w", key, err)
+		}
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			return fmt.Errorf("manifest: target %q requires an entrypoint path", key)
 		}
 		items = append(items, targetMapEntry{
 			name: key,
-			spec: entry,
+			path: entry,
 		})
 	}
 	tm.items = items
@@ -440,10 +391,6 @@ func (mf manifestFile) toManifest(path string) *Manifest {
 
 	seenTargets := make(map[string]struct{}, targetCapacity)
 	for _, item := range mf.Targets.items {
-		target := item.spec
-		if target == nil {
-			continue
-		}
 		original := strings.TrimSpace(item.name)
 		if original == "" {
 			continue
@@ -452,9 +399,7 @@ func (mf manifestFile) toManifest(path string) *Manifest {
 		spec := &TargetSpec{
 			Name:         sanitized,
 			OriginalName: original,
-			Type:         target.Type,
-			Main:         strings.TrimSpace(target.Main),
-			Dependencies: cloneDependencyMap(target.Dependencies),
+			Main:         strings.TrimSpace(item.path),
 		}
 		if _, exists := result.Targets[sanitized]; !exists {
 			result.Targets[sanitized] = spec

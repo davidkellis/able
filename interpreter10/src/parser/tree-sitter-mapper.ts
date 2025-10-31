@@ -66,7 +66,8 @@ function firstNamedChild(node: Node | null | undefined): Node | null {
   if (!node) return null;
   for (let i = 0; i < node.namedChildCount; i++) {
     const child = node.namedChild(i);
-    if (child) return child;
+    if (!child || isIgnorableNode(child)) continue;
+    return child;
   }
   return null;
 }
@@ -75,9 +76,8 @@ function nextNamedSibling(parent: Node | null | undefined, currentIndex: number)
   if (!parent) return null;
   for (let i = currentIndex + 1; i < parent.namedChildCount; i++) {
     const sibling = parent.namedChild(i);
-    if (sibling && sibling.isNamed) {
-      return sibling;
-    }
+    if (!sibling || !sibling.isNamed || isIgnorableNode(sibling)) continue;
+    return sibling;
   }
   return null;
 }
@@ -86,7 +86,7 @@ function hasLeadingPrivate(node: Node | null | undefined): boolean {
   if (!node) return false;
   for (let i = 0; i < node.childCount; i++) {
     const child = node.child(i);
-    if (!child) continue;
+    if (!child || isIgnorableNode(child)) continue;
     if (child.type === "private") {
       return true;
     }
@@ -100,8 +100,21 @@ function sameNode(a: Node | null | undefined, b: Node | null | undefined): boole
   return a.type === b.type && a.startIndex === b.startIndex && a.endIndex === b.endIndex;
 }
 
+function isIgnorableNode(node: Node | null | undefined): boolean {
+  if (!node) return false;
+  switch (node.type) {
+    case "comment":
+    case "line_comment":
+    case "block_comment":
+      return true;
+    default:
+      return false;
+  }
+}
+
 function findIdentifier(node: Node | null | undefined, source: string): Identifier | null {
   if (!node) return null;
+  if (isIgnorableNode(node)) return null;
   if (node.type === "identifier") {
     return AST.identifier(sliceText(node, source));
   }
@@ -177,7 +190,7 @@ export function mapSourceFile(root: Node, source: string): Module {
 
   for (let i = 0; i < root.namedChildCount; i++) {
     const node = root.namedChild(i);
-    if (!node) continue;
+    if (!node || isIgnorableNode(node)) continue;
     switch (node.type) {
       case "package_statement":
         packageStmt = parsePackageStatement(node, source);
@@ -237,7 +250,7 @@ function parsePackageStatement(node: Node, source: string): AST.PackageStatement
   const parts: Identifier[] = [];
   for (let i = 0; i < node.namedChildCount; i++) {
     const child = node.namedChild(i);
-    if (!child) continue;
+    if (!child || isIgnorableNode(child)) continue;
     parts.push(parseIdentifier(child, source));
   }
   if (parts.length === 0) {
@@ -253,7 +266,7 @@ function parseQualifiedIdentifier(node: Node | null | undefined, source: string)
   const parts: Identifier[] = [];
   for (let i = 0; i < node.namedChildCount; i++) {
     const child = node.namedChild(i);
-    if (!child) continue;
+    if (!child || isIgnorableNode(child)) continue;
     parts.push(parseIdentifier(child, source));
   }
   if (parts.length === 0) {
@@ -277,7 +290,7 @@ function parseImportClause(node: Node | null | undefined, source: string): {
 
   for (let i = 0; i < node.namedChildCount; i++) {
     const child = node.namedChild(i);
-    if (!child) continue;
+    if (!child || isIgnorableNode(child)) continue;
     switch (child.type) {
       case "import_selector":
         selectors.push(parseImportSelector(child, source));
@@ -406,7 +419,7 @@ function parseBlock(node: Node | null | undefined, source: string): BlockExpress
   for (let i = 0; i < node.namedChildCount; ) {
     const child = node.namedChild(i);
     i++;
-    if (!child || !child.isNamed) continue;
+    if (!child || !child.isNamed || isIgnorableNode(child)) continue;
     if (node.fieldNameForChild(i - 1) === "binding") continue;
 
     let stmt: Statement | null = null;
@@ -680,7 +693,7 @@ function parseStructLiteral(node: Node, source: string): Expression {
 
   for (let i = 0; i < node.namedChildCount; i++) {
     const child = node.namedChild(i);
-    if (!child) continue;
+    if (!child || isIgnorableNode(child)) continue;
     const fieldName = node.fieldNameForChild(i);
     if (
       fieldName === "type" ||
@@ -1098,7 +1111,7 @@ function parsePattern(node: Node | null | undefined, source: string): Pattern {
       }
       for (let i = 0; i < node.childCount; i++) {
         const child = node.child(i);
-        if (!child) continue;
+        if (!child || isIgnorableNode(child)) continue;
         if (child.isNamed) {
           return parsePattern(child, source);
         }
@@ -1176,7 +1189,7 @@ function parseStructPattern(node: Node, source: string): Pattern {
   const fields: StructPatternField[] = [];
   for (let i = 0; i < node.namedChildCount; i++) {
     const child = node.namedChild(i);
-    if (!child) continue;
+    if (!child || isIgnorableNode(child)) continue;
     const fieldName = node.fieldNameForChild(i);
     if (fieldName === "type" || (typeNode && sameNode(child, typeNode))) {
       continue;
@@ -1248,7 +1261,7 @@ function parseArrayPattern(node: Node, source: string): Pattern {
 
   for (let i = 0; i < node.namedChildCount; i++) {
     const child = node.namedChild(i);
-    if (!child) continue;
+    if (!child || isIgnorableNode(child)) continue;
     if (child.type === "array_pattern_rest") {
       if (rest) {
         throw new MapperError("parser: multiple array rest patterns");
@@ -1301,7 +1314,7 @@ function parseInterpolatedString(node: Node, source: string): Expression {
   const parts: (AST.StringLiteral | Expression)[] = [];
   for (let i = 0; i < node.childCount; i++) {
     const child = node.child(i);
-    if (!child) continue;
+    if (!child || isIgnorableNode(child)) continue;
     switch (child.type) {
       case "interpolation_text": {
         const text = sliceText(child, source);
@@ -1955,7 +1968,7 @@ function parseBreakpointExpression(node: Node, source: string): Expression {
 function fallbackBreakpointLabel(node: Node): Node | null {
   for (let i = 0; i < node.childCount; i++) {
     const child = node.child(i);
-    if (!child) continue;
+    if (!child || isIgnorableNode(child)) continue;
     if (child.type === "identifier" || child.type === "label") {
       return child;
     }
@@ -2004,7 +2017,8 @@ function parseFunctionCore(node: Node, source: string): {
   let isPrivate = false;
   for (let i = 0; i < node.childCount; i++) {
     const child = node.child(i);
-    if (child && child.type === "private") {
+    if (!child || isIgnorableNode(child)) continue;
+    if (child.type === "private") {
       isPrivate = true;
       break;
     }

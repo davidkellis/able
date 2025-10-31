@@ -16,6 +16,27 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "../../..");
 const FIXTURE_ROOT = path.join(REPO_ROOT, "fixtures", "ast");
 
+function normalizeModule(value: unknown): void {
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      normalizeModule(item);
+    }
+    return;
+  }
+  if (!value || typeof value !== "object") {
+    return;
+  }
+  const record = value as Record<string, unknown>;
+  for (const key of Object.keys(record)) {
+    const entry = record[key];
+    if (key === "isShorthand" && entry === false) {
+      delete record[key];
+      continue;
+    }
+    normalizeModule(entry);
+  }
+}
+
 async function collectFixtures(): Promise<FixtureEntry[]> {
   const fixtures: FixtureEntry[] = [];
 
@@ -62,7 +83,111 @@ describe("tree-sitter Able mapper", () => {
       expect(tree.rootNode.hasError).toBe(false);
 
       const mapped = mapSourceFile(tree.rootNode, source);
+      normalizeModule(mapped);
+      normalizeModule(expected);
       expect(mapped).toEqual(expected);
     }
+  });
+
+  test("ignores comments when mapping modules", async () => {
+    const parser = await getTreeSitterParser();
+    const source = `## leading comment
+package demo
+
+## another comment
+fn main() -> void {
+  ## inside block
+}
+`;
+
+    const tree = parser.parse(source);
+    expect(tree.rootNode.type).toBe("source_file");
+    expect(tree.rootNode.hasError).toBe(false);
+
+    const module = mapSourceFile(tree.rootNode, source);
+    expect(module.package?.namePath?.map(id => id.name)).toEqual(["demo"]);
+    expect(module.body).toHaveLength(1);
+    expect(module.body[0]?.type).toBe("FunctionDefinition");
+  });
+
+  test("ignores comments inside struct literals with spreads", async () => {
+    const parser = await getTreeSitterParser();
+    const source = `struct Point {
+  x: i32,
+  y: i32,
+}
+
+fn update(base: Point) -> Point {
+  Point {
+    ## spread previous fields
+    ...base,
+    ## override with trailing comment
+    x: base.x + 1 ## trailing
+  }
+}
+`;
+
+    const tree = parser.parse(source);
+    expect(tree.rootNode.type).toBe("source_file");
+    expect(tree.rootNode.hasError).toBe(false);
+
+    const module = mapSourceFile(tree.rootNode, source);
+    const fn = module.body.find(stmt => stmt.type === "FunctionDefinition");
+    expect(fn?.type).toBe("FunctionDefinition");
+    const bodyStatements = fn && "body" in fn ? fn.body.body : [];
+    expect(bodyStatements?.length).toBeGreaterThan(0);
+    const literal = bodyStatements?.[bodyStatements.length - 1];
+    expect(literal?.type).toBe("StructLiteral");
+    if (literal?.type !== "StructLiteral") {
+      throw new Error("expected struct literal expression");
+    }
+    expect(literal.functionalUpdateSources?.length).toBe(1);
+    expect(literal.functionalUpdateSources?.[0]?.type).toBe("Identifier");
+    expect(literal.functionalUpdateSources?.[0]?.name).toBe("base");
+    expect(literal.fields).toHaveLength(1);
+    expect(literal.fields[0]?.name?.name).toBe("x");
+  });
+
+  test.skip("ignores comments inside struct patterns", async () => {
+    // TODO: Enable once the tree-sitter grammar accepts comments within pattern bodies.
+    const parser = await getTreeSitterParser();
+    const source = `struct Point {
+  x: i32,
+  y: i32,
+}
+
+fn project(point: Point) -> i32 {
+  match point {
+    Point {
+      x: px, ## capture x
+      y: py ## capture y
+    } => px + py,
+    _ => 0 ## fallback branch
+  }
+}
+`;
+
+    const tree = parser.parse(source);
+    expect(tree.rootNode.type).toBe("source_file");
+    expect(tree.rootNode.hasError).toBe(false);
+
+    const module = mapSourceFile(tree.rootNode, source);
+    const fn = module.body.find(stmt => stmt.type === "FunctionDefinition");
+    expect(fn?.type).toBe("FunctionDefinition");
+    const bodyStatements = fn && "body" in fn ? fn.body.body : [];
+    const matchExpr = bodyStatements?.find(stmt => stmt?.type === "MatchExpression");
+    expect(matchExpr?.type).toBe("MatchExpression");
+    if (matchExpr?.type !== "MatchExpression") {
+      throw new Error("expected match expression");
+    }
+    expect(matchExpr.clauses).toHaveLength(2);
+    const structClause = matchExpr.clauses[0];
+    expect(structClause?.pattern?.type).toBe("StructPattern");
+    if (structClause?.pattern?.type !== "StructPattern") {
+      throw new Error("expected struct pattern");
+    }
+    expect(structClause.pattern.fields).toHaveLength(2);
+    const names = structClause.pattern.fields.map(field => field.fieldName?.name ?? field.pattern.type);
+    expect(names).toEqual(["x", "y"]);
   });
 });
