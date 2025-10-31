@@ -70,6 +70,9 @@ export function applyPlaceholderAugmentations(cls: typeof InterpreterV10): void 
 
   cls.prototype.tryBuildPlaceholderFunction = function tryBuildPlaceholderFunction(this: InterpreterV10, node: AST.Expression, env: Environment): V10Value | null {
     if (this.hasPlaceholderFrame()) return null;
+    if (node.type === "AssignmentExpression") {
+      return null;
+    }
     const plan = analyzePlaceholderExpression(node);
     if (!plan) return null;
     if (node.type === "BinaryExpression" && node.operator === "|>") {

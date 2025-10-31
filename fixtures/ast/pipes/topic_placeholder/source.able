@@ -1,0 +1,27 @@
+fn add(x: i32, y: i32) -> i32 {
+  x + y
+}
+
+fn double(x: i32) -> i32 {
+  x * 2
+}
+
+struct Box {
+  value: i32
+}
+
+methods Box {
+  fn #double() -> i32 {
+    #value * 2
+  }
+}
+
+value := 5
+arithmetic := (value |> (% + 3))
+pipePlaceholder := (value |> add(@, 4))
+lambdaResult := (add(@, 4))(value)
+ufcs := (value |> double(%))
+boxed := (Box { value: value } |> %.double())
+
+total := arithmetic + pipePlaceholder + lambdaResult + ufcs + boxed
+total

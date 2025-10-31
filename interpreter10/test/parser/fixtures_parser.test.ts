@@ -61,4 +61,25 @@ describe("tree-sitter Able grammar", () => {
       expect(tree.rootNode.hasError).toBe(false);
     }
   });
+
+  test("parses modules that contain comments", async () => {
+    const { Parser, Language } = await import("web-tree-sitter");
+    await Parser.init();
+    const parser = new Parser();
+    const language = await Language.load(WASM_PATH);
+    parser.setLanguage(language);
+
+    const source = `## comment before package
+package demo
+
+## standalone comment
+fn main() -> void {
+  ## inner comment
+}
+`;
+
+    const tree = parser.parse(source);
+    expect(tree.rootNode.type).toBe("source_file");
+    expect(tree.rootNode.hasError).toBe(false);
+  });
 });

@@ -62,7 +62,7 @@ func parseInterpolatedString(node *sitter.Node, source []byte) (ast.Expression, 
 	parts := make([]ast.Expression, 0)
 	for i := uint(0); i < node.ChildCount(); i++ {
 		child := node.Child(i)
-		if child == nil {
+		if child == nil || isIgnorableNode(child) {
 			continue
 		}
 		switch child.Kind() {
@@ -593,7 +593,7 @@ func fallbackBreakpointLabel(node *sitter.Node) *sitter.Node {
 	childCount := uint(node.ChildCount())
 	for i := uint(0); i < childCount; i++ {
 		child := node.Child(i)
-		if child == nil {
+		if child == nil || isIgnorableNode(child) {
 			continue
 		}
 		if child.Kind() == "identifier" {

@@ -1,0 +1,424 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "FunctionDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "add"
+      },
+      "params": [
+        {
+          "type": "FunctionParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "x"
+          },
+          "paramType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        },
+        {
+          "type": "FunctionParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "y"
+          },
+          "paramType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        }
+      ],
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "i32"
+        }
+      },
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "BinaryExpression",
+            "operator": "+",
+            "left": {
+              "type": "Identifier",
+              "name": "x"
+            },
+            "right": {
+              "type": "Identifier",
+              "name": "y"
+            }
+          }
+        ]
+      },
+      "isMethodShorthand": false,
+      "isPrivate": false
+    },
+    {
+      "type": "FunctionDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "double"
+      },
+      "params": [
+        {
+          "type": "FunctionParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "x"
+          },
+          "paramType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        }
+      ],
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "i32"
+        }
+      },
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "BinaryExpression",
+            "operator": "*",
+            "left": {
+              "type": "Identifier",
+              "name": "x"
+            },
+            "right": {
+              "type": "IntegerLiteral",
+              "value": 2
+            }
+          }
+        ]
+      },
+      "isMethodShorthand": false,
+      "isPrivate": false
+    },
+    {
+      "type": "StructDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "Box"
+      },
+      "fields": [
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "value"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        }
+      ],
+      "kind": "named"
+    },
+    {
+      "type": "MethodsDefinition",
+      "targetType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "Box"
+        }
+      },
+      "definitions": [
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "double"
+          },
+          "params": [],
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          },
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "BinaryExpression",
+                "operator": "*",
+                "left": {
+                  "type": "ImplicitMemberExpression",
+                  "member": {
+                    "type": "Identifier",
+                    "name": "value"
+                  }
+                },
+                "right": {
+                  "type": "IntegerLiteral",
+                  "value": 2
+                }
+              }
+            ]
+          },
+          "isMethodShorthand": true,
+          "isPrivate": false
+        }
+      ]
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "value"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 5
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "arithmetic"
+      },
+      "right": {
+        "type": "BinaryExpression",
+        "operator": "|>",
+        "left": {
+          "type": "Identifier",
+          "name": "value"
+        },
+        "right": {
+          "type": "BinaryExpression",
+          "operator": "+",
+          "left": {
+            "type": "TopicReferenceExpression"
+          },
+          "right": {
+            "type": "IntegerLiteral",
+            "value": 3
+          }
+        }
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "pipePlaceholder"
+      },
+      "right": {
+        "type": "BinaryExpression",
+        "operator": "|>",
+        "left": {
+          "type": "Identifier",
+          "name": "value"
+        },
+        "right": {
+          "type": "FunctionCall",
+          "callee": {
+            "type": "Identifier",
+            "name": "add"
+          },
+          "arguments": [
+            {
+              "type": "PlaceholderExpression"
+            },
+            {
+              "type": "IntegerLiteral",
+              "value": 4
+            }
+          ],
+          "isTrailingLambda": false
+        }
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "lambdaResult"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "FunctionCall",
+          "callee": {
+            "type": "Identifier",
+            "name": "add"
+          },
+          "arguments": [
+            {
+              "type": "PlaceholderExpression"
+            },
+            {
+              "type": "IntegerLiteral",
+              "value": 4
+            }
+          ],
+          "isTrailingLambda": false
+        },
+        "arguments": [
+          {
+            "type": "Identifier",
+            "name": "value"
+          }
+        ],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "ufcs"
+      },
+      "right": {
+        "type": "BinaryExpression",
+        "operator": "|>",
+        "left": {
+          "type": "Identifier",
+          "name": "value"
+        },
+        "right": {
+          "type": "FunctionCall",
+          "callee": {
+            "type": "Identifier",
+            "name": "double"
+          },
+          "arguments": [
+            {
+              "type": "TopicReferenceExpression"
+            }
+          ],
+          "isTrailingLambda": false
+        }
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "boxed"
+      },
+      "right": {
+        "type": "BinaryExpression",
+        "operator": "|>",
+        "left": {
+          "type": "StructLiteral",
+          "structType": {
+            "type": "Identifier",
+            "name": "Box"
+          },
+          "fields": [
+            {
+              "type": "StructFieldInitializer",
+              "name": {
+                "type": "Identifier",
+                "name": "value"
+              },
+              "value": {
+                "type": "Identifier",
+                "name": "value"
+              },
+              "isShorthand": false
+            }
+          ],
+          "isPositional": false
+        },
+        "right": {
+          "type": "FunctionCall",
+          "callee": {
+            "type": "MemberAccessExpression",
+            "object": {
+              "type": "TopicReferenceExpression"
+            },
+            "member": {
+              "type": "Identifier",
+              "name": "double"
+            }
+          },
+          "arguments": [],
+          "isTrailingLambda": false
+        }
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "total"
+      },
+      "right": {
+        "type": "BinaryExpression",
+        "operator": "+",
+        "left": {
+          "type": "BinaryExpression",
+          "operator": "+",
+          "left": {
+            "type": "BinaryExpression",
+            "operator": "+",
+            "left": {
+              "type": "BinaryExpression",
+              "operator": "+",
+              "left": {
+                "type": "Identifier",
+                "name": "arithmetic"
+              },
+              "right": {
+                "type": "Identifier",
+                "name": "pipePlaceholder"
+              }
+            },
+            "right": {
+              "type": "Identifier",
+              "name": "lambdaResult"
+            }
+          },
+          "right": {
+            "type": "Identifier",
+            "name": "ufcs"
+          }
+        },
+        "right": {
+          "type": "Identifier",
+          "name": "boxed"
+        }
+      }
+    },
+    {
+      "type": "Identifier",
+      "name": "total"
+    }
+  ]
+}

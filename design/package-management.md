@@ -14,10 +14,7 @@
 Top-level keys:
 
 - `name`, `version`, `license`, `authors` (strings/arrays)
-- `targets`: map of target name →
-  - `type`: `executable`, `library`, or `test`
-  - `main`: entrypoint file (for executables/tests)
-  - `dependencies`: optional per-target overrides/additions
+- `targets`: map of short target name → entrypoint Able source file (relative to the manifest directory). Every target currently builds as an executable, and all dependencies are shared across targets.
 - `dependencies`, `dev_dependencies`, `build_dependencies`: map of dependency name → descriptor
 - `workspace`: reserved for future multi-package coordination
 

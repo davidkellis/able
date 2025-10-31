@@ -1088,6 +1088,22 @@ func decodeNode(node map[string]any) (ast.Node, error) {
 			return nil, fmt.Errorf("invalid index expression %T", indexNode)
 		}
 		return ast.NewIndexExpression(object, indexExpr), nil
+	case "TopicReferenceExpression":
+		return ast.NewTopicReferenceExpression(), nil
+	case "PlaceholderExpression":
+		if idxRaw, ok := node["index"]; ok {
+			switch v := idxRaw.(type) {
+			case float64:
+				index := int(v)
+				return ast.NewPlaceholderExpression(&index), nil
+			case json.Number:
+				if i, err := v.Int64(); err == nil {
+					index := int(i)
+					return ast.NewPlaceholderExpression(&index), nil
+				}
+			}
+		}
+		return ast.NewPlaceholderExpression(nil), nil
 	case "WildcardPattern", "LiteralPattern", "StructPattern", "ArrayPattern", "TypedPattern":
 		return decodePattern(node)
 	case "ReturnStatement":

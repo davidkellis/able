@@ -16,12 +16,7 @@ authors:
   - David
   - Ada
 targets:
-  app:
-    type: executable
-    main: src/main.able
-    dependencies:
-      logging:
-        features: ["color", "color"]
+  app: src/main.able
 dependencies:
   stdlib: "~> 1.0.0"
   logging:
@@ -55,18 +50,8 @@ build_dependencies:
 	if !ok {
 		t.Fatalf("Targets missing app entry: %#v", manifest.Targets)
 	}
-	if target.Type != TargetTypeExecutable {
-		t.Fatalf("target.Type = %q, want %q", target.Type, TargetTypeExecutable)
-	}
 	if target.Main != "src/main.able" {
 		t.Fatalf("target.Main = %q, want src/main.able", target.Main)
-	}
-	dep := target.Dependencies["logging"]
-	if dep == nil {
-		t.Fatalf("target.Dependencies missing logging: %#v", target.Dependencies)
-	}
-	if len(dep.Features) != 1 || dep.Features[0] != "color" {
-		t.Fatalf("target dependency features not normalized: %#v", dep.Features)
 	}
 
 	stdlib := manifest.Dependencies["stdlib"]
@@ -100,9 +85,6 @@ build_dependencies:
 func TestLoadManifestDependencyShorthand(t *testing.T) {
 	path := writeManifest(t, `
 name: lib
-targets:
-  lib:
-    type: library
 dependencies:
   stdlib: "~> 1.2.3"
   utils:
@@ -131,8 +113,7 @@ func TestLoadManifestValidation(t *testing.T) {
 	path := writeManifest(t, `
 name: ""
 targets:
-  cli:
-    type: executable
+  cli: src/main.able
 dependencies:
   util: {}
 `)
@@ -144,7 +125,6 @@ dependencies:
 	msg := err.Error()
 	wantFragments := []string{
 		"name must be provided",
-		`target "cli" requires a main entrypoint`,
 		"dependencies.util: must specify version, git, or path",
 	}
 	for _, fragment := range wantFragments {
@@ -154,19 +134,29 @@ dependencies:
 	}
 }
 
-func TestManifestDefaultExecutableTarget(t *testing.T) {
+func TestLoadManifestTargetEntrypointRequired(t *testing.T) {
 	path := writeManifest(t, `
 name: demo
 targets:
-  lint:
-    type: test
-    main: spec/lint.able
-  app-server:
-    type: executable
-    main: src/app.able
-  Worker:
-    type: executable
-    main: src/worker.able
+  cli: ""
+`)
+
+	_, err := LoadManifest(path)
+	if err == nil {
+		t.Fatal("expected error for empty target entrypoint, got nil")
+	}
+	if !strings.Contains(err.Error(), `target "cli" requires an entrypoint path`) {
+		t.Fatalf("expected entrypoint error, got %v", err)
+	}
+}
+
+func TestManifestDefaultTarget(t *testing.T) {
+	path := writeManifest(t, `
+name: demo
+targets:
+  app-server: src/app.able
+  lint: spec/lint.able
+  Worker: src/worker.able
 `)
 
 	manifest, err := LoadManifest(path)
@@ -174,18 +164,18 @@ targets:
 		t.Fatalf("LoadManifest error: %v", err)
 	}
 
-	target, err := manifest.DefaultExecutableTarget()
+	target, err := manifest.DefaultTarget()
 	if err != nil {
-		t.Fatalf("DefaultExecutableTarget returned error: %v", err)
+		t.Fatalf("DefaultTarget returned error: %v", err)
 	}
 	if target.OriginalName != "app-server" {
-		t.Fatalf("DefaultExecutableTarget = %q, want app-server", target.OriginalName)
+		t.Fatalf("DefaultTarget = %q, want app-server", target.OriginalName)
 	}
 	if target.Main != "src/app.able" {
 		t.Fatalf("Default target main mismatch: %s", target.Main)
 	}
 
-	wantOrder := []string{"lint", "app_server", "Worker"}
+	wantOrder := []string{"app_server", "lint", "Worker"}
 	if got := manifest.TargetOrder; len(got) != len(wantOrder) {
 		t.Fatalf("TargetOrder length = %d, want %d (%v)", len(got), len(wantOrder), wantOrder)
 	} else {
@@ -201,11 +191,8 @@ func TestManifestFindTarget(t *testing.T) {
 	path := writeManifest(t, `
 name: demo
 targets:
-  app-server:
-    type: executable
-    main: src/app.able
-  helper:
-    type: library
+  app-server: src/app.able
+  helper: src/helper.able
 `)
 
 	manifest, err := LoadManifest(path)
