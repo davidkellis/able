@@ -9,5 +9,8 @@
   "skipTargets": [
     "ts"
   ],
-  "entry": "module.json"
+  "entry": "module.json",
+  "setup": [
+    "interfaces.json"
+  ]
 }

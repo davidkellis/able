@@ -52,10 +52,17 @@ func readModule(t testingT, path string) *ast.Module {
 		return mod
 	}
 	if strings.HasSuffix(path, ".json") {
-		sourcePath := filepath.Join(filepath.Dir(path), "source.able")
-		if _, err := os.Stat(sourcePath); err == nil {
-			if mod, err := parseSourceModule(sourcePath); err == nil {
-				return mod
+		dir := filepath.Dir(path)
+		base := strings.TrimSuffix(filepath.Base(path), ".json")
+		candidates := []string{filepath.Join(dir, base+".able")}
+		if base == "module" {
+			candidates = append(candidates, filepath.Join(dir, "source.able"))
+		}
+		for _, candidate := range candidates {
+			if _, err := os.Stat(candidate); err == nil {
+				if mod, err := parseSourceModule(candidate); err == nil {
+					return mod
+				}
 			}
 		}
 	}
