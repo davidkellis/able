@@ -1,0 +1,4 @@
+struct Pair { i32, i32 }
+pair := Pair { 4, 8 }
+Pair { first, second } := pair
+first + second

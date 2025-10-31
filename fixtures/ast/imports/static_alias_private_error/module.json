@@ -6,6 +6,7 @@
       "packagePath": [
         { "type": "Identifier", "name": "util_static" }
       ],
+      "isWildcard": false,
       "alias": { "type": "Identifier", "name": "U" }
     }
   ],
