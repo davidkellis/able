@@ -132,10 +132,16 @@ async function loadModuleFromFixture(dir: string, relativePath: string): Promise
 async function loadModuleFromPath(filePath: string): Promise<AST.Module> {
   if (filePath.endsWith(".json")) {
     const directory = path.dirname(filePath);
-    const sourceCandidate = path.join(directory, "source.able");
-    const fromSource = await parseModuleFromSource(sourceCandidate);
-    if (fromSource) {
-      return fromSource;
+    const base = path.basename(filePath, ".json");
+    const candidates = [path.join(directory, `${base}.able`)];
+    if (base === "module") {
+      candidates.push(path.join(directory, "source.able"));
+    }
+    for (const candidate of candidates) {
+      const fromSource = await parseModuleFromSource(candidate);
+      if (fromSource) {
+        return fromSource;
+      }
     }
   }
   return readModule(filePath);
