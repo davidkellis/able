@@ -1,0 +1,7 @@
+package static_middle_multihop
+
+import static_base_multihop.{base_value}
+
+fn middle_value() {
+  return base_value() + 1;
+}

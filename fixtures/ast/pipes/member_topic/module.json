@@ -66,7 +66,8 @@
               }
             ]
           },
-          "isMethodShorthand": true
+          "isMethodShorthand": true,
+          "isPrivate": false
         },
         {
           "type": "FunctionDefinition",
@@ -98,7 +99,8 @@
               }
             ]
           },
-          "isMethodShorthand": true
+          "isMethodShorthand": true,
+          "isPrivate": false
         }
       ]
     },
@@ -125,7 +127,8 @@
             "value": {
               "type": "IntegerLiteral",
               "value": 5
-            }
+            },
+            "isShorthand": false
           }
         ],
         "isPositional": false

@@ -1,0 +1,3 @@
+import static_middle.{middle_value}
+
+middle_value()

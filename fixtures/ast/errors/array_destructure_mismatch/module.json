@@ -26,8 +26,7 @@
         "elements": [
           { "type": "Identifier", "name": "a" },
           { "type": "Identifier", "name": "b" }
-        ],
-        "restPattern": null
+        ]
       },
       "right": { "type": "Identifier", "name": "arr" }
     }

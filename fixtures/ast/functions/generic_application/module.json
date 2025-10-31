@@ -22,7 +22,9 @@
           "type": "GenericParameter",
           "name": { "type": "Identifier", "name": "T" }
         }
-      ]
+      ],
+      "isMethodShorthand": false,
+      "isPrivate": false
     },
     {
       "type": "AssignmentExpression",

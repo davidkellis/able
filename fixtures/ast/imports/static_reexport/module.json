@@ -6,6 +6,7 @@
       "packagePath": [
         { "type": "Identifier", "name": "static_middle" }
       ],
+      "isWildcard": false,
       "selectors": [
         {
           "type": "ImportSelector",
