@@ -22,7 +22,7 @@ func parsePattern(node *sitter.Node, source []byte) (ast.Pattern, error) {
 			}
 			for i := uint(0); i < node.ChildCount(); i++ {
 				child := node.Child(i)
-				if child == nil {
+				if child == nil || isIgnorableNode(child) {
 					continue
 				}
 				if child.IsNamed() {
@@ -120,7 +120,7 @@ func parseStructPattern(node *sitter.Node, source []byte) (ast.Pattern, error) {
 	isPositional := false
 	for i := uint(0); i < node.NamedChildCount(); i++ {
 		child := node.NamedChild(i)
-		if child == nil {
+		if child == nil || isIgnorableNode(child) {
 			continue
 		}
 		if field := node.FieldNameForChild(uint32(i)); field == "type" {
@@ -229,7 +229,7 @@ func parseArrayPattern(node *sitter.Node, source []byte) (ast.Pattern, error) {
 
 	for i := uint(0); i < node.NamedChildCount(); i++ {
 		child := node.NamedChild(i)
-		if child == nil {
+		if child == nil || isIgnorableNode(child) {
 			continue
 		}
 		if child.Kind() == "array_pattern_rest" {

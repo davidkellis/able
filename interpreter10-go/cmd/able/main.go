@@ -73,7 +73,7 @@ func runEntry(args []string) int {
 			fmt.Fprintf(os.Stderr, "%v\n", err)
 			return 1
 		}
-		target, err := manifest.DefaultExecutableTarget()
+		target, err := manifest.DefaultTarget()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "manifest error: %v\n", err)
 			return 1
@@ -92,12 +92,9 @@ func runEntry(args []string) int {
 	}
 
 	candidate := args[0]
+	activeManifest := manifest
 	if manifest != nil {
 		if target, ok := manifest.FindTarget(candidate); ok && target != nil {
-			if !target.Type.RequiresMain() {
-				fmt.Fprintf(os.Stderr, "target %q of type %s cannot be executed with able run\n", target.OriginalName, target.Type)
-				return 1
-			}
 			entryPath, err := resolveTargetMain(manifest, target)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "failed to resolve target %q: %v\n", target.OriginalName, err)
@@ -112,13 +109,30 @@ func runEntry(args []string) int {
 		}
 	}
 
+	if absCandidate, err := filepath.Abs(candidate); err == nil {
+		entryDir := filepath.Dir(absCandidate)
+		if manifestPath, findErr := findManifest(entryDir); findErr == nil {
+			if activeManifest == nil || filepath.Clean(activeManifest.Path) != filepath.Clean(manifestPath) {
+				m, loadErr := driver.LoadManifest(manifestPath)
+				if loadErr != nil {
+					fmt.Fprintf(os.Stderr, "failed to read manifest for %s: %v\n", candidate, loadErr)
+					return 1
+				}
+				activeManifest = m
+			}
+		} else if !errors.Is(findErr, errManifestNotFound) {
+			fmt.Fprintf(os.Stderr, "failed to locate manifest for %s: %v\n", candidate, findErr)
+			return 1
+		}
+	}
+
 	// Treat the argument as a direct source file path.
-	lock, err := loadLockfileForManifest(manifest)
+	lock, err := loadLockfileForManifest(activeManifest)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		return 1
 	}
-	return executeEntry(candidate, manifest, lock)
+	return executeEntry(candidate, activeManifest, lock)
 }
 
 func executeEntry(entry string, manifest *driver.Manifest, lock *driver.Lockfile) int {

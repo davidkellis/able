@@ -62,6 +62,9 @@ func (p *ModuleParser) ParseModule(source []byte) (*ast.Module, error) {
 
 	for i := uint(0); i < root.NamedChildCount(); i++ {
 		node := root.NamedChild(i)
+		if isIgnorableNode(node) {
+			continue
+		}
 		switch node.Kind() {
 		case "package_statement":
 			pkg, err := parsePackageStatement(node, source)
@@ -142,6 +145,9 @@ func parsePackageStatement(node *sitter.Node, source []byte) (*ast.PackageStatem
 	var parts []*ast.Identifier
 	for i := uint(0); i < node.NamedChildCount(); i++ {
 		child := node.NamedChild(i)
+		if isIgnorableNode(child) {
+			continue
+		}
 		id, err := parseIdentifier(child, source)
 		if err != nil {
 			return nil, err
@@ -163,6 +169,9 @@ func parseQualifiedIdentifier(node *sitter.Node, source []byte) ([]*ast.Identifi
 	var parts []*ast.Identifier
 	for i := uint(0); i < node.NamedChildCount(); i++ {
 		child := node.NamedChild(i)
+		if isIgnorableNode(child) {
+			continue
+		}
 		id, err := parseIdentifier(child, source)
 		if err != nil {
 			return nil, err
@@ -188,6 +197,9 @@ func parseImportClause(node *sitter.Node, source []byte) (bool, []*ast.ImportSel
 
 	for i := uint(0); i < node.NamedChildCount(); i++ {
 		child := node.NamedChild(i)
+		if isIgnorableNode(child) {
+			continue
+		}
 		switch child.Kind() {
 		case "import_selector":
 			selector, err := parseImportSelector(child, source)
