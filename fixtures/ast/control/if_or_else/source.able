@@ -1,0 +1,11 @@
+score := 85
+grade := if score >= 90 {
+  "A"
+}
+or score >= 80 {
+  "B"
+}
+else {
+  "C or lower"
+}
+grade

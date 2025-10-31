@@ -1,0 +1,43 @@
+trace := ""
+stage_a := 0
+stage_b := 0
+worker := proc {
+  if stage_a == 0 {
+    trace = trace + "A1"
+    stage_a = 1
+    proc_yield()
+  }
+  if stage_a == 1 {
+    trace = trace + "A2"
+    stage_a = 2
+  }
+  0
+}
+other := proc {
+  if stage_b == 0 {
+    trace = trace + "B1"
+    stage_b = 1
+    proc_yield()
+  }
+  if stage_b == 1 {
+    trace = trace + "B2"
+    stage_b = 2
+  }
+  0
+}
+proc_flush()
+status_worker := (worker.status() match {
+  case Pending {  } => "Pending",
+  case Resolved {  } => "Resolved",
+  case Cancelled {  } => "Cancelled",
+  case Failed {  } => "Failed",
+  case _ => "Other"
+})
+status_other := (other.status() match {
+  case Pending {  } => "Pending",
+  case Resolved {  } => "Resolved",
+  case Cancelled {  } => "Cancelled",
+  case Failed {  } => "Failed",
+  case _ => "Other"
+})
+`${trace}:${status_worker}:${status_other}`

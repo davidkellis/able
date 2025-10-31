@@ -155,10 +155,11 @@ This document tracks the implementation plan for the v10 interpreter inside `int
 
 ### Parser Progress & Next Steps
 - **Progress (current session)**  
-  - Added shared AST fixtures for `if/or` chains, assignment variants (`:=`, `=`, compound), breakpoint expressions, lambdas, and trailing-lambda calls.  
-  - Regenerated the tree-sitter corpus and confirmed `npx tree-sitter test` succeeds with the new grammar expectations.  
-  - Invoked Go parser tests to validate the grammar updates; deferred wiring the new fixtures into the Go harness until the syntax gaps are resolved.
+  - Enforced brace syntax for positional structs across the grammar, mapper, and Go parser tests; regenerated the WASM + corpus.  
+  - Reworked the Go parser fixture harness to auto-discover categories and wired the full AST suite (skipping fixtures that still lack `source.able`).  
+  - Preserved `isTrailingLambda` metadata through both the tree-sitter mapper and Go fixture decoder; Go parser now folds module-level trailing lambdas into the preceding call.  
+  - `go test ./pkg/parser` now exercises the same trailing-lambda + `value! else { … }` cases as TypeScript, with parity verified via `bun test test/parser`.
 - **Pending follow-up**  
-  1. Teach the Able grammar + Go parser to recognise `value! else { … }` and mark the `OrElseExpression` fixture green.  
-  2. Extend the parser to emit trailing-lambda ASTs (including `isTrailingLambda` metadata) and add the corresponding Go test coverage.  
-  3. After the above land, hook the new fixtures into the Go `functionFixtures`/`expressionFixtures` arrays and backfill the TypeScript-side parser assertions.
+  1. Backfill missing `source.able` files for fixtures that currently ship only a `module.json` (errors, imports, generic function cases, etc.) so the Go harness can cover them.  
+  2. Extend the fixture exporter to emit both `module.json` and `source.able` consistently, and fail the export when either side, AST or source, is missing.  
+  3. Investigate remaining parser TODOs called out in `design/parser-ast-coverage.md` (e.g., advanced pipe/topic fixtures) and queue grammar work where gaps remain.

@@ -46,8 +46,15 @@ Owner: Able Agents
 
 ## Testing strategy
 
+- Maintain three independent layers:
+  1. Tree-sitter corpus tests that assert the concrete syntax tree for each
+     grammar fixture.
+  2. Parser mapping tests that convert the CST into AST nodes and diff against
+     the canonical `fixtures/ast/**/module.json` files.
+  3. Interpreter tests that evaluate ASTs built by hand (no parser) so runtime
+     semantics remain tied to the AST contract instead of parser behaviour.
 - Reuse existing fixtures by re-parsing their Able source (when available) and
-  comparing serialised AST output.
+  comparing serialised AST output; fall back to JSON when no source exists.
 - Introduce parser-specific regression suites covering tricky grammar cases
   (nested patterns, generics, async constructs).
 - When the typechecker becomes available, integrate it into the pipeline to

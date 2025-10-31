@@ -1,0 +1,7 @@
+do {
+  raise "oops"
+} rescue {
+  case _ => "rescued"
+} ensure {
+  print("ensure")
+}

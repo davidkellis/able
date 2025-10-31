@@ -1,10 +1,13 @@
 package parser_test
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"testing"
 
 	"able/interpreter10-go/pkg/ast"
@@ -15,6 +18,52 @@ import (
 type fixtureCase struct {
 	name   string
 	source string
+}
+
+func collectFixtureCases(t testing.TB, category string) []fixtureCase {
+	t.Helper()
+
+	root := filepath.Join("..", "..", "..", "fixtures", "ast", category)
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		t.Fatalf("read fixture category %s: %v", root, err)
+	}
+
+	cases := make([]fixtureCase, 0, len(entries))
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		modulePath := filepath.Join(root, entry.Name(), "module.json")
+		if _, err := os.Stat(modulePath); err != nil {
+			t.Fatalf("fixture %s missing module.json: %v", filepath.Join(root, entry.Name()), err)
+		}
+		sourcePath := filepath.Join(root, entry.Name(), "source.able")
+		if _, err := os.Stat(sourcePath); err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			t.Fatalf("fixture %s: stat source: %v", filepath.Join(root, entry.Name()), err)
+		}
+		name := filepath.ToSlash(filepath.Join(category, entry.Name()))
+		cases = append(cases, fixtureCase{name: name})
+	}
+
+	sort.Slice(cases, func(i, j int) bool {
+		return cases[i].name < cases[j].name
+	})
+
+	return cases
+}
+
+func loadFixtureSource(t testing.TB, fixtureName string) string {
+	t.Helper()
+	sourcePath := filepath.Join("..", "..", "..", "fixtures", "ast", fixtureName, "source.able")
+	data, err := os.ReadFile(sourcePath)
+	if err != nil {
+		t.Fatalf("read fixture source %s: %v", sourcePath, err)
+	}
+	return string(data)
 }
 
 func loadFixtureModule(t testing.TB, fixtureName string) *ast.Module {
@@ -28,7 +77,158 @@ func loadFixtureModule(t testing.TB, fixtureName string) *ast.Module {
 	if err != nil {
 		t.Fatalf("decode fixture module %s: %v", modulePath, err)
 	}
+	normalizeFixtureModule(mod)
 	return mod
+}
+
+func normalizeFixtureModule(mod *ast.Module) {
+	if mod == nil {
+		return
+	}
+	for _, stmt := range mod.Body {
+		normalizeFixtureNode(stmt)
+	}
+}
+
+func normalizeFixtureNode(node ast.Node) {
+	switch n := node.(type) {
+	case *ast.FunctionDefinition:
+		if len(n.Params) == 0 {
+			n.Params = nil
+		}
+		if len(n.GenericParams) == 0 {
+			n.GenericParams = nil
+		}
+		if len(n.WhereClause) == 0 {
+			n.WhereClause = nil
+		}
+		if n.Body != nil {
+			normalizeFixtureNode(n.Body)
+		}
+	case *ast.FunctionSignature:
+		if len(n.Params) == 0 {
+			n.Params = nil
+		}
+		if len(n.GenericParams) == 0 {
+			n.GenericParams = nil
+		}
+		if len(n.WhereClause) == 0 {
+			n.WhereClause = nil
+		}
+		if n.DefaultImpl != nil {
+			normalizeFixtureNode(n.DefaultImpl)
+		}
+	case *ast.MethodsDefinition:
+		if len(n.Definitions) == 0 {
+			n.Definitions = nil
+		}
+		for _, def := range n.Definitions {
+			normalizeFixtureNode(def)
+		}
+	case *ast.InterfaceDefinition:
+		if len(n.Signatures) == 0 {
+			n.Signatures = nil
+		}
+		if len(n.GenericParams) == 0 {
+			n.GenericParams = nil
+		}
+		if len(n.WhereClause) == 0 {
+			n.WhereClause = nil
+		}
+		for _, sig := range n.Signatures {
+			normalizeFixtureNode(sig)
+		}
+	case *ast.ExternFunctionBody:
+		if len(n.Signature.Params) == 0 {
+			n.Signature.Params = nil
+		}
+		if len(n.Signature.GenericParams) == 0 {
+			n.Signature.GenericParams = nil
+		}
+		if len(n.Signature.WhereClause) == 0 {
+			n.Signature.WhereClause = nil
+		}
+	case *ast.StructDefinition:
+		if len(n.Fields) == 0 {
+			n.Fields = nil
+		}
+		if len(n.GenericParams) == 0 {
+			n.GenericParams = nil
+		}
+		if len(n.WhereClause) == 0 {
+			n.WhereClause = nil
+		}
+	case *ast.StructLiteral:
+		if len(n.Fields) == 0 {
+			n.Fields = nil
+		}
+		for _, field := range n.Fields {
+			if field != nil {
+				normalizeFixtureNode(field.Value)
+			}
+		}
+	case *ast.StructFieldInitializer:
+		normalizeFixtureNode(n.Value)
+	case *ast.FunctionCall:
+		if len(n.Arguments) == 0 {
+			n.Arguments = nil
+		}
+		if len(n.TypeArguments) == 0 {
+			n.TypeArguments = nil
+		}
+		for _, arg := range n.Arguments {
+			normalizeFixtureNode(arg)
+		}
+	case *ast.AssignmentExpression:
+		normalizeFixtureNode(n.Right)
+	case *ast.BlockExpression:
+		if len(n.Body) == 0 {
+			n.Body = nil
+		}
+		for _, stmt := range n.Body {
+			normalizeFixtureNode(stmt)
+		}
+	case *ast.ArrayLiteral:
+		for _, elem := range n.Elements {
+			normalizeFixtureNode(elem)
+		}
+	case *ast.GenericTypeExpression:
+		if len(n.Arguments) == 0 {
+			n.Arguments = nil
+		}
+	case *ast.NullableTypeExpression:
+		if n.InnerType != nil {
+			normalizeFixtureNode(n.InnerType)
+		}
+	case *ast.ResultTypeExpression:
+		if n.InnerType != nil {
+			normalizeFixtureNode(n.InnerType)
+		}
+	case *ast.UnionTypeExpression:
+		if len(n.Members) == 0 {
+			n.Members = nil
+		}
+		for _, member := range n.Members {
+			normalizeFixtureNode(member)
+		}
+	case *ast.RescueExpression:
+		normalizeFixtureNode(n.MonitoredExpression)
+		for _, clause := range n.Clauses {
+			normalizeFixtureNode(clause)
+		}
+	case *ast.EnsureExpression:
+		normalizeFixtureNode(n.TryExpression)
+		if n.EnsureBlock != nil {
+			normalizeFixtureNode(n.EnsureBlock)
+		}
+	case *ast.MatchClause:
+		normalizeFixtureNode(n.Body)
+		if n.Guard != nil {
+			normalizeFixtureNode(n.Guard)
+		}
+	case *ast.Module:
+		normalizeFixtureModule(n)
+	}
 }
 
 func assertModulesEqual(t testing.TB, expected, actual *ast.Module) {
@@ -38,6 +238,9 @@ func assertModulesEqual(t testing.TB, expected, actual *ast.Module) {
 	}
 	wantJSON, _ := json.MarshalIndent(expected, "", "  ")
 	gotJSON, _ := json.MarshalIndent(actual, "", "  ")
+	if bytes.Equal(wantJSON, gotJSON) {
+		return
+	}
 	t.Fatalf("module mismatch\nexpected: %s\n   actual: %s", wantJSON, gotJSON)
 }
 
@@ -46,16 +249,21 @@ func runFixtureCases(t *testing.T, cases []fixtureCase) {
 	for _, tc := range cases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			source := tc.source
+			if source == "" {
+				source = loadFixtureSource(t, tc.name)
+			}
 			p, err := parser.NewModuleParser()
 			if err != nil {
 				t.Fatalf("NewModuleParser error: %v", err)
 			}
 			defer p.Close()
 
-			mod, err := p.ParseModule([]byte(tc.source))
+			mod, err := p.ParseModule([]byte(source))
 			if err != nil {
 				t.Fatalf("ParseModule error for %s: %v", tc.name, err)
 			}
+			normalizeFixtureModule(mod)
 
 			expected := loadFixtureModule(t, tc.name)
 			assertModulesEqual(t, expected, mod)
@@ -665,7 +873,7 @@ fn guard() -> string {
 		ast.Ty("string"),
 		nil,
 		nil,
-		true,
+		false,
 		false,
 	)
 
@@ -678,7 +886,7 @@ fn guard() -> string {
 		ast.Nullable(ast.Ty("Error")),
 		nil,
 		nil,
-		true,
+		false,
 		false,
 	)
 
@@ -1752,6 +1960,194 @@ extern go fn host_fn(x: i32) -> i32 {
 	assertModulesEqual(t, expected, module)
 }
 
+func TestParseGenericFunctionDefinition(t *testing.T) {
+	source := `fn identity<T>(value: T) -> T where T: Display {
+  value
+}
+`
+
+	p, err := parser.NewModuleParser()
+	if err != nil {
+		t.Fatalf("NewModuleParser error: %v", err)
+	}
+	defer p.Close()
+
+	mod, err := p.ParseModule([]byte(source))
+	if err != nil {
+		t.Fatalf("ParseModule error: %v", err)
+	}
+
+	genericParam := ast.NewGenericParameter(ast.ID("T"), nil)
+	whereClause := ast.NewWhereClauseConstraint(
+		ast.ID("T"),
+		[]*ast.InterfaceConstraint{
+			ast.NewInterfaceConstraint(ast.TyID(ast.ID("Display"))),
+		},
+	)
+
+	fn := ast.NewFunctionDefinition(
+		ast.ID("identity"),
+		[]*ast.FunctionParameter{
+			ast.NewFunctionParameter(ast.ID("value"), ast.Ty("T")),
+		},
+		ast.Block(ast.ID("value")),
+		ast.Ty("T"),
+		[]*ast.GenericParameter{genericParam},
+		[]*ast.WhereClauseConstraint{whereClause},
+		false,
+		false,
+	)
+
+	expected := ast.NewModule([]ast.Statement{fn}, nil, nil)
+	expected.Imports = []*ast.ImportStatement{}
+
+	assertModulesEqual(t, expected, mod)
+}
+
+func TestParsePrivateFunctionDefinition(t *testing.T) {
+	source := `private fn helper(x: i32) -> i32 {
+  x
+}
+`
+
+	p, err := parser.NewModuleParser()
+	if err != nil {
+		t.Fatalf("NewModuleParser error: %v", err)
+	}
+	defer p.Close()
+
+	mod, err := p.ParseModule([]byte(source))
+	if err != nil {
+		t.Fatalf("ParseModule error: %v", err)
+	}
+
+	fn := ast.NewFunctionDefinition(
+		ast.ID("helper"),
+		[]*ast.FunctionParameter{
+			ast.NewFunctionParameter(ast.ID("x"), ast.Ty("i32")),
+		},
+		ast.Block(ast.ID("x")),
+		ast.Ty("i32"),
+		nil,
+		nil,
+		false,
+		true,
+	)
+
+	expected := ast.NewModule([]ast.Statement{fn}, nil, nil)
+	expected.Imports = []*ast.ImportStatement{}
+
+	assertModulesEqual(t, expected, mod)
+}
+
+func TestParseRaiseAndRethrowStatements(t *testing.T) {
+	source := `fn fail() {
+  raise Error("boom")
+}
+
+fn retry() {
+  rethrow
+}
+`
+
+	p, err := parser.NewModuleParser()
+	if err != nil {
+		t.Fatalf("NewModuleParser error: %v", err)
+	}
+	defer p.Close()
+
+	mod, err := p.ParseModule([]byte(source))
+	if err != nil {
+		t.Fatalf("ParseModule error: %v", err)
+	}
+
+	raiseFn := ast.NewFunctionDefinition(
+		ast.ID("fail"),
+		nil,
+		ast.Block(
+			ast.NewRaiseStatement(
+				ast.NewFunctionCall(
+					ast.ID("Error"),
+					[]ast.Expression{ast.Str("boom")},
+					nil,
+					false,
+				),
+			),
+		),
+		nil,
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	rethrowFn := ast.NewFunctionDefinition(
+		ast.ID("retry"),
+		nil,
+		ast.Block(
+			ast.NewRethrowStatement(),
+		),
+		nil,
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	expected := ast.NewModule(
+		[]ast.Statement{
+			raiseFn,
+			rethrowFn,
+		},
+		nil,
+		nil,
+	)
+	expected.Imports = []*ast.ImportStatement{}
+
+	assertModulesEqual(t, expected, mod)
+}
+
+func TestParseBreakpointWithLabel(t *testing.T) {
+	source := `fn debug() {
+  breakpoint 'trace {
+    1
+  }
+}
+`
+
+	p, err := parser.NewModuleParser()
+	if err != nil {
+		t.Fatalf("NewModuleParser error: %v", err)
+	}
+	defer p.Close()
+
+	mod, err := p.ParseModule([]byte(source))
+	if err != nil {
+		t.Fatalf("ParseModule error: %v", err)
+	}
+
+	breakpointExpr := ast.NewBreakpointExpression(
+		ast.ID("trace"),
+		ast.Block(ast.Int(1)),
+	)
+
+	fn := ast.NewFunctionDefinition(
+		ast.ID("debug"),
+		nil,
+		ast.Block(breakpointExpr),
+		nil,
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	expected := ast.NewModule([]ast.Statement{fn}, nil, nil)
+	expected.Imports = []*ast.ImportStatement{}
+
+	assertModulesEqual(t, expected, mod)
+}
+
 func TestParseErrorHandlingExpressions(t *testing.T) {
 	source := `value := (maybe() else { |err|
   err
@@ -2005,6 +2401,320 @@ func TestParsePipeChainExpression(t *testing.T) {
 	first := ast.NewBinaryExpression("|>", ast.ID("value"), ast.ID("inc"))
 	chain := ast.NewBinaryExpression("|>", first, ast.ID("double"))
 	expected := ast.NewModule([]ast.Statement{chain}, nil, nil)
+	expected.Imports = []*ast.ImportStatement{}
+
+	assertModulesEqual(t, expected, mod)
+}
+
+func TestParseArithmeticPrecedence(t *testing.T) {
+	source := `result := 1 + 2 * 3
+total := 4 + 6 / 3
+`
+
+	p, err := parser.NewModuleParser()
+	if err != nil {
+		t.Fatalf("NewModuleParser error: %v", err)
+	}
+	defer p.Close()
+
+	mod, err := p.ParseModule([]byte(source))
+	if err != nil {
+		t.Fatalf("ParseModule error: %v", err)
+	}
+
+	product := ast.NewBinaryExpression("*", ast.Int(2), ast.Int(3))
+	sum := ast.NewBinaryExpression("+", ast.Int(1), product)
+
+	division := ast.NewBinaryExpression("/", ast.Int(6), ast.Int(3))
+	total := ast.NewBinaryExpression("+", ast.Int(4), division)
+
+	expected := ast.NewModule(
+		[]ast.Statement{
+			ast.NewAssignmentExpression(
+				ast.AssignmentDeclare,
+				ast.ID("result"),
+				sum,
+			),
+			ast.NewAssignmentExpression(
+				ast.AssignmentDeclare,
+				ast.ID("total"),
+				total,
+			),
+		},
+		nil,
+		nil,
+	)
+	expected.Imports = []*ast.ImportStatement{}
+
+	assertModulesEqual(t, expected, mod)
+}
+
+func TestParseFunctionCallWithTypeArguments(t *testing.T) {
+	source := `result := identity<String, Option<i32>>(value)
+`
+
+	p, err := parser.NewModuleParser()
+	if err != nil {
+		t.Fatalf("NewModuleParser error: %v", err)
+	}
+	defer p.Close()
+
+	mod, err := p.ParseModule([]byte(source))
+	if err != nil {
+		t.Fatalf("ParseModule error: %v", err)
+	}
+
+	optionI32 := ast.NewGenericTypeExpression(ast.Ty("Option"), []ast.TypeExpression{ast.Ty("i32")})
+	call := ast.NewFunctionCall(
+		ast.ID("identity"),
+		[]ast.Expression{ast.ID("value")},
+		[]ast.TypeExpression{
+			ast.Ty("String"),
+			optionI32,
+		},
+		false,
+	)
+
+	expected := ast.NewModule(
+		[]ast.Statement{
+			ast.NewAssignmentExpression(
+				ast.AssignmentDeclare,
+				ast.ID("result"),
+				call,
+			),
+		},
+		nil,
+		nil,
+	)
+	expected.Imports = []*ast.ImportStatement{}
+
+	assertModulesEqual(t, expected, mod)
+}
+
+func TestParseRangeExpressions(t *testing.T) {
+	source := `exclusive := 0..5
+inclusive := 0...5
+`
+
+	p, err := parser.NewModuleParser()
+	if err != nil {
+		t.Fatalf("NewModuleParser error: %v", err)
+	}
+	defer p.Close()
+
+	mod, err := p.ParseModule([]byte(source))
+	if err != nil {
+		t.Fatalf("ParseModule error: %v", err)
+	}
+
+	exclusiveRange := ast.NewRangeExpression(ast.Int(0), ast.Int(5), false)
+	inclusiveRange := ast.NewRangeExpression(ast.Int(0), ast.Int(5), true)
+
+	expected := ast.NewModule(
+		[]ast.Statement{
+			ast.NewAssignmentExpression(
+				ast.AssignmentDeclare,
+				ast.ID("exclusive"),
+				exclusiveRange,
+			),
+			ast.NewAssignmentExpression(
+				ast.AssignmentDeclare,
+				ast.ID("inclusive"),
+				inclusiveRange,
+			),
+		},
+		nil,
+		nil,
+	)
+	expected.Imports = []*ast.ImportStatement{}
+
+	assertModulesEqual(t, expected, mod)
+}
+
+func TestParseMemberAccessChaining(t *testing.T) {
+	source := `fn update(player) {
+  player.position.x = player.position().x + 1
+  player.stats.speed().value()
+}
+`
+
+	p, err := parser.NewModuleParser()
+	if err != nil {
+		t.Fatalf("NewModuleParser error: %v", err)
+	}
+	defer p.Close()
+
+	mod, err := p.ParseModule([]byte(source))
+	if err != nil {
+		t.Fatalf("ParseModule error: %v", err)
+	}
+
+	positionAccess := ast.NewMemberAccessExpression(ast.ID("player"), ast.ID("position"))
+	left := ast.NewMemberAccessExpression(positionAccess, ast.ID("x"))
+
+	positionCall := ast.NewFunctionCall(
+		ast.NewMemberAccessExpression(ast.ID("player"), ast.ID("position")),
+		[]ast.Expression{},
+		nil,
+		false,
+	)
+	right := ast.NewBinaryExpression(
+		"+",
+		ast.NewMemberAccessExpression(positionCall, ast.ID("x")),
+		ast.Int(1),
+	)
+
+	assign := ast.NewAssignmentExpression(ast.AssignmentAssign, left, right)
+
+	statsAccess := ast.NewMemberAccessExpression(ast.ID("player"), ast.ID("stats"))
+	speedCall := ast.NewFunctionCall(
+		ast.NewMemberAccessExpression(statsAccess, ast.ID("speed")),
+		[]ast.Expression{},
+		nil,
+		false,
+	)
+	valueCall := ast.NewFunctionCall(
+		ast.NewMemberAccessExpression(speedCall, ast.ID("value")),
+		[]ast.Expression{},
+		nil,
+		false,
+	)
+
+	fn := ast.NewFunctionDefinition(
+		ast.ID("update"),
+		[]*ast.FunctionParameter{
+			ast.NewFunctionParameter(ast.ID("player"), nil),
+		},
+		ast.Block(
+			assign,
+			valueCall,
+		),
+		nil,
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	expected := ast.NewModule([]ast.Statement{fn}, nil, nil)
+	expected.Imports = []*ast.ImportStatement{}
+
+	assertModulesEqual(t, expected, mod)
+}
+
+func TestParseIndexExpressions(t *testing.T) {
+	source := `first := items[0]
+computed := items[getIndex()]
+`
+
+	p, err := parser.NewModuleParser()
+	if err != nil {
+		t.Fatalf("NewModuleParser error: %v", err)
+	}
+	defer p.Close()
+
+	mod, err := p.ParseModule([]byte(source))
+	if err != nil {
+		t.Fatalf("ParseModule error: %v", err)
+	}
+
+	firstIndex := ast.NewIndexExpression(ast.ID("items"), ast.Int(0))
+	computedIndex := ast.NewIndexExpression(
+		ast.ID("items"),
+		ast.NewFunctionCall(ast.ID("getIndex"), []ast.Expression{}, nil, false),
+	)
+
+	expected := ast.NewModule(
+		[]ast.Statement{
+			ast.NewAssignmentExpression(ast.AssignmentDeclare, ast.ID("first"), firstIndex),
+			ast.NewAssignmentExpression(ast.AssignmentDeclare, ast.ID("computed"), computedIndex),
+		},
+		nil,
+		nil,
+	)
+	expected.Imports = []*ast.ImportStatement{}
+
+	assertModulesEqual(t, expected, mod)
+}
+
+func TestParseFunctionDefinitionWithReturnType(t *testing.T) {
+	source := `fn sum(a: i32, b: i32) -> i32 {
+	  a + b
+	}
+`
+
+	p, err := parser.NewModuleParser()
+	if err != nil {
+		t.Fatalf("NewModuleParser error: %v", err)
+	}
+	defer p.Close()
+
+	mod, err := p.ParseModule([]byte(source))
+	if err != nil {
+		t.Fatalf("ParseModule error: %v", err)
+	}
+
+	fn := ast.NewFunctionDefinition(
+		ast.ID("sum"),
+		[]*ast.FunctionParameter{
+			ast.NewFunctionParameter(ast.ID("a"), ast.Ty("i32")),
+			ast.NewFunctionParameter(ast.ID("b"), ast.Ty("i32")),
+		},
+		ast.Block(
+			ast.NewBinaryExpression("+", ast.ID("a"), ast.ID("b")),
+		),
+		ast.Ty("i32"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	expected := ast.NewModule([]ast.Statement{fn}, nil, nil)
+	expected.Imports = []*ast.ImportStatement{}
+
+	assertModulesEqual(t, expected, mod)
+}
+
+func TestParseSimpleTypeExpressions(t *testing.T) {
+	source := `fn format(flag: bool) -> string {
+  if flag { "yes" } else { "no" }
+}
+`
+
+	p, err := parser.NewModuleParser()
+	if err != nil {
+		t.Fatalf("NewModuleParser error: %v", err)
+	}
+	defer p.Close()
+
+	mod, err := p.ParseModule([]byte(source))
+	if err != nil {
+		t.Fatalf("ParseModule error: %v", err)
+	}
+
+	ifExpr := ast.NewIfExpression(
+		ast.ID("flag"),
+		ast.Block(ast.Str("yes")),
+		[]*ast.OrClause{
+			ast.NewOrClause(ast.Block(ast.Str("no")), nil),
+		},
+	)
+
+	fn := ast.NewFunctionDefinition(
+		ast.ID("format"),
+		[]*ast.FunctionParameter{
+			ast.NewFunctionParameter(ast.ID("flag"), ast.Ty("bool")),
+		},
+		ast.Block(ifExpr),
+		ast.Ty("string"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	expected := ast.NewModule([]ast.Statement{fn}, nil, nil)
 	expected.Imports = []*ast.ImportStatement{}
 
 	assertModulesEqual(t, expected, mod)
@@ -2506,7 +3216,11 @@ func TestParseStructDefinitions(t *testing.T) {
   y: i32,
 }
 
-struct Vec3(i32, i32, i32)
+struct Vec3 {
+  i32,
+  i32,
+  i32
+}
 `
 
 	p, err := parser.NewModuleParser()
@@ -2558,124 +3272,66 @@ struct Vec3(i32, i32, i32)
 	assertModulesEqual(t, expected, mod)
 }
 
-var (
-	concurrencyFixtures = []fixtureCase{
-		{
-			name: "concurrency/proc_cancel_value",
-			source: `handle := proc do {
-	  0
-	}
-
-	_cancelResult := handle.cancel()
-	result := handle.value()
-	result
-	`,
-		},
-		{
-			name: "concurrency/future_memoization",
-			source: `count := 0
-	future := spawn do {
-	  count += 1
-	  1
-	}
-
-	first := future.value()
-	second := future.value()
-	count
-	`,
-		},
-		{
-			name: "concurrency/proc_cancelled_helper",
-			source: `trace := ""
-	handle := proc do {
-	  trace = trace + "A"
-	  handle.cancel()
-	  if proc_cancelled() {
-	    trace = trace + "C"
-	  }
-	  0
-	}
-
-	_result := handle.value()
-	trace
-	`,
-		},
-	}
-
-	controlFlowFixtures = []fixtureCase{
-		{
-			name: "control/if_else_branch",
-			source: `if false {
-	  print("true")
-	} else {
-	  print("false")
-	}
-
-	"after"
-	`,
-		},
-		{
-			name: "control/for_range_break",
-			source: `sum := 0
-	for n in 0..5 {
-	  do {
-	    sum = sum + n
-	    if n >= 2 {
-	      break sum
-	    }
-	  }
-	}
-	`,
-		},
-		{
-			name: "control/for_continue",
-			source: `sum := 0
-	items := [1, 2, 3]
-	for n in items {
-	  if n == 2 {
-	    continue
-	  }
-	  sum = sum + n
-	}
-
-	sum
-	`,
-		},
-		{
-			name: "control/while_sum",
-			source: `sum := 0
-	i := 0
-	limit := 3
-	while i < limit {
-	  sum = sum + i
-	  i = i + 1
-	}
-
-	sum
-	`,
-		},
-	}
-
-	typeFixturePaths = []string{
-		"types/generic_type_expression",
-		"types/function_type_expression",
-		"types/nullable_type_expression",
-		"types/result_type_expression",
-		"types/union_type_expression",
-		"types/generic_where_constraint",
-	}
-)
-
 func TestParseConcurrencyFixtures(t *testing.T) {
-	runFixtureCases(t, concurrencyFixtures)
+	runFixtureCases(t, collectFixtureCases(t, "concurrency"))
 }
 
 func TestParseControlFlowFixtures(t *testing.T) {
-	runFixtureCases(t, controlFlowFixtures)
+	runFixtureCases(t, collectFixtureCases(t, "control"))
 }
 
 func TestParseTypeExpressionFixtures(t *testing.T) {
-	t.Helper()
-	t.Logf("TODO: enable once type expression parser is in place for fixtures: %v", typeFixturePaths)
-	t.Skip("type expression mapping not implemented yet")
+	runFixtureCases(t, collectFixtureCases(t, "types"))
+}
+
+func TestParseBasicsFixtures(t *testing.T) {
+	runFixtureCases(t, collectFixtureCases(t, "basics"))
+}
+
+func TestParseErrorFixtures(t *testing.T) {
+	runFixtureCases(t, collectFixtureCases(t, "errors"))
+}
+
+func TestParseExpressionFixtures(t *testing.T) {
+	runFixtureCases(t, collectFixtureCases(t, "expressions"))
+}
+
+func TestParseFunctionFixtures(t *testing.T) {
+	runFixtureCases(t, collectFixtureCases(t, "functions"))
+}
+
+func TestParseImportFixtures(t *testing.T) {
+	runFixtureCases(t, collectFixtureCases(t, "imports"))
+}
+
+func TestParseInterfaceFixtures(t *testing.T) {
+	runFixtureCases(t, collectFixtureCases(t, "interfaces"))
+}
+
+func TestParseMatchFixtures(t *testing.T) {
+	runFixtureCases(t, collectFixtureCases(t, "match"))
+}
+
+func TestParsePatternFixtures(t *testing.T) {
+	runFixtureCases(t, collectFixtureCases(t, "patterns"))
+}
+
+func TestParsePipeFixtures(t *testing.T) {
+	runFixtureCases(t, collectFixtureCases(t, "pipes"))
+}
+
+func TestParsePrivacyFixtures(t *testing.T) {
+	runFixtureCases(t, collectFixtureCases(t, "privacy"))
+}
+
+func TestParseStdlibFixtures(t *testing.T) {
+	runFixtureCases(t, collectFixtureCases(t, "stdlib"))
+}
+
+func TestParseStringFixtures(t *testing.T) {
+	runFixtureCases(t, collectFixtureCases(t, "strings"))
+}
+
+func TestParseStructFixtures(t *testing.T) {
+	runFixtureCases(t, collectFixtureCases(t, "structs"))
 }

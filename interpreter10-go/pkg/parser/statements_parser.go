@@ -163,6 +163,8 @@ func parseStatement(node *sitter.Node, source []byte) (ast.Statement, error) {
 			return nil, err
 		}
 		return ast.NewRaiseStatement(expr), nil
+	case "rethrow_statement":
+		return ast.NewRethrowStatement(), nil
 	case "struct_definition":
 		return parseStructDefinition(node, source)
 	case "methods_definition":
