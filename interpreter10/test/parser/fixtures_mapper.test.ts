@@ -148,22 +148,29 @@ fn update(base: Point) -> Point {
     expect(literal.fields[0]?.name?.name).toBe("x");
   });
 
-  test.skip("ignores comments inside struct patterns", async () => {
-    // TODO: Enable once the tree-sitter grammar accepts comments within pattern bodies.
+  test("ignores comments inside struct definitions, literals, and call arguments", async () => {
     const parser = await getTreeSitterParser();
-    const source = `struct Point {
-  x: i32,
-  y: i32,
+    const source = `struct Pair {
+  first: i32,
+  ## keep documenting second slot
+  second: i32,
 }
 
-fn project(point: Point) -> i32 {
-  match point {
-    Point {
-      x: px, ## capture x
-      y: py ## capture y
-    } => px + py,
-    _ => 0 ## fallback branch
-  }
+values := [
+  1,
+  ## keep trailing entry
+  2,
+]
+
+result := make_pair(
+  ## left operand
+  values[0],
+  ## right operand
+  values[1],
+)
+
+fn make_pair(lhs: i32, rhs: i32) -> Pair {
+  Pair { first: lhs, second: rhs }
 }
 `;
 
@@ -172,20 +179,76 @@ fn project(point: Point) -> i32 {
     expect(tree.rootNode.hasError).toBe(false);
 
     const module = mapSourceFile(tree.rootNode, source);
-    const fn = module.body.find(stmt => stmt.type === "FunctionDefinition");
-    expect(fn?.type).toBe("FunctionDefinition");
-    const bodyStatements = fn && "body" in fn ? fn.body.body : [];
-    const matchExpr = bodyStatements?.find(stmt => stmt?.type === "MatchExpression");
-    expect(matchExpr?.type).toBe("MatchExpression");
-    if (matchExpr?.type !== "MatchExpression") {
-      throw new Error("expected match expression");
+    const structDef = module.body.find(
+      stmt => stmt.type === "StructDefinition" && stmt.id.name === "Pair",
+    );
+    expect(structDef?.type).toBe("StructDefinition");
+    if (structDef?.type !== "StructDefinition") {
+      throw new Error("expected struct definition");
     }
+    expect(structDef.fields).toHaveLength(2);
+
+    const valuesAssign = module.body.find(
+      stmt =>
+        stmt.type === "AssignmentExpression" &&
+        stmt.left.type === "Identifier" &&
+        stmt.left.name === "values",
+    );
+    expect(valuesAssign?.type).toBe("AssignmentExpression");
+    if (valuesAssign?.type !== "AssignmentExpression") {
+      throw new Error("expected assignment expression for values");
+    }
+    if (valuesAssign.right.type !== "ArrayLiteral") {
+      throw new Error("expected array literal on right-hand side");
+    }
+    expect(valuesAssign.right.elements).toHaveLength(2);
+
+    const resultAssign = module.body.find(
+      stmt =>
+        stmt.type === "AssignmentExpression" &&
+        stmt.left.type === "Identifier" &&
+        stmt.left.name === "result",
+    );
+    expect(resultAssign?.type).toBe("AssignmentExpression");
+    if (resultAssign?.type !== "AssignmentExpression") {
+      throw new Error("expected assignment expression for result");
+    }
+    if (resultAssign.right.type !== "FunctionCall") {
+      throw new Error("expected function call on right-hand side");
+    }
+    expect(resultAssign.right.arguments).toHaveLength(2);
+  });
+
+  test("ignores comments inside struct patterns", async () => {
+    const parser = await getTreeSitterParser();
+    const source = `struct Point {
+  x: i32,
+  y: i32
+}
+
+Point { x: 1, y: 2 } match {
+  case Point {
+    ## capture x
+    x: px,
+    ## capture y
+    y: py
+  } => px + py,
+  case _ => 0 ## fallback branch
+}
+`;
+
+    const tree = parser.parse(source);
+    expect(tree.rootNode.type).toBe("source_file");
+    expect(tree.rootNode.hasError).toBe(false);
+
+    const module = mapSourceFile(tree.rootNode, source);
+    const matchExpr = module.body.find(stmt => stmt.type === "MatchExpression");
+    expect(matchExpr?.type).toBe("MatchExpression");
+    if (matchExpr?.type !== "MatchExpression") throw new Error("expected match expression");
     expect(matchExpr.clauses).toHaveLength(2);
     const structClause = matchExpr.clauses[0];
     expect(structClause?.pattern?.type).toBe("StructPattern");
-    if (structClause?.pattern?.type !== "StructPattern") {
-      throw new Error("expected struct pattern");
-    }
+    if (structClause?.pattern?.type !== "StructPattern") throw new Error("expected struct pattern");
     expect(structClause.pattern.fields).toHaveLength(2);
     const names = structClause.pattern.fields.map(field => field.fieldName?.name ?? field.pattern.type);
     expect(names).toEqual(["x", "y"]);

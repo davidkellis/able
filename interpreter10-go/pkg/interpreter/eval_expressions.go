@@ -762,6 +762,18 @@ func (i *Interpreter) evaluatePlaceholderExpression(expr *ast.PlaceholderExpress
 }
 
 func (i *Interpreter) tryBuildPlaceholderFunction(node ast.Expression, env *runtime.Environment) (runtime.Value, bool, error) {
+	state := i.stateFromEnv(env)
+	if state.hasPlaceholderFrame() {
+		return nil, false, nil
+	}
+	switch expr := node.(type) {
+	case *ast.AssignmentExpression:
+		return nil, false, nil
+	case *ast.BinaryExpression:
+		if expr.Operator == "|>" {
+			return nil, false, nil
+		}
+	}
 	plan, ok, err := analyzePlaceholderExpression(node)
 	if err != nil {
 		return nil, false, err

@@ -40,7 +40,7 @@ func TestInterpreterTypecheckerDiagnosticsNonStrict(t *testing.T) {
 	if len(diags) == 0 {
 		t.Fatalf("expected typechecker diagnostics")
 	}
-	if want := "return expects String"; !strings.Contains(diags[0].Message, want) {
+	if want := "return expects string"; !strings.Contains(diags[0].Message, want) {
 		t.Fatalf("expected first diagnostic to mention %q, got %q", want, diags[0].Message)
 	}
 
@@ -64,7 +64,7 @@ func TestInterpreterTypecheckerStrictModePreventsEvaluation(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected interpreter to stop on typechecker diagnostics")
 	}
-	if want := "return expects String"; !strings.Contains(err.Error(), want) {
+	if want := "return expects string"; !strings.Contains(err.Error(), want) {
 		t.Fatalf("expected interpreter error to mention %q, got %q", want, err.Error())
 	}
 

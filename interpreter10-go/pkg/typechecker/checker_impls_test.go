@@ -48,10 +48,10 @@ func TestInterfaceDeclarationRegistersMethods(t *testing.T) {
 	if len(method.Params) != 1 {
 		t.Fatalf("expected one parameter, got %d", len(method.Params))
 	}
-	if method.Params[0].Name() != "TypeParam:Self" {
-		t.Fatalf("expected parameter type Self, got %q", method.Params[0].Name())
+	if typeName(method.Params[0]) != "Self" {
+		t.Fatalf("expected parameter type Self, got %q", typeName(method.Params[0]))
 	}
-	if method.Return == nil || method.Return.Name() != "String" {
+	if method.Return == nil || typeName(method.Return) != "string" {
 		t.Fatalf("expected return type string, got %#v", method.Return)
 	}
 }
@@ -100,7 +100,7 @@ func TestInterfaceMemberAccessUsesSignature(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected FunctionType, got %#v", memberType)
 	}
-	if fnType.Return == nil || fnType.Return.Name() != "String" {
+	if fnType.Return == nil || typeName(fnType.Return) != "string" {
 		t.Fatalf("expected method return type string, got %#v", fnType.Return)
 	}
 
@@ -172,8 +172,8 @@ func TestInterfaceGenericMethodSubstitutesArguments(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected FunctionType, got %#v", memberType)
 	}
-	if fnType.Return == nil || fnType.Return.Name() != "String" {
-		t.Fatalf("expected method return type String, got %#v", fnType.Return)
+	if fnType.Return == nil || typeName(fnType.Return) != "string" {
+		t.Fatalf("expected method return type string, got %#v", fnType.Return)
 	}
 }
 
@@ -512,7 +512,7 @@ func TestImplementationMethodSignatureMismatch(t *testing.T) {
 	}
 	found := false
 	for _, d := range diags {
-		if strings.Contains(d.Message, "return type expected String") {
+		if strings.Contains(d.Message, "return type expected string") {
 			found = true
 			break
 		}
@@ -604,7 +604,7 @@ func TestMethodsDefinitionMemberAccessProvidesMethodType(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected FunctionType, got %#v", memberType)
 	}
-	if fnType.Return == nil || fnType.Return.Name() != "String" {
+	if fnType.Return == nil || typeName(fnType.Return) != "string" {
 		t.Fatalf("expected return type string, got %#v", fnType.Return)
 	}
 }
@@ -668,8 +668,8 @@ func TestMethodsDefinitionMemberAccessSubstitutesGenerics(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected FunctionType, got %#v", memberType)
 	}
-	if fnType.Return == nil || fnType.Return.Name() != "String" {
-		t.Fatalf("expected return type String, got %#v", fnType.Return)
+	if fnType.Return == nil || typeName(fnType.Return) != "string" {
+		t.Fatalf("expected return type string, got %#v", fnType.Return)
 	}
 }
 
@@ -724,7 +724,7 @@ func TestImplementationMemberAccessProvidesMethodType(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected FunctionType, got %#v", memberType)
 	}
-	if fnType.Return == nil || fnType.Return.Name() != "String" {
+	if fnType.Return == nil || typeName(fnType.Return) != "string" {
 		t.Fatalf("expected return type string, got %#v", fnType.Return)
 	}
 }
@@ -811,8 +811,8 @@ func TestImplementationMemberAccessSubstitutesGenerics(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected FunctionType, got %#v", memberType)
 	}
-	if fnType.Return == nil || fnType.Return.Name() != "String" {
-		t.Fatalf("expected return type String, got %#v", fnType.Return)
+	if fnType.Return == nil || typeName(fnType.Return) != "string" {
+		t.Fatalf("expected return type string, got %#v", fnType.Return)
 	}
 }
 func TestTypeParameterMemberAccessWithConstraint(t *testing.T) {
@@ -861,8 +861,8 @@ func TestTypeParameterMemberAccessWithConstraint(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected FunctionType, got %#v", typ)
 	}
-	if fnType.Return == nil || fnType.Return.Name() != "String" {
-		t.Fatalf("expected return type String, got %#v", fnType.Return)
+	if fnType.Return == nil || typeName(fnType.Return) != "string" {
+		t.Fatalf("expected return type string, got %#v", fnType.Return)
 	}
 }
 

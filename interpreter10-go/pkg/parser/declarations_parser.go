@@ -130,7 +130,7 @@ func parseStructDefinition(node *sitter.Node, source []byte) (ast.Statement, err
 		kind = ast.StructKindNamed
 		for i := uint(0); i < recordNode.NamedChildCount(); i++ {
 			fieldNode := recordNode.NamedChild(i)
-			if fieldNode == nil || fieldNode.Kind() != "struct_field" {
+			if fieldNode == nil || isIgnorableNode(fieldNode) || fieldNode.Kind() != "struct_field" {
 				continue
 			}
 			field, err := parseStructFieldDefinition(fieldNode, source)
@@ -143,7 +143,7 @@ func parseStructDefinition(node *sitter.Node, source []byte) (ast.Statement, err
 		kind = ast.StructKindPositional
 		for i := uint(0); i < tupleNode.NamedChildCount(); i++ {
 			child := tupleNode.NamedChild(i)
-			if child == nil || !child.IsNamed() {
+			if child == nil || !child.IsNamed() || isIgnorableNode(child) {
 				continue
 			}
 			fieldType := parseTypeExpression(child, source)
@@ -167,7 +167,7 @@ func parseStructFieldDefinition(node *sitter.Node, source []byte) (*ast.StructFi
 
 	for i := uint(0); i < node.NamedChildCount(); i++ {
 		child := node.NamedChild(i)
-		if child == nil {
+		if child == nil || isIgnorableNode(child) {
 			continue
 		}
 		switch child.Kind() {

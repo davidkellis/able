@@ -332,7 +332,7 @@ func parseCallArguments(node *sitter.Node, source []byte) ([]ast.Expression, err
 
 	for j := uint(0); j < node.NamedChildCount(); j++ {
 		child := node.NamedChild(j)
-		if !child.IsNamed() {
+		if child == nil || !child.IsNamed() || isIgnorableNode(child) {
 			continue
 		}
 		argExpr, err := parseExpression(child, source)
@@ -353,7 +353,7 @@ func parseTypeArgumentList(node *sitter.Node, source []byte) ([]ast.TypeExpressi
 	var args []ast.TypeExpression
 	for i := uint(0); i < node.NamedChildCount(); i++ {
 		child := node.NamedChild(i)
-		if !child.IsNamed() {
+		if child == nil || !child.IsNamed() || isIgnorableNode(child) {
 			continue
 		}
 		typeExpr := parseTypeExpression(child, source)
@@ -390,7 +390,7 @@ func parseArrayLiteral(node *sitter.Node, source []byte) (ast.Expression, error)
 	elements := make([]ast.Expression, 0)
 	for i := uint(0); i < node.NamedChildCount(); i++ {
 		child := node.NamedChild(i)
-		if !child.IsNamed() {
+		if child == nil || !child.IsNamed() || isIgnorableNode(child) {
 			continue
 		}
 		element, err := parseExpression(child, source)
@@ -437,7 +437,7 @@ func parseStructLiteral(node *sitter.Node, source []byte) (ast.Expression, error
 
 	for i := uint(0); i < node.NamedChildCount(); i++ {
 		child := node.NamedChild(i)
-		if child == nil {
+		if child == nil || isIgnorableNode(child) {
 			continue
 		}
 		fieldName := node.FieldNameForChild(uint32(i))
