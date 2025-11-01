@@ -2,21 +2,13 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { AST, V10 } from "../index";
+import { AST, TypeChecker, V10 } from "../index";
 import { mapSourceFile } from "../src/parser/tree-sitter-mapper";
 import { getTreeSitterParser } from "../src/parser/tree-sitter-loader";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_ROOT = path.resolve(__dirname, "../../fixtures/ast");
 const TYPECHECK_MODE = resolveTypecheckMode(process.env.ABLE_TYPECHECK_FIXTURES);
-
-if (TYPECHECK_MODE !== "off") {
-  const note =
-    `ABLE_TYPECHECK_FIXTURES=${TYPECHECK_MODE} requested; ` +
-    "TypeScript fixture runner does not yet support static typechecking. " +
-    "Diagnostics will be enforced during the Go fixture run.";
-  console.warn(note);
-}
 
 type Manifest = {
   description?: string;
@@ -62,6 +54,20 @@ async function main() {
         setupModules.push(setupModule);
       }
     }
+
+    const typecheckDiagnostics: string[] = [];
+    if (TYPECHECK_MODE !== "off") {
+      const checker = TypeChecker.createTypeChecker();
+      for (const setupModule of setupModules) {
+        const { diagnostics } = checker.checkModule(setupModule);
+        typecheckDiagnostics.push(...diagnostics.map((diag) => diag.message));
+      }
+      const { diagnostics } = checker.checkModule(moduleAst);
+      typecheckDiagnostics.push(...diagnostics.map((diag) => diag.message));
+    }
+
+    maybeReportTypecheckDiagnostics(fixtureDir, TYPECHECK_MODE, manifest.expect?.typecheckDiagnostics ?? null, typecheckDiagnostics);
+
     let result: V10.V10Value | undefined;
     interceptStdout(stdout, () => {
       try {
@@ -74,7 +80,7 @@ async function main() {
       }
     });
 
-    assertExpectations(fixtureDir, manifest.expect, result, stdout, evaluationError);
+    assertExpectations(fixtureDir, manifest.expect, result, stdout, evaluationError, typecheckDiagnostics);
     results.push({ name: path.relative(FIXTURE_ROOT, fixtureDir), description: manifest.description });
   }
 
@@ -214,7 +220,14 @@ function hydrateNode(value: unknown): unknown {
   return value;
 }
 
-function assertExpectations(dir: string, expect: Manifest["expect"], result: V10.V10Value | undefined, stdout: string[], evaluationError: unknown) {
+function assertExpectations(
+  dir: string,
+  expect: Manifest["expect"],
+  result: V10.V10Value | undefined,
+  stdout: string[],
+  evaluationError: unknown,
+  _typecheckDiagnostics: string[],
+) {
   if (!expect) {
     if (evaluationError) {
       throw evaluationError;
@@ -481,6 +494,50 @@ function installRuntimeStubs(interpreter: V10.InterpreterV10) {
     state.locked = false;
     return { kind: "nil", value: null };
   });
+}
+
+function maybeReportTypecheckDiagnostics(
+  dir: string,
+  mode: ReturnType<typeof resolveTypecheckMode>,
+  expected: string[] | null,
+  actual: string[],
+): void {
+  if (mode === "off") {
+    return;
+  }
+
+  if (expected && expected.length > 0) {
+    if (actual.length === 0) {
+      if (mode === "strict") {
+        throw new Error(`Fixture ${dir} expected typechecker diagnostics ${JSON.stringify(expected)} but none were produced`);
+      }
+      console.warn(
+        `typechecker: fixture ${dir} expected diagnostics ${JSON.stringify(expected)} but checker returned none (mode=${mode})`,
+      );
+      return;
+    }
+    if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+      const message = `Fixture ${dir} expected typechecker diagnostics ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`;
+      if (mode === "strict") {
+        throw new Error(message);
+      }
+      console.warn(`typechecker: ${message}`);
+      return;
+    }
+    return;
+  }
+
+  if (actual.length === 0) {
+    return;
+  }
+
+  for (const message of actual) {
+    console.warn(`typechecker: ${message}`);
+  }
+
+  if (mode === "strict") {
+    throw new Error(`Fixture ${dir} produced typechecker diagnostics in strict mode`);
+  }
 }
 
 function formatValue(value: V10.V10Value): string {

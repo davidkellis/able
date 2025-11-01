@@ -25,8 +25,8 @@ func TestProcExpressionReturnsProcType(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected ProcType, got %#v", procType)
 	}
-	if pt.Result == nil || pt.Result.Name() != "Int:i32" {
-		t.Fatalf("expected proc result Int:i32, got %#v", pt.Result)
+	if pt.Result == nil || typeName(pt.Result) != "i32" {
+		t.Fatalf("expected proc result i32, got %#v", pt.Result)
 	}
 }
 func TestProcHandleMethodsHaveExpectedTypes(t *testing.T) {
@@ -56,7 +56,7 @@ func TestProcHandleMethodsHaveExpectedTypes(t *testing.T) {
 		t.Fatalf("expected status member inference")
 	}
 	fn, ok := statusType.(FunctionType)
-	if !ok || fn.Return.Name() != "Struct:ProcStatus" {
+	if !ok || typeName(fn.Return) != "ProcStatus" {
 		t.Fatalf("expected status to return ProcStatus function, got %#v", statusType)
 	}
 	valueType, ok := checker.infer[valueMember]
@@ -71,10 +71,10 @@ func TestProcHandleMethodsHaveExpectedTypes(t *testing.T) {
 	if !ok || len(union.Members) != 2 {
 		t.Fatalf("expected value() to return union, got %#v", valueFn.Return)
 	}
-	if union.Members[0] == nil || union.Members[0].Name() != "Int:i32" {
-		t.Fatalf("expected union first member Int:i32, got %#v", union.Members[0])
+	if union.Members[0] == nil || typeName(union.Members[0]) != "i32" {
+		t.Fatalf("expected union first member i32, got %#v", union.Members[0])
 	}
-	if union.Members[1] == nil || union.Members[1].Name() != "Struct:ProcError" {
+	if union.Members[1] == nil || typeName(union.Members[1]) != "ProcError" {
 		t.Fatalf("expected union second member ProcError, got %#v", union.Members[1])
 	}
 	cancelType, ok := checker.infer[cancelMember]
@@ -82,7 +82,7 @@ func TestProcHandleMethodsHaveExpectedTypes(t *testing.T) {
 		t.Fatalf("expected cancel member inference")
 	}
 	cancelFn, ok := cancelType.(FunctionType)
-	if !ok || cancelFn.Return.Name() != "Nil" {
+	if !ok || typeName(cancelFn.Return) != "nil" {
 		t.Fatalf("expected cancel() to return nil, got %#v", cancelType)
 	}
 }
@@ -156,8 +156,8 @@ func TestProcCancelledAllowedInsideProc(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected ProcType, got %#v", typ)
 	}
-	if procType.Result == nil || procType.Result.Name() != "Bool" {
-		t.Fatalf("expected proc result Bool, got %#v", procType.Result)
+	if procType.Result == nil || typeName(procType.Result) != "bool" {
+		t.Fatalf("expected proc result bool, got %#v", procType.Result)
 	}
 }
 func TestProcYieldRequiresAsyncContext(t *testing.T) {
@@ -201,8 +201,8 @@ func TestProcYieldAllowedInsideProc(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected ProcType, got %#v", typ)
 	}
-	if procType.Result == nil || procType.Result.Name() != "Nil" {
-		t.Fatalf("expected proc result Nil, got %#v", procType.Result)
+	if procType.Result == nil || typeName(procType.Result) != "nil" {
+		t.Fatalf("expected proc result nil, got %#v", procType.Result)
 	}
 }
 func TestProcFlushReturnsNil(t *testing.T) {
@@ -220,7 +220,7 @@ func TestProcFlushReturnsNil(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected inference entry for proc_flush call")
 	}
-	if typ == nil || typ.Name() != "Nil" {
-		t.Fatalf("expected proc_flush to return Nil, got %#v", typ)
+	if typ == nil || typeName(typ) != "nil" {
+		t.Fatalf("expected proc_flush to return nil, got %#v", typ)
 	}
 }

@@ -1,10 +1,101 @@
 package typechecker
 
+import (
+	"fmt"
+	"strings"
+)
+
 // typeName returns a human-readable identifier for a type, tolerating nil.
 func typeName(t Type) string {
+	return formatType(t)
+}
+
+func formatType(t Type) string {
 	if t == nil {
 		return "unknown"
 	}
+
+	switch val := t.(type) {
+	case UnknownType:
+		return "unknown"
+	case PrimitiveType:
+		switch val.Kind {
+		case PrimitiveBool:
+			return "bool"
+		case PrimitiveChar:
+			return "char"
+		case PrimitiveString:
+			return "string"
+		case PrimitiveNil:
+			return "nil"
+		case PrimitiveInt:
+			return "int"
+		case PrimitiveFloat:
+			return "float"
+		default:
+			return strings.ToLower(string(val.Kind))
+		}
+	case IntegerType:
+		if val.Suffix != "" {
+			return val.Suffix
+		}
+		return "int"
+	case FloatType:
+		if val.Suffix != "" {
+			return val.Suffix
+		}
+		return "float"
+	case TypeParameterType:
+		if val.ParameterName == "" {
+			return "unknown"
+		}
+		return val.ParameterName
+	case StructType:
+		return val.StructName
+	case StructInstanceType:
+		return val.StructName
+	case InterfaceType:
+		return val.InterfaceName
+	case UnionType:
+		return val.UnionName
+	case ArrayType:
+		elem := formatType(val.Element)
+		return strings.TrimSpace("Array " + elem)
+	case NullableType:
+		return formatType(val.Inner) + "?"
+	case RangeType:
+		return strings.TrimSpace("Range " + formatType(val.Element))
+	case ProcType:
+		return strings.TrimSpace("Proc " + formatType(val.Result))
+	case FutureType:
+		return strings.TrimSpace("Future " + formatType(val.Result))
+	case AppliedType:
+		base := formatType(val.Base)
+		if len(val.Arguments) == 0 {
+			return base
+		}
+		args := make([]string, len(val.Arguments))
+		for i, arg := range val.Arguments {
+			args[i] = formatType(arg)
+		}
+		return strings.TrimSpace(base + " " + strings.Join(args, " "))
+	case UnionLiteralType:
+		if len(val.Members) == 0 {
+			return "Union"
+		}
+		members := make([]string, len(val.Members))
+		for i, member := range val.Members {
+			members[i] = formatType(member)
+		}
+		return strings.Join(members, " | ")
+	case FunctionType:
+		params := make([]string, len(val.Params))
+		for i, param := range val.Params {
+			params[i] = formatType(param)
+		}
+		return fmt.Sprintf("fn(%s) -> %s", strings.Join(params, ", "), formatType(val.Return))
+	}
+
 	return t.Name()
 }
 

@@ -36,8 +36,8 @@ func TestFunctionCallInferredReturnType(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected inferred type for call")
 	}
-	if typName := typ.Name(); typName != "Int:i32" {
-		t.Fatalf("expected call to have type Int:i32, got %q", typName)
+	if typName := typeName(typ); typName != "i32" {
+		t.Fatalf("expected call to have type i32, got %q", typName)
 	}
 }
 func TestFunctionCallArgumentCountMismatch(t *testing.T) {
@@ -102,8 +102,8 @@ func TestGenericFunctionCallInfersTypeArguments(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected inferred type for call expression")
 	}
-	if typ.Name() != "Int:i32" {
-		t.Fatalf("expected identity call to infer Int:i32, got %q", typ.Name())
+	if typeName(typ) != "i32" {
+		t.Fatalf("expected identity call to infer i32, got %q", typeName(typ))
 	}
 }
 
@@ -332,8 +332,8 @@ func TestUnaryNegationInferredType(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected unary expression inference entry")
 	}
-	if typ.Name() != "Int:i32" {
-		t.Fatalf("expected unary negation to infer Int:i32, got %q", typ.Name())
+	if typeName(typ) != "i32" {
+		t.Fatalf("expected unary negation to infer i32, got %q", typeName(typ))
 	}
 }
 func TestUnaryNotRequiresBoolDiagnostic(t *testing.T) {
@@ -373,8 +373,8 @@ func TestBinaryAdditionNumericInference(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected binary expression inference entry")
 	}
-	if typ.Name() != "Float:f64" {
-		t.Fatalf("expected numeric addition to widen to Float:f64, got %q", typ.Name())
+	if typeName(typ) != "f64" {
+		t.Fatalf("expected numeric addition to widen to f64, got %q", typeName(typ))
 	}
 }
 func TestBinaryAdditionStringConcatenation(t *testing.T) {
@@ -392,8 +392,8 @@ func TestBinaryAdditionStringConcatenation(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected binary expression inference entry")
 	}
-	if typ.Name() != "String" {
-		t.Fatalf("expected string concatenation to infer String, got %q", typ.Name())
+	if typeName(typ) != "string" {
+		t.Fatalf("expected string concatenation to infer string, got %q", typeName(typ))
 	}
 }
 func TestBinaryAdditionMismatchedOperandsDiagnostic(t *testing.T) {
@@ -464,7 +464,7 @@ func TestFunctionDefinitionReturnTypeMismatch(t *testing.T) {
 	}
 	found := false
 	for _, d := range diags {
-		if strings.Contains(d.Message, "return expects Int:i32") {
+		if strings.Contains(d.Message, "return expects i32") {
 			found = true
 			break
 		}
@@ -501,11 +501,11 @@ func TestLambdaInferenceUsesBodyType(t *testing.T) {
 	if len(fnType.Params) != 1 {
 		t.Fatalf("expected 1 lambda parameter, got %d", len(fnType.Params))
 	}
-	if fnType.Params[0].Name() != "Int:i32" {
-		t.Fatalf("expected parameter type Int:i32, got %q", fnType.Params[0].Name())
+	if typeName(fnType.Params[0]) != "i32" {
+		t.Fatalf("expected parameter type i32, got %q", typeName(fnType.Params[0]))
 	}
-	if fnType.Return == nil || fnType.Return.Name() != "Int:i32" {
-		t.Fatalf("expected lambda return type Int:i32, got %#v", fnType.Return)
+	if fnType.Return == nil || typeName(fnType.Return) != "i32" {
+		t.Fatalf("expected lambda return type i32, got %#v", fnType.Return)
 	}
 }
 func TestLambdaReturnAnnotationMismatch(t *testing.T) {

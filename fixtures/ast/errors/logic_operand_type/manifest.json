@@ -3,10 +3,10 @@
   "expect": {
     "errors": [
       "Logical operands must be bool",
-      "typechecker: '&&' left operand must be bool (got String)"
+      "typechecker: '&&' left operand must be bool (got string)"
     ],
     "typecheckDiagnostics": [
-      "typechecker: '&&' left operand must be bool (got String)"
+      "typechecker: '&&' left operand must be bool (got string)"
     ]
   },
   "entry": "module.json"

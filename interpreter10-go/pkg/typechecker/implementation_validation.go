@@ -2,7 +2,6 @@ package typechecker
 
 import (
 	"fmt"
-	"strings"
 
 	"able/interpreter10-go/pkg/ast"
 )
@@ -141,68 +140,11 @@ func describeImplTarget(t Type) string {
 	if t == nil || isUnknownType(t) {
 		return "<unknown>"
 	}
-	return formatTypeForMessage(t)
+	return formatType(t)
 }
 
 func formatTypeForMessage(t Type) string {
-	if t == nil {
-		return "<unknown>"
-	}
-	switch v := t.(type) {
-	case PrimitiveType:
-		return string(v.Kind)
-	case IntegerType:
-		return v.Suffix
-	case FloatType:
-		return v.Suffix
-	case TypeParameterType:
-		return v.ParameterName
-	case StructType:
-		return v.StructName
-	case StructInstanceType:
-		return v.StructName
-	case InterfaceType:
-		return v.InterfaceName
-	case UnionType:
-		return v.UnionName
-	case ArrayType:
-		return "Array<" + formatTypeForMessage(v.Element) + ">"
-	case NullableType:
-		return formatTypeForMessage(v.Inner) + "?"
-	case RangeType:
-		return "Range<" + formatTypeForMessage(v.Element) + ">"
-	case ProcType:
-		return "Proc<" + formatTypeForMessage(v.Result) + ">"
-	case FutureType:
-		return "Future<" + formatTypeForMessage(v.Result) + ">"
-	case AppliedType:
-		base := formatTypeForMessage(v.Base)
-		if len(v.Arguments) == 0 {
-			return base
-		}
-		args := make([]string, len(v.Arguments))
-		for i, arg := range v.Arguments {
-			args[i] = formatTypeForMessage(arg)
-		}
-		return base + "<" + strings.Join(args, ", ") + ">"
-	case UnionLiteralType:
-		if len(v.Members) == 0 {
-			return "Union[]"
-		}
-		parts := make([]string, len(v.Members))
-		for i, member := range v.Members {
-			parts[i] = formatTypeForMessage(member)
-		}
-		return "Union[" + strings.Join(parts, " | ") + "]"
-	case FunctionType:
-		params := make([]string, len(v.Params))
-		for i, param := range v.Params {
-			params[i] = formatTypeForMessage(param)
-		}
-		return "fn(" + strings.Join(params, ", ") + ") -> " + formatTypeForMessage(v.Return)
-	default:
-		return typeName(t)
-	}
+	return formatType(t)
 }
 
 func typesEquivalentForSignature(a, b Type) bool {

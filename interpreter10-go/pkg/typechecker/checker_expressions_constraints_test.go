@@ -1019,13 +1019,13 @@ func TestFunctionCallConstraintObligationsSubstituted(t *testing.T) {
 	}
 	foundDiag := false
 	for _, d := range diags {
-		if strings.Contains(d.Message, "Iterable<Array<i32>>") {
+		if strings.Contains(d.Message, "Iterable Array i32") {
 			foundDiag = true
 			break
 		}
 	}
 	if !foundDiag {
-		t.Fatalf("expected diagnostic referencing Iterable<Array<i32>>, got %v", diags)
+		t.Fatalf("expected diagnostic referencing Iterable Array i32, got %v", diags)
 	}
 	found := false
 	for _, ob := range checker.obligations {
@@ -1055,7 +1055,7 @@ func TestFunctionCallConstraintObligationsSubstituted(t *testing.T) {
 		break
 	}
 	if !found {
-		t.Fatalf("expected substituted obligation for Iterable<Array<Int>>, got %#v", checker.obligations)
+		t.Fatalf("expected substituted obligation for Iterable Array Int, got %#v", checker.obligations)
 	}
 }
 
@@ -1097,7 +1097,7 @@ func TestFunctionGenericConstraintObligationRecorded(t *testing.T) {
 	}
 	found := false
 	for _, ob := range checker.obligations {
-		if ob.Owner == "fn print" && ob.TypeParam == "T" && ob.Constraint != nil && ob.Constraint.Name() == "Interface:Display" {
+		if ob.Owner == "fn print" && ob.TypeParam == "T" && ob.Constraint != nil && typeName(ob.Constraint) == "Display" {
 			found = true
 			break
 		}

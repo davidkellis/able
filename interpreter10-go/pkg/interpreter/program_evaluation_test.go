@@ -155,7 +155,7 @@ func TestInterpreterEvaluateProgramAllowsDiagnostics(t *testing.T) {
 	if value == nil {
 		t.Fatalf("expected entry value even when diagnostics present")
 	}
-	if want := "return expects Int:i32"; !strings.Contains(diags[0].Diagnostic.Message, want) {
+	if want := "return expects i32"; !strings.Contains(diags[0].Diagnostic.Message, want) {
 		t.Fatalf("expected diagnostic containing %q, got %q", want, diags[0].Diagnostic.Message)
 	}
 }

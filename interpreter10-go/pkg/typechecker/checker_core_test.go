@@ -28,7 +28,7 @@ func TestCheckerDeclaresLetBinding(t *testing.T) {
 	if len(diags) != 0 {
 		t.Fatalf("expected no diagnostics, got %v", diags)
 	}
-	if typ, ok := checker.infer[assign.Right]; !ok || typ.Name() == "" {
+	if typ, ok := checker.infer[assign.Right]; !ok || typeName(typ) == "" {
 		t.Fatalf("expected inferred type for literal, got %#v", typ)
 	}
 }
@@ -45,7 +45,7 @@ func TestCheckerUsesDefinedIdentifier(t *testing.T) {
 	if len(diags) != 0 {
 		t.Fatalf("expected no diagnostics, got %v", diags)
 	}
-	if typ, ok := checker.infer[use]; !ok || typ.Name() == "" {
+	if typ, ok := checker.infer[use]; !ok || typeName(typ) == "" {
 		t.Fatalf("expected inferred type for identifier, got %#v", typ)
 	}
 }
@@ -126,7 +126,7 @@ func TestCollectorCapturesGenericFunctionMetadata(t *testing.T) {
 	if len(fnType.TypeParams[0].Constraints) != 1 {
 		t.Fatalf("expected 1 generic constraint, got %d", len(fnType.TypeParams[0].Constraints))
 	}
-	if constraintName := fnType.TypeParams[0].Constraints[0].Name(); constraintName != "Interface:Display" {
+	if constraintName := typeName(fnType.TypeParams[0].Constraints[0]); constraintName != "Display" {
 		t.Fatalf("expected constraint interface Display, got %q", constraintName)
 	}
 	if len(fnType.Where) != 1 || fnType.Where[0].TypeParam != "T" {
@@ -135,10 +135,10 @@ func TestCollectorCapturesGenericFunctionMetadata(t *testing.T) {
 	if len(fnType.Params) != 1 {
 		t.Fatalf("expected 1 parameter type, got %d", len(fnType.Params))
 	}
-	if paramTypeName := fnType.Params[0].Name(); paramTypeName != "TypeParam:T" {
+	if paramTypeName := typeName(fnType.Params[0]); paramTypeName != "T" {
 		t.Fatalf("expected parameter type param reference, got %q", paramTypeName)
 	}
-	if returnTypeName := fnType.Return.Name(); returnTypeName != "TypeParam:T" {
+	if returnTypeName := typeName(fnType.Return); returnTypeName != "T" {
 		t.Fatalf("expected return type param reference, got %q", returnTypeName)
 	}
 }
@@ -158,8 +158,8 @@ func TestStringInterpolationInfersStringType(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected interpolation inference entry")
 	}
-	if typ.Name() != "String" {
-		t.Fatalf("expected interpolation to yield String, got %q", typ.Name())
+	if typeName(typ) != "string" {
+		t.Fatalf("expected interpolation to yield string, got %q", typeName(typ))
 	}
 }
 func TestStringInterpolationAllowsNonStringPartsForNow(t *testing.T) {
@@ -304,8 +304,8 @@ func TestStructMemberAccessInfersFieldType(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected inference for member access")
 	}
-	if memberType.Name() != "Int:i32" {
-		t.Fatalf("expected field type Int:i32, got %q", memberType.Name())
+	if typeName(memberType) != "i32" {
+		t.Fatalf("expected field type i32, got %q", typeName(memberType))
 	}
 }
 func TestStructMemberAccessMissingField(t *testing.T) {
@@ -375,8 +375,8 @@ func TestArrayLiteralInfersElementType(t *testing.T) {
 	if array.Element == nil {
 		t.Fatalf("expected element type information")
 	}
-	if array.Element.Name() != "Int:i32" {
-		t.Fatalf("expected element type Int:i32, got %q", array.Element.Name())
+	if typeName(array.Element) != "i32" {
+		t.Fatalf("expected element type i32, got %q", typeName(array.Element))
 	}
 }
 func TestArrayLiteralElementTypeMismatchProducesDiagnostic(t *testing.T) {
@@ -440,8 +440,8 @@ func TestArrayIndexExpressionInfersElementType(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected inference entry for index expression")
 	}
-	if idxType.Name() != "Int:i32" {
-		t.Fatalf("expected index expression to have type Int:i32, got %q", idxType.Name())
+	if typeName(idxType) != "i32" {
+		t.Fatalf("expected index expression to have type i32, got %q", typeName(idxType))
 	}
 }
 func TestArrayIndexExpressionRequiresIntegerIndex(t *testing.T) {
@@ -503,8 +503,8 @@ func TestRangeExpressionProducesRangeType(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected RangeType, got %#v", typ)
 	}
-	if rt.Element == nil || rt.Element.Name() != "Int:i32" {
-		t.Fatalf("expected range element type Int:i32, got %#v", rt.Element)
+	if rt.Element == nil || typeName(rt.Element) != "i32" {
+		t.Fatalf("expected range element type i32, got %#v", rt.Element)
 	}
 }
 func TestRangeExpressionRequiresNumericBounds(t *testing.T) {
@@ -564,8 +564,8 @@ func TestSpawnExpressionReturnsFutureType(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected FutureType, got %#v", futureType)
 	}
-	if ft.Result == nil || ft.Result.Name() != "Int:i32" {
-		t.Fatalf("expected future result Int:i32, got %#v", ft.Result)
+	if ft.Result == nil || typeName(ft.Result) != "i32" {
+		t.Fatalf("expected future result i32, got %#v", ft.Result)
 	}
 }
 func TestPropagationExtractsSuccessBranch(t *testing.T) {
@@ -585,8 +585,8 @@ func TestPropagationExtractsSuccessBranch(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected propagation inference entry")
 	}
-	if propType == nil || propType.Name() != "Int:i32" {
-		t.Fatalf("expected propagation to produce Int:i32, got %#v", propType)
+	if propType == nil || typeName(propType) != "i32" {
+		t.Fatalf("expected propagation to produce i32, got %#v", propType)
 	}
 }
 func TestPropagationRequiresProcErrorUnion(t *testing.T) {

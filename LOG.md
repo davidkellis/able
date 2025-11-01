@@ -4,6 +4,14 @@
   - Updated `PLAN.md` to prioritise implementing the executor, wiring `proc`/`spawn`, and building dedicated test suites before moving on to remaining backlog items.
   - Clarified that the Go interpreter shares the same runtime state across tasks; user code remains responsible for making shared data structures safe when accessed concurrently.
 
+- Session (2025-11-01)
+  - Mirrored the Go checker to share the same spec-facing type formatter and wrapper handling (nullable/result/union) so diagnostics and constraint resolution stay in sync with the TypeScript runtime (`interpreter10-go/pkg/typechecker/*`).
+  - Extended the TypeScript checker with a dedicated declaration pass so interfaces, structs, methods, and impl blocks populate the environment before expression analysis (`interpreter10/src/typechecker/checker.ts`).
+  - Validated `impl` blocks against their interfaces, reporting missing or stray methods, checking generic counts plus parameter/return type alignment, and only crediting successful implementations when enforcing generic constraints (`interpreter10/src/typechecker/checker.ts`).
+  - Normalised type string formatting to the v10 spec (e.g. `Array i32`) and keyed implementation lookups by the fully-instantiated target type so generic constraint checks recognise specialised impls (`interpreter10/src/typechecker/checker.ts`).
+  - Expanded the TypeScript type info model with nullable/result/union/function variants, updated resolution logic, and added constraint tests that exercise impls on wrapped types like `Result string` (`interpreter10/src/typechecker/{checker,types}.ts`, `interpreter10/test/typechecker/*`).
+  - Added Bun tests that cover satisfied, failing, extraneous, and signature-mismatched implementation scenarios alongside the existing constraint tests, and re-ran the fixture harness under `ABLE_TYPECHECK_FIXTURES=warn` to confirm the broader diagnostics surface (`interpreter10/test/typechecker/*.test.ts`).
+
 - Session (2025-10-18)
   - Implemented the executor abstraction and default goroutine/serial executors, wiring them into the interpreter (`interpreter10-go/pkg/interpreter/executor.go`, `interpreter10-go/pkg/interpreter/interpreter.go`).
   - Added full `proc`/`spawn` support with handle/future lifecycle helpers, status/value/cancel natives, and runtime updates (`interpreter10-go/pkg/interpreter/interpreter_concurrency.go`, `interpreter10-go/pkg/runtime/values.go`).
@@ -894,4 +902,38 @@ Tests
 
 - (cd parser10/tree-sitter-able && npm run build)
 - (cd interpreter10-go && GOCACHE=$(pwd)/.gocache go test ./pkg/parser)
+- ./run_all_tests.sh
+
+> Go Pipe Placeholder Parity (2025-10-31)
+
+- Mirrored the TypeScript placeholder auto-lift rules in the Go interpreter so pipe subjects like `value |> add(@, 4)` evaluate immediately instead of binding a deferred callable; this keeps the new `pipes/topic_placeholder` fixture green across both runtimes (`interpreter10-go/pkg/interpreter/eval_expressions.go`).
+- Verified the fixture parity harness after the change and re-ran the integrated test script to cover the whole stack.
+
+Tests
+
+- (cd interpreter10-go && GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run Fixture)
+- ./run_all_tests.sh
+
+> Parser Comment Sweep (2025-10-31)
+
+- Extended comment skipping throughout the tree-sitter mapper so struct literals, parameter/type lists, call arguments, and struct definitions ignore inline `##` trivia while mapping to AST nodes (`interpreter10/src/parser/tree-sitter-mapper.ts`).
+- Mirrored the same comment filtering in the Go parser for array/struct literals, call/type argument lists, and struct field decoding to keep parity (`interpreter10-go/pkg/parser/{expressions_parser.go,declarations_parser.go}`).
+- Added focused TS/Go regression tests exercising comment-heavy struct definitions, literals, array elements, call arguments, and struct patterns so future grammar tweaks keep the behaviour intact (`interpreter10/test/parser/fixtures_mapper.test.ts`, `interpreter10-go/pkg/parser/parser_test.go`).
+
+Tests
+
+- (cd interpreter10 && bun test test/parser/fixtures_mapper.test.ts)
+- (cd interpreter10-go && GOCACHE=$(pwd)/.gocache go test ./pkg/parser)
+
+> TypeScript Checker Scaffolding (2025-10-31)
+
+- Stubbed a TypeScript typechecker module (`interpreter10/src/typechecker/**`) with shared environment/type utilities so future passes can mirror the Go checker incrementally.
+- Exposed the scaffold via the package entrypoint (`interpreter10/index.ts`) and taught the fixture runner to honour `ABLE_TYPECHECK_FIXTURES`, setting the stage for future diagnostics.
+- Added the first round of diagnostics covering logical operands, range bounds, struct pattern validity, and generic interface constraints so the TS runner surfaces the same fixture expectations as Go.
+
+Tests
+
+- (cd interpreter10 && bun test)
+- (cd interpreter10-go && go test ./...)
+- (cd interpreter10 && ABLE_TYPECHECK_FIXTURES=warn bun run scripts/run-fixtures.ts --filter errors)
 - ./run_all_tests.sh
