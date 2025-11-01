@@ -24,8 +24,8 @@ func TestBlockExpressionScopesBindings(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected block inference entry")
 	}
-	if typ.Name() != "Int:i32" {
-		t.Fatalf("expected block to return Int:i32, got %q", typ.Name())
+	if typeName(typ) != "i32" {
+		t.Fatalf("expected block to return i32, got %q", typeName(typ))
 	}
 	if _, exists := checker.global.Lookup("inner"); exists {
 		t.Fatalf("expected inner binding to remain scoped to block")
@@ -52,8 +52,8 @@ func TestIfExpressionMergesBranchTypes(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected inference for if expression")
 	}
-	if typ.Name() != "Int:i32" {
-		t.Fatalf("expected if expression to have type Int:i32, got %q", typ.Name())
+	if typeName(typ) != "i32" {
+		t.Fatalf("expected if expression to have type i32, got %q", typeName(typ))
 	}
 }
 func TestIfExpressionConditionMustBeBool(t *testing.T) {
@@ -114,8 +114,8 @@ func TestRescueExpressionMergesTypes(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected inference entry for rescue expression")
 	}
-	if typ.Name() != "String" {
-		t.Fatalf("expected rescue expression to infer String, got %q", typ.Name())
+	if typeName(typ) != "string" {
+		t.Fatalf("expected rescue expression to infer string, got %q", typeName(typ))
 	}
 }
 func TestRescueGuardMustBeBool(t *testing.T) {
@@ -161,8 +161,8 @@ func TestOrElseExpressionMergesTypes(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected inference entry for or-else expression")
 	}
-	if typ.Name() != "String" {
-		t.Fatalf("expected or-else expression to infer String, got %q", typ.Name())
+	if typeName(typ) != "string" {
+		t.Fatalf("expected or-else expression to infer string, got %q", typeName(typ))
 	}
 }
 func TestOrElseProducesUnionWhenTypesDiffer(t *testing.T) {
@@ -184,8 +184,8 @@ func TestOrElseProducesUnionWhenTypesDiffer(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected inference entry for or-else expression")
 	}
-	if typ.Name() != "UnionLiteral" {
-		t.Fatalf("expected union literal for mismatched or-else types, got %q", typ.Name())
+	if typeName(typ) != "i32 | string" {
+		t.Fatalf("expected union literal for mismatched or-else types, got %q", typeName(typ))
 	}
 }
 func TestOrElseBindsErrorInHandler(t *testing.T) {
@@ -234,8 +234,8 @@ func TestEnsureExpressionReturnsTryType(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected inference entry for ensure expression")
 	}
-	if typ.Name() != "Int:i32" {
-		t.Fatalf("expected ensure expression to infer Int:i32, got %q", typ.Name())
+	if typeName(typ) != "i32" {
+		t.Fatalf("expected ensure expression to infer i32, got %q", typeName(typ))
 	}
 }
 func TestRaiseAllowsAnyValue(t *testing.T) {
@@ -384,7 +384,7 @@ func TestForLoopRangeElementType(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected inference for range loop body identifier")
 	}
-	if typ.Name() != "Int:i32" {
-		t.Fatalf("expected loop value to have type Int:i32, got %q", typ.Name())
+	if typeName(typ) != "i32" {
+		t.Fatalf("expected loop value to have type i32, got %q", typeName(typ))
 	}
 }

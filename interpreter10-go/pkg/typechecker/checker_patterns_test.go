@@ -56,7 +56,7 @@ func TestTypedArrayPatternMismatchProducesDiagnostic(t *testing.T) {
 	}
 	found := false
 	for _, d := range diags {
-		if strings.Contains(d.Message, "Array[String]") {
+		if strings.Contains(d.Message, "Array string") {
 			found = true
 			break
 		}
@@ -162,15 +162,15 @@ func TestTypedPatternProvidesAnnotationTypeWhenSubjectUnknown(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected inference entry for value identifier")
 	}
-	if typ.Name() != "String" {
-		t.Fatalf("expected value to infer String type, got %q", typ.Name())
+	if typeName(typ) != "string" {
+		t.Fatalf("expected value to infer string type, got %q", typeName(typ))
 	}
 	matchType, ok := checker.infer[matchExpr]
 	if !ok {
 		t.Fatalf("expected inference entry for match expression")
 	}
-	if matchType.Name() != "String" {
-		t.Fatalf("expected match expression to infer String, got %q", matchType.Name())
+	if typeName(matchType) != "string" {
+		t.Fatalf("expected match expression to infer string, got %q", typeName(matchType))
 	}
 }
 func TestTypedPatternMismatchProducesDiagnostic(t *testing.T) {
@@ -204,7 +204,7 @@ func TestTypedPatternMismatchProducesDiagnostic(t *testing.T) {
 	}
 	found := false
 	for _, d := range diags {
-		if strings.Contains(d.Message, "pattern expected type String") {
+		if strings.Contains(d.Message, "pattern expected type string") {
 			found = true
 			break
 		}
@@ -237,8 +237,8 @@ func TestLiteralPatternMatchesSubjectType(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected inference entry for literal pattern")
 	}
-	if inferred.Name() != "Int:i32" {
-		t.Fatalf("expected literal pattern to infer Int:i32, got %q", inferred.Name())
+	if typeName(inferred) != "i32" {
+		t.Fatalf("expected literal pattern to infer i32, got %q", typeName(inferred))
 	}
 }
 func TestLiteralPatternMismatchAllowed(t *testing.T) {
@@ -335,8 +335,8 @@ func TestMatchStructPatternBindsNestedFields(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected inference entry for match expression")
 	}
-	if typ == nil || typ.Name() != "Int:i32" {
-		t.Fatalf("expected match expression to infer Int:i32, got %#v", typ)
+	if typ == nil || typeName(typ) != "i32" {
+		t.Fatalf("expected match expression to infer i32, got %#v", typ)
 	}
 }
 func TestMatchArrayPatternInfersRestType(t *testing.T) {
@@ -367,8 +367,8 @@ func TestMatchArrayPatternInfersRestType(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected tail to have ArrayType, got %#v", inferred)
 	}
-	if arrType.Element == nil || arrType.Element.Name() != "Int:i32" {
-		t.Fatalf("expected tail element type Int:i32, got %#v", arrType.Element)
+	if arrType.Element == nil || typeName(arrType.Element) != "i32" {
+		t.Fatalf("expected tail element type i32, got %#v", arrType.Element)
 	}
 }
 func TestForLoopPatternBindsIdentifier(t *testing.T) {
@@ -434,7 +434,7 @@ func TestForLoopPatternBindsIdentifier(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected inference for loop body identifier")
 	}
-	if typ.Name() != "Int:i32" {
-		t.Fatalf("expected head to have type Int:i32, got %q", typ.Name())
+	if typeName(typ) != "i32" {
+		t.Fatalf("expected head to have type i32, got %q", typeName(typ))
 	}
 }

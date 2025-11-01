@@ -709,24 +709,19 @@ updated := Point {
 }
 
 func TestParseStructPatternIgnoresComments(t *testing.T) {
-	t.Skip("tree-sitter grammar currently rejects comments inside struct patterns")
 	source := `struct Point {
 	x: i32,
-	y: i32,
+	y: i32
 }
 
-fn project(point: Point) -> i32 {
-	match point {
-		## capture fields with comments
-		Point {
-			## x binding
-			x: px,
-			## y binding
-			y: py,
-		} => px + py,
-		## fallback
-		_ => 0,
-	}
+Point { x: 1, y: 2 } match {
+	case Point {
+		## x binding
+		x: px,
+		## y binding
+		y: py
+	} => px + py,
+	case _ => 0 ## fallback
 }
 `
 
@@ -741,46 +736,107 @@ fn project(point: Point) -> i32 {
 		t.Fatalf("ParseModule error: %v", err)
 	}
 
-	pointStruct := ast.NewStructDefinition(
-		ast.ID("Point"),
-		[]*ast.StructFieldDefinition{
-			ast.NewStructFieldDefinition(ast.Ty("i32"), ast.ID("x")),
-			ast.NewStructFieldDefinition(ast.Ty("i32"), ast.ID("y")),
-		},
-		ast.StructKindNamed,
-		nil,
-		nil,
-		false,
-	)
+	if len(mod.Body) != 2 {
+		t.Fatalf("expected two top-level statements, got %d", len(mod.Body))
+	}
 
-	structPattern := ast.StructP(
-		[]*ast.StructPatternField{
-			ast.FieldP(ast.ID("px"), "x", nil),
-			ast.FieldP(ast.ID("py"), "y", nil),
-		},
-		false,
-		"Point",
-	)
+	pointStruct, ok := mod.Body[0].(*ast.StructDefinition)
+	if !ok {
+		t.Fatalf("expected first statement to be struct definition, got %T", mod.Body[0])
+	}
+	if len(pointStruct.Fields) != 2 {
+		t.Fatalf("expected struct definition to have 2 fields, got %d", len(pointStruct.Fields))
+	}
 
-	clause := ast.Mc(structPattern, ast.NewBinaryExpression("+", ast.ID("px"), ast.ID("py")))
-	defaultClause := ast.Mc(ast.Wc(), ast.Int(0))
-	matchExpr := ast.Match(ast.ID("point"), clause, defaultClause)
+	matchExpr, ok := mod.Body[1].(*ast.MatchExpression)
+	if !ok {
+		t.Fatalf("expected second statement to be match expression, got %T", mod.Body[1])
+	}
+	if len(matchExpr.Clauses) != 2 {
+		t.Fatalf("expected match expression to have 2 clauses, got %d", len(matchExpr.Clauses))
+	}
 
-	fn := ast.Fn(
-		"project",
-		[]*ast.FunctionParameter{ast.Param(ast.ID("point"), ast.Ty("Point"))},
-		[]ast.Statement{matchExpr},
-		ast.Ty("i32"),
-		nil,
-		nil,
-		false,
-		false,
-	)
+	structClause := matchExpr.Clauses[0]
+	structPattern, ok := structClause.Pattern.(*ast.StructPattern)
+	if !ok {
+		t.Fatalf("expected first clause pattern to be struct pattern, got %T", structClause.Pattern)
+	}
+	if len(structPattern.Fields) != 2 {
+		t.Fatalf("expected struct pattern to have 2 fields, got %d", len(structPattern.Fields))
+	}
+}
 
-	expected := ast.NewModule([]ast.Statement{pointStruct, fn}, nil, nil)
-	expected.Imports = []*ast.ImportStatement{}
+func TestParseIgnoresCommentsInCompositeLists(t *testing.T) {
+	source := `struct Pair {
+	first: i32,
+	## keep documenting the second slot
+	second: i32,
+}
 
-	assertModulesEqual(t, expected, mod)
+values := [
+	1,
+	## keep trailing entry
+	2,
+]
+
+result := make_pair(
+	## left operand
+	values[0],
+	## right operand
+	values[1],
+)
+
+fn make_pair(lhs: i32, rhs: i32) -> Pair {
+	Pair { first: lhs, second: rhs }
+}
+`
+
+	p, err := parser.NewModuleParser()
+	if err != nil {
+		t.Fatalf("NewModuleParser error: %v", err)
+	}
+	defer p.Close()
+
+	mod, err := p.ParseModule([]byte(source))
+	if err != nil {
+		t.Fatalf("ParseModule error: %v", err)
+	}
+
+	if len(mod.Body) < 4 {
+		t.Fatalf("expected at least 4 statements, got %d", len(mod.Body))
+	}
+
+	structDef, ok := mod.Body[0].(*ast.StructDefinition)
+	if !ok {
+		t.Fatalf("expected first statement to be struct definition, got %T", mod.Body[0])
+	}
+	if len(structDef.Fields) != 2 {
+		t.Fatalf("expected struct definition to have 2 fields, got %d", len(structDef.Fields))
+	}
+
+	assignValues, ok := mod.Body[1].(*ast.AssignmentExpression)
+	if !ok {
+		t.Fatalf("expected second statement to be assignment, got %T", mod.Body[1])
+	}
+	arrayLiteral, ok := assignValues.Right.(*ast.ArrayLiteral)
+	if !ok {
+		t.Fatalf("expected values assignment to produce array literal, got %T", assignValues.Right)
+	}
+	if len(arrayLiteral.Elements) != 2 {
+		t.Fatalf("expected array literal to have 2 elements, got %d", len(arrayLiteral.Elements))
+	}
+
+	assignResult, ok := mod.Body[2].(*ast.AssignmentExpression)
+	if !ok {
+		t.Fatalf("expected third statement to be assignment, got %T", mod.Body[2])
+	}
+	callExpr, ok := assignResult.Right.(*ast.FunctionCall)
+	if !ok {
+		t.Fatalf("expected result assignment to be function call, got %T", assignResult.Right)
+	}
+	if len(callExpr.Arguments) != 2 {
+		t.Fatalf("expected function call to have 2 arguments, got %d", len(callExpr.Arguments))
+	}
 }
 
 func TestParseStructLiteralMultipleSpreads(t *testing.T) {

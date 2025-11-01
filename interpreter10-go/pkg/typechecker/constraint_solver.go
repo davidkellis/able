@@ -44,7 +44,7 @@ func (c *Checker) resolveObligations() []Diagnostic {
 			continue
 		}
 		if ok, detail := c.obligationSatisfied(ob, res); !ok {
-			subject := formatTypeForMessage(ob.Subject)
+			subject := formatType(ob.Subject)
 			interfaceLabel := formatInterfaceApplication(res.iface, res.args)
 			reason := ""
 			if detail != "" {
@@ -110,6 +110,24 @@ func (c *Checker) obligationSatisfied(ob ConstraintObligation, res interfaceReso
 }
 
 func (c *Checker) typeImplementsInterface(subject Type, iface InterfaceType, args []Type) (bool, string) {
+	switch val := subject.(type) {
+	case NullableType:
+		if c.implementationProvidesInterface(subject, iface, args) {
+			return true, ""
+		}
+		return c.typeImplementsInterface(val.Inner, iface, args)
+	case UnionLiteralType:
+		if c.implementationProvidesInterface(subject, iface, args) {
+			return true, ""
+		}
+		for _, member := range val.Members {
+			ok, detail := c.typeImplementsInterface(member, iface, args)
+			if !ok {
+				return false, detail
+			}
+		}
+		return true, ""
+	}
 	if subjectMatchesInterface(subject, iface, args) {
 		return true, ""
 	}
@@ -204,9 +222,9 @@ func formatInterfaceApplication(iface InterfaceType, args []Type) string {
 	}
 	parts := make([]string, len(args))
 	for i, arg := range args {
-		parts[i] = formatTypeForMessage(arg)
+		parts[i] = formatType(arg)
 	}
-	return fmt.Sprintf("%s<%s>", name, strings.Join(parts, ", "))
+	return strings.TrimSpace(name + " " + strings.Join(parts, " "))
 }
 
 func (c *Checker) methodSetProvidesInterface(subject Type, iface InterfaceType, args []Type) (bool, string) {
@@ -302,7 +320,7 @@ func formatMethodSetCandidateLabel(spec MethodSetSpec, subject Type, subst map[s
 	if (target == nil || isUnknownType(target)) && subject != nil && !isUnknownType(subject) {
 		target = subject
 	}
-	name := formatTypeForMessage(target)
+	name := formatType(target)
 	if name == "" || name == "<unknown>" {
 		name = typeName(target)
 	}

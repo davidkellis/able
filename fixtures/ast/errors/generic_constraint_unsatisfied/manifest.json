@@ -3,10 +3,10 @@
   "expect": {
     "errors": [
       "Type 'i32' does not satisfy interface 'Show': missing method 'to_string'",
-      "typechecker: methods for Struct:Point::accept_show constraint on T is not satisfied: i32 does not implement Show"
+      "typechecker: methods for Point::accept_show constraint on T is not satisfied: i32 does not implement Show"
     ],
     "typecheckDiagnostics": [
-      "typechecker: methods for Struct:Point::accept_show constraint on T is not satisfied: i32 does not implement Show"
+      "typechecker: methods for Point::accept_show constraint on T is not satisfied: i32 does not implement Show"
     ]
   },
   "entry": "module.json"

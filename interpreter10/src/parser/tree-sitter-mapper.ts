@@ -665,7 +665,7 @@ function parseArrayLiteral(node: Node, source: string): Expression {
   const elements: Expression[] = [];
   for (let i = 0; i < node.namedChildCount; i++) {
     const child = node.namedChild(i);
-    if (!child || !child.isNamed) continue;
+    if (!child || !child.isNamed || isIgnorableNode(child)) continue;
     elements.push(parseExpression(child, source));
   }
   return AST.arrayLiteral(elements);
@@ -812,7 +812,7 @@ function parseTypeExpression(node: Node | null | undefined, source: string): Typ
         const args: TypeExpression[] = [];
         for (let i = 1; i < node.namedChildCount; i++) {
           const child = node.namedChild(i);
-          if (!child || !child.isNamed) continue;
+          if (!child || !child.isNamed || isIgnorableNode(child)) continue;
           if (child.type === "type_arguments") {
             const typeArgs = parseTypeArgumentList(child, source);
             if (typeArgs) args.push(...typeArgs);
@@ -909,7 +909,7 @@ function parseTypeArgumentList(node: Node | null | undefined, source: string): T
   const args: TypeExpression[] = [];
   for (let i = 0; i < node.namedChildCount; i++) {
     const child = node.namedChild(i);
-    if (!child || !child.isNamed) continue;
+    if (!child || !child.isNamed || isIgnorableNode(child)) continue;
     const typeExpr = parseTypeExpression(child, source);
     if (!typeExpr) {
       throw new MapperError(`parser: unsupported type argument kind ${child.type}`);
@@ -933,7 +933,7 @@ function parseFunctionParameterTypes(node: Node | null | undefined, source: stri
       const params: TypeExpression[] = [];
       for (let i = 0; i < current.namedChildCount; i++) {
         const child = current.namedChild(i);
-        if (!child) return [null, false];
+        if (!child || isIgnorableNode(child)) continue;
         const param = parseTypeExpression(child, source);
         if (!param) return [null, false];
         params.push(param);
@@ -972,7 +972,7 @@ function parseTypeParameters(node: Node | null | undefined, source: string): Gen
       const params: GenericParameter[] = [];
       for (let i = 0; i < node.namedChildCount; i++) {
         const child = node.namedChild(i);
-        if (!child || child.type !== "type_parameter") continue;
+        if (!child || isIgnorableNode(child) || child.type !== "type_parameter") continue;
         params.push(parseTypeParameter(child, source));
       }
       return params.length ? params : undefined;
@@ -981,7 +981,7 @@ function parseTypeParameters(node: Node | null | undefined, source: string): Gen
       const params: GenericParameter[] = [];
       for (let i = 0; i < node.namedChildCount; i++) {
         const child = node.namedChild(i);
-        if (!child || child.type !== "generic_parameter") continue;
+        if (!child || isIgnorableNode(child) || child.type !== "generic_parameter") continue;
         params.push(parseGenericParameter(child, source));
       }
       return params.length ? params : undefined;
@@ -1006,20 +1006,19 @@ function parseGenericParameter(node: Node, source: string): GenericParameter {
 }
 
 function buildGenericParameter(node: Node, source: string): GenericParameter {
-  let nameNode: Node | null = null;
-  if (node.namedChildCount > 0) {
-    nameNode = node.namedChild(0);
-  }
+  let nameNode: Node | null = firstNamedChild(node);
   if (!nameNode || nameNode.type !== "identifier") {
     throw new MapperError("parser: generic parameter missing identifier");
   }
   const name = parseIdentifier(nameNode, source);
 
   let constraints: InterfaceConstraint[] | undefined;
-  if (node.namedChildCount > 1) {
-    const boundsNode = node.namedChild(1);
-    const typeExprs = parseTypeBoundList(boundsNode, source);
+  for (let i = 0; i < node.namedChildCount; i++) {
+    const child = node.namedChild(i);
+    if (!child || isIgnorableNode(child) || sameNode(child, nameNode)) continue;
+    const typeExprs = parseTypeBoundList(child, source);
     constraints = typeExprs?.map(expr => AST.interfaceConstraint(expr));
+    if (constraints && constraints.length > 0) break;
   }
 
   return AST.genericParameter(name, constraints);
@@ -1030,7 +1029,7 @@ function parseTypeBoundList(node: Node | null | undefined, source: string): Type
   const bounds: TypeExpression[] = [];
   for (let i = 0; i < node.namedChildCount; i++) {
     const child = node.namedChild(i);
-    if (!child) continue;
+    if (!child || isIgnorableNode(child)) continue;
     if (child.type === "type_bound_list") {
       const nested = parseTypeBoundList(child, source);
       if (nested) bounds.push(...nested);
@@ -1053,7 +1052,7 @@ function parseWhereClause(node: Node | null | undefined, source: string): WhereC
   const constraints: WhereClauseConstraint[] = [];
   for (let i = 0; i < node.namedChildCount; i++) {
     const child = node.namedChild(i);
-    if (!child || child.type !== "where_constraint") continue;
+    if (!child || isIgnorableNode(child) || child.type !== "where_constraint") continue;
     constraints.push(parseWhereConstraint(child, source));
   }
   return constraints.length ? constraints : undefined;
@@ -1066,14 +1065,17 @@ function parseWhereConstraint(node: Node, source: string): WhereClauseConstraint
   if (node.namedChildCount === 0) {
     throw new MapperError("parser: empty where constraint");
   }
-  const nameNode = node.namedChild(0);
+  const nameNode = firstNamedChild(node);
   if (!nameNode || nameNode.type !== "identifier") {
     throw new MapperError("parser: where constraint missing identifier");
   }
   const name = parseIdentifier(nameNode, source);
   let constraintNode: Node | null = null;
-  if (node.namedChildCount > 1) {
-    constraintNode = node.namedChild(1);
+  for (let i = 0; i < node.namedChildCount; i++) {
+    const child = node.namedChild(i);
+    if (!child || isIgnorableNode(child) || sameNode(child, nameNode)) continue;
+    constraintNode = child;
+    break;
   }
   const typeExprs = parseTypeBoundList(constraintNode, source);
   if (!typeExprs || typeExprs.length === 0) {
@@ -1449,7 +1451,7 @@ function parseCallArguments(node: Node, source: string): Expression[] {
   const args: Expression[] = [];
   for (let i = 0; i < node.namedChildCount; i++) {
     const child = node.namedChild(i);
-    if (!child || !child.isNamed) continue;
+    if (!child || !child.isNamed || isIgnorableNode(child)) continue;
     args.push(parseExpression(child, source));
   }
   return args;
@@ -2048,7 +2050,7 @@ function parseParameterList(node: Node | null | undefined, source: string): Func
   const params: FunctionParameter[] = [];
   for (let i = 0; i < node.namedChildCount; i++) {
     const paramNode = node.namedChild(i);
-    if (!paramNode) continue;
+    if (!paramNode || isIgnorableNode(paramNode)) continue;
     params.push(parseParameter(paramNode, source));
   }
   return params;
@@ -2095,14 +2097,14 @@ function parseStructDefinition(node: Node, source: string): StructDefinition {
     kind = "named";
     for (let i = 0; i < recordNode.namedChildCount; i++) {
       const fieldNode = recordNode.namedChild(i);
-      if (!fieldNode || fieldNode.type !== "struct_field") continue;
+      if (!fieldNode || isIgnorableNode(fieldNode) || fieldNode.type !== "struct_field") continue;
       fields.push(parseStructFieldDefinition(fieldNode, source));
     }
   } else if (tupleNode) {
     kind = "positional";
     for (let i = 0; i < tupleNode.namedChildCount; i++) {
       const child = tupleNode.namedChild(i);
-      if (!child || !child.isNamed) continue;
+      if (!child || !child.isNamed || isIgnorableNode(child)) continue;
       const fieldType = parseTypeExpression(child, source);
       if (!fieldType) {
         throw new MapperError("parser: unsupported tuple field type");
@@ -2124,7 +2126,7 @@ function parseStructFieldDefinition(node: Node, source: string): StructFieldDefi
 
   for (let i = 0; i < node.namedChildCount; i++) {
     const child = node.namedChild(i);
-    if (!child) continue;
+    if (!child || isIgnorableNode(child)) continue;
     if (child.type === "identifier" && !name) {
       name = parseIdentifier(child, source);
     } else if (!fieldType) {
