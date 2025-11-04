@@ -3,12 +3,20 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { AST, TypeChecker, V10 } from "../index";
+import type {
+  PackageSummary,
+  TypecheckerDiagnostic,
+} from "../src/typechecker/diagnostics";
 import { mapSourceFile } from "../src/parser/tree-sitter-mapper";
 import { getTreeSitterParser } from "../src/parser/tree-sitter-loader";
+import { formatTypecheckerDiagnostic, printPackageSummaries } from "./typecheck-utils";
+import { resolveTypecheckMode, type TypecheckMode } from "./typecheck-mode";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_ROOT = path.resolve(__dirname, "../../fixtures/ast");
 const TYPECHECK_MODE = resolveTypecheckMode(process.env.ABLE_TYPECHECK_FIXTURES);
+const TYPECHECK_BASELINE_PATH = path.join(FIXTURE_ROOT, "typecheck-baseline.json");
+const WRITE_TYPECHECK_BASELINE = process.argv.includes("--write-typecheck-baseline");
 
 type Manifest = {
   description?: string;
@@ -33,12 +41,14 @@ async function main() {
   }
 
   const results: FixtureResult[] = [];
+  const typecheckBaseline = new Map<string, string[]>();
 
   for (const fixtureDir of fixtures) {
     const manifest = await readManifest(fixtureDir);
     if (manifest.skipTargets?.includes("ts")) {
       continue;
     }
+    const relativeName = path.relative(FIXTURE_ROOT, fixtureDir).split(path.sep).join("/");
     const interpreter = new V10.InterpreterV10();
     ensurePrint(interpreter);
     installRuntimeStubs(interpreter);
@@ -55,18 +65,29 @@ async function main() {
       }
     }
 
-    const typecheckDiagnostics: string[] = [];
+    const typecheckDiagnostics: TypecheckerDiagnostic[] = [];
+    let packageSummaries = new Map<string, PackageSummary>();
     if (TYPECHECK_MODE !== "off") {
-      const checker = TypeChecker.createTypeChecker();
+      const session = new TypeChecker.TypecheckerSession();
       for (const setupModule of setupModules) {
-        const { diagnostics } = checker.checkModule(setupModule);
-        typecheckDiagnostics.push(...diagnostics.map((diag) => diag.message));
+        const { diagnostics } = session.checkModule(setupModule);
+        typecheckDiagnostics.push(...diagnostics);
       }
-      const { diagnostics } = checker.checkModule(moduleAst);
-      typecheckDiagnostics.push(...diagnostics.map((diag) => diag.message));
+      const { diagnostics } = session.checkModule(moduleAst);
+      typecheckDiagnostics.push(...diagnostics);
+      packageSummaries = session.getPackageSummaries();
     }
 
-    maybeReportTypecheckDiagnostics(fixtureDir, TYPECHECK_MODE, manifest.expect?.typecheckDiagnostics ?? null, typecheckDiagnostics);
+    const formattedDiagnostics = maybeReportTypecheckDiagnostics(
+      fixtureDir,
+      TYPECHECK_MODE,
+      manifest.expect?.typecheckDiagnostics ?? null,
+      typecheckDiagnostics,
+      packageSummaries,
+    );
+    if (TYPECHECK_MODE !== "off") {
+      typecheckBaseline.set(relativeName, formattedDiagnostics);
+    }
 
     let result: V10.V10Value | undefined;
     interceptStdout(stdout, () => {
@@ -81,7 +102,36 @@ async function main() {
     });
 
     assertExpectations(fixtureDir, manifest.expect, result, stdout, evaluationError, typecheckDiagnostics);
-    results.push({ name: path.relative(FIXTURE_ROOT, fixtureDir), description: manifest.description });
+    results.push({ name: relativeName, description: manifest.description });
+  }
+
+  if (TYPECHECK_MODE !== "off") {
+    const baselineObject = Object.fromEntries(
+      [...typecheckBaseline.entries()].sort(([a], [b]) => a.localeCompare(b)),
+    );
+    if (WRITE_TYPECHECK_BASELINE) {
+      await fs.writeFile(TYPECHECK_BASELINE_PATH, `${JSON.stringify(baselineObject, null, 2)}\n`, "utf8");
+    } else {
+      let existingBaseline: Record<string, string[]> | null = null;
+      try {
+        const raw = await fs.readFile(TYPECHECK_BASELINE_PATH, "utf8");
+        existingBaseline = JSON.parse(raw) as Record<string, string[]>;
+      } catch (err: any) {
+        if (err.code === "ENOENT") {
+          throw new Error(
+            `typechecker baseline missing at ${TYPECHECK_BASELINE_PATH}. Run with --write-typecheck-baseline to generate it.`,
+          );
+        }
+        throw err;
+      }
+      const differences = diffBaselineMaps(baselineObject, existingBaseline ?? {});
+      if (differences.length > 0) {
+        const message = [`Typecheck baseline mismatch:`].concat(differences).join("\n  ");
+        throw new Error(message);
+      }
+    }
+  } else if (WRITE_TYPECHECK_BASELINE) {
+    console.warn("typechecker: skipping baseline write because ABLE_TYPECHECK_FIXTURES is off");
   }
 
   for (const res of results) {
@@ -127,7 +177,9 @@ async function readManifest(dir: string): Promise<Manifest> {
 
 async function readModule(filePath: string): Promise<AST.Module> {
   const raw = JSON.parse(await fs.readFile(filePath, "utf8"));
-  return hydrateNode(raw) as AST.Module;
+  const module = hydrateNode(raw) as AST.Module;
+  annotateModuleOrigin(module, filePath);
+  return module;
 }
 
 async function loadModuleFromFixture(dir: string, relativePath: string): Promise<AST.Module> {
@@ -167,7 +219,7 @@ async function parseModuleFromSource(sourcePath: string): Promise<AST.Module | n
     if ((tree.rootNode as unknown as { hasError?: boolean }).hasError) {
       throw new Error("tree-sitter reported syntax errors");
     }
-    return mapSourceFile(tree.rootNode, source);
+    return mapSourceFile(tree.rootNode, source, sourcePath);
   } catch (error) {
     console.warn(`Failed to parse ${sourcePath} via tree-sitter; falling back to module.json.`, error);
     return null;
@@ -220,13 +272,39 @@ function hydrateNode(value: unknown): unknown {
   return value;
 }
 
+function annotateModuleOrigin(node: unknown, origin: string, seen = new Set<object>()) {
+  if (!node || typeof node !== "object") {
+    return;
+  }
+  if (seen.has(node as object)) {
+    return;
+  }
+  seen.add(node as object);
+
+  if (Array.isArray(node)) {
+    for (const entry of node) {
+      annotateModuleOrigin(entry, origin, seen);
+    }
+    return;
+  }
+
+  const candidate = node as Partial<AST.AstNode>;
+  if (typeof candidate.type === "string" && typeof candidate.origin !== "string") {
+    candidate.origin = origin;
+  }
+
+  for (const value of Object.values(node)) {
+    annotateModuleOrigin(value, origin, seen);
+  }
+}
+
 function assertExpectations(
   dir: string,
   expect: Manifest["expect"],
   result: V10.V10Value | undefined,
   stdout: string[],
   evaluationError: unknown,
-  _typecheckDiagnostics: string[],
+  _typecheckDiagnostics: TypecheckerDiagnostic[],
 ) {
   if (!expect) {
     if (evaluationError) {
@@ -498,47 +576,60 @@ function installRuntimeStubs(interpreter: V10.InterpreterV10) {
 
 function maybeReportTypecheckDiagnostics(
   dir: string,
-  mode: ReturnType<typeof resolveTypecheckMode>,
+  mode: TypecheckMode,
   expected: string[] | null,
-  actual: string[],
-): void {
+  actual: TypecheckerDiagnostic[],
+  summaries: Map<string, PackageSummary>,
+): string[] {
   if (mode === "off") {
-    return;
+    return [];
   }
 
+  const formattedActual = actual.map(formatTypecheckerDiagnostic);
+
   if (expected && expected.length > 0) {
-    if (actual.length === 0) {
+    if (formattedActual.length === 0) {
       if (mode === "strict") {
         throw new Error(`Fixture ${dir} expected typechecker diagnostics ${JSON.stringify(expected)} but none were produced`);
       }
       console.warn(
         `typechecker: fixture ${dir} expected diagnostics ${JSON.stringify(expected)} but checker returned none (mode=${mode})`,
       );
-      return;
+      return formattedActual;
     }
-    if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-      const message = `Fixture ${dir} expected typechecker diagnostics ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`;
+    const actualKeys = formattedActual.map(toDiagnosticKey);
+    const expectedKeys = expected.map(toDiagnosticKey);
+    const allExpectedPresent = expectedKeys.every(expectedKey =>
+      actualKeys.some(actualKey => diagnosticKeyMatches(actualKey, expectedKey)),
+    );
+    if (!allExpectedPresent) {
+      printPackageSummaries(summaries);
+      const message = `Fixture ${dir} expected typechecker diagnostics ${JSON.stringify(expected)}, got ${JSON.stringify(formattedActual)}`;
       if (mode === "strict") {
         throw new Error(message);
       }
       console.warn(`typechecker: ${message}`);
-      return;
+      return formattedActual;
     }
-    return;
+    return formattedActual;
   }
 
-  if (actual.length === 0) {
-    return;
+  if (formattedActual.length === 0) {
+    return formattedActual;
   }
 
-  for (const message of actual) {
-    console.warn(`typechecker: ${message}`);
+  printPackageSummaries(summaries);
+
+  for (const entry of formattedActual) {
+    console.warn(entry);
   }
 
   if (mode === "strict") {
     throw new Error(`Fixture ${dir} produced typechecker diagnostics in strict mode`);
   }
+  return formattedActual;
 }
+
 
 function formatValue(value: V10.V10Value): string {
   switch (value.kind) {
@@ -577,17 +668,92 @@ main().catch((err) => {
   process.exitCode = 1;
 });
 
-function resolveTypecheckMode(raw: string | undefined): "off" | "warn" | "strict" {
-  if (!raw) return "off";
-  const normalized = raw.trim().toLowerCase();
-  if (normalized === "" || normalized === "0" || normalized === "off" || normalized === "false") {
-    return "off";
+function diffBaselineMaps(
+  actual: Record<string, string[]>,
+  expected: Record<string, string[]>,
+): string[] {
+  const differences: string[] = [];
+  const allKeys = new Set([...Object.keys(actual), ...Object.keys(expected)]);
+  for (const key of [...allKeys].sort()) {
+    const actualValues = actual[key] ?? [];
+    const expectedValues = expected[key] ?? [];
+    if (actual[key] === undefined && expected[key] !== undefined && expectedValues.length > 0) {
+      differences.push(`${key}: expected ${JSON.stringify(expectedValues)} but fixture was not executed`);
+      continue;
+    }
+    if (actual[key] !== undefined && expected[key] === undefined && actualValues.length === 0) {
+      continue;
+    }
+    const actualKeys = actualValues.map(toDiagnosticKey);
+    const expectedKeys = expectedValues.map(toDiagnosticKey);
+    const allExpectedPresent = expectedKeys.every(expectedKey =>
+      actualKeys.some(actualKey => diagnosticKeyMatches(actualKey, expectedKey)),
+    );
+    if (!allExpectedPresent) {
+      differences.push(
+        `${key}: expected ${JSON.stringify(expectedValues)} but got ${JSON.stringify(actualValues)}`,
+      );
+    }
   }
-  if (normalized === "strict" || normalized === "fail" || normalized === "error" || normalized === "1" || normalized === "true") {
-    return "strict";
+  return differences;
+}
+
+function toDiagnosticKey(entry: string): string {
+  const trimmed = entry.startsWith("typechecker: ") ? entry.slice("typechecker: ".length) : entry;
+  const firstSpace = trimmed.indexOf(" ");
+  if (firstSpace === -1) {
+    return trimmed;
   }
-  if (normalized === "warn" || normalized === "warning") {
-    return "warn";
+  const location = trimmed.slice(0, firstSpace);
+  let message = trimmed.slice(firstSpace + 1);
+  if (!message.startsWith("typechecker:")) {
+    message = `typechecker: ${message}`;
   }
-  return "warn";
+  const segments = location.split(":");
+  if (segments.length < 2) {
+    return `${location}|${message}`;
+  }
+  let pathSegments = [...segments];
+  let line = 0;
+  const takeNumeric = () => {
+    if (pathSegments.length === 0) return undefined;
+    const candidate = pathSegments[pathSegments.length - 1];
+    const parsed = Number.parseInt(candidate, 10);
+    if (Number.isNaN(parsed)) {
+      return undefined;
+    }
+    pathSegments = pathSegments.slice(0, -1);
+    return parsed;
+  };
+  const columnMaybe = takeNumeric();
+  const lineMaybe = takeNumeric();
+  if (typeof lineMaybe === "number") {
+    line = lineMaybe;
+  } else if (typeof columnMaybe === "number") {
+    line = columnMaybe;
+  }
+  const pathPart = pathSegments.join(":");
+  const normalizedPath = pathPart === "typechecker" || pathPart === "" ? "" : pathPart;
+  return `${normalizedPath}:${line}|${message}`;
+}
+
+function diagnosticKeyMatches(actual: string, expected: string): boolean {
+  const [actualPrefix, actualMessage] = actual.split("|", 2);
+  const [expectedPrefix, expectedMessage] = expected.split("|", 2);
+  let normalizedExpectedMessage = expectedMessage;
+  if (!expectedMessage.startsWith("typechecker:") && actualMessage.startsWith("typechecker:")) {
+    normalizedExpectedMessage = `typechecker: ${expectedMessage}`;
+  }
+  if (actualMessage !== normalizedExpectedMessage) {
+    return false;
+  }
+  const [actualPath, actualLine] = actualPrefix.split(":", 2);
+  const [expectedPath, expectedLine] = expectedPrefix.split(":", 2);
+  if (expectedPath && expectedPath !== actualPath) {
+    return false;
+  }
+  if (expectedLine && expectedLine !== "" && expectedLine !== "0" && expectedLine !== actualLine) {
+    return false;
+  }
+  return true;
 }

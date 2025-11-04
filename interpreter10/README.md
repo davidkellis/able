@@ -15,6 +15,20 @@ Typecheck only:
 bun run typecheck
 ```
 
+### Running Able modules via Bun
+
+Use the lightweight CLI to typecheck (`check`) or run (`run`) Able modules with Bun. The CLI mirrors the Go `able` tool’s output style, including package export summaries when diagnostics surface.
+
+```bash
+# Execute an Able module (default command)
+bun run scripts/run-module.ts run path/to/main.able
+
+# Typecheck without running
+bun run scripts/run-module.ts check path/to/main.able
+```
+
+The upcoming `able test` workflow is reserved for the stdlib-backed testing harness (see `design/testing-cli-design.md`). The CLI already wires `ABLE_TYPECHECK_FIXTURES` so `warn` mode logs diagnostics but proceeds, while `strict` mode fails fast.
+
 ### Language spec
 
 For the complete v10 language definition and semantics, see: [full_spec_v10.md](../spec/full_spec_v10.md).
@@ -30,7 +44,7 @@ The Go interpreter is the designated reference runtime, but every interpreter in
 - `scripts/run-fixtures.ts`: executes every fixture module against this interpreter and checks manifest expectations (also used to keep the Go harness in sync).
 - `fixtures/ast/`: JSON fixtures and manifests shared with the Go interpreter and future runtimes.
 
-> Tip: set `ABLE_TYPECHECK_FIXTURES=warn` or `ABLE_TYPECHECK_FIXTURES=strict` when running `scripts/run-fixtures.ts` to keep behaviour aligned with the Go runner. The TypeScript harness currently only reports the requested mode; typechecking enforcement happens in the Go suite.
+> Tip: set `ABLE_TYPECHECK_FIXTURES=warn` or `ABLE_TYPECHECK_FIXTURES=strict` when running `scripts/run-fixtures.ts` to keep behaviour aligned with the Go runner. When either mode is enabled, the Bun harness now diffs diagnostics against `fixtures/ast/typecheck-baseline.json` and fails on unexpected output, mirroring the Go fixture enforcement.
 
 ### Interpreter architecture
 

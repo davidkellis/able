@@ -18,7 +18,7 @@ func parsePattern(node *sitter.Node, source []byte) (ast.Pattern, error) {
 		if node.NamedChildCount() == 0 {
 			text := strings.TrimSpace(sliceContent(node, source))
 			if text == "_" {
-				return ast.Wc(), nil
+				return annotatePattern(ast.Wc(), node), nil
 			}
 			for i := uint(0); i < node.ChildCount(); i++ {
 				child := node.Child(i)
@@ -29,7 +29,7 @@ func parsePattern(node *sitter.Node, source []byte) (ast.Pattern, error) {
 					return parsePattern(child, source)
 				}
 				if strings.TrimSpace(sliceContent(child, source)) == "_" {
-					return ast.Wc(), nil
+					return annotatePattern(ast.Wc(), child), nil
 				}
 			}
 			return nil, fmt.Errorf("parser: empty %s", node.Kind())
@@ -39,11 +39,19 @@ func parsePattern(node *sitter.Node, source []byte) (ast.Pattern, error) {
 
 	switch node.Kind() {
 	case "identifier":
-		return parseIdentifier(node, source)
+		expr, err := parseIdentifier(node, source)
+		if err != nil {
+			return nil, err
+		}
+		return annotatePattern(expr, node), nil
 	case "_":
-		return ast.Wc(), nil
+		return annotatePattern(ast.Wc(), node), nil
 	case "literal_pattern":
-		return parseLiteralPattern(node, source)
+		pattern, err := parseLiteralPattern(node, source)
+		if err != nil {
+			return nil, err
+		}
+		return annotatePattern(pattern, node), nil
 	case "struct_pattern":
 		return parseStructPattern(node, source)
 	case "array_pattern":
@@ -65,9 +73,13 @@ func parsePattern(node *sitter.Node, source []byte) (ast.Pattern, error) {
 		if typeExpr == nil {
 			return nil, fmt.Errorf("parser: typed pattern missing type expression")
 		}
-		return ast.NewTypedPattern(innerPattern, typeExpr), nil
+		return annotatePattern(ast.NewTypedPattern(innerPattern, typeExpr), node), nil
 	case "pattern", "pattern_base":
-		return parsePattern(node.NamedChild(0), source)
+		pattern, err := parsePattern(node.NamedChild(0), source)
+		if err != nil {
+			return nil, err
+		}
+		return annotatePattern(pattern, node), nil
 	default:
 		return nil, fmt.Errorf("parser: unsupported pattern kind %q", node.Kind())
 	}
@@ -92,7 +104,9 @@ func parseLiteralPattern(node *sitter.Node, source []byte) (ast.Pattern, error) 
 		return nil, fmt.Errorf("parser: literal pattern must contain literal, found %T", litExpr)
 	}
 
-	return ast.NewLiteralPattern(literal), nil
+	pattern := ast.NewLiteralPattern(literal)
+	annotateSpan(pattern, node)
+	return pattern, nil
 }
 
 func parseStructPattern(node *sitter.Node, source []byte) (ast.Pattern, error) {
@@ -110,9 +124,9 @@ func parseStructPattern(node *sitter.Node, source []byte) (ast.Pattern, error) {
 		if len(parts) == 0 {
 			return nil, fmt.Errorf("parser: struct pattern type missing identifier")
 		}
-		structType = parts[len(parts)-1]
-		if len(parts) > 1 {
-			structType = ast.ID(strings.Join(identifiersToStrings(parts), "."))
+		structType = collapseQualifiedIdentifier(parts)
+		if structType == nil {
+			return nil, fmt.Errorf("parser: struct pattern type missing identifier")
 		}
 	}
 
@@ -147,7 +161,9 @@ func parseStructPattern(node *sitter.Node, source []byte) (ast.Pattern, error) {
 				if err != nil {
 					return nil, err
 				}
-				fields = append(fields, ast.NewStructPatternField(pat, nil, nil))
+				field := ast.NewStructPatternField(pat, nil, nil)
+				annotateSpan(field, elem)
+				fields = append(fields, field)
 				continue
 			}
 			field, err := parseStructPatternField(elem, source)
@@ -161,7 +177,9 @@ func parseStructPattern(node *sitter.Node, source []byte) (ast.Pattern, error) {
 		if err != nil {
 			return nil, err
 		}
-		fields = append(fields, ast.NewStructPatternField(pattern, nil, nil))
+		field := ast.NewStructPatternField(pattern, nil, nil)
+		annotateSpan(field, elem)
+		fields = append(fields, field)
 	}
 
 	isPositional = false
@@ -172,7 +190,9 @@ func parseStructPattern(node *sitter.Node, source []byte) (ast.Pattern, error) {
 		}
 	}
 
-	return ast.NewStructPattern(fields, isPositional, structType), nil
+	pattern := ast.NewStructPattern(fields, isPositional, structType)
+	annotatePattern(pattern, node)
+	return pattern, nil
 }
 
 func parseStructPatternField(node *sitter.Node, source []byte) (*ast.StructPatternField, error) {
@@ -216,7 +236,9 @@ func parseStructPatternField(node *sitter.Node, source []byte) (*ast.StructPatte
 		}
 	}
 
-	return ast.NewStructPatternField(pattern, fieldName, binding), nil
+	field := ast.NewStructPatternField(pattern, fieldName, binding)
+	annotateSpan(field, node)
+	return field, nil
 }
 
 func parseArrayPattern(node *sitter.Node, source []byte) (ast.Pattern, error) {
@@ -250,7 +272,9 @@ func parseArrayPattern(node *sitter.Node, source []byte) (ast.Pattern, error) {
 		elements = append(elements, pattern)
 	}
 
-	return ast.NewArrayPattern(elements, rest), nil
+	pattern := ast.NewArrayPattern(elements, rest)
+	annotatePattern(pattern, node)
+	return pattern, nil
 }
 
 func parseArrayPatternRest(node *sitter.Node, source []byte) (ast.Pattern, error) {
@@ -259,9 +283,13 @@ func parseArrayPatternRest(node *sitter.Node, source []byte) (ast.Pattern, error
 	}
 
 	if node.NamedChildCount() == 0 {
-		return ast.Wc(), nil
+		return annotatePattern(ast.Wc(), node), nil
 	}
 
 	restNode := node.NamedChild(0)
-	return parsePattern(restNode, source)
+	pattern, err := parsePattern(restNode, source)
+	if err != nil {
+		return nil, err
+	}
+	return annotatePattern(pattern, node), nil
 }

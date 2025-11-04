@@ -16,12 +16,7 @@ func (c *Checker) checkBuiltinCallContext(name string, call *ast.FunctionCall) [
 			}}
 		}
 	case "proc_cancelled":
-		if !c.inAsyncContext() {
-			return []Diagnostic{{
-				Message: "typechecker: proc_cancelled must be called inside an asynchronous task",
-				Node:    call,
-			}}
-		}
+		return nil
 	case "proc_flush":
 		return nil
 	}

@@ -1,6 +1,8 @@
 # Able Project — Agent Onboarding
 
-Welcome! This document gives contributors the context required to work across the Able v10 effort (TypeScript + Go interpreters, spec, and tooling).
+This document gives contributors the context required to work across the Able v10 effort (TypeScript + Go interpreters, spec, and tooling).
+
+Unconditionally read PLAN.md and spec/full_spec_v10.md before starting any work.
 
 ## Mission & Principles
 - Keep the Able v10 language spec (`spec/full_spec_v10.md`) authoritative; report divergences immediately. The spec is the ultimate arbiter for every runtime feature.

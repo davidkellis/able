@@ -14,7 +14,9 @@ func parseIdentifier(node *sitter.Node, source []byte) (*ast.Identifier, error) 
 		return nil, fmt.Errorf("parser: expected identifier")
 	}
 	content := sliceContent(node, source)
-	return ast.ID(content), nil
+	id := ast.ID(content)
+	annotateSpan(id, node)
+	return id, nil
 }
 
 func sliceContent(node *sitter.Node, source []byte) string {
@@ -115,7 +117,39 @@ func parseLabel(node *sitter.Node, source []byte) (*ast.Identifier, error) {
 	if content == "" {
 		return nil, fmt.Errorf("parser: label missing identifier")
 	}
-	return ast.ID(content), nil
+	id := ast.ID(content)
+	annotateSpan(id, node)
+	return id, nil
+}
+
+func collapseQualifiedIdentifier(parts []*ast.Identifier) *ast.Identifier {
+	if len(parts) == 0 {
+		return nil
+	}
+	if len(parts) == 1 {
+		return parts[0]
+	}
+	names := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if part == nil || part.Name == "" {
+			continue
+		}
+		names = append(names, part.Name)
+	}
+	if len(names) == 0 {
+		return nil
+	}
+	id := ast.ID(strings.Join(names, "."))
+	start := parts[0].Span()
+	end := parts[len(parts)-1].Span()
+	if !isZeroSpan(start) {
+		span := start
+		if !isZeroSpan(end) {
+			span.End = end.End
+		}
+		ast.SetSpan(id, span)
+	}
+	return id
 }
 
 func sameNode(a, b *sitter.Node) bool {

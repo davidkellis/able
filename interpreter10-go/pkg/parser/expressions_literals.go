@@ -75,9 +75,9 @@ func parseNumberLiteral(node *sitter.Node, source []byte) (ast.Expression, error
 			return nil, fmt.Errorf("parser: invalid number literal %q", content)
 		}
 		if floatType != nil {
-			return ast.FltTyped(value, floatType), nil
+			return annotateExpression(ast.FltTyped(value, floatType), node), nil
 		}
-		return ast.Flt(value), nil
+		return annotateExpression(ast.Flt(value), node), nil
 	}
 
 	var (
@@ -107,7 +107,7 @@ func parseNumberLiteral(node *sitter.Node, source []byte) (ast.Expression, error
 	if _, ok := value.SetString(digits, intBase); !ok {
 		return nil, fmt.Errorf("parser: invalid number literal %q", content)
 	}
-	return ast.IntBig(value, intType), nil
+	return annotateExpression(ast.IntBig(value, intType), node), nil
 }
 
 func isNumericSuffix(s string) bool {
@@ -127,7 +127,7 @@ func parseStringLiteral(node *sitter.Node, source []byte) (ast.Expression, error
 	if err != nil {
 		return nil, fmt.Errorf("parser: invalid string literal %q: %w", raw, err)
 	}
-	return ast.Str(unquoted), nil
+	return annotateExpression(ast.Str(unquoted), node), nil
 }
 
 func parseCharLiteral(node *sitter.Node, source []byte) (ast.Expression, error) {
@@ -142,5 +142,5 @@ func parseCharLiteral(node *sitter.Node, source []byte) (ast.Expression, error) 
 	if len([]rune(unquoted)) != 1 {
 		return nil, fmt.Errorf("parser: character literal %q must resolve to a single rune", raw)
 	}
-	return ast.Chr(unquoted), nil
+	return annotateExpression(ast.Chr(unquoted), node), nil
 }

@@ -508,6 +508,72 @@ func TestLambdaInferenceUsesBodyType(t *testing.T) {
 		t.Fatalf("expected lambda return type i32, got %#v", fnType.Return)
 	}
 }
+
+func TestPipelineAllowsTopicAndPlaceholderCalls(t *testing.T) {
+	checker := New()
+	addFn := ast.Fn(
+		"add",
+		[]*ast.FunctionParameter{
+			ast.Param("left", ast.Ty("i32")),
+			ast.Param("right", ast.Ty("i32")),
+		},
+		[]ast.Statement{
+			ast.Block(ast.Int(0)),
+		},
+		ast.Ty("i32"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+	doubleFn := ast.Fn(
+		"double",
+		[]*ast.FunctionParameter{
+			ast.Param("value", ast.Ty("i32")),
+		},
+		[]ast.Statement{
+			ast.Block(ast.Int(0)),
+		},
+		ast.Ty("i32"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+	valueDecl := ast.Assign(ast.ID("value"), ast.Int(21))
+	topicPipe := ast.Assign(
+		ast.ID("topicResult"),
+		ast.Bin(
+			"|>",
+			ast.ID("value"),
+			ast.CallExpr(ast.ID("double"), ast.TopicRef()),
+		),
+	)
+	placeholderPipe := ast.Assign(
+		ast.ID("placeholderResult"),
+		ast.Bin(
+			"|>",
+			ast.ID("value"),
+			ast.CallExpr(ast.ID("add"), ast.Placeholder(), ast.Int(5)),
+		),
+	)
+	module := ast.NewModule([]ast.Statement{
+		addFn,
+		doubleFn,
+		valueDecl,
+		topicPipe,
+		placeholderPipe,
+	}, nil, nil)
+
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics for pipeline placeholders, got %v", diags)
+	}
+}
+
 func TestLambdaReturnAnnotationMismatch(t *testing.T) {
 	checker := New()
 	param := ast.Param("x", ast.Ty("i32"))

@@ -865,6 +865,7 @@ Typed patterns refine a match by requiring the value to conform to a given type.
 Typed patterns in `:=`/`=`:
 
 - Typed patterns are also permitted on the left-hand side of `:=` and `=` within struct, array, or standalone identifier patterns. The assignment/declaration succeeds only if the runtime value conforms to the annotated type; otherwise evaluation raises `"Typed pattern mismatch in assignment"`.
+- Compile-time checkers **may** surface diagnostics when they can statically prove the mismatch (e.g., in warn-mode runs), but these diagnostics are advisory. A program that proceeds will still evaluate according to the runtime rule above, producing an `Error` value if the value fails the annotation at execution time.
 
 ``` able
 ## Union destructuring with typed pattern in assignment
@@ -940,10 +941,11 @@ Literals are the source code representation of fixed values.
 
 #### 6.1.4. Character Literals
 
--   **Syntax:** A single Unicode character enclosed in single quotes `'`. Special characters can be represented using escape sequences:
+-   **Syntax:** A single Unicode scalar value (code point) enclosed in single quotes `'`. Special characters can be represented using escape sequences:
     *   Common escapes: `\n` (newline), `\r` (carriage return), `\t` (tab), `\\` (backslash), `\'` (single quote), `\"` (double quote - though not strictly needed in char literal).
-    *   Unicode escape: `\u{XXXXXX}` where `XXXXXX` are 1-6 hexadecimal digits representing the Unicode code point.
+    *   Unicode escape: `\u{XXXXXX}` where `XXXXXX` are 1-6 hexadecimal digits representing the Unicode scalar value.
 -   **Type:** `char`.
+-   **Validation:** After escape processing the literal must contain exactly one Unicode scalar value. Sequences that expand to multiple scalars are rejected at compile time.
 -   **Examples:** `'a'`, `' '`, `'%'`, `'\n'`, `'\u{1F604}'`.
 
 #### 6.1.5. String Literals
@@ -953,6 +955,13 @@ Literals are the source code representation of fixed values.
     2.  **Interpolated:** Sequence of characters enclosed in backticks `` ` ``. Can embed expressions using `${Expression}`. Escapes like `` \` `` and `\$` are used for literal backticks or dollar signs before braces. See Section [6.6](#66-string-interpolation).
 -   **Type:** `string`. Strings are immutable.
 -   **Examples:** `"Hello, world!\n"`, `""`, `` `User: ${user.name}, Age: ${user.age}` ``, `` `Literal: \` or \${` ``.
+
+##### String Representation
+
+-   `string` values represent immutable sequences of UTF-8 bytes. The canonical standard library `String` type wraps this data and exposes higher-level helpers.
+-   Operations that inspect textual structure (code points, grapheme clusters, normalisation) are performed through library routines (`String::chars()`, `String::graphemes()`, `String::to_nfc()`, etc.) rather than implicit runtime behaviour.
+-   The `char` type corresponds to a single Unicode scalar value (`u32` range). A distinct `Grapheme` type in the standard library models user-perceived characters; it is derived from strings via segmentation helpers.
+-   Unless specified otherwise, indices and spans refer to byte offsets within the UTF-8 sequence.
 
 #### 6.1.6. Nil Literal
 
@@ -2193,6 +2202,32 @@ Let `ReceiverType` be the static type of the `ReceiverExpression`. The compiler 
 *   **Precedence Order:** Field Access (Callable) > Inherent Method > Interface Method (after specificity) > UFCS.
 *   If **ambiguity** arises within Step 3 (multiple equally specific interface implementations) and is not resolved by later steps (which is unlikely given the precedence), a **compile-time error** occurs, requiring explicit disambiguation.
 *   If **no match** is found after all steps, a **compile-time error** occurs ("method not found").
+
+### 9.5. Method-Set Generics and Where-Clause Obligations
+
+`methods` blocks may declare generic parameters and `where` clauses that impose additional constraints on the receiver or on helper type parameters. These obligations are enforced every time a method from the block is invoked.
+
+- The `Self` alias always refers to the fully instantiated receiver type. Constraints such as `where Self: Display` therefore require the receiver itself to satisfy the referenced interface before the call can succeed.
+- Generic parameters declared on the `methods` block (e.g., `methods Pair T { ... }`) behave like function-level generics. Any constraints placed on those parameters—either inline (`T: Display`) or through a `where` clause—must be satisfied once the compiler substitutes the concrete types inferred from the call.
+- If a method inside the block introduces additional generics with their own constraints, those obligations are checked alongside the block-level requirements.
+
+When method resolution (Section [9.4](#94-method-call-syntax-resolution)) selects a method from a `methods` block, the compiler instantiates all generic parameters, substitutes `Self` with the receiver type, and then validates the collected obligations. Failure to satisfy any constraint is a compile-time error, and the call does not proceed.
+
+**Example**
+
+```able
+interface Display { fn show(Self) -> string }
+
+struct Wrapper { value: string }
+
+methods Wrapper where Self: Display {
+  fn describe(self: Self) -> string {
+    self.show()
+  }
+}
+```
+
+Calling `Wrapper.describe` requires a matching `impl Display for Wrapper`; otherwise the compiler reports that the `methods Wrapper::describe` constraint is not satisfied. The shared fixtures `errors/method_set_where_constraint` and `functions/method_set_where_constraint_ok` illustrate the failing and successful cases.
 
 ## 10. Interfaces and Implementations
 

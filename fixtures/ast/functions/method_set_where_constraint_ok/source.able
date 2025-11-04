@@ -1,0 +1,22 @@
+interface Display {
+  fn show(self: Self) -> string
+}
+
+struct Wrapper {
+  value: i32
+}
+
+impl Display for Wrapper {
+  fn show(self: Wrapper) -> string {
+    return `Wrapper(${self.value})`
+  }
+}
+
+methods Wrapper where Self: Display {
+  fn describe(self: Wrapper) -> string {
+    return self.show()
+  }
+}
+
+wrapped := Wrapper { value: 7 }
+wrapped.describe()

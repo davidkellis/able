@@ -84,11 +84,23 @@ const (
 
 type Node interface {
 	NodeType() NodeType
+	Span() Span
 	isNode()
+}
+
+type Position struct {
+	Line   int `json:"line"`
+	Column int `json:"column"`
+}
+
+type Span struct {
+	Start Position `json:"start"`
+	End   Position `json:"end"`
 }
 
 type nodeImpl struct {
 	Type NodeType `json:"type"`
+	span Span
 }
 
 func newNodeImpl(kind NodeType) nodeImpl {
@@ -96,7 +108,9 @@ func newNodeImpl(kind NodeType) nodeImpl {
 }
 
 func (n nodeImpl) NodeType() NodeType { return n.Type }
+func (n nodeImpl) Span() Span         { return n.span }
 func (nodeImpl) isNode()              {}
+func (n *nodeImpl) setSpan(span Span) { n.span = span }
 
 // Marker interfaces.
 

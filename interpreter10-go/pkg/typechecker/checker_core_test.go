@@ -597,17 +597,7 @@ func TestPropagationRequiresProcErrorUnion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(diags) == 0 {
-		t.Fatalf("expected diagnostic for propagation on non-union type")
-	}
-	found := false
-	for _, d := range diags {
-		if strings.Contains(d.Message, "propagation requires union") {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("missing propagation diagnostic: %v", diags)
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics for propagation on non-union type, got %v", diags)
 	}
 }

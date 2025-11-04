@@ -20,23 +20,23 @@ type ProgramEvaluationOptions struct {
 // EvaluateProgram executes the modules in the provided program according to their
 // dependency order. If typechecking is enabled (default), diagnostics are returned
 // and evaluation is skipped when issues are detected.
-func (i *Interpreter) EvaluateProgram(program *driver.Program, opts ProgramEvaluationOptions) (runtime.Value, *runtime.Environment, []ModuleDiagnostic, error) {
+func (i *Interpreter) EvaluateProgram(program *driver.Program, opts ProgramEvaluationOptions) (runtime.Value, *runtime.Environment, ProgramCheckResult, error) {
 	if program == nil {
-		return nil, nil, nil, fmt.Errorf("interpreter: program is nil")
+		return nil, nil, ProgramCheckResult{}, fmt.Errorf("interpreter: program is nil")
 	}
 	if program.Entry == nil || program.Entry.AST == nil {
-		return nil, nil, nil, fmt.Errorf("interpreter: program missing entry module")
+		return nil, nil, ProgramCheckResult{}, fmt.Errorf("interpreter: program missing entry module")
 	}
 
-	var diags []ModuleDiagnostic
+	var check ProgramCheckResult
 	if !opts.SkipTypecheck {
 		var err error
-		diags, err = TypecheckProgram(program)
+		check, err = TypecheckProgram(program)
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, nil, ProgramCheckResult{}, err
 		}
-		if len(diags) > 0 && !opts.AllowDiagnostics {
-			return nil, nil, diags, nil
+		if len(check.Diagnostics) > 0 && !opts.AllowDiagnostics {
+			return nil, nil, check, nil
 		}
 	}
 
@@ -60,7 +60,7 @@ func (i *Interpreter) EvaluateProgram(program *driver.Program, opts ProgramEvalu
 			if len(mod.Files) > 0 {
 				source = mod.Files[0]
 			}
-			return nil, nil, nil, fmt.Errorf("interpreter: evaluation error in package %s (e.g., %s): %w", mod.Package, source, err)
+			return nil, nil, check, fmt.Errorf("interpreter: evaluation error in package %s (e.g., %s): %w", mod.Package, source, err)
 		}
 		if mod.Package == program.Entry.Package {
 			entryEnv = env
@@ -71,5 +71,5 @@ func (i *Interpreter) EvaluateProgram(program *driver.Program, opts ProgramEvalu
 	if entryEnv == nil {
 		entryEnv = i.GlobalEnvironment()
 	}
-	return entryValue, entryEnv, diags, nil
+	return entryValue, entryEnv, check, nil
 }

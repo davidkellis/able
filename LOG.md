@@ -1,3 +1,75 @@
+> Typechecker Export Schema (2025-11-02)
+
+- Normalised the Go `ProgramChecker` package summaries so exported metadata is serialisable: public structs/interfaces/functions now emit type names, generic constraints, where clauses, and obligation contexts (`interpreter10-go/pkg/typechecker/program_checker.go`).
+- Added method-set diagnostic context when interface obligations fail, yielding messages such as “method 'show' not provided” to help both runtimes converge (`interpreter10-go/pkg/typechecker/constraint_solver.go`).
+- Sketched the matching TypeScript export schema and plumbed the new result surface through `TypecheckResult` (still returning `null` until the capture lands) so future Bun tooling can share the same structure (`interpreter10/src/typechecker/{checker,diagnostics,index}.ts`).
+- Updated the method-set fixture expectation/baseline so Go and TS agree on the enriched diagnostic wording.
+
+Tests
+
+- (cd interpreter10-go && go test ./pkg/typechecker)
+- (cd interpreter10-go && go test ./pkg/interpreter)
+- (cd interpreter10 && bun test)
+- (cd interpreter10 && ABLE_TYPECHECK_FIXTURES=warn bun run scripts/run-fixtures.ts --write-typecheck-baseline)
+
+> Bun Typechecker Import Enforcement (2025-11-02)
+
+- Added a reusable `TypecheckerSession` that threads package summaries through Bun workflows, letting both the CLI and fixture harness share multi-package state (`interpreter10/src/typechecker/{checker,session,index}.ts`, `scripts/run-{module,fixtures}.ts`, `test/typechecker/package_summary.test.ts`).
+- Extended the TypeScript checker with static import analysis (unknown packages, selector validation, and package alias member access) plus focused unit coverage for the new diagnostics (`interpreter10/src/typechecker/checker.ts`, `test/typechecker/imports.test.ts`).
+- Regenerated and now enforce `fixtures/ast/typecheck-baseline.json` whenever `ABLE_TYPECHECK_FIXTURES=warn|strict` is set, mirroring the Go harness; docs were updated to reflect the stricter baseline behaviour (`interpreter10/scripts/run-fixtures.ts`, `interpreter10/README.md`, `design/typechecker-plan.md`).
+
+
+> Diagnostic Coordinate Audit (2025-11-02)
+
+- Spot-checked diagnostics across the fixtures corpus (generic constraint errors, struct pattern mismatches, boolean operator type errors) to confirm Go and TypeScript now report identical file/line/column spans.
+- Adjusted the Go checker’s boolean operand diagnostics to point at the same span as the TypeScript runtime so `&&` failures highlight the operator area rather than the left literal (`interpreter10-go/pkg/typechecker/binary_expression.go`).
+- Re-ran the Bun fixture harness and Go parity suite under `ABLE_TYPECHECK_FIXTURES=warn` to ensure the refreshed coordinates stay green across both interpreters.
+
+Tests
+
+- (cd interpreter10 && ABLE_TYPECHECK_FIXTURES=warn bun run scripts/run-fixtures.ts)
+- (cd interpreter10 && bun test)
+- (cd interpreter10-go && ABLE_TYPECHECK_FIXTURES=warn GOCACHE=$(pwd)/../.gocache go test ./pkg/interpreter)
+
+> Go Program Checker Session (2025-11-02)
+
+- Introduced `typechecker.ProgramChecker` to coordinate multi-package runs, capturing exported symbols/impls/method sets and reusing them when checking each dependency-ordered module (`interpreter10-go/pkg/typechecker/program_checker.go`).
+- Rewired the interpreter’s TypecheckProgram helper to use the shared session and added focused unit coverage for dependency resolution plus unknown-package diagnostics (`interpreter10-go/pkg/interpreter/program_typecheck.go`, `interpreter10-go/pkg/typechecker/program_checker_test.go`).
+- Exposed structured export metadata (struct/interface/function tables alongside impl/method-set registries) so downstream tooling can inspect package APIs without re-running typechecking (`interpreter10-go/pkg/typechecker/program_checker.go`, `program_checker_test.go`).
+- Surfaced the new summaries through `able run` typecheck output so diagnostics now include per-package export counts and names (`interpreter10-go/cmd/able/main.go`, `main_test.go`).
+- Threaded real source hints through program-wide typechecking by tracking node origins during load; diagnostics now report concrete file paths instead of placeholders (`interpreter10-go/pkg/ast/origins.go`, `pkg/driver/loader.go`, `pkg/typechecker/program_checker.go`).
+- Updated the roadmap to mark the session milestone complete so follow-up tasks can focus on export surfaces and CLI integration detail (`design/typechecker-plan.md`).
+
+Tests
+
+- (cd interpreter10-go && GOCACHE=$(pwd)/.gocache go test ./...)
+
+> TS Method-Set Parity (2025-11-02)
+
+- Extended the Bun typechecker with method-set resolution that honours `Self` where-clause obligations, reusing the implementation-matching tables introduced on the Go side (`interpreter10/src/typechecker/checker.ts`).
+- Added Bun unit tests that cover missing/satisfied method-set constraints and guard against typed-pattern mismatch diagnostics so the TypeScript runtime stays aligned with Go (`interpreter10/test/typechecker/{method_sets,patterns}.test.ts`).
+- Updated `design/typechecker-plan.md` to record the cross-runtime parity work and captured a spec follow-up for typed-pattern wording in `spec/TODO.md`.
+
+Tests
+
+- ./run_all_tests.sh
+- (cd interpreter10 && bun test)
+- (cd interpreter10 && bun run scripts/run-fixtures.ts)
+- (cd interpreter10-go && GOCACHE=$(pwd)/.gocache go test ./...)
+
+> Go Constraint Solver Higher-Order (2025-11-01)
+
+- Captured union variant metadata during declaration collection so higher-order generic implementations (e.g., `union Option T = nil | T`) retain their variant shapes for downstream checks (`interpreter10-go/pkg/typechecker/decls.go`, `types.go`).
+- Generalised nominal type matching to recognise nullable wrappers and union applications when resolving implementation targets, enabling the constraint solver to bind `impl` blocks for deeply nested generics (`interpreter10-go/pkg/typechecker/member_access.go`, `type_utils.go`).
+- Enforced implementation where-clause obligations during constraint solving and annotated failure reasons so unsatisfied constraints surface with high-signal diagnostics (`interpreter10-go/pkg/typechecker/constraint_solver.go`).
+- Mirrored the obligation enforcement in the TypeScript checker, added method-set resolution with substitution-aware diagnostics, and expanded nullable/union regression coverage so both runtimes stay in lockstep (`interpreter10/src/typechecker/checker.ts`, `interpreter10/test/typechecker/constraint_resolution.test.ts`).
+- Added focused unit tests covering `Option Point` and nullable / nested-wrapper scenarios so regression detection catches future inference gaps (`interpreter10-go/pkg/typechecker/checker_expressions_constraints_test.go`).
+
+Tests
+
+- (cd interpreter10-go && GOCACHE=$(pwd)/.gocache go test ./...)
+- (cd interpreter10 && bun test)
+
 > Concurrency Design (2025-10-13)
 
   - Captured the Go concurrency execution strategy using a lightweight executor abstraction that wraps goroutines/contexts instead of introducing a bespoke scheduler (`design/go-concurrency-scheduler.md`).

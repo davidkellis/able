@@ -1,0 +1,258 @@
+import { promises as fs } from "node:fs";
+import path from "node:path";
+
+import * as AST from "../src/ast";
+import type { ImportStatement, Identifier } from "../src/ast";
+import {
+  annotateModuleOrigin,
+  buildPackageSegmentsForModule,
+  discoverRoot,
+  discoverRootForPath,
+  indexSourceFiles,
+  parseModuleFromSource,
+  type PackageLocation,
+} from "./module-utils";
+
+type FileModule = {
+  path: string;
+  packageName: string;
+  ast: AST.Module;
+  imports: string[];
+};
+
+export type LoadedModule = {
+  packageName: string;
+  module: AST.Module;
+  files: string[];
+  imports: string[];
+};
+
+export type Program = {
+  entry: LoadedModule;
+  modules: LoadedModule[];
+};
+
+type LoadOptions = {
+  includePackages?: string[];
+};
+
+export class ModuleLoader {
+  private readonly searchPaths: string[];
+
+  constructor(searchPaths: string[] = []) {
+    const uniques = new Set<string>();
+    for (const candidate of searchPaths) {
+      if (!candidate) continue;
+      const resolved = path.resolve(candidate);
+      uniques.add(resolved);
+    }
+    this.searchPaths = [...uniques];
+  }
+
+  async load(entryPath: string, options: LoadOptions = {}): Promise<Program> {
+    if (!entryPath) {
+      throw new Error("loader: empty entry path");
+    }
+    const resolvedEntry = await this.resolveEntryPath(entryPath);
+    const entryInfo = await fs.stat(resolvedEntry);
+    if (entryInfo.isDirectory()) {
+      throw new Error(`loader: entry path ${resolvedEntry} is a directory`);
+    }
+    const { rootDir, rootName } = await discoverRoot(resolvedEntry);
+    const { packages, fileToPackage } = await indexSourceFiles(rootDir, rootName);
+    await this.indexAdditionalRoots(packages, rootDir);
+
+    const entryPackage = fileToPackage.get(resolvedEntry);
+    if (!entryPackage) {
+      throw new Error(`loader: failed to resolve package for entry file ${resolvedEntry}`);
+    }
+
+    const include = new Set<string>(options.includePackages ? options.includePackages : []);
+    include.add(entryPackage);
+
+    const loaded = new Map<string, LoadedModule>();
+    const inProgress = new Set<string>();
+    const ordered: LoadedModule[] = [];
+
+    const loadPackage = async (pkgName: string): Promise<LoadedModule> => {
+      if (loaded.has(pkgName)) {
+        return loaded.get(pkgName)!;
+      }
+      if (inProgress.has(pkgName)) {
+        throw new Error(`loader: import cycle detected at package ${pkgName}`);
+      }
+      const loc = packages.get(pkgName);
+      if (!loc || loc.files.length === 0) {
+        throw new Error(`loader: package ${pkgName} not found`);
+      }
+      inProgress.add(pkgName);
+      const fileModules: FileModule[] = [];
+      for (const filePath of loc.files) {
+        const fm = await parseFile(filePath, loc.rootDir, loc.rootName);
+        if (fm.packageName !== pkgName) {
+          throw new Error(
+            `loader: file ${filePath} resolves to package ${fm.packageName}, expected ${pkgName}`,
+          );
+        }
+        fileModules.push(fm);
+      }
+      const combined = combinePackage(pkgName, fileModules);
+      loaded.set(pkgName, combined);
+      for (const dep of combined.imports) {
+        if (dep === pkgName) continue;
+        if (!packages.has(dep)) {
+          throw new Error(`loader: package ${pkgName} imports unknown package ${dep}`);
+        }
+        await loadPackage(dep);
+      }
+      ordered.push(combined);
+      inProgress.delete(pkgName);
+      return combined;
+    };
+
+    for (const pkgName of include) {
+      await loadPackage(pkgName);
+    }
+
+    const entryModule = loaded.get(entryPackage);
+    if (!entryModule) {
+      throw new Error(`loader: failed to load entry package ${entryPackage}`);
+    }
+
+    return { entry: entryModule, modules: ordered };
+  }
+
+  private async resolveEntryPath(entry: string): Promise<string> {
+    const candidate = path.resolve(entry);
+    try {
+      await fs.access(candidate);
+      return candidate;
+    } catch {
+      throw new Error(`loader: unable to access ${candidate}`);
+    }
+  }
+
+  private async indexAdditionalRoots(
+    pkgIndex: Map<string, PackageLocation>,
+    primaryRoot: string,
+  ): Promise<void> {
+    if (this.searchPaths.length === 0) {
+      return;
+    }
+    const used = new Set<string>([path.resolve(primaryRoot)]);
+    for (const searchPath of this.searchPaths) {
+      if (used.has(path.resolve(searchPath))) {
+        continue;
+      }
+      const { abs, rootName } = await discoverRootForPath(searchPath);
+      const clean = path.resolve(abs);
+      if (used.has(clean)) {
+        continue;
+      }
+      used.add(clean);
+      const { packages } = await indexSourceFiles(abs, rootName);
+      for (const [name, loc] of packages.entries()) {
+        if (loc.files.length === 0) continue;
+        if (pkgIndex.has(name)) continue;
+        pkgIndex.set(name, loc);
+      }
+    }
+  }
+}
+
+async function parseFile(filePath: string, rootDir: string, rootPackage: string): Promise<FileModule> {
+  const moduleAST = await parseModuleFromSource(filePath);
+  if (!moduleAST) {
+    throw new Error(`loader: failed to parse ${filePath}`);
+  }
+  const { segments, isPrivate } = buildPackageSegmentsForModule(rootDir, rootPackage, filePath, moduleAST);
+  const pkgName = segments.join(".");
+  moduleAST.package = AST.packageStatement(segments, isPrivate);
+  annotateModuleOrigin(moduleAST, filePath);
+
+  const importSet = new Set<string>();
+  for (const imp of (moduleAST.imports || [])) {
+    const name = formatImportPath(imp);
+    if (!name) {
+      continue;
+    }
+    importSet.add(name);
+  }
+  const imports = [...importSet].sort();
+  return { path: filePath, packageName: pkgName, ast: moduleAST, imports };
+}
+
+function combinePackage(packageName: string, files: FileModule[]): LoadedModule {
+  if (files.length === 0) {
+    throw new Error("loader: combinePackage called with no files");
+  }
+  const sortedFiles = [...files].sort((a, b) => a.path.localeCompare(b.path));
+  const primaryPath = sortedFiles[0] && sortedFiles[0].path ? sortedFiles[0].path : "";
+  const body: AST.Statement[] = [];
+  const importNodes: ImportStatement[] = [];
+  const importNodeKeys = new Set<string>();
+  const importNames = new Set<string>();
+  let pkgStmt: AST.PackageStatement | undefined;
+
+  for (const file of sortedFiles) {
+    if (file.ast.package && !pkgStmt) {
+      pkgStmt = AST.packageStatement(
+        file.ast.package.namePath.map((id) => id.name),
+        file.ast.package.isPrivate,
+      );
+    }
+    for (const imp of (file.ast.imports || [])) {
+      const key = importKey(imp);
+      if (key && !importNodeKeys.has(key)) {
+        importNodeKeys.add(key);
+        importNodes.push(imp);
+      }
+    }
+    for (const name of file.imports) {
+      if (name === packageName) continue;
+      importNames.add(name);
+    }
+    body.push(...file.ast.body);
+  }
+  if (!pkgStmt) {
+    const segments = packageName.split(".").filter(Boolean);
+    pkgStmt = AST.packageStatement(segments);
+  }
+  const module = AST.module(body, importNodes, pkgStmt);
+  const fallbackOrigin = primaryPath || (files[0] ? files[0].path : "");
+  annotateModuleOrigin(module, fallbackOrigin || "<unknown>");
+  return {
+    packageName,
+    module,
+    files: sortedFiles.map((f) => f.path),
+    imports: [...importNames].sort(),
+  };
+}
+
+
+function formatImportPath(imp: ImportStatement): string {
+  if (!imp || !imp.packagePath || imp.packagePath.length === 0) {
+    return "";
+  }
+  return imp.packagePath
+    .map((id: Identifier) => (id && id.name ? id.name : ""))
+    .filter(Boolean)
+    .join(".");
+}
+
+function importKey(imp: ImportStatement): string {
+  if (!imp) return "";
+  const aliasName = imp.alias && imp.alias.name ? imp.alias.name : "";
+  const parts = [formatImportPath(imp), imp.isWildcard ? "*" : "", aliasName];
+  if (imp.selectors && imp.selectors.length > 0) {
+    const selectorParts = imp.selectors
+      .map((sel) => {
+        if (!sel?.name?.name) return "";
+        return sel.alias?.name ? `${sel.name.name} as ${sel.alias.name}` : sel.name.name;
+      })
+      .filter(Boolean)
+      .join(",");
+    parts.push(selectorParts);
+  }
+  return parts.join("|");
+}

@@ -13,50 +13,77 @@ type interfaceResolution struct {
 }
 
 func (c *Checker) resolveObligations() []Diagnostic {
+	return c.evaluateObligations(c.obligations)
+}
+
+func (c *Checker) evaluateObligations(obligations []ConstraintObligation) []Diagnostic {
+	if len(obligations) == 0 {
+		return nil
+	}
 	var diags []Diagnostic
-	for _, ob := range c.obligations {
-		res := c.resolveConstraintInterfaceType(ob.Constraint)
-		contextLabel := ""
-		if ob.Context != "" {
-			contextLabel = " (" + ob.Context + ")"
-		}
-		if res.err != "" {
-			diags = append(diags, Diagnostic{
-				Message: fmt.Sprintf("typechecker: %s constraint on %s%s %s", ob.Owner, ob.TypeParam, contextLabel, res.err),
-				Node:    ob.Node,
-			})
-			continue
-		}
-		expectedParams := len(res.iface.TypeParams)
-		providedArgs := len(res.args)
-		if expectedParams > 0 && providedArgs == 0 {
-			diags = append(diags, Diagnostic{
-				Message: fmt.Sprintf("typechecker: %s constraint on %s%s requires %d type argument(s) for interface '%s'", ob.Owner, ob.TypeParam, contextLabel, expectedParams, res.iface.InterfaceName),
-				Node:    ob.Node,
-			})
-			continue
-		}
-		if expectedParams != providedArgs && providedArgs != 0 {
-			diags = append(diags, Diagnostic{
-				Message: fmt.Sprintf("typechecker: %s constraint on %s%s expected %d type argument(s) for interface '%s', got %d", ob.Owner, ob.TypeParam, contextLabel, expectedParams, res.iface.InterfaceName, providedArgs),
-				Node:    ob.Node,
-			})
-			continue
-		}
-		if ok, detail := c.obligationSatisfied(ob, res); !ok {
-			subject := formatType(ob.Subject)
-			interfaceLabel := formatInterfaceApplication(res.iface, res.args)
-			reason := ""
-			if detail != "" {
-				reason = ": " + detail
-			}
-			diags = append(diags, Diagnostic{
-				Message: fmt.Sprintf("typechecker: %s constraint on %s%s is not satisfied: %s does not implement %s%s", ob.Owner, ob.TypeParam, contextLabel, subject, interfaceLabel, reason),
-				Node:    ob.Node,
-			})
-		}
+	for _, ob := range obligations {
+		diags = append(diags, c.evaluateObligation(ob)...)
 	}
 	return diags
+}
+
+func (c *Checker) evaluateObligation(ob ConstraintObligation) []Diagnostic {
+	res := c.resolveConstraintInterfaceType(ob.Constraint)
+	contextLabel := ""
+	if ob.Context != "" {
+		contextLabel = " (" + ob.Context + ")"
+	}
+	if res.err != "" {
+		diags := []Diagnostic{{
+			Message: fmt.Sprintf("typechecker: %s constraint on %s%s %s", ob.Owner, ob.TypeParam, contextLabel, res.err),
+			Node:    ob.Node,
+		}}
+		if ob.Subject != nil && !isUnknownType(ob.Subject) && !isTypeParameter(ob.Subject) {
+			subject := formatType(ob.Subject)
+			interfaceLabel := res.name
+			if interfaceLabel == "" && res.iface.InterfaceName != "" {
+				interfaceLabel = res.iface.InterfaceName
+			}
+			if len(res.args) > 0 {
+				interfaceLabel = formatInterfaceApplication(res.iface, res.args)
+			}
+			if interfaceLabel == "" {
+				interfaceLabel = "<unknown>"
+			}
+			diags = append(diags, Diagnostic{
+				Message: fmt.Sprintf("typechecker: %s constraint on %s%s is not satisfied: %s does not implement %s", ob.Owner, ob.TypeParam, contextLabel, subject, interfaceLabel),
+				Node:    ob.Node,
+			})
+		}
+		return diags
+	}
+	expectedParams := len(res.iface.TypeParams)
+	providedArgs := len(res.args)
+	if expectedParams > 0 && providedArgs == 0 {
+		return []Diagnostic{{
+			Message: fmt.Sprintf("typechecker: %s constraint on %s%s requires %d type argument(s) for interface '%s'", ob.Owner, ob.TypeParam, contextLabel, expectedParams, res.iface.InterfaceName),
+			Node:    ob.Node,
+		}}
+	}
+	if expectedParams != providedArgs && providedArgs != 0 {
+		return []Diagnostic{{
+			Message: fmt.Sprintf("typechecker: %s constraint on %s%s expected %d type argument(s) for interface '%s', got %d", ob.Owner, ob.TypeParam, contextLabel, expectedParams, res.iface.InterfaceName, providedArgs),
+			Node:    ob.Node,
+		}}
+	}
+	if ok, detail := c.obligationSatisfied(ob, res); !ok {
+		subject := formatType(ob.Subject)
+		interfaceLabel := formatInterfaceApplication(res.iface, res.args)
+		reason := ""
+		if detail != "" {
+			reason = ": " + detail
+		}
+		return []Diagnostic{{
+			Message: fmt.Sprintf("typechecker: %s constraint on %s%s is not satisfied: %s does not implement %s%s", ob.Owner, ob.TypeParam, contextLabel, subject, interfaceLabel, reason),
+			Node:    ob.Node,
+		}}
+	}
+	return nil
 }
 
 func (c *Checker) resolveConstraintInterfaceType(t Type) interfaceResolution {
@@ -110,19 +137,40 @@ func (c *Checker) obligationSatisfied(ob ConstraintObligation, res interfaceReso
 }
 
 func (c *Checker) typeImplementsInterface(subject Type, iface InterfaceType, args []Type) (bool, string) {
+	var implDetail string
 	switch val := subject.(type) {
 	case NullableType:
-		if c.implementationProvidesInterface(subject, iface, args) {
+		if ok, detail := c.implementationProvidesInterface(subject, iface, args); ok {
 			return true, ""
+		} else if detail != "" {
+			implDetail = detail
 		}
-		return c.typeImplementsInterface(val.Inner, iface, args)
+		ok, detail := c.typeImplementsInterface(val.Inner, iface, args)
+		if !ok {
+			if detail != "" {
+				return false, detail
+			}
+			if implDetail != "" {
+				return false, implDetail
+			}
+			return false, ""
+		}
+		return true, ""
 	case UnionLiteralType:
-		if c.implementationProvidesInterface(subject, iface, args) {
+		if ok, detail := c.implementationProvidesInterface(subject, iface, args); ok {
 			return true, ""
+		} else if detail != "" {
+			implDetail = detail
 		}
 		for _, member := range val.Members {
 			ok, detail := c.typeImplementsInterface(member, iface, args)
 			if !ok {
+				if detail != "" {
+					return false, detail
+				}
+				if implDetail != "" {
+					return false, implDetail
+				}
 				return false, detail
 			}
 		}
@@ -131,13 +179,18 @@ func (c *Checker) typeImplementsInterface(subject Type, iface InterfaceType, arg
 	if subjectMatchesInterface(subject, iface, args) {
 		return true, ""
 	}
-	if c.implementationProvidesInterface(subject, iface, args) {
+	if ok, detail := c.implementationProvidesInterface(subject, iface, args); ok {
 		return true, ""
+	} else if detail != "" {
+		implDetail = detail
 	}
 	if ok, detail := c.methodSetProvidesInterface(subject, iface, args); ok {
 		return true, ""
 	} else if detail != "" {
 		return false, detail
+	}
+	if implDetail != "" {
+		return false, implDetail
 	}
 	return false, ""
 }
@@ -160,10 +213,11 @@ func subjectMatchesInterface(subject Type, iface InterfaceType, args []Type) boo
 	}
 }
 
-func (c *Checker) implementationProvidesInterface(subject Type, iface InterfaceType, args []Type) bool {
+func (c *Checker) implementationProvidesInterface(subject Type, iface InterfaceType, args []Type) (bool, string) {
 	if len(c.implementations) == 0 {
-		return false
+		return false, ""
 	}
+	bestDetail := ""
 	for _, spec := range c.implementations {
 		if spec.InterfaceName != iface.InterfaceName {
 			continue
@@ -172,24 +226,54 @@ func (c *Checker) implementationProvidesInterface(subject Type, iface InterfaceT
 		if !ok {
 			continue
 		}
-		if len(spec.InterfaceArgs) == 0 && len(args) == 0 {
-			return true
+		substitution := cloneTypeMap(subst)
+		if substitution == nil {
+			substitution = make(map[string]Type)
+		}
+		if subject != nil {
+			substitution["Self"] = subject
+		}
+		extendImplementationSubstitution(substitution, iface, spec.InterfaceArgs)
+		for _, param := range spec.TypeParams {
+			if param.Name == "" {
+				continue
+			}
+			if _, ok := substitution[param.Name]; !ok {
+				substitution[param.Name] = UnknownType{}
+			}
 		}
 		actualArgs := make([]Type, len(spec.InterfaceArgs))
 		for i, arg := range spec.InterfaceArgs {
-			actualArgs[i] = substituteType(arg, subst)
+			actualArgs[i] = substituteType(arg, substitution)
 		}
-		if len(actualArgs) == 0 && len(args) == 0 {
-			return true
-		}
-		if len(actualArgs) == 0 || len(actualArgs) != len(args) {
+		switch {
+		case len(actualArgs) == 0 && len(args) == 0:
+			// OK – both sides have no interface args.
+		case len(actualArgs) == 0 || len(actualArgs) != len(args):
 			continue
+		default:
+			if !interfaceArgsCompatible(actualArgs, args) {
+				continue
+			}
 		}
-		if interfaceArgsCompatible(actualArgs, args) {
-			return true
+		if len(spec.Obligations) > 0 {
+			populated := populateObligationSubjects(spec.Obligations, subject)
+			substituted := substituteObligations(populated, substitution)
+			if ok, detail, ob := c.obligationSetSatisfied(substituted); !ok {
+				annotated := annotateImplementationFailure(detail, spec, subject, substitution, actualArgs, ob)
+				if annotated != "" {
+					if len(annotated) > len(bestDetail) {
+						bestDetail = annotated
+					}
+				} else if detail != "" && len(detail) > len(bestDetail) {
+					bestDetail = detail
+				}
+				continue
+			}
 		}
+		return true, ""
 	}
-	return false
+	return false, bestDetail
 }
 
 func interfaceArgsCompatible(actual []Type, expected []Type) bool {
@@ -312,6 +396,25 @@ func annotateMethodSetFailure(detail string, spec MethodSetSpec, subject Type, s
 	return label + ": " + trimmed
 }
 
+func annotateImplementationFailure(detail string, spec ImplementationSpec, subject Type, subst map[string]Type, args []Type, ob ConstraintObligation) string {
+	label := strings.TrimSpace(spec.ImplName)
+	if label == "" {
+		label = formatImplementationCandidateLabel(spec, subject, subst, args)
+	}
+	trimmed := strings.TrimSpace(detail)
+	if trimmed == "" {
+		context := strings.TrimSpace(ob.Context)
+		if context != "" {
+			return label + ": " + context
+		}
+		return label
+	}
+	if strings.HasPrefix(trimmed, label) {
+		return trimmed
+	}
+	return label + ": " + trimmed
+}
+
 func formatMethodSetCandidateLabel(spec MethodSetSpec, subject Type, subst map[string]Type) string {
 	target := spec.Target
 	if len(subst) > 0 {
@@ -330,9 +433,47 @@ func formatMethodSetCandidateLabel(spec MethodSetSpec, subject Type, subst map[s
 	return fmt.Sprintf("methods for %s", name)
 }
 
+func formatImplementationCandidateLabel(spec ImplementationSpec, subject Type, subst map[string]Type, args []Type) string {
+	target := spec.Target
+	if len(subst) > 0 {
+		target = substituteType(target, subst)
+	}
+	if (target == nil || isUnknownType(target)) && subject != nil && !isUnknownType(subject) {
+		target = subject
+	}
+	name := formatType(target)
+	if name == "" || name == "<unknown>" {
+		name = typeName(target)
+	}
+	if name == "" {
+		name = "<unknown>"
+	}
+	interfaceName := spec.InterfaceName
+	if interfaceName == "" {
+		interfaceName = "<unknown>"
+	}
+	var parts []string
+	if len(args) > 0 {
+		parts = make([]string, len(args))
+		for i, arg := range args {
+			parts[i] = formatType(arg)
+		}
+	} else if len(spec.InterfaceArgs) > 0 {
+		parts = make([]string, len(spec.InterfaceArgs))
+		for i, arg := range spec.InterfaceArgs {
+			parts[i] = formatType(substituteType(arg, subst))
+		}
+	}
+	argSuffix := ""
+	if len(parts) > 0 {
+		argSuffix = " " + strings.Join(parts, " ")
+	}
+	return fmt.Sprintf("impl %s%s for %s", interfaceName, argSuffix, name)
+}
+
 func methodSetSatisfiesInterface(spec MethodSetSpec, iface InterfaceType, args []Type, subject Type, subst map[string]Type) (bool, []ConstraintObligation, string) {
 	if len(spec.Methods) == 0 || len(iface.Methods) == 0 {
-		return false, nil, ""
+		return false, nil, "method set is empty"
 	}
 	combined := cloneTypeMap(subst)
 	if combined == nil {
@@ -368,11 +509,11 @@ func methodSetSatisfiesInterface(spec MethodSetSpec, iface InterfaceType, args [
 		expected := substituteFunctionType(ifaceMethod, ifaceSubst)
 		actual, ok := spec.Methods[name]
 		if !ok {
-			return false, nil, fmt.Sprintf("method '%s' not provided by methods block", name)
+			return false, nil, fmt.Sprintf("method '%s' not provided", name)
 		}
 		actualInst := substituteFunctionType(actual, combined)
 		if !functionSignaturesCompatible(expected, actualInst) {
-			return false, nil, fmt.Sprintf("method '%s' has incompatible signature", name)
+			return false, nil, fmt.Sprintf("method '%s' signature does not satisfy interface", name)
 		}
 		if len(actualInst.Obligations) > 0 {
 			populated := populateObligationSubjects(actualInst.Obligations, subject)

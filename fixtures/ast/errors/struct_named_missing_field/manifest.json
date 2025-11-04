@@ -6,7 +6,7 @@
       "typechecker: struct pattern field 'z' not found"
     ],
     "typecheckDiagnostics": [
-      "typechecker: struct pattern field 'z' not found"
+      "typechecker: fixtures/ast/errors/struct_named_missing_field/source.able:7:15 typechecker: struct pattern field 'z' not found"
     ]
   },
   "entry": "module.json"
