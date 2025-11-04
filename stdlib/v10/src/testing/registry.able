@@ -1,0 +1,63 @@
+package testing
+
+import able.collections.array.{Array}
+import able.testing.protocol.{Framework}
+
+struct FrameworkEntry {
+  id: string,
+  framework: Framework
+}
+
+let mut REGISTERED: Array FrameworkEntry = Array.new()
+
+fn register_framework(framework: Framework) -> void {
+  let id = framework.id()
+  let mut idx = 0
+  loop {
+    if idx >= REGISTERED.len() { break }
+    match REGISTERED.get(idx) {
+      case nil => {},
+      case entry: FrameworkEntry => {
+        if entry.id == id {
+          REGISTERED.set(idx, FrameworkEntry { id, framework })
+          return
+        }
+      }
+    }
+    idx = idx + 1
+  }
+  REGISTERED.push(FrameworkEntry { id, framework })
+}
+
+fn each_framework(visit: Framework -> void) -> void {
+  let mut idx = 0
+  loop {
+    if idx >= REGISTERED.len() { break }
+    match REGISTERED.get(idx) {
+      case nil => {},
+      case entry: FrameworkEntry => visit(entry.framework)
+    }
+    idx = idx + 1
+  }
+}
+
+fn framework_by_id(id: string) -> ?Framework {
+  let mut idx = 0
+  loop {
+    if idx >= REGISTERED.len() { break }
+    match REGISTERED.get(idx) {
+      case nil => {},
+      case entry: FrameworkEntry => {
+        if entry.id == id { return entry.framework }
+      }
+    }
+    idx = idx + 1
+  }
+  nil
+}
+
+## Intended for tests to reset registry state.
+fn clear_registry() -> void {
+  REGISTERED = Array.new()
+}
+

@@ -20,6 +20,7 @@ type Module struct {
 	AST     *ast.Module
 	Files   []string
 	Imports []string
+	NodeOrigins map[ast.Node]string
 }
 
 // Program contains the entry package and dependency-ordered modules.
@@ -522,9 +523,11 @@ func combinePackage(packageName string, files []*fileModule) (*Module, error) {
 	var importNames []string
 	var body []ast.Statement
 	filePaths := make([]string, 0, len(files))
+	origins := make(map[ast.Node]string)
 
 	for _, fm := range files {
 		filePaths = append(filePaths, fm.path)
+		ast.AnnotateOrigins(fm.ast, fm.path, origins)
 		if fm.ast.Package != nil && pkgStmt == nil {
 			pkgStmt = ast.NewPackageStatement(copyIdentifiers(fm.ast.Package.NamePath), fm.ast.Package.IsPrivate)
 		}
@@ -558,11 +561,17 @@ func combinePackage(packageName string, files []*fileModule) (*Module, error) {
 	}
 
 	module := ast.NewModule(body, importNodes, pkgStmt)
+	primaryPath := ""
+	if len(filePaths) > 0 {
+		primaryPath = filePaths[0]
+	}
+	ast.AnnotateOrigins(module, primaryPath, origins)
 	return &Module{
-		Package: packageName,
-		AST:     module,
-		Files:   filePaths,
-		Imports: importNames,
+		Package:     packageName,
+		AST:         module,
+		Files:       filePaths,
+		Imports:     importNames,
+		NodeOrigins: origins,
 	}, nil
 }
 

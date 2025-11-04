@@ -48,7 +48,10 @@ func parseTypeExpression(node *sitter.Node, source []byte) ast.TypeExpression {
 		}
 		if child := firstNamedChild(node); child != nil && child != node {
 			expr := parseTypeExpression(child, source)
-			if node.Kind() == "type_prefix" && expr != nil {
+			if expr == nil {
+				return nil
+			}
+			if node.Kind() == "type_prefix" {
 				text := strings.TrimSpace(sliceContent(node, source))
 				for len(text) > 0 && (text[0] == '?' || text[0] == '!') {
 					switch text[0] {
@@ -59,9 +62,8 @@ func parseTypeExpression(node *sitter.Node, source []byte) ast.TypeExpression {
 					}
 					text = text[1:]
 				}
-				return expr
 			}
-			return expr
+			return annotateTypeExpression(expr, node)
 		}
 	case "type_suffix":
 		if node.NamedChildCount() > 1 {
@@ -82,11 +84,15 @@ func parseTypeExpression(node *sitter.Node, source []byte) ast.TypeExpression {
 				}
 			}
 			if base != nil && len(args) > 0 {
-				return applyGenericType(base, args)
+				return annotateTypeExpression(applyGenericType(base, args), node)
 			}
 		}
 		if child := firstNamedChild(node); child != nil && child != node {
-			return parseTypeExpression(child, source)
+			expr := parseTypeExpression(child, source)
+			if expr == nil {
+				return nil
+			}
+			return annotateTypeExpression(expr, node)
 		}
 	case "type_arrow":
 		if node.NamedChildCount() >= 2 {
@@ -96,11 +102,15 @@ func parseTypeExpression(node *sitter.Node, source []byte) ast.TypeExpression {
 			}
 			returnExpr := parseTypeExpression(node.NamedChild(1), source)
 			if returnExpr != nil {
-				return ast.NewFunctionTypeExpression(paramTypes, returnExpr)
+				return annotateTypeExpression(ast.NewFunctionTypeExpression(paramTypes, returnExpr), node)
 			}
 		}
 		if child := firstNamedChild(node); child != nil && child != node {
-			return parseTypeExpression(child, source)
+			expr := parseTypeExpression(child, source)
+			if expr == nil {
+				return nil
+			}
+			return annotateTypeExpression(expr, node)
 		}
 	case "type_generic_application":
 		if node.NamedChildCount() == 0 {
@@ -118,9 +128,9 @@ func parseTypeExpression(node *sitter.Node, source []byte) ast.TypeExpression {
 			}
 		}
 		if len(args) == 0 {
-			return base
+			return annotateTypeExpression(base, node)
 		}
-		return applyGenericType(base, args)
+		return annotateTypeExpression(applyGenericType(base, args), node)
 	case "type_union":
 		var members []ast.TypeExpression
 		for i := uint(0); i < node.NamedChildCount(); i++ {
@@ -131,35 +141,39 @@ func parseTypeExpression(node *sitter.Node, source []byte) ast.TypeExpression {
 			}
 		}
 		if len(members) == 1 {
-			return members[0]
+			return annotateTypeExpression(members[0], node)
 		}
 		if len(members) > 1 {
-			return ast.NewUnionTypeExpression(members)
+			return annotateTypeExpression(ast.NewUnionTypeExpression(members), node)
 		}
 	case "type_identifier":
 		if child := firstNamedChild(node); child != nil && child != node {
-			return parseTypeExpression(child, source)
+			expr := parseTypeExpression(child, source)
+			if expr == nil {
+				return nil
+			}
+			return annotateTypeExpression(expr, node)
 		}
 	case "identifier":
 		id, err := parseIdentifier(node, source)
 		if err != nil {
 			return nil
 		}
-		return ast.TyID(id)
+		return annotateTypeExpression(ast.TyID(id), node)
 	case "qualified_identifier":
 		parts, err := parseQualifiedIdentifier(node, source)
 		if err != nil || len(parts) == 0 {
 			return nil
 		}
-		if len(parts) == 1 {
-			return ast.TyID(parts[0])
+		identifier := collapseQualifiedIdentifier(parts)
+		if identifier == nil {
+			return nil
 		}
-		name := ast.ID(strings.Join(identifiersToStrings(parts), "."))
-		return ast.TyID(name)
+		return annotateTypeExpression(ast.TyID(identifier), node)
 	default:
 		if child := firstNamedChild(node); child != nil && child != node {
 			if expr := parseTypeExpression(child, source); expr != nil {
-				return expr
+				return annotateTypeExpression(expr, node)
 			}
 		}
 	}
@@ -167,7 +181,7 @@ func parseTypeExpression(node *sitter.Node, source []byte) ast.TypeExpression {
 	if text == "" {
 		return nil
 	}
-	return ast.Ty(strings.ReplaceAll(text, " ", ""))
+	return annotateTypeExpression(ast.Ty(strings.ReplaceAll(text, " ", "")), node)
 }
 
 func identifiersToStrings(ids []*ast.Identifier) []string {
@@ -308,7 +322,9 @@ func buildGenericParameter(node *sitter.Node, source []byte) (*ast.GenericParame
 		}
 	}
 
-	return ast.NewGenericParameter(name, constraints), nil
+	param := ast.NewGenericParameter(name, constraints)
+	annotateSpan(param, node)
+	return param, nil
 }
 
 func parseTypeBoundList(node *sitter.Node, source []byte) ([]ast.TypeExpression, error) {
@@ -391,5 +407,7 @@ func parseWhereConstraint(node *sitter.Node, source []byte) (*ast.WhereClauseCon
 	for _, expr := range typeExprs {
 		interfaceConstraints = append(interfaceConstraints, ast.NewInterfaceConstraint(expr))
 	}
-	return ast.NewWhereClauseConstraint(name, interfaceConstraints), nil
+	constraint := ast.NewWhereClauseConstraint(name, interfaceConstraints)
+	annotateSpan(constraint, node)
+	return constraint, nil
 }

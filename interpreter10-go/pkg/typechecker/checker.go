@@ -27,6 +27,7 @@ type Checker struct {
 	preludeImplCount    int
 	preludeMethodCount  int
 	publicDeclarations  []exportRecord
+	pipeContextDepth    int
 }
 
 // Diagnostic represents a type-checking error or warning.

@@ -2,9 +2,12 @@ package typechecker
 
 import (
 	"fmt"
+	"strings"
 
 	"able/interpreter10-go/pkg/ast"
 )
+
+const nullableTypeLabel = "<nullable>"
 
 func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpression) ([]Diagnostic, Type) {
 	var diags []Diagnostic
@@ -194,14 +197,7 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 				return diags, symbolType
 			}
 		}
-		label := ty.Package
-		if label == "" {
-			label = "<unknown>"
-		}
-		diags = append(diags, Diagnostic{
-			Message: fmt.Sprintf("typechecker: package '%s' has no symbol '%s'", label, memberName),
-			Node:    expr,
-		})
+		// Unknown package member; defer to runtime behaviour.
 	case UnknownType:
 		c.infer.set(expr, UnknownType{})
 		return diags, UnknownType{}
@@ -329,14 +325,44 @@ func (c *Checker) lookupMethodInMethodSets(object Type, name string) (FunctionTy
 		if !ok {
 			continue
 		}
+		substitution := cloneTypeMap(subst)
+		if substitution == nil {
+			substitution = make(map[string]Type)
+		}
+		if object != nil {
+			substitution["Self"] = object
+		}
 		method, ok := spec.Methods[name]
+		derivedFromConstraints := false
+		if !ok {
+			if inferred, inferredOK := c.methodFromMethodSetConstraints(spec.Obligations, substitution, name); inferredOK {
+				method = inferred
+				ok = true
+				derivedFromConstraints = true
+			}
+		}
 		if !ok {
 			continue
 		}
-		if len(subst) > 0 {
-			method = substituteFunctionType(method, subst)
+		if len(substitution) > 0 {
+			method = substituteFunctionType(method, substitution)
 		}
-		method = bindMethodType(method)
+		if len(spec.Obligations) > 0 && !derivedFromConstraints {
+			obligations := populateObligationSubjects(spec.Obligations, object)
+			obligations = substituteObligations(obligations, substitution)
+			if len(obligations) > 0 {
+				ownerLabel := methodSetOwnerLabel(spec, substitution, name)
+				for i := range obligations {
+					if obligations[i].Owner == "" || !strings.Contains(obligations[i].Owner, "::") {
+						obligations[i].Owner = ownerLabel
+					}
+				}
+				method.Obligations = append(method.Obligations, obligations...)
+			}
+		}
+		if shouldBindSelfParam(method, object) {
+			method = bindMethodType(method)
+		}
 		if !found || score > bestScore {
 			bestScore = score
 			bestFn = method
@@ -344,6 +370,59 @@ func (c *Checker) lookupMethodInMethodSets(object Type, name string) (FunctionTy
 		}
 	}
 	return bestFn, bestScore, found
+}
+
+func (c *Checker) methodFromMethodSetConstraints(obligations []ConstraintObligation, substitution map[string]Type, methodName string) (FunctionType, bool) {
+	if len(obligations) == 0 {
+		return FunctionType{}, false
+	}
+	for _, ob := range obligations {
+		if ob.Constraint == nil {
+			continue
+		}
+		constraint := ob.Constraint
+		if len(substitution) > 0 {
+			constraint = substituteType(constraint, substitution)
+		}
+		res := c.resolveConstraintInterfaceType(constraint)
+		if res.err != "" {
+			continue
+		}
+		if res.iface.Methods == nil {
+			continue
+		}
+		method, ok := res.iface.Methods[methodName]
+		if !ok {
+			continue
+		}
+		replacement := cloneTypeMap(substitution)
+		if len(res.iface.TypeParams) > 0 {
+			if replacement == nil {
+				replacement = make(map[string]Type)
+			}
+			for idx, param := range res.iface.TypeParams {
+				var arg Type = UnknownType{}
+				if idx < len(res.args) && res.args[idx] != nil {
+					arg = res.args[idx]
+				}
+				replacement[param.Name] = arg
+			}
+		}
+		if len(replacement) > 0 {
+			method = substituteFunctionType(method, replacement)
+		}
+		return method, true
+	}
+	return FunctionType{}, false
+}
+
+func methodSetOwnerLabel(spec MethodSetSpec, substitution map[string]Type, methodName string) string {
+	subject, ok := substitution["Self"]
+	if !ok || subject == nil || isUnknownType(subject) {
+		subject = spec.Target
+	}
+	label := nonEmpty(typeName(subject))
+	return fmt.Sprintf("methods for %s::%s", label, methodName)
 }
 
 func (c *Checker) lookupMethodInImplementations(object Type, name string) (FunctionType, int, bool) {
@@ -388,7 +467,9 @@ func (c *Checker) lookupMethodInImplementations(object Type, name string) (Funct
 		if len(substitution) > 0 {
 			method = substituteFunctionType(method, substitution)
 		}
-		method = bindMethodType(method)
+		if shouldBindSelfParam(method, object) {
+			method = bindMethodType(method)
+		}
 		if !found || score > bestScore {
 			bestScore = score
 			bestFn = method
@@ -418,6 +499,21 @@ func extendImplementationSubstitution(subst map[string]Type, iface InterfaceType
 }
 
 func matchMethodTarget(object Type, target Type, params []GenericParamSpec) (map[string]Type, int, bool) {
+	if objPrim, ok := object.(PrimitiveType); ok {
+		if targetPrim, ok := target.(PrimitiveType); ok && targetPrim.Kind == objPrim.Kind {
+			return nil, 0, true
+		}
+	}
+	if objInt, ok := object.(IntegerType); ok {
+		if targetInt, ok := target.(IntegerType); ok && targetInt.Suffix == objInt.Suffix {
+			return nil, 0, true
+		}
+	}
+	if objFloat, ok := object.(FloatType); ok {
+		if targetFloat, ok := target.(FloatType); ok && targetFloat.Suffix == objFloat.Suffix {
+			return nil, 0, true
+		}
+	}
 	objInfo, ok := structInfoFromType(object)
 	if !ok {
 		return nil, 0, false
@@ -426,36 +522,21 @@ func matchMethodTarget(object Type, target Type, params []GenericParamSpec) (map
 	if !ok {
 		return nil, 0, false
 	}
-	if targetInfo.name == "" || objInfo.name == "" || targetInfo.name != objInfo.name {
+	if targetInfo.name == "" || objInfo.name == "" || targetInfo.name != objInfo.name || targetInfo.isUnion != objInfo.isUnion || targetInfo.isNullable != objInfo.isNullable {
 		return nil, 0, false
 	}
 	subst := make(map[string]Type)
 	score := 0
 	for idx, targetArg := range targetInfo.args {
-		var objArg Type = UnknownType{}
-		if idx < len(objInfo.args) && objInfo.args[idx] != nil {
+		var objArg Type
+		if idx < len(objInfo.args) {
 			objArg = objInfo.args[idx]
 		}
-		if objArg == nil {
-			objArg = UnknownType{}
+		ok, argScore := matchTypeArgument(objArg, targetArg, subst)
+		if !ok {
+			return nil, 0, false
 		}
-		switch val := targetArg.(type) {
-		case TypeParameterType:
-			if existing, ok := subst[val.ParameterName]; ok {
-				if !typesEquivalentForSignature(existing, objArg) {
-					return nil, 0, false
-				}
-			} else {
-				subst[val.ParameterName] = objArg
-				if objArg != nil && !isUnknownType(objArg) {
-					score++
-				}
-			}
-		default:
-			if !typesEquivalentForSignature(val, objArg) {
-				return nil, 0, false
-			}
-		}
+		score += argScore
 	}
 	for _, param := range params {
 		if param.Name == "" {
@@ -471,9 +552,127 @@ func matchMethodTarget(object Type, target Type, params []GenericParamSpec) (map
 	return subst, score, true
 }
 
+func matchTypeArgument(actual Type, pattern Type, subst map[string]Type) (bool, int) {
+	if pattern == nil || isUnknownType(pattern) {
+		return true, 0
+	}
+	if actual == nil || isUnknownType(actual) {
+		return true, 0
+	}
+	switch p := pattern.(type) {
+	case TypeParameterType:
+		if p.ParameterName == "" {
+			return true, 0
+		}
+		if existing, ok := subst[p.ParameterName]; ok {
+			if !typesEquivalentForSignature(existing, actual) {
+				return false, 0
+			}
+			return true, 0
+		}
+		subst[p.ParameterName] = actual
+		if actual == nil || isUnknownType(actual) {
+			return true, 0
+		}
+		return true, 1
+	case NullableType:
+		av, ok := actual.(NullableType)
+		if !ok {
+			return false, 0
+		}
+		return matchTypeArgument(av.Inner, p.Inner, subst)
+	case AppliedType:
+		av, ok := actual.(AppliedType)
+		if !ok {
+			return false, 0
+		}
+		if !nominalBasesCompatible(av.Base, p.Base) {
+			return false, 0
+		}
+		if len(p.Arguments) != len(av.Arguments) {
+			return false, 0
+		}
+		score := 0
+		for i := range p.Arguments {
+			ok, s := matchTypeArgument(av.Arguments[i], p.Arguments[i], subst)
+			if !ok {
+				return false, 0
+			}
+			score += s
+		}
+		return true, score
+	case UnionType:
+		name, ok := unionName(actual)
+		if !ok || name != p.UnionName {
+			return false, 0
+		}
+		return true, 0
+	case StructType:
+		name, ok := structName(actual)
+		if !ok || name != p.StructName {
+			return false, 0
+		}
+		return true, 0
+	case StructInstanceType:
+		name, ok := structName(actual)
+		if !ok || name != p.StructName {
+			return false, 0
+		}
+		return true, 0
+	case UnionLiteralType:
+		if actualUnion, ok := actual.(UnionLiteralType); ok {
+			if len(actualUnion.Members) != len(p.Members) {
+				return false, 0
+			}
+			score := 0
+			for i := range p.Members {
+				ok, s := matchTypeArgument(actualUnion.Members[i], p.Members[i], subst)
+				if !ok {
+					return false, 0
+				}
+				score += s
+			}
+			return true, score
+		}
+	}
+	if typesEquivalentForSignature(actual, pattern) {
+		return true, 0
+	}
+	return false, 0
+}
+
+func nominalBasesCompatible(actual Type, pattern Type) bool {
+	if pattern == nil {
+		return true
+	}
+	if actual == nil {
+		return false
+	}
+	switch pb := pattern.(type) {
+	case StructType:
+		name, ok := structName(actual)
+		return ok && name == pb.StructName
+	case StructInstanceType:
+		name, ok := structName(actual)
+		return ok && name == pb.StructName
+	case UnionType:
+		name, ok := unionName(actual)
+		return ok && name == pb.UnionName
+	case InterfaceType:
+		if iface, ok := actual.(InterfaceType); ok {
+			return iface.InterfaceName == pb.InterfaceName
+		}
+	default:
+		return typesEquivalentForSignature(actual, pattern)
+	}
+	return false
+}
+
 type structInfo struct {
-	name string
-	args []Type
+	name       string
+	args       []Type
+	isUnion    bool
+	isNullable bool
 }
 
 func structInfoFromType(t Type) (structInfo, bool) {
@@ -481,16 +680,20 @@ func structInfoFromType(t Type) (structInfo, bool) {
 	case StructType:
 		return structInfo{name: v.StructName}, v.StructName != ""
 	case StructInstanceType:
-		return structInfo{name: v.StructName}, v.StructName != ""
+		return structInfo{name: v.StructName, args: v.TypeArgs}, v.StructName != ""
+	case UnionType:
+		return structInfo{name: v.UnionName, isUnion: true}, v.UnionName != ""
+	case NullableType:
+		return structInfo{name: nullableTypeLabel, args: []Type{v.Inner}, isNullable: true}, true
 	case AppliedType:
-		name, ok := structName(v.Base)
-		if !ok {
-			return structInfo{}, false
+		if baseName, ok := structName(v.Base); ok {
+			return structInfo{name: baseName, args: v.Arguments}, true
 		}
-		return structInfo{name: name, args: v.Arguments}, true
-	default:
-		return structInfo{}, false
+		if unionName, ok := unionName(v.Base); ok {
+			return structInfo{name: unionName, args: v.Arguments, isUnion: true}, true
+		}
 	}
+	return structInfo{}, false
 }
 
 func cloneTypeMap(src map[string]Type) map[string]Type {
@@ -554,4 +757,22 @@ func bindMethodType(method FunctionType) FunctionType {
 		Where:       method.Where,
 		Obligations: method.Obligations,
 	}
+}
+
+func shouldBindSelfParam(method FunctionType, subject Type) bool {
+	if len(method.Params) == 0 {
+		return false
+	}
+	first := method.Params[0]
+	switch v := first.(type) {
+	case TypeParameterType:
+		return v.ParameterName == "Self"
+	default:
+		if infoParam, ok := structInfoFromType(first); ok {
+			if infoSubject, ok := structInfoFromType(subject); ok && infoParam.name != "" && infoParam.name == infoSubject.name {
+				return true
+			}
+		}
+	}
+	return false
 }

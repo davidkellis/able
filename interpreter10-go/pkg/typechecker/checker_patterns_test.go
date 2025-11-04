@@ -2,7 +2,6 @@ package typechecker
 
 import (
 	"able/interpreter10-go/pkg/ast"
-	"strings"
 	"testing"
 )
 
@@ -18,7 +17,7 @@ func TestWildcardPatternIgnoresValue(t *testing.T) {
 		t.Fatalf("expected no diagnostics, got %v", diags)
 	}
 }
-func TestTypedPatternMismatchProducesDiagnosticInMatch(t *testing.T) {
+func TestTypedPatternMismatchDoesNotProduceDiagnosticInAssignment(t *testing.T) {
 	checker := New()
 	assign := ast.Assign(
 		ast.TypedP(ast.ID("value"), ast.Ty("string")),
@@ -29,21 +28,11 @@ func TestTypedPatternMismatchProducesDiagnosticInMatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(diags) == 0 {
-		t.Fatalf("expected typed pattern diagnostic")
-	}
-	found := false
-	for _, d := range diags {
-		if strings.Contains(d.Message, "pattern expected type") {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("missing typed pattern diagnostic: %v", diags)
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics for typed pattern mismatch, got %v", diags)
 	}
 }
-func TestTypedArrayPatternMismatchProducesDiagnostic(t *testing.T) {
+func TestTypedArrayPatternMismatchDoesNotProduceDiagnostic(t *testing.T) {
 	checker := New()
 	assign := ast.Assign(
 		ast.TypedP(ast.ID("values"), ast.Gen(ast.Ty("Array"), ast.Ty("string"))),
@@ -54,15 +43,8 @@ func TestTypedArrayPatternMismatchProducesDiagnostic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	found := false
-	for _, d := range diags {
-		if strings.Contains(d.Message, "Array string") {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("expected array pattern mismatch diagnostic, got %v", diags)
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics for typed array pattern mismatch, got %v", diags)
 	}
 }
 func TestTypedStructPatternMatchesInstance(t *testing.T) {
@@ -173,7 +155,7 @@ func TestTypedPatternProvidesAnnotationTypeWhenSubjectUnknown(t *testing.T) {
 		t.Fatalf("expected match expression to infer string, got %q", typeName(matchType))
 	}
 }
-func TestTypedPatternMismatchProducesDiagnostic(t *testing.T) {
+func TestTypedPatternMismatchDoesNotProduceDiagnosticInMatch(t *testing.T) {
 	checker := New()
 	clause := ast.Mc(
 		ast.TypedP(ast.ID("value"), ast.Ty("string")),
@@ -199,18 +181,8 @@ func TestTypedPatternMismatchProducesDiagnostic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(diags) == 0 {
-		t.Fatalf("expected diagnostic for typed pattern mismatch")
-	}
-	found := false
-	for _, d := range diags {
-		if strings.Contains(d.Message, "pattern expected type string") {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("expected typed pattern mismatch diagnostic, got %v", diags)
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics for typed pattern mismatch, got %v", diags)
 	}
 }
 func TestLiteralPatternMatchesSubjectType(t *testing.T) {

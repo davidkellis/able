@@ -297,6 +297,41 @@ func typeAssignable(from, to Type) bool {
 	return from.Name() == to.Name()
 }
 
+func normalizeResultReturn(actual, expected Type) (Type, bool) {
+	if actual == nil {
+		actual = PrimitiveType{Kind: PrimitiveNil}
+	}
+	if applied, ok := resultAppliedType(expected); ok {
+		if typeAssignable(actual, expected) {
+			return actual, true
+		}
+		success := applied.Arguments[0]
+		if typeAssignable(actual, success) {
+			return applied, true
+		}
+		return actual, false
+	}
+	if typeAssignable(actual, expected) {
+		return actual, true
+	}
+	return actual, false
+}
+
+func resultAppliedType(t Type) (AppliedType, bool) {
+	applied, ok := t.(AppliedType)
+	if !ok {
+		return AppliedType{}, false
+	}
+	name, ok := structName(applied.Base)
+	if !ok || name != "Result" {
+		return AppliedType{}, false
+	}
+	if len(applied.Arguments) == 0 || applied.Arguments[0] == nil {
+		return AppliedType{}, false
+	}
+	return applied, true
+}
+
 func mergeBranchTypes(types []Type) Type {
 	var result Type = UnknownType{}
 	for _, t := range types {
@@ -493,6 +528,16 @@ func structName(t Type) (string, bool) {
 	return "", false
 }
 
+func unionName(t Type) (string, bool) {
+	switch u := t.(type) {
+	case UnionType:
+		return u.UnionName, u.UnionName != ""
+	case AppliedType:
+		return unionName(u.Base)
+	}
+	return "", false
+}
+
 func arrayElementType(t Type) (Type, bool) {
 	switch arr := t.(type) {
 	case ArrayType:
@@ -611,6 +656,29 @@ func substituteType(t Type, subst map[string]Type) Type {
 		return NullableType{Inner: substituteType(v.Inner, subst)}
 	case RangeType:
 		return RangeType{Element: substituteType(v.Element, subst)}
+	case UnionType:
+		params := make([]GenericParamSpec, len(v.TypeParams))
+		for i, param := range v.TypeParams {
+			constraints := make([]Type, len(param.Constraints))
+			for j, constraint := range param.Constraints {
+				constraints[j] = substituteType(constraint, subst)
+			}
+			params[i] = GenericParamSpec{
+				Name:        param.Name,
+				Constraints: constraints,
+			}
+		}
+		where := substituteWhereSpecs(v.Where, subst)
+		variants := make([]Type, len(v.Variants))
+		for i, variant := range v.Variants {
+			variants[i] = substituteType(variant, subst)
+		}
+		return UnionType{
+			UnionName:  v.UnionName,
+			TypeParams: params,
+			Where:      where,
+			Variants:   variants,
+		}
 	case AppliedType:
 		base := substituteType(v.Base, subst)
 		args := make([]Type, len(v.Arguments))

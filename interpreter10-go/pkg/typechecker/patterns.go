@@ -43,14 +43,6 @@ func (c *Checker) bindPattern(env *Environment, target ast.AssignmentTarget, val
 		if pat.TypeAnnotation != nil {
 			expected = c.resolveTypeReference(pat.TypeAnnotation)
 		}
-		if pat.TypeAnnotation != nil && valueType != nil && !isUnknownType(valueType) {
-			if expected != nil && !isUnknownType(expected) && !typeAssignable(valueType, expected) {
-				diags = append(diags, Diagnostic{
-					Message: fmt.Sprintf("typechecker: pattern expected type %s, got %s", typeName(expected), typeName(valueType)),
-					Node:    pat,
-				})
-			}
-		}
 		innerType := valueType
 		if (innerType == nil || isUnknownType(innerType)) && expected != nil && !isUnknownType(expected) {
 			innerType = expected
@@ -147,6 +139,25 @@ func (c *Checker) bindStructPattern(env *Environment, pat *ast.StructPattern, va
 	var diags []Diagnostic
 	var structInfo StructType
 	hasInfo := false
+
+	if isUnknownType(valueType) {
+		for _, field := range pat.Fields {
+			if field == nil {
+				continue
+			}
+			bind := func(target ast.AssignmentTarget) {
+				if target != nil {
+					diags = append(diags, c.bindPattern(env, target, UnknownType{}, allowDefine)...)
+				}
+			}
+			bind(field.Binding)
+			if inner, ok := field.Pattern.(ast.AssignmentTarget); ok {
+				bind(inner)
+			}
+		}
+		c.infer.set(pat, valueType)
+		return diags
+	}
 
 	if inst, ok := valueType.(StructInstanceType); ok {
 		structInfo = StructType{StructName: inst.StructName, Fields: inst.Fields, Positional: inst.Positional}

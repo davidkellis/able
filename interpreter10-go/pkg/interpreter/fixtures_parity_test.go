@@ -13,6 +13,8 @@ func TestFixtureParityStringLiteral(t *testing.T) {
 		t.Fatalf("reading fixtures: %v", err)
 	}
 
+	t.Setenv(fixtureTypecheckEnv, "warn")
+
 	concurrencyFixtures := map[string]struct{}{
 		"concurrency/proc_cancel_value":            {},
 		"concurrency/future_memoization":           {},
@@ -30,11 +32,13 @@ func TestFixtureParityStringLiteral(t *testing.T) {
 			if err != nil {
 				t.Fatalf("computing relative path for %s: %v", dir, err)
 			}
-			var exec Executor
-			if _, ok := concurrencyFixtures[rel]; ok {
-				exec = NewGoroutineExecutor(nil)
-			}
-			runFixtureWithExecutor(t, dir, exec)
+			t.Run(rel, func(t *testing.T) {
+				var exec Executor
+				if _, ok := concurrencyFixtures[rel]; ok {
+					exec = NewGoroutineExecutor(nil)
+				}
+				runFixtureWithExecutor(t, dir, rel, exec)
+			})
 		})
 	}
 }

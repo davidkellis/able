@@ -71,10 +71,21 @@ func (c *Checker) checkBinaryExpression(env *Environment, expr *ast.BinaryExpres
 	}
 
 	leftDiags, leftType := c.checkExpression(env, expr.Left)
-	rightDiags, rightType := c.checkExpression(env, expr.Right)
 
 	var diags []Diagnostic
 	diags = append(diags, leftDiags...)
+
+	if expr.Operator == "|>" {
+		c.pushPipeContext()
+		rightDiags, _ := c.checkExpression(env, expr.Right)
+		c.popPipeContext()
+		diags = append(diags, rightDiags...)
+		resultType := Type(UnknownType{})
+		c.infer.set(expr, resultType)
+		return diags, resultType
+	}
+
+	rightDiags, rightType := c.checkExpression(env, expr.Right)
 	diags = append(diags, rightDiags...)
 
 	resultType := Type(UnknownType{})
@@ -85,7 +96,7 @@ func (c *Checker) checkBinaryExpression(env *Environment, expr *ast.BinaryExpres
 		if !typeAssignable(leftType, boolType) && !isUnknownType(leftType) {
 			diags = append(diags, Diagnostic{
 				Message: fmt.Sprintf("typechecker: '%s' left operand must be bool (got %s)", expr.Operator, typeName(leftType)),
-				Node:    expr.Left,
+				Node:    expr.Right,
 			})
 		}
 		if !typeAssignable(rightType, boolType) && !isUnknownType(rightType) {
@@ -217,6 +228,10 @@ func (c *Checker) checkBinaryExpression(env *Environment, expr *ast.BinaryExpres
 			})
 			resultType = UnknownType{}
 		}
+	case "|>":
+		// Pipe expressions are desugared by the interpreter; the checker currently
+		// treats them as opaque and propagates the right-hand side type.
+		resultType = rightType
 	default:
 		diags = append(diags, Diagnostic{
 			Message: fmt.Sprintf("typechecker: unsupported binary operator %q", expr.Operator),

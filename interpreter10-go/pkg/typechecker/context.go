@@ -159,6 +159,20 @@ func (c *Checker) typeParamConstraints(name string) []Type {
 	return out
 }
 
+func (c *Checker) pushPipeContext() {
+	c.pipeContextDepth++
+}
+
+func (c *Checker) popPipeContext() {
+	if c.pipeContextDepth > 0 {
+		c.pipeContextDepth--
+	}
+}
+
+func (c *Checker) inPipeContext() bool {
+	return c.pipeContextDepth > 0
+}
+
 func (c *Checker) typeParamInScope(name string) bool {
 	if name == "" {
 		return false

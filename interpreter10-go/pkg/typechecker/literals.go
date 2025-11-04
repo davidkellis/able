@@ -36,6 +36,27 @@ func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diag
 		typ := PrimitiveType{Kind: PrimitiveString}
 		c.infer.set(e, typ)
 		return nil, typ
+	case *ast.CharLiteral:
+		typ := PrimitiveType{Kind: PrimitiveChar}
+		c.infer.set(e, typ)
+		return nil, typ
+	case *ast.IteratorLiteral:
+		// Iterator literals introduce a generator scope at runtime. The checker
+		// currently treats them as opaque expressions and does not attempt to
+		// infer the yielded element type.
+		c.infer.set(e, UnknownType{})
+		return nil, UnknownType{}
+	case *ast.ImplicitMemberExpression:
+		// Placeholder-based member access (e.g., within pipe shorthand). Without
+		// full context we treat it as unknown.
+		c.infer.set(e, UnknownType{})
+		return nil, UnknownType{}
+	case *ast.PlaceholderExpression:
+		c.infer.set(e, UnknownType{})
+		return nil, UnknownType{}
+	case *ast.TopicReferenceExpression:
+		c.infer.set(e, UnknownType{})
+		return nil, UnknownType{}
 	case *ast.ArrayLiteral:
 		return c.checkArrayLiteral(env, e)
 	case *ast.BlockExpression:
@@ -124,8 +145,12 @@ func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diag
 		if ident, ok := e.Callee.(*ast.Identifier); ok && ident != nil {
 			builtinName = ident.Name
 		}
+		inPipeline := c.inPipeContext() || hasPipelinePlaceholder(e.Arguments)
 		calleeDiags, calleeType := c.checkExpression(env, e.Callee)
 		diags = append(diags, calleeDiags...)
+		if inPipeline {
+			calleeType = UnknownType{}
+		}
 
 		argTypes := make([]Type, len(e.Arguments))
 		for i, arg := range e.Arguments {
@@ -163,6 +188,8 @@ func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diag
 				}
 			}
 			resultType = instantiated.Return
+		} else if inPipeline {
+			resultType = UnknownType{}
 		} else if !isUnknownType(calleeType) {
 			diags = append(diags, Diagnostic{
 				Message: "typechecker: cannot call non-function value",
@@ -174,6 +201,10 @@ func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diag
 
 		c.infer.set(e, resultType)
 		return diags, resultType
+	case *ast.AssignmentExpression:
+		diags := c.checkStatement(env, e)
+		c.infer.set(e, UnknownType{})
+		return diags, UnknownType{}
 	case *ast.MemberAccessExpression:
 		return c.checkMemberAccess(env, e)
 	case *ast.IndexExpression:
@@ -217,12 +248,24 @@ func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diag
 	}
 }
 
+func hasPipelinePlaceholder(args []ast.Expression) bool {
+	for _, arg := range args {
+		switch arg.(type) {
+		case *ast.TopicReferenceExpression, *ast.PlaceholderExpression:
+			return true
+		}
+	}
+	return false
+}
+
 func (c *Checker) checkStatement(env *Environment, stmt ast.Statement) []Diagnostic {
 	switch s := stmt.(type) {
 	case *ast.AssignmentExpression:
 		var diags []Diagnostic
 		if s.Operator == ast.AssignmentDeclare {
-			diags = append(diags, c.bindPattern(env, s.Left, UnknownType{}, true)...)
+			if _, ok := s.Left.(*ast.StructPattern); !ok {
+				diags = append(diags, c.bindPattern(env, s.Left, UnknownType{}, true)...)
+			}
 		}
 		rhsDiags, typ := c.checkExpression(env, s.Right)
 		diags = append(diags, rhsDiags...)

@@ -77,7 +77,9 @@ func (c *Checker) checkFunctionDefinition(env *Environment, def *ast.FunctionDef
 		}
 
 		if expectedReturn != nil && !isUnknownType(expectedReturn) && bodyType != nil && !isUnknownType(bodyType) {
-			if !typeAssignable(bodyType, expectedReturn) {
+			if coerced, ok := normalizeResultReturn(bodyType, expectedReturn); ok {
+				bodyType = coerced
+			} else if !typeAssignable(bodyType, expectedReturn) {
 				diags = append(diags, Diagnostic{
 					Message: fmt.Sprintf("typechecker: function '%s' body returns %s, expected %s", defName(def), typeName(bodyType), typeName(expectedReturn)),
 					Node:    def.Body,
@@ -145,11 +147,15 @@ func (c *Checker) checkLambdaExpression(env *Environment, expr *ast.LambdaExpres
 	}
 
 	if expectedReturn != nil && !isUnknownType(expectedReturn) {
-		if bodyType != nil && !isUnknownType(bodyType) && !typeAssignable(bodyType, expectedReturn) {
-			diags = append(diags, Diagnostic{
-				Message: fmt.Sprintf("typechecker: lambda body returns %s, expected %s", typeName(bodyType), typeName(expectedReturn)),
-				Node:    expr.Body,
-			})
+		if bodyType != nil && !isUnknownType(bodyType) {
+			if coerced, ok := normalizeResultReturn(bodyType, expectedReturn); ok {
+				bodyType = coerced
+			} else if !typeAssignable(bodyType, expectedReturn) {
+				diags = append(diags, Diagnostic{
+					Message: fmt.Sprintf("typechecker: lambda body returns %s, expected %s", typeName(bodyType), typeName(expectedReturn)),
+					Node:    expr.Body,
+				})
+			}
 		}
 		bodyType = expectedReturn
 	}
@@ -201,11 +207,20 @@ func (c *Checker) checkReturnStatement(env *Environment, stmt *ast.ReturnStateme
 					Node:    stmt,
 				})
 			}
-		} else if !typeAssignable(returnType, expected) {
-			diags = append(diags, Diagnostic{
-				Message: fmt.Sprintf("typechecker: return expects %s, got %s", typeName(expected), typeName(returnType)),
-				Node:    stmt,
-			})
+			returnType = expected
+		} else if returnType != nil && !isUnknownType(returnType) {
+			if coerced, ok := normalizeResultReturn(returnType, expected); ok {
+				returnType = coerced
+			} else if !typeAssignable(returnType, expected) {
+				diags = append(diags, Diagnostic{
+					Message: fmt.Sprintf("typechecker: return expects %s, got %s", typeName(expected), typeName(returnType)),
+					Node:    stmt,
+				})
+			} else {
+				returnType = expected
+			}
+		} else {
+			returnType = expected
 		}
 	}
 
@@ -229,6 +244,17 @@ func (c *Checker) checkImplementationDefinition(env *Environment, def *ast.Imple
 	if spec != nil {
 		c.pushConstraintScope(spec.TypeParams, spec.Where)
 		defer c.popConstraintScope()
+		if len(spec.Obligations) > 0 {
+			subject := spec.Target
+			obligations := populateObligationSubjects(spec.Obligations, subject)
+			subst := map[string]Type{"Self": subject}
+			obligations = substituteObligations(obligations, subst)
+			obligationDiags := c.evaluateObligations(obligations)
+			diags = append(diags, obligationDiags...)
+			if len(obligationDiags) > 0 {
+				return diags
+			}
+		}
 	}
 	for _, fn := range def.Definitions {
 		if fn == nil {

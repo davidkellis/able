@@ -1,0 +1,293 @@
+package io
+
+import able.collections.array{Array}
+
+## Immutable, normalized representation of filesystem paths.
+struct Path {
+  root: string,
+  segments: Array string
+}
+
+fn Path.new(parts: Path | string | Array string) -> Path {
+  match parts {
+    case value: Path => value,
+    case value: string => parse(value),
+    case value: Array string => from_segments(value)
+  }
+}
+
+fn Path.parse(input: string) -> Path {
+  normalize_path(input)
+}
+
+fn Path.from_segments(segments: Array string) -> Path {
+  Path { root: "", segments: normalize_segments(segments, false) }
+}
+
+impl Path {
+  fn root(self: Self) -> string { self.root }
+  fn segments(self: Self) -> Array string { clone_segments(self.segments) }
+
+  fn join(self: Self, other: Path | string) -> Path {
+    rhs := Path.new(other)
+    if rhs.root != "" {
+      rhs
+    } else {
+      Path {
+        root: self.root,
+        segments: normalize_segments(concat_segments(self.segments, rhs.segments), self.is_absolute())
+      }
+    }
+  }
+
+  fn parent(self: Self) -> Path {
+    if self.segments.len() == 0 { return self }
+    segments := clone_segments(self.segments)
+    segments.pop()
+    Path { root: self.root, segments }
+  }
+
+  fn basename(self: Self) -> string {
+    if self.segments.len() == 0 {
+      if self.root == "" { return "" }
+      return trim_trailing_separator(self.root)
+    }
+    match self.segments.get(self.segments.len() - 1) {
+      case nil => "",
+      case value: string => value
+    }
+  }
+
+  fn basename_without_extension(self: Self) -> string {
+    name := self.basename()
+    match self.extension() {
+      case nil => name,
+      case ext: string => name.substring(0, name.len() - ext.len() - 1)
+    }
+  }
+
+  fn extension(self: Self) -> ?string {
+    name := self.basename()
+    idx := name.len() - 1
+    loop {
+      if idx < 0 { break }
+      ch := name[idx]
+      if ch == '.' {
+        if idx == 0 { return nil }
+        return name.substring(idx + 1, name.len())
+      }
+      if ch == '/' || ch == '\\' { break }
+      idx = idx - 1
+    }
+    nil
+  }
+
+  fn with_extension(self: Self, ext: string) -> Path {
+    segments := clone_segments(self.segments)
+    base := self.basename_without_extension()
+    if segments.len() == 0 {
+      segments.push(if ext == "" { base } else { `${base}.${ext}` })
+    } else {
+      segments.set(segments.len() - 1, if ext == "" { base } else { `${base}.${ext}` })
+    }
+    Path { root: self.root, segments }
+  }
+
+  fn is_absolute(self: Self) -> bool {
+    self.root != ""
+  }
+
+  fn is_relative(self: Self) -> bool {
+    !self.is_absolute()
+  }
+
+  fn to_string(self: Self) -> string {
+    build_unix_string(self.root, self.segments)
+  }
+
+  fn to_native(self: Self) -> string {
+    unified := self.to_string()
+    if os_separator() == "/" { unified } else { unified.replace("/", os_separator()) }
+  }
+
+  fn relative_to(self: Self, base: Path) -> Path {
+    relative_components(self.clean(), base.clean())
+  }
+
+  fn clean(self: Self) -> Path {
+    Path { root: self.root, segments: normalize_segments(self.segments, self.is_absolute()) }
+  }
+}
+
+## ----- Helpers -----
+
+fn parse(input: string) -> Path {
+  Path.parse(input)
+}
+
+fn trim_trailing_separator(value: string) -> string {
+  if value == "/" || value == "" { return value }
+  if value.ends_with("/") || value.ends_with("\\") {
+    value.substring(0, value.len() - 1)
+  } else {
+    value
+  }
+}
+
+fn normalize_path(input: string) -> Path {
+  if input == "" { return Path { root: "", segments: Array.new() } }
+  cleaned := input.replace("\\", "/")
+  (root, remainder) := split_root(cleaned)
+  raw_segments := remainder.split("/")
+  segments := normalize_segments(raw_segments, root != "")
+  Path { root, segments }
+}
+
+fn split_root(path: string) -> (string, string) {
+  if path.starts_with("//") {
+    without := path.substring(2, path.len())
+    match without.index_of("/") {
+      case nil => (`//${without}`, ""),
+      case idx: i32 => {
+        share := without.substring(0, idx)
+        rest := if idx + 1 < without.len() { without.substring(idx + 1, without.len()) } else { "" }
+        (`//${share}`, rest)
+      }
+    }
+  } else if path.len() >= 2 && path[1] == ':' {
+    drive := path.substring(0, 2)
+    rest := if path.len() > 2 && path[2] == '/' { path.substring(3, path.len()) } else { path.substring(2, path.len()) }
+    (drive, rest)
+  } else if path.starts_with("/") {
+    ("/", path.substring(1, path.len()))
+  } else {
+    ("", path)
+  }
+}
+
+fn normalize_segments(source: Array string, absolute: bool) -> Array string {
+  result: Array string := Array.new()
+  idx := 0
+  loop {
+    if idx >= source.len() { break }
+    match source.get(idx) {
+      case nil => {},
+      case segment: string => {
+        if segment == "" || segment == "." { idx = idx + 1; continue }
+        if segment == ".." {
+          if result.len() > 0 && result.get(result.len() - 1) != ".." {
+            result.pop()
+          } else if !absolute {
+            result.push("..")
+          }
+        } else {
+          result.push(segment)
+        }
+      }
+    }
+    idx = idx + 1
+  }
+  result
+}
+
+fn concat_segments(left: Array string, right: Array string) -> Array string {
+  result := clone_segments(left)
+  idx := 0
+  loop {
+    if idx >= right.len() { break }
+    match right.get(idx) {
+      case nil => {},
+      case value: string => result.push(value)
+    }
+    idx = idx + 1
+  }
+  result
+}
+
+fn clone_segments(source: Array string) -> Array string {
+  result: Array string := Array.new()
+  idx := 0
+  loop {
+    if idx >= source.len() { break }
+    match source.get(idx) {
+      case nil => {},
+      case value: string => result.push(value)
+    }
+    idx = idx + 1
+  }
+  result
+}
+
+fn build_unix_string(root: string, segments: Array string) -> string {
+  result := root
+  idx := 0
+  first := root == ""
+  loop {
+    if idx >= segments.len() { break }
+    match segments.get(idx) {
+      case nil => {},
+      case segment: string => {
+        if result == "" {
+          result = segment
+        } else if result.ends_with("/") {
+          result = `${result}${segment}`
+        } else if first {
+          result = `${result}${segment}`
+        } else {
+          result = `${result}/${segment}`
+        }
+        first = false
+      }
+    }
+    idx = idx + 1
+  }
+  if result == "" && root == "" { return "." }
+  result
+}
+
+fn relative_components(target: Path, base: Path) -> Path {
+  if target.root != base.root {
+    return target
+  }
+  shared := 0
+  idx := 0
+  loop {
+    if idx >= target.segments.len() || idx >= base.segments.len() { break }
+    match target.segments.get(idx) {
+      case nil => break,
+      case tseg: string => {
+        match base.segments.get(idx) {
+          case nil => break,
+          case bseg: string => {
+            if tseg == bseg { shared = shared + 1; idx = idx + 1; continue }
+            else { break }
+          }
+        }
+      }
+    }
+  }
+
+  segments: Array string := Array.new()
+  idx = shared
+  loop {
+    if idx >= base.segments.len() { break }
+    segments.push("..")
+    idx = idx + 1
+  }
+
+  idx = shared
+  loop {
+    if idx >= target.segments.len() { break }
+    match target.segments.get(idx) {
+      case nil => {},
+      case seg: string => segments.push(seg)
+    }
+    idx = idx + 1
+  }
+  Path { root: "", segments }
+}
+
+fn os_separator() -> string {
+  ## Placeholder: future runtime hook can override.
+  "/"
+}

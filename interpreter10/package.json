@@ -16,6 +16,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "bun test",
     "export:fixtures": "bun run scripts/export-fixtures.ts",
-    "test:fixtures": "bun run scripts/run-fixtures.ts"
+    "test:fixtures": "bun run scripts/run-fixtures.ts",
+    "run:module": "bun run scripts/run-module.ts"
   }
 }

@@ -20,6 +20,9 @@ func TestInterpreterEvaluateProgramTypecheckFailure(t *testing.T) {
 		),
 		Files: []string{"dep/lib.able"},
 	}
+	depOrigins := make(map[ast.Node]string)
+	ast.AnnotateOrigins(depModule.AST, depModule.Files[0], depOrigins)
+	depModule.NodeOrigins = depOrigins
 	mainModule := &driver.Module{
 		Package: "root",
 		AST: ast.Mod(
@@ -34,13 +37,16 @@ func TestInterpreterEvaluateProgramTypecheckFailure(t *testing.T) {
 		Files:   []string{"root/main.able"},
 		Imports: []string{"dep"},
 	}
+	mainOrigins := make(map[ast.Node]string)
+	ast.AnnotateOrigins(mainModule.AST, mainModule.Files[0], mainOrigins)
+	mainModule.NodeOrigins = mainOrigins
 	program := &driver.Program{
 		Entry:   mainModule,
 		Modules: []*driver.Module{depModule, mainModule},
 	}
 
 	interp := New()
-	value, entryEnv, diags, err := interp.EvaluateProgram(program, ProgramEvaluationOptions{})
+	value, entryEnv, check, err := interp.EvaluateProgram(program, ProgramEvaluationOptions{})
 	if err != nil {
 		t.Fatalf("EvaluateProgram error: %v", err)
 	}
@@ -50,11 +56,11 @@ func TestInterpreterEvaluateProgramTypecheckFailure(t *testing.T) {
 	if entryEnv != nil {
 		t.Fatalf("expected nil entry environment when diagnostics produced")
 	}
-	if len(diags) == 0 {
+	if len(check.Diagnostics) == 0 {
 		t.Fatalf("expected diagnostics for type mismatch")
 	}
-	if want := "requires both operands"; !strings.Contains(diags[0].Diagnostic.Message, want) {
-		t.Fatalf("expected diagnostic containing %q, got %q", want, diags[0].Diagnostic.Message)
+	if want := "requires both operands"; !strings.Contains(check.Diagnostics[0].Diagnostic.Message, want) {
+		t.Fatalf("expected diagnostic containing %q, got %q", want, check.Diagnostics[0].Diagnostic.Message)
 	}
 }
 
@@ -70,6 +76,9 @@ func TestInterpreterEvaluateProgramSuccess(t *testing.T) {
 		),
 		Files: []string{"dep/lib.able"},
 	}
+	depOrigins := make(map[ast.Node]string)
+	ast.AnnotateOrigins(depModule.AST, depModule.Files[0], depOrigins)
+	depModule.NodeOrigins = depOrigins
 	mainModule := &driver.Module{
 		Package: "root",
 		AST: ast.Mod(
@@ -84,18 +93,21 @@ func TestInterpreterEvaluateProgramSuccess(t *testing.T) {
 		Files:   []string{"root/main.able"},
 		Imports: []string{"dep"},
 	}
+	mainOrigins := make(map[ast.Node]string)
+	ast.AnnotateOrigins(mainModule.AST, mainModule.Files[0], mainOrigins)
+	mainModule.NodeOrigins = mainOrigins
 	program := &driver.Program{
 		Entry:   mainModule,
 		Modules: []*driver.Module{depModule, mainModule},
 	}
 
 	interp := New()
-	value, entryEnv, diags, err := interp.EvaluateProgram(program, ProgramEvaluationOptions{})
+	value, entryEnv, check, err := interp.EvaluateProgram(program, ProgramEvaluationOptions{})
 	if err != nil {
 		t.Fatalf("EvaluateProgram error: %v", err)
 	}
-	if len(diags) != 0 {
-		t.Fatalf("unexpected diagnostics: %v", diags)
+	if len(check.Diagnostics) != 0 {
+		t.Fatalf("unexpected diagnostics: %v", check.Diagnostics)
 	}
 	if entryEnv == nil {
 		t.Fatalf("expected non-nil entry environment")
@@ -120,6 +132,9 @@ func TestInterpreterEvaluateProgramAllowsDiagnostics(t *testing.T) {
 		),
 		Files: []string{"dep/lib.able"},
 	}
+	depOrigins := make(map[ast.Node]string)
+	ast.AnnotateOrigins(depModule.AST, depModule.Files[0], depOrigins)
+	depModule.NodeOrigins = depOrigins
 	mainModule := &driver.Module{
 		Package: "root",
 		AST: ast.Mod(
@@ -134,19 +149,22 @@ func TestInterpreterEvaluateProgramAllowsDiagnostics(t *testing.T) {
 		Files:   []string{"root/main.able"},
 		Imports: []string{"dep"},
 	}
+	mainOrigins := make(map[ast.Node]string)
+	ast.AnnotateOrigins(mainModule.AST, mainModule.Files[0], mainOrigins)
+	mainModule.NodeOrigins = mainOrigins
 	program := &driver.Program{
 		Entry:   mainModule,
 		Modules: []*driver.Module{depModule, mainModule},
 	}
 
 	interp := New()
-	value, entryEnv, diags, err := interp.EvaluateProgram(program, ProgramEvaluationOptions{
+	value, entryEnv, check, err := interp.EvaluateProgram(program, ProgramEvaluationOptions{
 		AllowDiagnostics: true,
 	})
 	if err != nil {
 		t.Fatalf("EvaluateProgram error: %v", err)
 	}
-	if len(diags) == 0 {
+	if len(check.Diagnostics) == 0 {
 		t.Fatalf("expected diagnostics when allowing typecheck failures")
 	}
 	if entryEnv == nil {
@@ -155,7 +173,7 @@ func TestInterpreterEvaluateProgramAllowsDiagnostics(t *testing.T) {
 	if value == nil {
 		t.Fatalf("expected entry value even when diagnostics present")
 	}
-	if want := "return expects i32"; !strings.Contains(diags[0].Diagnostic.Message, want) {
-		t.Fatalf("expected diagnostic containing %q, got %q", want, diags[0].Diagnostic.Message)
+	if want := "return expects i32"; !strings.Contains(check.Diagnostics[0].Diagnostic.Message, want) {
+		t.Fatalf("expected diagnostic containing %q, got %q", want, check.Diagnostics[0].Diagnostic.Message)
 	}
 }

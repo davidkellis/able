@@ -42,14 +42,14 @@ func readManifest(t testingT, dir string) fixtureManifest {
 	return manifest
 }
 
-func readModule(t testingT, path string) *ast.Module {
+func readModule(t testingT, path string) (*ast.Module, string) {
 	t.Helper()
 	if strings.HasSuffix(path, ".able") {
 		mod, err := parseSourceModule(path)
 		if err != nil {
 			t.Fatalf("parse source module %s: %v", path, err)
 		}
-		return mod
+		return mod, path
 	}
 	if strings.HasSuffix(path, ".json") {
 		dir := filepath.Dir(path)
@@ -61,7 +61,7 @@ func readModule(t testingT, path string) *ast.Module {
 		for _, candidate := range candidates {
 			if _, err := os.Stat(candidate); err == nil {
 				if mod, err := parseSourceModule(candidate); err == nil {
-					return mod
+					return mod, candidate
 				}
 			}
 		}
@@ -82,5 +82,5 @@ func readModule(t testingT, path string) *ast.Module {
 	if !ok {
 		t.Fatalf("decoded node is not module: %T", node)
 	}
-	return mod
+	return mod, path
 }

@@ -42,14 +42,16 @@ func (f FloatType) Name() string {
 
 // GenericParamSpec captures a generic parameter name and its interface constraints.
 type GenericParamSpec struct {
-	Name        string
-	Constraints []Type
+	Name            string
+	Constraints     []Type
+	ConstraintNodes []ast.TypeExpression
 }
 
 // WhereConstraintSpec records a where-clause constraint (e.g. `where T: Display`).
 type WhereConstraintSpec struct {
-	TypeParam   string
-	Constraints []Type
+	TypeParam       string
+	Constraints     []Type
+	ConstraintNodes []ast.TypeExpression
 }
 
 type StructType struct {
@@ -66,6 +68,7 @@ type StructInstanceType struct {
 	StructName string
 	Fields     map[string]Type
 	Positional []Type
+	TypeArgs   []Type
 }
 
 func (s StructInstanceType) Name() string { return "StructInstance:" + s.StructName }
@@ -95,6 +98,7 @@ type UnionType struct {
 	UnionName  string
 	TypeParams []GenericParamSpec
 	Where      []WhereConstraintSpec
+	Variants   []Type
 }
 
 func (u UnionType) Name() string { return "Union:" + u.UnionName }
