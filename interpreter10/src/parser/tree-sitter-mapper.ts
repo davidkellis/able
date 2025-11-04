@@ -52,6 +52,89 @@ class MapperError extends Error {
 }
 type Node = SyntaxNode;
 
+interface MutableAstNode extends AST.AstNode {
+  span?: AST.Span;
+  origin?: string;
+}
+
+let CURRENT_ORIGIN: string | undefined;
+
+function toSpan(node: Node): AST.Span {
+  const start = node.startPosition;
+  const end = node.endPosition;
+  return {
+    start: { line: start.row + 1, column: start.column + 1 },
+    end: { line: end.row + 1, column: end.column + 1 },
+  };
+}
+
+function annotate<T extends AST.AstNode | null | undefined>(value: T, tsNode: Node | null | undefined): T {
+  if (!value || !tsNode) {
+    return value;
+  }
+  const mutable = value as MutableAstNode;
+  if (!mutable.span) {
+    mutable.span = toSpan(tsNode);
+  }
+  if (CURRENT_ORIGIN && !mutable.origin) {
+    mutable.origin = CURRENT_ORIGIN;
+  }
+  return value;
+}
+
+function annotateStatement<T extends Statement | null | undefined>(stmt: T, node: Node | null | undefined): T {
+  return annotate(stmt, node) as T;
+}
+
+function annotateExpressionNode<T extends Expression | null | undefined>(expr: T, node: Node | null | undefined): T {
+  return annotate(expr, node) as T;
+}
+
+function annotatePatternNode<T extends Pattern | null | undefined>(pattern: T, node: Node | null | undefined): T {
+  return annotate(pattern, node) as T;
+}
+
+function annotateTypeExpressionNode<T extends TypeExpression | null | undefined>(
+  typeExpr: T,
+  node: Node | null | undefined,
+): T {
+  return annotate(typeExpr, node) as T;
+}
+
+function inheritMetadata<T extends AST.AstNode | null | undefined>(
+  value: T,
+  ...sources: (AST.AstNode | null | undefined)[]
+): T {
+  if (!value) {
+    return value;
+  }
+  const target = value as MutableAstNode;
+  if (!target.span) {
+    for (const source of sources) {
+      if (!source) continue;
+      const src = source as MutableAstNode;
+      if (src.span) {
+        target.span = src.span;
+        break;
+      }
+    }
+  }
+  if (!target.origin) {
+    for (const source of sources) {
+      if (!source) continue;
+      const src = source as MutableAstNode;
+      if (src.origin) {
+        target.origin = src.origin;
+        break;
+      }
+    }
+  }
+  if (CURRENT_ORIGIN && !target.origin) {
+    target.origin = CURRENT_ORIGIN;
+  }
+  return value;
+}
+
 function sliceText(node: Node | null | undefined, source: string): string {
   if (!node) return "";
   const start = node.startIndex;
@@ -116,7 +199,7 @@ function findIdentifier(node: Node | null | undefined, source: string): Identifi
   if (!node) return null;
   if (isIgnorableNode(node)) return null;
   if (node.type === "identifier") {
-    return AST.identifier(sliceText(node, source));
+    return annotate(AST.identifier(sliceText(node, source)), node) as Identifier;
   }
   for (let i = 0; i < node.namedChildCount; i++) {
     const child = node.namedChild(i);
@@ -130,7 +213,7 @@ function parseIdentifier(node: Node | null | undefined, source: string): Identif
   if (!node || node.type !== "identifier") {
     throw new MapperError("parser: expected identifier");
   }
-  return AST.identifier(sliceText(node, source));
+  return annotate(AST.identifier(sliceText(node, source)), node) as Identifier;
 }
 
 function identifiersToStrings(ids: Identifier[]): string[] {
@@ -173,7 +256,7 @@ const INFIX_OPERATOR_SETS = new Map<string, string[]>([
   ["exponent_expression", ["**"]],
 ]);
 
-export function mapSourceFile(root: Node, source: string): Module {
+export function mapSourceFile(root: Node, source: string, origin?: string): Module {
   if (!root) {
     throw new MapperError("parser: missing root node");
   }
@@ -183,6 +266,8 @@ export function mapSourceFile(root: Node, source: string): Module {
   if ((root as unknown as { hasError?: boolean }).hasError) {
     throw new MapperError("parser: syntax errors present");
   }
+
+  CURRENT_ORIGIN = origin;
 
   let packageStmt: AST.PackageStatement | undefined;
   const imports: ImportStatement[] = [];
@@ -205,9 +290,9 @@ export function mapSourceFile(root: Node, source: string): Module {
         const clauseNode = node.childForFieldName("clause");
         const clause = parseImportClause(clauseNode, source);
         if (kindNode.type === "import") {
-          imports.push(AST.importStatement(path, clause.isWildcard, clause.selectors, clause.alias));
+          imports.push(annotate(AST.importStatement(path, clause.isWildcard, clause.selectors, clause.alias), node) as ImportStatement);
         } else if (kindNode.type === "dynimport") {
-          body.push(AST.dynImportStatement(path, clause.isWildcard, clause.selectors, clause.alias));
+          body.push(annotate(AST.dynImportStatement(path, clause.isWildcard, clause.selectors, clause.alias), node));
         } else {
           throw new MapperError(`parser: unsupported import kind ${kindNode.type}`);
         }
@@ -230,7 +315,7 @@ export function mapSourceFile(root: Node, source: string): Module {
             continue;
           }
           if ((prev as Expression).type) {
-            const call = AST.functionCall(prev as Expression, [], undefined, true);
+            const call = inheritMetadata(AST.functionCall(prev as Expression, [], undefined, true), prev as Expression, stmt);
             call.arguments.push(stmt);
             body[body.length - 1] = call;
             continue;
@@ -242,7 +327,8 @@ export function mapSourceFile(root: Node, source: string): Module {
     }
   }
 
-  const module = AST.module(body, imports, packageStmt);
+  const module = annotate(AST.module(body, imports, packageStmt), root);
+  CURRENT_ORIGIN = undefined;
   return pruneUndefined(module);
 }
 
@@ -256,7 +342,7 @@ function parsePackageStatement(node: Node, source: string): AST.PackageStatement
   if (parts.length === 0) {
     throw new MapperError("parser: empty package statement");
   }
-  return AST.packageStatement(parts, false);
+  return annotate(AST.packageStatement(parts, false), node) as AST.PackageStatement;
 }
 
 function parseQualifiedIdentifier(node: Node | null | undefined, source: string): Identifier[] {
@@ -331,7 +417,7 @@ function parseImportSelector(node: Node, source: string): ImportSelector {
   if (node.namedChildCount > 1) {
     alias = parseIdentifier(node.namedChild(1), source);
   }
-  return AST.importSelector(name, alias);
+  return annotate(AST.importSelector(name, alias), node) as ImportSelector;
 }
 
 function parseStatement(node: Node, source: string): Statement | null {
@@ -341,15 +427,15 @@ function parseStatement(node: Node, source: string): Statement | null {
       if (!exprNode) {
         throw new MapperError("parser: expression statement missing expression");
       }
-      return parseExpression(exprNode, source);
+      return annotateStatement(parseExpression(exprNode, source), node);
     }
     case "return_statement": {
       const valueNode = firstNamedChild(node);
       if (!valueNode) {
-        return AST.returnStatement();
+        return annotateStatement(AST.returnStatement(), node);
       }
       const expr = parseExpression(valueNode, source);
-      return AST.returnStatement(expr);
+      return annotateStatement(AST.returnStatement(expr), node);
     }
     case "while_statement": {
       if (node.namedChildCount < 2) {
@@ -357,7 +443,7 @@ function parseStatement(node: Node, source: string): Statement | null {
       }
       const condition = parseExpression(node.namedChild(0), source);
       const body = parseBlock(node.namedChild(1), source);
-      return AST.whileLoop(condition, body);
+      return annotateStatement(AST.whileLoop(condition, body), node);
     }
     case "for_statement": {
       if (node.namedChildCount < 3) {
@@ -366,42 +452,42 @@ function parseStatement(node: Node, source: string): Statement | null {
       const pattern = parsePattern(node.namedChild(0), source);
       const iterable = parseExpression(node.namedChild(1), source);
       const body = parseBlock(node.namedChild(2), source);
-      return AST.forLoop(pattern, iterable, body);
+      return annotateStatement(AST.forLoop(pattern, iterable, body), node);
     }
     case "break_statement": {
       const labelNode = node.childForFieldName("label");
       const valueNode = node.childForFieldName("value");
       const label = labelNode ? parseLabel(labelNode, source) : undefined;
       const value = valueNode ? parseExpression(valueNode, source) : undefined;
-      return AST.breakStatement(label, value);
+      return annotateStatement(AST.breakStatement(label, value), node);
     }
     case "continue_statement":
-      return AST.continueStatement();
+      return annotateStatement(AST.continueStatement(), node);
     case "raise_statement": {
       const valueNode = firstNamedChild(node);
       if (!valueNode) {
         throw new MapperError("parser: raise statement missing expression");
       }
-      return AST.raiseStatement(parseExpression(valueNode, source));
+      return annotateStatement(AST.raiseStatement(parseExpression(valueNode, source)), node);
     }
     case "rethrow_statement":
-      return AST.rethrowStatement();
+      return annotateStatement(AST.rethrowStatement(), node);
     case "struct_definition":
-      return parseStructDefinition(node, source);
+      return annotateStatement(parseStructDefinition(node, source), node);
     case "methods_definition":
-      return parseMethodsDefinition(node, source);
+      return annotateStatement(parseMethodsDefinition(node, source), node);
     case "implementation_definition":
-      return parseImplementationDefinition(node, source);
+      return annotateStatement(parseImplementationDefinition(node, source), node);
     case "named_implementation_definition":
-      return parseNamedImplementationDefinition(node, source);
+      return annotateStatement(parseNamedImplementationDefinition(node, source), node);
     case "union_definition":
-      return parseUnionDefinition(node, source);
+      return annotateStatement(parseUnionDefinition(node, source), node);
     case "interface_definition":
-      return parseInterfaceDefinition(node, source);
+      return annotateStatement(parseInterfaceDefinition(node, source), node);
     case "prelude_statement":
-      return parsePreludeStatement(node, source);
+      return annotateStatement(parsePreludeStatement(node, source), node);
     case "extern_function":
-      return parseExternFunction(node, source);
+      return annotateStatement(parseExternFunction(node, source), node);
     case "function_definition":
       return parseFunctionDefinition(node, source);
     default:
@@ -411,7 +497,7 @@ function parseStatement(node: Node, source: string): Statement | null {
 
 function parseBlock(node: Node | null | undefined, source: string): BlockExpression {
   if (!node) {
-    return AST.blockExpression([]);
+    return annotate(AST.blockExpression([]), node);
   }
 
   const statements: Statement[] = [];
@@ -453,7 +539,7 @@ function parseBlock(node: Node | null | undefined, source: string): BlockExpress
         continue;
       }
       if ((prev as Expression).type) {
-        const call = AST.functionCall(prev as Expression, [], undefined, true);
+        const call = inheritMetadata(AST.functionCall(prev as Expression, [], undefined, true), prev as Expression, stmt);
         call.arguments.push(stmt);
         statements[statements.length - 1] = call;
         continue;
@@ -463,7 +549,7 @@ function parseBlock(node: Node | null | undefined, source: string): BlockExpress
     statements.push(stmt);
   }
 
-  return AST.blockExpression(statements);
+  return annotate(AST.blockExpression(statements), node) as BlockExpression;
 }
 
 function parseExpression(node: Node | null | undefined, source: string): Expression {
@@ -503,7 +589,7 @@ function parseExpression(node: Node | null | undefined, source: string): Express
       }
       const objectExpr = parseExpression(node.namedChild(0), source);
       const memberExpr = parseExpression(node.namedChild(1), source);
-      return AST.memberAccessExpression(objectExpr, memberExpr);
+      return annotateExpressionNode(AST.memberAccessExpression(objectExpr, memberExpr), node);
     }
     case "proc_expression":
       return parseProcExpression(node, source);
@@ -532,7 +618,7 @@ function parseExpression(node: Node | null | undefined, source: string): Express
     case "placeholder_expression":
       return parsePlaceholderExpression(node, source);
     case "topic_reference":
-      return AST.topicReferenceExpression();
+    return annotateExpressionNode(AST.topicReferenceExpression(), node);
     case "interpolated_string":
       return parseInterpolatedString(node, source);
     case "iterator_literal":
@@ -600,7 +686,7 @@ function parseNumberLiteral(node: Node, source: string): Expression {
     if (!Number.isFinite(value)) {
       throw new MapperError(`parser: invalid number literal ${content}`);
     }
-    return AST.floatLiteral(value, floatType);
+    return annotateExpressionNode(AST.floatLiteral(value, floatType), node);
   }
 
   let numberValue: number | bigint;
@@ -620,13 +706,13 @@ function parseNumberLiteral(node: Node, source: string): Expression {
     }
   }
 
-  return AST.integerLiteral(numberValue, integerType);
+  return annotateExpressionNode(AST.integerLiteral(numberValue, integerType), node);
 }
 
 function parseBooleanLiteral(node: Node, source: string): Expression {
   const value = sliceText(node, source).trim();
-  if (value === "true") return AST.booleanLiteral(true);
-  if (value === "false") return AST.booleanLiteral(false);
+  if (value === "true") return annotateExpressionNode(AST.booleanLiteral(true), node);
+  if (value === "false") return annotateExpressionNode(AST.booleanLiteral(false), node);
   throw new MapperError(`parser: invalid boolean literal ${value}`);
 }
 
@@ -635,13 +721,13 @@ function parseNilLiteral(node: Node, source: string): Expression {
   if (value !== "nil") {
     throw new MapperError(`parser: invalid nil literal ${value}`);
   }
-  return AST.nilLiteral();
+  return annotateExpressionNode(AST.nilLiteral(), node);
 }
 
 function parseStringLiteral(node: Node, source: string): Expression {
   const raw = sliceText(node, source);
   try {
-    return AST.stringLiteral(JSON.parse(raw));
+    return annotateExpressionNode(AST.stringLiteral(JSON.parse(raw)), node);
   } catch (error) {
     throw new MapperError(`parser: invalid string literal ${raw}: ${error}`);
   }
@@ -658,7 +744,7 @@ function parseCharLiteral(node: Node, source: string): Expression {
   if (Array.from(value).length !== 1) {
     throw new MapperError(`parser: character literal ${raw} must resolve to a single rune`);
   }
-  return AST.charLiteral(value);
+  return annotateExpressionNode(AST.charLiteral(value), node);
 }
 
 function parseArrayLiteral(node: Node, source: string): Expression {
@@ -668,7 +754,7 @@ function parseArrayLiteral(node: Node, source: string): Expression {
     if (!child || !child.isNamed || isIgnorableNode(child)) continue;
     elements.push(parseExpression(child, source));
   }
-  return AST.arrayLiteral(elements);
+  return annotateExpressionNode(AST.arrayLiteral(elements), node);
 }
 
 function parseStructLiteral(node: Node, source: string): Expression {
@@ -682,7 +768,7 @@ function parseStructLiteral(node: Node, source: string): Expression {
   }
   let structType = parts[parts.length - 1];
   if (parts.length > 1) {
-    structType = AST.identifier(identifiersToStrings(parts).join("."));
+    structType = annotate(AST.identifier(identifiersToStrings(parts).join(".")), typeNode) as Identifier;
   }
 
   const typeArgsNode = node.childForFieldName("type_arguments");
@@ -722,7 +808,7 @@ function parseStructLiteral(node: Node, source: string): Expression {
           throw new MapperError("parser: struct literal field missing value");
         }
         const value = parseExpression(valueNode, source);
-        fields.push(AST.structFieldInitializer(value, name, false));
+        fields.push(annotateExpressionNode(AST.structFieldInitializer(value, name, false), elem) as StructFieldInitializer);
         break;
       }
       case "struct_literal_shorthand_field": {
@@ -734,7 +820,7 @@ function parseStructLiteral(node: Node, source: string): Expression {
           throw new MapperError("parser: struct literal shorthand missing name");
         }
         const name = parseIdentifier(nameNode, source);
-        fields.push(AST.structFieldInitializer(AST.identifier(name.name), name, true));
+        fields.push(annotateExpressionNode(AST.structFieldInitializer(AST.identifier(name.name), name, true), elem) as StructFieldInitializer);
         break;
       }
       case "struct_literal_spread": {
@@ -746,7 +832,7 @@ function parseStructLiteral(node: Node, source: string): Expression {
         break;
       }
       default: {
-        fields.push(AST.structFieldInitializer(parseExpression(elem, source), undefined, false));
+        fields.push(annotateExpressionNode(AST.structFieldInitializer(parseExpression(elem, source), undefined, false), elem) as StructFieldInitializer);
         break;
       }
     }
@@ -754,20 +840,26 @@ function parseStructLiteral(node: Node, source: string): Expression {
 
   const positional = fields.some(field => !field.name);
 
-  return AST.structLiteral(fields, positional, structType, functionalUpdates.length ? functionalUpdates : undefined, typeArguments ?? undefined);
+  return annotateExpressionNode(
+    AST.structLiteral(fields, positional, structType, functionalUpdates.length ? functionalUpdates : undefined, typeArguments ?? undefined),
+    node,
+  );
 }
 
 function applyGenericType(base: TypeExpression | null, args: TypeExpression[]): TypeExpression | null {
   if (!base) return null;
   if (base.type === "NullableTypeExpression") {
     const inner = applyGenericType(base.innerType, args);
-    return AST.nullableTypeExpression(inner ?? base.innerType);
+    const result = AST.nullableTypeExpression(inner ?? base.innerType);
+    return inheritMetadata(result, base, inner ?? undefined);
   }
   if (base.type === "ResultTypeExpression") {
     const inner = applyGenericType(base.innerType, args);
-    return AST.resultTypeExpression(inner ?? base.innerType);
+    const result = AST.resultTypeExpression(inner ?? base.innerType);
+    return inheritMetadata(result, base, inner ?? undefined);
   }
-  return AST.genericTypeExpression(base, args);
+  const result = AST.genericTypeExpression(base, args);
+  return inheritMetadata(result, base);
 }
 
 function parseReturnType(node: Node | null | undefined, source: string): TypeExpression | undefined {
@@ -837,7 +929,7 @@ function parseTypeExpression(node: Node | null | undefined, source: string): Typ
         if (ok && paramTypes) {
           const returnExpr = parseTypeExpression(node.namedChild(1), source);
           if (returnExpr) {
-            return AST.functionTypeExpression(paramTypes, returnExpr);
+            return annotateTypeExpressionNode(AST.functionTypeExpression(paramTypes, returnExpr), node);
           }
         }
       }
@@ -856,8 +948,8 @@ function parseTypeExpression(node: Node | null | undefined, source: string): Typ
         const arg = parseTypeExpression(node.namedChild(i), source);
         if (arg) args.push(arg);
       }
-      if (args.length === 0) return base;
-      return applyGenericType(base, args) ?? base;
+      if (args.length === 0) return annotateTypeExpressionNode(base, node);
+      return annotateTypeExpressionNode(applyGenericType(base, args) ?? base, node);
     }
     case "type_union": {
       const members: TypeExpression[] = [];
@@ -866,9 +958,9 @@ function parseTypeExpression(node: Node | null | undefined, source: string): Typ
         const member = parseTypeExpression(child, source);
         if (member) members.push(member);
       }
-      if (members.length === 1) return members[0];
+      if (members.length === 1) return annotateTypeExpressionNode(members[0], node);
       if (members.length > 1) {
-        return AST.unionTypeExpression(members);
+        return annotateTypeExpressionNode(AST.unionTypeExpression(members), node);
       }
       break;
     }
@@ -880,13 +972,13 @@ function parseTypeExpression(node: Node | null | undefined, source: string): Typ
       break;
     }
     case "identifier":
-      return AST.simpleTypeExpression(parseIdentifier(node, source));
+      return annotateTypeExpressionNode(AST.simpleTypeExpression(parseIdentifier(node, source)), node);
     case "qualified_identifier": {
       const parts = parseQualifiedIdentifier(node, source);
       if (parts.length === 0) return null;
-      if (parts.length === 1) return AST.simpleTypeExpression(parts[0]);
-      const name = AST.identifier(identifiersToStrings(parts).join("."));
-      return AST.simpleTypeExpression(name);
+      if (parts.length === 1) return annotateTypeExpressionNode(AST.simpleTypeExpression(parts[0]), node);
+      const name = annotate(AST.identifier(identifiersToStrings(parts).join(".")), node) as Identifier;
+      return annotateTypeExpressionNode(AST.simpleTypeExpression(name), node);
     }
     default: {
       const child = firstNamedChild(node);
@@ -901,7 +993,7 @@ function parseTypeExpression(node: Node | null | undefined, source: string): Typ
   if (text === "") {
     return null;
   }
-  return AST.simpleTypeExpression(AST.identifier(text.replace(/\s+/g, "")));
+  return annotateTypeExpressionNode(AST.simpleTypeExpression(AST.identifier(text.replace(/\s+/g, ""))), node);
 }
 
 function parseTypeArgumentList(node: Node | null | undefined, source: string): TypeExpression[] | null {
@@ -1017,11 +1109,11 @@ function buildGenericParameter(node: Node, source: string): GenericParameter {
     const child = node.namedChild(i);
     if (!child || isIgnorableNode(child) || sameNode(child, nameNode)) continue;
     const typeExprs = parseTypeBoundList(child, source);
-    constraints = typeExprs?.map(expr => AST.interfaceConstraint(expr));
+    constraints = typeExprs?.map(expr => inheritMetadata(AST.interfaceConstraint(expr), expr));
     if (constraints && constraints.length > 0) break;
   }
 
-  return AST.genericParameter(name, constraints);
+  return annotate(AST.genericParameter(name, constraints), node) as GenericParameter;
 }
 
 function parseTypeBoundList(node: Node | null | undefined, source: string): TypeExpression[] | undefined {
@@ -1081,8 +1173,8 @@ function parseWhereConstraint(node: Node, source: string): WhereClauseConstraint
   if (!typeExprs || typeExprs.length === 0) {
     throw new MapperError("parser: where constraint missing bounds");
   }
-  const interfaceConstraints = typeExprs.map(expr => AST.interfaceConstraint(expr));
-  return AST.whereClauseConstraint(name, interfaceConstraints);
+  const interfaceConstraints = typeExprs.map(expr => inheritMetadata(AST.interfaceConstraint(expr), expr));
+  return annotate(AST.whereClauseConstraint(name, interfaceConstraints), node) as WhereClauseConstraint;
 }
 
 function isLiteralExpression(expr: Expression): expr is Literal {
@@ -1109,7 +1201,7 @@ function parsePattern(node: Node | null | undefined, source: string): Pattern {
     if (node.namedChildCount === 0) {
       const text = sliceText(node, source).trim();
       if (text === "_") {
-        return AST.wildcardPattern();
+        return annotatePatternNode(AST.wildcardPattern(), node);
       }
       for (let i = 0; i < node.childCount; i++) {
         const child = node.child(i);
@@ -1118,7 +1210,7 @@ function parsePattern(node: Node | null | undefined, source: string): Pattern {
           return parsePattern(child, source);
         }
         if (sliceText(child, source).trim() === "_") {
-          return AST.wildcardPattern();
+          return annotatePatternNode(AST.wildcardPattern(), child);
         }
       }
       throw new MapperError(`parser: empty ${node.type}`);
@@ -1130,7 +1222,7 @@ function parsePattern(node: Node | null | undefined, source: string): Pattern {
     case "identifier":
       return parseIdentifier(node, source);
     case "_":
-      return AST.wildcardPattern();
+      return annotatePatternNode(AST.wildcardPattern(), node);
     case "literal_pattern":
       return parseLiteralPattern(node, source);
     case "struct_pattern":
@@ -1153,7 +1245,7 @@ function parsePattern(node: Node | null | undefined, source: string): Pattern {
       if (!typeExpr) {
         throw new MapperError("parser: typed pattern missing type expression");
       }
-      return AST.typedPattern(innerPattern, typeExpr);
+      return annotatePatternNode(AST.typedPattern(innerPattern, typeExpr), node);
     case "pattern":
     case "pattern_base":
       return parsePattern(node.namedChild(0), source);
@@ -1171,7 +1263,7 @@ function parseLiteralPattern(node: Node, source: string): Pattern {
   if (!isLiteralExpression(literalExpr)) {
     throw new MapperError(`parser: literal pattern must contain literal, found ${literalExpr.type}`);
   }
-  return AST.literalPattern(literalExpr);
+  return annotatePatternNode(AST.literalPattern(literalExpr), node);
 }
 
 function parseStructPattern(node: Node, source: string): Pattern {
@@ -1184,7 +1276,7 @@ function parseStructPattern(node: Node, source: string): Pattern {
     }
     structType = parts[parts.length - 1];
     if (parts.length > 1) {
-      structType = AST.identifier(identifiersToStrings(parts).join("."));
+      structType = annotate(AST.identifier(identifiersToStrings(parts).join(".")), typeNode) as Identifier;
     }
   }
 
@@ -1209,7 +1301,7 @@ function parseStructPattern(node: Node, source: string): Pattern {
           throw new MapperError("parser: struct pattern field missing identifier");
         }
         const pat = parseIdentifier(fieldNode, source);
-        fields.push(AST.structPatternField(pat, undefined, undefined));
+        fields.push(annotatePatternNode(AST.structPatternField(pat, undefined, undefined), elem) as StructPatternField);
         continue;
       }
       fields.push(parseStructPatternField(elem, source));
@@ -1217,12 +1309,12 @@ function parseStructPattern(node: Node, source: string): Pattern {
     }
 
     const pattern = parsePattern(elem, source);
-    fields.push(AST.structPatternField(pattern, undefined, undefined));
+    fields.push(annotatePatternNode(AST.structPatternField(pattern, undefined, undefined), elem) as StructPatternField);
   }
 
   const isPositional = fields.some(field => !field.fieldName);
 
-  return AST.structPattern(fields, isPositional, structType);
+  return annotatePatternNode(AST.structPattern(fields, isPositional, structType), node) as StructPattern;
 }
 
 function parseStructPatternField(node: Node, source: string): StructPatternField {
@@ -1251,10 +1343,10 @@ function parseStructPatternField(node: Node, source: string): StructPatternField
   } else if (fieldName) {
     pattern = fieldName;
   } else {
-    pattern = AST.wildcardPattern();
+    pattern = annotatePatternNode(AST.wildcardPattern(), node) as Pattern;
   }
 
-  return AST.structPatternField(pattern, fieldName, binding);
+  return annotatePatternNode(AST.structPatternField(pattern, fieldName, binding), node) as StructPatternField;
 }
 
 function parseArrayPattern(node: Node, source: string): Pattern {
@@ -1274,12 +1366,12 @@ function parseArrayPattern(node: Node, source: string): Pattern {
     elements.push(parsePattern(child, source));
   }
 
-  return AST.arrayPattern(elements, rest);
+  return annotatePatternNode(AST.arrayPattern(elements, rest), node) as Pattern;
 }
 
 function parseArrayPatternRest(node: Node, source: string): Pattern {
   if (node.namedChildCount === 0) {
-    return AST.wildcardPattern();
+    return annotatePatternNode(AST.wildcardPattern(), node) as Pattern;
   }
   return parsePattern(node.namedChild(0), source);
 }
@@ -1290,24 +1382,24 @@ function parseImplicitMemberExpression(node: Node, source: string): Expression {
     throw new MapperError("parser: implicit member missing identifier");
   }
   const member = parseIdentifier(memberNode, source);
-  return AST.implicitMemberExpression(member);
+  return annotateExpressionNode(AST.implicitMemberExpression(member), node);
 }
 
 function parsePlaceholderExpression(node: Node, source: string): Expression {
   const raw = sliceText(node, source).trim();
   if (raw === "@" || raw === "@0") {
-    return AST.placeholderExpression();
+    return annotateExpressionNode(AST.placeholderExpression(), node);
   }
   if (raw.startsWith("@")) {
     const value = raw.slice(1);
     if (value === "") {
-      return AST.placeholderExpression();
+      return annotateExpressionNode(AST.placeholderExpression(), node);
     }
     const index = Number.parseInt(value, 10);
     if (!Number.isInteger(index) || index <= 0) {
       throw new MapperError(`parser: invalid placeholder index ${raw}`);
     }
-    return AST.placeholderExpression(index);
+    return annotateExpressionNode(AST.placeholderExpression(index), node);
   }
   throw new MapperError(`parser: unsupported placeholder token ${raw}`);
 }
@@ -1321,7 +1413,7 @@ function parseInterpolatedString(node: Node, source: string): Expression {
       case "interpolation_text": {
         const text = sliceText(child, source);
         if (text !== "") {
-          parts.push(AST.stringLiteral(text));
+          parts.push(annotateExpressionNode(AST.stringLiteral(text), child) as AST.StringLiteral);
         }
         break;
       }
@@ -1337,7 +1429,7 @@ function parseInterpolatedString(node: Node, source: string): Expression {
         break;
     }
   }
-  return AST.stringInterpolation(parts);
+  return annotateExpressionNode(AST.stringInterpolation(parts), node);
 }
 
 function parseIteratorLiteral(node: Node, source: string): IteratorLiteral {
@@ -1346,7 +1438,7 @@ function parseIteratorLiteral(node: Node, source: string): IteratorLiteral {
     throw new MapperError("parser: iterator literal missing body");
   }
   const block = parseBlock(bodyNode, source);
-  return AST.iteratorLiteral(block.body);
+  return annotateExpressionNode(AST.iteratorLiteral(block.body), node);
 }
 
 function parsePostfixExpression(node: Node, source: string): Expression {
@@ -1377,11 +1469,11 @@ function parsePostfixExpression(node: Node, source: string): Expression {
           if (!Number.isInteger(intValue)) {
             throw new MapperError(`parser: invalid numeric member ${valueText}`);
           }
-          memberExpr = AST.integerLiteral(intValue);
+          memberExpr = annotateExpressionNode(AST.integerLiteral(intValue), memberNode);
         } else {
           memberExpr = parseExpression(memberNode, source);
         }
-        result = AST.memberAccessExpression(result, memberExpr);
+        result = annotateExpressionNode(AST.memberAccessExpression(result, memberExpr), suffix);
         lastCall = undefined;
         break;
       }
@@ -1398,7 +1490,7 @@ function parsePostfixExpression(node: Node, source: string): Expression {
           throw new MapperError("parser: slice expressions are not supported yet");
         }
         const indexExpr = parseExpression(suffix.namedChild(0), source);
-        result = AST.indexExpression(result, indexExpr);
+        result = annotateExpressionNode(AST.indexExpression(result, indexExpr), suffix);
         lastCall = undefined;
         break;
       }
@@ -1406,7 +1498,7 @@ function parsePostfixExpression(node: Node, source: string): Expression {
         const args = parseCallArguments(suffix, source);
         const typeArgs = pendingTypeArgs ?? undefined;
         pendingTypeArgs = null;
-        const callExpr = AST.functionCall(result, args, typeArgs, false);
+        const callExpr = annotateExpressionNode(AST.functionCall(result, args, typeArgs, false), suffix);
         result = callExpr;
         lastCall = callExpr;
         break;
@@ -1420,7 +1512,7 @@ function parsePostfixExpression(node: Node, source: string): Expression {
           lastCall.isTrailingLambda = true;
           result = lastCall;
         } else {
-          const callExpr = AST.functionCall(result, [], typeArgs, true);
+          const callExpr = annotateExpressionNode(AST.functionCall(result, [], typeArgs, true), suffix);
           callExpr.arguments.push(lambdaExpr);
           result = callExpr;
           lastCall = callExpr;
@@ -1431,7 +1523,7 @@ function parsePostfixExpression(node: Node, source: string): Expression {
         if (pendingTypeArgs && pendingTypeArgs.length > 0) {
           throw new MapperError("parser: dangling type arguments before propagation");
         }
-        result = AST.propagationExpression(result);
+        result = annotateExpressionNode(AST.propagationExpression(result), suffix);
         lastCall = undefined;
         break;
       }
@@ -1444,7 +1536,7 @@ function parsePostfixExpression(node: Node, source: string): Expression {
     throw new MapperError("parser: dangling type arguments in expression");
   }
 
-  return result;
+  return annotateExpressionNode(result, node);
 }
 
 function parseCallArguments(node: Node, source: string): Expression[] {
@@ -1465,9 +1557,9 @@ function parsePipeExpression(node: Node, source: string): Expression {
   for (let i = 1; i < node.namedChildCount; i++) {
     const stepNode = node.namedChild(i);
     const stepExpr = parseExpression(stepNode, source);
-    result = AST.binaryExpression("|>", result, stepExpr);
+    result = annotateExpressionNode(AST.binaryExpression("|>", result, stepExpr), stepNode);
   }
-  return result;
+  return annotateExpressionNode(result, node);
 }
 
 function parseInfixExpression(node: Node, source: string, operators: string[]): Expression {
@@ -1487,10 +1579,10 @@ function parseInfixExpression(node: Node, source: string, operators: string[]): 
     if (!operator) {
       throw new MapperError(`parser: could not determine operator between operands in ${node.type}`);
     }
-    result = AST.binaryExpression(operator, result, rightExpr);
+    result = annotateExpressionNode(AST.binaryExpression(operator, result, rightExpr), rightNode);
     previous = rightNode;
   }
-  return result;
+  return annotateExpressionNode(result, node);
 }
 
 function extractOperatorBetween(left: Node | null, right: Node | null, source: string, allowed: string[]): string {
@@ -1548,7 +1640,10 @@ function parseAssignmentExpression(node: Node, source: string): Expression {
   if (!ASSIGNMENT_OPERATORS.has(operatorText)) {
     throw new MapperError(`parser: unsupported assignment operator ${operatorText}`);
   }
-  return AST.assignmentExpression(operatorText as AssignmentExpression["operator"], left, right);
+  return annotateExpressionNode(
+    AST.assignmentExpression(operatorText as AssignmentExpression["operator"], left, right),
+    node,
+  );
 }
 
 function parseAssignmentTarget(node: Node, source: string): AssignmentExpression["left"] {
@@ -1600,7 +1695,7 @@ function parseUnaryExpression(node: Node, source: string): Expression {
   }
   const operand = parseExpression(operandNode, source);
   if (operatorText === "-" || operatorText === "!" || operatorText === "~") {
-    return AST.unaryExpression(operatorText as "-" | "!" | "~", operand);
+    return annotateExpressionNode(AST.unaryExpression(operatorText as "-" | "!" | "~", operand), node);
   }
   throw new MapperError(`parser: unsupported unary operator ${operatorText}`);
 }
@@ -1620,7 +1715,7 @@ function parseRangeExpression(node: Node, source: string): Expression {
   if (operatorText !== ".." && operatorText !== "...") {
     throw new MapperError(`parser: unsupported range operator ${operatorText}`);
   }
-  return AST.rangeExpression(startExpr, endExpr, operatorText === "...");
+  return annotateExpressionNode(AST.rangeExpression(startExpr, endExpr, operatorText === "..."), node);
 }
 
 function parseLambdaExpression(node: Node, source: string): LambdaExpression {
@@ -1647,7 +1742,7 @@ function parseLambdaExpression(node: Node, source: string): LambdaExpression {
   }
   const bodyExpr = parseExpression(bodyNode, source);
 
-  return AST.lambdaExpression(params, bodyExpr, returnType, undefined, undefined, false);
+  return annotateExpressionNode(AST.lambdaExpression(params, bodyExpr, returnType, undefined, undefined, false), node) as LambdaExpression;
 }
 
 function parseLambdaParameter(node: Node, source: string): FunctionParameter {
@@ -1656,7 +1751,7 @@ function parseLambdaParameter(node: Node, source: string): FunctionParameter {
     throw new MapperError("parser: lambda parameter missing name");
   }
   const id = parseIdentifier(nameNode, source);
-  return AST.functionParameter(id);
+  return annotate(AST.functionParameter(id), node) as FunctionParameter;
 }
 
 function parseIfExpression(node: Node, source: string): Expression {
@@ -1683,10 +1778,10 @@ function parseIfExpression(node: Node, source: string): Expression {
   const elseNode = findElseBlock(node, bodyNode);
   if (elseNode) {
     const elseBody = parseBlock(elseNode, source);
-    clauses.push(AST.orClause(elseBody, undefined));
+    clauses.push(annotate(AST.orClause(elseBody, undefined), elseNode) as OrClause);
   }
 
-  return AST.ifExpression(condition, body, clauses);
+  return annotateExpressionNode(AST.ifExpression(condition, body, clauses), node);
 }
 
 function parseOrClause(node: Node, source: string): OrClause {
@@ -1702,7 +1797,7 @@ function parseOrClause(node: Node, source: string): OrClause {
     condition = parseExpression(conditionNode, source);
   }
 
-  return AST.orClause(body, condition);
+  return annotate(AST.orClause(body, condition), node) as OrClause;
 }
 
 function findElseBlock(ifNode: Node, consequence: Node): Node | null {
@@ -1738,7 +1833,7 @@ function parseMatchExpression(node: Node, source: string): Expression {
     throw new MapperError("parser: match expression requires at least one clause");
   }
 
-  return AST.matchExpression(subject, clauses);
+  return annotateExpressionNode(AST.matchExpression(subject, clauses), node);
 }
 
 function parseMatchClause(node: Node, source: string): MatchClause {
@@ -1770,7 +1865,7 @@ function parseMatchClause(node: Node, source: string): MatchClause {
     body = parseExpression(bodyNode, source);
   }
 
-  return AST.matchClause(pattern, body, guardExpr);
+  return annotate(AST.matchClause(pattern, body, guardExpr), node) as MatchClause;
 }
 
 function parseHandlingExpression(node: Node, source: string): Expression {
@@ -1797,7 +1892,7 @@ function parseHandlingExpression(node: Node, source: string): Expression {
       throw new MapperError("parser: else clause missing handler block");
     }
     const { block, binding } = parseHandlingBlock(handlerNode, source);
-    current = AST.orElseExpression(current, block, binding);
+    current = annotateExpressionNode(AST.orElseExpression(current, block, binding), child);
   }
 
   if (assignment) {
@@ -1805,14 +1900,14 @@ function parseHandlingExpression(node: Node, source: string): Expression {
       throw new MapperError("parser: or-else assignment missing right-hand expression");
     }
     assignment.right = current;
-    return assignment;
+    return annotateExpressionNode(assignment, node);
   }
 
   if (!current) {
     throw new MapperError("parser: handling expression missing result");
   }
 
-  return current;
+  return annotateExpressionNode(current, node);
 }
 
 function parseHandlingBlock(node: Node, source: string): { block: BlockExpression; binding?: Identifier } {
@@ -1837,7 +1932,7 @@ function parseHandlingBlock(node: Node, source: string): { block: BlockExpressio
     }
   }
 
-  return { block: AST.blockExpression(statements), binding };
+  return { block: annotateExpressionNode(AST.blockExpression(statements), node) as BlockExpression, binding };
 }
 
 function parseRescueExpression(node: Node, source: string): Expression {
@@ -1872,12 +1967,12 @@ function parseRescueExpression(node: Node, source: string): Expression {
     if (!expr.right) {
       throw new MapperError("parser: rescue assignment missing right-hand expression");
     }
-    const rescueExpr = AST.rescueExpression(expr.right, clauses);
+    const rescueExpr = annotateExpressionNode(AST.rescueExpression(expr.right, clauses), node);
     expr.right = rescueExpr;
-    return expr;
+    return annotateExpressionNode(expr, node);
   }
 
-  return AST.rescueExpression(expr, clauses);
+  return annotateExpressionNode(AST.rescueExpression(expr, clauses), node);
 }
 
 function parseRescueBlock(node: Node, source: string): MatchClause[] {
@@ -1924,12 +2019,12 @@ function parseEnsureExpression(node: Node, source: string): Expression {
     if (!tryExpr.right) {
       throw new MapperError("parser: ensure assignment missing right-hand expression");
     }
-    const ensureExpr = AST.ensureExpression(tryExpr.right, ensureBlock);
+    const ensureExpr = annotateExpressionNode(AST.ensureExpression(tryExpr.right, ensureBlock), node);
     tryExpr.right = ensureExpr;
-    return tryExpr;
+    return annotateExpressionNode(tryExpr, node);
   }
 
-  return AST.ensureExpression(tryExpr, ensureBlock);
+  return annotateExpressionNode(AST.ensureExpression(tryExpr, ensureBlock), node);
 }
 
 function parseBreakpointExpression(node: Node, source: string): Expression {
@@ -1964,7 +2059,7 @@ function parseBreakpointExpression(node: Node, source: string): Expression {
   }
 
   const body = parseBlock(bodyNode, source);
-  return AST.breakpointExpression(label, body);
+  return annotateExpressionNode(AST.breakpointExpression(label, body), node);
 }
 
 function fallbackBreakpointLabel(node: Node): Node | null {
@@ -1989,7 +2084,7 @@ function parseFunctionDefinition(node: Node, source: string): FunctionDefinition
     throw new MapperError("parser: expected function_definition node");
   }
   const core = parseFunctionCore(node, source);
-  return AST.functionDefinition(
+  const fn = AST.functionDefinition(
     core.name,
     core.params,
     core.body,
@@ -1999,6 +2094,7 @@ function parseFunctionDefinition(node: Node, source: string): FunctionDefinition
     core.isMethodShorthand,
     core.isPrivate,
   );
+  return annotate(fn, node);
 }
 
 function parseFunctionCore(node: Node, source: string): {
@@ -2072,7 +2168,7 @@ function parseParameter(node: Node, source: string): FunctionParameter {
   if (!paramType && typeNode) {
     paramType = parseTypeExpression(typeNode, source) ?? undefined;
   }
-  return AST.functionParameter(namePattern, paramType);
+  return annotate(AST.functionParameter(namePattern, paramType), node) as FunctionParameter;
 }
 
 function parseStructDefinition(node: Node, source: string): StructDefinition {
@@ -2113,7 +2209,7 @@ function parseStructDefinition(node: Node, source: string): StructDefinition {
     }
   }
 
-  return AST.structDefinition(id, fields, kind, generics, whereClause, isPrivate ? true : undefined);
+  return annotateStatement(AST.structDefinition(id, fields, kind, generics, whereClause, isPrivate ? true : undefined), node) as StructDefinition;
 }
 
 function parseStructFieldDefinition(node: Node, source: string): StructFieldDefinition {
@@ -2138,7 +2234,7 @@ function parseStructFieldDefinition(node: Node, source: string): StructFieldDefi
     throw new MapperError("parser: struct field missing type");
   }
 
-  return AST.structFieldDefinition(fieldType, name);
+  return annotate(AST.structFieldDefinition(fieldType, name), node) as StructFieldDefinition;
 }
 
 function parseMethodsDefinition(node: Node, source: string): MethodsDefinition {
@@ -2190,7 +2286,7 @@ function parseMethodsDefinition(node: Node, source: string): MethodsDefinition {
     }
   }
 
-  return AST.methodsDefinition(targetType, definitions, generics, whereClause);
+  return annotateStatement(AST.methodsDefinition(targetType, definitions, generics, whereClause), node) as MethodsDefinition;
 }
 
 function parseImplementationDefinitionNode(node: Node, source: string): ImplementationDefinition {
@@ -2206,7 +2302,7 @@ function parseImplementationDefinitionNode(node: Node, source: string): Implemen
   const parts = parseQualifiedIdentifier(interfaceNode, source);
   let interfaceName = parts[parts.length - 1];
   if (parts.length > 1) {
-    interfaceName = AST.identifier(identifiersToStrings(parts).join("."));
+    interfaceName = annotate(AST.identifier(identifiersToStrings(parts).join(".")), interfaceNode) as Identifier;
   }
 
   const interfaceArgs = parseInterfaceArguments(node.childForFieldName("interface_args"), source);
@@ -2257,15 +2353,18 @@ function parseImplementationDefinitionNode(node: Node, source: string): Implemen
     }
   }
 
-  return AST.implementationDefinition(
-    interfaceName,
-    targetType,
-    definitions,
-    undefined,
-    generics,
-    interfaceArgs ?? undefined,
-    whereClause,
-  );
+  return annotateStatement(
+    AST.implementationDefinition(
+      interfaceName,
+      targetType,
+      definitions,
+      undefined,
+      generics,
+      interfaceArgs ?? undefined,
+      whereClause,
+    ),
+    node,
+  ) as ImplementationDefinition;
 }
 
 function parseImplementationDefinition(node: Node, source: string): ImplementationDefinition {
@@ -2329,7 +2428,7 @@ function parseUnionDefinition(node: Node, source: string): UnionDefinition {
     throw new MapperError("parser: union definition requires variants");
   }
 
-  return AST.unionDefinition(name, variants, typeParams, undefined, hasLeadingPrivate(node));
+  return annotateStatement(AST.unionDefinition(name, variants, typeParams, undefined, hasLeadingPrivate(node)), node) as UnionDefinition;
 }
 
 function parseInterfaceDefinition(node: Node, source: string): InterfaceDefinition {
@@ -2387,7 +2486,10 @@ function parseInterfaceDefinition(node: Node, source: string): InterfaceDefiniti
     }
   }
 
-  return AST.interfaceDefinition(name, signatures, typeParams, selfType, whereClause, baseInterfaces, hasLeadingPrivate(node));
+  return annotateStatement(
+    AST.interfaceDefinition(name, signatures, typeParams, selfType, whereClause, baseInterfaces, hasLeadingPrivate(node)),
+    node,
+  ) as InterfaceDefinition;
 }
 
 function parseFunctionSignature(node: Node, source: string): FunctionSignature {
@@ -2401,7 +2503,7 @@ function parseFunctionSignature(node: Node, source: string): FunctionSignature {
   const generics = parseTypeParameters(node.childForFieldName("type_parameters"), source);
   const whereClause = parseWhereClause(node.childForFieldName("where_clause"), source);
 
-  return AST.functionSignature(name, params, returnType, generics, whereClause, undefined);
+  return annotate(AST.functionSignature(name, params, returnType, generics, whereClause, undefined), node) as FunctionSignature;
 }
 
 function parsePreludeStatement(node: Node, source: string): PreludeStatement {
@@ -2410,7 +2512,7 @@ function parsePreludeStatement(node: Node, source: string): PreludeStatement {
   }
   const target = parseHostTarget(node.childForFieldName("target"), source);
   const code = parseHostCodeBlock(node.childForFieldName("body"), source);
-  return AST.preludeStatement(target, code);
+  return annotateStatement(AST.preludeStatement(target, code), node) as PreludeStatement;
 }
 
 function parseExternFunction(node: Node, source: string): ExternFunctionBody {
@@ -2425,18 +2527,21 @@ function parseExternFunction(node: Node, source: string): ExternFunctionBody {
   const signature = parseFunctionSignature(signatureNode, source);
   const body = parseHostCodeBlock(node.childForFieldName("body"), source);
 
-  const fn = AST.functionDefinition(
-    signature.name,
-    signature.params,
-    AST.blockExpression([]),
-    signature.returnType,
-    signature.genericParams,
-    signature.whereClause,
-    false,
-    false,
-  );
+  const fn = annotateStatement(
+    AST.functionDefinition(
+      signature.name,
+      signature.params,
+      AST.blockExpression([]),
+      signature.returnType,
+      signature.genericParams,
+      signature.whereClause,
+      false,
+      false,
+    ),
+    signatureNode,
+  ) as FunctionDefinition;
 
-  return AST.externFunctionBody(target, fn, body);
+  return annotate(AST.externFunctionBody(target, fn, body), node) as ExternFunctionBody;
 }
 
 function parseHostTarget(node: Node | null | undefined, source: string): HostTarget {
@@ -2495,7 +2600,7 @@ function parseProcExpression(node: Node, source: string): Expression {
   if (expr.type !== "FunctionCall" && expr.type !== "BlockExpression") {
     throw new MapperError("parser: proc expression requires function call or block");
   }
-  return AST.procExpression(expr as FunctionCall | BlockExpression);
+  return annotateExpressionNode(AST.procExpression(expr as FunctionCall | BlockExpression), node);
 }
 
 function parseSpawnExpression(node: Node, source: string): Expression {
@@ -2507,7 +2612,7 @@ function parseSpawnExpression(node: Node, source: string): Expression {
   if (expr.type !== "FunctionCall" && expr.type !== "BlockExpression") {
     throw new MapperError("parser: spawn expression requires function call or block");
   }
-  return AST.spawnExpression(expr as FunctionCall | BlockExpression);
+  return annotateExpressionNode(AST.spawnExpression(expr as FunctionCall | BlockExpression), node);
 }
 
 // --- Numerous helpers omitted for brevity; the completed mapper will port every parser helper from Go. ---
@@ -2543,5 +2648,5 @@ function parseLabel(node: Node, source: string): Identifier {
   if (!content) {
     throw new MapperError("parser: empty label");
   }
-  return AST.identifier(content);
+  return annotate(AST.identifier(content), node) as Identifier;
 }

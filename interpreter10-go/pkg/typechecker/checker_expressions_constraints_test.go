@@ -63,7 +63,7 @@ func TestConstraintSolverReportsMissingImpl(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(diags) == 0 {
-		t.Fatalf("expected diagnostic for missing Display implementation")
+		t.Fatalf("expected diagnostic for missing Display implementation, got %v", diags)
 	}
 	found := false
 	for _, d := range diags {
@@ -240,6 +240,146 @@ func TestConstraintSolverAcceptsMethodSet(t *testing.T) {
 	}
 	if len(diags) != 0 {
 		t.Fatalf("expected no diagnostics, got %v", diags)
+	}
+}
+
+func TestConstraintSolverRecognisesUnionImplementation(t *testing.T) {
+	checker := New()
+	optionUnion := UnionType{
+		UnionName: "Option",
+		TypeParams: []GenericParamSpec{
+			{Name: "T"},
+		},
+		Variants: []Type{
+			PrimitiveType{Kind: PrimitiveNil},
+			TypeParameterType{ParameterName: "T"},
+		},
+	}
+	displayIface := InterfaceType{InterfaceName: "Display"}
+	subject := AppliedType{
+		Base: optionUnion,
+		Arguments: []Type{
+			StructType{StructName: "Point"},
+		},
+	}
+
+	if ok, _ := checker.typeImplementsInterface(subject, displayIface, nil); ok {
+		t.Fatalf("expected Option Point to not satisfy Display without implementation")
+	}
+
+	optionSpec := ImplementationSpec{
+		InterfaceName: "Display",
+		TypeParams: []GenericParamSpec{
+			{Name: "T"},
+		},
+		Target: AppliedType{
+			Base: optionUnion,
+			Arguments: []Type{
+				TypeParameterType{ParameterName: "T"},
+			},
+		},
+		Methods: make(map[string]FunctionType),
+	}
+
+	checker.implementations = []ImplementationSpec{optionSpec}
+
+	if ok, detail := checker.typeImplementsInterface(subject, displayIface, nil); !ok {
+		t.Fatalf("expected Option Point to satisfy Display via implementation (detail: %s)", detail)
+	}
+}
+
+func TestConstraintSolverRecognisesNullableImplementation(t *testing.T) {
+	checker := New()
+	displayIface := InterfaceType{InterfaceName: "Display"}
+	subject := NullableType{Inner: StructType{StructName: "Point"}}
+
+	nullableSpec := ImplementationSpec{
+		InterfaceName: "Display",
+		TypeParams: []GenericParamSpec{
+			{Name: "T", Constraints: []Type{displayIface}},
+		},
+		Target:  NullableType{Inner: TypeParameterType{ParameterName: "T"}},
+		Methods: make(map[string]FunctionType),
+	}
+	nullableSpec.Obligations = obligationsFromSpecs("impl Display for Nullable T", nullableSpec.TypeParams, nil, nil)
+	checker.implementations = []ImplementationSpec{nullableSpec}
+
+	if ok, detail := checker.implementationProvidesInterface(subject, displayIface, nil); ok {
+		t.Fatalf("expected Nullable Point to fail constraint without inner implementation")
+	} else if detail == "" {
+		t.Fatalf("expected nullable implementation failure to report detail")
+	}
+
+	if ok, detail := checker.typeImplementsInterface(subject, displayIface, nil); ok {
+		t.Fatalf("expected Nullable Point to not satisfy Display without inner implementation")
+	} else if detail == "" || !strings.Contains(detail, "impl Display") {
+		t.Fatalf("expected nullable constraint failure to mention impl context, got %q", detail)
+	}
+
+	pointSpec := ImplementationSpec{
+		InterfaceName: "Display",
+		Target:        StructType{StructName: "Point"},
+		Methods:       make(map[string]FunctionType),
+	}
+	checker.implementations = append(checker.implementations, pointSpec)
+
+	if ok, detail := checker.implementationProvidesInterface(subject, displayIface, nil); !ok {
+		t.Fatalf("expected Nullable Point to match nullable implementation once constraints satisfied (detail: %s)", detail)
+	}
+
+	if ok, detail := checker.typeImplementsInterface(subject, displayIface, nil); !ok {
+		t.Fatalf("expected Nullable Point to satisfy Display via implementation (detail: %s)", detail)
+	}
+}
+
+func TestMatchMethodTargetHandlesNullableAndNestedWrappers(t *testing.T) {
+	param := GenericParamSpec{Name: "T"}
+	subject := NullableType{Inner: StructType{StructName: "Point"}}
+	target := NullableType{Inner: TypeParameterType{ParameterName: "T"}}
+
+	subst, score, ok := matchMethodTarget(subject, target, []GenericParamSpec{param})
+	if !ok {
+		t.Fatalf("expected nullable target to match")
+	}
+	if score == 0 {
+		t.Fatalf("expected nullable match to contribute score")
+	}
+	actual, exists := subst["T"]
+	if !exists || typeName(actual) != "Point" {
+		t.Fatalf("expected substitution for T to be Point, got %#v", actual)
+	}
+
+	optionUnion := UnionType{
+		UnionName:  "Option",
+		TypeParams: []GenericParamSpec{{Name: "T"}},
+		Variants: []Type{
+			PrimitiveType{Kind: PrimitiveNil},
+			TypeParameterType{ParameterName: "T"},
+		},
+	}
+	subjectNested := AppliedType{
+		Base: StructType{StructName: "Box"},
+		Arguments: []Type{
+			NullableType{Inner: AppliedType{Base: optionUnion, Arguments: []Type{StructType{StructName: "Point"}}}},
+		},
+	}
+	targetNested := AppliedType{
+		Base: StructType{StructName: "Box"},
+		Arguments: []Type{
+			NullableType{Inner: AppliedType{Base: optionUnion, Arguments: []Type{TypeParameterType{ParameterName: "T"}}}},
+		},
+	}
+
+	substNested, scoreNested, ok := matchMethodTarget(subjectNested, targetNested, []GenericParamSpec{param})
+	if !ok {
+		t.Fatalf("expected nested nullable/union target to match")
+	}
+	if scoreNested == 0 {
+		t.Fatalf("expected nested match to contribute score")
+	}
+	inner, exists := substNested["T"]
+	if !exists || typeName(inner) != "Point" {
+		t.Fatalf("expected substitution for nested T to resolve to Point, got %#v", inner)
 	}
 }
 
@@ -747,6 +887,219 @@ func TestConstraintSolverMethodSetSelfWhereAppliedConstraintSatisfied(t *testing
 		methods,
 		useDescribable,
 		call,
+	}, nil, nil)
+
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics, got %v", diags)
+	}
+}
+
+func TestConstraintSolverMethodSetGenericObligationFails(t *testing.T) {
+	checker := New()
+	displaySig := ast.FnSig(
+		"show",
+		[]*ast.FunctionParameter{
+			ast.Param("self", ast.Ty("Self")),
+		},
+		ast.Ty("string"),
+		nil,
+		nil,
+		nil,
+	)
+	displayIface := ast.Iface("Display", []*ast.FunctionSignature{displaySig}, nil, nil, nil, nil, false)
+	wrapperStruct := ast.StructDef(
+		"Wrapper",
+		[]*ast.StructFieldDefinition{
+			ast.FieldDef(ast.Ty("T"), "value"),
+		},
+		ast.StructKindNamed,
+		[]*ast.GenericParameter{
+			ast.GenericParam("T"),
+		},
+		nil,
+		false,
+	)
+	describeMethod := ast.Fn(
+		"describe",
+		[]*ast.FunctionParameter{
+			ast.Param("self", ast.Gen(ast.Ty("Wrapper"), ast.Ty("T"))),
+		},
+		[]ast.Statement{
+			ast.Block(ast.Str("ok")),
+		},
+		ast.Ty("string"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+	methods := ast.Methods(
+		ast.Gen(ast.Ty("Wrapper"), ast.Ty("T")),
+		[]*ast.FunctionDefinition{describeMethod},
+		[]*ast.GenericParameter{
+			ast.GenericParam("T"),
+		},
+		[]*ast.WhereClauseConstraint{
+			ast.WhereConstraint("T", ast.InterfaceConstr(ast.Ty("Display"))),
+		},
+	)
+	wrapperLiteral := ast.StructLit(
+		[]*ast.StructFieldInitializer{
+			ast.FieldInit(ast.Int(1), "value"),
+		},
+		false,
+		"Wrapper",
+		nil,
+		[]ast.TypeExpression{ast.Ty("i32")},
+	)
+	assign := ast.Assign(
+		ast.ID("result"),
+		ast.CallExpr(ast.Member(wrapperLiteral, "describe")),
+	)
+	module := ast.NewModule([]ast.Statement{
+		displayIface,
+		wrapperStruct,
+		methods,
+		assign,
+	}, nil, nil)
+
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) == 0 {
+		t.Fatalf("expected diagnostic for missing Display implementation, got %v", diags)
+	}
+	found := false
+	for _, d := range diags {
+		if strings.Contains(d.Message, "constraint on T") && strings.Contains(d.Message, "Display") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected diagnostic referencing Display constraint, got %v", diags)
+	}
+}
+
+func TestConstraintSolverMethodSetGenericObligationSatisfied(t *testing.T) {
+	checker := New()
+	displaySig := ast.FnSig(
+		"show",
+		[]*ast.FunctionParameter{
+			ast.Param("self", ast.Ty("Self")),
+		},
+		ast.Ty("string"),
+		nil,
+		nil,
+		nil,
+	)
+	displayIface := ast.Iface("Display", []*ast.FunctionSignature{displaySig}, nil, nil, nil, nil, false)
+	pointStruct := ast.StructDef(
+		"Point",
+		[]*ast.StructFieldDefinition{
+			ast.FieldDef(ast.Ty("i32"), "x"),
+			ast.FieldDef(ast.Ty("i32"), "y"),
+		},
+		ast.StructKindNamed,
+		nil,
+		nil,
+		false,
+	)
+	showMethod := ast.Fn(
+		"show",
+		[]*ast.FunctionParameter{
+			ast.Param("self", ast.Ty("Point")),
+		},
+		[]ast.Statement{
+			ast.Block(ast.Str("<point>")),
+		},
+		ast.Ty("string"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+	displayImpl := ast.Impl(
+		"Display",
+		ast.Ty("Point"),
+		[]*ast.FunctionDefinition{showMethod},
+		nil,
+		nil,
+		nil,
+		nil,
+		false,
+	)
+	wrapperStruct := ast.StructDef(
+		"Wrapper",
+		[]*ast.StructFieldDefinition{
+			ast.FieldDef(ast.Ty("T"), "value"),
+		},
+		ast.StructKindNamed,
+		[]*ast.GenericParameter{
+			ast.GenericParam("T"),
+		},
+		nil,
+		false,
+	)
+	describeMethod := ast.Fn(
+		"describe",
+		[]*ast.FunctionParameter{
+			ast.Param("self", ast.Gen(ast.Ty("Wrapper"), ast.Ty("T"))),
+		},
+		[]ast.Statement{
+			ast.Block(ast.Str("ok")),
+		},
+		ast.Ty("string"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+	methods := ast.Methods(
+		ast.Gen(ast.Ty("Wrapper"), ast.Ty("T")),
+		[]*ast.FunctionDefinition{describeMethod},
+		[]*ast.GenericParameter{
+			ast.GenericParam("T"),
+		},
+		[]*ast.WhereClauseConstraint{
+			ast.WhereConstraint("T", ast.InterfaceConstr(ast.Ty("Display"))),
+		},
+	)
+	pointLiteral := ast.StructLit(
+		[]*ast.StructFieldInitializer{
+			ast.FieldInit(ast.Int(1), "x"),
+			ast.FieldInit(ast.Int(2), "y"),
+		},
+		false,
+		"Point",
+		nil,
+		nil,
+	)
+	wrapperLiteral := ast.StructLit(
+		[]*ast.StructFieldInitializer{
+			ast.FieldInit(pointLiteral, "value"),
+		},
+		false,
+		"Wrapper",
+		nil,
+		[]ast.TypeExpression{ast.Ty("Point")},
+	)
+	assign := ast.Assign(
+		ast.ID("result"),
+		ast.CallExpr(ast.Member(wrapperLiteral, "describe")),
+	)
+	module := ast.NewModule([]ast.Statement{
+		displayIface,
+		pointStruct,
+		displayImpl,
+		wrapperStruct,
+		methods,
+		assign,
 	}, nil, nil)
 
 	diags, err := checker.CheckModule(module)

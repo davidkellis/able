@@ -10,7 +10,9 @@ import (
 
 func parseBlock(node *sitter.Node, source []byte) (*ast.BlockExpression, error) {
 	if node == nil {
-		return ast.NewBlockExpression(nil), nil
+		block := ast.NewBlockExpression(nil)
+		annotateExpression(block, node)
+		return block, nil
 	}
 
 	statements := make([]ast.Statement, 0)
@@ -71,7 +73,9 @@ func parseBlock(node *sitter.Node, source []byte) (*ast.BlockExpression, error) 
 		}
 	}
 
-	return ast.NewBlockExpression(statements), nil
+	block := ast.NewBlockExpression(statements)
+	annotateExpression(block, node)
+	return block, nil
 }
 
 func parseStatement(node *sitter.Node, source []byte) (ast.Statement, error) {
@@ -85,17 +89,17 @@ func parseStatement(node *sitter.Node, source []byte) (ast.Statement, error) {
 		if err != nil {
 			return nil, err
 		}
-		return expr, nil
+		return annotateStatement(expr, node), nil
 	case "return_statement":
 		valueNode := firstNamedChild(node)
 		if valueNode == nil {
-			return ast.NewReturnStatement(nil), nil
+			return annotateStatement(ast.NewReturnStatement(nil), node), nil
 		}
 		expr, err := parseExpression(valueNode, source)
 		if err != nil {
 			return nil, err
 		}
-		return ast.NewReturnStatement(expr), nil
+		return annotateStatement(ast.NewReturnStatement(expr), node), nil
 	case "while_statement":
 		if node.NamedChildCount() < 2 {
 			return nil, fmt.Errorf("parser: malformed while statement")
@@ -110,7 +114,7 @@ func parseStatement(node *sitter.Node, source []byte) (ast.Statement, error) {
 		if err != nil {
 			return nil, err
 		}
-		return ast.NewWhileLoop(condition, body), nil
+		return annotateStatement(ast.NewWhileLoop(condition, body), node), nil
 	case "for_statement":
 		if node.NamedChildCount() < 3 {
 			return nil, fmt.Errorf("parser: malformed for statement")
@@ -130,7 +134,7 @@ func parseStatement(node *sitter.Node, source []byte) (ast.Statement, error) {
 		if err != nil {
 			return nil, err
 		}
-		return ast.NewForLoop(pattern, iterable, body), nil
+		return annotateStatement(ast.NewForLoop(pattern, iterable, body), node), nil
 	case "break_statement":
 		labelNode := node.ChildByFieldName("label")
 		var label *ast.Identifier
@@ -150,9 +154,9 @@ func parseStatement(node *sitter.Node, source []byte) (ast.Statement, error) {
 			}
 			value = expr
 		}
-		return ast.NewBreakStatement(label, value), nil
+		return annotateStatement(ast.NewBreakStatement(label, value), node), nil
 	case "continue_statement":
-		return ast.NewContinueStatement(nil), nil
+		return annotateStatement(ast.NewContinueStatement(nil), node), nil
 	case "raise_statement":
 		valueNode := firstNamedChild(node)
 		if valueNode == nil {
@@ -162,25 +166,57 @@ func parseStatement(node *sitter.Node, source []byte) (ast.Statement, error) {
 		if err != nil {
 			return nil, err
 		}
-		return ast.NewRaiseStatement(expr), nil
+		return annotateStatement(ast.NewRaiseStatement(expr), node), nil
 	case "rethrow_statement":
-		return ast.NewRethrowStatement(), nil
+		return annotateStatement(ast.NewRethrowStatement(), node), nil
 	case "struct_definition":
-		return parseStructDefinition(node, source)
+		stmt, err := parseStructDefinition(node, source)
+		if err != nil {
+			return nil, err
+		}
+		return annotateStatement(stmt, node), nil
 	case "methods_definition":
-		return parseMethodsDefinition(node, source)
+		stmt, err := parseMethodsDefinition(node, source)
+		if err != nil {
+			return nil, err
+		}
+		return annotateStatement(stmt, node), nil
 	case "implementation_definition":
-		return parseImplementationDefinition(node, source)
+		stmt, err := parseImplementationDefinition(node, source)
+		if err != nil {
+			return nil, err
+		}
+		return annotateStatement(stmt, node), nil
 	case "named_implementation_definition":
-		return parseNamedImplementationDefinition(node, source)
+		stmt, err := parseNamedImplementationDefinition(node, source)
+		if err != nil {
+			return nil, err
+		}
+		return annotateStatement(stmt, node), nil
 	case "union_definition":
-		return parseUnionDefinition(node, source)
+		stmt, err := parseUnionDefinition(node, source)
+		if err != nil {
+			return nil, err
+		}
+		return annotateStatement(stmt, node), nil
 	case "interface_definition":
-		return parseInterfaceDefinition(node, source)
+		stmt, err := parseInterfaceDefinition(node, source)
+		if err != nil {
+			return nil, err
+		}
+		return annotateStatement(stmt, node), nil
 	case "prelude_statement":
-		return parsePreludeStatement(node, source)
+		stmt, err := parsePreludeStatement(node, source)
+		if err != nil {
+			return nil, err
+		}
+		return annotateStatement(stmt, node), nil
 	case "extern_function":
-		return parseExternFunction(node, source)
+		stmt, err := parseExternFunction(node, source)
+		if err != nil {
+			return nil, err
+		}
+		return annotateStatement(stmt, node), nil
 	default:
 		// For now, ignore unsupported statements in blocks.
 		return nil, nil

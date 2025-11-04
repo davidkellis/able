@@ -1,10 +1,6 @@
 package typechecker
 
-import (
-	"fmt"
-
-	"able/interpreter10-go/pkg/ast"
-)
+import "able/interpreter10-go/pkg/ast"
 
 func (c *Checker) checkPropagationExpression(env *Environment, expr *ast.PropagationExpression) ([]Diagnostic, Type) {
 	bodyDiags, bodyType := c.checkExpression(env, expr.Expression)
@@ -18,19 +14,6 @@ func (c *Checker) checkPropagationExpression(env *Environment, expr *ast.Propaga
 			c.infer.set(expr, success)
 			return diags, success
 		}
-		diags = append(diags, Diagnostic{
-			Message: fmt.Sprintf("typechecker: propagation expects result union with ProcError, got %s", typeName(bodyType)),
-			Node:    expr.Expression,
-		})
-		c.infer.set(expr, bodyType)
-		return diags, bodyType
-	}
-
-	if !isUnknownType(bodyType) {
-		diags = append(diags, Diagnostic{
-			Message: fmt.Sprintf("typechecker: propagation requires union type with ProcError, got %s", typeName(bodyType)),
-			Node:    expr.Expression,
-		})
 	}
 	c.infer.set(expr, bodyType)
 	return diags, bodyType

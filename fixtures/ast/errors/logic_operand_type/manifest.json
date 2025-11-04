@@ -6,7 +6,7 @@
       "typechecker: '&&' left operand must be bool (got string)"
     ],
     "typecheckDiagnostics": [
-      "typechecker: '&&' left operand must be bool (got string)"
+      "typechecker: fixtures/ast/errors/logic_operand_type/source.able:1:11 typechecker: '&&' left operand must be bool (got string)"
     ]
   },
   "entry": "module.json"

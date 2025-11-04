@@ -53,6 +53,144 @@ fn main() -> void { }
 	}
 }
 
+func TestParseModuleAnnotatesSpans(t *testing.T) {
+	mp, err := parser.NewModuleParser()
+	if err != nil {
+		t.Fatalf("NewModuleParser: %v", err)
+	}
+	t.Cleanup(func() { mp.Close() })
+
+	source := []byte("package demo\n\nfn add(x: i32, y: i32) -> i32 {\n  return x + y\n}\n")
+
+	mod, err := mp.ParseModule(source)
+	if err != nil {
+		t.Fatalf("ParseModule returned error: %v", err)
+	}
+	if mod == nil {
+		t.Fatalf("ParseModule returned nil module")
+	}
+
+	checkSpan(t, "module", mod.Span(), 1, 1, 6, 1)
+
+	if len(mod.Body) != 1 {
+		t.Fatalf("expected single statement in module body, got %d", len(mod.Body))
+	}
+
+	fn, ok := mod.Body[0].(*ast.FunctionDefinition)
+	if !ok {
+		t.Fatalf("expected first body element to be FunctionDefinition, got %T", mod.Body[0])
+	}
+	checkSpan(t, "function", fn.Span(), 3, 1, 5, 2)
+
+	if len(fn.Params) != 2 {
+		t.Fatalf("expected two parameters, got %d", len(fn.Params))
+	}
+	checkSpan(t, "param x", fn.Params[0].Span(), 3, 8, 3, 14)
+	checkSpan(t, "param y", fn.Params[1].Span(), 3, 16, 3, 22)
+
+	if fn.Body == nil || len(fn.Body.Body) != 1 {
+		t.Fatalf("expected function body to contain a single statement")
+	}
+	ret, ok := fn.Body.Body[0].(*ast.ReturnStatement)
+	if !ok {
+		t.Fatalf("expected return statement, got %T", fn.Body.Body[0])
+	}
+	checkSpan(t, "return", ret.Span(), 4, 3, 4, 15)
+
+	binary, ok := ret.Argument.(*ast.BinaryExpression)
+	if !ok {
+		t.Fatalf("expected return expression to be binary expression, got %T", ret.Argument)
+	}
+	checkSpan(t, "binary expression", binary.Span(), 4, 10, 4, 15)
+	checkSpan(t, "binary lhs", binary.Left.Span(), 4, 10, 4, 11)
+	checkSpan(t, "binary rhs", binary.Right.Span(), 4, 14, 4, 15)
+}
+
+func TestParseAnnotatesPatternAndTypeSpans(t *testing.T) {
+	mp, err := parser.NewModuleParser()
+	if err != nil {
+		t.Fatalf("NewModuleParser: %v", err)
+	}
+	t.Cleanup(func() { mp.Close() })
+
+	source := []byte(`package sample
+
+struct Point {
+  x: i32,
+  y: i32,
+}
+
+fn extract(point: Point) -> i32 {
+  point match {
+    case Point { x: a, y: b } => a + b,
+    case _ => 0
+  }
+}
+`)
+
+	mod, err := mp.ParseModule(source)
+	if err != nil {
+		t.Fatalf("ParseModule returned error: %v", err)
+	}
+	if mod == nil || len(mod.Body) < 2 {
+		t.Fatalf("expected struct and function definitions in module body")
+	}
+
+	fn, ok := mod.Body[1].(*ast.FunctionDefinition)
+	if !ok {
+		t.Fatalf("expected second body element to be FunctionDefinition, got %T", mod.Body[1])
+	}
+	if len(fn.Params) != 1 {
+		t.Fatalf("expected single function parameter, got %d", len(fn.Params))
+	}
+	param := fn.Params[0]
+	checkSpan(t, "function parameter", param.Span(), 8, 12, 8, 24)
+	if param.ParamType == nil {
+		t.Fatalf("expected parameter to carry type annotation")
+	}
+	checkSpan(t, "parameter type", param.ParamType.Span(), 8, 19, 8, 24)
+
+	if fn.Body == nil || len(fn.Body.Body) == 0 {
+		t.Fatalf("expected function body to contain statements")
+	}
+	matchExpr, ok := fn.Body.Body[0].(*ast.MatchExpression)
+	if !ok {
+		t.Fatalf("expected first body statement to be MatchExpression, got %T", fn.Body.Body[0])
+	}
+	checkSpan(t, "match expression", matchExpr.Span(), 9, 3, 12, 4)
+	if len(matchExpr.Clauses) == 0 {
+		t.Fatalf("expected match expression to contain clauses")
+	}
+	structPattern, ok := matchExpr.Clauses[0].Pattern.(*ast.StructPattern)
+	if !ok {
+		t.Fatalf("expected first match clause to use struct pattern, got %T", matchExpr.Clauses[0].Pattern)
+	}
+	checkSpan(t, "struct pattern", structPattern.Span(), 10, 10, 10, 30)
+	if len(structPattern.Fields) == 0 {
+		t.Fatalf("expected struct pattern to include fields")
+	}
+	checkSpan(t, "struct pattern field", structPattern.Fields[0].Span(), 10, 18, 10, 22)
+
+	if len(matchExpr.Clauses) < 2 {
+		t.Fatalf("expected match expression to contain wildcard clause")
+	}
+	wildcardPattern, ok := matchExpr.Clauses[1].Pattern.(*ast.WildcardPattern)
+	if !ok {
+		t.Fatalf("expected second match clause to use wildcard pattern, got %T", matchExpr.Clauses[1].Pattern)
+	}
+	checkSpan(t, "wildcard pattern", wildcardPattern.Span(), 11, 10, 11, 11)
+}
+
+func checkSpan(t testing.TB, label string, span ast.Span, startLine, startCol, endLine, endCol int) {
+	t.Helper()
+	if span.Start.Line != startLine || span.Start.Column != startCol {
+		t.Fatalf("%s start span mismatch: got (%d,%d), want (%d,%d)", label, span.Start.Line, span.Start.Column, startLine, startCol)
+	}
+	if span.End.Line != endLine || span.End.Column != endCol {
+		t.Fatalf("%s end span mismatch: got (%d,%d), want (%d,%d)", label, span.End.Line, span.End.Column, endLine, endCol)
+	}
+}
+
 func collectFixtureCases(t testing.TB, category string) []fixtureCase {
 	t.Helper()
 

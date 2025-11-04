@@ -143,29 +143,30 @@ For each milestone: port representative TS tests into Go, add new cases where Go
 
 ## Ongoing Workstreams
 - **Spec maintenance**: keep `spec/full_spec_v10.md` authoritative; log discrepancies in `spec/todo.md`.
-- **Standard library**: coordinate with `stdlib/` efforts; ensure interpreters expose required builtin functions/types.
+- **Standard library**: coordinate with `stdlib/` efforts; ensure interpreters expose required builtin functions/types; track string/regex bring-up via `design/regex-plan.md` and the new spec TODOs covering byte-based strings with char/grapheme iterators.
 - **Developer experience**: cohesive documentation, examples, CI improvements (Bun + Go test jobs).
 - **Future interpreters**: keep AST schema + conformance harness generic to support planned Crystal implementation.
 
 ## Immediate Next Actions
-1. **Parser groundwork**
-   - Start the tree-sitter grammar effort now that the Go runtime + checker are canonical (design parser milestones, confirm AST emission format, bootstrap repository scaffolding).
-   - Replace the interim TypeScript harness that shells out to `go run cmd/parse-module` with a Bun-native parser binding once the grammar is exported.
-   - Audit remaining fixtures missing `source.able` files and backfill them so the parity suite exercises the whole corpus.
-2. **CLI & package manager follow-up**
-   - Land the remaining CLI surface (`able build`, `able test`, `able check`, `able env`, formatter stubs).
-   - Expand coverage for `able deps install/update` (multi-target manifests, selective updates) and document failure modes.
-   - Finish stdlib packaging: flesh out `stdlib/v10/src/**` implementations and ensure they ship via the cache/manifest flow.
-3. **Concurrency hardening**
-   - Add stress fixtures/property tests for `proc_flush`, nil-channel cancellation, and fairness across the goroutine executor to match the design notes.
-   - Document the semantics in `design/channels-mutexes.md` once the additional coverage lands.
-4. **Documentation refresh** – finish updating onboarding/README/PARITY notes to reflect the Go interpreter’s canonical status and document the parser handoff expectations.
+1. **Typechecker export surface & CLI integration**
+   - Finalise the Go `ProgramChecker` export metadata (struct/interface/function tables plus impl/method-set registries), document the schema, and ensure privacy filtering matches interpreter visibility rules.
+   - Mirror export capture in the TypeScript checker so both runtimes expose the same package summaries.
+   - Plumb the session results into `able run`/`able check`, emitting package-qualified diagnostics and failing fast when typechecking reports errors.
+2. **TypeScript checker enablement**
+   - Finish porting the remaining diagnostics (privacy, import visibility, outstanding constraint edges) so `ABLE_TYPECHECK_FIXTURES` can run in strict mode for both runtimes.
+   - Drop fixture skips that were blocking TS, regenerate the shared baseline, and wire the checker into Bun CI.
+   - Update onboarding docs/README to instruct contributors to run the checker by default.
+3. **Parser & fixture audit**
+   - Backfill any fixtures still missing `source.able`, regenerate the AST corpus, and extend parity tests to compare tree-sitter output against the canonical AST for the new method-set cases.
+   - Track coverage progress in `design/parser-ast-coverage.md` and refresh the mapper tests where span data changed.
+4. **Concurrency hardening**
+   - Add the remaining stress fixtures for `proc_flush`, goroutine fairness, and `value()` re-entrancy, then document the outcomes in `design/channels-mutexes.md`.
 
 ### Next steps (prioritized)
-1. **Tree-sitter parser** – finalise grammar design, emit canonical AST JSON, and wire parser → interpreter integration tests.
-2. **TypeScript checker enablement** – prepare the Bun interpreter to honour `ABLE_TYPECHECK_FIXTURES` once its checker lands, keeping parity traffic flowing during parser rollout.
-3. **Spec & tooling updates** – keep `spec/full_spec_v10.md` and `spec/todo.md` in sync with the now-canonical Go behaviour, and ensure documentation/onboarding emphasises the new workflow.
-4. **Performance & maintainability** – profile the Go runtime (method caches, environment lookups) and add CI coverage (Go + Bun + fixtures) once parser work starts emitting shared ASTs.
+1. **Typechecker export + CLI integration**
+2. **TypeScript checker strict-mode rollout**
+3. **Parser/fixture completeness audit**
+4. **Concurrency stress coverage & docs**
 
 ## Tracking & Reporting
 - Update this plan as milestones progress; log decisions in `design/`.
@@ -199,3 +200,9 @@ For each milestone: port representative TS tests into Go, add new cases where Go
 - Extended the TypeScript checker’s type info to capture `nullable`, `result`, `union`, and function signatures, and taught constraint resolution to recognise specialised impls like `Show` for `Result string`, with fresh tests covering the new cases.
 - Added focused Bun tests under `test/typechecker/` plus the `ABLE_TYPECHECK_FIXTURES` harness run to lock in the new behaviour and guard future regressions.
 - Mirrored the Go checker and test suite to use the same spec-facing type formatter and wrapper-aware constraint logic so diagnostics now reference `Array i32`, `string?`, etc., and added parity tests (`interpreter10-go/pkg/typechecker/*`).
+
+### 2025-11-02
+- The Bun CLI suite (`interpreter10/test/cli/run_module_cli.test.ts`) now covers multi-file packages, custom loader search paths via the new `ABLE_MODULE_PATHS` env, and strict vs warn typecheck enforcement so the ModuleLoader refactor stays covered without pulling `stdlib/` into every run.
+- Introduced the `able test` skeleton inside `scripts/run-module.ts`: it parses the planned flags/filters, materialises run options + reporter selection, and prints a deterministic plan summary before exiting with code `2` while the stdlib testing packages remain unparsable. (See `design/testing-cli-design.md` / `design/testing-cli-protocol.md`.)
+- Extracted the shared package-scanning helpers (`discoverRoot`, `indexSourceFiles`, etc.) into `scripts/module-utils.ts` so other tooling (fixtures runner, future harnesses) can reuse the multi-module discovery logic without duplicating it.
+- **Deferral noted:** full stdlib/testing integration is still on pause until the parser accepts `stdlib/v10/src/testing/*`; once that unblocks, wire the CLI skeleton into the able.testing harness per the design notes.

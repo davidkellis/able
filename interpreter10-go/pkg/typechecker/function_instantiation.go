@@ -10,6 +10,36 @@ func (c *Checker) instantiateFunctionCall(fnType FunctionType, call *ast.Functio
 	subst := make(map[string]Type)
 	var diags []Diagnostic
 
+	argNodes := make(map[string]ast.Node)
+	var callArgumentNodes []ast.Node
+	if call != nil && len(call.TypeArguments) > 0 && len(fnType.TypeParams) > 0 {
+		limit := len(call.TypeArguments)
+		if len(fnType.TypeParams) < limit {
+			limit = len(fnType.TypeParams)
+		}
+		for i := 0; i < limit; i++ {
+			param := fnType.TypeParams[i]
+			if param.Name == "" {
+				continue
+			}
+			typeArg := call.TypeArguments[i]
+			if typeArg == nil {
+				continue
+			}
+			if node, ok := typeArg.(ast.Node); ok {
+				argNodes[param.Name] = node
+			}
+		}
+	}
+	if call != nil && len(call.Arguments) > 0 {
+		callArgumentNodes = make([]ast.Node, len(call.Arguments))
+		for i, arg := range call.Arguments {
+			if node, ok := arg.(ast.Node); ok {
+				callArgumentNodes[i] = node
+			}
+		}
+	}
+
 	if fnType.TypeParams != nil && call != nil && len(call.TypeArguments) > 0 {
 		limit := len(fnType.TypeParams)
 		if len(call.TypeArguments) < limit {
@@ -53,6 +83,38 @@ func (c *Checker) instantiateFunctionCall(fnType FunctionType, call *ast.Functio
 	}
 
 	inst := substituteFunctionType(fnType, subst)
+	if call != nil && len(inst.Obligations) > 0 {
+		for i := range inst.Obligations {
+			node := ast.Node(call)
+			if argNode, ok := argNodes[inst.Obligations[i].TypeParam]; ok {
+				node = argNode
+			} else if len(callArgumentNodes) > 0 && len(argTypes) == len(callArgumentNodes) {
+				obSubject := inst.Obligations[i].Subject
+				if obSubject != nil && !isUnknownType(obSubject) && !isTypeParameter(obSubject) {
+					for idx, argType := range argTypes {
+						if callArgumentNodes[idx] == nil {
+							continue
+						}
+						if typesEquivalentForSignature(argType, obSubject) {
+							node = callArgumentNodes[idx]
+							break
+						}
+					}
+				}
+			} else if call != nil {
+				if memberExpr, ok := call.Callee.(*ast.MemberAccessExpression); ok && memberExpr != nil {
+					if memberNode, ok := memberExpr.Member.(ast.Node); ok && memberNode != nil {
+						node = memberNode
+					} else if callee, ok := call.Callee.(ast.Node); ok && callee != nil {
+						node = callee
+					}
+				} else if callee, ok := call.Callee.(ast.Node); ok && callee != nil {
+					node = callee
+				}
+			}
+			inst.Obligations[i].Node = node
+		}
+	}
 	return inst, diags
 }
 

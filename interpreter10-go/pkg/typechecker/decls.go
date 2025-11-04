@@ -67,6 +67,18 @@ func (c *declarationCollector) visitStatement(stmt ast.Statement) {
 				UnionName:  s.ID.Name,
 				TypeParams: params,
 				Where:      where,
+				Variants:   make([]Type, 0, len(s.Variants)),
+			}
+			if len(s.Variants) > 0 {
+				if paramScope == nil {
+					paramScope = make(map[string]Type)
+				}
+				for _, variant := range s.Variants {
+					if variant == nil {
+						continue
+					}
+					unionType.Variants = append(unionType.Variants, c.resolveTypeExpression(variant, paramScope))
+				}
 			}
 			c.declare(s.ID.Name, unionType, s)
 		}
@@ -227,15 +239,21 @@ func (c *declarationCollector) convertGenericParams(params []*ast.GenericParamet
 		typeScope[name] = typeParam
 
 		constraints := make([]Type, 0, len(param.Constraints))
+		constraintNodes := make([]ast.TypeExpression, 0, len(param.Constraints))
 		for _, constraint := range param.Constraints {
 			if constraint == nil {
 				continue
 			}
+			if constraint.InterfaceType == nil {
+				continue
+			}
 			constraints = append(constraints, c.resolveTypeExpression(constraint.InterfaceType, typeScope))
+			constraintNodes = append(constraintNodes, constraint.InterfaceType)
 		}
 		specs = append(specs, GenericParamSpec{
-			Name:        name,
-			Constraints: constraints,
+			Name:            name,
+			Constraints:     constraints,
+			ConstraintNodes: constraintNodes,
 		})
 	}
 	return specs, typeScope
@@ -252,15 +270,21 @@ func (c *declarationCollector) convertWhereClause(where []*ast.WhereClauseConstr
 		}
 		name := clause.TypeParam.Name
 		constraints := make([]Type, 0, len(clause.Constraints))
+		constraintNodes := make([]ast.TypeExpression, 0, len(clause.Constraints))
 		for _, constraint := range clause.Constraints {
 			if constraint == nil {
 				continue
 			}
+			if constraint.InterfaceType == nil {
+				continue
+			}
 			constraints = append(constraints, c.resolveTypeExpression(constraint.InterfaceType, typeParams))
+			constraintNodes = append(constraintNodes, constraint.InterfaceType)
 		}
 		specs = append(specs, WhereConstraintSpec{
-			TypeParam:   name,
-			Constraints: constraints,
+			TypeParam:       name,
+			Constraints:     constraints,
+			ConstraintNodes: constraintNodes,
 		})
 	}
 	return specs
@@ -356,6 +380,7 @@ func registerBuiltins(env *Environment) {
 	boolType := PrimitiveType{Kind: PrimitiveBool}
 	i32Type := IntegerType{Suffix: "i32"}
 	i64Type := IntegerType{Suffix: "i64"}
+	anyType := UnknownType{}
 
 	procYield := FunctionType{
 		Params: nil,
@@ -384,49 +409,27 @@ func registerBuiltins(env *Environment) {
 		Return: i64Type,
 	})
 	env.Define("__able_channel_send", FunctionType{
-		Params: []Type{
-			i64Type,
-			TypeParameterType{ParameterName: "T"},
-		},
+		Params: []Type{anyType, anyType},
 		Return: nilType,
-		TypeParams: []GenericParamSpec{
-			{Name: "T"},
-		},
 	})
 	env.Define("__able_channel_receive", FunctionType{
-		Params: []Type{i64Type},
-		Return: NullableType{
-			Inner: TypeParameterType{ParameterName: "T"},
-		},
-		TypeParams: []GenericParamSpec{
-			{Name: "T"},
-		},
+		Params: []Type{anyType},
+		Return: anyType,
 	})
 	env.Define("__able_channel_try_send", FunctionType{
-		Params: []Type{
-			i64Type,
-			TypeParameterType{ParameterName: "T"},
-		},
+		Params: []Type{anyType, anyType},
 		Return: boolType,
-		TypeParams: []GenericParamSpec{
-			{Name: "T"},
-		},
 	})
 	env.Define("__able_channel_try_receive", FunctionType{
-		Params: []Type{i64Type},
-		Return: NullableType{
-			Inner: TypeParameterType{ParameterName: "T"},
-		},
-		TypeParams: []GenericParamSpec{
-			{Name: "T"},
-		},
+		Params: []Type{anyType},
+		Return: anyType,
 	})
 	env.Define("__able_channel_close", FunctionType{
-		Params: []Type{i64Type},
+		Params: []Type{anyType},
 		Return: nilType,
 	})
 	env.Define("__able_channel_is_closed", FunctionType{
-		Params: []Type{i64Type},
+		Params: []Type{anyType},
 		Return: boolType,
 	})
 
@@ -635,7 +638,6 @@ func (c *declarationCollector) collectMethodsDefinition(def *ast.MethodsDefiniti
 		Definition: def,
 	}
 	spec.Obligations = obligationsFromSpecs(methodsLabel, params, where, def)
-	c.obligations = append(c.obligations, spec.Obligations...)
 	return spec, diags
 }
 
@@ -669,16 +671,22 @@ func obligationsFromSpecs(owner string, params []GenericParamSpec, where []Where
 		if param.Name == "" {
 			continue
 		}
-		for _, constraint := range param.Constraints {
+		for idx, constraint := range param.Constraints {
 			if constraint == nil || isUnknownType(constraint) {
 				continue
+			}
+			var constraintNode ast.Node = node
+			if idx >= 0 && idx < len(param.ConstraintNodes) && param.ConstraintNodes[idx] != nil {
+				if n, ok := param.ConstraintNodes[idx].(ast.Node); ok {
+					constraintNode = n
+				}
 			}
 			obligations = append(obligations, ConstraintObligation{
 				Owner:      owner,
 				TypeParam:  param.Name,
 				Constraint: constraint,
 				Subject:    TypeParameterType{ParameterName: param.Name},
-				Node:       node,
+				Node:       constraintNode,
 			})
 		}
 	}
@@ -686,16 +694,22 @@ func obligationsFromSpecs(owner string, params []GenericParamSpec, where []Where
 		if clause.TypeParam == "" {
 			continue
 		}
-		for _, constraint := range clause.Constraints {
+		for idx, constraint := range clause.Constraints {
 			if constraint == nil || isUnknownType(constraint) {
 				continue
+			}
+			var constraintNode ast.Node = node
+			if idx >= 0 && idx < len(clause.ConstraintNodes) && clause.ConstraintNodes[idx] != nil {
+				if n, ok := clause.ConstraintNodes[idx].(ast.Node); ok {
+					constraintNode = n
+				}
 			}
 			obligations = append(obligations, ConstraintObligation{
 				Owner:      owner,
 				TypeParam:  clause.TypeParam,
 				Constraint: constraint,
 				Subject:    TypeParameterType{ParameterName: clause.TypeParam},
-				Node:       node,
+				Node:       constraintNode,
 			})
 		}
 	}

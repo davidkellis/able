@@ -3,8 +3,10 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"able/interpreter10-go/pkg/driver"
@@ -165,15 +167,16 @@ func executeEntry(entry string, manifest *driver.Manifest, lock *driver.Lockfile
 	interp := interpreter.New()
 	registerPrint(interp)
 
-	_, entryEnv, diags, err := interp.EvaluateProgram(program, interpreter.ProgramEvaluationOptions{})
+	_, entryEnv, check, err := interp.EvaluateProgram(program, interpreter.ProgramEvaluationOptions{})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		return 1
 	}
-	if len(diags) > 0 {
-		for _, diag := range diags {
+	if len(check.Diagnostics) > 0 {
+		for _, diag := range check.Diagnostics {
 			fmt.Fprintln(os.Stderr, interpreter.DescribeModuleDiagnostic(diag))
 		}
+		printPackageSummaries(os.Stderr, check.Packages)
 		return 1
 	}
 
@@ -188,6 +191,46 @@ func executeEntry(entry string, manifest *driver.Manifest, lock *driver.Lockfile
 		return 1
 	}
 	return 0
+}
+
+func printPackageSummaries(w io.Writer, summaries map[string]interpreter.PackageSummary) {
+	if len(summaries) == 0 {
+		return
+	}
+	keys := make([]string, 0, len(summaries))
+	for name := range summaries {
+		keys = append(keys, name)
+	}
+	sort.Strings(keys)
+	fmt.Fprintln(w, "---- package export summary ----")
+	for _, name := range keys {
+		summary := summaries[name]
+		structs := formatSummaryList(summary.Structs)
+		interfaces := formatSummaryList(summary.Interfaces)
+		functions := formatSummaryList(summary.Functions)
+		fmt.Fprintf(
+			w,
+			"package %s exports: structs=%s; interfaces=%s; functions=%s; impls=%d; method sets=%d\n",
+			name,
+			structs,
+			interfaces,
+			functions,
+			len(summary.Implementations),
+			len(summary.MethodSets),
+		)
+	}
+}
+
+func formatSummaryList[T any](items map[string]T) string {
+	if len(items) == 0 {
+		return "-"
+	}
+	names := make([]string, 0, len(items))
+	for name := range items {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return strings.Join(names, ", ")
 }
 
 func runDeps(args []string) int {

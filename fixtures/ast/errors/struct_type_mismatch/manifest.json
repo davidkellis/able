@@ -6,7 +6,7 @@
       "typechecker: struct pattern field 'dx' not found"
     ],
     "typecheckDiagnostics": [
-      "typechecker: struct pattern field 'dx' not found"
+      "typechecker: fixtures/ast/errors/struct_type_mismatch/source.able:10:10 typechecker: struct pattern field 'dx' not found"
     ]
   },
   "entry": "module.json"

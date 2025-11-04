@@ -30,6 +30,7 @@ func parseFunctionDefinition(node *sitter.Node, source []byte) (*ast.FunctionDef
 		isPrivate,
 	)
 
+	annotateSpan(fn, node)
 	return fn, nil
 }
 
@@ -150,11 +151,15 @@ func parseStructDefinition(node *sitter.Node, source []byte) (ast.Statement, err
 			if fieldType == nil {
 				return nil, fmt.Errorf("parser: unsupported tuple field type")
 			}
-			fields = append(fields, ast.NewStructFieldDefinition(fieldType, nil))
+			field := ast.NewStructFieldDefinition(fieldType, nil)
+			annotateSpan(field, child)
+			fields = append(fields, field)
 		}
 	}
 
-	return ast.NewStructDefinition(id, fields, kind, generics, whereClause, isPrivate), nil
+	structDef := ast.NewStructDefinition(id, fields, kind, generics, whereClause, isPrivate)
+	annotateSpan(structDef, node)
+	return structDef, nil
 }
 
 func parseStructFieldDefinition(node *sitter.Node, source []byte) (*ast.StructFieldDefinition, error) {
@@ -190,7 +195,9 @@ func parseStructFieldDefinition(node *sitter.Node, source []byte) (*ast.StructFi
 		return nil, fmt.Errorf("parser: struct field missing type")
 	}
 
-	return ast.NewStructFieldDefinition(fieldType, name), nil
+	field := ast.NewStructFieldDefinition(fieldType, name)
+	annotateSpan(field, node)
+	return field, nil
 }
 
 func parseMethodsDefinition(node *sitter.Node, source []byte) (ast.Statement, error) {
@@ -253,7 +260,9 @@ func parseMethodsDefinition(node *sitter.Node, source []byte) (ast.Statement, er
 		}
 	}
 
-	return ast.NewMethodsDefinition(targetType, definitions, generics, whereClause), nil
+	methods := ast.NewMethodsDefinition(targetType, definitions, generics, whereClause)
+	annotateSpan(methods, node)
+	return methods, nil
 }
 
 func parseImplementationDefinitionNode(node *sitter.Node, source []byte) (*ast.ImplementationDefinition, error) {
@@ -271,12 +280,7 @@ func parseImplementationDefinitionNode(node *sitter.Node, source []byte) (*ast.I
 	if err != nil || len(parts) == 0 {
 		return nil, fmt.Errorf("parser: invalid interface identifier")
 	}
-	var interfaceName *ast.Identifier
-	if len(parts) == 1 {
-		interfaceName = parts[0]
-	} else {
-		interfaceName = ast.ID(strings.Join(identifiersToStrings(parts), "."))
-	}
+	interfaceName := collapseQualifiedIdentifier(parts)
 
 	interfaceArgs, err := parseInterfaceArguments(node.ChildByFieldName("interface_args"), source)
 	if err != nil {
@@ -335,6 +339,7 @@ func parseImplementationDefinitionNode(node *sitter.Node, source []byte) (*ast.I
 	}
 
 	impl := ast.NewImplementationDefinition(interfaceName, targetType, definitions, nil, generics, interfaceArgs, whereClause, hasLeadingPrivate(node))
+	annotateSpan(impl, node)
 	return impl, nil
 }
 
@@ -362,6 +367,7 @@ func parseNamedImplementationDefinition(node *sitter.Node, source []byte) (ast.S
 		}
 		impl.ImplName = name
 	}
+	annotateSpan(impl, node)
 	return impl, nil
 }
 
@@ -401,7 +407,9 @@ func parseParameter(node *sitter.Node, source []byte) (*ast.FunctionParameter, e
 		paramType = typed.TypeAnnotation
 	}
 
-	return ast.NewFunctionParameter(pattern, paramType), nil
+	param := ast.NewFunctionParameter(pattern, paramType)
+	annotateSpan(param, node)
+	return param, nil
 }
 
 func parseUnionDefinition(node *sitter.Node, source []byte) (ast.Statement, error) {
@@ -441,7 +449,9 @@ func parseUnionDefinition(node *sitter.Node, source []byte) (ast.Statement, erro
 		return nil, fmt.Errorf("parser: union definition requires variants")
 	}
 
-	return ast.NewUnionDefinition(name, variants, typeParams, nil, hasLeadingPrivate(node)), nil
+	union := ast.NewUnionDefinition(name, variants, typeParams, nil, hasLeadingPrivate(node))
+	annotateStatement(union, node)
+	return union, nil
 }
 
 func parseInterfaceDefinition(node *sitter.Node, source []byte) (ast.Statement, error) {
@@ -513,7 +523,9 @@ func parseInterfaceDefinition(node *sitter.Node, source []byte) (ast.Statement, 
 		baseInterfaces = append(baseInterfaces, bounds...)
 	}
 
-	return ast.NewInterfaceDefinition(name, signatures, typeParams, selfType, whereClause, baseInterfaces, hasLeadingPrivate(node)), nil
+	iface := ast.NewInterfaceDefinition(name, signatures, typeParams, selfType, whereClause, baseInterfaces, hasLeadingPrivate(node))
+	annotateStatement(iface, node)
+	return iface, nil
 }
 
 func parseFunctionSignature(node *sitter.Node, source []byte) (*ast.FunctionSignature, error) {
@@ -539,7 +551,9 @@ func parseFunctionSignature(node *sitter.Node, source []byte) (*ast.FunctionSign
 		return nil, err
 	}
 
-	return ast.NewFunctionSignature(name, params, returnType, generics, whereClause, nil), nil
+	signature := ast.NewFunctionSignature(name, params, returnType, generics, whereClause, nil)
+	annotateSpan(signature, node)
+	return signature, nil
 }
 
 func parsePreludeStatement(node *sitter.Node, source []byte) (ast.Statement, error) {
@@ -557,7 +571,9 @@ func parsePreludeStatement(node *sitter.Node, source []byte) (ast.Statement, err
 		return nil, err
 	}
 
-	return ast.NewPreludeStatement(target, code), nil
+	stmt := ast.NewPreludeStatement(target, code)
+	annotateStatement(stmt, node)
+	return stmt, nil
 }
 
 func parseExternFunction(node *sitter.Node, source []byte) (ast.Statement, error) {
@@ -596,7 +612,9 @@ func parseExternFunction(node *sitter.Node, source []byte) (ast.Statement, error
 		false,
 	)
 
-	return ast.NewExternFunctionBody(target, fn, body), nil
+	stmt := ast.NewExternFunctionBody(target, fn, body)
+	annotateStatement(stmt, node)
+	return stmt, nil
 }
 
 func parseHostTarget(node *sitter.Node, source []byte) (ast.HostTarget, error) {

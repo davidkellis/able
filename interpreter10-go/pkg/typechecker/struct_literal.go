@@ -143,16 +143,18 @@ func (c *Checker) checkStructLiteral(env *Environment, expr *ast.StructLiteral) 
 		expected := Type(UnknownType{})
 		if hasInfo {
 			if name != "" {
-				if t, ok := structInfo.Fields[name]; ok {
-					expected = t
-					if len(structSubst) > 0 {
-						expected = substituteType(expected, structSubst)
+				if len(structInfo.Fields) > 0 {
+					if t, ok := structInfo.Fields[name]; ok {
+						expected = t
+						if len(structSubst) > 0 {
+							expected = substituteType(expected, structSubst)
+						}
+					} else {
+						diags = append(diags, Diagnostic{
+							Message: fmt.Sprintf("typechecker: struct '%s' has no field '%s'", structInfo.StructName, name),
+							Node:    field,
+						})
 					}
-				} else {
-					diags = append(diags, Diagnostic{
-						Message: fmt.Sprintf("typechecker: struct '%s' has no field '%s'", structInfo.StructName, name),
-						Node:    field,
-					})
 				}
 			} else if idx < len(structInfo.Positional) {
 				expected = structInfo.Positional[idx]
@@ -186,6 +188,7 @@ func (c *Checker) checkStructLiteral(env *Environment, expr *ast.StructLiteral) 
 		StructName: structName,
 		Fields:     fields,
 		Positional: positional,
+		TypeArgs:   typeArgs,
 	}
 	c.infer.set(expr, instance)
 	return diags, instance

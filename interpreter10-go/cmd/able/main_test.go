@@ -983,6 +983,9 @@ fn main() -> void {
 	if !strings.Contains(stderr, "typechecker:") {
 		t.Fatalf("expected stderr to contain typechecker diagnostics, got %q", stderr)
 	}
+	if !strings.Contains(stderr, "package export summary") {
+		t.Fatalf("expected stderr to include package export summary, got %q", stderr)
+	}
 }
 
 func TestRunProgramTypecheckDetectsCrossPackageMismatch(t *testing.T) {
@@ -1027,18 +1030,23 @@ fn provide() -> i32 { 42 }
 		t.Fatalf("Load program: %v", err)
 	}
 
-	diags, err := interpreter.TypecheckProgram(program)
+	result, err := interpreter.TypecheckProgram(program)
 	if err != nil {
 		t.Fatalf("runProgramTypecheck returned error: %v", err)
 	}
-	if len(diags) == 0 {
+	if len(result.Diagnostics) == 0 {
 		t.Fatalf("expected diagnostics from cross-package mismatch, got none")
 	}
-	if !strings.HasPrefix(diags[0].Package, "root_app") {
-		t.Fatalf("expected diagnostic for root_app, got %s", diags[0].Package)
+	if !strings.HasPrefix(result.Diagnostics[0].Package, "root_app") {
+		t.Fatalf("expected diagnostic for root_app, got %s", result.Diagnostics[0].Package)
 	}
-	if want := "requires both operands"; !strings.Contains(diags[0].Diagnostic.Message, want) {
-		t.Fatalf("expected diagnostic containing %q, got %q", want, diags[0].Diagnostic.Message)
+	if want := "requires both operands"; !strings.Contains(result.Diagnostics[0].Diagnostic.Message, want) {
+		t.Fatalf("expected diagnostic containing %q, got %q", want, result.Diagnostics[0].Diagnostic.Message)
+	}
+	if summary, ok := result.Packages["dep"]; !ok {
+		t.Fatalf("expected summary for dep")
+	} else if summary.Functions == nil {
+		t.Fatalf("expected functions map in summary")
 	}
 }
 
@@ -1084,12 +1092,15 @@ fn provide() -> string { "ok" }
 		t.Fatalf("Load program: %v", err)
 	}
 
-	diags, err := interpreter.TypecheckProgram(program)
+	result, err := interpreter.TypecheckProgram(program)
 	if err != nil {
 		t.Fatalf("runProgramTypecheck returned error: %v", err)
 	}
-	if len(diags) != 0 {
-		t.Fatalf("expected no diagnostics, got %v", diags)
+	if len(result.Diagnostics) != 0 {
+		t.Fatalf("expected no diagnostics, got %v", result.Diagnostics)
+	}
+	if summary, ok := result.Packages["dep"]; !ok || summary.Functions == nil {
+		t.Fatalf("expected exported function summary for dep")
 	}
 }
 

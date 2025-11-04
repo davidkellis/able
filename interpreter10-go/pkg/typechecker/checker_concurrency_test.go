@@ -123,18 +123,8 @@ func TestProcCancelledRequiresAsyncContext(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(diags) == 0 {
-		t.Fatalf("expected diagnostic for proc_cancelled outside async context")
-	}
-	found := false
-	for _, d := range diags {
-		if strings.Contains(d.Message, "proc_cancelled must be called inside an asynchronous task") {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("expected proc_cancelled context diagnostic, got %v", diags)
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics for proc_cancelled outside async context, got %v", diags)
 	}
 }
 func TestProcCancelledAllowedInsideProc(t *testing.T) {

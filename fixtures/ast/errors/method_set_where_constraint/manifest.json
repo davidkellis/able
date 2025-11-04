@@ -1,0 +1,10 @@
+{
+  "description": "Method-set where clause rejects Self when required interface is missing",
+  "expect": {
+    "errors": [
+      "No field or method named 'show'",
+      "typechecker: methods for Wrapper::describe constraint on Self is not satisfied: Wrapper does not implement Display: methods for Wrapper: method 'show' not provided"
+    ]
+  },
+  "entry": "module.json"
+}

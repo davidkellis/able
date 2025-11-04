@@ -29,6 +29,10 @@ function normalizeModule(value: unknown): void {
   const record = value as Record<string, unknown>;
   for (const key of Object.keys(record)) {
     const entry = record[key];
+    if (key === "span" || key === "origin") {
+      delete record[key];
+      continue;
+    }
     if (key === "isShorthand" && entry === false) {
       delete record[key];
       continue;

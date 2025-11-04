@@ -843,7 +843,37 @@ func decodeNode(node map[string]any) (ast.Node, error) {
 			}
 			defs = append(defs, fn)
 		}
-		return ast.NewMethodsDefinition(targetType, defs, nil, nil), nil
+		var generics []*ast.GenericParameter
+		if gpRaw, ok := node["genericParams"].([]any); ok {
+			generics = make([]*ast.GenericParameter, 0, len(gpRaw))
+			for _, raw := range gpRaw {
+				gpNode, ok := raw.(map[string]any)
+				if !ok {
+					return nil, fmt.Errorf("invalid methods generic %T", raw)
+				}
+				gp, err := decodeGenericParameter(gpNode)
+				if err != nil {
+					return nil, err
+				}
+				generics = append(generics, gp)
+			}
+		}
+		var where []*ast.WhereClauseConstraint
+		if wcRaw, ok := node["whereClause"].([]any); ok {
+			where = make([]*ast.WhereClauseConstraint, 0, len(wcRaw))
+			for _, raw := range wcRaw {
+				wcNode, ok := raw.(map[string]any)
+				if !ok {
+					return nil, fmt.Errorf("invalid methods where clause %T", raw)
+				}
+				wc, err := decodeWhereClauseConstraint(wcNode)
+				if err != nil {
+					return nil, err
+				}
+				where = append(where, wc)
+			}
+		}
+		return ast.NewMethodsDefinition(targetType, defs, generics, where), nil
 	case "InterfaceDefinition":
 		idNode, err := decodeNode(node["id"].(map[string]any))
 		if err != nil {

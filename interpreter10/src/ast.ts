@@ -3,8 +3,20 @@
 // =============================================================================
 
 // Base node with discriminant
+export interface Position {
+  line: number;
+  column: number;
+}
+
+export interface Span {
+  start: Position;
+  end: Position;
+}
+
 export interface AstNode {
   type: string;
+  span?: Span;
+  origin?: string;
 }
 
 // -----------------------------------------------------------------------------

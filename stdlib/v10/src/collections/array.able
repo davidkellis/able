@@ -1,7 +1,8 @@
 package collections
 
-import able.core.interfaces{Default, Clone, Iterable, Iterator, Index, IndexMut}
-import able.core.errors{IndexError}
+import able.collections.enumerable.{Enumerable}
+import able.core.interfaces.{Default, Clone, Iterable, Iterator, Index, IndexMut}
+import able.core.errors.{IndexError}
 
 ## Opaque runtime-managed array storing contiguous elements of type T.
 struct Array T {
@@ -17,10 +18,81 @@ methods Array T {
   fn push(mut self: Self, value: T) -> void { ... }
   fn pop(mut self: Self) -> ?T { ... }
   fn clear(mut self: Self) -> void { ... }
+  fn read_slot(self: Self, idx: i32) -> T { ... }
+  fn write_slot(mut self: Self, idx: i32, value: T) -> void { ... }
 
   fn len(self: Self) -> i32 { self.length }
   fn capacity(self: Self) -> i32 { self.capacity }
   fn is_empty(self: Self) -> bool { self.length == 0 }
+
+  fn get(self: Self, idx: i32) -> ?T {
+    if idx < 0 || idx >= self.len() { return nil }
+    self.read_slot(idx)
+  }
+
+  fn set(mut self: Self, idx: i32, value: T) -> bool {
+    if idx < 0 || idx >= self.len() { return false }
+    self.write_slot(idx, value)
+    true
+  }
+
+  fn first(self: Self) -> ?T {
+    self.get(0)
+  }
+
+  fn last(self: Self) -> ?T {
+    count := self.len()
+    if count == 0 { return nil }
+    self.get(count - 1)
+  }
+
+  fn push_all(mut self: Self, values: Array T) -> void {
+    i := 0
+    loop {
+      if i >= values.len() { break }
+      match values.get(i) {
+        case nil => {},
+        case value: T => self.push(value)
+      }
+      i = i + 1
+    }
+  }
+
+  fn map U (self: Self, f: T -> U) -> Array U {
+    count := self.length
+    result: Array U := Array.with_capacity(count)
+    i := 0
+    loop {
+      if i >= count { break }
+      match self.get(i) {
+        case nil => {},
+        case item: T => result.push(f(item))
+      }
+      i = i + 1
+    }
+    result
+  }
+}
+
+methods Array T where T: Clone {
+  fn filter(self: Self, predicate: T -> bool) -> Array T {
+    count := self.length
+    result: Array T := Array.with_capacity(count)
+    i := 0
+    loop {
+      if i >= count { break }
+      match self.get(i) {
+        case nil => {},
+        case item: T => {
+          if predicate(item.clone()) {
+            result.push(item)
+          }
+        }
+      }
+      i = i + 1
+    }
+    result
+  }
 }
 
 impl Default for Array T {
@@ -36,9 +108,34 @@ impl Iterable T for Array T {
 }
 
 impl Index i32 T for Array T {
-  fn index(self: Self, idx: i32) -> T | IndexError { ... }
+  fn index(self: Self, idx: i32) -> T | IndexError {
+    if idx < 0 || idx >= self.len() {
+      IndexError { index: idx as i64, length: self.len() as i64 }
+    } else {
+      self.read_slot(idx)
+    }
+  }
 }
 
 impl IndexMut i32 T for Array T {
-  fn assign(mut self: Self, idx: i32, value: T) -> void | IndexError { ... }
+  fn assign(mut self: Self, idx: i32, value: T) -> void | IndexError {
+    if idx < 0 || idx >= self.len() {
+      IndexError { index: idx as i64, length: self.len() as i64 }
+    } else {
+      self.write_slot(idx, value)
+    }
+  }
+}
+
+impl Enumerable T for Array T where T: Clone {
+  fn each(self: Self, visit: T -> void) -> void {
+    len := self.len()
+    idx := 0
+    loop {
+      if idx >= len { break }
+      value := self.read_slot(idx)
+      visit(value)
+      idx = idx + 1
+    }
+  }
 }

@@ -90,9 +90,13 @@ func (p *ModuleParser) ParseModule(source []byte) (*ast.Module, error) {
 
 			switch kindNode.Kind() {
 			case "import":
-				imports = append(imports, ast.NewImportStatement(path, isWildcard, selectors, alias))
+				stmt := ast.NewImportStatement(path, isWildcard, selectors, alias)
+				annotateSpan(stmt, node)
+				imports = append(imports, stmt)
 			case "dynimport":
-				body = append(body, ast.NewDynImportStatement(path, isWildcard, selectors, alias))
+				dyn := ast.NewDynImportStatement(path, isWildcard, selectors, alias)
+				annotateSpan(dyn, node)
+				body = append(body, dyn)
 			default:
 				return nil, fmt.Errorf("parser: unsupported import kind %q", kindNode.Kind())
 			}
@@ -134,7 +138,9 @@ func (p *ModuleParser) ParseModule(source []byte) (*ast.Module, error) {
 		}
 	}
 
-	return ast.NewModule(body, imports, modulePackage), nil
+	module := ast.NewModule(body, imports, modulePackage)
+	annotateSpan(module, root)
+	return module, nil
 }
 
 func parsePackageStatement(node *sitter.Node, source []byte) (*ast.PackageStatement, error) {
@@ -158,7 +164,9 @@ func parsePackageStatement(node *sitter.Node, source []byte) (*ast.PackageStatem
 		return nil, fmt.Errorf("parser: empty package statement")
 	}
 
-	return ast.NewPackageStatement(parts, false), nil
+	stmt := ast.NewPackageStatement(parts, false)
+	annotateSpan(stmt, node)
+	return stmt, nil
 }
 
 func parseQualifiedIdentifier(node *sitter.Node, source []byte) ([]*ast.Identifier, error) {
@@ -255,5 +263,7 @@ func parseImportSelector(node *sitter.Node, source []byte) (*ast.ImportSelector,
 		}
 	}
 
-	return ast.NewImportSelector(name, alias), nil
+	selector := ast.NewImportSelector(name, alias)
+	annotateSpan(selector, node)
+	return selector, nil
 }
