@@ -19,8 +19,8 @@
         "type": "StructLiteral",
         "structType": { "type": "Identifier", "name": "Point" },
         "fields": [
-          { "type": "StructFieldInitializer", "name": { "type": "Identifier", "name": "x" }, "value": { "type": "IntegerLiteral", "value": 1 } },
-          { "type": "StructFieldInitializer", "name": { "type": "Identifier", "name": "y" }, "value": { "type": "IntegerLiteral", "value": 2 } }
+          { "type": "StructFieldInitializer", "name": { "type": "Identifier", "name": "x" }, "value": { "type": "IntegerLiteral", "value": 1 }, "isShorthand": false },
+          { "type": "StructFieldInitializer", "name": { "type": "Identifier", "name": "y" }, "value": { "type": "IntegerLiteral", "value": 2 }, "isShorthand": false }
         ],
         "isPositional": false
       }
@@ -33,7 +33,7 @@
         "type": "StructLiteral",
         "structType": { "type": "Identifier", "name": "Point" },
         "fields": [
-          { "type": "StructFieldInitializer", "name": { "type": "Identifier", "name": "x" }, "value": { "type": "IntegerLiteral", "value": 5 } }
+          { "type": "StructFieldInitializer", "name": { "type": "Identifier", "name": "x" }, "value": { "type": "IntegerLiteral", "value": 5 }, "isShorthand": false }
         ],
         "isPositional": false,
         "functionalUpdateSources": [

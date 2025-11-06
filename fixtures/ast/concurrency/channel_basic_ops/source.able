@@ -7,22 +7,22 @@ methods Channel {
     handle := __able_channel_new(capacity)
     return Channel { capacity: capacity, handle: handle }
   }
-  fn send(self: Channel, value) {
+  fn send(self, value) {
     __able_channel_send(self.handle, value)
   }
-  fn receive(self: Channel) {
+  fn receive(self) {
     return __able_channel_receive(self.handle)
   }
-  fn try_send(self: Channel, value) {
+  fn try_send(self, value) -> bool {
     return __able_channel_try_send(self.handle, value)
   }
-  fn try_receive(self: Channel) {
+  fn try_receive(self) {
     return __able_channel_try_receive(self.handle)
   }
-  fn close(self: Channel) {
+  fn close(self) {
     __able_channel_close(self.handle)
   }
-  fn is_closed(self: Channel) {
+  fn is_closed(self) -> bool {
     return __able_channel_is_closed(self.handle)
   }
 }

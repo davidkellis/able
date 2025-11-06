@@ -1,3 +1,29 @@
+interface Display
+{
+  fn to_string (self: Self) -> string
+}
+interface Clone
+{
+  fn clone (self: Self) -> Self
+}
+impl Display for string
+{
+  fn to_string(self: string) -> string {
+    self
+  }
+}
+impl Clone for string
+{
+  fn clone(self: string) -> string {
+    self
+  }
+}
+impl Display for i32
+{
+  fn to_string(self: i32) -> string {
+    "i32"
+  }
+}
 fn choose_first<T, U>(first: T, second: U) -> T where T: Display + Clone, U: Display {
   first
 }

@@ -47,6 +47,11 @@ type TestCliConfig = {
   updateSnapshots: boolean;
 };
 
+type ModuleDiagnosticEntry = {
+  packageName: string;
+  diagnostic: TypecheckerDiagnostic;
+};
+
 async function main() {
   const argv = process.argv.slice(2);
   if (argv.length === 0) {
@@ -211,10 +216,17 @@ function maybeTypecheckProgram(
   if (TYPECHECK_MODE === "off") {
     return true;
   }
-  const diagnostics: TypecheckerDiagnostic[] = [];
+  const diagnostics: ModuleDiagnosticEntry[] = [];
   for (const mod of modules) {
-    const { diagnostics: diags } = session.checkModule(mod.module);
-    diagnostics.push(...diags);
+    const result = session.checkModule(mod.module);
+    if (result.diagnostics.length === 0) {
+      continue;
+    }
+    const packageName =
+      result.summary?.name ?? mod.packageName ?? resolveModulePackageName(mod.module);
+    for (const diag of result.diagnostics) {
+      diagnostics.push({ packageName, diagnostic: diag });
+    }
   }
   if (diagnostics.length === 0) {
     return true;
@@ -457,9 +469,22 @@ function generateShuffleSeed(): number {
   return Number(now.toString().slice(-9));
 }
 
-function emitDiagnostics(diags: TypecheckerDiagnostic[]): void {
-  for (const diag of diags) {
-    console.error(formatTypecheckerDiagnostic(diag));
+function resolveModulePackageName(module: AST.Module | undefined | null): string {
+  const segments =
+    module?.package?.namePath
+      ?.map((identifier) => identifier?.name)
+      .filter((segment): segment is string => Boolean(segment)) ?? [];
+  if (segments.length === 0) {
+    return "<anonymous>";
+  }
+  return segments.join(".");
+}
+
+function emitDiagnostics(diags: ModuleDiagnosticEntry[]): void {
+  for (const entry of diags) {
+    console.error(
+      formatTypecheckerDiagnostic(entry.diagnostic, { packageName: entry.packageName }),
+    );
   }
 }
 

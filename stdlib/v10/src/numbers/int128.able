@@ -1,0 +1,217 @@
+package numbers
+
+import able.core.errors.{OverflowError, DivisionByZeroError}
+import able.core.interfaces.{Eq, Ord, Less, Greater, Equal, Display}
+import able.core.numeric.{
+  Numeric,
+  Signed,
+  NumericConversions,
+  NumericConversionError
+}
+import able.core.options.{Result}
+
+const INT128_LOW_MASK: i128 = 18446744073709551615_i128 ## 2^64 - 1
+const INT128_TWO_POW_64: i128 = 18446744073709551616_i128 ## 2^64
+const INT128_SIGN_MASK: u64 = 0x8000000000000000_u64
+
+fn int128_conversion_error(message: string) -> NumericConversionError {
+  NumericConversionError { message }
+}
+
+fn int128_from_i128(value: i128) -> Int128 {
+  low_part := value & INT128_LOW_MASK
+  ## Masking ensures the low part is always positive.
+  low_u64 := low_part as u64
+
+  high_part := value >> 64
+  if high_part < 0_i128 {
+    high_part = high_part + INT128_TWO_POW_64
+  }
+  high_u64 := high_part as u64
+
+  Int128 { high: high_u64, low: low_u64 }
+}
+
+fn int128_to_i128(value: Int128) -> i128 {
+  high := value.high as i128
+  if (value.high & INT128_SIGN_MASK) != 0_u64 {
+    high = high - INT128_TWO_POW_64
+  }
+  (high << 64) | (value.low as i128)
+}
+
+struct Int128 {
+  high: u64,
+  low: u64
+}
+
+methods Int128 {
+  fn zero() -> Int128 { Int128 { high: 0_u64, low: 0_u64 } }
+  fn one() -> Int128 { Int128 { high: 0_u64, low: 1_u64 } }
+
+  fn new(high: u64, low: u64) -> Int128 { Int128 { high, low } }
+
+  fn from_i64(value: i64) -> Int128 {
+    Int128.from_i128(value as i128)
+  }
+
+  fn from_u64(value: u64) -> Int128 {
+    Int128 { high: 0_u64, low: value }
+  }
+
+  fn from_i128(value: i128) -> Int128 {
+    int128_from_i128(value)
+  }
+
+  fn to_i128(self: Self) -> i128 { int128_to_i128(self) }
+
+  fn to_i64(self: Self) -> Result i64 {
+    min := -9223372036854775808_i128
+    max := 9223372036854775807_i128
+    value := self.to_i128()
+    if value < min || value > max {
+      int128_conversion_error("value is out of range for i64")
+    } else {
+      value as i64
+    }
+  }
+
+  fn to_u64(self: Self) -> Result u64 {
+    value := self.to_i128()
+    if value < 0_i128 || value > 18446744073709551615_i128 {
+      int128_conversion_error("value is out of range for u64")
+    } else {
+      value as u64
+    }
+  }
+
+  fn is_zero(self: Self) -> bool { self.high == 0_u64 && self.low == 0_u64 }
+  fn is_negative(self: Self) -> bool { (self.high & INT128_SIGN_MASK) != 0_u64 }
+  fn is_positive(self: Self) -> bool { !self.is_zero() && !self.is_negative() }
+
+  fn compare(self: Self, other: Int128) -> Ordering {
+    left := self.to_i128()
+    right := other.to_i128()
+    if left < right { Less }
+    else if left > right { Greater }
+    else { Equal }
+  }
+
+  fn add(self: Self, other: Int128) -> Int128 {
+    Int128.from_i128(self.to_i128() + other.to_i128())
+  }
+
+  fn sub(self: Self, other: Int128) -> Int128 {
+    Int128.from_i128(self.to_i128() - other.to_i128())
+  }
+
+  fn negate(self: Self) -> Int128 {
+    Int128.from_i128(-self.to_i128())
+  }
+
+  fn abs(self: Self) -> Int128 {
+    if self.is_negative() { self.negate() } else { self }
+  }
+
+  fn mul(self: Self, other: Int128) -> Int128 {
+    Int128.from_i128(self.to_i128() * other.to_i128())
+  }
+
+  fn div(self: Self, other: Int128) -> Int128 {
+    if other.is_zero() { raise DivisionByZeroError {} }
+    Int128.from_i128(self.to_i128() / other.to_i128())
+  }
+
+  fn rem(self: Self, other: Int128) -> Int128 {
+    if other.is_zero() { raise DivisionByZeroError {} }
+    Int128.from_i128(self.to_i128() % other.to_i128())
+  }
+
+  fn min(self: Self, other: Int128) -> Int128 {
+    if self.compare(other) == Greater { other } else { self }
+  }
+
+  fn max(self: Self, other: Int128) -> Int128 {
+    if self.compare(other) == Less { other } else { self }
+  }
+
+  fn clamp(self: Self, min_value: Int128, max_value: Int128) -> Int128 {
+    if min_value.compare(max_value) == Greater {
+      raise int128_conversion_error("Int128.clamp requires min <= max")
+    }
+    if self.compare(min_value) == Less { return min_value }
+    if self.compare(max_value) == Greater { return max_value }
+    self
+  }
+
+  fn to_string(self: Self) -> string { `${self.to_i128()}` }
+}
+
+## Trait implementations -----------------------------------------------------
+
+impl Display for Int128 {
+  fn to_string(self: Self) -> string { self.to_string() }
+}
+
+impl Eq Int128 for Int128 {
+  fn eq(self: Self, other: Int128) -> bool {
+    self.high == other.high && self.low == other.low
+  }
+}
+
+impl Ord Int128 for Int128 {
+  fn cmp(self: Self, other: Int128) -> Ordering {
+    self.compare(other)
+  }
+}
+
+impl Numeric for Int128 {
+  fn zero() -> Int128 { Int128.zero() }
+  fn one() -> Int128 { Int128.one() }
+  fn abs(self: Self) -> Int128 { self.abs() }
+  fn sign(self: Self) -> i32 {
+    if self.is_positive() { 1 }
+    else if self.is_negative() { -1 }
+    else { 0 }
+  }
+  fn min(self: Self, other: Int128) -> Int128 { self.min(other) }
+  fn max(self: Self, other: Int128) -> Int128 { self.max(other) }
+  fn clamp(self: Self, min_value: Int128, max_value: Int128) -> Int128 {
+    self.clamp(min_value, max_value)
+  }
+}
+
+impl Signed for Int128 {
+  fn is_positive(self: Self) -> bool { self.is_positive() }
+  fn is_negative(self: Self) -> bool { self.is_negative() }
+}
+
+impl NumericConversions for Int128 {
+  fn to_i32(self: Self) -> Result i32 {
+    min := -2147483648_i128
+    max := 2147483647_i128
+    value := self.to_i128()
+    if value < min || value > max {
+      int128_conversion_error("value is out of range for i32")
+    } else {
+      value as i32
+    }
+  }
+
+  fn to_u32(self: Self) -> Result u32 {
+    value := self.to_i128()
+    if value < 0_i128 || value > 4294967295_i128 {
+      int128_conversion_error("value is out of range for u32")
+    } else {
+      value as u32
+    }
+  }
+
+  fn to_i64(self: Self) -> Result i64 { self.to_i64() }
+
+  fn to_u64(self: Self) -> Result u64 { self.to_u64() }
+
+  fn to_f64(self: Self) -> Result f64 {
+    self.to_i128() as f64
+  }
+}

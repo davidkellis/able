@@ -3,7 +3,7 @@ struct Point {
   y: i32
 }
 methods Point {
-  fn to_string(self: Point) {
+  fn to_string(self) {
     return `Point(${self.x},${self.y})`
   }
 }

@@ -53,6 +53,13 @@
           }
         ]
       },
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "bool"
+        }
+      },
       "isMethodShorthand": false,
       "isPrivate": false
     },
@@ -168,6 +175,13 @@
             }
           }
         ]
+      },
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "bool"
+        }
       },
       "isMethodShorthand": false,
       "isPrivate": false

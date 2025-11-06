@@ -1,7 +1,7 @@
 # Parser & AST Coverage Checklist (Able v10)
 
 ## Purpose
-- Track every surface feature defined in `spec/full_spec_v10.md` and confirm that:
+- Track every surface feature defined in [`spec/full_spec_v10.md`](../spec/full_spec_v10.md) and confirm that:
   - the parser produces the correct concrete syntax tree and canonical AST, and
   - the shared AST fixture suite exercises the feature (both interpreters consume these fixtures).
 - Serve as the canonical backlog for parser/AST gaps until every item is verified by dedicated tests/fixtures.

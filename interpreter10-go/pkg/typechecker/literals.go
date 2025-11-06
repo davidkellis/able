@@ -41,11 +41,9 @@ func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diag
 		c.infer.set(e, typ)
 		return nil, typ
 	case *ast.IteratorLiteral:
-		// Iterator literals introduce a generator scope at runtime. The checker
-		// currently treats them as opaque expressions and does not attempt to
-		// infer the yielded element type.
-		c.infer.set(e, UnknownType{})
-		return nil, UnknownType{}
+		diags, iteratorType := c.checkIteratorLiteral(env, e)
+		c.infer.set(e, iteratorType)
+		return diags, iteratorType
 	case *ast.ImplicitMemberExpression:
 		// Placeholder-based member access (e.g., within pipe shorthand). Without
 		// full context we treat it as unknown.
@@ -327,4 +325,71 @@ func (c *Checker) checkStatement(env *Environment, stmt ast.Statement) []Diagnos
 	default:
 		return []Diagnostic{{Message: fmt.Sprintf("typechecker: unsupported statement %T", stmt), Node: stmt}}
 	}
+}
+
+func (c *Checker) checkIteratorLiteral(env *Environment, lit *ast.IteratorLiteral) ([]Diagnostic, Type) {
+	if lit == nil {
+		return nil, IteratorType{Element: UnknownType{}}
+	}
+	var expected Type = UnknownType{}
+	if lit.ElementType != nil {
+		expected = c.resolveTypeReference(lit.ElementType)
+		if expected == nil {
+			expected = UnknownType{}
+		}
+	}
+	bodyEnv := env
+	if bodyEnv == nil {
+		bodyEnv = c.global.Extend()
+	} else {
+		bodyEnv = env.Extend()
+	}
+	if lit.Binding != nil && lit.Binding.Name != "" {
+		bodyEnv.Define(lit.Binding.Name, UnknownType{})
+	}
+	var diags []Diagnostic
+	for _, stmt := range lit.Body {
+		if stmt == nil {
+			continue
+		}
+		if yieldStmt, ok := stmt.(*ast.YieldStatement); ok {
+			diags = append(diags, c.checkIteratorYield(bodyEnv, yieldStmt, expected)...)
+			continue
+		}
+		diags = append(diags, c.checkStatement(bodyEnv, stmt)...)
+	}
+	return diags, IteratorType{Element: expected}
+}
+
+func (c *Checker) checkIteratorYield(env *Environment, stmt *ast.YieldStatement, expected Type) []Diagnostic {
+	var diags []Diagnostic
+	valueType := Type(PrimitiveType{Kind: PrimitiveNil})
+	if stmt.Expression != nil {
+		exprDiags, exprType := c.checkExpression(env, stmt.Expression)
+		diags = append(diags, exprDiags...)
+		if exprType != nil {
+			valueType = exprType
+		} else {
+			valueType = UnknownType{}
+		}
+	}
+	if expected == nil || isUnknownType(expected) {
+		return diags
+	}
+	if typeAssignable(valueType, expected) {
+		return diags
+	}
+	actual := typeName(valueType)
+	if actual == "" {
+		actual = "unknown"
+	}
+	diags = append(diags, Diagnostic{
+		Message: fmt.Sprintf(
+			"typechecker: iterator annotation expects elements of type %s, got %s",
+			typeName(expected),
+			actual,
+		),
+		Node: stmt,
+	})
+	return diags
 }

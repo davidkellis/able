@@ -1,0 +1,103 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "sum"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 0
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "iter"
+      },
+      "right": {
+        "type": "IteratorLiteral",
+        "body": [
+          {
+            "type": "FunctionCall",
+            "callee": {
+              "type": "MemberAccessExpression",
+              "object": {
+                "type": "Identifier",
+                "name": "driver"
+              },
+              "member": {
+                "type": "Identifier",
+                "name": "yield"
+              }
+            },
+            "arguments": [
+              {
+                "type": "IntegerLiteral",
+                "value": 2
+              }
+            ],
+            "isTrailingLambda": false
+          }
+        ],
+        "binding": {
+          "type": "Identifier",
+          "name": "driver"
+        },
+        "elementType": {
+          "type": "SimpleTypeExpression",
+          "name": {
+            "type": "Identifier",
+            "name": "i32"
+          }
+        }
+      }
+    },
+    {
+      "type": "ForLoop",
+      "pattern": {
+        "type": "Identifier",
+        "name": "value"
+      },
+      "iterable": {
+        "type": "Identifier",
+        "name": "iter"
+      },
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "AssignmentExpression",
+            "operator": "=",
+            "left": {
+              "type": "Identifier",
+              "name": "sum"
+            },
+            "right": {
+              "type": "BinaryExpression",
+              "operator": "+",
+              "left": {
+                "type": "Identifier",
+                "name": "sum"
+              },
+              "right": {
+                "type": "Identifier",
+                "name": "value"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Identifier",
+      "name": "sum"
+    }
+  ]
+}

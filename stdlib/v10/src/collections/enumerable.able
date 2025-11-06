@@ -90,4 +90,43 @@ interface Enumerable T for E {
   fn is_empty(self: Self) -> bool {
     self.first() == nil
   }
+
+  fn take(self: Self, count: i32) -> Array T {
+    result: Array T := Array.new()
+    if count <= 0 { return result }
+    remaining := count
+    self.each(fn(value: T) {
+      if remaining > 0 {
+        result.push(value)
+        remaining = remaining - 1
+      }
+    })
+    result
+  }
+
+  fn drop(self: Self, count: i32) -> Array T {
+    result: Array T := Array.new()
+    if count <= 0 {
+      return self.to_array()
+    }
+    skipped := 0
+    self.each(fn(value: T) {
+      if skipped < count {
+        skipped = skipped + 1
+      } else {
+        result.push(value)
+      }
+    })
+    result
+  }
+
+  fn zip_with_index(self: Self) -> Array (T, i32) {
+    result: Array (T, i32) := Array.new()
+    idx := 0
+    self.each(fn(value: T) {
+      result.push((value, idx))
+      idx = idx + 1
+    })
+    result
+  }
 }

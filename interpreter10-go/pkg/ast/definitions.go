@@ -106,6 +106,9 @@ type FunctionDefinition struct {
 }
 
 func NewFunctionDefinition(id *Identifier, params []*FunctionParameter, body *BlockExpression, returnType TypeExpression, generics []*GenericParameter, whereClause []*WhereClauseConstraint, isMethodShorthand, isPrivate bool) *FunctionDefinition {
+	if params == nil {
+		params = make([]*FunctionParameter, 0)
+	}
 	return &FunctionDefinition{nodeImpl: newNodeImpl(NodeFunctionDefinition), ID: id, Params: params, Body: body, ReturnType: returnType, GenericParams: generics, WhereClause: whereClause, IsMethodShorthand: isMethodShorthand, IsPrivate: isPrivate}
 }
 
@@ -121,6 +124,9 @@ type FunctionSignature struct {
 }
 
 func NewFunctionSignature(name *Identifier, params []*FunctionParameter, returnType TypeExpression, generics []*GenericParameter, whereClause []*WhereClauseConstraint, defaultImpl *BlockExpression) *FunctionSignature {
+	if params == nil {
+		params = make([]*FunctionParameter, 0)
+	}
 	return &FunctionSignature{nodeImpl: newNodeImpl(NodeFunctionSignature), Name: name, Params: params, ReturnType: returnType, GenericParams: generics, WhereClause: whereClause, DefaultImpl: defaultImpl}
 }
 

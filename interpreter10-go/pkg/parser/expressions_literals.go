@@ -11,8 +11,8 @@ import (
 	"able/interpreter10-go/pkg/ast"
 )
 
-func parseNumberLiteral(node *sitter.Node, source []byte) (ast.Expression, error) {
-	content := sliceContent(node, source)
+func (ctx *parseContext) parseNumberLiteral(node *sitter.Node) (ast.Expression, error) {
+	content := sliceContent(node, ctx.source)
 	if content == "" {
 		return nil, fmt.Errorf("parser: empty number literal")
 	}
@@ -121,8 +121,8 @@ func isNumericSuffix(s string) bool {
 	}
 }
 
-func parseStringLiteral(node *sitter.Node, source []byte) (ast.Expression, error) {
-	raw := sliceContent(node, source)
+func (ctx *parseContext) parseStringLiteral(node *sitter.Node) (ast.Expression, error) {
+	raw := sliceContent(node, ctx.source)
 	unquoted, err := strconv.Unquote(raw)
 	if err != nil {
 		return nil, fmt.Errorf("parser: invalid string literal %q: %w", raw, err)
@@ -130,8 +130,8 @@ func parseStringLiteral(node *sitter.Node, source []byte) (ast.Expression, error
 	return annotateExpression(ast.Str(unquoted), node), nil
 }
 
-func parseCharLiteral(node *sitter.Node, source []byte) (ast.Expression, error) {
-	raw := sliceContent(node, source)
+func (ctx *parseContext) parseCharLiteral(node *sitter.Node) (ast.Expression, error) {
+	raw := sliceContent(node, ctx.source)
 	unquoted, err := strconv.Unquote(raw)
 	if err != nil {
 		return nil, fmt.Errorf("parser: invalid character literal %q: %w", raw, err)

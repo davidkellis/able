@@ -1,6 +1,7 @@
 package typechecker
 
 import (
+	"strings"
 	"testing"
 
 	"able/interpreter10-go/pkg/ast"
@@ -195,8 +196,11 @@ func TestCheckerPrivateSymbolsNotImported(t *testing.T) {
 	if err != nil {
 		t.Fatalf("main CheckModule error: %v", err)
 	}
-	if len(diags) != 0 {
-		t.Fatalf("expected no diagnostics for missing private symbol access, got %v", diags)
+	if len(diags) != 1 {
+		t.Fatalf("expected diagnostic for private symbol access, got %v", diags)
+	}
+	if !strings.Contains(diags[0].Message, "package 'dep' has no symbol 'secret'") {
+		t.Fatalf("unexpected diagnostic message: %v", diags)
 	}
 }
 

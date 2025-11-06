@@ -51,6 +51,25 @@ describe("TypeChecker package summary", () => {
     const summaries = session.getPackageSummaries();
     expect([...summaries.keys()]).toContain("demo.pkg");
   });
+
+  test("private packages record summary but remain private", () => {
+    const moduleAst = AST.module(
+      [
+        AST.functionDefinition(
+          "hidden",
+          [],
+          AST.blockExpression([AST.returnStatement()]),
+          AST.simpleTypeExpression("void"),
+        ),
+      ],
+      [],
+      AST.packageStatement(["secret"], true),
+    );
+    const checker = new TypeChecker();
+    const { summary } = checker.checkModule(moduleAst);
+    expect(summary).not.toBeNull();
+    expect(summary?.visibility).toBe("private");
+  });
 });
 
 function buildSampleModule(): AST.Module {

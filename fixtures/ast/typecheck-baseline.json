@@ -44,7 +44,7 @@
     "typechecker: fixtures/ast/errors/logic_operand_type/source.able:1:11 typechecker: '&&' left operand must be bool (got string)"
   ],
   "errors/method_set_where_constraint": [
-    "typechecker: fixtures/ast/errors/method_set_where_constraint/source.able:16:9 typechecker: methods for Wrapper::describe constraint on Self is not satisfied: Wrapper does not implement Display"
+    "typechecker: fixtures/ast/errors/method_set_where_constraint/source.able:16:9 typechecker: methods for Wrapper::describe constraint on Self is not satisfied: Wrapper does not implement Display: methods for Wrapper: method 'show' not provided"
   ],
   "errors/or_else_handler": [],
   "errors/raise_manifest": [],

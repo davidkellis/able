@@ -1,0 +1,254 @@
+package numbers
+
+import able.core.errors.{OverflowError, DivisionByZeroError}
+import able.core.interfaces.{Eq, Ord, Less, Greater, Equal, Display}
+import able.core.numeric.{
+  Numeric,
+  Unsigned,
+  NumericConversions,
+  NumericConversionError
+}
+import able.core.options.{Result}
+
+const UINT64_MASK = 18446744073709551615_u128 ## 2^64 - 1
+const UINT128_MAX = 340282366920938463463374607431768211455_u128 ## 2^128 - 1
+
+fn uint128_conversion_error(message: string) -> NumericConversionError {
+  NumericConversionError { message }
+}
+
+fn uint128_from_u128(value: u128) -> UInt128 {
+  UInt128 {
+    high: (value >> 64) as u64,
+    low: (value & UINT64_MASK) as u64
+  }
+}
+
+fn uint128_to_u128(value: UInt128) -> u128 {
+  ((value.high as u128) << 64) | (value.low as u128)
+}
+
+fn uint128_check_overflow(sum: u128, lhs: u128, rhs: u128, operation: string) -> void {
+  if sum < lhs || sum < rhs {
+    raise OverflowError { operation }
+  }
+}
+
+fn uint128_clz_u64(value: u64) -> i32 {
+  if value == 0_u64 { return 64 }
+  count := 0
+  mut current := value
+  loop {
+    if (current & 0x8000000000000000_u64) != 0_u64 { break }
+    current = current << 1_u64
+    count = count + 1
+  }
+  count
+}
+
+fn uint128_ctz_u64(value: u64) -> i32 {
+  if value == 0_u64 { return 64 }
+  count := 0
+  mut current := value
+  loop {
+    if (current & 1_u64) != 0_u64 { break }
+    current = current >> 1_u64
+    count = count + 1
+  }
+  count
+}
+
+struct UInt128 {
+  high: u64,
+  low: u64
+}
+
+methods UInt128 {
+  fn zero() -> UInt128 { UInt128 { high: 0_u64, low: 0_u64 } }
+  fn one() -> UInt128 { UInt128 { high: 0_u64, low: 1_u64 } }
+
+  fn new(high: u64, low: u64) -> UInt128 { UInt128 { high, low } }
+
+  fn from_u64(value: u64) -> UInt128 {
+    UInt128 { high: 0_u64, low: value }
+  }
+
+  fn from_i64(value: i64) -> UInt128 {
+    if value < 0 { raise uint128_conversion_error("cannot construct UInt128 from negative i64") }
+    UInt128 { high: 0_u64, low: value as u64 }
+  }
+
+  fn from_u128(value: u128) -> UInt128 {
+    uint128_from_u128(value)
+  }
+
+  fn to_u128(self: Self) -> u128 { uint128_to_u128(self) }
+
+  fn to_u64(self: Self) -> Result u64 {
+    if self.high != 0_u64 {
+      uint128_conversion_error("value is out of range for u64")
+    } else {
+      self.low
+    }
+  }
+
+  fn to_i64(self: Self) -> Result i64 {
+    value := self.to_u128()
+    max := 9223372036854775807_u128
+    if value > max {
+      uint128_conversion_error("value is out of range for i64")
+    } else {
+      value as i64
+    }
+  }
+
+  fn to_i32(self: Self) -> Result i32 {
+    value := self.to_u128()
+    max := 2147483647_u128
+    if value > max {
+      uint128_conversion_error("value is out of range for i32")
+    } else {
+      value as i32
+    }
+  }
+
+  fn to_u32(self: Self) -> Result u32 {
+    if self.high != 0_u64 || self.low > 4294967295_u64 {
+      uint128_conversion_error("value is out of range for u32")
+    } else {
+      self.low as u32
+    }
+  }
+
+  fn to_f64(self: Self) -> Result f64 { self.to_u128() as f64 }
+
+  fn is_zero(self: Self) -> bool { self.high == 0_u64 && self.low == 0_u64 }
+
+  fn is_positive(self: Self) -> bool { !self.is_zero() }
+
+  fn add(self: Self, other: UInt128) -> UInt128 {
+    lhs := self.to_u128()
+    rhs := other.to_u128()
+    sum := lhs + rhs
+    uint128_check_overflow(sum, lhs, rhs, "UInt128.add overflow")
+    uint128_from_u128(sum)
+  }
+
+  fn sub(self: Self, other: UInt128) -> UInt128 {
+    lhs := self.to_u128()
+    rhs := other.to_u128()
+    if lhs < rhs {
+      raise OverflowError { operation: "UInt128.sub underflow" }
+    }
+    uint128_from_u128(lhs - rhs)
+  }
+
+  fn mul(self: Self, other: UInt128) -> UInt128 {
+    lhs := self.to_u128()
+    rhs := other.to_u128()
+    product := lhs * rhs
+    if rhs != 0_u128 && product / rhs != lhs {
+      raise OverflowError { operation: "UInt128.mul overflow" }
+    }
+    uint128_from_u128(product)
+  }
+
+  fn div(self: Self, other: UInt128) -> UInt128 {
+    if other.is_zero() { raise DivisionByZeroError {} }
+    uint128_from_u128(self.to_u128() / other.to_u128())
+  }
+
+  fn rem(self: Self, other: UInt128) -> UInt128 {
+    if other.is_zero() { raise DivisionByZeroError {} }
+    uint128_from_u128(self.to_u128() % other.to_u128())
+  }
+
+  fn min(self: Self, other: UInt128) -> UInt128 {
+    if self.compare(other) == Greater { other } else { self }
+  }
+
+  fn max(self: Self, other: UInt128) -> UInt128 {
+    if self.compare(other) == Less { other } else { self }
+  }
+
+  fn clamp(self: Self, min_value: UInt128, max_value: UInt128) -> UInt128 {
+    if min_value.compare(max_value) == Greater {
+      raise uint128_conversion_error("UInt128.clamp requires min <= max")
+    }
+    if self.compare(min_value) == Less { return min_value }
+    if self.compare(max_value) == Greater { return max_value }
+    self
+  }
+
+  fn compare(self: Self, other: UInt128) -> Ordering {
+    lhs := self.high
+    rhs := other.high
+    if lhs < rhs { return Less }
+    if lhs > rhs { return Greater }
+    if self.low < other.low { Less }
+    else if self.low > other.low { Greater }
+    else { Equal }
+  }
+
+  fn leading_zeros(self: Self) -> i32 {
+    if self.high != 0_u64 { uint128_clz_u64(self.high) }
+    else { 64 + uint128_clz_u64(self.low) }
+  }
+
+  fn trailing_zeros(self: Self) -> i32 {
+    if self.low != 0_u64 { uint128_ctz_u64(self.low) }
+    else if self.high != 0_u64 { 64 + uint128_ctz_u64(self.high) }
+    else { 128 }
+  }
+
+  fn to_string(self: Self) -> string { `${self.to_u128()}` }
+}
+
+## Trait implementations -----------------------------------------------------
+
+impl Display for UInt128 {
+  fn to_string(self: Self) -> string { self.to_string() }
+}
+
+impl Eq UInt128 for UInt128 {
+  fn eq(self: Self, other: UInt128) -> bool {
+    self.high == other.high && self.low == other.low
+  }
+}
+
+impl Ord UInt128 for UInt128 {
+  fn cmp(self: Self, other: UInt128) -> Ordering {
+    self.compare(other)
+  }
+}
+
+impl Numeric for UInt128 {
+  fn zero() -> UInt128 { UInt128.zero() }
+  fn one() -> UInt128 { UInt128.one() }
+  fn abs(self: Self) -> UInt128 { self }
+  fn sign(self: Self) -> i32 {
+    if self.is_zero() { 0 } else { 1 }
+  }
+  fn min(self: Self, other: UInt128) -> UInt128 { self.min(other) }
+  fn max(self: Self, other: UInt128) -> UInt128 { self.max(other) }
+  fn clamp(self: Self, min_value: UInt128, max_value: UInt128) -> UInt128 {
+    self.clamp(min_value, max_value)
+  }
+}
+
+impl Unsigned for UInt128 {
+  fn leading_zeros(self: Self) -> i32 { self.leading_zeros() }
+  fn trailing_zeros(self: Self) -> i32 { self.trailing_zeros() }
+}
+
+impl NumericConversions for UInt128 {
+  fn to_i32(self: Self) -> Result i32 { self.to_i32() }
+
+  fn to_u32(self: Self) -> Result u32 { self.to_u32() }
+
+  fn to_i64(self: Self) -> Result i64 { self.to_i64() }
+
+  fn to_u64(self: Self) -> Result u64 { self.to_u64() }
+
+  fn to_f64(self: Self) -> Result f64 { self.to_f64() }
+}

@@ -344,7 +344,7 @@ func TestWhileConditionMustBeBool(t *testing.T) {
 		t.Fatalf("expected message %q, got %q", want, diags[0].Message)
 	}
 }
-func TestForLoopIterableMustBeArrayOrRange(t *testing.T) {
+func TestForLoopIterableMustBeArrayRangeOrIterator(t *testing.T) {
 	checker := New()
 	loop := ast.ForIn(ast.ID("value"), ast.Int(5))
 	module := ast.NewModule([]ast.Statement{loop}, nil, nil)
@@ -354,7 +354,7 @@ func TestForLoopIterableMustBeArrayOrRange(t *testing.T) {
 	}
 	found := false
 	for _, d := range diags {
-		if strings.Contains(d.Message, "for-loop iterable must be array or range") {
+		if strings.Contains(d.Message, "for-loop iterable must be array, range, or iterator") {
 			found = true
 			break
 		}
