@@ -197,7 +197,10 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 				return diags, symbolType
 			}
 		}
-		// Unknown package member; defer to runtime behaviour.
+		diags = append(diags, Diagnostic{
+			Message: fmt.Sprintf("typechecker: package '%s' has no symbol '%s'", ty.Package, memberName),
+			Node:    expr,
+		})
 	case UnknownType:
 		c.infer.set(expr, UnknownType{})
 		return diags, UnknownType{}

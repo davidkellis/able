@@ -65,6 +65,8 @@ func formatType(t Type) string {
 		return formatType(val.Inner) + "?"
 	case RangeType:
 		return strings.TrimSpace("Range " + formatType(val.Element))
+	case IteratorType:
+		return strings.TrimSpace("Iterator " + formatType(val.Element))
 	case ProcType:
 		return strings.TrimSpace("Proc " + formatType(val.Result))
 	case FutureType:
@@ -235,6 +237,11 @@ func typeAssignable(from, to Type) bool {
 			return typeAssignable(rng.Element, target.Element)
 		}
 		return false
+	case IteratorType:
+		if iter, ok := from.(IteratorType); ok {
+			return typeAssignable(iter.Element, target.Element)
+		}
+		return false
 	case NullableType:
 		if nullable, ok := from.(NullableType); ok {
 			return typeAssignable(nullable.Inner, target.Inner)
@@ -279,6 +286,10 @@ func typeAssignable(from, to Type) bool {
 	case RangeType:
 		if rng, ok := to.(RangeType); ok {
 			return typeAssignable(source.Element, rng.Element)
+		}
+	case IteratorType:
+		if iter, ok := to.(IteratorType); ok {
+			return typeAssignable(source.Element, iter.Element)
 		}
 	case NullableType:
 		return typeAssignable(source.Inner, to)
@@ -472,6 +483,10 @@ func sameType(a, b Type) bool {
 		if bv, ok := b.(RangeType); ok {
 			return sameType(av.Element, bv.Element)
 		}
+	case IteratorType:
+		if bv, ok := b.(IteratorType); ok {
+			return sameType(av.Element, bv.Element)
+		}
 	case NullableType:
 		if bv, ok := b.(NullableType); ok {
 			return sameType(av.Inner, bv.Inner)
@@ -510,6 +525,12 @@ func iterableElementType(t Type) (Type, bool) {
 			return UnknownType{}, true
 		}
 		return rng.Element, true
+	}
+	if iter, ok := t.(IteratorType); ok {
+		if iter.Element == nil || isUnknownType(iter.Element) {
+			return UnknownType{}, true
+		}
+		return iter.Element, true
 	}
 	return UnknownType{}, false
 }

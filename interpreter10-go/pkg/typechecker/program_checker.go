@@ -118,6 +118,7 @@ type ExportedMethodSetSummary struct {
 // PackageSummary captures the public API surface exported by a package.
 type PackageSummary struct {
 	Name            string                              `json:"name"`
+	Visibility      string                              `json:"visibility"`
 	Symbols         map[string]ExportedSymbolSummary    `json:"symbols"`
 	Structs         map[string]ExportedStructSummary    `json:"structs"`
 	Interfaces      map[string]ExportedInterfaceSummary `json:"interfaces"`
@@ -134,6 +135,7 @@ type CheckResult struct {
 
 type packageExports struct {
 	name       string
+	visibility string
 	symbols    map[string]Type
 	impls      []ImplementationSpec
 	methodSets []MethodSetSpec
@@ -356,12 +358,16 @@ func (pc *ProgramChecker) clonePackageSummaries() map[string]PackageSummary {
 
 		summary := PackageSummary{
 			Name:            name,
+			Visibility:      rec.visibility,
 			Symbols:         symbols,
 			Structs:         structs,
 			Interfaces:      interfaces,
 			Functions:       functions,
 			Implementations: impls,
 			MethodSets:      methodSets,
+		}
+		if summary.Visibility == "" {
+			summary.Visibility = "public"
 		}
 		if summary.Symbols == nil {
 			summary.Symbols = map[string]ExportedSymbolSummary{}
@@ -488,8 +494,13 @@ func (pc *ProgramChecker) captureExports(mod *driver.Module, checker *Checker) {
 	if mod == nil {
 		return
 	}
+	visibility := "public"
+	if mod.AST != nil && mod.AST.Package != nil && mod.AST.Package.IsPrivate {
+		visibility = "private"
+	}
 	export := &packageExports{
 		name:       mod.Package,
+		visibility: visibility,
 		symbols:    make(map[string]Type),
 		structs:    make(map[string]StructType),
 		interfaces: make(map[string]InterfaceType),

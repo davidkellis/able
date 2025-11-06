@@ -69,4 +69,22 @@ describe("Enumerable helpers") { suite =>
     expect(filled.first()).to(eq(42))
     expect(filled.is_empty()).to(be_false())
   }
+
+  suite.it("supports take/drop") { _ctx =>
+    values: Array i32 := Array.new()
+    values.push(1)
+    values.push(2)
+    values.push(3)
+    expect(values.take(2).len()).to(eq(2))
+    expect(values.drop(2).len()).to(eq(1))
+  }
+
+  suite.it("zips with index") { _ctx =>
+    values: Array string := Array.new()
+    values.push("a")
+    values.push("b")
+    zipped := values.zip_with_index()
+    expect(zipped.get(0)).to(eq(("a", 0)))
+    expect(zipped.get(1)).to(eq(("b", 1)))
+  }
 }

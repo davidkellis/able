@@ -18,6 +18,13 @@ const cliToolVersion = "able-cli 0.0.0-dev"
 
 var errManifestNotFound = errors.New("package.yml not found")
 
+type executionMode int
+
+const (
+	modeRun executionMode = iota
+	modeCheck
+)
+
 func main() {
 	os.Exit(run(os.Args[1:]))
 }
@@ -37,6 +44,8 @@ func run(args []string) int {
 		return 0
 	case "run":
 		return runEntry(args[1:])
+	case "check":
+		return runCheck(args[1:])
 	case "deps":
 		return runDeps(args[1:])
 	default:
@@ -45,6 +54,14 @@ func run(args []string) int {
 }
 
 func runEntry(args []string) int {
+	return runEntryWithMode(args, modeRun)
+}
+
+func runCheck(args []string) int {
+	return runEntryWithMode(args, modeCheck)
+}
+
+func runEntryWithMode(args []string, mode executionMode) int {
 	var manifest *driver.Manifest
 	var manifestErr error
 
@@ -67,7 +84,7 @@ func runEntry(args []string) int {
 
 	if len(args) == 0 {
 		if manifest == nil {
-			fmt.Fprintln(os.Stderr, "able run requires a manifest target or source file (package.yml not found)")
+			fmt.Fprintf(os.Stderr, "%s requires a manifest target or source file (package.yml not found)\n", modeCommandLabel(mode))
 			return 1
 		}
 		lock, err := loadLockfileForManifest(manifest)
@@ -85,7 +102,7 @@ func runEntry(args []string) int {
 			fmt.Fprintf(os.Stderr, "failed to resolve target entrypoint: %v\n", err)
 			return 1
 		}
-		return executeEntry(entryPath, manifest, lock)
+		return executeEntry(entryPath, manifest, lock, mode)
 	}
 
 	if len(args) > 1 {
@@ -107,7 +124,7 @@ func runEntry(args []string) int {
 				fmt.Fprintf(os.Stderr, "%v\n", err)
 				return 1
 			}
-			return executeEntry(entryPath, manifest, lock)
+			return executeEntry(entryPath, manifest, lock, mode)
 		}
 	}
 
@@ -134,13 +151,13 @@ func runEntry(args []string) int {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		return 1
 	}
-	return executeEntry(candidate, activeManifest, lock)
+	return executeEntry(candidate, activeManifest, lock, mode)
 }
 
-func executeEntry(entry string, manifest *driver.Manifest, lock *driver.Lockfile) int {
+func executeEntry(entry string, manifest *driver.Manifest, lock *driver.Lockfile, mode executionMode) int {
 	entry = strings.TrimSpace(entry)
 	if entry == "" {
-		fmt.Fprintln(os.Stderr, "able run requires a source file")
+		fmt.Fprintf(os.Stderr, "%s requires a source file\n", modeCommandLabel(mode))
 		return 1
 	}
 
@@ -164,6 +181,19 @@ func executeEntry(entry string, manifest *driver.Manifest, lock *driver.Lockfile
 		return 1
 	}
 
+	if mode == modeCheck {
+		result, err := interpreter.TypecheckProgram(program)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "typecheck error: %v\n", err)
+			return 1
+		}
+		if reportTypecheckDiagnostics(result) {
+			return 1
+		}
+		fmt.Fprintln(os.Stdout, "typecheck: ok")
+		return 0
+	}
+
 	interp := interpreter.New()
 	registerPrint(interp)
 
@@ -172,11 +202,7 @@ func executeEntry(entry string, manifest *driver.Manifest, lock *driver.Lockfile
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		return 1
 	}
-	if len(check.Diagnostics) > 0 {
-		for _, diag := range check.Diagnostics {
-			fmt.Fprintln(os.Stderr, interpreter.DescribeModuleDiagnostic(diag))
-		}
-		printPackageSummaries(os.Stderr, check.Packages)
+	if reportTypecheckDiagnostics(check) {
 		return 1
 	}
 
@@ -205,13 +231,17 @@ func printPackageSummaries(w io.Writer, summaries map[string]interpreter.Package
 	fmt.Fprintln(w, "---- package export summary ----")
 	for _, name := range keys {
 		summary := summaries[name]
+		label := name
+		if summary.Visibility == "private" {
+			label = fmt.Sprintf("%s (private)", name)
+		}
 		structs := formatSummaryList(summary.Structs)
 		interfaces := formatSummaryList(summary.Interfaces)
 		functions := formatSummaryList(summary.Functions)
 		fmt.Fprintf(
 			w,
 			"package %s exports: structs=%s; interfaces=%s; functions=%s; impls=%d; method sets=%d\n",
-			name,
+			label,
 			structs,
 			interfaces,
 			functions,
@@ -231,6 +261,17 @@ func formatSummaryList[T any](items map[string]T) string {
 	}
 	sort.Strings(names)
 	return strings.Join(names, ", ")
+}
+
+func reportTypecheckDiagnostics(result interpreter.ProgramCheckResult) bool {
+	if len(result.Diagnostics) == 0 {
+		return false
+	}
+	for _, diag := range result.Diagnostics {
+		fmt.Fprintln(os.Stderr, interpreter.DescribeModuleDiagnostic(diag))
+	}
+	printPackageSummaries(os.Stderr, result.Packages)
+	return true
 }
 
 func runDeps(args []string) int {
@@ -293,6 +334,15 @@ func collectSearchPaths(extra ...string) []string {
 	}
 
 	return paths
+}
+
+func modeCommandLabel(mode executionMode) string {
+	switch mode {
+	case modeCheck:
+		return "able check"
+	default:
+		return "able run"
+	}
 }
 
 func loadManifestFrom(start string) (*driver.Manifest, error) {
@@ -663,6 +713,8 @@ func printUsage() {
 	fmt.Fprintln(os.Stderr, "  able run [target]")
 	fmt.Fprintln(os.Stderr, "  able run <file.able>")
 	fmt.Fprintln(os.Stderr, "  able <file.able>")
+	fmt.Fprintln(os.Stderr, "  able check [target]")
+	fmt.Fprintln(os.Stderr, "  able check <file.able>")
 	fmt.Fprintln(os.Stderr, "  able deps install")
 	fmt.Fprintln(os.Stderr, "  able deps update [dependency ...]")
 }

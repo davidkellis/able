@@ -184,6 +184,20 @@ func parseTypeExpression(node *sitter.Node, source []byte) ast.TypeExpression {
 	return annotateTypeExpression(ast.Ty(strings.ReplaceAll(text, " ", "")), node)
 }
 
+// ParseContext helpers provide context-aware entry points so callers don't need
+// to rethread the source buffer.
+func (ctx *parseContext) parseTypeExpression(node *sitter.Node) ast.TypeExpression {
+	return parseTypeExpression(node, ctx.source)
+}
+
+func (ctx *parseContext) parseReturnType(node *sitter.Node) ast.TypeExpression {
+	return parseReturnType(node, ctx.source)
+}
+
+func (ctx *parseContext) parseTypeArgumentList(node *sitter.Node) ([]ast.TypeExpression, error) {
+	return parseTypeArgumentList(node, ctx.source)
+}
+
 func identifiersToStrings(ids []*ast.Identifier) []string {
 	result := make([]string, len(ids))
 	for i, id := range ids {

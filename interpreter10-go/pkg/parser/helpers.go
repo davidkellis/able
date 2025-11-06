@@ -9,6 +9,21 @@ import (
 	"able/interpreter10-go/pkg/ast"
 )
 
+// parseContext mirrors the TypeScript ParseContext glue: it carries immutable
+// parser state (currently the module source bytes) so helpers can share the
+// same view of the file without threading arguments everywhere.
+type parseContext struct {
+	source []byte
+}
+
+func newParseContext(source []byte) *parseContext {
+	return &parseContext{source: source}
+}
+
+func (ctx *parseContext) parseQualifiedIdentifier(node *sitter.Node) ([]*ast.Identifier, error) {
+	return parseQualifiedIdentifier(node, ctx.source)
+}
+
 func parseIdentifier(node *sitter.Node, source []byte) (*ast.Identifier, error) {
 	if node == nil || node.Kind() != "identifier" {
 		return nil, fmt.Errorf("parser: expected identifier")

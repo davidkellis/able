@@ -10,12 +10,20 @@ import type {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "../..");
 
-export function formatTypecheckerDiagnostic(diag: TypecheckerDiagnostic): string {
+export function formatTypecheckerDiagnostic(
+  diag: TypecheckerDiagnostic,
+  options?: { packageName?: string },
+): string {
   const location = formatDiagnosticLocation(diag.location);
-  if (location) {
-    return `typechecker: ${location} ${diag.message}`;
+  const segments: string[] = [];
+  if (options?.packageName && options.packageName !== "<anonymous>") {
+    segments.push(options.packageName);
   }
-  return `typechecker: ${diag.message}`;
+  if (location) {
+    segments.push(location);
+  }
+  const prefix = segments.length > 0 ? `${segments.join(" ")} ` : "";
+  return `typechecker: ${prefix}${diag.message}`;
 }
 
 export function printPackageSummaries(summaries: Map<string, PackageSummary>): void {
@@ -28,11 +36,15 @@ export function printPackageSummaries(summaries: Map<string, PackageSummary>): v
   }
   console.warn("---- package export summary ----");
   for (const summary of entries) {
+    const label =
+      summary.visibility && summary.visibility === "private"
+        ? `${summary.name} (private)`
+        : summary.name;
     const structs = formatSummaryList(summary.structs);
     const interfaces = formatSummaryList(summary.interfaces);
     const functions = formatSummaryList(summary.functions);
     console.warn(
-      `package ${summary.name} exports: structs=${structs}; interfaces=${interfaces}; functions=${functions}; impls=${summary.implementations.length}; method sets=${summary.methodSets.length}`,
+      `package ${label} exports: structs=${structs}; interfaces=${interfaces}; functions=${functions}; impls=${summary.implementations.length}; method sets=${summary.methodSets.length}`,
     );
   }
 }

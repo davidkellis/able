@@ -54,6 +54,8 @@ func (p *ModuleParser) ParseModule(source []byte) (*ast.Module, error) {
 		return nil, fmt.Errorf("parser: syntax errors present")
 	}
 
+	ctx := newParseContext(source)
+
 	var (
 		modulePackage *ast.PackageStatement
 		imports       = make([]*ast.ImportStatement, 0)
@@ -67,7 +69,7 @@ func (p *ModuleParser) ParseModule(source []byte) (*ast.Module, error) {
 		}
 		switch node.Kind() {
 		case "package_statement":
-			pkg, err := parsePackageStatement(node, source)
+			pkg, err := ctx.parsePackageStatement(node)
 			if err != nil {
 				return nil, err
 			}
@@ -78,12 +80,12 @@ func (p *ModuleParser) ParseModule(source []byte) (*ast.Module, error) {
 				return nil, fmt.Errorf("parser: import missing kind")
 			}
 
-			path, err := parseQualifiedIdentifier(node.ChildByFieldName("path"), source)
+			path, err := ctx.parseQualifiedIdentifier(node.ChildByFieldName("path"))
 			if err != nil {
 				return nil, err
 			}
 
-			isWildcard, selectors, alias, err := parseImportClause(node.ChildByFieldName("clause"), source)
+			isWildcard, selectors, alias, err := ctx.parseImportClause(node.ChildByFieldName("clause"))
 			if err != nil {
 				return nil, err
 			}
@@ -101,7 +103,7 @@ func (p *ModuleParser) ParseModule(source []byte) (*ast.Module, error) {
 				return nil, fmt.Errorf("parser: unsupported import kind %q", kindNode.Kind())
 			}
 		case "function_definition":
-			fn, err := parseFunctionDefinition(node, source)
+			fn, err := ctx.parseFunctionDefinition(node)
 			if err != nil {
 				return nil, err
 			}
@@ -110,7 +112,7 @@ func (p *ModuleParser) ParseModule(source []byte) (*ast.Module, error) {
 			if !node.IsNamed() {
 				continue
 			}
-			stmt, err := parseStatement(node, source)
+			stmt, err := ctx.parseStatement(node)
 			if err != nil {
 				return nil, err
 			}
@@ -143,7 +145,7 @@ func (p *ModuleParser) ParseModule(source []byte) (*ast.Module, error) {
 	return module, nil
 }
 
-func parsePackageStatement(node *sitter.Node, source []byte) (*ast.PackageStatement, error) {
+func (ctx *parseContext) parsePackageStatement(node *sitter.Node) (*ast.PackageStatement, error) {
 	if node == nil {
 		return nil, fmt.Errorf("parser: nil package statement")
 	}
@@ -154,7 +156,7 @@ func parsePackageStatement(node *sitter.Node, source []byte) (*ast.PackageStatem
 		if isIgnorableNode(child) {
 			continue
 		}
-		id, err := parseIdentifier(child, source)
+		id, err := parseIdentifier(child, ctx.source)
 		if err != nil {
 			return nil, err
 		}
@@ -192,7 +194,7 @@ func parseQualifiedIdentifier(node *sitter.Node, source []byte) ([]*ast.Identifi
 	return parts, nil
 }
 
-func parseImportClause(node *sitter.Node, source []byte) (bool, []*ast.ImportSelector, *ast.Identifier, error) {
+func (ctx *parseContext) parseImportClause(node *sitter.Node) (bool, []*ast.ImportSelector, *ast.Identifier, error) {
 	if node == nil {
 		return false, nil, nil, nil
 	}
@@ -210,7 +212,7 @@ func parseImportClause(node *sitter.Node, source []byte) (bool, []*ast.ImportSel
 		}
 		switch child.Kind() {
 		case "import_selector":
-			selector, err := parseImportSelector(child, source)
+			selector, err := parseImportSelector(child, ctx.source)
 			if err != nil {
 				return false, nil, nil, err
 			}
@@ -222,7 +224,7 @@ func parseImportClause(node *sitter.Node, source []byte) (bool, []*ast.ImportSel
 				return false, nil, nil, fmt.Errorf("parser: multiple aliases in import clause")
 			}
 			var err error
-			alias, err = parseIdentifier(child, source)
+			alias, err = parseIdentifier(child, ctx.source)
 			if err != nil {
 				return false, nil, nil, err
 			}

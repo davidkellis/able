@@ -26,7 +26,7 @@ Able is an experimental programming language. This workspace hosts the Able v10 
 
 ## Getting Started
 - **Go interpreter (canonical)**: install Go ≥ 1.22, run `go test ./...` inside `interpreter10-go/`, and prefer `./run_all_tests.sh --typecheck-fixtures=strict` before sending code for review.
-- **TypeScript interpreter**: inside `interpreter10/`, run `bun install` then `bun test`.
+- **TypeScript interpreter**: inside `interpreter10/`, run `bun install`, `bun test`, and `ABLE_TYPECHECK_FIXTURES=strict bun run scripts/run-fixtures.ts` so the checker stays in lockstep with the Go runtime before sharing changes.
 - **Specs**: browse `spec/full_spec_v10.md`.
 
 Combined test suites:

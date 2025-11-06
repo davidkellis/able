@@ -6,10 +6,10 @@ methods Mutex {
     handle := __able_mutex_new()
     return Mutex { handle: handle }
   }
-  fn lock(self: Mutex) {
+  fn lock(self) {
     __able_mutex_lock(self.handle)
   }
-  fn unlock(self: Mutex) {
+  fn unlock(self) {
     __able_mutex_unlock(self.handle)
   }
 }

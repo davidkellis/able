@@ -1,0 +1,299 @@
+package numbers
+
+import able.core.errors.{DivisionByZeroError, OverflowError}
+import able.core.interfaces.{Eq, Ord, Less, Greater, Equal, Display}
+import able.core.numeric.{
+  Numeric,
+  Signed,
+  Fractional,
+  NumericConversions,
+  NumericConversionError
+}
+import able.core.options.{Result}
+
+## Internal helpers ----------------------------------------------------------
+
+const I64_MIN_I128 = -9223372036854775808_i64 as i128
+const I64_MAX_I128 = 9223372036854775807_i64 as i128
+
+fn rational_conversion_error(message: string) -> NumericConversionError {
+  NumericConversionError { message }
+}
+
+fn rational_abs_i128(value: i128) -> i128 {
+  if value < 0_i128 { -value } else { value }
+}
+
+fn rational_gcd_i128(a: i128, b: i128) -> i128 {
+  x := rational_abs_i128(a)
+  y := rational_abs_i128(b)
+  loop {
+    if y == 0_i128 { break }
+    temp := x % y
+    x = y
+    y = temp
+  }
+  if x == 0_i128 { 1_i128 } else { x }
+}
+
+fn rational_build(numerator: i128, denominator: i128) -> Rational {
+  if denominator == 0_i128 { raise DivisionByZeroError {} }
+
+  mut num := numerator
+  mut den := denominator
+
+  if den < 0_i128 {
+    num = -num
+    den = -den
+  }
+
+  if num == 0_i128 {
+    den = 1_i128
+  } else {
+    divisor := rational_gcd_i128(rational_abs_i128(num), den)
+    num = num / divisor
+    den = den / divisor
+  }
+
+  if num < I64_MIN_I128 || num > I64_MAX_I128 {
+    raise OverflowError { operation: "rational numerator overflow" }
+  }
+  if den < 1_i128 || den > I64_MAX_I128 {
+    raise OverflowError { operation: "rational denominator overflow" }
+  }
+
+  Rational { numerator: num as i64, denominator: den as i64 }
+}
+
+fn rational_normalize(numerator: i64, denominator: i64) -> Rational {
+  rational_build(numerator as i128, denominator as i128)
+}
+
+fn rational_from_i128(numerator: i128, denominator: i128) -> Rational {
+  rational_build(numerator, denominator)
+}
+
+fn rational_whole_result(value: i128) -> Rational {
+  rational_build(value, 1_i128)
+}
+
+## Rational type -------------------------------------------------------------
+
+struct Rational {
+  numerator: i64,
+  denominator: i64
+}
+
+methods Rational {
+  fn new(numerator: i64, denominator: i64) -> Rational {
+    rational_normalize(numerator, denominator)
+  }
+
+  fn from_i64(value: i64) -> Rational {
+    Rational { numerator: value, denominator: 1 }
+  }
+
+  fn numerator(self: Self) -> i64 { self.numerator }
+  fn denominator(self: Self) -> i64 { self.denominator }
+
+  fn is_zero(self: Self) -> bool { self.numerator == 0 }
+  fn is_positive(self: Self) -> bool { self.numerator > 0 }
+  fn is_negative(self: Self) -> bool { self.numerator < 0 }
+
+  fn negate(self: Self) -> Rational {
+    Rational { numerator: -self.numerator, denominator: self.denominator }
+  }
+
+  fn reciprocal(self: Self) -> Rational {
+    if self.is_zero() { raise DivisionByZeroError {} }
+    rational_from_i128(self.denominator as i128, self.numerator as i128)
+  }
+
+  fn add(self: Self, other: Self) -> Rational {
+    numerator := (self.numerator as i128) * (other.denominator as i128) +
+      (other.numerator as i128) * (self.denominator as i128)
+    denominator := (self.denominator as i128) * (other.denominator as i128)
+    rational_from_i128(numerator, denominator)
+  }
+
+  fn sub(self: Self, other: Self) -> Rational {
+    self.add(other.negate())
+  }
+
+  fn mul(self: Self, other: Self) -> Rational {
+    numerator := (self.numerator as i128) * (other.numerator as i128)
+    denominator := (self.denominator as i128) * (other.denominator as i128)
+    rational_from_i128(numerator, denominator)
+  }
+
+  fn div(self: Self, other: Self) -> Rational {
+    if other.is_zero() { raise DivisionByZeroError {} }
+    numerator := (self.numerator as i128) * (other.denominator as i128)
+    denominator := (self.denominator as i128) * (other.numerator as i128)
+    rational_from_i128(numerator, denominator)
+  }
+
+  fn abs(self: Self) -> Rational {
+    if self.numerator < 0 { self.negate() } else { self }
+  }
+
+  fn compare(self: Self, other: Rational) -> Ordering {
+    left := (self.numerator as i128) * (other.denominator as i128)
+    right := (other.numerator as i128) * (self.denominator as i128)
+    if left < right { Less }
+    else if left > right { Greater }
+    else { Equal }
+  }
+
+  fn min(self: Self, other: Rational) -> Rational {
+    if self.compare(other) == Greater { other } else { self }
+  }
+
+  fn max(self: Self, other: Rational) -> Rational {
+    if self.compare(other) == Less { other } else { self }
+  }
+
+  fn clamp(self: Self, min_value: Rational, max_value: Rational) -> Rational {
+    if min_value.compare(max_value) == Greater {
+      raise rational_conversion_error("Rational.clamp requires min <= max")
+    }
+    if self.compare(min_value) == Less { return min_value }
+    if self.compare(max_value) == Greater { return max_value }
+    self
+  }
+
+  fn floor(self: Self) -> Rational {
+    if self.denominator == 1 { return self }
+    quotient := self.numerator / self.denominator
+    remainder := self.numerator % self.denominator
+    adjust := if self.numerator < 0 && remainder != 0 { -1 } else { 0 }
+    Rational.from_i64(quotient + adjust)
+  }
+
+  fn ceil(self: Self) -> Rational {
+    if self.denominator == 1 { return self }
+    quotient := self.numerator / self.denominator
+    remainder := self.numerator % self.denominator
+    adjust := if self.numerator > 0 && remainder != 0 { 1 } else { 0 }
+    Rational.from_i64(quotient + adjust)
+  }
+
+  fn round(self: Self) -> Rational {
+    half := Rational.new(1, 2)
+    if self.is_negative() {
+      self.sub(half).ceil()
+    } else {
+      self.add(half).floor()
+    }
+  }
+
+  fn trunc(self: Self) -> Rational {
+    Rational.from_i64(self.numerator / self.denominator)
+  }
+
+  fn fract(self: Self) -> Rational {
+    self.sub(self.trunc()).abs()
+  }
+
+  fn to_f64(self: Self) -> f64 {
+    (self.numerator as f64) / (self.denominator as f64)
+  }
+
+  fn to_string(self: Self) -> string {
+    if self.denominator == 1 { `${self.numerator}` } else { `${self.numerator}/${self.denominator}` }
+  }
+}
+
+## Trait implementations -----------------------------------------------------
+
+impl Display for Rational {
+  fn to_string(self: Self) -> string { self.to_string() }
+}
+
+impl Eq Rational for Rational {
+  fn eq(self: Self, other: Rational) -> bool {
+    self.numerator == other.numerator && self.denominator == other.denominator
+  }
+}
+
+impl Ord Rational for Rational {
+  fn cmp(self: Self, other: Rational) -> Ordering {
+    self.compare(other)
+  }
+}
+
+impl Numeric for Rational {
+  fn zero() -> Rational { Rational.from_i64(0) }
+  fn one() -> Rational { Rational.from_i64(1) }
+
+  fn abs(self: Self) -> Rational { self.abs() }
+
+  fn sign(self: Self) -> i32 {
+    if self.is_positive() { 1 }
+    else if self.is_negative() { -1 }
+    else { 0 }
+  }
+
+  fn min(self: Self, other: Rational) -> Rational { self.min(other) }
+
+  fn max(self: Self, other: Rational) -> Rational { self.max(other) }
+
+  fn clamp(self: Self, min_value: Rational, max_value: Rational) -> Rational {
+    self.clamp(min_value, max_value)
+  }
+}
+
+impl Signed for Rational {
+  fn is_positive(self: Self) -> bool { self.is_positive() }
+  fn is_negative(self: Self) -> bool { self.is_negative() }
+}
+
+impl Fractional for Rational {
+  fn floor(self: Self) -> Rational { self.floor() }
+  fn ceil(self: Self) -> Rational { self.ceil() }
+  fn round(self: Self) -> Rational { self.round() }
+  fn reciprocal(self: Self) -> Rational { self.reciprocal() }
+  fn fract(self: Self) -> Rational { self.fract() }
+}
+
+impl NumericConversions for Rational {
+  fn to_i32(self: Self) -> Result i32 {
+    if self.denominator != 1 {
+      rational_conversion_error("cannot convert non-integer Rational to i32")
+    } else if self.numerator < -2147483648_i64 || self.numerator > 2147483647_i64 {
+      rational_conversion_error("value out of range for i32")
+    } else {
+      self.numerator as i32
+    }
+  }
+
+  fn to_u32(self: Self) -> Result u32 {
+    if self.denominator != 1 {
+      rational_conversion_error("cannot convert non-integer Rational to u32")
+    } else if self.numerator < 0 || self.numerator > 4294967295_i64 {
+      rational_conversion_error("value out of range for u32")
+    } else {
+      self.numerator as u32
+    }
+  }
+
+  fn to_i64(self: Self) -> Result i64 {
+    if self.denominator != 1 {
+      rational_conversion_error("cannot convert non-integer Rational to i64")
+    } else {
+      self.numerator
+    }
+  }
+
+  fn to_u64(self: Self) -> Result u64 {
+    if self.denominator != 1 {
+      rational_conversion_error("cannot convert non-integer Rational to u64")
+    } else if self.numerator < 0 {
+      rational_conversion_error("cannot convert negative Rational to u64")
+    } else {
+      self.numerator as u64
+    }
+  }
+
+  fn to_f64(self: Self) -> Result f64 { self.to_f64() }
+}

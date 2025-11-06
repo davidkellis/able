@@ -1,0 +1,32 @@
+package rosettacode_factorial
+
+## Rosetta Code — Factorial (https://rosettacode.org/wiki/Factorial#Procedural)
+fn factorial_iterative(n: i32) -> i64 {
+  if n < 0 { return 0 }
+
+  result: i64 = 1
+  value := 2
+  while value <= n {
+    result = result * value
+    value = value + 1
+  }
+  result
+}
+
+fn factorial_recursive(n: i32) -> i64 {
+  if n <= 1 { 1 }
+  else { n * factorial_recursive(n - 1) }
+}
+
+fn show_factorial(n: i32) -> void {
+  print(`n = ${n}`)
+  print(`iterative => ${factorial_iterative(n)}`)
+  print(`recursive => ${factorial_recursive(n)}`)
+  print("")
+}
+
+fn main() -> void {
+  show_factorial(0)
+  show_factorial(5)
+  show_factorial(10)
+}

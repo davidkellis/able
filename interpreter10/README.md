@@ -15,6 +15,16 @@ Typecheck only:
 bun run typecheck
 ```
 
+### Required checks
+
+Before sending code for review, run the shared fixtures with the strict typechecker enabled so Bun stays aligned with the Go runtime:
+
+```bash
+ABLE_TYPECHECK_FIXTURES=strict bun run scripts/run-fixtures.ts
+```
+
+This command exercises every fixture (including the TypeScript checker diagnostics) and will fail fast if new errors appear or if the baseline drifts.
+
 ### Running Able modules via Bun
 
 Use the lightweight CLI to typecheck (`check`) or run (`run`) Able modules with Bun. The CLI mirrors the Go `able` tool’s output style, including package export summaries when diagnostics surface.

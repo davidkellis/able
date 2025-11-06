@@ -8,7 +8,7 @@ import (
 	"able/interpreter10-go/pkg/ast"
 )
 
-func parseBlock(node *sitter.Node, source []byte) (*ast.BlockExpression, error) {
+func (ctx *parseContext) parseBlock(node *sitter.Node) (*ast.BlockExpression, error) {
 	if node == nil {
 		block := ast.NewBlockExpression(nil)
 		annotateExpression(block, node)
@@ -22,7 +22,7 @@ func parseBlock(node *sitter.Node, source []byte) (*ast.BlockExpression, error) 
 		if child == nil || !child.IsNamed() {
 			continue
 		}
-		if node.FieldNameForChild(uint32(i-1)) == "binding" {
+		if node.FieldNameForChild(uint32(i-1)) == "binding" && child.Kind() == "identifier" {
 			continue
 		}
 		var (
@@ -30,7 +30,7 @@ func parseBlock(node *sitter.Node, source []byte) (*ast.BlockExpression, error) 
 			err  error
 		)
 		if child.Kind() == "break_statement" {
-			stmt, err = parseStatement(child, source)
+			stmt, err = ctx.parseStatement(child)
 			if err != nil {
 				return nil, err
 			}
@@ -38,7 +38,7 @@ func parseBlock(node *sitter.Node, source []byte) (*ast.BlockExpression, error) 
 				if next := nextNamedSibling(node, i-1); next != nil && next.Kind() == "expression_statement" {
 					exprNode := firstNamedChild(next)
 					if exprNode != nil {
-						expr, exprErr := parseExpression(exprNode, source)
+						expr, exprErr := ctx.parseExpression(exprNode)
 						if exprErr != nil {
 							return nil, exprErr
 						}
@@ -48,7 +48,7 @@ func parseBlock(node *sitter.Node, source []byte) (*ast.BlockExpression, error) 
 				}
 			}
 		} else {
-			stmt, err = parseStatement(child, source)
+			stmt, err = ctx.parseStatement(child)
 			if err != nil {
 				return nil, err
 			}
@@ -78,14 +78,14 @@ func parseBlock(node *sitter.Node, source []byte) (*ast.BlockExpression, error) 
 	return block, nil
 }
 
-func parseStatement(node *sitter.Node, source []byte) (ast.Statement, error) {
+func (ctx *parseContext) parseStatement(node *sitter.Node) (ast.Statement, error) {
 	switch node.Kind() {
 	case "expression_statement":
 		exprNode := firstNamedChild(node)
 		if exprNode == nil {
 			return nil, fmt.Errorf("parser: expression statement missing expression")
 		}
-		expr, err := parseExpression(exprNode, source)
+		expr, err := ctx.parseExpression(exprNode)
 		if err != nil {
 			return nil, err
 		}
@@ -95,7 +95,7 @@ func parseStatement(node *sitter.Node, source []byte) (ast.Statement, error) {
 		if valueNode == nil {
 			return annotateStatement(ast.NewReturnStatement(nil), node), nil
 		}
-		expr, err := parseExpression(valueNode, source)
+		expr, err := ctx.parseExpression(valueNode)
 		if err != nil {
 			return nil, err
 		}
@@ -106,11 +106,11 @@ func parseStatement(node *sitter.Node, source []byte) (ast.Statement, error) {
 		}
 		conditionNode := node.NamedChild(0)
 		bodyNode := node.NamedChild(1)
-		condition, err := parseExpression(conditionNode, source)
+		condition, err := ctx.parseExpression(conditionNode)
 		if err != nil {
 			return nil, err
 		}
-		body, err := parseBlock(bodyNode, source)
+		body, err := ctx.parseBlock(bodyNode)
 		if err != nil {
 			return nil, err
 		}
@@ -122,15 +122,15 @@ func parseStatement(node *sitter.Node, source []byte) (ast.Statement, error) {
 		patternNode := node.NamedChild(0)
 		iterNode := node.NamedChild(1)
 		bodyNode := node.NamedChild(2)
-		pattern, err := parsePattern(patternNode, source)
+		pattern, err := ctx.parsePattern(patternNode)
 		if err != nil {
 			return nil, err
 		}
-		iterable, err := parseExpression(iterNode, source)
+		iterable, err := ctx.parseExpression(iterNode)
 		if err != nil {
 			return nil, err
 		}
-		body, err := parseBlock(bodyNode, source)
+		body, err := ctx.parseBlock(bodyNode)
 		if err != nil {
 			return nil, err
 		}
@@ -139,7 +139,7 @@ func parseStatement(node *sitter.Node, source []byte) (ast.Statement, error) {
 		labelNode := node.ChildByFieldName("label")
 		var label *ast.Identifier
 		if labelNode != nil {
-			lbl, err := parseLabel(labelNode, source)
+			lbl, err := parseLabel(labelNode, ctx.source)
 			if err != nil {
 				return nil, err
 			}
@@ -148,7 +148,7 @@ func parseStatement(node *sitter.Node, source []byte) (ast.Statement, error) {
 		valueNode := node.ChildByFieldName("value")
 		var value ast.Expression
 		if valueNode != nil {
-			expr, err := parseExpression(valueNode, source)
+			expr, err := ctx.parseExpression(valueNode)
 			if err != nil {
 				return nil, err
 			}
@@ -162,7 +162,7 @@ func parseStatement(node *sitter.Node, source []byte) (ast.Statement, error) {
 		if valueNode == nil {
 			return nil, fmt.Errorf("parser: raise statement missing expression")
 		}
-		expr, err := parseExpression(valueNode, source)
+		expr, err := ctx.parseExpression(valueNode)
 		if err != nil {
 			return nil, err
 		}
@@ -170,49 +170,49 @@ func parseStatement(node *sitter.Node, source []byte) (ast.Statement, error) {
 	case "rethrow_statement":
 		return annotateStatement(ast.NewRethrowStatement(), node), nil
 	case "struct_definition":
-		stmt, err := parseStructDefinition(node, source)
+		stmt, err := ctx.parseStructDefinition(node)
 		if err != nil {
 			return nil, err
 		}
 		return annotateStatement(stmt, node), nil
 	case "methods_definition":
-		stmt, err := parseMethodsDefinition(node, source)
+		stmt, err := ctx.parseMethodsDefinition(node)
 		if err != nil {
 			return nil, err
 		}
 		return annotateStatement(stmt, node), nil
 	case "implementation_definition":
-		stmt, err := parseImplementationDefinition(node, source)
+		stmt, err := ctx.parseImplementationDefinition(node)
 		if err != nil {
 			return nil, err
 		}
 		return annotateStatement(stmt, node), nil
 	case "named_implementation_definition":
-		stmt, err := parseNamedImplementationDefinition(node, source)
+		stmt, err := ctx.parseNamedImplementationDefinition(node)
 		if err != nil {
 			return nil, err
 		}
 		return annotateStatement(stmt, node), nil
 	case "union_definition":
-		stmt, err := parseUnionDefinition(node, source)
+		stmt, err := ctx.parseUnionDefinition(node)
 		if err != nil {
 			return nil, err
 		}
 		return annotateStatement(stmt, node), nil
 	case "interface_definition":
-		stmt, err := parseInterfaceDefinition(node, source)
+		stmt, err := ctx.parseInterfaceDefinition(node)
 		if err != nil {
 			return nil, err
 		}
 		return annotateStatement(stmt, node), nil
 	case "prelude_statement":
-		stmt, err := parsePreludeStatement(node, source)
+		stmt, err := ctx.parsePreludeStatement(node)
 		if err != nil {
 			return nil, err
 		}
 		return annotateStatement(stmt, node), nil
 	case "extern_function":
-		stmt, err := parseExternFunction(node, source)
+		stmt, err := ctx.parseExternFunction(node)
 		if err != nil {
 			return nil, err
 		}

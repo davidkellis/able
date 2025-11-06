@@ -101,6 +101,64 @@ methods String {
     builder.push_bytes(self.bytes.clone())
     builder
   }
+
+  fn concat(strings: Array String) -> String {
+    builder := StringBuilder::new()
+    idx := 0
+    loop {
+      match strings.get(idx) {
+        case nil => break,
+        case value: String => builder.push_string(value)
+      }
+      idx = idx + 1
+    }
+    match builder.finish() {
+      case result: String => result,
+      case err: Error => raise err
+    }
+  }
+
+  fn join(strings: Array String, separator: String) -> String {
+    builder := StringBuilder::new()
+    idx := 0
+    loop {
+      match strings.get(idx) {
+        case nil => break,
+        case value: String => {
+          if idx > 0 { builder.push_string(separator.clone()) }
+          builder.push_string(value)
+        }
+      }
+      idx = idx + 1
+    }
+    match builder.finish() {
+      case result: String => result,
+      case err: Error => raise err
+    }
+  }
+
+  fn split(self: Self, delimiter: char) -> Array String {
+    result: Array String := Array.new()
+    builder := StringBuilder::new()
+    for ch in self.chars() {
+      if ch == delimiter {
+        chunk := builder.finish()
+        match chunk {
+          case s: String => result.push(s),
+          case err: Error => raise err
+        }
+        builder.clear()
+      } else {
+        builder.push_char(ch)
+      }
+    }
+    chunk := builder.finish()
+    match chunk {
+      case s: String => result.push(s),
+      case err: Error => raise err
+    }
+    result
+  }
 }
 
 impl Clone for String {
@@ -128,6 +186,15 @@ methods StringBuilder {
     StringBuilder { buffer: Array.with_capacity(capacity) }
   }
 
+  fn clear(mut self: Self) -> void {
+    self.buffer.clear()
+  }
+
+  fn push_char(mut self: Self, value: char) -> void {
+    bytes := char_to_utf8(value)
+    self.buffer.push_all(bytes)
+  }
+
   fn push_byte(mut self: Self, value: u8) -> void {
     self.buffer.push(value)
   }
@@ -138,6 +205,10 @@ methods StringBuilder {
 
   fn push_string(mut self: Self, value: String) -> void {
     self.buffer.push_all(value.bytes())
+  }
+
+  fn append_builder(mut self: Self, other: StringBuilder) -> void {
+    self.buffer.push_all(other.buffer)
   }
 
   fn len_bytes(self: Self) -> i32 { self.buffer.len() }
@@ -314,6 +385,27 @@ fn slice_bytes(bytes: Array u8, start: i32, end: i32) -> Array u8 {
     idx = idx + 1
   }
   result
+}
+
+fn char_to_utf8(value: char) -> Array u8 {
+  bytes := Array.with_capacity(4)
+  code := value as i32
+  if code <= 0x7F {
+    bytes.push(code as u8)
+  } else if code <= 0x7FF {
+    bytes.push(((code >> 6) | 0xC0) as u8)
+    bytes.push(((code & 0x3F) | 0x80) as u8)
+  } else if code <= 0xFFFF {
+    bytes.push(((code >> 12) | 0xE0) as u8)
+    bytes.push((((code >> 6) & 0x3F) | 0x80) as u8)
+    bytes.push(((code & 0x3F) | 0x80) as u8)
+  } else {
+    bytes.push(((code >> 18) | 0xF0) as u8)
+    bytes.push((((code >> 12) & 0x3F) | 0x80) as u8)
+    bytes.push((((code >> 6) & 0x3F) | 0x80) as u8)
+    bytes.push(((code & 0x3F) | 0x80) as u8)
+  }
+  bytes
 }
 
 fn encoding_error(message: string, offset: ?i32) -> StringEncodingError {

@@ -12,12 +12,13 @@ Unconditionally read PLAN.md and spec/full_spec_v10.md before starting any work.
 - Document reasoning (design notes in `design/`, issue trackers) so future agents can follow decisions.
 - Keep shared fixtures (`fixtures/ast`) green in both interpreters; every fixture change must be exercised by `bun run scripts/run-fixtures.ts` and the Go parity tests (`go test ./pkg/interpreter`).
 - Align code changes with the current design notes (e.g., `design/pattern-break-alignment.md`) and update `spec/todo.md`/`PLAN.md` when work lands.
-- Modularize larger features into smaller, self-contained modules. Try to keep each module's LOC under 1000.
+- Modularize larger features into smaller, self-contained modules. Keep each file under one thousdand (i.e. 1000) lines of code.
 - Defer AST mapping work until the parser produces the expected parse trees (as captured in the grammar corpus) for every feature under development; once grammar coverage is complete and stable, implement the mapping logic.
 
 ## Repository Map
 - `interpreter10/`: Bun/TypeScript interpreter, AST definition, and comprehensive tests. Source of inspiration and a compatibility target.
 - `interpreter10-go/`: Go interpreter and canonical Able v10 runtime. Go-specific design docs live under `design/` (see `go-concurrency.md`, `typechecker.md`).
+- `interpreter6/`: Able v6 interpreter and runtime. Do not reference this interpreter as it is deprecated and will be removed in the future.
 - `spec/`: Language specification (v1–v10); focus on `full_spec_v10.md` plus topic-specific supplements.
 - `examples/`, `stdlib*/`: Sample programs and stdlib sketches used for conformance testing.
 - `design/`: High-level architecture notes, historical context, and future proposals.

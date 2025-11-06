@@ -302,7 +302,12 @@ export function applyIteratorAugmentations(cls: typeof InterpreterV10): void {
     this.ensureIteratorBuiltins();
     const generatorEnv = new Environment(env);
     const context = new GeneratorContext(this, generatorEnv, node.body);
-    generatorEnv.define("gen", context.controllerValue());
+    const controller = context.controllerValue();
+    const bindingName = node.binding?.name ?? "gen";
+    generatorEnv.define(bindingName, controller);
+    if (bindingName !== "gen") {
+      generatorEnv.define("gen", controller);
+    }
     return context.iteratorValue;
   };
 }

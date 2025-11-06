@@ -259,10 +259,12 @@ type NilLiteral struct {
 	expressionMarker
 	statementMarker
 	literalMarker
+
+	Value any `json:"value"`
 }
 
 func NewNilLiteral() *NilLiteral {
-	return &NilLiteral{nodeImpl: newNodeImpl(NodeNilLiteral)}
+	return &NilLiteral{nodeImpl: newNodeImpl(NodeNilLiteral), Value: nil}
 }
 
 type CharLiteral struct {
@@ -529,6 +531,9 @@ type FunctionCall struct {
 }
 
 func NewFunctionCall(callee Expression, args []Expression, typeArgs []TypeExpression, isTrailingLambda bool) *FunctionCall {
+	if args == nil {
+		args = make([]Expression, 0)
+	}
 	return &FunctionCall{nodeImpl: newNodeImpl(NodeFunctionCall), Callee: callee, Arguments: args, TypeArguments: typeArgs, IsTrailingLambda: isTrailingLambda}
 }
 
@@ -549,7 +554,9 @@ type IteratorLiteral struct {
 	expressionMarker
 	statementMarker
 
-	Body []Statement `json:"body"`
+	Body        []Statement    `json:"body"`
+	Binding     *Identifier    `json:"binding,omitempty"`
+	ElementType TypeExpression `json:"elementType,omitempty"`
 }
 
 func NewIteratorLiteral(body []Statement) *IteratorLiteral {
@@ -846,8 +853,8 @@ type BreakStatement struct {
 	nodeImpl
 	statementMarker
 
-	Label *Identifier `json:"label"`
-	Value Expression  `json:"value"`
+	Label *Identifier `json:"label,omitempty"`
+	Value Expression  `json:"value,omitempty"`
 }
 
 func NewBreakStatement(label *Identifier, value Expression) *BreakStatement {
@@ -858,7 +865,7 @@ type ContinueStatement struct {
 	nodeImpl
 	statementMarker
 
-	Label *Identifier `json:"label"`
+	Label *Identifier `json:"label,omitempty"`
 }
 
 func NewContinueStatement(label *Identifier) *ContinueStatement {
