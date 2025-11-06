@@ -77,6 +77,7 @@ export type ExportedMethodSetSummary = {
 
 export type PackageSummary = {
   name: string;
+  visibility: "public" | "private";
   symbols: Record<string, ExportedSymbolSummary>;
   structs: Record<string, ExportedStructSummary>;
   interfaces: Record<string, ExportedInterfaceSummary>;

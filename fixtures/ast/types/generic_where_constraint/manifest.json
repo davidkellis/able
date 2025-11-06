@@ -6,11 +6,5 @@
       "value": "winner"
     }
   },
-  "skipTargets": [
-    "ts"
-  ],
-  "entry": "module.json",
-  "setup": [
-    "interfaces.json"
-  ]
+  "entry": "module.json"
 }

@@ -59,7 +59,7 @@ func (c *Checker) checkForLoop(env *Environment, loop *ast.ForLoop) ([]Diagnosti
 			elementType = UnknownType{}
 		} else {
 			diags = append(diags, Diagnostic{
-				Message: fmt.Sprintf("typechecker: for-loop iterable must be array or range, got %s", typeName(iterableType)),
+				Message: fmt.Sprintf("typechecker: for-loop iterable must be array, range, or iterator, got %s", typeName(iterableType)),
 				Node:    loop.Iterable,
 			})
 			elementType = UnknownType{}
@@ -70,6 +70,7 @@ func (c *Checker) checkForLoop(env *Environment, loop *ast.ForLoop) ([]Diagnosti
 	}
 
 	loopEnv := env.Extend()
+	diags = append(diags, c.validateForLoopPattern(loop.Pattern, elementType)...)
 	if target, ok := loop.Pattern.(ast.AssignmentTarget); ok {
 		diags = append(diags, c.bindPattern(loopEnv, target, elementType, true)...)
 	} else if loop.Pattern != nil {
@@ -101,6 +102,31 @@ func (c *Checker) checkForLoop(env *Environment, loop *ast.ForLoop) ([]Diagnosti
 	}
 	c.infer.set(loop, resultType)
 	return diags, resultType
+}
+
+func (c *Checker) validateForLoopPattern(pattern ast.Pattern, elementType Type) []Diagnostic {
+	if pattern == nil || elementType == nil || isUnknownType(elementType) {
+		return nil
+	}
+	typed, ok := pattern.(*ast.TypedPattern)
+	if !ok || typed.TypeAnnotation == nil {
+		return nil
+	}
+	expected := c.resolveTypeReference(typed.TypeAnnotation)
+	if expected == nil || isUnknownType(expected) {
+		return nil
+	}
+	if typeAssignable(elementType, expected) && typeAssignable(expected, elementType) {
+		return nil
+	}
+	return []Diagnostic{{
+		Message: fmt.Sprintf(
+			"typechecker: for-loop pattern expects type %s, got %s",
+			typeName(expected),
+			typeName(elementType),
+		),
+		Node: typed,
+	}}
 }
 
 func (c *Checker) checkBreakpointExpression(env *Environment, expr *ast.BreakpointExpression) ([]Diagnostic, Type) {

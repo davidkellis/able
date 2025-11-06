@@ -9,10 +9,12 @@ import (
 	"able/interpreter10-go/pkg/ast"
 )
 
-func parsePattern(node *sitter.Node, source []byte) (ast.Pattern, error) {
+func (ctx *parseContext) parsePattern(node *sitter.Node) (ast.Pattern, error) {
 	if node == nil {
 		return nil, fmt.Errorf("parser: nil pattern")
 	}
+
+	source := ctx.source
 
 	if node.Kind() == "pattern" || node.Kind() == "pattern_base" {
 		if node.NamedChildCount() == 0 {
@@ -26,7 +28,7 @@ func parsePattern(node *sitter.Node, source []byte) (ast.Pattern, error) {
 					continue
 				}
 				if child.IsNamed() {
-					return parsePattern(child, source)
+					return ctx.parsePattern(child)
 				}
 				if strings.TrimSpace(sliceContent(child, source)) == "_" {
 					return annotatePattern(ast.Wc(), child), nil
@@ -34,7 +36,7 @@ func parsePattern(node *sitter.Node, source []byte) (ast.Pattern, error) {
 			}
 			return nil, fmt.Errorf("parser: empty %s", node.Kind())
 		}
-		return parsePattern(node.NamedChild(0), source)
+		return ctx.parsePattern(node.NamedChild(0))
 	}
 
 	switch node.Kind() {
@@ -47,35 +49,35 @@ func parsePattern(node *sitter.Node, source []byte) (ast.Pattern, error) {
 	case "_":
 		return annotatePattern(ast.Wc(), node), nil
 	case "literal_pattern":
-		pattern, err := parseLiteralPattern(node, source)
+		pattern, err := ctx.parseLiteralPattern(node)
 		if err != nil {
 			return nil, err
 		}
 		return annotatePattern(pattern, node), nil
 	case "struct_pattern":
-		return parseStructPattern(node, source)
+		return ctx.parseStructPattern(node)
 	case "array_pattern":
-		return parseArrayPattern(node, source)
+		return ctx.parseArrayPattern(node)
 	case "parenthesized_pattern":
 		if inner := firstNamedChild(node); inner != nil {
-			return parsePattern(inner, source)
+			return ctx.parsePattern(inner)
 		}
 		return nil, fmt.Errorf("parser: empty parenthesized pattern")
 	case "typed_pattern":
 		if node.NamedChildCount() < 2 {
 			return nil, fmt.Errorf("parser: malformed typed pattern")
 		}
-		innerPattern, err := parsePattern(node.NamedChild(0), source)
+		innerPattern, err := ctx.parsePattern(node.NamedChild(0))
 		if err != nil {
 			return nil, err
 		}
-		typeExpr := parseTypeExpression(node.NamedChild(1), source)
+		typeExpr := ctx.parseTypeExpression(node.NamedChild(1))
 		if typeExpr == nil {
 			return nil, fmt.Errorf("parser: typed pattern missing type expression")
 		}
 		return annotatePattern(ast.NewTypedPattern(innerPattern, typeExpr), node), nil
 	case "pattern", "pattern_base":
-		pattern, err := parsePattern(node.NamedChild(0), source)
+		pattern, err := ctx.parsePattern(node.NamedChild(0))
 		if err != nil {
 			return nil, err
 		}
@@ -85,7 +87,7 @@ func parsePattern(node *sitter.Node, source []byte) (ast.Pattern, error) {
 	}
 }
 
-func parseLiteralPattern(node *sitter.Node, source []byte) (ast.Pattern, error) {
+func (ctx *parseContext) parseLiteralPattern(node *sitter.Node) (ast.Pattern, error) {
 	if node == nil || node.Kind() != "literal_pattern" {
 		return nil, fmt.Errorf("parser: expected literal_pattern node")
 	}
@@ -94,7 +96,7 @@ func parseLiteralPattern(node *sitter.Node, source []byte) (ast.Pattern, error) 
 		return nil, fmt.Errorf("parser: literal pattern missing literal")
 	}
 
-	litExpr, err := parseExpression(literalNode, source)
+	litExpr, err := ctx.parseExpression(literalNode)
 	if err != nil {
 		return nil, err
 	}
@@ -109,7 +111,7 @@ func parseLiteralPattern(node *sitter.Node, source []byte) (ast.Pattern, error) 
 	return pattern, nil
 }
 
-func parseStructPattern(node *sitter.Node, source []byte) (ast.Pattern, error) {
+func (ctx *parseContext) parseStructPattern(node *sitter.Node) (ast.Pattern, error) {
 	if node == nil || node.Kind() != "struct_pattern" {
 		return nil, fmt.Errorf("parser: expected struct_pattern node")
 	}
@@ -117,7 +119,7 @@ func parseStructPattern(node *sitter.Node, source []byte) (ast.Pattern, error) {
 	var structType *ast.Identifier
 	typeNode := node.ChildByFieldName("type")
 	if typeNode != nil {
-		parts, err := parseQualifiedIdentifier(typeNode, source)
+		parts, err := parseQualifiedIdentifier(typeNode, ctx.source)
 		if err != nil {
 			return nil, err
 		}
@@ -157,7 +159,7 @@ func parseStructPattern(node *sitter.Node, source []byte) (ast.Pattern, error) {
 				if fieldNode == nil {
 					return nil, fmt.Errorf("parser: struct pattern field missing identifier")
 				}
-				pat, err := parseIdentifier(fieldNode, source)
+				pat, err := parseIdentifier(fieldNode, ctx.source)
 				if err != nil {
 					return nil, err
 				}
@@ -166,14 +168,14 @@ func parseStructPattern(node *sitter.Node, source []byte) (ast.Pattern, error) {
 				fields = append(fields, field)
 				continue
 			}
-			field, err := parseStructPatternField(elem, source)
+			field, err := ctx.parseStructPatternField(elem)
 			if err != nil {
 				return nil, err
 			}
 			fields = append(fields, field)
 			continue
 		}
-		pattern, err := parsePattern(elem, source)
+		pattern, err := ctx.parsePattern(elem)
 		if err != nil {
 			return nil, err
 		}
@@ -182,7 +184,6 @@ func parseStructPattern(node *sitter.Node, source []byte) (ast.Pattern, error) {
 		fields = append(fields, field)
 	}
 
-	isPositional = false
 	for _, field := range fields {
 		if field.FieldName == nil {
 			isPositional = true
@@ -195,14 +196,14 @@ func parseStructPattern(node *sitter.Node, source []byte) (ast.Pattern, error) {
 	return pattern, nil
 }
 
-func parseStructPatternField(node *sitter.Node, source []byte) (*ast.StructPatternField, error) {
+func (ctx *parseContext) parseStructPatternField(node *sitter.Node) (*ast.StructPatternField, error) {
 	if node == nil || node.Kind() != "struct_pattern_field" {
 		return nil, fmt.Errorf("parser: expected struct_pattern_field node")
 	}
 
 	var fieldName *ast.Identifier
 	if nameNode := node.ChildByFieldName("field"); nameNode != nil {
-		name, err := parseIdentifier(nameNode, source)
+		name, err := parseIdentifier(nameNode, ctx.source)
 		if err != nil {
 			return nil, err
 		}
@@ -211,7 +212,7 @@ func parseStructPatternField(node *sitter.Node, source []byte) (*ast.StructPatte
 
 	var binding *ast.Identifier
 	if bindingNode := node.ChildByFieldName("binding"); bindingNode != nil {
-		id, err := parseIdentifier(bindingNode, source)
+		id, err := parseIdentifier(bindingNode, ctx.source)
 		if err != nil {
 			return nil, err
 		}
@@ -220,7 +221,7 @@ func parseStructPatternField(node *sitter.Node, source []byte) (*ast.StructPatte
 
 	var pattern ast.Pattern
 	if valueNode := node.ChildByFieldName("value"); valueNode != nil {
-		valuePattern, err := parsePattern(valueNode, source)
+		valuePattern, err := ctx.parsePattern(valueNode)
 		if err != nil {
 			return nil, err
 		}
@@ -241,7 +242,7 @@ func parseStructPatternField(node *sitter.Node, source []byte) (*ast.StructPatte
 	return field, nil
 }
 
-func parseArrayPattern(node *sitter.Node, source []byte) (ast.Pattern, error) {
+func (ctx *parseContext) parseArrayPattern(node *sitter.Node) (ast.Pattern, error) {
 	if node == nil || node.Kind() != "array_pattern" {
 		return nil, fmt.Errorf("parser: expected array_pattern node")
 	}
@@ -258,14 +259,14 @@ func parseArrayPattern(node *sitter.Node, source []byte) (ast.Pattern, error) {
 			if rest != nil {
 				return nil, fmt.Errorf("parser: multiple array rest patterns")
 			}
-			rp, err := parseArrayPatternRest(child, source)
+			rp, err := ctx.parseArrayPatternRest(child)
 			if err != nil {
 				return nil, err
 			}
 			rest = rp
 			continue
 		}
-		pattern, err := parsePattern(child, source)
+		pattern, err := ctx.parsePattern(child)
 		if err != nil {
 			return nil, err
 		}
@@ -277,7 +278,7 @@ func parseArrayPattern(node *sitter.Node, source []byte) (ast.Pattern, error) {
 	return pattern, nil
 }
 
-func parseArrayPatternRest(node *sitter.Node, source []byte) (ast.Pattern, error) {
+func (ctx *parseContext) parseArrayPatternRest(node *sitter.Node) (ast.Pattern, error) {
 	if node == nil || node.Kind() != "array_pattern_rest" {
 		return nil, fmt.Errorf("parser: expected array_pattern_rest node")
 	}
@@ -287,9 +288,11 @@ func parseArrayPatternRest(node *sitter.Node, source []byte) (ast.Pattern, error
 	}
 
 	restNode := node.NamedChild(0)
-	pattern, err := parsePattern(restNode, source)
+	pattern, err := ctx.parsePattern(restNode)
 	if err != nil {
 		return nil, err
 	}
 	return annotatePattern(pattern, node), nil
 }
+
+// Legacy wrapper for modules that still call the function form directly.

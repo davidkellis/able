@@ -301,4 +301,33 @@ describe("v10 interpreter - iterator literals", () => {
     expect(I.evaluate(AST.identifier("subject_calls"))).toEqual({ kind: "i32", value: 1 });
     expect(I.evaluate(AST.identifier("guard_calls"))).toEqual({ kind: "i32", value: 1 });
   });
+
+  test("iterator literal honors custom binding names and annotations", () => {
+    const I = new InterpreterV10();
+
+    I.evaluate(
+      assign(
+        "iter",
+        AST.iteratorLiteral(
+          [
+            AST.functionCall(
+              AST.memberAccessExpression(AST.identifier("driver"), "yield"),
+              [AST.integerLiteral(1)]
+            ),
+            AST.functionCall(
+              AST.memberAccessExpression(AST.identifier("driver"), "yield"),
+              [AST.integerLiteral(2)]
+            ),
+          ],
+          "driver",
+          AST.simpleTypeExpression("i32")
+        )
+      )
+    );
+
+    expect(I.evaluate(callNext("iter"))).toEqual({ kind: "i32", value: 1 });
+    expect(I.evaluate(callNext("iter"))).toEqual({ kind: "i32", value: 2 });
+    const done = I.evaluate(callNext("iter")) as V10Value;
+    expect(done.kind).toBe("iterator_end");
+  });
 });

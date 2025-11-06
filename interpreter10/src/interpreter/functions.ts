@@ -4,6 +4,14 @@ import type { InterpreterV10 } from "./index";
 import type { V10Value } from "./values";
 import { ReturnSignal } from "./signals";
 
+function isGenericTypeReference(typeExpr: AST.TypeExpression | undefined, genericNames: Set<string>): boolean {
+  if (!typeExpr || genericNames.size === 0) return false;
+  if (typeExpr.type === "SimpleTypeExpression") {
+    return genericNames.has(typeExpr.name.name);
+  }
+  return false;
+}
+
 export function evaluateFunctionDefinition(ctx: InterpreterV10, node: AST.FunctionDefinition, env: Environment): V10Value {
   const value: V10Value = { kind: "function", node, closureEnv: env };
   env.define(node.id.name, value);
@@ -68,6 +76,7 @@ export function callCallableValue(ctx: InterpreterV10, callee: V10Value, args: V
   }
 
   if (funcNode.type === "FunctionDefinition") {
+    const genericNames = new Set((funcNode.genericParams ?? []).map((gp) => gp.name.name));
     const params = funcNode.params;
     const paramCount = params.length;
     const expectedArgs = funcNode.isMethodShorthand ? paramCount + 1 : paramCount;
@@ -96,13 +105,16 @@ export function callCallableValue(ctx: InterpreterV10, callee: V10Value, args: V
       if (!param) throw new Error(`Parameter missing at index ${i}`);
       if (argVal === undefined) throw new Error(`Argument missing at index ${i}`);
       let coerced = argVal;
-      if (param.paramType) {
+      const skipRuntimeTypeCheck = isGenericTypeReference(param.paramType, genericNames);
+      if (param.paramType && !skipRuntimeTypeCheck) {
         if (!ctx.matchesType(param.paramType, argVal)) {
           const pname = (param.name as any).name ?? `param_${i}`;
           throw new Error(`Parameter type mismatch for '${pname}'`);
         }
         coerced = ctx.coerceValueToType(param.paramType, argVal);
         bindArgs[i] = coerced;
+      } else if (skipRuntimeTypeCheck) {
+        coerced = argVal;
       }
       if (param.name.type === "Identifier") {
         funcEnv.define(param.name.name, coerced);

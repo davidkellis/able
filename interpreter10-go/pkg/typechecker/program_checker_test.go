@@ -165,6 +165,9 @@ func TestProgramCheckerExposesPublicExports(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected package summary for dep")
 	}
+	if summary.Visibility != "public" {
+		t.Fatalf("expected public visibility, got %q", summary.Visibility)
+	}
 
 	exports := summary.Symbols
 	if exports == nil {
@@ -216,6 +219,27 @@ func TestProgramCheckerExposesPublicExports(t *testing.T) {
 	}
 	if _, ok := methodSets[0].Methods["describe"]; !ok {
 		t.Fatalf("expected describe method in method set")
+	}
+}
+
+func TestProgramCheckerCapturesPackageVisibility(t *testing.T) {
+	privMod := annotatedModule("app.private_pkg", ast.Mod(nil, nil, ast.Pkg([]interface{}{"app", "private_pkg"}, true)), "priv.able", nil)
+	program := &driver.Program{
+		Modules: []*driver.Module{privMod},
+		Entry:   privMod,
+	}
+
+	pc := NewProgramChecker()
+	result, err := pc.Check(program)
+	if err != nil {
+		t.Fatalf("Check returned error: %v", err)
+	}
+	summary, ok := result.Packages["app.private_pkg"]
+	if !ok {
+		t.Fatalf("expected summary for private package")
+	}
+	if summary.Visibility != "private" {
+		t.Fatalf("expected private visibility, got %q", summary.Visibility)
 	}
 }
 

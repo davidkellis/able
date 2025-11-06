@@ -45,6 +45,7 @@ fn helper() -> void {}
     });
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("typechecker:");
+    expect(result.stderr).toContain("cli_fail");
     expect(result.stderr).toContain("package export summary");
   });
 
@@ -120,6 +121,7 @@ fn main() -> void {
     expect(result.status).toBe(1);
     expect(result.stdout).toBe("");
     expect(result.stderr).toContain("typechecker:");
+    expect(result.stderr).toContain("cli_warn");
   });
 
   test("run command continues when ABLE_TYPECHECK_FIXTURES=warn", () => {
@@ -132,6 +134,7 @@ fn main() -> void {
     expect(result.status).toBe(0);
     expect(result.stdout).toContain("hello from warn mode");
     expect(result.stderr).toContain("typechecker:");
+    expect(result.stderr).toContain("cli_warn");
     expect(result.stderr).toContain("ABLE_TYPECHECK_FIXTURES=warn");
   });
 

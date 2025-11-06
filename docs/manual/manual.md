@@ -350,6 +350,91 @@ import io.{print as println}
 
 Executables arise from packages defining `fn main()`. Use `os.args()` for CLI arguments and `os.exit(code)` for non-zero termination.
 
+### 9.1 Standard Math Helpers
+
+The bundled `math` module includes common constants and helpers so you can keep numeric code concise:
+
+- Constants — `math.pi()`, `math.tau()`, `math.half_pi()`, `math.e()`.
+- Basic helpers — `math.abs`, `math.min`, `math.max`, `math.clamp`, integer counterparts (`abs_i64`, `clamp_i64`), and `math.sign`.
+- Transformations — `math.deg_to_rad`, `math.rad_to_deg`, `math.lerp`, `math.approx_eq` (with tolerance).
+- Core functions — `math.sqrt` (with UFCS so `value.sqrt()` works), integer-exponent `math.pow`, and `math.hypot`.
+- Rounding & range helpers — `math.floor`, `math.ceil`, `math.round`, `math.trunc`, `math.fract`, `math.clamp01`, `math.inverse_lerp`, `math.remap`, `math.remap_clamped`, `math.wrap`, `math.wrap_angle_radians`, plus integer helpers `math.gcd` / `math.lcm`.
+
+Import what you need:
+
+```able
+import math.{sqrt, pow, pi, hypot}
+radius := 12.5
+area := pi() * pow(radius, 2)
+diag := hypot(3.0, 4.0)
+```
+
+### 9.2 Numeric Interfaces
+
+Import `able.core.numeric` to access the algebraic interfaces (`Numeric`, `Integral`, `Signed`, `Unsigned`, `NumericConversions`, etc.). The `able.numbers.primitives` module provides implementations of those interfaces for the built-in integer/float types, so once you import it you can call helpers directly on literals/values:
+
+```able
+import able.core.numeric
+import able.numbers.primitives
+
+expect((-5).abs()).to(eq(5))
+result := 17.div_mod(5)
+expect(result.remainder).to(eq(2))
+expect(12.0.to_i32()).to(eq(12))
+expect(3.75.floor()).to(eq(3.0))
+expect((-2.25).fract()).to(eq(0.75))
+```
+
+These traits back higher-level helpers like `sum`, `product`, and upcoming collection reducers.
+
+### 9.3 Rational Numbers
+
+`able.numbers.rational` introduces an exact `Rational` type implemented purely in Able. Rationals always stay in lowest terms, keep denominators positive, and participate in the numeric/typeclass hierarchy (`Numeric`, `Signed`, `Fractional`, `NumericConversions`, `Display`, `Eq`, `Ord`).
+
+```able
+import able.numbers.rational.{Rational}
+
+half := Rational.new(1, 2)
+third := Rational.new(1, 3)
+sum := half.add(third)        ## => 5/6
+scaled := sum.mul(Rational.new(7, 5))
+
+expect(sum.round().to_i64()).to(eq(1))
+expect(scaled.to_f64()).to(be_within(1e-12, 1.1666666667))
+```
+
+Use `Rational.from_i64` for integers, `reciprocal`/`abs`/`clamp` for helpers, and the conversion APIs (`to_i32`, `to_f64`, …) when an exact fraction needs to become a primitive. All operations raise the usual numeric errors (`DivisionByZeroError`, `OverflowError`, or `NumericConversionError`) when invariants are violated.
+
+### 9.4 128-bit Integers
+
+The `able.numbers.int128` module provides an `Int128` struct that stores signed 128-bit values as two `u64` chunks. Even though the interpreters already expose primitive `i128` literals, `Int128` is useful when you need explicit control over the representation (serialization, bit fiddling, deterministic arithmetic across runtimes).
+
+```able
+import able.numbers.int128.{Int128}
+
+total := Int128.from_i128(0_i128)
+value := Int128.from_i128(2_i128.pow(96)!)
+total = total.add(value)
+total = total.sub(Int128.from_i64(1))
+
+expect(total.to_string()).to(eq("79228162514264337589248983039"))
+expect(total.to_i64()).to(raise_error()) ## overflows native i64
+```
+
+The companion `able.numbers.uint128` module exposes an unsigned variant (`UInt128`) that spans `[0, 2^128 - 1]` while still storing the value as `(high: u64, low: u64)`. `UInt128` implements the unsigned numeric stack (`Numeric`, `Unsigned`, `NumericConversions`, `Eq`, `Ord`) and keeps its operations checked:
+
+```able
+import able.numbers.uint128.{UInt128}
+
+mask := UInt128.from_u128(0xffffffffffffffffffffffffffffffffffff_u128)
+half := mask.div(UInt128.from_u64(2))
+
+expect(mask.add(UInt128.one())).to(raise_error()) ## overflow
+expect(half.rem(UInt128.from_u64(3)).to_u64()).to(eq(1_u64))
+```
+
+Core helpers for both structs mirror each other: `add`, `sub`, `mul`, `div`, `rem`, `negate` (signed only), `abs`, `clamp`, `compare`, plus the numeric conversions (`to_i32`, `to_u32`, `to_i64`, `to_u64`, `to_f64`). Division/remainder raise `DivisionByZeroError`; out-of-range conversions raise `NumericConversionError`; arithmetic that exceeds 128 bits raises `OverflowError`.
+
 ## 10. Error Handling
 
 Able blends Option/Result unions with exceptions.

@@ -167,6 +167,27 @@ Notes:
 
 Builders expose `Vector.builder()`, `Set.builder()`, etc., returning dedicated accumulators that mirror the persistent layout (RRB nodes, HAMT bitmaps). They accumulate changes structurally, then flush directly to the persistent representation—similar to Scala’s `VectorBuilder` or Clojure’s transient workflow—without detouring through generic mutable collections.
 
+**Vector implementation notes (landed)**  
+The v10 `Vector T` now follows the Scala/Clojure model: a persistent 32-ary tree with a dedicated tail chunk. The root stores fixed-size nodes (`32` slots, `5` bits per level) and the most recent elements live inside the tail until it fills, at which point the chunk is promoted into the tree. `push`/`pop` therefore run in amortised `O(1)` time, while `get`/`set` touch at most one node per depth (`O(log₃₂ n)`). Structural sharing is preserved by cloning only the nodes along the updated path, so historical vectors remain valid without copying. Iteration walks the logical index range and yields values in order.
+
+**List implementation notes (landed)**  
+`List T` is a classic persistent cons list (singly linked nodes with `{ value, next }`). `prepend/cons` and `head/tail` all run in `O(1)` time, matching the ergonomics from Scala’s `List` and Clojure’s `list`. Concatenation clones just the left spine and shares the right-hand list, and helpers such as `nth`, `reverse`, and `to_array` provide the expected `O(n)` traversals when required.
+
+**Map/Set/Queue implementation notes (landed)**  
+Persistent maps and sets now use a bitmap-indexed HAMT identical to the Scala/Clojure layout (32-way fan-out, bitmap compaction, collision nodes). Inserts/updates walk at most `log₃₂ n` nodes and clone only the modified path so older versions remain available. `PersistentSet` is a thin wrapper on the map storing `void` values, adding `union`/`intersect` helpers. Builders exist for both map and set: they gather entries eagerly (via mutable buffers) and emit a frozen persistent value on `finish()` so callers can accumulate without repeated persistent updates. The persistent queue mirrors Clojure’s design: a pair of persistent lists (`front`, `back`) with lazy rebalancing when the front becomes empty, yielding amortised `O(1)` enqueue/dequeue. `LazySeq` wraps any iterator, caching elements the first time they are pulled so subsequent traversals replay the cached prefix without re-running the iterator; evaluation remains incremental, and the cache grows only as callers demand more values. On the concurrency front we now expose `ConcurrentQueue`, a light wrapper around `Channel` that gives idiomatic `enqueue`/`dequeue` helpers while preserving the existing blocking/cancellation semantics.
+
+**SortedSet implementation notes (landed)**  
+Sorted sets currently use a persistent AVL tree (matching the spirit of Scala’s immutable `TreeSet`). Inserts/removals return new trees built from re-used subtrees, `contains`/`first`/`last` all run in `O(log n)`, and range queries simply walk the ordered values, so the API aligns with the spec’s expectations until the planned finger-tree variant lands.
+
+**Mutable TreeMap/TreeSet implementation notes (landed)**  
+The mutable `TreeMap` mirrors Java/Scala style ordered maps: it uses an intrusive AVL tree with reference semantics, so updates rebalance in place and lookups stay `O(log n)`. `TreeSet` is layered on the map (storing `void` values), inheriting the ordering guarantees as well as efficient insert/remove/contains operations.
+
+**Heap implementation notes (landed)**  
+`Heap T` is a standard binary min-heap backed by our mutable `Array`, using either the default `Ord` or a caller-provided comparator. `push` bubbles up, `pop` bubbles down, and `peek` exposes the root in `O(1)`; all structural updates happen in-place thanks to reference semantics.
+
+**BitSet implementation notes (landed)**  
+`BitSet` stores bits inside an `Array u64`. Operations (`set`, `reset`, `flip`, `contains`) compute the word/bit index and mutate the relevant word in place; iteration walks the words and yields every set bit in ascending order. This matches the roadmap’s `O(1)` per-word operations while keeping the code host-agnostic.
+
 **Mutable Collections**
 
 | Type | Backing structure | Key operations | Performance guarantees |
@@ -285,6 +306,8 @@ Guidelines: reuse host performance characteristics when they align with Able sem
 - `Option T`, `Result T`, `Either L R`, `Try T` aliasing `Result T Error`.
 - Ordering helpers via the `Ordering` union.
 - `Range T` generic over numeric/comparable types, integrating with `Iterable`.
+- `Rational` numbers under `able.numbers.rational` for exact fraction arithmetic; implements the numeric/type-class stack so callers can bridge between integers and floats without precision loss.
+- `Int128` helper in `able.numbers.int128` that stores signed 128-bit values as two `u64`s so deterministic arithmetic/serialization works even when runtimes lack native bigints; `UInt128` mirrors this surface for `[0, 2¹²⁸-1]`.
 - Time primitives (`Duration`, `Instant`) under `able.time`.
 - Error hierarchy aligned with Sections 11 and 12, plus extension points for IO/network errors.
 - Tuple helpers (`Pair`, `Triple`, `TupleN`) until variadic generics exist.

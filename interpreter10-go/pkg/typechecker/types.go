@@ -203,6 +203,18 @@ func (r RangeType) Name() string {
 	return "Range[" + elem + "]"
 }
 
+type IteratorType struct {
+	Element Type
+}
+
+func (i IteratorType) Name() string {
+	elem := "unknown"
+	if i.Element != nil && !isUnknownType(i.Element) {
+		elem = i.Element.Name()
+	}
+	return "Iterator[" + elem + "]"
+}
+
 type UnknownType struct{}
 
 func (UnknownType) Name() string { return "Unknown" }

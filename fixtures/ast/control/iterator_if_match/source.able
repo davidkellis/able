@@ -1,5 +1,5 @@
 calls := 0
-fn tick() {
+fn tick() -> bool {
   calls = calls + 1
   return true
 }
@@ -9,7 +9,7 @@ fn get_subject() {
   subject_calls = subject_calls + 1
   return 1
 }
-fn guard_check(value) {
+fn guard_check(value) -> bool {
   guard_calls = guard_calls + 1
   return true
 }

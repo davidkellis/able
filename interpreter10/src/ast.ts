@@ -169,7 +169,12 @@ export interface SpawnExpression extends AstNode { type: 'SpawnExpression'; expr
 export interface PropagationExpression extends AstNode { type: 'PropagationExpression'; expression: Expression; }
 export interface OrElseExpression extends AstNode { type: 'OrElseExpression'; expression: Expression; handler: BlockExpression; errorBinding?: Identifier; }
 export interface BreakpointExpression extends AstNode { type: 'BreakpointExpression'; label: Identifier; body: BlockExpression; }
-export interface IteratorLiteral extends AstNode { type: 'IteratorLiteral'; body: Statement[]; }
+export interface IteratorLiteral extends AstNode {
+  type: 'IteratorLiteral';
+  body: Statement[];
+  binding?: Identifier;
+  elementType?: TypeExpression;
+}
 export interface ImplicitMemberExpression extends AstNode { type: 'ImplicitMemberExpression'; member: Identifier; }
 export interface PlaceholderExpression extends AstNode { type: 'PlaceholderExpression'; index?: number; }
 export interface TopicReferenceExpression extends AstNode { type: 'TopicReferenceExpression'; }
@@ -250,8 +255,17 @@ export function breakpointExpression(label: Identifier | string, body: BlockExpr
   return { type: 'BreakpointExpression', label: typeof label === 'string' ? identifier(label) : label, body };
 }
 
-export function iteratorLiteral(body: Statement[]): IteratorLiteral {
-  return { type: 'IteratorLiteral', body };
+export function iteratorLiteral(
+  body: Statement[],
+  binding?: Identifier | string,
+  elementType?: TypeExpression,
+): IteratorLiteral {
+  return {
+    type: 'IteratorLiteral',
+    body,
+    binding: binding ? (typeof binding === 'string' ? identifier(binding) : binding) : undefined,
+    elementType,
+  };
 }
 
 export function implicitMemberExpression(member: Identifier | string): ImplicitMemberExpression {

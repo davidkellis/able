@@ -158,13 +158,6 @@
               "name": {
                 "type": "Identifier",
                 "name": "self"
-              },
-              "paramType": {
-                "type": "SimpleTypeExpression",
-                "name": {
-                  "type": "Identifier",
-                  "name": "Channel"
-                }
               }
             },
             {
@@ -220,13 +213,6 @@
               "name": {
                 "type": "Identifier",
                 "name": "self"
-              },
-              "paramType": {
-                "type": "SimpleTypeExpression",
-                "name": {
-                  "type": "Identifier",
-                  "name": "Channel"
-                }
               }
             }
           ],
@@ -274,13 +260,6 @@
               "name": {
                 "type": "Identifier",
                 "name": "self"
-              },
-              "paramType": {
-                "type": "SimpleTypeExpression",
-                "name": {
-                  "type": "Identifier",
-                  "name": "Channel"
-                }
               }
             },
             {
@@ -324,6 +303,13 @@
               }
             ]
           },
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "bool"
+            }
+          },
           "isMethodShorthand": false,
           "isPrivate": false
         },
@@ -339,13 +325,6 @@
               "name": {
                 "type": "Identifier",
                 "name": "self"
-              },
-              "paramType": {
-                "type": "SimpleTypeExpression",
-                "name": {
-                  "type": "Identifier",
-                  "name": "Channel"
-                }
               }
             }
           ],
@@ -393,13 +372,6 @@
               "name": {
                 "type": "Identifier",
                 "name": "self"
-              },
-              "paramType": {
-                "type": "SimpleTypeExpression",
-                "name": {
-                  "type": "Identifier",
-                  "name": "Channel"
-                }
               }
             }
           ],
@@ -444,13 +416,6 @@
               "name": {
                 "type": "Identifier",
                 "name": "self"
-              },
-              "paramType": {
-                "type": "SimpleTypeExpression",
-                "name": {
-                  "type": "Identifier",
-                  "name": "Channel"
-                }
               }
             }
           ],
@@ -482,6 +447,13 @@
                 }
               }
             ]
+          },
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "bool"
+            }
           },
           "isMethodShorthand": false,
           "isPrivate": false
