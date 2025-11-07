@@ -202,43 +202,13 @@ func (e *SerialExecutor) enqueue(task serialTask) {
 
 func (e *SerialExecutor) loop() {
 	for {
-		e.mu.Lock()
-		for len(e.queue) == 0 && !e.closed {
-			e.cond.Wait()
-		}
-		if e.closed && len(e.queue) == 0 {
-			e.mu.Unlock()
+		task, ok := e.nextTask()
+		if !ok {
 			return
 		}
-		task := e.queue[0]
-		e.queue = e.queue[1:]
-		e.active = true
-		e.paused = false
-		e.current = task.handle
-		e.mu.Unlock()
-
-		ctx := task.handle.Context()
-		if ctx == nil {
-			ctx = context.Background()
-		}
-		payload := &asyncContextPayload{kind: task.kind, handle: task.handle, future: task.future}
-		ctx = contextWithPayload(ctx, payload)
-		task.handle.MarkStarted()
-		result, err := e.safeInvoke(ctx, task.task)
-
-		e.mu.Lock()
-		e.active = false
-		e.paused = false
-		e.current = nil
-		e.cond.Broadcast()
-		e.mu.Unlock()
-
-		if errors.Is(err, errSerialYield) {
-			e.enqueue(task)
+		if errors.Is(e.runSerialTask(task), errSerialYield) {
 			continue
 		}
-
-		e.applyOutcome(task.handle, result, err)
 	}
 }
 
@@ -255,6 +225,25 @@ func (e *SerialExecutor) Flush() {
 		e.cond.Wait()
 	}
 	e.mu.Unlock()
+}
+
+// Drive executes the task associated with the provided handle on the current goroutine
+// until the handle transitions out of the pending state, mirroring the cooperative
+// scheduler semantics used by the TypeScript interpreter.
+func (e *SerialExecutor) Drive(handle *runtime.ProcHandleValue) {
+	if handle == nil {
+		return
+	}
+	for handle.Status() == runtime.ProcPending {
+		task, ok := e.stealTask(handle)
+		if !ok {
+			// Nothing queued for this handle; assume it is already running or resolved.
+			return
+		}
+		if !errors.Is(e.runSerialTask(task), errSerialYield) {
+			return
+		}
+	}
 }
 
 func (e *SerialExecutor) suspendCurrent(handle *runtime.ProcHandleValue) {
@@ -324,4 +313,75 @@ func newTaskFailure(value runtime.Value, message string) error {
 
 func newTaskCancellation(value runtime.Value, message string) error {
 	return taskError{status: runtime.ProcCancelled, failure: value, message: message}
+}
+
+func (e *SerialExecutor) nextTask() (serialTask, bool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	for len(e.queue) == 0 && !e.closed {
+		e.cond.Wait()
+	}
+	if e.closed && len(e.queue) == 0 {
+		return serialTask{}, false
+	}
+	task := e.queue[0]
+	e.queue = e.queue[1:]
+	return task, true
+}
+
+func (e *SerialExecutor) stealTask(handle *runtime.ProcHandleValue) (serialTask, bool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	for idx, task := range e.queue {
+		if task.handle == handle {
+			e.queue = append(e.queue[:idx], e.queue[idx+1:]...)
+			return task, true
+		}
+	}
+	return serialTask{}, false
+}
+
+func (e *SerialExecutor) runSerialTask(task serialTask) error {
+	if task.handle == nil {
+		return nil
+	}
+	ctx := task.handle.Context()
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	payload := &asyncContextPayload{kind: task.kind, handle: task.handle, future: task.future}
+	ctx = contextWithPayload(ctx, payload)
+	task.handle.MarkStarted()
+
+	prevCurrent, prevActive, prevPaused := e.swapCurrent(task.handle)
+	result, err := e.safeInvoke(ctx, task.task)
+	e.restoreCurrent(prevCurrent, prevActive, prevPaused)
+
+	if errors.Is(err, errSerialYield) {
+		e.enqueue(task)
+		return err
+	}
+	e.applyOutcome(task.handle, result, err)
+	return err
+}
+
+func (e *SerialExecutor) swapCurrent(handle *runtime.ProcHandleValue) (*runtime.ProcHandleValue, bool, bool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	prev := e.current
+	prevActive := e.active
+	prevPaused := e.paused
+	e.current = handle
+	e.active = true
+	e.paused = false
+	return prev, prevActive, prevPaused
+}
+
+func (e *SerialExecutor) restoreCurrent(prev *runtime.ProcHandleValue, prevActive bool, prevPaused bool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.current = prev
+	e.active = prevActive
+	e.paused = prevPaused
+	e.cond.Broadcast()
 }

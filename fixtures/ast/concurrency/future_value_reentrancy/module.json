@@ -1,0 +1,200 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "trace"
+      },
+      "right": {
+        "type": "StringLiteral",
+        "value": ""
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "inner"
+      },
+      "right": {
+        "type": "SpawnExpression",
+        "expression": {
+          "type": "BlockExpression",
+          "body": [
+            {
+              "type": "AssignmentExpression",
+              "operator": "=",
+              "left": {
+                "type": "Identifier",
+                "name": "trace"
+              },
+              "right": {
+                "type": "BinaryExpression",
+                "operator": "+",
+                "left": {
+                  "type": "Identifier",
+                  "name": "trace"
+                },
+                "right": {
+                  "type": "StringLiteral",
+                  "value": "I"
+                }
+              }
+            },
+            {
+              "type": "AssignmentExpression",
+              "operator": "=",
+              "left": {
+                "type": "Identifier",
+                "name": "trace"
+              },
+              "right": {
+                "type": "BinaryExpression",
+                "operator": "+",
+                "left": {
+                  "type": "Identifier",
+                  "name": "trace"
+                },
+                "right": {
+                  "type": "StringLiteral",
+                  "value": "J"
+                }
+              }
+            },
+            {
+              "type": "StringLiteral",
+              "value": "X"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "outer"
+      },
+      "right": {
+        "type": "SpawnExpression",
+        "expression": {
+          "type": "BlockExpression",
+          "body": [
+            {
+              "type": "AssignmentExpression",
+              "operator": "=",
+              "left": {
+                "type": "Identifier",
+                "name": "trace"
+              },
+              "right": {
+                "type": "BinaryExpression",
+                "operator": "+",
+                "left": {
+                  "type": "Identifier",
+                  "name": "trace"
+                },
+                "right": {
+                  "type": "StringLiteral",
+                  "value": "O"
+                }
+              }
+            },
+            {
+              "type": "AssignmentExpression",
+              "operator": ":=",
+              "left": {
+                "type": "Identifier",
+                "name": "result"
+              },
+              "right": {
+                "type": "FunctionCall",
+                "callee": {
+                  "type": "MemberAccessExpression",
+                  "object": {
+                    "type": "Identifier",
+                    "name": "inner"
+                  },
+                  "member": {
+                    "type": "Identifier",
+                    "name": "value"
+                  }
+                },
+                "arguments": [],
+                "isTrailingLambda": false
+              }
+            },
+            {
+              "type": "AssignmentExpression",
+              "operator": "=",
+              "left": {
+                "type": "Identifier",
+                "name": "trace"
+              },
+              "right": {
+                "type": "StringInterpolation",
+                "parts": [
+                  {
+                    "type": "Identifier",
+                    "name": "trace"
+                  },
+                  {
+                    "type": "Identifier",
+                    "name": "result"
+                  }
+                ]
+              }
+            },
+            {
+              "type": "StringLiteral",
+              "value": "done"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "final"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "outer"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "value"
+          }
+        },
+        "arguments": [],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "StringInterpolation",
+      "parts": [
+        {
+          "type": "Identifier",
+          "name": "trace"
+        },
+        {
+          "type": "Identifier",
+          "name": "final"
+        }
+      ]
+    }
+  ]
+}

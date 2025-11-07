@@ -5,6 +5,7 @@
 - [x] Add v10 prose covering the shared executor contract (`proc_yield`, `proc_flush`, cancellation guarantees) now that Go and TypeScript runtimes align.
 - [x] Capture method-set where-clause obligations in the spec, alongside fixtures, so higher-order interface calls (e.g., wrapper helpers) reflect the enforced diagnostics.
 - [x] Clarify typed-pattern assignment semantics in the spec versus the warn-mode checker (mismatches yield runtime `Error` values while the checker remains advisory).
+- [ ] Specify how stdlib channel/mutex helpers surface error structs (`ChannelClosed`, `ChannelNil`, `ChannelSendOnClosed`) so host runtimes map native failures to the documented Able `Error` types.
 - [ ] Specify the `able.text.regex` module, including default code-point semantics, optional grapheme-aware execution, result types, and error reporting.
 - [ ] Document the standard library `String`, `Grapheme`, and iteration helpers (byte, char, grapheme views) together with the byte-oriented indexing rules referenced by the spec.
 

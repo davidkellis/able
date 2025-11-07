@@ -1,0 +1,10 @@
+{
+  "description": "proc_flush drains the queue in creation order to keep scheduling fair",
+  "expect": {
+    "result": {
+      "kind": "string",
+      "value": "A1B2"
+    }
+  },
+  "entry": "module.json"
+}

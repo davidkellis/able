@@ -489,6 +489,220 @@ func TestSerialExecutorProcYieldFairness(t *testing.T) {
 	}
 }
 
+func TestSerialExecutorFutureValueReentrancy(t *testing.T) {
+	interp := New()
+	serial, ok := interp.executor.(*SerialExecutor)
+	if !ok {
+		t.Fatalf("expected SerialExecutor by default")
+	}
+	if serial == nil {
+		t.Fatalf("serial executor is nil")
+	}
+	global := interp.GlobalEnvironment()
+
+	mustEval := func(expr ast.Expression) runtime.Value {
+		val, err := interp.evaluateExpression(expr, global)
+		if err != nil {
+			t.Fatalf("expression evaluation failed: %v", err)
+		}
+		return val
+	}
+
+	appendTrace := func(label string) ast.Expression {
+		return ast.AssignOp(
+			ast.AssignmentAssign,
+			ast.ID("trace"),
+			ast.Bin("+", ast.ID("trace"), ast.Str(label)),
+		)
+	}
+
+	mustEval(ast.Assign(ast.ID("trace"), ast.Str("")))
+
+	mustEval(ast.Assign(
+		ast.ID("inner"),
+		ast.Spawn(ast.Block(
+			appendTrace("I"),
+			appendTrace("J"),
+			ast.Str("X"),
+		)),
+	))
+
+	mustEval(ast.Assign(
+		ast.ID("outer"),
+		ast.Spawn(ast.Block(
+			appendTrace("O"),
+			ast.Assign(
+				ast.ID("result"),
+				ast.CallExpr(ast.Member(ast.ID("inner"), "value")),
+			),
+			ast.AssignOp(
+				ast.AssignmentAssign,
+				ast.ID("trace"),
+				ast.Interp(ast.ID("trace"), ast.ID("result")),
+			),
+			ast.Str("done"),
+		)),
+	))
+
+	mustEval(ast.Assign(
+		ast.ID("final"),
+		ast.CallExpr(ast.Member(ast.ID("outer"), "value")),
+	))
+
+	val := mustEval(ast.Interp(ast.ID("trace"), ast.ID("final")))
+	str, ok := val.(runtime.StringValue)
+	if !ok {
+		t.Fatalf("expected string value, got %#v", val)
+	}
+	if str.Val != "OIJXdone" {
+		t.Fatalf("unexpected trace output %q", str.Val)
+	}
+}
+
+func TestSerialExecutorProcValueReentrancy(t *testing.T) {
+	interp := New()
+	if _, ok := interp.executor.(*SerialExecutor); !ok {
+		t.Fatalf("expected SerialExecutor by default")
+	}
+	global := interp.GlobalEnvironment()
+
+	mustEval := func(expr ast.Expression) runtime.Value {
+		val, err := interp.evaluateExpression(expr, global)
+		if err != nil {
+			t.Fatalf("expression evaluation failed: %v", err)
+		}
+		return val
+	}
+
+	appendTrace := func(label string) ast.Expression {
+		return ast.AssignOp(
+			ast.AssignmentAssign,
+			ast.ID("trace"),
+			ast.Bin("+", ast.ID("trace"), ast.Str(label)),
+		)
+	}
+
+	mustEval(ast.Assign(ast.ID("trace"), ast.Str("")))
+
+	mustEval(ast.Assign(
+		ast.ID("inner"),
+		ast.Proc(ast.Block(
+			appendTrace("I"),
+			appendTrace("J"),
+			ast.Str("X"),
+		)),
+	))
+
+	mustEval(ast.Assign(
+		ast.ID("outer"),
+		ast.Proc(ast.Block(
+			appendTrace("O"),
+			ast.Assign(
+				ast.ID("result"),
+				ast.CallExpr(ast.Member(ast.ID("inner"), "value")),
+			),
+			ast.AssignOp(
+				ast.AssignmentAssign,
+				ast.ID("trace"),
+				ast.Interp(ast.ID("trace"), ast.ID("result")),
+			),
+			ast.Str("done"),
+		)),
+	))
+
+	mustEval(ast.Assign(
+		ast.ID("final"),
+		ast.CallExpr(ast.Member(ast.ID("outer"), "value")),
+	))
+
+	val := mustEval(ast.Interp(ast.ID("trace"), ast.ID("final")))
+	str, ok := val.(runtime.StringValue)
+	if !ok {
+		t.Fatalf("expected string value, got %#v", val)
+	}
+	if str.Val != "OIJXdone" {
+		t.Fatalf("unexpected trace output %q", str.Val)
+	}
+}
+
+func TestProcHandleValueMemoizesResult(t *testing.T) {
+	interp := New()
+	if serial, ok := interp.executor.(*SerialExecutor); ok {
+		serial.Close()
+	}
+	interp.executor = NewGoroutineExecutor(nil)
+	global := interp.GlobalEnvironment()
+
+	mustEval := func(expr ast.Expression) runtime.Value {
+		val, err := interp.evaluateExpression(expr, global)
+		if err != nil {
+			t.Fatalf("expression evaluation failed: %v", err)
+		}
+		return val
+	}
+
+	mustEval(ast.Assign(ast.ID("count"), ast.Int(0)))
+
+	handleVal := mustEval(ast.Proc(ast.Block(
+		ast.AssignOp(ast.AssignmentAdd, ast.ID("count"), ast.Int(1)),
+		ast.Int(21),
+	)))
+	handle, ok := handleVal.(*runtime.ProcHandleValue)
+	if !ok {
+		t.Fatalf("expected proc handle, got %#v", handleVal)
+	}
+
+	first := interp.procHandleValue(handle)
+	second := interp.procHandleValue(handle)
+
+	intVal, ok := first.(runtime.IntegerValue)
+	if !ok || intVal.Val.Cmp(bigInt(21)) != 0 {
+		t.Fatalf("expected first value 21, got %#v", first)
+	}
+	intVal, ok = second.(runtime.IntegerValue)
+	if !ok || intVal.Val.Cmp(bigInt(21)) != 0 {
+		t.Fatalf("expected memoized value 21, got %#v", second)
+	}
+
+	countVal, err := global.Get("count")
+	if err != nil {
+		t.Fatalf("failed to read count: %v", err)
+	}
+	countInt, ok := countVal.(runtime.IntegerValue)
+	if !ok || countInt.Val.Cmp(bigInt(1)) != 0 {
+		t.Fatalf("expected count to be 1, got %#v", countVal)
+	}
+}
+
+func TestProcHandleValueCancellationMemoized(t *testing.T) {
+	interp := New()
+	global := interp.GlobalEnvironment()
+
+	handleVal, err := interp.evaluateExpression(
+		ast.Proc(ast.Block(ast.Int(5))),
+		global,
+	)
+	if err != nil {
+		t.Fatalf("proc expression evaluation failed: %v", err)
+	}
+	handle, ok := handleVal.(*runtime.ProcHandleValue)
+	if !ok {
+		t.Fatalf("expected proc handle, got %#v", handleVal)
+	}
+
+	handle.RequestCancel()
+
+	first := interp.procHandleValue(handle)
+	second := interp.procHandleValue(handle)
+
+	if valueToString(first) != valueToString(second) {
+		t.Fatalf("expected repeated value() calls to return identical errors, got %q vs %q", valueToString(first), valueToString(second))
+	}
+	if !strings.Contains(valueToString(first), "Proc cancelled") {
+		t.Fatalf("expected cancellation error, got %q", valueToString(first))
+	}
+}
+
 func TestConcurrentProcsSharedStateWithMutex(t *testing.T) {
 	interp := New()
 	if serial, ok := interp.executor.(*SerialExecutor); ok {

@@ -70,3 +70,10 @@ Implementation landed in `interpreter10/src/interpreter/channels_mutex.ts` (with
 - Mirror any future Go enhancements (e.g., select/timeouts) once spec language settles.
 - Audit nil-channel cancellation paths under heavier load; consider property tests around cancellation race behaviour.
 - Keep spec prose in sync as we document the helper guarantees called out in the TODO.
+
+## 2025-11-05 Wiring Audit (Phase α wrap-up)
+
+- **Runtime helpers registered in both interpreters.** Verified that `InterpreterV10.ensureChannelMutexBuiltins` and the Go `initChannelMutexBuiltins` install the full helper set (`__able_channel_new/send/receive/try_send/try_receive/close/is_closed`, `__able_mutex_new/lock/unlock`) and seed per-handle state (TS: cooperative queues; Go: buffered `chan`/`sync.Mutex`).
+- **Typechecker/fixture coverage.** Confirmed the helper signatures are declared in `interpreter10/src/typechecker/checker.ts` and `interpreter10-go/pkg/typechecker/decls.go`, and that the shared AST fixture suite already exercises channel/mutex semantics (`fixtures/ast/concurrency/*`, `fixtures/ast/stdlib/channel_mutex_helpers`). No schema drift detected between TS and Go decoders.
+- **New interpreter smoke tests.** Added Bun tests for nil-channel cancellation and mutex re-entry errors (`interpreter10/test/concurrency/channel_mutex.test.ts`) to mirror the Go parity suite behaviour.
+- **Outstanding parity TODO.** Native helpers still raise generic runtime errors (`"send on closed channel"`, `"channel already closed"`) instead of materialising the stdlib `ChannelClosed/ChannelNil/ChannelSendOnClosed` structs. Capture conversion logic on both runtimes before we graduate Phase β; tracked in `PLAN.md` and `spec/todo.md`.

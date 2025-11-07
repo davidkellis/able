@@ -157,7 +157,9 @@ For each milestone: port representative TS tests into Go, add new cases where Go
 ## Phase 4 — Cross-Interpreter Parity & Tooling
 1. Shared AST fixtures
    - Generate machine-readable AST samples from TS DSL to validate Go parser compatibility.
-   - Introduce parity tests that evaluate the same AST on both interpreters and diff results.
+   - Introduce parity tests that evaluate the same AST on both interpreters and diff results. *(Done: Bun harness shells out to the compiled Go fixture runner and now exercises the entire shared AST fixture corpus; use `ABLE_PARITY_MAX_FIXTURES` to cap the run when debugging.)*
+   - Diagnostics parity now asserts that fixtures with `manifest.expect.typecheckDiagnostics` yield identical checker output in both runtimes when `ABLE_TYPECHECK_FIXTURES` is enabled.
+   - Documentation-only samples under `examples/` remain outside the automated suites; copy any required code into `interpreter10/testdata/examples/` before wiring it into tests. *(Done: curated `hello_world`/`control_flow` programs now run via `examples_parity.test.ts`, comparing Bun output with the compiled Go CLI.)*
 2. Conformance harness
    - Build CLI to run Go + TS interpreters against shared suites (`examples/`, synthetic tests).
    - Track divergences and file bugs.
@@ -177,17 +179,16 @@ For each milestone: port representative TS tests into Go, add new cases where Go
 - **Future interpreters**: keep AST schema + conformance harness generic to support planned Crystal implementation.
 
 ## Immediate Next Actions
-1. **AST → Parser → Typechecker completion plan execution (see section below)**
-   - Kick off the audit + fixture expansion work immediately; no other engineering tasks start until the AST/Parser/Typechecker checklist is underway each cycle.
-2. **Parser & fixture audit**
-   - Track coverage progress in `design/parser-ast-coverage.md` and refresh the mapper tests where span data changed.
-3. **Concurrency hardening**
-   - Add the remaining stress fixtures for `proc_flush`, goroutine fairness, and `value()` re-entrancy, then document the outcomes in `design/channels-mutexes.md`.
+1. **(Done) AST → Parser → Typechecker completion plan cycle**
+   - ✅ Latest sweep completed (strict fixture run, Go interpreter suite, Go parser harness, and `bun test` all green after the proc memoization fixtures landed). Re-open this item whenever new AST features or spec updates appear.
+2. **Phase 4 — Cross-Interpreter Parity & Tooling**
+   - ✅ Bun parity harness now shells out to the prebuilt Go fixture binary and exercises the entire `fixtures/ast` corpus; runtime dropped from minutes → ~13s per run.
+   - ✅ Curated parity mini-suite under `interpreter10/testdata/examples/` runs under Bun and compares against the compiled Go CLI (`examples_parity.test.ts`); keep traditional `examples/` for docs only. Current coverage: `hello_world`, `control_flow`, `errors_rescue`, `structs_translate`, `concurrency_proc`, and `generics_typeclass`.
+   - ✅ Added diff-friendly reporting for both parity suites so mismatches show TS-vs-Go deltas (stdout, diagnostics, runtime values).
+   - Next: design additional curated examples for pattern-matching and advanced pipe/topic usage once the parser + Go runtime fully support those semantics (current TypeScript parser rejects the match guards we tried, and Go topic pipes still diverge). Track readiness in `design/parser-ast-coverage.md`, `design/concurrency-fixture-plan.md`, and the new `design/parity-examples-plan.md` before expanding the suite.
 
 ### Next steps (prioritized)
-1. **AST → Parser → Typechecker completion plan** (audits, fixtures, parser/typechecker parity, spec updates)
-2. **Parser/fixture completeness audit**
-3. **Concurrency stress coverage & docs**
+1. **Phase 4 — Cross-Interpreter Parity & Tooling (gate new curated examples on parser/runtime readiness; keep diagnostics parity tight)**
 
 
 ## Tracking & Reporting
