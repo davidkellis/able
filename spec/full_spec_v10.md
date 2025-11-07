@@ -3101,6 +3101,16 @@ Runtimes can provide different executor implementations (goroutine-backed, coope
 
 Runtime schedulers are expected to provide eventual forward progress for runnable procs, matching the behaviour of the Go runtime. Hosts that already provide pre-emptive scheduling—such as Go—inherit this property automatically and require no additional instrumentation. Cooperative implementations SHOULD emulate the same effect (for example, by yielding after bounded interpreter work or after blocking operations) so user-visible semantics remain aligned across runtimes. Implementations may offer additional test-only executors that enforce deterministic interleavings (e.g., always running the next ready task after a `proc_yield()`), but those guarantees are outside the core language contract.
 
+##### Re-entrant waits
+
+`proc_handle.value()` and `future.value()` may themselves be called from within other `proc`/`spawn` tasks (and even nested inside additional `value()` calls). Implementations MUST treat these operations as re-entrant:
+
+- If the awaited task has already completed, `value()` returns immediately with the memoized result/error just as it would in top-level code.
+- If the awaited task is still pending, the caller simply blocks until the awaited task resolves. Cooperative executors MUST continue to make progress by either resuming the awaited task inline (e.g., by draining the deterministic queue) or by ensuring it stays scheduled; they may not deadlock merely because the wait originated from another task.
+- Pre-emptive runtimes (e.g., the Go goroutine executor) can rely on the host scheduler, but they must still guarantee that nested waits eventually unblock once the awaited task finishes.
+
+This requirement ensures programs like nested futures/procs (see the shared `concurrency/future_value_reentrancy` and `concurrency/proc_value_reentrancy` fixtures) behave the same way across interpreters and targets.
+
 ### 12.3. Future-Based Asynchronous Execution (`spawn`)
 
 The `spawn` keyword initiates asynchronous execution and returns a `Future T` value, which implicitly blocks and yields the result when evaluated in a `T` context. The result of a `Future T` is memoized: the first evaluation computes the result; subsequent evaluations return the memoized value (or error).

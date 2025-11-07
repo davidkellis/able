@@ -1,0 +1,14 @@
+trace := ""
+inner := spawn {
+  trace = trace + "I"
+  trace = trace + "J"
+  "X"
+}
+outer := spawn {
+  trace = trace + "O"
+  result := inner.value()
+  trace = `${trace}${result}`
+  "done"
+}
+final := outer.value()
+`${trace}${final}`

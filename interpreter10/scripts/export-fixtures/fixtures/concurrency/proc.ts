@@ -262,6 +262,135 @@ const procConcurrencyFixtures: Fixture[] = [
       },
 
   {
+        name: "concurrency/proc_flush_fairness",
+        module: AST.module([
+          AST.assign("trace", AST.stringLiteral("")),
+          AST.assign("firstStage", AST.integerLiteral(0)),
+          AST.assign("secondStage", AST.integerLiteral(0)),
+          AST.assign(
+            "first",
+            AST.procExpression(
+              AST.blockExpression([
+                AST.ifExpression(
+                  AST.binaryExpression(
+                    "==",
+                    AST.identifier("firstStage"),
+                    AST.integerLiteral(0),
+                  ),
+                  AST.blockExpression([
+                    AST.assignmentExpression(
+                      "=",
+                      AST.identifier("trace"),
+                      AST.binaryExpression(
+                        "+",
+                        AST.identifier("trace"),
+                        AST.stringLiteral("A"),
+                      ),
+                    ),
+                    AST.assignmentExpression(
+                      "=",
+                      AST.identifier("firstStage"),
+                      AST.integerLiteral(1),
+                    ),
+                    AST.functionCall(AST.identifier("proc_yield"), []),
+                  ]),
+                  [],
+                ),
+                AST.ifExpression(
+                  AST.binaryExpression(
+                    "==",
+                    AST.identifier("firstStage"),
+                    AST.integerLiteral(1),
+                  ),
+                  AST.blockExpression([
+                    AST.assignmentExpression(
+                      "=",
+                      AST.identifier("trace"),
+                      AST.binaryExpression(
+                        "+",
+                        AST.identifier("trace"),
+                        AST.stringLiteral("B"),
+                      ),
+                    ),
+                    AST.assignmentExpression(
+                      "=",
+                      AST.identifier("firstStage"),
+                      AST.integerLiteral(2),
+                    ),
+                  ]),
+                  [],
+                ),
+              ]),
+            ),
+          ),
+          AST.assign(
+            "second",
+            AST.procExpression(
+              AST.blockExpression([
+                AST.ifExpression(
+                  AST.binaryExpression(
+                    "==",
+                    AST.identifier("secondStage"),
+                    AST.integerLiteral(0),
+                  ),
+                  AST.blockExpression([
+                    AST.assignmentExpression(
+                      "=",
+                      AST.identifier("trace"),
+                      AST.binaryExpression(
+                        "+",
+                        AST.identifier("trace"),
+                        AST.stringLiteral("1"),
+                      ),
+                    ),
+                    AST.assignmentExpression(
+                      "=",
+                      AST.identifier("secondStage"),
+                      AST.integerLiteral(1),
+                    ),
+                    AST.functionCall(AST.identifier("proc_yield"), []),
+                  ]),
+                  [],
+                ),
+                AST.ifExpression(
+                  AST.binaryExpression(
+                    "==",
+                    AST.identifier("secondStage"),
+                    AST.integerLiteral(1),
+                  ),
+                  AST.blockExpression([
+                    AST.assignmentExpression(
+                      "=",
+                      AST.identifier("trace"),
+                      AST.binaryExpression(
+                        "+",
+                        AST.identifier("trace"),
+                        AST.stringLiteral("2"),
+                      ),
+                    ),
+                    AST.assignmentExpression(
+                      "=",
+                      AST.identifier("secondStage"),
+                      AST.integerLiteral(2),
+                    ),
+                  ]),
+                  [],
+                ),
+              ]),
+            ),
+          ),
+          AST.functionCall(AST.identifier("proc_flush"), []),
+          AST.identifier("trace"),
+        ]),
+        manifest: {
+          description: "proc_flush drains the queue in creation order to keep scheduling fair",
+          expect: {
+            result: { kind: "string", value: "A1B2" },
+          },
+        },
+      },
+
+  {
         name: "concurrency/proc_cancelled_helper",
         module: AST.module([
           AST.assign("trace", AST.stringLiteral("")),

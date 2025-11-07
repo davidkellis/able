@@ -217,6 +217,9 @@ func (i *Interpreter) procHandleStatus(handle *runtime.ProcHandleValue) runtime.
 }
 
 func (i *Interpreter) procHandleValue(handle *runtime.ProcHandleValue) runtime.Value {
+	if serial, ok := i.executor.(*SerialExecutor); ok {
+		serial.Drive(handle)
+	}
 	result, failure, status := handle.Await()
 	switch status {
 	case runtime.ProcResolved:
@@ -260,6 +263,11 @@ func (i *Interpreter) futureStatus(future *runtime.FutureValue) runtime.Value {
 }
 
 func (i *Interpreter) futureValue(future *runtime.FutureValue) runtime.Value {
+	if handle := future.Handle(); handle != nil {
+		if serial, ok := i.executor.(*SerialExecutor); ok {
+			serial.Drive(handle)
+		}
+	}
 	value, failure, status := future.Await()
 	switch status {
 	case runtime.ProcResolved:

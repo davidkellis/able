@@ -16,10 +16,12 @@ func TestFixtureParityStringLiteral(t *testing.T) {
 	t.Setenv(fixtureTypecheckEnv, "warn")
 
 	concurrencyFixtures := map[string]struct{}{
-		"concurrency/proc_cancel_value":            {},
-		"concurrency/future_memoization":           {},
-		"concurrency/proc_cancelled_outside_error": {},
-		"concurrency/proc_cancelled_helper":        {},
+		"concurrency/proc_cancel_value":             {},
+		"concurrency/proc_value_memoization":        {},
+		"concurrency/proc_value_cancel_memoization": {},
+		"concurrency/future_memoization":            {},
+		"concurrency/proc_cancelled_outside_error":  {},
+		"concurrency/proc_cancelled_helper":         {},
 	}
 
 	for _, entry := range entries {

@@ -235,4 +235,89 @@ describe("channel helpers", () => {
 
     I.evaluate(call("proc_flush"));
   });
+
+  test("nil channel send blocks until cancellation", () => {
+    const I = new InterpreterV10();
+
+    I.evaluate(
+      AST.assignmentExpression(
+        ":=",
+        AST.identifier("blockedSender"),
+        AST.procExpression(
+          AST.blockExpression([
+            call("__able_channel_send", [AST.integerLiteral(0), AST.stringLiteral("value")]),
+            AST.stringLiteral("unreachable"),
+          ]),
+        ),
+      ),
+    );
+
+    I.evaluate(call("proc_flush"));
+
+    const pendingStatus = I.evaluate(memberCall("blockedSender", "status")) as any;
+    expect(pendingStatus.def.id.name).toBe("Pending");
+
+    I.evaluate(memberCall("blockedSender", "cancel"));
+    I.evaluate(call("proc_flush"));
+
+    const cancelledStatus = I.evaluate(memberCall("blockedSender", "status")) as any;
+    expect(cancelledStatus.def.id.name).toBe("Cancelled");
+    const cancelledValue = I.evaluate(memberCall("blockedSender", "value")) as any;
+    expect(cancelledValue.kind).toBe("error");
+    expect(cancelledValue.message.toLowerCase()).toContain("cancel");
+  });
+
+  test("nil channel receive blocks until cancellation", () => {
+    const I = new InterpreterV10();
+
+    I.evaluate(
+      AST.assignmentExpression(
+        ":=",
+        AST.identifier("blockedReceiver"),
+        AST.procExpression(
+          AST.blockExpression([
+            call("__able_channel_receive", [AST.integerLiteral(0)]),
+            AST.stringLiteral("unreachable"),
+          ]),
+        ),
+      ),
+    );
+
+    I.evaluate(call("proc_flush"));
+
+    const pendingStatus = I.evaluate(memberCall("blockedReceiver", "status")) as any;
+    expect(pendingStatus.def.id.name).toBe("Pending");
+
+    I.evaluate(memberCall("blockedReceiver", "cancel"));
+    I.evaluate(call("proc_flush"));
+
+    const cancelledStatus = I.evaluate(memberCall("blockedReceiver", "status")) as any;
+    expect(cancelledStatus.def.id.name).toBe("Cancelled");
+    const cancelledValue = I.evaluate(memberCall("blockedReceiver", "value")) as any;
+    expect(cancelledValue.kind).toBe("error");
+    expect(cancelledValue.message.toLowerCase()).toContain("cancel");
+  });
+});
+
+describe("mutex helpers", () => {
+  test("lock/unlock errors when reentered outside procs", () => {
+    const I = new InterpreterV10();
+
+    I.evaluate(
+      AST.assignmentExpression(
+        ":=",
+        AST.identifier("mutex"),
+        call("__able_mutex_new"),
+      ),
+    );
+
+    I.evaluate(call("__able_mutex_lock", [AST.identifier("mutex")]));
+
+    expect(() =>
+      I.evaluate(call("__able_mutex_lock", [AST.identifier("mutex")])),
+    ).toThrow("Mutex already locked");
+
+    I.evaluate(call("__able_mutex_unlock", [AST.identifier("mutex")]));
+    I.evaluate(call("__able_mutex_unlock", [AST.identifier("mutex")]));
+  });
 });
