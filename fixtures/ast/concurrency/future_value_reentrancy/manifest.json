@@ -1,0 +1,10 @@
+{
+  "description": "Nested future.value() calls (re-entrancy) resolve without deadlock",
+  "expect": {
+    "result": {
+      "kind": "string",
+      "value": "OIJXdone"
+    }
+  },
+  "entry": "module.json"
+}

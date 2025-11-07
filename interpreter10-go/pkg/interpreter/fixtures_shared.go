@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"encoding/json"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,31 +26,52 @@ type fixtureManifest struct {
 	} `json:"expect"`
 }
 
+// FixtureManifest exposes the manifest schema for external consumers.
+type FixtureManifest = fixtureManifest
+
 func readManifest(t testingT, dir string) fixtureManifest {
 	t.Helper()
-	manifestPath := filepath.Join(dir, "manifest.json")
-	data, err := os.ReadFile(manifestPath)
+	manifest, err := LoadFixtureManifest(dir)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return fixtureManifest{}
-		}
-		t.Fatalf("read manifest %s: %v", manifestPath, err)
-	}
-	var manifest fixtureManifest
-	if err := json.Unmarshal(data, &manifest); err != nil {
-		t.Fatalf("parse manifest %s: %v", manifestPath, err)
+		t.Fatalf("read manifest %s: %v", filepath.Join(dir, "manifest.json"), err)
 	}
 	return manifest
 }
 
 func readModule(t testingT, path string) (*ast.Module, string) {
 	t.Helper()
+	module, origin, err := LoadFixtureModule(path)
+	if err != nil {
+		t.Fatalf("read module %s: %v", path, err)
+	}
+	return module, origin
+}
+
+// LoadFixtureManifest reads a fixture manifest from disk.
+func LoadFixtureManifest(dir string) (fixtureManifest, error) {
+	manifestPath := filepath.Join(dir, "manifest.json")
+	data, err := os.ReadFile(manifestPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return fixtureManifest{}, nil
+		}
+		return fixtureManifest{}, err
+	}
+	var manifest fixtureManifest
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		return fixtureManifest{}, err
+	}
+	return manifest, nil
+}
+
+// LoadFixtureModule loads a fixture module (JSON or Able source) and returns the module plus origin.
+func LoadFixtureModule(path string) (*ast.Module, string, error) {
 	if strings.HasSuffix(path, ".able") {
 		mod, err := parseSourceModule(path)
 		if err != nil {
-			t.Fatalf("parse source module %s: %v", path, err)
+			return nil, "", err
 		}
-		return mod, path
+		return mod, path, nil
 	}
 	if strings.HasSuffix(path, ".json") {
 		dir := filepath.Dir(path)
@@ -61,26 +83,26 @@ func readModule(t testingT, path string) (*ast.Module, string) {
 		for _, candidate := range candidates {
 			if _, err := os.Stat(candidate); err == nil {
 				if mod, err := parseSourceModule(candidate); err == nil {
-					return mod, candidate
+					return mod, candidate, nil
 				}
 			}
 		}
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
-		t.Fatalf("read module %s: %v", path, err)
+		return nil, "", err
 	}
 	var raw map[string]any
 	if err := json.Unmarshal(data, &raw); err != nil {
-		t.Fatalf("parse module %s: %v", path, err)
+		return nil, "", err
 	}
 	node, err := decodeNode(raw)
 	if err != nil {
-		t.Fatalf("decode module %s: %v", path, err)
+		return nil, "", err
 	}
 	mod, ok := node.(*ast.Module)
 	if !ok {
-		t.Fatalf("decoded node is not module: %T", node)
+		return nil, "", fs.ErrInvalid
 	}
-	return mod, path
+	return mod, path, nil
 }

@@ -99,14 +99,27 @@ type ProcTask func(ctx context.Context) (runtime.Value, error)
    * Stress tests for racing `cancel()`/completion, repeated `value()` calls.
 3. **Deterministic executor tests.**
    * Re-run key scenarios with the `SerialExecutor` to guarantee stable ordering for parity assertions.
+4. **Inline driving for nested waits.**
+   * When a proc/future synchronously awaits another handle (e.g., nested `future.value()` / `proc.value()` calls or `proc_flush` draining the queue), the serial executor now exposes `Drive(handle)` to steal and execute that task inline until it leaves the `Pending` state. This mirrors the TypeScript cooperative executor and prevents deadlocks in fixtures like `concurrency/future_value_reentrancy` and `concurrency/proc_value_reentrancy`.
 
-## 5. Open Questions / Follow-ups
+## 5. Goroutine Executor Fairness
+
+The production executor (`GoroutineExecutor`) defers scheduling decisions to Go’s runtime. Each Able `proc`/`spawn` task runs inside its own goroutine with an attached `context.Context` for cancellation. While Go does not provide strict FIFO fairness guarantees, it does ensure that runnable goroutines eventually make progress. Able interprets that guarantee using the following rules:
+
+* **`proc_yield()` implementation.** In goroutine mode the helper simply invokes `runtime.Gosched()`. This cooperatively hints to Go’s scheduler that other goroutines should run, but it does **not** provide deterministic ordering. Authors should treat it as a best-effort fairness nudge rather than a strict context switch.
+* **`proc_flush()` semantics.** Because goroutines execute independently, `proc_flush` becomes a no-op in goroutine mode. The helper still returns `nil` so programs can stay portable, but only the serial executor drains queued work synchronously.
+* **Fairness expectations.** Programs must not assume alternation or round-robin behaviour when running under the goroutine executor; the only guarantee is forward progress. Tests that need deterministic ordering should run under the serial executor.
+* **Fixture guidance.** Shared fixtures that assert trace ordering (e.g., `proc_flush_fairness`) rely on the serial executor and should be mirrored in Go via either the fixture parity harness or dedicated unit tests. When adding new concurrency scenarios, include both a serial-executor regression test and an explanation of how the goroutine executor maintains spec compliance (usually via `Gosched` + eventual progress).
+
+These notes satisfy the follow-up from the concurrency PLAN item (“Document remaining scheduler guarantees”), and future contributors should reference this section before modifying the executor helpers.
+
+## 6. Open Questions / Follow-ups
 
 * **`proc_yield` semantics:** Calling `runtime.Gosched()` is lightweight but not strictly deterministic. Document and test expected behaviour; use the deterministic executor for precise interleavings in tests.
 * **Timeout/Select helpers:** Out of scope for the initial pass, but the design should allow library-level helpers (e.g., `Channel.select`, timers) to integrate seamlessly.
 * **TS parity docs:** Update TypeScript design notes once the Go implementation lands to keep the cooperative scheduler aligned.
 
-## 6. Current Status (2025-10-18)
+## 7. Current Status (2025-10-18)
 
 Implementation highlights now in `master`:
 
@@ -124,5 +137,3 @@ Key decisions captured during implementation:
 Outstanding work before we call concurrency “done”:
 
 1. Exercise cancellation/yield paths (including repeated `value()` calls) in dedicated Go tests and parity fixtures.
-2. Harden serial executor fairness (e.g., explicit `proc_yield` interleavings) and document the scheduling guarantees we expect fixtures to rely on.
-3. Update spec prose/fixtures to capture the shared executor guarantees (error payload structure, cancellation helpers) now that both runtimes align.

@@ -1,0 +1,12 @@
+package parity.examples.proc
+
+fn main() {
+  count := 0
+  handle := proc {
+    count = count + 1
+    count
+  }
+  first := handle.value()
+  second := handle.value()
+  print(`values ${first}, ${second}, count ${count}`)
+}

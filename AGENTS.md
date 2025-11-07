@@ -42,6 +42,9 @@ Unconditionally read PLAN.md and spec/full_spec_v10.md before starting any work.
 - Use concise, high-signal comments in code. Avoid speculative abstractions; match the TS design unless we have a strong reason to diverge.
 - Update the spec (`spec/full_spec_v10.md`) once behaviour becomes canonical; check off items in `spec/todo.md`.
 - At the end of every session: document progress, current state, and next steps; update PLAN/todo/docs accordingly; capture lessons/process adjustments in design notes so the next contributor can resume seamlessly.
+- Mark off and remove completed items from the PLAN file once they are complete.
+- Remember to keep files under one thousand lines and to refactor them if they are going to exceed one thousand lines.
+- Tests should run quickly; no test should take more than one minute to complete.
 
 ## Concurrency Expectations
 - TypeScript interpreter uses a cooperative scheduler to emulate Able `proc`/`spawn` semantics; the helper functions `proc_yield()`, `proc_cancelled()`, and `proc_flush()` are available inside Able code so fixtures/tests can drive the scheduler deterministically.
