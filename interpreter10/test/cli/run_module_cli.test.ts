@@ -114,6 +114,30 @@ fn main() -> void {
     }
   });
 
+  test("run command reports diagnostics for missing import selectors", () => {
+    const result = runCli("run", {
+      manifestName: "cli_diag",
+      files: {
+        "main.able": `
+package cli_diag.main
+
+import cli_diag.support.{missing_symbol}
+
+fn main() -> void {
+  print(missing_symbol())
+}
+`,
+        "support.able": `
+package support
+
+fn available() -> void {}
+`,
+      },
+    });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("typechecker: package 'cli_diag.support' has no symbol 'missing_symbol'");
+  });
+
   test("run command aborts under strict typecheck mode", () => {
     const result = runCli("run", {
       files: typecheckFailureProgram(),

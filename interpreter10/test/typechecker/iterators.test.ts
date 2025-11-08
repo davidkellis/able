@@ -127,4 +127,24 @@ describe("typechecker iterator annotations", () => {
     expect(result.diagnostics).toEqual([]);
   });
 
+  test("accepts implicit generator binding inside iterator literals", () => {
+    const checker = new TypeChecker();
+    const iterator = AST.iteratorLiteral([
+      AST.forLoop(
+        AST.identifier("item"),
+        AST.arrayLiteral([AST.integerLiteral(1), AST.integerLiteral(2)]),
+        AST.blockExpression([
+          AST.functionCall(
+            AST.memberAccessExpression(AST.identifier("gen"), AST.identifier("yield")),
+            [AST.identifier("item")],
+          ) as unknown as AST.Statement,
+        ]),
+      ),
+    ]);
+    const module = AST.module([iterator]);
+
+    const result = checker.checkModule(module);
+    expect(result.diagnostics).toEqual([]);
+  });
+
 });

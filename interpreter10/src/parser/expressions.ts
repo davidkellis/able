@@ -523,7 +523,7 @@ function parseRangeExpression(node: Node, source: string): Expression {
   if (operatorText !== ".." && operatorText !== "...") {
     throw new MapperError(`parser: unsupported range operator ${operatorText}`);
   }
-  return annotateExpressionNode(AST.rangeExpression(startExpr, endExpr, operatorText === "..."), node);
+  return annotateExpressionNode(AST.rangeExpression(startExpr, endExpr, operatorText === ".."), node);
 }
 
 

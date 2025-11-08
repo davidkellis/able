@@ -1,4 +1,4 @@
-import type * as AST from "../../ast";
+import * as AST from "../../ast";
 import type { TypeInfo } from "../types";
 import type { FunctionContext, FunctionInfo, ImplementationObligation } from "./types";
 import type { StatementContext } from "./expressions";
@@ -27,6 +27,7 @@ export function collectFunctionDefinition(
   const structName = scope?.structName;
   const fullName = structName ? `${structName}::${name}` : name;
   const returnType = ctx.resolveTypeExpression(definition.returnType);
+  injectImplicitSelfParameter(definition, scope);
   const parameterTypes = resolveFunctionParameterTypes(ctx, definition);
 
   const info: FunctionInfo = {
@@ -125,4 +126,22 @@ function extractFunctionWhereObligations(
   }
 
   return obligations;
+}
+
+function injectImplicitSelfParameter(definition: AST.FunctionDefinition, scope: FunctionContext | undefined): void {
+  if (!scope?.structName || !Array.isArray(definition.params) || definition.params.length === 0) {
+    return;
+  }
+  const firstParam = definition.params[0];
+  if (!firstParam || firstParam.paramType) {
+    return;
+  }
+  if (firstParam.name?.type !== "Identifier") {
+    return;
+  }
+  const paramName = firstParam.name.name?.toLowerCase();
+  if (paramName !== "self") {
+    return;
+  }
+  firstParam.paramType = AST.simpleTypeExpression("Self");
 }

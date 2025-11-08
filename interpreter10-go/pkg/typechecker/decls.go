@@ -2,6 +2,7 @@ package typechecker
 
 import (
 	"fmt"
+	"strings"
 
 	"able/interpreter10-go/pkg/ast"
 )
@@ -572,6 +573,7 @@ func (c *declarationCollector) collectImplementationDefinition(def *ast.Implemen
 		}
 		methodOwner := fmt.Sprintf("%s::%s", implLabel, functionName(fn))
 		fnType := c.functionTypeFromDefinition(fn, scope, methodOwner, fn)
+		fnType = applyImplicitSelfParam(fn, fnType, targetType)
 		methods[fn.ID.Name] = fnType
 	}
 
@@ -627,6 +629,7 @@ func (c *declarationCollector) collectMethodsDefinition(def *ast.MethodsDefiniti
 		}
 		methodOwner := fmt.Sprintf("%s::%s", methodsLabel, functionName(fn))
 		fnType := c.functionTypeFromDefinition(fn, scope, methodOwner, fn)
+		fnType = applyImplicitSelfParam(fn, fnType, targetType)
 		methods[fn.ID.Name] = fnType
 	}
 
@@ -714,4 +717,42 @@ func obligationsFromSpecs(owner string, params []GenericParamSpec, where []Where
 		}
 	}
 	return obligations
+}
+
+func applyImplicitSelfParam(def *ast.FunctionDefinition, fnType FunctionType, target Type) FunctionType {
+	if def == nil || len(def.Params) == 0 || len(fnType.Params) == 0 {
+		return fnType
+	}
+	firstParam := def.Params[0]
+	if firstParam == nil {
+		return fnType
+	}
+	if firstParam.ParamType != nil && !isUnknownType(fnType.Params[0]) {
+		return fnType
+	}
+	name := functionParameterName(firstParam)
+	if name == "" || !strings.EqualFold(name, "self") {
+		return fnType
+	}
+	if !isUnknownType(fnType.Params[0]) {
+		return fnType
+	}
+	if target == nil || isUnknownType(target) {
+		fnType.Params[0] = TypeParameterType{ParameterName: "Self"}
+	} else {
+		fnType.Params[0] = target
+	}
+	return fnType
+}
+
+func functionParameterName(param *ast.FunctionParameter) string {
+	if param == nil || param.Name == nil {
+		return ""
+	}
+	switch name := param.Name.(type) {
+	case *ast.Identifier:
+		return name.Name
+	default:
+		return ""
+	}
 }

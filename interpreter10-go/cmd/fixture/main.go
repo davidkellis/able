@@ -135,7 +135,7 @@ func runFixture(dir, entry string, setup []string, executor interpreter.Executor
 
 	value, _, check, err := interp.EvaluateProgram(program, interpreter.ProgramEvaluationOptions{
 		SkipTypecheck:    mode == modeOff,
-		AllowDiagnostics: mode == modeWarn,
+		AllowDiagnostics: mode != modeOff,
 	})
 	output.Diagnostics = formatDiagnostics(check.Diagnostics)
 	output.Stdout = stdout

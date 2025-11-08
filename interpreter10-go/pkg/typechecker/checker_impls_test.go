@@ -673,6 +673,112 @@ func TestMethodsDefinitionMemberAccessSubstitutesGenerics(t *testing.T) {
 	}
 }
 
+func TestMethodsDefinitionAllowsImplicitSelfWithoutAnnotation(t *testing.T) {
+	checker := New()
+	structDef := ast.StructDef(
+		"Channel",
+		[]*ast.StructFieldDefinition{
+			ast.FieldDef(ast.Ty("i64"), "handle"),
+		},
+		ast.StructKindNamed,
+		nil,
+		nil,
+		false,
+	)
+	sendMethod := ast.Fn(
+		"send",
+		[]*ast.FunctionParameter{
+			ast.Param("self", nil),
+			ast.Param("value", ast.Ty("i32")),
+		},
+		[]ast.Statement{
+			ast.Member(ast.ID("self"), "handle"),
+		},
+		nil,
+		nil,
+		nil,
+		false,
+		false,
+	)
+	methods := ast.Methods(ast.Ty("Channel"), []*ast.FunctionDefinition{sendMethod}, nil, nil)
+	module := ast.NewModule([]ast.Statement{structDef, methods}, nil, nil)
+
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics, got %v", diags)
+	}
+}
+
+func TestImplementationAllowsImplicitSelfWithoutAnnotation(t *testing.T) {
+	checker := New()
+	iface := ast.Iface(
+		"Show",
+		[]*ast.FunctionSignature{
+			ast.FnSig(
+				"show",
+				[]*ast.FunctionParameter{
+					ast.Param("self", ast.Ty("Self")),
+				},
+				ast.Ty("i32"),
+				nil,
+				nil,
+				nil,
+			),
+		},
+		nil,
+		nil,
+		nil,
+		nil,
+		false,
+	)
+	structDef := ast.StructDef(
+		"Meter",
+		[]*ast.StructFieldDefinition{
+			ast.FieldDef(ast.Ty("i32"), "reading"),
+		},
+		ast.StructKindNamed,
+		nil,
+		nil,
+		false,
+	)
+	showMethod := ast.Fn(
+		"show",
+		[]*ast.FunctionParameter{
+			ast.Param("self", nil),
+		},
+		[]ast.Statement{
+			ast.Ret(ast.Member(ast.ID("self"), "reading")),
+		},
+		ast.Ty("i32"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+	impl := ast.Impl(
+		"Show",
+		ast.Ty("Meter"),
+		[]*ast.FunctionDefinition{showMethod},
+		nil,
+		nil,
+		nil,
+		nil,
+		false,
+	)
+	module := ast.NewModule([]ast.Statement{iface, structDef, impl}, nil, nil)
+
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics, got %v", diags)
+	}
+}
+
 func TestImplementationMemberAccessProvidesMethodType(t *testing.T) {
 	checker := New()
 	showSig := ast.FnSig(

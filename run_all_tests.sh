@@ -3,6 +3,9 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PARITY_REPORT_DIR="$ROOT_DIR/tmp"
+PARITY_REPORT_PATH="$PARITY_REPORT_DIR/parity-report.json"
+declare -a PARITY_REPORT_COPIES=()
 
 TYPECHECK_FIXTURES_MODE=""
 
@@ -47,10 +50,36 @@ if [[ -n "$TYPECHECK_FIXTURES_MODE" ]]; then
   echo ">>> Enabling Go fixture typechecking: $TYPECHECK_FIXTURES_MODE"
 fi
 
+mkdir -p "$PARITY_REPORT_DIR"
+
+copy_parity_report() {
+  local target="$1"
+  if [[ -z "$target" ]]; then
+    return
+  fi
+  for recorded in "${PARITY_REPORT_COPIES[@]}"; do
+    if [[ "$recorded" == "$target" ]]; then
+      return
+    fi
+  done
+  PARITY_REPORT_COPIES+=("$target")
+  local dest_dir
+  dest_dir="$(dirname "$target")"
+  mkdir -p "$dest_dir"
+  cp "$PARITY_REPORT_PATH" "$target"
+  echo ">>> Parity JSON report copied to $target"
+}
+
 echo ">>> Running TypeScript unit tests"
 (
   cd "$ROOT_DIR/interpreter10"
   bun test
+)
+
+echo ">>> Running Able CLI tests"
+(
+  cd "$ROOT_DIR/interpreter10"
+  bun test test/cli
 )
 
 echo ">>> Running TypeScript fixture suite"
@@ -62,6 +91,23 @@ echo ">>> Running TypeScript fixture suite"
     bun run scripts/run-fixtures.ts
   fi
 )
+
+echo ">>> Running cross-interpreter parity harness"
+(
+  cd "$ROOT_DIR/interpreter10"
+  if [[ -n "$TYPECHECK_FIXTURES_MODE" ]]; then
+    ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" bun run scripts/run-parity.ts --suite fixtures --suite examples --report "$PARITY_REPORT_PATH"
+  else
+    bun run scripts/run-parity.ts --suite fixtures --suite examples --report "$PARITY_REPORT_PATH"
+  fi
+)
+echo ">>> Parity JSON report written to $PARITY_REPORT_PATH"
+if [[ -n "${ABLE_PARITY_REPORT_DEST:-}" ]]; then
+  copy_parity_report "$ABLE_PARITY_REPORT_DEST"
+fi
+if [[ -n "${CI_ARTIFACTS_DIR:-}" ]]; then
+  copy_parity_report "$CI_ARTIFACTS_DIR/parity-report.json"
+fi
 
 echo ">>> Running Go unit tests"
 (

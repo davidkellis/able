@@ -1,0 +1,9 @@
+package extras.catalog
+
+fn list_items() -> Array string {
+  ["espresso", "tonic", "cocoa"]
+}
+
+fn featured() -> string {
+  "espresso"
+}

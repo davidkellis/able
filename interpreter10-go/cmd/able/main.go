@@ -325,8 +325,12 @@ func collectSearchPaths(extra ...string) []string {
 		add(cwd)
 	}
 
-	for _, part := range strings.Split(os.Getenv("ABLE_PATH"), string(os.PathListSeparator)) {
-		add(strings.TrimSpace(part))
+	for _, part := range splitPathListEnv(os.Getenv("ABLE_PATH")) {
+		add(part)
+	}
+
+	for _, part := range splitPathListEnv(os.Getenv("ABLE_MODULE_PATHS")) {
+		add(part)
 	}
 
 	for _, path := range collectStdlibPaths() {
@@ -334,6 +338,20 @@ func collectSearchPaths(extra ...string) []string {
 	}
 
 	return paths
+}
+
+func splitPathListEnv(value string) []string {
+	if value == "" {
+		return nil
+	}
+	raw := strings.Split(value, string(os.PathListSeparator))
+	out := make([]string, 0, len(raw))
+	for _, part := range raw {
+		if trimmed := strings.TrimSpace(part); trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	return out
 }
 
 func modeCommandLabel(mode executionMode) string {

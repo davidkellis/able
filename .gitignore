@@ -1,3 +1,4 @@
 .gocache
 .gomodcache
 .cache
+tmp/
