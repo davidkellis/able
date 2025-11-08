@@ -156,6 +156,72 @@ func TestChannelCloseWakesReceivers(t *testing.T) {
 	}
 }
 
+func TestChannelSendFailureCarriesStdlibError(t *testing.T) {
+	interp := newAsyncInterpreter(t)
+	global := interp.GlobalEnvironment()
+
+	if _, err := interp.evaluateExpression(ast.Assign(ast.ID("ch"), ast.Call("__able_channel_new", ast.Int(0))), global); err != nil {
+		t.Fatalf("channel allocation failed: %v", err)
+	}
+	if _, err := interp.evaluateExpression(ast.Call("__able_channel_close", ast.ID("ch")), global); err != nil {
+		t.Fatalf("channel close failed: %v", err)
+	}
+
+	_, err := interp.evaluateExpression(ast.Call("__able_channel_send", ast.ID("ch"), ast.Int(1)), global)
+	if err == nil {
+		t.Fatalf("expected send to fail")
+	}
+	rs, ok := err.(raiseSignal)
+	if !ok {
+		t.Fatalf("expected raiseSignal, got %T", err)
+	}
+	errVal, ok := rs.value.(runtime.ErrorValue)
+	if !ok {
+		t.Fatalf("expected runtime.ErrorValue, got %#v", rs.value)
+	}
+	if errVal.Message != "send on closed channel" {
+		t.Fatalf("expected error message 'send on closed channel', got %q", errVal.Message)
+	}
+	payloadStruct, ok := errVal.Payload["value"].(*runtime.StructInstanceValue)
+	if !ok {
+		t.Fatalf("expected struct payload, got %#v", errVal.Payload["value"])
+	}
+	if payloadStruct == nil || payloadStruct.Definition == nil || payloadStruct.Definition.Node == nil || payloadStruct.Definition.Node.ID == nil {
+		t.Fatalf("malformed struct payload: %#v", payloadStruct)
+	}
+	if payloadStruct.Definition.Node.ID.Name != "ChannelSendOnClosed" {
+		t.Fatalf("expected payload struct ChannelSendOnClosed, got %q", payloadStruct.Definition.Node.ID.Name)
+	}
+}
+
+func TestChannelErrorRescueExposesStructValue(t *testing.T) {
+	interp := New()
+	env := interp.GlobalEnvironment()
+	expr := ast.Rescue(
+		ast.Block(
+			ast.Call("__able_channel_close", ast.Int(0)),
+		),
+		ast.Mc(
+			ast.TypedP(ast.ID("err"), ast.Ty("Error")),
+			ast.Member(ast.ID("err"), "value"),
+		),
+	)
+	val, err := interp.evaluateExpression(expr, env)
+	if err != nil {
+		t.Fatalf("rescue evaluation failed: %v", err)
+	}
+	payload, ok := val.(*runtime.StructInstanceValue)
+	if !ok || payload == nil {
+		t.Fatalf("expected struct payload, got %#v", val)
+	}
+	if payload.Definition == nil || payload.Definition.Node == nil || payload.Definition.Node.ID == nil {
+		t.Fatalf("payload definition missing metadata: %#v", payload.Definition)
+	}
+	if payload.Definition.Node.ID.Name != "ChannelNil" {
+		t.Fatalf("expected payload struct ChannelNil, got %q", payload.Definition.Node.ID.Name)
+	}
+}
+
 func TestMutexLocksCoordinateProcs(t *testing.T) {
 	interp := newAsyncInterpreter(t)
 	global := interp.GlobalEnvironment()

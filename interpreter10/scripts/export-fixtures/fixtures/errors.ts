@@ -123,6 +123,98 @@ const errorsFixtures: Fixture[] = [
         },
       },
     },
+
+  {
+      name: "errors/result_error_accessors",
+      module: AST.module([
+        AST.structDefinition("ChannelClosed", [], "named"),
+        AST.structDefinition("ChannelNil", [], "named"),
+        AST.structDefinition("ChannelSendOnClosed", [], "named"),
+        AST.assignmentExpression(
+          ":=",
+          AST.identifier("failure_description"),
+          AST.orElseExpression(
+            AST.propagationExpression(
+              AST.rescueExpression(
+                AST.blockExpression([
+                  AST.functionCall(AST.identifier("__able_channel_close"), [AST.integerLiteral(0)]),
+                  AST.stringLiteral("ok"),
+                ]),
+                [
+                  AST.matchClause(
+                    AST.typedPattern(AST.identifier("err"), AST.simpleTypeExpression("Error")),
+                    AST.identifier("err"),
+                  ),
+                ],
+              ),
+            ),
+            AST.blockExpression([
+              AST.assignmentExpression(
+                ":=",
+                AST.identifier("payload"),
+                AST.memberAccessExpression(AST.identifier("err"), "value"),
+              ),
+              AST.assignmentExpression(
+                ":=",
+                AST.identifier("payload_tag"),
+                AST.matchExpression(
+                  AST.identifier("payload"),
+                  [
+                    AST.matchClause(
+                      AST.structPattern([], false, "ChannelNil"),
+                      AST.stringLiteral("ChannelNil"),
+                    ),
+                    AST.matchClause(
+                      AST.structPattern([], false, "ChannelClosed"),
+                      AST.stringLiteral("ChannelClosed"),
+                    ),
+                    AST.matchClause(
+                      AST.structPattern([], false, "ChannelSendOnClosed"),
+                      AST.stringLiteral("ChannelSendOnClosed"),
+                    ),
+                    AST.matchClause(AST.wildcardPattern(), AST.stringLiteral("Unknown")),
+                  ],
+                ),
+              ),
+              AST.assignmentExpression(
+                ":=",
+                AST.identifier("cause"),
+                AST.functionCall(AST.memberAccessExpression(AST.identifier("err"), "cause"), []),
+              ),
+              AST.assignmentExpression(
+                ":=",
+                AST.identifier("cause_tag"),
+                AST.matchExpression(
+                  AST.identifier("cause"),
+                  [
+                    AST.matchClause(
+                      AST.typedPattern(AST.identifier("inner"), AST.simpleTypeExpression("Error")),
+                      AST.stringLiteral("cause"),
+                    ),
+                    AST.matchClause(AST.wildcardPattern(), AST.stringLiteral("nil")),
+                  ],
+                ),
+              ),
+              AST.stringInterpolation([
+                AST.functionCall(AST.memberAccessExpression(AST.identifier("err"), "message"), []),
+                AST.stringLiteral("|"),
+                AST.identifier("payload_tag"),
+                AST.stringLiteral("|"),
+                AST.identifier("cause_tag"),
+              ]),
+            ]),
+            "err",
+          ),
+        ),
+        AST.identifier("failure_description"),
+      ]),
+      manifest: {
+        description: "Result handlers can call Error.message()/cause()/value",
+        expect: {
+          result: { kind: "string", value: "close of nil channel|ChannelNil|nil" },
+        },
+      },
+    },
 ];
 
 export default errorsFixtures;

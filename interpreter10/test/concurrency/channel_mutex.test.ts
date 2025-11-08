@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
+import { RaiseSignal } from "../../src/interpreter/signals";
 
 const call = (name: string, args = []) =>
   AST.functionCall(AST.identifier(name), args);
@@ -296,6 +297,33 @@ describe("channel helpers", () => {
     const cancelledValue = I.evaluate(memberCall("blockedReceiver", "value")) as any;
     expect(cancelledValue.kind).toBe("error");
     expect(cancelledValue.message.toLowerCase()).toContain("cancel");
+  });
+
+  test("send on closed channel surfaces ChannelSendOnClosed struct", () => {
+    const I = new InterpreterV10();
+
+    I.evaluate(
+      AST.assignmentExpression(
+        ":=",
+        AST.identifier("ch"),
+        call("__able_channel_new", [AST.integerLiteral(0)]),
+      ),
+    );
+
+    I.evaluate(call("__able_channel_close", [AST.identifier("ch")]));
+
+    try {
+      I.evaluate(call("__able_channel_send", [AST.identifier("ch"), AST.integerLiteral(1)]));
+      throw new Error("expected send to raise");
+    } catch (err) {
+      expect(err).toBeInstanceOf(RaiseSignal);
+      const signal = err as RaiseSignal;
+      expect(signal.value.kind).toBe("error");
+      expect(signal.value.message).toContain("send on closed channel");
+      const payload = signal.value.value;
+      expect(payload?.kind).toBe("struct_instance");
+      expect(payload?.def.id.name).toBe("ChannelSendOnClosed");
+    }
   });
 });
 

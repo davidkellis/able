@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"sync"
 
+	"able/interpreter10-go/pkg/ast"
 	"able/interpreter10-go/pkg/runtime"
 )
 
@@ -131,6 +132,58 @@ func (i *Interpreter) initChannelMutexBuiltins() {
 		}
 	}
 
+	channelErrorStruct := func(name string) (*runtime.StructDefinitionValue, error) {
+		if def, ok := i.channelErrorStructs[name]; ok && def != nil {
+			return def, nil
+		}
+		candidates := []string{
+			name,
+			"concurrency." + name,
+			"able." + name,
+			"able.concurrency." + name,
+			"able.concurrency.channel." + name,
+		}
+		for _, key := range candidates {
+			if key == "" {
+				continue
+			}
+			if val, err := i.global.Get(key); err == nil {
+				if def, conv := toStructDefinitionValue(val, key); conv == nil {
+					i.channelErrorStructs[name] = def
+					return def, nil
+				}
+			}
+		}
+		for _, bucket := range i.packageRegistry {
+			if val, ok := bucket[name]; ok {
+				if def, conv := toStructDefinitionValue(val, name); conv == nil {
+					i.channelErrorStructs[name] = def
+					return def, nil
+				}
+			}
+		}
+		placeholder := ast.NewStructDefinition(ast.NewIdentifier(name), nil, ast.StructKindNamed, nil, nil, false)
+		def := &runtime.StructDefinitionValue{Node: placeholder}
+		i.channelErrorStructs[name] = def
+		return def, nil
+	}
+
+	makeChannelErrorValue := func(name, message string) runtime.ErrorValue {
+		def, err := channelErrorStruct(name)
+		if err != nil {
+			return runtime.ErrorValue{Message: message}
+		}
+		payload := map[string]runtime.Value{
+			"value": &runtime.StructInstanceValue{Definition: def},
+		}
+		return runtime.ErrorValue{Message: message, Payload: payload}
+	}
+
+	channelError := func(name, message string) error {
+		errVal := makeChannelErrorValue(name, message)
+		return raiseSignal{value: errVal}
+	}
+
 	makeBool := func(value bool) runtime.BoolValue {
 		return runtime.BoolValue{Val: value}
 	}
@@ -186,7 +239,7 @@ func (i *Interpreter) initChannelMutexBuiltins() {
 			state.mu.Lock()
 			if state.closed {
 				state.mu.Unlock()
-				return nil, fmt.Errorf("send on closed channel")
+				return nil, channelError("ChannelSendOnClosed", "send on closed channel")
 			}
 			ch := state.ch
 			state.mu.Unlock()
@@ -266,7 +319,7 @@ func (i *Interpreter) initChannelMutexBuiltins() {
 			state.mu.Lock()
 			if state.closed {
 				state.mu.Unlock()
-				return nil, fmt.Errorf("send on closed channel")
+				return nil, channelError("ChannelSendOnClosed", "send on closed channel")
 			}
 			ch := state.ch
 			state.mu.Unlock()
@@ -332,7 +385,7 @@ func (i *Interpreter) initChannelMutexBuiltins() {
 				return nil, err
 			}
 			if handle == 0 {
-				return nil, fmt.Errorf("close on nil channel")
+				return nil, channelError("ChannelNil", "close of nil channel")
 			}
 			if handle < 0 {
 				return nil, fmt.Errorf("channel handle must be non-negative")
@@ -344,7 +397,7 @@ func (i *Interpreter) initChannelMutexBuiltins() {
 			state.mu.Lock()
 			defer state.mu.Unlock()
 			if state.closed {
-				return nil, fmt.Errorf("channel already closed")
+				return nil, channelError("ChannelClosed", "close of closed channel")
 			}
 			state.closed = true
 			close(state.ch)

@@ -78,6 +78,12 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 			c.infer.set(expr, fnType)
 			return diags, fnType
 		}
+		if isErrorStructType(ty) {
+			if memberType, ok := c.errorMemberType(memberName); ok {
+				c.infer.set(expr, memberType)
+				return diags, memberType
+			}
+		}
 		diags = append(diags, Diagnostic{
 			Message: fmt.Sprintf("typechecker: struct '%s' has no member '%s'", ty.StructName, memberName),
 			Node:    expr,
@@ -102,6 +108,12 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 		if fnType, ok := c.lookupMethod(objectType, memberName); ok {
 			c.infer.set(expr, fnType)
 			return diags, fnType
+		}
+		if isErrorStructInstanceType(ty) {
+			if memberType, ok := c.errorMemberType(memberName); ok {
+				c.infer.set(expr, memberType)
+				return diags, memberType
+			}
 		}
 		diags = append(diags, Diagnostic{
 			Message: fmt.Sprintf("typechecker: struct '%s' has no member '%s'", ty.StructName, memberName),
@@ -480,6 +492,37 @@ func (c *Checker) lookupMethodInImplementations(object Type, name string) (Funct
 		}
 	}
 	return bestFn, bestScore, found
+}
+
+func isErrorStructType(ty StructType) bool {
+	return ty.StructName == "Error"
+}
+
+func isErrorStructInstanceType(ty StructInstanceType) bool {
+	return ty.StructName == "Error"
+}
+
+func (c *Checker) errorMemberType(memberName string) (Type, bool) {
+	switch memberName {
+	case "value":
+		return UnknownType{}, true
+	case "message":
+		return FunctionType{
+			Params: nil,
+			Return: PrimitiveType{Kind: PrimitiveString},
+		}, true
+	case "cause":
+		var inner Type = StructType{StructName: "Error"}
+		if c != nil {
+			inner = c.lookupErrorType()
+		}
+		return FunctionType{
+			Params: nil,
+			Return: NullableType{Inner: inner},
+		}, true
+	default:
+		return nil, false
+	}
 }
 
 func extendImplementationSubstitution(subst map[string]Type, iface InterfaceType, args []Type) {

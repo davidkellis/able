@@ -119,6 +119,8 @@ export class TypeChecker {
     const boolType = primitiveType("bool");
     const i32Type = primitiveType("i32");
     const i64Type = primitiveType("i64");
+    const stringType = primitiveType("string");
+    const charType = primitiveType("char");
     const unknown = unknownType;
 
     const register = (name: string, params: TypeInfo[], returnType: TypeInfo) => {
@@ -141,6 +143,14 @@ export class TypeChecker {
     register("__able_mutex_new", [], i64Type);
     register("__able_mutex_lock", [i64Type], voidType);
     register("__able_mutex_unlock", [i64Type], voidType);
+
+    register("__able_string_from_builtin", [stringType], arrayType(i32Type));
+    register("__able_string_to_builtin", [arrayType(i32Type)], stringType);
+    register("__able_char_from_codepoint", [i32Type], charType);
+
+    register("__able_hasher_create", [], i64Type);
+    register("__able_hasher_write", [i64Type, stringType], voidType);
+    register("__able_hasher_finish", [i64Type], i64Type);
   }
 
   private registerBuiltinFunction(name: string, params: TypeInfo[], returnType: TypeInfo): void {

@@ -31,7 +31,7 @@ declare module "./index" {
     futureValue(future: Extract<V10Value, { kind: "future" }>): V10Value;
     runProcHandle(handle: Extract<V10Value, { kind: "proc_handle" }>): void;
     runFuture(future: Extract<V10Value, { kind: "future" }>): void;
-    makeRuntimeError(message: string, value?: V10Value): V10Value;
+    makeRuntimeError(message: string, value?: V10Value, cause?: V10Value): V10Value;
     executor: Executor;
     pushProcContext(ctx: ProcContinuationContext): void;
     popProcContext(ctx: ProcContinuationContext): void;
@@ -209,7 +209,7 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
     handle.state = "cancelled";
     handle.result = undefined;
     handle.failureInfo = procErr;
-    handle.error = this.makeRuntimeError(message, procErr);
+    handle.error = this.makeRuntimeError(message, procErr, procErr);
     handle.runner = null;
   };
 
@@ -249,6 +249,9 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
         return value;
       }
       if (value.kind === "error") {
+        if (value.cause && value.cause.kind === "struct_instance" && value.cause.def.id.name === "ProcError") {
+          return value.cause;
+        }
         if (value.value && value.value.kind === "struct_instance" && value.value.def.id.name === "ProcError") {
           return value.value;
         }
@@ -283,12 +286,20 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
     switch (handle.state) {
       case "resolved":
         return handle.result ?? { kind: "nil", value: null };
-      case "failed":
-        return handle.error ?? this.makeRuntimeError("Proc failed", this.makeProcError("Proc failed"));
-      case "cancelled":
-        return handle.error ?? this.makeRuntimeError("Proc cancelled", this.makeProcError("Proc cancelled"));
-      default:
-        return this.makeRuntimeError("Proc pending", this.makeProcError("Proc pending"));
+      case "failed": {
+        if (handle.error) return handle.error;
+        const procErr = this.makeProcError("Proc failed");
+        return this.makeRuntimeError("Proc failed", procErr, procErr);
+      }
+      case "cancelled": {
+        if (handle.error) return handle.error;
+        const procErr = this.makeProcError("Proc cancelled");
+        return this.makeRuntimeError("Proc cancelled", procErr, procErr);
+      }
+      default: {
+        const procErr = this.makeProcError("Proc pending");
+        return this.makeRuntimeError("Proc pending", procErr, procErr);
+      }
     }
   };
 
@@ -315,12 +326,17 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
       this.runFuture(future);
     }
     switch (future.state) {
-      case "failed":
-        return future.error ?? this.makeRuntimeError("Future failed", this.makeProcError("Future failed"));
+      case "failed": {
+        if (future.error) return future.error;
+        const procErr = this.makeProcError("Future failed");
+        return this.makeRuntimeError("Future failed", procErr, procErr);
+      }
       case "resolved":
         return future.result ?? { kind: "nil", value: null };
-      case "pending":
-        return this.makeRuntimeError("Future pending", this.makeProcError("Future pending"));
+      case "pending": {
+        const procErr = this.makeProcError("Future pending");
+        return this.makeRuntimeError("Future pending", procErr, procErr);
+      }
     }
   };
 
@@ -367,7 +383,7 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
         const procErr = this.toProcError(e.value, "Proc task failed");
         const details = this.getProcErrorDetails(procErr);
         handle.failureInfo = procErr;
-        handle.error = this.makeRuntimeError(`Proc failed: ${details}`, procErr);
+        handle.error = this.makeRuntimeError(`Proc failed: ${details}`, procErr, procErr);
         handle.state = "failed";
       } else if (handle.cancelRequested) {
         const msg = e instanceof Error ? e.message : "Proc cancelled";
@@ -376,7 +392,7 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
         const msg = e instanceof Error ? e.message : "Proc execution error";
         const procErr = this.makeProcError(msg);
         handle.failureInfo = procErr;
-        handle.error = this.makeRuntimeError(`Proc failed: ${msg}`, procErr);
+        handle.error = this.makeRuntimeError(`Proc failed: ${msg}`, procErr, procErr);
         handle.state = "failed";
       }
     } finally {
@@ -417,13 +433,13 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
         const procErr = this.toProcError(e.value, "Future task failed");
         const details = this.getProcErrorDetails(procErr);
         future.failureInfo = procErr;
-        future.error = this.makeRuntimeError(`Future failed: ${details}`, procErr);
+        future.error = this.makeRuntimeError(`Future failed: ${details}`, procErr, procErr);
         future.state = "failed";
       } else {
         const msg = e instanceof Error ? e.message : "Future execution error";
         const procErr = this.makeProcError(msg);
         future.failureInfo = procErr;
-        future.error = this.makeRuntimeError(`Future failed: ${msg}`, procErr);
+        future.error = this.makeRuntimeError(`Future failed: ${msg}`, procErr, procErr);
         future.state = "failed";
       }
     } finally {
@@ -437,7 +453,16 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
     }
   };
 
-  cls.prototype.makeRuntimeError = function makeRuntimeError(this: InterpreterV10, message: string, value?: V10Value): V10Value {
-    return { kind: "error", message, value };
+  cls.prototype.makeRuntimeError = function makeRuntimeError(this: InterpreterV10, message: string, value?: V10Value, cause?: V10Value): V10Value {
+    const err: Extract<V10Value, { kind: "error" }> = { kind: "error", message };
+    if (value !== undefined) {
+      err.value = value;
+    }
+    if (cause !== undefined) {
+      err.cause = cause;
+    } else if (value && value.kind === "error") {
+      err.cause = value;
+    }
+    return err;
   };
 }
