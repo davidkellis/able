@@ -61,17 +61,12 @@ func runFixtureWithExecutor(t testingT, dir string, rel string, executor Executo
 
 	value, _, check, err := interp.EvaluateProgram(program, ProgramEvaluationOptions{
 		SkipTypecheck:    mode == typecheckModeOff,
-		AllowDiagnostics: mode == typecheckModeWarn,
+		AllowDiagnostics: mode != typecheckModeOff,
 	})
 
 	checkerDiags := append([]ModuleDiagnostic(nil), check.Diagnostics...)
 	actualDiagnostics := checkFixtureTypecheckDiagnostics(underlying, mode, manifest.Expect.TypecheckDiagnostics, checkerDiags, skipTS)
 	enforceTypecheckBaseline(underlying, rel, mode, actualDiagnostics, skipTS)
-
-	if len(check.Diagnostics) > 0 && mode != typecheckModeWarn {
-		// Diagnostics prevented evaluation; nothing further to assert.
-		return
-	}
 
 	if len(manifest.Expect.Errors) > 0 {
 		if err == nil {

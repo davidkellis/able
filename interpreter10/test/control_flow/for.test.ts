@@ -55,5 +55,34 @@ describe("v10 interpreter - for loop", () => {
     I.evaluate(loop);
     expect(I.evaluate(AST.identifier("sum"))).toEqual({ kind: 'i32', value: 4 });
   });
-});
 
+  test("ascending ranges honor inclusive and exclusive operators", () => {
+    const I = new InterpreterV10();
+    I.evaluate(AST.assignmentExpression(":=", AST.identifier("lastInclusive"), AST.integerLiteral(0)));
+    I.evaluate(AST.assignmentExpression(":=", AST.identifier("lastExclusive"), AST.integerLiteral(0)));
+
+    const inclusiveRange = AST.rangeExpression(AST.integerLiteral(1), AST.integerLiteral(3), true);
+    const exclusiveRange = AST.rangeExpression(AST.integerLiteral(1), AST.integerLiteral(3), false);
+
+    const inclusiveLoop = AST.forLoop(
+      AST.identifier("value"),
+      inclusiveRange,
+      AST.blockExpression([
+        AST.assignmentExpression("=", AST.identifier("lastInclusive"), AST.identifier("value")),
+      ]),
+    );
+    const exclusiveLoop = AST.forLoop(
+      AST.identifier("value"),
+      exclusiveRange,
+      AST.blockExpression([
+        AST.assignmentExpression("=", AST.identifier("lastExclusive"), AST.identifier("value")),
+      ]),
+    );
+
+    I.evaluate(inclusiveLoop);
+    I.evaluate(exclusiveLoop);
+
+    expect(I.evaluate(AST.identifier("lastInclusive"))).toEqual({ kind: "i32", value: 3 });
+    expect(I.evaluate(AST.identifier("lastExclusive"))).toEqual({ kind: "i32", value: 2 });
+  });
+});

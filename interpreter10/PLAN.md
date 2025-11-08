@@ -159,7 +159,7 @@ This document tracks the implementation plan for the v10 interpreter inside `int
   - Reworked the Go parser fixture harness to auto-discover categories and wired the full AST suite (skipping fixtures that still lack `source.able`).  
   - Preserved `isTrailingLambda` metadata through both the tree-sitter mapper and Go fixture decoder; Go parser now folds module-level trailing lambdas into the preceding call.  
   - `go test ./pkg/parser` now exercises the same trailing-lambda + `value! else { … }` cases as TypeScript, with parity verified via `bun test test/parser`.
-- **Pending follow-up**  
-  1. Backfill missing `source.able` files for fixtures that currently ship only a `module.json` (errors, imports, generic function cases, etc.) so the Go harness can cover them.  
-  2. Extend the fixture exporter to emit both `module.json` and `source.able` consistently, and fail the export when either side, AST or source, is missing.  
-  3. Investigate remaining parser TODOs called out in `design/parser-ast-coverage.md` (e.g., advanced pipe/topic fixtures) and queue grammar work where gaps remain.
+- **Current posture**  
+  - All fixtures under `fixtures/ast/**` now ship paired `module.json` + `source.able`; the exporter enforces this and tests (`test/parser/fixtures_parser.test.ts`) guard against regressions.  
+  - Parser TODO rows in `design/parser-ast-coverage.md` are green; when new syntax lands, add rows + fixtures immediately so we keep 100% coverage.  
+  - Next parser-focused work should be driven by newly filed discrepancies (e.g., future advanced pipe forms, channel select syntax); keep an eye on `design/parser-ast-coverage.md` for any reopened items.

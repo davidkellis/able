@@ -511,7 +511,7 @@ func (ctx *parseContext) parseRangeExpression(node *sitter.Node) (ast.Expression
 		return nil, err
 	}
 	operatorText := strings.TrimSpace(sliceContent(operatorNode, ctx.source))
-	inclusive := operatorText == "..."
+	inclusive := operatorText == ".."
 	if operatorText != ".." && operatorText != "..." {
 		return nil, fmt.Errorf("parser: unsupported range operator %q", operatorText)
 	}

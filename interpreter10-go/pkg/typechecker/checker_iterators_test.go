@@ -97,3 +97,26 @@ func TestForLoopIteratorTypedPatternSatisfied(t *testing.T) {
 		t.Fatalf("expected no diagnostics, got %v", diags)
 	}
 }
+
+func TestIteratorLiteralAllowsImplicitGeneratorBinding(t *testing.T) {
+	checker := New()
+	iter := ast.IteratorLit(
+		ast.ForIn(
+			"item",
+			ast.Arr(ast.Int(1), ast.Int(2)),
+			ast.CallExpr(
+				ast.Member(ast.ID("gen"), "yield"),
+				ast.ID("item"),
+			),
+		),
+	)
+	module := ast.NewModule([]ast.Statement{iter}, nil, nil)
+
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics, got %v", diags)
+	}
+}

@@ -165,6 +165,25 @@ fn main() {
 	}
 }
 
+func TestCollectSearchPathsIncludesAbleModulePaths(t *testing.T) {
+	tempDir := t.TempDir()
+	extraOne := filepath.Join(tempDir, "depA")
+	extraTwo := filepath.Join(tempDir, "depB")
+	for _, dir := range []string{extraOne, extraTwo} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+
+	joined := strings.Join([]string{extraOne, extraTwo}, string(os.PathListSeparator))
+	t.Setenv("ABLE_MODULE_PATHS", joined)
+
+	paths := collectSearchPaths()
+	if !containsPath(paths, extraOne) || !containsPath(paths, extraTwo) {
+		t.Fatalf("expected search paths to include %s and %s, got %v", extraOne, extraTwo, paths)
+	}
+}
+
 func TestRunFileWithoutManifestMissingDependencyFails(t *testing.T) {
 	tempDir := t.TempDir()
 	projectDir := filepath.Join(tempDir, "project")

@@ -219,6 +219,7 @@ export function analyzeIteratorBody(
       : formatType(expectedType);
   let inferred: TypeInfo = expectedType ?? unknownType;
   ctx.withForkedEnv(() => {
+    ctx.defineValue("gen", unknownType);
     for (const statement of literal.body ?? []) {
       if (!statement) continue;
       if (statement.type === "YieldStatement") {

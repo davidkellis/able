@@ -25,6 +25,19 @@ ABLE_TYPECHECK_FIXTURES=strict bun run scripts/run-fixtures.ts
 
 This command exercises every fixture (including the TypeScript checker diagnostics) and will fail fast if new errors appear or if the baseline drifts.
 
+### Cross-interpreter parity CLI
+
+Use the shared parity harness to compare Bun vs. Go behaviour across both the shared AST fixtures and curated examples:
+
+```bash
+bun run scripts/run-parity.ts --suite fixtures --suite examples
+```
+
+- `ABLE_PARITY_MAX_FIXTURES` limits the number of AST fixtures processed (helpful when debugging a single failure).
+- `ABLE_TYPECHECK_FIXTURES=warn|strict` flows through to both interpreters so diagnostics stay in sync with fixture expectations.
+- The CLI always writes `tmp/parity-report.json` under the repo root; pass `--report path/to/report.json` to override the destination or combine it with `--json` when you also need stdout output.
+- Define `ABLE_PARITY_REPORT_DEST=/abs/path/to/artifact.json` or `CI_ARTIFACTS_DIR=/abs/path` to copy the generated report automatically (works for both the parity CLI and `run_all_tests.sh`).
+
 ### Running Able modules via Bun
 
 Use the lightweight CLI to typecheck (`check`) or run (`run`) Able modules with Bun. The CLI mirrors the Go `able` tool’s output style, including package export summaries when diagnostics surface.

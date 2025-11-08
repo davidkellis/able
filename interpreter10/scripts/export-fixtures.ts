@@ -358,7 +358,7 @@ function printExpression(expr: AST.Expression, level: number): string {
     case "IndexExpression":
       return `${printExpression(expr.object, level)}[${printExpression(expr.index, level)}]`;
     case "RangeExpression":
-      return `${printExpression(expr.start, level)} ${expr.inclusive ? "..." : ".."} ${printExpression(expr.end, level)}`;
+      return `${printExpression(expr.start, level)} ${expr.inclusive ? ".." : "..."} ${printExpression(expr.end, level)}`;
     case "ProcExpression":
       return expr.expression.type === "BlockExpression"
         ? `proc ${printBlock(expr.expression, level)}`
