@@ -56,4 +56,4 @@ same root when additional factoring makes sense.
 The Go CLI now discovers `stdlib/v10/src` automatically. To point the toolchain
 at an alternate location, set `ABLE_STD_LIB` to a path (or OS-specific
 path-list) that contains the standard library sources. This augments the
-existing `ABLE_PATH` mechanism used for project-level overrides.
+existing `ABLE_PATH`/`ABLE_MODULE_PATHS` mechanism used for project-level overrides.

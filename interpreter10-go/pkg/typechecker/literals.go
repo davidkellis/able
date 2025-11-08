@@ -347,6 +347,7 @@ func (c *Checker) checkIteratorLiteral(env *Environment, lit *ast.IteratorLitera
 	if lit.Binding != nil && lit.Binding.Name != "" {
 		bodyEnv.Define(lit.Binding.Name, UnknownType{})
 	}
+	bodyEnv.Define("gen", UnknownType{})
 	var diags []Diagnostic
 	for _, stmt := range lit.Body {
 		if stmt == nil {

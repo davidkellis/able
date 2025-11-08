@@ -6,7 +6,7 @@
       "type": "RangeExpression",
       "start": { "type": "StringLiteral", "value": "start" },
       "end": { "type": "IntegerLiteral", "value": 5 },
-      "inclusive": true
+      "inclusive": false
     }
   ]
 }

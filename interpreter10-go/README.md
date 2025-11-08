@@ -6,6 +6,20 @@ This repository now hosts the stable, canonical runtime. Shared AST fixtures
 (`fixtures/ast`) and the strict test harness keep the Go and Bun interpreters in
 lockstep with the specification (`./run_all_tests.sh --typecheck-fixtures=strict`).
 
+## Cross-interpreter parity harness
+
+Run `./run_all_tests.sh` (or `bun run scripts/run-parity.ts` inside `interpreter10/`) to evaluate both interpreters against the shared AST fixtures and curated examples. The script:
+
+- Builds the Go fixture CLI (`cmd/fixture`) and example runner (`cmd/able`) once per run.
+- Executes Bun + Go for every fixture/example, diffing results, stdout, and diagnostics.
+- Drops a machine-readable JSON summary at `tmp/parity-report.json` (overridable via `--report`). Set `ABLE_PARITY_REPORT_DEST=/path/to/artifact.json` or `CI_ARTIFACTS_DIR=/path/to/artifacts` to copy the report automatically for both the parity CLI and `run_all_tests.sh`.
+
+Keep this harness green before landing changes—parity failures mean one interpreter diverged from the canonical semantics.
+
+## API documentation
+
+Package comments live in `pkg/interpreter` and `pkg/typechecker`, so `go doc ./pkg/interpreter` (or `godoc ./pkg/interpreter`) produces pkg.go.dev-ready documentation. Regenerate docs after touching exported APIs to keep the pkg.go.dev snapshot accurate.
+
 ## Package layout
 
 Interpreter code now lives in focused files so feature work remains approachable:

@@ -1,4 +1,4 @@
-import type * as AST from "../../ast";
+import * as AST from "../../ast";
 import { formatType, unknownType } from "../types";
 import type { TypeInfo } from "../types";
 import type { DeclarationsContext } from "./declarations";
@@ -517,6 +517,13 @@ function validateImplementationMethod(
       const interfaceParam = interfaceParams[index];
       const implementationParam = implementationParams[index];
       if (!interfaceParam || !implementationParam) continue;
+      if (
+        index === 0 &&
+        isImplicitSelfParameter(implementationParam) &&
+        expectsSelfType(interfaceParam.paramType)
+      ) {
+        implementationParam.paramType = AST.simpleTypeExpression("Self");
+      }
       const expectedDescription = ctx.describeTypeExpression(interfaceParam.paramType, substitutions);
       const actualDescription = ctx.describeTypeExpression(implementationParam.paramType, substitutions);
       if (!typeExpressionsEquivalent(ctx, interfaceParam.paramType, implementationParam.paramType, substitutions)) {
@@ -569,6 +576,16 @@ function typeExpressionsEquivalent(
   if (!a && !b) return true;
   if (!a || !b) return false;
   return ctx.formatTypeExpression(a, substitutions) === ctx.formatTypeExpression(b, substitutions);
+}
+
+function isImplicitSelfParameter(param: AST.FunctionParameter | null | undefined): boolean {
+  if (!param || param.paramType) return false;
+  if (param.name?.type !== "Identifier") return false;
+  return param.name.name?.toLowerCase() === "self";
+}
+
+function expectsSelfType(expr: AST.TypeExpression | null | undefined): boolean {
+  return expr?.type === "SimpleTypeExpression" && expr.name?.name === "Self";
 }
 
 function resolveInterfaceArgumentLabels(

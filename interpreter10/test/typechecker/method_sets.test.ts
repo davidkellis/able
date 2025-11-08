@@ -166,4 +166,66 @@ describe("typechecker method-set obligations", () => {
     expect(messages).toContainEqual(expect.stringMatching(/constraint on Self/));
     expect(messages).toContainEqual(expect.stringMatching(/Wrapper does not implement Display/));
   });
+
+  test("methods allow implicit self parameter annotations", () => {
+    const checker = new TypeChecker();
+    const channelStruct = AST.structDefinition(
+      "Channel",
+      [AST.structFieldDefinition(AST.simpleTypeExpression("i64"), "handle")],
+      "named",
+    );
+    const sendMethod = AST.functionDefinition(
+      "send",
+      [
+        AST.functionParameter("self"),
+        AST.functionParameter("value", AST.simpleTypeExpression("i32")),
+      ],
+      AST.blockExpression([
+        AST.returnStatement(
+          AST.memberAccessExpression(AST.identifier("self"), AST.identifier("handle")),
+        ),
+      ]),
+      AST.simpleTypeExpression("i64"),
+    );
+    const methods = AST.methodsDefinition(AST.simpleTypeExpression("Channel"), [sendMethod]);
+    const module = AST.module([channelStruct, methods]);
+
+    const result = checker.checkModule(module);
+    expect(result.diagnostics).toEqual([]);
+  });
+
+  test("implementations allow implicit self parameter annotations", () => {
+    const checker = new TypeChecker();
+    const showInterface = AST.interfaceDefinition("Show", [
+      AST.functionSignature(
+        "value",
+        [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
+        AST.simpleTypeExpression("i32"),
+      ),
+    ]);
+    const meterStruct = AST.structDefinition(
+      "Meter",
+      [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "reading")],
+      "named",
+    );
+    const valueMethod = AST.functionDefinition(
+      "value",
+      [AST.functionParameter("self")],
+      AST.blockExpression([
+        AST.returnStatement(
+          AST.memberAccessExpression(AST.identifier("self"), AST.identifier("reading")),
+        ),
+      ]),
+      AST.simpleTypeExpression("i32"),
+    );
+    const impl = AST.implementationDefinition(
+      AST.identifier("Show"),
+      AST.simpleTypeExpression("Meter"),
+      [valueMethod],
+    );
+    const module = AST.module([showInterface, meterStruct, impl]);
+
+    const result = checker.checkModule(module);
+    expect(result.diagnostics).toEqual([]);
+  });
 });

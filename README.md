@@ -40,6 +40,9 @@ Combined test suites:
 ./run_all_tests.sh --typecheck-fixtures=strict
 ```
 
+See `docs/parity-reporting.md` for details on directing the parity JSON report into CI artifacts (`ABLE_PARITY_REPORT_DEST`, `CI_ARTIFACTS_DIR`) and consuming the machine-readable diffs.
+
+
 ## Contributing
 - Follow the roadmap in `PLAN.md`; update it when work progresses.
 - Record architectural decisions in `design/` with clear timestamps and motivation.

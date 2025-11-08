@@ -532,8 +532,8 @@ func TestParsePipeTopicAndPlaceholderSteps(t *testing.T) {
 }
 
 func TestParseRangeExpressions(t *testing.T) {
-	source := `exclusive := 0..5
-inclusive := 0...5
+source := `exclusive := 0...5
+inclusive := 0..5
 `
 
 	p, err := NewModuleParser()

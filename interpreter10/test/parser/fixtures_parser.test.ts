@@ -2,6 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import * as AST from "../../src/ast";
+import { mapSourceFile } from "../../src/parser/tree-sitter-mapper";
 type FixtureEntry = {
   name: string;
   sourcePath: string;
@@ -116,5 +118,28 @@ fn main() -> void {
     const tree = parser.parse(source);
     expect(tree.rootNode.type).toBe("source_file");
     expect(tree.rootNode.hasError).toBe(false);
+  });
+
+  test("range operators map inclusivity correctly", async () => {
+    const { Parser, Language } = await import("web-tree-sitter");
+    await Parser.init();
+    const parser = new Parser();
+    const language = await Language.load(WASM_PATH);
+    parser.setLanguage(language);
+
+    const source = `exclusive := 0...5
+inclusive := 0..5
+`;
+    const tree = parser.parse(source);
+    const module = mapSourceFile(tree.rootNode, source, "<inline>");
+    const exclusive = module.body[0];
+    const inclusive = module.body[1];
+    if (exclusive?.type !== "AssignmentExpression" || inclusive?.type !== "AssignmentExpression") {
+      throw new Error("expected assignment expressions for range test");
+    }
+    const exclusiveRange = exclusive.right as AST.RangeExpression;
+    const inclusiveRange = inclusive.right as AST.RangeExpression;
+    expect(exclusiveRange.inclusive).toBe(false);
+    expect(inclusiveRange.inclusive).toBe(true);
   });
 });
