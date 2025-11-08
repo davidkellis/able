@@ -496,6 +496,145 @@ const channelConcurrencyFixtures: Fixture[] = [
       },
 
   {
+        name: "concurrency/channel_error_rescue",
+        module: AST.module([
+          AST.structDefinition("ChannelClosed", [], "named"),
+          AST.structDefinition("ChannelNil", [], "named"),
+          AST.structDefinition("ChannelSendOnClosed", [], "named"),
+          AST.functionDefinition(
+            "capture",
+            [
+              AST.functionParameter(
+                "action",
+                AST.functionTypeExpression([], AST.simpleTypeExpression("void")),
+              ),
+            ],
+            AST.blockExpression([
+              AST.rescueExpression(
+                AST.blockExpression([
+                  AST.functionCall(AST.identifier("action"), []),
+                  AST.stringLiteral("ok"),
+                ]),
+                [
+                  AST.matchClause(
+                    AST.typedPattern(
+                      AST.identifier("err"),
+                      AST.simpleTypeExpression("Error"),
+                    ),
+                    AST.blockExpression([
+                      AST.assignmentExpression(
+                        ":=",
+                        AST.identifier("payload"),
+                        AST.memberAccessExpression(AST.identifier("err"), "value"),
+                      ),
+                      AST.matchExpression(
+                        AST.identifier("payload"),
+                        [
+                          AST.matchClause(
+                            AST.structPattern([], false, "ChannelNil"),
+                            AST.stringLiteral("ChannelNil"),
+                          ),
+                          AST.matchClause(
+                            AST.structPattern([], false, "ChannelClosed"),
+                            AST.stringLiteral("ChannelClosed"),
+                          ),
+                          AST.matchClause(
+                            AST.structPattern([], false, "ChannelSendOnClosed"),
+                            AST.stringLiteral("ChannelSendOnClosed"),
+                          ),
+                          AST.matchClause(
+                            AST.wildcardPattern(),
+                            AST.stringLiteral("Unknown"),
+                          ),
+                        ],
+                      ),
+                    ]),
+                  ),
+                ],
+              ),
+            ]),
+            AST.simpleTypeExpression("string"),
+          ),
+          AST.assignmentExpression(
+            ":=",
+            AST.identifier("nil_result"),
+            AST.functionCall(AST.identifier("capture"), [
+              AST.lambdaExpression(
+                [],
+                AST.blockExpression([
+                  AST.functionCall(AST.identifier("__able_channel_close"), [
+                    AST.integerLiteral(0),
+                  ]),
+                ]),
+              ),
+            ]),
+          ),
+          AST.assignmentExpression(
+            ":=",
+            AST.identifier("closed_result"),
+            AST.functionCall(AST.identifier("capture"), [
+              AST.lambdaExpression(
+                [],
+                AST.blockExpression([
+                  AST.assignmentExpression(
+                    ":=",
+                    AST.identifier("handle"),
+                    AST.functionCall(AST.identifier("__able_channel_new"), [
+                      AST.integerLiteral(0),
+                    ]),
+                  ),
+                  AST.functionCall(AST.identifier("__able_channel_close"), [
+                    AST.identifier("handle"),
+                  ]),
+                  AST.functionCall(AST.identifier("__able_channel_close"), [
+                    AST.identifier("handle"),
+                  ]),
+                ]),
+              ),
+            ]),
+          ),
+          AST.assignmentExpression(
+            ":=",
+            AST.identifier("send_closed_result"),
+            AST.functionCall(AST.identifier("capture"), [
+              AST.lambdaExpression(
+                [],
+                AST.blockExpression([
+                  AST.assignmentExpression(
+                    ":=",
+                    AST.identifier("handle"),
+                    AST.functionCall(AST.identifier("__able_channel_new"), [
+                      AST.integerLiteral(0),
+                    ]),
+                  ),
+                  AST.functionCall(AST.identifier("__able_channel_close"), [
+                    AST.identifier("handle"),
+                  ]),
+                  AST.functionCall(
+                    AST.identifier("__able_channel_send"),
+                    [AST.identifier("handle"), AST.integerLiteral(1)],
+                  ),
+                ]),
+              ),
+            ]),
+          ),
+          AST.stringInterpolation([
+            AST.identifier("nil_result"),
+            AST.stringLiteral(","),
+            AST.identifier("closed_result"),
+            AST.stringLiteral(","),
+            AST.identifier("send_closed_result"),
+          ]),
+        ]),
+        manifest: {
+          description: "Able code can rescue channel errors and inspect the struct payloads",
+          expect: {
+            result: { kind: "string", value: "ChannelNil,ChannelClosed,ChannelSendOnClosed" },
+          },
+        },
+      },
+
+  {
         name: "concurrency/channel_nil_send_cancel",
         module: AST.module([
           AST.assign(

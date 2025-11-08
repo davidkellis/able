@@ -11,6 +11,8 @@ import { applyEvaluationAugmentations } from "./eval_expressions";
 import { applyConcurrencyAugmentations } from "./concurrency";
 import { applyIteratorAugmentations } from "./iterators";
 import { applyChannelMutexAugmentations } from "./channels_mutex";
+import { applyStringHostAugmentations } from "./string_host";
+import { applyHasherHostAugmentations } from "./hasher_host";
 import "./definitions";
 import "./imports";
 
@@ -57,6 +59,11 @@ export class InterpreterV10 {
     value: Extract<V10Value, { kind: "native_function" }>;
   };
 
+  errorNativeMethods!: {
+    message: Extract<V10Value, { kind: "native_function" }>;
+    cause: Extract<V10Value, { kind: "native_function" }>;
+  };
+
   concurrencyBuiltinsInitialized = false;
   procErrorStruct!: AST.StructDefinition;
   procStatusStructs!: {
@@ -70,10 +77,15 @@ export class InterpreterV10 {
   procStatusCancelledValue!: V10Value;
 
   channelMutexBuiltinsInitialized = false;
+  stringHostBuiltinsInitialized = false;
+  hasherBuiltinsInitialized = false;
   nextChannelHandle = 1;
   channelStates: Map<number, any> = new Map();
+  channelErrorStructs: Map<string, AST.StructDefinition> = new Map();
   nextMutexHandle = 1;
   mutexStates: Map<number, any> = new Map();
+  nextHasherHandle = 1;
+  hasherStates: Map<number, number> = new Map();
 
   schedulerMaxSteps = 1024;
   executor: Executor;
@@ -92,6 +104,8 @@ export class InterpreterV10 {
     this.executor = options.executor ?? new CooperativeExecutor({ maxSteps: this.schedulerMaxSteps });
     this.initConcurrencyBuiltins();
     this.ensureChannelMutexBuiltins();
+    this.ensureStringHostBuiltins();
+    this.ensureHasherBuiltins();
     this.procNativeMethods = {
       status: this.makeNativeFunction("Proc.status", 1, (interp, args) => {
         const self = args[0];
@@ -121,6 +135,25 @@ export class InterpreterV10 {
         const self = args[0];
         if (!self || self.kind !== "future") throw new Error("Future.value called on non-future");
         return interp.futureValue(self);
+      }),
+    };
+
+    this.errorNativeMethods = {
+      message: this.makeNativeFunction("Error.message", 1, (_interp, args) => {
+        const self = args[0];
+        if (!self || self.kind !== "error") throw new Error("Error.message called on non-error");
+        return { kind: "string", value: self.message ?? "" };
+      }),
+      cause: this.makeNativeFunction("Error.cause", 1, (_interp, args) => {
+        const self = args[0];
+        if (!self || self.kind !== "error") throw new Error("Error.cause called on non-error");
+        if (self.cause) {
+          return self.cause;
+        }
+        if (self.value && self.value.kind === "error") {
+          return self.value;
+        }
+        return { kind: "nil", value: null };
       }),
     };
 
@@ -156,6 +189,8 @@ applyImplResolutionAugmentations(InterpreterV10);
 applyPlaceholderAugmentations(InterpreterV10);
 applyIteratorAugmentations(InterpreterV10);
 applyChannelMutexAugmentations(InterpreterV10);
+applyStringHostAugmentations(InterpreterV10);
+applyHasherHostAugmentations(InterpreterV10);
 applyEvaluationAugmentations(InterpreterV10);
 applyConcurrencyAugmentations(InterpreterV10);
 

@@ -390,6 +390,85 @@ describe("v10 interpreter - proc & spawn handles", () => {
     expect(I.evaluate(AST.identifier("flag"))).toEqual({ kind: "i32", value: 0 });
   });
 
+  test("proc errors expose cause via err.cause()", async () => {
+    const I = new InterpreterV10();
+
+    I.evaluate(
+      AST.assignmentExpression(
+        ":=",
+        AST.identifier("handle"),
+        AST.procExpression(
+          AST.blockExpression([
+            AST.raiseStatement(
+              AST.structLiteral(
+                [AST.structFieldInitializer(AST.stringLiteral("boom"), "details")],
+                false,
+                "ProcError",
+              ),
+            ),
+          ]),
+        ),
+      ),
+    );
+
+    await flushScheduler();
+
+    I.evaluate(
+      AST.functionDefinition(
+        "describe_error",
+        [AST.functionParameter("err", AST.simpleTypeExpression("Error"))],
+        AST.blockExpression([
+          AST.assignmentExpression(
+            ":=",
+            AST.identifier("cause"),
+            AST.functionCall(AST.memberAccessExpression(AST.identifier("err"), "cause"), []),
+          ),
+          AST.assignmentExpression(
+            ":=",
+            AST.identifier("flag"),
+            AST.ifExpression(
+              AST.binaryExpression(
+                "==",
+                AST.identifier("cause"),
+                AST.nilLiteral(),
+              ),
+              AST.blockExpression([AST.stringLiteral("no-error")]),
+              [
+                AST.orClause(
+                  AST.blockExpression([AST.stringLiteral("has-cause")]),
+                  AST.booleanLiteral(true),
+                ),
+              ],
+            ),
+          ),
+          AST.stringInterpolation([
+            AST.functionCall(AST.memberAccessExpression(AST.identifier("err"), "message"), []),
+            AST.stringLiteral("|"),
+            AST.identifier("flag"),
+          ]),
+        ]),
+        AST.simpleTypeExpression("string"),
+      ),
+    );
+    const valueCall = AST.functionCall(
+      AST.memberAccessExpression(AST.identifier("handle"), "value"),
+      [],
+    );
+    const errorValue = expectErrorValue(I.evaluate(valueCall));
+    expect(errorValue.cause).toEqual(errorValue.value);
+    const causeSummary = AST.orElseExpression(
+      AST.propagationExpression(valueCall),
+      AST.blockExpression([
+        AST.functionCall(AST.identifier("describe_error"), [AST.identifier("err")]),
+      ]),
+      "err",
+    );
+
+    const summary = I.evaluate(causeSummary) as V10Value;
+    expect(summary.kind).toBe("string");
+    expect(summary.value).toBe("Proc failed: boom|has-cause");
+  });
+
   test("proc cancel after resolve is no-op", async () => {
     const I = new InterpreterV10();
 

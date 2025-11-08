@@ -338,6 +338,10 @@ func (i *Interpreter) makeProcRuntimeError(message string, procErr runtime.Value
 	payload := map[string]runtime.Value{
 		"proc_error": procErr,
 	}
+	if procErr != nil {
+		payload["value"] = procErr
+		payload["cause"] = procErr
+	}
 	return runtime.ErrorValue{Message: message, Payload: payload}
 }
 

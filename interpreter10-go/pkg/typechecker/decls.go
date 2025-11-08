@@ -382,6 +382,9 @@ func registerBuiltins(env *Environment) {
 	i32Type := IntegerType{Suffix: "i32"}
 	i64Type := IntegerType{Suffix: "i64"}
 	anyType := UnknownType{}
+	stringType := PrimitiveType{Kind: PrimitiveString}
+	charType := PrimitiveType{Kind: PrimitiveChar}
+	byteArrayType := ArrayType{Element: i32Type}
 
 	procYield := FunctionType{
 		Params: nil,
@@ -445,6 +448,40 @@ func registerBuiltins(env *Environment) {
 	env.Define("__able_mutex_unlock", FunctionType{
 		Params: []Type{i64Type},
 		Return: nilType,
+	})
+
+	env.Define("__able_string_from_builtin", FunctionType{
+		Params: []Type{stringType},
+		Return: byteArrayType,
+	})
+	env.Define("__able_string_to_builtin", FunctionType{
+		Params: []Type{byteArrayType},
+		Return: stringType,
+	})
+	env.Define("__able_char_from_codepoint", FunctionType{
+		Params: []Type{i32Type},
+		Return: charType,
+	})
+
+	env.Define("__able_hasher_create", FunctionType{
+		Params: nil,
+		Return: i64Type,
+	})
+	env.Define("__able_hasher_write", FunctionType{
+		Params: []Type{i64Type, stringType},
+		Return: nilType,
+	})
+	env.Define("__able_hasher_finish", FunctionType{
+		Params: []Type{i64Type},
+		Return: i64Type,
+	})
+
+	procErrorFields := map[string]Type{
+		"details": stringType,
+	}
+	env.Define("ProcError", StructType{
+		StructName: "ProcError",
+		Fields:     procErrorFields,
 	})
 }
 

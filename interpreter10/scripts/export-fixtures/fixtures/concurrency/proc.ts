@@ -865,9 +865,92 @@ const procConcurrencyFixtures: Fixture[] = [
           description: "Proc and future alternate via proc_yield under the serial executor",
           expect: {
             result: { kind: "string", value: "A1B1A2B2A3:Resolved:Resolved:0" },
-          },
         },
       },
+    },
+
+  {
+      name: "concurrency/proc_error_cause",
+      module: AST.module([
+        AST.functionDefinition(
+          "describe_error",
+          [AST.functionParameter("err", AST.simpleTypeExpression("Error"))],
+          AST.blockExpression([
+            AST.assignmentExpression(
+              ":=",
+              AST.identifier("cause"),
+              AST.functionCall(
+                AST.memberAccessExpression(AST.identifier("err"), "cause"),
+                [],
+              ),
+            ),
+            AST.assignmentExpression(
+              ":=",
+              AST.identifier("flag"),
+              AST.ifExpression(
+                AST.binaryExpression(
+                  "==",
+                  AST.identifier("cause"),
+                  AST.nilLiteral(),
+                ),
+                AST.blockExpression([AST.stringLiteral("no-error")]),
+                [
+                  AST.orClause(
+                    AST.blockExpression([AST.stringLiteral("has-cause")]),
+                    AST.booleanLiteral(true),
+                  ),
+                ],
+              ),
+            ),
+            AST.stringInterpolation([
+              AST.functionCall(
+                AST.memberAccessExpression(AST.identifier("err"), "message"),
+                [],
+              ),
+              AST.stringLiteral("|"),
+              AST.identifier("flag"),
+            ]),
+          ]),
+          AST.simpleTypeExpression("string"),
+        ),
+        AST.assignmentExpression(
+          ":=",
+          AST.identifier("handle"),
+          AST.procExpression(
+            AST.blockExpression([
+              AST.raiseStatement(AST.stringLiteral("boom")),
+            ]),
+          ),
+        ),
+        AST.functionCall(AST.identifier("proc_flush"), []),
+        AST.assignmentExpression(
+          ":=",
+          AST.identifier("summary"),
+          AST.orElseExpression(
+            AST.propagationExpression(
+              AST.functionCall(
+                AST.memberAccessExpression(AST.identifier("handle"), "value"),
+                [],
+              ),
+            ),
+            AST.blockExpression([
+              AST.functionCall(
+                AST.identifier("describe_error"),
+                [AST.identifier("err")],
+              ),
+            ]),
+            "err",
+          ),
+        ),
+        AST.identifier("summary"),
+      ]),
+      manifest: {
+        description: "Proc handle errors expose ProcError causes to handlers",
+        expect: {
+          result: { kind: "string", value: "Proc failed: boom|has-cause" },
+        },
+      },
+    },
 ];
 
 export default procConcurrencyFixtures;

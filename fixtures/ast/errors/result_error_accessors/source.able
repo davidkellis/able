@@ -1,0 +1,31 @@
+struct ChannelClosed {
+
+}
+struct ChannelNil {
+
+}
+struct ChannelSendOnClosed {
+
+}
+failure_description := do {
+  __able_channel_close(0)
+  "ok"
+} rescue {
+  case err: Error => err
+}! else {
+  | err |
+  payload := err.value
+  payload_tag := (payload match {
+    case ChannelNil {  } => "ChannelNil",
+    case ChannelClosed {  } => "ChannelClosed",
+    case ChannelSendOnClosed {  } => "ChannelSendOnClosed",
+    case _ => "Unknown"
+  })
+  cause := err.cause()
+  cause_tag := (cause match {
+    case inner: Error => "cause",
+    case _ => "nil"
+  })
+  `${err.message()}|${payload_tag}|${cause_tag}`
+}
+failure_description

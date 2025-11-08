@@ -237,16 +237,26 @@ type Interpreter struct {
 	procStatusResolved  runtime.Value
 	procStatusCancelled runtime.Value
 
-	channelMutexReady bool
-	channelMu         sync.Mutex
-	channels          map[int64]*channelState
-	nextChannelHandle int64
-	mutexMu           sync.Mutex
-	mutexes           map[int64]*mutexState
-	nextMutexHandle   int64
+	channelMutexReady   bool
+	channelMu           sync.Mutex
+	channels            map[int64]*channelState
+	nextChannelHandle   int64
+	mutexMu             sync.Mutex
+	mutexes             map[int64]*mutexState
+	nextMutexHandle     int64
+	channelErrorStructs map[string]*runtime.StructDefinitionValue
+
+	stringHostReady bool
+
+	hasherReady       bool
+	hasherMu          sync.Mutex
+	hashers           map[int64]*hasherState
+	nextHasherHandle  int64
 
 	arrayReady   bool
 	hashMapReady bool
+
+	errorNativeMethods map[string]runtime.NativeFunctionValue
 
 	generatorStack []*generatorInstance
 
@@ -340,13 +350,19 @@ func NewWithExecutor(exec Executor) *Interpreter {
 			"Cancelled": nil,
 			"Failed":    nil,
 		},
-		channels: make(map[int64]*channelState),
-		mutexes:  make(map[int64]*mutexState),
+		channels:            make(map[int64]*channelState),
+		mutexes:             make(map[int64]*mutexState),
+		channelErrorStructs: make(map[string]*runtime.StructDefinitionValue),
+		hashers:             make(map[int64]*hasherState),
+		errorNativeMethods: make(map[string]runtime.NativeFunctionValue),
 	}
 	i.initConcurrencyBuiltins()
 	i.initChannelMutexBuiltins()
 	i.initArrayBuiltins()
 	i.initHashMapBuiltins()
+	i.initStringHostBuiltins()
+	i.initErrorBuiltins()
+	i.initHasherBuiltins()
 	return i
 }
 

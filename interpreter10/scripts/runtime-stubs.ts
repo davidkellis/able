@@ -35,7 +35,10 @@ export function ensureConsolePrint(interpreter: InterpreterV10): void {
 export function installRuntimeStubs(interpreter: InterpreterV10): void {
   const channels = new Map<number, { queue: V10Value[]; capacity: number; closed: boolean }>();
   const mutexes = new Map<number, { locked: boolean }>();
+  const hashers = new Map<number, number>();
   let handleCounter = 1;
+  const textEncoder = new TextEncoder();
+  const textDecoder = new TextDecoder();
 
   const hasGlobal = (name: string) => {
     try {
@@ -207,5 +210,72 @@ export function installRuntimeStubs(interpreter: InterpreterV10): void {
       state.locked = false;
       return { kind: "nil", value: null };
     }) ?? { kind: "nil", value: null },
+  );
+
+  defineIfMissing("__able_string_from_builtin", () =>
+    (interpreter as any).makeNativeFunction?.("__able_string_from_builtin", 1, (_ctx: InterpreterV10, [value]: V10Value[]) => {
+      if (!value || value.kind !== "string") throw new Error("argument must be string");
+      const bytes = textEncoder.encode(value.value);
+      return { kind: "array", elements: Array.from(bytes, (b) => ({ kind: "i32", value: b })) };
+    }) ?? { kind: "nil", value: null },
+  );
+
+  defineIfMissing("__able_string_to_builtin", () =>
+    (interpreter as any).makeNativeFunction?.("__able_string_to_builtin", 1, (_ctx: InterpreterV10, [arr]: V10Value[]) => {
+      if (!arr || arr.kind !== "array") throw new Error("argument must be array");
+      const bytes = Uint8Array.from(arr.elements.map((el, idx) => {
+        if (!el || (el.kind !== "i32" && el.kind !== "f64")) throw new Error(`array element ${idx} must be numeric`);
+        const n = Math.trunc(el.value);
+        if (n < 0 || n > 0xff) throw new Error(`array element ${idx} must be in range 0..255`);
+        return n;
+      }));
+      return { kind: "string", value: textDecoder.decode(bytes) };
+    }) ?? { kind: "string", value: "" },
+  );
+
+  defineIfMissing("__able_char_from_codepoint", () =>
+    (interpreter as any).makeNativeFunction?.("__able_char_from_codepoint", 1, (_ctx: InterpreterV10, [code]: V10Value[]) => {
+      if (!code || (code.kind !== "i32" && code.kind !== "f64")) throw new Error("codepoint must be numeric");
+      const cp = Math.trunc(code.value);
+      if (cp < 0 || cp > 0x10ffff) throw new Error("codepoint out of range");
+      return { kind: "char", value: String.fromCodePoint(cp) };
+    }) ?? { kind: "char", value: "" },
+  );
+
+  const FNV_OFFSET = 0x811c9dc5;
+  const FNV_PRIME = 0x01000193;
+
+  defineIfMissing("__able_hasher_create", () =>
+    (interpreter as any).makeNativeFunction?.("__able_hasher_create", 0, () => {
+      const handle = handleCounter++;
+      hashers.set(handle, FNV_OFFSET);
+      return { kind: "i32", value: handle };
+    }) ?? { kind: "i32", value: 0 },
+  );
+
+  defineIfMissing("__able_hasher_write", () =>
+    (interpreter as any).makeNativeFunction?.("__able_hasher_write", 2, (_ctx: InterpreterV10, [handleArg, bytesArg]: V10Value[]) => {
+      const handle = toHandle(handleArg);
+      if (!bytesArg || bytesArg.kind !== "string") throw new Error("bytes must be string");
+      const state = hashers.get(handle);
+      if (state === undefined) throw new Error("unknown hasher handle");
+      let hash = state >>> 0;
+      for (const b of textEncoder.encode(bytesArg.value)) {
+        hash ^= b;
+        hash = Math.imul(hash, FNV_PRIME) >>> 0;
+      }
+      hashers.set(handle, hash >>> 0);
+      return { kind: "nil", value: null };
+    }) ?? { kind: "nil", value: null },
+  );
+
+  defineIfMissing("__able_hasher_finish", () =>
+    (interpreter as any).makeNativeFunction?.("__able_hasher_finish", 1, (_ctx: InterpreterV10, [handleArg]: V10Value[]) => {
+      const handle = toHandle(handleArg);
+      const state = hashers.get(handle);
+      if (state === undefined) throw new Error("unknown hasher handle");
+      hashers.delete(handle);
+      return { kind: "i32", value: state >>> 0 };
+    }) ?? { kind: "i32", value: 0 },
   );
 }

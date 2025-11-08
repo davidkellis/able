@@ -2890,6 +2890,8 @@ interface Error {
   fn cause(self: Self) -> ?Error
 }
 
+Runtime-generated errors (raised by the interpreter or stdlib helpers) automatically implement these members. They also expose a `value` field that returns the underlying payload used to construct the error (or `nil` when no payload exists). This enables Able programs to write handlers such as `err.value match { case ChannelClosed {} => ... }` without needing to reify the channel helper structs manually.
+
 ##### Standard Error Types
 
 The standard library defines a small set of core error types implementing `Error` that the language/runtime may raise:

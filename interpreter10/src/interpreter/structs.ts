@@ -181,6 +181,20 @@ function memberAccessOnValue(ctx: InterpreterV10, obj: V10Value, member: AST.Ide
     if (!fn) throw new Error(`Unknown iterator method '${member.name}'`);
     return ctx.bindNativeMethod(fn, obj);
   }
+  if (obj.kind === "error") {
+    if (member.type !== "Identifier") throw new Error("Error member access expects identifier");
+    if (member.name === "value") {
+      return obj.value ?? { kind: "nil", value: null };
+    }
+    const fn = (ctx.errorNativeMethods as Record<string, Extract<V10Value, { kind: "native_function" }>>)[member.name];
+    if (fn) {
+      return ctx.bindNativeMethod(fn, obj);
+    }
+    const ufcs = ctx.tryUfcs(env, member.name, obj);
+    if (ufcs) return ufcs;
+    throw new Error(`No field or method named '${member.name}' on error value`);
+  }
+
   if (member.type === "Identifier" && obj.kind !== "struct_instance" && obj.kind !== "array") {
     const ufcs = ctx.tryUfcs(env, member.name, obj);
     if (ufcs) return ufcs;

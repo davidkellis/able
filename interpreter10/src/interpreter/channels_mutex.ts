@@ -1,13 +1,17 @@
+import * as AST from "../ast";
 import type { InterpreterV10 } from "./index";
 import type { V10Value } from "./values";
+import { RaiseSignal } from "./signals";
 
 type ProcHandleValue = Extract<V10Value, { kind: "proc_handle" }>;
 type BoolValue = Extract<V10Value, { kind: "bool" }>;
 type NilValue = Extract<V10Value, { kind: "nil" }>;
+type ErrorValue = Extract<V10Value, { kind: "error" }>;
 
 interface ChannelSendWaiter {
   handle: ProcHandleValue;
   value: V10Value;
+  error?: ErrorValue;
 }
 
 interface ChannelReceiveWaiter {
@@ -38,6 +42,7 @@ declare module "./index" {
     channelMutexBuiltinsInitialized: boolean;
     nextChannelHandle: number;
     channelStates: Map<number, ChannelState>;
+    channelErrorStructs: Map<string, AST.StructDefinition>;
     nextMutexHandle: number;
     mutexStates: Map<number, MutexState>;
   }
@@ -50,14 +55,13 @@ declare module "./values" {
       state: ChannelState;
       value: V10Value;
       delivered?: boolean;
-      error?: string;
+      error?: ErrorValue;
     };
     waitingChannelReceive?: {
       state: ChannelState;
       ready?: boolean;
       value?: V10Value;
       closed?: boolean;
-      error?: string;
     };
   }
 }
@@ -112,6 +116,53 @@ function getChannelState(interp: InterpreterV10, handle: number): ChannelState |
     }
   }
   return state;
+}
+
+function resolveChannelErrorStruct(interp: InterpreterV10, structName: string): AST.StructDefinition | null {
+  if (interp.channelErrorStructs.has(structName)) {
+    return interp.channelErrorStructs.get(structName)!;
+  }
+  const candidateNames = [
+    structName,
+    `concurrency.${structName}`,
+    `able.${structName}`,
+    `able.concurrency.${structName}`,
+    `able.concurrency.channel.${structName}`,
+  ];
+  for (const name of candidateNames) {
+    try {
+      const val = interp.globals.get(name);
+      if (val && val.kind === "struct_def") {
+        interp.channelErrorStructs.set(structName, val.def);
+        return val.def;
+      }
+    } catch {
+      // ignore lookup errors
+    }
+  }
+  for (const bucket of interp.packageRegistry.values()) {
+    const val = bucket.get(structName);
+    if (val && val.kind === "struct_def") {
+      interp.channelErrorStructs.set(structName, val.def);
+      return val.def;
+    }
+  }
+  return null;
+}
+
+function makeChannelErrorValue(interp: InterpreterV10, structName: string, fallbackMessage: string): ErrorValue {
+  let structDef = resolveChannelErrorStruct(interp, structName);
+  if (!structDef) {
+    structDef = AST.structDefinition(structName, [], "named");
+    interp.channelErrorStructs.set(structName, structDef);
+  }
+  const instance = interp.makeNamedStructInstance(structDef, []) as Extract<V10Value, { kind: "struct_instance" }>;
+  return { kind: "error", message: fallbackMessage, value: instance };
+}
+
+function raiseChannelError(interp: InterpreterV10, structName: string, fallbackMessage: string): never {
+  const err = makeChannelErrorValue(interp, structName, fallbackMessage);
+  throw new RaiseSignal(err);
 }
 
 export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void {
@@ -174,7 +225,7 @@ export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void
           payload = pending.value;
           if (pending.error) {
             delete (procHandle as any).waitingChannelSend;
-            throw new Error(pending.error);
+            throw new RaiseSignal(pending.error);
           }
           if (pending.delivered) {
             delete (procHandle as any).waitingChannelSend;
@@ -189,7 +240,7 @@ export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void
         }
 
         if (state.closed) {
-          throw new Error("send on closed channel");
+          raiseChannelError(interp, "ChannelSendOnClosed", "send on closed channel");
         }
 
         if (state.receiveWaiters.length > 0) {
@@ -262,10 +313,6 @@ export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void
         }
 
         if (pending && pending.state === state) {
-          if (pending.error) {
-            delete (procHandle as any).waitingChannelReceive;
-            throw new Error(pending.error);
-          }
           if (pending.ready) {
             const result = pending.closed ? NIL : pending.value ?? NIL;
             delete (procHandle as any).waitingChannelReceive;
@@ -339,7 +386,7 @@ export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void
           throw new Error("Invalid channel handle");
         }
         if (state.closed) {
-          throw new Error("send on closed channel");
+          raiseChannelError(interp, "ChannelSendOnClosed", "send on closed channel");
         }
         if (state.receiveWaiters.length > 0) {
           const receiver = state.receiveWaiters.shift()!;
@@ -402,14 +449,14 @@ export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void
       this.makeNativeFunction("__able_channel_close", 1, (interp, args) => {
         const handleNumber = toHandleNumber(args[0], "channel handle");
         if (handleNumber === 0) {
-          throw new Error("close of nil channel");
+          raiseChannelError(interp, "ChannelNil", "close of nil channel");
         }
         const state = getChannelState(interp, handleNumber);
         if (!state) {
           throw new Error("Invalid channel handle");
         }
         if (state.closed) {
-          throw new Error("close of closed channel");
+          raiseChannelError(interp, "ChannelClosed", "close of closed channel");
         }
         state.closed = true;
 
@@ -428,7 +475,7 @@ export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void
           const sender = state.sendWaiters.shift()!;
           const pending = (sender.handle as any).waitingChannelSend;
           if (pending && pending.state === state) {
-            pending.error = "send on closed channel";
+            pending.error = makeChannelErrorValue(interp, "ChannelSendOnClosed", "send on closed channel");
           }
           scheduleProc(interp, sender.handle);
         }

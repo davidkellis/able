@@ -47,7 +47,7 @@ export type V10Value =
     }
   | { kind: "dyn_package"; name: string }
   | { kind: "dyn_ref"; pkg: string; name: string }
-  | { kind: "error"; message: string; value?: V10Value }
+  | { kind: "error"; message: string; value?: V10Value; cause?: V10Value }
   | { kind: "bound_method"; func: Extract<V10Value, { kind: "function" }>; self: V10Value }
   | {
       kind: "interface_value";
