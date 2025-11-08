@@ -1,7 +1,7 @@
 package rosettacode_factorial
 
 ## Rosetta Code — Factorial (https://rosettacode.org/wiki/Factorial#Procedural)
-fn factorial_iterative(n: i32) -> i64 {
+fn factorial_iterative_while(n: i32) -> i64 {
   if n < 0 { return 0 }
 
   result: i64 := 1
@@ -13,19 +13,81 @@ fn factorial_iterative(n: i32) -> i64 {
   result
 }
 
-fn factorial_recursive(n: i32) -> i64 {
-  if n <= 1 { 1 }
-  else { n * factorial_recursive(n - 1) }
+fn factorial_recursive_conditional(n: i32) -> i64 {
+  if n <= 0 { 1 }
+  else { n * factorial_recursive_conditional(n - 1) }
 }
 
-fn show_factorial(n: i32) -> void {
-  print(`n = ${n}`)
-  print(`iterative => ${factorial_iterative(n)}`)
-  print(`recursive => ${factorial_recursive(n)}`)
+fn factorial_tail_recursive_accumulator(n: i32) -> i64 {
+  factorial_tail_recursive_step(n, 1)
+}
+
+fn factorial_tail_recursive_step(n: i32, product: i64) -> i64 {
+  if n <= 0 { product }
+  else { factorial_tail_recursive_step(n - 1, product * n) }
+}
+
+fn factorial_iterative_range_each(n: i32) -> i64 {
+  if n <= 0 { return 1 }
+  result: i64 := n
+  for factor in 2...n {
+    result = result * factor
+  }
+  result
+}
+
+fn factorial_range_inject(n: i32) -> i64 {
+  result: i64 := 1
+  if n <= 0 { return result }
+  for factor in 1..n {
+    result = result * factor
+  }
+  result
+}
+
+fn factorial_range_reduce(n: i32) -> i64 {
+  if n <= 1 { return 1 }
+  result: i64 := 1
+  for factor in 2..n {
+    result = result * factor
+  }
+  result
+}
+
+fn factorial_recursive_match(n: i32) -> i64 {
+  n match {
+    case 0 => 1,
+    case _ => n * factorial_recursive_match(n - 1)
+  }
+}
+
+fn factorial_range_product(n: i32) -> i64 {
+  result: i64 := 1
+  if n <= 0 { return result }
+  for factor in 1..n {
+    result = result * factor
+  }
+  result
+}
+
+fn show_factorial(n: i32) {
+  print(`Factorial variants for n = ${n}`)
+  print("  Procedural")
+  print(`    while loop => ${factorial_iterative_while(n)}`)
+  print(`    guard recursion => ${factorial_recursive_guard(n)}`)
+  print("  Ruby")
+  print(`    conditional recursion => ${factorial_recursive_conditional(n)}`)
+  print(`    tail recursive => ${factorial_tail_recursive_accumulator(n)}`)
+  print(`    range each => ${factorial_iterative_range_each(n)}`)
+  print(`    inject => ${factorial_range_inject(n)}`)
+  print(`    reduce => ${factorial_range_reduce(n)}`)
+  print("  Rust")
+  print(`    match recursion => ${factorial_recursive_match(n)}`)
+  print(`    range product => ${factorial_range_product(n)}`)
   print("")
 }
 
-fn main() -> void {
+fn main() {
   show_factorial(0)
   show_factorial(5)
   show_factorial(10)

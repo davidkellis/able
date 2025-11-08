@@ -53,6 +53,13 @@ func (i *Interpreter) memberAccessOnValue(obj runtime.Value, member ast.Expressi
 		return i.futureMember(v, member)
 	case *runtime.IteratorValue:
 		return i.iteratorMember(v, member)
+	case runtime.ErrorValue:
+		return i.errorMember(v, member, env)
+	case *runtime.ErrorValue:
+		if v == nil {
+			return nil, fmt.Errorf("Error member access on nil value")
+		}
+		return i.errorMember(*v, member, env)
 	default:
 		if ident, ok := member.(*ast.Identifier); ok {
 			if bound, ok := i.tryUfcs(env, ident.Name, obj); ok {

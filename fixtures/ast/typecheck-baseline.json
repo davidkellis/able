@@ -8,6 +8,7 @@
   "concurrency/channel_nil_send_cancel": [],
   "concurrency/channel_receive_loop": [],
   "concurrency/channel_send_on_closed_error": [],
+  "concurrency/proc_error_cause": [],
   "concurrency/fairness_proc_future": [],
   "concurrency/fairness_proc_round_robin": [],
   "concurrency/future_memoization": [],

@@ -88,24 +88,36 @@ func decodeExpressionNodes(node map[string]any, typ string) (ast.Node, bool, err
 			if !ok {
 				return nil, true, fmt.Errorf("invalid interpolation part %T", raw)
 			}
-			kind, _ := partNode["kind"].(string)
-			switch kind {
-			case "text":
-				val, _ := partNode["value"].(string)
-				parts = append(parts, ast.NewStringLiteral(val))
-			case "expression":
-				exprNode, err := decodeNode(partNode["expression"].(map[string]any))
-				if err != nil {
-					return nil, true, err
+			if kind, _ := partNode["kind"].(string); kind != "" {
+				switch kind {
+				case "text":
+					val, _ := partNode["value"].(string)
+					parts = append(parts, ast.NewStringLiteral(val))
+					continue
+				case "expression":
+					exprNode, err := decodeNode(partNode["expression"].(map[string]any))
+					if err != nil {
+						return nil, true, err
+					}
+					expr, ok := exprNode.(ast.Expression)
+					if !ok {
+						return nil, true, fmt.Errorf("invalid interpolation expression %T", exprNode)
+					}
+					parts = append(parts, expr)
+					continue
+				default:
+					return nil, true, fmt.Errorf("unknown interpolation part kind %s", kind)
 				}
-				expr, ok := exprNode.(ast.Expression)
-				if !ok {
-					return nil, true, fmt.Errorf("invalid interpolation expression %T", exprNode)
-				}
-				parts = append(parts, expr)
-			default:
-				return nil, true, fmt.Errorf("unknown interpolation part kind %s", kind)
 			}
+			exprNode, err := decodeNode(partNode)
+			if err != nil {
+				return nil, true, err
+			}
+			expr, ok := exprNode.(ast.Expression)
+			if !ok {
+				return nil, true, fmt.Errorf("invalid interpolation expression %T", exprNode)
+			}
+			parts = append(parts, expr)
 		}
 		return ast.NewStringInterpolation(parts), true, nil
 	case "RangeExpression":
@@ -128,7 +140,18 @@ func decodeExpressionNodes(node map[string]any, typ string) (ast.Node, bool, err
 		exclusive, _ := node["exclusive"].(bool)
 		return ast.NewRangeExpression(startExpr, endExpr, exclusive), true, nil
 	case "MatchExpression":
-		scrutNode, err := decodeNode(node["scrutinee"].(map[string]any))
+		scrutineeNodeVal, ok := node["scrutinee"]
+		if !ok || scrutineeNodeVal == nil {
+			scrutineeNodeVal = node["subject"]
+		}
+		if scrutineeNodeVal == nil {
+			return nil, true, fmt.Errorf("match expression missing scrutinee/subject")
+		}
+		scrutMap, ok := scrutineeNodeVal.(map[string]any)
+		if !ok {
+			return nil, true, fmt.Errorf("invalid match scrutinee %T", scrutineeNodeVal)
+		}
+		scrutNode, err := decodeNode(scrutMap)
 		if err != nil {
 			return nil, true, err
 		}
