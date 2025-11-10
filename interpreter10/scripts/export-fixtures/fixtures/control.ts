@@ -288,6 +288,152 @@ const controlFixtures: Fixture[] = [
     },
 
   {
+      name: "control/iterator_lazy_next",
+      module: AST.module([
+        AST.assign("count", AST.integerLiteral(0)),
+        AST.assign(
+          "iter",
+          AST.iteratorLiteral([
+            AST.assignmentExpression(
+              "=",
+              AST.identifier("count"),
+              AST.binaryExpression("+", AST.identifier("count"), AST.integerLiteral(1)),
+            ),
+            AST.functionCall(
+              AST.memberAccessExpression(AST.identifier("gen"), "yield"),
+              [AST.identifier("count")],
+            ),
+            AST.assignmentExpression(
+              "=",
+              AST.identifier("count"),
+              AST.binaryExpression("+", AST.identifier("count"), AST.integerLiteral(1)),
+            ),
+            AST.functionCall(
+              AST.memberAccessExpression(AST.identifier("gen"), "yield"),
+              [AST.identifier("count")],
+            ),
+          ]),
+        ),
+        AST.assign("before", AST.identifier("count")),
+        AST.assign("first", AST.functionCall(AST.memberAccessExpression(AST.identifier("iter"), "next"), [])),
+        AST.assign("second", AST.functionCall(AST.memberAccessExpression(AST.identifier("iter"), "next"), [])),
+        AST.assign("third", AST.functionCall(AST.memberAccessExpression(AST.identifier("iter"), "next"), [])),
+        AST.assign("after", AST.identifier("count")),
+        AST.arrayLiteral([
+          AST.identifier("before"),
+          AST.identifier("first"),
+          AST.identifier("second"),
+          AST.identifier("third"),
+          AST.identifier("after"),
+        ]),
+      ]),
+      manifest: {
+        description: "Iterator.next drives generator lazily and returns IteratorEnd when exhausted",
+        expect: {
+          result: {
+            kind: "array",
+            elements: [
+              { kind: "i32", value: 0 },
+              { kind: "i32", value: 1 },
+              { kind: "i32", value: 2 },
+              { kind: "iterator_end" },
+              { kind: "i32", value: 2 },
+            ],
+          },
+        },
+      },
+    },
+
+  {
+      name: "control/iterator_for_body_next",
+      module: AST.module([
+        AST.assign(
+          "iter",
+          AST.iteratorLiteral([
+            AST.forLoop(
+              AST.identifier("item"),
+              AST.arrayLiteral([AST.integerLiteral(1), AST.integerLiteral(2), AST.integerLiteral(3)]),
+              AST.blockExpression([
+                AST.functionCall(
+                  AST.memberAccessExpression(AST.identifier("gen"), "yield"),
+                  [AST.identifier("item")],
+                ),
+              ]),
+            ),
+          ]),
+        ),
+        AST.assign("first", AST.functionCall(AST.memberAccessExpression(AST.identifier("iter"), "next"), [])),
+        AST.assign("second", AST.functionCall(AST.memberAccessExpression(AST.identifier("iter"), "next"), [])),
+        AST.assign("third", AST.functionCall(AST.memberAccessExpression(AST.identifier("iter"), "next"), [])),
+        AST.assign("done", AST.functionCall(AST.memberAccessExpression(AST.identifier("iter"), "next"), [])),
+        AST.arrayLiteral([
+          AST.identifier("first"),
+          AST.identifier("second"),
+          AST.identifier("third"),
+          AST.identifier("done"),
+        ]),
+      ]),
+      manifest: {
+        description: "For loop inside iterator literal resumes correctly when driving next() manually",
+        expect: {
+          result: {
+            kind: "array",
+            elements: [
+              { kind: "i32", value: 1 },
+              { kind: "i32", value: 2 },
+              { kind: "i32", value: 3 },
+              { kind: "iterator_end" },
+            ],
+          },
+        },
+      },
+    },
+
+  {
+      name: "control/iterator_stop_next",
+      module: AST.module([
+        AST.assign(
+          "iter",
+          AST.iteratorLiteral([
+            AST.functionCall(
+              AST.memberAccessExpression(AST.identifier("gen"), "yield"),
+              [AST.integerLiteral(1)],
+            ),
+            AST.functionCall(
+              AST.memberAccessExpression(AST.identifier("gen"), "stop"),
+              [],
+            ),
+            AST.functionCall(
+              AST.memberAccessExpression(AST.identifier("gen"), "yield"),
+              [AST.integerLiteral(99)],
+            ),
+          ]),
+        ),
+        AST.assign("first", AST.functionCall(AST.memberAccessExpression(AST.identifier("iter"), "next"), [])),
+        AST.assign("second", AST.functionCall(AST.memberAccessExpression(AST.identifier("iter"), "next"), [])),
+        AST.assign("third", AST.functionCall(AST.memberAccessExpression(AST.identifier("iter"), "next"), [])),
+        AST.arrayLiteral([
+          AST.identifier("first"),
+          AST.identifier("second"),
+          AST.identifier("third"),
+        ]),
+      ]),
+      manifest: {
+        description: "gen.stop terminates iteration and memoizes IteratorEnd for subsequent next() calls",
+        expect: {
+          result: {
+            kind: "array",
+            elements: [
+              { kind: "i32", value: 1 },
+              { kind: "iterator_end" },
+              { kind: "iterator_end" },
+            ],
+          },
+        },
+      },
+    },
+
+  {
       name: "control/while_sum",
       module: AST.module([
         AST.assign("sum", AST.int(0)),

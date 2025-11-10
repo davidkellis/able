@@ -3,6 +3,37 @@ import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
 describe("v10 interpreter - generic where-constraints (minimal runtime checks)", () => {
+  test("built-in Display/Clone interfaces are available without declarations", () => {
+    const I = new InterpreterV10();
+    const chooseFirst = AST.functionDefinition(
+      "choose_first",
+      [
+        AST.functionParameter("first", AST.simpleTypeExpression("T")),
+        AST.functionParameter("second", AST.simpleTypeExpression("U")),
+      ],
+      AST.blockExpression([AST.returnStatement(AST.identifier("first"))]),
+      AST.simpleTypeExpression("T"),
+      [AST.genericParameter("T"), AST.genericParameter("U")],
+      [
+        AST.whereClauseConstraint("T", [
+          AST.interfaceConstraint(AST.simpleTypeExpression("Display")),
+          AST.interfaceConstraint(AST.simpleTypeExpression("Clone")),
+        ]),
+        AST.whereClauseConstraint("U", [
+          AST.interfaceConstraint(AST.simpleTypeExpression("Display")),
+        ]),
+      ],
+    );
+    I.evaluate(chooseFirst);
+    const call = AST.functionCall(
+      AST.identifier("choose_first"),
+      [AST.stringLiteral("winner"), AST.integerLiteral(1)],
+      [AST.simpleTypeExpression("string"), AST.simpleTypeExpression("i32")],
+    );
+    const value = I.evaluate(call);
+    expect(value).toEqual({ kind: "string", value: "winner" });
+  });
+
   test("fn constrained by Interface is enforced at call site", () => {
     const I = new InterpreterV10();
 
@@ -86,5 +117,4 @@ describe("v10 interpreter - generic where-constraints (minimal runtime checks)",
     expect(() => I.evaluate(tooMany)).toThrow(/Type arguments count mismatch/);
   });
 });
-
 

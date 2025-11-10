@@ -1,77 +1,133 @@
 # Able v10 String & Text Plan
 
 ## Goals
-- Model `String` in the standard library as a thin wrapper around `Array u8`, keeping storage portable across interpreters while exposing a rich, host-independent API.
-- Clarify the relationship between bytes, Unicode scalar values (`char`), and grapheme clusters so higher-level features (regex, formatting, iteration) share consistent semantics.
-- Provide normalization and segmentation helpers without forcing implicit transformations on every string operation.
+- Treat `String` as the canonical, host-independent representation of textual data while preserving the existing `string` primitive for literals and interoperable APIs.
+- Offer a coherent API surface that distinguishes byte offsets, Unicode scalars (`char`), and grapheme clusters so every interpreter + spec reference can share the same semantics.
+- Provide explicit normalization, case-mapping, and slicing helpers without forcing implicit transformations or hidden allocations.
+- Keep the implementation portable: the TypeScript and Go runtimes must share the same data layout (`Array u8` + cached `len_bytes`) and call the same extern shims for host-specific work.
+- Document the plan so downstream work (regex, formatting, IO, diagnostics) can rely on these contracts.
 
-## Core Types
-- `struct String { bytes: Array u8, len_bytes: i32 }`
-  - `len_bytes` caches the logical length; `bytes.capacity()` stores allocation metadata supplied by the runtime.
-  - Constructors:
-    - `String::empty()`
-    - `String::from_bytes(Array u8) -> Result String StringEncodingError` (validates UTF-8)
-    - `String::from_utf8(string) -> String` (bridges from the builtin `string`)
-  - Accessors / views:
-    - `bytes(self) -> Array u8` (read-only view)
-    - `chars(self) -> (Iterator char)`
-    - `graphemes(self) -> (Iterator Grapheme)`
-  - Mutation helpers defer to `StringBuilder` to maintain immutability semantics.
+## Current Status (2025-02)
+- `stdlib/v10/src/text/string.able` defines `String`, `Grapheme`, `StringBuilder`, `StringChars`, and grapheme iterators with basic UTF-8 decoding plus `split`, `concat`, and `join`.
+- `StringBuilder` can push chars/bytes/Strings and emit a validated `String`, but it lacks `reserve`, `into_string`, or formatting helpers.
+- Grapheme iteration currently advances one Unicode scalar at a time; full extended grapheme-cluster detection is deferred until Unicode tables land.
+- Missing API surface:
+  - No byte/char/grapheme length helpers beyond `len_bytes`.
+  - No substring, slice, or prefix/suffix helpers; existing Able code falls back to the primitive `string` type for these operations.
+  - No normalization (`to_nfc`), case conversion (`to_lower`, `casefold`), or whitespace utilities (`trim_*`, `split_whitespace`).
+  - No view type for zero-copy spans; regex and parsers must clone substrings.
+  - No runtime story for incremental parsing (cursor/scanner) or streaming string building.
 
-- `struct Grapheme { start: i32, end: i32, data: Array u8 }`
-  - Represents a UTF-8 slice backed by the parent string’s byte array.
-  - Implements `Clone`, `Eq`, and exposes `to_string()` to materialize a standalone `String`.
-  - Produced exclusively via `String::graphemes()`; callers rely on `start/end` byte indices for slicing.
+## Target API Surface
 
-- `struct StringBuilder { buffer: Array u8 }`
-  - Provides efficient append semantics while deferring UTF-8 validation until `finish()`.
+### Construction & Inspection
+- `fn len_chars(self) -> i32` and `fn len_graphemes(self) -> i32` derived via iterators with optional cached counts.
+- `fn is_empty(self) -> bool` (already exists) plus new helpers `is_ascii`, `is_nfc`, `capacity`.
+- `fn byte_at(self, idx: i32) -> u8 | StringIndexError` plus `fn char_at(self, idx: i32) -> char | StringIndexError`.
+- `fn from_iter(iter: (Iterator char)) -> Result String` to materialize from iterables without manual builders.
+- UTF-16 bridges: `fn from_utf16(Array u16) -> Result String` and `fn to_utf16(self) -> Array u16` for host IO APIs.
 
-- Error types:
-  - `StringEncodingError { message: string, offset: i32 }`
-  - `NormalizationError` (deferred; surfaced when host normalization fails).
+### Slicing & Views
+- `fn slice_bytes(self, start: i32, end: i32) -> Result String` (validated UTF-8 boundaries).
+- `fn slice_chars(self, start: i32, end: i32) -> Result String` using char offsets.
+- Prefix helpers: `strip_prefix`, `strip_suffix`, `starts_with`, `ends_with`.
+- Splitting variants: `split_once`, `rsplit_once`, `splitn(limit)`, `split_whitespace`, `lines`, `rsplit`.
+- Introduce `struct StringView { string: String, start: i32, end: i32 }`:
+  - Zero-copy span over a `String`.
+  - Methods: `to_string()`, `bytes()`, `is_empty()`, `len_bytes()`, `chars()`, `to_builtin()`.
+  - Used by regex captures, parsers, diagnostics, and formatting to avoid repeated allocation.
+- `fn view_bytes(self, start: i32, end: i32) -> Result StringView` and analogous `view_chars`.
+- Add `ByteSpan { start: i32, end: i32 }` helper used by iterators and regex.
 
-## Iteration APIs
-- `String::chars()` returns an iterator that decodes UTF-8 into `char` (Unicode scalar) values.
-  - Backed by host-provided decoding helpers (`__able_utf8_next_scalar`).
-  - Yields `(char, next_offset)` pairs internally; public iterator returns only the scalar.
+### Search & Pattern Helpers
+- `fn contains(self, needle: String | string | char) -> bool` (ASCII fast path + iterator fallback).
+- `fn index_of(self, needle: String | string, start: i32 = 0) -> ?i32` and `fn last_index_of`.
+- `fn find_char(self, predicate: char -> bool) -> ?(i32, char)` returning byte offset + char.
+- `fn count(self, needle: String | string | char) -> i32`.
+- `fn compare(self, other: String, locale: ?string) -> Ordering` to feed sorting/helpers (locale support optional; default binary compare).
 
-- `String::graphemes()` segments the byte buffer using Unicode text segmentation rules.
-  - Relies on host externs (`__able_utf8_next_grapheme`) returning byte spans.
-  - Produces `Grapheme` values referencing the original byte array without copying.
+### Transformation & Normalization
+- Whitespace APIs: `trim`, `trim_start`, `trim_end`, `collapse_whitespace`, `pad_start(width, char)`, `pad_end`.
+- Case operations (ASCII fast path + Unicode fallbacks):
+  - `to_upper`, `to_lower`, `to_title`, `casefold`, `capitalize`, `swapcase`.
+- Replace helpers: `replace(old, new)`, `replace_first`, `replace_range(span, replacement)`, `repeat(times)`.
+- Normalization:
+  - Enum `NormalizationForm = NFC | NFD | NFKC | NFKD`.
+  - `fn normalize(self, form: NormalizationForm) -> Result String NormalizationError`.
+  - `fn is_normalized(self, form) -> bool`.
+- Accent/diacritic utilities once `normalize` exists (e.g., `strip_diacritics` implemented as `to_nfd` + filter).
 
-- Additional helpers:
-  - `String::len_bytes() -> i32`
-  - `String::len_chars() -> i32` (derived from the iterator)
-  - `String::len_graphemes() -> i32`
+### Builders & Streaming
+- `StringBuilder` additions:
+  - `fn reserve(mut self, additional: i32) -> void`, `fn capacity(self) -> i32`, `fn clear(self) -> void` (already there but document), `fn shrink_to_fit`.
+  - `fn push_view(mut self, view: StringView) -> void` to avoid intermediate `String`.
+  - `fn push_grapheme`, `fn push_iter(iter: (Iterator char))`.
+  - `fn into_string(self) -> Result String` transferring ownership without extra clone.
+  - `fn write(self) -> Writer` adapter for formatting/IO layers.
+- Introduce `StringCursor` (aka scanner) for incremental parsing:
+  - Fields: `string: String`, `offset: i32`.
+  - Methods: `peek()`, `next()`, `take_while`, `consume_prefix`, `remaining_view()`.
+  - Enables lexers, format parsers, and templating engines without manual byte math.
 
-## Normalization
-- Provide explicit functions: `to_nfc`, `to_nfd`, `to_nfkc`, `to_nfkd`.
-- Each accepts `self` and returns a new `String`, allocating through `Array u8`.
-- Under the hood, normalization uses host externs that take UTF-8 byte arrays and return normalized copies.
-- No implicit normalization is performed during construction or comparison; callers choose the form required.
+### Supporting Modules
+- `able.text.case`: shared case-mapping helpers + locale-aware tables (thin wrappers over host externs).
+- `able.text.unicode`: data-oriented helpers (normalization forms, grapheme break properties, canonical combining classes).
+- `able.text.views`: `StringView`, `ByteSpan`, view-specific iterators.
+- `able.text.builder`: writer adapters bridging `StringBuilder` to formatting protocols.
+- `able.text.scanner`: `StringCursor` plus tokenization helpers.
+- These modules keep `String` lean while avoiding cyclic dependencies (e.g., regex only depends on views + unicode helpers).
 
-## Interop with Builtin `string`
-- The interpreters will continue to expose the primitive `string` type for literals and runtime values.
-- `String::from_builtin(value: string)` copies the underlying bytes into `Array u8`.
-- `String::to_builtin()` returns a primitive `string` (lazy caching optional).
-- Long term we can alias the builtin representation to the stdlib struct; for now the struct lives alongside primitives to unlock shared algorithms.
-
-## Array Dependency
-- `String` stores data in `Array u8`. All allocations, capacity management, and copy-on-write behaviour are delegated to the runtime-provided `Array` helpers (`with_capacity`, `write_slot`, `clone`, etc.).
-- Range/slice operations expose byte offsets; helper methods translate grapheme boundaries to byte indices before calling `Array::slice`.
-
-## Host Integration
-- New extern helpers:
+## Runtime & Host Requirements
+- Existing externs:
   - `__able_string_from_builtin(string) -> Array u8`
   - `__able_string_to_builtin(Array u8) -> string`
   - `__able_char_from_codepoint(i32) -> char`
-- Future work: expose normalization and grapheme-segmentation externs once Unicode tables are wired in.
+- New extern shims (implemented per interpreter, exposed via `runtime/string_host.go|ts`):
+  - `__able_string_case_map(bytes: Array u8, mode: i32, locale: string) -> Array u8`
+  - `__able_string_normalize(bytes: Array u8, form: i32) -> Result Array u8 NormalizationError`
+  - `__able_string_is_normalized(bytes: Array u8, form: i32) -> bool`
+  - `__able_string_grapheme_break(bytes: Array u8, offset: i32) -> i32` (returns next break in bytes)
+  - `__able_string_utf16_encode(bytes: Array u8) -> Array u16` and inverse
+  - `__able_string_compare(bytes_a, bytes_b, locale: ?string) -> Ordering`
+- Each extern should be pure and allocation-safe so the Able layer can wrap them in `Result`.
+- Both runtimes must expose shared tests verifying that host + Able implementations agree on tricky Unicode samples (combining marks, emoji, RTL, etc.).
 
-## Roadmap
-1. Land `stdlib/v10/src/text/string.able` with type definitions, constructors, and iterator scaffolding (done; grapheme iterator currently groups by scalar until Unicode tables land).
-2. Add unit tests exercising byte length, char/grapheme iteration on ASCII + combining-mark samples (tests may be skipped until host hooks exist).
-3. Update documentation/spec:
-   - Tie Section 6.1.5 to this plan.
-   - Describe `Grapheme` and iteration semantics in `spec/TODO.md`.
-4. Coordinate with interpreter teams to export UTF-8 decoding and text segmentation externs.
-5. Integrate normalization helpers and builders, then migrate regex + formatting code to depend on the new APIs.
+## Testing & Fixtures
+- Extend `stdlib/v10/tests/text/` with new suites:
+  - `string_lengths.test.able` for `len_chars`/`len_graphemes`.
+  - `string_slice.test.able` for `slice_*`, views, and prefix helpers.
+  - `string_case.test.able` covering ASCII + Unicode case conversions.
+  - `string_normalize.test.able` verifying each normalization form plus error handling.
+  - `string_builder.test.able` already exists; augment with reserve/into_string tests.
+- Add AST fixtures under `fixtures/ast/strings/` for trimming, substring, casefold, etc., so both interpreters exercise the same code paths.
+- Update the spec TODO (string entry) once the docs derived from this plan land and tests exist.
+
+## Phase Breakdown
+1. **Phase 0 (done):** landed baseline `String`, iterators, builder, `split/join/concat`.
+2. **Phase 1 – Foundational helpers:**
+   - Implement `len_chars`, `len_graphemes`, `starts_with`, `ends_with`, `contains`, `index_of`, byte/charmap `slice` APIs, and `StringView` with ASCII-only validation.
+   - Extend `StringBuilder` with `reserve`, `into_string`, and `push_view`.
+   - Port existing Able code (`io/path`, fixtures) off the primitive `string` helpers where possible.
+3. **Phase 2 – Unicode-aware slicing + cursor:**
+   - Finish grapheme iterator + `len_graphemes` by integrating host `__able_string_grapheme_break`.
+   - Add `StringCursor`, `split_whitespace`, `lines`, `repeat`, and `replace` helpers.
+4. **Phase 3 – Case + normalization:**
+   - Add `able.text.case` + `able.text.unicode`.
+   - Wire `to_upper/lower/title/casefold`, normalization APIs, `strip_diacritics`, and UTF-16 bridges.
+   - Ensure regex + formatting rely on the new helpers instead of ad-hoc host calls.
+5. **Phase 4 – Locale-aware compare + perf work:**
+   - Hook `String::compare` into host locale data.
+   - Explore caching (char/grapheme counts) and view reuse to reduce allocations.
+   - Audit stdlib for redundant `string` usage and migrate to `String`.
+
+Each phase should update `PLAN.md` + spec references and add parity tests before merging.
+
+## Open Questions & Risks
+- **Normalization data:** Do we embed Unicode tables in the interpreters or rely on host ICU APIs? Decision impacts wasm portability and bundle size.
+- **Caching strategy:** Should `String` cache `len_chars`/`len_graphemes`? Pros: faster queries. Cons: extra memory + invalidation complexity when cloning builders.
+- **Locale handling:** How many locales do we expose via `String::compare` / `to_title(locale)`? Minimal viable plan is locale-agnostic binary comparison; full locale support may slip to v11.
+- **View lifetime:** `StringView` holds a `String` by value (ref-counted via shared `Array u8`). Need to confirm GC/runtime semantics keep the underlying buffer alive.
+- **Mutable slices:** We deliberately avoid exposing mutable views to preserve `String` immutability. Builders remain the only mutation path.
+- **Interop with primitive `string`:** Long term we may alias `string` literals to the stdlib `String` without copies; this requires interpreter work (interning, lifetime tracking) and is outside this plan’s first three phases.
+
+This document supersedes the earlier short-form note; keep it updated as phases land so spec writers and interpreter owners can rely on a single authoritative plan.

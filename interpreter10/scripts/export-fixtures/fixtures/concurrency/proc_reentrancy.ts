@@ -5,28 +5,24 @@ const procReentrancyFixtures: Fixture[] = [
   {
         name: "concurrency/future_value_reentrancy",
         module: AST.module([
-          AST.assign("trace", AST.stringLiteral("")),
+          AST.assign("inner_started", AST.bool(false)),
+          AST.assign("inner_completed", AST.bool(false)),
+          AST.assign("outer_started", AST.bool(false)),
+          AST.assign("outer_completed", AST.bool(false)),
+          AST.assign("inner_value_seen", AST.bool(false)),
           AST.assign(
             "inner",
             AST.spawnExpression(
               AST.blockExpression([
                 AST.assignmentExpression(
                   "=",
-                  AST.identifier("trace"),
-                  AST.binaryExpression(
-                    "+",
-                    AST.identifier("trace"),
-                    AST.stringLiteral("I"),
-                  ),
+                  AST.identifier("inner_started"),
+                  AST.bool(true),
                 ),
                 AST.assignmentExpression(
                   "=",
-                  AST.identifier("trace"),
-                  AST.binaryExpression(
-                    "+",
-                    AST.identifier("trace"),
-                    AST.stringLiteral("J"),
-                  ),
+                  AST.identifier("inner_completed"),
+                  AST.bool(true),
                 ),
                 AST.stringLiteral("X"),
               ]),
@@ -38,12 +34,8 @@ const procReentrancyFixtures: Fixture[] = [
               AST.blockExpression([
                 AST.assignmentExpression(
                   "=",
-                  AST.identifier("trace"),
-                  AST.binaryExpression(
-                    "+",
-                    AST.identifier("trace"),
-                    AST.stringLiteral("O"),
-                  ),
+                  AST.identifier("outer_started"),
+                  AST.bool(true),
                 ),
                 AST.assign(
                   "result",
@@ -54,11 +46,17 @@ const procReentrancyFixtures: Fixture[] = [
                 ),
                 AST.assignmentExpression(
                   "=",
-                  AST.identifier("trace"),
-                  AST.stringInterpolation([
-                    AST.identifier("trace"),
+                  AST.identifier("inner_value_seen"),
+                  AST.binaryExpression(
+                    "==",
                     AST.identifier("result"),
-                  ]),
+                    AST.stringLiteral("X"),
+                  ),
+                ),
+                AST.assignmentExpression(
+                  "=",
+                  AST.identifier("outer_completed"),
+                  AST.bool(true),
                 ),
                 AST.stringLiteral("done"),
               ]),
@@ -71,15 +69,33 @@ const procReentrancyFixtures: Fixture[] = [
               [],
             ),
           ),
-          AST.stringInterpolation([
-            AST.identifier("trace"),
-            AST.identifier("final"),
+          AST.arrayLiteral([
+            AST.identifier("inner_started"),
+            AST.identifier("inner_completed"),
+            AST.identifier("outer_started"),
+            AST.identifier("inner_value_seen"),
+            AST.identifier("outer_completed"),
+            AST.binaryExpression(
+              "==",
+              AST.identifier("final"),
+              AST.stringLiteral("done"),
+            ),
           ]),
         ]),
         manifest: {
           description: "Nested future.value() calls (re-entrancy) resolve without deadlock",
           expect: {
-            result: { kind: "string", value: "OIJXdone" },
+            result: {
+              kind: "array",
+              elements: [
+                { kind: "bool", value: true },
+                { kind: "bool", value: true },
+                { kind: "bool", value: true },
+                { kind: "bool", value: true },
+                { kind: "bool", value: true },
+                { kind: "bool", value: true },
+              ],
+            },
           },
         },
       },
@@ -87,28 +103,24 @@ const procReentrancyFixtures: Fixture[] = [
   {
         name: "concurrency/proc_value_reentrancy",
         module: AST.module([
-          AST.assign("trace", AST.stringLiteral("")),
+          AST.assign("inner_started", AST.bool(false)),
+          AST.assign("inner_completed", AST.bool(false)),
+          AST.assign("outer_started", AST.bool(false)),
+          AST.assign("outer_completed", AST.bool(false)),
+          AST.assign("inner_value_seen", AST.bool(false)),
           AST.assign(
             "inner",
             AST.procExpression(
               AST.blockExpression([
                 AST.assignmentExpression(
                   "=",
-                  AST.identifier("trace"),
-                  AST.binaryExpression(
-                    "+",
-                    AST.identifier("trace"),
-                    AST.stringLiteral("I"),
-                  ),
+                  AST.identifier("inner_started"),
+                  AST.bool(true),
                 ),
                 AST.assignmentExpression(
                   "=",
-                  AST.identifier("trace"),
-                  AST.binaryExpression(
-                    "+",
-                    AST.identifier("trace"),
-                    AST.stringLiteral("J"),
-                  ),
+                  AST.identifier("inner_completed"),
+                  AST.bool(true),
                 ),
                 AST.stringLiteral("X"),
               ]),
@@ -120,12 +132,8 @@ const procReentrancyFixtures: Fixture[] = [
               AST.blockExpression([
                 AST.assignmentExpression(
                   "=",
-                  AST.identifier("trace"),
-                  AST.binaryExpression(
-                    "+",
-                    AST.identifier("trace"),
-                    AST.stringLiteral("O"),
-                  ),
+                  AST.identifier("outer_started"),
+                  AST.bool(true),
                 ),
                 AST.assign(
                   "result",
@@ -136,11 +144,17 @@ const procReentrancyFixtures: Fixture[] = [
                 ),
                 AST.assignmentExpression(
                   "=",
-                  AST.identifier("trace"),
-                  AST.stringInterpolation([
-                    AST.identifier("trace"),
+                  AST.identifier("inner_value_seen"),
+                  AST.binaryExpression(
+                    "==",
                     AST.identifier("result"),
-                  ]),
+                    AST.stringLiteral("X"),
+                  ),
+                ),
+                AST.assignmentExpression(
+                  "=",
+                  AST.identifier("outer_completed"),
+                  AST.bool(true),
                 ),
                 AST.stringLiteral("done"),
               ]),
@@ -153,15 +167,33 @@ const procReentrancyFixtures: Fixture[] = [
               [],
             ),
           ),
-          AST.stringInterpolation([
-            AST.identifier("trace"),
-            AST.identifier("final"),
+          AST.arrayLiteral([
+            AST.identifier("inner_started"),
+            AST.identifier("inner_completed"),
+            AST.identifier("outer_started"),
+            AST.identifier("inner_value_seen"),
+            AST.identifier("outer_completed"),
+            AST.binaryExpression(
+              "==",
+              AST.identifier("final"),
+              AST.stringLiteral("done"),
+            ),
           ]),
         ]),
         manifest: {
           description: "Nested proc value() calls resolve without deadlock under the serial executor",
           expect: {
-            result: { kind: "string", value: "OIJXdone" },
+            result: {
+              kind: "array",
+              elements: [
+                { kind: "bool", value: true },
+                { kind: "bool", value: true },
+                { kind: "bool", value: true },
+                { kind: "bool", value: true },
+                { kind: "bool", value: true },
+                { kind: "bool", value: true },
+              ],
+            },
           },
         },
       },

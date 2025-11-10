@@ -101,6 +101,7 @@ function parseExpression(node: Node | null | undefined, source: string): Express
       return parseLambdaExpression(node, source);
     case "postfix_expression":
     case "call_target":
+    case "rescue_postfix_expression":
       return parsePostfixExpression(node, source);
     case "member_access": {
       if (node.namedChildCount < 2) {
@@ -698,6 +699,11 @@ function parseHandlingExpression(node: Node, source: string): Expression {
   if (baseExpr.type === "AssignmentExpression") {
     assignment = baseExpr;
     current = baseExpr.right;
+  } else if (baseExpr.type === "PropagationExpression" && baseExpr.expression.type === "AssignmentExpression") {
+    assignment = baseExpr.expression;
+    baseExpr.expression = assignment.right;
+    assignment.right = baseExpr;
+    current = baseExpr;
   }
 
   for (let i = 1; i < node.namedChildCount; i++) {
@@ -742,7 +748,8 @@ function parseHandlingBlock(node: Node, source: string): { block: BlockExpressio
   for (let i = 0; i < node.namedChildCount; i++) {
     const child = node.namedChild(i);
     if (!child || !child.isNamed) continue;
-    if (node.fieldNameForChild(i) === "binding") continue;
+    const fieldName = node.fieldNameForChild(i);
+    if (fieldName === "binding" && child.type === "identifier") continue;
     const stmt = getActiveParseContext().parseStatement(child);
     if (stmt) {
       statements.push(stmt);

@@ -1,34 +1,34 @@
-trace := ""
 stage_proc := 0
 stage_future := 0
+worker_stage2_safe := false
+worker_stage3_safe := false
+future_stage2_safe := false
 worker := proc {
   if stage_proc == 0 {
-    trace = trace + "A1"
     stage_proc = 1
     proc_yield()
   }
   if stage_proc == 1 {
-    trace = trace + "A2"
+    worker_stage2_safe = stage_future >= 1
     stage_proc = 2
     proc_yield()
   }
   if stage_proc == 2 {
-    trace = trace + "A3"
+    worker_stage3_safe = stage_future >= 2
     stage_proc = 3
   }
   0
 }
 future := spawn {
   if stage_future == 0 {
-    trace = trace + "B1"
     stage_future = 1
     proc_yield()
     0
   }
 or stage_future == 1 {
-    trace = trace + "B2"
-    stage_future = 2
+    future_stage2_safe = stage_proc >= 2
     0
+    stage_future = 2
   }
   0
 }
@@ -48,4 +48,4 @@ future_status := (future.status() match {
   case _ => "Other"
 })
 future_result := future.value()
-`${trace}:${worker_status}:${future_status}:${future_result}`
+[stage_proc == 3, stage_future == 2, worker_stage2_safe, future_stage2_safe, worker_stage3_safe, worker_status == "Resolved", future_status == "Resolved", future_result == 0]

@@ -18,7 +18,7 @@ status_initial := (worker.status() match {
 })
 trace = trace + "B"
 __able_mutex_unlock(mutex)
-proc_flush()
+worker.value()
 status_final := (worker.status() match {
   case Pending {  } => "Pending",
   case Resolved {  } => "Resolved",

@@ -60,11 +60,12 @@ methods Channel T {
 
 impl Iterable T for Channel T {
   fn iterator(self: Self) -> (Iterator T) {
-    Iterator { gen =>
+    Iterator T { gen =>
       loop {
-        match self.receive() {
+        received := self.receive()
+        match received {
           case value: T => gen.yield(value),
-          case nil => break
+          case nil => gen.stop()
         }
       }
     }

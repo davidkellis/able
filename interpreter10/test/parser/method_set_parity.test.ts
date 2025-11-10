@@ -52,7 +52,7 @@ describe("tree-sitter Able mapper - method-set coverage", () => {
     const interfaceConstraint = constraint.constraints?.[0];
     expect(interfaceConstraint?.type).toBe("InterfaceConstraint");
     expect(interfaceConstraint?.interfaceType?.type).toBe("SimpleTypeExpression");
-    expect(interfaceConstraint?.interfaceType?.name?.name).toBe("Display");
+    expect(interfaceConstraint?.interfaceType?.name?.name).toBe("CustomDisplay");
 
     expect(methods.definitions.length).toBe(1);
     const describeFn = methods.definitions[0];

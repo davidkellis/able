@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/fs"
 	"math/big"
 
@@ -27,7 +28,7 @@ func decodeNode(node map[string]any) (ast.Node, error) {
 	for _, decoder := range nodeDecoders {
 		decoded, handled, err := decoder(node, typ)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("decode %s: %w", typ, err)
 		}
 		if handled {
 			return decoded, nil

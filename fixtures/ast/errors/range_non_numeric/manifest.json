@@ -9,5 +9,5 @@
       "typechecker: fixtures/ast/errors/range_non_numeric/source.able:1:1 typechecker: range start must be numeric"
     ]
   },
-  "entry": "module.json"
+  "entry": "source.able"
 }

@@ -33,7 +33,12 @@
 - Track upcoming language work (channel select, advanced dynimport scenarios, interface dispatch additions) so fixtures/examples land immediately once syntax/runtime support exists.
 
 ## TODO
-- _(empty — add the next milestone here.)_
+- **Full v10 concurrency semantics**: extend proc/future coverage to long-running + nested scenarios, keep cancellation/value re-entrancy guarantees documented, and run the Go parity audit across both executors. (New fixture `concurrency/future_time_slicing` now mirrors the proc variant so spawn/future work also proves automatic time slicing without explicit `proc_yield()`.) The strict fixture harness now runs end-to-end (including the concurrency suite) after fixing the interpreter’s `Self` parameter runtime checks and the duplicate package-alias diagnostics in the typechecker, so new fixtures validate under `ABLE_TYPECHECK_FIXTURES=strict`. Go parity now replays every concurrency fixture under both the deterministic serial executor and the production goroutine executor (excluding the fairness-focused fixtures that intentionally rely on deterministic `proc_flush` ordering) so regressions surface under both scheduling strategies.
+- **Interface & impl completeness**: finish higher-kinded/visibility edge cases, improve diagnostics for overlapping impls, and add tests covering complex constraint hierarchies.
+- **Privacy & import spec gaps**: enforce package privacy across functions/types/interfaces/impls, tighten wildcard/dynimport semantics, and document the canonical `Proc`/`Future` interface structures.
+- **Concurrency ergonomics**: add stress fixtures for cooperative schedulers (proc/channel fairness, executor diagnostics, `value()` re-entrancy guards) and capture tuning guidance for `schedulerMaxSteps`.
+- **Dynamic interface collections & iterables**: ensure ranges/maps of interface values honor most-specific dispatch in loops and higher-order helpers; add fixtures for mixed interface unions.
+- **Pipe semantics parity**: build multi-stage pipeline fixtures that mix placeholders/topics/bound methods and document any divergence between TypeScript and Go.
 
 ## DONE
 
@@ -45,5 +50,7 @@
 - Added the `errors/result_error_accessors` AST fixture so both interpreters exercise `err.message()/cause()/value` inside `!T else { |err| ... }` flows; fixture exporter + TS harness updated accordingly.
 - Go typechecker now recognises `Error.message()`, `.cause()`, and `.value`, and the spec documents the runtime-provided `Error.value` payload hook; the typechecker baseline entry for `channel_error_rescue` was removed once diagnostics cleared.
 - Proc/future runtime errors now record their cause payloads in both interpreters, the new `concurrency/proc_error_cause` fixture exercises `err.cause()` end-to-end, and matching Bun/Go tests keep the regression harness green.
+- Generator laziness parity closed: iterator continuations now cover if/while/for/match across both runtimes, stdlib helpers (`stdlib/v10/src/concurrency/channel.able`, `stdlib/v10/src/collections/range.able`) use generator literals, and new fixtures (`fixtures/ast/control/iterator_*`, `fixtures/ast/stdlib/channel_iterator`, `fixtures/ast/stdlib/range_iterator`) keep the shared harness authoritative.
+- Automatic time slicing verified for long-running procs: the new `concurrency/proc_time_slicing` fixture proves that handles without explicit `proc_yield()` still progress under repeated `proc_flush()` calls, capturing both the intermediate `Pending` status and the eventual resolved value across runtimes.
 ### AST → Parser → Typechecker Completion Plan _(reopen when new AST work appears)_
 - Full sweep completed 2025-11-06 (strict fixture run, Go interpreter suite, Go parser harness, and `bun test` all green). Archive details in `LOG.md`; bring this plan back only if new AST/syntax changes introduce regressions.

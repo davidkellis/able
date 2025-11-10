@@ -266,18 +266,18 @@ function enforceTypecheckBaseline(
   const expected = baseline[rel] ?? [];
   if (expected.length === 0) {
     if (actual.length > 0) {
-      throw new Error(`typechecker diagnostics mismatch for ${key}: expected none, got ${JSON.stringify(actual)}`);
+      throw new Error(`typechecker diagnostics mismatch for ${rel}: expected none, got ${JSON.stringify(actual)}`);
     }
     return;
   }
   const actualKeys = actual.map(toDiagnosticKey);
   const expectedKeys = expected.map(toDiagnosticKey);
   if (expectedKeys.length !== actualKeys.length) {
-    throw new Error(`typechecker diagnostics mismatch for ${key}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+    throw new Error(`typechecker diagnostics mismatch for ${rel}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
   }
   for (let i = 0; i < expectedKeys.length; i += 1) {
     if (!diagnosticKeyMatches(actualKeys[i], expectedKeys[i])) {
-      throw new Error(`typechecker diagnostics mismatch for ${key}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+      throw new Error(`typechecker diagnostics mismatch for ${rel}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
     }
   }
 }
