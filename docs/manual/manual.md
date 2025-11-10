@@ -498,7 +498,7 @@ content = handle.value() else { |err|
 }
 ```
 
-`Proc T` exposes `status()`, `value() -> !T`, and `cancel()`. Inside async bodies, use `proc_yield()`, `proc_cancelled()`, and `proc_flush(limit?)`.
+`Proc T` exposes `status()`, `value() -> !T`, and `cancel()`. Inside async bodies, use `proc_yield()`, `proc_cancelled()`, `proc_flush(limit?)`, and `proc_pending_tasks()` (diagnostic helper that reports the current executor queue length when available).
 
 ### 11.2 `spawn`
 

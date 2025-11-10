@@ -21,6 +21,8 @@ export function buildPackageSummary(ctx: ImplementationContext, module: AST.Modu
   const structs: Record<string, ExportedStructSummary> = {};
   const interfaces: Record<string, ExportedInterfaceSummary> = {};
   const functions: Record<string, ExportedFunctionSummary> = {};
+  const implementationDefinitions = new Set<AST.ImplementationDefinition>();
+  const methodSetDefinitions = new Set<AST.MethodsDefinition>();
 
   const statements = Array.isArray(module.body)
     ? (module.body as Array<AST.Statement | AST.Expression | null | undefined>)
@@ -52,6 +54,12 @@ export function buildPackageSummary(ctx: ImplementationContext, module: AST.Modu
         functions[name] = summarizeFunctionDefinition(ctx, entry);
         break;
       }
+      case "ImplementationDefinition":
+        implementationDefinitions.add(entry);
+        break;
+      case "MethodsDefinition":
+        methodSetDefinitions.add(entry);
+        break;
       default:
         break;
     }
@@ -62,11 +70,17 @@ export function buildPackageSummary(ctx: ImplementationContext, module: AST.Modu
     if (record.definition?.isPrivate) {
       continue;
     }
+    if (!record.definition || !implementationDefinitions.has(record.definition)) {
+      continue;
+    }
     implementations.push(summarizeImplementationRecord(ctx, record));
   }
 
   const methodSets: ExportedMethodSetSummary[] = [];
   for (const record of ctx.getMethodSets()) {
+    if (!methodSetDefinitions.has(record.definition)) {
+      continue;
+    }
     methodSets.push(summarizeMethodSet(ctx, record));
   }
 

@@ -3085,6 +3085,7 @@ Able exposes a small set of helper functions for coordinating asynchronous work.
 -   **`proc_yield()`** &mdash; May only be called from inside a `proc`/`spawn` task. Signals the executor that the current task is willing to yield so other queued work can run. Cooperative executors MUST requeue the yielding task behind any currently runnable work (providing a round-robin effect when multiple tasks yield). On Go’s goroutine executor the call is a no-op advisory hint: Go’s scheduler decides when the goroutine runs next. Programs MUST NOT rely on fairness guarantees beyond “other tasks have an opportunity to make progress”.
 -   **`proc_cancelled()`** &mdash; May be called from inside a `proc` task to observe whether cancellation has been requested. Returns `true` when the task’s handle has been cancelled; `false` otherwise. Calling it outside asynchronous context raises a runtime error. Implementations SHOULD integrate this check with their cancellation primitives (e.g., Go `context.Context`).
 -   **`proc_flush(limit?: i32)`** &mdash; Drains work from the executor’s queue up to an optional step limit (defaulting to 1024). Provided primarily for deterministic testing and fixture harnesses. Production runtimes with preemptive schedulers (e.g., Go) may treat it as a no-op because work progresses independently; cooperative schedulers MUST honour the limit to avoid starvation.
+-   **`proc_pending_tasks()`** &mdash; Returns an `i32` count of runnable tasks currently queued on the executor. Cooperative runtimes MUST surface their queue length so fixtures/tests can assert that drains complete. Pre-emptive runtimes MAY return `0` (or a best-effort approximation of outstanding work) when their host scheduler does not expose per-queue metrics. The helper is diagnostic-only; programs MUST NOT rely on its value for functional correctness.
 
 The helpers rely on the executor contract:
 
@@ -3094,6 +3095,7 @@ interface Executor {
   fn schedule(task: () -> void) -> void
   fn ensure_tick() -> void
   fn flush(limit: i32 = 1024) -> void
+  fn pending_tasks() -> i32 ## optional / best-effort for diagnostic helpers
 }
 ```
 

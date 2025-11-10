@@ -134,6 +134,7 @@ export class TypeChecker {
     register("proc_yield", [], voidType);
     register("proc_cancelled", [], boolType);
     register("proc_flush", [], voidType);
+    register("proc_pending_tasks", [], i32Type);
 
     register("__able_channel_new", [i32Type], i64Type);
     register("__able_channel_send", [unknown, unknown], voidType);

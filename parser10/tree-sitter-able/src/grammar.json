@@ -2046,8 +2046,17 @@
       "type": "SEQ",
       "members": [
         {
-          "type": "SYMBOL",
-          "name": "assignment_expression"
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SYMBOL",
+              "name": "handling_expression"
+            },
+            {
+              "type": "SYMBOL",
+              "name": "assignment_expression"
+            }
+          ]
         },
         {
           "type": "STRING",
@@ -2165,8 +2174,13 @@
           "type": "FIELD",
           "name": "subject",
           "content": {
-            "type": "SYMBOL",
-            "name": "assignment_expression"
+            "type": "ALIAS",
+            "content": {
+              "type": "SYMBOL",
+              "name": "_postfix_expression_without_match"
+            },
+            "named": true,
+            "value": "postfix_expression"
           }
         },
         {
@@ -3006,6 +3020,80 @@
       ]
     },
     "postfix_expression": {
+      "type": "PREC_LEFT",
+      "value": 16,
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "primary_expression"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "proc_expression"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "spawn_expression"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "breakpoint_expression"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "match_expression"
+              }
+            ]
+          },
+          {
+            "type": "REPEAT",
+            "content": {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "SYMBOL",
+                  "name": "type_arguments"
+                },
+                {
+                  "type": "SYMBOL",
+                  "name": "call_suffix"
+                },
+                {
+                  "type": "SYMBOL",
+                  "name": "index_suffix"
+                },
+                {
+                  "type": "SYMBOL",
+                  "name": "propagate_suffix"
+                },
+                {
+                  "type": "SYMBOL",
+                  "name": "member_access"
+                }
+              ]
+            }
+          },
+          {
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "lambda_expression"
+              },
+              {
+                "type": "BLANK"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "_postfix_expression_without_match": {
       "type": "PREC_LEFT",
       "value": 16,
       "content": {

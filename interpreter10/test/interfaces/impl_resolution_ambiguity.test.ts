@@ -306,15 +306,6 @@ describe("v10 interpreter - impl resolution semantics", () => {
   test("impl with stricter constraints wins over looser one", () => {
     const I = new InterpreterV10();
 
-    const display = AST.interfaceDefinition("Display", [
-      AST.functionSignature(
-        "to_string",
-        [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
-        AST.simpleTypeExpression("string")
-      ),
-    ]);
-    I.evaluate(display);
-
     const copyable = AST.interfaceDefinition("Copyable", [
       AST.functionSignature(
         "duplicate",
