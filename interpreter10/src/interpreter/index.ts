@@ -13,7 +13,8 @@ import { applyIteratorAugmentations } from "./iterators";
 import { applyChannelMutexAugmentations } from "./channels_mutex";
 import { applyStringHostAugmentations } from "./string_host";
 import { applyHasherHostAugmentations } from "./hasher_host";
-import "./definitions";
+import { buildStandardInterfaceBuiltins } from "../builtins/interfaces";
+import { evaluateImplementationDefinition, evaluateInterfaceDefinition } from "./definitions";
 import "./imports";
 
 import { Environment } from "./environment";
@@ -163,6 +164,7 @@ export class InterpreterV10 {
     this.globals.define("proc_yield", procYieldFn);
     this.globals.define("proc_cancelled", procCancelledFn);
     this.globals.define("proc_flush", procFlushFn);
+    this.installBuiltinInterfaces();
   }
 
   resetTimeSlice(): void {
@@ -175,6 +177,16 @@ export class InterpreterV10 {
     if (this.timeSliceCounter >= this.schedulerMaxSteps) {
       this.timeSliceCounter = 0;
       throw new ProcYieldSignal();
+    }
+  }
+
+  private installBuiltinInterfaces(): void {
+    const { interfaces, implementations } = buildStandardInterfaceBuiltins();
+    for (const iface of interfaces) {
+      evaluateInterfaceDefinition(this, iface, this.globals);
+    }
+    for (const impl of implementations) {
+      evaluateImplementationDefinition(this, impl, this.globals);
     }
   }
 }

@@ -3,11 +3,11 @@
   "expect": {
     "errors": [
       "No field or method named 'show'",
-      "typechecker: methods for Wrapper::describe constraint on Self is not satisfied: Wrapper does not implement Display: methods for Wrapper: method 'show' not provided"
+      "typechecker: methods for Wrapper::describe constraint on Self is not satisfied: Wrapper does not implement CustomDisplay: methods for Wrapper: method 'show' not provided"
     ],
     "typecheckDiagnostics": [
-      "typechecker: fixtures/ast/errors/method_set_where_constraint/source.able:16:9 typechecker: methods for Wrapper::describe constraint on Self is not satisfied: Wrapper does not implement Display: methods for Wrapper: method 'show' not provided"
+      "typechecker: fixtures/ast/errors/method_set_where_constraint/source.able:16:9 typechecker: methods for Wrapper::describe constraint on Self is not satisfied: Wrapper does not implement CustomDisplay: methods for Wrapper: method 'show' not provided"
     ]
   },
-  "entry": "module.json"
+  "entry": "source.able"
 }

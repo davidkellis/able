@@ -11,5 +11,5 @@
       "typechecker: fixtures/ast/errors/generic_type_mismatch/source.able:5:10 typechecker: fn identity constraint on T is not satisfied: i32 does not implement Error"
     ]
   },
-  "entry": "module.json"
+  "entry": "source.able"
 }

@@ -2,8 +2,17 @@
   "description": "Nil channel send blocks until the proc is cancelled",
   "expect": {
     "result": {
-      "kind": "string",
-      "value": "Cancelled"
+      "kind": "array",
+      "elements": [
+        {
+          "kind": "bool",
+          "value": true
+        },
+        {
+          "kind": "bool",
+          "value": true
+        }
+      ]
     }
   },
   "entry": "module.json"

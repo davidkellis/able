@@ -81,6 +81,7 @@ export type V10Value =
       error?: V10Value;
       failureInfo?: V10Value;
       isEvaluating?: boolean;
+      continuation?: ProcContinuationContext;
     }
   | {
       kind: "native_function";

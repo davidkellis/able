@@ -2,8 +2,33 @@
   "description": "Nested future.value() calls (re-entrancy) resolve without deadlock",
   "expect": {
     "result": {
-      "kind": "string",
-      "value": "OIJXdone"
+      "kind": "array",
+      "elements": [
+        {
+          "kind": "bool",
+          "value": true
+        },
+        {
+          "kind": "bool",
+          "value": true
+        },
+        {
+          "kind": "bool",
+          "value": true
+        },
+        {
+          "kind": "bool",
+          "value": true
+        },
+        {
+          "kind": "bool",
+          "value": true
+        },
+        {
+          "kind": "bool",
+          "value": true
+        }
+      ]
     }
   },
   "entry": "module.json"

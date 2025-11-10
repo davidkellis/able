@@ -1,6 +1,6 @@
 package collections
 
-import able.core.iteration{IteratorEnd, Iterator, Iterable, Range}
+import able.core.iteration{Iterator, Iterable, Range}
 
 struct IntRange {
   start: i32,
@@ -8,49 +8,32 @@ struct IntRange {
   inclusive: bool
 }
 
-struct IntRangeIterator {
-  current: i32,
-  end: i32,
-  step: i32,
-  inclusive: bool
-}
-
-impl Iterator i32 for IntRangeIterator {
-  fn next(mut self: Self) -> i32 | IteratorEnd {
-    if self.step == 0 {
-      return IteratorEnd
-    }
-
-    if self.step > 0 {
-      if self.current > self.end {
-        return IteratorEnd
-      }
-      if !self.inclusive && self.current == self.end {
-        return IteratorEnd
-      }
-    } else {
-      if self.current < self.end {
-        return IteratorEnd
-      }
-      if !self.inclusive && self.current == self.end {
-        return IteratorEnd
-      }
-    }
-
-    value = self.current
-    self.current = self.current + self.step
-    return value
-  }
-}
-
 impl Iterable i32 for IntRange {
   fn iterator(self: Self) -> (Iterator i32) {
-    step = if self.end >= self.start { 1 } else { -1 }
-    IntRangeIterator {
-      current: self.start,
-      end: self.end,
-      step: step,
-      inclusive: self.inclusive
+    Iterator i32 { gen =>
+      step := if self.end >= self.start { 1 } else { -1 }
+      current := self.start
+      loop {
+        if step > 0 {
+          if self.inclusive {
+            if current > self.end {
+              gen.stop()
+            }
+          } else if current >= self.end {
+            gen.stop()
+          }
+        } else {
+          if self.inclusive {
+            if current < self.end {
+              gen.stop()
+            }
+          } else if current <= self.end {
+            gen.stop()
+          }
+        }
+        gen.yield(current)
+        current = current + step
+      }
     }
   }
 }

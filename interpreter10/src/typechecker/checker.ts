@@ -1,4 +1,5 @@
 import type * as AST from "../ast";
+import { buildStandardInterfaceBuiltins } from "../builtins/interfaces";
 import { Environment } from "./environment";
 import {
   describe,
@@ -76,6 +77,7 @@ export class TypeChecker {
   private implementationRecords: ImplementationRecord[] = [];
   private implementationIndex: Map<string, ImplementationRecord[]> = new Map();
   private packageAliases: Map<string, string> = new Map();
+  private reportedPackageMemberAccess = new WeakSet<AST.MemberAccessExpression>();
   private asyncDepth = 0;
   private readonly context: StatementContext;
   private readonly declarationsContext: DeclarationsContext;
@@ -101,6 +103,7 @@ export class TypeChecker {
     this.implementationIndex = new Map();
     this.installBuiltins();
     this.packageAliases.clear();
+    this.reportedPackageMemberAccess = new WeakSet();
     this.applyImports(module);
     this.collectModuleDeclarations(module);
 
@@ -151,6 +154,7 @@ export class TypeChecker {
     register("__able_hasher_create", [], i64Type);
     register("__able_hasher_write", [i64Type, stringType], voidType);
     register("__able_hasher_finish", [i64Type], i64Type);
+    this.installBuiltinInterfaces();
   }
 
   private registerBuiltinFunction(name: string, params: TypeInfo[], returnType: TypeInfo): void {
@@ -716,7 +720,10 @@ export class TypeChecker {
       return true;
     }
     if (!summary?.symbols || !summary.symbols[memberName]) {
-      this.report(`typechecker: package '${packageName}' has no symbol '${memberName}'`, expression.member ?? expression);
+      if (!this.reportedPackageMemberAccess.has(expression)) {
+        this.report(`typechecker: package '${packageName}' has no symbol '${memberName}'`, expression.member ?? expression);
+        this.reportedPackageMemberAccess.add(expression);
+      }
     }
     return true;
   }
@@ -786,6 +793,16 @@ export class TypeChecker {
 
   private buildPackageSummary(module: AST.Module): PackageSummary | null {
     return buildPackageSummaryHelper(this.implementationContext, module);
+  }
+
+  private installBuiltinInterfaces(): void {
+    const { interfaces, implementations } = buildStandardInterfaceBuiltins();
+    for (const iface of interfaces) {
+      this.registerInterfaceDefinition(iface);
+    }
+    for (const impl of implementations) {
+      collectImplementationDefinitionHelper(this.implementationContext, impl);
+    }
   }
 
 }

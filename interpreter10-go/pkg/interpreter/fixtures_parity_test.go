@@ -3,8 +3,14 @@ package interpreter
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
+
+var serialOnlyConcurrencyFixtures = map[string]struct{}{
+	"concurrency/proc_flush_fairness": {},
+	"concurrency/proc_yield_flush":    {},
+}
 
 func TestFixtureParityStringLiteral(t *testing.T) {
 	root := filepath.Join("..", "..", "..", "fixtures", "ast")
@@ -14,17 +20,6 @@ func TestFixtureParityStringLiteral(t *testing.T) {
 	}
 
 	t.Setenv(fixtureTypecheckEnv, "warn")
-
-	concurrencyFixtures := map[string]struct{}{
-		"concurrency/channel_error_rescue":           {},
-		"concurrency/proc_cancel_value":             {},
-		"concurrency/proc_value_memoization":        {},
-		"concurrency/proc_value_cancel_memoization": {},
-		"concurrency/future_memoization":            {},
-		"concurrency/proc_cancelled_outside_error":  {},
-		"concurrency/proc_cancelled_helper":         {},
-		"concurrency/proc_error_cause":              {},
-	}
 
 	for _, entry := range entries {
 		if !entry.IsDir() {
@@ -37,11 +32,28 @@ func TestFixtureParityStringLiteral(t *testing.T) {
 				t.Fatalf("computing relative path for %s: %v", dir, err)
 			}
 			t.Run(rel, func(t *testing.T) {
-				var exec Executor
-				if _, ok := concurrencyFixtures[rel]; ok {
-					exec = NewGoroutineExecutor(nil)
+				relUnix := filepath.ToSlash(rel)
+				if strings.HasPrefix(relUnix, "concurrency/") {
+					if _, serialOnly := serialOnlyConcurrencyFixtures[relUnix]; serialOnly {
+						runFixtureWithExecutor(t, dir, rel, nil)
+						return
+					}
+					cases := []struct {
+						name string
+						exec func() Executor
+					}{
+						{name: "serial", exec: func() Executor { return nil }},
+						{name: "goroutine", exec: func() Executor { return NewGoroutineExecutor(nil) }},
+					}
+					for _, tc := range cases {
+						tc := tc
+						t.Run(tc.name, func(t *testing.T) {
+							runFixtureWithExecutor(t, dir, rel, tc.exec())
+						})
+					}
+					return
 				}
-				runFixtureWithExecutor(t, dir, rel, exec)
+				runFixtureWithExecutor(t, dir, rel, nil)
 			})
 		})
 	}

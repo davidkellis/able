@@ -53,20 +53,35 @@
       "isTrailingLambda": false
     },
     {
-      "type": "FunctionCall",
-      "callee": {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
         "type": "Identifier",
-        "name": "proc_flush"
+        "name": "value_result"
       },
-      "arguments": [],
-      "isTrailingLambda": false
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "handle"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "value"
+          }
+        },
+        "arguments": [],
+        "isTrailingLambda": false
+      }
     },
     {
       "type": "AssignmentExpression",
       "operator": ":=",
       "left": {
         "type": "Identifier",
-        "name": "status"
+        "name": "status_text"
       },
       "right": {
         "type": "FunctionCall",
@@ -86,37 +101,182 @@
       }
     },
     {
-      "type": "MatchExpression",
-      "subject": {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
         "type": "Identifier",
-        "name": "status"
+        "name": "status_ok"
       },
-      "clauses": [
-        {
-          "type": "MatchClause",
-          "pattern": {
-            "type": "StructPattern",
-            "structType": {
-              "type": "Identifier",
-              "name": "Cancelled"
-            },
-            "fields": [],
-            "isPositional": false
+      "right": {
+        "type": "BinaryExpression",
+        "operator": "==",
+        "left": {
+          "type": "MatchExpression",
+          "subject": {
+            "type": "Identifier",
+            "name": "status_text"
           },
-          "body": {
-            "type": "StringLiteral",
-            "value": "Cancelled"
+          "clauses": [
+            {
+              "type": "MatchClause",
+              "pattern": {
+                "type": "StructPattern",
+                "structType": {
+                  "type": "Identifier",
+                  "name": "Pending"
+                },
+                "fields": [],
+                "isPositional": false
+              },
+              "body": {
+                "type": "StringLiteral",
+                "value": "Pending"
+              }
+            },
+            {
+              "type": "MatchClause",
+              "pattern": {
+                "type": "StructPattern",
+                "structType": {
+                  "type": "Identifier",
+                  "name": "Resolved"
+                },
+                "fields": [],
+                "isPositional": false
+              },
+              "body": {
+                "type": "StringLiteral",
+                "value": "Resolved"
+              }
+            },
+            {
+              "type": "MatchClause",
+              "pattern": {
+                "type": "StructPattern",
+                "structType": {
+                  "type": "Identifier",
+                  "name": "Cancelled"
+                },
+                "fields": [],
+                "isPositional": false
+              },
+              "body": {
+                "type": "StringLiteral",
+                "value": "Cancelled"
+              }
+            },
+            {
+              "type": "MatchClause",
+              "pattern": {
+                "type": "StructPattern",
+                "structType": {
+                  "type": "Identifier",
+                  "name": "Failed"
+                },
+                "fields": [],
+                "isPositional": false
+              },
+              "body": {
+                "type": "StringLiteral",
+                "value": "Failed"
+              }
+            },
+            {
+              "type": "MatchClause",
+              "pattern": {
+                "type": "WildcardPattern"
+              },
+              "body": {
+                "type": "StringLiteral",
+                "value": "Other"
+              }
+            }
+          ]
+        },
+        "right": {
+          "type": "StringLiteral",
+          "value": "Cancelled"
+        }
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "value_ok"
+      },
+      "right": {
+        "type": "MatchExpression",
+        "subject": {
+          "type": "Identifier",
+          "name": "value_result"
+        },
+        "clauses": [
+          {
+            "type": "MatchClause",
+            "pattern": {
+              "type": "TypedPattern",
+              "pattern": {
+                "type": "Identifier",
+                "name": "err"
+              },
+              "typeAnnotation": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Error"
+                }
+              }
+            },
+            "body": {
+              "type": "BinaryExpression",
+              "operator": "==",
+              "left": {
+                "type": "FunctionCall",
+                "callee": {
+                  "type": "MemberAccessExpression",
+                  "object": {
+                    "type": "Identifier",
+                    "name": "err"
+                  },
+                  "member": {
+                    "type": "Identifier",
+                    "name": "message"
+                  }
+                },
+                "arguments": [],
+                "isTrailingLambda": false
+              },
+              "right": {
+                "type": "StringLiteral",
+                "value": "Proc cancelled"
+              }
+            }
+          },
+          {
+            "type": "MatchClause",
+            "pattern": {
+              "type": "WildcardPattern"
+            },
+            "body": {
+              "type": "BooleanLiteral",
+              "value": false
+            }
           }
+        ]
+      }
+    },
+    {
+      "type": "ArrayLiteral",
+      "elements": [
+        {
+          "type": "Identifier",
+          "name": "status_ok"
         },
         {
-          "type": "MatchClause",
-          "pattern": {
-            "type": "WildcardPattern"
-          },
-          "body": {
-            "type": "StringLiteral",
-            "value": "Other"
-          }
+          "type": "Identifier",
+          "name": "value_ok"
         }
       ]
     }

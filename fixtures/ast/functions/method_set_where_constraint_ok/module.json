@@ -4,7 +4,7 @@
   "body": [
     {
       "type": "InterfaceDefinition",
-      "id": { "type": "Identifier", "name": "Display" },
+      "id": { "type": "Identifier", "name": "CustomDisplay" },
       "isPrivate": false,
       "signatures": [
         {
@@ -44,7 +44,7 @@
     },
     {
       "type": "ImplementationDefinition",
-      "interfaceName": { "type": "Identifier", "name": "Display" },
+      "interfaceName": { "type": "Identifier", "name": "CustomDisplay" },
       "targetType": {
         "type": "SimpleTypeExpression",
         "name": { "type": "Identifier", "name": "Wrapper" }
@@ -107,7 +107,7 @@
               "type": "InterfaceConstraint",
               "interfaceType": {
                 "type": "SimpleTypeExpression",
-                "name": { "type": "Identifier", "name": "Display" }
+                "name": { "type": "Identifier", "name": "CustomDisplay" }
               }
             }
           ]

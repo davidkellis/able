@@ -260,6 +260,8 @@ type Interpreter struct {
 
 	generatorStack []*generatorInstance
 
+	interfaceBuiltinsReady bool
+
 	typecheckerEnabled   bool
 	typecheckerStrict    bool
 	typechecker          *typechecker.Checker
@@ -363,6 +365,7 @@ func NewWithExecutor(exec Executor) *Interpreter {
 	i.initStringHostBuiltins()
 	i.initErrorBuiltins()
 	i.initHasherBuiltins()
+	i.initInterfaceBuiltins()
 	return i
 }
 

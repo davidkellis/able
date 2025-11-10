@@ -235,4 +235,34 @@ describe("TypeChecker constraint resolution", () => {
     const result = checker.checkModule(moduleAst);
     expect(result.diagnostics).toEqual([]);
   });
+  test("built-in Display/Clone interfaces satisfy constraints without explicit declarations", () => {
+    const chooseFirst = AST.functionDefinition(
+      "choose_first",
+      [
+        AST.functionParameter("first", AST.simpleTypeExpression("T")),
+        AST.functionParameter("second", AST.simpleTypeExpression("U")),
+      ],
+      AST.blockExpression([AST.returnStatement(AST.identifier("first"))]),
+      AST.simpleTypeExpression("T"),
+      [AST.genericParameter("T"), AST.genericParameter("U")],
+      [
+        AST.whereClauseConstraint("T", [
+          AST.interfaceConstraint(AST.simpleTypeExpression("Display")),
+          AST.interfaceConstraint(AST.simpleTypeExpression("Clone")),
+        ]),
+        AST.whereClauseConstraint("U", [
+          AST.interfaceConstraint(AST.simpleTypeExpression("Display")),
+        ]),
+      ],
+    );
+    const invocation = AST.functionCall(
+      AST.identifier("choose_first"),
+      [AST.stringLiteral("winner"), AST.integerLiteral(1)],
+      [AST.simpleTypeExpression("string"), AST.simpleTypeExpression("i32")],
+    ) as unknown as AST.Statement;
+    const moduleAst = AST.module([chooseFirst, invocation]);
+    const checker = new TypeChecker();
+    const result = checker.checkModule(moduleAst);
+    expect(result.diagnostics).toEqual([]);
+  });
 });

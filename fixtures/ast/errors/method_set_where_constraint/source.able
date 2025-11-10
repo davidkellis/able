@@ -1,4 +1,4 @@
-interface Display {
+interface CustomDisplay {
   fn show(self: Self) -> string
 }
 
@@ -6,7 +6,7 @@ struct Wrapper {
   value: i32
 }
 
-methods Wrapper where Self: Display {
+methods Wrapper where Self: CustomDisplay {
   fn describe(self: Wrapper) -> string {
     return self.show()
   }

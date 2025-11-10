@@ -882,6 +882,10 @@
         {
           "type": "else_clause",
           "named": true
+        },
+        {
+          "type": "rescue_postfix_expression",
+          "named": true
         }
       ]
     }
@@ -1332,6 +1336,10 @@
         "multiple": false,
         "required": true,
         "types": [
+          {
+            "type": "block",
+            "named": true
+          },
           {
             "type": "expression",
             "named": true
@@ -2124,9 +2132,44 @@
         {
           "type": "assignment_expression",
           "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "rescue_postfix_expression",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "call_suffix",
+          "named": true
         },
         {
-          "type": "handling_expression",
+          "type": "index_suffix",
+          "named": true
+        },
+        {
+          "type": "lambda_expression",
+          "named": true
+        },
+        {
+          "type": "member_access",
+          "named": true
+        },
+        {
+          "type": "propagate_suffix",
+          "named": true
+        },
+        {
+          "type": "rescue_expression",
+          "named": true
+        },
+        {
+          "type": "type_arguments",
           "named": true
         }
       ]
@@ -2557,7 +2600,7 @@
     "fields": {},
     "children": {
       "multiple": true,
-      "required": false,
+      "required": true,
       "types": [
         {
           "type": "type_expression",

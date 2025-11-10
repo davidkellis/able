@@ -86,6 +86,7 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
         return true;
       case "SimpleTypeExpression": {
         const name = t.name.name;
+        if (name === "Self") return true;
         if (name === "string") return v.kind === "string";
         if (name === "bool") return v.kind === "bool";
         if (name === "char") return v.kind === "char";

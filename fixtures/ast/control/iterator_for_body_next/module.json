@@ -1,0 +1,186 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "iter"
+      },
+      "right": {
+        "type": "IteratorLiteral",
+        "body": [
+          {
+            "type": "ForLoop",
+            "pattern": {
+              "type": "Identifier",
+              "name": "item"
+            },
+            "iterable": {
+              "type": "ArrayLiteral",
+              "elements": [
+                {
+                  "type": "IntegerLiteral",
+                  "value": 1
+                },
+                {
+                  "type": "IntegerLiteral",
+                  "value": 2
+                },
+                {
+                  "type": "IntegerLiteral",
+                  "value": 3
+                }
+              ]
+            },
+            "body": {
+              "type": "BlockExpression",
+              "body": [
+                {
+                  "type": "FunctionCall",
+                  "callee": {
+                    "type": "MemberAccessExpression",
+                    "object": {
+                      "type": "Identifier",
+                      "name": "gen"
+                    },
+                    "member": {
+                      "type": "Identifier",
+                      "name": "yield"
+                    }
+                  },
+                  "arguments": [
+                    {
+                      "type": "Identifier",
+                      "name": "item"
+                    }
+                  ],
+                  "isTrailingLambda": false
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "first"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "iter"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "next"
+          }
+        },
+        "arguments": [],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "second"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "iter"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "next"
+          }
+        },
+        "arguments": [],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "third"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "iter"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "next"
+          }
+        },
+        "arguments": [],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "done"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "iter"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "next"
+          }
+        },
+        "arguments": [],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "ArrayLiteral",
+      "elements": [
+        {
+          "type": "Identifier",
+          "name": "first"
+        },
+        {
+          "type": "Identifier",
+          "name": "second"
+        },
+        {
+          "type": "Identifier",
+          "name": "third"
+        },
+        {
+          "type": "Identifier",
+          "name": "done"
+        }
+      ]
+    }
+  ]
+}

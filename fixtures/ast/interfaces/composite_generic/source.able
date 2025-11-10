@@ -1,4 +1,4 @@
-interface Display {
+interface CustomDisplay {
   fn to_string(self: Self) -> string;
 }
 
