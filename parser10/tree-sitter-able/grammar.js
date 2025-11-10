@@ -487,10 +487,10 @@ module.exports = grammar({
       $.handling_expression,
       $.proc_expression,
       $.spawn_expression,
-    $.breakpoint_expression,
-    $.match_expression,
-    $.assignment_expression,
-  ),
+      $.breakpoint_expression,
+      $.match_expression,
+      $.assignment_expression,
+    ),
 
     ensure_expression: $ => seq(
       choice($.rescue_expression, $.handling_expression, $.assignment_expression),
@@ -499,7 +499,7 @@ module.exports = grammar({
     ),
 
     rescue_expression: $ => seq(
-      $.assignment_expression,
+      choice($.handling_expression, $.assignment_expression),
       "rescue",
       field("rescue", $.rescue_block),
     ),
@@ -526,7 +526,7 @@ module.exports = grammar({
     ),
 
     match_expression: $ => seq(
-      field("subject", $.assignment_expression),
+      field("subject", alias($._postfix_expression_without_match, $.postfix_expression)),
       "match",
       "{",
       commaSep1($.match_clause),
@@ -712,6 +712,27 @@ module.exports = grammar({
     ),
 
     postfix_expression: $ => prec.left(
+      PREC.call,
+      seq(
+        choice(
+          $.primary_expression,
+          $.proc_expression,
+          $.spawn_expression,
+          $.breakpoint_expression,
+          $.match_expression,
+        ),
+        repeat(choice(
+          $.type_arguments,
+          $.call_suffix,
+          $.index_suffix,
+          $.propagate_suffix,
+          $.member_access,
+        )),
+        optional($.lambda_expression),
+      ),
+    ),
+
+    _postfix_expression_without_match: $ => prec.left(
       PREC.call,
       seq(
         choice(

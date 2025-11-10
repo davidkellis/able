@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { collectFixtures, readManifest } from "./fixture-utils";
+import { startRunTimeout } from "./test-timeouts";
 import {
   DEFAULT_FIXTURE_ROOT,
   buildGoFixtureRunner,
@@ -96,74 +97,79 @@ async function copyReportArtifacts(sourcePath: string, silent: boolean): Promise
       continue;
     }
     try {
-      await fs.mkdir(path.dirname(target), { recursive: true });
-      await fs.copyFile(sourcePath, target);
-      if (!silent) {
-        console.log(`Parity report copied to ${relativeFromRepo(target)}`);
+        await fs.mkdir(path.dirname(target), { recursive: true });
+        await fs.copyFile(sourcePath, target);
+        if (!silent) {
+          console.log(`Parity report copied to ${relativeFromRepo(target)}`);
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(`Failed to copy parity report to ${target}: ${message}`);
       }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.error(`Failed to copy parity report to ${target}: ${message}`);
     }
   }
-}
 
-function collectReportTargets(): string[] {
-  const targets = new Set<string>();
-  const explicit = process.env.ABLE_PARITY_REPORT_DEST?.trim();
-  if (explicit) {
-    targets.add(path.resolve(explicit));
-  }
-  const artifactsDir = process.env.CI_ARTIFACTS_DIR?.trim();
-  if (artifactsDir) {
-    targets.add(path.resolve(path.join(artifactsDir, "parity-report.json")));
-  }
-  return [...targets];
-}
-
-function relativeFromRepo(candidate: string): string {
-  const resolved = path.resolve(candidate);
-  if (!resolved.startsWith(REPO_ROOT)) {
-    return resolved;
-  }
-  return path.relative(REPO_ROOT, resolved) || ".";
-}
-
-async function main() {
-  const options = parseArgs(process.argv.slice(2));
-  const report: ParityReport = { suites: [] };
-  const silentLogs = options.jsonOutput;
-
-  if (options.suites.includes("fixtures")) {
-    const fixtureSuite = await runFixtureSuite({
-      root: options.fixturesRoot,
-      maxFixtures: options.maxFixtures,
-    });
-    report.suites.push(fixtureSuite);
+  function collectReportTargets(): string[] {
+    const targets = new Set<string>();
+    const explicit = process.env.ABLE_PARITY_REPORT_DEST?.trim();
+    if (explicit) {
+      targets.add(path.resolve(explicit));
+    }
+    const artifactsDir = process.env.CI_ARTIFACTS_DIR?.trim();
+    if (artifactsDir) {
+      targets.add(path.resolve(path.join(artifactsDir, "parity-report.json")));
+    }
+    return [...targets];
   }
 
-  if (options.suites.includes("examples")) {
-    const exampleSuite = await runExampleSuite({
-      root: options.examplesRoot,
-    });
-    report.suites.push(exampleSuite);
+  function relativeFromRepo(candidate: string): string {
+    const resolved = path.resolve(candidate);
+    if (!resolved.startsWith(REPO_ROOT)) {
+      return resolved;
+    }
+    return path.relative(REPO_ROOT, resolved) || ".";
   }
 
-  const finalReportPath = await writeReport(report, options.reportPath);
-  if (!silentLogs) {
-    console.log(`JSON parity report written to ${relativeFromRepo(finalReportPath)}`);
-  }
-  await copyReportArtifacts(finalReportPath, silentLogs);
+  async function main() {
+    const clearTimeouts = startRunTimeout("run-parity");
+    try {
+      const options = parseArgs(process.argv.slice(2));
+      const report: ParityReport = { suites: [] };
+      const silentLogs = options.jsonOutput;
 
-  if (options.jsonOutput) {
-    console.log(JSON.stringify(report, null, 2));
-  } else {
-    printHumanReport(report);
-  }
+      if (options.suites.includes("fixtures")) {
+        const fixtureSuite = await runFixtureSuite({
+          root: options.fixturesRoot,
+          maxFixtures: options.maxFixtures,
+        });
+        report.suites.push(fixtureSuite);
+      }
 
-  const hasFailures = report.suites.some((suite) => suite.failed > 0);
-  process.exitCode = hasFailures ? 1 : 0;
-}
+      if (options.suites.includes("examples")) {
+        const exampleSuite = await runExampleSuite({
+          root: options.examplesRoot,
+        });
+        report.suites.push(exampleSuite);
+      }
+
+      const finalReportPath = await writeReport(report, options.reportPath);
+      if (!silentLogs) {
+        console.log(`JSON parity report written to ${relativeFromRepo(finalReportPath)}`);
+      }
+      await copyReportArtifacts(finalReportPath, silentLogs);
+
+      if (options.jsonOutput) {
+        console.log(JSON.stringify(report, null, 2));
+      } else {
+        printHumanReport(report);
+      }
+
+      const hasFailures = report.suites.some((suite) => suite.failed > 0);
+      process.exitCode = hasFailures ? 1 : 0;
+    } finally {
+      clearTimeouts();
+    }
+  }
 
 function parseArgs(argv: string[]): CLIOptions {
   const suites: SuiteName[] = [];

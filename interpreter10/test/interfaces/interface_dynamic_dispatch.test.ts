@@ -6,15 +6,6 @@ describe("v10 interpreter - interface dynamic dispatch", () => {
   test("value stored as interface dispatches to underlying impl", () => {
     const I = new InterpreterV10();
 
-    const display = AST.interfaceDefinition("Display", [
-      AST.functionSignature(
-        "to_string",
-        [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
-        AST.simpleTypeExpression("string")
-      ),
-    ]);
-    I.evaluate(display);
-
     const pointDef = AST.structDefinition(
       "Point",
       [

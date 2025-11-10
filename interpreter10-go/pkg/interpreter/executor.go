@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 
 	"able/interpreter10-go/pkg/runtime"
 )
@@ -17,6 +18,7 @@ type Executor interface {
 	RunProc(task ProcTask) *runtime.ProcHandleValue
 	RunFuture(task ProcTask) *runtime.FutureValue
 	Flush()
+	PendingTasks() int
 }
 
 type panicValueFunc func(any) runtime.Value
@@ -108,6 +110,7 @@ func (b *executorBase) applyOutcome(handle *runtime.ProcHandleValue, result runt
 // GoroutineExecutor runs tasks using Go goroutines and contexts.
 type GoroutineExecutor struct {
 	executorBase
+	pending atomic.Int64
 }
 
 func NewGoroutineExecutor(panicHandler panicValueFunc) *GoroutineExecutor {
@@ -119,6 +122,7 @@ func NewGoroutineExecutor(panicHandler panicValueFunc) *GoroutineExecutor {
 func (e *GoroutineExecutor) RunProc(task ProcTask) *runtime.ProcHandleValue {
 	ctx, cancel := context.WithCancel(context.Background())
 	handle := runtime.NewProcHandleWithContext(ctx, cancel)
+	e.pending.Add(1)
 	go e.runTask(handle, nil, task, asyncContextProc)
 	return handle
 }
@@ -127,11 +131,20 @@ func (e *GoroutineExecutor) RunFuture(task ProcTask) *runtime.FutureValue {
 	ctx, cancel := context.WithCancel(context.Background())
 	handle := runtime.NewProcHandleWithContext(ctx, cancel)
 	future := runtime.NewFutureFromHandle(handle)
+	e.pending.Add(1)
 	go e.runTask(handle, future, task, asyncContextFuture)
 	return future
 }
 
 func (e *GoroutineExecutor) Flush() {}
+
+func (e *GoroutineExecutor) PendingTasks() int {
+	pending := e.pending.Load()
+	if pending < 0 {
+		return 0
+	}
+	return int(pending)
+}
 
 func (e *GoroutineExecutor) runTask(handle *runtime.ProcHandleValue, future *runtime.FutureValue, task ProcTask, kind asyncContextKind) {
 	ctx := handle.Context()
@@ -143,6 +156,7 @@ func (e *GoroutineExecutor) runTask(handle *runtime.ProcHandleValue, future *run
 	handle.MarkStarted()
 	result, err := e.safeInvoke(ctx, task)
 	e.applyOutcome(handle, result, err)
+	e.pending.Add(-1)
 }
 
 type serialTask struct {
@@ -225,6 +239,12 @@ func (e *SerialExecutor) Flush() {
 		e.cond.Wait()
 	}
 	e.mu.Unlock()
+}
+
+func (e *SerialExecutor) PendingTasks() int {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return len(e.queue)
 }
 
 // Drive executes the task associated with the provided handle on the current goroutine

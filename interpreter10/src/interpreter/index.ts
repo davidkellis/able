@@ -161,9 +161,11 @@ export class InterpreterV10 {
     const procYieldFn = this.makeNativeFunction("proc_yield", 0, (interp) => interp.procYield());
     const procCancelledFn = this.makeNativeFunction("proc_cancelled", 0, (interp) => interp.procCancelled());
     const procFlushFn = this.makeNativeFunction("proc_flush", 0, (interp) => interp.procFlush());
+    const procPendingTasksFn = this.makeNativeFunction("proc_pending_tasks", 0, (interp) => interp.procPendingTasks());
     this.globals.define("proc_yield", procYieldFn);
     this.globals.define("proc_cancelled", procCancelledFn);
     this.globals.define("proc_flush", procFlushFn);
+    this.globals.define("proc_pending_tasks", procPendingTasksFn);
     this.installBuiltinInterfaces();
   }
 

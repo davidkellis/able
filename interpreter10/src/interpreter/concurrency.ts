@@ -15,6 +15,7 @@ declare module "./index" {
     procYield(): V10Value;
     procCancelled(): V10Value;
     procFlush(): V10Value;
+    procPendingTasks(): V10Value;
     processScheduler(limit?: number): void;
     makeNamedStructInstance(def: AST.StructDefinition, entries: Array<[string, V10Value]>): V10Value;
     makeProcError(details: string): V10Value;
@@ -151,6 +152,11 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
   cls.prototype.procFlush = function procFlush(this: InterpreterV10): V10Value {
     this.processScheduler(this.schedulerMaxSteps);
     return { kind: "nil", value: null };
+  };
+
+  cls.prototype.procPendingTasks = function procPendingTasks(this: InterpreterV10): V10Value {
+    const pending = typeof this.executor.pendingTasks === "function" ? this.executor.pendingTasks() : 0;
+    return { kind: "i32", value: pending };
   };
 
   cls.prototype.processScheduler = function processScheduler(this: InterpreterV10, limit: number = this.schedulerMaxSteps): void {

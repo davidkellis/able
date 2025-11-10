@@ -398,6 +398,10 @@ func registerBuiltins(env *Environment) {
 		Params: nil,
 		Return: nilType,
 	}
+	procPendingTasks := FunctionType{
+		Params: nil,
+		Return: i32Type,
+	}
 	printFn := FunctionType{
 		Params: []Type{UnknownType{}},
 		Return: nilType,
@@ -406,6 +410,7 @@ func registerBuiltins(env *Environment) {
 	env.Define("proc_yield", procYield)
 	env.Define("proc_cancelled", procCancelled)
 	env.Define("proc_flush", procFlush)
+	env.Define("proc_pending_tasks", procPendingTasks)
 	env.Define("print", printFn)
 
 	env.Define("__able_channel_new", FunctionType{

@@ -22,120 +22,140 @@ import {
   extractErrorMessage,
   type Manifest,
 } from "./fixture-utils";
+import { startRunTimeout } from "./test-timeouts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_ROOT = path.resolve(__dirname, "../../fixtures/ast");
 const TYPECHECK_MODE = resolveTypecheckMode(process.env.ABLE_TYPECHECK_FIXTURES);
 const TYPECHECK_BASELINE_PATH = path.join(FIXTURE_ROOT, "typecheck-baseline.json");
 const WRITE_TYPECHECK_BASELINE = process.argv.includes("--write-typecheck-baseline");
+const FIXTURE_FILTER = process.env.ABLE_FIXTURE_FILTER?.trim() ?? null;
+const BASELINE_ENABLED = TYPECHECK_MODE !== "off" && !FIXTURE_FILTER;
 
 type FixtureResult = { name: string; description?: string };
 
 async function main() {
-  const fixtures = await collectFixtures(FIXTURE_ROOT);
-  if (fixtures.length === 0) {
-    console.log("No fixtures found.");
-    return;
-  }
-
-  const results: FixtureResult[] = [];
-  const typecheckBaseline = new Map<string, string[]>();
-  const existingBaseline =
-    TYPECHECK_MODE !== "off" ? await readExistingBaseline(TYPECHECK_BASELINE_PATH) : null;
-  if (TYPECHECK_MODE !== "off" && !existingBaseline && !WRITE_TYPECHECK_BASELINE) {
-    throw new Error(
-      `typechecker baseline missing at ${TYPECHECK_BASELINE_PATH}. Run with --write-typecheck-baseline to generate it.`,
-    );
-  }
-
-  for (const fixtureDir of fixtures) {
-    const manifest = await readManifest(fixtureDir);
-    if (manifest.skipTargets?.includes("ts")) {
-      continue;
+  const clearTimeouts = startRunTimeout("run-fixtures");
+  try {
+    const fixtures = await collectFixtures(FIXTURE_ROOT);
+    if (fixtures.length === 0) {
+      console.log("No fixtures found.");
+      return;
     }
 
-    const relativeName = path.relative(FIXTURE_ROOT, fixtureDir).split(path.sep).join("/");
-    const interpreter = new V10.InterpreterV10();
-    ensurePrint(interpreter);
-    installRuntimeStubs(interpreter);
+    const results: FixtureResult[] = [];
+    const typecheckBaseline = new Map<string, string[]>();
+    const existingBaseline = BASELINE_ENABLED
+      ? await readExistingBaseline(TYPECHECK_BASELINE_PATH)
+      : null;
+    if (BASELINE_ENABLED && !existingBaseline && !WRITE_TYPECHECK_BASELINE) {
+      throw new Error(
+        `typechecker baseline missing at ${TYPECHECK_BASELINE_PATH}. Run with --write-typecheck-baseline to generate it.`,
+      );
+    }
+    if (FIXTURE_FILTER && TYPECHECK_MODE !== "off" && !BASELINE_ENABLED) {
+      console.warn(
+        `typechecker: skipping baseline enforcement because ABLE_FIXTURE_FILTER=${FIXTURE_FILTER}`,
+      );
+    }
 
-    const stdout: string[] = [];
-    let evaluationError: unknown;
-
-    const entry = manifest.entry ?? "module.json";
-    const moduleAst = await loadModuleFromFixture(fixtureDir, entry);
-    const setupModules: AST.Module[] = [];
-    if (manifest.setup) {
-      for (const setupFile of manifest.setup) {
-        const setupPath = path.join(fixtureDir, setupFile);
-        const setupModule = await loadModuleFromPath(setupPath);
-        setupModules.push(setupModule);
+    for (const fixtureDir of fixtures) {
+      const manifest = await readManifest(fixtureDir);
+      if (manifest.skipTargets?.includes("ts")) {
+        continue;
       }
-    }
 
-    const typecheckDiagnostics: TypecheckerDiagnostic[] = [];
-    let packageSummaries = new Map<string, PackageSummary>();
-    if (TYPECHECK_MODE !== "off") {
-      const session = new TypeChecker.TypecheckerSession();
-      for (const setupModule of setupModules) {
-        const { diagnostics } = session.checkModule(setupModule);
+      const relativeName = path.relative(FIXTURE_ROOT, fixtureDir).split(path.sep).join("/");
+      if (FIXTURE_FILTER && !relativeName.includes(FIXTURE_FILTER)) {
+        continue;
+      }
+      const interpreter = new V10.InterpreterV10();
+      ensurePrint(interpreter);
+      installRuntimeStubs(interpreter);
+
+      const stdout: string[] = [];
+      let evaluationError: unknown;
+
+      const entry = manifest.entry ?? "module.json";
+      const moduleAst = await loadModuleFromFixture(fixtureDir, entry);
+      const setupModules: AST.Module[] = [];
+      if (manifest.setup) {
+        for (const setupFile of manifest.setup) {
+          const setupPath = path.join(fixtureDir, setupFile);
+          const setupModule = await loadModuleFromPath(setupPath);
+          setupModules.push(setupModule);
+        }
+      }
+
+      const typecheckDiagnostics: TypecheckerDiagnostic[] = [];
+      let packageSummaries = new Map<string, PackageSummary>();
+      if (TYPECHECK_MODE !== "off") {
+        const session = new TypeChecker.TypecheckerSession();
+        for (const setupModule of setupModules) {
+          const { diagnostics } = session.checkModule(setupModule);
+          typecheckDiagnostics.push(...diagnostics);
+        }
+        const { diagnostics } = session.checkModule(moduleAst);
         typecheckDiagnostics.push(...diagnostics);
+        packageSummaries = session.getPackageSummaries();
       }
-      const { diagnostics } = session.checkModule(moduleAst);
-      typecheckDiagnostics.push(...diagnostics);
-      packageSummaries = session.getPackageSummaries();
-    }
 
-    const formattedDiagnostics = maybeReportTypecheckDiagnostics(
-      fixtureDir,
-      TYPECHECK_MODE,
-      manifest.expect?.typecheckDiagnostics ?? null,
-      typecheckDiagnostics,
-      packageSummaries,
-    );
-    if (TYPECHECK_MODE !== "off") {
+      const formattedDiagnostics = maybeReportTypecheckDiagnostics(
+        fixtureDir,
+        TYPECHECK_MODE,
+        manifest.expect?.typecheckDiagnostics ?? null,
+        typecheckDiagnostics,
+        packageSummaries,
+      );
+    if (BASELINE_ENABLED) {
       typecheckBaseline.set(relativeName, formattedDiagnostics);
     }
-    enforceTypecheckBaseline(relativeName, TYPECHECK_MODE, formattedDiagnostics, existingBaseline);
-
-    let result: V10.V10Value | undefined;
-    interceptStdout(stdout, () => {
-      try {
-        for (const setupModule of setupModules) {
-          interpreter.evaluate(setupModule);
-        }
-        result = interpreter.evaluate(moduleAst);
-      } catch (err) {
-        evaluationError = err;
-      }
-    });
-
-    assertExpectations(fixtureDir, manifest.expect, result, stdout, evaluationError, typecheckDiagnostics);
-    results.push({ name: relativeName, description: manifest.description });
-  }
-
-  if (TYPECHECK_MODE !== "off") {
-    const baselineObject = Object.fromEntries(
-      [...typecheckBaseline.entries()].sort(([a], [b]) => a.localeCompare(b)),
-    );
-    if (WRITE_TYPECHECK_BASELINE) {
-      await fs.writeFile(TYPECHECK_BASELINE_PATH, `${JSON.stringify(baselineObject, null, 2)}\n`, "utf8");
-    } else {
-      const differences = diffBaselineMaps(baselineObject, existingBaseline ?? {});
-      if (differences.length > 0) {
-        const message = [`Typecheck baseline mismatch:`].concat(differences).join("\n  ");
-        throw new Error(message);
-      }
+    if (BASELINE_ENABLED) {
+      enforceTypecheckBaseline(relativeName, TYPECHECK_MODE, formattedDiagnostics, existingBaseline);
     }
-  } else if (WRITE_TYPECHECK_BASELINE) {
-    console.warn("typechecker: skipping baseline write because ABLE_TYPECHECK_FIXTURES is off");
-  }
 
-  for (const res of results) {
-    const desc = res.description ? ` - ${res.description}` : "";
-    console.log(`✓ ${res.name}${desc}`);
+      let result: V10.V10Value | undefined;
+      interceptStdout(stdout, () => {
+        try {
+          for (const setupModule of setupModules) {
+            interpreter.evaluate(setupModule);
+          }
+          result = interpreter.evaluate(moduleAst);
+        } catch (err) {
+          evaluationError = err;
+        }
+      });
+
+      assertExpectations(fixtureDir, manifest.expect, result, stdout, evaluationError, typecheckDiagnostics);
+      results.push({ name: relativeName, description: manifest.description });
+    }
+
+    if (BASELINE_ENABLED) {
+      const baselineObject = Object.fromEntries(
+        [...typecheckBaseline.entries()].sort(([a], [b]) => a.localeCompare(b)),
+      );
+      if (WRITE_TYPECHECK_BASELINE) {
+        await fs.writeFile(TYPECHECK_BASELINE_PATH, `${JSON.stringify(baselineObject, null, 2)}\n`, "utf8");
+      } else {
+        const differences = diffBaselineMaps(baselineObject, existingBaseline ?? {});
+        if (differences.length > 0) {
+          const message = [`Typecheck baseline mismatch:`].concat(differences).join("\n  ");
+          throw new Error(message);
+        }
+      }
+    } else if (WRITE_TYPECHECK_BASELINE) {
+      const reason = TYPECHECK_MODE === "off" ? "ABLE_TYPECHECK_FIXTURES is off" : "ABLE_FIXTURE_FILTER is set";
+      console.warn(`typechecker: skipping baseline write because ${reason}`);
+    }
+
+    for (const res of results) {
+      const desc = res.description ? ` - ${res.description}` : "";
+      console.log(`✓ ${res.name}${desc}`);
+    }
+    console.log(`Executed ${results.length} fixture(s).`);
+  } finally {
+    clearTimeouts();
   }
-  console.log(`Executed ${results.length} fixture(s).`);
 }
 
 async function readExistingBaseline(filePath: string): Promise<Record<string, string[]> | null> {
