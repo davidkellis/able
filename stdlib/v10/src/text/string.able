@@ -22,20 +22,17 @@ struct StringBuilder {
   buffer: Array u8
 }
 
-struct StringChars {
-  string: String
-}
-
-struct StringGraphemes {
-  string: String
-}
-
-struct StringCharsIterator {
+struct StringBytesIter {
   string: String,
   offset: i32
 }
 
-struct StringGraphemeIterator {
+struct StringCharsIter {
+  string: String,
+  offset: i32
+}
+
+struct StringGraphemesIter {
   string: String,
   offset: i32
 }
@@ -82,14 +79,14 @@ methods String {
   fn len_bytes(self: Self) -> i32 { self.len_bytes }
   fn is_empty(self: Self) -> bool { self.len_bytes == 0 }
 
-  fn bytes(self: Self) -> Array u8 { self.bytes.clone() }
+  fn bytes(self: Self) -> Array u8 { StringBytesIter { string: self, offset: 0 } }
 
-  fn chars(self: Self) -> StringChars {
-    StringChars { string: self }
+  fn chars(self: Self) -> StringCharsIter {
+    StringCharsIter { string: self, offset: 0 }
   }
 
-  fn graphemes(self: Self) -> StringGraphemes {
-    StringGraphemes { string: self }
+  fn graphemes(self: Self) -> StringGraphemesIter {
+    StringGraphemesIter { string: self, offset: 0 }
   }
 
   fn to_builtin(self: Self) -> Result string {
@@ -218,19 +215,31 @@ methods StringBuilder {
   }
 }
 
-impl Iterable char for StringChars {
-  fn iterator(self: Self) -> (Iterator char) {
-    StringCharsIterator { string: self.string, offset: 0 }
+StringBytesIterable := impl Iterable u8 for String {
+  fn iterator(self: Self) -> (Iterator u8) { self.bytes() }
+}
+
+impl Iterator u8 for StringBytesIter {
+  fn next(mut self: Self) -> u8 | IteratorEnd {
+    if self.offset >= self.string.len_bytes {
+      return IteratorEnd
+    }
+
+    match read_byte(self.string.bytes, self.offset) {
+      case nil => IteratorEnd,
+      case value: u8 => {
+        self.offset = self.offset + 1
+        value
+      }
+    }
   }
 }
 
-impl Iterable Grapheme for StringGraphemes {
-  fn iterator(self: Self) -> (Iterator Grapheme) {
-    StringGraphemeIterator { string: self.string, offset: 0 }
-  }
+StringCharsIterable = impl Iterable char for String {
+  fn iterator(self: Self) -> (Iterator char) { self.chars() }
 }
 
-impl Iterator char for StringCharsIterator {
+impl Iterator char for StringCharsIter {
   fn next(mut self: Self) -> char | IteratorEnd {
     if self.offset >= self.string.len_bytes {
       return IteratorEnd
@@ -246,7 +255,11 @@ impl Iterator char for StringCharsIterator {
   }
 }
 
-impl Iterator Grapheme for StringGraphemeIterator {
+StringGraphemesIterable = impl Iterable Grapheme for String {
+  fn iterator(self: Self) -> (Iterator Grapheme) { self.graphemes() }
+}
+
+impl Iterator Grapheme for StringGraphemesIter {
   fn next(mut self: Self) -> Grapheme | IteratorEnd {
     if self.offset >= self.string.len_bytes {
       return IteratorEnd

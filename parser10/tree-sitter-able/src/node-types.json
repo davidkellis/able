@@ -1509,7 +1509,7 @@
         "required": true,
         "types": [
           {
-            "type": "assignment_expression",
+            "type": "postfix_expression",
             "named": true
           }
         ]
@@ -1909,6 +1909,10 @@
           "named": true
         },
         {
+          "type": "match_expression",
+          "named": true
+        },
+        {
           "type": "member_access",
           "named": true
         },
@@ -2131,6 +2135,10 @@
       "types": [
         {
           "type": "assignment_expression",
+          "named": true
+        },
+        {
+          "type": "handling_expression",
           "named": true
         }
       ]

@@ -1,5 +1,10 @@
 # Able Project Log
 
+## 2025-11-09 — Executor Diagnostics Helper
+- Added the `proc_pending_tasks()` runtime helper so Able programs/tests can observe cooperative executor queue depth. TypeScript wires it through `CooperativeExecutor.pendingTasks()` while the Go runtime surfaces counts from both the serial and goroutine executors (best-effort on the latter via atomic counters). The helper is registered with both typecheckers so Warn/Strict fixture runs understand the signature.
+- New coverage keeps the helper honest: Bun unit tests exercise the helper directly (`interpreter10/test/concurrency/proc_spawn_scheduling.test.ts`), Go gains matching tests (`TestProcPendingTasksSerialExecutor`, `TestProcPendingTasksGoroutineExecutor`), and a serial-only AST fixture (`fixtures/ast/concurrency/proc_executor_diagnostics/`) ensures both interpreters prove that `proc_flush` drains the cooperative queue.
+- Spec + docs now describe the helper alongside `proc_yield`/`proc_flush` (see `spec/full_spec_v10.md`, `docs/manual/*.md/html`, `design/concurrency-executor-contract.md`, and `AGENTS.md`), and the PLAN TODO for “Concurrency ergonomics” is officially closed out.
+
 ## 2025-11-08 — Fixture Diagnostics Parity Enforcement
 - `interpreter10/scripts/run-parity.ts` now diffs typechecker diagnostics for every AST fixture so warn/strict parity runs catch unexpected checker output even when manifests do not declare expectations. The parity JSON report captures the mismatched diagnostics to speed up triage.
 - Added `test/scripts/parity/fixtures_compare.test.ts` to cover the helper logic that determines when diagnostics mismatches should fail parity.

@@ -348,6 +348,40 @@ describe("v10 interpreter - proc & spawn handles", () => {
     expect(I.evaluate(futureValueCall)).toEqual({ kind: "i32", value: 0 });
   });
 
+  test("proc_pending_tasks reports queued cooperative work", () => {
+    const I = new InterpreterV10();
+    const pendingCall = () => AST.functionCall(AST.identifier("proc_pending_tasks"), []);
+
+    const initial = I.evaluate(pendingCall()) as V10Value;
+    expect(initial).toEqual({ kind: "i32", value: 0 });
+
+    I.evaluate(
+      AST.spawnExpression(
+        AST.blockExpression([
+          AST.integerLiteral(1),
+        ]),
+      ),
+    );
+
+    const pendingAfterSpawn = I.evaluate(pendingCall()) as V10Value;
+    expect(pendingAfterSpawn.kind).toBe("i32");
+    if (pendingAfterSpawn.kind !== "i32") throw new Error("expected integer result");
+    expect(pendingAfterSpawn.value).toBeGreaterThan(0);
+
+    let drained = false;
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      I.evaluate(AST.functionCall(AST.identifier("proc_flush"), []));
+      const pendingAfterFlush = I.evaluate(pendingCall()) as V10Value;
+      expect(pendingAfterFlush.kind).toBe("i32");
+      if (pendingAfterFlush.kind !== "i32") throw new Error("expected integer result");
+      if (pendingAfterFlush.value === 0) {
+        drained = true;
+        break;
+      }
+    }
+    expect(drained).toBe(true);
+  });
+
   test("proc awaiting future with nested yields resolves cleanly", () => {
     const I = new InterpreterV10();
 

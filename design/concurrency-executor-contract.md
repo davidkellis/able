@@ -50,6 +50,11 @@ underlying scheduling strategy.
     when called outside a proc/future context.
   - `proc_flush` delegates to `executor.flush(limit)` to advance the queue
     deterministically.
+  - `proc_pending_tasks` surfaces `executor.pendingTasks` as an Able helper so
+    fixtures/tests can assert that cooperative queues drain. Pre-emptive
+    executors may return `0` (or a best-effort count of outstanding tasks) when
+    their host runtime does not expose runnable-queue details; programs must not
+    rely on the value for correctness.
   - Interpreters are expected to charge cooperative “time slices” at safe evaluation
     boundaries (statement iterations, loop bodies, pattern matches). Once a task
     reaches the configured `schedulerMaxSteps`, it should raise the shared yield
@@ -105,6 +110,39 @@ underlying scheduling strategy.
 - **Unit tests.** Test suites should interact with the executor through the
   public contract (`flush`, optional `pendingTasks`) rather than mutating
   interpreter internals. This keeps cross-runtime behaviour aligned.
+
+## Scheduler tuning (`schedulerMaxSteps`)
+
+The cooperative TypeScript executor (and the Go serial executor that mimics it
+in parity tests) charges “time slices” as the interpreter evaluates loop bodies,
+pattern matches, and statement boundaries. Once the interpreter accrues
+`schedulerMaxSteps` slices it raises a `ProcYieldSignal`, unwinds, and reschedules
+the task so that other queued work can run. The default budget is **1024**
+steps per flush; this value balances throughput with fairness for the current
+fixture corpus.
+
+- **Configuring the budget.** `new InterpreterV10({ schedulerMaxSteps: N })`
+  overrides the default for TypeScript runs (CLI tools expose the same option
+  when they construct interpreters). Lower values make fairness fixtures
+  (e.g. `concurrency/fairness_proc_round_robin`) more sensitive by forcing the
+  cooperative executor to yield more often. Higher values are useful for
+  benchmark runs that would otherwise spend too much time snapshotting continuations.
+- **Go executors.** The production `GoroutineExecutor` ignores this budget
+  entirely—the host scheduler handles pre-emption. The deterministic
+  `SerialExecutor` uses the same cooperative contract when it replays fixtures,
+  so lowering `schedulerMaxSteps` in TS tests often surfaces bugs that the Go
+  parity suite would also catch.
+- **Symptoms & guidance.**
+  - If long-running Able code appears to “stick” under the cooperative executor,
+    lower the budget (e.g. 256) to confirm time slicing is still happening, then
+    inspect the new fairness fixtures for additional hints.
+  - If benchmarks regress because the interpreter spends too much time yielding,
+    raise the budget in controlled increments; once the fairness fixtures no
+    longer report progress (or `proc_yield_flush` hangs) the budget is too high.
+
+Keep the default at 1024 unless a workload justifies a different balance. Any
+changes that ship to other contributors should include updated fixture coverage
+or design notes so the cooperative and goroutine executors stay aligned.
 
 ## Follow-ups
 

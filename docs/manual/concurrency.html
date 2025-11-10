@@ -50,7 +50,9 @@ content = handle.value() else { |err|
           <code>Proc T</code> exposes <code>status()</code>,
           <code>value() -&gt; !T</code>, and <code>cancel()</code>. Inside async
           bodies, use <code>proc_yield()</code>, <code>proc_cancelled()</code>,
-          and <code>proc_flush(limit?)</code>.
+          <code>proc_flush(limit?)</code>, and the diagnostic helper
+          <code>proc_pending_tasks()</code> (reports the executor queue length
+          when available).
         </p>
         <h2>11.2 <code>spawn</code></h2>
         <pre><code class="language-able">future_total: Future i64 = spawn sum_big_array(data)

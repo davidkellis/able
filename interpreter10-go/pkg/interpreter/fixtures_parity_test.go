@@ -8,8 +8,9 @@ import (
 )
 
 var serialOnlyConcurrencyFixtures = map[string]struct{}{
-	"concurrency/proc_flush_fairness": {},
-	"concurrency/proc_yield_flush":    {},
+	"concurrency/proc_flush_fairness":       {},
+	"concurrency/proc_yield_flush":          {},
+	"concurrency/proc_executor_diagnostics": {},
 }
 
 func TestFixtureParityStringLiteral(t *testing.T) {

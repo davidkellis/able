@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 
 	goRuntime "runtime"
 
@@ -123,6 +124,22 @@ func (i *Interpreter) initConcurrencyBuiltins() {
 		},
 	}
 	i.global.Define("proc_flush", procFlush)
+
+	procPendingTasks := &runtime.NativeFunctionValue{
+		Name:  "proc_pending_tasks",
+		Arity: 0,
+		Impl: func(_ *runtime.NativeCallContext, _ []runtime.Value) (runtime.Value, error) {
+			pending := i.executor.PendingTasks()
+			if pending < 0 {
+				pending = 0
+			}
+			return runtime.IntegerValue{
+				Val:        big.NewInt(int64(pending)),
+				TypeSuffix: runtime.IntegerI32,
+			}, nil
+		},
+	}
+	i.global.Define("proc_pending_tasks", procPendingTasks)
 
 	i.concurrencyReady = true
 }
