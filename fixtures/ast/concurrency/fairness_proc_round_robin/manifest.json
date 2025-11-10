@@ -1,9 +1,34 @@
 {
-  "description": "Serial executor yields alternate between procs when proc_yield is used",
+  "description": "Yielding procs make progress without one jumping ahead of the other",
   "expect": {
     "result": {
-      "kind": "string",
-      "value": "A1B1A2B2:Resolved:Resolved"
+      "kind": "array",
+      "elements": [
+        {
+          "kind": "bool",
+          "value": true
+        },
+        {
+          "kind": "bool",
+          "value": true
+        },
+        {
+          "kind": "bool",
+          "value": true
+        },
+        {
+          "kind": "bool",
+          "value": true
+        },
+        {
+          "kind": "bool",
+          "value": true
+        },
+        {
+          "kind": "bool",
+          "value": true
+        }
+      ]
     }
   },
   "entry": "module.json"

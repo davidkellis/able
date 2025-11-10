@@ -194,7 +194,10 @@ const mutexConcurrencyFixtures: Fixture[] = [
             AST.identifier("__able_mutex_unlock"),
             [AST.identifier("mutex")],
           ),
-          AST.functionCall(AST.identifier("proc_flush"), []),
+          AST.functionCall(
+            AST.memberAccessExpression(AST.identifier("worker"), "value"),
+            [],
+          ),
           AST.assign(
             "status_final",
             AST.matchExpression(

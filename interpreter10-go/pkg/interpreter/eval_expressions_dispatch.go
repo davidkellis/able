@@ -261,6 +261,20 @@ func (i *Interpreter) evaluateOrElseExpression(expr *ast.OrElseExpression, env *
 		}
 		return nil, err
 	}
+	if errVal, ok := asErrorValue(val); ok {
+		handlerEnv := runtime.NewEnvironment(env)
+		if expr.ErrorBinding != nil {
+			handlerEnv.Define(expr.ErrorBinding.Name, errVal)
+		}
+		result, handlerErr := i.evaluateBlock(expr.Handler, handlerEnv)
+		if handlerErr != nil {
+			return nil, handlerErr
+		}
+		if result == nil {
+			return runtime.NilValue{}, nil
+		}
+		return result, nil
+	}
 	return val, nil
 }
 

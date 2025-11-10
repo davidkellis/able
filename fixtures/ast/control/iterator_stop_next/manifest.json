@@ -1,0 +1,21 @@
+{
+  "description": "gen.stop terminates iteration and memoizes IteratorEnd for subsequent next() calls",
+  "expect": {
+    "result": {
+      "kind": "array",
+      "elements": [
+        {
+          "kind": "i32",
+          "value": 1
+        },
+        {
+          "kind": "iterator_end"
+        },
+        {
+          "kind": "iterator_end"
+        }
+      ]
+    }
+  },
+  "entry": "module.json"
+}

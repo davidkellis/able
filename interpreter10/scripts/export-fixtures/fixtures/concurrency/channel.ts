@@ -653,29 +653,84 @@ const channelConcurrencyFixtures: Fixture[] = [
             AST.memberAccessExpression(AST.identifier("handle"), "cancel"),
             [],
           ),
-          AST.functionCall(AST.identifier("proc_flush"), []),
           AST.assign(
-            "status",
+            "value_result",
+            AST.functionCall(
+              AST.memberAccessExpression(AST.identifier("handle"), "value"),
+              [],
+            ),
+          ),
+          AST.assign(
+            "status_text",
             AST.functionCall(
               AST.memberAccessExpression(AST.identifier("handle"), "status"),
               [],
             ),
           ),
-          AST.matchExpression(
-            AST.identifier("status"),
-            [
-              AST.matchClause(
-                AST.structPattern([], false, "Cancelled"),
-                AST.stringLiteral("Cancelled"),
+          AST.assign(
+            "status_ok",
+            AST.binaryExpression(
+              "==",
+              AST.matchExpression(
+                AST.identifier("status_text"),
+                [
+                  AST.matchClause(
+                    AST.structPattern([], false, "Pending"),
+                    AST.stringLiteral("Pending"),
+                  ),
+                  AST.matchClause(
+                    AST.structPattern([], false, "Resolved"),
+                    AST.stringLiteral("Resolved"),
+                  ),
+                  AST.matchClause(
+                    AST.structPattern([], false, "Cancelled"),
+                    AST.stringLiteral("Cancelled"),
+                  ),
+                  AST.matchClause(
+                    AST.structPattern([], false, "Failed"),
+                    AST.stringLiteral("Failed"),
+                  ),
+                  AST.matchClause(AST.wildcardPattern(), AST.stringLiteral("Other")),
+                ],
               ),
-              AST.matchClause(AST.wildcardPattern(), AST.stringLiteral("Other")),
-            ],
+              AST.stringLiteral("Cancelled"),
+            ),
           ),
+          AST.assign(
+            "value_ok",
+            AST.matchExpression(
+              AST.identifier("value_result"),
+              [
+                AST.matchClause(
+                  AST.typedPattern(
+                    AST.identifier("err"),
+                    AST.simpleTypeExpression("Error"),
+                  ),
+                  AST.binaryExpression(
+                    "==",
+                    AST.functionCall(
+                      AST.memberAccessExpression(AST.identifier("err"), "message"),
+                      [],
+                    ),
+                    AST.stringLiteral("Proc cancelled"),
+                  ),
+                ),
+                AST.matchClause(AST.wildcardPattern(), AST.bool(false)),
+              ],
+            ),
+          ),
+          AST.arrayLiteral([AST.identifier("status_ok"), AST.identifier("value_ok")]),
         ]),
         manifest: {
           description: "Nil channel send blocks until the proc is cancelled",
           expect: {
-            result: { kind: "string", value: "Cancelled" },
+            result: {
+              kind: "array",
+              elements: [
+                { kind: "bool", value: true },
+                { kind: "bool", value: true },
+              ],
+            },
           },
         },
       },
@@ -699,29 +754,84 @@ const channelConcurrencyFixtures: Fixture[] = [
             AST.memberAccessExpression(AST.identifier("handle"), "cancel"),
             [],
           ),
-          AST.functionCall(AST.identifier("proc_flush"), []),
           AST.assign(
-            "status",
+            "value_result",
+            AST.functionCall(
+              AST.memberAccessExpression(AST.identifier("handle"), "value"),
+              [],
+            ),
+          ),
+          AST.assign(
+            "status_text",
             AST.functionCall(
               AST.memberAccessExpression(AST.identifier("handle"), "status"),
               [],
             ),
           ),
-          AST.matchExpression(
-            AST.identifier("status"),
-            [
-              AST.matchClause(
-                AST.structPattern([], false, "Cancelled"),
-                AST.stringLiteral("Cancelled"),
+          AST.assign(
+            "status_ok",
+            AST.binaryExpression(
+              "==",
+              AST.matchExpression(
+                AST.identifier("status_text"),
+                [
+                  AST.matchClause(
+                    AST.structPattern([], false, "Pending"),
+                    AST.stringLiteral("Pending"),
+                  ),
+                  AST.matchClause(
+                    AST.structPattern([], false, "Resolved"),
+                    AST.stringLiteral("Resolved"),
+                  ),
+                  AST.matchClause(
+                    AST.structPattern([], false, "Cancelled"),
+                    AST.stringLiteral("Cancelled"),
+                  ),
+                  AST.matchClause(
+                    AST.structPattern([], false, "Failed"),
+                    AST.stringLiteral("Failed"),
+                  ),
+                  AST.matchClause(AST.wildcardPattern(), AST.stringLiteral("Other")),
+                ],
               ),
-              AST.matchClause(AST.wildcardPattern(), AST.stringLiteral("Other")),
-            ],
+              AST.stringLiteral("Cancelled"),
+            ),
           ),
+          AST.assign(
+            "value_ok",
+            AST.matchExpression(
+              AST.identifier("value_result"),
+              [
+                AST.matchClause(
+                  AST.typedPattern(
+                    AST.identifier("err"),
+                    AST.simpleTypeExpression("Error"),
+                  ),
+                  AST.binaryExpression(
+                    "==",
+                    AST.functionCall(
+                      AST.memberAccessExpression(AST.identifier("err"), "message"),
+                      [],
+                    ),
+                    AST.stringLiteral("Proc cancelled"),
+                  ),
+                ),
+                AST.matchClause(AST.wildcardPattern(), AST.bool(false)),
+              ],
+            ),
+          ),
+          AST.arrayLiteral([AST.identifier("status_ok"), AST.identifier("value_ok")]),
         ]),
         manifest: {
           description: "Nil channel receive blocks until the proc is cancelled",
           expect: {
-            result: { kind: "string", value: "Cancelled" },
+            result: {
+              kind: "array",
+              elements: [
+                { kind: "bool", value: true },
+                { kind: "bool", value: true },
+              ],
+            },
           },
         },
       },

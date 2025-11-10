@@ -4,7 +4,7 @@
   "body": [
     {
       "type": "InterfaceDefinition",
-      "id": { "type": "Identifier", "name": "Display" },
+      "id": { "type": "Identifier", "name": "CustomDisplay" },
       "isPrivate": false,
       "signatures": [
         {

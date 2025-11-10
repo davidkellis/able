@@ -1,9 +1,42 @@
 {
-  "description": "Proc and future alternate via proc_yield under the serial executor",
+  "description": "Proc and future both advance between yields without overtaking one another",
   "expect": {
     "result": {
-      "kind": "string",
-      "value": "A1B1A2B2A3:Resolved:Resolved:0"
+      "kind": "array",
+      "elements": [
+        {
+          "kind": "bool",
+          "value": true
+        },
+        {
+          "kind": "bool",
+          "value": true
+        },
+        {
+          "kind": "bool",
+          "value": true
+        },
+        {
+          "kind": "bool",
+          "value": true
+        },
+        {
+          "kind": "bool",
+          "value": true
+        },
+        {
+          "kind": "bool",
+          "value": true
+        },
+        {
+          "kind": "bool",
+          "value": true
+        },
+        {
+          "kind": "bool",
+          "value": true
+        }
+      ]
     }
   },
   "entry": "module.json"

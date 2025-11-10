@@ -7,11 +7,59 @@
       "operator": ":=",
       "left": {
         "type": "Identifier",
-        "name": "trace"
+        "name": "inner_started"
       },
       "right": {
-        "type": "StringLiteral",
-        "value": ""
+        "type": "BooleanLiteral",
+        "value": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "inner_completed"
+      },
+      "right": {
+        "type": "BooleanLiteral",
+        "value": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "outer_started"
+      },
+      "right": {
+        "type": "BooleanLiteral",
+        "value": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "outer_completed"
+      },
+      "right": {
+        "type": "BooleanLiteral",
+        "value": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "inner_value_seen"
+      },
+      "right": {
+        "type": "BooleanLiteral",
+        "value": false
       }
     },
     {
@@ -31,19 +79,11 @@
               "operator": "=",
               "left": {
                 "type": "Identifier",
-                "name": "trace"
+                "name": "inner_started"
               },
               "right": {
-                "type": "BinaryExpression",
-                "operator": "+",
-                "left": {
-                  "type": "Identifier",
-                  "name": "trace"
-                },
-                "right": {
-                  "type": "StringLiteral",
-                  "value": "I"
-                }
+                "type": "BooleanLiteral",
+                "value": true
               }
             },
             {
@@ -51,19 +91,11 @@
               "operator": "=",
               "left": {
                 "type": "Identifier",
-                "name": "trace"
+                "name": "inner_completed"
               },
               "right": {
-                "type": "BinaryExpression",
-                "operator": "+",
-                "left": {
-                  "type": "Identifier",
-                  "name": "trace"
-                },
-                "right": {
-                  "type": "StringLiteral",
-                  "value": "J"
-                }
+                "type": "BooleanLiteral",
+                "value": true
               }
             },
             {
@@ -91,19 +123,11 @@
               "operator": "=",
               "left": {
                 "type": "Identifier",
-                "name": "trace"
+                "name": "outer_started"
               },
               "right": {
-                "type": "BinaryExpression",
-                "operator": "+",
-                "left": {
-                  "type": "Identifier",
-                  "name": "trace"
-                },
-                "right": {
-                  "type": "StringLiteral",
-                  "value": "O"
-                }
+                "type": "BooleanLiteral",
+                "value": true
               }
             },
             {
@@ -135,20 +159,31 @@
               "operator": "=",
               "left": {
                 "type": "Identifier",
-                "name": "trace"
+                "name": "inner_value_seen"
               },
               "right": {
-                "type": "StringInterpolation",
-                "parts": [
-                  {
-                    "type": "Identifier",
-                    "name": "trace"
-                  },
-                  {
-                    "type": "Identifier",
-                    "name": "result"
-                  }
-                ]
+                "type": "BinaryExpression",
+                "operator": "==",
+                "left": {
+                  "type": "Identifier",
+                  "name": "result"
+                },
+                "right": {
+                  "type": "StringLiteral",
+                  "value": "X"
+                }
+              }
+            },
+            {
+              "type": "AssignmentExpression",
+              "operator": "=",
+              "left": {
+                "type": "Identifier",
+                "name": "outer_completed"
+              },
+              "right": {
+                "type": "BooleanLiteral",
+                "value": true
               }
             },
             {
@@ -184,15 +219,39 @@
       }
     },
     {
-      "type": "StringInterpolation",
-      "parts": [
+      "type": "ArrayLiteral",
+      "elements": [
         {
           "type": "Identifier",
-          "name": "trace"
+          "name": "inner_started"
         },
         {
           "type": "Identifier",
-          "name": "final"
+          "name": "inner_completed"
+        },
+        {
+          "type": "Identifier",
+          "name": "outer_started"
+        },
+        {
+          "type": "Identifier",
+          "name": "inner_value_seen"
+        },
+        {
+          "type": "Identifier",
+          "name": "outer_completed"
+        },
+        {
+          "type": "BinaryExpression",
+          "operator": "==",
+          "left": {
+            "type": "Identifier",
+            "name": "final"
+          },
+          "right": {
+            "type": "StringLiteral",
+            "value": "done"
+          }
         }
       ]
     }

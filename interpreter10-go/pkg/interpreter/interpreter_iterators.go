@@ -31,6 +31,12 @@ type generatorInstance struct {
 	control runtime.Value
 }
 
+type generatorStopSignal struct{}
+
+func (generatorStopSignal) Error() string {
+	return "generator stopped"
+}
+
 func newGeneratorInstance(i *Interpreter, env *runtime.Environment, body []ast.Statement) *generatorInstance {
 	return &generatorInstance{
 		interpreter: i,
@@ -121,6 +127,11 @@ func (g *generatorInstance) run() {
 			g.err = sig
 			g.mu.Unlock()
 			g.results <- generatorResult{err: sig}
+		case generatorStopSignal:
+			g.mu.Lock()
+			g.done = true
+			g.mu.Unlock()
+			g.results <- generatorResult{done: true}
 		default:
 			g.mu.Lock()
 			g.err = err
@@ -221,10 +232,20 @@ func (g *generatorInstance) controllerValue() runtime.Value {
 		},
 	}
 
+	stopFn := runtime.NativeFunctionValue{
+		Name:  "__iterator_controller_stop",
+		Arity: 0,
+		Impl: func(_ *runtime.NativeCallContext, _ []runtime.Value) (runtime.Value, error) {
+			g.close()
+			return runtime.NilValue{}, generatorStopSignal{}
+		},
+	}
+
 	g.control = &runtime.StructInstanceValue{
 		Fields: map[string]runtime.Value{
 			"yield": yieldFn,
 			"close": closeFn,
+			"stop":  stopFn,
 		},
 	}
 	return g.control

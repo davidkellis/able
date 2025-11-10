@@ -65,7 +65,8 @@ export async function loadModuleFromPath(filePath: string): Promise<AST.Module> 
     try {
       const raw = JSON.parse(await fs.readFile(filePath, "utf8"));
       const module = hydrateNode(raw) as AST.Module;
-      annotateModuleOrigin(module, filePath);
+      const sibling = await findSourceSibling(filePath);
+      annotateModuleOrigin(module, sibling ?? filePath);
       return module;
     } catch (err: any) {
       if (err && err.code !== "ENOENT") {
@@ -94,6 +95,24 @@ export async function loadModuleFromPath(filePath: string): Promise<AST.Module> 
   }
   annotateModuleOrigin(module, filePath);
   return module;
+}
+
+async function findSourceSibling(jsonPath: string): Promise<string | null> {
+  const dir = path.dirname(jsonPath);
+  const base = path.basename(jsonPath, ".json");
+  const candidates = [path.join(dir, `${base}.able`)];
+  if (base === "module") {
+    candidates.push(path.join(dir, "source.able"));
+  }
+  for (const candidate of candidates) {
+    try {
+      await fs.access(candidate);
+      return candidate;
+    } catch {
+      // continue
+    }
+  }
+  return null;
 }
 
 export async function parseModuleFromSource(filePath: string): Promise<AST.Module | null> {

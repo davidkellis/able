@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { TypeChecker } from "../../src/typechecker";
 
-function buildDisplayInterface(): AST.InterfaceDefinition {
-  return AST.interfaceDefinition("Display", [
+function buildShowcaseInterface(): AST.InterfaceDefinition {
+  return AST.interfaceDefinition("Showcase", [
     AST.functionSignature(
       "show",
       [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
@@ -24,7 +24,7 @@ function buildFormatterMethodSet(): AST.MethodsDefinition {
     selfType,
     [describeMethod],
     [AST.genericParameter("T")],
-    [AST.whereClauseConstraint("T", [AST.interfaceConstraint(AST.simpleTypeExpression("Display"))])],
+    [AST.whereClauseConstraint("T", [AST.interfaceConstraint(AST.simpleTypeExpression("Showcase"))])],
   );
 }
 
@@ -53,7 +53,7 @@ describe("typechecker method-set obligations", () => {
     const wrapperValue = buildWrapperLiteral("i32", AST.integerLiteral(1));
     const call = AST.functionCall(AST.memberAccessExpression(wrapperValue, AST.identifier("describe")), []);
     const module = AST.module([
-      buildDisplayInterface(),
+      buildShowcaseInterface(),
       buildWrapperStruct(),
       buildFormatterMethodSet(),
       call as unknown as AST.Statement,
@@ -62,7 +62,7 @@ describe("typechecker method-set obligations", () => {
     const result = checker.checkModule(module);
     const messages = result.diagnostics.map((diag) => diag.message);
     expect(messages).toContainEqual(expect.stringMatching(/constraint on T/));
-    expect(messages).toContainEqual(expect.stringMatching(/does not implement Display/));
+    expect(messages).toContainEqual(expect.stringMatching(/does not implement Showcase/));
   });
 
   test("accepts satisfied method-set constraint", () => {
@@ -76,7 +76,7 @@ describe("typechecker method-set obligations", () => {
       "named",
     );
     const displayImpl = AST.implementationDefinition(
-      AST.identifier("Display"),
+      AST.identifier("Showcase"),
       AST.simpleTypeExpression("Point"),
       [
         AST.functionDefinition(
@@ -100,7 +100,7 @@ describe("typechecker method-set obligations", () => {
     );
     const call = AST.functionCall(AST.memberAccessExpression(wrapperValue, AST.identifier("describe")), []);
     const module = AST.module([
-      buildDisplayInterface(),
+      buildShowcaseInterface(),
       pointStruct,
       displayImpl,
       buildWrapperStruct(),
@@ -134,12 +134,12 @@ describe("typechecker method-set obligations", () => {
       [],
       [
         AST.whereClauseConstraint("Self", [
-          AST.interfaceConstraint(AST.simpleTypeExpression("Display")),
+          AST.interfaceConstraint(AST.simpleTypeExpression("Showcase")),
         ]),
       ],
     );
     const module = AST.module([
-      buildDisplayInterface(),
+      buildShowcaseInterface(),
       AST.structDefinition(
         "Wrapper",
         [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "value")],
@@ -164,7 +164,7 @@ describe("typechecker method-set obligations", () => {
     const result = checker.checkModule(module);
     const messages = result.diagnostics.map((diag) => diag.message);
     expect(messages).toContainEqual(expect.stringMatching(/constraint on Self/));
-    expect(messages).toContainEqual(expect.stringMatching(/Wrapper does not implement Display/));
+    expect(messages).toContainEqual(expect.stringMatching(/Wrapper does not implement Showcase/));
   });
 
   test("methods allow implicit self parameter annotations", () => {

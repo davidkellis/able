@@ -209,7 +209,7 @@ export function parseFunctionParameterTypes(
   while (current) {
     if (current.type === "parenthesized_type") {
       if (current.namedChildCount === 0) {
-        return [null, false];
+        return [[], true];
       }
       const params: TypeExpression[] = [];
       for (let i = 0; i < current.namedChildCount; i++) {

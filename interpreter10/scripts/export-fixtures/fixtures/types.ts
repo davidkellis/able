@@ -166,103 +166,47 @@ const typesFixtures: Fixture[] = [
     },
 
   {
-      name: "types/generic_where_constraint",
-      module: AST.module([
-        AST.interfaceDefinition(
-          "Display",
-          [
-            AST.functionSignature(
-              "to_string",
-              [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
-              AST.simpleTypeExpression("string"),
-            ),
-          ],
-        ),
-        AST.interfaceDefinition(
-          "Clone",
-          [
-            AST.functionSignature(
-              "clone",
-              [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
-              AST.simpleTypeExpression("Self"),
-            ),
-          ],
-        ),
-        AST.implementationDefinition(
-          "Display",
+    name: "types/generic_where_constraint",
+    module: AST.module([
+      AST.fn(
+        "choose_first",
+        [
+          AST.param("first", AST.simpleTypeExpression("T")),
+          AST.param("second", AST.simpleTypeExpression("U")),
+        ],
+        [AST.identifier("first")],
+        AST.simpleTypeExpression("T"),
+        [
+          AST.genericParameter("T"),
+          AST.genericParameter("U"),
+        ],
+        [
+          AST.whereClauseConstraint("T", [
+            AST.interfaceConstraint(AST.simpleTypeExpression("Display")),
+            AST.interfaceConstraint(AST.simpleTypeExpression("Clone")),
+          ]),
+          AST.whereClauseConstraint("U", [
+            AST.interfaceConstraint(AST.simpleTypeExpression("Display")),
+          ]),
+        ],
+      ),
+      AST.callT(
+        "choose_first",
+        [
           AST.simpleTypeExpression("string"),
-          [
-            AST.fn(
-              "to_string",
-              [AST.param("self", AST.simpleTypeExpression("string"))],
-              [AST.identifier("self")],
-              AST.simpleTypeExpression("string"),
-            ),
-          ],
-        ),
-        AST.implementationDefinition(
-          "Clone",
-          AST.simpleTypeExpression("string"),
-          [
-            AST.fn(
-              "clone",
-              [AST.param("self", AST.simpleTypeExpression("string"))],
-              [AST.identifier("self")],
-              AST.simpleTypeExpression("string"),
-            ),
-          ],
-        ),
-        AST.implementationDefinition(
-          "Display",
           AST.simpleTypeExpression("i32"),
-          [
-            AST.fn(
-              "to_string",
-              [AST.param("self", AST.simpleTypeExpression("i32"))],
-              [AST.stringLiteral("i32")],
-              AST.simpleTypeExpression("string"),
-            ),
-          ],
-        ),
-        AST.fn(
-          "choose_first",
-          [
-            AST.param("first", AST.simpleTypeExpression("T")),
-            AST.param("second", AST.simpleTypeExpression("U")),
-          ],
-          [AST.identifier("first")],
-          AST.simpleTypeExpression("T"),
-          [
-            AST.genericParameter("T"),
-            AST.genericParameter("U"),
-          ],
-          [
-            AST.whereClauseConstraint("T", [
-              AST.interfaceConstraint(AST.simpleTypeExpression("Display")),
-              AST.interfaceConstraint(AST.simpleTypeExpression("Clone")),
-            ]),
-            AST.whereClauseConstraint("U", [
-              AST.interfaceConstraint(AST.simpleTypeExpression("Display")),
-            ]),
-          ],
-        ),
-        AST.callT(
-          "choose_first",
-          [
-            AST.simpleTypeExpression("string"),
-            AST.simpleTypeExpression("i32"),
-          ],
-          AST.stringLiteral("winner"),
-          AST.integerLiteral(1),
-        ),
-      ]),
-      manifest: {
-        description: "Function where clause constrains generic parameters",
-        expect: {
-          result: { kind: "string", value: "winner" },
-        },
+        ],
+        AST.stringLiteral("winner"),
+        AST.integerLiteral(1),
+      ),
+    ]),
+    manifest: {
+      description: "Function where clause constrains generic parameters",
+      expect: {
+        result: { kind: "string", value: "winner" },
       },
     },
+  },
 ];
 
 export default typesFixtures;

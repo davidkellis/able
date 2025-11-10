@@ -171,6 +171,38 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 			c.infer.set(expr, fnType)
 			return diags, fnType
 		}
+	case IteratorType:
+		if positionalAccess {
+			diags = append(diags, Diagnostic{
+				Message: "typechecker: positional member access not supported on iterators",
+				Node:    expr,
+			})
+			break
+		}
+		switch memberName {
+		case "next":
+			elem := ty.Element
+			if elem == nil {
+				elem = UnknownType{}
+			}
+			result := UnionLiteralType{
+				Members: []Type{
+					elem,
+					StructType{StructName: "IteratorEnd"},
+				},
+			}
+			c.infer.set(expr, result)
+			return diags, result
+		case "close":
+			result := PrimitiveType{Kind: PrimitiveNil}
+			c.infer.set(expr, result)
+			return diags, result
+		default:
+			diags = append(diags, Diagnostic{
+				Message: fmt.Sprintf("typechecker: iterator has no member '%s'", memberName),
+				Node:    expr,
+			})
+		}
 	case ProcType:
 		if positionalAccess {
 			diags = append(diags, Diagnostic{

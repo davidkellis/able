@@ -2,8 +2,33 @@
   "description": "Nested proc value() calls resolve without deadlock under the serial executor",
   "expect": {
     "result": {
-      "kind": "string",
-      "value": "OIJXdone"
+      "kind": "array",
+      "elements": [
+        {
+          "kind": "bool",
+          "value": true
+        },
+        {
+          "kind": "bool",
+          "value": true
+        },
+        {
+          "kind": "bool",
+          "value": true
+        },
+        {
+          "kind": "bool",
+          "value": true
+        },
+        {
+          "kind": "bool",
+          "value": true
+        },
+        {
+          "kind": "bool",
+          "value": true
+        }
+      ]
     }
   },
   "entry": "module.json"

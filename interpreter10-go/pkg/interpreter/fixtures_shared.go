@@ -73,7 +73,15 @@ func LoadFixtureModule(path string) (*ast.Module, string, error) {
 		}
 		return mod, path, nil
 	}
+
 	if strings.HasSuffix(path, ".json") {
+		if mod, err := parseModuleJSON(path); err == nil {
+			if sibling := sourceSibling(path); sibling != "" {
+				return mod, sibling, nil
+			}
+			return mod, path, nil
+		}
+
 		dir := filepath.Dir(path)
 		base := strings.TrimSuffix(filepath.Base(path), ".json")
 		candidates := []string{filepath.Join(dir, base+".able")}
@@ -88,6 +96,7 @@ func LoadFixtureModule(path string) (*ast.Module, string, error) {
 			}
 		}
 	}
+
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, "", err
@@ -105,4 +114,39 @@ func LoadFixtureModule(path string) (*ast.Module, string, error) {
 		return nil, "", fs.ErrInvalid
 	}
 	return mod, path, nil
+}
+
+func parseModuleJSON(path string) (*ast.Module, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var raw map[string]any
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return nil, err
+	}
+	node, err := decodeNode(raw)
+	if err != nil {
+		return nil, err
+	}
+	mod, ok := node.(*ast.Module)
+	if !ok {
+		return nil, fs.ErrInvalid
+	}
+	return mod, nil
+}
+
+func sourceSibling(jsonPath string) string {
+	dir := filepath.Dir(jsonPath)
+	base := strings.TrimSuffix(filepath.Base(jsonPath), ".json")
+	candidates := []string{filepath.Join(dir, base+".able")}
+	if base == "module" {
+		candidates = append(candidates, filepath.Join(dir, "source.able"))
+	}
+	for _, candidate := range candidates {
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+	}
+	return ""
 }

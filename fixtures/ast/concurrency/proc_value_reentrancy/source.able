@@ -1,14 +1,19 @@
-trace := ""
+inner_started := false
+inner_completed := false
+outer_started := false
+outer_completed := false
+inner_value_seen := false
 inner := proc {
-  trace = trace + "I"
-  trace = trace + "J"
+  inner_started = true
+  inner_completed = true
   "X"
 }
 outer := proc {
-  trace = trace + "O"
+  outer_started = true
   result := inner.value()
-  trace = `${trace}${result}`
+  inner_value_seen = result == "X"
+  outer_completed = true
   "done"
 }
 final := outer.value()
-`${trace}${final}`
+[inner_started, inner_completed, outer_started, inner_value_seen, outer_completed, final == "done"]

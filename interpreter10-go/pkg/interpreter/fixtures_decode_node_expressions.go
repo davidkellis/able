@@ -137,8 +137,13 @@ func decodeExpressionNodes(node map[string]any, typ string) (ast.Node, bool, err
 		if !ok {
 			return nil, true, fmt.Errorf("invalid range end %T", endNode)
 		}
-		exclusive, _ := node["exclusive"].(bool)
-		return ast.NewRangeExpression(startExpr, endExpr, exclusive), true, nil
+		inclusive, hasInclusive := node["inclusive"].(bool)
+		if !hasInclusive {
+			if exclusive, ok := node["exclusive"].(bool); ok {
+				inclusive = !exclusive
+			}
+		}
+		return ast.NewRangeExpression(startExpr, endExpr, inclusive), true, nil
 	case "MatchExpression":
 		scrutineeNodeVal, ok := node["scrutinee"]
 		if !ok || scrutineeNodeVal == nil {
@@ -346,6 +351,9 @@ func decodeExpressionNodes(node map[string]any, typ string) (ast.Node, bool, err
 		return ast.NewIfExpression(ifCondition, ifBody, orClauses), true, nil
 	case "LambdaExpression":
 		paramsVal, _ := node["parameters"].([]any)
+		if len(paramsVal) == 0 {
+			paramsVal, _ = node["params"].([]any)
+		}
 		params := make([]*ast.FunctionParameter, 0, len(paramsVal))
 		for _, raw := range paramsVal {
 			paramNode, ok := raw.(map[string]any)
@@ -441,8 +449,20 @@ func decodeExpressionNodes(node map[string]any, typ string) (ast.Node, bool, err
 		}
 		return ast.NewMemberAccessExpression(object, memberExpr), true, nil
 	case "ImplicitMemberExpression":
-		name, _ := node["name"].(string)
-		return ast.NewImplicitMemberExpression(ast.NewIdentifier(name)), true, nil
+		if name, ok := node["name"].(string); ok && name != "" {
+			return ast.NewImplicitMemberExpression(ast.NewIdentifier(name)), true, nil
+		}
+		if memberRaw, ok := node["member"].(map[string]any); ok {
+			decoded, err := decodeNode(memberRaw)
+			if err != nil {
+				return nil, true, err
+			}
+			if ident, ok := decoded.(*ast.Identifier); ok {
+				return ast.NewImplicitMemberExpression(ident), true, nil
+			}
+			return nil, true, fmt.Errorf("invalid implicit member %T", decoded)
+		}
+		return ast.NewImplicitMemberExpression(ast.NewIdentifier("")), true, nil
 	case "IndexExpression":
 		objectNode, err := decodeNode(node["object"].(map[string]any))
 		if err != nil {

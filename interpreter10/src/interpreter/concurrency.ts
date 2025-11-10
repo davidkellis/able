@@ -415,8 +415,14 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
     if (!future.runner) {
       future.runner = () => this.runFuture(future);
     }
+    let futureContext = future.continuation as ProcContinuationContext | undefined;
+    if (!futureContext) {
+      futureContext = new ProcContinuationContext();
+      (future as any).continuation = futureContext;
+    }
     this.resetTimeSlice();
     future.isEvaluating = true;
+    this.pushProcContext(futureContext);
     this.asyncContextStack.push({ kind: "future", handle: future });
     try {
       const value = this.evaluate(future.expression, future.env);
@@ -426,6 +432,11 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
       future.failureInfo = undefined;
     } catch (e) {
       if (e instanceof ProcYieldSignal) {
+        const manualYield = this.manualYieldRequested;
+        this.manualYieldRequested = false;
+        if (manualYield) {
+          futureContext.reset();
+        }
         if (future.runner) {
           this.scheduleAsync(future.runner);
         }
@@ -444,8 +455,12 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
       }
     } finally {
       this.asyncContextStack.pop();
+      this.popProcContext(futureContext);
       future.isEvaluating = false;
+      this.manualYieldRequested = false;
       if (future.state !== "pending") {
+        futureContext.reset();
+        delete (future as any).continuation;
         future.runner = null;
       } else if (!future.runner) {
         future.runner = () => this.runFuture(future);

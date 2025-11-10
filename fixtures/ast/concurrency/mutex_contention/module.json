@@ -282,8 +282,15 @@
     {
       "type": "FunctionCall",
       "callee": {
-        "type": "Identifier",
-        "name": "proc_flush"
+        "type": "MemberAccessExpression",
+        "object": {
+          "type": "Identifier",
+          "name": "worker"
+        },
+        "member": {
+          "type": "Identifier",
+          "name": "value"
+        }
       },
       "arguments": [],
       "isTrailingLambda": false

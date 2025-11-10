@@ -450,9 +450,10 @@ const procConcurrencyFixtures: Fixture[] = [
   {
         name: "concurrency/fairness_proc_round_robin",
         module: AST.module([
-          AST.assign("trace", AST.stringLiteral("")),
           AST.assign("stage_a", AST.integerLiteral(0)),
           AST.assign("stage_b", AST.integerLiteral(0)),
+          AST.assign("worker_second_safe", AST.bool(false)),
+          AST.assign("other_second_safe", AST.bool(false)),
           AST.assign(
             "worker",
             AST.procExpression(
@@ -464,15 +465,6 @@ const procConcurrencyFixtures: Fixture[] = [
                     AST.integerLiteral(0),
                   ),
                   AST.blockExpression([
-                    AST.assignmentExpression(
-                      "=",
-                      AST.identifier("trace"),
-                      AST.binaryExpression(
-                        "+",
-                        AST.identifier("trace"),
-                        AST.stringLiteral("A1"),
-                      ),
-                    ),
                     AST.assignmentExpression(
                       "=",
                       AST.identifier("stage_a"),
@@ -491,11 +483,11 @@ const procConcurrencyFixtures: Fixture[] = [
                   AST.blockExpression([
                     AST.assignmentExpression(
                       "=",
-                      AST.identifier("trace"),
+                      AST.identifier("worker_second_safe"),
                       AST.binaryExpression(
-                        "+",
-                        AST.identifier("trace"),
-                        AST.stringLiteral("A2"),
+                        ">=",
+                        AST.identifier("stage_b"),
+                        AST.integerLiteral(1),
                       ),
                     ),
                     AST.assignmentExpression(
@@ -523,15 +515,6 @@ const procConcurrencyFixtures: Fixture[] = [
                   AST.blockExpression([
                     AST.assignmentExpression(
                       "=",
-                      AST.identifier("trace"),
-                      AST.binaryExpression(
-                        "+",
-                        AST.identifier("trace"),
-                        AST.stringLiteral("B1"),
-                      ),
-                    ),
-                    AST.assignmentExpression(
-                      "=",
                       AST.identifier("stage_b"),
                       AST.integerLiteral(1),
                     ),
@@ -548,11 +531,11 @@ const procConcurrencyFixtures: Fixture[] = [
                   AST.blockExpression([
                     AST.assignmentExpression(
                       "=",
-                      AST.identifier("trace"),
+                      AST.identifier("other_second_safe"),
                       AST.binaryExpression(
-                        "+",
-                        AST.identifier("trace"),
-                        AST.stringLiteral("B2"),
+                        ">=",
+                        AST.identifier("stage_a"),
+                        AST.integerLiteral(1),
                       ),
                     ),
                     AST.assignmentExpression(
@@ -624,18 +607,45 @@ const procConcurrencyFixtures: Fixture[] = [
               ],
             ),
           ),
-          AST.stringInterpolation([
-            AST.identifier("trace"),
-            AST.stringLiteral(":"),
-            AST.identifier("status_worker"),
-            AST.stringLiteral(":"),
-            AST.identifier("status_other"),
+          AST.arrayLiteral([
+            AST.binaryExpression(
+              "==",
+              AST.identifier("stage_a"),
+              AST.integerLiteral(2),
+            ),
+            AST.binaryExpression(
+              "==",
+              AST.identifier("stage_b"),
+              AST.integerLiteral(2),
+            ),
+            AST.identifier("worker_second_safe"),
+            AST.identifier("other_second_safe"),
+            AST.binaryExpression(
+              "==",
+              AST.identifier("status_worker"),
+              AST.stringLiteral("Resolved"),
+            ),
+            AST.binaryExpression(
+              "==",
+              AST.identifier("status_other"),
+              AST.stringLiteral("Resolved"),
+            ),
           ]),
         ]),
         manifest: {
-          description: "Serial executor yields alternate between procs when proc_yield is used",
+          description: "Yielding procs make progress without one jumping ahead of the other",
           expect: {
-            result: { kind: "string", value: "A1B1A2B2:Resolved:Resolved" },
+            result: {
+              kind: "array",
+              elements: [
+                { kind: "bool", value: true },
+                { kind: "bool", value: true },
+                { kind: "bool", value: true },
+                { kind: "bool", value: true },
+                { kind: "bool", value: true },
+                { kind: "bool", value: true },
+              ],
+            },
           },
         },
       },
@@ -643,9 +653,11 @@ const procConcurrencyFixtures: Fixture[] = [
   {
         name: "concurrency/fairness_proc_future",
         module: AST.module([
-          AST.assign("trace", AST.stringLiteral("")),
           AST.assign("stage_proc", AST.integerLiteral(0)),
           AST.assign("stage_future", AST.integerLiteral(0)),
+          AST.assign("worker_stage2_safe", AST.bool(false)),
+          AST.assign("worker_stage3_safe", AST.bool(false)),
+          AST.assign("future_stage2_safe", AST.bool(false)),
           AST.assign(
             "worker",
             AST.procExpression(
@@ -657,15 +669,6 @@ const procConcurrencyFixtures: Fixture[] = [
                     AST.integerLiteral(0),
                   ),
                   AST.blockExpression([
-                    AST.assignmentExpression(
-                      "=",
-                      AST.identifier("trace"),
-                      AST.binaryExpression(
-                        "+",
-                        AST.identifier("trace"),
-                        AST.stringLiteral("A1"),
-                      ),
-                    ),
                     AST.assignmentExpression(
                       "=",
                       AST.identifier("stage_proc"),
@@ -684,11 +687,11 @@ const procConcurrencyFixtures: Fixture[] = [
                   AST.blockExpression([
                     AST.assignmentExpression(
                       "=",
-                      AST.identifier("trace"),
+                      AST.identifier("worker_stage2_safe"),
                       AST.binaryExpression(
-                        "+",
-                        AST.identifier("trace"),
-                        AST.stringLiteral("A2"),
+                        ">=",
+                        AST.identifier("stage_future"),
+                        AST.integerLiteral(1),
                       ),
                     ),
                     AST.assignmentExpression(
@@ -709,11 +712,11 @@ const procConcurrencyFixtures: Fixture[] = [
                   AST.blockExpression([
                     AST.assignmentExpression(
                       "=",
-                      AST.identifier("trace"),
+                      AST.identifier("worker_stage3_safe"),
                       AST.binaryExpression(
-                        "+",
-                        AST.identifier("trace"),
-                        AST.stringLiteral("A3"),
+                        ">=",
+                        AST.identifier("stage_future"),
+                        AST.integerLiteral(2),
                       ),
                     ),
                     AST.assignmentExpression(
@@ -741,15 +744,6 @@ const procConcurrencyFixtures: Fixture[] = [
                   AST.blockExpression([
                     AST.assignmentExpression(
                       "=",
-                      AST.identifier("trace"),
-                      AST.binaryExpression(
-                        "+",
-                        AST.identifier("trace"),
-                        AST.stringLiteral("B1"),
-                      ),
-                    ),
-                    AST.assignmentExpression(
-                      "=",
                       AST.identifier("stage_future"),
                       AST.integerLiteral(1),
                     ),
@@ -761,19 +755,19 @@ const procConcurrencyFixtures: Fixture[] = [
                       AST.blockExpression([
                         AST.assignmentExpression(
                           "=",
-                          AST.identifier("trace"),
+                          AST.identifier("future_stage2_safe"),
                           AST.binaryExpression(
-                            "+",
-                            AST.identifier("trace"),
-                            AST.stringLiteral("B2"),
+                            ">=",
+                            AST.identifier("stage_proc"),
+                            AST.integerLiteral(2),
                           ),
                         ),
+                        AST.integerLiteral(0),
                         AST.assignmentExpression(
                           "=",
                           AST.identifier("stage_future"),
                           AST.integerLiteral(2),
                         ),
-                        AST.integerLiteral(0),
                       ]),
                       AST.binaryExpression(
                         "==",
@@ -851,20 +845,53 @@ const procConcurrencyFixtures: Fixture[] = [
               [],
             ),
           ),
-          AST.stringInterpolation([
-            AST.identifier("trace"),
-            AST.stringLiteral(":"),
-            AST.identifier("worker_status"),
-            AST.stringLiteral(":"),
-            AST.identifier("future_status"),
-            AST.stringLiteral(":"),
-            AST.identifier("future_result"),
+          AST.arrayLiteral([
+            AST.binaryExpression(
+              "==",
+              AST.identifier("stage_proc"),
+              AST.integerLiteral(3),
+            ),
+            AST.binaryExpression(
+              "==",
+              AST.identifier("stage_future"),
+              AST.integerLiteral(2),
+            ),
+            AST.identifier("worker_stage2_safe"),
+            AST.identifier("future_stage2_safe"),
+            AST.identifier("worker_stage3_safe"),
+            AST.binaryExpression(
+              "==",
+              AST.identifier("worker_status"),
+              AST.stringLiteral("Resolved"),
+            ),
+            AST.binaryExpression(
+              "==",
+              AST.identifier("future_status"),
+              AST.stringLiteral("Resolved"),
+            ),
+            AST.binaryExpression(
+              "==",
+              AST.identifier("future_result"),
+              AST.integerLiteral(0),
+            ),
           ]),
         ]),
         manifest: {
-          description: "Proc and future alternate via proc_yield under the serial executor",
+          description: "Proc and future both advance between yields without overtaking one another",
           expect: {
-            result: { kind: "string", value: "A1B1A2B2A3:Resolved:Resolved:0" },
+            result: {
+              kind: "array",
+              elements: [
+                { kind: "bool", value: true },
+                { kind: "bool", value: true },
+                { kind: "bool", value: true },
+                { kind: "bool", value: true },
+                { kind: "bool", value: true },
+                { kind: "bool", value: true },
+                { kind: "bool", value: true },
+                { kind: "bool", value: true },
+              ],
+            },
         },
       },
     },
@@ -948,6 +975,291 @@ const procConcurrencyFixtures: Fixture[] = [
         description: "Proc handle errors expose ProcError causes to handlers",
         expect: {
           result: { kind: "string", value: "Proc failed: boom|has-cause" },
+        },
+      },
+    },
+
+  {
+      name: "concurrency/proc_time_slicing",
+      module: AST.module([
+        AST.assign("iterations", AST.integerLiteral(4096)),
+        AST.assign("counter", AST.integerLiteral(0)),
+        AST.functionDefinition(
+          "status_name",
+          [AST.functionParameter("status")],
+          AST.blockExpression([
+            AST.matchExpression(
+              AST.identifier("status"),
+              [
+                AST.matchClause(
+                  AST.structPattern([], false, "Pending"),
+                  AST.stringLiteral("Pending"),
+                ),
+                AST.matchClause(
+                  AST.structPattern([], false, "Resolved"),
+                  AST.stringLiteral("Resolved"),
+                ),
+                AST.matchClause(
+                  AST.structPattern([], false, "Cancelled"),
+                  AST.stringLiteral("Cancelled"),
+                ),
+                AST.matchClause(
+                  AST.structPattern([], false, "Failed"),
+                  AST.stringLiteral("Failed"),
+                ),
+              ],
+            ),
+          ]),
+          AST.simpleTypeExpression("string"),
+        ),
+        AST.assign(
+          "handle",
+          AST.procExpression(
+            AST.blockExpression([
+              AST.assignmentExpression(":=", AST.identifier("i"), AST.integerLiteral(0)),
+              AST.whileLoop(
+                AST.binaryExpression("<", AST.identifier("i"), AST.identifier("iterations")),
+                AST.blockExpression([
+                  AST.assignmentExpression("=", AST.identifier("counter"), AST.identifier("i")),
+                  AST.assignmentExpression(
+                    "=",
+                    AST.identifier("i"),
+                    AST.binaryExpression("+", AST.identifier("i"), AST.integerLiteral(1)),
+                  ),
+                ]),
+              ),
+              AST.integerLiteral(123),
+            ]),
+          ),
+        ),
+        AST.assign(
+          "first_status",
+          AST.functionCall(
+            AST.identifier("status_name"),
+            [
+              AST.functionCall(
+                AST.memberAccessExpression(AST.identifier("handle"), "status"),
+                [],
+              ),
+            ],
+          ),
+        ),
+        AST.assign(
+          "pending_observed",
+          AST.binaryExpression("==", AST.identifier("first_status"), AST.stringLiteral("Pending")),
+        ),
+        AST.assign("flushes", AST.integerLiteral(0)),
+        AST.assign("current_status", AST.identifier("first_status")),
+        AST.whileLoop(
+          AST.binaryExpression(
+            "&&",
+            AST.binaryExpression("==", AST.identifier("current_status"), AST.stringLiteral("Pending")),
+            AST.binaryExpression("<", AST.identifier("flushes"), AST.integerLiteral(12)),
+          ),
+          AST.blockExpression([
+            AST.functionCall(AST.identifier("proc_flush"), []),
+            AST.assignmentExpression("+=", AST.identifier("flushes"), AST.integerLiteral(1)),
+            AST.assignmentExpression(
+              "=",
+              AST.identifier("current_status"),
+              AST.functionCall(
+                AST.identifier("status_name"),
+                [
+                  AST.functionCall(
+                    AST.memberAccessExpression(AST.identifier("handle"), "status"),
+                    [],
+                  ),
+                ],
+              ),
+            ),
+            AST.assignmentExpression(
+              "=",
+              AST.identifier("pending_observed"),
+              AST.binaryExpression(
+                "||",
+                AST.identifier("pending_observed"),
+                AST.binaryExpression("==", AST.identifier("current_status"), AST.stringLiteral("Pending")),
+              ),
+            ),
+          ]),
+        ),
+        AST.assign("final_status", AST.identifier("current_status")),
+        AST.assign(
+          "value_result",
+          AST.functionCall(
+            AST.memberAccessExpression(AST.identifier("handle"), "value"),
+            [],
+          ),
+        ),
+        AST.arrayLiteral([
+          AST.binaryExpression(
+            "==",
+            AST.identifier("counter"),
+            AST.binaryExpression("-", AST.identifier("iterations"), AST.integerLiteral(1)),
+          ),
+          AST.binaryExpression("==", AST.identifier("final_status"), AST.stringLiteral("Resolved")),
+          AST.binaryExpression("==", AST.identifier("value_result"), AST.integerLiteral(123)),
+          AST.binaryExpression(
+            "==",
+            AST.identifier("pending_observed"),
+            AST.binaryExpression(">", AST.identifier("flushes"), AST.integerLiteral(0)),
+          ),
+        ]),
+      ]),
+      manifest: {
+        description: "Long-running proc without explicit yields still resolves via automatic time slicing",
+        expect: {
+          result: {
+            kind: "array",
+            elements: [
+              { kind: "bool", value: true },
+              { kind: "bool", value: true },
+              { kind: "bool", value: true },
+              { kind: "bool", value: true },
+            ],
+          },
+        },
+      },
+    },
+  {
+      name: "concurrency/future_time_slicing",
+      module: AST.module([
+        AST.assign("iterations", AST.integerLiteral(4096)),
+        AST.assign("counter", AST.integerLiteral(0)),
+        AST.functionDefinition(
+          "status_name",
+          [AST.functionParameter("status")],
+          AST.blockExpression([
+            AST.matchExpression(
+              AST.identifier("status"),
+              [
+                AST.matchClause(
+                  AST.structPattern([], false, "Pending"),
+                  AST.stringLiteral("Pending"),
+                ),
+                AST.matchClause(
+                  AST.structPattern([], false, "Resolved"),
+                  AST.stringLiteral("Resolved"),
+                ),
+                AST.matchClause(
+                  AST.structPattern([], false, "Cancelled"),
+                  AST.stringLiteral("Cancelled"),
+                ),
+                AST.matchClause(
+                  AST.structPattern([], false, "Failed"),
+                  AST.stringLiteral("Failed"),
+                ),
+              ],
+            ),
+          ]),
+          AST.simpleTypeExpression("string"),
+        ),
+        AST.assign(
+          "future",
+          AST.spawnExpression(
+            AST.blockExpression([
+              AST.assignmentExpression(":=", AST.identifier("i"), AST.integerLiteral(0)),
+              AST.whileLoop(
+                AST.binaryExpression("<", AST.identifier("i"), AST.identifier("iterations")),
+                AST.blockExpression([
+                  AST.assignmentExpression("=", AST.identifier("counter"), AST.identifier("i")),
+                  AST.assignmentExpression(
+                    "=",
+                    AST.identifier("i"),
+                    AST.binaryExpression("+", AST.identifier("i"), AST.integerLiteral(1)),
+                  ),
+                ]),
+              ),
+              AST.integerLiteral(123),
+            ]),
+          ),
+        ),
+        AST.assign(
+          "first_status",
+          AST.functionCall(
+            AST.identifier("status_name"),
+            [
+              AST.functionCall(
+                AST.memberAccessExpression(AST.identifier("future"), "status"),
+                [],
+              ),
+            ],
+          ),
+        ),
+        AST.assign(
+          "pending_observed",
+          AST.binaryExpression("==", AST.identifier("first_status"), AST.stringLiteral("Pending")),
+        ),
+        AST.assign("flushes", AST.integerLiteral(0)),
+        AST.assign("current_status", AST.identifier("first_status")),
+        AST.whileLoop(
+          AST.binaryExpression(
+            "&&",
+            AST.binaryExpression("==", AST.identifier("current_status"), AST.stringLiteral("Pending")),
+            AST.binaryExpression("<", AST.identifier("flushes"), AST.integerLiteral(12)),
+          ),
+          AST.blockExpression([
+            AST.functionCall(AST.identifier("proc_flush"), []),
+            AST.assignmentExpression("+=", AST.identifier("flushes"), AST.integerLiteral(1)),
+            AST.assignmentExpression(
+              "=",
+              AST.identifier("current_status"),
+              AST.functionCall(
+                AST.identifier("status_name"),
+                [
+                  AST.functionCall(
+                    AST.memberAccessExpression(AST.identifier("future"), "status"),
+                    [],
+                  ),
+                ],
+              ),
+            ),
+            AST.assignmentExpression(
+              "=",
+              AST.identifier("pending_observed"),
+              AST.binaryExpression(
+                "||",
+                AST.identifier("pending_observed"),
+                AST.binaryExpression("==", AST.identifier("current_status"), AST.stringLiteral("Pending")),
+              ),
+            ),
+          ]),
+        ),
+        AST.assign("final_status", AST.identifier("current_status")),
+        AST.assign(
+          "value_result",
+          AST.functionCall(
+            AST.memberAccessExpression(AST.identifier("future"), "value"),
+            [],
+          ),
+        ),
+        AST.arrayLiteral([
+          AST.binaryExpression(
+            "==",
+            AST.identifier("counter"),
+            AST.binaryExpression("-", AST.identifier("iterations"), AST.integerLiteral(1)),
+          ),
+          AST.binaryExpression("==", AST.identifier("final_status"), AST.stringLiteral("Resolved")),
+          AST.binaryExpression("==", AST.identifier("value_result"), AST.integerLiteral(123)),
+          AST.binaryExpression(
+            "==",
+            AST.identifier("pending_observed"),
+            AST.binaryExpression(">", AST.identifier("flushes"), AST.integerLiteral(0)),
+          ),
+        ]),
+      ]),
+      manifest: {
+        description: "Long-running future without explicit yields still resolves via automatic time slicing",
+        expect: {
+          result: {
+            kind: "array",
+            elements: [
+              { kind: "bool", value: true },
+              { kind: "bool", value: true },
+              { kind: "bool", value: true },
+              { kind: "bool", value: true },
+            ],
+          },
         },
       },
     },

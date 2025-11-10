@@ -1,0 +1,26 @@
+{
+  "description": "For loop inside iterator literal resumes correctly when driving next() manually",
+  "expect": {
+    "result": {
+      "kind": "array",
+      "elements": [
+        {
+          "kind": "i32",
+          "value": 1
+        },
+        {
+          "kind": "i32",
+          "value": 2
+        },
+        {
+          "kind": "i32",
+          "value": 3
+        },
+        {
+          "kind": "iterator_end"
+        }
+      ]
+    }
+  },
+  "entry": "module.json"
+}

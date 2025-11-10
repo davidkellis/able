@@ -12,6 +12,7 @@
   "concurrency/fairness_proc_future": [],
   "concurrency/fairness_proc_round_robin": [],
   "concurrency/future_memoization": [],
+  "concurrency/future_time_slicing": [],
   "concurrency/mutex_contention": [],
   "concurrency/mutex_locking": [],
   "concurrency/proc_cancel_value": [],
@@ -20,14 +21,18 @@
   "concurrency/proc_value_cancel_memoization": [],
   "concurrency/proc_value_memoization": [],
   "concurrency/proc_yield_flush": [],
+  "concurrency/proc_time_slicing": [],
   "control/for_continue": [],
   "control/for_range_break": [],
   "control/for_sum": [],
   "control/if_else_branch": [],
   "control/if_or_else": [],
   "control/if_stdout": [],
+  "control/iterator_for_body_next": [],
   "control/iterator_for_loop": [],
   "control/iterator_if_match": [],
+  "control/iterator_lazy_next": [],
+  "control/iterator_stop_next": [],
   "control/iterator_while_loop": [],
   "control/range_inclusive": [],
   "control/while_sum": [],
@@ -47,7 +52,7 @@
     "typechecker: fixtures/ast/errors/logic_operand_type/source.able:1:11 typechecker: '&&' left operand must be bool (got string)"
   ],
   "errors/method_set_where_constraint": [
-    "typechecker: fixtures/ast/errors/method_set_where_constraint/source.able:16:9 typechecker: methods for Wrapper::describe constraint on Self is not satisfied: Wrapper does not implement Display: methods for Wrapper: method 'show' not provided"
+    "typechecker: fixtures/ast/errors/method_set_where_constraint/source.able:16:9 typechecker: methods for Wrapper::describe constraint on Self is not satisfied: Wrapper does not implement CustomDisplay: methods for Wrapper: method 'show' not provided"
   ],
   "errors/or_else_handler": [],
   "errors/raise_manifest": [],
@@ -91,7 +96,7 @@
   "imports/dynimport_selector_alias": [],
   "imports/dynimport_wildcard": [],
   "imports/static_alias_private_error": [
-    "typechecker: fixtures/ast/imports/static_alias_private_error/source.able:3:3 typechecker: package 'util_static' has no symbol 'hidden'"
+    "typechecker: fixtures/ast/imports/static_alias_private_error/source.able:3:1 typechecker: package 'util_static' has no symbol 'hidden'"
   ],
   "imports/static_alias_public": [],
   "imports/static_reexport": [],
@@ -114,13 +119,16 @@
   "pipes/member_topic": [],
   "pipes/topic_placeholder": [],
   "privacy/private_static_method": [],
+  "stdlib/channel_iterator": [],
   "stdlib/channel_mutex_helpers": [],
+  "stdlib/range_iterator": [],
   "strings/interpolation_basic": [],
   "strings/interpolation_struct_to_string": [],
   "structs/functional_update": [],
   "structs/named_literal": [],
   "structs/positional_literal": [],
   "types/function_type_expression": [],
+  "types/generic_where_constraint": [],
   "types/generic_type_expression": [],
   "types/nullable_type_expression": [],
   "types/result_type_expression": [],

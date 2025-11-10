@@ -313,7 +313,7 @@ module.exports = grammar({
 
     struct_tuple: $ => seq(
       "{",
-      commaSep($.type_expression),
+      commaSep1($.type_expression),
       optional(","),
       "}",
     ),
@@ -499,13 +499,13 @@ module.exports = grammar({
     ),
 
     rescue_expression: $ => seq(
-      choice($.handling_expression, $.assignment_expression),
+      $.assignment_expression,
       "rescue",
       field("rescue", $.rescue_block),
     ),
 
     handling_expression: $ => prec.left(seq(
-      $.assignment_expression,
+      choice($.rescue_postfix_expression, $.assignment_expression),
       repeat1($.else_clause),
     )),
 
@@ -731,6 +731,21 @@ module.exports = grammar({
       ),
     ),
 
+    rescue_postfix_expression: $ => prec.left(
+      PREC.call,
+      seq(
+        $.rescue_expression,
+        repeat(choice(
+          $.type_arguments,
+          $.call_suffix,
+          $.index_suffix,
+          $.propagate_suffix,
+          $.member_access,
+        )),
+        optional($.lambda_expression),
+      ),
+    ),
+
     call_target: $ => prec.left(
       PREC.call,
       seq(
@@ -809,7 +824,7 @@ module.exports = grammar({
         optional(field("parameters", $.lambda_parameter_list)),
         optional(seq("->", field("return_type", $.type_expression))),
         "=>",
-        field("body", $.expression),
+        field("body", choice($.block, $.expression)),
         "}",
       ),
     ),
