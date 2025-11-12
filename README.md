@@ -51,3 +51,15 @@ See `docs/parity-reporting.md` for details on directing the parity JSON report i
 
 ## Questions?
 Start with `AGENTS.md`, then dive into `interpreter10/README.md` and `spec/full_spec_v10.md`. If something is unclear, capture an issue or design note so future contributors have answers.
+
+## Notes
+
+Standard onboarding prompt:
+```
+Read AGENTS, PLAN, and the v10 spec, and then start on the higest priority PLAN work. proceed with next steps. we need to correct any bugs if bugs or broken tests are outstanding. we want to work toward completing the items in the PLAN file. Please mark off and remove completed items from the PLAN file once they are complete. remember to keep files under one thousand lines and to refactor them if they are going to exceed one thousand lines. I have given you permissions to run tests.
+```
+
+Standard next steps prompt:
+```
+Proceed with next steps as suggested; don't talk about doing it - do it. we need to correct any bugs if bugs or broken tests are outstanding.  we want to work toward completing the items in the PLAN file. Please mark off and remove completed items from the PLAN file once they are complete. remember to keep files under one thousand lines and to refactor them if they are going to exceed one thousand lines. tests should run quickly; no test should take more than one minute to complete.
+```
