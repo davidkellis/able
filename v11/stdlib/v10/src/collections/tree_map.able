@@ -1,0 +1,289 @@
+package collections
+
+import able.collections.array.{Array}
+import able.collections.enumerable.{Enumerable}
+import able.core.interfaces.{Ord, Clone}
+
+struct TreeNode K V {
+  key: K,
+  value: V,
+  left: ?TreeNode K V,
+  right: ?TreeNode K V,
+  height: i32
+}
+
+struct TreeMap K V where K: Ord K + Clone, V: Clone {
+  root: ?TreeNode K V,
+  size: i32
+}
+
+struct TreeMapIterator K V where K: Ord K + Clone, V: Clone {
+  stack: Array (TreeNode K V)
+}
+
+fn node_height<K, V>(node: ?TreeNode K V) -> i32 {
+  match node {
+    case nil => 0,
+    case n: TreeNode K V => n.height
+  }
+}
+
+fn update_height<K, V>(mut node: TreeNode K V) -> TreeNode K V {
+  left_h := node_height(node.left)
+  right_h := node_height(node.right)
+  node.height = (if left_h > right_h { left_h } else { right_h }) + 1
+  node
+}
+
+fn rotate_left<K, V>(mut node: TreeNode K V) -> TreeNode K V where K: Ord K + Clone, V: Clone {
+  match node.right {
+    case nil => node,
+    case mut pivot: TreeNode K V => {
+      node.right = pivot.left
+      pivot.left = node
+      node = update_height(node)
+      pivot = update_height(pivot)
+      pivot
+    }
+  }
+}
+
+fn rotate_right<K, V>(mut node: TreeNode K V) -> TreeNode K V where K: Ord K + Clone, V: Clone {
+  match node.left {
+    case nil => node,
+    case mut pivot: TreeNode K V => {
+      node.left = pivot.right
+      pivot.right = node
+      node = update_height(node)
+      pivot = update_height(pivot)
+      pivot
+    }
+  }
+}
+
+fn balance_factor<K, V>(node: TreeNode K V) -> i32 {
+  node_height(node.left) - node_height(node.right)
+}
+
+fn balance<K, V>(mut node: TreeNode K V) -> TreeNode K V where K: Ord K + Clone, V: Clone {
+  node = update_height(node)
+  factor := balance_factor(node)
+  if factor > 1 {
+    match node.left {
+      case nil => {},
+      case mut left_node: TreeNode K V => {
+        if node_height(left_node.left) < node_height(left_node.right) {
+          left_node = rotate_left(left_node)
+          node.left = left_node
+        }
+      }
+    }
+    rotate_right(node)
+  } else if factor < -1 {
+    match node.right {
+      case nil => {},
+      case mut right_node: TreeNode K V => {
+        if node_height(right_node.right) < node_height(right_node.left) {
+          right_node = rotate_right(right_node)
+          node.right = right_node
+        }
+      }
+    }
+    rotate_left(node)
+  } else {
+    node
+  }
+}
+
+struct InsertResult K V {
+  node: TreeNode K V,
+  added: bool
+}
+
+fn insert_node<K, V>(node: ?TreeNode K V, key: K, value: V) -> InsertResult K V where K: Ord K + Clone, V: Clone {
+  match node {
+    case nil => {
+      InsertResult {
+        node: TreeNode { key: key, value: value, left: nil, right: nil, height: 1 },
+        added: true
+      }
+    },
+    case mut current: TreeNode K V => {
+      cmp := key.cmp(current.key)
+      if cmp == Equal {
+        current.value = value
+        InsertResult { node: current, added: false }
+      } else if cmp == Less {
+        res := insert_node(current.left, key, value)
+        current.left = res.node
+        InsertResult { node: balance(current), added: res.added }
+      } else {
+        res := insert_node(current.right, key, value)
+        current.right = res.node
+        InsertResult { node: balance(current), added: res.added }
+      }
+    }
+  }
+}
+
+struct RemoveResult K V {
+  node: ?TreeNode K V,
+  removed: bool
+}
+
+fn find_min<K, V>(mut node: TreeNode K V) -> TreeNode K V {
+  loop {
+    match node.left {
+      case nil => break,
+      case next: TreeNode K V => node = next
+    }
+  }
+  node
+}
+
+fn remove_min<K, V>(mut node: TreeNode K V) -> TreeNode K V where K: Ord K + Clone, V: Clone {
+  match node.left {
+    case nil => node.right match { case nil => nil, case right_node: TreeNode K V => right_node },
+    case mut left_node: TreeNode K V => {
+      node.left = remove_min(left_node)
+      balance(node)
+    }
+  }
+}
+
+fn remove_node<K, V>(node: ?TreeNode K V, key: K) -> RemoveResult K V where K: Ord K + Clone, V: Clone {
+  match node {
+    case nil => RemoveResult { node: nil, removed: false },
+    case mut current: TreeNode K V => {
+      cmp := key.cmp(current.key)
+      if cmp == Less {
+        res := remove_node(current.left, key)
+        current.left = res.node
+        RemoveResult { node: if res.removed { balance(current) } else { current }, removed: res.removed }
+      } else if cmp == Greater {
+        res := remove_node(current.right, key)
+        current.right = res.node
+        RemoveResult { node: if res.removed { balance(current) } else { current }, removed: res.removed }
+      } else {
+        match (current.left, current.right) {
+          (nil, nil) => RemoveResult { node: nil, removed: true },
+          (nil, r: TreeNode K V) => RemoveResult { node: r, removed: true },
+          (l: TreeNode K V, nil) => RemoveResult { node: l, removed: true },
+          (l: TreeNode K V, r: TreeNode K V) => {
+            successor := find_min(r)
+            current.key = successor.key
+            current.value = successor.value
+            res := remove_node(current.right, successor.key)
+            current.right = res.node
+            RemoveResult { node: balance(current), removed: true }
+          }
+        }
+      }
+    }
+  }
+}
+
+methods TreeMap K V where K: Ord K + Clone, V: Clone {
+  fn new() -> TreeMap K V {
+    TreeMap { root: nil, size: 0 }
+  }
+
+  fn len(self: Self) -> i32 { self.size }
+
+  fn is_empty(self: Self) -> bool { self.size == 0 }
+
+  fn get(self: Self, key: K) -> ?V {
+    current := self.root
+    loop {
+      match current {
+        case nil => return nil,
+        case node: TreeNode K V => {
+          cmp := key.cmp(node.key)
+          if cmp == Equal { return node.value }
+          current = if cmp == Less { node.left } else { node.right }
+        }
+      }
+    }
+  }
+
+  fn contains(self: Self, key: K) -> bool { self.get(key) != nil }
+
+  fn set(mut self: Self, key: K, value: V) -> void {
+    res := insert_node(self.root, key, value)
+    self.root = res.node
+    if res.added { self.size = self.size + 1 }
+  }
+
+  fn remove(mut self: Self, key: K) -> bool {
+    res := remove_node(self.root, key)
+    self.root = res.node
+    if res.removed {
+      self.size = self.size - 1
+      true
+    } else {
+      false
+    }
+  }
+
+  fn first(self: Self) -> ?(K, V) {
+    current := self.root
+    match current {
+      case nil => nil,
+      case mut node: TreeNode K V => {
+        loop {
+          match node.left {
+            case nil => return (node.key, node.value),
+            case left: TreeNode K V => node = left
+          }
+        }
+        nil
+      }
+    }
+  }
+
+  fn last(self: Self) -> ?(K, V) {
+    current := self.root
+    match current {
+      case nil => nil,
+      case mut node: TreeNode K V => {
+        loop {
+          match node.right {
+            case nil => return (node.key, node.value),
+            case right: TreeNode K V => node = right
+          }
+        }
+        nil
+      }
+    }
+  }
+
+  fn each(self: Self, visit: (K, V) -> void) -> void {
+    stack: Array (TreeNode K V) := Array.new()
+    current := self.root
+    loop {
+      match current {
+        case node: TreeNode K V => {
+          stack.push(node)
+          current = node.left
+        },
+        case nil => {
+          if stack.len() == 0 { break }
+          node := stack.pop()!
+          visit((node.key, node.value))
+          current = node.right
+        }
+      }
+    }
+  }
+
+  fn clear(mut self: Self) -> void {
+    self.root = nil
+    self.size = 0
+  }
+}
+
+impl Enumerable (K, V) for TreeMap K V where K: Ord K + Clone, V: Clone {
+  fn each(self: Self, visit: (K, V) -> void) -> void {
+    self.each(visit)
+  }
+}

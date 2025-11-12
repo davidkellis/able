@@ -1,0 +1,23 @@
+{
+  "description": "Generator-based IntRange iterator produces inclusive/exclusive and descending sequences lazily",
+  "expect": {
+    "result": {
+      "kind": "array",
+      "elements": [
+        {
+          "kind": "i32",
+          "value": 6
+        },
+        {
+          "kind": "i32",
+          "value": 0
+        },
+        {
+          "kind": "i32",
+          "value": 6
+        }
+      ]
+    }
+  },
+  "entry": "module.json"
+}

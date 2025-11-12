@@ -1,0 +1,74 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "RescueExpression",
+      "monitoredExpression": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "RaiseStatement",
+            "expression": {
+              "type": "StringLiteral",
+              "value": "boom"
+            }
+          }
+        ]
+      },
+      "clauses": [
+        {
+          "type": "MatchClause",
+          "pattern": {
+            "type": "LiteralPattern",
+            "literal": {
+              "type": "StringLiteral",
+              "value": "ignore"
+            }
+          },
+          "body": {
+            "type": "StringLiteral",
+            "value": "ignored"
+          }
+        },
+        {
+          "type": "MatchClause",
+          "pattern": {
+            "type": "Identifier",
+            "name": "msg"
+          },
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "IfExpression",
+                "ifCondition": {
+                  "type": "BinaryExpression",
+                  "operator": "==",
+                  "left": {
+                    "type": "Identifier",
+                    "name": "msg"
+                  },
+                  "right": {
+                    "type": "StringLiteral",
+                    "value": "boom"
+                  }
+                },
+                "ifBody": {
+                  "type": "BlockExpression",
+                  "body": [
+                    {
+                      "type": "StringLiteral",
+                      "value": "handled"
+                    }
+                  ]
+                },
+                "orClauses": []
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

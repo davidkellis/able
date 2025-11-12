@@ -1,0 +1,43 @@
+package able;
+
+import able.{IteratorEnd}; ## Import the end-of-iteration marker
+
+## Iteration Interfaces
+## Fundamental for 'for' loops and consuming sequences.
+
+## Iterator
+## Represents a stateful iterator producing values of type T.
+## SelfType represents the concrete iterator type holding the state.
+interface Iterator T for SelfType {
+  ## Retrieves the next element. Returns T or IteratorEnd.
+  ## Typically mutates the iterator's internal state.
+  fn next(self: Self) -> T | IteratorEnd;
+}
+
+## Iterable
+## Implemented by types that can produce an iterator over elements of type T.
+## SelfType represents the collection type (e.g., Array T, Range).
+interface Iterable T for SelfType {
+  ## Creates and returns a new iterator positioned at the start.
+  ## (Iterator T) represents an existential type implementing Iterator T.
+  fn iterator(self: Self) -> (Iterator T);
+}
+
+
+## Indexing Interfaces
+## For accessing elements by index (e.g., Array[index]).
+
+## Index
+## Defines read access via `[]`.
+## Idx is the type of the index (e.g., i32).
+## Output is the type of the element returned.
+interface Index Idx for T {
+  fn index(self: Self, index: Idx) -> Output;
+}
+
+## IndexMut
+## Defines write access via `[] =`. Requires Index.
+## Requires mutable self for the setting operation.
+interface IndexMut Idx Output=T for T = Index Idx Output {
+  fn index_set(mut self: Self, index: Idx, value: Output) -> void;
+}

@@ -1,0 +1,10 @@
+{
+  "description": "Inclusive range includes upper bound during iteration",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": 15
+    }
+  },
+  "entry": "module.json"
+}

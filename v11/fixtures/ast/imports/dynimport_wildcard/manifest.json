@@ -1,0 +1,13 @@
+{
+  "description": "Dyn import wildcard exposes public symbols",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": 11
+    }
+  },
+  "entry": "module.json",
+  "setup": [
+    "package.json"
+  ]
+}

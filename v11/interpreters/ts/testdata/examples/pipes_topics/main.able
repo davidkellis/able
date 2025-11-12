@@ -1,0 +1,37 @@
+package parity.examples.pipes
+
+struct Box {
+  value: i32
+}
+
+methods Box {
+  fn #double() -> i32 {
+    #value * 2
+  }
+}
+
+fn add(x: i32, y: i32) -> i32 {
+  x + y
+}
+
+fn double(x: i32) -> i32 {
+  x * 2
+}
+
+value := 5
+topicStep := (value |> (% + 3))
+placeholderStep := (value |> add(@, 4))
+lambdaStep := (add(@, 1))(value)
+methodStep := (Box { value: value } |> %.double())
+chain := (value
+  |> (% + 1)
+  |> add(@, 2)
+  |> double(%))
+
+fn main() {
+  print(`topic ${topicStep}`)
+  print(`placeholder ${placeholderStep}`)
+  print(`lambda ${lambdaStep}`)
+  print(`method ${methodStep}`)
+  print(`chain ${chain}`)
+}

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Able v10 Manual — Tooling &amp; Next Steps</title>
+    <link rel="stylesheet" href="manual.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <nav class="sidebar">
+        <span class="brand">Able v10 Manual</span>
+        <ul>
+          <li><a href="index.html">Getting Started</a></li>
+          <li><a href="variables.html">Variables</a></li>
+          <li><a href="control-flow.html">Control Flow</a></li>
+          <li><a href="functions.html">Functions</a></li>
+          <li><a href="types.html">Types</a></li>
+          <li><a href="methods.html">Methods</a></li>
+          <li><a href="constructors.html">Constructors & Updates</a></li>
+          <li><a href="pattern-matching.html">Pattern Matching &amp; Unions</a></li>
+          <li><a href="modules.html">Modules</a></li>
+          <li><a href="error-handling.html">Error Handling</a></li>
+          <li><a href="concurrency.html">Concurrency</a></li>
+          <li><a href="tooling.html" class="active">Tooling &amp; Next Steps</a></li>
+        </ul>
+      </nav>
+      <main class="content">
+        <h1>12. Tooling &amp; Next Steps</h1>
+        <ul>
+          <li><strong>Spec-first:</strong> match <code>spec/full_spec_v10.md</code>; update it when behaviour changes. Track open items in <code>spec/todo.md</code>.</li>
+          <li><strong>Shared fixtures:</strong> edit Able sources, export via <code>bun run scripts/export-fixtures.ts</code>, then run both interpreters (<code>bun run scripts/run-fixtures.ts</code>, <code>go test ./pkg/interpreter</code>).</li>
+          <li><strong>Design alignment:</strong> capture decisions in <code>design/</code> and keep <code>PLAN.md</code> / <code>interpreter10/PLAN.md</code> current.</li>
+          <li><strong>Testing:</strong> <code>./run_all_tests.sh</code> orchestrates TypeScript tests, fixture runs, and Go parity checks; use <code>--typecheck-fixtures=strict</code> before landing runtime changes.</li>
+          <li><strong>Further reading:</strong> explore <code>examples/*.able</code>, interpreter tests (<code>interpreter10/test/</code>), and concurrency notes in <code>design/</code>.</li>
+        </ul>
+        <p>
+          Able emphasises clarity, expressive types, and cross-runtime parity. When
+          semantics are unclear, exercise fixtures in both interpreters, compare
+          against the Go implementation, and document findings for the next
+          contributor.
+        </p>
+        <footer class="manual-footer">
+          Able v10 manual · Tooling &amp; Next Steps
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>

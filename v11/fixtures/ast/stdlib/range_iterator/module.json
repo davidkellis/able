@@ -1,0 +1,1167 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "StructDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "IntRange"
+      },
+      "fields": [
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "start"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        },
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "end"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        },
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "inclusive"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "bool"
+            }
+          }
+        }
+      ],
+      "kind": "named"
+    },
+    {
+      "type": "MethodsDefinition",
+      "targetType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "IntRange"
+        }
+      },
+      "definitions": [
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "iterator"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              }
+            }
+          ],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "AssignmentExpression",
+                "operator": ":=",
+                "left": {
+                  "type": "Identifier",
+                  "name": "current"
+                },
+                "right": {
+                  "type": "MemberAccessExpression",
+                  "object": {
+                    "type": "Identifier",
+                    "name": "self"
+                  },
+                  "member": {
+                    "type": "Identifier",
+                    "name": "start"
+                  }
+                }
+              },
+              {
+                "type": "ReturnStatement",
+                "argument": {
+                  "type": "IteratorLiteral",
+                  "body": [
+                    {
+                      "type": "IfExpression",
+                      "ifCondition": {
+                        "type": "BinaryExpression",
+                        "operator": ">=",
+                        "left": {
+                          "type": "MemberAccessExpression",
+                          "object": {
+                            "type": "Identifier",
+                            "name": "self"
+                          },
+                          "member": {
+                            "type": "Identifier",
+                            "name": "end"
+                          }
+                        },
+                        "right": {
+                          "type": "MemberAccessExpression",
+                          "object": {
+                            "type": "Identifier",
+                            "name": "self"
+                          },
+                          "member": {
+                            "type": "Identifier",
+                            "name": "start"
+                          }
+                        }
+                      },
+                      "ifBody": {
+                        "type": "BlockExpression",
+                        "body": [
+                          {
+                            "type": "IfExpression",
+                            "ifCondition": {
+                              "type": "MemberAccessExpression",
+                              "object": {
+                                "type": "Identifier",
+                                "name": "self"
+                              },
+                              "member": {
+                                "type": "Identifier",
+                                "name": "inclusive"
+                              }
+                            },
+                            "ifBody": {
+                              "type": "BlockExpression",
+                              "body": [
+                                {
+                                  "type": "WhileLoop",
+                                  "condition": {
+                                    "type": "BinaryExpression",
+                                    "operator": "<=",
+                                    "left": {
+                                      "type": "Identifier",
+                                      "name": "current"
+                                    },
+                                    "right": {
+                                      "type": "MemberAccessExpression",
+                                      "object": {
+                                        "type": "Identifier",
+                                        "name": "self"
+                                      },
+                                      "member": {
+                                        "type": "Identifier",
+                                        "name": "end"
+                                      }
+                                    }
+                                  },
+                                  "body": {
+                                    "type": "BlockExpression",
+                                    "body": [
+                                      {
+                                        "type": "FunctionCall",
+                                        "callee": {
+                                          "type": "MemberAccessExpression",
+                                          "object": {
+                                            "type": "Identifier",
+                                            "name": "gen"
+                                          },
+                                          "member": {
+                                            "type": "Identifier",
+                                            "name": "yield"
+                                          }
+                                        },
+                                        "arguments": [
+                                          {
+                                            "type": "Identifier",
+                                            "name": "current"
+                                          }
+                                        ],
+                                        "isTrailingLambda": false
+                                      },
+                                      {
+                                        "type": "AssignmentExpression",
+                                        "operator": "+=",
+                                        "left": {
+                                          "type": "Identifier",
+                                          "name": "current"
+                                        },
+                                        "right": {
+                                          "type": "IntegerLiteral",
+                                          "value": 1
+                                        }
+                                      }
+                                    ]
+                                  }
+                                }
+                              ]
+                            },
+                            "orClauses": [
+                              {
+                                "type": "OrClause",
+                                "body": {
+                                  "type": "BlockExpression",
+                                  "body": [
+                                    {
+                                      "type": "WhileLoop",
+                                      "condition": {
+                                        "type": "BinaryExpression",
+                                        "operator": "<",
+                                        "left": {
+                                          "type": "Identifier",
+                                          "name": "current"
+                                        },
+                                        "right": {
+                                          "type": "MemberAccessExpression",
+                                          "object": {
+                                            "type": "Identifier",
+                                            "name": "self"
+                                          },
+                                          "member": {
+                                            "type": "Identifier",
+                                            "name": "end"
+                                          }
+                                        }
+                                      },
+                                      "body": {
+                                        "type": "BlockExpression",
+                                        "body": [
+                                          {
+                                            "type": "FunctionCall",
+                                            "callee": {
+                                              "type": "MemberAccessExpression",
+                                              "object": {
+                                                "type": "Identifier",
+                                                "name": "gen"
+                                              },
+                                              "member": {
+                                                "type": "Identifier",
+                                                "name": "yield"
+                                              }
+                                            },
+                                            "arguments": [
+                                              {
+                                                "type": "Identifier",
+                                                "name": "current"
+                                              }
+                                            ],
+                                            "isTrailingLambda": false
+                                          },
+                                          {
+                                            "type": "AssignmentExpression",
+                                            "operator": "+=",
+                                            "left": {
+                                              "type": "Identifier",
+                                              "name": "current"
+                                            },
+                                            "right": {
+                                              "type": "IntegerLiteral",
+                                              "value": 1
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      "orClauses": [
+                        {
+                          "type": "OrClause",
+                          "body": {
+                            "type": "BlockExpression",
+                            "body": [
+                              {
+                                "type": "IfExpression",
+                                "ifCondition": {
+                                  "type": "MemberAccessExpression",
+                                  "object": {
+                                    "type": "Identifier",
+                                    "name": "self"
+                                  },
+                                  "member": {
+                                    "type": "Identifier",
+                                    "name": "inclusive"
+                                  }
+                                },
+                                "ifBody": {
+                                  "type": "BlockExpression",
+                                  "body": [
+                                    {
+                                      "type": "WhileLoop",
+                                      "condition": {
+                                        "type": "BinaryExpression",
+                                        "operator": ">=",
+                                        "left": {
+                                          "type": "Identifier",
+                                          "name": "current"
+                                        },
+                                        "right": {
+                                          "type": "MemberAccessExpression",
+                                          "object": {
+                                            "type": "Identifier",
+                                            "name": "self"
+                                          },
+                                          "member": {
+                                            "type": "Identifier",
+                                            "name": "end"
+                                          }
+                                        }
+                                      },
+                                      "body": {
+                                        "type": "BlockExpression",
+                                        "body": [
+                                          {
+                                            "type": "FunctionCall",
+                                            "callee": {
+                                              "type": "MemberAccessExpression",
+                                              "object": {
+                                                "type": "Identifier",
+                                                "name": "gen"
+                                              },
+                                              "member": {
+                                                "type": "Identifier",
+                                                "name": "yield"
+                                              }
+                                            },
+                                            "arguments": [
+                                              {
+                                                "type": "Identifier",
+                                                "name": "current"
+                                              }
+                                            ],
+                                            "isTrailingLambda": false
+                                          },
+                                          {
+                                            "type": "AssignmentExpression",
+                                            "operator": "-=",
+                                            "left": {
+                                              "type": "Identifier",
+                                              "name": "current"
+                                            },
+                                            "right": {
+                                              "type": "IntegerLiteral",
+                                              "value": 1
+                                            }
+                                          }
+                                        ]
+                                      }
+                                    }
+                                  ]
+                                },
+                                "orClauses": [
+                                  {
+                                    "type": "OrClause",
+                                    "body": {
+                                      "type": "BlockExpression",
+                                      "body": [
+                                        {
+                                          "type": "WhileLoop",
+                                          "condition": {
+                                            "type": "BinaryExpression",
+                                            "operator": ">",
+                                            "left": {
+                                              "type": "Identifier",
+                                              "name": "current"
+                                            },
+                                            "right": {
+                                              "type": "MemberAccessExpression",
+                                              "object": {
+                                                "type": "Identifier",
+                                                "name": "self"
+                                              },
+                                              "member": {
+                                                "type": "Identifier",
+                                                "name": "end"
+                                              }
+                                            }
+                                          },
+                                          "body": {
+                                            "type": "BlockExpression",
+                                            "body": [
+                                              {
+                                                "type": "FunctionCall",
+                                                "callee": {
+                                                  "type": "MemberAccessExpression",
+                                                  "object": {
+                                                    "type": "Identifier",
+                                                    "name": "gen"
+                                                  },
+                                                  "member": {
+                                                    "type": "Identifier",
+                                                    "name": "yield"
+                                                  }
+                                                },
+                                                "arguments": [
+                                                  {
+                                                    "type": "Identifier",
+                                                    "name": "current"
+                                                  }
+                                                ],
+                                                "isTrailingLambda": false
+                                              },
+                                              {
+                                                "type": "AssignmentExpression",
+                                                "operator": "-=",
+                                                "left": {
+                                                  "type": "Identifier",
+                                                  "name": "current"
+                                                },
+                                                "right": {
+                                                  "type": "IntegerLiteral",
+                                                  "value": 1
+                                                }
+                                              }
+                                            ]
+                                          }
+                                        }
+                                      ]
+                                    }
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "elementType": {
+                    "type": "SimpleTypeExpression",
+                    "name": {
+                      "type": "Identifier",
+                      "name": "i32"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "isMethodShorthand": false,
+          "isPrivate": false
+        }
+      ]
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "forward"
+      },
+      "right": {
+        "type": "StructLiteral",
+        "structType": {
+          "type": "Identifier",
+          "name": "IntRange"
+        },
+        "fields": [
+          {
+            "type": "StructFieldInitializer",
+            "name": {
+              "type": "Identifier",
+              "name": "start"
+            },
+            "value": {
+              "type": "IntegerLiteral",
+              "value": 1
+            },
+            "isShorthand": false
+          },
+          {
+            "type": "StructFieldInitializer",
+            "name": {
+              "type": "Identifier",
+              "name": "end"
+            },
+            "value": {
+              "type": "IntegerLiteral",
+              "value": 3
+            },
+            "isShorthand": false
+          },
+          {
+            "type": "StructFieldInitializer",
+            "name": {
+              "type": "Identifier",
+              "name": "inclusive"
+            },
+            "value": {
+              "type": "BooleanLiteral",
+              "value": true
+            },
+            "isShorthand": false
+          }
+        ],
+        "isPositional": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "forward_iter"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "forward"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "iterator"
+          }
+        },
+        "arguments": [],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "forward_sum"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 0
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "forward_value"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "forward_iter"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "next"
+          }
+        },
+        "arguments": [],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "WhileLoop",
+      "condition": {
+        "type": "BooleanLiteral",
+        "value": true
+      },
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "MatchExpression",
+            "subject": {
+              "type": "Identifier",
+              "name": "forward_value"
+            },
+            "clauses": [
+              {
+                "type": "MatchClause",
+                "pattern": {
+                  "type": "StructPattern",
+                  "structType": {
+                    "type": "Identifier",
+                    "name": "IteratorEnd"
+                  },
+                  "fields": [],
+                  "isPositional": false
+                },
+                "body": {
+                  "type": "BlockExpression",
+                  "body": [
+                    {
+                      "type": "BreakStatement"
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "MatchClause",
+                "pattern": {
+                  "type": "TypedPattern",
+                  "pattern": {
+                    "type": "Identifier",
+                    "name": "value"
+                  },
+                  "typeAnnotation": {
+                    "type": "SimpleTypeExpression",
+                    "name": {
+                      "type": "Identifier",
+                      "name": "i32"
+                    }
+                  }
+                },
+                "body": {
+                  "type": "BlockExpression",
+                  "body": [
+                    {
+                      "type": "AssignmentExpression",
+                      "operator": "+=",
+                      "left": {
+                        "type": "Identifier",
+                        "name": "forward_sum"
+                      },
+                      "right": {
+                        "type": "Identifier",
+                        "name": "value"
+                      }
+                    },
+                    {
+                      "type": "AssignmentExpression",
+                      "operator": "=",
+                      "left": {
+                        "type": "Identifier",
+                        "name": "forward_value"
+                      },
+                      "right": {
+                        "type": "FunctionCall",
+                        "callee": {
+                          "type": "MemberAccessExpression",
+                          "object": {
+                            "type": "Identifier",
+                            "name": "forward_iter"
+                          },
+                          "member": {
+                            "type": "Identifier",
+                            "name": "next"
+                          }
+                        },
+                        "arguments": [],
+                        "isTrailingLambda": false
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "MatchClause",
+                "pattern": {
+                  "type": "WildcardPattern"
+                },
+                "body": {
+                  "type": "BlockExpression",
+                  "body": [
+                    {
+                      "type": "BreakStatement"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "exclusive"
+      },
+      "right": {
+        "type": "StructLiteral",
+        "structType": {
+          "type": "Identifier",
+          "name": "IntRange"
+        },
+        "fields": [
+          {
+            "type": "StructFieldInitializer",
+            "name": {
+              "type": "Identifier",
+              "name": "start"
+            },
+            "value": {
+              "type": "IntegerLiteral",
+              "value": 1
+            },
+            "isShorthand": false
+          },
+          {
+            "type": "StructFieldInitializer",
+            "name": {
+              "type": "Identifier",
+              "name": "end"
+            },
+            "value": {
+              "type": "IntegerLiteral",
+              "value": 1
+            },
+            "isShorthand": false
+          },
+          {
+            "type": "StructFieldInitializer",
+            "name": {
+              "type": "Identifier",
+              "name": "inclusive"
+            },
+            "value": {
+              "type": "BooleanLiteral",
+              "value": false
+            },
+            "isShorthand": false
+          }
+        ],
+        "isPositional": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "exclusive_iter"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "exclusive"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "iterator"
+          }
+        },
+        "arguments": [],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "exclusive_sum"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 0
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "exclusive_value"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "exclusive_iter"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "next"
+          }
+        },
+        "arguments": [],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "WhileLoop",
+      "condition": {
+        "type": "BooleanLiteral",
+        "value": true
+      },
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "MatchExpression",
+            "subject": {
+              "type": "Identifier",
+              "name": "exclusive_value"
+            },
+            "clauses": [
+              {
+                "type": "MatchClause",
+                "pattern": {
+                  "type": "StructPattern",
+                  "structType": {
+                    "type": "Identifier",
+                    "name": "IteratorEnd"
+                  },
+                  "fields": [],
+                  "isPositional": false
+                },
+                "body": {
+                  "type": "BlockExpression",
+                  "body": [
+                    {
+                      "type": "BreakStatement"
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "MatchClause",
+                "pattern": {
+                  "type": "TypedPattern",
+                  "pattern": {
+                    "type": "Identifier",
+                    "name": "value"
+                  },
+                  "typeAnnotation": {
+                    "type": "SimpleTypeExpression",
+                    "name": {
+                      "type": "Identifier",
+                      "name": "i32"
+                    }
+                  }
+                },
+                "body": {
+                  "type": "BlockExpression",
+                  "body": [
+                    {
+                      "type": "AssignmentExpression",
+                      "operator": "+=",
+                      "left": {
+                        "type": "Identifier",
+                        "name": "exclusive_sum"
+                      },
+                      "right": {
+                        "type": "Identifier",
+                        "name": "value"
+                      }
+                    },
+                    {
+                      "type": "AssignmentExpression",
+                      "operator": "=",
+                      "left": {
+                        "type": "Identifier",
+                        "name": "exclusive_value"
+                      },
+                      "right": {
+                        "type": "FunctionCall",
+                        "callee": {
+                          "type": "MemberAccessExpression",
+                          "object": {
+                            "type": "Identifier",
+                            "name": "exclusive_iter"
+                          },
+                          "member": {
+                            "type": "Identifier",
+                            "name": "next"
+                          }
+                        },
+                        "arguments": [],
+                        "isTrailingLambda": false
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "MatchClause",
+                "pattern": {
+                  "type": "WildcardPattern"
+                },
+                "body": {
+                  "type": "BlockExpression",
+                  "body": [
+                    {
+                      "type": "BreakStatement"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "descending"
+      },
+      "right": {
+        "type": "StructLiteral",
+        "structType": {
+          "type": "Identifier",
+          "name": "IntRange"
+        },
+        "fields": [
+          {
+            "type": "StructFieldInitializer",
+            "name": {
+              "type": "Identifier",
+              "name": "start"
+            },
+            "value": {
+              "type": "IntegerLiteral",
+              "value": 3
+            },
+            "isShorthand": false
+          },
+          {
+            "type": "StructFieldInitializer",
+            "name": {
+              "type": "Identifier",
+              "name": "end"
+            },
+            "value": {
+              "type": "IntegerLiteral",
+              "value": 1
+            },
+            "isShorthand": false
+          },
+          {
+            "type": "StructFieldInitializer",
+            "name": {
+              "type": "Identifier",
+              "name": "inclusive"
+            },
+            "value": {
+              "type": "BooleanLiteral",
+              "value": true
+            },
+            "isShorthand": false
+          }
+        ],
+        "isPositional": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "descending_iter"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "descending"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "iterator"
+          }
+        },
+        "arguments": [],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "descending_sum"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 0
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "descending_value"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "descending_iter"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "next"
+          }
+        },
+        "arguments": [],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "WhileLoop",
+      "condition": {
+        "type": "BooleanLiteral",
+        "value": true
+      },
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "MatchExpression",
+            "subject": {
+              "type": "Identifier",
+              "name": "descending_value"
+            },
+            "clauses": [
+              {
+                "type": "MatchClause",
+                "pattern": {
+                  "type": "StructPattern",
+                  "structType": {
+                    "type": "Identifier",
+                    "name": "IteratorEnd"
+                  },
+                  "fields": [],
+                  "isPositional": false
+                },
+                "body": {
+                  "type": "BlockExpression",
+                  "body": [
+                    {
+                      "type": "BreakStatement"
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "MatchClause",
+                "pattern": {
+                  "type": "TypedPattern",
+                  "pattern": {
+                    "type": "Identifier",
+                    "name": "value"
+                  },
+                  "typeAnnotation": {
+                    "type": "SimpleTypeExpression",
+                    "name": {
+                      "type": "Identifier",
+                      "name": "i32"
+                    }
+                  }
+                },
+                "body": {
+                  "type": "BlockExpression",
+                  "body": [
+                    {
+                      "type": "AssignmentExpression",
+                      "operator": "+=",
+                      "left": {
+                        "type": "Identifier",
+                        "name": "descending_sum"
+                      },
+                      "right": {
+                        "type": "Identifier",
+                        "name": "value"
+                      }
+                    },
+                    {
+                      "type": "AssignmentExpression",
+                      "operator": "=",
+                      "left": {
+                        "type": "Identifier",
+                        "name": "descending_value"
+                      },
+                      "right": {
+                        "type": "FunctionCall",
+                        "callee": {
+                          "type": "MemberAccessExpression",
+                          "object": {
+                            "type": "Identifier",
+                            "name": "descending_iter"
+                          },
+                          "member": {
+                            "type": "Identifier",
+                            "name": "next"
+                          }
+                        },
+                        "arguments": [],
+                        "isTrailingLambda": false
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "type": "MatchClause",
+                "pattern": {
+                  "type": "WildcardPattern"
+                },
+                "body": {
+                  "type": "BlockExpression",
+                  "body": [
+                    {
+                      "type": "BreakStatement"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "ArrayLiteral",
+      "elements": [
+        {
+          "type": "Identifier",
+          "name": "forward_sum"
+        },
+        {
+          "type": "Identifier",
+          "name": "exclusive_sum"
+        },
+        {
+          "type": "Identifier",
+          "name": "descending_sum"
+        }
+      ]
+    }
+  ]
+}

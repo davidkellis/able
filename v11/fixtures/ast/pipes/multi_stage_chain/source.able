@@ -1,0 +1,17 @@
+fn add(left: i32, right: i32) -> i32 {
+  return left + right
+}
+struct Box {
+  value: i32
+}
+methods Box {
+  fn #augment(delta: i32) -> Self {
+    return Box { value: #value + delta }
+  }
+  fn #double() -> i32 {
+    return #value * 2
+  }
+}
+start := 5
+result := (start |> % * 2 |> add(@, 3) |> Box { value: % } |> %.augment(4) |> #double)
+result

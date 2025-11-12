@@ -1,0 +1,16 @@
+interface CustomDisplay {
+  fn show(self: Self) -> string
+}
+
+struct Wrapper {
+  value: i32
+}
+
+methods Wrapper where Self: CustomDisplay {
+  fn describe(self: Wrapper) -> string {
+    return self.show()
+  }
+}
+
+wrapper := Wrapper { value: 1 }
+wrapper.describe()

@@ -1,0 +1,15 @@
+{
+  "description": "Wildcard import does not expose private function",
+  "expect": {
+    "errors": [
+      "Undefined variable 'priv_fn'"
+    ],
+    "typecheckDiagnostics": [
+      "typechecker: fixtures/ast/imports/static_wildcard_private_error/source.able typechecker: undefined identifier 'priv_fn'"
+    ]
+  },
+  "entry": "module.json",
+  "setup": [
+    "package.json"
+  ]
+}

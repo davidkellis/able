@@ -1,0 +1,4 @@
+fn maybe_identity(value: ?string) -> ?string {
+  value
+}
+maybe_identity("ready")

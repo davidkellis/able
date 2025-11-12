@@ -1,0 +1,29 @@
+{
+  "type": "Module",
+  "imports": [
+    {
+      "type": "ImportStatement",
+      "packagePath": [
+        { "type": "Identifier", "name": "example_static" }
+      ],
+      "isWildcard": true
+    }
+  ],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": { "type": "Identifier", "name": "result" },
+      "right": {
+        "type": "FunctionCall",
+        "callee": { "type": "Identifier", "name": "pub_fn" },
+        "arguments": [],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "Identifier",
+      "name": "result"
+    }
+  ]
+}

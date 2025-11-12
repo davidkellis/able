@@ -1,0 +1,9 @@
+fn for_each(items, callback) {
+  for item in items {
+    callback(item)
+  }
+}
+numbers := [1, 2, 3]
+total := 0
+for_each(numbers) { n => total += n}
+total

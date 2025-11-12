@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Able v10 Manual — Concurrency</title>
+    <link rel="stylesheet" href="manual.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <nav class="sidebar">
+        <span class="brand">Able v10 Manual</span>
+        <ul>
+          <li><a href="index.html">Getting Started</a></li>
+          <li><a href="variables.html">Variables</a></li>
+          <li><a href="control-flow.html">Control Flow</a></li>
+          <li><a href="functions.html">Functions</a></li>
+          <li><a href="types.html">Types</a></li>
+          <li><a href="methods.html">Methods</a></li>
+          <li><a href="constructors.html">Constructors & Updates</a></li>
+          <li><a href="pattern-matching.html">Pattern Matching &amp; Unions</a></li>
+          <li><a href="modules.html">Modules</a></li>
+          <li><a href="error-handling.html">Error Handling</a></li>
+          <li><a href="concurrency.html" class="active">Concurrency</a></li>
+          <li><a href="tooling.html">Tooling &amp; Next Steps</a></li>
+        </ul>
+      </nav>
+      <main class="content">
+        <h1>11. Concurrency</h1>
+        <p>
+          Able mirrors Go-style concurrency with <code>proc</code>,
+          <code>spawn</code>, channels, and mutexes.
+        </p>
+        <h2>11.1 <code>proc</code></h2>
+        <pre><code class="language-able">handle: Proc string = proc fetch_data(url)
+
+proc_flush(32)
+
+handle.status() match {
+  case Pending =&gt; log("still fetching..."),
+  case Failed { error } =&gt; log(`fetch failed: ${error.message()}`),
+  case Cancelled =&gt; log("cancelled"),
+  case Resolved =&gt; void
+}
+
+content = handle.value() else { |err|
+  log(`background fetch failed: ${err.message()}`)
+  "fallback"
+}</code></pre>
+        <p>
+          <code>Proc T</code> exposes <code>status()</code>,
+          <code>value() -&gt; !T</code>, and <code>cancel()</code>. Inside async
+          bodies, use <code>proc_yield()</code>, <code>proc_cancelled()</code>,
+          <code>proc_flush(limit?)</code>, and the diagnostic helper
+          <code>proc_pending_tasks()</code> (reports the executor queue length
+          when available).
+        </p>
+        <h2>11.2 <code>spawn</code></h2>
+        <pre><code class="language-able">future_total: Future i64 = spawn sum_big_array(data)
+
+print("Computing...")
+total = future_total
+print(`Total: ${total}`)</code></pre>
+        <p>
+          Evaluating a <code>Future T</code> blocks and yields <code>T</code>,
+          re-raising exceptions from the task.
+        </p>
+        <h2>11.3 Channels &amp; Mutexes</h2>
+        <pre><code class="language-able">ch: Channel string = Channel.new(0)
+
+producer = proc do {
+  for name in names { ch.send(name) }
+  ch.close()
+}
+
+for value in ch {
+  print(`hello ${value}`)
+}</code></pre>
+        <p>
+          Channels block on send/receive, support <code>try_send</code> /
+          <code>try_receive</code>, and return <code>nil</code> when closed and
+          drained. Mutexes are non-reentrant; use helpers that guarantee
+          <code>unlock()</code> (see <code>design/channels-mutexes.md</code>).
+        </p>
+        <footer class="manual-footer">
+          Able v10 manual · Concurrency
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>

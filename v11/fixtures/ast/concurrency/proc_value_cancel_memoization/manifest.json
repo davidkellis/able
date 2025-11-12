@@ -1,0 +1,24 @@
+{
+  "description": "Cancelled proc handle value() calls return identical memoized errors",
+  "expect": {
+    "result": {
+      "kind": "array",
+      "length": 3,
+      "elements": [
+        {
+          "kind": "string",
+          "value": "Proc cancelled"
+        },
+        {
+          "kind": "string",
+          "value": "Proc cancelled"
+        },
+        {
+          "kind": "string",
+          "value": "0"
+        }
+      ]
+    }
+  },
+  "entry": "module.json"
+}

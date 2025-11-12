@@ -1,0 +1,10 @@
+{
+  "description": "Breakpoint expression returns value from labeled break",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": 42
+    }
+  },
+  "entry": "module.json"
+}

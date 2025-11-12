@@ -1,0 +1,10 @@
+{
+  "description": "Pipelines cover topic (%), placeholder (@), UFCS, and topic method steps",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": 46
+    }
+  },
+  "entry": "module.json"
+}

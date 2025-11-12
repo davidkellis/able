@@ -1,0 +1,4 @@
+result := breakpoint 'exit {
+  break 'exit 42
+}
+result

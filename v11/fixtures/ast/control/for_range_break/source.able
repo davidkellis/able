@@ -1,0 +1,9 @@
+sum := 0
+for n in 0 ... 5 {
+  do {
+    sum = sum + n
+    if n >= 2 {
+      break sum
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "description": "Functional update source must match struct type",
+  "expect": {
+    "errors": [
+      "Functional update source must be same struct type"
+    ]
+  },
+  "entry": "module.json"
+}

@@ -1,0 +1,10 @@
+{
+  "description": "Named struct destructuring binds fields",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": 3
+    }
+  },
+  "entry": "module.json"
+}

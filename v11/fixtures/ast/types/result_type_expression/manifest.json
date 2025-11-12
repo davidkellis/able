@@ -1,0 +1,10 @@
+{
+  "description": "Function returns a result-wrapped type",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": 7
+    }
+  },
+  "entry": "module.json"
+}

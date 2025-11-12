@@ -1,0 +1,10 @@
+{
+  "description": "Method-set where clause succeeds when type arguments implement the required interface",
+  "expect": {
+    "result": {
+      "kind": "string",
+      "value": "Wrapper(7)"
+    }
+  },
+  "entry": "module.json"
+}

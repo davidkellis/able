@@ -1,0 +1,69 @@
+struct Channel {
+  capacity: i32,
+  handle: i64
+}
+methods Channel {
+  fn new(capacity: i32) -> Channel {
+    handle := __able_channel_new(capacity)
+    return Channel { capacity: capacity, handle: handle }
+  }
+  fn send(self, value) {
+    __able_channel_send(self.handle, value)
+  }
+  fn receive(self) {
+    return __able_channel_receive(self.handle)
+  }
+  fn try_send(self, value) -> bool {
+    return __able_channel_try_send(self.handle, value)
+  }
+  fn try_receive(self) {
+    return __able_channel_try_receive(self.handle)
+  }
+  fn close(self) {
+    __able_channel_close(self.handle)
+  }
+  fn is_closed(self) -> bool {
+    return __able_channel_is_closed(self.handle)
+  }
+}
+channel := Channel.new(1)
+score := 0
+channel.send(11)
+first := channel.receive()
+if first == 11 {
+  score += 1
+}
+try_success := channel.try_send(21)
+if try_success {
+  score += 1
+}
+try_receive_value := channel.try_receive()
+if try_receive_value == 21 {
+  score += 1
+}
+second_try := channel.try_send(31)
+if second_try {
+  score += 1
+}
+try_fail := channel.try_send(41)
+if try_fail == false {
+  score += 1
+}
+second := channel.receive()
+if second == 31 {
+  score += 1
+}
+channel.close()
+closed := channel.is_closed()
+if closed {
+  score += 1
+}
+final_receive := channel.receive()
+if final_receive == nil {
+  score += 1
+}
+try_receive_nil := channel.try_receive()
+if try_receive_nil == nil {
+  score += 1
+}
+score == 9

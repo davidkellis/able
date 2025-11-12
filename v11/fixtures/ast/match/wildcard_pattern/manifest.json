@@ -1,0 +1,10 @@
+{
+  "description": "Wildcard fallback handles unmatched cases",
+  "expect": {
+    "result": {
+      "kind": "string",
+      "value": "Other"
+    }
+  },
+  "entry": "module.json"
+}

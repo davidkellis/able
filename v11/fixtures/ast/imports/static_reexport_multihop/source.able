@@ -1,0 +1,3 @@
+import static_top_multihop.{top_value}
+
+top_value()

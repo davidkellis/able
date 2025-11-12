@@ -1,0 +1,316 @@
+package collections
+
+import able.collections.array.{Array}
+import able.collections.map.{Map}
+import able.core.errors.{IndexError}
+import able.core.interfaces.{Hash, Hasher, Eq, Default, Clone, Index, IndexMut}
+
+struct SlotEmpty;
+struct SlotTombstone;
+struct SlotFilled K V {
+  key: K,
+  value: V,
+  hash: u64
+}
+
+union Slot K V = SlotEmpty | SlotTombstone | SlotFilled K V
+
+const MIN_CAPACITY: i32 = 8
+const LOAD_FACTOR_NUM: i32 = 7
+const LOAD_FACTOR_DEN: i32 = 10
+
+extern fn __able_hasher_create() -> i64;
+extern fn __able_hasher_write(handle: i64, bytes: string) -> void;
+extern fn __able_hasher_finish(handle: i64) -> u64;
+
+struct RuntimeHasher {
+  handle: i64
+}
+
+impl Hasher for RuntimeHasher {
+  fn finish(self: Self) -> u64 { __able_hasher_finish(self.handle) }
+  fn write_bytes(self: Self, bytes: string) -> void { __able_hasher_write(self.handle, bytes) }
+}
+
+fn make_hasher() -> RuntimeHasher { RuntimeHasher { handle: __able_hasher_create() } }
+
+fn hash_key<K>(key: K) -> u64 where K: Hash {
+  hasher = make_hasher()
+  key.hash(hasher)
+}
+
+fn next_power_of_two(value: i32) -> i32 {
+  if value <= 1 { return 1 }
+  v := value - 1
+  v = v | (v >> 1)
+  v = v | (v >> 2)
+  v = v | (v >> 4)
+  v = v | (v >> 8)
+  v = v | (v >> 16)
+  v + 1
+}
+
+fn max_i32(a: i32, b: i32) -> i32 {
+  if a > b { a } else { b }
+}
+
+fn slot_empty<K, V>() -> Slot K V { SlotEmpty {} }
+fn slot_tombstone<K, V>() -> Slot K V { SlotTombstone {} }
+fn slot_filled<K, V>(key: K, value: V, hash: u64) -> Slot K V {
+  SlotFilled { key: key, value: value, hash: hash }
+}
+
+fn fill_with_empty<K, V>(entries: Array (Slot K V)) -> void {
+  capacity := entries.capacity()
+  idx := 0
+  loop {
+    if idx >= capacity { break }
+    entries.write_slot(idx, slot_empty())
+    idx = idx + 1
+  }
+}
+
+struct HashMap K V where K: Hash + Eq K + Clone, V: Clone {
+  entries: Array (Slot K V),
+  len: i32,
+  used: i32
+}
+
+methods HashMap K V where K: Hash + Eq K + Clone, V: Clone {
+  fn new() -> HashMap K V { HashMap.with_capacity(MIN_CAPACITY) }
+
+  fn with_capacity(capacity: i32) -> HashMap K V {
+    target := max_i32(MIN_CAPACITY, next_power_of_two(capacity))
+    entries := Array.with_capacity(target)
+    fill_with_empty(entries)
+    HashMap { entries: entries, len: 0, used: 0 }
+  }
+
+  fn clear(mut self: Self) -> void {
+    fill_with_empty(self.entries)
+    self.len = 0
+    self.used = 0
+  }
+
+  fn capacity(self: Self) -> i32 { self.entries.capacity() }
+
+  fn mask(self: Self) -> i32 { self.capacity() - 1 }
+
+  fn load_limit(self: Self) -> i32 {
+    (self.capacity() * LOAD_FACTOR_NUM) / LOAD_FACTOR_DEN
+  }
+
+  fn maybe_grow(mut self: Self) -> void {
+    if self.used >= self.load_limit() {
+      self.resize(self.capacity() * 2)
+    }
+  }
+
+  fn resize(mut self: Self, new_capacity: i32) -> void {
+    fresh_capacity := max_i32(MIN_CAPACITY, next_power_of_two(new_capacity))
+    new_entries := Array.with_capacity(fresh_capacity)
+    fill_with_empty(new_entries)
+
+    old_entries := self.entries
+    old_capacity := old_entries.capacity()
+
+    self.entries = new_entries
+    self.len = 0
+    self.used = 0
+
+    idx := 0
+    loop {
+      if idx >= old_capacity { break }
+      slot := old_entries.read_slot(idx)
+      match slot {
+        case SlotFilled { key, value, hash } => {
+          self.insert_internal(hash, key, value, false)
+        },
+        case SlotEmpty {} => self.entries.write_slot(idx, slot_empty()),
+        case SlotTombstone {} => self.entries.write_slot(idx, slot_empty())
+      }
+      idx = idx + 1
+    }
+  }
+
+  fn insert_internal(mut self: Self, hash: u64, key: K, value: V, allow_resize: bool) -> void {
+    if allow_resize {
+      self.maybe_grow()
+    }
+
+    capacity := self.capacity()
+    mask := capacity - 1
+    index := (hash & (mask as u64)) as i32
+    first_tombstone := -1
+
+    loop {
+      slot := self.entries.read_slot(index)
+      match slot {
+        case SlotEmpty {} => {
+          target := if first_tombstone >= 0 { first_tombstone } else { index }
+          self.entries.write_slot(target, slot_filled(key, value, hash))
+          if first_tombstone < 0 { self.used = self.used + 1 }
+          self.len = self.len + 1
+          return
+        },
+        case SlotTombstone {} => {
+          self.entries.write_slot(index, slot_tombstone())
+          if first_tombstone < 0 { first_tombstone = index }
+        },
+        case SlotFilled { key: existing_key, value: existing_value, hash: existing_hash } => {
+          keys_equal := (existing_hash == hash) && key.clone().eq(existing_key.clone())
+          if keys_equal {
+            self.entries.write_slot(index, slot_filled(existing_key, value, hash))
+            return
+          }
+          self.entries.write_slot(index, slot_filled(existing_key, existing_value, existing_hash))
+        }
+      }
+      index = (index + 1) & mask
+    }
+  }
+
+  fn find_index(self: Self, hash: u64, key: K) -> i32 {
+    if self.len == 0 { return -1 }
+    capacity := self.capacity()
+    mask := capacity - 1
+    index := (hash & (mask as u64)) as i32
+
+    loop {
+      slot := self.entries.read_slot(index)
+      match slot {
+        case SlotEmpty {} => {
+          self.entries.write_slot(index, slot_empty())
+          return -1
+        },
+        case SlotTombstone {} => {
+          self.entries.write_slot(index, slot_tombstone())
+        },
+        case SlotFilled { key: existing_key, value: existing_value, hash: existing_hash } => {
+          keys_equal := (existing_hash == hash) && key.clone().eq(existing_key.clone())
+          if keys_equal {
+            self.entries.write_slot(index, slot_filled(existing_key, existing_value, existing_hash))
+            return index
+          }
+          self.entries.write_slot(index, slot_filled(existing_key, existing_value, existing_hash))
+        }
+      }
+      index = (index + 1) & mask
+    }
+  }
+
+  fn for_each(self: Self, visit: (K, V) -> void) -> void {
+    capacity := self.entries.capacity()
+    idx := 0
+    loop {
+      if idx >= capacity { break }
+      slot := self.entries.read_slot(idx)
+      match slot {
+        case SlotFilled { key, value, hash } => {
+          visit(key.clone(), value.clone())
+          self.entries.write_slot(idx, slot_filled(key, value, hash))
+        },
+        case SlotEmpty {} => self.entries.write_slot(idx, slot_empty()),
+        case SlotTombstone {} => self.entries.write_slot(idx, slot_tombstone())
+      }
+      idx = idx + 1
+    }
+  }
+}
+
+impl Default for HashMap K V where K: Hash + Eq K + Clone, V: Clone {
+  fn default() -> HashMap K V { HashMap.new() }
+}
+
+impl Clone for HashMap K V where K: Hash + Eq K + Clone, V: Clone {
+  fn clone(self: Self) -> HashMap K V {
+    HashMap { entries: self.entries.clone(), len: self.len, used: self.used }
+  }
+}
+
+impl Map K V for HashMap K V where K: Hash + Eq K + Clone, V: Clone {
+  fn get(self: Self, key: K) -> ?V {
+    hash := hash_key(key.clone())
+    index := self.find_index(hash, key)
+    if index < 0 { return nil }
+    slot := self.entries.read_slot(index)
+    match slot {
+      case SlotFilled { key: existing_key, value: existing_value, hash: existing_hash } => {
+        result := existing_value.clone()
+        self.entries.write_slot(index, slot_filled(existing_key, existing_value, existing_hash))
+        result
+      },
+      case SlotEmpty {} => {
+        self.entries.write_slot(index, slot_empty())
+        nil
+      },
+      case SlotTombstone {} => {
+        self.entries.write_slot(index, slot_tombstone())
+        nil
+      }
+    }
+  }
+
+  fn set(mut self: Self, key: K, value: V) -> void {
+    hash := hash_key(key.clone())
+    self.insert_internal(hash, key, value, true)
+  }
+
+  fn remove(mut self: Self, key: K) -> ?V {
+    if self.len == 0 { return nil }
+    hash := hash_key(key.clone())
+    index := self.find_index(hash, key)
+    if index < 0 { return nil }
+
+    slot := self.entries.read_slot(index)
+    match slot {
+      case SlotFilled { key: existing_key, value: existing_value, hash: existing_hash } => {
+        self.entries.write_slot(index, slot_tombstone())
+        self.len = self.len - 1
+        existing_value
+      },
+      case SlotEmpty {} => {
+        self.entries.write_slot(index, slot_empty())
+        nil
+      },
+      case SlotTombstone {} => {
+        self.entries.write_slot(index, slot_tombstone())
+        nil
+      }
+    }
+  }
+
+  fn contains(self: Self, key: K) -> bool {
+    match self.get(key) {
+      case nil => false,
+      case _: V => true
+    }
+  }
+
+  fn size(self: Self) -> i32 { self.len }
+}
+
+impl Index K (V | IndexError) for HashMap K V where K: Hash + Eq K + Clone, V: Clone {
+  fn index(self: Self, key: K) -> V | IndexError {
+    hash := hash_key(key.clone())
+    index := self.find_index(hash, key)
+    if index < 0 {
+      IndexError { index: (-1 as i64), length: self.len as i64 }
+    } else {
+      match self.entries.read_slot(index) {
+        case SlotFilled { key: existing_key, value: existing_value, hash: existing_hash } => {
+          result := existing_value.clone()
+          self.entries.write_slot(index, slot_filled(existing_key, existing_value, existing_hash))
+          result
+        },
+        case _ => IndexError { index: (-1 as i64), length: self.len as i64 }
+      }
+    }
+  }
+}
+
+impl IndexMut K V for HashMap K V where K: Hash + Eq K + Clone, V: Clone {
+  fn assign(mut self: Self, key: K, value: V) -> void | IndexError {
+    self.set(key, value)
+  }
+}

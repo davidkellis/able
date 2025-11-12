@@ -1,0 +1,13 @@
+struct Point {
+  x: i32,
+  y: i32
+}
+methods Point {
+  private fn hidden_static() {
+    return Point { x: 0, y: 0 }
+  }
+  fn origin() {
+    return Point { x: 0, y: 0 }
+  }
+}
+Point.hidden_static()

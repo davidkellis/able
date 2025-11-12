@@ -1,0 +1,12 @@
+package collections
+
+import able.core.interfaces.{Hash, Eq}
+
+interface Set T for S where T: Hash + Eq T {
+  fn add(mut self: Self, value: T) -> bool;
+  fn remove(mut self: Self, value: T) -> bool;
+  fn contains(self: Self, value: T) -> bool;
+  fn size(self: Self) -> i32;
+  fn clear(mut self: Self) -> void;
+  fn is_empty(self: Self) -> bool { self.size() == 0 }
+}

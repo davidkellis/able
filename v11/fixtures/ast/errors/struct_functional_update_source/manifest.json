@@ -1,0 +1,9 @@
+{
+  "description": "Functional update source must be a struct instance",
+  "expect": {
+    "errors": [
+      "Functional update source must be a struct instance"
+    ]
+  },
+  "entry": "module.json"
+}

@@ -1,0 +1,65 @@
+package leetcode5
+
+fn longest_palindrome(chars: Array char) -> Array char {
+  size := chars.size()
+  if size == 0 {
+    return []
+  }
+
+  best_start := 0
+  best_len := 1
+
+  center := 0
+  while center < size {
+    odd := expand(chars, center, center)
+    even := expand(chars, center, center + 1)
+
+    if odd[1] > best_len {
+      best_start = odd[0]
+      best_len = odd[1]
+    }
+    if even[1] > best_len {
+      best_start = even[0]
+      best_len = even[1]
+    }
+
+    center = center + 1
+  }
+
+  slice(chars, best_start, best_start + best_len)
+}
+
+fn expand(chars: Array char, left: i32, right: i32) -> Array i32 {
+  l := left
+  r := right
+  size := chars.size()
+
+  while l >= 0 and r < size and chars[l] == chars[r] {
+    l = l - 1
+    r = r + 1
+  }
+
+  start := l + 1
+  length := r - l - 1
+  [start, length]
+}
+
+fn slice(chars: Array char, start: i32, stop: i32) -> Array char {
+  result := []
+  i := start
+  while i < stop {
+    result.push(chars[i])
+    i = i + 1
+  }
+  result
+}
+
+fn show_longest(chars: Array char) -> void {
+  print(`Input: ${chars} -> ${longest_palindrome(chars)}`)
+}
+
+fn main() -> void {
+  show_longest(['b', 'a', 'b', 'a', 'd'])
+  show_longest(['c', 'b', 'b', 'd'])
+  show_longest(['a'])
+}

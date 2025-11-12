@@ -1,0 +1,11 @@
+trace := ""
+handle := proc {
+  trace = trace + "A"
+  handle.cancel()
+  if proc_cancelled() {
+    trace = trace + "C"
+  }
+  0
+}
+_result := handle.value()
+trace

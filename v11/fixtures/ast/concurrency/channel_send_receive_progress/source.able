@@ -1,0 +1,78 @@
+handle := __able_channel_new(2)
+fn status_name(status) -> string {
+  status match {
+    case Pending {  } => "Pending",
+    case Resolved {  } => "Resolved",
+    case Cancelled {  } => "Cancelled",
+    case Failed {  } => "Failed"
+  }
+}
+sender_a := proc {
+  sent := false
+  attempts := 0
+  while sent == false && attempts < 32 {
+    if __able_channel_try_send(handle, 10) {
+      sent = true
+    }
+else {
+      attempts += 1
+      proc_yield()
+    }
+  }
+  sent
+}
+sender_b := proc {
+  sent := false
+  attempts := 0
+  while sent == false && attempts < 32 {
+    if __able_channel_try_send(handle, 20) {
+      sent = true
+    }
+else {
+      attempts += 1
+      proc_yield()
+    }
+  }
+  sent
+}
+receiver := proc {
+  received := 0
+  attempts := 0
+  sum := 0
+  while received < 2 && attempts < 64 {
+    value := __able_channel_try_receive(handle)
+    if value == nil {
+      attempts += 1
+      proc_yield()
+    }
+else {
+      sum += value
+      received += 1
+    }
+  }
+  sum
+}
+sender_a_value := false
+sender_b_value := false
+receiver_sum := -1
+status_sender_a := status_name(sender_a.status())
+status_sender_b := status_name(sender_b.status())
+status_receiver := status_name(receiver.status())
+flushes := 0
+while (status_sender_a == "Pending" || (status_sender_b == "Pending" || status_receiver == "Pending")) && flushes < 16 {
+  proc_flush()
+  flushes += 1
+  status_sender_a = status_name(sender_a.status())
+  status_sender_b = status_name(sender_b.status())
+  status_receiver = status_name(receiver.status())
+}
+if status_sender_a == "Resolved" {
+  sender_a_value = sender_a.value()
+}
+if status_sender_b == "Resolved" {
+  sender_b_value = sender_b.value()
+}
+if status_receiver == "Resolved" {
+  receiver_sum = receiver.value()
+}
+[status_sender_a == "Resolved", status_sender_b == "Resolved", status_receiver == "Resolved", sender_a_value == true, sender_b_value == true, receiver_sum == 30, flushes > 0]

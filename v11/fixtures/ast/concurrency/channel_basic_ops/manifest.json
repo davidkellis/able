@@ -1,0 +1,10 @@
+{
+  "description": "Channel.new, send/receive, non-blocking ops, and close/is_closed behave as expected",
+  "expect": {
+    "result": {
+      "kind": "bool",
+      "value": true
+    }
+  },
+  "entry": "module.json"
+}

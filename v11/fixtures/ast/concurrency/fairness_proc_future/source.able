@@ -1,0 +1,51 @@
+stage_proc := 0
+stage_future := 0
+worker_stage2_safe := false
+worker_stage3_safe := false
+future_stage2_safe := false
+worker := proc {
+  if stage_proc == 0 {
+    stage_proc = 1
+    proc_yield()
+  }
+  if stage_proc == 1 {
+    worker_stage2_safe = stage_future >= 1
+    stage_proc = 2
+    proc_yield()
+  }
+  if stage_proc == 2 {
+    worker_stage3_safe = stage_future >= 2
+    stage_proc = 3
+  }
+  0
+}
+future := spawn {
+  if stage_future == 0 {
+    stage_future = 1
+    proc_yield()
+    0
+  }
+or stage_future == 1 {
+    future_stage2_safe = stage_proc >= 2
+    0
+    stage_future = 2
+  }
+  0
+}
+proc_flush()
+worker_status := (worker.status() match {
+  case Pending {  } => "Pending",
+  case Resolved {  } => "Resolved",
+  case Cancelled {  } => "Cancelled",
+  case Failed {  } => "Failed",
+  case _ => "Other"
+})
+future_status := (future.status() match {
+  case Pending {  } => "Pending",
+  case Resolved {  } => "Resolved",
+  case Cancelled {  } => "Cancelled",
+  case Failed {  } => "Failed",
+  case _ => "Other"
+})
+future_result := future.value()
+[stage_proc == 3, stage_future == 2, worker_stage2_safe, future_stage2_safe, worker_stage3_safe, worker_status == "Resolved", future_status == "Resolved", future_result == 0]

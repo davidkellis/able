@@ -1,20 +1,19 @@
-# Able Project Roadmap (v10 focus)
+# Able Project Roadmap (v10 → v11 transition)
 
 ## Scope
-- Maintain a canonical Able v10 language definition across interpreters and tooling, with the written specification remaining the source of truth for behaviour.
-- Prioritise the Go interpreter until it matches the TypeScript implementation feature-for-feature (the only intentional divergence is that Go uses goroutines/channels while TypeScript simulates concurrency with a cooperative scheduler).
-- Keep the TypeScript and Go AST representations structurally identical so tree-sitter output can feed either runtime (and future targets like Crystal); codify that AST contract inside the v10 specification once validated.
-- Document process and responsibilities so contributors can iterate confidently.
-- Modularize larger features into smaller, self-contained modules. Keep each file under one thousdand (i.e. 1000) lines of code.
+- Maintain a canonical Able v10 language definition across interpreters/tooling **while** seeding the v11 fork so spec + runtime changes have a stable landing zone.
+- Keep the Go interpreter as the behavioural reference and ensure the TypeScript runtime + future ports match feature-for-feature (the concurrency implementation strategy may differ).
+- Preserve a single AST contract for every runtime so tree-sitter output can target both v10 and v11 branches; document any deltas immediately in the v11 spec.
+- Capture process/roadmap decisions in docs so follow-on agents can resume quickly, and keep every source file under 1000 lines by refactoring proactively.
 
 ## Existing Assets
-- `spec/full_spec_v10.md`: authoritative semantics.
+- `spec/full_spec_v10.md`: authoritative semantics, mirrored into `spec/full_spec_v11.md` as the base for upcoming edits.
 - `interpreter10/`: Bun-based TypeScript interpreter + AST definition (`src/ast.ts`) and extensive tests.
 - `interpreter10-go/`: Go interpreter and canonical Able v10 runtime. Go-specific design docs live under `design/` (see `go-concurrency.md`, `typechecker.md`).
 - Legacy work: `interpreter6/`, assorted design notes in `design/`, early stdlib sketches. Do not do any work in these directories.
 
 ## Ongoing Workstreams
-- **Spec maintenance**: keep `spec/full_spec_v10.md` authoritative; log discrepancies in `spec/todo.md`.
+- **Spec maintenance**: keep `spec/full_spec_v10.md` authoritative while staging v11 edits in `spec/full_spec_v11.md`; log discrepancies in `spec/todo.md` and `spec/TODO_v11.md`.
 - **Standard library**: coordinate with `stdlib/` efforts; ensure interpreters expose required builtin functions/types; track string/regex bring-up via `design/regex-plan.md` and the new spec TODOs covering byte-based strings with char/grapheme iterators.
 - **Developer experience**: cohesive documentation, examples, CI improvements (Bun + Go test jobs).
 - **Future interpreters**: keep AST schema + conformance harness generic to support planned Crystal implementation.
@@ -34,16 +33,22 @@
 
 ## TODO (as items are completed, move them to LOG.md)
 
-- **Plan the v11 directory layout**
-  - Introduce a top-level `v11/` tree containing `spec/`, `design/`, `fixtures/`, `stdlib/`, `parser/`, and `interpreters/{ts,go}/`, plus versioned helper scripts. Keep the existing `interpreter10*/` directories frozen under `v10/` so future v12 work is a straightforward copy/rename.
-  - Update CLI/build scripts to accept a `--version` (default `v11`) and resolve stdlib/modules from the matching subtree. Document the migration steps so contributors know where to land new code once the scaffolding exists.
+1. **Bootstrap the versioned workspace (blocking)**
+   - Mirror every v10 asset into a new `v11/` tree (`spec/`, `design/`, `fixtures/`, `stdlib/`, `parser/`, `interpreters/{ts,go}/`, docs, helper scripts) without mutating the existing copies.
+   - Update helper scripts/CLI entry points to accept a `--version` (default `v10` until v11 becomes primary) and explain the workflow in `README.md` + `AGENTS.md`.
+   - Run the full v10 + v11 suites (`run_all_tests.sh`, Bun fixtures, Go parity tests) to prove the duplicate tree is green before landing any v11-specific edits.
 
-- **V11 readiness sweep**
-  - `bun interpreter10/scripts/run-module.ts run examples/...` now covers root programs, `examples/leetcode/`, and `examples/rosettacode/` (see `tmp/examples_run.log`, `tmp/examples_run_rosettacode.log`). Most non-trivial samples fail today because the v10 surface lacks `loop {}`, tuple returns, array/string helpers (`.size()`, `.push()`, `.substring()`, etc.), and module resolution for `able.*` packages.
-  - Added these gaps to `spec/TODO_v11.md` so we have explicit spec work items for: `loop` syntax, tuple/multi-return semantics, a proper Array/String runtime API, mutable `=` assignment behaviour, and stdlib packaging/search paths. This list now mirrors the blockers uncovered while running the examples.
+2. **Freeze and document v10**
+   - Move/alias the current `interpreter10*/`, `parser10/`, fixtures, and supporting assets under a `v10/` namespace so the repo clearly separates maintained versions.
+   - Update onboarding/docs to spell out when work should target `v10/` vs `v11/`, and keep CI running the frozen v10 tests to catch regressions.
+   - Track any residual v10 bugs or missing fixtures here so we can fix them before diverging too far.
 
-- **Next steps (v11 bring-up)**
-  1. Fix mutable `=` assignment in the TS interpreter (and mirror in Go) so `while`/`for` loops can make progress; re-run a subset of Rosetta/LeetCode samples to confirm the hang is gone.
-  2. Extend the parser + AST to recognise `loop {}`, triple-quoted strings, and textual `and`/`or`, then add fixtures to cover the new grammar.
-  3. Define and implement the minimal Array/String builtin surface (size/push/get/set, substring/split/etc.) along with typed `=` declarations and contextual integer widening so the existing examples can execute without rewriting them.
-  4. Bootstrap the `v11/` directory structure + stdlib packaging plan, then start porting the current interpreters/spec/tests into that versioned layout before any v11-only features land.
+3. **Expand the v11 specification**
+   - Use `spec/TODO_v11.md` as the checklist for spec work (mutable `=`, map literals, struct updates, type aliases, safe navigation, typed declarations, literal widening, optional generic params, channel `select`, stdlib error reporting, `loop` keyword, Array/String APIs, stdlib packaging, regex/text docs).
+   - Draft wording + examples in `spec/full_spec_v11.md`, referencing new fixtures/examples as they land.
+   - Update `LOG.md`/`spec/todo.md` whenever a TODO graduates into the formal text.
+
+4. **Implement v11 runtime features**
+   - Apply the spec updates to the TypeScript interpreter first, mirror in Go, and keep `fixtures/ast` green via `bun run scripts/run-fixtures.ts` + `go test ./pkg/interpreter`.
+   - Extend the parser/AST to cover the new grammar (`loop {}`, triple-quoted strings, textual `and`/`or`, map literals, safe member access) and regenerate fixtures.
+   - Expand stdlib + runtime helpers (Array/String APIs, module resolution for `able.*`, regex/text helpers) and validate via the examples, RosettaCode, and LeetCode programs.

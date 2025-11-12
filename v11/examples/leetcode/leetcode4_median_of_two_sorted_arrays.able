@@ -1,0 +1,47 @@
+package leetcode4
+
+## Merges two sorted arrays and returns the median as a float.
+fn combined_median(left: Array i32, right: Array i32) -> f64 {
+  merged := merge_sorted(left, right)
+  total := merged.size()
+
+  if total == 0 {
+    return 0.0
+  }
+  mid := total / 2
+  if total % 2 == 1 {
+    return merged[mid] as f64
+  }
+  (merged[mid - 1] + merged[mid]) as f64 / 2.0
+}
+
+fn merge_sorted(left: Array i32, right: Array i32) -> Array i32 {
+  result := []
+  i := 0
+  j := 0
+  left_len := left.size()
+  right_len := right.size()
+
+  while i < left_len or j < right_len {
+    if j >= right_len or (i < left_len and left[i] <= right[j]) {
+      result.push(left[i])
+      i = i + 1
+    } else {
+      result.push(right[j])
+      j = j + 1
+    }
+  }
+
+  result
+}
+
+fn show_median(left: Array i32, right: Array i32) -> void {
+  print(`Left: ${left}, Right: ${right}, Median: ${combined_median(left, right)}`)
+}
+
+fn main() -> void {
+  show_median([1, 3], [2])
+  show_median([1, 2], [3, 4])
+  show_median([], [1])
+  show_median([2], [])
+}

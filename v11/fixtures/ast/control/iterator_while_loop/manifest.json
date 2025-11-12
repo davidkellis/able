@@ -1,0 +1,19 @@
+{
+  "description": "While loop inside iterator literal updates captured state lazily",
+  "expect": {
+    "result": {
+      "kind": "array",
+      "elements": [
+        {
+          "kind": "i32",
+          "value": 3
+        },
+        {
+          "kind": "i32",
+          "value": 3
+        }
+      ]
+    }
+  },
+  "entry": "module.json"
+}

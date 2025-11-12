@@ -1,0 +1,10 @@
+{
+  "description": "Mutex contention ensures the waiting proc resumes only after unlock",
+  "expect": {
+    "result": {
+      "kind": "string",
+      "value": "Pending:Resolved:ABC"
+    }
+  },
+  "entry": "module.json"
+}

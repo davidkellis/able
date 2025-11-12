@@ -1,0 +1,210 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "InterfaceDefinition",
+      "id": { "type": "Identifier", "name": "Show" },
+      "isPrivate": false,
+      "signatures": [
+        {
+          "type": "FunctionSignature",
+          "name": { "type": "Identifier", "name": "to_string" },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": { "type": "Identifier", "name": "self" },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": { "type": "Identifier", "name": "Self" }
+              }
+            }
+          ],
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": { "type": "Identifier", "name": "string" }
+          }
+        }
+      ]
+    },
+    {
+      "type": "StructDefinition",
+      "id": { "type": "Identifier", "name": "Point" },
+      "fields": [
+        {
+          "type": "StructFieldDefinition",
+          "name": { "type": "Identifier", "name": "x" },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": { "type": "Identifier", "name": "i32" }
+          }
+        },
+        {
+          "type": "StructFieldDefinition",
+          "name": { "type": "Identifier", "name": "y" },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": { "type": "Identifier", "name": "i32" }
+          }
+        }
+      ],
+      "kind": "named"
+    },
+    {
+      "type": "MethodsDefinition",
+      "targetType": {
+        "type": "SimpleTypeExpression",
+        "name": { "type": "Identifier", "name": "Point" }
+      },
+      "definitions": [
+        {
+          "type": "FunctionDefinition",
+          "id": { "type": "Identifier", "name": "to_string" },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": { "type": "Identifier", "name": "self" },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": { "type": "Identifier", "name": "Point" }
+              }
+            }
+          ],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "ReturnStatement",
+                "argument": {
+                  "type": "StringInterpolation",
+                  "parts": [
+                    { "type": "StringLiteral", "value": "Point(" },
+                    {
+                      "type": "MemberAccessExpression",
+                      "object": { "type": "Identifier", "name": "self" },
+                      "member": { "type": "Identifier", "name": "x" }
+                    },
+                    { "type": "StringLiteral", "value": ", " },
+                    {
+                      "type": "MemberAccessExpression",
+                      "object": { "type": "Identifier", "name": "self" },
+                      "member": { "type": "Identifier", "name": "y" }
+                    },
+                    { "type": "StringLiteral", "value": ")" }
+                  ]
+                }
+              }
+            ]
+          },
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": { "type": "Identifier", "name": "string" }
+          },
+          "isMethodShorthand": false,
+          "isPrivate": false
+        },
+        {
+          "type": "FunctionDefinition",
+          "id": { "type": "Identifier", "name": "accept_show" },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": { "type": "Identifier", "name": "self" },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": { "type": "Identifier", "name": "Point" }
+              }
+            },
+            {
+              "type": "FunctionParameter",
+              "name": { "type": "Identifier", "name": "x" },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": { "type": "Identifier", "name": "T" }
+              }
+            }
+          ],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "ReturnStatement",
+                "argument": {
+                  "type": "FunctionCall",
+                  "callee": {
+                    "type": "MemberAccessExpression",
+                    "object": { "type": "Identifier", "name": "x" },
+                    "member": { "type": "Identifier", "name": "to_string" }
+                  },
+                  "arguments": [],
+                  "isTrailingLambda": false
+                }
+              }
+            ]
+          },
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": { "type": "Identifier", "name": "string" }
+          },
+          "genericParams": [
+            {
+              "type": "GenericParameter",
+              "name": { "type": "Identifier", "name": "T" },
+              "constraints": [
+                {
+                  "type": "InterfaceConstraint",
+                  "interfaceType": {
+                    "type": "SimpleTypeExpression",
+                    "name": { "type": "Identifier", "name": "Show" }
+                  }
+                }
+              ]
+            }
+          ],
+          "isMethodShorthand": false,
+          "isPrivate": false
+        }
+      ]
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": { "type": "Identifier", "name": "p" },
+      "right": {
+        "type": "StructLiteral",
+        "structType": { "type": "Identifier", "name": "Point" },
+        "fields": [
+          {
+            "type": "StructFieldInitializer",
+            "name": { "type": "Identifier", "name": "x" },
+            "value": { "type": "IntegerLiteral", "value": 1 },
+            "isShorthand": false
+          },
+          {
+            "type": "StructFieldInitializer",
+            "name": { "type": "Identifier", "name": "y" },
+            "value": { "type": "IntegerLiteral", "value": 2 },
+            "isShorthand": false
+          }
+        ],
+        "isPositional": false
+      }
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "MemberAccessExpression",
+        "object": { "type": "Identifier", "name": "p" },
+        "member": { "type": "Identifier", "name": "accept_show" }
+      },
+      "arguments": [ { "type": "IntegerLiteral", "value": 3 } ],
+      "typeArguments": [
+        {
+          "type": "SimpleTypeExpression",
+          "name": { "type": "Identifier", "name": "i32" }
+        }
+      ],
+      "isTrailingLambda": false
+    }
+  ]
+}
