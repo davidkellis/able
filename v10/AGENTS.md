@@ -1,13 +1,13 @@
 # Able Project — Agent Onboarding
 
-This document gives contributors the context required to work across the Able v10 and v11 efforts (TypeScript + Go interpreters, spec, and tooling).
+This document gives contributors the context required to work across the Able v10 effort (TypeScript + Go interpreters, spec, and tooling).
 
-Unconditionally read PLAN.md plus the relevant spec (`spec/full_spec_v10.md` or `spec/full_spec_v11.md`) before starting any work.
+Unconditionally read PLAN.md and spec/full_spec_v10.md before starting any work.
 
 ## Mission & Principles
-- Keep the v10 spec (`spec/full_spec_v10.md`) authoritative while staging v11 changes in `spec/full_spec_v11.md`. The spec is the ultimate arbiter for every runtime feature.
-- Treat the AST as part of the language contract with the Go definitions as canonical. Every interpreter must share the same structure and field semantics; the spec codifies this contract.
-- Use the Go interpreter as the reference implementation while ensuring the TypeScript interpreter—and any future runtimes—match the same semantics defined in the spec.
+- Keep the Able v10 language spec (`spec/full_spec_v10.md`) authoritative; report divergences immediately. The spec is the ultimate arbiter for every runtime feature.
+- Treat the AST as part of the language contract with the Go definitions as canonical. Every interpreter must share the same structure and field semantics, and the v10 spec will eventually codify this canonical AST form and its evaluation rules.
+- Use the Go interpreter as the reference implementation while ensuring the TypeScript interpreter—and any future runtimes—match the same v10 semantics defined in the spec.
 - Prefer incremental, well-tested changes. Mirror behavior across interpreters whenever possible.
 - Document reasoning (design notes in `design/`, issue trackers) so future agents can follow decisions.
 - Keep shared fixtures (`fixtures/ast`) green in both interpreters; every fixture change must be exercised by `bun run scripts/run-fixtures.ts` and the Go parity tests (`go test ./pkg/interpreter`).
@@ -16,26 +16,28 @@ Unconditionally read PLAN.md plus the relevant spec (`spec/full_spec_v10.md` or 
 - Defer AST mapping work until the parser produces the expected parse trees (as captured in the grammar corpus) for every feature under development; once grammar coverage is complete and stable, implement the mapping logic.
 
 ## Repository Map
-- `v10/`: Frozen Able v10 workspace (`design/`, `docs/`, `fixtures/`, `examples/`, `stdlib/`, `parser/`, `interpreters/{ts,go}/`, `run_all_tests.sh`, etc.).
-- `v11/`: Active Able v11 workspace with the same structure (`interpreters/{ts,go}/`, `parser/`, `fixtures/`, `stdlib/`, `design/`, `docs/`).
-- `spec/`: Language specs (v1–v11) and topic supplements.
-- `interpreter6/`, `old/*`: Historical artifacts; do not modify.
+- `interpreter10/`: Bun/TypeScript interpreter, AST definition, and comprehensive tests. Source of inspiration and a compatibility target.
+- `interpreter10-go/`: Go interpreter and canonical Able v10 runtime. Go-specific design docs live under `design/` (see `go-concurrency.md`, `typechecker.md`).
+- `interpreter6/`: Able v6 interpreter and runtime. Do not reference this interpreter as it is deprecated and will be removed in the future.
+- `spec/`: Language specification (v1–v10); focus on `full_spec_v10.md` plus topic-specific supplements.
+- `examples/`, `stdlib*/`: Sample programs and stdlib sketches used for conformance testing.
+- `design/`: High-level architecture notes, historical context, and future proposals.
 
 ## Getting Started
-1. Read `spec/full_spec_v11.md` (and skim `spec/full_spec_v10.md` for historical context) plus the versioned README under `v11/` or `v10/`.
-2. Review `PLAN.md` for roadmap updates; version-specific notes live under `v10/` and `v11/`.
+1. Read `spec/full_spec_v10.md` and `interpreter10/README.md` to internalize semantics and existing architecture.
+2. Review `PLAN.md` (project-level) and `interpreter10/PLAN.md` (TS-specific) for current priorities.
 3. Set up tooling:
-   - **Go**: Go ≥ 1.22. Run `go test ./...` inside `v10/interpreter10-go` or `v11/interpreters/go` depending on the target version.
-   - **TypeScript**: Bun ≥ 1.2. Run `bun install && bun test` inside `v10/interpreter10` or `v11/interpreters/ts`.
+   - **Go**: Go ≥ 1.22, `go test ./...` inside `interpreter10-go/`.
+   - **TypeScript**: Bun ≥ 1.2 (`bun install`, `bun test`).
 4. Before changing the AST, confirm alignment implications for every interpreter and the future parser.
-5. Use `./run_all_tests.sh --version=<v10|v11>` to run the appropriate TypeScript + Go suites together before handing work off.
+5. Use the root-level `./run_all_tests.sh` helper to run TypeScript unit tests, fixtures, and the Go suite together before handing work off.
 
 ## Collaboration Guidelines
 - Update relevant PLAN files when you start/finish roadmap items. The current typechecker roadmap lives in `design/typechecker-plan.md`.
 - Keep `spec/todo.md` current when implementation work exposes gaps that need spec wording updates.
 - Treat the shared AST contract as canonical: when introducing new node structures or runtime semantics, implement them in both interpreters and update fixtures so every runtime interprets them identically.
 - When adding Go features, port or mirror the corresponding TypeScript tests (or vice versa) to keep coverage consistent.
-- When adding or modifying fixtures, update the versioned workspace (`v10/fixtures` or `v11/fixtures`), run the exporter + TS harness (`bun run scripts/export-fixtures.ts`), and confirm the Go parity test (`go test ./pkg/interpreter`) still passes.
+- When adding or modifying fixtures in `fixtures/ast`, update `interpreter10/scripts/export-fixtures.ts`, run the exporter + TS harness, and confirm the Go parity test (`go test ./pkg/interpreter`) still passes.
 - Fixture manifests can include an optional `setup` array when multi-module scenarios are required (e.g., dyn-import packages); both harnesses evaluate those modules before the entry `module.json`.
 - Use concise, high-signal comments in code. Avoid speculative abstractions; match the TS design unless we have a strong reason to diverge.
 - Update the spec (`spec/full_spec_v10.md`) once behaviour becomes canonical; check off items in `spec/todo.md`.

@@ -1,13 +1,5 @@
 # Able Project Log
 
-# Able Project Log
-
-## 2025-11-12 — Versioned Workspace Split
-- Introduced a dedicated `v10/` workspace that now owns the frozen Able v10 assets (`design/`, `docs/`, `examples/`, `fixtures/`, `parser/`, `stdlib/`, `interpreter10` → `v10/interpreters/ts`, `interpreter10-go` → `v10/interpreters/go`, plus helper scripts). This removes ambiguity about where new work should land and keeps the archived toolchain intact for maintenance.
-- Added a version-dispatching `run_all_tests.sh` at the repo root (`./run_all_tests.sh --version=v10|v11 --typecheck-fixtures=...`) so CI and contributors can target either workspace without remembering individual paths.
-- Updated repo-wide onboarding docs (`README.md`, `AGENTS.md`, `PLAN.md`) to describe the multi-version layout, explain how to run tests per version, and drop completed roadmap items covering the initial workspace bootstrap/freeze.
-- Copied the legacy v10 docs (`v10/README.md`, `v10/AGENTS.md`, `v10/PLAN.md`, `v10/LOG.md`) so historical context remains close to the frozen code while the root docs focus on cross-version coordination.
-
 ## 2025-11-11 — Stdlib Module Search Paths
 - **Pipe semantics parity**: Added the `pipes/multi_stage_chain` AST fixture so multi-stage pipelines that mix `%` topic steps, placeholder-built callables, and bound methods stay covered; `bun run scripts/run-fixtures.ts` (TypeScript) and `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter` (Go) stay green with no parity divergences observed.
 - **Typechecker strict fixtures**: TypeScript’s checker now hoists struct identifiers for static calls, predeclares `:=` bindings (so proc handles can reference themselves), binds iterator driver aliases plus struct/array pattern destructures, and hides private package members behind the standard “has no symbol” diagnostic. The full fixture suite now passes under `ABLE_TYPECHECK_FIXTURES=strict bun run scripts/run-fixtures.ts`, and manifests/baselines were updated where diagnostics are expected.
