@@ -1,0 +1,312 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "StructDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "ChannelClosed"
+      },
+      "fields": [],
+      "kind": "named"
+    },
+    {
+      "type": "StructDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "ChannelNil"
+      },
+      "fields": [],
+      "kind": "named"
+    },
+    {
+      "type": "StructDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "ChannelSendOnClosed"
+      },
+      "fields": [],
+      "kind": "named"
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "failure_description"
+      },
+      "right": {
+        "type": "OrElseExpression",
+        "expression": {
+          "type": "PropagationExpression",
+          "expression": {
+            "type": "RescueExpression",
+            "monitoredExpression": {
+              "type": "BlockExpression",
+              "body": [
+                {
+                  "type": "FunctionCall",
+                  "callee": {
+                    "type": "Identifier",
+                    "name": "__able_channel_close"
+                  },
+                  "arguments": [
+                    {
+                      "type": "IntegerLiteral",
+                      "value": 0
+                    }
+                  ],
+                  "isTrailingLambda": false
+                },
+                {
+                  "type": "StringLiteral",
+                  "value": "ok"
+                }
+              ]
+            },
+            "clauses": [
+              {
+                "type": "MatchClause",
+                "pattern": {
+                  "type": "TypedPattern",
+                  "pattern": {
+                    "type": "Identifier",
+                    "name": "err"
+                  },
+                  "typeAnnotation": {
+                    "type": "SimpleTypeExpression",
+                    "name": {
+                      "type": "Identifier",
+                      "name": "Error"
+                    }
+                  }
+                },
+                "body": {
+                  "type": "Identifier",
+                  "name": "err"
+                }
+              }
+            ]
+          }
+        },
+        "handler": {
+          "type": "BlockExpression",
+          "body": [
+            {
+              "type": "AssignmentExpression",
+              "operator": ":=",
+              "left": {
+                "type": "Identifier",
+                "name": "payload"
+              },
+              "right": {
+                "type": "MemberAccessExpression",
+                "object": {
+                  "type": "Identifier",
+                  "name": "err"
+                },
+                "member": {
+                  "type": "Identifier",
+                  "name": "value"
+                }
+              }
+            },
+            {
+              "type": "AssignmentExpression",
+              "operator": ":=",
+              "left": {
+                "type": "Identifier",
+                "name": "payload_tag"
+              },
+              "right": {
+                "type": "MatchExpression",
+                "subject": {
+                  "type": "Identifier",
+                  "name": "payload"
+                },
+                "clauses": [
+                  {
+                    "type": "MatchClause",
+                    "pattern": {
+                      "type": "StructPattern",
+                      "structType": {
+                        "type": "Identifier",
+                        "name": "ChannelNil"
+                      },
+                      "fields": [],
+                      "isPositional": false
+                    },
+                    "body": {
+                      "type": "StringLiteral",
+                      "value": "ChannelNil"
+                    }
+                  },
+                  {
+                    "type": "MatchClause",
+                    "pattern": {
+                      "type": "StructPattern",
+                      "structType": {
+                        "type": "Identifier",
+                        "name": "ChannelClosed"
+                      },
+                      "fields": [],
+                      "isPositional": false
+                    },
+                    "body": {
+                      "type": "StringLiteral",
+                      "value": "ChannelClosed"
+                    }
+                  },
+                  {
+                    "type": "MatchClause",
+                    "pattern": {
+                      "type": "StructPattern",
+                      "structType": {
+                        "type": "Identifier",
+                        "name": "ChannelSendOnClosed"
+                      },
+                      "fields": [],
+                      "isPositional": false
+                    },
+                    "body": {
+                      "type": "StringLiteral",
+                      "value": "ChannelSendOnClosed"
+                    }
+                  },
+                  {
+                    "type": "MatchClause",
+                    "pattern": {
+                      "type": "WildcardPattern"
+                    },
+                    "body": {
+                      "type": "StringLiteral",
+                      "value": "Unknown"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "AssignmentExpression",
+              "operator": ":=",
+              "left": {
+                "type": "Identifier",
+                "name": "cause"
+              },
+              "right": {
+                "type": "FunctionCall",
+                "callee": {
+                  "type": "MemberAccessExpression",
+                  "object": {
+                    "type": "Identifier",
+                    "name": "err"
+                  },
+                  "member": {
+                    "type": "Identifier",
+                    "name": "cause"
+                  }
+                },
+                "arguments": [],
+                "isTrailingLambda": false
+              }
+            },
+            {
+              "type": "AssignmentExpression",
+              "operator": ":=",
+              "left": {
+                "type": "Identifier",
+                "name": "cause_tag"
+              },
+              "right": {
+                "type": "MatchExpression",
+                "subject": {
+                  "type": "Identifier",
+                  "name": "cause"
+                },
+                "clauses": [
+                  {
+                    "type": "MatchClause",
+                    "pattern": {
+                      "type": "TypedPattern",
+                      "pattern": {
+                        "type": "Identifier",
+                        "name": "inner"
+                      },
+                      "typeAnnotation": {
+                        "type": "SimpleTypeExpression",
+                        "name": {
+                          "type": "Identifier",
+                          "name": "Error"
+                        }
+                      }
+                    },
+                    "body": {
+                      "type": "StringLiteral",
+                      "value": "cause"
+                    }
+                  },
+                  {
+                    "type": "MatchClause",
+                    "pattern": {
+                      "type": "WildcardPattern"
+                    },
+                    "body": {
+                      "type": "StringLiteral",
+                      "value": "nil"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "type": "StringInterpolation",
+              "parts": [
+                {
+                  "type": "FunctionCall",
+                  "callee": {
+                    "type": "MemberAccessExpression",
+                    "object": {
+                      "type": "Identifier",
+                      "name": "err"
+                    },
+                    "member": {
+                      "type": "Identifier",
+                      "name": "message"
+                    }
+                  },
+                  "arguments": [],
+                  "isTrailingLambda": false
+                },
+                {
+                  "type": "StringLiteral",
+                  "value": "|"
+                },
+                {
+                  "type": "Identifier",
+                  "name": "payload_tag"
+                },
+                {
+                  "type": "StringLiteral",
+                  "value": "|"
+                },
+                {
+                  "type": "Identifier",
+                  "name": "cause_tag"
+                }
+              ]
+            }
+          ]
+        },
+        "errorBinding": {
+          "type": "Identifier",
+          "name": "err"
+        }
+      }
+    },
+    {
+      "type": "Identifier",
+      "name": "failure_description"
+    }
+  ]
+}

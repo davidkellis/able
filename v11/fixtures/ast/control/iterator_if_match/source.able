@@ -1,0 +1,33 @@
+calls := 0
+fn tick() -> bool {
+  calls = calls + 1
+  return true
+}
+subject_calls := 0
+guard_calls := 0
+fn get_subject() {
+  subject_calls = subject_calls + 1
+  return 1
+}
+fn guard_check(value) -> bool {
+  guard_calls = guard_calls + 1
+  return true
+}
+iter := Iterator {
+  if tick() {
+    gen.yield(10)
+    gen.yield(20)
+  }
+  get_subject() match {
+    case 1 if guard_check(1) => {
+      gen.yield(30)
+      gen.yield(40)
+      0
+    }
+  }
+}
+total := 0
+for value in iter {
+  total = total + value
+}
+[total, calls, subject_calls, guard_calls]

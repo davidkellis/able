@@ -1,0 +1,67 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "FunctionDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "maybe_identity"
+      },
+      "params": [
+        {
+          "type": "FunctionParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "value"
+          },
+          "paramType": {
+            "type": "NullableTypeExpression",
+            "innerType": {
+              "type": "SimpleTypeExpression",
+              "name": {
+                "type": "Identifier",
+                "name": "string"
+              }
+            }
+          }
+        }
+      ],
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "Identifier",
+            "name": "value"
+          }
+        ]
+      },
+      "returnType": {
+        "type": "NullableTypeExpression",
+        "innerType": {
+          "type": "SimpleTypeExpression",
+          "name": {
+            "type": "Identifier",
+            "name": "string"
+          }
+        }
+      },
+      "isMethodShorthand": false,
+      "isPrivate": false
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "Identifier",
+        "name": "maybe_identity"
+      },
+      "arguments": [
+        {
+          "type": "StringLiteral",
+          "value": "ready"
+        }
+      ],
+      "isTrailingLambda": false
+    }
+  ]
+}

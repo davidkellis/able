@@ -1,0 +1,4 @@
+import example_static.*
+
+result := pub_fn()
+result

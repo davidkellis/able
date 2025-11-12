@@ -1,0 +1,23 @@
+{
+  "description": "Struct field uses generic type annotation",
+  "expect": {
+    "result": {
+      "kind": "array",
+      "elements": [
+        {
+          "kind": "i32",
+          "value": 1
+        },
+        {
+          "kind": "i32",
+          "value": 2
+        },
+        {
+          "kind": "i32",
+          "value": 3
+        }
+      ]
+    }
+  },
+  "entry": "module.json"
+}

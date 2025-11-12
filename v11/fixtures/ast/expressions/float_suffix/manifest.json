@@ -1,0 +1,10 @@
+{
+  "description": "Evaluates a float literal with an f32 suffix",
+  "expect": {
+    "result": {
+      "kind": "f64",
+      "value": 3.5
+    }
+  },
+  "entry": "module.json"
+}

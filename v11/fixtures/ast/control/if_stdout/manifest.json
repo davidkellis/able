@@ -1,0 +1,13 @@
+{
+  "description": "If expression emits stdout",
+  "expect": {
+    "stdout": [
+      "branch"
+    ],
+    "result": {
+      "kind": "string",
+      "value": "done"
+    }
+  },
+  "entry": "module.json"
+}

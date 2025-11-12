@@ -1,0 +1,4 @@
+arr := [1, 2, 3, 4]
+[first, second, ...rest] := arr
+[third, fourth] := rest
+first + (second + third)

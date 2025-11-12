@@ -1,0 +1,19 @@
+fn describe_error(err: Error) -> string {
+  cause := err.cause()
+  flag := if cause == nil {
+    "no-error"
+  }
+or true {
+    "has-cause"
+  }
+  `${err.message()}|${flag}`
+}
+future := spawn {
+  raise "boom"
+}
+proc_flush()
+summary := future.value()! else {
+  | err |
+  describe_error(err)
+}
+summary

@@ -1,0 +1,48 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "MatchExpression",
+      "subject": {
+        "type": "IntegerLiteral",
+        "value": 2
+      },
+      "clauses": [
+        {
+          "type": "MatchClause",
+          "pattern": {
+            "type": "LiteralPattern",
+            "literal": {
+              "type": "IntegerLiteral",
+              "value": 1
+            }
+          },
+          "body": {
+            "type": "IntegerLiteral",
+            "value": 10
+          }
+        },
+        {
+          "type": "MatchClause",
+          "pattern": {
+            "type": "Identifier",
+            "name": "x"
+          },
+          "body": {
+            "type": "BinaryExpression",
+            "operator": "+",
+            "left": {
+              "type": "Identifier",
+              "name": "x"
+            },
+            "right": {
+              "type": "IntegerLiteral",
+              "value": 5
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

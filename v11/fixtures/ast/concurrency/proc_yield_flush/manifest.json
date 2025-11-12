@@ -1,0 +1,10 @@
+{
+  "description": "proc_yield cooperates with proc_flush to resume the task",
+  "expect": {
+    "result": {
+      "kind": "string",
+      "value": "Pending:Resolved:Resolved:AB:done"
+    }
+  },
+  "entry": "module.json"
+}

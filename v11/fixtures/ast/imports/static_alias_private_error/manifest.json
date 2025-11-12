@@ -1,0 +1,15 @@
+{
+  "description": "Package alias hides private members",
+  "expect": {
+    "errors": [
+      "No public member 'hidden' on package util_static"
+    ],
+    "typecheckDiagnostics": [
+      "typechecker: fixtures/ast/imports/static_alias_private_error/source.able:3:1 typechecker: package 'util_static' has no symbol 'hidden'"
+    ]
+  },
+  "entry": "source.able",
+  "setup": [
+    "package.json"
+  ]
+}

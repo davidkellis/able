@@ -1,0 +1,426 @@
+package text
+
+import able.collections.array{Array}
+import able.core.interfaces{Clone, Error}
+import able.core.iteration{Iterable, Iterator, IteratorEnd}
+import able.core.options{Result}
+
+extern fn __able_string_from_builtin(value: string) -> Array u8;
+extern fn __able_string_to_builtin(bytes: Array u8) -> string;
+extern fn __able_char_from_codepoint(value: i32) -> char;
+
+struct String {
+  bytes: Array u8,
+  len_bytes: i32
+}
+
+struct Grapheme {
+  bytes: Array u8
+}
+
+struct StringBuilder {
+  buffer: Array u8
+}
+
+struct StringBytesIter {
+  string: String,
+  offset: i32
+}
+
+struct StringCharsIter {
+  string: String,
+  offset: i32
+}
+
+struct StringGraphemesIter {
+  string: String,
+  offset: i32
+}
+
+struct Utf8DecodeResult {
+  codepoint: char,
+  next_offset: i32
+}
+
+struct StringEncodingError {
+  message: string,
+  offset: ?i32
+}
+
+impl Error for StringEncodingError {
+  fn message(self: Self) -> string { self.message }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+methods String {
+  fn empty() -> String {
+    String { bytes: Array.with_capacity(0), len_bytes: 0 }
+  }
+
+  fn from_bytes_unchecked(bytes: Array u8) -> String {
+    String { len_bytes: bytes.len(), bytes }
+  }
+
+  fn from_bytes(bytes: Array u8) -> Result String {
+    match utf8_validate(bytes) {
+      case err: StringEncodingError => err,
+      case nil => String::from_bytes_unchecked(bytes)
+    }
+  }
+
+  fn from_builtin(value: string) -> Result String {
+    data := __able_string_from_builtin(value)
+    match utf8_validate(data) {
+      case err: StringEncodingError => err,
+      case nil => String::from_bytes_unchecked(data)
+    }
+  }
+
+  fn len_bytes(self: Self) -> i32 { self.len_bytes }
+  fn is_empty(self: Self) -> bool { self.len_bytes == 0 }
+
+  fn bytes(self: Self) -> Array u8 { StringBytesIter { string: self, offset: 0 } }
+
+  fn chars(self: Self) -> StringCharsIter {
+    StringCharsIter { string: self, offset: 0 }
+  }
+
+  fn graphemes(self: Self) -> StringGraphemesIter {
+    StringGraphemesIter { string: self, offset: 0 }
+  }
+
+  fn to_builtin(self: Self) -> Result string {
+    __able_string_to_builtin(self.bytes.clone())
+  }
+
+  fn to_builder(self: Self) -> StringBuilder {
+    builder := StringBuilder::with_capacity(self.len_bytes)
+    builder.push_bytes(self.bytes.clone())
+    builder
+  }
+
+  fn concat(strings: Array String) -> String {
+    builder := StringBuilder::new()
+    idx := 0
+    loop {
+      match strings.get(idx) {
+        case nil => break,
+        case value: String => builder.push_string(value)
+      }
+      idx = idx + 1
+    }
+    match builder.finish() {
+      case result: String => result,
+      case err: Error => raise err
+    }
+  }
+
+  fn join(strings: Array String, separator: String) -> String {
+    builder := StringBuilder::new()
+    idx := 0
+    loop {
+      match strings.get(idx) {
+        case nil => break,
+        case value: String => {
+          if idx > 0 { builder.push_string(separator.clone()) }
+          builder.push_string(value)
+        }
+      }
+      idx = idx + 1
+    }
+    match builder.finish() {
+      case result: String => result,
+      case err: Error => raise err
+    }
+  }
+
+  fn split(self: Self, delimiter: char) -> Array String {
+    result: Array String := Array.new()
+    builder := StringBuilder::new()
+    for ch in self.chars() {
+      if ch == delimiter {
+        chunk := builder.finish()
+        match chunk {
+          case s: String => result.push(s),
+          case err: Error => raise err
+        }
+        builder.clear()
+      } else {
+        builder.push_char(ch)
+      }
+    }
+    chunk := builder.finish()
+    match chunk {
+      case s: String => result.push(s),
+      case err: Error => raise err
+    }
+    result
+  }
+}
+
+impl Clone for String {
+  fn clone(self: Self) -> String {
+    String { bytes: self.bytes.clone(), len_bytes: self.len_bytes }
+  }
+}
+
+impl Clone for Grapheme {
+  fn clone(self: Self) -> Grapheme {
+    Grapheme { bytes: self.bytes.clone() }
+  }
+}
+
+methods Grapheme {
+  fn len_bytes(self: Self) -> i32 { self.bytes.len() }
+  fn bytes(self: Self) -> Array u8 { self.bytes.clone() }
+  fn as_string(self: Self) -> String { String::from_bytes_unchecked(self.bytes.clone()) }
+}
+
+methods StringBuilder {
+  fn new() -> StringBuilder { StringBuilder { buffer: Array.with_capacity(0) } }
+
+  fn with_capacity(capacity: i32) -> StringBuilder {
+    StringBuilder { buffer: Array.with_capacity(capacity) }
+  }
+
+  fn clear(mut self: Self) -> void {
+    self.buffer.clear()
+  }
+
+  fn push_char(mut self: Self, value: char) -> void {
+    bytes := char_to_utf8(value)
+    self.buffer.push_all(bytes)
+  }
+
+  fn push_byte(mut self: Self, value: u8) -> void {
+    self.buffer.push(value)
+  }
+
+  fn push_bytes(mut self: Self, bytes: Array u8) -> void {
+    self.buffer.push_all(bytes)
+  }
+
+  fn push_string(mut self: Self, value: String) -> void {
+    self.buffer.push_all(value.bytes())
+  }
+
+  fn append_builder(mut self: Self, other: StringBuilder) -> void {
+    self.buffer.push_all(other.buffer)
+  }
+
+  fn len_bytes(self: Self) -> i32 { self.buffer.len() }
+
+  fn finish(self: Self) -> Result String {
+    String::from_bytes(self.buffer)
+  }
+}
+
+StringBytesIterable := impl Iterable u8 for String {
+  fn iterator(self: Self) -> (Iterator u8) { self.bytes() }
+}
+
+impl Iterator u8 for StringBytesIter {
+  fn next(mut self: Self) -> u8 | IteratorEnd {
+    if self.offset >= self.string.len_bytes {
+      return IteratorEnd
+    }
+
+    match read_byte(self.string.bytes, self.offset) {
+      case nil => IteratorEnd,
+      case value: u8 => {
+        self.offset = self.offset + 1
+        value
+      }
+    }
+  }
+}
+
+StringCharsIterable = impl Iterable char for String {
+  fn iterator(self: Self) -> (Iterator char) { self.chars() }
+}
+
+impl Iterator char for StringCharsIter {
+  fn next(mut self: Self) -> char | IteratorEnd {
+    if self.offset >= self.string.len_bytes {
+      return IteratorEnd
+    }
+
+    match utf8_decode(self.string.bytes, self.offset, self.string.len_bytes) {
+      case err: StringEncodingError => raise err,
+      case result: Utf8DecodeResult => {
+        self.offset = result.next_offset
+        result.codepoint
+      }
+    }
+  }
+}
+
+StringGraphemesIterable = impl Iterable Grapheme for String {
+  fn iterator(self: Self) -> (Iterator Grapheme) { self.graphemes() }
+}
+
+impl Iterator Grapheme for StringGraphemesIter {
+  fn next(mut self: Self) -> Grapheme | IteratorEnd {
+    if self.offset >= self.string.len_bytes {
+      return IteratorEnd
+    }
+
+    start := self.offset
+
+    match utf8_decode(self.string.bytes, self.offset, self.string.len_bytes) {
+      case err: StringEncodingError => raise err,
+      case result: Utf8DecodeResult => {
+        end := result.next_offset
+        ## TODO: expand to full grapheme cluster detection once unicode tables land.
+        self.offset = end
+        Grapheme { bytes: slice_bytes(self.string.bytes, start, end) }
+      }
+    }
+  }
+}
+
+fn utf8_validate(bytes: Array u8) -> ?StringEncodingError {
+  len := bytes.len()
+  idx := 0
+  loop {
+    if idx >= len { break }
+    match utf8_decode(bytes, idx, len) {
+      case err: StringEncodingError => return err,
+      case result: Utf8DecodeResult => idx = result.next_offset
+    }
+  }
+  nil
+}
+
+fn utf8_decode(bytes: Array u8, offset: i32, length: i32) -> Utf8DecodeResult | StringEncodingError {
+  if offset >= length {
+    return encoding_error("unexpected end of UTF-8 sequence", offset)
+  }
+
+  match read_byte(bytes, offset) {
+    case nil => encoding_error("unexpected end of UTF-8 sequence", offset),
+    case raw: u8 => {
+      first := raw as i32
+      if (first & 0x80) == 0 {
+        return Utf8DecodeResult {
+          codepoint: __able_char_from_codepoint(first),
+          next_offset: offset + 1
+        }
+      }
+
+      if (first & 0xE0) == 0xC0 {
+        return decode_multibyte(bytes, offset, length, first & 0x1F, 1, 0x80, offset + 1, 0x110000)
+      }
+
+      if (first & 0xF0) == 0xE0 {
+        return decode_multibyte(bytes, offset, length, first & 0x0F, 2, 0x800, offset + 1, 0x110000)
+      }
+
+      if (first & 0xF8) == 0xF0 {
+        return decode_multibyte(bytes, offset, length, first & 0x07, 3, 0x10000, offset + 1, 0x110000)
+      }
+
+      encoding_error("invalid UTF-8 leading byte", offset)
+    }
+  }
+}
+
+fn decode_multibyte(
+  bytes: Array u8,
+  start: i32,
+  length: i32,
+  initial: i32,
+  required_continuations: i32,
+  min_value: i32,
+  mut offset: i32,
+  max_value: i32
+) -> Utf8DecodeResult | StringEncodingError {
+  codepoint := initial
+  remaining := required_continuations
+
+  loop {
+    if remaining <= 0 { break }
+    if offset >= length {
+      return encoding_error("unexpected end of UTF-8 sequence", offset)
+    }
+
+    match read_byte(bytes, offset) {
+      case nil => return encoding_error("unexpected end of UTF-8 sequence", offset),
+      case raw: u8 => {
+        value := raw as i32
+        if (value & 0xC0) != 0x80 {
+          return encoding_error("invalid UTF-8 continuation byte", offset)
+        }
+        codepoint = (codepoint << 6) | (value & 0x3F)
+      }
+    }
+
+    offset = offset + 1
+    remaining = remaining - 1
+  }
+
+  if codepoint < min_value {
+    return encoding_error("overlong UTF-8 encoding detected", start)
+  }
+
+  if codepoint >= 0xD800 && codepoint <= 0xDFFF {
+    return encoding_error("UTF-8 sequence encodes surrogate half", start)
+  }
+
+  if codepoint >= max_value {
+    return encoding_error("codepoint exceeds Unicode range", start)
+  }
+
+  Utf8DecodeResult {
+    codepoint: __able_char_from_codepoint(codepoint),
+    next_offset: offset
+  }
+}
+
+fn read_byte(bytes: Array u8, idx: i32) -> ?u8 {
+  bytes.get(idx)
+}
+
+fn slice_bytes(bytes: Array u8, start: i32, end: i32) -> Array u8 {
+  length := end - start
+  if length <= 0 {
+    return Array.with_capacity(0)
+  }
+
+  result: Array u8 := Array.with_capacity(length)
+  idx := start
+  loop {
+    if idx >= end { break }
+    match bytes.get(idx) {
+      case nil => break,
+      case value: u8 => result.push(value)
+    }
+    idx = idx + 1
+  }
+  result
+}
+
+fn char_to_utf8(value: char) -> Array u8 {
+  bytes := Array.with_capacity(4)
+  code := value as i32
+  if code <= 0x7F {
+    bytes.push(code as u8)
+  } else if code <= 0x7FF {
+    bytes.push(((code >> 6) | 0xC0) as u8)
+    bytes.push(((code & 0x3F) | 0x80) as u8)
+  } else if code <= 0xFFFF {
+    bytes.push(((code >> 12) | 0xE0) as u8)
+    bytes.push((((code >> 6) & 0x3F) | 0x80) as u8)
+    bytes.push(((code & 0x3F) | 0x80) as u8)
+  } else {
+    bytes.push(((code >> 18) | 0xF0) as u8)
+    bytes.push((((code >> 12) & 0x3F) | 0x80) as u8)
+    bytes.push((((code >> 6) & 0x3F) | 0x80) as u8)
+    bytes.push(((code & 0x3F) | 0x80) as u8)
+  }
+  bytes
+}
+
+fn encoding_error(message: string, offset: ?i32) -> StringEncodingError {
+  StringEncodingError { message, offset }
+}

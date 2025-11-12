@@ -1,0 +1,49 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "value"
+      },
+      "right": {
+        "type": "StringLiteral",
+        "value": "ok"
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "result"
+      },
+      "right": {
+        "type": "OrElseExpression",
+        "expression": {
+          "type": "PropagationExpression",
+          "expression": {
+            "type": "Identifier",
+            "name": "value"
+          }
+        },
+        "handler": {
+          "type": "BlockExpression",
+          "body": [
+            {
+              "type": "StringLiteral",
+              "value": "fallback"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "Identifier",
+      "name": "result"
+    }
+  ]
+}

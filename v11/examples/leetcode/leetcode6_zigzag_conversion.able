@@ -1,0 +1,65 @@
+package leetcode6
+
+## Zigzag conversion using rows of characters.
+fn zigzag(chars: Array char, rows: i32) -> Array char {
+  if rows <= 1 or chars.size() <= rows {
+    return chars
+  }
+
+  buckets := []
+  r := 0
+  while r < rows {
+    buckets.push([])
+    r = r + 1
+  }
+
+  current_row := 0
+  direction := 1
+  i := 0
+  length := chars.size()
+
+  while i < length {
+    buckets[current_row].push(chars[i])
+    current_row = current_row + direction
+
+    if current_row == rows {
+      current_row = rows - 2
+      direction = -1
+    } else if current_row < 0 {
+      current_row = 1
+      direction = 1
+    }
+
+    i = i + 1
+  }
+
+  flatten(buckets)
+}
+
+fn flatten(rows: Array (Array char)) -> Array char {
+  result := []
+  i := 0
+  count := rows.size()
+  while i < count {
+    row := rows[i]
+    j := 0
+    row_len := row.size()
+    while j < row_len {
+      result.push(row[j])
+      j = j + 1
+    }
+    i = i + 1
+  }
+  result
+}
+
+fn show_zigzag(chars: Array char, rows: i32) -> void {
+  result := zigzag(chars, rows)
+  print(`Input: ${chars}, rows=${rows} -> ${result}`)
+}
+
+fn main() -> void {
+  show_zigzag(['P','A','Y','P','A','L','I','S','H','I','R','I','N','G'], 3)
+  show_zigzag(['A','B','C','D','E','F','G'], 4)
+  show_zigzag(['A','B','C'], 1)
+}

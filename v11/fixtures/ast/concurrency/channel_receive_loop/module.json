@@ -1,0 +1,494 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "StructDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "Channel"
+      },
+      "fields": [
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "capacity"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        },
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "handle"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i64"
+            }
+          }
+        }
+      ],
+      "kind": "named"
+    },
+    {
+      "type": "MethodsDefinition",
+      "targetType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "Channel"
+        }
+      },
+      "definitions": [
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "new"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "capacity"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "i32"
+                }
+              }
+            }
+          ],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "AssignmentExpression",
+                "operator": ":=",
+                "left": {
+                  "type": "Identifier",
+                  "name": "handle"
+                },
+                "right": {
+                  "type": "FunctionCall",
+                  "callee": {
+                    "type": "Identifier",
+                    "name": "__able_channel_new"
+                  },
+                  "arguments": [
+                    {
+                      "type": "Identifier",
+                      "name": "capacity"
+                    }
+                  ],
+                  "isTrailingLambda": false
+                }
+              },
+              {
+                "type": "ReturnStatement",
+                "argument": {
+                  "type": "StructLiteral",
+                  "structType": {
+                    "type": "Identifier",
+                    "name": "Channel"
+                  },
+                  "fields": [
+                    {
+                      "type": "StructFieldInitializer",
+                      "name": {
+                        "type": "Identifier",
+                        "name": "capacity"
+                      },
+                      "value": {
+                        "type": "Identifier",
+                        "name": "capacity"
+                      },
+                      "isShorthand": false
+                    },
+                    {
+                      "type": "StructFieldInitializer",
+                      "name": {
+                        "type": "Identifier",
+                        "name": "handle"
+                      },
+                      "value": {
+                        "type": "Identifier",
+                        "name": "handle"
+                      },
+                      "isShorthand": false
+                    }
+                  ],
+                  "isPositional": false
+                }
+              }
+            ]
+          },
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "Channel"
+            }
+          },
+          "isMethodShorthand": false,
+          "isPrivate": false
+        },
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "send"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              }
+            },
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "value"
+              }
+            }
+          ],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "FunctionCall",
+                "callee": {
+                  "type": "Identifier",
+                  "name": "__able_channel_send"
+                },
+                "arguments": [
+                  {
+                    "type": "MemberAccessExpression",
+                    "object": {
+                      "type": "Identifier",
+                      "name": "self"
+                    },
+                    "member": {
+                      "type": "Identifier",
+                      "name": "handle"
+                    }
+                  },
+                  {
+                    "type": "Identifier",
+                    "name": "value"
+                  }
+                ],
+                "isTrailingLambda": false
+              }
+            ]
+          },
+          "isMethodShorthand": false,
+          "isPrivate": false
+        },
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "receive"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              }
+            }
+          ],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "ReturnStatement",
+                "argument": {
+                  "type": "FunctionCall",
+                  "callee": {
+                    "type": "Identifier",
+                    "name": "__able_channel_receive"
+                  },
+                  "arguments": [
+                    {
+                      "type": "MemberAccessExpression",
+                      "object": {
+                        "type": "Identifier",
+                        "name": "self"
+                      },
+                      "member": {
+                        "type": "Identifier",
+                        "name": "handle"
+                      }
+                    }
+                  ],
+                  "isTrailingLambda": false
+                }
+              }
+            ]
+          },
+          "isMethodShorthand": false,
+          "isPrivate": false
+        },
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "close"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              }
+            }
+          ],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "FunctionCall",
+                "callee": {
+                  "type": "Identifier",
+                  "name": "__able_channel_close"
+                },
+                "arguments": [
+                  {
+                    "type": "MemberAccessExpression",
+                    "object": {
+                      "type": "Identifier",
+                      "name": "self"
+                    },
+                    "member": {
+                      "type": "Identifier",
+                      "name": "handle"
+                    }
+                  }
+                ],
+                "isTrailingLambda": false
+              }
+            ]
+          },
+          "isMethodShorthand": false,
+          "isPrivate": false
+        }
+      ]
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "channel"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "Channel"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "new"
+          }
+        },
+        "arguments": [
+          {
+            "type": "IntegerLiteral",
+            "value": 3
+          }
+        ],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "MemberAccessExpression",
+        "object": {
+          "type": "Identifier",
+          "name": "channel"
+        },
+        "member": {
+          "type": "Identifier",
+          "name": "send"
+        }
+      },
+      "arguments": [
+        {
+          "type": "IntegerLiteral",
+          "value": 2
+        }
+      ],
+      "isTrailingLambda": false
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "MemberAccessExpression",
+        "object": {
+          "type": "Identifier",
+          "name": "channel"
+        },
+        "member": {
+          "type": "Identifier",
+          "name": "send"
+        }
+      },
+      "arguments": [
+        {
+          "type": "IntegerLiteral",
+          "value": 3
+        }
+      ],
+      "isTrailingLambda": false
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "MemberAccessExpression",
+        "object": {
+          "type": "Identifier",
+          "name": "channel"
+        },
+        "member": {
+          "type": "Identifier",
+          "name": "close"
+        }
+      },
+      "arguments": [],
+      "isTrailingLambda": false
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "sum"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 0
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "value"
+      },
+      "right": {
+        "type": "NilLiteral",
+        "value": null
+      }
+    },
+    {
+      "type": "WhileLoop",
+      "condition": {
+        "type": "BooleanLiteral",
+        "value": true
+      },
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "AssignmentExpression",
+            "operator": ":=",
+            "left": {
+              "type": "Identifier",
+              "name": "value"
+            },
+            "right": {
+              "type": "FunctionCall",
+              "callee": {
+                "type": "MemberAccessExpression",
+                "object": {
+                  "type": "Identifier",
+                  "name": "channel"
+                },
+                "member": {
+                  "type": "Identifier",
+                  "name": "receive"
+                }
+              },
+              "arguments": [],
+              "isTrailingLambda": false
+            }
+          },
+          {
+            "type": "IfExpression",
+            "ifCondition": {
+              "type": "BinaryExpression",
+              "operator": "==",
+              "left": {
+                "type": "Identifier",
+                "name": "value"
+              },
+              "right": {
+                "type": "NilLiteral",
+                "value": null
+              }
+            },
+            "ifBody": {
+              "type": "BlockExpression",
+              "body": [
+                {
+                  "type": "BreakStatement"
+                }
+              ]
+            },
+            "orClauses": [
+              {
+                "type": "OrClause",
+                "body": {
+                  "type": "BlockExpression",
+                  "body": [
+                    {
+                      "type": "AssignmentExpression",
+                      "operator": "+=",
+                      "left": {
+                        "type": "Identifier",
+                        "name": "sum"
+                      },
+                      "right": {
+                        "type": "Identifier",
+                        "name": "value"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "Identifier",
+      "name": "sum"
+    }
+  ]
+}

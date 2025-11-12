@@ -1,0 +1,11 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "IntegerLiteral",
+      "value": 42,
+      "integerType": "i64"
+    }
+  ]
+}

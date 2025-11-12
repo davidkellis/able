@@ -1,0 +1,45 @@
+package io.specs
+
+import able.testing.rspec.{describe, expect, eq, be_truthy}
+import able.io.Path
+
+describe("able.io Path") { suite =>
+  suite.it("parses unix paths") { _ctx =>
+    path := Path.parse("/usr/local/bin")
+    expect(path.is_absolute()).to(be_truthy())
+    expect(path.to_string()).to(eq("/usr/local/bin"))
+    expect(path.basename()).to(eq("bin"))
+    expect(path.parent().to_string()).to(eq("/usr/local"))
+  }
+
+  suite.it("joins relative segments") { _ctx =>
+    base := Path.parse("/home/user")
+    joined := base.join("projects/able")
+    expect(joined.to_string()).to(eq("/home/user/projects/able"))
+  }
+
+  suite.it("normalizes dot segments") { _ctx =>
+    path := Path.parse("/var/./log/../tmp")
+    expect(path.to_string()).to(eq("/var/tmp"))
+  }
+
+  suite.it("handles windows drive prefixes") { _ctx =>
+    path := Path.parse("C:\\Users\\Admin")
+    expect(path.root()).to(eq("C:"))
+    expect(path.to_string()).to(eq("C:/Users/Admin"))
+    expect(path.is_absolute()).to(be_truthy())
+  }
+
+  suite.it("computes relative paths") { _ctx =>
+    target := Path.parse("/home/user/projects/app/src")
+    base := Path.parse("/home/user")
+    expect(target.relative_to(base).to_string()).to(eq("projects/app/src"))
+  }
+
+  suite.it("manages extensions") { _ctx =>
+    path := Path.parse("/tmp/archive.tar.gz")
+    expect(path.extension()).to(eq("gz"))
+    expect(path.basename_without_extension()).to(eq("archive.tar"))
+    expect(path.with_extension("zip").to_string()).to(eq("/tmp/archive.tar.zip"))
+  }
+}

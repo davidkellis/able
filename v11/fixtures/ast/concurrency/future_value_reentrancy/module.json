@@ -1,0 +1,259 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "inner_started"
+      },
+      "right": {
+        "type": "BooleanLiteral",
+        "value": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "inner_completed"
+      },
+      "right": {
+        "type": "BooleanLiteral",
+        "value": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "outer_started"
+      },
+      "right": {
+        "type": "BooleanLiteral",
+        "value": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "outer_completed"
+      },
+      "right": {
+        "type": "BooleanLiteral",
+        "value": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "inner_value_seen"
+      },
+      "right": {
+        "type": "BooleanLiteral",
+        "value": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "inner"
+      },
+      "right": {
+        "type": "SpawnExpression",
+        "expression": {
+          "type": "BlockExpression",
+          "body": [
+            {
+              "type": "AssignmentExpression",
+              "operator": "=",
+              "left": {
+                "type": "Identifier",
+                "name": "inner_started"
+              },
+              "right": {
+                "type": "BooleanLiteral",
+                "value": true
+              }
+            },
+            {
+              "type": "AssignmentExpression",
+              "operator": "=",
+              "left": {
+                "type": "Identifier",
+                "name": "inner_completed"
+              },
+              "right": {
+                "type": "BooleanLiteral",
+                "value": true
+              }
+            },
+            {
+              "type": "StringLiteral",
+              "value": "X"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "outer"
+      },
+      "right": {
+        "type": "SpawnExpression",
+        "expression": {
+          "type": "BlockExpression",
+          "body": [
+            {
+              "type": "AssignmentExpression",
+              "operator": "=",
+              "left": {
+                "type": "Identifier",
+                "name": "outer_started"
+              },
+              "right": {
+                "type": "BooleanLiteral",
+                "value": true
+              }
+            },
+            {
+              "type": "AssignmentExpression",
+              "operator": ":=",
+              "left": {
+                "type": "Identifier",
+                "name": "result"
+              },
+              "right": {
+                "type": "FunctionCall",
+                "callee": {
+                  "type": "MemberAccessExpression",
+                  "object": {
+                    "type": "Identifier",
+                    "name": "inner"
+                  },
+                  "member": {
+                    "type": "Identifier",
+                    "name": "value"
+                  }
+                },
+                "arguments": [],
+                "isTrailingLambda": false
+              }
+            },
+            {
+              "type": "AssignmentExpression",
+              "operator": "=",
+              "left": {
+                "type": "Identifier",
+                "name": "inner_value_seen"
+              },
+              "right": {
+                "type": "BinaryExpression",
+                "operator": "==",
+                "left": {
+                  "type": "Identifier",
+                  "name": "result"
+                },
+                "right": {
+                  "type": "StringLiteral",
+                  "value": "X"
+                }
+              }
+            },
+            {
+              "type": "AssignmentExpression",
+              "operator": "=",
+              "left": {
+                "type": "Identifier",
+                "name": "outer_completed"
+              },
+              "right": {
+                "type": "BooleanLiteral",
+                "value": true
+              }
+            },
+            {
+              "type": "StringLiteral",
+              "value": "done"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "final"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "outer"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "value"
+          }
+        },
+        "arguments": [],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "ArrayLiteral",
+      "elements": [
+        {
+          "type": "Identifier",
+          "name": "inner_started"
+        },
+        {
+          "type": "Identifier",
+          "name": "inner_completed"
+        },
+        {
+          "type": "Identifier",
+          "name": "outer_started"
+        },
+        {
+          "type": "Identifier",
+          "name": "inner_value_seen"
+        },
+        {
+          "type": "Identifier",
+          "name": "outer_completed"
+        },
+        {
+          "type": "BinaryExpression",
+          "operator": "==",
+          "left": {
+            "type": "Identifier",
+            "name": "final"
+          },
+          "right": {
+            "type": "StringLiteral",
+            "value": "done"
+          }
+        }
+      ]
+    }
+  ]
+}

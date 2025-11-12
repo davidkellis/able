@@ -1,0 +1,165 @@
+package collections
+
+import able.collections.array.{Array}
+import able.collections.enumerable.{Enumerable}
+import able.core.interfaces.{Iterable, Iterator, Default, Clone}
+
+struct Deque T where T: Clone {
+  data: Array T,
+  head: i32,
+  tail: i32,
+  count: i32
+}
+
+methods Deque T where T: Clone {
+  fn new() -> Deque T {
+    Deque.with_capacity(8)
+  }
+
+  fn with_capacity(capacity: i32) -> Deque T {
+    cap := if capacity < 1 { 1 } else { capacity }
+    Deque {
+      data: Array.with_capacity(cap),
+      head: 0,
+      tail: 0,
+      count: 0
+    }
+  }
+
+  fn len(self: Self) -> i32 { self.count }
+  fn is_empty(self: Self) -> bool { self.count == 0 }
+  fn capacity(self: Self) -> i32 { self.data.capacity() }
+
+  fn push_back(mut self: Self, value: T) -> void {
+    if self.count == self.capacity() {
+      self.grow()
+    }
+    cap := self.capacity()
+    self.data.write_slot(self.tail, value)
+    self.tail = (self.tail + 1) % cap
+    self.count = self.count + 1
+  }
+
+  fn push_front(mut self: Self, value: T) -> void {
+    if self.count == self.capacity() {
+      self.grow()
+    }
+    cap := self.capacity()
+    self.head = (self.head - 1 + cap) % cap
+    self.data.write_slot(self.head, value)
+    self.count = self.count + 1
+  }
+
+  fn pop_back(mut self: Self) -> ?T {
+    if self.is_empty() { return nil }
+    cap := self.capacity()
+    idx := (self.tail - 1 + cap) % cap
+    value := self.data.read_slot(idx)
+    self.tail = idx
+    self.count = self.count - 1
+    value
+  }
+
+  fn pop_front(mut self: Self) -> ?T {
+    if self.is_empty() { return nil }
+    value := self.data.read_slot(self.head)
+    cap := self.capacity()
+    self.head = (self.head + 1) % cap
+    self.count = self.count - 1
+    value
+  }
+
+  fn front(self: Self) -> ?T {
+    if self.is_empty() { return nil }
+    value := self.data.read_slot(self.head)
+    clone_value := value.clone()
+    self.data.write_slot(self.head, value)
+    clone_value
+  }
+
+  fn back(self: Self) -> ?T {
+    if self.is_empty() { return nil }
+    cap := self.capacity()
+    idx := (self.tail - 1 + cap) % cap
+    value := self.data.read_slot(idx)
+    clone_value := value.clone()
+    self.data.write_slot(idx, value)
+    clone_value
+  }
+
+  fn clear(mut self: Self) -> void {
+    self.head = 0
+    self.tail = 0
+    self.count = 0
+  }
+
+  fn grow(mut self: Self) -> void {
+    old_capacity := self.capacity()
+    new_capacity := old_capacity * 2
+    new_data := Array.with_capacity(new_capacity)
+
+    i := 0
+    loop {
+      if i >= self.count { break }
+      value := self.data.read_slot((self.head + i) % old_capacity)
+      new_data.write_slot(i, value)
+      i = i + 1
+    }
+
+    self.data = new_data
+    self.head = 0
+    self.tail = self.count
+  }
+}
+
+impl Default for Deque T where T: Clone {
+  fn default() -> Deque T { Deque.new() }
+}
+
+impl Clone for Deque T where T: Clone {
+  fn clone(self: Self) -> Deque T {
+    result := Deque.with_capacity(self.capacity())
+    i := 0
+    loop {
+      if i >= self.count { break }
+      val := self.data.read_slot((self.head + i) % self.capacity()).clone()
+      result.push_back(val)
+      i = i + 1
+    }
+    result
+  }
+}
+
+impl Iterable T for Deque T where T: Clone {
+  fn iterator(self: Self) -> (Iterator T) {
+    start_head := self.head
+    start_count := self.count
+    start_capacity := self.capacity()
+    backing := self.data
+    Iterator { gen =>
+      i := 0
+      loop {
+        if i >= start_count { break }
+        idx := (start_head + i) % start_capacity
+        value := backing.read_slot(idx).clone()
+        gen.yield(value)
+        i = i + 1
+      }
+    }
+  }
+}
+
+impl Enumerable T for Deque T where T: Clone {
+  fn each(self: Self, visit: T -> void) -> void {
+    count := self.count
+    capacity := self.capacity()
+    i := 0
+    loop {
+      if i >= count { break }
+      idx := (self.head + i) % capacity
+      value := self.data.read_slot(idx)
+      visit(value)
+      i = i + 1
+    }
+  }
+}

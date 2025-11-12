@@ -1,0 +1,16 @@
+interface Wrapper for F _
+{
+  fn wrap <T> (self: Self T, value: T) -> Self T
+}
+struct Holder <T> {
+  value: T
+}
+impl Wrapper for Holder
+{
+  fn wrap<T>(self: Holder T, value: T) -> Holder T {
+    Holder<T> { value: value }
+  }
+}
+holder := Holder<i32> { value: 1 }
+wrapped := holder.wrap<i32>(7)
+wrapped.value

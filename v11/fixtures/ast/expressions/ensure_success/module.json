@@ -1,0 +1,37 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "EnsureExpression",
+      "tryExpression": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "StringLiteral",
+            "value": "body"
+          }
+        ]
+      },
+      "ensureBlock": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "FunctionCall",
+            "callee": {
+              "type": "Identifier",
+              "name": "print"
+            },
+            "arguments": [
+              {
+                "type": "StringLiteral",
+                "value": "ensure"
+              }
+            ],
+            "isTrailingLambda": false
+          }
+        ]
+      }
+    }
+  ]
+}

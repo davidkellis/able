@@ -1,0 +1,10 @@
+{
+  "description": "Function where clause constrains generic parameters",
+  "expect": {
+    "result": {
+      "kind": "string",
+      "value": "winner"
+    }
+  },
+  "entry": "module.json"
+}

@@ -1,0 +1,36 @@
+package leetcode11
+
+fn max_area(heights: Array i32) -> i32 {
+  left := 0
+  right := heights.size() - 1
+  best := 0
+
+  while left < right {
+    width := right - left
+    h := heights[left]
+    if heights[right] < h {
+      h = heights[right]
+    }
+    area := width * h
+    if area > best {
+      best = area
+    }
+    if heights[left] < heights[right] {
+      left = left + 1
+    } else {
+      right = right - 1
+    }
+  }
+
+  best
+}
+
+fn show_area(heights: Array i32) -> void {
+  print(`Heights: ${heights} -> max area ${max_area(heights)}`)
+}
+
+fn main() -> void {
+  show_area([1,8,6,2,5,4,8,3,7])
+  show_area([1,1])
+  show_area([4,3,2,1,4])
+}

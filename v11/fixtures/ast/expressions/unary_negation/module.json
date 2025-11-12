@@ -1,0 +1,14 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "UnaryExpression",
+      "operator": "-",
+      "operand": {
+        "type": "IntegerLiteral",
+        "value": 5
+      }
+    }
+  ]
+}

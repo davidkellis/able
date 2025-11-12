@@ -1,0 +1,9 @@
+{
+  "description": "Proc cancellation before start returns an error value",
+  "expect": {
+    "result": {
+      "kind": "error"
+    }
+  },
+  "entry": "module.json"
+}

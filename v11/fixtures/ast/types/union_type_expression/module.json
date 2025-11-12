@@ -1,0 +1,85 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "FunctionDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "identity_union"
+      },
+      "params": [
+        {
+          "type": "FunctionParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "value"
+          },
+          "paramType": {
+            "type": "UnionTypeExpression",
+            "members": [
+              {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "string"
+                }
+              },
+              {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "i32"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "Identifier",
+            "name": "value"
+          }
+        ]
+      },
+      "returnType": {
+        "type": "UnionTypeExpression",
+        "members": [
+          {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "string"
+            }
+          },
+          {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        ]
+      },
+      "isMethodShorthand": false,
+      "isPrivate": false
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "Identifier",
+        "name": "identity_union"
+      },
+      "arguments": [
+        {
+          "type": "StringLiteral",
+          "value": "hello"
+        }
+      ],
+      "isTrailingLambda": false
+    }
+  ]
+}

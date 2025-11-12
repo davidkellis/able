@@ -1,0 +1,42 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "a"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 1
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "b"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 2
+      }
+    },
+    {
+      "type": "BinaryExpression",
+      "operator": "+",
+      "left": {
+        "type": "Identifier",
+        "name": "a"
+      },
+      "right": {
+        "type": "Identifier",
+        "name": "b"
+      }
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "description": "Evaluates a boolean literal",
+  "expect": {
+    "result": {
+      "kind": "bool",
+      "value": true
+    }
+  },
+  "entry": "module.json"
+}

@@ -1,0 +1,18 @@
+struct Box {
+  value: i32
+}
+
+methods Box {
+  fn #increment() {
+    return #value + 1;
+  }
+
+  fn #double() {
+    return #value * 2;
+  }
+}
+
+box := Box { value: 5 }
+first := (box |> #increment)
+second := (box |> #double)
+`${first},${second}`

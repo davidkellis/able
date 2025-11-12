@@ -1,0 +1,10 @@
+{
+  "description": "Trailing lambda iterates array and accumulates values",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": 6
+    }
+  },
+  "entry": "module.json"
+}

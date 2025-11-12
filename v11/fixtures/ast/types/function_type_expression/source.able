@@ -1,0 +1,7 @@
+fn apply(value: i32, cb: (i32) -> i32) -> i32 {
+  cb(value)
+}
+fn double(n: i32) -> i32 {
+  n * 2
+}
+apply(3, double)

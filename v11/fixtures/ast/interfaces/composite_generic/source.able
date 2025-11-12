@@ -1,0 +1,7 @@
+interface CustomDisplay {
+  fn to_string(self: Self) -> string;
+}
+
+interface Feed<T> = Iterable string + Sized
+
+nil

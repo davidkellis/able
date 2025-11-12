@@ -1,0 +1,5 @@
+do {
+  "safe"
+} rescue {
+  case _ => "handled"
+}

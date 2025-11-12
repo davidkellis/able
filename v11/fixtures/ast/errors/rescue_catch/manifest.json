@@ -1,0 +1,13 @@
+{
+  "description": "Rescue expression catches raise",
+  "expect": {
+    "stdout": [
+      "[error]"
+    ],
+    "result": {
+      "kind": "string",
+      "value": "handled"
+    }
+  },
+  "entry": "module.json"
+}

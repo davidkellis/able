@@ -1,0 +1,39 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "MatchExpression",
+      "subject": {
+        "type": "IntegerLiteral",
+        "value": 0
+      },
+      "clauses": [
+        {
+          "type": "MatchClause",
+          "pattern": {
+            "type": "LiteralPattern",
+            "literal": {
+              "type": "IntegerLiteral",
+              "value": 1
+            }
+          },
+          "body": {
+            "type": "StringLiteral",
+            "value": "One"
+          }
+        },
+        {
+          "type": "MatchClause",
+          "pattern": {
+            "type": "WildcardPattern"
+          },
+          "body": {
+            "type": "StringLiteral",
+            "value": "Other"
+          }
+        }
+      ]
+    }
+  ]
+}

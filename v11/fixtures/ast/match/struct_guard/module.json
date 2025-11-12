@@ -1,0 +1,142 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "StructDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "Point"
+      },
+      "fields": [
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "x"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        },
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "y"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        }
+      ],
+      "kind": "named"
+    },
+    {
+      "type": "MatchExpression",
+      "subject": {
+        "type": "StructLiteral",
+        "structType": {
+          "type": "Identifier",
+          "name": "Point"
+        },
+        "fields": [
+          {
+            "type": "StructFieldInitializer",
+            "name": {
+              "type": "Identifier",
+              "name": "x"
+            },
+            "value": {
+              "type": "IntegerLiteral",
+              "value": 1
+            },
+            "isShorthand": false
+          },
+          {
+            "type": "StructFieldInitializer",
+            "name": {
+              "type": "Identifier",
+              "name": "y"
+            },
+            "value": {
+              "type": "IntegerLiteral",
+              "value": 2
+            },
+            "isShorthand": false
+          }
+        ],
+        "isPositional": false
+      },
+      "clauses": [
+        {
+          "type": "MatchClause",
+          "pattern": {
+            "type": "StructPattern",
+            "structType": {
+              "type": "Identifier",
+              "name": "Point"
+            },
+            "fields": [
+              {
+                "type": "StructPatternField",
+                "fieldName": {
+                  "type": "Identifier",
+                  "name": "x"
+                },
+                "pattern": {
+                  "type": "Identifier",
+                  "name": "a"
+                }
+              },
+              {
+                "type": "StructPatternField",
+                "fieldName": {
+                  "type": "Identifier",
+                  "name": "y"
+                },
+                "pattern": {
+                  "type": "Identifier",
+                  "name": "b"
+                }
+              }
+            ],
+            "isPositional": false
+          },
+          "guard": {
+            "type": "BinaryExpression",
+            "operator": ">",
+            "left": {
+              "type": "Identifier",
+              "name": "b"
+            },
+            "right": {
+              "type": "Identifier",
+              "name": "a"
+            }
+          },
+          "body": {
+            "type": "BinaryExpression",
+            "operator": "+",
+            "left": {
+              "type": "Identifier",
+              "name": "a"
+            },
+            "right": {
+              "type": "Identifier",
+              "name": "b"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "description": "Evaluates an empty array literal",
+  "expect": {
+    "result": {
+      "kind": "array",
+      "elements": []
+    }
+  },
+  "entry": "module.json"
+}

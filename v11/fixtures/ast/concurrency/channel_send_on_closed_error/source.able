@@ -1,0 +1,3 @@
+handle := __able_channel_new(0)
+__able_channel_close(handle)
+__able_channel_send(handle, 1)
