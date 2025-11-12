@@ -1,0 +1,40 @@
+fn status_name(status) -> string {
+  status match {
+    case Pending {  } => "Pending",
+    case Resolved {  } => "Resolved",
+    case Cancelled {  } => "Cancelled",
+    case Failed {  } => "Failed"
+  }
+}
+iterations := 2048
+future_started := false
+future_iteration := 0
+future_completed := false
+outer_waited := false
+outer_summary := ""
+future := spawn {
+  future_started = true
+  while future_iteration < iterations {
+    future_iteration = future_iteration + 1
+    proc_yield()
+  }
+  future_completed = true
+  "done"
+}
+proc_flush()
+status_before := status_name(future.status())
+future.cancel()
+proc_flush()
+status_after := status_name(future.status())
+outer := proc {
+  outer_waited = true
+  value := future.value()
+  summary := (value match {
+    case err: Error => err.message(),
+    case other => `ok:${other}`
+  })
+  outer_summary = summary
+  summary
+}
+outer_result := outer.value()
+[future_started, future_iteration > 0, !future_completed, status_before == "Pending", status_after == "Cancelled", outer_result == "Future cancelled", outer_summary == "Future cancelled", outer_waited]

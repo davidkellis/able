@@ -1,0 +1,1187 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "handle"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "Identifier",
+          "name": "__able_channel_new"
+        },
+        "arguments": [
+          {
+            "type": "IntegerLiteral",
+            "value": 2
+          }
+        ],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "FunctionDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "status_name"
+      },
+      "params": [
+        {
+          "type": "FunctionParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "status"
+          }
+        }
+      ],
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "MatchExpression",
+            "subject": {
+              "type": "Identifier",
+              "name": "status"
+            },
+            "clauses": [
+              {
+                "type": "MatchClause",
+                "pattern": {
+                  "type": "StructPattern",
+                  "structType": {
+                    "type": "Identifier",
+                    "name": "Pending"
+                  },
+                  "fields": [],
+                  "isPositional": false
+                },
+                "body": {
+                  "type": "StringLiteral",
+                  "value": "Pending"
+                }
+              },
+              {
+                "type": "MatchClause",
+                "pattern": {
+                  "type": "StructPattern",
+                  "structType": {
+                    "type": "Identifier",
+                    "name": "Resolved"
+                  },
+                  "fields": [],
+                  "isPositional": false
+                },
+                "body": {
+                  "type": "StringLiteral",
+                  "value": "Resolved"
+                }
+              },
+              {
+                "type": "MatchClause",
+                "pattern": {
+                  "type": "StructPattern",
+                  "structType": {
+                    "type": "Identifier",
+                    "name": "Cancelled"
+                  },
+                  "fields": [],
+                  "isPositional": false
+                },
+                "body": {
+                  "type": "StringLiteral",
+                  "value": "Cancelled"
+                }
+              },
+              {
+                "type": "MatchClause",
+                "pattern": {
+                  "type": "StructPattern",
+                  "structType": {
+                    "type": "Identifier",
+                    "name": "Failed"
+                  },
+                  "fields": [],
+                  "isPositional": false
+                },
+                "body": {
+                  "type": "StringLiteral",
+                  "value": "Failed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "string"
+        }
+      },
+      "isMethodShorthand": false,
+      "isPrivate": false
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "sender_a"
+      },
+      "right": {
+        "type": "ProcExpression",
+        "expression": {
+          "type": "BlockExpression",
+          "body": [
+            {
+              "type": "AssignmentExpression",
+              "operator": ":=",
+              "left": {
+                "type": "Identifier",
+                "name": "sent"
+              },
+              "right": {
+                "type": "BooleanLiteral",
+                "value": false
+              }
+            },
+            {
+              "type": "AssignmentExpression",
+              "operator": ":=",
+              "left": {
+                "type": "Identifier",
+                "name": "attempts"
+              },
+              "right": {
+                "type": "IntegerLiteral",
+                "value": 0
+              }
+            },
+            {
+              "type": "WhileLoop",
+              "condition": {
+                "type": "BinaryExpression",
+                "operator": "&&",
+                "left": {
+                  "type": "BinaryExpression",
+                  "operator": "==",
+                  "left": {
+                    "type": "Identifier",
+                    "name": "sent"
+                  },
+                  "right": {
+                    "type": "BooleanLiteral",
+                    "value": false
+                  }
+                },
+                "right": {
+                  "type": "BinaryExpression",
+                  "operator": "<",
+                  "left": {
+                    "type": "Identifier",
+                    "name": "attempts"
+                  },
+                  "right": {
+                    "type": "IntegerLiteral",
+                    "value": 32
+                  }
+                }
+              },
+              "body": {
+                "type": "BlockExpression",
+                "body": [
+                  {
+                    "type": "IfExpression",
+                    "ifCondition": {
+                      "type": "FunctionCall",
+                      "callee": {
+                        "type": "Identifier",
+                        "name": "__able_channel_try_send"
+                      },
+                      "arguments": [
+                        {
+                          "type": "Identifier",
+                          "name": "handle"
+                        },
+                        {
+                          "type": "IntegerLiteral",
+                          "value": 10
+                        }
+                      ],
+                      "isTrailingLambda": false
+                    },
+                    "ifBody": {
+                      "type": "BlockExpression",
+                      "body": [
+                        {
+                          "type": "AssignmentExpression",
+                          "operator": "=",
+                          "left": {
+                            "type": "Identifier",
+                            "name": "sent"
+                          },
+                          "right": {
+                            "type": "BooleanLiteral",
+                            "value": true
+                          }
+                        }
+                      ]
+                    },
+                    "orClauses": [
+                      {
+                        "type": "OrClause",
+                        "body": {
+                          "type": "BlockExpression",
+                          "body": [
+                            {
+                              "type": "AssignmentExpression",
+                              "operator": "+=",
+                              "left": {
+                                "type": "Identifier",
+                                "name": "attempts"
+                              },
+                              "right": {
+                                "type": "IntegerLiteral",
+                                "value": 1
+                              }
+                            },
+                            {
+                              "type": "FunctionCall",
+                              "callee": {
+                                "type": "Identifier",
+                                "name": "proc_yield"
+                              },
+                              "arguments": [],
+                              "isTrailingLambda": false
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "type": "Identifier",
+              "name": "sent"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "sender_b"
+      },
+      "right": {
+        "type": "ProcExpression",
+        "expression": {
+          "type": "BlockExpression",
+          "body": [
+            {
+              "type": "AssignmentExpression",
+              "operator": ":=",
+              "left": {
+                "type": "Identifier",
+                "name": "sent"
+              },
+              "right": {
+                "type": "BooleanLiteral",
+                "value": false
+              }
+            },
+            {
+              "type": "AssignmentExpression",
+              "operator": ":=",
+              "left": {
+                "type": "Identifier",
+                "name": "attempts"
+              },
+              "right": {
+                "type": "IntegerLiteral",
+                "value": 0
+              }
+            },
+            {
+              "type": "WhileLoop",
+              "condition": {
+                "type": "BinaryExpression",
+                "operator": "&&",
+                "left": {
+                  "type": "BinaryExpression",
+                  "operator": "==",
+                  "left": {
+                    "type": "Identifier",
+                    "name": "sent"
+                  },
+                  "right": {
+                    "type": "BooleanLiteral",
+                    "value": false
+                  }
+                },
+                "right": {
+                  "type": "BinaryExpression",
+                  "operator": "<",
+                  "left": {
+                    "type": "Identifier",
+                    "name": "attempts"
+                  },
+                  "right": {
+                    "type": "IntegerLiteral",
+                    "value": 32
+                  }
+                }
+              },
+              "body": {
+                "type": "BlockExpression",
+                "body": [
+                  {
+                    "type": "IfExpression",
+                    "ifCondition": {
+                      "type": "FunctionCall",
+                      "callee": {
+                        "type": "Identifier",
+                        "name": "__able_channel_try_send"
+                      },
+                      "arguments": [
+                        {
+                          "type": "Identifier",
+                          "name": "handle"
+                        },
+                        {
+                          "type": "IntegerLiteral",
+                          "value": 20
+                        }
+                      ],
+                      "isTrailingLambda": false
+                    },
+                    "ifBody": {
+                      "type": "BlockExpression",
+                      "body": [
+                        {
+                          "type": "AssignmentExpression",
+                          "operator": "=",
+                          "left": {
+                            "type": "Identifier",
+                            "name": "sent"
+                          },
+                          "right": {
+                            "type": "BooleanLiteral",
+                            "value": true
+                          }
+                        }
+                      ]
+                    },
+                    "orClauses": [
+                      {
+                        "type": "OrClause",
+                        "body": {
+                          "type": "BlockExpression",
+                          "body": [
+                            {
+                              "type": "AssignmentExpression",
+                              "operator": "+=",
+                              "left": {
+                                "type": "Identifier",
+                                "name": "attempts"
+                              },
+                              "right": {
+                                "type": "IntegerLiteral",
+                                "value": 1
+                              }
+                            },
+                            {
+                              "type": "FunctionCall",
+                              "callee": {
+                                "type": "Identifier",
+                                "name": "proc_yield"
+                              },
+                              "arguments": [],
+                              "isTrailingLambda": false
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "type": "Identifier",
+              "name": "sent"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "receiver"
+      },
+      "right": {
+        "type": "ProcExpression",
+        "expression": {
+          "type": "BlockExpression",
+          "body": [
+            {
+              "type": "AssignmentExpression",
+              "operator": ":=",
+              "left": {
+                "type": "Identifier",
+                "name": "received"
+              },
+              "right": {
+                "type": "IntegerLiteral",
+                "value": 0
+              }
+            },
+            {
+              "type": "AssignmentExpression",
+              "operator": ":=",
+              "left": {
+                "type": "Identifier",
+                "name": "attempts"
+              },
+              "right": {
+                "type": "IntegerLiteral",
+                "value": 0
+              }
+            },
+            {
+              "type": "AssignmentExpression",
+              "operator": ":=",
+              "left": {
+                "type": "Identifier",
+                "name": "sum"
+              },
+              "right": {
+                "type": "IntegerLiteral",
+                "value": 0
+              }
+            },
+            {
+              "type": "WhileLoop",
+              "condition": {
+                "type": "BinaryExpression",
+                "operator": "&&",
+                "left": {
+                  "type": "BinaryExpression",
+                  "operator": "<",
+                  "left": {
+                    "type": "Identifier",
+                    "name": "received"
+                  },
+                  "right": {
+                    "type": "IntegerLiteral",
+                    "value": 2
+                  }
+                },
+                "right": {
+                  "type": "BinaryExpression",
+                  "operator": "<",
+                  "left": {
+                    "type": "Identifier",
+                    "name": "attempts"
+                  },
+                  "right": {
+                    "type": "IntegerLiteral",
+                    "value": 64
+                  }
+                }
+              },
+              "body": {
+                "type": "BlockExpression",
+                "body": [
+                  {
+                    "type": "AssignmentExpression",
+                    "operator": ":=",
+                    "left": {
+                      "type": "Identifier",
+                      "name": "value"
+                    },
+                    "right": {
+                      "type": "FunctionCall",
+                      "callee": {
+                        "type": "Identifier",
+                        "name": "__able_channel_try_receive"
+                      },
+                      "arguments": [
+                        {
+                          "type": "Identifier",
+                          "name": "handle"
+                        }
+                      ],
+                      "isTrailingLambda": false
+                    }
+                  },
+                  {
+                    "type": "IfExpression",
+                    "ifCondition": {
+                      "type": "BinaryExpression",
+                      "operator": "==",
+                      "left": {
+                        "type": "Identifier",
+                        "name": "value"
+                      },
+                      "right": {
+                        "type": "NilLiteral",
+                        "value": null
+                      }
+                    },
+                    "ifBody": {
+                      "type": "BlockExpression",
+                      "body": [
+                        {
+                          "type": "AssignmentExpression",
+                          "operator": "+=",
+                          "left": {
+                            "type": "Identifier",
+                            "name": "attempts"
+                          },
+                          "right": {
+                            "type": "IntegerLiteral",
+                            "value": 1
+                          }
+                        },
+                        {
+                          "type": "FunctionCall",
+                          "callee": {
+                            "type": "Identifier",
+                            "name": "proc_yield"
+                          },
+                          "arguments": [],
+                          "isTrailingLambda": false
+                        }
+                      ]
+                    },
+                    "orClauses": [
+                      {
+                        "type": "OrClause",
+                        "body": {
+                          "type": "BlockExpression",
+                          "body": [
+                            {
+                              "type": "AssignmentExpression",
+                              "operator": "+=",
+                              "left": {
+                                "type": "Identifier",
+                                "name": "sum"
+                              },
+                              "right": {
+                                "type": "Identifier",
+                                "name": "value"
+                              }
+                            },
+                            {
+                              "type": "AssignmentExpression",
+                              "operator": "+=",
+                              "left": {
+                                "type": "Identifier",
+                                "name": "received"
+                              },
+                              "right": {
+                                "type": "IntegerLiteral",
+                                "value": 1
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "type": "Identifier",
+              "name": "sum"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "sender_a_value"
+      },
+      "right": {
+        "type": "BooleanLiteral",
+        "value": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "sender_b_value"
+      },
+      "right": {
+        "type": "BooleanLiteral",
+        "value": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "receiver_sum"
+      },
+      "right": {
+        "type": "UnaryExpression",
+        "operator": "-",
+        "operand": {
+          "type": "IntegerLiteral",
+          "value": 1
+        }
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "status_sender_a"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "Identifier",
+          "name": "status_name"
+        },
+        "arguments": [
+          {
+            "type": "FunctionCall",
+            "callee": {
+              "type": "MemberAccessExpression",
+              "object": {
+                "type": "Identifier",
+                "name": "sender_a"
+              },
+              "member": {
+                "type": "Identifier",
+                "name": "status"
+              }
+            },
+            "arguments": [],
+            "isTrailingLambda": false
+          }
+        ],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "status_sender_b"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "Identifier",
+          "name": "status_name"
+        },
+        "arguments": [
+          {
+            "type": "FunctionCall",
+            "callee": {
+              "type": "MemberAccessExpression",
+              "object": {
+                "type": "Identifier",
+                "name": "sender_b"
+              },
+              "member": {
+                "type": "Identifier",
+                "name": "status"
+              }
+            },
+            "arguments": [],
+            "isTrailingLambda": false
+          }
+        ],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "status_receiver"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "Identifier",
+          "name": "status_name"
+        },
+        "arguments": [
+          {
+            "type": "FunctionCall",
+            "callee": {
+              "type": "MemberAccessExpression",
+              "object": {
+                "type": "Identifier",
+                "name": "receiver"
+              },
+              "member": {
+                "type": "Identifier",
+                "name": "status"
+              }
+            },
+            "arguments": [],
+            "isTrailingLambda": false
+          }
+        ],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "flushes"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 0
+      }
+    },
+    {
+      "type": "WhileLoop",
+      "condition": {
+        "type": "BinaryExpression",
+        "operator": "&&",
+        "left": {
+          "type": "BinaryExpression",
+          "operator": "||",
+          "left": {
+            "type": "BinaryExpression",
+            "operator": "==",
+            "left": {
+              "type": "Identifier",
+              "name": "status_sender_a"
+            },
+            "right": {
+              "type": "StringLiteral",
+              "value": "Pending"
+            }
+          },
+          "right": {
+            "type": "BinaryExpression",
+            "operator": "||",
+            "left": {
+              "type": "BinaryExpression",
+              "operator": "==",
+              "left": {
+                "type": "Identifier",
+                "name": "status_sender_b"
+              },
+              "right": {
+                "type": "StringLiteral",
+                "value": "Pending"
+              }
+            },
+            "right": {
+              "type": "BinaryExpression",
+              "operator": "==",
+              "left": {
+                "type": "Identifier",
+                "name": "status_receiver"
+              },
+              "right": {
+                "type": "StringLiteral",
+                "value": "Pending"
+              }
+            }
+          }
+        },
+        "right": {
+          "type": "BinaryExpression",
+          "operator": "<",
+          "left": {
+            "type": "Identifier",
+            "name": "flushes"
+          },
+          "right": {
+            "type": "IntegerLiteral",
+            "value": 16
+          }
+        }
+      },
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "FunctionCall",
+            "callee": {
+              "type": "Identifier",
+              "name": "proc_flush"
+            },
+            "arguments": [],
+            "isTrailingLambda": false
+          },
+          {
+            "type": "AssignmentExpression",
+            "operator": "+=",
+            "left": {
+              "type": "Identifier",
+              "name": "flushes"
+            },
+            "right": {
+              "type": "IntegerLiteral",
+              "value": 1
+            }
+          },
+          {
+            "type": "AssignmentExpression",
+            "operator": "=",
+            "left": {
+              "type": "Identifier",
+              "name": "status_sender_a"
+            },
+            "right": {
+              "type": "FunctionCall",
+              "callee": {
+                "type": "Identifier",
+                "name": "status_name"
+              },
+              "arguments": [
+                {
+                  "type": "FunctionCall",
+                  "callee": {
+                    "type": "MemberAccessExpression",
+                    "object": {
+                      "type": "Identifier",
+                      "name": "sender_a"
+                    },
+                    "member": {
+                      "type": "Identifier",
+                      "name": "status"
+                    }
+                  },
+                  "arguments": [],
+                  "isTrailingLambda": false
+                }
+              ],
+              "isTrailingLambda": false
+            }
+          },
+          {
+            "type": "AssignmentExpression",
+            "operator": "=",
+            "left": {
+              "type": "Identifier",
+              "name": "status_sender_b"
+            },
+            "right": {
+              "type": "FunctionCall",
+              "callee": {
+                "type": "Identifier",
+                "name": "status_name"
+              },
+              "arguments": [
+                {
+                  "type": "FunctionCall",
+                  "callee": {
+                    "type": "MemberAccessExpression",
+                    "object": {
+                      "type": "Identifier",
+                      "name": "sender_b"
+                    },
+                    "member": {
+                      "type": "Identifier",
+                      "name": "status"
+                    }
+                  },
+                  "arguments": [],
+                  "isTrailingLambda": false
+                }
+              ],
+              "isTrailingLambda": false
+            }
+          },
+          {
+            "type": "AssignmentExpression",
+            "operator": "=",
+            "left": {
+              "type": "Identifier",
+              "name": "status_receiver"
+            },
+            "right": {
+              "type": "FunctionCall",
+              "callee": {
+                "type": "Identifier",
+                "name": "status_name"
+              },
+              "arguments": [
+                {
+                  "type": "FunctionCall",
+                  "callee": {
+                    "type": "MemberAccessExpression",
+                    "object": {
+                      "type": "Identifier",
+                      "name": "receiver"
+                    },
+                    "member": {
+                      "type": "Identifier",
+                      "name": "status"
+                    }
+                  },
+                  "arguments": [],
+                  "isTrailingLambda": false
+                }
+              ],
+              "isTrailingLambda": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "IfExpression",
+      "ifCondition": {
+        "type": "BinaryExpression",
+        "operator": "==",
+        "left": {
+          "type": "Identifier",
+          "name": "status_sender_a"
+        },
+        "right": {
+          "type": "StringLiteral",
+          "value": "Resolved"
+        }
+      },
+      "ifBody": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "AssignmentExpression",
+            "operator": "=",
+            "left": {
+              "type": "Identifier",
+              "name": "sender_a_value"
+            },
+            "right": {
+              "type": "FunctionCall",
+              "callee": {
+                "type": "MemberAccessExpression",
+                "object": {
+                  "type": "Identifier",
+                  "name": "sender_a"
+                },
+                "member": {
+                  "type": "Identifier",
+                  "name": "value"
+                }
+              },
+              "arguments": [],
+              "isTrailingLambda": false
+            }
+          }
+        ]
+      },
+      "orClauses": []
+    },
+    {
+      "type": "IfExpression",
+      "ifCondition": {
+        "type": "BinaryExpression",
+        "operator": "==",
+        "left": {
+          "type": "Identifier",
+          "name": "status_sender_b"
+        },
+        "right": {
+          "type": "StringLiteral",
+          "value": "Resolved"
+        }
+      },
+      "ifBody": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "AssignmentExpression",
+            "operator": "=",
+            "left": {
+              "type": "Identifier",
+              "name": "sender_b_value"
+            },
+            "right": {
+              "type": "FunctionCall",
+              "callee": {
+                "type": "MemberAccessExpression",
+                "object": {
+                  "type": "Identifier",
+                  "name": "sender_b"
+                },
+                "member": {
+                  "type": "Identifier",
+                  "name": "value"
+                }
+              },
+              "arguments": [],
+              "isTrailingLambda": false
+            }
+          }
+        ]
+      },
+      "orClauses": []
+    },
+    {
+      "type": "IfExpression",
+      "ifCondition": {
+        "type": "BinaryExpression",
+        "operator": "==",
+        "left": {
+          "type": "Identifier",
+          "name": "status_receiver"
+        },
+        "right": {
+          "type": "StringLiteral",
+          "value": "Resolved"
+        }
+      },
+      "ifBody": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "AssignmentExpression",
+            "operator": "=",
+            "left": {
+              "type": "Identifier",
+              "name": "receiver_sum"
+            },
+            "right": {
+              "type": "FunctionCall",
+              "callee": {
+                "type": "MemberAccessExpression",
+                "object": {
+                  "type": "Identifier",
+                  "name": "receiver"
+                },
+                "member": {
+                  "type": "Identifier",
+                  "name": "value"
+                }
+              },
+              "arguments": [],
+              "isTrailingLambda": false
+            }
+          }
+        ]
+      },
+      "orClauses": []
+    },
+    {
+      "type": "ArrayLiteral",
+      "elements": [
+        {
+          "type": "BinaryExpression",
+          "operator": "==",
+          "left": {
+            "type": "Identifier",
+            "name": "status_sender_a"
+          },
+          "right": {
+            "type": "StringLiteral",
+            "value": "Resolved"
+          }
+        },
+        {
+          "type": "BinaryExpression",
+          "operator": "==",
+          "left": {
+            "type": "Identifier",
+            "name": "status_sender_b"
+          },
+          "right": {
+            "type": "StringLiteral",
+            "value": "Resolved"
+          }
+        },
+        {
+          "type": "BinaryExpression",
+          "operator": "==",
+          "left": {
+            "type": "Identifier",
+            "name": "status_receiver"
+          },
+          "right": {
+            "type": "StringLiteral",
+            "value": "Resolved"
+          }
+        },
+        {
+          "type": "BinaryExpression",
+          "operator": "==",
+          "left": {
+            "type": "Identifier",
+            "name": "sender_a_value"
+          },
+          "right": {
+            "type": "BooleanLiteral",
+            "value": true
+          }
+        },
+        {
+          "type": "BinaryExpression",
+          "operator": "==",
+          "left": {
+            "type": "Identifier",
+            "name": "sender_b_value"
+          },
+          "right": {
+            "type": "BooleanLiteral",
+            "value": true
+          }
+        },
+        {
+          "type": "BinaryExpression",
+          "operator": "==",
+          "left": {
+            "type": "Identifier",
+            "name": "receiver_sum"
+          },
+          "right": {
+            "type": "IntegerLiteral",
+            "value": 30
+          }
+        },
+        {
+          "type": "BinaryExpression",
+          "operator": ">",
+          "left": {
+            "type": "Identifier",
+            "name": "flushes"
+          },
+          "right": {
+            "type": "IntegerLiteral",
+            "value": 0
+          }
+        }
+      ]
+    }
+  ]
+}

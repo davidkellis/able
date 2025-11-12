@@ -1,0 +1,10 @@
+{
+  "description": "Function parameter and return use nullable type",
+  "expect": {
+    "result": {
+      "kind": "string",
+      "value": "ready"
+    }
+  },
+  "entry": "module.json"
+}

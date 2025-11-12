@@ -1,0 +1,6 @@
+fn identity<T>(value) {
+  value
+}
+
+result := identity<i32>(5)
+result

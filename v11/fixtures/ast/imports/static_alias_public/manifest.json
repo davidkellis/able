@@ -1,0 +1,13 @@
+{
+  "description": "Package alias exposes public members",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": 3
+    }
+  },
+  "entry": "module.json",
+  "setup": [
+    "package.json"
+  ]
+}

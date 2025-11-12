@@ -1,0 +1,5 @@
+fn identity<T: Error>(value) {
+  value
+}
+
+identity<i32>(5)

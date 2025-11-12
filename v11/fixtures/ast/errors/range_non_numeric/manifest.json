@@ -1,0 +1,13 @@
+{
+  "description": "Range boundaries must be numeric",
+  "expect": {
+    "errors": [
+      "Range boundaries must be numeric",
+      "typechecker: range start must be numeric"
+    ],
+    "typecheckDiagnostics": [
+      "typechecker: fixtures/ast/errors/range_non_numeric/source.able:1:1 typechecker: range start must be numeric"
+    ]
+  },
+  "entry": "source.able"
+}

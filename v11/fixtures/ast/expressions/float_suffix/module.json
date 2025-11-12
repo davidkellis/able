@@ -1,0 +1,11 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "FloatLiteral",
+      "value": 3.5,
+      "floatType": "f32"
+    }
+  ]
+}

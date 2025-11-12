@@ -1,0 +1,13 @@
+package example_static
+
+fn pub_fn() {
+  return 7;
+}
+
+private fn priv_fn() {
+  return 1;
+}
+
+struct Thing {}
+
+private struct HiddenThing {}

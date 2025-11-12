@@ -1,0 +1,5 @@
+dynimport dynp.{f as ff}
+dynimport dynp as D
+x := ff()
+y := D.f()
+x + y

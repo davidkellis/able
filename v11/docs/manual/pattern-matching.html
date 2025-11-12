@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Able v10 Manual — Pattern Matching &amp; Unions</title>
+    <link rel="stylesheet" href="manual.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <nav class="sidebar">
+        <span class="brand">Able v10 Manual</span>
+        <ul>
+          <li><a href="index.html">Getting Started</a></li>
+          <li><a href="variables.html">Variables</a></li>
+          <li><a href="control-flow.html">Control Flow</a></li>
+          <li><a href="functions.html">Functions</a></li>
+          <li><a href="types.html">Types</a></li>
+          <li><a href="methods.html">Methods</a></li>
+          <li><a href="constructors.html">Constructors &amp; Updates</a></li>
+          <li><a href="pattern-matching.html" class="active">Pattern Matching &amp; Unions</a></li>
+          <li><a href="modules.html">Modules</a></li>
+          <li><a href="error-handling.html">Error Handling</a></li>
+          <li><a href="concurrency.html">Concurrency</a></li>
+          <li><a href="tooling.html">Tooling &amp; Next Steps</a></li>
+        </ul>
+      </nav>
+      <main class="content">
+        <h1>8. Pattern Matching &amp; Unions</h1>
+        <p>
+          <code>union</code> declares algebraic data types. <code>?T</code>
+          (a shorthand for <code>nil | T</code>) and <code>!T</code> (for
+          <code>Error | T</code>) are commonplace.
+        </p>
+        <pre><code class="language-able">union Shape =
+    Circle { radius: f64 }
+  | Rectangle { width: f64, height: f64 }
+  | Triangle { a: f64, b: f64, c: f64 }
+
+area = shape match {
+  case Circle { radius } =&gt; 3.141592653589793 * radius * radius,
+  case Rectangle { width, height } =&gt; width * height,
+  case Triangle { a, b, c } =&gt; {
+    s = (a + b + c) / 2.0
+    (s * (s - a) * (s - b) * (s - c)).sqrt()
+  }
+}</code></pre>
+        <p>
+          Patterns support guards (<code>case v: i32 if v &gt; 0</code>) and
+          interface types. Non-exhaustive matches raise runtime exceptions.
+        </p>
+        <p>
+          <code>else</code> bridges optional or result values:
+        </p>
+        <pre><code class="language-able">username = maybe_name else { "guest" }
+
+config = load_config() else { |err|
+  log(`using anonymous mode: ${err.message()}`)
+  default_config()
+}</code></pre>
+        <p>
+          <code>expr!</code> unwraps <code>?T</code>, <code>!T</code>, or
+          <code>nil | Error | T</code>, propagating failures.
+        </p>
+        <footer class="manual-footer">
+          Able v10 manual · Pattern Matching &amp; Unions
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>

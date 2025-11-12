@@ -1,0 +1,96 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "DynImportStatement",
+      "packagePath": [
+        {
+          "type": "Identifier",
+          "name": "dynp"
+        }
+      ],
+      "isWildcard": false,
+      "selectors": [
+        {
+          "type": "ImportSelector",
+          "name": {
+            "type": "Identifier",
+            "name": "f"
+          },
+          "alias": {
+            "type": "Identifier",
+            "name": "ff"
+          }
+        }
+      ]
+    },
+    {
+      "type": "DynImportStatement",
+      "packagePath": [
+        {
+          "type": "Identifier",
+          "name": "dynp"
+        }
+      ],
+      "isWildcard": false,
+      "alias": {
+        "type": "Identifier",
+        "name": "D"
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "x"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "Identifier",
+          "name": "ff"
+        },
+        "arguments": [],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "y"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "D"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "f"
+          }
+        },
+        "arguments": [],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "BinaryExpression",
+      "operator": "+",
+      "left": {
+        "type": "Identifier",
+        "name": "x"
+      },
+      "right": {
+        "type": "Identifier",
+        "name": "y"
+      }
+    }
+  ]
+}

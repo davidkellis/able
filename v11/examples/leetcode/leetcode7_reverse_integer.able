@@ -1,0 +1,30 @@
+package leetcode7
+
+fn reverse(x: i32) -> i32 {
+  sign := if x < 0 { -1 } else { 1 }
+  value := if x < 0 { -x } else { x }
+
+  reversed := 0
+  while value > 0 {
+    digit := value % 10
+    reversed = reversed * 10 + digit
+    value = value / 10
+  }
+
+  result := sign * reversed
+  if result < -2147483648 or result > 2147483647 {
+    return 0
+  }
+  result
+}
+
+fn show_reverse(value: i32) -> void {
+  print(`reverse(${value}) = ${reverse(value)}`)
+}
+
+fn main() -> void {
+  show_reverse(123)
+  show_reverse(-123)
+  show_reverse(120)
+  show_reverse(1534236469) ## Overflow example
+}

@@ -1,0 +1,15 @@
+{
+  "description": "Generic constraint violation raises error",
+  "expect": {
+    "errors": [
+      "Unknown interface 'Error' in constraint on 'T'",
+      "typechecker: fn identity constraint on T references unknown interface 'Error'"
+    ],
+    "typecheckDiagnostics": [
+      "typechecker: fixtures/ast/errors/generic_type_mismatch/source.able:1:16 typechecker: fn identity constraint on T references unknown interface 'Error'",
+      "typechecker: fixtures/ast/errors/generic_type_mismatch/source.able:5:10 typechecker: fn identity constraint on T references unknown interface 'Error'",
+      "typechecker: fixtures/ast/errors/generic_type_mismatch/source.able:5:10 typechecker: fn identity constraint on T is not satisfied: i32 does not implement Error"
+    ]
+  },
+  "entry": "source.able"
+}

@@ -1,0 +1,66 @@
+==================
+Proc and Spawn Expressions
+==================
+
+handle := proc task()
+future := spawn task()
+
+---
+
+(source_file
+  (expression_statement
+    (pipe_expression
+      (matchable_expression
+        (assignment_expression
+          (assignment_target
+            (pattern_base
+              (identifier)))
+          (assignment_operator)
+          (assignment_expression
+            (range_expression
+              (logical_or_expression
+                (logical_and_expression
+                  (bitwise_or_expression
+                    (bitwise_xor_expression
+                      (bitwise_and_expression
+                        (equality_expression
+                          (comparison_expression
+                            (shift_expression
+                              (additive_expression
+                                (multiplicative_expression
+                                  (unary_expression
+                                    (exponent_expression
+                                      (postfix_expression
+                                        (proc_expression
+                                          (call_target
+                                            (primary_expression
+                                              (identifier))
+                                            (call_suffix))))))))))))))))))))))
+  (expression_statement
+    (pipe_expression
+      (matchable_expression
+        (assignment_expression
+          (assignment_target
+            (pattern_base
+              (identifier)))
+          (assignment_operator)
+          (assignment_expression
+            (range_expression
+              (logical_or_expression
+                (logical_and_expression
+                  (bitwise_or_expression
+                    (bitwise_xor_expression
+                      (bitwise_and_expression
+                        (equality_expression
+                          (comparison_expression
+                            (shift_expression
+                              (additive_expression
+                                (multiplicative_expression
+                                  (unary_expression
+                                    (exponent_expression
+                                      (postfix_expression
+                                        (spawn_expression
+                                          (call_target
+                                            (primary_expression
+                                              (identifier))
+                                            (call_suffix)))))))))))))))))))))))

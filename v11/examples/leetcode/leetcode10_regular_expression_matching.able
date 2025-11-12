@@ -1,0 +1,37 @@
+package leetcode10
+
+fn is_match(text: Array char, pattern: Array char) -> bool {
+  match_from(text, 0, pattern, 0)
+}
+
+fn match_from(text: Array char, ti: i32, pattern: Array char, pi: i32) -> bool {
+  if pi == pattern.size() {
+    return ti == text.size()
+  }
+
+  first := false
+  if ti < text.size() {
+    if pattern[pi] == '.' or pattern[pi] == text[ti] {
+      first = true
+    }
+  }
+
+  has_star := pi + 1 < pattern.size() and pattern[pi + 1] == '*'
+  if has_star {
+    return match_from(text, ti, pattern, pi + 2) or (first and match_from(text, ti + 1, pattern, pi))
+  }
+
+  first and match_from(text, ti + 1, pattern, pi + 1)
+}
+
+fn show_match(text: Array char, pattern: Array char) -> void {
+  print(`text=${text}, pattern=${pattern} -> ${is_match(text, pattern)}`)
+}
+
+fn main() -> void {
+  show_match(['a','a'], ['a'])
+  show_match(['a','a'], ['a','*'])
+  show_match(['a','b'], ['.','*'])
+  show_match(['a','a','b'], ['c','*','a','*','b'])
+  show_match(['m','i','s','s','i','s','s','i','p','p','i'], ['m','i','s','*','i','s','*','p','*','.'])
+}

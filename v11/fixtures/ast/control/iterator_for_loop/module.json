@@ -1,0 +1,121 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "sum"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 0
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "iter"
+      },
+      "right": {
+        "type": "IteratorLiteral",
+        "body": [
+          {
+            "type": "ForLoop",
+            "pattern": {
+              "type": "Identifier",
+              "name": "item"
+            },
+            "iterable": {
+              "type": "ArrayLiteral",
+              "elements": [
+                {
+                  "type": "IntegerLiteral",
+                  "value": 1
+                },
+                {
+                  "type": "IntegerLiteral",
+                  "value": 2
+                },
+                {
+                  "type": "IntegerLiteral",
+                  "value": 3
+                }
+              ]
+            },
+            "body": {
+              "type": "BlockExpression",
+              "body": [
+                {
+                  "type": "FunctionCall",
+                  "callee": {
+                    "type": "MemberAccessExpression",
+                    "object": {
+                      "type": "Identifier",
+                      "name": "gen"
+                    },
+                    "member": {
+                      "type": "Identifier",
+                      "name": "yield"
+                    }
+                  },
+                  "arguments": [
+                    {
+                      "type": "Identifier",
+                      "name": "item"
+                    }
+                  ],
+                  "isTrailingLambda": false
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "ForLoop",
+      "pattern": {
+        "type": "Identifier",
+        "name": "value"
+      },
+      "iterable": {
+        "type": "Identifier",
+        "name": "iter"
+      },
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "AssignmentExpression",
+            "operator": "=",
+            "left": {
+              "type": "Identifier",
+              "name": "sum"
+            },
+            "right": {
+              "type": "BinaryExpression",
+              "operator": "+",
+              "left": {
+                "type": "Identifier",
+                "name": "sum"
+              },
+              "right": {
+                "type": "Identifier",
+                "name": "value"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Identifier",
+      "name": "sum"
+    }
+  ]
+}

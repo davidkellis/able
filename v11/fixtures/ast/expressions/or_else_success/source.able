@@ -1,0 +1,5 @@
+value := "ok"
+result := value! else {
+  "fallback"
+}
+result

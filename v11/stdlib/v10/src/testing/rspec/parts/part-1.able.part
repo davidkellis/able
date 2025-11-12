@@ -1,0 +1,257 @@
+package testing.rspec
+
+import able.collections.array.{Array}
+import able.core.interfaces.{Error}
+import able.testing.assertions.{
+  AssertionError,
+  BeFalseMatcher,
+  BeNilMatcher,
+  BeTruthyMatcher,
+  BeEmptyArrayMatcher,
+  BeWithinMatcher,
+  ContainMatcher,
+  ContainAllMatcher,
+  BeGreaterThanMatcher,
+  BeLessThanMatcher,
+  BeBetweenMatcher,
+  StartsWithMatcher,
+  EndsWithMatcher,
+  IncludeSubstringMatcher,
+  SnapshotMatcher,
+  MatchRegexMatcher,
+  CustomMatcher,
+  EqMatcher,
+  Expectation,
+  RaiseErrorMatcher,
+  StringEqMatcher,
+  be_false as assertions_be_false,
+  be_nil as assertions_be_nil,
+  be_truthy as assertions_be_truthy,
+  be_empty_array as assertions_be_empty_array,
+  be_within as assertions_be_within,
+  contain as assertions_contain,
+  contain_all as assertions_contain_all,
+  be_greater_than as assertions_be_greater_than,
+  be_less_than as assertions_be_less_than,
+  be_between as assertions_be_between,
+  start_with as assertions_start_with,
+  end_with as assertions_end_with,
+  include_substring as assertions_include_substring,
+  match_snapshot as assertions_match_snapshot,
+  match_snapshot_with_store as assertions_match_snapshot_with_store,
+  match_regex as assertions_match_regex,
+  matcher as assertions_matcher,
+  matcher_with_details as assertions_matcher_with_details,
+  eq as assertions_eq,
+  eq_string as assertions_eq_string,
+  expect as assertions_expect,
+  failure_from_assertion,
+  raise_error as assertions_raise_error,
+  raise_error_with_message as assertions_raise_error_with_message
+}
+import able.testing.protocol.{
+  DiscoveryRequest,
+  Failure,
+  Framework,
+  MetadataEntry,
+  Reporter,
+  RunOptions,
+  TestDescriptor,
+  TestEvent,
+  TestPlan
+}
+import able.testing.snapshots.{SnapshotStore}
+import able.testing.registry.{register_framework}
+
+const FRAMEWORK_ID = "able.testing.rspec"
+
+struct RspecFramework;
+
+struct SuiteConfig {
+  allow_parallel: bool
+}
+
+struct SuiteState {
+  key: string,
+  path: Array string,
+  module_path: string,
+  tags: Array string,
+  before_each: Array (ExampleContext -> void),
+  after_each: Array (ExampleContext -> void),
+  before_all: Array (ExampleContext -> void),
+  after_all: Array (ExampleContext -> void),
+  config: SuiteConfig
+}
+
+struct SuiteDefinition {
+  key: string,
+  path: Array string,
+  before_all: Array (ExampleContext -> void),
+  after_all: Array (ExampleContext -> void)
+}
+
+struct SuiteBuilder {
+  state_index: i32
+}
+
+struct ExampleContext {}
+
+struct ExampleDefinition {
+  id: string,
+  display_name: string,
+  suite_key: string,
+  suite_path: Array string,
+  tags: Array string,
+  before_each: Array (ExampleContext -> void),
+  after_each: Array (ExampleContext -> void),
+  body: ExampleContext -> void,
+  module_path: string,
+  skip: bool,
+  focus: bool
+}
+
+let mut SUITE_STACK: Array SuiteState = Array.new()
+let mut SUITES: Array SuiteDefinition = Array.new()
+let mut EXAMPLES: Array ExampleDefinition = Array.new()
+
+struct ExampleOptions {
+  tags: Array string,
+  skip: bool,
+  focus: bool
+}
+
+fn example_options() -> ExampleOptions {
+  ExampleOptions { tags: Array.new(), skip: false, focus: false }
+}
+
+impl ExampleOptions {
+  fn tag(mut self: ExampleOptions, tag: string) -> ExampleOptions {
+    self.tags.push(tag)
+    self
+  }
+
+  fn tags(mut self: ExampleOptions, tags: Array string) -> ExampleOptions {
+    let mut idx = 0
+    loop {
+      if idx >= tags.len() { break }
+      match tags.get(idx) {
+        case nil => {},
+        case value: string => self.tags.push(value)
+      }
+      idx = idx + 1
+    }
+    self
+  }
+
+  fn skip(mut self: ExampleOptions) -> ExampleOptions {
+    self.skip = true
+    self
+  }
+
+  fn focus(mut self: ExampleOptions) -> ExampleOptions {
+    self.focus = true
+    self
+  }
+}
+
+fn expect T (value: T) -> Expectation T {
+  assertions_expect(value)
+}
+
+fn eq T (expected: T) -> EqMatcher T {
+  assertions_eq(expected)
+}
+
+fn eq_string(expected: string) -> StringEqMatcher {
+  assertions_eq_string(expected)
+}
+
+fn be_nil() -> BeNilMatcher {
+  assertions_be_nil()
+}
+
+fn be_truthy() -> BeTruthyMatcher {
+  assertions_be_truthy()
+}
+
+fn be_false() -> BeFalseMatcher {
+  assertions_be_false()
+}
+
+fn be_empty_array T () -> BeEmptyArrayMatcher T {
+  assertions_be_empty_array()
+}
+
+fn contain T (value: T) -> ContainMatcher T {
+  assertions_contain(value)
+}
+
+fn be_within(delta: f64, target: f64) -> BeWithinMatcher {
+  assertions_be_within(delta, target)
+}
+
+fn contain_all T (values: Array T) -> ContainAllMatcher T {
+  assertions_contain_all(values)
+}
+
+fn be_greater_than(value: i64) -> BeGreaterThanMatcher i64 {
+  assertions_be_greater_than(value)
+}
+
+fn be_less_than(value: i64) -> BeLessThanMatcher i64 {
+  assertions_be_less_than(value)
+}
+
+fn match_snapshot(name: string) -> SnapshotMatcher {
+  assertions_match_snapshot(name)
+}
+
+fn match_snapshot_with_store(name: string, store: SnapshotStore) -> SnapshotMatcher {
+  assertions_match_snapshot_with_store(name, store)
+}
+
+fn match_regex(pattern: string) -> MatchRegexMatcher {
+  assertions_match_regex(pattern)
+}
+
+fn be_between(lower: i64, upper: i64) -> BeBetweenMatcher i64 {
+  assertions_be_between(lower, upper)
+}
+
+fn start_with(prefix: string) -> StartsWithMatcher {
+  assertions_start_with(prefix)
+}
+
+fn end_with(suffix: string) -> EndsWithMatcher {
+  assertions_end_with(suffix)
+}
+
+fn include_substring(substring: string) -> IncludeSubstringMatcher {
+  assertions_include_substring(substring)
+}
+
+fn matcher T (
+  message: string,
+  negated_message: string,
+  predicate: T -> bool
+) -> CustomMatcher T {
+  assertions_matcher(message, negated_message, predicate)
+}
+
+fn matcher_with_details T (
+  message: string,
+  negated_message: string,
+  predicate: T -> bool,
+  detail: T -> ?string
+) -> CustomMatcher T {
+  assertions_matcher_with_details(message, negated_message, predicate, detail)
+}
+
+fn raise_error() -> RaiseErrorMatcher {
+  assertions_raise_error()
+}
+
+fn raise_error_with_message(message: string) -> RaiseErrorMatcher {
+  assertions_raise_error_with_message(message)
+}
+

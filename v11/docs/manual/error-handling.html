@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Able v10 Manual — Error Handling</title>
+    <link rel="stylesheet" href="manual.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <nav class="sidebar">
+        <span class="brand">Able v10 Manual</span>
+        <ul>
+          <li><a href="index.html">Getting Started</a></li>
+          <li><a href="variables.html">Variables</a></li>
+          <li><a href="control-flow.html">Control Flow</a></li>
+          <li><a href="functions.html">Functions</a></li>
+          <li><a href="types.html">Types</a></li>
+          <li><a href="methods.html">Methods</a></li>
+          <li><a href="constructors.html">Constructors & Updates</a></li>
+          <li><a href="pattern-matching.html">Pattern Matching &amp; Unions</a></li>
+          <li><a href="modules.html">Modules</a></li>
+          <li><a href="error-handling.html" class="active">Error Handling</a></li>
+          <li><a href="concurrency.html">Concurrency</a></li>
+          <li><a href="tooling.html">Tooling &amp; Next Steps</a></li>
+        </ul>
+      </nav>
+      <main class="content">
+        <h1>10. Error Handling</h1>
+        <p>
+          Able blends Option/Result-style unions with exceptions. Use
+          <code>!T</code> for recoverable errors and <code>raise</code> for
+          exceptional cases.
+        </p>
+        <h2>10.1 Propagation with <code>!</code></h2>
+        <pre><code class="language-able">fn read_config(path: string) -&gt; !Config { ... }
+
+fn boot() -&gt; !void {
+  config := read_config(path)!
+  port := config.port else { 8080 }
+  start_server(config.host, port)!
+}</code></pre>
+        <p>
+          <code>expr!</code> unwraps successes and returns early on
+          <code>nil</code> or <code>Error</code>. The enclosing function must
+          return a compatible union.
+        </p>
+        <h2>10.2 Exceptions</h2>
+        <pre><code class="language-able">fn divide(a: i32, b: i32) -&gt; i32 {
+  if b == 0 { raise DivideByZeroError {} }
+  a / b
+}
+
+ratio = do { divide(total, count) } rescue {
+  case _: DivideByZeroError =&gt; 0,
+  case e: Error =&gt; {
+    log(`failed: ${e.message()}`)
+    -1
+  }
+}</code></pre>
+        <p>
+          Use <code>ensure</code> and <code>rethrow</code> (spec §11.3) for
+          finally-style cleanup and propagation control.
+        </p>
+        <footer class="manual-footer">
+          Able v10 manual · Error Handling
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>

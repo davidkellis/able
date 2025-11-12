@@ -1,0 +1,12 @@
+count := 0
+iter := Iterator {
+  while count < 3 {
+    gen.yield(count)
+    count = count + 1
+  }
+}
+total := 0
+for n in iter {
+  total = total + n
+}
+[total, count]

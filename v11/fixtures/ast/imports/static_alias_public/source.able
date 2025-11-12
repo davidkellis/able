@@ -1,0 +1,4 @@
+import util_static as U
+
+value := U.foo()
+value

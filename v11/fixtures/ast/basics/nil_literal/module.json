@@ -1,0 +1,10 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "NilLiteral",
+      "value": null
+    }
+  ]
+}

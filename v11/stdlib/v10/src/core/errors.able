@@ -1,0 +1,33 @@
+package core
+
+import able.core.interfaces{Error}
+
+## Arithmetic errors.
+struct DivisionByZeroError;
+struct OverflowError { operation: string }
+struct ShiftOutOfRangeError { shift: i32 }
+
+impl Error for DivisionByZeroError {
+  fn message(self: Self) -> string { "division by zero" }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+impl Error for OverflowError {
+  fn message(self: Self) -> string { self.operation }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+impl Error for ShiftOutOfRangeError {
+  fn message(self: Self) -> string { `shift ${self.shift} out of range` }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+## Indexing error used by Array/HashMap bounds checks.
+struct IndexError { index: i64, length: i64 }
+
+impl Error for IndexError {
+  fn message(self: Self) -> string {
+    `index ${self.index} out of bounds for length ${self.length}`
+  }
+  fn cause(self: Self) -> ?Error { nil }
+}

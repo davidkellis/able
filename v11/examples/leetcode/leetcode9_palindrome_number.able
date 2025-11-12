@@ -1,0 +1,32 @@
+package leetcode9
+
+fn is_palindrome(value: i32) -> bool {
+  if value < 0 {
+    return false
+  }
+  if value != 0 and value % 10 == 0 {
+    return false
+  }
+
+  reversed := 0
+  original := value
+
+  while value > 0 {
+    digit := value % 10
+    reversed = reversed * 10 + digit
+    value = value / 10
+  }
+
+  original == reversed
+}
+
+fn show_palindrome(value: i32) -> void {
+  print(`is_palindrome(${value}) -> ${is_palindrome(value)}`)
+}
+
+fn main() -> void {
+  show_palindrome(121)
+  show_palindrome(-121)
+  show_palindrome(10)
+  show_palindrome(12321)
+}

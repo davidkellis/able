@@ -1,0 +1,10 @@
+{
+  "description": "Iterator literal preserves element type annotations and custom binding names",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": 2
+    }
+  },
+  "entry": "module.json"
+}

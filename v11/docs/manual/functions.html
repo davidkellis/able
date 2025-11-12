@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Able v10 Manual — Functions</title>
+    <link rel="stylesheet" href="manual.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <nav class="sidebar">
+        <span class="brand">Able v10 Manual</span>
+        <ul>
+          <li><a href="index.html">Getting Started</a></li>
+          <li><a href="variables.html">Variables</a></li>
+          <li><a href="control-flow.html">Control Flow</a></li>
+          <li><a href="functions.html" class="active">Functions</a></li>
+          <li><a href="types.html">Types</a></li>
+          <li><a href="methods.html">Methods</a></li>
+          <li><a href="constructors.html">Constructors & Updates</a></li>
+          <li><a href="pattern-matching.html">Pattern Matching &amp; Unions</a></li>
+          <li><a href="modules.html">Modules</a></li>
+          <li><a href="error-handling.html">Error Handling</a></li>
+          <li><a href="concurrency.html">Concurrency</a></li>
+          <li><a href="tooling.html">Tooling &amp; Next Steps</a></li>
+        </ul>
+      </nav>
+      <main class="content">
+        <h1>4. Functions</h1>
+        <p>
+          Functions are first-class values. The last expression returns implicitly;
+          use <code>return</code> for early exit.
+        </p>
+        <pre><code class="language-able">fn greet(name: string) -&gt; string {
+  `Hello ${name}`
+}
+
+fn make_adder(delta: i32) -&gt; (i32 -&gt; i32) {
+  { value =&gt; value + delta }
+}
+
+fn find_first_negative(items: Array i32) -&gt; ?i32 {
+  for item in items {
+    if item &lt; 0 { return item }
+  }
+  nil
+}</code></pre>
+        <h2>4.1 Lambdas &amp; Placeholders</h2>
+        <p>
+          Able offers concise lambda syntax and placeholder lambdas for quick
+          partial application.
+        </p>
+        <pre><code class="language-able">{ x, y =&gt; x + y }
+fn(x: i32) -&gt; string { x.to_string() }
+numbers.map(@ * 2)
+add_10 = add(@, 10)</code></pre>
+        <p>Trailing lambdas mirror Julia’s <code>do</code> blocks:</p>
+        <pre><code class="language-able">sum = numbers.reduce(0) { acc, n =&gt; acc + n }</code></pre>
+        <h2>4.2 Pipelines</h2>
+        <p>
+          <code>|&gt;</code> forwards values. The right-hand side must reference
+          <code>%</code> or evaluate to a unary callable.
+        </p>
+        <pre><code class="language-able">result = value
+  |&gt; %.normalize()
+  |&gt; clamp(@, 0, 1)
+  |&gt; (@ * 100)</code></pre>
+        <footer class="manual-footer">
+          Able v10 manual · Functions
+        </footer>
+      </main>
+    </div>
+  </body>
+</html>

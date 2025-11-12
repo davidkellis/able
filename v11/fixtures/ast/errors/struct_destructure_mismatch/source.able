@@ -1,0 +1,3 @@
+struct Pair { i32, i32 }
+p := Pair { 1, 2 }
+Pair { a } := p

@@ -1,0 +1,21 @@
+interface Show {
+  fn to_string(self: Self) -> string;
+}
+
+struct Point {
+  x: i32,
+  y: i32
+}
+
+methods Point {
+  fn to_string(self: Point) -> string {
+    return `Point(${self.x}, ${self.y})`;
+  }
+
+  fn accept_show<T: Show>(self: Point, x: T) -> string {
+    return x.to_string();
+  }
+}
+
+p := Point { x: 1, y: 2 }
+p.accept_show<i32>(3)

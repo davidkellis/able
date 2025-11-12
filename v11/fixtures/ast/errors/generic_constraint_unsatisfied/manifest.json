@@ -1,0 +1,13 @@
+{
+  "description": "Generic constraint failure when type argument lacks required interface",
+  "expect": {
+    "errors": [
+      "Type 'i32' does not satisfy interface 'Show': missing method 'to_string'",
+      "typechecker: methods for Point::accept_show constraint on T is not satisfied: i32 does not implement Show"
+    ],
+    "typecheckDiagnostics": [
+      "typechecker: fixtures/ast/errors/generic_constraint_unsatisfied/source.able:21:15 typechecker: methods for Point::accept_show constraint on T is not satisfied: i32 does not implement Show"
+    ]
+  },
+  "entry": "source.able"
+}

@@ -1,0 +1,209 @@
+package testing.specs
+
+import able.collections.array.{Array}
+import able.testing.rspec.{
+  describe,
+  expect,
+  eq,
+  eq_string,
+  be_nil,
+  be_truthy,
+  be_false,
+  be_empty_array,
+  be_within,
+  contain,
+  contain_all,
+  be_greater_than,
+  be_less_than,
+  be_between,
+  start_with,
+  end_with,
+  include_substring,
+  match_snapshot,
+  match_snapshot_with_store,
+  match_regex,
+  matcher,
+  matcher_with_details,
+  raise_error,
+  raise_error_with_message
+}
+import able.testing.snapshots.{SnapshotStore, snapshot_clear, snapshot_set_update_mode}
+import able.testing.registry.{framework_by_id}
+import able.core.interfaces.{Error}
+
+struct SampleError {
+  label: string
+}
+
+impl Error for SampleError {
+  fn message(self: Self) -> string { self.label }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+fn raise_sample(label: string) -> void {
+  raise SampleError { label }
+}
+
+describe("able.testing assertions") { suite =>
+  suite.module_path("testing/assertions")
+  suite.it("registers the rspec framework on import") { _ctx =>
+    expect(framework_by_id("able.testing.rspec")).not_to(be_nil())
+  }
+
+  suite.it("passes equality matcher") { _ctx =>
+    expect(2 + 2).to(eq(4))
+  }
+
+  suite.it("supports negative equality") { _ctx =>
+    expect(10).not_to(eq(2))
+  }
+
+  suite.it("checks nil values") { _ctx =>
+    maybe: ?i32 = nil
+    expect(maybe).to(be_nil())
+  }
+
+  suite.it("matches string prefixes/suffixes") { _ctx =>
+    expect("testing").to(start_with("test"))
+    expect("testing").to(end_with("ing"))
+    expect("testing").to(include_substring("sti"))
+  }
+
+  suite.it("captures truthy/falsey expectations") { _ctx =>
+    expect(true).to(be_truthy())
+    expect(false).to(be_false())
+  }
+
+  suite.it("compares strings with diff details") { _ctx =>
+    expect("hi").to(eq_string("hi"))
+  }
+
+  suite.it("detects empty arrays") { _ctx =>
+    let values: Array i32 = Array.new()
+    expect(values).to(be_empty_array())
+  }
+
+  suite.it("asserts array containment") { _ctx =>
+    let mut values: Array string = Array.new()
+    values.push("a")
+    values.push("b")
+    expect(values).to(contain("b"))
+  }
+
+  suite.it("fails array containment when missing") { _ctx =>
+    let values: Array string = Array.new()
+    expect(fn() { expect(values).to(contain("missing")) }).to(raise_error())
+  }
+
+  suite.it("checks multiple containment") { _ctx =>
+    let mut values: Array string = Array.new()
+    values.push("a")
+    values.push("b")
+    let mut expected: Array string = Array.new()
+    expected.push("a")
+    expect(values).to(contain_all(expected))
+  }
+
+  suite.it("checks numeric range within tolerance") { _ctx =>
+    expect(3.14).to(be_within(0.01, 3.14))
+  }
+
+  suite.it("asserts numeric comparisons") { _ctx =>
+    let five: i64 = 5
+    let one: i64 = 1
+    let two: i64 = 2
+    let three: i64 = 3
+    expect(five).to(be_greater_than(two))
+    expect(one).to(be_less_than(three))
+  }
+
+  suite.it("verifies numeric range bounds") { _ctx =>
+    expect(5).to(be_between(1, 10))
+    expect(fn() { expect(0).to(be_between(1, 10)) }).to(raise_error())
+  }
+
+  suite.it("compares snapshot strings") { _ctx =>
+    snapshot_clear()
+    snapshot_set_update_mode(false)
+    snapshot_set_update_mode(true)
+    expect("hello").to(match_snapshot("greeting"))
+    snapshot_set_update_mode(false)
+    expect("hello").to(match_snapshot("greeting"))
+
+    expect(fn() {
+      expect("hola").to(match_snapshot("greeting"))
+    }).to(raise_error())
+    snapshot_clear()
+    snapshot_set_update_mode(false)
+  }
+
+  suite.it("fails when snapshot missing and update disabled") { _ctx =>
+    snapshot_clear()
+    snapshot_set_update_mode(false)
+    expect(fn() { expect("value").to(match_snapshot("missing")) }).to(raise_error())
+  }
+
+  suite.it("supports custom snapshot stores") { _ctx =>
+    let mut stored: ?string = nil
+    let mut update = true
+    let store = SnapshotStore(
+      fn(_name: string) -> ?string { stored },
+      fn(_name: string, value: string) -> void { stored = value },
+      fn() -> bool { update }
+    )
+
+    expect("alpha").to(match_snapshot_with_store("custom", store))
+    update = false
+    expect("alpha").to(match_snapshot_with_store("custom", store))
+    expect(fn() { expect("beta").to(match_snapshot_with_store("custom", store)) }).to(raise_error())
+  }
+
+  suite.it("matches regex patterns (placeholder)") { _ctx =>
+    expect("abc").to(match_regex("abc"))
+    expect(fn() { expect("def").to(match_regex("abc")) }).to(raise_error())
+  }
+
+  suite.it("builds custom matchers") { _ctx =>
+    let even = matcher("expected value to be even", "expected value to be odd", fn(value: i64) -> bool { value % 2 == 0 })
+    expect(4).to(even)
+    expect(fn() { expect(3).to(even) }).to(raise_error())
+
+    let even_with_details = matcher_with_details(
+      "expected value to be even",
+      "expected value to be odd",
+      fn(value: i64) -> bool { value % 2 == 0 },
+      fn(value: i64) -> ?string { `actual ${value}` }
+    )
+    expect(fn() { expect(5).to(even_with_details) }).to(raise_error())
+  }
+
+  suite.it("observes raised errors") { _ctx =>
+    expect(fn() { raise_sample("boom") }).to(raise_error())
+  }
+
+  suite.it("matches specific error message") { _ctx =>
+    expect(fn() { raise_sample("boom") }).to(raise_error_with_message("boom"))
+  }
+}
+
+describe("able.testing.rspec hooks") { suite =>
+  suite.module_path("testing/hooks")
+  let mut before_each_count = 0
+  let mut before_all_count = 0
+  suite.before_all { _ctx =>
+    before_all_count = before_all_count + 1
+  }
+  suite.before_each { _ctx =>
+    before_each_count = before_each_count + 1
+  }
+
+  suite.it("runs before_each and before_all for first example") { _ctx =>
+    expect(before_each_count).to(eq(1))
+    expect(before_all_count).to(eq(1))
+  }
+
+  suite.it("reuses before_all but increments before_each") { _ctx =>
+    expect(before_each_count).to(eq(2))
+    expect(before_all_count).to(eq(1))
+  }
+}

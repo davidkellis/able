@@ -1,0 +1,10 @@
+{
+  "description": "Mixed integer and float addition returns f64",
+  "expect": {
+    "result": {
+      "kind": "f64",
+      "value": 2.5
+    }
+  },
+  "entry": "module.json"
+}

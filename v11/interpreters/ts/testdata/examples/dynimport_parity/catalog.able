@@ -1,0 +1,9 @@
+package catalog
+
+fn list_items() -> Array string {
+  ["espresso", "tonic", "cocoa"]
+}
+
+fn featured_label() -> string {
+  "espresso"
+}
