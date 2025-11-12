@@ -1,6 +1,10 @@
 import { AST } from "../../context";
 import type { Fixture } from "../../types";
 
+const pipeChain = (initial: AST.Expression, steps: AST.Expression[]): AST.Expression => {
+  return steps.reduce((subject, step) => AST.binaryExpression("|>", subject, step), initial);
+};
+
 const expressionsFixtures: Fixture[] = [
   {
       name: "expressions/array_literal_empty",
@@ -214,6 +218,91 @@ const expressionsFixtures: Fixture[] = [
         description: "Adds two integers",
         expect: {
           result: { kind: "i32", value: 3 },
+        },
+      },
+    },
+
+  {
+      name: "pipes/multi_stage_chain",
+      module: AST.module([
+        AST.fn(
+          "add",
+          [
+            AST.param("left", AST.simpleTypeExpression("i32")),
+            AST.param("right", AST.simpleTypeExpression("i32")),
+          ],
+          [AST.ret(AST.bin("+", AST.id("left"), AST.id("right")))],
+          AST.simpleTypeExpression("i32"),
+        ),
+        AST.structDefinition(
+          "Box",
+          [AST.fieldDef(AST.simpleTypeExpression("i32"), "value")],
+          "named",
+        ),
+        AST.methodsDefinition(
+          AST.simpleTypeExpression("Box"),
+          [
+            AST.fn(
+              "augment",
+              [AST.param("delta", AST.simpleTypeExpression("i32"))],
+              [
+                AST.ret(
+                  AST.structLiteral(
+                    [
+                      AST.fieldInit(
+                        AST.bin(
+                          "+",
+                          AST.implicitMemberExpression("value"),
+                          AST.id("delta"),
+                        ),
+                        "value",
+                      ),
+                    ],
+                    false,
+                    "Box",
+                  ),
+                ),
+              ],
+              AST.simpleTypeExpression("Self"),
+              undefined,
+              undefined,
+              true,
+            ),
+            AST.fn(
+              "double",
+              [],
+              [AST.ret(AST.bin("*", AST.implicitMemberExpression("value"), AST.int(2)))],
+              AST.simpleTypeExpression("i32"),
+              undefined,
+              undefined,
+              true,
+            ),
+          ],
+        ),
+        AST.assign("start", AST.int(5)),
+        AST.assign(
+          "result",
+          pipeChain(AST.id("start"), [
+            AST.bin("*", AST.topicReferenceExpression(), AST.int(2)),
+            AST.call(AST.id("add"), AST.placeholderExpression(), AST.int(3)),
+            AST.structLiteral(
+              [AST.fieldInit(AST.topicReferenceExpression(), "value")],
+              false,
+              "Box",
+            ),
+            AST.call(
+              AST.memberAccessExpression(AST.topicReferenceExpression(), AST.id("augment")),
+              AST.int(4),
+            ),
+            AST.implicitMemberExpression("double"),
+          ]),
+        ),
+        AST.id("result"),
+      ]),
+      manifest: {
+        description: "Multi-stage pipeline mixing % topic steps, placeholder callables, and bound methods",
+        expect: {
+          result: { kind: "i32", value: 34 },
         },
       },
     },

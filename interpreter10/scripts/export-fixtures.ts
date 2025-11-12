@@ -1,6 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { AST } from "../index";
 import { fixtures } from "./export-fixtures/fixtures";
@@ -65,7 +65,7 @@ function normalizeModule(module: AST.Module): void {
 
 const INDENT = "  ";
 
-function moduleToSource(module: AST.Module): string {
+export function moduleToSource(module: AST.Module): string {
   const lines: string[] = [];
   if (module.package) {
     lines.push(`package ${module.package.namePath.map(printIdentifier).join(".")}`);
@@ -241,6 +241,10 @@ function printInterfaceDefinition(def: AST.InterfaceDefinition, level: number): 
   if (def.genericParams && def.genericParams.length > 0) {
     header.push(`<${def.genericParams.map(printGenericParameter).join(", ")}>`);
   }
+  if (def.selfTypePattern) {
+    header.push("for");
+    header.push(printTypeExpression(def.selfTypePattern));
+  }
   if (def.whereClause && def.whereClause.length > 0) {
     header.push(`where ${def.whereClause.map(printWhereClause).join(", ")}`);
   }
@@ -336,11 +340,14 @@ function printExpression(expr: AST.Expression, level: number): string {
       return printIdentifier(expr);
     case "ArrayLiteral":
       return `[${expr.elements.map((el) => printExpression(el, level)).join(", ")}]`;
-    case "AssignmentExpression":
+    case "AssignmentExpression": {
       if (expr.right.type === "MatchExpression") {
         return `${printAssignmentLeft(expr.left)} ${expr.operator} (${printMatchExpression(expr.right, level)})`;
       }
-      return `${printAssignmentLeft(expr.left)} ${expr.operator} ${printExpression(expr.right, level)}`;
+      const rightNeedsParens = assignmentRightNeedsParens(expr.right);
+      const renderedRight = rightNeedsParens ? `(${printExpression(expr.right, level)})` : printExpression(expr.right, level);
+      return `${printAssignmentLeft(expr.left)} ${expr.operator} ${renderedRight}`;
+    }
     case "BinaryExpression":
       return `${printBinaryOperand(expr.left, expr.operator, "left", level)} ${expr.operator} ${printBinaryOperand(expr.right, expr.operator, "right", level)}`;
     case "UnaryExpression":
@@ -354,7 +361,7 @@ function printExpression(expr: AST.Expression, level: number): string {
     case "MemberAccessExpression":
       return `${printExpression(expr.object, level)}.${printMember(expr.member)}`;
     case "ImplicitMemberExpression":
-      return `.${printIdentifier(expr.member)}`;
+      return `#${printIdentifier(expr.member)}`;
     case "IndexExpression":
       return `${printExpression(expr.object, level)}[${printExpression(expr.index, level)}]`;
     case "RangeExpression":
@@ -397,10 +404,15 @@ function printExpression(expr: AST.Expression, level: number): string {
 }
 
 function printStructLiteral(lit: AST.StructLiteral, level: number): string {
-  const base = lit.structType ? printIdentifier(lit.structType) : "";
+  const typeArgs =
+    Array.isArray(lit.typeArguments) && lit.typeArguments.length > 0
+      ? `<${lit.typeArguments.map((arg) => printTypeExpression(arg)).join(", ")}>`
+      : "";
+  const baseName = lit.structType ? printIdentifier(lit.structType) : "";
+  const head = baseName ? `${baseName}${typeArgs}` : "";
   if (lit.isPositional) {
     const values = lit.fields.map((field) => printExpression(field.value!, level)).join(", ");
-    return `${base} { ${values} }`;
+    return head ? `${head} { ${values} }` : `{ ${values} }`;
   }
   const fields = lit.fields.map((field) => {
     if (field.isShorthand && field.name) {
@@ -416,7 +428,10 @@ function printStructLiteral(lit: AST.StructLiteral, level: number): string {
       ? lit.functionalUpdateSources.map((src) => `..${printExpression(src, level)}`)
       : [];
   const items = [...spreads, ...fields].join(", ");
-  return `${base} { ${items} }`;
+  if (!head) {
+    return `{ ${items} }`;
+  }
+  return `${head} { ${items} }`;
 }
 
 function printIteratorLiteral(lit: AST.IteratorLiteral, level: number): string {
@@ -616,6 +631,13 @@ function printAssignmentLeft(left: AST.Pattern | AST.MemberAccessExpression | AS
   return printPattern(left);
 }
 
+function assignmentRightNeedsParens(expr: AST.Expression): boolean {
+  if (expr.type === "BinaryExpression" && expr.operator === "|>") {
+    return true;
+  }
+  return false;
+}
+
 function printPattern(pattern: AST.Pattern): string {
   switch (pattern.type) {
     case "Identifier":
@@ -725,7 +747,19 @@ function isExpression(node: AST.Statement): node is AST.Expression {
   return (node as AST.Expression).type !== undefined;
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exitCode = 1;
-});
+const cliEntry = (() => {
+  const entryPath = process.argv[1];
+  if (!entryPath) return null;
+  try {
+    return pathToFileURL(path.resolve(entryPath)).href;
+  } catch {
+    return null;
+  }
+})();
+
+if (cliEntry === import.meta.url) {
+  main().catch((err) => {
+    console.error(err);
+    process.exitCode = 1;
+  });
+}

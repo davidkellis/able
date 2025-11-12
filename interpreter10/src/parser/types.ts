@@ -157,6 +157,8 @@ export function parseTypeExpression(ctx: ParseContext, node: Node | null | undef
       }
       break;
     }
+    case "wildcard_type":
+      return annotateTypeExpressionNode(AST.wildcardTypeExpression(), node);
     case "identifier":
       return annotateTypeExpressionNode(AST.simpleTypeExpression(parseIdentifier(node, source)), node);
     case "qualified_identifier": {

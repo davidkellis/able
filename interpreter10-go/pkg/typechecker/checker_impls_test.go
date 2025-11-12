@@ -563,3 +563,202 @@ func TestImplementationMethodMatchesInterface(t *testing.T) {
 		t.Fatalf("expected no diagnostics, got %v", diags)
 	}
 }
+
+func TestImplementationRejectsBareConstructorWithoutSelfPattern(t *testing.T) {
+	checker := New()
+	displayIface := ast.Iface("Display", nil, nil, nil, nil, nil, false)
+	arrayStruct := buildGenericStructDefinition("Array", []string{"T"})
+	impl := ast.Impl("Display", ast.Ty("Array"), nil, nil, nil, nil, nil, false)
+	module := ast.NewModule([]ast.Statement{displayIface, arrayStruct, impl}, nil, nil)
+
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) == 0 {
+		t.Fatalf("expected diagnostic for bare constructor implementation")
+	}
+	found := false
+	for _, d := range diags {
+		if strings.Contains(d.Message, "type constructor") && strings.Contains(d.Message, "Display") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected bare constructor diagnostic, got %v", diags)
+	}
+}
+
+func TestImplementationAllowsBareConstructorWithSelfPattern(t *testing.T) {
+	checker := New()
+	selfPattern := ast.Gen(ast.Ty("M"), ast.WildT())
+	mapperIface := ast.Iface("Mapper", nil, nil, selfPattern, nil, nil, false)
+	arrayStruct := buildGenericStructDefinition("Array", []string{"T"})
+	impl := ast.Impl("Mapper", ast.Ty("Array"), nil, nil, nil, nil, nil, false)
+	module := ast.NewModule([]ast.Statement{mapperIface, arrayStruct, impl}, nil, nil)
+
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics, got %v", diags)
+	}
+}
+
+func TestImplementationAllowsBareConstructorWithMethodGenerics(t *testing.T) {
+	checker := New()
+	selfPattern := ast.Gen(ast.Ty("F"), ast.WildT())
+	wrapSig := ast.FnSig(
+		"wrap",
+		[]*ast.FunctionParameter{
+			ast.Param("self", ast.Gen(ast.Ty("Self"), ast.Ty("T"))),
+			ast.Param("value", ast.Ty("T")),
+		},
+		ast.Gen(ast.Ty("Self"), ast.Ty("T")),
+		[]*ast.GenericParameter{ast.GenericParam("T")},
+		nil,
+		nil,
+	)
+	wrapperIface := ast.Iface("Wrapper", []*ast.FunctionSignature{wrapSig}, nil, selfPattern, nil, nil, false)
+	holderFields := []*ast.StructFieldDefinition{
+		ast.FieldDef(ast.Ty("T"), "value"),
+	}
+	holderStruct := ast.StructDef("Holder", holderFields, ast.StructKindNamed, []*ast.GenericParameter{ast.GenericParam("T")}, nil, false)
+	wrapFn := ast.Fn(
+		"wrap",
+		[]*ast.FunctionParameter{
+			ast.Param("self", ast.Gen(ast.Ty("Holder"), ast.Ty("T"))),
+			ast.Param("value", ast.Ty("T")),
+		},
+		[]ast.Statement{
+			ast.Ret(
+				ast.StructLit(
+					[]*ast.StructFieldInitializer{
+						ast.FieldInit(ast.ID("value"), "value"),
+					},
+					false,
+					"Holder",
+					nil,
+					[]ast.TypeExpression{ast.Ty("T")},
+				),
+			),
+		},
+		ast.Gen(ast.Ty("Holder"), ast.Ty("T")),
+		[]*ast.GenericParameter{ast.GenericParam("T")},
+		nil,
+		false,
+		false,
+	)
+	impl := ast.Impl("Wrapper", ast.Ty("Holder"), []*ast.FunctionDefinition{wrapFn}, nil, nil, nil, nil, false)
+	module := ast.NewModule([]ast.Statement{wrapperIface, holderStruct, impl}, nil, nil)
+
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics, got %v", diags)
+	}
+}
+
+func TestImplementationRejectsExplicitSelfPatternMismatch(t *testing.T) {
+	checker := New()
+	pointIface := ast.Iface("PointOnly", nil, nil, ast.Ty("Point"), nil, nil, false)
+	pointStruct := buildPointStructDefinition()
+	lineStruct := ast.StructDef("Line", nil, ast.StructKindNamed, nil, nil, false)
+	impl := ast.Impl("PointOnly", ast.Ty("Line"), nil, nil, nil, nil, nil, false)
+	module := ast.NewModule([]ast.Statement{pointIface, pointStruct, lineStruct, impl}, nil, nil)
+
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) == 0 {
+		t.Fatalf("expected diagnostic for self type mismatch")
+	}
+	found := false
+	for _, d := range diags {
+		if strings.Contains(d.Message, "self type 'Point'") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected explicit self pattern diagnostic, got %v", diags)
+	}
+}
+
+func TestImplementationRejectsGenericSelfPatternMismatch(t *testing.T) {
+	checker := New()
+	arrayPattern := ast.Gen(ast.Ty("Array"), ast.Ty("T"))
+	arrayIface := ast.Iface("ArrayOnly", nil, nil, arrayPattern, nil, nil, false)
+	arrayStruct := buildGenericStructDefinition("Array", []string{"T"})
+	resultStruct := buildGenericStructDefinition("Result", []string{"T"})
+	target := ast.Gen(ast.Ty("Result"), ast.Ty("i32"))
+	impl := ast.Impl("ArrayOnly", target, nil, nil, nil, nil, nil, false)
+	module := ast.NewModule([]ast.Statement{arrayIface, arrayStruct, resultStruct, impl}, nil, nil)
+
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) == 0 {
+		t.Fatalf("expected diagnostic for generic self pattern mismatch")
+	}
+	found := false
+	for _, d := range diags {
+		if strings.Contains(d.Message, "self type 'Array T'") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected generic self pattern diagnostic, got %v", diags)
+	}
+}
+
+func TestImplementationRejectsConcreteTargetForHigherKindedPattern(t *testing.T) {
+	checker := New()
+	selfPattern := ast.Gen(ast.Ty("F"), ast.WildT())
+	applicativeIface := ast.Iface("Applicative", nil, nil, selfPattern, nil, nil, false)
+	arrayStruct := buildGenericStructDefinition("Array", []string{"T"})
+	implTarget := ast.Gen(ast.Ty("Array"), ast.Ty("i32"))
+	impl := ast.Impl("Applicative", implTarget, nil, nil, nil, nil, nil, false)
+	module := ast.NewModule([]ast.Statement{applicativeIface, arrayStruct, impl}, nil, nil)
+
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) == 0 {
+		t.Fatalf("expected diagnostic for concrete higher-kinded target")
+	}
+	found := false
+	for _, d := range diags {
+		if strings.Contains(d.Message, "self type 'F _'") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected higher-kinded self type diagnostic, got %v", diags)
+	}
+}
+
+func buildGenericStructDefinition(name string, generics []string) *ast.StructDefinition {
+	params := make([]*ast.GenericParameter, 0, len(generics))
+	for _, g := range generics {
+		params = append(params, ast.GenericParam(g))
+	}
+	return ast.StructDef(name, nil, ast.StructKindNamed, params, nil, false)
+}
+
+func buildPointStructDefinition() *ast.StructDefinition {
+	fields := []*ast.StructFieldDefinition{
+		ast.FieldDef(ast.Ty("i32"), "x"),
+		ast.FieldDef(ast.Ty("i32"), "y"),
+	}
+	return ast.StructDef("Point", fields, ast.StructKindNamed, nil, nil, false)
+}

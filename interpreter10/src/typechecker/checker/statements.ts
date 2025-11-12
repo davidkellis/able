@@ -42,14 +42,18 @@ export function checkStatement(ctx: StatementContext, node: AST.Statement | AST.
 }
 
 function checkAssignment(ctx: StatementContext, node: AST.AssignmentExpression): void {
+  if (node.operator === ":=" && isPatternNode(node.left)) {
+    predeclarePattern(ctx, node.left);
+  }
   const valueType = ctx.inferExpression(node.right);
-  if (node.left?.type === "StructPattern") {
-    bindPatternToEnv(ctx, node.left, valueType, "assignment pattern");
+  if (!node.left) {
     return;
   }
-  if (node.left?.type === "Identifier" && node.left.name) {
-    ctx.defineValue(node.left.name, valueType);
+  if (node.left.type === "MemberAccessExpression" || node.left.type === "IndexExpression") {
+    ctx.inferExpression(node.left);
+    return;
   }
+  bindPatternToEnv(ctx, node.left as AST.Pattern, valueType, "assignment pattern", { suppressMismatchReport: true });
 }
 
 function checkRaiseStatement(ctx: StatementContext, node: AST.RaiseStatement): void {
@@ -127,5 +131,69 @@ function resolveIterableElementType(type: TypeInfo): { elementType: TypeInfo; re
   if (type.kind === "struct" && type.name === "Range") {
     return { elementType: unknownType, recognized: true };
   }
+  if (type.kind === "interface" && type.name === "Iterable") {
+    const candidate = Array.isArray(type.typeArguments) && type.typeArguments.length > 0 ? type.typeArguments[0]! : null;
+    return { elementType: candidate ?? unknownType, recognized: true };
+  }
   return { elementType: unknownType, recognized: false };
+}
+
+function isPatternNode(node: AST.Node | undefined | null): node is AST.Pattern {
+  if (!node) return false;
+  switch (node.type) {
+    case "Identifier":
+    case "WildcardPattern":
+    case "TypedPattern":
+    case "StructPattern":
+    case "ArrayPattern":
+    case "LiteralPattern":
+      return true;
+    default:
+      return false;
+  }
+}
+
+function predeclarePattern(ctx: StatementContext, pattern: AST.Pattern | undefined | null): void {
+  if (!pattern) return;
+  switch (pattern.type) {
+    case "Identifier":
+      if (pattern.name) {
+        ctx.defineValue(pattern.name, unknownType);
+      }
+      return;
+    case "WildcardPattern":
+    case "LiteralPattern":
+      return;
+    case "TypedPattern":
+      if (pattern.pattern) {
+        predeclarePattern(ctx, pattern.pattern as AST.Pattern);
+      }
+      return;
+    case "StructPattern":
+      if (!Array.isArray(pattern.fields)) {
+        return;
+      }
+      for (const field of pattern.fields) {
+        if (!field) continue;
+        if (field.pattern) {
+          predeclarePattern(ctx, field.pattern as AST.Pattern);
+        }
+        if (field.binding?.name) {
+          ctx.defineValue(field.binding.name, unknownType);
+        }
+      }
+      return;
+    case "ArrayPattern":
+      if (Array.isArray(pattern.elements)) {
+        for (const element of pattern.elements) {
+          predeclarePattern(ctx, element as AST.Pattern);
+        }
+      }
+      if (pattern.restPattern && pattern.restPattern.type === "Identifier" && pattern.restPattern.name) {
+        ctx.defineValue(pattern.restPattern.name, unknownType);
+      }
+      return;
+    default:
+      return;
+  }
 }

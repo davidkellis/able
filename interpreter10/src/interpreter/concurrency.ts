@@ -22,6 +22,7 @@ declare module "./index" {
     getProcErrorDetails(procError: V10Value): string;
     makeProcStatusFailed(procError: V10Value): V10Value;
     markProcCancelled(handle: Extract<V10Value, { kind: "proc_handle" }>, message?: string): void;
+    markFutureCancelled(future: Extract<V10Value, { kind: "future" }>, message?: string): void;
     procHandleStatus(handle: Extract<V10Value, { kind: "proc_handle" }>): V10Value;
     futureStatus(future: Extract<V10Value, { kind: "future" }>): V10Value;
     toProcError(value: V10Value | undefined, fallback: string): V10Value;
@@ -29,6 +30,7 @@ declare module "./index" {
     bindNativeMethod(func: Extract<V10Value, { kind: "native_function" }>, self: V10Value): Extract<V10Value, { kind: "native_bound_method" }>;
     procHandleValue(handle: Extract<V10Value, { kind: "proc_handle" }>): V10Value;
     procHandleCancel(handle: Extract<V10Value, { kind: "proc_handle" }>): void;
+    futureCancel(future: Extract<V10Value, { kind: "future" }>): void;
     futureValue(future: Extract<V10Value, { kind: "future" }>): V10Value;
     runProcHandle(handle: Extract<V10Value, { kind: "proc_handle" }>): void;
     runFuture(future: Extract<V10Value, { kind: "future" }>): void;
@@ -219,6 +221,39 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
     handle.runner = null;
   };
 
+  cls.prototype.markFutureCancelled = function markFutureCancelled(this: InterpreterV10, future: Extract<V10Value, { kind: "future" }>, message = "Future cancelled"): void {
+    const pendingSend = (future as any).waitingChannelSend as
+      | {
+          state: any;
+          value: V10Value;
+        }
+      | undefined;
+    if (pendingSend) {
+      pendingSend.state.sendWaiters = pendingSend.state.sendWaiters.filter((entry: any) => entry.handle !== future);
+      delete (future as any).waitingChannelSend;
+    }
+    const pendingReceive = (future as any).waitingChannelReceive as
+      | {
+          state: any;
+        }
+      | undefined;
+    if (pendingReceive) {
+      pendingReceive.state.receiveWaiters = pendingReceive.state.receiveWaiters.filter((entry: any) => entry.handle !== future);
+      delete (future as any).waitingChannelReceive;
+    }
+    if ((future as any).waitingMutex) {
+      const state = (future as any).waitingMutex as any;
+      state.waiters = state.waiters.filter((entry: any) => entry !== future);
+      delete (future as any).waitingMutex;
+    }
+    const procErr = this.makeProcError(message);
+    future.state = "cancelled";
+    future.result = undefined;
+    future.failureInfo = procErr;
+    future.error = this.makeRuntimeError(message, procErr, procErr);
+    future.runner = null;
+  };
+
   cls.prototype.procHandleStatus = function procHandleStatus(this: InterpreterV10, handle: Extract<V10Value, { kind: "proc_handle" }>): V10Value {
     switch (handle.state) {
       case "pending":
@@ -242,6 +277,8 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
         return this.procStatusPendingValue;
       case "resolved":
         return this.procStatusResolvedValue;
+      case "cancelled":
+        return this.procStatusCancelledValue;
       case "failed": {
         const procErr = future.failureInfo ?? this.makeProcError("unknown failure");
         return this.makeProcStatusFailed(procErr);
@@ -318,6 +355,15 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
     }
   };
 
+  cls.prototype.futureCancel = function futureCancel(this: InterpreterV10, future: Extract<V10Value, { kind: "future" }>): void {
+    if (future.state === "resolved" || future.state === "failed" || future.state === "cancelled") return;
+    future.cancelRequested = true;
+    if (future.state === "pending" && !future.isEvaluating) {
+      if (!future.runner) future.runner = () => this.runFuture(future);
+      this.scheduleAsync(future.runner);
+    }
+  };
+
   cls.prototype.futureValue = function futureValue(this: InterpreterV10, future: Extract<V10Value, { kind: "future" }>): V10Value {
     if (future.state === "pending") {
       if (future.runner) {
@@ -336,6 +382,11 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
         if (future.error) return future.error;
         const procErr = this.makeProcError("Future failed");
         return this.makeRuntimeError("Future failed", procErr, procErr);
+      }
+      case "cancelled": {
+        if (future.error) return future.error;
+        const procErr = this.makeProcError("Future cancelled");
+        return this.makeRuntimeError("Future cancelled", procErr, procErr);
       }
       case "resolved":
         return future.result ?? { kind: "nil", value: null };
@@ -421,21 +472,31 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
     if (!future.runner) {
       future.runner = () => this.runFuture(future);
     }
+    if (future.cancelRequested && !future.hasStarted) {
+      this.markFutureCancelled(future);
+      return;
+    }
     let futureContext = future.continuation as ProcContinuationContext | undefined;
     if (!futureContext) {
       futureContext = new ProcContinuationContext();
       (future as any).continuation = futureContext;
     }
     this.resetTimeSlice();
+    future.hasStarted = true;
     future.isEvaluating = true;
     this.pushProcContext(futureContext);
     this.asyncContextStack.push({ kind: "future", handle: future });
     try {
       const value = this.evaluate(future.expression, future.env);
-      future.result = value;
-      future.state = "resolved";
-      future.error = undefined;
-      future.failureInfo = undefined;
+      if (future.cancelRequested) {
+        const msg = "Future cancelled";
+        this.markFutureCancelled(future, msg);
+      } else {
+        future.result = value;
+        future.state = "resolved";
+        future.error = undefined;
+        future.failureInfo = undefined;
+      }
     } catch (e) {
       if (e instanceof ProcYieldSignal) {
         const manualYield = this.manualYieldRequested;
@@ -452,6 +513,9 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
         future.failureInfo = procErr;
         future.error = this.makeRuntimeError(`Future failed: ${details}`, procErr, procErr);
         future.state = "failed";
+      } else if (future.cancelRequested) {
+        const msg = e instanceof Error ? e.message : "Future cancelled";
+        this.markFutureCancelled(future, msg || "Future cancelled");
       } else {
         const msg = e instanceof Error ? e.message : "Future execution error";
         const procErr = this.makeProcError(msg);

@@ -2992,7 +2992,7 @@ side_effect_proc = proc { log_message("Starting background task...") } ## Return
 
 #### 12.2.4. Process Handle (`Proc T` Interface)
 
-The `Proc T` interface provides methods to interact with an ongoing asynchronous process started by `proc`. (See Section [14](#14-standard-library-interfaces-conceptual--tbd) for conceptual definition).
+The `Proc T` interface provides methods to interact with an ongoing asynchronous process started by `proc`. The structs, union, and interface below form the canonical runtime surface; every interpreter/runtime MUST expose them with the exact spellings shown because shared fixtures and the Go/TypeScript typecheckers target these names.
 
 ##### Definition (Conceptual)
 
@@ -3029,6 +3029,8 @@ interface Proc T for HandleType { ## HandleType is the concrete type returned by
   fn cancel(self: Self) -> void
 }
 ```
+
+Implementations may enrich `ProcError` with platform-specific fields, but they MUST preserve the `message()` contract and keep `status()`, `value()`, and `cancel()` available with the semantics spelled out below.
 
 ##### Semantics of Methods
 
@@ -3166,6 +3168,27 @@ print(`Calculation result: ${final_value}`) ## Prints "Calculation result: 100"
 _ = future_void ## Assigning to _ forces evaluation/synchronization
 print("Background log finished.")
 ```
+
+#### 12.3.4. Future Handle (Canonical Interface)
+
+Even though values of type `Future T` behave like `T` when evaluated, the runtime also exposes an explicit handle so tooling and user code can inspect or await futures without forcing implicit evaluation in expression position. The handle reuses the `ProcStatus`/`ProcError` structs from Section 12.2.4 and MUST provide the following methods:
+
+```able
+interface Future T for FutureHandle {
+  ## Non-blocking inspection of the memoized computation.
+  fn status(self: Self) -> ProcStatus
+
+  ## Blocks until the underlying asynchronous work settles and returns the memoized !T payload.
+  ## Successful futures yield the resolved value; cancelled/failed futures yield ProcError.
+  fn value(self: Self) -> !T
+}
+```
+
+-   Futures are read-only views. There is intentionally no `cancel()` method; cancellation is requested via the originating `Proc` handle (if the program retained one) or by wiring cancellation-aware channels/flags into the asynchronous work.
+-   `Future.status()` mirrors `Proc.status()` and MUST return the singleton structs `Pending`, `Resolved`, `Cancelled`, or `Failed`.
+-   `Future.value()` is idempotent: once the future resolves, every subsequent call returns the cached result or error without re-running the computation. Typecheckers therefore model the return type as `!T`.
+
+Implementations may expose additional helper functions (e.g., scheduler instrumentation) but MUST keep the methods above available so that diagnostics and fixtures can reason about futures uniformly across runtimes.
 
 ### 12.4. Using `proc` vs `spawn`
 

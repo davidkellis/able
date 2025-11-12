@@ -73,7 +73,7 @@ export type V10Value =
     }
   | {
       kind: "future";
-      state: "pending" | "resolved" | "failed";
+      state: "pending" | "resolved" | "failed" | "cancelled";
       expression: AST.FunctionCall | AST.BlockExpression;
       env: Environment;
       runner: (() => void) | null;
@@ -82,6 +82,16 @@ export type V10Value =
       failureInfo?: V10Value;
       isEvaluating?: boolean;
       continuation?: ProcContinuationContext;
+      cancelRequested?: boolean;
+      hasStarted?: boolean;
+      waitingChannelSend?: {
+        state: any;
+        value: V10Value;
+      };
+      waitingChannelReceive?: {
+        state: any;
+      };
+      waitingMutex?: unknown;
     }
   | {
       kind: "native_function";

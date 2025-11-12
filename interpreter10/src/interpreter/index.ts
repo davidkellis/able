@@ -58,6 +58,7 @@ export class InterpreterV10 {
   futureNativeMethods!: {
     status: Extract<V10Value, { kind: "native_function" }>;
     value: Extract<V10Value, { kind: "native_function" }>;
+    cancel: Extract<V10Value, { kind: "native_function" }>;
   };
 
   errorNativeMethods!: {
@@ -136,6 +137,12 @@ export class InterpreterV10 {
         const self = args[0];
         if (!self || self.kind !== "future") throw new Error("Future.value called on non-future");
         return interp.futureValue(self);
+      }),
+      cancel: this.makeNativeFunction("Future.cancel", 1, (interp, args) => {
+        const self = args[0];
+        if (!self || self.kind !== "future") throw new Error("Future.cancel called on non-future");
+        interp.futureCancel(self);
+        return { kind: "nil", value: null };
       }),
     };
 

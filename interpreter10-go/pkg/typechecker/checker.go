@@ -149,9 +149,6 @@ func (c *Checker) applyImports(env *Environment, imports []*ast.ImportStatement)
 		if imp == nil {
 			continue
 		}
-		if imp.IsWildcard {
-			c.allowDynamicLookups = true
-		}
 		if imp.Alias != nil && imp.Alias.Name != "" {
 			if _, exists := env.Lookup(imp.Alias.Name); exists {
 				continue

@@ -211,6 +211,188 @@ describe("TypeChecker implementation validation", () => {
       message: "typechecker: impl Show for Point defines duplicate method 'to_string'",
     });
   });
+
+  test("reports error when implicit interface implementation targets a type constructor", () => {
+    const interfaceDef = AST.interfaceDefinition("Display", []);
+    const arrayStruct = AST.structDefinition(
+      "Array",
+      [],
+      "named",
+      [AST.genericParameter("T")],
+    );
+    const impl = AST.implementationDefinition(
+      interfaceDef.id,
+      AST.simpleTypeExpression("Array"),
+      [],
+    );
+    const moduleAst = AST.module([interfaceDef, arrayStruct, impl]);
+    const checker = new TypeChecker();
+    const { diagnostics } = checker.checkModule(moduleAst);
+    expect(diagnostics.length).toBeGreaterThan(0);
+    expect(diagnostics[0]?.message).toContain("type constructor");
+    expect(diagnostics[0]?.message).toContain("Display");
+    expect(diagnostics[0]?.message).toContain("Array");
+  });
+
+  test("accepts bare type constructor when interface declares higher-kinded self pattern", () => {
+    const interfaceDef = AST.interfaceDefinition(
+      "Mapper",
+      [],
+      undefined,
+      AST.genericTypeExpression(AST.simpleTypeExpression("M"), [AST.wildcardTypeExpression()]),
+    );
+    const arrayStruct = AST.structDefinition(
+      "Array",
+      [],
+      "named",
+      [AST.genericParameter("T")],
+    );
+    const impl = AST.implementationDefinition(
+      interfaceDef.id,
+      AST.simpleTypeExpression("Array"),
+      [],
+    );
+    const moduleAst = AST.module([interfaceDef, arrayStruct, impl]);
+    const checker = new TypeChecker();
+    expect(checker.checkModule(moduleAst).diagnostics).toEqual([]);
+  });
+
+  test("accepts bare constructor when higher-kinded interface methods use generics", () => {
+    const wrapSignature = AST.functionSignature(
+      "wrap",
+      [
+        AST.functionParameter(
+          "self",
+          AST.genericTypeExpression(AST.simpleTypeExpression("Self"), [
+            AST.simpleTypeExpression("T"),
+          ]),
+        ),
+        AST.functionParameter("value", AST.simpleTypeExpression("T")),
+      ],
+      AST.genericTypeExpression(AST.simpleTypeExpression("Self"), [AST.simpleTypeExpression("T")]),
+      [AST.genericParameter("T")],
+    );
+    const wrapperInterface = AST.interfaceDefinition(
+      "Wrapper",
+      [wrapSignature],
+      undefined,
+      AST.genericTypeExpression(AST.simpleTypeExpression("F"), [AST.wildcardTypeExpression()]),
+    );
+    const holderStruct = AST.structDefinition(
+      "Holder",
+      [AST.structFieldDefinition(AST.simpleTypeExpression("T"), "value")],
+      "named",
+      [AST.genericParameter("T")],
+    );
+    const wrapDefinition = AST.functionDefinition(
+      "wrap",
+      [
+        AST.functionParameter(
+          "self",
+          AST.genericTypeExpression(AST.simpleTypeExpression("Holder"), [AST.simpleTypeExpression("T")]),
+        ),
+        AST.functionParameter("value", AST.simpleTypeExpression("T")),
+      ],
+      AST.blockExpression([
+        AST.returnStatement(
+          AST.structLiteral(
+            [AST.structFieldInitializer(AST.identifier("value"), "value")],
+            false,
+            "Holder",
+            undefined,
+            [AST.simpleTypeExpression("T")],
+          ),
+        ),
+      ]),
+      AST.genericTypeExpression(AST.simpleTypeExpression("Holder"), [AST.simpleTypeExpression("T")]),
+      [AST.genericParameter("T")],
+    );
+    const implementation = AST.implementationDefinition(
+      wrapperInterface.id,
+      AST.simpleTypeExpression("Holder"),
+      [wrapDefinition],
+    );
+    const moduleAst = AST.module([wrapperInterface, holderStruct, implementation]);
+    const checker = new TypeChecker();
+    expect(checker.checkModule(moduleAst).diagnostics).toEqual([]);
+  });
+
+  test("reports mismatch when implementation target disagrees with explicit self type pattern", () => {
+    const interfaceDef = AST.interfaceDefinition(
+      "PointOnly",
+      [],
+      undefined,
+      AST.simpleTypeExpression("Point"),
+    );
+    const pointStruct = buildPointStruct();
+    const lineStruct = AST.structDefinition("Line", [], "named");
+    const impl = AST.implementationDefinition(
+      interfaceDef.id,
+      AST.simpleTypeExpression("Line"),
+      [],
+    );
+    const moduleAst = AST.module([interfaceDef, pointStruct, lineStruct, impl]);
+    const checker = new TypeChecker();
+    const { diagnostics } = checker.checkModule(moduleAst);
+    expect(diagnostics.length).toBeGreaterThan(0);
+    expect(diagnostics[0]?.message).toContain("self type 'Point'");
+  });
+
+  test("reports mismatch when implementation does not satisfy generic self type pattern", () => {
+    const interfaceDef = AST.interfaceDefinition(
+      "ArrayOnly",
+      [],
+      undefined,
+      AST.genericTypeExpression(AST.simpleTypeExpression("Array"), [AST.simpleTypeExpression("T")]),
+    );
+    const arrayStruct = AST.structDefinition(
+      "Array",
+      [],
+      "named",
+      [AST.genericParameter("T")],
+    );
+    const resultStruct = AST.structDefinition(
+      "Result",
+      [],
+      "named",
+      [AST.genericParameter("T")],
+    );
+    const impl = AST.implementationDefinition(
+      interfaceDef.id,
+      AST.genericTypeExpression(AST.simpleTypeExpression("Result"), [AST.simpleTypeExpression("i32")]),
+      [],
+    );
+    const moduleAst = AST.module([interfaceDef, arrayStruct, resultStruct, impl]);
+    const checker = new TypeChecker();
+    const { diagnostics } = checker.checkModule(moduleAst);
+    expect(diagnostics.length).toBeGreaterThan(0);
+    expect(diagnostics[0]?.message).toContain("self type 'Array T'");
+  });
+
+  test("reports mismatch when higher-kinded interface is implemented for a concrete application", () => {
+    const interfaceDef = AST.interfaceDefinition(
+      "Applicative",
+      [],
+      undefined,
+      AST.genericTypeExpression(AST.simpleTypeExpression("F"), [AST.wildcardTypeExpression()]),
+    );
+    const arrayStruct = AST.structDefinition(
+      "Array",
+      [],
+      "named",
+      [AST.genericParameter("T")],
+    );
+    const impl = AST.implementationDefinition(
+      interfaceDef.id,
+      AST.genericTypeExpression(AST.simpleTypeExpression("Array"), [AST.simpleTypeExpression("i32")]),
+      [],
+    );
+    const moduleAst = AST.module([interfaceDef, arrayStruct, impl]);
+    const checker = new TypeChecker();
+    const { diagnostics } = checker.checkModule(moduleAst);
+    expect(diagnostics.length).toBeGreaterThan(0);
+    expect(diagnostics[0]?.message).toContain("self type 'F _'");
+  });
 });
 
 function buildShowInterface(): AST.InterfaceDefinition {

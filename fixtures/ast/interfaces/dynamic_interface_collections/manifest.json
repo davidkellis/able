@@ -1,0 +1,19 @@
+{
+  "description": "Ranges and map-like collections of interface values dispatch the most specific impls even with union targets",
+  "expect": {
+    "result": {
+      "kind": "array",
+      "elements": [
+        {
+          "kind": "string",
+          "value": "counter:0counter:1"
+        },
+        {
+          "kind": "string",
+          "value": "fancy:fbasic:b"
+        }
+      ]
+    }
+  },
+  "entry": "module.json"
+}

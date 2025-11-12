@@ -17,6 +17,7 @@ export interface ImplementationRecord {
   genericParams: string[];
   obligations: ImplementationObligation[];
   interfaceArgs: AST.TypeExpression[];
+  unionVariants?: string[];
   definition: AST.ImplementationDefinition;
 }
 

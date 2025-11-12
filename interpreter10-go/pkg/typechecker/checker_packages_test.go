@@ -64,7 +64,7 @@ func TestCheckerPackageAliasMemberAccess(t *testing.T) {
 		ast.Pkg([]interface{}{"app"}, false),
 	)
 
-	env := typeEnvForImports(t, "dep", depChecker.ExportedSymbols(), map[string]string{}, false, "lib", true)
+	env := typeEnvForImports(t, "dep", depChecker.ExportedSymbols(), nil, map[string]string{}, false, "lib", true)
 	mainChecker := New()
 	mainChecker.SetPrelude(env, depChecker.ModuleImplementations(), depChecker.ModuleMethodSets())
 
@@ -109,7 +109,7 @@ func TestCheckerWildcardImportBindsSymbols(t *testing.T) {
 		ast.Pkg([]interface{}{"app"}, false),
 	)
 
-	env := typeEnvForImports(t, "dep", depChecker.ExportedSymbols(), wildcardBinding(depChecker.ExportedSymbols()), false, "", false)
+	env := typeEnvForImports(t, "dep", depChecker.ExportedSymbols(), nil, wildcardBinding(depChecker.ExportedSymbols()), false, "", false)
 	mainChecker := New()
 	mainChecker.SetPrelude(env, depChecker.ModuleImplementations(), depChecker.ModuleMethodSets())
 
@@ -145,7 +145,7 @@ func TestCheckerSelectiveImportBindsSymbol(t *testing.T) {
 		ast.Pkg([]interface{}{"app"}, false),
 	)
 
-	env := typeEnvForImports(t, "dep", depChecker.ExportedSymbols(), map[string]string{"provide": "alias"}, false, "", false)
+	env := typeEnvForImports(t, "dep", depChecker.ExportedSymbols(), nil, map[string]string{"provide": "alias"}, false, "", false)
 	mainChecker := New()
 	mainChecker.SetPrelude(env, depChecker.ModuleImplementations(), depChecker.ModuleMethodSets())
 
@@ -188,7 +188,13 @@ func TestCheckerPrivateSymbolsNotImported(t *testing.T) {
 		ast.Pkg([]interface{}{"app"}, false),
 	)
 
-	env := typeEnvForImports(t, "dep", depChecker.ExportedSymbols(), map[string]string{}, false, "lib", true)
+	privateSymbols := map[string]Type{}
+	if depChecker.global != nil {
+		if typ, ok := depChecker.global.Lookup("secret"); ok {
+			privateSymbols["secret"] = typ
+		}
+	}
+	env := typeEnvForImports(t, "dep", depChecker.ExportedSymbols(), privateSymbols, map[string]string{}, false, "lib", true)
 	mainChecker := New()
 	mainChecker.SetPrelude(env, depChecker.ModuleImplementations(), depChecker.ModuleMethodSets())
 
@@ -215,7 +221,7 @@ func dependencyModule() *ast.Module {
 	)
 }
 
-func typeEnvForImports(t *testing.T, pkgName string, exports []ExportedSymbol, bindings map[string]string, wildcard bool, alias string, includePackage bool) *Environment {
+func typeEnvForImports(t *testing.T, pkgName string, exports []ExportedSymbol, private map[string]Type, bindings map[string]string, wildcard bool, alias string, includePackage bool) *Environment {
 	t.Helper()
 	env := NewEnvironment(nil)
 	symbols := make(map[string]Type, len(exports))
@@ -227,7 +233,11 @@ func typeEnvForImports(t *testing.T, pkgName string, exports []ExportedSymbol, b
 		if pkgAlias == "" {
 			pkgAlias = pkgName
 		}
-		env.Define(pkgAlias, PackageType{Package: pkgName, Symbols: symbols})
+		env.Define(pkgAlias, PackageType{
+			Package:        pkgName,
+			Symbols:        symbols,
+			PrivateSymbols: private,
+		})
 	}
 	for name, aliasName := range bindings {
 		typ, ok := symbols[name]

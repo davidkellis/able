@@ -13,6 +13,7 @@ import concurrencyFixtures from "./concurrency";
 import stdlibFixtures from "./stdlib";
 import typesFixtures from "./types";
 import errorsFixtures from "./errors";
+import interfacesFixtures from "./interfaces";
 
 export const fixtures: Fixture[] = [
   ...basicsFixtures,
@@ -28,5 +29,6 @@ export const fixtures: Fixture[] = [
   ...concurrencyFixtures,
   ...stdlibFixtures,
   ...typesFixtures,
+  ...interfacesFixtures,
   ...errorsFixtures,
 ];

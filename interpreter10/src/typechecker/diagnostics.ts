@@ -15,6 +15,7 @@ export type TypecheckerDiagnostic = {
 
 export type ExportedSymbolSummary = {
   type: string;
+  visibility: "public" | "private";
 };
 
 export type ExportedGenericParamSummary = {
@@ -79,6 +80,7 @@ export type PackageSummary = {
   name: string;
   visibility: "public" | "private";
   symbols: Record<string, ExportedSymbolSummary>;
+  privateSymbols: Record<string, ExportedSymbolSummary>;
   structs: Record<string, ExportedStructSummary>;
   interfaces: Record<string, ExportedInterfaceSummary>;
   functions: Record<string, ExportedFunctionSummary>;

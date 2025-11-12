@@ -191,12 +191,19 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 					StructType{StructName: "IteratorEnd"},
 				},
 			}
-			c.infer.set(expr, result)
-			return diags, result
+			fn := FunctionType{
+				Params: nil,
+				Return: result,
+			}
+			c.infer.set(expr, fn)
+			return diags, fn
 		case "close":
-			result := PrimitiveType{Kind: PrimitiveNil}
-			c.infer.set(expr, result)
-			return diags, result
+			fn := FunctionType{
+				Params: nil,
+				Return: PrimitiveType{Kind: PrimitiveNil},
+			}
+			c.infer.set(expr, fn)
+			return diags, fn
 		default:
 			diags = append(diags, Diagnostic{
 				Message: fmt.Sprintf("typechecker: iterator has no member '%s'", memberName),
@@ -239,6 +246,15 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 			if symbolType, ok := ty.Symbols[memberName]; ok && symbolType != nil {
 				c.infer.set(expr, symbolType)
 				return diags, symbolType
+			}
+		}
+		if ty.PrivateSymbols != nil {
+			if _, ok := ty.PrivateSymbols[memberName]; ok {
+				diags = append(diags, Diagnostic{
+					Message: fmt.Sprintf("typechecker: package '%s' has no symbol '%s'", ty.Package, memberName),
+					Node:    expr,
+				})
+				break
 			}
 		}
 		diags = append(diags, Diagnostic{
@@ -592,6 +608,9 @@ func matchMethodTarget(object Type, target Type, params []GenericParamSpec) (map
 			return nil, 0, true
 		}
 	}
+	if targetUnion, ok := target.(UnionLiteralType); ok {
+		return matchUnionLiteralTarget(object, targetUnion, params)
+	}
 	objInfo, ok := structInfoFromType(object)
 	if !ok {
 		return nil, 0, false
@@ -616,18 +635,7 @@ func matchMethodTarget(object Type, target Type, params []GenericParamSpec) (map
 		}
 		score += argScore
 	}
-	for _, param := range params {
-		if param.Name == "" {
-			continue
-		}
-		if _, ok := subst[param.Name]; !ok {
-			subst[param.Name] = UnknownType{}
-		}
-	}
-	if len(subst) == 0 {
-		return nil, score, true
-	}
-	return subst, score, true
+	return finalizeMatchResult(subst, params, score)
 }
 
 func matchTypeArgument(actual Type, pattern Type, subst map[string]Type) (bool, int) {
@@ -717,6 +725,68 @@ func matchTypeArgument(actual Type, pattern Type, subst map[string]Type) (bool, 
 		return true, 0
 	}
 	return false, 0
+}
+
+func matchUnionLiteralTarget(object Type, target UnionLiteralType, params []GenericParamSpec) (map[string]Type, int, bool) {
+	if objUnion, ok := object.(UnionLiteralType); ok {
+		if len(objUnion.Members) != len(target.Members) {
+			return nil, 0, false
+		}
+		subst := make(map[string]Type)
+		score := 0
+		for i := range target.Members {
+			ok, s := matchTypeArgument(objUnion.Members[i], target.Members[i], subst)
+			if !ok {
+				return nil, 0, false
+			}
+			score += s
+		}
+		return finalizeMatchResult(subst, params, score)
+	}
+	for _, member := range target.Members {
+		if member == nil {
+			continue
+		}
+		subst := make(map[string]Type)
+		ok, s := matchTypeArgument(object, member, subst)
+		if !ok {
+			continue
+		}
+		return finalizeMatchResult(subst, params, s)
+	}
+	return nil, 0, false
+}
+
+func finalizeMatchResult(subst map[string]Type, params []GenericParamSpec, score int) (map[string]Type, int, bool) {
+	if len(subst) == 0 {
+		subst = nil
+	}
+	subst = ensureTypeParams(subst, params)
+	if subst == nil || len(subst) == 0 {
+		return nil, score, true
+	}
+	return subst, score, true
+}
+
+func ensureTypeParams(subst map[string]Type, params []GenericParamSpec) map[string]Type {
+	if len(params) == 0 {
+		return subst
+	}
+	if subst == nil {
+		subst = make(map[string]Type)
+	}
+	for _, param := range params {
+		if param.Name == "" {
+			continue
+		}
+		if _, ok := subst[param.Name]; !ok {
+			subst[param.Name] = UnknownType{}
+		}
+	}
+	if len(subst) == 0 {
+		return nil
+	}
+	return subst
 }
 
 func nominalBasesCompatible(actual Type, pattern Type) bool {

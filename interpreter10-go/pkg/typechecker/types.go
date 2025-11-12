@@ -74,17 +74,19 @@ type StructInstanceType struct {
 func (s StructInstanceType) Name() string { return "StructInstance:" + s.StructName }
 
 type InterfaceType struct {
-	InterfaceName string
-	TypeParams    []GenericParamSpec
-	Where         []WhereConstraintSpec
-	Methods       map[string]FunctionType
+	InterfaceName   string
+	TypeParams      []GenericParamSpec
+	Where           []WhereConstraintSpec
+	Methods         map[string]FunctionType
+	SelfTypePattern ast.TypeExpression
 }
 
 func (i InterfaceType) Name() string { return "Interface:" + i.InterfaceName }
 
 type PackageType struct {
-	Package string
-	Symbols map[string]Type
+	Package        string
+	Symbols        map[string]Type
+	PrivateSymbols map[string]Type
 }
 
 func (p PackageType) Name() string {
@@ -153,6 +155,7 @@ type ImplementationSpec struct {
 	Methods       map[string]FunctionType
 	Where         []WhereConstraintSpec
 	Obligations   []ConstraintObligation
+	UnionVariants []string
 	Definition    *ast.ImplementationDefinition
 }
 

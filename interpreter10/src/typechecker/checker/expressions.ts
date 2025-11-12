@@ -37,6 +37,7 @@ export interface ExpressionContext {
   withForkedEnv<T>(fn: () => T): T;
   lookupIdentifier(name: string): TypeInfo | undefined;
   defineValue(name: string, valueType: TypeInfo): void;
+  allowDynamicLookup(): boolean;
 }
 
 export type StatementContext = ExpressionContext & {
@@ -72,6 +73,62 @@ export function checkStructPattern(
   }
 }
 
+function bindStructPatternFields(
+  ctx: ExpressionContext,
+  pattern: AST.StructPattern,
+  valueType: TypeInfo,
+  contextLabel: string,
+): void {
+  if (!Array.isArray(pattern.fields) || pattern.fields.length === 0) {
+    return;
+  }
+  const fieldTypes = new Map<string, TypeInfo>();
+  const definition = ctx.resolveStructDefinitionForPattern(pattern, valueType);
+  if (definition && Array.isArray(definition.fields)) {
+    for (const fieldDef of definition.fields) {
+      if (!fieldDef) continue;
+      const name = ctx.getIdentifierName(fieldDef.name);
+      if (!name) continue;
+      const resolved = fieldDef.fieldType ? ctx.resolveTypeExpression(fieldDef.fieldType) : undefined;
+      if (resolved) {
+        fieldTypes.set(name, resolved);
+      }
+    }
+  }
+  for (const field of pattern.fields) {
+    if (!field) continue;
+    const fieldName = ctx.getIdentifierName(field.fieldName);
+    const nestedType = (fieldName && fieldTypes.get(fieldName)) || unknownType;
+    if (field.pattern) {
+      bindPatternToEnv(ctx, field.pattern as AST.Pattern, nestedType ?? unknownType, contextLabel);
+    }
+    if (field.binding?.name) {
+      ctx.defineValue(field.binding.name, nestedType ?? unknownType);
+    }
+  }
+}
+
+function bindArrayPatternElements(
+  ctx: ExpressionContext,
+  pattern: AST.ArrayPattern,
+  valueType: TypeInfo,
+  contextLabel: string,
+): void {
+  const elementType =
+    valueType && valueType.kind === "array"
+      ? valueType.element ?? unknownType
+      : unknownType;
+  if (Array.isArray(pattern.elements)) {
+    for (const element of pattern.elements) {
+      if (!element) continue;
+      bindPatternToEnv(ctx, element as AST.Pattern, elementType ?? unknownType, contextLabel);
+    }
+  }
+  const rest = pattern.restPattern;
+  if (rest && rest.type === "Identifier" && rest.name) {
+    ctx.defineValue(rest.name, elementType ?? unknownType);
+  }
+}
 export function inferExpression(ctx: ExpressionContext, expression: AST.Expression | undefined | null): TypeInfo {
   if (!expression) return unknownType;
   switch (expression.type) {
@@ -86,8 +143,20 @@ export function inferExpression(ctx: ExpressionContext, expression: AST.Expressi
     case "NilLiteral":
       return primitiveType("nil");
     case "Identifier": {
-      const existing = ctx.lookupIdentifier(expression.name);
-      return existing ?? unknownType;
+      const name = expression.name;
+      const existing = ctx.lookupIdentifier(name);
+      if (existing) {
+        return existing;
+      }
+      const structDefinition = ctx.getStructDefinition(name);
+      if (structDefinition) {
+        return { kind: "struct", name, typeArguments: [], definition: structDefinition };
+      }
+      if (ctx.allowDynamicLookup()) {
+        return unknownType;
+      }
+      ctx.report(`typechecker: undefined identifier '${name}'`, expression);
+      return unknownType;
     }
     case "BinaryExpression": {
       const left = ctx.inferExpression(expression.left);
@@ -220,6 +289,9 @@ export function analyzeIteratorBody(
   let inferred: TypeInfo = expectedType ?? unknownType;
   ctx.withForkedEnv(() => {
     ctx.defineValue("gen", unknownType);
+    if (literal?.binding?.name) {
+      ctx.defineValue(literal.binding.name, unknownType);
+    }
     for (const statement of literal.body ?? []) {
       if (!statement) continue;
       if (statement.type === "YieldStatement") {
@@ -347,6 +419,7 @@ export function bindPatternToEnv(
   pattern: AST.Pattern | undefined | null,
   valueType: TypeInfo,
   contextLabel: string,
+  options?: { suppressMismatchReport?: boolean },
 ): void {
   if (!pattern) return;
   switch (pattern.type) {
@@ -362,6 +435,7 @@ export function bindPatternToEnv(
       const resolvedType =
         annotationType && annotationType.kind !== "unknown" ? annotationType : valueType ?? unknownType;
       if (
+        !options?.suppressMismatchReport &&
         annotationType &&
         annotationType.kind !== "unknown" &&
         valueType &&
@@ -379,8 +453,11 @@ export function bindPatternToEnv(
     }
     case "StructPattern":
       checkStructPattern(ctx, pattern, valueType);
+      bindStructPatternFields(ctx, pattern, valueType, contextLabel);
       return;
     case "ArrayPattern":
+      bindArrayPatternElements(ctx, pattern, valueType, contextLabel);
+      return;
     case "LiteralPattern":
     default:
       return;

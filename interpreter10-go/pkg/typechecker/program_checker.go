@@ -44,9 +44,10 @@ func DescribeModuleDiagnostic(diag ModuleDiagnostic) string {
 	return message
 }
 
-// ExportedSymbolSummary summarises a public binding exposed by a package.
+// ExportedSymbolSummary summarises a binding exposed by a package.
 type ExportedSymbolSummary struct {
-	Type string `json:"type"`
+	Type       string `json:"type"`
+	Visibility string `json:"visibility"`
 }
 
 // ExportedGenericParamSummary summarises a generic parameter and its constraints.
@@ -120,6 +121,7 @@ type PackageSummary struct {
 	Name            string                              `json:"name"`
 	Visibility      string                              `json:"visibility"`
 	Symbols         map[string]ExportedSymbolSummary    `json:"symbols"`
+	PrivateSymbols  map[string]ExportedSymbolSummary    `json:"privateSymbols"`
 	Structs         map[string]ExportedStructSummary    `json:"structs"`
 	Interfaces      map[string]ExportedInterfaceSummary `json:"interfaces"`
 	Functions       map[string]ExportedFunctionSummary  `json:"functions"`
@@ -137,6 +139,7 @@ type packageExports struct {
 	name       string
 	visibility string
 	symbols    map[string]Type
+	private    map[string]Type
 	impls      []ImplementationSpec
 	methodSets []MethodSetSpec
 	structs    map[string]StructType
@@ -166,7 +169,7 @@ func (pc *ProgramChecker) Check(program *driver.Program) (CheckResult, error) {
 		if mod == nil || mod.AST == nil {
 			continue
 		}
-		env, impls, methods, importDiags := pc.buildPrelude(mod.AST.Imports)
+		env, impls, methods, importDiags := pc.buildPrelude(mod.AST.Imports, mod.Package)
 		checker := New()
 		checker.SetPrelude(env, impls, methods)
 
@@ -328,7 +331,18 @@ func (pc *ProgramChecker) clonePackageSummaries() map[string]PackageSummary {
 		}
 		symbols := make(map[string]ExportedSymbolSummary, len(rec.symbols))
 		for symName, typ := range rec.symbols {
-			symbols[symName] = ExportedSymbolSummary{Type: formatType(typ)}
+			symbols[symName] = ExportedSymbolSummary{
+				Type:       formatType(typ),
+				Visibility: "public",
+			}
+		}
+
+		privateSymbols := make(map[string]ExportedSymbolSummary, len(rec.private))
+		for symName, typ := range rec.private {
+			privateSymbols[symName] = ExportedSymbolSummary{
+				Type:       formatType(typ),
+				Visibility: "private",
+			}
 		}
 
 		structs := make(map[string]ExportedStructSummary, len(rec.structs))
@@ -360,6 +374,7 @@ func (pc *ProgramChecker) clonePackageSummaries() map[string]PackageSummary {
 			Name:            name,
 			Visibility:      rec.visibility,
 			Symbols:         symbols,
+			PrivateSymbols:  privateSymbols,
 			Structs:         structs,
 			Interfaces:      interfaces,
 			Functions:       functions,
@@ -371,6 +386,9 @@ func (pc *ProgramChecker) clonePackageSummaries() map[string]PackageSummary {
 		}
 		if summary.Symbols == nil {
 			summary.Symbols = map[string]ExportedSymbolSummary{}
+		}
+		if summary.PrivateSymbols == nil {
+			summary.PrivateSymbols = map[string]ExportedSymbolSummary{}
 		}
 		if summary.Structs == nil {
 			summary.Structs = map[string]ExportedStructSummary{}
@@ -392,7 +410,7 @@ func (pc *ProgramChecker) clonePackageSummaries() map[string]PackageSummary {
 	return result
 }
 
-func (pc *ProgramChecker) buildPrelude(imports []*ast.ImportStatement) (*Environment, []ImplementationSpec, []MethodSetSpec, []Diagnostic) {
+func (pc *ProgramChecker) buildPrelude(imports []*ast.ImportStatement, currentPackage string) (*Environment, []ImplementationSpec, []MethodSetSpec, []Diagnostic) {
 	if len(imports) == 0 {
 		return nil, nil, nil, nil
 	}
@@ -411,32 +429,40 @@ func (pc *ProgramChecker) buildPrelude(imports []*ast.ImportStatement) (*Environ
 		}
 		pkgName := joinImportPath(imp.PackagePath)
 		export, ok := pc.exports[pkgName]
-		if ok {
-			if _, already := seen[pkgName]; !already {
-				if len(export.impls) > 0 {
-					impls = append(impls, export.impls...)
-				}
-				if len(export.methodSets) > 0 {
-					methods = append(methods, export.methodSets...)
-				}
-				seen[pkgName] = struct{}{}
-			}
-		} else {
+		if !ok {
 			diags = append(diags, Diagnostic{
 				Message: fmt.Sprintf("typechecker: import references unknown package '%s'", pkgName),
 				Node:    imp,
 			})
+			continue
+		}
+		if export == nil {
+			continue
+		}
+		if export.visibility == "private" && pkgName != currentPackage {
+			diags = append(diags, Diagnostic{
+				Message: fmt.Sprintf("typechecker: package '%s' is private", pkgName),
+				Node:    imp,
+			})
+			continue
+		}
+		if _, already := seen[pkgName]; !already {
+			if len(export.impls) > 0 {
+				impls = append(impls, export.impls...)
+			}
+			if len(export.methodSets) > 0 {
+				methods = append(methods, export.methodSets...)
+			}
+			seen[pkgName] = struct{}{}
 		}
 
 		if imp.IsWildcard {
-			if ok {
-				for name, typ := range export.symbols {
-					if typ == nil {
-						typ = UnknownType{}
-					}
-					env.Define(name, typ)
-					hasScope = true
+			for name, typ := range export.symbols {
+				if typ == nil {
+					typ = UnknownType{}
 				}
+				env.Define(name, typ)
+				hasScope = true
 			}
 			continue
 		}
@@ -450,17 +476,26 @@ func (pc *ProgramChecker) buildPrelude(imports []*ast.ImportStatement) (*Environ
 				if sel.Alias != nil && sel.Alias.Name != "" {
 					alias = sel.Alias.Name
 				}
-				if ok {
-					if typ, exists := export.symbols[sel.Name.Name]; exists && typ != nil {
-						env.Define(alias, typ)
+				if typ, exists := export.symbols[sel.Name.Name]; exists && typ != nil {
+					env.Define(alias, typ)
+					hasScope = true
+					continue
+				}
+				if export.private != nil {
+					if _, exists := export.private[sel.Name.Name]; exists {
+						diags = append(diags, Diagnostic{
+							Message: fmt.Sprintf("typechecker: package '%s' symbol '%s' is private", pkgName, sel.Name.Name),
+							Node:    sel,
+						})
+						env.Define(alias, UnknownType{})
 						hasScope = true
 						continue
 					}
-					diags = append(diags, Diagnostic{
-						Message: fmt.Sprintf("typechecker: package '%s' has no symbol '%s'", pkgName, sel.Name.Name),
-						Node:    sel,
-					})
 				}
+				diags = append(diags, Diagnostic{
+					Message: fmt.Sprintf("typechecker: package '%s' has no symbol '%s'", pkgName, sel.Name.Name),
+					Node:    sel,
+				})
 				env.Define(alias, UnknownType{})
 				hasScope = true
 			}
@@ -475,10 +510,12 @@ func (pc *ProgramChecker) buildPrelude(imports []*ast.ImportStatement) (*Environ
 			Package: pkgName,
 			Symbols: nil,
 		}
-		if ok {
+		if export != nil {
 			pkgType.Symbols = export.symbols
+			pkgType.PrivateSymbols = export.private
 		} else {
 			pkgType.Symbols = map[string]Type{}
+			pkgType.PrivateSymbols = map[string]Type{}
 		}
 		env.Define(alias, pkgType)
 		hasScope = true
@@ -502,6 +539,7 @@ func (pc *ProgramChecker) captureExports(mod *driver.Module, checker *Checker) {
 		name:       mod.Package,
 		visibility: visibility,
 		symbols:    make(map[string]Type),
+		private:    make(map[string]Type),
 		structs:    make(map[string]StructType),
 		interfaces: make(map[string]InterfaceType),
 		functions:  make(map[string]FunctionType),
@@ -526,6 +564,42 @@ func (pc *ProgramChecker) captureExports(mod *driver.Module, checker *Checker) {
 	for _, methods := range checker.ModuleMethodSets() {
 		export.methodSets = append(export.methodSets, methods)
 	}
+
+	recordPrivate := func(name string) {
+		if name == "" || export.private == nil || checker == nil || checker.global == nil {
+			return
+		}
+		if _, exists := export.private[name]; exists {
+			return
+		}
+		if typ, ok := checker.global.Lookup(name); ok && typ != nil {
+			export.private[name] = typ
+		}
+	}
+	if mod.AST != nil {
+		for _, stmt := range mod.AST.Body {
+			switch def := stmt.(type) {
+			case *ast.StructDefinition:
+				if def == nil || def.ID == nil || !def.IsPrivate {
+					continue
+				}
+				recordPrivate(def.ID.Name)
+			case *ast.InterfaceDefinition:
+				if def == nil || def.ID == nil || !def.IsPrivate {
+					continue
+				}
+				recordPrivate(def.ID.Name)
+			case *ast.FunctionDefinition:
+				if def == nil || def.ID == nil {
+					continue
+				}
+				if def.IsPrivate || def.IsMethodShorthand {
+					recordPrivate(def.ID.Name)
+				}
+			}
+		}
+	}
+
 	pc.exports[mod.Package] = export
 }
 

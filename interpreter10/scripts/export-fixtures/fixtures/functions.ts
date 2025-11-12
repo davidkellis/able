@@ -64,6 +64,97 @@ const functionsFixtures: Fixture[] = [
         },
       },
     },
+
+  {
+      name: "functions/hkt_interface_impl_ok",
+      module: AST.module([
+        AST.interfaceDefinition(
+          "Wrapper",
+          [
+            AST.functionSignature(
+              "wrap",
+              [
+                AST.functionParameter(
+                  "self",
+                  AST.genericTypeExpression(AST.simpleTypeExpression("Self"), [
+                    AST.simpleTypeExpression("T"),
+                  ]),
+                ),
+                AST.functionParameter("value", AST.simpleTypeExpression("T")),
+              ],
+              AST.genericTypeExpression(AST.simpleTypeExpression("Self"), [
+                AST.simpleTypeExpression("T"),
+              ]),
+              [AST.genericParameter("T")],
+            ),
+          ],
+          undefined,
+          AST.genericTypeExpression(AST.simpleTypeExpression("F"), [AST.wildcardTypeExpression()]),
+        ),
+        AST.structDefinition(
+          "Holder",
+          [AST.structFieldDefinition(AST.simpleTypeExpression("T"), "value")],
+          "named",
+          [AST.genericParameter("T")],
+        ),
+        AST.implementationDefinition(
+          "Wrapper",
+          AST.simpleTypeExpression("Holder"),
+          [
+            AST.functionDefinition(
+              "wrap",
+              [
+                AST.functionParameter(
+                  "self",
+                  AST.genericTypeExpression(AST.simpleTypeExpression("Holder"), [
+                    AST.simpleTypeExpression("T"),
+                  ]),
+                ),
+                AST.functionParameter("value", AST.simpleTypeExpression("T")),
+              ],
+              AST.blockExpression([
+                AST.structLiteral(
+                  [AST.structFieldInitializer(AST.identifier("value"), "value")],
+                  false,
+                  "Holder",
+                  undefined,
+                  [AST.simpleTypeExpression("T")],
+                ),
+              ]),
+              AST.genericTypeExpression(AST.simpleTypeExpression("Holder"), [
+                AST.simpleTypeExpression("T"),
+              ]),
+              [AST.genericParameter("T")],
+            ),
+          ],
+        ),
+        AST.assign(
+          "holder",
+          AST.structLiteral(
+            [AST.structFieldInitializer(AST.int(1), "value")],
+            false,
+            "Holder",
+            undefined,
+            [AST.simpleTypeExpression("i32")],
+          ),
+        ),
+        AST.assign(
+          "wrapped",
+          AST.functionCall(
+            AST.memberAccessExpression(AST.identifier("holder"), "wrap"),
+            [AST.int(7)],
+            [AST.simpleTypeExpression("i32")],
+          ),
+        ),
+        AST.memberAccessExpression(AST.identifier("wrapped"), "value"),
+      ]),
+      manifest: {
+        description: "Higher-kinded interface impl accepts bare constructor when the interface declares 'for F _'",
+        expect: {
+          result: { kind: "i32", value: 7 },
+        },
+      },
+    },
 ];
 
 export default functionsFixtures;

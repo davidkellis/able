@@ -1,5 +1,16 @@
 # Able Project Log
 
+## 2025-11-11 — Pipe Fixture Parity
+- Added the exported AST fixture `pipes/multi_stage_chain`, which chains `%` topic arithmetic, placeholder-built callables, struct wrapping, topic method calls, and implicit bound methods to exercise multi-stage pipeline semantics end to end.
+- Updated `fixtures/ast/typecheck-baseline.json` and regenerated fixture artifacts via `bun run interpreter10/scripts/export-fixtures.ts` so both interpreters ingest the new scenario from the shared corpus.
+- Verified the TypeScript harness with `ABLE_FIXTURE_FILTER=pipes/multi_stage_chain ABLE_TYPECHECK_FIXTURES=strict bun run scripts/run-fixtures.ts` (spot-check) plus the full run (`bun run scripts/run-fixtures.ts`), and kept the Go suite green with `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter`; no TS/Go divergences surfaced.
+
+## 2025-11-11 — Typechecker Strict Fixtures
+- TypeScript’s typechecker now treats struct identifiers as value expressions (so `Channel.new` resolves without undefined identifier diagnostics) and predeclares `:=` bindings before evaluating the RHS, allowing proc handles to reference themselves during construction.
+- Iterator literals seed their custom driver binding (in addition to the implicit `gen` helper), struct patterns bind field patterns/bindings with resolved field types, and array patterns now propagate element bindings so for-loop destructuring exposes its locals to guards/bodies.
+- Package member diagnostics no longer leak private symbol names—aliases and wildcard imports consistently report “has no symbol.” The wildcard-private fixture manifest/baseline now records its expected typechecker diagnostic.
+- With these fixes in place, `ABLE_TYPECHECK_FIXTURES=strict bun run scripts/run-fixtures.ts` completes successfully, keeping the shared fixture corpus green under strict mode.
+
 ## 2025-11-09 — Executor Diagnostics Helper
 - Added the `proc_pending_tasks()` runtime helper so Able programs/tests can observe cooperative executor queue depth. TypeScript wires it through `CooperativeExecutor.pendingTasks()` while the Go runtime surfaces counts from both the serial and goroutine executors (best-effort on the latter via atomic counters). The helper is registered with both typecheckers so Warn/Strict fixture runs understand the signature.
 - New coverage keeps the helper honest: Bun unit tests exercise the helper directly (`interpreter10/test/concurrency/proc_spawn_scheduling.test.ts`), Go gains matching tests (`TestProcPendingTasksSerialExecutor`, `TestProcPendingTasksGoroutineExecutor`), and a serial-only AST fixture (`fixtures/ast/concurrency/proc_executor_diagnostics/`) ensures both interpreters prove that `proc_flush` drains the cooperative queue.
