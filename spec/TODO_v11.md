@@ -11,6 +11,9 @@ This list tracks language features and spec work deferred to the v11 cycle.
 - [ ] **Optional generic type parameter declarations**: Function definitions
 like `fn choose_first<T, U>(first: T, second: U) -> T where T: Display + Clone, U: Display { ... }` may omit the explicit declaration of `<T, U>` when those types are not already defined in the current scope, and the compiler should infer that since they are used as types in the function signature and within the function body, that they are generic type parameters in the scope of the function definition. Similar rules apply to struct and interface definitions.
 - [ ] **Channel `select` syntax & semantics**: v10 punts on multiplexing (see §12); the spec needs to define the `select { case send/receive ... }` grammar, evaluation order, blocking/default clauses, tie-breaking fairness, and how helpers like `proc_cancelled`/`proc_flush` integrate. Both interpreters plus the shared fixtures/parity suite must enforce the same behavior (buffered vs. unbuffered channels, nil-channel handling, cancellation propagation).
+- [ ] Specify how stdlib channel/mutex helpers surface error structs (`ChannelClosed`, `ChannelNil`, `ChannelSendOnClosed`) so host runtimes map native failures to the documented Able `Error` types.
+- [ ] Specify the `able.text.regex` module, including default code-point semantics, optional grapheme-aware execution, result types, and error reporting.
+- [ ] Document the standard library `String`, `Grapheme`, and iteration helpers (byte, char, grapheme views) together with the byte-oriented indexing rules referenced by the spec.
 
 
 ## Candidate features from other popular languages (undecided if we should add them)
