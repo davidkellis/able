@@ -484,6 +484,25 @@ func (i *Interpreter) futureMember(future *runtime.FutureValue, member ast.Expre
 			},
 		}
 		return &runtime.NativeBoundMethodValue{Receiver: future, Method: fn}, nil
+	case "cancel":
+		fn := runtime.NativeFunctionValue{
+			Name:  "future.cancel",
+			Arity: 0,
+			Impl: func(ctx *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+				if len(args) == 0 {
+					return nil, fmt.Errorf("cancel requires receiver")
+				}
+				recv, ok := args[0].(*runtime.FutureValue)
+				if !ok {
+					return nil, fmt.Errorf("cancel receiver must be a future")
+				}
+				if handle := recv.Handle(); handle != nil {
+					handle.RequestCancel()
+				}
+				return runtime.NilValue{}, nil
+			},
+		}
+		return &runtime.NativeBoundMethodValue{Receiver: future, Method: fn}, nil
 	default:
 		return nil, fmt.Errorf("Unknown future method '%s'", ident.Name)
 	}

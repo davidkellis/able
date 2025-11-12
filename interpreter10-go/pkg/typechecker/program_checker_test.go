@@ -87,6 +87,97 @@ func TestProgramCheckerReportsUnknownPackage(t *testing.T) {
 	}
 }
 
+func TestProgramCheckerRejectsPrivatePackageImport(t *testing.T) {
+	priv := ast.Mod(
+		[]ast.Statement{
+			ast.Fn("reveal", nil, []ast.Statement{ast.Ret(ast.Str("secret"))}, ast.Ty("string"), nil, nil, false, false),
+		},
+		nil,
+		ast.Pkg([]interface{}{"lib", "secret"}, true),
+	)
+	app := ast.Mod(
+		[]ast.Statement{
+			ast.Fn(
+				"use_secret",
+				nil,
+				[]ast.Statement{
+					ast.Ret(ast.Str("noop")),
+				},
+				ast.Ty("string"),
+				nil, nil, false, false,
+			),
+		},
+		[]*ast.ImportStatement{ast.Imp([]interface{}{"lib", "secret"}, false, nil, nil)},
+		ast.Pkg([]interface{}{"app"}, false),
+	)
+
+	privModule := annotatedModule("lib.secret", priv, "lib.secret.able", nil)
+	appModule := annotatedModule("app", app, "app.able", []string{"lib.secret"})
+	program := &driver.Program{
+		Modules: []*driver.Module{privModule, appModule},
+		Entry:   appModule,
+	}
+
+	pc := NewProgramChecker()
+	result, err := pc.Check(program)
+	if err != nil {
+		t.Fatalf("Check returned error: %v", err)
+	}
+	if len(result.Diagnostics) != 1 {
+		t.Fatalf("expected privacy diagnostic, got %v", result.Diagnostics)
+	}
+	if got := result.Diagnostics[0].Diagnostic.Message; got != "typechecker: package 'lib.secret' is private" {
+		t.Fatalf("unexpected diagnostic message %q", got)
+	}
+}
+
+func TestProgramCheckerReportsPrivateSelectors(t *testing.T) {
+	dep := ast.Mod(
+		[]ast.Statement{
+			ast.Fn("visible", nil, []ast.Statement{ast.Ret(ast.Str("ok"))}, ast.Ty("string"), nil, nil, false, false),
+			ast.Fn("secret", nil, []ast.Statement{ast.Ret(ast.Str("hidden"))}, ast.Ty("string"), nil, nil, false, true),
+		},
+		nil,
+		ast.Pkg([]interface{}{"dep"}, false),
+	)
+	app := ast.Mod(
+		[]ast.Statement{
+			ast.Fn(
+				"use_secret",
+				nil,
+				[]ast.Statement{
+					ast.Ret(ast.CallExpr(ast.ID("alias"))),
+				},
+				ast.Ty("string"),
+				nil, nil, false, false,
+			),
+		},
+		[]*ast.ImportStatement{
+			ast.Imp([]interface{}{"dep"}, false, []*ast.ImportSelector{ast.ImpSel("secret", "alias")}, nil),
+		},
+		ast.Pkg([]interface{}{"app"}, false),
+	)
+
+	depModule := annotatedModule("dep", dep, "dep.able", nil)
+	appModule := annotatedModule("app", app, "app.able", []string{"dep"})
+	program := &driver.Program{
+		Modules: []*driver.Module{depModule, appModule},
+		Entry:   appModule,
+	}
+
+	pc := NewProgramChecker()
+	result, err := pc.Check(program)
+	if err != nil {
+		t.Fatalf("Check returned error: %v", err)
+	}
+	if len(result.Diagnostics) != 1 {
+		t.Fatalf("expected privacy diagnostic, got %v", result.Diagnostics)
+	}
+	if got := result.Diagnostics[0].Diagnostic.Message; got != "typechecker: package 'dep' symbol 'secret' is private" {
+		t.Fatalf("unexpected diagnostic message %q", got)
+	}
+}
+
 func TestProgramCheckerExposesPublicExports(t *testing.T) {
 	dep := ast.Mod(
 		[]ast.Statement{
@@ -205,6 +296,16 @@ func TestProgramCheckerExposesPublicExports(t *testing.T) {
 	}
 	if _, ok := functions["public_fn"]; !ok {
 		t.Fatalf("public_fn missing from function metadata")
+	}
+	privateSymbols := summary.PrivateSymbols
+	if privateSymbols == nil {
+		t.Fatalf("expected private symbols metadata")
+	}
+	if sym, ok := privateSymbols["PrivateStruct"]; !ok || sym.Visibility != "private" {
+		t.Fatalf("expected PrivateStruct to be marked private, got %v", sym)
+	}
+	if sym, ok := privateSymbols["secret_fn"]; !ok || sym.Visibility != "private" {
+		t.Fatalf("expected secret_fn to be marked private, got %v", sym)
 	}
 	impls := summary.Implementations
 	if len(impls) != 1 {

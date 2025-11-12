@@ -239,7 +239,7 @@ const channelProgressFixtures: Fixture[] = [
       ),
       AST.assign("sender_a_value", AST.bool(false)),
       AST.assign("sender_b_value", AST.bool(false)),
-      AST.assign("receiver_sum", AST.integerLiteral(-1)),
+      AST.assign("receiver_sum", AST.unaryExpression("-", AST.integerLiteral(1))),
       AST.assign(
         "status_sender_a",
         AST.functionCall(AST.identifier("status_name"), [

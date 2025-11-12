@@ -3,6 +3,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import * as AST from "../../src/ast";
 import { mapSourceFile } from "../../src/parser/tree-sitter-mapper";
 import { getTreeSitterParser } from "../../src/parser/tree-sitter-loader";
 
@@ -256,5 +257,56 @@ Point { x: 1, y: 2 } match {
     expect(structClause.pattern.fields).toHaveLength(2);
     const names = structClause.pattern.fields.map(field => field.fieldName?.name ?? field.pattern.type);
     expect(names).toEqual(["x", "y"]);
+  });
+
+  test("maps interface self type pattern from 'for' clause", async () => {
+    const parser = await getTreeSitterParser();
+    const source = `interface Display for Point {
+  fn show(self: Self) -> string
+}
+`;
+    const tree = parser.parse(source);
+    expect(tree.rootNode.type).toBe("source_file");
+    expect(tree.rootNode.hasError).toBe(false);
+
+    const module = mapSourceFile(tree.rootNode, source);
+    const iface = module.body.find(
+      stmt => stmt.type === "InterfaceDefinition" && stmt.id.name === "Display",
+    ) as AST.InterfaceDefinition | undefined;
+    expect(iface).toBeDefined();
+    expect(iface?.selfTypePattern?.type).toBe("SimpleTypeExpression");
+    if (iface?.selfTypePattern?.type !== "SimpleTypeExpression") {
+      throw new Error("expected simple type expression for self pattern");
+    }
+    expect(iface.selfTypePattern.name.name).toBe("Point");
+  });
+
+  test("maps higher-kinded interface self type pattern with wildcard argument", async () => {
+    const parser = await getTreeSitterParser();
+    const source = `interface Mappable<T> for M _ {
+  fn map(self: Self, value: T) -> Self
+}
+`;
+    const tree = parser.parse(source);
+    expect(tree.rootNode.type).toBe("source_file");
+    expect(tree.rootNode.hasError).toBe(false);
+
+    const module = mapSourceFile(tree.rootNode, source);
+    const iface = module.body.find(
+      stmt => stmt.type === "InterfaceDefinition" && stmt.id.name === "Mappable",
+    ) as AST.InterfaceDefinition | undefined;
+    expect(iface).toBeDefined();
+    expect(iface?.selfTypePattern?.type).toBe("GenericTypeExpression");
+    if (iface?.selfTypePattern?.type !== "GenericTypeExpression") {
+      throw new Error("expected generic type expression for self pattern");
+    }
+    expect(iface.selfTypePattern.base.type).toBe("SimpleTypeExpression");
+    if (iface.selfTypePattern.base.type !== "SimpleTypeExpression") {
+      throw new Error("expected simple base type");
+    }
+    expect(iface.selfTypePattern.base.name.name).toBe("M");
+    expect(iface.selfTypePattern.arguments).toHaveLength(1);
+    const arg = iface.selfTypePattern.arguments[0];
+    expect(arg?.type).toBe("WildcardTypeExpression");
   });
 });

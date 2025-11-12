@@ -532,6 +532,21 @@ func iterableElementType(t Type) (Type, bool) {
 		}
 		return iter.Element, true
 	}
+	if applied, ok := t.(AppliedType); ok {
+		switch base := applied.Base.(type) {
+		case InterfaceType:
+			if base.InterfaceName == "Iterable" {
+				if len(applied.Arguments) == 0 {
+					return UnknownType{}, true
+				}
+				elem := applied.Arguments[0]
+				if elem == nil || isUnknownType(elem) {
+					return UnknownType{}, true
+				}
+				return elem, true
+			}
+		}
+	}
 	return UnknownType{}, false
 }
 

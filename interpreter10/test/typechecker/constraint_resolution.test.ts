@@ -158,6 +158,17 @@ function buildModule(includeImpl: boolean): AST.Module {
   body.push(buildCallExpression() as unknown as AST.Statement);
   return AST.module(body);
 }
+
+function buildPointMethodSet(methodName = "to_string"): AST.MethodsDefinition {
+  const method = AST.functionDefinition(
+    methodName,
+    [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
+    AST.blockExpression([AST.returnStatement(AST.stringLiteral(`<${methodName}>`))]),
+    AST.simpleTypeExpression("string"),
+  );
+  return AST.methodsDefinition(AST.simpleTypeExpression("Point"), [method]);
+}
+
 function buildResultShowImplementation(): AST.ImplementationDefinition {
   const typeExpr = resultStringType();
   return AST.implementationDefinition(
@@ -264,5 +275,121 @@ describe("TypeChecker constraint resolution", () => {
     const checker = new TypeChecker();
     const result = checker.checkModule(moduleAst);
     expect(result.diagnostics).toEqual([]);
+  });
+
+  test("honours union-target implementations for individual variants", () => {
+    const unionImpl = AST.implementationDefinition(
+      AST.identifier("Show"),
+      AST.unionTypeExpression([
+        AST.simpleTypeExpression("Alpha"),
+        AST.simpleTypeExpression("Beta"),
+      ]),
+      [
+        AST.functionDefinition(
+          "to_string",
+          [AST.functionParameter("self")],
+          AST.blockExpression([AST.returnStatement(AST.stringLiteral("union"))]),
+          AST.simpleTypeExpression("string"),
+        ),
+      ],
+    );
+    const moduleAst = AST.module([
+      buildShowInterface(),
+      AST.structDefinition("Alpha", [], "named"),
+      AST.structDefinition("Beta", [], "named"),
+      unionImpl,
+      buildUseShowFunction(),
+      AST.functionCall(
+        AST.identifier("use_show"),
+        [AST.structLiteral([], false, "Alpha")],
+        [AST.simpleTypeExpression("Alpha")],
+      ) as unknown as AST.Statement,
+    ]);
+    const checker = new TypeChecker();
+    const result = checker.checkModule(moduleAst);
+    expect(result.diagnostics).toEqual([]);
+  });
+
+  test("reports ambiguous overlapping union implementations", () => {
+    const implAB = AST.implementationDefinition(
+      AST.identifier("Show"),
+      AST.unionTypeExpression([
+        AST.simpleTypeExpression("Alpha"),
+        AST.simpleTypeExpression("Beta"),
+      ]),
+      [
+        AST.functionDefinition(
+          "to_string",
+          [AST.functionParameter("self")],
+          AST.blockExpression([AST.returnStatement(AST.stringLiteral("ab"))]),
+          AST.simpleTypeExpression("string"),
+        ),
+      ],
+    );
+    const implAG = AST.implementationDefinition(
+      AST.identifier("Show"),
+      AST.unionTypeExpression([
+        AST.simpleTypeExpression("Alpha"),
+        AST.simpleTypeExpression("Gamma"),
+      ]),
+      [
+        AST.functionDefinition(
+          "to_string",
+          [AST.functionParameter("self")],
+          AST.blockExpression([AST.returnStatement(AST.stringLiteral("ag"))]),
+          AST.simpleTypeExpression("string"),
+        ),
+      ],
+    );
+    const callAlpha = AST.functionCall(
+      AST.identifier("use_show"),
+      [AST.structLiteral([], false, "Alpha")],
+      [AST.simpleTypeExpression("Alpha")],
+    ) as unknown as AST.Statement;
+    const moduleAst = AST.module([
+      buildShowInterface(),
+      AST.structDefinition("Alpha", [], "named"),
+      AST.structDefinition("Beta", [], "named"),
+      AST.structDefinition("Gamma", [], "named"),
+      implAB,
+      implAG,
+      buildUseShowFunction(),
+      callAlpha,
+    ]);
+    const checker = new TypeChecker();
+    const result = checker.checkModule(moduleAst);
+    expect(result.diagnostics.length).toBeGreaterThan(0);
+    const message = result.diagnostics[0]?.message ?? "";
+    expect(message).toContain("ambiguous implementations");
+    expect(message).toContain("Alpha");
+  });
+
+  test("method sets satisfy interface constraints when signatures match", () => {
+    const moduleAst = AST.module([
+      buildShowInterface(),
+      buildPointStruct(),
+      buildPointMethodSet(),
+      buildUseShowFunction(),
+      buildCallExpression() as unknown as AST.Statement,
+    ]);
+    const checker = new TypeChecker();
+    const result = checker.checkModule(moduleAst);
+    expect(result.diagnostics).toEqual([]);
+  });
+
+  test("method set mismatches are reported when satisfying interface constraints", () => {
+    const moduleAst = AST.module([
+      buildShowInterface(),
+      buildPointStruct(),
+      buildPointMethodSet("describe"),
+      buildUseShowFunction(),
+      buildCallExpression() as unknown as AST.Statement,
+    ]);
+    const checker = new TypeChecker();
+    const result = checker.checkModule(moduleAst);
+    expect(result.diagnostics.length).toBeGreaterThan(0);
+    const message = result.diagnostics[0]?.message ?? "";
+    expect(message).toContain("methods for Point");
+    expect(message).toContain("to_string");
   });
 });

@@ -215,6 +215,128 @@ const errorsFixtures: Fixture[] = [
         },
       },
     },
+
+  {
+      name: "errors/interface_self_pattern_mismatch",
+      module: AST.module([
+        AST.interfaceDefinition(
+          "PointDisplay",
+          [
+            AST.functionSignature(
+              "describe",
+              [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
+              AST.simpleTypeExpression("string"),
+            ),
+          ],
+          undefined,
+          AST.simpleTypeExpression("Point"),
+        ),
+        AST.structDefinition(
+          "Point",
+          [
+            AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "x"),
+            AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "y"),
+          ],
+          "named",
+        ),
+        AST.structDefinition(
+          "Line",
+          [
+            AST.structFieldDefinition(AST.simpleTypeExpression("Point"), "start"),
+            AST.structFieldDefinition(AST.simpleTypeExpression("Point"), "end"),
+          ],
+          "named",
+        ),
+        AST.implementationDefinition(
+          "PointDisplay",
+          AST.simpleTypeExpression("Line"),
+          [
+            AST.functionDefinition(
+              "describe",
+              [AST.functionParameter("self", AST.simpleTypeExpression("Line"))],
+              AST.blockExpression([AST.stringLiteral("line")]),
+              AST.simpleTypeExpression("string"),
+            ),
+          ],
+        ),
+        AST.nil(),
+      ]),
+      manifest: {
+        description: "Impl targeting mismatched concrete type violates explicit interface self pattern",
+        expect: {
+          result: { kind: "nil" },
+          typecheckDiagnostics: [
+            "typechecker: fixtures/ast/errors/interface_self_pattern_mismatch/source.able typechecker: impl PointDisplay for Line must match interface self type 'Point'",
+          ],
+        },
+      },
+    },
+
+  {
+      name: "errors/interface_hkt_constructor_mismatch",
+      module: AST.module([
+        AST.interfaceDefinition(
+          "Mapper",
+          [
+            AST.functionSignature(
+              "wrap",
+              [
+                AST.functionParameter(
+                  "self",
+                  AST.genericTypeExpression(AST.simpleTypeExpression("Self"), [
+                    AST.simpleTypeExpression("T"),
+                  ]),
+                ),
+                AST.functionParameter("value", AST.simpleTypeExpression("T")),
+              ],
+              AST.genericTypeExpression(AST.simpleTypeExpression("Self"), [
+                AST.simpleTypeExpression("T"),
+              ]),
+            ),
+          ],
+          [AST.genericParameter("T")],
+          AST.genericTypeExpression(AST.simpleTypeExpression("F"), [AST.wildcardTypeExpression()]),
+        ),
+        AST.structDefinition("Array", [], "named", [AST.genericParameter("T")]),
+        AST.implementationDefinition(
+          "Mapper",
+          AST.genericTypeExpression(AST.simpleTypeExpression("Array"), [
+            AST.simpleTypeExpression("i32"),
+          ]),
+          [
+            AST.functionDefinition(
+              "wrap",
+              [
+                AST.functionParameter(
+                  "self",
+                  AST.genericTypeExpression(AST.simpleTypeExpression("Array"), [
+                    AST.simpleTypeExpression("i32"),
+                  ]),
+                ),
+                AST.functionParameter("value", AST.simpleTypeExpression("i32")),
+              ],
+              AST.blockExpression([AST.identifier("self")]),
+              AST.genericTypeExpression(AST.simpleTypeExpression("Array"), [
+                AST.simpleTypeExpression("i32"),
+              ]),
+            ),
+          ],
+          undefined,
+          undefined,
+          [AST.simpleTypeExpression("i32")],
+        ),
+        AST.nil(),
+      ]),
+      manifest: {
+        description: "Higher-kinded self pattern rejects implementations targeting concrete instantiations",
+        expect: {
+          result: { kind: "nil" },
+          typecheckDiagnostics: [
+            "typechecker: fixtures/ast/errors/interface_hkt_constructor_mismatch/source.able typechecker: impl Mapper for Array i32 must match interface self type 'F _'",
+          ],
+        },
+      },
+    },
 ];
 
 export default errorsFixtures;

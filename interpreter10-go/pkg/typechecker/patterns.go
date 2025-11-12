@@ -44,7 +44,9 @@ func (c *Checker) bindPattern(env *Environment, target ast.AssignmentTarget, val
 			expected = c.resolveTypeReference(pat.TypeAnnotation)
 		}
 		innerType := valueType
-		if (innerType == nil || isUnknownType(innerType)) && expected != nil && !isUnknownType(expected) {
+		if isErrorTypeAnnotation(expected) {
+			innerType = expected
+		} else if (innerType == nil || isUnknownType(innerType)) && expected != nil && !isUnknownType(expected) {
 			innerType = expected
 		}
 		if inner, ok := pat.Pattern.(ast.AssignmentTarget); ok {
@@ -58,7 +60,9 @@ func (c *Checker) bindPattern(env *Environment, target ast.AssignmentTarget, val
 			}
 		}
 		finalType := valueType
-		if (finalType == nil || isUnknownType(finalType)) && expected != nil && !isUnknownType(expected) {
+		if isErrorTypeAnnotation(expected) {
+			finalType = expected
+		} else if (finalType == nil || isUnknownType(finalType)) && expected != nil && !isUnknownType(expected) {
 			finalType = expected
 		}
 		c.infer.set(pat, finalType)
@@ -74,6 +78,16 @@ func (c *Checker) bindPattern(env *Environment, target ast.AssignmentTarget, val
 			Message: fmt.Sprintf("typechecker: pattern %T not supported yet", pat),
 		}}
 	}
+}
+
+func isErrorTypeAnnotation(t Type) bool {
+	if t == nil {
+		return false
+	}
+	if st, ok := t.(StructType); ok {
+		return st.StructName == "Error"
+	}
+	return false
 }
 
 func (c *Checker) resolveTypeReference(expr ast.TypeExpression) Type {

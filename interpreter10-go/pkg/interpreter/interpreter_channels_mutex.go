@@ -117,15 +117,49 @@ func (i *Interpreter) initChannelMutexBuiltins() {
 		return context.Background()
 	}
 
+	getProcHandle := func(callCtx *runtime.NativeCallContext) *runtime.ProcHandleValue {
+		if callCtx == nil {
+			return nil
+		}
+		if payload := payloadFromState(callCtx.State); payload != nil {
+			return payload.handle
+		}
+		return nil
+	}
+
+	var blockingExec interface {
+		MarkBlocked(*runtime.ProcHandleValue)
+		MarkUnblocked(*runtime.ProcHandleValue)
+	}
+	if exec, ok := i.executor.(interface {
+		MarkBlocked(*runtime.ProcHandleValue)
+		MarkUnblocked(*runtime.ProcHandleValue)
+	}); ok {
+		blockingExec = exec
+	}
+
+	markBlocked := func(handle *runtime.ProcHandleValue) {
+		if blockingExec != nil && handle != nil {
+			blockingExec.MarkBlocked(handle)
+		}
+	}
+	markUnblocked := func(handle *runtime.ProcHandleValue) {
+		if blockingExec != nil && handle != nil {
+			blockingExec.MarkUnblocked(handle)
+		}
+	}
+
 	blockOnNilChannel := func(callCtx *runtime.NativeCallContext) (runtime.Value, error) {
 		if callCtx == nil {
 			return nil, fmt.Errorf("channel operation on nil handle outside proc context")
 		}
-		payload := payloadFromState(callCtx.State)
-		if payload == nil || payload.handle == nil {
+		handle := getProcHandle(callCtx)
+		if handle == nil {
 			return nil, fmt.Errorf("channel operation on nil handle outside proc context")
 		}
 		ctx := contextFromCall(callCtx)
+		markBlocked(handle)
+		defer markUnblocked(handle)
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
@@ -248,6 +282,14 @@ func (i *Interpreter) initChannelMutexBuiltins() {
 			select {
 			case ch <- args[1]:
 				return runtime.NilValue{}, nil
+			default:
+			}
+			handleVal := getProcHandle(callCtx)
+			markBlocked(handleVal)
+			defer markUnblocked(handleVal)
+			select {
+			case ch <- args[1]:
+				return runtime.NilValue{}, nil
 			case <-ctx.Done():
 				return nil, ctx.Err()
 			}
@@ -280,6 +322,17 @@ func (i *Interpreter) initChannelMutexBuiltins() {
 			state.mu.Unlock()
 
 			ctx := contextFromCall(callCtx)
+			select {
+			case value, ok := <-ch:
+				if !ok || value == nil {
+					return runtime.NilValue{}, nil
+				}
+				return value, nil
+			default:
+			}
+			handleVal := getProcHandle(callCtx)
+			markBlocked(handleVal)
+			defer markUnblocked(handleVal)
 			select {
 			case value, ok := <-ch:
 				if !ok {
@@ -495,6 +548,21 @@ func (i *Interpreter) initChannelMutexBuiltins() {
 					state.waiters--
 				}
 			}()
+			waiting := false
+			markWaiting := func() {
+				if waiting {
+					return
+				}
+				markBlocked(procHandle)
+				waiting = true
+			}
+			clearWaiting := func() {
+				if !waiting {
+					return
+				}
+				markUnblocked(procHandle)
+				waiting = false
+			}
 			for {
 				if !state.locked {
 					state.locked = true
@@ -503,6 +571,7 @@ func (i *Interpreter) initChannelMutexBuiltins() {
 						state.waiters--
 						registered = false
 					}
+					clearWaiting()
 					state.cond.Signal()
 					return runtime.NilValue{}, nil
 				}
@@ -510,12 +579,14 @@ func (i *Interpreter) initChannelMutexBuiltins() {
 					state.waiters++
 					registered = true
 				}
+				markWaiting()
 				if serialExec != nil {
 					serialExec.suspendCurrent(procHandle)
 				}
 				if ctx != nil {
 					select {
 					case <-ctx.Done():
+						clearWaiting()
 						if serialExec != nil {
 							serialExec.resumeCurrent(procHandle)
 						}
@@ -529,12 +600,14 @@ func (i *Interpreter) initChannelMutexBuiltins() {
 					}
 				}
 				state.cond.Wait()
+				clearWaiting()
 				if serialExec != nil {
 					serialExec.resumeCurrent(procHandle)
 				}
 				if ctx != nil {
 					select {
 					case <-ctx.Done():
+						clearWaiting()
 						if registered {
 							state.waiters--
 							registered = false

@@ -391,8 +391,6 @@ func (i *Interpreter) matchImplEntry(entry *implEntry, info typeInfo) (map[strin
 				return nil, false
 			}
 		}
-	} else if len(info.typeArgs) > 0 {
-		return nil, false
 	}
 	for _, gp := range entry.genericParams {
 		if gp == nil || gp.Name == nil {

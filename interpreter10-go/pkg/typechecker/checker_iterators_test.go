@@ -120,3 +120,84 @@ func TestIteratorLiteralAllowsImplicitGeneratorBinding(t *testing.T) {
 		t.Fatalf("expected no diagnostics, got %v", diags)
 	}
 }
+
+func TestForLoopIterableInterfaceTypedPatternMismatch(t *testing.T) {
+	checker := New()
+	displayIface := ast.Iface(
+		"Display",
+		[]*ast.FunctionSignature{
+			ast.FnSig(
+				"describe",
+				[]*ast.FunctionParameter{
+					ast.Param("self", ast.Ty("Self")),
+				},
+				ast.Ty("string"),
+				nil,
+				nil,
+				nil,
+			),
+		},
+		nil,
+		nil,
+		nil,
+		nil,
+		false,
+	)
+	iterSig := ast.FnSig(
+		"iterator",
+		[]*ast.FunctionParameter{ast.Param("self", ast.Ty("Self"))},
+		ast.Ty("Iterator"),
+		nil,
+		nil,
+		nil,
+	)
+	iterableIface := ast.Iface(
+		"Iterable",
+		[]*ast.FunctionSignature{iterSig},
+		[]*ast.GenericParameter{ast.GenericParam("T")},
+		nil,
+		nil,
+		nil,
+		false,
+	)
+
+	loop := ast.ForLoopPattern(
+		ast.TypedP(ast.PatternFrom(ast.ID("value")), ast.Ty("Display")),
+		ast.ID("items"),
+		ast.Block(ast.ID("value")),
+	)
+	consume := ast.Fn(
+		"consume",
+		[]*ast.FunctionParameter{
+			ast.Param("items", ast.Gen(ast.Ty("Iterable"), ast.Ty("string"))),
+		},
+		[]ast.Statement{
+			loop,
+			ast.Ret(ast.Str("done")),
+		},
+		ast.Ty("string"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+	module := ast.NewModule([]ast.Statement{displayIface, iterableIface, consume}, nil, nil)
+
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) == 0 {
+		t.Fatalf("expected diagnostic for iterable typed pattern mismatch")
+	}
+	found := false
+	for _, diag := range diags {
+		if strings.Contains(diag.Message, "for-loop pattern expects type Display") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected for-loop diagnostic mentioning Display, got %v", diags)
+	}
+}

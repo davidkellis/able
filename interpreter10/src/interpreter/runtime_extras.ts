@@ -54,6 +54,8 @@ export function evaluateSpawnExpression(ctx: InterpreterV10, node: AST.SpawnExpr
     expression: node.expression,
     env: capturedEnv,
     runner: null,
+    cancelRequested: false,
+    hasStarted: false,
   };
   future.runner = () => ctx.runFuture(future);
   ctx.scheduleAsync(future.runner);

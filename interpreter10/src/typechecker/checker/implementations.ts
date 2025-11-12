@@ -3,6 +3,14 @@ import { formatType, unknownType } from "../types";
 import type { TypeInfo } from "../types";
 import type { DeclarationsContext } from "./declarations";
 import { collectFunctionDefinition } from "./declarations";
+import {
+  buildConstraintKeySet,
+  collectUnionVariantLabels,
+  computeImplementationSpecificity,
+  selectMostSpecificImplementationMatch,
+  type ImplementationMatch,
+} from "./impl_matches";
+import { methodSetProvidesInterface } from "./method_sets";
 import type {
   FunctionContext,
   FunctionInfo,
@@ -24,6 +32,27 @@ export interface ImplementationContext extends DeclarationsContext {
   appendInterfaceArgsToLabel(label: string, args: string[]): string;
   formatTypeExpression(expr: AST.TypeExpression, substitutions?: Map<string, string>): string;
 }
+
+const PRIMITIVE_TYPE_NAMES = new Set([
+  "i8",
+  "i16",
+  "i32",
+  "i64",
+  "i128",
+  "u8",
+  "u16",
+  "u32",
+  "u64",
+  "u128",
+  "f32",
+  "f64",
+  "bool",
+  "string",
+  "char",
+  "nil",
+  "void",
+]);
+
 
 export function collectMethodsDefinition(ctx: ImplementationContext, definition: AST.MethodsDefinition): void {
   const structLabel =
@@ -72,9 +101,30 @@ export function collectImplementationDefinition(
     return;
   }
   validateImplementationInterfaceArguments(ctx, definition, interfaceDefinition, contextName, interfaceName);
-  const hasRequiredMethods = ensureImplementationMethods(ctx, definition, interfaceDefinition, contextName, interfaceName);
-  if (hasRequiredMethods) {
-    const record = createImplementationRecord(ctx, definition, interfaceName, contextName, targetKey);
+  const interfaceGenericNames = collectInterfaceGenericParamNames(ctx, interfaceDefinition);
+  const implementationGenericNames = collectImplementationGenericParamNames(ctx, definition);
+  const implementationGenericNameSet = new Set(implementationGenericNames);
+  const targetValid = validateImplementationSelfTypePattern(
+    ctx,
+    definition,
+    interfaceDefinition,
+    contextName,
+    interfaceName,
+    interfaceGenericNames,
+    implementationGenericNameSet,
+  );
+  const hasRequiredMethods =
+    targetValid &&
+    ensureImplementationMethods(ctx, definition, interfaceDefinition, contextName, interfaceName);
+  if (targetValid && hasRequiredMethods) {
+    const record = createImplementationRecord(
+      ctx,
+      definition,
+      interfaceName,
+      contextName,
+      targetKey,
+      implementationGenericNames,
+    );
     if (record) {
       ctx.registerImplementationRecord(record);
     }
@@ -265,9 +315,21 @@ export function typeImplementsInterface(
   if (impl.detail) {
     return { ok: false, detail: impl.detail };
   }
-  const methodSetDetail = methodSetProvidesInterfaceDetail(ctx, type, interfaceName);
-  if (methodSetDetail) {
-    return { ok: false, detail: methodSetDetail };
+  const methodSetResult = methodSetProvidesInterface(ctx, type, interfaceName, expectedArgs, {
+    matchImplementationTarget,
+    buildStringSubstitutionMap,
+    typeExpressionsEquivalent,
+    isImplicitSelfParameter,
+    expectsSelfType,
+    lookupObligationSubject,
+    resolveInterfaceArgumentLabels,
+    typeImplementsInterface,
+  });
+  if (methodSetResult.ok) {
+    return methodSetResult;
+  }
+  if (methodSetResult.detail) {
+    return { ok: false, detail: methodSetResult.detail };
   }
   return { ok: false };
 }
@@ -358,19 +420,23 @@ function createImplementationRecord(
   interfaceName: string,
   targetLabel: string,
   targetKey: string,
+  implementationGenericNames?: string[],
 ): ImplementationRecord | null {
   if (!definition.targetType) {
     return null;
   }
-  const genericParams = Array.isArray(definition.genericParams)
-    ? definition.genericParams
-        .map((param) => ctx.getIdentifierName(param?.name))
-        .filter((name): name is string => Boolean(name))
-    : [];
+  const genericParams =
+    implementationGenericNames ??
+    (Array.isArray(definition.genericParams)
+      ? definition.genericParams
+          .map((param) => ctx.getIdentifierName(param?.name))
+          .filter((name): name is string => Boolean(name))
+      : []);
   const obligations = extractImplementationObligations(ctx, definition);
   const interfaceArgs = Array.isArray(definition.interfaceArgs)
     ? definition.interfaceArgs.filter((arg): arg is AST.TypeExpression => Boolean(arg))
     : [];
+  const unionVariants = collectUnionVariantLabels(ctx, definition.targetType);
   return {
     interfaceName,
     label: ctx.formatImplementationLabel(interfaceName, targetLabel),
@@ -379,8 +445,38 @@ function createImplementationRecord(
     genericParams,
     obligations,
     interfaceArgs,
+    unionVariants,
     definition,
   };
+}
+
+function collectImplementationGenericParamNames(
+  ctx: ImplementationContext,
+  definition: AST.ImplementationDefinition,
+): string[] {
+  if (!Array.isArray(definition.genericParams)) {
+    return [];
+  }
+  return definition.genericParams
+    .map((param) => ctx.getIdentifierName(param?.name))
+    .filter((name): name is string => Boolean(name));
+}
+
+function collectInterfaceGenericParamNames(
+  ctx: ImplementationContext,
+  definition: AST.InterfaceDefinition,
+): Set<string> {
+  const names = new Set<string>();
+  if (!Array.isArray(definition.genericParams)) {
+    return names;
+  }
+  for (const param of definition.genericParams) {
+    const name = ctx.getIdentifierName(param?.name);
+    if (name) {
+      names.add(name);
+    }
+  }
+  return names;
 }
 
 function validateImplementationInterfaceArguments(
@@ -411,6 +507,201 @@ function validateImplementationInterfaceArguments(
         implementation,
       );
     }
+  }
+}
+
+function validateImplementationSelfTypePattern(
+  ctx: ImplementationContext,
+  implementation: AST.ImplementationDefinition,
+  interfaceDefinition: AST.InterfaceDefinition,
+  targetLabel: string,
+  interfaceName: string,
+  interfaceGenericNames: Set<string>,
+  implementationGenericNames: Set<string>,
+): boolean {
+  if (!implementation.targetType) {
+    return false;
+  }
+  const selfPattern = interfaceDefinition.selfTypePattern;
+  if (selfPattern) {
+    const matches = doesSelfPatternMatchTarget(ctx, selfPattern, implementation.targetType, interfaceGenericNames);
+    if (!matches) {
+      const expected = ctx.formatTypeExpression(selfPattern);
+      ctx.report(
+        `typechecker: impl ${interfaceName} for ${targetLabel} must match interface self type '${expected}'`,
+        implementation,
+      );
+      return false;
+    }
+    return true;
+  }
+  if (targetsBareTypeConstructor(ctx, implementation.targetType, implementationGenericNames)) {
+    ctx.report(
+      `typechecker: impl ${interfaceName} for ${targetLabel} cannot target a type constructor because the interface does not declare a self type (use 'for ...' to enable constructor implementations)`,
+      implementation,
+    );
+    return false;
+  }
+  return true;
+}
+
+function doesSelfPatternMatchTarget(
+  ctx: ImplementationContext,
+  pattern: AST.TypeExpression,
+  target: AST.TypeExpression,
+  interfaceGenericNames: Set<string>,
+): boolean {
+  if (!pattern || !target) {
+    return false;
+  }
+  return matchSelfTypePattern(ctx, pattern, target, interfaceGenericNames, new Map());
+}
+
+function matchSelfTypePattern(
+  ctx: ImplementationContext,
+  pattern: AST.TypeExpression,
+  target: AST.TypeExpression,
+  interfaceGenericNames: Set<string>,
+  bindings: Map<string, AST.TypeExpression>,
+): boolean {
+  switch (pattern.type) {
+    case "WildcardTypeExpression":
+      return true;
+    case "SimpleTypeExpression": {
+      const patternName = ctx.getIdentifierName(pattern.name);
+      if (!patternName) {
+        return typeExpressionsEquivalent(ctx, pattern, target);
+      }
+      if (isPatternPlaceholderName(ctx, patternName, interfaceGenericNames)) {
+        return bindPlaceholder(ctx, patternName, target, bindings);
+      }
+      if (target.type !== "SimpleTypeExpression") {
+        return false;
+      }
+      const targetName = ctx.getIdentifierName(target.name);
+      return !!targetName && targetName === patternName;
+    }
+    case "GenericTypeExpression": {
+      if (patternAllowsBareConstructor(pattern)) {
+        if (target.type !== "SimpleTypeExpression") {
+          return false;
+        }
+        return matchSelfTypePattern(ctx, pattern.base, target, interfaceGenericNames, bindings);
+      }
+      if (target.type !== "GenericTypeExpression") {
+        return false;
+      }
+      if (!matchSelfTypePattern(ctx, pattern.base, target.base, interfaceGenericNames, bindings)) {
+        return false;
+      }
+      const patternArgs = Array.isArray(pattern.arguments) ? pattern.arguments : [];
+      const targetArgs = Array.isArray(target.arguments) ? target.arguments : [];
+      if (patternArgs.length !== targetArgs.length) {
+        return false;
+      }
+      for (let index = 0; index < patternArgs.length; index += 1) {
+        const expectedArg = patternArgs[index];
+        const actualArg = targetArgs[index];
+        if (!expectedArg || !actualArg) {
+          if (!expectedArg && !actualArg) {
+            continue;
+          }
+          return false;
+        }
+        if (isWildcardTypeExpression(expectedArg)) {
+          continue;
+        }
+        if (!matchSelfTypePattern(ctx, expectedArg, actualArg, interfaceGenericNames, bindings)) {
+          return false;
+        }
+      }
+      return true;
+    }
+    default:
+      return typeExpressionsEquivalent(ctx, pattern, target);
+  }
+}
+
+function bindPlaceholder(
+  ctx: ImplementationContext,
+  name: string,
+  target: AST.TypeExpression,
+  bindings: Map<string, AST.TypeExpression>,
+): boolean {
+  if (!bindings.has(name)) {
+    bindings.set(name, target);
+    return true;
+  }
+  const existing = bindings.get(name);
+  if (!existing) {
+    bindings.set(name, target);
+    return true;
+  }
+  return typeExpressionsEquivalent(ctx, existing, target);
+}
+
+function patternAllowsBareConstructor(pattern: AST.GenericTypeExpression): boolean {
+  if (!Array.isArray(pattern.arguments)) {
+    return false;
+  }
+  return pattern.arguments.some((arg) => isWildcardTypeExpression(arg));
+}
+
+function isWildcardTypeExpression(expr: AST.TypeExpression | null | undefined): boolean {
+  return expr?.type === "WildcardTypeExpression";
+}
+
+function isPatternPlaceholderName(
+  ctx: ImplementationContext,
+  name: string,
+  interfaceGenericNames: Set<string>,
+): boolean {
+  if (!name || name === "Self") {
+    return false;
+  }
+  if (interfaceGenericNames.has(name)) {
+    return true;
+  }
+  if (PRIMITIVE_TYPE_NAMES.has(name)) {
+    return false;
+  }
+  if (ctx.getStructDefinition(name)) {
+    return false;
+  }
+  if (ctx.hasInterfaceDefinition(name)) {
+    return false;
+  }
+  return true;
+}
+
+function targetsBareTypeConstructor(
+  ctx: ImplementationContext,
+  target: AST.TypeExpression,
+  implementationGenericNames: Set<string>,
+): boolean {
+  switch (target.type) {
+    case "SimpleTypeExpression": {
+      const name = ctx.getIdentifierName(target.name);
+      if (!name) {
+        return false;
+      }
+      if (implementationGenericNames.has(name)) {
+        return false;
+      }
+      if (PRIMITIVE_TYPE_NAMES.has(name)) {
+        return false;
+      }
+      const structDefinition = ctx.getStructDefinition(name);
+      return !!structDefinition && Array.isArray(structDefinition.genericParams) && structDefinition.genericParams.length > 0;
+    }
+    case "GenericTypeExpression": {
+      if (!Array.isArray(target.arguments)) {
+        return false;
+      }
+      return target.arguments.some((arg) => isWildcardTypeExpression(arg));
+    }
+    default:
+      return false;
   }
 }
 
@@ -626,6 +917,7 @@ function implementationProvidesInterface(
   expectedArgs: string[] = [],
 ): InterfaceCheckResult {
   const candidates = lookupImplementationCandidates(ctx, type);
+  const matches: ImplementationMatch[] = [];
   let bestDetail: string | undefined;
   for (const record of candidates) {
     if (record.interfaceName !== interfaceName) {
@@ -676,52 +968,25 @@ function implementationProvidesInterface(
     if (failedDetail) {
       continue;
     }
+    matches.push({
+      record,
+      substitutions,
+      interfaceArgs: actualArgs,
+      score: computeImplementationSpecificity(ctx, record, substitutions),
+      constraintKeys: buildConstraintKeySet(ctx, record.obligations),
+    });
+  }
+  if (matches.length === 0) {
+    return bestDetail ? { ok: false, detail: bestDetail } : { ok: false };
+  }
+  if (matches.length === 1) {
     return { ok: true };
   }
-  return bestDetail ? { ok: false, detail: bestDetail } : { ok: false };
-}
-
-function methodSetProvidesInterfaceDetail(
-  ctx: ImplementationContext,
-  type: TypeInfo,
-  interfaceName: string,
-): string | undefined {
-  const interfaceDefinition = ctx.getInterfaceDefinition(interfaceName);
-  if (!interfaceDefinition) {
-    return undefined;
+  const resolution = selectMostSpecificImplementationMatch(ctx, matches, interfaceName, type);
+  if (resolution.ok) {
+    return { ok: true };
   }
-  const requiredNames = interfaceDefinition.signatures
-    ?.map((signature) => ctx.getIdentifierName(signature?.name))
-    .filter((name): name is string => Boolean(name));
-  if (!requiredNames || requiredNames.length === 0) {
-    return undefined;
-  }
-  for (const record of ctx.getMethodSets()) {
-    const paramNames = new Set(record.genericParams);
-    const substitutions = new Map<string, TypeInfo>();
-    substitutions.set("Self", type);
-    if (!matchImplementationTarget(ctx, type, record.target, paramNames, substitutions)) {
-      continue;
-    }
-    const provided = new Set<string>();
-    if (Array.isArray(record.definition.definitions)) {
-      for (const entry of record.definition.definitions) {
-        if (entry?.type !== "FunctionDefinition") {
-          continue;
-        }
-        const methodName = ctx.getIdentifierName(entry.name);
-        if (methodName) {
-          provided.add(methodName);
-        }
-      }
-    }
-    for (const required of requiredNames) {
-      if (!provided.has(required)) {
-        return `${record.label}: method '${required}' not provided`;
-      }
-    }
-  }
-  return undefined;
+  return { ok: false, detail: resolution.detail ?? bestDetail };
 }
 
 function lookupImplementationCandidates(ctx: ImplementationContext, type: TypeInfo): ImplementationRecord[] {
@@ -832,24 +1097,34 @@ function matchImplementationTarget(
       }
       return matchImplementationTarget(ctx, actual.inner, target.innerType, paramNames, substitutions);
     case "UnionTypeExpression": {
-      if (actual.kind !== "union") {
-        return false;
-      }
       const expectedMembers = Array.isArray(target.members) ? target.members : [];
-      if (expectedMembers.length !== actual.members.length) {
-        return false;
-      }
-      for (let index = 0; index < expectedMembers.length; index += 1) {
-        const expectedMember = expectedMembers[index];
-        const actualMember = actual.members[index];
-        if (!expectedMember) {
+      if (actual.kind === "union") {
+        if (expectedMembers.length !== actual.members.length) {
           return false;
         }
-        if (!matchImplementationTarget(ctx, actualMember, expectedMember, paramNames, substitutions)) {
-          return false;
+        for (let index = 0; index < expectedMembers.length; index += 1) {
+          const expectedMember = expectedMembers[index];
+          const actualMember = actual.members[index];
+          if (!expectedMember) {
+            return false;
+          }
+          if (!matchImplementationTarget(ctx, actualMember, expectedMember, paramNames, substitutions)) {
+            return false;
+          }
+        }
+        return true;
+      }
+      for (const member of expectedMembers) {
+        if (!member) {
+          continue;
+        }
+        const snapshot = new Map(substitutions);
+        if (matchImplementationTarget(ctx, actual, member, paramNames, snapshot)) {
+          snapshot.forEach((value, key) => substitutions.set(key, value));
+          return true;
         }
       }
-      return true;
+      return false;
     }
     case "FunctionTypeExpression":
       return actual.kind === "function";
