@@ -2,6 +2,7 @@ package typechecker
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"able/interpreter10-go/pkg/ast"
@@ -95,10 +96,11 @@ func (c *declarationCollector) visitStatement(stmt ast.Statement) {
 			}
 			methods := c.collectInterfaceMethods(s, paramScope)
 			ifaceType := InterfaceType{
-				InterfaceName: s.ID.Name,
-				TypeParams:    params,
-				Where:         where,
-				Methods:       methods,
+				InterfaceName:   s.ID.Name,
+				TypeParams:      params,
+				Where:           where,
+				Methods:         methods,
+				SelfTypePattern: s.SelfTypePattern,
 			}
 			c.declare(s.ID.Name, ifaceType, s)
 		}
@@ -481,6 +483,12 @@ func registerBuiltins(env *Environment) {
 		Return: i64Type,
 	})
 
+	env.Define("Display", InterfaceType{
+		InterfaceName: "Display",
+	})
+	env.Define("Clone", InterfaceType{
+		InterfaceName: "Clone",
+	})
 	procErrorFields := map[string]Type{
 		"details": stringType,
 	}
@@ -536,6 +544,7 @@ func (c *declarationCollector) collectImplementationDefinition(def *ast.Implemen
 		})
 		return nil, diags
 	}
+	interfaceName := identifierName(def.InterfaceName)
 
 	params, paramScope := c.convertGenericParams(def.GenericParams)
 	scope := copyTypeScope(paramScope)
@@ -545,6 +554,7 @@ func (c *declarationCollector) collectImplementationDefinition(def *ast.Implemen
 		targetType = UnknownType{}
 	}
 	scope["Self"] = targetType
+	targetLabel := nonEmpty(typeName(targetType))
 
 	interfaceArgs := make([]Type, len(def.InterfaceArgs))
 	for i, arg := range def.InterfaceArgs {
@@ -552,50 +562,58 @@ func (c *declarationCollector) collectImplementationDefinition(def *ast.Implemen
 	}
 
 	var ifaceType InterfaceType
-	if def.InterfaceName != nil && def.InterfaceName.Name != "" {
-		if decl, ok := c.env.Lookup(def.InterfaceName.Name); ok {
+	if interfaceName != "" {
+		if decl, ok := c.env.Lookup(interfaceName); ok {
 			if typed, ok := decl.(InterfaceType); ok {
 				ifaceType = typed
 			} else {
 				c.diags = append(c.diags, Diagnostic{
-					Message: fmt.Sprintf("typechecker: impl references '%s' which is not an interface", def.InterfaceName.Name),
+					Message: fmt.Sprintf("typechecker: impl references '%s' which is not an interface", interfaceName),
 					Node:    def,
 				})
 			}
 		} else {
 			c.diags = append(c.diags, Diagnostic{
-				Message: fmt.Sprintf("typechecker: impl references unknown interface '%s'", def.InterfaceName.Name),
+				Message: fmt.Sprintf("typechecker: impl references unknown interface '%s'", interfaceName),
 				Node:    def,
 			})
 		}
 	}
 
-	if def.InterfaceName != nil && def.InterfaceName.Name != "" {
+	if interfaceName != "" {
 		expectedParams := len(ifaceType.TypeParams)
 		providedArgs := len(def.InterfaceArgs)
 		if expectedParams == 0 && providedArgs > 0 {
 			c.diags = append(c.diags, Diagnostic{
-				Message: fmt.Sprintf("typechecker: impl %s does not accept type arguments", def.InterfaceName.Name),
+				Message: fmt.Sprintf("typechecker: impl %s does not accept type arguments", interfaceName),
 				Node:    def,
 			})
 		}
 		if expectedParams > 0 {
 			if providedArgs == 0 {
 				c.diags = append(c.diags, Diagnostic{
-					Message: fmt.Sprintf("typechecker: impl %s for %s requires %d interface type argument(s)", def.InterfaceName.Name, typeName(targetType), expectedParams),
+					Message: fmt.Sprintf("typechecker: impl %s for %s requires %d interface type argument(s)", interfaceName, typeName(targetType), expectedParams),
 					Node:    def,
 				})
 			} else if providedArgs != expectedParams {
 				c.diags = append(c.diags, Diagnostic{
-					Message: fmt.Sprintf("typechecker: impl %s for %s expected %d interface type argument(s), got %d", def.InterfaceName.Name, typeName(targetType), expectedParams, providedArgs),
+					Message: fmt.Sprintf("typechecker: impl %s for %s expected %d interface type argument(s), got %d", interfaceName, typeName(targetType), expectedParams, providedArgs),
 					Node:    def,
 				})
 			}
 		}
 	}
 
+	implGenericNames := collectGenericParamNameSet(params)
+	if ifaceType.InterfaceName != "" {
+		targetValid := c.validateImplementationSelfTypePattern(def, ifaceType, interfaceName, targetLabel, implGenericNames)
+		if !targetValid {
+			return nil, diags
+		}
+	}
+
 	where := c.convertWhereClause(def.WhereClause, scope)
-	implLabel := fmt.Sprintf("impl %s for %s", def.InterfaceName.Name, nonEmpty(typeName(targetType)))
+	implLabel := fmt.Sprintf("impl %s for %s", nonEmpty(interfaceName), targetLabel)
 
 	methods := make(map[string]FunctionType, len(def.Definitions))
 	for _, fn := range def.Definitions {
@@ -621,12 +639,13 @@ func (c *declarationCollector) collectImplementationDefinition(def *ast.Implemen
 
 	spec := &ImplementationSpec{
 		ImplName:      identifierName(def.ImplName),
-		InterfaceName: def.InterfaceName.Name,
+		InterfaceName: interfaceName,
 		TypeParams:    params,
 		Target:        targetType,
 		InterfaceArgs: interfaceArgs,
 		Methods:       methods,
 		Where:         where,
+		UnionVariants: collectUnionVariantLabelsFromType(targetType),
 		Definition:    def,
 	}
 	spec.Obligations = obligationsFromSpecs(implLabel, params, where, def)
@@ -691,6 +710,31 @@ func functionName(def *ast.FunctionDefinition) string {
 		return def.ID.Name
 	}
 	return "<anonymous>"
+}
+
+func collectUnionVariantLabelsFromType(t Type) []string {
+	literal, ok := t.(UnionLiteralType)
+	if !ok {
+		return nil
+	}
+	seen := make(map[string]struct{}, len(literal.Members))
+	labels := make([]string, 0, len(literal.Members))
+	for _, member := range literal.Members {
+		label := formatType(member)
+		if label == "" || label == "<unknown>" {
+			label = typeName(member)
+		}
+		if label == "" {
+			label = "<unknown>"
+		}
+		if _, exists := seen[label]; exists {
+			continue
+		}
+		seen[label] = struct{}{}
+		labels = append(labels, label)
+	}
+	sort.Strings(labels)
+	return labels
 }
 
 func identifierName(id *ast.Identifier) string {

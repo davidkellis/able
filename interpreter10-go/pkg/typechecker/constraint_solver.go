@@ -2,6 +2,7 @@ package typechecker
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -10,6 +11,14 @@ type interfaceResolution struct {
 	args  []Type
 	name  string
 	err   string
+}
+
+type implementationMatch struct {
+	spec           ImplementationSpec
+	substitution   map[string]Type
+	actualArgs     []Type
+	specificity    int
+	constraintKeys map[string]struct{}
 }
 
 func (c *Checker) resolveObligations() []Diagnostic {
@@ -217,12 +226,13 @@ func (c *Checker) implementationProvidesInterface(subject Type, iface InterfaceT
 	if len(c.implementations) == 0 {
 		return false, ""
 	}
+	var matches []implementationMatch
 	bestDetail := ""
 	for _, spec := range c.implementations {
 		if spec.InterfaceName != iface.InterfaceName {
 			continue
 		}
-		subst, _, ok := matchMethodTarget(subject, spec.Target, spec.TypeParams)
+		subst, score, ok := matchMethodTarget(subject, spec.Target, spec.TypeParams)
 		if !ok {
 			continue
 		}
@@ -246,32 +256,49 @@ func (c *Checker) implementationProvidesInterface(subject Type, iface InterfaceT
 		for i, arg := range spec.InterfaceArgs {
 			actualArgs[i] = substituteType(arg, substitution)
 		}
-		switch {
-		case len(actualArgs) == 0 && len(args) == 0:
-			// OK – both sides have no interface args.
-		case len(actualArgs) == 0 || len(actualArgs) != len(args):
-			continue
-		default:
-			if !interfaceArgsCompatible(actualArgs, args) {
-				continue
+		if !interfaceArgsCompatible(actualArgs, args) {
+			expected := formatInterfaceApplication(iface, args)
+			if expected == "" {
+				expected = "(none)"
 			}
+			label := formatImplementationCandidateLabel(spec, subject, substitution, actualArgs)
+			detail := fmt.Sprintf("%s: interface arguments do not match expected %s", label, expected)
+			if len(detail) > len(bestDetail) {
+				bestDetail = detail
+			}
+			continue
 		}
 		if len(spec.Obligations) > 0 {
 			populated := populateObligationSubjects(spec.Obligations, subject)
 			substituted := substituteObligations(populated, substitution)
 			if ok, detail, ob := c.obligationSetSatisfied(substituted); !ok {
 				annotated := annotateImplementationFailure(detail, spec, subject, substitution, actualArgs, ob)
-				if annotated != "" {
-					if len(annotated) > len(bestDetail) {
-						bestDetail = annotated
-					}
-				} else if detail != "" && len(detail) > len(bestDetail) {
-					bestDetail = detail
+				if len(annotated) > len(bestDetail) {
+					bestDetail = annotated
 				}
 				continue
 			}
 		}
+		matches = append(matches, implementationMatch{
+			spec:           spec,
+			substitution:   substitution,
+			actualArgs:     actualArgs,
+			specificity:    computeImplementationSpecificity(spec, substitution, score),
+			constraintKeys: buildImplementationConstraintKeySet(spec),
+		})
+	}
+	if len(matches) == 0 {
+		return false, bestDetail
+	}
+	if len(matches) == 1 {
 		return true, ""
+	}
+	ok, detail := c.selectMostSpecificImplementationMatch(matches, iface, subject)
+	if ok {
+		return true, ""
+	}
+	if detail != "" {
+		return false, detail
 	}
 	return false, bestDetail
 }
@@ -469,6 +496,203 @@ func formatImplementationCandidateLabel(spec ImplementationSpec, subject Type, s
 		argSuffix = " " + strings.Join(parts, " ")
 	}
 	return fmt.Sprintf("impl %s%s for %s", interfaceName, argSuffix, name)
+}
+
+func (c *Checker) selectMostSpecificImplementationMatch(matches []implementationMatch, iface InterfaceType, subject Type) (bool, string) {
+	best := matches[0]
+	contenders := []implementationMatch{best}
+	for _, candidate := range matches[1:] {
+		cmp := compareImplementationMatches(candidate, best)
+		if cmp > 0 {
+			best = candidate
+			contenders = []implementationMatch{candidate}
+			continue
+		}
+		if cmp == 0 {
+			reverse := compareImplementationMatches(best, candidate)
+			if reverse < 0 {
+				best = candidate
+				contenders = []implementationMatch{candidate}
+			} else if reverse == 0 {
+				contenders = append(contenders, candidate)
+			}
+		}
+	}
+	if len(contenders) == 1 {
+		return true, ""
+ 	}
+	return false, formatAmbiguousImplementationDetail(iface, subject, contenders)
+}
+
+func compareImplementationMatches(a, b implementationMatch) int {
+	if a.specificity > b.specificity {
+		return 1
+	}
+	if a.specificity < b.specificity {
+		return -1
+	}
+	aUnion := a.spec.UnionVariants
+	bUnion := b.spec.UnionVariants
+	if len(aUnion) > 0 && len(bUnion) == 0 {
+		return -1
+	}
+	if len(bUnion) > 0 && len(aUnion) == 0 {
+		return 1
+	}
+	if len(aUnion) > 0 && len(bUnion) > 0 {
+		if isProperSubsetStrings(aUnion, bUnion) {
+			return 1
+		}
+		if isProperSubsetStrings(bUnion, aUnion) {
+			return -1
+		}
+		if len(aUnion) != len(bUnion) {
+			if len(aUnion) < len(bUnion) {
+				return 1
+			}
+			return -1
+		}
+	}
+	if isConstraintSupersetMap(a.constraintKeys, b.constraintKeys) {
+		return 1
+	}
+	if isConstraintSupersetMap(b.constraintKeys, a.constraintKeys) {
+		return -1
+	}
+	return 0
+}
+
+func formatAmbiguousImplementationDetail(iface InterfaceType, subject Type, matches []implementationMatch) string {
+	typeLabel := formatType(subject)
+	if typeLabel == "" {
+		typeLabel = typeName(subject)
+	}
+	if typeLabel == "" {
+		typeLabel = "<unknown>"
+	}
+	interfaceLabel := iface.InterfaceName
+	if len(matches) > 0 {
+		interfaceLabel = matches[0].spec.InterfaceName
+	}
+	if interfaceLabel == "" {
+		interfaceLabel = "<unknown>"
+	}
+	labels := make([]string, 0, len(matches))
+	for _, match := range matches {
+		label := formatImplementationCandidateLabel(match.spec, subject, match.substitution, match.actualArgs)
+		labels = append(labels, label)
+	}
+	unique := uniqueSortedStrings(labels)
+	return fmt.Sprintf("ambiguous implementations of %s for %s: %s", interfaceLabel, typeLabel, strings.Join(unique, ", "))
+}
+
+func uniqueSortedStrings(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	set := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		set[value] = struct{}{}
+	}
+	out := make([]string, 0, len(set))
+	for value := range set {
+		out = append(out, value)
+	}
+	sort.Strings(out)
+	return out
+}
+
+func computeImplementationSpecificity(spec ImplementationSpec, subst map[string]Type, matchScore int) int {
+	concreteScore := typeSpecificityScore(spec.Target)
+	bindingScore := matchScore
+	if len(spec.TypeParams) > 0 {
+		for _, param := range spec.TypeParams {
+			if param.Name == "" {
+				continue
+			}
+			if val, ok := subst[param.Name]; ok && !isUnknownType(val) {
+				bindingScore++
+			}
+		}
+	}
+	constraintScore := len(spec.Obligations)
+	unionPenalty := len(spec.UnionVariants)
+	return concreteScore*100 + constraintScore*10 + bindingScore - unionPenalty
+}
+
+func typeSpecificityScore(t Type) int {
+	switch val := t.(type) {
+	case StructType, StructInstanceType, PrimitiveType, IntegerType, FloatType:
+		return 1
+	case AppliedType:
+		score := typeSpecificityScore(val.Base)
+		for _, arg := range val.Arguments {
+			score += typeSpecificityScore(arg)
+		}
+		return score
+	case NullableType:
+		return typeSpecificityScore(val.Inner)
+	case UnionLiteralType:
+		total := 0
+		for _, member := range val.Members {
+			total += typeSpecificityScore(member)
+		}
+		return total
+	case TypeParameterType:
+		return 0
+	default:
+		return 0
+	}
+}
+
+func buildImplementationConstraintKeySet(spec ImplementationSpec) map[string]struct{} {
+	if len(spec.Obligations) == 0 {
+		return nil
+	}
+	result := make(map[string]struct{}, len(spec.Obligations))
+	for _, ob := range spec.Obligations {
+		if ob.Constraint == nil {
+			continue
+		}
+		label := formatType(ob.Constraint)
+		if label == "" {
+			label = typeName(ob.Constraint)
+		}
+		if label == "" {
+			label = "<unknown>"
+		}
+		key := fmt.Sprintf("%s->%s", ob.TypeParam, label)
+		result[key] = struct{}{}
+	}
+	return result
+}
+
+func isConstraintSupersetMap(a, b map[string]struct{}) bool {
+	if len(a) == 0 || len(a) <= len(b) {
+		return false
+	}
+	for key := range b {
+		if _, ok := a[key]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func isProperSubsetStrings(a, b []string) bool {
+	if len(a) == 0 || len(a) >= len(b) {
+		return false
+	}
+	set := make(map[string]struct{}, len(b))
+	for _, value := range b {
+		set[value] = struct{}{}
+	}
+	for _, value := range a {
+		if _, ok := set[value]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 func methodSetSatisfiesInterface(spec MethodSetSpec, iface InterfaceType, args []Type, subject Type, subst map[string]Type) (bool, []ConstraintObligation, string) {

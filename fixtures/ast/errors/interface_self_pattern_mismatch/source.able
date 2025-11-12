@@ -1,0 +1,19 @@
+interface PointDisplay for Point
+{
+  fn describe (self: Self) -> string
+}
+struct Point {
+  x: i32,
+  y: i32
+}
+struct Line {
+  start: Point,
+  end: Point
+}
+impl PointDisplay for Line
+{
+  fn describe(self: Line) -> string {
+    "line"
+  }
+}
+nil

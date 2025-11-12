@@ -1,0 +1,10 @@
+{
+  "description": "Higher-kinded interface impl accepts bare constructor when the interface declares 'for F _'",
+  "expect": {
+    "result": {
+      "kind": "i32",
+      "value": 7
+    }
+  },
+  "entry": "module.json"
+}

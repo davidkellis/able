@@ -16,6 +16,7 @@ describe("TypeChecker package summary", () => {
     expect(summary.name).toBe("demo.pkg");
     expect(summary.symbols).toHaveProperty("Point");
     expect(summary.symbols).not.toHaveProperty("Hidden");
+    expect(summary.privateSymbols).toHaveProperty("Hidden");
 
     expect(summary.structs.Point.fields).toEqual({ x: "i32", y: "i32" });
     expect(summary.functions.make_point.parameters).toEqual(["i32", "i32"]);

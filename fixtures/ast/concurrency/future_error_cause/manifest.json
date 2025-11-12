@@ -1,0 +1,10 @@
+{
+  "description": "Future value failures expose ProcError causes to handlers",
+  "expect": {
+    "result": {
+      "kind": "string",
+      "value": "Future failed: boom|has-cause"
+    }
+  },
+  "entry": "module.json"
+}

@@ -217,6 +217,49 @@ func TestConstraintSolverRecognisesUnionImplementation(t *testing.T) {
 	}
 }
 
+func TestUnionImplementationMatchesIndividualVariants(t *testing.T) {
+	checker := New()
+	alpha := StructType{StructName: "Alpha"}
+	beta := StructType{StructName: "Beta"}
+	showIface := InterfaceType{InterfaceName: "Show"}
+	unionSpec := ImplementationSpec{
+		InterfaceName: "Show",
+		Target:        UnionLiteralType{Members: []Type{alpha, beta}},
+		Methods:       make(map[string]FunctionType),
+		UnionVariants: []string{"Alpha", "Beta"},
+	}
+	checker.implementations = []ImplementationSpec{unionSpec}
+	if ok, detail := checker.implementationProvidesInterface(alpha, showIface, nil); !ok {
+		t.Fatalf("expected Alpha to satisfy union-target implementation (detail: %s)", detail)
+	}
+}
+
+func TestUnionImplementationAmbiguityReported(t *testing.T) {
+	checker := New()
+	alpha := StructType{StructName: "Alpha"}
+	beta := StructType{StructName: "Beta"}
+	gamma := StructType{StructName: "Gamma"}
+	showIface := InterfaceType{InterfaceName: "Show"}
+	implAB := ImplementationSpec{
+		InterfaceName: "Show",
+		Target:        UnionLiteralType{Members: []Type{alpha, beta}},
+		Methods:       make(map[string]FunctionType),
+		UnionVariants: []string{"Alpha", "Beta"},
+	}
+	implAG := ImplementationSpec{
+		InterfaceName: "Show",
+		Target:        UnionLiteralType{Members: []Type{alpha, gamma}},
+		Methods:       make(map[string]FunctionType),
+		UnionVariants: []string{"Alpha", "Gamma"},
+	}
+	checker.implementations = []ImplementationSpec{implAB, implAG}
+	if ok, detail := checker.typeImplementsInterface(alpha, showIface, nil); ok {
+		t.Fatalf("expected Alpha to fail due to ambiguous implementations")
+	} else if !strings.Contains(detail, "ambiguous implementations") {
+		t.Fatalf("expected ambiguity detail, got %q", detail)
+	}
+}
+
 func TestConstraintSolverRecognisesNullableImplementation(t *testing.T) {
 	checker := New()
 	displayIface := InterfaceType{InterfaceName: "Display"}

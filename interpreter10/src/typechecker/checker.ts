@@ -79,6 +79,8 @@ export class TypeChecker {
   private packageAliases: Map<string, string> = new Map();
   private reportedPackageMemberAccess = new WeakSet<AST.MemberAccessExpression>();
   private asyncDepth = 0;
+  private allowDynamicLookups = false;
+  private currentPackageName = "<anonymous>";
   private readonly context: StatementContext;
   private readonly declarationsContext: DeclarationsContext;
   private readonly implementationContext: ImplementationContext;
@@ -104,6 +106,8 @@ export class TypeChecker {
     this.installBuiltins();
     this.packageAliases.clear();
     this.reportedPackageMemberAccess = new WeakSet();
+    this.allowDynamicLookups = false;
+    this.currentPackageName = resolvePackageName(module);
     this.applyImports(module);
     this.collectModuleDeclarations(module);
 
@@ -216,6 +220,17 @@ export class TypeChecker {
   }
 
   private checkStatement(node: AST.Statement | AST.Expression | undefined | null): void {
+    if (!node) {
+      return;
+    }
+    if (node.type === "ImportStatement") {
+      this.applyImportStatement(node);
+      return;
+    }
+    if (node.type === "DynImportStatement") {
+      this.applyDynImportStatement(node);
+      return;
+    }
     this.context.checkStatement(node);
   }
 
@@ -626,56 +641,95 @@ export class TypeChecker {
     if (!module || !Array.isArray(module.imports) || module.imports.length === 0) {
       return;
     }
-    const currentPackage = resolvePackageName(module);
     for (const imp of module.imports) {
-      if (!imp) continue;
-      const packageName = this.formatImportPath(imp.packagePath);
-      const summary = packageName ? this.packageSummaries.get(packageName) : undefined;
-      if (!summary) {
-        const label = packageName ?? "<unknown>";
-        this.report(`typechecker: import references unknown package '${label}'`, imp);
-        continue;
-      }
-      if (summary.visibility === "private" && summary.name !== currentPackage) {
-        this.report(`typechecker: package '${summary.name}' is private`, imp);
-        continue;
-      }
-      if (imp.isWildcard) {
-        if (summary.symbols) {
-          for (const symbolName of Object.keys(summary.symbols)) {
-            if (!this.env.has(symbolName)) {
-              this.env.define(symbolName, unknownType);
-            }
+      this.applyImportStatement(imp);
+    }
+  }
+
+  private applyImportStatement(imp: AST.ImportStatement | null | undefined): void {
+    if (!imp) {
+      return;
+    }
+    const packageName = this.formatImportPath(imp.packagePath);
+    const summary = packageName ? this.packageSummaries.get(packageName) : undefined;
+    if (!summary) {
+      const label = packageName ?? "<unknown>";
+      this.report(`typechecker: import references unknown package '${label}'`, imp);
+      return;
+    }
+    if (summary.visibility === "private" && summary.name !== this.currentPackageName) {
+      this.report(`typechecker: package '${summary.name}' is private`, imp);
+      return;
+    }
+    if (imp.isWildcard) {
+      if (summary.symbols) {
+        for (const symbolName of Object.keys(summary.symbols)) {
+          if (!this.env.has(symbolName)) {
+            this.env.define(symbolName, unknownType);
           }
         }
-        continue;
       }
-      if (Array.isArray(imp.selectors) && imp.selectors.length > 0) {
-        for (const selector of imp.selectors) {
-          if (!selector) continue;
-          const selectorName = this.getIdentifierName(selector.name);
-          if (!selectorName) continue;
-          const aliasName = this.getIdentifierName(selector.alias) ?? selectorName;
-          if (!summary.symbols || !summary.symbols[selectorName]) {
+      return;
+    }
+    if (Array.isArray(imp.selectors) && imp.selectors.length > 0) {
+      for (const selector of imp.selectors) {
+        if (!selector) continue;
+        const selectorName = this.getIdentifierName(selector.name);
+        if (!selectorName) continue;
+        const aliasName = this.getIdentifierName(selector.alias) ?? selectorName;
+        const hasSymbol = !!summary.symbols?.[selectorName];
+        if (!hasSymbol) {
+          if (summary.privateSymbols?.[selectorName]) {
+            const label = packageName ?? "<unknown>";
+            this.report(`typechecker: package '${label}' symbol '${selectorName}' is private`, selector);
+          } else {
             const label = packageName ?? "<unknown>";
             this.report(`typechecker: package '${label}' has no symbol '${selectorName}'`, selector);
           }
-          if (!this.env.has(aliasName)) {
-            this.env.define(aliasName, unknownType);
-          }
+          continue;
         }
-        continue;
+        if (!this.env.has(aliasName)) {
+          this.env.define(aliasName, unknownType);
+        }
       }
-      const aliasName = this.getIdentifierName(imp.alias) ?? this.defaultPackageAlias(packageName);
-      if (!aliasName) {
-        continue;
+      return;
+    }
+    const aliasName = this.getIdentifierName(imp.alias) ?? this.defaultPackageAlias(packageName);
+    if (!aliasName) {
+      return;
+    }
+    if (packageName) {
+      this.packageAliases.set(aliasName, packageName);
+    }
+    if (!this.env.has(aliasName)) {
+      this.env.define(aliasName, unknownType);
+    }
+  }
+
+  private applyDynImportStatement(statement: AST.DynImportStatement | null | undefined): void {
+    if (!statement) {
+      return;
+    }
+    const placeholder = unknownType;
+    if (statement.isWildcard) {
+      this.allowDynamicLookups = true;
+      return;
+    }
+    if (Array.isArray(statement.selectors) && statement.selectors.length > 0) {
+      for (const selector of statement.selectors) {
+        if (!selector) continue;
+        const selectorName = this.getIdentifierName(selector.name);
+        if (!selectorName) continue;
+        const aliasName = this.getIdentifierName(selector.alias) ?? selectorName;
+        if (!this.env.has(aliasName)) {
+          this.env.define(aliasName, placeholder);
+        }
       }
-      if (packageName) {
-        this.packageAliases.set(aliasName, packageName);
-      }
-      if (!this.env.has(aliasName)) {
-        this.env.define(aliasName, unknownType);
-      }
+      return;
+    }
+    const aliasName = this.getIdentifierName(statement.alias);
+    if (aliasName && !this.env.has(aliasName)) {
+      this.env.define(aliasName, placeholder);
     }
   }
 
@@ -722,7 +776,10 @@ export class TypeChecker {
     }
     if (!summary?.symbols || !summary.symbols[memberName]) {
       if (!this.reportedPackageMemberAccess.has(expression)) {
-        this.report(`typechecker: package '${packageName}' has no symbol '${memberName}'`, expression.member ?? expression);
+        this.report(
+          `typechecker: package '${packageName}' has no symbol '${memberName}'`,
+          expression.member ?? expression,
+        );
         this.reportedPackageMemberAccess.add(expression);
       }
     }
@@ -765,6 +822,7 @@ export class TypeChecker {
     ctx.withForkedEnv = <T>(fn: () => T) => this.withForkedEnv(fn);
     ctx.lookupIdentifier = (name: string) => this.env.lookup(name);
     ctx.defineValue = (name: string, valueType: TypeInfo) => this.env.define(name, valueType);
+    ctx.allowDynamicLookup = () => this.allowDynamicLookups;
     ctx.getFunctionInfo = (key: string) => this.functionInfos.get(key);
     ctx.setFunctionInfo = (key: string, info: FunctionInfo) => this.functionInfos.set(key, info);
     ctx.isExpression = (node: AST.Node | undefined | null): node is AST.Expression => this.isExpression(node);

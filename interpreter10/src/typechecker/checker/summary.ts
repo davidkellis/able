@@ -18,6 +18,7 @@ export function buildPackageSummary(ctx: ImplementationContext, module: AST.Modu
   const packageName = resolvePackageName(module);
   const visibility = resolvePackageVisibility(module);
   const symbols: Record<string, ExportedSymbolSummary> = {};
+  const privateSymbols: Record<string, ExportedSymbolSummary> = {};
   const structs: Record<string, ExportedStructSummary> = {};
   const interfaces: Record<string, ExportedInterfaceSummary> = {};
   const functions: Record<string, ExportedFunctionSummary> = {};
@@ -31,26 +32,35 @@ export function buildPackageSummary(ctx: ImplementationContext, module: AST.Modu
     if (!entry) continue;
     switch (entry.type) {
       case "StructDefinition": {
-        if (entry.isPrivate) break;
         const name = entry.id?.name;
         if (!name) break;
-        symbols[name] = { type: name };
+        if (entry.isPrivate) {
+          privateSymbols[name] = { type: name, visibility: "private" };
+          break;
+        }
+        symbols[name] = { type: name, visibility: "public" };
         structs[name] = summarizeStructDefinition(ctx, entry);
         break;
       }
       case "InterfaceDefinition": {
-        if (entry.isPrivate) break;
         const name = entry.id?.name;
         if (!name) break;
-        symbols[name] = { type: name };
+        if (entry.isPrivate) {
+          privateSymbols[name] = { type: name, visibility: "private" };
+          break;
+        }
+        symbols[name] = { type: name, visibility: "public" };
         interfaces[name] = summarizeInterfaceDefinition(ctx, entry);
         break;
       }
       case "FunctionDefinition": {
-        if (entry.isPrivate || entry.isMethodShorthand) break;
         const name = entry.id?.name;
         if (!name) break;
-        symbols[name] = { type: describeFunctionType(ctx, entry) };
+        if (entry.isPrivate || entry.isMethodShorthand) {
+          privateSymbols[name] = { type: describeFunctionType(ctx, entry), visibility: "private" };
+          break;
+        }
+        symbols[name] = { type: describeFunctionType(ctx, entry), visibility: "public" };
         functions[name] = summarizeFunctionDefinition(ctx, entry);
         break;
       }
@@ -88,6 +98,7 @@ export function buildPackageSummary(ctx: ImplementationContext, module: AST.Modu
     name: packageName,
     visibility,
     symbols,
+    privateSymbols,
     structs,
     interfaces,
     functions,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	goRuntime "runtime"
 	"sync"
 	"sync/atomic"
 
@@ -111,6 +112,12 @@ func (b *executorBase) applyOutcome(handle *runtime.ProcHandleValue, result runt
 type GoroutineExecutor struct {
 	executorBase
 	pending atomic.Int64
+	blocked atomic.Int64
+	handles sync.Map
+}
+
+type goroutineHandleState struct {
+	blocked atomic.Bool
 }
 
 func NewGoroutineExecutor(panicHandler panicValueFunc) *GoroutineExecutor {
@@ -122,6 +129,7 @@ func NewGoroutineExecutor(panicHandler panicValueFunc) *GoroutineExecutor {
 func (e *GoroutineExecutor) RunProc(task ProcTask) *runtime.ProcHandleValue {
 	ctx, cancel := context.WithCancel(context.Background())
 	handle := runtime.NewProcHandleWithContext(ctx, cancel)
+	e.registerHandle(handle)
 	e.pending.Add(1)
 	go e.runTask(handle, nil, task, asyncContextProc)
 	return handle
@@ -131,12 +139,25 @@ func (e *GoroutineExecutor) RunFuture(task ProcTask) *runtime.FutureValue {
 	ctx, cancel := context.WithCancel(context.Background())
 	handle := runtime.NewProcHandleWithContext(ctx, cancel)
 	future := runtime.NewFutureFromHandle(handle)
+	e.registerHandle(handle)
 	e.pending.Add(1)
 	go e.runTask(handle, future, task, asyncContextFuture)
 	return future
 }
 
-func (e *GoroutineExecutor) Flush() {}
+func (e *GoroutineExecutor) Flush() {
+	for {
+		pending := e.pending.Load()
+		if pending <= 0 {
+			return
+		}
+		blocked := e.blocked.Load()
+		if blocked >= pending && pending > 0 {
+			return
+		}
+		goRuntime.Gosched()
+	}
+}
 
 func (e *GoroutineExecutor) PendingTasks() int {
 	pending := e.pending.Load()
@@ -147,6 +168,7 @@ func (e *GoroutineExecutor) PendingTasks() int {
 }
 
 func (e *GoroutineExecutor) runTask(handle *runtime.ProcHandleValue, future *runtime.FutureValue, task ProcTask, kind asyncContextKind) {
+	defer e.unregisterHandle(handle)
 	ctx := handle.Context()
 	if ctx == nil {
 		ctx = context.Background()
@@ -157,6 +179,52 @@ func (e *GoroutineExecutor) runTask(handle *runtime.ProcHandleValue, future *run
 	result, err := e.safeInvoke(ctx, task)
 	e.applyOutcome(handle, result, err)
 	e.pending.Add(-1)
+}
+
+func (e *GoroutineExecutor) registerHandle(handle *runtime.ProcHandleValue) {
+	if handle == nil {
+		return
+	}
+	e.handles.Store(handle, &goroutineHandleState{})
+}
+
+func (e *GoroutineExecutor) unregisterHandle(handle *runtime.ProcHandleValue) {
+	if handle == nil {
+		return
+	}
+	if stateAny, ok := e.handles.LoadAndDelete(handle); ok {
+		if state, ok := stateAny.(*goroutineHandleState); ok {
+			if state.blocked.Load() {
+				e.blocked.Add(-1)
+			}
+		}
+	}
+}
+
+func (e *GoroutineExecutor) MarkBlocked(handle *runtime.ProcHandleValue) {
+	if handle == nil {
+		return
+	}
+	if stateAny, ok := e.handles.Load(handle); ok {
+		if state, ok := stateAny.(*goroutineHandleState); ok {
+			if state.blocked.CompareAndSwap(false, true) {
+				e.blocked.Add(1)
+			}
+		}
+	}
+}
+
+func (e *GoroutineExecutor) MarkUnblocked(handle *runtime.ProcHandleValue) {
+	if handle == nil {
+		return
+	}
+	if stateAny, ok := e.handles.Load(handle); ok {
+		if state, ok := stateAny.(*goroutineHandleState); ok {
+			if state.blocked.CompareAndSwap(true, false) {
+				e.blocked.Add(-1)
+			}
+		}
+	}
 }
 
 type serialTask struct {
