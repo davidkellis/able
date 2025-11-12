@@ -57,7 +57,7 @@ fn display_links(links: Array Link) -> void {
 }
 
 fn sample_html() -> string {
-  """
+  `
   <article>
     <header>
       <a href="https://able.dev">Able</a>
@@ -75,5 +75,5 @@ fn sample_html() -> string {
       </div>
     </main>
   </article>
-  """
+  `
 }
