@@ -29,14 +29,15 @@
 - `v10/interpreter10/testdata/examples/` remains curated; add programs only when parser/runtime support is complete (see the corresponding `design/parity-examples-plan.md` for the active roster).
 - Diagnostics parity is mandatory: both interpreters emit identical runtime + typechecker output for every fixture when `ABLE_TYPECHECK_FIXTURES` is `warn|strict`. (✅ CLI now enforces diagnostics comparison; ✅ Go typechecker infers implicit `self`/iterator helpers so warn/strict runs match.)
 - The JSON parity report (`tmp/parity-report.json`) must be archived in CI via `ABLE_PARITY_REPORT_DEST`/`CI_ARTIFACTS_DIR` to keep regression triage fast.
-- Track upcoming language work (channel select, advanced dynimport scenarios, interface dispatch additions) so fixtures/examples land immediately once syntax/runtime support exists.
+- Track upcoming language work (awaitable orchestration, advanced dynimport scenarios, interface dispatch additions) so fixtures/examples land immediately once syntax/runtime support exists.
 
 ## TODO (as items are completed, move them to LOG.md)
 
 1. **Expand the v11 specification**
-   - Use `spec/TODO_v11.md` as the checklist for spec work (mutable `=`, map literals, struct updates, type aliases, safe navigation, typed declarations, literal widening, optional generic params, channel `select`, stdlib error reporting, `loop` keyword, Array/String APIs, stdlib packaging, regex/text docs).
+   - Use `spec/TODO_v11.md` as the checklist for spec work (mutable `=`, map literals, struct updates, type aliases, safe navigation, typed declarations, literal widening, optional generic params, await/async coordination, stdlib error reporting, `loop` keyword, Array/String APIs, stdlib packaging, regex/text docs).
    - Draft wording + examples in `spec/full_spec_v11.md`, referencing new fixtures/examples as they land.
    - Update `LOG.md`/`spec/todo.md` whenever a TODO graduates into the formal text.
+   - ✅ Mutable `=` semantics captured in §5.3.1, map literal syntax/semantics documented in §6.1.9, struct functional update rules expanded in §4.5.2, type alias coverage added in §4.7, safe navigation documented in §6.3.4, typed `=` declarations captured in §5.1–§5.1.1, literal widening/contextual typing documented in §6.1.1/§6.3.2, optional generic parameter inference documented in §7.1.5/§4.5/§10.1, the `await` + error surface defined in §12.6–§12.7, `loop`/Array/String runtime APIs documented in §8.2.3/§6.8/§6.1.5, stdlib packaging & search-path rules captured in §13.6–§13.7, and the regex/text modules plus string/grapheme iterators documented in §14.2/§6.12.1. Keep `spec/TODO_v11.md` current as new language work is scheduled.
 
 2. **Implement v11 runtime features**
    - Apply the spec updates to the TypeScript interpreter first, mirror in Go, and keep `fixtures/ast` green via `bun run scripts/run-fixtures.ts` + `go test ./pkg/interpreter`.

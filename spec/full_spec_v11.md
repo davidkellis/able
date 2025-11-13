@@ -18,12 +18,13 @@
     *   [4.5. Structs](#45-structs)
         *   [4.5.1. Singleton Structs](#451-singleton-structs)
         *   [4.5.2. Structs with Named Fields](#452-structs-with-named-fields)
-        *   [4.5.3. Structs with Positional Fields (Named Tuples)](#453-structs-with-positional-fields-named-tuples)
+    *   [4.5.3. Structs with Positional Fields (Named Tuples)](#453-structs-with-positional-fields-named-tuples)
     *   [4.6. Union Types (Sum Types / ADTs)](#46-union-types-sum-types--adts)
         *   [4.6.1. Union Declaration](#461-union-declaration)
         *   [4.6.2. Nullable Type Shorthand (`?`)](#462-nullable-type-shorthand-)
         *   [4.6.3. Constructing Union Values](#463-constructing-union-values)
         *   [4.6.4. Using Union Values](#464-using-union-values)
+    *   [4.7. Type Aliases](#47-type-aliases)
 5.  [Bindings, Assignment, and Destructuring](#5-bindings-assignment-and-destructuring)
     *   [5.1. Operators (`:=`, `=`)](#51-operators---)
     *   [5.2. Patterns](#52-patterns)
@@ -43,8 +44,13 @@
         *   [6.3.3. Overloading (Via Interfaces)](#633-overloading-via-interfaces)
     *   [6.4. Function Calls](#64-function-calls)
     *   [6.5. Control Flow Expressions](#65-control-flow-expressions)
-    *   [6.6. String Interpolation](#66-string-interpolation)
+    *   [6.6. string Interpolation](#66-string-interpolation)
+    *   [6.7. Generator Literal (`Iterator { ... }`)](#67-generator-literal-iterator)
+    *   [6.8. Arrays (`Array T`)](#68-arrays-array-t)
+    *   [6.9. Lexical Details (Comments, Identifiers, Literals)](#69-lexical-details-comments-identifiers-literals)
+    *   [6.10. Dynamic Metaprogramming (Interpreted)](#610-dynamic-metaprogramming-interpreted)
     *   [6.11. Truthiness and Boolean Contexts](#611-truthiness-and-boolean-contexts)
+    *   [6.12. Standard Library API (Required)](#612-standard-library-api-required)
 7.  [Functions](#7-functions)
     *   [7.1. Named Function Definition](#71-named-function-definition)
     *   [7.2. Anonymous Functions and Closures](#72-anonymous-functions-and-closures)
@@ -68,11 +74,15 @@
     *   [8.2. Looping Constructs](#82-looping-constructs)
         *   [8.2.1. While Loop (`while`)](#821-while-loop-while)
         *   [8.2.2. For Loop (`for`)](#822-for-loop-for)
-        *   [8.2.3. Range Expressions](#823-range-expressions)
+        *   [8.2.3. Loop Expression (`loop`)](#823-loop-expression-loop)
+        *   [8.2.4. Continue Statement (`continue`)](#824-continue-statement-continue)
+        *   [8.2.5. Range Expressions](#825-range-expressions)
     *   [8.3. Non-Local Jumps (`breakpoint` / `break`)](#83-non-local-jumps-breakpoint--break)
         *   [8.3.1. Defining an Exit Point (`breakpoint`)](#831-defining-an-exit-point-breakpoint)
         *   [8.3.2. Performing the Jump (`break`)](#832-performing-the-jump-break)
         *   [8.3.3. Semantics](#833-semantics)
+        *   [8.3.4. Example](#834-example)
+        *   [8.3.5. Loop Break Result](#835-loop-break-result)
 9.  [Inherent Methods (`methods`)](#9-inherent-methods-methods)
     *   [9.1. Syntax](#91-syntax)
     *   [9.2. Method Definitions](#92-method-definitions)
@@ -113,6 +123,9 @@
         *   [12.3.1. Syntax](#1231-syntax)
         *   [12.3.2. Semantics](#1232-semantics)
     *   [12.4. Key Differences (`proc` vs `spawn`)](#124-key-differences-proc-vs-spawn)
+    *   [12.5. Synchronization Primitives (Crystal-style APIs, Go semantics)](#125-synchronization-primitives-crystal-style-apis-go-semantics)
+    *   [12.6. `await` Expression and the `Awaitable` Protocol](#126-await-expression-and-the-awaitable-protocol)
+    *   [12.7. Channel and Mutex Error Types](#127-channel-and-mutex-error-types)
 13. [Packages and Modules](#13-packages-and-modules)
     *   [13.1. Package Naming and Structure](#131-package-naming-and-structure)
     *   [13.2. Package Configuration (`package.yml`)](#132-package-configuration-packageyml)
@@ -120,7 +133,8 @@
     *   [13.4. Importing Packages (`import`)](#134-importing-packages-import)
     *   [13.5. Visibility and Exports (`private`)](#135-visibility-and-exports-private)
 14. [Standard Library Interfaces (Conceptual / TBD)](#14-standard-library-interfaces-conceptual--tbd)
-15. [To Be Defined / Refined](#15-to-be-defined--refined)
+15. [Program Entry Point](#15-program-entry-point)
+16. [Host Interop (Target-Language Inline Code)](#16-host-interop-target-language-inline-code)
 
 ## 1. Introduction
 
@@ -339,13 +353,17 @@ Type constraints restrict the types that can be used for a generic type paramete
 | `u128`   | 128-bit unsigned integer (0 to 2¹²⁸-1)          | `0`, `340_..._u128`                 |                                                 |
 | `f32`    | 32-bit float (IEEE 754 single-precision)      | `3.14_f32`, `-0.5_f32`, `1e-10_f32`, `2.0_f32` | Suffix `_f32`.                                  |
 | `f64`    | 64-bit float (IEEE 754 double-precision)      | `3.14159`, `-0.001`, `1e-10`, `2.0`  | Default type for float literals. Suffix `_f64` optional if default. |
-| `string` | Immutable sequence of Unicode chars (UTF-8) | `"hello"`, `""`, `` `interp ${val}` `` | Double quotes or backticks (interpolation).      |
+| `string` | Immutable sequence of Unicode chars (UTF-8) | `"hello"`, `""`, `` `interp ${val}` `` | Double quotes or backticks (interpolation). string literals evaluate to `string` directly.      |
 | `bool`   | Boolean logical values                        | `true`, `false`                     |                                                 |
-| `char`   | Single Unicode scalar value (UTF-32)        | `'a'`, `'π'`, `'💡'`, `'\n'`, `'\u{1F604}'` | Single quotes. Supports escape sequences.       |
+| `char`   | Single Unicode code point        | `'a'`, `'π'`, `'💡'`, `'\n'`, `'\u{1F604}'` | Single quotes. Supports escape sequences.       |
 | `nil`    | Singleton type representing **absence of data**. | `nil`                               | **Type and value are both `nil` (lowercase)**. Often used with `?Type`. Falsy. |
 | `void`   | Singleton unit type with exactly one value.   | `void`                              | Represents successful completion without data. Distinct from `nil`. Truthy. Any expression may be implicitly coerced to `void`; the produced value is discarded. |
 
 *(See Section [6.1](#61-literals) for detailed literal syntax.)*
+
+> **Single `string` type**
+>
+> Able exposes exactly one textual type: `string`. string literals evaluate to `string` directly, and the standard library methods described in §6.12.1 live on that same type. Older material may refer to a lowercase `string` primitive; treat it as a historical alias for `string`—there is no observable distinction in the language or runtime.
 
 ### 4.3. Type Expression Syntax Details
 
@@ -411,7 +429,7 @@ struct Identifier [GenericParamList] [where <ConstraintList>] {
 }
 ```
 -   **`Identifier`**: Struct type name.
--   **`[GenericParamList]`**: Optional space-delimited generics (e.g., `T`, `K V: Display`). Constraints can be inline or in the `where` clause.
+-   **`[GenericParamList]`**: Optional space-delimited generics (e.g., `T`, `K V: Display`). Constraints can be inline or in the `where` clause. When omitted, Able infers generic parameters from free type names appearing in the field types (see §7.1.5). For example, `struct Box { value: T }` implicitly declares `struct Box T { value: T }`.
 -   **`[where <ConstraintList>]`**: Optional clause for specifying constraints on `GenericParamList`.
 -   **`FieldName: Type`**: Defines a field with a unique name within the struct.
 
@@ -432,15 +450,62 @@ x_coord = p.x
 ```
 
 ##### Functional Update
-Create a new instance based on others using `...Source`. Later sources/fields override earlier ones.
+Create a new instance based on other instances using spread syntax. The literal always produces a *fresh* struct; no source value is mutated.
+
 ```able
 StructType { ...Source1, ...Source2, FieldOverride: NewValue, ... }
 addr = Address { ...base_addr, zip: "90210" }
 ```
--   The source must be an instance of the same struct type (after type argument substitution). Mixing types is an error (`"Functional update source must be same struct type"`).
--   Only named structs support functional updates. Attempting to spread a positional struct raises `"Functional update only supported for named structs"`.
--   Fields provided explicitly override the copied fields; shorthand initializers follow the same rule. The source instance is not mutated.
--   Generic structs follow the same rules: `Point T { x: T, y: T }` permits `Point { ...p, x: 0 }` only when the source instance’s concrete type arguments match the literal. Behaviour for more advanced update patterns (multiple spreads, cross-package partial updates, diagnostic wording) is being refined for v11; see `spec/TODO_v11.md`.
+
+Semantics:
+
+1.  **Named structs only:** Functional update applies exclusively to named-field structs. Positional structs raise `"Functional update only supported for named structs"` if `...` appears inside the literal.
+2.  **Type compatibility:** Every spread expression must evaluate to the *same struct type* (after substituting concrete type arguments) as the literal being constructed. For generics, both the literal and the spread sources must share identical type arguments after inference; otherwise evaluation raises `"Functional update source must be same struct type"`.
+    ```able
+    Point T := struct { x: T, y: T }
+    p_i32 := Point i32 { x: 1, y: 2 }
+    origin_f64 := Point f64 { x: 0.0, y: 0.0 }
+
+    Point { ...p_i32, x: 10 }      ## OK (T inferred as i32)
+    Point { ...origin_f64, x: 5 }   ## Error: mismatched type arguments
+    ```
+3.  **Evaluation order:** Entries evaluate left-to-right. Each spread expression runs once and copies its fields into the accumulating result before later spreads/overrides run. Field expressions (`field: expr`) evaluate after all earlier spreads in the literal body.
+4.  **Overwrite rules:** Later sources overwrite earlier sources field-by-field. Explicit field clauses (including shorthand `field`) override whatever value the same field had from prior spreads.
+5.  **Partial spreads:** There is no syntax to spread a subset of fields; each `...Source` copies every field defined on the struct. To drop a field, simply override it with a new value (including `nil` where allowed).
+6.  **Diagnostics:**
+    - Spreading a non-struct or a struct of a different nominal type raises `"Functional update source must be same struct type"`.
+    - Using `...` in a positional struct literal raises `"Functional update only supported for named structs"`.
+    - Missing required fields after all spreads/overrides are processed raise the same diagnostics as ordinary struct literals.
+7.  **Immutability guarantee:** Since updates allocate a fresh struct, later mutation of the new value does not affect the sources. This mirrors record-update semantics in other languages and keeps aliasing predictable.
+8.  **Compile-time enforcement:** Static checkers are encouraged to verify type compatibility and redundant spreads, but the runtime rules above are the authoritative behaviour.
+
+Example combining multiple spreads and overrides:
+
+```able
+Address := struct {
+  line1: string,
+  line2: ?string,
+  city: string,
+  state: string,
+  zip: string
+}
+
+home := Address {
+  line1: "123 Able St",
+  line2: nil,
+  city: "San Mateo",
+  state: "CA",
+  zip: "94401"
+}
+
+shipment := Address {
+  ...home,
+  line2: "Attn: Receiving",
+  zip: "94070",
+  ...overrides   ## later overrides win
+}
+```
+`shipment` copies every field from `home`, adjusts two of them, then applies whatever entries `overrides` supplies. None of the source structs are mutated.
 
 ##### Field Mutation
 Modify fields in-place using assignment (`=`). Requires the binding (`instance`) to be mutable.
@@ -462,7 +527,7 @@ struct Identifier [GenericParamList] [where <ConstraintList>] {
 }
 ```
 -   **`Identifier`**: Struct type name (e.g., `IntPair`, `Coord3D`).
--   **`[GenericParamList]`**: Optional space-delimited generics. Constraints can be inline or in the `where` clause.
+-   **`[GenericParamList]`**: Optional space-delimited generics. Constraints can be inline or in the `where` clause. Free type names inside the field list implicitly become generic parameters when no list is provided.
 -   **`[where <ConstraintList>]`**: Optional clause for specifying constraints on `GenericParamList`.
 -   **`Type`**: Defines a field by its type at a specific zero-based position.
 
@@ -636,11 +701,91 @@ shape_area = shape1 match {
     (s * (s - a) * (s - b) * (s - c)).sqrt() ## Assume sqrt available
   }
 }
+
+### 4.7. Type Aliases
+
+Type aliases introduce a new identifier that stands for an existing type expression. They are purely compile-time substitutions: an alias does **not** define a fresh nominal type, allocate storage, or change runtime representation. Everywhere the alias appears, the compiler behaves exactly as if the aliased type expression had been written directly.
+
+#### 4.7.1. Syntax
+
+```able
+type Identifier [GenericParamList] [where <ConstraintList>] = TypeExpression
+```
+
+-   **`type`**: Keyword introducing the alias. Aliases are declared at package scope alongside structs/unions/interfaces; local aliases inside functions/blocks are prohibited to keep the type namespace static and tooling-friendly.
+-   **`Identifier`**: Name of the alias. Alias names share the type namespace with structs/unions/interfaces and must be unique within a module.
+-   **`[GenericParamList]`**: Optional **space-delimited** generic parameters with inline constraints (same delimiter rules as §4.1.5). Angle-bracket syntax (`<T>`) is not permitted for aliases. A trailing `where` clause may express additional bounds.
+-   **`TypeExpression`**: Any valid type expression (primitives, structs, unions, interface existentials, generic applications, shorthand such as `?T`/`!T`, other aliases, etc.). The right-hand side may reference earlier aliases so long as expansion terminates.
+
+Examples:
+
+```able
+type UserID = u64
+type Result T = Error | T
+type MapOf K V = Map K V
+type Either L R = L | R
+
+import time
+type Timestamp = time.Instant
+```
+
+#### 4.7.2. Generic Aliases & Substitution
+
+-   Generic aliases behave like other generic type definitions: every use must ultimately bind all parameters (either explicitly or via inference) so the alias denotes a concrete type. Wildcards (`_`) follow the same rules described in §4.1.4.
+-   Expansion is capture-avoiding and eager. When type checking encounters an alias name, it substitutes the right-hand side—plugging in any provided type arguments—before performing equality checks, constraint solving, or interface lookups. Consequently, `type UserID = u64` means `UserID` and `u64` are indistinguishable to the typechecker.
+-   Because aliases are transparent, they cannot be used to work around coherence rules. Declaring both `impl Display for u64` and `impl Display for UserID` is a redeclaration error; both target the same underlying type.
+
+#### 4.7.3. Scope, Visibility, and Imports
+
+-   Aliases obey the module’s visibility/export mechanics (e.g., `pub type` in host scaffolding, explicit export lists, etc.). Importing a module brings its exported aliases into scope just like other types: `import net.http; request: http.Request = ...`.
+-   Within a module, aliases participate in lexical scoping: once declared, they are visible throughout the remainder of the file. Re-declaring the same alias name in the same scope is an error; shadowing via nested modules is allowed but discouraged unless intentionally creating versioned namespaces.
+-   Because aliases live in the type namespace, they do not interfere with value-level identifiers. `type Path = string` can coexist with `fn Path() -> Path` (though readability may suffer).
+
+#### 4.7.4. Interaction with `methods`, `impl`, and Type-Based Features
+
+-   `methods`/`impl` headers accept any type expression. If an alias appears there, it is expanded before registration. Attaching methods to an alias therefore attaches them to the underlying type:
+    ```able
+    type UserID = u64
+    methods UserID {
+      fn to_hex(self: UserID) -> string { self.format("0x%X") }
+    }
+    ## Equivalent to `methods u64 { ... }` and subject to the same restrictions on primitives.
+    ```
+-   Interface constraints, `where` clauses, and type inference treat aliases identically to their expansions. Diagnostics should mention both names when it improves clarity (e.g., “`UserID` (alias of `u64`) does not implement `Hash`”).
+-   Aliases have no runtime identity, so they do not affect reflection metadata, host-language FFI bindings, or serialization schemas; exporters should emit the canonical underlying type.
+
+#### 4.7.5. Recursion and Termination Rules
+
+-   Alias resolution must terminate. Direct self-reference (`type Node = Node`) or mutually-recursive aliases without an intervening nominal type are rejected at compile time (`"Type alias expansion does not terminate"`).
+-   Recursive data structures should be modeled with structs/unions and may then be wrapped by an alias for convenience:
+    ```able
+    struct ListNode T { value: T, next: ?ListNode T }
+    type List T = ?ListNode T
+    ```
+    Here `List` is legal because the recursion flows through the nominal `ListNode` definition rather than the alias itself.
+
+#### 4.7.6. Usage Examples
+
+```able
+type Milliseconds = u64
+type Handler T = fn(T) -> void
+type RequestResult = Result Response
+
+fn set_timeout(duration: Milliseconds, cb: Handler void) {
+  scheduler.schedule(duration, cb)
+}
+
+fn fetch(url: string) -> RequestResult {
+  http.request(url)
+}
+```
+
+`Milliseconds` is interchangeable with `u64`, but the alias documents intent and enables API-specific validation without inventing a new nominal type. The same applies to `RequestResult`, which is simply `Result Response` with a descriptive name.
 ```
 
 ## 5. Bindings, Assignment, and Destructuring
 
-This section defines variable binding, assignment, and destructuring in Able. Able uses `=` and `:=` for binding identifiers within patterns to values. `=` handles reassignment and mutation only; `:=` is used explicitly for declaring new bindings (and shadowing) and may simultaneously reassign existing names in the same pattern when at least one new name is introduced. Bindings are mutable by default.
+This section defines variable binding, assignment, and destructuring in Able. Able uses `=` and `:=` for binding identifiers within patterns to values. `=` primarily handles reassignment/mutation but implicitly declares bindings when no matching identifier exists; `:=` is the tool for explicitly declaring new bindings (and shadowing) while optionally reassigning existing names in the same pattern when at least one new name is introduced. Bindings are mutable by default.
 
 ### 5.0. Mutability Model
 
@@ -678,35 +823,31 @@ Additional note: There is no `const` keyword and no per-field immutability modif
         ```
 
 *   **Assignment (`=`)**: `LHS = Expression`
-    *   Performs **reassignment** of existing bindings or **mutation** of fields/elements. It never creates new bindings.
+    *   Performs **reassignment** of existing bindings or **mutation** of fields/elements. If no matching binding exists, it implicitly declares one in the current scope (see §5.3.1). Use `:=` when you need the compiler to enforce “this introduces a new binding” (e.g., for deliberate shadowing).
     *   **If `LHS` is an Identifier:**
-        *   The `Identifier` must exist as an accessible, mutable binding (found via lexical scoping). Otherwise, it is a compile-time error.
-    *   **If `LHS` is a Destructuring Pattern (e.g., `{x, y}`, `[a, b]`):**
-        *   All identifiers within the `Pattern` must already exist as accessible, mutable bindings. Otherwise, it is a compile-time error. Use `:=` to declare new bindings.
+        *   Able looks up the identifier in the current lexical scope chain. If found, the binding is reassigned.
+        *   If no binding exists in any accessible scope, `=` allocates a new mutable binding in the current scope and assigns the RHS value.
+        *   Attempting to assign to an immutable binding or a value imported as read-only is still an error.
+    *   **If `LHS` is a Destructuring Pattern (e.g., `Point {x, y}`, `[a, b]`):**
+        *   The pattern is matched atomically. For each identifier inside the pattern:
+            - If a mutable binding exists (current or enclosing scope), it is reassigned.
+            - If no binding exists, the identifier is declared in the current scope and then assigned.
+        *   Match failure leaves all bindings untouched and returns an `Error` (see §5.3).
     *   **If `LHS` is a Field/Index Access (`instance.field`, `array[index]`):**
-        *   Performs **mutation** on the specified field or element, provided it's accessible and mutable.
-    *   **Precedence:** `=` never declares. To declare or shadow, use `:=`.
-    *   It is a compile-time error if `LHS` attempts to reassign bindings/locations that are not accessible or not mutable, or access fields/indices that do not exist.
-    *   Example (Declaration vs. Reassignment):
+        *   Performs **mutation** on the specified field or element, provided it's accessible and mutable. These forms never declare new bindings.
+    *   It is a compile-time error if `LHS` attempts to reassign an immutable binding, mutate a non-existent field/index, or otherwise violates access checks. Implementations without a static checker must surface a runtime error instead of silently ignoring the assignment.
+    *   Example (Implicit declaration vs. reassignment):
         ```able
-        ## Declaration
-        a := 10
-
-        ## Reassignment
-        a = 20
-
-        b := 100 ## Declare 'b' in current scope
-        b = 200  ## Reassign 'b' in current scope
+        count = 1        ## No prior binding => declares `count` in the current scope
+        count = count+1  ## Reassignment
 
         do {
-          c := 5 ## Declare 'c' in inner scope using ':='
-          a = 30 ## Reassigns 'a' from outer scope using '='
-          b := 50 ## Declares NEW 'b' in inner scope using ':=' (shadows outer 'b')
-          b = 60  ## Reassigns inner 'b' using '='
+          count = 5      ## Reassigns outer binding (no new local binding introduced)
+          local_total = 0  ## Declares new binding because none existed
         }
-        print(a) ## prints 30
-        print(b) ## prints 200 (outer 'b' was shadowed, not reassigned)
-        ## 'c' is out of scope here
+
+        { acc, delta } = { acc: 10, delta: 5 }
+        ## Declares acc/delta if missing; otherwise reassigns them atomically
         ```
 
 ### 5.2. Patterns
@@ -724,10 +865,46 @@ The simplest pattern binds the entire result of the `Expression` to a single ide
     user_name := fetch_user_name()
     my_func := { a, b => a + b }
     ```
-*   **Usage (`=`)**: Reassigns an existing mutable binding `Identifier`. It never declares a new binding.
+*   **Usage (`=`)**: Reassigns the nearest mutable binding if one exists; otherwise declares a new binding in the current scope before assigning. Use `:=` when you intend to shadow an outer binding and want the compiler to enforce “new binding required.”
     ```able
-    x = 50 ## Reassigns existing x; '=' never declares a new binding
+    x = 50      ## Reassigns existing x if present, otherwise declares it
+    counter = 0 ## Declares `counter` if not already defined
     ```
+
+#### 5.1.1. Typed Declarations with `:`
+
+You may annotate identifiers (or nested pattern bindings) with a type using `Identifier: Type` syntactic sugar alongside either operator:
+
+-   `Identifier: Type := Expression`
+-   `Identifier: Type = Expression`
+
+In both cases the type annotation narrows what values may be bound, while the operator determines whether new bindings must be introduced (`:=`) or whether the runtime may fall back to reassigning/implicitly declaring (`=`).
+
+Key rules:
+
+1.  **Evaluation order:** The RHS always evaluates first. Errors raised before binding mean no mutation/declaration occurs.
+2.  **Type checking:** The evaluated value must be assignable to `Type`. Static checkers should enforce this, but runtimes must raise `"Typed pattern mismatch"` (or a specific diagnostic) if the value fails the annotation at execution time.
+3.  **Operator behavior:**
+    -   `:=` enforces the “at least one new binding in the current scope” rule (§5.1). Typed names behave exactly like untyped names with the additional type assertion.
+    -   `=` follows the rules described earlier: reuse an existing binding if present; otherwise implicitly declare one in the current scope. The annotation applies in either case, effectively declaring the static type when a new binding is created.
+4.  **Shadowing & compatibility:** When reassigning through either operator, the annotated type must be compatible with the binding’s declared type. Attempting to narrow to an incompatible type is a compile-time error.
+5.  **Patterns:** Typed fields inside destructuring patterns inherit these semantics. For example, `{ count: i64 := arr.size() }` declares `count` with type `i64`, while `{ count: i64 = arr.size() }` reassigns/declares depending on existing bindings.
+
+Examples:
+
+```able
+total: i64 := 0          ## Declares `total` with type i64
+total: i64 = total + 5   ## Reassigns after asserting the type stays i64
+
+ratio: f64 = compute_ratio()  ## Declares if `ratio` was absent, otherwise reassigns
+
+fn demo() {
+  threshold: u32 := 10   ## Forces a new local binding, shadowing any outer one
+  limit: u32 = threshold ## Reuses the just-declared binding
+}
+```
+
+Typed destructuring remains governed by §5.2.7; the addition here simply clarifies that annotations work uniformly with both `:=` and `=` while respecting their respective binding rules.
 
 #### 5.2.2. Wildcard Pattern (`_`)
 
@@ -762,7 +939,7 @@ Destructures instances of structs defined with named fields.
 *   **Example**:
     ```able
     struct Point { x: f64, y: f64 }
-    struct User { id: u64, name: String, address: String }
+    struct User { id: u64, name: string, address: string }
 
     p := Point { x: 1.0, y: 2.0 }
     u := User { id: 101, name: "Alice", address: "123 Main St" }
@@ -915,6 +1092,47 @@ Patterns can be nested arbitrarily within struct and array patterns for both `:=
     *   Success: Both assignment (`=`) and declaration (`:=`) expressions evaluate to the **value of the RHS** after successful binding/assignment. In boolean contexts, this is truthy unless the RHS itself is falsy by §6.11 (e.g., `nil`, `false`, or an `Error`).
     *   Failure: If the match fails, the expression evaluates to an `Error` value (which is falsy in boolean contexts). Implementations should provide a specific error describing the mismatch; programs may branch on success/failure using `if/or`.
 
+#### 5.3.1. Mutable Reassignment (`=`)
+
+Plain `=` is the mechanism for mutating existing bindings, fields, and indexed locations. Able uses mutable lexical storage for every binding introduced via `:=`; reassigning that binding writes a new reference into the same storage slot rather than creating a shadow copy.
+
+*   **Storage semantics:** `:=` allocates storage for each identifier it introduces. `=` reuses that storage and overwrites it with the newly evaluated value. Reads that occur after the assignment within the same scope (including inside loops) observe the updated value.
+*   **Declaration fallback:** If a name referenced inside the `=` pattern is not bound in the current lexical scope (nor any enclosing scope) the runtime treats the assignment as a declaration and allocates a fresh mutable binding in the current scope before writing the value. In other words, `=` prefers reassignment but degrades gracefully into declaration when no binding exists. Use `:=` when you want the compiler to enforce “this must declare something new”; use `=` when you want “assign here, declaring if necessary.”
+    ```able
+    ## `result` already exists, so `=` reassigns
+    result := 0
+    result = compute()
+
+    ## `total` does not exist yet; `=` implicitly declares it in the current scope
+    total = 42
+    print(total)  ## OK, binding created moments earlier
+    ```
+    Shadowing rules follow the normal lexical model: if an outer scope defines `name` but the current scope does not, `name = value` mutates the outer binding. To deliberately shadow, use `name := value`.
+*   **Snapshot matching:** When the left-hand side is a destructuring pattern, the runtime evaluates the RHS once, attempts to match the resulting value against the pattern using the *current* bindings, and only commits the reassignment if the entire pattern succeeds. Match failure leaves every target binding untouched and surfaces the usual `Error` value for failed assignment.
+*   **Evaluation order:** RHS side effects happen first. Once the RHS produces a value, destructuring proceeds left-to-right. Individual identifiers update in textual order. Field/index targets (`point.x`, `arr[i]`) evaluate their receiver/index expressions exactly once and then mutate the resolved storage location. Implementations must not re-evaluate the receiver or index when lowering compound assignments (e.g., `arr[i] += 1`).
+*   **Mutability checks:** Attempting `=` against an immutable binding, a missing identifier, or a non-assignable location is a compile-time error. Interpreters running without the static checker should surface a runtime error instead of silently ignoring the assignment.
+*   **Destructuring updates:**
+    ```able
+    Point := struct { x: i64, y: i64 }
+    current := Point { x: 1, y: 2 }
+    Point { x, y } = current
+    x = x + 10           ## writes back into x's storage cell
+    y = y + 20
+    ```
+    Because `{ x, y } = current` succeeds atomically, either both bindings are updated to refer to `current`'s fields or neither changes if the RHS fails to match the pattern shape.
+*   **Loops and imperative code:**
+    ```able
+    count := 3
+    while count > 0 {
+      print(count)
+      count = count - 1    ## `=` must mutate the existing binding
+    }
+    ```
+    Each iteration observes the newly written value of `count` because `=` mutates the storage cell allocated by the initial `:=`.
+*   **Fields and indexed locations:** Assignments such as `point.x = point.x + 1` or `arr[i] = arr[i] * scale` mutate the designated storage in place. Indexing relies on the `IndexMut` interface; map and array entries update without replacing the containing aggregate value.
+
+`=` introduces new bindings when no such binding had existed in the lexical scope or the enclosing lexical scope. When a binding had alrady existed, then the `=` functions as a reassignment, in which the original binding is mutated. Use `:=` when you need to declare a new binding or shadow names; use `=` when existing bindings need to point at a different value or when introducing a new binding without having to think about whether a binding already existed.
+
 ## 6. Expressions
 
 Units of code that evaluate to a value.
@@ -928,6 +1146,27 @@ Literals are the source code representation of fixed values.
 -   **Syntax:** A sequence of digits `0-9`. Underscores `_` can be included anywhere except the start/end for readability and are ignored. Prefixes `0x` (hex), `0o` (octal), `0b` (binary) are supported.
 -   **Type:** By default, integer literals are inferred as `i32` (this default is configurable/TBC). Type suffixes can explicitly specify the type: `_i8`, `_u8`, `_i16`, `_u16`, `_i32`, `_u32`, `_i64`, `_u64`, `_i128`, `_u128`.
 -   **Examples:** `123`, `0`, `1_000_000`, `42_i64`, `255_u8`, `0xff`, `0b1010_1111`, `0o777_i16`.
+
+##### Literal Typing & Context
+
+1.  **Default types:** Unsuffixed integer literals start life as `i32`. Float literals default to `f64` (see §6.1.2). These defaults apply only when no other information constrains the literal.
+2.  **Explicit suffix wins:** Supplying a suffix (`42_u8`, `0xff_i64`) locks the literal to that type. Subsequent contexts must accept that exact type; otherwise compilation fails.
+3.  **Contextual adoption:** When a literal appears in a context that requires a specific integer type (variable declaration with annotation, parameter type, struct field, return expression, typed pattern, etc.), the compiler attempts to adopt that type. Adoption succeeds if—and only if—the literal’s value fits within the target type’s representable range. Otherwise it is a compile-time error (`"literal 300 does not fit in u8"`).
+    *   **Examples:**
+        ```able
+        small: u8 = 200        ## OK (fits)
+        # too_big: u8 = 300    ## Error: literal does not fit in u8
+
+        duration: i64 = 1_000_000_000_000  ## Literal adopts i64 from the annotation
+        offset := 0         ## No annotation ⇒ defaults to i32 until constrained later
+        ```
+4.  **Flow into generics:** Inside generic functions/structs, unsuffixed literals remain “untyped integers” until constraints resolve them. At the point where a type parameter is bound (e.g., `T: Numeric` inferred as `i64`), pending literals adopt the resolved type and must fit.
+5.  **Implicit widening contexts:** Assigning or passing an integer literal to a wider integer type (e.g., literal `5` to `i64`, literal `200` to `u32`) is always allowed as long as the literal fits. Able does **not** automatically narrow; when a narrower type is required, ensure the literal fits exactly or add an explicit conversion helper.
+6.  **No hidden rounding:** Integer literals never auto-convert to floats unless the context explicitly requires a floating-point type (e.g., `f64`, `f32`). In such contexts, the literal adopts the requested float type with an exact conversion if representable; otherwise the value is rounded according to IEEE-754 rules.
+7.  **Diagnostics:**
+    -   Literal-too-wide for context ⇒ compile-time error pointing to the literal and the expected type.
+    -   Literal used with no resolving context and exceeding the default type (e.g., `3_000_000_000` with default `i32`) ⇒ compile-time error unless a suffix or explicit context is supplied.
+    -   Tooling SHOULD surface notes suggesting adding a suffix or annotation when inference stalls.
 
 #### 6.1.2. Floating-Point Literals
 
@@ -949,7 +1188,7 @@ Literals are the source code representation of fixed values.
 -   **Validation:** After escape processing the literal must contain exactly one Unicode scalar value. Sequences that expand to multiple scalars are rejected at compile time.
 -   **Examples:** `'a'`, `' '`, `'%'`, `'\n'`, `'\u{1F604}'`.
 
-#### 6.1.5. String Literals
+#### 6.1.5. string Literals
 
 -   **Syntax:**
     1.  **Standard:** Sequence of characters enclosed in double quotes `"`. Supports the same escape sequences as character literals.
@@ -957,12 +1196,13 @@ Literals are the source code representation of fixed values.
 -   **Type:** `string`. Strings are immutable.
 -   **Examples:** `"Hello, world!\n"`, `""`, `` `User: ${user.name}, Age: ${user.age}` ``, `` `Literal: \` or \${` ``.
 
-##### String Representation
+##### string Representation
 
--   `string` values represent immutable sequences of UTF-8 bytes. The canonical standard library `String` type wraps this data and exposes higher-level helpers.
--   Operations that inspect textual structure (code points, grapheme clusters, normalisation) are performed through library routines (`String::chars()`, `String::graphemes()`, `String::to_nfc()`, etc.) rather than implicit runtime behaviour.
--   The `char` type corresponds to a single Unicode scalar value (`u32` range). A distinct `Grapheme` type in the standard library models user-perceived characters; it is derived from strings via segmentation helpers.
+-   `string` values represent immutable sequences of UTF-8 bytes.
+-   Operations that inspect textual structure (code points, grapheme clusters, normalisation) are performed through library routines (`string::chars()`, `string::graphemes()`, `string::to_nfc()`, etc.) rather than implicit runtime behaviour.
+-   The `char` type corresponds to a single Unicode code point value (`u32` range). A distinct `Grapheme` type in the standard library models user-perceived characters; it is derived from strings via segmentation helpers.
 -   Unless specified otherwise, indices and spans refer to byte offsets within the UTF-8 sequence.
+-   Required `string` helper methods are listed in §6.12.1.
 
 #### 6.1.6. Nil Literal
 
@@ -970,10 +1210,71 @@ Literals are the source code representation of fixed values.
 -   **Type:** `nil`. The type `nil` has only one value, also written `nil`.
 -   **Usage:** Represents the absence of meaningful data. Often used with the `?Type` (equivalent to `nil | Type`) union shorthand. `nil` itself *only* has type `nil`, but can be assigned to variables of type `?SomeType`.
 
-#### 6.1.7. Other Literals (Conceptual)
+#### 6.1.7. Array Literals
 
--   **Arrays:** `[1, 2, 3]`, `["a", "b"]`, `[]`. (Requires `Array` type definition in stdlib).
--   **Structs:** `{ field: val }`, `{ val1, val2 }`. (See Section [4.5](#45-structs)).
+-   **Syntax:** `[Expression, ...]` with optional trailing commas/newlines. Empty arrays use `[]`.
+-   **Evaluation order:** Elements evaluate left-to-right and each value is stored into a fresh `Array` allocation. The literal expression's value is the fully populated array.
+-   **Typing:** Every element must be assignable to a single element type `T`. Mixed literals form the least upper bound (e.g., `[1, 2.0]` infers `T = i32 | f64`). An empty literal requires contextual typing or an explicit annotation (e.g., `values: Array string = []`).
+-   **Examples:**
+    ```able
+    evens := [0, 2, 4, 6]
+    matrix := [
+      [1, 0],
+      [0, 1]
+    ]
+    ```
+
+#### 6.1.8. Struct Literals
+
+-   **Syntax:** `TypeName { field: value, ... }` for named structs; `TypeName { value1, value2, ... }` for positional structs (named tuples). Spread/functional update forms (`TypeName { ...existing, field: override }`) follow the struct semantics in §4.5.
+-   **Evaluation order:** The struct expression evaluated after its arguments/fields evaluate left-to-right. Each literal produces a fresh heap allocation.
+-   **Typing:** The literal's shape must match the struct definition. For named structs all required fields must be assigned exactly once. For positional structs the arity must match. Type inference flows from the struct definition.
+-   **Examples:**
+    ```able
+    struct Point { x: f64, y: f64 }
+    origin := Point { x: 0.0, y: 0.0 }
+
+    struct Pair { string, i32 }
+    result := Pair { "count", 42 }
+    ```
+
+#### 6.1.9. Map Literals
+
+Able v11 introduces a dedicated literal form for `Map` values.
+
+-   **Syntax:** `#{ KeyExpr: ValueExpr, ... }`. Entries are comma-delimited; trailing commas and multiline formatting are permitted. Whitespace is insignificant outside expressions. The empty literal is written `#{}`.
+-   **Type inference:** Literal entries must agree on a single key type `K` and value type `V`. The compiler infers `Map K V` from the entries when possible. If either dimension cannot be inferred (e.g., `#{}`), provide context or an explicit annotation:
+    ```able
+    counts: Map string u64 = #{}
+    data := #<string, string>{ "name": user.name, "id": user.id }
+    ```
+-   **Key constraints:** The key type must satisfy the same requirements imposed by the standard library `Map` implementation (typically `Hash + Eq`). Using a key expression whose type cannot act as a map key is a compile-time error.
+-   **Evaluation order:** Entries evaluate left-to-right. Each `KeyExpr` evaluates exactly once; `ValueExpr` may observe side effects from prior insertions. The literal produces a fresh mutable map and inserts entries sequentially.
+-   **Duplicate keys:** Later entries with the same key overwrite earlier ones, including entries introduced by spreads.
+-   **Spread/updates:** Literal bodies may include `...Expression` clauses that merge the entries from an existing map value before processing subsequent key/value pairs:
+    ```able
+    merged := #{
+      ...defaults,
+      "timeout_ms": 5000,
+      ...user_overrides
+    }
+    ```
+    Each spread expression must evaluate to a `Map K V` compatible with the literal's inferred key/value types. Spreads execute in place: entries insert in the position of the spread, and later clauses can overwrite them.
+-   **Runtime checks:** Attempting to spread a non-map value or inserting a key/value that does not conform to the inferred `Map K V` type raises an `Error` at runtime (or a compile-time diagnostic when statically provable).
+-   **Examples:**
+    ```able
+    headers := #{
+      "content-type": "application/json",
+      "x-trace": request.trace_id
+    }
+
+    overrides := #{
+      ...headers,
+      "x-trace": new_trace_id,
+      user.id: user.token
+    }
+    ```
+    The second literal copies the entries from `headers`, replaces the `x-trace` key, and adds a user-specific entry. Because literals allocate new map instances, later mutation of `overrides` does not affect `headers`.
 
 ### 6.2. Block Expressions (`do`)
 
@@ -1023,9 +1324,23 @@ Operators are evaluated in a specific order determined by precedence (higher bin
 
 *   **Arithmetic (`+`, `-`, `*`, `/`, `%`):** Standard math operations on numeric types. Division (`/`) or remainder (`%`) by zero **raises a runtime exception** (e.g., `DivisionByZeroError`). See Section [11.3](#113-exceptions-raise--rescue).
     *   Numeric promotion (P1):
-        -   Integer with integer widens to the larger integer kind (e.g., `i32` with `i64` → `i64`).
-        -   Integer with float promotes to the float kind (e.g., `i32` with `f64` → `f64`).
-        -   No implicit narrowing (including signed/unsigned). Use explicit casts for non-widening conversions.
+        1.  **Classify operands.** Each operand is either an integer (signed/unsigned, width 8–128) or a float (`f32`, `f64`). Literals adopt operand types per §6.1.1 before this step.
+        2.  **Floating precedence:** If either operand is floating-point, both convert to the wider float (if any side is `f64`, promote both to `f64`; otherwise promote to `f32`). The expression type is that float.
+        3.  **Integer-only rules:**
+            -   Identical signedness ⇒ promote both to the wider width while keeping signedness (e.g., `i16 + i64` → `i64`).
+            -   Mixed signed/unsigned ⇒ promote both to a signed type whose width can represent both ranges. Compute `needed_bits = max(width(lhs)+1, width(rhs)+1)` and choose the smallest signed type ≥ `needed_bits` (preferring `i16`, `i32`, `i64`, `i128`). If no built-in width suffices, emit a compile-time error requesting an explicit big-int implementation or narrowing cast.
+            -   When the unsigned operand already subsumes the signed range (e.g., `u128` with `i32`), the compiler may keep the unsigned width to avoid unnecessary sign changes. Otherwise the signed rule above applies.
+        4.  **Result type:** Arithmetic expressions evaluate to the promoted type. Assigning the result to an even wider type is allowed; narrowing to a smaller type requires an explicit conversion helper.
+        5.  **Examples:**
+            ```able
+            total: i64 = 0
+            total = total + 1      ## stays i64
+
+            mix = 5_i8 + 10_u16    ## promotes to i32 (needs 17 bits)
+            wide = 1_u64 + (-1_i32) ## promotes to i65 ⇒ implemented as i128
+
+            precise = 1_000_000 + 0.5_f64  ## float wins ⇒ f64
+            ```
     *   Integer overflow (O1):
         -   Checked by default. On overflow in `+`, `-`, `*`, raises a runtime exception `OverflowError { message: "integer overflow" }`.
         -   Division and remainder by zero already raise `DivisionByZeroError`.
@@ -1080,6 +1395,8 @@ Compound assignment semantics:
 
 Behavior for non-primitive types relies on implementing standard library interfaces (e.g., `Add`, `Sub`, `Mul`, `Div`, `Rem`, `Neg` (for unary `-`), `Not` (for bitwise `~`), `BitAnd`, `BitOr`, `BitXor`, `Shl`, `Shr`, `PartialEq`, `Eq`, `PartialOrd`, `Ord`, `Index`, `IndexMut`). These interfaces need definition (See Section [14](#14-standard-library-interfaces-conceptual--tbd)). Note that logical `!` is not overloaded.
 
+> **Operator participation rule:** User code cannot define new operators or overload existing ones directly. The only way for a custom type (e.g., a struct) to participate in an operator is to implement the corresponding standard interface (`Add`, `Eq`, `Index`, etc.). If the interface is not implemented (or not in scope), the operator is unavailable for that type. This keeps the grammar fixed and makes operator behavior explicitly tied to the shared interface contracts.
+
 Operator-to-interface mapping (when operands are not primitives):
 
 - `+` → `Add`
@@ -1092,6 +1409,46 @@ Operator-to-interface mapping (when operands are not primitives):
 - `[]` (indexing) → `Index`; `[]=` (mutation) → `IndexMut`
 
 These operations are available only when a single applicable implementation is visible in scope per the import-scoped model.
+
+#### 6.3.4. Safe Navigation Operator (`?.`)
+
+`?.` short-circuits member access and method calls when the receiver is `nil`. It is primarily used to traverse optional values without repeatedly writing `match`/`if` guards.
+
+*   **Syntax:**
+    ```able
+    receiver?.field
+    receiver?.method(args...)
+    receiver?.field?.nested_field   ## chaining is allowed
+    ```
+    `receiver` may be any expression. `field`/`method` resolution follows the same rules as normal `.` access (§6.3, §7.4). Safe navigation does not currently apply to indexing; use helper methods (e.g., `arr?.get(i)`) for containers.
+*   **Evaluation order:**
+    1. Evaluate `receiver` exactly once.
+    2. If it evaluates to `nil`, the entire `?.` expression evaluates to `nil` immediately; subsequent field/method lookups and argument expressions are skipped.
+    3. If it is non-`nil`, the operator behaves like standard `.` access: resolve the member/method, then (for calls) evaluate arguments left-to-right and invoke the method.
+*   **Typing:**
+    -   Let the underlying access (if performed via plain `.`) have type `T`. Then `receiver?.member` has type `?T` (i.e., `nil | T`).
+    -   The usual union simplification rules apply (`nil | ?U` collapses to `?U`).
+    -   When chaining (`a?.b?.c`), each step adopts the `?`-wrapped result of the previous step, so the final type reflects the deepest access that actually executes.
+*   **Method calls:** `receiver?.method(args...)` returns `?R`, where `R` is the method’s return type. Arguments are evaluated only when the receiver is non-`nil`.
+*   **Side effects:** Because the receiver evaluates even when it is `nil`, any side effects in the receiver expression still occur. Side effects in arguments execute only when the receiver is non-`nil`.
+*   **Diagnostics:** Using `?.` on a value whose type statically excludes `nil` is permitted (it simply behaves like `.`), but linters may warn about redundant usage. Applying `?.` to something that cannot be treated as a member access (e.g., literals without fields) is a compile-time error.
+
+Examples:
+
+```able
+user: ?User = find_user(id)
+name = user?.profile?.display_name ?? "Guest"   ## ?? is a hypothetical coalesce helper
+
+timeout_ms = config?.network?.timeouts?.connect ?? 1_000
+
+fn maybe_length(s: ?string) -> ?u64 {
+  s?.len()
+}
+
+log(user?.session()?.token ?? "no session")
+```
+
+Each expression above returns `nil` if any receiver in the chain is `nil`; otherwise it produces the same value as the corresponding `.` access. The helpers `??`/`len()` are shown for illustration; they follow ordinary lookup rules once the safe-navigation step succeeds.
 
 ### 6.4. Function Calls
 
@@ -1260,6 +1617,7 @@ arr.slice(start: usize, end: usize) -> Array T   ## TBD copy vs view semantics
 -   Bounds: `arr[i]` and `arr[i] = v` raise `IndexError` on out-of-bounds. `get`/`pop` return `?T`.
 -   Growth: Amortized doubling
 -   Equality/Hashing: Derive from elementwise comparisons if `T: Eq/Hash` (via interfaces in Section 14).
+-   See §6.12.2 for the required standard library helper methods (size/push/pop/etc.).
 
 #### Examples
 
@@ -1445,6 +1803,68 @@ if do { log("side-effect"); void } { ok() } or { unreachable() }
 
 Note: Empty collections (e.g., `Array T` with size 0) are truthy. Only `false`, `nil`, and any value implementing `Error` are falsy.
 
+### 6.12. Standard Library API (Required)
+
+#### 6.12.1. string & Grapheme Helpers
+
+`string` is the canonical immutable UTF-8 container provided by the language. String literals evaluate to `string` directly and there is no distinct `String` wrapper type. Runtimes may still expose helper functions (e.g., `string_from_builtin`, `string_to_builtin`) to convert to/from host-native encodings, but Able programs always operate on the built-in `string` type. Each `string` owns an `Array u8` buffer; mutation happens only through builders (e.g., `StringBuilder`) that emit a new canonical value.
+
+**Required operations**
+
+| Method | Signature | Description |
+| --- | --- | --- |
+| `len_bytes()` | `fn len_bytes(self: Self) -> u64` | Delegates to `bytes().size()`; returns the number of UTF-8 bytes in the string. |
+| `len_chars()` | `fn len_chars(self: Self) -> u64` | Delegates to `chars().size()`; counts Unicode code points. |
+| `len_graphemes()` | `fn len_graphemes(self: Self) -> u64` | Delegates to `graphemes().size()`; counts user-perceived characters. |
+| `substring(start, length?)` | `fn substring(self: Self, start: u64, length: ?u64 = nil) -> !string` | `start`/`length` are expressed in code points. The runtime converts them to byte offsets and raises `RangeError` when indices are out of bounds or would split a code point. |
+| `split(delimiter)` | `fn split(self: Self, delimiter: string) -> Array string` | Splits by the delimiter (matched by code points). An empty delimiter splits into grapheme clusters. |
+| `replace(old, new)` | `fn replace(self: Self, old: string, new: string) -> string` | Returns a new `string` with all non-overlapping occurrences of `old` replaced by `new`. |
+| `starts_with(prefix)` | `fn starts_with(self: Self, prefix: string) -> bool` | Tests byte-prefix equality (`prefix.len_bytes()` must fit wholly inside the receiver). |
+| `ends_with(suffix)` | `fn ends_with(self: Self, suffix: string) -> bool` | Tests byte-suffix equality. |
+
+Implementations may surface richer helpers (`to_lower`, `to_upper`, normalization utilities, builders, etc.), but the methods above are the portable baseline expected by the v11 spec.
+
+**Iteration & views**
+
+`string` must expose explicit iterators so callers can choose the granularity they need:
+
+| Helper | Signature | Description |
+| --- | --- | --- |
+| `bytes()` | `fn bytes(self: Self) -> (Iterator u8)` | Iterates raw UTF-8 bytes from left to right without allocating (direct view over the internal `Array u8`). |
+| `chars()` | `fn chars(self: Self) -> (Iterator char)` | Yields Unicode code points. Invalid sequences raise `StringEncodingError` (implements `Error`). |
+| `graphemes()` | `fn graphemes(self: Self) -> (Iterator Grapheme)` | Yields extended grapheme clusters computed from scalar values. |
+| `Grapheme.len_bytes()` | `fn len_bytes(self: Self) -> u64` | Returns the byte width of the cluster. |
+| `Grapheme.bytes()` | `fn bytes(self: Self) -> Array u8` | Clones the underlying byte span for low-level processing. |
+| `Grapheme.as_string()` | `fn as_string(self: Self) -> string` | Materialises the grapheme as its own `string`. |
+
+The iterator types (`StringBytesIter`, `StringCharsIter`, `StringGraphemesIter`) implement `Iterator` so they compose with the rest of the collection API (`map`, `take`, etc.). Each iterator also implements `fn size(self: Self) -> u64` (returning the number of elements remaining); the `len_*` helpers are defined in terms of these `size()` calls, ensuring a single source of truth for length calculations. Grapheme segmentation adopts the Unicode rules; runtimes MAY ship simplified tables as long as they agree across interpreters.
+
+**Byte-indexing rules**
+
+- Parameters ending in `_bytes` (e.g., `len_bytes`, any future `slice_bytes` helpers) interpret offsets as UTF-8 byte indices. Callers are responsible for providing well-formed boundaries.
+- Parameters that omit the suffix (e.g., `substring`, `split`, `replace`) interpret offsets/counts as Unicode scalar values unless documented otherwise. Implementations must convert these counts to byte offsets and raise `RangeError` when a boundary would bisect a code point.
+- Grapheme-level methods (`len_graphemes`, `graphemes()`) derive their counts from the iterator and therefore reflect user-perceived characters. Regex, formatting, and diagnostics may opt into grapheme-aware semantics by explicitly using these APIs (§14.2).
+- Because the iterator `size()` implementations are authoritative, any optimization (e.g., cached byte length) must keep iterator state in sync so that `bytes().size()`, `chars().size()`, and `graphemes().size()` always report the same numbers as `len_bytes`, `len_chars`, and `len_graphemes` respectively.
+
+**Errors and builders**
+
+Invalid UTF-8 detected during decoding or iteration produces `StringEncodingError`, an `Error` with the offending byte offset. Indexing mistakes (negative offsets, out-of-bounds slices, or attempts to split a code point) raise `RangeError` (or a more specific subtype such as `StringIndexError`). Because `string` values are immutable, construction and concatenation flow through `StringBuilder`, which offers `push_char`, `push_bytes`, `push_string`, and `finish() -> Result string`.
+
+#### 6.12.2. Array Helpers
+
+`Array T` values expose the following minimum API (all methods mutate the receiver unless noted):
+
+| Method | Signature | Description |
+| --- | --- | --- |
+| `size()` | `fn size(self: Self) -> u64` | Returns the current element count. |
+| `push(value)` | `fn push(self: Self, value: T) -> void` | Appends `value`, growing the buffer as needed. |
+| `pop()` | `fn pop(self: Self) -> ?T` | Removes and returns the last element, or `nil` if empty. |
+| `get(index)` | `fn get(self: Self, index: u64) -> ?T` | Returns the element at `index` or `nil` if out of bounds. |
+| `set(index, value)` | `fn set(self: Self, index: u64, value: T) -> !nil` | Writes to `index`; returns `IndexError` (implements `Error`) when out of bounds. |
+| `clear()` | `fn clear(self: Self) -> void` | Removes all elements (capacity may be retained). |
+
+Implementations must raise `IndexError` when out-of-range `set`/`push`/`pop` operations cannot be satisfied. Arrays must continue to implement `Iterable T` so `for` loops work uniformly.
+
 ## 7. Functions
 
 This section defines the syntax and semantics for function definition, invocation, partial application, and related concepts like closures and anonymous functions in Able. Functions are first-class values.
@@ -1480,21 +1900,21 @@ fn add(a: i32, b: i32) -> i32 { a + b }
 fn identity<T>(val: T) -> T { val }
 
 ## Function with side effects and explicit void return
-fn greet(name: String) -> void {
+fn greet(name: string) -> void {
   message = `Hello, ${name}!`
   print(message) ## Assuming print returns void
   return ## Explicit return void
 }
 
 ## Function with side effects and inferred void return type
-fn log_and_nil(name: String) { ## Implicitly returns void
+fn log_and_nil(name: string) { ## Implicitly returns void
   message = `Logging: ${name}`
   print(message)
 }
 
 
 ## Multi-expression body (implicit return)
-fn process(x: i32) -> String {
+fn process(x: i32) -> string {
   y = x * 2
   z = y + 1
   `Result: ${z}` ## Last expression is the return value
@@ -1514,6 +1934,43 @@ fn process(x: i32) -> String {
 - When inference is insufficient or ambiguous, provide explicit generics: `identity<i64>(0)`.
 - It is a compile-time error to annotate parameters, locals, or fields with unbound type constructors (e.g., `Array`, `Map string _`).
 
+#### 7.1.5. Optional Generic Parameter Declarations
+
+Able infers function-level type parameters when the signature uses free type names that are not already defined in the surrounding scope. This allows concise definitions without `<T, U>` headers when the type variables are obvious from context.
+
+**Detection rules:**
+
+1.  Collect every type identifier used in the parameter list, return type, and `where` clause.
+2.  Remove identifiers that refer to known types in scope (structs, aliases, interfaces, type parameters from enclosing scopes, etc.).
+3.  Any remaining identifiers are treated as inferred generic parameters. The compiler synthesizes a `<...>` list in lexical order of first appearance and applies the same constraint rules as if the parameters had been declared explicitly.
+
+**Constraints:**
+
+- Inline constraints (`T: Display`) or `where` clauses referencing inferred parameters remain valid. The compiler hoists those constraints onto the synthesized parameter list.
+- If the body introduces a conflicting declaration for an inferred name, it is a compile-time error (“cannot redeclare inferred type parameter `T`”).
+- Ambiguity arises when a name is both a known type and appears as a would-be parameter; developers must disambiguate by explicitly declaring `<T>` (for generics) or fully qualifying the known type (e.g., `pkg.Type`).
+
+**Examples:**
+
+```able
+## Explicit generics
+fn choose_first<T, U>(first: T, second: U) -> T { first }
+
+## Equivalent implicit form
+fn choose_first(first: T, second: U) -> T { first }
+
+## Constraints still work
+fn render(item: T) -> string where T: Display { item.to_string() }
+
+## Mixed explicit + implicit: OK but redundant; prefer one style
+fn map<T>(value: T, map_fn: (T) -> U) -> Array T { [ map_fn(value) ] }
+```
+
+**Diagnostics:**
+
+- If the compiler cannot infer all type arguments at call sites, it reports “cannot infer type for parameter `<T>`” just as if `<T>` had been written explicitly.
+- If an inferred name collides with a type imported into the same scope, the spec requires the author to disambiguate via explicit `<>` syntax. Implementations should point to both declarations in the error message.
+
 ### 7.2. Anonymous Functions and Closures
 
 Functions can be created without being bound to a name at definition time. They capture their lexical environment (forming closures).
@@ -1529,7 +1986,7 @@ fn[<GenericParamList>] ([ParameterList]) [-> ReturnType] { ExpressionList }
 
 ##### Example
 ```able
-mapper = fn(x: i32) -> String { `Value: ${x}` }
+mapper = fn(x: i32) -> string { `Value: ${x}` }
 generic_fn = fn<T: Display>(item: T) -> void { print(item.to_string()) }
 ```
 
@@ -1595,7 +2052,7 @@ Identifier ( ArgumentList )
 ```
 ```able
 add(5, 3)
-identity<String>("hello") ## Explicit generic argument
+identity<string>("hello") ## Explicit generic argument
 ```
 
 #### 7.4.2. Trailing Lambda Syntax
@@ -1847,7 +2304,7 @@ if Condition1 { ExpressionList1 }
 ```able
 grade = if score >= 90 { "A" }
         or score >= 80 { "B" }
-        or { "C or lower" } ## Guarantees String result
+        or { "C or lower" } ## Guarantees string result
 ```
 
 #### 8.1.2. Pattern Matching Expression (`match`)
@@ -1983,7 +2440,27 @@ for i in 1..3 { ## Range 1..3 implements Iterable
 } ## total becomes 6 (1+2+3)
 ```
 
-#### 8.2.3. Continue Statement (`continue`)
+#### 8.2.3. Loop Expression (`loop`)
+
+`loop { ... }` executes its body indefinitely until a `break` leaves the loop. Unlike `while`/`for`, `loop` is an expression that evaluates to the value supplied by the `break` that exits it.
+
+##### Syntax
+
+```able
+loop {
+  BodyExpressionList
+}
+```
+
+##### Semantics
+
+1.  The loop body runs, then control immediately begins the next iteration. There is no implicit condition.
+2.  The only structured way to exit is `break`. A bare `break` yields `nil`; `break value` yields `value`. Labeled `break 'label` may target an enclosing `breakpoint` per §8.3.
+3.  `continue` behaves identically to other loops: it skips the rest of the body and starts the next iteration.
+4.  Because `loop` is an expression, it can appear wherever a value is expected.
+5.  Authors should ensure the body can eventually execute a `break`; otherwise the loop is intentionally infinite.
+
+#### 8.2.4. Continue Statement (`continue`)
 
 Skips the remainder of the current loop iteration and proceeds with the next iteration of the innermost enclosing `for` or `while` loop.
 
@@ -2009,7 +2486,7 @@ for n in numbers {
 }
 ```
 
-#### 8.2.4. Range Expressions
+#### 8.2.5. Range Expressions
 
 Provide a concise way to create iterable sequences of integers.
 
@@ -2104,6 +2581,30 @@ search_result = breakpoint 'finder {
   nil ## Default result if loop completes without breaking
 }
 ## search_result is -2
+```
+
+#### 8.3.5. Loop Break Result
+
+Loops evaluate to the value provided by the `break` that terminates them, which enables expression-oriented looping patterns.
+
+##### Examples
+
+```able
+first_even = loop {
+  value = stream.next()
+  if value == nil { break nil }
+  if value % 2 == 0 { break value }
+}
+
+## Retry until an operation succeeds, then return its payload
+result = loop {
+  outcome = try_fetch()
+  outcome match {
+    case { ok: payload } => break payload,
+    case { retry } => continue,
+    case { fatal: err } => break err
+  }
+}
 ```
 
 ## 9. Inherent Methods (`methods`)
@@ -2270,7 +2771,7 @@ interface InterfaceName [GenericParamList] for SelfTypePattern [where <Constrain
 
 -   **`interface`**: Keyword.
 -   **`InterfaceName`**: The identifier naming the interface (e.g., `Display`, `Mappable`).
--   **`[GenericParamList]`**: Optional space-delimited generic parameters for the interface itself (e.g., `T`, `K V`). Constraints use `Param: Bound` inline or in the `where` clause.
+-   **`[GenericParamList]`**: Optional space-delimited generic parameters for the interface itself (e.g., `T`, `K V`). Constraints use `Param: Bound` inline or in the `where` clause. Free type names inside the signature list implicitly become parameters when no list is provided.
 -   **`for`**: Keyword introducing the self type pattern (mandatory in this form).
 -   **`SelfTypePattern`**: Specifies the structure of the type(s) that can implement this interface. This defines the meaning of `Self` (see Section [10.1.3](#1013-self-keyword-interpretation)).
     *   **Concrete Type:** `TypeName [TypeArguments]` (e.g., `for Point`, `for Array i32`).
@@ -2292,7 +2793,7 @@ interface InterfaceName [GenericParamList] [where <ConstraintList>] {
 ```
 
 -   This form omits the `for SelfTypePattern` clause.
--   **`[GenericParamList]`**: Optional space-delimited generic parameters for the interface itself. Constraints use `Param: Bound` inline or in the `where` clause.
+-   **`[GenericParamList]`**: Optional space-delimited generic parameters for the interface itself. Constraints use `Param: Bound` inline or in the `where` clause. When omitted, Able infers generics from free type names inside the signature list (mirroring §7.1.5).
 -   **`[where <ConstraintList>]`**: Optional clause for specifying constraints on `GenericParamList`.
 -   **Semantics:**
     *   The `Self` type within the `FunctionSignatureList` refers directly to the concrete type that implements the interface.
@@ -2319,7 +2820,7 @@ Note on recursive `Self` constraints:
 ```able
 ## Form 1: Explicit 'for T' (Generic over implementing type)
 interface Display for T {
-  fn to_string(self: Self) -> String;
+  fn to_string(self: Self) -> string;
 }
 
 interface Clone for T {
@@ -2445,7 +2946,7 @@ impl Mappable A for Option {
 ```able
 ## Implementing Display (defined 'for T') for Point
 impl Display for Point {
-  fn to_string(self: Self) -> String { `Point({self.x}, {self.y})` } ## Self is Point
+  fn to_string(self: Self) -> string { `Point({self.x}, {self.y})` } ## Self is Point
 }
 
 ## Implementing Hashable (defined without 'for') for i32
@@ -2549,7 +3050,7 @@ fn print_any<T: Display>(item: T) {
   print(item.to_string()) ## Static dispatch within monomorphized versions of print_any
 }
 print_any(p)      ## Instantiates print_any<Point>, calls Point's to_string
-print_any("hi")   ## Instantiates print_any<string>, calls string's to_string
+print_any("hi")   ## Instantiates print_any<string>, calls string.to_string
 
 ## Dynamic dispatch example (see 10.3.4)
 displayables: Array Display = [p, "hi"]
@@ -3238,6 +3739,10 @@ methods Channel T {
 
   ## Returns true if the channel has been closed.
   fn is_closed(self: Self) -> bool
+
+  ## Async helpers used by await (§12.6). They return Awaitable arms that invoke callbacks when ready.
+  fn try_recv<R>(self: Self, cb: fn(T) -> R) -> (Awaitable R)
+  fn try_send<R>(self: Self, value: T, cb: fn(void) -> R) -> (Awaitable R)
 }
 ```
 
@@ -3267,10 +3772,9 @@ impl Iterable T for Channel T {
 }
 
 for v in ch { print(v) } ## Ends when channel is closed and drained
-```
 
-Notes:
--   Multiplexing/select can be provided via library helpers or timer channels (`os.after(d)`); dedicated `select` syntax is TBD.
+- Notes:
+-   Use the `await` expression (§12.6) when coordinating channel operations with timers, sockets, or other async primitives.
 -   Timeouts and cancellation can be modeled using auxiliary channels or higher-level APIs. Long-running tasks should periodically check for cancellation via user-defined channels or flags; there is no implicit ambient cancellation context.
 -   Implementation note: no dedicated AST nodes exist for channels or mutexes. All operations are ordinary method calls; runtimes must extend their value representations (e.g., `V10Value`) with host-backed channel/mutex variants and integrate blocking operations with the cooperative scheduler.
 
@@ -3306,6 +3810,92 @@ val = with_lock(m, fn() { compute() })
 Semantics:
 -   Non-reentrant: locking a mutex already held by the current task blocks permanently. This matches Go’s `sync.Mutex`: the waiter never acquires the lock, so programs must ensure a task releases the mutex before calling `lock()` again (for example, by structuring critical sections carefully or using `with_lock` helpers).
 -   No poisoning: if an exception occurs while the mutex is held, subsequent lockers proceed; ensuring state consistency is the user's responsibility.
+
+### 12.6. `await` Expression and the `Awaitable` Protocol
+
+The `await` expression multiplexes asynchronous operations. Any value that implements the `Awaitable` interface can participate, allowing channels, timers, sockets, futures, and user-defined async helpers to share the same orchestration surface.
+
+#### 12.6.1. Syntax
+
+```able
+await [ Awaitable1, Awaitable2, ... ]
+```
+
+-   The iterable may be an array literal or any collection of `Awaitable`s.
+-   Each element may capture a callback. When `await` commits to an element, it invokes the element’s callback and yields that callback’s return value.
+-   `Await.default(fn() -> R)` returns an always-ready arm that runs only when every other arm is pending. Only one default arm is permitted.
+
+#### 12.6.2. Evaluation Rules
+
+1.  Evaluate the iterable once, collecting the arms in source order.
+2.  For every non-default arm call `try_poll()` (see §12.6.3). If one or more arms report `Ready(payload)`, choose a winner using fairness rules and execute its callback immediately.
+3.  If none report ready:
+    - Execute the default arm immediately if present; otherwise
+    - Call `register(waker)` on every arm, park the current task, and block until any waker fires. When woken, the runtime re-checks readiness, commits to the ready arm, and cancels the others via their registration handles.
+4.  The value of the `await` expression is the result returned by the chosen arm’s callback.
+
+#### 12.6.3. `Awaitable` Interface
+
+```able
+interface Awaitable {
+  fn is_ready(self: Self) -> bool;
+  fn register(self: Self, waker: AwaitWaker) -> AwaitRegistration;
+  fn commit(self: Self) -> Any;
+}
+```
+
+-   `is_ready()` is a non-blocking probe. It must not consume the underlying resource irrevocably; if the arm needs to capture data (e.g., received channel value) it stores it internally so `commit()` can read it later.
+-   `register` attaches the arm to the runtime scheduler. Arms MUST call `waker.wake()` when they transition from pending to ready.
+-   `AwaitRegistration` is an opaque handle the runtime uses to cancel the arm if another arm wins first.
+-   `commit()` executes exactly once for the winning arm; it should invoke the user callback and return its result. Any buffered value captured during `is_ready()` is consumed here.
+
+Channels, timers, sockets, futures, and other async APIs expose concrete `Awaitable` implementations that wrap their existing blocking operations. None of the underlying semantics change; only the orchestration surface does.
+
+#### 12.6.4. Examples
+
+```able
+result = await [
+  channel1.try_recv { msg =>
+    print(`ch1: ${msg}`)
+    msg
+  },
+  channel2.try_send(packet) {
+    print("sent packet")
+    true
+  },
+  Await.sleep(2.seconds) {
+    print("timeout")
+  },
+  Await.default {
+    print("idle")
+  }
+]
+
+arms := sockets.map { sock => sock.try_recv { bytes => handle_sock(sock, bytes) } }
+arms.push(cancel.try_recv(fn(_) => "cancelled"))
+result = await arms
+```
+
+Because `await` accepts any iterable, callers can build arm lists dynamically.
+
+#### 12.6.5. Fairness & Cancellation
+
+-   **Fair selection:** When multiple arms become ready, runtimes must choose fairly so no arm is starved by source order (shuffle, rotating cursor, etc.).
+-   **Blocking:** Only the winning arm’s operation commits; others remain pending for future `await` invocations.
+-   **Cancellation:** If the enclosing `proc` is cancelled while blocked, runtimes must wake the awaiting task and propagate the same cancellation error used by other blocking primitives.
+
+### 12.7. Channel and Mutex Error Types
+
+Standardized error structs:
+
+- `ChannelClosed`: Raised by APIs that treat closure as exceptional (e.g., strict receive helpers).
+- `ChannelNil`: Raised when attempting to operate on a `nil` channel reference.
+- `ChannelSendOnClosed`: Raised immediately when sending on a closed channel (including inside `await`).
+- `ChannelTimeout`: Raised by helper APIs that implement deadlines/timeouts.
+- `MutexUnlocked`: Raised when `unlock()` is called on an unlocked mutex.
+- `MutexPoisoned`: Reserved for future poisoned-mutex semantics when a task panics while holding the lock.
+
+Implementations must convert host-language panics/exceptions into these error values before surfacing them to Able code.
 
 ## 13. Packages and Modules
 
@@ -3450,6 +4040,27 @@ Typing and dynamic imports:
   - Adapted to interface types explicitly via `dyn.as_interface(value, Interface)` to cross into statically typed APIs.
 - Using `dynimport`ed values directly in static type positions (e.g., as a parameter with a specific static type) is not permitted unless adapted as above.
 
+### 13.6. Standard Library Packaging (`able.*`)
+
+-   Able distributes a versioned standard library bundle whose manifest (`package.yml`) declares the root name `able`. The canonical layout is `<tool-root>/stdlib/v10/src`, but tooling MUST respect an override supplied via the `ABLE_STD_LIB` environment variable (OS-specific path list). Each entry points to the `src` directory that contains the stdlib package structure; interpreters deduplicate paths and use the first one that exists.
+-   `import able.*` always resolves against this bundled root. User code MAY NOT publish a package named `able` or any `able.*` descendants; the namespace is reserved for the standard library and versioned alongside the toolchain so every runtime observes the same APIs.
+-   When no override is present, the CLI discovers the stdlib relative to (1) the caller’s working directory and (2) the CLI executable path. This keeps repository checkouts and installed builds in sync without additional configuration.
+-   Tooling MUST treat the stdlib bundle as read-only. Projects that need to test local changes set `ABLE_STD_LIB=/path/to/custom/stdlib/src` (paths separated by `:` on Unix / `;` on Windows). The loader probes entries in order and falls back to the bundled version if every override is invalid.
+
+### 13.7. Module Search Paths & Environment Overrides
+
+`able run`/`able check` build a search order for package discovery before loading any modules. The combined list (duplicates removed) is constructed as follows:
+
+1.  The directory containing the entry manifest plus every ancestor discovered by walking up from the entry file until a `package.yml` is found (see §13.1–§13.4). This is the *workspace root* and is always first.
+2.  The current working directory and any explicit paths passed on the CLI (reserved for future flags) so ad-hoc scripts can import sibling files without manifests.
+3.  Entries from `ABLE_PATH` (OS path list). This predates `ABLE_MODULE_PATHS` and is kept for backward compatibility.
+4.  Entries from `ABLE_MODULE_PATHS` (also an OS path list). This is the preferred knob for injecting additional package roots—fixtures, local dependency mirrors, dynamic package sandboxes, etc. Both interpreters honor it for static imports *and* `dynimport`.
+5.  Standard library roots discovered via `ABLE_STD_LIB` and the auto-detection logic described in §13.6.
+
+Each search root is normalised to an absolute directory, verified to exist, and assigned a root package name. If a `package.yml` is present, its `name` field (after sanitising hyphen → underscore) becomes the root segment; otherwise the directory name is used. All `.able` files under the root participate in package assembly, and `package` statements inside those files may append further segments. If the same package path appears in multiple roots, the loader reports a collision rather than silently shadowing one with another.
+
+`dynimport` uses the same ordered search list. At runtime it scans each root for the requested package path, falling back to later roots when a module is absent. This makes it possible to host production packages under the workspace root while letting tests or REPL sessions inject overrides via `ABLE_MODULE_PATHS=/tmp/able-overrides`.
+
 ## 14. Standard Library Interfaces (Conceptual / TBD)
 
 Many language features rely on interfaces expected to be in the standard library. These require full definition.
@@ -3458,21 +4069,178 @@ Editorial note on built-ins vs. stdlib:
 
 - Aside from primitives (`i*`, `u*`, `f*`, `bool`, `char`, `string`, `nil`, `void`), core collection/concurrency types used in this spec (e.g., `Array T`, `Map K V`, `Channel T`, `Mutex`, `Range`) are defined in the standard library. Syntactic constructs that reference them (array literals/patterns, indexing, ranges `..`/`...`) rely on those stdlib interfaces being in scope (e.g., `Index`, `Iterable`, `Range`). Implementations MUST provide a canonical stdlib that satisfies these expectations for the syntax to be usable.
 
-*   **Iteration:**
-    *   `struct IteratorEnd;` (Singleton type signalling end of iteration).
-    *   `interface Iterator T for SelfType { fn next(self: Self) -> T | IteratorEnd; }`
-    *   `interface Iterable T for SelfType { fn iterator(self: Self) -> (Iterator T); }`
-*   **Operators:** `Add`, `Sub`, `Mul`, `Div`, `Rem`, `Neg`, `Not` (Bitwise `~`), `BitAnd`, `BitOr`, `BitXor`, `Shl`, `Shr`. Operator overloading is realized via these interfaces; concrete operator behavior is determined solely by which of these interfaces a type implements in scope.
-*   **Comparison:** `PartialEq`, `Eq`, `PartialOrd`, `Ord`.
-*   **Functions:** `Apply` (for callable values `value(args)`).
-*   **Collections Indexing:** `Index`, `IndexMut`.
-*   **Display:** `Display` (for `to_string`, used by interpolation).
-*   **Error Handling:** `Error` (base interface for errors; methods: `message(self) -> string`, `cause(self) -> ?Error`).
-*   **Concurrency:** `Proc`, `ProcError` (details of handle and error).
-*   **Cloning:** `Clone`.
-*   **Hashing:** `Hash` (for map keys etc.).
-*   **Default Values:** `Default`.
-*   **Ranges:** `Range` (type returned by `..`/`...`, implements `Iterable`).
+### 14.1. Language-Supported Interface Catalogue
+
+The following interfaces enable core syntax/semantics. A type participates in a feature by implementing the corresponding interface(s) and ensuring the implementations are in scope at the call site.
+
+#### 14.1.1. Indexing (`Index` / `IndexMut`)
+
+```able
+interface Index Key Value for Self {
+  ## Return the element at `key`, raising IndexError (or subtype) if out of range.
+  fn get(self: Self, key: Key) -> Value
+}
+
+interface IndexMut Key Value for Self {
+  ## Write `value` at `key`, raising IndexError if out of range.
+  fn set(self: Self, key: Key, value: Value) -> void
+}
+```
+
+-   `receiver[key]` desugars to `receiver.Index::get(key)`.
+-   `receiver[key] = value` desugars to `receiver.IndexMut::set(key, value)` and therefore requires both `Index` + `IndexMut`.
+-   Implementations should raise `IndexError` (or a subtype implementing `Error`) when `key` is invalid.
+
+Example:
+
+```able
+struct Foo { items: Array i64 }
+
+impl Index u64 i64 for Foo {
+  fn get(self: Self, idx: u64) -> i64 { self.items[idx] }
+}
+
+impl IndexMut u64 i64 for Foo {
+  fn set(self: Self, idx: u64, value: i64) -> void {
+    self.items[idx] = value
+  }
+}
+
+foo := Foo { items: [10, 20, 30] }
+value = foo[1]        ## -> 20
+foo[2] = 40           ## Mutates foo.items[2]
+```
+
+#### 14.1.2. Iteration (`Iterator` / `Iterable`)
+
+```able
+struct IteratorEnd;
+
+interface Iterator T for Self {
+  fn next(self: Self) -> T | IteratorEnd;
+}
+
+interface Iterable T for Self {
+  fn each(self: Self, visit: T -> void) -> void { ... }
+  fn iterator(self: Self) -> (Iterator T) { ... }
+}
+```
+
+-   `for element in collection { ... }`, `collection.each(...)`, and generator-based helpers rely on these interfaces (see “Core Iteration Protocol” below for default bodies).
+-   Implementers may override `each` or `iterator` (or both) for efficiency. At least one must be supplied; the companion default derives the other.
+
+Example—exposing a custom ring buffer as iterable:
+
+```able
+struct RingBuffer { storage: Array i64, len: u32 }
+
+impl Iterable i64 for RingBuffer {
+  fn iterator(self: Self) -> (Iterator i64) {
+    Iterator i64 { gen =>
+      i = 0
+      while i < self.len {
+        gen.yield(self.storage[i])
+        i = i + 1
+      }
+    }
+  }
+}
+```
+
+#### 14.1.3. Callable Values (`Apply`)
+
+```able
+interface Apply Args Result for Self {
+  fn apply(self: Self, args: Args) -> Result
+}
+```
+
+-   `value(args...)` lowers to `value.apply(args...)` whenever the callee is a non-function value that implements `Apply`.
+-   Implementations typically choose a tuple or struct to model `Args`. Closure literals/functions implement `Apply` implicitly; user-defined types can opt in for DSL-style callables.
+
+Example:
+
+```able
+struct Multiplier { factor: i64 }
+
+impl Apply i64 i64 for Multiplier {
+  fn apply(self: Self, input: i64) -> i64 { self.factor * input }
+}
+
+doubler := Multiplier { factor: 2 }
+result = doubler(21)   ## -> 42 via Apply::apply
+```
+
+#### 14.1.4. Arithmetic & Bitwise Operators
+
+Operators are never customized directly; user-defined types participate by implementing the standard interfaces below. Each mapping corresponds to §6.3.2/§6.3.3 and the compiler requires that exactly one applicable implementation is in scope.
+
+```able
+interface Add Rhs Result for Self { fn add(self: Self, rhs: Rhs) -> Result }
+interface Sub Rhs Result for Self { fn sub(self: Self, rhs: Rhs) -> Result }
+interface Mul Rhs Result for Self { fn mul(self: Self, rhs: Rhs) -> Result }
+interface Div Rhs Result for Self { fn div(self: Self, rhs: Rhs) -> Result }
+interface Rem Rhs Result for Self { fn rem(self: Self, rhs: Rhs) -> Result }
+
+interface Neg Result for Self { fn neg(self: Self) -> Result }
+interface Not Result for Self { fn not(self: Self) -> Result }            ## bitwise complement
+
+interface BitAnd Rhs Result for Self { fn bit_and(self: Self, rhs: Rhs) -> Result }
+interface BitOr  Rhs Result for Self { fn bit_or(self: Self, rhs: Rhs) -> Result }
+interface BitXor Rhs Result for Self { fn bit_xor(self: Self, rhs: Rhs) -> Result }
+
+interface Shl Shift Result for Self { fn shl(self: Self, amount: Shift) -> Result }
+interface Shr Shift Result for Self { fn shr(self: Self, amount: Shift) -> Result }
+```
+
+- `+` → `Add`
+- `-` (binary) → `Sub`; `-` (unary) → `Neg`
+- `*` → `Mul`
+- `/` → `Div`
+- `%` → `Rem`
+- `&` → `BitAnd`
+- `|` → `BitOr`
+- `\xor` → `BitXor`
+- `<<` → `Shl`
+- `>>` → `Shr`
+- `~` → `Not`
+
+Implementers pick whatever `Result`/`Shift` types make sense (often `Self`/`u32`), but all operands must be concrete types.
+
+#### 14.1.5. Comparison & Hashing
+
+- `==`/`!=` require `PartialEq` (or the stronger `Eq`).
+- `<`, `<=`, `>`, `>=` require `PartialOrd` (or `Ord`).
+- Hash-based containers use `Hash` together with `Eq`.
+
+```able
+interface PartialEq Rhs for Self { fn eq(self: Self, other: Rhs) -> bool }
+interface Eq for Self : PartialEq Self { fn eq(self: Self, other: Self) -> bool } ## Total equality
+
+enum Ordering = Less | Equal | Greater
+interface PartialOrd Rhs for Self { fn partial_cmp(self: Self, other: Rhs) -> Ordering }
+interface Ord for Self : PartialOrd Self { fn cmp(self: Self, other: Self) -> Ordering }
+
+interface Hash for Self {
+  fn hash(self: Self, state: Hasher) -> void ## 'Hasher' is the stdlib sink used by maps/sets
+}
+```
+
+Implementations must satisfy the usual algebraic laws (reflexivity, antisymmetry, etc.); violations result in undefined behavior for language-provided containers.
+
+#### 14.1.6. Display & Errors
+
+-   `Display` supplies `fn to_string(self: Self) -> string` (or similar) so values can appear in string interpolation and diagnostic output.
+-   `Error` defines the minimum surface for throwable/reportable errors (`fn message(self: Self) -> string`, `fn cause(self: Self) -> ?Error`). Runtime-raised exceptions must produce values implementing `Error`.
+
+#### 14.1.7. Clone, Default, Range, Concurrency
+
+-   `Clone` produces deep-ish copies where needed (e.g., copying values out of borrowed containers).
+-   `Default` provides fallback initialization (`fn default() -> Self`).
+-   `Range` constructs iterables from `..`/`...` syntax (definitions below).
+-   `Proc` / `ProcError` describe asynchronous handles (§12.2).
+
+These interfaces, along with their implementations, form the contract between the language and the standard library. Authors creating new collection or numeric types should conform to these signatures so their types slot seamlessly into existing syntax.
 
 ### Core Iteration Protocol
 
@@ -3533,6 +4301,84 @@ interface Range S E Out {
 The operators `StartExpr .. EndExpr` and `StartExpr ... EndExpr` are specified to
 produce values that implement `Iterable Out` via `Range` implementations in scope
 for the operand types.
+
+### Awaitable Interface (Async Coordination)
+
+`await` (§12.6) relies on the following runtime protocol:
+
+```able
+struct AwaitWaker { wake: fn() -> void }
+struct AwaitRegistration { cancel: fn() -> void }
+
+interface Awaitable {
+  fn is_ready(self: Self) -> bool;
+  fn register(self: Self, waker: AwaitWaker) -> AwaitRegistration;
+  fn commit(self: Self) -> Any;
+}
+```
+
+-   `Await.default(fn() -> R)` is defined as an always-ready implementation whose `try_poll` returns `Ready(())`, whose `register` is a no-op, and whose `commit` simply invokes the supplied callback.
+-   Channel helpers, timers, sockets, futures, and other async APIs MUST implement this interface so the scheduler can coordinate them uniformly.
+-   Cooperative runtimes drive the protocol directly; host runtimes (Go, TS, etc.) adapt `register`/`waker` to their native event APIs (wait queues, promises, epoll, …).
+
+### 14.2. Text Modules (`able.text.regex`)
+
+`able.text.regex` provides deterministic, RE2-style regular-expression facilities that run in time linear to the size of the pattern plus the haystack. The module sits on top of the `string`/`Grapheme` helpers from §6.12.1 and exposes a uniform API across every runtime.
+
+#### 14.2.1. Core Types
+
+-   `struct Regex { pattern: string, options: RegexOptions, program: RegexHandle }` — immutable compiled expression. `RegexHandle` is an opaque runtime-specific value; Able code never inspects it directly.
+-   `struct RegexOptions { case_insensitive: bool, multiline: bool, dot_matches_newline: bool, unicode: bool, anchored: bool, unicode_case: bool, grapheme_mode: bool }`
+    -   Defaults: `case_insensitive=false`, `multiline=false`, `dot_matches_newline=false`, `unicode=true`, `anchored=false`, `unicode_case=false`, `grapheme_mode=false`.
+    -   `grapheme_mode` toggles cluster-aware iteration; when true, quantifiers and the `.` atom advance using `string::graphemes()` rather than raw code points.
+-   `struct RegexError = InvalidPattern { message: string, span: Span } | UnsupportedFeature { message: string, hint: ?string } | CompileFailure { message: string }`
+-   `struct Span { start: u64, end: u64 }` — byte offsets into the haystack (`start` inclusive, `end` exclusive). Offsets are measured in UTF-8 bytes and never exceed `string.len_bytes()`.
+-   `struct Match { matched: string, span: Span, groups: Array Group, named_groups: Map string Group }`
+-   `struct Group { name: ?string, value: ?string, span: ?Span }` — `span=nil` when the group did not participate in the match.
+-   `struct Replacement = Literal(string) | Function(fn (match: Match) -> string)`
+-   `struct RegexIter` implements `(Iterator Match)` and yields successive matches against a haystack.
+-   `struct RegexSet` stores multiple compiled patterns and exposes aggregate matching APIs.
+-   `struct RegexScanner` represents a stateful, streaming matcher that supports chunked input (e.g., sockets/files) without re-scanning from the beginning.
+
+All structs are shareable across threads/procs; compiled programs are immutable and may be cached.
+
+#### 14.2.2. Constructors & Helpers
+
+| Helper | Signature | Description |
+| --- | --- | --- |
+| `Regex.compile` | `fn compile(pattern: string, options: RegexOptions = RegexOptions::default()) -> Result Regex RegexError` | Parses, validates, and compiles the pattern. No error is raised at runtime; invalid syntax is reported via `RegexError`. |
+| `Regex::is_match` | `fn is_match(self: Regex, haystack: string) -> bool` | Returns true if at least one match exists. |
+| `Regex::match` | `fn match(self: Regex, haystack: string) -> ?Match` | Returns the first match (if any). |
+| `Regex::find_all` | `fn find_all(self: Regex, haystack: string) -> RegexIter` | Returns an iterator over non-overlapping matches. The iterator captures a reference to the haystack to keep spans valid. |
+| `Regex::replace` | `fn replace(self: Regex, haystack: string, replacement: Replacement) -> Result string RegexError` | Applies either a literal replacement (`$1`/`\k<name>` substitutions follow the RE2 rules) or a callback that receives the current `Match`. |
+| `Regex::split` | `fn split(self: Regex, haystack: string, limit: ?u64 = nil) -> Array string` | Splits on matches, mirroring `string::split` semantics with an optional match limit. |
+| `Regex::scan` | `fn scan(self: Regex, haystack: string) -> RegexScanner` | Produces a stateful scanner when chunked processing is required. |
+| `regex_is_match` | `fn regex_is_match(pattern: string, haystack: string, options: RegexOptions = RegexOptions::default()) -> Result bool RegexError` | Convenience helper used throughout the stdlib/testing packages. |
+
+`Regex::to_program()` (implementation-defined) may expose the compiled automaton for tooling and debugging. Engines MAY additionally surface `Regex::captured_names()` and other introspection helpers provided they remain deterministic.
+
+#### 14.2.3. Execution Semantics
+
+-   Matching walks the haystack in code-point units by default. All pattern constructs—ranges, classes, `.`—interpret text as Unicode scalar values. When `grapheme_mode` is enabled, the engine segments the haystack using `string::graphemes()` before evaluating atoms and quantifiers so user-perceived characters stay intact.
+-   Every API guarantees linear time with respect to `pattern.len_chars() + haystack.len_chars()`. Backreferences and other constructs that require unbounded backtracking are rejected with `RegexError::UnsupportedFeature`.
+-   Matches borrow from the haystack. `Match.matched` and each group’s `value` are `string` instances created by slicing the original bytes; their `span` offsets always refer to the source haystack and remain valid even if the haystack is larger than the matched segment.
+-   Capture groups are numbered in declaration order; named groups populate both `groups` (by ordinal) and `named_groups` (by identifier). Groups that do not participate in the match return `value=nil`, `span=nil`.
+-   Replacement callbacks run synchronously and may `raise`; the error propagates to the caller and aborts the replace operation at the current match.
+
+#### 14.2.4. Regex Sets & Streaming
+
+-   `RegexSet.compile(patterns: Array string, options: RegexOptions = RegexOptions::default()) -> Result RegexSet RegexError` compiles every pattern into a single automaton. Matching APIs include:
+    -   `fn is_match(self: RegexSet, haystack: string) -> bool`
+    -   `fn matches(self: RegexSet, haystack: string) -> Array u64` (indices of patterns that matched)
+    -   `fn iter(self: RegexSet, haystack: string) -> (Iterator RegexSetMatch)` where `RegexSetMatch { pattern_index: u64, span: Span }`
+-   `RegexScanner` exposes `fn feed(self: RegexScanner, chunk: string) -> void` and `fn next(self: RegexScanner) -> Match | IteratorEnd`. Scanners must honour Able’s cooperative scheduling: long-running scans call `proc_yield()` between chunks when running under the interpreter.
+-   Streaming scanners and regex sets share the same deterministic guarantees as single-pattern regexes. Partial matches that span chunk boundaries buffer the necessary bytes internally until a decision can be made.
+
+#### 14.2.5. Integration Points
+
+-   The testing helpers (`able.testing.assertions.match_regex`) delegate to `regex_is_match`, so diagnostic output and failure modes flow through the regex module rather than bespoke matchers.
+-   Channel/mutex diagnostics (§12.7) and the text processing utilities consume regex spans directly; consumers should treat `Span.start`/`Span.end` as byte offsets and rely on `string::substring` or `string::graphemes()` when human-facing presentation is needed.
+-   Because regex captures rely on byte offsets, any API that displays indices alongside grapheme-oriented UIs must convert them explicitly (e.g., by counting graphemes up to `span.start`).
 
 ## 15. Program Entry Point
 
@@ -3600,7 +4446,7 @@ extern go fn now_nanos() -> i64 { return time.Now().UnixNano() }
 extern crystal fn new_uuid() -> string { UUID.random.to_s }
 
 extern typescript fn read_text(path: string) -> !string {
-  try { return readFileSync(path, "utf8") } catch (e) { throw host_error(String(e)) }
+  try { return readFileSync(path, "utf8") } catch (e) { throw host_error(string(e)) }
 }
 
 extern python fn now_secs() -> f64 { return time.time() }
@@ -3628,7 +4474,7 @@ The following table summarizes mappings. Implementations MUST enforce copy-in/co
     -   Ruby: Integer (arbitrary precision)
 -   Floats: f32/f64 → float32/float64 (Go); Float32/Float64 (Crystal); number (TS); float (Python); Float (Ruby)
 -   Bool → bool (Go); Bool (Crystal); boolean (TS); bool (Python); TrueClass/FalseClass (Ruby)
--   String → string (Go/TS); String (Crystal/Ruby/Python)
+-   string → string (Go/TS); string (Crystal/Ruby/Python)
 -   Array T → []T (Go); Array(T) (Crystal); T[] (TS); list[T] (Python); Array(T) (Ruby) — copy-in/copy-out
 -   ?T (Option) → nil/None/null for "no value" in the host; otherwise T mapping above
 -   !T (Result) →
@@ -3682,7 +4528,7 @@ TypeScript:
 ```able
 prelude typescript { import { readFileSync } from "node:fs"; }
 extern typescript fn read_text(path: string) -> !string {
-  try { return readFileSync(path, "utf8") } catch (e) { throw host_error(String(e)) }
+  try { return readFileSync(path, "utf8") } catch (e) { throw host_error(string(e)) }
 }
 ```
 
@@ -3700,7 +4546,7 @@ extern ruby fn new_uuid() -> string { SecureRandom.uuid }
 
 # Todo
 
-*   **Standard Library Implementation:** Core types (`Array`, `Map`?, `Set`?, `Range`, `Option`/`Result` details, `Proc`, `Future`), IO, String methods, Math, `Iterable`/`Iterator` protocol, Operator interfaces. Definition of standard `Error` interface.
+*   **Standard Library Implementation:** Core types (`Array`, `Map`?, `Set`?, `Range`, `Option`/`Result` details, `Proc`, `Future`), IO, string methods, Math, `Iterable`/`Iterator` protocol, Operator interfaces. Definition of standard `Error` interface.
 *   **Type System Details:** Full inference rules, Variance, Coercion (if any), HKT limitations/capabilities.
 *   **Object Safety Rules:** Which interface methods are callable from interface-typed values; any boxing/erasure rules; formal vtable capture at upcast.
 *   **Pattern Exhaustiveness:** Rules for open sets like `Error` and refutability constraints.
@@ -3715,7 +4561,3 @@ extern ruby fn new_uuid() -> string { SecureRandom.uuid }
 * Shared Data in Concurrency (12.5): Unresolved—awaiting "races and ownership patterns" note with examples.
 * HKTs/Variance/Coercion: Unresolved—awaiting minimal rules.
 * Self Interpretation (10.1.3): Unresolved—no recursive details yet.
-
-### 8.3.5. Loop Break Result
-
-Break statements without a label target the innermost loop. The loop evaluates to the break value (or `nil` if the break omits a value). When the loop completes normally, the loop expression evaluates to the last expression in the loop body (or `nil` for an empty body).
