@@ -1,6 +1,6 @@
-# Able v10 Standard Library (Draft)
+# Able v11 Standard Library (Draft)
 
-This directory houses the versioned Able v10 standard library.  The canonical
+This directory houses the versioned Able v11 standard library.  The canonical
 package name is `able`; all modules live under this namespace.
 
 The initial cut focuses on providing the foundational interfaces and data
@@ -19,7 +19,7 @@ fill in the details on a per-target basis.
 ## Layout
 
 ```
-stdlib/v10/
+stdlib/
 ├── package.yml        # Able manifest (package name `able`)
 └── src/
     ├── lib.able       # Convenience entry point
@@ -53,7 +53,7 @@ same root when additional factoring makes sense.
 
 ## Loader Integration
 
-The Go CLI now discovers `stdlib/v10/src` automatically. To point the toolchain
+The Go CLI now discovers `stdlib/src` automatically. To point the toolchain
 at an alternate location, set `ABLE_STD_LIB` to a path (or OS-specific
 path-list) that contains the standard library sources. This augments the
 existing `ABLE_PATH`/`ABLE_MODULE_PATHS` mechanism used for project-level overrides.

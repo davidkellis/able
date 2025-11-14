@@ -675,9 +675,14 @@ func collectStdlibPaths() []string {
 func findStdlibRoot(start string) string {
 	dir := start
 	for {
-		candidate := filepath.Join(dir, "stdlib", "v10", "src")
-		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
-			return candidate
+		for _, candidate := range []string{
+			filepath.Join(dir, "stdlib", "src"),
+			filepath.Join(dir, "stdlib", "v11", "src"),
+			filepath.Join(dir, "stdlib", "v10", "src"),
+		} {
+			if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+				return candidate
+			}
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {

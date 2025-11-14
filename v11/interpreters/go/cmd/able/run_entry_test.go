@@ -184,6 +184,25 @@ func TestCollectSearchPathsIncludesAbleModulePaths(t *testing.T) {
 	}
 }
 
+func TestFindStdlibRootPrefersFlattenedLayout(t *testing.T) {
+	tempDir := t.TempDir()
+	repoDir := filepath.Join(tempDir, "repo")
+	nested := filepath.Join(repoDir, "nested", "project")
+	stdlibDir := filepath.Join(repoDir, "stdlib", "src")
+
+	if err := os.MkdirAll(nested, 0o755); err != nil {
+		t.Fatalf("mkdir nested: %v", err)
+	}
+	if err := os.MkdirAll(stdlibDir, 0o755); err != nil {
+		t.Fatalf("mkdir stdlib: %v", err)
+	}
+
+	found := findStdlibRoot(nested)
+	if found != stdlibDir {
+		t.Fatalf("expected findStdlibRoot to return %q, got %q", stdlibDir, found)
+	}
+}
+
 func TestRunFileWithoutManifestMissingDependencyFails(t *testing.T) {
 	tempDir := t.TempDir()
 	projectDir := filepath.Join(tempDir, "project")

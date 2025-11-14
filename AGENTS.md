@@ -1,11 +1,11 @@
 # Able Project — Agent Onboarding
 
-This document gives contributors the context required to work across the Able v10 and v11 efforts (TypeScript + Go interpreters, spec, and tooling).
+This document gives contributors the context required to work on the Able v11 effort (TypeScript + Go interpreters, spec, and tooling). The v10 workspace is frozen for archival purposes; do **not** modify it unless a maintainer explicitly calls out a critical fix.
 
-Unconditionally read PLAN.md plus the relevant spec (`spec/full_spec_v10.md` or `spec/full_spec_v11.md`) before starting any work.
+Unconditionally read PLAN.md plus `spec/full_spec_v11.md` before starting any work. `spec/full_spec_v10.md` is reference material only.
 
 ## Mission & Principles
-- Keep the v10 spec (`spec/full_spec_v10.md`) authoritative while staging v11 changes in `spec/full_spec_v11.md`. The spec is the ultimate arbiter for every runtime feature.
+- Keep the v10 spec (`spec/full_spec_v10.md`) authoritative for historical reference while staging all new language text in `spec/full_spec_v11.md`. Treat the v11 spec as the arbiter for new runtime work.
 - Treat the AST as part of the language contract with the Go definitions as canonical. Every interpreter must share the same structure and field semantics; the spec codifies this contract.
 - Use the Go interpreter as the reference implementation while ensuring the TypeScript interpreter—and any future runtimes—match the same semantics defined in the spec.
 - Prefer incremental, well-tested changes. Mirror behavior across interpreters whenever possible.
@@ -16,29 +16,29 @@ Unconditionally read PLAN.md plus the relevant spec (`spec/full_spec_v10.md` or 
 - Defer AST mapping work until the parser produces the expected parse trees (as captured in the grammar corpus) for every feature under development; once grammar coverage is complete and stable, implement the mapping logic.
 
 ## Repository Map
-- `v10/`: Frozen Able v10 workspace (`design/`, `docs/`, `fixtures/`, `examples/`, `stdlib/`, `parser/`, `interpreters/{ts,go}/`, `run_all_tests.sh`, etc.).
-- `v11/`: Active Able v11 workspace with the same structure (`interpreters/{ts,go}/`, `parser/`, `fixtures/`, `stdlib/`, `design/`, `docs/`).
+- `v10/`: Frozen Able v10 workspace kept for historical context. Do not edit unless a maintainer assigns a blocking hotfix.
+- `v11/`: Active Able v11 workspace with the same structure (`interpreters/{ts,go}/`, `parser/`, `fixtures/`, `stdlib/`, `design/`, `docs/`). All day-to-day work happens here.
 - `spec/`: Language specs (v1–v11) and topic supplements.
 - `interpreter6/`, `old/*`: Historical artifacts; do not modify.
 
 ## Getting Started
-1. Read `spec/full_spec_v11.md` (and skim `spec/full_spec_v10.md` for historical context) plus the versioned README under `v11/` or `v10/`.
-2. Review `PLAN.md` for roadmap updates; version-specific notes live under `v10/` and `v11/`.
+1. Read `spec/full_spec_v11.md` (skim `spec/full_spec_v10.md` only for historical context) plus the versioned README under `v11/`.
+2. Review `PLAN.md` for roadmap updates. The v10 sub-plan is archival; only update the root PLAN when progressing v11 work.
 3. Set up tooling:
-   - **Go**: Go ≥ 1.22. Run `go test ./...` inside `v10/interpreter10-go` or `v11/interpreters/go` depending on the target version.
-   - **TypeScript**: Bun ≥ 1.2. Run `bun install && bun test` inside `v10/interpreter10` or `v11/interpreters/ts`.
+   - **Go**: Go ≥ 1.22. Run `go test ./...` inside `v11/interpreters/go`.
+   - **TypeScript**: Bun ≥ 1.2. Run `bun install && bun test` inside `v11/interpreters/ts`.
 4. Before changing the AST, confirm alignment implications for every interpreter and the future parser.
-5. Use `./run_all_tests.sh --version=<v10|v11>` to run the appropriate TypeScript + Go suites together before handing work off.
+5. Use `./run_all_tests.sh --version=v11` to run the TypeScript + Go suites together before handing work off. Only run the v10 variant if a maintainer explicitly requests verification of a historical regression.
 
 ## Collaboration Guidelines
 - Update relevant PLAN files when you start/finish roadmap items. The current typechecker roadmap lives in `design/typechecker-plan.md`.
 - Keep `spec/todo.md` current when implementation work exposes gaps that need spec wording updates.
-- Treat the shared AST contract as canonical: when introducing new node structures or runtime semantics, implement them in both interpreters and update fixtures so every runtime interprets them identically.
-- When adding Go features, port or mirror the corresponding TypeScript tests (or vice versa) to keep coverage consistent.
-- When adding or modifying fixtures, update the versioned workspace (`v10/fixtures` or `v11/fixtures`), run the exporter + TS harness (`bun run scripts/export-fixtures.ts`), and confirm the Go parity test (`go test ./pkg/interpreter`) still passes.
+- Treat the shared AST contract as canonical: when introducing new node structures or runtime semantics, implement them in both v11 interpreters and update fixtures so every runtime interprets them identically.
+- When adding Go features, port or mirror the corresponding TypeScript tests (or vice versa) within `v11/interpreters`.
+- When adding or modifying fixtures, update `v11/fixtures`, run the exporter + TS harness (`bun run scripts/export-fixtures.ts`), and confirm the Go parity test (`go test ./pkg/interpreter`) still passes.
 - Fixture manifests can include an optional `setup` array when multi-module scenarios are required (e.g., dyn-import packages); both harnesses evaluate those modules before the entry `module.json`.
 - Use concise, high-signal comments in code. Avoid speculative abstractions; match the TS design unless we have a strong reason to diverge.
-- Update the spec (`spec/full_spec_v10.md`) once behaviour becomes canonical; check off items in `spec/todo.md`.
+- Update the spec (`spec/full_spec_v11.md`) as behaviour becomes canonical; log gaps in `spec/TODO_v11.md`. v10 spec edits should only happen for emergency errata.
 - At the end of every session: document progress, current state, and next steps; update PLAN/todo/docs accordingly; capture lessons/process adjustments in design notes so the next contributor can resume seamlessly.
 - Mark off and remove completed items from the PLAN file once they are complete.
 - Remember to keep files under one thousand lines and to refactor them if they are going to exceed one thousand lines.

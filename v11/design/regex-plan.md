@@ -2,7 +2,7 @@
 
 ## Background
 - `match_regex` in `able.testing.assertions` is a placeholder that delegates to string equality.
-- Section 5.5 of `design/stdlib-v10.md` outlines a long-term vision: an RE2-grade engine with deterministic performance and layered APIs (`Regex`, `RegexSet`, automata export, builders, streaming).
+- Section 5.5 of `design/stdlib-v11.md` outlines a long-term vision: an RE2-grade engine with deterministic performance and layered APIs (`Regex`, `RegexSet`, automata export, builders, streaming).
 - No runtime support or parser exists today; the interpreters expose no regex primitives.
 
 ## Goals
@@ -29,11 +29,11 @@
 ## Module Layout
 - New package namespace: `able.text.regex`.
 - Source layout:
-  - `stdlib/v10/src/text/regex.able` — user-facing API and helper types.
-  - `stdlib/v10/src/text/automata.able` / `automata_dsl.able` — reusable automata primitives + DSL leveraged by the regex engine.
-  - `stdlib/v10/src/text/regex_builder.able` — programmatic construction utilities (phase 3).
-  - `stdlib/v10/src/text/regex_set.able` — multi-pattern support (phase 2).
-  - `stdlib/v10/src/text/regex_scanner.able` — streaming interfaces (phase 2).
+  - `stdlib/src/text/regex.able` — user-facing API and helper types.
+  - `stdlib/src/text/automata.able` / `automata_dsl.able` — reusable automata primitives + DSL leveraged by the regex engine.
+  - `stdlib/src/text/regex_builder.able` — programmatic construction utilities (phase 3).
+  - `stdlib/src/text/regex_set.able` — multi-pattern support (phase 2).
+  - `stdlib/src/text/regex_scanner.able` — streaming interfaces (phase 2).
 - Runtime-facing shims live under `able.core.host.regex` (one file per target) to keep host dependencies explicit.
 
 ## Public API Surface

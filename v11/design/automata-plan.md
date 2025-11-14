@@ -50,8 +50,8 @@ expect(nfa.matches(String::from_builtin("a").unwrap())).to(be_truthy())
 - Replacement/split helpers will later depend on the DFA once regex parsing exists.
 
 ## Roadmap
-1. Land `stdlib/v10/src/text/automata.able` with NFABuilder, NFA, DFA, and execution helpers (done).
-2. Ship `stdlib/v10/src/text/automata_dsl.able` offering the compositional DSL + helpers to convert to NFAs/DFAs (done).
+1. Land `stdlib/src/text/automata.able` with NFABuilder, NFA, DFA, and execution helpers (done).
+2. Ship `stdlib/src/text/automata_dsl.able` offering the compositional DSL + helpers to convert to NFAs/DFAs (done).
 3. Add basic unit tests covering literal matches, `*`/`+` quantifier equivalents, determinisation correctness, and DSL ergonomics (done).
 4. Extend symbol support (character classes, predicates) once the regex parser is online.
 5. Optimise state-set handling (maps, caching) if performance becomes a concern after regex integration.

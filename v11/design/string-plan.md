@@ -8,7 +8,7 @@
 - Document the plan so downstream work (regex, formatting, IO, diagnostics) can rely on these contracts.
 
 ## Current Status (2025-02)
-- `stdlib/v10/src/text/string.able` defines `String`, `Grapheme`, `StringBuilder`, `StringChars`, and grapheme iterators with basic UTF-8 decoding plus `split`, `concat`, and `join`.
+- `stdlib/src/text/string.able` defines `String`, `Grapheme`, `StringBuilder`, `StringChars`, and grapheme iterators with basic UTF-8 decoding plus `split`, `concat`, and `join`.
 - `StringBuilder` can push chars/bytes/Strings and emit a validated `String`, but it lacks `reserve`, `into_string`, or formatting helpers.
 - Grapheme iteration currently advances one Unicode scalar at a time; full extended grapheme-cluster detection is deferred until Unicode tables land.
 - Missing API surface:
@@ -93,7 +93,7 @@
 - Both runtimes must expose shared tests verifying that host + Able implementations agree on tricky Unicode samples (combining marks, emoji, RTL, etc.).
 
 ## Testing & Fixtures
-- Extend `stdlib/v10/tests/text/` with new suites:
+- Extend `stdlib/tests/text/` with new suites:
   - `string_lengths.test.able` for `len_chars`/`len_graphemes`.
   - `string_slice.test.able` for `slice_*`, views, and prefix helpers.
   - `string_case.test.able` covering ASCII + Unicode case conversions.

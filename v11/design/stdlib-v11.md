@@ -1,12 +1,12 @@
-# Able v10 Standard Library Plan
+# Able v11 Standard Library Plan
 
 Last updated: 2025-11-01
 
-This document consolidates the earlier “stdlib notes” and “stdlib vision” drafts into a single plan that stays aligned with `spec/full_spec_v10.md`. The specification remains authoritative; everything below either satisfies an explicit spec requirement or is flagged as future work that must never contradict the spec.
+This document consolidates the earlier “stdlib notes” and “stdlib vision” drafts into a single plan that stays aligned with `spec/full_spec_v11.md`. The specification remains authoritative; everything below either satisfies an explicit spec requirement or is flagged as future work that must never contradict the spec.
 
 ## 1. Purpose & Scope
 
-- Define the canonical Able v10 standard library packaged under `stdlib/v10/`.
+- Define the canonical Able v11 standard library packaged under `stdlib/`.
 - Capture a cohesive vision that aligns with the language specification and ongoing interpreter work.
 - Provide a target inventory of packages, protocols, and core data types that every runtime must support.
 - Ensure spec-described syntax (`[]`, `..`, `proc`, etc.) has a concrete stdlib implementation.
@@ -17,7 +17,7 @@ This document consolidates the earlier “stdlib notes” and “stdlib vision�
 ### 1.1 Guiding Principles
 
 **Spec Alignment**
-- Treat `spec/full_spec_v10.md` as authoritative; stdlib features must extend, not contradict, the spec.
+- Treat `spec/full_spec_v11.md` as authoritative; stdlib features must extend, not contradict, the spec.
 - Respect the AST contract — stdlib types must be representable without host-specific leakage.
 - Keep observable behaviour identical across the Go and TypeScript interpreters.
 
@@ -35,7 +35,7 @@ This document consolidates the earlier “stdlib notes” and “stdlib vision�
 - Collections and protocols must cooperate with Able’s cooperative scheduler and Go’s goroutines.
 - Respect cancellation semantics for iterators and async constructs (e.g., `Sequence#each_proc` must yield).
 
-## 2. Alignment With the v10 Specification
+## 2. Alignment With the v11 Specification
 
 | Spec section | Requirement | Stdlib obligation |
 | --- | --- | --- |
@@ -168,7 +168,7 @@ Notes:
 Builders expose `Vector.builder()`, `Set.builder()`, etc., returning dedicated accumulators that mirror the persistent layout (RRB nodes, HAMT bitmaps). They accumulate changes structurally, then flush directly to the persistent representation—similar to Scala’s `VectorBuilder` or Clojure’s transient workflow—without detouring through generic mutable collections.
 
 **Vector implementation notes (landed)**
-The v10 `Vector T` now follows the Scala/Clojure model: a persistent 32-ary tree with a dedicated tail chunk. The root stores fixed-size nodes (`32` slots, `5` bits per level) and the most recent elements live inside the tail until it fills, at which point the chunk is promoted into the tree. `push`/`pop` therefore run in amortised `O(1)` time, while `get`/`set` touch at most one node per depth (`O(log₃₂ n)`). Structural sharing is preserved by cloning only the nodes along the updated path, so historical vectors remain valid without copying. Iteration walks the logical index range and yields values in order.
+The v11 `Vector T` now follows the Scala/Clojure model: a persistent 32-ary tree with a dedicated tail chunk. The root stores fixed-size nodes (`32` slots, `5` bits per level) and the most recent elements live inside the tail until it fills, at which point the chunk is promoted into the tree. `push`/`pop` therefore run in amortised `O(1)` time, while `get`/`set` touch at most one node per depth (`O(log₃₂ n)`). Structural sharing is preserved by cloning only the nodes along the updated path, so historical vectors remain valid without copying. Iteration walks the logical index range and yields values in order.
 
 **List implementation notes (landed)**
 `List T` is a classic persistent cons list (singly linked nodes with `{ value, next }`). `prepend/cons` and `head/tail` all run in `O(1)` time, matching the ergonomics from Scala’s `List` and Clojure’s `list`. Concatenation clones just the left spine and shares the right-hand list, and helpers such as `nth`, `reverse`, and `to_array` provide the expected `O(n)` traversals when required.
@@ -229,7 +229,7 @@ By convention `import able.collections.Map` resolves to the mutable `HashMap K V
 
 #### 5.1.7 Allocation-Free Transformation Strategies (Exploratory)
 
-**Option A — Iterator Fusion (Chain Collapsing)** *(Preferred for v10)*
+**Option A — Iterator Fusion (Chain Collapsing)** *(Preferred for v11)*
 Fuse successive iterator adapters into a single iterator object during pipeline construction. Requires combinator methods returning specialised fused iterators and potentially a `FusableIterator` marker. Pros: minimal conceptual overhead, works for mutable and persistent collections. Cons: still allocates fused iterator objects; cloning pipelines for multiple consumers may duplicate work.
 
 **Option B — Stateful Builders (Reusable Accumulators)**
@@ -244,7 +244,7 @@ result := builder.finish()
 
 Interfaces: `CollectionBuilder T C`, collection-level `each_builder`, iterator `into_builder`. Works well for persistent collections; must honour cancellation.
 
-**Option C — Clojure-style Transducers (Push-based, Destination-Agnostic)** *(Prototype after v10 launch)*
+**Option C — Clojure-style Transducers (Push-based, Destination-Agnostic)** *(Prototype after v11 launch)*
 
 ```able
 module Transducer In Out
