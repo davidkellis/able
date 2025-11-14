@@ -10,7 +10,7 @@ Owners: Able v10 interpreter team
 
 ## Design Shape
 1. **Stdlib API**
-   - Define `struct Channel<T>` / `struct Mutex` in Able source under `stdlib/v10/concurrency`.
+   - Define `struct Channel<T>` / `struct Mutex` in Able source under `stdlib/concurrency`.
    - Public API mirrors Crystal:
      - `Channel.new(capacity = 0)`, `send`, `recv`, `close`, `receive?`, etc.
      - `Mutex.new`, `lock`, `unlock`, `with_lock`.

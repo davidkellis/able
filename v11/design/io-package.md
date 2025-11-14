@@ -114,7 +114,7 @@ These ensure consistent path behaviour across runtimes.
 
 ## Implementation Plan
 
-1. **Define Interfaces**: Add `.able` module definitions under `stdlib/v10/src/io/fs.able` and `io/path.able` with extern stubs.
+1. **Define Interfaces**: Add `.able` module definitions under `stdlib/src/io/fs.able` and `io/path.able` with extern stubs.
 2. **Runtime Binding**: Implement TypeScript and Go externs for file operations; keep behaviour consistent (e.g., text encoding defaults).
 3. **Error Types**: Introduce `able.io.errors` with the structs listed above.
 4. **Tests**: Create stdlib tests using temporary directories to verify read/write/list semantics in both runtimes.

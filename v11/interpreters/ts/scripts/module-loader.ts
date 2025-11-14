@@ -141,16 +141,23 @@ export class ModuleLoader {
     }
     const used = new Set<string>([path.resolve(primaryRoot)]);
     for (const searchPath of this.searchPaths) {
-      if (used.has(path.resolve(searchPath))) {
+      const resolvedSearchPath = path.resolve(searchPath);
+      if (used.has(resolvedSearchPath)) {
         continue;
       }
-      const { abs, rootName } = await discoverRootForPath(searchPath);
-      const clean = path.resolve(abs);
+      let rootInfo: { abs: string; rootName: string };
+      try {
+        rootInfo = await discoverRootForPath(resolvedSearchPath);
+      } catch (error) {
+        warnInvalidSearchPath(resolvedSearchPath, error);
+        continue;
+      }
+      const clean = path.resolve(rootInfo.abs);
       if (used.has(clean)) {
         continue;
       }
       used.add(clean);
-      const { packages } = await indexSourceFiles(abs, rootName);
+      const { packages } = await indexSourceFiles(rootInfo.abs, rootInfo.rootName);
       for (const [name, loc] of packages.entries()) {
         if (loc.files.length === 0) continue;
         if (pkgIndex.has(name)) continue;
@@ -255,4 +262,10 @@ function importKey(imp: ImportStatement): string {
     parts.push(selectorParts);
   }
   return parts.join("|");
+}
+
+function warnInvalidSearchPath(searchPath: string, error: unknown): void {
+  const reason =
+    error instanceof Error ? error.message : typeof error === "string" ? error : String(error);
+  console.warn(`loader: skipping search path ${searchPath}: ${reason}`);
 }

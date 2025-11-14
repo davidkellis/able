@@ -4042,7 +4042,7 @@ Typing and dynamic imports:
 
 ### 13.6. Standard Library Packaging (`able.*`)
 
--   Able distributes a versioned standard library bundle whose manifest (`package.yml`) declares the root name `able`. The canonical layout is `<tool-root>/stdlib/v10/src`, but tooling MUST respect an override supplied via the `ABLE_STD_LIB` environment variable (OS-specific path list). Each entry points to the `src` directory that contains the stdlib package structure; interpreters deduplicate paths and use the first one that exists.
+-   Able distributes a versioned standard library bundle whose manifest (`package.yml`) declares the root name `able`. The canonical layout is `<tool-root>/stdlib/src`, but tooling MUST respect an override supplied via the `ABLE_STD_LIB` environment variable (OS-specific path list). Each entry points to the `src` directory that contains the stdlib package structure; interpreters deduplicate paths and use the first one that exists.
 -   `import able.*` always resolves against this bundled root. User code MAY NOT publish a package named `able` or any `able.*` descendants; the namespace is reserved for the standard library and versioned alongside the toolchain so every runtime observes the same APIs.
 -   When no override is present, the CLI discovers the stdlib relative to (1) the caller’s working directory and (2) the CLI executable path. This keeps repository checkouts and installed builds in sync without additional configuration.
 -   Tooling MUST treat the stdlib bundle as read-only. Projects that need to test local changes set `ABLE_STD_LIB=/path/to/custom/stdlib/src` (paths separated by `:` on Unix / `;` on Windows). The loader probes entries in order and falls back to the bundled version if every override is invalid.

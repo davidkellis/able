@@ -114,6 +114,107 @@ fn main() -> void {
     }
   });
 
+  test("run command loads packages discovered via ABLE_PATH alias", () => {
+    const depDir = mkdtempSync(path.join(os.tmpdir(), "able-cli-alias-"));
+    try {
+      writeFixtureFile(depDir, "package.yml", "name: alias_pkg\n");
+      writeFixtureFile(
+        depDir,
+        "helpers/greetings.able",
+        `
+fn greeting() -> string {
+  "Hello from alias dependency"
+}
+`,
+      );
+
+      const result = runCli("run", {
+        manifestName: "cli_root_alias",
+        files: {
+          "main.able": `
+package cli_root_alias
+
+import alias_pkg.helpers.{greeting}
+
+fn main() -> void {
+  print(greeting())
+}
+`,
+        },
+        env: {
+          ABLE_PATH: depDir,
+        },
+      });
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("Hello from alias dependency");
+      expect(result.stderr).toBe("");
+    } finally {
+      rmSync(depDir, { recursive: true, force: true });
+    }
+  });
+
+  test("run command respects ABLE_STD_LIB override order", () => {
+    const stdlibRoot = mkdtempSync(path.join(os.tmpdir(), "able-cli-stdlib-"));
+    try {
+      writeFixtureFile(stdlibRoot, "package.yml", "name: able\n");
+      writeFixtureFile(
+        stdlibRoot,
+        "src/custom.able",
+        `
+package custom
+
+fn greeting() -> string { "Hello from custom stdlib" }
+`,
+      );
+
+      const result = runCli("run", {
+        manifestName: "cli_root_stdlib",
+        files: {
+          "main.able": `
+package cli_root_stdlib
+
+import able.custom.{greeting}
+
+fn main() -> void {
+  print(greeting())
+}
+`,
+        },
+        env: {
+          ABLE_STD_LIB: path.join(stdlibRoot, "src"),
+        },
+      });
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("Hello from custom stdlib");
+      expect(result.stderr).toBe("");
+    } finally {
+      rmSync(stdlibRoot, { recursive: true, force: true });
+    }
+  });
+
+  test("run command skips missing search paths with a warning", () => {
+    const missingPath = path.join(os.tmpdir(), `able-missing-${Date.now()}`);
+    const result = runCli("run", {
+      files: {
+        "main.able": `
+package cli_warning
+
+fn main() -> void {
+  print("still works")
+}
+`,
+      },
+      env: {
+        ABLE_MODULE_PATHS: missingPath,
+      },
+    });
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("still works");
+    expect(result.stderr).toContain("skipping search path");
+  });
+
   test("run command reports diagnostics for missing import selectors", () => {
     const result = runCli("run", {
       manifestName: "cli_diag",

@@ -1,19 +1,20 @@
-# Able Project Roadmap (v10 → v11 transition)
+# Able Project Roadmap (v11 focus)
 
 ## Scope
-- Maintain a canonical Able v10 language definition across interpreters/tooling **while** seeding the v11 fork so spec + runtime changes have a stable landing zone.
+- Keep the frozen Able v10 toolchain available for historical reference while driving all new language, spec, and runtime work in v11.
 - Keep the Go interpreter as the behavioural reference and ensure the TypeScript runtime + future ports match feature-for-feature (the concurrency implementation strategy may differ).
-- Preserve a single AST contract for every runtime so tree-sitter output can target both v10 and v11 branches; document any deltas immediately in the v11 spec.
+- Preserve a single AST contract for every runtime so tree-sitter output can target both the historical v10 branch and the actively developed v11 runtime; document any deltas immediately in the v11 spec.
 - Capture process/roadmap decisions in docs so follow-on agents can resume quickly, and keep every source file under 1000 lines by refactoring proactively.
 
 ## Existing Assets
-- `spec/full_spec_v10.md`: authoritative semantics, mirrored into `spec/full_spec_v11.md` as the base for upcoming edits.
-- `v10/interpreters/ts/`: Bun-based TypeScript interpreter + AST definition (`src/ast.ts`) and extensive tests for the frozen v10 workspace.
-- `v10/interpreters/go/`: Go interpreter and canonical Able v10 runtime. Go-specific design docs live under `v10/design/` (see `go-concurrency.md`, `typechecker.md`).
+- `spec/full_spec_v10.md`: authoritative semantics for the archived toolchain. Keep it untouched unless a maintainer requests an errata fix.
+- `spec/full_spec_v11.md`: active specification for all current work; every behavioural change must be described here.
+- `v10/interpreters/{ts,go}/`: Frozen interpreters that match the v10 spec. Treat them as read-only unless a blocking support request lands.
+- `v11/interpreters/{ts,go}/`, `v11/parser`, `v11/fixtures`, `v11/stdlib`: active development surface for Able v11.
 - Legacy work: `interpreter6/`, assorted design notes in `design/`, early stdlib sketches. Do not do any work in these directories.
 
 ## Ongoing Workstreams
-- **Spec maintenance**: keep `spec/full_spec_v10.md` authoritative while staging v11 edits in `spec/full_spec_v11.md`; log discrepancies in `spec/todo.md` and `spec/TODO_v11.md`.
+- **Spec maintenance**: stage and land all wording in `spec/full_spec_v11.md`; log discrepancies in `spec/TODO_v11.md`. Reference the v10 spec only when clarifying historical behaviour.
 - **Standard library**: coordinate with `stdlib/` efforts; ensure interpreters expose required builtin functions/types; track string/regex bring-up via `design/regex-plan.md` and the new spec TODOs covering byte-based strings with char/grapheme iterators.
 - **Developer experience**: cohesive documentation, examples, CI improvements (Bun + Go test jobs).
 - **Future interpreters**: keep AST schema + conformance harness generic to support planned Crystal implementation.
@@ -25,21 +26,71 @@
 - Keep this `PLAN.md` file up to date with current progress and immediate next actions, but move completed items to `LOG.md`.
 
 ## Guardrails (must stay true)
-- `v10/interpreter10/scripts/run-parity.ts` (and its v11 counterpart) remain the authoritative entry points for fixtures/examples parity; `./run_all_tests.sh --version=<v10|v11>` must stay green (TS + Go unit tests, fixture suites, parity CLI).
-- `v10/interpreter10/testdata/examples/` remains curated; add programs only when parser/runtime support is complete (see the corresponding `design/parity-examples-plan.md` for the active roster).
+- `v11/interpreters/ts/scripts/run-parity.ts` remains the authoritative entry point for fixtures/examples parity; `./run_all_tests.sh --version=v11` must stay green (TS + Go unit tests, fixture suites, parity CLI). Run the v10 suite only when explicitly asked to investigate archival regressions.
+- `v11/interpreters/ts/testdata/examples/` remains curated; add programs only when parser/runtime support is complete (see the corresponding `design/parity-examples-plan.md` for the active roster).
 - Diagnostics parity is mandatory: both interpreters emit identical runtime + typechecker output for every fixture when `ABLE_TYPECHECK_FIXTURES` is `warn|strict`. (✅ CLI now enforces diagnostics comparison; ✅ Go typechecker infers implicit `self`/iterator helpers so warn/strict runs match.)
 - The JSON parity report (`tmp/parity-report.json`) must be archived in CI via `ABLE_PARITY_REPORT_DEST`/`CI_ARTIFACTS_DIR` to keep regression triage fast.
 - Track upcoming language work (awaitable orchestration, advanced dynimport scenarios, interface dispatch additions) so fixtures/examples land immediately once syntax/runtime support exists.
 
 ## TODO (as items are completed, move them to LOG.md)
 
-1. **Expand the v11 specification**
-   - Use `spec/TODO_v11.md` as the checklist for spec work (mutable `=`, map literals, struct updates, type aliases, safe navigation, typed declarations, literal widening, optional generic params, await/async coordination, stdlib error reporting, `loop` keyword, Array/String APIs, stdlib packaging, regex/text docs).
-   - Draft wording + examples in `spec/full_spec_v11.md`, referencing new fixtures/examples as they land.
-   - Update `LOG.md`/`spec/todo.md` whenever a TODO graduates into the formal text.
-   - ✅ Mutable `=` semantics captured in §5.3.1, map literal syntax/semantics documented in §6.1.9, struct functional update rules expanded in §4.5.2, type alias coverage added in §4.7, safe navigation documented in §6.3.4, typed `=` declarations captured in §5.1–§5.1.1, literal widening/contextual typing documented in §6.1.1/§6.3.2, optional generic parameter inference documented in §7.1.5/§4.5/§10.1, the `await` + error surface defined in §12.6–§12.7, `loop`/Array/String runtime APIs documented in §8.2.3/§6.8/§6.1.5, stdlib packaging & search-path rules captured in §13.6–§13.7, and the regex/text modules plus string/grapheme iterators documented in §14.2/§6.12.1. Keep `spec/TODO_v11.md` current as new language work is scheduled.
+### v11 Spec Delta Implementation Plan
 
-2. **Implement v11 runtime features**
-   - Apply the spec updates to the TypeScript interpreter first, mirror in Go, and keep `fixtures/ast` green via `bun run scripts/run-fixtures.ts` + `go test ./pkg/interpreter`.
-   - Extend the parser/AST to cover the new grammar (`loop {}`, triple-quoted strings, textual `and`/`or`, map literals, safe member access) and regenerate fixtures.
-   - Expand stdlib + runtime helpers (Array/String APIs, module resolution for `able.*`, regex/text helpers) and validate via the examples, RosettaCode, and LeetCode programs.
+1. **Type alias declarations (§4.7)**
+   - **AST contract:** add alias declaration nodes (with space-delimited generics + `where` clauses) to the canonical schema and both interpreter AST definitions; encode alias expansion metadata for tooling.
+   - **Semantics:** update the type checker + symbol tables so aliases expand transparently (capture-avoiding substitution, recursion detection, visibility/export rules, aliasing with `methods`/`impl` headers).
+   - **Parser & AST mapping:** accept `type Identifier [Generics] [where ...] = TypeExpression` syntax, track import/export, and emit deterministic AST order.
+   - **Tests:** add fixtures exercising plain and generic aliases, alias chaining, recursion failures, and alias usage across module boundaries; keep `fixtures/ast`, `bun run scripts/run-fixtures.ts`, and `go test ./pkg/interpreter` green after introducing the new node.
+
+2. **Typed declarations & literal adoption rules (§§5.1.1, 5.3.1, 6.1)**
+   - **Binding semantics:** ensure AST nodes can carry type annotations for both `:=` and `=` (including nested destructuring) and mark operators so the checker enforces “`:=` introduces at least one binding” while `=` falls back to declaration when no binding exists.
+   - **Runtime enforcement:** TypeScript + Go interpreters need typed-pattern runtime checks (`"Typed pattern mismatch"`), `=` fallback declaration semantics, and deterministic evaluation order (RHS first, single evaluation for receivers/indexers).
+   - **Type inference:** update literal typing so unsuffixed ints default to `i32`, floats to `f64`, honor explicit suffixes, and adopt contextual types only when values fit; surface the new diagnostics in both runtimes’ typecheckers.
+   - **Parser/tests:** extend parser + PT→AST mapping to capture annotations on assignments, broaden fixture coverage for typed destructuring and literal adoption edge cases, and rerun `bun run scripts/run-fixtures.ts`/`go test`.
+
+3. **Literal + collection forms (§6.1.7–6.1.9)**  
+   - **AST:** add a dedicated map literal node with keyed entries + spread entries (`...expr`), keep array/struct literal nodes annotated with evaluation order details for later optimizations, and encode struct functional-update spreads (`Struct { ...source, field: override }`) so both interpreters can enforce the §4.5.2 semantics.  
+   - **Evaluators:** TypeScript + Go runtimes must allocate fresh `Map` instances for `#{}` forms, iterate entries left-to-right, apply spreads, enforce key/value type compatibility, and handle duplicate overwrite rules.
+   - **Parser & mapping:** add grammar support for `#{}` bodies and spread clauses, keep comma handling + multiline layout consistent with struct literals.
+   - **Tests:** author fixtures validating spreads, duplicate overwrites, empty literal contextual typing, and ensure both interpreters + `fixtures/ast` reflect the new syntax.
+
+4. **Safe navigation operator (`?.`, §6.3.4)**
+   - **AST:** introduce a safe-member node (field + call forms, nested chaining) that records the original member access for tooling.
+   - **Runtime semantics:** implement nil-short-circuiting + `?T` result typing in both interpreters, skipping argument evaluation when receivers are nil and ensuring method lookups mirror normal dot access.
+   - **Parser/mapping:** integrate `?.` into operator precedence/associativity tables and extend parse-tree-to-AST lowering for chained forms.
+   - **Tests:** add fixtures covering chained optional access, redundant usage warnings, and parity across TS/Go; re-export updated AST fixtures.
+
+5. **Optional generic parameter inference (§7.1.5)**
+   - **Type checker:** detect free type names in function signatures, synthesize implicit `<T>` lists, hoist constraints, and block redeclaration conflicts; diagnostics should mention inferred names vs. explicit ones.
+   - **AST:** extend function nodes to capture inferred generics (so later phases know whether a parameter list was explicit).
+   - **Parser & mapping:** ensure signatures without `<...>` still emit the information required by the type checker and avoid regressing explicit generic support.
+   - **Tests:** add fixtures spanning implicit generics, ambiguity errors, and import interactions; keep both interpreters’ inference behaviour aligned.
+
+6. **Loop/range constructs & continue semantics (§§8.2–8.3)**
+   - **AST:** add `loop` expression nodes, `continue` statements, range operator nodes for `..`/`...`, and metadata on loop break payload types.
+   - **Runtime:** implement expression-valued `loop {}` plus `while`/`for` break payload propagation, enforce unlabeled `continue` rules (runtime error for labeled continue), and ensure range literals materialize iterables via the stdlib `Range` interface.
+   - **Parser/mapping:** recognize the new keywords/tokens, wire precedence so `..`/`...` bind tighter than assignment but looser than arithmetic, and emit AST nodes consumed by both interpreters.
+   - **Tests:** expand fixtures for loops returning values, retry loops, continue behaviour, and range-driven `for` loops; keep `bun run scripts/run-fixtures.ts` + Go parity green.
+
+7. **`await` expression, Awaitable protocol, and concurrency errors (§§12.6–12.7 & Awaitable interface)**
+   - **AST:** represent `await [arms...]` expressions (including default arms) and persist callback bodies for codegen.
+   - **Scheduler/runtime:** implement the `Awaitable` interface (is_ready/register/commit), fairness when multiple arms are ready, cancellation of losers, propagation of proc cancellation, and the default-arm fall-through semantics in both interpreters.
+   - **Stdlib errors:** add the required channel/mutex error structs (`ChannelClosed`, `ChannelNil`, `ChannelSendOnClosed`, `ChannelTimeout`, `MutexUnlocked`, `MutexPoisoned`) plus constructors and make all channel/mutex helpers surface them consistently.
+   - **Parser/tests:** parse the `await [...]` form, update fixtures to cover channel send/recv arms, timer/default arms, fairness simulations, and run `bun run scripts/run-fixtures.ts`, `go test ./pkg/interpreter`, and `./run_all_tests.sh --version=v11` after wiring the scheduler.
+
+8. **Module + stdlib resolution surface (§§13.6–13.7)**
+   - **Loader:** implement the new search order (workspace roots, cwd/manual overrides, `ABLE_PATH`, `ABLE_MODULE_PATHS`, canonical stdlib via `ABLE_STD_LIB` or bundled path), deduplicate roots, sanitize hyphenated names, and reserve the `able.*` namespace.
+   - **Tooling safeguards:** treat stdlib directories as read-only, raise collisions when the same package path appears in multiple roots, and make `dynimport` share the same lookup order.
+   - **Tests/docs:** add harness coverage and documentation for the environment knobs, including overrides for fixtures and REPL usage.
+
+9. **Stdlib API expansions (strings, arrays, regex, §§6.12 & 14.2)**
+   - **String helpers:** implement the required `string` methods (`len_bytes/chars/graphemes`, `substring`, `split`, `replace`, `starts_with`, `ends_with`, iterator helpers) with byte/grapheme semantics shared across interpreters.
+   - **Array helpers:** expose `size`, `push`, `pop`, `get`, `set`, `clear` with proper `IndexError` handling and ensure array types continue to satisfy `Iterable`.
+   - **Regex module:** deliver `able.text.regex` with RE2-style determinism (core types, compile/match/split/replace helpers, regex sets, streaming scanner, grapheme-aware options) and bridge to host runtimes while guarding unsupported features via `RegexError`.
+   - **Tests:** expand stdlib test suites + fixtures to cover each helper, regex compilation failures, streaming use cases, and confirm both interpreters return identical traces.
+
+10. **Language-supported interface alignment (§14.1 + Awaitable interface)**
+   - **Definitions:** codify the canonical interface declarations (Index/IndexMut, Iterable/Iterator, Apply, arithmetic/bitwise, comparison/hash, Display, Error, Clone, Default, Range, Proc/ProcError, Awaitable) inside the stdlib so syntax sugar lowers to these in both runtimes.
+   - **Type checker/runtime integration:** ensure operator resolution consults these interfaces uniformly (e.g., `[]`, callable values, arithmetic ops), update parser + PT→AST lowering for indexing and callable value invocation, and guarantee diagnostics mention missing interfaces.
+   - **Stdlib coverage:** audit built-in types (Array, Map, Range, Channel, Mutex, Regex types, async handles) for implementations of the required interfaces, updating fixtures/tests where gaps exist.
+   - **Tests:** add parity fixtures verifying operator dispatch/method availability and run the full TS + Go suites plus `./run_all_tests.sh --version=v11` after changes.
