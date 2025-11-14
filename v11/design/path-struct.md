@@ -77,7 +77,7 @@ struct Path {
 
 ## Implementation Plan
 
-1. Implement parsing/normalization helpers (pure Able code) in `stdlib/v10/src/io/path.able`.
+1. Implement parsing/normalization helpers (pure Able code) in `stdlib/src/io/path.able`.
 2. Provide the `Path` struct with methods described above; defer filesystem-dependent methods (`exists?`, `absolute`) until `fs` package wiring is available.
 3. Add tests covering POSIX paths, Windows drive paths, UNC paths, join/relative operations, normalization.
 4. Update `design/io-package.md` to reference `Path` integration points (done).

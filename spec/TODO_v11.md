@@ -22,13 +22,11 @@ like `fn choose_first<T, U>(first: T, second: U) -> T where T: Display + Clone, 
 
 ## Candidate features from other popular languages (undecided if we should add them)
 
-- **Operator overloading and custom operators**: No user-defined operator overloads or new operator definitions (present in Rust, Scala, Ruby).
 - **Function/method overloading**: No ad‑hoc overloading by arity or parameter types; one signature per name (common in Scala/Ruby).
 - **Named and default arguments**: Calls are positional-only; no default parameter values or keyword/named args (common in Scala/Ruby).
 - **Variadic parameters and argument splats**: No varargs in function definitions and no splat/spread in call sites (common in Scala/Ruby).
 - **Tuple types and tuple literals**: Not part of the core; you use positional structs instead (native tuples are common in Rust/Scala).
 - **Macro/annotation/derive system**: No compile-time macros, annotations/attributes, or derive-like auto-impls (Rust/Scala have these; Ruby has rich runtime metaprogramming).
-- **Comprehension syntax**: No list/set/for‑yield comprehensions; iteration is via `for`/iterators (Scala has for‑comprehensions).
 
 Notes:
 - In short: the big missing “usually expected” niceties are overloading (operators/functions), named/default/variadic parameters, tuples, and a macro/annotation/derive story.

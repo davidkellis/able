@@ -1,14 +1,14 @@
-# Able Language Workspace
+# Able v11 Workspace
 
-Able is an experimental programming language. This workspace (`/v11`) is a versioned copy of the Able v10 toolchain so we can begin Able v11 development while keeping the original v10 artefacts untouched at the repo root.
+Able is an experimental programming language. This workspace hosts the actively developed Able v11 toolchain; the frozen v10 artifacts live at the repository root for historical reference only.
 
 ## Project Highlights
-- **Spec-first**: `spec/full_spec_v11.md` currently mirrors the v10 semantics; it is the document we will extend for the v11 cycle while `spec/full_spec_v10.md` stays as the frozen reference.
-- **Go reference interpreter**: `interpreters/go/` is the v11 copy of the canonical Go runtime; it defines the shared AST (`pkg/ast`), runs the static typechecker by default, and must remain aligned with the spec.
-- **TypeScript interpreter**: `interpreters/ts/` is the Bun-based runtime that mirrors the Go implementation; its AST (`src/ast.ts`) must stay structurally aligned with the Go AST so both follow the same spec-defined contract.
-- **Canonical AST & semantics**: every Able interpreter (v10 and v11) consumes the same AST shapes and must produce identical observable behaviour per the spec; divergence is treated as a spec or implementation bug.
-- **Future parser**: With both runtimes mirrored here, we can bring up the tree-sitter grammar under `parser/` for the v11 effort without disturbing the v10 sources.
-- **Quick language tour**: read the [Able manual](docs/manual/index.html); it currently documents v10 semantics and will be updated alongside the v11 spec.
+- **Spec-first**: `spec/full_spec_v11.md` is the authoritative document for all new behaviour; reference `spec/full_spec_v10.md` only for historical context.
+- **Go reference interpreter**: `interpreters/go/` remains the canonical runtime, defining the shared AST (`pkg/ast`) and typechecker semantics that every other implementation must match.
+- **TypeScript interpreter**: `interpreters/ts/` mirrors the Go implementation (with Bun as the host runtime) and must stay structurally aligned with the Go AST/semantics.
+- **Canonical AST & semantics**: all runtimes consume the same AST contract. Any divergence between interpreters is treated as a bug or a spec gap that must be resolved immediately.
+- **Parser & tooling**: the v11 workspace carries its own tree-sitter grammar (`parser/`) and docs so parser work can proceed without touching the frozen v10 sources.
+- **Manual & docs**: the manuals under `docs/` currently describe v10 semantics; update them alongside spec changes so they reflect v11 behaviour.
 
 ## Repository Layout
 - `spec/` — Language specs (v1–v11) plus TODO trackers. `full_spec_v11.md` is the active v11 document.
@@ -19,28 +19,28 @@ Able is an experimental programming language. This workspace (`/v11`) is a versi
 - `design/`, `docs/`, `README.md`, `PLAN.md`, `AGENTS.md` — Copied documentation and roadmap files that we will update specifically for v11 work.
 
 ## How We Work
-1. Start with the spec. Treat it as source of truth—if behaviour changes, update the spec (including the canonical AST contract) before or alongside code.
-2. Keep the AST structure identical across interpreters, with the Go definitions serving as canonical while remaining faithful to the spec. Document any mismatches and schedule fixes immediately.
-3. Mirror features and tests between interpreters so behavior stays consistent.
-4. Use `PLAN.md` for roadmap updates and `AGENTS.md` for onboarding guidance.
+1. Start with `spec/full_spec_v11.md`. Update it (and the AST contract) before or alongside code so behaviour never drifts from the written spec.
+2. Keep the AST identical across interpreters. Treat the Go definitions as canonical, document any mismatches, and schedule fixes immediately.
+3. Mirror features/tests across Go and TypeScript so behaviour stays consistent.
+4. Use `PLAN.md` for roadmap updates and `AGENTS.md` for onboarding guidance specific to the v11 effort.
 
 ## Getting Started
-- **Go interpreter (canonical)**: install Go ≥ 1.22, run `go test ./...` inside `interpreters/go/`, and prefer `./run_all_tests.sh --typecheck-fixtures=strict` before sending code for review.
-- **TypeScript interpreter**: inside `interpreters/ts/`, run `bun install`, `bun test`, and `ABLE_TYPECHECK_FIXTURES=strict bun run scripts/run-fixtures.ts` so the checker stays in lockstep with the Go runtime before sharing changes.
-- **Specs**: edit and review `spec/full_spec_v11.md` (the v11 fork) while consulting `spec/full_spec_v10.md` for the frozen reference.
+- **Go interpreter**: install Go ≥ 1.22 and run `go test ./...` inside `interpreters/go/`. Before handing off work, prefer `./run_all_tests.sh --version=v11 --typecheck-fixtures=strict` from the repo root.
+- **TypeScript interpreter**: inside `interpreters/ts/`, run `bun install`, `bun test`, and `ABLE_TYPECHECK_FIXTURES=strict bun run scripts/run-fixtures.ts` to keep the checker aligned with Go.
+- **Specs**: edit `spec/full_spec_v11.md` for new behaviour; consult `spec/full_spec_v10.md` only to understand the frozen baseline.
 
 Combined test suites:
 
 ```bash
-# Run TypeScript + Go tests and shared fixtures
-./run_all_tests.sh
+# Run TypeScript + Go tests and shared fixtures for v11
+./run_all_tests.sh --version=v11
 
 # Include Go fixture typechecking (warn logs diagnostics, strict enforces them)
-./run_all_tests.sh --typecheck-fixtures=warn
-./run_all_tests.sh --typecheck-fixtures=strict
+./run_all_tests.sh --version=v11 --typecheck-fixtures=warn
+./run_all_tests.sh --version=v11 --typecheck-fixtures=strict
 ```
 
-See `docs/parity-reporting.md` for details on directing the parity JSON report into CI artifacts (`ABLE_PARITY_REPORT_DEST`, `CI_ARTIFACTS_DIR`) and consuming the machine-readable diffs. The instructions still reference the v10 paths—update them as you touch those docs.
+See `docs/parity-reporting.md` for details on directing the parity JSON report into CI artifacts (`ABLE_PARITY_REPORT_DEST`, `CI_ARTIFACTS_DIR`) and consuming the machine-readable diffs.
 
 
 ## Contributing
@@ -56,10 +56,10 @@ Start with `AGENTS.md`, then dive into `interpreters/ts/README.md`, `interpreter
 
 Standard onboarding prompt:
 ```
-Read AGENTS, PLAN, and the v10 spec, and then start on the higest priority PLAN work. proceed with next steps. we need to correct any bugs if bugs or broken tests are outstanding. we want to work toward completing the items in the PLAN file. Please mark off and remove completed items from the PLAN file once they are complete. remember to keep files under one thousand lines and to refactor them if they are going to exceed one thousand lines. I have given you permissions to run tests.
+Read AGENTS, PLAN, and the v11 spec, and then start on the highest priority PLAN work. proceed with next steps. we need to correct any bugs if bugs or broken tests are outstanding. we want to work toward completing the items in the PLAN file. Please mark off and remove completed items from the PLAN file once they are complete. remember to keep files under one thousand lines and to refactor them if they are going to exceed one thousand lines. I have given you permissions to run tests.
 ```
 
 Standard next steps prompt:
 ```
-Proceed with next steps as suggested; don't talk about doing it - do it. we need to correct any bugs if bugs or broken tests are outstanding.  we want to work toward completing the items in the PLAN file. Please mark off and remove completed items from the PLAN file once they are complete. remember to keep files under one thousand lines and to refactor them if they are going to exceed one thousand lines. tests should run quickly; no test should take more than one minute to complete.
+Proceed with next steps as suggested; don't talk about doing it - do it. we need to correct any bugs if bugs or broken tests are outstanding. we want to work toward completing the items in the PLAN file. Please mark off and remove completed items from the PLAN file once they are complete. remember to keep files under one thousand lines and to refactor them if they are going to exceed one thousand lines. tests should run quickly; no test should take more than one minute to complete.
 ```

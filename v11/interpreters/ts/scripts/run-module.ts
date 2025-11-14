@@ -16,7 +16,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_VERSION = process.env.ABLE_TS_VERSION ?? "able-ts dev";
 const rawTypecheckMode = process.env.ABLE_TYPECHECK_FIXTURES;
 const TYPECHECK_MODE = resolveTypecheckMode(rawTypecheckMode !== undefined ? rawTypecheckMode : "strict");
-const MODULE_SEARCH_PATHS_ENV = process.env.ABLE_MODULE_PATHS ?? "";
+const ABLE_PATH_ENV = process.env.ABLE_PATH ?? "";
+const ABLE_MODULE_PATHS_ENV = process.env.ABLE_MODULE_PATHS ?? "";
+const ABLE_STD_LIB_ENV = process.env.ABLE_STD_LIB ?? "";
 
 type CLICommand = "run" | "check" | "test";
 type TestReporterFormat = "doc" | "progress" | "tap" | "json";
@@ -258,9 +260,8 @@ async function loadProgram(entryPath: string): Promise<Program | null> {
 }
 
 function createModuleLoader(): ModuleLoader {
-  const searchPaths: string[] = [];
-  searchPaths.push(...collectEnvSearchPaths(MODULE_SEARCH_PATHS_ENV));
-  const stdlibPath = path.resolve(__dirname, "../../../stdlib/v10/src");
+  const searchPaths = collectEnvConfiguredSearchPaths();
+  const stdlibPath = path.resolve(__dirname, "../../../stdlib/src");
   if (fsExistsSync(stdlibPath)) {
     searchPaths.push(stdlibPath);
   }
@@ -319,6 +320,22 @@ function collectEnvSearchPaths(raw: string): string[] {
     .map((segment) => segment.trim())
     .filter(Boolean);
   return segments.map((segment) => path.resolve(segment));
+}
+
+function collectEnvConfiguredSearchPaths(): string[] {
+  const ordered = [
+    ...collectEnvSearchPaths(ABLE_PATH_ENV),
+    ...collectEnvSearchPaths(ABLE_MODULE_PATHS_ENV),
+    ...collectEnvSearchPaths(ABLE_STD_LIB_ENV),
+  ];
+  const unique: string[] = [];
+  const seen = new Set<string>();
+  for (const entry of ordered) {
+    if (seen.has(entry)) continue;
+    seen.add(entry);
+    unique.push(entry);
+  }
+  return unique;
 }
 
 function parseTestArguments(args: string[]): TestCliConfig {

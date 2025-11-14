@@ -19,10 +19,13 @@ const GO_INTERPRETER_ROOT = path.resolve(REPO_ROOT, "interpreters/go");
 export const DEFAULT_EXAMPLES_ROOT = path.resolve(TS_INTERPRETER_ROOT, "testdata/examples");
 const DEFAULT_PARITY_DEPS_ROOT = path.resolve(TS_INTERPRETER_ROOT, "testdata/examples/deps/vendor");
 const GO_WORKDIR = GO_INTERPRETER_ROOT;
-const STDLIB_PATH = path.resolve(REPO_ROOT, "stdlib/v10/src");
+const STDLIB_PATH = path.resolve(REPO_ROOT, "stdlib/src");
 if (fsExists(DEFAULT_PARITY_DEPS_ROOT)) {
   ensureEnvPath("ABLE_MODULE_PATHS", DEFAULT_PARITY_DEPS_ROOT);
 }
+const ABLE_PATH_ENV = process.env.ABLE_PATH ?? "";
+const ABLE_MODULE_PATHS_ENV = process.env.ABLE_MODULE_PATHS ?? "";
+const ABLE_STD_LIB_ENV = process.env.ABLE_STD_LIB ?? "";
 const MODULE_SEARCH_PATHS = computeModuleSearchPaths();
 const GO_STD_ENV = fsExists(STDLIB_PATH) ? STDLIB_PATH : "";
 
@@ -308,12 +311,14 @@ async function fileExists(candidate: string): Promise<boolean> {
 
 function computeModuleSearchPaths(): string[] {
   const paths = new Set<string>();
-  const rawEnv = process.env.ABLE_MODULE_PATHS ?? "";
-  for (const part of rawEnv.split(path.delimiter)) {
-    const trimmed = part.trim();
-    if (trimmed) {
-      paths.add(path.resolve(trimmed));
-    }
+  for (const entry of collectEnvPaths(ABLE_PATH_ENV)) {
+    paths.add(entry);
+  }
+  for (const entry of collectEnvPaths(ABLE_MODULE_PATHS_ENV)) {
+    paths.add(entry);
+  }
+  for (const entry of collectEnvPaths(ABLE_STD_LIB_ENV)) {
+    paths.add(entry);
   }
   if (fsExists(STDLIB_PATH)) {
     paths.add(STDLIB_PATH);
@@ -322,6 +327,15 @@ function computeModuleSearchPaths(): string[] {
     paths.add(DEFAULT_PARITY_DEPS_ROOT);
   }
   return [...paths];
+}
+
+function collectEnvPaths(raw: string): string[] {
+  if (!raw) return [];
+  return raw
+    .split(path.delimiter)
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length > 0)
+    .map((segment) => path.resolve(segment));
 }
 
 function fsExists(target: string): boolean {

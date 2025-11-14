@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-VERSION="v10"
+VERSION="v11"
 ARGS=()
 
 while [[ $# -gt 0 ]]; do
