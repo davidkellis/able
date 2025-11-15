@@ -77,6 +77,20 @@ func (c *Checker) checkFunctionDefinition(env *Environment, def *ast.FunctionDef
 		}
 
 		if expectedReturn != nil && !isUnknownType(expectedReturn) && bodyType != nil && !isUnknownType(bodyType) {
+			if msg, ok := literalMismatchMessage(bodyType, expectedReturn); ok {
+				diags = append(diags, Diagnostic{
+					Message: fmt.Sprintf("typechecker: %s", msg),
+					Node:    def.Body,
+				})
+				return diags
+			}
+			if msg, ok := literalOverflowMessage(bodyType, expectedReturn); ok {
+				diags = append(diags, Diagnostic{
+					Message: fmt.Sprintf("typechecker: %s", msg),
+					Node:    def.Body,
+				})
+				return diags
+			}
 			if coerced, ok := normalizeResultReturn(bodyType, expectedReturn); ok {
 				bodyType = coerced
 			} else if !typeAssignable(bodyType, expectedReturn) {
@@ -148,6 +162,26 @@ func (c *Checker) checkLambdaExpression(env *Environment, expr *ast.LambdaExpres
 
 	if expectedReturn != nil && !isUnknownType(expectedReturn) {
 		if bodyType != nil && !isUnknownType(bodyType) {
+			if msg, ok := literalMismatchMessage(bodyType, expectedReturn); ok {
+				diags = append(diags, Diagnostic{
+					Message: fmt.Sprintf("typechecker: %s", msg),
+					Node:    expr.Body,
+				})
+				bodyType = expectedReturn
+				fnType := FunctionType{Params: paramTypes, Return: bodyType}
+				c.infer.set(expr, fnType)
+				return diags, fnType
+			}
+			if msg, ok := literalOverflowMessage(bodyType, expectedReturn); ok {
+				diags = append(diags, Diagnostic{
+					Message: fmt.Sprintf("typechecker: %s", msg),
+					Node:    expr.Body,
+				})
+				bodyType = expectedReturn
+				fnType := FunctionType{Params: paramTypes, Return: bodyType}
+				c.infer.set(expr, fnType)
+				return diags, fnType
+			}
 			if coerced, ok := normalizeResultReturn(bodyType, expectedReturn); ok {
 				bodyType = coerced
 			} else if !typeAssignable(bodyType, expectedReturn) {
@@ -209,11 +243,29 @@ func (c *Checker) checkReturnStatement(env *Environment, stmt *ast.ReturnStateme
 			}
 			returnType = expected
 		} else if returnType != nil && !isUnknownType(returnType) {
+			if msg, ok := literalMismatchMessage(returnType, expected); ok {
+				diags = append(diags, Diagnostic{
+					Message: fmt.Sprintf("typechecker: %s", msg),
+					Node:    stmt,
+				})
+				return diags
+			}
+			if msg, ok := literalOverflowMessage(returnType, expected); ok {
+				diags = append(diags, Diagnostic{
+					Message: fmt.Sprintf("typechecker: %s", msg),
+					Node:    stmt,
+				})
+				return diags
+			}
 			if coerced, ok := normalizeResultReturn(returnType, expected); ok {
 				returnType = coerced
 			} else if !typeAssignable(returnType, expected) {
+				message := fmt.Sprintf("typechecker: return expects %s, got %s", typeName(expected), typeName(returnType))
+				if msg, ok := literalMismatchMessage(returnType, expected); ok {
+					message = fmt.Sprintf("typechecker: %s", msg)
+				}
 				diags = append(diags, Diagnostic{
-					Message: fmt.Sprintf("typechecker: return expects %s, got %s", typeName(expected), typeName(returnType)),
+					Message: message,
 					Node:    stmt,
 				})
 			} else {
@@ -299,4 +351,31 @@ func (c *Checker) checkMethodsDefinition(env *Environment, def *ast.MethodsDefin
 		diags = append(diags, c.checkFunctionDefinition(localEnv, fn)...)
 	}
 	return diags
+}
+
+func literalOverflowMessage(actual Type, expected Type) (string, bool) {
+	intVal, ok := actual.(IntegerType)
+	if !ok || intVal.Literal == nil || intVal.Explicit {
+		return "", false
+	}
+	var suffix string
+	switch v := expected.(type) {
+	case IntegerType:
+		suffix = v.Suffix
+	case StructType:
+		suffix = v.StructName
+	case StructInstanceType:
+		suffix = v.StructName
+	}
+	if suffix == "" {
+		return "", false
+	}
+	bounds, ok := integerBounds[suffix]
+	if !ok {
+		return "", false
+	}
+	if intVal.Literal.Cmp(bounds.min) < 0 || intVal.Literal.Cmp(bounds.max) > 0 {
+		return fmt.Sprintf("literal %s does not fit in %s", intVal.Literal.String(), suffix), true
+	}
+	return "", false
 }

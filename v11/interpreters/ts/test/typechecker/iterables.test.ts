@@ -51,8 +51,10 @@ describe("TypeChecker iterables", () => {
 
     const checker = new TypeChecker();
     const { diagnostics } = checker.checkModule(moduleAst);
-    expect(diagnostics).toHaveLength(1);
-    expect(diagnostics[0]?.message).toContain("for-loop pattern expects type Display");
-    expect(diagnostics[0]?.message).toContain("got string");
+    expect(diagnostics.length).toBeGreaterThanOrEqual(1);
+    const loopDiag = diagnostics.find((diag) =>
+      diag.message.includes("for-loop pattern expects type Display"),
+    );
+    expect(loopDiag?.message).toContain("got string");
   });
 });

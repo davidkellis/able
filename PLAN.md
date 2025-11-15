@@ -43,7 +43,11 @@
        - ✅ Array literal adoption + overflow diagnostics now wired through the TS/Go typecheckers (integer literals only); expand to other literal contexts next.
        - ✅ Map literals and range endpoints now participate in literal adoption checks (nested array/map elements and range bounds propagate integer overflow diagnostics in both interpreters).
        - ✅ Iterator yields plus proc/future contexts now share the literal-adoption diagnostics so async + generator bodies surface precise overflow errors in TS/Go.
+       - ✅ Function bodies and return statements now honor annotated return types for literal overflow (typed functions/lambdas surface precise diagnostics when returning non-fitting literals in TS/Go).
+       - ✅ Function call arguments now enforce parameter types and literal adoption rules so mismatched counts/types emit diagnostics in both interpreters.
+       - ✅ Struct literal fields now enforce declared types (including literal adoption) in both typecheckers so field initializers report overflow/mismatches.
    - **Parser/tests:** extend parser + PT→AST mapping to capture annotations on assignments, broaden fixture coverage for typed destructuring and literal adoption edge cases, and rerun `bun run scripts/run-fixtures.ts`/`go test`.
+     - ✅ Added AST fixtures (`patterns/typed_destructuring`, `patterns/typed_equals_assignment`) exercising typed struct/array destructuring and typed `=` declarations; regenerated fixtures via `bun run scripts/run-fixtures.ts`.
 
 4. **Safe navigation operator (`?.`, §6.3.4)**
    - **AST:** introduce a safe-member node (field + call forms, nested chaining) that records the original member access for tooling.

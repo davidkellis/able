@@ -34,6 +34,7 @@ export function collectFunctionDefinition(
     name,
     fullName,
     structName,
+    parameters: parameterTypes,
     genericConstraints: [],
     whereClause: extractFunctionWhereObligations(ctx, definition),
     genericParamNames: Array.isArray(definition.genericParams)
