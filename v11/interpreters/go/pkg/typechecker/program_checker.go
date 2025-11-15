@@ -172,6 +172,7 @@ func (pc *ProgramChecker) Check(program *driver.Program) (CheckResult, error) {
 		env, impls, methods, importDiags := pc.buildPrelude(mod.AST.Imports, mod.Package)
 		checker := New()
 		checker.SetPrelude(env, impls, methods)
+		checker.SetNodeOrigins(mod.NodeOrigins)
 
 		moduleDiags, err := checker.CheckModule(mod.AST)
 		if err != nil {
