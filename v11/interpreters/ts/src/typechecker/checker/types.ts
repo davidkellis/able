@@ -42,6 +42,7 @@ export interface FunctionInfo {
   name: string;
   fullName: string;
   structName?: string;
+  parameters: TypeInfo[];
   genericConstraints: Array<{
     paramName: string;
     interfaceName: string;

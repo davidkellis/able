@@ -44,4 +44,8 @@ if [[ ! -x "$TARGET" ]]; then
   exit 1
 fi
 
-exec "$TARGET" "${ARGS[@]:-}"
+if [[ ${#ARGS[@]} -gt 0 ]]; then
+  exec "$TARGET" "${ARGS[@]}"
+else
+  exec "$TARGET"
+fi

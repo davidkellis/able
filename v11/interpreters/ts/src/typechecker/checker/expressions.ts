@@ -34,6 +34,8 @@ export interface ExpressionContext {
   popAsyncContext(): void;
   checkFunctionCall(call: AST.FunctionCall): void;
   inferFunctionCallReturnType(call: AST.FunctionCall): TypeInfo;
+  checkFunctionDefinition(definition: AST.FunctionDefinition): void;
+  checkReturnStatement(statement: AST.ReturnStatement): void;
   pushScope(): void;
   popScope(): void;
   withForkedEnv<T>(fn: () => T): T;
@@ -302,21 +304,8 @@ export function inferExpression(ctx: ExpressionContext, expression: AST.Expressi
       ctx.checkFunctionCall(expression);
       return ctx.inferFunctionCallReturnType(expression);
     }
-    case "StructLiteral": {
-      const structName = ctx.getIdentifierName(expression.structType);
-      if (structName) {
-        const typeArguments = Array.isArray(expression.typeArguments)
-          ? expression.typeArguments.map((arg) => ctx.resolveTypeExpression(arg))
-          : [];
-        return {
-          kind: "struct",
-          name: structName,
-          typeArguments,
-          definition: ctx.getStructDefinition(structName),
-        };
-      }
-      return unknownType;
-    }
+    case "StructLiteral":
+      return checkStructLiteral(ctx, expression);
     case "MemberAccessExpression":
       ctx.handlePackageMemberAccess(expression);
       return unknownType;
@@ -589,7 +578,8 @@ export function evaluateBlockExpression(ctx: ExpressionContext, block: AST.Block
       const statement = statements[index];
       if (!statement) continue;
       const isLast = index === statements.length - 1;
-      if (isLast && (statement as AST.Expression).type) {
+      const isExpr = ctx.isExpression(statement as AST.Node);
+      if (isLast && isExpr) {
         resultType = ctx.inferExpression(statement as AST.Expression);
       } else {
         ctx.checkStatement(statement as AST.Statement);
@@ -624,6 +614,157 @@ function resolveArrayLiteralElementType(
     }
   }
   return current;
+}
+
+function checkStructLiteral(ctx: ExpressionContext, literal: AST.StructLiteral): TypeInfo {
+  if (!literal) {
+    return unknownType;
+  }
+  const structName = ctx.getIdentifierName(literal.structType);
+  const typeArguments = Array.isArray(literal.typeArguments)
+    ? literal.typeArguments.map((arg) => ctx.resolveTypeExpression(arg))
+    : [];
+  const definition = structName ? ctx.getStructDefinition(structName) : undefined;
+  if (structName && !definition) {
+    ctx.report(`typechecker: unknown struct '${structName}'`, literal);
+  }
+  const substitution = buildStructTypeSubstitution(ctx, definition, typeArguments, literal, structName);
+  if (Array.isArray(literal.functionalUpdateSources)) {
+    for (const source of literal.functionalUpdateSources) {
+      if (!source) continue;
+      const sourceType = ctx.inferExpression(source);
+      if (
+        structName &&
+        sourceType &&
+        sourceType.kind !== "unknown" &&
+        (sourceType.kind !== "struct" || sourceType.name !== structName)
+      ) {
+        ctx.report(
+          `typechecker: functional update expects struct ${structName}, got ${formatType(sourceType)}`,
+          source,
+        );
+      }
+    }
+  }
+  const { namedFields, positionalFields } = resolveStructFieldTypes(ctx, definition, substitution);
+  const fields = Array.isArray(literal.fields) ? literal.fields : [];
+  const seenFields = new Set<string>();
+  fields.forEach((field, index) => {
+    if (!field) return;
+    const fieldName = ctx.getIdentifierName(field.name);
+    const valueType = ctx.inferExpression(field.value);
+    if (!literal.isPositional && !fieldName) {
+      ctx.report("typechecker: struct field requires a name", field);
+      return;
+    }
+    if (fieldName) {
+      if (seenFields.has(fieldName)) {
+        ctx.report(`typechecker: duplicate struct field '${fieldName}'`, field);
+        return;
+      }
+      seenFields.add(fieldName);
+    }
+    let expected: TypeInfo | undefined;
+    if (definition) {
+      if (!literal.isPositional && fieldName) {
+        expected = namedFields.get(fieldName);
+        if (!expected) {
+          ctx.report(`typechecker: struct '${structName}' has no field '${fieldName}'`, field);
+          return;
+        }
+      } else if (literal.isPositional) {
+        expected = positionalFields[index];
+        if (!expected) {
+          ctx.report(
+            `typechecker: positional field ${index} out of range for struct '${structName}'`,
+            field,
+          );
+          return;
+        }
+      }
+    }
+    if (
+      expected &&
+      expected.kind !== "unknown" &&
+      valueType &&
+      valueType.kind !== "unknown"
+    ) {
+      const literalMessage = ctx.describeLiteralMismatch(valueType, expected);
+      if (literalMessage) {
+        ctx.report(literalMessage, field.value);
+        return;
+      }
+      if (!ctx.typeInfosEquivalent(valueType, expected)) {
+        const label = fieldName ?? `#${index}`;
+        ctx.report(
+          `typechecker: struct field '${label}' expects type ${formatType(expected)}, got ${formatType(valueType)}`,
+          field.value,
+        );
+      }
+    }
+  });
+  if (structName) {
+    return {
+      kind: "struct",
+      name: structName,
+      typeArguments,
+      definition,
+    };
+  }
+  return unknownType;
+}
+
+function buildStructTypeSubstitution(
+  ctx: ExpressionContext,
+  definition: AST.StructDefinition | undefined,
+  typeArguments: TypeInfo[],
+  literal: AST.StructLiteral,
+  structName: string | null,
+): Map<string, TypeInfo> {
+  const substitution = new Map<string, TypeInfo>();
+  if (!definition || !Array.isArray(definition.genericParams)) {
+    return substitution;
+  }
+  const expectedCount = definition.genericParams.length;
+  if (structName && typeArguments.length > 0 && typeArguments.length !== expectedCount) {
+    ctx.report(
+      `typechecker: struct '${structName}' expects ${expectedCount} type argument(s), got ${typeArguments.length}`,
+      literal,
+    );
+  }
+  definition.genericParams.forEach((param, index) => {
+    const paramName = ctx.getIdentifierName(param?.name);
+    if (!paramName) {
+      return;
+    }
+    substitution.set(paramName, typeArguments[index] ?? unknownType);
+  });
+  return substitution;
+}
+
+function resolveStructFieldTypes(
+  ctx: ExpressionContext,
+  definition: AST.StructDefinition | undefined,
+  substitution: Map<string, TypeInfo>,
+): { namedFields: Map<string, TypeInfo>; positionalFields: TypeInfo[] } {
+  const namedFields = new Map<string, TypeInfo>();
+  const positionalFields: TypeInfo[] = [];
+  if (!definition || !Array.isArray(definition.fields)) {
+    return { namedFields, positionalFields };
+  }
+  definition.fields.forEach((field, index) => {
+    if (!field) {
+      positionalFields[index] = unknownType;
+      return;
+    }
+    const resolvedType = ctx.resolveTypeExpression(field.fieldType, substitution);
+    const fieldName = ctx.getIdentifierName(field.name);
+    if (fieldName) {
+      namedFields.set(fieldName, resolvedType);
+    }
+    positionalFields[index] = resolvedType;
+  });
+  return { namedFields, positionalFields };
 }
 
 function resolveRangeElementType(ctx: ExpressionContext, start: TypeInfo, end: TypeInfo): TypeInfo {

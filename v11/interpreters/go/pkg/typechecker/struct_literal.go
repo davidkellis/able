@@ -173,6 +173,23 @@ func (c *Checker) checkStructLiteral(env *Environment, expr *ast.StructLiteral) 
 		if (chosen == nil || isUnknownType(chosen) || isTypeParameter(chosen)) && valueType != nil && !isUnknownType(valueType) {
 			chosen = valueType
 		}
+		if expected != nil && !isUnknownType(expected) && valueType != nil && !isUnknownType(valueType) {
+			if msg, ok := literalMismatchMessage(valueType, expected); ok {
+				diags = append(diags, Diagnostic{
+					Message: fmt.Sprintf("typechecker: %s", msg),
+					Node:    field.Value,
+				})
+			} else if !typeAssignable(valueType, expected) {
+				label := name
+				if label == "" {
+					label = fmt.Sprintf("#%d", idx)
+				}
+				diags = append(diags, Diagnostic{
+					Message: fmt.Sprintf("typechecker: struct field '%s' expects %s, got %s", label, typeName(expected), typeName(valueType)),
+					Node:    field.Value,
+				})
+			}
+		}
 
 		if name != "" {
 			fields[name] = chosen

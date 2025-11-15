@@ -164,10 +164,14 @@ export function lookupMethodSetsForCall(
           .map((param) => ctx.getIdentifierName(param?.name))
           .filter((name): name is string => Boolean(name))
       : [];
+    const parameterTypes = Array.isArray(method.params)
+      ? method.params.map((param) => ctx.resolveTypeExpression(param?.paramType))
+      : [];
     const info: FunctionInfo = {
       name: methodName,
       fullName: `${record.label}::${methodName}`,
       structName: structLabel,
+      parameters: parameterTypes,
       genericConstraints: [],
       genericParamNames: methodGenericNames,
       whereClause: record.obligations,
