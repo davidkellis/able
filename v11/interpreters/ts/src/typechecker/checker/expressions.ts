@@ -7,13 +7,23 @@ import {
   iteratorType,
   isBoolean,
   isNumeric,
+  isFloatPrimitiveType,
+  isIntegerPrimitiveType,
   primitiveType,
   procType,
   rangeType,
   unknownType,
+  type FloatPrimitive,
   type PrimitiveName,
   type TypeInfo,
 } from "../types";
+import {
+  findSmallestSigned,
+  findSmallestUnsigned,
+  getIntegerTypeInfo,
+  widestUnsignedInfo,
+  type IntegerTypeInfo,
+} from "../numeric";
 
 export interface ExpressionContext {
   resolveStructDefinitionForPattern(
@@ -24,6 +34,7 @@ export interface ExpressionContext {
   report(message: string, node?: AST.Node | null | undefined): void;
   describeTypeExpression(expr: AST.TypeExpression | null | undefined): string | null;
   typeInfosEquivalent(a?: TypeInfo, b?: TypeInfo): boolean;
+  isTypeAssignable(actual?: TypeInfo, expected?: TypeInfo): boolean;
   describeLiteralMismatch(actual?: TypeInfo, expected?: TypeInfo): string | null;
   resolveTypeExpression(expr: AST.TypeExpression | null | undefined, substitutions?: Map<string, TypeInfo>): TypeInfo;
   getStructDefinition(name: string): AST.StructDefinition | undefined;
@@ -192,30 +203,10 @@ export function inferExpression(ctx: ExpressionContext, expression: AST.Expressi
       ctx.report(`typechecker: undefined identifier '${name}'`, expression);
       return unknownType;
     }
-    case "BinaryExpression": {
-      const left = ctx.inferExpression(expression.left);
-      const right = ctx.inferExpression(expression.right);
-      if (expression.operator === "&&" || expression.operator === "||") {
-        if (!isBoolean(left)) {
-          ctx.report(
-            `typechecker: '${expression.operator}' left operand must be bool (got ${describe(left)})`,
-            expression,
-          );
-        }
-        if (!isBoolean(right)) {
-          ctx.report(
-            `typechecker: '${expression.operator}' right operand must be bool (got ${describe(right)})`,
-            expression,
-          );
-        }
-        return primitiveType("bool");
-      }
-      const comparisonOperators = ["==", "!=", "<", "<=", ">", ">="];
-      if (comparisonOperators.includes(expression.operator)) {
-        return primitiveType("bool");
-      }
-      return unknownType;
-    }
+    case "UnaryExpression":
+      return inferUnaryExpression(ctx, expression);
+    case "BinaryExpression":
+      return inferBinaryExpression(ctx, expression);
     case "RangeExpression": {
       const start = ctx.inferExpression(expression.start);
       if (!isNumeric(start)) {
@@ -368,7 +359,7 @@ export function checkIteratorYield(
   expectedLabel: string,
 ): TypeInfo {
   const valueType = statement.expression ? ctx.inferExpression(statement.expression) : primitiveType("nil");
-  if (!ctx.typeInfosEquivalent(valueType, expectedType) && expectedType.kind !== "unknown") {
+  if (!ctx.isTypeAssignable(valueType, expectedType) && expectedType.kind !== "unknown") {
     const actualLabel = formatType(valueType);
     const literalMessage = ctx.describeLiteralMismatch(valueType, expectedType);
     ctx.report(
@@ -466,6 +457,94 @@ export function mergeBranchTypes(ctx: ExpressionContext, types: TypeInfo[]): Typ
   return current;
 }
 
+function inferUnaryExpression(ctx: ExpressionContext, expression: AST.UnaryExpression): TypeInfo {
+  if (!expression) {
+    return unknownType;
+  }
+  const operandType = ctx.inferExpression(expression.operand);
+  switch (expression.operator) {
+    case "-":
+      if (operandType.kind === "unknown") {
+        return unknownType;
+      }
+      if (!isNumeric(operandType)) {
+        ctx.report(`typechecker: unary '-' requires numeric operand (got ${describe(operandType)})`, expression);
+        return unknownType;
+      }
+      return operandType;
+    case "!":
+      if (!isBoolean(operandType) && operandType.kind !== "unknown") {
+        ctx.report("typechecker: unary '!' requires boolean operand", expression);
+      }
+      return primitiveType("bool");
+    case "~":
+      if (operandType.kind === "unknown") {
+        return unknownType;
+      }
+      if (!isIntegerPrimitiveType(operandType)) {
+        ctx.report(`typechecker: unary '~' requires integer operand (got ${describe(operandType)})`, expression);
+        return unknownType;
+      }
+      return operandType;
+    default:
+      ctx.report(`typechecker: unsupported unary operator '${expression.operator}'`, expression);
+      return unknownType;
+  }
+}
+
+function inferBinaryExpression(ctx: ExpressionContext, expression: AST.BinaryExpression): TypeInfo {
+  if (!expression) {
+    return unknownType;
+  }
+  const left = ctx.inferExpression(expression.left);
+  const right = ctx.inferExpression(expression.right);
+  const operator = expression.operator;
+  if (operator === "|>") {
+    return unknownType;
+  }
+  if (operator === "&&" || operator === "||") {
+    if (!isBoolean(left)) {
+      ctx.report(`typechecker: '${operator}' left operand must be bool (got ${describe(left)})`, expression);
+    }
+    if (!isBoolean(right)) {
+      ctx.report(`typechecker: '${operator}' right operand must be bool (got ${describe(right)})`, expression);
+    }
+    return primitiveType("bool");
+  }
+  if (operator === "+") {
+    if (isStringType(left) && isStringType(right)) {
+      return primitiveType("string");
+    }
+  }
+  if (["+", "-", "*", "/", "%"].includes(operator)) {
+    const result = resolveNumericBinaryType(left, right);
+    return applyNumericResolution(ctx, expression, operator, result);
+  }
+  if (operator === "==" || operator === "!=") {
+    return primitiveType("bool");
+  }
+  if ([">", "<", ">=", "<="].includes(operator)) {
+    if (isStringType(left) && isStringType(right)) {
+      return primitiveType("bool");
+    }
+    const resolution = resolveNumericBinaryType(left, right);
+    if (resolution.kind === "error") {
+      ctx.report(`typechecker: '${operator}' ${resolution.message}`, expression);
+    }
+    return primitiveType("bool");
+  }
+  if (["&", "|", "\\xor"].includes(operator)) {
+    const result = resolveIntegerBinaryType(left, right);
+    return applyNumericResolution(ctx, expression, operator, result);
+  }
+  if (["<<", ">>"].includes(operator)) {
+    const result = resolveIntegerBinaryType(left, right);
+    return applyNumericResolution(ctx, expression, operator, result);
+  }
+  ctx.report(`typechecker: unsupported binary operator '${operator}'`, expression);
+  return unknownType;
+}
+
 function mergeMapComponent(
   ctx: ExpressionContext,
   current: TypeInfo,
@@ -485,6 +564,126 @@ function mergeMapComponent(
     ctx.report(`typechecker: ${label} expects type ${expectedLabel}, got ${actualLabel}`, node);
   }
   return current;
+}
+
+type NumericResolution =
+  | { kind: "ok"; type: TypeInfo }
+  | { kind: "unknown" }
+  | { kind: "error"; message: string };
+
+function applyNumericResolution(
+  ctx: ExpressionContext,
+  node: AST.Node,
+  operator: string,
+  resolution: NumericResolution,
+): TypeInfo {
+  if (resolution.kind === "ok") {
+    return resolution.type ?? unknownType;
+  }
+  if (resolution.kind === "unknown") {
+    return unknownType;
+  }
+  ctx.report(`typechecker: '${operator}' ${resolution.message}`, node);
+  return unknownType;
+}
+
+function resolveNumericBinaryType(left: TypeInfo, right: TypeInfo): NumericResolution {
+  if (!left || left.kind === "unknown" || !right || right.kind === "unknown") {
+    return { kind: "unknown" };
+  }
+  const leftClass = classifyNumericPrimitive(left);
+  const rightClass = classifyNumericPrimitive(right);
+  if (!leftClass || !rightClass) {
+    return {
+      kind: "error",
+      message: `requires numeric operands (got ${formatType(left)} and ${formatType(right)})`,
+    };
+  }
+  if (leftClass.kind === "float" || rightClass.kind === "float") {
+    const resultName = leftClass.kind === "float" && leftClass.name === "f64"
+      ? "f64"
+      : rightClass.kind === "float" && rightClass.name === "f64"
+        ? "f64"
+        : "f32";
+    return { kind: "ok", type: primitiveType(resultName) };
+  }
+  return resolveIntegerBinaryFromInfos(leftClass.info, rightClass.info);
+}
+
+function resolveIntegerBinaryType(left: TypeInfo, right: TypeInfo): NumericResolution {
+  if (!left || left.kind === "unknown" || !right || right.kind === "unknown") {
+    return { kind: "unknown" };
+  }
+  const leftInfo = extractIntegerInfo(left);
+  const rightInfo = extractIntegerInfo(right);
+  if (!leftInfo || !rightInfo) {
+    return {
+      kind: "error",
+      message: `requires integer operands (got ${formatType(left)} and ${formatType(right)})`,
+    };
+  }
+  return resolveIntegerBinaryFromInfos(leftInfo, rightInfo);
+}
+
+function resolveIntegerBinaryFromInfos(leftInfo: IntegerTypeInfo, rightInfo: IntegerTypeInfo): NumericResolution {
+  const promoted = promoteIntegerInfos(leftInfo, rightInfo);
+  if (promoted) {
+    return { kind: "ok", type: primitiveType(promoted.name) };
+  }
+  const bitsNeeded =
+    leftInfo.signed === rightInfo.signed
+      ? Math.max(leftInfo.bits, rightInfo.bits)
+      : Math.max(leftInfo.bits + 1, rightInfo.bits + 1);
+  return {
+    kind: "error",
+    message: `operands ${leftInfo.name} and ${rightInfo.name} require ${bitsNeeded} bits, exceeding available integer widths`,
+  };
+}
+
+function promoteIntegerInfos(leftInfo: IntegerTypeInfo, rightInfo: IntegerTypeInfo): IntegerTypeInfo | null {
+  if (leftInfo.signed === rightInfo.signed) {
+    const targetBits = Math.max(leftInfo.bits, rightInfo.bits);
+    return leftInfo.signed ? findSmallestSigned(targetBits) : findSmallestUnsigned(targetBits);
+  }
+  const bitsNeeded = Math.max(leftInfo.bits + 1, rightInfo.bits + 1);
+  const signedCandidate = findSmallestSigned(bitsNeeded);
+  if (signedCandidate) {
+    return signedCandidate;
+  }
+  const unsignedFallback = widestUnsignedInfo([leftInfo, rightInfo]);
+  if (unsignedFallback && unsignedFallback.bits >= Math.max(leftInfo.bits, rightInfo.bits)) {
+    return unsignedFallback;
+  }
+  return null;
+}
+
+function extractIntegerInfo(type: TypeInfo): IntegerTypeInfo | null {
+  if (type.kind !== "primitive" || !isIntegerPrimitiveType(type)) {
+    return null;
+  }
+  return getIntegerTypeInfo(type.name) ?? null;
+}
+
+type PrimitiveNumericClassification =
+  | { kind: "float"; name: FloatPrimitive }
+  | { kind: "integer"; info: IntegerTypeInfo };
+
+function classifyNumericPrimitive(type: TypeInfo): PrimitiveNumericClassification | null {
+  if (type.kind !== "primitive") {
+    return null;
+  }
+  if (isFloatPrimitiveType(type)) {
+    return { kind: "float", name: type.name };
+  }
+  if (isIntegerPrimitiveType(type)) {
+    const info = getIntegerTypeInfo(type.name);
+    return info ? { kind: "integer", info } : null;
+  }
+  return null;
+}
+
+function isStringType(type: TypeInfo): boolean {
+  return type.kind === "primitive" && type.name === "string";
 }
 
 function shouldDeclareIdentifier(
@@ -542,7 +741,7 @@ export function bindPatternToEnv(
         annotationType.kind !== "unknown" &&
         valueType &&
         valueType.kind !== "unknown" &&
-        !ctx.typeInfosEquivalent(annotationType, valueType)
+        !ctx.isTypeAssignable(valueType, annotationType)
       ) {
         const expectedLabel = ctx.describeTypeExpression(pattern.typeAnnotation);
         const actualLabel = formatType(valueType);
@@ -694,7 +893,7 @@ function checkStructLiteral(ctx: ExpressionContext, literal: AST.StructLiteral):
         ctx.report(literalMessage, field.value);
         return;
       }
-      if (!ctx.typeInfosEquivalent(valueType, expected)) {
+      if (!ctx.isTypeAssignable(valueType, expected)) {
         const label = fieldName ?? `#${index}`;
         ctx.report(
           `typechecker: struct field '${label}' expects type ${formatType(expected)}, got ${formatType(valueType)}`,

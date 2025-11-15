@@ -11,7 +11,7 @@ describe("v10 interpreter - if/or", () => {
       AST.blockExpression([AST.integerLiteral(1)]),
       []
     );
-    expect(I.evaluate(expr)).toEqual({ kind: 'i32', value: 1 });
+    expect(I.evaluate(expr)).toEqual({ kind: 'i32', value: 1n });
   });
 
   test("if false with or condition and else", () => {
@@ -23,7 +23,7 @@ describe("v10 interpreter - if/or", () => {
         AST.orClause(AST.blockExpression([AST.integerLiteral(3)])),
       ]
     );
-    expect(I.evaluate(expr)).toEqual({ kind: 'i32', value: 3 });
+    expect(I.evaluate(expr)).toEqual({ kind: 'i32', value: 3n });
   });
 });
 

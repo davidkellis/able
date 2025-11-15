@@ -15,8 +15,15 @@ describe("v10 interpreter - typed patterns", () => {
     const I = new InterpreterV10();
     const pat = AST.typedPattern(AST.identifier("n"), AST.simpleTypeExpression("i32"));
     I.evaluate(AST.assignmentExpression(":=", pat as any, AST.integerLiteral(5)));
-    expect(I.evaluate(AST.identifier("n"))).toEqual({ kind: 'i32', value: 5 });
+    expect(I.evaluate(AST.identifier("n"))).toEqual({ kind: 'i32', value: 5n });
+  });
+
+  test("typed assignment widens integer values to annotated type", () => {
+    const I = new InterpreterV10();
+    I.evaluate(AST.assignmentExpression(":=", AST.identifier("value"), AST.integerLiteral(5)) as any);
+    const pat = AST.typedPattern(AST.identifier("wide"), AST.simpleTypeExpression("i64"));
+    I.evaluate(AST.assignmentExpression(":=", pat as any, AST.identifier("value")));
+    expect(I.evaluate(AST.identifier("wide"))).toEqual({ kind: 'i64', value: 5n });
   });
 });
-
 

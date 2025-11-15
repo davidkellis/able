@@ -3,6 +3,7 @@ package interpreter
 import (
 	"fmt"
 	"math"
+	"math/big"
 	"strings"
 
 	"able/interpreter10-go/pkg/ast"
@@ -138,11 +139,20 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 			_, ok := value.(runtime.NilValue)
 			return ok
 		case "i8", "i16", "i32", "i64", "i128", "u8", "u16", "u32", "u64", "u128":
-			iv, ok := value.(runtime.IntegerValue)
-			if !ok {
+			var iv runtime.IntegerValue
+			switch val := value.(type) {
+			case runtime.IntegerValue:
+				iv = val
+			case *runtime.IntegerValue:
+				if val == nil {
+					return false
+				}
+				iv = *val
+			default:
 				return false
 			}
-			return string(iv.TypeSuffix) == name
+			targetKind := runtime.IntegerType(name)
+			return integerRangeWithinKinds(iv.TypeSuffix, targetKind)
 		case "f32", "f64":
 			fv, ok := value.(runtime.FloatValue)
 			if !ok {
@@ -222,6 +232,19 @@ func (i *Interpreter) coerceValueToType(typeExpr ast.TypeExpression, value runti
 	case *ast.SimpleTypeExpression:
 		if t.Name != nil {
 			name := t.Name.Name
+			targetKind := runtime.IntegerType(name)
+			if _, err := getIntegerInfo(targetKind); err == nil {
+				switch val := value.(type) {
+				case runtime.IntegerValue:
+					if val.TypeSuffix != targetKind && integerRangeWithinKinds(val.TypeSuffix, targetKind) {
+						return runtime.IntegerValue{Val: new(big.Int).Set(val.Val), TypeSuffix: targetKind}, nil
+					}
+				case *runtime.IntegerValue:
+					if val != nil && val.TypeSuffix != targetKind && integerRangeWithinKinds(val.TypeSuffix, targetKind) {
+						return runtime.IntegerValue{Val: new(big.Int).Set(val.Val), TypeSuffix: targetKind}, nil
+					}
+				}
+			}
 			if _, ok := i.interfaces[name]; ok {
 				return i.coerceToInterfaceValue(name, value)
 			}

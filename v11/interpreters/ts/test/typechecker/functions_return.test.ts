@@ -17,4 +17,20 @@ describe("typechecker function returns", () => {
     expect(diagnostics).toHaveLength(1);
     expect(diagnostics[0]?.message).toContain("literal 512 does not fit in u8");
   });
+
+  test("allows function bodies to return widened integer values", () => {
+    const checker = new TypeChecker();
+    const fn = AST.functionDefinition(
+      "make_big",
+      [],
+      AST.blockExpression([
+        AST.assignmentExpression(":=", AST.identifier("value"), AST.integerLiteral(1)) as unknown as AST.Statement,
+        AST.returnStatement(AST.identifier("value")),
+      ]),
+      AST.simpleTypeExpression("i64"),
+    );
+    const module = AST.module([fn]);
+    const { diagnostics } = checker.checkModule(module);
+    expect(diagnostics).toEqual([]);
+  });
 });

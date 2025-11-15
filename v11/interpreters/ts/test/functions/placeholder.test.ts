@@ -15,7 +15,7 @@ describe("v10 interpreter - placeholders", () => {
       AST.functionCall(AST.identifier("add"), [AST.placeholderExpression(), AST.integerLiteral(10)]),
       [AST.integerLiteral(5)],
     );
-    expect(I.evaluate(call)).toEqual({ kind: "i32", value: 15 });
+    expect(I.evaluate(call)).toEqual({ kind: "i32", value: 15n });
   });
 
   test("placeholder native function invocation", () => {
@@ -32,7 +32,7 @@ describe("v10 interpreter - placeholders", () => {
     expect(partial.kind).toBe("native_function");
     const nine = I.evaluate(AST.integerLiteral(9));
     const result = (partial.kind === "native_function") ? partial.impl(I, [nine]) : { kind: "nil", value: null };
-    expect(result).toEqual({ kind: "i32", value: 10 });
+    expect(result).toEqual({ kind: "i32", value: 10n });
   });
 
   test("mixed explicit and implicit placeholders", () => {
@@ -70,7 +70,7 @@ describe("v10 interpreter - placeholders", () => {
       ),
       [AST.integerLiteral(7), AST.integerLiteral(8), AST.integerLiteral(9)],
     );
-    expect(I.evaluate(call)).toEqual({ kind: "i32", value: 789 });
+    expect(I.evaluate(call)).toEqual({ kind: "i32", value: 789n });
   });
 
   test("lambda containing placeholder evaluates to callable", () => {

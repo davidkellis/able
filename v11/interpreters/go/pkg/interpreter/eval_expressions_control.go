@@ -51,11 +51,7 @@ func numericToFloat(val runtime.Value) (float64, error) {
 	case runtime.FloatValue:
 		return v.Val, nil
 	case runtime.IntegerValue:
-		int32Val, err := int32FromIntegerValue(v)
-		if err != nil {
-			return 0, err
-		}
-		return float64(int32Val), nil
+		return bigIntToFloat(v.Val), nil
 	default:
 		return 0, fmt.Errorf("Arithmetic requires numeric operands")
 	}

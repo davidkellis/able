@@ -1,5 +1,6 @@
 import type { InterpreterV10 } from "./index";
 import type { V10Value } from "./values";
+import { makeIntegerValue, numericToNumber } from "./numeric";
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -26,10 +27,7 @@ function expectArray(value: V10Value, label: string): Extract<V10Value, { kind: 
 }
 
 function expectNumeric(value: V10Value, label: string): number {
-  if (value.kind === "i32" || value.kind === "f64") {
-    return Math.trunc(value.value);
-  }
-  throw new Error(`${label} must be numeric`);
+  return Math.trunc(numericToNumber(value, label, { requireSafeInteger: true }));
 }
 
 function toByte(value: V10Value, index: number): number {
@@ -59,7 +57,7 @@ export function applyStringHostAugmentations(cls: typeof InterpreterV10): void {
         if (args.length !== 1) throw new Error("__able_string_from_builtin expects one argument");
         const input = expectString(args[0], "string");
         const encoded = encoder.encode(input);
-        const elements = Array.from(encoded, (byte): V10Value => ({ kind: "i32", value: byte }));
+        const elements = Array.from(encoded, (byte): V10Value => makeIntegerValue("i32", BigInt(byte)));
         return { kind: "array", elements };
       }),
     );

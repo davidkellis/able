@@ -14,8 +14,8 @@ describe("v10 interpreter - import alias selectors", () => {
       AST.assignmentExpression(":=", AST.identifier("x"), AST.functionCall(AST.identifier("bar"), []))
     ]);
     const res = I.evaluate(mod as any);
-    expect(I.evaluate(AST.identifier("x"))).toEqual({ kind: 'i32', value: 42 });
-    expect(res).toEqual({ kind: 'i32', value: 42 });
+    expect(I.evaluate(AST.identifier("x"))).toEqual({ kind: 'i32', value: 42n });
+    expect(res).toEqual({ kind: 'i32', value: 42n });
   });
 });
 

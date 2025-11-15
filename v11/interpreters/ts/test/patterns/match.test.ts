@@ -10,7 +10,7 @@ describe("v10 interpreter - match", () => {
       AST.matchClause(AST.literalPattern(AST.integerLiteral(1)), AST.integerLiteral(10)),
       AST.matchClause(AST.identifier("x"), AST.binaryExpression("+", AST.identifier("x"), AST.integerLiteral(5))),
     ]);
-    expect(I.evaluate(m)).toEqual({ kind: 'i32', value: 7 });
+    expect(I.evaluate(m)).toEqual({ kind: 'i32', value: 7n });
   });
 
   test("match struct named fields with guard", () => {
@@ -32,7 +32,7 @@ describe("v10 interpreter - match", () => {
     ], false, "Point");
     const clause = AST.matchClause(pat, AST.binaryExpression("+", AST.identifier("a"), AST.identifier("b")), AST.binaryExpression(">", AST.identifier("b"), AST.identifier("a")));
     const m = AST.matchExpression(subject, [clause]);
-    expect(I.evaluate(m)).toEqual({ kind: 'i32', value: 3 });
+    expect(I.evaluate(m)).toEqual({ kind: 'i32', value: 3n });
   });
 });
 

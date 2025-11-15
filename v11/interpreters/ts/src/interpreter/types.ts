@@ -1,6 +1,17 @@
 import * as AST from "../ast";
 import type { InterpreterV10 } from "./index";
-import type { V10Value } from "./values";
+import { getIntegerInfo, isIntegerValue, makeIntegerValue } from "./numeric";
+import type { FloatKind, IntegerKind, V10Value } from "./values";
+
+const INTEGER_KINDS: IntegerKind[] = ["i8", "i16", "i32", "i64", "i128", "u8", "u16", "u32", "u64", "u128"];
+const FLOAT_KINDS: FloatKind[] = ["f32", "f64"];
+const INTEGER_KIND_SET: Set<IntegerKind> = new Set(INTEGER_KINDS);
+
+function integerRangeWithin(source: IntegerKind, target: IntegerKind): boolean {
+  const sourceInfo = getIntegerInfo(source);
+  const targetInfo = getIntegerInfo(target);
+  return sourceInfo.min >= targetInfo.min && sourceInfo.max <= targetInfo.max;
+}
 
 declare module "./index" {
   interface InterpreterV10 {
@@ -90,8 +101,16 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
         if (name === "string") return v.kind === "string";
         if (name === "bool") return v.kind === "bool";
         if (name === "char") return v.kind === "char";
-        if (name === "i32") return v.kind === "i32";
-        if (name === "f64") return v.kind === "f64";
+        if (name === "nil") return v.kind === "nil";
+        if (INTEGER_KINDS.includes(name as IntegerKind)) {
+          if (!isIntegerValue(v)) {
+            return false;
+          }
+          const actualKind = v.kind as IntegerKind;
+          const expectedKind = name as IntegerKind;
+          return actualKind === expectedKind || integerRangeWithin(actualKind, expectedKind);
+        }
+        if (FLOAT_KINDS.includes(name as FloatKind)) return v.kind === name;
         if (name === "Error") return v.kind === "error";
         if (this.interfaces.has(name)) {
           if (v.kind === "interface_value") return v.interfaceName === name;
@@ -125,15 +144,17 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
   };
 
   cls.prototype.getTypeNameForValue = function getTypeNameForValue(this: InterpreterV10, value: V10Value): string | null {
+    if (INTEGER_KINDS.includes(value.kind as IntegerKind)) {
+      return value.kind;
+    }
+    if (FLOAT_KINDS.includes(value.kind as FloatKind)) {
+      return value.kind;
+    }
     switch (value.kind) {
       case "struct_instance":
         return value.def.id.name;
       case "interface_value":
         return this.getTypeNameForValue(value.value);
-      case "i32":
-        return "i32";
-      case "f64":
-        return "f64";
       case "string":
         return "string";
       case "bool":
@@ -162,6 +183,13 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
     if (!typeExpr) return value;
     if (typeExpr.type === "SimpleTypeExpression") {
       const name = typeExpr.name.name;
+      if (INTEGER_KIND_SET.has(name as IntegerKind) && isIntegerValue(value)) {
+        const targetKind = name as IntegerKind;
+        const actualKind = value.kind as IntegerKind;
+        if (actualKind !== targetKind && integerRangeWithin(actualKind, targetKind)) {
+          return makeIntegerValue(targetKind, value.value);
+        }
+      }
       if (this.interfaces.has(name)) {
         return this.toInterfaceValue(name, value);
       }

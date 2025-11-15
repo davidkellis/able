@@ -43,9 +43,9 @@ const typesFixtures: Fixture[] = [
           result: {
             kind: "array",
             elements: [
-              { kind: "i32", value: 1 },
-              { kind: "i32", value: 2 },
-              { kind: "i32", value: 3 },
+              { kind: "i32", value: 1n },
+              { kind: "i32", value: 2n },
+              { kind: "i32", value: 3n },
             ],
           },
         },
@@ -87,7 +87,7 @@ const typesFixtures: Fixture[] = [
       manifest: {
         description: "Function parameter uses arrow type annotation",
         expect: {
-          result: { kind: "i32", value: 6 },
+          result: { kind: "i32", value: 6n },
         },
       },
     },
@@ -130,7 +130,7 @@ const typesFixtures: Fixture[] = [
       manifest: {
         description: "Function returns a result-wrapped type",
         expect: {
-          result: { kind: "i32", value: 7 },
+          result: { kind: "i32", value: 7n },
         },
       },
     },
@@ -225,7 +225,7 @@ const typesFixtures: Fixture[] = [
     manifest: {
       description: "Module can declare plain and generic type aliases",
       expect: {
-        result: { kind: "i32", value: 10 },
+        result: { kind: "i32", value: 10n },
       },
     },
   },

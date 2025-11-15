@@ -52,6 +52,25 @@ func TestTypedPatternReportsLiteralOverflow(t *testing.T) {
 		t.Fatalf("expected literal overflow message, got %q", diags[0].Message)
 	}
 }
+
+func TestTypedPatternAllowsIntegerWidening(t *testing.T) {
+	checker := New()
+	statements := []ast.Statement{
+		ast.Assign(ast.ID("value"), ast.Int(1)),
+		ast.Assign(
+			ast.TypedP(ast.ID("wide"), ast.Ty("i64")),
+			ast.ID("value"),
+		),
+	}
+	module := ast.NewModule(statements, nil, nil)
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics for widening integer typed pattern, got %v", diags)
+	}
+}
 func TestTypedArrayPatternMismatchDoesNotProduceDiagnostic(t *testing.T) {
 	checker := New()
 	assign := ast.Assign(

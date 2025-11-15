@@ -23,7 +23,7 @@ const expressionsFixtures: Fixture[] = [
       manifest: {
         description: "Negates an integer literal",
         expect: {
-          result: { kind: "i32", value: -5 },
+          result: { kind: "i32", value: -5n },
         },
       },
     },
@@ -39,7 +39,7 @@ const expressionsFixtures: Fixture[] = [
       manifest: {
         description: "Evaluates a block expression and returns its final expression",
         expect: {
-          result: { kind: "i32", value: 1 },
+          result: { kind: "i32", value: 1n },
         },
       },
     },
@@ -50,7 +50,7 @@ const expressionsFixtures: Fixture[] = [
       manifest: {
         description: "Evaluates an integer literal with an i64 suffix",
         expect: {
-          result: { kind: "i32", value: 42 },
+          result: { kind: "i32", value: 42n },
         },
       },
     },
@@ -75,7 +75,7 @@ const expressionsFixtures: Fixture[] = [
       manifest: {
         description: "Declaration assignment binds a new identifier",
         expect: {
-          result: { kind: "i32", value: 1 },
+          result: { kind: "i32", value: 1n },
         },
       },
     },
@@ -90,7 +90,7 @@ const expressionsFixtures: Fixture[] = [
       manifest: {
         description: "Reassignment updates an existing binding",
         expect: {
-          result: { kind: "i32", value: 3 },
+          result: { kind: "i32", value: 3n },
         },
       },
     },
@@ -105,7 +105,7 @@ const expressionsFixtures: Fixture[] = [
       manifest: {
         description: "Compound assignment applies operator to existing value",
         expect: {
-          result: { kind: "i32", value: 7 },
+          result: { kind: "i32", value: 7n },
         },
       },
     },
@@ -127,7 +127,7 @@ const expressionsFixtures: Fixture[] = [
       manifest: {
         description: "Breakpoint expression returns value from labeled break",
         expect: {
-          result: { kind: "i32", value: 42 },
+          result: { kind: "i32", value: 42n },
         },
       },
     },
@@ -141,7 +141,7 @@ const expressionsFixtures: Fixture[] = [
       manifest: {
         description: "Index expression reads array element by position",
         expect: {
-          result: { kind: "i32", value: 2 },
+          result: { kind: "i32", value: 2n },
         },
       },
     },
@@ -251,7 +251,7 @@ const expressionsFixtures: Fixture[] = [
       manifest: {
         description: "Adds two integers",
         expect: {
-          result: { kind: "i32", value: 3 },
+          result: { kind: "i32", value: 3n },
         },
       },
     },
@@ -336,7 +336,7 @@ const expressionsFixtures: Fixture[] = [
       manifest: {
         description: "Multi-stage pipeline mixing % topic steps, placeholder callables, and bound methods",
         expect: {
-          result: { kind: "i32", value: 34 },
+          result: { kind: "i32", value: 34n },
         },
       },
     },

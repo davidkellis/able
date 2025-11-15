@@ -2,6 +2,7 @@ import * as AST from "../ast";
 import { Environment } from "./environment";
 import type { InterpreterV10 } from "./index";
 import type { V10Value } from "./values";
+import { valuesEqual } from "./value_equals";
 
 interface PatternAssignmentOptions {
   declarationNames?: Set<string>;
@@ -33,8 +34,7 @@ export function applyPatternAugmentations(cls: typeof InterpreterV10): void {
     }
     if (pattern.type === "LiteralPattern") {
       const litVal = this.evaluate(pattern.literal, baseEnv);
-      const equals = JSON.stringify(litVal) === JSON.stringify(value);
-      return equals ? new Environment(baseEnv) : null;
+      return valuesEqual(litVal, value) ? new Environment(baseEnv) : null;
     }
     if (pattern.type === "StructPattern") {
       if (value.kind !== "struct_instance") return null;
@@ -126,7 +126,7 @@ export function applyPatternAugmentations(cls: typeof InterpreterV10): void {
     if (pattern.type === "WildcardPattern") return;
     if (pattern.type === "LiteralPattern") {
       const lit = this.evaluate(pattern.literal, env);
-      if (JSON.stringify(lit) !== JSON.stringify(value)) throw new Error("Pattern literal mismatch in assignment");
+      if (!valuesEqual(lit, value)) throw new Error("Pattern literal mismatch in assignment");
       return;
     }
     if (pattern.type === "StructPattern") {

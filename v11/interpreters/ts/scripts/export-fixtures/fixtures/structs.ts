@@ -29,7 +29,7 @@ const structsFixtures: Fixture[] = [
       manifest: {
         description: "Named struct literal evaluates and exposes fields",
         expect: {
-          result: { kind: "i32", value: 3 },
+          result: { kind: "i32", value: 3n },
         },
       },
     },
@@ -61,7 +61,7 @@ const structsFixtures: Fixture[] = [
       manifest: {
         description: "Positional struct literal supports numeric member access",
         expect: {
-          result: { kind: "i32", value: 9 },
+          result: { kind: "i32", value: 9n },
         },
       },
     },

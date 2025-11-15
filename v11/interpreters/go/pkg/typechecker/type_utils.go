@@ -112,8 +112,10 @@ func formatType(t Type) string {
 }
 
 type intBounds struct {
-	min *big.Int
-	max *big.Int
+	min    *big.Int
+	max    *big.Int
+	bits   int
+	signed bool
 }
 
 func signedBounds(bits int) intBounds {
@@ -121,14 +123,17 @@ func signedBounds(bits int) intBounds {
 	max.Sub(max, big.NewInt(1))
 	min := new(big.Int).Exp(big.NewInt(2), big.NewInt(int64(bits-1)), nil)
 	min.Neg(min)
-	return intBounds{min: min, max: max}
+	return intBounds{min: min, max: max, bits: bits, signed: true}
 }
 
 func unsignedBounds(bits int) intBounds {
 	max := new(big.Int).Exp(big.NewInt(2), big.NewInt(int64(bits)), nil)
 	max.Sub(max, big.NewInt(1))
-	return intBounds{min: big.NewInt(0), max: max}
+	return intBounds{min: big.NewInt(0), max: max, bits: bits, signed: false}
 }
+
+var signedIntegerOrder = []string{"i8", "i16", "i32", "i64", "i128"}
+var unsignedIntegerOrder = []string{"u8", "u16", "u32", "u64", "u128"}
 
 var integerBounds = map[string]intBounds{
 	"i8":   signedBounds(8),
@@ -141,6 +146,44 @@ var integerBounds = map[string]intBounds{
 	"u32":  unsignedBounds(32),
 	"u64":  unsignedBounds(64),
 	"u128": unsignedBounds(128),
+}
+
+func integerInfo(name string) (intBounds, bool) {
+	info, ok := integerBounds[name]
+	return info, ok
+}
+
+func isSignedInteger(name string) bool {
+	info, ok := integerBounds[name]
+	return ok && info.signed
+}
+
+func integerBitsFor(name string) (int, bool) {
+	info, ok := integerBounds[name]
+	if !ok {
+		return 0, false
+	}
+	return info.bits, true
+}
+
+func smallestSignedFor(bits int) (string, bool) {
+	for _, name := range signedIntegerOrder {
+		info := integerBounds[name]
+		if info.bits >= bits {
+			return name, true
+		}
+	}
+	return "", false
+}
+
+func smallestUnsignedFor(bits int) (string, bool) {
+	for _, name := range unsignedIntegerOrder {
+		info := integerBounds[name]
+		if info.bits >= bits {
+			return name, true
+		}
+	}
+	return "", false
 }
 
 func isUnknownType(t Type) bool {
@@ -262,6 +305,13 @@ func typeAssignable(from, to Type) bool {
 	}
 	if literalAssignableTo(from, to) {
 		return true
+	}
+	if sourceInt, ok := from.(IntegerType); ok {
+		if targetInt, ok := to.(IntegerType); ok {
+			if integerRangeWithin(sourceInt.Suffix, targetInt.Suffix) {
+				return true
+			}
+		}
 	}
 	switch target := to.(type) {
 	case StructType:
@@ -387,6 +437,18 @@ func literalAssignableTo(from, to Type) bool {
 	}
 	value := new(big.Int).Set(source.Literal)
 	return value.Cmp(bounds.min) >= 0 && value.Cmp(bounds.max) <= 0
+}
+
+func integerRangeWithin(sourceSuffix, targetSuffix string) bool {
+	sourceBounds, ok := integerBounds[sourceSuffix]
+	if !ok {
+		return false
+	}
+	targetBounds, ok := integerBounds[targetSuffix]
+	if !ok {
+		return false
+	}
+	return sourceBounds.min.Cmp(targetBounds.min) >= 0 && sourceBounds.max.Cmp(targetBounds.max) <= 0
 }
 
 func literalMismatchMessage(from, to Type) (string, bool) {

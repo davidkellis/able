@@ -50,8 +50,8 @@ describe("v10 interpreter - impl ambiguity/coherence", () => {
 
     const aId = I.evaluate(AST.functionCall(AST.memberAccessExpression(AST.identifier("A"), "id"), []));
     const bId = I.evaluate(AST.functionCall(AST.memberAccessExpression(AST.identifier("B"), "id"), []));
-    expect(aId).toEqual({ kind: "i32", value: 7 });
-    expect(bId).toEqual({ kind: "i32", value: 9 });
+    expect(aId).toEqual({ kind: "i32", value: 7n });
+    expect(bId).toEqual({ kind: "i32", value: 9n });
   });
 });
 

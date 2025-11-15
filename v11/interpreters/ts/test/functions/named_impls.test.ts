@@ -47,10 +47,10 @@ describe("v10 interpreter - named impls as callable namespaces", () => {
     const sumId = I.evaluate(AST.memberAccessExpression(AST.identifier("Sum"), "id"));
     expect(sumId.kind).toBe("function");
     const sumVal = I.evaluate(AST.functionCall(AST.memberAccessExpression(AST.identifier("Sum"), "id"), []));
-    expect(sumVal).toEqual({ kind: "i32", value: 0 });
+    expect(sumVal).toEqual({ kind: "i32", value: 0n });
 
     const prodVal = I.evaluate(AST.functionCall(AST.memberAccessExpression(AST.identifier("Product"), "id"), []));
-    expect(prodVal).toEqual({ kind: "i32", value: 1 });
+    expect(prodVal).toEqual({ kind: "i32", value: 1n });
 
     const ifaceName = I.evaluate(AST.memberAccessExpression(AST.identifier("Sum"), "interface"));
     expect(ifaceName).toEqual({ kind: "string", value: "Monoid" });

@@ -45,7 +45,7 @@ const controlFixtures: Fixture[] = [
       manifest: {
         description: "For loop drives iterator literal lazily",
         expect: {
-          result: { kind: "i32", value: 6 },
+          result: { kind: "i32", value: 6n },
         },
       },
     },
@@ -104,8 +104,8 @@ const controlFixtures: Fixture[] = [
           result: {
             kind: "array",
             elements: [
-              { kind: "i32", value: 3 },
-              { kind: "i32", value: 3 },
+              { kind: "i32", value: 3n },
+              { kind: "i32", value: 3n },
             ],
           },
         },
@@ -235,10 +235,10 @@ const controlFixtures: Fixture[] = [
           result: {
             kind: "array",
             elements: [
-              { kind: "i32", value: 100 },
-              { kind: "i32", value: 1 },
-              { kind: "i32", value: 1 },
-              { kind: "i32", value: 1 },
+              { kind: "i32", value: 100n },
+              { kind: "i32", value: 1n },
+              { kind: "i32", value: 1n },
+              { kind: "i32", value: 1n },
             ],
           },
         },
@@ -282,7 +282,7 @@ const controlFixtures: Fixture[] = [
       manifest: {
         description: "Iterator literal preserves element type annotations and custom binding names",
         expect: {
-          result: { kind: "i32", value: 2 },
+          result: { kind: "i32", value: 2n },
         },
       },
     },
@@ -333,11 +333,11 @@ const controlFixtures: Fixture[] = [
           result: {
             kind: "array",
             elements: [
-              { kind: "i32", value: 0 },
-              { kind: "i32", value: 1 },
-              { kind: "i32", value: 2 },
+              { kind: "i32", value: 0n },
+              { kind: "i32", value: 1n },
+              { kind: "i32", value: 2n },
               { kind: "iterator_end" },
-              { kind: "i32", value: 2 },
+              { kind: "i32", value: 2n },
             ],
           },
         },
@@ -379,9 +379,9 @@ const controlFixtures: Fixture[] = [
           result: {
             kind: "array",
             elements: [
-              { kind: "i32", value: 1 },
-              { kind: "i32", value: 2 },
-              { kind: "i32", value: 3 },
+              { kind: "i32", value: 1n },
+              { kind: "i32", value: 2n },
+              { kind: "i32", value: 3n },
               { kind: "iterator_end" },
             ],
           },
@@ -424,7 +424,7 @@ const controlFixtures: Fixture[] = [
           result: {
             kind: "array",
             elements: [
-              { kind: "i32", value: 1 },
+              { kind: "i32", value: 1n },
               { kind: "iterator_end" },
               { kind: "iterator_end" },
             ],
@@ -451,7 +451,7 @@ const controlFixtures: Fixture[] = [
       manifest: {
         description: "Sums integers using a while loop",
         expect: {
-          result: { kind: "i32", value: 3 },
+          result: { kind: "i32", value: 3n },
         },
       },
     },
@@ -534,7 +534,7 @@ const controlFixtures: Fixture[] = [
       manifest: {
         description: "For loop iterates over array",
         expect: {
-          result: { kind: "i32", value: 6 },
+          result: { kind: "i32", value: 6n },
         },
       },
     },
@@ -558,7 +558,7 @@ const controlFixtures: Fixture[] = [
       manifest: {
         description: "For loop continue skips matching elements",
         expect: {
-          result: { kind: "i32", value: 4 },
+          result: { kind: "i32", value: 4n },
         },
       },
     },
@@ -582,7 +582,7 @@ const controlFixtures: Fixture[] = [
       manifest: {
         description: "For loop over range with break",
         expect: {
-          result: { kind: "i32", value: 3 },
+          result: { kind: "i32", value: 3n },
         },
       },
     },
@@ -601,7 +601,7 @@ const controlFixtures: Fixture[] = [
       manifest: {
         description: "Inclusive range includes upper bound during iteration",
         expect: {
-          result: { kind: "i32", value: 15 },
+          result: { kind: "i32", value: 15n },
         },
       },
     },

@@ -18,6 +18,11 @@ fn factorial_recursive_conditional(n: i32) -> i64 {
   else { n * factorial_recursive_conditional(n - 1) }
 }
 
+fn factorial_recursive_guard(n: i32) -> i64 {
+  if n <= 0 { return 1 }
+  n * factorial_recursive_guard(n - 1)
+}
+
 fn factorial_tail_recursive_accumulator(n: i32) -> i64 {
   factorial_tail_recursive_step(n, 1)
 }

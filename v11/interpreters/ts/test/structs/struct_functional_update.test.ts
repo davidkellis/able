@@ -36,7 +36,7 @@ describe("v10 interpreter - struct functional update", () => {
     const nameField = I.evaluate(AST.memberAccessExpression(updated, "name"));
     expect(nameField).toEqual({ kind: "string", value: "Bob" });
     const idField = I.evaluate(AST.memberAccessExpression(updated, "id"));
-    expect(idField).toEqual({ kind: "i32", value: 1 });
+    expect(idField).toEqual({ kind: "i32", value: 1n });
     const activeField = I.evaluate(AST.memberAccessExpression(updated, "active"));
     expect(activeField).toEqual({ kind: "bool", value: true });
 
@@ -93,7 +93,7 @@ describe("v10 interpreter - struct functional update", () => {
     const value = I.evaluate(merged);
     expect(value.kind).toBe("struct_instance");
     if (value.kind !== "struct_instance" || !(value.values instanceof Map)) throw new Error("expected named struct instance");
-    expect(value.values.get("x")).toEqual({ kind: "i32", value: 99 });
-    expect(value.values.get("y")).toEqual({ kind: "i32", value: 20 });
+    expect(value.values.get("x")).toEqual({ kind: "i32", value: 99n });
+    expect(value.values.get("y")).toEqual({ kind: "i32", value: 20n });
   });
 });

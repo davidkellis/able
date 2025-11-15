@@ -46,7 +46,7 @@ describe("v10 interpreter - impl methods via ImplementationDefinition", () => {
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("p"), p));
 
     const call = AST.functionCall(AST.memberAccessExpression(AST.identifier("p"), "sum"), []);
-    expect(I.evaluate(call)).toEqual({ kind: 'i32', value: 10 });
+    expect(I.evaluate(call)).toEqual({ kind: 'i32', value: 10n });
   });
 });
 

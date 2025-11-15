@@ -10,7 +10,7 @@ describe("v10 interpreter - error handling", () => {
       AST.blockExpression([AST.raiseStatement(AST.integerLiteral(42))]),
       [AST.matchClause(AST.wildcardPattern(), AST.integerLiteral(7))]
     );
-    expect(I.evaluate(expr)).toEqual({ kind: 'i32', value: 7 });
+    expect(I.evaluate(expr)).toEqual({ kind: 'i32', value: 7n });
   });
 
   test("or-else binds error", () => {

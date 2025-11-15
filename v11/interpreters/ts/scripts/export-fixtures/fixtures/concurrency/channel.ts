@@ -466,7 +466,7 @@ const channelConcurrencyFixtures: Fixture[] = [
         manifest: {
           description: "Channel.receive drains buffered values and returns nil after close",
           expect: {
-            result: { kind: "i32", value: 5 },
+            result: { kind: "i32", value: 5n },
           },
         },
       },

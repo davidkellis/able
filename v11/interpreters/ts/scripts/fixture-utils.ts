@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { AST, V10 } from "../index";
 import { mapSourceFile } from "../src/parser/tree-sitter-mapper";
 import { getTreeSitterParser } from "../src/parser/tree-sitter-loader";
+import { makeIntegerValue, numericToNumber } from "../src/interpreter/numeric";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -219,7 +220,7 @@ export function installRuntimeStubs(interpreter: V10.InterpreterV10): void {
   };
 
   let nextHandle = 1;
-  const makeHandle = (): V10.V10Value => ({ kind: "i32", value: nextHandle++ });
+  const makeHandle = (): V10.V10Value => makeIntegerValue("i32", BigInt(nextHandle++));
 
   type ChannelState = {
     capacity: number;
@@ -233,11 +234,10 @@ export function installRuntimeStubs(interpreter: V10.InterpreterV10): void {
   };
   const mutexes = new Map<number, MutexState>();
 
-  const toNumber = (value: V10.V10Value): number => {
-    if (value.kind === "i32" || value.kind === "f64") return Number(value.value ?? 0);
-    return Number((value as any).value ?? value ?? 0);
+  const toNumber = (value: V10.V10Value, label = "numeric value"): number => {
+    return numericToNumber(value, label);
   };
-  const toHandle = (value: V10.V10Value): number => toNumber(value);
+  const toHandle = (value: V10.V10Value): number => Math.trunc(toNumber(value, "handle"));
 
   const checkCancelled = (interp: V10.InterpreterV10): boolean => {
     try {

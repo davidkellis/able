@@ -12,7 +12,7 @@ describe("v10 interpreter - generic type arguments (accepted, no typecheck)", ()
     );
     I.evaluate(id);
     const call = AST.functionCall(AST.identifier("id"), [AST.integerLiteral(9)], [AST.simpleTypeExpression("i32")]);
-    expect(I.evaluate(call)).toEqual({ kind: 'i32', value: 9 });
+    expect(I.evaluate(call)).toEqual({ kind: 'i32', value: 9n });
   });
 });
 

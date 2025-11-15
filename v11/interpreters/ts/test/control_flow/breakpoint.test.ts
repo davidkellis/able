@@ -10,7 +10,7 @@ describe("v10 interpreter - breakpoint expression", () => {
       AST.binaryExpression("+", AST.identifier("x"), AST.integerLiteral(2))
     ]);
     const bp = AST.breakpointExpression("dbg", body);
-    expect(I.evaluate(bp)).toEqual({ kind: 'i32', value: 3 });
+    expect(I.evaluate(bp)).toEqual({ kind: 'i32', value: 3n });
   });
 });
 

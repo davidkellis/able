@@ -151,6 +151,23 @@ func TestAssignmentDeclareRequiresNewBinding(t *testing.T) {
 	}
 }
 
+func TestTypedAssignmentWidenIntegerValues(t *testing.T) {
+	interp := New()
+	module := ast.Mod([]ast.Statement{
+		ast.Assign(ast.ID("value"), ast.Int(5)),
+		ast.Assign(ast.TypedP(ast.ID("wide"), ast.Ty("i64")), ast.ID("value")),
+		ast.ID("wide"),
+	}, nil, nil)
+	result, _, err := interp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	intVal, ok := result.(runtime.IntegerValue)
+	if !ok || intVal.TypeSuffix != runtime.IntegerI64 || intVal.Val.Cmp(bigInt(5)) != 0 {
+		t.Fatalf("expected widened i64 value, got %#v", result)
+	}
+}
+
 func TestDestructuringDeclareRequiresNewBinding(t *testing.T) {
 	interp := New()
 	pat := ast.ArrP([]ast.Pattern{ast.PatternFrom("left"), ast.PatternFrom("right")}, nil)

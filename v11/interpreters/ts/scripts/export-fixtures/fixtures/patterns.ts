@@ -13,7 +13,7 @@ const patternsFixtures: Fixture[] = [
       manifest: {
         description: "Array destructuring assignment extracts prefix and rest",
         expect: {
-          result: { kind: "i32", value: 6 },
+          result: { kind: "i32", value: 6n },
         },
       },
     },
@@ -60,7 +60,7 @@ const patternsFixtures: Fixture[] = [
       manifest: {
         description: "Positional struct destructuring assignment binds tuple fields",
         expect: {
-          result: { kind: "i32", value: 12 },
+          result: { kind: "i32", value: 12n },
         },
       },
     },
@@ -185,7 +185,7 @@ const patternsFixtures: Fixture[] = [
       manifest: {
         description: "Nested struct and array patterns destructure composite value",
         expect: {
-          result: { kind: "i32", value: 35 },
+          result: { kind: "i32", value: 35n },
         },
       },
     },
@@ -211,7 +211,7 @@ const patternsFixtures: Fixture[] = [
       manifest: {
         description: "For-in loop destructures array elements",
         expect: {
-          result: { kind: "i32", value: 10 },
+          result: { kind: "i32", value: 10n },
         },
       },
     },
@@ -229,7 +229,7 @@ const patternsFixtures: Fixture[] = [
       manifest: {
         description: "Typed pattern enforces simple type on assignment",
         expect: {
-          result: { kind: "i32", value: 42 },
+          result: { kind: "i32", value: 42n },
         },
       },
     },
