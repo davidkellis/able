@@ -2,6 +2,7 @@ import * as AST from "../ast";
 import type { InterpreterV10 } from "./index";
 import type { V10Value } from "./values";
 import { RaiseSignal } from "./signals";
+import { makeIntegerValue, numericToNumber } from "./numeric";
 
 type ProcHandleValue = Extract<V10Value, { kind: "proc_handle" }>;
 type BoolValue = Extract<V10Value, { kind: "bool" }>;
@@ -66,15 +67,8 @@ declare module "./values" {
   }
 }
 
-function isNumeric(value: V10Value): value is Extract<V10Value, { kind: "i32" | "f64" }> {
-  return value.kind === "i32" || value.kind === "f64";
-}
-
 function toHandleNumber(value: V10Value, label: string): number {
-  if (!isNumeric(value)) {
-    throw new Error(`${label} must be numeric`);
-  }
-  return Math.trunc(value.value);
+  return Math.trunc(numericToNumber(value, label, { requireSafeInteger: true }));
 }
 
 function blockOnNilChannel(interp: InterpreterV10): V10Value {
@@ -195,7 +189,7 @@ export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void
           sendWaiters: [],
           receiveWaiters: [],
         });
-        return { kind: "i32", value: handle };
+        return makeIntegerValue("i32", BigInt(handle));
       }),
     );
 
@@ -502,7 +496,7 @@ export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void
       this.makeNativeFunction("__able_mutex_new", 0, (interp) => {
         const handle = interp.nextMutexHandle++;
         interp.mutexStates.set(handle, { id: handle, locked: false, owner: null, waiters: [] });
-        return { kind: "i32", value: handle };
+        return makeIntegerValue("i32", BigInt(handle));
       }),
     );
 

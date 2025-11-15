@@ -14,7 +14,7 @@ describe("v10 interpreter - destructuring function parameters", () => {
     );
     I.evaluate(fn);
     const call = AST.functionCall(AST.identifier("sum2"), [AST.arrayLiteral([AST.integerLiteral(3), AST.integerLiteral(4)])]);
-    expect(I.evaluate(call)).toEqual({ kind: 'i32', value: 7 });
+    expect(I.evaluate(call)).toEqual({ kind: 'i32', value: 7n });
   });
 
   test("struct destructuring params", () => {
@@ -38,7 +38,7 @@ describe("v10 interpreter - destructuring function parameters", () => {
       AST.structFieldInitializer(AST.integerLiteral(6), "y"),
     ], false, "Point");
     const call = AST.functionCall(AST.identifier("sumPoint"), [arg]);
-    expect(I.evaluate(call)).toEqual({ kind: 'i32', value: 11 });
+    expect(I.evaluate(call)).toEqual({ kind: 'i32', value: 11n });
   });
 });
 

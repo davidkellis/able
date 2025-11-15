@@ -17,6 +17,20 @@ describe("typechecker typed patterns", () => {
     expect(result.diagnostics).toEqual([]);
   });
 
+  test("typed declarations adopt narrower integer bindings", () => {
+    const checker = new TypeChecker();
+    const module = AST.module([
+      AST.assignmentExpression(":=", AST.identifier("value"), AST.integerLiteral(1)) as unknown as AST.Statement,
+      AST.assignmentExpression(
+        ":=",
+        AST.typedPattern(AST.identifier("result"), AST.simpleTypeExpression("i64")),
+        AST.identifier("value"),
+      ) as unknown as AST.Statement,
+    ]);
+    const { diagnostics } = checker.checkModule(module);
+    expect(diagnostics).toEqual([]);
+  });
+
   test("reports diagnostic when := introduces no new bindings", () => {
     const checker = new TypeChecker();
     const module = AST.module([

@@ -70,7 +70,7 @@ export const procCoreFixtures: Fixture[] = [
         manifest: {
           description: "Future value memoises results and runs the task only once",
           expect: {
-            result: { kind: "i32", value: 1 },
+            result: { kind: "i32", value: 1n },
           },
         },
       },

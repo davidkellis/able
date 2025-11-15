@@ -2,6 +2,7 @@ import * as AST from "../ast";
 import type { Environment } from "./environment";
 import type { InterpreterV10 } from "./index";
 import type { V10Value } from "./values";
+import { numericToNumber } from "./numeric";
 
 function isPatternNode(node: AST.Node | undefined | null): node is AST.Pattern {
   if (!node) return false;
@@ -160,8 +161,7 @@ export function evaluateAssignmentExpression(ctx: InterpreterV10, node: AST.Assi
     const obj = ctx.evaluate(node.left.object, env);
     const idxVal = ctx.evaluate(node.left.index, env);
     if (obj.kind !== "array") throw new Error("Index assignment requires array");
-    const idx = (idxVal.kind === "i32" || idxVal.kind === "f64") ? Math.trunc(idxVal.value) : NaN;
-    if (!Number.isFinite(idx)) throw new Error("Array index must be a number");
+    const idx = Math.trunc(numericToNumber(idxVal, "Array index", { requireSafeInteger: true }));
     if (idx < 0 || idx >= obj.elements.length) throw new Error("Array index out of bounds");
     if (isCompound) {
       const current = obj.elements[idx]!;

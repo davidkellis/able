@@ -3,6 +3,7 @@ import { ReturnSignal } from "./signals";
 import { Environment } from "./environment";
 import type { V10Value } from "./values";
 import type { InterpreterV10 } from "./index";
+import { isFloatValue, isIntegerValue } from "./numeric";
 
 declare module "./index" {
   interface InterpreterV10 {
@@ -17,13 +18,14 @@ export function applyStringifyAugmentations(cls: typeof InterpreterV10): void {
   };
 
   cls.prototype.valueToStringWithEnv = function valueToStringWithEnv(this: InterpreterV10, v: V10Value, env: Environment): string {
+    if (isIntegerValue(v) || isFloatValue(v)) {
+      return String(v.value);
+    }
     switch (v.kind) {
       case "string": return v.value;
       case "bool": return String(v.value);
       case "char": return v.value;
       case "nil": return "nil";
-      case "i32": return String(v.value);
-      case "f64": return String(v.value);
       case "array": return `[${v.elements.map(e => this.valueToString(e)).join(", ")}]`;
       case "range": return `${v.start}${v.inclusive ? ".." : "..."}${v.end}`;
       case "function": return "<function>";

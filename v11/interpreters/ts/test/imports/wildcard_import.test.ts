@@ -25,7 +25,7 @@ describe("v10 interpreter - wildcard import", () => {
       AST.assignmentExpression(":=", AST.identifier("x"), AST.functionCall(AST.identifier("pub_fn"), [])),
     ]);
     const res = I.evaluate(useMod as any);
-    expect(res).toEqual({ kind: "i32", value: 7 });
+    expect(res).toEqual({ kind: "i32", value: 7n });
 
     // Ensure private ones are not defined
     expect(() => I.evaluate(AST.identifier("priv_fn"))).toThrow();

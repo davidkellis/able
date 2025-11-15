@@ -1,5 +1,6 @@
 import type { InterpreterV10 } from "../src/interpreter";
 import type { V10Value } from "../src/interpreter/values";
+import { isFloatValue, isIntegerValue, makeIntegerValue, numericToNumber } from "../src/interpreter/numeric";
 
 export function ensureConsolePrint(interpreter: InterpreterV10): void {
   if ((interpreter.globals as any).lookup && interpreter.globals.lookup("print")) {
@@ -10,20 +11,20 @@ export function ensureConsolePrint(interpreter: InterpreterV10): void {
       console.log("nil");
       return { kind: "nil", value: null };
     }
-    switch (value.kind) {
-      case "string":
-      case "char":
-        console.log(String(value.value));
-        break;
-      case "bool":
-        console.log(value.value ? "true" : "false");
-        break;
-      case "i32":
-      case "f64":
-        console.log(String(value.value));
-        break;
-      default:
-        console.log(`[${value.kind}]`);
+    if (isIntegerValue(value) || isFloatValue(value)) {
+      console.log(String(value.value));
+    } else {
+      switch (value.kind) {
+        case "string":
+        case "char":
+          console.log(String(value.value));
+          break;
+        case "bool":
+          console.log(value.value ? "true" : "false");
+          break;
+        default:
+          console.log(`[${value.kind}]`);
+      }
     }
     return { kind: "nil", value: null };
   });
@@ -54,10 +55,10 @@ export function installRuntimeStubs(interpreter: InterpreterV10): void {
     }
   };
 
-  const makeHandle = () => ({ kind: "i32", value: handleCounter++ } as V10Value);
+  const makeHandle = (): V10Value => makeIntegerValue("i32", BigInt(handleCounter++));
   const toHandle = (value: V10Value | undefined): number => {
-    if (!value || value.kind !== "i32") throw new Error("expected handle");
-    return value.value;
+    if (!value) throw new Error("expected handle");
+    return Math.trunc(numericToNumber(value, "handle", { requireSafeInteger: true }));
   };
 
   const checkCancelled = (interp: InterpreterV10): boolean => {
@@ -79,9 +80,10 @@ export function installRuntimeStubs(interpreter: InterpreterV10): void {
 
   defineIfMissing("__able_channel_new", () =>
     (interpreter as any).makeNativeFunction?.("__able_channel_new", 1, (_ctx: InterpreterV10, [capacity]: V10Value[]) => {
-      if (!capacity || capacity.kind !== "i32") throw new Error("capacity must be i32");
+      const capCount = capacity ? Math.max(0, Math.trunc(numericToNumber(capacity, "capacity", { requireSafeInteger: true }))) : 0;
       const handle = makeHandle();
-      channels.set(handle.value, { queue: [], capacity: capacity.value, closed: false });
+      const handleId = Number(handle.value);
+      channels.set(handleId, { queue: [], capacity: capCount, closed: false });
       return handle;
     }) ?? { kind: "nil", value: null },
   );
@@ -216,7 +218,7 @@ export function installRuntimeStubs(interpreter: InterpreterV10): void {
     (interpreter as any).makeNativeFunction?.("__able_string_from_builtin", 1, (_ctx: InterpreterV10, [value]: V10Value[]) => {
       if (!value || value.kind !== "string") throw new Error("argument must be string");
       const bytes = textEncoder.encode(value.value);
-      return { kind: "array", elements: Array.from(bytes, (b) => ({ kind: "i32", value: b })) };
+      return { kind: "array", elements: Array.from(bytes, (b) => makeIntegerValue("i32", BigInt(b))) };
     }) ?? { kind: "nil", value: null },
   );
 
@@ -224,8 +226,8 @@ export function installRuntimeStubs(interpreter: InterpreterV10): void {
     (interpreter as any).makeNativeFunction?.("__able_string_to_builtin", 1, (_ctx: InterpreterV10, [arr]: V10Value[]) => {
       if (!arr || arr.kind !== "array") throw new Error("argument must be array");
       const bytes = Uint8Array.from(arr.elements.map((el, idx) => {
-        if (!el || (el.kind !== "i32" && el.kind !== "f64")) throw new Error(`array element ${idx} must be numeric`);
-        const n = Math.trunc(el.value);
+        if (!el) throw new Error(`array element ${idx} must be numeric`);
+        const n = Math.trunc(numericToNumber(el, `array element ${idx}`, { requireSafeInteger: true }));
         if (n < 0 || n > 0xff) throw new Error(`array element ${idx} must be in range 0..255`);
         return n;
       }));
@@ -235,8 +237,8 @@ export function installRuntimeStubs(interpreter: InterpreterV10): void {
 
   defineIfMissing("__able_char_from_codepoint", () =>
     (interpreter as any).makeNativeFunction?.("__able_char_from_codepoint", 1, (_ctx: InterpreterV10, [code]: V10Value[]) => {
-      if (!code || (code.kind !== "i32" && code.kind !== "f64")) throw new Error("codepoint must be numeric");
-      const cp = Math.trunc(code.value);
+      if (!code) throw new Error("codepoint must be numeric");
+      const cp = Math.trunc(numericToNumber(code, "codepoint", { requireSafeInteger: true }));
       if (cp < 0 || cp > 0x10ffff) throw new Error("codepoint out of range");
       return { kind: "char", value: String.fromCodePoint(cp) };
     }) ?? { kind: "char", value: "" },
@@ -249,8 +251,8 @@ export function installRuntimeStubs(interpreter: InterpreterV10): void {
     (interpreter as any).makeNativeFunction?.("__able_hasher_create", 0, () => {
       const handle = handleCounter++;
       hashers.set(handle, FNV_OFFSET);
-      return { kind: "i32", value: handle };
-    }) ?? { kind: "i32", value: 0 },
+      return makeIntegerValue("i32", BigInt(handle));
+    }) ?? makeIntegerValue("i32", 0n),
   );
 
   defineIfMissing("__able_hasher_write", () =>
@@ -275,7 +277,7 @@ export function installRuntimeStubs(interpreter: InterpreterV10): void {
       const state = hashers.get(handle);
       if (state === undefined) throw new Error("unknown hasher handle");
       hashers.delete(handle);
-      return { kind: "i32", value: state >>> 0 };
-    }) ?? { kind: "i32", value: 0 },
+      return makeIntegerValue("i32", BigInt(state >>> 0));
+    }) ?? makeIntegerValue("i32", 0n),
   );
 }

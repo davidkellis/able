@@ -54,6 +54,7 @@ export type {
   FunctionInfo,
 } from "./checker/types";
 import type { DiagnosticLocation, TypecheckerDiagnostic, TypecheckResult, PackageSummary } from "./diagnostics";
+import { hasIntegerBounds, integerBounds, getIntegerTypeInfo } from "./numeric";
 
 export interface TypeCheckerOptions {
   /**
@@ -66,35 +67,6 @@ export interface TypeCheckerOptions {
    * resolve imports and surface package metadata to consumers.
    */
   packageSummaries?: Map<string, PackageSummary> | Record<string, PackageSummary>;
-}
-
-const signedLimits = (bits: number): { min: bigint; max: bigint } => {
-  const half = BigInt(bits - 1);
-  const max = (1n << half) - 1n;
-  const min = -(1n << half);
-  return { min, max };
-};
-
-const unsignedLimits = (bits: number): { min: bigint; max: bigint } => {
-  const max = (1n << BigInt(bits)) - 1n;
-  return { min: 0n, max };
-};
-
-const INTEGER_BOUNDS: Record<IntegerPrimitive, { min: bigint; max: bigint }> = {
-  i8: signedLimits(8),
-  i16: signedLimits(16),
-  i32: signedLimits(32),
-  i64: signedLimits(64),
-  i128: signedLimits(128),
-  u8: unsignedLimits(8),
-  u16: unsignedLimits(16),
-  u32: unsignedLimits(32),
-  u64: unsignedLimits(64),
-  u128: unsignedLimits(128),
-};
-
-function hasIntegerBounds(name: PrimitiveName): name is IntegerPrimitive {
-  return Object.prototype.hasOwnProperty.call(INTEGER_BOUNDS, name);
 }
 
 export class TypeChecker {
@@ -460,7 +432,7 @@ export class TypeChecker {
           this.report(literalMessage, args[index] ?? call);
           continue;
         }
-        if (!this.typeInfosEquivalent(actual, expected)) {
+        if (!this.isTypeAssignable(actual, expected)) {
           this.report(
             `typechecker: argument ${index + 1} has type ${formatType(actual)}, expected ${formatType(expected)}`,
             args[index] ?? call,
@@ -499,7 +471,7 @@ export class TypeChecker {
         const literalMessage = this.describeLiteralMismatch(bodyType, expectedReturn);
         if (literalMessage) {
           this.report(literalMessage, definition.body ?? definition);
-        } else if (!this.typeInfosEquivalent(bodyType, expectedReturn)) {
+        } else if (!this.isTypeAssignable(bodyType, expectedReturn)) {
           this.report(
             `typechecker: function '${name}' body returns ${formatType(bodyType)}, expected ${formatType(expectedReturn)}`,
             definition.body ?? definition,
@@ -528,7 +500,7 @@ export class TypeChecker {
       this.report(literalMessage, statement.argument ?? statement);
       return;
     }
-    if (!this.typeInfosEquivalent(actual, expected)) {
+    if (!this.isTypeAssignable(actual, expected)) {
       this.report(
         `typechecker: return expects ${formatType(expected)}, got ${formatType(actual)}`,
         statement.argument ?? statement,
@@ -809,6 +781,32 @@ export class TypeChecker {
     }
   }
 
+  private canWidenIntegerType(actual: PrimitiveName, expected: PrimitiveName): boolean {
+    const actualInfo = getIntegerTypeInfo(actual);
+    const expectedInfo = getIntegerTypeInfo(expected);
+    if (!actualInfo || !expectedInfo) {
+      return false;
+    }
+    return actualInfo.min >= expectedInfo.min && actualInfo.max <= expectedInfo.max;
+  }
+
+  private isTypeAssignable(actual?: TypeInfo, expected?: TypeInfo): boolean {
+    if (!actual || actual.kind === "unknown" || !expected || expected.kind === "unknown") {
+      return true;
+    }
+    const normalizedActual = this.canonicalizeStructuralType(actual);
+    const normalizedExpected = this.canonicalizeStructuralType(expected);
+    if (this.typeInfosEquivalent(normalizedActual, normalizedExpected)) {
+      return true;
+    }
+    if (normalizedActual.kind === "primitive" && normalizedExpected.kind === "primitive") {
+      if (this.canWidenIntegerType(normalizedActual.name, normalizedExpected.name)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   private literalValueToBigInt(literal: LiteralInfo): bigint {
     if (typeof literal.value === "bigint") {
       return literal.value;
@@ -827,7 +825,7 @@ export class TypeChecker {
       if (!hasIntegerBounds(expected)) {
         return literalType === expected;
       }
-      const bounds = INTEGER_BOUNDS[expected];
+      const bounds = integerBounds(expected);
       const value = this.literalValueToBigInt(literal);
       return value >= bounds.min && value <= bounds.max;
     }
@@ -932,7 +930,7 @@ export class TypeChecker {
     if (!hasIntegerBounds(normalizedExpected.name)) {
       return null;
     }
-    const bounds = INTEGER_BOUNDS[normalizedExpected.name];
+    const bounds = integerBounds(normalizedExpected.name);
     const value = this.literalValueToBigInt(normalizedActual.literal);
     if (value < bounds.min || value > bounds.max) {
       return `typechecker: literal ${value.toString()} does not fit in ${normalizedExpected.name}`;
@@ -1274,6 +1272,7 @@ export class TypeChecker {
     ctx.report = this.report.bind(this);
     ctx.describeTypeExpression = this.describeTypeExpression.bind(this);
     ctx.typeInfosEquivalent = this.typeInfosEquivalent.bind(this);
+    ctx.isTypeAssignable = this.isTypeAssignable.bind(this);
     ctx.describeLiteralMismatch = this.describeLiteralMismatch.bind(this);
     ctx.resolveTypeExpression = this.resolveTypeExpression.bind(this);
     ctx.getStructDefinition = (name: string) => this.structDefinitions.get(name);

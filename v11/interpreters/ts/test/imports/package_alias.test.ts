@@ -20,7 +20,7 @@ describe("v10 interpreter - package alias import", () => {
       AST.assignmentExpression(":=", AST.identifier("x"), AST.functionCall(AST.memberAccessExpression(AST.identifier("U"), "foo"), [])),
     ]);
     const res = I.evaluate(use as any);
-    expect(res).toEqual({ kind: "i32", value: 3 });
+    expect(res).toEqual({ kind: "i32", value: 3n });
 
     // alias object kind
     const aliasVal = I.evaluate(AST.identifier("U"));

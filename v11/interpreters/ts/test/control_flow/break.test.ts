@@ -18,7 +18,7 @@ describe("v10 interpreter - break statement", () => {
       ])
     );
     I.evaluate(loop);
-    expect(I.evaluate(AST.identifier("i"))).toEqual({ kind: 'i32', value: 3 });
+    expect(I.evaluate(AST.identifier("i"))).toEqual({ kind: 'i32', value: 3n });
   });
 });
 

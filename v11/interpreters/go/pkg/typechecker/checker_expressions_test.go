@@ -409,7 +409,7 @@ func TestBinaryAdditionMismatchedOperandsDiagnostic(t *testing.T) {
 	}
 	found := false
 	for _, d := range diags {
-		if strings.Contains(d.Message, "requires both operands") {
+		if strings.Contains(d.Message, "requires numeric operands") {
 			found = true
 			break
 		}

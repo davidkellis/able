@@ -34,11 +34,29 @@ func (i *Interpreter) evaluateExpression(node ast.Expression, env *runtime.Envir
 	case *ast.NilLiteral:
 		return runtime.NilValue{}, nil
 	case *ast.IntegerLiteral:
-		_ = n.IntegerType // suffix guides typechecking but runtime uses i32
-		return runtime.IntegerValue{Val: runtime.CloneBigInt(bigFromLiteral(n.Value)), TypeSuffix: runtime.IntegerI32}, nil
+		suffix := runtime.IntegerI32
+		if n.IntegerType != nil {
+			suffix = runtime.IntegerType(*n.IntegerType)
+		}
+		val := runtime.CloneBigInt(bigFromLiteral(n.Value))
+		info, err := getIntegerInfo(suffix)
+		if err != nil {
+			return nil, err
+		}
+		if err := ensureFitsInteger(info, val); err != nil {
+			return nil, err
+		}
+		return runtime.IntegerValue{Val: val, TypeSuffix: suffix}, nil
 	case *ast.FloatLiteral:
-		_ = n.FloatType // suffix influences typechecking but runtime values remain f64
-		return runtime.FloatValue{Val: n.Value, TypeSuffix: runtime.FloatF64}, nil
+		suffix := runtime.FloatF64
+		if n.FloatType != nil {
+			suffix = runtime.FloatType(*n.FloatType)
+		}
+		val := n.Value
+		if suffix == runtime.FloatF32 {
+			val = float64(float32(val))
+		}
+		return runtime.FloatValue{Val: val, TypeSuffix: suffix}, nil
 	case *ast.ArrayLiteral:
 		values := make([]runtime.Value, 0, len(n.Elements))
 		for _, el := range n.Elements {

@@ -20,7 +20,7 @@ describe("v10 interpreter - structs", () => {
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("p"), pLit));
     // p.x == 2
     const px = AST.memberAccessExpression(AST.identifier("p"), "x");
-    expect(I.evaluate(px)).toEqual({ kind: 'i32', value: 2 });
+    expect(I.evaluate(px)).toEqual({ kind: 'i32', value: 2n });
   });
 
   test("positional struct literal and index access", () => {
@@ -39,7 +39,7 @@ describe("v10 interpreter - structs", () => {
     ], true, "Color");
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("c"), cLit));
     const g = AST.memberAccessExpression(AST.identifier("c"), AST.integerLiteral(1));
-    expect(I.evaluate(g)).toEqual({ kind: 'i32', value: 0 });
+    expect(I.evaluate(g)).toEqual({ kind: 'i32', value: 0n });
   });
 });
 

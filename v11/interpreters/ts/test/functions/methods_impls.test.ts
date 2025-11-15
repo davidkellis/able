@@ -37,7 +37,7 @@ describe("v10 interpreter - methods & impls", () => {
 
     // p.sum()
     const call = AST.functionCall(AST.memberAccessExpression(AST.identifier("p"), "sum"), []);
-    expect(I.evaluate(call)).toEqual({ kind: 'i32', value: 5 });
+    expect(I.evaluate(call)).toEqual({ kind: 'i32', value: 5n });
   });
 });
 

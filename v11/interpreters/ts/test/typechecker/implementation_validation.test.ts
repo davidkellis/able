@@ -229,9 +229,9 @@ describe("TypeChecker implementation validation", () => {
     const checker = new TypeChecker();
     const { diagnostics } = checker.checkModule(moduleAst);
     expect(diagnostics.length).toBeGreaterThan(0);
-    expect(diagnostics[0]?.message).toContain("type constructor");
-    expect(diagnostics[0]?.message).toContain("Display");
-    expect(diagnostics[0]?.message).toContain("Array");
+    const typeConstructorDiag = diagnostics.find((diag) => diag.message.includes("type constructor"));
+    expect(typeConstructorDiag?.message).toContain("Display");
+    expect(typeConstructorDiag?.message).toContain("Array");
   });
 
   test("accepts bare type constructor when interface declares higher-kinded self pattern", () => {

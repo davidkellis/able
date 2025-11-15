@@ -3,6 +3,9 @@ import type { Environment } from "./environment";
 import type { InterpreterV10 } from "./index";
 import type { ProcContinuationContext } from "./proc_continuations";
 
+export type IntegerKind = "i8" | "i16" | "i32" | "i64" | "i128" | "u8" | "u16" | "u32" | "u64" | "u128";
+export type FloatKind = "f32" | "f64";
+
 export type ImplMethodEntry = {
   def: AST.ImplementationDefinition;
   methods: Map<string, Extract<V10Value, { kind: "function" }>>;
@@ -17,8 +20,8 @@ export type V10Value =
   | { kind: "bool"; value: boolean }
   | { kind: "char"; value: string }
   | { kind: "nil"; value: null }
-  | { kind: "i32"; value: number }
-  | { kind: "f64"; value: number }
+  | { kind: IntegerKind; value: bigint }
+  | { kind: FloatKind; value: number }
   | { kind: "array"; elements: V10Value[] }
   | {
       kind: "hash_map";

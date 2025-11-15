@@ -62,7 +62,7 @@ fn provide() -> i32 { 42 }
 	if !strings.HasPrefix(result.Diagnostics[0].Package, "root_app") {
 		t.Fatalf("expected diagnostic for root_app, got %s", result.Diagnostics[0].Package)
 	}
-	if want := "requires both operands"; !strings.Contains(result.Diagnostics[0].Diagnostic.Message, want) {
+	if want := "requires numeric operands"; !strings.Contains(result.Diagnostics[0].Diagnostic.Message, want) {
 		t.Fatalf("expected diagnostic containing %q, got %q", want, result.Diagnostics[0].Diagnostic.Message)
 	}
 	if summary, ok := result.Packages["dep"]; !ok {

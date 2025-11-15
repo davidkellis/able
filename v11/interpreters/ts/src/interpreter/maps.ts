@@ -2,6 +2,7 @@ import * as AST from "../ast";
 import type { Environment } from "./environment";
 import type { InterpreterV10 } from "./index";
 import type { HashMapEntry, HashMapValue, V10Value } from "./values";
+import { isFloatValue, isIntegerValue } from "./numeric";
 
 function createHashMap(): HashMapValue {
   return { kind: "hash_map", entries: new Map(), order: [] };
@@ -17,15 +18,16 @@ function keyLabel(value: V10Value): string {
       return `c:${value.value}`;
     case "nil":
       return "n:";
-    case "i32":
-      return `i:${value.value}`;
-    case "f64": {
-      if (!Number.isFinite(value.value)) {
-        throw new Error("Map literal keys cannot be NaN or infinite numbers");
-      }
-      return `f:${value.value}`;
-    }
     default:
+      if (isIntegerValue(value)) {
+        return `i:${value.value.toString()}`;
+      }
+      if (isFloatValue(value)) {
+        if (!Number.isFinite(value.value)) {
+          throw new Error("Map literal keys cannot be NaN or infinite numbers");
+        }
+        return `f:${value.value}`;
+      }
       throw new Error("Map literal keys must be primitives (string, bool, char, nil, numeric)");
   }
 }

@@ -4,6 +4,7 @@ import { BreakLabelSignal, BreakSignal, ContinueSignal, GeneratorYieldSignal, Pr
 import type { IteratorValue, V10Value } from "./values";
 import * as AST from "../ast";
 import type { ContinuationContext } from "./continuations";
+import { makeIntegerFromNumber } from "./numeric";
 
 function isContinuationYield(context: ContinuationContext, err: unknown): boolean {
   if (context.kind === "generator") {
@@ -389,7 +390,7 @@ export function evaluateForLoop(ctx: InterpreterV10, node: AST.ForLoop, env: Env
           break;
         }
       }
-      values.push({ kind: "i32", value: current });
+      values.push(makeIntegerFromNumber("i32", current));
     }
   } else if (iterableValue.kind === "iterator") {
     return iterateDynamicIterator(ctx, node, baseEnv, iterableValue);
@@ -505,7 +506,7 @@ function evaluateForLoopWithContinuation(
             break;
           }
         }
-        rangeValues.push({ kind: "i32", value: current });
+        rangeValues.push(makeIntegerFromNumber("i32", current));
       }
       state = {
         mode: "static",

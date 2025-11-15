@@ -53,4 +53,19 @@ describe("typechecker function calls", () => {
     expect(diagnostics).toHaveLength(1);
     expect(diagnostics[0]?.message).toContain("argument 1 has type i32, expected bool");
   });
+
+  test("allows integer arguments to widen to annotated parameter type", () => {
+    const checker = new TypeChecker();
+    const fn = AST.functionDefinition(
+      "takes_i64",
+      [AST.functionParameter("value", AST.simpleTypeExpression("i64"))],
+      AST.blockExpression([]),
+      AST.simpleTypeExpression("void"),
+    );
+    const call = AST.functionCall(AST.identifier("takes_i64"), [AST.integerLiteral(1)]);
+    const module = AST.module([fn, call as unknown as AST.Statement]);
+
+    const { diagnostics } = checker.checkModule(module);
+    expect(diagnostics).toEqual([]);
+  });
 });

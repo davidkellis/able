@@ -66,8 +66,19 @@ func evaluateModulo(left runtime.Value, right runtime.Value) (runtime.Value, err
 			if rv.Val == nil || rv.Val.Sign() == 0 {
 				return nil, fmt.Errorf("division by zero")
 			}
+			targetType, err := promoteIntegerTypes(lv.TypeSuffix, rv.TypeSuffix)
+			if err != nil {
+				return nil, err
+			}
+			info, err := getIntegerInfo(targetType)
+			if err != nil {
+				return nil, err
+			}
 			result := new(big.Int).Rem(runtime.CloneBigInt(lv.Val), rv.Val)
-			return runtime.IntegerValue{Val: result, TypeSuffix: lv.TypeSuffix}, nil
+			if err := ensureFitsInteger(info, result); err != nil {
+				return nil, err
+			}
+			return runtime.IntegerValue{Val: result, TypeSuffix: targetType}, nil
 		}
 	}
 	leftFloat, err := numericToFloat(left)
@@ -81,62 +92,73 @@ func evaluateModulo(left runtime.Value, right runtime.Value) (runtime.Value, err
 	if rightFloat == 0 {
 		return nil, fmt.Errorf("division by zero")
 	}
-	return runtime.FloatValue{Val: math.Mod(leftFloat, rightFloat), TypeSuffix: runtime.FloatF64}, nil
+	targetFloatKind := floatResultKind(left, right)
+	return runtime.FloatValue{Val: normalizeFloat(targetFloatKind, math.Mod(leftFloat, rightFloat)), TypeSuffix: targetFloatKind}, nil
 }
 
 func evaluateBitwise(op string, left runtime.Value, right runtime.Value) (runtime.Value, error) {
 	lv, ok := left.(runtime.IntegerValue)
 	if !ok {
-		return nil, fmt.Errorf("Bitwise requires i32 operands")
+		return nil, fmt.Errorf("Bitwise requires integer operands")
 	}
 	rv, ok := right.(runtime.IntegerValue)
 	if !ok {
-		return nil, fmt.Errorf("Bitwise requires i32 operands")
+		return nil, fmt.Errorf("Bitwise requires integer operands")
 	}
-	l, err := int32FromIntegerValue(lv)
+	targetType, err := promoteIntegerTypes(lv.TypeSuffix, rv.TypeSuffix)
 	if err != nil {
 		return nil, err
 	}
-	r, err := int32FromIntegerValue(rv)
+	info, err := getIntegerInfo(targetType)
 	if err != nil {
 		return nil, err
 	}
-	var result int32
+	lVal := runtime.CloneBigInt(lv.Val)
+	rVal := runtime.CloneBigInt(rv.Val)
+	var result *big.Int
 	switch op {
 	case "&":
-		result = l & r
+		leftPattern := bitPattern(lVal, info)
+		rightPattern := bitPattern(rVal, info)
+		tmp := new(big.Int).And(leftPattern, rightPattern)
+		result = patternToInteger(tmp, info)
 	case "|":
-		result = l | r
+		leftPattern := bitPattern(lVal, info)
+		rightPattern := bitPattern(rVal, info)
+		tmp := new(big.Int).Or(leftPattern, rightPattern)
+		result = patternToInteger(tmp, info)
 	case "^":
-		result = l ^ r
+		leftPattern := bitPattern(lVal, info)
+		rightPattern := bitPattern(rVal, info)
+		tmp := new(big.Int).Xor(leftPattern, rightPattern)
+		result = patternToInteger(tmp, info)
 	case "<<":
-		if r < 0 || r >= 32 {
+		if !rVal.IsInt64() {
 			return nil, fmt.Errorf("shift out of range")
 		}
-		result = l << uint(r)
+		count := int(rVal.Int64())
+		shifted, err := shiftValueLeft(lVal, count, info)
+		if err != nil {
+			return nil, err
+		}
+		result = shifted
 	case ">>":
-		if r < 0 || r >= 32 {
+		if !rVal.IsInt64() {
 			return nil, fmt.Errorf("shift out of range")
 		}
-		result = l >> uint(r)
+		count := int(rVal.Int64())
+		shifted, err := shiftValueRight(lVal, count, info)
+		if err != nil {
+			return nil, err
+		}
+		result = shifted
 	default:
 		return nil, fmt.Errorf("unsupported bitwise operator %s", op)
 	}
-	return runtime.IntegerValue{Val: big.NewInt(int64(result)), TypeSuffix: runtime.IntegerI32}, nil
-}
-
-func int32FromIntegerValue(val runtime.IntegerValue) (int32, error) {
-	if val.TypeSuffix != runtime.IntegerI32 {
-		return 0, fmt.Errorf("Bitwise requires i32 operands")
+	if err := ensureFitsInteger(info, result); err != nil {
+		return nil, err
 	}
-	if val.Val == nil || !val.Val.IsInt64() {
-		return 0, fmt.Errorf("Bitwise requires i32 operands")
-	}
-	raw := val.Val.Int64()
-	if raw < math.MinInt32 || raw > math.MaxInt32 {
-		return 0, fmt.Errorf("Bitwise requires i32 operands")
-	}
-	return int32(raw), nil
+	return runtime.IntegerValue{Val: result, TypeSuffix: targetType}, nil
 }
 
 func bigFromLiteral(val interface{}) *big.Int {
@@ -160,30 +182,44 @@ func bigFromLiteral(val interface{}) *big.Int {
 }
 
 func evaluateArithmetic(op string, left runtime.Value, right runtime.Value) (runtime.Value, error) {
+	leftInt, leftIsInt := left.(runtime.IntegerValue)
+	rightInt, rightIsInt := right.(runtime.IntegerValue)
+	if leftIsInt && rightIsInt {
+		targetType, err := promoteIntegerTypes(leftInt.TypeSuffix, rightInt.TypeSuffix)
+		if err != nil {
+			return nil, err
+		}
+		info, err := getIntegerInfo(targetType)
+		if err != nil {
+			return nil, err
+		}
+		lv := runtime.CloneBigInt(leftInt.Val)
+		rv := runtime.CloneBigInt(rightInt.Val)
+		result := new(big.Int)
+		switch op {
+		case "+":
+			result.Add(lv, rv)
+		case "-":
+			result.Sub(lv, rv)
+		case "*":
+			result.Mul(lv, rv)
+		case "/":
+			if rv.Sign() == 0 {
+				return nil, fmt.Errorf("division by zero")
+			}
+			result.Quo(lv, rv)
+		default:
+			return nil, fmt.Errorf("unsupported arithmetic operator %s", op)
+		}
+		if err := ensureFitsInteger(info, result); err != nil {
+			return nil, err
+		}
+		return runtime.IntegerValue{Val: result, TypeSuffix: targetType}, nil
+	}
 	if !isNumericValue(left) || !isNumericValue(right) {
 		return nil, fmt.Errorf("Arithmetic requires numeric operands")
 	}
-	if lv, ok := left.(runtime.IntegerValue); ok {
-		if rv, ok := right.(runtime.IntegerValue); ok {
-			result := new(big.Int)
-			switch op {
-			case "+":
-				result.Add(lv.Val, rv.Val)
-			case "-":
-				result.Sub(lv.Val, rv.Val)
-			case "*":
-				result.Mul(lv.Val, rv.Val)
-			case "/":
-				if rv.Val.Sign() == 0 {
-					return nil, fmt.Errorf("division by zero")
-				}
-				result.Quo(lv.Val, rv.Val)
-			default:
-				return nil, fmt.Errorf("unsupported arithmetic operator %s", op)
-			}
-			return runtime.IntegerValue{Val: result, TypeSuffix: lv.TypeSuffix}, nil
-		}
-	}
+	targetFloatKind := floatResultKind(left, right)
 	leftFloat, err := numericToFloat(left)
 	if err != nil {
 		return nil, err
@@ -208,21 +244,11 @@ func evaluateArithmetic(op string, left runtime.Value, right runtime.Value) (run
 	default:
 		return nil, fmt.Errorf("unsupported arithmetic operator %s", op)
 	}
-	return runtime.FloatValue{Val: val, TypeSuffix: runtime.FloatF64}, nil
+	val = normalizeFloat(targetFloatKind, val)
+	return runtime.FloatValue{Val: val, TypeSuffix: targetFloatKind}, nil
 }
 
 func valuesEqual(left runtime.Value, right runtime.Value) bool {
-	if isNumericValue(left) && isNumericValue(right) {
-		lf, err := numericToFloat(left)
-		if err != nil {
-			return false
-		}
-		rf, err := numericToFloat(right)
-		if err != nil {
-			return false
-		}
-		return math.Abs(lf-rf) < numericEpsilon
-	}
 	switch lv := left.(type) {
 	case runtime.StringValue:
 		if rv, ok := right.(runtime.StringValue); ok {
@@ -240,12 +266,18 @@ func valuesEqual(left runtime.Value, right runtime.Value) bool {
 		_, ok := right.(runtime.NilValue)
 		return ok
 	case runtime.IntegerValue:
-		if rv, ok := right.(runtime.IntegerValue); ok {
+		switch rv := right.(type) {
+		case runtime.IntegerValue:
 			return lv.Val.Cmp(rv.Val) == 0
+		case runtime.FloatValue:
+			return math.Abs(bigIntToFloat(lv.Val)-rv.Val) < numericEpsilon
 		}
 	case runtime.FloatValue:
-		if rv, ok := right.(runtime.FloatValue); ok {
+		switch rv := right.(type) {
+		case runtime.FloatValue:
 			return math.Abs(lv.Val-rv.Val) < numericEpsilon
+		case runtime.IntegerValue:
+			return math.Abs(lv.Val-bigIntToFloat(rv.Val)) < numericEpsilon
 		}
 	}
 	return false
@@ -254,6 +286,12 @@ func valuesEqual(left runtime.Value, right runtime.Value) bool {
 func evaluateComparison(op string, left runtime.Value, right runtime.Value) (runtime.Value, error) {
 	if !isNumericValue(left) || !isNumericValue(right) {
 		return nil, fmt.Errorf("Arithmetic requires numeric operands")
+	}
+	if li, ok := left.(runtime.IntegerValue); ok {
+		if ri, ok := right.(runtime.IntegerValue); ok {
+			cmp := li.Val.Cmp(ri.Val)
+			return runtime.BoolValue{Val: comparisonOp(op, cmp)}, nil
+		}
 	}
 	leftFloat, err := numericToFloat(left)
 	if err != nil {

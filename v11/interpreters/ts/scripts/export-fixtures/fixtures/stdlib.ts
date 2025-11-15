@@ -447,8 +447,8 @@ const stdlibFixtures: Fixture[] = [
           result: {
             kind: "array",
             elements: [
-              { kind: "i32", value: 30 },
-              { kind: "i32", value: 42 },
+              { kind: "i32", value: 30n },
+              { kind: "i32", value: 42n },
               { kind: "iterator_end" },
               { kind: "iterator_end" },
             ],
@@ -833,9 +833,9 @@ const stdlibFixtures: Fixture[] = [
           result: {
             kind: "array",
             elements: [
-              { kind: "i32", value: 6 },
-              { kind: "i32", value: 0 },
-              { kind: "i32", value: 6 },
+              { kind: "i32", value: 6n },
+              { kind: "i32", value: 0n },
+              { kind: "i32", value: 6n },
             ],
           },
         },

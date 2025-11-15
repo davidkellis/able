@@ -19,7 +19,7 @@ describe("v10 interpreter - functions & lambdas", () => {
     I.evaluate(sumFn);
     // call sum(2, 3)
     const call = AST.functionCall(AST.identifier("sum"), [int(2), int(3)]);
-    expect(I.evaluate(call)).toEqual({ kind: "i32", value: 5 });
+    expect(I.evaluate(call)).toEqual({ kind: "i32", value: 5n });
   });
 
   test("lambda expression capturing outer variable (closure)", () => {
@@ -37,7 +37,7 @@ describe("v10 interpreter - functions & lambdas", () => {
     // bind lam in env
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("lam"), lam));
     const call2 = AST.functionCall(AST.identifier("lam"), [AST.integerLiteral(5)]);
-    expect(I.evaluate(call2)).toEqual({ kind: "i32", value: 15 });
+    expect(I.evaluate(call2)).toEqual({ kind: "i32", value: 15n });
   });
 
   test("typed parameters are checked at runtime (minimal)", () => {
@@ -52,7 +52,7 @@ describe("v10 interpreter - functions & lambdas", () => {
     I.evaluate(fn);
 
     const ok = AST.functionCall(AST.identifier("add"), [AST.integerLiteral(1), AST.integerLiteral(2)]);
-    expect(I.evaluate(ok)).toEqual({ kind: 'i32', value: 3 });
+    expect(I.evaluate(ok)).toEqual({ kind: 'i32', value: 3n });
 
     const bad = AST.functionCall(AST.identifier("add"), [AST.integerLiteral(1), AST.stringLiteral("x")]);
     expect(() => I.evaluate(bad)).toThrow();

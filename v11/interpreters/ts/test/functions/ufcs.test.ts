@@ -12,7 +12,7 @@ describe("v10 interpreter - UFCS fallback", () => {
     );
     I.evaluate(add);
     const call = AST.functionCall(AST.memberAccessExpression(AST.integerLiteral(4), "add"), [AST.integerLiteral(5)]);
-    expect(I.evaluate(call)).toEqual({ kind: 'i32', value: 9 });
+    expect(I.evaluate(call)).toEqual({ kind: 'i32', value: 9n });
   });
 
   test("struct receiver with free function move(Point, dx) called as p.move(dx)", () => {
@@ -32,7 +32,7 @@ describe("v10 interpreter - UFCS fallback", () => {
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("p"), p));
     const call = AST.functionCall(AST.memberAccessExpression(AST.identifier("p"), "move"), [AST.integerLiteral(3)]);
     const res = I.evaluate(call);
-    expect(I.evaluate(AST.memberAccessExpression(AST.identifier("p"), "x"))).toEqual({ kind: 'i32', value: 4 });
+    expect(I.evaluate(AST.memberAccessExpression(AST.identifier("p"), "x"))).toEqual({ kind: 'i32', value: 4n });
     expect(res.kind).toBe('struct_instance');
   });
 });

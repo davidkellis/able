@@ -17,7 +17,7 @@ const functionsFixtures: Fixture[] = [
       manifest: {
         description: "Lambda expression returns computed sum",
         expect: {
-          result: { kind: "i32", value: 5 },
+          result: { kind: "i32", value: 5n },
         },
       },
     },
@@ -60,7 +60,7 @@ const functionsFixtures: Fixture[] = [
       manifest: {
         description: "Trailing lambda iterates array and accumulates values",
         expect: {
-          result: { kind: "i32", value: 6 },
+          result: { kind: "i32", value: 6n },
         },
       },
     },
@@ -151,7 +151,7 @@ const functionsFixtures: Fixture[] = [
       manifest: {
         description: "Higher-kinded interface impl accepts bare constructor when the interface declares 'for F _'",
         expect: {
-          result: { kind: "i32", value: 7 },
+          result: { kind: "i32", value: 7n },
         },
       },
     },

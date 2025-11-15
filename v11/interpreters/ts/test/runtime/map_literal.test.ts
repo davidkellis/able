@@ -17,7 +17,7 @@ describe("runtime map literals", () => {
     const entries = toSimpleEntries(mapValue as HashMapValue);
     expect(entries).toEqual([
       { key: { kind: "string", value: "host" }, value: { kind: "string", value: "api" } },
-      { key: { kind: "string", value: "port" }, value: { kind: "i32", value: 443 } },
+      { key: { kind: "string", value: "port" }, value: { kind: "i32", value: 443n } },
     ]);
   });
 
