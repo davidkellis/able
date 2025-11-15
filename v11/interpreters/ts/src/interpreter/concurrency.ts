@@ -5,6 +5,7 @@ import type { Executor } from "./executor";
 import { ProcYieldSignal, RaiseSignal } from "./signals";
 import type { V10Value } from "./values";
 import { ProcContinuationContext } from "./proc_continuations";
+import { makeIntegerValue } from "./numeric";
 
 declare module "./index" {
   interface InterpreterV10 {
@@ -158,7 +159,7 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
 
   cls.prototype.procPendingTasks = function procPendingTasks(this: InterpreterV10): V10Value {
     const pending = typeof this.executor.pendingTasks === "function" ? this.executor.pendingTasks() : 0;
-    return { kind: "i32", value: pending };
+    return makeIntegerValue("i32", BigInt(pending));
   };
 
   cls.prototype.processScheduler = function processScheduler(this: InterpreterV10, limit: number = this.schedulerMaxSteps): void {

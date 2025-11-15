@@ -34,6 +34,6 @@ describe("v10 interpreter - labeled breakpoint/break", () => {
     ]);
     const bp = AST.breakpointExpression("label", body);
     const res = I.evaluate(bp as any);
-    expect(res).toEqual({ kind: "i32", value: 2 });
+    expect(res).toEqual({ kind: "i32", value: 2n });
   });
 });

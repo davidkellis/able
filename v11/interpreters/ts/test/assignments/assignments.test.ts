@@ -9,11 +9,11 @@ describe("v10 interpreter - assignments & blocks", () => {
 
     // x := 1
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("x"), AST.integerLiteral(1)), env);
-    expect(env.get("x")).toEqual({ kind: "i32", value: 1 });
+    expect(env.get("x")).toEqual({ kind: "i32", value: 1n });
 
     // x = 2
     I.evaluate(AST.assignmentExpression("=", AST.identifier("x"), AST.integerLiteral(2)), env);
-    expect(env.get("x")).toEqual({ kind: "i32", value: 2 });
+    expect(env.get("x")).toEqual({ kind: "i32", value: 2n });
 
     // Redeclare x in same scope should error
     expect(() => I.evaluate(AST.assignmentExpression(":=", AST.identifier("x"), AST.integerLiteral(3)), env)).toThrow();
@@ -29,18 +29,18 @@ describe("v10 interpreter - assignments & blocks", () => {
       AST.identifier("y"),
     ]);
     const result = I.evaluate(block, env);
-    expect(result).toEqual({ kind: "i32", value: 20 }); // inner value
-    expect(env.get("y")).toEqual({ kind: "i32", value: 10 }); // outer unchanged
+    expect(result).toEqual({ kind: "i32", value: 20n }); // inner value
+    expect(env.get("y")).toEqual({ kind: "i32", value: 10n }); // outer unchanged
   });
 
   test("= creates a binding when none exists", () => {
     const I = new InterpreterV10();
     const env = I.globals;
     I.evaluate(AST.assignmentExpression("=", AST.identifier("fresh"), AST.integerLiteral(42)), env);
-    expect(env.get("fresh")).toEqual({ kind: "i32", value: 42 });
+    expect(env.get("fresh")).toEqual({ kind: "i32", value: 42n });
     // subsequent = behaves like reassignment
     I.evaluate(AST.assignmentExpression("=", AST.identifier("fresh"), AST.integerLiteral(7)), env);
-    expect(env.get("fresh")).toEqual({ kind: "i32", value: 7 });
+    expect(env.get("fresh")).toEqual({ kind: "i32", value: 7n });
   });
 });
 

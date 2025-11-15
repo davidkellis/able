@@ -53,8 +53,8 @@ describe("v10 interpreter - proc & spawn handles", () => {
       AST.memberAccessExpression(AST.identifier("future"), "value"),
       []
     );
-    expect(I.evaluate(valueCall)).toEqual({ kind: "i32", value: 1 });
-    expect(I.evaluate(AST.identifier("count"))).toEqual({ kind: "i32", value: 1 });
+    expect(I.evaluate(valueCall)).toEqual({ kind: "i32", value: 1n });
+    expect(I.evaluate(AST.identifier("count"))).toEqual({ kind: "i32", value: 1n });
   });
 
   test("proc yield allows interleaving tasks", async () => {
@@ -164,7 +164,7 @@ describe("v10 interpreter - proc & spawn handles", () => {
     await flushScheduler();
 
     const slowValue = I.evaluate(slowValueCall);
-    expect(slowValue).toEqual({ kind: "i32", value: 1 });
+    expect(slowValue).toEqual({ kind: "i32", value: 1n });
 
     const traceVal = I.evaluate(AST.identifier("trace"));
     expect(traceVal).toEqual({ kind: "string", value: "ABC" });
@@ -344,8 +344,8 @@ describe("v10 interpreter - proc & spawn handles", () => {
     expect(futureStatus.kind).toBe("struct_instance");
     expect(futureStatus.def.id.name).toBe("Resolved");
 
-    expect(I.evaluate(workerValueCall)).toEqual({ kind: "i32", value: 0 });
-    expect(I.evaluate(futureValueCall)).toEqual({ kind: "i32", value: 0 });
+    expect(I.evaluate(workerValueCall)).toEqual({ kind: "i32", value: 0n });
+    expect(I.evaluate(futureValueCall)).toEqual({ kind: "i32", value: 0n });
   });
 
   test("proc_pending_tasks reports queued cooperative work", () => {
@@ -353,7 +353,7 @@ describe("v10 interpreter - proc & spawn handles", () => {
     const pendingCall = () => AST.functionCall(AST.identifier("proc_pending_tasks"), []);
 
     const initial = I.evaluate(pendingCall()) as V10Value;
-    expect(initial).toEqual({ kind: "i32", value: 0 });
+    expect(initial).toEqual({ kind: "i32", value: 0n });
 
     I.evaluate(
       AST.spawnExpression(
@@ -539,7 +539,7 @@ describe("v10 interpreter - proc & spawn handles", () => {
     expect(outerStatus.def.id.name).toBe("Resolved");
 
     const outerValue = I.evaluate(outerValueCall);
-    expect(outerValue).toEqual({ kind: "i32", value: 7 });
+    expect(outerValue).toEqual({ kind: "i32", value: 7n });
   });
 
 });

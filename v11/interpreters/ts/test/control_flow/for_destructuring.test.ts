@@ -17,7 +17,7 @@ describe("v10 interpreter - for loop destructuring", () => {
       ])
     );
     I.evaluate(loop);
-    expect(I.evaluate(AST.identifier("sum"))).toEqual({ kind: 'i32', value: 10 });
+    expect(I.evaluate(AST.identifier("sum"))).toEqual({ kind: 'i32', value: 10n });
   });
 
   test("struct destructuring in loop", () => {
@@ -37,7 +37,7 @@ describe("v10 interpreter - for loop destructuring", () => {
       ])
     );
     I.evaluate(loop);
-    expect(I.evaluate(AST.identifier("sum"))).toEqual({ kind: 'i32', value: 10 });
+    expect(I.evaluate(AST.identifier("sum"))).toEqual({ kind: 'i32', value: 10n });
   });
 });
 

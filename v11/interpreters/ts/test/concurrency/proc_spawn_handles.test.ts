@@ -42,7 +42,7 @@ describe("v10 interpreter - proc & spawn handles", () => {
       AST.memberAccessExpression(AST.identifier("handle"), "value"),
       []
     );
-    expect(I.evaluate(valueCall)).toEqual({ kind: "i32", value: 11 });
+    expect(I.evaluate(valueCall)).toEqual({ kind: "i32", value: 11n });
 
     const resolvedStatus = I.evaluate(statusCall) as any;
     expect(resolvedStatus.kind).toBe("struct_instance");
@@ -211,14 +211,14 @@ describe("v10 interpreter - proc & spawn handles", () => {
       AST.memberAccessExpression(AST.identifier("future"), "value"),
       []
     );
-    expect(I.evaluate(futureValue)).toEqual({ kind: "i32", value: 1 });
+    expect(I.evaluate(futureValue)).toEqual({ kind: "i32", value: 1n });
     const futureResolved = I.evaluate(futureStatus) as any;
     expect(futureResolved.kind).toBe("struct_instance");
     expect(futureResolved.def.id.name).toBe("Resolved");
 
     // Memoized value reused
-    expect(I.evaluate(futureValue)).toEqual({ kind: "i32", value: 1 });
-    expect(I.evaluate(AST.identifier("count"))).toEqual({ kind: "i32", value: 1 });
+    expect(I.evaluate(futureValue)).toEqual({ kind: "i32", value: 1n });
+    expect(I.evaluate(AST.identifier("count"))).toEqual({ kind: "i32", value: 1n });
 
     const boomFn = AST.functionDefinition(
       "boom",
@@ -328,8 +328,8 @@ describe("v10 interpreter - proc & spawn handles", () => {
       AST.memberAccessExpression(AST.identifier("handle"), "value"),
       []
     );
-    expect(I.evaluate(valueCall)).toEqual({ kind: "i32", value: 1 });
-    expect(I.evaluate(AST.identifier("counter"))).toEqual({ kind: "i32", value: 1 });
+    expect(I.evaluate(valueCall)).toEqual({ kind: "i32", value: 1n });
+    expect(I.evaluate(AST.identifier("counter"))).toEqual({ kind: "i32", value: 1n });
   });
 
   test("proc cancel before start surfaces ProcError", async () => {
@@ -387,7 +387,7 @@ describe("v10 interpreter - proc & spawn handles", () => {
     expect(details).toBeDefined();
     expect(details?.kind).toBe("string");
     expect((details as any).value).toMatch(/cancelled/);
-    expect(I.evaluate(AST.identifier("flag"))).toEqual({ kind: "i32", value: 0 });
+    expect(I.evaluate(AST.identifier("flag"))).toEqual({ kind: "i32", value: 0n });
   });
 
   test("proc errors expose cause via err.cause()", async () => {
@@ -500,7 +500,7 @@ describe("v10 interpreter - proc & spawn handles", () => {
       AST.memberAccessExpression(AST.identifier("handle"), "value"),
       []
     );
-    expect(I.evaluate(valueCall)).toEqual({ kind: "i32", value: 5 });
+    expect(I.evaluate(valueCall)).toEqual({ kind: "i32", value: 5n });
   });
 
 });

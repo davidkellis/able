@@ -98,7 +98,7 @@ describe("v10 interpreter - method privacy", () => {
     // Public instance method should work
     const callGet = AST.functionCall(AST.memberAccessExpression(inst, "get"), []);
     const got = I.evaluate(callGet);
-    expect(got).toEqual({ kind: "i32", value: 5 });
+    expect(got).toEqual({ kind: "i32", value: 5n });
   });
 });
 

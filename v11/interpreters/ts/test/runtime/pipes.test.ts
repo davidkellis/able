@@ -11,7 +11,7 @@ describe("v10 interpreter - pipes", () => {
       AST.binaryExpression("+", AST.topicReferenceExpression(), AST.integerLiteral(3))
     );
     const result = I.evaluate(expr);
-    expect(result).toEqual({ kind: "i32", value: 8 });
+    expect(result).toEqual({ kind: "i32", value: 8n });
   });
 
   test("topic used inside function call", () => {
@@ -27,7 +27,7 @@ describe("v10 interpreter - pipes", () => {
       AST.integerLiteral(4),
       AST.functionCall(AST.identifier("add"), [AST.topicReferenceExpression(), AST.integerLiteral(1)]),
     );
-    expect(I.evaluate(expr)).toEqual({ kind: "i32", value: 5 });
+    expect(I.evaluate(expr)).toEqual({ kind: "i32", value: 5n });
   });
 
   test("implicit member shorthand binds receiver once", () => {
@@ -82,8 +82,8 @@ describe("v10 interpreter - pipes", () => {
       AST.binaryExpression("|>", AST.identifier("box"), AST.implicitMemberExpression("double"))
     );
 
-    expect(first).toEqual({ kind: "i32", value: 6 });
-    expect(second).toEqual({ kind: "i32", value: 10 });
+    expect(first).toEqual({ kind: "i32", value: 6n });
+    expect(second).toEqual({ kind: "i32", value: 10n });
   });
 
   test("placeholder callable as pipe RHS", () => {
@@ -99,7 +99,7 @@ describe("v10 interpreter - pipes", () => {
       AST.integerLiteral(9),
       AST.functionCall(AST.identifier("add"), [AST.placeholderExpression(), AST.integerLiteral(1)]),
     );
-    expect(I.evaluate(expr)).toEqual({ kind: "i32", value: 10 });
+    expect(I.evaluate(expr)).toEqual({ kind: "i32", value: 10n });
   });
 
   test("UFCS free function via pipe", () => {
@@ -137,6 +137,6 @@ describe("v10 interpreter - pipes", () => {
       ),
     );
     const result = I.evaluate(AST.memberAccessExpression(AST.identifier("result"), "x"));
-    expect(result).toEqual({ kind: "i32", value: 7 });
+    expect(result).toEqual({ kind: "i32", value: 7n });
   });
 });

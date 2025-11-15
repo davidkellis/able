@@ -2,7 +2,7 @@
   "description": "Evaluates an integer literal with an i64 suffix",
   "expect": {
     "result": {
-      "kind": "i32",
+      "kind": "i64",
       "value": 42
     }
   },

@@ -10,7 +10,7 @@ describe("string host builtins", () => {
     const I = new InterpreterV10();
     const result = I.evaluate(call("__able_string_from_builtin", [AST.stringLiteral("Hi")])) as any;
     expect(result.kind).toBe("array");
-    expect(result.elements.map((el: any) => el.value)).toEqual([72, 105]);
+    expect(result.elements.map((el: any) => Number(el.value))).toEqual([72, 105]);
   });
 
   test("__able_string_to_builtin decodes UTF-8 arrays", () => {
@@ -42,6 +42,7 @@ describe("hasher host builtins", () => {
 
     const result = I.evaluate(call("__able_hasher_finish", [AST.identifier("hasher")])) as any;
     expect(result.kind).toBe("i32");
-    expect(result.value >>> 0).toBe(0x1a47e90b);
+    const hash = Number(result.value);
+    expect(hash >>> 0).toBe(0x1A47E90B);
   });
 });

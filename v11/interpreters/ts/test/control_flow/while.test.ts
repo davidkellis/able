@@ -16,7 +16,7 @@ describe("v10 interpreter - while loop", () => {
     );
     I.evaluate(loop);
     // expect i == 3
-    expect(I.evaluate(AST.identifier("i"))).toEqual({ kind: 'i32', value: 3 });
+    expect(I.evaluate(AST.identifier("i"))).toEqual({ kind: 'i32', value: 3n });
   });
 });
 

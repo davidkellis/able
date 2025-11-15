@@ -6,14 +6,14 @@ describe("v10 interpreter - unary/binary ops and ranges", () => {
   const I = new InterpreterV10();
 
   test("unary", () => {
-    expect(I.evaluate(AST.unaryExpression('-', AST.integerLiteral(5)))).toEqual({ kind: 'i32', value: -5 });
+    expect(I.evaluate(AST.unaryExpression('-', AST.integerLiteral(5)))).toEqual({ kind: 'i32', value: -5n });
     expect(I.evaluate(AST.unaryExpression('!', AST.booleanLiteral(false)))).toEqual({ kind: 'bool', value: true });
-    expect(I.evaluate(AST.unaryExpression('~', AST.integerLiteral(0)))).toEqual({ kind: 'i32', value: -1 });
+    expect(I.evaluate(AST.unaryExpression('~', AST.integerLiteral(0)))).toEqual({ kind: 'i32', value: -1n });
   });
 
   test("arithmetic & string +", () => {
     const add = AST.binaryExpression('+', AST.integerLiteral(2), AST.integerLiteral(3));
-    expect(I.evaluate(add)).toEqual({ kind: 'i32', value: 5 });
+    expect(I.evaluate(add)).toEqual({ kind: 'i32', value: 5n });
     const fadd = AST.binaryExpression('+', AST.floatLiteral(1.5), AST.floatLiteral(2.25));
     expect(I.evaluate(fadd)).toEqual({ kind: 'f64', value: 3.75 });
     const s = AST.binaryExpression('+', AST.stringLiteral('a'), AST.stringLiteral('b'));
@@ -33,8 +33,8 @@ describe("v10 interpreter - unary/binary ops and ranges", () => {
   });
 
   test("bitwise", () => {
-    expect(I.evaluate(AST.binaryExpression('&', AST.integerLiteral(6), AST.integerLiteral(3)))).toEqual({ kind: 'i32', value: 2 });
-    expect(I.evaluate(AST.binaryExpression('|', AST.integerLiteral(4), AST.integerLiteral(1)))).toEqual({ kind: 'i32', value: 5 });
+    expect(I.evaluate(AST.binaryExpression('&', AST.integerLiteral(6), AST.integerLiteral(3)))).toEqual({ kind: 'i32', value: 2n });
+    expect(I.evaluate(AST.binaryExpression('|', AST.integerLiteral(4), AST.integerLiteral(1)))).toEqual({ kind: 'i32', value: 5n });
   });
 
   test("range expression", () => {

@@ -35,15 +35,15 @@ describe("v10 interpreter - iterator literals", () => {
       )
     );
 
-    expect(I.evaluate(AST.identifier("count"))).toEqual({ kind: "i32", value: 0 });
+    expect(I.evaluate(AST.identifier("count"))).toEqual({ kind: "i32", value: 0n });
 
     const first = I.evaluate(callNext("iter"));
-    expect(first).toEqual({ kind: "i32", value: 1 });
-    expect(I.evaluate(AST.identifier("count"))).toEqual({ kind: "i32", value: 1 });
+    expect(first).toEqual({ kind: "i32", value: 1n });
+    expect(I.evaluate(AST.identifier("count"))).toEqual({ kind: "i32", value: 1n });
 
     const second = I.evaluate(callNext("iter"));
-    expect(second).toEqual({ kind: "i32", value: 2 });
-    expect(I.evaluate(AST.identifier("count"))).toEqual({ kind: "i32", value: 2 });
+    expect(second).toEqual({ kind: "i32", value: 2n });
+    expect(I.evaluate(AST.identifier("count"))).toEqual({ kind: "i32", value: 2n });
 
     const third = I.evaluate(callNext("iter")) as V10Value;
     expect(third.kind).toBe("iterator_end");
@@ -80,8 +80,8 @@ describe("v10 interpreter - iterator literals", () => {
     );
 
     const last = I.evaluate(loop);
-    expect(last).toEqual({ kind: "i32", value: 30 });
-    expect(I.evaluate(AST.identifier("sum"))).toEqual({ kind: "i32", value: 60 });
+    expect(last).toEqual({ kind: "i32", value: 30n });
+    expect(I.evaluate(AST.identifier("sum"))).toEqual({ kind: "i32", value: 60n });
   });
 
   test("gen.stop terminates iteration", () => {
@@ -99,7 +99,7 @@ describe("v10 interpreter - iterator literals", () => {
     );
 
     const first = I.evaluate(callNext("iter"));
-    expect(first).toEqual({ kind: "i32", value: 1 });
+    expect(first).toEqual({ kind: "i32", value: 1n });
 
     const second = I.evaluate(callNext("iter")) as V10Value;
     expect(second.kind).toBe("iterator_end");
@@ -156,9 +156,9 @@ describe("v10 interpreter - iterator literals", () => {
       )
     );
 
-    expect(I.evaluate(callNext("iter"))).toEqual({ kind: "i32", value: 1 });
-    expect(I.evaluate(callNext("iter"))).toEqual({ kind: "i32", value: 2 });
-    expect(I.evaluate(callNext("iter"))).toEqual({ kind: "i32", value: 3 });
+    expect(I.evaluate(callNext("iter"))).toEqual({ kind: "i32", value: 1n });
+    expect(I.evaluate(callNext("iter"))).toEqual({ kind: "i32", value: 2n });
+    expect(I.evaluate(callNext("iter"))).toEqual({ kind: "i32", value: 3n });
     const done = I.evaluate(callNext("iter")) as V10Value;
     expect(done.kind).toBe("iterator_end");
   });
@@ -187,12 +187,12 @@ describe("v10 interpreter - iterator literals", () => {
       )
     );
 
-    expect(I.evaluate(callNext("iter"))).toEqual({ kind: "i32", value: 0 });
-    expect(I.evaluate(callNext("iter"))).toEqual({ kind: "i32", value: 1 });
-    expect(I.evaluate(callNext("iter"))).toEqual({ kind: "i32", value: 2 });
+    expect(I.evaluate(callNext("iter"))).toEqual({ kind: "i32", value: 0n });
+    expect(I.evaluate(callNext("iter"))).toEqual({ kind: "i32", value: 1n });
+    expect(I.evaluate(callNext("iter"))).toEqual({ kind: "i32", value: 2n });
     const done = I.evaluate(callNext("iter")) as V10Value;
     expect(done.kind).toBe("iterator_end");
-    expect(I.evaluate(AST.identifier("count"))).toEqual({ kind: "i32", value: 3 });
+    expect(I.evaluate(AST.identifier("count"))).toEqual({ kind: "i32", value: 3n });
   });
 
   test("if expression resumes without re-running condition", () => {
@@ -230,11 +230,11 @@ describe("v10 interpreter - iterator literals", () => {
       )
     );
 
-    expect(I.evaluate(callNext("iter"))).toEqual({ kind: "i32", value: 1 });
-    expect(I.evaluate(callNext("iter"))).toEqual({ kind: "i32", value: 2 });
+    expect(I.evaluate(callNext("iter"))).toEqual({ kind: "i32", value: 1n });
+    expect(I.evaluate(callNext("iter"))).toEqual({ kind: "i32", value: 2n });
     const done = I.evaluate(callNext("iter")) as V10Value;
     expect(done.kind).toBe("iterator_end");
-    expect(I.evaluate(AST.identifier("calls"))).toEqual({ kind: "i32", value: 1 });
+    expect(I.evaluate(AST.identifier("calls"))).toEqual({ kind: "i32", value: 1n });
   });
 
   test("match expression resumes without re-running subject or guard", () => {
@@ -294,12 +294,12 @@ describe("v10 interpreter - iterator literals", () => {
       )
     );
 
-    expect(I.evaluate(callNext("iter"))).toEqual({ kind: "i32", value: 10 });
-    expect(I.evaluate(callNext("iter"))).toEqual({ kind: "i32", value: 11 });
+    expect(I.evaluate(callNext("iter"))).toEqual({ kind: "i32", value: 10n });
+    expect(I.evaluate(callNext("iter"))).toEqual({ kind: "i32", value: 11n });
     const done = I.evaluate(callNext("iter")) as V10Value;
     expect(done.kind).toBe("iterator_end");
-    expect(I.evaluate(AST.identifier("subject_calls"))).toEqual({ kind: "i32", value: 1 });
-    expect(I.evaluate(AST.identifier("guard_calls"))).toEqual({ kind: "i32", value: 1 });
+    expect(I.evaluate(AST.identifier("subject_calls"))).toEqual({ kind: "i32", value: 1n });
+    expect(I.evaluate(AST.identifier("guard_calls"))).toEqual({ kind: "i32", value: 1n });
   });
 
   test("iterator literal honors custom binding names and annotations", () => {
@@ -325,8 +325,8 @@ describe("v10 interpreter - iterator literals", () => {
       )
     );
 
-    expect(I.evaluate(callNext("iter"))).toEqual({ kind: "i32", value: 1 });
-    expect(I.evaluate(callNext("iter"))).toEqual({ kind: "i32", value: 2 });
+    expect(I.evaluate(callNext("iter"))).toEqual({ kind: "i32", value: 1n });
+    expect(I.evaluate(callNext("iter"))).toEqual({ kind: "i32", value: 2n });
     const done = I.evaluate(callNext("iter")) as V10Value;
     expect(done.kind).toBe("iterator_end");
   });

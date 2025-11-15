@@ -15,8 +15,8 @@ describe("v10 interpreter - module", () => {
       AST.assignmentExpression(":=", AST.identifier("y"), AST.functionCall(AST.identifier("add1"), [AST.integerLiteral(4)])),
     ]);
     const result = I.evaluate(mod as any);
-    expect(I.evaluate(AST.identifier("y"))).toEqual({ kind: 'i32', value: 5 });
-    expect(result).toEqual({ kind: 'i32', value: 5 });
+    expect(I.evaluate(AST.identifier("y"))).toEqual({ kind: 'i32', value: 5n });
+    expect(result).toEqual({ kind: 'i32', value: 5n });
   });
 });
 

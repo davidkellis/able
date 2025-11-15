@@ -46,9 +46,9 @@ const procMemoizationFixtures: Fixture[] = [
               kind: "array",
               length: 3,
               elements: [
-                { kind: "i32", value: 21 },
-                { kind: "i32", value: 21 },
-                { kind: "i32", value: 1 },
+                { kind: "i32", value: 21n },
+                { kind: "i32", value: 21n },
+                { kind: "i32", value: 1n },
               ],
             },
           },

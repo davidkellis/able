@@ -387,7 +387,7 @@ fn main() {
 	if stdout != "" {
 		t.Fatalf("expected no stdout on failure, got %q", stdout)
 	}
-	if !strings.Contains(stderr, "requires both operands") {
+	if !strings.Contains(stderr, "requires numeric operands") {
 		t.Fatalf("expected diagnostic in stderr, got %q", stderr)
 	}
 }

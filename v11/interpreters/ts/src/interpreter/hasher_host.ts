@@ -1,5 +1,6 @@
 import type { InterpreterV10 } from "./index";
 import type { V10Value } from "./values";
+import { makeIntegerValue, numericToNumber } from "./numeric";
 
 const FNV_OFFSET = 0x811c9dc5;
 const FNV_PRIME = 0x01000193;
@@ -13,13 +14,6 @@ declare module "./index" {
     nextHasherHandle: number;
     hasherStates: Map<number, number>;
   }
-}
-
-function expectNumeric(value: V10Value, label: string): number {
-  if (value.kind === "i32" || value.kind === "f64") {
-    return Math.trunc(value.value);
-  }
-  throw new Error(`${label} must be numeric`);
 }
 
 function expectString(value: V10Value, label: string): string {
@@ -56,13 +50,13 @@ export function applyHasherHostAugmentations(cls: typeof InterpreterV10): void {
       this.makeNativeFunction("__able_hasher_create", 0, (interp) => {
         const handle = interp.nextHasherHandle++;
         interp.hasherStates.set(handle, FNV_OFFSET);
-        return { kind: "i32", value: handle };
+        return makeIntegerValue("i32", BigInt(handle));
       }),
     );
 
     defineIfMissing("__able_hasher_write", () =>
       this.makeNativeFunction("__able_hasher_write", 2, (interp, args) => {
-        const handle = expectNumeric(args[0], "hasher handle");
+        const handle = Math.trunc(numericToNumber(args[0], "hasher handle", { requireSafeInteger: true }));
         if (handle <= 0) throw new Error("Hasher handle must be positive");
         const current = interp.hasherStates.get(handle);
         if (current === undefined) {
@@ -77,14 +71,14 @@ export function applyHasherHostAugmentations(cls: typeof InterpreterV10): void {
 
     defineIfMissing("__able_hasher_finish", () =>
       this.makeNativeFunction("__able_hasher_finish", 1, (interp, args) => {
-        const handle = expectNumeric(args[0], "hasher handle");
+        const handle = Math.trunc(numericToNumber(args[0], "hasher handle", { requireSafeInteger: true }));
         if (handle <= 0) throw new Error("Hasher handle must be positive");
         const current = interp.hasherStates.get(handle);
         if (current === undefined) {
           throw new Error("Unknown hasher handle");
         }
         interp.hasherStates.delete(handle);
-        return { kind: "i32", value: current >>> 0 };
+        return makeIntegerValue("i32", BigInt(current >>> 0));
       }),
     );
   };

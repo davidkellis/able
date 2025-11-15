@@ -45,7 +45,7 @@ const importsFixtures: Fixture[] = [
       manifest: {
         description: "Dyn import selector and alias return callable references",
         expect: {
-          result: { kind: "i32", value: 22 },
+          result: { kind: "i32", value: 22n },
         },
       },
     },
@@ -87,7 +87,7 @@ const importsFixtures: Fixture[] = [
       manifest: {
         description: "Dyn import wildcard exposes public symbols",
         expect: {
-          result: { kind: "i32", value: 11 },
+          result: { kind: "i32", value: 11n },
         },
       },
     },

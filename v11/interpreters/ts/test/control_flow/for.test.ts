@@ -15,7 +15,7 @@ describe("v10 interpreter - for loop", () => {
       ])
     );
     I.evaluate(loop);
-    expect(I.evaluate(AST.identifier("sum"))).toEqual({ kind: 'i32', value: 6 });
+    expect(I.evaluate(AST.identifier("sum"))).toEqual({ kind: 'i32', value: 6n });
   });
 
   test("count down using range", () => {
@@ -30,7 +30,7 @@ describe("v10 interpreter - for loop", () => {
       ])
     );
     I.evaluate(loop);
-    expect(I.evaluate(AST.identifier("last"))).toEqual({ kind: 'i32', value: 1 });
+    expect(I.evaluate(AST.identifier("last"))).toEqual({ kind: 'i32', value: 1n });
   });
 
   test("continue skips matching elements", () => {
@@ -53,7 +53,7 @@ describe("v10 interpreter - for loop", () => {
       ])
     );
     I.evaluate(loop);
-    expect(I.evaluate(AST.identifier("sum"))).toEqual({ kind: 'i32', value: 4 });
+    expect(I.evaluate(AST.identifier("sum"))).toEqual({ kind: 'i32', value: 4n });
   });
 
   test("ascending ranges honor inclusive and exclusive operators", () => {
@@ -82,7 +82,7 @@ describe("v10 interpreter - for loop", () => {
     I.evaluate(inclusiveLoop);
     I.evaluate(exclusiveLoop);
 
-    expect(I.evaluate(AST.identifier("lastInclusive"))).toEqual({ kind: "i32", value: 3 });
-    expect(I.evaluate(AST.identifier("lastExclusive"))).toEqual({ kind: "i32", value: 2 });
+    expect(I.evaluate(AST.identifier("lastInclusive"))).toEqual({ kind: "i32", value: 3n });
+    expect(I.evaluate(AST.identifier("lastExclusive"))).toEqual({ kind: "i32", value: 2n });
   });
 });

@@ -59,7 +59,7 @@ func TestInterpreterEvaluateProgramTypecheckFailure(t *testing.T) {
 	if len(check.Diagnostics) == 0 {
 		t.Fatalf("expected diagnostics for type mismatch")
 	}
-	if want := "requires both operands"; !strings.Contains(check.Diagnostics[0].Diagnostic.Message, want) {
+	if want := "requires numeric operands"; !strings.Contains(check.Diagnostics[0].Diagnostic.Message, want) {
 		t.Fatalf("expected diagnostic containing %q, got %q", want, check.Diagnostics[0].Diagnostic.Message)
 	}
 }

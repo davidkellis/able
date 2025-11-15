@@ -110,9 +110,7 @@ func (c *Checker) checkBinaryExpression(env *Environment, expr *ast.BinaryExpres
 		switch {
 		case isStringType(leftType) && isStringType(rightType):
 			resultType = PrimitiveType{Kind: PrimitiveString}
-		case isUnknownType(leftType) || isUnknownType(rightType):
-			resultType = UnknownType{}
-		case isNumericType(leftType) && isNumericType(rightType):
+		default:
 			resType, err := resolveNumericBinaryType(leftType, rightType)
 			if err != "" {
 				diags = append(diags, Diagnostic{
@@ -123,26 +121,8 @@ func (c *Checker) checkBinaryExpression(env *Environment, expr *ast.BinaryExpres
 			} else {
 				resultType = resType
 			}
-		default:
-			diags = append(diags, Diagnostic{
-				Message: fmt.Sprintf("typechecker: '+' requires both operands to be numeric or string (got %s and %s)", typeName(leftType), typeName(rightType)),
-				Node:    expr,
-			})
-			resultType = UnknownType{}
 		}
 	case "-", "*", "/", "%":
-		if isUnknownType(leftType) || isUnknownType(rightType) {
-			resultType = UnknownType{}
-			break
-		}
-		if !isNumericType(leftType) || !isNumericType(rightType) {
-			diags = append(diags, Diagnostic{
-				Message: fmt.Sprintf("typechecker: '%s' requires numeric operands (got %s and %s)", expr.Operator, typeName(leftType), typeName(rightType)),
-				Node:    expr,
-			})
-			resultType = UnknownType{}
-			break
-		}
 		resType, err := resolveNumericBinaryType(leftType, rightType)
 		if err != "" {
 			diags = append(diags, Diagnostic{
@@ -158,40 +138,22 @@ func (c *Checker) checkBinaryExpression(env *Environment, expr *ast.BinaryExpres
 			resultType = boolType
 			break
 		}
-		switch {
-		case isNumericType(leftType) && isNumericType(rightType):
-			if _, err := resolveNumericBinaryType(leftType, rightType); err != "" {
-				diags = append(diags, Diagnostic{
-					Message: fmt.Sprintf("typechecker: '%s' %s", expr.Operator, err),
-					Node:    expr,
-				})
-			}
+		if isStringType(leftType) && isStringType(rightType) {
 			resultType = boolType
-		case isStringType(leftType) && isStringType(rightType):
-			resultType = boolType
-		default:
+			break
+		}
+		_, err := resolveNumericBinaryType(leftType, rightType)
+		if err != "" && !(isUnknownType(leftType) || isUnknownType(rightType)) {
 			diags = append(diags, Diagnostic{
-				Message: fmt.Sprintf("typechecker: '%s' requires operands to share a numeric or string type (got %s and %s)", expr.Operator, typeName(leftType), typeName(rightType)),
+				Message: fmt.Sprintf("typechecker: '%s' %s", expr.Operator, err),
 				Node:    expr,
 			})
-			resultType = boolType
 		}
+		resultType = boolType
 	case "==", "!=":
 		// Equality comparisons are defined for all types; we only assign bool.
 		resultType = boolType
 	case "&", "|", "^":
-		if isUnknownType(leftType) || isUnknownType(rightType) {
-			resultType = UnknownType{}
-			break
-		}
-		if !isIntegerType(leftType) || !isIntegerType(rightType) {
-			diags = append(diags, Diagnostic{
-				Message: fmt.Sprintf("typechecker: '%s' requires integer operands (got %s and %s)", expr.Operator, typeName(leftType), typeName(rightType)),
-				Node:    expr,
-			})
-			resultType = UnknownType{}
-			break
-		}
 		intType, err := resolveIntegerBinaryType(leftType, rightType)
 		if err != "" {
 			diags = append(diags, Diagnostic{
@@ -203,31 +165,16 @@ func (c *Checker) checkBinaryExpression(env *Environment, expr *ast.BinaryExpres
 		}
 		resultType = intType
 	case "<<", ">>":
-		if isUnknownType(leftType) || isUnknownType(rightType) {
-			resultType = UnknownType{}
-			break
-		}
-		if !isIntegerType(leftType) {
-			diags = append(diags, Diagnostic{
-				Message: fmt.Sprintf("typechecker: '%s' left operand must be integer (got %s)", expr.Operator, typeName(leftType)),
-				Node:    expr.Left,
-			})
-		}
-		if !isIntegerType(rightType) {
-			diags = append(diags, Diagnostic{
-				Message: fmt.Sprintf("typechecker: '%s' right operand must be integer (got %s)", expr.Operator, typeName(rightType)),
-				Node:    expr.Right,
-			})
-		}
-		if intType, err := resolveIntegerBinaryType(leftType, rightType); err == "" {
-			resultType = intType
-		} else {
+		intType, err := resolveIntegerBinaryType(leftType, rightType)
+		if err != "" {
 			diags = append(diags, Diagnostic{
 				Message: fmt.Sprintf("typechecker: '%s' %s", expr.Operator, err),
 				Node:    expr,
 			})
 			resultType = UnknownType{}
+			break
 		}
+		resultType = intType
 	case "|>":
 		// Pipe expressions are desugared by the interpreter; the checker currently
 		// treats them as opaque and propagates the right-hand side type.
@@ -248,67 +195,114 @@ func resolveNumericBinaryType(left, right Type) (Type, string) {
 	if isUnknownType(left) || isUnknownType(right) {
 		return UnknownType{}, ""
 	}
+	if isFloatType(left) || isFloatType(right) {
+		if !isNumericType(left) || !isNumericType(right) {
+			return UnknownType{}, fmt.Sprintf("requires numeric operands, got %s and %s", typeName(left), typeName(right))
+		}
+		return resolveFloatBinaryType(left, right)
+	}
 	if !isNumericType(left) || !isNumericType(right) {
 		return UnknownType{}, fmt.Sprintf("requires numeric operands, got %s and %s", typeName(left), typeName(right))
-	}
-	if isFloatType(left) || isFloatType(right) {
-		return resolveFloatBinaryType(left, right)
 	}
 	return resolveIntegerBinaryType(left, right)
 }
 
 func resolveFloatBinaryType(left, right Type) (Type, string) {
-	if !isNumericType(left) || !isNumericType(right) {
-		return UnknownType{}, fmt.Sprintf("requires numeric operands, got %s and %s", typeName(left), typeName(right))
+	result := "f32"
+	if lFloat, ok := left.(FloatType); ok && lFloat.Suffix == "f64" {
+		result = "f64"
 	}
-	var result Type
-	if isFloatType(left) {
-		result = left
+	if rFloat, ok := right.(FloatType); ok && rFloat.Suffix == "f64" {
+		result = "f64"
 	}
-	if isFloatType(right) {
-		if result == nil {
-			result = right
-		} else if result.Name() != right.Name() {
-			return UnknownType{}, fmt.Sprintf("operands use incompatible float types %s and %s", typeName(left), typeName(right))
-		}
-	}
-	if result == nil {
-		result = FloatType{Suffix: "f64"}
-	}
-	return result, ""
+	return FloatType{Suffix: result}, ""
 }
 
 func resolveIntegerBinaryType(left, right Type) (Type, string) {
 	if isUnknownType(left) || isUnknownType(right) {
 		return UnknownType{}, ""
 	}
-	if !isIntegerType(left) || !isIntegerType(right) {
+	leftSuffix, ok := integerSuffixForType(left)
+	if !ok {
 		return UnknownType{}, fmt.Sprintf("requires integer operands, got %s and %s", typeName(left), typeName(right))
 	}
+	rightSuffix, ok := integerSuffixForType(right)
+	if !ok {
+		return UnknownType{}, fmt.Sprintf("requires integer operands, got %s and %s", typeName(left), typeName(right))
+	}
+	resultSuffix, errMsg := promoteIntegerSuffixes(leftSuffix, rightSuffix)
+	if errMsg != "" {
+		return UnknownType{}, errMsg
+	}
+	return IntegerType{Suffix: resultSuffix}, ""
+}
 
-	if lInt, ok := left.(IntegerType); ok {
-		if rInt, ok := right.(IntegerType); ok {
-			if lInt.Suffix == rInt.Suffix {
-				return lInt, ""
+func integerSuffixForType(t Type) (string, bool) {
+	switch val := t.(type) {
+	case IntegerType:
+		if val.Suffix != "" {
+			return val.Suffix, true
+		}
+		return "i32", true
+	case PrimitiveType:
+		if val.Kind == PrimitiveInt {
+			return "i32", true
+		}
+	}
+	return "", false
+}
+
+func promoteIntegerSuffixes(left, right string) (string, string) {
+	leftInfo, ok := integerInfo(left)
+	if !ok {
+		return "", fmt.Sprintf("requires integer operands, got %s", left)
+	}
+	rightInfo, ok := integerInfo(right)
+	if !ok {
+		return "", fmt.Sprintf("requires integer operands, got %s", right)
+	}
+	if leftInfo.signed == rightInfo.signed {
+		targetBits := leftInfo.bits
+		if rightInfo.bits > targetBits {
+			targetBits = rightInfo.bits
+		}
+		if leftInfo.signed {
+			if suffix, ok := smallestSignedFor(targetBits); ok {
+				return suffix, ""
 			}
-			return UnknownType{}, fmt.Sprintf("operands use incompatible integer types %s and %s", typeName(left), typeName(right))
+		} else {
+			if suffix, ok := smallestUnsignedFor(targetBits); ok {
+				return suffix, ""
+			}
 		}
-		if isPrimitiveInt(right) {
-			return lInt, ""
-		}
-		return lInt, ""
+		return "", fmt.Sprintf("integer operands %s and %s require %d bits, exceeding available widths", left, right, targetBits)
 	}
-
-	if rInt, ok := right.(IntegerType); ok {
-		if isPrimitiveInt(left) {
-			return rInt, ""
-		}
-		return rInt, ""
+	needed := leftInfo.bits + 1
+	if rightInfo.bits+1 > needed {
+		needed = rightInfo.bits + 1
 	}
-
-	if isPrimitiveInt(left) && isPrimitiveInt(right) {
-		return PrimitiveType{Kind: PrimitiveInt}, ""
+	if suffix, ok := smallestSignedFor(needed); ok {
+		return suffix, ""
 	}
+	var unsignedCandidate *intBounds
+	var unsignedName string
+	if !leftInfo.signed {
+		unsignedCandidate = &leftInfo
+		unsignedName = left
+	}
+	if !rightInfo.signed && (unsignedCandidate == nil || rightInfo.bits > unsignedCandidate.bits) {
+		unsignedCandidate = &rightInfo
+		unsignedName = right
+	}
+	if unsignedCandidate != nil && unsignedCandidate.bits >= max(leftInfo.bits, rightInfo.bits) {
+		return unsignedName, ""
+	}
+	return "", fmt.Sprintf("integer operands %s and %s require %d bits, exceeding available widths", left, right, needed)
+}
 
-	return UnknownType{}, ""
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }

@@ -22,7 +22,7 @@ const matchFixtures: Fixture[] = [
       manifest: {
         description: "Match falls through literal clause and binds identifier",
         expect: {
-          result: { kind: "i32", value: 7 },
+          result: { kind: "i32", value: 7n },
         },
       },
     },
@@ -56,7 +56,7 @@ const matchFixtures: Fixture[] = [
       manifest: {
         description: "Match guard executes only when predicate passes",
         expect: {
-          result: { kind: "i32", value: 6 },
+          result: { kind: "i32", value: 6n },
         },
       },
     },
@@ -117,7 +117,7 @@ const matchFixtures: Fixture[] = [
       manifest: {
         description: "Match struct pattern binds fields and guard filters clauses",
         expect: {
-          result: { kind: "i32", value: 3 },
+          result: { kind: "i32", value: 3n },
         },
       },
     },
@@ -168,7 +168,7 @@ const matchFixtures: Fixture[] = [
       manifest: {
         description: "Positional struct match destructures tuple-style structs",
         expect: {
-          result: { kind: "i32", value: 12 },
+          result: { kind: "i32", value: 12n },
         },
       },
     },

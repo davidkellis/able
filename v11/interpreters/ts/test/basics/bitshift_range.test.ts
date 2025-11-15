@@ -17,8 +17,7 @@ describe("v10 interpreter - bitshift range checks", () => {
     expect(() => I.evaluate(AST.assignmentExpression("<<=", AST.identifier("x"), AST.integerLiteral(32)))).toThrow();
     // valid shift
     I.evaluate(AST.assignmentExpression("<<=", AST.identifier("x"), AST.integerLiteral(3)));
-    expect(I.evaluate(AST.identifier("x"))).toEqual({ kind: 'i32', value: 8 });
+    expect(I.evaluate(AST.identifier("x"))).toEqual({ kind: "i32", value: 8n });
   });
 });
-
 

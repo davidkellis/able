@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"math"
+	"math/big"
 	"testing"
 
 	"able/interpreter10-go/pkg/ast"
@@ -38,7 +39,7 @@ func TestBitshiftRangeDiagnostics(t *testing.T) {
 	}
 }
 
-func TestBitwiseRequiresI32Operands(t *testing.T) {
+func TestBitwiseRequiresIntegerOperands(t *testing.T) {
 	interp := New()
 	env := interp.GlobalEnvironment()
 	cases := []ast.Expression{
@@ -51,8 +52,8 @@ func TestBitwiseRequiresI32Operands(t *testing.T) {
 		if err == nil {
 			t.Fatalf("case %d: expected error", idx)
 		}
-		if err.Error() != "Bitwise requires i32 operands" {
-			t.Fatalf("case %d: expected 'Bitwise requires i32 operands', got %q", idx, err.Error())
+		if err.Error() != "Bitwise requires integer operands" {
+			t.Fatalf("case %d: expected 'Bitwise requires integer operands', got %q", idx, err.Error())
 		}
 	}
 }
@@ -162,6 +163,51 @@ func TestMixedNumericComparisons(t *testing.T) {
 		if bv.Val != tc.expect {
 			t.Fatalf("%s: expected %v, got %v", tc.name, tc.expect, bv.Val)
 		}
+	}
+}
+
+func TestIntegerLiteralSuffixPreserved(t *testing.T) {
+	interp := New()
+	env := interp.GlobalEnvironment()
+	i64 := ast.IntegerTypeI64
+	literal := ast.IntBig(big.NewInt(9_007_199_254_740_993), &i64)
+	val, err := interp.evaluateExpression(literal, env)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	intVal, ok := val.(runtime.IntegerValue)
+	if !ok {
+		t.Fatalf("expected integer value, got %#v", val)
+	}
+	if intVal.TypeSuffix != runtime.IntegerI64 {
+		t.Fatalf("expected type suffix i64, got %s", intVal.TypeSuffix)
+	}
+	expected := big.NewInt(0).SetInt64(0)
+	expected.SetString("9007199254740993", 10)
+	if intVal.Val.Cmp(expected) != 0 {
+		t.Fatalf("expected %v, got %v", expected, intVal.Val)
+	}
+}
+
+func TestIntegerArithmeticPromotion(t *testing.T) {
+	interp := New()
+	env := interp.GlobalEnvironment()
+	i16 := ast.IntegerTypeI16
+	u16 := ast.IntegerTypeU16
+	expr := ast.Bin("+", ast.IntTyped(1, &i16), ast.IntTyped(2, &u16))
+	val, err := interp.evaluateExpression(expr, env)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	intVal, ok := val.(runtime.IntegerValue)
+	if !ok {
+		t.Fatalf("expected integer result, got %#v", val)
+	}
+	if intVal.TypeSuffix != runtime.IntegerI32 {
+		t.Fatalf("expected promotion to i32, got %s", intVal.TypeSuffix)
+	}
+	if intVal.Val.Cmp(big.NewInt(3)) != 0 {
+		t.Fatalf("expected value 3, got %v", intVal.Val)
 	}
 }
 
