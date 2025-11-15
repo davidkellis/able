@@ -112,7 +112,10 @@ function parseExpression(node: Node | null | undefined, source: string): Express
       }
       const objectExpr = parseExpression(node.namedChild(0), source);
       const memberExpr = parseExpression(node.namedChild(1), source);
-      return annotateExpressionNode(AST.memberAccessExpression(objectExpr, memberExpr), node);
+      const operatorNode = node.childForFieldName("operator");
+      const operatorText = operatorNode ? sliceText(operatorNode, source).trim() : ".";
+      const isSafe = operatorText === "?.";
+      return annotateExpressionNode(AST.memberAccessExpression(objectExpr, memberExpr, { isSafe }), node);
     }
     case "proc_expression":
       return parseProcExpression(node, source);
@@ -293,7 +296,10 @@ function parsePostfixExpression(node: Node, source: string): Expression {
         } else {
           memberExpr = parseExpression(memberNode, source);
         }
-        result = annotateExpressionNode(AST.memberAccessExpression(result, memberExpr), suffix);
+        const operatorNode = suffix.childForFieldName("operator");
+        const operatorText = operatorNode ? sliceText(operatorNode, source).trim() : ".";
+        const isSafe = operatorText === "?.";
+        result = annotateExpressionNode(AST.memberAccessExpression(result, memberExpr, { isSafe }), suffix);
         lastCall = undefined;
         break;
       }

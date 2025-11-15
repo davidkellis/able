@@ -831,7 +831,7 @@ module.exports = grammar({
     member_access: $ => prec.left(
       PREC.member,
       seq(
-        ".",
+        field("operator", choice(".", "?.")),
         field("member", choice($.identifier, $.numeric_member)),
       ),
     ),

@@ -110,6 +110,7 @@ export function evaluateAssignmentExpression(ctx: InterpreterV10, node: AST.Assi
   }
 
   if (node.left.type === "MemberAccessExpression") {
+    if (node.left.isSafe) throw new Error("Cannot assign through safe navigation");
     if (node.operator === ":=") throw new Error("Cannot use := on member access");
     const targetObj = ctx.evaluate(node.left.object, env);
     if (targetObj.kind === "struct_instance") {

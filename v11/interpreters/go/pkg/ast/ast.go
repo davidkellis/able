@@ -721,6 +721,7 @@ type MemberAccessExpression struct {
 
 	Object Expression `json:"object"`
 	Member Expression `json:"member"`
+	Safe   bool       `json:"safe,omitempty"`
 }
 
 func NewMemberAccessExpression(object Expression, member Expression) *MemberAccessExpression {

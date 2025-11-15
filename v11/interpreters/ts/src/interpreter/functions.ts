@@ -3,6 +3,7 @@ import { Environment } from "./environment";
 import type { InterpreterV10 } from "./index";
 import type { V10Value } from "./values";
 import { ReturnSignal } from "./signals";
+import { memberAccessOnValue } from "./structs";
 
 function isGenericTypeReference(typeExpr: AST.TypeExpression | undefined, genericNames: Set<string>): boolean {
   if (!typeExpr || genericNames.size === 0) return false;
@@ -28,6 +29,15 @@ export function evaluateLambdaExpression(ctx: InterpreterV10, node: AST.LambdaEx
 }
 
 export function evaluateFunctionCall(ctx: InterpreterV10, node: AST.FunctionCall, env: Environment): V10Value {
+  if (node.callee.type === "MemberAccessExpression" && node.callee.isSafe) {
+    const receiver = ctx.evaluate(node.callee.object, env);
+    if (receiver.kind === "nil") {
+      return receiver;
+    }
+    const memberValue = memberAccessOnValue(ctx, receiver, node.callee.member, env);
+    const callArgs = node.arguments.map((arg) => ctx.evaluate(arg, env));
+    return callCallableValue(ctx, memberValue, callArgs, env, node);
+  }
   const calleeEvaluated = ctx.evaluate(node.callee, env);
   const callArgs = node.arguments.map(arg => ctx.evaluate(arg, env));
   return callCallableValue(ctx, calleeEvaluated, callArgs, env, node);

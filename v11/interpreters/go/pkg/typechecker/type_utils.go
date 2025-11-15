@@ -229,6 +229,29 @@ func isFloatType(t Type) bool {
 	return false
 }
 
+func typeCanBeNil(t Type) bool {
+	if t == nil {
+		return true
+	}
+	switch val := t.(type) {
+	case UnknownType:
+		return true
+	case PrimitiveType:
+		return val.Kind == PrimitiveNil
+	case NullableType:
+		return true
+	case UnionLiteralType:
+		for _, member := range val.Members {
+			if typeCanBeNil(member) {
+				return true
+			}
+		}
+		return false
+	default:
+		return false
+	}
+}
+
 func isNumericType(t Type) bool {
 	return isIntegerType(t) || isFloatType(t)
 }
