@@ -1,4 +1,4 @@
-package greet
+package greet_typecheck_fail
 
 fn greet(name: string) -> string {
   `Hello ${name}`
