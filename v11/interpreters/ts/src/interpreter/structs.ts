@@ -99,7 +99,7 @@ export function evaluateStructLiteral(ctx: InterpreterV10, node: AST.StructLiter
   };
 }
 
-function memberAccessOnValue(ctx: InterpreterV10, obj: V10Value, member: AST.Identifier | AST.IntegerLiteral, env: Environment): V10Value {
+export function memberAccessOnValue(ctx: InterpreterV10, obj: V10Value, member: AST.Identifier | AST.IntegerLiteral, env: Environment): V10Value {
   if (obj.kind === "struct_def" && member.type === "Identifier") {
     const typeName = obj.def.id.name;
     const method = ctx.findMethod(typeName, member.name);
@@ -241,6 +241,9 @@ function memberAccessOnValue(ctx: InterpreterV10, obj: V10Value, member: AST.Ide
 
 export function evaluateMemberAccessExpression(ctx: InterpreterV10, node: AST.MemberAccessExpression, env: Environment): V10Value {
   const obj = ctx.evaluate(node.object, env);
+  if (node.isSafe && obj.kind === "nil") {
+    return obj;
+  }
   return memberAccessOnValue(ctx, obj, node.member, env);
 }
 
