@@ -69,6 +69,11 @@ func TestCollectorReportsDuplicateDeclarations(t *testing.T) {
 	first := ast.StructDef("Thing", nil, ast.StructKindNamed, nil, nil, false)
 	second := ast.StructDef("Thing", nil, ast.StructKindNamed, nil, nil, false)
 	module := ast.NewModule([]ast.Statement{first, second}, nil, nil)
+	origins := map[ast.Node]string{
+		first:  "first.able",
+		second: "second.able",
+	}
+	checker.SetNodeOrigins(origins)
 	diags, err := checker.CheckModule(module)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -76,8 +81,11 @@ func TestCollectorReportsDuplicateDeclarations(t *testing.T) {
 	if len(diags) != 1 {
 		t.Fatalf("expected 1 diagnostic, got %d", len(diags))
 	}
-	if want := "duplicate declaration 'Thing'"; diags[0].Message != "typechecker: "+want {
-		t.Fatalf("expected diagnostic %q, got %q", "typechecker: "+want, diags[0].Message)
+	if want := "duplicate declaration 'Thing'"; !strings.Contains(diags[0].Message, want) {
+		t.Fatalf("expected diagnostic containing %q, got %q", want, diags[0].Message)
+	}
+	if want := "first.able"; !strings.Contains(diags[0].Message, want) {
+		t.Fatalf("expected diagnostic to reference %q, got %q", want, diags[0].Message)
 	}
 }
 func TestCollectorCapturesGenericFunctionMetadata(t *testing.T) {

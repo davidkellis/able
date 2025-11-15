@@ -109,6 +109,7 @@ export class TypeChecker {
   private methodSets: MethodSetRecord[] = [];
   private implementationRecords: ImplementationRecord[] = [];
   private implementationIndex: Map<string, ImplementationRecord[]> = new Map();
+  private declarationOrigins: Map<string, AST.Node> = new Map();
   private packageAliases: Map<string, string> = new Map();
   private reportedPackageMemberAccess = new WeakSet<AST.MemberAccessExpression>();
   private asyncDepth = 0;
@@ -138,6 +139,7 @@ export class TypeChecker {
     this.methodSets = [];
     this.implementationRecords = [];
     this.implementationIndex = new Map();
+    this.declarationOrigins = new Map();
     this.installBuiltins();
     this.packageAliases.clear();
     this.reportedPackageMemberAccess = new WeakSet();
@@ -244,6 +246,11 @@ export class TypeChecker {
         collectMethodsDefinitionHelper(this.implementationContext, node);
         break;
       case "FunctionDefinition":
+        if (node.id?.name && !node.isMethodShorthand) {
+          if (!this.ensureUniqueDeclaration(node.id.name, node)) {
+            return;
+          }
+        }
         this.collectFunctionDefinition(node, undefined);
         break;
       default:
@@ -273,9 +280,40 @@ export class TypeChecker {
     this.context.checkStatement(node);
   }
 
+  private ensureUniqueDeclaration(name: string | null | undefined, node: AST.Node | null | undefined): boolean {
+    if (!name || !node) {
+      return true;
+    }
+    const existing = this.declarationOrigins.get(name);
+    if (existing) {
+      const location = this.formatNodeOrigin(existing);
+      this.report(
+        `typechecker: duplicate declaration '${name}' (previous declaration at ${location})`,
+        node,
+      );
+      return false;
+    }
+    this.declarationOrigins.set(name, node);
+    return true;
+  }
+
+  private formatNodeOrigin(node: AST.Node | null | undefined): string {
+    if (!node) {
+      return "<unknown location>";
+    }
+    const origin = (node as { origin?: string }).origin ?? "<unknown file>";
+    const span = (node as { span?: { start?: { line?: number; column?: number } } }).span;
+    const line = span?.start?.line ?? 0;
+    const column = span?.start?.column ?? 0;
+    return `${origin}:${line}:${column}`;
+  }
+
   private registerStructDefinition(definition: AST.StructDefinition): void {
     const name = definition.id?.name;
     if (name) {
+      if (!this.ensureUniqueDeclaration(name, definition)) {
+        return;
+      }
       this.structDefinitions.set(name, definition);
     }
   }
@@ -283,6 +321,9 @@ export class TypeChecker {
   private registerInterfaceDefinition(definition: AST.InterfaceDefinition): void {
     const name = definition.id?.name;
     if (name) {
+      if (!this.ensureUniqueDeclaration(name, definition)) {
+        return;
+      }
       this.interfaceDefinitions.set(name, definition);
     }
   }
@@ -290,8 +331,7 @@ export class TypeChecker {
   private registerTypeAlias(definition: AST.TypeAliasDefinition): void {
     const name = definition.id?.name;
     if (!name) return;
-    if (this.structDefinitions.has(name) || this.interfaceDefinitions.has(name) || this.typeAliases.has(name)) {
-      this.report(`typechecker: duplicate declaration '${name}'`, definition);
+    if (!this.ensureUniqueDeclaration(name, definition)) {
       return;
     }
     this.typeAliases.set(name, definition);

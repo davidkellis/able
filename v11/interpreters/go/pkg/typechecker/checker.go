@@ -10,6 +10,7 @@ import (
 type Checker struct {
 	infer               InferenceMap
 	global              *Environment
+	nodeOrigins         map[ast.Node]string
 	returnTypeStack     []Type
 	rescueDepth         int
 	loopDepth           int
@@ -56,11 +57,17 @@ func New() *Checker {
 	c := &Checker{
 		infer:           make(InferenceMap),
 		global:          NewEnvironment(nil),
+		nodeOrigins:     nil,
 		returnTypeStack: nil,
 		rescueDepth:     0,
 	}
 	c.initBuiltinInterfaces()
 	return c
+}
+
+// SetNodeOrigins attaches origin metadata for diagnostics.
+func (c *Checker) SetNodeOrigins(origins map[ast.Node]string) {
+	c.nodeOrigins = origins
 }
 
 // SetPrelude seeds the checker with bindings and implementation metadata that

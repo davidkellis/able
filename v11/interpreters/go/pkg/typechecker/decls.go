@@ -11,6 +11,8 @@ import (
 // declarationCollector walks statements to populate the global environment.
 type declarationCollector struct {
 	env         *Environment
+	origins     map[ast.Node]string
+	declNodes   map[string]ast.Node
 	diags       []Diagnostic
 	impls       []ImplementationSpec
 	methodSets  []MethodSetSpec
@@ -27,7 +29,11 @@ func (c *Checker) collectDeclarations(module *ast.Module) []Diagnostic {
 			rootEnv.Define(name, typ)
 		})
 	}
-	collector := &declarationCollector{env: rootEnv}
+	collector := &declarationCollector{
+		env:       rootEnv,
+		origins:   c.nodeOrigins,
+		declNodes: make(map[string]ast.Node),
+	}
 	// Register built-in primitives in the global scope for convenience.
 	collector.env.Define("true", PrimitiveType{Kind: PrimitiveBool})
 	collector.env.Define("false", PrimitiveType{Kind: PrimitiveBool})
@@ -128,12 +134,17 @@ func (c *declarationCollector) visitStatement(stmt ast.Statement) {
 }
 
 func (c *declarationCollector) declare(name string, typ Type, node ast.Node) {
-	if _, exists := c.env.symbols[name]; exists {
-		msg := fmt.Sprintf("typechecker: duplicate declaration '%s'", name)
+	if name == "" || node == nil {
+		return
+	}
+	if prev, exists := c.declNodes[name]; exists {
+		location := formatNodeLocation(prev, c.origins)
+		msg := fmt.Sprintf("typechecker: duplicate declaration '%s' (previous declaration at %s)", name, location)
 		c.diags = append(c.diags, Diagnostic{Message: msg, Node: node})
 		return
 	}
 	c.env.Define(name, typ)
+	c.declNodes[name] = node
 	if shouldExportTopLevel(node) {
 		c.exports = append(c.exports, exportRecord{name: name, node: node})
 	}
@@ -160,6 +171,28 @@ func shouldExportTopLevel(node ast.Node) bool {
 	default:
 		return false
 	}
+}
+
+func formatNodeLocation(node ast.Node, origins map[ast.Node]string) string {
+	if node == nil {
+		return "<unknown location>"
+	}
+	path := "<unknown file>"
+	if origins != nil {
+		if origin, ok := origins[node]; ok && origin != "" {
+			path = origin
+		}
+	}
+	span := node.Span()
+	line := span.Start.Line
+	column := span.Start.Column
+	if line <= 0 {
+		line = 0
+	}
+	if column <= 0 {
+		column = 0
+	}
+	return fmt.Sprintf("%s:%d:%d", path, line, column)
 }
 
 func (c *declarationCollector) collectTypeAliasDefinition(def *ast.TypeAliasDefinition) {
