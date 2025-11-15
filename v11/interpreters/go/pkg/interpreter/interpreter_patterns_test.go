@@ -119,6 +119,70 @@ func TestDestructuringAssignmentArrayPattern(t *testing.T) {
 	}
 }
 
+func TestAssignmentEqualsDeclaresBindingWhenMissing(t *testing.T) {
+	interp := New()
+	module := ast.Mod([]ast.Statement{
+		ast.AssignOp(ast.AssignmentAssign, ast.ID("fresh"), ast.Int(42)),
+		ast.ID("fresh"),
+	}, nil, nil)
+
+	result, env, err := interp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	intVal, ok := result.(runtime.IntegerValue)
+	if !ok || intVal.Val.Cmp(bigInt(42)) != 0 {
+		t.Fatalf("expected final value 42, got %#v", result)
+	}
+	if _, err := env.Get("fresh"); err != nil {
+		t.Fatalf("expected binding for fresh: %v", err)
+	}
+}
+
+func TestAssignmentDeclareRequiresNewBinding(t *testing.T) {
+	interp := New()
+	module := ast.Mod([]ast.Statement{
+		ast.AssignOp(ast.AssignmentDeclare, ast.ID("dup"), ast.Int(1)),
+		ast.AssignOp(ast.AssignmentDeclare, ast.ID("dup"), ast.Int(2)),
+	}, nil, nil)
+
+	if _, _, err := interp.EvaluateModule(module); err == nil {
+		t.Fatalf("expected error for redeclaring dup in same scope")
+	}
+}
+
+func TestDestructuringDeclareRequiresNewBinding(t *testing.T) {
+	interp := New()
+	pat := ast.ArrP([]ast.Pattern{ast.PatternFrom("left"), ast.PatternFrom("right")}, nil)
+	module := ast.Mod([]ast.Statement{
+		ast.AssignOp(ast.AssignmentDeclare, pat, ast.Arr(ast.Int(1), ast.Int(2))),
+		ast.AssignOp(ast.AssignmentDeclare, pat, ast.Arr(ast.Int(3), ast.Int(4))),
+	}, nil, nil)
+	if _, _, err := interp.EvaluateModule(module); err == nil {
+		t.Fatalf("expected error when := pattern introduces no new bindings")
+	}
+}
+
+func TestDestructuringAssignmentEqualsDeclaresBindings(t *testing.T) {
+	interp := New()
+	pat := ast.ArrP([]ast.Pattern{ast.PatternFrom("first"), ast.PatternFrom("second")}, nil)
+	module := ast.Mod([]ast.Statement{
+		ast.AssignOp(ast.AssignmentAssign, pat, ast.Arr(ast.Int(9), ast.Int(8))),
+		ast.ID("second"),
+	}, nil, nil)
+	result, env, err := interp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	intVal, ok := result.(runtime.IntegerValue)
+	if !ok || intVal.Val.Cmp(bigInt(8)) != 0 {
+		t.Fatalf("expected result 8, got %#v", result)
+	}
+	if _, err := env.Get("first"); err != nil {
+		t.Fatalf("expected binding for first: %v", err)
+	}
+}
+
 func TestForLoopArrayPattern(t *testing.T) {
 	interp := New()
 	pattern := ast.ArrP([]ast.Pattern{ast.PatternFrom("x"), ast.PatternFrom("y")}, nil)

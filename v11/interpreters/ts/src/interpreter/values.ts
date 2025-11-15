@@ -20,6 +20,11 @@ export type V10Value =
   | { kind: "i32"; value: number }
   | { kind: "f64"; value: number }
   | { kind: "array"; elements: V10Value[] }
+  | {
+      kind: "hash_map";
+      entries: Map<string, { key: V10Value; value: V10Value }>;
+      order: string[];
+    }
   | { kind: "range"; start: number; end: number; inclusive: boolean }
   | IteratorValue
   | IteratorEndValue
@@ -104,6 +109,9 @@ export type V10Value =
       func: Extract<V10Value, { kind: "native_function" }>;
       self: V10Value;
     };
+
+export type HashMapValue = Extract<V10Value, { kind: "hash_map" }>;
+export type HashMapEntry = { key: V10Value; value: V10Value };
 
 export type ConstraintSpec = {
   typeParam: string;

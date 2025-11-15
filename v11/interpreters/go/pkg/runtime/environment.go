@@ -117,3 +117,43 @@ func (e *Environment) RuntimeData() any {
 	}
 	return nil
 }
+
+// Has reports whether the binding exists anywhere in the scope chain.
+func (e *Environment) Has(name string) bool {
+	e.mu.RLock()
+	if _, ok := e.values[name]; ok {
+		e.mu.RUnlock()
+		return true
+	}
+	parent := e.parent
+	e.mu.RUnlock()
+	if parent != nil {
+		return parent.Has(name)
+	}
+	return false
+}
+
+// HasInCurrentScope reports whether the binding exists in the current scope.
+func (e *Environment) HasInCurrentScope(name string) bool {
+	e.mu.RLock()
+	_, ok := e.values[name]
+	e.mu.RUnlock()
+	return ok
+}
+
+// AssignExisting assigns a name if it exists anywhere in the scope chain.
+// Returns true when the assignment succeeded.
+func (e *Environment) AssignExisting(name string, value Value) bool {
+	e.mu.Lock()
+	if _, ok := e.values[name]; ok {
+		e.values[name] = value
+		e.mu.Unlock()
+		return true
+	}
+	parent := e.parent
+	e.mu.Unlock()
+	if parent != nil {
+		return parent.AssignExisting(name, value)
+	}
+	return false
+}

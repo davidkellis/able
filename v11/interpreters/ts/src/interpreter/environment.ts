@@ -33,4 +33,26 @@ export class Environment {
     }
     throw new Error(`Undefined variable '${name}'`);
   }
+
+  has(name: string): boolean {
+    if (this.values.has(name)) {
+      return true;
+    }
+    return this.enclosing ? this.enclosing.has(name) : false;
+  }
+
+  hasInCurrentScope(name: string): boolean {
+    return this.values.has(name);
+  }
+
+  assignExisting(name: string, value: V10Value): boolean {
+    if (this.values.has(name)) {
+      this.values.set(name, value);
+      return true;
+    }
+    if (this.enclosing) {
+      return this.enclosing.assignExisting(name, value);
+    }
+    return false;
+  }
 }

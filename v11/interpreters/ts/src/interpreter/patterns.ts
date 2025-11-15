@@ -3,10 +3,21 @@ import { Environment } from "./environment";
 import type { InterpreterV10 } from "./index";
 import type { V10Value } from "./values";
 
+interface PatternAssignmentOptions {
+  declarationNames?: Set<string>;
+  fallbackToDeclaration?: boolean;
+}
+
 declare module "./index" {
   interface InterpreterV10 {
     tryMatchPattern(pattern: AST.Pattern, value: V10Value, baseEnv: Environment): Environment | null;
-    assignByPattern(pattern: AST.Pattern, value: V10Value, env: Environment, isDeclaration: boolean): void;
+    assignByPattern(
+      pattern: AST.Pattern,
+      value: V10Value,
+      env: Environment,
+      isDeclaration: boolean,
+      options?: PatternAssignmentOptions,
+    ): void;
   }
 }
 
@@ -83,9 +94,33 @@ export function applyPatternAugmentations(cls: typeof InterpreterV10): void {
     return null;
   };
 
-  cls.prototype.assignByPattern = function assignByPattern(this: InterpreterV10, pattern: AST.Pattern, value: V10Value, env: Environment, isDeclaration: boolean): void {
+  cls.prototype.assignByPattern = function assignByPattern(
+    this: InterpreterV10,
+    pattern: AST.Pattern,
+    value: V10Value,
+    env: Environment,
+    isDeclaration: boolean,
+    options?: PatternAssignmentOptions,
+  ): void {
+    const declarationNames = options?.declarationNames;
+    const fallbackToDeclaration = !!options?.fallbackToDeclaration;
     if (pattern.type === "Identifier") {
-      if (isDeclaration) env.define(pattern.name, value); else env.assign(pattern.name, value);
+      if (isDeclaration) {
+        const shouldDeclare = !declarationNames || declarationNames.has(pattern.name);
+        if (shouldDeclare) {
+          env.define(pattern.name, value);
+        } else {
+          env.assign(pattern.name, value);
+        }
+      } else {
+        if (!env.assignExisting(pattern.name, value)) {
+          if (fallbackToDeclaration) {
+            env.define(pattern.name, value);
+          } else {
+            env.assign(pattern.name, value);
+          }
+        }
+      }
       return;
     }
     if (pattern.type === "WildcardPattern") return;
@@ -104,7 +139,7 @@ export function applyPatternAugmentations(cls: typeof InterpreterV10): void {
           const fieldPat = pattern.fields[i];
           const fieldVal = value.values[i];
           if (!fieldPat || fieldVal === undefined) throw new Error("Invalid positional field during destructuring");
-          this.assignByPattern(fieldPat.pattern, fieldVal, env, isDeclaration);
+          this.assignByPattern(fieldPat.pattern, fieldVal, env, isDeclaration, options);
         }
         return;
       }
@@ -114,7 +149,10 @@ export function applyPatternAugmentations(cls: typeof InterpreterV10): void {
         const name = f.fieldName.name;
         if (!value.values.has(name)) throw new Error(`Missing field '${name}' during destructuring`);
         const fieldVal = value.values.get(name)!;
-        this.assignByPattern(f.pattern, fieldVal, env, isDeclaration);
+        this.assignByPattern(f.pattern, fieldVal, env, isDeclaration, options);
+        if (f.binding?.name) {
+          this.assignByPattern(f.binding as AST.Pattern, fieldVal, env, isDeclaration, options);
+        }
       }
       return;
     }
@@ -129,11 +167,18 @@ export function applyPatternAugmentations(cls: typeof InterpreterV10): void {
         const pe = pattern.elements[i];
         const av = arr[i];
         if (!pe || av === undefined) throw new Error("Invalid array element during destructuring");
-        this.assignByPattern(pe, av, env, isDeclaration);
+        this.assignByPattern(pe, av, env, isDeclaration, options);
       }
       if (hasRest && pattern.restPattern && pattern.restPattern.type === "Identifier") {
         const rest = { kind: "array", elements: arr.slice(minLen) } as V10Value;
-        if (isDeclaration) env.define(pattern.restPattern.name, rest); else env.assign(pattern.restPattern.name, rest);
+        if (isDeclaration) {
+          const shouldDeclare = !declarationNames || declarationNames.has(pattern.restPattern.name);
+          if (shouldDeclare) env.define(pattern.restPattern.name, rest);
+          else env.assign(pattern.restPattern.name, rest);
+        } else if (!env.assignExisting(pattern.restPattern.name, rest)) {
+          if (fallbackToDeclaration) env.define(pattern.restPattern.name, rest);
+          else env.assign(pattern.restPattern.name, rest);
+        }
       }
       return;
     }
@@ -141,7 +186,7 @@ export function applyPatternAugmentations(cls: typeof InterpreterV10): void {
       const tp = pattern as AST.TypedPattern;
       if (!this.matchesType(tp.typeAnnotation, value)) throw new Error("Typed pattern mismatch in assignment");
       const coerced = this.coerceValueToType(tp.typeAnnotation, value);
-      this.assignByPattern(tp.pattern, coerced, env, isDeclaration);
+      this.assignByPattern(tp.pattern, coerced, env, isDeclaration, options);
       return;
     }
     throw new Error(`Unsupported pattern in assignment: ${(pattern as any).type}`);

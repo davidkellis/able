@@ -110,6 +110,8 @@ func (c *declarationCollector) visitStatement(stmt ast.Statement) {
 			sig := c.functionTypeFromDefinition(s, nil, owner, s)
 			c.declare(s.ID.Name, sig, s)
 		}
+	case *ast.TypeAliasDefinition:
+		c.collectTypeAliasDefinition(s)
 	case *ast.ImplementationDefinition:
 		spec, diags := c.collectImplementationDefinition(s)
 		c.diags = append(c.diags, diags...)
@@ -153,9 +155,32 @@ func shouldExportTopLevel(node ast.Node) bool {
 			return false
 		}
 		return true
+	case *ast.TypeAliasDefinition:
+		return def != nil && def.ID != nil && !def.IsPrivate
 	default:
 		return false
 	}
+}
+
+func (c *declarationCollector) collectTypeAliasDefinition(def *ast.TypeAliasDefinition) {
+	if def == nil || def.ID == nil || def.ID.Name == "" {
+		return
+	}
+	params, paramScope := c.convertGenericParams(def.GenericParams)
+	target := c.resolveTypeExpression(def.TargetType, paramScope)
+	if target == nil {
+		target = UnknownType{}
+	}
+	where := c.convertWhereClause(def.WhereClause, paramScope)
+	alias := AliasType{
+		AliasName:   def.ID.Name,
+		TypeParams:  params,
+		Target:      target,
+		Where:       where,
+		Definition:  def,
+		Obligations: obligationsFromSpecs(fmt.Sprintf("type alias %s", def.ID.Name), params, where, def),
+	}
+	c.declare(def.ID.Name, alias, def)
 }
 
 func (c *declarationCollector) resolveTypeExpression(expr ast.TypeExpression, typeParams map[string]Type) Type {
@@ -184,12 +209,30 @@ func (c *declarationCollector) resolveTypeExpression(expr ast.TypeExpression, ty
 				return FloatType{Suffix: name}
 			default:
 				if decl, ok := c.env.Lookup(name); ok {
+					if alias, ok := decl.(AliasType); ok {
+						inst, _ := instantiateAlias(alias, nil)
+						return inst
+					}
 					return decl
 				}
 				return StructType{StructName: name}
 			}
 		}
 	case *ast.GenericTypeExpression:
+		if simple, ok := t.Base.(*ast.SimpleTypeExpression); ok && simple.Name != nil {
+			if _, exists := typeParams[simple.Name.Name]; !exists {
+				if decl, ok := c.env.Lookup(simple.Name.Name); ok {
+					if alias, ok := decl.(AliasType); ok {
+						args := make([]Type, len(t.Arguments))
+						for i, arg := range t.Arguments {
+							args[i] = c.resolveTypeExpression(arg, typeParams)
+						}
+						inst, _ := instantiateAlias(alias, args)
+						return inst
+					}
+				}
+			}
+		}
 		base := c.resolveTypeExpression(t.Base, typeParams)
 		args := make([]Type, len(t.Arguments))
 		for i, arg := range t.Arguments {

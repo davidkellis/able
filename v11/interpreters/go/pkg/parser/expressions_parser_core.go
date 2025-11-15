@@ -88,6 +88,12 @@ func parseExpressionInternal(ctx *parseContext, node *sitter.Node) (ast.Expressi
 			return nil, err
 		}
 		return annotateExpression(expr, node), nil
+	case "map_literal":
+		expr, err := ctx.parseMapLiteral(node)
+		if err != nil {
+			return nil, err
+		}
+		return annotateExpression(expr, node), nil
 	case "struct_literal":
 		expr, err := ctx.parseStructLiteral(node)
 		if err != nil {

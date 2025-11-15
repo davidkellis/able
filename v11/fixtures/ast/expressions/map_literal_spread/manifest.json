@@ -1,0 +1,41 @@
+{
+  "description": "Map literal supports spreads and overrides",
+  "expect": {
+    "result": {
+      "kind": "hash_map",
+      "entries": [
+        {
+          "key": {
+            "kind": "string",
+            "value": "content-type"
+          },
+          "value": {
+            "kind": "string",
+            "value": "application/json"
+          }
+        },
+        {
+          "key": {
+            "kind": "string",
+            "value": "accept"
+          },
+          "value": {
+            "kind": "string",
+            "value": "application/json"
+          }
+        },
+        {
+          "key": {
+            "kind": "string",
+            "value": "authorization"
+          },
+          "value": {
+            "kind": "string",
+            "value": "Bearer abc"
+          }
+        }
+      ]
+    }
+  },
+  "entry": "module.json"
+}

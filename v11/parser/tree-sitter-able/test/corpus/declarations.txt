@@ -522,3 +522,99 @@ impl Display for Counter {
                                                                                         (implicit_member_expression
                                                                                           (identifier)))))))))))))))))))))
                                                   (interpolation_text))))))))))))))))))))))))))
+
+==================
+Type Alias Definitions
+==================
+
+type UserID = u64
+
+type Box T where T: Display = Array T
+
+private type ResultValue E T where E: Error + Display = E | T
+
+---
+
+(source_file
+  (type_alias_definition
+    (identifier)
+    (type_union
+      (type_arrow
+        (type_suffix
+          (type_prefix
+            (type_atom
+              (type_identifier
+                (qualified_identifier
+                  (identifier)))))))))
+  (type_alias_definition
+    (identifier)
+    (generic_parameter_list
+      (generic_parameter
+        (identifier)))
+    (where_clause
+      (where_constraint
+        (identifier)
+        (type_bound_list
+          (type_union
+            (type_arrow
+              (type_suffix
+                (type_prefix
+                  (type_atom
+                    (type_identifier
+                      (qualified_identifier
+                        (identifier)))))))))))
+    (type_union
+      (type_arrow
+        (type_suffix
+          (type_prefix
+            (type_generic_application
+              (type_atom
+                (type_identifier
+                  (qualified_identifier
+                    (identifier))))
+              (type_atom
+                (type_identifier
+                  (qualified_identifier
+                    (identifier))))))))))
+  (type_alias_definition
+    (identifier)
+    (generic_parameter_list
+      (generic_parameter
+        (identifier))
+      (generic_parameter
+        (identifier)))
+    (where_clause
+      (where_constraint
+        (identifier)
+        (type_bound_list
+          (type_union
+            (type_arrow
+              (type_suffix
+                (type_prefix
+                  (type_atom
+                    (type_identifier
+                      (qualified_identifier
+                        (identifier))))))))
+          (type_union
+            (type_arrow
+              (type_suffix
+                (type_prefix
+                  (type_atom
+                    (type_identifier
+                      (qualified_identifier
+                        (identifier)))))))))))
+    (type_union
+      (type_arrow
+        (type_suffix
+          (type_prefix
+            (type_atom
+              (type_identifier
+                (qualified_identifier
+                  (identifier)))))))
+      (type_arrow
+        (type_suffix
+          (type_prefix
+            (type_atom
+              (type_identifier
+                (qualified_identifier
+                  (identifier))))))))))

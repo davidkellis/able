@@ -127,6 +127,8 @@ function printStatement(stmt: AST.Statement, level: number): string {
       return printFunctionDefinition(stmt, level);
     case "StructDefinition":
       return printStructDefinition(stmt, level);
+    case "TypeAliasDefinition":
+      return printTypeAliasDefinition(stmt, level);
     case "UnionDefinition":
       return printUnionDefinition(stmt, level);
     case "InterfaceDefinition":
@@ -214,6 +216,18 @@ function printStructDefinition(def: AST.StructDefinition, level: number): string
     return `${prefix}${whereSuffix} {\n${fields.join("\n")}\n${indent(level)}}`;
   }
   return `${prefix}${whereSuffix} {}`;
+}
+
+function printTypeAliasDefinition(def: AST.TypeAliasDefinition, level: number): string {
+  let line = `${indent(level)}${def.isPrivate ? "private " : ""}type ${printIdentifier(def.id)}`;
+  if (def.genericParams && def.genericParams.length > 0) {
+    line += ` ${def.genericParams.map(printGenericParameter).join(" ")}`;
+  }
+  if (def.whereClause && def.whereClause.length > 0) {
+    line += ` where ${def.whereClause.map(printWhereClause).join(", ")}`;
+  }
+  line += ` = ${printTypeExpression(def.targetType)}`;
+  return line;
 }
 
 function printUnionDefinition(def: AST.UnionDefinition, level: number): string {
@@ -340,6 +354,8 @@ function printExpression(expr: AST.Expression, level: number): string {
       return printIdentifier(expr);
     case "ArrayLiteral":
       return `[${expr.elements.map((el) => printExpression(el, level)).join(", ")}]`;
+    case "MapLiteral":
+      return printMapLiteral(expr, level);
     case "AssignmentExpression": {
       if (expr.right.type === "MatchExpression") {
         return `${printAssignmentLeft(expr.left)} ${expr.operator} (${printMatchExpression(expr.right, level)})`;
@@ -432,6 +448,21 @@ function printStructLiteral(lit: AST.StructLiteral, level: number): string {
     return `{ ${items} }`;
   }
   return `${head} { ${items} }`;
+}
+
+function printMapLiteral(lit: AST.MapLiteral, level: number): string {
+  if (!lit.entries || lit.entries.length === 0) {
+    return "#{}";
+  }
+  const rendered = lit.entries
+    .map((entry) => {
+      if (entry.type === "MapLiteralSpread") {
+        return `...${printExpression(entry.expression, level)}`;
+      }
+      return `${printExpression(entry.key, level)}: ${printExpression(entry.value, level)}`;
+    })
+    .join(", ");
+  return `#{${rendered}}`;
 }
 
 function printIteratorLiteral(lit: AST.IteratorLiteral, level: number): string {

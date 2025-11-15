@@ -55,7 +55,7 @@ func (c *Checker) checkFunctionDefinition(env *Environment, def *ast.FunctionDef
 			paramType = c.resolveTypeReference(param.ParamType)
 		}
 		if target, ok := param.Name.(ast.AssignmentTarget); ok {
-			diags = append(diags, c.bindPattern(bodyEnv, target, paramType, true)...)
+			diags = append(diags, c.bindPattern(bodyEnv, target, paramType, true, nil)...)
 		} else {
 			diags = append(diags, Diagnostic{
 				Message: fmt.Sprintf("typechecker: unsupported function parameter pattern %T", param.Name),
@@ -118,7 +118,7 @@ func (c *Checker) checkLambdaExpression(env *Environment, expr *ast.LambdaExpres
 		}
 		paramTypes[idx] = paramType
 		if target, ok := param.Name.(ast.AssignmentTarget); ok {
-			diags = append(diags, c.bindPattern(lambdaEnv, target, paramType, true)...)
+			diags = append(diags, c.bindPattern(lambdaEnv, target, paramType, true, nil)...)
 		} else {
 			diags = append(diags, Diagnostic{
 				Message: fmt.Sprintf("typechecker: unsupported lambda parameter pattern %T", param.Name),

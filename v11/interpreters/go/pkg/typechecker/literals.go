@@ -2,6 +2,7 @@ package typechecker
 
 import (
 	"fmt"
+	"math/big"
 
 	"able/interpreter10-go/pkg/ast"
 )
@@ -10,10 +11,16 @@ func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diag
 	switch e := expr.(type) {
 	case *ast.IntegerLiteral:
 		suffix := "i32"
+		explicit := false
 		if e.IntegerType != nil {
 			suffix = string(*e.IntegerType)
+			explicit = true
 		}
-		typ := IntegerType{Suffix: suffix}
+		literal := new(big.Int)
+		if e.Value != nil {
+			literal = new(big.Int).Set(e.Value)
+		}
+		typ := IntegerType{Suffix: suffix, Literal: literal, Explicit: explicit}
 		c.infer.set(e, typ)
 		return nil, typ
 	case *ast.FloatLiteral:
@@ -57,6 +64,47 @@ func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diag
 		return nil, UnknownType{}
 	case *ast.ArrayLiteral:
 		return c.checkArrayLiteral(env, e)
+	case *ast.MapLiteral:
+		var diags []Diagnostic
+		var keyType Type = UnknownType{}
+		var valueType Type = UnknownType{}
+		for _, element := range e.Elements {
+			switch entry := element.(type) {
+			case *ast.MapLiteralEntry:
+				keyDiags, inferredKey := c.checkExpression(env, entry.Key)
+				diags = append(diags, keyDiags...)
+				valueDiags, inferredValue := c.checkExpression(env, entry.Value)
+				diags = append(diags, valueDiags...)
+				var mergeDiags []Diagnostic
+				keyType, mergeDiags = mergeMapComponentType(keyType, inferredKey, "map key", entry.Key)
+				diags = append(diags, mergeDiags...)
+				valueType, mergeDiags = mergeMapComponentType(valueType, inferredValue, "map value", entry.Value)
+				diags = append(diags, mergeDiags...)
+			case *ast.MapLiteralSpread:
+				spreadDiags, spreadType := c.checkExpression(env, entry.Expression)
+				diags = append(diags, spreadDiags...)
+				if mapType, ok := spreadType.(MapType); ok {
+					var mergeDiags []Diagnostic
+					keyType, mergeDiags = mergeMapComponentType(keyType, mapType.Key, "map key", entry.Expression)
+					diags = append(diags, mergeDiags...)
+					valueType, mergeDiags = mergeMapComponentType(valueType, mapType.Value, "map value", entry.Expression)
+					diags = append(diags, mergeDiags...)
+				} else if !isUnknownType(spreadType) {
+					diags = append(diags, Diagnostic{
+						Message: fmt.Sprintf("typechecker: map spread expects Map, got %s", spreadType.Name()),
+						Node:    entry.Expression,
+					})
+				}
+			default:
+				diags = append(diags, Diagnostic{
+					Message: fmt.Sprintf("typechecker: unsupported map literal element %T", element),
+					Node:    e,
+				})
+			}
+		}
+		resultType := MapType{Key: keyType, Value: valueType}
+		c.infer.set(e, resultType)
+		return diags, resultType
 	case *ast.BlockExpression:
 		blockEnv := env.Extend()
 		var (
@@ -178,10 +226,17 @@ func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diag
 			} else {
 				for i, expected := range instantiated.Params {
 					if !typeAssignable(argTypes[i], expected) {
-						diags = append(diags, Diagnostic{
-							Message: fmt.Sprintf("typechecker: argument %d has type %s, expected %s", i+1, typeName(argTypes[i]), typeName(expected)),
-							Node:    e.Arguments[i],
-						})
+						if msg, ok := literalMismatchMessage(argTypes[i], expected); ok {
+							diags = append(diags, Diagnostic{
+								Message: fmt.Sprintf("typechecker: %s", msg),
+								Node:    e.Arguments[i],
+							})
+						} else {
+							diags = append(diags, Diagnostic{
+								Message: fmt.Sprintf("typechecker: argument %d has type %s, expected %s", i+1, typeName(argTypes[i]), typeName(expected)),
+								Node:    e.Arguments[i],
+							})
+						}
 					}
 				}
 			}
@@ -260,10 +315,17 @@ func (c *Checker) checkStatement(env *Environment, stmt ast.Statement) []Diagnos
 	switch s := stmt.(type) {
 	case *ast.AssignmentExpression:
 		var diags []Diagnostic
+		var intent *patternIntent
 		if s.Operator == ast.AssignmentDeclare {
-			if _, ok := s.Left.(*ast.StructPattern); !ok {
-				diags = append(diags, c.bindPattern(env, s.Left, UnknownType{}, true)...)
+			newNames, hasAny := analyzeAssignmentTargets(env, s.Left)
+			if hasAny && len(newNames) == 0 {
+				diags = append(diags, Diagnostic{
+					Message: "typechecker: ':=' requires at least one new binding",
+					Node:    s.Left,
+				})
 			}
+			intent = &patternIntent{declarationNames: newNames}
+			diags = append(diags, c.bindPattern(env, s.Left, UnknownType{}, true, intent)...)
 		}
 		rhsDiags, typ := c.checkExpression(env, s.Right)
 		diags = append(diags, rhsDiags...)
@@ -271,7 +333,11 @@ func (c *Checker) checkStatement(env *Environment, stmt ast.Statement) []Diagnos
 			typ = UnknownType{}
 		}
 		if s.Operator == ast.AssignmentDeclare {
-			return append(diags, c.bindPattern(env, s.Left, typ, true)...)
+			return append(diags, c.bindPattern(env, s.Left, typ, true, intent)...)
+		}
+		if s.Operator == ast.AssignmentAssign {
+			assignIntent := &patternIntent{allowFallback: true}
+			return append(diags, c.bindPattern(env, s.Left, typ, false, assignIntent)...)
 		}
 		return diags
 	case *ast.WhileLoop:
@@ -288,7 +354,7 @@ func (c *Checker) checkStatement(env *Environment, stmt ast.Statement) []Diagnos
 		return c.checkBreakStatement(env, s)
 	case *ast.ContinueStatement:
 		return c.checkContinueStatement(s)
-	case *ast.StructDefinition, *ast.UnionDefinition, *ast.InterfaceDefinition:
+	case *ast.StructDefinition, *ast.UnionDefinition, *ast.InterfaceDefinition, *ast.TypeAliasDefinition:
 		return nil
 	case *ast.DynImportStatement:
 		placeholder := Type(UnknownType{})
@@ -327,6 +393,52 @@ func (c *Checker) checkStatement(env *Environment, stmt ast.Statement) []Diagnos
 	}
 }
 
+func analyzeAssignmentTargets(env *Environment, target ast.AssignmentTarget) (map[string]struct{}, bool) {
+	names := make(map[string]struct{})
+	collectAssignmentTargetIdentifiers(target, names)
+	newNames := make(map[string]struct{})
+	for name := range names {
+		if !env.HasInCurrentScope(name) {
+			newNames[name] = struct{}{}
+		}
+	}
+	return newNames, len(names) > 0
+}
+
+func collectAssignmentTargetIdentifiers(target ast.AssignmentTarget, into map[string]struct{}) {
+	switch t := target.(type) {
+	case *ast.Identifier:
+		if t.Name != "" {
+			into[t.Name] = struct{}{}
+		}
+	case *ast.StructPattern:
+		for _, field := range t.Fields {
+			if field == nil {
+				continue
+			}
+			if field.Binding != nil && field.Binding.Name != "" {
+				into[field.Binding.Name] = struct{}{}
+			}
+			if inner, ok := field.Pattern.(ast.AssignmentTarget); ok {
+				collectAssignmentTargetIdentifiers(inner, into)
+			}
+		}
+	case *ast.ArrayPattern:
+		for _, elem := range t.Elements {
+			if inner, ok := elem.(ast.AssignmentTarget); ok {
+				collectAssignmentTargetIdentifiers(inner, into)
+			}
+		}
+		if rest, ok := t.RestPattern.(*ast.Identifier); ok && rest.Name != "" {
+			into[rest.Name] = struct{}{}
+		}
+	case *ast.TypedPattern:
+		if inner, ok := t.Pattern.(ast.AssignmentTarget); ok {
+			collectAssignmentTargetIdentifiers(inner, into)
+		}
+	}
+}
+
 func (c *Checker) checkIteratorLiteral(env *Environment, lit *ast.IteratorLiteral) ([]Diagnostic, Type) {
 	if lit == nil {
 		return nil, IteratorType{Element: UnknownType{}}
@@ -348,21 +460,31 @@ func (c *Checker) checkIteratorLiteral(env *Environment, lit *ast.IteratorLitera
 		bodyEnv.Define(lit.Binding.Name, UnknownType{})
 	}
 	bodyEnv.Define("gen", UnknownType{})
+	var inferred Type = UnknownType{}
 	var diags []Diagnostic
 	for _, stmt := range lit.Body {
 		if stmt == nil {
 			continue
 		}
 		if yieldStmt, ok := stmt.(*ast.YieldStatement); ok {
-			diags = append(diags, c.checkIteratorYield(bodyEnv, yieldStmt, expected)...)
+			yieldDiags, yieldType := c.checkIteratorYield(bodyEnv, yieldStmt, expected)
+			diags = append(diags, yieldDiags...)
+			inferred = mergeIteratorElementType(inferred, yieldType)
 			continue
 		}
 		diags = append(diags, c.checkStatement(bodyEnv, stmt)...)
 	}
-	return diags, IteratorType{Element: expected}
+	elementType := expected
+	if elementType == nil || isUnknownType(elementType) {
+		elementType = inferred
+	}
+	if elementType == nil {
+		elementType = UnknownType{}
+	}
+	return diags, IteratorType{Element: elementType}
 }
 
-func (c *Checker) checkIteratorYield(env *Environment, stmt *ast.YieldStatement, expected Type) []Diagnostic {
+func (c *Checker) checkIteratorYield(env *Environment, stmt *ast.YieldStatement, expected Type) ([]Diagnostic, Type) {
 	var diags []Diagnostic
 	valueType := Type(PrimitiveType{Kind: PrimitiveNil})
 	if stmt.Expression != nil {
@@ -375,22 +497,62 @@ func (c *Checker) checkIteratorYield(env *Environment, stmt *ast.YieldStatement,
 		}
 	}
 	if expected == nil || isUnknownType(expected) {
-		return diags
+		return diags, valueType
 	}
 	if typeAssignable(valueType, expected) {
-		return diags
+		return diags, valueType
 	}
 	actual := typeName(valueType)
 	if actual == "" {
 		actual = "unknown"
 	}
+	message := fmt.Sprintf(
+		"typechecker: iterator annotation expects elements of type %s, got %s",
+		typeName(expected),
+		actual,
+	)
+	if msg, ok := literalMismatchMessage(valueType, expected); ok {
+		message = fmt.Sprintf("typechecker: %s", msg)
+	}
 	diags = append(diags, Diagnostic{
-		Message: fmt.Sprintf(
-			"typechecker: iterator annotation expects elements of type %s, got %s",
-			typeName(expected),
-			actual,
-		),
-		Node: stmt,
+		Message: message,
+		Node:    stmt,
 	})
-	return diags
+	return diags, valueType
+}
+
+func mergeIteratorElementType(current Type, next Type) Type {
+	if next == nil || isUnknownType(next) {
+		return current
+	}
+	if current == nil || isUnknownType(current) {
+		return next
+	}
+	if typeAssignable(next, current) {
+		return current
+	}
+	if typeAssignable(current, next) {
+		return next
+	}
+	return UnknownType{}
+}
+
+func mergeMapComponentType(current Type, candidate Type, label string, node ast.Node) (Type, []Diagnostic) {
+	if current == nil || isUnknownType(current) {
+		return candidate, nil
+	}
+	if candidate == nil || isUnknownType(candidate) {
+		return current, nil
+	}
+	if typeAssignable(candidate, current) {
+		return current, nil
+	}
+	if typeAssignable(current, candidate) {
+		return candidate, nil
+	}
+	diag := Diagnostic{
+		Message: fmt.Sprintf("typechecker: %s expects type %s, got %s", label, current.Name(), candidate.Name()),
+		Node:    node,
+	}
+	return current, []Diagnostic{diag}
 }

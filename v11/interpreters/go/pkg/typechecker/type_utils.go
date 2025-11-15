@@ -2,6 +2,7 @@ package typechecker
 
 import (
 	"fmt"
+	"math/big"
 	"strings"
 )
 
@@ -56,6 +57,15 @@ func formatType(t Type) string {
 		return val.StructName
 	case InterfaceType:
 		return val.InterfaceName
+	case AliasType:
+		target := formatType(val.Target)
+		if target == "" || target == "<unknown>" {
+			target = typeName(val.Target)
+		}
+		if target == "" {
+			target = "<unknown>"
+		}
+		return "type alias -> " + target
 	case UnionType:
 		return val.UnionName
 	case ArrayType:
@@ -99,6 +109,38 @@ func formatType(t Type) string {
 	}
 
 	return t.Name()
+}
+
+type intBounds struct {
+	min *big.Int
+	max *big.Int
+}
+
+func signedBounds(bits int) intBounds {
+	max := new(big.Int).Exp(big.NewInt(2), big.NewInt(int64(bits-1)), nil)
+	max.Sub(max, big.NewInt(1))
+	min := new(big.Int).Exp(big.NewInt(2), big.NewInt(int64(bits-1)), nil)
+	min.Neg(min)
+	return intBounds{min: min, max: max}
+}
+
+func unsignedBounds(bits int) intBounds {
+	max := new(big.Int).Exp(big.NewInt(2), big.NewInt(int64(bits)), nil)
+	max.Sub(max, big.NewInt(1))
+	return intBounds{min: big.NewInt(0), max: max}
+}
+
+var integerBounds = map[string]intBounds{
+	"i8":   signedBounds(8),
+	"i16":  signedBounds(16),
+	"i32":  signedBounds(32),
+	"i64":  signedBounds(64),
+	"i128": signedBounds(128),
+	"u8":   unsignedBounds(8),
+	"u16":  unsignedBounds(16),
+	"u32":  unsignedBounds(32),
+	"u64":  unsignedBounds(64),
+	"u128": unsignedBounds(128),
 }
 
 func isUnknownType(t Type) bool {
@@ -200,6 +242,8 @@ func typeAssignable(from, to Type) bool {
 			return true
 		}
 	}
+	from = normalizeSpecialType(from)
+	to = normalizeSpecialType(to)
 	if to == nil || isUnknownType(to) {
 		return true
 	}
@@ -214,6 +258,9 @@ func typeAssignable(from, to Type) bool {
 		return true
 	}
 	if isTypeParameter(from) {
+		return true
+	}
+	if literalAssignableTo(from, to) {
 		return true
 	}
 	switch target := to.(type) {
@@ -240,6 +287,11 @@ func typeAssignable(from, to Type) bool {
 	case IteratorType:
 		if iter, ok := from.(IteratorType); ok {
 			return typeAssignable(iter.Element, target.Element)
+		}
+		return false
+	case MapType:
+		if sourceMap, ok := from.(MapType); ok {
+			return typeAssignable(sourceMap.Key, target.Key) && typeAssignable(sourceMap.Value, target.Value)
 		}
 		return false
 	case NullableType:
@@ -279,6 +331,10 @@ func typeAssignable(from, to Type) bool {
 				return base.StructName == name
 			}
 		}
+	case MapType:
+		if targetMap, ok := to.(MapType); ok {
+			return typeAssignable(source.Key, targetMap.Key) && typeAssignable(source.Value, targetMap.Value)
+		}
 	case ArrayType:
 		if elem, ok := arrayElementType(to); ok {
 			return typeAssignable(source.Element, elem)
@@ -306,6 +362,124 @@ func typeAssignable(from, to Type) bool {
 	}
 
 	return from.Name() == to.Name()
+}
+
+func literalAssignableTo(from, to Type) bool {
+	if from == nil || to == nil {
+		return false
+	}
+	from = normalizeSpecialType(from)
+	to = normalizeSpecialType(to)
+	source, ok := from.(IntegerType)
+	if !ok || source.Literal == nil {
+		return false
+	}
+	target, ok := to.(IntegerType)
+	if !ok {
+		return false
+	}
+	if source.Explicit {
+		return source.Suffix == target.Suffix
+	}
+	bounds, ok := integerBounds[target.Suffix]
+	if !ok {
+		return source.Suffix == target.Suffix
+	}
+	value := new(big.Int).Set(source.Literal)
+	return value.Cmp(bounds.min) >= 0 && value.Cmp(bounds.max) <= 0
+}
+
+func literalMismatchMessage(from, to Type) (string, bool) {
+	if from == nil || to == nil {
+		return "", false
+	}
+	from = normalizeSpecialType(from)
+	to = normalizeSpecialType(to)
+	switch actual := from.(type) {
+	case ArrayType:
+		if expected, ok := to.(ArrayType); ok {
+			return literalMismatchMessage(actual.Element, expected.Element)
+		}
+	case MapType:
+		if expected, ok := to.(MapType); ok {
+			if msg, ok := literalMismatchMessage(actual.Key, expected.Key); ok {
+				return msg, true
+			}
+			return literalMismatchMessage(actual.Value, expected.Value)
+		}
+	case RangeType:
+		if expected, ok := to.(RangeType); ok {
+			if msg, ok := literalMismatchMessage(actual.Element, expected.Element); ok {
+				return msg, true
+			}
+			for _, bound := range actual.Bounds {
+				if msg, ok := literalMismatchMessage(bound, expected.Element); ok {
+					return msg, true
+				}
+			}
+			return "", false
+		}
+	case IteratorType:
+		if expected, ok := to.(IteratorType); ok {
+			return literalMismatchMessage(actual.Element, expected.Element)
+		}
+	case ProcType:
+		if expected, ok := to.(ProcType); ok {
+			return literalMismatchMessage(actual.Result, expected.Result)
+		}
+	case FutureType:
+		if expected, ok := to.(FutureType); ok {
+			return literalMismatchMessage(actual.Result, expected.Result)
+		}
+	case NullableType:
+		if expected, ok := to.(NullableType); ok {
+			return literalMismatchMessage(actual.Inner, expected.Inner)
+		}
+	case UnionLiteralType:
+		if expected, ok := to.(UnionLiteralType); ok {
+			limit := len(actual.Members)
+			if len(expected.Members) < limit {
+				limit = len(expected.Members)
+			}
+			for i := 0; i < limit; i++ {
+				if msg, ok := literalMismatchMessage(actual.Members[i], expected.Members[i]); ok {
+					return msg, true
+				}
+			}
+			return "", false
+		}
+		for _, member := range actual.Members {
+			if msg, ok := literalMismatchMessage(member, to); ok {
+				return msg, true
+			}
+		}
+		return "", false
+	}
+	if expectedUnion, ok := to.(UnionLiteralType); ok {
+		for _, member := range expectedUnion.Members {
+			if msg, ok := literalMismatchMessage(from, member); ok {
+				return msg, true
+			}
+		}
+		return "", false
+	}
+	source, ok := from.(IntegerType)
+	if !ok || source.Literal == nil || source.Explicit {
+		return "", false
+	}
+	target, ok := to.(IntegerType)
+	if !ok {
+		return "", false
+	}
+	bounds, ok := integerBounds[target.Suffix]
+	if !ok {
+		return "", false
+	}
+	value := new(big.Int).Set(source.Literal)
+	if value.Cmp(bounds.min) < 0 || value.Cmp(bounds.max) > 0 {
+		return fmt.Sprintf("literal %s does not fit in %s", value.String(), target.Suffix), true
+	}
+	return "", false
 }
 
 func normalizeResultReturn(actual, expected Type) (Type, bool) {
@@ -453,6 +627,8 @@ func sameType(a, b Type) bool {
 	if a == nil || b == nil {
 		return false
 	}
+	a = normalizeSpecialType(a)
+	b = normalizeSpecialType(b)
 	if isUnknownType(a) || isUnknownType(b) {
 		return false
 	}
@@ -479,6 +655,10 @@ func sameType(a, b Type) bool {
 		if bv, ok := b.(ArrayType); ok {
 			return sameType(av.Element, bv.Element)
 		}
+	case MapType:
+		if bv, ok := b.(MapType); ok {
+			return sameType(av.Key, bv.Key) && sameType(av.Value, bv.Value)
+		}
 	case RangeType:
 		if bv, ok := b.(RangeType); ok {
 			return sameType(av.Element, bv.Element)
@@ -486,6 +666,14 @@ func sameType(a, b Type) bool {
 	case IteratorType:
 		if bv, ok := b.(IteratorType); ok {
 			return sameType(av.Element, bv.Element)
+		}
+	case ProcType:
+		if bv, ok := b.(ProcType); ok {
+			return sameType(av.Result, bv.Result)
+		}
+	case FutureType:
+		if bv, ok := b.(FutureType); ok {
+			return sameType(av.Result, bv.Result)
 		}
 	case NullableType:
 		if bv, ok := b.(NullableType); ok {
@@ -601,6 +789,61 @@ func arrayElementType(t Type) (Type, bool) {
 		}
 	}
 	return nil, false
+}
+
+func normalizeSpecialType(t Type) Type {
+	if t == nil {
+		return nil
+	}
+	switch v := t.(type) {
+	case AppliedType:
+		if name, ok := structName(v); ok {
+			if converted, ok := convertSpecialAppliedType(name, v.Arguments); ok {
+				return converted
+			}
+		}
+	case StructType:
+		if converted, ok := convertSpecialAppliedType(v.StructName, v.Positional); ok {
+			return converted
+		}
+	case StructInstanceType:
+		args := v.TypeArgs
+		if len(args) == 0 {
+			args = v.Positional
+		}
+		if converted, ok := convertSpecialAppliedType(v.StructName, args); ok {
+			return converted
+		}
+	}
+	return t
+}
+
+func convertSpecialAppliedType(name string, args []Type) (Type, bool) {
+	switch name {
+	case "Array":
+		return ArrayType{Element: argumentOrUnknown(args, 0)}, true
+	case "Iterator":
+		return IteratorType{Element: argumentOrUnknown(args, 0)}, true
+	case "Range":
+		return RangeType{Element: argumentOrUnknown(args, 0)}, true
+	case "Map":
+		return MapType{Key: argumentOrUnknown(args, 0), Value: argumentOrUnknown(args, 1)}, true
+	case "Proc":
+		return ProcType{Result: argumentOrUnknown(args, 0)}, true
+	case "Future":
+		return FutureType{Result: argumentOrUnknown(args, 0)}, true
+	default:
+		return nil, false
+	}
+}
+
+func argumentOrUnknown(args []Type, idx int) Type {
+	if idx >= 0 && idx < len(args) {
+		if args[idx] != nil {
+			return args[idx]
+		}
+	}
+	return UnknownType{}
 }
 
 func appliedTypesAssignable(from, to AppliedType) bool {
@@ -784,6 +1027,30 @@ func substituteObligations(obligations []ConstraintObligation, subst map[string]
 		}
 	}
 	return out
+}
+
+func instantiateAlias(alias AliasType, args []Type) (Type, map[string]Type) {
+	subst := make(map[string]Type, len(alias.TypeParams))
+	for idx, param := range alias.TypeParams {
+		if param.Name == "" {
+			continue
+		}
+		if idx < len(args) && args[idx] != nil {
+			subst[param.Name] = args[idx]
+			continue
+		}
+		if _, exists := subst[param.Name]; !exists {
+			subst[param.Name] = UnknownType{}
+		}
+	}
+	target := alias.Target
+	if len(subst) > 0 {
+		target = substituteType(target, subst)
+	}
+	if target == nil {
+		target = UnknownType{}
+	}
+	return target, subst
 }
 
 func populateObligationSubjects(obligations []ConstraintObligation, subject Type) []ConstraintObligation {

@@ -30,6 +30,10 @@
         "named": true
       },
       {
+        "type": "map_literal",
+        "named": true
+      },
+      {
         "type": "nil_literal",
         "named": true
       },
@@ -123,6 +127,10 @@
       },
       {
         "type": "struct_definition",
+        "named": true
+      },
+      {
+        "type": "type_alias_definition",
         "named": true
       },
       {
@@ -1461,6 +1469,82 @@
     }
   },
   {
+    "type": "map_literal",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "map_literal_element",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "map_literal_element",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "map_literal_entry",
+          "named": true
+        },
+        {
+          "type": "map_literal_spread",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "map_literal_entry",
+    "named": true,
+    "fields": {
+      "key": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      },
+      "value": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "map_literal_spread",
+    "named": true,
+    "fields": {
+      "expression": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "expression",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "match_clause",
     "named": true,
     "fields": {
@@ -2623,6 +2707,52 @@
     "fields": {}
   },
   {
+    "type": "type_alias_definition",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "target": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "type_expression",
+            "named": true
+          }
+        ]
+      },
+      "type_parameters": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "generic_parameter_list",
+            "named": true
+          }
+        ]
+      },
+      "where_clause": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "where_clause",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "type_arguments",
     "named": true,
     "fields": {},
@@ -2957,6 +3087,10 @@
   },
   {
     "type": "#",
+    "named": false
+  },
+  {
+    "type": "#{",
     "named": false
   },
   {
@@ -3334,6 +3468,10 @@
   },
   {
     "type": "true",
+    "named": false
+  },
+  {
+    "type": "type",
     "named": false
   },
   {

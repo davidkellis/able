@@ -50,6 +50,21 @@ func decodeLiteralNodes(node map[string]any, typ string) (ast.Node, bool, error)
 			exprs = append(exprs, expr)
 		}
 		return ast.NewArrayLiteral(exprs), true, nil
+	case "MapLiteral":
+		elementsRaw, _ := node["elements"].([]any)
+		elements := make([]ast.MapLiteralElement, 0, len(elementsRaw))
+		for _, raw := range elementsRaw {
+			elemNode, ok := raw.(map[string]any)
+			if !ok {
+				return nil, true, fmt.Errorf("invalid map literal element %T", raw)
+			}
+			elem, err := decodeMapLiteralElement(elemNode)
+			if err != nil {
+				return nil, true, err
+			}
+			elements = append(elements, elem)
+		}
+		return ast.NewMapLiteral(elements), true, nil
 	case "StructLiteral":
 		fieldsVal, _ := node["fields"].([]any)
 		fields := make([]*ast.StructFieldInitializer, 0, len(fieldsVal))
@@ -161,5 +176,53 @@ func decodeLiteralNodes(node map[string]any, typ string) (ast.Node, bool, error)
 		return literal, true, nil
 	default:
 		return nil, false, nil
+	}
+}
+
+func decodeMapLiteralElement(node map[string]any) (ast.MapLiteralElement, error) {
+	typ, _ := node["type"].(string)
+	switch typ {
+	case "MapLiteralEntry":
+		keyNode, _ := node["key"].(map[string]any)
+		if keyNode == nil {
+			return nil, fmt.Errorf("map literal entry missing key")
+		}
+		valueNode, _ := node["value"].(map[string]any)
+		if valueNode == nil {
+			return nil, fmt.Errorf("map literal entry missing value")
+		}
+		keyDecoded, err := decodeNode(keyNode)
+		if err != nil {
+			return nil, err
+		}
+		keyExpr, ok := keyDecoded.(ast.Expression)
+		if !ok {
+			return nil, fmt.Errorf("invalid map literal key %T", keyDecoded)
+		}
+		valueDecoded, err := decodeNode(valueNode)
+		if err != nil {
+			return nil, err
+		}
+		valueExpr, ok := valueDecoded.(ast.Expression)
+		if !ok {
+			return nil, fmt.Errorf("invalid map literal value %T", valueDecoded)
+		}
+		return ast.NewMapLiteralEntry(keyExpr, valueExpr), nil
+	case "MapLiteralSpread":
+		exprNode, _ := node["expression"].(map[string]any)
+		if exprNode == nil {
+			return nil, fmt.Errorf("map literal spread missing expression")
+		}
+		decodedNode, err := decodeNode(exprNode)
+		if err != nil {
+			return nil, err
+		}
+		decoded, ok := decodedNode.(ast.Expression)
+		if !ok {
+			return nil, fmt.Errorf("invalid map literal spread expression %T", decodedNode)
+		}
+		return ast.NewMapLiteralSpread(decoded), nil
+	default:
+		return nil, fmt.Errorf("unsupported map literal element type %s", typ)
 	}
 }

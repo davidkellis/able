@@ -1,9 +1,18 @@
 # Able Project Log
 
 # Able Project Log
-# Able Project Log
 
-## 2025-11-15 — v11 Spec Expansion Complete
+## 2025-11-15 — Map literal support landed
+- Extended the shared tree-sitter grammar plus both AST layers (TS + Go) with `MapLiteral`/entry/spread nodes, regenerated parser artifacts, and wired the fixtures/exporter so `#{ ... }` forms round-trip through `module.json` + source generation.
+- Implemented map literal evaluation in the TypeScript interpreter (new hash_map value kind, literal/spread semantics, fixture assertions) and added runtime+typechecker unit tests covering spreads, duplicates, and diagnostics.
+- Mirrored the same behavior in the Go interpreter/typechecker (hash map insertion helper, literal evaluation, new `MapType`, diagnostics) and added Go unit tests—`./v11/run_all_tests.sh` now exercises the new fixtures end-to-end.
+
+## 2025-11-14 — Type alias declarations wired end-to-end
+- The shared tree-sitter grammar gained a `type_alias_definition` rule (space-delimited generics + optional `where` clauses) plus corpus coverage, and both the TypeScript + Go AST mappers now surface `TypeAliasDefinition` statements.
+- TypeScript + Go parsers/interpreters ignore alias declarations at runtime while the TypeScript typechecker/summary plumbing keeps tracking them; the TypeScript fixture exporter/pretty-printer now emits `type Foo T where … = Expr` syntax.
+- Added the `types/type_alias_definition` AST fixture so both runtimes/typecheckers exercise alias declarations, updated the fixture baseline (`bun run scripts/export-fixtures.ts && ABLE_TYPECHECK_FIXTURES=strict bun run scripts/run-fixtures.ts -- --write-typecheck-baseline`), and kept Go green with `go test ./pkg/parser ./pkg/interpreter`.
+
+## 2025-11-13 — v11 Spec Expansion Complete
 - Closed the v11 spec TODO slate: every deferred item now lives in `spec/full_spec_v11.md`, covering mutable `=` semantics (§5.3.1), map literals (§6.1.9), struct functional updates (§4.5.2), type aliases (§4.7), safe navigation (§6.3.4), typed `=` declarations (§5.1–§5.1.1), contextual literal typing (§6.1.1/§6.3.2), optional generic parameters (§7.1.5/§4.5/§10.1), await/async coordination plus channel error surfaces (§12.6–§12.7), the `loop` expression (§8.2.3), Array/String APIs (§6.8/§6.1.5/§6.12.1), stdlib packaging + module search paths (§13.6–§13.7), and the regex/text modules (§14.2). `spec/TODO_v11.md` now reflects that completion and will track only newly scheduled language work.
 - The root PLAN no longer lists “Expand the v11 specification” as an open milestone; remaining TODOs focus on implementing the documented features across the interpreters, parser, and stdlib.
 

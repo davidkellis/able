@@ -8,7 +8,7 @@ export interface DeclarationsContext extends StatementContext {
   getIdentifierNameFromTypeExpression(expr: AST.TypeExpression | null | undefined): string | null;
   getInterfaceNameFromConstraint(constraint: AST.GenericConstraint | null | undefined): string | null;
   getInterfaceNameFromTypeExpression(expr: AST.TypeExpression | null | undefined): string | null;
-  resolveTypeExpression(expr: AST.TypeExpression | null | undefined): TypeInfo;
+  resolveTypeExpression(expr: AST.TypeExpression | null | undefined, substitutions?: Map<string, TypeInfo>): TypeInfo;
   describeTypeExpression(expr: AST.TypeExpression | null | undefined, substitutions?: Map<string, string>): string | null;
   report(message: string, node?: AST.Node | null | undefined): void;
   defineValue(name: string, type: TypeInfo): void;

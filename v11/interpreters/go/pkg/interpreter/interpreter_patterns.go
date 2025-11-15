@@ -7,10 +7,24 @@ import (
 	"able/interpreter10-go/pkg/runtime"
 )
 
-func (i *Interpreter) assignPattern(pattern ast.Pattern, value runtime.Value, env *runtime.Environment, isDeclaration bool) error {
+type bindingIntent struct {
+	declarationNames map[string]struct{}
+	allowFallback    bool
+}
+
+func (i *Interpreter) assignPattern(
+	pattern ast.Pattern,
+	value runtime.Value,
+	env *runtime.Environment,
+	isDeclaration bool,
+	intent *bindingIntent,
+) error {
 	switch p := pattern.(type) {
 	case *ast.Identifier:
-		return declareOrAssign(env, p.Name, value, isDeclaration)
+		if p == nil {
+			return nil
+		}
+		return declareOrAssign(env, p.Name, value, isDeclaration, intent)
 	case *ast.WildcardPattern:
 		return nil
 	case *ast.LiteralPattern:
@@ -58,11 +72,11 @@ func (i *Interpreter) assignPattern(pattern ast.Pattern, value runtime.Value, en
 				if fieldVal == nil {
 					return fmt.Errorf("missing positional struct value at index %d", idx)
 				}
-				if err := i.assignPattern(field.Pattern, fieldVal, env, isDeclaration); err != nil {
+				if err := i.assignPattern(field.Pattern, fieldVal, env, isDeclaration, intent); err != nil {
 					return err
 				}
 				if field.Binding != nil {
-					if err := declareOrAssign(env, field.Binding.Name, fieldVal, isDeclaration); err != nil {
+					if err := declareOrAssign(env, field.Binding.Name, fieldVal, isDeclaration, intent); err != nil {
 						return err
 					}
 				}
@@ -83,11 +97,11 @@ func (i *Interpreter) assignPattern(pattern ast.Pattern, value runtime.Value, en
 			if !ok {
 				return fmt.Errorf("Missing field '%s' during destructuring", field.FieldName.Name)
 			}
-			if err := i.assignPattern(field.Pattern, fieldVal, env, isDeclaration); err != nil {
+			if err := i.assignPattern(field.Pattern, fieldVal, env, isDeclaration, intent); err != nil {
 				return err
 			}
 			if field.Binding != nil {
-				if err := declareOrAssign(env, field.Binding.Name, fieldVal, isDeclaration); err != nil {
+				if err := declareOrAssign(env, field.Binding.Name, fieldVal, isDeclaration, intent); err != nil {
 					return err
 				}
 			}
@@ -112,7 +126,7 @@ func (i *Interpreter) assignPattern(pattern ast.Pattern, value runtime.Value, en
 				return fmt.Errorf("invalid array pattern at index %d", idx)
 			}
 			elemVal := elements[idx]
-			if err := i.assignPattern(elemPattern, elemVal, env, isDeclaration); err != nil {
+			if err := i.assignPattern(elemPattern, elemVal, env, isDeclaration, intent); err != nil {
 				return err
 			}
 		}
@@ -121,7 +135,7 @@ func (i *Interpreter) assignPattern(pattern ast.Pattern, value runtime.Value, en
 			case *ast.Identifier:
 				restElems := append([]runtime.Value(nil), elements[len(p.Elements):]...)
 				restVal := &runtime.ArrayValue{Elements: restElems}
-				if err := declareOrAssign(env, rest.Name, restVal, isDeclaration); err != nil {
+				if err := declareOrAssign(env, rest.Name, restVal, isDeclaration, intent); err != nil {
 					return err
 				}
 			case *ast.WildcardPattern:
@@ -141,7 +155,7 @@ func (i *Interpreter) assignPattern(pattern ast.Pattern, value runtime.Value, en
 		if err != nil {
 			return err
 		}
-		return i.assignPattern(p.Pattern, coerced, env, isDeclaration)
+		return i.assignPattern(p.Pattern, coerced, env, isDeclaration, intent)
 	default:
 		return fmt.Errorf("unsupported pattern %s", pattern.NodeType())
 	}
@@ -163,16 +177,30 @@ func (i *Interpreter) matchPattern(pattern ast.Pattern, value runtime.Value, bas
 		return nil, false
 	}
 	matchEnv := runtime.NewEnvironment(base)
-	if err := i.assignPattern(pattern, value, matchEnv, true); err != nil {
+	if err := i.assignPattern(pattern, value, matchEnv, true, nil); err != nil {
 		return nil, false
 	}
 	return matchEnv, true
 }
 
-func declareOrAssign(env *runtime.Environment, name string, value runtime.Value, isDeclaration bool) error {
+func declareOrAssign(env *runtime.Environment, name string, value runtime.Value, isDeclaration bool, intent *bindingIntent) error {
 	if isDeclaration {
-		env.Define(name, value)
-		return nil
+		if intent == nil || intent.declarationNames == nil {
+			env.Define(name, value)
+			return nil
+		}
+		if _, ok := intent.declarationNames[name]; ok {
+			env.Define(name, value)
+			return nil
+		}
+		return env.Assign(name, value)
 	}
-	return env.Assign(name, value)
+	if err := env.Assign(name, value); err != nil {
+		if intent != nil && intent.allowFallback {
+			env.Define(name, value)
+			return nil
+		}
+		return err
+	}
+	return nil
 }

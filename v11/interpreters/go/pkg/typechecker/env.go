@@ -43,6 +43,24 @@ func (e *Environment) Lookup(name string) (Type, bool) {
 	return nil, false
 }
 
+// Assign updates an existing binding if present in the scope chain.
+func (e *Environment) Assign(name string, typ Type) bool {
+	if _, ok := e.symbols[name]; ok {
+		e.symbols[name] = typ
+		return true
+	}
+	if e.parent != nil {
+		return e.parent.Assign(name, typ)
+	}
+	return false
+}
+
+// HasInCurrentScope reports whether a name is defined in the innermost scope.
+func (e *Environment) HasInCurrentScope(name string) bool {
+	_, ok := e.symbols[name]
+	return ok
+}
+
 // Clone creates a shallow copy of the environment without preserving the parent chain.
 func (e *Environment) Clone() *Environment {
 	if e == nil {

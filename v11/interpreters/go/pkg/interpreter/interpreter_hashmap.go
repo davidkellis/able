@@ -234,6 +234,25 @@ func (i *Interpreter) hashMapFindEntryWithHash(hm *runtime.HashMapValue, hash ui
 	return -1, false, nil
 }
 
+func (i *Interpreter) hashMapInsertEntry(hm *runtime.HashMapValue, key runtime.Value, value runtime.Value) error {
+	hash, err := i.hashMapHashValue(key)
+	if err != nil {
+		return err
+	}
+	idx, found, err := i.hashMapFindEntryWithHash(hm, hash, key)
+	if err != nil {
+		return err
+	}
+	if found {
+		hm.Entries[idx].Hash = hash
+		hm.Entries[idx].Key = key
+		hm.Entries[idx].Value = value
+		return nil
+	}
+	hm.Entries = append(hm.Entries, runtime.HashMapEntry{Key: key, Value: value, Hash: hash})
+	return nil
+}
+
 func (i *Interpreter) hashMapKeysEqual(a, b runtime.Value) (bool, error) {
 	if a == b {
 		return true, nil
