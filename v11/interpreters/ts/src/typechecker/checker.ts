@@ -112,6 +112,7 @@ export class TypeChecker {
   private packageAliases: Map<string, string> = new Map();
   private reportedPackageMemberAccess = new WeakSet<AST.MemberAccessExpression>();
   private asyncDepth = 0;
+  private returnTypeStack: TypeInfo[] = [];
   private allowDynamicLookups = false;
   private currentPackageName = "<anonymous>";
   private readonly context: StatementContext;
@@ -206,6 +207,7 @@ export class TypeChecker {
     this.functionInfos.set(name, {
       name,
       fullName: name,
+      parameters: params,
       genericConstraints: [],
       genericParamNames: [],
       whereClause: [],
@@ -349,6 +351,21 @@ export class TypeChecker {
     return this.asyncDepth > 0;
   }
 
+  private pushReturnType(type: TypeInfo): void {
+    this.returnTypeStack.push(type ?? unknownType);
+  }
+
+  private popReturnType(): void {
+    if (this.returnTypeStack.length > 0) {
+      this.returnTypeStack.pop();
+    }
+  }
+
+  private currentReturnType(): TypeInfo | undefined {
+    if (!this.returnTypeStack.length) return undefined;
+    return this.returnTypeStack[this.returnTypeStack.length - 1];
+  }
+
   private getBuiltinCallName(callee: AST.Expression | undefined | null): string | undefined {
     if (!callee) return undefined;
     if (callee.type === "Identifier") {
@@ -372,13 +389,110 @@ export class TypeChecker {
 
   private checkFunctionCall(call: AST.FunctionCall): void {
     const builtinName = this.getBuiltinCallName(call.callee);
+    const args = Array.isArray(call.arguments) ? call.arguments : [];
+    const argTypes = args.map((arg) => this.inferExpression(arg));
     this.checkBuiltinCallContext(builtinName, call);
     const infos = this.resolveFunctionInfos(call.callee);
     if (!infos.length) {
       return;
     }
+    const info = infos[0];
+    if (info) {
+      const rawParams = Array.isArray(info.parameters) ? info.parameters : [];
+      const implicitSelf =
+        Boolean(info.structName) && call.callee?.type === "MemberAccessExpression" && rawParams.length > 0;
+      const params = implicitSelf ? rawParams.slice(1) : rawParams;
+      if (params.length !== args.length) {
+        this.report(
+          `typechecker: function expects ${params.length} arguments, got ${args.length}`,
+          call,
+        );
+      }
+      const compareCount = Math.min(params.length, argTypes.length);
+      for (let index = 0; index < compareCount; index += 1) {
+        const expected = params[index];
+        const actual = argTypes[index];
+        if (!expected || expected.kind === "unknown" || !actual || actual.kind === "unknown") {
+          continue;
+        }
+        const literalMessage = this.describeLiteralMismatch(actual, expected);
+        if (literalMessage) {
+          this.report(literalMessage, args[index] ?? call);
+          continue;
+        }
+        if (!this.typeInfosEquivalent(actual, expected)) {
+          this.report(
+            `typechecker: argument ${index + 1} has type ${formatType(actual)}, expected ${formatType(expected)}`,
+            args[index] ?? call,
+          );
+        }
+      }
+    }
     for (const info of infos) {
       enforceFunctionConstraintsHelper(this.implementationContext, info, call);
+    }
+  }
+
+  private checkFunctionDefinition(definition: AST.FunctionDefinition): void {
+    if (!definition) return;
+    const name = definition.id?.name ?? "<anonymous>";
+    const info = this.functionInfos.get(name);
+    const paramTypes = Array.isArray(definition.params)
+      ? definition.params.map((param) => this.resolveTypeExpression(param?.paramType))
+      : [];
+    const expectedReturn =
+      (info?.returnType && info.returnType.kind !== "unknown" && info.returnType) ||
+      this.resolveTypeExpression(definition.returnType);
+    this.pushReturnType(expectedReturn ?? unknownType);
+    this.env.pushScope();
+    try {
+      if (Array.isArray(definition.params)) {
+        definition.params.forEach((param, index) => {
+          const paramName = this.getIdentifierName(param?.name);
+          if (!paramName) return;
+          const paramType = paramTypes[index] ?? unknownType;
+          this.env.define(paramName, paramType ?? unknownType);
+        });
+      }
+      const bodyType = this.inferExpression(definition.body);
+      if (expectedReturn && expectedReturn.kind !== "unknown" && bodyType && bodyType.kind !== "unknown") {
+        const literalMessage = this.describeLiteralMismatch(bodyType, expectedReturn);
+        if (literalMessage) {
+          this.report(literalMessage, definition.body ?? definition);
+        } else if (!this.typeInfosEquivalent(bodyType, expectedReturn)) {
+          this.report(
+            `typechecker: function '${name}' body returns ${formatType(bodyType)}, expected ${formatType(expectedReturn)}`,
+            definition.body ?? definition,
+          );
+        }
+      }
+    } finally {
+      this.popReturnType();
+      this.env.popScope();
+    }
+  }
+
+  private checkReturnStatement(statement: AST.ReturnStatement): void {
+    if (!statement) return;
+    const expected = this.currentReturnType();
+    const actual = statement.argument ? this.inferExpression(statement.argument) : primitiveType("nil");
+    if (!expected || expected.kind === "unknown") {
+      this.report("typechecker: return statement outside function", statement);
+      return;
+    }
+    if (!actual || actual.kind === "unknown") {
+      return;
+    }
+    const literalMessage = this.describeLiteralMismatch(actual, expected);
+    if (literalMessage) {
+      this.report(literalMessage, statement.argument ?? statement);
+      return;
+    }
+    if (!this.typeInfosEquivalent(actual, expected)) {
+      this.report(
+        `typechecker: return expects ${formatType(expected)}, got ${formatType(actual)}`,
+        statement.argument ?? statement,
+      );
     }
   }
 
@@ -929,6 +1043,11 @@ export class TypeChecker {
       case "DynImportStatement":
       case "MethodsDefinition":
       case "PreludeStatement":
+      case "ReturnStatement":
+      case "RaiseStatement":
+      case "RethrowStatement":
+      case "BreakStatement":
+      case "ContinueStatement":
         return false;
       default:
         return true;
@@ -1123,8 +1242,10 @@ export class TypeChecker {
     ctx.handlePackageMemberAccess = this.handlePackageMemberAccess.bind(this);
     ctx.pushAsyncContext = this.pushAsyncContext.bind(this);
     ctx.popAsyncContext = this.popAsyncContext.bind(this);
+    ctx.checkReturnStatement = this.checkReturnStatement.bind(this);
     ctx.checkFunctionCall = this.checkFunctionCall.bind(this);
     ctx.inferFunctionCallReturnType = this.inferFunctionCallReturnType.bind(this);
+    ctx.checkFunctionDefinition = this.checkFunctionDefinition.bind(this);
     ctx.pushScope = () => this.env.pushScope();
     ctx.popScope = () => this.env.popScope();
     ctx.withForkedEnv = <T>(fn: () => T) => this.withForkedEnv(fn);

@@ -1,0 +1,17 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "operator": "=",
+      "left": {
+        "type": "TypedPattern",
+        "pattern": { "type": "Identifier", "name": "count" },
+        "typeAnnotation": { "type": "SimpleTypeExpression", "name": { "type": "Identifier", "name": "i32" } }
+      },
+      "right": { "type": "IntegerLiteral", "value": 1 }
+    },
+    { "type": "Identifier", "name": "count" }
+  ]
+}

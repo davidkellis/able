@@ -203,7 +203,7 @@ func (c *declarationCollector) resolveTypeExpression(expr ast.TypeExpression, ty
 				return PrimitiveType{Kind: PrimitiveChar}
 			case "nil":
 				return PrimitiveType{Kind: PrimitiveNil}
-			case "i32", "i64", "isize", "u32", "u64", "usize":
+			case "i8", "i16", "i32", "i64", "i128", "isize", "u8", "u16", "u32", "u64", "u128", "usize":
 				return IntegerType{Suffix: name}
 			case "f32", "f64":
 				return FloatType{Suffix: name}

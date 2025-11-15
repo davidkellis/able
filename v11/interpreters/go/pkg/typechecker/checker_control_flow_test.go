@@ -141,6 +141,44 @@ func TestRescueGuardMustBeBool(t *testing.T) {
 		t.Fatalf("expected rescue guard diagnostic, got %v", diags)
 	}
 }
+
+func TestFunctionBodyReportsLiteralOverflowForAnnotatedReturn(t *testing.T) {
+	checker := New()
+	_, literalType := checker.checkExpression(nil, ast.Int(512))
+	expectedType := checker.resolveTypeReference(ast.Ty("u8"))
+	if msg, ok := literalMismatchMessage(literalType, expectedType); !ok || !strings.Contains(msg, "literal 512") {
+		t.Fatalf("expected literal mismatch helper to flag overflow, got ok=%v msg=%q", ok, msg)
+	}
+	ret := ast.Ret(ast.Int(512))
+	fn := ast.Fn(
+		"make_byte",
+		nil,
+		[]ast.Statement{ret},
+		ast.Ty("u8"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+	module := ast.NewModule([]ast.Statement{fn}, nil, nil)
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if inferred, ok := checker.infer[ret.Argument]; ok {
+		if msg, ok := literalMismatchMessage(inferred, expectedType); !ok || !strings.Contains(msg, "literal 512") {
+			t.Fatalf("expected inferred return argument to carry literal info, got %v", inferred)
+		}
+	} else {
+		t.Fatalf("expected inference entry for return argument")
+	}
+	if len(diags) != 1 {
+		t.Fatalf("expected diagnostic for literal overflow, got %v", diags)
+	}
+	if !strings.Contains(diags[0].Message, "literal 512 does not fit in u8") {
+		t.Fatalf("expected literal overflow message, got %q", diags[0].Message)
+	}
+}
 func TestOrElseExpressionMergesTypes(t *testing.T) {
 	checker := New()
 	assign := ast.Assign(ast.ID("value"), ast.Str("ok"))

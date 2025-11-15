@@ -18,6 +18,12 @@ export function checkStatement(ctx: StatementContext, node: AST.Statement | AST.
     case "MethodsDefinition":
     case "FunctionDefinition":
     case "TypeAliasDefinition":
+      if (node.type === "FunctionDefinition") {
+        ctx.checkFunctionDefinition(node);
+      }
+      return;
+    case "ReturnStatement":
+      ctx.checkReturnStatement(node);
       return;
     case "AssignmentExpression":
       checkAssignment(ctx, node);
