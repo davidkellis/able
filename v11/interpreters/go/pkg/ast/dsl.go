@@ -350,6 +350,18 @@ func StructLit(fields []*StructFieldInitializer, isPositional bool, structType i
 	return NewStructLiteral(fields, isPositional, identifierPtr(structType), functionalUpdateSources, typeArgs)
 }
 
+func MapEntry(key, value Expression) *MapLiteralEntry {
+	return NewMapLiteralEntry(key, value)
+}
+
+func MapSpread(expr Expression) *MapLiteralSpread {
+	return NewMapLiteralSpread(expr)
+}
+
+func MapLit(elements []MapLiteralElement) *MapLiteral {
+	return NewMapLiteral(elements)
+}
+
 func UnionDef(name interface{}, variants []TypeExpression, generics []*GenericParameter, whereClause []*WhereClauseConstraint, isPrivate bool) *UnionDefinition {
 	return NewUnionDefinition(identifierPtr(name), variants, generics, whereClause, isPrivate)
 }

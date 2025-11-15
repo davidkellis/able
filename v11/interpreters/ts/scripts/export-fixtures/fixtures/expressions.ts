@@ -147,6 +147,40 @@ const expressionsFixtures: Fixture[] = [
     },
 
   {
+      name: "expressions/map_literal_spread",
+      module: AST.module([
+        AST.assign(
+          "defaults",
+          AST.mapLit([
+            AST.mapEntry(AST.stringLiteral("accept"), AST.stringLiteral("application/json")),
+          ]),
+        ),
+        AST.assign(
+          "headers",
+          AST.mapLit([
+            AST.mapEntry(AST.stringLiteral("content-type"), AST.stringLiteral("application/json")),
+            AST.mapSpread(AST.identifier("defaults")),
+            AST.mapEntry(AST.stringLiteral("authorization"), AST.stringLiteral("Bearer abc")),
+          ]),
+        ),
+        AST.identifier("headers"),
+      ]),
+      manifest: {
+        description: "Map literal supports spreads and overrides",
+        expect: {
+          result: {
+            kind: "hash_map",
+            entries: [
+              { key: { kind: "string", value: "content-type" }, value: { kind: "string", value: "application/json" } },
+              { key: { kind: "string", value: "accept" }, value: { kind: "string", value: "application/json" } },
+              { key: { kind: "string", value: "authorization" }, value: { kind: "string", value: "Bearer abc" } },
+            ],
+          },
+        },
+      },
+    },
+
+  {
       name: "expressions/or_else_success",
       module: AST.module([
         AST.assign("value", AST.stringLiteral("ok")),

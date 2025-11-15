@@ -64,6 +64,17 @@ export function buildPackageSummary(ctx: ImplementationContext, module: AST.Modu
         functions[name] = summarizeFunctionDefinition(ctx, entry);
         break;
       }
+      case "TypeAliasDefinition": {
+        const name = entry.id?.name;
+        if (!name) break;
+        const label = `type alias -> ${formatTypeExpressionOrUnknown(ctx, entry.targetType)}`;
+        if (entry.isPrivate) {
+          privateSymbols[name] = { type: label, visibility: "private" };
+          break;
+        }
+        symbols[name] = { type: label, visibility: "public" };
+        break;
+      }
       case "ImplementationDefinition":
         implementationDefinitions.add(entry);
         break;

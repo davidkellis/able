@@ -1,6 +1,9 @@
 package typechecker
 
-import "able/interpreter10-go/pkg/ast"
+import (
+	"able/interpreter10-go/pkg/ast"
+	"math/big"
+)
 
 // Type represents an Able v10 type understood by the checker.
 type Type interface {
@@ -25,7 +28,9 @@ type PrimitiveType struct {
 func (p PrimitiveType) Name() string { return string(p.Kind) }
 
 type IntegerType struct {
-	Suffix string
+	Suffix   string
+	Literal  *big.Int
+	Explicit bool
 }
 
 func (i IntegerType) Name() string {
@@ -82,6 +87,22 @@ type InterfaceType struct {
 }
 
 func (i InterfaceType) Name() string { return "Interface:" + i.InterfaceName }
+
+type AliasType struct {
+	AliasName   string
+	TypeParams  []GenericParamSpec
+	Target      Type
+	Where       []WhereConstraintSpec
+	Obligations []ConstraintObligation
+	Definition  *ast.TypeAliasDefinition
+}
+
+func (a AliasType) Name() string {
+	if a.AliasName == "" {
+		return "Alias"
+	}
+	return "Alias:" + a.AliasName
+}
 
 type PackageType struct {
 	Package        string
@@ -194,8 +215,18 @@ func (a ArrayType) Name() string {
 	return "Array[" + a.Element.Name() + "]"
 }
 
+type MapType struct {
+	Key   Type
+	Value Type
+}
+
+func (m MapType) Name() string {
+	return "Map"
+}
+
 type RangeType struct {
 	Element Type
+	Bounds  []Type
 }
 
 func (r RangeType) Name() string {

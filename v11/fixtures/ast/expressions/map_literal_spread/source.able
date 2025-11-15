@@ -1,0 +1,3 @@
+defaults := #{"accept": "application/json"}
+headers := #{"content-type": "application/json", ...defaults, "authorization": "Bearer abc"}
+headers

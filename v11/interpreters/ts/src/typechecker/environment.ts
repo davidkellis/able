@@ -46,6 +46,13 @@ export class Environment {
     return this.lookup(name) !== undefined;
   }
 
+  hasInCurrentScope(name: string): boolean {
+    if (this.scopes.length === 0) {
+      return false;
+    }
+    return this.scopes[this.scopes.length - 1].has(name);
+  }
+
   fork(): Environment {
     const forked = new Environment();
     forked.scopes.length = 0;

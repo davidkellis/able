@@ -15,6 +15,7 @@ import type {
   PreludeStatement,
   StructDefinition,
   StructFieldDefinition,
+  TypeAliasDefinition,
   TypeExpression,
   UnionDefinition,
   WhereClauseConstraint,
@@ -43,6 +44,7 @@ export function registerDefinitionParsers(ctx: MutableParseContext): void {
   ctx.parseNamedImplementationDefinition = node => parseNamedImplementationDefinition(node, ctx.source);
   ctx.parseUnionDefinition = node => parseUnionDefinition(node, ctx.source);
   ctx.parseInterfaceDefinition = node => parseInterfaceDefinition(node, ctx.source);
+  ctx.parseTypeAliasDefinition = node => parseTypeAliasDefinition(node, ctx.source);
   ctx.parsePreludeStatement = node => parsePreludeStatement(node, ctx.source);
   ctx.parseExternFunction = node => parseExternFunction(node, ctx.source);
 }
@@ -199,6 +201,31 @@ function parseStructDefinition(
 
   const definition = AST.structDefinition(id, fields, kind, generics, whereClause, isPrivate);
   return annotateStatement(definition, node) as StructDefinition;
+}
+
+function parseTypeAliasDefinition(
+  node: Node,
+  source: string,
+  ctx: ParseContext = getActiveParseContext(),
+): TypeAliasDefinition {
+  if (node.type !== "type_alias_definition") {
+    throw new MapperError("parser: expected type_alias_definition node");
+  }
+  const nameNode = node.childForFieldName("name");
+  const id = parseIdentifier(nameNode, source);
+  if (!id) {
+    throw new MapperError("parser: type alias missing identifier");
+  }
+  const targetNode = node.childForFieldName("target");
+  const targetType = ctx.parseTypeExpression(targetNode);
+  if (!targetType) {
+    throw new MapperError("parser: type alias missing target type");
+  }
+  const generics = ctx.parseTypeParameters(node.childForFieldName("type_parameters"));
+  const whereClause = ctx.parseWhereClause(node.childForFieldName("where_clause"));
+  const isPrivate = hasLeadingPrivate(node) ? true : undefined;
+  const alias = AST.typeAliasDefinition(id, targetType, generics, whereClause, isPrivate);
+  return annotate(alias, node) as TypeAliasDefinition;
 }
 
 function parseStructFieldDefinition(

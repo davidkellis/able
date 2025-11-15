@@ -16,6 +16,7 @@ import type {
   PreludeStatement,
   Statement,
   StructDefinition,
+  TypeAliasDefinition,
   TypeExpression,
   UnionDefinition,
   WhereClauseConstraint,
@@ -260,6 +261,7 @@ type ContextFns = {
   parseNamedImplementationDefinition: (node: Node) => ImplementationDefinition;
   parseUnionDefinition: (node: Node) => UnionDefinition;
   parseInterfaceDefinition: (node: Node) => InterfaceDefinition;
+  parseTypeAliasDefinition: (node: Node) => TypeAliasDefinition;
   parsePreludeStatement: (node: Node) => PreludeStatement;
   parseExternFunction: (node: Node) => ExternFunctionBody;
 };
@@ -296,6 +298,7 @@ export function createParseContext(source: string): MutableParseContext {
     parseNamedImplementationDefinition: uninitialized("parseNamedImplementationDefinition"),
     parseUnionDefinition: uninitialized("parseUnionDefinition"),
     parseInterfaceDefinition: uninitialized("parseInterfaceDefinition"),
+    parseTypeAliasDefinition: uninitialized("parseTypeAliasDefinition"),
     parsePreludeStatement: uninitialized("parsePreludeStatement"),
     parseExternFunction: uninitialized("parseExternFunction"),
   };

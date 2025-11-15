@@ -6,15 +6,36 @@ import (
 	"able/interpreter10-go/pkg/ast"
 )
 
-func (c *Checker) bindPattern(env *Environment, target ast.AssignmentTarget, valueType Type, allowDefine bool) []Diagnostic {
+type patternIntent struct {
+	declarationNames map[string]struct{}
+	allowFallback    bool
+}
+
+func (c *Checker) bindPattern(env *Environment, target ast.AssignmentTarget, valueType Type, allowDefine bool, intent *patternIntent) []Diagnostic {
 	if target == nil {
 		return nil
 	}
 
 	switch pat := target.(type) {
 	case *ast.Identifier:
+		if pat == nil {
+			return nil
+		}
 		if allowDefine {
-			env.Define(pat.Name, valueType)
+			if intent == nil || intent.declarationNames == nil {
+				env.Define(pat.Name, valueType)
+			} else {
+				if _, ok := intent.declarationNames[pat.Name]; ok {
+					env.Define(pat.Name, valueType)
+				} else {
+					env.Assign(pat.Name, valueType)
+				}
+			}
+		} else {
+			assigned := env.Assign(pat.Name, valueType)
+			if !assigned && intent != nil && intent.allowFallback {
+				env.Define(pat.Name, valueType)
+			}
 		}
 		c.infer.set(pat, valueType)
 		return nil
@@ -22,9 +43,9 @@ func (c *Checker) bindPattern(env *Environment, target ast.AssignmentTarget, val
 		c.infer.set(pat, valueType)
 		return nil
 	case *ast.StructPattern:
-		return c.bindStructPattern(env, pat, valueType, allowDefine)
+		return c.bindStructPattern(env, pat, valueType, allowDefine, intent)
 	case *ast.ArrayPattern:
-		return c.bindArrayPattern(env, pat, valueType, allowDefine)
+		return c.bindArrayPattern(env, pat, valueType, allowDefine, intent)
 	case *ast.LiteralPattern:
 		literalType := c.literalPatternType(pat.Literal)
 		expected := literalType
@@ -50,7 +71,7 @@ func (c *Checker) bindPattern(env *Environment, target ast.AssignmentTarget, val
 			innerType = expected
 		}
 		if inner, ok := pat.Pattern.(ast.AssignmentTarget); ok {
-			diags = append(diags, c.bindPattern(env, inner, innerType, allowDefine)...)
+			diags = append(diags, c.bindPattern(env, inner, innerType, allowDefine, intent)...)
 		} else if pat.Pattern != nil {
 			if node, ok := pat.Pattern.(ast.Node); ok {
 				diags = append(diags, Diagnostic{
@@ -64,6 +85,14 @@ func (c *Checker) bindPattern(env *Environment, target ast.AssignmentTarget, val
 			finalType = expected
 		} else if (finalType == nil || isUnknownType(finalType)) && expected != nil && !isUnknownType(expected) {
 			finalType = expected
+		}
+		if expected != nil && !isUnknownType(expected) && valueType != nil && !isUnknownType(valueType) {
+			if msg, ok := literalMismatchMessage(valueType, expected); ok {
+				diags = append(diags, Diagnostic{
+					Message: fmt.Sprintf("typechecker: %s", msg),
+					Node:    pat,
+				})
+			}
 		}
 		c.infer.set(pat, finalType)
 		return diags
@@ -120,11 +149,29 @@ func (c *Checker) resolveTypeReference(expr ast.TypeExpression) Type {
 			return FloatType{Suffix: name}
 		default:
 			if typ, ok := c.global.Lookup(name); ok {
+				if alias, ok := typ.(AliasType); ok {
+					inst, subst := instantiateAlias(alias, nil)
+					c.verifyAliasConstraints(alias, subst, t)
+					return inst
+				}
 				return typ
 			}
 			return StructType{StructName: name}
 		}
 	case *ast.GenericTypeExpression:
+		if simple, ok := t.Base.(*ast.SimpleTypeExpression); ok && simple.Name != nil && !c.typeParamInScope(simple.Name.Name) {
+			if typ, ok := c.global.Lookup(simple.Name.Name); ok {
+				if alias, ok := typ.(AliasType); ok {
+					args := make([]Type, len(t.Arguments))
+					for i, arg := range t.Arguments {
+						args[i] = c.resolveTypeReference(arg)
+					}
+					inst, subst := instantiateAlias(alias, args)
+					c.verifyAliasConstraints(alias, subst, t)
+					return inst
+				}
+			}
+		}
 		base := c.resolveTypeReference(t.Base)
 		args := make([]Type, len(t.Arguments))
 		for i, arg := range t.Arguments {
@@ -149,7 +196,7 @@ func (c *Checker) resolveTypeReference(expr ast.TypeExpression) Type {
 	}
 }
 
-func (c *Checker) bindStructPattern(env *Environment, pat *ast.StructPattern, valueType Type, allowDefine bool) []Diagnostic {
+func (c *Checker) bindStructPattern(env *Environment, pat *ast.StructPattern, valueType Type, allowDefine bool, intent *patternIntent) []Diagnostic {
 	var diags []Diagnostic
 	var structInfo StructType
 	hasInfo := false
@@ -161,7 +208,7 @@ func (c *Checker) bindStructPattern(env *Environment, pat *ast.StructPattern, va
 			}
 			bind := func(target ast.AssignmentTarget) {
 				if target != nil {
-					diags = append(diags, c.bindPattern(env, target, UnknownType{}, allowDefine)...)
+					diags = append(diags, c.bindPattern(env, target, UnknownType{}, allowDefine, intent)...)
 				}
 			}
 			bind(field.Binding)
@@ -200,10 +247,10 @@ func (c *Checker) bindStructPattern(env *Environment, pat *ast.StructPattern, va
 			return
 		}
 		if field.Binding != nil {
-			diags = append(diags, c.bindPattern(env, field.Binding, expected, allowDefine)...)
+			diags = append(diags, c.bindPattern(env, field.Binding, expected, allowDefine, intent)...)
 		}
 		if inner, ok := field.Pattern.(ast.AssignmentTarget); ok {
-			diags = append(diags, c.bindPattern(env, inner, expected, allowDefine)...)
+			diags = append(diags, c.bindPattern(env, inner, expected, allowDefine, intent)...)
 		}
 	}
 
@@ -245,7 +292,7 @@ func (c *Checker) bindStructPattern(env *Environment, pat *ast.StructPattern, va
 	return diags
 }
 
-func (c *Checker) bindArrayPattern(env *Environment, pat *ast.ArrayPattern, valueType Type, allowDefine bool) []Diagnostic {
+func (c *Checker) bindArrayPattern(env *Environment, pat *ast.ArrayPattern, valueType Type, allowDefine bool, intent *patternIntent) []Diagnostic {
 	var diags []Diagnostic
 	elemType := Type(UnknownType{})
 	if arr, ok := valueType.(ArrayType); ok {
@@ -260,17 +307,17 @@ func (c *Checker) bindArrayPattern(env *Environment, pat *ast.ArrayPattern, valu
 		switch node := elem.(type) {
 		case ast.Pattern:
 			if target, ok := node.(ast.AssignmentTarget); ok {
-				diags = append(diags, c.bindPattern(env, target, elemType, allowDefine)...)
+				diags = append(diags, c.bindPattern(env, target, elemType, allowDefine, intent)...)
 			}
 		default:
 			if target, ok := elem.(ast.AssignmentTarget); ok {
-				diags = append(diags, c.bindPattern(env, target, elemType, allowDefine)...)
+				diags = append(diags, c.bindPattern(env, target, elemType, allowDefine, intent)...)
 			}
 		}
 	}
 	if pat.RestPattern != nil {
 		if target, ok := pat.RestPattern.(ast.AssignmentTarget); ok {
-			diags = append(diags, c.bindPattern(env, target, ArrayType{Element: elemType}, allowDefine)...)
+			diags = append(diags, c.bindPattern(env, target, ArrayType{Element: elemType}, allowDefine, intent)...)
 		}
 	}
 	c.infer.set(pat, valueType)

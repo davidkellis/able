@@ -19,7 +19,7 @@ func (c *Checker) checkMatchExpression(env *Environment, expr *ast.MatchExpressi
 		clauseEnv := env.Extend()
 		if clause.Pattern != nil {
 			if target, ok := clause.Pattern.(ast.AssignmentTarget); ok {
-				diags = append(diags, c.bindPattern(clauseEnv, target, subjectType, true)...)
+				diags = append(diags, c.bindPattern(clauseEnv, target, subjectType, true, nil)...)
 			}
 		}
 		if clause.Guard != nil {

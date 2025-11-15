@@ -50,29 +50,29 @@
   "errors/bitshift_out_of_range": [],
   "errors/ensure_runs": [],
   "errors/generic_constraint_unsatisfied": [
-    "typechecker: fixtures/ast/errors/generic_constraint_unsatisfied/source.able:21:15 typechecker: methods for Point::accept_show constraint on T is not satisfied: i32 does not implement Show"
+    "typechecker: ../fixtures/ast/errors/generic_constraint_unsatisfied/source.able:21:15 typechecker: methods for Point::accept_show constraint on T is not satisfied: i32 does not implement Show"
   ],
   "errors/generic_type_mismatch": [
-    "typechecker: fixtures/ast/errors/generic_type_mismatch/source.able:1:16 typechecker: fn identity constraint on T references unknown interface 'Error'",
-    "typechecker: fixtures/ast/errors/generic_type_mismatch/source.able:5:10 typechecker: fn identity constraint on T references unknown interface 'Error'",
-    "typechecker: fixtures/ast/errors/generic_type_mismatch/source.able:5:14 typechecker: fn identity constraint on T is not satisfied: i32 does not implement Error"
+    "typechecker: ../fixtures/ast/errors/generic_type_mismatch/source.able:1:16 typechecker: fn identity constraint on T references unknown interface 'Error'",
+    "typechecker: ../fixtures/ast/errors/generic_type_mismatch/source.able:5:10 typechecker: fn identity constraint on T references unknown interface 'Error'",
+    "typechecker: ../fixtures/ast/errors/generic_type_mismatch/source.able:5:14 typechecker: fn identity constraint on T is not satisfied: i32 does not implement Error"
   ],
   "errors/interface_hkt_constructor_mismatch": [
-    "typechecker: fixtures/ast/errors/interface_hkt_constructor_mismatch/source.able typechecker: impl Mapper for Array i32 must match interface self type 'F _'"
+    "typechecker: ../fixtures/ast/errors/interface_hkt_constructor_mismatch/source.able typechecker: impl Mapper for Array i32 must match interface self type 'F _'"
   ],
   "errors/interface_self_pattern_mismatch": [
-    "typechecker: fixtures/ast/errors/interface_self_pattern_mismatch/source.able typechecker: impl PointDisplay for Line must match interface self type 'Point'"
+    "typechecker: ../fixtures/ast/errors/interface_self_pattern_mismatch/source.able typechecker: impl PointDisplay for Line must match interface self type 'Point'"
   ],
   "errors/logic_operand_type": [
-    "typechecker: fixtures/ast/errors/logic_operand_type/source.able:1:11 typechecker: '&&' left operand must be bool (got string)"
+    "typechecker: ../fixtures/ast/errors/logic_operand_type/source.able:1:11 typechecker: '&&' left operand must be bool (got string)"
   ],
   "errors/method_set_where_constraint": [
-    "typechecker: fixtures/ast/errors/method_set_where_constraint/source.able:16:17 typechecker: methods for Wrapper::describe constraint on Self is not satisfied: Wrapper does not implement CustomDisplay: methods for Wrapper: method 'show' not provided"
+    "typechecker: ../fixtures/ast/errors/method_set_where_constraint/source.able:16:17 typechecker: methods for Wrapper::describe constraint on Self is not satisfied: Wrapper does not implement CustomDisplay: methods for Wrapper: method 'show' not provided"
   ],
   "errors/or_else_handler": [],
   "errors/raise_manifest": [],
   "errors/range_non_numeric": [
-    "typechecker: fixtures/ast/errors/range_non_numeric/source.able:1:1 typechecker: range start must be numeric"
+    "typechecker: ../fixtures/ast/errors/range_non_numeric/source.able:1:1 typechecker: range start must be numeric"
   ],
   "errors/rescue_catch": [],
   "errors/rescue_guard": [],
@@ -83,10 +83,10 @@
   "errors/struct_functional_update_source": [],
   "errors/struct_functional_update_type": [],
   "errors/struct_named_missing_field": [
-    "typechecker: fixtures/ast/errors/struct_named_missing_field/source.able:7:15 typechecker: struct pattern field 'z' not found"
+    "typechecker: ../fixtures/ast/errors/struct_named_missing_field/source.able:7:15 typechecker: struct pattern field 'z' not found"
   ],
   "errors/struct_type_mismatch": [
-    "typechecker: fixtures/ast/errors/struct_type_mismatch/source.able:10:10 typechecker: struct pattern field 'dx' not found"
+    "typechecker: ../fixtures/ast/errors/struct_type_mismatch/source.able:10:10 typechecker: struct pattern field 'dx' not found"
   ],
   "expressions/array_literal_empty": [],
   "expressions/assignment_declare": [],
@@ -113,16 +113,17 @@
   "imports/dynimport_selector_alias": [],
   "imports/dynimport_wildcard": [],
   "imports/static_alias_private_error": [
-    "typechecker: fixtures/ast/imports/static_alias_private_error/source.able:3:3 typechecker: package 'util_static' has no symbol 'hidden'"
+    "typechecker: ../fixtures/ast/imports/static_alias_private_error/source.able:3:3 typechecker: package 'util_static' has no symbol 'hidden'"
   ],
   "imports/static_alias_public": [],
   "imports/static_reexport": [],
   "imports/static_reexport_multihop": [],
   "imports/static_wildcard": [],
   "imports/static_wildcard_private_error": [
-    "typechecker: fixtures/ast/imports/static_wildcard_private_error/source.able typechecker: undefined identifier 'priv_fn'"
+    "typechecker: ../fixtures/ast/imports/static_wildcard_private_error/source.able typechecker: undefined identifier 'priv_fn'"
   ],
   "interfaces/composite_generic": [],
+  "interfaces/dynamic_interface_collections": [],
   "match/guard_clause": [],
   "match/identifier_literal": [],
   "match/struct_guard": [],
@@ -152,5 +153,6 @@
   "types/generic_where_constraint": [],
   "types/nullable_type_expression": [],
   "types/result_type_expression": [],
+  "types/type_alias_definition": [],
   "types/union_type_expression": []
 }

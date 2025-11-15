@@ -72,7 +72,7 @@ func (c *Checker) checkForLoop(env *Environment, loop *ast.ForLoop) ([]Diagnosti
 	loopEnv := env.Extend()
 	diags = append(diags, c.validateForLoopPattern(loop.Pattern, elementType)...)
 	if target, ok := loop.Pattern.(ast.AssignmentTarget); ok {
-		diags = append(diags, c.bindPattern(loopEnv, target, elementType, true)...)
+		diags = append(diags, c.bindPattern(loopEnv, target, elementType, true, nil)...)
 	} else if loop.Pattern != nil {
 		if node, ok := loop.Pattern.(ast.Node); ok {
 			diags = append(diags, Diagnostic{

@@ -209,6 +209,43 @@ export function parseStructLiteral(ctx: ParseContext, node: Node): Expression {
   );
 }
 
+export function parseMapLiteral(ctx: ParseContext, node: Node): Expression {
+  const entries: (AST.MapLiteralEntry | AST.MapLiteralSpread)[] = [];
+  for (let i = 0; i < node.namedChildCount; i++) {
+    const child = node.namedChild(i);
+    if (!child || !child.isNamed || isIgnorableNode(child)) continue;
+    let elem: Node | null = child;
+    if (child.type === "map_literal_element") {
+      elem = firstNamedChild(child);
+    }
+    if (!elem) continue;
+    switch (elem.type) {
+      case "map_literal_entry": {
+        const keyNode = elem.childForFieldName("key") ?? firstNamedChild(elem);
+        const valueNode = elem.childForFieldName("value") ?? elem.namedChild(elem.namedChildCount - 1);
+        if (!keyNode || !valueNode) {
+          throw new MapperError("parser: map literal entry missing key or value");
+        }
+        const keyExpr = ctx.parseExpression(keyNode);
+        const valueExpr = ctx.parseExpression(valueNode);
+        entries.push(annotateExpressionNode(AST.mapLiteralEntry(keyExpr, valueExpr), elem) as AST.MapLiteralEntry);
+        break;
+      }
+      case "map_literal_spread": {
+        const exprNode = elem.childForFieldName("expression") ?? firstNamedChild(elem);
+        if (!exprNode) {
+          throw new MapperError("parser: map literal spread missing expression");
+        }
+        entries.push(annotateExpressionNode(AST.mapLiteralSpread(ctx.parseExpression(exprNode)), elem) as AST.MapLiteralSpread);
+        break;
+      }
+      default:
+        throw new MapperError(`parser: unsupported map literal element ${elem.type}`);
+    }
+  }
+  return annotateExpressionNode(AST.mapLiteral(entries), node);
+}
+
 export function isNumericSuffix(value: string): boolean {
   switch (value) {
     case "i8":

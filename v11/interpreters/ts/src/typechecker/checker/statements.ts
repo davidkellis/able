@@ -17,6 +17,7 @@ export function checkStatement(ctx: StatementContext, node: AST.Statement | AST.
     case "ImplementationDefinition":
     case "MethodsDefinition":
     case "FunctionDefinition":
+    case "TypeAliasDefinition":
       return;
     case "AssignmentExpression":
       checkAssignment(ctx, node);
@@ -42,8 +43,14 @@ export function checkStatement(ctx: StatementContext, node: AST.Statement | AST.
 }
 
 function checkAssignment(ctx: StatementContext, node: AST.AssignmentExpression): void {
+  let declarationNames: Set<string> | undefined;
   if (node.operator === ":=" && isPatternNode(node.left)) {
-    predeclarePattern(ctx, node.left);
+    const analysis = analyzePatternDeclarations(ctx, node.left);
+    declarationNames = analysis.declarationNames;
+    if (analysis.hasAny && declarationNames.size === 0) {
+      ctx.report("typechecker: ':=' requires at least one new binding", node.left);
+    }
+    predeclarePattern(ctx, node.left, declarationNames);
   }
   const valueType = ctx.inferExpression(node.right);
   if (!node.left) {
@@ -53,7 +60,13 @@ function checkAssignment(ctx: StatementContext, node: AST.AssignmentExpression):
     ctx.inferExpression(node.left);
     return;
   }
-  bindPatternToEnv(ctx, node.left as AST.Pattern, valueType, "assignment pattern", { suppressMismatchReport: true });
+  const bindingOptions = {
+    suppressMismatchReport: true,
+    declarationNames,
+    isDeclaration: node.operator === ":=",
+    allowFallbackDeclaration: node.operator !== ":=",
+  };
+  bindPatternToEnv(ctx, node.left as AST.Pattern, valueType, "assignment pattern", bindingOptions);
 }
 
 function checkRaiseStatement(ctx: StatementContext, node: AST.RaiseStatement): void {
@@ -153,11 +166,15 @@ function isPatternNode(node: AST.Node | undefined | null): node is AST.Pattern {
   }
 }
 
-function predeclarePattern(ctx: StatementContext, pattern: AST.Pattern | undefined | null): void {
+function predeclarePattern(
+  ctx: StatementContext,
+  pattern: AST.Pattern | undefined | null,
+  declarationNames?: Set<string>,
+): void {
   if (!pattern) return;
   switch (pattern.type) {
     case "Identifier":
-      if (pattern.name) {
+      if (pattern.name && (!declarationNames || declarationNames.has(pattern.name))) {
         ctx.defineValue(pattern.name, unknownType);
       }
       return;
@@ -166,7 +183,7 @@ function predeclarePattern(ctx: StatementContext, pattern: AST.Pattern | undefin
       return;
     case "TypedPattern":
       if (pattern.pattern) {
-        predeclarePattern(ctx, pattern.pattern as AST.Pattern);
+        predeclarePattern(ctx, pattern.pattern as AST.Pattern, declarationNames);
       }
       return;
     case "StructPattern":
@@ -176,9 +193,9 @@ function predeclarePattern(ctx: StatementContext, pattern: AST.Pattern | undefin
       for (const field of pattern.fields) {
         if (!field) continue;
         if (field.pattern) {
-          predeclarePattern(ctx, field.pattern as AST.Pattern);
+          predeclarePattern(ctx, field.pattern as AST.Pattern, declarationNames);
         }
-        if (field.binding?.name) {
+        if (field.binding?.name && (!declarationNames || declarationNames.has(field.binding.name))) {
           ctx.defineValue(field.binding.name, unknownType);
         }
       }
@@ -186,14 +203,68 @@ function predeclarePattern(ctx: StatementContext, pattern: AST.Pattern | undefin
     case "ArrayPattern":
       if (Array.isArray(pattern.elements)) {
         for (const element of pattern.elements) {
-          predeclarePattern(ctx, element as AST.Pattern);
+          predeclarePattern(ctx, element as AST.Pattern, declarationNames);
         }
       }
-      if (pattern.restPattern && pattern.restPattern.type === "Identifier" && pattern.restPattern.name) {
+      if (
+        pattern.restPattern &&
+        pattern.restPattern.type === "Identifier" &&
+        pattern.restPattern.name &&
+        (!declarationNames || declarationNames.has(pattern.restPattern.name))
+      ) {
         ctx.defineValue(pattern.restPattern.name, unknownType);
       }
       return;
     default:
       return;
   }
+}
+
+function collectPatternIdentifiers(pattern: AST.Pattern | undefined | null, into: Set<string>): void {
+  if (!pattern) return;
+  switch (pattern.type) {
+    case "Identifier":
+      if (pattern.name) into.add(pattern.name);
+      return;
+    case "StructPattern":
+      if (!Array.isArray(pattern.fields)) return;
+      for (const field of pattern.fields) {
+        if (!field) continue;
+        if (field.binding?.name) {
+          into.add(field.binding.name);
+        }
+        collectPatternIdentifiers(field.pattern as AST.Pattern, into);
+      }
+      return;
+    case "ArrayPattern":
+      if (Array.isArray(pattern.elements)) {
+        for (const element of pattern.elements) {
+          collectPatternIdentifiers(element as AST.Pattern, into);
+        }
+      }
+      if (pattern.restPattern?.type === "Identifier" && pattern.restPattern.name) {
+        into.add(pattern.restPattern.name);
+      }
+      return;
+    case "TypedPattern":
+      collectPatternIdentifiers(pattern.pattern as AST.Pattern, into);
+      return;
+    default:
+      return;
+  }
+}
+
+function analyzePatternDeclarations(
+  ctx: StatementContext,
+  pattern: AST.Pattern,
+): { declarationNames: Set<string>; hasAny: boolean } {
+  const names = new Set<string>();
+  collectPatternIdentifiers(pattern, names);
+  const declarationNames = new Set<string>();
+  for (const name of names) {
+    if (!ctx.hasBindingInCurrentScope(name)) {
+      declarationNames.add(name);
+    }
+  }
+  return { declarationNames, hasAny: names.size > 0 };
 }

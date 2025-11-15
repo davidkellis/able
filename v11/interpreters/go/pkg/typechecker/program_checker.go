@@ -596,6 +596,11 @@ func (pc *ProgramChecker) captureExports(mod *driver.Module, checker *Checker) {
 				if def.IsPrivate || def.IsMethodShorthand {
 					recordPrivate(def.ID.Name)
 				}
+			case *ast.TypeAliasDefinition:
+				if def == nil || def.ID == nil || !def.IsPrivate {
+					continue
+				}
+				recordPrivate(def.ID.Name)
 			}
 		}
 	}

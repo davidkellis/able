@@ -78,7 +78,7 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 			if param == nil {
 				return nil, fmt.Errorf("function parameter %d is nil", idx)
 			}
-			if err := i.assignPattern(param.Name, bindArgs[idx], localEnv, true); err != nil {
+			if err := i.assignPattern(param.Name, bindArgs[idx], localEnv, true, nil); err != nil {
 				return nil, err
 			}
 		}
@@ -124,7 +124,7 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 			if param == nil {
 				return nil, fmt.Errorf("lambda parameter %d is nil", idx)
 			}
-			if err := i.assignPattern(param.Name, args[idx], localEnv, true); err != nil {
+			if err := i.assignPattern(param.Name, args[idx], localEnv, true, nil); err != nil {
 				return nil, err
 			}
 		}
@@ -309,10 +309,13 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 	case *ast.Identifier:
 		switch assign.Operator {
 		case ast.AssignmentDeclare:
+			if env.HasInCurrentScope(lhs.Name) {
+				return nil, fmt.Errorf(":= requires at least one new binding")
+			}
 			env.Define(lhs.Name, value)
 		case ast.AssignmentAssign:
-			if err := env.Assign(lhs.Name, value); err != nil {
-				return nil, err
+			if !env.AssignExisting(lhs.Name, value) {
+				env.Define(lhs.Name, value)
 			}
 		default:
 			if !isCompound {
@@ -434,18 +437,82 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 		if isCompound {
 			return nil, fmt.Errorf("compound assignment not supported with patterns")
 		}
-		isDeclaration := assign.Operator == ast.AssignmentDeclare
-		if !isDeclaration && assign.Operator != ast.AssignmentAssign {
+		switch assign.Operator {
+		case ast.AssignmentDeclare:
+			newNames, hasAny := analyzePatternDeclarationNames(env, lhs)
+			if !hasAny || len(newNames) == 0 {
+				return nil, fmt.Errorf(":= requires at least one new binding")
+			}
+			intent := &bindingIntent{declarationNames: newNames}
+			if err := i.assignPattern(lhs, value, env, true, intent); err != nil {
+				return nil, err
+			}
+		case ast.AssignmentAssign:
+			intent := &bindingIntent{allowFallback: true}
+			if err := i.assignPattern(lhs, value, env, false, intent); err != nil {
+				return nil, err
+			}
+		default:
 			return nil, fmt.Errorf("unsupported assignment operator %s", assign.Operator)
-		}
-		if err := i.assignPattern(lhs, value, env, isDeclaration); err != nil {
-			return nil, err
 		}
 	default:
 		return nil, fmt.Errorf("unsupported assignment target %s", lhs.NodeType())
 	}
 
 	return value, nil
+}
+
+func analyzePatternDeclarationNames(env *runtime.Environment, pattern ast.Pattern) (map[string]struct{}, bool) {
+	names := make(map[string]struct{})
+	collectPatternIdentifiers(pattern, names)
+	newNames := make(map[string]struct{})
+	for name := range names {
+		if !env.HasInCurrentScope(name) {
+			newNames[name] = struct{}{}
+		}
+	}
+	return newNames, len(names) > 0
+}
+
+func collectPatternIdentifiers(pattern ast.Pattern, into map[string]struct{}) {
+	switch p := pattern.(type) {
+	case *ast.Identifier:
+		if p.Name != "" {
+			into[p.Name] = struct{}{}
+		}
+	case *ast.StructPattern:
+		for _, field := range p.Fields {
+			if field == nil {
+				continue
+			}
+			if field.Binding != nil && field.Binding.Name != "" {
+				into[field.Binding.Name] = struct{}{}
+			}
+			if inner, ok := field.Pattern.(ast.Pattern); ok {
+				collectPatternIdentifiers(inner, into)
+			}
+		}
+	case *ast.ArrayPattern:
+		for _, elem := range p.Elements {
+			if elem == nil {
+				continue
+			}
+			if inner, ok := elem.(ast.Pattern); ok {
+				collectPatternIdentifiers(inner, into)
+			}
+		}
+		if rest := p.RestPattern; rest != nil {
+			if inner, ok := rest.(ast.Pattern); ok {
+				collectPatternIdentifiers(inner, into)
+			} else if ident, ok := rest.(*ast.Identifier); ok && ident.Name != "" {
+				into[ident.Name] = struct{}{}
+			}
+		}
+	case *ast.TypedPattern:
+		if inner, ok := p.Pattern.(ast.Pattern); ok {
+			collectPatternIdentifiers(inner, into)
+		}
+	}
 }
 
 func (i *Interpreter) evaluateIteratorLiteral(expr *ast.IteratorLiteral, env *runtime.Environment) (runtime.Value, error) {

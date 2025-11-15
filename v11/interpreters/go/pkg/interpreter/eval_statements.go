@@ -16,6 +16,8 @@ func (i *Interpreter) evaluateStatement(node ast.Statement, env *runtime.Environ
 		return i.evaluateStructDefinition(n, env)
 	case *ast.UnionDefinition:
 		return runtime.NilValue{}, nil
+	case *ast.TypeAliasDefinition:
+		return runtime.NilValue{}, nil
 	case *ast.MethodsDefinition:
 		return i.evaluateMethodsDefinition(n, env)
 	case *ast.InterfaceDefinition:
@@ -247,7 +249,7 @@ func (i *Interpreter) iterateDynamicIterator(loop *ast.ForLoop, baseEnv *runtime
 
 func (i *Interpreter) runForLoopBody(loop *ast.ForLoop, baseEnv *runtime.Environment, element runtime.Value) (runtime.Value, bool, error) {
 	iterEnv := runtime.NewEnvironment(baseEnv)
-	if err := i.assignPattern(loop.Pattern, element, iterEnv, true); err != nil {
+	if err := i.assignPattern(loop.Pattern, element, iterEnv, true, nil); err != nil {
 		return nil, false, err
 	}
 	val, err := i.evaluateBlock(loop.Body, iterEnv)

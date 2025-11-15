@@ -80,6 +80,21 @@ func NewUnionDefinition(id *Identifier, variants []TypeExpression, genericParams
 	return &UnionDefinition{nodeImpl: newNodeImpl(NodeUnionDefinition), ID: id, Variants: variants, GenericParams: genericParams, WhereClause: whereClause, IsPrivate: isPrivate}
 }
 
+type TypeAliasDefinition struct {
+	nodeImpl
+	statementMarker
+
+	ID            *Identifier              `json:"id"`
+	GenericParams []*GenericParameter      `json:"genericParams,omitempty"`
+	TargetType    TypeExpression           `json:"targetType"`
+	WhereClause   []*WhereClauseConstraint `json:"whereClause,omitempty"`
+	IsPrivate     bool                     `json:"isPrivate,omitempty"`
+}
+
+func NewTypeAliasDefinition(id *Identifier, target TypeExpression, genericParams []*GenericParameter, whereClause []*WhereClauseConstraint, isPrivate bool) *TypeAliasDefinition {
+	return &TypeAliasDefinition{nodeImpl: newNodeImpl(NodeTypeAliasDefinition), ID: id, TargetType: target, GenericParams: genericParams, WhereClause: whereClause, IsPrivate: isPrivate}
+}
+
 type FunctionParameter struct {
 	nodeImpl
 

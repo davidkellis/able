@@ -160,6 +160,40 @@ func (ctx *parseContext) parseStructDefinition(node *sitter.Node) (ast.Statement
 	return structDef, nil
 }
 
+func (ctx *parseContext) parseTypeAliasDefinition(node *sitter.Node) (ast.Statement, error) {
+	if node == nil || node.Kind() != "type_alias_definition" {
+		return nil, fmt.Errorf("parser: expected type_alias_definition node")
+	}
+
+	source := ctx.source
+	nameNode := node.ChildByFieldName("name")
+	id, err := parseIdentifier(nameNode, source)
+	if err != nil {
+		return nil, err
+	}
+
+	generics, err := parseTypeParameters(node.ChildByFieldName("type_parameters"), source)
+	if err != nil {
+		return nil, err
+	}
+
+	whereClause, err := parseWhereClause(node.ChildByFieldName("where_clause"), source)
+	if err != nil {
+		return nil, err
+	}
+
+	targetNode := node.ChildByFieldName("target")
+	targetType := ctx.parseTypeExpression(targetNode)
+	if targetType == nil {
+		return nil, fmt.Errorf("parser: type alias missing target type")
+	}
+
+	isPrivate := hasLeadingPrivate(node)
+	alias := ast.NewTypeAliasDefinition(id, targetType, generics, whereClause, isPrivate)
+	annotateSpan(alias, node)
+	return alias, nil
+}
+
 func (ctx *parseContext) parseStructFieldDefinition(node *sitter.Node) (*ast.StructFieldDefinition, error) {
 	if node == nil || node.Kind() != "struct_field" {
 		return nil, fmt.Errorf("parser: expected struct_field node")

@@ -258,3 +258,53 @@ func (ctx *parseContext) parseStructLiteral(node *sitter.Node) (ast.Expression, 
 
 	return annotateExpression(ast.NewStructLiteral(fields, positional, structType, functionalUpdates, typeArgs), node), nil
 }
+
+func (ctx *parseContext) parseMapLiteral(node *sitter.Node) (ast.Expression, error) {
+	if node == nil || node.Kind() != "map_literal" {
+		return nil, fmt.Errorf("parser: expected map literal node")
+	}
+	elements := make([]ast.MapLiteralElement, 0)
+	for i := uint(0); i < node.NamedChildCount(); i++ {
+		child := node.NamedChild(i)
+		if child == nil || isIgnorableNode(child) {
+			continue
+		}
+		switch child.Kind() {
+		case "map_literal_entry":
+			keyNode := child.ChildByFieldName("key")
+			valueNode := child.ChildByFieldName("value")
+			if keyNode == nil || valueNode == nil {
+				return nil, fmt.Errorf("parser: map literal entry missing key or value")
+			}
+			keyExpr, err := ctx.parseExpression(keyNode)
+			if err != nil {
+				return nil, err
+			}
+			valueExpr, err := ctx.parseExpression(valueNode)
+			if err != nil {
+				return nil, err
+			}
+			entry := ast.NewMapLiteralEntry(keyExpr, valueExpr)
+			annotateSpan(entry, child)
+			elements = append(elements, entry)
+		case "map_literal_spread":
+			exprNode := child.ChildByFieldName("expression")
+			if exprNode == nil {
+				exprNode = firstNamedChild(child)
+			}
+			if exprNode == nil {
+				return nil, fmt.Errorf("parser: map literal spread missing expression")
+			}
+			spreadExpr, err := ctx.parseExpression(exprNode)
+			if err != nil {
+				return nil, err
+			}
+			spread := ast.NewMapLiteralSpread(spreadExpr)
+			annotateSpan(spread, child)
+			elements = append(elements, spread)
+		default:
+			return nil, fmt.Errorf("parser: unsupported map literal element %s", child.Kind())
+		}
+	}
+	return annotateExpression(ast.NewMapLiteral(elements), node), nil
+}

@@ -10,6 +10,7 @@ import { evaluateImplementationDefinition, evaluateInterfaceDefinition, evaluate
 import { evaluateMatchExpression } from "./match";
 import { evaluateMemberAccessExpression, evaluateStructDefinition, evaluateStructLiteral, evaluateImplicitMemberExpression } from "./structs";
 import { evaluateLiteral } from "./literals";
+import { evaluateMapLiteral } from "./maps";
 import { evaluateIndexExpression, evaluateRangeExpression, evaluateBinaryExpression, evaluateUnaryExpression, evaluateTopicReferenceExpression } from "./operations";
 import { evaluateProcExpression, evaluateSpawnExpression, evaluateBreakpointExpression, evaluateStringInterpolation } from "./runtime_extras";
 import { evaluateIteratorLiteral, evaluateYieldStatement } from "./iterators";
@@ -53,6 +54,7 @@ const EXPRESSION_TYPES = new Set<AST.AstNode["type"]>([
   "IfExpression",
   "MatchExpression",
   "StructLiteral",
+  "MapLiteral",
   "RescueExpression",
   "EnsureExpression",
 ]);
@@ -116,6 +118,8 @@ export function applyEvaluationAugmentations(cls: typeof InterpreterV10): void {
         return evaluateStructDefinition(this, node as AST.StructDefinition, env);
       case "StructLiteral":
         return evaluateStructLiteral(this, node as AST.StructLiteral, env);
+      case "MapLiteral":
+        return evaluateMapLiteral(this, node as AST.MapLiteral, env);
       case "MemberAccessExpression":
         return evaluateMemberAccessExpression(this, node as AST.MemberAccessExpression, env);
       case "ImplicitMemberExpression":
@@ -162,6 +166,8 @@ export function applyEvaluationAugmentations(cls: typeof InterpreterV10): void {
         return evaluateInterfaceDefinition(this, node as AST.InterfaceDefinition, env);
       case "UnionDefinition":
         return evaluateUnionDefinition(this, node as AST.UnionDefinition, env);
+      case "TypeAliasDefinition":
+        return NIL;
       case "MethodsDefinition":
         return evaluateMethodsDefinition(this, node as AST.MethodsDefinition, env);
       case "ImplementationDefinition":

@@ -1,0 +1,76 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "defaults"
+      },
+      "right": {
+        "type": "MapLiteral",
+        "entries": [
+          {
+            "type": "MapLiteralEntry",
+            "key": {
+              "type": "StringLiteral",
+              "value": "accept"
+            },
+            "value": {
+              "type": "StringLiteral",
+              "value": "application/json"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "headers"
+      },
+      "right": {
+        "type": "MapLiteral",
+        "entries": [
+          {
+            "type": "MapLiteralEntry",
+            "key": {
+              "type": "StringLiteral",
+              "value": "content-type"
+            },
+            "value": {
+              "type": "StringLiteral",
+              "value": "application/json"
+            }
+          },
+          {
+            "type": "MapLiteralSpread",
+            "expression": {
+              "type": "Identifier",
+              "name": "defaults"
+            }
+          },
+          {
+            "type": "MapLiteralEntry",
+            "key": {
+              "type": "StringLiteral",
+              "value": "authorization"
+            },
+            "value": {
+              "type": "StringLiteral",
+              "value": "Bearer abc"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Identifier",
+      "name": "headers"
+    }
+  ]
+}
