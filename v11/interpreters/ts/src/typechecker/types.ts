@@ -1,19 +1,37 @@
 import type * as AST from "../ast";
 
+export type IntegerPrimitive = "i8" | "i16" | "i32" | "i64" | "i128" | "u8" | "u16" | "u32" | "u64" | "u128";
+export type FloatPrimitive = "f32" | "f64";
+
 export type PrimitiveName =
+  | IntegerPrimitive
+  | FloatPrimitive
   | "bool"
   | "char"
   | "string"
-  | "i32"
-  | "f64"
   | "nil"
   | "void";
 
+export type LiteralKind = "integer" | "float";
+
+export interface LiteralInfo {
+  literalKind: LiteralKind;
+  value: number | bigint;
+  explicit?: boolean;
+}
+
+export interface PrimitiveTypeInfo {
+  kind: "primitive";
+  name: PrimitiveName;
+  literal?: LiteralInfo;
+}
+
 export type TypeInfo =
   | { kind: "unknown" }
-  | { kind: "primitive"; name: PrimitiveName }
+  | PrimitiveTypeInfo
   | { kind: "array"; element: TypeInfo }
-  | { kind: "range"; element: TypeInfo }
+  | { kind: "map"; key: TypeInfo; value: TypeInfo }
+  | { kind: "range"; element: TypeInfo; bounds?: TypeInfo[] }
   | { kind: "iterator"; element: TypeInfo }
   | { kind: "proc"; result: TypeInfo }
   | { kind: "future"; result: TypeInfo }
@@ -43,7 +61,7 @@ export type InferenceMap = Map<AST.Node, TypeInfo>;
 
 export const unknownType: TypeInfo = { kind: "unknown" };
 
-export function primitiveType(name: PrimitiveName): TypeInfo {
+export function primitiveType(name: PrimitiveName): PrimitiveTypeInfo {
   return { kind: "primitive", name };
 }
 
@@ -55,8 +73,8 @@ export function arrayType(element?: TypeInfo): TypeInfo {
   return { kind: "array", element: element ?? unknownType };
 }
 
-export function rangeType(element?: TypeInfo): TypeInfo {
-  return { kind: "range", element: element ?? unknownType };
+export function rangeType(element?: TypeInfo, bounds?: TypeInfo[]): TypeInfo {
+  return { kind: "range", element: element ?? unknownType, bounds };
 }
 
 export function procType(result?: TypeInfo): TypeInfo {
@@ -75,8 +93,31 @@ export function isBoolean(type: TypeInfo): boolean {
   return type.kind === "primitive" && type.name === "bool";
 }
 
+const INTEGER_NAMES: Set<PrimitiveName> = new Set([
+  "i8",
+  "i16",
+  "i32",
+  "i64",
+  "i128",
+  "u8",
+  "u16",
+  "u32",
+  "u64",
+  "u128",
+]);
+
+const FLOAT_NAMES: Set<PrimitiveName> = new Set(["f32", "f64"]);
+
 export function isNumeric(type: TypeInfo): boolean {
-  return type.kind === "primitive" && (type.name === "i32" || type.name === "f64");
+  return type.kind === "primitive" && (INTEGER_NAMES.has(type.name) || FLOAT_NAMES.has(type.name));
+}
+
+export function isIntegerPrimitiveType(type: TypeInfo): type is PrimitiveTypeInfo {
+  return type.kind === "primitive" && INTEGER_NAMES.has(type.name);
+}
+
+export function isFloatPrimitiveType(type: TypeInfo): type is PrimitiveTypeInfo {
+  return type.kind === "primitive" && FLOAT_NAMES.has(type.name);
 }
 
 export function describe(type: TypeInfo): string {
@@ -91,6 +132,8 @@ export function formatType(type: TypeInfo): string {
       return type.name;
     case "array":
       return `Array ${formatType(type.element)}`;
+    case "map":
+      return `Map ${formatType(type.key)} ${formatType(type.value)}`;
     case "range":
       return `Range ${formatType(type.element)}`;
     case "iterator":

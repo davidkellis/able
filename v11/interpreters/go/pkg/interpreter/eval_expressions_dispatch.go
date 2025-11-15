@@ -87,6 +87,8 @@ func (i *Interpreter) evaluateExpression(node ast.Expression, env *runtime.Envir
 		return &runtime.RangeValue{Start: start, End: endExpr, Inclusive: n.Inclusive}, nil
 	case *ast.StructLiteral:
 		return i.evaluateStructLiteral(n, env)
+	case *ast.MapLiteral:
+		return i.evaluateMapLiteral(n, env)
 	case *ast.MatchExpression:
 		return i.evaluateMatchExpression(n, env)
 	case *ast.PropagationExpression:

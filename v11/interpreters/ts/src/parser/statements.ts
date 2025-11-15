@@ -84,6 +84,8 @@ function parseStatement(node: Node, source: string): Statement | null {
       return annotateStatement(ctx.parseUnionDefinition(node), node);
     case "interface_definition":
       return annotateStatement(ctx.parseInterfaceDefinition(node), node);
+    case "type_alias_definition":
+      return annotateStatement(ctx.parseTypeAliasDefinition(node), node);
     case "prelude_statement":
       return annotateStatement(ctx.parsePreludeStatement(node), node);
     case "extern_function":

@@ -11,6 +11,7 @@ import {
   procType,
   rangeType,
   unknownType,
+  type PrimitiveName,
   type TypeInfo,
 } from "../types";
 
@@ -23,7 +24,8 @@ export interface ExpressionContext {
   report(message: string, node?: AST.Node | null | undefined): void;
   describeTypeExpression(expr: AST.TypeExpression | null | undefined): string | null;
   typeInfosEquivalent(a?: TypeInfo, b?: TypeInfo): boolean;
-  resolveTypeExpression(expr: AST.TypeExpression | null | undefined): TypeInfo;
+  describeLiteralMismatch(actual?: TypeInfo, expected?: TypeInfo): string | null;
+  resolveTypeExpression(expr: AST.TypeExpression | null | undefined, substitutions?: Map<string, TypeInfo>): TypeInfo;
   getStructDefinition(name: string): AST.StructDefinition | undefined;
   handlePackageMemberAccess(expression: AST.MemberAccessExpression): boolean;
   inferExpression(expression: AST.Expression | undefined | null): TypeInfo;
@@ -37,7 +39,17 @@ export interface ExpressionContext {
   withForkedEnv<T>(fn: () => T): T;
   lookupIdentifier(name: string): TypeInfo | undefined;
   defineValue(name: string, valueType: TypeInfo): void;
+  assignValue(name: string, valueType: TypeInfo): boolean;
+  hasBinding(name: string): boolean;
+  hasBindingInCurrentScope(name: string): boolean;
   allowDynamicLookup(): boolean;
+}
+
+interface PatternBindingOptions {
+  suppressMismatchReport?: boolean;
+  declarationNames?: Set<string>;
+  isDeclaration?: boolean;
+  allowFallbackDeclaration?: boolean;
 }
 
 export type StatementContext = ExpressionContext & {
@@ -78,6 +90,7 @@ function bindStructPatternFields(
   pattern: AST.StructPattern,
   valueType: TypeInfo,
   contextLabel: string,
+  options?: PatternBindingOptions,
 ): void {
   if (!Array.isArray(pattern.fields) || pattern.fields.length === 0) {
     return;
@@ -100,10 +113,10 @@ function bindStructPatternFields(
     const fieldName = ctx.getIdentifierName(field.fieldName);
     const nestedType = (fieldName && fieldTypes.get(fieldName)) || unknownType;
     if (field.pattern) {
-      bindPatternToEnv(ctx, field.pattern as AST.Pattern, nestedType ?? unknownType, contextLabel);
+      bindPatternToEnv(ctx, field.pattern as AST.Pattern, nestedType ?? unknownType, contextLabel, options);
     }
     if (field.binding?.name) {
-      ctx.defineValue(field.binding.name, nestedType ?? unknownType);
+      bindPatternToEnv(ctx, field.binding as AST.Pattern, nestedType ?? unknownType, contextLabel, options);
     }
   }
 }
@@ -113,6 +126,7 @@ function bindArrayPatternElements(
   pattern: AST.ArrayPattern,
   valueType: TypeInfo,
   contextLabel: string,
+  options?: PatternBindingOptions,
 ): void {
   const elementType =
     valueType && valueType.kind === "array"
@@ -121,12 +135,12 @@ function bindArrayPatternElements(
   if (Array.isArray(pattern.elements)) {
     for (const element of pattern.elements) {
       if (!element) continue;
-      bindPatternToEnv(ctx, element as AST.Pattern, elementType ?? unknownType, contextLabel);
+      bindPatternToEnv(ctx, element as AST.Pattern, elementType ?? unknownType, contextLabel, options);
     }
   }
   const rest = pattern.restPattern;
   if (rest && rest.type === "Identifier" && rest.name) {
-    ctx.defineValue(rest.name, elementType ?? unknownType);
+    bindPatternToEnv(ctx, rest, elementType ?? unknownType, contextLabel, options);
   }
 }
 export function inferExpression(ctx: ExpressionContext, expression: AST.Expression | undefined | null): TypeInfo {
@@ -136,10 +150,28 @@ export function inferExpression(ctx: ExpressionContext, expression: AST.Expressi
       return primitiveType("string");
     case "BooleanLiteral":
       return primitiveType("bool");
-    case "IntegerLiteral":
-      return primitiveType("i32");
-    case "FloatLiteral":
-      return primitiveType("f64");
+    case "IntegerLiteral": {
+      const literalType = (expression.integerType as PrimitiveName) ?? "i32";
+      const result = primitiveType(literalType);
+      const rawValue = expression.value;
+      const literalValue = typeof rawValue === "bigint" ? rawValue : BigInt(Math.trunc(rawValue ?? 0));
+      result.literal = {
+        literalKind: "integer",
+        value: literalValue,
+        explicit: Boolean(expression.integerType),
+      };
+      return result;
+    }
+    case "FloatLiteral": {
+      const literalType = (expression.floatType as PrimitiveName) ?? "f64";
+      const result = primitiveType(literalType);
+      result.literal = {
+        literalKind: "float",
+        value: expression.value,
+        explicit: Boolean(expression.floatType),
+      };
+      return result;
+    }
     case "NilLiteral":
       return primitiveType("nil");
     case "Identifier": {
@@ -192,11 +224,40 @@ export function inferExpression(ctx: ExpressionContext, expression: AST.Expressi
         ctx.report("typechecker: range end must be numeric", expression);
       }
       const elementType = resolveRangeElementType(ctx, start, end);
-      return rangeType(elementType);
+      const bounds: TypeInfo[] = [];
+      if (start && start.kind !== "unknown") {
+        bounds.push(start);
+      }
+      if (end && end.kind !== "unknown") {
+        bounds.push(end);
+      }
+      return rangeType(elementType, bounds.length > 0 ? bounds : undefined);
     }
     case "ArrayLiteral": {
       const elementType = resolveArrayLiteralElementType(ctx, expression.elements);
       return arrayType(elementType);
+    }
+    case "MapLiteral": {
+      let keyType: TypeInfo = unknownType;
+      let valueType: TypeInfo = unknownType;
+      for (const entry of expression.entries ?? []) {
+        if (!entry) continue;
+        if (entry.type === "MapLiteralEntry") {
+          const inferredKey = ctx.inferExpression(entry.key);
+          keyType = mergeMapComponent(ctx, keyType, inferredKey, "map key", entry.key);
+          const inferredValue = ctx.inferExpression(entry.value);
+          valueType = mergeMapComponent(ctx, valueType, inferredValue, "map value", entry.value);
+        } else {
+          const spreadType = ctx.inferExpression(entry.expression);
+          if (spreadType.kind === "map") {
+            keyType = mergeMapComponent(ctx, keyType, spreadType.key, "map key", entry.expression);
+            valueType = mergeMapComponent(ctx, valueType, spreadType.value, "map value", entry.expression);
+          } else if (spreadType.kind !== "unknown") {
+            ctx.report(`typechecker: map spread expects Map, got ${formatType(spreadType)}`, entry.expression);
+          }
+        }
+      }
+      return { kind: "map", key: keyType ?? unknownType, value: valueType ?? unknownType };
     }
     case "MatchExpression":
       return evaluateMatchExpression(ctx, expression);
@@ -320,8 +381,10 @@ export function checkIteratorYield(
   const valueType = statement.expression ? ctx.inferExpression(statement.expression) : primitiveType("nil");
   if (!ctx.typeInfosEquivalent(valueType, expectedType) && expectedType.kind !== "unknown") {
     const actualLabel = formatType(valueType);
+    const literalMessage = ctx.describeLiteralMismatch(valueType, expectedType);
     ctx.report(
-      `typechecker: iterator annotation expects elements of type ${expectedLabel}, got ${actualLabel}`,
+      literalMessage ??
+        `typechecker: iterator annotation expects elements of type ${expectedLabel}, got ${actualLabel}`,
       statement,
     );
   }
@@ -414,19 +477,66 @@ export function mergeBranchTypes(ctx: ExpressionContext, types: TypeInfo[]): Typ
   return current;
 }
 
+function mergeMapComponent(
+  ctx: ExpressionContext,
+  current: TypeInfo,
+  candidate: TypeInfo,
+  label: string,
+  node: AST.Node,
+): TypeInfo {
+  if (!current || current.kind === "unknown") {
+    return candidate ?? unknownType;
+  }
+  if (!candidate || candidate.kind === "unknown") {
+    return current;
+  }
+  if (!ctx.typeInfosEquivalent(current, candidate)) {
+    const expectedLabel = formatType(current);
+    const actualLabel = formatType(candidate);
+    ctx.report(`typechecker: ${label} expects type ${expectedLabel}, got ${actualLabel}`, node);
+  }
+  return current;
+}
+
+function shouldDeclareIdentifier(
+  name: string | null | undefined,
+  declarationNames: Set<string> | undefined,
+): boolean {
+  if (!name) return false;
+  if (!declarationNames) return true;
+  return declarationNames.has(name);
+}
+
 export function bindPatternToEnv(
   ctx: ExpressionContext,
   pattern: AST.Pattern | undefined | null,
   valueType: TypeInfo,
   contextLabel: string,
-  options?: { suppressMismatchReport?: boolean },
+  options?: PatternBindingOptions,
 ): void {
   if (!pattern) return;
+  const declarationNames = options?.declarationNames;
+  const isDeclaration = options?.isDeclaration !== false;
+  const allowFallback = !!options?.allowFallbackDeclaration;
+  const bindIdentifier = (name: string | undefined | null, typeInfo: TypeInfo): void => {
+    if (!name) return;
+    const resolved = typeInfo ?? unknownType;
+    if (isDeclaration) {
+      if (shouldDeclareIdentifier(name, declarationNames)) {
+        ctx.defineValue(name, resolved);
+      } else {
+        ctx.assignValue(name, resolved);
+      }
+      return;
+    }
+    const assigned = ctx.assignValue(name, resolved);
+    if (!assigned && allowFallback) {
+      ctx.defineValue(name, resolved);
+    }
+  };
   switch (pattern.type) {
     case "Identifier":
-      if (pattern.name) {
-        ctx.defineValue(pattern.name, valueType ?? unknownType);
-      }
+      bindIdentifier(pattern.name, valueType ?? unknownType);
       return;
     case "WildcardPattern":
       return;
@@ -434,7 +544,10 @@ export function bindPatternToEnv(
       const annotationType = ctx.resolveTypeExpression(pattern.typeAnnotation);
       const resolvedType =
         annotationType && annotationType.kind !== "unknown" ? annotationType : valueType ?? unknownType;
-      if (
+      const literalMessage = ctx.describeLiteralMismatch(valueType, annotationType);
+      if (literalMessage) {
+        ctx.report(literalMessage, pattern);
+      } else if (
         !options?.suppressMismatchReport &&
         annotationType &&
         annotationType.kind !== "unknown" &&
@@ -447,16 +560,16 @@ export function bindPatternToEnv(
         ctx.report(`typechecker: ${contextLabel} expects type ${expectedLabel}, got ${actualLabel}`, pattern);
       }
       if (pattern.pattern) {
-        bindPatternToEnv(ctx, pattern.pattern as AST.Pattern, resolvedType ?? valueType, contextLabel);
+        bindPatternToEnv(ctx, pattern.pattern as AST.Pattern, resolvedType ?? valueType, contextLabel, options);
       }
       return;
     }
     case "StructPattern":
       checkStructPattern(ctx, pattern, valueType);
-      bindStructPatternFields(ctx, pattern, valueType, contextLabel);
+      bindStructPatternFields(ctx, pattern, valueType, contextLabel, options);
       return;
     case "ArrayPattern":
-      bindArrayPatternElements(ctx, pattern, valueType, contextLabel);
+      bindArrayPatternElements(ctx, pattern, valueType, contextLabel, options);
       return;
     case "LiteralPattern":
     default:

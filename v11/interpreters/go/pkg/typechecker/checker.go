@@ -30,6 +30,7 @@ type Checker struct {
 	pipeContextDepth    int
 
 	builtinImplementations []ImplementationSpec
+	pendingDiagnostics     []Diagnostic
 }
 
 // Diagnostic represents a type-checking error or warning.
@@ -95,6 +96,7 @@ func (c *Checker) CheckModule(module *ast.Module) ([]Diagnostic, error) {
 	c.publicDeclarations = nil
 	c.preludeImplCount = 0
 	c.preludeMethodCount = 0
+	c.pendingDiagnostics = nil
 	declDiags := c.collectDeclarations(module)
 	var diagnostics []Diagnostic
 	diagnostics = append(diagnostics, declDiags...)
@@ -137,6 +139,9 @@ func (c *Checker) CheckModule(module *ast.Module) ([]Diagnostic, error) {
 	implDiags := c.validateImplementations()
 	diagnostics = append(diagnostics, implDiags...)
 
+	if len(c.pendingDiagnostics) > 0 {
+		diagnostics = append(diagnostics, c.pendingDiagnostics...)
+	}
 	return diagnostics, nil
 }
 
@@ -175,6 +180,41 @@ func (c *Checker) applyImports(env *Environment, imports []*ast.ImportStatement)
 			}
 		}
 	}
+}
+
+func (c *Checker) addDiagnostic(diag Diagnostic) {
+	if diag.Message == "" {
+		return
+	}
+	c.pendingDiagnostics = append(c.pendingDiagnostics, diag)
+}
+
+func (c *Checker) verifyAliasConstraints(alias AliasType, subst map[string]Type, node ast.Node) {
+	if len(alias.Obligations) == 0 {
+		return
+	}
+	obligations := alias.Obligations
+	if len(subst) > 0 {
+		obligations = substituteObligations(obligations, subst)
+	}
+	ok, detail, _ := c.obligationSetSatisfied(obligations)
+	if ok {
+		return
+	}
+	message := detail
+	if message == "" {
+		message = fmt.Sprintf("type alias '%s' constraints not satisfied", alias.AliasName)
+	} else {
+		message = fmt.Sprintf("type alias '%s': %s", alias.AliasName, detail)
+	}
+	diagNode := node
+	if diagNode == nil {
+		diagNode = alias.Definition
+	}
+	c.addDiagnostic(Diagnostic{
+		Message: message,
+		Node:    diagNode,
+	})
 }
 
 // ExportedSymbols returns the public bindings declared in the last module that was checked.

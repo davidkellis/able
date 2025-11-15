@@ -1,0 +1,202 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+GO_DIR="$SCRIPT_DIR/interpreters/go"
+TS_DIR="$SCRIPT_DIR/interpreters/ts"
+GO_CACHE="$GO_DIR/.gocache"
+
+usage() {
+  cat <<'EOF'
+Usage: able11 [--go-only|--ts-only|--both] [--] <command-or-entry> [args...]
+
+Runs the Able v11 Go and TypeScript interpreters against the same arguments.
+Pass --go-only or --ts-only to limit execution to a single runtime. Use `--`
+before interpreter arguments when they start with dashes (for example to pass
+`--help` directly through).
+
+Examples:
+  # Run both interpreters against examples/hello.able
+  ./v11/able11 examples/hello.able
+
+  # Only run the TypeScript interpreter in check mode
+  ./v11/able11 --ts-only check examples/hello.able
+EOF
+}
+
+resolve_path() {
+  local candidate="$1"
+  if [[ -z "$candidate" ]]; then
+    printf '%s\n' "$candidate"
+    return 0
+  fi
+  if [[ -f "$candidate" ]]; then
+    realpath "$candidate"
+    return 0
+  fi
+  if [[ -f "$SCRIPT_DIR/$candidate" ]]; then
+    realpath "$SCRIPT_DIR/$candidate"
+    return 0
+  fi
+  printf '%s\n' "$candidate"
+}
+
+build_go_args() {
+  GO_ARGS=()
+  if [[ $# -eq 0 ]]; then
+    return
+  fi
+
+  local first="$1"
+  shift || true
+  case "$first" in
+    run|check)
+      GO_ARGS+=("$first")
+      if [[ $# -gt 0 ]]; then
+        local candidate="$1"
+        shift || true
+        GO_ARGS+=("$(resolve_path "$candidate")")
+      fi
+      if [[ $# -gt 0 ]]; then
+        GO_ARGS+=("$@")
+      fi
+      ;;
+    deps|--help|-h|--version|-V|version)
+      GO_ARGS+=("$first")
+      if [[ $# -gt 0 ]]; then
+        GO_ARGS+=("$@")
+      fi
+      ;;
+    *)
+      GO_ARGS+=("$(resolve_path "$first")")
+      if [[ $# -gt 0 ]]; then
+        GO_ARGS+=("$@")
+      fi
+      ;;
+  esac
+}
+
+build_ts_args() {
+  TS_ARGS=()
+  if [[ $# -eq 0 ]]; then
+    return
+  fi
+
+  local first="$1"
+  shift || true
+  case "$first" in
+    run|check)
+      TS_ARGS+=("$first")
+      if [[ $# -gt 0 ]]; then
+        local candidate="$1"
+        shift || true
+        TS_ARGS+=("$(resolve_path "$candidate")")
+      fi
+      if [[ $# -gt 0 ]]; then
+        TS_ARGS+=("$@")
+      fi
+      ;;
+    test)
+      TS_ARGS+=("$first")
+      if [[ $# -gt 0 ]]; then
+        TS_ARGS+=("$@")
+      fi
+      ;;
+    *)
+      TS_ARGS+=("run")
+      TS_ARGS+=("$(resolve_path "$first")")
+      if [[ $# -gt 0 ]]; then
+        TS_ARGS+=("$@")
+      fi
+      ;;
+  esac
+}
+
+ensure_interpreter_dirs() {
+  if [[ ! -d "$GO_DIR" ]]; then
+    echo "Able v11 Go interpreter directory not found at $GO_DIR" >&2
+    exit 1
+  fi
+  if [[ ! -d "$TS_DIR" ]]; then
+    echo "Able v11 TypeScript interpreter directory not found at $TS_DIR" >&2
+    exit 1
+  fi
+}
+
+run_go=1
+run_ts=1
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --go-only)
+      run_go=1
+      run_ts=0
+      shift
+      ;;
+    --ts-only)
+      run_ts=1
+      run_go=0
+      shift
+      ;;
+    --both)
+      run_go=1
+      run_ts=1
+      shift
+      ;;
+    --)
+      shift
+      break
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+cmd_args=("$@")
+
+if (( run_go == 0 && run_ts == 0 )); then
+  echo "At least one interpreter must be selected (use --go-only, --ts-only, or --both)." >&2
+  exit 1
+fi
+
+if [[ ${#cmd_args[@]} -eq 0 ]]; then
+  echo "Expected an entrypoint, manifest target, or interpreter command." >&2
+  echo "Use --help to see usage examples." >&2
+  exit 1
+fi
+
+ensure_interpreter_dirs
+mkdir -p "$GO_CACHE"
+
+overall_status=0
+
+if (( run_go )); then
+  build_go_args "${cmd_args[@]}"
+  echo "[Able v11 Go] go run ./cmd/able ${GO_ARGS[*]}"
+  if env GOCACHE="$GO_CACHE" go run -C "$GO_DIR" ./cmd/able "${GO_ARGS[@]}"; then
+    :
+  else
+    code=$?
+    overall_status=$code
+    echo "Able v11 Go interpreter exited with status $code" >&2
+  fi
+fi
+
+if (( run_ts )); then
+  build_ts_args "${cmd_args[@]}"
+  echo "[Able v11 TypeScript] bun run scripts/run-module.ts ${TS_ARGS[*]}"
+  if (cd "$TS_DIR" && bun run scripts/run-module.ts "${TS_ARGS[@]}"); then
+    :
+  else
+    code=$?
+    overall_status=$code
+    echo "Able v11 TypeScript interpreter exited with status $code" >&2
+  fi
+fi
+
+exit "$overall_status"

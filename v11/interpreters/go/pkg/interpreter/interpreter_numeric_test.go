@@ -294,6 +294,8 @@ func TestBitshiftRangeChecks(t *testing.T) {
 		ast.AssignOp(ast.AssignmentShiftL, ast.ID("x"), ast.Int(3)),
 		ast.ID("x"),
 	}, nil, nil)
+	// Run on a fresh interpreter to avoid clashing with previous declarations.
+	interp = New()
 	result, _, err := interp.EvaluateModule(okModule)
 	if err != nil {
 		t.Fatalf("compound shift module failed: %v", err)

@@ -32,6 +32,15 @@ describe("v10 interpreter - assignments & blocks", () => {
     expect(result).toEqual({ kind: "i32", value: 20 }); // inner value
     expect(env.get("y")).toEqual({ kind: "i32", value: 10 }); // outer unchanged
   });
-});
 
+  test("= creates a binding when none exists", () => {
+    const I = new InterpreterV10();
+    const env = I.globals;
+    I.evaluate(AST.assignmentExpression("=", AST.identifier("fresh"), AST.integerLiteral(42)), env);
+    expect(env.get("fresh")).toEqual({ kind: "i32", value: 42 });
+    // subsequent = behaves like reassignment
+    I.evaluate(AST.assignmentExpression("=", AST.identifier("fresh"), AST.integerLiteral(7)), env);
+    expect(env.get("fresh")).toEqual({ kind: "i32", value: 7 });
+  });
+});
 

@@ -2,6 +2,7 @@ package typechecker
 
 import (
 	"able/interpreter10-go/pkg/ast"
+	"strings"
 	"testing"
 )
 
@@ -30,6 +31,25 @@ func TestTypedPatternMismatchDoesNotProduceDiagnosticInAssignment(t *testing.T) 
 	}
 	if len(diags) != 0 {
 		t.Fatalf("expected no diagnostics for typed pattern mismatch, got %v", diags)
+	}
+}
+
+func TestTypedPatternReportsLiteralOverflow(t *testing.T) {
+	checker := New()
+	assign := ast.Assign(
+		ast.TypedP(ast.ID("value"), ast.Ty("u8")),
+		ast.Int(300),
+	)
+	module := ast.NewModule([]ast.Statement{assign}, nil, nil)
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) != 1 {
+		t.Fatalf("expected diagnostic for literal overflow, got %v", diags)
+	}
+	if !strings.Contains(diags[0].Message, "literal 300 does not fit in u8") {
+		t.Fatalf("expected literal overflow message, got %q", diags[0].Message)
 	}
 }
 func TestTypedArrayPatternMismatchDoesNotProduceDiagnostic(t *testing.T) {
@@ -110,6 +130,211 @@ func TestTypedArrayPatternMatchesElementType(t *testing.T) {
 		t.Fatalf("expected no diagnostics for matching array typed pattern, got %v", diags)
 	}
 }
+
+func TestTypedArrayPatternAdoptsIntegerLiterals(t *testing.T) {
+	checker := New()
+	assign := ast.Assign(
+		ast.TypedP(
+			ast.ID("values"),
+			ast.Gen(ast.Ty("Array"), ast.Ty("u8")),
+		),
+		ast.Arr(ast.Int(1), ast.Int(2)),
+	)
+	module := ast.NewModule([]ast.Statement{assign}, nil, nil)
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics for adopting integer literals, got %v", diags)
+	}
+}
+
+func TestTypedArrayPatternReportsLiteralOverflow(t *testing.T) {
+	checker := New()
+	assign := ast.Assign(
+		ast.TypedP(
+			ast.ID("values"),
+			ast.Gen(ast.Ty("Array"), ast.Ty("u8")),
+		),
+		ast.Arr(ast.Int(300)),
+	)
+	module := ast.NewModule([]ast.Statement{assign}, nil, nil)
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) != 1 {
+		t.Fatalf("expected diagnostic for literal overflow, got %v", diags)
+	}
+	if !strings.Contains(diags[0].Message, "literal 300 does not fit in u8") {
+		t.Fatalf("expected literal overflow message, got %q", diags[0].Message)
+	}
+}
+
+func TestTypedMapPatternAdoptsNestedLiterals(t *testing.T) {
+	checker := New()
+	assign := ast.Assign(
+		ast.TypedP(
+			ast.ID("headers"),
+			ast.Gen(
+				ast.Ty("Map"),
+				ast.Ty("string"),
+				ast.Gen(ast.Ty("Array"), ast.Ty("u8")),
+			),
+		),
+		ast.MapLit([]ast.MapLiteralElement{
+			ast.MapEntry(ast.Str("ok"), ast.Arr(ast.Int(1), ast.Int(2))),
+		}),
+	)
+	module := ast.NewModule([]ast.Statement{assign}, nil, nil)
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics for nested map literals, got %v", diags)
+	}
+}
+
+func TestTypedMapPatternReportsNestedLiteralOverflow(t *testing.T) {
+	checker := New()
+	assign := ast.Assign(
+		ast.TypedP(
+			ast.ID("headers"),
+			ast.Gen(
+				ast.Ty("Map"),
+				ast.Ty("string"),
+				ast.Gen(ast.Ty("Array"), ast.Ty("u8")),
+			),
+		),
+		ast.MapLit([]ast.MapLiteralElement{
+			ast.MapEntry(ast.Str("bad"), ast.Arr(ast.Int(512))),
+		}),
+	)
+	module := ast.NewModule([]ast.Statement{assign}, nil, nil)
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) != 1 {
+		t.Fatalf("expected diagnostic for nested literal overflow, got %v", diags)
+	}
+	if !strings.Contains(diags[0].Message, "literal 512 does not fit in u8") {
+		t.Fatalf("expected literal overflow message, got %q", diags[0].Message)
+	}
+}
+
+func TestTypedRangePatternReportsLiteralOverflow(t *testing.T) {
+	checker := New()
+	assign := ast.Assign(
+		ast.TypedP(
+			ast.ID("window"),
+			ast.Gen(ast.Ty("Range"), ast.Ty("u8")),
+		),
+		ast.Range(ast.Int(0), ast.Int(512), true),
+	)
+	module := ast.NewModule([]ast.Statement{assign}, nil, nil)
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) != 1 {
+		t.Fatalf("expected diagnostic for range literal overflow, got %v", diags)
+	}
+	if !strings.Contains(diags[0].Message, "literal 512 does not fit in u8") {
+		t.Fatalf("expected literal overflow message, got %q", diags[0].Message)
+	}
+}
+
+func TestTypedRangePatternAdoptsLiterals(t *testing.T) {
+	checker := New()
+	assign := ast.Assign(
+		ast.TypedP(
+			ast.ID("window"),
+			ast.Gen(ast.Ty("Range"), ast.Ty("u8")),
+		),
+		ast.Range(ast.Int(1), ast.Int(10), true),
+	)
+	module := ast.NewModule([]ast.Statement{assign}, nil, nil)
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics for matching range literals, got %v", diags)
+	}
+}
+
+func TestTypedIteratorPatternReportsLiteralOverflow(t *testing.T) {
+	checker := New()
+	iter := ast.IteratorLit(
+		ast.Yield(ast.Int(512)),
+	)
+	assign := ast.Assign(
+		ast.TypedP(
+			ast.ID("iter"),
+			ast.Gen(ast.Ty("Iterator"), ast.Ty("u8")),
+		),
+		iter,
+	)
+	module := ast.NewModule([]ast.Statement{assign}, nil, nil)
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) != 1 {
+		t.Fatalf("expected diagnostic for iterator literal overflow, got %v", diags)
+	}
+	if !strings.Contains(diags[0].Message, "literal 512 does not fit in u8") {
+		t.Fatalf("expected literal overflow message, got %q", diags[0].Message)
+	}
+}
+
+func TestTypedProcPatternReportsLiteralOverflow(t *testing.T) {
+	checker := New()
+	assign := ast.Assign(
+		ast.TypedP(
+			ast.ID("handle"),
+			ast.Gen(ast.Ty("Proc"), ast.Ty("u8")),
+		),
+		ast.Proc(ast.Int(512)),
+	)
+	module := ast.NewModule([]ast.Statement{assign}, nil, nil)
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) != 1 {
+		t.Fatalf("expected diagnostic for proc literal overflow, got %v", diags)
+	}
+	if !strings.Contains(diags[0].Message, "literal 512 does not fit in u8") {
+		t.Fatalf("expected literal overflow message, got %q", diags[0].Message)
+	}
+}
+
+func TestTypedFuturePatternReportsLiteralOverflow(t *testing.T) {
+	checker := New()
+	assign := ast.Assign(
+		ast.TypedP(
+			ast.ID("task"),
+			ast.Gen(ast.Ty("Future"), ast.Ty("u8")),
+		),
+		ast.Spawn(ast.Int(512)),
+	)
+	module := ast.NewModule([]ast.Statement{assign}, nil, nil)
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) != 1 {
+		t.Fatalf("expected diagnostic for future literal overflow, got %v", diags)
+	}
+	if !strings.Contains(diags[0].Message, "literal 512 does not fit in u8") {
+		t.Fatalf("expected literal overflow message, got %q", diags[0].Message)
+	}
+}
+
 func TestTypedPatternProvidesAnnotationTypeWhenSubjectUnknown(t *testing.T) {
 	checker := New()
 	valueUse := ast.ID("value")

@@ -47,6 +47,9 @@ export interface NilLiteral extends AstNode { type: 'NilLiteral'; value: null; }
 export interface CharLiteral extends AstNode { type: 'CharLiteral'; value: string; }
 
 export interface ArrayLiteral extends AstNode { type: 'ArrayLiteral'; elements: Expression[]; }
+export interface MapLiteralEntry extends AstNode { type: 'MapLiteralEntry'; key: Expression; value: Expression; }
+export interface MapLiteralSpread extends AstNode { type: 'MapLiteralSpread'; expression: Expression; }
+export interface MapLiteral extends AstNode { type: 'MapLiteral'; entries: (MapLiteralEntry | MapLiteralSpread)[]; }
 
 export type Literal =
   | StringLiteral
@@ -55,7 +58,8 @@ export type Literal =
   | BooleanLiteral
   | NilLiteral
   | CharLiteral
-  | ArrayLiteral;
+  | ArrayLiteral
+  | MapLiteral;
 
 export function stringLiteral(value: string): StringLiteral { return { type: 'StringLiteral', value }; }
 export function integerLiteral(value: bigint | number, integerType?: IntegerLiteral['integerType']): IntegerLiteral {
@@ -68,6 +72,15 @@ export function booleanLiteral(value: boolean): BooleanLiteral { return { type: 
 export function nilLiteral(): NilLiteral { return { type: 'NilLiteral', value: null }; }
 export function charLiteral(value: string): CharLiteral { return { type: 'CharLiteral', value }; }
 export function arrayLiteral(elements: Expression[]): ArrayLiteral { return { type: 'ArrayLiteral', elements }; }
+export function mapLiteralEntry(key: Expression, value: Expression): MapLiteralEntry {
+  return { type: 'MapLiteralEntry', key, value };
+}
+export function mapLiteralSpread(expression: Expression): MapLiteralSpread {
+  return { type: 'MapLiteralSpread', expression };
+}
+export function mapLiteral(entries: (MapLiteralEntry | MapLiteralSpread)[]): MapLiteral {
+  return { type: 'MapLiteral', entries };
+}
 
 // -----------------------------------------------------------------------------
 // Types (surface type expressions sufficient to represent v10 authoring)
@@ -204,6 +217,7 @@ export type Expression =
   | IfExpression
   | MatchExpression
   | StructLiteral
+  | MapLiteral
   | RescueExpression
   | EnsureExpression;
 
@@ -385,6 +399,31 @@ export function unionDefinition(id: Identifier | string, variants: TypeExpressio
   return { type: 'UnionDefinition', id: typeof id === 'string' ? identifier(id) : id, genericParams, variants, whereClause, isPrivate };
 }
 
+export interface TypeAliasDefinition extends AstNode {
+  type: 'TypeAliasDefinition';
+  id: Identifier;
+  genericParams?: GenericParameter[];
+  targetType: TypeExpression;
+  whereClause?: WhereClauseConstraint[];
+  isPrivate?: boolean;
+}
+export function typeAliasDefinition(
+  id: Identifier | string,
+  targetType: TypeExpression,
+  genericParams?: GenericParameter[],
+  whereClause?: WhereClauseConstraint[],
+  isPrivate?: boolean,
+): TypeAliasDefinition {
+  return {
+    type: 'TypeAliasDefinition',
+    id: typeof id === 'string' ? identifier(id) : id,
+    targetType,
+    genericParams,
+    whereClause,
+    isPrivate,
+  };
+}
+
 export interface FunctionParameter extends AstNode { type: 'FunctionParameter'; name: Pattern; paramType?: TypeExpression; }
 export function functionParameter(name: Pattern | Identifier | string, paramType?: TypeExpression): FunctionParameter {
   let pattern: Pattern;
@@ -488,6 +527,7 @@ export type Statement =
   | FunctionDefinition
   | StructDefinition
   | UnionDefinition
+  | TypeAliasDefinition
   | InterfaceDefinition
   | ImplementationDefinition
   | MethodsDefinition
@@ -559,6 +599,9 @@ export const bool = booleanLiteral;
 export const nil = nilLiteral;
 export const chr = charLiteral;
 export function arr(...elements: Expression[]): ArrayLiteral { return arrayLiteral(elements); }
+export const mapEntry = mapLiteralEntry;
+export const mapSpread = mapLiteralSpread;
+export function mapLit(entries: (MapLiteralEntry | MapLiteralSpread)[]): MapLiteral { return mapLiteral(entries); }
 
 // Types
 export const ty = simpleTypeExpression;

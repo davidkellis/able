@@ -33,6 +33,7 @@ import {
   parseArrayLiteral,
   parseBooleanLiteral,
   parseCharLiteral,
+  parseMapLiteral,
   parseNilLiteral,
   parseNumberLiteral,
   parseStringLiteral,
@@ -91,6 +92,8 @@ function parseExpression(node: Node | null | undefined, source: string): Express
       return parseCharLiteral(getActiveParseContext(), node);
     case "array_literal":
       return parseArrayLiteral(getActiveParseContext(), node);
+    case "map_literal":
+      return parseMapLiteral(getActiveParseContext(), node);
     case "struct_literal":
       return parseStructLiteral(getActiveParseContext(), node);
     case "block":

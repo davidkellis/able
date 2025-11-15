@@ -13,6 +13,9 @@ const (
 	NodeNilLiteral               NodeType = "NilLiteral"
 	NodeCharLiteral              NodeType = "CharLiteral"
 	NodeArrayLiteral             NodeType = "ArrayLiteral"
+	NodeMapLiteralEntry          NodeType = "MapLiteralEntry"
+	NodeMapLiteralSpread         NodeType = "MapLiteralSpread"
+	NodeMapLiteral               NodeType = "MapLiteral"
 	NodeSimpleTypeExpression     NodeType = "SimpleTypeExpression"
 	NodeGenericTypeExpression    NodeType = "GenericTypeExpression"
 	NodeFunctionTypeExpression   NodeType = "FunctionTypeExpression"
@@ -61,6 +64,7 @@ const (
 	NodeStructFieldInitializer   NodeType = "StructFieldInitializer"
 	NodeStructLiteral            NodeType = "StructLiteral"
 	NodeUnionDefinition          NodeType = "UnionDefinition"
+	NodeTypeAliasDefinition      NodeType = "TypeAliasDefinition"
 	NodeFunctionParameter        NodeType = "FunctionParameter"
 	NodeFunctionDefinition       NodeType = "FunctionDefinition"
 	NodeFunctionSignature        NodeType = "FunctionSignature"
@@ -291,6 +295,51 @@ type ArrayLiteral struct {
 
 func NewArrayLiteral(elements []Expression) *ArrayLiteral {
 	return &ArrayLiteral{nodeImpl: newNodeImpl(NodeArrayLiteral), Elements: elements}
+}
+
+type MapLiteralElement interface {
+	Node
+	mapLiteralElementNode()
+}
+
+type mapLiteralElementMarker struct{}
+
+func (mapLiteralElementMarker) mapLiteralElementNode() {}
+
+type MapLiteralEntry struct {
+	nodeImpl
+	mapLiteralElementMarker
+
+	Key   Expression `json:"key"`
+	Value Expression `json:"value"`
+}
+
+func NewMapLiteralEntry(key, value Expression) *MapLiteralEntry {
+	return &MapLiteralEntry{nodeImpl: newNodeImpl(NodeMapLiteralEntry), Key: key, Value: value}
+}
+
+type MapLiteralSpread struct {
+	nodeImpl
+	mapLiteralElementMarker
+
+	Expression Expression `json:"expression"`
+}
+
+func NewMapLiteralSpread(expr Expression) *MapLiteralSpread {
+	return &MapLiteralSpread{nodeImpl: newNodeImpl(NodeMapLiteralSpread), Expression: expr}
+}
+
+type MapLiteral struct {
+	nodeImpl
+	expressionMarker
+	statementMarker
+	literalMarker
+
+	Elements []MapLiteralElement `json:"elements"`
+}
+
+func NewMapLiteral(elements []MapLiteralElement) *MapLiteral {
+	return &MapLiteral{nodeImpl: newNodeImpl(NodeMapLiteral), Elements: elements}
 }
 
 // Type expressions

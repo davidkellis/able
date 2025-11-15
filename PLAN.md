@@ -36,23 +36,14 @@
 
 ### v11 Spec Delta Implementation Plan
 
-1. **Type alias declarations (§4.7)**
-   - **AST contract:** add alias declaration nodes (with space-delimited generics + `where` clauses) to the canonical schema and both interpreter AST definitions; encode alias expansion metadata for tooling.
-   - **Semantics:** update the type checker + symbol tables so aliases expand transparently (capture-avoiding substitution, recursion detection, visibility/export rules, aliasing with `methods`/`impl` headers).
-   - **Parser & AST mapping:** accept `type Identifier [Generics] [where ...] = TypeExpression` syntax, track import/export, and emit deterministic AST order.
-   - **Tests:** add fixtures exercising plain and generic aliases, alias chaining, recursion failures, and alias usage across module boundaries; keep `fixtures/ast`, `bun run scripts/run-fixtures.ts`, and `go test ./pkg/interpreter` green after introducing the new node.
-
 2. **Typed declarations & literal adoption rules (§§5.1.1, 5.3.1, 6.1)**
    - **Binding semantics:** ensure AST nodes can carry type annotations for both `:=` and `=` (including nested destructuring) and mark operators so the checker enforces “`:=` introduces at least one binding” while `=` falls back to declaration when no binding exists.
    - **Runtime enforcement:** TypeScript + Go interpreters need typed-pattern runtime checks (`"Typed pattern mismatch"`), `=` fallback declaration semantics, and deterministic evaluation order (RHS first, single evaluation for receivers/indexers).
-   - **Type inference:** update literal typing so unsuffixed ints default to `i32`, floats to `f64`, honor explicit suffixes, and adopt contextual types only when values fit; surface the new diagnostics in both runtimes’ typecheckers.
+     - **Type inference:** update literal typing so unsuffixed ints default to `i32`, floats to `f64`, honor explicit suffixes, and adopt contextual types only when values fit; surface the new diagnostics in both runtimes’ typecheckers.
+       - ✅ Array literal adoption + overflow diagnostics now wired through the TS/Go typecheckers (integer literals only); expand to other literal contexts next.
+       - ✅ Map literals and range endpoints now participate in literal adoption checks (nested array/map elements and range bounds propagate integer overflow diagnostics in both interpreters).
+       - ✅ Iterator yields plus proc/future contexts now share the literal-adoption diagnostics so async + generator bodies surface precise overflow errors in TS/Go.
    - **Parser/tests:** extend parser + PT→AST mapping to capture annotations on assignments, broaden fixture coverage for typed destructuring and literal adoption edge cases, and rerun `bun run scripts/run-fixtures.ts`/`go test`.
-
-3. **Literal + collection forms (§6.1.7–6.1.9)**  
-   - **AST:** add a dedicated map literal node with keyed entries + spread entries (`...expr`), keep array/struct literal nodes annotated with evaluation order details for later optimizations, and encode struct functional-update spreads (`Struct { ...source, field: override }`) so both interpreters can enforce the §4.5.2 semantics.  
-   - **Evaluators:** TypeScript + Go runtimes must allocate fresh `Map` instances for `#{}` forms, iterate entries left-to-right, apply spreads, enforce key/value type compatibility, and handle duplicate overwrite rules.
-   - **Parser & mapping:** add grammar support for `#{}` bodies and spread clauses, keep comma handling + multiline layout consistent with struct literals.
-   - **Tests:** author fixtures validating spreads, duplicate overwrites, empty literal contextual typing, and ensure both interpreters + `fixtures/ast` reflect the new syntax.
 
 4. **Safe navigation operator (`?.`, §6.3.4)**
    - **AST:** introduce a safe-member node (field + call forms, nested chaining) that records the original member access for tooling.

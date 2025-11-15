@@ -23,6 +23,7 @@ import {
   type Manifest,
 } from "./fixture-utils";
 import { startRunTimeout } from "./test-timeouts";
+import { serializeMapEntries } from "../src/interpreter/maps";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_ROOT = path.resolve(__dirname, "../../../fixtures/ast");
@@ -212,11 +213,56 @@ function assertExpectations(
         );
       }
     }
+    if (expect.result.entries) {
+      if (result.kind !== "hash_map") {
+        throw new Error(`Fixture ${dir} expected hash_map entries but result was ${result.kind}`);
+      }
+      compareMapEntries(dir, expect.result.entries, result);
+    }
   }
   if (expect.stdout) {
     if (JSON.stringify(stdout) !== JSON.stringify(expect.stdout)) {
       throw new Error(`Fixture ${dir} expected stdout ${JSON.stringify(expect.stdout)}, got ${JSON.stringify(stdout)}`);
     }
+  }
+}
+
+function compareMapEntries(dir: string, expected: { key: unknown; value: unknown }[], value: V10.V10Value): void {
+  const entries = serializeMapEntries(value as Extract<V10.V10Value, { kind: "hash_map" }>);
+  if (entries.length !== expected.length) {
+    throw new Error(
+      `Fixture ${dir} expected ${expected.length} map entries, got ${entries.length}`,
+    );
+  }
+  for (let i = 0; i < entries.length; i += 1) {
+    const actualEntry = entries[i]!;
+    const normalizedKey = normalizeValueForExpect(actualEntry.key);
+    const normalizedValue = normalizeValueForExpect(actualEntry.value);
+    if (JSON.stringify(normalizedKey) !== JSON.stringify(expected[i]?.key)) {
+      throw new Error(
+        `Fixture ${dir} expected map key ${JSON.stringify(expected[i]?.key)}, got ${JSON.stringify(normalizedKey)}`,
+      );
+    }
+    if (JSON.stringify(normalizedValue) !== JSON.stringify(expected[i]?.value)) {
+      throw new Error(
+        `Fixture ${dir} expected map value ${JSON.stringify(expected[i]?.value)}, got ${JSON.stringify(normalizedValue)}`,
+      );
+    }
+  }
+}
+
+function normalizeValueForExpect(value: V10.V10Value): unknown {
+  switch (value.kind) {
+    case "string":
+    case "char":
+    case "bool":
+    case "i32":
+    case "f64":
+      return { kind: value.kind, value: value.value };
+    case "nil":
+      return { kind: "nil", value: null };
+    default:
+      return { kind: value.kind };
   }
 }
 

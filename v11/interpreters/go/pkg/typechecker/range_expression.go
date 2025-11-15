@@ -47,9 +47,21 @@ func (c *Checker) checkRangeExpression(env *Environment, expr *ast.RangeExpressi
 				Node:    expr,
 			})
 		}
+	} else if isStartNumeric {
+		elementType = startType
+	} else if isEndNumeric {
+		elementType = endType
 	}
 
-	rangeType := RangeType{Element: elementType}
+	var bounds []Type
+	if isStartNumeric && startType != nil && !isUnknownType(startType) {
+		bounds = append(bounds, startType)
+	}
+	if isEndNumeric && endType != nil && !isUnknownType(endType) {
+		bounds = append(bounds, endType)
+	}
+
+	rangeType := RangeType{Element: elementType, Bounds: bounds}
 	c.infer.set(expr, rangeType)
 	return diags, rangeType
 }

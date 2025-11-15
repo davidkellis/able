@@ -205,6 +205,12 @@ func (ctx *parseContext) parseStatement(node *sitter.Node) (ast.Statement, error
 			return nil, err
 		}
 		return annotateStatement(stmt, node), nil
+	case "type_alias_definition":
+		stmt, err := ctx.parseTypeAliasDefinition(node)
+		if err != nil {
+			return nil, err
+		}
+		return annotateStatement(stmt, node), nil
 	case "prelude_statement":
 		stmt, err := ctx.parsePreludeStatement(node)
 		if err != nil {

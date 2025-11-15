@@ -83,7 +83,7 @@ func (c *Checker) checkRescueExpression(env *Environment, expr *ast.RescueExpres
 		clauseEnv := env.Extend()
 		if clause.Pattern != nil {
 			if target, ok := clause.Pattern.(ast.AssignmentTarget); ok {
-				diags = append(diags, c.bindPattern(clauseEnv, target, errorType, true)...)
+				diags = append(diags, c.bindPattern(clauseEnv, target, errorType, true, nil)...)
 			}
 		}
 		c.pushRescueContext()

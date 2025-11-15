@@ -15,6 +15,9 @@ import {
   futureType,
   unknownType,
   type TypeInfo,
+  type LiteralInfo,
+  type PrimitiveName,
+  type IntegerPrimitive,
 } from "./types";
 import {
   inferExpression as inferExpressionHelper,
@@ -65,6 +68,35 @@ export interface TypeCheckerOptions {
   packageSummaries?: Map<string, PackageSummary> | Record<string, PackageSummary>;
 }
 
+const signedLimits = (bits: number): { min: bigint; max: bigint } => {
+  const half = BigInt(bits - 1);
+  const max = (1n << half) - 1n;
+  const min = -(1n << half);
+  return { min, max };
+};
+
+const unsignedLimits = (bits: number): { min: bigint; max: bigint } => {
+  const max = (1n << BigInt(bits)) - 1n;
+  return { min: 0n, max };
+};
+
+const INTEGER_BOUNDS: Record<IntegerPrimitive, { min: bigint; max: bigint }> = {
+  i8: signedLimits(8),
+  i16: signedLimits(16),
+  i32: signedLimits(32),
+  i64: signedLimits(64),
+  i128: signedLimits(128),
+  u8: unsignedLimits(8),
+  u16: unsignedLimits(16),
+  u32: unsignedLimits(32),
+  u64: unsignedLimits(64),
+  u128: unsignedLimits(128),
+};
+
+function hasIntegerBounds(name: PrimitiveName): name is IntegerPrimitive {
+  return Object.prototype.hasOwnProperty.call(INTEGER_BOUNDS, name);
+}
+
 export class TypeChecker {
   private env: Environment;
   private readonly options: TypeCheckerOptions;
@@ -72,6 +104,7 @@ export class TypeChecker {
   private diagnostics: TypecheckerDiagnostic[] = [];
   private structDefinitions: Map<string, AST.StructDefinition> = new Map();
   private interfaceDefinitions: Map<string, AST.InterfaceDefinition> = new Map();
+  private typeAliases: Map<string, AST.TypeAliasDefinition> = new Map();
   private functionInfos: Map<string, FunctionInfo> = new Map();
   private methodSets: MethodSetRecord[] = [];
   private implementationRecords: ImplementationRecord[] = [];
@@ -99,6 +132,7 @@ export class TypeChecker {
     this.diagnostics = [];
     this.structDefinitions = new Map();
     this.interfaceDefinitions = new Map();
+    this.typeAliases = new Map();
     this.functionInfos = new Map();
     this.methodSets = [];
     this.implementationRecords = [];
@@ -198,6 +232,9 @@ export class TypeChecker {
       case "InterfaceDefinition":
         this.registerInterfaceDefinition(node);
         break;
+      case "TypeAliasDefinition":
+        this.registerTypeAlias(node);
+        break;
       case "StructDefinition":
         this.registerStructDefinition(node);
         break;
@@ -246,6 +283,16 @@ export class TypeChecker {
     if (name) {
       this.interfaceDefinitions.set(name, definition);
     }
+  }
+
+  private registerTypeAlias(definition: AST.TypeAliasDefinition): void {
+    const name = definition.id?.name;
+    if (!name) return;
+    if (this.structDefinitions.has(name) || this.interfaceDefinitions.has(name) || this.typeAliases.has(name)) {
+      this.report(`typechecker: duplicate declaration '${name}'`, definition);
+      return;
+    }
+    this.typeAliases.set(name, definition);
   }
 
   private registerImplementationRecord(record: ImplementationRecord): void {
@@ -423,22 +470,42 @@ export class TypeChecker {
     return this.structDefinitions.get(structName);
   }
 
-  private resolveTypeExpression(expr: AST.TypeExpression | null | undefined): TypeInfo {
+  private resolveTypeExpression(
+    expr: AST.TypeExpression | null | undefined,
+    substitutions?: Map<string, TypeInfo>,
+  ): TypeInfo {
     if (!expr) return unknownType;
     switch (expr.type) {
       case "SimpleTypeExpression": {
         const name = this.getIdentifierName(expr.name);
         if (!name) return unknownType;
+        if (substitutions?.has(name)) {
+          return substitutions.get(name) ?? unknownType;
+        }
         switch (name) {
+          case "i8":
+          case "i16":
           case "i32":
+          case "i64":
+          case "i128":
+          case "u8":
+          case "u16":
+          case "u32":
+          case "u64":
+          case "u128":
+          case "f32":
           case "f64":
           case "bool":
           case "string":
           case "char":
           case "nil":
           case "void":
-            return primitiveType(name as any);
+            return primitiveType(name as PrimitiveName);
           default: {
+            const alias = this.typeAliases.get(name);
+            if (alias) {
+              return this.instantiateTypeAlias(alias, [], substitutions);
+            }
             if (this.interfaceDefinitions.has(name)) {
               return { kind: "interface", name, typeArguments: [] };
             }
@@ -455,8 +522,12 @@ export class TypeChecker {
         const baseName = this.getIdentifierNameFromTypeExpression(expr.base);
         if (!baseName) return unknownType;
         const typeArguments = Array.isArray(expr.arguments)
-          ? expr.arguments.map((arg) => this.resolveTypeExpression(arg))
+          ? expr.arguments.map((arg) => this.resolveTypeExpression(arg, substitutions))
           : [];
+        const alias = this.typeAliases.get(baseName);
+        if (alias) {
+          return this.instantiateTypeAlias(alias, typeArguments, substitutions);
+        }
         if (this.interfaceDefinitions.has(baseName)) {
           return { kind: "interface", name: baseName, typeArguments };
         }
@@ -470,24 +541,24 @@ export class TypeChecker {
       case "NullableTypeExpression":
         return {
           kind: "nullable",
-          inner: this.resolveTypeExpression(expr.innerType),
+          inner: this.resolveTypeExpression(expr.innerType, substitutions),
         };
       case "ResultTypeExpression":
         return {
           kind: "result",
-          inner: this.resolveTypeExpression(expr.innerType),
+          inner: this.resolveTypeExpression(expr.innerType, substitutions),
         };
       case "UnionTypeExpression": {
         const members = Array.isArray(expr.members)
-          ? expr.members.map((member) => this.resolveTypeExpression(member))
+          ? expr.members.map((member) => this.resolveTypeExpression(member, substitutions))
           : [];
         return { kind: "union", members };
       }
       case "FunctionTypeExpression": {
         const parameters = Array.isArray(expr.paramTypes)
-          ? expr.paramTypes.map((param) => this.resolveTypeExpression(param))
+          ? expr.paramTypes.map((param) => this.resolveTypeExpression(param, substitutions))
           : [];
-        const returnType = this.resolveTypeExpression(expr.returnType);
+        const returnType = this.resolveTypeExpression(expr.returnType, substitutions);
         return {
           kind: "function",
           parameters,
@@ -499,11 +570,246 @@ export class TypeChecker {
     }
   }
 
+  private instantiateTypeAlias(
+    definition: AST.TypeAliasDefinition,
+    typeArguments: TypeInfo[],
+    outerSubstitutions?: Map<string, TypeInfo>,
+  ): TypeInfo {
+    const substitution = outerSubstitutions ? new Map(outerSubstitutions) : new Map<string, TypeInfo>();
+    if (Array.isArray(definition.genericParams)) {
+      definition.genericParams.forEach((param, index) => {
+        const name = this.getIdentifierName(param?.name);
+        if (!name) {
+          return;
+        }
+        const arg = typeArguments[index] ?? unknownType;
+        substitution.set(name, arg);
+      });
+    }
+    return this.resolveTypeExpression(definition.targetType, substitution);
+  }
+
   private typeInfosEquivalent(a: TypeInfo | undefined, b: TypeInfo | undefined): boolean {
     if (!a || a.kind === "unknown" || !b || b.kind === "unknown") {
       return true;
     }
-    return formatType(a) === formatType(b);
+    let left: TypeInfo = a;
+    let right: TypeInfo = b;
+    const normalizedLeft = this.canonicalizeStructuralType(left);
+    const normalizedRight = this.canonicalizeStructuralType(right);
+    if (normalizedLeft !== left || normalizedRight !== right) {
+      return this.typeInfosEquivalent(normalizedLeft, normalizedRight);
+    }
+    left = normalizedLeft;
+    right = normalizedRight;
+    if (left.kind === "primitive" && right.kind === "primitive") {
+      if (left.literal && this.literalFitsPrimitive(left.literal, right.name, left.name)) {
+        return true;
+      }
+      if (right.literal && this.literalFitsPrimitive(right.literal, left.name, right.name)) {
+        return true;
+      }
+      return left.name === right.name;
+    }
+    if (left.kind !== right.kind) {
+      return false;
+    }
+    switch (left.kind) {
+      case "array": {
+        const other = right as Extract<TypeInfo, { kind: "array" }>;
+        return this.typeInfosEquivalent(left.element, other.element);
+      }
+      case "map": {
+        const other = right as Extract<TypeInfo, { kind: "map" }>;
+        return this.typeInfosEquivalent(left.key, other.key) && this.typeInfosEquivalent(left.value, other.value);
+      }
+      case "iterator":
+      case "range": {
+        const other = right as Extract<TypeInfo, { kind: typeof left.kind }>;
+        return this.typeInfosEquivalent(left.element, other.element);
+      }
+      case "proc":
+      case "future": {
+        const other = right as Extract<TypeInfo, { kind: typeof left.kind }>;
+        return this.typeInfosEquivalent(left.result, other.result);
+      }
+      case "nullable":
+      case "result": {
+        const other = right as Extract<TypeInfo, { kind: typeof left.kind }>;
+        return this.typeInfosEquivalent(left.inner, other.inner);
+      }
+      case "union": {
+        const otherMembers = (right as typeof left).members ?? [];
+        if (left.members.length !== otherMembers.length) {
+          return false;
+        }
+        for (let i = 0; i < left.members.length; i += 1) {
+          if (!this.typeInfosEquivalent(left.members[i], otherMembers[i])) {
+            return false;
+          }
+        }
+        return true;
+      }
+      default:
+        return formatType(a) === formatType(b);
+    }
+  }
+
+  private literalValueToBigInt(literal: LiteralInfo): bigint {
+    if (typeof literal.value === "bigint") {
+      return literal.value;
+    }
+    if (!Number.isFinite(literal.value)) {
+      return BigInt(0);
+    }
+    return BigInt(Math.trunc(literal.value));
+  }
+
+  private literalFitsPrimitive(literal: LiteralInfo, expected: PrimitiveName, literalType: PrimitiveName): boolean {
+    if (literal.literalKind === "integer") {
+      if (literal.explicit) {
+        return literalType === expected;
+      }
+      if (!hasIntegerBounds(expected)) {
+        return literalType === expected;
+      }
+      const bounds = INTEGER_BOUNDS[expected];
+      const value = this.literalValueToBigInt(literal);
+      return value >= bounds.min && value <= bounds.max;
+    }
+    if (literal.literalKind === "float") {
+      if (literal.explicit) {
+        return literalType === expected;
+      }
+      return expected === "f32" || expected === "f64";
+    }
+    return false;
+  }
+
+  public describeLiteralMismatch(actual?: TypeInfo, expected?: TypeInfo): string | null {
+    if (!actual || !expected) {
+      return null;
+    }
+    let normalizedActual = actual;
+    let normalizedExpected = expected;
+    const nextActual = this.canonicalizeStructuralType(normalizedActual);
+    const nextExpected = this.canonicalizeStructuralType(normalizedExpected);
+    if (nextActual !== normalizedActual || nextExpected !== normalizedExpected) {
+      return this.describeLiteralMismatch(nextActual, nextExpected);
+    }
+    normalizedActual = nextActual;
+    normalizedExpected = nextExpected;
+    if (normalizedActual.kind === "array" && normalizedExpected.kind === "array") {
+      return this.describeLiteralMismatch(normalizedActual.element, normalizedExpected.element);
+    }
+    if (normalizedActual.kind === "map" && normalizedExpected.kind === "map") {
+      return (
+        this.describeLiteralMismatch(normalizedActual.key, normalizedExpected.key) ??
+        this.describeLiteralMismatch(normalizedActual.value, normalizedExpected.value)
+      );
+    }
+    if (normalizedActual.kind === "iterator" && normalizedExpected.kind === "iterator") {
+      return this.describeLiteralMismatch(normalizedActual.element, normalizedExpected.element);
+    }
+    if (normalizedActual.kind === "range" && normalizedExpected.kind === "range") {
+      const elementMessage = this.describeLiteralMismatch(
+        normalizedActual.element,
+        normalizedExpected.element,
+      );
+      if (elementMessage) {
+        return elementMessage;
+      }
+      if (Array.isArray(normalizedActual.bounds)) {
+        for (const bound of normalizedActual.bounds) {
+          const boundMessage = this.describeLiteralMismatch(bound, normalizedExpected.element);
+          if (boundMessage) {
+            return boundMessage;
+          }
+        }
+      }
+      return null;
+    }
+    if (normalizedActual.kind === "proc" && normalizedExpected.kind === "proc") {
+      return this.describeLiteralMismatch(normalizedActual.result, normalizedExpected.result);
+    }
+    if (normalizedActual.kind === "future" && normalizedExpected.kind === "future") {
+      return this.describeLiteralMismatch(normalizedActual.result, normalizedExpected.result);
+    }
+    if (normalizedActual.kind === "nullable" && normalizedExpected.kind === "nullable") {
+      return this.describeLiteralMismatch(normalizedActual.inner, normalizedExpected.inner);
+    }
+    if (normalizedActual.kind === "result" && normalizedExpected.kind === "result") {
+      return this.describeLiteralMismatch(normalizedActual.inner, normalizedExpected.inner);
+    }
+    if (normalizedActual.kind === "union" && normalizedExpected.kind === "union") {
+      const count = Math.min(normalizedActual.members.length, normalizedExpected.members.length);
+      for (let i = 0; i < count; i += 1) {
+        const message = this.describeLiteralMismatch(normalizedActual.members[i], normalizedExpected.members[i]);
+        if (message) {
+          return message;
+        }
+      }
+      return null;
+    }
+    if (normalizedActual.kind === "union") {
+      for (const member of normalizedActual.members) {
+        const message = this.describeLiteralMismatch(member, normalizedExpected);
+        if (message) {
+          return message;
+        }
+      }
+      return null;
+    }
+    if (normalizedExpected.kind === "union") {
+      for (const member of normalizedExpected.members) {
+        const message = this.describeLiteralMismatch(normalizedActual, member);
+        if (message) {
+          return message;
+        }
+      }
+      return null;
+    }
+    if (normalizedActual.kind !== "primitive" || normalizedExpected.kind !== "primitive") {
+      return null;
+    }
+    if (!normalizedActual.literal || normalizedActual.literal.literalKind !== "integer" || normalizedActual.literal.explicit) {
+      return null;
+    }
+    if (!hasIntegerBounds(normalizedExpected.name)) {
+      return null;
+    }
+    const bounds = INTEGER_BOUNDS[normalizedExpected.name];
+    const value = this.literalValueToBigInt(normalizedActual.literal);
+    if (value < bounds.min || value > bounds.max) {
+      return `typechecker: literal ${value.toString()} does not fit in ${normalizedExpected.name}`;
+    }
+    return null;
+  }
+  private canonicalizeStructuralType(type: TypeInfo): TypeInfo {
+    if (!type || type.kind !== "struct") {
+      return type;
+    }
+    const args = Array.isArray(type.typeArguments) ? type.typeArguments : [];
+    const firstArg = args[0] ?? unknownType;
+    switch (type.name) {
+      case "Array":
+        return { kind: "array", element: firstArg ?? unknownType };
+      case "Iterator":
+        return { kind: "iterator", element: firstArg ?? unknownType };
+      case "Range":
+        return { kind: "range", element: firstArg ?? unknownType };
+      case "Proc":
+        return { kind: "proc", result: firstArg ?? unknownType };
+      case "Future":
+        return { kind: "future", result: firstArg ?? unknownType };
+      case "Map": {
+        const key = args[0] ?? unknownType;
+        const value = args[1] ?? unknownType;
+        return { kind: "map", key, value };
+      }
+      default:
+        return type;
+    }
   }
 
   private typeExpressionsEquivalent(
@@ -618,6 +924,7 @@ export class TypeChecker {
       case "StructDefinition":
       case "FunctionDefinition":
       case "ImplementationDefinition":
+      case "TypeAliasDefinition":
       case "ImportStatement":
       case "DynImportStatement":
       case "MethodsDefinition":
@@ -808,6 +1115,7 @@ export class TypeChecker {
     ctx.report = this.report.bind(this);
     ctx.describeTypeExpression = this.describeTypeExpression.bind(this);
     ctx.typeInfosEquivalent = this.typeInfosEquivalent.bind(this);
+    ctx.describeLiteralMismatch = this.describeLiteralMismatch.bind(this);
     ctx.resolveTypeExpression = this.resolveTypeExpression.bind(this);
     ctx.getStructDefinition = (name: string) => this.structDefinitions.get(name);
     ctx.getInterfaceDefinition = (name: string) => this.interfaceDefinitions.get(name);
@@ -822,6 +1130,9 @@ export class TypeChecker {
     ctx.withForkedEnv = <T>(fn: () => T) => this.withForkedEnv(fn);
     ctx.lookupIdentifier = (name: string) => this.env.lookup(name);
     ctx.defineValue = (name: string, valueType: TypeInfo) => this.env.define(name, valueType);
+    ctx.assignValue = (name: string, valueType: TypeInfo) => this.env.assign(name, valueType);
+    ctx.hasBinding = (name: string) => this.env.has(name);
+    ctx.hasBindingInCurrentScope = (name: string) => this.env.hasInCurrentScope(name);
     ctx.allowDynamicLookup = () => this.allowDynamicLookups;
     ctx.getFunctionInfo = (key: string) => this.functionInfos.get(key);
     ctx.setFunctionInfo = (key: string, info: FunctionInfo) => this.functionInfos.set(key, info);

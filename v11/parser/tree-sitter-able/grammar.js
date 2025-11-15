@@ -193,6 +193,7 @@ module.exports = grammar({
       $.function_definition,
       $.struct_definition,
       $.union_definition,
+      $.type_alias_definition,
       $.interface_definition,
       $.named_implementation_definition,
       $.implementation_definition,
@@ -325,6 +326,16 @@ module.exports = grammar({
       field("type_parameters", optional($.declaration_type_parameters)),
       "=",
       commaSep1($.type_expression),
+    ),
+
+    type_alias_definition: $ => seq(
+      optional("private"),
+      "type",
+      field("name", $.identifier),
+      field("type_parameters", optional($.generic_parameter_list)),
+      field("where_clause", optional($.where_clause)),
+      "=",
+      field("target", $.type_expression),
     ),
 
     interface_definition: $ => seq(
@@ -910,6 +921,7 @@ module.exports = grammar({
       $.boolean_literal,
       $.nil_literal,
       $.array_literal,
+      $.map_literal,
     ),
 
     literal_pattern: $ => choice(
@@ -956,6 +968,31 @@ module.exports = grammar({
     struct_literal_spread: $ => seq(
       "...",
       field("source", $.expression),
+    ),
+
+    map_literal: $ => seq(
+      "#{",
+      optional(seq(
+        commaSep1($.map_literal_element),
+        optional(","),
+      )),
+      "}",
+    ),
+
+    map_literal_element: $ => choice(
+      $.map_literal_entry,
+      $.map_literal_spread,
+    ),
+
+    map_literal_entry: $ => seq(
+      field("key", $.expression),
+      ":",
+      field("value", $.expression),
+    ),
+
+    map_literal_spread: $ => seq(
+      "...",
+      field("expression", $.expression),
     ),
 
     pattern: $ => choice(

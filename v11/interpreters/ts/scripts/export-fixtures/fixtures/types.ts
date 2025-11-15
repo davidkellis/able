@@ -207,6 +207,28 @@ const typesFixtures: Fixture[] = [
       },
     },
   },
+
+  {
+    name: "types/type_alias_definition",
+    module: AST.module([
+      AST.typeAliasDefinition("UserID", AST.simpleTypeExpression("u64")),
+      AST.typeAliasDefinition(
+        "Box",
+        AST.genericTypeExpression(AST.simpleTypeExpression("Array"), [AST.simpleTypeExpression("T")]),
+        [AST.genericParameter("T")],
+        [
+          AST.whereClauseConstraint("T", [AST.interfaceConstraint(AST.simpleTypeExpression("Display"))]),
+        ],
+      ),
+      AST.integerLiteral(10),
+    ]),
+    manifest: {
+      description: "Module can declare plain and generic type aliases",
+      expect: {
+        result: { kind: "i32", value: 10 },
+      },
+    },
+  },
 ];
 
 export default typesFixtures;
