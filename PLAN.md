@@ -49,12 +49,6 @@
    - **Parser/tests:** extend parser + PT→AST mapping to capture annotations on assignments, broaden fixture coverage for typed destructuring and literal adoption edge cases, and rerun `bun run scripts/run-fixtures.ts`/`go test`.
      - ✅ Added AST fixtures (`patterns/typed_destructuring`, `patterns/typed_equals_assignment`) exercising typed struct/array destructuring and typed `=` declarations; regenerated fixtures via `bun run scripts/run-fixtures.ts`.
 
-4. **Safe navigation operator (`?.`, §6.3.4)**
-   - **AST:** introduce a safe-member node (field + call forms, nested chaining) that records the original member access for tooling.
-   - **Runtime semantics:** implement nil-short-circuiting + `?T` result typing in both interpreters, skipping argument evaluation when receivers are nil and ensuring method lookups mirror normal dot access.
-   - **Parser/mapping:** integrate `?.` into operator precedence/associativity tables and extend parse-tree-to-AST lowering for chained forms.
-   - **Tests:** add fixtures covering chained optional access, redundant usage warnings, and parity across TS/Go; re-export updated AST fixtures.
-
 5. **Optional generic parameter inference (§7.1.5)**
    - **Type checker:** detect free type names in function signatures, synthesize implicit `<T>` lists, hoist constraints, and block redeclaration conflicts; diagnostics should mention inferred names vs. explicit ones.
    - **AST:** extend function nodes to capture inferred generics (so later phases know whether a parameter list was explicit).

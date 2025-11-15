@@ -174,7 +174,12 @@ export interface BlockExpression extends AstNode { type: 'BlockExpression'; body
 export interface AssignmentExpression extends AstNode { type: 'AssignmentExpression'; operator: ':=' | '=' | '+=' | '-=' | '*=' | '/=' | '%=' | '&=' | '|=' | '\\xor=' | '<<=' | '>>='; left: Pattern | MemberAccessExpression | IndexExpression; right: Expression; }
 export interface RangeExpression extends AstNode { type: 'RangeExpression'; start: Expression; end: Expression; inclusive: boolean; }
 export interface StringInterpolation extends AstNode { type: 'StringInterpolation'; parts: (StringLiteral | Expression)[]; }
-export interface MemberAccessExpression extends AstNode { type: 'MemberAccessExpression'; object: Expression; member: Identifier | IntegerLiteral; }
+export interface MemberAccessExpression extends AstNode {
+  type: "MemberAccessExpression";
+  object: Expression;
+  member: Identifier | IntegerLiteral;
+  isSafe?: boolean;
+}
 export interface IndexExpression extends AstNode { type: 'IndexExpression'; object: Expression; index: Expression; }
 export interface LambdaExpression extends AstNode { type: 'LambdaExpression'; genericParams?: GenericParameter[]; params: FunctionParameter[]; returnType?: TypeExpression; body: Expression | BlockExpression; whereClause?: WhereClauseConstraint[]; isVerboseSyntax: boolean; }
 export interface ProcExpression extends AstNode { type: 'ProcExpression'; expression: FunctionCall | BlockExpression; }
@@ -232,9 +237,13 @@ export function assignmentExpression(operator: AssignmentExpression['operator'],
 }
 export function rangeExpression(start: Expression, end: Expression, inclusive: boolean): RangeExpression { return { type: 'RangeExpression', start, end, inclusive }; }
 export function stringInterpolation(parts: (StringLiteral | Expression)[]): StringInterpolation { return { type: 'StringInterpolation', parts }; }
-export function memberAccessExpression(object: Expression, member: Identifier | IntegerLiteral | string): MemberAccessExpression {
-  const memberNode = typeof member === 'string' ? identifier(member) : member;
-  return { type: 'MemberAccessExpression', object, member: memberNode };
+export function memberAccessExpression(
+  object: Expression,
+  member: Identifier | IntegerLiteral | string,
+  options?: { isSafe?: boolean },
+): MemberAccessExpression {
+  const memberNode = typeof member === "string" ? identifier(member) : member;
+  return { type: "MemberAccessExpression", object, member: memberNode, isSafe: options?.isSafe };
 }
 export function indexExpression(object: Expression, index: Expression): IndexExpression { return { type: 'IndexExpression', object, index }; }
 

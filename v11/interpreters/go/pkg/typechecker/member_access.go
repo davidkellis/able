@@ -59,8 +59,8 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 		if positionalAccess {
 			if positionalIndex < len(ty.Positional) {
 				result := ty.Positional[positionalIndex]
-				c.infer.set(expr, result)
-				return diags, result
+				final := c.finalizeMemberAccessType(expr, objectType, result)
+				return diags, final
 			}
 			diags = append(diags, Diagnostic{
 				Message: fmt.Sprintf("typechecker: struct '%s' has no positional member %d", ty.StructName, positionalIndex),
@@ -70,18 +70,18 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 		}
 		if ty.Fields != nil {
 			if fieldType, ok := ty.Fields[memberName]; ok {
-				c.infer.set(expr, fieldType)
-				return diags, fieldType
+				final := c.finalizeMemberAccessType(expr, objectType, fieldType)
+				return diags, final
 			}
 		}
 		if fnType, ok := c.lookupMethod(objectType, memberName); ok {
-			c.infer.set(expr, fnType)
-			return diags, fnType
+			final := c.finalizeMemberAccessType(expr, objectType, fnType)
+			return diags, final
 		}
 		if isErrorStructType(ty) {
 			if memberType, ok := c.errorMemberType(memberName); ok {
-				c.infer.set(expr, memberType)
-				return diags, memberType
+				final := c.finalizeMemberAccessType(expr, objectType, memberType)
+				return diags, final
 			}
 		}
 		diags = append(diags, Diagnostic{
@@ -92,8 +92,8 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 		if positionalAccess {
 			if positionalIndex < len(ty.Positional) {
 				result := ty.Positional[positionalIndex]
-				c.infer.set(expr, result)
-				return diags, result
+				final := c.finalizeMemberAccessType(expr, objectType, result)
+				return diags, final
 			}
 			diags = append(diags, Diagnostic{
 				Message: fmt.Sprintf("typechecker: struct '%s' has no positional member %d", ty.StructName, positionalIndex),
@@ -102,17 +102,17 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 			break
 		}
 		if fieldType, ok := ty.Fields[memberName]; ok {
-			c.infer.set(expr, fieldType)
-			return diags, fieldType
+			final := c.finalizeMemberAccessType(expr, objectType, fieldType)
+			return diags, final
 		}
 		if fnType, ok := c.lookupMethod(objectType, memberName); ok {
-			c.infer.set(expr, fnType)
-			return diags, fnType
+			final := c.finalizeMemberAccessType(expr, objectType, fnType)
+			return diags, final
 		}
 		if isErrorStructInstanceType(ty) {
 			if memberType, ok := c.errorMemberType(memberName); ok {
-				c.infer.set(expr, memberType)
-				return diags, memberType
+				final := c.finalizeMemberAccessType(expr, objectType, memberType)
+				return diags, final
 			}
 		}
 		diags = append(diags, Diagnostic{
@@ -130,8 +130,8 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 		if ty.Methods != nil {
 			if methodType, ok := ty.Methods[memberName]; ok {
 				bound := bindMethodType(methodType)
-				c.infer.set(expr, bound)
-				return diags, bound
+				final := c.finalizeMemberAccessType(expr, objectType, bound)
+				return diags, final
 			}
 		}
 		diags = append(diags, Diagnostic{
@@ -157,8 +157,8 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 					}
 					inst := substituteFunctionType(methodType, subst)
 					inst = bindMethodType(inst)
-					c.infer.set(expr, inst)
-					return diags, inst
+					final := c.finalizeMemberAccessType(expr, objectType, inst)
+					return diags, final
 				}
 			}
 			diags = append(diags, Diagnostic{
@@ -168,8 +168,8 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 			break
 		}
 		if fnType, ok := c.lookupMethod(objectType, memberName); ok {
-			c.infer.set(expr, fnType)
-			return diags, fnType
+			final := c.finalizeMemberAccessType(expr, objectType, fnType)
+			return diags, final
 		}
 	case IteratorType:
 		if positionalAccess {
@@ -195,15 +195,15 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 				Params: nil,
 				Return: result,
 			}
-			c.infer.set(expr, fn)
-			return diags, fn
+			final := c.finalizeMemberAccessType(expr, objectType, fn)
+			return diags, final
 		case "close":
 			fn := FunctionType{
 				Params: nil,
 				Return: PrimitiveType{Kind: PrimitiveNil},
 			}
-			c.infer.set(expr, fn)
-			return diags, fn
+			final := c.finalizeMemberAccessType(expr, objectType, fn)
+			return diags, final
 		default:
 			diags = append(diags, Diagnostic{
 				Message: fmt.Sprintf("typechecker: iterator has no member '%s'", memberName),
@@ -220,8 +220,8 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 		}
 		fnType, procDiags := procMemberFunction(memberName, ty, expr)
 		diags = append(diags, procDiags...)
-		c.infer.set(expr, fnType)
-		return diags, fnType
+		final := c.finalizeMemberAccessType(expr, objectType, fnType)
+		return diags, final
 	case FutureType:
 		if positionalAccess {
 			diags = append(diags, Diagnostic{
@@ -232,8 +232,8 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 		}
 		fnType, futureDiags := futureMemberFunction(memberName, ty, expr)
 		diags = append(diags, futureDiags...)
-		c.infer.set(expr, fnType)
-		return diags, fnType
+		final := c.finalizeMemberAccessType(expr, objectType, fnType)
+		return diags, final
 	case PackageType:
 		if positionalAccess {
 			diags = append(diags, Diagnostic{
@@ -244,8 +244,8 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 		}
 		if ty.Symbols != nil {
 			if symbolType, ok := ty.Symbols[memberName]; ok && symbolType != nil {
-				c.infer.set(expr, symbolType)
-				return diags, symbolType
+				final := c.finalizeMemberAccessType(expr, objectType, symbolType)
+				return diags, final
 			}
 		}
 		if ty.PrivateSymbols != nil {
@@ -273,8 +273,8 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 			break
 		}
 		if fnType, ok := c.lookupTypeParamMethod(ty.ParameterName, memberName); ok {
-			c.infer.set(expr, fnType)
-			return diags, fnType
+			final := c.finalizeMemberAccessType(expr, objectType, fnType)
+			return diags, final
 		}
 		diags = append(diags, Diagnostic{
 			Message: fmt.Sprintf("typechecker: cannot access member '%s' on type parameter %s", memberName, ty.ParameterName),
@@ -289,8 +289,8 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 			break
 		}
 		if fnType, ok := c.lookupMethod(objectType, memberName); ok {
-			c.infer.set(expr, fnType)
-			return diags, fnType
+			final := c.finalizeMemberAccessType(expr, objectType, fnType)
+			return diags, final
 		}
 		diags = append(diags, Diagnostic{
 			Message: fmt.Sprintf("typechecker: cannot access member '%s' on type %s", memberName, typeName(objectType)),
@@ -355,6 +355,21 @@ func futureMemberFunction(name string, future FutureType, node ast.Node) (Type, 
 		})
 		return UnknownType{}, diags
 	}
+}
+
+func (c *Checker) finalizeMemberAccessType(expr *ast.MemberAccessExpression, objectType Type, memberType Type) Type {
+	final := memberType
+	if expr != nil && expr.Safe && typeCanBeNil(objectType) && !typeCanBeNil(memberType) {
+		if memberType == nil {
+			final = NullableType{Inner: UnknownType{}}
+		} else {
+			final = NullableType{Inner: memberType}
+		}
+	}
+	if expr != nil {
+		c.infer.set(expr, final)
+	}
+	return final
 }
 
 func makeValueUnion(success Type) Type {

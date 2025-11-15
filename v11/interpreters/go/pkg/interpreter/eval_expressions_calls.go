@@ -8,6 +8,28 @@ import (
 )
 
 func (i *Interpreter) evaluateFunctionCall(call *ast.FunctionCall, env *runtime.Environment) (runtime.Value, error) {
+	if member, ok := call.Callee.(*ast.MemberAccessExpression); ok && member.Safe {
+		target, err := i.evaluateExpression(member.Object, env)
+		if err != nil {
+			return nil, err
+		}
+		if isNilRuntimeValue(target) {
+			return runtime.NilValue{}, nil
+		}
+		calleeVal, err := i.memberAccessOnValue(target, member.Member, env)
+		if err != nil {
+			return nil, err
+		}
+		argValues := make([]runtime.Value, 0, len(call.Arguments))
+		for _, argExpr := range call.Arguments {
+			val, err := i.evaluateExpression(argExpr, env)
+			if err != nil {
+				return nil, err
+			}
+			argValues = append(argValues, val)
+		}
+		return i.callCallableValue(calleeVal, argValues, env, call)
+	}
 	calleeVal, err := i.evaluateExpression(call.Callee, env)
 	if err != nil {
 		return nil, err
@@ -335,6 +357,9 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 			return computed, nil
 		}
 	case *ast.MemberAccessExpression:
+		if lhs.Safe {
+			return nil, fmt.Errorf("Cannot assign through safe navigation")
+		}
 		if assign.Operator == ast.AssignmentDeclare {
 			return nil, fmt.Errorf("Cannot use := on member access")
 		}

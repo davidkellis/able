@@ -447,7 +447,11 @@ func decodeExpressionNodes(node map[string]any, typ string) (ast.Node, bool, err
 		if !ok {
 			return nil, true, fmt.Errorf("invalid member access member %T", memberNode)
 		}
-		return ast.NewMemberAccessExpression(object, memberExpr), true, nil
+		memberAccess := ast.NewMemberAccessExpression(object, memberExpr)
+		if safeRaw, ok := node["safe"].(bool); ok && safeRaw {
+			memberAccess.Safe = true
+		}
+		return memberAccess, true, nil
 	case "ImplicitMemberExpression":
 		if name, ok := node["name"].(string); ok && name != "" {
 			return ast.NewImplicitMemberExpression(ast.NewIdentifier(name)), true, nil

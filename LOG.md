@@ -1,6 +1,9 @@
 # Able Project Log
 
-# Able Project Log
+## 2025-11-16 — Safe navigation operator implemented
+- Tree-sitter grammar/parser now treat `?.` as part of member-access, the TypeScript/Go AST mappers expose a `safe` flag on `MemberAccessExpression` nodes, and the generated parser artifacts (`grammar.json`, `parser.c`, node types, WASM) have been regenerated so fixtures and tooling pick up the new operator.
+- TypeScript + Go interpreters short-circuit safe member access/calls (returning `nil` when receivers are `nil`, skipping argument evaluation, and mirroring dot semantics otherwise) while rejecting assignments that attempt to use `?.`.
+- The Go typechecker wraps safe-navigation results in `NullableType` only when the receiver may be `nil`, so redundant usage on non-optional receivers still typechecks as plain dot access. New unit tests in both runtimes (`test/runtime/safe_navigation.test.ts`, `interpreter_safe_navigation_test.go`) cover the runtime semantics, and `bun test …`, `go test ./pkg/typechecker ./pkg/interpreter`, and `./v11/able11 ./v11/examples/rosettacode/factorial.able` all remain green.
 
 ## 2025-11-15 — Map literal support landed
 - Extended the shared tree-sitter grammar plus both AST layers (TS + Go) with `MapLiteral`/entry/spread nodes, regenerated parser artifacts, and wired the fixtures/exporter so `#{ ... }` forms round-trip through `module.json` + source generation.

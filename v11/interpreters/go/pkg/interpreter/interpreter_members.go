@@ -14,6 +14,9 @@ func (i *Interpreter) evaluateMemberAccess(expr *ast.MemberAccessExpression, env
 	if err != nil {
 		return nil, err
 	}
+	if expr.Safe && isNilRuntimeValue(obj) {
+		return runtime.NilValue{}, nil
+	}
 	return i.memberAccessOnValue(obj, expr.Member, env)
 }
 
@@ -188,6 +191,20 @@ func (i *Interpreter) structInstanceMember(inst *runtime.StructInstanceValue, me
 		return inst.Positional[idx], nil
 	}
 	return nil, fmt.Errorf("Member access only supported on structs/arrays in this milestone")
+}
+
+func isNilRuntimeValue(val runtime.Value) bool {
+	if val == nil {
+		return true
+	}
+	switch val.(type) {
+	case runtime.NilValue:
+		return true
+	case *runtime.NilValue:
+		return true
+	default:
+		return false
+	}
 }
 
 func (i *Interpreter) iteratorMember(iter *runtime.IteratorValue, member ast.Expression) (runtime.Value, error) {

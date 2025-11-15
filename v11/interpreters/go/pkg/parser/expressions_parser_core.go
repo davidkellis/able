@@ -142,7 +142,14 @@ func parseExpressionInternal(ctx *parseContext, node *sitter.Node) (ast.Expressi
 		if err != nil {
 			return nil, err
 		}
-		return annotateExpression(ast.NewMemberAccessExpression(objectExpr, memberExpr), node), nil
+		memberAccess := ast.NewMemberAccessExpression(objectExpr, memberExpr)
+		if opNode := node.ChildByFieldName("operator"); opNode != nil {
+			operatorText := strings.TrimSpace(sliceContent(opNode, source))
+			if operatorText == "?." {
+				memberAccess.Safe = true
+			}
+		}
+		return annotateExpression(memberAccess, node), nil
 	case "proc_expression":
 		expr, err := ctx.parseProcExpression(node)
 		if err != nil {
@@ -335,6 +342,12 @@ func (ctx *parseContext) parsePostfixExpression(node *sitter.Node) (ast.Expressi
 				}
 			}
 			memberAccess := ast.NewMemberAccessExpression(prev, memberExpr)
+			if opNode := suffix.ChildByFieldName("operator"); opNode != nil {
+				operatorText := strings.TrimSpace(sliceContent(opNode, source))
+				if operatorText == "?." {
+					memberAccess.Safe = true
+				}
+			}
 			annotateCompositeExpression(memberAccess, prev, suffix)
 			result = memberAccess
 			lastCall = nil
