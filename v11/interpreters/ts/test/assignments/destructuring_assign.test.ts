@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - destructuring assignment", () => {
+describe("v11 interpreter - destructuring assignment", () => {
   test("array destructuring with rest", () => {
     const I = new InterpreterV10();
     const arr = AST.arrayLiteral([AST.integerLiteral(1), AST.integerLiteral(2), AST.integerLiteral(3)]);

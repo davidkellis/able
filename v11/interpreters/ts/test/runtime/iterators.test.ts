@@ -12,7 +12,7 @@ const assign = (name: string, expr: AST.Expression) =>
 const update = (name: string, expr: AST.Expression) =>
   AST.assignmentExpression("=", AST.identifier(name), expr);
 
-describe("v10 interpreter - iterator literals", () => {
+describe("v11 interpreter - iterator literals", () => {
   test("iterator literal yields values lazily", () => {
     const I = new InterpreterV10();
 

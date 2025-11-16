@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - breakpoint expression", () => {
+describe("v11 interpreter - breakpoint expression", () => {
   test("evaluates body and returns last value", () => {
     const I = new InterpreterV10();
     const body = AST.blockExpression([

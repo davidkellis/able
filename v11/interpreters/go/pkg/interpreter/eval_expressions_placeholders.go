@@ -68,6 +68,11 @@ func expressionContainsPlaceholder(expr ast.Expression) bool {
 			}
 		}
 		return false
+	case *ast.LoopExpression:
+		if e.Body == nil {
+		 return false
+		}
+		return expressionContainsPlaceholder(e.Body)
 	case *ast.AssignmentExpression:
 		if expressionContainsPlaceholder(e.Right) {
 			return true

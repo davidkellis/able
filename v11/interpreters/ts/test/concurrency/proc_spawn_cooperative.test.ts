@@ -5,7 +5,7 @@ import type { V10Value } from "../../src/interpreter";
 
 import { appendToTrace, drainScheduler, expectErrorValue, expectStructInstance, flushScheduler } from "./proc_spawn.helpers";
 
-describe("v10 interpreter - proc & spawn handles", () => {
+describe("v11 interpreter - proc & spawn handles", () => {
   test("proc task observes cancellation cooperatively", () => {
     const I = new InterpreterV10();
 
@@ -187,6 +187,6 @@ describe("v10 interpreter - proc & spawn handles", () => {
 
     const finalCounter = I.evaluate(AST.identifier("counter")) as any;
     expect(finalCounter.kind).toBe("i32");
-    expect(finalCounter.value).toBe(9);
+    expect(finalCounter.value).toBe(9n);
   });
 });

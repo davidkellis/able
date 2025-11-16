@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - match", () => {
+describe("v11 interpreter - match", () => {
   test("match with identifier/wildcard/literal", () => {
     const I = new InterpreterV10();
     const subject = AST.integerLiteral(2);

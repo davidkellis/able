@@ -395,6 +395,20 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+const INTEGER_VALUE_KINDS = new Set<string>([
+  "i8",
+  "i16",
+  "i32",
+  "i64",
+  "i128",
+  "u8",
+  "u16",
+  "u32",
+  "u64",
+  "u128",
+]);
+const FLOAT_VALUE_KINDS = new Set<string>(["f32", "f64"]);
+
 function normalizeTSValue(value: V10.V10Value): NormalizedValue {
   switch (value.kind) {
     case "string":
@@ -402,12 +416,12 @@ function normalizeTSValue(value: V10.V10Value): NormalizedValue {
       return { kind: value.kind, value: String(value.value) };
     case "bool":
       return { kind: "bool", bool: !!value.value };
-    case "i32":
-    case "f64":
-      return { kind: value.kind, value: String(value.value) };
     case "nil":
       return { kind: "nil" };
     default:
+      if (INTEGER_VALUE_KINDS.has(value.kind) || FLOAT_VALUE_KINDS.has(value.kind)) {
+        return { kind: value.kind, value: value.value !== undefined ? String(value.value) : undefined };
+      }
       return { kind: value.kind };
   }
 }

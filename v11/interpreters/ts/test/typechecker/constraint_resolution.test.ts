@@ -30,15 +30,6 @@ function buildShowImplementation(): AST.ImplementationDefinition {
     ],
   );
 }
-function buildDisplayInterface(): AST.InterfaceDefinition {
-  return AST.interfaceDefinition("Display", [
-    AST.functionSignature(
-      "to_string",
-      [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
-      AST.simpleTypeExpression("string"),
-    ),
-  ]);
-}
 function buildNullableDisplayImplementation(): AST.ImplementationDefinition {
   const genericParam = AST.genericParameter("T", [AST.interfaceConstraint(AST.simpleTypeExpression("Display"))]);
   const nullableType = AST.nullableTypeExpression(AST.simpleTypeExpression("T"));
@@ -104,7 +95,6 @@ function buildNullableCallExpression(): AST.Expression {
 }
 function buildNullableModule(includePointImpl: boolean): AST.Module {
   const body: AST.Statement[] = [
-    buildDisplayInterface(),
     buildPointStruct(),
     buildNullableDisplayImplementation(),
     buildUseDisplayNullableFunction(),
@@ -184,22 +174,31 @@ function buildResultShowImplementation(): AST.ImplementationDefinition {
     ],
   );
 }
-function buildResultCallExpression(): AST.Expression {
-  return AST.functionCall(
-    AST.identifier("use_show"),
-    [AST.identifier("value")],
-    [resultStringType()],
+function buildResultWrapperFunction(): AST.FunctionDefinition {
+  return AST.functionDefinition(
+    "use_result",
+    [AST.functionParameter("value", resultStringType())],
+    AST.blockExpression([
+      AST.returnStatement(
+        AST.functionCall(
+          AST.identifier("use_show"),
+          [AST.identifier("value")],
+          [resultStringType()],
+        ),
+      ),
+    ]),
+    AST.simpleTypeExpression("string"),
   );
 }
 function buildResultModule(includeImpl: boolean): AST.Module {
   const body: AST.Statement[] = [
     buildShowInterface(),
     buildUseShowFunction(),
+    buildResultWrapperFunction(),
   ];
   if (includeImpl) {
     body.splice(1, 0, buildResultShowImplementation());
   }
-  body.push(buildResultCallExpression() as unknown as AST.Statement);
   return AST.module(body);
 }
 describe("TypeChecker constraint resolution", () => {

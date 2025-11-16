@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - destructuring function parameters", () => {
+describe("v11 interpreter - destructuring function parameters", () => {
   test("array destructuring params", () => {
     const I = new InterpreterV10();
     const fn = AST.functionDefinition(

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - impl generic constraints", () => {
+describe("v11 interpreter - impl generic constraints", () => {
   function registerShowInterfaceAndPoint(interpreter: InterpreterV10) {
     const show = AST.interfaceDefinition("Show", [
       AST.functionSignature(

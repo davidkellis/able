@@ -76,10 +76,14 @@ func LoadFixtureModule(path string) (*ast.Module, string, error) {
 
 	if strings.HasSuffix(path, ".json") {
 		if mod, err := parseModuleJSON(path); err == nil {
+			origin := path
 			if sibling := sourceSibling(path); sibling != "" {
-				return mod, sibling, nil
+				if spanModule, err := parseSourceModule(sibling); err == nil && spanModule != nil {
+					ast.CopySpans(mod, spanModule)
+				}
+				origin = sibling
 			}
-			return mod, path, nil
+			return mod, origin, nil
 		}
 
 		dir := filepath.Dir(path)

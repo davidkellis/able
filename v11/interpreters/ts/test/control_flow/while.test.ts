@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - while loop", () => {
+describe("v11 interpreter - while loop", () => {
   test("while increments counter until condition fails", () => {
     const I = new InterpreterV10();
     // i := 0

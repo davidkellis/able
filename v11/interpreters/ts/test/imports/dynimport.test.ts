@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - dynimport", () => {
+describe("v11 interpreter - dynimport", () => {
   test("dynimport selectors and alias work; wildcard binds dynamic refs", () => {
     const I = new InterpreterV10();
     const pkg = AST.packageStatement(["dynp"]);

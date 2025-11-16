@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - struct generic constraints", () => {
+describe("v11 interpreter - struct generic constraints", () => {
   test("struct literal enforces type parameter interface constraints", () => {
     const I = new InterpreterV10();
 

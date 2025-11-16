@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - generic type arguments (accepted, no typecheck)", () => {
+describe("v11 interpreter - generic type arguments (accepted, no typecheck)", () => {
   test("function call with typeArguments is ignored at runtime but accepted", () => {
     const I = new InterpreterV10();
     const id = AST.functionDefinition(

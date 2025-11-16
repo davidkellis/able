@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - UFCS fallback", () => {
+describe("v11 interpreter - UFCS fallback", () => {
   test("free function add(a,b) callable as 4.add(5)", () => {
     const I = new InterpreterV10();
     const add = AST.functionDefinition(

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - error handling", () => {
+describe("v11 interpreter - error handling", () => {
   test("raise and rescue with pattern", () => {
     const I = new InterpreterV10();
     // raise a simple number, rescue wildcard

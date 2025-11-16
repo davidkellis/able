@@ -36,12 +36,14 @@ export interface MethodSetRecord {
 
 export type FunctionContext = {
   structName?: string;
+  typeParamNames?: string[];
 };
 
 export interface FunctionInfo {
   name: string;
   fullName: string;
   structName?: string;
+  hasImplicitSelf?: boolean;
   parameters: TypeInfo[];
   genericConstraints: Array<{
     paramName: string;

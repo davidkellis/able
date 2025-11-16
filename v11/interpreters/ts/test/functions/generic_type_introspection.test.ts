@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - generic type arg introspection (bind T_type)", () => {
+describe("v11 interpreter - generic type arg introspection (bind T_type)", () => {
   test("function can read T_type bound as string", () => {
     const I = new InterpreterV10();
     const showT = AST.functionDefinition(

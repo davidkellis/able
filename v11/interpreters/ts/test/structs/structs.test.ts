@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - structs", () => {
+describe("v11 interpreter - structs", () => {
   test("named struct literal and member access", () => {
     const I = new InterpreterV10();
     // struct Point { x: i32, y: i32 }

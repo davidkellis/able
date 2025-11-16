@@ -5,7 +5,7 @@ import type { V10Value } from "../../src/interpreter";
 
 import { appendToTrace, drainScheduler, expectErrorValue, expectStructInstance, flushScheduler } from "./proc_spawn.helpers";
 
-describe("v10 interpreter - proc & spawn handles", () => {
+describe("v11 interpreter - proc & spawn handles", () => {
   test("proc handle supports status, value, and cancel", async () => {
     const I = new InterpreterV10();
 

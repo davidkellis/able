@@ -2,7 +2,16 @@ import * as AST from "../ast";
 import type { Environment } from "./environment";
 import type { InterpreterV10 } from "./index";
 import { evaluateAssignmentExpression } from "./assignments";
-import { evaluateBlockExpression, evaluateBreakStatement, evaluateContinueStatement, evaluateForLoop, evaluateIfExpression, evaluateReturnStatement, evaluateWhileLoop } from "./control_flow";
+import {
+  evaluateBlockExpression,
+  evaluateBreakStatement,
+  evaluateContinueStatement,
+  evaluateForLoop,
+  evaluateIfExpression,
+  evaluateLoopExpression,
+  evaluateReturnStatement,
+  evaluateWhileLoop,
+} from "./control_flow";
 import { evaluateEnsureExpression, evaluateOrElseExpression, evaluatePropagationExpression, evaluateRescueExpression, evaluateRaiseStatement, evaluateRethrowStatement } from "./error_handling";
 import { evaluateFunctionCall, evaluateFunctionDefinition, evaluateLambdaExpression } from "./functions";
 import { evaluateDynImportStatement, evaluateImportStatement, evaluateModule, evaluatePackageStatement } from "./imports";
@@ -89,6 +98,8 @@ export function applyEvaluationAugmentations(cls: typeof InterpreterV10): void {
         return evaluateIfExpression(this, node as AST.IfExpression, env);
       case "WhileLoop":
         return evaluateWhileLoop(this, node as AST.WhileLoop, env);
+      case "LoopExpression":
+        return evaluateLoopExpression(this, node as AST.LoopExpression, env);
       case "BreakStatement":
         evaluateBreakStatement(this, node as AST.BreakStatement, env);
         return NIL;

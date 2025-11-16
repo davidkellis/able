@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - interface default methods", () => {
+describe("v11 interpreter - interface default methods", () => {
   test("default method is used when impl omits definition", () => {
     const I = new InterpreterV10();
 

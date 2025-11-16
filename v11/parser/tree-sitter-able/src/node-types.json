@@ -1469,6 +1469,21 @@
     }
   },
   {
+    "type": "loop_expression",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "block",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "map_literal",
     "named": true,
     "fields": {},
@@ -2097,6 +2112,10 @@
         },
         {
           "type": "literal",
+          "named": true
+        },
+        {
+          "type": "loop_expression",
           "named": true
         },
         {
@@ -3399,6 +3418,10 @@
   {
     "type": "label",
     "named": true
+  },
+  {
+    "type": "loop",
+    "named": false
   },
   {
     "type": "match",

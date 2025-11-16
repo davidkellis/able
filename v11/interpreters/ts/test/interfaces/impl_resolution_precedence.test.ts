@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - impl resolution semantics", () => {
+describe("v11 interpreter - impl resolution semantics", () => {
   test("inherent methods take precedence over impl methods", () => {
     const I = new InterpreterV10();
 

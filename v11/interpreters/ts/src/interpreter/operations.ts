@@ -117,9 +117,17 @@ export function evaluateBinaryExpression(ctx: InterpreterV10, node: AST.BinaryEx
 export function evaluateRangeExpression(ctx: InterpreterV10, node: AST.RangeExpression, env: Environment): V10Value {
   const s = ctx.evaluate(node.start, env);
   const e = ctx.evaluate(node.end, env);
-  const sNum = numericToNumber(s, "Range start");
-  const eNum = numericToNumber(e, "Range end");
-  return { kind: "range", start: sNum, end: eNum, inclusive: node.inclusive };
+  try {
+    const sNum = numericToNumber(s, "Range start");
+    const eNum = numericToNumber(e, "Range end");
+    return { kind: "range", start: sNum, end: eNum, inclusive: node.inclusive };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (message.includes("Range start must be numeric") || message.includes("Range end must be numeric")) {
+      throw new Error("Range boundaries must be numeric");
+    }
+    throw err;
+  }
 }
 
 export function evaluateIndexExpression(ctx: InterpreterV10, node: AST.IndexExpression, env: Environment): V10Value {

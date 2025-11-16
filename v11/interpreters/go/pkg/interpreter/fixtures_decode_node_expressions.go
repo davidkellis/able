@@ -296,6 +296,16 @@ func decodeExpressionNodes(node map[string]any, typ string) (ast.Node, bool, err
 			return nil, true, fmt.Errorf("invalid for body %T", bodyNode)
 		}
 		return ast.NewForLoop(pattern, iterExpr, body), true, nil
+	case "LoopExpression":
+		bodyNode, err := decodeNode(node["body"].(map[string]any))
+		if err != nil {
+			return nil, true, err
+		}
+		body, ok := bodyNode.(*ast.BlockExpression)
+		if !ok {
+			return nil, true, fmt.Errorf("invalid loop body %T", bodyNode)
+		}
+		return ast.NewLoopExpression(body), true, nil
 	case "IfExpression":
 		condNode, err := decodeNode(node["ifCondition"].(map[string]any))
 		if err != nil {

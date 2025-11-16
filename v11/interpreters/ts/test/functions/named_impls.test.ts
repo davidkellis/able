@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - named impls as callable namespaces", () => {
+describe("v11 interpreter - named impls as callable namespaces", () => {
   test("define two named impls and call their static methods via name", () => {
     const I = new InterpreterV10();
 

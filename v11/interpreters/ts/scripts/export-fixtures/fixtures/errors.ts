@@ -3,6 +3,52 @@ import type { Fixture } from "../../types";
 
 const errorsFixtures: Fixture[] = [
   {
+      name: "errors/implicit_generic_where_ambiguity",
+      module: AST.module([
+        AST.interfaceDefinition(
+          "Show",
+          [
+            AST.functionSignature(
+              "render",
+              [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
+              AST.simpleTypeExpression("string"),
+            ),
+          ],
+          undefined,
+          AST.simpleTypeExpression("Self"),
+        ),
+        AST.structDefinition(
+          "Point",
+          [
+            AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "x"),
+            AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "y"),
+          ],
+          "named",
+        ),
+        AST.fn(
+          "format_point",
+          [AST.param("value", AST.simpleTypeExpression("Point"))],
+          [AST.identifier("value")],
+          AST.simpleTypeExpression("Point"),
+          undefined,
+          [
+            AST.whereClauseConstraint("Point", [
+              AST.interfaceConstraint(AST.simpleTypeExpression("Show")),
+            ]),
+          ],
+        ),
+      ]),
+      manifest: {
+        description: "Where clause referencing known type names requires explicit generics",
+        expect: {
+          typecheckDiagnostics: [
+            "typechecker: implicit_generic_where_ambiguity ../fixtures/ast/errors/implicit_generic_where_ambiguity/source.able:9:46 typechecker: cannot infer type parameter 'Point' because a type with the same name exists; declare it explicitly or qualify the type",
+          ],
+        },
+      },
+    },
+
+  {
       name: "errors/rescue_guard",
       module: AST.module([
         AST.rescue(

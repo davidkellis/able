@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - functions & lambdas", () => {
+describe("v11 interpreter - functions & lambdas", () => {
   test("define and call function returning sum", () => {
     const I = new InterpreterV10();
     const int = AST.integerLiteral;

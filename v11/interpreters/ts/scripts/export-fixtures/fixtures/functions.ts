@@ -3,6 +3,28 @@ import type { Fixture } from "../../types";
 
 const functionsFixtures: Fixture[] = [
   {
+      name: "functions/implicit_generic_inference",
+      module: AST.module([
+        AST.functionDefinition(
+          "choose",
+          [
+            AST.functionParameter("first", AST.simpleTypeExpression("T")),
+            AST.functionParameter("second", AST.simpleTypeExpression("U")),
+          ],
+          AST.blockExpression([AST.identifier("first")]),
+          AST.simpleTypeExpression("T"),
+        ),
+        AST.nil(),
+      ]),
+      manifest: {
+        description: "Implicitly inferred generic parameters propagate types",
+        expect: {
+          result: { kind: "nil" },
+        },
+      },
+    },
+
+  {
       name: "functions/lambda_expression",
       module: AST.module([
         AST.assign(

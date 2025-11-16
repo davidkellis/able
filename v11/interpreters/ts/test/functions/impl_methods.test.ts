@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - impl methods via ImplementationDefinition", () => {
+describe("v11 interpreter - impl methods via ImplementationDefinition", () => {
   test("impl adds method available on struct instances", () => {
     const I = new InterpreterV10();
 

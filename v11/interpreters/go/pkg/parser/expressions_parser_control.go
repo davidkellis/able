@@ -19,6 +19,18 @@ func (ctx *parseContext) parseDoExpression(node *sitter.Node) (ast.Expression, e
 	return annotateExpression(block, node), nil
 }
 
+func (ctx *parseContext) parseLoopExpression(node *sitter.Node) (ast.Expression, error) {
+	bodyNode := firstNamedChild(node)
+	if bodyNode == nil {
+		return nil, fmt.Errorf("parser: loop expression missing body")
+	}
+	body, err := ctx.parseBlock(bodyNode)
+	if err != nil {
+		return nil, err
+	}
+	return annotateExpression(ast.NewLoopExpression(body), node), nil
+}
+
 func (ctx *parseContext) parseProcExpression(node *sitter.Node) (ast.Expression, error) {
 	bodyNode := firstNamedChild(node)
 	if bodyNode == nil {

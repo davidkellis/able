@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - generic where-constraints (minimal runtime checks)", () => {
+describe("v11 interpreter - generic where-constraints (minimal runtime checks)", () => {
   test("built-in Display/Clone interfaces are available without declarations", () => {
     const I = new InterpreterV10();
     const chooseFirst = AST.functionDefinition(

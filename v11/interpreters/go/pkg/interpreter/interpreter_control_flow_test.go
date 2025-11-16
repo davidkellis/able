@@ -162,6 +162,37 @@ func TestForLoopRangeEndpointMustBeFinite(t *testing.T) {
 	}
 }
 
+func TestLoopExpressionReturnsBreakValue(t *testing.T) {
+	interp := New()
+	module := ast.Mod([]ast.Statement{
+		ast.Assign(ast.ID("counter"), ast.Int(0)),
+		ast.Assign(
+			ast.ID("result"),
+			ast.Loop(
+				ast.AssignOp(
+					ast.AssignmentAssign,
+					ast.ID("counter"),
+					ast.Bin("+", ast.ID("counter"), ast.Int(1)),
+				),
+				ast.Iff(
+					ast.Bin(">=", ast.ID("counter"), ast.Int(3)),
+					ast.Brk(nil, ast.ID("counter")),
+				),
+			),
+		),
+		ast.ID("result"),
+	}, nil, nil)
+
+	value, _, err := interp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	intVal, ok := value.(runtime.IntegerValue)
+	if !ok || intVal.Val.Cmp(bigInt(3)) != 0 {
+		t.Fatalf("expected loop result 3, got %#v", value)
+	}
+}
+
 func TestIfOrSelectsFirstBranch(t *testing.T) {
 	interp := New()
 	module := ast.Mod([]ast.Statement{

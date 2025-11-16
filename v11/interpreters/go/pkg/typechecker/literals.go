@@ -51,6 +51,10 @@ func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diag
 		diags, iteratorType := c.checkIteratorLiteral(env, e)
 		c.infer.set(e, iteratorType)
 		return diags, iteratorType
+	case *ast.LoopExpression:
+		diags, loopType := c.checkLoopExpression(env, e)
+		c.infer.set(e, loopType)
+		return diags, loopType
 	case *ast.ImplicitMemberExpression:
 		// Placeholder-based member access (e.g., within pipe shorthand). Without
 		// full context we treat it as unknown.

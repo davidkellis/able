@@ -27,6 +27,7 @@ import {
 import { checkStatement as checkStatementHelper } from "./checker/statements";
 import {
   collectFunctionDefinition as collectFunctionDefinitionHelper,
+  inferFunctionSignatureGenerics,
   type DeclarationsContext,
 } from "./checker/declarations";
 import {
@@ -55,6 +56,40 @@ export type {
 } from "./checker/types";
 import type { DiagnosticLocation, TypecheckerDiagnostic, TypecheckResult, PackageSummary } from "./diagnostics";
 import { hasIntegerBounds, integerBounds, getIntegerTypeInfo } from "./numeric";
+
+const RESERVED_TYPE_NAMES = new Set<string>([
+  "Self",
+  "bool",
+  "string",
+  "char",
+  "nil",
+  "void",
+  "i8",
+  "i16",
+  "i32",
+  "i64",
+  "i128",
+  "isize",
+  "u8",
+  "u16",
+  "u32",
+  "u64",
+  "u128",
+  "usize",
+  "f32",
+  "f64",
+  "Array",
+  "Map",
+  "Range",
+  "Iterator",
+  "Result",
+  "Option",
+  "Proc",
+  "Future",
+  "Channel",
+  "Mutex",
+  "Error",
+]);
 
 export interface TypeCheckerOptions {
   /**
@@ -195,10 +230,38 @@ export class TypeChecker {
     }
     const statements = module.body as Array<AST.Statement | AST.Expression>;
     for (const statement of statements) {
+      this.registerPrimaryTypeDeclaration(statement);
+    }
+    for (const statement of statements) {
+      if (
+        statement &&
+        (statement.type === "StructDefinition" ||
+          statement.type === "InterfaceDefinition" ||
+          statement.type === "TypeAliasDefinition")
+      ) {
+        continue;
+      }
       this.collectPrimaryDeclaration(statement);
     }
     for (const statement of statements) {
       this.collectImplementationDeclaration(statement);
+    }
+  }
+
+  private registerPrimaryTypeDeclaration(node: AST.Statement | AST.Expression | undefined | null): void {
+    if (!node) return;
+    switch (node.type) {
+      case "StructDefinition":
+        this.registerStructDefinition(node);
+        break;
+      case "InterfaceDefinition":
+        this.registerInterfaceDefinition(node);
+        break;
+      case "TypeAliasDefinition":
+        this.registerTypeAlias(node);
+        break;
+      default:
+        break;
     }
   }
 
@@ -269,6 +332,25 @@ export class TypeChecker {
     return true;
   }
 
+  private isKnownTypeName(name: string | null | undefined): boolean {
+    if (!name) {
+      return false;
+    }
+    if (RESERVED_TYPE_NAMES.has(name)) {
+      return true;
+    }
+    if (this.structDefinitions.has(name)) {
+      return true;
+    }
+    if (this.interfaceDefinitions.has(name)) {
+      return true;
+    }
+    if (this.typeAliases.has(name)) {
+      return true;
+    }
+    return false;
+  }
+
   private formatNodeOrigin(node: AST.Node | null | undefined): string {
     if (!node) {
       return "<unknown location>";
@@ -295,6 +377,16 @@ export class TypeChecker {
     if (name) {
       if (!this.ensureUniqueDeclaration(name, definition)) {
         return;
+      }
+      const parentGenerics = Array.isArray(definition.genericParams)
+        ? definition.genericParams
+            .map((param) => this.getIdentifierName(param?.name))
+            .filter((paramName): paramName is string => Boolean(paramName))
+        : [];
+      if (Array.isArray(definition.signatures)) {
+        for (const signature of definition.signatures) {
+          inferFunctionSignatureGenerics(this.declarationsContext, signature, parentGenerics);
+        }
       }
       this.interfaceDefinitions.set(name, definition);
     }
@@ -412,7 +504,9 @@ export class TypeChecker {
     if (info) {
       const rawParams = Array.isArray(info.parameters) ? info.parameters : [];
       const implicitSelf =
-        Boolean(info.structName) && call.callee?.type === "MemberAccessExpression" && rawParams.length > 0;
+        Boolean(info.structName && info.hasImplicitSelf) &&
+        call.callee?.type === "MemberAccessExpression" &&
+        rawParams.length > 0;
       const params = implicitSelf ? rawParams.slice(1) : rawParams;
       if (params.length !== args.length) {
         this.report(
@@ -488,8 +582,11 @@ export class TypeChecker {
     if (!statement) return;
     const expected = this.currentReturnType();
     const actual = statement.argument ? this.inferExpression(statement.argument) : primitiveType("nil");
-    if (!expected || expected.kind === "unknown") {
+    if (!expected) {
       this.report("typechecker: return statement outside function", statement);
+      return;
+    }
+    if (expected.kind === "unknown") {
       return;
     }
     if (!actual || actual.kind === "unknown") {
@@ -798,6 +895,21 @@ export class TypeChecker {
     const normalizedExpected = this.canonicalizeStructuralType(expected);
     if (this.typeInfosEquivalent(normalizedActual, normalizedExpected)) {
       return true;
+    }
+    if (normalizedExpected.kind === "nullable") {
+      if (normalizedActual.kind === "primitive" && normalizedActual.name === "nil") {
+        return true;
+      }
+      return this.isTypeAssignable(normalizedActual, normalizedExpected.inner);
+    }
+    if (normalizedExpected.kind === "result") {
+      if (this.isTypeAssignable(normalizedActual, normalizedExpected.inner)) {
+        return true;
+      }
+      return false;
+    }
+    if (normalizedExpected.kind === "union" && Array.isArray(normalizedExpected.members)) {
+      return normalizedExpected.members.some((member) => this.isTypeAssignable(normalizedActual, member));
     }
     if (normalizedActual.kind === "primitive" && normalizedExpected.kind === "primitive") {
       if (this.canWidenIntegerType(normalizedActual.name, normalizedExpected.name)) {
@@ -1271,6 +1383,9 @@ export class TypeChecker {
     ctx.getInterfaceNameFromTypeExpression = this.getInterfaceNameFromTypeExpression.bind(this);
     ctx.report = this.report.bind(this);
     ctx.describeTypeExpression = this.describeTypeExpression.bind(this);
+    ctx.isKnownTypeName = (name: string) => this.isKnownTypeName(name);
+    ctx.hasTypeDefinition = (name: string) =>
+      this.structDefinitions.has(name) || this.interfaceDefinitions.has(name) || this.typeAliases.has(name);
     ctx.typeInfosEquivalent = this.typeInfosEquivalent.bind(this);
     ctx.isTypeAssignable = this.isTypeAssignable.bind(this);
     ctx.describeLiteralMismatch = this.describeLiteralMismatch.bind(this);
