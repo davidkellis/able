@@ -36,19 +36,6 @@
 
 ### v11 Spec Delta Implementation Plan
 
-2. **Typed declarations & literal adoption rules (§§5.1.1, 5.3.1, 6.1)**
-   - **Binding semantics:** ensure AST nodes can carry type annotations for both `:=` and `=` (including nested destructuring) and mark operators so the checker enforces “`:=` introduces at least one binding” while `=` falls back to declaration when no binding exists.
-   - **Runtime enforcement:** TypeScript + Go interpreters need typed-pattern runtime checks (`"Typed pattern mismatch"`), `=` fallback declaration semantics, and deterministic evaluation order (RHS first, single evaluation for receivers/indexers).
-     - **Type inference:** update literal typing so unsuffixed ints default to `i32`, floats to `f64`, honor explicit suffixes, and adopt contextual types only when values fit; surface the new diagnostics in both runtimes’ typecheckers.
-       - ✅ Array literal adoption + overflow diagnostics now wired through the TS/Go typecheckers (integer literals only); expand to other literal contexts next.
-       - ✅ Map literals and range endpoints now participate in literal adoption checks (nested array/map elements and range bounds propagate integer overflow diagnostics in both interpreters).
-       - ✅ Iterator yields plus proc/future contexts now share the literal-adoption diagnostics so async + generator bodies surface precise overflow errors in TS/Go.
-       - ✅ Function bodies and return statements now honor annotated return types for literal overflow (typed functions/lambdas surface precise diagnostics when returning non-fitting literals in TS/Go).
-       - ✅ Function call arguments now enforce parameter types and literal adoption rules so mismatched counts/types emit diagnostics in both interpreters.
-       - ✅ Struct literal fields now enforce declared types (including literal adoption) in both typecheckers so field initializers report overflow/mismatches.
-   - **Parser/tests:** extend parser + PT→AST mapping to capture annotations on assignments, broaden fixture coverage for typed destructuring and literal adoption edge cases, and rerun `bun run scripts/run-fixtures.ts`/`go test`.
-     - ✅ Added AST fixtures (`patterns/typed_destructuring`, `patterns/typed_equals_assignment`) exercising typed struct/array destructuring and typed `=` declarations; regenerated fixtures via `bun run scripts/run-fixtures.ts`.
-
 5. **Optional generic parameter inference (§7.1.5)**
    - **Type checker:** detect free type names in function signatures, synthesize implicit `<T>` lists, hoist constraints, and block redeclaration conflicts; diagnostics should mention inferred names vs. explicit ones.
    - **AST:** extend function nodes to capture inferred generics (so later phases know whether a parameter list was explicit).

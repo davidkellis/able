@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - static methods", () => {
+describe("v11 interpreter - static methods", () => {
   test("call static method on struct definition", () => {
     const I = new InterpreterV10();
     const pointDef = AST.structDefinition(

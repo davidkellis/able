@@ -9,6 +9,7 @@ import type {
   ForLoopState,
   IfExpressionState,
   MatchExpressionState,
+  LoopExpressionState,
   WhileLoopState,
 } from "./continuations";
 
@@ -29,6 +30,7 @@ class GeneratorContext implements ContinuationContext {
   private readonly blockStates = new WeakMap<AST.BlockExpression, BlockState>();
   private readonly forLoopStates = new WeakMap<AST.ForLoop, ForLoopState>();
   private readonly whileLoopStates = new WeakMap<AST.WhileLoop, WhileLoopState>();
+  private readonly loopStates = new WeakMap<AST.LoopExpression, LoopExpressionState>();
   private readonly ifStates = new WeakMap<AST.IfExpression, IfExpressionState>();
   private readonly matchStates = new WeakMap<AST.MatchExpression, MatchExpressionState>();
 
@@ -204,6 +206,18 @@ class GeneratorContext implements ContinuationContext {
 
   clearWhileLoopState(node: AST.WhileLoop): void {
     this.whileLoopStates.delete(node);
+  }
+
+  getLoopExpressionState(node: AST.LoopExpression): LoopExpressionState | undefined {
+    return this.loopStates.get(node);
+  }
+
+  setLoopExpressionState(node: AST.LoopExpression, state: LoopExpressionState): void {
+    this.loopStates.set(node, state);
+  }
+
+  clearLoopExpressionState(node: AST.LoopExpression): void {
+    this.loopStates.delete(node);
   }
 
   getIfState(node: AST.IfExpression): IfExpressionState | undefined {

@@ -1,0 +1,9 @@
+{
+  "description": "Implicitly inferred generic parameters propagate types",
+  "expect": {
+    "result": {
+      "kind": "nil"
+    }
+  },
+  "entry": "module.json"
+}

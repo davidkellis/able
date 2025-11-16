@@ -279,6 +279,8 @@ export function inferExpression(ctx: ExpressionContext, expression: AST.Expressi
     }
     case "BlockExpression":
       return evaluateBlockExpression(ctx, expression);
+    case "LoopExpression":
+      return ctx.inferExpression(expression.body);
     case "ProcExpression": {
       ctx.pushAsyncContext();
       const bodyType = ctx.inferExpression(expression.expression);

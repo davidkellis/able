@@ -1,0 +1,86 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "counter"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 0
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "result"
+      },
+      "right": {
+        "type": "LoopExpression",
+        "body": {
+          "type": "BlockExpression",
+          "body": [
+            {
+              "type": "AssignmentExpression",
+              "operator": "=",
+              "left": {
+                "type": "Identifier",
+                "name": "counter"
+              },
+              "right": {
+                "type": "BinaryExpression",
+                "operator": "+",
+                "left": {
+                  "type": "Identifier",
+                  "name": "counter"
+                },
+                "right": {
+                  "type": "IntegerLiteral",
+                  "value": 1
+                }
+              }
+            },
+            {
+              "type": "IfExpression",
+              "ifCondition": {
+                "type": "BinaryExpression",
+                "operator": ">=",
+                "left": {
+                  "type": "Identifier",
+                  "name": "counter"
+                },
+                "right": {
+                  "type": "IntegerLiteral",
+                  "value": 3
+                }
+              },
+              "ifBody": {
+                "type": "BlockExpression",
+                "body": [
+                  {
+                    "type": "BreakStatement",
+                    "value": {
+                      "type": "Identifier",
+                      "name": "counter"
+                    }
+                  }
+                ]
+              },
+              "orClauses": []
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "Identifier",
+      "name": "result"
+    }
+  ]
+}

@@ -47,7 +47,7 @@ async function writeFixture(fixture: Fixture) {
     const entry = fixture.manifest.entry ?? "module.json";
     const setup = fixture.manifest.setup ?? (fixture.setupModules ? Object.keys(fixture.setupModules) : undefined);
     const manifest = { ...fixture.manifest, entry, ...(setup ? { setup } : {}) };
-    await fs.writeFile(manifestPath, JSON.stringify(manifest, null, 2), "utf8");
+    await fs.writeFile(manifestPath, stringify(manifest), "utf8");
   }
 }
 
@@ -152,6 +152,8 @@ function printStatement(stmt: AST.Statement, level: number): string {
       return `${indent(level)}continue`;
     case "WhileLoop":
       return `${indent(level)}while ${printExpression(stmt.condition, level)} ${printBlock(stmt.body, level)}`;
+    case "LoopExpression":
+      return `${indent(level)}loop ${printBlock(stmt.body, level)}`;
     case "ForLoop":
       return `${indent(level)}for ${printPattern(stmt.pattern)} in ${printExpression(stmt.iterable, level)} ${printBlock(stmt.body, level)}`;
     case "YieldStatement":
@@ -160,6 +162,8 @@ function printStatement(stmt: AST.Statement, level: number): string {
       return `${indent(level)}prelude ${stmt.target} {\n${indent(level + 1)}${stmt.code}\n${indent(level)}}`;
     case "ExternFunctionBody":
       return printExternFunction(stmt, level);
+    case "ImportStatement":
+      return `${indent(level)}${printImport(stmt)}`;
     case "DynImportStatement":
       return printDynImport(stmt, level);
     default:
@@ -406,6 +410,8 @@ function printExpression(expr: AST.Expression, level: number): string {
       return `${printExpression(expr.monitoredExpression, level)} rescue ${printRescueBlock(expr.clauses, level)}`;
     case "IteratorLiteral":
       return printIteratorLiteral(expr, level);
+    case "LoopExpression":
+      return `loop ${printBlock(expr.body, level)}`;
     case "TopicReferenceExpression":
       return "%";
     case "PlaceholderExpression":
@@ -441,7 +447,7 @@ function printStructLiteral(lit: AST.StructLiteral, level: number): string {
   });
   const spreads =
     lit.functionalUpdateSources && lit.functionalUpdateSources.length > 0
-      ? lit.functionalUpdateSources.map((src) => `..${printExpression(src, level)}`)
+      ? lit.functionalUpdateSources.map((src) => `...${printExpression(src, level)}`)
       : [];
   const items = [...spreads, ...fields].join(", ");
   if (!head) {

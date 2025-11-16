@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - for loop destructuring", () => {
+describe("v11 interpreter - for loop destructuring", () => {
   test("array destructuring in loop", () => {
     const I = new InterpreterV10();
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("sum"), AST.integerLiteral(0)));

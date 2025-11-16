@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - methods & impls", () => {
+describe("v11 interpreter - methods & impls", () => {
   test("inherent method on struct instance", () => {
     const I = new InterpreterV10();
     // struct Point { x: i32, y: i32 }

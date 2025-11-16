@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - compound assignments", () => {
+describe("v11 interpreter - compound assignments", () => {
   test("identifier targets for arithmetic and bitwise", () => {
     const I = new InterpreterV10();
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("x"), AST.integerLiteral(2)));

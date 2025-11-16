@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - break statement", () => {
+describe("v11 interpreter - break statement", () => {
   test("break exits while loop", () => {
     const I = new InterpreterV10();
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("i"), AST.integerLiteral(0)));

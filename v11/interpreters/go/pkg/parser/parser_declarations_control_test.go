@@ -538,6 +538,42 @@ while value < 10 {
 	assertModulesEqual(t, expected, mod)
 }
 
+func TestParseLoopExpression(t *testing.T) {
+	source := `result := loop {
+  if counter >= 2 {
+    break counter
+  }
+}
+`
+
+	p, err := NewModuleParser()
+	if err != nil {
+		t.Fatalf("NewModuleParser error: %v", err)
+	}
+	defer p.Close()
+
+	mod, err := p.ParseModule([]byte(source))
+	if err != nil {
+		t.Fatalf("ParseModule error: %v", err)
+	}
+
+	breakBlock := ast.Block(ast.NewBreakStatement(nil, ast.ID("counter")))
+	breakIf := ast.IfExpr(ast.Bin(">=", ast.ID("counter"), ast.Int(2)), breakBlock)
+	breakIf.OrClauses = []*ast.OrClause{}
+
+	loopExpr := ast.Loop(breakIf)
+	expected := ast.NewModule(
+		[]ast.Statement{
+			ast.Assign(ast.ID("result"), loopExpr),
+		},
+		nil,
+		nil,
+	)
+	expected.Imports = []*ast.ImportStatement{}
+
+	assertModulesEqual(t, expected, mod)
+}
+
 func TestParseForLoopWithAssignment(t *testing.T) {
 	source := `items := [1, 2, 3]
 sum := 0

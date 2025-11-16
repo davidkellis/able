@@ -1,5 +1,10 @@
 # Able Project Log
 
+# 2025-11-17 — Typed declaration + literal adoption work finalized
+- Locked down the binding semantics for `:=`/`=` by keeping typed patterns intact across AST parsing/mapping (declaration + fallback assignment), enforcing “`:=` introduces at least one new binding” in both interpreters/typecheckers, and ensuring runtime evaluation order stays deterministic (RHS once, receivers/indexers evaluated exactly once) even for compound assignments and safe-navigation forms.
+- Verified the runtime/typechecker literal-adoption flow now covers every context listed in the v11 spec (arrays, maps, ranges, iterator yields, async bodies, function bodies/returns/arguments, struct literals, typed patterns), and refreshed the AST fixtures (`patterns/typed_destructuring`, `patterns/typed_equals_assignment`) so typed destructuring + typed `=` assignments keep parity between TypeScript and Go.
+- Fixed a regression uncovered by the fixture sweep where the TS AST builder always serialized `isSafe: false` on member-access nodes; it now omits the flag unless `?.` is present, matching the Go AST (`json:"safe,omitempty"`) and letting fixtures/tests pass again. Full `./run_all_tests.sh --version=v11` run is green.
+
 ## 2025-11-16 — Safe navigation operator implemented
 - Tree-sitter grammar/parser now treat `?.` as part of member-access, the TypeScript/Go AST mappers expose a `safe` flag on `MemberAccessExpression` nodes, and the generated parser artifacts (`grammar.json`, `parser.c`, node types, WASM) have been regenerated so fixtures and tooling pick up the new operator.
 - TypeScript + Go interpreters short-circuit safe member access/calls (returning `nil` when receivers are `nil`, skipping argument evaluation, and mirroring dot semantics otherwise) while rejecting assignments that attempt to use `?.`.

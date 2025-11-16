@@ -1,0 +1,73 @@
+{
+  "type": "Module",
+  "package": {
+    "type": "PackageStatement",
+    "namePath": [
+      {
+        "type": "Identifier",
+        "name": "wraplib"
+      }
+    ]
+  },
+  "imports": [],
+  "body": [
+    {
+      "type": "FunctionDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "wrap"
+      },
+      "params": [
+        {
+          "type": "FunctionParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "value"
+          },
+          "paramType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "T"
+            }
+          }
+        }
+      ],
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "ArrayLiteral",
+            "elements": [
+              {
+                "type": "Identifier",
+                "name": "value"
+              }
+            ]
+          }
+        ]
+      },
+      "returnType": {
+        "type": "GenericTypeExpression",
+        "base": {
+          "type": "SimpleTypeExpression",
+          "name": {
+            "type": "Identifier",
+            "name": "Array"
+          }
+        },
+        "arguments": [
+          {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "T"
+            }
+          }
+        ]
+      },
+      "isMethodShorthand": false,
+      "isPrivate": false
+    }
+  ]
+}

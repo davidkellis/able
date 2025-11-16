@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - method privacy", () => {
+describe("v11 interpreter - method privacy", () => {
   test("private static method is not accessible; public static is", () => {
     const I = new InterpreterV10();
     const Point = AST.structDefinition(

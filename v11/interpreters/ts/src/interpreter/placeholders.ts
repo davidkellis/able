@@ -207,6 +207,9 @@ class PlaceholderAnalyzer {
         this.visitExpression(expr.right);
         if (isExpression(expr.left)) this.visitExpression(expr.left);
         return;
+      case "LoopExpression":
+        this.visitExpression(expr.body);
+        return;
       case "StringInterpolation":
         for (const part of expr.parts) {
           this.visitExpression(part);
@@ -395,6 +398,8 @@ function expressionContainsPlaceholder(expr: AST.Expression | null | undefined):
       );
     case "PropagationExpression":
       return expressionContainsPlaceholder(expr.expression);
+    case "LoopExpression":
+      return expressionContainsPlaceholder(expr.body);
     case "IteratorLiteral":
     case "LambdaExpression":
     case "ProcExpression":
@@ -467,6 +472,7 @@ function isExpression(node: AST.AstNode | null | undefined): node is AST.Express
     case "OrElseExpression":
     case "BreakpointExpression":
     case "IteratorLiteral":
+    case "LoopExpression":
     case "ImplicitMemberExpression":
     case "PlaceholderExpression":
     case "TopicReferenceExpression":

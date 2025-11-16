@@ -98,6 +98,11 @@ function parseExpression(node: Node | null | undefined, source: string): Express
       return parseStructLiteral(getActiveParseContext(), node);
     case "block":
       return getActiveParseContext().parseBlock(node);
+    case "loop_expression": {
+      const bodyNode = firstNamedChild(node);
+      const body = getActiveParseContext().parseBlock(bodyNode);
+      return annotateExpressionNode(AST.loopExpression(body), node);
+    }
     case "do_expression":
       return parseDoExpression(node, source);
     case "lambda_expression":

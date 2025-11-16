@@ -57,11 +57,14 @@
     "typechecker: ../fixtures/ast/errors/generic_type_mismatch/source.able:5:10 typechecker: fn identity constraint on T references unknown interface 'Error'",
     "typechecker: ../fixtures/ast/errors/generic_type_mismatch/source.able:5:14 typechecker: fn identity constraint on T is not satisfied: i32 does not implement Error"
   ],
+  "errors/implicit_generic_where_ambiguity": [
+    "typechecker: ../fixtures/ast/errors/implicit_generic_where_ambiguity/source.able:9:46 typechecker: cannot infer type parameter 'Point' because a type with the same name exists; declare it explicitly or qualify the type"
+  ],
   "errors/interface_hkt_constructor_mismatch": [
-    "typechecker: ../fixtures/ast/errors/interface_hkt_constructor_mismatch/source.able typechecker: impl Mapper for Array i32 must match interface self type 'F _'"
+    "typechecker: ../fixtures/ast/errors/interface_hkt_constructor_mismatch/source.able:8:1 typechecker: impl Mapper for Array i32 must match interface self type 'F _'"
   ],
   "errors/interface_self_pattern_mismatch": [
-    "typechecker: ../fixtures/ast/errors/interface_self_pattern_mismatch/source.able typechecker: impl PointDisplay for Line must match interface self type 'Point'"
+    "typechecker: ../fixtures/ast/errors/interface_self_pattern_mismatch/source.able:13:1 typechecker: impl PointDisplay for Line must match interface self type 'Point'"
   ],
   "errors/logic_operand_type": [
     "typechecker: ../fixtures/ast/errors/logic_operand_type/source.able:1:11 typechecker: '&&' left operand must be bool (got string)"
@@ -79,9 +82,15 @@
   "errors/rescue_typed_pattern": [],
   "errors/result_error_accessors": [],
   "errors/struct_destructure_mismatch": [],
-  "errors/struct_functional_update_positional": [],
-  "errors/struct_functional_update_source": [],
-  "errors/struct_functional_update_type": [],
+  "errors/struct_functional_update_positional": [
+    "typechecker: ../fixtures/ast/errors/struct_functional_update_positional/source.able:3:25 typechecker: struct 'Pair' has no field 'x'"
+  ],
+  "errors/struct_functional_update_source": [
+    "typechecker: ../fixtures/ast/errors/struct_functional_update_source/source.able:5:23 typechecker: functional update expects struct Point, got Array i32"
+  ],
+  "errors/struct_functional_update_type": [
+    "typechecker: ../fixtures/ast/errors/struct_functional_update_type/source.able:10:24 typechecker: functional update expects struct Vector, got Point"
+  ],
   "errors/struct_named_missing_field": [
     "typechecker: ../fixtures/ast/errors/struct_named_missing_field/source.able:7:15 typechecker: struct pattern field 'z' not found"
   ],
@@ -106,12 +115,14 @@
   "expressions/unary_negation": [],
   "functions/generic_application": [],
   "functions/hkt_interface_impl_ok": [],
+  "functions/implicit_generic_inference": [],
   "functions/lambda_expression": [],
   "functions/method_set_where_constraint_ok": [],
   "functions/trailing_lambda_call": [],
   "imports/dynimport_private_selector_error": [],
   "imports/dynimport_selector_alias": [],
   "imports/dynimport_wildcard": [],
+  "imports/implicit_generic_import": [],
   "imports/static_alias_private_error": [
     "typechecker: ../fixtures/ast/imports/static_alias_private_error/source.able:3:3 typechecker: package 'util_static' has no symbol 'hidden'"
   ],
@@ -120,7 +131,7 @@
   "imports/static_reexport_multihop": [],
   "imports/static_wildcard": [],
   "imports/static_wildcard_private_error": [
-    "typechecker: ../fixtures/ast/imports/static_wildcard_private_error/source.able typechecker: undefined identifier 'priv_fn'"
+    "typechecker: ../fixtures/ast/imports/static_wildcard_private_error/source.able:3:1 typechecker: undefined identifier 'priv_fn'"
   ],
   "interfaces/composite_generic": [],
   "interfaces/dynamic_interface_collections": [],

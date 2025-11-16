@@ -3,6 +3,35 @@ import type { Fixture } from "../../types";
 
 const importsFixtures: Fixture[] = [
   {
+      name: "imports/implicit_generic_import",
+      setupModules: {
+        "package.json": AST.module(
+          [
+            AST.functionDefinition(
+              "wrap",
+              [AST.functionParameter("value", AST.simpleTypeExpression("T"))],
+              AST.blockExpression([AST.arr(AST.identifier("value"))]),
+              AST.genericTypeExpression(AST.simpleTypeExpression("Array"), [AST.simpleTypeExpression("T")]),
+            ),
+          ],
+          [],
+          AST.packageStatement(["wraplib"]),
+        ),
+      },
+      module: AST.module(
+        [AST.nil()],
+        [AST.importStatement(["wraplib"], false, [AST.importSelector("wrap")])],
+      ),
+      manifest: {
+        description: "Implicit generics remain available when functions are imported",
+        setup: ["package.json"],
+        expect: {
+          result: { kind: "nil" },
+        },
+      },
+    },
+
+  {
       name: "imports/dynimport_selector_alias",
       setupModules: {
         "package.json": AST.module(

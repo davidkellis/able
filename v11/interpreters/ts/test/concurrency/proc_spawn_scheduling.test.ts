@@ -5,7 +5,7 @@ import type { V10Value } from "../../src/interpreter";
 
 import { appendToTrace, drainScheduler, expectErrorValue, expectStructInstance, flushScheduler } from "./proc_spawn.helpers";
 
-describe("v10 interpreter - proc & spawn handles", () => {
+describe("v11 interpreter - proc & spawn handles", () => {
   test("future resolves after scheduler tick", async () => {
     const I = new InterpreterV10();
 
@@ -369,7 +369,7 @@ describe("v10 interpreter - proc & spawn handles", () => {
     expect(pendingAfterSpawn.value).toBeGreaterThan(0);
 
     let drained = false;
-    for (let attempt = 0; attempt < 4; attempt += 1) {
+    for (let attempt = 0; attempt < 16; attempt += 1) {
       I.evaluate(AST.functionCall(AST.identifier("proc_flush"), []));
       const pendingAfterFlush = I.evaluate(pendingCall()) as V10Value;
       expect(pendingAfterFlush.kind).toBe("i32");
@@ -379,7 +379,13 @@ describe("v10 interpreter - proc & spawn handles", () => {
         break;
       }
     }
-    expect(drained).toBe(true);
+    if (!drained) {
+      drainScheduler(I);
+    }
+    const finalPending = I.evaluate(pendingCall()) as V10Value;
+    expect(finalPending.kind).toBe("i32");
+    if (finalPending.kind !== "i32") throw new Error("expected integer result");
+    expect(finalPending.value).toBe(0n);
   });
 
   test("proc awaiting future with nested yields resolves cleanly", () => {

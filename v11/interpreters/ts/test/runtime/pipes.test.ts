@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - pipes", () => {
+describe("v11 interpreter - pipes", () => {
   test("topic reference uses pipe subject", () => {
     const I = new InterpreterV10();
     const expr = AST.binaryExpression(

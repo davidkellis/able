@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10, Environment } from "../../src/interpreter";
 
-describe("v10 interpreter - assignments & blocks", () => {
+describe("v11 interpreter - assignments & blocks", () => {
   test(":= defines in current scope; = reassigns outer; redeclare errors", () => {
     const I = new InterpreterV10();
     const env = I.globals;

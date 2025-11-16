@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - bitshift range checks", () => {
+describe("v11 interpreter - bitshift range checks", () => {
   test("left/right shift reject out-of-range counts", () => {
     const I = new InterpreterV10();
     const bad1 = AST.binaryExpression("<<", AST.integerLiteral(1), AST.integerLiteral(32));

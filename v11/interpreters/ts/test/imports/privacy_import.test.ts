@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - privacy in imports", () => {
+describe("v11 interpreter - privacy in imports", () => {
   test("importing private function fails", () => {
     const I = new InterpreterV10();
     // define private function in globals

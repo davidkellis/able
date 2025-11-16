@@ -214,8 +214,15 @@ func formatDiagnostics(diags []interpreter.ModuleDiagnostic) []string {
 
 func formatModuleDiagnostic(diag interpreter.ModuleDiagnostic) string {
 	location := formatSourceHint(diag.Source)
+	var prefixParts []string
+	if diag.Package != "" {
+		prefixParts = append(prefixParts, diag.Package)
+	}
 	if location != "" {
-		return fmt.Sprintf("typechecker: %s %s", location, diag.Diagnostic.Message)
+		prefixParts = append(prefixParts, location)
+	}
+	if len(prefixParts) > 0 {
+		return fmt.Sprintf("typechecker: %s %s", strings.Join(prefixParts, " "), diag.Diagnostic.Message)
 	}
 	return fmt.Sprintf("typechecker: %s", diag.Diagnostic.Message)
 }

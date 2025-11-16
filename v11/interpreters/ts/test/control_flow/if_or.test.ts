@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - if/or", () => {
+describe("v11 interpreter - if/or", () => {
   const I = new InterpreterV10();
 
   test("if true selects first branch", () => {

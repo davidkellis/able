@@ -247,6 +247,106 @@ export function evaluateWhileLoop(ctx: InterpreterV10, node: AST.WhileLoop, env:
   }
 }
 
+export function evaluateLoopExpression(ctx: InterpreterV10, node: AST.LoopExpression, env: Environment): V10Value {
+  const procContext = ctx.currentProcContext ? ctx.currentProcContext() : null;
+  if (procContext) {
+    return evaluateLoopExpressionWithContinuation(ctx, node, env, procContext);
+  }
+  const generator = ctx.currentGeneratorContext();
+  if (generator) {
+    return evaluateLoopExpressionWithContinuation(ctx, node, env, generator);
+  }
+  let result: V10Value = { kind: "nil", value: null };
+  while (true) {
+    ctx.checkTimeSlice();
+    const loopEnv = new Environment(env);
+    try {
+      result = ctx.evaluate(node.body, loopEnv);
+    } catch (err) {
+      if (err instanceof BreakSignal) {
+        if (err.label) throw new Error("Labeled break not supported");
+        return err.value;
+      }
+      if (err instanceof BreakLabelSignal) throw err;
+      if (err instanceof ContinueSignal) {
+        if (err.label) throw new Error("Labeled continue not supported");
+        continue;
+      }
+      throw err;
+    }
+  }
+}
+
+function evaluateLoopExpressionWithContinuation(
+  ctx: InterpreterV10,
+  node: AST.LoopExpression,
+  env: Environment,
+  continuation: ContinuationContext,
+): V10Value {
+  if (!continuation) throw new Error("Continuation context missing");
+  let state = continuation.getLoopExpressionState(node);
+  if (!state) {
+    state = {
+      baseEnv: env,
+      result: { kind: "nil", value: null },
+      inBody: false,
+      loopEnv: undefined,
+    };
+    continuation.setLoopExpressionState(node, state);
+  }
+
+  let result = state.result ?? { kind: "nil", value: null };
+
+  const resetBody = () => {
+    state.inBody = false;
+    state.loopEnv = undefined;
+  };
+
+  while (true) {
+    ctx.checkTimeSlice();
+    if (!state.inBody) {
+      state.loopEnv = new Environment(state.baseEnv);
+      state.inBody = true;
+    }
+    const loopEnv = state.loopEnv!;
+    try {
+      const bodyResult = ctx.evaluate(node.body, loopEnv);
+      result = bodyResult;
+      state.result = result;
+      resetBody();
+      continue;
+    } catch (err) {
+      if (isContinuationYield(continuation, err)) {
+        state.result = result;
+        continuation.markStatementIncomplete();
+        throw err;
+      }
+      if (err instanceof BreakSignal) {
+        if (err.label) {
+          continuation.clearLoopExpressionState(node);
+          throw err;
+        }
+        continuation.clearLoopExpressionState(node);
+        return err.value;
+      }
+      if (err instanceof BreakLabelSignal) {
+        continuation.clearLoopExpressionState(node);
+        throw err;
+      }
+      if (err instanceof ContinueSignal) {
+        if (err.label) {
+          continuation.clearLoopExpressionState(node);
+          throw new Error("Labeled continue not supported");
+        }
+        resetBody();
+        continue;
+      }
+      continuation.clearLoopExpressionState(node);
+      throw err;
+    }
+  }
+}
+
 function evaluateWhileLoopWithContinuation(
   ctx: InterpreterV10,
   node: AST.WhileLoop,

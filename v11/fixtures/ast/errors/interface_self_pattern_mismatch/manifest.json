@@ -5,7 +5,7 @@
       "kind": "nil"
     },
     "typecheckDiagnostics": [
-      "typechecker: fixtures/ast/errors/interface_self_pattern_mismatch/source.able typechecker: impl PointDisplay for Line must match interface self type 'Point'"
+      "typechecker: ../fixtures/ast/errors/interface_self_pattern_mismatch/source.able:13:1 typechecker: impl PointDisplay for Line must match interface self type 'Point'"
     ]
   },
   "entry": "module.json"

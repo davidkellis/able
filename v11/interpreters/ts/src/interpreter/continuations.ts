@@ -29,6 +29,13 @@ export type WhileLoopState = {
   conditionInProgress: boolean;
 };
 
+export type LoopExpressionState = {
+  baseEnv: Environment;
+  result: V10Value;
+  inBody: boolean;
+  loopEnv?: Environment;
+};
+
 export type IfExpressionState = {
   stage: "if_condition" | "if_body" | "or_condition" | "or_body";
   orIndex: number;
@@ -57,6 +64,9 @@ export interface ContinuationContext {
   getWhileLoopState(node: AST.WhileLoop): WhileLoopState | undefined;
   setWhileLoopState(node: AST.WhileLoop, state: WhileLoopState): void;
   clearWhileLoopState(node: AST.WhileLoop): void;
+  getLoopExpressionState(node: AST.LoopExpression): LoopExpressionState | undefined;
+  setLoopExpressionState(node: AST.LoopExpression, state: LoopExpressionState): void;
+  clearLoopExpressionState(node: AST.LoopExpression): void;
 
   getIfState(node: AST.IfExpression): IfExpressionState | undefined;
   setIfState(node: AST.IfExpression, state: IfExpressionState): void;

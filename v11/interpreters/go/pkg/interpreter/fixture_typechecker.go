@@ -58,6 +58,9 @@ func formatModuleDiagnostic(diag ModuleDiagnostic) string {
 	if location != "" {
 		return fmt.Sprintf("typechecker: %s %s", location, diag.Diagnostic.Message)
 	}
+	if label := inferDiagnosticPackage(diag); label != "" {
+		return fmt.Sprintf("typechecker: %s %s", label, diag.Diagnostic.Message)
+	}
 	return fmt.Sprintf("typechecker: %s", diag.Diagnostic.Message)
 }
 
@@ -152,4 +155,27 @@ func checkFixtureTypecheckDiagnostics(t *testing.T, mode fixtureTypecheckMode, e
 		}
 	}
 	return actual
+}
+
+func inferDiagnosticPackage(diag ModuleDiagnostic) string {
+	if diag.Package != "" {
+		return diag.Package
+	}
+	candidates := []string{diag.Source.Path}
+	candidates = append(candidates, diag.Files...)
+	for _, path := range candidates {
+		path = strings.TrimSpace(path)
+		if path == "" {
+			continue
+		}
+		normalized := normalizeSourcePath(path)
+		dir := filepath.Dir(normalized)
+		if dir == "." || dir == "/" {
+			continue
+		}
+		if base := filepath.Base(dir); base != "." && base != "/" {
+			return base
+		}
+	}
+	return ""
 }

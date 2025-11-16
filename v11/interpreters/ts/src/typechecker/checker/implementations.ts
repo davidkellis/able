@@ -73,7 +73,7 @@ export function collectMethodsDefinition(ctx: ImplementationContext, definition:
   if (Array.isArray(definition.definitions)) {
     for (const entry of definition.definitions) {
       if (entry?.type === "FunctionDefinition") {
-        collectFunctionDefinition(ctx, entry, { structName: structLabel });
+        collectFunctionDefinition(ctx, entry, { structName: structLabel, typeParamNames: record.genericParams });
       }
     }
   }
@@ -133,7 +133,10 @@ export function collectImplementationDefinition(
   if (Array.isArray(definition.definitions)) {
     for (const entry of definition.definitions) {
       if (entry?.type === "FunctionDefinition") {
-        collectFunctionDefinition(ctx, entry, { structName: contextName });
+        collectFunctionDefinition(ctx, entry, {
+          structName: contextName,
+          typeParamNames: implementationGenericNames,
+        });
       }
     }
   }
@@ -159,24 +162,30 @@ export function lookupMethodSetsForCall(
     if (!method) {
       continue;
     }
+    const hasImplicitSelf = methodDefinitionHasImplicitSelf(ctx, method);
     const methodGenericNames = Array.isArray(method.genericParams)
       ? method.genericParams
           .map((param) => ctx.getIdentifierName(param?.name))
           .filter((name): name is string => Boolean(name))
       : [];
+    const signatureSubstitutions = new Map(substitutions);
+    for (const name of methodGenericNames) {
+      signatureSubstitutions.set(name, unknownType);
+    }
     const parameterTypes = Array.isArray(method.params)
-      ? method.params.map((param) => ctx.resolveTypeExpression(param?.paramType))
+      ? method.params.map((param) => ctx.resolveTypeExpression(param?.paramType, signatureSubstitutions))
       : [];
     const info: FunctionInfo = {
       name: methodName,
       fullName: `${record.label}::${methodName}`,
       structName: structLabel,
+      hasImplicitSelf,
       parameters: parameterTypes,
       genericConstraints: [],
       genericParamNames: methodGenericNames,
       whereClause: record.obligations,
       methodSetSubstitutions: Array.from(substitutions.entries()),
-      returnType: ctx.resolveTypeExpression(method.returnType),
+      returnType: ctx.resolveTypeExpression(method.returnType, signatureSubstitutions),
     };
     if (Array.isArray(method.genericParams)) {
       for (const param of method.genericParams) {
@@ -196,6 +205,26 @@ export function lookupMethodSetsForCall(
     results.push(info);
   }
   return results;
+}
+
+function methodDefinitionHasImplicitSelf(ctx: ImplementationContext, method: AST.FunctionDefinition): boolean {
+  if (Array.isArray(method.params) && method.params.length > 0) {
+    const first = method.params[0];
+    const name = ctx.getIdentifierName(first?.name)?.toLowerCase();
+    if (name === "self") {
+      if (!first.paramType) {
+        first.paramType = AST.simpleTypeExpression("Self");
+      }
+      return true;
+    }
+    if (
+      first?.paramType?.type === "SimpleTypeExpression" &&
+      ctx.getIdentifierName(first.paramType.name) === "Self"
+    ) {
+      return true;
+    }
+  }
+  return Boolean(method.isMethodShorthand);
 }
 
 export function enforceFunctionConstraints(

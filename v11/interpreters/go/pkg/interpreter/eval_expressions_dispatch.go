@@ -141,6 +141,8 @@ func (i *Interpreter) evaluateExpression(node ast.Expression, env *runtime.Envir
 		return i.evaluateAssignment(n, env)
 	case *ast.BlockExpression:
 		return i.evaluateBlock(n, env)
+	case *ast.LoopExpression:
+		return i.evaluateLoopExpression(n, env)
 	case *ast.IteratorLiteral:
 		return i.evaluateIteratorLiteral(n, env)
 	case *ast.IfExpression:
