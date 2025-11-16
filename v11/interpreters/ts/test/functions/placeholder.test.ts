@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - placeholders", () => {
+describe("v11 interpreter - placeholders", () => {
   test("partial application with implicit placeholder", () => {
     const I = new InterpreterV10();
     const add = AST.functionDefinition(

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - index & member assignment", () => {
+describe("v11 interpreter - index & member assignment", () => {
   test("array index mutation", () => {
     const I = new InterpreterV10();
     const arr = AST.arrayLiteral([AST.integerLiteral(1), AST.integerLiteral(2)]);

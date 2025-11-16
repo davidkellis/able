@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - interface dynamic dispatch", () => {
+describe("v11 interpreter - interface dynamic dispatch", () => {
   test("value stored as interface dispatches to underlying impl", () => {
     const I = new InterpreterV10();
 

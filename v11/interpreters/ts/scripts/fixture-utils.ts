@@ -391,9 +391,13 @@ export function formatValue(value: V10.V10Value): string {
     case "bool":
       return value.value ? "true" : "false";
     case "i32":
+    case "f32":
     case "f64":
       return String(value.value);
     default:
+      if (typeof (value as any).value === "number" || typeof (value as any).value === "bigint") {
+        return String((value as any).value);
+      }
       return `[${value.kind}]`;
   }
 }

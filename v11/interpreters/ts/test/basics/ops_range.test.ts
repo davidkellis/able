@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - unary/binary ops and ranges", () => {
+describe("v11 interpreter - unary/binary ops and ranges", () => {
   const I = new InterpreterV10();
 
   test("unary", () => {

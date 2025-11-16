@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - package alias import", () => {
+describe("v11 interpreter - package alias import", () => {
   test("import package as alias and access public members; private hidden", () => {
     const I = new InterpreterV10();
     const pkg = AST.packageStatement(["util"]);

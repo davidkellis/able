@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - struct functional update", () => {
+describe("v11 interpreter - struct functional update", () => {
   test("named-field struct: spread base then override fields", () => {
     const I = new InterpreterV10();
     const Def = AST.structDefinition(

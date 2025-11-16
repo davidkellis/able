@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - typed patterns", () => {
+describe("v11 interpreter - typed patterns", () => {
   test("typed pattern in match filters by type", () => {
     const I = new InterpreterV10();
     const pat = AST.typedPattern(AST.identifier("s"), AST.simpleTypeExpression("string"));

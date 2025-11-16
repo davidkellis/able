@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - rethrow", () => {
+describe("v11 interpreter - rethrow", () => {
   test("inner rescue rethrows to outer rescue", () => {
     const I = new InterpreterV10();
     const inner = AST.rescueExpression(

@@ -54,6 +54,7 @@ const KEYWORDS = [
   "or",
   "else",
   "while",
+  "loop",
   "for",
   "in",
   "match",
@@ -474,6 +475,11 @@ module.exports = grammar({
       $.block,
     ),
 
+    loop_expression: $ => seq(
+      "loop",
+      $.block,
+    ),
+
     for_statement: $ => seq(
       "for",
       $.pattern,
@@ -843,6 +849,7 @@ module.exports = grammar({
       $.implicit_member_expression,
       $.topic_reference,
       $.if_expression,
+      $.loop_expression,
       $.do_expression,
       $.iterator_literal,
       $.lambda_expression,

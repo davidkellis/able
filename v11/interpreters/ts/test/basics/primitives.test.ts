@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - primitives", () => {
+describe("v11 interpreter - primitives", () => {
   const I = new InterpreterV10();
 
   test("string, bool, char, nil", () => {

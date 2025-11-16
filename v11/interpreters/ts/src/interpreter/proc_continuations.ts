@@ -1,5 +1,13 @@
 import * as AST from "../ast";
-import type { ContinuationContext, BlockState, ForLoopState, WhileLoopState, IfExpressionState, MatchExpressionState } from "./continuations";
+import type {
+  ContinuationContext,
+  BlockState,
+  ForLoopState,
+  WhileLoopState,
+  LoopExpressionState,
+  IfExpressionState,
+  MatchExpressionState,
+} from "./continuations";
 
 export class ProcContinuationContext implements ContinuationContext {
   readonly kind = "proc" as const;
@@ -7,6 +15,7 @@ export class ProcContinuationContext implements ContinuationContext {
   private blockStates: WeakMap<AST.BlockExpression, BlockState> = new WeakMap();
   private forLoopStates: WeakMap<AST.ForLoop, ForLoopState> = new WeakMap();
   private whileLoopStates: WeakMap<AST.WhileLoop, WhileLoopState> = new WeakMap();
+  private loopStates: WeakMap<AST.LoopExpression, LoopExpressionState> = new WeakMap();
   private ifStates: WeakMap<AST.IfExpression, IfExpressionState> = new WeakMap();
   private matchStates: WeakMap<AST.MatchExpression, MatchExpressionState> = new WeakMap();
 
@@ -50,6 +59,18 @@ export class ProcContinuationContext implements ContinuationContext {
     this.whileLoopStates.delete(node);
   }
 
+  getLoopExpressionState(node: AST.LoopExpression): LoopExpressionState | undefined {
+    return this.loopStates.get(node);
+  }
+
+  setLoopExpressionState(node: AST.LoopExpression, state: LoopExpressionState): void {
+    this.loopStates.set(node, state);
+  }
+
+  clearLoopExpressionState(node: AST.LoopExpression): void {
+    this.loopStates.delete(node);
+  }
+
   getIfState(node: AST.IfExpression): IfExpressionState | undefined {
     return this.ifStates.get(node);
   }
@@ -78,6 +99,7 @@ export class ProcContinuationContext implements ContinuationContext {
     this.blockStates = new WeakMap();
     this.forLoopStates = new WeakMap();
     this.whileLoopStates = new WeakMap();
+    this.loopStates = new WeakMap();
     this.ifStates = new WeakMap();
     this.matchStates = new WeakMap();
   }

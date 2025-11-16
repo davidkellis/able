@@ -246,6 +246,46 @@ const controlFixtures: Fixture[] = [
     },
 
   {
+    name: "control/loop_expression",
+    module: AST.module([
+      AST.assign("counter", AST.integerLiteral(0)),
+      AST.assign(
+        "result",
+        AST.loopExpression(
+          AST.blockExpression([
+            AST.assignmentExpression(
+              "=",
+              AST.identifier("counter"),
+              AST.binaryExpression(
+                "+",
+                AST.identifier("counter"),
+                AST.integerLiteral(1),
+              ),
+            ),
+            AST.ifExpression(
+              AST.binaryExpression(
+                ">=",
+                AST.identifier("counter"),
+                AST.integerLiteral(3),
+              ),
+              AST.blockExpression([
+                AST.breakStatement(undefined, AST.identifier("counter")),
+              ]),
+            ),
+          ]),
+        ),
+      ),
+      AST.identifier("result"),
+    ]),
+    manifest: {
+      description: "Loop expression returns break payload",
+      expect: {
+        result: { kind: "i32", value: 3n },
+      },
+    },
+  },
+
+  {
       name: "control/iterator_annotation_binding",
       module: AST.module([
         AST.assign("sum", AST.integerLiteral(0)),

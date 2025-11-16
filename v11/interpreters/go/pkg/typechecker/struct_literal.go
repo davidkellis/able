@@ -80,15 +80,32 @@ func (c *Checker) checkStructLiteral(env *Environment, expr *ast.StructLiteral) 
 	for _, src := range expr.FunctionalUpdateSources {
 		sourceDiags, sourceType := c.checkExpression(env, src)
 		diags = append(diags, sourceDiags...)
+
+		var matched bool
 		switch st := sourceType.(type) {
 		case StructInstanceType:
+			if structName != "" && st.StructName != structName {
+				diags = append(diags, Diagnostic{
+					Message: fmt.Sprintf("typechecker: functional update expects struct %s, got %s", structName, describeStructSource(sourceType)),
+					Node:    src,
+				})
+				continue
+			}
 			for name, typ := range st.Fields {
 				fields[name] = typ
 			}
 			if len(st.Positional) > 0 {
 				positional = append([]Type(nil), st.Positional...)
 			}
+			matched = true
 		case StructType:
+			if structName != "" && st.StructName != structName {
+				diags = append(diags, Diagnostic{
+					Message: fmt.Sprintf("typechecker: functional update expects struct %s, got %s", structName, describeStructSource(sourceType)),
+					Node:    src,
+				})
+				continue
+			}
 			if st.Fields != nil {
 				for name, typ := range st.Fields {
 					fields[name] = typ
@@ -97,6 +114,22 @@ func (c *Checker) checkStructLiteral(env *Environment, expr *ast.StructLiteral) 
 			if len(st.Positional) > 0 {
 				positional = append([]Type(nil), st.Positional...)
 			}
+			matched = true
+		default:
+			if structName != "" {
+				diags = append(diags, Diagnostic{
+					Message: fmt.Sprintf("typechecker: functional update expects struct %s, got %s", structName, describeStructSource(sourceType)),
+					Node:    src,
+				})
+			} else {
+				diags = append(diags, Diagnostic{
+					Message: fmt.Sprintf("typechecker: functional update source must be a struct (got %s)", typeName(sourceType)),
+					Node:    src,
+				})
+			}
+		}
+		if !matched {
+			continue
 		}
 	}
 
@@ -155,6 +188,11 @@ func (c *Checker) checkStructLiteral(env *Environment, expr *ast.StructLiteral) 
 							Node:    field,
 						})
 					}
+				} else {
+					diags = append(diags, Diagnostic{
+						Message: fmt.Sprintf("typechecker: struct '%s' has no field '%s'", structInfo.StructName, name),
+						Node:    field,
+					})
 				}
 			} else if idx < len(structInfo.Positional) {
 				expected = structInfo.Positional[idx]
@@ -209,4 +247,18 @@ func (c *Checker) checkStructLiteral(env *Environment, expr *ast.StructLiteral) 
 	}
 	c.infer.set(expr, instance)
 	return diags, instance
+}
+
+func describeStructSource(t Type) string {
+	switch st := t.(type) {
+	case StructInstanceType:
+		if st.StructName != "" {
+			return st.StructName
+		}
+	case StructType:
+		if st.StructName != "" {
+			return st.StructName
+		}
+	}
+	return typeName(t)
 }

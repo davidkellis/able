@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - privacy in interface imports", () => {
+describe("v11 interpreter - privacy in interface imports", () => {
   test("importing private interface fails; public interface succeeds", () => {
     const I = new InterpreterV10();
 

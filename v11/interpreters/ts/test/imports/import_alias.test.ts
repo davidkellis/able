@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - import alias selectors", () => {
+describe("v11 interpreter - import alias selectors", () => {
   test("import selector with alias binds in module env", () => {
     const I = new InterpreterV10();
     // Predefine a function in globals

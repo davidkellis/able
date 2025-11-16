@@ -119,12 +119,26 @@ export function wildcardTypeExpression(): WildcardTypeExpression { return { type
 
 // Generics and constraints
 export interface InterfaceConstraint extends AstNode { type: 'InterfaceConstraint'; interfaceType: TypeExpression; }
-export interface GenericParameter extends AstNode { type: 'GenericParameter'; name: Identifier; constraints?: InterfaceConstraint[]; }
+export interface GenericParameter extends AstNode {
+  type: 'GenericParameter';
+  name: Identifier;
+  constraints?: InterfaceConstraint[];
+  isInferred?: boolean;
+}
 export interface WhereClauseConstraint extends AstNode { type: 'WhereClauseConstraint'; typeParam: Identifier; constraints: InterfaceConstraint[]; }
 
 export function interfaceConstraint(interfaceType: TypeExpression): InterfaceConstraint { return { type: 'InterfaceConstraint', interfaceType }; }
-export function genericParameter(name: Identifier | string, constraints?: InterfaceConstraint[]): GenericParameter {
-  return { type: 'GenericParameter', name: typeof name === 'string' ? identifier(name) : name, constraints };
+export function genericParameter(
+  name: Identifier | string,
+  constraints?: InterfaceConstraint[],
+  options?: { isInferred?: boolean },
+): GenericParameter {
+  return {
+    type: 'GenericParameter',
+    name: typeof name === 'string' ? identifier(name) : name,
+    constraints,
+    isInferred: options?.isInferred,
+  };
 }
 export function whereClauseConstraint(typeParam: Identifier | string, constraints: InterfaceConstraint[]): WhereClauseConstraint {
   return { type: 'WhereClauseConstraint', typeParam: typeof typeParam === 'string' ? identifier(typeParam) : typeParam, constraints };
@@ -243,7 +257,9 @@ export function memberAccessExpression(
   options?: { isSafe?: boolean },
 ): MemberAccessExpression {
   const memberNode = typeof member === "string" ? identifier(member) : member;
-  return { type: "MemberAccessExpression", object, member: memberNode, isSafe: options?.isSafe };
+  const expr: MemberAccessExpression = { type: "MemberAccessExpression", object, member: memberNode };
+  if (options?.isSafe) expr.isSafe = true;
+  return expr;
 }
 export function indexExpression(object: Expression, index: Expression): IndexExpression { return { type: 'IndexExpression', object, index }; }
 
@@ -313,6 +329,7 @@ export interface MatchClause extends AstNode { type: 'MatchClause'; pattern: Pat
 export interface MatchExpression extends AstNode { type: 'MatchExpression'; subject: Expression; clauses: MatchClause[]; }
 export interface WhileLoop extends AstNode { type: 'WhileLoop'; condition: Expression; body: BlockExpression; }
 export interface ForLoop extends AstNode { type: 'ForLoop'; pattern: Pattern; iterable: Expression; body: BlockExpression; }
+export interface LoopExpression extends AstNode { type: 'LoopExpression'; body: BlockExpression; }
 export interface BreakStatement extends AstNode { type: 'BreakStatement'; label?: Identifier; value?: Expression; }
 export interface ContinueStatement extends AstNode { type: 'ContinueStatement'; label?: Identifier; }
 export interface YieldStatement extends AstNode { type: 'YieldStatement'; expression?: Expression; }
@@ -323,6 +340,7 @@ export function matchClause(pattern: Pattern, body: Expression, guard?: Expressi
 export function matchExpression(subject: Expression, clauses: MatchClause[]): MatchExpression { return { type: 'MatchExpression', subject, clauses }; }
 export function whileLoop(condition: Expression, body: BlockExpression): WhileLoop { return { type: 'WhileLoop', condition, body }; }
 export function forLoop(pattern: Pattern, iterable: Expression, body: BlockExpression): ForLoop { return { type: 'ForLoop', pattern, iterable, body }; }
+export function loopExpression(body: BlockExpression): LoopExpression { return { type: 'LoopExpression', body }; }
 export function breakStatement(label?: Identifier | string, value?: Expression): BreakStatement {
   const stmt: BreakStatement = { type: 'BreakStatement' };
   if (label !== undefined) stmt.label = typeof label === 'string' ? identifier(label) : label;
@@ -549,6 +567,7 @@ export type Statement =
   | ContinueStatement
   | WhileLoop
   | ForLoop
+  | LoopExpression
   | YieldStatement
   | PreludeStatement
   | ExternFunctionBody
@@ -682,6 +701,7 @@ export function iff(condition: Expression, ...stmts: Statement[]): IfExpression 
 }
 export const orC = orClause;
 export const wloop = whileLoop;
+export const loopExpr = loopExpression;
 export function forIn(pattern: Pattern | string, iterable: Expression, ...stmts: Statement[]): ForLoop {
   const p = typeof pattern === 'string' ? identifier(pattern) : pattern;
   return forLoop(p, iterable, blockExpression(stmts));

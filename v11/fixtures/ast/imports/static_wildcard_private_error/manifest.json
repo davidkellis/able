@@ -5,7 +5,7 @@
       "Undefined variable 'priv_fn'"
     ],
     "typecheckDiagnostics": [
-      "typechecker: fixtures/ast/imports/static_wildcard_private_error/source.able typechecker: undefined identifier 'priv_fn'"
+      "typechecker: ../fixtures/ast/imports/static_wildcard_private_error/source.able:3:1 typechecker: undefined identifier 'priv_fn'"
     ]
   },
   "entry": "module.json",

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - method-level generic constraints (minimal runtime checks)", () => {
+describe("v11 interpreter - method-level generic constraints (minimal runtime checks)", () => {
   test("instance method with constrained type parameter is enforced", () => {
     const I = new InterpreterV10();
 

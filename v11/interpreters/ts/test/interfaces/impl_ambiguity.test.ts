@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - impl ambiguity/coherence", () => {
+describe("v11 interpreter - impl ambiguity/coherence", () => {
   test("reject multiple unnamed impls for same (Interface, Type)", () => {
     const I = new InterpreterV10();
     const iface = AST.interfaceDefinition("M", [

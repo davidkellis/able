@@ -53,6 +53,7 @@ const (
 	NodeMatchExpression          NodeType = "MatchExpression"
 	NodeWhileLoop                NodeType = "WhileLoop"
 	NodeForLoop                  NodeType = "ForLoop"
+	NodeLoopExpression           NodeType = "LoopExpression"
 	NodeBreakStatement           NodeType = "BreakStatement"
 	NodeContinueStatement        NodeType = "ContinueStatement"
 	NodeRaiseStatement           NodeType = "RaiseStatement"
@@ -438,6 +439,7 @@ type GenericParameter struct {
 
 	Name        *Identifier            `json:"name"`
 	Constraints []*InterfaceConstraint `json:"constraints,omitempty"`
+	IsInferred  bool                   `json:"isInferred,omitempty"`
 }
 
 func NewGenericParameter(name *Identifier, constraints []*InterfaceConstraint) *GenericParameter {
@@ -897,6 +899,18 @@ type ForLoop struct {
 
 func NewForLoop(pattern Pattern, iterable Expression, body *BlockExpression) *ForLoop {
 	return &ForLoop{nodeImpl: newNodeImpl(NodeForLoop), Pattern: pattern, Iterable: iterable, Body: body}
+}
+
+type LoopExpression struct {
+	nodeImpl
+	expressionMarker
+	statementMarker
+
+	Body *BlockExpression `json:"body"`
+}
+
+func NewLoopExpression(body *BlockExpression) *LoopExpression {
+	return &LoopExpression{nodeImpl: newNodeImpl(NodeLoopExpression), Body: body}
 }
 
 type BreakStatement struct {

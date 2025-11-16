@@ -3,6 +3,9 @@
   "expect": {
     "errors": [
       "Functional update only supported for named structs"
+    ],
+    "typecheckDiagnostics": [
+      "typechecker: ../fixtures/ast/errors/struct_functional_update_positional/source.able:3:25 typechecker: struct 'Pair' has no field 'x'"
     ]
   },
   "entry": "module.json"

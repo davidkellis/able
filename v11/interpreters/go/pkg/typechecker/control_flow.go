@@ -104,6 +104,34 @@ func (c *Checker) checkForLoop(env *Environment, loop *ast.ForLoop) ([]Diagnosti
 	return diags, resultType
 }
 
+func (c *Checker) checkLoopExpression(env *Environment, loop *ast.LoopExpression) ([]Diagnostic, Type) {
+	if loop == nil {
+		return nil, PrimitiveType{Kind: PrimitiveNil}
+	}
+	var diags []Diagnostic
+	bodyEnv := env.Extend()
+	c.pushLoopContext()
+	bodyType := Type(UnknownType{})
+	if loop.Body != nil {
+		bodyDiags, inferred := c.checkExpression(bodyEnv, loop.Body)
+		diags = append(diags, bodyDiags...)
+		bodyType = inferred
+	}
+	breakType := c.popLoopContext()
+	if bodyType == nil {
+		bodyType = UnknownType{}
+	}
+	if breakType == nil {
+		breakType = UnknownType{}
+	}
+	resultType := mergeTypesAllowUnion(bodyType, breakType)
+	if resultType == nil {
+		resultType = UnknownType{}
+	}
+	c.infer.set(loop, resultType)
+	return diags, resultType
+}
+
 func (c *Checker) validateForLoopPattern(pattern ast.Pattern, elementType Type) []Diagnostic {
 	if pattern == nil || elementType == nil || isUnknownType(elementType) {
 		return nil

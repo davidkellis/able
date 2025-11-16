@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v10 interpreter - labeled breakpoint/break", () => {
+describe("v11 interpreter - labeled breakpoint/break", () => {
   test("break to label returns value and unwinds through loop", () => {
     const I = new InterpreterV10();
     const body = AST.blockExpression([

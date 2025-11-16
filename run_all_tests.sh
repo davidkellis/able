@@ -2,6 +2,8 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 VERSION="v11"
 ARGS=()
 
@@ -28,10 +30,10 @@ done
 
 case "$VERSION" in
   v10)
-    TARGET="./v10/run_all_tests.sh"
+    TARGET="$SCRIPT_DIR/v10/run_all_tests.sh"
     ;;
   v11)
-    TARGET="./v11/run_all_tests.sh"
+    TARGET="$SCRIPT_DIR/v11/run_all_tests.sh"
     ;;
   *)
     echo "Unknown version '$VERSION'. Expected v10 or v11." >&2

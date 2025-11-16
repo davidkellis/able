@@ -123,6 +123,35 @@ func (i *Interpreter) evaluateWhileLoop(loop *ast.WhileLoop, env *runtime.Enviro
 	}
 }
 
+func (i *Interpreter) evaluateLoopExpression(loop *ast.LoopExpression, env *runtime.Environment) (runtime.Value, error) {
+	if loop == nil || loop.Body == nil {
+		return runtime.NilValue{}, nil
+	}
+	for {
+		_, err := i.evaluateBlock(loop.Body, env)
+		if err != nil {
+			switch sig := err.(type) {
+			case breakSignal:
+				if sig.label != "" {
+					return nil, sig
+				}
+				return sig.value, nil
+			case continueSignal:
+				if sig.label != "" {
+					return nil, fmt.Errorf("Labeled continue not supported")
+				}
+				continue
+			case raiseSignal:
+				return nil, sig
+			case returnSignal:
+				return nil, sig
+			default:
+				return nil, err
+			}
+		}
+	}
+}
+
 func (i *Interpreter) evaluateRaiseStatement(stmt *ast.RaiseStatement, env *runtime.Environment) (runtime.Value, error) {
 	val, err := i.evaluateExpression(stmt.Expression, env)
 	if err != nil {

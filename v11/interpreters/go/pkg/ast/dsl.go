@@ -287,6 +287,14 @@ func Wloop(condition Expression, statements ...Statement) *WhileLoop {
 	return While(condition, Block(statements...))
 }
 
+func LoopExpr(body *BlockExpression) *LoopExpression {
+	return NewLoopExpression(body)
+}
+
+func Loop(statements ...Statement) *LoopExpression {
+	return LoopExpr(Block(statements...))
+}
+
 func ForLoopPattern(pattern Pattern, iterable Expression, body *BlockExpression) *ForLoop {
 	return NewForLoop(pattern, iterable, body)
 }
