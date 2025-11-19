@@ -73,6 +73,33 @@ export function evaluateAssignmentExpression(ctx: InterpreterV10, node: AST.Assi
   const value = ctx.evaluate(node.right, env);
   const isCompound = ["+=", "-=", "*=", "/=", "%=", "&=", "|=", "\\xor=", "<<=", ">>="].includes(node.operator);
 
+  if (node.left.type === "ImplicitMemberExpression") {
+    if (node.operator === ":=") throw new Error("Cannot use := on implicit member access");
+    if (ctx.implicitReceiverStack.length === 0) {
+      throw new Error("Implicit member assignment requires an implicit receiver");
+    }
+    const targetObj = ctx.implicitReceiverStack[ctx.implicitReceiverStack.length - 1];
+    if (!targetObj || targetObj.kind !== "struct_instance") {
+      throw new Error("Implicit member assignment requires struct instance receiver");
+    }
+    if (!(targetObj.values instanceof Map)) {
+      throw new Error("Implicit member assignment requires named struct instance");
+    }
+    const memberName = node.left.member.name;
+    if (!targetObj.values.has(memberName)) {
+      throw new Error(`No field named '${memberName}' on implicit receiver`);
+    }
+    if (isCompound) {
+      const current = targetObj.values.get(memberName)!;
+      const op = node.operator.slice(0, -1);
+      const computed = ctx.computeBinaryForCompound(op, current, value);
+      targetObj.values.set(memberName, computed);
+      return computed;
+    }
+    targetObj.values.set(memberName, value);
+    return value;
+  }
+
   if (node.left.type === "Identifier") {
     if (node.operator === ":=") {
       if (env.hasInCurrentScope(node.left.name)) {

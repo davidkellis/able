@@ -13,16 +13,17 @@ import {
   evaluateWhileLoop,
 } from "./control_flow";
 import { evaluateEnsureExpression, evaluateOrElseExpression, evaluatePropagationExpression, evaluateRescueExpression, evaluateRaiseStatement, evaluateRethrowStatement } from "./error_handling";
-import { evaluateFunctionCall, evaluateFunctionDefinition, evaluateLambdaExpression } from "./functions";
+import { callCallableValue, evaluateFunctionCall, evaluateFunctionDefinition, evaluateLambdaExpression } from "./functions";
 import { evaluateDynImportStatement, evaluateImportStatement, evaluateModule, evaluatePackageStatement } from "./imports";
 import { evaluateImplementationDefinition, evaluateInterfaceDefinition, evaluateMethodsDefinition, evaluateUnionDefinition } from "./definitions";
 import { evaluateMatchExpression } from "./match";
-import { evaluateMemberAccessExpression, evaluateStructDefinition, evaluateStructLiteral, evaluateImplicitMemberExpression } from "./structs";
+import { evaluateMemberAccessExpression, evaluateStructDefinition, evaluateStructLiteral, evaluateImplicitMemberExpression, memberAccessOnValue } from "./structs";
 import { evaluateLiteral } from "./literals";
 import { evaluateMapLiteral } from "./maps";
 import { evaluateIndexExpression, evaluateRangeExpression, evaluateBinaryExpression, evaluateUnaryExpression, evaluateTopicReferenceExpression } from "./operations";
 import { evaluateProcExpression, evaluateSpawnExpression, evaluateBreakpointExpression, evaluateStringInterpolation } from "./runtime_extras";
 import { evaluateIteratorLiteral, evaluateYieldStatement } from "./iterators";
+import { ProcContinuationContext } from "./proc_continuations";
 import type { V10Value } from "./values";
 
 declare module "./index" {
@@ -161,7 +162,7 @@ export function applyEvaluationAugmentations(cls: typeof InterpreterV10): void {
       case "SpawnExpression":
         return evaluateSpawnExpression(this, node as AST.SpawnExpression, env);
       case "AwaitExpression":
-        throw new Error("Await expressions are not implemented yet");
+        return evaluateAwaitExpression(this, node as AST.AwaitExpression, env);
       case "IteratorLiteral":
         return evaluateIteratorLiteral(this, node as AST.IteratorLiteral, env);
       case "YieldStatement":
@@ -190,4 +191,192 @@ export function applyEvaluationAugmentations(cls: typeof InterpreterV10): void {
         throw new Error(`Not implemented in milestone: ${node.type}`);
     }
   };
+}
+
+type AwaitArmState = {
+  awaitable: V10Value;
+  isDefault: boolean;
+  registration?: V10Value;
+};
+
+type AwaitEvaluationState = {
+  env: Environment;
+  arms: AwaitArmState[];
+  defaultArm?: AwaitArmState;
+  waiting: boolean;
+  wakePending: boolean;
+  waker?: Extract<V10Value, { kind: "struct_instance" }>;
+};
+
+function evaluateAwaitExpression(ctx: InterpreterV10, node: AST.AwaitExpression, env: Environment): V10Value {
+  const asyncCtx = ctx.currentAsyncContext();
+  if (!asyncCtx || asyncCtx.kind !== "proc") {
+    throw new Error("await expressions must run inside a proc");
+  }
+  const procContext = ctx.currentProcContext();
+  if (!procContext) {
+    throw new Error("await expressions require a proc continuation context");
+  }
+
+  let state = procContext.getAwaitState(node) as AwaitEvaluationState | undefined;
+  if (!state) {
+    state = initializeAwaitState(ctx, node, env, asyncCtx.handle);
+    procContext.setAwaitState(node, state);
+  }
+
+  const winner = selectReadyAwaitArm(ctx, state);
+  if (winner) {
+    return completeAwait(ctx, procContext, node, state, winner, asyncCtx.handle);
+  }
+
+  if (state.defaultArm) {
+    return completeAwait(ctx, procContext, node, state, state.defaultArm, asyncCtx.handle);
+  }
+
+  if (asyncCtx.handle.cancelRequested) {
+    cleanupAwaitState(ctx, procContext, node, state, asyncCtx.handle);
+    throw new Error("Proc cancelled during await");
+  }
+
+  if (!state.waiting) {
+    registerAwaitState(ctx, state);
+  }
+  asyncCtx.handle.awaitBlocked = true;
+  ctx.procYield();
+  return { kind: "nil", value: null };
+}
+
+function initializeAwaitState(
+  ctx: InterpreterV10,
+  node: AST.AwaitExpression,
+  env: Environment,
+  handle: Extract<V10Value, { kind: "proc_handle" }>,
+): AwaitEvaluationState {
+  const iterableValue = ctx.evaluate(node.expression, env);
+  const arms = collectAwaitArms(ctx, iterableValue, env);
+  if (arms.length === 0) {
+    throw new Error("await requires at least one arm");
+  }
+  const defaultArms = arms.filter((arm) => arm.isDefault);
+  if (defaultArms.length > 1) {
+    throw new Error("await accepts at most one default arm");
+  }
+  const state: AwaitEvaluationState = {
+    env,
+    arms,
+    defaultArm: defaultArms[0],
+    waiting: false,
+    wakePending: false,
+  };
+  state.waker = ctx.createAwaitWaker(handle, state);
+  return state;
+}
+
+function collectAwaitArms(ctx: InterpreterV10, iterable: V10Value, env: Environment): AwaitArmState[] {
+  if (iterable.kind !== "array") {
+    throw new Error("await currently expects an array of Awaitable values");
+  }
+  return iterable.elements.map((value) => ({
+    awaitable: value,
+    isDefault: checkAwaitArmIsDefault(ctx, value, env),
+  }));
+}
+
+function checkAwaitArmIsDefault(ctx: InterpreterV10, awaitable: V10Value, env: Environment): boolean {
+  try {
+    const member = memberAccessOnValue(ctx, awaitable, AST.identifier("is_default"), env);
+    const result = callCallableValue(ctx, member, [], env);
+    return ctx.isTruthy(result);
+  } catch {
+    return false;
+  }
+}
+
+function selectReadyAwaitArm(ctx: InterpreterV10, state: AwaitEvaluationState): AwaitArmState | undefined {
+  const ready: AwaitArmState[] = [];
+  for (const arm of state.arms) {
+    if (arm.isDefault) continue;
+    const result = invokeAwaitableMethod(ctx, arm.awaitable, "is_ready", [], state.env);
+    if (ctx.isTruthy(result)) {
+      ready.push(arm);
+    }
+  }
+  if (ready.length === 0) return undefined;
+  const start = ready.length > 0 ? ctx.awaitRoundRobinIndex % ready.length : 0;
+  ctx.awaitRoundRobinIndex = (ctx.awaitRoundRobinIndex + 1) % ready.length;
+  return ready[start];
+}
+
+function registerAwaitState(ctx: InterpreterV10, state: AwaitEvaluationState): void {
+  const waker = state.waker;
+  if (!waker) return;
+  for (const arm of state.arms) {
+    if (arm.isDefault) continue;
+    if (arm.registration) continue;
+    const registration = invokeAwaitableMethod(ctx, arm.awaitable, "register", [waker], state.env);
+    arm.registration = registration;
+  }
+  state.waiting = true;
+  state.wakePending = false;
+}
+
+function cleanupAwaitState(
+  ctx: InterpreterV10,
+  procContext: ProcContinuationContext,
+  node: AST.AwaitExpression,
+  state: AwaitEvaluationState,
+  handle?: Extract<V10Value, { kind: "proc_handle" }>,
+): void {
+  procContext.clearAwaitState(node);
+  for (const arm of state.arms) {
+    if (arm.registration) {
+      cancelAwaitRegistration(ctx, arm.registration, state.env);
+      arm.registration = undefined;
+    }
+  }
+  state.waiting = false;
+  if (handle) {
+    handle.awaitBlocked = false;
+  }
+}
+
+function completeAwait(
+  ctx: InterpreterV10,
+  procContext: ProcContinuationContext,
+  node: AST.AwaitExpression,
+  state: AwaitEvaluationState,
+  winner: AwaitArmState,
+  handle: Extract<V10Value, { kind: "proc_handle" }>,
+): V10Value {
+  for (const arm of state.arms) {
+    if (arm === winner) continue;
+    if (arm.registration) {
+      cancelAwaitRegistration(ctx, arm.registration, state.env);
+      arm.registration = undefined;
+    }
+  }
+  const result = invokeAwaitableMethod(ctx, winner.awaitable, "commit", [], state.env);
+  cleanupAwaitState(ctx, procContext, node, state, handle);
+  handle.awaitBlocked = false;
+  return result;
+}
+
+function cancelAwaitRegistration(ctx: InterpreterV10, registration: V10Value, env: Environment): void {
+  try {
+    const member = memberAccessOnValue(ctx, registration, AST.identifier("cancel"), env);
+    callCallableValue(ctx, member, [], env);
+  } catch {
+    // ignore cancellation errors
+  }
+}
+
+function invokeAwaitableMethod(
+  ctx: InterpreterV10,
+  awaitable: V10Value,
+  methodName: string,
+  args: V10Value[],
+  env: Environment,
+): V10Value {
+  const member = memberAccessOnValue(ctx, awaitable, AST.identifier(methodName), env);
+  return callCallableValue(ctx, member, args, env);
 }

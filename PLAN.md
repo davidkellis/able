@@ -37,8 +37,8 @@
 ### v11 Spec Delta Implementation Plan
 
 7. **`await` expression, Awaitable protocol, and concurrency errors (§§12.6–12.7 & Awaitable interface)**
-   - **AST / parser / fixtures:** ✅ Grammar/AST/mapping now include `await [...]`, and the new `errors/await_not_supported` fixture keeps parsers/interpreters honest until runtime support lands.
-   - **Scheduler/runtime (next up):** implement the `Awaitable` interface (is_ready/register/commit), fairness when multiple arms are ready, cancellation of losers, propagation of proc cancellation, and the default-arm fall-through semantics in both interpreters.
+   - **AST / parser / fixtures:** ✅ Grammar/AST/mapping now include `await [...]`; removed the temporary `errors/await_not_supported` fixture and added interpreter-level coverage that exercises a user-defined awaitable via the new runtime hooks.
+   - **Scheduler/runtime (next up):** implement the `Awaitable` interface (is_ready/register/commit), fairness when multiple arms are ready, cancellation of losers, propagation of proc cancellation, and the default-arm fall-through semantics in both interpreters (TS impl landed, Go still pending).
    - **Awaitable arms & stdlib errors:** expose the required channel/mutex await helpers plus error structs (`ChannelClosed`, `ChannelNil`, `ChannelSendOnClosed`, `ChannelTimeout`, `MutexUnlocked`, `MutexPoisoned`) so await arms surface consistent diagnostics.
    - **Tests/fixtures:** once runtime work lands, add fixtures covering channel send/recv arms, timer/default arms, fairness simulations, and rerun `bun run scripts/run-fixtures.ts`, `go test ./pkg/interpreter`, and `./run_all_tests.sh --version=v11` to lock behaviour down.
 

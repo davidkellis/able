@@ -77,24 +77,6 @@ const errorsFixtures: Fixture[] = [
     },
 
   {
-      name: "errors/await_not_supported",
-      module: AST.module([
-        AST.assignmentExpression(
-          ":=",
-          AST.identifier("arms"),
-          AST.arrayLiteral([AST.stringLiteral("ready")]),
-        ),
-        AST.awaitExpression(AST.identifier("arms")),
-      ]),
-      manifest: {
-        description: "Await expressions currently raise not-implemented errors",
-        expect: {
-          errors: ["Await expressions are not implemented yet"],
-        },
-      },
-    },
-
-  {
       name: "errors/rescue_guard",
       module: AST.module([
         AST.rescue(

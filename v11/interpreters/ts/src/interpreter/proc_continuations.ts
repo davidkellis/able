@@ -18,6 +18,7 @@ export class ProcContinuationContext implements ContinuationContext {
   private loopStates: WeakMap<AST.LoopExpression, LoopExpressionState> = new WeakMap();
   private ifStates: WeakMap<AST.IfExpression, IfExpressionState> = new WeakMap();
   private matchStates: WeakMap<AST.MatchExpression, MatchExpressionState> = new WeakMap();
+  private awaitStates: WeakMap<AST.AwaitExpression, unknown> = new WeakMap();
 
   markStatementIncomplete(): void {
     // Proc continuations resume from the same statement automatically via stored state.
@@ -95,6 +96,18 @@ export class ProcContinuationContext implements ContinuationContext {
     this.matchStates.delete(node);
   }
 
+  getAwaitState(node: AST.AwaitExpression): unknown {
+    return this.awaitStates.get(node);
+  }
+
+  setAwaitState(node: AST.AwaitExpression, state: unknown): void {
+    this.awaitStates.set(node, state);
+  }
+
+  clearAwaitState(node: AST.AwaitExpression): void {
+    this.awaitStates.delete(node);
+  }
+
   reset(): void {
     this.blockStates = new WeakMap();
     this.forLoopStates = new WeakMap();
@@ -102,5 +115,6 @@ export class ProcContinuationContext implements ContinuationContext {
     this.loopStates = new WeakMap();
     this.ifStates = new WeakMap();
     this.matchStates = new WeakMap();
+    this.awaitStates = new WeakMap();
   }
 }
