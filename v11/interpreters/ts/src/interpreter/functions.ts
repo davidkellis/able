@@ -136,6 +136,9 @@ export function callCallableValue(ctx: InterpreterV10, callee: V10Value, args: V
         throw new Error("Only simple identifier and destructuring params supported for now");
       }
     }
+    if (funcNode.isMethodShorthand && implicitReceiver && !funcEnv.hasInCurrentScope("self")) {
+      funcEnv.define("self", implicitReceiver);
+    }
     let pushedImplicit = false;
     if (hasImplicit && implicitReceiver) {
       ctx.implicitReceiverStack.push(implicitReceiver);

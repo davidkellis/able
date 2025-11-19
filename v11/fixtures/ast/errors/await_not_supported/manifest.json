@@ -1,9 +1,0 @@
-{
-  "description": "Await expressions currently raise not implemented errors",
-  "expect": {
-    "errors": [
-      "Await expressions are not implemented yet"
-    ]
-  },
-  "entry": "module.json"
-}

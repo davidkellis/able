@@ -40,6 +40,7 @@ export function evaluateProcExpression(ctx: InterpreterV10, node: AST.ProcExpres
     env: capturedEnv,
     runner: null,
     cancelRequested: false,
+    awaitBlocked: false,
   };
   handle.runner = () => ctx.runProcHandle(handle);
   ctx.scheduleAsync(handle.runner);

@@ -1,2 +1,0 @@
-arms := ["ready"]
-await arms

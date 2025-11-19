@@ -77,6 +77,7 @@ export type V10Value =
       hasStarted?: boolean;
       waitingMutex?: unknown;
       continuation?: ProcContinuationContext;
+      awaitBlocked?: boolean;
     }
   | {
       kind: "future";

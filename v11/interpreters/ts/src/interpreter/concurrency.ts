@@ -7,12 +7,17 @@ import type { V10Value } from "./values";
 import { ProcContinuationContext } from "./proc_continuations";
 import { makeIntegerValue } from "./numeric";
 
+type AwaitWakerPayload = {
+  wake: () => void;
+};
+
 declare module "./index" {
   interface InterpreterV10 {
     initConcurrencyBuiltins(): void;
     scheduleAsync(fn: () => void): void;
     ensureSchedulerTick(): void;
     currentAsyncContext(): { kind: "proc"; handle: Extract<V10Value, { kind: "proc_handle" }> } | { kind: "future"; handle: Extract<V10Value, { kind: "future" }> } | null;
+    createAwaitWaker(handle: Extract<V10Value, { kind: "proc_handle" }>, state: unknown): Extract<V10Value, { kind: "struct_instance" }>;
     procYield(): V10Value;
     procCancelled(): V10Value;
     procFlush(): V10Value;
@@ -41,6 +46,10 @@ declare module "./index" {
     popProcContext(ctx: ProcContinuationContext): void;
     currentProcContext(): ProcContinuationContext | null;
     procContextStack: ProcContinuationContext[];
+    awaitWakerStruct?: AST.StructDefinition;
+    awaitWakerNativeMethods?: {
+      wake: Extract<V10Value, { kind: "native_function" }>;
+    };
   }
 }
 
@@ -101,6 +110,26 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
     this.procStatusPendingValue = this.makeNamedStructInstance(this.procStatusStructs.Pending, []);
     this.procStatusResolvedValue = this.makeNamedStructInstance(this.procStatusStructs.Resolved, []);
     this.procStatusCancelledValue = this.makeNamedStructInstance(this.procStatusStructs.Cancelled, []);
+
+    const awaitWakerDefAst = AST.structDefinition("AwaitWaker", [], "named");
+    this.evaluate(awaitWakerDefAst, this.globals);
+    const awaitWakerVal = this.globals.get("AwaitWaker");
+    if (!awaitWakerVal || awaitWakerVal.kind !== "struct_def") {
+      throw new Error("Failed to initialize struct 'AwaitWaker'");
+    }
+    this.awaitWakerStruct = awaitWakerVal.def;
+    const wakeNative = this.makeNativeFunction("AwaitWaker.wake", 1, (_interp, args) => {
+      const self = args[0];
+      if (!self || self.kind !== "struct_instance") {
+        return { kind: "nil", value: null };
+      }
+      const payload = (self as any).__awaitPayload as AwaitWakerPayload | undefined;
+      if (payload) {
+        payload.wake();
+      }
+      return { kind: "nil", value: null };
+    });
+    this.awaitWakerNativeMethods = { wake: wakeNative };
   };
 
   cls.prototype.scheduleAsync = function scheduleAsync(this: InterpreterV10, fn: () => void): void {
@@ -220,6 +249,7 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
     handle.failureInfo = procErr;
     handle.error = this.makeRuntimeError(message, procErr, procErr);
     handle.runner = null;
+    handle.awaitBlocked = false;
   };
 
   cls.prototype.markFutureCancelled = function markFutureCancelled(this: InterpreterV10, future: Extract<V10Value, { kind: "future" }>, message = "Future cancelled"): void {
@@ -431,10 +461,10 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
       if (e instanceof ProcYieldSignal) {
         const manualYield = this.manualYieldRequested;
         this.manualYieldRequested = false;
-        if (manualYield) {
+        if (manualYield && !handle.awaitBlocked) {
           procContext.reset();
         }
-        if (handle.runner) {
+        if (!handle.awaitBlocked && handle.runner) {
           this.scheduleAsync(handle.runner);
         }
       } else if (e instanceof RaiseSignal) {
@@ -550,5 +580,35 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
       err.cause = value;
     }
     return err;
+  };
+
+  cls.prototype.createAwaitWaker = function createAwaitWaker(
+    this: InterpreterV10,
+    handle: Extract<V10Value, { kind: "proc_handle" }>,
+    state: unknown,
+  ): Extract<V10Value, { kind: "struct_instance" }> {
+    if (!this.awaitWakerStruct || !this.awaitWakerNativeMethods) {
+      throw new Error("Await waker builtins are not initialized");
+    }
+    const instance = this.makeNamedStructInstance(this.awaitWakerStruct, []) as Extract<V10Value, { kind: "struct_instance" }>;
+    const payload: AwaitWakerPayload = {
+      wake: () => {
+        if ((instance as any).__awaitTriggered) return;
+        (instance as any).__awaitTriggered = true;
+        if (state && typeof state === "object") {
+          (state as any).wakePending = true;
+        }
+        handle.awaitBlocked = false;
+        if (!handle.runner) {
+          handle.runner = () => this.runProcHandle(handle);
+        }
+        this.scheduleAsync(handle.runner);
+      },
+    };
+    (instance as any).__awaitPayload = payload;
+    const wakeMethod = this.bindNativeMethod(this.awaitWakerNativeMethods.wake, instance);
+    const values = instance.values as Map<string, V10Value>;
+    values.set("wake", wakeMethod);
+    return instance;
   };
 }
