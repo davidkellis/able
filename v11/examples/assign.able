@@ -2,7 +2,15 @@ package assign
 
 fn main() {
   x := 5
-  y := x * 2
   print(x)
+
+  y = x * 2
   print(y)
+
+  y = y + 5
+  y |> print
+
+  for i in 1..5 {
+    y = y + i |> print
+  }
 }
