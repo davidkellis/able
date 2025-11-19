@@ -8,6 +8,8 @@ import { getTreeSitterParser } from "../src/parser/tree-sitter-loader";
 import { makeIntegerValue, numericToNumber } from "../src/interpreter/numeric";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const FIXTURE_ROOT_ORIGIN = path.join("..", "..", "..", "..", "fixtures", "ast");
+const FIXTURE_ROOT = path.resolve(__dirname, "../../../fixtures/ast");
 
 export type Manifest = {
   description?: string;
@@ -67,7 +69,14 @@ export async function loadModuleFromPath(filePath: string): Promise<AST.Module> 
       const raw = JSON.parse(await fs.readFile(filePath, "utf8"));
       const module = hydrateNode(raw) as AST.Module;
       const sibling = await findSourceSibling(filePath);
-      annotateModuleOrigin(module, sibling ?? filePath);
+      if (sibling) {
+        const spanSource = await parseModuleFromSource(sibling);
+        if (spanSource) {
+          copyNodeSpans(module, spanSource);
+        }
+      }
+      const originPath = normalizeFixtureOrigin(sibling ?? filePath);
+      annotateModuleOrigin(module, originPath);
       return module;
     } catch (err: any) {
       if (err && err.code !== "ENOENT") {
@@ -84,7 +93,7 @@ export async function loadModuleFromPath(filePath: string): Promise<AST.Module> 
     for (const candidate of candidates) {
       const fromSource = await parseModuleFromSource(candidate);
       if (fromSource) {
-        annotateModuleOrigin(fromSource, candidate);
+        annotateModuleOrigin(fromSource, normalizeFixtureOrigin(candidate));
         return fromSource;
       }
     }
@@ -94,7 +103,7 @@ export async function loadModuleFromPath(filePath: string): Promise<AST.Module> 
   if (!module) {
     throw new Error(`unable to parse source module ${filePath}`);
   }
-  annotateModuleOrigin(module, filePath);
+  annotateModuleOrigin(module, normalizeFixtureOrigin(filePath));
   return module;
 }
 
@@ -169,6 +178,45 @@ export function annotateModuleOrigin(module: AST.Module, filePath: string): void
         }
       }
     }
+  }
+}
+
+function normalizeFixtureOrigin(filePath: string): string {
+  const absolute = path.resolve(filePath);
+  const relative = path.relative(FIXTURE_ROOT, absolute);
+  if (relative && !relative.startsWith("..") && !path.isAbsolute(relative)) {
+    const combined = path.join(FIXTURE_ROOT_ORIGIN, relative);
+    return combined.split(path.sep).join("/");
+  }
+  return absolute.split(path.sep).join("/");
+}
+
+function copyNodeSpans(target: AST.Node | undefined, source: AST.Node | undefined): void {
+  if (!target || !source) return;
+  if (typeof target !== "object" || typeof source !== "object") return;
+  if (Array.isArray(target) && Array.isArray(source)) {
+    const length = Math.min(target.length, source.length);
+    for (let index = 0; index < length; index += 1) {
+      copyNodeSpans(target[index] as AST.Node, source[index] as AST.Node);
+    }
+    return;
+  }
+  if (Array.isArray(target) || Array.isArray(source)) {
+    return;
+  }
+  const targetRecord = target as Record<string, unknown>;
+  const sourceRecord = source as Record<string, unknown>;
+  const targetType = typeof targetRecord.type === "string" ? targetRecord.type : null;
+  const sourceType = typeof sourceRecord.type === "string" ? sourceRecord.type : null;
+  if (targetType && sourceType && targetType !== sourceType) {
+    return;
+  }
+  if (sourceRecord.span) {
+    (targetRecord as { span?: AST.Span }).span = sourceRecord.span as AST.Span;
+  }
+  const keys = new Set([...Object.keys(targetRecord), ...Object.keys(sourceRecord)]);
+  for (const key of keys) {
+    copyNodeSpans(targetRecord[key] as AST.Node, sourceRecord[key] as AST.Node);
   }
 }
 

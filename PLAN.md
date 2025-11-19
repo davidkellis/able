@@ -36,23 +36,11 @@
 
 ### v11 Spec Delta Implementation Plan
 
-5. **Optional generic parameter inference (§7.1.5)**
-   - **Type checker:** detect free type names in function signatures, synthesize implicit `<T>` lists, hoist constraints, and block redeclaration conflicts; diagnostics should mention inferred names vs. explicit ones.
-   - **AST:** extend function nodes to capture inferred generics (so later phases know whether a parameter list was explicit).
-   - **Parser & mapping:** ensure signatures without `<...>` still emit the information required by the type checker and avoid regressing explicit generic support.
-   - **Tests:** add fixtures spanning implicit generics, ambiguity errors, and import interactions; keep both interpreters’ inference behaviour aligned.
-
-6. **Loop/range constructs & continue semantics (§§8.2–8.3)**
-   - **AST:** add `loop` expression nodes, `continue` statements, range operator nodes for `..`/`...`, and metadata on loop break payload types.
-   - **Runtime:** implement expression-valued `loop {}` plus `while`/`for` break payload propagation, enforce unlabeled `continue` rules (runtime error for labeled continue), and ensure range literals materialize iterables via the stdlib `Range` interface.
-   - **Parser/mapping:** recognize the new keywords/tokens, wire precedence so `..`/`...` bind tighter than assignment but looser than arithmetic, and emit AST nodes consumed by both interpreters.
-   - **Tests:** expand fixtures for loops returning values, retry loops, continue behaviour, and range-driven `for` loops; keep `bun run scripts/run-fixtures.ts` + Go parity green.
-
 7. **`await` expression, Awaitable protocol, and concurrency errors (§§12.6–12.7 & Awaitable interface)**
-   - **AST:** represent `await [arms...]` expressions (including default arms) and persist callback bodies for codegen.
-   - **Scheduler/runtime:** implement the `Awaitable` interface (is_ready/register/commit), fairness when multiple arms are ready, cancellation of losers, propagation of proc cancellation, and the default-arm fall-through semantics in both interpreters.
-   - **Stdlib errors:** add the required channel/mutex error structs (`ChannelClosed`, `ChannelNil`, `ChannelSendOnClosed`, `ChannelTimeout`, `MutexUnlocked`, `MutexPoisoned`) plus constructors and make all channel/mutex helpers surface them consistently.
-   - **Parser/tests:** parse the `await [...]` form, update fixtures to cover channel send/recv arms, timer/default arms, fairness simulations, and run `bun run scripts/run-fixtures.ts`, `go test ./pkg/interpreter`, and `./run_all_tests.sh --version=v11` after wiring the scheduler.
+   - **AST / parser / fixtures:** ✅ Grammar/AST/mapping now include `await [...]`, and the new `errors/await_not_supported` fixture keeps parsers/interpreters honest until runtime support lands.
+   - **Scheduler/runtime (next up):** implement the `Awaitable` interface (is_ready/register/commit), fairness when multiple arms are ready, cancellation of losers, propagation of proc cancellation, and the default-arm fall-through semantics in both interpreters.
+   - **Awaitable arms & stdlib errors:** expose the required channel/mutex await helpers plus error structs (`ChannelClosed`, `ChannelNil`, `ChannelSendOnClosed`, `ChannelTimeout`, `MutexUnlocked`, `MutexPoisoned`) so await arms surface consistent diagnostics.
+   - **Tests/fixtures:** once runtime work lands, add fixtures covering channel send/recv arms, timer/default arms, fairness simulations, and rerun `bun run scripts/run-fixtures.ts`, `go test ./pkg/interpreter`, and `./run_all_tests.sh --version=v11` to lock behaviour down.
 
 8. **Module + stdlib resolution surface (§§13.6–13.7)**
    - **Loader:** implement the new search order (workspace roots, cwd/manual overrides, `ABLE_PATH`, `ABLE_MODULE_PATHS`, canonical stdlib via `ABLE_STD_LIB` or bundled path), deduplicate roots, sanitize hyphenated names, and reserve the `able.*` namespace.

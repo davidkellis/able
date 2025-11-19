@@ -12,6 +12,7 @@ import {
   nextNamedSibling,
   Node,
   parseLabel,
+  sameNode,
 } from "./shared";
 
 export function registerStatementParsers(ctx: MutableParseContext): void {
@@ -132,6 +133,32 @@ function parseBlock(node: Node | null | undefined, source: string): BlockExpress
 
     if (!stmt) continue;
 
+    if (
+      child.type === "expression_statement" &&
+      stmt.type === "AssignmentExpression" &&
+      (stmt.operator === "=" || stmt.operator === ":=")
+    ) {
+      const assignment = stmt as AST.AssignmentExpression;
+      let anchorNode: Node = child;
+      let anchorIndex = i - 1;
+      while (true) {
+        const next = nextNamedSibling(node, anchorIndex);
+        if (!next || next.type !== "expression_statement") break;
+        if (anchorNode.endPosition.row !== next.startPosition.row) break;
+        if (hasSemicolonBetween(source, anchorNode, next)) break;
+        const exprNode = firstNamedChild(next);
+        if (!exprNode) break;
+        const expr = ctx.parseExpression(exprNode);
+        if (expr.type !== "UnaryExpression" || expr.operator !== "-") break;
+        assignment.right = inheritMetadata(AST.binaryExpression("-", assignment.right, expr.operand), assignment.right, expr);
+        i++;
+        const nextIndex = findNamedChildIndex(node, next);
+        if (nextIndex === -1) break;
+        anchorIndex = nextIndex;
+        anchorNode = next;
+      }
+    }
+
     if (stmt.type === "LambdaExpression" && statements.length > 0) {
       const prev = statements[statements.length - 1];
       if (prev.type === "FunctionCall") {
@@ -154,4 +181,26 @@ function parseBlock(node: Node | null | undefined, source: string): BlockExpress
   }
 
   return annotate(AST.blockExpression(statements), node) as BlockExpression;
+}
+
+function findNamedChildIndex(parent: Node | null | undefined, target: Node | null | undefined): number {
+  if (!parent || !target) return -1;
+  for (let idx = 0; idx < parent.namedChildCount; idx++) {
+    const candidate = parent.namedChild(idx);
+    if (!candidate || !candidate.isNamed || isIgnorableNode(candidate)) continue;
+    if (sameNode(candidate, target)) return idx;
+  }
+  return -1;
+}
+
+function hasSemicolonBetween(source: string, left: Node, right: Node): boolean {
+  const start = left.endIndex;
+  const end = right.startIndex;
+  if (start < 0 || end < start || end > source.length) return false;
+  for (let idx = start; idx < end; idx++) {
+    if (source[idx] === ";") {
+      return true;
+    }
+  }
+  return false;
 }

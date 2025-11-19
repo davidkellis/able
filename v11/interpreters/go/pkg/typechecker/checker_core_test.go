@@ -221,6 +221,77 @@ func TestRethrowAllowedInsideRescue(t *testing.T) {
 		t.Fatalf("expected no diagnostics for rethrow inside rescue, got %v", diags)
 	}
 }
+
+func TestCheckerReportsStructRedeclaringInferredTypeParam(t *testing.T) {
+	checker := New()
+	structDef := ast.StructDef(
+		"T",
+		[]*ast.StructFieldDefinition{
+			ast.FieldDef(ast.Ty("i32"), "value"),
+		},
+		ast.StructKindNamed,
+		nil,
+		nil,
+		false,
+	)
+	fn := ast.Fn(
+		"wrap",
+		[]*ast.FunctionParameter{
+			ast.Param("value", ast.Ty("T")),
+		},
+		[]ast.Statement{
+			structDef,
+			ast.Ret(ast.ID("value")),
+		},
+		ast.Ty("T"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+	module := ast.NewModule([]ast.Statement{fn}, nil, nil)
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) != 1 {
+		t.Fatalf("expected 1 diagnostic, got %d", len(diags))
+	}
+	if want := "cannot redeclare inferred type parameter 'T'"; !strings.Contains(diags[0].Message, want) {
+		t.Fatalf("expected diagnostic containing %q, got %q", want, diags[0].Message)
+	}
+}
+
+func TestCheckerReportsTypeAliasRedeclaringInferredTypeParam(t *testing.T) {
+	checker := New()
+	alias := ast.NewTypeAliasDefinition(ast.ID("T"), ast.Ty("i64"), nil, nil, false)
+	fn := ast.Fn(
+		"convert",
+		[]*ast.FunctionParameter{
+			ast.Param("value", ast.Ty("T")),
+		},
+		[]ast.Statement{
+			alias,
+			ast.Ret(ast.ID("value")),
+		},
+		ast.Ty("T"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+	module := ast.NewModule([]ast.Statement{fn}, nil, nil)
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) != 1 {
+		t.Fatalf("expected 1 diagnostic, got %d", len(diags))
+	}
+	if want := "cannot redeclare inferred type parameter 'T'"; !strings.Contains(diags[0].Message, want) {
+		t.Fatalf("expected diagnostic containing %q, got %q", want, diags[0].Message)
+	}
+}
 func TestRethrowOutsideRescueProducesDiagnostic(t *testing.T) {
 	checker := New()
 	module := ast.NewModule([]ast.Statement{ast.Rethrow()}, nil, nil)

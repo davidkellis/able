@@ -13,6 +13,24 @@ func (i *Interpreter) evaluateExpression(node ast.Expression, env *runtime.Envir
 	if node == nil {
 		return runtime.NilValue{}, nil
 	}
+	var (
+		serialSync *SerialExecutor
+	)
+	if serial, ok := i.executor.(*SerialExecutor); ok {
+		var payload *asyncContextPayload
+		if env != nil {
+			payload = payloadFromState(env.RuntimeData())
+		}
+		if payload == nil {
+			serialSync = serial
+			serialSync.beginSynchronousSection()
+		}
+	}
+	defer func() {
+		if serialSync != nil {
+			serialSync.endSynchronousSection()
+		}
+	}()
 	state := i.stateFromEnv(env)
 	if !state.hasPlaceholderFrame() {
 		if value, ok, err := i.tryBuildPlaceholderFunction(node, env); err != nil {
@@ -99,10 +117,48 @@ func (i *Interpreter) evaluateExpression(node ast.Expression, env *runtime.Envir
 		if err != nil {
 			return nil, err
 		}
+		if result, err := i.tryInvokeRangeImplementation(start, endExpr, n.Inclusive, env); err != nil {
+			return nil, err
+		} else if result != nil {
+			return result, nil
+		}
 		if !isNumericValue(start) || !isNumericValue(endExpr) {
 			return nil, fmt.Errorf("Range boundaries must be numeric")
 		}
-		return &runtime.RangeValue{Start: start, End: endExpr, Inclusive: n.Inclusive}, nil
+		startVal, err := rangeEndpoint(start)
+		if err != nil {
+			return nil, err
+		}
+		endVal, err := rangeEndpoint(endExpr)
+		if err != nil {
+			return nil, err
+		}
+		step := 1
+		if startVal > endVal {
+			step = -1
+		}
+		elements := make([]runtime.Value, 0)
+		for current := startVal; ; current += step {
+			if step > 0 {
+				if n.Inclusive {
+					if current > endVal {
+						break
+					}
+				} else if current >= endVal {
+					break
+				}
+			} else {
+				if n.Inclusive {
+					if current < endVal {
+						break
+					}
+				} else if current <= endVal {
+					break
+				}
+			}
+			elements = append(elements, runtime.IntegerValue{Val: big.NewInt(int64(current)), TypeSuffix: runtime.IntegerI32})
+		}
+		return &runtime.ArrayValue{Elements: elements}, nil
 	case *ast.StructLiteral:
 		return i.evaluateStructLiteral(n, env)
 	case *ast.MapLiteral:
@@ -159,6 +215,8 @@ func (i *Interpreter) evaluateExpression(node ast.Expression, env *runtime.Envir
 		task := i.makeAsyncTask(asyncContextFuture, n.Expression, env)
 		future := i.executor.RunFuture(task)
 		return future, nil
+	case *ast.AwaitExpression:
+		return nil, fmt.Errorf("Await expressions are not implemented yet")
 	case *ast.LambdaExpression:
 		return i.evaluateLambdaExpression(n, env)
 	default:
@@ -641,7 +699,7 @@ func (p *placeholderAnalyzer) visitExpression(expr ast.Expression) error {
 		return nil
 	case *ast.LambdaExpression:
 		return nil
-	case *ast.ProcExpression, *ast.SpawnExpression:
+	case *ast.ProcExpression, *ast.SpawnExpression, *ast.AwaitExpression:
 		return nil
 	case *ast.TopicReferenceExpression,
 		*ast.Identifier,

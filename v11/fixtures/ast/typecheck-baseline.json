@@ -47,6 +47,7 @@
   "control/while_sum": [],
   "errors/array_destructure_mismatch": [],
   "errors/array_destructure_short": [],
+  "errors/await_not_supported": [],
   "errors/bitshift_out_of_range": [],
   "errors/ensure_runs": [],
   "errors/generic_constraint_unsatisfied": [
@@ -59,6 +60,9 @@
   ],
   "errors/implicit_generic_where_ambiguity": [
     "typechecker: ../fixtures/ast/errors/implicit_generic_where_ambiguity/source.able:9:46 typechecker: cannot infer type parameter 'Point' because a type with the same name exists; declare it explicitly or qualify the type"
+  ],
+  "errors/implicit_generic_redeclaration": [
+    "typechecker: ../fixtures/ast/errors/implicit_generic_redeclaration/source.able:2:3 typechecker: cannot redeclare inferred type parameter 'T' inside fn wrap (inferred at ../../../../fixtures/ast/errors/implicit_generic_redeclaration/source.able:1:16)"
   ],
   "errors/interface_hkt_constructor_mismatch": [
     "typechecker: ../fixtures/ast/errors/interface_hkt_constructor_mismatch/source.able:8:1 typechecker: impl Mapper for Array i32 must match interface self type 'F _'"

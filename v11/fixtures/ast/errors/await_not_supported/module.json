@@ -1,0 +1,30 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "arms"
+      },
+      "right": {
+        "type": "ArrayLiteral",
+        "elements": [
+          {
+            "type": "StringLiteral",
+            "value": "ready"
+          }
+        ]
+      }
+    },
+    {
+      "type": "AwaitExpression",
+      "expression": {
+        "type": "Identifier",
+        "name": "arms"
+      }
+    }
+  ]
+}

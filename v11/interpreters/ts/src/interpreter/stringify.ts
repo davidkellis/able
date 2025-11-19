@@ -27,7 +27,6 @@ export function applyStringifyAugmentations(cls: typeof InterpreterV10): void {
       case "char": return v.value;
       case "nil": return "nil";
       case "array": return `[${v.elements.map(e => this.valueToString(e)).join(", ")}]`;
-      case "range": return `${v.start}${v.inclusive ? ".." : "..."}${v.end}`;
       case "function": return "<function>";
       case "struct_def": return `<struct ${v.def.id.name}>`;
       case "interface_def": return `<interface ${v.def.id.name}>`;

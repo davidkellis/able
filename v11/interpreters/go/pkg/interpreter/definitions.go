@@ -112,6 +112,9 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 				entry.unionVariants = append([]string(nil), unionSignatures...)
 			}
 			i.implMethods[variant.typeName] = append(i.implMethods[variant.typeName], entry)
+			if ifaceName == "Range" {
+				i.registerRangeImplementation(entry, def.InterfaceArgs)
+			}
 		}
 	}
 	if def.ImplName != nil {

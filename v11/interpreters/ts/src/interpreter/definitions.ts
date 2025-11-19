@@ -1,7 +1,7 @@
 import * as AST from "../ast";
 import type { Environment } from "./environment";
 import type { InterpreterV10 } from "./index";
-import type { V10Value } from "./values";
+import type { ImplMethodEntry, V10Value } from "./values";
 
 const NIL: V10Value = { kind: "nil", value: null };
 
@@ -86,14 +86,18 @@ export function evaluateImplementationDefinition(ctx: InterpreterV10, node: AST.
       }
       constraintSet.add(constraintKey);
       if (!ctx.implMethods.has(typeName)) ctx.implMethods.set(typeName, []);
-      ctx.implMethods.get(typeName)!.push({
+      const implEntry: ImplMethodEntry = {
         def: node,
         methods: funcs,
         targetArgTemplates,
         genericParams: node.genericParams ?? [],
         whereClause: node.whereClause,
         unionVariantSignatures,
-      });
+      };
+      ctx.implMethods.get(typeName)!.push(implEntry);
+      if (node.interfaceName.name === "Range") {
+        ctx.registerRangeImplementation(implEntry, node.interfaceArgs);
+      }
     }
   }
   return NIL;

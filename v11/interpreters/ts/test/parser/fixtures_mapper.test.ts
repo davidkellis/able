@@ -259,6 +259,66 @@ Point { x: 1, y: 2 } match {
     expect(names).toEqual(["x", "y"]);
   });
 
+  test("maps loop expression statements with continue and break statements", async () => {
+    const parser = await getTreeSitterParser();
+    const source = `counter := 3
+loop {
+  counter = counter - 1
+  if counter > 1 {
+    continue
+  }
+  if counter < 0 {
+    break
+  }
+}
+counter
+`;
+
+    const tree = parser.parse(source);
+    expect(tree.rootNode.type).toBe("source_file");
+    expect(tree.rootNode.hasError).toBe(false);
+
+    const module = mapSourceFile(tree.rootNode, source, "<inline>");
+    const loopExpr = module.body.find(
+      stmt => stmt?.type === "LoopExpression",
+    ) as AST.LoopExpression | undefined;
+    if (!loopExpr) {
+      throw new Error("expected loop expression statement in loop mapping test");
+    }
+
+    const blockStatements = loopExpr.body.body;
+    expect(blockStatements.length).toBeGreaterThanOrEqual(3);
+
+    const assignment = blockStatements.find((stmt) => stmt?.type === "AssignmentExpression");
+    expect(assignment?.type).toBe("AssignmentExpression");
+
+    const ifNodes = blockStatements.filter(
+      (stmt): stmt is AST.IfExpression => stmt?.type === "IfExpression",
+    );
+    expect(ifNodes).toHaveLength(2);
+
+    const continueIf = ifNodes.find(
+      (stmt) => stmt.ifCondition.type === "BinaryExpression" && stmt.ifCondition.operator === ">",
+    );
+    expect(continueIf).toBeDefined();
+    if (continueIf) {
+      const continueStmt = continueIf.ifBody.body?.[0];
+      expect(continueStmt?.type).toBe("ContinueStatement");
+    }
+
+    const breakIf = ifNodes.find(
+      (stmt) => stmt.ifCondition.type === "BinaryExpression" && stmt.ifCondition.operator === "<",
+    );
+    expect(breakIf).toBeDefined();
+    if (breakIf) {
+      const breakStmt = breakIf.ifBody.body?.[0];
+      expect(breakStmt?.type).toBe("BreakStatement");
+      if (breakStmt?.type === "BreakStatement") {
+        expect(breakStmt.value).toBeUndefined();
+      }
+    }
+  });
+
   test("maps interface self type pattern from 'for' clause", async () => {
     const parser = await getTreeSitterParser();
     const source = `interface Display for Point {

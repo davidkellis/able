@@ -4,7 +4,6 @@ import { BreakLabelSignal, BreakSignal, ContinueSignal, GeneratorYieldSignal, Pr
 import type { IteratorValue, V10Value } from "./values";
 import * as AST from "../ast";
 import type { ContinuationContext } from "./continuations";
-import { makeIntegerFromNumber } from "./numeric";
 
 function isContinuationYield(context: ContinuationContext, err: unknown): boolean {
   if (context.kind === "generator") {
@@ -222,16 +221,15 @@ export function evaluateWhileLoop(ctx: InterpreterV10, node: AST.WhileLoop, env:
   if (generator) {
     return evaluateWhileLoopWithContinuation(ctx, node, env, generator);
   }
-  let result: V10Value = { kind: "nil", value: null };
   while (true) {
     ctx.checkTimeSlice();
     const condition = ctx.evaluate(node.condition, env);
     if (!ctx.isTruthy(condition)) {
-      return result;
+      return { kind: "nil", value: null };
     }
     const bodyEnv = new Environment(env);
     try {
-      result = ctx.evaluate(node.body, bodyEnv);
+      ctx.evaluate(node.body, bodyEnv);
     } catch (e) {
       if (e instanceof BreakSignal) {
         if (e.label) throw new Error("Labeled break not supported");
@@ -394,7 +392,7 @@ function evaluateWhileLoopWithContinuation(
       }
       if (!ctx.isTruthy(condition)) {
         continuation.clearWhileLoopState(node);
-        return result;
+        return { kind: "nil", value: null };
       }
       state.inBody = true;
       state.loopEnv = new Environment(state.baseEnv);
@@ -468,30 +466,6 @@ export function evaluateForLoop(ctx: InterpreterV10, node: AST.ForLoop, env: Env
   const values: V10Value[] = [];
   if (iterableValue.kind === "array") {
     values.push(...iterableValue.elements);
-  } else if (iterableValue.kind === "range") {
-    const toEndpoint = (value: number): number => {
-      if (!Number.isFinite(value)) throw new Error("Range endpoint must be finite");
-      return Math.trunc(value);
-    };
-    const start = toEndpoint(iterableValue.start);
-    const end = toEndpoint(iterableValue.end);
-    const step = start <= end ? 1 : -1;
-    for (let current = start; ; current += step) {
-      if (step > 0) {
-        if (iterableValue.inclusive) {
-          if (current > end) break;
-        } else if (current >= end) {
-          break;
-        }
-      } else {
-        if (iterableValue.inclusive) {
-          if (current < end) break;
-        } else if (current <= end) {
-          break;
-        }
-      }
-      values.push(makeIntegerFromNumber("i32", current));
-    }
   } else if (iterableValue.kind === "iterator") {
     return iterateDynamicIterator(ctx, node, baseEnv, iterableValue);
   } else {
@@ -519,7 +493,7 @@ export function evaluateForLoop(ctx: InterpreterV10, node: AST.ForLoop, env: Env
       throw e;
     }
   }
-  return last;
+  return { kind: "nil", value: null };
 }
 
 function iterateDynamicIterator(ctx: InterpreterV10, loop: AST.ForLoop, baseEnv: Environment, iterator: IteratorValue): V10Value {
@@ -534,7 +508,7 @@ function iterateDynamicIterator(ctx: InterpreterV10, loop: AST.ForLoop, baseEnv:
         throw err;
       }
       if (step.done) {
-        return result;
+        return { kind: "nil", value: null };
       }
       const loopEnv = new Environment(baseEnv);
       bindPattern(ctx, loop.pattern, step.value, loopEnv);
@@ -578,39 +552,6 @@ function evaluateForLoopWithContinuation(
       state = {
         mode: "static",
         values: [...iterableValue.elements],
-        baseEnv,
-        index: 0,
-        result: initialResult,
-        awaitingBody: false,
-      };
-    } else if (iterableValue.kind === "range") {
-      const rangeValues: V10Value[] = [];
-      const toEndpoint = (value: number): number => {
-        if (!Number.isFinite(value)) throw new Error("Range endpoint must be finite");
-        return Math.trunc(value);
-      };
-      const start = toEndpoint(iterableValue.start);
-      const end = toEndpoint(iterableValue.end);
-      const step = start <= end ? 1 : -1;
-      for (let current = start; ; current += step) {
-        if (step > 0) {
-          if (iterableValue.inclusive) {
-            if (current > end) break;
-          } else if (current >= end) {
-            break;
-          }
-        } else {
-          if (iterableValue.inclusive) {
-            if (current < end) break;
-          } else if (current <= end) {
-            break;
-          }
-        }
-        rangeValues.push(makeIntegerFromNumber("i32", current));
-      }
-      state = {
-        mode: "static",
-        values: rangeValues,
         baseEnv,
         index: 0,
         result: initialResult,
@@ -663,7 +604,7 @@ function evaluateForLoopWithContinuation(
         const values = state.values ?? [];
         if (state.index >= values.length) {
           cleanup();
-          return result;
+          return { kind: "nil", value: null };
         }
         value = values[state.index]!;
       } else {
@@ -681,7 +622,7 @@ function evaluateForLoopWithContinuation(
         }
         if (step.done) {
           cleanup();
-          return result;
+          return { kind: "nil", value: null };
         }
         value = step.value;
       }

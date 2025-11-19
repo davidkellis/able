@@ -574,6 +574,102 @@ func TestParseLoopExpression(t *testing.T) {
 	assertModulesEqual(t, expected, mod)
 }
 
+func TestParseLoopExpressionStatement(t *testing.T) {
+	source := `counter := 3
+loop {
+  counter = (counter - 1)
+  if counter < 0 {
+    break
+  }
+}
+`
+
+	p, err := NewModuleParser()
+	if err != nil {
+		t.Fatalf("NewModuleParser error: %v", err)
+	}
+	defer p.Close()
+
+	mod, err := p.ParseModule([]byte(source))
+	if err != nil {
+		t.Fatalf("ParseModule error: %v", err)
+	}
+
+	assign := ast.Assign(ast.ID("counter"), ast.Int(3))
+
+	decrement := ast.AssignOp(
+		ast.AssignmentAssign,
+		ast.ID("counter"),
+		ast.Bin("-", ast.ID("counter"), ast.Int(1)),
+	)
+
+	breakBlock := ast.Block(ast.NewBreakStatement(nil, nil))
+	breakIf := ast.IfExpr(ast.Bin("<", ast.ID("counter"), ast.Int(0)), breakBlock)
+	breakIf.OrClauses = []*ast.OrClause{}
+
+	loopExpr := ast.Loop(decrement, breakIf)
+
+	expected := ast.NewModule(
+		[]ast.Statement{
+			assign,
+			loopExpr,
+		},
+		nil,
+		nil,
+	)
+	expected.Imports = []*ast.ImportStatement{}
+
+	assertModulesEqual(t, expected, mod)
+}
+
+func TestParseLoopExpressionStatementWithoutParens(t *testing.T) {
+	source := `counter := 3
+loop {
+  counter = counter - 1
+  if counter < 0 {
+    break
+  }
+}
+`
+
+	p, err := NewModuleParser()
+	if err != nil {
+		t.Fatalf("NewModuleParser error: %v", err)
+	}
+	defer p.Close()
+
+	mod, err := p.ParseModule([]byte(source))
+	if err != nil {
+		t.Fatalf("ParseModule error: %v", err)
+	}
+
+	assign := ast.Assign(ast.ID("counter"), ast.Int(3))
+
+	decrement := ast.AssignOp(
+		ast.AssignmentAssign,
+		ast.ID("counter"),
+		ast.Bin("-", ast.ID("counter"), ast.Int(1)),
+	)
+
+	breakBlock := ast.Block(ast.NewBreakStatement(nil, nil))
+	breakIf := ast.IfExpr(ast.Bin("<", ast.ID("counter"), ast.Int(0)), breakBlock)
+	breakIf.OrClauses = []*ast.OrClause{}
+
+	loopExpr := ast.Loop(decrement, breakIf)
+
+	expected := ast.NewModule(
+		[]ast.Statement{
+			assign,
+			loopExpr,
+		},
+		nil,
+		nil,
+	)
+	expected.Imports = []*ast.ImportStatement{}
+
+	assertModulesEqual(t, expected, mod)
+}
+
 func TestParseForLoopWithAssignment(t *testing.T) {
 	source := `items := [1, 2, 3]
 sum := 0

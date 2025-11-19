@@ -527,6 +527,7 @@ func (c *declarationCollector) ensureFunctionGenericInference(def *ast.FunctionD
 	}
 	def.WhereClause = hoistWhereConstraints(def.WhereClause, paramMap)
 	def.GenericParams = append(def.GenericParams, inferred...)
+	def.InferredGenericParams = append(def.InferredGenericParams, inferred...)
 }
 
 func (c *declarationCollector) ensureSignatureGenericInference(sig *ast.FunctionSignature, scope map[string]Type) {
@@ -548,6 +549,7 @@ func (c *declarationCollector) ensureSignatureGenericInference(sig *ast.Function
 	}
 	sig.WhereClause = hoistWhereConstraints(sig.WhereClause, paramMap)
 	sig.GenericParams = append(sig.GenericParams, inferred...)
+	sig.InferredGenericParams = append(sig.InferredGenericParams, inferred...)
 }
 
 func (c *declarationCollector) selectInferredGenericParameters(
@@ -584,6 +586,14 @@ func (c *declarationCollector) selectInferredGenericParameters(
 			continue
 		}
 		param := newInferredGenericParameter(occ.name, occ.node)
+		if param != nil && c.origins != nil && occ.node != nil {
+			if origin, ok := c.origins[occ.node]; ok && origin != "" {
+				c.origins[param] = origin
+				if param.Name != nil {
+					c.origins[param.Name] = origin
+				}
+			}
+		}
 		inferred = append(inferred, param)
 		known[occ.name] = struct{}{}
 	}

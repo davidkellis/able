@@ -42,8 +42,54 @@ const errorsFixtures: Fixture[] = [
         description: "Where clause referencing known type names requires explicit generics",
         expect: {
           typecheckDiagnostics: [
-            "typechecker: implicit_generic_where_ambiguity ../fixtures/ast/errors/implicit_generic_where_ambiguity/source.able:9:46 typechecker: cannot infer type parameter 'Point' because a type with the same name exists; declare it explicitly or qualify the type",
+            "typechecker: ../fixtures/ast/errors/implicit_generic_where_ambiguity/source.able:9:46 typechecker: cannot infer type parameter 'Point' because a type with the same name exists; declare it explicitly or qualify the type",
           ],
+        },
+      },
+    },
+
+  {
+      name: "errors/implicit_generic_redeclaration",
+      module: AST.module([
+        AST.fn(
+          "wrap",
+          [AST.param("value", AST.simpleTypeExpression("T"))],
+          [
+            AST.structDefinition(
+              "T",
+              [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "value")],
+              "named",
+            ),
+            AST.identifier("value"),
+          ],
+          AST.simpleTypeExpression("T"),
+        ),
+      ]),
+      manifest: {
+        description: "Redeclaring inferred generics inside a function body is rejected",
+        skipTargets: ["go"],
+        expect: {
+          typecheckDiagnostics: [
+            "typechecker: ../fixtures/ast/errors/implicit_generic_redeclaration/source.able typechecker: cannot redeclare inferred type parameter 'T' inside fn wrap (inferred at ../../fixtures/ast/errors/implicit_generic_redeclaration/source.able:0:0)",
+          ],
+        },
+      },
+    },
+
+  {
+      name: "errors/await_not_supported",
+      module: AST.module([
+        AST.assignmentExpression(
+          ":=",
+          AST.identifier("arms"),
+          AST.arrayLiteral([AST.stringLiteral("ready")]),
+        ),
+        AST.awaitExpression(AST.identifier("arms")),
+      ]),
+      manifest: {
+        description: "Await expressions currently raise not-implemented errors",
+        expect: {
+          errors: ["Await expressions are not implemented yet"],
         },
       },
     },
@@ -312,7 +358,7 @@ const errorsFixtures: Fixture[] = [
         expect: {
           result: { kind: "nil" },
           typecheckDiagnostics: [
-            "typechecker: fixtures/ast/errors/interface_self_pattern_mismatch/source.able typechecker: impl PointDisplay for Line must match interface self type 'Point'",
+            "typechecker: ../fixtures/ast/errors/interface_self_pattern_mismatch/source.able:13:1 typechecker: impl PointDisplay for Line must match interface self type 'Point'",
           ],
         },
       },
@@ -378,7 +424,7 @@ const errorsFixtures: Fixture[] = [
         expect: {
           result: { kind: "nil" },
           typecheckDiagnostics: [
-            "typechecker: fixtures/ast/errors/interface_hkt_constructor_mismatch/source.able typechecker: impl Mapper for Array i32 must match interface self type 'F _'",
+            "typechecker: ../fixtures/ast/errors/interface_hkt_constructor_mismatch/source.able:8:1 typechecker: impl Mapper for Array i32 must match interface self type 'F _'",
           ],
         },
       },

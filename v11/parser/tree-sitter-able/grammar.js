@@ -68,6 +68,7 @@ const KEYWORDS = [
   "rethrow",
   "proc",
   "spawn",
+  "await",
   "as",
   "nil",
   "void",
@@ -504,6 +505,7 @@ module.exports = grammar({
       $.handling_expression,
       $.proc_expression,
       $.spawn_expression,
+      $.await_expression,
       $.breakpoint_expression,
       $.match_expression,
       $.assignment_expression,
@@ -584,6 +586,11 @@ module.exports = grammar({
         $.do_expression,
         $.call_target,
       ),
+    ),
+
+    await_expression: $ => seq(
+      "await",
+      $.expression,
     ),
 
     breakpoint_expression: $ => seq(

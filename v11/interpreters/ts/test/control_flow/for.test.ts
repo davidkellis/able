@@ -14,7 +14,8 @@ describe("v11 interpreter - for loop", () => {
         AST.assignmentExpression("=", AST.identifier("sum"), AST.binaryExpression("+", AST.identifier("sum"), AST.identifier("x")))
       ])
     );
-    I.evaluate(loop);
+    const loopResult = I.evaluate(loop);
+    expect(loopResult).toEqual({ kind: "nil", value: null });
     expect(I.evaluate(AST.identifier("sum"))).toEqual({ kind: 'i32', value: 6n });
   });
 
@@ -54,6 +55,23 @@ describe("v11 interpreter - for loop", () => {
     );
     I.evaluate(loop);
     expect(I.evaluate(AST.identifier("sum"))).toEqual({ kind: 'i32', value: 4n });
+  });
+
+  test("for loop returns break payload", () => {
+    const I = new InterpreterV10();
+    const arr = AST.arrayLiteral([AST.integerLiteral(1), AST.integerLiteral(2), AST.integerLiteral(3)]);
+    const loop = AST.forLoop(
+      AST.identifier("value"),
+      arr,
+      AST.blockExpression([
+        AST.ifExpression(
+          AST.binaryExpression("==", AST.identifier("value"), AST.integerLiteral(2)),
+          AST.blockExpression([AST.breakStatement(undefined, AST.identifier("value"))]),
+        ),
+      ]),
+    );
+    const result = I.evaluate(loop);
+    expect(result).toEqual({ kind: "i32", value: 2n });
   });
 
   test("ascending ranges honor inclusive and exclusive operators", () => {

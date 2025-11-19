@@ -102,14 +102,6 @@ func valueToString(val runtime.Value) string {
 			parts = append(parts, valueToString(el))
 		}
 		return fmt.Sprintf("[%s]", strings.Join(parts, ", "))
-	case *runtime.RangeValue:
-		start := valueToString(v.Start)
-		end := valueToString(v.End)
-		delim := "..."
-		if v.Inclusive {
-			delim = ".."
-		}
-		return fmt.Sprintf("%s%s%s", start, delim, end)
 	case *runtime.StructInstanceValue:
 		return structInstanceToString(v)
 	case runtime.StructDefinitionValue:

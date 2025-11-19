@@ -8,27 +8,28 @@ import (
 
 // Checker traverses Able AST nodes and records diagnostics.
 type Checker struct {
-	infer               InferenceMap
-	global              *Environment
-	nodeOrigins         map[ast.Node]string
-	returnTypeStack     []Type
-	rescueDepth         int
-	loopDepth           int
-	loopResultStack     []Type
-	breakpointStack     []string
-	asyncDepth          int
-	implementations     []ImplementationSpec
-	methodSets          []MethodSetSpec
-	obligations         []ConstraintObligation
-	constraintStack     []map[string][]Type
-	allowDynamicLookups bool
-	preludeEnv          *Environment
-	preludeImpls        []ImplementationSpec
-	preludeMethodSets   []MethodSetSpec
-	preludeImplCount    int
-	preludeMethodCount  int
-	publicDeclarations  []exportRecord
-	pipeContextDepth    int
+	infer                InferenceMap
+	global               *Environment
+	nodeOrigins          map[ast.Node]string
+	returnTypeStack      []Type
+	functionGenericStack []functionGenericContext
+	rescueDepth          int
+	loopDepth            int
+	loopResultStack      []Type
+	breakpointStack      []string
+	asyncDepth           int
+	implementations      []ImplementationSpec
+	methodSets           []MethodSetSpec
+	obligations          []ConstraintObligation
+	constraintStack      []map[string][]Type
+	allowDynamicLookups  bool
+	preludeEnv           *Environment
+	preludeImpls         []ImplementationSpec
+	preludeMethodSets    []MethodSetSpec
+	preludeImplCount     int
+	preludeMethodCount   int
+	publicDeclarations   []exportRecord
+	pipeContextDepth     int
 
 	builtinImplementations []ImplementationSpec
 	pendingDiagnostics     []Diagnostic
@@ -43,6 +44,12 @@ type Diagnostic struct {
 type exportRecord struct {
 	name string
 	node ast.Node
+}
+
+type functionGenericContext struct {
+	def      *ast.FunctionDefinition
+	label    string
+	inferred map[string]*ast.GenericParameter
 }
 
 // ExportedSymbol describes a public binding produced by a module.
@@ -90,6 +97,7 @@ func (c *Checker) CheckModule(module *ast.Module) ([]Diagnostic, error) {
 	// Reset inference map between runs.
 	c.infer = make(InferenceMap)
 	c.returnTypeStack = nil
+	c.functionGenericStack = nil
 	c.rescueDepth = 0
 	c.loopDepth = 0
 	c.loopResultStack = nil

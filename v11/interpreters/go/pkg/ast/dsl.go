@@ -229,6 +229,10 @@ func Spawn(expr Expression) *SpawnExpression {
 	return NewSpawnExpression(expr)
 }
 
+func Await(expr Expression) *AwaitExpression {
+	return NewAwaitExpression(expr)
+}
+
 func Prop(expr Expression) *PropagationExpression {
 	return NewPropagationExpression(expr)
 }

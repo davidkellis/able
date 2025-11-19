@@ -20,6 +20,8 @@ func (c *Checker) checkFunctionDefinition(env *Environment, def *ast.FunctionDef
 	if def == nil {
 		return nil
 	}
+	c.pushFunctionGenericContext(def)
+	defer c.popFunctionGenericContext()
 
 	bodyEnv := env.Extend()
 	var diags []Diagnostic
@@ -103,6 +105,39 @@ func (c *Checker) checkFunctionDefinition(env *Environment, def *ast.FunctionDef
 	}
 
 	return diags
+}
+
+func (c *Checker) pushFunctionGenericContext(def *ast.FunctionDefinition) {
+	if def == nil {
+		return
+	}
+	ctx := functionGenericContext{
+		def:      def,
+		label:    fmt.Sprintf("fn %s", defName(def)),
+		inferred: collectInferredGenericParams(def),
+	}
+	c.functionGenericStack = append(c.functionGenericStack, ctx)
+}
+
+func (c *Checker) popFunctionGenericContext() {
+	if len(c.functionGenericStack) == 0 {
+		return
+	}
+	c.functionGenericStack = c.functionGenericStack[:len(c.functionGenericStack)-1]
+}
+
+func collectInferredGenericParams(def *ast.FunctionDefinition) map[string]*ast.GenericParameter {
+	inferred := make(map[string]*ast.GenericParameter)
+	if def == nil {
+		return inferred
+	}
+	for _, param := range def.GenericParams {
+		if param == nil || !param.IsInferred || param.Name == nil || param.Name.Name == "" {
+			continue
+		}
+		inferred[param.Name.Name] = param
+	}
+	return inferred
 }
 
 func defName(def *ast.FunctionDefinition) string {

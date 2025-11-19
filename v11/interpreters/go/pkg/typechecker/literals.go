@@ -286,6 +286,9 @@ func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diag
 		return c.checkProcExpression(env, e)
 	case *ast.SpawnExpression:
 		return c.checkSpawnExpression(env, e)
+	case *ast.AwaitExpression:
+		c.infer.set(e, UnknownType{})
+		return nil, UnknownType{}
 	case *ast.PropagationExpression:
 		return c.checkPropagationExpression(env, e)
 	case *ast.Identifier:
@@ -358,8 +361,14 @@ func (c *Checker) checkStatement(env *Environment, stmt ast.Statement) []Diagnos
 		return c.checkBreakStatement(env, s)
 	case *ast.ContinueStatement:
 		return c.checkContinueStatement(s)
-	case *ast.StructDefinition, *ast.UnionDefinition, *ast.InterfaceDefinition, *ast.TypeAliasDefinition:
-		return nil
+	case *ast.StructDefinition:
+		return c.checkLocalTypeDeclaration(identifierName(s.ID), s)
+	case *ast.UnionDefinition:
+		return c.checkLocalTypeDeclaration(identifierName(s.ID), s)
+	case *ast.InterfaceDefinition:
+		return c.checkLocalTypeDeclaration(identifierName(s.ID), s)
+	case *ast.TypeAliasDefinition:
+		return c.checkLocalTypeDeclaration(identifierName(s.ID), s)
 	case *ast.DynImportStatement:
 		placeholder := Type(UnknownType{})
 		if s.IsWildcard {
@@ -395,6 +404,26 @@ func (c *Checker) checkStatement(env *Environment, stmt ast.Statement) []Diagnos
 	default:
 		return []Diagnostic{{Message: fmt.Sprintf("typechecker: unsupported statement %T", stmt), Node: stmt}}
 	}
+}
+
+func (c *Checker) checkLocalTypeDeclaration(name string, node ast.Node) []Diagnostic {
+	if name == "" {
+		return nil
+	}
+	if len(c.functionGenericStack) == 0 {
+		return nil
+	}
+	current := c.functionGenericStack[len(c.functionGenericStack)-1]
+	if len(current.inferred) == 0 {
+		return nil
+	}
+	param, ok := current.inferred[name]
+	if !ok {
+		return nil
+	}
+	location := formatNodeLocation(param, c.nodeOrigins)
+	msg := fmt.Sprintf("typechecker: cannot redeclare inferred type parameter '%s' inside %s (inferred at %s)", name, current.label, location)
+	return []Diagnostic{{Message: msg, Node: node}}
 }
 
 func analyzeAssignmentTargets(env *Environment, target ast.AssignmentTarget) (map[string]struct{}, bool) {

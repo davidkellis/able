@@ -188,7 +188,10 @@ function buildGenericSubstitutions(
   return substitutions;
 }
 
-type FunctionLikeNode = Pick<AST.FunctionDefinition, "genericParams" | "params" | "returnType" | "whereClause">;
+type FunctionLikeNode = Pick<
+  AST.FunctionDefinition,
+  "genericParams" | "inferredGenericParams" | "params" | "returnType" | "whereClause"
+>;
 
 type TypeOccurrence = {
   name: string;
@@ -268,6 +271,9 @@ function inferGenericsForNode(
   }
   node.genericParams = Array.isArray(node.genericParams) ? [...node.genericParams, ...inferred] : inferred;
   node.whereClause = hoistWhereClauses(node.whereClause, inferredMap);
+  node.inferredGenericParams = Array.isArray(node.inferredGenericParams)
+    ? [...node.inferredGenericParams, ...inferred]
+    : inferred;
 }
 
 function collectFunctionLikeOccurrences(node: FunctionLikeNode): TypeOccurrence[] {

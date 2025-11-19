@@ -238,13 +238,38 @@ type serialTask struct {
 type SerialExecutor struct {
 	executorBase
 
-	mu      sync.Mutex
-	cond    *sync.Cond
-	queue   []serialTask
-	closed  bool
-	active  bool
-	current *runtime.ProcHandleValue
-	paused  bool
+	mu        sync.Mutex
+	cond      *sync.Cond
+	queue     []serialTask
+	closed    bool
+	active    bool
+	current   *runtime.ProcHandleValue
+	paused    bool
+	syncDepth int
+	forceAuto int
+}
+
+func (e *SerialExecutor) beginSynchronousSection() {
+	if e == nil {
+		return
+	}
+	e.mu.Lock()
+	e.syncDepth++
+	e.mu.Unlock()
+}
+
+func (e *SerialExecutor) endSynchronousSection() {
+	if e == nil {
+		return
+	}
+	e.mu.Lock()
+	if e.syncDepth > 0 {
+		e.syncDepth--
+		if e.syncDepth == 0 {
+			e.cond.Broadcast()
+		}
+	}
+	e.mu.Unlock()
 }
 
 func NewSerialExecutor(panicHandler panicValueFunc) *SerialExecutor {
@@ -303,8 +328,14 @@ func (e *SerialExecutor) Close() {
 
 func (e *SerialExecutor) Flush() {
 	e.mu.Lock()
+	e.forceAuto++
+	e.cond.Broadcast()
 	for (len(e.queue) > 0 || (e.active && !e.paused)) && !e.closed {
 		e.cond.Wait()
+	}
+	e.forceAuto--
+	if e.forceAuto < 0 {
+		e.forceAuto = 0
 	}
 	e.mu.Unlock()
 }
@@ -406,7 +437,7 @@ func newTaskCancellation(value runtime.Value, message string) error {
 func (e *SerialExecutor) nextTask() (serialTask, bool) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	for len(e.queue) == 0 && !e.closed {
+	for (len(e.queue) == 0 || (e.syncDepth > 0 && e.forceAuto == 0)) && !e.closed {
 		e.cond.Wait()
 	}
 	if e.closed && len(e.queue) == 0 {

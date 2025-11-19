@@ -55,6 +55,18 @@ func (ctx *parseContext) parseSpawnExpression(node *sitter.Node) (ast.Expression
 	return annotateExpression(ast.NewSpawnExpression(body), node), nil
 }
 
+func (ctx *parseContext) parseAwaitExpression(node *sitter.Node) (ast.Expression, error) {
+	bodyNode := firstNamedChild(node)
+	if bodyNode == nil {
+		return nil, fmt.Errorf("parser: await expression missing operand")
+	}
+	body, err := ctx.parseExpression(bodyNode)
+	if err != nil {
+		return nil, err
+	}
+	return annotateExpression(ast.NewAwaitExpression(body), node), nil
+}
+
 func (ctx *parseContext) parseBreakpointExpression(node *sitter.Node) (ast.Expression, error) {
 	if node == nil || node.Kind() != "breakpoint_expression" {
 		return nil, fmt.Errorf("parser: expected breakpoint expression node")

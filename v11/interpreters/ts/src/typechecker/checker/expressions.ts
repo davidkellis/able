@@ -30,6 +30,12 @@ export interface ExpressionContext {
     pattern: AST.StructPattern,
     valueType: TypeInfo,
   ): AST.StructDefinition | undefined;
+  pushLoopContext(): void;
+  popLoopContext(): TypeInfo;
+  inLoopContext(): boolean;
+  pushBreakpointLabel(label: string): void;
+  popBreakpointLabel(): void;
+  hasBreakpointLabel(label: string): boolean;
   getIdentifierName(node: AST.Identifier | null | undefined): string | null;
   report(message: string, node?: AST.Node | null | undefined): void;
   describeTypeExpression(expr: AST.TypeExpression | null | undefined): string | null;
@@ -65,8 +71,17 @@ interface PatternBindingOptions {
   allowFallbackDeclaration?: boolean;
 }
 
+type TypeDeclarationNode =
+  | AST.StructDefinition
+  | AST.UnionDefinition
+  | AST.InterfaceDefinition
+  | AST.TypeAliasDefinition;
+
 export type StatementContext = ExpressionContext & {
   isExpression(node: AST.Node | undefined | null): node is AST.Expression;
+  handleTypeDeclaration?(node: TypeDeclarationNode): void;
+  handleBreakStatement?(node: AST.BreakStatement): void;
+  handleContinueStatement?(node: AST.ContinueStatement): void;
 };
 
 export function checkStructPattern(
@@ -279,8 +294,31 @@ export function inferExpression(ctx: ExpressionContext, expression: AST.Expressi
     }
     case "BlockExpression":
       return evaluateBlockExpression(ctx, expression);
-    case "LoopExpression":
-      return ctx.inferExpression(expression.body);
+    case "LoopExpression": {
+      ctx.pushLoopContext();
+      let loopResult: TypeInfo;
+      try {
+        ctx.inferExpression(expression.body);
+      } finally {
+        loopResult = ctx.popLoopContext();
+      }
+      return loopResult ?? unknownType;
+    }
+    case "BreakpointExpression": {
+      const labelName = ctx.getIdentifierName(expression.label);
+      if (!labelName) {
+        ctx.report("typechecker: breakpoint requires a label", expression.label ?? expression);
+        return ctx.inferExpression(expression.body);
+      }
+      ctx.pushBreakpointLabel(labelName);
+      let bodyType: TypeInfo;
+      try {
+        bodyType = ctx.inferExpression(expression.body);
+      } finally {
+        ctx.popBreakpointLabel();
+      }
+      return bodyType ?? unknownType;
+    }
     case "ProcExpression": {
       ctx.pushAsyncContext();
       const bodyType = ctx.inferExpression(expression.expression);
@@ -293,6 +331,8 @@ export function inferExpression(ctx: ExpressionContext, expression: AST.Expressi
       ctx.popAsyncContext();
       return futureType(bodyType);
     }
+    case "AwaitExpression":
+      return unknownType;
     case "FunctionCall": {
       ctx.checkFunctionCall(expression);
       return ctx.inferFunctionCallReturnType(expression);
