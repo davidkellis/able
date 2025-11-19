@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TS_DIR="$SCRIPT_DIR/interpreters/ts"
+
+usage() {
+  cat <<'EOF'
+Usage: ablets [--] <command-or-entry> [args...]
+
+Runs the Able v11 TypeScript interpreter (Bun) with friendly defaults.
+Pass `run` or `check` explicitly, or provide a path to run directly.
+
+Examples:
+  # Run a source file
+  ./v11/ablets examples/hello_world.able
+
+  # Typecheck without executing
+  ./v11/ablets check examples/hello_world.able
+EOF
+}
+
+resolve_path() {
+  local candidate="$1"
+  if [[ -z "$candidate" ]]; then
+    printf '%s\n' "$candidate"
+    return 0
+  fi
+  if [[ -f "$candidate" ]]; then
+    realpath "$candidate"
+    return 0
+  fi
+  if [[ -f "$SCRIPT_DIR/$candidate" ]]; then
+    realpath "$SCRIPT_DIR/$candidate"
+    return 0
+  fi
+  printf '%s\n' "$candidate"
+}
+
+build_ts_args() {
+  TS_ARGS=()
+  if [[ $# -eq 0 ]]; then
+    return
+  fi
+
+  local first="$1"
+  shift || true
+  case "$first" in
+    run|check)
+      TS_ARGS+=("$first")
+      if [[ $# -gt 0 ]]; then
+        local candidate="$1"
+        shift || true
+        TS_ARGS+=("$(resolve_path "$candidate")")
+      fi
+      if [[ $# -gt 0 ]]; then
+        TS_ARGS+=("$@")
+      fi
+      ;;
+    test)
+      TS_ARGS+=("$first")
+      if [[ $# -gt 0 ]]; then
+        TS_ARGS+=("$@")
+      fi
+      ;;
+    *)
+      TS_ARGS+=("run")
+      TS_ARGS+=("$(resolve_path "$first")")
+      if [[ $# -gt 0 ]]; then
+        TS_ARGS+=("$@")
+      fi
+      ;;
+  esac
+}
+
+ensure_ts_dir() {
+  if [[ ! -d "$TS_DIR" ]]; then
+    echo "Able v11 TypeScript interpreter directory not found at $TS_DIR" >&2
+    exit 1
+  fi
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --)
+      shift
+      break
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+cmd_args=("$@")
+
+if [[ ${#cmd_args[@]} -eq 0 ]]; then
+  echo "Expected an entrypoint, manifest target, or interpreter command." >&2
+  echo "Use --help to see usage examples." >&2
+  exit 1
+fi
+
+ensure_ts_dir
+build_ts_args "${cmd_args[@]}"
+
+echo "[Able v11 TypeScript] bun run scripts/run-module.ts ${TS_ARGS[*]}"
+if (cd "$TS_DIR" && bun run scripts/run-module.ts "${TS_ARGS[@]}"); then
+  exit 0
+else
+  code=$?
+  echo "Able v11 TypeScript interpreter exited with status $code" >&2
+  exit "$code"
+fi
+

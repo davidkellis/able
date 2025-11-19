@@ -110,4 +110,90 @@ describe("typechecker control flow", () => {
     const result = checker.checkModule(module);
     expect(result.diagnostics).toHaveLength(0);
   });
+
+  test("reports diagnostic when break appears outside loop", () => {
+    const checker = new TypeChecker();
+    const module = AST.module([AST.breakStatement()]);
+
+    const result = checker.checkModule(module);
+    const hasDiag = result.diagnostics.some((diag) =>
+      diag.message.includes("break statement must appear inside a loop"),
+    );
+    expect(hasDiag).toBe(true);
+  });
+
+  test("reports diagnostic when break label is unknown", () => {
+    const checker = new TypeChecker();
+    const loop = AST.loopExpression(
+      AST.blockExpression([
+        AST.breakStatement("missing") as unknown as AST.Statement,
+      ]),
+    );
+    const module = AST.module([loop as unknown as AST.Statement]);
+
+    const result = checker.checkModule(module);
+    const hasDiag = result.diagnostics.some((diag) =>
+      diag.message.includes("unknown break label 'missing'"),
+    );
+    expect(hasDiag).toBe(true);
+  });
+
+  test("allows break with matching breakpoint label", () => {
+    const checker = new TypeChecker();
+    const bp = AST.breakpointExpression(
+      "exit",
+      AST.blockExpression([
+        AST.breakStatement("exit", AST.integerLiteral(1)),
+      ]),
+    );
+    const module = AST.module([bp as unknown as AST.Statement]);
+
+    const result = checker.checkModule(module);
+    expect(result.diagnostics).toHaveLength(0);
+  });
+
+  test("reports diagnostic when continue appears outside loop", () => {
+    const checker = new TypeChecker();
+    const module = AST.module([AST.continueStatement()]);
+
+    const result = checker.checkModule(module);
+    const hasDiag = result.diagnostics.some((diag) =>
+      diag.message.includes("continue statement must appear inside a loop"),
+    );
+    expect(hasDiag).toBe(true);
+  });
+
+  test("reports diagnostic when continue statement is labeled", () => {
+    const checker = new TypeChecker();
+    const loop = AST.loopExpression(
+      AST.blockExpression([
+        AST.continueStatement("next") as unknown as AST.Statement,
+      ]),
+    );
+    const module = AST.module([loop as unknown as AST.Statement]);
+
+    const result = checker.checkModule(module);
+    const hasDiag = result.diagnostics.some((diag) =>
+      diag.message.includes("labeled continue is not supported"),
+    );
+    expect(hasDiag).toBe(true);
+  });
+
+  test("loop expression type matches break payload", () => {
+    const checker = new TypeChecker();
+    const loopExpr = AST.loopExpression(
+      AST.blockExpression([
+        AST.breakStatement(undefined, AST.integerLiteral(5)),
+      ]),
+    );
+    const assignment = AST.assignmentExpression(
+      ":=",
+      AST.typedPattern(AST.identifier("value"), AST.simpleTypeExpression("i32")),
+      loopExpr,
+    );
+    const module = AST.module([assignment as unknown as AST.Statement]);
+
+    const result = checker.checkModule(module);
+    expect(result.diagnostics).toHaveLength(0);
+  });
 });

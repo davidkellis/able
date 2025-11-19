@@ -89,6 +89,21 @@ func decodeDefinitionNodes(node map[string]any, typ string) (ast.Node, bool, err
 				generics = append(generics, gp)
 			}
 		}
+		var inferredGenerics []*ast.GenericParameter
+		if igRaw, ok := node["inferredGenericParams"].([]any); ok {
+			inferredGenerics = make([]*ast.GenericParameter, 0, len(igRaw))
+			for _, raw := range igRaw {
+				gpNode, ok := raw.(map[string]any)
+				if !ok {
+					return nil, true, fmt.Errorf("invalid inferred generic parameter node %T", raw)
+				}
+				gp, err := decodeGenericParameter(gpNode)
+				if err != nil {
+					return nil, true, err
+				}
+				inferredGenerics = append(inferredGenerics, gp)
+			}
+		}
 		var whereClause []*ast.WhereClauseConstraint
 		if wcRaw, ok := node["whereClause"].([]any); ok {
 			whereClause = make([]*ast.WhereClauseConstraint, 0, len(wcRaw))
@@ -106,7 +121,11 @@ func decodeDefinitionNodes(node map[string]any, typ string) (ast.Node, bool, err
 		}
 		isMethodShorthand, _ := node["isMethodShorthand"].(bool)
 		isPrivate, _ := node["isPrivate"].(bool)
-		return ast.NewFunctionDefinition(id, params, body, returnType, generics, whereClause, isMethodShorthand, isPrivate), true, nil
+		fn := ast.NewFunctionDefinition(id, params, body, returnType, generics, whereClause, isMethodShorthand, isPrivate)
+		if len(inferredGenerics) > 0 {
+			fn.InferredGenericParams = attachInferredGenericParams(inferredGenerics, generics)
+		}
+		return fn, true, nil
 	case "ImplementationDefinition":
 		ifaceNode, err := decodeNode(node["interfaceName"].(map[string]any))
 		if err != nil {
@@ -459,4 +478,41 @@ func decodeDefinitionNodes(node map[string]any, typ string) (ast.Node, bool, err
 	default:
 		return nil, false, nil
 	}
+}
+
+func attachInferredGenericParams(inferred []*ast.GenericParameter, generics []*ast.GenericParameter) []*ast.GenericParameter {
+	if len(inferred) == 0 {
+		return nil
+	}
+	if len(generics) == 0 {
+		return inferred
+	}
+	lookup := make(map[string]*ast.GenericParameter, len(generics))
+	for _, param := range generics {
+		if param == nil || param.Name == nil {
+			continue
+		}
+		name := param.Name.Name
+		if name == "" {
+			continue
+		}
+		lookup[name] = param
+	}
+	result := make([]*ast.GenericParameter, 0, len(inferred))
+	for _, param := range inferred {
+		if param == nil || param.Name == nil {
+			result = append(result, param)
+			continue
+		}
+		name := param.Name.Name
+		if existing, ok := lookup[name]; ok {
+			if param.IsInferred && !existing.IsInferred {
+				existing.IsInferred = true
+			}
+			result = append(result, existing)
+			continue
+		}
+		result = append(result, param)
+	}
+	return result
 }

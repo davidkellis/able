@@ -28,7 +28,6 @@ export type V10Value =
       entries: Map<string, { key: V10Value; value: V10Value }>;
       order: string[];
     }
-  | { kind: "range"; start: number; end: number; inclusive: boolean }
   | IteratorValue
   | IteratorEndValue
   | { kind: "function"; node: AST.FunctionDefinition | AST.LambdaExpression; closureEnv: Environment }

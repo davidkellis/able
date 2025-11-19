@@ -23,7 +23,6 @@ const (
 	KindArray
 	KindHashMap
 	KindHasher
-	KindRange
 	KindFunction
 	KindNativeFunction
 	KindStructDefinition
@@ -64,8 +63,6 @@ func (k Kind) String() string {
 		return "hash_map"
 	case KindHasher:
 		return "hasher"
-	case KindRange:
-		return "range"
 	case KindFunction:
 		return "function"
 	case KindNativeFunction:
@@ -265,15 +262,6 @@ func (IteratorEndValue) Kind() Kind { return KindIteratorEnd }
 
 // IteratorEnd is the singleton sentinel shared by all iterators.
 var IteratorEnd = IteratorEndValue{}
-
-// RangeValue matches Able’s numeric range semantics.
-type RangeValue struct {
-	Start     Value
-	End       Value
-	Inclusive bool
-}
-
-func (v RangeValue) Kind() Kind { return KindRange }
 
 //-----------------------------------------------------------------------------
 // Functions & closures

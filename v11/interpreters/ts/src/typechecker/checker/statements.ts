@@ -14,13 +14,15 @@ export function checkStatement(ctx: StatementContext, node: AST.Statement | AST.
   switch (node.type) {
     case "InterfaceDefinition":
     case "StructDefinition":
+    case "UnionDefinition":
+    case "TypeAliasDefinition":
+      ctx.handleTypeDeclaration?.(node);
+      return;
     case "ImplementationDefinition":
     case "MethodsDefinition":
+      return;
     case "FunctionDefinition":
-    case "TypeAliasDefinition":
-      if (node.type === "FunctionDefinition") {
-        ctx.checkFunctionDefinition(node);
-      }
+      ctx.checkFunctionDefinition(node);
       return;
     case "ReturnStatement":
       ctx.checkReturnStatement(node);
@@ -39,6 +41,12 @@ export function checkStatement(ctx: StatementContext, node: AST.Statement | AST.
       return;
     case "ForLoop":
       checkForLoop(ctx, node);
+      return;
+    case "BreakStatement":
+      ctx.handleBreakStatement?.(node);
+      return;
+    case "ContinueStatement":
+      ctx.handleContinueStatement?.(node);
       return;
     default:
       if (ctx.isExpression(node)) {
@@ -97,6 +105,7 @@ function checkForLoop(ctx: StatementContext, loop: AST.ForLoop): void {
       loop.iterable,
     );
   }
+  ctx.pushLoopContext();
   ctx.pushScope();
   try {
     bindPatternToEnv(ctx, loop.pattern as AST.Pattern, elementType, "for-loop pattern");
@@ -105,6 +114,7 @@ function checkForLoop(ctx: StatementContext, loop: AST.ForLoop): void {
     }
   } finally {
     ctx.popScope();
+    ctx.popLoopContext();
   }
 }
 
@@ -114,6 +124,7 @@ function checkWhileLoop(ctx: StatementContext, loop: AST.WhileLoop): void {
   if (!isBoolean(conditionType)) {
     ctx.report("typechecker: while condition must be bool", loop.condition);
   }
+  ctx.pushLoopContext();
   ctx.pushScope();
   try {
     if (loop.body) {
@@ -121,6 +132,7 @@ function checkWhileLoop(ctx: StatementContext, loop: AST.WhileLoop): void {
     }
   } finally {
     ctx.popScope();
+    ctx.popLoopContext();
   }
 }
 

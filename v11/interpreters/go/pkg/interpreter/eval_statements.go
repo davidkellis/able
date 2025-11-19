@@ -2,7 +2,6 @@ package interpreter
 
 import (
 	"fmt"
-	"math/big"
 
 	"able/interpreter10-go/pkg/ast"
 	"able/interpreter10-go/pkg/runtime"
@@ -89,17 +88,15 @@ func (i *Interpreter) evaluateBlock(block *ast.BlockExpression, env *runtime.Env
 }
 
 func (i *Interpreter) evaluateWhileLoop(loop *ast.WhileLoop, env *runtime.Environment) (runtime.Value, error) {
-	var result runtime.Value = runtime.NilValue{}
 	for {
 		cond, err := i.evaluateExpression(loop.Condition, env)
 		if err != nil {
 			return nil, err
 		}
 		if !isTruthy(cond) {
-			return result, nil
+			return runtime.NilValue{}, nil
 		}
-		val, err := i.evaluateBlock(loop.Body, env)
-		if err != nil {
+		if _, err := i.evaluateBlock(loop.Body, env); err != nil {
 			switch sig := err.(type) {
 			case breakSignal:
 				if sig.label != "" {
@@ -119,7 +116,6 @@ func (i *Interpreter) evaluateWhileLoop(loop *ast.WhileLoop, env *runtime.Enviro
 				return nil, err
 			}
 		}
-		result = val
 	}
 }
 
@@ -182,12 +178,6 @@ func (i *Interpreter) evaluateForLoop(loop *ast.ForLoop, env *runtime.Environmen
 	switch it := iterable.(type) {
 	case *runtime.ArrayValue:
 		return i.iterateStaticValues(loop, baseEnv, it.Elements)
-	case *runtime.RangeValue:
-		values, err := buildRangeSequence(it)
-		if err != nil {
-			return nil, err
-		}
-		return i.iterateStaticValues(loop, baseEnv, values)
 	case *runtime.IteratorValue:
 		return i.iterateDynamicIterator(loop, baseEnv, it)
 	default:
@@ -199,45 +189,7 @@ func (i *Interpreter) evaluateForLoop(loop *ast.ForLoop, env *runtime.Environmen
 	}
 }
 
-func buildRangeSequence(r *runtime.RangeValue) ([]runtime.Value, error) {
-	startVal, err := rangeEndpoint(r.Start)
-	if err != nil {
-		return nil, err
-	}
-	endVal, err := rangeEndpoint(r.End)
-	if err != nil {
-		return nil, err
-	}
-	step := 1
-	if endVal < startVal {
-		step = -1
-	}
-	values := make([]runtime.Value, 0)
-	for v := startVal; ; v += step {
-		if step > 0 {
-			if r.Inclusive {
-				if v > endVal {
-					break
-				}
-			} else if v >= endVal {
-				break
-			}
-		} else {
-			if r.Inclusive {
-				if v < endVal {
-					break
-				}
-			} else if v <= endVal {
-				break
-			}
-		}
-		values = append(values, runtime.IntegerValue{Val: big.NewInt(int64(v)), TypeSuffix: runtime.IntegerI32})
-	}
-	return values, nil
-}
-
 func (i *Interpreter) iterateStaticValues(loop *ast.ForLoop, baseEnv *runtime.Environment, values []runtime.Value) (runtime.Value, error) {
-	var result runtime.Value = runtime.NilValue{}
 	for _, el := range values {
 		val, continueLoop, err := i.runForLoopBody(loop, baseEnv, el)
 		if err != nil {
@@ -246,9 +198,8 @@ func (i *Interpreter) iterateStaticValues(loop *ast.ForLoop, baseEnv *runtime.En
 		if !continueLoop {
 			return val, nil
 		}
-		result = val
 	}
-	return result, nil
+	return runtime.NilValue{}, nil
 }
 
 func (i *Interpreter) iterateDynamicIterator(loop *ast.ForLoop, baseEnv *runtime.Environment, iterator *runtime.IteratorValue) (runtime.Value, error) {
@@ -256,14 +207,13 @@ func (i *Interpreter) iterateDynamicIterator(loop *ast.ForLoop, baseEnv *runtime
 		return nil, fmt.Errorf("iterator is nil")
 	}
 	defer iterator.Close()
-	var result runtime.Value = runtime.NilValue{}
 	for {
 		value, done, err := iterator.Next()
 		if err != nil {
 			return nil, err
 		}
 		if done {
-			return result, nil
+			return runtime.NilValue{}, nil
 		}
 		val, continueLoop, err := i.runForLoopBody(loop, baseEnv, value)
 		if err != nil {
@@ -272,7 +222,6 @@ func (i *Interpreter) iterateDynamicIterator(loop *ast.ForLoop, baseEnv *runtime
 		if !continueLoop {
 			return val, nil
 		}
-		result = val
 	}
 }
 

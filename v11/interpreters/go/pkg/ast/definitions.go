@@ -110,14 +110,15 @@ type FunctionDefinition struct {
 	nodeImpl
 	statementMarker
 
-	ID                *Identifier              `json:"id"`
-	GenericParams     []*GenericParameter      `json:"genericParams,omitempty"`
-	Params            []*FunctionParameter     `json:"params"`
-	ReturnType        TypeExpression           `json:"returnType,omitempty"`
-	Body              *BlockExpression         `json:"body"`
-	WhereClause       []*WhereClauseConstraint `json:"whereClause,omitempty"`
-	IsMethodShorthand bool                     `json:"isMethodShorthand"`
-	IsPrivate         bool                     `json:"isPrivate"`
+	ID                     *Identifier              `json:"id"`
+	GenericParams          []*GenericParameter      `json:"genericParams,omitempty"`
+	InferredGenericParams  []*GenericParameter      `json:"inferredGenericParams,omitempty"`
+	Params                 []*FunctionParameter     `json:"params"`
+	ReturnType             TypeExpression           `json:"returnType,omitempty"`
+	Body                   *BlockExpression         `json:"body"`
+	WhereClause            []*WhereClauseConstraint `json:"whereClause,omitempty"`
+	IsMethodShorthand      bool                     `json:"isMethodShorthand"`
+	IsPrivate              bool                     `json:"isPrivate"`
 }
 
 func NewFunctionDefinition(id *Identifier, params []*FunctionParameter, body *BlockExpression, returnType TypeExpression, generics []*GenericParameter, whereClause []*WhereClauseConstraint, isMethodShorthand, isPrivate bool) *FunctionDefinition {
@@ -130,12 +131,13 @@ func NewFunctionDefinition(id *Identifier, params []*FunctionParameter, body *Bl
 type FunctionSignature struct {
 	nodeImpl
 
-	Name          *Identifier              `json:"name"`
-	GenericParams []*GenericParameter      `json:"genericParams,omitempty"`
-	Params        []*FunctionParameter     `json:"params"`
-	ReturnType    TypeExpression           `json:"returnType,omitempty"`
-	WhereClause   []*WhereClauseConstraint `json:"whereClause,omitempty"`
-	DefaultImpl   *BlockExpression         `json:"defaultImpl,omitempty"`
+	Name                  *Identifier              `json:"name"`
+	GenericParams         []*GenericParameter      `json:"genericParams,omitempty"`
+	InferredGenericParams []*GenericParameter      `json:"inferredGenericParams,omitempty"`
+	Params                []*FunctionParameter     `json:"params"`
+	ReturnType            TypeExpression           `json:"returnType,omitempty"`
+	WhereClause           []*WhereClauseConstraint `json:"whereClause,omitempty"`
+	DefaultImpl           *BlockExpression         `json:"defaultImpl,omitempty"`
 }
 
 func NewFunctionSignature(name *Identifier, params []*FunctionParameter, returnType TypeExpression, generics []*GenericParameter, whereClause []*WhereClauseConstraint, defaultImpl *BlockExpression) *FunctionSignature {

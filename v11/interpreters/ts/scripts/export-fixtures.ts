@@ -87,6 +87,16 @@ export function moduleToSource(module: AST.Module): string {
     .trimEnd();
 }
 
+function explicitGenericParams(
+  params?: (AST.GenericParameter | undefined)[] | null,
+): AST.GenericParameter[] | undefined {
+  if (!params || params.length === 0) {
+    return undefined;
+  }
+  const explicit = params.filter((param): param is AST.GenericParameter => Boolean(param && !param.isInferred));
+  return explicit.length > 0 ? explicit : undefined;
+}
+
 function printImport(imp: AST.ImportStatement): string {
   const path = imp.packagePath.map(printIdentifier).join(".");
   if (imp.isWildcard) {
@@ -182,8 +192,9 @@ function printFunctionDefinition(fn: AST.FunctionDefinition, level: number): str
     header += " ";
   }
   header += printIdentifier(fn.id);
-  if (fn.genericParams && fn.genericParams.length > 0) {
-    header += `<${fn.genericParams.map(printGenericParameter).join(", " )}>`;
+  const fnGenerics = explicitGenericParams(fn.genericParams);
+  if (fnGenerics) {
+    header += `<${fnGenerics.map(printGenericParameter).join(", ")}>`;
   }
   header += `(${fn.params.map(printFunctionParameter).join(", ")})`;
   if (fn.returnType) {
@@ -202,8 +213,9 @@ function printStructDefinition(def: AST.StructDefinition, level: number): string
   }
   header.push("struct");
   header.push(printIdentifier(def.id));
-  if (def.genericParams && def.genericParams.length > 0) {
-    header.push(`<${def.genericParams.map(printGenericParameter).join(", ")}>`);
+  const structGenerics = explicitGenericParams(def.genericParams);
+  if (structGenerics) {
+    header.push(`<${structGenerics.map(printGenericParameter).join(", ")}>`);
   }
   const prefix = `${indent(level)}${header.join(" ")}`;
   const whereSuffix = def.whereClause && def.whereClause.length > 0 ? ` where ${def.whereClause.map(printWhereClause).join(", ")}` : "";
@@ -224,8 +236,9 @@ function printStructDefinition(def: AST.StructDefinition, level: number): string
 
 function printTypeAliasDefinition(def: AST.TypeAliasDefinition, level: number): string {
   let line = `${indent(level)}${def.isPrivate ? "private " : ""}type ${printIdentifier(def.id)}`;
-  if (def.genericParams && def.genericParams.length > 0) {
-    line += ` ${def.genericParams.map(printGenericParameter).join(" ")}`;
+  const aliasGenerics = explicitGenericParams(def.genericParams);
+  if (aliasGenerics) {
+    line += ` ${aliasGenerics.map(printGenericParameter).join(" ")}`;
   }
   if (def.whereClause && def.whereClause.length > 0) {
     line += ` where ${def.whereClause.map(printWhereClause).join(", ")}`;
@@ -241,8 +254,9 @@ function printUnionDefinition(def: AST.UnionDefinition, level: number): string {
   }
   header.push("union");
   header.push(printIdentifier(def.id));
-  if (def.genericParams && def.genericParams.length > 0) {
-    header.push(`<${def.genericParams.map(printGenericParameter).join(", ")}>`);
+  const unionGenerics = explicitGenericParams(def.genericParams);
+  if (unionGenerics) {
+    header.push(`<${unionGenerics.map(printGenericParameter).join(", ")}>`);
   }
   const suffix = def.whereClause && def.whereClause.length > 0 ? ` where ${def.whereClause.map(printWhereClause).join(", ")}` : "";
   const variants = def.variants && def.variants.length > 0 ? ` = ${def.variants.map(printTypeExpression).join(" | ")}` : "";
@@ -256,8 +270,9 @@ function printInterfaceDefinition(def: AST.InterfaceDefinition, level: number): 
   }
   header.push("interface");
   header.push(printIdentifier(def.id));
-  if (def.genericParams && def.genericParams.length > 0) {
-    header.push(`<${def.genericParams.map(printGenericParameter).join(", ")}>`);
+  const ifaceGenerics = explicitGenericParams(def.genericParams);
+  if (ifaceGenerics) {
+    header.push(`<${ifaceGenerics.map(printGenericParameter).join(", ")}>`);
   }
   if (def.selfTypePattern) {
     header.push("for");
@@ -286,8 +301,9 @@ function printImplementationDefinition(def: AST.ImplementationDefinition, level:
     header.push("private");
   }
   header.push("impl");
-  if (def.genericParams && def.genericParams.length > 0) {
-    header.push(`<${def.genericParams.map(printGenericParameter).join(", ")}>`);
+  const implGenerics = explicitGenericParams(def.genericParams);
+  if (implGenerics) {
+    header.push(`<${implGenerics.map(printGenericParameter).join(", ")}>`);
   }
   if (def.interfaceName) {
     header.push(printIdentifier(def.interfaceName));
@@ -317,8 +333,9 @@ function printMethodsDefinition(def: AST.MethodsDefinition, level: number): stri
   const header: string[] = [];
   header.push("methods");
   header.push(printTypeExpression(def.targetType));
-  if (def.genericParams && def.genericParams.length > 0) {
-    header.push(`<${def.genericParams.map(printGenericParameter).join(", ")}>`);
+  const methodsGenerics = explicitGenericParams(def.genericParams);
+  if (methodsGenerics) {
+    header.push(`<${methodsGenerics.map(printGenericParameter).join(", ")}>`);
   }
   if (def.whereClause && def.whereClause.length > 0) {
     header.push(`where ${def.whereClause.map(printWhereClause).join(", ")}`);
@@ -394,6 +411,8 @@ function printExpression(expr: AST.Expression, level: number): string {
       return expr.expression.type === "BlockExpression"
         ? `spawn ${printBlock(expr.expression, level)}`
         : `spawn ${printExpression(expr.expression, level)}`;
+    case "AwaitExpression":
+      return `await ${printExpression(expr.expression, level)}`;
     case "StructLiteral":
       return printStructLiteral(expr, level);
     case "IfExpression":
@@ -750,8 +769,9 @@ function printFunctionSignature(sig: AST.FunctionSignature): string {
   const parts: string[] = [];
   parts.push("fn");
   parts.push(printIdentifier(sig.name));
-  if (sig.genericParams && sig.genericParams.length > 0) {
-    parts.push(`<${sig.genericParams.map(printGenericParameter).join(", ")}>`);
+  const sigGenerics = explicitGenericParams(sig.genericParams);
+  if (sigGenerics) {
+    parts.push(`<${sigGenerics.map(printGenericParameter).join(", ")}>`);
   }
   parts.push(`(${sig.params.map(printFunctionParameter).join(", ")})`);
   if (sig.returnType) {

@@ -39,10 +39,17 @@ describe("v11 interpreter - unary/binary ops and ranges", () => {
 
   test("range expression", () => {
     const r1 = I.evaluate(AST.rangeExpression(AST.integerLiteral(1), AST.integerLiteral(3), true));
-    expect(r1).toEqual({ kind: 'range', start: 1, end: 3, inclusive: true });
+    expect(r1.kind).toBe('array');
+    expect(r1).toEqual({
+      kind: 'array',
+      elements: [
+        { kind: 'i32', value: 1n },
+        { kind: 'i32', value: 2n },
+        { kind: 'i32', value: 3n },
+      ],
+    });
     const r2 = I.evaluate(AST.rangeExpression(AST.floatLiteral(0.0), AST.floatLiteral(1.0), false));
-    expect(r2).toEqual({ kind: 'range', start: 0, end: 1, inclusive: false });
+    expect(r2).toEqual({ kind: 'array', elements: [{ kind: 'i32', value: 0n }] });
   });
 });
-
 

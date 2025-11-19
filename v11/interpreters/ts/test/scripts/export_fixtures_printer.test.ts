@@ -23,6 +23,22 @@ describe("export-fixtures printer", () => {
     expect(output).toContain("fn show (self: Self) -> string");
   });
 
+  test("omits inferred generics when printing function definitions", () => {
+    const fn = AST.fn(
+      "wrap",
+      [AST.functionParameter("value", AST.simpleTypeExpression("T"))],
+      [AST.identifier("value")],
+      AST.simpleTypeExpression("T"),
+    );
+    const inferred = AST.genericParameter("T", undefined, { isInferred: true });
+    fn.genericParams = [inferred];
+    fn.inferredGenericParams = [inferred];
+    const module = AST.module([fn]);
+    const output = moduleToSource(module).trim();
+    expect(output).toContain("fn wrap(value: T) -> T");
+    expect(output).not.toContain("<");
+  });
+
   test("prints higher-kinded self type patterns with wildcard arguments", () => {
     const iface = AST.interfaceDefinition(
       "Mapper",

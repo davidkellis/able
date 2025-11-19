@@ -54,6 +54,47 @@ func (ctx *parseContext) parseBlock(node *sitter.Node) (*ast.BlockExpression, er
 			}
 		}
 		if stmt != nil {
+			if child.Kind() == "expression_statement" {
+				if assignment, ok := stmt.(*ast.AssignmentExpression); ok && (assignment.Operator == ast.AssignmentAssign || assignment.Operator == ast.AssignmentDeclare) {
+					anchorNode := child
+					anchorIndex := i - 1
+					currentRight := assignment.Right
+					for {
+						next := nextNamedSibling(node, anchorIndex)
+						if next == nil || next.Kind() != "expression_statement" {
+							break
+						}
+						if anchorNode.EndPosition().Row != next.StartPosition().Row {
+							break
+						}
+						if hasSemicolonBetween(ctx.source, anchorNode, next) {
+							break
+						}
+						exprNode := firstNamedChild(next)
+						if exprNode == nil {
+							break
+						}
+						expr, exprErr := ctx.parseExpression(exprNode)
+						if exprErr != nil {
+							return nil, exprErr
+						}
+						unary, ok := expr.(*ast.UnaryExpression)
+						if !ok || unary.Operator != ast.UnaryOperatorNegate {
+							break
+						}
+						newRight := ast.NewBinaryExpression("-", currentRight, unary.Operand)
+						assignment.Right = annotateCompositeExpression(newRight, currentRight, exprNode)
+						currentRight = assignment.Right
+						i++
+						nextIndex := findNamedChildIndex(node, next)
+						if nextIndex < 0 {
+							break
+						}
+						anchorIndex = uint(nextIndex)
+						anchorNode = next
+					}
+				}
+			}
 			if lambda, ok := stmt.(*ast.LambdaExpression); ok && len(statements) > 0 {
 				switch prev := statements[len(statements)-1].(type) {
 				case *ast.FunctionCall:

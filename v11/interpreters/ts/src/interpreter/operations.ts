@@ -12,6 +12,7 @@ import {
   isNumericValue,
   numericToNumber,
 } from "./numeric";
+import { makeIntegerFromNumber } from "./numeric";
 import { valuesEqual } from "./value_equals";
 
 declare module "./index" {
@@ -115,12 +116,17 @@ export function evaluateBinaryExpression(ctx: InterpreterV10, node: AST.BinaryEx
 }
 
 export function evaluateRangeExpression(ctx: InterpreterV10, node: AST.RangeExpression, env: Environment): V10Value {
-  const s = ctx.evaluate(node.start, env);
-  const e = ctx.evaluate(node.end, env);
+  const start = ctx.evaluate(node.start, env);
+  const end = ctx.evaluate(node.end, env);
+  const viaInterface = ctx.tryInvokeRangeImplementation(start, end, node.inclusive, env);
+  if (viaInterface) {
+    return viaInterface;
+  }
+  let startNum: number;
+  let endNum: number;
   try {
-    const sNum = numericToNumber(s, "Range start");
-    const eNum = numericToNumber(e, "Range end");
-    return { kind: "range", start: sNum, end: eNum, inclusive: node.inclusive };
+    startNum = numericToNumber(start, "Range start");
+    endNum = numericToNumber(end, "Range end");
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     if (message.includes("Range start must be numeric") || message.includes("Range end must be numeric")) {
@@ -128,6 +134,28 @@ export function evaluateRangeExpression(ctx: InterpreterV10, node: AST.RangeExpr
     }
     throw err;
   }
+  if (!Number.isFinite(startNum) || !Number.isFinite(endNum)) {
+    throw new Error("Range endpoint must be finite");
+  }
+  const startInt = Math.trunc(startNum);
+  const endInt = Math.trunc(endNum);
+  const step = startInt <= endInt ? 1 : -1;
+  const elements: V10Value[] = [];
+  for (let current = startInt; ; current += step) {
+    if (step > 0) {
+      if (node.inclusive) {
+        if (current > endInt) break;
+      } else if (current >= endInt) {
+        break;
+      }
+    } else if (node.inclusive) {
+      if (current < endInt) break;
+    } else if (current <= endInt) {
+      break;
+    }
+    elements.push(makeIntegerFromNumber("i32", current));
+  }
+  return { kind: "array", elements };
 }
 
 export function evaluateIndexExpression(ctx: InterpreterV10, node: AST.IndexExpression, env: Environment): V10Value {

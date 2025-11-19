@@ -63,11 +63,10 @@ func annotateValue(val reflect.Value, path string, table map[Node]string, visite
 		if ptr.IsValid() && ptr.CanInterface() {
 			if node, ok := ptr.Interface().(Node); ok {
 				annotateOrigins(node, path, table, visited)
-				return
 			}
 		}
 	}
-	if val.CanInterface() {
+	if val.CanInterface() && val.Kind() != reflect.Struct {
 		if node, ok := val.Interface().(Node); ok {
 			annotateOrigins(node, path, table, visited)
 			return

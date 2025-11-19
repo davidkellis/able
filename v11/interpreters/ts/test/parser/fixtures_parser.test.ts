@@ -93,6 +93,7 @@ describe("tree-sitter Able grammar", () => {
     for (const fixture of fixtures) {
       const source = await fs.readFile(fixture.sourcePath, "utf8");
       const tree = parser.parse(source);
+      if (!tree) throw new Error(`failed to parse ${fixture.sourcePath}`);
 
       expect(tree.rootNode.type).toBe("source_file");
       expect(tree.rootNode.hasError).toBe(false);
@@ -116,6 +117,7 @@ fn main() -> void {
 `;
 
     const tree = parser.parse(source);
+    if (!tree) throw new Error("failed to parse comments fixture");
     expect(tree.rootNode.type).toBe("source_file");
     expect(tree.rootNode.hasError).toBe(false);
   });
@@ -131,6 +133,7 @@ fn main() -> void {
 inclusive := 0..5
 `;
     const tree = parser.parse(source);
+    if (!tree) throw new Error("failed to parse range fixture");
     const module = mapSourceFile(tree.rootNode, source, "<inline>");
     const exclusive = module.body[0];
     const inclusive = module.body[1];
@@ -141,5 +144,86 @@ inclusive := 0..5
     const inclusiveRange = inclusive.right as AST.RangeExpression;
     expect(exclusiveRange.inclusive).toBe(false);
     expect(inclusiveRange.inclusive).toBe(true);
+  });
+
+  test("parses loop expression statements with break/continue", async () => {
+    const { Parser, Language } = await import("web-tree-sitter");
+    await Parser.init();
+    const parser = new Parser();
+    const language = await Language.load(WASM_PATH);
+    parser.setLanguage(language);
+
+    const source = `counter := 3
+loop {
+  counter = counter - 1
+  if counter < 0 {
+    break
+  }
+}
+counter
+`;
+
+    const tree = parser.parse(source);
+    if (!tree) throw new Error("failed to parse loop stmt fixture");
+    expect(tree.rootNode.type).toBe("source_file");
+    expect(tree.rootNode.hasError).toBe(false);
+
+    const loopNodes = (tree.rootNode as any).descendantsOfType?.(["loop_expression"]) ?? [];
+    expect(loopNodes.length).toBe(1);
+    let ancestor = loopNodes[0]?.parent;
+    let sawExpressionStatement = false;
+    while (ancestor) {
+      if (ancestor.type === "expression_statement") {
+        sawExpressionStatement = true;
+        break;
+      }
+      ancestor = ancestor.parent;
+    }
+    expect(sawExpressionStatement).toBe(true);
+  });
+
+  test("maps '=' assignments inside loops as reassignments", async () => {
+    const { Parser, Language } = await import("web-tree-sitter");
+    await Parser.init();
+    const parser = new Parser();
+    const language = await Language.load(WASM_PATH);
+    parser.setLanguage(language);
+
+    const source = `fn main() {
+  a = 5
+  loop {
+    if a <= 0 { break }
+    a = a - 1
+  }
+}
+`;
+
+    const tree = parser.parse(source);
+    if (!tree) throw new Error("failed to parse loop assignment fixture");
+    const module = mapSourceFile(tree.rootNode, source, "<inline>");
+    const fn = module.body.find((stmt): stmt is AST.FunctionDefinition => stmt?.type === "FunctionDefinition");
+    if (!fn || fn.body?.type !== "BlockExpression") throw new Error("expected function definition with block body");
+
+    const [initAssign, loopStmt] = fn.body.body;
+    if (initAssign?.type !== "AssignmentExpression") throw new Error("expected initial assignment");
+    expect(initAssign.operator).toBe("=");
+
+    if (loopStmt?.type !== "LoopExpression") throw new Error("expected loop expression statement");
+    const loopAssignments = loopStmt.body.body.filter(
+      (stmt): stmt is AST.AssignmentExpression => stmt?.type === "AssignmentExpression",
+    );
+    const decrementAssign = loopAssignments.find(
+      (stmt) => stmt.left.type === "Identifier" && stmt.left.name === "a",
+    );
+    if (!decrementAssign) {
+      throw new Error("expected loop assignment to reassign 'a'");
+    }
+    expect(decrementAssign.operator).toBe("=");
+    expect(decrementAssign.right.type).toBe("BinaryExpression");
+    const binary = decrementAssign.right as AST.BinaryExpression;
+    expect(binary.operator).toBe("-");
+    expect(binary.left.type).toBe("Identifier");
+    expect((binary.left as AST.Identifier).name).toBe("a");
+    expect(binary.right.type).toBe("IntegerLiteral");
   });
 });

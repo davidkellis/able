@@ -53,6 +53,7 @@ const EXPRESSION_TYPES = new Set<AST.AstNode["type"]>([
   "LambdaExpression",
   "ProcExpression",
   "SpawnExpression",
+  "AwaitExpression",
   "PropagationExpression",
   "OrElseExpression",
   "BreakpointExpression",
@@ -159,6 +160,8 @@ export function applyEvaluationAugmentations(cls: typeof InterpreterV10): void {
         return evaluateProcExpression(this, node as AST.ProcExpression, env);
       case "SpawnExpression":
         return evaluateSpawnExpression(this, node as AST.SpawnExpression, env);
+      case "AwaitExpression":
+        throw new Error("Await expressions are not implemented yet");
       case "IteratorLiteral":
         return evaluateIteratorLiteral(this, node as AST.IteratorLiteral, env);
       case "YieldStatement":

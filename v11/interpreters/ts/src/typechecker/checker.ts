@@ -57,6 +57,17 @@ export type {
 import type { DiagnosticLocation, TypecheckerDiagnostic, TypecheckResult, PackageSummary } from "./diagnostics";
 import { hasIntegerBounds, integerBounds, getIntegerTypeInfo } from "./numeric";
 
+type LocalTypeDeclaration =
+  | AST.StructDefinition
+  | AST.UnionDefinition
+  | AST.InterfaceDefinition
+  | AST.TypeAliasDefinition;
+
+type FunctionGenericContext = {
+  label: string;
+  inferred: Map<string, AST.GenericParameter>;
+};
+
 const RESERVED_TYPE_NAMES = new Set<string>([
   "Self",
   "bool",
@@ -117,10 +128,13 @@ export class TypeChecker {
   private implementationRecords: ImplementationRecord[] = [];
   private implementationIndex: Map<string, ImplementationRecord[]> = new Map();
   private declarationOrigins: Map<string, AST.Node> = new Map();
+  private functionGenericStack: FunctionGenericContext[] = [];
   private packageAliases: Map<string, string> = new Map();
   private reportedPackageMemberAccess = new WeakSet<AST.MemberAccessExpression>();
   private asyncDepth = 0;
   private returnTypeStack: TypeInfo[] = [];
+  private loopResultStack: TypeInfo[] = [];
+  private breakpointStack: string[] = [];
   private allowDynamicLookups = false;
   private currentPackageName = "<anonymous>";
   private readonly context: StatementContext;
@@ -147,6 +161,9 @@ export class TypeChecker {
     this.implementationRecords = [];
     this.implementationIndex = new Map();
     this.declarationOrigins = new Map();
+    this.functionGenericStack = [];
+    this.loopResultStack = [];
+    this.breakpointStack = [];
     this.installBuiltins();
     this.packageAliases.clear();
     this.reportedPackageMemberAccess = new WeakSet();
@@ -550,6 +567,7 @@ export class TypeChecker {
       (info?.returnType && info.returnType.kind !== "unknown" && info.returnType) ||
       this.resolveTypeExpression(definition.returnType);
     this.pushReturnType(expectedReturn ?? unknownType);
+    this.pushFunctionGenericContext(definition);
     this.env.pushScope();
     try {
       if (Array.isArray(definition.params)) {
@@ -573,8 +591,9 @@ export class TypeChecker {
         }
       }
     } finally {
-      this.popReturnType();
       this.env.popScope();
+      this.popFunctionGenericContext();
+      this.popReturnType();
     }
   }
 
@@ -602,6 +621,102 @@ export class TypeChecker {
         `typechecker: return expects ${formatType(expected)}, got ${formatType(actual)}`,
         statement.argument ?? statement,
       );
+    }
+  }
+
+  private pushLoopContext(): void {
+    this.loopResultStack.push(unknownType);
+  }
+
+  private popLoopContext(): TypeInfo {
+    if (this.loopResultStack.length === 0) {
+      return unknownType;
+    }
+    return this.loopResultStack.pop() ?? unknownType;
+  }
+
+  private inLoopContext(): boolean {
+    return this.loopResultStack.length > 0;
+  }
+
+  private recordLoopBreakType(breakType: TypeInfo): void {
+    if (this.loopResultStack.length === 0) {
+      return;
+    }
+    const idx = this.loopResultStack.length - 1;
+    const normalized = breakType ?? primitiveType("nil");
+    const current = this.loopResultStack[idx];
+    if (!normalized || normalized.kind === "unknown") {
+      this.loopResultStack[idx] = unknownType;
+      return;
+    }
+    if (!current || current.kind === "unknown") {
+      this.loopResultStack[idx] = normalized;
+      return;
+    }
+    if (!this.typeInfosEquivalent(current, normalized)) {
+      this.loopResultStack[idx] = unknownType;
+    }
+  }
+
+  private pushBreakpointLabel(label: string | null | undefined): void {
+    if (!label) {
+      return;
+    }
+    this.breakpointStack.push(label);
+  }
+
+  private popBreakpointLabel(): void {
+    if (this.breakpointStack.length === 0) {
+      return;
+    }
+    this.breakpointStack.pop();
+  }
+
+  private hasBreakpointLabel(label: string | null | undefined): boolean {
+    if (!label) {
+      return false;
+    }
+    for (let index = this.breakpointStack.length - 1; index >= 0; index -= 1) {
+      if (this.breakpointStack[index] === label) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private checkBreakStatement(statement: AST.BreakStatement): void {
+    if (!statement) {
+      return;
+    }
+    const hasLabel = Boolean(statement.label);
+    const labelName = statement.label ? this.getIdentifierName(statement.label) : null;
+    const inLoop = this.inLoopContext();
+    if (!inLoop && !hasLabel) {
+      this.report("typechecker: break statement must appear inside a loop", statement);
+    }
+    if (hasLabel) {
+      if (!labelName) {
+        this.report("typechecker: break label cannot be empty", statement.label ?? statement);
+      } else if (!this.hasBreakpointLabel(labelName)) {
+        this.report(`typechecker: unknown break label '${labelName}'`, statement);
+      }
+    }
+    const valueType = statement.value ? this.inferExpression(statement.value) : primitiveType("nil");
+    if (inLoop && !hasLabel) {
+      this.recordLoopBreakType(valueType);
+    }
+  }
+
+  private checkContinueStatement(statement: AST.ContinueStatement): void {
+    if (!statement) {
+      return;
+    }
+    if (!this.inLoopContext()) {
+      this.report("typechecker: continue statement must appear inside a loop", statement);
+    }
+    if (statement.label) {
+      this.report("typechecker: labeled continue is not supported", statement);
     }
   }
 
@@ -1400,6 +1515,9 @@ export class TypeChecker {
     ctx.checkFunctionCall = this.checkFunctionCall.bind(this);
     ctx.inferFunctionCallReturnType = this.inferFunctionCallReturnType.bind(this);
     ctx.checkFunctionDefinition = this.checkFunctionDefinition.bind(this);
+    ctx.pushLoopContext = this.pushLoopContext.bind(this);
+    ctx.popLoopContext = () => this.popLoopContext();
+    ctx.inLoopContext = () => this.inLoopContext();
     ctx.pushScope = () => this.env.pushScope();
     ctx.popScope = () => this.env.popScope();
     ctx.withForkedEnv = <T>(fn: () => T) => this.withForkedEnv(fn);
@@ -1412,6 +1530,12 @@ export class TypeChecker {
     ctx.getFunctionInfo = (key: string) => this.functionInfos.get(key);
     ctx.setFunctionInfo = (key: string, info: FunctionInfo) => this.functionInfos.set(key, info);
     ctx.isExpression = (node: AST.Node | undefined | null): node is AST.Expression => this.isExpression(node);
+    ctx.handleTypeDeclaration = (node) => this.checkLocalTypeDeclaration(node as LocalTypeDeclaration);
+    ctx.pushBreakpointLabel = (label: string) => this.pushBreakpointLabel(label);
+    ctx.popBreakpointLabel = () => this.popBreakpointLabel();
+    ctx.hasBreakpointLabel = (label: string) => this.hasBreakpointLabel(label);
+    ctx.handleBreakStatement = this.checkBreakStatement.bind(this);
+    ctx.handleContinueStatement = this.checkContinueStatement.bind(this);
 
     const expressionCtx = ctx as StatementContext;
     ctx.inferExpression = (expression) => inferExpressionHelper(expressionCtx, expression);
@@ -1450,6 +1574,68 @@ export class TypeChecker {
     }
   }
 
+  private pushFunctionGenericContext(definition: AST.FunctionDefinition): void {
+    if (!definition) {
+      return;
+    }
+    const inferred = this.collectInferredGenericParameters(definition);
+    const label = definition.id?.name ? `fn ${definition.id.name}` : "fn <anonymous>";
+    this.functionGenericStack.push({ label, inferred });
+  }
+
+  private popFunctionGenericContext(): void {
+    if (this.functionGenericStack.length === 0) {
+      return;
+    }
+    this.functionGenericStack.pop();
+  }
+
+  private collectInferredGenericParameters(definition: AST.FunctionDefinition): Map<string, AST.GenericParameter> {
+    const inferred = new Map<string, AST.GenericParameter>();
+    if (!definition) {
+      return inferred;
+    }
+    const params = Array.isArray(definition.inferredGenericParams)
+      ? definition.inferredGenericParams
+      : definition.genericParams;
+    if (!Array.isArray(params)) {
+      return inferred;
+    }
+    for (const param of params) {
+      if (!param?.isInferred) {
+        continue;
+      }
+      const name = this.getIdentifierName(param.name);
+      if (!name) {
+        continue;
+      }
+      inferred.set(name, param);
+    }
+    return inferred;
+  }
+
+  private checkLocalTypeDeclaration(node: LocalTypeDeclaration): void {
+    if (!node || this.functionGenericStack.length === 0) {
+      return;
+    }
+    const current = this.functionGenericStack[this.functionGenericStack.length - 1];
+    if (!current || current.inferred.size === 0) {
+      return;
+    }
+    const name = this.getIdentifierName((node as { id?: AST.Identifier })?.id);
+    if (!name) {
+      return;
+    }
+    const param = current.inferred.get(name);
+    if (!param) {
+      return;
+    }
+    const location = this.formatNodeOrigin(param);
+    this.report(
+      `typechecker: cannot redeclare inferred type parameter '${name}' inside ${current.label} (inferred at ${location})`,
+      node,
+    );
+  }
 }
 
 export function createTypeChecker(options?: TypeCheckerOptions): TypeChecker {

@@ -288,6 +288,21 @@
     }
   },
   {
+    "type": "await_expression",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "expression",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "bitwise_and_expression",
     "named": true,
     "fields": {},
@@ -1650,6 +1665,10 @@
       "types": [
         {
           "type": "assignment_expression",
+          "named": true
+        },
+        {
+          "type": "await_expression",
           "named": true
         },
         {
@@ -3312,6 +3331,10 @@
   },
   {
     "type": "as",
+    "named": false
+  },
+  {
+    "type": "await",
     "named": false
   },
   {

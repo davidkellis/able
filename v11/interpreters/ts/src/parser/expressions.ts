@@ -126,6 +126,8 @@ function parseExpression(node: Node | null | undefined, source: string): Express
       return parseProcExpression(node, source);
     case "spawn_expression":
       return parseSpawnExpression(node, source);
+    case "await_expression":
+      return parseAwaitExpression(node, source);
     case "breakpoint_expression":
       return parseBreakpointExpression(node, source);
     case "handling_expression":
@@ -266,6 +268,15 @@ function parseIteratorLiteral(node: Node, source: string): IteratorLiteral {
   const block = getActiveParseContext().parseBlock(bodyNode);
   const literal = AST.iteratorLiteral(block.body, binding, elementType);
   return annotateExpressionNode(literal, node);
+}
+
+function parseAwaitExpression(node: Node, source: string): Expression {
+  const expressionNode = firstNamedChild(node);
+  if (!expressionNode) {
+    throw new MapperError("parser: await expression missing operand");
+  }
+  const awaited = parseExpression(expressionNode, source);
+  return annotateExpressionNode(AST.awaitExpression(awaited), node);
 }
 
 

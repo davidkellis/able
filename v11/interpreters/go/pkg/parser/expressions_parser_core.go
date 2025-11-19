@@ -162,6 +162,12 @@ func parseExpressionInternal(ctx *parseContext, node *sitter.Node) (ast.Expressi
 			return nil, err
 		}
 		return annotateExpression(expr, node), nil
+	case "await_expression":
+		expr, err := ctx.parseAwaitExpression(node)
+		if err != nil {
+			return nil, err
+		}
+		return annotateExpression(expr, node), nil
 	case "loop_expression":
 		expr, err := ctx.parseLoopExpression(node)
 		if err != nil {
