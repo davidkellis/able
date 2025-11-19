@@ -63,6 +63,52 @@ func TestWhileLoopIncrementsCounter(t *testing.T) {
 	}
 }
 
+func TestWhileLoopReturnsNilWithoutBreak(t *testing.T) {
+	interp := New()
+	module := ast.Mod([]ast.Statement{
+		ast.Assign(ast.ID("i"), ast.Int(0)),
+		ast.While(
+			ast.Bin("<", ast.ID("i"), ast.Int(2)),
+			ast.Block(
+				ast.AssignOp(
+					ast.AssignmentAssign,
+					ast.ID("i"),
+					ast.Bin("+", ast.ID("i"), ast.Int(1)),
+				),
+			),
+		),
+	}, nil, nil)
+
+	result, _, err := interp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, ok := result.(runtime.NilValue); !ok {
+		t.Fatalf("expected while loop result to be nil, got %#v", result)
+	}
+}
+
+func TestWhileLoopBreakValuePropagates(t *testing.T) {
+	interp := New()
+	module := ast.Mod([]ast.Statement{
+		ast.While(
+			ast.Bool(true),
+			ast.Block(
+				ast.Brk(nil, ast.Int(7)),
+			),
+		),
+	}, nil, nil)
+
+	result, _, err := interp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	intVal, ok := result.(runtime.IntegerValue)
+	if !ok || intVal.Val.Cmp(bigInt(7)) != 0 {
+		t.Fatalf("expected break payload 7, got %#v", result)
+	}
+}
+
 func TestForLoopRangeCountdownInclusive(t *testing.T) {
 	interp := New()
 	module := ast.Mod([]ast.Statement{
@@ -133,6 +179,35 @@ func TestForLoopRangeExclusiveUpperBound(t *testing.T) {
 	}
 }
 
+func TestLoopExpressionMatchesExampleLoop(t *testing.T) {
+	interp := New()
+	breakBlock := ast.Block(ast.Brk(nil, nil))
+	breakIf := ast.IfExpr(ast.Bin("<=", ast.ID("a"), ast.Int(0)), breakBlock)
+	breakIf.OrClauses = []*ast.OrClause{}
+	loopBody := ast.Block(
+		breakIf,
+		ast.AssignOp(
+			ast.AssignmentAssign,
+			ast.ID("a"),
+			ast.Bin("-", ast.ID("a"), ast.Int(1)),
+		),
+	)
+	module := ast.Mod([]ast.Statement{
+		ast.Assign(ast.ID("a"), ast.Int(5)),
+		ast.Loop(loopBody.Body...),
+		ast.ID("a"),
+	}, nil, nil)
+
+	result, _, err := interp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	intVal, ok := result.(runtime.IntegerValue)
+	if !ok || intVal.Val.Cmp(bigInt(0)) != 0 {
+		t.Fatalf("expected a == 0, got %#v", result)
+	}
+}
+
 func TestForLoopRangeEndpointMustBeFinite(t *testing.T) {
 	cases := []struct {
 		name  string
@@ -190,6 +265,95 @@ func TestLoopExpressionReturnsBreakValue(t *testing.T) {
 	intVal, ok := value.(runtime.IntegerValue)
 	if !ok || intVal.Val.Cmp(bigInt(3)) != 0 {
 		t.Fatalf("expected loop result 3, got %#v", value)
+	}
+}
+
+func TestLoopAssignmentWithEquals(t *testing.T) {
+	interp := New()
+	module := ast.Mod([]ast.Statement{
+		ast.AssignOp(ast.AssignmentAssign, ast.ID("a"), ast.Int(5)),
+		ast.Assign(ast.ID("guard"), ast.Int(0)),
+		ast.Loop(
+			ast.AssignOp(
+				ast.AssignmentAssign,
+				ast.ID("guard"),
+				ast.Bin("+", ast.ID("guard"), ast.Int(1)),
+			),
+			ast.Iff(
+				ast.Bin(">=", ast.ID("guard"), ast.Int(20)),
+				ast.Block(ast.Raise(ast.Str("guard exceeded"))),
+			),
+			ast.Iff(
+				ast.Bin("<=", ast.ID("a"), ast.Int(0)),
+				ast.Block(ast.Brk(nil, ast.ID("a"))),
+			),
+			ast.AssignOp(
+				ast.AssignmentAssign,
+				ast.ID("a"),
+				ast.Bin("-", ast.ID("a"), ast.Int(1)),
+			),
+		),
+	}, nil, nil)
+
+	result, env, err := interp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	intVal, ok := result.(runtime.IntegerValue)
+	if !ok || intVal.Val.Cmp(bigInt(0)) != 0 {
+		t.Fatalf("expected loop result 0, got %#v", result)
+	}
+	finalA, err := env.Get("a")
+	if err != nil {
+		t.Fatalf("expected binding for a: %v", err)
+	}
+	finalInt, ok := finalA.(runtime.IntegerValue)
+	if !ok || finalInt.Val.Cmp(bigInt(0)) != 0 {
+		t.Fatalf("expected a == 0, got %#v", finalA)
+	}
+}
+
+func TestForLoopReturnsNilWithoutBreak(t *testing.T) {
+	interp := New()
+	module := ast.Mod([]ast.Statement{
+		ast.ForLoopPattern(
+			ast.ID("value"),
+			ast.Arr(ast.Int(1), ast.Int(2)),
+			ast.Block(),
+		),
+	}, nil, nil)
+
+	result, _, err := interp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, ok := result.(runtime.NilValue); !ok {
+		t.Fatalf("expected for loop result to be nil, got %#v", result)
+	}
+}
+
+func TestForLoopBreakValuePropagates(t *testing.T) {
+	interp := New()
+	module := ast.Mod([]ast.Statement{
+		ast.ForLoopPattern(
+			ast.ID("n"),
+			ast.Arr(ast.Int(1), ast.Int(2), ast.Int(3)),
+			ast.Block(
+				ast.Iff(
+					ast.Bin("==", ast.ID("n"), ast.Int(2)),
+					ast.Brk(nil, ast.ID("n")),
+				),
+			),
+		),
+	}, nil, nil)
+
+	result, _, err := interp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	intVal, ok := result.(runtime.IntegerValue)
+	if !ok || intVal.Val.Cmp(bigInt(2)) != 0 {
+		t.Fatalf("expected break payload 2, got %#v", result)
 	}
 }
 

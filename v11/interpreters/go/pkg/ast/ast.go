@@ -45,6 +45,7 @@ const (
 	NodeProcExpression           NodeType = "ProcExpression"
 	NodeSpawnExpression          NodeType = "SpawnExpression"
 	NodePropagationExpression    NodeType = "PropagationExpression"
+	NodeAwaitExpression          NodeType = "AwaitExpression"
 	NodeOrElseExpression         NodeType = "OrElseExpression"
 	NodeBreakpointExpression     NodeType = "BreakpointExpression"
 	NodeOrClause                 NodeType = "OrClause"
@@ -783,6 +784,18 @@ type SpawnExpression struct {
 
 func NewSpawnExpression(expr Expression) *SpawnExpression {
 	return &SpawnExpression{nodeImpl: newNodeImpl(NodeSpawnExpression), Expression: expr}
+}
+
+type AwaitExpression struct {
+	nodeImpl
+	expressionMarker
+	statementMarker
+
+	Expression Expression `json:"expression"`
+}
+
+func NewAwaitExpression(expr Expression) *AwaitExpression {
+	return &AwaitExpression{nodeImpl: newNodeImpl(NodeAwaitExpression), Expression: expr}
 }
 
 type PropagationExpression struct {

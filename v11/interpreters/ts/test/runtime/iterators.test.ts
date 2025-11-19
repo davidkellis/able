@@ -80,7 +80,7 @@ describe("v11 interpreter - iterator literals", () => {
     );
 
     const last = I.evaluate(loop);
-    expect(last).toEqual({ kind: "i32", value: 30n });
+    expect(last).toEqual({ kind: "nil", value: null });
     expect(I.evaluate(AST.identifier("sum"))).toEqual({ kind: "i32", value: 60n });
   });
 

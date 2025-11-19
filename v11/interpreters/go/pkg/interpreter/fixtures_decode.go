@@ -339,7 +339,26 @@ func decodeFunctionSignature(node map[string]any) (*ast.FunctionSignature, error
 		}
 		defaultImpl = block
 	}
-	return ast.NewFunctionSignature(id, params, returnType, generics, whereClause, defaultImpl), nil
+	var inferredGenerics []*ast.GenericParameter
+	if igRaw, ok := node["inferredGenericParams"].([]any); ok {
+		inferredGenerics = make([]*ast.GenericParameter, 0, len(igRaw))
+		for _, raw := range igRaw {
+			gpNode, ok := raw.(map[string]any)
+			if !ok {
+				return nil, fmt.Errorf("invalid signature inferred generic %T", raw)
+			}
+			gp, err := decodeGenericParameter(gpNode)
+			if err != nil {
+				return nil, err
+			}
+			inferredGenerics = append(inferredGenerics, gp)
+		}
+	}
+	sig := ast.NewFunctionSignature(id, params, returnType, generics, whereClause, defaultImpl)
+	if len(inferredGenerics) > 0 {
+		sig.InferredGenericParams = attachInferredGenericParams(inferredGenerics, generics)
+	}
+	return sig, nil
 }
 
 func decodeWhereClauseConstraint(node map[string]any) (*ast.WhereClauseConstraint, error) {
@@ -464,7 +483,11 @@ func decodeGenericParameter(node map[string]any) (*ast.GenericParameter, error) 
 		}
 		constraints = append(constraints, constraint)
 	}
-	return ast.NewGenericParameter(id, constraints), nil
+	param := ast.NewGenericParameter(id, constraints)
+	if inferred, ok := node["isInferred"].(bool); ok {
+		param.IsInferred = inferred
+	}
+	return param, nil
 }
 
 func decodeInterfaceConstraint(node map[string]any) (*ast.InterfaceConstraint, error) {

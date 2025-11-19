@@ -163,8 +163,6 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
         return "char";
       case "array":
         return "Array";
-      case "range":
-        return "Range";
       default:
         return null;
     }

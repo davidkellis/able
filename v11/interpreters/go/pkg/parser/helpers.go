@@ -118,6 +118,39 @@ func findIdentifier(node *sitter.Node, source []byte) (*ast.Identifier, bool) {
 	return nil, false
 }
 
+func findNamedChildIndex(parent, target *sitter.Node) int {
+	if parent == nil || target == nil {
+		return -1
+	}
+	for idx := uint(0); idx < parent.NamedChildCount(); idx++ {
+		child := parent.NamedChild(idx)
+		if child == nil || !child.IsNamed() || isIgnorableNode(child) {
+			continue
+		}
+		if sameNode(child, target) {
+			return int(idx)
+		}
+	}
+	return -1
+}
+
+func hasSemicolonBetween(source []byte, left, right *sitter.Node) bool {
+	if left == nil || right == nil {
+		return false
+	}
+	start := int(left.EndByte())
+	end := int(right.StartByte())
+	if start < 0 || end < start || end > len(source) {
+		return false
+	}
+	for i := start; i < end; i++ {
+		if source[i] == ';' {
+			return true
+		}
+	}
+	return false
+}
+
 func parseLabel(node *sitter.Node, source []byte) (*ast.Identifier, error) {
 	if node == nil || node.Kind() != "label" {
 		return nil, fmt.Errorf("parser: expected label")

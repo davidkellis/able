@@ -9,13 +9,6 @@ func TestArrayValueKind(t *testing.T) {
 	}
 }
 
-func TestRangeValueKind(t *testing.T) {
-	rangeVal := RangeValue{Start: IntegerValue{Val: bigInt(1), TypeSuffix: IntegerI32}, End: IntegerValue{Val: bigInt(3), TypeSuffix: IntegerI32}, Inclusive: true}
-	if rangeVal.Kind() != KindRange {
-		t.Fatalf("expected KindRange, got %v", rangeVal.Kind())
-	}
-}
-
 func TestStructInstanceKind(t *testing.T) {
 	structDef := StructDefinitionValue{}
 	s := &StructInstanceValue{Definition: &structDef, Fields: map[string]Value{"x": IntegerValue{Val: bigInt(1)}}, Positional: nil}

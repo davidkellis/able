@@ -271,6 +271,9 @@ class PlaceholderAnalyzer {
       case "PropagationExpression":
         this.visitExpression(expr.expression);
         return;
+      case "AwaitExpression":
+        this.visitExpression(expr.expression);
+        return;
       case "IteratorLiteral":
       case "LambdaExpression":
       case "ProcExpression":
@@ -398,12 +401,15 @@ function expressionContainsPlaceholder(expr: AST.Expression | null | undefined):
       );
     case "PropagationExpression":
       return expressionContainsPlaceholder(expr.expression);
+    case "AwaitExpression":
+      return expressionContainsPlaceholder(expr.expression);
     case "LoopExpression":
       return expressionContainsPlaceholder(expr.body);
     case "IteratorLiteral":
     case "LambdaExpression":
     case "ProcExpression":
     case "SpawnExpression":
+    case "AwaitExpression":
     case "TopicReferenceExpression":
     case "Identifier":
     case "IntegerLiteral":
@@ -476,6 +482,7 @@ function isExpression(node: AST.AstNode | null | undefined): node is AST.Express
     case "ImplicitMemberExpression":
     case "PlaceholderExpression":
     case "TopicReferenceExpression":
+    case "AwaitExpression":
     case "IfExpression":
     case "MatchExpression":
     case "StructLiteral":

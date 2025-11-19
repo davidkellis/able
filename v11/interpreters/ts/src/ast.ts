@@ -198,6 +198,7 @@ export interface IndexExpression extends AstNode { type: 'IndexExpression'; obje
 export interface LambdaExpression extends AstNode { type: 'LambdaExpression'; genericParams?: GenericParameter[]; params: FunctionParameter[]; returnType?: TypeExpression; body: Expression | BlockExpression; whereClause?: WhereClauseConstraint[]; isVerboseSyntax: boolean; }
 export interface ProcExpression extends AstNode { type: 'ProcExpression'; expression: FunctionCall | BlockExpression; }
 export interface SpawnExpression extends AstNode { type: 'SpawnExpression'; expression: FunctionCall | BlockExpression; }
+export interface AwaitExpression extends AstNode { type: 'AwaitExpression'; expression: Expression; }
 export interface PropagationExpression extends AstNode { type: 'PropagationExpression'; expression: Expression; }
 export interface OrElseExpression extends AstNode { type: 'OrElseExpression'; expression: Expression; handler: BlockExpression; errorBinding?: Identifier; }
 export interface BreakpointExpression extends AstNode { type: 'BreakpointExpression'; label: Identifier; body: BlockExpression; }
@@ -226,6 +227,7 @@ export type Expression =
   | LambdaExpression
   | ProcExpression
   | SpawnExpression
+  | AwaitExpression
   | PropagationExpression
   | OrElseExpression
   | BreakpointExpression
@@ -280,6 +282,10 @@ export function procExpression(expression: FunctionCall | BlockExpression): Proc
 
 export function spawnExpression(expression: FunctionCall | BlockExpression): SpawnExpression {
   return { type: 'SpawnExpression', expression };
+}
+
+export function awaitExpression(expression: Expression): AwaitExpression {
+  return { type: 'AwaitExpression', expression };
 }
 
 export function propagationExpression(expression: Expression): PropagationExpression {
@@ -464,6 +470,7 @@ export interface FunctionDefinition extends AstNode {
   type: 'FunctionDefinition';
   id: Identifier;
   genericParams?: GenericParameter[];
+  inferredGenericParams?: GenericParameter[];
   params: FunctionParameter[];
   returnType?: TypeExpression;
   body: BlockExpression;
@@ -471,13 +478,60 @@ export interface FunctionDefinition extends AstNode {
   isMethodShorthand: boolean;
   isPrivate: boolean;
 }
-export function functionDefinition(id: Identifier | string, params: FunctionParameter[], body: BlockExpression, returnType?: TypeExpression, genericParams?: GenericParameter[], whereClause?: WhereClauseConstraint[], isMethodShorthand = false, isPrivate = false): FunctionDefinition {
-  return { type: 'FunctionDefinition', id: typeof id === 'string' ? identifier(id) : id, params, body, returnType, genericParams, whereClause, isMethodShorthand, isPrivate };
+export function functionDefinition(
+  id: Identifier | string,
+  params: FunctionParameter[],
+  body: BlockExpression,
+  returnType?: TypeExpression,
+  genericParams?: GenericParameter[],
+  whereClause?: WhereClauseConstraint[],
+  isMethodShorthand = false,
+  isPrivate = false,
+  options?: { inferredGenericParams?: GenericParameter[] },
+): FunctionDefinition {
+  return {
+    type: 'FunctionDefinition',
+    id: typeof id === 'string' ? identifier(id) : id,
+    params,
+    body,
+    returnType,
+    genericParams,
+    inferredGenericParams: options?.inferredGenericParams,
+    whereClause,
+    isMethodShorthand,
+    isPrivate,
+  };
 }
 
-export interface FunctionSignature extends AstNode { type: 'FunctionSignature'; name: Identifier; genericParams?: GenericParameter[]; params: FunctionParameter[]; returnType?: TypeExpression; whereClause?: WhereClauseConstraint[]; defaultImpl?: BlockExpression; }
-export function functionSignature(name: Identifier | string, params: FunctionParameter[], returnType?: TypeExpression, genericParams?: GenericParameter[], whereClause?: WhereClauseConstraint[], defaultImpl?: BlockExpression): FunctionSignature {
-  return { type: 'FunctionSignature', name: typeof name === 'string' ? identifier(name) : name, params, returnType, genericParams, whereClause, defaultImpl };
+export interface FunctionSignature extends AstNode {
+  type: 'FunctionSignature';
+  name: Identifier;
+  genericParams?: GenericParameter[];
+  inferredGenericParams?: GenericParameter[];
+  params: FunctionParameter[];
+  returnType?: TypeExpression;
+  whereClause?: WhereClauseConstraint[];
+  defaultImpl?: BlockExpression;
+}
+export function functionSignature(
+  name: Identifier | string,
+  params: FunctionParameter[],
+  returnType?: TypeExpression,
+  genericParams?: GenericParameter[],
+  whereClause?: WhereClauseConstraint[],
+  defaultImpl?: BlockExpression,
+  options?: { inferredGenericParams?: GenericParameter[] },
+): FunctionSignature {
+  return {
+    type: 'FunctionSignature',
+    name: typeof name === 'string' ? identifier(name) : name,
+    params,
+    returnType,
+    genericParams,
+    inferredGenericParams: options?.inferredGenericParams,
+    whereClause,
+    defaultImpl,
+  };
 }
 
 export interface InterfaceDefinition extends AstNode {

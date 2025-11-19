@@ -165,7 +165,7 @@ func expressionContainsPlaceholder(expr ast.Expression) bool {
 		return false
 	case *ast.LambdaExpression:
 		return false
-	case *ast.ProcExpression, *ast.SpawnExpression:
+	case *ast.ProcExpression, *ast.SpawnExpression, *ast.AwaitExpression:
 		return false
 	case *ast.TopicReferenceExpression,
 		*ast.Identifier,

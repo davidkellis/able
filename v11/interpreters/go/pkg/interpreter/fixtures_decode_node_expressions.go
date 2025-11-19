@@ -256,6 +256,16 @@ func decodeExpressionNodes(node map[string]any, typ string) (ast.Node, bool, err
 			return nil, true, fmt.Errorf("invalid spawn expression %T", bodyNode)
 		}
 		return ast.NewSpawnExpression(bodyExpr), true, nil
+	case "AwaitExpression":
+		bodyNode, err := decodeNode(node["expression"].(map[string]any))
+		if err != nil {
+			return nil, true, err
+		}
+		bodyExpr, ok := bodyNode.(ast.Expression)
+		if !ok {
+			return nil, true, fmt.Errorf("invalid await expression %T", bodyNode)
+		}
+		return ast.NewAwaitExpression(bodyExpr), true, nil
 	case "WhileLoop":
 		condNode, err := decodeNode(node["condition"].(map[string]any))
 		if err != nil {

@@ -145,6 +145,49 @@ fn main() -> i32 {
 	}
 }
 
+func TestInterpreterPipelineLoopExpressionStatement(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, filepath.Join(root, "package.yml"), "name: loop_demo\n")
+	writeTestFile(t, filepath.Join(root, "main.able"), `
+package main
+
+fn main() {
+  counter := 3
+  loop {
+    if counter < 0 {
+      break
+    }
+    counter = counter - 1
+  }
+}
+`)
+
+	loader, err := driver.NewLoader(nil)
+	if err != nil {
+		t.Fatalf("NewLoader error: %v", err)
+	}
+	defer loader.Close()
+
+	entryPath := filepath.Join(root, "main.able")
+	program, err := loader.Load(entryPath)
+	if err != nil {
+		t.Fatalf("Load returned error: %v", err)
+	}
+
+	check, err := TypecheckProgram(program)
+	if err != nil {
+		t.Fatalf("TypecheckProgram error: %v", err)
+	}
+	if len(check.Diagnostics) != 0 {
+		t.Fatalf("unexpected diagnostics: %v", check.Diagnostics)
+	}
+
+	interp := New()
+	if _, _, _, err := interp.EvaluateProgram(program, ProgramEvaluationOptions{SkipTypecheck: true}); err != nil {
+		t.Fatalf("EvaluateProgram error: %v", err)
+	}
+}
+
 func registerTestPrint(interp *Interpreter, logs *[]string) {
 	printFn := runtime.NativeFunctionValue{
 		Name:  "print",

@@ -2086,6 +2086,10 @@
         },
         {
           "type": "SYMBOL",
+          "name": "await_expression"
+        },
+        {
+          "type": "SYMBOL",
           "name": "breakpoint_expression"
         },
         {
@@ -2490,6 +2494,19 @@
               "name": "call_target"
             }
           ]
+        }
+      ]
+    },
+    "await_expression": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "await"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "expression"
         }
       ]
     },
