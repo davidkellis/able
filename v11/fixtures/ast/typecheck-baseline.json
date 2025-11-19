@@ -47,7 +47,6 @@
   "control/while_sum": [],
   "errors/array_destructure_mismatch": [],
   "errors/array_destructure_short": [],
-  "errors/await_not_supported": [],
   "errors/bitshift_out_of_range": [],
   "errors/ensure_runs": [],
   "errors/generic_constraint_unsatisfied": [

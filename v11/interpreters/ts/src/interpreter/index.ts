@@ -100,6 +100,7 @@ export class InterpreterV10 {
     { kind: "future"; handle: Extract<V10Value, { kind: "future" }> }
   > = [];
   procContextStack: ProcContinuationContext[] = [];
+  awaitRoundRobinIndex = 0;
 
   constructor(options: InterpreterOptions = {}) {
     if (options.schedulerMaxSteps !== undefined) {
