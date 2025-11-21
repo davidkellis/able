@@ -211,7 +211,7 @@ func (i *Interpreter) evaluateStructLiteral(lit *ast.StructLiteral, env *runtime
 			}
 			values[idx] = val
 		}
-		typeArgs, err := i.resolveStructTypeArguments(structDef, explicitTypeArgs, nil)
+		typeArgs, err := i.resolveStructTypeArguments(structDef, explicitTypeArgs, nil, nil, values)
 		if err != nil {
 			return nil, err
 		}
@@ -294,9 +294,19 @@ func (i *Interpreter) evaluateStructLiteral(lit *ast.StructLiteral, env *runtime
 			}
 		}
 	}
-	typeArgs, err := i.resolveStructTypeArguments(structDef, explicitTypeArgs, baseStruct)
+	typeArgs, err := i.resolveStructTypeArguments(structDef, explicitTypeArgs, baseStruct, fields, nil)
 	if err != nil {
 		return nil, err
+	}
+	if baseStruct != nil && len(baseStruct.TypeArguments) > 0 && len(typeArgs) > 0 {
+		if len(baseStruct.TypeArguments) != len(typeArgs) {
+			return nil, fmt.Errorf("Functional update must use same type arguments as source")
+		}
+		for idx := range baseStruct.TypeArguments {
+			if !typeExpressionsEqual(baseStruct.TypeArguments[idx], typeArgs[idx]) {
+				return nil, fmt.Errorf("Functional update must use same type arguments as source")
+			}
+		}
 	}
 	if err := i.enforceStructConstraints(structDef, typeArgs, structName); err != nil {
 		return nil, err
@@ -304,7 +314,7 @@ func (i *Interpreter) evaluateStructLiteral(lit *ast.StructLiteral, env *runtime
 	return &runtime.StructInstanceValue{Definition: structDefVal, Fields: fields, TypeArguments: typeArgs}, nil
 }
 
-func (i *Interpreter) resolveStructTypeArguments(def *ast.StructDefinition, explicit []ast.TypeExpression, base *runtime.StructInstanceValue) ([]ast.TypeExpression, error) {
+func (i *Interpreter) resolveStructTypeArguments(def *ast.StructDefinition, explicit []ast.TypeExpression, base *runtime.StructInstanceValue, named map[string]runtime.Value, positional []runtime.Value) ([]ast.TypeExpression, error) {
 	if def == nil {
 		return nil, fmt.Errorf("Struct definition missing")
 	}
@@ -334,7 +344,55 @@ func (i *Interpreter) resolveStructTypeArguments(def *ast.StructDefinition, expl
 		}
 		return append([]ast.TypeExpression(nil), base.TypeArguments...), nil
 	}
-	return nil, fmt.Errorf("Type '%s' requires type arguments", structName)
+	inferred := i.inferStructTypeArguments(def, named, positional)
+	return inferred, nil
+}
+
+func (i *Interpreter) inferStructTypeArguments(def *ast.StructDefinition, named map[string]runtime.Value, positional []runtime.Value) []ast.TypeExpression {
+	if def == nil || len(def.GenericParams) == 0 {
+		return nil
+	}
+	bindings := make(map[string]ast.TypeExpression)
+	genericNames := genericNameSet(def.GenericParams)
+	switch def.Kind {
+	case ast.StructKindPositional, ast.StructKindSingleton:
+		for idx, field := range def.Fields {
+			if field == nil || field.FieldType == nil || idx >= len(positional) {
+				continue
+			}
+			actual := i.typeExpressionFromValue(positional[idx])
+			if actual == nil {
+				continue
+			}
+			matchTypeExpressionTemplate(field.FieldType, actual, genericNames, bindings)
+		}
+	default:
+		for _, field := range def.Fields {
+			if field == nil || field.FieldType == nil || field.Name == nil {
+				continue
+			}
+			val, ok := named[field.Name.Name]
+			if !ok {
+				continue
+			}
+			actual := i.typeExpressionFromValue(val)
+			if actual == nil {
+				continue
+			}
+			matchTypeExpressionTemplate(field.FieldType, actual, genericNames, bindings)
+		}
+	}
+	typeArgs := make([]ast.TypeExpression, len(def.GenericParams))
+	for idx, gp := range def.GenericParams {
+		if gp != nil && gp.Name != nil {
+			if bound, ok := bindings[gp.Name.Name]; ok {
+				typeArgs[idx] = bound
+				continue
+			}
+		}
+		typeArgs[idx] = ast.NewWildcardTypeExpression()
+	}
+	return typeArgs
 }
 
 func (i *Interpreter) enforceStructConstraints(def *ast.StructDefinition, typeArgs []ast.TypeExpression, structName string) error {

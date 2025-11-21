@@ -149,7 +149,13 @@ func (i *Interpreter) assignPattern(
 		return nil
 	case *ast.TypedPattern:
 		if !i.matchesType(p.TypeAnnotation, value) {
-			return fmt.Errorf("Typed pattern mismatch in assignment")
+			expected := typeExpressionToString(p.TypeAnnotation)
+			actualExpr := i.typeExpressionFromValue(value)
+			actual := value.Kind().String()
+			if actualExpr != nil {
+				actual = typeExpressionToString(actualExpr)
+			}
+			return fmt.Errorf("Typed pattern mismatch in assignment: expected %s, got %s", expected, actual)
 		}
 		coerced, err := i.coerceValueToType(p.TypeAnnotation, value)
 		if err != nil {

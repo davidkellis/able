@@ -52,6 +52,9 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 			return runtime.NilValue{}, nil
 		}
 		if call != nil {
+			if err := i.populateCallTypeArguments(decl, call, args); err != nil {
+				return nil, err
+			}
 			if err := i.enforceGenericConstraintsIfAny(decl, call); err != nil {
 				return nil, err
 			}
@@ -125,6 +128,9 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 		return result, nil
 	case *ast.LambdaExpression:
 		if call != nil {
+			if err := i.populateCallTypeArguments(decl, call, args); err != nil {
+				return nil, err
+			}
 			if err := i.enforceGenericConstraintsIfAny(decl, call); err != nil {
 				return nil, err
 			}
@@ -268,6 +274,57 @@ func (i *Interpreter) evaluateTopicReferenceExpression(_ *ast.TopicReferenceExpr
 		return runtime.NilValue{}, nil
 	}
 	return val, nil
+}
+
+func (i *Interpreter) populateCallTypeArguments(funcNode ast.Node, call *ast.FunctionCall, args []runtime.Value) error {
+	if funcNode == nil || call == nil {
+		return nil
+	}
+	generics, _ := extractFunctionGenerics(funcNode)
+	if len(generics) == 0 {
+		return nil
+	}
+	if len(call.TypeArguments) > 0 {
+		if len(call.TypeArguments) != len(generics) {
+			name := functionNameForErrors(funcNode)
+			return fmt.Errorf("Type arguments count mismatch calling %s: expected %d, got %d", name, len(generics), len(call.TypeArguments))
+		}
+		return nil
+	}
+	bindings := make(map[string]ast.TypeExpression)
+	genericNames := genericNameSet(generics)
+	params := extractFunctionParams(funcNode)
+	bindArgs := args
+	if def, ok := funcNode.(*ast.FunctionDefinition); ok && def.IsMethodShorthand && len(bindArgs) > 0 {
+		bindArgs = bindArgs[1:]
+	}
+	max := len(params)
+	if len(bindArgs) < max {
+		max = len(bindArgs)
+	}
+	for idx := 0; idx < max; idx++ {
+		param := params[idx]
+		if param == nil || param.ParamType == nil {
+			continue
+		}
+		actual := i.typeExpressionFromValue(bindArgs[idx])
+		if actual == nil {
+			continue
+		}
+		matchTypeExpressionTemplate(param.ParamType, actual, genericNames, bindings)
+	}
+	typeArgs := make([]ast.TypeExpression, len(generics))
+	for idx, gp := range generics {
+		if gp != nil && gp.Name != nil {
+			if bound, ok := bindings[gp.Name.Name]; ok {
+				typeArgs[idx] = bound
+				continue
+			}
+		}
+		typeArgs[idx] = ast.NewWildcardTypeExpression()
+	}
+	call.TypeArguments = typeArgs
+	return nil
 }
 
 func (i *Interpreter) enforceGenericConstraintsIfAny(funcNode ast.Node, call *ast.FunctionCall) error {

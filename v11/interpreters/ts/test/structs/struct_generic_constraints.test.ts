@@ -106,7 +106,6 @@ describe("v11 interpreter - struct generic constraints", () => {
       false,
       "WithConstraint"
     );
-    expect(() => I.evaluate(literal)).toThrow(/Type arguments count mismatch/);
+    expect(() => I.evaluate(literal)).toThrow(/does not satisfy interface 'Show'/);
   });
 });
-

@@ -70,7 +70,7 @@ func expressionContainsPlaceholder(expr ast.Expression) bool {
 		return false
 	case *ast.LoopExpression:
 		if e.Body == nil {
-		 return false
+			return false
 		}
 		return expressionContainsPlaceholder(e.Body)
 	case *ast.AssignmentExpression:
@@ -261,6 +261,17 @@ func extractFunctionGenerics(funcNode ast.Node) ([]*ast.GenericParameter, []*ast
 		return fn.GenericParams, fn.WhereClause
 	default:
 		return nil, nil
+	}
+}
+
+func extractFunctionParams(funcNode ast.Node) []*ast.FunctionParameter {
+	switch fn := funcNode.(type) {
+	case *ast.FunctionDefinition:
+		return fn.Params
+	case *ast.LambdaExpression:
+		return fn.Params
+	default:
+		return nil
 	}
 }
 

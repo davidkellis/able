@@ -166,7 +166,16 @@ func TestGenericTypeArgumentCountMismatch(t *testing.T) {
 	module := ast.Mod([]ast.Statement{
 		ast.CallT(ast.ID("id"), nil, ast.Int(1)),
 	}, nil, nil)
-	if _, _, err := interp.EvaluateModule(module); err == nil || !strings.Contains(err.Error(), "Type arguments count mismatch") {
+	if result, _, err := interp.EvaluateModule(module); err != nil {
+		t.Fatalf("expected inference to succeed, got %v", err)
+	} else if iv, ok := result.(runtime.IntegerValue); !ok || iv.Val.Cmp(bigInt(1)) != 0 {
+		t.Fatalf("expected integer 1 result, got %#v", result)
+	}
+
+	tooMany := ast.Mod([]ast.Statement{
+		ast.CallT(ast.ID("id"), []ast.TypeExpression{ast.Ty("i32"), ast.Ty("i32")}, ast.Int(1)),
+	}, nil, nil)
+	if _, _, err := interp.EvaluateModule(tooMany); err == nil || !strings.Contains(err.Error(), "Type arguments count mismatch") {
 		t.Fatalf("expected mismatch error, got %v", err)
 	}
 }
@@ -235,8 +244,21 @@ func TestStructGenericConstraintsEnforced(t *testing.T) {
 			nil,
 		),
 	}, nil, nil)
-	if _, _, err := interp.EvaluateModule(missingArgs); err == nil || !strings.Contains(err.Error(), "Type 'Box' requires type arguments") {
-		t.Fatalf("expected missing type arguments error, got %v", err)
+	if _, _, err := interp.EvaluateModule(missingArgs); err != nil {
+		t.Fatalf("expected inference for missing type arguments to succeed: %v", err)
+	}
+
+	missingConstraint := ast.Mod([]ast.Statement{
+		ast.StructLit(
+			[]*ast.StructFieldInitializer{ast.FieldInit(ast.Int(9), "value")},
+			false,
+			"Box",
+			nil,
+			nil,
+		),
+	}, nil, nil)
+	if _, _, err := interp.EvaluateModule(missingConstraint); err == nil || !strings.Contains(err.Error(), "does not satisfy interface 'Show'") {
+		t.Fatalf("expected constraint violation for inferred type args, got %v", err)
 	}
 }
 
