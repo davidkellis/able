@@ -1,0 +1,36 @@
+package tutorial.hostinterop
+
+prelude go { import "time" }
+prelude typescript { import { readFileSync } from "node:fs"; }
+
+extern go fn now_nanos() -> i64 { return time.Now().UnixNano() }
+
+extern typescript fn now_nanos() -> i64 {
+  return Date.now() * 1000000 ## JavaScript Date.now() returns milliseconds
+}
+
+fn now_nanos() -> i64 { 0 } ## Pure Able fallback if no host body matches
+
+extern typescript fn read_text(path: string) -> !string {
+  try { return readFileSync(path, "utf8") } catch (e) { throw host_error(string(e)) }
+}
+
+struct HostFallbackError { message: string }
+
+impl Error for HostFallbackError {
+  fn message(self: Self) -> string { self.message }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+fn read_text(path: string) -> !string {
+  raise HostFallbackError { message: `no host body available for ${path}` }
+}
+
+fn main() -> void {
+  print(`host clock (ns): ${now_nanos()}`)
+
+  content := read_text("../../examples/tutorial/README.md") rescue {
+    case err: Error => `read_text failed: ${err.message()}`
+  }
+  print(content)
+}

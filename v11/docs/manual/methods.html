@@ -2,77 +2,83 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Able v10 Manual — Methods</title>
+    <title>Able v11 Manual — Methods, Interfaces, Dispatch</title>
     <link rel="stylesheet" href="manual.css" />
   </head>
   <body>
     <div class="layout">
       <nav class="sidebar">
-        <span class="brand">Able v10 Manual</span>
+        <span class="brand">Able v11 Manual</span>
         <ul>
           <li><a href="index.html">Getting Started</a></li>
-          <li><a href="variables.html">Variables</a></li>
+          <li><a href="variables.html">Syntax &amp; Expressions</a></li>
+          <li><a href="constructors.html">Bindings &amp; Patterns</a></li>
+          <li><a href="types.html">Types &amp; Data</a></li>
+          <li><a href="functions.html">Functions &amp; Functional Tools</a></li>
           <li><a href="control-flow.html">Control Flow</a></li>
-          <li><a href="functions.html">Functions</a></li>
-          <li><a href="types.html">Types</a></li>
-          <li><a href="methods.html" class="active">Methods</a></li>
-          <li><a href="constructors.html">Constructors & Updates</a></li>
           <li><a href="pattern-matching.html">Pattern Matching &amp; Unions</a></li>
-          <li><a href="modules.html">Modules</a></li>
+          <li><a href="methods.html" class="active">Methods, Interfaces, Dispatch</a></li>
           <li><a href="error-handling.html">Error Handling</a></li>
-          <li><a href="concurrency.html">Concurrency</a></li>
-          <li><a href="tooling.html">Tooling &amp; Next Steps</a></li>
+          <li><a href="concurrency.html">Concurrency &amp; Async</a></li>
+          <li><a href="modules.html">Modules &amp; Packages</a></li>
+          <li><a href="tooling.html">Stdlib, Interop, Tooling</a></li>
         </ul>
       </nav>
       <main class="content">
-        <h1>6. Methods</h1>
-        <h2>6.1 Inherent Methods</h2>
+        <h1>8. Methods, Interfaces, Dispatch</h1>
         <p>
-          <code>methods Type { ... }</code> attaches behaviour directly to a
-          struct. Inside the block, <code>#field</code> touches the first
-          parameter (conventionally <code>self</code>).
+          Methods attach behaviour to types; interfaces describe shared
+          contracts. Operator syntax (arithmetic, indexing, comparison,
+          callable values, display/errors) lowers to interface methods defined
+          in the standard library.
         </p>
+        <h2 id="inherent">8.1 Inherent Methods</h2>
+        <p><code>methods Type { ... }</code> defines methods directly on a type. <code>#field</code> accesses the implicit receiver (conventionally <code>self</code>).</p>
         <pre><code class="language-able">struct Counter { value: i32 }
 
 methods Counter {
   fn new(start: i32) -&gt; Self { Counter { value: start } }
 
-  fn #increment(by: i32 = 1) -&gt; void {
+  fn #increment(by: i32 = 1) {
     #value = #value + by
   }
 }</code></pre>
-        <h2>6.2 Interfaces &amp; Implementations</h2>
+        <h2 id="interfaces">8.2 Interfaces</h2>
         <p>
-          Interfaces capture behaviour; <code>impl</code> blocks provide
-          concrete implementations. Defaults are supported.
+          Interfaces capture required methods and can include defaults. Omit
+          <code>for</code> to use <code>Self</code> as the implementing type, or
+          parameterise with <code>for T</code>/<code>for A B</code> (including
+          higher-kinded forms).
         </p>
-        <pre><code class="language-able">interface Display for T {
-  fn to_string(self: Self) -&gt; string
+        <pre><code class="language-able">interface Display for T { fn to_string(self: Self) -&gt; string }
+interface Iterable T { fn iterator(self: Self) -&gt; (Iterator T) }
+</code></pre>
+        <h2 id="impl">8.3 Implementations</h2>
+        <p>
+          <code>impl</code> provides concrete bodies. Implementations may be
+          generic, higher-kinded, named, or include static methods.
+        </p>
+        <pre><code class="language-able">impl Display for User {
+  fn to_string(self: Self) -&gt; string { `User(${self.id}, ${self.name})` }
 }
 
-impl Display for User {
-  fn to_string(self: Self) -&gt; string {
-    `User(${self.id}, ${self.name})`
-  }
-}</code></pre>
-        <p>
-          Specificity prefers concrete implementations over generic ones.
-          Name an <code>impl</code> to disambiguate.
-        </p>
-        <pre><code class="language-able">Sum = impl Monoid for i32 {
+Sum = impl Monoid for i32 {
   fn id() -&gt; Self { 0 }
   fn op(self: Self, other: Self) -&gt; Self { self + other }
-}
-
-total = Sum.op(2, 3)</code></pre>
-        <p>
-          Values typed as interfaces dispatch dynamically:
-        </p>
-        <pre><code class="language-able">fn render(value: Display) -&gt; string {
-  value.to_string()
 }</code></pre>
+        <ul>
+          <li>More specific impls win over generic ones; ambiguity is an error until imports are pruned.</li>
+          <li>Named impls are never chosen implicitly; call them explicitly (for example <code>Sum.op(2, 3)</code>).</li>
+          <li>Visibility follows normal top-level rules; interface-typed values carry their impl dictionaries for dynamic dispatch even if the impl is not imported at the call site.</li>
+        </ul>
+        <h2 id="resolution">8.4 Method Call Resolution</h2>
+        <ul>
+          <li>Method-call syntax first checks inherent methods, then applicable <code>impl</code>s in scope.</li>
+          <li>Operator sugar routes through standard interfaces (Index/IndexMut, Iterable/Iterator, Apply, arithmetic/bitwise, comparison/hash, Display, Error).</li>
+          <li>Interface types enable dynamic dispatch: <code>fn render(value: Display) -&gt; string { value.to_string() }</code>.</li>
+        </ul>
         <footer class="manual-footer">
-          Able v10 manual · Methods
+          Able v11 manual · Methods, Interfaces, Dispatch
         </footer>
       </main>
     </div>

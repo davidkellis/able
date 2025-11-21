@@ -81,7 +81,7 @@ export function applyPatternAugmentations(cls: typeof InterpreterV10): void {
         env = sub;
       }
       if (hasRest && pattern.restPattern && pattern.restPattern.type === "Identifier") {
-        env.define(pattern.restPattern.name, { kind: "array", elements: arr.slice(minLen) });
+        env.define(pattern.restPattern.name, this.makeArrayValue(arr.slice(minLen)));
       }
       return env;
     }
@@ -170,7 +170,7 @@ export function applyPatternAugmentations(cls: typeof InterpreterV10): void {
         this.assignByPattern(pe, av, env, isDeclaration, options);
       }
       if (hasRest && pattern.restPattern && pattern.restPattern.type === "Identifier") {
-        const rest = { kind: "array", elements: arr.slice(minLen) } as V10Value;
+        const rest = this.makeArrayValue(arr.slice(minLen)) as V10Value;
         if (isDeclaration) {
           const shouldDeclare = !declarationNames || declarationNames.has(pattern.restPattern.name);
           if (shouldDeclare) env.define(pattern.restPattern.name, rest);
@@ -184,7 +184,11 @@ export function applyPatternAugmentations(cls: typeof InterpreterV10): void {
     }
     if ((pattern as any).type === "TypedPattern") {
       const tp = pattern as AST.TypedPattern;
-      if (!this.matchesType(tp.typeAnnotation, value)) throw new Error("Typed pattern mismatch in assignment");
+      if (!this.matchesType(tp.typeAnnotation, value)) {
+        const expected = this.typeExpressionToString(tp.typeAnnotation);
+        const actual = this.getTypeNameForValue(value) ?? value.kind;
+        throw new Error(`Typed pattern mismatch in assignment: expected ${expected}, got ${actual}`);
+      }
       const coerced = this.coerceValueToType(tp.typeAnnotation, value);
       this.assignByPattern(tp.pattern, coerced, env, isDeclaration, options);
       return;

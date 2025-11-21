@@ -28,7 +28,7 @@ export function evaluateLiteral(ctx: InterpreterV10, node: AST.AstNode, env: Env
     case "ArrayLiteral": {
       const arrNode = node as AST.ArrayLiteral;
       const elements = arrNode.elements.map(element => ctx.evaluate(element, env));
-      return { kind: "array", elements };
+      return ctx.makeArrayValue(elements);
     }
     default:
       throw new Error(`Unsupported literal node: ${node.type}`);

@@ -1,0 +1,15 @@
+package tutorial_packages_main
+
+import tutorial_packages_math as math
+import tutorial_packages_math.{Pair}
+import tutorial_packages_strings.{shout, make_label}
+
+fn main() -> void {
+  print(`2 + 3 with bias -> ${math.add(2, 3)}`)
+
+  pair := Pair { left: 4, right: 5 }
+  print(`pair_sum -> ${math.pair_sum(pair)}`)
+
+  label := make_label("item", 7)
+  print(shout(label))
+}

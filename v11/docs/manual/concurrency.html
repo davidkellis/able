@@ -2,38 +2,40 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Able v10 Manual — Concurrency</title>
+    <title>Able v11 Manual — Concurrency &amp; Async</title>
     <link rel="stylesheet" href="manual.css" />
   </head>
   <body>
     <div class="layout">
       <nav class="sidebar">
-        <span class="brand">Able v10 Manual</span>
+        <span class="brand">Able v11 Manual</span>
         <ul>
           <li><a href="index.html">Getting Started</a></li>
-          <li><a href="variables.html">Variables</a></li>
+          <li><a href="variables.html">Syntax &amp; Expressions</a></li>
+          <li><a href="constructors.html">Bindings &amp; Patterns</a></li>
+          <li><a href="types.html">Types &amp; Data</a></li>
+          <li><a href="functions.html">Functions &amp; Functional Tools</a></li>
           <li><a href="control-flow.html">Control Flow</a></li>
-          <li><a href="functions.html">Functions</a></li>
-          <li><a href="types.html">Types</a></li>
-          <li><a href="methods.html">Methods</a></li>
-          <li><a href="constructors.html">Constructors & Updates</a></li>
           <li><a href="pattern-matching.html">Pattern Matching &amp; Unions</a></li>
-          <li><a href="modules.html">Modules</a></li>
+          <li><a href="methods.html">Methods, Interfaces, Dispatch</a></li>
           <li><a href="error-handling.html">Error Handling</a></li>
-          <li><a href="concurrency.html" class="active">Concurrency</a></li>
-          <li><a href="tooling.html">Tooling &amp; Next Steps</a></li>
+          <li><a href="concurrency.html" class="active">Concurrency &amp; Async</a></li>
+          <li><a href="modules.html">Modules &amp; Packages</a></li>
+          <li><a href="tooling.html">Stdlib, Interop, Tooling</a></li>
         </ul>
       </nav>
       <main class="content">
-        <h1>11. Concurrency</h1>
+        <h1>10. Concurrency &amp; Async</h1>
         <p>
-          Able mirrors Go-style concurrency with <code>proc</code>,
-          <code>spawn</code>, channels, and mutexes.
+          Able mirrors Go-style semantics with cooperative <code>proc</code>,
+          memoised <code>spawn</code>, channel/mutex primitives, and an
+          <code>await</code> expression that multiplexes <code>Awaitable</code>s
+          (channels, timers, futures, sockets, custom callbacks).
         </p>
-        <h2>11.1 <code>proc</code></h2>
+        <h2 id="proc">10.1 <code>proc</code> (cooperative tasks)</h2>
         <pre><code class="language-able">handle: Proc string = proc fetch_data(url)
 
-proc_flush(32)
+proc_flush(32) ## advance cooperative scheduler (TS runtime helper)
 
 handle.status() match {
   case Pending =&gt; log("still fetching..."),
@@ -42,29 +44,38 @@ handle.status() match {
   case Resolved =&gt; void
 }
 
-content = handle.value() else { |err|
-  log(`background fetch failed: ${err.message()}`)
-  "fallback"
-}</code></pre>
+body = handle.value() else { "fallback" }</code></pre>
         <p>
-          <code>Proc T</code> exposes <code>status()</code>,
+          <code>Proc</code> exposes <code>status()</code>,
           <code>value() -&gt; !T</code>, and <code>cancel()</code>. Inside async
           bodies, use <code>proc_yield()</code>, <code>proc_cancelled()</code>,
-          <code>proc_flush(limit?)</code>, and the diagnostic helper
-          <code>proc_pending_tasks()</code> (reports the executor queue length
-          when available).
+          <code>proc_flush(limit?)</code>, and <code>proc_pending_tasks()</code>
+          (diagnostic). Blocking operations must notice cancellation; nested
+          <code>value()</code> calls are re-entrant.
         </p>
-        <h2>11.2 <code>spawn</code></h2>
+        <h2 id="spawn">10.2 <code>spawn</code> (futures)</h2>
         <pre><code class="language-able">future_total: Future i64 = spawn sum_big_array(data)
 
 print("Computing...")
-total = future_total
+total = future_total               ## blocks, re-raises task errors
 print(`Total: ${total}`)</code></pre>
         <p>
-          Evaluating a <code>Future T</code> blocks and yields <code>T</code>,
-          re-raising exceptions from the task.
+          Evaluating a <code>Future T</code> blocks and yields <code>T</code>.
+          Results are memoised; a handle also offers <code>status()</code> and
+          <code>value()</code>.
         </p>
-        <h2>11.3 Channels &amp; Mutexes</h2>
+        <h2 id="await">10.3 <code>await</code> &amp; <code>Awaitable</code></h2>
+        <p>
+          <code>await [arms...]</code> probes all arms, commits to a ready one,
+          and invokes its callback. Arms expose <code>is_ready</code>/<code>register</code>/<code>commit</code>; runtimes must choose fairly when multiple arms are ready and wake on cancellation.
+        </p>
+        <pre><code class="language-able">result = await [
+  ch.try_recv { msg =&gt; handle_msg(msg) },
+  ch2.try_send(packet) { true },
+  Await.sleep(2.seconds) { "timeout" },
+  Await.default { "idle" }
+]</code></pre>
+        <h2 id="channels">10.4 Channels &amp; Mutexes</h2>
         <pre><code class="language-able">ch: Channel string = Channel.new(0)
 
 producer = proc do {
@@ -72,17 +83,14 @@ producer = proc do {
   ch.close()
 }
 
-for value in ch {
-  print(`hello ${value}`)
-}</code></pre>
-        <p>
-          Channels block on send/receive, support <code>try_send</code> /
-          <code>try_receive</code>, and return <code>nil</code> when closed and
-          drained. Mutexes are non-reentrant; use helpers that guarantee
-          <code>unlock()</code> (see <code>design/channels-mutexes.md</code>).
-        </p>
+for value in ch { print(`hello ${value}`) }</code></pre>
+        <ul>
+          <li>Channels block on send/receive, support <code>try_send</code>/<code>try_receive</code>, and return <code>nil</code> when closed and drained.</li>
+          <li>Await arms <code>try_recv</code>/<code>try_send</code> integrate with <code>await</code>.</li>
+          <li>Mutexes are non-reentrant; lock/unlock explicitly or wrap helpers to guarantee unlock. Errors include <code>MutexUnlocked</code> (and reserved <code>MutexPoisoned</code>), plus channel-specific errors (<code>ChannelClosed</code>, <code>ChannelNil</code>, <code>ChannelSendOnClosed</code>, <code>ChannelTimeout</code>).</li>
+        </ul>
         <footer class="manual-footer">
-          Able v10 manual · Concurrency
+          Able v11 manual · Concurrency &amp; Async
         </footer>
       </main>
     </div>

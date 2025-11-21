@@ -6,6 +6,7 @@ import able.core.iteration{Iterable, Iterator}
 struct ChannelClosed;
 struct ChannelNil;
 struct ChannelSendOnClosed;
+struct ChannelTimeout;
 
 impl Error for ChannelClosed {
   fn message(self: Self) -> string { "channel already closed" }
@@ -19,6 +20,11 @@ impl Error for ChannelNil {
 
 impl Error for ChannelSendOnClosed {
   fn message(self: Self) -> string { "send on closed channel" }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+impl Error for ChannelTimeout {
+  fn message(self: Self) -> string { "channel operation timed out" }
   fn cause(self: Self) -> ?Error { nil }
 }
 

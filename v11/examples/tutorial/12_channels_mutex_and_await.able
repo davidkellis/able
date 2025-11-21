@@ -1,0 +1,43 @@
+package tutorial.sync
+
+fn with_lock<T>(m: Mutex, f: () -> T) -> T {
+  m.lock()
+  result := f()
+  m.unlock()
+  result
+}
+
+fn main() -> void {
+  ch: Channel string = Channel.new(0)
+
+  producer := proc do {
+    ch.send("hi")
+    ch.send("bye")
+    ch.close()
+  }
+
+  consumer := proc do {
+    for msg in ch { print(`received ${msg}`) }
+  }
+
+  proc_flush()
+  print(`pending after channel drain: ${proc_pending_tasks()}`)
+
+  buffered: Channel i32 = Channel.new(1)
+  sent = await [
+    buffered.try_send(42, fn(_: void) -> string { "sent without blocking" }),
+    Await.default(fn() -> string { "default arm" })
+  ]
+  print(sent)
+
+  received = await [
+    buffered.try_recv(fn(v: i32) -> string { `await saw ${v}` }),
+    Await.default(fn() -> string { "no value ready" })
+  ]
+  print(received)
+
+  shared := 0
+  m := Mutex.new()
+  next = with_lock(m, fn() -> i32 { shared = shared + 1; shared })
+  print(`mutex protected value -> ${next}`)
+}

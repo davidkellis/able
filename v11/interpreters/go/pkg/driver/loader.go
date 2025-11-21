@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -14,12 +15,25 @@ import (
 	"able/interpreter10-go/pkg/parser"
 )
 
+type RootKind int
+
+const (
+	RootUser RootKind = iota
+	RootStdlib
+)
+
+// SearchPath describes a module search root.
+type SearchPath struct {
+	Path string
+	Kind RootKind
+}
+
 // Module aggregates the Able source for a fully qualified package.
 type Module struct {
-	Package string
-	AST     *ast.Module
-	Files   []string
-	Imports []string
+	Package     string
+	AST         *ast.Module
+	Files       []string
+	Imports     []string
 	NodeOrigins map[ast.Node]string
 }
 
@@ -35,33 +49,48 @@ type packageLocation struct {
 	files    []string
 }
 
+type packageOrigin struct {
+	root string
+	kind RootKind
+}
+
+type rootInfo struct {
+	rootDir  string
+	rootName string
+	kind     RootKind
+}
+
 // Loader wires Able source files into aggregated modules.
 type Loader struct {
 	parser      *parser.ModuleParser
-	searchPaths []string
+	searchPaths []SearchPath
 }
 
 // NewLoader constructs a loader with optional extra search paths (reserved for future use).
-func NewLoader(searchPaths []string) (*Loader, error) {
+func NewLoader(searchPaths []SearchPath) (*Loader, error) {
 	mp, err := parser.NewModuleParser()
 	if err != nil {
 		return nil, err
 	}
-	unique := make([]string, 0, len(searchPaths))
+	unique := make([]SearchPath, 0, len(searchPaths))
 	seen := make(map[string]struct{}, len(searchPaths))
-	for _, path := range searchPaths {
-		if path == "" {
+	for _, sp := range searchPaths {
+		if sp.Path == "" {
 			continue
 		}
-		abs, err := filepath.Abs(path)
+		abs, err := filepath.Abs(sp.Path)
 		if err != nil {
-			return nil, fmt.Errorf("loader: resolve search path %q: %w", path, err)
+			return nil, fmt.Errorf("loader: resolve search path %q: %w", sp.Path, err)
 		}
 		if _, ok := seen[abs]; ok {
 			continue
 		}
 		seen[abs] = struct{}{}
-		unique = append(unique, abs)
+		kind := sp.Kind
+		if kind != RootStdlib {
+			kind = RootUser
+		}
+		unique = append(unique, SearchPath{Path: abs, Kind: kind})
 	}
 	return &Loader{parser: mp, searchPaths: unique}, nil
 }
@@ -105,6 +134,20 @@ func (l *Loader) Load(entry string) (*Program, error) {
 		return nil, fmt.Errorf("loader: entry file %s is outside package root %s", entryPath, rootDir)
 	}
 
+	entryKind := RootUser
+	for _, sp := range l.searchPaths {
+		if sp.Kind == RootStdlib && pathsOverlap(sp.Path, rootDir) {
+			entryKind = RootStdlib
+			break
+		}
+	}
+	entryRoot := rootInfo{rootDir: rootDir, rootName: rootName, kind: entryKind}
+	if ok, err := ensureNamespaceAllowed(entryRoot, false); err != nil {
+		return nil, err
+	} else if !ok {
+		return nil, fmt.Errorf("loader: package namespace 'able.*' is reserved for the standard library (path: %s)", entryRoot.rootDir)
+	}
+
 	entryPackages, fileIndex, err := indexSourceFiles(rootDir, rootName)
 	if err != nil {
 		return nil, err
@@ -115,18 +158,12 @@ func (l *Loader) Load(entry string) (*Program, error) {
 	}
 
 	pkgIndex := make(map[string]*packageLocation, len(entryPackages))
-	for name, files := range entryPackages {
-		if len(files) == 0 {
-			continue
-		}
-		pkgIndex[name] = &packageLocation{
-			rootDir:  rootDir,
-			rootName: rootName,
-			files:    files,
-		}
+	origins := make(map[string]packageOrigin)
+	if err := registerPackages(pkgIndex, entryPackages, entryRoot, origins); err != nil {
+		return nil, err
 	}
 
-	if err := l.indexAdditionalRoots(pkgIndex, rootDir); err != nil {
+	if err := l.indexAdditionalRoots(pkgIndex, origins, entryRoot); err != nil {
 		return nil, err
 	}
 
@@ -198,17 +235,17 @@ type fileModule struct {
 	imports     []string
 }
 
-func (l *Loader) indexAdditionalRoots(pkgIndex map[string]*packageLocation, entryRoot string) error {
+func (l *Loader) indexAdditionalRoots(pkgIndex map[string]*packageLocation, origins map[string]packageOrigin, entryRoot rootInfo) error {
 	if len(l.searchPaths) == 0 {
 		return nil
 	}
 	used := make(map[string]struct{}, len(l.searchPaths)+1)
-	if entryRoot != "" {
-		used[filepath.Clean(entryRoot)] = struct{}{}
+	if entryRoot.rootDir != "" {
+		used[filepath.Clean(entryRoot.rootDir)] = struct{}{}
 	}
 
 	for _, root := range l.searchPaths {
-		abs, rootName, err := discoverRootForPath(root)
+		abs, rootName, err := discoverRootForPath(root.Path)
 		if err != nil {
 			return err
 		}
@@ -217,7 +254,16 @@ func (l *Loader) indexAdditionalRoots(pkgIndex map[string]*packageLocation, entr
 			continue
 		}
 		used[clean] = struct{}{}
-
+		kind := root.Kind
+		if kind != RootStdlib {
+			kind = RootUser
+		}
+		info := rootInfo{rootDir: abs, rootName: rootName, kind: kind}
+		if ok, err := ensureNamespaceAllowed(info, true); err != nil {
+			return err
+		} else if !ok {
+			continue
+		}
 		packages, _, err := indexSourceFiles(abs, rootName)
 		if err != nil {
 			return err
@@ -225,21 +271,53 @@ func (l *Loader) indexAdditionalRoots(pkgIndex map[string]*packageLocation, entr
 		if len(packages) == 0 {
 			continue
 		}
-		for name, files := range packages {
-			if len(files) == 0 {
-				continue
-			}
-			if _, exists := pkgIndex[name]; exists {
-				continue
-			}
-			pkgIndex[name] = &packageLocation{
-				rootDir:  abs,
-				rootName: rootName,
-				files:    files,
-			}
+		if err := registerPackages(pkgIndex, packages, info, origins); err != nil {
+			return err
 		}
 	}
 	return nil
+}
+
+func ensureNamespaceAllowed(root rootInfo, allowSkip bool) (bool, error) {
+	if root.rootName == "able" && root.kind != RootStdlib {
+		if allowSkip {
+			return false, nil
+		}
+		return false, fmt.Errorf("loader: package namespace 'able.*' is reserved for the standard library (path: %s)", root.rootDir)
+	}
+	return true, nil
+}
+
+func registerPackages(pkgIndex map[string]*packageLocation, packages map[string][]string, root rootInfo, origins map[string]packageOrigin) error {
+	for name, files := range packages {
+		if len(files) == 0 {
+			continue
+		}
+		if existing, ok := origins[name]; ok {
+			return fmt.Errorf("loader: package %s found in multiple roots (%s, %s)", name, existing.root, root.rootDir)
+		}
+		origins[name] = packageOrigin{root: root.rootDir, kind: root.kind}
+		pkgIndex[name] = &packageLocation{
+			rootDir:  root.rootDir,
+			rootName: root.rootName,
+			files:    files,
+		}
+	}
+	return nil
+}
+
+func pathsOverlap(a, b string) bool {
+	aClean := filepath.Clean(a)
+	bClean := filepath.Clean(b)
+	return containsPathPrefix(aClean, bClean) || containsPathPrefix(bClean, aClean)
+}
+
+func containsPathPrefix(base, target string) bool {
+	rel, err := filepath.Rel(base, target)
+	if err != nil {
+		return false
+	}
+	return rel == "." || (!strings.HasPrefix(rel, ".."+string(os.PathSeparator)) && rel != "..")
 }
 
 func (l *Loader) parseFile(path, rootDir, rootPackage string) (*fileModule, error) {
@@ -271,6 +349,7 @@ func (l *Loader) parseFile(path, rootDir, rootPackage string) (*fileModule, erro
 		}
 		importSet[name] = struct{}{}
 	}
+	collectDynImports(moduleAST, importSet, make(map[uintptr]struct{}))
 	imports := make([]string, 0, len(importSet))
 	for name := range importSet {
 		imports = append(imports, name)
@@ -573,6 +652,57 @@ func combinePackage(packageName string, files []*fileModule) (*Module, error) {
 		Imports:     importNames,
 		NodeOrigins: origins,
 	}, nil
+}
+
+func collectDynImports(node ast.Node, into map[string]struct{}, visited map[uintptr]struct{}) {
+	collectDynImportsFromValue(reflect.ValueOf(node), into, visited)
+}
+
+func collectDynImportsFromValue(val reflect.Value, into map[string]struct{}, visited map[uintptr]struct{}) {
+	if !val.IsValid() {
+		return
+	}
+	if val.Kind() == reflect.Pointer {
+		if val.IsNil() {
+			return
+		}
+		if ptr := val.Pointer(); ptr != 0 {
+			if _, ok := visited[ptr]; ok {
+				return
+			}
+			visited[ptr] = struct{}{}
+		}
+		if node, ok := val.Interface().(ast.Node); ok {
+			if dyn, ok := node.(*ast.DynImportStatement); ok && dyn != nil {
+				if name := joinIdentifiers(dyn.PackagePath); name != "" {
+					into[name] = struct{}{}
+				}
+			}
+		}
+		collectDynImportsFromValue(val.Elem(), into, visited)
+		return
+	}
+	if val.Kind() == reflect.Interface {
+		if val.IsNil() {
+			return
+		}
+		collectDynImportsFromValue(val.Elem(), into, visited)
+		return
+	}
+	switch val.Kind() {
+	case reflect.Struct:
+		for i := 0; i < val.NumField(); i++ {
+			collectDynImportsFromValue(val.Field(i), into, visited)
+		}
+	case reflect.Slice, reflect.Array:
+		for i := 0; i < val.Len(); i++ {
+			collectDynImportsFromValue(val.Index(i), into, visited)
+		}
+	case reflect.Map:
+		for _, key := range val.MapKeys() {
+			collectDynImportsFromValue(val.MapIndex(key), into, visited)
+		}
+	}
 }
 
 func joinIdentifiers(ids []*ast.Identifier) string {

@@ -1,10 +1,6 @@
 package typechecker
 
-import (
-	"fmt"
-
-	"able/interpreter10-go/pkg/ast"
-)
+import "able/interpreter10-go/pkg/ast"
 
 func (c *Checker) checkArrayLiteral(env *Environment, expr *ast.ArrayLiteral) ([]Diagnostic, Type) {
 	if expr == nil {
@@ -16,7 +12,7 @@ func (c *Checker) checkArrayLiteral(env *Environment, expr *ast.ArrayLiteral) ([
 		elementType Type = UnknownType{}
 	)
 
-	for idx, element := range expr.Elements {
+	for _, element := range expr.Elements {
 		if element == nil {
 			continue
 		}
@@ -30,18 +26,7 @@ func (c *Checker) checkArrayLiteral(env *Environment, expr *ast.ArrayLiteral) ([
 			elementType = elemType
 			continue
 		}
-		if !typeAssignable(elemType, elementType) && !typeAssignable(elementType, elemType) {
-			diags = append(diags, Diagnostic{
-				Message: fmt.Sprintf(
-					"typechecker: array element %d has type %s, expected %s",
-					idx+1,
-					typeName(elemType),
-					typeName(elementType),
-				),
-				Node: element,
-			})
-			elementType = UnknownType{}
-		}
+		elementType = mergeTypesAllowUnion(elementType, elemType)
 	}
 
 	arrayType := ArrayType{Element: elementType}

@@ -1,0 +1,36 @@
+package tutorial.results
+
+struct MathError { message: string }
+
+impl Error for MathError {
+  fn message(self: Self) -> string { self.message }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+fn safe_div(num: i32, den: i32) -> !i32 {
+  if den == 0 { return MathError { message: "division by zero" } }
+  num / den
+}
+
+fn ratio_sum(values: Array i32) -> !i32 {
+  first := values.get(0) else { return MathError { message: "need two numbers" } }
+  second := values.get(1) else { return MathError { message: "need two numbers" } }
+  safe_div(first + second, second)!
+}
+
+fn greet(name: ?string) -> string {
+  actual := name else { "friend" }
+  `Hi, ${actual}`
+}
+
+fn main() -> void {
+  print(greet(nil))
+  print(greet("Able"))
+
+  numbers := [10, 2]
+  print(`ratio_sum => ${ratio_sum(numbers)}`)
+
+  missing: Array i32 := []
+  handled := ratio_sum(missing) else { |err| `Handled error: ${err.message()}` }
+  print(handled)
+}

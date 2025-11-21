@@ -33,8 +33,12 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
   cls.prototype.enforceGenericConstraintsIfAny = function enforceGenericConstraintsIfAny(this: InterpreterV10, funcNode: AST.FunctionDefinition | AST.LambdaExpression, call: AST.FunctionCall): void {
   const generics = (funcNode as any).genericParams as AST.GenericParameter[] | undefined;
   const where = (funcNode as any).whereClause as AST.WhereClauseConstraint[] | undefined;
-  const typeArgs = call.typeArguments ?? [];
+  let typeArgs = call.typeArguments ?? [];
   const genericCount = generics ? generics.length : 0;
+  if (genericCount > 0 && typeArgs.length === 0) {
+    typeArgs = generics!.map(() => AST.wildcardTypeExpression());
+    call.typeArguments = typeArgs;
+  }
   if (genericCount > 0 && typeArgs.length !== genericCount) {
     const name = (funcNode as any).id?.name ?? "(lambda)";
     throw new Error(`Type arguments count mismatch calling ${name}: expected ${genericCount}, got ${typeArgs.length}`);
@@ -261,6 +265,33 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
   cls.prototype.matchImplEntry = function matchImplEntry(this: InterpreterV10, entry: ImplMethodEntry, opts?: { typeArgs?: AST.TypeExpression[]; typeArgMap?: Map<string, AST.TypeExpression> }): Map<string, AST.TypeExpression> | null {
   const bindings = new Map<string, AST.TypeExpression>();
   const genericNames = new Set(entry.genericParams.map(g => g.name.name));
+  const considerAsGeneric = (t: AST.TypeExpression | undefined): void => {
+    if (!t) return;
+    switch (t.type) {
+      case "SimpleTypeExpression": {
+        const name = t.name.name;
+        if (/^[A-Z]$/.test(name)) {
+          genericNames.add(name);
+        }
+        return;
+      }
+      case "GenericTypeExpression":
+        considerAsGeneric(t.base);
+        for (const arg of t.arguments ?? []) considerAsGeneric(arg);
+        return;
+      case "NullableTypeExpression":
+      case "ResultTypeExpression":
+        considerAsGeneric(t.innerType);
+        return;
+      case "UnionTypeExpression":
+        for (const member of t.members) considerAsGeneric(member);
+        return;
+      default:
+        return;
+    }
+  };
+  for (const ifaceArg of entry.def.interfaceArgs ?? []) considerAsGeneric(ifaceArg);
+  for (const template of entry.targetArgTemplates) considerAsGeneric(template);
   const expectedArgs = entry.targetArgTemplates;
   const actualArgs = opts?.typeArgs;
   if (expectedArgs.length > 0) {

@@ -740,6 +740,7 @@ func registerBuiltins(env *Environment) {
 	boolType := PrimitiveType{Kind: PrimitiveBool}
 	i32Type := IntegerType{Suffix: "i32"}
 	i64Type := IntegerType{Suffix: "i64"}
+	u64Type := IntegerType{Suffix: "u64"}
 	anyType := UnknownType{}
 	stringType := PrimitiveType{Kind: PrimitiveString}
 	charType := PrimitiveType{Kind: PrimitiveChar}
@@ -812,6 +813,43 @@ func registerBuiltins(env *Environment) {
 	env.Define("__able_mutex_unlock", FunctionType{
 		Params: []Type{i64Type},
 		Return: nilType,
+	})
+
+	env.Define("__able_array_new", FunctionType{
+		Params: nil,
+		Return: i64Type,
+	})
+	env.Define("__able_array_with_capacity", FunctionType{
+		Params: []Type{i32Type},
+		Return: i64Type,
+	})
+	env.Define("__able_array_size", FunctionType{
+		Params: []Type{i64Type},
+		Return: u64Type,
+	})
+	env.Define("__able_array_capacity", FunctionType{
+		Params: []Type{i64Type},
+		Return: u64Type,
+	})
+	env.Define("__able_array_set_len", FunctionType{
+		Params: []Type{i64Type, i32Type},
+		Return: nilType,
+	})
+	env.Define("__able_array_read", FunctionType{
+		Params: []Type{i64Type, i32Type},
+		Return: anyType,
+	})
+	env.Define("__able_array_write", FunctionType{
+		Params: []Type{i64Type, i32Type, anyType},
+		Return: nilType,
+	})
+	env.Define("__able_array_reserve", FunctionType{
+		Params: []Type{i64Type, i32Type},
+		Return: u64Type,
+	})
+	env.Define("__able_array_clone", FunctionType{
+		Params: []Type{i64Type},
+		Return: i64Type,
 	})
 
 	env.Define("__able_string_from_builtin", FunctionType{

@@ -6,19 +6,19 @@
       "elements": [
         {
           "kind": "i32",
-          "value": 100
+          "value": "100"
         },
         {
           "kind": "i32",
-          "value": 1
+          "value": "1"
         },
         {
           "kind": "i32",
-          "value": 1
+          "value": "1"
         },
         {
           "kind": "i32",
-          "value": 1
+          "value": "1"
         }
       ]
     }

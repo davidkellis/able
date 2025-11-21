@@ -6,11 +6,11 @@
       "elements": [
         {
           "kind": "i32",
-          "value": 3
+          "value": "3"
         },
         {
           "kind": "i32",
-          "value": 3
+          "value": "3"
         }
       ]
     }

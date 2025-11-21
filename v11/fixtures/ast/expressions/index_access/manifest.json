@@ -3,7 +3,7 @@
   "expect": {
     "result": {
       "kind": "i32",
-      "value": 2
+      "value": "2"
     }
   },
   "entry": "module.json"

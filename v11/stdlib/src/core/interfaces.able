@@ -1,10 +1,10 @@
-package core
+package core.interfaces
 
 ## Ordering enumeration used by comparison interfaces.
-struct Less;
-struct Equal;
-struct Greater;
-union Ordering = Less | Equal | Greater;
+struct Less {}
+struct Equal {}
+struct Greater {}
+union Ordering = Less | Equal | Greater
 
 ## Displayable values produce user-facing strings (used by interpolation).
 interface Display for T {
@@ -119,5 +119,5 @@ interface Index Idx Output for T {
 }
 
 interface IndexMut Idx Output for T {
-  fn assign(mut self: Self, idx: Idx, value: Output) -> void;
+  fn assign(self: Self, idx: Idx, value: Output) -> void;
 }

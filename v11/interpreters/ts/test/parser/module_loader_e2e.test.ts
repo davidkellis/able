@@ -305,6 +305,74 @@ fn main() -> void {
   });
 });
 
+describe("ModuleLoader search path safeguards", () => {
+  test("rejects package collisions across roots", async () => {
+    const primaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "able-module-loader-collision-a-"));
+    const secondaryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "able-module-loader-collision-b-"));
+    try {
+      await fs.writeFile(path.join(primaryRoot, "package.yml"), "name: collide\n", "utf8");
+      await fs.writeFile(
+        path.join(primaryRoot, "main.able"),
+        `
+package main
+
+fn main() -> void {}
+`.trimStart(),
+        "utf8",
+      );
+      await fs.writeFile(
+        path.join(primaryRoot, "shared.able"),
+        `
+package shared
+
+fn value() -> string { "primary" }
+`.trimStart(),
+        "utf8",
+      );
+
+      await fs.writeFile(path.join(secondaryRoot, "package.yml"), "name: collide\n", "utf8");
+      await fs.writeFile(
+        path.join(secondaryRoot, "shared.able"),
+        `
+package shared
+
+fn value() -> string { "secondary" }
+`.trimStart(),
+        "utf8",
+      );
+
+      const loader = new ModuleLoader([{ path: secondaryRoot }]);
+      await expect(loader.load(path.join(primaryRoot, "main.able"))).rejects.toThrow(
+        /package collide\.shared/,
+      );
+    } finally {
+      await fs.rm(primaryRoot, { recursive: true, force: true });
+      await fs.rm(secondaryRoot, { recursive: true, force: true });
+    }
+  });
+
+  test("rejects user packages in the reserved able namespace", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "able-module-loader-reserved-"));
+    try {
+      await fs.writeFile(path.join(tmpRoot, "package.yml"), "name: able\n", "utf8");
+      await fs.writeFile(
+        path.join(tmpRoot, "main.able"),
+        `
+package main
+
+fn main() -> void {}
+`.trimStart(),
+        "utf8",
+      );
+
+      const loader = new ModuleLoader();
+      await expect(loader.load(path.join(tmpRoot, "main.able"))).rejects.toThrow(/able\.\*/);
+    } finally {
+      await fs.rm(tmpRoot, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("ModuleLoader pipeline with typechecker", () => {
   test("typechecks and evaluates parsed modules from source", async () => {
     const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "able-module-loader-pipeline-"));

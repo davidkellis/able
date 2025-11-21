@@ -6,22 +6,22 @@
       "elements": [
         {
           "kind": "i32",
-          "value": 0
+          "value": "0"
         },
         {
           "kind": "i32",
-          "value": 1
+          "value": "1"
         },
         {
           "kind": "i32",
-          "value": 2
+          "value": "2"
         },
         {
           "kind": "iterator_end"
         },
         {
           "kind": "i32",
-          "value": 2
+          "value": "2"
         }
       ]
     }

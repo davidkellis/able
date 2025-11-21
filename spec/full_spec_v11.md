@@ -1805,6 +1805,22 @@ Note: Empty collections (e.g., `Array T` with size 0) are truthy. Only `false`, 
 
 ### 6.12. Standard Library API (Required)
 
+#### 6.12.0. Kernel Library (Host Built-ins)
+
+The interpreters ship a **minimal** “kernel” library implemented in the host runtime. Higher-level helpers described in later subsections are written in Able and layer on top of this kernel surface. The kernel exists so the stdlib can bootstrap itself without depending on host-only functionality.
+
+The kernel exposes only the following:
+- **Global functions:** `print`, `proc_yield`, `proc_cancelled`, `proc_flush`, `proc_pending_tasks`.
+- **Concurrency bridges:** channel primitives `__able_channel_new/send/receive/try_send/try_receive/await_try_send/await_try_recv/close/is_closed`; mutex primitives `__able_mutex_new/lock/unlock`; await waker helpers.
+- **String/char bridges:** `__able_string_from_builtin`, `__able_string_to_builtin`, `__able_char_from_codepoint` (and UTF-8 validation/byte iterators as needed).
+- **Hasher bridges:** `__able_hasher_create`, `__able_hasher_write`, `__able_hasher_finish`.
+- **Array buffer hooks:** host-level allocation and slot access functions (e.g., `__able_array_new/with_capacity`, `__able_array_read`, `__able_array_write`, `__able_array_grow`). These are not user-facing and exist solely so the stdlib `Array` implementation can manage storage.
+- **Error methods:** `message() -> string`, `cause() -> ?error`; `value` field is accessible for payloads.
+- **Iterator methods:** `next() -> T | IteratorEnd`, `close()`.
+- **Proc/Future methods:** `status()`, `value()`, `cancel()` (future cancel may be a no-op depending on target runtime).
+
+All user-facing array and string helpers in §§6.12.1–6.12.2 live in the Able stdlib. Some runtimes currently ship temporary native shims for these helpers; they are **not** part of the kernel contract and will be removed once the stdlib owns the behaviour.
+
 #### 6.12.1. string & Grapheme Helpers
 
 `string` is the canonical immutable UTF-8 container provided by the language. String literals evaluate to `string` directly and there is no distinct `String` wrapper type. Runtimes may still expose helper functions (e.g., `string_from_builtin`, `string_to_builtin`) to convert to/from host-native encodings, but Able programs always operate on the built-in `string` type. Each `string` owns an `Array u8` buffer; mutation happens only through builders (e.g., `StringBuilder`) that emit a new canonical value.
@@ -1850,6 +1866,8 @@ The iterator types (`StringBytesIter`, `StringCharsIter`, `StringGraphemesIter`)
 
 Invalid UTF-8 detected during decoding or iteration produces `StringEncodingError`, an `Error` with the offending byte offset. Indexing mistakes (negative offsets, out-of-bounds slices, or attempts to split a code point) raise `RangeError` (or a more specific subtype such as `StringIndexError`). Because `string` values are immutable, construction and concatenation flow through `StringBuilder`, which offers `push_char`, `push_bytes`, `push_string`, and `finish() -> Result string`.
 
+Implementation note: these helpers live in the Able stdlib built atop the kernel string/char bridges. Any temporary native implementations in a runtime are compatibility shims and not part of the kernel contract.
+
 #### 6.12.2. Array Helpers
 
 `Array T` values expose the following minimum API (all methods mutate the receiver unless noted):
@@ -1864,6 +1882,8 @@ Invalid UTF-8 detected during decoding or iteration produces `StringEncodingErro
 | `clear()` | `fn clear(self: Self) -> void` | Removes all elements (capacity may be retained). |
 
 Implementations must raise `IndexError` when out-of-range `set`/`push`/`pop` operations cannot be satisfied. Arrays must continue to implement `Iterable T` so `for` loops work uniformly.
+
+Implementation note: these helpers live in the Able stdlib and are backed by kernel array buffer hooks for allocation and slot access. Any existing native implementations in a runtime are transitional and not part of the kernel contract.
 
 ## 7. Functions
 
