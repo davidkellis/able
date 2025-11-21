@@ -222,25 +222,44 @@ func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diag
 			if len(instantiated.Obligations) > 0 {
 				c.obligations = append(c.obligations, instantiated.Obligations...)
 			}
-			if len(instantiated.Params) != len(argTypes) {
-				diags = append(diags, Diagnostic{
-					Message: fmt.Sprintf("typechecker: function expects %d arguments, got %d", len(instantiated.Params), len(argTypes)),
-					Node:    e,
-				})
-			} else {
-				for i, expected := range instantiated.Params {
-					if !typeAssignable(argTypes[i], expected) {
-						if msg, ok := literalMismatchMessage(argTypes[i], expected); ok {
-							diags = append(diags, Diagnostic{
-								Message: fmt.Sprintf("typechecker: %s", msg),
-								Node:    e.Arguments[i],
-							})
-						} else {
-							diags = append(diags, Diagnostic{
-								Message: fmt.Sprintf("typechecker: argument %d has type %s, expected %s", i+1, typeName(argTypes[i]), typeName(expected)),
-								Node:    e.Arguments[i],
-							})
-						}
+			expectedParams := instantiated.Params
+			optionalLast := false
+			if len(expectedParams) > 0 {
+				if _, ok := expectedParams[len(expectedParams)-1].(NullableType); ok {
+					optionalLast = true
+				}
+			}
+			argCount := len(argTypes)
+			paramCount := len(expectedParams)
+			if argCount != paramCount {
+				if !(optionalLast && argCount == paramCount-1) {
+					diags = append(diags, Diagnostic{
+						Message: fmt.Sprintf("typechecker: function expects %d arguments, got %d", paramCount, argCount),
+						Node:    e,
+					})
+				}
+			}
+			if optionalLast && argCount == paramCount-1 {
+				expectedParams = expectedParams[:len(expectedParams)-1]
+				paramCount = len(expectedParams)
+			}
+			compareCount := len(argTypes)
+			if paramCount < compareCount {
+				compareCount = paramCount
+			}
+			for i := 0; i < compareCount; i++ {
+				expected := expectedParams[i]
+				if !typeAssignable(argTypes[i], expected) {
+					if msg, ok := literalMismatchMessage(argTypes[i], expected); ok {
+						diags = append(diags, Diagnostic{
+							Message: fmt.Sprintf("typechecker: %s", msg),
+							Node:    e.Arguments[i],
+						})
+					} else {
+						diags = append(diags, Diagnostic{
+							Message: fmt.Sprintf("typechecker: argument %d has type %s, expected %s", i+1, typeName(argTypes[i]), typeName(expected)),
+							Node:    e.Arguments[i],
+						})
 					}
 				}
 			}

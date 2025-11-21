@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"able/interpreter10-go/pkg/driver"
+
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
 )
@@ -70,6 +72,15 @@ func initGitRepo(t *testing.T, dir string) string {
 func containsPath(paths []string, target string) bool {
 	for _, path := range paths {
 		if path == target {
+			return true
+		}
+	}
+	return false
+}
+
+func containsSearchPath(paths []driver.SearchPath, target string) bool {
+	for _, sp := range paths {
+		if filepath.Clean(sp.Path) == filepath.Clean(target) {
 			return true
 		}
 	}

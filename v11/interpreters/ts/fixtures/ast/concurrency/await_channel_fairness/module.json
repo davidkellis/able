@@ -1,0 +1,514 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "ch1"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "Identifier",
+          "name": "__able_channel_new"
+        },
+        "arguments": [
+          {
+            "type": "IntegerLiteral",
+            "value": 2
+          }
+        ],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "ch2"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "Identifier",
+          "name": "__able_channel_new"
+        },
+        "arguments": [
+          {
+            "type": "IntegerLiteral",
+            "value": 2
+          }
+        ],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "Identifier",
+        "name": "__able_channel_send"
+      },
+      "arguments": [
+        {
+          "type": "Identifier",
+          "name": "ch1"
+        },
+        {
+          "type": "StringLiteral",
+          "value": "A1"
+        }
+      ],
+      "isTrailingLambda": false
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "Identifier",
+        "name": "__able_channel_send"
+      },
+      "arguments": [
+        {
+          "type": "Identifier",
+          "name": "ch2"
+        },
+        {
+          "type": "StringLiteral",
+          "value": "B1"
+        }
+      ],
+      "isTrailingLambda": false
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "Identifier",
+        "name": "__able_channel_send"
+      },
+      "arguments": [
+        {
+          "type": "Identifier",
+          "name": "ch1"
+        },
+        {
+          "type": "StringLiteral",
+          "value": "A2"
+        }
+      ],
+      "isTrailingLambda": false
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "Identifier",
+        "name": "__able_channel_send"
+      },
+      "arguments": [
+        {
+          "type": "Identifier",
+          "name": "ch2"
+        },
+        {
+          "type": "StringLiteral",
+          "value": "B2"
+        }
+      ],
+      "isTrailingLambda": false
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "trace"
+      },
+      "right": {
+        "type": "StringLiteral",
+        "value": ""
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "runner"
+      },
+      "right": {
+        "type": "ProcExpression",
+        "expression": {
+          "type": "BlockExpression",
+          "body": [
+            {
+              "type": "AssignmentExpression",
+              "operator": "=",
+              "left": {
+                "type": "Identifier",
+                "name": "trace"
+              },
+              "right": {
+                "type": "BinaryExpression",
+                "operator": "+",
+                "left": {
+                  "type": "Identifier",
+                  "name": "trace"
+                },
+                "right": {
+                  "type": "AwaitExpression",
+                  "expression": {
+                    "type": "ArrayLiteral",
+                    "elements": [
+                      {
+                        "type": "FunctionCall",
+                        "callee": {
+                          "type": "Identifier",
+                          "name": "__able_channel_await_try_recv"
+                        },
+                        "arguments": [
+                          {
+                            "type": "Identifier",
+                            "name": "ch1"
+                          },
+                          {
+                            "type": "LambdaExpression",
+                            "params": [
+                              {
+                                "type": "FunctionParameter",
+                                "name": {
+                                  "type": "Identifier",
+                                  "name": "v"
+                                }
+                              }
+                            ],
+                            "body": {
+                              "type": "Identifier",
+                              "name": "v"
+                            },
+                            "isVerboseSyntax": false
+                          }
+                        ],
+                        "isTrailingLambda": false
+                      },
+                      {
+                        "type": "FunctionCall",
+                        "callee": {
+                          "type": "Identifier",
+                          "name": "__able_channel_await_try_recv"
+                        },
+                        "arguments": [
+                          {
+                            "type": "Identifier",
+                            "name": "ch2"
+                          },
+                          {
+                            "type": "LambdaExpression",
+                            "params": [
+                              {
+                                "type": "FunctionParameter",
+                                "name": {
+                                  "type": "Identifier",
+                                  "name": "v"
+                                }
+                              }
+                            ],
+                            "body": {
+                              "type": "Identifier",
+                              "name": "v"
+                            },
+                            "isVerboseSyntax": false
+                          }
+                        ],
+                        "isTrailingLambda": false
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "type": "AssignmentExpression",
+              "operator": "=",
+              "left": {
+                "type": "Identifier",
+                "name": "trace"
+              },
+              "right": {
+                "type": "BinaryExpression",
+                "operator": "+",
+                "left": {
+                  "type": "Identifier",
+                  "name": "trace"
+                },
+                "right": {
+                  "type": "AwaitExpression",
+                  "expression": {
+                    "type": "ArrayLiteral",
+                    "elements": [
+                      {
+                        "type": "FunctionCall",
+                        "callee": {
+                          "type": "Identifier",
+                          "name": "__able_channel_await_try_recv"
+                        },
+                        "arguments": [
+                          {
+                            "type": "Identifier",
+                            "name": "ch1"
+                          },
+                          {
+                            "type": "LambdaExpression",
+                            "params": [
+                              {
+                                "type": "FunctionParameter",
+                                "name": {
+                                  "type": "Identifier",
+                                  "name": "v"
+                                }
+                              }
+                            ],
+                            "body": {
+                              "type": "Identifier",
+                              "name": "v"
+                            },
+                            "isVerboseSyntax": false
+                          }
+                        ],
+                        "isTrailingLambda": false
+                      },
+                      {
+                        "type": "FunctionCall",
+                        "callee": {
+                          "type": "Identifier",
+                          "name": "__able_channel_await_try_recv"
+                        },
+                        "arguments": [
+                          {
+                            "type": "Identifier",
+                            "name": "ch2"
+                          },
+                          {
+                            "type": "LambdaExpression",
+                            "params": [
+                              {
+                                "type": "FunctionParameter",
+                                "name": {
+                                  "type": "Identifier",
+                                  "name": "v"
+                                }
+                              }
+                            ],
+                            "body": {
+                              "type": "Identifier",
+                              "name": "v"
+                            },
+                            "isVerboseSyntax": false
+                          }
+                        ],
+                        "isTrailingLambda": false
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "type": "AssignmentExpression",
+              "operator": "=",
+              "left": {
+                "type": "Identifier",
+                "name": "trace"
+              },
+              "right": {
+                "type": "BinaryExpression",
+                "operator": "+",
+                "left": {
+                  "type": "Identifier",
+                  "name": "trace"
+                },
+                "right": {
+                  "type": "AwaitExpression",
+                  "expression": {
+                    "type": "ArrayLiteral",
+                    "elements": [
+                      {
+                        "type": "FunctionCall",
+                        "callee": {
+                          "type": "Identifier",
+                          "name": "__able_channel_await_try_recv"
+                        },
+                        "arguments": [
+                          {
+                            "type": "Identifier",
+                            "name": "ch1"
+                          },
+                          {
+                            "type": "LambdaExpression",
+                            "params": [
+                              {
+                                "type": "FunctionParameter",
+                                "name": {
+                                  "type": "Identifier",
+                                  "name": "v"
+                                }
+                              }
+                            ],
+                            "body": {
+                              "type": "Identifier",
+                              "name": "v"
+                            },
+                            "isVerboseSyntax": false
+                          }
+                        ],
+                        "isTrailingLambda": false
+                      },
+                      {
+                        "type": "FunctionCall",
+                        "callee": {
+                          "type": "Identifier",
+                          "name": "__able_channel_await_try_recv"
+                        },
+                        "arguments": [
+                          {
+                            "type": "Identifier",
+                            "name": "ch2"
+                          },
+                          {
+                            "type": "LambdaExpression",
+                            "params": [
+                              {
+                                "type": "FunctionParameter",
+                                "name": {
+                                  "type": "Identifier",
+                                  "name": "v"
+                                }
+                              }
+                            ],
+                            "body": {
+                              "type": "Identifier",
+                              "name": "v"
+                            },
+                            "isVerboseSyntax": false
+                          }
+                        ],
+                        "isTrailingLambda": false
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "type": "AssignmentExpression",
+              "operator": "=",
+              "left": {
+                "type": "Identifier",
+                "name": "trace"
+              },
+              "right": {
+                "type": "BinaryExpression",
+                "operator": "+",
+                "left": {
+                  "type": "Identifier",
+                  "name": "trace"
+                },
+                "right": {
+                  "type": "AwaitExpression",
+                  "expression": {
+                    "type": "ArrayLiteral",
+                    "elements": [
+                      {
+                        "type": "FunctionCall",
+                        "callee": {
+                          "type": "Identifier",
+                          "name": "__able_channel_await_try_recv"
+                        },
+                        "arguments": [
+                          {
+                            "type": "Identifier",
+                            "name": "ch1"
+                          },
+                          {
+                            "type": "LambdaExpression",
+                            "params": [
+                              {
+                                "type": "FunctionParameter",
+                                "name": {
+                                  "type": "Identifier",
+                                  "name": "v"
+                                }
+                              }
+                            ],
+                            "body": {
+                              "type": "Identifier",
+                              "name": "v"
+                            },
+                            "isVerboseSyntax": false
+                          }
+                        ],
+                        "isTrailingLambda": false
+                      },
+                      {
+                        "type": "FunctionCall",
+                        "callee": {
+                          "type": "Identifier",
+                          "name": "__able_channel_await_try_recv"
+                        },
+                        "arguments": [
+                          {
+                            "type": "Identifier",
+                            "name": "ch2"
+                          },
+                          {
+                            "type": "LambdaExpression",
+                            "params": [
+                              {
+                                "type": "FunctionParameter",
+                                "name": {
+                                  "type": "Identifier",
+                                  "name": "v"
+                                }
+                              }
+                            ],
+                            "body": {
+                              "type": "Identifier",
+                              "name": "v"
+                            },
+                            "isVerboseSyntax": false
+                          }
+                        ],
+                        "isTrailingLambda": false
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "type": "Identifier",
+              "name": "trace"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "MemberAccessExpression",
+        "object": {
+          "type": "Identifier",
+          "name": "runner"
+        },
+        "member": {
+          "type": "Identifier",
+          "name": "value"
+        }
+      },
+      "arguments": [],
+      "isTrailingLambda": false
+    }
+  ]
+}

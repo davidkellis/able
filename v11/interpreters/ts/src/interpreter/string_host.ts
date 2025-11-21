@@ -19,11 +19,33 @@ function expectString(value: V10Value, label: string): string {
   return value.value;
 }
 
-function expectArray(value: V10Value, label: string): Extract<V10Value, { kind: "array" }> {
-  if (value.kind !== "array") {
-    throw new Error(`${label} must be an array`);
+function expectArray(interp: InterpreterV10, value: V10Value, label: string): Extract<V10Value, { kind: "array" }> {
+  if (value.kind === "array") {
+    return value;
   }
-  return value;
+  if (value.kind === "struct_instance" && value.def.id.name === "Array") {
+    let handleVal: V10Value | undefined;
+    if (value.values instanceof Map) {
+      handleVal = value.values.get("storage_handle");
+    } else if (Array.isArray(value.values)) {
+      handleVal = (value.values as V10Value[])[2];
+    }
+    let handle = 0;
+    if (handleVal) {
+      try {
+        handle = Math.trunc(numericToNumber(handleVal, "array handle", { requireSafeInteger: true }));
+      } catch {
+        handle = 0;
+      }
+    }
+    if (handle) {
+      const state = interp.arrayStates.get(handle);
+      if (state) {
+        return interp.makeArrayValue(state.values, state.capacity);
+      }
+    }
+  }
+  throw new Error(`${label} must be an array`);
 }
 
 function expectNumeric(value: V10Value, label: string): number {
@@ -57,15 +79,15 @@ export function applyStringHostAugmentations(cls: typeof InterpreterV10): void {
         if (args.length !== 1) throw new Error("__able_string_from_builtin expects one argument");
         const input = expectString(args[0], "string");
         const encoded = encoder.encode(input);
-        const elements = Array.from(encoded, (byte): V10Value => makeIntegerValue("i32", BigInt(byte)));
-        return { kind: "array", elements };
+        const elements = Array.from(encoded, (byte): V10Value => makeIntegerValue("u8", BigInt(byte)));
+        return this.makeArrayValue(elements);
       }),
     );
 
     defineIfMissing("__able_string_to_builtin", () =>
       this.makeNativeFunction("__able_string_to_builtin", 1, (_interp, args) => {
         if (args.length !== 1) throw new Error("__able_string_to_builtin expects one argument");
-        const arr = expectArray(args[0], "bytes array");
+        const arr = expectArray(this, args[0], "bytes array");
         const bytes = Uint8Array.from(arr.elements.map((element, idx) => toByte(element, idx)));
         let decoded: string;
         try {

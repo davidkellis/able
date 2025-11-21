@@ -1,0 +1,35 @@
+package tutorial.concurrency
+
+fn slow_double(x: i32) -> i32 {
+  proc_yield()
+  x * 2
+}
+
+fn main() -> void {
+  doubled := proc slow_double(10)
+  greeting := proc do {
+    proc_yield()
+    "hello from a proc"
+  }
+
+  print(`Pending tasks before flush: ${proc_pending_tasks()}`)
+  proc_flush()
+
+  print(`doubled -> ${doubled.value()}`)
+  print(`greeting -> ${greeting.value()}`)
+
+  future := spawn slow_double(5)
+  print(`first future read blocks then memoizes -> ${future}`)
+  print(`second future read is memoized -> ${future}`)
+
+  cancel_me := proc do {
+    loop {
+      if proc_cancelled() { return 0 }
+      proc_yield()
+    }
+  }
+
+  cancel_me.cancel()
+  proc_flush()
+  print(`cancelled proc status -> ${cancel_me.status()}`)
+}

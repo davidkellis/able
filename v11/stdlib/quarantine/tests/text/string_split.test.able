@@ -13,7 +13,7 @@ fn s(value: string) -> String {
 
 describe("String split/join") { suite =>
   suite.it("splits by delimiter") { _ctx =>
-    parts := s("a,b,,c").split(',')
+    parts := s("a,b,,c").split(s(","))
     expect(parts.len()).to(eq(4))
     expect(parts.get(0)!.to_builtin().unwrap()).to(eq("a"))
     expect(parts.get(1)!.to_builtin().unwrap()).to(eq("b"))

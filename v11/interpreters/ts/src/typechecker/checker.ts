@@ -187,6 +187,7 @@ export class TypeChecker {
     const boolType = primitiveType("bool");
     const i32Type = primitiveType("i32");
     const i64Type = primitiveType("i64");
+    const u64Type = primitiveType("u64");
     const stringType = primitiveType("string");
     const charType = primitiveType("char");
     const unknown = unknownType;
@@ -206,12 +207,24 @@ export class TypeChecker {
     register("__able_channel_receive", [unknown], unknown);
     register("__able_channel_try_send", [unknown, unknown], boolType);
     register("__able_channel_try_receive", [unknown], unknown);
+    register("__able_channel_await_try_recv", [unknown, unknown], unknown);
+    register("__able_channel_await_try_send", [unknown, unknown, unknown], unknown);
     register("__able_channel_close", [unknown], voidType);
     register("__able_channel_is_closed", [unknown], boolType);
 
     register("__able_mutex_new", [], i64Type);
     register("__able_mutex_lock", [i64Type], voidType);
     register("__able_mutex_unlock", [i64Type], voidType);
+
+    register("__able_array_new", [], i64Type);
+    register("__able_array_with_capacity", [i32Type], i64Type);
+    register("__able_array_size", [i64Type], u64Type);
+    register("__able_array_capacity", [i64Type], u64Type);
+    register("__able_array_set_len", [i64Type, i32Type], voidType);
+    register("__able_array_read", [i64Type, i32Type], unknown);
+    register("__able_array_write", [i64Type, i32Type, unknown], voidType);
+    register("__able_array_reserve", [i64Type, i32Type], u64Type);
+    register("__able_array_clone", [i64Type], i64Type);
 
     register("__able_string_from_builtin", [stringType], arrayType(i32Type));
     register("__able_string_to_builtin", [arrayType(i32Type)], stringType);
@@ -524,12 +537,17 @@ export class TypeChecker {
         Boolean(info.structName && info.hasImplicitSelf) &&
         call.callee?.type === "MemberAccessExpression" &&
         rawParams.length > 0;
-      const params = implicitSelf ? rawParams.slice(1) : rawParams;
-      if (params.length !== args.length) {
+      let params = implicitSelf ? rawParams.slice(1) : rawParams;
+      const optionalLast =
+        params.length > 0 && params[params.length - 1]?.kind === "nullable";
+      if (params.length !== args.length && !(optionalLast && args.length === params.length - 1)) {
         this.report(
           `typechecker: function expects ${params.length} arguments, got ${args.length}`,
           call,
         );
+      }
+      if (optionalLast && args.length === params.length - 1) {
+        params = params.slice(0, params.length - 1);
       }
       const compareCount = Math.min(params.length, argTypes.length);
       for (let index = 0; index < compareCount; index += 1) {
@@ -791,8 +809,52 @@ export class TypeChecker {
         }
         return infos;
       }
+      if (objectType.kind === "primitive" && objectType.name === "string") {
+        const info = this.buildStringMethodInfo(memberName);
+        if (info) return [info];
+      }
     }
     return [];
+  }
+
+  private buildStringMethodInfo(memberName: string): FunctionInfo | null {
+    const stringType = primitiveType("string");
+    const u64 = primitiveType("u64");
+    const boolType = primitiveType("bool");
+    const base: Omit<FunctionInfo, "returnType" | "parameters"> = {
+      name: `string.${memberName}`,
+      fullName: `string.${memberName}`,
+      genericConstraints: [],
+      genericParamNames: [],
+      whereClause: [],
+    };
+    switch (memberName) {
+      case "len_bytes":
+      case "len_chars":
+      case "len_graphemes":
+        return { ...base, parameters: [], returnType: u64 };
+      case "bytes":
+        return { ...base, parameters: [], returnType: iteratorType(primitiveType("u8")) };
+      case "chars":
+        return { ...base, parameters: [], returnType: iteratorType(primitiveType("char")) };
+      case "graphemes":
+        return { ...base, parameters: [], returnType: iteratorType(stringType) };
+      case "substring":
+        return {
+          ...base,
+          parameters: [u64, { kind: "nullable", inner: u64 }],
+          returnType: { kind: "result", inner: stringType },
+        };
+      case "split":
+        return { ...base, parameters: [stringType], returnType: arrayType(stringType) };
+      case "replace":
+        return { ...base, parameters: [stringType, stringType], returnType: stringType };
+      case "starts_with":
+      case "ends_with":
+        return { ...base, parameters: [stringType], returnType: boolType };
+      default:
+        return null;
+    }
   }
 
   private resolveStructDefinitionForPattern(pattern: AST.StructPattern, valueType: TypeInfo): AST.StructDefinition | undefined {

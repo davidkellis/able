@@ -6,11 +6,11 @@
       "elements": [
         {
           "kind": "i32",
-          "value": 30
+          "value": "30"
         },
         {
           "kind": "i32",
-          "value": 42
+          "value": "42"
         },
         {
           "kind": "iterator_end"

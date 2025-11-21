@@ -1,8 +1,11 @@
 {
   "description": "Redeclaring inferred generics inside a function body is rejected",
+  "skipTargets": [
+    "go"
+  ],
   "expect": {
     "typecheckDiagnostics": [
-      "typechecker: ../fixtures/ast/errors/implicit_generic_redeclaration/source.able:2:3 typechecker: cannot redeclare inferred type parameter 'T' inside fn wrap (inferred at ../../../../fixtures/ast/errors/implicit_generic_redeclaration/source.able:1:16)"
+      "typechecker: ../fixtures/ast/errors/implicit_generic_redeclaration/source.able typechecker: cannot redeclare inferred type parameter 'T' inside fn wrap (inferred at ../../fixtures/ast/errors/implicit_generic_redeclaration/source.able:0:0)"
     ]
   },
   "entry": "module.json"

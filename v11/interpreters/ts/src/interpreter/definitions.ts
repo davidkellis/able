@@ -28,8 +28,18 @@ export function evaluateUnionDefinition(ctx: InterpreterV10, node: AST.UnionDefi
 }
 
 export function evaluateMethodsDefinition(ctx: InterpreterV10, node: AST.MethodsDefinition, env: Environment): V10Value {
-  if (node.targetType.type !== "SimpleTypeExpression") throw new Error("Only simple target types supported in methods");
-  const typeName = node.targetType.name.name;
+  const typeName = (() => {
+    if (node.targetType.type === "SimpleTypeExpression") {
+      return node.targetType.name.name;
+    }
+    if (node.targetType.type === "GenericTypeExpression") {
+      const base = node.targetType.base;
+      if (base.type === "SimpleTypeExpression") {
+        return base.name.name;
+      }
+    }
+    throw new Error("Only simple target types supported in methods");
+  })();
   if (!ctx.inherentMethods.has(typeName)) ctx.inherentMethods.set(typeName, new Map());
   const bucket = ctx.inherentMethods.get(typeName)!;
   for (const def of node.definitions) {
@@ -73,9 +83,11 @@ export function evaluateImplementationDefinition(ctx: InterpreterV10, node: AST.
       const targetArgTemplates = variant.argTemplates;
       const key = `${node.interfaceName.name}::${typeName}`;
       if (!ctx.unnamedImplsSeen.has(key)) ctx.unnamedImplsSeen.set(key, new Map());
-      const templateKeyBase = targetArgTemplates.length === 0
+      const interfaceArgSig = (node.interfaceArgs ?? []).map(arg => ctx.typeExpressionToString(arg)).join("|") || "<none>";
+      const templateArgSig = targetArgTemplates.length === 0
         ? "<none>"
         : targetArgTemplates.map(t => ctx.typeExpressionToString(t)).join("|");
+      const templateKeyBase = `${interfaceArgSig}::${templateArgSig}`;
       const templateKey = unionVariantSignatures ? `${unionVariantSignatures.join("|")}::${templateKeyBase}` : templateKeyBase;
       const templateBucket = ctx.unnamedImplsSeen.get(key)!;
       if (!templateBucket.has(templateKey)) templateBucket.set(templateKey, new Set());

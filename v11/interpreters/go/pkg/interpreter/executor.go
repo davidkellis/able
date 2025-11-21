@@ -8,6 +8,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"able/interpreter10-go/pkg/ast"
 	"able/interpreter10-go/pkg/runtime"
 )
 
@@ -43,6 +44,14 @@ type asyncContextPayload struct {
 	handle *runtime.ProcHandleValue
 	future *runtime.FutureValue
 	state  *evalState
+	// awaitBlocked is set when an await expression is pending and should
+	// prevent the serial executor from automatically rescheduling the task.
+	awaitBlocked bool
+	// awaitStates memoizes await expression state for the current async task.
+	awaitStates map[*ast.AwaitExpression]*awaitEvalState
+	// resume requeues the current task in the serial executor; populated only
+	// when running under the serial scheduler.
+	resume func()
 }
 
 type asyncContextKey struct{}
@@ -228,10 +237,11 @@ func (e *GoroutineExecutor) MarkUnblocked(handle *runtime.ProcHandleValue) {
 }
 
 type serialTask struct {
-	handle *runtime.ProcHandleValue
-	future *runtime.FutureValue
-	kind   asyncContextKind
-	task   ProcTask
+	handle  *runtime.ProcHandleValue
+	future  *runtime.FutureValue
+	kind    asyncContextKind
+	task    ProcTask
+	payload *asyncContextPayload
 }
 
 // SerialExecutor executes tasks on a single worker goroutine to provide deterministic scheduling for tests.
@@ -284,7 +294,12 @@ func NewSerialExecutor(panicHandler panicValueFunc) *SerialExecutor {
 func (e *SerialExecutor) RunProc(task ProcTask) *runtime.ProcHandleValue {
 	ctx, cancel := context.WithCancel(context.Background())
 	handle := runtime.NewProcHandleWithContext(ctx, cancel)
-	e.enqueue(serialTask{handle: handle, kind: asyncContextProc, task: task})
+	e.enqueue(serialTask{
+		handle:  handle,
+		kind:    asyncContextProc,
+		task:    task,
+		payload: &asyncContextPayload{kind: asyncContextProc, handle: handle},
+	})
 	return handle
 }
 
@@ -292,7 +307,13 @@ func (e *SerialExecutor) RunFuture(task ProcTask) *runtime.FutureValue {
 	ctx, cancel := context.WithCancel(context.Background())
 	handle := runtime.NewProcHandleWithContext(ctx, cancel)
 	future := runtime.NewFutureFromHandle(handle)
-	e.enqueue(serialTask{handle: handle, future: future, kind: asyncContextFuture, task: task})
+	e.enqueue(serialTask{
+		handle:  handle,
+		future:  future,
+		kind:    asyncContextFuture,
+		task:    task,
+		payload: &asyncContextPayload{kind: asyncContextFuture, handle: handle, future: future},
+	})
 	return future
 }
 
@@ -468,7 +489,18 @@ func (e *SerialExecutor) runSerialTask(task serialTask) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	payload := &asyncContextPayload{kind: task.kind, handle: task.handle, future: task.future}
+	payload := task.payload
+	if payload == nil {
+		payload = &asyncContextPayload{kind: task.kind, handle: task.handle, future: task.future}
+		task.payload = payload
+	}
+	payload.kind = task.kind
+	payload.handle = task.handle
+	payload.future = task.future
+	payload.awaitBlocked = false
+	payload.resume = func() {
+		e.enqueue(task)
+	}
 	ctx = contextWithPayload(ctx, payload)
 	task.handle.MarkStarted()
 
@@ -477,6 +509,10 @@ func (e *SerialExecutor) runSerialTask(task serialTask) error {
 	e.restoreCurrent(prevCurrent, prevActive, prevPaused)
 
 	if errors.Is(err, errSerialYield) {
+		if payload != nil && payload.awaitBlocked {
+			// Awaiting an external wake; the waker will reschedule via resume().
+			return err
+		}
 		e.enqueue(task)
 		return err
 	}

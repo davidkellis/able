@@ -1,30 +1,12 @@
 package interpreter
 
 import (
-	"context"
 	"fmt"
 	"math/big"
 	"sync"
 
-	"able/interpreter10-go/pkg/ast"
 	"able/interpreter10-go/pkg/runtime"
 )
-
-type channelState struct {
-	capacity int
-	ch       chan runtime.Value
-
-	mu     sync.Mutex
-	closed bool
-}
-
-type mutexState struct {
-	mu      sync.Mutex
-	cond    *sync.Cond
-	locked  bool
-	owner   *runtime.ProcHandleValue
-	waiters int
-}
 
 func (i *Interpreter) ensureChannelMutexBuiltins() {
 	if i.channelMutexReady {
@@ -57,39 +39,7 @@ func (i *Interpreter) initChannelMutexBuiltins() {
 		}
 	}
 
-	int64FromValue := func(val runtime.Value, label string) (int64, error) {
-		switch v := val.(type) {
-		case runtime.IntegerValue:
-			if !v.Val.IsInt64() {
-				return 0, fmt.Errorf("%s must fit in 64-bit integer", label)
-			}
-			return v.Val.Int64(), nil
-		case *runtime.IntegerValue:
-			if v == nil || v.Val == nil {
-				return 0, fmt.Errorf("%s is nil", label)
-			}
-			if !v.Val.IsInt64() {
-				return 0, fmt.Errorf("%s must fit in 64-bit integer", label)
-			}
-			return v.Val.Int64(), nil
-		default:
-			return 0, fmt.Errorf("%s must be an integer", label)
-		}
-	}
-
-	getChannel := func(handle int64) (*channelState, error) {
-		if handle <= 0 {
-			return nil, fmt.Errorf("channel handle must be positive")
-		}
-		i.channelMu.Lock()
-		state, ok := i.channels[handle]
-		i.channelMu.Unlock()
-		if !ok {
-			return nil, fmt.Errorf("unknown channel handle %d", handle)
-		}
-		return state, nil
-	}
-
+	int64FromValue := i.int64FromValue
 	getMutex := func(handle int64) (*mutexState, error) {
 		if handle <= 0 {
 			return nil, fmt.Errorf("mutex handle must be positive")
@@ -102,121 +52,11 @@ func (i *Interpreter) initChannelMutexBuiltins() {
 		}
 		return state, nil
 	}
-
-	contextFromCall := func(callCtx *runtime.NativeCallContext) context.Context {
-		if callCtx == nil {
-			return context.Background()
-		}
-		if payload := payloadFromState(callCtx.State); payload != nil {
-			if payload.handle != nil {
-				if ctx := payload.handle.Context(); ctx != nil {
-					return ctx
-				}
-			}
-		}
-		return context.Background()
-	}
-
-	getProcHandle := func(callCtx *runtime.NativeCallContext) *runtime.ProcHandleValue {
-		if callCtx == nil {
-			return nil
-		}
-		if payload := payloadFromState(callCtx.State); payload != nil {
-			return payload.handle
-		}
-		return nil
-	}
-
-	var blockingExec interface {
-		MarkBlocked(*runtime.ProcHandleValue)
-		MarkUnblocked(*runtime.ProcHandleValue)
-	}
-	if exec, ok := i.executor.(interface {
-		MarkBlocked(*runtime.ProcHandleValue)
-		MarkUnblocked(*runtime.ProcHandleValue)
-	}); ok {
-		blockingExec = exec
-	}
-
-	markBlocked := func(handle *runtime.ProcHandleValue) {
-		if blockingExec != nil && handle != nil {
-			blockingExec.MarkBlocked(handle)
-		}
-	}
-	markUnblocked := func(handle *runtime.ProcHandleValue) {
-		if blockingExec != nil && handle != nil {
-			blockingExec.MarkUnblocked(handle)
-		}
-	}
-
-	blockOnNilChannel := func(callCtx *runtime.NativeCallContext) (runtime.Value, error) {
-		if callCtx == nil {
-			return nil, fmt.Errorf("channel operation on nil handle outside proc context")
-		}
-		handle := getProcHandle(callCtx)
-		if handle == nil {
-			return nil, fmt.Errorf("channel operation on nil handle outside proc context")
-		}
-		ctx := contextFromCall(callCtx)
-		markBlocked(handle)
-		defer markUnblocked(handle)
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		}
-	}
-
-	channelErrorStruct := func(name string) (*runtime.StructDefinitionValue, error) {
-		if def, ok := i.channelErrorStructs[name]; ok && def != nil {
-			return def, nil
-		}
-		candidates := []string{
-			name,
-			"concurrency." + name,
-			"able." + name,
-			"able.concurrency." + name,
-			"able.concurrency.channel." + name,
-		}
-		for _, key := range candidates {
-			if key == "" {
-				continue
-			}
-			if val, err := i.global.Get(key); err == nil {
-				if def, conv := toStructDefinitionValue(val, key); conv == nil {
-					i.channelErrorStructs[name] = def
-					return def, nil
-				}
-			}
-		}
-		for _, bucket := range i.packageRegistry {
-			if val, ok := bucket[name]; ok {
-				if def, conv := toStructDefinitionValue(val, name); conv == nil {
-					i.channelErrorStructs[name] = def
-					return def, nil
-				}
-			}
-		}
-		placeholder := ast.NewStructDefinition(ast.NewIdentifier(name), nil, ast.StructKindNamed, nil, nil, false)
-		def := &runtime.StructDefinitionValue{Node: placeholder}
-		i.channelErrorStructs[name] = def
-		return def, nil
-	}
-
-	makeChannelErrorValue := func(name, message string) runtime.ErrorValue {
-		def, err := channelErrorStruct(name)
-		if err != nil {
-			return runtime.ErrorValue{Message: message}
-		}
-		payload := map[string]runtime.Value{
-			"value": &runtime.StructInstanceValue{Definition: def},
-		}
-		return runtime.ErrorValue{Message: message, Payload: payload}
-	}
-
-	channelError := func(name, message string) error {
-		errVal := makeChannelErrorValue(name, message)
-		return raiseSignal{value: errVal}
-	}
+	contextFromCall := i.contextFromCall
+	markBlocked := i.markBlocked
+	markUnblocked := i.markUnblocked
+	channelSendOp := i.channelSendOp
+	channelReceiveOp := i.channelReceiveOp
 
 	makeBool := func(value bool) runtime.BoolValue {
 		return runtime.BoolValue{Val: value}
@@ -256,43 +96,7 @@ func (i *Interpreter) initChannelMutexBuiltins() {
 			if len(args) != 2 {
 				return nil, fmt.Errorf("__able_channel_send expects handle and value")
 			}
-			handle, err := int64FromValue(args[0], "channel handle")
-			if err != nil {
-				return nil, err
-			}
-			if handle == 0 {
-				return blockOnNilChannel(callCtx)
-			}
-			if handle < 0 {
-				return nil, fmt.Errorf("channel handle must be non-negative")
-			}
-			state, err := getChannel(handle)
-			if err != nil {
-				return nil, err
-			}
-			state.mu.Lock()
-			if state.closed {
-				state.mu.Unlock()
-				return nil, channelError("ChannelSendOnClosed", "send on closed channel")
-			}
-			ch := state.ch
-			state.mu.Unlock()
-
-			ctx := contextFromCall(callCtx)
-			select {
-			case ch <- args[1]:
-				return runtime.NilValue{}, nil
-			default:
-			}
-			handleVal := getProcHandle(callCtx)
-			markBlocked(handleVal)
-			defer markUnblocked(handleVal)
-			select {
-			case ch <- args[1]:
-				return runtime.NilValue{}, nil
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			}
+			return channelSendOp(callCtx, args[0], args[1])
 		},
 	}
 
@@ -303,48 +107,7 @@ func (i *Interpreter) initChannelMutexBuiltins() {
 			if len(args) != 1 {
 				return nil, fmt.Errorf("__able_channel_receive expects handle argument")
 			}
-			handle, err := int64FromValue(args[0], "channel handle")
-			if err != nil {
-				return nil, err
-			}
-			if handle == 0 {
-				return blockOnNilChannel(callCtx)
-			}
-			if handle < 0 {
-				return nil, fmt.Errorf("channel handle must be non-negative")
-			}
-			state, err := getChannel(handle)
-			if err != nil {
-				return nil, err
-			}
-			state.mu.Lock()
-			ch := state.ch
-			state.mu.Unlock()
-
-			ctx := contextFromCall(callCtx)
-			select {
-			case value, ok := <-ch:
-				if !ok || value == nil {
-					return runtime.NilValue{}, nil
-				}
-				return value, nil
-			default:
-			}
-			handleVal := getProcHandle(callCtx)
-			markBlocked(handleVal)
-			defer markUnblocked(handleVal)
-			select {
-			case value, ok := <-ch:
-				if !ok {
-					return runtime.NilValue{}, nil
-				}
-				if value == nil {
-					return runtime.NilValue{}, nil
-				}
-				return value, nil
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			}
+			return channelReceiveOp(callCtx, args[0])
 		},
 	}
 
@@ -365,14 +128,43 @@ func (i *Interpreter) initChannelMutexBuiltins() {
 			if handle < 0 {
 				return nil, fmt.Errorf("channel handle must be non-negative")
 			}
-			state, err := getChannel(handle)
+			state, err := i.channelStateFromHandle(handle)
 			if err != nil {
 				return nil, err
+			}
+			if _, serial := i.executor.(*SerialExecutor); serial {
+				state.mu.Lock()
+				if state.closed {
+					state.mu.Unlock()
+					return nil, i.concurrencyError("ChannelSendOnClosed", "send on closed channel")
+				}
+				if len(state.serialRecvWaiters) > 0 {
+					receiver := state.serialRecvWaiters[0]
+					state.serialRecvWaiters = state.serialRecvWaiters[1:]
+					if receiver != nil {
+						receiver.ready = true
+						receiver.closed = false
+						receiver.value = args[1]
+						i.setPendingReceiveWaiter(receiver)
+						resumePayload(receiver.payload)
+					}
+					state.mu.Unlock()
+					i.notifyChannelAwaiters(state, channelAwaitSend)
+					return makeBool(true), nil
+				}
+				if state.capacity > 0 && len(state.serialQueue) < state.capacity {
+					state.serialQueue = append(state.serialQueue, args[1])
+					state.mu.Unlock()
+					i.notifyChannelAwaiters(state, channelAwaitRecv)
+					return makeBool(true), nil
+				}
+				state.mu.Unlock()
+				return makeBool(false), nil
 			}
 			state.mu.Lock()
 			if state.closed {
 				state.mu.Unlock()
-				return nil, channelError("ChannelSendOnClosed", "send on closed channel")
+				return nil, i.concurrencyError("ChannelSendOnClosed", "send on closed channel")
 			}
 			ch := state.ch
 			state.mu.Unlock()
@@ -403,9 +195,57 @@ func (i *Interpreter) initChannelMutexBuiltins() {
 			if handle < 0 {
 				return nil, fmt.Errorf("channel handle must be non-negative")
 			}
-			state, err := getChannel(handle)
+			state, err := i.channelStateFromHandle(handle)
 			if err != nil {
 				return nil, err
+			}
+			if _, serial := i.executor.(*SerialExecutor); serial {
+				state.mu.Lock()
+				if len(state.serialQueue) > 0 {
+					value := state.serialQueue[0]
+					state.serialQueue = state.serialQueue[1:]
+					if state.capacity > 0 && len(state.serialSendWaiters) > 0 {
+						sender := state.serialSendWaiters[0]
+						state.serialSendWaiters = state.serialSendWaiters[1:]
+						if sender != nil {
+							sender.delivered = true
+							state.serialQueue = append(state.serialQueue, sender.value)
+							i.setPendingSendWaiter(sender)
+							resumePayload(sender.payload)
+						}
+					}
+					state.mu.Unlock()
+					i.notifyChannelAwaiters(state, channelAwaitSend)
+					if len(state.serialQueue) > 0 {
+						i.notifyChannelAwaiters(state, channelAwaitRecv)
+					}
+					if value == nil {
+						return runtime.NilValue{}, nil
+					}
+					return value, nil
+				}
+				if len(state.serialSendWaiters) > 0 {
+					sender := state.serialSendWaiters[0]
+					state.serialSendWaiters = state.serialSendWaiters[1:]
+					if sender != nil {
+						sender.delivered = true
+						i.setPendingSendWaiter(sender)
+						resumePayload(sender.payload)
+						val := sender.value
+						state.mu.Unlock()
+						i.notifyChannelAwaiters(state, channelAwaitSend)
+						if val == nil {
+							return runtime.NilValue{}, nil
+						}
+						return val, nil
+					}
+				}
+				if state.closed {
+					state.mu.Unlock()
+					return runtime.NilValue{}, nil
+				}
+				state.mu.Unlock()
+				return runtime.NilValue{}, nil
 			}
 			state.mu.Lock()
 			ch := state.ch
@@ -426,6 +266,49 @@ func (i *Interpreter) initChannelMutexBuiltins() {
 		},
 	}
 
+	channelAwaitTryRecv := runtime.NativeFunctionValue{
+		Name:  "__able_channel_await_try_recv",
+		Arity: 2,
+		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+			if len(args) != 2 {
+				return nil, fmt.Errorf("__able_channel_await_try_recv expects handle and callback")
+			}
+			handle, err := int64FromValue(args[0], "channel handle")
+			if err != nil {
+				return nil, err
+			}
+			awaitable := &channelAwaitable{
+				interp:   i,
+				handle:   handle,
+				op:       channelAwaitOpReceive,
+				callback: args[1],
+			}
+			return awaitable.toStruct(), nil
+		},
+	}
+
+	channelAwaitTrySend := runtime.NativeFunctionValue{
+		Name:  "__able_channel_await_try_send",
+		Arity: 3,
+		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+			if len(args) != 3 {
+				return nil, fmt.Errorf("__able_channel_await_try_send expects handle, value, and callback")
+			}
+			handle, err := int64FromValue(args[0], "channel handle")
+			if err != nil {
+				return nil, err
+			}
+			awaitable := &channelAwaitable{
+				interp:   i,
+				handle:   handle,
+				op:       channelAwaitOpSend,
+				payload:  args[1],
+				callback: args[2],
+			}
+			return awaitable.toStruct(), nil
+		},
+	}
+
 	channelClose := runtime.NativeFunctionValue{
 		Name:  "__able_channel_close",
 		Arity: 1,
@@ -438,22 +321,47 @@ func (i *Interpreter) initChannelMutexBuiltins() {
 				return nil, err
 			}
 			if handle == 0 {
-				return nil, channelError("ChannelNil", "close of nil channel")
+				return nil, i.concurrencyError("ChannelNil", "close of nil channel")
 			}
 			if handle < 0 {
 				return nil, fmt.Errorf("channel handle must be non-negative")
 			}
-			state, err := getChannel(handle)
+			state, err := i.channelStateFromHandle(handle)
 			if err != nil {
 				return nil, err
 			}
 			state.mu.Lock()
-			defer state.mu.Unlock()
 			if state.closed {
-				return nil, channelError("ChannelClosed", "close of closed channel")
+				state.mu.Unlock()
+				return nil, i.concurrencyError("ChannelClosed", "close of closed channel")
 			}
 			state.closed = true
 			close(state.ch)
+			serialRecv := append([]*channelReceiveWaiter(nil), state.serialRecvWaiters...)
+			serialSend := append([]*channelSendWaiter(nil), state.serialSendWaiters...)
+			state.serialRecvWaiters = nil
+			state.serialSendWaiters = nil
+			state.mu.Unlock()
+
+			for _, recv := range serialRecv {
+				if recv == nil {
+					continue
+				}
+				recv.ready = true
+				recv.closed = true
+				i.setPendingReceiveWaiter(recv)
+				resumePayload(recv.payload)
+			}
+			for _, send := range serialSend {
+				if send == nil {
+					continue
+				}
+				send.err = i.concurrencyError("ChannelSendOnClosed", "send on closed channel")
+				i.setPendingSendWaiter(send)
+				resumePayload(send.payload)
+			}
+			i.notifyChannelAwaiters(state, channelAwaitRecv)
+			i.notifyChannelAwaiters(state, channelAwaitSend)
 			return runtime.NilValue{}, nil
 		},
 	}
@@ -475,7 +383,7 @@ func (i *Interpreter) initChannelMutexBuiltins() {
 			if handle < 0 {
 				return nil, fmt.Errorf("channel handle must be non-negative")
 			}
-			state, err := getChannel(handle)
+			state, err := i.channelStateFromHandle(handle)
 			if err != nil {
 				return nil, err
 			}
@@ -642,7 +550,7 @@ func (i *Interpreter) initChannelMutexBuiltins() {
 			state.mu.Lock()
 			if !state.locked {
 				state.mu.Unlock()
-				return runtime.NilValue{}, nil
+				return nil, i.concurrencyError("MutexUnlocked", "unlock of unlocked mutex")
 			}
 			state.locked = false
 			state.owner = nil
@@ -662,6 +570,8 @@ func (i *Interpreter) initChannelMutexBuiltins() {
 	i.global.Define("__able_channel_receive", channelReceive)
 	i.global.Define("__able_channel_try_send", channelTrySend)
 	i.global.Define("__able_channel_try_receive", channelTryReceive)
+	i.global.Define("__able_channel_await_try_recv", channelAwaitTryRecv)
+	i.global.Define("__able_channel_await_try_send", channelAwaitTrySend)
 	i.global.Define("__able_channel_close", channelClose)
 	i.global.Define("__able_channel_is_closed", channelIsClosed)
 	i.global.Define("__able_mutex_new", mutexNew)

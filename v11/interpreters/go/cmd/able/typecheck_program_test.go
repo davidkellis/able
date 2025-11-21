@@ -40,7 +40,7 @@ name: dep
 fn provide() -> i32 { 42 }
 `)
 
-	loader, err := driver.NewLoader([]string{filepath.Join(dep, "src")})
+	loader, err := driver.NewLoader([]driver.SearchPath{{Path: filepath.Join(dep, "src")}})
 	if err != nil {
 		t.Fatalf("NewLoader: %v", err)
 	}
@@ -102,7 +102,7 @@ name: dep
 fn provide() -> string { "ok" }
 `)
 
-	loader, err := driver.NewLoader([]string{filepath.Join(dep, "src")})
+	loader, err := driver.NewLoader([]driver.SearchPath{{Path: filepath.Join(dep, "src")}})
 	if err != nil {
 		t.Fatalf("NewLoader: %v", err)
 	}

@@ -350,3 +350,31 @@ func TestNilChannelReceiveBlocksUntilCancelled(t *testing.T) {
 		t.Fatalf("expected handle to cancel after request, got %v", handle.Status())
 	}
 }
+
+func TestMutexUnlockRaisesErrorOnUnlockedState(t *testing.T) {
+	interp := New()
+	global := interp.GlobalEnvironment()
+
+	if _, err := interp.evaluateExpression(ast.Assign(ast.ID("handle"), ast.Call("__able_mutex_new")), global); err != nil {
+		t.Fatalf("failed to allocate mutex: %v", err)
+	}
+	_, err := interp.evaluateExpression(ast.Call("__able_mutex_unlock", ast.ID("handle")), global)
+	if err == nil {
+		t.Fatalf("expected unlocking unlocked mutex to raise error")
+	}
+	sig, ok := err.(raiseSignal)
+	if !ok {
+		t.Fatalf("expected raiseSignal, got %T", err)
+	}
+	errVal, ok := sig.value.(runtime.ErrorValue)
+	if !ok {
+		t.Fatalf("expected runtime.ErrorValue payload, got %#v", sig.value)
+	}
+	payload, ok := errVal.Payload["value"].(*runtime.StructInstanceValue)
+	if !ok || payload == nil || payload.Definition == nil || payload.Definition.Node == nil || payload.Definition.Node.ID == nil {
+		t.Fatalf("expected struct payload on error, got %#v", errVal.Payload["value"])
+	}
+	if payload.Definition.Node.ID.Name != "MutexUnlocked" {
+		t.Fatalf("expected MutexUnlocked payload, got %q", payload.Definition.Node.ID.Name)
+	}
+}

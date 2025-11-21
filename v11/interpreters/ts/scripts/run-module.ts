@@ -11,6 +11,7 @@ import { formatTypecheckerDiagnostic, printPackageSummaries } from "./typecheck-
 import { resolveTypecheckMode, type TypecheckMode } from "./typecheck-mode";
 import { ModuleLoader, type Program } from "./module-loader";
 import { callCallableValue } from "../src/interpreter/functions";
+import { collectModuleSearchPaths } from "./module-search-paths";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_VERSION = process.env.ABLE_TS_VERSION ?? "able-ts dev";
@@ -260,11 +261,13 @@ async function loadProgram(entryPath: string): Promise<Program | null> {
 }
 
 function createModuleLoader(): ModuleLoader {
-  const searchPaths = collectEnvConfiguredSearchPaths();
-  const stdlibPath = path.resolve(__dirname, "../../../stdlib/src");
-  if (fsExistsSync(stdlibPath)) {
-    searchPaths.push(stdlibPath);
-  }
+  const searchPaths = collectModuleSearchPaths({
+    cwd: process.cwd(),
+    ablePathEnv: ABLE_PATH_ENV,
+    ableModulePathsEnv: ABLE_MODULE_PATHS_ENV,
+    ableStdLibEnv: ABLE_STD_LIB_ENV,
+    probeStdlibFrom: [process.cwd(), path.dirname(fileURLToPath(import.meta.url)), path.dirname(process.execPath)],
+  });
   return new ModuleLoader(searchPaths);
 }
 
@@ -309,33 +312,6 @@ function fsExistsSync(target: string): boolean {
   } catch {
     return false;
   }
-}
-
-function collectEnvSearchPaths(raw: string): string[] {
-  if (!raw) {
-    return [];
-  }
-  const segments = raw
-    .split(path.delimiter)
-    .map((segment) => segment.trim())
-    .filter(Boolean);
-  return segments.map((segment) => path.resolve(segment));
-}
-
-function collectEnvConfiguredSearchPaths(): string[] {
-  const ordered = [
-    ...collectEnvSearchPaths(ABLE_PATH_ENV),
-    ...collectEnvSearchPaths(ABLE_MODULE_PATHS_ENV),
-    ...collectEnvSearchPaths(ABLE_STD_LIB_ENV),
-  ];
-  const unique: string[] = [];
-  const seen = new Set<string>();
-  for (const entry of ordered) {
-    if (seen.has(entry)) continue;
-    seen.add(entry);
-    unique.push(entry);
-  }
-  return unique;
 }
 
 function parseTestArguments(args: string[]): TestCliConfig {

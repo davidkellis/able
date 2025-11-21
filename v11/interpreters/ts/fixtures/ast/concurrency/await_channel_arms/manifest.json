@@ -1,0 +1,27 @@
+{
+  "description": "await send/receive arms resolve via channel await helpers and return callback payloads",
+  "expect": {
+    "result": {
+      "kind": "array",
+      "elements": [
+        {
+          "kind": "string",
+          "value": "payload"
+        },
+        {
+          "kind": "string",
+          "value": "sent"
+        },
+        {
+          "kind": "string",
+          "value": "payload"
+        },
+        {
+          "kind": "string",
+          "value": "sent"
+        }
+      ]
+    }
+  },
+  "entry": "module.json"
+}

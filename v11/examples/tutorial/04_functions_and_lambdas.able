@@ -1,0 +1,44 @@
+package tutorial.functions
+
+fn add(a: i32, b: i32) -> i32 { a + b }
+
+fn scale_and_shift(value: i32, scale: i32, offset: i32) -> i32 {
+  value * scale + offset
+}
+
+fn greet_with(prefix: string, name: string) -> string {
+  `${prefix}, ${name}!`
+}
+
+fn map(values: Array i32, f: (i32 -> i32)) -> Array i32 {
+  result := []
+  for v in values { result.push(f(v)) }
+  result
+}
+
+fn main() -> void {
+  numbers := [1, 2, 3, 4]
+
+  doubled := map(numbers) { n => n * 2 }
+  print(`Doubled: ${doubled}`)
+
+  add_five = add(@, 5)
+  print(`7 + 5 = ${add_five(7)}`)
+
+  reorder := scale_and_shift(@2, @1, 1)
+  print(`reorder(10, 3) = ${reorder(10, 3)}`)
+
+  greeting := "Able"
+  piped := greeting |> greet_with("Hello", %)
+  print(piped)
+
+  square = fn(x: i32) -> i32 { x * x }
+  print(`Square of 5 -> ${square(5)}`)
+
+  delta := 3
+  plus_delta = { value => value + delta }
+  print(`8 plus delta -> ${plus_delta(8)}`)
+
+  apply_twice = fn(x: i32, f: (i32 -> i32)) -> i32 { f(f(x)) }
+  print(`apply_twice inc -> ${apply_twice(1, { v => v + 1 })}`)
+}

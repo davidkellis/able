@@ -50,7 +50,7 @@ const expressionsFixtures: Fixture[] = [
       manifest: {
         description: "Evaluates an integer literal with an i64 suffix",
         expect: {
-          result: { kind: "i32", value: 42n },
+          result: { kind: "i64", value: 42n },
         },
       },
     },
@@ -61,7 +61,7 @@ const expressionsFixtures: Fixture[] = [
       manifest: {
         description: "Evaluates a float literal with an f32 suffix",
         expect: {
-          result: { kind: "f64", value: 3.5 },
+          result: { kind: "f32", value: 3.5 },
         },
       },
     },

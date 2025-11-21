@@ -1,12 +1,12 @@
-package core
+package core.numeric
 
 import able.core.interfaces.{Error}
 import able.core.options.{Result}
 
 ## Shared result returned by Integral#div_mod implementations.
-struct DivModResult T {
-  quotient: T,
-  remainder: T
+struct DivModResult {
+  quotient: i64,
+  remainder: i64
 }
 
 ## Error raised when a numeric conversion cannot be performed without loss.
@@ -15,6 +15,11 @@ struct NumericConversionError {
 }
 
 impl Error for NumericConversionError {
+  fn message(self: Self) -> string { self.message }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+methods NumericConversionError {
   fn message(self: Self) -> string { self.message }
   fn cause(self: Self) -> ?Error { nil }
 }
@@ -73,7 +78,7 @@ interface Unsigned for T {
 }
 
 interface Integral for T {
-  fn div_mod(self: Self, other: Self) -> DivModResult Self;
+  fn div_mod(self: Self, other: Self) -> DivModResult;
   fn bit_length(self: Self) -> i32;
   fn bit_count(self: Self) -> i32;
   fn is_even(self: Self) -> bool;

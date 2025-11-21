@@ -1,5 +1,10 @@
 package concurrency
 
+import able.core.interfaces{Error}
+
+struct MutexUnlocked;
+struct MutexPoisoned;
+
 struct Mutex {
   handle: i64
 }
@@ -16,6 +21,16 @@ methods Mutex {
   fn unlock(self: Self) -> void {
     __able_mutex_unlock(self.handle)
   }
+}
+
+impl Error for MutexUnlocked {
+  fn message(self: Self) -> string { "unlock of unlocked mutex" }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+impl Error for MutexPoisoned {
+  fn message(self: Self) -> string { "mutex poisoned" }
+  fn cause(self: Self) -> ?Error { nil }
 }
 
 fn with_lock T (m: Mutex, f: () -> T) -> T {

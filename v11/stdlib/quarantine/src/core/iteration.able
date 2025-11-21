@@ -1,0 +1,21 @@
+package core
+
+## Sentinel returned by Iterator.next() to signal completion.
+struct IteratorEnd;
+
+## Stateful iterator protocol.
+interface Iterator T for Self {
+  fn next(mut self: Self) -> T | IteratorEnd;
+}
+
+## Types that can produce iterators (for loops, comprehensions).
+interface Iterable T for Self {
+  fn each(self: Self, visit: T -> void) -> void;
+  fn iterator(self: Self) -> (Iterator T);
+}
+
+## Range construction invoked via `..` and `...` operators.
+interface Range Start End Out {
+  fn inclusive_range(start: Start, finish: End) -> Iterable Out;
+  fn exclusive_range(start: Start, finish: End) -> Iterable Out;
+}

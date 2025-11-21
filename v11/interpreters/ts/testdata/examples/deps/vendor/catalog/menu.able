@@ -1,5 +1,3 @@
-package extras.catalog
-
 fn list_items() -> Array string {
   ["espresso", "tonic", "cocoa"]
 }

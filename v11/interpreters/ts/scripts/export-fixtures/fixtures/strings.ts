@@ -75,6 +75,73 @@ const stringsFixtures: Fixture[] = [
         },
       },
     },
+
+  {
+      name: "strings/string_methods",
+      module: AST.module([
+        AST.assign("s", AST.stringLiteral("héllo")),
+        AST.arr(
+          AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "len_bytes"), []),
+          AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "len_chars"), []),
+          AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "len_graphemes"), []),
+          AST.propagationExpression(
+            AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "substring"), [
+              AST.integerLiteral(1),
+              AST.integerLiteral(3),
+            ]),
+          ),
+          AST.propagationExpression(
+            AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "substring"), [
+              AST.integerLiteral(2),
+            ]),
+          ),
+          AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "split"), [AST.stringLiteral("l")]),
+          AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "split"), [AST.stringLiteral("")]),
+          AST.functionCall(
+            AST.memberAccessExpression(AST.identifier("s"), "replace"),
+            [AST.stringLiteral("l"), AST.stringLiteral("L")],
+          ),
+          AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "starts_with"), [AST.stringLiteral("hé")]),
+          AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "ends_with"), [AST.stringLiteral("lo")]),
+        ),
+      ]),
+      manifest: {
+        description: "string helpers cover length, substring, split, replace, and prefix/suffix checks",
+        expect: {
+          result: {
+            kind: "array",
+            elements: [
+              { kind: "u64", value: "6" },
+              { kind: "u64", value: "5" },
+              { kind: "u64", value: "5" },
+              { kind: "string", value: "éll" },
+              { kind: "string", value: "llo" },
+              {
+                kind: "array",
+                elements: [
+                  { kind: "string", value: "hé" },
+                  { kind: "string", value: "" },
+                  { kind: "string", value: "o" },
+                ],
+              },
+              {
+                kind: "array",
+                elements: [
+                  { kind: "string", value: "h" },
+                  { kind: "string", value: "é" },
+                  { kind: "string", value: "l" },
+                  { kind: "string", value: "l" },
+                  { kind: "string", value: "o" },
+                ],
+              },
+              { kind: "string", value: "héLLo" },
+              { kind: "bool", value: true },
+              { kind: "bool", value: true },
+            ],
+          },
+        },
+      },
+    },
 ];
 
 export default stringsFixtures;

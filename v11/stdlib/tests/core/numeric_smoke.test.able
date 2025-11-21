@@ -1,0 +1,26 @@
+package core.numeric.tests
+
+import able.core.numeric.{DivModResult, NumericConversionError}
+
+fn assert(condition: bool, message: string) -> void {
+  if condition { return }
+  raise message
+}
+
+fn check_numeric_conversion_error() -> void {
+  err := NumericConversionError { message: "cannot convert" }
+  assert(err.message == "cannot convert", "expected NumericConversionError.message to echo input")
+}
+
+fn check_div_mod_result_struct() -> void {
+  pair := DivModResult { quotient: 7, remainder: 2 }
+  assert(pair.quotient == 7, "DivModResult.quotient should be set")
+  assert(pair.remainder == 2, "DivModResult.remainder should be set")
+}
+
+fn main() -> void {
+  check_numeric_conversion_error()
+  check_div_mod_result_struct()
+}
+
+main()

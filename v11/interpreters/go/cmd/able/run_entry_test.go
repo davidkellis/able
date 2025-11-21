@@ -133,11 +133,11 @@ fn stdlib_message() -> string {
 	}
 
 	paths := collectSearchPaths()
-	if !containsPath(paths, stdlibSrc) {
+	if !containsSearchPath(paths, stdlibSrc) {
 		t.Fatalf("expected search paths to include stdlib: %v", paths)
 	}
 
-	loader, err := driver.NewLoader([]string{stdlibSrc})
+	loader, err := driver.NewLoader([]driver.SearchPath{{Path: stdlibSrc, Kind: driver.RootStdlib}})
 	if err != nil {
 		t.Fatalf("NewLoader: %v", err)
 	}
@@ -179,7 +179,7 @@ func TestCollectSearchPathsIncludesAbleModulePaths(t *testing.T) {
 	t.Setenv("ABLE_MODULE_PATHS", joined)
 
 	paths := collectSearchPaths()
-	if !containsPath(paths, extraOne) || !containsPath(paths, extraTwo) {
+	if !containsSearchPath(paths, extraOne) || !containsSearchPath(paths, extraTwo) {
 		t.Fatalf("expected search paths to include %s and %s, got %v", extraOne, extraTwo, paths)
 	}
 }

@@ -11,6 +11,7 @@ import { TypecheckerSession } from "../../src/typechecker";
 import type { DiagnosticLocation } from "../../src/typechecker/diagnostics";
 import { ensurePrint, installRuntimeStubs, interceptStdout } from "../fixture-utils";
 import { ModuleLoader, type Program } from "../module-loader";
+import { collectModuleSearchPaths, type ModuleSearchPath } from "../module-search-paths";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "../../../../");
@@ -309,33 +310,19 @@ async function fileExists(candidate: string): Promise<boolean> {
   }
 }
 
-function computeModuleSearchPaths(): string[] {
-  const paths = new Set<string>();
-  for (const entry of collectEnvPaths(ABLE_PATH_ENV)) {
-    paths.add(entry);
-  }
-  for (const entry of collectEnvPaths(ABLE_MODULE_PATHS_ENV)) {
-    paths.add(entry);
-  }
-  for (const entry of collectEnvPaths(ABLE_STD_LIB_ENV)) {
-    paths.add(entry);
-  }
-  if (fsExists(STDLIB_PATH)) {
-    paths.add(STDLIB_PATH);
-  }
+function computeModuleSearchPaths(): ModuleSearchPath[] {
+  const extras: ModuleSearchPath[] = [];
   if (fsExists(DEFAULT_PARITY_DEPS_ROOT)) {
-    paths.add(DEFAULT_PARITY_DEPS_ROOT);
+    extras.push({ path: DEFAULT_PARITY_DEPS_ROOT });
   }
-  return [...paths];
-}
-
-function collectEnvPaths(raw: string): string[] {
-  if (!raw) return [];
-  return raw
-    .split(path.delimiter)
-    .map((segment) => segment.trim())
-    .filter((segment) => segment.length > 0)
-    .map((segment) => path.resolve(segment));
+  return collectModuleSearchPaths({
+    cwd: process.cwd(),
+    ablePathEnv: ABLE_PATH_ENV,
+    ableModulePathsEnv: ABLE_MODULE_PATHS_ENV,
+    ableStdLibEnv: ABLE_STD_LIB_ENV,
+    extras,
+    probeStdlibFrom: [process.cwd(), __dirname, path.dirname(process.execPath)],
+  });
 }
 
 function fsExists(target: string): boolean {

@@ -1,5 +1,10 @@
 # Able Project Log
 
+## 2025-11-18 — String helper surface complete
+- Added the full string helper set to both interpreters: `len_chars`/`len_graphemes`, `substring` (code-point offsets with `RangeError` on invalid bounds), `split` (empty delimiter splits graphemes), `replace`, `starts_with`/`ends_with`, and `chars`/`graphemes` iterators (Segmenter-aware in TS, rune fallback in Go). Shared helpers keep `len_*` in sync with iterator `size()`.
+- Typecheckers now understand the string surface (Go member access signatures, TS call resolution for optional substring length and string primitives), and Go array literal inference merges element types instead of rejecting unions.
+- Added the `strings/string_methods` AST fixture covering length/slicing/split/replace/prefix/suffix cases; `./run_all_tests.sh --version=v11` runs green after the fixture/typechecker/runtime updates.
+
 ## 2025-11-17 — Loop/range constructs & continue semantics complete
 - Locked down the full §8.2–§8.3 feature set across both runtimes: `loop {}` expressions, `while`, and `for` now return the last `break` payload (or `nil` on exhaustion) while rejecting labeled `break`/`continue` targets. The Go and TypeScript interpreters share identical behavior, including iterator-driven loops and generator continuations.
 - Added the Range interface runtime registries (`src/interpreter/range.ts`, `pkg/interpreter/range_runtime.go`) so range literals first delegate to stdlib implementations before falling back to synthesized arrays, matching the spec requirement that ranges materialize via the Range interface.

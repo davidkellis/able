@@ -2,41 +2,42 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Able v10 Manual — Functions</title>
+    <title>Able v11 Manual — Functions &amp; Functional Tools</title>
     <link rel="stylesheet" href="manual.css" />
   </head>
   <body>
     <div class="layout">
       <nav class="sidebar">
-        <span class="brand">Able v10 Manual</span>
+        <span class="brand">Able v11 Manual</span>
         <ul>
           <li><a href="index.html">Getting Started</a></li>
-          <li><a href="variables.html">Variables</a></li>
+          <li><a href="variables.html">Syntax &amp; Expressions</a></li>
+          <li><a href="constructors.html">Bindings &amp; Patterns</a></li>
+          <li><a href="types.html">Types &amp; Data</a></li>
+          <li><a href="functions.html" class="active">Functions &amp; Functional Tools</a></li>
           <li><a href="control-flow.html">Control Flow</a></li>
-          <li><a href="functions.html" class="active">Functions</a></li>
-          <li><a href="types.html">Types</a></li>
-          <li><a href="methods.html">Methods</a></li>
-          <li><a href="constructors.html">Constructors & Updates</a></li>
           <li><a href="pattern-matching.html">Pattern Matching &amp; Unions</a></li>
-          <li><a href="modules.html">Modules</a></li>
+          <li><a href="methods.html">Methods, Interfaces, Dispatch</a></li>
           <li><a href="error-handling.html">Error Handling</a></li>
-          <li><a href="concurrency.html">Concurrency</a></li>
-          <li><a href="tooling.html">Tooling &amp; Next Steps</a></li>
+          <li><a href="concurrency.html">Concurrency &amp; Async</a></li>
+          <li><a href="modules.html">Modules &amp; Packages</a></li>
+          <li><a href="tooling.html">Stdlib, Interop, Tooling</a></li>
         </ul>
       </nav>
       <main class="content">
-        <h1>4. Functions</h1>
+        <h1>5. Functions &amp; Functional Tools</h1>
         <p>
-          Functions are first-class values. The last expression returns implicitly;
-          use <code>return</code> for early exit.
+          Functions are first-class. Bodies return the last expression
+          implicitly; use <code>return</code> for early exits. Receivers are
+          ordinary parameters; method-call syntax is sugar provided by
+          <code>methods</code>/<code>impl</code>.
         </p>
+        <h2 id="named">5.1 Named Functions</h2>
         <pre><code class="language-able">fn greet(name: string) -&gt; string {
   `Hello ${name}`
 }
 
-fn make_adder(delta: i32) -&gt; (i32 -&gt; i32) {
-  { value =&gt; value + delta }
-}
+fn add&lt;T: Numeric&gt;(a: T, b: T) -&gt; T { a + b }
 
 fn find_first_negative(items: Array i32) -&gt; ?i32 {
   for item in items {
@@ -44,28 +45,46 @@ fn find_first_negative(items: Array i32) -&gt; ?i32 {
   }
   nil
 }</code></pre>
-        <h2>4.1 Lambdas &amp; Placeholders</h2>
         <p>
-          Able offers concise lambda syntax and placeholder lambdas for quick
-          partial application.
+          Generic parameters can be explicit (<code>&lt;T&gt;</code>) or
+          inferred. Return types may be omitted when obvious.
         </p>
-        <pre><code class="language-able">{ x, y =&gt; x + y }
-fn(x: i32) -&gt; string { x.to_string() }
-numbers.map(@ * 2)
-add_10 = add(@, 10)</code></pre>
-        <p>Trailing lambdas mirror Julia’s <code>do</code> blocks:</p>
-        <pre><code class="language-able">sum = numbers.reduce(0) { acc, n =&gt; acc + n }</code></pre>
-        <h2>4.2 Pipelines</h2>
+        <h2 id="anonymous">5.2 Anonymous Functions &amp; Lambdas</h2>
+        <pre><code class="language-able">fn(x: i32) -&gt; string { x.to_string() }   ## verbose
+{ x, y =&gt; x + y }                       ## lambda shorthand
+
+numbers.map(@ * 2)                      ## placeholder lambda
+add_10 = add(@, 10)                     ## partial application
+
+sum = numbers.reduce(0) { acc, n =&gt; acc + n } ## trailing (do) lambda
+</code></pre>
         <p>
-          <code>|&gt;</code> forwards values. The right-hand side must reference
-          <code>%</code> or evaluate to a unary callable.
+          Closures capture outer bindings by reference. Placeholders
+          (<code>@, @2</code>) and pipe topics (<code>%</code>) are limited to
+          expression positions that allow them.
+        </p>
+        <h2 id="shorthand">5.3 Shorthand Receivers</h2>
+        <p>
+          Inside a method/body expecting a receiver, <code>#field</code> and
+          <code>fn #name(...)</code> provide implicit <code>self</code> access:
+        </p>
+        <pre><code class="language-able">methods Counter {
+  fn #inc(by: i32 = 1) { #value = #value + by }
+}</code></pre>
+        <h2 id="pipelines">5.4 Pipelines &amp; Callable Values</h2>
+        <p>
+          <code>|&gt;</code> forwards the left value into the right-hand
+          expression using the topic <code>%</code> or by invoking a unary
+          callable produced on the RHS. Any value implementing the
+          <code>Apply</code> interface can be called like
+          <code>callable(arg)</code>.
         </p>
         <pre><code class="language-able">result = value
   |&gt; %.normalize()
   |&gt; clamp(@, 0, 1)
   |&gt; (@ * 100)</code></pre>
         <footer class="manual-footer">
-          Able v10 manual · Functions
+          Able v11 manual · Functions &amp; Functional Tools
         </footer>
       </main>
     </div>

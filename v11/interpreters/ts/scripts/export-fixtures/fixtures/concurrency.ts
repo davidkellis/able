@@ -1,6 +1,7 @@
 import type { Fixture } from "../../types";
 import channelConcurrencyFixtures from "./concurrency/channel";
 import channelProgressFixtures from "./concurrency/channel_progress";
+import awaitFixtures from "./concurrency/await";
 import mutexConcurrencyFixtures from "./concurrency/mutex";
 import procConcurrencyFixtures from "./concurrency/proc";
 import procMemoizationFixtures from "./concurrency/proc_memoization";
@@ -14,6 +15,7 @@ const concurrencyFixtures: Fixture[] = [
   ...executorDiagnosticsFixtures,
   ...channelConcurrencyFixtures,
   ...channelProgressFixtures,
+  ...awaitFixtures,
   ...mutexConcurrencyFixtures,
 ];
 

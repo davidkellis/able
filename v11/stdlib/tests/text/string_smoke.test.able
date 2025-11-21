@@ -1,0 +1,25 @@
+package text.string.tests
+
+import able.text.string.{String}
+
+fn check_roundtrip() -> void {
+  result := String.from_builtin("Able!")
+  result match {
+    case value: String => {
+      if !(value.len_bytes == 5) { raise "from_builtin should capture UTF-8 byte length" }
+      value.to_builtin() match {
+        case text: string => {
+          if !(text == "Able!") { raise "to_builtin should round-trip the source text" }
+        },
+        case err => { raise err }
+      }
+    },
+    case err => { raise err }
+  }
+}
+
+fn main() -> void {
+  check_roundtrip()
+}
+
+main()
