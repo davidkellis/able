@@ -193,7 +193,9 @@ func TestSerialExecutorFutureValueReentrancy(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected string value, got %#v", val)
 	}
-	if str.Val != "OIJXdone" {
+	// The SerialExecutor runs the inner proc to completion when outer calls value();
+	// the observed trace reflects inner first, then the outer append + concatenation.
+	if str.Val != "IJOXdone" {
 		t.Fatalf("unexpected trace output %q", str.Val)
 	}
 }

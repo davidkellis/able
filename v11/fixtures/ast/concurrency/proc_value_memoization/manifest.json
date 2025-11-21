@@ -7,15 +7,15 @@
       "elements": [
         {
           "kind": "i32",
-          "value": 21
+          "value": "21"
         },
         {
           "kind": "i32",
-          "value": 21
+          "value": "21"
         },
         {
           "kind": "i32",
-          "value": 1
+          "value": "1"
         }
       ]
     }

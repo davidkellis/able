@@ -304,6 +304,73 @@ export function installRuntimeStubs(interpreter: V10.InterpreterV10): void {
     return null;
   };
 
+  const awaitableDef = AST.structDefinition("ChannelAwaitable", [], "named");
+  const awaitRegistrationDef = AST.structDefinition("AwaitRegistration", [], "named");
+
+  const makeAwaitRegistration = (interp: V10.InterpreterV10, cancel?: () => void): V10.V10Value => {
+    const inst: V10.V10Value = { kind: "struct_instance", def: awaitRegistrationDef, values: new Map() };
+    const cancelNative = interp.makeNativeFunction("AwaitRegistration.cancel", 1, () => {
+      if (cancel) cancel();
+      return { kind: "nil", value: null };
+    });
+    (inst.values as Map<string, V10.V10Value>).set("cancel", interp.bindNativeMethod(cancelNative, inst));
+    return inst;
+  };
+
+  const makeAwaitable = (
+    interp: V10.InterpreterV10,
+    handle: number,
+    op: "send" | "receive",
+    payload: V10.V10Value | null,
+    callback?: V10.V10Value,
+  ): V10.V10Value => {
+    const inst: V10.V10Value = { kind: "struct_instance", def: awaitableDef, values: new Map() };
+    const isReady = interp.makeNativeFunction("Awaitable.is_ready", 1, () => {
+      const channel = channels.get(handle);
+      if (!channel) return { kind: "bool", value: false };
+      if (op === "receive") {
+        const ready = channel.queue.length > 0 || (channel.capacity === 0 && channel.queue.length > 0) || channel.closed;
+        return { kind: "bool", value: ready };
+      }
+      if (channel.closed) {
+        throw new Error("send on closed channel");
+      }
+      const ready = channel.capacity === 0 ? true : channel.queue.length < channel.capacity;
+      return { kind: "bool", value: ready };
+    });
+    const register = interp.makeNativeFunction("Awaitable.register", 2, () => makeAwaitRegistration(interp));
+    const commit = interp.makeNativeFunction("Awaitable.commit", 1, () => {
+      const channel = channels.get(handle);
+      if (!channel) return { kind: "nil", value: null };
+      if (op === "receive") {
+        const value = channel.queue.shift() ?? { kind: "nil", value: null };
+        if (callback && callback.kind === "native_function") {
+          callback.impl(interp, [value]);
+        }
+        return value;
+      }
+      if (channel.closed) {
+        throw new Error("send on closed channel");
+      }
+      if (op === "send") {
+        if (channel.capacity === 0 || channel.queue.length < channel.capacity) {
+          channel.queue.push(payload ?? { kind: "nil", value: null });
+        }
+        if (callback && callback.kind === "native_function") {
+          callback.impl(interp, []);
+        }
+      }
+      return { kind: "nil", value: null };
+    });
+    const isDefault = interp.makeNativeFunction("Awaitable.is_default", 1, () => ({ kind: "bool", value: false }));
+    const values = inst.values as Map<string, V10.V10Value>;
+    values.set("is_ready", interp.bindNativeMethod(isReady, inst));
+    values.set("register", interp.bindNativeMethod(register, inst));
+    values.set("commit", interp.bindNativeMethod(commit, inst));
+    values.set("is_default", interp.bindNativeMethod(isDefault, inst));
+    return inst;
+  };
+
   if (!hasGlobal("__able_channel_new")) defineStub("__able_channel_new", 1, (_interp, [capacityArg]) => {
     const capacity = Math.max(0, Math.trunc(toNumber(capacityArg)));
     const handleValue = makeHandle();
@@ -378,6 +445,20 @@ export function installRuntimeStubs(interpreter: V10.InterpreterV10): void {
     return channel.closed ? { kind: "nil", value: null } : { kind: "nil", value: null };
   });
 
+  if (!hasGlobal("__able_channel_await_try_recv")) {
+    defineStub("__able_channel_await_try_recv", 2, (interp, [handleArg, callback]) => {
+      const handle = toHandle(handleArg);
+      return makeAwaitable(interp, handle, "receive", null, callback);
+    });
+  }
+
+  if (!hasGlobal("__able_channel_await_try_send")) {
+    defineStub("__able_channel_await_try_send", 3, (interp, [handleArg, value, callback]) => {
+      const handle = toHandle(handleArg);
+      return makeAwaitable(interp, handle, "send", value, callback);
+    });
+  }
+
   if (!hasGlobal("__able_channel_close")) defineStub("__able_channel_close", 1, (_interp, [handleArg]) => {
     const handle = toHandle(handleArg);
     const channel = channels.get(handle);
@@ -413,7 +494,9 @@ export function installRuntimeStubs(interpreter: V10.InterpreterV10): void {
   if (!hasGlobal("__able_mutex_unlock")) defineStub("__able_mutex_unlock", 1, (_interp, [handleArg]) => {
     const handle = toHandle(handleArg);
     const state = mutexes.get(handle);
-    if (!state) return { kind: "nil", value: null };
+    if (!state || !state.locked) {
+      throw new Error("unlock of unlocked mutex");
+    }
     state.locked = false;
     return { kind: "nil", value: null };
   });

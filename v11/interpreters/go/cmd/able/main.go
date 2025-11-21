@@ -294,11 +294,11 @@ func runDeps(args []string) int {
 	}
 }
 
-func collectSearchPaths(extra ...string) []string {
+func collectSearchPaths(extra ...string) []driver.SearchPath {
 	seen := make(map[string]struct{})
-	var paths []string
+	var paths []driver.SearchPath
 
-	add := func(path string) {
+	add := func(path string, kind driver.RootKind) {
 		if path == "" {
 			return
 		}
@@ -314,27 +314,27 @@ func collectSearchPaths(extra ...string) []string {
 			return
 		}
 		seen[abs] = struct{}{}
-		paths = append(paths, abs)
+		paths = append(paths, driver.SearchPath{Path: abs, Kind: kind})
 	}
 
 	for _, path := range extra {
-		add(path)
+		add(path, driver.RootUser)
 	}
 
 	if cwd, err := os.Getwd(); err == nil {
-		add(cwd)
+		add(cwd, driver.RootUser)
 	}
 
 	for _, part := range splitPathListEnv(os.Getenv("ABLE_PATH")) {
-		add(part)
+		add(part, driver.RootUser)
 	}
 
 	for _, part := range splitPathListEnv(os.Getenv("ABLE_MODULE_PATHS")) {
-		add(part)
+		add(part, driver.RootUser)
 	}
 
 	for _, path := range collectStdlibPaths() {
-		add(path)
+		add(path, driver.RootStdlib)
 	}
 
 	return paths

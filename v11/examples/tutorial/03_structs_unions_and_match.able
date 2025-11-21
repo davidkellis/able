@@ -1,0 +1,41 @@
+package tutorial.unions
+
+struct Point { x: f64, y: f64 }
+union Shape = Circle { radius: f64 } | Rectangle { width: f64, height: f64 } | MoveTo { to: Point }
+
+fn area(shape: Shape) -> f64 {
+  match shape {
+    case Circle { radius } => 3.14159 * radius * radius
+    case Rectangle { width, height } => width * height
+    case MoveTo { to: Point { x, y } } => {
+      print(`Marker moved to (${x}, ${y}) — no area to measure`)
+      0.0
+    }
+  }
+}
+
+fn describe(maybe_shape: ?Shape) -> string {
+  match maybe_shape {
+    case nil => "no shape"
+    case Circle { radius } => `circle with radius ${radius}`
+    case Rectangle { width, height } => `rectangle ${width} x ${height}`
+    case MoveTo { to: Point { x, y } } => `marker moved to (${x}, ${y})`
+  }
+}
+
+fn main() -> void {
+  shapes := [
+    Circle { radius: 2.5 },
+    Rectangle { width: 3.0, height: 4.0 },
+    MoveTo { to: Point { x: 1.0, y: 2.0 } }
+  ]
+
+  for shape in shapes {
+    print(`Area result: ${area(shape)}`)
+  }
+
+  maybe: ?Shape := nil
+  print(describe(maybe))
+  maybe = Circle { radius: 1.0 }
+  print(describe(maybe))
+}

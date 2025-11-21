@@ -1,51 +1,62 @@
-package collections
+package collections.enumerable
 
 import able.collections.array.{Array}
+
+struct Indexed T {
+  value: T,
+  index: i32
+}
 
 interface Enumerable T for E {
   fn each(self: Self, visit: T -> void) -> void;
 
   fn map<U>(self: Self, f: T -> U) -> Array U {
     result: Array U := Array.new()
-    self.each(fn(value: T) { result.push(f(value)) })
+    for value in self {
+      result.push(f(value))
+    }
     result
   }
 
   fn to_array(self: Self) -> Array T {
     result: Array T := Array.new()
-    self.each(fn(value: T) { result.push(value) })
+    for value in self {
+      result.push(value)
+    }
     result
   }
 
   fn count(self: Self) -> i32 {
     total := 0
-    self.each(fn(_value: T) { total = total + 1 })
+    for _value in self {
+      total = total + 1
+    }
     total
   }
 
   fn filter(self: Self, predicate: T -> bool) -> Array T {
     result: Array T := Array.new()
-    self.each(fn(value: T) {
+    for value in self {
       if predicate(value) {
         result.push(value)
       }
-    })
+    }
     result
   }
 
   fn any(self: Self, predicate: T -> bool) -> bool {
     found := false
-    self.each(fn(value: T) {
+    for value in self {
       if predicate(value) { found = true }
-    })
+    }
     found
   }
 
   fn all(self: Self, predicate: T -> bool) -> bool {
     ok := true
-    self.each(fn(value: T) {
+    for value in self {
       if !predicate(value) { ok = false }
-    })
+    }
     ok
   }
 
@@ -55,20 +66,20 @@ interface Enumerable T for E {
 
   fn find(self: Self, predicate: T -> bool) -> ?T {
     result: ?T := nil
-    self.each(fn(value: T) {
-      match result {
-        case nil => {
-          if predicate(value) { result = value }
-        },
-        case _ => {}
+    for value in self {
+      if predicate(value) {
+        result = value
+        break
       }
-    })
+    }
     result
   }
 
   fn reduce<U>(self: Self, initial: U, f: (U, T) -> U) -> U {
     acc := initial
-    self.each(fn(value: T) { acc = f(acc, value) })
+    for value in self {
+      acc = f(acc, value)
+    }
     acc
   }
 
@@ -78,12 +89,10 @@ interface Enumerable T for E {
 
   fn first(self: Self) -> ?T {
     result: ?T := nil
-    self.each(fn(value: T) {
-      match result {
-        case nil => result = value,
-        case _ => {}
-      }
-    })
+    for value in self {
+      result = value
+      break
+    }
     result
   }
 
@@ -95,12 +104,11 @@ interface Enumerable T for E {
     result: Array T := Array.new()
     if count <= 0 { return result }
     remaining := count
-    self.each(fn(value: T) {
-      if remaining > 0 {
-        result.push(value)
-        remaining = remaining - 1
-      }
-    })
+    for value in self {
+      if remaining <= 0 { break }
+      result.push(value)
+      remaining = remaining - 1
+    }
     result
   }
 
@@ -110,23 +118,146 @@ interface Enumerable T for E {
       return self.to_array()
     }
     skipped := 0
-    self.each(fn(value: T) {
+    for value in self {
       if skipped < count {
         skipped = skipped + 1
       } else {
         result.push(value)
       }
-    })
+    }
     result
   }
 
-  fn zip_with_index(self: Self) -> Array (T, i32) {
-    result: Array (T, i32) := Array.new()
+  fn zip_with_index(self: Self) -> Array Indexed T {
+    result: Array Indexed T := Array.new()
     idx := 0
-    self.each(fn(value: T) {
-      result.push((value, idx))
+    for value in self {
+      result.push(Indexed { value: value, index: idx })
       idx = idx + 1
-    })
+    }
+    result
+  }
+}
+
+impl Enumerable T for Array T {
+  fn each(self: Self, visit: T -> void) -> void {
+    len := self.len()
+    idx := 0
+    loop {
+      if idx >= len { break }
+      value := self.read_slot(idx)
+      visit(value)
+      idx = idx + 1
+    }
+  }
+
+  fn to_array(self: Self) -> Array T {
+    count := self.len()
+    result: Array T := Array.with_capacity(count)
+    idx := 0
+    loop {
+      if idx >= count { break }
+      result.push(self.read_slot(idx))
+      idx = idx + 1
+    }
+    result
+  }
+
+  fn count(self: Self) -> i32 { self.len() }
+
+  fn any(self: Self, predicate: T -> bool) -> bool {
+    total := self.len()
+    idx := 0
+    loop {
+      if idx >= total { break }
+      if predicate(self.read_slot(idx)) { return true }
+      idx = idx + 1
+    }
+    false
+  }
+
+  fn all(self: Self, predicate: T -> bool) -> bool {
+    total := self.len()
+    idx := 0
+    loop {
+      if idx >= total { break }
+      if !predicate(self.read_slot(idx)) { return false }
+      idx = idx + 1
+    }
+    true
+  }
+
+  fn none(self: Self, predicate: T -> bool) -> bool {
+    !self.any(predicate)
+  }
+
+  fn find(self: Self, predicate: T -> bool) -> ?T {
+    total := self.len()
+    idx := 0
+    loop {
+      if idx >= total { break }
+      value := self.read_slot(idx)
+      if predicate(value) { return value }
+      idx = idx + 1
+    }
+    nil
+  }
+
+  fn reduce<U>(self: Self, initial: U, f: (U, T) -> U) -> U {
+    acc := initial
+    total := self.len()
+    idx := 0
+    loop {
+      if idx >= total { break }
+      acc = f(acc, self.read_slot(idx))
+      idx = idx + 1
+    }
+    acc
+  }
+
+  fn fold<U>(self: Self, initial: U, f: (U, T) -> U) -> U {
+    self.reduce(initial, f)
+  }
+
+  fn take(self: Self, count: i32) -> Array T {
+    result: Array T := Array.new()
+    if count <= 0 { return result }
+    total := self.len()
+    idx := 0
+    remaining := count
+    loop {
+      if idx >= total { break }
+      if remaining <= 0 { break }
+      result.push(self.read_slot(idx))
+      remaining = remaining - 1
+      idx = idx + 1
+    }
+    result
+  }
+
+  fn drop(self: Self, count: i32) -> Array T {
+    result: Array T := Array.new()
+    start := count
+    if start < 0 { start = 0 }
+    total := self.len()
+    idx := start
+    loop {
+      if idx >= total { break }
+      result.push(self.read_slot(idx))
+      idx = idx + 1
+    }
+    result
+  }
+
+  fn zip_with_index(self: Self) -> Array Indexed T {
+    result: Array Indexed T := Array.new()
+    total := self.len()
+    idx := 0
+    loop {
+      if idx >= total { break }
+      result.push(Indexed { value: self.read_slot(idx), index: idx })
+      idx = idx + 1
+    }
     result
   }
 }

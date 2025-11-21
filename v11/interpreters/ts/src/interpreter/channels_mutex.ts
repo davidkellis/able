@@ -3,6 +3,8 @@ import type { InterpreterV10 } from "./index";
 import type { V10Value } from "./values";
 import { RaiseSignal } from "./signals";
 import { makeIntegerValue, numericToNumber } from "./numeric";
+import { callCallableValue } from "./functions";
+import { memberAccessOnValue } from "./structs";
 
 type ProcHandleValue = Extract<V10Value, { kind: "proc_handle" }>;
 type BoolValue = Extract<V10Value, { kind: "bool" }>;
@@ -26,6 +28,8 @@ interface ChannelState {
   closed: boolean;
   sendWaiters: ChannelSendWaiter[];
   receiveWaiters: ChannelReceiveWaiter[];
+  awaitSendRegistrations?: Set<ChannelAwaitRegistration>;
+  awaitReceiveRegistrations?: Set<ChannelAwaitRegistration>;
 }
 
 interface MutexState {
@@ -35,7 +39,15 @@ interface MutexState {
   waiters: ProcHandleValue[];
 }
 
+interface ChannelAwaitRegistration {
+  kind: "send" | "receive";
+  waker: Extract<V10Value, { kind: "struct_instance" }>;
+  cancelled?: boolean;
+}
+
 const NIL: NilValue = { kind: "nil", value: null };
+const AWAITABLE_STRUCT = AST.structDefinition("ChannelAwaitable", [], "named");
+const AWAIT_REGISTRATION_STRUCT = AST.structDefinition("AwaitRegistration", [], "named");
 
 declare module "./index" {
   interface InterpreterV10 {
@@ -122,6 +134,7 @@ function resolveChannelErrorStruct(interp: InterpreterV10, structName: string): 
     `able.${structName}`,
     `able.concurrency.${structName}`,
     `able.concurrency.channel.${structName}`,
+    `able.concurrency.mutex.${structName}`,
   ];
   for (const name of candidateNames) {
     try {
@@ -159,6 +172,64 @@ function raiseChannelError(interp: InterpreterV10, structName: string, fallbackM
   throw new RaiseSignal(err);
 }
 
+function makeAwaitRegistrationValue(interp: InterpreterV10, cancelFn?: () => void): Extract<V10Value, { kind: "struct_instance" }> {
+  const registration: Extract<V10Value, { kind: "struct_instance" }> = {
+    kind: "struct_instance",
+    def: AWAIT_REGISTRATION_STRUCT,
+    values: new Map(),
+  };
+  const cancelNative = interp.makeNativeFunction("AwaitRegistration.cancel", 1, () => {
+    if (cancelFn) cancelFn();
+    return NIL;
+  });
+  registration.values.set("cancel", interp.bindNativeMethod(cancelNative, registration));
+  return registration;
+}
+
+function addChannelAwaiter(
+  state: ChannelState,
+  kind: ChannelAwaitRegistration["kind"],
+  waker: Extract<V10Value, { kind: "struct_instance" }>,
+): ChannelAwaitRegistration {
+  const registration: ChannelAwaitRegistration = { kind, waker };
+  const bucketKey = kind === "send" ? "awaitSendRegistrations" : "awaitReceiveRegistrations";
+  if (!state[bucketKey]) {
+    state[bucketKey] = new Set();
+  }
+  state[bucketKey]!.add(registration);
+  return registration;
+}
+
+function cancelChannelAwaiter(state: ChannelState, registration: ChannelAwaitRegistration): void {
+  if (!registration || registration.cancelled) return;
+  registration.cancelled = true;
+  const bucket = registration.kind === "send" ? state.awaitSendRegistrations : state.awaitReceiveRegistrations;
+  bucket?.delete(registration);
+}
+
+function triggerChannelAwaiter(interp: InterpreterV10, registration: ChannelAwaitRegistration): void {
+  if (!registration || registration.cancelled) return;
+  const wakeMember = AST.identifier("wake");
+  try {
+    const member = memberAccessOnValue(interp, registration.waker, wakeMember, interp.globals);
+    callCallableValue(interp, member, [], interp.globals);
+  } catch {
+    // ignore wake failures
+  }
+}
+
+function notifyChannelAwaiters(
+  interp: InterpreterV10,
+  state: ChannelState,
+  kind: ChannelAwaitRegistration["kind"],
+): void {
+  const bucket = kind === "send" ? state.awaitSendRegistrations : state.awaitReceiveRegistrations;
+  if (!bucket || bucket.size === 0) return;
+  for (const reg of Array.from(bucket)) {
+    triggerChannelAwaiter(interp, reg);
+  }
+}
+
 export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void {
   cls.prototype.ensureChannelMutexBuiltins = function ensureChannelMutexBuiltins(this: InterpreterV10): void {
     if (this.channelMutexBuiltinsInitialized) return;
@@ -175,6 +246,92 @@ export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void
         // not defined, continue
       }
       this.globals.define(name, factory());
+    };
+
+    const makeChannelAwaitable = (
+      handleNumber: number,
+      op: "send" | "receive",
+      payload: V10Value | null,
+      callback?: V10Value,
+    ): Extract<V10Value, { kind: "struct_instance" }> => {
+      const inst: Extract<V10Value, { kind: "struct_instance" }> = {
+        kind: "struct_instance",
+        def: AWAITABLE_STRUCT,
+        values: new Map(),
+      };
+
+      const isReady = this.makeNativeFunction("Awaitable.is_ready", 1, (nativeInterp) => {
+        if (handleNumber === 0) {
+          return { kind: "bool", value: false };
+        }
+        const state = getChannelState(nativeInterp, handleNumber);
+        if (!state) throw new Error("Invalid channel handle");
+        const closed = state.closed;
+        const length = state.queue.length;
+        const awaitingSend = state.awaitSendRegistrations?.size ?? 0;
+        const awaitingReceive = state.awaitReceiveRegistrations?.size ?? 0;
+        if (op === "receive") {
+          const ready =
+            length > 0 || (state.capacity === 0 && (state.sendWaiters.length > 0 || awaitingSend > 0)) || closed;
+          return { kind: "bool", value: ready };
+        }
+        if (closed) {
+          raiseChannelError(nativeInterp, "ChannelSendOnClosed", "send on closed channel");
+        }
+        const ready = state.capacity === 0 ? state.receiveWaiters.length > 0 || awaitingReceive > 0 : length < state.capacity;
+        return { kind: "bool", value: ready };
+      });
+
+      const register = this.makeNativeFunction("Awaitable.register", 2, (nativeInterp, args) => {
+        const waker = args[1];
+        if (!waker || waker.kind !== "struct_instance") {
+          throw new Error("register expects waker instance");
+        }
+        if (handleNumber === 0) {
+          return makeAwaitRegistrationValue(nativeInterp);
+        }
+        const state = getChannelState(nativeInterp, handleNumber);
+        if (!state) {
+          throw new Error("Invalid channel handle");
+        }
+        const registration = addChannelAwaiter(state, op, waker);
+        const cancelFn = () => cancelChannelAwaiter(state, registration);
+        return makeAwaitRegistrationValue(nativeInterp, cancelFn);
+      });
+
+      const commit = this.makeNativeFunction("Awaitable.commit", 1, (nativeInterp) => {
+        const handleValue = makeIntegerValue("i32", BigInt(handleNumber));
+        if (op === "receive") {
+          const recvFn = nativeInterp.globals.get("__able_channel_receive");
+          if (!recvFn || recvFn.kind !== "native_function") {
+            throw new Error("__able_channel_receive is not available");
+          }
+          const value = recvFn.impl(nativeInterp, [handleValue]);
+          if (!callback) {
+            return value;
+          }
+          return callCallableValue(nativeInterp, callback, [value], nativeInterp.globals);
+        }
+
+        const sendFn = nativeInterp.globals.get("__able_channel_send");
+        if (!sendFn || sendFn.kind !== "native_function") {
+          throw new Error("__able_channel_send is not available");
+        }
+        sendFn.impl(nativeInterp, [handleValue, payload ?? NIL]);
+        if (!callback) {
+          return NIL;
+        }
+        return callCallableValue(nativeInterp, callback, [], nativeInterp.globals);
+      });
+
+      const isDefault = this.makeNativeFunction("Awaitable.is_default", 1, () => ({ kind: "bool", value: false }));
+
+      const values = inst.values as Map<string, V10Value>;
+      values.set("is_ready", this.bindNativeMethod(isReady, inst));
+      values.set("register", this.bindNativeMethod(register, inst));
+      values.set("commit", this.bindNativeMethod(commit, inst));
+      values.set("is_default", this.bindNativeMethod(isDefault, inst));
+      return inst;
     };
 
     defineIfMissing("__able_channel_new", () =>
@@ -257,6 +414,7 @@ export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void
           if (procHandle) {
             delete (procHandle as any).waitingChannelSend;
           }
+          notifyChannelAwaiters(interp, state, "receive");
           return NIL;
         }
 
@@ -264,6 +422,7 @@ export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void
           throw new Error("Channel send would block outside of proc context");
         }
 
+        const hadSendWaiters = state.sendWaiters.length;
         const existing = (procHandle as any).waitingChannelSend;
         if (!existing || existing.state !== state) {
           (procHandle as any).waitingChannelSend = { state, value: payload };
@@ -281,6 +440,9 @@ export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void
               break;
             }
           }
+        }
+        if (state.capacity === 0 && hadSendWaiters === 0 && state.sendWaiters.length > 0) {
+          notifyChannelAwaiters(interp, state, "receive");
         }
         interp.procYield();
         return NIL;
@@ -331,6 +493,10 @@ export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void
             }
             scheduleProc(interp, nextSender.handle);
           }
+          notifyChannelAwaiters(interp, state, "send");
+          if (state.queue.length > 0) {
+            notifyChannelAwaiters(interp, state, "receive");
+          }
           return value ?? NIL;
         }
 
@@ -341,6 +507,7 @@ export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void
             senderPending.delivered = true;
           }
           scheduleProc(interp, sender.handle);
+          notifyChannelAwaiters(interp, state, "send");
           return sender.value ?? NIL;
         }
 
@@ -360,8 +527,12 @@ export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void
           existing.closed = false;
           existing.value = undefined;
         }
+        const hadWaiters = state.receiveWaiters.length;
         if (!state.receiveWaiters.some((entry) => entry.handle === procHandle)) {
           state.receiveWaiters.push({ handle: procHandle });
+        }
+        if (state.capacity === 0 && hadWaiters === 0 && state.receiveWaiters.length > 0) {
+          notifyChannelAwaiters(interp, state, "send");
         }
         interp.procYield();
         return NIL;
@@ -394,6 +565,7 @@ export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void
         }
         if (state.capacity > 0 && state.queue.length < state.capacity) {
           state.queue.push(payload);
+          notifyChannelAwaiters(interp, state, "receive");
           return { kind: "bool", value: true };
         }
         return { kind: "bool", value: false };
@@ -421,6 +593,10 @@ export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void
             }
             scheduleProc(interp, nextSender.handle);
           }
+          notifyChannelAwaiters(interp, state, "send");
+          if (state.queue.length > 0) {
+            notifyChannelAwaiters(interp, state, "receive");
+          }
           return value ?? NIL;
         }
         if (state.sendWaiters.length > 0) {
@@ -430,12 +606,30 @@ export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void
             senderPending.delivered = true;
           }
           scheduleProc(interp, sender.handle);
+          notifyChannelAwaiters(interp, state, "send");
           return sender.value ?? NIL;
         }
         if (state.closed) {
           return NIL;
         }
         return NIL;
+      }),
+    );
+
+    defineIfMissing("__able_channel_await_try_recv", () =>
+      this.makeNativeFunction("__able_channel_await_try_recv", 2, (interp, args) => {
+        const handleNumber = toHandleNumber(args[0], "channel handle");
+        const callback = args[1];
+        return makeChannelAwaitable(handleNumber, "receive", null, callback);
+      }),
+    );
+
+    defineIfMissing("__able_channel_await_try_send", () =>
+      this.makeNativeFunction("__able_channel_await_try_send", 3, (interp, args) => {
+        const handleNumber = toHandleNumber(args[0], "channel handle");
+        const payload = args[1];
+        const callback = args[2];
+        return makeChannelAwaitable(handleNumber, "send", payload, callback);
       }),
     );
 
@@ -473,6 +667,9 @@ export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void
           }
           scheduleProc(interp, sender.handle);
         }
+
+        notifyChannelAwaiters(interp, state, "receive");
+        notifyChannelAwaiters(interp, state, "send");
 
         return NIL;
       }),
@@ -539,7 +736,7 @@ export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void
           throw new Error("Invalid mutex handle");
         }
         if (!state.locked) {
-          return NIL;
+          raiseChannelError(interp, "MutexUnlocked", "unlock of unlocked mutex");
         }
 
         state.locked = false;

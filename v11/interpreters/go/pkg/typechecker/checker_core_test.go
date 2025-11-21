@@ -466,18 +466,23 @@ func TestArrayLiteralElementTypeMismatchProducesDiagnostic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(diags) == 0 {
-		t.Fatalf("expected diagnostic for mismatched array elements")
+	if len(diags) != 0 {
+		t.Fatalf("expected mixed element types to merge into a union, got diagnostics: %v", diags)
 	}
-	found := false
-	for _, d := range diags {
-		if strings.Contains(d.Message, "array element 2") {
-			found = true
-			break
-		}
+	arrType, ok := checker.infer[arr]
+	if !ok {
+		t.Fatalf("expected inference entry for array literal")
 	}
-	if !found {
-		t.Fatalf("expected mismatch diagnostic, got %v", diags)
+	array, ok := arrType.(ArrayType)
+	if !ok {
+		t.Fatalf("expected ArrayType, got %#v", arrType)
+	}
+	union, ok := array.Element.(UnionLiteralType)
+	if !ok {
+		t.Fatalf("expected union element type, got %T", array.Element)
+	}
+	if len(union.Members) != 2 {
+		t.Fatalf("expected two union members, got %d", len(union.Members))
 	}
 }
 func TestEmptyArrayLiteralDefaultsToUnknownElement(t *testing.T) {

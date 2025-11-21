@@ -156,6 +156,16 @@ func (ctx *parseContext) parseStatement(node *sitter.Node) (ast.Statement, error
 			return nil, err
 		}
 		return annotateStatement(ast.NewWhileLoop(condition, body), node), nil
+	case "loop_statement":
+		bodyNode := firstNamedChild(node)
+		if bodyNode == nil {
+			return nil, fmt.Errorf("parser: loop statement missing body")
+		}
+		body, err := ctx.parseBlock(bodyNode)
+		if err != nil {
+			return nil, err
+		}
+		return annotateStatement(ast.NewLoopExpression(body), node), nil
 	case "for_statement":
 		if node.NamedChildCount() < 3 {
 			return nil, fmt.Errorf("parser: malformed for statement")

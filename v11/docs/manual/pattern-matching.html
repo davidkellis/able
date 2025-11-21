@@ -2,34 +2,34 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Able v10 Manual — Pattern Matching &amp; Unions</title>
+    <title>Able v11 Manual — Pattern Matching &amp; Unions</title>
     <link rel="stylesheet" href="manual.css" />
   </head>
   <body>
     <div class="layout">
       <nav class="sidebar">
-        <span class="brand">Able v10 Manual</span>
+        <span class="brand">Able v11 Manual</span>
         <ul>
           <li><a href="index.html">Getting Started</a></li>
-          <li><a href="variables.html">Variables</a></li>
+          <li><a href="variables.html">Syntax &amp; Expressions</a></li>
+          <li><a href="constructors.html">Bindings &amp; Patterns</a></li>
+          <li><a href="types.html">Types &amp; Data</a></li>
+          <li><a href="functions.html">Functions &amp; Functional Tools</a></li>
           <li><a href="control-flow.html">Control Flow</a></li>
-          <li><a href="functions.html">Functions</a></li>
-          <li><a href="types.html">Types</a></li>
-          <li><a href="methods.html">Methods</a></li>
-          <li><a href="constructors.html">Constructors &amp; Updates</a></li>
           <li><a href="pattern-matching.html" class="active">Pattern Matching &amp; Unions</a></li>
-          <li><a href="modules.html">Modules</a></li>
+          <li><a href="methods.html">Methods, Interfaces, Dispatch</a></li>
           <li><a href="error-handling.html">Error Handling</a></li>
-          <li><a href="concurrency.html">Concurrency</a></li>
-          <li><a href="tooling.html">Tooling &amp; Next Steps</a></li>
+          <li><a href="concurrency.html">Concurrency &amp; Async</a></li>
+          <li><a href="modules.html">Modules &amp; Packages</a></li>
+          <li><a href="tooling.html">Stdlib, Interop, Tooling</a></li>
         </ul>
       </nav>
       <main class="content">
-        <h1>8. Pattern Matching &amp; Unions</h1>
+        <h1>7. Pattern Matching &amp; Unions</h1>
         <p>
-          <code>union</code> declares algebraic data types. <code>?T</code>
-          (a shorthand for <code>nil | T</code>) and <code>!T</code> (for
-          <code>Error | T</code>) are commonplace.
+          <code>union</code> introduces algebraic data types. Shorthands:
+          <code>?T</code> equals <code>nil | T</code>; <code>!T</code> is
+          <code>Error | T</code> (or nested with <code>nil</code> when combined).
         </p>
         <pre><code class="language-able">union Shape =
     Circle { radius: f64 }
@@ -44,12 +44,17 @@ area = shape match {
     (s * (s - a) * (s - b) * (s - c)).sqrt()
   }
 }</code></pre>
+        <h2 id="patterns">7.1 Match Semantics</h2>
+        <ul>
+          <li>Patterns can bind fields, destructure arrays, and assert types.</li>
+          <li>Guards: <code>case v: i32 if v &gt; 0 =&gt; ...</code>.</li>
+          <li>Matching on interface types uses the runtime impl dictionary.</li>
+          <li>Non-exhaustive matches raise at runtime; cover every variant or add a catch-all.</li>
+        </ul>
+        <h2 id="option-result">7.2 Options &amp; Results in Matches</h2>
         <p>
-          Patterns support guards (<code>case v: i32 if v &gt; 0</code>) and
-          interface types. Non-exhaustive matches raise runtime exceptions.
-        </p>
-        <p>
-          <code>else</code> bridges optional or result values:
+          Use <code>else</code> to handle <code>nil</code>/<code>Error</code>
+          without a full <code>match</code> (see Error Handling):
         </p>
         <pre><code class="language-able">username = maybe_name else { "guest" }
 
@@ -57,12 +62,8 @@ config = load_config() else { |err|
   log(`using anonymous mode: ${err.message()}`)
   default_config()
 }</code></pre>
-        <p>
-          <code>expr!</code> unwraps <code>?T</code>, <code>!T</code>, or
-          <code>nil | Error | T</code>, propagating failures.
-        </p>
         <footer class="manual-footer">
-          Able v10 manual · Pattern Matching &amp; Unions
+          Able v11 manual · Pattern Matching &amp; Unions
         </footer>
       </main>
     </div>

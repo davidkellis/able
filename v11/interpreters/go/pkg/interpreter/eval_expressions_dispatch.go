@@ -216,7 +216,7 @@ func (i *Interpreter) evaluateExpression(node ast.Expression, env *runtime.Envir
 		future := i.executor.RunFuture(task)
 		return future, nil
 	case *ast.AwaitExpression:
-		return nil, fmt.Errorf("Await expressions are not implemented yet")
+		return i.evaluateAwaitExpression(n, env)
 	case *ast.LambdaExpression:
 		return i.evaluateLambdaExpression(n, env)
 	default:

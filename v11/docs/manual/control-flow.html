@@ -2,63 +2,75 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Able v10 Manual — Control Flow</title>
+    <title>Able v11 Manual — Control Flow</title>
     <link rel="stylesheet" href="manual.css" />
   </head>
   <body>
     <div class="layout">
       <nav class="sidebar">
-        <span class="brand">Able v10 Manual</span>
+        <span class="brand">Able v11 Manual</span>
         <ul>
           <li><a href="index.html">Getting Started</a></li>
-          <li><a href="variables.html">Variables</a></li>
+          <li><a href="variables.html">Syntax &amp; Expressions</a></li>
+          <li><a href="constructors.html">Bindings &amp; Patterns</a></li>
+          <li><a href="types.html">Types &amp; Data</a></li>
+          <li><a href="functions.html">Functions &amp; Functional Tools</a></li>
           <li><a href="control-flow.html" class="active">Control Flow</a></li>
-          <li><a href="functions.html">Functions</a></li>
-          <li><a href="types.html">Types</a></li>
-          <li><a href="methods.html">Methods</a></li>
-          <li><a href="constructors.html">Constructors & Updates</a></li>
           <li><a href="pattern-matching.html">Pattern Matching &amp; Unions</a></li>
-          <li><a href="modules.html">Modules</a></li>
+          <li><a href="methods.html">Methods, Interfaces, Dispatch</a></li>
           <li><a href="error-handling.html">Error Handling</a></li>
-          <li><a href="concurrency.html">Concurrency</a></li>
-          <li><a href="tooling.html">Tooling &amp; Next Steps</a></li>
+          <li><a href="concurrency.html">Concurrency &amp; Async</a></li>
+          <li><a href="modules.html">Modules &amp; Packages</a></li>
+          <li><a href="tooling.html">Stdlib, Interop, Tooling</a></li>
         </ul>
       </nav>
       <main class="content">
-        <h1>3. Control Flow</h1>
+        <h1>6. Control Flow</h1>
         <p>
-          Blocks are expressions; the last expression provides the value.
-          <code>do { ... }</code> embeds blocks inline.
+          Conditionals and loops are expressions. Use <code>do { ... }</code> to
+          embed blocks inline; an empty block yields <code>void</code>
+          (truthy).
         </p>
         <pre><code class="language-able">message := do {
   total := compute_total()
   `Total: ${total}`
 }</code></pre>
-        <h2>3.1 Conditionals</h2>
+        <h2 id="conditionals">6.1 Conditionals</h2>
         <p>
-          <code>if … or …</code> chains behave like Julia’s
-          <code>if/elseif/else</code>, returning the chosen branch. Only
-          <code>false</code>, <code>nil</code>, and values of type
+          <code>if … or …</code> chains mirror Julia’s
+          <code>if/elseif/else</code>. Branches return their expression value.
+          Only <code>false</code>, <code>nil</code>, and values of type
           <code>Error</code> are falsy.
         </p>
         <pre><code class="language-able">grade = if score >= 90 { "A" }
         or score >= 80 { "B" }
         or { "C or lower" }</code></pre>
-        <h2>3.2 Loops</h2>
-        <p><code>while</code> and <code>for</code> loops evaluate to <code>void</code>.</p>
+        <h2 id="loops">6.2 Loops</h2>
+        <p>Loops evaluate to <code>void</code>.</p>
         <pre><code class="language-able">while counter &lt; 3 {
   print(counter)
   counter = counter + 1
 }</code></pre>
-        <pre><code class="language-able">for {item, idx} in items.enumerate() {
+        <pre><code class="language-able">for { item, idx } in items.enumerate() {
   print(`items[${idx}] = ${item}`)
 }</code></pre>
         <pre><code class="language-able">for n in 0...len { total = total + n }</code></pre>
-        <h2>3.3 Breakpoints</h2>
+        <p><code>continue</code> skips to the next iteration.</p>
+        <h2 id="loop-expression">6.3 Loop Expression</h2>
         <p>
-          <code>breakpoint 'label { ... }</code> establishes an exit point;
+          <code>loop { ... }</code> is an expression that can yield a value via
+          <code>break</code>:
+        </p>
+        <pre><code class="language-able">first_even = loop {
+  if numbers.is_empty() { break nil }
+  n = numbers.pop()
+  if n % 2 == 0 { break n }
+}</code></pre>
+        <h2 id="breakpoint">6.4 Breakpoints</h2>
+        <p>
+          <code>breakpoint 'label { ... }</code> establishes a named exit point;
           <code>break 'label value</code> unwinds to it. Plain
-          <code>break</code> targets the innermost loop.
+          <code>break</code> exits the innermost loop.
         </p>
         <pre><code class="language-able">winner = breakpoint 'scan {
   for cand in candidates {
@@ -68,8 +80,14 @@
   }
   nil
 }</code></pre>
+        <h2 id="safe-nav">6.5 Safe Navigation</h2>
+        <p>
+          <code>value?.field</code> and <code>value?.fn()</code> short-circuit
+          to <code>nil</code> if the left side is <code>nil</code>; otherwise
+          they behave like normal access/call.
+        </p>
         <footer class="manual-footer">
-          Able v10 manual · Control Flow
+          Able v11 manual · Control Flow
         </footer>
       </main>
     </div>

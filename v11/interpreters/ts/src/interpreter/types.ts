@@ -98,6 +98,7 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
       case "SimpleTypeExpression": {
         const name = t.name.name;
         if (name === "Self") return true;
+        if (/^[A-Z]$/.test(name)) return true;
         if (name === "string") return v.kind === "string";
         if (name === "bool") return v.kind === "bool";
         if (name === "char") return v.kind === "char";
@@ -122,10 +123,14 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
       }
       case "GenericTypeExpression": {
         if (t.base.type === "SimpleTypeExpression" && t.base.name.name === "Array") {
-          if (v.kind !== "array") return false;
+          const isArrayValue = v.kind === "array" || (v.kind === "struct_instance" && v.def.id.name === "Array");
+          if (!isArrayValue) return false;
           if (!t.arguments || t.arguments.length === 0) return true;
           const elemT = t.arguments[0]!;
-          return v.elements.every(el => this.matchesType(elemT, el));
+          if (v.kind === "array") {
+            return v.elements.every(el => this.matchesType(elemT, el));
+          }
+          return true;
         }
         return true;
       }

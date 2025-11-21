@@ -155,16 +155,17 @@ export function evaluateRangeExpression(ctx: InterpreterV10, node: AST.RangeExpr
     }
     elements.push(makeIntegerFromNumber("i32", current));
   }
-  return { kind: "array", elements };
+  return ctx.makeArrayValue(elements);
 }
 
 export function evaluateIndexExpression(ctx: InterpreterV10, node: AST.IndexExpression, env: Environment): V10Value {
   const obj = ctx.evaluate(node.object, env);
   const idxVal = ctx.evaluate(node.index, env);
   if (obj.kind !== "array") throw new Error("Indexing is only supported on arrays in this milestone");
+  const state = ctx.ensureArrayState(obj);
   const idx = Math.trunc(numericToNumber(idxVal, "Array index", { requireSafeInteger: true }));
-  if (idx < 0 || idx >= obj.elements.length) throw new Error("Array index out of bounds");
-  const el = obj.elements[idx];
+  if (idx < 0 || idx >= state.values.length) throw new Error("Array index out of bounds");
+  const el = state.values[idx];
   if (el === undefined) throw new Error("Internal error: array element undefined");
   return el;
 }

@@ -15,6 +15,7 @@ import { applyChannelMutexAugmentations } from "./channels_mutex";
 import { applyStringHostAugmentations } from "./string_host";
 import { applyHasherHostAugmentations } from "./hasher_host";
 import { buildStandardInterfaceBuiltins } from "../builtins/interfaces";
+import { applyArrayKernelAugmentations, type ArrayState } from "./array_kernel";
 import { evaluateImplementationDefinition, evaluateInterfaceDefinition } from "./definitions";
 import "./imports";
 
@@ -67,6 +68,13 @@ export class InterpreterV10 {
     message: Extract<V10Value, { kind: "native_function" }>;
     cause: Extract<V10Value, { kind: "native_function" }>;
   };
+
+  arrayNativeMethods: Record<string, Extract<V10Value, { kind: "native_function" }>> = {};
+  stringNativeMethods: Record<string, Extract<V10Value, { kind: "native_function" }>> = {};
+
+  arrayBuiltinsInitialized = false;
+  nextArrayHandle = 1;
+  arrayStates: Map<number, ArrayState> = new Map();
 
   concurrencyBuiltinsInitialized = false;
   procErrorStruct!: AST.StructDefinition;
@@ -176,6 +184,7 @@ export class InterpreterV10 {
     this.globals.define("proc_cancelled", procCancelledFn);
     this.globals.define("proc_flush", procFlushFn);
     this.globals.define("proc_pending_tasks", procPendingTasksFn);
+    this.ensureArrayKernelBuiltins();
     this.installBuiltinInterfaces();
   }
 
@@ -213,6 +222,7 @@ applyImplResolutionAugmentations(InterpreterV10);
 applyRangeAugmentations(InterpreterV10);
 applyPlaceholderAugmentations(InterpreterV10);
 applyIteratorAugmentations(InterpreterV10);
+applyArrayKernelAugmentations(InterpreterV10);
 applyChannelMutexAugmentations(InterpreterV10);
 applyStringHostAugmentations(InterpreterV10);
 applyHasherHostAugmentations(InterpreterV10);

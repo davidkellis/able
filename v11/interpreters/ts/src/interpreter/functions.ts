@@ -64,12 +64,17 @@ export function callCallableValue(ctx: InterpreterV10, callee: V10Value, args: V
   } else if (callee.kind === "native_function") {
     nativeFunc = callee;
   } else {
-    throw new Error("Cannot call non-function");
+    const location =
+      callNode && (callNode as any).span && (callNode as any).origin
+        ? `${(callNode as any).origin}:${(callNode as any).span.start.line + 1}:${(callNode as any).span.start.column + 1}`
+        : "";
+    const suffix = location ? ` at ${location}` : "";
+    throw new Error(`Cannot call non-function (kind ${callee.kind})${suffix}`);
   }
 
   const evalArgs = [...injectedArgs, ...args];
   if (nativeFunc) {
-    if (evalArgs.length !== nativeFunc.arity) {
+    if (nativeFunc.arity >= 0 && evalArgs.length !== nativeFunc.arity) {
       throw new Error(`Arity mismatch calling ${nativeFunc.name}: expected ${nativeFunc.arity}, got ${evalArgs.length}`);
     }
     return nativeFunc.impl(ctx, evalArgs);
@@ -119,7 +124,9 @@ export function callCallableValue(ctx: InterpreterV10, callee: V10Value, args: V
       if (param.paramType && !skipRuntimeTypeCheck) {
         if (!ctx.matchesType(param.paramType, argVal)) {
           const pname = (param.name as any).name ?? `param_${i}`;
-          throw new Error(`Parameter type mismatch for '${pname}'`);
+          const expected = ctx.typeExpressionToString(param.paramType);
+          const actual = ctx.getTypeNameForValue(argVal) ?? argVal.kind;
+          throw new Error(`Parameter type mismatch for '${pname}': expected ${expected}, got ${actual}`);
         }
         coerced = ctx.coerceValueToType(param.paramType, argVal);
         bindArgs[i] = coerced;

@@ -272,6 +272,11 @@ export function buildPackageSegments(
   declared: string[],
 ): string[] {
   const segments: string[] = [sanitizeSegment(rootPackage) || "pkg"];
+  const declaredSegments = declared.map((seg) => sanitizeSegment(seg)).filter(Boolean);
+  if (declaredSegments.length > 0) {
+    segments.push(...declaredSegments);
+    return segments;
+  }
   const rel = path.relative(rootDir, filePath);
   const relDir = path.dirname(rel);
   if (relDir && relDir !== "." && relDir !== path.sep) {

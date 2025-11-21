@@ -1,0 +1,46 @@
+package tutorial.interfaces
+
+interface Formatter for Self {
+  fn format(self: Self) -> string
+}
+
+interface Scale Factor for Self {
+  fn scale(self: Self, by: Factor) -> Self
+}
+
+struct Point { x: f64, y: f64 }
+
+methods Point {
+  fn new(x: f64, y: f64) -> Point { Point { x, y } }
+}
+
+impl Formatter for Point {
+  fn format(self: Self) -> string { `(${self.x}, ${self.y})` }
+}
+
+impl Scale f64 for Point {
+  fn scale(self: Self, by: f64) -> Point { Point { x: self.x * by, y: self.y * by } }
+}
+
+struct Report { title: string, body: string }
+
+methods Report {
+  fn new(title: string, body: string) -> Report { Report { title, body } }
+}
+
+impl Formatter for Report {
+  fn format(self: Self) -> string { `${self.title}: ${self.body}` }
+}
+
+fn show(item: Formatter) -> void {
+  print(item.format())
+}
+
+fn main() -> void {
+  point := Point::new(3.0, 4.0)
+  scaled := point.scale(0.5)
+  report := Report::new("Status", "All systems nominal")
+
+  items: Array (Formatter) := [point, scaled, report]
+  for item in items { show(item) }
+}

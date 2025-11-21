@@ -1,0 +1,41 @@
+package tutorial.exceptions
+
+struct NetworkError { message: string }
+
+impl Error for NetworkError {
+  fn message(self: Self) -> string { self.message }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+fn fetch(url: string) -> string {
+  if url == "" { raise NetworkError { message: "missing url" } }
+  `body from ${url}`
+}
+
+fn fetch_with_logging(url: string) -> string {
+  fetch(url) rescue {
+    case err: NetworkError => {
+      print(`caught network error: ${err.message()}`)
+      "serving cached body"
+    }
+  } ensure {
+    print("ensure runs after fetch attempt")
+  }
+}
+
+fn retry_once(url: string) -> string {
+  fetch(url) rescue {
+    case _: NetworkError => {
+      print("retrying once then rethrowing")
+      rethrow
+    }
+  }
+}
+
+fn main() -> void {
+  print(fetch_with_logging(""))
+  print(fetch_with_logging("https://example.com"))
+
+  outcome = retry_once("") rescue { case _: Error => "gave up after retry" }
+  print(outcome)
+}

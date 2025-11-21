@@ -1,0 +1,38 @@
+package tutorial.methods
+
+struct Counter { value: i32, label: string }
+
+methods Counter {
+  fn new(label: string) -> Counter { Counter { value: 0, label: label } }
+
+  fn #increment() -> void { #value = #value + 1 }
+
+  fn #add(amount: i32) -> i32 {
+    #value = #value + amount
+    #value
+  }
+
+  fn #rename(to: string) -> Counter {
+    Counter { value: #value, label: to }
+  }
+
+  fn describe(self: Self) -> string {
+    `${#label}: ${#value}`
+  }
+}
+
+fn tag(counter: Counter, prefix: string) -> string {
+  `${prefix} ${counter.describe()}`
+}
+
+fn main() -> void {
+  c := Counter::new("requests")
+  c.increment()
+  c.add(4)
+  print(c.describe())
+
+  renamed := c.rename("retry counter")
+  print(renamed.describe())
+
+  print(c.tag("UFCS call")) ## Method-call syntax resolves to free function tag
+}

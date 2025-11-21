@@ -142,6 +142,7 @@ module.exports = grammar({
     [$.array_literal, $.array_pattern],
     [$.pattern, $.typed_pattern],
     [$.struct_literal, $.struct_pattern],
+    [$.assignment_target, $.exponent_expression],
     [$.primary_expression, $.struct_literal_shorthand_field, $.pattern_base, $.struct_pattern_field],
     [$.struct_literal_field, $.pattern_base, $.struct_pattern_field],
     [$.primary_expression, $.struct_literal_shorthand_field],
@@ -476,10 +477,10 @@ module.exports = grammar({
       $.block,
     ),
 
-    loop_expression: $ => seq(
+    loop_expression: $ => prec.left(1, seq(
       "loop",
       $.block,
-    ),
+    )),
 
     for_statement: $ => seq(
       "for",
@@ -590,7 +591,7 @@ module.exports = grammar({
 
     await_expression: $ => seq(
       "await",
-      $.expression,
+      $.assignment_expression,
     ),
 
     breakpoint_expression: $ => seq(
@@ -736,15 +737,16 @@ module.exports = grammar({
     ),
 
     postfix_expression: $ => prec.left(
-      PREC.call,
-      seq(
-        choice(
-          $.primary_expression,
-          $.proc_expression,
-          $.spawn_expression,
-          $.breakpoint_expression,
-          $.match_expression,
-        ),
+        PREC.call,
+        seq(
+          choice(
+            $.primary_expression,
+            $.proc_expression,
+            $.spawn_expression,
+            $.await_expression,
+            $.breakpoint_expression,
+            $.match_expression,
+          ),
         repeat(choice(
           $.type_arguments,
           $.call_suffix,
@@ -953,7 +955,7 @@ module.exports = grammar({
       "]",
     ),
 
-    struct_literal: $ => seq(
+    struct_literal: $ => prec.left(-1, seq(
       field("type", $.qualified_identifier),
       field("type_arguments", optional($.type_arguments)),
       "{",
@@ -962,7 +964,7 @@ module.exports = grammar({
         optional(","),
       )),
       "}",
-    ),
+    )),
 
     struct_literal_element: $ => choice(
       $.struct_literal_spread,
@@ -1142,7 +1144,7 @@ module.exports = grammar({
 
     topic_reference: _ => token("%"),
 
-    identifier: _ => token(prec(-1, /[A-Za-z_][A-Za-z0-9_]*/)),
+    identifier: _ => token(prec(-1, /[A-KM-Za-km-zA-Z_][A-Za-z0-9_]*|l|lo|loo|l[A-Za-np-zA-Z0-9_][A-Za-z0-9_]*|lo[A-Za-np-zA-Z0-9_][A-Za-z0-9_]*|loo[A-Za-oq-zA-Z0-9_][A-Za-z0-9_]*|loop[A-Za-z0-9_]+/)),
 
     numeric_member: _ => token.immediate(/[0-9]+/),
 

@@ -46,6 +46,14 @@ function parseStatement(node: Node, source: string): Statement | null {
       const body = ctx.parseBlock(node.namedChild(1));
       return annotateStatement(AST.whileLoop(condition, body), node);
     }
+    case "loop_statement": {
+      const bodyNode = firstNamedChild(node);
+      if (!bodyNode) {
+        throw new MapperError("parser: malformed loop statement");
+      }
+      const body = ctx.parseBlock(bodyNode);
+      return annotateStatement(AST.loopExpression(body), node);
+    }
     case "for_statement": {
       if (node.namedChildCount < 3) {
         throw new MapperError("parser: malformed for statement");

@@ -1,11 +1,11 @@
-package extras.pricing
-
 fn price_for(item: string) -> i32 {
   if item == "espresso" {
     4
-  } else if item == "tonic" {
-    3
   } else {
-    5
+    if item == "tonic" {
+      3
+    } else {
+      5
+    }
   }
 }

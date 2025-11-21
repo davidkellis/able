@@ -1,11 +1,11 @@
-package core
+package core.iteration
 
 ## Sentinel returned by Iterator.next() to signal completion.
-struct IteratorEnd;
+struct IteratorEnd {}
 
 ## Stateful iterator protocol.
 interface Iterator T for Self {
-  fn next(mut self: Self) -> T | IteratorEnd;
+  fn next(self: Self) -> T | IteratorEnd;
 }
 
 ## Types that can produce iterators (for loops, comprehensions).

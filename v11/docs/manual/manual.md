@@ -1,10 +1,28 @@
-# Able v10 Manual
+# Able v11 Manual
 
-This manual mirrors the structure of the Julia language manual, providing an accelerated walkthrough of Able v10 for experienced programmers. The language specification in `spec/full_spec_v10.md` remains authoritative; the examples here focus on practical usage. Check the Go (`interpreter10-go/`) and TypeScript (`interpreter10/`) interpreters for runnable artefacts.
+Able couples a concise, block-oriented syntax with static types, algebraic data types, async/runtime helpers, and host interop. This manual mirrors the Julia language manual’s progression (getting started → basics → control flow → types → methods/interfaces → modules → async/parallelism → metaprogramming/interop) while staying faithful to the v11 specification (`spec/full_spec_v11.md`). Treat the spec as the authority; the manual is the definitive learning resource and bridges directly to runnable interpreter behaviour.
+
+## Contents
+- 1. Getting Started
+- 2. Syntax & Expressions
+- 3. Bindings & Patterns
+- 4. Types & Data Structures
+- 5. Functions & Functional Tools
+- 6. Control Flow & Pattern Matching
+- 7. Methods, Interfaces, & Dispatch
+- 8. Error Handling
+- 9. Concurrency & Async
+- 10. Modules & Packages
+- 11. Standard Library Essentials
+- 12. Dynamic Metaprogramming
+- 13. Host Interop
+- 14. Program Entry & Tooling
 
 ## 1. Getting Started
 
-Able programs live inside package directories. Top-level `fn main() -> void` definitions produce executables, mirroring `examples/hello_world.able`.
+### 1.1 Hello, Able
+
+Able source lives in packages. A package with a public `fn main() -> void` produces an executable:
 
 ```able
 package helloworld
@@ -14,94 +32,206 @@ fn main() {
 }
 ```
 
-An interactive REPL is not yet part of the toolchain, but both interpreters accept module inputs and can run fixtures or tests from the command line.
+Blocks are expressions; the last expression is the value. Braces delimit blocks—indentation is cosmetic.
 
-### 1.1 Resources
+### 1.2 Resources
 
-- Specification: `spec/full_spec_v10.md`
-- TypeScript interpreter: `interpreter10/README.md`
-- Go interpreter overview: `interpreter10-go/` and `interpreter10-go/PARITY.md`
-- Design notes: `design/` (e.g., `pattern-break-alignment.md`, `typechecker-plan.md`)
-- Shared fixtures: `fixtures/ast` and `interpreter10/scripts/run-fixtures.ts`
+- Spec (authoritative semantics): `spec/full_spec_v11.md`
+- Roadmap/status: `PLAN.md`
+- Interpreters: `v11/interpreters/ts` (Bun) and `v11/interpreters/go`
+- Fixtures/examples: `v11/fixtures`, `v11/interpreters/ts/testdata/examples`
+- Design notes: `design/` (e.g., parity plans, typechecker plan, regex plan)
 
-### 1.2 Installation
-
-Install both interpreters to keep behaviour aligned:
+### 1.3 Toolchain Setup
 
 ```bash
 # TypeScript interpreter
+cd v11/interpreters/ts
 bun install
 bun test
 
 # Go interpreter
-go mod tidy      # initial setup
-go test ./pkg/interpreter
-
-# Unified test runner
-./run_all_tests.sh --typecheck-fixtures=strict
+cd ../go
+go test ./...
 ```
 
-Use Bun ≥ 1.2 and Go ≥ 1.22. Windows users can run via WSL2.
-
-### 1.3 Running Able Code
-
-Harness existing interpreters:
+Unified harness (runs TS + Go suites and fixtures):
 
 ```bash
-# Execute shared AST fixtures with the TypeScript interpreter
-bun run scripts/run-fixtures.ts --filter hello_world
-
-# Run Go interpreter parity tests (executes Able fixtures and typechecks)
-go test ./pkg/interpreter
+./run_all_tests.sh --version=v11
 ```
 
-For ad-hoc exploration, add `.able` files under `examples/` or create new fixtures, then export with `scripts/export-fixtures.ts`.
+### 1.4 Running Able Code
 
-## 2. Variables
+- Execute fixtures via TS interpreter: `bun run scripts/run-fixtures.ts [--filter name]`
+- Export fixtures after edits: `bun run scripts/export-fixtures.ts`
+- Go parity: `go test ./pkg/interpreter`
+- Add ad-hoc `.able` files under `examples/` or a package and run through the interpreter CLIs.
 
-Able separates declaration (`:=`) from assignment (`=`). Bindings are mutable by default and values may be mutated in-place.
+### 1.5 Project Layout
 
-```able
-x := 5
-y := x * 2
-x = 8
+- `v11/`: active workspace (interpreters, parser, stdlib, fixtures)
+- `spec/`: language specs (v1–v11). Use only v11 for behaviour.
+- `v10/`: frozen—do not edit unless explicitly requested.
+- Standard library ships as `able.*` packages; the namespace is reserved.
+- Kernel builtins are minimal: host-provided globals (print, scheduler, channels/mutexes/hashers), array helpers, and string byte view only (`len_bytes`, `bytes`). Higher-level string/regex/collection helpers live in the Able stdlib layered on top.
 
-point := Point { x: 1, y: 2 }
-point.x = point.x + 1
-```
+## 2. Syntax & Expressions
 
-Patterns can appear in declarations, assignment, parameter lists, `for`, and `match`.
+### 2.1 Lexical Basics
 
-```able
-Point { x, y } := point
-{x, y} = { x + 1, y * 2 }
+- Line comments: `# comment`. No block comments.
+- Identifiers: ASCII letters, digits, `_`; cannot start with a digit.
+- Statement termination: newline or `;`. Trailing commas are allowed in lists/params.
+- Reserved tokens include `:=`, `=`, `->`, `_`, `?`, `!`, `@`/`@n` placeholders, `#`, `|`, `|>`, `...`, `..`, and backtick-string delimiters.
 
-[first, ...rest] := numbers
-Container { items: [ Data { id, ... }, ...others ] } := payload
+### 2.2 Literals
 
-if user := maybe_lookup() {
-  greet(user)
-} or {
-  log("not found")
-}
-```
+- Numbers: `123`, `1_000`, `3.14`, `2e10`, `0xff`, `0b1010`.
+- Booleans: `true`, `false`; Nil: `nil`; Void literal is the absence of value in `void` contexts.
+- Characters: `'a'`, `'\\n'`. Strings: backticks with interpolation `` `Hello ${name}` `` (UTF-8; kernel exposes byte length/iterator, stdlib adds char/grapheme helpers).
+- Arrays: `[1, 2, 3]` with element type `Array i32`. Structs: `Point { x: 1, y: 2 }`. Map literal support is via stdlib helpers.
 
-Underscore `_` ignores a position. Pattern mismatches yield `Error` values (falsy per spec §6.11).
+### 2.3 Blocks as Expressions
 
-## 3. Control Flow
-
-Blocks are expressions; the last expression yields the value. Use `do { ... }` in expression position.
+`do { ... }` evaluates to its final expression (or `void` if empty):
 
 ```able
-message := do {
-  total := compute_total()
+msg := do {
+  total := compute()
   `Total: ${total}`
 }
 ```
 
-### 3.1 Conditionals
+### 2.4 Truthiness
 
-`if … or …` chains behave like Julia’s `if/elseif/else`, returning the branch value. Only `false`, `nil`, and values of type `Error` are falsy.
+Only `false`, `nil`, and values of type `Error` are falsy. Everything else is truthy (`void` is truthy).
+
+### 2.5 Operators & Precedence
+
+Usual arithmetic/logical operators plus:
+
+- Assignment: `:=` (declare), `=` (reassign).
+- Range: `a..b` (inclusive), `a...b` (exclusive).
+- Safe navigation: `expr?.field` / `expr?.fn()` short-circuits to `nil` on `nil`.
+- Pipe forward `|>` with topic `%`: `value |> %.normalize()` or apply unary callable `value |> (@ + 1)`.
+- Placeholders: `@` or numbered `@2` inside lambdas; `%` only on the RHS of `|>`.
+- Safe navigation and indexing rely on stdlib interfaces (Index/IndexMut, etc.).
+
+Consult the spec’s precedence table; `|>` has the lowest precedence.
+
+### 2.6 String Interpolation
+
+Backtick strings interpolate with `${expr}` and preserve UTF-8. Escape backticks with `` `\`` `` and `${` with `${"{"}`.
+
+## 3. Bindings & Patterns
+
+### 3.1 Declarations vs Assignment
+
+- `name := expr` declares and initializes (type inferred unless annotated).
+- `name = expr` reassigns an existing binding.
+
+Bindings are mutable; structs/arrays/maps have mutable fields/elements.
+
+### 3.2 Patterns
+
+Patterns work in `:=`, `=`, `for`, `match`, parameter lists, and `else` handlers:
+
+- Identifier: `x`
+- Wildcard: `_`
+- Typed identifier: `count: i32`
+- Struct (named fields): `Point { x, y }`
+- Struct (positional): `{ x, y }`
+- Array: `[first, ...rest]`
+- Nested and typed patterns: `case Err { msg: string }`
+
+Pattern mismatch yields an `Error` (falsy). Typed patterns act as guards and fail if the runtime type does not conform.
+
+### 3.3 Functional Updates & Mutation
+
+Struct fields are mutable by default: `point.x = 4`. Functional copy-with-update:
+
+```able
+point = Point { ...point, y: point.y + 1 }
+```
+
+## 4. Types & Data Structures
+
+### 4.1 Type Expressions & Generics
+
+Type arguments are space-delimited: `Array string`, `Map string (Array i32)`. Generic parameters use `T`, `U`, etc.; constraints use interfaces (`T: Display + Clone`). Unused generic parameters can be inferred.
+
+### 4.2 Primitive & Composite Types
+
+- Primitives: `i8/i16/i32/i64/i128`, unsigned variants, `f32/f64`, `bool`, `char`, `string`, `nil`, `void`.
+- Arrays: typed, mutable, iterable; see stdlib helpers (§11).
+- Ranges: `Range` values from `a..b` (inclusive) or `a...b` (exclusive), usable in `for`.
+- Maps: constructed via stdlib; indexing uses `Index`/`IndexMut`.
+- Generator literal: `Iterator { gen => ... gen.yield(v) ... }` exposes an `Iterator T`.
+
+### 4.3 Structs
+
+Forms:
+
+- Singleton: `struct Active`
+- Named fields: `struct User { id: i64, name: string, email: ?string }`
+- Positional (named-tuple style): `struct Pair T U (T, U)`
+
+Instantiation matches the declaration form. Fields are mutable unless an API restricts them.
+
+### 4.4 Unions & Nullability
+
+`union` introduces sum types:
+
+```able
+union Shape =
+    Circle { radius: f64 }
+  | Rectangle { width: f64, height: f64 }
+  | Triangle { a: f64, b: f64, c: f64 }
+```
+
+`?T` ≡ `nil | T`. `!T` is shorthand used with propagation (`Error | T` or `nil | Error | T` depending on nesting). Construct variants with their struct syntax; match or type guards consume them.
+
+### 4.5 Type Aliases
+
+`type PairStr = Pair string string`. Aliases may be generic and recursive; they don’t create nominal distinctions. Aliases can be used in `methods`/`impl` definitions and across modules.
+
+## 5. Functions & Functional Tools
+
+### 5.1 Named Functions
+
+```able
+fn greet(name: string) -> string { `Hello ${name}` }
+fn add<T: Numeric>(a: T, b: T) -> T { a + b }
+```
+
+- The return type defaults to the last expression; `-> void` is explicit.
+- Early return: `return expr`.
+- Generic parameters may be explicit or inferred.
+
+### 5.2 Anonymous Functions & Lambdas
+
+- Verbose: `fn(x: i32) -> string { x.to_string() }`
+- Lambda shorthand: `{ x, y => x + y }`
+- Trailing lambda: `items.map { x => x * 2 }`
+- Closures capture lexical bindings by reference; mutation uses outer mutability rules.
+
+### 5.3 Shorthand Notation
+
+- Implicit first param (`#member`): inside functions/methods, `#field` means `self.field`.
+- Implicit self parameter: `fn #increment(by: i32) { #value = #value + by }`
+- Placeholder lambdas: `numbers.map(@ * 2)`, `add_prefix = add("hi", @2)`
+- Pipe forward: `value |> %.trim().to_string() |> (@ + "!")`
+
+### 5.4 Calls & Callable Values
+
+Standard call syntax plus method-call sugar (`value.method(args)`) that resolves through `methods`/`impl`. Any value implementing `Apply` can be invoked like `callable(arg)`; interfaces drive operator overloading (§7).
+
+## 6. Control Flow & Pattern Matching
+
+### 6.1 Conditionals
+
+`if { } or { }` chains mirror Julia’s `if/elseif/else` and yield expression values:
 
 ```able
 grade = if score >= 90 { "A" }
@@ -109,360 +239,111 @@ grade = if score >= 90 { "A" }
         or { "C or lower" }
 ```
 
-### 3.2 Loops
+### 6.2 Pattern Matching
 
-`while` and `for` loops evaluate to `void`.
-
-```able
-while counter < 3 {
-  print(counter)
-  counter = counter + 1
-}
-
-for {item, idx} in items.enumerate() {
-  print(`items[${idx}] = ${item}`)
-}
-
-for n in 0...len { total = total + n }   ## exclusive upper bound
-```
-
-### 3.3 Breakpoints
-
-`breakpoint 'label { ... }` establishes an exit point; `break 'label value` unwinds to it. Plain `break` targets the innermost loop.
+`match` is an expression. Patterns may bind, destructure, and guard:
 
 ```able
-winner = breakpoint 'scan {
-  for cand in candidates {
-    if cand.score > threshold {
-      break 'scan cand
-    }
-  }
-  nil
-}
-```
-
-## 4. Functions
-
-Functions are first-class. Implicit returns use the last expression; `return` exits early.
-
-```able
-fn greet(name: string) -> string {
-  `Hello ${name}`
-}
-
-fn make_adder(delta: i32) -> (i32 -> i32) {
-  { value => value + delta }
-}
-
-fn find_first_negative(items: Array i32) -> ?i32 {
-  for item in items {
-    if item < 0 { return item }
-  }
-  nil
-}
-```
-
-### 4.1 Lambdas & Placeholders
-
-- Lambda shorthand: `{ x, y => x + y }`
-- Verbose anonymous function: `fn(x: i32) -> string { x.to_string() }`
-- Placeholder lambdas: `numbers.map(@ * 2)`, `add_10 = add(@, 10)`
-
-Trailing lambdas mirror Julia’s `do` blocks:
-
-```able
-sum = numbers.reduce(0) { acc, n => acc + n }
-```
-
-### 4.2 Pipelines
-
-`|>` forwards values. The RHS must reference `%` (topic) or evaluate to a unary callable.
-
-```able
-result = value
-  |> %.normalize()
-  |> clamp(@, 0, 1)
-  |> (@ * 100)
-```
-
-## 5. Types
-
-Able is statically typed with inference. Annotations use `name: Type`. Runtime values must have concrete types.
-
-### 5.1 Primitive & Collection Types
-
-- Numbers (`i32`, `u64`, `f64`), `bool`, `char`, `string`, `nil`, `void`
-- Arrays: `[1, 2, 3]`, `numbers.size()`, `numbers[0]`
-- Ranges: `1..10` (inclusive), `0...len` (exclusive)
-- Maps: `scores["Ada"] = 42` via stdlib helpers
-
-### 5.2 Structs
-
-```able
-struct User {
-  id: i64,
-  name: string,
-  email: ?string
-}
-
-struct Pair T U (T, U)
-struct Active
-
-user := User { id: 1, name: "Ada", email: nil }
-```
-
-Fields are mutable. Structural updates copy and override fields:
-
-```able
-user = User { ...user, email: "ada@example.com" }
-```
-
-### 5.3 Generics
-
-```able
-struct Box T { value: T }
-
-fn wrap<T>(value: T) -> Box T {
-  Box { value }
-}
-
-fn describe<T: Display + Clone>(value: T) -> string {
-  copy := value.clone()
-  copy.to_string()
-}
-```
-
-Type expressions use space-separated arguments (`Array string`, `Map string User`). Parenthesize for grouping (`Map string (Array i32)`).
-
-## 6. Methods
-
-### 6.1 Inherent Methods
-
-```able
-struct Counter { value: i32 }
-
-methods Counter {
-  fn new(start: i32) -> Self { Counter { value: start } }
-
-  fn #increment(by: i32 = 1) -> void {
-    #value = #value + by
-  }
-}
-```
-
-`#field` is shorthand for accessing the first parameter’s member (`self` by convention).
-
-### 6.2 Interfaces & Implementations
-
-Interfaces capture behaviour; `impl` provides concrete bodies.
-
-```able
-interface Display for T {
-  fn to_string(self: Self) -> string
-}
-
-impl Display for User {
-  fn to_string(self: Self) -> string {
-    `User(${self.id}, ${self.name})`
-  }
-}
-```
-
-Specificity rules prefer concrete implementations over generic ones. Name an `impl` to disambiguate:
-
-```able
-Sum = impl Monoid for i32 {
-  fn id() -> Self { 0 }
-  fn op(self: Self, other: Self) -> Self { self + other }
-}
-
-total = Sum.op(2, 3)
-```
-
-Values typed as interfaces perform dynamic dispatch:
-
-```able
-fn render(value: Display) -> string {
-  value.to_string()
-}
-```
-
-## 7. Constructors & Updates
-
-Struct literals require all fields. Positional structs use tuple syntax. Singleton structs carry one value equal to their type name.
-
-```able
-origin := Point { x: 0, y: 0 }
-polar := Polar { radius: 1.0, theta: 0.0 }
-polar = Polar { ...polar, theta: pi / 2.0 }
-
-state := Active
-```
-
-Arrays, ranges, channels, and maps rely on stdlib builders (see `stdlib/` and `design/channels-mutexes.md`).
-
-## 8. Pattern Matching & Unions
-
-`union` declares algebraic data types. `?T` (`nil | T`) and `!T` (`Error | T`) are shorthands.
-
-```able
-union Shape =
-    Circle { radius: f64 }
-  | Rectangle { width: f64, height: f64 }
-  | Triangle { a: f64, b: f64, c: f64 }
-
-area = shape match {
-  case Circle { radius } => 3.141592653589793 * radius * radius,
+desc = shape match {
+  case Circle { radius } => radius * radius * 3.1415926535,
   case Rectangle { width, height } => width * height,
-  case Triangle { a, b, c } => {
+  case Triangle { a, b, c } if a + b > c => {
     s = (a + b + c) / 2.0
     (s * (s - a) * (s - b) * (s - c)).sqrt()
   }
 }
 ```
 
-Patterns support guards (`case v: i32 if v > 0`) and interface types. Non-exhaustive matches raise exceptions at runtime.
+Non-exhaustive matches raise at runtime. Matching on interface types uses runtime dictionaries.
 
-`else` bridges optional/Result values:
+### 6.3 Loops
+
+- `while cond { ... }`
+- `for pattern in iterable { ... }` uses `Iterable`/`Iterator`.
+- `loop { ... }` is an expression; `break value` yields `value`.
+- `continue` skips to the next iteration.
+- Range loops: `for i in 0...len { ... }`
+
+### 6.4 Breakpoints & Non-Local Break
+
+`breakpoint 'label { ... }` establishes an exit; `break 'label value` unwinds to it. Plain `break` targets the innermost loop.
+
+### 6.5 Safe Navigation
+
+`value?.field` and `value?.fn()` short-circuit to `nil` if the left side is `nil`; otherwise they behave like standard access/call. Chaining is allowed.
+
+## 7. Methods, Interfaces, & Dispatch
+
+### 7.1 Inherent Methods (`methods`)
+
+Define methods directly on a type:
 
 ```able
-username = maybe_name else { "guest" }
-config = load_config() else { |err|
-  log(`using anonymous mode: ${err.message()}`)
-  default_config()
+methods Counter {
+  fn new(start: i32) -> Self { Counter { value: start } }
+  fn #inc(by: i32 = 1) { #value = #value + by }
 }
 ```
 
-`expr!` unwraps `?T`, `!T`, or `nil | Error | T`, propagating failures.
+Method-call syntax (`counter.inc(2)`) is sugar for calling these functions with an implicit receiver argument.
 
-## 9. Modules
+### 7.2 Interfaces
 
-Package paths mirror directory structure (hyphen → underscore). Declare subpackages with `package analytics.reports`. Top-level definitions are public unless marked `private`.
+Interfaces describe behaviour; `Self` refers to the implementing type when omitted from `for`:
 
 ```able
-import math
-import math.{sqrt, pow}
-import io as console
-import io.{print as println}
+interface Display for T { fn to_string(self: Self) -> string }
+interface Iterable T { fn iterator(self: Self) -> (Iterator T) }
 ```
 
-`import pkg.*` brings every public name—prefer selective imports. `dynimport` resolves runtime-defined packages in interpreter builds.
+Interfaces may have default bodies (including static methods).
 
-Executables arise from packages defining `fn main()`. Use `os.args()` for CLI arguments and `os.exit(code)` for non-zero termination.
-
-### 9.1 Standard Math Helpers
-
-The bundled `math` module includes common constants and helpers so you can keep numeric code concise:
-
-- Constants — `math.pi()`, `math.tau()`, `math.half_pi()`, `math.e()`.
-- Basic helpers — `math.abs`, `math.min`, `math.max`, `math.clamp`, integer counterparts (`abs_i64`, `clamp_i64`), and `math.sign`.
-- Transformations — `math.deg_to_rad`, `math.rad_to_deg`, `math.lerp`, `math.approx_eq` (with tolerance).
-- Core functions — `math.sqrt` (with UFCS so `value.sqrt()` works), integer-exponent `math.pow`, and `math.hypot`.
-- Rounding & range helpers — `math.floor`, `math.ceil`, `math.round`, `math.trunc`, `math.fract`, `math.clamp01`, `math.inverse_lerp`, `math.remap`, `math.remap_clamped`, `math.wrap`, `math.wrap_angle_radians`, plus integer helpers `math.gcd` / `math.lcm`.
-
-Import what you need:
+### 7.3 Implementations (`impl`)
 
 ```able
-import math.{sqrt, pow, pi, hypot}
-radius := 12.5
-area := pi() * pow(radius, 2)
-diag := hypot(3.0, 4.0)
+impl Display for User {
+  fn to_string(self: Self) -> string { `User(${self.id}, ${self.name})` }
+}
 ```
 
-### 9.2 Numeric Interfaces
+- Generic and higher-kinded `impl` forms are allowed (`impl Hashable A for Array`).
+- Overlapping impls pick the most specific; ambiguity is an error until imports are pruned.
+- `impl` visibility follows normal rules; interface-typed values carry the impl dictionary for dynamic dispatch even when the impl is not in scope.
+- Named impls provide explicit disambiguation (`Sum = impl Monoid for i32 { ... }`).
 
-Import `able.core.numeric` to access the algebraic interfaces (`Numeric`, `Integral`, `Signed`, `Unsigned`, `NumericConversions`, etc.). The `able.numbers.primitives` module provides implementations of those interfaces for the built-in integer/float types, so once you import it you can call helpers directly on literals/values:
+### 7.4 Method Call Resolution
 
-```able
-import able.core.numeric
-import able.numbers.primitives
+Method calls search inherent methods (`methods`), then applicable `impl` methods in scope, using named impls only when explicitly qualified. Operator syntax (`+`, `[]`, `call`, comparison, Display, Error) lowers to the standard interface catalogue (§11.4).
 
-expect((-5).abs()).to(eq(5))
-result := 17.div_mod(5)
-expect(result.remainder).to(eq(2))
-expect(12.0.to_i32()).to(eq(12))
-expect(3.75.floor()).to(eq(3.0))
-expect((-2.25).fract()).to(eq(0.75))
-```
+## 8. Error Handling
 
-These traits back higher-level helpers like `sum`, `product`, and upcoming collection reducers.
+### 8.1 Option/Result Unions and Propagation
 
-### 9.3 Rational Numbers
-
-`able.numbers.rational` introduces an exact `Rational` type implemented purely in Able. Rationals always stay in lowest terms, keep denominators positive, and participate in the numeric/typeclass hierarchy (`Numeric`, `Signed`, `Fractional`, `NumericConversions`, `Display`, `Eq`, `Ord`).
+- `?T` is `nil | T`; `!T` is `Error | T` (or nested with `nil`).
+- `expr!` unwraps and propagates `nil`/`Error` early from `!` or `?` expressions.
 
 ```able
-import able.numbers.rational.{Rational}
-
-half := Rational.new(1, 2)
-third := Rational.new(1, 3)
-sum := half.add(third)        ## => 5/6
-scaled := sum.mul(Rational.new(7, 5))
-
-expect(sum.round().to_i64()).to(eq(1))
-expect(scaled.to_f64()).to(be_within(1e-12, 1.1666666667))
-```
-
-Use `Rational.from_i64` for integers, `reciprocal`/`abs`/`clamp` for helpers, and the conversion APIs (`to_i32`, `to_f64`, …) when an exact fraction needs to become a primitive. All operations raise the usual numeric errors (`DivisionByZeroError`, `OverflowError`, or `NumericConversionError`) when invariants are violated.
-
-### 9.4 128-bit Integers
-
-The `able.numbers.int128` module provides an `Int128` struct that stores signed 128-bit values as two `u64` chunks. Even though the interpreters already expose primitive `i128` literals, `Int128` is useful when you need explicit control over the representation (serialization, bit fiddling, deterministic arithmetic across runtimes).
-
-```able
-import able.numbers.int128.{Int128}
-
-total := Int128.from_i128(0_i128)
-value := Int128.from_i128(2_i128.pow(96)!)
-total = total.add(value)
-total = total.sub(Int128.from_i64(1))
-
-expect(total.to_string()).to(eq("79228162514264337589248983039"))
-expect(total.to_i64()).to(raise_error()) ## overflows native i64
-```
-
-The companion `able.numbers.uint128` module exposes an unsigned variant (`UInt128`) that spans `[0, 2^128 - 1]` while still storing the value as `(high: u64, low: u64)`. `UInt128` implements the unsigned numeric stack (`Numeric`, `Unsigned`, `NumericConversions`, `Eq`, `Ord`) and keeps its operations checked:
-
-```able
-import able.numbers.uint128.{UInt128}
-
-mask := UInt128.from_u128(0xffffffffffffffffffffffffffffffffffff_u128)
-half := mask.div(UInt128.from_u64(2))
-
-expect(mask.add(UInt128.one())).to(raise_error()) ## overflow
-expect(half.rem(UInt128.from_u64(3)).to_u64()).to(eq(1_u64))
-```
-
-Core helpers for both structs mirror each other: `add`, `sub`, `mul`, `div`, `rem`, `negate` (signed only), `abs`, `clamp`, `compare`, plus the numeric conversions (`to_i32`, `to_u32`, `to_i64`, `to_u64`, `to_f64`). Division/remainder raise `DivisionByZeroError`; out-of-range conversions raise `NumericConversionError`; arithmetic that exceeds 128 bits raises `OverflowError`.
-
-## 10. Error Handling
-
-Able blends Option/Result unions with exceptions.
-
-### 10.1 Propagation with `!`
-
-```able
-fn read_config(path: string) -> !Config { ... }
-
 fn boot() -> !void {
-  config := read_config(path)!
-  port := config.port else { 8080 }
+  config := read_config(path)!       ## returns early on Error
+  port := config.port else { 8080 }  ## handle nil/err inline
   start_server(config.host, port)!
 }
 ```
 
-`expr!` unwraps successes and returns early on `nil` or `Error`. The enclosing function must return a compatible union.
+### 8.2 `else` Handlers
 
-### 10.2 Exceptions
-
-`raise` throws errors; `rescue` handles them.
+`value else { fallback }` handles `nil` or `Error` payloads. The handler may capture the error:
 
 ```able
-fn divide(a: i32, b: i32) -> i32 {
-  if b == 0 { raise DivideByZeroError {} }
-  a / b
-}
+name = maybe_name else { "guest" }
+content = read_file(path) else { |err| raise FileError { msg: err.message() } }
+```
 
+### 8.3 Exceptions
+
+`raise` throws an `Error` value; `rescue` catches:
+
+```able
 ratio = do { divide(total, count) } rescue {
   case _: DivideByZeroError => 0,
   case e: Error => {
@@ -472,71 +353,137 @@ ratio = do { divide(total, count) } rescue {
 }
 ```
 
-Use `ensure`/`rethrow` (spec §11.3) for finally-style cleanup and propagation.
+Use `ensure` for finally-style cleanup and `rethrow` to propagate within `rescue`.
 
-## 11. Concurrency
+## 9. Concurrency & Async
 
-Able mirrors Go-style concurrency with `proc`, `spawn`, channels, and mutexes.
+Able mirrors Go-style semantics with shared interfaces across runtimes.
 
-### 11.1 `proc`
+### 9.1 `proc` (Cooperative Tasks)
+
+`proc expr` spawns an asynchronous task and returns `Proc T`:
 
 ```able
-handle: Proc string = proc fetch_data(url)
-
-proc_flush(32)
+handle: Proc string = proc fetch(url)
+proc_flush(32) ## advance cooperative scheduler (TS runtime exposes this helper)
 
 handle.status() match {
-  case Pending => log("still fetching..."),
-  case Failed { error } => log(`fetch failed: ${error.message()}`),
-  case Cancelled => log("cancelled"),
-  case Resolved => void
+  case Pending => log("waiting..."),
+  case Failed { error } => log(error.message()),
+  case Resolved => void,
+  case Cancelled => log("cancelled")
 }
 
-content = handle.value() else { |err|
-  log(`background fetch failed: ${err.message()}`)
-  "fallback"
-}
+body = handle.value() else { "fallback" }
 ```
 
-`Proc T` exposes `status()`, `value() -> !T`, and `cancel()`. Inside async bodies, use `proc_yield()`, `proc_cancelled()`, `proc_flush(limit?)`, and `proc_pending_tasks()` (diagnostic helper that reports the current executor queue length when available).
+`Proc` exposes `status()`, `value() -> !T`, and `cancel()`. Helpers inside async bodies: `proc_yield()`, `proc_cancelled()`, `proc_flush(limit?)`, `proc_pending_tasks()` (diagnostic).
 
-### 11.2 `spawn`
+### 9.2 `spawn` (Futures)
+
+`spawn expr` returns `Future T`; evaluating it blocks and yields `T`, re-raising task exceptions. Futures memoize results and also expose `status()`/`value()` via a handle. Use when lifecycle control is unnecessary.
+
+### 9.3 `await` & `Awaitable`
+
+`await [arms...]` selects the first ready `Awaitable`, applying its callback and returning that result. Arms expose `is_ready`, `register(waker)`, and `commit` to integrate with the scheduler. `Await.default` provides a single default arm. Runtimes must choose fairly when multiple arms are ready and honour cancellation by waking blocked tasks.
+
+### 9.4 Channels & Mutexes
+
+- `Channel T`: Go semantics (rendezvous when unbuffered, FIFO buffering). `send`, `receive -> ?T`, `try_send`, `try_receive`, `close`, `is_closed`. Iteration drains until closed. Await arms `try_recv/try_send` integrate with `await`. Errors: `ChannelClosed`, `ChannelNil`, `ChannelSendOnClosed`, `ChannelTimeout`.
+- `Mutex`: non-reentrant mutual exclusion. `lock`, `unlock`; helper patterns ensure unlock on every path. Errors include `MutexUnlocked` (and reserved `MutexPoisoned`).
+
+### 9.5 Cancellation & Re-entrancy
+
+Blocking operations must observe task cancellation. `value()` calls are re-entrant: nested waits must continue to make progress in both runtimes.
+
+## 10. Modules & Packages
+
+### 10.1 Package Names & Layout
+
+- Root package name comes from `package.yml` (`name` field, hyphen → underscore).
+- Directory structure maps to package paths; hyphenated directories become underscores.
+- `package foo.bar` inside a file appends segments; omitting `package` uses the directory-derived package.
+
+### 10.2 Imports
 
 ```able
-future_total: Future i64 = spawn sum_big_array(data)
-
-print("Computing...")
-total = future_total
-print(`Total: ${total}`)
+import math
+import math.{sqrt, pow}
+import io as console
+import io.{print as println}
+import math.*
 ```
 
-Evaluating a `Future T` blocks and yields `T`, re-raising exceptions from the task.
+Use selective imports to avoid collisions. Imports may appear in any scope.
 
-### 11.3 Channels & Mutexes
+### 10.3 Visibility
 
-`Channel T` and `Mutex` mirror Go semantics.
+Top-level items are public unless prefixed with `private`. An `impl` participates at a call site only if in scope; interface-typed values carry their impl dictionaries for dynamic dispatch even when the impl is not imported.
 
-```able
-ch: Channel string = Channel.new(0)
+### 10.4 Dynamic Imports (`dynimport`)
 
-producer = proc do {
-  for name in names { ch.send(name) }
-  ch.close()
-}
+Binds names from runtime-defined packages (interpreted mode). Resolution mirrors static imports but happens at runtime; missing packages/names raise `Error`.
 
-for value in ch {
-  print(`hello ${value}`)
-}
-```
+### 10.5 Module Search Order & Standard Library
 
-Channels block on send/receive, support `try_send`/`try_receive`, and return `nil` when closed and drained. Mutexes are non-reentrant; use helpers that guarantee `unlock()` on every path (see `design/channels-mutexes.md`).
+Loader search order (deduplicated):
 
-## 12. Tooling & Next Steps
+1. Workspace roots (entry manifest directory and ancestors)
+2. Current working directory / CLI-provided roots
+3. `ABLE_PATH` entries
+4. `ABLE_MODULE_PATHS` entries (preferred override for fixtures/REPL)
+5. Standard library roots from `ABLE_STD_LIB` or bundled path
 
-- **Spec-first:** align with `spec/full_spec_v10.md`; update it when behaviour changes. Track open items in `spec/todo.md`.
-- **Shared fixtures:** edit `.able` sources, run `bun run scripts/export-fixtures.ts`, then execute both interpreters (`bun run scripts/run-fixtures.ts`, `go test ./pkg/interpreter`).
-- **Design alignment:** capture decisions in `design/` and update `PLAN.md`/`interpreter10/PLAN.md`.
-- **Testing:** `./run_all_tests.sh` orchestrates TypeScript tests, fixture runs, and Go parity checks; use `--typecheck-fixtures=strict` before landing runtime changes.
-- **Further reading:** explore `examples/*.able`, interpreter tests (`interpreter10/test/`), and concurrency notes in `design/`.
+Collisions of the same package path across roots are errors. `able.*` is reserved for the bundled stdlib; tooling treats it as read-only and honour overrides via `ABLE_STD_LIB=/path/to/stdlib/src`.
 
-Able emphasises clarity, expressive types, and cross-runtime parity. When semantics are unclear, exercise fixtures in both interpreters, compare with the Go implementation, and document findings for future contributors.
+## 11. Standard Library Essentials
+
+### 11.1 Strings & Graphemes
+
+- Length helpers: `len_bytes`, `len_chars`, `len_graphemes`
+- `substring`, `split`, `replace`, `starts_with`, `ends_with`
+- Iterators over bytes/chars/graphemes; interpolation uses UTF-8 data
+
+### 11.2 Arrays
+
+Helpers: `size`, `push`, `pop`, `get`, `set`, `clear` with `IndexError` on invalid indices. Arrays satisfy `Iterable`.
+
+### 11.3 Text Regex (`able.text.regex`)
+
+Deterministic (RE2-style) regexes with compile/match/split/replace helpers, regex sets, streaming scanner, and grapheme-aware options. Errors surface as `RegexError`.
+
+### 11.4 Interface Catalogue (language-supported)
+
+Syntax sugar lowers to stdlib interfaces:
+
+- Indexing: `Index`, `IndexMut`
+- Iteration: `Iterable`, `Iterator`, `Range`
+- Callable values: `Apply`
+- Operators: arithmetic/bitwise, comparison, hashing
+- Display & Error: `Display`, `Error`
+- Object utilities: `Clone`, `Default`
+- Concurrency: `Proc`, `ProcError`, `Awaitable`
+
+Collection and async types in stdlib implement the relevant interfaces.
+
+### 11.5 Numeric & Utility Modules
+
+Math helpers (`abs`, `min/max`, `clamp`, `pow`, `sqrt`, rounding), numeric interfaces/impls, rational and 128-bit integer helpers, plus other bundled modules under `able.*`.
+
+## 12. Dynamic Metaprogramming
+
+Interpreted execution can create/extend dynamic packages and import them via `dynimport`. Package objects expose late-bound namespaces. Dynamic calls are shape-checked at runtime; static code may adapt dynamic values to interfaces when required.
+
+## 13. Host Interop
+
+Embed host-language code via package-scope `prelude <target> { ... }` and `extern <target> fn ... { ... }` bodies (Go, Crystal, TypeScript, Python, Ruby). Only core primitive/container mappings are supported (copy-in/copy-out for arrays). `host_error(message)` converts host failures to Able `Error`s. Extern bodies execute in-place and may block; dynamic packages cannot contain extern bodies. Multiple extern targets may back a function; Able bodies act as fallback when present.
+
+## 14. Program Entry & Tooling
+
+- Any package with public `fn main() -> void` produces a binary named after the package path. Multiple binaries are allowed.
+- `os.args()` provides CLI args; returning from `main` exits 0; unhandled exceptions exit 1; use `os.exit(code)` for custom codes.
+- Background `proc`/`spawn` tasks are not awaited when `main` returns—join explicitly if needed.
+- Testing: keep TS + Go interpreters in sync. Run `bun test`, `go test ./...`, `bun run scripts/run-fixtures.ts`, `go test ./pkg/interpreter`, and `./run_all_tests.sh --version=v11` before landing changes.
+- Fixtures: update `v11/fixtures`, export via `bun run scripts/export-fixtures.ts`, and ensure parity stays green.
+
+Able emphasises clarity, parity between interpreters, and spec-first behaviour. When in doubt, check the v11 spec, add fixtures, and validate in both runtimes.

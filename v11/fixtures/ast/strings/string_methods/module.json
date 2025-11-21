@@ -1,0 +1,232 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "s"
+      },
+      "right": {
+        "type": "StringLiteral",
+        "value": "héllo"
+      }
+    },
+    {
+      "type": "ArrayLiteral",
+      "elements": [
+        {
+          "type": "FunctionCall",
+          "callee": {
+            "type": "MemberAccessExpression",
+            "object": {
+              "type": "Identifier",
+              "name": "s"
+            },
+            "member": {
+              "type": "Identifier",
+              "name": "len_bytes"
+            }
+          },
+          "arguments": [],
+          "isTrailingLambda": false
+        },
+        {
+          "type": "FunctionCall",
+          "callee": {
+            "type": "MemberAccessExpression",
+            "object": {
+              "type": "Identifier",
+              "name": "s"
+            },
+            "member": {
+              "type": "Identifier",
+              "name": "len_chars"
+            }
+          },
+          "arguments": [],
+          "isTrailingLambda": false
+        },
+        {
+          "type": "FunctionCall",
+          "callee": {
+            "type": "MemberAccessExpression",
+            "object": {
+              "type": "Identifier",
+              "name": "s"
+            },
+            "member": {
+              "type": "Identifier",
+              "name": "len_graphemes"
+            }
+          },
+          "arguments": [],
+          "isTrailingLambda": false
+        },
+        {
+          "type": "PropagationExpression",
+          "expression": {
+            "type": "FunctionCall",
+            "callee": {
+              "type": "MemberAccessExpression",
+              "object": {
+                "type": "Identifier",
+                "name": "s"
+              },
+              "member": {
+                "type": "Identifier",
+                "name": "substring"
+              }
+            },
+            "arguments": [
+              {
+                "type": "IntegerLiteral",
+                "value": 1
+              },
+              {
+                "type": "IntegerLiteral",
+                "value": 3
+              }
+            ],
+            "isTrailingLambda": false
+          }
+        },
+        {
+          "type": "PropagationExpression",
+          "expression": {
+            "type": "FunctionCall",
+            "callee": {
+              "type": "MemberAccessExpression",
+              "object": {
+                "type": "Identifier",
+                "name": "s"
+              },
+              "member": {
+                "type": "Identifier",
+                "name": "substring"
+              }
+            },
+            "arguments": [
+              {
+                "type": "IntegerLiteral",
+                "value": 2
+              }
+            ],
+            "isTrailingLambda": false
+          }
+        },
+        {
+          "type": "FunctionCall",
+          "callee": {
+            "type": "MemberAccessExpression",
+            "object": {
+              "type": "Identifier",
+              "name": "s"
+            },
+            "member": {
+              "type": "Identifier",
+              "name": "split"
+            }
+          },
+          "arguments": [
+            {
+              "type": "StringLiteral",
+              "value": "l"
+            }
+          ],
+          "isTrailingLambda": false
+        },
+        {
+          "type": "FunctionCall",
+          "callee": {
+            "type": "MemberAccessExpression",
+            "object": {
+              "type": "Identifier",
+              "name": "s"
+            },
+            "member": {
+              "type": "Identifier",
+              "name": "split"
+            }
+          },
+          "arguments": [
+            {
+              "type": "StringLiteral",
+              "value": ""
+            }
+          ],
+          "isTrailingLambda": false
+        },
+        {
+          "type": "FunctionCall",
+          "callee": {
+            "type": "MemberAccessExpression",
+            "object": {
+              "type": "Identifier",
+              "name": "s"
+            },
+            "member": {
+              "type": "Identifier",
+              "name": "replace"
+            }
+          },
+          "arguments": [
+            {
+              "type": "StringLiteral",
+              "value": "l"
+            },
+            {
+              "type": "StringLiteral",
+              "value": "L"
+            }
+          ],
+          "isTrailingLambda": false
+        },
+        {
+          "type": "FunctionCall",
+          "callee": {
+            "type": "MemberAccessExpression",
+            "object": {
+              "type": "Identifier",
+              "name": "s"
+            },
+            "member": {
+              "type": "Identifier",
+              "name": "starts_with"
+            }
+          },
+          "arguments": [
+            {
+              "type": "StringLiteral",
+              "value": "hé"
+            }
+          ],
+          "isTrailingLambda": false
+        },
+        {
+          "type": "FunctionCall",
+          "callee": {
+            "type": "MemberAccessExpression",
+            "object": {
+              "type": "Identifier",
+              "name": "s"
+            },
+            "member": {
+              "type": "Identifier",
+              "name": "ends_with"
+            }
+          },
+          "arguments": [
+            {
+              "type": "StringLiteral",
+              "value": "lo"
+            }
+          ],
+          "isTrailingLambda": false
+        }
+      ]
+    }
+  ]
+}

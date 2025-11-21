@@ -325,6 +325,127 @@ describe("channel helpers", () => {
       expect(payload?.def.id.name).toBe("ChannelSendOnClosed");
     }
   });
+
+  test("await receive arm resolves when a message arrives", () => {
+    const I = new InterpreterV10();
+
+    I.evaluate(
+      AST.assignmentExpression(
+        ":=",
+        AST.identifier("ch"),
+        call("__able_channel_new", [AST.integerLiteral(0)]),
+      ),
+    );
+    I.evaluate(AST.assignmentExpression(":=", AST.identifier("result"), AST.stringLiteral("pending")));
+
+    I.evaluate(
+      AST.assignmentExpression(
+        ":=",
+        AST.identifier("receiver"),
+        AST.procExpression(
+          AST.blockExpression([
+            AST.assignmentExpression(
+              "=",
+              AST.identifier("result"),
+              AST.awaitExpression(
+                AST.arrayLiteral([
+                  call("__able_channel_await_try_recv", [
+                    AST.identifier("ch"),
+                    AST.lambdaExpression([AST.functionParameter("v")], AST.identifier("v")),
+                  ]),
+                ]),
+              ),
+            ),
+          ]),
+        ),
+      ),
+    );
+
+    I.evaluate(
+      AST.assignmentExpression(
+        ":=",
+        AST.identifier("sender"),
+        AST.procExpression(
+          AST.blockExpression([
+            call("__able_channel_send", [AST.identifier("ch"), AST.stringLiteral("ping")]),
+            AST.stringLiteral("done"),
+          ]),
+        ),
+      ),
+    );
+
+    I.evaluate(call("proc_flush"));
+
+    const receiverStatus = I.evaluate(memberCall("receiver", "status")) as any;
+    const senderStatus = I.evaluate(memberCall("sender", "status")) as any;
+    expect(receiverStatus.def.id.name).toBe("Resolved");
+    expect(senderStatus.def.id.name).toBe("Resolved");
+    const finalValue = I.evaluate(AST.identifier("result")) as any;
+    expect(finalValue).toEqual({ kind: "string", value: "ping" });
+  });
+
+  test("await send arm waits for a receiver and runs the callback", () => {
+    const I = new InterpreterV10();
+
+    I.evaluate(
+      AST.assignmentExpression(
+        ":=",
+        AST.identifier("ch"),
+        call("__able_channel_new", [AST.integerLiteral(0)]),
+      ),
+    );
+    I.evaluate(AST.assignmentExpression(":=", AST.identifier("result"), AST.stringLiteral("pending")));
+
+    I.evaluate(
+      AST.assignmentExpression(
+        ":=",
+        AST.identifier("sender"),
+        AST.procExpression(
+          AST.blockExpression([
+            AST.assignmentExpression(
+              "=",
+              AST.identifier("result"),
+              AST.awaitExpression(
+                AST.arrayLiteral([
+                  call("__able_channel_await_try_send", [
+                    AST.identifier("ch"),
+                    AST.stringLiteral("payload"),
+                    AST.lambdaExpression([], AST.stringLiteral("sent")),
+                  ]),
+                ]),
+              ),
+            ),
+          ]),
+        ),
+      ),
+    );
+
+    I.evaluate(
+      AST.assignmentExpression(
+        ":=",
+        AST.identifier("receiver"),
+        AST.procExpression(
+          AST.blockExpression([
+            call("__able_channel_receive", [AST.identifier("ch")]),
+          ]),
+        ),
+      ),
+    );
+
+    I.evaluate(call("proc_flush"));
+
+    const senderStatus = I.evaluate(memberCall("sender", "status")) as any;
+    const receiverStatus = I.evaluate(memberCall("receiver", "status")) as any;
+    expect(senderStatus.def.id.name).toBe("Resolved");
+    expect(receiverStatus.def.id.name).toBe("Resolved");
+
+    const senderValue = I.evaluate(memberCall("sender", "value")) as any;
+    expect(senderValue).toEqual({ kind: "string", value: "sent" });
+    const receiverValue = I.evaluate(memberCall("receiver", "value")) as any;
+    expect(receiverValue).toEqual({ kind: "string", value: "payload" });
+    const finalResult = I.evaluate(AST.identifier("result")) as any;
+    expect(finalResult).toEqual({ kind: "string", value: "sent" });
+  });
 });
 
 describe("mutex helpers", () => {
@@ -346,6 +467,17 @@ describe("mutex helpers", () => {
     ).toThrow("Mutex already locked");
 
     I.evaluate(call("__able_mutex_unlock", [AST.identifier("mutex")]));
-    I.evaluate(call("__able_mutex_unlock", [AST.identifier("mutex")]));
+    try {
+      I.evaluate(call("__able_mutex_unlock", [AST.identifier("mutex")]));
+      throw new Error("expected unlock to raise");
+    } catch (err) {
+      expect(err).toBeInstanceOf(RaiseSignal);
+      const signal = err as RaiseSignal;
+      expect(signal.value.kind).toBe("error");
+      expect(signal.value.message).toContain("unlock");
+      const payload = signal.value.value;
+      expect(payload?.kind).toBe("struct_instance");
+      expect(payload?.def.id.name).toBe("MutexUnlocked");
+    }
   });
 });

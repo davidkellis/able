@@ -63,6 +63,13 @@ func (i *Interpreter) memberAccessOnValue(obj runtime.Value, member ast.Expressi
 			return nil, fmt.Errorf("Error member access on nil value")
 		}
 		return i.errorMember(*v, member, env)
+	case runtime.StringValue:
+		return i.stringMember(v, member)
+	case *runtime.StringValue:
+		if v == nil {
+			return nil, fmt.Errorf("String member access on nil value")
+		}
+		return i.stringMember(*v, member)
 	default:
 		if ident, ok := member.(*ast.Identifier); ok {
 			if bound, ok := i.tryUfcs(env, ident.Name, obj); ok {

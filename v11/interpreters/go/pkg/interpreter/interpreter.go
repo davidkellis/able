@@ -219,43 +219,49 @@ func (f *placeholderFrame) nextImplicitIndex() (int, error) {
 
 // Interpreter drives evaluation of Able v10 AST nodes.
 type Interpreter struct {
-	global          *runtime.Environment
-	inherentMethods map[string]map[string]*runtime.FunctionValue
-	interfaces      map[string]*runtime.InterfaceDefinitionValue
-	implMethods     map[string][]implEntry
+	global               *runtime.Environment
+	inherentMethods      map[string]map[string]*runtime.FunctionValue
+	interfaces           map[string]*runtime.InterfaceDefinitionValue
+	implMethods          map[string][]implEntry
 	rangeImplementations []rangeImplementation
-	unnamedImpls    map[string]map[string]map[string]struct{}
-	packageRegistry map[string]map[string]runtime.Value
-	packageMetadata map[string]packageMeta
-	currentPackage  string
-	executor        Executor
-	rootState       *evalState
+	unnamedImpls         map[string]map[string]map[string]struct{}
+	packageRegistry      map[string]map[string]runtime.Value
+	packageMetadata      map[string]packageMeta
+	currentPackage       string
+	executor             Executor
+	rootState            *evalState
 
-	concurrencyReady    bool
-	procErrorStruct     *runtime.StructDefinitionValue
-	procStatusStructs   map[string]*runtime.StructDefinitionValue
-	procStatusPending   runtime.Value
-	procStatusResolved  runtime.Value
-	procStatusCancelled runtime.Value
+	concurrencyReady     bool
+	procErrorStruct      *runtime.StructDefinitionValue
+	procStatusStructs    map[string]*runtime.StructDefinitionValue
+	procStatusPending    runtime.Value
+	procStatusResolved   runtime.Value
+	procStatusCancelled  runtime.Value
+	awaitWakerStruct     *runtime.StructDefinitionValue
+	awaitRoundRobinIndex int
 
-	channelMutexReady   bool
-	channelMu           sync.Mutex
-	channels            map[int64]*channelState
-	nextChannelHandle   int64
-	mutexMu             sync.Mutex
-	mutexes             map[int64]*mutexState
-	nextMutexHandle     int64
-	channelErrorStructs map[string]*runtime.StructDefinitionValue
+	channelMutexReady       bool
+	channelMu               sync.Mutex
+	channels                map[int64]*channelState
+	nextChannelHandle       int64
+	pendingChannelSends     map[*runtime.ProcHandleValue]*channelSendWaiter
+	pendingChannelReceives  map[*runtime.ProcHandleValue]*channelReceiveWaiter
+	mutexMu                 sync.Mutex
+	mutexes                 map[int64]*mutexState
+	nextMutexHandle         int64
+	concurrencyErrorStructs map[string]*runtime.StructDefinitionValue
 
 	stringHostReady bool
 
-	hasherReady       bool
-	hasherMu          sync.Mutex
-	hashers           map[int64]*hasherState
-	nextHasherHandle  int64
+	hasherReady      bool
+	hasherMu         sync.Mutex
+	hashers          map[int64]*hasherState
+	nextHasherHandle int64
 
-	arrayReady   bool
-	hashMapReady bool
+	arrayReady      bool
+	arrayStates     map[int64]*arrayState
+	nextArrayHandle int64
+	hashMapReady    bool
 
 	errorNativeMethods map[string]runtime.NativeFunctionValue
 
@@ -338,27 +344,31 @@ func NewWithExecutor(exec Executor) *Interpreter {
 		exec = NewSerialExecutor(nil)
 	}
 	i := &Interpreter{
-		global:          runtime.NewEnvironment(nil),
-		inherentMethods: make(map[string]map[string]*runtime.FunctionValue),
-		interfaces:      make(map[string]*runtime.InterfaceDefinitionValue),
-		implMethods:     make(map[string][]implEntry),
+		global:               runtime.NewEnvironment(nil),
+		inherentMethods:      make(map[string]map[string]*runtime.FunctionValue),
+		interfaces:           make(map[string]*runtime.InterfaceDefinitionValue),
+		implMethods:          make(map[string][]implEntry),
 		rangeImplementations: make([]rangeImplementation, 0),
-		unnamedImpls:    make(map[string]map[string]map[string]struct{}),
-		packageRegistry: make(map[string]map[string]runtime.Value),
-		packageMetadata: make(map[string]packageMeta),
-		executor:        exec,
-		rootState:       newEvalState(),
+		unnamedImpls:         make(map[string]map[string]map[string]struct{}),
+		packageRegistry:      make(map[string]map[string]runtime.Value),
+		packageMetadata:      make(map[string]packageMeta),
+		executor:             exec,
+		rootState:            newEvalState(),
 		procStatusStructs: map[string]*runtime.StructDefinitionValue{
 			"Pending":   nil,
 			"Resolved":  nil,
 			"Cancelled": nil,
 			"Failed":    nil,
 		},
-		channels:            make(map[int64]*channelState),
-		mutexes:             make(map[int64]*mutexState),
-		channelErrorStructs: make(map[string]*runtime.StructDefinitionValue),
-		hashers:             make(map[int64]*hasherState),
-		errorNativeMethods: make(map[string]runtime.NativeFunctionValue),
+		channels:                make(map[int64]*channelState),
+		pendingChannelSends:     make(map[*runtime.ProcHandleValue]*channelSendWaiter),
+		pendingChannelReceives:  make(map[*runtime.ProcHandleValue]*channelReceiveWaiter),
+		mutexes:                 make(map[int64]*mutexState),
+		concurrencyErrorStructs: make(map[string]*runtime.StructDefinitionValue),
+		hashers:                 make(map[int64]*hasherState),
+		arrayStates:             make(map[int64]*arrayState),
+		nextArrayHandle:         1,
+		errorNativeMethods:      make(map[string]runtime.NativeFunctionValue),
 	}
 	i.initConcurrencyBuiltins()
 	i.initChannelMutexBuiltins()

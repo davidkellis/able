@@ -1,0 +1,232 @@
+package collections
+
+import able.collections.enumerable.{Enumerable}
+import able.core.interfaces.{Default, Clone, Iterable, Iterator, Index, IndexMut}
+import able.core.errors.{IndexError}
+
+extern fn __able_array_new() -> i64;
+extern fn __able_array_with_capacity(capacity: i32) -> i64;
+extern fn __able_array_size(handle: i64) -> i64;
+extern fn __able_array_capacity(handle: i64) -> i64;
+extern fn __able_array_set_len(handle: i64, length: i32) -> void;
+extern fn __able_array_read T (handle: i64, idx: i32) -> T;
+extern fn __able_array_write T (handle: i64, idx: i32, value: T) -> void;
+extern fn __able_array_reserve(handle: i64, capacity: i32) -> i64;
+extern fn __able_array_clone(handle: i64) -> i64;
+
+## Opaque runtime-managed array storing contiguous elements of type T.
+struct Array T {
+  length: i32,
+  capacity: i32,
+  storage_handle: i64 ## Runtime handle for the backing buffer.
+}
+
+struct ArrayIterator T {
+  array: Array T,
+  index: i32,
+  length: i32,
+}
+
+## Constructors and mutation helpers will be provided by the host runtime.
+methods Array T {
+  fn new() -> Array T {
+    handle := __able_array_new()
+    mut arr := Array T { length: 0, capacity: 0, storage_handle: handle }
+    arr.refresh_metadata()
+    arr
+  }
+
+  fn with_capacity(capacity: i32) -> Array T {
+    handle := __able_array_with_capacity(capacity)
+    mut arr := Array T { length: 0, capacity: capacity, storage_handle: handle }
+    arr.refresh_metadata()
+    arr
+  }
+
+  fn push(mut self: Self, value: T) -> void {
+    self.refresh_metadata()
+    __able_array_write(self.storage_handle, self.length, value)
+    self.refresh_metadata()
+  }
+
+  fn pop(mut self: Self) -> ?T {
+    self.refresh_metadata()
+    if self.length <= 0 { return nil }
+    idx := self.length - 1
+    value := __able_array_read T (self.storage_handle, idx)
+    __able_array_set_len(self.storage_handle, idx)
+    self.refresh_metadata()
+    value
+  }
+
+  fn clear(mut self: Self) -> void {
+    __able_array_set_len(self.storage_handle, 0)
+    self.refresh_metadata()
+  }
+
+  fn read_slot(self: Self, idx: i32) -> T {
+    __able_array_read T (self.storage_handle, idx)
+  }
+
+  fn write_slot(mut self: Self, idx: i32, value: T) -> void {
+    __able_array_write(self.storage_handle, idx, value)
+  }
+
+  fn len(mut self: Self) -> i32 {
+    self.length = __able_array_size(self.storage_handle) as i32
+    self.length
+  }
+
+  fn capacity(mut self: Self) -> i32 {
+    self.capacity = __able_array_capacity(self.storage_handle) as i32
+    self.capacity
+  }
+  fn is_empty(self: Self) -> bool { self.len() == 0 }
+
+  fn get(self: Self, idx: i32) -> ?T {
+    mut arr := self
+    arr.refresh_metadata()
+    count := arr.len()
+    if idx < 0 || idx >= count { return nil }
+    arr.read_slot(idx)
+  }
+
+  fn set(mut self: Self, idx: i32, value: T) -> bool {
+    mut arr := self
+    arr.refresh_metadata()
+    count := arr.len()
+    if idx < 0 || idx >= count { return false }
+    arr.write_slot(idx, value)
+    true
+  }
+
+  fn first(self: Self) -> ?T {
+    self.get(0)
+  }
+
+  fn last(self: Self) -> ?T {
+    count := self.len()
+    if count == 0 { return nil }
+    self.get(count - 1)
+  }
+
+  fn push_all(mut self: Self, values: Array T) -> void {
+    i := 0
+    loop {
+      if i >= values.len() { break }
+      match values.get(i) {
+        case nil => {},
+        case value: T => self.push(value)
+      }
+      i = i + 1
+    }
+  }
+
+  fn map U (self: Self, f: T -> U) -> Array U {
+    count := self.len()
+    result: Array U := Array.with_capacity(count)
+    i := 0
+    loop {
+      if i >= count { break }
+      match self.get(i) {
+        case nil => {},
+        case item: T => result.push(f(item))
+      }
+      i = i + 1
+    }
+    result
+  }
+}
+
+methods Array T where T: Clone {
+  fn filter(self: Self, predicate: T -> bool) -> Array T {
+    count := self.len()
+    result: Array T := Array.with_capacity(count)
+    i := 0
+    loop {
+      if i >= count { break }
+      match self.get(i) {
+        case nil => {},
+        case item: T => {
+          if predicate(item.clone()) {
+            result.push(item)
+          }
+        }
+      }
+      i = i + 1
+    }
+    result
+  }
+}
+
+impl Default for Array T {
+  fn default() -> Array T { Array T { length: 0, capacity: 0, storage_handle: 0 } }
+}
+
+impl Clone for Array T {
+  fn clone(self: Self) -> Array T {
+    handle := __able_array_clone(self.storage_handle)
+    mut cloned := Array T { length: self.length, capacity: self.capacity, storage_handle: handle }
+    cloned.refresh_metadata()
+    cloned
+  }
+}
+
+impl Iterable T for Array T {
+  fn iterator(self: Self) -> (Iterator T) {
+    mut snapshot := self
+    snapshot.refresh_metadata()
+    ArrayIterator T { array: snapshot, index: 0, length: snapshot.length }
+  }
+}
+
+impl Iterator T for ArrayIterator T {
+  fn next(mut self: Self) -> T | IteratorEnd {
+    if self.index >= self.length { return IteratorEnd }
+    value := self.array.read_slot(self.index)
+    self.index = self.index + 1
+    value
+  }
+
+  fn close(self: Self) -> void { }
+}
+
+impl Index i32 T for Array T {
+  fn index(self: Self, idx: i32) -> T | IndexError {
+    if idx < 0 || idx >= self.len() {
+      IndexError { index: idx as i64, length: self.len() as i64 }
+    } else {
+      self.read_slot(idx)
+    }
+  }
+}
+
+impl IndexMut i32 T for Array T {
+  fn assign(mut self: Self, idx: i32, value: T) -> void | IndexError {
+    if idx < 0 || idx >= self.len() {
+      IndexError { index: idx as i64, length: self.len() as i64 }
+    } else {
+      self.write_slot(idx, value)
+    }
+  }
+}
+
+impl Enumerable T for Array T where T: Clone {
+  fn each(self: Self, visit: T -> void) -> void {
+    len := self.len()
+    idx := 0
+    loop {
+      if idx >= len { break }
+      value := self.read_slot(idx)
+      visit(value)
+      idx = idx + 1
+    }
+  }
+}
+
+methods Array T {
+  fn refresh_metadata(mut self: Self) -> void {
+    self.length = __able_array_size(self.storage_handle) as i32
+    self.capacity = __able_array_capacity(self.storage_handle) as i32
+  }
+}

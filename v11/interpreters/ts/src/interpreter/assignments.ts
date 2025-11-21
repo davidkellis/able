@@ -168,17 +168,43 @@ export function evaluateAssignmentExpression(ctx: InterpreterV10, node: AST.Assi
       return value;
     }
     if (targetObj.kind === "array") {
+      const state = ctx.ensureArrayState(targetObj);
+      if (node.left.member.type === "Identifier") {
+        const name = node.left.member.name;
+        if (name === "storage_handle") {
+          const handle = Math.trunc(numericToNumber(value, "array storage_handle", { requireSafeInteger: true }));
+          targetObj.handle = handle;
+          return value;
+        }
+        if (name === "length") {
+          const nilValue: V10Value = { kind: "nil", value: null };
+          const len = Math.max(0, Math.trunc(numericToNumber(value, "array length", { requireSafeInteger: true })));
+          if (len < state.values.length) {
+            state.values.length = len;
+          } else {
+            while (state.values.length < len) state.values.push(nilValue);
+          }
+          state.capacity = Math.max(state.capacity, state.values.length);
+          return value;
+        }
+        if (name === "capacity") {
+          const cap = Math.max(0, Math.trunc(numericToNumber(value, "array capacity", { requireSafeInteger: true })));
+          state.capacity = Math.max(state.capacity, cap);
+          return value;
+        }
+        throw new Error("Array member assignment requires integer member");
+      }
       if (node.left.member.type !== "IntegerLiteral") throw new Error("Array member assignment requires integer member");
       const idx = Number(node.left.member.value);
-      if (idx < 0 || idx >= targetObj.elements.length) throw new Error("Array index out of bounds");
+      if (idx < 0 || idx >= state.values.length) throw new Error("Array index out of bounds");
       if (isCompound) {
-        const current = targetObj.elements[idx]!;
+        const current = state.values[idx]!;
         const op = node.operator.slice(0, -1);
         const computed = ctx.computeBinaryForCompound(op, current, value);
-        targetObj.elements[idx] = computed;
+        state.values[idx] = computed;
         return computed;
       }
-      targetObj.elements[idx] = value;
+      state.values[idx] = value;
       return value;
     }
     throw new Error("Member assignment requires struct or array");
@@ -189,16 +215,17 @@ export function evaluateAssignmentExpression(ctx: InterpreterV10, node: AST.Assi
     const obj = ctx.evaluate(node.left.object, env);
     const idxVal = ctx.evaluate(node.left.index, env);
     if (obj.kind !== "array") throw new Error("Index assignment requires array");
+    const state = ctx.ensureArrayState(obj);
     const idx = Math.trunc(numericToNumber(idxVal, "Array index", { requireSafeInteger: true }));
-    if (idx < 0 || idx >= obj.elements.length) throw new Error("Array index out of bounds");
+    if (idx < 0 || idx >= state.values.length) throw new Error("Array index out of bounds");
     if (isCompound) {
-      const current = obj.elements[idx]!;
+      const current = state.values[idx]!;
       const op = node.operator.slice(0, -1);
       const computed = ctx.computeBinaryForCompound(op, current, value);
-      obj.elements[idx] = computed;
+      state.values[idx] = computed;
       return computed;
     }
-    obj.elements[idx] = value;
+    state.values[idx] = value;
     return value;
   }
 

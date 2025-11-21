@@ -1,0 +1,30 @@
+package tutorial.basics
+
+fn greet(name: string) -> string {
+  `Hello, ${name}!`
+}
+
+fn main() -> void {
+  language := "Able"
+  version: f64 := 11.0
+  is_fun := true
+
+  count := 3
+  count = count + 2
+
+  message := greet(language)
+  message |> print
+
+  computed := do {
+    temp := count * 2
+    temp + 1
+  }
+  print(`Computed value: ${computed}`)
+
+  maybe_name: ?string := nil
+  length_hint := maybe_name?.foo
+  print(`Optional length -> ${length_hint}`)
+
+  excited := language |> (`Welcome to ${%}!`)
+  print(excited)
+}

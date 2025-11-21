@@ -39,6 +39,8 @@ func (i *Interpreter) initConcurrencyBuiltins() {
 	_, _ = i.evaluateStructDefinition(resolvedDef, i.global)
 	_, _ = i.evaluateStructDefinition(cancelledDef, i.global)
 	_, _ = i.evaluateStructDefinition(failedDef, i.global)
+	awaitWakerDef := ast.NewStructDefinition(ast.NewIdentifier("AwaitWaker"), nil, ast.StructKindNamed, nil, nil, false)
+	_, _ = i.evaluateStructDefinition(awaitWakerDef, i.global)
 
 	if val, err := i.global.Get("ProcError"); err == nil {
 		if def, conv := toStructDefinitionValue(val, "ProcError"); conv == nil {
@@ -65,6 +67,9 @@ func (i *Interpreter) initConcurrencyBuiltins() {
 	i.procStatusStructs["Resolved"] = loadStruct("Resolved")
 	i.procStatusStructs["Cancelled"] = loadStruct("Cancelled")
 	i.procStatusStructs["Failed"] = loadStruct("Failed")
+	if i.awaitWakerStruct == nil {
+		i.awaitWakerStruct = loadStruct("AwaitWaker")
+	}
 
 	if def := i.procStatusStructs["Pending"]; def != nil {
 		i.procStatusPending = &runtime.StructInstanceValue{Definition: def}
@@ -280,8 +285,16 @@ func (i *Interpreter) futureStatus(future *runtime.FutureValue) runtime.Value {
 }
 
 func (i *Interpreter) futureValue(future *runtime.FutureValue) runtime.Value {
+	return i.futureValueWithPayload(future, nil)
+}
+
+func (i *Interpreter) futureValueWithPayload(future *runtime.FutureValue, payload *asyncContextPayload) runtime.Value {
 	if handle := future.Handle(); handle != nil {
 		if serial, ok := i.executor.(*SerialExecutor); ok {
+			if payload == nil {
+				// Calls from synchronous contexts should respect queue order before awaiting the target future.
+				serial.Flush()
+			}
 			serial.Drive(handle)
 		}
 	}
@@ -480,7 +493,11 @@ func (i *Interpreter) futureMember(future *runtime.FutureValue, member ast.Expre
 				if !ok {
 					return nil, fmt.Errorf("value receiver must be a future")
 				}
-				return i.futureValue(recv), nil
+				var payload *asyncContextPayload
+				if ctx != nil {
+					payload = payloadFromState(ctx.State)
+				}
+				return i.futureValueWithPayload(recv, payload), nil
 			},
 		}
 		return &runtime.NativeBoundMethodValue{Receiver: future, Method: fn}, nil

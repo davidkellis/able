@@ -1,11 +1,12 @@
-package core
+package core.errors
 
-import able.core.interfaces{Error}
+import able.core.interfaces.{Error}
 
 ## Arithmetic errors.
-struct DivisionByZeroError;
+struct DivisionByZeroError {}
 struct OverflowError { operation: string }
 struct ShiftOutOfRangeError { shift: i32 }
+struct RangeError { message: string }
 
 impl Error for DivisionByZeroError {
   fn message(self: Self) -> string { "division by zero" }
@@ -19,6 +20,11 @@ impl Error for OverflowError {
 
 impl Error for ShiftOutOfRangeError {
   fn message(self: Self) -> string { `shift ${self.shift} out of range` }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+impl Error for RangeError {
+  fn message(self: Self) -> string { self.message }
   fn cause(self: Self) -> ?Error { nil }
 }
 

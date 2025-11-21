@@ -119,6 +119,76 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 			Message: fmt.Sprintf("typechecker: struct '%s' has no member '%s'", ty.StructName, memberName),
 			Node:    expr,
 		})
+	case ArrayType:
+		if positionalAccess {
+			c.infer.set(expr, UnknownType{})
+			return diags, UnknownType{}
+		}
+		elem := ty.Element
+		if elem == nil {
+			elem = UnknownType{}
+		}
+		nilType := PrimitiveType{Kind: PrimitiveNil}
+		switch memberName {
+		case "size":
+			fn := FunctionType{Params: nil, Return: IntegerType{Suffix: "u64"}}
+			final := c.finalizeMemberAccessType(expr, objectType, fn)
+			return diags, final
+		case "push":
+			fn := FunctionType{Params: []Type{UnknownType{}}, Return: nilType}
+			final := c.finalizeMemberAccessType(expr, objectType, fn)
+			return diags, final
+		case "pop":
+			result := UnionLiteralType{Members: []Type{elem, nilType}}
+			fn := FunctionType{Params: nil, Return: result}
+			final := c.finalizeMemberAccessType(expr, objectType, fn)
+			return diags, final
+		case "get":
+			result := UnionLiteralType{Members: []Type{elem, nilType}}
+			fn := FunctionType{Params: []Type{IntegerType{Suffix: "u64"}}, Return: result}
+			final := c.finalizeMemberAccessType(expr, objectType, fn)
+			return diags, final
+		case "set":
+			fn := FunctionType{Params: []Type{IntegerType{Suffix: "u64"}, elem}, Return: UnknownType{}}
+			final := c.finalizeMemberAccessType(expr, objectType, fn)
+			return diags, final
+		case "clear":
+			fn := FunctionType{Params: nil, Return: nilType}
+			final := c.finalizeMemberAccessType(expr, objectType, fn)
+			return diags, final
+		case "iterator":
+			fn := FunctionType{Params: nil, Return: IteratorType{Element: elem}}
+			final := c.finalizeMemberAccessType(expr, objectType, fn)
+			return diags, final
+		default:
+			diags = append(diags, Diagnostic{
+				Message: fmt.Sprintf("typechecker: array has no member '%s'", memberName),
+				Node:    expr,
+			})
+		}
+	case PrimitiveType:
+		if positionalAccess {
+			diags = append(diags, Diagnostic{
+				Message: fmt.Sprintf("typechecker: positional member access not supported on type %s", typeName(objectType)),
+				Node:    expr,
+			})
+			break
+		}
+		if ty.Kind == PrimitiveString {
+			if memberType, ok := stringMemberType(memberName); ok {
+				final := c.finalizeMemberAccessType(expr, objectType, memberType)
+				return diags, final
+			}
+			diags = append(diags, Diagnostic{
+				Message: fmt.Sprintf("typechecker: string has no member '%s'", memberName),
+				Node:    expr,
+			})
+			break
+		}
+		diags = append(diags, Diagnostic{
+			Message: fmt.Sprintf("typechecker: cannot access member '%s' on type %s", memberName, typeName(objectType)),
+			Node:    expr,
+		})
 	case InterfaceType:
 		if positionalAccess {
 			diags = append(diags, Diagnostic{
@@ -300,61 +370,6 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 
 	c.infer.set(expr, UnknownType{})
 	return diags, UnknownType{}
-}
-
-func procMemberFunction(name string, proc ProcType, node ast.Node) (Type, []Diagnostic) {
-	var diags []Diagnostic
-	switch name {
-	case "status":
-		return FunctionType{
-			Params: nil,
-			Return: StructType{StructName: "ProcStatus"},
-		}, diags
-	case "value":
-		return FunctionType{
-			Params: nil,
-			Return: makeValueUnion(proc.Result),
-		}, diags
-	case "cancel":
-		return FunctionType{
-			Params: nil,
-			Return: PrimitiveType{Kind: PrimitiveNil},
-		}, diags
-	default:
-		diags = append(diags, Diagnostic{
-			Message: fmt.Sprintf("typechecker: proc handle has no member '%s'", name),
-			Node:    node,
-		})
-		return UnknownType{}, diags
-	}
-}
-
-func futureMemberFunction(name string, future FutureType, node ast.Node) (Type, []Diagnostic) {
-	var diags []Diagnostic
-	switch name {
-	case "status":
-		return FunctionType{
-			Params: nil,
-			Return: StructType{StructName: "ProcStatus"},
-		}, diags
-	case "value":
-		return FunctionType{
-			Params: nil,
-			Return: makeValueUnion(future.Result),
-		}, diags
-	case "cancel":
-		diags = append(diags, Diagnostic{
-			Message: "typechecker: future handles do not support cancel()",
-			Node:    node,
-		})
-		return UnknownType{}, diags
-	default:
-		diags = append(diags, Diagnostic{
-			Message: fmt.Sprintf("typechecker: future handle has no member '%s'", name),
-			Node:    node,
-		})
-		return UnknownType{}, diags
-	}
 }
 
 func (c *Checker) finalizeMemberAccessType(expr *ast.MemberAccessExpression, objectType Type, memberType Type) Type {

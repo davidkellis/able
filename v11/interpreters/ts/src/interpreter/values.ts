@@ -22,7 +22,7 @@ export type V10Value =
   | { kind: "nil"; value: null }
   | { kind: IntegerKind; value: bigint }
   | { kind: FloatKind; value: number }
-  | { kind: "array"; elements: V10Value[] }
+  | { kind: "array"; elements: V10Value[]; handle?: number }
   | {
       kind: "hash_map";
       entries: Map<string, { key: V10Value; value: V10Value }>;

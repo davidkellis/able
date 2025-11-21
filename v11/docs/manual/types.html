@@ -2,73 +2,71 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Able v10 Manual — Types</title>
+    <title>Able v11 Manual — Types &amp; Data</title>
     <link rel="stylesheet" href="manual.css" />
   </head>
   <body>
     <div class="layout">
       <nav class="sidebar">
-        <span class="brand">Able v10 Manual</span>
+        <span class="brand">Able v11 Manual</span>
         <ul>
           <li><a href="index.html">Getting Started</a></li>
-          <li><a href="variables.html">Variables</a></li>
+          <li><a href="variables.html">Syntax &amp; Expressions</a></li>
+          <li><a href="constructors.html">Bindings &amp; Patterns</a></li>
+          <li><a href="types.html" class="active">Types &amp; Data</a></li>
+          <li><a href="functions.html">Functions &amp; Functional Tools</a></li>
           <li><a href="control-flow.html">Control Flow</a></li>
-          <li><a href="functions.html">Functions</a></li>
-          <li><a href="types.html" class="active">Types</a></li>
-          <li><a href="methods.html">Methods</a></li>
-          <li><a href="constructors.html">Constructors & Updates</a></li>
           <li><a href="pattern-matching.html">Pattern Matching &amp; Unions</a></li>
-          <li><a href="modules.html">Modules</a></li>
+          <li><a href="methods.html">Methods, Interfaces, Dispatch</a></li>
           <li><a href="error-handling.html">Error Handling</a></li>
-          <li><a href="concurrency.html">Concurrency</a></li>
-          <li><a href="tooling.html">Tooling &amp; Next Steps</a></li>
+          <li><a href="concurrency.html">Concurrency &amp; Async</a></li>
+          <li><a href="modules.html">Modules &amp; Packages</a></li>
+          <li><a href="tooling.html">Stdlib, Interop, Tooling</a></li>
         </ul>
       </nav>
       <main class="content">
-        <h1>5. Types</h1>
+        <h1>4. Types &amp; Data</h1>
         <p>
-          Able is statically typed with inference. Annotate via
-          <code>name: Type</code>. Runtime values must have concrete types.
+          Able is statically typed with inference. Annotate as
+          <code>name: Type</code>; runtime values always have concrete types.
+          Type arguments are space-separated (<code>Array string</code>,
+          <code>Map string (Array i32)</code>).
         </p>
-        <h2>5.1 Primitive &amp; Collection Types</h2>
+        <h2 id="primitives">4.1 Primitive &amp; Composite Types</h2>
         <ul>
-          <li>Numbers (<code>i32</code>, <code>u64</code>, <code>f64</code>)</li>
-          <li><code>bool</code>, <code>char</code>, <code>string</code>, <code>nil</code>, <code>void</code></li>
-          <li>Arrays: <code>[1, 2, 3]</code>, <code>numbers.size()</code>, <code>numbers[0]</code></li>
-          <li>Ranges: <code>1..10</code> (inclusive), <code>0...len</code> (exclusive)</li>
-          <li>Maps via stdlib helpers (for example <code>scores["Ada"] = 42</code>)</li>
+          <li>Primitives: signed/unsigned ints (<code>i8..i128</code> / <code>u8..u128</code>), <code>f32</code>/<code>f64</code>, <code>bool</code>, <code>char</code>, <code>string</code>, <code>nil</code>, <code>void</code>.</li>
+          <li>Arrays: <code>[1, 2, 3]</code> produce <code>Array i32</code>; mutable and iterable.</li>
+          <li>Ranges: <code>a..b</code> inclusive, <code>a...b</code> exclusive; used in loops.</li>
+          <li>Generator literal: <code>Iterator { gen =&gt; ... gen.yield(v) ... }</code> builds custom iterators.</li>
+          <li>Maps via stdlib helpers (<code>scores.set("Ada", 42)</code>)</li>
         </ul>
-        <h2>5.2 Structs</h2>
-        <pre><code class="language-able">struct User {
-  id: i64,
-  name: string,
-  email: ?string
-}
+        <h2 id="structs">4.2 Structs</h2>
+        <pre><code class="language-able">struct User { id: i64, name: string, email: ?string }
+struct Pair T U (T, U)           ## positional / named-tuple style
+struct Active                    ## singleton (no fields)
 
-struct Pair T U (T, U)
-struct Active
-
-user := User { id: 1, name: "Ada", email: nil }</code></pre>
-        <p>Fields are mutable. Structural updates copy and override fields:</p>
+user := User { id: 1, name: "Ada", email: nil }
+Pair { fst, snd } := Pair { 1, 2 }</code></pre>
+        <p>Fields are mutable. Copy-with-update uses spreads:</p>
         <pre><code class="language-able">user = User { ...user, email: "ada@example.com" }</code></pre>
-        <h2>5.3 Generics</h2>
-        <pre><code class="language-able">struct Box T { value: T }
-
-fn wrap&lt;T&gt;(value: T) -&gt; Box T {
-  Box { value }
-}
-
-fn describe&lt;T: Display + Clone&gt;(value: T) -&gt; string {
-  copy := value.clone()
-  copy.to_string()
-}</code></pre>
+        <h2 id="unions">4.3 Unions &amp; Nullability</h2>
+        <p><code>union</code> defines algebraic data types. Shorthands: <code>?T</code> is <code>nil | T</code>; <code>!T</code> is <code>Error | T</code> (or nested with <code>nil</code> when combined).</p>
+        <pre><code class="language-able">union Shape =
+    Circle { radius: f64 }
+  | Rectangle { width: f64, height: f64 }
+  | Triangle { a: f64, b: f64, c: f64 }</code></pre>
         <p>
-          Type expressions use space-separated arguments
-          (<code>Array string</code>, <code>Map string User</code>). Use
-          parentheses for grouping (<code>Map string (Array i32)</code>).
+          Construct variants with their struct syntax and consume them with
+          patterns/matches.
+        </p>
+        <h2 id="aliases">4.4 Type Aliases</h2>
+        <p>
+          <code>type PairStr = Pair string string</code>. Aliases may be generic
+          or recursive. They do not create new nominal types and can participate
+          in <code>methods</code>/<code>impl</code> definitions.
         </p>
         <footer class="manual-footer">
-          Able v10 manual · Types
+          Able v11 manual · Types &amp; Data
         </footer>
       </main>
     </div>

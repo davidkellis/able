@@ -187,6 +187,10 @@ export function applyEvaluationAugmentations(cls: typeof InterpreterV10): void {
         return evaluateMethodsDefinition(this, node as AST.MethodsDefinition, env);
       case "ImplementationDefinition":
         return evaluateImplementationDefinition(this, node as AST.ImplementationDefinition, env);
+      case "ExternFunctionBody":
+        return NIL;
+      case "PreludeStatement":
+        return NIL;
       default:
         throw new Error(`Not implemented in milestone: ${node.type}`);
     }

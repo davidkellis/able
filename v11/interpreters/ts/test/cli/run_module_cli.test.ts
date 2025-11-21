@@ -114,6 +114,46 @@ fn main() -> void {
     }
   });
 
+  test("run command loads dynimport targets discovered via search paths", () => {
+    const depDir = mkdtempSync(path.join(os.tmpdir(), "able-cli-dynimport-"));
+    try {
+      writeFixtureFile(depDir, "package.yml", "name: extras\n");
+      writeFixtureFile(
+        depDir,
+        "tools.able",
+        `
+package tools
+
+fn message() -> string { "dynimport hello" }
+`.trimStart(),
+      );
+
+      const result = runCli("run", {
+        manifestName: "dyn_cli_root",
+        files: {
+          "main.able": `
+package dyn_cli_root
+
+dynimport extras.tools.{message}
+
+fn main() -> void {
+  print(message())
+}
+`,
+        },
+        env: {
+          ABLE_MODULE_PATHS: depDir,
+        },
+      });
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain("dynimport hello");
+      expect(result.stderr).toBe("");
+    } finally {
+      rmSync(depDir, { recursive: true, force: true });
+    }
+  });
+
   test("run command loads packages discovered via ABLE_PATH alias", () => {
     const depDir = mkdtempSync(path.join(os.tmpdir(), "able-cli-alias-"));
     try {
