@@ -1,6 +1,7 @@
 package interpreter
 
 import (
+	"strings"
 	"testing"
 
 	"able/interpreter10-go/pkg/ast"
@@ -137,7 +138,7 @@ func TestInterfaceAssignmentMissingImplementation(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected failure when assigning struct without impl to interface")
 	}
-	if got := err.Error(); got != "Typed pattern mismatch in assignment" {
+	if got := err.Error(); !strings.Contains(got, "Typed pattern mismatch in assignment") || !strings.Contains(got, "expected Display") {
 		t.Fatalf("unexpected error message: %v", err)
 	}
 }

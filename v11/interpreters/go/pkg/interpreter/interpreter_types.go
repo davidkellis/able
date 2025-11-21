@@ -21,6 +21,79 @@ func (i *Interpreter) getTypeInfoForValue(value runtime.Value) (typeInfo, bool) 
 	}
 }
 
+func (i *Interpreter) typeExpressionFromValue(value runtime.Value) ast.TypeExpression {
+	switch v := value.(type) {
+	case runtime.StringValue:
+		return ast.Ty("string")
+	case runtime.BoolValue:
+		return ast.Ty("bool")
+	case runtime.CharValue:
+		return ast.Ty("char")
+	case runtime.NilValue:
+		return ast.Ty("nil")
+	case runtime.IntegerValue:
+		return ast.Ty(string(v.TypeSuffix))
+	case *runtime.IntegerValue:
+		if v == nil {
+			return nil
+		}
+		return ast.Ty(string(v.TypeSuffix))
+	case runtime.FloatValue:
+		return ast.Ty(string(v.TypeSuffix))
+	case *runtime.FloatValue:
+		if v == nil {
+			return nil
+		}
+		return ast.Ty(string(v.TypeSuffix))
+	case *runtime.StructInstanceValue:
+		if v == nil || v.Definition == nil || v.Definition.Node == nil || v.Definition.Node.ID == nil {
+			return nil
+		}
+		base := ast.Ty(v.Definition.Node.ID.Name)
+		if len(v.TypeArguments) > 0 {
+			return ast.Gen(base, v.TypeArguments...)
+		}
+		return base
+	case *runtime.InterfaceValue:
+		if v == nil || v.Interface == nil || v.Interface.Node == nil || v.Interface.Node.ID == nil {
+			return nil
+		}
+		return ast.Ty(v.Interface.Node.ID.Name)
+	case runtime.InterfaceValue:
+		return i.typeExpressionFromValue(&v)
+	case *runtime.ArrayValue:
+		if v == nil {
+			return nil
+		}
+		var elemType ast.TypeExpression
+		for _, el := range v.Elements {
+			inferred := i.typeExpressionFromValue(el)
+			if inferred == nil {
+				continue
+			}
+			if elemType == nil {
+				elemType = inferred
+				continue
+			}
+			if !typeExpressionsEqual(elemType, inferred) {
+				elemType = ast.NewWildcardTypeExpression()
+				break
+			}
+		}
+		if elemType == nil {
+			elemType = ast.NewWildcardTypeExpression()
+		}
+		return ast.Gen(ast.Ty("Array"), elemType)
+	case runtime.ErrorValue:
+		if v.TypeName != nil {
+			return ast.Ty(v.TypeName.Name)
+		}
+		return ast.Ty("Error")
+	default:
+		return nil
+	}
+}
+
 func (i *Interpreter) lookupImplEntry(info typeInfo, interfaceName string) (*implCandidate, error) {
 	matches, err := i.collectImplCandidates(info, interfaceName)
 	if len(matches) == 0 {

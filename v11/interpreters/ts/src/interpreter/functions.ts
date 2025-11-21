@@ -83,6 +83,7 @@ export function callCallableValue(ctx: InterpreterV10, callee: V10Value, args: V
   if (!funcValue) throw new Error("Callable target missing function value");
   const funcNode = funcValue.node;
   if (callNode) {
+    ctx.inferTypeArgumentsFromCall(funcNode, callNode, evalArgs);
     ctx.enforceGenericConstraintsIfAny(funcNode, callNode);
   }
   const funcEnv = new Environment(funcValue.closureEnv);
