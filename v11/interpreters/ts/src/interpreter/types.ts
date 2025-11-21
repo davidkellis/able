@@ -19,6 +19,7 @@ declare module "./index" {
     parseTypeExpression(t: AST.TypeExpression): { name: string; typeArgs: AST.TypeExpression[] } | null;
     typeExpressionsEqual(a: AST.TypeExpression, b: AST.TypeExpression): boolean;
     cloneTypeExpression(t: AST.TypeExpression): AST.TypeExpression;
+    typeExpressionFromValue(value: V10Value): AST.TypeExpression | null;
     matchesType(t: AST.TypeExpression, v: V10Value): boolean;
     getTypeNameForValue(value: V10Value): string | null;
     typeImplementsInterface(typeName: string, interfaceName: string): boolean;
@@ -89,6 +90,63 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
 
   cls.prototype.typeExpressionsEqual = function typeExpressionsEqual(this: InterpreterV10, a: AST.TypeExpression, b: AST.TypeExpression): boolean {
     return this.typeExpressionToString(a) === this.typeExpressionToString(b);
+  };
+
+  cls.prototype.typeExpressionFromValue = function typeExpressionFromValue(this: InterpreterV10, value: V10Value): AST.TypeExpression | null {
+    switch (value.kind) {
+      case "string":
+        return AST.simpleTypeExpression("string");
+      case "bool":
+        return AST.simpleTypeExpression("bool");
+      case "char":
+        return AST.simpleTypeExpression("char");
+      case "nil":
+        return AST.simpleTypeExpression("nil");
+      case "error":
+        return AST.simpleTypeExpression("Error");
+      case "struct_instance": {
+        const base = AST.simpleTypeExpression(value.def.id.name);
+        if (value.typeArguments && value.typeArguments.length > 0) {
+          return AST.genericTypeExpression(base, value.typeArguments);
+        }
+        return base;
+      }
+      case "interface_value":
+        return AST.simpleTypeExpression(value.interfaceName);
+      case "array": {
+        const state = this.ensureArrayState ? this.ensureArrayState(value) : { values: value.elements };
+        const elems = state.values ?? value.elements ?? [];
+        let elemType: AST.TypeExpression | null = null;
+        for (const el of elems) {
+          const inferred = this.typeExpressionFromValue(el);
+          if (!inferred) continue;
+          if (!elemType) {
+            elemType = inferred;
+            continue;
+          }
+          if (!this.typeExpressionsEqual(elemType, inferred)) {
+            elemType = AST.wildcardTypeExpression();
+            break;
+          }
+        }
+        if (!elemType) elemType = AST.wildcardTypeExpression();
+        return AST.genericTypeExpression(AST.simpleTypeExpression("Array"), [elemType]);
+      }
+      case "hash_map":
+        return AST.simpleTypeExpression("Map");
+      default: {
+        if (value.kind === "interface_def" && (value as any).def?.id?.name) {
+          return AST.simpleTypeExpression((value as any).def.id.name);
+        }
+        if ((value as any).kind === "i8" || (value as any).kind === "i16" || (value as any).kind === "i32" || (value as any).kind === "i64" || (value as any).kind === "i128" || (value as any).kind === "u8" || (value as any).kind === "u16" || (value as any).kind === "u32" || (value as any).kind === "u64" || (value as any).kind === "u128") {
+          return AST.simpleTypeExpression((value as any).kind);
+        }
+        if ((value as any).kind === "f32" || (value as any).kind === "f64") {
+          return AST.simpleTypeExpression((value as any).kind);
+        }
+        return null;
+      }
+    }
   };
 
   cls.prototype.matchesType = function matchesType(this: InterpreterV10, t: AST.TypeExpression, v: V10Value): boolean {

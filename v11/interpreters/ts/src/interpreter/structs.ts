@@ -21,20 +21,27 @@ export function evaluateStructLiteral(ctx: InterpreterV10, node: AST.StructLiter
   const structDef = defVal.def;
   const generics = structDef.genericParams;
   const constraints = ctx.collectConstraintSpecs(generics, structDef.whereClause);
-  let typeArguments: AST.TypeExpression[] | undefined = node.typeArguments;
-  let typeArgMap: Map<string, AST.TypeExpression> | undefined;
-  if (generics && generics.length > 0) {
-    const appliedTypeArgs = typeArguments ?? generics.map(() => AST.wildcardTypeExpression());
-    typeArguments = appliedTypeArgs;
-    typeArgMap = ctx.mapTypeArguments(generics, appliedTypeArgs, `instantiating ${structDef.id.name}`);
-    if (constraints.length > 0) {
-      ctx.enforceConstraintSpecs(constraints, typeArgMap, `struct ${structDef.id.name}`);
-    }
-  } else if (node.typeArguments && node.typeArguments.length > 0) {
-    throw new Error(`Type '${structDef.id.name}' does not accept type arguments`);
-  }
   if (node.isPositional) {
     const vals: V10Value[] = node.fields.map(f => ctx.evaluate(f.value, env));
+    let typeArguments: AST.TypeExpression[] | undefined = node.typeArguments;
+    let typeArgMap: Map<string, AST.TypeExpression> | undefined;
+    if (generics && generics.length > 0) {
+      if (typeArguments && typeArguments.length > 0 && typeArguments.length !== generics.length) {
+        throw new Error(`Type '${structDef.id.name}' expects ${generics.length} type arguments, got ${typeArguments.length}`);
+      }
+      if (!typeArguments || typeArguments.length === 0) {
+        typeArguments = inferStructTypeArguments(ctx, structDef, vals);
+      }
+      if (!typeArguments || typeArguments.length === 0) {
+        typeArguments = generics.map(() => AST.wildcardTypeExpression());
+      }
+      typeArgMap = ctx.mapTypeArguments(generics, typeArguments, `instantiating ${structDef.id.name}`);
+      if (constraints.length > 0) {
+        ctx.enforceConstraintSpecs(constraints, typeArgMap, `struct ${structDef.id.name}`);
+      }
+    } else if (node.typeArguments && node.typeArguments.length > 0) {
+      throw new Error(`Type '${structDef.id.name}' does not accept type arguments`);
+    }
     return {
       kind: "struct_instance",
       def: structDef,
@@ -43,6 +50,7 @@ export function evaluateStructLiteral(ctx: InterpreterV10, node: AST.StructLiter
       typeArgMap,
     };
   }
+
   const map = new Map<string, V10Value>();
   const legacySource = (node as any).functionalUpdateSource as AST.Expression | undefined;
   const updateSources = node.functionalUpdateSources ?? (legacySource ? [legacySource] : []);
@@ -68,18 +76,6 @@ export function evaluateStructLiteral(ctx: InterpreterV10, node: AST.StructLiter
     } else if (canonicalBaseTypeArgs && !base.typeArguments && canonicalBaseTypeArgs.length > 0) {
       throw new Error("Functional update sources must share type arguments");
     }
-    if (typeArguments && base.typeArguments) {
-      if (typeArguments.length !== base.typeArguments.length) {
-        throw new Error("Functional update must use same type arguments as source");
-      }
-      for (let i = 0; i < typeArguments.length; i++) {
-        const expected = typeArguments[i]!;
-        const actual = base.typeArguments[i]!;
-        if (!ctx.typeExpressionsEqual(expected, actual)) {
-          throw new Error("Functional update must use same type arguments as source");
-        }
-      }
-    }
     for (const [key, value] of base.values.entries()) {
       map.set(key, value);
     }
@@ -93,6 +89,41 @@ export function evaluateStructLiteral(ctx: InterpreterV10, node: AST.StructLiter
     const val = ctx.evaluate(field.value, env);
     map.set(fieldName, val);
   }
+
+  let typeArguments: AST.TypeExpression[] | undefined = node.typeArguments;
+  let typeArgMap: Map<string, AST.TypeExpression> | undefined;
+  if (generics && generics.length > 0) {
+    if (typeArguments && typeArguments.length > 0 && typeArguments.length !== generics.length) {
+      throw new Error(`Type '${structDef.id.name}' expects ${generics.length} type arguments, got ${typeArguments.length}`);
+    }
+    if (!typeArguments || typeArguments.length === 0) {
+      if (canonicalBaseTypeArgs) {
+        typeArguments = canonicalBaseTypeArgs;
+      } else {
+        typeArguments = inferStructTypeArguments(ctx, structDef, map);
+      }
+    }
+    if (canonicalBaseTypeArgs && canonicalBaseTypeArgs.length > 0 && typeArguments) {
+      if (canonicalBaseTypeArgs.length !== typeArguments.length) {
+        throw new Error("Functional update must use same type arguments as source");
+      }
+      for (let i = 0; i < canonicalBaseTypeArgs.length; i++) {
+        if (!ctx.typeExpressionsEqual(canonicalBaseTypeArgs[i]!, typeArguments[i]!)) {
+          throw new Error("Functional update must use same type arguments as source");
+        }
+      }
+    }
+    if (!typeArguments || typeArguments.length === 0) {
+      typeArguments = generics.map(() => AST.wildcardTypeExpression());
+    }
+    typeArgMap = ctx.mapTypeArguments(generics, typeArguments, `instantiating ${structDef.id.name}`);
+    if (constraints.length > 0) {
+      ctx.enforceConstraintSpecs(constraints, typeArgMap, `struct ${structDef.id.name}`);
+    }
+  } else if (node.typeArguments && node.typeArguments.length > 0) {
+    throw new Error(`Type '${structDef.id.name}' does not accept type arguments`);
+  }
+
   return {
     kind: "struct_instance",
     def: structDef,
@@ -100,6 +131,31 @@ export function evaluateStructLiteral(ctx: InterpreterV10, node: AST.StructLiter
     typeArguments,
     typeArgMap,
   };
+}
+
+function inferStructTypeArguments(ctx: InterpreterV10, def: AST.StructDefinition, values: V10Value[] | Map<string, V10Value>): AST.TypeExpression[] {
+  const generics = def.genericParams ?? [];
+  if (generics.length === 0) return [];
+  const bindings = new Map<string, AST.TypeExpression>();
+  const genericNames = new Set(generics.map(g => g.name.name));
+  if (Array.isArray(values)) {
+    for (let i = 0; i < def.fields.length && i < values.length; i++) {
+      const field = def.fields[i];
+      if (!field?.fieldType) continue;
+      const actual = ctx.typeExpressionFromValue(values[i]!);
+      if (!actual) continue;
+      ctx.matchTypeExpressionTemplate(field.fieldType, actual, genericNames, bindings);
+    }
+  } else {
+    for (const field of def.fields) {
+      if (!field?.name || !field.fieldType) continue;
+      if (!values.has(field.name.name)) continue;
+      const actual = ctx.typeExpressionFromValue(values.get(field.name.name)!);
+      if (!actual) continue;
+      ctx.matchTypeExpressionTemplate(field.fieldType, actual, genericNames, bindings);
+    }
+  }
+  return generics.map(gp => bindings.get(gp.name.name) ?? AST.wildcardTypeExpression());
 }
 
 export function memberAccessOnValue(ctx: InterpreterV10, obj: V10Value, member: AST.Identifier | AST.IntegerLiteral, env: Environment): V10Value {

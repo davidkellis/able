@@ -112,9 +112,9 @@ describe("v11 interpreter - generic where-constraints (minimal runtime checks)",
     );
     I.evaluate(id);
     const tooFew = AST.functionCall(AST.identifier("id"), [AST.integerLiteral(1)], []);
-    expect(() => I.evaluate(tooFew)).toThrow(/Type arguments count mismatch/);
+    const inferred = I.evaluate(tooFew);
+    expect(inferred).toEqual({ kind: "i32", value: 1n });
     const tooMany = AST.functionCall(AST.identifier("id"), [AST.integerLiteral(1)], [AST.simpleTypeExpression("i32"), AST.simpleTypeExpression("i32")]);
     expect(() => I.evaluate(tooMany)).toThrow(/Type arguments count mismatch/);
   });
 });
-

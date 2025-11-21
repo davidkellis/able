@@ -10,6 +10,7 @@ declare module "./index" {
     mapTypeArguments(generics: AST.GenericParameter[] | undefined, provided: AST.TypeExpression[] | undefined, context: string): Map<string, AST.TypeExpression>;
     enforceConstraintSpecs(constraints: ConstraintSpec[], typeArgMap: Map<string, AST.TypeExpression>, context: string): void;
     ensureTypeSatisfiesInterface(typeInfo: { name: string; typeArgs: AST.TypeExpression[] }, interfaceType: AST.TypeExpression, context: string, visited: Set<string>): void;
+    inferTypeArgumentsFromCall(funcNode: AST.FunctionDefinition | AST.LambdaExpression, call: AST.FunctionCall, args: V10Value[]): void;
     bindTypeArgumentsIfAny(funcNode: AST.FunctionDefinition | AST.LambdaExpression, call: AST.FunctionCall, env: Environment): void;
     collectInterfaceConstraintExpressions(typeExpr: AST.TypeExpression, memo?: Set<string>): AST.TypeExpression[];
     findMethod(typeName: string, methodName: string, opts?: { typeArgs?: AST.TypeExpression[]; typeArgMap?: Map<string, AST.TypeExpression>; interfaceName?: string }): Extract<V10Value, { kind: "function" }> | null;
@@ -33,12 +34,8 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
   cls.prototype.enforceGenericConstraintsIfAny = function enforceGenericConstraintsIfAny(this: InterpreterV10, funcNode: AST.FunctionDefinition | AST.LambdaExpression, call: AST.FunctionCall): void {
   const generics = (funcNode as any).genericParams as AST.GenericParameter[] | undefined;
   const where = (funcNode as any).whereClause as AST.WhereClauseConstraint[] | undefined;
-  let typeArgs = call.typeArguments ?? [];
+  const typeArgs = call.typeArguments ?? [];
   const genericCount = generics ? generics.length : 0;
-  if (genericCount > 0 && typeArgs.length === 0) {
-    typeArgs = generics!.map(() => AST.wildcardTypeExpression());
-    call.typeArguments = typeArgs;
-  }
   if (genericCount > 0 && typeArgs.length !== genericCount) {
     const name = (funcNode as any).id?.name ?? "(lambda)";
     throw new Error(`Type arguments count mismatch calling ${name}: expected ${genericCount}, got ${typeArgs.length}`);
@@ -117,6 +114,40 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
       throw new Error(`Type '${typeInfo.name}' does not satisfy interface '${ifaceInfo.name}': missing method '${methodName}'`);
     }
   }
+};
+
+  cls.prototype.inferTypeArgumentsFromCall = function inferTypeArgumentsFromCall(this: InterpreterV10, funcNode: AST.FunctionDefinition | AST.LambdaExpression, call: AST.FunctionCall, args: V10Value[]): void {
+  const generics = (funcNode as any).genericParams as AST.GenericParameter[] | undefined;
+  if (!generics || generics.length === 0) return;
+  if (call.typeArguments && call.typeArguments.length > 0) {
+    if (call.typeArguments.length !== generics.length) {
+      const name = (funcNode as any).id?.name ?? "(lambda)";
+      throw new Error(`Type arguments count mismatch calling ${name}: expected ${generics.length}, got ${call.typeArguments.length}`);
+    }
+    return;
+  }
+  const bindings = new Map<string, AST.TypeExpression>();
+  const genericNames = new Set(generics.map(g => g.name.name));
+  const params = (funcNode as any).params as AST.FunctionParameter[] | undefined;
+  let bindArgs = args;
+  if ((funcNode as any).isMethodShorthand && bindArgs.length > 0) {
+    bindArgs = bindArgs.slice(1);
+  }
+  if (params && params.length > 0 && bindArgs.length > 0) {
+    const count = Math.min(params.length, bindArgs.length);
+    for (let i = 0; i < count; i++) {
+      const param = params[i];
+      const actual = bindArgs[i];
+      if (!param || !param.paramType || !actual) continue;
+      const inferred = this.typeExpressionFromValue(actual);
+      if (!inferred) continue;
+      this.matchTypeExpressionTemplate(param.paramType, inferred, genericNames, bindings);
+    }
+  }
+  call.typeArguments = generics.map(gp => {
+    const binding = bindings.get(gp.name.name);
+    return binding ?? AST.wildcardTypeExpression();
+  });
 };
 
   cls.prototype.bindTypeArgumentsIfAny = function bindTypeArgumentsIfAny(this: InterpreterV10, funcNode: AST.FunctionDefinition | AST.LambdaExpression, call: AST.FunctionCall, env: Environment): void {
