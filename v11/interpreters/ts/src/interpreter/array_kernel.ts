@@ -128,7 +128,7 @@ export function applyArrayKernelAugmentations(cls: typeof InterpreterV10): void 
       this.makeNativeFunction("__able_array_size", 1, (interp, args) => {
         const handle = toHandleNumber(args[0], "handle");
         const state = arrayStateForHandle(interp, handle);
-        return makeIntegerFromNumber("u64", state.values.length);
+        return makeIntegerFromNumber("i32", state.values.length);
       }),
     );
 
@@ -136,7 +136,7 @@ export function applyArrayKernelAugmentations(cls: typeof InterpreterV10): void 
       this.makeNativeFunction("__able_array_capacity", 1, (interp, args) => {
         const handle = toHandleNumber(args[0], "handle");
         const state = arrayStateForHandle(interp, handle);
-        return makeIntegerFromNumber("u64", state.capacity);
+        return makeIntegerFromNumber("i32", state.capacity);
       }),
     );
 
@@ -182,7 +182,7 @@ export function applyArrayKernelAugmentations(cls: typeof InterpreterV10): void 
         const minCapacity = Math.trunc(numericToNumber(args[1], "capacity", { requireSafeInteger: true }));
         const state = arrayStateForHandle(interp, handle);
         const capacity = ensureCapacity(state, minCapacity);
-        return makeIntegerFromNumber("u64", capacity);
+        return makeIntegerFromNumber("i32", capacity);
       }),
     );
 

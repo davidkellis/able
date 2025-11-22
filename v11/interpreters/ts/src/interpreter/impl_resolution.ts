@@ -197,6 +197,8 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
       if (opts?.interfaceName && entry.def.interfaceName.name !== opts.interfaceName) continue;
       const bindings = this.matchImplEntry(entry, opts);
       if (!bindings) continue;
+      const method = entry.methods.get(methodName);
+      if (!method) continue;
       const constraints = this.collectConstraintSpecs(entry.genericParams, entry.whereClause);
       if (constraints.length > 0) {
         try {
@@ -206,8 +208,6 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
           continue;
         }
       }
-      const method = entry.methods.get(methodName);
-      if (!method) continue;
       const score = this.computeImplSpecificity(entry, bindings, constraints);
       matches.push({ method, score, entry, constraints });
     }
@@ -392,9 +392,17 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
     const signature = this.typeExpressionToString(target);
     return [{ typeName: target.name.name, argTemplates: [], signature }];
   }
-  if (target.type === "GenericTypeExpression" && target.base.type === "SimpleTypeExpression") {
-    const signature = this.typeExpressionToString(target);
-    return [{ typeName: target.base.name.name, argTemplates: target.arguments ?? [], signature }];
+  if (target.type === "GenericTypeExpression") {
+    const argTemplates: AST.TypeExpression[] = [];
+    let current: AST.TypeExpression = target;
+    while (current.type === "GenericTypeExpression") {
+      if (current.arguments) argTemplates.unshift(...current.arguments);
+      current = current.base;
+    }
+    if (current.type === "SimpleTypeExpression") {
+      const signature = this.typeExpressionToString(target);
+      return [{ typeName: current.name.name, argTemplates, signature }];
+    }
   }
   throw new Error("Only simple, generic, or union target types supported in impl");
 };

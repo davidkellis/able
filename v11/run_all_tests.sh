@@ -70,6 +70,9 @@ copy_parity_report() {
   echo ">>> Parity JSON report copied to $target"
 }
 
+echo ">>> Exporting fixtures"
+"$ROOT_DIR/export_fixtures.sh"
+
 echo ">>> Running TypeScript unit tests"
 (
   cd "$ROOT_DIR/interpreters/ts"

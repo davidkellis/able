@@ -7,7 +7,8 @@ import {
   primitiveType,
   unknownType,
 } from "../types";
-import { bindPatternToEnv, type StatementContext } from "./expressions";
+import type { StatementContext } from "./expression-context";
+import { bindPatternToEnv } from "./patterns";
 
 export function checkStatement(ctx: StatementContext, node: AST.Statement | AST.Expression | undefined | null): void {
   if (!node) return;

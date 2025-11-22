@@ -29,12 +29,12 @@ export function evaluateLambdaExpression(ctx: InterpreterV10, node: AST.LambdaEx
 }
 
 export function evaluateFunctionCall(ctx: InterpreterV10, node: AST.FunctionCall, env: Environment): V10Value {
-  if (node.callee.type === "MemberAccessExpression" && node.callee.isSafe) {
+  if (node.callee.type === "MemberAccessExpression") {
     const receiver = ctx.evaluate(node.callee.object, env);
-    if (receiver.kind === "nil") {
+    if (node.callee.isSafe && receiver.kind === "nil") {
       return receiver;
     }
-    const memberValue = memberAccessOnValue(ctx, receiver, node.callee.member, env);
+    const memberValue = memberAccessOnValue(ctx, receiver, node.callee.member, env, { preferMethods: true });
     const callArgs = node.arguments.map((arg) => ctx.evaluate(arg, env));
     return callCallableValue(ctx, memberValue, callArgs, env, node);
   }
@@ -127,7 +127,12 @@ export function callCallableValue(ctx: InterpreterV10, callee: V10Value, args: V
           const pname = (param.name as any).name ?? `param_${i}`;
           const expected = ctx.typeExpressionToString(param.paramType);
           const actual = ctx.getTypeNameForValue(argVal) ?? argVal.kind;
-          throw new Error(`Parameter type mismatch for '${pname}': expected ${expected}, got ${actual}`);
+          const origin =
+            callNode && (callNode as any).span && (callNode as any).origin
+              ? `${(callNode as any).origin}:${(callNode as any).span.start.line + 1}:${(callNode as any).span.start.column + 1}`
+              : null;
+          const suffix = origin ? ` at ${origin}` : "";
+          throw new Error(`Parameter type mismatch for '${pname}': expected ${expected}, got ${actual}${suffix}`);
         }
         coerced = ctx.coerceValueToType(param.paramType, argVal);
         bindArgs[i] = coerced;

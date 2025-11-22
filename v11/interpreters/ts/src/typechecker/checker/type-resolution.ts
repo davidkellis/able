@@ -1,0 +1,527 @@
+import type * as AST from "../../ast";
+import {
+  formatType,
+  primitiveType,
+  unknownType,
+  type LiteralInfo,
+  type PrimitiveName,
+  type TypeInfo,
+} from "../types";
+import { getIntegerTypeInfo, hasIntegerBounds, integerBounds } from "../numeric";
+
+export type TypeResolutionContext = {
+  getTypeAlias(name: string): AST.TypeAliasDefinition | undefined;
+  getInterfaceDefinition(name: string): AST.InterfaceDefinition | undefined;
+  hasInterfaceDefinition(name: string): boolean;
+  getStructDefinition(name: string): AST.StructDefinition | undefined;
+  getIdentifierName(node: AST.Identifier | null | undefined): string | null;
+};
+
+export type TypeResolutionHelpers = {
+  resolveTypeExpression(
+    expr: AST.TypeExpression | null | undefined,
+    substitutions?: Map<string, TypeInfo>,
+  ): TypeInfo;
+  instantiateTypeAlias(
+    definition: AST.TypeAliasDefinition,
+    typeArguments: TypeInfo[],
+    outerSubstitutions?: Map<string, TypeInfo>,
+  ): TypeInfo;
+  typeInfosEquivalent(a: TypeInfo | undefined, b: TypeInfo | undefined): boolean;
+  isTypeAssignable(actual?: TypeInfo, expected?: TypeInfo): boolean;
+  describeLiteralMismatch(actual?: TypeInfo, expected?: TypeInfo): string | null;
+  canonicalizeStructuralType(type: TypeInfo): TypeInfo;
+  typeExpressionsEquivalent(
+    a: AST.TypeExpression | null | undefined,
+    b: AST.TypeExpression | null | undefined,
+    substitutions?: Map<string, string>,
+  ): boolean;
+  describeTypeExpression(expr: AST.TypeExpression | null | undefined, substitutions?: Map<string, string>): string;
+  formatTypeExpression(expr: AST.TypeExpression, substitutions?: Map<string, string>): string;
+  lookupSubstitution(name: string | null, substitutions?: Map<string, string>): string;
+  describeTypeArgument(type: TypeInfo): string;
+  appendInterfaceArgsToLabel(label: string, args: string[]): string;
+};
+
+export function createTypeResolutionHelpers(context: TypeResolutionContext): TypeResolutionHelpers {
+  function resolveTypeExpression(
+    expr: AST.TypeExpression | null | undefined,
+    substitutions?: Map<string, TypeInfo>,
+  ): TypeInfo {
+    if (!expr) return unknownType;
+    switch (expr.type) {
+      case "SimpleTypeExpression": {
+        const name = context.getIdentifierName(expr.name);
+        if (!name) return unknownType;
+        if (substitutions?.has(name)) {
+          return substitutions.get(name) ?? unknownType;
+        }
+        switch (name) {
+          case "i8":
+          case "i16":
+          case "i32":
+          case "i64":
+          case "i128":
+          case "u8":
+          case "u16":
+          case "u32":
+          case "u64":
+          case "u128":
+          case "f32":
+          case "f64":
+          case "bool":
+          case "string":
+          case "char":
+          case "nil":
+          case "void":
+            return primitiveType(name as PrimitiveName);
+          default: {
+            const alias = context.getTypeAlias(name);
+            if (alias) {
+              return instantiateTypeAlias(alias, [], substitutions);
+            }
+            if (context.hasInterfaceDefinition(name)) {
+              return { kind: "interface", name, typeArguments: [] };
+            }
+            return {
+              kind: "struct",
+              name,
+              typeArguments: [],
+              definition: context.getStructDefinition(name),
+            };
+          }
+        }
+      }
+      case "GenericTypeExpression": {
+        const baseName = getIdentifierNameFromTypeExpression(expr.base);
+        if (!baseName) return unknownType;
+        const typeArguments = Array.isArray(expr.arguments)
+          ? expr.arguments.map((arg) => resolveTypeExpression(arg, substitutions))
+          : [];
+        const alias = context.getTypeAlias(baseName);
+        if (alias) {
+          return instantiateTypeAlias(alias, typeArguments, substitutions);
+        }
+        if (context.hasInterfaceDefinition(baseName)) {
+          return { kind: "interface", name: baseName, typeArguments };
+        }
+        return {
+          kind: "struct",
+          name: baseName,
+          typeArguments,
+          definition: context.getStructDefinition(baseName),
+        };
+      }
+      case "NullableTypeExpression":
+        return {
+          kind: "nullable",
+          inner: resolveTypeExpression(expr.innerType, substitutions),
+        };
+      case "ResultTypeExpression":
+        return {
+          kind: "result",
+          inner: resolveTypeExpression(expr.innerType, substitutions),
+        };
+      case "UnionTypeExpression": {
+        const members = Array.isArray(expr.members)
+          ? expr.members.map((member) => resolveTypeExpression(member, substitutions))
+          : [];
+        return { kind: "union", members };
+      }
+      case "FunctionTypeExpression": {
+        const parameters = Array.isArray(expr.paramTypes)
+          ? expr.paramTypes.map((param) => resolveTypeExpression(param, substitutions))
+          : [];
+        const returnType = resolveTypeExpression(expr.returnType, substitutions);
+        return {
+          kind: "function",
+          parameters,
+          returnType,
+        };
+      }
+      default:
+        return unknownType;
+    }
+  }
+
+  function instantiateTypeAlias(
+    definition: AST.TypeAliasDefinition,
+    typeArguments: TypeInfo[],
+    outerSubstitutions?: Map<string, TypeInfo>,
+  ): TypeInfo {
+    const substitution = outerSubstitutions ? new Map(outerSubstitutions) : new Map<string, TypeInfo>();
+    if (Array.isArray(definition.genericParams)) {
+      definition.genericParams.forEach((param, index) => {
+        const name = context.getIdentifierName(param?.name);
+        if (!name) {
+          return;
+        }
+        const arg = typeArguments[index] ?? unknownType;
+        substitution.set(name, arg);
+      });
+    }
+    return resolveTypeExpression(definition.targetType, substitution);
+  }
+
+  function canonicalizeStructuralType(type: TypeInfo): TypeInfo {
+    if (!type || type.kind !== "struct") {
+      return type;
+    }
+    const args = Array.isArray(type.typeArguments) ? type.typeArguments : [];
+    const firstArg = args[0] ?? unknownType;
+    switch (type.name) {
+      case "Array":
+        return { kind: "array", element: firstArg ?? unknownType };
+      case "Iterator":
+        return { kind: "iterator", element: firstArg ?? unknownType };
+      case "Range":
+        return { kind: "range", element: firstArg ?? unknownType };
+      case "Proc":
+        return { kind: "proc", result: firstArg ?? unknownType };
+      case "Future":
+        return { kind: "future", result: firstArg ?? unknownType };
+      case "Map": {
+        const key = args[0] ?? unknownType;
+        const value = args[1] ?? unknownType;
+        return { kind: "map", key, value };
+      }
+      default:
+        return type;
+    }
+  }
+
+  function literalValueToBigInt(literal: LiteralInfo): bigint {
+    if (typeof literal.value === "bigint") {
+      return literal.value;
+    }
+    if (!Number.isFinite(literal.value)) {
+      return BigInt(0);
+    }
+    return BigInt(Math.trunc(literal.value));
+  }
+
+  function literalFitsPrimitive(literal: LiteralInfo, expected: PrimitiveName, literalType: PrimitiveName): boolean {
+    if (literal.literalKind === "integer") {
+      if (literal.explicit) {
+        return literalType === expected;
+      }
+      if (!hasIntegerBounds(expected)) {
+        return literalType === expected;
+      }
+      const bounds = integerBounds(expected);
+      const value = literalValueToBigInt(literal);
+      return value >= bounds.min && value <= bounds.max;
+    }
+    if (literal.literalKind === "float") {
+      if (literal.explicit) {
+        return literalType === expected;
+      }
+      return expected === "f32" || expected === "f64";
+    }
+    return false;
+  }
+
+  function typeInfosEquivalent(a: TypeInfo | undefined, b: TypeInfo | undefined): boolean {
+    if (!a || a.kind === "unknown" || !b || b.kind === "unknown") {
+      return true;
+    }
+    let left: TypeInfo = a;
+    let right: TypeInfo = b;
+    const normalizedLeft = canonicalizeStructuralType(left);
+    const normalizedRight = canonicalizeStructuralType(right);
+    if (normalizedLeft !== left || normalizedRight !== right) {
+      return typeInfosEquivalent(normalizedLeft, normalizedRight);
+    }
+    left = normalizedLeft;
+    right = normalizedRight;
+    if (left.kind === "primitive" && right.kind === "primitive") {
+      if (left.literal && literalFitsPrimitive(left.literal, right.name, left.name)) {
+        return true;
+      }
+      if (right.literal && literalFitsPrimitive(right.literal, left.name, right.name)) {
+        return true;
+      }
+      return left.name === right.name;
+    }
+    if (left.kind !== right.kind) {
+      return false;
+    }
+    switch (left.kind) {
+      case "array": {
+        const other = right as Extract<TypeInfo, { kind: "array" }>;
+        return typeInfosEquivalent(left.element, other.element);
+      }
+      case "map": {
+        const other = right as Extract<TypeInfo, { kind: "map" }>;
+        return typeInfosEquivalent(left.key, other.key) && typeInfosEquivalent(left.value, other.value);
+      }
+      case "iterator":
+      case "range": {
+        const other = right as Extract<TypeInfo, { kind: typeof left.kind }>;
+        return typeInfosEquivalent(left.element, other.element);
+      }
+      case "proc":
+      case "future": {
+        const other = right as Extract<TypeInfo, { kind: typeof left.kind }>;
+        return typeInfosEquivalent(left.result, other.result);
+      }
+      case "nullable":
+      case "result": {
+        const other = right as Extract<TypeInfo, { kind: typeof left.kind }>;
+        return typeInfosEquivalent(left.inner, other.inner);
+      }
+      case "union": {
+        const otherMembers = (right as typeof left).members ?? [];
+        if (left.members.length !== otherMembers.length) {
+          return false;
+        }
+        for (let i = 0; i < left.members.length; i += 1) {
+          if (!typeInfosEquivalent(left.members[i], otherMembers[i])) {
+            return false;
+          }
+        }
+        return true;
+      }
+      default:
+        return formatType(a) === formatType(b);
+    }
+  }
+
+  function canWidenIntegerType(actual: PrimitiveName, expected: PrimitiveName): boolean {
+    const actualInfo = getIntegerTypeInfo(actual);
+    const expectedInfo = getIntegerTypeInfo(expected);
+    if (!actualInfo || !expectedInfo) {
+      return false;
+    }
+    return actualInfo.min >= expectedInfo.min && actualInfo.max <= expectedInfo.max;
+  }
+
+  function isTypeAssignable(actual?: TypeInfo, expected?: TypeInfo): boolean {
+    if (!actual || actual.kind === "unknown" || !expected || expected.kind === "unknown") {
+      return true;
+    }
+    const normalizedActual = canonicalizeStructuralType(actual);
+    const normalizedExpected = canonicalizeStructuralType(expected);
+    if (typeInfosEquivalent(normalizedActual, normalizedExpected)) {
+      return true;
+    }
+    if (normalizedExpected.kind === "nullable") {
+      if (normalizedActual.kind === "primitive" && normalizedActual.name === "nil") {
+        return true;
+      }
+      return isTypeAssignable(normalizedActual, normalizedExpected.inner);
+    }
+    if (normalizedExpected.kind === "result") {
+      if (isTypeAssignable(normalizedActual, normalizedExpected.inner)) {
+        return true;
+      }
+      return false;
+    }
+    if (normalizedExpected.kind === "union" && Array.isArray(normalizedExpected.members)) {
+      return normalizedExpected.members.some((member) => isTypeAssignable(normalizedActual, member));
+    }
+    if (normalizedActual.kind === "primitive" && normalizedExpected.kind === "primitive") {
+      if (canWidenIntegerType(normalizedActual.name, normalizedExpected.name)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function describeLiteralMismatch(actual?: TypeInfo, expected?: TypeInfo): string | null {
+    if (!actual || !expected) {
+      return null;
+    }
+    let normalizedActual = actual;
+    let normalizedExpected = expected;
+    const nextActual = canonicalizeStructuralType(normalizedActual);
+    const nextExpected = canonicalizeStructuralType(normalizedExpected);
+    if (nextActual !== normalizedActual || nextExpected !== normalizedExpected) {
+      return describeLiteralMismatch(nextActual, nextExpected);
+    }
+    normalizedActual = nextActual;
+    normalizedExpected = nextExpected;
+    if (normalizedActual.kind === "array" && normalizedExpected.kind === "array") {
+      return describeLiteralMismatch(normalizedActual.element, normalizedExpected.element);
+    }
+    if (normalizedActual.kind === "map" && normalizedExpected.kind === "map") {
+      return (
+        describeLiteralMismatch(normalizedActual.key, normalizedExpected.key) ??
+        describeLiteralMismatch(normalizedActual.value, normalizedExpected.value)
+      );
+    }
+    if (normalizedActual.kind === "iterator" && normalizedExpected.kind === "iterator") {
+      return describeLiteralMismatch(normalizedActual.element, normalizedExpected.element);
+    }
+    if (normalizedActual.kind === "range" && normalizedExpected.kind === "range") {
+      const elementMessage = describeLiteralMismatch(normalizedActual.element, normalizedExpected.element);
+      if (elementMessage) {
+        return elementMessage;
+      }
+      if (Array.isArray(normalizedActual.bounds)) {
+        for (const bound of normalizedActual.bounds) {
+          const boundMessage = describeLiteralMismatch(bound, normalizedExpected.element);
+          if (boundMessage) {
+            return boundMessage;
+          }
+        }
+      }
+      return null;
+    }
+    if (normalizedActual.kind === "proc" && normalizedExpected.kind === "proc") {
+      return describeLiteralMismatch(normalizedActual.result, normalizedExpected.result);
+    }
+    if (normalizedActual.kind === "future" && normalizedExpected.kind === "future") {
+      return describeLiteralMismatch(normalizedActual.result, normalizedExpected.result);
+    }
+    if (normalizedActual.kind === "nullable" && normalizedExpected.kind === "nullable") {
+      return describeLiteralMismatch(normalizedActual.inner, normalizedExpected.inner);
+    }
+    if (normalizedActual.kind === "result" && normalizedExpected.kind === "result") {
+      return describeLiteralMismatch(normalizedActual.inner, normalizedExpected.inner);
+    }
+    if (normalizedActual.kind === "union" && normalizedExpected.kind === "union") {
+      const count = Math.min(normalizedActual.members.length, normalizedExpected.members.length);
+      for (let i = 0; i < count; i += 1) {
+        const message = describeLiteralMismatch(normalizedActual.members[i], normalizedExpected.members[i]);
+        if (message) {
+          return message;
+        }
+      }
+      return null;
+    }
+    if (normalizedActual.kind === "union") {
+      for (const member of normalizedActual.members) {
+        const message = describeLiteralMismatch(member, normalizedExpected);
+        if (message) {
+          return message;
+        }
+      }
+      return null;
+    }
+    if (normalizedExpected.kind === "union") {
+      for (const member of normalizedExpected.members) {
+        const message = describeLiteralMismatch(normalizedActual, member);
+        if (message) {
+          return message;
+        }
+      }
+      return null;
+    }
+    if (normalizedActual.kind !== "primitive" || normalizedExpected.kind !== "primitive") {
+      return null;
+    }
+    if (!normalizedActual.literal || normalizedActual.literal.literalKind !== "integer" || normalizedActual.literal.explicit) {
+      return null;
+    }
+    if (!hasIntegerBounds(normalizedExpected.name)) {
+      return null;
+    }
+    const bounds = integerBounds(normalizedExpected.name);
+    const value = literalValueToBigInt(normalizedActual.literal);
+    if (value < bounds.min || value > bounds.max) {
+      return `typechecker: literal ${value.toString()} does not fit in ${normalizedExpected.name}`;
+    }
+    return null;
+  }
+
+  function formatTypeExpression(expr: AST.TypeExpression, substitutions?: Map<string, string>): string {
+    switch (expr.type) {
+      case "SimpleTypeExpression":
+        return lookupSubstitution(context.getIdentifierName(expr.name), substitutions);
+      case "GenericTypeExpression": {
+        const base = expr.base ? formatTypeExpression(expr.base, substitutions) : "Unknown";
+        const args = Array.isArray(expr.arguments)
+          ? expr.arguments
+              .map((arg) => (arg ? formatTypeExpression(arg, substitutions) : "Unknown"))
+              .filter(Boolean)
+          : [];
+        return args.length > 0 ? [base, ...args].join(" ") : base;
+      }
+      case "FunctionTypeExpression": {
+        const params = Array.isArray(expr.paramTypes)
+          ? expr.paramTypes.map((param) => (param ? formatTypeExpression(param, substitutions) : "Unknown"))
+          : [];
+        const ret = expr.returnType ? formatTypeExpression(expr.returnType, substitutions) : "void";
+        return `fn(${params.join(", ")}) -> ${ret}`;
+      }
+      case "NullableTypeExpression":
+        return `${formatTypeExpression(expr.innerType, substitutions)}?`;
+      case "ResultTypeExpression":
+        return `Result ${formatTypeExpression(expr.innerType, substitutions)}`;
+      case "UnionTypeExpression": {
+        const members = Array.isArray(expr.members)
+          ? expr.members.map((member) => (member ? formatTypeExpression(member, substitutions) : "Unknown"))
+          : [];
+        return members.length > 0 ? members.join(" | ") : "Union";
+      }
+      case "WildcardTypeExpression":
+        return "_";
+      default:
+        return "Unknown";
+    }
+  }
+
+  function typeExpressionsEquivalent(
+    a: AST.TypeExpression | null | undefined,
+    b: AST.TypeExpression | null | undefined,
+    substitutions?: Map<string, string>,
+  ): boolean {
+    if (!a && !b) return true;
+    if (!a || !b) return false;
+    return formatTypeExpression(a, substitutions) === formatTypeExpression(b, substitutions);
+  }
+
+  function describeTypeExpression(
+    expr: AST.TypeExpression | null | undefined,
+    substitutions?: Map<string, string>,
+  ): string {
+    if (!expr) return "unspecified";
+    return formatTypeExpression(expr, substitutions);
+  }
+
+  function lookupSubstitution(name: string | null, substitutions?: Map<string, string>): string {
+    if (!name) return "Unknown";
+    if (substitutions && substitutions.has(name)) {
+      return substitutions.get(name) ?? "Unknown";
+    }
+    return name;
+  }
+
+  function describeTypeArgument(type: TypeInfo): string {
+    return formatType(type);
+  }
+
+  function appendInterfaceArgsToLabel(label: string, args: string[]): string {
+    if (!args.length) {
+      return label;
+    }
+    return `${label} ${args.join(" ")}`.trim();
+  }
+
+  function getIdentifierNameFromTypeExpression(expr: AST.TypeExpression | null | undefined): string | null {
+    if (!expr) return null;
+    if (expr.type === "SimpleTypeExpression") {
+      return context.getIdentifierName(expr.name);
+    }
+    if (expr.type === "GenericTypeExpression") {
+      return getIdentifierNameFromTypeExpression(expr.base);
+    }
+    return null;
+  }
+
+  return {
+    resolveTypeExpression,
+    instantiateTypeAlias,
+    typeInfosEquivalent,
+    isTypeAssignable,
+    describeLiteralMismatch,
+    canonicalizeStructuralType,
+    typeExpressionsEquivalent,
+    describeTypeExpression,
+    formatTypeExpression,
+    lookupSubstitution,
+    describeTypeArgument,
+    appendInterfaceArgsToLabel,
+  };
+}
