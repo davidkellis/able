@@ -225,6 +225,11 @@ func (c *Checker) bindStructPattern(env *Environment, pat *ast.StructPattern, va
 	} else if st, ok := valueType.(StructType); ok {
 		structInfo = st
 		hasInfo = true
+	} else if candidate, ok := c.structFromUnionVariant(valueType, pat); ok {
+		structInfo = candidate
+		hasInfo = true
+	} else if isUnionLike(valueType) {
+		// Union with no struct match; permit pattern binding with unknown field types.
 	} else if !isUnknownType(valueType) {
 		diags = append(diags, Diagnostic{
 			Message: fmt.Sprintf("typechecker: struct pattern cannot match type %s", typeName(valueType)),
@@ -289,6 +294,65 @@ func (c *Checker) bindStructPattern(env *Environment, pat *ast.StructPattern, va
 
 	c.infer.set(pat, valueType)
 	return diags
+}
+
+func (c *Checker) structFromUnionVariant(valueType Type, pat *ast.StructPattern) (StructType, bool) {
+	matchStruct := func(candidate Type) (StructType, bool) {
+		switch v := candidate.(type) {
+		case StructType:
+			if pat.StructType == nil || pat.StructType.Name == "" || v.StructName == pat.StructType.Name {
+				return v, true
+			}
+		case StructInstanceType:
+			if pat.StructType == nil || pat.StructType.Name == "" || v.StructName == pat.StructType.Name {
+				return StructType{StructName: v.StructName, Fields: v.Fields, Positional: v.Positional}, true
+			}
+		case AliasType:
+			if st, ok := v.Target.(StructType); ok {
+				if pat.StructType == nil || pat.StructType.Name == "" || st.StructName == pat.StructType.Name {
+					return st, true
+				}
+			}
+		}
+		return StructType{}, false
+	}
+
+	switch v := valueType.(type) {
+	case UnionType:
+		for _, variant := range v.Variants {
+			if st, ok := matchStruct(variant); ok {
+				return st, true
+			}
+		}
+	case UnionLiteralType:
+		for _, variant := range v.Members {
+			if st, ok := matchStruct(variant); ok {
+				return st, true
+			}
+		}
+	case AliasType:
+		if st, ok := matchStruct(v.Target); ok {
+			return st, true
+		}
+		if ut, ok := v.Target.(UnionType); ok {
+			return c.structFromUnionVariant(ut, pat)
+		}
+		if ul, ok := v.Target.(UnionLiteralType); ok {
+			return c.structFromUnionVariant(ul, pat)
+		}
+	}
+	return StructType{}, false
+}
+
+func isUnionLike(t Type) bool {
+	switch v := t.(type) {
+	case UnionType, UnionLiteralType:
+		return true
+	case AliasType:
+		return isUnionLike(v.Target)
+	default:
+		return false
+	}
 }
 
 func (c *Checker) bindArrayPattern(env *Environment, pat *ast.ArrayPattern, valueType Type, allowDefine bool, intent *patternIntent) []Diagnostic {

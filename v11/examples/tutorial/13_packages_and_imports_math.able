@@ -1,6 +1,6 @@
 package tutorial_packages_math
 
-type Pair = struct { left: i32, right: i32 }
+struct Pair { left: i32, right: i32 }
 
 private fn bias() -> i32 { 1 }
 

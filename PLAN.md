@@ -69,3 +69,9 @@
       - Began hiding the interim `String` wrapper: stdlib string helpers now return built-in strings with `u64` lengths, `String` is package-private, and `StringBuilder` operates on the built-in `string` surface.
       - Restored persistent `collections/list` into `v11/stdlib/src` with smoke coverage and TS ModuleLoader integration exercising concat/reverse/to_array + iteration.
       - Restored persistent `collections/vector` into `v11/stdlib/src` with smoke coverage plus a TS ModuleLoader integration ensuring push/set/pop + iteration work via the stdlib surface.
+
+### Tutorials & Examples (cleanup backlog)
+- Fix tutorials requiring missing stdlib imports/stubs (Channel/Mutex await sample) once the stdlib surfaces are wired back in.
+- Update options/results/exceptions/interop tutorials to reference the `Error` interface correctly (or import the stdlib definition) so they typecheck.
+- Adjust concurrency proc/spawn tutorial to avoid `proc_yield` misuse and return-type mismatches.
+- Align package/import tutorials with correct package names (`tutorial_packages_*`) so the loader resolves dependencies.

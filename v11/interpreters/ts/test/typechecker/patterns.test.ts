@@ -249,4 +249,57 @@ describe("typechecker typed patterns", () => {
     expect(diagnostics).toHaveLength(1);
     expect(diagnostics[0]?.message).toContain("literal 512 does not fit in u8");
   });
+
+  test("struct patterns match union variants", () => {
+    const checker = new TypeChecker();
+    const circle = AST.structDefinition(
+      "Circle",
+      [AST.structFieldDefinition(AST.simpleTypeExpression("f64"), "radius")],
+      "named",
+    );
+    const rectangle = AST.structDefinition(
+      "Rectangle",
+      [
+        AST.structFieldDefinition(AST.simpleTypeExpression("f64"), "width"),
+        AST.structFieldDefinition(AST.simpleTypeExpression("f64"), "height"),
+      ],
+      "named",
+    );
+    const moveTo = AST.structDefinition(
+      "MoveTo",
+      [AST.structFieldDefinition(AST.simpleTypeExpression("Point"), "to")],
+      "named",
+    );
+    const point = AST.structDefinition(
+      "Point",
+      [
+        AST.structFieldDefinition(AST.simpleTypeExpression("f64"), "x"),
+        AST.structFieldDefinition(AST.simpleTypeExpression("f64"), "y"),
+      ],
+      "named",
+    );
+    const shape = AST.unionDefinition("Shape", [
+      AST.simpleTypeExpression("Circle"),
+      AST.simpleTypeExpression("Rectangle"),
+      AST.simpleTypeExpression("MoveTo"),
+    ]);
+    const bindShape = AST.assignmentExpression(
+      ":=",
+      AST.typedPattern(AST.identifier("shape"), AST.simpleTypeExpression("Shape")),
+      AST.structLiteral([AST.structFieldInitializer(AST.floatLiteral(1.0), "radius")], false, "Circle"),
+    ) as unknown as AST.Statement;
+    const matchExpr = AST.matchExpression(AST.identifier("shape"), [
+      AST.matchClause(
+        AST.structPattern([AST.structPatternField(AST.identifier("r"), "radius")], false, "Circle"),
+        AST.identifier("r"),
+      ),
+      AST.matchClause(
+        AST.structPattern([AST.structPatternField(AST.identifier("w"), "width")], false, "Rectangle"),
+        AST.identifier("w"),
+      ),
+    ]);
+    const module = AST.module([point, circle, rectangle, moveTo, shape, bindShape, matchExpr as unknown as AST.Statement]);
+    const { diagnostics } = checker.checkModule(module);
+    expect(diagnostics).toEqual([]);
+  });
 });
