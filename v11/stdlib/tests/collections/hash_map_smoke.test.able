@@ -1,0 +1,106 @@
+package collections.hash_map.tests
+
+import able.collections.hash_map.{HashMap}
+import able.core.errors.{IndexError}
+
+fn assert(condition: bool, message: string) -> void {
+  if condition { return }
+  raise message
+}
+
+fn expect_i32(value: ?i32, expected: i32, message: string) -> void {
+  value match {
+    case actual: i32 => assert(actual == expected, message),
+    case nil => { raise message },
+    case _ => { raise message }
+  }
+}
+
+fn check_basic_set_and_get() -> void {
+  map := HashMap.new()
+  assert(map.size() == 0, "new HashMap should start empty")
+
+  map.set(1, 10)
+  map.set(2, 20)
+  assert(map.size() == 2, "size should reflect inserted entries")
+  assert(map.contains(1), "contains should report present keys")
+
+  expect_i32(map.get(1), 10, "get should retrieve the inserted value")
+  map.get(99) match {
+    case nil => {},
+    case _ => { raise "get should return nil for missing keys" }
+  }
+}
+
+fn check_overwrite_and_remove() -> void {
+  map := HashMap.new()
+  map.set(5, 50)
+  map.set(5, 75)
+  assert(map.size() == 1, "overwriting a key should not grow the map")
+  expect_i32(map.get(5), 75, "latest set should replace the existing value")
+
+  removed := map.remove(5)
+  expect_i32(removed, 75, "remove should return the stored value")
+  assert(map.size() == 0, "remove should shrink the map")
+
+  map.remove(5) match {
+    case nil => {},
+    case _ => { raise "removing a missing key should return nil" }
+  }
+}
+
+fn check_resize_and_lookup() -> void {
+  map := HashMap.with_capacity(4)
+
+  i := 0
+  loop {
+    if i >= 20 { break }
+    map.set(i, i * 2)
+    i = i + 1
+  }
+
+  assert(map.size() == 20, "map should track all inserted entries across resizes")
+  expect_i32(map.get(0), 0, "get should find the first inserted value")
+  expect_i32(map.get(10), 20, "get should find middle entries after rehashing")
+  expect_i32(map.get(19), 38, "get should find the last inserted value")
+}
+
+fn check_index_operator_and_clear() -> void {
+  map := HashMap.new()
+  map.set(7, 21)
+
+  expect_i32(map.get(7), 21, "get should return the stored value")
+  map.get(99) match {
+    case nil => {},
+    case _ => { raise "missing keys should produce nil when fetched" }
+  }
+
+  map.clear()
+  assert(map.size() == 0, "clear should reset the map")
+  assert(map.is_empty(), "is_empty should reflect cleared state")
+}
+
+fn check_for_each() -> void {
+  map := HashMap.new()
+  map.set(3, 9)
+  map.set(4, 16)
+
+  key_sum := 0
+  value_sum := 0
+  fn accumulate(key: i32, value: i32) -> void {
+    key_sum = key_sum + key
+    value_sum = value_sum + value
+  }
+  map.for_each(accumulate)
+
+  assert(key_sum == 7, "for_each should visit every key")
+  assert(value_sum == 25, "for_each should visit every value")
+}
+
+fn main() -> void {
+  check_basic_set_and_get()
+  check_overwrite_and_remove()
+  check_resize_and_lookup()
+  check_index_operator_and_clear()
+  check_for_each()
+}

@@ -1,5 +1,10 @@
 # Able Project Log
 
+## 2025-11-19 — File modularization cleanup
+- Split Go typechecker declaration/type utility stacks into dedicated files (`decls_*`, `type_substitution.go`) and shrank `type_utils.go` beneath the 1k-line guardrail; Go AST definitions now live across `ast.go`, `type_expressions.go`, and `patterns.go` so each file stays lean.
+- Broke the long TS fixture exporter (`proc_scheduling.ts`) into `proc_scheduling_part{1,2}.ts` with a tiny aggregate shim to keep per-file size under 1000 lines.
+- `go test ./...` (v11/interpreters/go) remains green after the split.
+
 ## 2025-11-18 — String helper surface complete
 - Added the full string helper set to both interpreters: `len_chars`/`len_graphemes`, `substring` (code-point offsets with `RangeError` on invalid bounds), `split` (empty delimiter splits graphemes), `replace`, `starts_with`/`ends_with`, and `chars`/`graphemes` iterators (Segmenter-aware in TS, rune fallback in Go). Shared helpers keep `len_*` in sync with iterator `size()`.
 - Typecheckers now understand the string surface (Go member access signatures, TS call resolution for optional substring length and string primitives), and Go array literal inference merges element types instead of rejecting unions.

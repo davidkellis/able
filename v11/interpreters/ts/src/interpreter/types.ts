@@ -13,6 +13,11 @@ function integerRangeWithin(source: IntegerKind, target: IntegerKind): boolean {
   return sourceInfo.min >= targetInfo.min && sourceInfo.max <= targetInfo.max;
 }
 
+function integerValueWithinRange(raw: bigint, target: IntegerKind): boolean {
+  const targetInfo = getIntegerInfo(target);
+  return raw >= targetInfo.min && raw <= targetInfo.max;
+}
+
 declare module "./index" {
   interface InterpreterV10 {
     typeExpressionToString(t: AST.TypeExpression): string;
@@ -167,7 +172,11 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
           }
           const actualKind = v.kind as IntegerKind;
           const expectedKind = name as IntegerKind;
-          return actualKind === expectedKind || integerRangeWithin(actualKind, expectedKind);
+          return (
+            actualKind === expectedKind ||
+            integerRangeWithin(actualKind, expectedKind) ||
+            integerValueWithinRange(v.value, expectedKind)
+          );
         }
         if (FLOAT_KINDS.includes(name as FloatKind)) return v.kind === name;
         if (name === "Error") return v.kind === "error";
@@ -247,7 +256,7 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
       if (INTEGER_KIND_SET.has(name as IntegerKind) && isIntegerValue(value)) {
         const targetKind = name as IntegerKind;
         const actualKind = value.kind as IntegerKind;
-        if (actualKind !== targetKind && integerRangeWithin(actualKind, targetKind)) {
+        if (actualKind !== targetKind && integerValueWithinRange(value.value, targetKind)) {
           return makeIntegerValue(targetKind, value.value);
         }
       }

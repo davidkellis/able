@@ -10,7 +10,7 @@ extern typescript fn __able_string_from_builtin(value: string) -> Array u8 {}
 extern typescript fn __able_string_to_builtin(bytes: Array u8) -> string {}
 extern typescript fn __able_char_from_codepoint(value: i32) -> char {}
 
-struct String {
+private struct String {
   bytes: Array u8,
   len_bytes: i32
 }
@@ -23,22 +23,22 @@ struct StringBuilder {
   buffer: Array u8
 }
 
-struct StringBytesIter {
+private struct StringBytesIter {
   string: String,
   offset: i32
 }
 
-struct StringCharsIter {
+private struct StringCharsIter {
   string: String,
   offset: i32
 }
 
-struct StringGraphemesIter {
+private struct StringGraphemesIter {
   string: String,
   offset: i32
 }
 
-struct Utf8DecodeResult {
+private struct Utf8DecodeResult {
   codepoint: char,
   next_offset: i32
 }
@@ -181,13 +181,13 @@ methods String {
     idx := 0
     loop {
       strings.get(idx) match {
-        case nil => break,
-        case value: String => builder.push_string(value)
+        case nil => { break },
+        case value: String => builder.push_string(to_builtin_string(value))
       }
       idx = idx + 1
     }
     builder.finish() match {
-      case result: String => result,
+      case result: string => to_string_value(result),
       case err: Error => { raise err }
     }
   }
@@ -197,16 +197,16 @@ methods String {
     idx := 0
     loop {
       strings.get(idx) match {
-        case nil => break,
+        case nil => { break },
         case value: String => {
-          if idx > 0 { builder.push_string(separator.clone()) }
-          builder.push_string(value)
+          if idx > 0 { builder.push_string(to_builtin_string(separator.clone())) }
+          builder.push_string(to_builtin_string(value))
         }
       }
       idx = idx + 1
     }
     builder.finish() match {
-      case result: String => result,
+      case result: string => to_string_value(result),
       case err: Error => { raise err }
     }
   }
@@ -309,10 +309,93 @@ methods String {
     trailing := slice_bytes(haystack, start, hay_len)
     builder.push_bytes(trailing)
     builder.finish() match {
-      case s: String => s,
+      case s: string => to_string_value(s),
       case err: Error => { raise err }
     }
   }
+}
+
+private fn to_string_value(value: string) -> String {
+  String.from_builtin(value) match {
+    case err: Error => { raise err },
+    case s: String => s
+  }
+}
+
+private fn to_builtin_string(value: String) -> string {
+  value.to_builtin() match {
+    case err: Error => { raise err },
+    case text: string => text
+  }
+}
+
+private fn to_result_string(value: Result String) -> Result string {
+  value match {
+    case err: Error => err,
+    case s: String => s.to_builtin()
+  }
+}
+
+private fn to_u64(value: i32) -> u64 {
+  if value <= 0 { 0 } else { value }
+}
+
+methods string {
+  fn len_bytes(self: Self) -> u64 { to_u64(to_string_value(self).len_bytes()) }
+  fn len_chars(self: Self) -> u64 { to_u64(to_string_value(self).len_chars()) }
+  fn len_graphemes(self: Self) -> u64 { to_u64(to_string_value(self).len_graphemes()) }
+
+  fn substring(self: Self, start: u64, length: ?u64) -> Result string {
+    start_idx: i32 = 0
+    len_arg: ?i32 := nil
+    if start > 2147483647 {
+      return RangeError { message: "substring start out of range" }
+    }
+    start_idx = start
+
+    if length != nil {
+      if length > 2147483647 {
+        return RangeError { message: "substring length out of range" }
+      }
+      len_arg = length
+    }
+    to_result_string(to_string_value(self).substring(start_idx, len_arg))
+  }
+
+  fn split(self: Self, delimiter: string) -> Array string {
+    haystack := to_string_value(self)
+    needle := to_string_value(delimiter)
+    segments := haystack.split(needle)
+    result: Array string := Array.new()
+    idx := 0
+    loop {
+      segments.get(idx) match {
+        case nil => { break },
+        case piece: String => result.push(to_builtin_string(piece))
+      }
+      idx = idx + 1
+    }
+    result
+  }
+
+  fn replace(self: Self, old: string, new: string) -> string {
+    hay := to_string_value(self)
+    old_value := to_string_value(old)
+    new_value := to_string_value(new)
+    to_builtin_string(hay.replace(old_value, new_value))
+  }
+
+  fn starts_with(self: Self, prefix: string) -> bool {
+    to_string_value(self).starts_with(to_string_value(prefix))
+  }
+
+  fn ends_with(self: Self, suffix: string) -> bool {
+    to_string_value(self).ends_with(to_string_value(suffix))
+  }
+
+  fn bytes(self: Self) -> (Iterator u8) { to_string_value(self).byte_iter() }
+  fn chars(self: Self) -> (Iterator char) { to_string_value(self).chars() }
+  fn graphemes(self: Self) -> (Iterator Grapheme) { to_string_value(self).graphemes() }
 }
 
 impl Clone for String {
@@ -328,9 +411,9 @@ impl Clone for Grapheme {
 }
 
 methods Grapheme {
-  fn len_bytes(self: Self) -> i32 { self.bytes.len() }
+  fn len_bytes(self: Self) -> u64 { to_u64(self.bytes.len()) }
   fn bytes(self: Self) -> Array u8 { self.bytes.clone() }
-  fn as_string(self: Self) -> String { String.from_bytes_unchecked(self.bytes.clone()) }
+  fn as_string(self: Self) -> string { to_builtin_string(String.from_bytes_unchecked(self.bytes.clone())) }
 }
 
 methods StringBuilder {
@@ -357,18 +440,18 @@ methods StringBuilder {
     self.buffer.push_all(bytes)
   }
 
-  fn push_string(self: Self, value: String) -> void {
-    self.buffer.push_all(value.bytes())
+  fn push_string(self: Self, value: string) -> void {
+    self.buffer.push_all(to_string_value(value).bytes())
   }
 
   fn append_builder(self: Self, other: StringBuilder) -> void {
     self.buffer.push_all(other.buffer)
   }
 
-  fn len_bytes(self: Self) -> i32 { self.buffer.len() }
+  fn len_bytes(self: Self) -> u64 { to_u64(self.buffer.len()) }
 
-  fn finish(self: Self) -> Result String {
-    String.from_bytes(self.buffer)
+  fn finish(self: Self) -> Result string {
+    to_result_string(String.from_bytes(self.buffer))
   }
 }
 
@@ -586,7 +669,7 @@ fn slice_bytes(bytes: Array u8, start: i32, end: i32) -> Array u8 {
   loop {
     if idx >= end { break }
     bytes.get(idx) match {
-      case nil => break,
+      case nil => { break },
       case value: u8 => result.push(value)
     }
     idx = idx + 1

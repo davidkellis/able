@@ -22,7 +22,7 @@ fn main() -> void {
   print(`Computed value: ${computed}`)
 
   maybe_name: ?string := nil
-  length_hint := maybe_name?.foo
+  length_hint := maybe_name?.length()
   print(`Optional length -> ${length_hint}`)
 
   excited := language |> (`Welcome to ${%}!`)

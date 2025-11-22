@@ -158,7 +158,13 @@ function inferStructTypeArguments(ctx: InterpreterV10, def: AST.StructDefinition
   return generics.map(gp => bindings.get(gp.name.name) ?? AST.wildcardTypeExpression());
 }
 
-export function memberAccessOnValue(ctx: InterpreterV10, obj: V10Value, member: AST.Identifier | AST.IntegerLiteral, env: Environment): V10Value {
+export function memberAccessOnValue(
+  ctx: InterpreterV10,
+  obj: V10Value,
+  member: AST.Identifier | AST.IntegerLiteral,
+  env: Environment,
+  opts?: { preferMethods?: boolean },
+): V10Value {
   if (obj.kind === "struct_def" && member.type === "Identifier") {
     const typeName = obj.def.id.name;
     const method = ctx.findMethod(typeName, member.name);
@@ -233,6 +239,7 @@ export function memberAccessOnValue(ctx: InterpreterV10, obj: V10Value, member: 
   }
   if (obj.kind === "iterator") {
     if (member.type !== "Identifier") throw new Error("Iterator member access expects identifier");
+    ctx.ensureIteratorBuiltins();
     const fn = (ctx.iteratorNativeMethods as Record<string, Extract<V10Value, { kind: "native_function" }>>)[member.name];
     if (!fn) throw new Error(`Unknown iterator method '${member.name}'`);
     return ctx.bindNativeMethod(fn, obj);
@@ -254,16 +261,22 @@ export function memberAccessOnValue(ctx: InterpreterV10, obj: V10Value, member: 
   if (member.type === "Identifier" && obj.kind !== "struct_instance" && obj.kind !== "array" && obj.kind !== "string") {
     const ufcs = ctx.tryUfcs(env, member.name, obj);
     if (ufcs) return ufcs;
-    throw new Error("Member access only supported on structs/arrays in this milestone");
+    throw new Error(`Member access only supported on structs/arrays in this milestone (got ${obj.kind})`);
   }
   if (obj.kind === "struct_instance") {
     if (member.type === "Identifier") {
       if (!(obj.values instanceof Map)) throw new Error("Expected named struct instance");
+      const typeName = obj.def.id.name;
+      const method = ctx.findMethod(typeName, member.name, { typeArgs: obj.typeArguments, typeArgMap: obj.typeArgMap });
+      if (opts?.preferMethods && method) {
+        if (method.node.type === "FunctionDefinition" && method.node.isPrivate) {
+          throw new Error(`Method '${member.name}' on ${typeName} is private`);
+        }
+        return { kind: "bound_method", func: method, self: obj };
+      }
       if (obj.values.has(member.name)) {
         return obj.values.get(member.name)!;
       }
-      const typeName = obj.def.id.name;
-      const method = ctx.findMethod(typeName, member.name, { typeArgs: obj.typeArguments, typeArgMap: obj.typeArgMap });
       if (method) {
         if (method.node.type === "FunctionDefinition" && method.node.isPrivate) {
           throw new Error(`Method '${member.name}' on ${typeName} is private`);
@@ -297,6 +310,10 @@ export function memberAccessOnValue(ctx: InterpreterV10, obj: V10Value, member: 
       }
       if (name === "capacity") {
         return makeIntegerFromNumber("i32", state.capacity);
+      }
+      const method = ctx.findMethod("Array", name, { typeArgs: [AST.wildcardTypeExpression()] });
+      if (method) {
+        return { kind: "bound_method", func: method, self: obj };
       }
       const methods = ctx.arrayNativeMethods;
       if (name === "size") {
@@ -381,10 +398,6 @@ export function memberAccessOnValue(ctx: InterpreterV10, obj: V10Value, member: 
         }));
         return ctx.bindNativeMethod(fn, obj);
       }
-      const method = ctx.findMethod("Array", name, { typeArgs: [AST.wildcardTypeExpression()] });
-      if (method) {
-        return { kind: "bound_method", func: method, self: obj };
-      }
       const ufcs = ctx.tryUfcs(env, name, obj);
       if (ufcs) return ufcs;
       throw new Error(`Array has no member '${name}'`);
@@ -406,6 +419,10 @@ export function memberAccessOnValue(ctx: InterpreterV10, obj: V10Value, member: 
     const name = member.name;
     const ufcsFirst = ctx.tryUfcs(env, name, obj);
     if (ufcsFirst) return ufcsFirst;
+    const method = ctx.findMethod("string", name);
+    if (method) {
+      return { kind: "bound_method", func: method, self: obj };
+    }
     const methods = ctx.stringNativeMethods;
     if (name === "len_bytes") {
       const fn = (methods.len_bytes ??= ctx.makeNativeFunction("string.len_bytes", 1, (_interp, [self]) => {

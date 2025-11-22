@@ -4,6 +4,8 @@ import { BreakLabelSignal, BreakSignal, ContinueSignal, GeneratorYieldSignal, Pr
 import type { IteratorValue, V10Value } from "./values";
 import * as AST from "../ast";
 import type { ContinuationContext } from "./continuations";
+import { memberAccessOnValue } from "./structs";
+import { callCallableValue } from "./functions";
 
 function isContinuationYield(context: ContinuationContext, err: unknown): boolean {
   if (context.kind === "generator") {
@@ -694,6 +696,9 @@ function bindPattern(ctx: InterpreterV10, pattern: AST.Pattern, value: V10Value,
 }
 
 function resolveIteratorValue(ctx: InterpreterV10, iterable: V10Value, env: Environment): IteratorValue {
+  ctx.ensureIteratorBuiltins();
+  const direct = adaptIteratorValue(ctx, iterable, env);
+  if (direct) return direct;
   const tempEnv = new Environment(env);
   const tempIdent = "__able_iter_target";
   tempEnv.define(tempIdent, iterable);
@@ -702,10 +707,59 @@ function resolveIteratorValue(ctx: InterpreterV10, iterable: V10Value, env: Envi
     [],
   );
   const result = ctx.evaluate(call, tempEnv);
+  if (result && result.kind !== "iterator") {
+    const adapted = adaptIteratorValue(ctx, result, env);
+    if (adapted) return adapted;
+  }
   if (!result || result.kind !== "iterator") {
     throw new Error("iterator() did not return Iterator value");
   }
   return result;
+}
+
+function adaptIteratorValue(ctx: InterpreterV10, candidate: V10Value, env: Environment): IteratorValue | null {
+  const receiver = candidate.kind === "interface_value" ? candidate.value : candidate;
+  if (!receiver || receiver.kind !== "struct_instance") {
+    return null;
+  }
+  const nextMethod = bindIteratorMethod(ctx, receiver, "next", env);
+  if (!nextMethod) return null;
+  const closeMethod = bindIteratorMethod(ctx, receiver, "close", env);
+  return {
+    kind: "iterator",
+    iterator: {
+      next: () => {
+        const step = callCallableValue(ctx as any, nextMethod as any, [], env);
+        if (isIteratorEnd(ctx, step)) {
+          return { done: true, value: ctx.iteratorEndValue };
+        }
+        return { done: false, value: step ?? ctx.iteratorEndValue };
+      },
+      close: () => {
+        if (closeMethod) {
+          callCallableValue(ctx as any, closeMethod as any, [], env);
+        }
+      },
+    },
+  };
+}
+
+function bindIteratorMethod(ctx: InterpreterV10, receiver: V10Value, name: string, env: Environment): V10Value | null {
+  try {
+    const access = memberAccessOnValue(ctx, receiver, AST.identifier(name), env, { preferMethods: true });
+    if (access && (access.kind === "bound_method" || access.kind === "native_bound_method" || access.kind === "function")) {
+      return access;
+    }
+  } catch {}
+  return null;
+}
+
+function isIteratorEnd(ctx: InterpreterV10, value: V10Value): boolean {
+  if (!value) return false;
+  if (value.kind === "iterator_end") return true;
+  if (value.kind === "interface_value") return isIteratorEnd(ctx, value.value);
+  if (value.kind === "struct_instance" && value.def?.id?.name === "IteratorEnd") return true;
+  return false;
 }
 
 export function evaluateReturnStatement(ctx: InterpreterV10, node: AST.ReturnStatement, env: Environment): never {

@@ -1,13 +1,2 @@
 s := "héllo"
-[
-  s.len_bytes(),
-  s.len_chars(),
-  s.len_graphemes(),
-  s.substring(1, 3)!,
-  s.substring(2)!,
-  s.split("l"),
-  s.split(""),
-  s.replace("l", "L"),
-  s.starts_with("hé"),
-  s.ends_with("lo")
-]
+[s.len_bytes(), s.len_chars(), s.len_graphemes(), s.substring(1, 3)!, s.substring(2)!, s.split("l"), s.split(""), s.replace("l", "L"), s.starts_with("hé"), s.ends_with("lo")]
