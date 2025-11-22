@@ -191,6 +191,91 @@ func TestTypedArrayPatternReportsLiteralOverflow(t *testing.T) {
 	}
 }
 
+func TestStructPatternMatchesUnionVariants(t *testing.T) {
+	checker := New()
+	point := ast.StructDef(
+		"Point",
+		[]*ast.StructFieldDefinition{
+			ast.FieldDef(ast.Ty("f64"), "x"),
+			ast.FieldDef(ast.Ty("f64"), "y"),
+		},
+		ast.StructKindNamed,
+		nil,
+		nil,
+		false,
+	)
+	circle := ast.StructDef(
+		"Circle",
+		[]*ast.StructFieldDefinition{
+			ast.FieldDef(ast.Ty("f64"), "radius"),
+		},
+		ast.StructKindNamed,
+		nil,
+		nil,
+		false,
+	)
+	rectangle := ast.StructDef(
+		"Rectangle",
+		[]*ast.StructFieldDefinition{
+			ast.FieldDef(ast.Ty("f64"), "width"),
+			ast.FieldDef(ast.Ty("f64"), "height"),
+		},
+		ast.StructKindNamed,
+		nil,
+		nil,
+		false,
+	)
+	moveTo := ast.StructDef(
+		"MoveTo",
+		[]*ast.StructFieldDefinition{
+			ast.FieldDef(ast.Ty("Point"), "to"),
+		},
+		ast.StructKindNamed,
+		nil,
+		nil,
+		false,
+	)
+	shape := ast.UnionDef(
+		"Shape",
+		[]ast.TypeExpression{ast.Ty("Circle"), ast.Ty("Rectangle"), ast.Ty("MoveTo")},
+		nil,
+		nil,
+		false,
+	)
+	bindShape := ast.Assign(
+		ast.TypedP(ast.ID("shape"), ast.Ty("Shape")),
+		ast.StructLit([]*ast.StructFieldInitializer{
+			ast.FieldInit(ast.Flt(1.0), "radius"),
+		}, false, "Circle", nil, nil),
+	)
+	match := ast.Match(
+		ast.ID("shape"),
+		ast.Mc(
+			ast.StructP([]*ast.StructPatternField{
+				ast.FieldP(ast.ID("r"), "radius", nil),
+			}, false, "Circle"),
+			ast.ID("r"),
+		),
+		ast.Mc(
+			ast.StructP([]*ast.StructPatternField{
+				ast.FieldP(ast.ID("w"), "width", nil),
+			}, false, "Rectangle"),
+			ast.ID("w"),
+		),
+	)
+
+	module := ast.NewModule([]ast.Statement{
+		point, circle, rectangle, moveTo, shape, bindShape, match,
+	}, nil, nil)
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics for struct pattern on union variants, got %v", diags)
+	}
+}
+
 func TestTypedMapPatternAdoptsNestedLiterals(t *testing.T) {
 	checker := New()
 	assign := ast.Assign(

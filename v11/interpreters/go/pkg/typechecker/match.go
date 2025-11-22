@@ -17,6 +17,13 @@ func (c *Checker) checkMatchExpression(env *Environment, expr *ast.MatchExpressi
 			continue
 		}
 		clauseEnv := env.Extend()
+		reachable := true
+		if typed, ok := clause.Pattern.(*ast.TypedPattern); ok && typed.TypeAnnotation != nil && subjectType != nil && !isUnknownType(subjectType) {
+			expected := c.resolveTypeReference(typed.TypeAnnotation)
+			if expected != nil && !isUnknownType(expected) && !typeAssignable(subjectType, expected) {
+				reachable = false
+			}
+		}
 		if clause.Pattern != nil {
 			if target, ok := clause.Pattern.(ast.AssignmentTarget); ok {
 				diags = append(diags, c.bindPattern(clauseEnv, target, subjectType, true, nil)...)
@@ -34,6 +41,9 @@ func (c *Checker) checkMatchExpression(env *Environment, expr *ast.MatchExpressi
 		}
 		bodyDiags, bodyType := c.checkExpression(clauseEnv, clause.Body)
 		diags = append(diags, bodyDiags...)
+		if !reachable {
+			bodyType = UnknownType{}
+		}
 		branchTypes = append(branchTypes, bodyType)
 	}
 
