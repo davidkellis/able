@@ -16,6 +16,7 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 	}
 	objectDiags, objectType := c.checkExpression(env, expr.Object)
 	diags = append(diags, objectDiags...)
+	wrapType := objectType
 
 	var (
 		memberName       string
@@ -54,12 +55,23 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 		return diags, UnknownType{}
 	}
 
+	if expr.Safe {
+		switch ty := objectType.(type) {
+		case NullableType:
+			objectType = ty.Inner
+		case UnionLiteralType:
+			if stripped := stripNilFromUnion(ty); stripped != nil {
+				objectType = stripped
+			}
+		}
+	}
+
 	switch ty := objectType.(type) {
 	case StructType:
 		if positionalAccess {
 			if positionalIndex < len(ty.Positional) {
 				result := ty.Positional[positionalIndex]
-				final := c.finalizeMemberAccessType(expr, objectType, result)
+				final := c.finalizeMemberAccessType(expr, wrapType, result)
 				return diags, final
 			}
 			diags = append(diags, Diagnostic{
@@ -70,17 +82,17 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 		}
 		if ty.Fields != nil {
 			if fieldType, ok := ty.Fields[memberName]; ok {
-				final := c.finalizeMemberAccessType(expr, objectType, fieldType)
+				final := c.finalizeMemberAccessType(expr, wrapType, fieldType)
 				return diags, final
 			}
 		}
 		if fnType, ok := c.lookupMethod(objectType, memberName); ok {
-			final := c.finalizeMemberAccessType(expr, objectType, fnType)
+			final := c.finalizeMemberAccessType(expr, wrapType, fnType)
 			return diags, final
 		}
 		if isErrorStructType(ty) {
 			if memberType, ok := c.errorMemberType(memberName); ok {
-				final := c.finalizeMemberAccessType(expr, objectType, memberType)
+				final := c.finalizeMemberAccessType(expr, wrapType, memberType)
 				return diags, final
 			}
 		}
@@ -92,7 +104,7 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 		if positionalAccess {
 			if positionalIndex < len(ty.Positional) {
 				result := ty.Positional[positionalIndex]
-				final := c.finalizeMemberAccessType(expr, objectType, result)
+				final := c.finalizeMemberAccessType(expr, wrapType, result)
 				return diags, final
 			}
 			diags = append(diags, Diagnostic{
@@ -102,16 +114,16 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 			break
 		}
 		if fieldType, ok := ty.Fields[memberName]; ok {
-			final := c.finalizeMemberAccessType(expr, objectType, fieldType)
+			final := c.finalizeMemberAccessType(expr, wrapType, fieldType)
 			return diags, final
 		}
 		if fnType, ok := c.lookupMethod(objectType, memberName); ok {
-			final := c.finalizeMemberAccessType(expr, objectType, fnType)
+			final := c.finalizeMemberAccessType(expr, wrapType, fnType)
 			return diags, final
 		}
 		if isErrorStructInstanceType(ty) {
 			if memberType, ok := c.errorMemberType(memberName); ok {
-				final := c.finalizeMemberAccessType(expr, objectType, memberType)
+				final := c.finalizeMemberAccessType(expr, wrapType, memberType)
 				return diags, final
 			}
 		}
@@ -132,33 +144,33 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 		switch memberName {
 		case "size":
 			fn := FunctionType{Params: nil, Return: IntegerType{Suffix: "u64"}}
-			final := c.finalizeMemberAccessType(expr, objectType, fn)
+			final := c.finalizeMemberAccessType(expr, wrapType, fn)
 			return diags, final
 		case "push":
 			fn := FunctionType{Params: []Type{UnknownType{}}, Return: nilType}
-			final := c.finalizeMemberAccessType(expr, objectType, fn)
+			final := c.finalizeMemberAccessType(expr, wrapType, fn)
 			return diags, final
 		case "pop":
 			result := UnionLiteralType{Members: []Type{elem, nilType}}
 			fn := FunctionType{Params: nil, Return: result}
-			final := c.finalizeMemberAccessType(expr, objectType, fn)
+			final := c.finalizeMemberAccessType(expr, wrapType, fn)
 			return diags, final
 		case "get":
 			result := UnionLiteralType{Members: []Type{elem, nilType}}
 			fn := FunctionType{Params: []Type{IntegerType{Suffix: "u64"}}, Return: result}
-			final := c.finalizeMemberAccessType(expr, objectType, fn)
+			final := c.finalizeMemberAccessType(expr, wrapType, fn)
 			return diags, final
 		case "set":
 			fn := FunctionType{Params: []Type{IntegerType{Suffix: "u64"}, elem}, Return: UnknownType{}}
-			final := c.finalizeMemberAccessType(expr, objectType, fn)
+			final := c.finalizeMemberAccessType(expr, wrapType, fn)
 			return diags, final
 		case "clear":
 			fn := FunctionType{Params: nil, Return: nilType}
-			final := c.finalizeMemberAccessType(expr, objectType, fn)
+			final := c.finalizeMemberAccessType(expr, wrapType, fn)
 			return diags, final
 		case "iterator":
 			fn := FunctionType{Params: nil, Return: IteratorType{Element: elem}}
-			final := c.finalizeMemberAccessType(expr, objectType, fn)
+			final := c.finalizeMemberAccessType(expr, wrapType, fn)
 			return diags, final
 		default:
 			diags = append(diags, Diagnostic{
@@ -176,7 +188,7 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 		}
 		if ty.Kind == PrimitiveString {
 			if memberType, ok := stringMemberType(memberName); ok {
-				final := c.finalizeMemberAccessType(expr, objectType, memberType)
+				final := c.finalizeMemberAccessType(expr, wrapType, memberType)
 				return diags, final
 			}
 			diags = append(diags, Diagnostic{
@@ -200,7 +212,7 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 		if ty.Methods != nil {
 			if methodType, ok := ty.Methods[memberName]; ok {
 				bound := bindMethodType(methodType)
-				final := c.finalizeMemberAccessType(expr, objectType, bound)
+				final := c.finalizeMemberAccessType(expr, wrapType, bound)
 				return diags, final
 			}
 		}
@@ -227,7 +239,7 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 					}
 					inst := substituteFunctionType(methodType, subst)
 					inst = bindMethodType(inst)
-					final := c.finalizeMemberAccessType(expr, objectType, inst)
+					final := c.finalizeMemberAccessType(expr, wrapType, inst)
 					return diags, final
 				}
 			}
@@ -238,7 +250,7 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 			break
 		}
 		if fnType, ok := c.lookupMethod(objectType, memberName); ok {
-			final := c.finalizeMemberAccessType(expr, objectType, fnType)
+			final := c.finalizeMemberAccessType(expr, wrapType, fnType)
 			return diags, final
 		}
 	case IteratorType:
@@ -265,14 +277,14 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 				Params: nil,
 				Return: result,
 			}
-			final := c.finalizeMemberAccessType(expr, objectType, fn)
+			final := c.finalizeMemberAccessType(expr, wrapType, fn)
 			return diags, final
 		case "close":
 			fn := FunctionType{
 				Params: nil,
 				Return: PrimitiveType{Kind: PrimitiveNil},
 			}
-			final := c.finalizeMemberAccessType(expr, objectType, fn)
+			final := c.finalizeMemberAccessType(expr, wrapType, fn)
 			return diags, final
 		default:
 			diags = append(diags, Diagnostic{
@@ -290,7 +302,7 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 		}
 		fnType, procDiags := procMemberFunction(memberName, ty, expr)
 		diags = append(diags, procDiags...)
-		final := c.finalizeMemberAccessType(expr, objectType, fnType)
+		final := c.finalizeMemberAccessType(expr, wrapType, fnType)
 		return diags, final
 	case FutureType:
 		if positionalAccess {
@@ -302,7 +314,7 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 		}
 		fnType, futureDiags := futureMemberFunction(memberName, ty, expr)
 		diags = append(diags, futureDiags...)
-		final := c.finalizeMemberAccessType(expr, objectType, fnType)
+		final := c.finalizeMemberAccessType(expr, wrapType, fnType)
 		return diags, final
 	case PackageType:
 		if positionalAccess {
@@ -314,7 +326,7 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 		}
 		if ty.Symbols != nil {
 			if symbolType, ok := ty.Symbols[memberName]; ok && symbolType != nil {
-				final := c.finalizeMemberAccessType(expr, objectType, symbolType)
+				final := c.finalizeMemberAccessType(expr, wrapType, symbolType)
 				return diags, final
 			}
 		}
@@ -343,7 +355,7 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 			break
 		}
 		if fnType, ok := c.lookupTypeParamMethod(ty.ParameterName, memberName); ok {
-			final := c.finalizeMemberAccessType(expr, objectType, fnType)
+			final := c.finalizeMemberAccessType(expr, wrapType, fnType)
 			return diags, final
 		}
 		diags = append(diags, Diagnostic{
@@ -359,7 +371,7 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 			break
 		}
 		if fnType, ok := c.lookupMethod(objectType, memberName); ok {
-			final := c.finalizeMemberAccessType(expr, objectType, fnType)
+			final := c.finalizeMemberAccessType(expr, wrapType, fnType)
 			return diags, final
 		}
 		diags = append(diags, Diagnostic{
@@ -375,7 +387,14 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 func (c *Checker) finalizeMemberAccessType(expr *ast.MemberAccessExpression, objectType Type, memberType Type) Type {
 	final := memberType
 	if expr != nil && expr.Safe && typeCanBeNil(objectType) && !typeCanBeNil(memberType) {
-		if memberType == nil {
+		if fn, ok := memberType.(FunctionType); ok {
+			wrapped := fn
+			if wrapped.Return == nil {
+				wrapped.Return = UnknownType{}
+			}
+			wrapped.Return = NullableType{Inner: wrapped.Return}
+			final = wrapped
+		} else if memberType == nil {
 			final = NullableType{Inner: UnknownType{}}
 		} else {
 			final = NullableType{Inner: memberType}
@@ -391,6 +410,24 @@ func makeValueUnion(success Type) Type {
 	procErr := StructType{StructName: "ProcError"}
 	members := []Type{success, procErr}
 	return UnionLiteralType{Members: members}
+}
+
+func stripNilFromUnion(u UnionLiteralType) Type {
+	nonNil := make([]Type, 0, len(u.Members))
+	for _, member := range u.Members {
+		if prim, ok := member.(PrimitiveType); ok && prim.Kind == PrimitiveNil {
+			continue
+		}
+		nonNil = append(nonNil, member)
+	}
+	switch len(nonNil) {
+	case 0:
+		return nil
+	case 1:
+		return nonNil[0]
+	default:
+		return UnionLiteralType{Members: nonNil}
+	}
 }
 
 func (c *Checker) lookupMethod(object Type, name string) (FunctionType, bool) {

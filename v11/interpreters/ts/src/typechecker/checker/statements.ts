@@ -57,7 +57,7 @@ export function checkStatement(ctx: StatementContext, node: AST.Statement | AST.
   }
 }
 
-function checkAssignment(ctx: StatementContext, node: AST.AssignmentExpression): void {
+export function checkAssignment(ctx: StatementContext, node: AST.AssignmentExpression): TypeInfo {
   let declarationNames: Set<string> | undefined;
   if (node.operator === ":=" && isPatternNode(node.left)) {
     const analysis = analyzePatternDeclarations(ctx, node.left);
@@ -69,11 +69,11 @@ function checkAssignment(ctx: StatementContext, node: AST.AssignmentExpression):
   }
   const valueType = ctx.inferExpression(node.right);
   if (!node.left) {
-    return;
+    return valueType;
   }
   if (node.left.type === "MemberAccessExpression" || node.left.type === "IndexExpression") {
     ctx.inferExpression(node.left);
-    return;
+    return valueType;
   }
   const bindingOptions = {
     suppressMismatchReport: true,
@@ -82,6 +82,7 @@ function checkAssignment(ctx: StatementContext, node: AST.AssignmentExpression):
     allowFallbackDeclaration: node.operator !== ":=",
   };
   bindPatternToEnv(ctx, node.left as AST.Pattern, valueType, "assignment pattern", bindingOptions);
+  return valueType;
 }
 
 function checkRaiseStatement(ctx: StatementContext, node: AST.RaiseStatement): void {

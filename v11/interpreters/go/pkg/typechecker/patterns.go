@@ -65,9 +65,7 @@ func (c *Checker) bindPattern(env *Environment, target ast.AssignmentTarget, val
 			expected = c.resolveTypeReference(pat.TypeAnnotation)
 		}
 		innerType := valueType
-		if isErrorTypeAnnotation(expected) {
-			innerType = expected
-		} else if (innerType == nil || isUnknownType(innerType)) && expected != nil && !isUnknownType(expected) {
+		if expected != nil && !isUnknownType(expected) {
 			innerType = expected
 		}
 		if inner, ok := pat.Pattern.(ast.AssignmentTarget); ok {
@@ -81,9 +79,7 @@ func (c *Checker) bindPattern(env *Environment, target ast.AssignmentTarget, val
 			}
 		}
 		finalType := valueType
-		if isErrorTypeAnnotation(expected) {
-			finalType = expected
-		} else if (finalType == nil || isUnknownType(finalType)) && expected != nil && !isUnknownType(expected) {
+		if expected != nil && !isUnknownType(expected) {
 			finalType = expected
 		}
 		if expected != nil && !isUnknownType(expected) && valueType != nil && !isUnknownType(valueType) {
@@ -191,6 +187,9 @@ func (c *Checker) resolveTypeReference(expr ast.TypeExpression) Type {
 			Base:      base,
 			Arguments: args,
 		}
+	case *ast.NullableTypeExpression:
+		inner := c.resolveTypeReference(t.InnerType)
+		return NullableType{Inner: inner}
 	default:
 		return UnknownType{}
 	}
