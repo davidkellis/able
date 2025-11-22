@@ -1,20 +1,20 @@
 package tutorial.patterns
 
 struct Point { x: i32, y: i32 }
-struct Dimensions(i32, i32)
+struct Dimensions { i32, i32 }
 struct Person { name: string, favorite: Point }
 
 fn main() -> void {
-  origin := Point { x: 0, y: 0 }
-  Point { x, y } := origin
-  print(`Origin -> x=${x}, y=${y}`)
+  origin := Point { x: 1, y: 5 }
+  Point { x: x1, y: y1 } := origin
+  print(`Origin -> x=${x1}, y=${y1}`)
 
-  dims := Dimensions(640, 480)
-  Dimensions(width, height) := dims
+  dims := Dimensions { 640, 480 }
+  Dimensions { width, height } := dims
   print(`Dimensions: ${width}x${height}`)
 
   person := Person { name: "Avery", favorite: Point { x: 2, y: 3 } }
-  Person { name, favorite: Point { x: fx, y: fy } } := person
+  Person { name: name, favorite: Point { x: fx, y: fy } } := person
   print(`Favorite point for ${name} is (${fx}, ${fy})`)
 
   rgb := [0, 128, 255]
