@@ -26,6 +26,7 @@ import {
 } from "../numeric";
 import type { ExpressionContext, StatementContext } from "./expression-context";
 import { bindPatternToEnv } from "./patterns";
+import { checkAssignment } from "./statements";
 export function inferExpression(ctx: ExpressionContext, expression: AST.Expression | undefined | null): TypeInfo {
   if (!expression) return unknownType;
   switch (expression.type) {
@@ -188,6 +189,10 @@ export function inferExpression(ctx: ExpressionContext, expression: AST.Expressi
     }
     case "AwaitExpression":
       return unknownType;
+    case "AssignmentExpression":
+      // Allow assignments to appear in expression position (e.g., inside a pipe).
+      // Reuse the statement checker so bindings are recorded, then return the RHS type.
+      return checkAssignment(ctx as StatementContext, expression);
     case "FunctionCall": {
       ctx.checkFunctionCall(expression);
       return ctx.inferFunctionCallReturnType(expression);
