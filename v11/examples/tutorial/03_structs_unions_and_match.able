@@ -1,25 +1,28 @@
 package tutorial.unions
 
 struct Point { x: f64, y: f64 }
-union Shape = Circle { radius: f64 } | Rectangle { width: f64, height: f64 } | MoveTo { to: Point }
+struct Circle { radius: f64 }
+struct Rectangle { width: f64, height: f64 }
+struct MoveTo { to: Point }
+union Shape = Circle | Rectangle | MoveTo
 
 fn area(shape: Shape) -> f64 {
-  match shape {
-    case Circle { radius } => 3.14159 * radius * radius
-    case Rectangle { width, height } => width * height
-    case MoveTo { to: Point { x, y } } => {
+  shape match {
+    case Circle { radius: radius } => 3.14159 * radius * radius,
+    case Rectangle { width: width, height: height } => width * height,
+    case MoveTo { to: Point { x: x, y: y } } => {
       print(`Marker moved to (${x}, ${y}) — no area to measure`)
       0.0
-    }
+    },
   }
 }
 
-fn describe(maybe_shape: ?Shape) -> string {
-  match maybe_shape {
-    case nil => "no shape"
-    case Circle { radius } => `circle with radius ${radius}`
-    case Rectangle { width, height } => `rectangle ${width} x ${height}`
-    case MoveTo { to: Point { x, y } } => `marker moved to (${x}, ${y})`
+fn describe(maybe_shape) -> string {
+  maybe_shape match {
+    case nil => "no shape",
+    case Circle { radius: radius } => `circle with radius ${radius}`,
+    case Rectangle { width: width, height: height } => `rectangle ${width} x ${height}`,
+    case MoveTo { to: Point { x: x, y: y } } => `marker moved to (${x}, ${y})`,
   }
 }
 

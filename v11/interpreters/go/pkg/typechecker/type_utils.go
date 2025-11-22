@@ -426,12 +426,31 @@ func typeAssignable(from, to Type) bool {
 		if targetUnion, ok := to.(UnionLiteralType); ok {
 			return unionAssignable(source, targetUnion)
 		}
+		if targetNamed, ok := to.(UnionType); ok {
+			return unionLiteralAssignableToNamed(source, targetNamed)
+		}
 		for _, member := range source.Members {
 			if !typeAssignable(member, to) {
 				return false
 			}
 		}
 		return true
+	case UnionType:
+		if targetNamed, ok := to.(UnionType); ok {
+			if source.UnionName != "" && targetNamed.UnionName != "" {
+				return source.UnionName == targetNamed.UnionName
+			}
+			return unionLiteralAssignableToNamed(UnionLiteralType{Members: source.Variants}, targetNamed)
+		}
+		if targetUnion, ok := to.(UnionLiteralType); ok {
+			return unionLiteralAssignableToNamed(targetUnion, source)
+		}
+		for _, variant := range source.Variants {
+			if typeAssignable(variant, to) {
+				return true
+			}
+		}
+		return false
 	}
 
 	return from.Name() == to.Name()
@@ -956,6 +975,18 @@ func unionAssignable(from Type, to UnionLiteralType) bool {
 		return true
 	}
 	return typeAssignableToAny(from, to.Members)
+}
+
+func unionLiteralAssignableToNamed(source UnionLiteralType, target UnionType) bool {
+	if len(target.Variants) == 0 {
+		return true
+	}
+	for _, member := range source.Members {
+		if !typeAssignableToAny(member, target.Variants) {
+			return false
+		}
+	}
+	return true
 }
 
 func typeAssignableToAny(from Type, targets []Type) bool {
