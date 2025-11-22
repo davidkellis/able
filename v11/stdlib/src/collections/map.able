@@ -1,0 +1,12 @@
+package collections.map
+
+import able.core.interfaces.{Hash, Eq}
+
+interface Map K V for M where K: Hash + Eq K {
+  fn get(self: Self, key: K) -> ?V;
+  fn set(self: Self, key: K, value: V) -> void;
+  fn remove(self: Self, key: K) -> ?V;
+  fn contains(self: Self, key: K) -> bool;
+  fn size(self: Self) -> i32;
+  fn is_empty(self: Self) -> bool { self.size() == 0 }
+}

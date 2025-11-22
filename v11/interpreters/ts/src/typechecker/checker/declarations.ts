@@ -2,7 +2,7 @@ import * as AST from "../../ast";
 import { unknownType } from "../types";
 import type { TypeInfo } from "../types";
 import type { FunctionContext, FunctionInfo, ImplementationObligation } from "./types";
-import type { StatementContext } from "./expressions";
+import type { StatementContext } from "./expression-context";
 
 export interface DeclarationsContext extends StatementContext {
   getIdentifierName(node: AST.Identifier | null | undefined): string | null;

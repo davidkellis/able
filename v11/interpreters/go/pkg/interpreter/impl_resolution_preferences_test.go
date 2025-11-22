@@ -584,3 +584,96 @@ func TestImplResolutionMoreSpecificImplWinsOverGeneric(t *testing.T) {
 		t.Fatalf("expected specific, got %#v", result)
 	}
 }
+
+func TestMethodLookupSkipsConstraintsWhenMethodMissing(t *testing.T) {
+	interp := New()
+	module := ast.Mod([]ast.Statement{
+		ast.Iface(
+			"Writable",
+			[]*ast.FunctionSignature{
+				ast.FnSig(
+					"write",
+					[]*ast.FunctionParameter{ast.Param("self", ast.Ty("Self"))},
+					ast.Ty("string"),
+					nil,
+					nil,
+					nil,
+				),
+			},
+			nil,
+			nil,
+			nil,
+			nil,
+			false,
+		),
+		ast.Iface(
+			"Show",
+			[]*ast.FunctionSignature{
+				ast.FnSig(
+					"to_string",
+					[]*ast.FunctionParameter{ast.Param("self", ast.Ty("Self"))},
+					ast.Ty("string"),
+					nil,
+					nil,
+					nil,
+				),
+			},
+			nil,
+			nil,
+			nil,
+			nil,
+			false,
+		),
+		ast.StructDef(
+			"Wrap",
+			[]*ast.StructFieldDefinition{ast.FieldDef(ast.Ty("T"), "value")},
+			ast.StructKindNamed,
+			[]*ast.GenericParameter{ast.GenericParam("T")},
+			nil,
+			false,
+		),
+		ast.Impl(
+			"Show",
+			ast.Gen(ast.Ty("Wrap"), ast.Ty("T")),
+			[]*ast.FunctionDefinition{
+				ast.Fn(
+					"to_string",
+					[]*ast.FunctionParameter{ast.Param("self", ast.Gen(ast.Ty("Wrap"), ast.Ty("T")))},
+					[]ast.Statement{ast.Ret(ast.Str("wrapped"))},
+					ast.Ty("string"),
+					nil,
+					nil,
+					false,
+					false,
+				),
+			},
+			nil,
+			[]*ast.GenericParameter{ast.GenericParam("T", ast.InterfaceConstr(ast.Ty("Writable")))},
+			nil,
+			nil,
+			false,
+		),
+		ast.Assign(
+			ast.ID("w"),
+			ast.StructLit(
+				[]*ast.StructFieldInitializer{ast.FieldInit(ast.Int(1), "value")},
+				false,
+				"Wrap",
+				nil,
+				[]ast.TypeExpression{ast.Ty("i32")},
+			),
+		),
+		ast.CallExpr(ast.Member(ast.ID("w"), "missing")),
+	}, nil, nil)
+
+	_, _, err := interp.EvaluateModule(module)
+	if err == nil {
+		t.Fatalf("expected missing method error")
+	}
+	if strings.Contains(err.Error(), "does not satisfy interface") {
+		t.Fatalf("constraint error should be ignored for missing method, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "No field or method named 'missing'") {
+		t.Fatalf("expected missing method error, got %v", err)
+	}
+}

@@ -95,7 +95,7 @@ func (i *Interpreter) typeExpressionFromValue(value runtime.Value) ast.TypeExpre
 }
 
 func (i *Interpreter) lookupImplEntry(info typeInfo, interfaceName string) (*implCandidate, error) {
-	matches, err := i.collectImplCandidates(info, interfaceName)
+	matches, err := i.collectImplCandidates(info, interfaceName, "")
 	if len(matches) == 0 {
 		return nil, err
 	}
@@ -115,7 +115,7 @@ func (i *Interpreter) lookupImplEntry(info typeInfo, interfaceName string) (*imp
 }
 
 func (i *Interpreter) findMethod(info typeInfo, methodName string, interfaceFilter string) (*runtime.FunctionValue, error) {
-	matches, err := i.collectImplCandidates(info, interfaceFilter)
+	matches, err := i.collectImplCandidates(info, interfaceFilter, methodName)
 	if len(matches) == 0 {
 		return nil, err
 	}

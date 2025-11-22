@@ -246,7 +246,7 @@ const patternsFixtures: Fixture[] = [
       manifest: {
         description: "Typed pattern mismatch raises error",
         expect: {
-          errors: ["Typed pattern mismatch in assignment"],
+          errors: ["Typed pattern mismatch in assignment: expected i32, got string"],
         },
       },
     },

@@ -29,14 +29,12 @@ export function evaluateUnionDefinition(ctx: InterpreterV10, node: AST.UnionDefi
 
 export function evaluateMethodsDefinition(ctx: InterpreterV10, node: AST.MethodsDefinition, env: Environment): V10Value {
   const typeName = (() => {
-    if (node.targetType.type === "SimpleTypeExpression") {
-      return node.targetType.name.name;
+    let current: AST.TypeExpression = node.targetType;
+    while (current.type === "GenericTypeExpression") {
+      current = current.base;
     }
-    if (node.targetType.type === "GenericTypeExpression") {
-      const base = node.targetType.base;
-      if (base.type === "SimpleTypeExpression") {
-        return base.name.name;
-      }
+    if (current.type === "SimpleTypeExpression") {
+      return current.name.name;
     }
     throw new Error("Only simple target types supported in methods");
   })();

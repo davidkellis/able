@@ -149,7 +149,8 @@ function promoteIntegerInfos(left: IntegerInfo, right: IntegerInfo): IntegerInfo
   if (unsignedFallback && unsignedFallback.bits >= Math.max(left.bits, right.bits)) {
     return unsignedFallback;
   }
-  return null;
+  // Fall back to the widest available operand when we are already at the maximum width.
+  return left.bits >= right.bits ? left : right;
 }
 
 function promoteFloatKinds(left: FloatKind, right: FloatKind): FloatKind {
@@ -277,7 +278,9 @@ export function applyArithmeticBinary(op: string, left: V10Value, right: V10Valu
   const leftClass = classifyNumeric(left);
   const rightClass = classifyNumeric(right);
   if (!leftClass || !rightClass) {
-    throw new Error("Arithmetic requires numeric operands");
+    const leftKind = (left as any)?.kind ?? "unknown";
+    const rightKind = (right as any)?.kind ?? "unknown";
+    throw new Error(`Arithmetic requires numeric operands (left: ${leftKind}, right: ${rightKind})`);
   }
   const promotion = promoteNumericKinds(leftClass, rightClass);
   if (promotion.tag === "float") {

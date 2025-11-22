@@ -1,19 +1,27 @@
 package text.string.tests
 
-import able.text.string.{String}
+import able.text.string.{StringBuilder}
 
 fn check_roundtrip() -> void {
-  result := String.from_builtin("Able!")
-  result match {
-    case value: String => {
-      if !(value.len_bytes == 5) { raise "from_builtin should capture UTF-8 byte length" }
-      value.to_builtin() match {
-        case text: string => {
-          if !(text == "Able!") { raise "to_builtin should round-trip the source text" }
-        },
-        case err => { raise err }
-      }
-    },
+  text := "Able!"
+  if !(text.len_bytes() == 5) { raise "len_bytes should count UTF-8 bytes" }
+  if !(text.len_chars() == 5) { raise "len_chars should count code points" }
+  if !(text.len_graphemes() == 5) { raise "len_graphemes should count graphemes" }
+
+  text.substring(0, 4) match {
+    case slice: string => {
+      if !(slice == "Able") { raise "substring should slice by Unicode scalars" }
+    }
+    case err => { raise err }
+  }
+
+  builder := StringBuilder::new()
+  builder.push_string("Hi")
+  builder.push_char('!')
+  builder.finish() match {
+    case result: string => {
+      if !(result == "Hi!") { raise "StringBuilder should emit a built-in string" }
+    }
     case err => { raise err }
   }
 }

@@ -403,7 +403,7 @@ func (i *Interpreter) matchImplEntry(entry *implEntry, info typeInfo) (map[strin
 	return bindings, true
 }
 
-func (i *Interpreter) collectImplCandidates(info typeInfo, interfaceFilter string) ([]implCandidate, error) {
+func (i *Interpreter) collectImplCandidates(info typeInfo, interfaceFilter string, methodFilter string) ([]implCandidate, error) {
 	if info.name == "" {
 		return nil, nil
 	}
@@ -413,6 +413,9 @@ func (i *Interpreter) collectImplCandidates(info typeInfo, interfaceFilter strin
 	for idx := range entries {
 		entry := &entries[idx]
 		if interfaceFilter != "" && entry.interfaceName != interfaceFilter {
+			continue
+		}
+		if methodFilter != "" && !i.implProvidesMethod(entry, methodFilter) {
 			continue
 		}
 		bindings, ok := i.matchImplEntry(entry, info)
@@ -440,6 +443,28 @@ func (i *Interpreter) collectImplCandidates(info typeInfo, interfaceFilter strin
 		return nil, constraintErr
 	}
 	return matches, nil
+}
+
+func (i *Interpreter) implProvidesMethod(entry *implEntry, methodName string) bool {
+	if entry == nil || methodName == "" {
+		return true
+	}
+	if entry.methods != nil {
+		if method := entry.methods[methodName]; method != nil {
+			return true
+		}
+	}
+	ifaceDef, ok := i.interfaces[entry.interfaceName]
+	if !ok || ifaceDef == nil || ifaceDef.Node == nil {
+		return false
+	}
+	for _, sig := range ifaceDef.Node.Signatures {
+		if sig == nil || sig.Name == nil || sig.Name.Name != methodName {
+			continue
+		}
+		return sig.DefaultImpl != nil
+	}
+	return false
 }
 
 func (i *Interpreter) compareMethodMatches(a, b implCandidate) int {
