@@ -73,7 +73,14 @@ fn main() -> i32 {
     total = total + value
   }
 
-  total + trimmed.len()
+  bonus := 0
+  if trimmed.is_empty() {
+    bonus = -100
+  } else {
+    bonus = trimmed.len()
+  }
+
+  total + trimmed.len() + bonus
 }
 `.trimStart(),
         "utf8",
@@ -103,7 +110,7 @@ fn main() -> i32 {
 
       const result = callCallableValue(interpreter as any, mainFn, [], interpreter.globals) as any;
       expect(result?.kind).toBe("i32");
-      expect(readInteger(result)).toBe(82);
+      expect(readInteger(result)).toBe(91);
     } finally {
       await fs.rm(tmpRoot, { recursive: true, force: true });
     }

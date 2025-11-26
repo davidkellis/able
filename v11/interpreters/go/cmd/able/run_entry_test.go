@@ -110,7 +110,7 @@ name: able
 version: 0.0.1
 `)
 	writeFile(t, filepath.Join(stdlibSrc, "core", "thing.able"), `
-package thing
+package core.thing
 
 fn stdlib_message() -> string {
   "std"
@@ -220,7 +220,7 @@ name: able
 version: 0.0.1
 `)
 	writeFile(t, filepath.Join(stdlibSrc, "core", "thing.able"), `
-package thing
+package core.thing
 
 fn stdlib_message() -> string {
   "std"

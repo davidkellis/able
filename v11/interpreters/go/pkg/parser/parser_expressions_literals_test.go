@@ -532,7 +532,7 @@ func TestParsePipeTopicAndPlaceholderSteps(t *testing.T) {
 }
 
 func TestParseRangeExpressions(t *testing.T) {
-source := `exclusive := 0...5
+	source := `exclusive := 0...5
 inclusive := 0..5
 `
 
@@ -675,4 +675,58 @@ computed := items[getIndex()]
 	expected.Imports = []*ast.ImportStatement{}
 
 	assertModulesEqual(t, expected, mod)
+}
+
+func TestParseHexLiteralWithEDigit(t *testing.T) {
+	source := `fn hex() {
+  value := 0xE0
+}
+`
+
+	p, err := NewModuleParser()
+	if err != nil {
+		t.Fatalf("NewModuleParser error: %v", err)
+	}
+	defer p.Close()
+
+	mod, err := p.ParseModule([]byte(source))
+	if err != nil {
+		t.Fatalf("ParseModule error: %v", err)
+	}
+
+	body := ast.Block(ast.Assign(ast.ID("value"), ast.Int(0xE0)))
+	expected := ast.NewModule([]ast.Statement{
+		ast.NewFunctionDefinition(
+			ast.ID("hex"),
+			nil,
+			body,
+			nil,
+			nil,
+			nil,
+			false,
+			false,
+		),
+	}, nil, nil)
+	expected.Imports = []*ast.ImportStatement{}
+
+	assertModulesEqual(t, expected, mod)
+}
+
+func TestParseBasePrefixedLiteralWithExponentMarker(t *testing.T) {
+	cases := []string{
+		`fn bad() { value := 0b1e0 }`,
+		`fn alsoBad() { value := 0o7E1 }`,
+	}
+
+	for _, source := range cases {
+		p, err := NewModuleParser()
+		if err != nil {
+			t.Fatalf("NewModuleParser error: %v", err)
+		}
+		mod, parseErr := p.ParseModule([]byte(source))
+		if parseErr == nil {
+			t.Fatalf("expected parse error for %q, got module %#v", source, mod)
+		}
+		p.Close()
+	}
 }

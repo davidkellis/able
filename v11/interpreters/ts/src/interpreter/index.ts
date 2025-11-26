@@ -70,7 +70,6 @@ export class InterpreterV10 {
   };
 
   arrayNativeMethods: Record<string, Extract<V10Value, { kind: "native_function" }>> = {};
-  stringNativeMethods: Record<string, Extract<V10Value, { kind: "native_function" }>> = {};
 
   arrayBuiltinsInitialized = false;
   nextArrayHandle = 1;

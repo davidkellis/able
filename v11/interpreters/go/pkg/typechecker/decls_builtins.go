@@ -147,6 +147,28 @@ func registerBuiltins(env *Environment) {
 		Return: i64Type,
 	})
 
+	env.Define("Less", lessType)
+	env.Define("Equal", equalType)
+	env.Define("Greater", greaterType)
+	env.Define("Ordering", ordering)
+
+	ordIface := InterfaceType{
+		InterfaceName: "Ord",
+		TypeParams: []GenericParamSpec{
+			{Name: "Rhs"},
+		},
+		Methods: map[string]FunctionType{
+			"cmp": {
+				Params: []Type{
+					TypeParameterType{ParameterName: "Self"},
+					TypeParameterType{ParameterName: "Rhs"},
+				},
+				Return: ordering,
+			},
+		},
+	}
+	env.Define("Ord", ordIface)
+
 	env.Define("Display", InterfaceType{
 		InterfaceName: "Display",
 	})

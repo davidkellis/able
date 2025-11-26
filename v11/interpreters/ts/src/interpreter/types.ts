@@ -179,7 +179,7 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
           );
         }
         if (FLOAT_KINDS.includes(name as FloatKind)) return v.kind === name;
-        if (name === "Error") return v.kind === "error";
+        if (name === "Error" && v.kind === "error") return true;
         if (this.interfaces.has(name)) {
           if (v.kind === "interface_value") return v.interfaceName === name;
           const typeName = this.getTypeNameForValue(v);

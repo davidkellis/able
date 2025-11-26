@@ -41,7 +41,7 @@ export function applyImportStatement(ctx: ImportContext, imp: AST.ImportStatemen
     if (summary.symbols) {
       for (const symbolName of Object.keys(summary.symbols)) {
         if (!ctx.env.has(symbolName)) {
-          ctx.env.define(symbolName, unknownType);
+          ctx.env.define(symbolName, resolveImportedSymbolType(summary, symbolName));
         }
       }
     }
@@ -65,7 +65,7 @@ export function applyImportStatement(ctx: ImportContext, imp: AST.ImportStatemen
         continue;
       }
       if (!ctx.env.has(aliasName)) {
-        ctx.env.define(aliasName, unknownType);
+        ctx.env.define(aliasName, resolveImportedSymbolType(summary, selectorName));
       }
     }
     return;
@@ -150,6 +150,35 @@ export function clonePackageSummaries(
     return new Map(summaries);
   }
   return new Map(Object.entries(summaries));
+}
+
+function resolveImportedSymbolType(summary: PackageSummary, symbolName: string): TypeInfo {
+  const struct = summary.structs?.[symbolName];
+  if (struct) {
+    const paramCount = Array.isArray(struct.typeParams) ? struct.typeParams.length : 0;
+    const typeArguments = paramCount > 0 ? Array.from({ length: paramCount }, () => unknownType) : [];
+    return { kind: "struct", name: symbolName, typeArguments };
+  }
+  const union = summary.unions?.[symbolName];
+  if (union) {
+    const members = Array.isArray(union.variants)
+      ? union.variants.map((variant) => {
+          const label = (variant ?? "").toString().trim();
+          if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(label)) {
+            return { kind: "struct", name: label, typeArguments: [] };
+          }
+          return unknownType;
+        })
+      : [];
+    return { kind: "union", members };
+  }
+  const iface = summary.interfaces?.[symbolName];
+  if (iface) {
+    const paramCount = Array.isArray(iface.typeParams) ? iface.typeParams.length : 0;
+    const typeArguments = paramCount > 0 ? Array.from({ length: paramCount }, () => unknownType) : [];
+    return { kind: "interface", name: symbolName, typeArguments };
+  }
+  return unknownType;
 }
 
 function formatImportPath(ctx: ImportContext, path: AST.Identifier[] | null | undefined): string | null {

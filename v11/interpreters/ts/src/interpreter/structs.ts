@@ -261,6 +261,16 @@ export function memberAccessOnValue(
   if (member.type === "Identifier" && obj.kind !== "struct_instance" && obj.kind !== "array" && obj.kind !== "string") {
     const ufcs = ctx.tryUfcs(env, member.name, obj);
     if (ufcs) return ufcs;
+    const typeName = ctx.getTypeNameForValue(obj);
+    if (typeName) {
+      const method = ctx.findMethod(typeName, member.name);
+      if (method) {
+        if (method.node.type === "FunctionDefinition" && method.node.isPrivate) {
+          throw new Error(`Method '${member.name}' on ${typeName} is private`);
+        }
+        return { kind: "bound_method", func: method, self: obj };
+      }
+    }
     throw new Error(`Member access only supported on structs/arrays in this milestone (got ${obj.kind})`);
   }
   if (obj.kind === "struct_instance") {
@@ -316,67 +326,6 @@ export function memberAccessOnValue(
         return { kind: "bound_method", func: method, self: obj };
       }
       const methods = ctx.arrayNativeMethods;
-      if (name === "size") {
-        const fn = (methods.size ??= ctx.makeNativeFunction("array.size", 1, (_interp, [self]) => {
-          if (!self || self.kind !== "array") throw new Error("size receiver must be an array");
-          const state = ctx.ensureArrayState(self);
-          return makeIntegerFromNumber("u64", state.values.length);
-        }));
-        return ctx.bindNativeMethod(fn, obj);
-      }
-      if (name === "push") {
-        const fn = (methods.push ??= ctx.makeNativeFunction("array.push", 2, (_interp, [self, value]) => {
-          if (!self || self.kind !== "array") throw new Error("push receiver must be an array");
-          const state = ctx.ensureArrayState(self);
-          state.values.push(value ?? { kind: "nil", value: null });
-          state.capacity = Math.max(state.capacity, state.values.length);
-          return { kind: "nil", value: null };
-        }));
-        return ctx.bindNativeMethod(fn, obj);
-      }
-      if (name === "pop") {
-        const fn = (methods.pop ??= ctx.makeNativeFunction("array.pop", 1, (_interp, [self]) => {
-          if (!self || self.kind !== "array") throw new Error("pop receiver must be an array");
-          const state = ctx.ensureArrayState(self);
-          if (state.values.length === 0) return { kind: "nil", value: null };
-          const value = state.values.pop();
-          return value ?? { kind: "nil", value: null };
-        }));
-        return ctx.bindNativeMethod(fn, obj);
-      }
-      if (name === "get") {
-        const fn = (methods.get ??= ctx.makeNativeFunction("array.get", 2, (_interp, [self, index]) => {
-          if (!self || self.kind !== "array") throw new Error("get receiver must be an array");
-          const state = ctx.ensureArrayState(self);
-          const idx = toSafeIndex(index, "index");
-          if (idx < 0 || idx >= state.values.length) return { kind: "nil", value: null };
-          const value = state.values[idx];
-          return value ?? { kind: "nil", value: null };
-        }));
-        return ctx.bindNativeMethod(fn, obj);
-      }
-      if (name === "set") {
-        const fn = (methods.set ??= ctx.makeNativeFunction("array.set", 3, (interp, [self, index, value]) => {
-          if (!self || self.kind !== "array") throw new Error("set receiver must be an array");
-          const state = ctx.ensureArrayState(self);
-          const idx = toSafeIndex(index, "index");
-          if (idx < 0 || idx >= state.values.length) {
-            return interp.makeRuntimeError(`index ${idx} out of bounds for length ${state.values.length}`);
-          }
-          state.values[idx] = value ?? { kind: "nil", value: null };
-          return { kind: "nil", value: null };
-        }));
-        return ctx.bindNativeMethod(fn, obj);
-      }
-      if (name === "clear") {
-        const fn = (methods.clear ??= ctx.makeNativeFunction("array.clear", 1, (_interp, [self]) => {
-          if (!self || self.kind !== "array") throw new Error("clear receiver must be an array");
-          const state = ctx.ensureArrayState(self);
-          state.values.length = 0;
-          return { kind: "nil", value: null };
-        }));
-        return ctx.bindNativeMethod(fn, obj);
-      }
       if (name === "iterator") {
         const fn = (methods.iterator ??= ctx.makeNativeFunction("array.iterator", 1, (_interp, [self]) => {
           if (!self || self.kind !== "array") throw new Error("iterator receiver must be an array");
@@ -400,7 +349,7 @@ export function memberAccessOnValue(
       }
       const ufcs = ctx.tryUfcs(env, name, obj);
       if (ufcs) return ufcs;
-      throw new Error(`Array has no member '${name}'`);
+      throw new Error(`Array has no member '${name}' (import able.collections.array for stdlib helpers)`);
     }
     if (member.type === "IntegerLiteral") {
       const idx = Number(member.value);
@@ -423,161 +372,7 @@ export function memberAccessOnValue(
     if (method) {
       return { kind: "bound_method", func: method, self: obj };
     }
-    const methods = ctx.stringNativeMethods;
-    if (name === "len_bytes") {
-      const fn = (methods.len_bytes ??= ctx.makeNativeFunction("string.len_bytes", 1, (_interp, [self]) => {
-        if (!self || self.kind !== "string") throw new Error("len_bytes receiver must be a string");
-        const encoded = new TextEncoder().encode(self.value);
-        return makeIntegerFromNumber("u64", encoded.length);
-      }));
-      return ctx.bindNativeMethod(fn, obj);
-    }
-    if (name === "len_chars") {
-      const fn = (methods.len_chars ??= ctx.makeNativeFunction("string.len_chars", 1, (_interp, [self]) => {
-        if (!self || self.kind !== "string") throw new Error("len_chars receiver must be a string");
-        return makeIntegerFromNumber("u64", Array.from(self.value).length);
-      }));
-      return ctx.bindNativeMethod(fn, obj);
-    }
-    if (name === "len_graphemes") {
-      const fn = (methods.len_graphemes ??= ctx.makeNativeFunction("string.len_graphemes", 1, (_interp, [self]) => {
-        if (!self || self.kind !== "string") throw new Error("len_graphemes receiver must be a string");
-        return makeIntegerFromNumber("u64", segmentGraphemes(self.value).length);
-      }));
-      return ctx.bindNativeMethod(fn, obj);
-    }
-    if (name === "substring") {
-      const fn = (methods.substring ??= ctx.makeNativeFunction("string.substring", -1, (interp, args) => {
-        if (args.length < 2 || args.length > 3) throw new Error("substring expects start and optional length");
-        const self = args[0];
-        if (!self || self.kind !== "string") throw new Error("substring receiver must be a string");
-        const start = numericToNumber(args[1] ?? { kind: "nil", value: null }, "start", { requireSafeInteger: true });
-        if (!Number.isInteger(start) || start < 0) {
-          return interp.makeRuntimeError("substring start must be a non-negative integer");
-        }
-        let length: number | undefined;
-        if (args.length === 3 && args[2] && args[2].kind !== "nil") {
-          const parsed = numericToNumber(args[2], "length", { requireSafeInteger: true });
-          if (parsed < 0) {
-            return interp.makeRuntimeError("substring length must be non-negative");
-          }
-          length = parsed;
-        }
-        const codepoints = Array.from(self.value);
-        if (start > codepoints.length) {
-          return interp.makeRuntimeError("substring start out of range");
-        }
-        const end = length === undefined ? codepoints.length : start + length;
-        if (end > codepoints.length) {
-          return interp.makeRuntimeError("substring range out of bounds");
-        }
-        return { kind: "string", value: codepoints.slice(start, end).join("") };
-      }));
-      return ctx.bindNativeMethod(fn, obj);
-    }
-    if (name === "split") {
-      const fn = (methods.split ??= ctx.makeNativeFunction("string.split", 2, (_interp, [self, delimiter]) => {
-        if (!self || self.kind !== "string") throw new Error("split receiver must be a string");
-        if (!delimiter || delimiter.kind !== "string") throw new Error("split delimiter must be a string");
-        const parts =
-          delimiter.value === ""
-            ? segmentGraphemes(self.value)
-            : self.value.split(delimiter.value);
-        return {
-          kind: "array",
-          elements: parts.map((part) => ({ kind: "string", value: part } as V10Value)),
-        };
-      }));
-      return ctx.bindNativeMethod(fn, obj);
-    }
-    if (name === "replace") {
-      const fn = (methods.replace ??= ctx.makeNativeFunction("string.replace", 3, (_interp, [self, oldPart, newPart]) => {
-        if (!self || self.kind !== "string") throw new Error("replace receiver must be a string");
-        if (!oldPart || oldPart.kind !== "string") throw new Error("replace target must be a string");
-        if (!newPart || newPart.kind !== "string") throw new Error("replace replacement must be a string");
-        return { kind: "string", value: self.value.split(oldPart.value).join(newPart.value) };
-      }));
-      return ctx.bindNativeMethod(fn, obj);
-    }
-    if (name === "starts_with") {
-      const fn = (methods.starts_with ??= ctx.makeNativeFunction("string.starts_with", 2, (_interp, [self, prefix]) => {
-        if (!self || self.kind !== "string") throw new Error("starts_with receiver must be a string");
-        if (!prefix || prefix.kind !== "string") throw new Error("starts_with prefix must be a string");
-        return { kind: "bool", value: self.value.startsWith(prefix.value) };
-      }));
-      return ctx.bindNativeMethod(fn, obj);
-    }
-    if (name === "ends_with") {
-      const fn = (methods.ends_with ??= ctx.makeNativeFunction("string.ends_with", 2, (_interp, [self, suffix]) => {
-        if (!self || self.kind !== "string") throw new Error("ends_with receiver must be a string");
-        if (!suffix || suffix.kind !== "string") throw new Error("ends_with suffix must be a string");
-        return { kind: "bool", value: self.value.endsWith(suffix.value) };
-      }));
-      return ctx.bindNativeMethod(fn, obj);
-    }
-    if (name === "chars") {
-      const fn = (methods.chars ??= ctx.makeNativeFunction("string.chars", 1, (_interp, [self]) => {
-        if (!self || self.kind !== "string") throw new Error("chars receiver must be a string");
-        const cps = Array.from(self.value);
-        let idx = 0;
-        return {
-          kind: "iterator",
-          iterator: {
-            next: () => {
-              if (idx >= cps.length) return { done: true, value: ctx.iteratorEndValue };
-              const cp = cps[idx];
-              idx += 1;
-              return { done: false, value: { kind: "char", value: cp } };
-            },
-            close: () => {},
-          },
-        };
-      }));
-      return ctx.bindNativeMethod(fn, obj);
-    }
-    if (name === "graphemes") {
-      const fn = (methods.graphemes ??= ctx.makeNativeFunction("string.graphemes", 1, (_interp, [self]) => {
-        if (!self || self.kind !== "string") throw new Error("graphemes receiver must be a string");
-        const pieces = segmentGraphemes(self.value);
-        let idx = 0;
-        return {
-          kind: "iterator",
-          iterator: {
-            next: () => {
-              if (idx >= pieces.length) return { done: true, value: ctx.iteratorEndValue };
-              const piece = pieces[idx];
-              idx += 1;
-              return { done: false, value: { kind: "string", value: piece } };
-            },
-            close: () => {},
-          },
-        };
-      }));
-      return ctx.bindNativeMethod(fn, obj);
-    }
-    if (name === "bytes") {
-      const fn = (methods.bytes ??= ctx.makeNativeFunction("string.bytes", 1, (_interp, [self]) => {
-        if (!self || self.kind !== "string") throw new Error("bytes receiver must be a string");
-        const encoded = new TextEncoder().encode(self.value);
-        let idx = 0;
-        return {
-          kind: "iterator",
-          iterator: {
-            next: () => {
-              if (idx >= encoded.length) return { done: true, value: ctx.iteratorEndValue };
-              const value = makeIntegerFromNumber("u8", encoded[idx] ?? 0);
-              idx += 1;
-              return { done: false, value };
-            },
-            close: () => {},
-          },
-        };
-      }));
-      return ctx.bindNativeMethod(fn, obj);
-    }
-    const ufcs = ctx.tryUfcs(env, name, obj);
-    if (ufcs) return ufcs;
-    throw new Error(`String has no member '${name}'`);
+    throw new Error(`String has no member '${name}' (import able.text.string for stdlib helpers)`);
   }
   if (member.type === "Identifier") {
     const ufcs = ctx.tryUfcs(env, member.name, obj);
@@ -612,12 +407,3 @@ function toSafeIndex(value: V10Value | undefined, label: string): number {
   if (idx < 0) throw new Error(`${label} must be non-negative`);
   return idx;
 }
-
-const segmentGraphemes = (text: string): string[] => {
-  const segmenterCtor = (Intl as any)?.Segmenter;
-  if (typeof segmenterCtor === "function") {
-    const segmenter = new segmenterCtor(undefined, { granularity: "grapheme" });
-    return Array.from(segmenter.segment(text)).map((entry: any) => entry.segment as string);
-  }
-  return Array.from(text);
-};

@@ -273,7 +273,8 @@ func (c *Checker) builtinImplsForModule(module *ast.Module) []ImplementationSpec
 	}
 	disableDisplay := moduleDefinesInterface(module, "Display")
 	disableClone := moduleDefinesInterface(module, "Clone")
-	if !disableDisplay && !disableClone {
+	disableOrd := moduleDefinesInterface(module, "Ord")
+	if !disableDisplay && !disableClone && !disableOrd {
 		return c.builtinImplementations
 	}
 	filtered := make([]ImplementationSpec, 0, len(c.builtinImplementations))
@@ -285,6 +286,10 @@ func (c *Checker) builtinImplsForModule(module *ast.Module) []ImplementationSpec
 			}
 		case "Clone":
 			if disableClone {
+				continue
+			}
+		case "Ord":
+			if disableOrd {
 				continue
 			}
 		}

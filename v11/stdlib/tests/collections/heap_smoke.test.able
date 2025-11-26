@@ -1,0 +1,74 @@
+package collections.heap.tests
+
+import able.collections.heap.{Heap}
+
+fn assert(condition: bool, message: string) -> void {
+  if condition { return }
+  raise message
+}
+
+fn expect_i32(value: ?i32, expected: i32, message: string) -> void {
+  value match {
+    case actual: i32 => assert(actual == expected, message),
+    case nil => { raise message }
+  }
+}
+
+fn expect_string(value: ?string, expected: string, message: string) -> void {
+  value match {
+    case actual: string => assert(actual == expected, message),
+    case nil => { raise message }
+  }
+}
+
+fn compare_desc(a: i32, b: i32) -> i32 {
+  if a > b { return -1 }
+  if a < b { return 1 }
+  0
+}
+
+fn check_push_and_pop_ordering() -> void {
+  heap := Heap.new()
+  heap.push(5)
+  heap.push(2)
+  heap.push(8)
+  heap.push(1)
+
+  expect_i32(heap.pop(), 1, "pop should return the smallest element first")
+  expect_i32(heap.pop(), 2, "pop should continue returning values in order")
+  expect_i32(heap.pop(), 5, "pop should keep bubbling down after swaps")
+  expect_i32(heap.pop(), 8, "pop should empty the heap")
+  assert(heap.pop() == nil, "pop on an empty heap should return nil")
+}
+
+fn check_peek_and_len() -> void {
+  heap := Heap.new()
+  heap.push("c")
+  heap.push("a")
+  heap.push("b")
+
+  assert(heap.len() == 3, "len should count current items")
+  expect_string(heap.peek(), "a", "peek should show the smallest value without removal")
+  assert(heap.len() == 3, "peek should not change heap size")
+  assert(!heap.is_empty(), "heap with values should not be empty")
+}
+
+fn check_custom_comparator() -> void {
+  heap := Heap.with_comparator(compare_desc)
+  heap.push(10)
+  heap.push(3)
+  heap.push(7)
+
+  expect_i32(heap.pop(), 10, "custom comparator should control ordering")
+  expect_i32(heap.pop(), 7, "pop should respect the provided comparator")
+  expect_i32(heap.pop(), 3, "pop should drain remaining values")
+  assert(heap.is_empty(), "is_empty should reflect empty heap state")
+}
+
+fn main() -> void {
+  check_push_and_pop_ordering()
+  check_peek_and_len()
+  check_custom_comparator()
+}
+
+main()

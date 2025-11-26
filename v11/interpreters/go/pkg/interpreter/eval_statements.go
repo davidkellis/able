@@ -14,7 +14,7 @@ func (i *Interpreter) evaluateStatement(node ast.Statement, env *runtime.Environ
 	case *ast.StructDefinition:
 		return i.evaluateStructDefinition(n, env)
 	case *ast.UnionDefinition:
-		return runtime.NilValue{}, nil
+		return i.evaluateUnionDefinition(n, env)
 	case *ast.TypeAliasDefinition:
 		return runtime.NilValue{}, nil
 	case *ast.MethodsDefinition:
@@ -177,7 +177,11 @@ func (i *Interpreter) evaluateForLoop(loop *ast.ForLoop, env *runtime.Environmen
 	baseEnv := runtime.NewEnvironment(env)
 	switch it := iterable.(type) {
 	case *runtime.ArrayValue:
-		return i.iterateStaticValues(loop, baseEnv, it.Elements)
+		state, err := i.ensureArrayState(it, 0)
+		if err != nil {
+			return nil, err
+		}
+		return i.iterateStaticValues(loop, baseEnv, state.values)
 	case *runtime.IteratorValue:
 		return i.iterateDynamicIterator(loop, baseEnv, it)
 	default:
@@ -256,15 +260,25 @@ func (i *Interpreter) runForLoopBody(loop *ast.ForLoop, baseEnv *runtime.Environ
 
 func (i *Interpreter) resolveIteratorValue(iterable runtime.Value, env *runtime.Environment) (*runtime.IteratorValue, error) {
 	ident := ast.NewIdentifier("iterator")
+	if adapted, err := i.adaptIteratorValue(iterable, env); err != nil {
+		return nil, err
+	} else if adapted != nil {
+		return adapted, nil
+	}
 	switch it := iterable.(type) {
 	case *runtime.StructInstanceValue:
-		member, err := i.structInstanceMember(it, ident, env)
+		member, err := i.structInstanceMember(it, ident, env, true)
 		if err != nil {
 			return nil, err
 		}
 		value, err := i.CallFunction(member, nil)
 		if err != nil {
 			return nil, err
+		}
+		if adapted, err := i.adaptIteratorValue(value, env); err != nil {
+			return nil, err
+		} else if adapted != nil {
+			return adapted, nil
 		}
 		iterator, ok := value.(*runtime.IteratorValue)
 		if !ok {
@@ -280,6 +294,11 @@ func (i *Interpreter) resolveIteratorValue(iterable runtime.Value, env *runtime.
 		if err != nil {
 			return nil, err
 		}
+		if adapted, err := i.adaptIteratorValue(value, env); err != nil {
+			return nil, err
+		} else if adapted != nil {
+			return adapted, nil
+		}
 		iterator, ok := value.(*runtime.IteratorValue)
 		if !ok {
 			return nil, fmt.Errorf("iterator() on %s did not return Iterator", iterable.Kind())
@@ -287,6 +306,60 @@ func (i *Interpreter) resolveIteratorValue(iterable runtime.Value, env *runtime.
 		return iterator, nil
 	default:
 		return nil, fmt.Errorf("for-loop iterable of kind %s is not Iterable", iterable.Kind())
+	}
+}
+
+func (i *Interpreter) adaptIteratorValue(candidate runtime.Value, env *runtime.Environment) (*runtime.IteratorValue, error) {
+	if iface, ok := candidate.(*runtime.InterfaceValue); ok && iface != nil {
+		return i.adaptIteratorValue(iface.Underlying, env)
+	}
+	inst, ok := candidate.(*runtime.StructInstanceValue)
+	if !ok || inst == nil {
+		return nil, nil
+	}
+	nextVal, err := i.memberAccessOnValueWithOptions(inst, ast.NewIdentifier("next"), env, true)
+	if err != nil || nextVal == nil {
+		return nil, nil
+	}
+	var closeVal runtime.Value
+	if closeCandidate, err := i.memberAccessOnValueWithOptions(inst, ast.NewIdentifier("close"), env, true); err == nil {
+		closeVal = closeCandidate
+	}
+	step := func() (runtime.Value, bool, error) {
+		res, err := i.CallFunction(nextVal, nil)
+		if err != nil {
+			return nil, true, err
+		}
+		if i.isIteratorEnd(res) {
+			return runtime.IteratorEnd, true, nil
+		}
+		if res == nil {
+			return runtime.NilValue{}, false, nil
+		}
+		return res, false, nil
+	}
+	var closer func()
+	if closeVal != nil {
+		closer = func() {
+			_, _ = i.CallFunction(closeVal, nil)
+		}
+	}
+	return runtime.NewIteratorValue(step, closer), nil
+}
+
+func (i *Interpreter) isIteratorEnd(val runtime.Value) bool {
+	if val == nil {
+		return false
+	}
+	switch v := val.(type) {
+	case runtime.IteratorEndValue:
+		return true
+	case *runtime.InterfaceValue:
+		return i.isIteratorEnd(v.Underlying)
+	case *runtime.StructInstanceValue:
+		return v.Definition != nil && v.Definition.Node != nil && v.Definition.Node.ID != nil && v.Definition.Node.ID.Name == "IteratorEnd"
+	default:
+		return val.Kind() == runtime.KindIteratorEnd
 	}
 }
 

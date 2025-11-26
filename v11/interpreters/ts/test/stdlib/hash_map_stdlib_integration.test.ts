@@ -86,6 +86,16 @@ fn main() -> i32 {
     case _ => {}
   }
 
+  if values.contains("right") {
+    sum = sum + 5
+  }
+
+  if values.is_empty() {
+    sum = sum + 100
+  } else {
+    sum = sum + values.size()
+  }
+
   sum + values.size()
 }
 `.trimStart(),
@@ -116,7 +126,7 @@ fn main() -> i32 {
 
       const result = callCallableValue(interpreter as any, mainFn, [], interpreter.globals) as any;
       expect(result?.kind).toBe("i32");
-      expect(readInteger(result)).toBe(19);
+      expect(readInteger(result)).toBe(26);
     } finally {
       await fs.rm(tmpRoot, { recursive: true, force: true });
     }

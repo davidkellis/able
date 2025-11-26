@@ -24,6 +24,7 @@
 - Keep `AGENTS.md` synced with onboarding steps for new contributors.
 - Historical notes + completed milestones now live in `LOG.md`.
 - Keep this `PLAN.md` file up to date with current progress and immediate next actions, but move completed items to `LOG.md`.
+- Status: typed-pattern match reachability regression is fixed (suites green); stay focused on the stdlib layering work in TODO items 7–10.
 
 ## Guardrails (must stay true)
 - `v11/interpreters/ts/scripts/run-parity.ts` remains the authoritative entry point for fixtures/examples parity; `./run_all_tests.sh --version=v11` must stay green (TS + Go unit tests, fixture suites, parity CLI). Run the v10 suite only when explicitly asked to investigate archival regressions.
@@ -58,7 +59,7 @@
     - **Rebuild stdlib incrementally (current focus):**
       - Keep an empty working stdlib in `v11/stdlib/src` and a quarantined copy in `v11/stdlib/quarantine/`.
       - Restore one module at a time from quarantine → `v11/stdlib/src/`, fixing parse/typecheck/test issues before adding the next. Recommended order: `core/errors`, `core/interfaces`, `core/options`, `core/iteration` (already restored) → `collections/array` + `collections/enumerable` → `text/string` → `core/numeric` → `collections/range` → `collections/list` → `collections/vector` → `collections/hash_map`/`set` → remaining collections.
-      - Current working set restored in `v11/stdlib/src`: core/errors, core/interfaces, core/options, core/iteration, core/numeric, collections/array + enumerable + range + list + vector + hash_map, text/string. Smoke tests live under `v11/stdlib/tests`.
+      - Current working set restored in `v11/stdlib/src`: core/errors, core/interfaces, core/options, core/iteration, core/numeric, collections/array + enumerable + range + list + linked_list + vector + deque + queue + lazy_seq + hash_map + set + hash_set + heap + bit_set + tree_map + tree_set, text/string. Smoke tests live under `v11/stdlib/tests`.
       - For each module restored: add/restore minimal stdlib tests, run `bun test v11/interpreters/ts/test/stdlib/...` (or targeted), and `go test ./...` (fast) to keep suites green.
     - **Port to Able:** reimplement array helpers and string helpers in `v11/stdlib` atop kernel primitives; keep only bridges/low-level ops native. Add stdlib unit tests for the Able implementations and ensure interpreters call the stdlib versions in fixtures/examples.
     - **Runtime refactor:** demote native array/string methods to stdlib-backed calls (or remove where redundant), exposing only the minimal kernel hooks. Update typecheckers to source signatures from stdlib surfaces (or shared interface definitions) instead of hardcoded native members.
@@ -69,6 +70,20 @@
       - Began hiding the interim `String` wrapper: stdlib string helpers now return built-in strings with `u64` lengths, `String` is package-private, and `StringBuilder` operates on the built-in `string` surface.
       - Restored persistent `collections/list` into `v11/stdlib/src` with smoke coverage and TS ModuleLoader integration exercising concat/reverse/to_array + iteration.
       - Restored persistent `collections/vector` into `v11/stdlib/src` with smoke coverage plus a TS ModuleLoader integration ensuring push/set/pop + iteration work via the stdlib surface.
+      - Restored persistent `collections/deque` and `collections/queue` into `v11/stdlib/src` with smoke coverage and TS ModuleLoader integration; both interpreters' typecheckers now treat them as for-loop iterables.
+      - Restored persistent `collections/bit_set` into `v11/stdlib/src` with smoke + TS ModuleLoader coverage; both typecheckers now treat BitSet as a for-loop iterable of `i32`.
+      - Restored `collections/tree_map` (sorted array-backed) and `collections/tree_set` into `v11/stdlib/src` with smoke coverage plus TS ModuleLoader integration validating ordering/updates.
+      - Ordering equality + method dispatch for primitives fixed; TreeMap now routes through `Ord.cmp` again and covers custom key types in TS ModuleLoader tests.
+      - HashSet stdlib use now typechecks without filtering diagnostics: imports seed HashSet bindings from package summaries and builtin method stubs cover new/with_capacity/add/remove/contains/size/clear/is_empty.
+      - Typechecker builtin stubs now cover Array/List/Vector/HashMap with bool-aware signatures; iterable recognition includes these collections and nested generic applications (e.g., `HashMap string i32`) flatten correctly, so cross-module stdlib calls typecheck without coercing to `unknown`.
+      - Go typechecker now recognises stdlib collections (`List`, `Vector`, `HashSet`, `Deque`, `Queue`, `BitSet`) as valid for-loop iterables; iterable helpers moved into their own file with regression coverage to keep `type_utils.go` under the 1k-line guardrail.
+      - Go runtime + typechecker now prefer stdlib-defined Array methods before native shims, so method-set overrides and stdlib signatures apply with native fallbacks kept for compatibility.
+      - Full TS + Go suite is green after the array stdlib-first resolution path (`./run_all_tests.sh --version=v11`).
+      - TS interpreter typed-pattern matching now recognises interface implementations (e.g., `RangeError`, `IndexError`) for `Error` patterns, and stdlib string/array integration tests now cover RangeError/IndexError surfaces via the ModuleLoader.
+      - Additional stdlib-first edge coverage landed for string split/replace and array pop/get/set out-of-bounds paths; native string replace fallback now returns the receiver when the needle is empty to mirror stdlib behaviour.
+      - Fixed tree-sitter number literal mapping to keep hex literals as integers (even with `E` digits), so UTF-8 path bitwise checks no longer error and the multi-byte string split/replace tests are re-enabled.
+      - Began trimming native array helpers in the TS interpreter: push/pop/get/set/size/clear now require the stdlib method set (Iterator fallback retained), and leetcode examples import `able.collections.array` to use the stdlib surface.
+      - Removed remaining native string helpers in both interpreters (array iterator shim retained), mirroring Go/TS runtime and typechecker behaviour and adding guardrail tests for missing stdlib imports; added coverage to flag base-prefixed octal/binary literals with stray `e/E` markers so they surface diagnostics instead of being treated as exponents.
 
 ### Tutorials & Examples (cleanup backlog)
 - Fix tutorials requiring missing stdlib imports/stubs (Channel/Mutex await sample) once the stdlib surfaces are wired back in.

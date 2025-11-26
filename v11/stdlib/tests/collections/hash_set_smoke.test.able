@@ -1,0 +1,62 @@
+package collections.hash_set.tests
+
+import able.collections.hash_set.{HashSet}
+import able.core.iteration.{IteratorEnd}
+
+fn assert(condition: bool, message: string) -> void {
+  if condition { return }
+  raise message
+}
+
+fn check_add_contains() -> void {
+  set := HashSet.new()
+  assert(set.is_empty(), "new hash set should be empty")
+  assert(set.add(1), "first insert returns true")
+  assert(!set.add(1), "duplicate insert returns false")
+  assert(set.contains(1), "contains returns true for present value")
+  assert(!set.contains(9), "contains returns false for missing value")
+  assert(set.size() == 1, "size counts unique values")
+}
+
+fn check_remove_clear() -> void {
+  set := HashSet.new()
+  set.add(3)
+  set.add(4)
+  assert(set.size() == 2, "size tracks inserts")
+  assert(set.remove(3), "remove returns true for present value")
+  assert(!set.remove(3), "remove returns false when value already missing")
+  assert(!set.contains(3), "removed value no longer present")
+  set.clear()
+  assert(set.is_empty(), "clear empties the set")
+}
+
+fn check_iteration() -> void {
+  set := HashSet.new()
+  set.add(2)
+  set.add(5)
+  set.add(7)
+
+  sum := 0
+  count := 0
+  iter := set.iterator()
+  loop {
+    iter.next() match {
+      case IteratorEnd => { break }
+      case value: i32 => {
+        sum = sum + value
+        count = count + 1
+      }
+    }
+  }
+
+  assert(count == 3, "iterator should visit each member once")
+  assert(sum == 14, "iterator yields all inserted values")
+}
+
+fn main() -> void {
+  check_add_contains()
+  check_remove_clear()
+  check_iteration()
+}
+
+main()

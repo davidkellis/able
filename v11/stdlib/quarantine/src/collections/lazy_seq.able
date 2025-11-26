@@ -157,7 +157,7 @@ methods LazySeq T {
         next_value := mut_iter.next()
         self.source = mut_iter
         match next_value {
-          case IteratorEnd => {
+          case _: IteratorEnd => {
             self.source = nil
             self.exhausted = true
             nil

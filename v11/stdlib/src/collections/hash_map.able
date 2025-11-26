@@ -5,6 +5,7 @@ import able.collections.map.{Map}
 import able.core.errors.{IndexError}
 import able.core.interfaces.{Clone, Default, Index, IndexMut}
 import able.core.iteration.{IteratorEnd}
+import able.text.string
 
 struct SlotEntry K V {
   key: K,
@@ -53,7 +54,7 @@ fn hash_string(value: string) -> i32 {
         state = state + byte
         state = state \xor (state >> 5)
       },
-      case IteratorEnd => { break },
+      case _: IteratorEnd => { break },
       case _ => { break }
     }
   }

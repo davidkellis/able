@@ -1,7 +1,7 @@
 package core
 
 ## Sentinel returned by Iterator.next() to signal completion.
-struct IteratorEnd;
+struct IteratorEnd {}
 
 ## Stateful iterator protocol.
 interface Iterator T for Self {

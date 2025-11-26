@@ -46,6 +46,7 @@ type Program struct {
 type packageLocation struct {
 	rootDir  string
 	rootName string
+	kind     RootKind
 	files    []string
 }
 
@@ -148,7 +149,7 @@ func (l *Loader) Load(entry string) (*Program, error) {
 		return nil, fmt.Errorf("loader: package namespace 'able.*' is reserved for the standard library (path: %s)", entryRoot.rootDir)
 	}
 
-	entryPackages, fileIndex, err := indexSourceFiles(rootDir, rootName)
+	entryPackages, fileIndex, err := indexSourceFiles(rootDir, rootName, entryKind)
 	if err != nil {
 		return nil, err
 	}
@@ -188,7 +189,7 @@ func (l *Loader) Load(entry string) (*Program, error) {
 
 		fileMods := make([]*fileModule, 0, len(loc.files))
 		for _, path := range loc.files {
-			fm, err := l.parseFile(path, loc.rootDir, loc.rootName)
+			fm, err := l.parseFile(path, loc.rootDir, loc.rootName, loc.kind)
 			if err != nil {
 				return nil, err
 			}
@@ -240,8 +241,11 @@ func (l *Loader) indexAdditionalRoots(pkgIndex map[string]*packageLocation, orig
 		return nil
 	}
 	used := make(map[string]struct{}, len(l.searchPaths)+1)
+	usedList := make([]string, 0, len(l.searchPaths)+1)
 	if entryRoot.rootDir != "" {
-		used[filepath.Clean(entryRoot.rootDir)] = struct{}{}
+		clean := filepath.Clean(entryRoot.rootDir)
+		used[clean] = struct{}{}
+		usedList = append(usedList, clean)
 	}
 
 	for _, root := range l.searchPaths {
@@ -250,10 +254,18 @@ func (l *Loader) indexAdditionalRoots(pkgIndex map[string]*packageLocation, orig
 			return err
 		}
 		clean := filepath.Clean(abs)
-		if _, skip := used[clean]; skip {
+		overlaps := false
+		for _, seen := range usedList {
+			if pathsOverlap(seen, clean) {
+				overlaps = true
+				break
+			}
+		}
+		if overlaps {
 			continue
 		}
 		used[clean] = struct{}{}
+		usedList = append(usedList, clean)
 		kind := root.Kind
 		if kind != RootStdlib {
 			kind = RootUser
@@ -264,7 +276,7 @@ func (l *Loader) indexAdditionalRoots(pkgIndex map[string]*packageLocation, orig
 		} else if !ok {
 			continue
 		}
-		packages, _, err := indexSourceFiles(abs, rootName)
+		packages, _, err := indexSourceFiles(abs, rootName, kind)
 		if err != nil {
 			return err
 		}
@@ -300,6 +312,7 @@ func registerPackages(pkgIndex map[string]*packageLocation, packages map[string]
 		pkgIndex[name] = &packageLocation{
 			rootDir:  root.rootDir,
 			rootName: root.rootName,
+			kind:     root.kind,
 			files:    files,
 		}
 	}
@@ -320,7 +333,7 @@ func containsPathPrefix(base, target string) bool {
 	return rel == "." || (!strings.HasPrefix(rel, ".."+string(os.PathSeparator)) && rel != "..")
 }
 
-func (l *Loader) parseFile(path, rootDir, rootPackage string) (*fileModule, error) {
+func (l *Loader) parseFile(path, rootDir, rootPackage string, kind RootKind) (*fileModule, error) {
 	source, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("loader: read %s: %w", path, err)
@@ -330,7 +343,7 @@ func (l *Loader) parseFile(path, rootDir, rootPackage string) (*fileModule, erro
 		return nil, fmt.Errorf("loader: parse %s: %w", path, err)
 	}
 
-	segments, isPrivate, err := computePackageSegments(rootDir, rootPackage, path, moduleAST)
+	segments, isPrivate, err := computePackageSegments(rootDir, rootPackage, path, moduleAST, kind)
 	if err != nil {
 		return nil, err
 	}
@@ -410,7 +423,7 @@ func readPackageName(path string) (string, error) {
 	return "", nil
 }
 
-func indexSourceFiles(rootDir, rootPackage string) (map[string][]string, map[string]string, error) {
+func indexSourceFiles(rootDir, rootPackage string, kind RootKind) (map[string][]string, map[string]string, error) {
 	packages := make(map[string][]string)
 	fileToPackage := make(map[string]string)
 	err := filepath.WalkDir(rootDir, func(path string, d fs.DirEntry, err error) error {
@@ -427,7 +440,7 @@ func indexSourceFiles(rootDir, rootPackage string) (map[string][]string, map[str
 		if err != nil {
 			return err
 		}
-		segments, err := buildPackageSegments(rootDir, rootPackage, path, declared)
+		segments, err := resolvePackageSegments(rootDir, rootPackage, path, declared, kind)
 		if err != nil {
 			return err
 		}
@@ -514,7 +527,7 @@ func buildPackageSegments(rootDir, rootPackage, filePath string, declared []stri
 	return segments, nil
 }
 
-func computePackageSegments(rootDir, rootPackage, filePath string, module *ast.Module) ([]string, bool, error) {
+func computePackageSegments(rootDir, rootPackage, filePath string, module *ast.Module, kind RootKind) ([]string, bool, error) {
 	var declared []string
 	isPrivate := false
 	if module.Package != nil {
@@ -526,11 +539,25 @@ func computePackageSegments(rootDir, rootPackage, filePath string, module *ast.M
 			declared = append(declared, part.Name)
 		}
 	}
-	segments, err := buildPackageSegments(rootDir, rootPackage, filePath, declared)
+	segments, err := resolvePackageSegments(rootDir, rootPackage, filePath, declared, kind)
 	if err != nil {
 		return nil, false, err
 	}
 	return segments, isPrivate, nil
+}
+
+func resolvePackageSegments(rootDir, rootPackage, filePath string, declared []string, kind RootKind) ([]string, error) {
+	if kind == RootStdlib && len(declared) > 0 {
+		segments := []string{sanitizeSegment(rootPackage)}
+		for _, part := range declared {
+			if part == "" {
+				continue
+			}
+			segments = append(segments, sanitizeSegment(part))
+		}
+		return segments, nil
+	}
+	return buildPackageSegments(rootDir, rootPackage, filePath, declared)
 }
 
 func discoverRootForPath(path string) (string, string, error) {

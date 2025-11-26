@@ -29,8 +29,8 @@ fn main() -> void {
   add_five = add(@, 5)
   print(`7 + 5 = ${add_five(7)}`)
 
-  reorder := scale_and_shift(@2, @1, 1)
-  print(`reorder(10, 3) = ${reorder(10, 3)}`)
+  reorder := scale_and_shift(@2, 11, @1)
+  print(`reorder(8, 3) = scale_and_shift(3, 11, 8) = ${reorder(8, 3)}`)
 
   greeting := "Able"
   piped := greeting |> greet_with("Hello", %)

@@ -368,6 +368,9 @@ func typeAssignable(from, to Type) bool {
 		}
 		return false
 	case NullableType:
+		if prim, ok := from.(PrimitiveType); ok && prim.Kind == PrimitiveNil {
+			return true
+		}
 		if nullable, ok := from.(NullableType); ok {
 			return typeAssignable(nullable.Inner, target.Inner)
 		}
@@ -797,102 +800,6 @@ func sameType(a, b Type) bool {
 		}
 	}
 	return false
-}
-
-func iterableElementType(t Type) (Type, bool) {
-	if t == nil {
-		return UnknownType{}, true
-	}
-	if _, ok := t.(UnknownType); ok {
-		return UnknownType{}, true
-	}
-	if elem, ok := arrayElementType(t); ok {
-		if elem == nil || isUnknownType(elem) {
-			return UnknownType{}, true
-		}
-		return elem, true
-	}
-	if rng, ok := t.(RangeType); ok {
-		if rng.Element == nil || isUnknownType(rng.Element) {
-			return UnknownType{}, true
-		}
-		return rng.Element, true
-	}
-	if iter, ok := t.(IteratorType); ok {
-		if iter.Element == nil || isUnknownType(iter.Element) {
-			return UnknownType{}, true
-		}
-		return iter.Element, true
-	}
-	if applied, ok := t.(AppliedType); ok {
-		switch base := applied.Base.(type) {
-		case InterfaceType:
-			if base.InterfaceName == "Iterable" {
-				if len(applied.Arguments) == 0 {
-					return UnknownType{}, true
-				}
-				elem := applied.Arguments[0]
-				if elem == nil || isUnknownType(elem) {
-					return UnknownType{}, true
-				}
-				return elem, true
-			}
-		}
-	}
-	return UnknownType{}, false
-}
-
-func structName(t Type) (string, bool) {
-	switch s := t.(type) {
-	case StructType:
-		return s.StructName, true
-	case StructInstanceType:
-		return s.StructName, true
-	case AppliedType:
-		if base, ok := s.Base.(StructType); ok {
-			return base.StructName, true
-		}
-	}
-	return "", false
-}
-
-func unionName(t Type) (string, bool) {
-	switch u := t.(type) {
-	case UnionType:
-		return u.UnionName, u.UnionName != ""
-	case AppliedType:
-		return unionName(u.Base)
-	}
-	return "", false
-}
-
-func arrayElementType(t Type) (Type, bool) {
-	switch arr := t.(type) {
-	case ArrayType:
-		return arr.Element, true
-	case StructType:
-		if arr.StructName == "Array" {
-			if len(arr.Positional) > 0 {
-				return arr.Positional[0], true
-			}
-			return UnknownType{}, true
-		}
-	case StructInstanceType:
-		if arr.StructName == "Array" {
-			if len(arr.Positional) > 0 {
-				return arr.Positional[0], true
-			}
-			return UnknownType{}, true
-		}
-	case AppliedType:
-		if name, ok := structName(arr.Base); ok && name == "Array" {
-			if len(arr.Arguments) > 0 {
-				return arr.Arguments[0], true
-			}
-			return UnknownType{}, true
-		}
-	}
-	return nil, false
 }
 
 func normalizeSpecialType(t Type) Type {

@@ -1,7 +1,7 @@
 package collections.array
 
 import able.core.interfaces.{Default, Clone, Index, IndexMut}
-import able.core.iteration.{Iterable, Iterator}
+import able.core.iteration.{Iterable, Iterator, IteratorEnd}
 import able.core.errors.{IndexError}
 
 extern typescript fn __able_array_new() -> i64 {}
@@ -187,7 +187,7 @@ impl Iterable T for Array T {
 
 impl Iterator T for ArrayIterator T {
   fn next(self: Self) -> T | IteratorEnd {
-    if self.index >= self.length { return IteratorEnd }
+    if self.index >= self.length { return IteratorEnd {} }
     value := self.array.read_slot(self.index)
     self.index = self.index + 1
     value

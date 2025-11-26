@@ -8,15 +8,15 @@ import (
 )
 
 func (i *Interpreter) evaluateFunctionCall(call *ast.FunctionCall, env *runtime.Environment) (runtime.Value, error) {
-	if member, ok := call.Callee.(*ast.MemberAccessExpression); ok && member.Safe {
+	if member, ok := call.Callee.(*ast.MemberAccessExpression); ok {
 		target, err := i.evaluateExpression(member.Object, env)
 		if err != nil {
 			return nil, err
 		}
-		if isNilRuntimeValue(target) {
+		if member.Safe && isNilRuntimeValue(target) {
 			return runtime.NilValue{}, nil
 		}
-		calleeVal, err := i.memberAccessOnValue(target, member.Member, env)
+		calleeVal, err := i.memberAccessOnValueWithOptions(target, member.Member, env, true)
 		if err != nil {
 			return nil, err
 		}
@@ -227,7 +227,7 @@ func (i *Interpreter) callCallableValue(callee runtime.Value, args []runtime.Val
 	case *runtime.FunctionValue:
 		return i.invokeFunction(fn, args, call)
 	default:
-		return nil, fmt.Errorf("calling non-function value of kind %s", callee.Kind())
+		return nil, fmt.Errorf("calling non-function value of kind %s (%T)", callee.Kind(), callee)
 	}
 }
 
@@ -429,31 +429,91 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 			return assignStructMember(inst, lhs.Member, value, assign.Operator, binaryOp, isCompound)
 		case *runtime.ArrayValue:
 			arrayVal := inst
-			intMember, ok := lhs.Member.(*ast.IntegerLiteral)
-			if !ok {
+			switch member := lhs.Member.(type) {
+			case *ast.IntegerLiteral:
+				if member.Value == nil {
+					return nil, fmt.Errorf("Array index out of bounds")
+				}
+				idx := int(member.Value.Int64())
+				state, err := i.ensureArrayState(arrayVal, 0)
+				if err != nil {
+					return nil, err
+				}
+				if idx < 0 || idx >= len(state.values) {
+					return nil, fmt.Errorf("Array index out of bounds")
+				}
+				if assign.Operator == ast.AssignmentAssign {
+					state.values[idx] = value
+					i.syncArrayValues(arrayVal.Handle, state)
+					return value, nil
+				}
+				if !isCompound {
+					return nil, fmt.Errorf("unsupported assignment operator %s", assign.Operator)
+				}
+				current := state.values[idx]
+				computed, err := applyBinaryOperator(binaryOp, current, value)
+				if err != nil {
+					return nil, err
+				}
+				state.values[idx] = computed
+				i.syncArrayValues(arrayVal.Handle, state)
+				return computed, nil
+			case *ast.Identifier:
+				if assign.Operator != ast.AssignmentAssign {
+					return nil, fmt.Errorf("unsupported assignment operator %s", assign.Operator)
+				}
+				state, err := i.ensureArrayState(arrayVal, 0)
+				if err != nil {
+					return nil, err
+				}
+				switch member.Name {
+				case "storage_handle":
+					intVal, ok := value.(runtime.IntegerValue)
+					if !ok || intVal.Val == nil || !intVal.Val.IsInt64() {
+						return nil, fmt.Errorf("array storage_handle must be an integer")
+					}
+					handle := intVal.Val.Int64()
+					if handle <= 0 {
+						return nil, fmt.Errorf("array storage_handle must be positive")
+					}
+					newState, ok := i.arrayStates[handle]
+					if !ok {
+						newState = &arrayState{values: make([]runtime.Value, 0), capacity: 0}
+						i.arrayStates[handle] = newState
+					}
+					i.trackArrayValue(handle, arrayVal)
+					arrayVal.Elements = newState.values
+					i.syncArrayValues(handle, newState)
+					return value, nil
+				case "length":
+					newLen, err := arrayIndexFromValue(value)
+					if err != nil {
+						return nil, fmt.Errorf("array length must be a non-negative integer")
+					}
+					setArrayLength(state, newLen)
+					i.syncArrayValues(arrayVal.Handle, state)
+					return value, nil
+				case "capacity":
+					newCap, err := arrayIndexFromValue(value)
+					if err != nil {
+						return nil, fmt.Errorf("array capacity must be a non-negative integer")
+					}
+					if newCap < len(state.values) {
+						newCap = len(state.values)
+					}
+					if ensureArrayCapacity(state, newCap) {
+						// ensureArrayCapacity already sets capacity and sync handles reallocations
+					} else if newCap > state.capacity {
+						state.capacity = newCap
+					}
+					i.syncArrayValues(arrayVal.Handle, state)
+					return value, nil
+				default:
+					return nil, fmt.Errorf("Array has no member '%s'", member.Name)
+				}
+			default:
 				return nil, fmt.Errorf("Array member assignment requires integer member")
 			}
-			if intMember.Value == nil {
-				return nil, fmt.Errorf("Array index out of bounds")
-			}
-			idx := int(intMember.Value.Int64())
-			if idx < 0 || idx >= len(arrayVal.Elements) {
-				return nil, fmt.Errorf("Array index out of bounds")
-			}
-			if assign.Operator == ast.AssignmentAssign {
-				arrayVal.Elements[idx] = value
-				return value, nil
-			}
-			if !isCompound {
-				return nil, fmt.Errorf("unsupported assignment operator %s", assign.Operator)
-			}
-			current := arrayVal.Elements[idx]
-			computed, err := applyBinaryOperator(binaryOp, current, value)
-			if err != nil {
-				return nil, err
-			}
-			arrayVal.Elements[idx] = computed
-			return computed, nil
 		default:
 			return nil, fmt.Errorf("Member assignment requires struct or array")
 		}
@@ -486,7 +546,7 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 		if err != nil {
 			return nil, err
 		}
-		arr, err := toArrayValue(arrObj)
+		arr, err := i.toArrayValue(arrObj)
 		if err != nil {
 			return nil, err
 		}
@@ -498,22 +558,28 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 		if err != nil {
 			return nil, err
 		}
-		if idx < 0 || idx >= len(arr.Elements) {
+		state, err := i.ensureArrayState(arr, 0)
+		if err != nil {
+			return nil, err
+		}
+		if idx < 0 || idx >= len(state.values) {
 			return nil, fmt.Errorf("Array index out of bounds")
 		}
 		if assign.Operator == ast.AssignmentAssign {
-			arr.Elements[idx] = value
+			state.values[idx] = value
+			i.syncArrayValues(arr.Handle, state)
 			return value, nil
 		}
 		if !isCompound {
 			return nil, fmt.Errorf("unsupported assignment operator %s", assign.Operator)
 		}
-		current := arr.Elements[idx]
+		current := state.values[idx]
 		computed, err := applyBinaryOperator(binaryOp, current, value)
 		if err != nil {
 			return nil, err
 		}
-		arr.Elements[idx] = computed
+		state.values[idx] = computed
+		i.syncArrayValues(arr.Handle, state)
 		return computed, nil
 	case ast.Pattern:
 		if isCompound {

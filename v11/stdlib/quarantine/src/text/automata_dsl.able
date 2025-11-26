@@ -1,10 +1,10 @@
 package text
 
-import able.collections.array{Array}
-import able.core.interfaces{Error, Clone}
-import able.core.iteration{Iterator, IteratorEnd}
-import able.text.string{String}
-import able.text.automata{
+import able.collections.array.{Array}
+import able.core.interfaces.{Error, Clone}
+import able.core.iteration.{Iterator, IteratorEnd}
+import able.text.string.{String}
+import able.text.automata.{
   NFABuilder,
   NFA,
   DFA,
@@ -145,7 +145,7 @@ module AutomataDSL
     parts: Array AutomataExpr := Array.with_capacity(value.len_bytes())
     loop {
       match iter.next() {
-        case IteratorEnd => break,
+        case _: IteratorEnd => break,
         case ch: char => parts.push(literal_char(ch))
       }
     }

@@ -361,7 +361,9 @@ export function applyBitwiseBinary(op: string, left: V10Value, right: V10Value):
   const leftClass = classifyNumeric(left);
   const rightClass = classifyNumeric(right);
   if (!leftClass || !rightClass || leftClass.tag !== "integer" || rightClass.tag !== "integer") {
-    throw new Error("Bitwise requires integer operands");
+    const leftLabel = `${left.kind}:${"value" in left ? String((left as any).value) : ""}`;
+    const rightLabel = `${right.kind}:${"value" in right ? String((right as any).value) : ""}`;
+    throw new Error(`Bitwise requires integer operands for '${op}' (left: ${leftLabel}, right: ${rightLabel})`);
   }
   const promotion = promoteIntegerInfos(leftClass.info, rightClass.info);
   if (!promotion) {
