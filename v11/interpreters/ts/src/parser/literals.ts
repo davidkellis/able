@@ -39,7 +39,14 @@ export function parseNumberLiteral(ctx: ParseContext, node: Node): Expression {
   }
 
   const sanitized = base.replace(/_/g, "");
-  if (base.includes(".") || /[eE]/.test(base) || floatType) {
+  const hasBasePrefix = /^0[box]/i.test(sanitized);
+  const isHexLiteral = /^0x/i.test(sanitized);
+  if (hasBasePrefix && !isHexLiteral && /[eE]/.test(base)) {
+    throw new MapperError(`parser: invalid number literal ${content}`);
+  }
+  const hasExponent = !hasBasePrefix && /[eE]/.test(base);
+  const hasDecimalPoint = base.includes(".");
+  if (floatType || hasDecimalPoint || hasExponent) {
     const value = Number(sanitized);
     if (!Number.isFinite(value)) {
       throw new MapperError(`parser: invalid number literal ${content}`);

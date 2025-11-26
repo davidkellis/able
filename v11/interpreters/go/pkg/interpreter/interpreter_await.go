@@ -197,12 +197,16 @@ func (i *Interpreter) initializeAwaitState(payload *asyncContextPayload, expr *a
 }
 
 func (i *Interpreter) collectAwaitArms(iterable runtime.Value, env *runtime.Environment) ([]*awaitArmState, error) {
-	arr, err := toArrayValue(iterable)
+	arr, err := i.toArrayValue(iterable)
 	if err != nil {
 		return nil, fmt.Errorf("await currently expects an array of Awaitable values")
 	}
-	arms := make([]*awaitArmState, 0, len(arr.Elements))
-	for _, el := range arr.Elements {
+	state, err := i.ensureArrayState(arr, 0)
+	if err != nil {
+		return nil, err
+	}
+	arms := make([]*awaitArmState, 0, len(state.values))
+	for _, el := range state.values {
 		arms = append(arms, &awaitArmState{
 			awaitable: el,
 			isDefault: i.awaitArmIsDefault(el, env),

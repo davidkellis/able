@@ -563,6 +563,7 @@ function validateImplementationMethod(
   let valid = true;
   const interfaceGenerics = Array.isArray(signature.genericParams) ? signature.genericParams.length : 0;
   const implementationGenerics = Array.isArray(method.genericParams) ? method.genericParams.length : 0;
+  const substitutions = buildImplementationSubstitutions(ctx, interfaceDefinition, implementation, targetLabel);
   if (interfaceGenerics !== implementationGenerics) {
     ctx.report(
       `typechecker: ${label} method '${signature.name?.name ?? "<anonymous>"}' expects ${interfaceGenerics} generic parameter(s), got ${implementationGenerics}`,
@@ -580,8 +581,6 @@ function validateImplementationMethod(
     );
     valid = false;
   } else {
-    const substitutions = new Map<string, string>();
-    substitutions.set("Self", targetLabel);
     for (let index = 0; index < interfaceParams.length; index += 1) {
       const interfaceParam = interfaceParams[index];
       const implementationParam = implementationParams[index];
@@ -605,9 +604,9 @@ function validateImplementationMethod(
     }
   }
 
-  const returnExpected = ctx.describeTypeExpression(signature.returnType, new Map([["Self", targetLabel]]));
-  const returnActual = ctx.describeTypeExpression(method.returnType, new Map([["Self", targetLabel]]));
-  if (!typeExpressionsEquivalent(ctx, signature.returnType, method.returnType, new Map([["Self", targetLabel]]))) {
+  const returnExpected = ctx.describeTypeExpression(signature.returnType, substitutions);
+  const returnActual = ctx.describeTypeExpression(method.returnType, substitutions);
+  if (!typeExpressionsEquivalent(ctx, signature.returnType, method.returnType, substitutions)) {
     ctx.report(
       `typechecker: ${label} method '${signature.name?.name ?? "<anonymous>"}' return type expected ${returnExpected}, got ${returnActual}`,
       implementation,
@@ -634,6 +633,30 @@ function validateImplementationMethod(
   }
 
   return valid;
+}
+
+function buildImplementationSubstitutions(
+  ctx: ImplementationContext,
+  interfaceDefinition: AST.InterfaceDefinition,
+  implementation: AST.ImplementationDefinition,
+  targetLabel: string,
+): Map<string, string> {
+  const substitutions = new Map<string, string>();
+  substitutions.set("Self", targetLabel);
+  const interfaceArgs = Array.isArray(implementation.interfaceArgs) ? implementation.interfaceArgs : [];
+  const interfaceParams = Array.isArray(interfaceDefinition.genericParams) ? interfaceDefinition.genericParams : [];
+  interfaceParams.forEach((param, index) => {
+    const paramName = ctx.getIdentifierName(param?.name);
+    if (!paramName) {
+      return;
+    }
+    const argument = interfaceArgs[index];
+    if (!argument) {
+      return;
+    }
+    substitutions.set(paramName, ctx.formatTypeExpression(argument, substitutions));
+  });
+  return substitutions;
 }
 
 export function typeExpressionsEquivalent(

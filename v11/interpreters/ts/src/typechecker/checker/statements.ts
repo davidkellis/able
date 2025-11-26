@@ -161,6 +161,23 @@ function resolveIterableElementType(type: TypeInfo): { elementType: TypeInfo; re
       Array.isArray(type.typeArguments) && type.typeArguments.length > 0 ? type.typeArguments[0]! : unknownType;
     return { elementType: candidate ?? unknownType, recognized: true };
   }
+  if (
+    type.kind === "struct" &&
+    (type.name === "List" ||
+      type.name === "LinkedList" ||
+      type.name === "LazySeq" ||
+      type.name === "Vector" ||
+      type.name === "HashSet" ||
+      type.name === "Deque" ||
+      type.name === "Queue")
+  ) {
+    const candidate =
+      Array.isArray(type.typeArguments) && type.typeArguments.length > 0 ? type.typeArguments[0]! : unknownType;
+    return { elementType: candidate ?? unknownType, recognized: true };
+  }
+  if (type.kind === "struct" && type.name === "BitSet") {
+    return { elementType: primitiveType("i32"), recognized: true };
+  }
   if (type.kind === "struct" && type.name === "Range") {
     return { elementType: unknownType, recognized: true };
   }

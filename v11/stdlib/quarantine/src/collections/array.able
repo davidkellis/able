@@ -1,8 +1,9 @@
 package collections
 
 import able.collections.enumerable.{Enumerable}
-import able.core.interfaces.{Default, Clone, Iterable, Iterator, Index, IndexMut}
 import able.core.errors.{IndexError}
+import able.core.interfaces.{Default, Clone, Index, IndexMut}
+import able.core.iteration.{Iterable, Iterator, IteratorEnd}
 
 extern fn __able_array_new() -> i64;
 extern fn __able_array_with_capacity(capacity: i32) -> i64;
@@ -182,7 +183,7 @@ impl Iterable T for Array T {
 
 impl Iterator T for ArrayIterator T {
   fn next(mut self: Self) -> T | IteratorEnd {
-    if self.index >= self.length { return IteratorEnd }
+    if self.index >= self.length { return IteratorEnd {} }
     value := self.array.read_slot(self.index)
     self.index = self.index + 1
     value

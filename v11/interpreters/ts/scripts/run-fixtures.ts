@@ -10,6 +10,7 @@ import type {
 } from "../src/typechecker/diagnostics";
 import { formatTypecheckerDiagnostic, printPackageSummaries } from "./typecheck-utils";
 import { resolveTypecheckMode, type TypecheckMode } from "./typecheck-mode";
+import { ModuleLoader, type Program } from "./module-loader";
 import {
   collectFixtures,
   readManifest,
@@ -32,6 +33,10 @@ const TYPECHECK_BASELINE_PATH = path.join(FIXTURE_ROOT, "typecheck-baseline.json
 const WRITE_TYPECHECK_BASELINE = process.argv.includes("--write-typecheck-baseline");
 const FIXTURE_FILTER = process.env.ABLE_FIXTURE_FILTER?.trim() ?? null;
 const BASELINE_ENABLED = TYPECHECK_MODE !== "off" && !FIXTURE_FILTER;
+const STDLIB_ROOT = path.resolve(__dirname, "../../../stdlib/src");
+const STDLIB_STRING_ENTRY = path.join(STDLIB_ROOT, "text", "string.able");
+const stdlibLoader = new ModuleLoader([STDLIB_ROOT]);
+let stdlibStringProgram: Program | null = null;
 
 type FixtureResult = { name: string; description?: string };
 
@@ -76,9 +81,11 @@ async function main() {
 
       const stdout: string[] = [];
       let evaluationError: unknown;
+      let loadedStdlib: Program | null = null;
 
       const entry = manifest.entry ?? "module.json";
       const moduleAst = await loadModuleFromFixture(fixtureDir, entry);
+      const needsStdlibString = moduleImportsStdlibString(moduleAst);
       const setupModules: AST.Module[] = [];
       if (manifest.setup) {
         for (const setupFile of manifest.setup) {
@@ -92,6 +99,20 @@ async function main() {
       let packageSummaries = new Map<string, PackageSummary>();
       if (TYPECHECK_MODE !== "off") {
         const session = new TypeChecker.TypecheckerSession();
+        if (needsStdlibString) {
+          loadedStdlib = await ensureStdlibStringProgram();
+          const seenPkgs = new Set<string>();
+          for (const mod of loadedStdlib.modules) {
+            if (seenPkgs.has(mod.packageName)) continue;
+            seenPkgs.add(mod.packageName);
+            const { diagnostics } = session.checkModule(mod.module);
+            typecheckDiagnostics.push(...diagnostics);
+          }
+          if (!seenPkgs.has(loadedStdlib.entry.packageName)) {
+            const { diagnostics } = session.checkModule(loadedStdlib.entry.module);
+            typecheckDiagnostics.push(...diagnostics);
+          }
+        }
         for (const setupModule of setupModules) {
           const { diagnostics } = session.checkModule(setupModule);
           typecheckDiagnostics.push(...diagnostics);
@@ -99,6 +120,10 @@ async function main() {
         const { diagnostics } = session.checkModule(moduleAst);
         typecheckDiagnostics.push(...diagnostics);
         packageSummaries = session.getPackageSummaries();
+      }
+
+      if (needsStdlibString && !loadedStdlib) {
+        loadedStdlib = await ensureStdlibStringProgram();
       }
 
       const formattedDiagnostics = maybeReportTypecheckDiagnostics(
@@ -118,6 +143,9 @@ async function main() {
       let result: V10.V10Value | undefined;
       interceptStdout(stdout, () => {
         try {
+          if (needsStdlibString && loadedStdlib) {
+            evaluateProgram(interpreter, loadedStdlib);
+          }
           for (const setupModule of setupModules) {
             interpreter.evaluate(setupModule);
           }
@@ -157,6 +185,31 @@ async function main() {
   } finally {
     clearTimeouts();
   }
+}
+
+function moduleImportsStdlibString(module: AST.Module): boolean {
+  return Array.isArray((module as any)?.imports)
+    ? (module as any).imports.some((imp: any) => {
+        if (!imp || imp.type !== "ImportStatement" || !Array.isArray(imp.packagePath)) return false;
+        const pkg = imp.packagePath.map((segment: any) => segment?.name ?? "").filter(Boolean).join(".");
+        return pkg === "able.text.string";
+      })
+    : false;
+}
+
+async function ensureStdlibStringProgram(): Promise<Program> {
+  if (!stdlibStringProgram) {
+    stdlibStringProgram = await stdlibLoader.load(STDLIB_STRING_ENTRY);
+  }
+  return stdlibStringProgram;
+}
+
+function evaluateProgram(interpreter: V10.InterpreterV10, program: Program): void {
+  const nonEntry = program.modules.filter((mod) => mod.packageName !== program.entry.packageName);
+  for (const mod of nonEntry) {
+    interpreter.evaluate(mod.module);
+  }
+  interpreter.evaluate(program.entry.module);
 }
 
 async function readExistingBaseline(filePath: string): Promise<Record<string, string[]> | null> {

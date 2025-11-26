@@ -78,33 +78,37 @@ const stringsFixtures: Fixture[] = [
 
   {
       name: "strings/string_methods",
-      module: AST.module([
-        AST.assign("s", AST.stringLiteral("héllo")),
-        AST.arr(
-          AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "len_bytes"), []),
-          AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "len_chars"), []),
-          AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "len_graphemes"), []),
-          AST.propagationExpression(
-            AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "substring"), [
-              AST.integerLiteral(1),
-              AST.integerLiteral(3),
-            ]),
+      module: AST.module(
+        [
+          AST.assign("s", AST.stringLiteral("héllo")),
+          AST.arr(
+            AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "len_bytes"), []),
+            AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "len_chars"), []),
+            AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "len_graphemes"), []),
+            AST.propagationExpression(
+              AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "substring"), [
+                AST.integerLiteral(1),
+                AST.integerLiteral(3),
+              ]),
+            ),
+            AST.propagationExpression(
+              AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "substring"), [
+                AST.integerLiteral(2),
+                AST.nil(),
+              ]),
+            ),
+            AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "split"), [AST.stringLiteral("l")]),
+            AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "split"), [AST.stringLiteral("")]),
+            AST.functionCall(
+              AST.memberAccessExpression(AST.identifier("s"), "replace"),
+              [AST.stringLiteral("l"), AST.stringLiteral("L")],
+            ),
+            AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "starts_with"), [AST.stringLiteral("hé")]),
+            AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "ends_with"), [AST.stringLiteral("lo")]),
           ),
-          AST.propagationExpression(
-            AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "substring"), [
-              AST.integerLiteral(2),
-            ]),
-          ),
-          AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "split"), [AST.stringLiteral("l")]),
-          AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "split"), [AST.stringLiteral("")]),
-          AST.functionCall(
-            AST.memberAccessExpression(AST.identifier("s"), "replace"),
-            [AST.stringLiteral("l"), AST.stringLiteral("L")],
-          ),
-          AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "starts_with"), [AST.stringLiteral("hé")]),
-          AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "ends_with"), [AST.stringLiteral("lo")]),
-        ),
-      ]),
+        ],
+        [AST.importStatement(["able", "text", "string"], true)],
+      ),
       manifest: {
         description: "string helpers cover length, substring, split, replace, and prefix/suffix checks",
         expect: {

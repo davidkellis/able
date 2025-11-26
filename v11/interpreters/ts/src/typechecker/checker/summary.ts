@@ -7,6 +7,7 @@ import type {
   ExportedMethodSetSummary,
   ExportedObligationSummary,
   ExportedStructSummary,
+  ExportedUnionSummary,
   ExportedSymbolSummary,
   ExportedWhereConstraintSummary,
   PackageSummary,
@@ -20,6 +21,7 @@ export function buildPackageSummary(ctx: ImplementationContext, module: AST.Modu
   const symbols: Record<string, ExportedSymbolSummary> = {};
   const privateSymbols: Record<string, ExportedSymbolSummary> = {};
   const structs: Record<string, ExportedStructSummary> = {};
+  const unions: Record<string, ExportedUnionSummary> = {};
   const interfaces: Record<string, ExportedInterfaceSummary> = {};
   const functions: Record<string, ExportedFunctionSummary> = {};
   const implementationDefinitions = new Set<AST.ImplementationDefinition>();
@@ -75,6 +77,17 @@ export function buildPackageSummary(ctx: ImplementationContext, module: AST.Modu
         symbols[name] = { type: label, visibility: "public" };
         break;
       }
+      case "UnionDefinition": {
+        const name = entry.id?.name;
+        if (!name) break;
+        if (entry.isPrivate) {
+          privateSymbols[name] = { type: name, visibility: "private" };
+        } else {
+          symbols[name] = { type: name, visibility: "public" };
+        }
+        unions[name] = summarizeUnionDefinition(ctx, entry);
+        break;
+      }
       case "ImplementationDefinition":
         implementationDefinitions.add(entry);
         break;
@@ -111,6 +124,7 @@ export function buildPackageSummary(ctx: ImplementationContext, module: AST.Modu
     symbols,
     privateSymbols,
     structs,
+    unions,
     interfaces,
     functions,
     implementations,
@@ -167,6 +181,20 @@ function summarizeStructDefinition(ctx: ImplementationContext, definition: AST.S
     summary.positional = [];
   }
   return summary;
+}
+
+function summarizeUnionDefinition(ctx: ImplementationContext, definition: AST.UnionDefinition): ExportedUnionSummary {
+  const variants: string[] = [];
+  if (Array.isArray(definition.variants)) {
+    for (const variant of definition.variants) {
+      variants.push(formatTypeExpressionOrUnknown(ctx, variant));
+    }
+  }
+  return {
+    typeParams: summarizeGenericParameters(ctx, definition.genericParams) ?? [],
+    variants,
+    where: summarizeWhereClauses(ctx, definition.whereClause) ?? [],
+  };
 }
 
 function summarizeInterfaceDefinition(

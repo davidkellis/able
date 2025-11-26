@@ -134,7 +134,7 @@ func (i *Interpreter) assignPattern(
 			switch rest := p.RestPattern.(type) {
 			case *ast.Identifier:
 				restElems := append([]runtime.Value(nil), elements[len(p.Elements):]...)
-				restVal := &runtime.ArrayValue{Elements: restElems}
+				restVal := i.newArrayValue(restElems, len(restElems))
 				if err := declareOrAssign(env, rest.Name, restVal, isDeclaration, intent); err != nil {
 					return err
 				}

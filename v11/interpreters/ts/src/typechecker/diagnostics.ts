@@ -51,6 +51,12 @@ export type ExportedStructSummary = {
   where?: ExportedWhereConstraintSummary[];
 };
 
+export type ExportedUnionSummary = {
+  typeParams?: ExportedGenericParamSummary[];
+  variants?: string[];
+  where?: ExportedWhereConstraintSummary[];
+};
+
 export type ExportedInterfaceSummary = {
   typeParams?: ExportedGenericParamSummary[];
   methods?: Record<string, ExportedFunctionSummary>;
@@ -82,6 +88,7 @@ export type PackageSummary = {
   symbols: Record<string, ExportedSymbolSummary>;
   privateSymbols: Record<string, ExportedSymbolSummary>;
   structs: Record<string, ExportedStructSummary>;
+  unions: Record<string, ExportedUnionSummary>;
   interfaces: Record<string, ExportedInterfaceSummary>;
   functions: Record<string, ExportedFunctionSummary>;
   implementations: ExportedImplementationSummary[];

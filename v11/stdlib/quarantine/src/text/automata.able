@@ -143,7 +143,7 @@ fn nfa_matches(nfa: NFA, text: String) -> bool {
   iter := text.chars().iterator()
   loop {
     match iter.next() {
-      case IteratorEnd => break,
+      case _: IteratorEnd => break,
       case ch: char => {
         moved := nfa_move(nfa, current, ch)
         current = epsilon_closure(nfa, moved)
@@ -158,7 +158,7 @@ fn dfa_matches(dfa: DFA, text: String) -> bool {
   iter := text.chars().iterator()
   loop {
     match iter.next() {
-      case IteratorEnd => break,
+      case _: IteratorEnd => break,
       case ch: char => {
         match dfa_step(dfa, state, ch) {
           case nil => return false,

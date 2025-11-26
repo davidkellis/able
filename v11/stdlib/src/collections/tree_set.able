@@ -1,0 +1,66 @@
+package collections.tree_set
+
+import able.collections.tree_map.{TreeMap, TreeEntry}
+import able.collections.array.{Array}
+import able.collections.enumerable.{Enumerable}
+import able.core.interfaces.{Ord, Clone}
+
+struct TreeSet T {
+  map: TreeMap T bool
+}
+
+methods TreeSet T {
+  fn new() -> TreeSet T {
+    TreeSet { map: TreeMap.new() }
+  }
+
+  fn len(self: Self) -> i32 { self.map.len() }
+
+  fn is_empty(self: Self) -> bool { self.map.is_empty() }
+
+  fn insert(self: Self, value: T) -> bool {
+    existed := self.map.contains(value)
+    self.map.set(value, true)
+    !existed
+  }
+
+  fn remove(self: Self, value: T) -> bool {
+    self.map.remove(value)
+  }
+
+  fn contains(self: Self, value: T) -> bool {
+    self.map.contains(value)
+  }
+
+  fn first(self: Self) -> ?T {
+    self.map.first() match {
+      case nil => nil,
+      case entry => entry.key
+    }
+  }
+
+  fn last(self: Self) -> ?T {
+    self.map.last() match {
+      case nil => nil,
+      case entry => entry.key
+    }
+  }
+
+  fn to_array(self: Self) -> Array T {
+    self.map.keys()
+  }
+
+  fn each(self: Self, visit: T -> void) -> void {
+    self.map.each_key(visit)
+  }
+
+  fn clear(self: Self) -> void {
+    self.map.clear()
+  }
+}
+
+impl Enumerable T for TreeSet T {
+  fn each(self: Self, visit: T -> void) -> void {
+    self.map.each_key(visit)
+  }
+}

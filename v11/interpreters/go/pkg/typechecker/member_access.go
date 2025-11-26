@@ -136,48 +136,14 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 			c.infer.set(expr, UnknownType{})
 			return diags, UnknownType{}
 		}
-		elem := ty.Element
-		if elem == nil {
-			elem = UnknownType{}
+		if fnType, ok := c.lookupMethod(objectType, memberName); ok {
+			final := c.finalizeMemberAccessType(expr, wrapType, fnType)
+			return diags, final
 		}
-		nilType := PrimitiveType{Kind: PrimitiveNil}
-		switch memberName {
-		case "size":
-			fn := FunctionType{Params: nil, Return: IntegerType{Suffix: "u64"}}
-			final := c.finalizeMemberAccessType(expr, wrapType, fn)
-			return diags, final
-		case "push":
-			fn := FunctionType{Params: []Type{UnknownType{}}, Return: nilType}
-			final := c.finalizeMemberAccessType(expr, wrapType, fn)
-			return diags, final
-		case "pop":
-			result := UnionLiteralType{Members: []Type{elem, nilType}}
-			fn := FunctionType{Params: nil, Return: result}
-			final := c.finalizeMemberAccessType(expr, wrapType, fn)
-			return diags, final
-		case "get":
-			result := UnionLiteralType{Members: []Type{elem, nilType}}
-			fn := FunctionType{Params: []Type{IntegerType{Suffix: "u64"}}, Return: result}
-			final := c.finalizeMemberAccessType(expr, wrapType, fn)
-			return diags, final
-		case "set":
-			fn := FunctionType{Params: []Type{IntegerType{Suffix: "u64"}, elem}, Return: UnknownType{}}
-			final := c.finalizeMemberAccessType(expr, wrapType, fn)
-			return diags, final
-		case "clear":
-			fn := FunctionType{Params: nil, Return: nilType}
-			final := c.finalizeMemberAccessType(expr, wrapType, fn)
-			return diags, final
-		case "iterator":
-			fn := FunctionType{Params: nil, Return: IteratorType{Element: elem}}
-			final := c.finalizeMemberAccessType(expr, wrapType, fn)
-			return diags, final
-		default:
-			diags = append(diags, Diagnostic{
-				Message: fmt.Sprintf("typechecker: array has no member '%s'", memberName),
-				Node:    expr,
-			})
-		}
+		diags = append(diags, Diagnostic{
+			Message: fmt.Sprintf("typechecker: array has no member '%s' (import able.collections.array for stdlib helpers)", memberName),
+			Node:    expr,
+		})
 	case PrimitiveType:
 		if positionalAccess {
 			diags = append(diags, Diagnostic{
@@ -187,12 +153,12 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 			break
 		}
 		if ty.Kind == PrimitiveString {
-			if memberType, ok := stringMemberType(memberName); ok {
-				final := c.finalizeMemberAccessType(expr, wrapType, memberType)
+			if fnType, ok := c.lookupMethod(objectType, memberName); ok {
+				final := c.finalizeMemberAccessType(expr, wrapType, fnType)
 				return diags, final
 			}
 			diags = append(diags, Diagnostic{
-				Message: fmt.Sprintf("typechecker: string has no member '%s'", memberName),
+				Message: fmt.Sprintf("typechecker: string has no member '%s' (import able.text.string for stdlib helpers)", memberName),
 				Node:    expr,
 			})
 			break
@@ -907,6 +873,8 @@ func structInfoFromType(t Type) (structInfo, bool) {
 		if unionName, ok := unionName(v.Base); ok {
 			return structInfo{name: unionName, args: v.Arguments, isUnion: true}, true
 		}
+	case ArrayType:
+		return structInfo{name: "Array", args: []Type{v.Element}}, true
 	}
 	return structInfo{}, false
 }
@@ -979,6 +947,9 @@ func shouldBindSelfParam(method FunctionType, subject Type) bool {
 		return false
 	}
 	first := method.Params[0]
+	if typesEquivalentForSignature(first, subject) {
+		return true
+	}
 	switch v := first.(type) {
 	case TypeParameterType:
 		return v.ParameterName == "Self"

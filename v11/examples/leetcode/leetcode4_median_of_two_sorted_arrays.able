@@ -1,5 +1,7 @@
 package leetcode4
 
+import able.collections.array
+
 ## Merges two sorted arrays and returns the median as a float.
 fn combined_median(left: Array i32, right: Array i32) -> f64 {
   merged := merge_sorted(left, right)
