@@ -121,3 +121,35 @@ interface Index Idx Output for T {
 interface IndexMut Idx Output for T {
   fn assign(self: Self, idx: Idx, value: Output) -> void;
 }
+
+methods i32 {
+  fn cmp(self: Self, other: i32) -> Ordering {
+    if self < other { return Less {} }
+    if self > other { return Greater {} }
+    Equal {}
+  }
+}
+
+methods string {
+  fn cmp(self: Self, other: string) -> Ordering {
+    if self < other { return Less {} }
+    if self > other { return Greater {} }
+    Equal {}
+  }
+}
+
+impl Ord i32 for i32 {
+  fn cmp(self: Self, other: i32) -> Ordering {
+    if self < other { return Less {} }
+    if self > other { return Greater {} }
+    Equal {}
+  }
+}
+
+impl Ord string for string {
+  fn cmp(self: Self, other: string) -> Ordering {
+    if self < other { return Less {} }
+    if self > other { return Greater {} }
+    Equal {}
+  }
+}

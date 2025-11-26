@@ -64,10 +64,10 @@ func (i *Interpreter) initStringHostBuiltins() {
 			for idx, b := range data {
 				elements[idx] = runtime.IntegerValue{
 					Val:        big.NewInt(int64(b)),
-					TypeSuffix: runtime.IntegerI32,
+					TypeSuffix: runtime.IntegerU8,
 				}
 			}
-			return &runtime.ArrayValue{Elements: elements}, nil
+			return i.newArrayValue(elements, len(elements)), nil
 		},
 	}
 
@@ -78,9 +78,12 @@ func (i *Interpreter) initStringHostBuiltins() {
 			if len(args) != 1 {
 				return nil, fmt.Errorf("__able_string_to_builtin expects one argument")
 			}
-			arr, err := toArrayValue(args[0])
+			arr, err := i.toArrayValue(args[0])
 			if err != nil {
 				return nil, fmt.Errorf("argument must be an array: %w", err)
+			}
+			if _, err := i.ensureArrayState(arr, 0); err != nil {
+				return nil, err
 			}
 			bytes := make([]byte, len(arr.Elements))
 			for idx, element := range arr.Elements {

@@ -69,7 +69,24 @@ func (ctx *parseContext) parseNumberLiteral(node *sitter.Node) (ast.Expression, 
 	sanitized := strings.ReplaceAll(base, "_", "")
 	lower := strings.ToLower(base)
 
-	if strings.ContainsAny(base, ".") || strings.ContainsAny(base, "eE") || floatType != nil {
+	hasBasePrefix := strings.HasPrefix(lower, "0b") || strings.HasPrefix(lower, "0o") || strings.HasPrefix(lower, "0x")
+	isHexLiteral := strings.HasPrefix(lower, "0x")
+	if hasBasePrefix && !isHexLiteral {
+		end := int(node.EndByte())
+		if end < len(ctx.source) {
+			switch ctx.source[end] {
+			case 'e', 'E':
+				return nil, fmt.Errorf("parser: invalid number literal %q", content+string(ctx.source[end]))
+			}
+		}
+	}
+	if hasBasePrefix && !isHexLiteral && strings.ContainsAny(base, "eE") {
+		return nil, fmt.Errorf("parser: invalid number literal %q", content)
+	}
+
+	hasExponent := !hasBasePrefix && strings.ContainsAny(base, "eE")
+	hasDecimal := strings.Contains(base, ".")
+	if hasDecimal || hasExponent || floatType != nil {
 		value, err := strconv.ParseFloat(sanitized, 64)
 		if err != nil {
 			return nil, fmt.Errorf("parser: invalid number literal %q", content)

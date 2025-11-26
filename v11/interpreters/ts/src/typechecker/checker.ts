@@ -196,9 +196,12 @@ export class TypeChecker {
       env: this.env,
       functionInfos: this.functionInfos,
       implementationContext: this.implementationContext,
+      registerStructDefinition: (definition) => this.registerStructDefinition(definition),
+      registerTypeAlias: (definition) => this.registerTypeAlias(definition),
       registerInterfaceDefinition: (definition) => this.registerInterfaceDefinition(definition),
       collectImplementationDefinition: (definition) =>
         collectImplementationDefinitionHelper(this.implementationContext, definition),
+      collectMethodsDefinition: (definition) => collectMethodsDefinitionHelper(this.implementationContext, definition),
     });
   }
 
@@ -312,6 +315,17 @@ export class TypeChecker {
     }
     if (this.typeAliases.has(name)) {
       return true;
+    }
+    for (const record of this.methodSets) {
+      const targetName = this.getIdentifierNameFromTypeExpression(record.target);
+      if (targetName === name) {
+        return true;
+      }
+    }
+    for (const summary of this.packageSummaries.values()) {
+      if (summary.structs?.[name] || summary.interfaces?.[name] || summary.symbols?.[name]) {
+        return true;
+      }
     }
     return false;
   }

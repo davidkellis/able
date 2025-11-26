@@ -179,6 +179,7 @@ func (v FloatValue) Kind() Kind { return KindFloat }
 
 type ArrayValue struct {
 	Elements []Value
+	Handle   int64
 }
 
 func (v *ArrayValue) Kind() Kind { return KindArray }

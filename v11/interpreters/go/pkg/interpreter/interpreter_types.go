@@ -16,6 +16,15 @@ func (i *Interpreter) getTypeInfoForValue(value runtime.Value) (typeInfo, bool) 
 		return i.typeInfoFromStructInstance(v)
 	case *runtime.InterfaceValue:
 		return i.getTypeInfoForValue(v.Underlying)
+	case runtime.StringValue, runtime.BoolValue, runtime.CharValue, runtime.NilValue,
+		runtime.IntegerValue, *runtime.IntegerValue,
+		runtime.FloatValue, *runtime.FloatValue,
+		*runtime.ArrayValue:
+		typeExpr := i.typeExpressionFromValue(value)
+		if info, ok := parseTypeExpression(typeExpr); ok {
+			return info, true
+		}
+		return typeInfo{}, false
 	default:
 		return typeInfo{}, false
 	}
@@ -258,7 +267,10 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 					return structVal.Definition.Node.ID.Name == name
 				}
 			}
-			return false
+			if i.isKnownTypeName(name) {
+				return false
+			}
+			return true
 		}
 	case *ast.GenericTypeExpression:
 		if base, ok := t.Base.(*ast.SimpleTypeExpression); ok && base.Name.Name == "Array" {
@@ -298,6 +310,21 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 	default:
 		return true
 	}
+}
+
+func (i *Interpreter) isKnownTypeName(name string) bool {
+	if name == "" {
+		return false
+	}
+	for _, pkg := range i.packageRegistry {
+		if val, ok := pkg[name]; ok {
+			switch val.(type) {
+			case *runtime.StructDefinitionValue, runtime.UnionDefinitionValue:
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (i *Interpreter) coerceValueToType(typeExpr ast.TypeExpression, value runtime.Value) (runtime.Value, error) {

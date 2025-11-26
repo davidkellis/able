@@ -16,9 +16,12 @@ import (
 )
 
 var (
+	stdlibRoot            = filepath.Join("..", "..", "..", "..", "stdlib", "src")
+	stdlibStringEntry     = filepath.Join(stdlibRoot, "text", "string.able")
 	typecheckBaselineOnce sync.Once
 	typecheckBaselineData map[string][]string
 	typecheckBaselineErr  error
+	stdlibLoader          *driver.Loader
 )
 
 // runFixtureWithExecutor replays a fixture directory using the provided executor.
@@ -46,13 +49,51 @@ func runFixtureWithExecutor(t testingT, dir string, rel string, executor Executo
 	registerPrint(interp, &stdout)
 
 	var programModules []*driver.Module
+	added := make(map[string]bool)
 	for _, setup := range manifest.Setup {
 		setupPath := filepath.Join(dir, setup)
 		setupModule, setupOrigin := readModule(underlying, setupPath)
 		programModules = append(programModules, fixtureDriverModule(setupModule, setupOrigin))
+		if setupModule != nil && setupModule.Package != nil {
+			parts := make([]string, 0, len(setupModule.Package.NamePath))
+			for _, id := range setupModule.Package.NamePath {
+				if id == nil || id.Name == "" {
+					continue
+				}
+				parts = append(parts, id.Name)
+			}
+			if len(parts) > 0 {
+				added[strings.Join(parts, ".")] = true
+			}
+		}
 	}
 
 	entryModule := fixtureDriverModule(module, moduleOrigin)
+	added[entryModule.Package] = true
+	if containsImport(entryModule.Imports, "able.text.string") {
+		if stdlibLoader == nil {
+			loader, err := driver.NewLoader([]driver.SearchPath{{Path: stdlibRoot, Kind: driver.RootStdlib}})
+			if err != nil {
+				t.Fatalf("stdlib loader init: %v", err)
+			}
+			stdlibLoader = loader
+		}
+		stdlibProgram, err := stdlibLoader.Load(stdlibStringEntry)
+		if err != nil {
+			t.Fatalf("load stdlib string: %v", err)
+		}
+		for _, mod := range stdlibProgram.Modules {
+			if mod == nil || added[mod.Package] {
+				continue
+			}
+			programModules = append(programModules, mod)
+			added[mod.Package] = true
+		}
+		if stdlibProgram.Entry != nil && !added[stdlibProgram.Entry.Package] {
+			programModules = append(programModules, stdlibProgram.Entry)
+			added[stdlibProgram.Entry.Package] = true
+		}
+	}
 	programModules = append(programModules, entryModule)
 	program := &driver.Program{
 		Entry:   entryModule,
@@ -65,6 +106,7 @@ func runFixtureWithExecutor(t testingT, dir string, rel string, executor Executo
 	})
 
 	checkerDiags := append([]ModuleDiagnostic(nil), check.Diagnostics...)
+	checkerDiags = filterStdlibDiagnostics(checkerDiags)
 	actualDiagnostics := checkFixtureTypecheckDiagnostics(underlying, mode, manifest.Expect.TypecheckDiagnostics, checkerDiags, skipTS)
 	enforceTypecheckBaseline(underlying, rel, mode, actualDiagnostics, skipTS)
 
@@ -82,6 +124,15 @@ func runFixtureWithExecutor(t testingT, dir string, rel string, executor Executo
 		t.Fatalf("evaluation error: %v", err)
 	}
 	assertResult(underlying, dir, manifest, value, stdout)
+}
+
+func containsImport(imports []string, target string) bool {
+	for _, name := range imports {
+		if name == target {
+			return true
+		}
+	}
+	return false
 }
 
 func shouldSkipTarget(skip []string, target string) bool {
@@ -225,6 +276,39 @@ func getTypecheckBaseline(t testingT) map[string][]string {
 		t.Fatalf(typecheckBaselineErr.Error())
 	}
 	return typecheckBaselineData
+}
+
+func filterStdlibDiagnostics(diags []ModuleDiagnostic) []ModuleDiagnostic {
+	if len(diags) == 0 {
+		return diags
+	}
+	prefix := filepath.ToSlash(filepath.Join("stdlib", "src")) + "/"
+	out := diags[:0]
+	for _, diag := range diags {
+		if diagnosticFromStdlib(diag, prefix) {
+			continue
+		}
+		out = append(out, diag)
+	}
+	return out
+}
+
+func diagnosticFromStdlib(diag ModuleDiagnostic, prefix string) bool {
+	if prefix == "" {
+		return false
+	}
+	paths := []string{diag.Source.Path}
+	paths = append(paths, diag.Files...)
+	for _, path := range paths {
+		normalized := filepath.ToSlash(normalizeSourcePath(path))
+		if normalized == "" {
+			continue
+		}
+		if strings.HasPrefix(normalized, prefix) || strings.Contains(normalized, "stdlib/src/") {
+			return true
+		}
+	}
+	return false
 }
 
 type diagKey struct {

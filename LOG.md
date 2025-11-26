@@ -1,5 +1,11 @@
 # Able Project Log
 
+## 2025-11-20 — Typed-pattern match reachability fix
+- Added a reachability guard for typed `match` patterns so clauses whose annotations cannot match the subject still typecheck but are treated as unreachable, preventing spurious return/branch diagnostics in the Go checker (mirrors TS intent).
+- Full v11 suites run green after the fix (`go test ./pkg/typechecker`, `go test ./...`, `./run_all_tests.sh --version=v11`).
+- Extended the v11 stdlib with a `collections.set` interface and `HashSet` implementation (plus smoke + TS ModuleLoader integration tests) and refreshed stdlib docs/PLAN so the restored surface tracks the new module.
+- Go typechecker now recognises stdlib collections (`List`, `Vector`, `HashSet`) as valid for-loop iterables; iterable helpers moved out of `type_utils.go` to stay under the 1k-line guardrail, and a new regression test covers generic element inference for these types.
+
 ## 2025-11-19 — File modularization cleanup
 - Split Go typechecker declaration/type utility stacks into dedicated files (`decls_*`, `type_substitution.go`) and shrank `type_utils.go` beneath the 1k-line guardrail; Go AST definitions now live across `ast.go`, `type_expressions.go`, and `patterns.go` so each file stays lean.
 - Broke the long TS fixture exporter (`proc_scheduling.ts`) into `proc_scheduling_part{1,2}.ts` with a tiny aggregate shim to keep per-file size under 1000 lines.
@@ -193,3 +199,13 @@ Open items (2025-11-02 audit):
 - Translators and loaders are live in both interpreters: TypeScript’s `ModuleLoader` and Go’s `driver.Loader` now ingest `.able` source via tree-sitter, hydrate canonical AST modules, and feed them to their respective typechecker/interpreter pipelines.
 - End-to-end parse → typecheck → interpret tests exercise both runtimes: `ModuleLoader pipeline with typechecker` (Bun) covers the TS path, and `pkg/interpreter/program_pipeline_test.go` drives the Go loader/interpreter via `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter`.
 - Diagnostic coverage now rides on the same pipelines: the new Bun test asserts missing import selectors surface typechecker errors before evaluation, and the Go suite verifies that `EvaluateProgram` halts (or proceeds when `AllowDiagnostics` is set) when return-type violations are reported.
+
+### 2025-11-22
+- TS typechecker imports now seed struct/interface bindings from package summaries (with generic placeholders) so stdlib types preserve their shape when referenced from dependent modules.
+- Added builtin HashSet method stubs (new/with_capacity/add/remove/contains/size/clear/is_empty) to the TS typechecker, letting the hash_set ModuleLoader integration typecheck without ignoring bool-condition diagnostics.
+- HashSet stdlib integration test now expects zero diagnostics; the stdlib Bun suite remains green.
+
+### 2025-11-23
+- Quarantine stdlib iterators now return the explicit `IteratorEnd {}` sentinel and match on the sentinel type to avoid pattern collisions; iterator imports across array/list/linked_list/vector/lazy_seq/string/automata DSL modules now pull from `core.iteration`.
+- TS stdlib integration suite rerun to confirm no regressions in the active modules; Go unit tests remain green.
+- TS typechecker now treats `Iterator` interface annotations as structural for literal overflow checks, so iterator literals annotated as `Iterator u8` surface integer-bound diagnostics on yielded values; `run_all_tests.sh --version=v11` is green.

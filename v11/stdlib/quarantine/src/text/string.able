@@ -379,11 +379,11 @@ StringBytesIterable := impl Iterable u8 for String {
 impl Iterator u8 for StringBytesIter {
   fn next(mut self: Self) -> u8 | IteratorEnd {
     if self.offset >= self.string.len_bytes {
-      return IteratorEnd
+      return IteratorEnd {}
     }
 
     match read_byte(self.string.bytes, self.offset) {
-      case nil => IteratorEnd,
+      case nil => IteratorEnd {},
       case value: u8 => {
         self.offset = self.offset + 1
         value
@@ -404,7 +404,7 @@ StringCharsIterable = impl Iterable char for String {
 impl Iterator char for StringCharsIter {
   fn next(mut self: Self) -> char | IteratorEnd {
     if self.offset >= self.string.len_bytes {
-      return IteratorEnd
+      return IteratorEnd {}
     }
 
     match utf8_decode(self.string.bytes, self.offset, self.string.len_bytes) {
@@ -440,7 +440,7 @@ StringGraphemesIterable = impl Iterable Grapheme for String {
 impl Iterator Grapheme for StringGraphemesIter {
   fn next(mut self: Self) -> Grapheme | IteratorEnd {
     if self.offset >= self.string.len_bytes {
-      return IteratorEnd
+      return IteratorEnd {}
     }
 
     start := self.offset

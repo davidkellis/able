@@ -1,9 +1,10 @@
 import type * as AST from "../../ast";
-import { arrayType, formatType, iteratorType, primitiveType, unknownType, type TypeInfo } from "../types";
+import { formatType, primitiveType, unknownType, type TypeInfo } from "../types";
 import type { ImplementationContext } from "./implementations";
 import {
   enforceFunctionConstraints as enforceFunctionConstraintsHelper,
   lookupMethodSetsForCall as lookupMethodSetsForCallHelper,
+  typeImplementsInterface,
 } from "./implementations";
 import { mergeBranchTypes as mergeBranchTypesHelper } from "./expressions";
 import type { StatementContext } from "./expression-context";
@@ -61,6 +62,16 @@ export function checkFunctionCall(ctx: FunctionCallContext, call: AST.FunctionCa
         continue;
       }
       if (!ctx.isTypeAssignable(actual, expected)) {
+        const interfaceArgs =
+          expected.kind === "interface" && Array.isArray(expected.typeArguments)
+            ? expected.typeArguments.map((arg) => (arg?.kind === "unknown" ? "Unknown" : formatType(arg)))
+            : [];
+        if (
+          expected.kind === "interface" &&
+          typeImplementsInterface(ctx.implementationContext, actual, expected.name, interfaceArgs).ok
+        ) {
+          continue;
+        }
         ctx.report(
           `typechecker: argument ${index + 1} has type ${formatType(actual)}, expected ${formatType(expected)}`,
           args[index] ?? call,
@@ -209,52 +220,8 @@ function resolveFunctionInfos(ctx: FunctionCallContext, callee: AST.Expression |
           infos.push(fallback);
         }
       }
-      if (!infos.length) {
-        const builtin = buildStringMethodInfo(memberName);
-        if (builtin) infos.push(builtin);
-      }
       return infos;
     }
   }
   return [];
-}
-
-function buildStringMethodInfo(memberName: string): FunctionInfo | null {
-  const stringType = primitiveType("string");
-  const u64 = primitiveType("u64");
-  const boolType = primitiveType("bool");
-  const base: Omit<FunctionInfo, "returnType" | "parameters"> = {
-    name: `string.${memberName}`,
-    fullName: `string.${memberName}`,
-    genericConstraints: [],
-    genericParamNames: [],
-    whereClause: [],
-  };
-  switch (memberName) {
-    case "len_bytes":
-    case "len_chars":
-    case "len_graphemes":
-      return { ...base, parameters: [], returnType: u64 };
-    case "bytes":
-      return { ...base, parameters: [], returnType: iteratorType(primitiveType("u8")) };
-    case "chars":
-      return { ...base, parameters: [], returnType: iteratorType(primitiveType("char")) };
-    case "graphemes":
-      return { ...base, parameters: [], returnType: iteratorType(stringType) };
-    case "substring":
-      return {
-        ...base,
-        parameters: [u64, { kind: "nullable", inner: u64 }],
-        returnType: { kind: "result", inner: stringType },
-      };
-    case "split":
-      return { ...base, parameters: [stringType], returnType: arrayType(stringType) };
-    case "replace":
-      return { ...base, parameters: [stringType, stringType], returnType: stringType };
-    case "starts_with":
-    case "ends_with":
-      return { ...base, parameters: [stringType], returnType: boolType };
-    default:
-      return null;
-  }
 }

@@ -258,8 +258,11 @@ type Interpreter struct {
 	hashers          map[int64]*hasherState
 	nextHasherHandle int64
 
+	orderingStructs map[string]*runtime.StructDefinitionValue
+
 	arrayReady      bool
 	arrayStates     map[int64]*arrayState
+	arraysByHandle  map[int64]map[*runtime.ArrayValue]struct{}
 	nextArrayHandle int64
 	hashMapReady    bool
 
@@ -366,7 +369,9 @@ func NewWithExecutor(exec Executor) *Interpreter {
 		mutexes:                 make(map[int64]*mutexState),
 		concurrencyErrorStructs: make(map[string]*runtime.StructDefinitionValue),
 		hashers:                 make(map[int64]*hasherState),
+		orderingStructs:         make(map[string]*runtime.StructDefinitionValue),
 		arrayStates:             make(map[int64]*arrayState),
+		arraysByHandle:          make(map[int64]map[*runtime.ArrayValue]struct{}),
 		nextArrayHandle:         1,
 		errorNativeMethods:      make(map[string]runtime.NativeFunctionValue),
 	}

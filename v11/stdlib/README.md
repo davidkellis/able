@@ -1,59 +1,17 @@
 # Able v11 Standard Library (Draft)
 
-This directory houses the versioned Able v11 standard library.  The canonical
-package name is `able`; all modules live under this namespace.
+The v11 stdlib is being rebuilt in place. Active modules live under `v11/stdlib/src`; the pre-refactor copy sits in `v11/stdlib/quarantine` until each module is restored.
 
-The initial cut focuses on providing the foundational interfaces and data
-structures that the language specification expects to exist in library space:
+Current restored surface:
+- core/errors, core/interfaces, core/options, core/iteration, core/numeric
+- collections/array, enumerable, range, list, linked_list, vector, deque, queue, lazy_seq, hash_map, set, hash_set, bit_set, heap, tree_map, tree_set
+- text/string
 
-- Core protocols (`Iterator`, `Iterable`, `Index`, `Add`, `Eq`, `Ord`, etc.)
-- Error contracts and the well-known error structs raised by the runtime
-- Collection scaffolding (`Array`, `HashMap`) that future work will connect to
-  host-runtime intrinsics
+Package name: `able`. Import modules with paths like `able.collections.hash_set`.
 
-The implementation bodies in this draft are intentionally skeletal and will be
-fleshed out alongside the runtime.  Each method includes a `TODO` comment
-indicating the behaviour required by the specification so downstream work can
-fill in the details on a per-target basis.
+Testing and usage notes:
+- Smoke suites live in `v11/stdlib/tests` and the TS ModuleLoader integration tests under `v11/interpreters/ts/test/stdlib`.
+- Run targeted `bun test v11/interpreters/ts/test/stdlib/...` and quick `go test ./...` in `v11/interpreters/go` to keep both runtimes aligned as modules are restored.
+- Module loaders can discover the stdlib via `collectModuleSearchPaths` or `ABLE_STD_LIB` when wiring bespoke runners.
 
-## Layout
-
-```
-stdlib/
-├── package.yml        # Able manifest (package name `able`)
-└── src/
-    ├── lib.able       # Convenience entry point
-    ├── core/
-    │   ├── errors.able
-    │   ├── interfaces.able
-    │   ├── iteration.able
-    │   └── options.able
-    ├── collections/
-    │   ├── array.able
-    │   ├── hash_map.able
-    │   └── range.able
-    └── concurrency/
-        ├── channel.able
-        ├── future.able
-        ├── mutex.able
-        └── proc.able
-```
-
-Each `.able` file uses directory layout to establish its package path
-(`able.core`, `able.collections`, ...).  Modules may freely import from the
-same root when additional factoring makes sense.
-
-## Next Steps
-
-- Back Array/HashMap methods with host-runtime implementations (Go + TS).
-- Flesh out additional collection protocols (Range iterators, Set, Queue).
-- Provide concrete implementations for `Hasher` plus default hash functions.
-- Wire concurrency primitives (`Proc`, `Future`, `Channel`, `Mutex`) into each runtime and add fixtures.
-- Implement range constructors and higher-level helpers (additional Option/Result utilities, with-lock helpers).
-
-## Loader Integration
-
-The Go CLI now discovers `stdlib/src` automatically. To point the toolchain
-at an alternate location, set `ABLE_STD_LIB` to a path (or OS-specific
-path-list) that contains the standard library sources. This augments the
-existing `ABLE_PATH`/`ABLE_MODULE_PATHS` mechanism used for project-level overrides.
+Next steps: keep restoring modules from quarantine one at a time, add/refresh tests as they land, and continue trimming native runtime surfaces per `PLAN.md` items 7–10.

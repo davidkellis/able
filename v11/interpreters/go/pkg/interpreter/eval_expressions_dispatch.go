@@ -84,7 +84,7 @@ func (i *Interpreter) evaluateExpression(node ast.Expression, env *runtime.Envir
 			}
 			values = append(values, val)
 		}
-		return &runtime.ArrayValue{Elements: values}, nil
+		return i.newArrayValue(values, len(values)), nil
 	case *ast.StringInterpolation:
 		var builder strings.Builder
 		for _, part := range n.Parts {

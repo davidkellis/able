@@ -69,7 +69,14 @@ fn main() -> i32 {
   }
 
   arr := joined.to_array()
-  total + arr.len()
+  bonus := 0
+  if joined.is_empty() {
+    bonus = -100
+  } else {
+    bonus = joined.len()
+  }
+
+  total + arr.len() + bonus
 }
 `.trimStart(),
         "utf8",
@@ -99,7 +106,7 @@ fn main() -> i32 {
 
       const result = callCallableValue(interpreter as any, mainFn, [], interpreter.globals) as any;
       expect(result?.kind).toBe("i32");
-      expect(readInteger(result)).toBe(14);
+      expect(readInteger(result)).toBe(18);
     } finally {
       await fs.rm(tmpRoot, { recursive: true, force: true });
     }

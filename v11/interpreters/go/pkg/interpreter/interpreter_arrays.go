@@ -14,6 +14,43 @@ type arrayState struct {
 	capacity int
 }
 
+func (i *Interpreter) trackArrayValue(handle int64, arr *runtime.ArrayValue) {
+	if arr == nil || handle == 0 {
+		return
+	}
+	if arr.Handle != 0 && arr.Handle != handle && i.arraysByHandle != nil {
+		if bucket, ok := i.arraysByHandle[arr.Handle]; ok {
+			delete(bucket, arr)
+		}
+	}
+	if i.arraysByHandle == nil {
+		i.arraysByHandle = make(map[int64]map[*runtime.ArrayValue]struct{})
+	}
+	bucket, ok := i.arraysByHandle[handle]
+	if !ok {
+		bucket = make(map[*runtime.ArrayValue]struct{})
+		i.arraysByHandle[handle] = bucket
+	}
+	arr.Handle = handle
+	bucket[arr] = struct{}{}
+}
+
+func (i *Interpreter) syncArrayValues(handle int64, state *arrayState) {
+	if state == nil || i.arraysByHandle == nil {
+		return
+	}
+	bucket, ok := i.arraysByHandle[handle]
+	if !ok {
+		return
+	}
+	for arr := range bucket {
+		if arr != nil {
+			arr.Handle = handle
+			arr.Elements = state.values
+		}
+	}
+}
+
 func (i *Interpreter) ensureArrayBuiltins() {
 	if i.arrayReady {
 		return
@@ -32,14 +69,15 @@ func (i *Interpreter) arrayStateForHandle(handle int64) (*arrayState, error) {
 	return state, nil
 }
 
-func ensureArrayCapacity(state *arrayState, minimum int) {
+func ensureArrayCapacity(state *arrayState, minimum int) bool {
 	if minimum <= state.capacity {
-		return
+		return false
 	}
 	newValues := make([]runtime.Value, len(state.values), minimum)
 	copy(newValues, state.values)
 	state.values = newValues
 	state.capacity = minimum
+	return true
 }
 
 func setArrayLength(state *arrayState, length int) {
@@ -48,11 +86,134 @@ func setArrayLength(state *arrayState, length int) {
 	}
 	if length <= len(state.values) {
 		state.values = state.values[:length]
+		if len(state.values) > state.capacity {
+			state.capacity = len(state.values)
+		}
 		return
 	}
 	for len(state.values) < length {
 		state.values = append(state.values, runtime.NilValue{})
 	}
+	if len(state.values) > state.capacity {
+		state.capacity = len(state.values)
+	}
+}
+
+func (i *Interpreter) ensureArrayState(arr *runtime.ArrayValue, capacityHint int) (*arrayState, error) {
+	if arr == nil {
+		return nil, fmt.Errorf("array receiver is nil")
+	}
+	i.ensureArrayBuiltins()
+	handle := arr.Handle
+	if handle != 0 {
+		if state, ok := i.arrayStates[handle]; ok {
+			if capacityHint > state.capacity {
+				if ensureArrayCapacity(state, capacityHint) {
+					i.syncArrayValues(handle, state)
+				}
+			}
+			arr.Elements = state.values
+			i.trackArrayValue(handle, arr)
+			return state, nil
+		}
+	}
+	if handle == 0 {
+		handle = i.nextArrayHandle
+		i.nextArrayHandle++
+	}
+	values := arr.Elements
+	if values == nil {
+		values = make([]runtime.Value, 0)
+	}
+	capacity := len(values)
+	if cap(values) > capacity {
+		capacity = cap(values)
+	}
+	if capacityHint > capacity {
+		capacity = capacityHint
+	}
+	state := &arrayState{values: values, capacity: capacity}
+	if ensureArrayCapacity(state, capacity) {
+		// ensureArrayCapacity already updated capacity and values slice
+	}
+	arr.Elements = state.values
+	i.arrayStates[handle] = state
+	i.trackArrayValue(handle, arr)
+	i.syncArrayValues(handle, state)
+	return state, nil
+}
+
+func (i *Interpreter) arrayValueFromHandle(handle int64, lengthHint int, capacityHint int) (*runtime.ArrayValue, error) {
+	if handle == 0 {
+		return nil, fmt.Errorf("array handle must be non-zero")
+	}
+	i.ensureArrayBuiltins()
+	state, ok := i.arrayStates[handle]
+	if !ok {
+		if capacityHint < lengthHint {
+			capacityHint = lengthHint
+		}
+		state = &arrayState{values: make([]runtime.Value, 0, capacityHint), capacity: capacityHint}
+		setArrayLength(state, lengthHint)
+		i.arrayStates[handle] = state
+	} else {
+		updated := false
+		if capacityHint > state.capacity {
+			updated = ensureArrayCapacity(state, capacityHint)
+		}
+		if lengthHint > len(state.values) {
+			setArrayLength(state, lengthHint)
+			updated = true
+		}
+		if updated && state.capacity < len(state.values) {
+			state.capacity = len(state.values)
+		}
+	}
+	i.syncArrayValues(handle, state)
+	arr := &runtime.ArrayValue{Handle: handle, Elements: state.values}
+	i.trackArrayValue(handle, arr)
+	return arr, nil
+}
+
+func (i *Interpreter) newArrayValue(elements []runtime.Value, capacityHint int) *runtime.ArrayValue {
+	if capacityHint < len(elements) {
+		capacityHint = len(elements)
+	}
+	arr := &runtime.ArrayValue{Elements: elements}
+	if _, err := i.ensureArrayState(arr, capacityHint); err != nil {
+		return arr
+	}
+	return arr
+}
+
+func (i *Interpreter) arrayValueFromStructFields(fields map[string]runtime.Value) (*runtime.ArrayValue, error) {
+	var handle int64
+	var length int
+	var capacity int
+	if fields != nil {
+		if hv, ok := fields["storage_handle"]; ok {
+			if intVal, ok := hv.(runtime.IntegerValue); ok && intVal.Val != nil && intVal.Val.IsInt64() {
+				handle = intVal.Val.Int64()
+			}
+		}
+		if lv, ok := fields["length"]; ok {
+			if l, err := arrayIndexFromValue(lv); err == nil {
+				length = l
+			}
+		}
+		if cv, ok := fields["capacity"]; ok {
+			if c, err := arrayIndexFromValue(cv); err == nil {
+				capacity = c
+			}
+		}
+	}
+	if capacity < length {
+		capacity = length
+	}
+	if handle != 0 {
+		return i.arrayValueFromHandle(handle, length, capacity)
+	}
+	return i.newArrayValue(make([]runtime.Value, length, capacity), capacity), nil
 }
 
 func (i *Interpreter) initArrayBuiltins() {
@@ -62,6 +223,9 @@ func (i *Interpreter) initArrayBuiltins() {
 
 	if i.arrayStates == nil {
 		i.arrayStates = make(map[int64]*arrayState)
+	}
+	if i.arraysByHandle == nil {
+		i.arraysByHandle = make(map[int64]map[*runtime.ArrayValue]struct{})
 	}
 	if i.nextArrayHandle == 0 {
 		i.nextArrayHandle = 1
@@ -172,6 +336,7 @@ func (i *Interpreter) initArrayBuiltins() {
 			}
 			ensureArrayCapacity(state, length)
 			setArrayLength(state, length)
+			i.syncArrayValues(handle, state)
 			return runtime.NilValue{}, nil
 		},
 	}
@@ -229,6 +394,7 @@ func (i *Interpreter) initArrayBuiltins() {
 				setArrayLength(state, idx+1)
 			}
 			state.values[idx] = args[2]
+			i.syncArrayValues(handle, state)
 			return runtime.NilValue{}, nil
 		},
 	}
@@ -252,7 +418,9 @@ func (i *Interpreter) initArrayBuiltins() {
 			if err != nil {
 				return nil, err
 			}
-			ensureArrayCapacity(state, minCapacity)
+			if ensureArrayCapacity(state, minCapacity) {
+				i.syncArrayValues(handle, state)
+			}
 			return runtime.IntegerValue{Val: big.NewInt(int64(state.capacity)), TypeSuffix: runtime.IntegerU64}, nil
 		},
 	}
@@ -307,8 +475,7 @@ func (i *Interpreter) initArrayBuiltins() {
 			if capacity < 0 {
 				capacity = 0
 			}
-			arr := &runtime.ArrayValue{Elements: make([]runtime.Value, 0, capacity)}
-			return arr, nil
+			return i.newArrayValue(make([]runtime.Value, 0, capacity), capacity), nil
 		},
 	}
 
@@ -330,153 +497,21 @@ func (i *Interpreter) arrayMember(arr *runtime.ArrayValue, member ast.Expression
 	if arr == nil {
 		return nil, fmt.Errorf("array receiver is nil")
 	}
+	state, err := i.ensureArrayState(arr, 0)
+	if err != nil {
+		return nil, err
+	}
 	ident, ok := member.(*ast.Identifier)
 	if !ok {
 		return nil, fmt.Errorf("array member access expects identifier")
 	}
 	switch ident.Name {
-	case "push":
-		fn := runtime.NativeFunctionValue{
-			Name:  "array.push",
-			Arity: 1,
-			Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
-				if len(args) != 2 {
-					return nil, fmt.Errorf("push expects a receiver and one argument")
-				}
-				receiver, ok := args[0].(*runtime.ArrayValue)
-				if !ok {
-					return nil, fmt.Errorf("push receiver must be an array")
-				}
-				receiver.Elements = append(receiver.Elements, args[1])
-				return runtime.NilValue{}, nil
-			},
-		}
-		return &runtime.NativeBoundMethodValue{Receiver: arr, Method: fn}, nil
-	case "pop":
-		fn := runtime.NativeFunctionValue{
-			Name:  "array.pop",
-			Arity: 0,
-			Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
-				if len(args) != 1 {
-					return nil, fmt.Errorf("pop expects only a receiver")
-				}
-				receiver, ok := args[0].(*runtime.ArrayValue)
-				if !ok {
-					return nil, fmt.Errorf("pop receiver must be an array")
-				}
-				length := len(receiver.Elements)
-				if length == 0 {
-					return runtime.NilValue{}, nil
-				}
-				last := receiver.Elements[length-1]
-				receiver.Elements = receiver.Elements[:length-1]
-				return last, nil
-			},
-		}
-		return &runtime.NativeBoundMethodValue{Receiver: arr, Method: fn}, nil
-	case "clone":
-		fn := runtime.NativeFunctionValue{
-			Name:  "array.clone",
-			Arity: 0,
-			Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
-				if len(args) != 1 {
-					return nil, fmt.Errorf("clone expects only a receiver")
-				}
-				receiver, ok := args[0].(*runtime.ArrayValue)
-				if !ok {
-					return nil, fmt.Errorf("clone receiver must be an array")
-				}
-				length := len(receiver.Elements)
-				copied := make([]runtime.Value, length)
-				copy(copied, receiver.Elements)
-				return &runtime.ArrayValue{Elements: copied}, nil
-			},
-		}
-		return &runtime.NativeBoundMethodValue{Receiver: arr, Method: fn}, nil
-	case "size":
-		fn := runtime.NativeFunctionValue{
-			Name:  "array.size",
-			Arity: 0,
-			Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
-				if len(args) != 1 {
-					return nil, fmt.Errorf("size expects only a receiver")
-				}
-				receiver, ok := args[0].(*runtime.ArrayValue)
-				if !ok {
-					return nil, fmt.Errorf("size receiver must be an array")
-				}
-				length := len(receiver.Elements)
-				return runtime.IntegerValue{
-					Val:        big.NewInt(int64(length)),
-					TypeSuffix: runtime.IntegerU64,
-				}, nil
-			},
-		}
-		return &runtime.NativeBoundMethodValue{Receiver: arr, Method: fn}, nil
-	case "get":
-		fn := runtime.NativeFunctionValue{
-			Name:  "array.get",
-			Arity: 1,
-			Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
-				if len(args) != 2 {
-					return nil, fmt.Errorf("get expects a receiver and an index")
-				}
-				receiver, ok := args[0].(*runtime.ArrayValue)
-				if !ok {
-					return nil, fmt.Errorf("get receiver must be an array")
-				}
-				idx, err := arrayIndexFromValue(args[1])
-				if err != nil {
-					return nil, err
-				}
-				if idx < 0 || idx >= len(receiver.Elements) {
-					return runtime.NilValue{}, nil
-				}
-				return receiver.Elements[idx], nil
-			},
-		}
-		return &runtime.NativeBoundMethodValue{Receiver: arr, Method: fn}, nil
-	case "set":
-		fn := runtime.NativeFunctionValue{
-			Name:  "array.set",
-			Arity: 2,
-			Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
-				if len(args) != 3 {
-					return nil, fmt.Errorf("set expects a receiver, index, and value")
-				}
-				receiver, ok := args[0].(*runtime.ArrayValue)
-				if !ok {
-					return nil, fmt.Errorf("set receiver must be an array")
-				}
-				idx, err := arrayIndexFromValue(args[1])
-				if err != nil {
-					return nil, err
-				}
-				if idx < 0 || idx >= len(receiver.Elements) {
-					return makeIndexError(idx, len(receiver.Elements)), nil
-				}
-				receiver.Elements[idx] = args[2]
-				return runtime.NilValue{}, nil
-			},
-		}
-		return &runtime.NativeBoundMethodValue{Receiver: arr, Method: fn}, nil
-	case "clear":
-		fn := runtime.NativeFunctionValue{
-			Name:  "array.clear",
-			Arity: 0,
-			Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
-				if len(args) != 1 {
-					return nil, fmt.Errorf("clear expects only a receiver")
-				}
-				receiver, ok := args[0].(*runtime.ArrayValue)
-				if !ok {
-					return nil, fmt.Errorf("clear receiver must be an array")
-				}
-				receiver.Elements = receiver.Elements[:0]
-				return runtime.NilValue{}, nil
-			},
-		}
-		return &runtime.NativeBoundMethodValue{Receiver: arr, Method: fn}, nil
+	case "storage_handle":
+		return runtime.IntegerValue{Val: big.NewInt(arr.Handle), TypeSuffix: runtime.IntegerI64}, nil
+	case "length":
+		return runtime.IntegerValue{Val: big.NewInt(int64(len(state.values))), TypeSuffix: runtime.IntegerI32}, nil
+	case "capacity":
+		return runtime.IntegerValue{Val: big.NewInt(int64(state.capacity)), TypeSuffix: runtime.IntegerI32}, nil
 	case "iterator":
 		fn := runtime.NativeFunctionValue{
 			Name:  "array.iterator",
@@ -491,10 +526,14 @@ func (i *Interpreter) arrayMember(arr *runtime.ArrayValue, member ast.Expression
 				}
 				index := 0
 				iter := runtime.NewIteratorValue(func() (runtime.Value, bool, error) {
-					if index >= len(receiver.Elements) {
+					current, err := i.ensureArrayState(receiver, 0)
+					if err != nil {
+						return nil, true, err
+					}
+					if index >= len(current.values) {
 						return runtime.IteratorEnd, true, nil
 					}
-					val := receiver.Elements[index]
+					val := current.values[index]
 					index++
 					if val == nil {
 						return runtime.NilValue{}, false, nil
@@ -506,7 +545,7 @@ func (i *Interpreter) arrayMember(arr *runtime.ArrayValue, member ast.Expression
 		}
 		return &runtime.NativeBoundMethodValue{Receiver: arr, Method: fn}, nil
 	default:
-		return nil, fmt.Errorf("unknown array method '%s'", ident.Name)
+		return nil, fmt.Errorf("array has no member '%s' (import able.collections.array for stdlib helpers)", ident.Name)
 	}
 }
 

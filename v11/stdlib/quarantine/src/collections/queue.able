@@ -2,7 +2,8 @@ package collections
 
 import able.collections.deque.{Deque}
 import able.collections.enumerable.{Enumerable}
-import able.core.interfaces.{Default, Clone, Iterable, Iterator}
+import able.core.interfaces.{Default, Clone}
+import able.core.iteration.{Iterable, Iterator}
 
 struct Queue T where T: Clone {
   data: Deque T

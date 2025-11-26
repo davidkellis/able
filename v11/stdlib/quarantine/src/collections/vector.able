@@ -2,7 +2,8 @@ package collections
 
 import able.collections.array.{Array}
 import able.collections.enumerable.{Enumerable}
-import able.core.interfaces.{Iterable, Iterator, Default}
+import able.core.iteration.{Iterable, Iterator, IteratorEnd}
+import able.core.interfaces.{Default}
 
 const VECTOR_BRANCH_BITS: i32 = 5
 const VECTOR_BRANCH_SIZE: i32 = 1 << VECTOR_BRANCH_BITS
@@ -323,9 +324,9 @@ impl Iterable T for Vector T {
 
 impl Iterator T for VectorIterator T {
   fn next(mut self: Self) -> T | IteratorEnd {
-    if self.index >= self.vector.count { return IteratorEnd }
+    if self.index >= self.vector.count { return IteratorEnd {} }
     value := match self.vector.get(self.index) {
-      case nil => return IteratorEnd,
+      case nil => return IteratorEnd {},
       case v: T => v
     }
     self.index = self.index + 1

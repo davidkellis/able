@@ -36,6 +36,19 @@ func (i *Interpreter) evaluateStructDefinition(def *ast.StructDefinition, env *r
 	return runtime.NilValue{}, nil
 }
 
+func (i *Interpreter) evaluateUnionDefinition(def *ast.UnionDefinition, env *runtime.Environment) (runtime.Value, error) {
+	if def.ID == nil {
+		return nil, fmt.Errorf("Union definition requires identifier")
+	}
+	unionVal := runtime.UnionDefinitionValue{Node: def}
+	env.Define(def.ID.Name, unionVal)
+	i.registerSymbol(def.ID.Name, unionVal)
+	if qn := i.qualifiedName(def.ID.Name); qn != "" {
+		i.global.Define(qn, unionVal)
+	}
+	return runtime.NilValue{}, nil
+}
+
 func (i *Interpreter) evaluateInterfaceDefinition(def *ast.InterfaceDefinition, env *runtime.Environment) (runtime.Value, error) {
 	if def.ID == nil {
 		return nil, fmt.Errorf("Interface definition requires identifier")
@@ -66,6 +79,7 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 	if len(variants) == 0 {
 		return nil, fmt.Errorf("Implementation target must reference at least one concrete type")
 	}
+	mergedGenerics := i.mergeImplementationGenerics(def, env)
 	methods := make(map[string]*runtime.FunctionValue)
 	hasExplicit := false
 	for _, fn := range def.Definitions {
@@ -96,7 +110,7 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 	targetDescription := typeExpressionToString(def.TargetType)
 	for _, variant := range variants {
 		if def.ImplName == nil {
-			if err := i.registerUnnamedImpl(ifaceName, variant, unionSignatures, baseConstraintSig, targetDescription); err != nil {
+			if err := i.registerUnnamedImpl(ifaceName, def.InterfaceArgs, variant, unionSignatures, baseConstraintSig, targetDescription); err != nil {
 				return nil, err
 			}
 			entry := implEntry{
@@ -104,7 +118,7 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 				methods:       methods,
 				definition:    def,
 				argTemplates:  variant.argTemplates,
-				genericParams: def.GenericParams,
+				genericParams: mergedGenerics,
 				whereClause:   def.WhereClause,
 				defaultOnly:   !hasExplicit,
 			}
@@ -135,11 +149,22 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 }
 
 func (i *Interpreter) evaluateMethodsDefinition(def *ast.MethodsDefinition, env *runtime.Environment) (runtime.Value, error) {
-	simpleType, ok := def.TargetType.(*ast.SimpleTypeExpression)
-	if !ok || simpleType.Name == nil {
+	var typeName string
+	switch t := def.TargetType.(type) {
+	case *ast.SimpleTypeExpression:
+		if t.Name == nil {
+			return nil, fmt.Errorf("MethodsDefinition requires simple target type")
+		}
+		typeName = t.Name.Name
+	case *ast.GenericTypeExpression:
+		base, ok := t.Base.(*ast.SimpleTypeExpression)
+		if !ok || base.Name == nil {
+			return nil, fmt.Errorf("MethodsDefinition requires simple target type")
+		}
+		typeName = base.Name.Name
+	default:
 		return nil, fmt.Errorf("MethodsDefinition requires simple target type")
 	}
-	typeName := simpleType.Name.Name
 	bucket, ok := i.inherentMethods[typeName]
 	if !ok {
 		bucket = make(map[string]*runtime.FunctionValue)
@@ -152,6 +177,73 @@ func (i *Interpreter) evaluateMethodsDefinition(def *ast.MethodsDefinition, env 
 		bucket[fn.ID.Name] = &runtime.FunctionValue{Declaration: fn, Closure: env}
 	}
 	return runtime.NilValue{}, nil
+}
+
+func (i *Interpreter) mergeImplementationGenerics(def *ast.ImplementationDefinition, env *runtime.Environment) []*ast.GenericParameter {
+	seen := make(map[string]struct{})
+	result := make([]*ast.GenericParameter, 0, len(def.GenericParams))
+	for _, gp := range def.GenericParams {
+		if gp == nil || gp.Name == nil {
+			continue
+		}
+		result = append(result, gp)
+		seen[gp.Name.Name] = struct{}{}
+	}
+	for _, inferred := range i.inferGenericsFromTarget(def.TargetType, env) {
+		if inferred == nil || inferred.Name == nil {
+			continue
+		}
+		if _, ok := seen[inferred.Name.Name]; ok {
+			continue
+		}
+		result = append(result, inferred)
+		seen[inferred.Name.Name] = struct{}{}
+	}
+	return result
+}
+
+func (i *Interpreter) inferGenericsFromTarget(target ast.TypeExpression, env *runtime.Environment) []*ast.GenericParameter {
+	switch t := target.(type) {
+	case *ast.GenericTypeExpression:
+		baseName, ok := simpleTypeName(t.Base)
+		if !ok || env == nil {
+			return nil
+		}
+		defVal, err := env.Get(baseName)
+		if err != nil {
+			return nil
+		}
+		structDef, ok := defVal.(*runtime.StructDefinitionValue)
+		if !ok || structDef.Node == nil {
+			return nil
+		}
+		if len(structDef.Node.GenericParams) != len(t.Arguments) {
+			return nil
+		}
+		var generics []*ast.GenericParameter
+		for idx, arg := range t.Arguments {
+			argSimple, ok := arg.(*ast.SimpleTypeExpression)
+			if !ok || argSimple.Name == nil {
+				continue
+			}
+			param := structDef.Node.GenericParams[idx]
+			if param == nil || param.Name == nil {
+				continue
+			}
+			if argSimple.Name.Name == param.Name.Name {
+				generics = append(generics, param)
+			}
+		}
+		return generics
+	case *ast.UnionTypeExpression:
+		var generics []*ast.GenericParameter
+		for _, member := range t.Members {
+			generics = append(generics, i.inferGenericsFromTarget(member, env)...)
+		}
+		return generics
+	default:
+		return nil
+	}
 }
 
 func (i *Interpreter) validateGenericConstraints(def *ast.FunctionDefinition) error {
@@ -218,6 +310,15 @@ func (i *Interpreter) evaluateStructLiteral(lit *ast.StructLiteral, env *runtime
 		if err := i.enforceStructConstraints(structDef, typeArgs, structName); err != nil {
 			return nil, err
 		}
+		if structName == "Array" {
+			fieldMap := make(map[string]runtime.Value, len(values))
+			for idx, field := range structDef.Fields {
+				if field != nil && field.Name != nil && idx < len(values) {
+					fieldMap[field.Name.Name] = values[idx]
+				}
+			}
+			return i.arrayValueFromStructFields(fieldMap)
+		}
 		return &runtime.StructInstanceValue{Definition: structDefVal, Positional: values, TypeArguments: typeArgs}, nil
 	}
 	updateCount := len(lit.FunctionalUpdateSources)
@@ -272,7 +373,13 @@ func (i *Interpreter) evaluateStructLiteral(lit *ast.StructLiteral, env *runtime
 		if name == "" {
 			return nil, fmt.Errorf("Named struct field initializer must have a field name")
 		}
-		val, err := i.evaluateExpression(f.Value, env)
+		var val runtime.Value
+		var err error
+		if f.IsShorthand && f.Value == nil {
+			val, err = env.Get(name)
+		} else {
+			val, err = i.evaluateExpression(f.Value, env)
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -310,6 +417,9 @@ func (i *Interpreter) evaluateStructLiteral(lit *ast.StructLiteral, env *runtime
 	}
 	if err := i.enforceStructConstraints(structDef, typeArgs, structName); err != nil {
 		return nil, err
+	}
+	if structName == "Array" {
+		return i.arrayValueFromStructFields(fields)
 	}
 	return &runtime.StructInstanceValue{Definition: structDefVal, Fields: fields, TypeArguments: typeArgs}, nil
 }

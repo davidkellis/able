@@ -426,3 +426,290 @@ func TestForLoopRangeElementType(t *testing.T) {
 		t.Fatalf("expected loop value to have type i32, got %q", typeName(typ))
 	}
 }
+
+func TestForLoopIterableSupportsStdlibCollections(t *testing.T) {
+	checker := New()
+	listStruct := buildGenericStructDefinition("List", []string{"T"})
+	linkedListStruct := buildGenericStructDefinition("LinkedList", []string{"T"})
+	lazySeqStruct := buildGenericStructDefinition("LazySeq", []string{"T"})
+	vectorStruct := buildGenericStructDefinition("Vector", []string{"T"})
+	hashSetStruct := buildGenericStructDefinition("HashSet", []string{"T"})
+	dequeStruct := buildGenericStructDefinition("Deque", []string{"T"})
+	queueStruct := buildGenericStructDefinition("Queue", []string{"T"})
+	bitSetStruct := buildGenericStructDefinition("BitSet", nil)
+
+	listValue := ast.ID("value")
+	linkedValue := ast.ID("linkedValue")
+	lazyValue := ast.ID("lazyValue")
+	listLoop := ast.ForLoopPattern(
+		ast.TypedP(ast.PatternFrom(ast.ID("value")), ast.Ty("string")),
+		ast.ID("items"),
+		ast.Block(listValue),
+	)
+	linkedListLoop := ast.ForLoopPattern(
+		ast.TypedP(ast.PatternFrom(ast.ID("linkedValue")), ast.Ty("i32")),
+		ast.ID("linkedItems"),
+		ast.Block(linkedValue),
+	)
+	lazySeqLoop := ast.ForLoopPattern(
+		ast.TypedP(ast.PatternFrom(ast.ID("lazyValue")), ast.Ty("string")),
+		ast.ID("lazyItems"),
+		ast.Block(lazyValue),
+	)
+
+	vectorValue := ast.ID("item")
+	vectorLoop := ast.ForLoopPattern(
+		ast.TypedP(ast.PatternFrom(ast.ID("item")), ast.Ty("i32")),
+		ast.ID("values"),
+		ast.Block(vectorValue),
+	)
+
+	setValue := ast.ID("entry")
+	setLoop := ast.ForLoopPattern(
+		ast.TypedP(ast.PatternFrom(ast.ID("entry")), ast.Ty("string")),
+		ast.ID("entries"),
+		ast.Block(setValue),
+	)
+
+	dequeValue := ast.ID("dequeValue")
+	dequeLoop := ast.ForLoopPattern(
+		ast.TypedP(ast.PatternFrom(ast.ID("dequeValue")), ast.Ty("string")),
+		ast.ID("dequeItems"),
+		ast.Block(dequeValue),
+	)
+
+	queueValue := ast.ID("queueValue")
+	queueLoop := ast.ForLoopPattern(
+		ast.TypedP(ast.PatternFrom(ast.ID("queueValue")), ast.Ty("i32")),
+		ast.ID("queueItems"),
+		ast.Block(queueValue),
+	)
+	bitValue := ast.ID("bit")
+	bitSetLoop := ast.ForLoopPattern(
+		ast.TypedP(ast.PatternFrom(ast.ID("bit")), ast.Ty("i32")),
+		ast.ID("bitset"),
+		ast.Block(bitValue),
+	)
+
+	listFn := ast.Fn(
+		"consumeList",
+		[]*ast.FunctionParameter{
+			ast.Param("items", ast.Gen(ast.Ty("List"), ast.Ty("string"))),
+		},
+		[]ast.Statement{
+			listLoop,
+			ast.Ret(ast.Int(0)),
+		},
+		ast.Ty("i32"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	linkedListFn := ast.Fn(
+		"consumeLinkedList",
+		[]*ast.FunctionParameter{
+			ast.Param("linkedItems", ast.Gen(ast.Ty("LinkedList"), ast.Ty("i32"))),
+		},
+		[]ast.Statement{
+			linkedListLoop,
+			ast.Ret(ast.Int(0)),
+		},
+		ast.Ty("i32"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	lazySeqFn := ast.Fn(
+		"consumeLazySeq",
+		[]*ast.FunctionParameter{
+			ast.Param("lazyItems", ast.Gen(ast.Ty("LazySeq"), ast.Ty("string"))),
+		},
+		[]ast.Statement{
+			lazySeqLoop,
+			ast.Ret(ast.Int(0)),
+		},
+		ast.Ty("i32"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	vectorFn := ast.Fn(
+		"consumeVector",
+		[]*ast.FunctionParameter{
+			ast.Param("values", ast.Gen(ast.Ty("Vector"), ast.Ty("i32"))),
+		},
+		[]ast.Statement{
+			vectorLoop,
+			ast.Ret(ast.Int(0)),
+		},
+		ast.Ty("i32"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	setFn := ast.Fn(
+		"consumeHashSet",
+		[]*ast.FunctionParameter{
+			ast.Param("entries", ast.Gen(ast.Ty("HashSet"), ast.Ty("string"))),
+		},
+		[]ast.Statement{
+			setLoop,
+			ast.Ret(ast.Int(0)),
+		},
+		ast.Ty("i32"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	dequeFn := ast.Fn(
+		"consumeDeque",
+		[]*ast.FunctionParameter{
+			ast.Param("dequeItems", ast.Gen(ast.Ty("Deque"), ast.Ty("string"))),
+		},
+		[]ast.Statement{
+			dequeLoop,
+			ast.Ret(ast.Int(0)),
+		},
+		ast.Ty("i32"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	queueFn := ast.Fn(
+		"consumeQueue",
+		[]*ast.FunctionParameter{
+			ast.Param("queueItems", ast.Gen(ast.Ty("Queue"), ast.Ty("i32"))),
+		},
+		[]ast.Statement{
+			queueLoop,
+			ast.Ret(ast.Int(0)),
+		},
+		ast.Ty("i32"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+	bitSetFn := ast.Fn(
+		"consumeBitSet",
+		[]*ast.FunctionParameter{
+			ast.Param("bitset", ast.Ty("BitSet")),
+		},
+		[]ast.Statement{
+			bitSetLoop,
+			ast.Ret(ast.Int(0)),
+		},
+		ast.Ty("i32"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	module := ast.NewModule(
+		[]ast.Statement{
+			listStruct,
+			linkedListStruct,
+			lazySeqStruct,
+			vectorStruct,
+			hashSetStruct,
+			dequeStruct,
+			queueStruct,
+			bitSetStruct,
+			listFn,
+			linkedListFn,
+			lazySeqFn,
+			vectorFn,
+			setFn,
+			dequeFn,
+			queueFn,
+			bitSetFn,
+		},
+		nil,
+		nil,
+	)
+
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics for stdlib collection iterables, got %v", diags)
+	}
+
+	typ, ok := checker.infer[listValue]
+	if !ok {
+		t.Fatalf("expected inference for list loop value")
+	}
+	if typeName(typ) != "string" {
+		t.Fatalf("expected list loop value to infer string, got %q", typeName(typ))
+	}
+
+	typ, ok = checker.infer[linkedValue]
+	if !ok {
+		t.Fatalf("expected inference for linked list loop value")
+	}
+	if typeName(typ) != "i32" {
+		t.Fatalf("expected linked list loop value to infer i32, got %q", typeName(typ))
+	}
+
+	typ, ok = checker.infer[lazyValue]
+	if !ok {
+		t.Fatalf("expected inference for lazy seq loop value")
+	}
+	if typeName(typ) != "string" {
+		t.Fatalf("expected lazy seq loop value to infer string, got %q", typeName(typ))
+	}
+
+	typ, ok = checker.infer[vectorValue]
+	if !ok {
+		t.Fatalf("expected inference for vector loop value")
+	}
+	if typeName(typ) != "i32" {
+		t.Fatalf("expected vector loop value to infer i32, got %q", typeName(typ))
+	}
+
+	typ, ok = checker.infer[setValue]
+	if !ok {
+		t.Fatalf("expected inference for hash set loop value")
+	}
+	if typeName(typ) != "string" {
+		t.Fatalf("expected hash set loop value to infer string, got %q", typeName(typ))
+	}
+
+	typ, ok = checker.infer[dequeValue]
+	if !ok {
+		t.Fatalf("expected inference for deque loop value")
+	}
+	if typeName(typ) != "string" {
+		t.Fatalf("expected deque loop value to infer string, got %q", typeName(typ))
+	}
+
+	typ, ok = checker.infer[queueValue]
+	if !ok {
+		t.Fatalf("expected inference for queue loop value")
+	}
+	if typeName(typ) != "i32" {
+		t.Fatalf("expected queue loop value to infer i32, got %q", typeName(typ))
+	}
+
+	typ, ok = checker.infer[bitValue]
+	if !ok {
+		t.Fatalf("expected inference for bit set loop value")
+	}
+	if typeName(typ) != "i32" {
+		t.Fatalf("expected bit set loop value to infer i32, got %q", typeName(typ))
+	}
+}

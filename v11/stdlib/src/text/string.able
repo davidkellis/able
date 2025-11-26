@@ -215,7 +215,7 @@ methods String {
     result: Array String := Array.new()
     if delimiter.len_bytes() == 0 {
       for g in self.graphemes() {
-        result.push(g.as_string())
+        result.push(String.from_bytes_unchecked(g.bytes.clone()))
       }
       return result
     }
@@ -462,11 +462,11 @@ impl Iterable u8 for String {
 impl Iterator u8 for StringBytesIter {
   fn next(self: Self) -> u8 | IteratorEnd {
     if self.offset >= self.string.len_bytes {
-      return IteratorEnd
+      return IteratorEnd {}
     }
 
     read_byte(self.string.bytes, self.offset) match {
-      case nil => IteratorEnd,
+      case nil => IteratorEnd {},
       case value: u8 => {
         self.offset = self.offset + 1
         value
@@ -484,10 +484,14 @@ impl Iterable char for String {
   fn iterator(self: Self) -> (Iterator char) { self.chars() }
 }
 
+impl Iterable u8 for StringBytesIter {
+  fn iterator(self: Self) -> (Iterator u8) { self }
+}
+
 impl Iterator char for StringCharsIter {
   fn next(self: Self) -> char | IteratorEnd {
     if self.offset >= self.string.len_bytes {
-      return IteratorEnd
+      return IteratorEnd {}
     }
 
     utf8_decode(self.string.bytes, self.offset, self.string.len_bytes) match {
@@ -520,10 +524,14 @@ impl Iterable Grapheme for String {
   fn iterator(self: Self) -> (Iterator Grapheme) { self.graphemes() }
 }
 
+impl Iterable char for StringCharsIter {
+  fn iterator(self: Self) -> (Iterator char) { self }
+}
+
 impl Iterator Grapheme for StringGraphemesIter {
   fn next(self: Self) -> Grapheme | IteratorEnd {
     if self.offset >= self.string.len_bytes {
-      return IteratorEnd
+      return IteratorEnd {}
     }
 
     start := self.offset
@@ -554,6 +562,10 @@ impl Iterator Grapheme for StringGraphemesIter {
     }
     count
   }
+}
+
+impl Iterable Grapheme for StringGraphemesIter {
+  fn iterator(self: Self) -> (Iterator Grapheme) { self }
 }
 
 fn utf8_validate(bytes: Array u8) -> ?StringEncodingError {

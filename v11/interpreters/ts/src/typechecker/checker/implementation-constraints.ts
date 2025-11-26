@@ -49,12 +49,20 @@ export function lookupMethodSetsForCall(
   objectType: TypeInfo,
 ): FunctionInfo[] {
   const results: FunctionInfo[] = [];
-  for (const record of ctx.getMethodSets()) {
+  const methodSets = Array.from(ctx.getMethodSets());
+  let foundMatch = false;
+  for (let index = methodSets.length - 1; index >= 0; index -= 1) {
+    const record = methodSets[index];
     const paramNames = new Set(record.genericParams);
     const substitutions = new Map<string, TypeInfo>();
     substitutions.set("Self", objectType);
     if (!matchImplementationTarget(ctx, objectType, record.target, paramNames, substitutions)) {
       continue;
+    }
+    for (const name of paramNames) {
+      if (!substitutions.has(name)) {
+        substitutions.set(name, unknownType);
+      }
     }
     const method = record.definition.definitions?.find(
       (fn): fn is AST.FunctionDefinition => fn?.type === "FunctionDefinition" && fn.id?.name === methodName,
@@ -103,6 +111,8 @@ export function lookupMethodSetsForCall(
       }
     }
     results.push(info);
+    foundMatch = true;
+    break;
   }
   return results;
 }
@@ -407,14 +417,42 @@ function matchImplementationTarget(
         substitutions.set(name, actual);
         return true;
       }
+      if (!ctx.isKnownTypeName(name)) {
+        substitutions.set(name, actual);
+        return true;
+      }
       if (actual.kind === "primitive") {
         return actual.name === name;
       }
       if (actual.kind === "struct") {
-        return actual.name === name && (actual.typeArguments?.length ?? 0) === 0;
+        if (actual.name !== name) {
+          return false;
+        }
+        if (actual.typeArguments && actual.typeArguments.length > 0 && paramNames.size > 0) {
+          const params = Array.from(paramNames);
+          for (let index = 0; index < params.length && index < actual.typeArguments.length; index += 1) {
+            const paramName = params[index];
+            if (!substitutions.has(paramName)) {
+              substitutions.set(paramName, actual.typeArguments[index] ?? unknownType);
+            }
+          }
+        }
+        return true;
       }
       if (actual.kind === "interface") {
-        return actual.name === name && (actual.typeArguments?.length ?? 0) === 0;
+        if (actual.name !== name) {
+          return false;
+        }
+        if (actual.typeArguments && actual.typeArguments.length > 0 && paramNames.size > 0) {
+          const params = Array.from(paramNames);
+          for (let index = 0; index < params.length && index < actual.typeArguments.length; index += 1) {
+            const paramName = params[index];
+            if (!substitutions.has(paramName)) {
+              substitutions.set(paramName, actual.typeArguments[index] ?? unknownType);
+            }
+          }
+        }
+        return true;
       }
       return formatType(actual) === name;
     }

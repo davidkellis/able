@@ -2,7 +2,7 @@ package collections
 
 import able.collections.array.{Array}
 import able.collections.enumerable.{Enumerable}
-import able.core.interfaces.{Iterable, Iterator}
+import able.core.iteration.{Iterable, Iterator, IteratorEnd}
 
 struct ListNode T {
   value: T,
@@ -138,7 +138,7 @@ impl Iterable T for LinkedList T {
 impl Iterator T for LinkedListIterator T {
   fn next(mut self: Self) -> T | IteratorEnd {
     match self.current {
-      case nil => IteratorEnd,
+      case nil => IteratorEnd {},
       case node: ListNode T => {
         self.current = node.next
         node.value

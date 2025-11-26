@@ -95,9 +95,13 @@ export function createTypeResolutionHelpers(context: TypeResolutionContext): Typ
       case "GenericTypeExpression": {
         const baseName = getIdentifierNameFromTypeExpression(expr.base);
         if (!baseName) return unknownType;
-        const typeArguments = Array.isArray(expr.arguments)
-          ? expr.arguments.map((arg) => resolveTypeExpression(arg, substitutions))
-          : [];
+        const baseArgs =
+          expr.base?.type === "GenericTypeExpression" && Array.isArray(expr.base.arguments) ? expr.base.arguments : [];
+        const rawArgs = [
+          ...baseArgs,
+          ...(Array.isArray(expr.arguments) ? expr.arguments : []),
+        ] as Array<AST.TypeExpression | null | undefined>;
+        const typeArguments = rawArgs.map((arg) => resolveTypeExpression(arg, substitutions));
         const alias = context.getTypeAlias(baseName);
         if (alias) {
           return instantiateTypeAlias(alias, typeArguments, substitutions);
@@ -320,6 +324,41 @@ export function createTypeResolutionHelpers(context: TypeResolutionContext): Typ
     if (normalizedExpected.kind === "union" && Array.isArray(normalizedExpected.members)) {
       return normalizedExpected.members.some((member) => isTypeAssignable(normalizedActual, member));
     }
+    if (normalizedActual.kind === "nullable") {
+      return isTypeAssignable(normalizedActual.inner, normalizedExpected);
+    }
+    if (normalizedActual.kind === "struct" && normalizedExpected.kind === "struct") {
+      if (normalizedActual.name !== normalizedExpected.name) {
+        return false;
+      }
+      const actualArgs = normalizedActual.typeArguments ?? [];
+      const expectedArgs = normalizedExpected.typeArguments ?? [];
+      if (actualArgs.length !== expectedArgs.length) {
+        return expectedArgs.length === 0;
+      }
+      for (let index = 0; index < expectedArgs.length; index += 1) {
+        if (!isTypeAssignable(actualArgs[index], expectedArgs[index])) {
+          return false;
+        }
+      }
+      return true;
+    }
+    if (normalizedActual.kind === "interface" && normalizedExpected.kind === "interface") {
+      if (normalizedActual.name !== normalizedExpected.name) {
+        return false;
+      }
+      const actualArgs = normalizedActual.typeArguments ?? [];
+      const expectedArgs = normalizedExpected.typeArguments ?? [];
+      if (actualArgs.length !== expectedArgs.length) {
+        return expectedArgs.length === 0;
+      }
+      for (let index = 0; index < expectedArgs.length; index += 1) {
+        if (!isTypeAssignable(actualArgs[index], expectedArgs[index])) {
+          return false;
+        }
+      }
+      return true;
+    }
     if (normalizedActual.kind === "primitive" && normalizedExpected.kind === "primitive") {
       if (canWidenIntegerType(normalizedActual.name, normalizedExpected.name)) {
         return true;
@@ -328,12 +367,21 @@ export function createTypeResolutionHelpers(context: TypeResolutionContext): Typ
     return false;
   }
 
+  function canonicalizeLiteralComparison(type: TypeInfo): TypeInfo {
+    if (!type) return type;
+    if (type.kind === "interface" && type.name === "Iterator") {
+      const element = Array.isArray(type.typeArguments) ? type.typeArguments[0] ?? unknownType : unknownType;
+      return { kind: "iterator", element };
+    }
+    return type;
+  }
+
   function describeLiteralMismatch(actual?: TypeInfo, expected?: TypeInfo): string | null {
     if (!actual || !expected) {
       return null;
     }
-    let normalizedActual = actual;
-    let normalizedExpected = expected;
+    let normalizedActual = canonicalizeLiteralComparison(actual);
+    let normalizedExpected = canonicalizeLiteralComparison(expected);
     const nextActual = canonicalizeStructuralType(normalizedActual);
     const nextExpected = canonicalizeStructuralType(normalizedExpected);
     if (nextActual !== normalizedActual || nextExpected !== normalizedExpected) {

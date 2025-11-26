@@ -66,7 +66,9 @@ export function inferExpression(ctx: ExpressionContext, expression: AST.Expressi
       }
       const structDefinition = ctx.getStructDefinition(name);
       if (structDefinition) {
-        return { kind: "struct", name, typeArguments: [], definition: structDefinition };
+        const paramCount = Array.isArray(structDefinition.genericParams) ? structDefinition.genericParams.length : 0;
+        const typeArguments = paramCount > 0 ? Array.from({ length: paramCount }, () => unknownType) : [];
+        return { kind: "struct", name, typeArguments, definition: structDefinition };
       }
       if (ctx.allowDynamicLookup()) {
         return unknownType;

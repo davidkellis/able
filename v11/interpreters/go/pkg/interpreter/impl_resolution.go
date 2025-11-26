@@ -140,12 +140,20 @@ func constraintSignature(specs []constraintSpec) string {
 	return strings.Join(parts, "&")
 }
 
-func (i *Interpreter) registerUnnamedImpl(ifaceName string, variant targetVariant, unionSignatures []string, baseConstraintSig string, targetDescription string) error {
+func (i *Interpreter) registerUnnamedImpl(ifaceName string, ifaceArgs []ast.TypeExpression, variant targetVariant, unionSignatures []string, baseConstraintSig string, targetDescription string) error {
 	key := ifaceName + "::" + variant.typeName
 	bucket, ok := i.unnamedImpls[key]
 	if !ok {
 		bucket = make(map[string]map[string]struct{})
 		i.unnamedImpls[key] = bucket
+	}
+	ifaceKey := "<none>"
+	if len(ifaceArgs) > 0 {
+		parts := make([]string, 0, len(ifaceArgs))
+		for _, arg := range ifaceArgs {
+			parts = append(parts, typeExpressionToString(arg))
+		}
+		ifaceKey = strings.Join(parts, "|")
 	}
 	templateKey := "<none>"
 	if len(variant.argTemplates) > 0 {
@@ -155,14 +163,20 @@ func (i *Interpreter) registerUnnamedImpl(ifaceName string, variant targetVarian
 		}
 		templateKey = strings.Join(parts, "|")
 	}
+	if ifaceKey != "" {
+		templateKey = ifaceKey + "::" + templateKey
+	}
 	if len(unionSignatures) > 0 {
 		prefix := strings.Join(unionSignatures, "::")
 		templateKey = prefix + "::" + templateKey
 	}
 	constraintKey := baseConstraintSig
+	if ifaceKey != "" && ifaceKey != "<none>" {
+		constraintKey = ifaceKey + "::" + constraintKey
+	}
 	if len(unionSignatures) > 0 {
 		prefix := strings.Join(unionSignatures, "::")
-		constraintKey = prefix + "::" + baseConstraintSig
+		constraintKey = prefix + "::" + constraintKey
 	}
 	constraintSet, ok := bucket[templateKey]
 	if !ok {
