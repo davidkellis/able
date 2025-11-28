@@ -1,0 +1,159 @@
+package text.regex
+
+import able.collections.array.{Array}
+import able.collections.hash_map.{HashMap}
+import able.core.interfaces.{Error}
+import able.core.iteration.{Iterator, IteratorEnd}
+import able.core.options.{Result}
+
+struct Span {
+  start: u64,
+  end: u64
+}
+
+struct RegexOptions {
+  case_insensitive: bool,
+  multiline: bool,
+  dot_matches_newline: bool,
+  unicode: bool,
+  anchored: bool,
+  unicode_case: bool,
+  grapheme_mode: bool
+}
+
+methods RegexOptions {
+  fn default() -> RegexOptions {
+    RegexOptions {
+      case_insensitive: false,
+      multiline: false,
+      dot_matches_newline: false,
+      unicode: true,
+      anchored: false,
+      unicode_case: false,
+      grapheme_mode: false
+    }
+  }
+}
+
+struct RegexHandle {}
+
+struct Regex {
+  pattern: string,
+  options: RegexOptions,
+  program: RegexHandle
+}
+
+struct RegexInvalidPattern {
+  message: string,
+  span: Span
+}
+
+struct RegexUnsupportedFeature {
+  message: string,
+  hint: ?string
+}
+
+struct RegexCompileFailure {
+  message: string
+}
+
+impl Error for RegexInvalidPattern {
+  fn message(self: Self) -> string { self.message }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+impl Error for RegexUnsupportedFeature {
+  fn message(self: Self) -> string { self.message }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+impl Error for RegexCompileFailure {
+  fn message(self: Self) -> string { self.message }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+fn unsupported(feature: string) -> RegexUnsupportedFeature {
+  RegexUnsupportedFeature {
+    message: `regex ${feature} is not implemented yet`,
+    hint: nil
+  }
+}
+
+struct RegexGroup {
+  name: ?string,
+  value: ?string,
+  span: ?Span
+}
+
+struct RegexMatch {
+  matched: string,
+  span: Span,
+  groups: Array RegexGroup,
+  named_groups: HashMap string RegexGroup
+}
+
+union RegexReplacement =
+  RegexReplacementLiteral string |
+  RegexReplacementFunction (RegexMatch -> string)
+
+struct RegexIter {
+  haystack: string,
+  regex: Regex
+}
+
+impl Iterator RegexMatch for RegexIter {
+  fn next(self: Self) -> RegexMatch | IteratorEnd { IteratorEnd {} }
+}
+
+struct RegexSet {
+  patterns: Array Regex
+}
+
+struct RegexScanner {
+  regex: Regex
+}
+
+methods Regex {
+  fn compile(pattern: string) -> Result Regex {
+    Regex.compile_with_options(pattern, RegexOptions.default())
+  }
+
+  fn compile_with_options(pattern: string, options: RegexOptions) -> Result Regex {
+    Regex { pattern: pattern, options: options, program: RegexHandle {} }
+  }
+
+  fn is_match(self: Self, haystack: string) -> Result bool {
+    unsupported("is_match")
+  }
+
+  fn match(self: Self, haystack: string) -> Result ?RegexMatch {
+    unsupported("match")
+  }
+
+  fn find_all(self: Self, haystack: string) -> Result RegexIter {
+    unsupported("find_all")
+  }
+
+  fn replace(self: Self, haystack: string, replacement: RegexReplacement) -> Result string {
+    unsupported("replace")
+  }
+
+  fn split(self: Self, haystack: string, limit: ?u64) -> Result RegexSplit {
+    unsupported("split")
+  }
+
+  fn scan(self: Self, haystack: string) -> Result RegexScanner {
+    unsupported("scan")
+  }
+}
+
+struct RegexSplit {
+  segments: Array string
+}
+
+fn regex_is_match(pattern: string, haystack: string) -> Result bool {
+  Regex.compile(pattern) match {
+    case err: Error => err,
+    case regex: Regex => regex.is_match(haystack)
+  }
+}

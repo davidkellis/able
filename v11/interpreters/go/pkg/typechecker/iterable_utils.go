@@ -55,6 +55,9 @@ func iterableElementType(t Type) (Type, bool) {
 	if _, ok := t.(UnknownType); ok {
 		return UnknownType{}, true
 	}
+	if prim, ok := t.(PrimitiveType); ok && prim.Kind == PrimitiveString {
+		return IntegerType{Suffix: "u8"}, true
+	}
 	if elem, ok := arrayElementType(t); ok {
 		if elem == nil || isUnknownType(elem) {
 			return UnknownType{}, true

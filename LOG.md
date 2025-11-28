@@ -1,5 +1,10 @@
 # Able Project Log
 
+## 2025-11-26 — Kernel vs stdlib layering complete (v11)
+- Primitive strings now live entirely in the stdlib: helpers/iterators/wrap-unwrap operate on built-in strings, with only the three kernel bridges left native. Go/TS runtimes and typecheckers resolve string members via the stdlib and surface import hints when missing.
+- Arrays now prefer stdlib methods end-to-end (size inline, minimal native shims retained for compatibility), with runtimes/typecheckers pointing diagnostics at `able.collections.array`.
+- Go runtime member access now consults stdlib method sets before native fallbacks, and primitive `string` is treated as iterable (`u8`) in the Go typechecker, matching the TS path. ModuleLoader + Go test suites stay green.
+
 ## 2025-11-20 — Typed-pattern match reachability fix
 - Added a reachability guard for typed `match` patterns so clauses whose annotations cannot match the subject still typecheck but are treated as unreachable, preventing spurious return/branch diagnostics in the Go checker (mirrors TS intent).
 - Full v11 suites run green after the fix (`go test ./pkg/typechecker`, `go test ./...`, `./run_all_tests.sh --version=v11`).
@@ -209,3 +214,7 @@ Open items (2025-11-02 audit):
 - Quarantine stdlib iterators now return the explicit `IteratorEnd {}` sentinel and match on the sentinel type to avoid pattern collisions; iterator imports across array/list/linked_list/vector/lazy_seq/string/automata DSL modules now pull from `core.iteration`.
 - TS stdlib integration suite rerun to confirm no regressions in the active modules; Go unit tests remain green.
 - TS typechecker now treats `Iterator` interface annotations as structural for literal overflow checks, so iterator literals annotated as `Iterator u8` surface integer-bound diagnostics on yielded values; `run_all_tests.sh --version=v11` is green.
+
+### 2025-11-24
+- Primitive `string` is now treated as an iterable of `u8` across both runtimes: TS/Go typecheckers recognise string for-loops, diagnostics reference `array, range, string, or iterator`, and new tests cover typed-pattern matches plus runtime iteration backed by the stdlib string module.
+- Added ModuleLoader + Go runtime tests to ensure string iteration requires importing `able.text.string` and yields byte values; stdlib README documents the import requirement.

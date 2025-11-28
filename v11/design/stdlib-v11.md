@@ -508,6 +508,13 @@ Implementation strategy:
 - Finalise host bridge APIs for strings and arrays, ensuring behaviour parity between Go and TypeScript.
 - Revisit advanced roadmap items (strings, regex, numerics) once the baseline passes all fixtures and parity tests.
 
+### 9.3 String primitivisation status
+
+- Minimal kernel bridges kept: `__able_string_from_builtin`, `__able_string_to_builtin`, `__able_char_from_codepoint`. All user-facing behaviour now lives in `able.text.string`.
+- Stdlib now operates on primitive `string` for `len_*`, `substring`, `split`, `replace`, `starts_with`/`ends_with`, iterators, and builders. The `String` wrapper remains private scaffolding only; public helpers wrap/unwrap to primitives.
+- Runtime/typechecker touchpoints: TS/Go interpreters continue to register only the three bridges; typecheckers source method sets from the stdlib and emit import diagnostics. Native string helpers are removed.
+- Tests/fixtures: TS ModuleLoader suites (`test/stdlib/string_stdlib_integration.test.ts`, `test/stdlib/string_array_methods.test.ts`) exercise the primitive path; Go parity relies on shared fixtures and the stdlib runtime.
+
 ### 9.2 Open Decisions (Need Product Guidance)
 
 **Resolved**

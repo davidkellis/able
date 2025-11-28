@@ -201,3 +201,39 @@ func TestForLoopIterableInterfaceTypedPatternMismatch(t *testing.T) {
 		t.Fatalf("expected for-loop diagnostic mentioning Display, got %v", diags)
 	}
 }
+
+func TestForLoopStringIterableElementType(t *testing.T) {
+	checker := New()
+	loop := ast.ForLoopPattern(
+		ast.TypedP(ast.PatternFrom(ast.ID("b")), ast.Ty("u8")),
+		ast.Str("ok"),
+		ast.Block(ast.ID("b")),
+	)
+	module := ast.NewModule([]ast.Statement{loop}, nil, nil)
+
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics, got %v", diags)
+	}
+}
+
+func TestForLoopStringIterableTypeMismatch(t *testing.T) {
+	checker := New()
+	loop := ast.ForLoopPattern(
+		ast.TypedP(ast.PatternFrom(ast.ID("b")), ast.Ty("string")),
+		ast.Str("ok"),
+		ast.Block(ast.ID("b")),
+	)
+	module := ast.NewModule([]ast.Statement{loop}, nil, nil)
+
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) == 0 {
+		t.Fatalf("expected diagnostic for mismatched string iterable pattern")
+	}
+}

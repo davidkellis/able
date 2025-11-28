@@ -59,7 +59,7 @@ func (c *Checker) checkForLoop(env *Environment, loop *ast.ForLoop) ([]Diagnosti
 			elementType = UnknownType{}
 		} else {
 			diags = append(diags, Diagnostic{
-				Message: fmt.Sprintf("typechecker: for-loop iterable must be array, range, or iterator, got %s", typeName(iterableType)),
+				Message: fmt.Sprintf("typechecker: for-loop iterable must be array, range, string, or iterator, got %s", typeName(iterableType)),
 				Node:    loop.Iterable,
 			})
 			elementType = UnknownType{}
