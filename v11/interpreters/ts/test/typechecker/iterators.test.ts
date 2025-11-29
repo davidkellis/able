@@ -66,7 +66,7 @@ describe("typechecker iterator annotations", () => {
 
     const result = checker.checkModule(module);
     expect(result.diagnostics).toHaveLength(1);
-    expect(result.diagnostics[0]?.message).toContain("for-loop iterable must be array, range, or iterator");
+    expect(result.diagnostics[0]?.message).toContain("for-loop iterable must be array, range, string, or iterator");
   });
 
   test("reports diagnostic when array literal element type conflicts with typed pattern", () => {
@@ -96,6 +96,32 @@ describe("typechecker iterator annotations", () => {
 
     const result = checker.checkModule(module);
     expect(result.diagnostics).toEqual([]);
+  });
+
+  test("accepts string iterable when typed pattern expects u8", () => {
+    const checker = new TypeChecker();
+    const loop = AST.forLoop(
+      AST.typedPattern(AST.identifier("b"), AST.simpleTypeExpression("u8")),
+      AST.stringLiteral("ok"),
+      AST.blockExpression([]),
+    );
+    const module = AST.module([loop]);
+
+    const result = checker.checkModule(module);
+    expect(result.diagnostics).toEqual([]);
+  });
+
+  test("reports mismatch when string iterable is bound to non-byte typed pattern", () => {
+    const checker = new TypeChecker();
+    const loop = AST.forLoop(
+      AST.typedPattern(AST.identifier("b"), AST.simpleTypeExpression("string")),
+      AST.stringLiteral("ok"),
+      AST.blockExpression([]),
+    );
+    const module = AST.module([loop]);
+
+    const result = checker.checkModule(module);
+    expect(result.diagnostics).toHaveLength(1);
   });
 
   test("reports diagnostic when range expression element type conflicts with typed pattern", () => {

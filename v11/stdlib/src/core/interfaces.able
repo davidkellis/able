@@ -110,16 +110,16 @@ interface Not Output for T {
 
 ## Callable values implement Apply (function call operator).
 interface Apply Args Result for T {
-  fn call(self: Self, args: Args) -> Result;
+  fn apply(self: Self, args: Args) -> Result;
 }
 
-## Indexing protocol used by [].
+## Indexing protocol used by [] (bounds errors raise IndexError).
 interface Index Idx Output for T {
-  fn index(self: Self, idx: Idx) -> Output;
+  fn get(self: Self, idx: Idx) -> !Output;
 }
 
 interface IndexMut Idx Output for T {
-  fn assign(self: Self, idx: Idx, value: Output) -> void;
+  fn set(self: Self, idx: Idx, value: Output) -> !void;
 }
 
 methods i32 {
