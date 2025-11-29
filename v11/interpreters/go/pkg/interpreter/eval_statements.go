@@ -305,6 +305,22 @@ func (i *Interpreter) resolveIteratorValue(iterable runtime.Value, env *runtime.
 		}
 		return iterator, nil
 	default:
+		member, err := i.memberAccessOnValueWithOptions(iterable, ident, env, true)
+		if err == nil && member != nil {
+			value, callErr := i.CallFunction(member, nil)
+			if callErr != nil {
+				return nil, callErr
+			}
+			if adapted, err := i.adaptIteratorValue(value, env); err != nil {
+				return nil, err
+			} else if adapted != nil {
+				return adapted, nil
+			}
+			if iterator, ok := value.(*runtime.IteratorValue); ok {
+				return iterator, nil
+			}
+			return nil, fmt.Errorf("iterator() on %s did not return Iterator", iterable.Kind())
+		}
 		return nil, fmt.Errorf("for-loop iterable of kind %s is not Iterable", iterable.Kind())
 	}
 }

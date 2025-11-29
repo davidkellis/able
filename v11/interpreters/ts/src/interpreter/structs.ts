@@ -308,44 +308,23 @@ export function memberAccessOnValue(
     ctx.ensureArrayState(obj);
     if (member.type === "Identifier") {
       const name = member.name;
-      const ufcsFirst = ctx.tryUfcs(env, name, obj);
-      if (ufcsFirst) return ufcsFirst;
-      const state = ctx.ensureArrayState(obj);
       if (name === "storage_handle") {
         const handle = obj.handle ?? 0;
         return makeIntegerFromNumber("i64", handle);
       }
       if (name === "length") {
+        const state = ctx.ensureArrayState(obj);
         return makeIntegerFromNumber("i32", state.values.length);
       }
       if (name === "capacity") {
+        const state = ctx.ensureArrayState(obj);
         return makeIntegerFromNumber("i32", state.capacity);
       }
+      const ufcsFirst = ctx.tryUfcs(env, name, obj);
+      if (ufcsFirst) return ufcsFirst;
       const method = ctx.findMethod("Array", name, { typeArgs: [AST.wildcardTypeExpression()] });
       if (method) {
         return { kind: "bound_method", func: method, self: obj };
-      }
-      const methods = ctx.arrayNativeMethods;
-      if (name === "iterator") {
-        const fn = (methods.iterator ??= ctx.makeNativeFunction("array.iterator", 1, (_interp, [self]) => {
-          if (!self || self.kind !== "array") throw new Error("iterator receiver must be an array");
-          const state = ctx.ensureArrayState(self);
-          let idx = 0;
-          return {
-            kind: "iterator",
-            iterator: {
-              next: () => {
-                const current = ctx.ensureArrayState(self);
-                if (idx >= current.values.length) return { done: true, value: ctx.iteratorEndValue };
-                const value = current.values[idx];
-                idx += 1;
-                return { done: false, value: value ?? { kind: "nil", value: null } };
-              },
-              close: () => {},
-            },
-          };
-        }));
-        return ctx.bindNativeMethod(fn, obj);
       }
       const ufcs = ctx.tryUfcs(env, name, obj);
       if (ufcs) return ufcs;

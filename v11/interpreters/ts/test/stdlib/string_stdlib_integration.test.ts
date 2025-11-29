@@ -209,7 +209,9 @@ fn main() {
       expect(orderingTag(result)).toBe("RangeError");
       const message = callCallableValue(
         interpreter as any,
-        memberAccessOnValue(interpreter as any, result, AST.identifier("message"), interpreter.globals) as any,
+        memberAccessOnValue(interpreter as any, result, AST.identifier("message"), interpreter.globals, {
+          preferMethods: true,
+        }) as any,
         [],
         interpreter.globals,
       );
@@ -263,7 +265,9 @@ fn main() {
       expect(orderingTag(result)).toBe("RangeError");
       const message = callCallableValue(
         interpreter as any,
-        memberAccessOnValue(interpreter as any, result, AST.identifier("message"), interpreter.globals) as any,
+        memberAccessOnValue(interpreter as any, result, AST.identifier("message"), interpreter.globals, {
+          preferMethods: true,
+        }) as any,
         [],
         interpreter.globals,
       );
@@ -544,6 +548,58 @@ fn main() -> string {
       }
       const result = callCallableValue(interpreter as any, mainFn, [], interpreter.globals) as any;
       expect(readString(result)).toBe("abaδaba");
+    } finally {
+      await fs.rm(tmpRoot, { recursive: true, force: true });
+    }
+  });
+
+  test("for-loops over strings iterate bytes via stdlib iterator", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "able-string-iter-"));
+    try {
+      await fs.writeFile(path.join(tmpRoot, "package.yml"), "name: string_iterator\n", "utf8");
+      await fs.writeFile(
+        path.join(tmpRoot, "main.able"),
+        `
+package main
+
+import able.text.string
+
+fn main() -> i32 {
+  count := 0
+  for b: u8 in "hey" {
+    _ = b
+    count = count + 1
+  }
+  count
+}
+`.trimStart(),
+        "utf8",
+      );
+
+      const searchPaths = collectModuleSearchPaths({
+        cwd: tmpRoot,
+        probeStdlibFrom: [PROBE_ROOT],
+      });
+      const loader = new ModuleLoader(searchPaths);
+      const program = await loader.load(path.join(tmpRoot, "main.able"));
+
+      const session = new TypeChecker.TypecheckerSession();
+      const diagnostics = typecheckProgram(session, program, { ignoreNonEntryDiagnostics: true });
+      expect(diagnostics).toEqual([]);
+
+      const interpreter = new V10.InterpreterV10();
+      ensureConsolePrint(interpreter);
+      installRuntimeStubs(interpreter);
+      evaluateAllModules(interpreter, program);
+
+      const pkg = interpreter.packageRegistry.get(program.entry.packageName);
+      const mainFn = pkg?.get("main");
+      if (!mainFn) {
+        throw new Error("entry module missing main");
+      }
+      const result = callCallableValue(interpreter as any, mainFn, [], interpreter.globals) as any;
+      expect(result?.kind).toBe("i32");
+      expect(readInteger(result)).toBe(3);
     } finally {
       await fs.rm(tmpRoot, { recursive: true, force: true });
     }

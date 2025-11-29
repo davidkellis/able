@@ -392,7 +392,7 @@ func TestForLoopIterableMustBeArrayRangeOrIterator(t *testing.T) {
 	}
 	found := false
 	for _, d := range diags {
-		if strings.Contains(d.Message, "for-loop iterable must be array, range, or iterator") {
+		if strings.Contains(d.Message, "for-loop iterable must be array, range, string, or iterator") {
 			found = true
 			break
 		}

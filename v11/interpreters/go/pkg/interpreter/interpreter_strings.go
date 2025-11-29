@@ -12,5 +12,6 @@ func (i *Interpreter) stringMember(str runtime.StringValue, member ast.Expressio
 	if !ok {
 		return nil, fmt.Errorf("String member access expects identifier")
 	}
-	return nil, fmt.Errorf("String has no member '%s' (import able.text.string for stdlib helpers)", ident.Name)
+	// When stdlib string methods are not imported, surface a clear diagnostic.
+	return nil, fmt.Errorf("string has no member '%s' (import able.text.string for stdlib helpers)", ident.Name)
 }

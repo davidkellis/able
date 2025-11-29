@@ -5,7 +5,7 @@ The v11 stdlib is being rebuilt in place. Active modules live under `v11/stdlib/
 Current restored surface:
 - core/errors, core/interfaces, core/options, core/iteration, core/numeric
 - collections/array, enumerable, range, list, linked_list, vector, deque, queue, lazy_seq, hash_map, set, hash_set, bit_set, heap, tree_map, tree_set
-- text/string
+- text/string (string iteration yields bytes; import before calling methods/iterators), text/regex (stubbed; operations currently return RegexUnsupportedFeature)
 
 Package name: `able`. Import modules with paths like `able.collections.hash_set`.
 

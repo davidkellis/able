@@ -233,6 +233,71 @@ methods HashMap K V {
     }
   }
 
+  fn get_entry(self: Self, key: K) -> ?SlotEntry K V {
+    hash := hash_key(key)
+    index := self.find_index(hash, key)
+    if index < 0 { return nil }
+    slot := self.entries.read_slot(index)
+    if slot.tag != tag_filled() { return nil }
+    slot.entry
+  }
+
+  fn get_value(self: Self, key: K) -> ?V {
+    self.get_entry(key) match {
+      case nil => nil,
+      case filled => filled.value
+    }
+  }
+
+  fn put_value(self: Self, key: K, value: V) -> void {
+    hash := hash_key(key)
+    self.insert_internal(hash, key, value, true)
+  }
+
+  fn take_value(self: Self, key: K) -> ?V {
+    if self.len == 0 { return nil }
+    hash := hash_key(key)
+    index := self.find_index(hash, key)
+    if index < 0 { return nil }
+
+    slot := self.entries.read_slot(index)
+    if slot.tag != tag_filled() { return nil }
+
+    slot.entry match {
+      case nil => nil,
+      case filled => {
+        self.entries.write_slot(index, slot_tombstone())
+        self.len = self.len - 1
+        filled.value
+      }
+    }
+  }
+
+  fn has_key(self: Self, key: K) -> bool {
+    self.get_entry(key) match {
+      case nil => false,
+      case _ => true
+    }
+  }
+
+  fn get(self: Self, key: K) -> ?V {
+    self.get_value(key)
+  }
+
+  fn set(self: Self, key: K, value: V) -> void {
+    self.put_value(key, value)
+  }
+
+  fn remove(self: Self, key: K) -> ?V {
+    self.take_value(key)
+  }
+
+  fn contains(self: Self, key: K) -> bool {
+    self.has_key(key)
+  }
+
+  fn size(self: Self) -> i32 { self.len }
+
   fn for_each(self: Self, visit: (K, V) -> void) -> void {
     capacity := self.entries.capacity()
     idx := 0
@@ -262,53 +327,26 @@ impl Clone for HashMap K V {
 
 impl Map K V for HashMap K V {
   fn get(self: Self, key: K) -> ?V {
-    hash := hash_key(key)
-    index := self.find_index(hash, key)
-    if index < 0 { return nil }
-    slot := self.entries.read_slot(index)
-    if slot.tag != tag_filled() { return nil }
-    slot.entry match {
-      case nil => nil,
-      case filled => filled.value
-    }
+    self.get_value(key)
   }
 
   fn set(self: Self, key: K, value: V) -> void {
-    hash := hash_key(key)
-    self.insert_internal(hash, key, value, true)
+    self.put_value(key, value)
   }
 
   fn remove(self: Self, key: K) -> ?V {
-    if self.len == 0 { return nil }
-    hash := hash_key(key)
-    index := self.find_index(hash, key)
-    if index < 0 { return nil }
-
-    slot := self.entries.read_slot(index)
-    if slot.tag != tag_filled() { return nil }
-
-    slot.entry match {
-      case nil => nil,
-      case filled => {
-        self.entries.write_slot(index, slot_tombstone())
-        self.len = self.len - 1
-        filled.value
-      }
-    }
+    self.take_value(key)
   }
 
   fn contains(self: Self, key: K) -> bool {
-    self.get(key) match {
-      case nil => false,
-      case _ => true
-    }
+    self.has_key(key)
   }
 
   fn size(self: Self) -> i32 { self.len }
 }
 
 impl Index K V for HashMap K V {
-  fn index(self: Self, key: K) -> V | IndexError {
+  fn get(self: Self, key: K) -> !V {
     hash := hash_key(key)
     index := self.find_index(hash, key)
     if index < 0 {
@@ -328,8 +366,9 @@ impl Index K V for HashMap K V {
 }
 
 impl IndexMut K V for HashMap K V {
-  fn assign(self: Self, key: K, value: V) -> void | IndexError {
-    self.set(key, value)
+  fn set(self: Self, key: K, value: V) -> !void {
+    hash := hash_key(key)
+    self.insert_internal(hash, key, value, true)
   }
 }
 

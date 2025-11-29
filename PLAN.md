@@ -33,19 +33,11 @@
 - The JSON parity report (`tmp/parity-report.json`) must be archived in CI via `ABLE_PARITY_REPORT_DEST`/`CI_ARTIFACTS_DIR` to keep regression triage fast.
 - Track upcoming language work (awaitable orchestration, advanced dynimport scenarios, interface dispatch additions) so fixtures/examples land immediately once syntax/runtime support exists.
 
-## TODO (as items are completed, move them to LOG.md)
+## TODO (working queue: tackle in order, move completed items to LOG.md)
 
 ### v11 Spec Delta Implementation Plan
 
-7. **Kernel vs stdlib layering (immediate priority)**
-   - **Audit & contract:** enumerate current kernel natives (arrays, string helpers, concurrency primitives, hasher, string bridges) and define the minimal kernel in `design/stdlib-v11.md`/`spec/full_spec_v11.md` (keep only bridges/scheduler/channels/mutex/hasher).
-   - **Port to Able:** reimplement array and string helpers in `v11/stdlib` atop kernel primitives; keep only minimal hooks native. Add stdlib tests proving behaviour and update interpreters/fixtures to rely on the stdlib surface.
-   - **Runtime/typechecker refactor:** remove or shim native array/string methods to delegate to stdlib; source signatures from stdlib interfaces instead of hardcoded natives. Ensure iterators/IndexError surfaces remain stable.
-   - **Parity/docs:** adjust fixtures/exporter to target stdlib implementations, keep `./run_all_tests.sh --version=v11` green, and document any temporary shims slated for removal.
-
-8. **Stdlib API expansions (arrays, regex, §§6.12 & 14.2)**
-   - **Array helpers:** expose `size`, `push`, `pop`, `get`, `set`, `clear` with proper `IndexError` handling and ensure array types continue to satisfy `Iterable`. (Interpreter builtins + tests added; confirm iterator/IndexError parity.)
-   - **Regex module:** deliver `able.text.regex` with RE2-style determinism (core types, compile/match/split/replace helpers, regex sets, streaming scanner, grapheme-aware options) and bridge to host runtimes while guarding unsupported features via `RegexError`.
+8. **Stdlib API expansions (regex, §§6.12 & 14.2)** — **lowest priority; defer until higher items advance.**
    - **Tests:** expand stdlib test suites + fixtures to cover each helper, regex compilation failures, streaming use cases, and confirm both interpreters return identical traces.
 
 9. **Language-supported interface alignment (§14.1 + Awaitable interface)**
@@ -84,7 +76,8 @@
       - Fixed tree-sitter number literal mapping to keep hex literals as integers (even with `E` digits), so UTF-8 path bitwise checks no longer error and the multi-byte string split/replace tests are re-enabled.
       - Began trimming native array helpers in the TS interpreter: push/pop/get/set/size/clear now require the stdlib method set (Iterator fallback retained), and leetcode examples import `able.collections.array` to use the stdlib surface.
       - Removed remaining native string helpers in both interpreters (array iterator shim retained), mirroring Go/TS runtime and typechecker behaviour and adding guardrail tests for missing stdlib imports; added coverage to flag base-prefixed octal/binary literals with stray `e/E` markers so they surface diagnostics instead of being treated as exponents.
-
+      - Aligned stdlib interface names with the spec (Apply.apply and Index/IndexMut.get/set return results), updating Array/HashMap implementations with inherent wrappers to avoid method name ambiguities in impl resolution.
+      - TS typechecker now treats primitive strings as byte iterables (u8) to match the Go runtime/typechecker, ModuleLoader coverage exercises string for-loops via the stdlib iterator surface, and Go gets matching typechecker + runtime iterator coverage once the stdlib string module is loaded.
 ### Tutorials & Examples (cleanup backlog)
 - Fix tutorials requiring missing stdlib imports/stubs (Channel/Mutex await sample) once the stdlib surfaces are wired back in.
 - Update options/results/exceptions/interop tutorials to reference the `Error` interface correctly (or import the stdlib definition) so they typecheck.

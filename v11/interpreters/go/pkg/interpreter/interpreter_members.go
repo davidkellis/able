@@ -76,6 +76,11 @@ func (i *Interpreter) memberAccessOnValueWithOptions(obj runtime.Value, member a
 		return i.stringMemberWithOverrides(*v, member, env)
 	default:
 		if ident, ok := member.(*ast.Identifier); ok {
+			if info, ok := i.getTypeInfoForValue(obj); ok {
+				if resolved, err := i.findMethod(info, ident.Name, ""); err == nil && resolved != nil {
+					return &runtime.BoundMethodValue{Receiver: obj, Method: resolved}, nil
+				}
+			}
 			if bound, ok := i.tryUfcs(env, ident.Name, obj); ok {
 				return bound, nil
 			}

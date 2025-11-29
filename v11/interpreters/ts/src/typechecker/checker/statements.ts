@@ -103,7 +103,7 @@ function checkForLoop(ctx: StatementContext, loop: AST.ForLoop): void {
   const { elementType, recognized } = resolveIterableElementType(iterableType);
   if (!recognized && !isUnknown(iterableType)) {
     ctx.report(
-      `typechecker: for-loop iterable must be array, range, or iterator (got ${formatType(iterableType)})`,
+      `typechecker: for-loop iterable must be array, range, string, or iterator (got ${formatType(iterableType)})`,
       loop.iterable,
     );
   }
@@ -141,6 +141,9 @@ function checkWhileLoop(ctx: StatementContext, loop: AST.WhileLoop): void {
 function resolveIterableElementType(type: TypeInfo): { elementType: TypeInfo; recognized: boolean } {
   if (!type || type.kind === "unknown") {
     return { elementType: unknownType, recognized: true };
+  }
+  if (type.kind === "primitive" && type.name === "string") {
+    return { elementType: primitiveType("u8"), recognized: true };
   }
   if (type.kind === "iterator") {
     return { elementType: type.element ?? unknownType, recognized: true };
