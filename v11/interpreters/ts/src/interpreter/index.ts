@@ -86,6 +86,7 @@ export class InterpreterV10 {
   procStatusPendingValue!: V10Value;
   procStatusResolvedValue!: V10Value;
   procStatusCancelledValue!: V10Value;
+  awaitHelpersBuiltinsInitialized = false;
 
   channelMutexBuiltinsInitialized = false;
   stringHostBuiltinsInitialized = false;
@@ -135,6 +136,24 @@ export class InterpreterV10 {
         interp.procHandleCancel(self);
         return { kind: "nil", value: null };
       }),
+      is_ready: this.makeNativeFunction("Proc.is_ready", 1, (_interp, args) => {
+        const self = args[0];
+        if (!self || self.kind !== "proc_handle") throw new Error("Proc.is_ready called on non-proc handle");
+        return { kind: "bool", value: self.state !== "pending" };
+      }),
+      register: this.makeNativeFunction("Proc.register", 2, (interp, args) => {
+        const self = args[0];
+        const waker = args[1];
+        if (!self || self.kind !== "proc_handle") throw new Error("Proc.register called on non-proc handle");
+        if (!waker || waker.kind !== "struct_instance") throw new Error("Proc.register expects AwaitWaker");
+        return interp.registerProcAwaiter(self, waker);
+      }),
+      commit: this.makeNativeFunction("Proc.commit", 1, (interp, args) => {
+        const self = args[0];
+        if (!self || self.kind !== "proc_handle") throw new Error("Proc.commit called on non-proc handle");
+        return interp.procHandleValue(self);
+      }),
+      is_default: this.makeNativeFunction("Proc.is_default", 1, () => ({ kind: "bool", value: false })),
     };
 
     this.futureNativeMethods = {
@@ -154,6 +173,24 @@ export class InterpreterV10 {
         interp.futureCancel(self);
         return { kind: "nil", value: null };
       }),
+      is_ready: this.makeNativeFunction("Future.is_ready", 1, (_interp, args) => {
+        const self = args[0];
+        if (!self || self.kind !== "future") throw new Error("Future.is_ready called on non-future");
+        return { kind: "bool", value: self.state !== "pending" };
+      }),
+      register: this.makeNativeFunction("Future.register", 2, (interp, args) => {
+        const self = args[0];
+        const waker = args[1];
+        if (!self || self.kind !== "future") throw new Error("Future.register called on non-future");
+        if (!waker || waker.kind !== "struct_instance") throw new Error("Future.register expects AwaitWaker");
+        return interp.registerFutureAwaiter(self, waker);
+      }),
+      commit: this.makeNativeFunction("Future.commit", 1, (interp, args) => {
+        const self = args[0];
+        if (!self || self.kind !== "future") throw new Error("Future.commit called on non-future");
+        return interp.futureValue(self);
+      }),
+      is_default: this.makeNativeFunction("Future.is_default", 1, () => ({ kind: "bool", value: false })),
     };
 
     this.errorNativeMethods = {

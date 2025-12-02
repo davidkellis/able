@@ -7,11 +7,7 @@ import able.core.interfaces.{Clone, Default, Index, IndexMut}
 import able.core.iteration.{IteratorEnd}
 import able.text.string
 
-struct SlotEntry K V {
-  key: K,
-  value: V,
-  hash: i32
-}
+struct SlotEntry K V { key: K, value: V, hash: i32 }
 
 struct Slot K V {
   tag: i32,
@@ -71,18 +67,7 @@ fn hash_key<K>(key: K) -> i32 {
 }
 
 fn keys_equal<K>(left: K, right: K) -> bool {
-  left match {
-    case lv: i32 => {
-      right match { case rv: i32 => lv == rv, case _ => false }
-    },
-    case lv: bool => {
-      right match { case rv: bool => lv == rv, case _ => false }
-    },
-    case lv: string => {
-      right match { case rv: string => lv == rv, case _ => false }
-    },
-    case _ => false
-  }
+  left == right
 }
 
 fn slot_empty<K, V>() -> Slot K V { Slot { tag: tag_empty(), entry: nil } }

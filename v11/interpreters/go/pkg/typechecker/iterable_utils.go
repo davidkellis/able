@@ -78,7 +78,7 @@ func iterableElementType(t Type) (Type, bool) {
 	}
 	if name, ok := structName(t); ok {
 		switch name {
-		case "Array", "Iterator", "List", "LinkedList", "LazySeq", "Vector", "HashSet", "Deque", "Queue":
+		case "Array", "Iterator", "List", "LinkedList", "LazySeq", "Vector", "HashSet", "Deque", "Queue", "Channel":
 			elem := typeArgumentOrUnknown(t, 0)
 			if elem == nil || isUnknownType(elem) {
 				return UnknownType{}, true

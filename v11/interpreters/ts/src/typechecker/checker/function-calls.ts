@@ -8,7 +8,7 @@ import {
 } from "./implementations";
 import { mergeBranchTypes as mergeBranchTypesHelper } from "./expressions";
 import type { StatementContext } from "./expression-context";
-import type { FunctionInfo } from "./types";
+import type { FunctionInfo, InterfaceCheckResult } from "./types";
 
 type FunctionCallContext = {
   implementationContext: ImplementationContext;
@@ -22,6 +22,11 @@ type FunctionCallContext = {
   getIdentifierName(node: AST.Identifier | null | undefined): string | null;
   checkBuiltinCallContext(name: string | undefined, call: AST.FunctionCall): void;
   getBuiltinCallName(callee: AST.Expression | undefined | null): string | undefined;
+  typeImplementsInterface?: (
+    type: TypeInfo,
+    interfaceName: string,
+    expectedArgs?: string[],
+  ) => InterfaceCheckResult;
   statementContext: StatementContext;
 };
 
@@ -32,6 +37,47 @@ export function checkFunctionCall(ctx: FunctionCallContext, call: AST.FunctionCa
   ctx.checkBuiltinCallContext(builtinName, call);
   const infos = resolveFunctionInfos(ctx, call.callee);
   if (!infos.length) {
+    const applyMatch = resolveApplyInterface(ctx, call.callee);
+    if (applyMatch) {
+      let params = applyMatch.paramTypes ?? [];
+      const optionalLast = params.length > 0 && params[params.length - 1]?.kind === "nullable";
+      if (params.length !== args.length && !(optionalLast && args.length === params.length - 1)) {
+        ctx.report(`typechecker: Apply.apply expects ${params.length} arguments, got ${args.length}`, call);
+      }
+      if (optionalLast && args.length === params.length - 1) {
+        params = params.slice(0, params.length - 1);
+      }
+      const compareCount = Math.min(params.length, argTypes.length);
+      for (let index = 0; index < compareCount; index += 1) {
+        const expected = params[index];
+        const actual = argTypes[index];
+        if (!expected || expected.kind === "unknown" || !actual || actual.kind === "unknown") {
+          continue;
+        }
+        const literalMessage = ctx.describeLiteralMismatch(actual, expected);
+        if (literalMessage) {
+          ctx.report(literalMessage, args[index] ?? call);
+          continue;
+        }
+        if (!ctx.isTypeAssignable(actual, expected)) {
+          ctx.report(
+            `typechecker: argument ${index + 1} has type ${formatType(actual)}, expected ${formatType(expected)}`,
+            args[index] ?? call,
+          );
+        }
+      }
+      return;
+    }
+    const calleeType = ctx.inferExpression(call.callee);
+    if (
+      calleeType.kind !== "unknown" &&
+      (call.callee?.type === "Identifier" || call.callee?.type === "MemberAccessExpression")
+    ) {
+      ctx.report(
+        `typechecker: cannot call non-callable value ${formatType(calleeType)} (missing Apply implementation)`,
+        call.callee ?? call,
+      );
+    }
     return;
   }
   const info = infos[0];
@@ -87,7 +133,8 @@ export function checkFunctionCall(ctx: FunctionCallContext, call: AST.FunctionCa
 export function inferFunctionCallReturnType(ctx: FunctionCallContext, call: AST.FunctionCall): TypeInfo {
   const infos = resolveFunctionInfos(ctx, call.callee);
   if (!infos.length) {
-    return unknownType;
+    const applyMatch = resolveApplyInterface(ctx, call.callee);
+    return applyMatch?.returnType ?? unknownType;
   }
   const returnTypes = infos
     .map((info) => info.returnType ?? unknownType)
@@ -224,4 +271,54 @@ function resolveFunctionInfos(ctx: FunctionCallContext, callee: AST.Expression |
     }
   }
   return [];
+}
+
+function resolveApplyInterface(
+  ctx: FunctionCallContext,
+  callee: AST.Expression | undefined | null,
+): { returnType: TypeInfo; paramTypes: TypeInfo[] } | null {
+  if (!callee) return null;
+  const calleeType = ctx.inferExpression(callee);
+  if (!calleeType || calleeType.kind === "unknown") {
+    return null;
+  }
+  if (calleeType.kind === "interface" && calleeType.name === "Apply") {
+    const args = calleeType.typeArguments ?? [];
+    const expectedArg = args[0] ?? unknownType;
+    const returnType = args[1] ?? unknownType;
+    return { returnType, paramTypes: [expectedArg] };
+  }
+  const label = formatType(calleeType);
+  const applyResult = ctx.typeImplementsInterface?.(calleeType, "Apply");
+  const implementationMatch = applyResult?.ok || hasApplyImplementationRecord(ctx, label);
+  if (!implementationMatch) {
+    return null;
+  }
+  const candidates: FunctionInfo[] = [];
+  const methodInfos = lookupMethodSetsForCallHelper(ctx.implementationContext, label, "apply", calleeType);
+  if (methodInfos.length) {
+    candidates.push(...methodInfos);
+  }
+  const direct = ctx.functionInfos.get(`${label}::apply`);
+  if (direct && !candidates.some((info) => info.fullName === direct.fullName)) {
+    candidates.push(direct);
+  }
+  if (!candidates.length) {
+    return null;
+  }
+  const info = candidates[0];
+  let paramTypes = Array.isArray(info.parameters) ? info.parameters.slice() : [];
+  if (info.hasImplicitSelf && paramTypes.length > 0) {
+    paramTypes = paramTypes.slice(1);
+  }
+  return { returnType: info.returnType ?? unknownType, paramTypes };
+}
+
+function hasApplyImplementationRecord(ctx: FunctionCallContext, label: string): boolean {
+  for (const record of ctx.implementationContext.getImplementationRecords()) {
+    if (record.interfaceName === "Apply" && record.targetKey === label) {
+      return true;
+    }
+  }
+  return false;
 }

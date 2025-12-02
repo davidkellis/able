@@ -40,18 +40,6 @@ func (i *Interpreter) initChannelMutexBuiltins() {
 	}
 
 	int64FromValue := i.int64FromValue
-	getMutex := func(handle int64) (*mutexState, error) {
-		if handle <= 0 {
-			return nil, fmt.Errorf("mutex handle must be positive")
-		}
-		i.mutexMu.Lock()
-		state, ok := i.mutexes[handle]
-		i.mutexMu.Unlock()
-		if !ok {
-			return nil, fmt.Errorf("unknown mutex handle %d", handle)
-		}
-		return state, nil
-	}
 	contextFromCall := i.contextFromCall
 	markBlocked := i.markBlocked
 	markUnblocked := i.markUnblocked
@@ -420,12 +408,9 @@ func (i *Interpreter) initChannelMutexBuiltins() {
 			if err != nil {
 				return nil, err
 			}
-			state, err := getMutex(handle)
+			state, err := i.mutexStateFromHandle(handle)
 			if err != nil {
 				return nil, err
-			}
-			if state.cond == nil {
-				state.cond = sync.NewCond(&state.mu)
 			}
 			ctx := contextFromCall(callCtx)
 			var procHandle *runtime.ProcHandleValue
@@ -540,12 +525,9 @@ func (i *Interpreter) initChannelMutexBuiltins() {
 			if err != nil {
 				return nil, err
 			}
-			state, err := getMutex(handle)
+			state, err := i.mutexStateFromHandle(handle)
 			if err != nil {
 				return nil, err
-			}
-			if state.cond == nil {
-				state.cond = sync.NewCond(&state.mu)
 			}
 			state.mu.Lock()
 			if !state.locked {
@@ -554,6 +536,7 @@ func (i *Interpreter) initChannelMutexBuiltins() {
 			}
 			state.locked = false
 			state.owner = nil
+			i.notifyMutexAwaiters(state)
 			if state.waiters > 0 {
 				state.cond.Signal()
 				for state.waiters > 0 && !state.locked {
@@ -577,6 +560,24 @@ func (i *Interpreter) initChannelMutexBuiltins() {
 	i.global.Define("__able_mutex_new", mutexNew)
 	i.global.Define("__able_mutex_lock", mutexLock)
 	i.global.Define("__able_mutex_unlock", mutexUnlock)
+	i.global.Define("__able_mutex_await_lock", runtime.NativeFunctionValue{
+		Name:  "__able_mutex_await_lock",
+		Arity: 2,
+		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+			if len(args) < 1 {
+				return nil, fmt.Errorf("__able_mutex_await_lock expects handle and callback")
+			}
+			handle, err := int64FromValue(args[0], "mutex handle")
+			if err != nil {
+				return nil, err
+			}
+			var callback runtime.Value
+			if len(args) > 1 {
+				callback = args[1]
+			}
+			return i.makeMutexAwaitable(handle, callback), nil
+		},
+	})
 
 	i.channelMutexReady = true
 }

@@ -1,6 +1,7 @@
 package interpreter
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -275,5 +276,476 @@ func TestAwaitChannelArmsSerialExecutor(t *testing.T) {
 	}
 	if got := mustGetString(t, global, "sender_result"); got != "sent" {
 		t.Fatalf("expected sender_result to be sent, got %q", got)
+	}
+}
+
+func TestAwaitFutureHandle(t *testing.T) {
+	interp := newAsyncInterpreter(t)
+	global := interp.GlobalEnvironment()
+
+	mustEval := func(expr ast.Expression) runtime.Value {
+		val, err := interp.evaluateExpression(expr, global)
+		if err != nil {
+			t.Fatalf("evaluation failed: %v", err)
+		}
+		return val
+	}
+
+	mustEval(ast.Assign(ast.ID("result"), ast.Int(0)))
+	mustEval(ast.Assign(ast.ID("fut"), ast.Spawn(ast.Block(
+		ast.Call("proc_yield"),
+		ast.Int(21),
+	))))
+
+	consumer := mustEval(ast.Proc(ast.Block(
+		ast.AssignOp(
+			ast.AssignmentAssign,
+			ast.ID("result"),
+			ast.Await(ast.Arr(ast.ID("fut"))),
+		),
+	)))
+	consumerHandle, ok := consumer.(*runtime.ProcHandleValue)
+	if !ok {
+		t.Fatalf("expected consumer proc handle, got %#v", consumer)
+	}
+
+	if !waitForStatus(consumerHandle, runtime.ProcResolved, 500*time.Millisecond) {
+		t.Fatalf("consumer did not resolve: %v", consumerHandle.Status())
+	}
+
+	if got := intFromValue(t, mustEval(ast.ID("result"))); got != 21 {
+		t.Fatalf("expected await result to be 21, got %d", got)
+	}
+}
+
+func TestAwaitProcHandle(t *testing.T) {
+	interp := newAsyncInterpreter(t)
+	global := interp.GlobalEnvironment()
+
+	mustEval := func(expr ast.Expression) runtime.Value {
+		val, err := interp.evaluateExpression(expr, global)
+		if err != nil {
+			t.Fatalf("evaluation failed: %v", err)
+		}
+		return val
+	}
+
+	mustEval(ast.Assign(ast.ID("result"), ast.Int(0)))
+	mustEval(ast.Assign(ast.ID("worker"), ast.Proc(ast.Block(
+		ast.Call("proc_yield"),
+		ast.Int(12),
+	))))
+
+	consumer := mustEval(ast.Proc(ast.Block(
+		ast.AssignOp(
+			ast.AssignmentAssign,
+			ast.ID("result"),
+			ast.Await(ast.Arr(ast.ID("worker"))),
+		),
+	)))
+	consumerHandle, ok := consumer.(*runtime.ProcHandleValue)
+	if !ok {
+		t.Fatalf("expected consumer proc handle, got %#v", consumer)
+	}
+
+	workerVal := mustEval(ast.ID("worker"))
+	workerHandle, ok := workerVal.(*runtime.ProcHandleValue)
+	if !ok {
+		t.Fatalf("expected worker proc handle, got %#v", workerVal)
+	}
+
+	if !waitForStatus(workerHandle, runtime.ProcResolved, 500*time.Millisecond) {
+		t.Fatalf("worker did not resolve: %v", workerHandle.Status())
+	}
+	if !waitForStatus(consumerHandle, runtime.ProcResolved, 500*time.Millisecond) {
+		t.Fatalf("consumer did not resolve: %v", consumerHandle.Status())
+	}
+
+	if got := intFromValue(t, mustEval(ast.ID("result"))); got != 12 {
+		t.Fatalf("expected await result to be 12, got %d", got)
+	}
+}
+
+func TestAwaitDefaultHelper(t *testing.T) {
+	interp := newAsyncInterpreter(t)
+	global := interp.GlobalEnvironment()
+
+	mustEval := func(expr ast.Expression) runtime.Value {
+		val, err := interp.evaluateExpression(expr, global)
+		if err != nil {
+			t.Fatalf("evaluation failed: %v", err)
+		}
+		return val
+	}
+
+	mustEval(ast.Assign(ast.ID("result"), ast.Str("pending")))
+	consumer := mustEval(ast.Proc(ast.Block(
+		ast.AssignOp(
+			ast.AssignmentAssign,
+			ast.ID("result"),
+			ast.Await(ast.Arr(ast.Call("__able_await_default", ast.Lam(nil, ast.Str("fallback"))))),
+		),
+	)))
+	handle, ok := consumer.(*runtime.ProcHandleValue)
+	if !ok {
+		t.Fatalf("expected consumer proc handle, got %#v", consumer)
+	}
+
+	if !waitForStatus(handle, runtime.ProcResolved, 500*time.Millisecond) {
+		t.Fatalf("consumer did not resolve: %v", handle.Status())
+	}
+	if got := mustGetString(t, global, "result"); got != "fallback" {
+		t.Fatalf("expected await result to be fallback, got %q", got)
+	}
+}
+
+func TestAwaitSleepMsHelper(t *testing.T) {
+	interp := newAsyncInterpreter(t)
+	global := interp.GlobalEnvironment()
+
+	mustEval := func(expr ast.Expression) runtime.Value {
+		val, err := interp.evaluateExpression(expr, global)
+		if err != nil {
+			t.Fatalf("evaluation failed: %v", err)
+		}
+		return val
+	}
+
+	mustEval(ast.Assign(ast.ID("result"), ast.Str("pending")))
+	timerArm := ast.Call("__able_await_sleep_ms", ast.Int(5), ast.Lam(nil, ast.Str("timer")))
+	consumer := mustEval(ast.Proc(ast.Block(
+		ast.AssignOp(
+			ast.AssignmentAssign,
+			ast.ID("result"),
+			ast.Await(ast.Arr(timerArm)),
+		),
+	)))
+	handle, ok := consumer.(*runtime.ProcHandleValue)
+	if !ok {
+		t.Fatalf("expected consumer proc handle, got %#v", consumer)
+	}
+
+	if !waitForStatus(handle, runtime.ProcResolved, 500*time.Millisecond) {
+		t.Fatalf("consumer did not resolve: %v", handle.Status())
+	}
+	if got := mustGetString(t, global, "result"); got != "timer" {
+		t.Fatalf("expected await result to be timer, got %q", got)
+	}
+}
+
+func TestAwaitReadyArmsRoundRobin(t *testing.T) {
+	interp := New()
+	global := interp.GlobalEnvironment()
+
+	mustEvalStmt := func(stmt ast.Statement) {
+		if _, err := interp.evaluateStatement(stmt, global); err != nil {
+			t.Fatalf("statement evaluation failed: %v", err)
+		}
+	}
+	mustEvalExpr := func(expr ast.Expression) runtime.Value {
+		val, err := interp.evaluateExpression(expr, global)
+		if err != nil {
+			t.Fatalf("expression evaluation failed: %v", err)
+		}
+		return val
+	}
+
+	mustEvalStmt(ast.StructDef("ManualRegistration", nil, ast.StructKindNamed, nil, nil, false))
+	cancelFn := ast.Fn(
+		"cancel",
+		nil,
+		[]ast.Statement{
+			ast.Ret(ast.Nil()),
+		},
+		ast.Ty("void"),
+		nil,
+		nil,
+		true,
+		false,
+	)
+	mustEvalStmt(ast.Methods(ast.Ty("ManualRegistration"), []*ast.FunctionDefinition{cancelFn}, nil, nil))
+
+	mustEvalStmt(ast.StructDef("ReadyAwaitable", []*ast.StructFieldDefinition{
+		ast.FieldDef(ast.Ty("i32"), "value"),
+	}, ast.StructKindNamed, nil, nil, false))
+
+	readyMethods := ast.Methods(ast.Ty("ReadyAwaitable"), []*ast.FunctionDefinition{
+		ast.Fn(
+			"is_ready",
+			nil,
+			[]ast.Statement{
+				ast.Ret(ast.Bool(true)),
+			},
+			ast.Ty("bool"),
+			nil,
+			nil,
+			true,
+			false,
+		),
+		ast.Fn(
+			"register",
+			[]*ast.FunctionParameter{ast.Param("waker", ast.Ty("AwaitWaker"))},
+			[]ast.Statement{
+				ast.Ret(ast.StructLit(nil, false, "ManualRegistration", nil, nil)),
+			},
+			ast.Ty("ManualRegistration"),
+			nil,
+			nil,
+			true,
+			false,
+		),
+		ast.Fn(
+			"commit",
+			nil,
+			[]ast.Statement{
+				ast.Ret(ast.ImplicitMember(ast.ID("value"))),
+			},
+			ast.Ty("i32"),
+			nil,
+			nil,
+			true,
+			false,
+		),
+		ast.Fn(
+			"is_default",
+			nil,
+			[]ast.Statement{
+				ast.Ret(ast.Bool(false)),
+			},
+			ast.Ty("bool"),
+			nil,
+			nil,
+			true,
+			false,
+		),
+	}, nil, nil)
+	mustEvalStmt(readyMethods)
+
+	mustEvalExpr(ast.Assign(ast.ID("arm1"), ast.StructLit([]*ast.StructFieldInitializer{
+		ast.FieldInit(ast.Int(1), "value"),
+	}, false, "ReadyAwaitable", nil, nil)))
+	mustEvalExpr(ast.Assign(ast.ID("arm2"), ast.StructLit([]*ast.StructFieldInitializer{
+		ast.FieldInit(ast.Int(2), "value"),
+	}, false, "ReadyAwaitable", nil, nil)))
+	mustEvalExpr(ast.Assign(ast.ID("arms"), ast.Arr(ast.ID("arm1"), ast.ID("arm2"))))
+
+	mustEvalExpr(ast.Assign(ast.ID("first"), ast.Int(0)))
+	mustEvalExpr(ast.Assign(ast.ID("second"), ast.Int(0)))
+	mustEvalExpr(ast.Assign(ast.ID("third"), ast.Int(0)))
+
+	procHandleVal := mustEvalExpr(ast.Proc(ast.Block(
+		ast.AssignOp(ast.AssignmentAssign, ast.ID("first"), ast.Await(ast.ID("arms"))),
+		ast.AssignOp(ast.AssignmentAssign, ast.ID("second"), ast.Await(ast.ID("arms"))),
+		ast.AssignOp(ast.AssignmentAssign, ast.ID("third"), ast.Await(ast.ID("arms"))),
+	)))
+	handle, ok := procHandleVal.(*runtime.ProcHandleValue)
+	if !ok {
+		t.Fatalf("expected proc handle, got %#v", procHandleVal)
+	}
+
+	if !waitForStatus(handle, runtime.ProcResolved, 200*time.Millisecond) {
+		t.Fatalf("proc did not resolve, status=%v", handle.Status())
+	}
+
+	if got := intFromValue(t, mustEvalExpr(ast.ID("first"))); got != 1 {
+		t.Fatalf("expected first await to pick arm1, got %d", got)
+	}
+	if got := intFromValue(t, mustEvalExpr(ast.ID("second"))); got != 2 {
+		t.Fatalf("expected second await to pick arm2, got %d", got)
+	}
+	if got := intFromValue(t, mustEvalExpr(ast.ID("third"))); got != 1 {
+		t.Fatalf("expected third await to rotate back to arm1, got %d", got)
+	}
+}
+
+func TestAwaitCancellationStopsPendingArms(t *testing.T) {
+	interp := newAsyncInterpreter(t)
+	global := interp.GlobalEnvironment()
+
+	mustEval := func(expr ast.Expression) runtime.Value {
+		val, err := interp.evaluateExpression(expr, global)
+		if err != nil {
+			t.Fatalf("evaluation failed: %v", err)
+		}
+		return val
+	}
+
+	mustEval(ast.Assign(ast.ID("hits"), ast.Int(0)))
+	mustEval(ast.Assign(ast.ID("result"), ast.Str("pending")))
+
+	timerArm := ast.Call(
+		"__able_await_sleep_ms",
+		ast.Int(15),
+		ast.LamBlock(nil, ast.Block(
+			ast.AssignOp(ast.AssignmentAssign, ast.ID("hits"), ast.Bin("+", ast.ID("hits"), ast.Int(1))),
+			ast.Ret(ast.Str("timer")),
+		)),
+	)
+
+	consumer := mustEval(ast.Proc(ast.Block(
+		ast.AssignOp(
+			ast.AssignmentAssign,
+			ast.ID("result"),
+			ast.Await(ast.Arr(timerArm)),
+		),
+	)))
+	handle, ok := consumer.(*runtime.ProcHandleValue)
+	if !ok {
+		t.Fatalf("expected proc handle, got %#v", consumer)
+	}
+
+	time.Sleep(5 * time.Millisecond)
+	handle.RequestCancel()
+
+	if !waitForStatus(handle, runtime.ProcCancelled, 200*time.Millisecond) {
+		t.Fatalf("expected cancelled status, got %v", handle.Status())
+	}
+
+	time.Sleep(25 * time.Millisecond)
+
+	if got := intFromValue(t, mustEval(ast.ID("hits"))); got != 0 {
+		t.Fatalf("expected timer callback to be cancelled, hits=%d", got)
+	}
+	if got := mustGetString(t, global, "result"); got != "pending" {
+		t.Fatalf("expected result to remain pending, got %q", got)
+	}
+
+	valueVal := interp.procHandleValue(handle)
+	errValue, ok := valueVal.(runtime.ErrorValue)
+	if !ok {
+		t.Fatalf("expected runtime error from cancelled proc, got %#v", valueVal)
+	}
+	if !strings.Contains(errValue.Message, "cancelled") {
+		t.Fatalf("expected cancellation message, got %q", errValue.Message)
+	}
+}
+
+func TestAwaitChannelSendCancellation(t *testing.T) {
+	interp := newAsyncInterpreter(t)
+	global := interp.GlobalEnvironment()
+
+	mustEval := func(expr ast.Expression) runtime.Value {
+		val, err := interp.evaluateExpression(expr, global)
+		if err != nil {
+			t.Fatalf("evaluation failed: %v", err)
+		}
+		return val
+	}
+
+	mustEval(ast.Assign(ast.ID("ch"), ast.Call("__able_channel_new", ast.Int(0))))
+	mustEval(ast.Assign(ast.ID("hits"), ast.Int(0)))
+	mustEval(ast.Assign(ast.ID("result"), ast.Str("pending")))
+
+	sendArm := ast.Call(
+		"__able_channel_await_try_send",
+		ast.ID("ch"),
+		ast.Str("payload"),
+		ast.LamBlock(nil, ast.Block(
+			ast.AssignOp(ast.AssignmentAssign, ast.ID("hits"), ast.Bin("+", ast.ID("hits"), ast.Int(1))),
+			ast.Ret(ast.Str("sent")),
+		)),
+	)
+
+	consumer := mustEval(ast.Proc(ast.Block(
+		ast.AssignOp(
+			ast.AssignmentAssign,
+			ast.ID("result"),
+			ast.Await(ast.Arr(sendArm)),
+		),
+	)))
+	handle, ok := consumer.(*runtime.ProcHandleValue)
+	if !ok {
+		t.Fatalf("expected proc handle, got %#v", consumer)
+	}
+
+	handle.RequestCancel()
+	if !waitForStatus(handle, runtime.ProcCancelled, 200*time.Millisecond) {
+		t.Fatalf("expected cancelled status, got %v", handle.Status())
+	}
+
+	recvVal := mustEval(ast.Call("__able_channel_try_receive", ast.ID("ch")))
+	if _, ok := recvVal.(runtime.NilValue); !ok {
+		t.Fatalf("expected try_receive to return nil after cancellation, got %#v", recvVal)
+	}
+	if got := intFromValue(t, mustEval(ast.ID("hits"))); got != 0 {
+		t.Fatalf("expected hits to remain 0, got %d", got)
+	}
+	if got := mustGetString(t, global, "result"); got != "pending" {
+		t.Fatalf("expected result to remain pending, got %q", got)
+	}
+	valueVal := interp.procHandleValue(handle)
+	errValue, ok := valueVal.(runtime.ErrorValue)
+	if !ok {
+		t.Fatalf("expected runtime error from cancelled proc, got %#v", valueVal)
+	}
+	if !strings.Contains(errValue.Message, "cancelled") {
+		t.Fatalf("expected cancellation message, got %q", errValue.Message)
+	}
+}
+
+func TestAwaitChannelCancellationStopsRegistrations(t *testing.T) {
+	interp := newAsyncInterpreter(t)
+	global := interp.GlobalEnvironment()
+
+	mustEval := func(expr ast.Expression) runtime.Value {
+		val, err := interp.evaluateExpression(expr, global)
+		if err != nil {
+			t.Fatalf("evaluation failed: %v", err)
+		}
+		return val
+	}
+
+	mustEval(ast.Assign(ast.ID("ch"), ast.Call("__able_channel_new", ast.Int(1))))
+	mustEval(ast.Assign(ast.ID("hits"), ast.Int(0)))
+	mustEval(ast.Assign(ast.ID("result"), ast.Str("pending")))
+
+	recvArm := ast.Call(
+		"__able_channel_await_try_recv",
+		ast.ID("ch"),
+		ast.Lam([]*ast.FunctionParameter{ast.Param("v", nil)}, ast.Block(
+			ast.AssignOp(ast.AssignmentAssign, ast.ID("hits"), ast.Bin("+", ast.ID("hits"), ast.Int(1))),
+			ast.Ret(ast.ID("v")),
+		)),
+	)
+
+	consumer := mustEval(ast.Proc(ast.Block(
+		ast.AssignOp(
+			ast.AssignmentAssign,
+			ast.ID("result"),
+			ast.Await(ast.Arr(recvArm)),
+		),
+	)))
+	handle, ok := consumer.(*runtime.ProcHandleValue)
+	if !ok {
+		t.Fatalf("expected proc handle, got %#v", consumer)
+	}
+
+	if handle.Status() != runtime.ProcPending {
+		t.Fatalf("expected pending handle before cancellation, got %v", handle.Status())
+	}
+
+	handle.RequestCancel()
+	if !waitForStatus(handle, runtime.ProcCancelled, 200*time.Millisecond) {
+		t.Fatalf("expected cancelled status, got %v", handle.Status())
+	}
+
+	// Send after cancellation to ensure the await registration was cancelled and the callback is not invoked.
+	mustEval(ast.Call("__able_channel_send", ast.ID("ch"), ast.Str("payload")))
+	time.Sleep(10 * time.Millisecond)
+
+	if got := intFromValue(t, mustEval(ast.ID("hits"))); got != 0 {
+		t.Fatalf("expected hits to remain 0, got %d", got)
+	}
+	if got := mustGetString(t, global, "result"); got != "pending" {
+		t.Fatalf("expected result to remain pending, got %q", got)
+	}
+
+	valueVal := interp.procHandleValue(handle)
+	errValue, ok := valueVal.(runtime.ErrorValue)
+	if !ok {
+		t.Fatalf("expected runtime error from cancelled proc, got %#v", valueVal)
+	}
+	if !strings.Contains(errValue.Message, "cancelled") {
+		t.Fatalf("expected cancellation message, got %q", errValue.Message)
 	}
 }

@@ -415,6 +415,7 @@ type ProcHandleValue struct {
 	cancel          context.CancelFunc
 	started         bool
 	done            *sync.Cond
+	awaiters        []func()
 }
 
 func NewProcHandle() *ProcHandleValue {
@@ -471,6 +472,20 @@ func (v *ProcHandleValue) Snapshot() (Value, Value, ProcStatus) {
 	return v.result, v.err, v.status
 }
 
+func (v *ProcHandleValue) AddAwaiter(cb func()) {
+	if cb == nil {
+		return
+	}
+	v.mu.Lock()
+	if v.status != ProcPending {
+		v.mu.Unlock()
+		cb()
+		return
+	}
+	v.awaiters = append(v.awaiters, cb)
+	v.mu.Unlock()
+}
+
 func (v *ProcHandleValue) Await() (Value, Value, ProcStatus) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
@@ -481,34 +496,58 @@ func (v *ProcHandleValue) Await() (Value, Value, ProcStatus) {
 }
 
 func (v *ProcHandleValue) Resolve(val Value) {
+	var awaiters []func()
 	v.mu.Lock()
 	if v.status == ProcPending {
 		v.status = ProcResolved
 		v.result = val
+		awaiters = v.awaiters
+		v.awaiters = nil
 		v.done.Broadcast()
 	}
 	v.mu.Unlock()
+	for _, cb := range awaiters {
+		if cb != nil {
+			cb()
+		}
+	}
 }
 
 func (v *ProcHandleValue) Fail(err Value) {
+	var awaiters []func()
 	v.mu.Lock()
 	if v.status == ProcPending {
 		v.status = ProcFailed
 		v.err = err
+		awaiters = v.awaiters
+		v.awaiters = nil
 		v.done.Broadcast()
 	}
 	v.mu.Unlock()
+	for _, cb := range awaiters {
+		if cb != nil {
+			cb()
+		}
+	}
 }
 
 func (v *ProcHandleValue) Cancel(err Value) {
+	var awaiters []func()
 	v.mu.Lock()
 	if v.status == ProcPending {
 		v.status = ProcCancelled
 		v.err = err
 		v.cancelRequested = true
+		awaiters = v.awaiters
+		v.awaiters = nil
 		v.done.Broadcast()
 	}
 	v.mu.Unlock()
+	for _, cb := range awaiters {
+		if cb != nil {
+			cb()
+		}
+	}
 }
 
 func (v *ProcHandleValue) RequestCancel() {

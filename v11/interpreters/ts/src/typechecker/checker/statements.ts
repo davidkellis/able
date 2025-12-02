@@ -2,6 +2,7 @@ import type * as AST from "../../ast";
 import {
   formatType,
   isBoolean,
+  isIntegerPrimitiveType,
   isUnknown,
   type TypeInfo,
   primitiveType,
@@ -71,7 +72,11 @@ export function checkAssignment(ctx: StatementContext, node: AST.AssignmentExpre
   if (!node.left) {
     return valueType;
   }
-  if (node.left.type === "MemberAccessExpression" || node.left.type === "IndexExpression") {
+  if (node.left.type === "IndexExpression") {
+    checkIndexAssignment(ctx, node, valueType);
+    return valueType;
+  }
+  if (node.left.type === "MemberAccessExpression") {
     ctx.inferExpression(node.left);
     return valueType;
   }
@@ -258,6 +263,96 @@ function predeclarePattern(
     default:
       return;
   }
+}
+
+function checkIndexAssignment(ctx: StatementContext, node: AST.AssignmentExpression, valueType: TypeInfo): void {
+  const target = node.left as AST.IndexExpression;
+  const objectType = ctx.inferExpression(target.object);
+  const indexType = ctx.inferExpression(target.index);
+  if (node.operator === ":=") {
+    ctx.report("typechecker: cannot use := on index assignment", target);
+    return;
+  }
+  if (!objectType || objectType.kind === "unknown") {
+    return;
+  }
+  const reportValueMismatch = (expected: TypeInfo): void => {
+    if (
+      expected &&
+      expected.kind !== "unknown" &&
+      valueType &&
+      valueType.kind !== "unknown" &&
+      !ctx.isTypeAssignable(valueType, expected)
+    ) {
+      ctx.report(
+        `typechecker: index assignment expects value type ${formatType(expected)}, got ${formatType(valueType)}`,
+        node.right ?? target,
+      );
+    }
+  };
+  const requireIntegerIndex = (): void => {
+    if (!isIntegerPrimitiveType(indexType) && indexType.kind !== "unknown") {
+      ctx.report("typechecker: index must be an integer", target.index);
+    }
+  };
+  if (objectType.kind === "array") {
+    requireIntegerIndex();
+    reportValueMismatch(objectType.element ?? unknownType);
+    return;
+  }
+  if (objectType.kind === "struct" && objectType.name === "Array") {
+    requireIntegerIndex();
+    reportValueMismatch((objectType.typeArguments ?? [])[0] ?? unknownType);
+    return;
+  }
+  if (objectType.kind === "map") {
+    reportValueMismatch(objectType.value ?? unknownType);
+    return;
+  }
+  if (objectType.kind === "struct" && objectType.name === "HashMap") {
+    const args = objectType.typeArguments ?? [];
+    const keyType = args[0];
+    const value = args[1];
+    if (keyType && !ctx.isTypeAssignable(indexType, keyType) && indexType.kind !== "unknown") {
+      ctx.report(
+        `typechecker: index expects type ${formatType(keyType)}, got ${formatType(indexType)}`,
+        target.index,
+      );
+    }
+    reportValueMismatch(value ?? unknownType);
+    return;
+  }
+  if (objectType.kind === "interface" && objectType.name === "IndexMut") {
+    const args = objectType.typeArguments ?? [];
+    const keyType = args[0];
+    const value = args[1];
+    if (keyType && !ctx.isTypeAssignable(indexType, keyType) && indexType.kind !== "unknown") {
+      ctx.report(
+        `typechecker: index expects type ${formatType(keyType)}, got ${formatType(indexType)}`,
+        target.index,
+      );
+    }
+    reportValueMismatch(value ?? unknownType);
+    return;
+  }
+  if (objectType.kind === "interface" && objectType.name === "Index") {
+    ctx.report(
+      `typechecker: cannot assign via [] without IndexMut implementation on type ${formatType(objectType)}`,
+      target,
+    );
+    return;
+  }
+  if (ctx.typeImplementsInterface?.(objectType, "IndexMut", ["Idx", "Val"])?.ok) {
+    return;
+  }
+  if (ctx.typeImplementsInterface?.(objectType, "Index", ["Idx", "Val"])?.ok) {
+    ctx.report(
+      `typechecker: cannot assign via [] without IndexMut implementation on type ${formatType(objectType)}`,
+      target,
+    );
+    return;
+  }
+  ctx.report(`typechecker: cannot assign into type ${formatType(objectType)}`, target);
 }
 
 function collectPatternIdentifiers(pattern: AST.Pattern | undefined | null, into: Set<string>): void {

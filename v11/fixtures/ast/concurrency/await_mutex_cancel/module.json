@@ -1,0 +1,246 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "mtx"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "Identifier",
+          "name": "__able_mutex_new"
+        },
+        "arguments": [],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "Identifier",
+        "name": "__able_mutex_lock"
+      },
+      "arguments": [
+        {
+          "type": "Identifier",
+          "name": "mtx"
+        }
+      ],
+      "isTrailingLambda": false
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "hits"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 0
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "runner"
+      },
+      "right": {
+        "type": "ProcExpression",
+        "expression": {
+          "type": "BlockExpression",
+          "body": [
+            {
+              "type": "AssignmentExpression",
+              "operator": "=",
+              "left": {
+                "type": "Identifier",
+                "name": "result"
+              },
+              "right": {
+                "type": "AwaitExpression",
+                "expression": {
+                  "type": "ArrayLiteral",
+                  "elements": [
+                    {
+                      "type": "FunctionCall",
+                      "callee": {
+                        "type": "Identifier",
+                        "name": "__able_mutex_await_lock"
+                      },
+                      "arguments": [
+                        {
+                          "type": "Identifier",
+                          "name": "mtx"
+                        },
+                        {
+                          "type": "LambdaExpression",
+                          "params": [],
+                          "body": {
+                            "type": "BlockExpression",
+                            "body": [
+                              {
+                                "type": "AssignmentExpression",
+                                "operator": "=",
+                                "left": {
+                                  "type": "Identifier",
+                                  "name": "hits"
+                                },
+                                "right": {
+                                  "type": "BinaryExpression",
+                                  "operator": "+",
+                                  "left": {
+                                    "type": "Identifier",
+                                    "name": "hits"
+                                  },
+                                  "right": {
+                                    "type": "IntegerLiteral",
+                                    "value": 1
+                                  }
+                                }
+                              },
+                              {
+                                "type": "StringLiteral",
+                                "value": "locked"
+                              }
+                            ]
+                          },
+                          "isVerboseSyntax": false
+                        }
+                      ],
+                      "isTrailingLambda": false
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "type": "Identifier",
+              "name": "result"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "Identifier",
+        "name": "proc_flush"
+      },
+      "arguments": [],
+      "isTrailingLambda": false
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "MemberAccessExpression",
+        "object": {
+          "type": "Identifier",
+          "name": "runner"
+        },
+        "member": {
+          "type": "Identifier",
+          "name": "cancel"
+        }
+      },
+      "arguments": [],
+      "isTrailingLambda": false
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "Identifier",
+        "name": "proc_flush"
+      },
+      "arguments": [],
+      "isTrailingLambda": false
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "Identifier",
+        "name": "__able_mutex_unlock"
+      },
+      "arguments": [
+        {
+          "type": "Identifier",
+          "name": "mtx"
+        }
+      ],
+      "isTrailingLambda": false
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "lock_again"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "Identifier",
+          "name": "__able_mutex_lock"
+        },
+        "arguments": [
+          {
+            "type": "Identifier",
+            "name": "mtx"
+          }
+        ],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "Identifier",
+        "name": "__able_mutex_unlock"
+      },
+      "arguments": [
+        {
+          "type": "Identifier",
+          "name": "mtx"
+        }
+      ],
+      "isTrailingLambda": false
+    },
+    {
+      "type": "ArrayLiteral",
+      "elements": [
+        {
+          "type": "BinaryExpression",
+          "operator": "==",
+          "left": {
+            "type": "Identifier",
+            "name": "hits"
+          },
+          "right": {
+            "type": "IntegerLiteral",
+            "value": 0
+          }
+        },
+        {
+          "type": "BinaryExpression",
+          "operator": "==",
+          "left": {
+            "type": "Identifier",
+            "name": "lock_again"
+          },
+          "right": {
+            "type": "NilLiteral",
+            "value": null
+          }
+        }
+      ]
+    }
+  ]
+}

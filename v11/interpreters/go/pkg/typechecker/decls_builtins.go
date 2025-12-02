@@ -35,12 +35,64 @@ func registerBuiltins(env *Environment) {
 		Params: []Type{UnknownType{}},
 		Return: nilType,
 	}
+	awaitableIface := InterfaceType{
+		InterfaceName: "Awaitable",
+		TypeParams: []GenericParamSpec{
+			{Name: "Output"},
+		},
+		Methods: map[string]FunctionType{
+			"is_ready": {
+				Params: []Type{
+					TypeParameterType{ParameterName: "Self"},
+				},
+				Return: boolType,
+			},
+			"register": {
+				Params: []Type{
+					TypeParameterType{ParameterName: "Self"},
+					StructType{StructName: "AwaitWaker"},
+				},
+				Return: StructType{StructName: "AwaitRegistration"},
+			},
+			"commit": {
+				Params: []Type{
+					TypeParameterType{ParameterName: "Self"},
+				},
+				Return: TypeParameterType{ParameterName: "Output"},
+			},
+			"is_default": {
+				Params: []Type{
+					TypeParameterType{ParameterName: "Self"},
+				},
+				Return: boolType,
+			},
+		},
+	}
+	awaitableUnknown := AppliedType{
+		Base:      awaitableIface,
+		Arguments: []Type{UnknownType{}},
+	}
+	callbackType := FunctionType{
+		Params: nil,
+		Return: UnknownType{},
+	}
 
 	env.Define("proc_yield", procYield)
 	env.Define("proc_cancelled", procCancelled)
 	env.Define("proc_flush", procFlush)
 	env.Define("proc_pending_tasks", procPendingTasks)
 	env.Define("print", printFn)
+	env.Define("AwaitWaker", StructType{StructName: "AwaitWaker"})
+	env.Define("AwaitRegistration", StructType{StructName: "AwaitRegistration"})
+	env.Define("Awaitable", awaitableIface)
+	env.Define("__able_await_default", FunctionType{
+		Params: []Type{callbackType},
+		Return: awaitableUnknown,
+	})
+	env.Define("__able_await_sleep_ms", FunctionType{
+		Params: []Type{i64Type, NullableType{Inner: callbackType}},
+		Return: awaitableUnknown,
+	})
 
 	env.Define("__able_channel_new", FunctionType{
 		Params: []Type{i32Type},
@@ -60,6 +112,14 @@ func registerBuiltins(env *Environment) {
 	})
 	env.Define("__able_channel_try_receive", FunctionType{
 		Params: []Type{anyType},
+		Return: anyType,
+	})
+	env.Define("__able_channel_await_try_recv", FunctionType{
+		Params: []Type{anyType, anyType},
+		Return: anyType,
+	})
+	env.Define("__able_channel_await_try_send", FunctionType{
+		Params: []Type{anyType, anyType, anyType},
 		Return: anyType,
 	})
 	env.Define("__able_channel_close", FunctionType{
@@ -82,6 +142,10 @@ func registerBuiltins(env *Environment) {
 	env.Define("__able_mutex_unlock", FunctionType{
 		Params: []Type{i64Type},
 		Return: nilType,
+	})
+	env.Define("__able_mutex_await_lock", FunctionType{
+		Params: []Type{i64Type, anyType},
+		Return: anyType,
 	})
 
 	env.Define("__able_array_new", FunctionType{

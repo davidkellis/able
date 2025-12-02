@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"sync/atomic"
 
 	goRuntime "runtime"
 
@@ -40,7 +41,9 @@ func (i *Interpreter) initConcurrencyBuiltins() {
 	_, _ = i.evaluateStructDefinition(cancelledDef, i.global)
 	_, _ = i.evaluateStructDefinition(failedDef, i.global)
 	awaitWakerDef := ast.NewStructDefinition(ast.NewIdentifier("AwaitWaker"), nil, ast.StructKindNamed, nil, nil, false)
+	awaitRegistrationDef := ast.NewStructDefinition(ast.NewIdentifier("AwaitRegistration"), nil, ast.StructKindNamed, nil, nil, false)
 	_, _ = i.evaluateStructDefinition(awaitWakerDef, i.global)
+	_, _ = i.evaluateStructDefinition(awaitRegistrationDef, i.global)
 
 	if val, err := i.global.Get("ProcError"); err == nil {
 		if def, conv := toStructDefinitionValue(val, "ProcError"); conv == nil {
@@ -145,6 +148,40 @@ func (i *Interpreter) initConcurrencyBuiltins() {
 		},
 	}
 	i.global.Define("proc_pending_tasks", procPendingTasks)
+
+	awaitDefault := &runtime.NativeFunctionValue{
+		Name:  "__able_await_default",
+		Arity: 1,
+		Impl: func(callCtx *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+			var callback runtime.Value
+			if len(args) > 0 {
+				callback = args[len(args)-1]
+			}
+			return i.makeDefaultAwaitable(callback), nil
+		},
+	}
+	i.global.Define("__able_await_default", awaitDefault)
+
+	awaitSleepMs := &runtime.NativeFunctionValue{
+		Name:  "__able_await_sleep_ms",
+		Arity: 2,
+		Impl: func(callCtx *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+			if len(args) == 0 {
+				return nil, fmt.Errorf("__able_await_sleep_ms expects duration")
+			}
+			duration, err := durationFromValue(args[0])
+			if err != nil {
+				return nil, err
+			}
+			var callback runtime.Value
+			if len(args) > 1 {
+				callback = args[len(args)-1]
+			}
+			awaitable := newTimerAwaitable(i, duration, callback)
+			return awaitable.toStruct(), nil
+		},
+	}
+	i.global.Define("__able_await_sleep_ms", awaitSleepMs)
 
 	i.concurrencyReady = true
 }
@@ -399,6 +436,24 @@ func (i *Interpreter) toProcError(val runtime.Value, fallback string) runtime.Va
 	return i.makeProcError(fallback)
 }
 
+func (i *Interpreter) registerHandleAwaiter(handle *runtime.ProcHandleValue, waker runtime.Value) (runtime.Value, error) {
+	if handle == nil {
+		return nil, fmt.Errorf("register requires proc handle")
+	}
+	structWaker, ok := waker.(*runtime.StructInstanceValue)
+	if !ok || structWaker == nil {
+		return nil, fmt.Errorf("register expects AwaitWaker")
+	}
+	var cancelled atomic.Bool
+	handle.AddAwaiter(func() {
+		if cancelled.Load() {
+			return
+		}
+		i.invokeAwaitWaker(structWaker, i.global)
+	})
+	return i.makeAwaitRegistrationValue(func() { cancelled.Store(true) }), nil
+}
+
 func (i *Interpreter) procHandleMember(handle *runtime.ProcHandleValue, member ast.Expression) (runtime.Value, error) {
 	ident, ok := member.(*ast.Identifier)
 	if !ok {
@@ -451,6 +506,63 @@ func (i *Interpreter) procHandleMember(handle *runtime.ProcHandleValue, member a
 				}
 				recv.RequestCancel()
 				return runtime.NilValue{}, nil
+			},
+		}
+		return &runtime.NativeBoundMethodValue{Receiver: handle, Method: fn}, nil
+	case "is_ready":
+		fn := runtime.NativeFunctionValue{
+			Name:  "proc_handle.is_ready",
+			Arity: 0,
+			Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+				if len(args) == 0 {
+					return nil, fmt.Errorf("is_ready requires receiver")
+				}
+				recv, ok := args[0].(*runtime.ProcHandleValue)
+				if !ok {
+					return nil, fmt.Errorf("is_ready receiver must be a proc handle")
+				}
+				return runtime.BoolValue{Val: recv.Status() != runtime.ProcPending}, nil
+			},
+		}
+		return &runtime.NativeBoundMethodValue{Receiver: handle, Method: fn}, nil
+	case "register":
+		fn := runtime.NativeFunctionValue{
+			Name:  "proc_handle.register",
+			Arity: 1,
+			Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+				if len(args) < 2 {
+					return nil, fmt.Errorf("register requires receiver and waker")
+				}
+				recv, ok := args[0].(*runtime.ProcHandleValue)
+				if !ok {
+					return nil, fmt.Errorf("register receiver must be a proc handle")
+				}
+				return i.registerHandleAwaiter(recv, args[1])
+			},
+		}
+		return &runtime.NativeBoundMethodValue{Receiver: handle, Method: fn}, nil
+	case "commit":
+		fn := runtime.NativeFunctionValue{
+			Name:  "proc_handle.commit",
+			Arity: 0,
+			Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+				if len(args) == 0 {
+					return nil, fmt.Errorf("commit requires receiver")
+				}
+				recv, ok := args[0].(*runtime.ProcHandleValue)
+				if !ok {
+					return nil, fmt.Errorf("commit receiver must be a proc handle")
+				}
+				return i.procHandleValue(recv), nil
+			},
+		}
+		return &runtime.NativeBoundMethodValue{Receiver: handle, Method: fn}, nil
+	case "is_default":
+		fn := runtime.NativeFunctionValue{
+			Name:  "proc_handle.is_default",
+			Arity: 0,
+			Impl: func(_ *runtime.NativeCallContext, _ []runtime.Value) (runtime.Value, error) {
+				return runtime.BoolValue{Val: false}, nil
 			},
 		}
 		return &runtime.NativeBoundMethodValue{Receiver: handle, Method: fn}, nil
@@ -517,6 +629,70 @@ func (i *Interpreter) futureMember(future *runtime.FutureValue, member ast.Expre
 					handle.RequestCancel()
 				}
 				return runtime.NilValue{}, nil
+			},
+		}
+		return &runtime.NativeBoundMethodValue{Receiver: future, Method: fn}, nil
+	case "is_ready":
+		fn := runtime.NativeFunctionValue{
+			Name:  "future.is_ready",
+			Arity: 0,
+			Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+				if len(args) == 0 {
+					return nil, fmt.Errorf("is_ready requires receiver")
+				}
+				recv, ok := args[0].(*runtime.FutureValue)
+				if !ok {
+					return nil, fmt.Errorf("is_ready receiver must be a future")
+				}
+				if handle := recv.Handle(); handle != nil {
+					return runtime.BoolValue{Val: handle.Status() != runtime.ProcPending}, nil
+				}
+				return runtime.BoolValue{Val: true}, nil
+			},
+		}
+		return &runtime.NativeBoundMethodValue{Receiver: future, Method: fn}, nil
+	case "register":
+		fn := runtime.NativeFunctionValue{
+			Name:  "future.register",
+			Arity: 1,
+			Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+				if len(args) < 2 {
+					return nil, fmt.Errorf("register requires receiver and waker")
+				}
+				recv, ok := args[0].(*runtime.FutureValue)
+				if !ok {
+					return nil, fmt.Errorf("register receiver must be a future")
+				}
+				handle := recv.Handle()
+				if handle == nil {
+					return i.makeAwaitRegistrationValue(nil), nil
+				}
+				return i.registerHandleAwaiter(handle, args[1])
+			},
+		}
+		return &runtime.NativeBoundMethodValue{Receiver: future, Method: fn}, nil
+	case "commit":
+		fn := runtime.NativeFunctionValue{
+			Name:  "future.commit",
+			Arity: 0,
+			Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+				if len(args) == 0 {
+					return nil, fmt.Errorf("commit requires receiver")
+				}
+				recv, ok := args[0].(*runtime.FutureValue)
+				if !ok {
+					return nil, fmt.Errorf("commit receiver must be a future")
+				}
+				return i.futureValue(recv), nil
+			},
+		}
+		return &runtime.NativeBoundMethodValue{Receiver: future, Method: fn}, nil
+	case "is_default":
+		fn := runtime.NativeFunctionValue{
+			Name:  "future.is_default",
+			Arity: 0,
+			Impl: func(_ *runtime.NativeCallContext, _ []runtime.Value) (runtime.Value, error) {
+				return runtime.BoolValue{Val: false}, nil
 			},
 		}
 		return &runtime.NativeBoundMethodValue{Receiver: future, Method: fn}, nil

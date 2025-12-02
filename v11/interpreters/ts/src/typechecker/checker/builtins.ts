@@ -23,6 +23,7 @@ export function installBuiltins(context: BuiltinContext): void {
   const u64Type = primitiveType("u64");
   const stringType = primitiveType("string");
   const charType = primitiveType("char");
+  const anyType = unknownType;
   const unknown = unknownType;
 
   const register = (name: string, params: TypeInfo[], returnType: TypeInfo) => {
@@ -48,6 +49,7 @@ export function installBuiltins(context: BuiltinContext): void {
   register("__able_mutex_new", [], i64Type);
   register("__able_mutex_lock", [i64Type], voidType);
   register("__able_mutex_unlock", [i64Type], voidType);
+  register("__able_mutex_await_lock", [i64Type, anyType], anyType);
 
   register("__able_array_new", [], i64Type);
   register("__able_array_with_capacity", [i32Type], i64Type);
@@ -62,6 +64,7 @@ export function installBuiltins(context: BuiltinContext): void {
   register("__able_string_from_builtin", [stringType], arrayType(i32Type));
   register("__able_string_to_builtin", [arrayType(i32Type)], stringType);
   register("__able_char_from_codepoint", [i32Type], charType);
+  installAwaitBuiltins(context);
 
   register("__able_hasher_create", [], i64Type);
   register("__able_hasher_write", [i64Type, stringType], voidType);
@@ -118,6 +121,75 @@ function installStdlibStubs(context: BuiltinContext): void {
   context.collectMethodsDefinition(buildBitSetMethods());
   context.collectMethodsDefinition(buildTreeMapMethods());
   context.collectMethodsDefinition(buildTreeSetMethods());
+  context.collectImplementationDefinition(buildChannelIterableImpl());
+}
+
+function installAwaitBuiltins(context: BuiltinContext): void {
+  const awaitWakerStruct = AST.structDefinition("AwaitWaker", [], "named");
+  const awaitRegistrationStruct = AST.structDefinition("AwaitRegistration", [], "named");
+  context.registerStructDefinition(awaitWakerStruct);
+  context.registerStructDefinition(awaitRegistrationStruct);
+
+  const awaitableInterface = AST.interfaceDefinition(
+    "Awaitable",
+    [
+      AST.functionSignature(
+        "is_ready",
+        [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
+        AST.simpleTypeExpression("bool"),
+      ),
+      AST.functionSignature(
+        "register",
+        [
+          AST.functionParameter("self", AST.simpleTypeExpression("Self")),
+          AST.functionParameter("waker", AST.simpleTypeExpression("AwaitWaker")),
+        ],
+        AST.simpleTypeExpression("AwaitRegistration"),
+      ),
+      AST.functionSignature(
+        "commit",
+        [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
+        AST.simpleTypeExpression("Output"),
+      ),
+      AST.functionSignature(
+        "is_default",
+        [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
+        AST.simpleTypeExpression("bool"),
+      ),
+    ],
+    [AST.genericParameter("Output")],
+  );
+  context.registerInterfaceDefinition(awaitableInterface);
+
+  const wakerMethods = AST.methodsDefinition(AST.simpleTypeExpression("AwaitWaker"), [
+    AST.functionDefinition(
+      "wake",
+      [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
+      AST.blockExpression([]),
+      AST.simpleTypeExpression("void"),
+    ),
+  ]);
+  const registrationMethods = AST.methodsDefinition(AST.simpleTypeExpression("AwaitRegistration"), [
+    AST.functionDefinition(
+      "cancel",
+      [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
+      AST.blockExpression([]),
+      AST.simpleTypeExpression("void"),
+    ),
+  ]);
+  context.collectMethodsDefinition(wakerMethods);
+  context.collectMethodsDefinition(registrationMethods);
+
+  const awaitableUnknown: TypeInfo = { kind: "interface", name: "Awaitable", typeArguments: [unknownType] };
+  const callbackType: TypeInfo = { kind: "function", parameters: [], returnType: unknownType };
+  registerBuiltinFunction(context.env, context.functionInfos, "__able_await_default", [callbackType], awaitableUnknown);
+  registerBuiltinFunction(
+    context.env,
+    context.functionInfos,
+    "__able_await_sleep_ms",
+    [primitiveType("i64"), { kind: "nullable", inner: callbackType }],
+    awaitableUnknown,
+  );
 }
 
 function installIterationBuiltins(context: BuiltinContext): void {
@@ -615,4 +687,30 @@ function buildTreeSetMethods(): AST.MethodsDefinition {
   const whereClause = [AST.whereClauseConstraint("T", [ordConstraint, cloneConstraint])];
 
   return AST.methodsDefinition(treeSetType, methods, [typeParam], whereClause);
+}
+
+function buildChannelIterableImpl(): AST.ImplementationDefinition {
+  const typeParam = AST.genericParameter("T");
+  const channelType = AST.genericTypeExpression(AST.simpleTypeExpression("Channel"), [AST.simpleTypeExpression("T")]);
+  const selfParam = AST.functionParameter("self", AST.simpleTypeExpression("Self"));
+  const visitParam = AST.functionParameter(
+    "visit",
+    AST.functionTypeExpression([AST.simpleTypeExpression("T")], AST.simpleTypeExpression("void")),
+  );
+  const iteratorReturn = AST.genericTypeExpression(AST.simpleTypeExpression("Iterator"), [AST.simpleTypeExpression("T")]);
+  const voidBlock = AST.blockExpression([]);
+
+  const methods: AST.FunctionDefinition[] = [
+    AST.functionDefinition("each", [selfParam, visitParam], voidBlock, AST.simpleTypeExpression("void")),
+    AST.functionDefinition("iterator", [selfParam], voidBlock, iteratorReturn),
+  ];
+
+  return AST.implementationDefinition(
+    "Iterable",
+    channelType,
+    methods,
+    undefined,
+    [typeParam],
+    [AST.simpleTypeExpression("T")],
+  );
 }

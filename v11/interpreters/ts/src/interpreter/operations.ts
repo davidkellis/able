@@ -2,6 +2,7 @@ import * as AST from "../ast";
 import type { Environment } from "./environment";
 import type { InterpreterV10 } from "./index";
 import type { V10Value } from "./values";
+import { collectTypeDispatches } from "./type-dispatch";
 import { callCallableValue } from "./functions";
 import {
   applyArithmeticBinary,
@@ -14,6 +15,23 @@ import {
 } from "./numeric";
 import { makeIntegerFromNumber } from "./numeric";
 import { valuesEqual } from "./value_equals";
+
+export function resolveIndexFunction(
+  ctx: InterpreterV10,
+  receiver: V10Value,
+  methodName: string,
+  interfaceName: string,
+): Extract<V10Value, { kind: "function" }> | null {
+  const dispatches = collectTypeDispatches(ctx, receiver);
+  for (const dispatch of dispatches) {
+    const method = ctx.findMethod(dispatch.typeName, methodName, {
+      typeArgs: dispatch.typeArgs,
+      interfaceName,
+    });
+    if (method) return method;
+  }
+  return null;
+}
 
 declare module "./index" {
   interface InterpreterV10 {
@@ -161,6 +179,10 @@ export function evaluateRangeExpression(ctx: InterpreterV10, node: AST.RangeExpr
 export function evaluateIndexExpression(ctx: InterpreterV10, node: AST.IndexExpression, env: Environment): V10Value {
   const obj = ctx.evaluate(node.object, env);
   const idxVal = ctx.evaluate(node.index, env);
+  const viaInterface = resolveIndexFunction(ctx, obj, "get", "Index");
+  if (viaInterface) {
+    return callCallableValue(ctx, viaInterface, [obj, idxVal], env);
+  }
   if (obj.kind !== "array") throw new Error("Indexing is only supported on arrays in this milestone");
   const state = ctx.ensureArrayState(obj);
   const idx = Math.trunc(numericToNumber(idxVal, "Array index", { requireSafeInteger: true }));

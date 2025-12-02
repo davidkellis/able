@@ -35,8 +35,10 @@ const FIXTURE_FILTER = process.env.ABLE_FIXTURE_FILTER?.trim() ?? null;
 const BASELINE_ENABLED = TYPECHECK_MODE !== "off" && !FIXTURE_FILTER;
 const STDLIB_ROOT = path.resolve(__dirname, "../../../stdlib/src");
 const STDLIB_STRING_ENTRY = path.join(STDLIB_ROOT, "text", "string.able");
+const STDLIB_CONCURRENCY_ENTRY = path.join(STDLIB_ROOT, "concurrency", "await.able");
 const stdlibLoader = new ModuleLoader([STDLIB_ROOT]);
 let stdlibStringProgram: Program | null = null;
+let stdlibConcurrencyProgram: Program | null = null;
 
 type FixtureResult = { name: string; description?: string };
 
@@ -81,11 +83,18 @@ async function main() {
 
       const stdout: string[] = [];
       let evaluationError: unknown;
-      let loadedStdlib: Program | null = null;
 
       const entry = manifest.entry ?? "module.json";
       const moduleAst = await loadModuleFromFixture(fixtureDir, entry);
       const needsStdlibString = moduleImportsStdlibString(moduleAst);
+      const needsStdlibConcurrency = moduleImportsStdlibConcurrency(moduleAst);
+      const stdlibPrograms: Program[] = [];
+      if (needsStdlibString) {
+        stdlibPrograms.push(await ensureStdlibStringProgram());
+      }
+      if (needsStdlibConcurrency) {
+        stdlibPrograms.push(await ensureStdlibConcurrencyProgram());
+      }
       const setupModules: AST.Module[] = [];
       if (manifest.setup) {
         for (const setupFile of manifest.setup) {
@@ -99,18 +108,18 @@ async function main() {
       let packageSummaries = new Map<string, PackageSummary>();
       if (TYPECHECK_MODE !== "off") {
         const session = new TypeChecker.TypecheckerSession();
-        if (needsStdlibString) {
-          loadedStdlib = await ensureStdlibStringProgram();
-          const seenPkgs = new Set<string>();
-          for (const mod of loadedStdlib.modules) {
+        const seenPkgs = new Set<string>();
+        for (const stdlibProgram of stdlibPrograms) {
+          for (const mod of stdlibProgram.modules) {
             if (seenPkgs.has(mod.packageName)) continue;
             seenPkgs.add(mod.packageName);
             const { diagnostics } = session.checkModule(mod.module);
             typecheckDiagnostics.push(...diagnostics);
           }
-          if (!seenPkgs.has(loadedStdlib.entry.packageName)) {
-            const { diagnostics } = session.checkModule(loadedStdlib.entry.module);
+          if (!seenPkgs.has(stdlibProgram.entry.packageName)) {
+            const { diagnostics } = session.checkModule(stdlibProgram.entry.module);
             typecheckDiagnostics.push(...diagnostics);
+            seenPkgs.add(stdlibProgram.entry.packageName);
           }
         }
         for (const setupModule of setupModules) {
@@ -120,10 +129,6 @@ async function main() {
         const { diagnostics } = session.checkModule(moduleAst);
         typecheckDiagnostics.push(...diagnostics);
         packageSummaries = session.getPackageSummaries();
-      }
-
-      if (needsStdlibString && !loadedStdlib) {
-        loadedStdlib = await ensureStdlibStringProgram();
       }
 
       const formattedDiagnostics = maybeReportTypecheckDiagnostics(
@@ -143,8 +148,8 @@ async function main() {
       let result: V10.V10Value | undefined;
       interceptStdout(stdout, () => {
         try {
-          if (needsStdlibString && loadedStdlib) {
-            evaluateProgram(interpreter, loadedStdlib);
+          for (const stdlibProgram of stdlibPrograms) {
+            evaluateProgram(interpreter, stdlibProgram);
           }
           for (const setupModule of setupModules) {
             interpreter.evaluate(setupModule);
@@ -188,11 +193,19 @@ async function main() {
 }
 
 function moduleImportsStdlibString(module: AST.Module): boolean {
+  return moduleImportsPackage(module, "able.text.string");
+}
+
+function moduleImportsStdlibConcurrency(module: AST.Module): boolean {
+  return moduleImportsPackage(module, "able.concurrency");
+}
+
+function moduleImportsPackage(module: AST.Module, pkgName: string): boolean {
   return Array.isArray((module as any)?.imports)
     ? (module as any).imports.some((imp: any) => {
         if (!imp || imp.type !== "ImportStatement" || !Array.isArray(imp.packagePath)) return false;
         const pkg = imp.packagePath.map((segment: any) => segment?.name ?? "").filter(Boolean).join(".");
-        return pkg === "able.text.string";
+        return pkg === pkgName;
       })
     : false;
 }
@@ -202,6 +215,13 @@ async function ensureStdlibStringProgram(): Promise<Program> {
     stdlibStringProgram = await stdlibLoader.load(STDLIB_STRING_ENTRY);
   }
   return stdlibStringProgram;
+}
+
+async function ensureStdlibConcurrencyProgram(): Promise<Program> {
+  if (!stdlibConcurrencyProgram) {
+    stdlibConcurrencyProgram = await stdlibLoader.load(STDLIB_CONCURRENCY_ENTRY);
+  }
+  return stdlibConcurrencyProgram;
 }
 
 function evaluateProgram(interpreter: V10.InterpreterV10, program: Program): void {

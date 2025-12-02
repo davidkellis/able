@@ -54,11 +54,12 @@ type channelReceiveWaiter struct {
 }
 
 type mutexState struct {
-	mu      sync.Mutex
-	cond    *sync.Cond
-	locked  bool
-	owner   *runtime.ProcHandleValue
-	waiters int
+	mu           sync.Mutex
+	cond         *sync.Cond
+	locked       bool
+	owner        *runtime.ProcHandleValue
+	waiters      int
+	awaitWaiters map[*mutexAwaitRegistration]struct{}
 }
 
 type channelAwaitRegistration struct {
@@ -255,6 +256,22 @@ func (i *Interpreter) channelStateFromHandle(handle int64) (*channelState, error
 	return state, nil
 }
 
+func (i *Interpreter) mutexStateFromHandle(handle int64) (*mutexState, error) {
+	if handle <= 0 {
+		return nil, fmt.Errorf("mutex handle must be positive")
+	}
+	i.mutexMu.Lock()
+	state, ok := i.mutexes[handle]
+	i.mutexMu.Unlock()
+	if !ok {
+		return nil, fmt.Errorf("unknown mutex handle %d", handle)
+	}
+	if state.cond == nil {
+		state.cond = sync.NewCond(&state.mu)
+	}
+	return state, nil
+}
+
 func (i *Interpreter) blockOnNilChannel(callCtx *runtime.NativeCallContext) (runtime.Value, error) {
 	if callCtx == nil {
 		return nil, fmt.Errorf("channel operation on nil handle outside proc context")
@@ -286,6 +303,11 @@ func (i *Interpreter) invokeAwaitWaker(waker runtime.Value, env *runtime.Environ
 func (i *Interpreter) makeAwaitRegistrationValue(cancelFn func()) runtime.Value {
 	inst := &runtime.StructInstanceValue{
 		Fields: make(map[string]runtime.Value),
+	}
+	if val, err := i.global.Get("AwaitRegistration"); err == nil {
+		if def, conv := toStructDefinitionValue(val, "AwaitRegistration"); conv == nil {
+			inst.Definition = def
+		}
 	}
 	cancelMethod := runtime.NativeFunctionValue{
 		Name:  "AwaitRegistration.cancel",
