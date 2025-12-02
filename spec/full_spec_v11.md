@@ -1614,7 +1614,7 @@ arr.slice(start: usize, end: usize) -> Array T   ## TBD copy vs view semantics
 
 #### Semantics
 
--   Bounds: `arr[i]` and `arr[i] = v` raise `IndexError` on out-of-bounds. `get`/`pop` return `?T`.
+-   Bounds: `arr[i]` and `arr[i] = v` surface `IndexError` via the `Index`/`IndexMut` result (`!`) on out-of-bounds. `get`/`pop` return `?T`.
 -   Growth: Amortized doubling
 -   Equality/Hashing: Derive from elementwise comparisons if `T: Eq/Hash` (via interfaces in Section 14).
 -   See §6.12.2 for the required standard library helper methods (size/push/pop/etc.).
@@ -3848,7 +3848,7 @@ await [ Awaitable1, Awaitable2, ... ]
 #### 12.6.2. Evaluation Rules
 
 1.  Evaluate the iterable once, collecting the arms in source order.
-2.  For every non-default arm call `try_poll()` (see §12.6.3). If one or more arms report `Ready(payload)`, choose a winner using fairness rules and execute its callback immediately.
+2.  For every non-default arm call `is_ready()` (see §12.6.3). If one or more arms report `Ready(payload)`, choose a winner using fairness rules and execute its callback immediately.
 3.  If none report ready:
     - Execute the default arm immediately if present; otherwise
     - Call `register(waker)` on every arm, park the current task, and block until any waker fires. When woken, the runtime re-checks readiness, commits to the ready arm, and cancels the others via their registration handles.
@@ -3857,10 +3857,11 @@ await [ Awaitable1, Awaitable2, ... ]
 #### 12.6.3. `Awaitable` Interface
 
 ```able
-interface Awaitable {
+interface Awaitable Output for SelfType {
   fn is_ready(self: Self) -> bool;
   fn register(self: Self, waker: AwaitWaker) -> AwaitRegistration;
-  fn commit(self: Self) -> Any;
+  fn commit(self: Self) -> Output;
+  fn is_default(self: Self) -> bool { false }
 }
 ```
 
@@ -3868,6 +3869,7 @@ interface Awaitable {
 -   `register` attaches the arm to the runtime scheduler. Arms MUST call `waker.wake()` when they transition from pending to ready.
 -   `AwaitRegistration` is an opaque handle the runtime uses to cancel the arm if another arm wins first.
 -   `commit()` executes exactly once for the winning arm; it should invoke the user callback and return its result. Any buffered value captured during `is_ready()` is consumed here.
+-   `is_default()` returns `true` only for the default arm returned by `Await.default`; the default implementation returns `false` so other awaitables do not opt in accidentally.
 
 Channels, timers, sockets, futures, and other async APIs expose concrete `Awaitable` implementations that wrap their existing blocking operations. None of the underlying semantics change; only the orchestration surface does.
 
@@ -4098,18 +4100,20 @@ The following interfaces enable core syntax/semantics. A type participates in a 
 ```able
 interface Index Key Value for Self {
   ## Return the element at `key`, raising IndexError (or subtype) if out of range.
-  fn get(self: Self, key: Key) -> Value
+  ## Calls return an Error on failure so callers can propagate via `!` or inspect directly.
+  fn get(self: Self, key: Key) -> !Value
 }
 
 interface IndexMut Key Value for Self {
   ## Write `value` at `key`, raising IndexError if out of range.
-  fn set(self: Self, key: Key, value: Value) -> void
+  ## Calls return an Error on failure so callers can propagate via `!` or inspect directly.
+  fn set(self: Self, key: Key, value: Value) -> !void
 }
 ```
 
--   `receiver[key]` desugars to `receiver.Index::get(key)`.
--   `receiver[key] = value` desugars to `receiver.IndexMut::set(key, value)` and therefore requires both `Index` + `IndexMut`.
--   Implementations should raise `IndexError` (or a subtype implementing `Error`) when `key` is invalid.
+-   `receiver[key]` desugars to `receiver.Index::get(key)` and returns `!Value`.
+-   `receiver[key] = value` desugars to `receiver.IndexMut::set(key, value)` (returning `!void`) and therefore requires both `Index` + `IndexMut`.
+-   Implementations should surface `IndexError` (or a subtype implementing `Error`) when `key` is invalid so callers can propagate or inspect it.
 
 Example:
 
@@ -4117,11 +4121,11 @@ Example:
 struct Foo { items: Array i64 }
 
 impl Index u64 i64 for Foo {
-  fn get(self: Self, idx: u64) -> i64 { self.items[idx] }
+  fn get(self: Self, idx: u64) -> !i64 { self.items[idx] }
 }
 
 impl IndexMut u64 i64 for Foo {
-  fn set(self: Self, idx: u64, value: i64) -> void {
+  fn set(self: Self, idx: u64, value: i64) -> !void {
     self.items[idx] = value
   }
 }
@@ -4260,6 +4264,10 @@ Implementations must satisfy the usual algebraic laws (reflexivity, antisymmetry
 -   `Range` constructs iterables from `..`/`...` syntax (definitions below).
 -   `Proc` / `ProcError` describe asynchronous handles (§12.2).
 
+Built-in implementations:
+- Primitives (`bool`, all integer/float widths, `string`) ship with implicit implementations of `Display`, `Clone`, `Default`, `Eq`/`Ord`, and `Hash` provided by the runtimes. These are always in scope and cannot be redefined by user code.
+- Because the runtimes supply these unnamed impls, the stdlib must avoid re-declaring duplicate unnamed implementations for the same `(Interface, Type)` pairs to keep coherence/ambiguity rules intact. Where additional behavior is needed (e.g., custom hashing for composite structs), define implementations on those composite types instead of reintroducing primitive impls.
+
 These interfaces, along with their implementations, form the contract between the language and the standard library. Authors creating new collection or numeric types should conform to these signatures so their types slot seamlessly into existing syntax.
 
 ### Core Iteration Protocol
@@ -4330,14 +4338,16 @@ for the operand types.
 struct AwaitWaker { wake: fn() -> void }
 struct AwaitRegistration { cancel: fn() -> void }
 
-interface Awaitable {
+interface Awaitable Output for SelfType {
   fn is_ready(self: Self) -> bool;
   fn register(self: Self, waker: AwaitWaker) -> AwaitRegistration;
-  fn commit(self: Self) -> Any;
+  fn commit(self: Self) -> Output;
+  fn is_default(self: Self) -> bool { false }
 }
 ```
 
--   `Await.default(fn() -> R)` is defined as an always-ready implementation whose `try_poll` returns `Ready(())`, whose `register` is a no-op, and whose `commit` simply invokes the supplied callback.
+-   `Await.default(fn() -> R)` is defined as an always-ready implementation whose `is_ready` returns `true`, whose `register` is a no-op, and whose `commit` simply invokes the supplied callback.
+-   `is_default()` is reserved for that helper; other awaitables leave it at the default `false` implementation so the runtime can spot the single fallback arm.
 -   Channel helpers, timers, sockets, futures, and other async APIs MUST implement this interface so the scheduler can coordinate them uniformly.
 -   Cooperative runtimes drive the protocol directly; host runtimes (Go, TS, etc.) adapt `register`/`waker` to their native event APIs (wait queues, promises, epoll, …).
 

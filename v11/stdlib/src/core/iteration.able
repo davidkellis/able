@@ -10,8 +10,20 @@ interface Iterator T for Self {
 
 ## Types that can produce iterators (for loops, comprehensions).
 interface Iterable T for Self {
-  fn each(self: Self, visit: T -> void) -> void;
-  fn iterator(self: Self) -> (Iterator T);
+  fn each(self: Self, visit: T -> void) -> void {
+    it := self.iterator();
+    loop {
+      nxt := it.next();
+      nxt match {
+        case value: T => visit(value),
+        case IteratorEnd => break
+      }
+    }
+  }
+
+  fn iterator(self: Self) -> (Iterator T) {
+    Iterator T { gen => self.each(gen.yield) }
+  }
 }
 
 ## Range construction invoked via `..` and `...` operators.

@@ -227,6 +227,12 @@ func (i *Interpreter) callCallableValue(callee runtime.Value, args []runtime.Val
 	case *runtime.FunctionValue:
 		return i.invokeFunction(fn, args, call)
 	default:
+		if applyMethod, err := i.findApplyMethod(callee); err == nil && applyMethod != nil {
+			bound := runtime.BoundMethodValue{Receiver: callee, Method: applyMethod}
+			return i.callCallableValue(bound, args, env, call)
+		} else if err != nil {
+			return nil, err
+		}
 		return nil, fmt.Errorf("calling non-function value of kind %s (%T)", callee.Kind(), callee)
 	}
 }
@@ -546,11 +552,43 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 		if err != nil {
 			return nil, err
 		}
-		arr, err := i.toArrayValue(arrObj)
+		idxVal, err := i.evaluateExpression(lhs.Index, env)
 		if err != nil {
 			return nil, err
 		}
-		idxVal, err := i.evaluateExpression(lhs.Index, env)
+		if setMethod, err := i.findIndexMethod(arrObj, "set", "IndexMut"); err != nil {
+			return nil, err
+		} else if setMethod != nil {
+			if assign.Operator == ast.AssignmentAssign {
+				if _, err := i.CallFunction(setMethod, []runtime.Value{arrObj, idxVal, value}); err != nil {
+					return nil, err
+				}
+				return value, nil
+			}
+			if !isCompound {
+				return nil, fmt.Errorf("unsupported assignment operator %s", assign.Operator)
+			}
+			getMethod, err := i.findIndexMethod(arrObj, "get", "Index")
+			if err != nil {
+				return nil, err
+			}
+			if getMethod == nil {
+				return nil, fmt.Errorf("Compound index assignment requires readable Index implementation")
+			}
+			current, err := i.CallFunction(getMethod, []runtime.Value{arrObj, idxVal})
+			if err != nil {
+				return nil, err
+			}
+			computed, err := applyBinaryOperator(binaryOp, current, value)
+			if err != nil {
+				return nil, err
+			}
+			if _, err := i.CallFunction(setMethod, []runtime.Value{arrObj, idxVal, computed}); err != nil {
+				return nil, err
+			}
+			return computed, nil
+		}
+		arr, err := i.toArrayValue(arrObj)
 		if err != nil {
 			return nil, err
 		}

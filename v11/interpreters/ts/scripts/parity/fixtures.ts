@@ -20,9 +20,9 @@ import { TypecheckerSession } from "../../src/typechecker";
 import { formatTypecheckerDiagnostic } from "../typecheck-utils";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = path.resolve(__dirname, "../../../../");
+const REPO_ROOT = path.resolve(fileURLToPath(new URL("../../../../..", import.meta.url)));
 const NORMALIZED_REPO_ROOT = REPO_ROOT.replace(/\\/g, "/");
-export const DEFAULT_FIXTURE_ROOT = path.resolve(REPO_ROOT, "fixtures/ast");
+export const DEFAULT_FIXTURE_ROOT = path.resolve(REPO_ROOT, "v11/fixtures/ast");
 
 export type NormalizedValue = {
   kind: string;
@@ -104,7 +104,7 @@ export async function buildGoFixtureRunner(): Promise<GoFixtureRunner> {
 }
 
 async function runGoBuild(outputPath: string, env: NodeJS.ProcessEnv): Promise<void> {
-  const cliPath = path.resolve(REPO_ROOT, "interpreters/go");
+  const cliPath = path.resolve(REPO_ROOT, "v11/interpreters/go");
   await new Promise<void>((resolve, reject) => {
     const child = spawn(
       "go",
@@ -207,7 +207,7 @@ export async function evaluateFixtureGo(
   entry: string,
 ): Promise<GoOutcome> {
   return new Promise((resolve, reject) => {
-    const cliPath = path.resolve(REPO_ROOT, "interpreters/go");
+    const cliPath = path.resolve(REPO_ROOT, "v11/interpreters/go");
     const child = spawn(runner.binaryPath, ["--dir", dir, "--entry", entry, "--executor", "serial"], {
       cwd: cliPath,
       env: {

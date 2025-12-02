@@ -190,120 +190,61 @@ const awaitFixtures: Fixture[] = [
   },
   {
     name: "concurrency/await_timer_default",
-    module: AST.module([
-      AST.structDefinition("CancelReg", [], "named"),
-      AST.methodsDefinition(AST.simpleTypeExpression("CancelReg"), [
-        AST.functionDefinition(
-          "cancel",
-          [AST.functionParameter("self")],
-          AST.blockExpression([AST.nilLiteral()]),
-          AST.simpleTypeExpression("void"),
-        ),
-      ]),
-      AST.structDefinition(
-        "Timer",
-        [AST.structFieldDefinition(AST.simpleTypeExpression("bool"), "ready")],
-        "named",
-      ),
-      AST.methodsDefinition(AST.simpleTypeExpression("Timer"), [
-        AST.functionDefinition(
-          "is_ready",
-          [AST.functionParameter("self")],
-          AST.blockExpression([AST.memberAccessExpression(AST.identifier("self"), AST.identifier("ready"))]),
-          AST.simpleTypeExpression("bool"),
-        ),
-        AST.functionDefinition(
-          "register",
-          [AST.functionParameter("self"), AST.functionParameter("_waker")],
-          AST.blockExpression([AST.structLiteral([], false, "CancelReg")]),
-          AST.simpleTypeExpression("CancelReg"),
-        ),
-        AST.functionDefinition(
-          "commit",
-          [AST.functionParameter("self")],
-          AST.blockExpression([AST.stringLiteral("timer")]),
-          AST.simpleTypeExpression("string"),
-        ),
-        AST.functionDefinition(
-          "is_default",
-          [AST.functionParameter("self")],
-          AST.blockExpression([AST.booleanLiteral(false)]),
-          AST.simpleTypeExpression("bool"),
-        ),
-      ]),
-      AST.structDefinition(
-        "DefaultArm",
-        [AST.structFieldDefinition(AST.simpleTypeExpression("string"), "value")],
-        "named",
-      ),
-      AST.methodsDefinition(AST.simpleTypeExpression("DefaultArm"), [
-        AST.functionDefinition(
-          "is_ready",
-          [AST.functionParameter("self")],
-          AST.blockExpression([AST.booleanLiteral(false)]),
-          AST.simpleTypeExpression("bool"),
-        ),
-        AST.functionDefinition(
-          "register",
-          [AST.functionParameter("self"), AST.functionParameter("_waker")],
-          AST.blockExpression([AST.structLiteral([], false, "CancelReg")]),
-          AST.simpleTypeExpression("CancelReg"),
-        ),
-        AST.functionDefinition(
-          "commit",
-          [AST.functionParameter("self")],
-          AST.blockExpression([
-            AST.memberAccessExpression(AST.identifier("self"), AST.identifier("value")),
-          ]),
-          AST.simpleTypeExpression("string"),
-        ),
-        AST.functionDefinition(
-          "is_default",
-          [AST.functionParameter("self")],
-          AST.blockExpression([AST.booleanLiteral(true)]),
-          AST.simpleTypeExpression("bool"),
-        ),
-      ]),
-      AST.functionDefinition(
-        "default_arm",
-        [AST.functionParameter("value", AST.simpleTypeExpression("string"))],
-        AST.blockExpression([
-          AST.structLiteral(
-            [AST.structFieldInitializer(AST.identifier("value"), "value")],
-            false,
-            "DefaultArm",
-          ),
-        ]),
-        AST.simpleTypeExpression("DefaultArm"),
-      ),
-      assign(
-        ":=",
-        "timer",
-        AST.structLiteral([AST.structFieldInitializer(AST.booleanLiteral(true), "ready")], false, "Timer"),
-      ),
-      assign(
-        ":=",
-        "runner",
-        AST.procExpression(
-          AST.blockExpression([
-            assign(
-              ":=",
-              "first",
-              AST.awaitExpression(AST.arrayLiteral([call("default_arm", [AST.stringLiteral("fallback")])])),
-            ),
-            assign(":=", "second", AST.awaitExpression(AST.arrayLiteral([AST.identifier("timer")]))),
-            assign(":=", "third", AST.awaitExpression(AST.arrayLiteral([AST.identifier("timer")]))),
-            AST.arrayLiteral([
-              AST.binaryExpression("==", AST.identifier("first"), AST.stringLiteral("fallback")),
-              AST.binaryExpression("==", AST.identifier("second"), AST.stringLiteral("timer")),
-              AST.binaryExpression("==", AST.identifier("third"), AST.stringLiteral("timer")),
+    module: AST.module(
+      [
+        assign(
+          ":=",
+          "runner",
+          AST.procExpression(
+            AST.blockExpression([
+              assign(
+                ":=",
+                "first",
+                AST.awaitExpression(
+                  AST.arrayLiteral([
+                    call(AST.memberAccessExpression(AST.identifier("Await"), "default"), [
+                      AST.lambdaExpression([], AST.stringLiteral("fallback")),
+                    ]),
+                  ]),
+                ),
+              ),
+              assign(
+                ":=",
+                "second",
+                AST.awaitExpression(
+                  AST.arrayLiteral([
+                    call(AST.memberAccessExpression(AST.identifier("Await"), "sleep"), [
+                      call(AST.memberAccessExpression(AST.integerLiteral(0), "seconds"), []),
+                      AST.lambdaExpression([], AST.stringLiteral("timer")),
+                    ]),
+                  ]),
+                ),
+              ),
+              assign(
+                ":=",
+                "third",
+                AST.awaitExpression(
+                  AST.arrayLiteral([
+                    call(AST.memberAccessExpression(AST.identifier("Await"), "sleep_ms"), [
+                      AST.integerLiteral(0),
+                      AST.lambdaExpression([], AST.stringLiteral("timer")),
+                    ]),
+                  ]),
+                ),
+              ),
+              AST.arrayLiteral([
+                AST.binaryExpression("==", AST.identifier("first"), AST.stringLiteral("fallback")),
+                AST.binaryExpression("==", AST.identifier("second"), AST.stringLiteral("timer")),
+                AST.binaryExpression("==", AST.identifier("third"), AST.stringLiteral("timer")),
+              ]),
             ]),
-          ]),
+          ),
         ),
-      ),
-      call("proc_flush", []),
-      call(AST.memberAccessExpression(AST.identifier("runner"), AST.identifier("value")), []),
-    ]),
+        call("proc_flush", []),
+        call(AST.memberAccessExpression(AST.identifier("runner"), AST.identifier("value")), []),
+      ],
+      [AST.importStatement(["able", "concurrency"], false, [AST.importSelector("Await")])],
+    ),
     manifest: {
       description: "await honours the default arm and a ready timer awaitable without blocking",
       expect: {
@@ -311,6 +252,184 @@ const awaitFixtures: Fixture[] = [
           kind: "array",
           elements: [
             { kind: "bool", value: true },
+            { kind: "bool", value: true },
+            { kind: "bool", value: true },
+          ],
+        },
+      },
+    },
+  },
+  {
+    name: "concurrency/await_channel_send_cancel",
+    module: AST.module([
+      assign(":=", "ch", call("__able_channel_new", [AST.integerLiteral(0)])),
+      assign(":=", "hits", AST.integerLiteral(0)),
+      assign(
+        ":=",
+        "runner",
+        AST.procExpression(
+          AST.blockExpression([
+            assign(
+              "=",
+              "result",
+              AST.awaitExpression(
+                AST.arrayLiteral([
+                  call("__able_channel_await_try_send", [
+                    AST.identifier("ch"),
+                    AST.stringLiteral("payload"),
+                    AST.lambdaExpression(
+                      [],
+                      AST.blockExpression([
+                        assign(
+                          "=",
+                          "hits",
+                          AST.binaryExpression("+", AST.identifier("hits"), AST.integerLiteral(1)),
+                        ),
+                        AST.stringLiteral("sent"),
+                      ]),
+                    ),
+                  ]),
+                ]),
+              ),
+            ),
+            AST.identifier("result"),
+          ]),
+        ),
+      ),
+      call("proc_flush", []),
+      call(AST.memberAccessExpression(AST.identifier("runner"), AST.identifier("cancel")), []),
+      call("proc_flush", []),
+      assign(":=", "late_send", call("__able_channel_try_send", [AST.identifier("ch"), AST.stringLiteral("late")])),
+      AST.arrayLiteral([
+        AST.binaryExpression("==", AST.identifier("hits"), AST.integerLiteral(0)),
+        AST.binaryExpression("==", AST.identifier("late_send"), AST.booleanLiteral(false)),
+      ]),
+    ]),
+    manifest: {
+      description: "await send arm cancels registrations when the awaiting proc is cancelled",
+      expect: {
+        result: {
+          kind: "array",
+          elements: [
+            { kind: "bool", value: true },
+            { kind: "bool", value: true },
+          ],
+        },
+      },
+    },
+  },
+  {
+    name: "concurrency/await_channel_receive_cancel",
+    module: AST.module([
+      assign(":=", "ch", call("__able_channel_new", [AST.integerLiteral(0)])),
+      assign(":=", "hits", AST.integerLiteral(0)),
+      assign(
+        ":=",
+        "runner",
+        AST.procExpression(
+          AST.blockExpression([
+            assign(
+              "=",
+              "result",
+              AST.awaitExpression(
+                AST.arrayLiteral([
+                  call("__able_channel_await_try_recv", [
+                    AST.identifier("ch"),
+                    AST.lambdaExpression(
+                      [AST.functionParameter("v")],
+                      AST.blockExpression([
+                        assign(
+                          "=",
+                          "hits",
+                          AST.binaryExpression("+", AST.identifier("hits"), AST.integerLiteral(1)),
+                        ),
+                        AST.identifier("v"),
+                      ]),
+                    ),
+                  ]),
+                ]),
+              ),
+            ),
+            AST.identifier("result"),
+          ]),
+        ),
+      ),
+      call("proc_flush", []),
+      call(AST.memberAccessExpression(AST.identifier("runner"), AST.identifier("cancel")), []),
+      call("proc_flush", []),
+      assign(":=", "late_send", call("__able_channel_try_send", [AST.identifier("ch"), AST.stringLiteral("late")])),
+      AST.arrayLiteral([
+        AST.binaryExpression("==", AST.identifier("hits"), AST.integerLiteral(0)),
+        AST.binaryExpression("==", AST.identifier("late_send"), AST.booleanLiteral(false)),
+      ]),
+    ]),
+    manifest: {
+      description: "await receive arm cancels registrations when the awaiting proc is cancelled",
+      expect: {
+        result: {
+          kind: "array",
+          elements: [
+            { kind: "bool", value: true },
+            { kind: "bool", value: true },
+          ],
+        },
+      },
+    },
+  },
+  {
+    name: "concurrency/await_mutex_cancel",
+    module: AST.module([
+      assign(":=", "mtx", call("__able_mutex_new")),
+      call("__able_mutex_lock", [AST.identifier("mtx")]),
+      assign(":=", "hits", AST.integerLiteral(0)),
+      assign(
+        ":=",
+        "runner",
+        AST.procExpression(
+          AST.blockExpression([
+            assign(
+              "=",
+              "result",
+              AST.awaitExpression(
+                AST.arrayLiteral([
+                  call("__able_mutex_await_lock", [
+                    AST.identifier("mtx"),
+                    AST.lambdaExpression(
+                      [],
+                      AST.blockExpression([
+                        assign(
+                          "=",
+                          "hits",
+                          AST.binaryExpression("+", AST.identifier("hits"), AST.integerLiteral(1)),
+                        ),
+                        AST.stringLiteral("locked"),
+                      ]),
+                    ),
+                  ]),
+                ]),
+              ),
+            ),
+            AST.identifier("result"),
+          ]),
+        ),
+      ),
+      call("proc_flush", []),
+      call(AST.memberAccessExpression(AST.identifier("runner"), AST.identifier("cancel")), []),
+      call("proc_flush", []),
+      call("__able_mutex_unlock", [AST.identifier("mtx")]),
+      assign(":=", "lock_again", call("__able_mutex_lock", [AST.identifier("mtx")])),
+      call("__able_mutex_unlock", [AST.identifier("mtx")]),
+      AST.arrayLiteral([
+        AST.binaryExpression("==", AST.identifier("hits"), AST.integerLiteral(0)),
+        AST.binaryExpression("==", AST.identifier("lock_again"), AST.nilLiteral()),
+      ]),
+    ]),
+    manifest: {
+      description: "await mutex lock cancels registrations when the awaiting proc is cancelled",
+      expect: {
+        result: {
+          kind: "array",
+          elements: [
             { kind: "bool", value: true },
             { kind: "bool", value: true },
           ],

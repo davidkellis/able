@@ -446,8 +446,9 @@ func assertResult(t testingT, dir string, manifest fixtureManifest, result runti
 			}
 		}
 	default:
-		if result.Kind().String() != exp.Kind {
-			t.Fatalf("fixture %s expected kind %s, got %s", dir, exp.Kind, result.Kind())
+		kind := result.Kind().String()
+		if kind != exp.Kind {
+			t.Fatalf("fixture %s expected kind %s, got %s (%#v)", dir, exp.Kind, kind, result)
 		}
 	}
 	if len(manifest.Expect.Stdout) > 0 {

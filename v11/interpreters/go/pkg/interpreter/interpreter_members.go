@@ -77,6 +77,11 @@ func (i *Interpreter) memberAccessOnValueWithOptions(obj runtime.Value, member a
 	default:
 		if ident, ok := member.(*ast.Identifier); ok {
 			if info, ok := i.getTypeInfoForValue(obj); ok {
+				if bucket, ok := i.inherentMethods[info.name]; ok {
+					if method := bucket[ident.Name]; method != nil {
+						return &runtime.BoundMethodValue{Receiver: obj, Method: method}, nil
+					}
+				}
 				if resolved, err := i.findMethod(info, ident.Name, ""); err == nil && resolved != nil {
 					return &runtime.BoundMethodValue{Receiver: obj, Method: resolved}, nil
 				}
@@ -86,6 +91,11 @@ func (i *Interpreter) memberAccessOnValueWithOptions(obj runtime.Value, member a
 			}
 			typeExpr := i.typeExpressionFromValue(obj)
 			if info, ok := parseTypeExpression(typeExpr); ok {
+				if bucket, ok := i.inherentMethods[info.name]; ok {
+					if method := bucket[ident.Name]; method != nil {
+						return &runtime.BoundMethodValue{Receiver: obj, Method: method}, nil
+					}
+				}
 				resolved, err := i.findMethod(info, ident.Name, "")
 				if err == nil && resolved != nil {
 					return &runtime.BoundMethodValue{Receiver: obj, Method: resolved}, nil
@@ -171,6 +181,11 @@ func (i *Interpreter) evaluateIndexExpression(expr *ast.IndexExpression, env *ru
 	if err != nil {
 		return nil, err
 	}
+	if method, err := i.findIndexMethod(obj, "get", "Index"); err == nil && method != nil {
+		return i.CallFunction(method, []runtime.Value{obj, idxVal})
+	} else if err != nil {
+		return nil, err
+	}
 	arr, err := i.toArrayValue(obj)
 	if err != nil {
 		return nil, err
@@ -222,6 +237,36 @@ func (i *Interpreter) toArrayValue(val runtime.Value) (*runtime.ArrayValue, erro
 	default:
 		return nil, fmt.Errorf("Indexing is only supported on arrays")
 	}
+}
+
+func (i *Interpreter) findIndexMethod(val runtime.Value, methodName string, iface string) (*runtime.FunctionValue, error) {
+	if ifaceVal, ok := val.(*runtime.InterfaceValue); ok && ifaceVal != nil {
+		if method, err := i.findIndexMethod(ifaceVal.Underlying, methodName, iface); err == nil && method != nil {
+			return method, nil
+		} else if err != nil {
+			return nil, err
+		}
+	}
+	info, ok := i.getTypeInfoForValue(val)
+	if !ok {
+		return nil, nil
+	}
+	return i.findMethod(info, methodName, iface)
+}
+
+func (i *Interpreter) findApplyMethod(val runtime.Value) (*runtime.FunctionValue, error) {
+	if ifaceVal, ok := val.(*runtime.InterfaceValue); ok && ifaceVal != nil {
+		if method, err := i.findApplyMethod(ifaceVal.Underlying); err == nil && method != nil {
+			return method, nil
+		} else if err != nil {
+			return nil, err
+		}
+	}
+	info, ok := i.getTypeInfoForValue(val)
+	if !ok {
+		return nil, nil
+	}
+	return i.findMethod(info, "apply", "Apply")
 }
 
 func indexFromValue(val runtime.Value) (int, error) {

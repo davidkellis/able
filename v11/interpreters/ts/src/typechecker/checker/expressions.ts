@@ -9,6 +9,7 @@ import {
   isNumeric,
   isFloatPrimitiveType,
   isIntegerPrimitiveType,
+  isUnknown,
   primitiveType,
   procType,
   rangeType,
@@ -103,6 +104,8 @@ export function inferExpression(ctx: ExpressionContext, expression: AST.Expressi
       const elementType = resolveArrayLiteralElementType(ctx, expression.elements);
       return arrayType(elementType);
     }
+    case "IndexExpression":
+      return inferIndexExpression(ctx, expression);
     case "MapLiteral": {
       let keyType: TypeInfo = unknownType;
       let valueType: TypeInfo = unknownType;
@@ -190,7 +193,7 @@ export function inferExpression(ctx: ExpressionContext, expression: AST.Expressi
       return futureType(bodyType);
     }
     case "AwaitExpression":
-      return unknownType;
+      return inferAwaitExpression(ctx, expression);
     case "AssignmentExpression":
       // Allow assignments to appear in expression position (e.g., inside a pipe).
       // Reuse the statement checker so bindings are recorded, then return the RHS type.
@@ -359,6 +362,141 @@ export function mergeBranchTypes(ctx: ExpressionContext, types: TypeInfo[]): Typ
     }
   }
   return current;
+}
+
+function inferIndexExpression(ctx: ExpressionContext, expression: AST.IndexExpression): TypeInfo {
+  const objectType = ctx.inferExpression(expression.object);
+  const indexType = ctx.inferExpression(expression.index);
+  return resolveIndexResultType(ctx, objectType, indexType, expression);
+}
+
+function resolveIndexResultType(
+  ctx: ExpressionContext,
+  objectType: TypeInfo,
+  indexType: TypeInfo,
+  node: AST.Node,
+): TypeInfo {
+  const requiresIntegerIndex = (): void => {
+    if (!isIntegerPrimitiveType(indexType) && indexType.kind !== "unknown") {
+      ctx.report("typechecker: index must be an integer", node);
+    }
+  };
+  if (!objectType || objectType.kind === "unknown") {
+    return unknownType;
+  }
+  if (objectType.kind === "array") {
+    requiresIntegerIndex();
+    return objectType.element ?? unknownType;
+  }
+  if (objectType.kind === "struct" && objectType.name === "Array") {
+    requiresIntegerIndex();
+    return (objectType.typeArguments ?? [])[0] ?? unknownType;
+  }
+  if (objectType.kind === "map") {
+    return objectType.value ?? unknownType;
+  }
+  if (objectType.kind === "struct" && objectType.name === "HashMap") {
+    const args = objectType.typeArguments ?? [];
+    if (args.length >= 2) {
+      return args[1] ?? unknownType;
+    }
+    return unknownType;
+  }
+  if (objectType.kind === "interface" && objectType.name === "Index") {
+    const keyType = (objectType.typeArguments ?? [])[0];
+    const valueType = (objectType.typeArguments ?? [])[1];
+    if (keyType && !ctx.isTypeAssignable(indexType, keyType) && indexType.kind !== "unknown") {
+      ctx.report(
+        `typechecker: index expects type ${formatType(keyType)}, got ${formatType(indexType)}`,
+        node,
+      );
+    }
+    return valueType ?? unknownType;
+  }
+  if (ctx.typeImplementsInterface?.(objectType, "Index", ["Idx", "Val"])?.ok) {
+    return unknownType;
+  }
+  if (ctx.typeImplementsInterface?.(objectType, "IndexMut", ["Idx", "Val"])?.ok) {
+    return unknownType;
+  }
+  ctx.report(`typechecker: cannot index into type ${formatType(objectType)}`, node);
+  return unknownType;
+}
+
+function inferAwaitExpression(ctx: ExpressionContext, expression: AST.AwaitExpression): TypeInfo {
+  const iterableType = ctx.inferExpression(expression.expression);
+  const { elementType, recognized } = resolveIterableElementTypeLite(iterableType);
+  if (!recognized && iterableType.kind !== "unknown") {
+    ctx.report(
+      `typechecker: await expects an Iterable of Awaitable values (got ${formatType(iterableType)})`,
+      expression.expression,
+    );
+  }
+  let matched = false;
+  let resultType: TypeInfo = unknownType;
+  if (elementType.kind === "interface" && elementType.name === "Awaitable") {
+    matched = true;
+    resultType = (elementType.typeArguments ?? [])[0] ?? unknownType;
+  } else if (elementType.kind === "future") {
+    matched = true;
+    resultType = elementType.result ?? unknownType;
+  } else if (elementType.kind === "proc") {
+    matched = true;
+    resultType = elementType.result ?? unknownType;
+  }
+
+  if (!matched && elementType.kind !== "unknown") {
+    ctx.report(
+      `typechecker: await expects Awaitable values (got ${formatType(elementType)})`,
+      expression.expression,
+    );
+  }
+  return resultType;
+}
+
+function resolveIterableElementTypeLite(type: TypeInfo): { elementType: TypeInfo; recognized: boolean } {
+  if (!type || type.kind === "unknown") {
+    return { elementType: unknownType, recognized: true };
+  }
+  if (type.kind === "primitive" && type.name === "string") {
+    return { elementType: primitiveType("u8"), recognized: true };
+  }
+  if (type.kind === "iterator") {
+    return { elementType: type.element ?? unknownType, recognized: true };
+  }
+  if (type.kind === "array") {
+    return { elementType: type.element ?? unknownType, recognized: true };
+  }
+  if (type.kind === "range") {
+    return { elementType: type.element ?? unknownType, recognized: true };
+  }
+  if (type.kind === "struct") {
+    const arg0 = (type.typeArguments ?? [])[0];
+    if (
+      type.name === "Array" ||
+      type.name === "Iterator" ||
+      type.name === "List" ||
+      type.name === "LinkedList" ||
+      type.name === "LazySeq" ||
+      type.name === "Vector" ||
+      type.name === "HashSet" ||
+      type.name === "Deque" ||
+      type.name === "Queue"
+    ) {
+      return { elementType: arg0 ?? unknownType, recognized: true };
+    }
+    if (type.name === "BitSet") {
+      return { elementType: primitiveType("i32"), recognized: true };
+    }
+    if (type.name === "Range") {
+      return { elementType: unknownType, recognized: true };
+    }
+  }
+  if (type.kind === "interface" && type.name === "Iterable") {
+    const arg0 = (type.typeArguments ?? [])[0];
+    return { elementType: arg0 ?? unknownType, recognized: true };
+  }
+  return { elementType: unknownType, recognized: false };
 }
 
 function inferUnaryExpression(ctx: ExpressionContext, expression: AST.UnaryExpression): TypeInfo {

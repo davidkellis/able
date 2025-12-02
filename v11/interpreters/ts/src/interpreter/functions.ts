@@ -4,6 +4,7 @@ import type { InterpreterV10 } from "./index";
 import type { V10Value } from "./values";
 import { ReturnSignal } from "./signals";
 import { memberAccessOnValue } from "./structs";
+import { collectTypeDispatches } from "./type-dispatch";
 
 function isGenericTypeReference(typeExpr: AST.TypeExpression | undefined, genericNames: Set<string>): boolean {
   if (!typeExpr || genericNames.size === 0) return false;
@@ -26,6 +27,18 @@ export function evaluateFunctionDefinition(ctx: InterpreterV10, node: AST.Functi
 
 export function evaluateLambdaExpression(ctx: InterpreterV10, node: AST.LambdaExpression, env: Environment): V10Value {
   return { kind: "function", node, closureEnv: env };
+}
+
+function resolveApplyFunction(ctx: InterpreterV10, callee: V10Value): Extract<V10Value, { kind: "function" }> | null {
+  const dispatches = collectTypeDispatches(ctx, callee);
+  for (const dispatch of dispatches) {
+    const method = ctx.findMethod(dispatch.typeName, "apply", {
+      typeArgs: dispatch.typeArgs,
+      interfaceName: "Apply",
+    });
+    if (method) return method;
+  }
+  return null;
 }
 
 export function evaluateFunctionCall(ctx: InterpreterV10, node: AST.FunctionCall, env: Environment): V10Value {
@@ -69,6 +82,10 @@ export function callCallableValue(ctx: InterpreterV10, callee: V10Value, args: V
         ? `${(callNode as any).origin}:${(callNode as any).span.start.line + 1}:${(callNode as any).span.start.column + 1}`
         : "";
     const suffix = location ? ` at ${location}` : "";
+    const applyFn = resolveApplyFunction(ctx, callee);
+    if (applyFn) {
+      return callCallableValue(ctx, applyFn, [callee, ...args], env, callNode);
+    }
     throw new Error(`Cannot call non-function (kind ${callee.kind})${suffix}`);
   }
 

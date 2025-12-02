@@ -1,0 +1,27 @@
+package concurrency
+
+import able.core.interfaces.{Error}
+
+struct Pending {}
+struct Resolved {}
+struct Cancelled {}
+struct Failed { error: ProcError }
+union ProcStatus = Pending | Resolved | Cancelled | Failed
+
+struct ProcError { details: string }
+
+impl Error for ProcError {
+  fn message(self: Self) -> string { self.details }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+interface Proc T for Handle {
+  fn status(self: Self) -> ProcStatus;
+  fn value(self: Self) -> !T;
+  fn cancel(self: Self) -> void;
+}
+
+interface Future T for Handle {
+  fn status(self: Self) -> ProcStatus;
+  fn value(self: Self) -> !T;
+}

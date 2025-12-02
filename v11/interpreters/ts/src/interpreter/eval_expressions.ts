@@ -9,6 +9,7 @@ import {
   evaluateForLoop,
   evaluateIfExpression,
   evaluateLoopExpression,
+  resolveIteratorValue,
   evaluateReturnStatement,
   evaluateWhileLoop,
 } from "./control_flow";
@@ -277,13 +278,27 @@ function initializeAwaitState(
 }
 
 function collectAwaitArms(ctx: InterpreterV10, iterable: V10Value, env: Environment): AwaitArmState[] {
-  if (iterable.kind !== "array") {
-    throw new Error("await currently expects an array of Awaitable values");
+  if (iterable.kind === "array") {
+    return iterable.elements.map((value) => ({
+      awaitable: value,
+      isDefault: checkAwaitArmIsDefault(ctx, value, env),
+    }));
   }
-  return iterable.elements.map((value) => ({
-    awaitable: value,
-    isDefault: checkAwaitArmIsDefault(ctx, value, env),
-  }));
+  const iterator = resolveIteratorValue(ctx, iterable, env);
+  const arms: AwaitArmState[] = [];
+  try {
+    while (true) {
+      const step = iterator.iterator.next();
+      if (step.done) break;
+      arms.push({
+        awaitable: step.value,
+        isDefault: checkAwaitArmIsDefault(ctx, step.value, env),
+      });
+    }
+  } finally {
+    iterator.iterator.close();
+  }
+  return arms;
 }
 
 function checkAwaitArmIsDefault(ctx: InterpreterV10, awaitable: V10Value, env: Environment): boolean {

@@ -28,7 +28,7 @@ interface Hasher {
 }
 
 interface Hash for T {
-  fn hash(self: Self, hasher: Hasher) -> u64;
+  fn hash(self: Self, hasher: Hasher) -> void;
 }
 
 ## Error values participate in raise/rescue.
@@ -44,19 +44,19 @@ interface PartialEq Rhs for T {
 }
 
 ## Equality comparison (total); mirrors PartialEq but with stronger semantic expectations.
-interface Eq Rhs for T {
-  fn eq(self: Self, other: Rhs) -> bool;
-  fn ne(self: Self, other: Rhs) -> bool { !self.eq(other) }
+interface Eq for T {
+  fn eq(self: Self, other: Self) -> bool;
+  fn ne(self: Self, other: Self) -> bool { !self.eq(other) }
 }
 
-## Partial ordering returning Ordering or nil.
+## Partial ordering returning Ordering.
 interface PartialOrd Rhs for T {
-  fn partial_cmp(self: Self, other: Rhs) -> ?Ordering;
+  fn partial_cmp(self: Self, other: Rhs) -> Ordering;
 }
 
 ## Total ordering comparison returning Ordering.
-interface Ord Rhs for T {
-  fn cmp(self: Self, other: Rhs) -> Ordering;
+interface Ord for T {
+  fn cmp(self: Self, other: Self) -> Ordering;
 }
 
 ## Operator families.
@@ -85,15 +85,15 @@ interface Neg Output for T {
 }
 
 interface BitAnd Rhs Output for T {
-  fn bitand(self: Self, rhs: Rhs) -> Output;
+  fn bit_and(self: Self, rhs: Rhs) -> Output;
 }
 
 interface BitOr Rhs Output for T {
-  fn bitor(self: Self, rhs: Rhs) -> Output;
+  fn bit_or(self: Self, rhs: Rhs) -> Output;
 }
 
 interface BitXor Rhs Output for T {
-  fn bitxor(self: Self, rhs: Rhs) -> Output;
+  fn bit_xor(self: Self, rhs: Rhs) -> Output;
 }
 
 interface Shl Rhs Output for T {
@@ -105,7 +105,7 @@ interface Shr Rhs Output for T {
 }
 
 interface Not Output for T {
-  fn bit_not(self: Self) -> Output;
+  fn not(self: Self) -> Output;
 }
 
 ## Callable values implement Apply (function call operator).
@@ -138,7 +138,7 @@ methods string {
   }
 }
 
-impl Ord i32 for i32 {
+impl Ord for i32 {
   fn cmp(self: Self, other: i32) -> Ordering {
     if self < other { return Less {} }
     if self > other { return Greater {} }
@@ -146,7 +146,7 @@ impl Ord i32 for i32 {
   }
 }
 
-impl Ord string for string {
+impl Ord for string {
   fn cmp(self: Self, other: string) -> Ordering {
     if self < other { return Less {} }
     if self > other { return Greater {} }

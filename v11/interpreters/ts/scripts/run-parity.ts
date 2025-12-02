@@ -1,4 +1,4 @@
-import { promises as fs } from "node:fs";
+import { promises as fs, existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -33,7 +33,7 @@ import {
 } from "./parity/examples";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = path.resolve(__dirname, "../../..");
+const REPO_ROOT = findRepoRoot(__dirname);
 const DEFAULT_REPORT_PATH = path.join(REPO_ROOT, "tmp", "parity-report.json");
 
 type SuiteName = "fixtures" | "examples";
@@ -73,6 +73,20 @@ type ExampleSuiteReport = SuiteReport<
 type ParityReport = {
   suites: Array<FixtureSuiteReport | ExampleSuiteReport>;
 };
+
+function findRepoRoot(start: string): string {
+  let current = start;
+  for (;;) {
+    if (existsSync(path.join(current, "PLAN.md"))) {
+      return current;
+    }
+    const parent = path.dirname(current);
+    if (parent === current) {
+      throw new Error("Repo root not found");
+    }
+    current = parent;
+  }
+}
 
 async function writeReport(report: ParityReport, requestedPath?: string): Promise<string> {
   const targetPath = requestedPath ?? DEFAULT_REPORT_PATH;

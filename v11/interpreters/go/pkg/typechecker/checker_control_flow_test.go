@@ -436,6 +436,7 @@ func TestForLoopIterableSupportsStdlibCollections(t *testing.T) {
 	hashSetStruct := buildGenericStructDefinition("HashSet", []string{"T"})
 	dequeStruct := buildGenericStructDefinition("Deque", []string{"T"})
 	queueStruct := buildGenericStructDefinition("Queue", []string{"T"})
+	channelStruct := buildGenericStructDefinition("Channel", []string{"T"})
 	bitSetStruct := buildGenericStructDefinition("BitSet", nil)
 
 	listValue := ast.ID("value")
@@ -483,6 +484,12 @@ func TestForLoopIterableSupportsStdlibCollections(t *testing.T) {
 		ast.TypedP(ast.PatternFrom(ast.ID("queueValue")), ast.Ty("i32")),
 		ast.ID("queueItems"),
 		ast.Block(queueValue),
+	)
+	channelValue := ast.ID("channelValue")
+	channelLoop := ast.ForLoopPattern(
+		ast.TypedP(ast.PatternFrom(ast.ID("channelValue")), ast.Ty("string")),
+		ast.ID("channelItems"),
+		ast.Block(channelValue),
 	)
 	bitValue := ast.ID("bit")
 	bitSetLoop := ast.ForLoopPattern(
@@ -602,6 +609,21 @@ func TestForLoopIterableSupportsStdlibCollections(t *testing.T) {
 		false,
 		false,
 	)
+	channelFn := ast.Fn(
+		"consumeChannel",
+		[]*ast.FunctionParameter{
+			ast.Param("channelItems", ast.Gen(ast.Ty("Channel"), ast.Ty("string"))),
+		},
+		[]ast.Statement{
+			channelLoop,
+			ast.Ret(ast.Int(0)),
+		},
+		ast.Ty("i32"),
+		nil,
+		nil,
+		false,
+		false,
+	)
 	bitSetFn := ast.Fn(
 		"consumeBitSet",
 		[]*ast.FunctionParameter{
@@ -627,6 +649,7 @@ func TestForLoopIterableSupportsStdlibCollections(t *testing.T) {
 			hashSetStruct,
 			dequeStruct,
 			queueStruct,
+			channelStruct,
 			bitSetStruct,
 			listFn,
 			linkedListFn,
@@ -635,6 +658,7 @@ func TestForLoopIterableSupportsStdlibCollections(t *testing.T) {
 			setFn,
 			dequeFn,
 			queueFn,
+			channelFn,
 			bitSetFn,
 		},
 		nil,
@@ -703,6 +727,14 @@ func TestForLoopIterableSupportsStdlibCollections(t *testing.T) {
 	}
 	if typeName(typ) != "i32" {
 		t.Fatalf("expected queue loop value to infer i32, got %q", typeName(typ))
+	}
+
+	typ, ok = checker.infer[channelValue]
+	if !ok {
+		t.Fatalf("expected inference for channel loop value")
+	}
+	if typeName(typ) != "string" {
+		t.Fatalf("expected channel loop value to infer string, got %q", typeName(typ))
 	}
 
 	typ, ok = checker.infer[bitValue]

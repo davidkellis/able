@@ -1,5 +1,15 @@
 # Able Project Log
 
+## 2025-12-01 — Interface dispatch alignment + Awaitable stdlib
+- Codified the language-backed interfaces in the stdlib (Apply, Index/IndexMut, Iterable defaults, Awaitable/Proc/Future handles, channel/mutex awaitables) and wired both interpreters/typecheckers to route callable invocation and `[]`/`[]=` through these impls, surfacing Apply/IndexMut diagnostics when missing.
+- Added shared fixtures/tests for callable values and index assignment dispatch (`interfaces/apply_index_dispatch`, missing-impl diagnostics, Go/TS unit tests) plus new awaitable fixtures covering channel/mutex/timer arms and stdlib helpers (`concurrency/await_*`, ModuleLoader integration for Channel/Mutex/Await.default).
+- Refreshed the stdlib concurrency surface (awaitable wrappers, channel/mutex helpers) and kept parity harnesses green; `./run_all_tests.sh --version=v11` now passes end-to-end after the interface alignment sweep (TS unit/CLI/tests+fixtures+parity, Go unit tests).
+
+## 2025-11-27 — Channel for-loop iteration fixed (Go runtime)
+- Channel iterators now terminate correctly after closure/empty reads (stdlib `ChannelIterator.next` returns `IteratorEnd` before the typed arm), so Go for-loops over channels no longer hang.
+- The Go ModuleLoader concurrency smoke test now iterates a channel with a for-loop (summing values) via the stdlib surface, and the stdlib channel/mutex smoke test mirrors the for-loop path.
+- `go test ./...` (v11/interpreters/go) and the TS stdlib integration test for concurrency remain green.
+
 ## 2025-11-26 — Kernel vs stdlib layering complete (v11)
 - Primitive strings now live entirely in the stdlib: helpers/iterators/wrap-unwrap operate on built-in strings, with only the three kernel bridges left native. Go/TS runtimes and typecheckers resolve string members via the stdlib and surface import hints when missing.
 - Arrays now prefer stdlib methods end-to-end (size inline, minimal native shims retained for compatibility), with runtimes/typecheckers pointing diagnostics at `able.collections.array`.
@@ -218,3 +228,8 @@ Open items (2025-11-02 audit):
 ### 2025-11-24
 - Primitive `string` is now treated as an iterable of `u8` across both runtimes: TS/Go typecheckers recognise string for-loops, diagnostics reference `array, range, string, or iterator`, and new tests cover typed-pattern matches plus runtime iteration backed by the stdlib string module.
 - Added ModuleLoader + Go runtime tests to ensure string iteration requires importing `able.text.string` and yields byte values; stdlib README documents the import requirement.
+
+### 2025-11-25
+- Added a guardrail fixture for missing Apply/IndexMut implementations (`interfaces/apply_index_missing_impls`) and regenerated exports/baseline so warn/strict runs expect the shared diagnostics.
+- Aligned Go typechecker diagnostics with TS for non-callable Apply targets and Index-only [] assignments (now report “non-callable … missing Apply implementation” and “cannot assign via [] without IndexMut …”), keeping the parity suite green.
+- Full v11 sweep rerun after the additions (`./run_all_tests.sh --version=v11`) is green.

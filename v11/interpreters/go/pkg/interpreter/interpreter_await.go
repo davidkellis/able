@@ -139,6 +139,11 @@ func (i *Interpreter) evaluateAwaitExpression(expr *ast.AwaitExpression, env *ru
 			return nil, errSerialYield
 		}
 
+		var handle *runtime.ProcHandleValue
+		if payload != nil {
+			handle = payload.handle
+		}
+		i.markBlocked(handle)
 		ctx := payload.handle.Context()
 		if ctx == nil {
 			ctx = context.Background()
@@ -146,10 +151,12 @@ func (i *Interpreter) evaluateAwaitExpression(expr *ast.AwaitExpression, env *ru
 		select {
 		case <-waitCh:
 		case <-ctx.Done():
+			i.markUnblocked(handle)
 			payload.awaitBlocked = false
 			i.cleanupAwaitState(payload, expr, state, env)
 			return nil, ctx.Err()
 		}
+		i.markUnblocked(handle)
 		payload.awaitBlocked = false
 		state.waiting = false
 		state.wakePending = false
@@ -197,19 +204,37 @@ func (i *Interpreter) initializeAwaitState(payload *asyncContextPayload, expr *a
 }
 
 func (i *Interpreter) collectAwaitArms(iterable runtime.Value, env *runtime.Environment) ([]*awaitArmState, error) {
-	arr, err := i.toArrayValue(iterable)
-	if err != nil {
-		return nil, fmt.Errorf("await currently expects an array of Awaitable values")
+	if arr, err := i.toArrayValue(iterable); err == nil {
+		state, err := i.ensureArrayState(arr, 0)
+		if err != nil {
+			return nil, err
+		}
+		arms := make([]*awaitArmState, 0, len(state.values))
+		for _, el := range state.values {
+			arms = append(arms, &awaitArmState{
+				awaitable: el,
+				isDefault: i.awaitArmIsDefault(el, env),
+			})
+		}
+		return arms, nil
 	}
-	state, err := i.ensureArrayState(arr, 0)
+	iter, err := i.resolveIteratorValue(iterable, env)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("await requires an Iterable of Awaitable values: %w", err)
 	}
-	arms := make([]*awaitArmState, 0, len(state.values))
-	for _, el := range state.values {
+	defer iter.Close()
+	arms := make([]*awaitArmState, 0)
+	for {
+		val, done, stepErr := iter.Next()
+		if stepErr != nil {
+			return nil, stepErr
+		}
+		if done {
+			break
+		}
 		arms = append(arms, &awaitArmState{
-			awaitable: el,
-			isDefault: i.awaitArmIsDefault(el, env),
+			awaitable: val,
+			isDefault: i.awaitArmIsDefault(val, env),
 		})
 	}
 	return arms, nil
