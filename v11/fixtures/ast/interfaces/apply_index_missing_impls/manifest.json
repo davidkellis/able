@@ -1,0 +1,14 @@
+{
+  "description": "Calling non-Apply values and assigning through Index-only values surface Apply/IndexMut diagnostics",
+  "expect": {
+    "result": {
+      "kind": "string",
+      "value": "done"
+    },
+    "typecheckDiagnostics": [
+      "typechecker: ../../../fixtures/ast/interfaces/apply_index_missing_impls/source.able:23:3 typechecker: cannot call non-callable value ReadOnlyPair (missing Apply implementation)",
+      "typechecker: ../../../fixtures/ast/interfaces/apply_index_missing_impls/source.able:27:10 typechecker: cannot assign via [] without IndexMut implementation on type Index i32 i32"
+    ]
+  },
+  "entry": "module.json"
+}

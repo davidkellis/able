@@ -1,8 +1,8 @@
 package collections.set
 
-import able.core.interfaces.{Hash, Eq}
+import able.core.interfaces.{Eq}
 
-interface Set T for S where T: Hash + Eq T {
+interface Set T for S {
   fn add(self: Self, value: T) -> bool;
   fn remove(self: Self, value: T) -> bool;
   fn contains(self: Self, value: T) -> bool;

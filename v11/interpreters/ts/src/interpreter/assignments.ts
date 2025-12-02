@@ -3,6 +3,8 @@ import type { Environment } from "./environment";
 import type { InterpreterV10 } from "./index";
 import type { V10Value } from "./values";
 import { numericToNumber } from "./numeric";
+import { resolveIndexFunction } from "./operations";
+import { callCallableValue } from "./functions";
 
 function isPatternNode(node: AST.Node | undefined | null): node is AST.Pattern {
   if (!node) return false;
@@ -214,6 +216,22 @@ export function evaluateAssignmentExpression(ctx: InterpreterV10, node: AST.Assi
     if (node.operator === ":=") throw new Error("Cannot use := on index assignment");
     const obj = ctx.evaluate(node.left.object, env);
     const idxVal = ctx.evaluate(node.left.index, env);
+    const setMethod = resolveIndexFunction(ctx, obj, "set", "IndexMut");
+    if (setMethod) {
+      if (isCompound) {
+        const getMethod = resolveIndexFunction(ctx, obj, "get", "Index");
+        if (!getMethod) {
+          throw new Error("Compound index assignment requires readable Index implementation");
+        }
+        const existing = callCallableValue(ctx, getMethod, [obj, idxVal], env);
+        const op = node.operator.slice(0, -1);
+        const computed = ctx.computeBinaryForCompound(op, existing, value);
+        callCallableValue(ctx, setMethod, [obj, idxVal, computed], env);
+        return computed;
+      }
+      callCallableValue(ctx, setMethod, [obj, idxVal, value], env);
+      return value;
+    }
     if (obj.kind !== "array") throw new Error("Index assignment requires array");
     const state = ctx.ensureArrayState(obj);
     const idx = Math.trunc(numericToNumber(idxVal, "Array index", { requireSafeInteger: true }));

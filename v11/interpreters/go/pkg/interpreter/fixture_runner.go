@@ -16,12 +16,13 @@ import (
 )
 
 var (
-	stdlibRoot            = filepath.Join("..", "..", "..", "..", "stdlib", "src")
-	stdlibStringEntry     = filepath.Join(stdlibRoot, "text", "string.able")
-	typecheckBaselineOnce sync.Once
-	typecheckBaselineData map[string][]string
-	typecheckBaselineErr  error
-	stdlibLoader          *driver.Loader
+	stdlibRoot             = filepath.Join("..", "..", "..", "..", "stdlib", "src")
+	stdlibStringEntry      = filepath.Join(stdlibRoot, "text", "string.able")
+	typecheckBaselineOnce  sync.Once
+	typecheckBaselineData  map[string][]string
+	typecheckBaselineErr   error
+	stdlibConcurrencyEntry = filepath.Join(stdlibRoot, "concurrency", "await.able")
+	stdlibLoader           *driver.Loader
 )
 
 // runFixtureWithExecutor replays a fixture directory using the provided executor.
@@ -50,10 +51,13 @@ func runFixtureWithExecutor(t testingT, dir string, rel string, executor Executo
 
 	var programModules []*driver.Module
 	added := make(map[string]bool)
+	imports := make(map[string]struct{})
 	for _, setup := range manifest.Setup {
 		setupPath := filepath.Join(dir, setup)
 		setupModule, setupOrigin := readModule(underlying, setupPath)
-		programModules = append(programModules, fixtureDriverModule(setupModule, setupOrigin))
+		setupDriverModule := fixtureDriverModule(setupModule, setupOrigin)
+		programModules = append(programModules, setupDriverModule)
+		recordImports(imports, setupDriverModule.Imports)
 		if setupModule != nil && setupModule.Package != nil {
 			parts := make([]string, 0, len(setupModule.Package.NamePath))
 			for _, id := range setupModule.Package.NamePath {
@@ -70,7 +74,8 @@ func runFixtureWithExecutor(t testingT, dir string, rel string, executor Executo
 
 	entryModule := fixtureDriverModule(module, moduleOrigin)
 	added[entryModule.Package] = true
-	if containsImport(entryModule.Imports, "able.text.string") {
+	recordImports(imports, entryModule.Imports)
+	if hasImport(imports, "able.text.string") {
 		if stdlibLoader == nil {
 			loader, err := driver.NewLoader([]driver.SearchPath{{Path: stdlibRoot, Kind: driver.RootStdlib}})
 			if err != nil {
@@ -81,6 +86,30 @@ func runFixtureWithExecutor(t testingT, dir string, rel string, executor Executo
 		stdlibProgram, err := stdlibLoader.Load(stdlibStringEntry)
 		if err != nil {
 			t.Fatalf("load stdlib string: %v", err)
+		}
+		for _, mod := range stdlibProgram.Modules {
+			if mod == nil || added[mod.Package] {
+				continue
+			}
+			programModules = append(programModules, mod)
+			added[mod.Package] = true
+		}
+		if stdlibProgram.Entry != nil && !added[stdlibProgram.Entry.Package] {
+			programModules = append(programModules, stdlibProgram.Entry)
+			added[stdlibProgram.Entry.Package] = true
+		}
+	}
+	if hasImportWithPrefix(imports, "able.concurrency") {
+		if stdlibLoader == nil {
+			loader, err := driver.NewLoader([]driver.SearchPath{{Path: stdlibRoot, Kind: driver.RootStdlib}})
+			if err != nil {
+				t.Fatalf("stdlib loader init: %v", err)
+			}
+			stdlibLoader = loader
+		}
+		stdlibProgram, err := stdlibLoader.Load(stdlibConcurrencyEntry)
+		if err != nil {
+			t.Fatalf("load stdlib concurrency: %v", err)
 		}
 		for _, mod := range stdlibProgram.Modules {
 			if mod == nil || added[mod.Package] {
@@ -126,15 +155,6 @@ func runFixtureWithExecutor(t testingT, dir string, rel string, executor Executo
 	assertResult(underlying, dir, manifest, value, stdout)
 }
 
-func containsImport(imports []string, target string) bool {
-	for _, name := range imports {
-		if name == target {
-			return true
-		}
-	}
-	return false
-}
-
 func shouldSkipTarget(skip []string, target string) bool {
 	if len(skip) == 0 {
 		return false
@@ -152,6 +172,35 @@ func shouldSkipTarget(skip []string, target string) bool {
 type testingT interface {
 	Helper()
 	Fatalf(format string, args ...interface{})
+}
+
+func recordImports(dst map[string]struct{}, imports []string) {
+	if len(imports) == 0 {
+		return
+	}
+	for _, name := range imports {
+		if name == "" {
+			continue
+		}
+		dst[name] = struct{}{}
+	}
+}
+
+func hasImport(imports map[string]struct{}, target string) bool {
+	_, ok := imports[target]
+	return ok
+}
+
+func hasImportWithPrefix(imports map[string]struct{}, prefix string) bool {
+	if prefix == "" {
+		return false
+	}
+	for name := range imports {
+		if strings.HasPrefix(name, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 func fixtureDriverModule(module *ast.Module, file string) *driver.Module {

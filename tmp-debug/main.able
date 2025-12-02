@@ -1,0 +1,22 @@
+package main
+
+import able.concurrency.{Channel, Mutex, with_lock}
+
+fn main() -> string {
+  ch: Channel string := Channel.new(2)
+  ch.send("a")
+  ch.send("b")
+  ch.close()
+
+  combined := ""
+  for value in ch {
+    combined = combined + value
+  }
+
+  mutex := Mutex.new()
+  mutex.lock()
+  mutex.unlock()
+  with_lock(mutex, { => combined = combined + "!" })
+
+  combined
+}

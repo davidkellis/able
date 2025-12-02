@@ -37,6 +37,12 @@ interface MutexState {
   locked: boolean;
   owner: ProcHandleValue | null;
   waiters: ProcHandleValue[];
+  awaitRegistrations?: Set<MutexAwaitRegistration>;
+}
+
+interface MutexAwaitRegistration {
+  waker: Extract<V10Value, { kind: "struct_instance" }>;
+  cancelled?: boolean;
 }
 
 interface ChannelAwaitRegistration {
@@ -47,7 +53,6 @@ interface ChannelAwaitRegistration {
 
 const NIL: NilValue = { kind: "nil", value: null };
 const AWAITABLE_STRUCT = AST.structDefinition("ChannelAwaitable", [], "named");
-const AWAIT_REGISTRATION_STRUCT = AST.structDefinition("AwaitRegistration", [], "named");
 
 declare module "./index" {
   interface InterpreterV10 {
@@ -172,20 +177,6 @@ function raiseChannelError(interp: InterpreterV10, structName: string, fallbackM
   throw new RaiseSignal(err);
 }
 
-function makeAwaitRegistrationValue(interp: InterpreterV10, cancelFn?: () => void): Extract<V10Value, { kind: "struct_instance" }> {
-  const registration: Extract<V10Value, { kind: "struct_instance" }> = {
-    kind: "struct_instance",
-    def: AWAIT_REGISTRATION_STRUCT,
-    values: new Map(),
-  };
-  const cancelNative = interp.makeNativeFunction("AwaitRegistration.cancel", 1, () => {
-    if (cancelFn) cancelFn();
-    return NIL;
-  });
-  registration.values.set("cancel", interp.bindNativeMethod(cancelNative, registration));
-  return registration;
-}
-
 function addChannelAwaiter(
   state: ChannelState,
   kind: ChannelAwaitRegistration["kind"],
@@ -227,6 +218,35 @@ function notifyChannelAwaiters(
   if (!bucket || bucket.size === 0) return;
   for (const reg of Array.from(bucket)) {
     triggerChannelAwaiter(interp, reg);
+  }
+}
+
+function addMutexAwaiter(state: MutexState, waker: Extract<V10Value, { kind: "struct_instance" }>): MutexAwaitRegistration {
+  const registration: MutexAwaitRegistration = { waker };
+  if (!state.awaitRegistrations) {
+    state.awaitRegistrations = new Set();
+  }
+  state.awaitRegistrations.add(registration);
+  return registration;
+}
+
+function cancelMutexAwaiter(state: MutexState, registration: MutexAwaitRegistration): void {
+  if (!registration || registration.cancelled) return;
+  registration.cancelled = true;
+  state.awaitRegistrations?.delete(registration);
+}
+
+function notifyMutexAwaiters(interp: InterpreterV10, state: MutexState): void {
+  const regs = state.awaitRegistrations ? Array.from(state.awaitRegistrations) : [];
+  state.awaitRegistrations?.clear();
+  for (const reg of regs) {
+    if (reg.cancelled) continue;
+    try {
+      const wakeMember = memberAccessOnValue(interp, reg.waker, AST.identifier("wake"), interp.globals);
+      callCallableValue(interp, wakeMember, [], interp.globals);
+    } catch {
+      // ignore
+    }
   }
 }
 
@@ -288,7 +308,7 @@ export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void
           throw new Error("register expects waker instance");
         }
         if (handleNumber === 0) {
-          return makeAwaitRegistrationValue(nativeInterp);
+          return nativeInterp.makeAwaitRegistration();
         }
         const state = getChannelState(nativeInterp, handleNumber);
         if (!state) {
@@ -296,7 +316,7 @@ export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void
         }
         const registration = addChannelAwaiter(state, op, waker);
         const cancelFn = () => cancelChannelAwaiter(state, registration);
-        return makeAwaitRegistrationValue(nativeInterp, cancelFn);
+        return nativeInterp.makeAwaitRegistration(cancelFn);
       });
 
       const commit = this.makeNativeFunction("Awaitable.commit", 1, (nativeInterp) => {
@@ -741,6 +761,7 @@ export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void
 
         state.locked = false;
         state.owner = null;
+        notifyMutexAwaiters(interp, state);
         if (state.waiters.length > 0) {
           const next = state.waiters.shift()!;
           if ((next as any).waitingMutex === state) {
@@ -753,6 +774,59 @@ export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void
         }
 
         return NIL;
+      }),
+    );
+
+    defineIfMissing("__able_mutex_await_lock", () =>
+      this.makeNativeFunction("__able_mutex_await_lock", 2, (interp, args) => {
+        const handle = toHandleNumber(args[0], "mutex handle");
+        const callback = args[1];
+        const inst: Extract<V10Value, { kind: "struct_instance" }> = {
+          kind: "struct_instance",
+          def: AWAITABLE_STRUCT,
+          values: new Map(),
+        };
+        const isReady = interp.makeNativeFunction("Awaitable.is_ready", 1, (nativeInterp) => {
+          const state = nativeInterp.mutexStates.get(handle);
+          if (!state) {
+            throw new Error("Invalid mutex handle");
+          }
+          return { kind: "bool", value: state.locked === false };
+        });
+        const register = interp.makeNativeFunction("Awaitable.register", 2, (nativeInterp, regArgs) => {
+          const waker = regArgs[1];
+          if (!waker || waker.kind !== "struct_instance") {
+            throw new Error("register expects waker instance");
+          }
+          const state = nativeInterp.mutexStates.get(handle);
+          if (!state) {
+            throw new Error("Invalid mutex handle");
+          }
+          if (!state.locked) {
+            nativeInterp.invokeAwaitWaker(waker);
+            return nativeInterp.makeAwaitRegistration();
+          }
+          const registration = addMutexAwaiter(state, waker);
+          return nativeInterp.makeAwaitRegistration(() => cancelMutexAwaiter(state, registration));
+        });
+        const commit = interp.makeNativeFunction("Awaitable.commit", 1, (nativeInterp) => {
+          const lockFn = nativeInterp.globals.get("__able_mutex_lock");
+          if (!lockFn || lockFn.kind !== "native_function") {
+            throw new Error("__able_mutex_lock is not available");
+          }
+          lockFn.impl(nativeInterp, [makeIntegerValue("i32", BigInt(handle))]);
+          if (!callback || callback.kind === "nil") {
+            return NIL;
+          }
+          return callCallableValue(nativeInterp, callback, [], nativeInterp.globals);
+        });
+        const isDefault = interp.makeNativeFunction("Awaitable.is_default", 1, () => ({ kind: "bool", value: false }));
+        const values = inst.values as Map<string, V10Value>;
+        values.set("is_ready", interp.bindNativeMethod(isReady, inst));
+        values.set("register", interp.bindNativeMethod(register, inst));
+        values.set("commit", interp.bindNativeMethod(commit, inst));
+        values.set("is_default", interp.bindNativeMethod(isDefault, inst));
+        return inst;
       }),
     );
   };

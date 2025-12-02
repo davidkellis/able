@@ -1,0 +1,29 @@
+interface Apply <Args, Result>
+{
+  fn apply (self: Self, idx: Args) -> Result
+}
+interface Index <Idx, Val>
+{
+  fn get (self: Self, idx: Idx) -> Val
+}
+interface IndexMut <Idx, Val>
+{
+  fn set (self: Self, idx: Idx, value: Val) -> void
+}
+struct ReadOnlyPair {
+  values: Array i32
+}
+impl Index i32 i32 for ReadOnlyPair
+{
+  fn get(self: Self, idx: i32) -> i32 {
+    return self.values[idx]
+  }
+}
+fn call_missing_apply(pair: ReadOnlyPair) -> void {
+  pair()
+}
+fn assign_missing_index_mut(pair: ReadOnlyPair) -> i32 {
+  indexed: Index i32 i32 := pair
+  indexed[0] = 7
+}
+"done"

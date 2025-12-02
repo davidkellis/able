@@ -3,6 +3,7 @@ import type { TypeInfo } from "../types";
 import { inferExpression as inferExpressionHelper } from "./expressions";
 import type { StatementContext } from "./expression-context";
 import { checkStatement as checkStatementHelper } from "./statements";
+import type { InterfaceCheckResult } from "./types";
 
 export type CheckerContextHost = {
   resolveStructDefinitionForPattern: StatementContext["resolveStructDefinitionForPattern"];
@@ -49,6 +50,11 @@ export type CheckerContextHost = {
   hasBreakpointLabel: (label: string | null | undefined) => boolean;
   handleBreakStatement: (statement: AST.BreakStatement) => void;
   handleContinueStatement: (statement: AST.ContinueStatement) => void;
+  typeImplementsInterface?: (
+    type: TypeInfo,
+    interfaceName: string,
+    expectedArgs?: string[],
+  ) => InterfaceCheckResult;
 };
 
 export function createCheckerContext(host: CheckerContextHost): StatementContext {
@@ -97,6 +103,7 @@ export function createCheckerContext(host: CheckerContextHost): StatementContext
   ctx.hasBreakpointLabel = host.hasBreakpointLabel;
   ctx.handleBreakStatement = host.handleBreakStatement;
   ctx.handleContinueStatement = host.handleContinueStatement;
+  ctx.typeImplementsInterface = host.typeImplementsInterface;
 
   const expressionCtx = ctx as StatementContext;
   ctx.inferExpression = (expression) => inferExpressionHelper(expressionCtx, expression);

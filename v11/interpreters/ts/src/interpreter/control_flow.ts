@@ -695,8 +695,11 @@ function bindPattern(ctx: InterpreterV10, pattern: AST.Pattern, value: V10Value,
   ctx.assignByPattern(pattern as AST.Pattern, value, env, true);
 }
 
-function resolveIteratorValue(ctx: InterpreterV10, iterable: V10Value, env: Environment): IteratorValue {
+export function resolveIteratorValue(ctx: InterpreterV10, iterable: V10Value, env: Environment): IteratorValue {
   ctx.ensureIteratorBuiltins();
+  if (iterable.kind === "iterator") {
+    return iterable;
+  }
   const direct = adaptIteratorValue(ctx, iterable, env);
   if (direct) return direct;
   const tempEnv = new Environment(env);

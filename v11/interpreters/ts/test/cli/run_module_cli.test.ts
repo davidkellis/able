@@ -401,10 +401,12 @@ function runCli(command: CLICommand, options: RunCliOptions): CliResult {
       encoding: "utf8",
       env,
     });
+    const status = result.status ?? (result.error ? 1 : 0);
+    const stderr = `${result.stderr ?? ""}${result.error ? String(result.error) : ""}`;
     return {
-      status: result.status,
+      status,
       stdout: result.stdout ?? "",
-      stderr: result.stderr ?? "",
+      stderr,
     };
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -441,15 +443,17 @@ function runTestCli(args: string[], options: RunTestCliOptions = {}): CliResult 
     env,
     cwd,
   });
+  const status = result.status ?? (result.error ? 1 : 0);
+  const stderr = `${result.stderr ?? ""}${result.error ? String(result.error) : ""}`;
 
   if (workspaceDir) {
     rmSync(workspaceDir, { recursive: true, force: true });
   }
 
   return {
-    status: result.status,
+    status,
     stdout: result.stdout ?? "",
-    stderr: result.stderr ?? "",
+    stderr,
   };
 }
 

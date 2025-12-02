@@ -264,11 +264,14 @@ func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diag
 				}
 			}
 			resultType = instantiated.Return
+		} else if applyReturn, applyDiags, matched := c.resolveApplyCall(calleeType, argTypes, e); matched {
+			diags = append(diags, applyDiags...)
+			resultType = applyReturn
 		} else if inPipeline {
 			resultType = UnknownType{}
 		} else if !isUnknownType(calleeType) {
 			diags = append(diags, Diagnostic{
-				Message: "typechecker: cannot call non-function value",
+				Message: fmt.Sprintf("typechecker: cannot call non-callable value %s (missing Apply implementation)", typeName(calleeType)),
 				Node:    e.Callee,
 			})
 		}
@@ -306,8 +309,51 @@ func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diag
 	case *ast.SpawnExpression:
 		return c.checkSpawnExpression(env, e)
 	case *ast.AwaitExpression:
-		c.infer.set(e, UnknownType{})
-		return nil, UnknownType{}
+		var diags []Diagnostic
+		iterDiags, iterType := c.checkExpression(env, e.Expression)
+		diags = append(diags, iterDiags...)
+		elemType, ok := iterableElementType(iterType)
+		if !ok && !isUnknownType(iterType) {
+			diags = append(diags, Diagnostic{
+				Message: fmt.Sprintf("typechecker: await expects an Iterable of Awaitable values (got %s)", typeName(iterType)),
+				Node:    e.Expression,
+			})
+		}
+		resultType := Type(UnknownType{})
+		matched := false
+		switch t := elemType.(type) {
+		case AppliedType:
+			if iface, ok := t.Base.(InterfaceType); ok && iface.InterfaceName == "Awaitable" {
+				if len(t.Arguments) > 0 {
+					resultType = t.Arguments[0]
+				}
+				matched = true
+			} else if name, ok := structName(t.Base); ok {
+				switch name {
+				case "Future", "Proc":
+					if len(t.Arguments) > 0 {
+						resultType = t.Arguments[0]
+					}
+					matched = true
+				}
+			}
+		case InterfaceType:
+		case FutureType:
+			resultType = t.Result
+			matched = true
+		case ProcType:
+			resultType = t.Result
+			matched = true
+		default:
+		}
+		if !matched && !isUnknownType(elemType) {
+			diags = append(diags, Diagnostic{
+				Message: fmt.Sprintf("typechecker: await expects Awaitable values (got %s)", typeName(elemType)),
+				Node:    e.Expression,
+			})
+		}
+		c.infer.set(e, resultType)
+		return diags, resultType
 	case *ast.PropagationExpression:
 		return c.checkPropagationExpression(env, e)
 	case *ast.Identifier:
@@ -340,6 +386,17 @@ func hasPipelinePlaceholder(args []ast.Expression) bool {
 func (c *Checker) checkStatement(env *Environment, stmt ast.Statement) []Diagnostic {
 	switch s := stmt.(type) {
 	case *ast.AssignmentExpression:
+		if idx, ok := s.Left.(*ast.IndexExpression); ok {
+			var diags []Diagnostic
+			rhsDiags, typ := c.checkExpression(env, s.Right)
+			diags = append(diags, rhsDiags...)
+			if typ == nil {
+				typ = UnknownType{}
+			}
+			diags = append(diags, c.checkIndexAssignment(env, idx, typ, s.Operator)...)
+			c.infer.set(s, UnknownType{})
+			return diags
+		}
 		var diags []Diagnostic
 		var intent *patternIntent
 		if s.Operator == ast.AssignmentDeclare {
@@ -571,6 +628,82 @@ func (c *Checker) checkIteratorYield(env *Environment, stmt *ast.YieldStatement,
 		Node:    stmt,
 	})
 	return diags, valueType
+}
+
+func (c *Checker) resolveApplyCall(calleeType Type, argTypes []Type, call *ast.FunctionCall) (Type, []Diagnostic, bool) {
+	var diags []Diagnostic
+	if fnType, ok := c.lookupMethod(calleeType, "apply"); ok {
+		params := fnType.Params
+		optionalLast := len(params) > 0
+		if optionalLast {
+			if _, ok := params[len(params)-1].(NullableType); !ok {
+				optionalLast = false
+			}
+		}
+		if len(argTypes) != len(params) && !(optionalLast && len(argTypes) == len(params)-1) {
+			diags = append(diags, Diagnostic{
+				Message: fmt.Sprintf("typechecker: Apply.apply expects %d arguments, got %d", len(params), len(argTypes)),
+				Node:    call,
+			})
+		}
+		if optionalLast && len(argTypes) == len(params)-1 {
+			params = params[:len(params)-1]
+		}
+		compareCount := len(argTypes)
+		if len(params) < compareCount {
+			compareCount = len(params)
+		}
+		for i := 0; i < compareCount; i++ {
+			expected := params[i]
+			actual := argTypes[i]
+			if isUnknownType(expected) || isUnknownType(actual) {
+				continue
+			}
+			if !typeAssignable(actual, expected) {
+				if msg, ok := literalMismatchMessage(actual, expected); ok {
+					diags = append(diags, Diagnostic{
+						Message: fmt.Sprintf("typechecker: %s", msg),
+						Node:    call.Arguments[i],
+					})
+				} else {
+					diags = append(diags, Diagnostic{
+						Message: fmt.Sprintf("typechecker: argument %d has type %s, expected %s", i+1, typeName(actual), typeName(expected)),
+						Node:    call.Arguments[i],
+					})
+				}
+			}
+		}
+		return fnType.Return, diags, true
+	}
+	switch t := calleeType.(type) {
+	case AppliedType:
+		if iface, ok := t.Base.(InterfaceType); ok && iface.InterfaceName == "Apply" {
+			ret := Type(UnknownType{})
+			if len(t.Arguments) > 1 {
+				ret = t.Arguments[1]
+			}
+			if len(argTypes) != 1 {
+				diags = append(diags, Diagnostic{
+					Message: fmt.Sprintf("typechecker: Apply.apply expects 1 argument, got %d", len(argTypes)),
+					Node:    call,
+				})
+			} else if len(t.Arguments) > 0 && t.Arguments[0] != nil && !isUnknownType(t.Arguments[0]) && !isUnknownType(argTypes[0]) && !typeAssignable(argTypes[0], t.Arguments[0]) {
+				diags = append(diags, Diagnostic{
+					Message: fmt.Sprintf("typechecker: argument 1 has type %s, expected %s", typeName(argTypes[0]), typeName(t.Arguments[0])),
+					Node:    call.Arguments[0],
+				})
+			}
+			return ret, diags, true
+		}
+	case InterfaceType:
+		if t.InterfaceName == "Apply" {
+			return UnknownType{}, nil, true
+		}
+	}
+	if ok, _ := c.typeImplementsInterface(calleeType, InterfaceType{InterfaceName: "Apply"}, nil); ok {
+		return UnknownType{}, nil, true
+	}
+	return UnknownType{}, nil, false
 }
 
 func mergeIteratorElementType(current Type, next Type) Type {

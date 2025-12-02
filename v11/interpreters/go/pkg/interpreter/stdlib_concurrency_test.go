@@ -1,9 +1,14 @@
 package interpreter
 
 import (
+	"bytes"
+	"path/filepath"
+	"runtime/pprof"
 	"testing"
+	"time"
 
 	"able/interpreter10-go/pkg/ast"
+	"able/interpreter10-go/pkg/driver"
 	"able/interpreter10-go/pkg/runtime"
 )
 
@@ -367,5 +372,102 @@ func TestStdlibChannelMutexPreludeSmoke(t *testing.T) {
 	scoreBool, ok := scoreValue.(runtime.BoolValue)
 	if !ok || !scoreBool.Val {
 		t.Fatalf("score expression expected true, got %#v", scoreValue)
+	}
+}
+
+func TestStdlibChannelMutexModuleLoader(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, filepath.Join(root, "package.yml"), "name: concurrency_stdlib_go\n")
+	writeTestFile(t, filepath.Join(root, "main.able"), `
+package main
+
+import able.concurrency.{Channel, Mutex, with_lock}
+
+fn main() -> i32 {
+  ch: Channel i32 := Channel.new(2)
+  ch.send(3)
+  ch.send(2)
+  ch.close()
+
+  total := 0
+  for value in ch { total = total + value }
+
+  mutex := Mutex.new()
+  mutex.lock()
+  mutex.unlock()
+
+  observed := 0
+  with_lock(mutex, { => observed = total })
+  observed
+}
+`)
+
+	loader, err := driver.NewLoader([]driver.SearchPath{
+		{Path: filepath.Join("..", "..", "..", "..", "stdlib", "src"), Kind: driver.RootStdlib},
+	})
+	if err != nil {
+		t.Fatalf("loader init: %v", err)
+	}
+	defer loader.Close()
+
+	program, err := loader.Load(filepath.Join(root, "main.able"))
+	if err != nil {
+		t.Fatalf("load entry: %v", err)
+	}
+	t.Log("program loaded")
+
+	check, err := TypecheckProgram(program)
+	if err != nil {
+		t.Fatalf("typecheck: %v", err)
+	}
+	diags := filterStdlibDiagnostics(check.Diagnostics)
+	if len(diags) != 0 {
+		t.Fatalf("unexpected diagnostics: %v", diags)
+	}
+	t.Logf("typecheck diags (non-stdlib): %d", len(diags))
+
+	interp := New()
+	value, env, _, err := interp.EvaluateProgram(program, ProgramEvaluationOptions{SkipTypecheck: true})
+	if err != nil {
+		t.Fatalf("evaluate program: %v", err)
+	}
+	t.Log("program evaluated")
+	if env == nil {
+		t.Fatalf("expected entry environment")
+	}
+	if value != nil {
+		if _, ok := value.(runtime.NilValue); !ok {
+			t.Fatalf("expected module evaluation value to be nil, got %#v", value)
+		}
+	}
+
+	mainVal, err := env.Get("main")
+	if err != nil {
+		t.Fatalf("entry module missing main: %v", err)
+	}
+	t.Log("invoking main")
+	var result runtime.Value
+	var callErr error
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		result, callErr = interp.CallFunction(mainVal, nil)
+	}()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		var buf bytes.Buffer
+		_ = pprof.Lookup("goroutine").WriteTo(&buf, 1)
+		t.Fatalf("call main timed out:\n%s", buf.String())
+	}
+	if callErr != nil {
+		t.Fatalf("call main: %v", callErr)
+	}
+	intResult, ok := result.(runtime.IntegerValue)
+	if !ok {
+		t.Fatalf("expected integer result, got %T (%#v)", result, result)
+	}
+	if intResult.Val == nil || intResult.Val.Int64() != 5 {
+		t.Fatalf("unexpected result: %v", intResult.Val)
 	}
 }

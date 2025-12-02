@@ -5,11 +5,39 @@ import type { Executor } from "./executor";
 import { ProcYieldSignal, RaiseSignal } from "./signals";
 import type { V10Value } from "./values";
 import { ProcContinuationContext } from "./proc_continuations";
-import { makeIntegerValue } from "./numeric";
+import { isFloatValue, isIntegerValue, makeIntegerValue } from "./numeric";
+import { callCallableValue } from "./functions";
+import { memberAccessOnValue } from "./structs";
 
 type AwaitWakerPayload = {
   wake: () => void;
 };
+
+type TimerAwaitableState = {
+  deadlineMs: number;
+  ready: boolean;
+  cancelled: boolean;
+  timerId?: ReturnType<typeof setTimeout>;
+  callback?: V10Value;
+};
+
+const MAX_SLEEP_DELAY_MS = 2_147_483_647;
+
+function toMilliseconds(value: V10Value): number {
+  if (isIntegerValue(value)) {
+    const limit = BigInt(MAX_SLEEP_DELAY_MS);
+    const clamped = value.value < 0n ? 0n : value.value > limit ? limit : value.value;
+    return Number(clamped);
+  }
+  if (isFloatValue(value)) {
+    if (!Number.isFinite(value.value)) {
+      throw new Error("sleep_ms expects a finite duration");
+    }
+    const truncated = Math.trunc(value.value);
+    return Math.max(0, Math.min(truncated, MAX_SLEEP_DELAY_MS));
+  }
+  throw new Error("sleep_ms expects a numeric duration");
+}
 
 declare module "./index" {
   interface InterpreterV10 {
@@ -18,6 +46,18 @@ declare module "./index" {
     ensureSchedulerTick(): void;
     currentAsyncContext(): { kind: "proc"; handle: Extract<V10Value, { kind: "proc_handle" }> } | { kind: "future"; handle: Extract<V10Value, { kind: "future" }> } | null;
     createAwaitWaker(handle: Extract<V10Value, { kind: "proc_handle" }>, state: unknown): Extract<V10Value, { kind: "struct_instance" }>;
+    makeAwaitRegistration(cancelFn?: () => void): Extract<V10Value, { kind: "struct_instance" }>;
+    invokeAwaitWaker(waker: V10Value): void;
+    registerProcAwaiter(
+      handle: Extract<V10Value, { kind: "proc_handle" }>,
+      waker: Extract<V10Value, { kind: "struct_instance" }>,
+    ): Extract<V10Value, { kind: "struct_instance" }>;
+    registerFutureAwaiter(
+      future: Extract<V10Value, { kind: "future" }>,
+      waker: Extract<V10Value, { kind: "struct_instance" }>,
+    ): Extract<V10Value, { kind: "struct_instance" }>;
+    triggerProcAwaiters(handle: Extract<V10Value, { kind: "proc_handle" }>): void;
+    triggerFutureAwaiters(future: Extract<V10Value, { kind: "future" }>): void;
     procYield(): V10Value;
     procCancelled(): V10Value;
     procFlush(): V10Value;
@@ -47,9 +87,12 @@ declare module "./index" {
     currentProcContext(): ProcContinuationContext | null;
     procContextStack: ProcContinuationContext[];
     awaitWakerStruct?: AST.StructDefinition;
+    awaitRegistrationStruct?: AST.StructDefinition;
     awaitWakerNativeMethods?: {
       wake: Extract<V10Value, { kind: "native_function" }>;
     };
+    awaitHelpersBuiltinsInitialized?: boolean;
+    ensureAwaitHelperBuiltins(): void;
   }
 }
 
@@ -112,12 +155,19 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
     this.procStatusCancelledValue = this.makeNamedStructInstance(this.procStatusStructs.Cancelled, []);
 
     const awaitWakerDefAst = AST.structDefinition("AwaitWaker", [], "named");
+    const awaitRegistrationDefAst = AST.structDefinition("AwaitRegistration", [], "named");
     this.evaluate(awaitWakerDefAst, this.globals);
+    this.evaluate(awaitRegistrationDefAst, this.globals);
     const awaitWakerVal = this.globals.get("AwaitWaker");
     if (!awaitWakerVal || awaitWakerVal.kind !== "struct_def") {
       throw new Error("Failed to initialize struct 'AwaitWaker'");
     }
     this.awaitWakerStruct = awaitWakerVal.def;
+    const awaitRegistrationVal = this.globals.get("AwaitRegistration");
+    if (!awaitRegistrationVal || awaitRegistrationVal.kind !== "struct_def") {
+      throw new Error("Failed to initialize struct 'AwaitRegistration'");
+    }
+    this.awaitRegistrationStruct = awaitRegistrationVal.def;
     const wakeNative = this.makeNativeFunction("AwaitWaker.wake", 1, (_interp, args) => {
       const self = args[0];
       if (!self || self.kind !== "struct_instance") {
@@ -130,6 +180,7 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
       return { kind: "nil", value: null };
     });
     this.awaitWakerNativeMethods = { wake: wakeNative };
+    this.ensureAwaitHelperBuiltins();
   };
 
   cls.prototype.scheduleAsync = function scheduleAsync(this: InterpreterV10, fn: () => void): void {
@@ -250,6 +301,7 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
     handle.error = this.makeRuntimeError(message, procErr, procErr);
     handle.runner = null;
     handle.awaitBlocked = false;
+    this.triggerProcAwaiters(handle);
   };
 
   cls.prototype.markFutureCancelled = function markFutureCancelled(this: InterpreterV10, future: Extract<V10Value, { kind: "future" }>, message = "Future cancelled"): void {
@@ -283,6 +335,7 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
     future.failureInfo = procErr;
     future.error = this.makeRuntimeError(message, procErr, procErr);
     future.runner = null;
+    this.triggerFutureAwaiters(future);
   };
 
   cls.prototype.procHandleStatus = function procHandleStatus(this: InterpreterV10, handle: Extract<V10Value, { kind: "proc_handle" }>): V10Value {
@@ -489,6 +542,7 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
       handle.isEvaluating = false;
       this.manualYieldRequested = false;
       if (handle.state !== "pending") {
+        this.triggerProcAwaiters(handle);
         procContext.reset();
         delete (handle as any).continuation;
         handle.runner = null;
@@ -560,6 +614,7 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
       future.isEvaluating = false;
       this.manualYieldRequested = false;
       if (future.state !== "pending") {
+        this.triggerFutureAwaiters(future);
         futureContext.reset();
         delete (future as any).continuation;
         future.runner = null;
@@ -580,6 +635,111 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
       err.cause = value;
     }
     return err;
+  };
+
+  cls.prototype.makeAwaitRegistration = function makeAwaitRegistration(
+    this: InterpreterV10,
+    cancelFn?: () => void,
+  ): Extract<V10Value, { kind: "struct_instance" }> {
+    if (!this.awaitRegistrationStruct) {
+      throw new Error("Await registration builtins are not initialized");
+    }
+    const registration: Extract<V10Value, { kind: "struct_instance" }> = {
+      kind: "struct_instance",
+      def: this.awaitRegistrationStruct,
+      values: new Map(),
+    };
+    const cancelNative = this.makeNativeFunction("AwaitRegistration.cancel", 1, () => {
+      if (cancelFn) cancelFn();
+      return { kind: "nil", value: null };
+    });
+    registration.values.set("cancel", this.bindNativeMethod(cancelNative, registration));
+    return registration;
+  };
+
+  cls.prototype.invokeAwaitWaker = function invokeAwaitWaker(this: InterpreterV10, waker: V10Value): void {
+    try {
+      const member = memberAccessOnValue(this, waker, AST.identifier("wake"), this.globals);
+      callCallableValue(this, member, [], this.globals);
+    } catch {
+      // ignore wake errors
+    }
+  };
+
+  cls.prototype.registerProcAwaiter = function registerProcAwaiter(
+    this: InterpreterV10,
+    handle: Extract<V10Value, { kind: "proc_handle" }>,
+    waker: Extract<V10Value, { kind: "struct_instance" }>,
+  ): Extract<V10Value, { kind: "struct_instance" }> {
+    if (!handle || handle.state !== "pending") {
+      this.invokeAwaitWaker(waker);
+      return this.makeAwaitRegistration();
+    }
+    const bucket: Set<{ waker: typeof waker; cancelled: boolean }> =
+      (handle as any).awaitRegistrations ?? new Set();
+    (handle as any).awaitRegistrations = bucket;
+    const entry = { waker, cancelled: false };
+    bucket.add(entry);
+    return this.makeAwaitRegistration(() => {
+      entry.cancelled = true;
+      bucket.delete(entry);
+      if (bucket.size === 0) {
+        delete (handle as any).awaitRegistrations;
+      }
+    });
+  };
+
+  cls.prototype.registerFutureAwaiter = function registerFutureAwaiter(
+    this: InterpreterV10,
+    future: Extract<V10Value, { kind: "future" }>,
+    waker: Extract<V10Value, { kind: "struct_instance" }>,
+  ): Extract<V10Value, { kind: "struct_instance" }> {
+    if (!future || future.state !== "pending") {
+      this.invokeAwaitWaker(waker);
+      return this.makeAwaitRegistration();
+    }
+    const bucket: Set<{ waker: typeof waker; cancelled: boolean }> =
+      (future as any).awaitRegistrations ?? new Set();
+    (future as any).awaitRegistrations = bucket;
+    const entry = { waker, cancelled: false };
+    bucket.add(entry);
+    return this.makeAwaitRegistration(() => {
+      entry.cancelled = true;
+      bucket.delete(entry);
+      if (bucket.size === 0) {
+        delete (future as any).awaitRegistrations;
+      }
+    });
+  };
+
+  cls.prototype.triggerProcAwaiters = function triggerProcAwaiters(
+    this: InterpreterV10,
+    handle: Extract<V10Value, { kind: "proc_handle" }>,
+  ): void {
+    const bucket: Set<{ waker: Extract<V10Value, { kind: "struct_instance" }>; cancelled: boolean }> | undefined = (handle as any)
+      .awaitRegistrations;
+    if (!bucket || bucket.size === 0) return;
+    delete (handle as any).awaitRegistrations;
+    for (const entry of bucket) {
+      if (!entry.cancelled) {
+        this.invokeAwaitWaker(entry.waker);
+      }
+    }
+  };
+
+  cls.prototype.triggerFutureAwaiters = function triggerFutureAwaiters(
+    this: InterpreterV10,
+    future: Extract<V10Value, { kind: "future" }>,
+  ): void {
+    const bucket: Set<{ waker: Extract<V10Value, { kind: "struct_instance" }>; cancelled: boolean }> | undefined = (future as any)
+      .awaitRegistrations;
+    if (!bucket || bucket.size === 0) return;
+    delete (future as any).awaitRegistrations;
+    for (const entry of bucket) {
+      if (!entry.cancelled) {
+        this.invokeAwaitWaker(entry.waker);
+      }
+    }
   };
 
   cls.prototype.createAwaitWaker = function createAwaitWaker(
@@ -610,5 +770,125 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
     const values = instance.values as Map<string, V10Value>;
     values.set("wake", wakeMethod);
     return instance;
+  };
+
+  cls.prototype.ensureAwaitHelperBuiltins = function ensureAwaitHelperBuiltins(this: InterpreterV10): void {
+    if (this.awaitHelpersBuiltinsInitialized) return;
+    this.awaitHelpersBuiltinsInitialized = true;
+
+    const awaitableStruct = AST.structDefinition("AwaitHelper", [], "named");
+
+    const makeDefaultAwaitable = (callback?: V10Value): Extract<V10Value, { kind: "struct_instance" }> => {
+      const inst: Extract<V10Value, { kind: "struct_instance" }> = {
+        kind: "struct_instance",
+        def: awaitableStruct,
+        values: new Map(),
+      };
+      const isReady = this.makeNativeFunction("Awaitable.is_ready", 1, () => ({ kind: "bool", value: true }));
+      const register = this.makeNativeFunction("Awaitable.register", 2, (nativeInterp) => nativeInterp.makeAwaitRegistration());
+      const commit = this.makeNativeFunction("Awaitable.commit", 1, (nativeInterp) => {
+        if (!callback || callback.kind === "nil") {
+          return { kind: "nil", value: null };
+        }
+        return callCallableValue(nativeInterp, callback, [], nativeInterp.globals);
+      });
+      const isDefault = this.makeNativeFunction("Awaitable.is_default", 1, () => ({ kind: "bool", value: true }));
+      const values = inst.values as Map<string, V10Value>;
+      values.set("is_ready", this.bindNativeMethod(isReady, inst));
+      values.set("register", this.bindNativeMethod(register, inst));
+      values.set("commit", this.bindNativeMethod(commit, inst));
+      values.set("is_default", this.bindNativeMethod(isDefault, inst));
+      return inst;
+    };
+
+    const makeTimerAwaitable = (durationMs: number, callback?: V10Value): Extract<V10Value, { kind: "struct_instance" }> => {
+      const state: TimerAwaitableState = {
+        deadlineMs: Date.now() + durationMs,
+        ready: durationMs <= 0,
+        cancelled: false,
+        callback,
+      };
+      const inst: Extract<V10Value, { kind: "struct_instance" }> = {
+        kind: "struct_instance",
+        def: awaitableStruct,
+        values: new Map(),
+      };
+
+      const refreshReady = () => {
+        if (!state.ready && Date.now() >= state.deadlineMs) {
+          state.ready = true;
+        }
+      };
+
+      const isReady = this.makeNativeFunction("Awaitable.is_ready", 1, () => {
+        refreshReady();
+        return { kind: "bool", value: state.ready };
+      });
+
+      const register = this.makeNativeFunction("Awaitable.register", 2, (nativeInterp, args) => {
+        const waker = args[1];
+        if (!waker || waker.kind !== "struct_instance") {
+          throw new Error("register expects waker instance");
+        }
+        refreshReady();
+        if (state.ready) {
+          nativeInterp.invokeAwaitWaker(waker);
+          return nativeInterp.makeAwaitRegistration();
+        }
+        if (state.timerId !== undefined) {
+          clearTimeout(state.timerId);
+          state.timerId = undefined;
+        }
+        state.cancelled = false;
+        const remaining = Math.max(0, Math.min(state.deadlineMs - Date.now(), MAX_SLEEP_DELAY_MS));
+        state.timerId = setTimeout(() => {
+          state.timerId = undefined;
+          if (state.cancelled) return;
+          state.ready = true;
+          nativeInterp.invokeAwaitWaker(waker);
+        }, remaining);
+        return nativeInterp.makeAwaitRegistration(() => {
+          state.cancelled = true;
+          if (state.timerId !== undefined) {
+            clearTimeout(state.timerId);
+            state.timerId = undefined;
+          }
+        });
+      });
+
+      const commit = this.makeNativeFunction("Awaitable.commit", 1, (nativeInterp) => {
+        state.ready = true;
+        if (state.timerId !== undefined) {
+          clearTimeout(state.timerId);
+          state.timerId = undefined;
+        }
+        state.cancelled = false;
+        if (!state.callback || state.callback.kind === "nil") {
+          return { kind: "nil", value: null };
+        }
+        return callCallableValue(nativeInterp, state.callback, [], nativeInterp.globals);
+      });
+
+      const isDefault = this.makeNativeFunction("Awaitable.is_default", 1, () => ({ kind: "bool", value: false }));
+      const values = inst.values as Map<string, V10Value>;
+      values.set("is_ready", this.bindNativeMethod(isReady, inst));
+      values.set("register", this.bindNativeMethod(register, inst));
+      values.set("commit", this.bindNativeMethod(commit, inst));
+      values.set("is_default", this.bindNativeMethod(isDefault, inst));
+      return inst;
+    };
+
+    const awaitDefault = this.makeNativeFunction("__able_await_default", 1, (_nativeInterp, args) => {
+      const callback = args[0];
+      return makeDefaultAwaitable(callback && callback.kind !== "nil" ? callback : undefined);
+    });
+    this.globals.define("__able_await_default", awaitDefault);
+
+    const awaitSleepMs = this.makeNativeFunction("__able_await_sleep_ms", 2, (_nativeInterp, args) => {
+      const duration = toMilliseconds(args[0]);
+      const callback = args[1];
+      return makeTimerAwaitable(duration, callback && callback.kind !== "nil" ? callback : undefined);
+    });
+    this.globals.define("__able_await_sleep_ms", awaitSleepMs);
   };
 }

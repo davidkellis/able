@@ -1,0 +1,14 @@
+ch := __able_channel_new(0)
+hits := 0
+runner := proc {
+  result = await [__able_channel_await_try_send(ch, "payload", { => {
+    hits = hits + 1
+    "sent"
+  }})]
+  result
+}
+proc_flush()
+runner.cancel()
+proc_flush()
+late_send := __able_channel_try_send(ch, "late")
+[hits == 0, late_send == false]

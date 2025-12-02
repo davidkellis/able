@@ -136,6 +136,10 @@
   "imports/static_wildcard_private_error": [
     "typechecker: ../fixtures/ast/imports/static_wildcard_private_error/source.able:3:1 typechecker: undefined identifier 'priv_fn'"
   ],
+  "interfaces/apply_index_missing_impls": [
+    "typechecker: ../fixtures/ast/interfaces/apply_index_missing_impls/source.able:23:3 typechecker: cannot call non-callable value ReadOnlyPair (missing Apply implementation)",
+    "typechecker: ../fixtures/ast/interfaces/apply_index_missing_impls/source.able:27:3 typechecker: cannot assign via [] without IndexMut implementation on type Index i32 i32"
+  ],
   "interfaces/composite_generic": [],
   "interfaces/dynamic_interface_collections": [],
   "match/guard_clause": [],

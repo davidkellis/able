@@ -21,6 +21,7 @@ import {
   collectMethodsDefinition as collectMethodsDefinitionHelper,
   enforceFunctionConstraints as enforceFunctionConstraintsHelper,
   lookupMethodSetsForCall as lookupMethodSetsForCallHelper,
+  typeImplementsInterface,
   type ImplementationContext,
 } from "./checker/implementations";
 import { buildPackageSummary as buildPackageSummaryHelper, resolvePackageName } from "./checker/summary";
@@ -615,6 +616,8 @@ export class TypeChecker {
       getIdentifierName: this.getIdentifierName.bind(this),
       checkBuiltinCallContext: this.checkBuiltinCallContext.bind(this),
       getBuiltinCallName: this.getBuiltinCallName.bind(this),
+      typeImplementsInterface: (type, interfaceName, expectedArgs) =>
+        typeImplementsInterface(this.implementationContext, type, expectedArgs ?? []),
       statementContext: this.context,
     };
   }
@@ -860,6 +863,8 @@ export class TypeChecker {
       hasBreakpointLabel: (label: string) => this.hasBreakpointLabel(label),
       handleBreakStatement: this.checkBreakStatement.bind(this),
       handleContinueStatement: this.checkContinueStatement.bind(this),
+      typeImplementsInterface: (type, interfaceName, expectedArgs) =>
+        typeImplementsInterface(this.implementationContext, type, expectedArgs ?? []),
     });
   }
 

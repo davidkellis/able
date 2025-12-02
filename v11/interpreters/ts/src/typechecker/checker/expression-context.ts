@@ -1,5 +1,6 @@
 import type * as AST from "../../ast";
 import type { TypeInfo } from "../types";
+import type { InterfaceCheckResult } from "./types";
 
 export type TypeDeclarationNode =
   | AST.StructDefinition
@@ -44,6 +45,11 @@ export interface ExpressionContext {
   hasBinding(name: string): boolean;
   hasBindingInCurrentScope(name: string): boolean;
   allowDynamicLookup(): boolean;
+  typeImplementsInterface?(
+    type: TypeInfo,
+    interfaceName: string,
+    expectedArgs?: string[],
+  ): InterfaceCheckResult;
 }
 
 export type StatementContext = ExpressionContext & {
