@@ -41,6 +41,18 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 
 ## TODO (working queue: tackle in order, move completed items to LOG.md)
 
+### v11 Spec Delta Implementation Plan
+- [ ] Pipe precedence + low-precedence pipe `|>>` per §6.3.1/§6.3.2:
+  - Parser: adjust precedence table for `|>` above assignment; add `|>>` token with lower precedence.
+  - TS checker/runtime: adopt new precedence; implement `|>>` semantics (reuse topic/callable fallback); add fixtures (`a = 5 |>> print`, logical op interactions).
+  - Go checker/runtime: same precedence + `|>>` support; fixtures aligned.
+- [ ] Apply updated impl specificity rules (§10.2.5):
+  - TS/Go typecheckers: enforce tie-break ordering (concrete>generic, constraint superset, union subset, more-instantiated generics), emit ambiguity diagnostics.
+  - TS/Go runtimes: ensure dynamic/interface upcast uses same rules or surfaces ambiguity.
+  - Fixtures: add cases for each rule and an ambiguity example; include named-impl explicit call coverage.
+- [ ] **Stdlib API expansions (regex, §§6.12 & 14.2)** — **lowest priority; defer until higher items advance.**
+   - **Tests:** expand stdlib test suites + fixtures to cover each helper, regex compilation failures, streaming use cases, and confirm both interpreters return identical traces.
+
 
 ### Tutorials & Examples (cleanup backlog)
 - Fix tutorials requiring missing stdlib imports/stubs (Channel/Mutex await sample) once the stdlib surfaces are wired back in.

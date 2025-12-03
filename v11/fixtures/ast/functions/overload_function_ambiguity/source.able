@@ -1,0 +1,7 @@
+fn collide(x: i32) -> i32 {
+  1
+}
+fn collide(x: i32) -> i32 {
+  2
+}
+collide(1)

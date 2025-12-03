@@ -13,7 +13,11 @@ declare module "./index" {
     inferTypeArgumentsFromCall(funcNode: AST.FunctionDefinition | AST.LambdaExpression, call: AST.FunctionCall, args: V10Value[]): void;
     bindTypeArgumentsIfAny(funcNode: AST.FunctionDefinition | AST.LambdaExpression, call: AST.FunctionCall, env: Environment): void;
     collectInterfaceConstraintExpressions(typeExpr: AST.TypeExpression, memo?: Set<string>): AST.TypeExpression[];
-    findMethod(typeName: string, methodName: string, opts?: { typeArgs?: AST.TypeExpression[]; typeArgMap?: Map<string, AST.TypeExpression>; interfaceName?: string }): Extract<V10Value, { kind: "function" }> | null;
+    findMethod(
+      typeName: string,
+      methodName: string,
+      opts?: { typeArgs?: AST.TypeExpression[]; typeArgMap?: Map<string, AST.TypeExpression>; interfaceName?: string },
+    ): Extract<V10Value, { kind: "function" | "function_overload" }> | null;
     compareMethodMatches(a: { entry: ImplMethodEntry; bindings: Map<string, AST.TypeExpression>; constraints: ConstraintSpec[] }, b: { entry: ImplMethodEntry; bindings: Map<string, AST.TypeExpression>; constraints: ConstraintSpec[] }): number;
     buildConstraintKeySet(constraints: ConstraintSpec[]): Set<string>;
     isConstraintSuperset(a: Set<string>, b: Set<string>): boolean;
@@ -23,8 +27,15 @@ declare module "./index" {
     expandImplementationTargetVariants(target: AST.TypeExpression): Array<{ typeName: string; argTemplates: AST.TypeExpression[]; signature: string }>;
     computeImplSpecificity(entry: ImplMethodEntry, bindings: Map<string, AST.TypeExpression>, constraints: ConstraintSpec[]): number;
     measureTemplateSpecificity(t: AST.TypeExpression, genericNames: Set<string>): number;
-    attachDefaultInterfaceMethods(imp: AST.ImplementationDefinition, funcs: Map<string, Extract<V10Value, { kind: "function" }>>): void;
-    createDefaultMethodFunction(sig: AST.FunctionSignature, env: Environment, targetType: AST.TypeExpression): Extract<V10Value, { kind: "function" }> | null;
+    attachDefaultInterfaceMethods(
+      imp: AST.ImplementationDefinition,
+      funcs: Map<string, Extract<V10Value, { kind: "function" | "function_overload" }>>,
+    ): void;
+    createDefaultMethodFunction(
+      sig: AST.FunctionSignature,
+      env: Environment,
+      targetType: AST.TypeExpression,
+    ): Extract<V10Value, { kind: "function" }> | null;
     substituteSelfTypeExpression(t: AST.TypeExpression | undefined, target: AST.TypeExpression): AST.TypeExpression | undefined;
     substituteSelfInPattern(pattern: AST.Pattern, target: AST.TypeExpression): AST.Pattern;
   }
@@ -181,7 +192,7 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
   return expressions;
 };
 
-  cls.prototype.findMethod = function findMethod(this: InterpreterV10, typeName: string, methodName: string, opts?: { typeArgs?: AST.TypeExpression[]; typeArgMap?: Map<string, AST.TypeExpression>; interfaceName?: string }): Extract<V10Value, { kind: "function" }> | null {
+  cls.prototype.findMethod = function findMethod(this: InterpreterV10, typeName: string, methodName: string, opts?: { typeArgs?: AST.TypeExpression[]; typeArgMap?: Map<string, AST.TypeExpression>; interfaceName?: string }): Extract<V10Value, { kind: "function" | "function_overload" }> | null {
   const inherent = this.inherentMethods.get(typeName);
   if (inherent && inherent.has(methodName)) return inherent.get(methodName)!;
   const entries = this.implMethods.get(typeName);
@@ -243,7 +254,7 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
   return best.method;
 };
 
-  cls.prototype.compareMethodMatches = function compareMethodMatches(this: InterpreterV10, a: { method: Extract<V10Value, { kind: "function" }>; score: number; entry: ImplMethodEntry; constraints: ConstraintSpec[] }, b: { method: Extract<V10Value, { kind: "function" }>; score: number; entry: ImplMethodEntry; constraints: ConstraintSpec[] }): number {
+  cls.prototype.compareMethodMatches = function compareMethodMatches(this: InterpreterV10, a: { method: Extract<V10Value, { kind: "function" | "function_overload" }>; score: number; entry: ImplMethodEntry; constraints: ConstraintSpec[] }, b: { method: Extract<V10Value, { kind: "function" | "function_overload" }>; score: number; entry: ImplMethodEntry; constraints: ConstraintSpec[] }): number {
   if (a.score > b.score) return 1;
   if (a.score < b.score) return -1;
   const aUnion = a.entry.unionVariantSignatures;
@@ -440,7 +451,7 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
   }
 };
 
-  cls.prototype.attachDefaultInterfaceMethods = function attachDefaultInterfaceMethods(this: InterpreterV10, imp: AST.ImplementationDefinition, funcs: Map<string, Extract<V10Value, { kind: "function" }>>): void {
+  cls.prototype.attachDefaultInterfaceMethods = function attachDefaultInterfaceMethods(this: InterpreterV10, imp: AST.ImplementationDefinition, funcs: Map<string, Extract<V10Value, { kind: "function" | "function_overload" }>>): void {
   const interfaceName = imp.interfaceName.name;
   const iface = this.interfaces.get(interfaceName);
   if (!iface) return;

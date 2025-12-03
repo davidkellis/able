@@ -6,7 +6,7 @@ import type { FunctionInfo } from "./types";
 
 type BuiltinContext = {
   env: Environment;
-  functionInfos: Map<string, FunctionInfo>;
+  functionInfos: Map<string, FunctionInfo[]>;
   implementationContext?: unknown;
   registerStructDefinition(definition: AST.StructDefinition): void;
   registerTypeAlias(definition: AST.TypeAliasDefinition): void;
@@ -77,7 +77,7 @@ export function installBuiltins(context: BuiltinContext): void {
 
 function registerBuiltinFunction(
   env: Environment,
-  functionInfos: Map<string, FunctionInfo>,
+  functionInfos: Map<string, FunctionInfo[]>,
   name: string,
   params: TypeInfo[],
   returnType: TypeInfo,
@@ -88,15 +88,19 @@ function registerBuiltinFunction(
     returnType,
   };
   env.define(name, fnType);
-  functionInfos.set(name, {
-    name,
-    fullName: name,
-    parameters: params,
-    genericConstraints: [],
-    genericParamNames: [],
-    whereClause: [],
-    returnType,
-  });
+  const existing = functionInfos.get(name) ?? [];
+  functionInfos.set(name, [
+    ...existing,
+    {
+      name,
+      fullName: name,
+      parameters: params,
+      genericConstraints: [],
+      genericParamNames: [],
+      whereClause: [],
+      returnType,
+    },
+  ]);
 }
 
 function installBuiltinInterfaces(context: BuiltinContext): void {

@@ -67,6 +67,8 @@
     *   [7.6. Shorthand Notations](#76-shorthand-notations)
         *   [7.6.1. Implicit First Argument Access (`#member`)](#761-implicit-first-argument-access-member)
         *   [7.6.2. Implicit Self Parameter Definition (`fn #method`)](#762-implicit-self-parameter-definition-fn-method)
+        *   [7.6.3. Placeholder Lambdas (`@`, `@n`)](#763-placeholder-lambdas--n)
+    *   [7.7. Function Overloading](#77-function-overloading)
 8.  [Control Flow](#8-control-flow)
     *   [8.1. Branching Constructs](#81-branching-constructs)
         *   [8.1.1. Conditional Chain (`if`/`or`)](#811-conditional-chain-ifor)
@@ -854,6 +856,13 @@ Additional note: There is no `const` keyword and no per-field immutability modif
 
 Patterns are used on the left-hand side of `:=` (declaration) and `=` (assignment) to determine how the value from the `Expression` is deconstructed and which identifiers are bound or assigned to.
 
+Pattern binding forms (named-field contexts) follow these rules:
+- `field` is shorthand for `field::field` (bind the field to a local of the same name).
+- `field::binding` binds the field to the specified binding name.
+- `field: Type` binds the field to a same-named local with a type annotation.
+- `field::binding: Type` combines a rename with a type annotation.
+- Nested destructuring is written after the type, e.g., `field::b: Address { street, city }` destructures the field value after binding/annotating `b`.
+
 #### 5.2.1. Identifier Pattern
 
 The simplest pattern binds the entire result of the `Expression` to a single identifier.
@@ -930,36 +939,41 @@ Note on `_` vs `%` vs `@`:
 
 Destructures instances of structs defined with named fields.
 
-*   **Syntax**: `[StructTypeName] { Field1: PatternA, Field2 as BindingB: PatternC, ShorthandField, ... }`
-    *   `StructTypeName`: Optional, the name of the struct type. If omitted, the type is inferred or checked against the expected type.
-    *   `Field: Pattern`: Matches the value of `Field` against the nested `PatternA`.
-    *   `Field as Binding: Pattern`: Matches the value of `Field` against nested `PatternC` and binds the original field value to the new identifier `BindingB` (only valid with `:=`).
-    *   `ShorthandField`: Equivalent to `ShorthandField: ShorthandField`. Binds the value of the field `ShorthandField` to an identifier with the same name.
-    *   `...`: (Not currently supported) Might be considered to ignore remaining fields explicitly. Currently, extra fields in the value not mentioned in the pattern are ignored.
+*   **Syntax**: `[StructTypeName] { FieldEntry, ... }`
+    *   `StructTypeName` (optional): If present, the value must be an instance of this struct; otherwise type is inferred/checked.
+    *   `FieldEntry` forms:
+        - `field` — shorthand binding (`field::field`), binds the field to a local of the same name.
+        - `field::binding` — binds the field to `binding`.
+        - `field: Type` — binds the field to a same-named local with a type annotation.
+        - `field::binding: Type` — binds to `binding` with a type annotation.
+        - Any of the above may be followed by a nested pattern to destructure the field value, e.g., `address::addr: Address { street, city }`.
+    *   `...` is not supported; unmentioned fields are ignored, extra pattern fields still error.
+
 *   **Example**:
     ```able
     struct Point { x: f64, y: f64 }
-    struct User { id: u64, name: string, address: string }
+    struct Address { street: string, city: string, zip: string }
+    struct Person { name: string, age: i32, address: Address }
 
     p := Point { x: 1.0, y: 2.0 }
-    u := User { id: 101, name: "Alice", address: "123 Main St" }
+    home := Address { street: "123 Main", city: "SF", zip: "94107" }
+    david := Person { name: "David", age: 40, address: home }
 
-    ## Destructure Point (Declaration :=)
-    Point { x: x_coord, y: y_coord } := p ## Declares x_coord=1.0, y_coord=2.0
-    { x, y } := p                       ## Shorthand declaration, declares x=1.0, y=2.0
+    ## Shorthand bindings
+    { x, y } := p                 ## binds x = 1.0, y = 2.0
+    { x::x_coord } := p           ## binds x_coord = 1.0
 
-    ## Destructure User (Declaration :=)
-    { id, name as user_name, address: addr } := u
-    ## Declares id=101, user_name="Alice", addr="123 Main St"
+    ## Type annotations on bindings
+    { x: f64, y } := p            ## x annotated f64, y inferred
+    { x::x64: f64 } := p          ## rename + type annotation
 
-    ## Ignore fields (Declaration :=)
-    { id, name: _ } := u ## Declares id=101, ignores name, ignores address implicitly
+    ## Nested destructuring with rename + type
+    Person { name::who, address::addr: Address { street, city, zip } } := david
+    ## who="David", addr=david.address, street/city/zip bound from addr
 
-    ## Reassignment / Initial Binding Example (=)
-    existing_x = 0.0 ## existing binding
-    existing_y = 0.0 ## existing binding
-    { x: existing_x, y: existing_y } = Point { x: 5.0, y: 6.0 } ## Assigns 5.0 to existing_x, 6.0 to existing_y
-    { id: new_id, name: new_name } := u ## Declare new_id, new_name in current scope
+    ## Assignment (reuse existing bindings)
+    existing_x = 0.0; existing_y = 0.0
+    Point { x::existing_x, y::existing_y } = p ## reassigns existing_x, existing_y
     ```
 *   **Semantics**: Matches fields by name. If `StructTypeName` is present, the value must be an instance of that struct type; otherwise evaluation fails (`"struct type mismatch in destructuring"`). Each referenced field must exist (`"Missing field 'name' during destructuring"`).
 
@@ -1313,10 +1327,11 @@ Operators are evaluated in a specific order determined by precedence (higher bin
 | 4          | `&&`                  | Logical AND (short-circuiting)          | Left-to-right |                                                           |
 | 3          | `||`                  | Logical OR (short-circuiting)           | Left-to-right |                                                           |
 | 2          | `..`, `...`           | Range Creation (inclusive, exclusive)   | Non-assoc     |                                                           |
-| 1          | `:=`                  | **Declaration and Initialization**      | Right-to-left | See Section [5.1](#51-operators---)                     |
-| 1          | `=`                   | **Reassignment / Mutation**             | Right-to-left | See Section [5.1](#51-operators---)                     |
-| 1          | `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `\xor=`, `<<=`, `>>=` | Compound Assignment                      | Right-to-left | Desugars to `a = a OP b` (no `^=`).                       |
-| 0          | `\|>`                 | Pipe Forward                            | Left-to-right | (Lowest precedence)                                       |
+| 1          | `\|>`                 | Pipe Forward                            | Left-to-right | Binds tighter than assignment; looser than `||`/`&&`      |
+| 0          | `:=`                  | **Declaration and Initialization**      | Right-to-left | See Section [5.1](#51-operators---)                     |
+| 0          | `=`                   | **Reassignment / Mutation**             | Right-to-left | See Section [5.1](#51-operators---)                     |
+| 0          | `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `\xor=`, `<<=`, `>>=` | Compound Assignment                      | Right-to-left | Desugars to `a = a OP b` (no `^=`).                       |
+| -1         | `\|>>`                | Low-Precedence Pipe Forward             | Left-to-right | Binds looser than assignment (lowest)                    |
 
 *(Note: Precedence levels are relative; specific numerical values may vary but the order shown is based on Rust.)*
 
@@ -1372,7 +1387,7 @@ Operators are evaluated in a specific order determined by precedence (higher bin
 *   **Declaration (`:=`):** Declares/initializes new variables. Evaluates to RHS. See Section [5.1](#51-operators---).
 *   **Assignment (`=`):** Reassigns existing variables or mutates locations. Evaluates to RHS. See Section [5.1](#51-operators---).
 *   **Compound Assignment (`+=`, etc.):** Shorthand (e.g., `a += b` is like `a = a + b`). Acts like `=`.
-*   **Pipe Forward (`|>`) — Hack-style topic semantics:**
+*   **Pipe Forward (`|>`) — Hack-style topic semantics:** Binds tighter than assignment, looser than `||`/`&&`.
     - Form 1 (topic-body): `subject |> Expr(%)` binds `%` to `subject` within `Expr`. The RHS must contain `%`; otherwise it is a compile-time error.
     - Form 2 (callable-body fallback): If the RHS contains no `%`, it is evaluated; if it evaluates to a unary callable, it is invoked with `subject` as its sole argument; otherwise, it is an error.
     - `%` is valid only inside the RHS of `|>` and refers to that step’s subject. It cannot be shadowed or used elsewhere.
@@ -1383,6 +1398,8 @@ Operators are evaluated in a specific order determined by precedence (higher bin
       - UFCS: `subject |> name(%, args...)`
     - Placeholders (`@`, `@n`) remain orthogonal and can be used inside the RHS to build callables or additional arguments when desired.
     - Combined with placeholder lambdas, `x |> (@ + 1)` is valid and applies the lambda to `x`.
+*   **Low-precedence Pipe (`|>>`)**: Identical semantics to `|>` (topic `%` or callable fallback) but with lower precedence than assignment. Useful for post-processing an assignment’s value without extra parentheses:
+    - `a = 5 |>> print` parses as `(a = 5) |>> print`, performs the assignment, then pipes the resulting value to `print`.
 
 Compound assignment semantics:
 *   Supported forms: `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `\xor=`, `<<=`, `>>=`. The exponent form `^=` is not supported.
@@ -1390,6 +1407,14 @@ Compound assignment semantics:
 *   Single evaluation (C1): `a` is evaluated exactly once. The compiler lowers to an assignment to the same storage location without re-evaluating addressable subexpressions on the LHS.
     -   Example: `arr[i()] += f()` evaluates `i()` once, not twice.
 *   Types: Assignment follows the same rules as plain `=` of the desugared form; the target of `a` must be assignable from the result type of `a OP b`.
+
+Precedence examples:
+```able
+a = x |> f(%)      ## parses as a = (x |> f(%))
+a := x |> f(%)     ## same, with declaration
+flag = cond || x |> g(%)   ## parses as flag = (cond || (x |> g(%))) because |>| binds looser than ||
+a = 5 |>> print    ## parses as (a = 5) first, then pipes the resulting value to print
+```
 
 #### 6.3.3. Overloading (Via Interfaces)
 
@@ -2075,6 +2100,13 @@ add(5, 3)
 identity<string>("hello") ## Explicit generic argument
 ```
 
+- If the **final parameter is declared nullable** (`?T`), the call may omit that argument; `nil` is supplied implicitly. This applies to free functions and methods (including shorthand forms) but only to the last parameter.
+  ```able
+  fn log(message: string, tag: ?string) -> void { ... }
+  log("hi")         ## equivalent to log("hi", nil)
+  log("hi", "info") ## explicit tag
+  ```
+
 #### 7.4.2. Trailing Lambda Syntax
 
 ```able
@@ -2102,7 +2134,7 @@ When `receiver.name(args...)` is encountered:
 1.  Check for field `name`.
 2.  Check for inherent method `name`.
 3.  Check for interface method `name`.
-4.  Check for free function `name` applicable via UFCS (Universal Function Call Syntax).
+4.  Check for free function or inherent instance method `name` applicable via UFCS (Universal Function Call Syntax).
 5.  Invoke the first match found, passing `receiver` appropriately.
 6.  Ambiguity or no match results in an error.
 
@@ -2110,6 +2142,14 @@ When `receiver.name(args...)` is encountered:
 ```able
 fn add(a: i32, b: i32) -> i32 { a + b }
 res = 4.add(5) ## Resolved via Method Call Syntax to add(4, 5) -> 9
+
+## Inherent instance methods are also callable via UFCS:
+methods Point {
+  fn #norm() -> f64 { (#x * #x + #y * #y).sqrt() }
+}
+point = Point { x: 3.0, y: 4.0 }
+dist = point.norm()  ## Calls Point.norm via inherent method step (preferred)
+dist2 = norm(point) ## UFCS-style invocation of the same method
 ```
 
 #### 7.4.4. Callable Value Invocation (`Apply` Interface)
@@ -2267,6 +2307,33 @@ Interaction with `|>` topic semantics:
 - In a pipe step, either use the topic `%` somewhere in the RHS, or the RHS must evaluate to a unary callable which is then applied to the subject. Placeholders can be used to construct such callables: e.g., `x |> add(@, 1)`.
 - `%` and `@`/`@n` are orthogonal. `%` binds the current subject value; `@`/`@n` construct anonymous functions within ordinary expressions.
 
+
+### 7.7. Function Overloading
+
+Able allows multiple functions (or inherent methods) with the same name in the **same scope** when their parameter shapes differ. Overloading never consults return types and does not change interface method contracts (interfaces still declare a single signature per method).
+
+**Eligibility**
+- Arity must match the call-site arity (positional arguments only; no defaults/varargs). If the final parameter is nullable (`?T`), the call may omit it (treated as `nil`).
+- Parameter types must be compatible with the call-site arguments after applying ordinary type rules; a candidate that requires explicit generics is eligible only when the call supplies them.
+
+**Resolution order**
+1. Collect visible definitions with the target name in the applicable scope (top-level or inherent method set).
+2. Filter by arity match.
+3. Type-check each remaining candidate against the call-site arguments, performing generic inference per the existing rules. Discard candidates whose inference fails or whose parameter types are incompatible.
+4. If exactly one candidate remains, select it.
+5. If multiple remain, choose the **most specific**:
+   - A non-generic signature beats a generic one when both match.
+   - Between generics, a candidate whose parameter types are strictly tighter (concrete types or more instantiated shapes vs type variables) beats a looser one.
+   - If no single candidate is strictly most specific, the call is ambiguous.
+
+**Diagnostics**
+- If no overloads match: “no overloads match call” (or the existing missing/argument-mismatch diagnostic).
+- If multiple equally specific matches remain: “ambiguous overload; candidates: ...”.
+
+**Non-participating surfaces**
+- Interface methods are not overloaded; each interface method name has one signature, and multiple interface impls with the same method name remain subject to the impl-specific specificity/ambiguity rules in §10.2.5.
+- Named implementations are never chosen implicitly via instance syntax; use the impl name in function position (`ImplName.method(value, ...)`) to disambiguate when needed.
+- UFCS candidates include inherent instance methods (see §9.4) and free functions; interface methods and named impls are not UFCS candidates.
 
 ## 8. Control Flow
 
@@ -2714,9 +2781,12 @@ Let `ReceiverType` be the static type of the `ReceiverExpression`. The compiler 
     *   **If no such interfaces are found:** This step fails.
 
 4.  **Check for Universal Function Call Syntax (UFCS):**
-    *   Search the current scope for a free (non-method) function named `Identifier` whose *first parameter* type is compatible with `ReceiverType`.
-    *   If exactly one such function is found, the call resolves to this function, passing `ReceiverExpression` as the first argument (`Identifier(ReceiverExpression, ArgumentList)`).
-    *   If multiple such functions exist (e.g., due to overloading based on later arguments, if supported) or none exist, this step fails.
+    *   Search the current scope for candidates named `Identifier` that are either:
+        - Free (non-method) functions whose *first parameter* type is compatible with `ReceiverType`, or
+        - Inherent **instance** methods from any visible `methods Type { ... }` block (not interface methods) whose first parameter `self: Type` is compatible with `ReceiverType`.
+    *   If exactly one such candidate is found, the call resolves to this function, passing `ReceiverExpression` as the first argument (`Identifier(ReceiverExpression, ArgumentList)`).
+    *   If multiple such candidates exist, apply the overload/specificity rules (§7.7) to select a single most specific match. If ambiguity remains, this step fails with an error.
+    *   Named implementations and interface methods are not part of the UFCS candidate pool; use explicit qualification (`ImplName.method(...)` or `InterfaceName.method(...)`) to call them.
 
 **Precedence and Error Handling:**
 
@@ -3013,35 +3083,62 @@ impl Greeter for MyGreeter {
 
 When multiple `impl` blocks could apply to a given type and interface, Able uses specificity rules to choose the *most specific* implementation. If no single implementation is more specific, it results in a compile-time ambiguity error. Rules (derived from Rust RFC 1210, simplified):
 
-1.  **Concrete vs. Generic:** Implementations for concrete types (`impl ... for i32`) are more specific than implementations for type variables (`impl ... for T`). (`Array i32` is more specific than `Array T`).
-2.  **Concrete vs. Interface Bound:** Implementations for concrete types (`impl ... for Array T`) are more specific than implementations for types bound by an interface (`impl ... for T: Iterable`).
-3.  **Interface Bound vs. Unconstrained:** Implementations for constrained type variables (`impl ... for T: Iterable`) are more specific than for unconstrained variables (`impl ... for T`).
-4.  **Subset Unions:** Implementations for union types that are proper subsets are more specific (`impl ... for i32 | f32` is more specific than `impl ... for i32 | f32 | f64`).
-5.  **Constraint Set Specificity:** An `impl` whose type parameters have a constraint set that is a proper superset of another `impl`'s constraints is more specific (`impl<T: A + B> ...` is more specific than `impl<T: A> ...`).
+**Applicability set**
+- Consider only visible, unnamed impls for `(Interface, TargetType)` that unify with the receiver type (including generic substitutions).
+- Named impls are never chosen implicitly; they require explicit qualification.
 
-Ambiguities must be resolved manually, typically by qualifying the method call (see Section [10.3.3](#1033-disambiguation-named-impls)).
+**Specificity ordering (strongest → weakest)**
+1. **Concrete target beats generic target**  
+   `impl Show for Array i32` > `impl<T> Show for Array T`.
+2. **Constraint superset beats subset**  
+   `impl<T: A+B> Show for T` > `impl<T: A> Show for T`.
+3. **Union subset beats union superset**  
+   `impl Show for i32 | f32` > `impl Show for i32 | f32 | f64`.
+4. **More-instantiated generics beat less-instantiated**  
+   `impl<T> Show for Pair T i32` > `impl<U V> Show for Pair U V` when the call site has `Pair i32 i32`.
+5. If still tied, the call is ambiguous; no impl is chosen.
 
-Examples:
+**Ambiguity handling**
+- If multiple impls remain with no single most-specific winner, emit an ambiguity diagnostic listing candidates and suggest explicit disambiguation (e.g., hiding an import or calling a named impl).
+- Interface methods are not overloaded; overloading rules do not resolve interface-impl ambiguity. Named impls remain opt-in via explicit qualification and are not considered in implicit selection.
 
+**Dynamic/interface types**
+- For interface-typed (existential) values, the impl dictionary is fixed at upcast time using the same rules. Ambiguity at upcast is an error.
+
+**Examples**
 ```able
 interface Show for T { fn show(self: Self) -> string }
 
-impl Show for i32 { fn show(self: Self) -> string { `i32:${self}` } }
-impl<T> Show for Array T { fn show(self: Self) -> string { `arr(${self.size()})` } }
-
-## More specific than Array T
+## Concrete vs generic
 impl Show for Array i32 { fn show(self: Self) -> string { `arr<i32>(${self.size()})` } }
+impl<T> Show for Array T { fn show(self: Self) -> string { `arr(${self.size()})` } }
+nums_i32: Array i32 = [1,2,3]
+nums_str: Array string = ["a"]
+nums_i32.show()  ## uses Array i32 impl (more specific)
+nums_str.show()  ## uses generic Array T impl
 
-xs_i32: Array i32 = [1,2,3]
-xs_str: Array string = ["a"]
+## Constraint superset vs subset
+impl<T: Eq+Hash> Show for T { fn show(self: Self) -> string { "eq+hash" } }
+impl<T: Eq>      Show for T { fn show(self: Self) -> string { "eq only" } }
+x: MyEqHash = ...
+x.show() ## picks Eq+Hash impl as more specific
 
-xs_i32.show()  ## uses Array i32 impl (more specific)
-xs_str.show()  ## uses Array T impl
+## Union subset vs superset
+impl Show for i32 | f32 { fn show(self: Self) -> string { "narrow" } }
+impl Show for i32 | f32 | f64 { fn show(self: Self) -> string { "wide" } }
+v: i32 | f32 = 1
+v.show() ## uses narrow impl
 
-## Named impl ergonomics
-ShowNums = impl Show for Array i32 { fn show(self: Self) -> string { `nums(${self.size()})` } }
-## Instance method syntax does not select named impls; use qualified call:
-res = ShowNums.show(xs_i32)
+## Ambiguous (no winner)
+impl<T: A> Show for T { ... }
+impl<T: B> Show for T { ... }
+y: T where T: A + B = ...
+y.show() ## ambiguity diagnostic (no single most specific)
+
+## Named impl disambiguation
+Fmt = impl Show for Array i32 { fn show(self: Self) -> string { "fmt" } }
+## Instance syntax does not pick named impls; call explicitly:
+Fmt.show(nums_i32)
 ```
 
 ### 10.3. Usage

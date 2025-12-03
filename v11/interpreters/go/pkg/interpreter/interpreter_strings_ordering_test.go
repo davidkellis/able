@@ -44,7 +44,8 @@ func TestStringCmpReturnsOrderingInstances(t *testing.T) {
 	case *runtime.BoundMethodValue:
 		receiver = b.Receiver
 		call = func(receiver runtime.Value, other runtime.Value) (runtime.Value, error) {
-			return interp.invokeFunction(b.Method, []runtime.Value{receiver, other}, nil)
+			bound := runtime.BoundMethodValue{Receiver: receiver, Method: b.Method}
+			return interp.callCallableValue(bound, []runtime.Value{other}, nil, nil)
 		}
 	default:
 		t.Fatalf("expected bound method, got %T", boundValue)

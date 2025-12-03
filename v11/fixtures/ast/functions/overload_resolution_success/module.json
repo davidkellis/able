@@ -1,0 +1,551 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "FunctionDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "pick"
+      },
+      "params": [
+        {
+          "type": "FunctionParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "value"
+          },
+          "paramType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "string"
+            }
+          }
+        }
+      ],
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "IntegerLiteral",
+            "value": 20
+          }
+        ]
+      },
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "i32"
+        }
+      },
+      "isMethodShorthand": false,
+      "isPrivate": false
+    },
+    {
+      "type": "FunctionDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "pick"
+      },
+      "params": [
+        {
+          "type": "FunctionParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "value"
+          },
+          "paramType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        },
+        {
+          "type": "FunctionParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "note"
+          },
+          "paramType": {
+            "type": "NullableTypeExpression",
+            "innerType": {
+              "type": "SimpleTypeExpression",
+              "name": {
+                "type": "Identifier",
+                "name": "string"
+              }
+            }
+          }
+        }
+      ],
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "MatchExpression",
+            "subject": {
+              "type": "Identifier",
+              "name": "note"
+            },
+            "clauses": [
+              {
+                "type": "MatchClause",
+                "pattern": {
+                  "type": "LiteralPattern",
+                  "literal": {
+                    "type": "NilLiteral",
+                    "value": null
+                  }
+                },
+                "body": {
+                  "type": "IntegerLiteral",
+                  "value": 30
+                }
+              },
+              {
+                "type": "MatchClause",
+                "pattern": {
+                  "type": "WildcardPattern"
+                },
+                "body": {
+                  "type": "IntegerLiteral",
+                  "value": 40
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "i32"
+        }
+      },
+      "isMethodShorthand": false,
+      "isPrivate": false
+    },
+    {
+      "type": "FunctionDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "pick"
+      },
+      "params": [
+        {
+          "type": "FunctionParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "value"
+          },
+          "paramType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "bool"
+            }
+          }
+        }
+      ],
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "IntegerLiteral",
+            "value": 50
+          }
+        ]
+      },
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "i32"
+        }
+      },
+      "isMethodShorthand": false,
+      "isPrivate": false
+    },
+    {
+      "type": "StructDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "Box"
+      },
+      "fields": [
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "value"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        }
+      ],
+      "kind": "named"
+    },
+    {
+      "type": "MethodsDefinition",
+      "targetType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "Box"
+        }
+      },
+      "definitions": [
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "mark"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Box"
+                }
+              }
+            },
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "delta"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "i32"
+                }
+              }
+            }
+          ],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "BinaryExpression",
+                "operator": "+",
+                "left": {
+                  "type": "MemberAccessExpression",
+                  "object": {
+                    "type": "Identifier",
+                    "name": "self"
+                  },
+                  "member": {
+                    "type": "Identifier",
+                    "name": "value"
+                  }
+                },
+                "right": {
+                  "type": "Identifier",
+                  "name": "delta"
+                }
+              }
+            ]
+          },
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          },
+          "isMethodShorthand": false,
+          "isPrivate": false
+        },
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "mark"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Box"
+                }
+              }
+            },
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "tag"
+              },
+              "paramType": {
+                "type": "NullableTypeExpression",
+                "innerType": {
+                  "type": "SimpleTypeExpression",
+                  "name": {
+                    "type": "Identifier",
+                    "name": "string"
+                  }
+                }
+              }
+            }
+          ],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "MatchExpression",
+                "subject": {
+                  "type": "Identifier",
+                  "name": "tag"
+                },
+                "clauses": [
+                  {
+                    "type": "MatchClause",
+                    "pattern": {
+                      "type": "LiteralPattern",
+                      "literal": {
+                        "type": "NilLiteral",
+                        "value": null
+                      }
+                    },
+                    "body": {
+                      "type": "BinaryExpression",
+                      "operator": "+",
+                      "left": {
+                        "type": "MemberAccessExpression",
+                        "object": {
+                          "type": "Identifier",
+                          "name": "self"
+                        },
+                        "member": {
+                          "type": "Identifier",
+                          "name": "value"
+                        }
+                      },
+                      "right": {
+                        "type": "IntegerLiteral",
+                        "value": 100
+                      }
+                    }
+                  },
+                  {
+                    "type": "MatchClause",
+                    "pattern": {
+                      "type": "WildcardPattern"
+                    },
+                    "body": {
+                      "type": "BinaryExpression",
+                      "operator": "+",
+                      "left": {
+                        "type": "MemberAccessExpression",
+                        "object": {
+                          "type": "Identifier",
+                          "name": "self"
+                        },
+                        "member": {
+                          "type": "Identifier",
+                          "name": "value"
+                        }
+                      },
+                      "right": {
+                        "type": "IntegerLiteral",
+                        "value": 200
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          },
+          "isMethodShorthand": false,
+          "isPrivate": false
+        }
+      ]
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "box"
+      },
+      "right": {
+        "type": "StructLiteral",
+        "structType": {
+          "type": "Identifier",
+          "name": "Box"
+        },
+        "fields": [
+          {
+            "type": "StructFieldInitializer",
+            "name": {
+              "type": "Identifier",
+              "name": "value"
+            },
+            "value": {
+              "type": "IntegerLiteral",
+              "value": 5
+            },
+            "isShorthand": false
+          }
+        ],
+        "isPositional": false
+      }
+    },
+    {
+      "type": "ArrayLiteral",
+      "elements": [
+        {
+          "type": "FunctionCall",
+          "callee": {
+            "type": "Identifier",
+            "name": "pick"
+          },
+          "arguments": [
+            {
+              "type": "IntegerLiteral",
+              "value": 5
+            }
+          ],
+          "isTrailingLambda": false
+        },
+        {
+          "type": "FunctionCall",
+          "callee": {
+            "type": "Identifier",
+            "name": "pick"
+          },
+          "arguments": [
+            {
+              "type": "IntegerLiteral",
+              "value": 5
+            },
+            {
+              "type": "StringLiteral",
+              "value": "note"
+            }
+          ],
+          "isTrailingLambda": false
+        },
+        {
+          "type": "FunctionCall",
+          "callee": {
+            "type": "Identifier",
+            "name": "pick"
+          },
+          "arguments": [
+            {
+              "type": "StringLiteral",
+              "value": "ok"
+            }
+          ],
+          "isTrailingLambda": false
+        },
+        {
+          "type": "FunctionCall",
+          "callee": {
+            "type": "Identifier",
+            "name": "pick"
+          },
+          "arguments": [
+            {
+              "type": "BooleanLiteral",
+              "value": true
+            }
+          ],
+          "isTrailingLambda": false
+        },
+        {
+          "type": "FunctionCall",
+          "callee": {
+            "type": "MemberAccessExpression",
+            "object": {
+              "type": "Identifier",
+              "name": "box"
+            },
+            "member": {
+              "type": "Identifier",
+              "name": "mark"
+            }
+          },
+          "arguments": [
+            {
+              "type": "IntegerLiteral",
+              "value": 3
+            }
+          ],
+          "isTrailingLambda": false
+        },
+        {
+          "type": "FunctionCall",
+          "callee": {
+            "type": "MemberAccessExpression",
+            "object": {
+              "type": "Identifier",
+              "name": "box"
+            },
+            "member": {
+              "type": "Identifier",
+              "name": "mark"
+            }
+          },
+          "arguments": [],
+          "isTrailingLambda": false
+        },
+        {
+          "type": "FunctionCall",
+          "callee": {
+            "type": "MemberAccessExpression",
+            "object": {
+              "type": "Identifier",
+              "name": "box"
+            },
+            "member": {
+              "type": "Identifier",
+              "name": "mark"
+            }
+          },
+          "arguments": [
+            {
+              "type": "StringLiteral",
+              "value": "hey"
+            }
+          ],
+          "isTrailingLambda": false
+        }
+      ]
+    }
+  ]
+}

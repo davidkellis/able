@@ -385,7 +385,7 @@ func (i *Interpreter) invokeHashMethod(receiver runtime.Value) (uint64, error) {
 		return 0, fmt.Errorf("hash map key type %T does not support hashing", receiver)
 	}
 
-	var method *runtime.FunctionValue
+	var method runtime.Value
 	if bucket, ok := i.inherentMethods[info.name]; ok {
 		if fn, exists := bucket["hash"]; exists {
 			method = fn
@@ -407,7 +407,8 @@ func (i *Interpreter) invokeHashMethod(receiver runtime.Value) (uint64, error) {
 	}
 
 	hasher := runtime.NewHasherValue()
-	result, err := i.invokeFunction(method, []runtime.Value{receiver, hasher}, nil)
+	bound := runtime.BoundMethodValue{Receiver: receiver, Method: method}
+	result, err := i.callCallableValue(bound, []runtime.Value{hasher}, nil, nil)
 	if err != nil {
 		return 0, err
 	}
@@ -440,7 +441,7 @@ func (i *Interpreter) tryInvokeEq(receiver runtime.Value, other runtime.Value) (
 		return false, false, nil
 	}
 
-	var method *runtime.FunctionValue
+	var method runtime.Value
 	if bucket, ok := i.inherentMethods[info.name]; ok {
 		if fn, exists := bucket["eq"]; exists {
 			method = fn
@@ -457,7 +458,8 @@ func (i *Interpreter) tryInvokeEq(receiver runtime.Value, other runtime.Value) (
 		return false, false, nil
 	}
 
-	result, err := i.invokeFunction(method, []runtime.Value{receiver, other}, nil)
+	bound := runtime.BoundMethodValue{Receiver: receiver, Method: method}
+	result, err := i.callCallableValue(bound, []runtime.Value{other}, nil, nil)
 	if err != nil {
 		return false, false, err
 	}

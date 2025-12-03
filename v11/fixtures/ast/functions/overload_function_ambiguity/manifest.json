@@ -1,0 +1,9 @@
+{
+  "description": "Duplicate free function overloads surface an ambiguity error",
+  "expect": {
+    "errors": [
+      "Ambiguous overload for collide"
+    ]
+  },
+  "entry": "module.json"
+}

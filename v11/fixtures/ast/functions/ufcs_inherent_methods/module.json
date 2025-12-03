@@ -1,0 +1,449 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "StructDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "Point"
+      },
+      "fields": [
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "x"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        },
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "y"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        }
+      ],
+      "kind": "named"
+    },
+    {
+      "type": "MethodsDefinition",
+      "targetType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "Point"
+        }
+      },
+      "definitions": [
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "norm"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Point"
+                }
+              }
+            }
+          ],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "BinaryExpression",
+                "operator": "+",
+                "left": {
+                  "type": "BinaryExpression",
+                  "operator": "*",
+                  "left": {
+                    "type": "MemberAccessExpression",
+                    "object": {
+                      "type": "Identifier",
+                      "name": "self"
+                    },
+                    "member": {
+                      "type": "Identifier",
+                      "name": "x"
+                    }
+                  },
+                  "right": {
+                    "type": "MemberAccessExpression",
+                    "object": {
+                      "type": "Identifier",
+                      "name": "self"
+                    },
+                    "member": {
+                      "type": "Identifier",
+                      "name": "x"
+                    }
+                  }
+                },
+                "right": {
+                  "type": "BinaryExpression",
+                  "operator": "*",
+                  "left": {
+                    "type": "MemberAccessExpression",
+                    "object": {
+                      "type": "Identifier",
+                      "name": "self"
+                    },
+                    "member": {
+                      "type": "Identifier",
+                      "name": "y"
+                    }
+                  },
+                  "right": {
+                    "type": "MemberAccessExpression",
+                    "object": {
+                      "type": "Identifier",
+                      "name": "self"
+                    },
+                    "member": {
+                      "type": "Identifier",
+                      "name": "y"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          },
+          "isMethodShorthand": false,
+          "isPrivate": false
+        },
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "scale"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Point"
+                }
+              }
+            },
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "factor"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "i32"
+                }
+              }
+            }
+          ],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "StructLiteral",
+                "structType": {
+                  "type": "Identifier",
+                  "name": "Point"
+                },
+                "fields": [
+                  {
+                    "type": "StructFieldInitializer",
+                    "name": {
+                      "type": "Identifier",
+                      "name": "x"
+                    },
+                    "value": {
+                      "type": "BinaryExpression",
+                      "operator": "*",
+                      "left": {
+                        "type": "MemberAccessExpression",
+                        "object": {
+                          "type": "Identifier",
+                          "name": "self"
+                        },
+                        "member": {
+                          "type": "Identifier",
+                          "name": "x"
+                        }
+                      },
+                      "right": {
+                        "type": "Identifier",
+                        "name": "factor"
+                      }
+                    },
+                    "isShorthand": false
+                  },
+                  {
+                    "type": "StructFieldInitializer",
+                    "name": {
+                      "type": "Identifier",
+                      "name": "y"
+                    },
+                    "value": {
+                      "type": "BinaryExpression",
+                      "operator": "*",
+                      "left": {
+                        "type": "MemberAccessExpression",
+                        "object": {
+                          "type": "Identifier",
+                          "name": "self"
+                        },
+                        "member": {
+                          "type": "Identifier",
+                          "name": "y"
+                        }
+                      },
+                      "right": {
+                        "type": "Identifier",
+                        "name": "factor"
+                      }
+                    },
+                    "isShorthand": false
+                  }
+                ],
+                "isPositional": false
+              }
+            ]
+          },
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "Point"
+            }
+          },
+          "isMethodShorthand": false,
+          "isPrivate": false
+        }
+      ]
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "p"
+      },
+      "right": {
+        "type": "StructLiteral",
+        "structType": {
+          "type": "Identifier",
+          "name": "Point"
+        },
+        "fields": [
+          {
+            "type": "StructFieldInitializer",
+            "name": {
+              "type": "Identifier",
+              "name": "x"
+            },
+            "value": {
+              "type": "IntegerLiteral",
+              "value": 3
+            },
+            "isShorthand": false
+          },
+          {
+            "type": "StructFieldInitializer",
+            "name": {
+              "type": "Identifier",
+              "name": "y"
+            },
+            "value": {
+              "type": "IntegerLiteral",
+              "value": 4
+            },
+            "isShorthand": false
+          }
+        ],
+        "isPositional": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "scaled"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "Identifier",
+          "name": "scale"
+        },
+        "arguments": [
+          {
+            "type": "Identifier",
+            "name": "p"
+          },
+          {
+            "type": "IntegerLiteral",
+            "value": 2
+          }
+        ],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "pipeScaled"
+      },
+      "right": {
+        "type": "BinaryExpression",
+        "operator": "|>",
+        "left": {
+          "type": "Identifier",
+          "name": "p"
+        },
+        "right": {
+          "type": "FunctionCall",
+          "callee": {
+            "type": "Identifier",
+            "name": "scale"
+          },
+          "arguments": [
+            {
+              "type": "TopicReferenceExpression"
+            },
+            {
+              "type": "IntegerLiteral",
+              "value": 3
+            }
+          ],
+          "isTrailingLambda": false
+        }
+      }
+    },
+    {
+      "type": "ArrayLiteral",
+      "elements": [
+        {
+          "type": "FunctionCall",
+          "callee": {
+            "type": "Identifier",
+            "name": "norm"
+          },
+          "arguments": [
+            {
+              "type": "Identifier",
+              "name": "p"
+            }
+          ],
+          "isTrailingLambda": false
+        },
+        {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "scaled"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "x"
+          }
+        },
+        {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "scaled"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "y"
+          }
+        },
+        {
+          "type": "BinaryExpression",
+          "operator": "|>",
+          "left": {
+            "type": "Identifier",
+            "name": "p"
+          },
+          "right": {
+            "type": "FunctionCall",
+            "callee": {
+              "type": "Identifier",
+              "name": "norm"
+            },
+            "arguments": [
+              {
+                "type": "TopicReferenceExpression"
+              }
+            ],
+            "isTrailingLambda": false
+          }
+        },
+        {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "pipeScaled"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "x"
+          }
+        },
+        {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "pipeScaled"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "y"
+          }
+        }
+      ]
+    }
+  ]
+}

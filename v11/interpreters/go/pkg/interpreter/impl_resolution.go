@@ -11,7 +11,7 @@ import (
 
 type implEntry struct {
 	interfaceName string
-	methods       map[string]*runtime.FunctionValue
+	methods       map[string]runtime.Value
 	definition    *ast.ImplementationDefinition
 	argTemplates  []ast.TypeExpression
 	genericParams []*ast.GenericParameter
@@ -29,7 +29,7 @@ type implCandidate struct {
 
 type methodMatch struct {
 	candidate implCandidate
-	method    *runtime.FunctionValue
+	method    runtime.Value
 }
 
 type constraintSpec struct {

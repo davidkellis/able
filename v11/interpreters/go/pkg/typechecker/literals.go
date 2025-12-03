@@ -196,17 +196,52 @@ func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diag
 			builtinName = ident.Name
 		}
 		inPipeline := c.inPipeContext() || hasPipelinePlaceholder(e.Arguments)
-		calleeDiags, calleeType := c.checkExpression(env, e.Callee)
-		diags = append(diags, calleeDiags...)
-		if inPipeline {
-			calleeType = UnknownType{}
-		}
-
 		argTypes := make([]Type, len(e.Arguments))
 		for i, arg := range e.Arguments {
 			argDiags, argType := c.checkExpression(env, arg)
 			diags = append(diags, argDiags...)
 			argTypes[i] = argType
+		}
+
+		argsForCheck := e.Arguments
+		argTypesForCheck := argTypes
+		calleeType := Type(UnknownType{})
+		if ident, ok := e.Callee.(*ast.Identifier); ok && ident != nil {
+			if typ, ok := env.Lookup(ident.Name); ok {
+				calleeType = typ
+				c.infer.set(e.Callee, typ)
+			} else if c.allowDynamicLookups {
+				calleeType = UnknownType{}
+				c.infer.set(e.Callee, UnknownType{})
+			} else if len(argTypes) > 0 {
+				if fnType, ok := c.lookupUfcsInherentMethod(argTypes[0], ident.Name); ok {
+					calleeType = fnType
+					if len(argsForCheck) > 0 {
+						argsForCheck = argsForCheck[1:]
+					}
+					if len(argTypesForCheck) > 0 {
+						argTypesForCheck = argTypesForCheck[1:]
+					}
+				} else if !inPipeline {
+					diags = append(diags, Diagnostic{
+						Message: fmt.Sprintf("typechecker: undefined identifier '%s'", ident.Name),
+						Node:    e.Callee,
+					})
+				}
+			} else if !inPipeline {
+				diags = append(diags, Diagnostic{
+					Message: fmt.Sprintf("typechecker: undefined identifier '%s'", ident.Name),
+					Node:    e.Callee,
+				})
+			}
+		} else {
+			calleeDiags, inferred := c.checkExpression(env, e.Callee)
+			diags = append(diags, calleeDiags...)
+			calleeType = inferred
+		}
+
+		if inPipeline {
+			calleeType = UnknownType{}
 		}
 
 		resultType := Type(UnknownType{})
@@ -217,7 +252,7 @@ func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diag
 					Node:    e,
 				})
 			}
-			instantiated, instDiags := c.instantiateFunctionCall(fnType, e, argTypes)
+			instantiated, instDiags := c.instantiateFunctionCall(fnType, e, argTypesForCheck)
 			diags = append(diags, instDiags...)
 			if len(instantiated.Obligations) > 0 {
 				c.obligations = append(c.obligations, instantiated.Obligations...)
@@ -229,7 +264,7 @@ func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diag
 					optionalLast = true
 				}
 			}
-			argCount := len(argTypes)
+			argCount := len(argTypesForCheck)
 			paramCount := len(expectedParams)
 			if argCount != paramCount {
 				if !(optionalLast && argCount == paramCount-1) {
@@ -249,22 +284,22 @@ func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diag
 			}
 			for i := 0; i < compareCount; i++ {
 				expected := expectedParams[i]
-				if !typeAssignable(argTypes[i], expected) {
-					if msg, ok := literalMismatchMessage(argTypes[i], expected); ok {
+				if !typeAssignable(argTypesForCheck[i], expected) {
+					if msg, ok := literalMismatchMessage(argTypesForCheck[i], expected); ok {
 						diags = append(diags, Diagnostic{
 							Message: fmt.Sprintf("typechecker: %s", msg),
-							Node:    e.Arguments[i],
+							Node:    argsForCheck[i],
 						})
 					} else {
 						diags = append(diags, Diagnostic{
-							Message: fmt.Sprintf("typechecker: argument %d has type %s, expected %s", i+1, typeName(argTypes[i]), typeName(expected)),
-							Node:    e.Arguments[i],
+							Message: fmt.Sprintf("typechecker: argument %d has type %s, expected %s", i+1, typeName(argTypesForCheck[i]), typeName(expected)),
+							Node:    argsForCheck[i],
 						})
 					}
 				}
 			}
 			resultType = instantiated.Return
-		} else if applyReturn, applyDiags, matched := c.resolveApplyCall(calleeType, argTypes, e); matched {
+		} else if applyReturn, applyDiags, matched := c.resolveApplyCall(calleeType, argTypesForCheck, e); matched {
 			diags = append(diags, applyDiags...)
 			resultType = applyReturn
 		} else if inPipeline {

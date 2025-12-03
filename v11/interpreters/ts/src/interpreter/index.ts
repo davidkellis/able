@@ -39,7 +39,7 @@ export class InterpreterV10 {
 
   interfaces: Map<string, AST.InterfaceDefinition> = new Map();
   interfaceEnvs: Map<string, Environment> = new Map();
-  inherentMethods: Map<string, Map<string, Extract<V10Value, { kind: "function" }>>> = new Map();
+  inherentMethods: Map<string, Map<string, Extract<V10Value, { kind: "function" | "function_overload" }>>> = new Map();
   implMethods: Map<string, ImplMethodEntry[]> = new Map();
   rangeImplementations: RangeImplementationRecord[] = [];
   unnamedImplsSeen: Map<string, Map<string, Set<string>>> = new Map();

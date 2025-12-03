@@ -169,7 +169,8 @@ export function memberAccessOnValue(
     const typeName = obj.def.id.name;
     const method = ctx.findMethod(typeName, member.name);
     if (!method) throw new Error(`No static method '${member.name}' for ${typeName}`);
-    if (method.node.type === "FunctionDefinition" && method.node.isPrivate) {
+    const methodNode = method.kind === "function_overload" ? method.overloads[0]?.node : method.node;
+    if (methodNode?.type === "FunctionDefinition" && methodNode.isPrivate) {
       throw new Error(`Method '${member.name}' on ${typeName} is private`);
     }
     return method;
@@ -185,6 +186,12 @@ export function memberAccessOnValue(
     const bucket = ctx.packageRegistry.get(obj.name);
     const sym = bucket?.get(member.name);
     if (!sym) throw new Error(`dyn package '${obj.name}' has no member '${member.name}'`);
+    if (sym.kind === "function_overload") {
+      const first = sym.overloads[0];
+      if (first?.node.type === "FunctionDefinition" && first.node.isPrivate) {
+        throw new Error(`dyn package '${obj.name}' member '${member.name}' is private`);
+      }
+    }
     if (sym.kind === "function" && sym.node.type === "FunctionDefinition" && sym.node.isPrivate) throw new Error(`dyn package '${obj.name}' member '${member.name}' is private`);
     if (sym.kind === "struct_def" && sym.def.isPrivate) throw new Error(`dyn package '${obj.name}' member '${member.name}' is private`);
     if (sym.kind === "interface_def" && sym.def.isPrivate) throw new Error(`dyn package '${obj.name}' member '${member.name}' is private`);
@@ -220,7 +227,8 @@ export function memberAccessOnValue(
       interfaceName: obj.interfaceName,
     });
     if (!method) throw new Error(`No method '${member.name}' for interface ${obj.interfaceName}`);
-    if (method.node.type === "FunctionDefinition" && method.node.isPrivate) {
+    const methodNode = method.kind === "function_overload" ? method.overloads[0]?.node : method.node;
+    if (methodNode?.type === "FunctionDefinition" && methodNode.isPrivate) {
       throw new Error(`Method '${member.name}' on ${typeName} is private`);
     }
     return { kind: "bound_method", func: method, self: underlying };
@@ -265,7 +273,8 @@ export function memberAccessOnValue(
     if (typeName) {
       const method = ctx.findMethod(typeName, member.name);
       if (method) {
-        if (method.node.type === "FunctionDefinition" && method.node.isPrivate) {
+        const methodNode = method.kind === "function_overload" ? method.overloads[0]?.node : method.node;
+        if (methodNode?.type === "FunctionDefinition" && methodNode.isPrivate) {
           throw new Error(`Method '${member.name}' on ${typeName} is private`);
         }
         return { kind: "bound_method", func: method, self: obj };
@@ -279,7 +288,8 @@ export function memberAccessOnValue(
       const typeName = obj.def.id.name;
       const method = ctx.findMethod(typeName, member.name, { typeArgs: obj.typeArguments, typeArgMap: obj.typeArgMap });
       if (opts?.preferMethods && method) {
-        if (method.node.type === "FunctionDefinition" && method.node.isPrivate) {
+        const methodNode = method.kind === "function_overload" ? method.overloads[0]?.node : method.node;
+        if (methodNode?.type === "FunctionDefinition" && methodNode.isPrivate) {
           throw new Error(`Method '${member.name}' on ${typeName} is private`);
         }
         return { kind: "bound_method", func: method, self: obj };
@@ -288,7 +298,8 @@ export function memberAccessOnValue(
         return obj.values.get(member.name)!;
       }
       if (method) {
-        if (method.node.type === "FunctionDefinition" && method.node.isPrivate) {
+        const methodNode = method.kind === "function_overload" ? method.overloads[0]?.node : method.node;
+        if (methodNode?.type === "FunctionDefinition" && methodNode.isPrivate) {
           throw new Error(`Method '${member.name}' on ${typeName} is private`);
         }
         return { kind: "bound_method", func: method, self: obj };

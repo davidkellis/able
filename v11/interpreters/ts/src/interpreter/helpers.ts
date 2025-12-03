@@ -13,7 +13,18 @@ export function applyHelperAugmentations(cls: typeof InterpreterV10): void {
   cls.prototype.registerSymbol = function registerSymbol(this: InterpreterV10, name: string, value: V10Value): void {
     if (!this.currentPackage) return;
     if (!this.packageRegistry.has(this.currentPackage)) this.packageRegistry.set(this.currentPackage, new Map());
-    this.packageRegistry.get(this.currentPackage)!.set(name, value);
+    const bucket = this.packageRegistry.get(this.currentPackage)!;
+    const existing = bucket.get(name);
+    if (existing && isFunctionLike(existing) && isFunctionLike(value)) {
+      const overloads = [];
+      if (existing.kind === "function") overloads.push(existing);
+      if (existing.kind === "function_overload") overloads.push(...existing.overloads);
+      if (value.kind === "function") overloads.push(value);
+      if (value.kind === "function_overload") overloads.push(...value.overloads);
+      bucket.set(name, { kind: "function_overload", overloads });
+    } else {
+      bucket.set(name, value);
+    }
   };
 
   cls.prototype.qualifiedName = function qualifiedName(this: InterpreterV10, name: string): string | null {
@@ -30,4 +41,8 @@ export function applyHelperAugmentations(cls: typeof InterpreterV10): void {
         return true;
     }
   };
+}
+
+function isFunctionLike(v: V10Value): v is Extract<V10Value, { kind: "function" | "function_overload" }> {
+  return v.kind === "function" || v.kind === "function_overload";
 }

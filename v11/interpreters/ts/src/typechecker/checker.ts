@@ -131,7 +131,7 @@ export class TypeChecker {
   private structDefinitions: Map<string, AST.StructDefinition> = new Map();
   private interfaceDefinitions: Map<string, AST.InterfaceDefinition> = new Map();
   private typeAliases: Map<string, AST.TypeAliasDefinition> = new Map();
-  private functionInfos: Map<string, FunctionInfo> = new Map();
+  private functionInfos: Map<string, FunctionInfo[]> = new Map();
   private methodSets: MethodSetRecord[] = [];
   private implementationRecords: ImplementationRecord[] = [];
   private implementationIndex: Map<string, ImplementationRecord[]> = new Map();
@@ -438,7 +438,7 @@ export class TypeChecker {
   private checkFunctionDefinition(definition: AST.FunctionDefinition): void {
     if (!definition) return;
     const name = definition.id?.name ?? "<anonymous>";
-    const info = this.functionInfos.get(name);
+    const info = this.getFunctionInfos(name)[0];
     const paramTypes = Array.isArray(definition.params)
       ? definition.params.map((param) => this.resolveTypeExpression(param?.paramType))
       : [];
@@ -854,8 +854,8 @@ export class TypeChecker {
       hasBinding: (name: string) => this.env.has(name),
       hasBindingInCurrentScope: (name: string) => this.env.hasInCurrentScope(name),
       allowDynamicLookup: () => this.allowDynamicLookups,
-      getFunctionInfo: (key: string) => this.functionInfos.get(key),
-      setFunctionInfo: (key: string, info: FunctionInfo) => this.functionInfos.set(key, info),
+      getFunctionInfos: (key: string) => this.getFunctionInfos(key),
+      addFunctionInfo: (key: string, info: FunctionInfo) => this.addFunctionInfo(key, info),
       isExpression: (node: AST.Node | undefined | null): node is AST.Expression => this.isExpression(node),
       handleTypeDeclaration: (node) => this.checkLocalTypeDeclaration(node as LocalTypeDeclaration),
       pushBreakpointLabel: (label: string) => this.pushBreakpointLabel(label),
@@ -887,6 +887,18 @@ export class TypeChecker {
 
   private buildPackageSummary(module: AST.Module): PackageSummary | null {
     return buildPackageSummaryHelper(this.implementationContext, module);
+  }
+
+  private addFunctionInfo(key: string, info: FunctionInfo): void {
+    const existing = this.functionInfos.get(key) ?? [];
+    if (existing.some((entry) => entry.fullName === info.fullName)) {
+      return;
+    }
+    this.functionInfos.set(key, [...existing, info]);
+  }
+
+  private getFunctionInfos(key: string): FunctionInfo[] {
+    return this.functionInfos.get(key) ?? [];
   }
 
   private pushFunctionGenericContext(definition: AST.FunctionDefinition): void {
