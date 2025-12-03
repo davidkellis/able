@@ -1,0 +1,28 @@
+fn pick(value: string) -> i32 {
+  20
+}
+fn pick(value: i32, note: ?string) -> i32 {
+  note match {
+    case nil => 30,
+    case _ => 40
+  }
+}
+fn pick(value: bool) -> i32 {
+  50
+}
+struct Box {
+  value: i32
+}
+methods Box {
+  fn mark(self: Box, delta: i32) -> i32 {
+    self.value + delta
+  }
+  fn mark(self: Box, tag: ?string) -> i32 {
+    tag match {
+      case nil => self.value + 100,
+      case _ => self.value + 200
+    }
+  }
+}
+box := Box { value: 5 }
+[pick(5), pick(5, "note"), pick("ok"), pick(true), box.mark(3), box.mark(), box.mark("hey")]

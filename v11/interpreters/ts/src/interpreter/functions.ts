@@ -29,7 +29,10 @@ export function evaluateLambdaExpression(ctx: InterpreterV10, node: AST.LambdaEx
   return { kind: "function", node, closureEnv: env };
 }
 
-function resolveApplyFunction(ctx: InterpreterV10, callee: V10Value): Extract<V10Value, { kind: "function" }> | null {
+function resolveApplyFunction(
+  ctx: InterpreterV10,
+  callee: V10Value,
+): Extract<V10Value, { kind: "function" | "function_overload" }> | null {
   const dispatches = collectTypeDispatches(ctx, callee);
   for (const dispatch of dispatches) {
     const method = ctx.findMethod(dispatch.typeName, "apply", {
@@ -51,26 +54,62 @@ export function evaluateFunctionCall(ctx: InterpreterV10, node: AST.FunctionCall
     const callArgs = node.arguments.map((arg) => ctx.evaluate(arg, env));
     return callCallableValue(ctx, memberValue, callArgs, env, node);
   }
+  if (node.callee.type === "Identifier") {
+    let calleeValue: V10Value | null = null;
+    let lookupError: unknown;
+    try {
+      calleeValue = env.get(node.callee.name);
+    } catch (err) {
+      lookupError = err;
+    }
+    const callArgs = node.arguments.map((arg) => ctx.evaluate(arg, env));
+    if (!calleeValue) {
+      if (callArgs.length > 0) {
+        const ufcs = ctx.tryUfcs(env, node.callee.name, callArgs[0]!);
+        if (ufcs) {
+          return callCallableValue(ctx, ufcs, callArgs.slice(1), env, node);
+        }
+      }
+      if (lookupError) {
+        throw lookupError;
+      }
+      throw new Error(`Undefined variable '${node.callee.name}'`);
+    }
+    return callCallableValue(ctx, calleeValue, callArgs, env, node);
+  }
   const calleeEvaluated = ctx.evaluate(node.callee, env);
-  const callArgs = node.arguments.map(arg => ctx.evaluate(arg, env));
+  const callArgs = node.arguments.map((arg) => ctx.evaluate(arg, env));
   return callCallableValue(ctx, calleeEvaluated, callArgs, env, node);
 }
 
 export function callCallableValue(ctx: InterpreterV10, callee: V10Value, args: V10Value[], env: Environment, callNode?: AST.FunctionCall): V10Value {
   let funcValue: Extract<V10Value, { kind: "function" }> | null = null;
+  let overloadSet: Extract<V10Value, { kind: "function_overload" }> | null = null;
   let nativeFunc: Extract<V10Value, { kind: "native_function" }> | null = null;
   let injectedArgs: V10Value[] = [];
 
   if (callee.kind === "bound_method") {
-    funcValue = callee.func;
+    if (callee.func.kind === "function_overload") {
+      overloadSet = callee.func;
+    } else {
+      funcValue = callee.func;
+    }
     injectedArgs = [callee.self];
   } else if (callee.kind === "function") {
     funcValue = callee;
+  } else if (callee.kind === "function_overload") {
+    overloadSet = callee;
   } else if (callee.kind === "dyn_ref") {
     const bucket = ctx.packageRegistry.get(callee.pkg);
     const sym = bucket?.get(callee.name);
-    if (!sym || sym.kind !== "function") throw new Error(`dyn ref '${callee.pkg}.${callee.name}' is not callable`);
-    funcValue = sym;
+    if (!sym || (sym.kind !== "function" && sym.kind !== "function_overload")) {
+      throw new Error(`dyn ref '${callee.pkg}.${callee.name}' is not callable`);
+    }
+    if (sym.kind === "function_overload") {
+      overloadSet = sym;
+    } else {
+      funcValue = sym;
+    }
   } else if (callee.kind === "native_bound_method") {
     nativeFunc = callee.func;
     injectedArgs = [callee.self];
@@ -90,6 +129,14 @@ export function callCallableValue(ctx: InterpreterV10, callee: V10Value, args: V
   }
 
   const evalArgs = [...injectedArgs, ...args];
+  if (overloadSet) {
+    const selected = selectRuntimeOverload(ctx, overloadSet.overloads, evalArgs, callNode);
+    if (!selected) {
+      const name = callNode?.callee?.type === "Identifier" ? callNode.callee.name : "(overload)";
+      throw new Error(`No overloads of ${name} match provided arguments`);
+    }
+    funcValue = selected;
+  }
   if (nativeFunc) {
     if (nativeFunc.arity >= 0 && evalArgs.length !== nativeFunc.arity) {
       throw new Error(`Arity mismatch calling ${nativeFunc.name}: expected ${nativeFunc.arity}, got ${evalArgs.length}`);
@@ -112,8 +159,12 @@ export function callCallableValue(ctx: InterpreterV10, callee: V10Value, args: V
     const genericNames = new Set((funcNode.genericParams ?? []).map((gp) => gp.name.name));
     const params = funcNode.params;
     const paramCount = params.length;
+    const optionalLast =
+      paramCount > 0 && params[paramCount - 1]?.paramType?.type === "NullableTypeExpression";
     const expectedArgs = funcNode.isMethodShorthand ? paramCount + 1 : paramCount;
-    if (evalArgs.length !== expectedArgs) {
+    const arityMatches =
+      evalArgs.length === expectedArgs || (optionalLast && evalArgs.length === expectedArgs - 1);
+    if (!arityMatches) {
       const name = funcNode.id?.name ?? "(anonymous)";
       throw new Error(`Arity mismatch calling ${name}: expected ${expectedArgs}, got ${evalArgs.length}`);
     }
@@ -127,6 +178,9 @@ export function callCallableValue(ctx: InterpreterV10, callee: V10Value, args: V
     } else if (paramCount > 0 && evalArgs.length > 0) {
       implicitReceiver = evalArgs[0]!;
       hasImplicit = true;
+    }
+    if (optionalLast && bindArgs.length === paramCount - 1) {
+      bindArgs = [...bindArgs, { kind: "nil", value: null }];
     }
     if (bindArgs.length !== paramCount) {
       const name = funcNode.id?.name ?? "(anonymous)";
@@ -230,4 +284,104 @@ export function callCallableValue(ctx: InterpreterV10, callee: V10Value, args: V
   }
 
   throw new Error("calling unsupported function declaration");
+}
+
+function selectRuntimeOverload(
+  ctx: InterpreterV10,
+  overloads: Array<Extract<V10Value, { kind: "function" }>>,
+  evalArgs: V10Value[],
+  callNode?: AST.FunctionCall,
+): Extract<V10Value, { kind: "function" }> | null {
+  const candidates: Array<{
+    fn: Extract<V10Value, { kind: "function" }>;
+    params: AST.FunctionParameter[];
+    optionalLast: boolean;
+    score: number;
+  }> = [];
+  for (const fn of overloads) {
+    const funcNode = fn.node;
+    if (funcNode.type !== "FunctionDefinition") {
+      candidates.push({ fn, params: funcNode.params ?? [], optionalLast: false, score: 0 });
+      continue;
+    }
+    const params = funcNode.params ?? [];
+    const paramCount = params.length;
+    const optionalLast =
+      paramCount > 0 && params[paramCount - 1]?.paramType?.type === "NullableTypeExpression";
+    const expectedArgs = funcNode.isMethodShorthand ? paramCount + 1 : paramCount;
+    if (!arityMatchesRuntime(expectedArgs, evalArgs.length, optionalLast)) {
+      continue;
+    }
+    const paramsForCheck =
+      optionalLast && evalArgs.length === expectedArgs - 1 ? params.slice(0, Math.max(0, paramCount - 1)) : params;
+    const argsForCheck = funcNode.isMethodShorthand ? evalArgs.slice(1) : evalArgs;
+    if (argsForCheck.length !== paramsForCheck.length) {
+      continue;
+    }
+    const generics = new Set((funcNode.genericParams ?? []).map((gp) => gp.name.name));
+    let score = optionalLast && evalArgs.length === expectedArgs - 1 ? -0.5 : 0;
+    let compatible = true;
+    for (let i = 0; i < paramsForCheck.length; i += 1) {
+      const param = paramsForCheck[i];
+      const arg = argsForCheck[i];
+      if (!param || arg === undefined) {
+        compatible = false;
+        break;
+      }
+      if (param.paramType) {
+        if (!ctx.matchesType(param.paramType, arg)) {
+          compatible = false;
+          break;
+        }
+        score += parameterSpecificity(param.paramType, generics);
+      }
+    }
+    if (compatible) {
+      candidates.push({ fn, params: paramsForCheck, optionalLast, score });
+    }
+  }
+  if (!candidates.length) return null;
+  candidates.sort((a, b) => b.score - a.score);
+  const best = candidates[0]!;
+  const ties = candidates.filter((c) => c.score === best.score);
+  if (ties.length > 1) {
+    const name =
+      callNode?.callee?.type === "Identifier"
+        ? callNode.callee.name
+        : callNode?.callee?.type === "MemberAccessExpression"
+          ? callNode.callee.member?.type === "Identifier"
+            ? callNode.callee.member.name
+            : "(function)"
+          : "(function)";
+    throw new Error(`Ambiguous overload for ${name}`);
+  }
+  return best.fn;
+}
+
+function parameterSpecificity(typeExpr: AST.TypeExpression, generics: Set<string>): number {
+  if (!typeExpr) return 0;
+  switch (typeExpr.type) {
+    case "WildcardTypeExpression":
+      return 0;
+    case "SimpleTypeExpression": {
+      const name = typeExpr.name.name;
+      if (generics.has(name) || /^[A-Z]$/.test(name)) {
+        return 1;
+      }
+      return 3;
+    }
+    case "NullableTypeExpression":
+      return 1 + parameterSpecificity(typeExpr.innerType, generics);
+    case "GenericTypeExpression":
+      return 2 + (typeExpr.arguments ?? []).reduce((acc, arg) => acc + parameterSpecificity(arg, generics), 0);
+    case "FunctionTypeExpression":
+    case "UnionTypeExpression":
+      return 2;
+    default:
+      return 1;
+  }
+}
+
+function arityMatchesRuntime(expected: number, actual: number, optionalLast: boolean): boolean {
+  return actual === expected || (optionalLast && actual === expected - 1);
 }

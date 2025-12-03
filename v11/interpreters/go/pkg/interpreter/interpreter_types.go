@@ -123,7 +123,7 @@ func (i *Interpreter) lookupImplEntry(info typeInfo, interfaceName string) (*imp
 	return best, nil
 }
 
-func (i *Interpreter) findMethod(info typeInfo, methodName string, interfaceFilter string) (*runtime.FunctionValue, error) {
+func (i *Interpreter) findMethod(info typeInfo, methodName string, interfaceFilter string) (runtime.Value, error) {
 	matches, err := i.collectImplCandidates(info, interfaceFilter, methodName)
 	if len(matches) == 0 {
 		return nil, err
@@ -140,9 +140,9 @@ func (i *Interpreter) findMethod(info typeInfo, methodName string, interfaceFilt
 					defaultDef := ast.NewFunctionDefinition(sig.Name, sig.Params, sig.DefaultImpl, sig.ReturnType, sig.GenericParams, sig.WhereClause, false, false)
 					method = &runtime.FunctionValue{Declaration: defaultDef, Closure: ifaceDef.Env}
 					if cand.entry.methods == nil {
-						cand.entry.methods = make(map[string]*runtime.FunctionValue)
+						cand.entry.methods = make(map[string]runtime.Value)
 					}
-					cand.entry.methods[methodName] = method
+					mergeFunctionLike(cand.entry.methods, methodName, method)
 					break
 				}
 			}
@@ -167,8 +167,10 @@ func (i *Interpreter) findMethod(info typeInfo, methodName string, interfaceFilt
 	if best == nil {
 		return nil, nil
 	}
-	if fnDef, ok := best.method.Declaration.(*ast.FunctionDefinition); ok && fnDef.IsPrivate {
-		return nil, fmt.Errorf("Method '%s' on %s is private", methodName, info.name)
+	if fnVal := firstFunction(best.method); fnVal != nil {
+		if fnDef, ok := fnVal.Declaration.(*ast.FunctionDefinition); ok && fnDef.IsPrivate {
+			return nil, fmt.Errorf("Method '%s' on %s is private", methodName, info.name)
+		}
 	}
 	return best.method, nil
 }
@@ -190,7 +192,7 @@ func (i *Interpreter) interfaceMatches(val *runtime.InterfaceValue, interfaceNam
 	return err == nil && entry != nil
 }
 
-func (i *Interpreter) selectStructMethod(inst *runtime.StructInstanceValue, methodName string) (*runtime.FunctionValue, error) {
+func (i *Interpreter) selectStructMethod(inst *runtime.StructInstanceValue, methodName string) (runtime.Value, error) {
 	if inst == nil {
 		return nil, nil
 	}
@@ -291,8 +293,7 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 		}
 		return true
 	case *ast.FunctionTypeExpression:
-		_, ok := value.(*runtime.FunctionValue)
-		return ok
+		return runtime.IsFunctionLike(value)
 	case *ast.NullableTypeExpression:
 		if _, ok := value.(runtime.NilValue); ok {
 			return true
@@ -383,7 +384,7 @@ func (i *Interpreter) coerceToInterfaceValue(interfaceName string, value runtime
 		}
 		return nil, fmt.Errorf("Type '%s' does not implement interface %s", typeDesc, interfaceName)
 	}
-	methods := make(map[string]*runtime.FunctionValue, len(candidate.entry.methods))
+	methods := make(map[string]runtime.Value, len(candidate.entry.methods))
 	for name, fn := range candidate.entry.methods {
 		methods[name] = fn
 	}

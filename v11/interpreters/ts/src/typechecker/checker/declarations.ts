@@ -15,8 +15,8 @@ export interface DeclarationsContext extends StatementContext {
   defineValue(name: string, type: TypeInfo): void;
   getInterfaceDefinition(name: string): AST.InterfaceDefinition | undefined;
   hasInterfaceDefinition(name: string): boolean;
-  setFunctionInfo(key: string, info: FunctionInfo): void;
-  getFunctionInfo(key: string): FunctionInfo | undefined;
+  addFunctionInfo(key: string, info: FunctionInfo): void;
+  getFunctionInfos(key: string): FunctionInfo[];
   isKnownTypeName(name: string): boolean;
   hasTypeDefinition(name: string): boolean;
 }
@@ -75,9 +75,9 @@ export function collectFunctionDefinition(
     }
   }
 
-  ctx.setFunctionInfo(fullName, info);
+  ctx.addFunctionInfo(fullName, info);
   if (!structName) {
-    ctx.setFunctionInfo(name, info);
+    ctx.addFunctionInfo(name, info);
     if (definition.id?.name) {
       ctx.defineValue(definition.id.name, {
         kind: "function",

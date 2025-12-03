@@ -30,6 +30,26 @@ func (i *Interpreter) evaluateFunctionCall(call *ast.FunctionCall, env *runtime.
 		}
 		return i.callCallableValue(calleeVal, argValues, env, call)
 	}
+	if ident, ok := call.Callee.(*ast.Identifier); ok && ident != nil {
+		calleeVal, lookupErr := env.Get(ident.Name)
+		argValues := make([]runtime.Value, 0, len(call.Arguments))
+		for _, argExpr := range call.Arguments {
+			val, err := i.evaluateExpression(argExpr, env)
+			if err != nil {
+				return nil, err
+			}
+			argValues = append(argValues, val)
+		}
+		if lookupErr != nil {
+			if len(argValues) > 0 {
+				if bound, ok := i.tryUfcs(env, ident.Name, argValues[0]); ok {
+					return i.callCallableValue(bound, argValues[1:], env, call)
+				}
+			}
+			return nil, lookupErr
+		}
+		return i.callCallableValue(calleeVal, argValues, env, call)
+	}
 	calleeVal, err := i.evaluateExpression(call.Callee, env)
 	if err != nil {
 		return nil, err
@@ -60,17 +80,19 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 			}
 		}
 		paramCount := len(decl.Params)
+		optionalLast := paramCount > 0 && isNullableParam(decl.Params[paramCount-1])
 		expectedArgs := paramCount
 		if decl.IsMethodShorthand {
 			expectedArgs++
 		}
-		if len(args) != expectedArgs {
+		if !arityMatchesRuntime(expectedArgs, len(args), optionalLast) {
 			name := "<anonymous>"
 			if decl.ID != nil {
 				name = decl.ID.Name
 			}
 			return nil, fmt.Errorf("Function '%s' expects %d arguments, got %d", name, expectedArgs, len(args))
 		}
+		missingOptional := optionalLast && len(args) == expectedArgs-1
 		localEnv := runtime.NewEnvironment(fn.Closure)
 		if call != nil {
 			i.bindTypeArgumentsIfAny(decl, call, localEnv)
@@ -91,6 +113,9 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 				implicitReceiver = args[0]
 				hasImplicit = true
 			}
+		}
+		if missingOptional {
+			bindArgs = append(bindArgs, runtime.NilValue{})
 		}
 		if len(bindArgs) != paramCount {
 			name := "<anonymous>"
@@ -182,30 +207,30 @@ func (i *Interpreter) callCallableValue(callee runtime.Value, args []runtime.Val
 	if env != nil {
 		callState = env.RuntimeData()
 	}
+	var native *runtime.NativeFunctionValue
+	var injected []runtime.Value
+	var overloads []*runtime.FunctionValue
+
 	switch fn := callee.(type) {
 	case runtime.NativeFunctionValue:
-		ctx := &runtime.NativeCallContext{Env: env, State: callState}
-		return fn.Impl(ctx, args)
+		native = &fn
 	case *runtime.NativeFunctionValue:
-		ctx := &runtime.NativeCallContext{Env: env, State: callState}
-		return fn.Impl(ctx, args)
+		native = fn
 	case runtime.NativeBoundMethodValue:
-		combined := append([]runtime.Value{fn.Receiver}, args...)
-		ctx := &runtime.NativeCallContext{Env: env, State: callState}
-		return fn.Method.Impl(ctx, combined)
+		native = &fn.Method
+		injected = append(injected, fn.Receiver)
 	case *runtime.NativeBoundMethodValue:
 		if fn == nil {
 			return nil, fmt.Errorf("native bound method is nil")
 		}
-		combined := append([]runtime.Value{fn.Receiver}, args...)
-		ctx := &runtime.NativeCallContext{Env: env, State: callState}
-		return fn.Method.Impl(ctx, combined)
+		native = &fn.Method
+		injected = append(injected, fn.Receiver)
 	case runtime.DynRefValue:
 		resolved, err := i.resolveDynRef(fn)
 		if err != nil {
 			return nil, err
 		}
-		return i.invokeFunction(resolved, args, call)
+		return i.callCallableValue(resolved, args, env, call)
 	case *runtime.DynRefValue:
 		if fn == nil {
 			return nil, fmt.Errorf("dyn ref is nil")
@@ -214,19 +239,35 @@ func (i *Interpreter) callCallableValue(callee runtime.Value, args []runtime.Val
 		if err != nil {
 			return nil, err
 		}
-		return i.invokeFunction(resolved, args, call)
+		return i.callCallableValue(resolved, args, env, call)
 	case runtime.BoundMethodValue:
-		combined := append([]runtime.Value{fn.Receiver}, args...)
-		return i.invokeFunction(fn.Method, combined, call)
+		injected = append(injected, fn.Receiver)
+		overloads = functionOverloads(fn.Method)
 	case *runtime.BoundMethodValue:
 		if fn == nil {
 			return nil, fmt.Errorf("bound method is nil")
 		}
-		combined := append([]runtime.Value{fn.Receiver}, args...)
-		return i.invokeFunction(fn.Method, combined, call)
-	case *runtime.FunctionValue:
-		return i.invokeFunction(fn, args, call)
+		injected = append(injected, fn.Receiver)
+		overloads = functionOverloads(fn.Method)
 	default:
+		overloads = functionOverloads(callee)
+	}
+
+	evalArgs := append(injected, args...)
+
+	if native != nil {
+		if native.Arity >= 0 && len(injected) == 0 && len(evalArgs) != native.Arity {
+			name := native.Name
+			if name == "" {
+				name = "(native)"
+			}
+			return nil, fmt.Errorf("Arity mismatch calling %s: expected %d, got %d", name, native.Arity, len(evalArgs))
+		}
+		ctx := &runtime.NativeCallContext{Env: env, State: callState}
+		return native.Impl(ctx, evalArgs)
+	}
+
+	if len(overloads) == 0 {
 		if applyMethod, err := i.findApplyMethod(callee); err == nil && applyMethod != nil {
 			bound := runtime.BoundMethodValue{Receiver: callee, Method: applyMethod}
 			return i.callCallableValue(bound, args, env, call)
@@ -235,6 +276,158 @@ func (i *Interpreter) callCallableValue(callee runtime.Value, args []runtime.Val
 		}
 		return nil, fmt.Errorf("calling non-function value of kind %s (%T)", callee.Kind(), callee)
 	}
+
+	selected, err := i.selectRuntimeOverload(overloads, evalArgs, call)
+	if err != nil {
+		return nil, err
+	}
+	if selected == nil && len(overloads) == 1 {
+		selected = overloads[0]
+	}
+	if selected == nil {
+		return nil, fmt.Errorf("No overloads of %s match provided arguments", overloadName(call))
+	}
+	return i.invokeFunction(selected, evalArgs, call)
+}
+
+func (i *Interpreter) selectRuntimeOverload(overloads []*runtime.FunctionValue, evalArgs []runtime.Value, call *ast.FunctionCall) (*runtime.FunctionValue, error) {
+	type candidate struct {
+		fn    *runtime.FunctionValue
+		score float64
+	}
+	candidates := make([]candidate, 0, len(overloads))
+	for _, fn := range overloads {
+		if fn == nil || fn.Declaration == nil {
+			continue
+		}
+		switch decl := fn.Declaration.(type) {
+		case *ast.FunctionDefinition:
+			params := decl.Params
+			paramCount := len(params)
+			optionalLast := paramCount > 0 && isNullableParam(params[paramCount-1])
+			expectedArgs := paramCount
+			if decl.IsMethodShorthand {
+				expectedArgs++
+			}
+			if !arityMatchesRuntime(expectedArgs, len(evalArgs), optionalLast) {
+				continue
+			}
+			paramsForCheck := params
+			argsForCheck := evalArgs
+			if optionalLast && len(evalArgs) == expectedArgs-1 {
+				paramsForCheck = params[:paramCount-1]
+			}
+			if decl.IsMethodShorthand && len(argsForCheck) > 0 {
+				argsForCheck = argsForCheck[1:]
+			}
+			if len(argsForCheck) != len(paramsForCheck) {
+				continue
+			}
+			generics := genericNameSet(decl.GenericParams)
+			score := 0.0
+			if optionalLast && len(evalArgs) == expectedArgs-1 {
+				score -= 0.5
+			}
+			compatible := true
+			for idx, param := range paramsForCheck {
+				if param == nil {
+					compatible = false
+					break
+				}
+				if param.ParamType != nil {
+					if !i.matchesType(param.ParamType, argsForCheck[idx]) {
+						compatible = false
+						break
+					}
+					score += float64(parameterSpecificity(param.ParamType, generics))
+				}
+			}
+			if compatible {
+				candidates = append(candidates, candidate{fn: fn, score: score})
+			}
+		case *ast.LambdaExpression:
+			if len(decl.Params) != len(evalArgs) {
+				continue
+			}
+			candidates = append(candidates, candidate{fn: fn, score: 0})
+		default:
+			candidates = append(candidates, candidate{fn: fn, score: 0})
+		}
+	}
+	if len(candidates) == 0 {
+		return nil, nil
+	}
+	best := candidates[0]
+	ties := []candidate{best}
+	for _, cand := range candidates[1:] {
+		if cand.score > best.score {
+			best = cand
+			ties = []candidate{cand}
+		} else if cand.score == best.score {
+			ties = append(ties, cand)
+		}
+	}
+	if len(ties) > 1 {
+		return nil, fmt.Errorf("Ambiguous overload for %s", overloadName(call))
+	}
+	return best.fn, nil
+}
+
+func overloadName(call *ast.FunctionCall) string {
+	if call == nil {
+		return "(function)"
+	}
+	switch cal := call.Callee.(type) {
+	case *ast.Identifier:
+		return cal.Name
+	case *ast.MemberAccessExpression:
+		if id, ok := cal.Member.(*ast.Identifier); ok {
+			return id.Name
+		}
+	}
+	return "(function)"
+}
+
+func parameterSpecificity(typeExpr ast.TypeExpression, generics map[string]struct{}) int {
+	switch t := typeExpr.(type) {
+	case *ast.WildcardTypeExpression:
+		return 0
+	case *ast.SimpleTypeExpression:
+		if t.Name == nil {
+			return 0
+		}
+		if _, ok := generics[t.Name.Name]; ok {
+			return 1
+		}
+		return 3
+	case *ast.NullableTypeExpression:
+		return 1 + parameterSpecificity(t.InnerType, generics)
+	case *ast.GenericTypeExpression:
+		score := 2 + parameterSpecificity(t.Base, generics)
+		for _, arg := range t.Arguments {
+			score += parameterSpecificity(arg, generics)
+		}
+		return score
+	case *ast.FunctionTypeExpression, *ast.UnionTypeExpression:
+		return 2
+	default:
+		return 1
+	}
+}
+
+func arityMatchesRuntime(expected, actual int, optionalLast bool) bool {
+	return actual == expected || (optionalLast && actual == expected-1)
+}
+
+func isNullableParam(param *ast.FunctionParameter) bool {
+	if param == nil {
+		return false
+	}
+	if param.ParamType == nil {
+		return false
+	}
+	_, ok := param.ParamType.(*ast.NullableTypeExpression)
+	return ok
 }
 
 func (i *Interpreter) evaluatePipeExpression(subject runtime.Value, rhs ast.Expression, env *runtime.Environment) (runtime.Value, error) {

@@ -177,6 +177,268 @@ const functionsFixtures: Fixture[] = [
         },
       },
     },
+
+  {
+      name: "functions/overload_resolution_success",
+      module: AST.module([
+        AST.functionDefinition(
+          "pick",
+          [AST.functionParameter("value", AST.simpleTypeExpression("string"))],
+          AST.blockExpression([AST.int(20)]),
+          AST.simpleTypeExpression("i32"),
+        ),
+        AST.functionDefinition(
+          "pick",
+          [
+            AST.functionParameter("value", AST.simpleTypeExpression("i32")),
+            AST.functionParameter("note", AST.nullableTypeExpression(AST.simpleTypeExpression("string"))),
+          ],
+          AST.blockExpression([
+            AST.matchExpression(AST.id("note"), [
+              AST.matchClause(AST.literalPattern(AST.nil()), AST.int(30)),
+              AST.matchClause(AST.wildcardPattern(), AST.int(40)),
+            ]),
+          ]),
+          AST.simpleTypeExpression("i32"),
+        ),
+        AST.functionDefinition(
+          "pick",
+          [AST.functionParameter("value", AST.simpleTypeExpression("bool"))],
+          AST.blockExpression([AST.int(50)]),
+          AST.simpleTypeExpression("i32"),
+        ),
+        AST.structDefinition("Box", [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "value")], "named"),
+        AST.methodsDefinition(
+          AST.simpleTypeExpression("Box"),
+          [
+            AST.functionDefinition(
+              "mark",
+              [
+                AST.functionParameter("self", AST.simpleTypeExpression("Box")),
+                AST.functionParameter("delta", AST.simpleTypeExpression("i32")),
+              ],
+              AST.blockExpression([
+                AST.bin("+", AST.member(AST.id("self"), "value"), AST.id("delta")),
+              ]),
+              AST.simpleTypeExpression("i32"),
+            ),
+            AST.functionDefinition(
+              "mark",
+              [
+                AST.functionParameter("self", AST.simpleTypeExpression("Box")),
+                AST.functionParameter("tag", AST.nullableTypeExpression(AST.simpleTypeExpression("string"))),
+              ],
+              AST.blockExpression([
+                AST.matchExpression(AST.id("tag"), [
+                  AST.matchClause(
+                    AST.literalPattern(AST.nil()),
+                    AST.bin("+", AST.member(AST.id("self"), "value"), AST.int(100)),
+                  ),
+                  AST.matchClause(
+                    AST.wildcardPattern(),
+                    AST.bin("+", AST.member(AST.id("self"), "value"), AST.int(200)),
+                  ),
+                ]),
+              ]),
+              AST.simpleTypeExpression("i32"),
+            ),
+          ],
+        ),
+        AST.assign("box", AST.structLiteral([AST.structFieldInitializer(AST.int(5), "value")], false, "Box")),
+        AST.arrayLiteral([
+          AST.functionCall(AST.id("pick"), [AST.int(5)]),
+          AST.functionCall(AST.id("pick"), [AST.int(5), AST.str("note")]),
+          AST.functionCall(AST.id("pick"), [AST.str("ok")]),
+          AST.functionCall(AST.id("pick"), [AST.bool(true)]),
+          AST.functionCall(AST.member(AST.id("box"), "mark"), [AST.int(3)]),
+          AST.functionCall(AST.member(AST.id("box"), "mark"), []),
+          AST.functionCall(AST.member(AST.id("box"), "mark"), [AST.str("hey")]),
+        ]),
+      ]),
+      manifest: {
+        description: "Runtime overload resolution selects best matches for functions and methods (including nullable tails)",
+        expect: {
+          result: {
+            kind: "array",
+            elements: [
+              { kind: "i32", value: 30n },
+              { kind: "i32", value: 40n },
+              { kind: "i32", value: 20n },
+              { kind: "i32", value: 50n },
+              { kind: "i32", value: 8n },
+              { kind: "i32", value: 105n },
+              { kind: "i32", value: 205n },
+            ],
+          },
+        },
+      },
+    },
+
+  {
+      name: "functions/overload_function_ambiguity",
+      module: AST.module([
+        AST.functionDefinition(
+          "collide",
+          [AST.functionParameter("x", AST.simpleTypeExpression("i32"))],
+          AST.blockExpression([AST.int(1)]),
+          AST.simpleTypeExpression("i32"),
+        ),
+        AST.functionDefinition(
+          "collide",
+          [AST.functionParameter("x", AST.simpleTypeExpression("i32"))],
+          AST.blockExpression([AST.int(2)]),
+          AST.simpleTypeExpression("i32"),
+        ),
+        AST.functionCall(AST.id("collide"), [AST.int(1)]),
+      ]),
+      manifest: {
+        description: "Duplicate free function overloads surface an ambiguity error",
+        expect: {
+          errors: ["Ambiguous overload for collide"],
+        },
+      },
+    },
+
+  {
+      name: "functions/overload_method_ambiguity",
+      module: AST.module([
+        AST.structDefinition("Bag", [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "value")], "named"),
+        AST.methodsDefinition(
+          AST.simpleTypeExpression("Bag"),
+          [
+            AST.functionDefinition(
+              "do",
+              [
+                AST.functionParameter("self", AST.simpleTypeExpression("Bag")),
+                AST.functionParameter("x", AST.simpleTypeExpression("i32")),
+              ],
+              AST.blockExpression([AST.bin("+", AST.member(AST.id("self"), "value"), AST.id("x"))]),
+              AST.simpleTypeExpression("i32"),
+            ),
+            AST.functionDefinition(
+              "do",
+              [
+                AST.functionParameter("self", AST.simpleTypeExpression("Bag")),
+                AST.functionParameter("x", AST.simpleTypeExpression("i32")),
+              ],
+              AST.blockExpression([AST.member(AST.id("self"), "value")]),
+              AST.simpleTypeExpression("i32"),
+            ),
+          ],
+        ),
+        AST.assign("bag", AST.structLiteral([AST.structFieldInitializer(AST.int(10), "value")], false, "Bag")),
+        AST.functionCall(AST.member(AST.id("bag"), "do"), [AST.int(1)]),
+      ]),
+      manifest: {
+        description: "Duplicate method overloads produce an ambiguity error on invocation",
+        expect: {
+          errors: ["Ambiguous overload for do"],
+        },
+      },
+    },
+
+  {
+      name: "functions/ufcs_inherent_methods",
+      module: AST.module([
+        AST.structDefinition(
+          "Point",
+          [
+            AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "x"),
+            AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "y"),
+          ],
+          "named",
+        ),
+        AST.methodsDefinition(
+          AST.simpleTypeExpression("Point"),
+          [
+            AST.functionDefinition(
+              "norm",
+              [AST.functionParameter("self", AST.simpleTypeExpression("Point"))],
+              AST.blockExpression([
+                AST.bin(
+                  "+",
+                  AST.bin("*", AST.member(AST.id("self"), "x"), AST.member(AST.id("self"), "x")),
+                  AST.bin("*", AST.member(AST.id("self"), "y"), AST.member(AST.id("self"), "y")),
+                ),
+              ]),
+              AST.simpleTypeExpression("i32"),
+            ),
+            AST.functionDefinition(
+              "scale",
+              [
+                AST.functionParameter("self", AST.simpleTypeExpression("Point")),
+                AST.functionParameter("factor", AST.simpleTypeExpression("i32")),
+              ],
+              AST.blockExpression([
+                AST.structLiteral(
+                  [
+                    AST.structFieldInitializer(
+                      AST.bin("*", AST.member(AST.id("self"), "x"), AST.id("factor")),
+                      "x",
+                    ),
+                    AST.structFieldInitializer(
+                      AST.bin("*", AST.member(AST.id("self"), "y"), AST.id("factor")),
+                      "y",
+                    ),
+                  ],
+                  false,
+                  "Point",
+                ),
+              ]),
+              AST.simpleTypeExpression("Point"),
+            ),
+          ],
+        ),
+        AST.assign(
+          "p",
+          AST.structLiteral(
+            [
+              AST.structFieldInitializer(AST.int(3), "x"),
+              AST.structFieldInitializer(AST.int(4), "y"),
+            ],
+            false,
+            "Point",
+          ),
+        ),
+        AST.assign("scaled", AST.functionCall(AST.id("scale"), [AST.id("p"), AST.int(2)])),
+        AST.assign(
+          "pipeScaled",
+          AST.binaryExpression(
+            "|>",
+            AST.id("p"),
+            AST.functionCall(AST.id("scale"), [AST.topicReferenceExpression(), AST.int(3)]),
+          ),
+        ),
+        AST.arrayLiteral([
+          AST.functionCall(AST.id("norm"), [AST.id("p")]),
+          AST.member(AST.id("scaled"), "x"),
+          AST.member(AST.id("scaled"), "y"),
+          AST.binaryExpression(
+            "|>",
+            AST.id("p"),
+            AST.functionCall(AST.id("norm"), [AST.topicReferenceExpression()]),
+          ),
+          AST.member(AST.id("pipeScaled"), "x"),
+          AST.member(AST.id("pipeScaled"), "y"),
+        ]),
+      ]),
+      manifest: {
+        description: "UFCS resolves inherent instance methods (including pipeline usage)",
+        expect: {
+          result: {
+            kind: "array",
+            elements: [
+              { kind: "i32", value: 25n },
+              { kind: "i32", value: 6n },
+              { kind: "i32", value: 8n },
+              { kind: "i32", value: 25n },
+              { kind: "i32", value: 9n },
+              { kind: "i32", value: 12n },
+            ],
+          },
+        },
+      },
+    },
 ];
 
 export default functionsFixtures;

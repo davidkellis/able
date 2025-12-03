@@ -80,13 +80,13 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 		return nil, fmt.Errorf("Implementation target must reference at least one concrete type")
 	}
 	mergedGenerics := i.mergeImplementationGenerics(def, env)
-	methods := make(map[string]*runtime.FunctionValue)
+	methods := make(map[string]runtime.Value)
 	hasExplicit := false
 	for _, fn := range def.Definitions {
 		if fn == nil || fn.ID == nil {
 			return nil, fmt.Errorf("Implementation method requires identifier")
 		}
-		methods[fn.ID.Name] = &runtime.FunctionValue{Declaration: fn, Closure: env}
+		mergeFunctionLike(methods, fn.ID.Name, &runtime.FunctionValue{Declaration: fn, Closure: env})
 		hasExplicit = true
 	}
 	if ifaceDef.Node != nil {
@@ -95,14 +95,11 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 				continue
 			}
 			name := sig.Name.Name
-			if _, ok := methods[name]; ok {
-				continue
-			}
 			if sig.DefaultImpl == nil {
 				continue
 			}
 			defaultDef := ast.NewFunctionDefinition(sig.Name, sig.Params, sig.DefaultImpl, sig.ReturnType, sig.GenericParams, sig.WhereClause, false, false)
-			methods[name] = &runtime.FunctionValue{Declaration: defaultDef, Closure: ifaceDef.Env}
+			mergeFunctionLike(methods, name, &runtime.FunctionValue{Declaration: defaultDef, Closure: ifaceDef.Env})
 		}
 	}
 	constraintSpecs := collectConstraintSpecs(def.GenericParams, def.WhereClause)
@@ -167,14 +164,14 @@ func (i *Interpreter) evaluateMethodsDefinition(def *ast.MethodsDefinition, env 
 	}
 	bucket, ok := i.inherentMethods[typeName]
 	if !ok {
-		bucket = make(map[string]*runtime.FunctionValue)
+		bucket = make(map[string]runtime.Value)
 		i.inherentMethods[typeName] = bucket
 	}
 	for _, fn := range def.Definitions {
 		if fn == nil || fn.ID == nil {
 			return nil, fmt.Errorf("Method definition requires identifier")
 		}
-		bucket[fn.ID.Name] = &runtime.FunctionValue{Declaration: fn, Closure: env}
+		mergeFunctionLike(bucket, fn.ID.Name, &runtime.FunctionValue{Declaration: fn, Closure: env})
 	}
 	return runtime.NilValue{}, nil
 }

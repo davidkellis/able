@@ -411,6 +411,44 @@ const errorsFixtures: Fixture[] = [
         },
       },
     },
+
+  {
+      name: "errors/ufcs_static_method_not_found",
+      module: AST.module([
+        AST.structDefinition("Counter", [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "value")], "named"),
+        AST.methodsDefinition(
+          AST.simpleTypeExpression("Counter"),
+          [
+            AST.functionDefinition(
+              "next",
+              [AST.functionParameter("self", AST.simpleTypeExpression("Counter"))],
+              AST.blockExpression([AST.bin("+", AST.member(AST.id("self"), "value"), AST.int(1))]),
+              AST.simpleTypeExpression("i32"),
+            ),
+            AST.functionDefinition(
+              "build",
+              [AST.functionParameter("start", AST.simpleTypeExpression("i32"))],
+              AST.blockExpression([
+                AST.structLiteral([AST.structFieldInitializer(AST.id("start"), "value")], false, "Counter"),
+              ]),
+              AST.simpleTypeExpression("Counter"),
+            ),
+          ],
+        ),
+        AST.assign("c", AST.structLiteral([AST.structFieldInitializer(AST.int(1), "value")], false, "Counter")),
+        AST.assign("bad", AST.functionCall(AST.id("build"), [AST.id("c")])),
+        AST.id("bad"),
+      ]),
+      manifest: {
+        description: "UFCS ignores static methods that lack a self parameter",
+        expect: {
+          errors: ["Undefined variable 'build'"],
+          typecheckDiagnostics: [
+            "typechecker: ../fixtures/ast/errors/ufcs_static_method_not_found/source.able:7:8 typechecker: undefined identifier 'build'",
+          ],
+        },
+      },
+    },
 ];
 
 export default errorsFixtures;

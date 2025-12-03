@@ -1,0 +1,13 @@
+struct Bag {
+  value: i32
+}
+methods Bag {
+  fn do(self: Bag, x: i32) -> i32 {
+    self.value + x
+  }
+  fn do(self: Bag, x: i32) -> i32 {
+    self.value
+  }
+}
+bag := Bag { value: 10 }
+bag.do(1)

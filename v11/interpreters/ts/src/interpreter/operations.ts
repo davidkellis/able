@@ -21,7 +21,7 @@ export function resolveIndexFunction(
   receiver: V10Value,
   methodName: string,
   interfaceName: string,
-): Extract<V10Value, { kind: "function" }> | null {
+): Extract<V10Value, { kind: "function" | "function_overload" }> | null {
   const dispatches = collectTypeDispatches(ctx, receiver);
   for (const dispatch of dispatches) {
     const method = ctx.findMethod(dispatch.typeName, methodName, {

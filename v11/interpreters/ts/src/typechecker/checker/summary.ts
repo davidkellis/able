@@ -219,7 +219,7 @@ function summarizeFunctionDefinition(
   ctx: ImplementationContext,
   definition: AST.FunctionDefinition,
 ): ExportedFunctionSummary {
-  const info = definition.id?.name ? ctx.getFunctionInfo(definition.id.name) : undefined;
+  const info = definition.id?.name ? ctx.getFunctionInfos(definition.id.name)?.[0] : undefined;
   const obligations = info?.whereClause ?? [];
   return {
     parameters: summarizeParameters(ctx, definition.params),

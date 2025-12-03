@@ -1,5 +1,15 @@
 # Able Project Log
 
+## 2025-12-02 — UFCS inherent instance methods (v11)
+- UFCS resolution now considers inherent instance methods (excluding static/interface/named impl methods) when the first argument can serve as the receiver; TS/Go interpreters bind the receiver accordingly and fall back from identifier calls, with TS/Go typecheckers mirroring the UFCS candidate search and call handling.
+- Added fixtures for UFCS calls into inherent methods plus a static-method negative case, refreshed the typecheck baseline, and documented the UFCS expansion in the spec (§7.4/§9.4).
+- `bun test` (v11/interpreters/ts) and `cd v11/interpreters/go && go test ./...` remain green after the UFCS sweep.
+
+## 2025-12-02 — Function/method overloading implemented (v11)
+- Added function/method overload sets across the Go and TS interpreters (runtime dispatch with nullable-tail omission, bound/native/UFCS/dyn refs) and TS typechecker (arity filter, specificity scoring, ambiguity diagnostics); envs now merge duplicate names into overload sets.
+- Updated the spec (§7.4.1, §7.7) to codify nullable trailing parameter omission and overload eligibility/specificity, removed the overloading TODO, and exported shared fixtures for overload success/ambiguity (functions and methods).
+- `bun test` (v11/interpreters/ts) and `cd v11/interpreters/go && go test ./...` are green after the overload sweep.
+
 ## 2025-12-01 — Interface dispatch alignment + Awaitable stdlib
 - Codified the language-backed interfaces in the stdlib (Apply, Index/IndexMut, Iterable defaults, Awaitable/Proc/Future handles, channel/mutex awaitables) and wired both interpreters/typecheckers to route callable invocation and `[]`/`[]=` through these impls, surfacing Apply/IndexMut diagnostics when missing.
 - Added shared fixtures/tests for callable values and index assignment dispatch (`interfaces/apply_index_dispatch`, missing-impl diagnostics, Go/TS unit tests) plus new awaitable fixtures covering channel/mutex/timer arms and stdlib helpers (`concurrency/await_*`, ModuleLoader integration for Channel/Mutex/Await.default).

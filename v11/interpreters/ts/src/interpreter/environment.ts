@@ -7,7 +7,13 @@ export class Environment {
 
   define(name: string, value: V10Value): void {
     if (this.values.has(name)) {
-      throw new Error(`Redefinition in current scope: ${name}`);
+      const existing = this.values.get(name)!;
+      const merged = mergeFunctionValue(existing, value);
+      if (!merged) {
+        throw new Error(`Redefinition in current scope: ${name}`);
+      }
+      this.values.set(name, merged);
+      return;
     }
     this.values.set(name, value);
   }
@@ -55,4 +61,17 @@ export class Environment {
     }
     return false;
   }
+}
+
+function mergeFunctionValue(existing: V10Value, incoming: V10Value): V10Value | null {
+  const isFunctionLike = (v: V10Value) => v.kind === "function" || v.kind === "function_overload";
+  if (isFunctionLike(existing) && isFunctionLike(incoming)) {
+    const overloads: Array<Extract<V10Value, { kind: "function" }>> = [];
+    if (existing.kind === "function") overloads.push(existing);
+    if (existing.kind === "function_overload") overloads.push(...existing.overloads);
+    if (incoming.kind === "function") overloads.push(incoming);
+    if (incoming.kind === "function_overload") overloads.push(...incoming.overloads);
+    return { kind: "function_overload", overloads };
+  }
+  return null;
 }

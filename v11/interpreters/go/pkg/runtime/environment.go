@@ -44,6 +44,13 @@ func (e *Environment) Snapshot() map[string]Value {
 // Define inserts or shadows a binding in the current scope.
 func (e *Environment) Define(name string, value Value) {
 	e.mu.Lock()
+	if existing, ok := e.values[name]; ok {
+		if merged, ok := MergeFunctionValues(existing, value); ok {
+			e.values[name] = merged
+			e.mu.Unlock()
+			return
+		}
+	}
 	e.values[name] = value
 	e.mu.Unlock()
 }

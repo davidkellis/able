@@ -1,0 +1,12 @@
+{
+  "description": "UFCS ignores static methods that lack a self parameter",
+  "expect": {
+    "errors": [
+      "Undefined variable 'build'"
+    ],
+    "typecheckDiagnostics": [
+      "typechecker: ../fixtures/ast/errors/ufcs_static_method_not_found/source.able:13:8 typechecker: undefined identifier 'build'"
+    ]
+  },
+  "entry": "module.json"
+}

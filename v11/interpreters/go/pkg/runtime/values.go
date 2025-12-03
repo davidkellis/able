@@ -25,6 +25,7 @@ const (
 	KindHasher
 	KindFunction
 	KindNativeFunction
+	KindFunctionOverload
 	KindStructDefinition
 	KindStructInstance
 	KindInterfaceDefinition
@@ -67,6 +68,8 @@ func (k Kind) String() string {
 		return "function"
 	case KindNativeFunction:
 		return "native_function"
+	case KindFunctionOverload:
+		return "function_overload"
 	case KindStructDefinition:
 		return "struct_def"
 	case KindStructInstance:
@@ -275,6 +278,13 @@ type FunctionValue struct {
 
 func (v *FunctionValue) Kind() Kind { return KindFunction }
 
+// FunctionOverloadValue aggregates multiple function declarations under a single name.
+type FunctionOverloadValue struct {
+	Overloads []*FunctionValue
+}
+
+func (v *FunctionOverloadValue) Kind() Kind { return KindFunctionOverload }
+
 // NativeCallContext provides hooks for native functions. Fields will be
 // populated as interpreter functionality grows.
 type NativeCallContext struct {
@@ -295,7 +305,7 @@ func (v NativeFunctionValue) Kind() Kind { return KindNativeFunction }
 // Bound methods capture `self` and a callable.
 type BoundMethodValue struct {
 	Receiver Value
-	Method   *FunctionValue
+	Method   Value
 }
 
 func (v BoundMethodValue) Kind() Kind { return KindBoundMethod }
@@ -306,6 +316,52 @@ type NativeBoundMethodValue struct {
 }
 
 func (v NativeBoundMethodValue) Kind() Kind { return KindNativeBoundMethod }
+
+// IsFunctionLike reports whether the value is a function or overload set.
+func IsFunctionLike(v Value) bool {
+	switch v.(type) {
+	case *FunctionValue, *FunctionOverloadValue:
+		return true
+	default:
+		return false
+	}
+}
+
+// MergeFunctionValues collapses two function-like values into an overload set.
+// Returns (nil, false) when either input is not function-like.
+func MergeFunctionValues(existing, incoming Value) (Value, bool) {
+	if !IsFunctionLike(existing) || !IsFunctionLike(incoming) {
+		return nil, false
+	}
+	all := make([]*FunctionValue, 0, 2)
+	all = append(all, FlattenFunctionOverloads(existing)...)
+	all = append(all, FlattenFunctionOverloads(incoming)...)
+	return &FunctionOverloadValue{Overloads: all}, true
+}
+
+// FlattenFunctionOverloads returns the concrete functions contained in a function-like value.
+func FlattenFunctionOverloads(v Value) []*FunctionValue {
+	switch fn := v.(type) {
+	case *FunctionValue:
+		if fn == nil {
+			return nil
+		}
+		return []*FunctionValue{fn}
+	case *FunctionOverloadValue:
+		if fn == nil || len(fn.Overloads) == 0 {
+			return nil
+		}
+		out := make([]*FunctionValue, 0, len(fn.Overloads))
+		for _, f := range fn.Overloads {
+			if f != nil {
+				out = append(out, f)
+			}
+		}
+		return out
+	default:
+		return nil
+	}
+}
 
 //-----------------------------------------------------------------------------
 // Structs, unions, interfaces
@@ -342,7 +398,7 @@ func (v InterfaceDefinitionValue) Kind() Kind { return KindInterfaceDefinition }
 type InterfaceValue struct {
 	Interface  *InterfaceDefinitionValue
 	Underlying Value
-	Methods    map[string]*FunctionValue
+	Methods    map[string]Value
 }
 
 func (v InterfaceValue) Kind() Kind { return KindInterfaceValue }
@@ -351,7 +407,7 @@ type ImplementationNamespaceValue struct {
 	Name          *ast.Identifier
 	InterfaceName *ast.Identifier
 	TargetType    ast.TypeExpression
-	Methods       map[string]*FunctionValue
+	Methods       map[string]Value
 }
 
 func (v ImplementationNamespaceValue) Kind() Kind { return KindImplementationNamespace }

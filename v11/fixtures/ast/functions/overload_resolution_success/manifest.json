@@ -1,0 +1,39 @@
+{
+  "description": "Runtime overload resolution selects best matches for functions and methods (including nullable tails)",
+  "expect": {
+    "result": {
+      "kind": "array",
+      "elements": [
+        {
+          "kind": "i32",
+          "value": "30"
+        },
+        {
+          "kind": "i32",
+          "value": "40"
+        },
+        {
+          "kind": "i32",
+          "value": "20"
+        },
+        {
+          "kind": "i32",
+          "value": "50"
+        },
+        {
+          "kind": "i32",
+          "value": "8"
+        },
+        {
+          "kind": "i32",
+          "value": "105"
+        },
+        {
+          "kind": "i32",
+          "value": "205"
+        }
+      ]
+    }
+  },
+  "entry": "module.json"
+}
