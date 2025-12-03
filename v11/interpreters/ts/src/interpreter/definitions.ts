@@ -17,6 +17,23 @@ export function evaluateInterfaceDefinition(ctx: InterpreterV10, node: AST.Inter
   return NIL;
 }
 
+function insertFunction(
+  bucket: Map<string, Extract<V10Value, { kind: "function" | "function_overload" }>>,
+  name: string,
+  fn: Extract<V10Value, { kind: "function" }>,
+): void {
+  const existing = bucket.get(name);
+  if (!existing) {
+    bucket.set(name, fn);
+    return;
+  }
+  if (existing.kind === "function") {
+    bucket.set(name, { kind: "function_overload", overloads: [existing, fn] });
+    return;
+  }
+  bucket.set(name, { kind: "function_overload", overloads: [...existing.overloads, fn] });
+}
+
 export function evaluateUnionDefinition(ctx: InterpreterV10, node: AST.UnionDefinition, env: Environment): V10Value {
   env.define(node.id.name, { kind: "union_def", def: node });
   ctx.registerSymbol(node.id.name, { kind: "union_def", def: node });
@@ -41,7 +58,7 @@ export function evaluateMethodsDefinition(ctx: InterpreterV10, node: AST.Methods
   if (!ctx.inherentMethods.has(typeName)) ctx.inherentMethods.set(typeName, new Map());
   const bucket = ctx.inherentMethods.get(typeName)!;
   for (const def of node.definitions) {
-    bucket.set(def.id.name, { kind: "function", node: def, closureEnv: env });
+    insertFunction(bucket, def.id.name, { kind: "function", node: def, closureEnv: env });
   }
   return NIL;
 }
@@ -51,9 +68,9 @@ export function evaluateImplementationDefinition(ctx: InterpreterV10, node: AST.
   const unionVariantSignatures = node.targetType.type === "UnionTypeExpression"
     ? [...new Set(variants.map(v => v.signature))].sort()
     : undefined;
-  const funcs = new Map<string, Extract<V10Value, { kind: "function" }>>();
+  const funcs = new Map<string, Extract<V10Value, { kind: "function" | "function_overload" }>>();
   for (const def of node.definitions) {
-    funcs.set(def.id.name, { kind: "function", node: def, closureEnv: env });
+    insertFunction(funcs, def.id.name, { kind: "function", node: def, closureEnv: env });
   }
   ctx.attachDefaultInterfaceMethods(node, funcs);
   if (node.implName) {

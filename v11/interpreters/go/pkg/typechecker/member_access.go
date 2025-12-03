@@ -575,6 +575,68 @@ func (c *Checker) lookupMethodInImplementations(object Type, name string) (Funct
 	return bestFn, bestScore, found
 }
 
+func (c *Checker) lookupUfcsInherentMethod(object Type, name string) (FunctionType, bool) {
+	if len(c.methodSets) == 0 {
+		return FunctionType{}, false
+	}
+	var (
+		found     bool
+		bestScore = -1
+		bestFn    FunctionType
+	)
+	for _, spec := range c.methodSets {
+		subst, score, ok := matchMethodTarget(object, spec.Target, spec.TypeParams)
+		if !ok {
+			continue
+		}
+		substitution := cloneTypeMap(subst)
+		if substitution == nil {
+			substitution = make(map[string]Type)
+		}
+		if object != nil {
+			substitution["Self"] = object
+		}
+		method, ok := spec.Methods[name]
+		derivedFromConstraints := false
+		if !ok {
+			if inferred, inferredOK := c.methodFromMethodSetConstraints(spec.Obligations, substitution, name); inferredOK {
+				method = inferred
+				ok = true
+				derivedFromConstraints = true
+			}
+		}
+		if !ok {
+			continue
+		}
+		if len(substitution) > 0 {
+			method = substituteFunctionType(method, substitution)
+		}
+		if len(spec.Obligations) > 0 && !derivedFromConstraints {
+			obligations := populateObligationSubjects(spec.Obligations, object)
+			obligations = substituteObligations(obligations, substitution)
+			if len(obligations) > 0 {
+				ownerLabel := methodSetOwnerLabel(spec, substitution, name)
+				for i := range obligations {
+					if obligations[i].Owner == "" || !strings.Contains(obligations[i].Owner, "::") {
+						obligations[i].Owner = ownerLabel
+					}
+				}
+				method.Obligations = append(method.Obligations, obligations...)
+			}
+		}
+		if !shouldBindSelfParam(method, object) {
+			continue
+		}
+		method = bindMethodType(method)
+		if !found || score > bestScore {
+			bestScore = score
+			bestFn = method
+			found = true
+		}
+	}
+	return bestFn, found
+}
+
 func isErrorStructType(ty StructType) bool {
 	return ty.StructName == "Error"
 }

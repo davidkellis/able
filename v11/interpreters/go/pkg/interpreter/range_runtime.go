@@ -140,7 +140,7 @@ func (i *Interpreter) tryInvokeRangeImplementation(start, end runtime.Value, inc
 		if !ok {
 			return nil, fmt.Errorf("Range implementation missing method '%s'", methodName)
 		}
-		result, err := i.invokeFunction(method, []runtime.Value{start, end}, nil)
+		result, err := i.callCallableValue(method, []runtime.Value{start, end}, env, nil)
 		if err != nil {
 			return nil, err
 		}

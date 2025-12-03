@@ -220,7 +220,7 @@ func (f *placeholderFrame) nextImplicitIndex() (int, error) {
 // Interpreter drives evaluation of Able v10 AST nodes.
 type Interpreter struct {
 	global               *runtime.Environment
-	inherentMethods      map[string]map[string]*runtime.FunctionValue
+	inherentMethods      map[string]map[string]runtime.Value
 	interfaces           map[string]*runtime.InterfaceDefinitionValue
 	implMethods          map[string][]implEntry
 	rangeImplementations []rangeImplementation
@@ -330,6 +330,11 @@ func (i *Interpreter) registerSymbol(name string, value runtime.Value) {
 		bucket = make(map[string]runtime.Value)
 		i.packageRegistry[i.currentPackage] = bucket
 	}
+	if existing, ok := bucket[name]; ok {
+		if merged, ok := runtime.MergeFunctionValues(existing, value); ok {
+			value = merged
+		}
+	}
 	bucket[name] = value
 	if qn := i.qualifiedName(name); qn != "" {
 		i.global.Define(qn, value)
@@ -348,7 +353,7 @@ func NewWithExecutor(exec Executor) *Interpreter {
 	}
 	i := &Interpreter{
 		global:               runtime.NewEnvironment(nil),
-		inherentMethods:      make(map[string]map[string]*runtime.FunctionValue),
+		inherentMethods:      make(map[string]map[string]runtime.Value),
 		interfaces:           make(map[string]*runtime.InterfaceDefinitionValue),
 		implMethods:          make(map[string][]implEntry),
 		rangeImplementations: make([]rangeImplementation, 0),

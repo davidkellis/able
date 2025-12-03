@@ -1,0 +1,9 @@
+{
+  "description": "Duplicate method overloads produce an ambiguity error on invocation",
+  "expect": {
+    "errors": [
+      "Ambiguous overload for do"
+    ]
+  },
+  "entry": "module.json"
+}

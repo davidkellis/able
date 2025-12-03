@@ -42,11 +42,12 @@ func (i *Interpreter) invokeStructToString(inst *runtime.StructInstanceValue) (s
 	return "", false
 }
 
-func (i *Interpreter) callStringMethod(fn *runtime.FunctionValue, receiver runtime.Value) (string, bool) {
+func (i *Interpreter) callStringMethod(fn runtime.Value, receiver runtime.Value) (string, bool) {
 	if fn == nil {
 		return "", false
 	}
-	result, err := i.invokeFunction(fn, []runtime.Value{receiver}, nil)
+	bound := runtime.BoundMethodValue{Receiver: receiver, Method: fn}
+	result, err := i.callCallableValue(bound, nil, nil, nil)
 	if err != nil {
 		return "", false
 	}
@@ -136,6 +137,8 @@ func valueToString(val runtime.Value) string {
 		return fmt.Sprintf("<interface %s>", name)
 	case *runtime.FunctionValue:
 		return "<function>"
+	case *runtime.FunctionOverloadValue:
+		return "<function overload>"
 	case runtime.NativeFunctionValue:
 		return fmt.Sprintf("<native %s>", v.Name)
 	case *runtime.NativeFunctionValue:

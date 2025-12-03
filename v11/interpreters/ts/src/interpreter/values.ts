@@ -8,7 +8,7 @@ export type FloatKind = "f32" | "f64";
 
 export type ImplMethodEntry = {
   def: AST.ImplementationDefinition;
-  methods: Map<string, Extract<V10Value, { kind: "function" }>>;
+  methods: Map<string, Extract<V10Value, { kind: "function" | "function_overload" }>>;
   targetArgTemplates: AST.TypeExpression[];
   genericParams: AST.GenericParameter[];
   whereClause?: AST.WhereClauseConstraint[];
@@ -52,10 +52,14 @@ export type V10Value =
         interfaceArgs?: AST.TypeExpression[];
       };
     }
+  | {
+      kind: "function_overload";
+      overloads: Array<Extract<V10Value, { kind: "function" }>>;
+    }
   | { kind: "dyn_package"; name: string }
   | { kind: "dyn_ref"; pkg: string; name: string }
   | { kind: "error"; message: string; value?: V10Value; cause?: V10Value }
-  | { kind: "bound_method"; func: Extract<V10Value, { kind: "function" }>; self: V10Value }
+  | { kind: "bound_method"; func: Extract<V10Value, { kind: "function" | "function_overload" }>; self: V10Value }
   | {
       kind: "interface_value";
       interfaceName: string;

@@ -10,9 +10,11 @@ import (
 
 func isPrivateSymbol(val runtime.Value) bool {
 	switch v := val.(type) {
-	case *runtime.FunctionValue:
-		if fn, ok := v.Declaration.(*ast.FunctionDefinition); ok {
-			return fn.IsPrivate
+	case *runtime.FunctionValue, *runtime.FunctionOverloadValue:
+		if fn := firstFunction(v); fn != nil {
+			if def, ok := fn.Declaration.(*ast.FunctionDefinition); ok {
+				return def.IsPrivate
+			}
 		}
 	case *runtime.StructDefinitionValue:
 		return v.Node != nil && v.Node.IsPrivate
@@ -32,9 +34,11 @@ func isPrivateSymbol(val runtime.Value) bool {
 
 func importPrivacyError(name string, val runtime.Value) error {
 	switch v := val.(type) {
-	case *runtime.FunctionValue:
-		if fn, ok := v.Declaration.(*ast.FunctionDefinition); ok && fn.IsPrivate {
-			return fmt.Errorf("Import error: function '%s' is private", name)
+	case *runtime.FunctionValue, *runtime.FunctionOverloadValue:
+		if fn := firstFunction(v); fn != nil {
+			if def, ok := fn.Declaration.(*ast.FunctionDefinition); ok && def.IsPrivate {
+				return fmt.Errorf("Import error: function '%s' is private", name)
+			}
 		}
 	case *runtime.StructDefinitionValue:
 		if v.Node != nil && v.Node.IsPrivate {
@@ -66,9 +70,11 @@ func importPrivacyError(name string, val runtime.Value) error {
 
 func dynImportPrivacyError(name string, val runtime.Value) error {
 	switch v := val.(type) {
-	case *runtime.FunctionValue:
-		if fn, ok := v.Declaration.(*ast.FunctionDefinition); ok && fn.IsPrivate {
-			return fmt.Errorf("dynimport error: function '%s' is private", name)
+	case *runtime.FunctionValue, *runtime.FunctionOverloadValue:
+		if fn := firstFunction(v); fn != nil {
+			if def, ok := fn.Declaration.(*ast.FunctionDefinition); ok && def.IsPrivate {
+				return fmt.Errorf("dynimport error: function '%s' is private", name)
+			}
 		}
 	case *runtime.StructDefinitionValue:
 		if v.Node != nil && v.Node.IsPrivate {

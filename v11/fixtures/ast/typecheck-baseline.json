@@ -3,6 +3,7 @@
   "basics/char_literal": [],
   "basics/nil_literal": [],
   "basics/string_literal": [],
+  "concurrency/await_timer_default": [],
   "concurrency/channel_basic_ops": [],
   "concurrency/channel_error_rescue": [],
   "concurrency/channel_nil_receive_cancel": [],
@@ -57,11 +58,11 @@
     "typechecker: ../fixtures/ast/errors/generic_type_mismatch/source.able:5:10 typechecker: fn identity constraint on T references unknown interface 'Error'",
     "typechecker: ../fixtures/ast/errors/generic_type_mismatch/source.able:5:14 typechecker: fn identity constraint on T is not satisfied: i32 does not implement Error"
   ],
-  "errors/implicit_generic_where_ambiguity": [
-    "typechecker: ../fixtures/ast/errors/implicit_generic_where_ambiguity/source.able:9:46 typechecker: cannot infer type parameter 'Point' because a type with the same name exists; declare it explicitly or qualify the type"
-  ],
   "errors/implicit_generic_redeclaration": [
     "typechecker: ../fixtures/ast/errors/implicit_generic_redeclaration/source.able:2:3 typechecker: cannot redeclare inferred type parameter 'T' inside fn wrap (inferred at ../../../../fixtures/ast/errors/implicit_generic_redeclaration/source.able:1:16)"
+  ],
+  "errors/implicit_generic_where_ambiguity": [
+    "typechecker: ../fixtures/ast/errors/implicit_generic_where_ambiguity/source.able:9:46 typechecker: cannot infer type parameter 'Point' because a type with the same name exists; declare it explicitly or qualify the type"
   ],
   "errors/interface_hkt_constructor_mismatch": [
     "typechecker: ../fixtures/ast/errors/interface_hkt_constructor_mismatch/source.able:8:1 typechecker: impl Mapper for Array i32 must match interface self type 'F _'"
@@ -100,6 +101,9 @@
   "errors/struct_type_mismatch": [
     "typechecker: ../fixtures/ast/errors/struct_type_mismatch/source.able:10:10 typechecker: struct pattern field 'dx' not found"
   ],
+  "errors/ufcs_static_method_not_found": [
+    "typechecker: ../fixtures/ast/errors/ufcs_static_method_not_found/source.able:13:8 typechecker: undefined identifier 'build'"
+  ],
   "expressions/array_literal_empty": [],
   "expressions/assignment_declare": [],
   "expressions/block_expression": [],
@@ -121,7 +125,25 @@
   "functions/implicit_generic_inference": [],
   "functions/lambda_expression": [],
   "functions/method_set_where_constraint_ok": [],
+  "functions/overload_function_ambiguity": [
+    "typechecker: ../fixtures/ast/functions/overload_function_ambiguity/source.able:4:1 typechecker: duplicate declaration 'collide' (previous declaration at ../../../../fixtures/ast/functions/overload_function_ambiguity/source.able:1:1)"
+  ],
+  "functions/overload_method_ambiguity": [
+    "typechecker: ../fixtures/ast/functions/overload_method_ambiguity/source.able:8:3 typechecker: duplicate method 'do' for target"
+  ],
+  "functions/overload_resolution_success": [
+    "typechecker: ../fixtures/ast/functions/overload_resolution_success/source.able:4:1 typechecker: duplicate declaration 'pick' (previous declaration at ../../../../fixtures/ast/functions/overload_resolution_success/source.able:1:1)",
+    "typechecker: ../fixtures/ast/functions/overload_resolution_success/source.able:10:1 typechecker: duplicate declaration 'pick' (previous declaration at ../../../../fixtures/ast/functions/overload_resolution_success/source.able:1:1)",
+    "typechecker: ../fixtures/ast/functions/overload_resolution_success/source.able:20:3 typechecker: duplicate method 'mark' for target",
+    "typechecker: ../fixtures/ast/functions/overload_resolution_success/source.able:28:7 typechecker: argument 1 has type i32, expected string",
+    "typechecker: ../fixtures/ast/functions/overload_resolution_success/source.able:28:11 typechecker: function expects 1 arguments, got 2",
+    "typechecker: ../fixtures/ast/functions/overload_resolution_success/source.able:28:16 typechecker: argument 1 has type i32, expected string",
+    "typechecker: ../fixtures/ast/functions/overload_resolution_success/source.able:28:45 typechecker: argument 1 has type bool, expected string",
+    "typechecker: ../fixtures/ast/functions/overload_resolution_success/source.able:28:65 typechecker: function expects 1 arguments, got 0",
+    "typechecker: ../fixtures/ast/functions/overload_resolution_success/source.able:28:86 typechecker: argument 1 has type string, expected i32"
+  ],
   "functions/trailing_lambda_call": [],
+  "functions/ufcs_inherent_methods": [],
   "imports/dynimport_private_selector_error": [],
   "imports/dynimport_selector_alias": [],
   "imports/dynimport_wildcard": [],
@@ -136,6 +158,7 @@
   "imports/static_wildcard_private_error": [
     "typechecker: ../fixtures/ast/imports/static_wildcard_private_error/source.able:3:1 typechecker: undefined identifier 'priv_fn'"
   ],
+  "interfaces/apply_index_dispatch": [],
   "interfaces/apply_index_missing_impls": [
     "typechecker: ../fixtures/ast/interfaces/apply_index_missing_impls/source.able:23:3 typechecker: cannot call non-callable value ReadOnlyPair (missing Apply implementation)",
     "typechecker: ../fixtures/ast/interfaces/apply_index_missing_impls/source.able:27:3 typechecker: cannot assign via [] without IndexMut implementation on type Index i32 i32"
@@ -163,6 +186,7 @@
   "stdlib/range_iterator": [],
   "strings/interpolation_basic": [],
   "strings/interpolation_struct_to_string": [],
+  "strings/string_methods": [],
   "structs/functional_update": [],
   "structs/named_literal": [],
   "structs/positional_literal": [],
