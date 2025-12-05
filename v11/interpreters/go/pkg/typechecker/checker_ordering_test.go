@@ -37,7 +37,7 @@ func TestStringCmpReturnsOrdering(t *testing.T) {
 
 func TestOrdConstraintAllowsCmp(t *testing.T) {
 	checker := New()
-	generic := ast.GenericParam("T", ast.InterfaceConstr(ast.Gen(ast.Ty("Ord"), ast.Ty("T"))))
+	generic := ast.GenericParam("T", ast.InterfaceConstr(ast.Ty("Ord")))
 	compareFn := ast.Fn(
 		"compare",
 		[]*ast.FunctionParameter{

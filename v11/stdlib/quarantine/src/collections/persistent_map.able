@@ -174,19 +174,19 @@ fn assoc_slot<K, V>(slot: HamtSlot K V, hash: u64, key: K, value: V, shift: i32)
         added: true
       }
     },
-case HamtLeaf { key: existing_key, value: existing_value, hash: existing_hash } => {
+    case HamtSlotLeaf { key::existing_key, value::existing_value, hash::existing_hash } => {
       if existing_key.eq(key) {
         new_leaf := HamtSlotLeaf { key: key, value: value, hash: hash }
         HamtAssocResult { slot: new_leaf, added: false }
       } else if existing_hash == hash {
-        collision := create_collision(hash, HamtLeaf { key: existing_key, value: existing_value, hash: existing_hash }, HamtLeaf { key: key, value: value, hash: hash })
+        collision := create_collision(hash, HamtSlotLeaf { key: existing_key, value: existing_value, hash: existing_hash }, HamtSlotLeaf { key: key, value: value, hash: hash })
         HamtAssocResult { slot: collision, added: true }
       } else {
-        branch := create_branching_node(shift, HamtLeaf { key: existing_key, value: existing_value, hash: existing_hash }, HamtLeaf { key: key, value: value, hash: hash })
+        branch := create_branching_node(shift, HamtSlotLeaf { key: existing_key, value: existing_value, hash: existing_hash }, HamtSlotLeaf { key: key, value: value, hash: hash })
         HamtAssocResult { slot: branch, added: true }
       }
     },
-    case HamtSlotCollision { hash: existing_hash, entries } => {
+    case HamtSlotCollision { hash::existing_hash, entries } => {
       if existing_hash != hash {
         first_entry := entries.read_slot(0)
         branch := create_branching_node(shift, HamtLeaf { key: key, value: value, hash: hash }, first_entry)
@@ -277,14 +277,14 @@ case HamtLeaf { key: existing_key, value: existing_value, hash: existing_hash } 
 fn dissoc_slot<K, V>(slot: HamtSlot K V, hash: u64, key: K, shift: i32) -> HamtDissocResult K V where K: Hash + Eq K + Clone, V: Clone {
   match slot {
     case HamtSlotEmpty {} => HamtDissocResult { slot: slot, removed: false },
-    case HamtSlotLeaf { key: existing_key, value, hash: existing_hash } => {
+    case HamtSlotLeaf { key::existing_key, value, hash::existing_hash } => {
       if existing_hash == hash && existing_key.eq(key) {
         HamtDissocResult { slot: HamtSlotEmpty {}, removed: true }
       } else {
         HamtDissocResult { slot: slot, removed: false }
       }
     },
-    case HamtSlotCollision { hash: existing_hash, entries } => {
+    case HamtSlotCollision { hash::existing_hash, entries } => {
       if existing_hash != hash {
         return HamtDissocResult { slot: slot, removed: false }
       }
@@ -350,10 +350,10 @@ fn dissoc_slot<K, V>(slot: HamtSlot K V, hash: u64, key: K, shift: i32) -> HamtD
 fn hamt_get<K, V>(slot: HamtSlot K V, hash: u64, key: K, shift: i32) -> ?V where K: Hash + Eq K + Clone, V: Clone {
   match slot {
     case HamtSlotEmpty {} => nil,
-    case HamtSlotLeaf { key: existing_key, value, hash: existing_hash } => {
+    case HamtSlotLeaf { key::existing_key, value, hash::existing_hash } => {
       if existing_hash == hash && existing_key.eq(key) { value } else { nil }
     },
-    case HamtSlotCollision { hash: existing_hash, entries } => {
+    case HamtSlotCollision { hash::existing_hash, entries } => {
       if existing_hash != hash { return nil }
       idx := 0
       loop {

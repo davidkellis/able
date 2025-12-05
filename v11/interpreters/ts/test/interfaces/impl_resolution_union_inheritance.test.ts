@@ -397,7 +397,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
       []
     );
 
-    expect(() => I.evaluate(fancyCall)).toThrowError(/candidates:\s*Fancy \| Basic, Fancy \| Extra/);
+    expect(() => I.evaluate(fancyCall)).toThrowError(/ambiguous implementations of Show.*Fancy \| Basic.*Fancy \| Extra/);
   });
 
   test("dynamic interface value uses union-target impl", () => {

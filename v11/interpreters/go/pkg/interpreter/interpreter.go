@@ -223,8 +223,9 @@ type Interpreter struct {
 	inherentMethods      map[string]map[string]runtime.Value
 	interfaces           map[string]*runtime.InterfaceDefinitionValue
 	implMethods          map[string][]implEntry
+	genericImpls         []implEntry
 	rangeImplementations []rangeImplementation
-	unnamedImpls         map[string]map[string]map[string]struct{}
+	unnamedImpls         map[string]map[string]map[string]bool
 	packageRegistry      map[string]map[string]runtime.Value
 	packageMetadata      map[string]packageMeta
 	currentPackage       string
@@ -356,8 +357,9 @@ func NewWithExecutor(exec Executor) *Interpreter {
 		inherentMethods:      make(map[string]map[string]runtime.Value),
 		interfaces:           make(map[string]*runtime.InterfaceDefinitionValue),
 		implMethods:          make(map[string][]implEntry),
+		genericImpls:         make([]implEntry, 0),
 		rangeImplementations: make([]rangeImplementation, 0),
-		unnamedImpls:         make(map[string]map[string]map[string]struct{}),
+		unnamedImpls:         make(map[string]map[string]map[string]bool),
 		packageRegistry:      make(map[string]map[string]runtime.Value),
 		packageMetadata:      make(map[string]packageMeta),
 		executor:             exec,

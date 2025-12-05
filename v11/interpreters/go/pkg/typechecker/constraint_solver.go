@@ -19,6 +19,7 @@ type implementationMatch struct {
 	actualArgs     []Type
 	specificity    int
 	constraintKeys map[string]struct{}
+	isConcrete     bool
 }
 
 func (c *Checker) resolveObligations() []Diagnostic {
@@ -229,10 +230,13 @@ func (c *Checker) implementationProvidesInterface(subject Type, iface InterfaceT
 	var matches []implementationMatch
 	bestDetail := ""
 	for _, spec := range c.implementations {
+		if spec.ImplName != "" {
+			continue
+		}
 		if spec.InterfaceName != iface.InterfaceName {
 			continue
 		}
-		subst, score, ok := matchMethodTarget(subject, spec.Target, spec.TypeParams)
+		subst, _, ok := matchMethodTarget(subject, spec.Target, spec.TypeParams)
 		if !ok {
 			continue
 		}
@@ -283,8 +287,9 @@ func (c *Checker) implementationProvidesInterface(subject Type, iface InterfaceT
 			spec:           spec,
 			substitution:   substitution,
 			actualArgs:     actualArgs,
-			specificity:    computeImplementationSpecificity(spec, substitution, score),
+			specificity:    computeImplementationSpecificity(spec),
 			constraintKeys: buildImplementationConstraintKeySet(spec),
+			isConcrete:     !implementationTargetUsesTypeParams(spec.Target),
 		})
 	}
 	if len(matches) == 0 {
@@ -520,15 +525,21 @@ func (c *Checker) selectMostSpecificImplementationMatch(matches []implementation
 	}
 	if len(contenders) == 1 {
 		return true, ""
- 	}
+	}
 	return false, formatAmbiguousImplementationDetail(iface, subject, contenders)
 }
 
 func compareImplementationMatches(a, b implementationMatch) int {
-	if a.specificity > b.specificity {
+	if a.isConcrete && !b.isConcrete {
 		return 1
 	}
-	if a.specificity < b.specificity {
+	if b.isConcrete && !a.isConcrete {
+		return -1
+	}
+	if isConstraintSupersetMap(a.constraintKeys, b.constraintKeys) {
+		return 1
+	}
+	if isConstraintSupersetMap(b.constraintKeys, a.constraintKeys) {
 		return -1
 	}
 	aUnion := a.spec.UnionVariants
@@ -553,10 +564,10 @@ func compareImplementationMatches(a, b implementationMatch) int {
 			return -1
 		}
 	}
-	if isConstraintSupersetMap(a.constraintKeys, b.constraintKeys) {
+	if a.specificity > b.specificity {
 		return 1
 	}
-	if isConstraintSupersetMap(b.constraintKeys, a.constraintKeys) {
+	if a.specificity < b.specificity {
 		return -1
 	}
 	return 0
@@ -602,22 +613,75 @@ func uniqueSortedStrings(values []string) []string {
 	return out
 }
 
-func computeImplementationSpecificity(spec ImplementationSpec, subst map[string]Type, matchScore int) int {
-	concreteScore := typeSpecificityScore(spec.Target)
-	bindingScore := matchScore
-	if len(spec.TypeParams) > 0 {
-		for _, param := range spec.TypeParams {
-			if param.Name == "" {
-				continue
+func computeImplementationSpecificity(spec ImplementationSpec) int {
+	return typeSpecificityScore(spec.Target)
+}
+
+func implementationTargetUsesTypeParams(t Type) bool {
+	switch val := t.(type) {
+	case TypeParameterType:
+		return true
+	case AppliedType:
+		switch base := val.Base.(type) {
+		case StructType:
+			if len(val.Arguments) == 0 && len(base.TypeParams) > 0 {
+				return true
 			}
-			if val, ok := subst[param.Name]; ok && !isUnknownType(val) {
-				bindingScore++
+		case UnionType:
+			if len(val.Arguments) == 0 && len(base.TypeParams) > 0 {
+				return true
+			}
+		case InterfaceType:
+			if len(val.Arguments) == 0 && len(base.TypeParams) > 0 {
+				return true
+			}
+		default:
+			if implementationTargetUsesTypeParams(val.Base) {
+				return true
 			}
 		}
+		for _, arg := range val.Arguments {
+			if implementationTargetUsesTypeParams(arg) {
+				return true
+			}
+		}
+		return false
+	case NullableType:
+		return implementationTargetUsesTypeParams(val.Inner)
+	case UnionLiteralType:
+		for _, member := range val.Members {
+			if implementationTargetUsesTypeParams(member) {
+				return true
+			}
+		}
+		return false
+	case StructInstanceType:
+		for _, arg := range val.TypeArgs {
+			if implementationTargetUsesTypeParams(arg) {
+				return true
+			}
+		}
+		return false
+	case FunctionType:
+		for _, p := range val.Params {
+			if implementationTargetUsesTypeParams(p) {
+				return true
+			}
+		}
+		return implementationTargetUsesTypeParams(val.Return)
+	case ArrayType:
+		return implementationTargetUsesTypeParams(val.Element)
+	case MapType:
+		return implementationTargetUsesTypeParams(val.Key) || implementationTargetUsesTypeParams(val.Value)
+	case AliasType:
+		return implementationTargetUsesTypeParams(val.Target)
+	case StructType:
+		return len(val.TypeParams) > 0
+	case InterfaceType:
+		return len(val.TypeParams) > 0
+	default:
+		return false
 	}
-	constraintScore := len(spec.Obligations)
-	unionPenalty := len(spec.UnionVariants)
-	return concreteScore*100 + constraintScore*10 + bindingScore - unionPenalty
 }
 
 func typeSpecificityScore(t Type) int {

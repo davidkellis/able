@@ -16,7 +16,8 @@ import (
 )
 
 var (
-	stdlibRoot             = filepath.Join("..", "..", "..", "..", "stdlib", "src")
+	repoRoot               = repositoryRoot()
+	stdlibRoot             = fallbackPath(filepath.Join(repoRoot, "v11", "stdlib", "src"), filepath.Join("..", "..", "stdlib", "src"))
 	stdlibStringEntry      = filepath.Join(stdlibRoot, "text", "string.able")
 	typecheckBaselineOnce  sync.Once
 	typecheckBaselineData  map[string][]string
@@ -203,6 +204,15 @@ func hasImportWithPrefix(imports map[string]struct{}, prefix string) bool {
 	return false
 }
 
+func fallbackPath(primary string, fallback string) string {
+	if primary != "" {
+		if info, err := os.Stat(primary); err == nil && info.IsDir() {
+			return primary
+		}
+	}
+	return fallback
+}
+
 func fixtureDriverModule(module *ast.Module, file string) *driver.Module {
 	var pkgName string
 	if module != nil && module.Package != nil {
@@ -304,7 +314,10 @@ func enforceTypecheckBaseline(t *testing.T, rel string, mode fixtureTypecheckMod
 func getTypecheckBaseline(t testingT) map[string][]string {
 	t.Helper()
 	typecheckBaselineOnce.Do(func() {
-		path := filepath.Join("..", "..", "..", "..", "fixtures", "ast", "typecheck-baseline.json")
+		path := filepath.Join(repoRoot, "v11", "fixtures", "ast", "typecheck-baseline.json")
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			path = filepath.Join("..", "..", "fixtures", "ast", "typecheck-baseline.json")
+		}
 		data, err := os.ReadFile(path)
 		if err != nil {
 			if os.IsNotExist(err) {

@@ -1,5 +1,28 @@
 # Able Project Log
 
+## 2025-12-05 — UFCS method-style fallback finalized (v11)
+- Clarified UFCS spec wording (§7.4/§9.4) covering pipe equivalence, receiver-compatible overload selection, and self-parameter trimming; marked the TODO as complete and removed the PLAN item.
+- Added shared UFCS fixtures: `functions/ufcs_generic_overloads` (generic + overloaded free-function binding parity across pipe/member syntax) and `errors/ufcs_overload_ambiguity` (method-style ambiguity diagnostics). Exporter now emits these fixtures.
+- Hardened the TS typechecker runtime: pipelines no longer emit spurious undefined-identifier diagnostics, and duplicate typecheck diagnostics are deduped in the fixture runner; fixed a missing runtime import in pattern handling.
+- Updated the typecheck baseline to reflect new fixtures and existing diagnostics, keeping UFCS coverage aligned across interpreters.
+
+## 2025-12-04 — Struct pattern shorthand + rename operator (v11)
+- Codified `::` as the pattern rename operator in §5.2 (shorthand `field` = `field::field`, rename, rename+type, nested patterns) while keeping dot for namespace traversal; added examples for assignment/match and aligned import syntax guidance.
+- Documented import renaming via `::` (`import pkg::alias`, `import pkg.{item::alias}`) in the spec and queued implementation work in PLAN.
+- Updated the tree-sitter grammar and TS/Go ASTs to carry rename + type metadata, track struct kinds for positional patterns, and propagate type annotations into nested struct patterns when present.
+- TS/Go runtimes and typecheckers now evaluate/check shorthand/rename/type struct patterns consistently across `=`/`:=`/`match`/`rescue`; fixtures/tutorials/exporter outputs refreshed (including `patterns/struct_pattern_rename` and updated baselines).
+- Tests: `bun test` (v11/interpreters/ts); `cd v11/interpreters/go && go test ./...`.
+
+## 2025-12-03 — Impl specificity + ambiguity parity (v11)
+- Implemented the full impl-specificity lattice across Go/TS typecheckers and runtimes: concrete > generic, constraint superset, union subset, and more-instantiated generic tie-breaks with ambiguity diagnostics; named impls stay opt-in.
+- Go/TS runtimes now register generic-target impls, bind `Self` during matching, and surface consistent ambiguity errors; fixtures/manifests (`interfaces/impl_specificity*`) and the typecheck baseline reflect the new coverage.
+- Tests: `cd v11/interpreters/go && go test ./...`; `cd v11/interpreters/ts && bun test`.
+
+## 2025-12-02 — Pipe precedence + low-precedence pipe (v11)
+- Raised pipe (`|>`) precedence above assignment and added a low-precedence `|>>` operator in the grammar (tree-sitter regenerated) with matching TS/Go parser mappings.
+- TS/Go interpreters and typecheckers now treat `|>>` identically to `|>` (topic/callable fallback, placeholder guards) so pipeline semantics stay in sync across runtimes.
+- Added fixture `pipes/low_precedence_pipe` to cover assignment vs pipe grouping and `||` interactions; refreshed exported fixtures, and `bun test` (v11/interpreters/ts) plus `cd v11/interpreters/go && go test ./...` are green.
+
 ## 2025-12-02 — UFCS inherent instance methods (v11)
 - UFCS resolution now considers inherent instance methods (excluding static/interface/named impl methods) when the first argument can serve as the receiver; TS/Go interpreters bind the receiver accordingly and fall back from identifier calls, with TS/Go typecheckers mirroring the UFCS candidate search and call handling.
 - Added fixtures for UFCS calls into inherent methods plus a static-method negative case, refreshed the typecheck baseline, and documented the UFCS expansion in the spec (§7.4/§9.4).
@@ -243,3 +266,8 @@ Open items (2025-11-02 audit):
 - Added a guardrail fixture for missing Apply/IndexMut implementations (`interfaces/apply_index_missing_impls`) and regenerated exports/baseline so warn/strict runs expect the shared diagnostics.
 - Aligned Go typechecker diagnostics with TS for non-callable Apply targets and Index-only [] assignments (now report “non-callable … missing Apply implementation” and “cannot assign via [] without IndexMut …”), keeping the parity suite green.
 - Full v11 sweep rerun after the additions (`./run_all_tests.sh --version=v11`) is green.
+
+### 2025-12-03
+- Swapped import alias syntax to the `::` rename operator across the tree-sitter grammar, TS/Go parsers, and module loaders, rejecting legacy `as` aliases while keeping dot traversal unchanged.
+- Updated fixtures/docs/tests to the new syntax (package aliases, selective aliases for static/dynimport, struct-pattern rename coverage) and re-exported the shared fixture corpus.
+- Ran `./run_all_tests.sh --version=v11` (TS+Go units, fixtures, parity); all suites passed and parity report saved to `v11/tmp/parity-report.json`.

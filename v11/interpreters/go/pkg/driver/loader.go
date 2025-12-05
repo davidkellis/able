@@ -790,7 +790,7 @@ func importKey(imp *ast.ImportStatement) string {
 			}
 			sb.WriteString(sel.Name.Name)
 			if sel.Alias != nil {
-				sb.WriteString(" as ")
+				sb.WriteString("::")
 				sb.WriteString(sel.Alias.Name)
 			}
 			sb.WriteString(",")

@@ -93,9 +93,11 @@ export function evaluateImplementationDefinition(ctx: InterpreterV10, node: AST.
       .map(c => `${c.typeParam}->${ctx.typeExpressionToString(c.ifaceType)}`)
       .sort()
       .join("&") || "<none>";
+    const genericNames = new Set((node.genericParams ?? []).map(gp => gp.name.name));
     for (const variant of variants) {
       const typeName = variant.typeName;
       const targetArgTemplates = variant.argTemplates;
+      const isGenericTarget = genericNames.has(typeName);
       const key = `${node.interfaceName.name}::${typeName}`;
       if (!ctx.unnamedImplsSeen.has(key)) ctx.unnamedImplsSeen.set(key, new Map());
       const interfaceArgSig = (node.interfaceArgs ?? []).map(arg => ctx.typeExpressionToString(arg)).join("|") || "<none>";
@@ -109,10 +111,10 @@ export function evaluateImplementationDefinition(ctx: InterpreterV10, node: AST.
       const constraintKey = unionVariantSignatures ? `${unionVariantSignatures.join("|")}::${baseConstraintSig}` : baseConstraintSig;
       const constraintSet = templateBucket.get(templateKey)!;
       if (constraintSet.has(constraintKey)) {
+        if (ctx.implDuplicateAllowlist.has(key)) continue;
         throw new Error(`Unnamed impl for (${node.interfaceName.name}, ${ctx.typeExpressionToString(node.targetType)}) already exists`);
       }
       constraintSet.add(constraintKey);
-      if (!ctx.implMethods.has(typeName)) ctx.implMethods.set(typeName, []);
       const implEntry: ImplMethodEntry = {
         def: node,
         methods: funcs,
@@ -121,9 +123,14 @@ export function evaluateImplementationDefinition(ctx: InterpreterV10, node: AST.
         whereClause: node.whereClause,
         unionVariantSignatures,
       };
-      ctx.implMethods.get(typeName)!.push(implEntry);
-      if (node.interfaceName.name === "Range") {
-        ctx.registerRangeImplementation(implEntry, node.interfaceArgs);
+      if (isGenericTarget) {
+        ctx.genericImplMethods.push(implEntry);
+      } else {
+        if (!ctx.implMethods.has(typeName)) ctx.implMethods.set(typeName, []);
+        ctx.implMethods.get(typeName)!.push(implEntry);
+        if (node.interfaceName.name === "Range") {
+          ctx.registerRangeImplementation(implEntry, node.interfaceArgs);
+        }
       }
     }
   }

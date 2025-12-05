@@ -8,7 +8,7 @@ struct Entry {
 fn summarize(entries: Array Entry) -> i32 {
   total := 0
   for entry in entries {
-    { label: label, value: entryValue } := entry
+    { label::label, value::entryValue } := entry
     print(`record ${label}: ${entryValue}`)
     total = total + entryValue
   }
@@ -19,8 +19,8 @@ fn highlight(entries: Array Entry) -> void {
   ## Use destructuring in a match to pull specific fields
   for entry in entries {
     entry match {
-      case Entry { label: label, value: value } if value > 5 => print(`priority ${label}`),
-      case Entry { label: label, value: value } => print(`normal ${label} (${value})`)
+      case Entry { label::label, value::value } if value > 5 => print(`priority ${label}`),
+      case Entry { label::label, value::value } => print(`normal ${label} (${value})`)
     }
   }
 }

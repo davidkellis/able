@@ -1,5 +1,5 @@
-import type * as AST from "../../ast";
-import { formatType, unknownType, type TypeInfo } from "../types";
+import * as AST from "../../ast";
+import { arrayType, formatType, unknownType, type TypeInfo } from "../types";
 import type { ExpressionContext } from "./expression-context";
 
 export interface PatternBindingOptions {
@@ -84,7 +84,7 @@ export function bindPatternToEnv(
         annotationType.kind !== "unknown" &&
         valueType &&
         valueType.kind !== "unknown" &&
-        !ctx.isTypeAssignable(valueType, annotationType)
+        !patternAcceptsType(ctx, annotationType, valueType)
       ) {
         const expectedLabel = ctx.describeTypeExpression(pattern.typeAnnotation);
         const actualLabel = formatType(valueType);
@@ -134,12 +134,14 @@ function bindStructPatternFields(
   for (const field of pattern.fields) {
     if (!field) continue;
     const fieldName = ctx.getIdentifierName(field.fieldName);
-    const nestedType = (fieldName && fieldTypes.get(fieldName)) || unknownType;
+    const annotatedType = field.typeAnnotation ? ctx.resolveTypeExpression(field.typeAnnotation) : undefined;
+    const nestedType = annotatedType ?? ((fieldName && fieldTypes.get(fieldName)) ?? unknownType);
     if (field.pattern) {
       bindPatternToEnv(ctx, field.pattern as AST.Pattern, nestedType ?? unknownType, contextLabel, options);
     }
     if (field.binding?.name) {
-      bindPatternToEnv(ctx, field.binding as AST.Pattern, nestedType ?? unknownType, contextLabel, options);
+      const bindingPattern = annotatedType ? AST.typedPattern(field.binding as AST.Pattern, annotatedType) : (field.binding as AST.Pattern);
+      bindPatternToEnv(ctx, bindingPattern, nestedType ?? unknownType, contextLabel, options);
     }
   }
 }
@@ -163,7 +165,7 @@ function bindArrayPatternElements(
   }
   const rest = pattern.restPattern;
   if (rest && rest.type === "Identifier" && rest.name) {
-    bindPatternToEnv(ctx, rest, elementType ?? unknownType, contextLabel, options);
+    bindPatternToEnv(ctx, rest, arrayType(elementType ?? unknownType), contextLabel, options);
   }
 }
 
@@ -174,4 +176,27 @@ function shouldDeclareIdentifier(
   if (!name) return false;
   if (!declarationNames) return true;
   return declarationNames.has(name);
+}
+
+function patternAcceptsType(ctx: ExpressionContext, expected: TypeInfo, actual: TypeInfo): boolean {
+  if (ctx.isTypeAssignable(actual, expected)) {
+    return true;
+  }
+  if (actual.kind === "union") {
+    return actual.members.some((member) => patternAcceptsType(ctx, expected, member));
+  }
+  if (actual.kind === "result") {
+    const members: TypeInfo[] = [];
+    members.push({
+      kind: "interface",
+      name: "Error",
+      typeArguments: [],
+      definition: ctx.getInterfaceDefinition("Error"),
+    });
+    if (actual.inner) {
+      members.push(actual.inner);
+    }
+    return members.some((member) => patternAcceptsType(ctx, expected, member));
+  }
+  return false;
 }

@@ -7,6 +7,6 @@ struct Wrapper {
   right: Point,
   values: Array i32
 }
-wrapper := Wrapper { left: Point { x: 1, y: 2 }, right: Point { x: 3, y: 4 }, values: [10, 20, 30] }
-Wrapper { left: Point { x: left_x, y: left_y }, right: Point { x: _, y: right_y }, values: [first_value, ...rest_values] } := wrapper
+wrapper := Wrapper { left: (Point { x: 1, y: 2 }), right: (Point { x: 3, y: 4 }), values: [10, 20, 30] }
+Wrapper { left: Point { x::left_x, y::left_y }, right: Point { x::right_x: i32, y::right_y }, values: Array i32 [first_value, ...rest_values] } := wrapper
 left_x + right_y + first_value + rest_values[0]

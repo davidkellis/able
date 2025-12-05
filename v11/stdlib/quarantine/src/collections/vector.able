@@ -113,12 +113,12 @@ fn vector_array_for_node<T>(node: VectorNode T, level: i32, index: i32) -> Array
   if level <= VECTOR_BRANCH_BITS {
     match slot {
       case VectorSlotLeaf { values } => values,
-      case VectorSlotNode { node: child } => vector_array_for_node(child, level - VECTOR_BRANCH_BITS, index),
+      case VectorSlotNode { node } => vector_array_for_node(node, level - VECTOR_BRANCH_BITS, index),
       case VectorSlotEmpty {} => Array.with_capacity(0)
     }
   } else {
     match slot {
-      case VectorSlotNode { node: child } => vector_array_for_node(child, level - VECTOR_BRANCH_BITS, index),
+      case VectorSlotNode { node } => vector_array_for_node(node, level - VECTOR_BRANCH_BITS, index),
       case VectorSlotLeaf { values } => values,
       case VectorSlotEmpty {} => Array.with_capacity(0)
     }
@@ -181,7 +181,7 @@ fn assoc_node<T>(level: i32, node: VectorNode T, index: i32, value: T) -> Vector
     cloned.slots.write_slot(slot_idx, vector_slot_leaf(new_leaf))
   } else {
     child := match slot {
-      case VectorSlotNode { node: existing } => existing,
+      case VectorSlotNode { node } => node,
       case _ => vector_node_new()
     }
     updated_child := assoc_node(level - VECTOR_BRANCH_BITS, child, index, value)
@@ -196,8 +196,8 @@ fn pop_tail_recursive<T>(level: i32, node: VectorNode T, count: i32) -> VectorNo
   if level > VECTOR_BRANCH_BITS {
     slot := node.slots.read_slot(idx)
     match slot {
-      case VectorSlotNode { node: child } => {
-        new_child := pop_tail_recursive(level - VECTOR_BRANCH_BITS, child, count)
+      case VectorSlotNode { node } => {
+        new_child := pop_tail_recursive(level - VECTOR_BRANCH_BITS, node, count)
         if vector_node_is_empty(new_child) {
           cloned.slots.write_slot(idx, vector_slot_empty())
         } else {
@@ -301,8 +301,8 @@ methods Vector T {
     if self.shift > VECTOR_BRANCH_BITS && vector_node_population(new_root) == 1 {
       first_slot := new_root.slots.read_slot(0)
       match first_slot {
-        case VectorSlotNode { node: child } => {
-          new_root = child
+        case VectorSlotNode { node } => {
+          new_root = node
           new_shift = self.shift - VECTOR_BRANCH_BITS
         },
         case _ => {}

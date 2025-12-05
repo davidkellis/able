@@ -50,6 +50,9 @@ func (c *declarationCollector) validateImplementationSelfTypePattern(
 	}
 	interfaceLabel := nonEmpty(interfaceName)
 	pattern := iface.SelfTypePattern
+	if isTrivialSelfPattern(pattern) {
+		pattern = nil
+	}
 	if pattern != nil {
 		interfaceGenerics := collectGenericParamNameSet(iface.TypeParams)
 		if def.TargetType == nil || !c.doesSelfPatternMatchTarget(pattern, def.TargetType, interfaceGenerics) {
@@ -153,6 +156,14 @@ func bindSelfPatternPlaceholder(name string, target ast.TypeExpression, bindings
 	}
 	bindings[name] = target
 	return true
+}
+
+func isTrivialSelfPattern(pattern ast.TypeExpression) bool {
+	simple, ok := pattern.(*ast.SimpleTypeExpression)
+	if !ok || simple == nil || simple.Name == nil {
+		return false
+	}
+	return simple.Name.Name == "Self"
 }
 
 func (c *declarationCollector) isPatternPlaceholderName(name string, interfaceGenericNames map[string]struct{}) bool {

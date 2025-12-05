@@ -30,7 +30,46 @@ type FunctionCallContext = {
   statementContext: StatementContext;
 };
 
+function reportAmbiguousInterfaceMethod(
+  ctx: FunctionCallContext,
+  receiverType: TypeInfo,
+  methodName: string,
+  node: AST.Node,
+): boolean {
+  if (!receiverType || receiverType.kind === "unknown") {
+    return false;
+  }
+  const implementations = ctx.implementationContext.getImplementationRecords?.();
+  if (!implementations) {
+    return false;
+  }
+  const interfaces = new Set<string>();
+  for (const record of implementations) {
+    if (!record?.definition || !Array.isArray(record.definition.definitions)) continue;
+    const hasMethod = record.definition.definitions.some(
+      (fn) => fn?.type === "FunctionDefinition" && fn.id?.name === methodName,
+    );
+    if (hasMethod) {
+      interfaces.add(record.interfaceName);
+    }
+  }
+  for (const interfaceName of interfaces) {
+    const result = typeImplementsInterface(ctx.implementationContext, receiverType, interfaceName);
+    if (!result.ok && result.detail && result.detail.includes("ambiguous implementations")) {
+      ctx.report(`typechecker: ${result.detail}`, node);
+      return true;
+    }
+  }
+  return false;
+}
+
 export function checkFunctionCall(ctx: FunctionCallContext, call: AST.FunctionCall): void {
+  if (call.callee.type === "MemberAccessExpression" && call.callee.member?.type === "Identifier") {
+    const receiverType = ctx.inferExpression(call.callee.object);
+    if (reportAmbiguousInterfaceMethod(ctx, receiverType, call.callee.member.name, call)) {
+      return;
+    }
+  }
   const builtinName = ctx.getBuiltinCallName(call.callee);
   const args = Array.isArray(call.arguments) ? call.arguments : [];
   const argTypes = args.map((arg) => ctx.inferExpression(arg));
@@ -44,6 +83,12 @@ export function checkFunctionCall(ctx: FunctionCallContext, call: AST.FunctionCa
       candidates = ufcs.candidates;
       callArgs = ufcs.args;
       callArgTypes = ufcs.argTypes;
+    }
+  }
+  if (!candidates.length) {
+    const fnCandidate = resolveFunctionTypeCandidate(ctx, call.callee);
+    if (fnCandidate) {
+      candidates = [fnCandidate];
     }
   }
   if (!candidates.length) {
@@ -125,6 +170,12 @@ export function inferFunctionCallReturnType(ctx: FunctionCallContext, call: AST.
       infos = ufcs.candidates;
       callArgs = ufcs.args;
       callArgTypes = ufcs.argTypes;
+    }
+  }
+  if (!infos.length) {
+    const fnCandidate = resolveFunctionTypeCandidate(ctx, call.callee);
+    if (fnCandidate) {
+      infos = [fnCandidate];
     }
   }
   if (!infos.length) {
@@ -276,6 +327,14 @@ function reportArgumentDiagnostics(
       ) {
         continue;
       }
+      if (
+        expected.kind === "interface" &&
+        ctx.implementationContext.getImplementationBucket?.(formatType(actual))?.some(
+          (record) => record.interfaceName === expected.name,
+        )
+      ) {
+        continue;
+      }
       ctx.report(
         `typechecker: argument ${index + 1} has type ${formatType(actual)}, expected ${formatType(expected)}`,
         args[index] ?? call,
@@ -352,8 +411,8 @@ function resolveFunctionInfos(ctx: FunctionCallContext, callee: AST.Expression |
         }
       }
       if (!infos.length) {
-        const fallback = ctx.functionInfos.get(memberName) ?? [];
-        for (const entry of fallback) {
+        const ufcs = resolveUfcsFreeFunctionCandidates(ctx, objectType, memberName);
+        for (const entry of ufcs) {
           if (seen.has(entry.fullName)) continue;
           infos.push(entry);
           seen.add(entry.fullName);
@@ -393,8 +452,8 @@ function resolveFunctionInfos(ctx: FunctionCallContext, callee: AST.Expression |
         }
       }
       if (!infos.length) {
-        const fallback = ctx.functionInfos.get(memberName) ?? [];
-        for (const entry of fallback) {
+        const ufcs = resolveUfcsFreeFunctionCandidates(ctx, arrayStruct, memberName);
+        for (const entry of ufcs) {
           if (seen.has(entry.fullName)) continue;
           infos.push(entry);
           seen.add(entry.fullName);
@@ -429,8 +488,8 @@ function resolveFunctionInfos(ctx: FunctionCallContext, callee: AST.Expression |
         }
       }
       if (!infos.length) {
-        const fallback = ctx.functionInfos.get(memberName) ?? [];
-        for (const entry of fallback) {
+        const ufcs = resolveUfcsFreeFunctionCandidates(ctx, objectType, memberName);
+        for (const entry of ufcs) {
           if (seen.has(entry.fullName)) continue;
           infos.push(entry);
           seen.add(entry.fullName);
@@ -438,8 +497,36 @@ function resolveFunctionInfos(ctx: FunctionCallContext, callee: AST.Expression |
       }
       return infos;
     }
+    if (objectType.kind !== "unknown") {
+      const ufcs = resolveUfcsFreeFunctionCandidates(ctx, objectType, memberName);
+      if (ufcs.length) {
+        return ufcs;
+      }
+    }
   }
   return [];
+}
+
+function resolveFunctionTypeCandidate(
+  ctx: FunctionCallContext,
+  callee: AST.Expression | undefined | null,
+): FunctionInfo | null {
+  if (!callee) return null;
+  const calleeType = ctx.inferExpression(callee);
+  if (!calleeType || calleeType.kind !== "function") {
+    return null;
+  }
+  const params = Array.isArray(calleeType.parameters) ? calleeType.parameters : [];
+  const label = formatCalleeLabel(callee) ?? "<function>";
+  return {
+    name: label,
+    fullName: label,
+    parameters: params,
+    genericConstraints: [],
+    genericParamNames: [],
+    whereClause: [],
+    returnType: calleeType.returnType ?? unknownType,
+  };
 }
 
 type UfcsCandidateResult = { candidates: FunctionInfo[]; args: AST.Expression[]; argTypes: TypeInfo[] };
@@ -509,6 +596,36 @@ function typesMatchReceiver(receiver: TypeInfo, param: TypeInfo | undefined): bo
     return true;
   }
   return formatType(param) === formatType(receiver);
+}
+
+function resolveUfcsFreeFunctionCandidates(
+  ctx: FunctionCallContext,
+  receiverType: TypeInfo,
+  memberName: string,
+): FunctionInfo[] {
+  const candidates: FunctionInfo[] = [];
+  const entries = ctx.functionInfos.get(memberName) ?? [];
+  for (const entry of entries) {
+    const params = Array.isArray(entry.parameters) ? entry.parameters : [];
+    if (!params.length) continue;
+    const first = params[0];
+    if (!typesMatchReceiverForFreeFunction(receiverType, first)) {
+      continue;
+    }
+    const adjustedParams = params.slice(1);
+    candidates.push({
+      ...entry,
+      parameters: adjustedParams,
+      hasImplicitSelf: false,
+    });
+  }
+  return candidates;
+}
+
+function typesMatchReceiverForFreeFunction(receiver: TypeInfo, param: TypeInfo | undefined): boolean {
+  if (!param || param.kind === "unknown") return true;
+  if (param.kind === "type_parameter") return true;
+  return typesMatchReceiver(receiver, param);
 }
 
 function resolveApplyInterface(

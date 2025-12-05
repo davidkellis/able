@@ -36,13 +36,14 @@ func NewLiteralPattern(literal Literal) *LiteralPattern {
 type StructPatternField struct {
 	nodeImpl
 
-	FieldName *Identifier `json:"fieldName,omitempty"`
-	Pattern   Pattern     `json:"pattern"`
-	Binding   *Identifier `json:"binding,omitempty"`
+	FieldName      *Identifier    `json:"fieldName,omitempty"`
+	Pattern        Pattern        `json:"pattern"`
+	Binding        *Identifier    `json:"binding,omitempty"`
+	TypeAnnotation TypeExpression `json:"typeAnnotation,omitempty"`
 }
 
-func NewStructPatternField(pattern Pattern, fieldName *Identifier, binding *Identifier) *StructPatternField {
-	return &StructPatternField{nodeImpl: newNodeImpl(NodeStructPatternField), FieldName: fieldName, Pattern: pattern, Binding: binding}
+func NewStructPatternField(pattern Pattern, fieldName *Identifier, binding *Identifier, typeAnnotation TypeExpression) *StructPatternField {
+	return &StructPatternField{nodeImpl: newNodeImpl(NodeStructPatternField), FieldName: fieldName, Pattern: pattern, Binding: binding, TypeAnnotation: typeAnnotation}
 }
 
 type StructPattern struct {

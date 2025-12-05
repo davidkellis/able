@@ -113,9 +113,9 @@
 | Feature | Spec Reference | AST Fixtures | Parser Tests | Status | Notes |
 |---------|----------------|--------------|--------------|--------|-------|
 | Package statement | §13.2 | `imports/package_statement` | `TestParsePackageStatement`, `TestParseModuleImports` | Done | Unit tests assert package qualifiers parse into the canonical AST. |
-| Import selectors (`import pkg.{Foo, Bar as B}`) | §13.4 | `imports/static_alias_public` | `TestParseImportSelectors`, `TestParseModuleImports` | Done | Targeted test asserts selector lists and per-item aliasing. |
+| Import selectors (`import pkg.{Foo, Bar::B}`) | §13.4 | `imports/static_alias_public` | `TestParseImportSelectors`, `TestParseModuleImports` | Done | Targeted test asserts selector lists and per-item aliasing. |
 | Wildcard import (`*`) | §13.4 | `imports/static_wildcard` | `TestParseWildcardImport`, `TestParseModuleImports` | Done | Dedicated parser test now verifies wildcard imports without extra statements. |
-| Alias import (`import pkg as alias`) | §13.4 | `imports/static_alias_public` | `TestParseImportAlias` | Done | Parser coverage confirms module-level aliasing matches fixture expectations. |
+| Alias import (`import pkg::alias`) | §13.4 | `imports/static_alias_public` | `TestParseImportAlias` | Done | Parser coverage confirms module-level aliasing matches fixture expectations. |
 | Dynamic import (`dynimport`) | §13.4 | `imports/dynimport_wildcard`, `imports/dynimport_selector_alias` | `TestParseDynImportSelectors`, `TestParseModuleImports` | Done | Parser tests cover aliasing, selector lists, and wildcard dynimports. |
 | Prelude statement (`prelude {}`) | §16.1.1 | `interop/prelude_extern` | `TestParsePreludeAndExtern` | Done | Parser test verifies prelude bodies for host targets. |
 

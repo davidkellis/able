@@ -71,7 +71,7 @@ export function evaluateBinaryExpression(ctx: InterpreterV10, node: AST.BinaryEx
     return { kind: "bool", value: lv.value || rv.value };
   }
 
-  if (b.operator === "|>") {
+  if (b.operator === "|>" || b.operator === "|>>") {
     const subject = ctx.evaluate(b.left, env);
     ctx.topicStack.push(subject);
     ctx.topicUsageStack.push(false);

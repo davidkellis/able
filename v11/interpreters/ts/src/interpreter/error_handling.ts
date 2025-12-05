@@ -1,7 +1,9 @@
 import * as AST from "../ast";
 import { Environment } from "./environment";
 import type { InterpreterV10 } from "./index";
+import { callCallableValue } from "./functions";
 import { RaiseSignal } from "./signals";
+import { memberAccessOnValue } from "./structs";
 import type { V10Value } from "./values";
 
 export function evaluateRaiseStatement(ctx: InterpreterV10, node: AST.RaiseStatement, env: Environment): never {
@@ -63,7 +65,8 @@ export function evaluateOrElseExpression(ctx: InterpreterV10, node: AST.OrElseEx
 export function evaluatePropagationExpression(ctx: InterpreterV10, node: AST.PropagationExpression, env: Environment): V10Value {
   try {
     const val = ctx.evaluate(node.expression, env);
-    if (val.kind === "error") throw new RaiseSignal(val);
+    const errVal = coerceToErrorValue(ctx, val, env);
+    if (errVal) throw new RaiseSignal(errVal);
     return val;
   } catch (e) {
     if (e instanceof RaiseSignal) throw e;
@@ -88,4 +91,46 @@ export function evaluateEnsureExpression(ctx: InterpreterV10, node: AST.EnsureEx
 export function evaluateRethrowStatement(ctx: InterpreterV10, _node: AST.RethrowStatement): never {
   const err = ctx.raiseStack[ctx.raiseStack.length - 1] || { kind: "error", message: "Unknown rethrow" } as V10Value;
   throw new RaiseSignal(err);
+}
+
+function coerceToErrorValue(ctx: InterpreterV10, val: V10Value, env: Environment): Extract<V10Value, { kind: "error" }> | null {
+  if (val.kind === "error") return val;
+  if (val.kind === "interface_value" && val.interfaceName === "Error" && val.value.kind === "error") {
+    return val.value;
+  }
+  const typeName = ctx.getTypeNameForValue(val);
+  const implementsError = typeName
+    ? ctx.typeImplementsInterface(typeName, "Error", val.kind === "struct_instance" ? val.typeArguments : undefined)
+    : val.kind === "interface_value" && val.interfaceName === "Error";
+  if (!implementsError) return null;
+
+  let errorIface: V10Value = val;
+  if (val.kind !== "interface_value" || val.interfaceName !== "Error") {
+    errorIface = ctx.toInterfaceValue("Error", val);
+  }
+
+  let message = ctx.valueToString(val);
+  try {
+    const msgMember = memberAccessOnValue(ctx, errorIface, AST.identifier("message"), env);
+    const msgVal = callCallableValue(ctx, msgMember, [], env);
+    if (msgVal.kind === "string") {
+      message = msgVal.value;
+    }
+  } catch {
+    // fall back to valueToString
+  }
+
+  let cause: V10Value | undefined;
+  try {
+    const causeMember = memberAccessOnValue(ctx, errorIface, AST.identifier("cause"), env);
+    const causeVal = callCallableValue(ctx, causeMember, [], env);
+    if (causeVal.kind !== "nil") {
+      cause = causeVal;
+    }
+  } catch {
+    // ignore cause lookup failures
+  }
+
+  const underlying = val.kind === "interface_value" ? val.value : val;
+  return ctx.makeRuntimeError(message, underlying, cause);
 }

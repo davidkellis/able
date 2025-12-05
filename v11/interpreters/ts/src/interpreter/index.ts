@@ -41,8 +41,10 @@ export class InterpreterV10 {
   interfaceEnvs: Map<string, Environment> = new Map();
   inherentMethods: Map<string, Map<string, Extract<V10Value, { kind: "function" | "function_overload" }>>> = new Map();
   implMethods: Map<string, ImplMethodEntry[]> = new Map();
+  genericImplMethods: ImplMethodEntry[] = [];
   rangeImplementations: RangeImplementationRecord[] = [];
   unnamedImplsSeen: Map<string, Map<string, Set<string>>> = new Map();
+  implDuplicateAllowlist: Set<string> = new Set(["Error::ProcError"]);
   raiseStack: V10Value[] = [];
   packageRegistry: Map<string, Map<string, V10Value>> = new Map();
   currentPackage: string | null = null;

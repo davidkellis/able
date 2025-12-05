@@ -40,8 +40,7 @@ export function applyPatternAugmentations(cls: typeof InterpreterV10): void {
       if (value.kind !== "struct_instance") return null;
       if (pattern.structType && value.def.id.name !== pattern.structType.name) return null;
       let env = new Environment(baseEnv);
-      if (pattern.isPositional) {
-        if (!Array.isArray(value.values)) return null;
+      if (Array.isArray(value.values)) {
         if (pattern.fields.length !== value.values.length) return null;
         for (let i = 0; i < pattern.fields.length; i++) {
           const field = pattern.fields[i];
@@ -132,8 +131,7 @@ export function applyPatternAugmentations(cls: typeof InterpreterV10): void {
     if (pattern.type === "StructPattern") {
       if (value.kind !== "struct_instance") throw new Error("Cannot destructure non-struct value");
       if (pattern.structType && value.def.id.name !== pattern.structType.name) throw new Error("Struct type mismatch in destructuring");
-      if (pattern.isPositional) {
-        if (!Array.isArray(value.values)) throw new Error("Expected positional struct");
+      if (Array.isArray(value.values)) {
         if (pattern.fields.length !== value.values.length) throw new Error("Struct field count mismatch");
         for (let i = 0; i < pattern.fields.length; i++) {
           const fieldPat = pattern.fields[i];

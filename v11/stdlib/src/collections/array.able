@@ -6,8 +6,8 @@ import able.core.errors.{IndexError}
 
 extern typescript fn __able_array_new() -> i64 {}
 extern typescript fn __able_array_with_capacity(capacity: i32) -> i64 {}
-extern typescript fn __able_array_size(handle: i64) -> i64 {}
-extern typescript fn __able_array_capacity(handle: i64) -> i64 {}
+extern typescript fn __able_array_size(handle: i64) -> i32 {}
+extern typescript fn __able_array_capacity(handle: i64) -> i32 {}
 extern typescript fn __able_array_set_len(handle: i64, length: i32) -> void {}
 extern typescript fn __able_array_read(handle: i64, idx: i32) -> _ {}
 extern typescript fn __able_array_write(handle: i64, idx: i32, value: _) -> void {}
@@ -15,8 +15,8 @@ extern typescript fn __able_array_reserve(handle: i64, capacity: i32) -> i64 {}
 extern typescript fn __able_array_clone(handle: i64) -> i64 {}
 extern go fn __able_array_new() -> i64 {}
 extern go fn __able_array_with_capacity(capacity: i32) -> i64 {}
-extern go fn __able_array_size(handle: i64) -> i64 {}
-extern go fn __able_array_capacity(handle: i64) -> i64 {}
+extern go fn __able_array_size(handle: i64) -> i32 {}
+extern go fn __able_array_capacity(handle: i64) -> i32 {}
 extern go fn __able_array_set_len(handle: i64, length: i32) -> void {}
 extern go fn __able_array_read(handle: i64, idx: i32) -> _ {}
 extern go fn __able_array_write(handle: i64, idx: i32, value: _) -> void {}
@@ -187,6 +187,17 @@ impl Clone for Array T {
 }
 
 impl Iterable T for Array T {
+  fn each(self: Self, visit: T -> void) -> void {
+    snapshot := self
+    snapshot.refresh_metadata()
+    i := 0
+    loop {
+      if i >= snapshot.length { break }
+      visit(snapshot.read_slot(i))
+      i = i + 1
+    }
+  }
+
   fn iterator(self: Self) -> (Iterator T) {
     snapshot := self
     snapshot.refresh_metadata()
@@ -201,8 +212,6 @@ impl Iterator T for ArrayIterator T {
     self.index = self.index + 1
     value
   }
-
-  fn close(self: Self) -> void { }
 }
 
 impl Index i32 T for Array T {

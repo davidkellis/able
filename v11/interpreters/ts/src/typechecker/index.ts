@@ -1,6 +1,6 @@
 import type * as AST from "../ast";
 import { TypeChecker, createTypeChecker } from "./checker";
-import type { TypeCheckerOptions } from "./checker";
+import type { TypeCheckerOptions, TypeCheckerPrelude } from "./checker";
 import { TypecheckerSession } from "./session";
 import type {
   TypecheckResult,
@@ -38,6 +38,7 @@ export type {
   ExportedObligationSummary,
   TypeInfo,
   PrimitiveName,
+  TypeCheckerPrelude,
 };
 export { TypeChecker, createTypeChecker, TypecheckerSession };
 

@@ -67,3 +67,22 @@ Standard next steps prompt:
 ```
 Proceed with next steps as suggested; don't talk about doing it - do it. We need to correct any bugs if bugs or broken tests are outstanding. We want to work toward completing the items in the PLAN file. Please mark off and remove completed items from the PLAN file once they are complete. Remember to keep files under one thousand lines and to refactor them if they are going to exceed one thousand lines. Tests should run quickly; no test should take more than one minute to complete.
 ```
+
+
+  Tests:
+
+  - Spot checks while fixing: bun run scripts/run-module.ts check ../../examples/tutorial/04_functions_and_lambdas.able, .../12_channels_mutex_and_await.able, .../03_structs_unions_and_match.able.
+  - Full TS sweep: for f in $(find v11/examples -name '*.able' | sort); do ./v11/ablets check "$f" || true; done.
+
+  Findings from the sweep:
+
+  - Intentional: v11/examples/greet_typecheck_fail.able (type error).
+  - Broken: v11/examples/leetcode/leetcode4_median_of_two_sorted_arrays.able (needs numeric conversion/cast support; uses as f64), v11/examples/leetcode/leetcode8_string_to_integer.able (literal 2147483648 overflows i32;
+    example should widen/adjust), v11/examples/leetcode/leetcode9_palindrome_number.able (tree-sitter rejects and; either add grammar support or change to &&).
+
+  Next steps:
+
+  1. Decide how to handle casts/conversions in leetcode4 (add stdlib/helpers or adjust the example).
+  2. Fix the leetcode8 overflow (widen to i64 or clamp the literal).
+  3. Resolve the leetcode9 parse issue (teach the parser and or switch the sample to &&).
+  4. Run the equivalent Go/ablego sweep to catalog the Go-side failures now that TS is using real stdlib definitions.

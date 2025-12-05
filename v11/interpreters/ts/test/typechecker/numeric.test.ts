@@ -50,7 +50,7 @@ describe("typechecker numeric promotion", () => {
     expect(diagnostics).toEqual([]);
   });
 
-  test("emits diagnostic when promotion requires widths beyond i128 with no unsigned fallback", () => {
+  test("promotes mixed i128/u64 without exceeding available widths", () => {
     const checker = new TypeChecker();
     const module = AST.module([
       asStatement(
@@ -62,8 +62,7 @@ describe("typechecker numeric promotion", () => {
       ),
     ]);
     const { diagnostics } = checker.checkModule(module);
-    expect(diagnostics).toHaveLength(1);
-    expect(diagnostics[0]?.message).toContain("exceeding available integer widths");
+    expect(diagnostics).toEqual([]);
   });
 
   test("bitwise operations require integer operands", () => {

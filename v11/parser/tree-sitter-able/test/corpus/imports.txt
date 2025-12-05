@@ -2,15 +2,15 @@
 Import Clauses
 ==================
 
-import alpha.beta.{Foo, Bar as B};
+import alpha.beta.{Foo, Bar::B};
 import gamma.delta.*;
-dynimport host.bindings as host;
+dynimport host.bindings::host;
 
 ---
 
 (source_file
   (import_statement
-    (qualified_identifier
+    (import_path
       (identifier)
       (identifier))
     (import_clause
@@ -20,14 +20,13 @@ dynimport host.bindings as host;
         (identifier)
         (identifier))))
   (import_statement
-    (qualified_identifier
+    (import_path
       (identifier)
       (identifier))
     (import_clause
       (import_wildcard_clause)))
   (import_statement
-    (qualified_identifier
+    (import_path
       (identifier)
       (identifier))
-    (import_clause
-      (identifier))))
+    (identifier)))

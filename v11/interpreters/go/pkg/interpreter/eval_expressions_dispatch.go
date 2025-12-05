@@ -470,7 +470,7 @@ func (i *Interpreter) evaluateBinaryExpression(expr *ast.BinaryExpression, env *
 	if err != nil {
 		return nil, err
 	}
-	if expr.Operator == "|>" {
+	if expr.Operator == "|>" || expr.Operator == "|>>" {
 		return i.evaluatePipeExpression(leftVal, expr.Right, env)
 	}
 	switch expr.Operator {

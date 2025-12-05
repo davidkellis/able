@@ -155,6 +155,10 @@ func (ctx *parseContext) parseStructDefinition(node *sitter.Node) (ast.Statement
 		}
 	}
 
+	if id != nil && ctx != nil && ctx.structKinds != nil {
+		ctx.structKinds[id.Name] = kind
+	}
+
 	structDef := ast.NewStructDefinition(id, fields, kind, generics, whereClause, isPrivate)
 	annotateSpan(structDef, node)
 	return structDef, nil

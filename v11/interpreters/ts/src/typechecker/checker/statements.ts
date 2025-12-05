@@ -69,6 +69,19 @@ export function checkAssignment(ctx: StatementContext, node: AST.AssignmentExpre
     predeclarePattern(ctx, node.left, declarationNames);
   }
   const valueType = ctx.inferExpression(node.right);
+  let targetType = valueType;
+  if (node.operator === "=" && node.left?.type === "Identifier") {
+    const existing = ctx.lookupIdentifier(node.left.name);
+    if (existing && existing.kind !== "unknown") {
+      if (!ctx.isTypeAssignable(valueType, existing)) {
+        ctx.report(
+          `typechecker: assignment expects type ${formatType(existing)}, got ${formatType(valueType)}`,
+          node.right ?? node,
+        );
+      }
+      targetType = existing;
+    }
+  }
   if (!node.left) {
     return valueType;
   }
@@ -86,7 +99,7 @@ export function checkAssignment(ctx: StatementContext, node: AST.AssignmentExpre
     isDeclaration: node.operator === ":=",
     allowFallbackDeclaration: node.operator !== ":=",
   };
-  bindPatternToEnv(ctx, node.left as AST.Pattern, valueType, "assignment pattern", bindingOptions);
+  bindPatternToEnv(ctx, node.left as AST.Pattern, targetType, "assignment pattern", bindingOptions);
   return valueType;
 }
 
@@ -342,10 +355,10 @@ function checkIndexAssignment(ctx: StatementContext, node: AST.AssignmentExpress
     );
     return;
   }
-  if (ctx.typeImplementsInterface?.(objectType, "IndexMut", ["Idx", "Val"])?.ok) {
+  if (ctx.typeImplementsInterface?.(objectType, "IndexMut", ["Unknown", "Unknown"])?.ok) {
     return;
   }
-  if (ctx.typeImplementsInterface?.(objectType, "Index", ["Idx", "Val"])?.ok) {
+  if (ctx.typeImplementsInterface?.(objectType, "Index", ["Unknown", "Unknown"])?.ok) {
     ctx.report(
       `typechecker: cannot assign via [] without IndexMut implementation on type ${formatType(objectType)}`,
       target,

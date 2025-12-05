@@ -1,0 +1,13 @@
+struct Address {
+  street: string,
+  city: string,
+  zip: i32
+}
+struct Person {
+  name: string,
+  age: i32,
+  address: Address
+}
+person := Person { name: "Terry", age: 29, address: (Address { street: "Main", city: "SF", zip: 94107 }) }
+Person { name, age::years: i32, address::addr: Address { street, zip } } := person
+`${name}-${years}-${street}-${zip}-${addr.city}`

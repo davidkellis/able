@@ -149,7 +149,7 @@ fn stdlib_message() -> string {
 	writeFile(t, filepath.Join(projectDir, "main.able"), `
 package main
 
-import able.core.thing as thing
+import able.core.thing::thing
 
 fn main() {
   print(thing.stdlib_message())
@@ -243,7 +243,7 @@ fn stdlib_message() -> string {
 	}
 
 	writeFile(t, filepath.Join(projectDir, "main.able"), `
-import helper.core as helper
+import helper.core::helper
 
 fn main() {
   print(helper.value())

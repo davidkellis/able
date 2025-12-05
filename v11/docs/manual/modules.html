@@ -33,10 +33,10 @@
           declare an explicit <code>package</code>.
         </p>
         <h2 id="imports">11.1 Imports</h2>
-        <pre><code class="language-able">import math
+<pre><code class="language-able">import math
 import math.{sqrt, pow}
-import io as console
-import io.{print as println}
+import io::console
+import io.{print::println}
 import math.*              ## use selectively to avoid collisions</code></pre>
         <p>
           Imports may appear at any scope. Aliasing is available for packages
@@ -54,9 +54,9 @@ import math.*              ## use selectively to avoid collisions</code></pre>
           <code>dynimport</code> binds names from runtime-defined packages
           (interpreter builds):
         </p>
-        <pre><code class="language-able">dynimport widgets
+<pre><code class="language-able">dynimport widgets
 dynimport widgets.{Button, make_layout}
-dynimport widgets as w</code></pre>
+dynimport widgets::w</code></pre>
         <p>
           Resolution occurs at runtime; missing packages/names raise
           <code>Error</code>. Static code may adapt dynamic values to interface

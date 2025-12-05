@@ -300,7 +300,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
       AST.memberAccessExpression(wrapperPointLiteral, "to_string"),
       []
     );
-    expect(() => I.evaluate(call)).toThrow(/Ambiguous method 'to_string' for type 'Wrapper'/);
+    expect(() => I.evaluate(call)).toThrow(/ambiguous implementations of Show/);
   });
 
   test("impl with stricter constraints wins over looser one", () => {
@@ -525,7 +525,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
       AST.memberAccessExpression(svc, "act"),
       []
     );
-    expect(() => I.evaluate(ambiguousCall)).toThrow(/Ambiguous method 'act' for type 'Service'/);
+    expect(() => I.evaluate(ambiguousCall)).toThrow(/ambiguous implementations of A for Service/);
 
     const callA = AST.functionCall(
       AST.memberAccessExpression(AST.identifier("ActA"), "act"),

@@ -27,7 +27,7 @@ declare module "./index" {
     typeExpressionFromValue(value: V10Value): AST.TypeExpression | null;
     matchesType(t: AST.TypeExpression, v: V10Value): boolean;
     getTypeNameForValue(value: V10Value): string | null;
-    typeImplementsInterface(typeName: string, interfaceName: string): boolean;
+    typeImplementsInterface(typeName: string, interfaceName: string, typeArgs?: AST.TypeExpression[]): boolean;
     coerceValueToType(typeExpr: AST.TypeExpression | undefined, value: V10Value): V10Value;
     toInterfaceValue(interfaceName: string, rawValue: V10Value): V10Value;
   }
@@ -184,7 +184,8 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
           if (v.kind === "interface_value") return v.interfaceName === name;
           const typeName = this.getTypeNameForValue(v);
           if (!typeName) return false;
-          return this.typeImplementsInterface(typeName, name);
+          const typeArgs = v.kind === "struct_instance" ? v.typeArguments : undefined;
+          return this.typeImplementsInterface(typeName, name, typeArgs);
         }
         return v.kind === "struct_instance" && v.def.id.name === name;
       }
@@ -198,6 +199,35 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
             return v.elements.every(el => this.matchesType(elemT, el));
           }
           return true;
+        }
+        if (t.base.type === "SimpleTypeExpression") {
+          const baseName = t.base.name.name;
+          const valueTypeName = this.getTypeNameForValue(v);
+          if (!valueTypeName || valueTypeName !== baseName) {
+            if (this.interfaces.has(baseName)) {
+              const typeArgs = v.kind === "struct_instance" ? v.typeArguments : undefined;
+              if (valueTypeName && this.typeImplementsInterface(valueTypeName, baseName, typeArgs)) {
+                return true;
+              }
+            }
+            return false;
+          }
+          if (v.kind === "struct_instance") {
+            if (!t.arguments || t.arguments.length === 0) return true;
+            const actualArgs = v.typeArguments ?? [];
+            if (actualArgs.length === 0) return true;
+            if (actualArgs.length !== t.arguments.length) return false;
+            return t.arguments.every((expected, idx) => {
+              const actual = actualArgs[idx]!;
+              if (actual.type === "WildcardTypeExpression") return true;
+              if (expected.type === "WildcardTypeExpression") return true;
+              if (expected.type === "SimpleTypeExpression") {
+                const name = expected.name.name;
+                if (name === "Self" || /^[A-Z]/.test(name)) return true;
+              }
+              return this.typeExpressionsEqual(expected, actual);
+            });
+          }
         }
         return true;
       }
@@ -227,6 +257,8 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
         return value.def.id.name;
       case "interface_value":
         return this.getTypeNameForValue(value.value);
+      case "error":
+        return "Error";
       case "string":
         return "string";
       case "bool":
@@ -240,11 +272,20 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
     }
   };
 
-  cls.prototype.typeImplementsInterface = function typeImplementsInterface(this: InterpreterV10, typeName: string, interfaceName: string): boolean {
-    const entries = this.implMethods.get(typeName);
-    if (!entries) return false;
+  cls.prototype.typeImplementsInterface = function typeImplementsInterface(this: InterpreterV10, typeName: string, interfaceName: string, typeArgs?: AST.TypeExpression[]): boolean {
+    if (interfaceName === "Error" && typeName === "Error") {
+      return true;
+    }
+    const base: AST.SimpleTypeExpression = { type: "SimpleTypeExpression", name: AST.identifier(typeName) };
+    const subjectType: AST.TypeExpression = typeArgs && typeArgs.length > 0 ? { type: "GenericTypeExpression", base, arguments: typeArgs } : base;
+    const entries = [
+      ...(this.implMethods.get(typeName) ?? []),
+      ...this.genericImplMethods,
+    ];
+    if (entries.length === 0) return false;
     for (const entry of entries) {
-      if (entry.def.interfaceName.name === interfaceName) return true;
+      if (entry.def.interfaceName.name !== interfaceName) continue;
+      if (this.matchImplEntry(entry, { subjectType, typeArgs })) return true;
     }
     return false;
   };
@@ -268,23 +309,33 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
   };
 
   cls.prototype.toInterfaceValue = function toInterfaceValue(this: InterpreterV10, interfaceName: string, rawValue: V10Value): V10Value {
-    if (!this.interfaces.has(interfaceName)) {
-      throw new Error(`Unknown interface '${interfaceName}'`);
-    }
-    if (rawValue.kind === "interface_value") {
+  if (!this.interfaces.has(interfaceName)) {
+    throw new Error(`Unknown interface '${interfaceName}'`);
+  }
+  if (rawValue.kind === "interface_value") {
       if (rawValue.interfaceName === interfaceName) return rawValue;
       return this.toInterfaceValue(interfaceName, rawValue.value);
     }
     const typeName = this.getTypeNameForValue(rawValue);
-    if (!typeName || !this.typeImplementsInterface(typeName, interfaceName)) {
-      throw new Error(`Type '${typeName ?? "<unknown>"}' does not implement interface '${interfaceName}'`);
+  if (!typeName || !this.typeImplementsInterface(typeName, interfaceName, rawValue.kind === "struct_instance" ? rawValue.typeArguments : undefined)) {
+    throw new Error(`Type '${typeName ?? "<unknown>"}' does not implement interface '${interfaceName}'`);
+  }
+  let typeArguments: AST.TypeExpression[] | undefined;
+  let typeArgMap: Map<string, AST.TypeExpression> | undefined;
+  if (rawValue.kind === "struct_instance") {
+    typeArguments = rawValue.typeArguments;
+    typeArgMap = rawValue.typeArgMap;
+  }
+  const resolution = this.resolveInterfaceImplementation(typeName, interfaceName, {
+    typeArgs: typeArguments,
+    typeArgMap,
+  });
+  if (!resolution.ok) {
+    if (resolution.error) {
+      throw resolution.error;
     }
-    let typeArguments: AST.TypeExpression[] | undefined;
-    let typeArgMap: Map<string, AST.TypeExpression> | undefined;
-    if (rawValue.kind === "struct_instance") {
-      typeArguments = rawValue.typeArguments;
-      typeArgMap = rawValue.typeArgMap;
-    }
-    return { kind: "interface_value", interfaceName, value: rawValue, typeArguments, typeArgMap };
-  };
+    throw new Error(`Type '${typeName ?? "<unknown>"}' does not implement interface '${interfaceName}'`);
+  }
+  return { kind: "interface_value", interfaceName, value: rawValue, typeArguments, typeArgMap };
+};
 }
