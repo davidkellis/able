@@ -10,7 +10,7 @@ fn translate(point: Point, dx: i32, dy: i32) -> Point {
 }
 
 fn describe(point: Point) -> string {
-  Point { x: x, y: y } := point
+  Point { x::x, y::y } := point
   `Point(${x}, ${y})`
 }
 

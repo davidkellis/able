@@ -76,8 +76,8 @@ func TestParseMatchExpression(t *testing.T) {
 
 fn classify(point: Point) -> i32 {
   point match {
-    case Point { x: a, y: b } if b > a => a + b,
-    case Point { x: value, y: value } => value,
+    case Point { x::a, y::b } if b > a => a + b,
+    case Point { x::value, y::value } => value,
     case _ => 0,
   }
 }

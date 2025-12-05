@@ -10,6 +10,7 @@ export interface ImplementationMatch {
   interfaceArgs: string[];
   score: number;
   constraintKeys: Set<string>;
+  isConcreteTarget: boolean;
 }
 
 export function collectUnionVariantLabels(
@@ -40,24 +41,6 @@ export function collectUnionVariantLabels(
     return undefined;
   }
   return Array.from(variants).sort();
-}
-
-export function computeImplementationSpecificity(
-  ctx: ImplementationContext,
-  record: ImplementationRecord,
-  substitutions: Map<string, TypeInfo>,
-): number {
-  const genericNames = new Set(record.genericParams);
-  let bindingScore = 0;
-  for (const name of genericNames) {
-    if (substitutions.has(name)) {
-      bindingScore += 1;
-    }
-  }
-  const concreteScore = measureTemplateSpecificity(record.target, genericNames);
-  const constraintScore = record.obligations.length;
-  const unionPenalty = record.unionVariants ? record.unionVariants.length : 0;
-  return concreteScore * 100 + constraintScore * 10 + bindingScore - unionPenalty;
 }
 
 export function buildConstraintKeySet(
@@ -109,12 +92,18 @@ export function selectMostSpecificImplementationMatch(
 }
 
 function compareImplementationMatches(a: ImplementationMatch, b: ImplementationMatch): number {
-  if (a.score > b.score) return 1;
-  if (a.score < b.score) return -1;
+  if (a.isConcreteTarget && !b.isConcreteTarget) return 1;
+  if (b.isConcreteTarget && !a.isConcreteTarget) return -1;
+  if (isConstraintSuperset(a.constraintKeys, b.constraintKeys)) return 1;
+  if (isConstraintSuperset(b.constraintKeys, a.constraintKeys)) return -1;
   const aUnion = a.record.unionVariants;
   const bUnion = b.record.unionVariants;
-  if (aUnion && !bUnion) return -1;
-  if (!aUnion && bUnion) return 1;
+  const aUnionSize = aUnion?.length ?? 0;
+  const bUnionSize = bUnion?.length ?? 0;
+  if (aUnionSize !== bUnionSize) {
+    if (aUnionSize === 0) return 1;
+    if (bUnionSize === 0) return -1;
+  }
   if (aUnion && bUnion) {
     if (isProperSubset(aUnion, bUnion)) return 1;
     if (isProperSubset(bUnion, aUnion)) return -1;
@@ -122,8 +111,8 @@ function compareImplementationMatches(a: ImplementationMatch, b: ImplementationM
       return aUnion.length < bUnion.length ? 1 : -1;
     }
   }
-  if (isConstraintSuperset(a.constraintKeys, b.constraintKeys)) return 1;
-  if (isConstraintSuperset(b.constraintKeys, a.constraintKeys)) return -1;
+  if (a.score > b.score) return 1;
+  if (a.score < b.score) return -1;
   return 0;
 }
 
@@ -167,6 +156,31 @@ function measureTemplateSpecificity(expr: AST.TypeExpression | null | undefined,
     }
     default:
       return 0;
+  }
+}
+
+export function measureTargetInstantiation(record: ImplementationRecord, genericNames: Set<string>): number {
+  return measureTemplateSpecificity(record.target, genericNames);
+}
+
+export function targetUsesGenerics(expr: AST.TypeExpression | null | undefined, genericNames: Set<string>): boolean {
+  if (!expr) return false;
+  switch (expr.type) {
+    case "SimpleTypeExpression":
+      return genericNames.has(expr.name.name);
+    case "GenericTypeExpression":
+      if (targetUsesGenerics(expr.base, genericNames)) return true;
+      return (expr.arguments ?? []).some(arg => targetUsesGenerics(arg, genericNames));
+    case "NullableTypeExpression":
+    case "ResultTypeExpression":
+      return targetUsesGenerics(expr.innerType, genericNames);
+    case "UnionTypeExpression":
+      return (expr.members ?? []).some(member => targetUsesGenerics(member, genericNames));
+    case "FunctionTypeExpression":
+      if (targetUsesGenerics(expr.returnType, genericNames)) return true;
+      return (expr.paramTypes ?? []).some(param => targetUsesGenerics(param, genericNames));
+    default:
+      return false;
   }
 }
 

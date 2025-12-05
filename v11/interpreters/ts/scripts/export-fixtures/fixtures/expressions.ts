@@ -340,6 +340,53 @@ const expressionsFixtures: Fixture[] = [
         },
       },
     },
+
+  {
+      name: "pipes/low_precedence_pipe",
+      module: AST.module([
+        AST.fn(
+          "inc",
+          [AST.param("x", AST.simpleTypeExpression("i32"))],
+          [AST.ret(AST.bin("+", AST.id("x"), AST.int(1)))],
+          AST.simpleTypeExpression("i32"),
+        ),
+        AST.fn(
+          "bool_to_int",
+          [AST.param("value", AST.simpleTypeExpression("bool"))],
+          [
+            AST.ret(
+              AST.ifExpression(
+                AST.id("value"),
+                AST.block(AST.ret(AST.int(1))),
+                [AST.orClause(AST.block(AST.ret(AST.int(0))))],
+              ),
+            ),
+          ],
+          AST.simpleTypeExpression("i32"),
+        ),
+        AST.assign("a", AST.int(0)),
+        AST.assign("b", AST.int(0)),
+        AST.assign("res1", AST.binaryExpression("|>>", AST.assign("a", AST.int(5), "="), AST.id("inc"))),
+        AST.assign("res2", AST.assign("b", AST.binaryExpression("|>", AST.int(1), AST.id("inc")), "=")),
+        AST.assign("flag", AST.binaryExpression("|>", AST.bin("||", AST.bool(false), AST.bool(true)), AST.id("bool_to_int"))),
+        AST.arr(AST.id("res1"), AST.id("a"), AST.id("res2"), AST.id("b"), AST.id("flag")),
+      ]),
+      manifest: {
+        description: "Low-precedence pipe (|>>) runs after assignment; |> binds above assignment but below ||",
+        expect: {
+          result: {
+            kind: "array",
+            elements: [
+              { kind: "i32", value: 6n },
+              { kind: "i32", value: 5n },
+              { kind: "i32", value: 2n },
+              { kind: "i32", value: 2n },
+              { kind: "i32", value: 1n },
+            ],
+          },
+        },
+      },
+    },
 ];
 
 export default expressionsFixtures;

@@ -444,8 +444,55 @@ const errorsFixtures: Fixture[] = [
         expect: {
           errors: ["Undefined variable 'build'"],
           typecheckDiagnostics: [
-            "typechecker: ../fixtures/ast/errors/ufcs_static_method_not_found/source.able:7:8 typechecker: undefined identifier 'build'",
+            "typechecker: ../fixtures/ast/errors/ufcs_static_method_not_found/source.able:13:8 typechecker: undefined identifier 'build'",
           ],
+        },
+      },
+    },
+
+  {
+      name: "errors/ufcs_overload_ambiguity",
+      module: AST.module([
+        AST.structDefinition(
+          "Point",
+          [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "x")],
+          "named",
+        ),
+        AST.functionDefinition(
+          "tag",
+          [
+            AST.functionParameter("p", AST.simpleTypeExpression("Point")),
+            AST.functionParameter(
+              "values",
+              AST.genericTypeExpression(AST.simpleTypeExpression("Array"), [AST.simpleTypeExpression("i32")]),
+            ),
+          ],
+          AST.blockExpression([AST.int(1)]),
+          AST.simpleTypeExpression("i32"),
+        ),
+        AST.functionDefinition(
+          "tag",
+          [
+            AST.functionParameter("p", AST.simpleTypeExpression("Point")),
+            AST.functionParameter(
+              "values",
+              AST.genericTypeExpression(AST.simpleTypeExpression("Array"), [AST.simpleTypeExpression("string")]),
+            ),
+          ],
+          AST.blockExpression([AST.int(2)]),
+          AST.simpleTypeExpression("i32"),
+        ),
+        AST.assign(
+          "p",
+          AST.structLiteral([AST.structFieldInitializer(AST.int(0), "x")], false, "Point"),
+        ),
+        AST.functionCall(AST.memberAccessExpression(AST.id("p"), "tag"), [AST.arrayLiteral([])]),
+      ]),
+      manifest: {
+        description: "Method-style UFCS surfaces ambiguity when overloads expect different first-parameter tail types",
+        expect: {
+          errors: ["Ambiguous overload for tag"],
+          typecheckDiagnostics: [],
         },
       },
     },

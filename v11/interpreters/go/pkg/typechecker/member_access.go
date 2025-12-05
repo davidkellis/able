@@ -86,15 +86,26 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 				return diags, final
 			}
 		}
-		if fnType, ok := c.lookupMethod(objectType, memberName); ok {
+		if fnType, ok, detail := c.lookupMethod(objectType, memberName); ok {
 			final := c.finalizeMemberAccessType(expr, wrapType, fnType)
 			return diags, final
+		} else if detail != "" {
+			diags = append(diags, Diagnostic{
+				Message: "typechecker: " + detail,
+				Node:    expr,
+			})
+			c.infer.set(expr, UnknownType{})
+			return diags, UnknownType{}
 		}
 		if isErrorStructType(ty) {
 			if memberType, ok := c.errorMemberType(memberName); ok {
 				final := c.finalizeMemberAccessType(expr, wrapType, memberType)
 				return diags, final
 			}
+		}
+		if fnType, ok := c.lookupUfcsFreeFunction(env, objectType, memberName); ok {
+			final := c.finalizeMemberAccessType(expr, wrapType, fnType)
+			return diags, final
 		}
 		diags = append(diags, Diagnostic{
 			Message: fmt.Sprintf("typechecker: struct '%s' has no member '%s'", ty.StructName, memberName),
@@ -117,15 +128,26 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 			final := c.finalizeMemberAccessType(expr, wrapType, fieldType)
 			return diags, final
 		}
-		if fnType, ok := c.lookupMethod(objectType, memberName); ok {
+		if fnType, ok, detail := c.lookupMethod(objectType, memberName); ok {
 			final := c.finalizeMemberAccessType(expr, wrapType, fnType)
 			return diags, final
+		} else if detail != "" {
+			diags = append(diags, Diagnostic{
+				Message: "typechecker: " + detail,
+				Node:    expr,
+			})
+			c.infer.set(expr, UnknownType{})
+			return diags, UnknownType{}
 		}
 		if isErrorStructInstanceType(ty) {
 			if memberType, ok := c.errorMemberType(memberName); ok {
 				final := c.finalizeMemberAccessType(expr, wrapType, memberType)
 				return diags, final
 			}
+		}
+		if fnType, ok := c.lookupUfcsFreeFunction(env, objectType, memberName); ok {
+			final := c.finalizeMemberAccessType(expr, wrapType, fnType)
+			return diags, final
 		}
 		diags = append(diags, Diagnostic{
 			Message: fmt.Sprintf("typechecker: struct '%s' has no member '%s'", ty.StructName, memberName),
@@ -136,7 +158,18 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 			c.infer.set(expr, UnknownType{})
 			return diags, UnknownType{}
 		}
-		if fnType, ok := c.lookupMethod(objectType, memberName); ok {
+		if fnType, ok, detail := c.lookupMethod(objectType, memberName); ok {
+			final := c.finalizeMemberAccessType(expr, wrapType, fnType)
+			return diags, final
+		} else if detail != "" {
+			diags = append(diags, Diagnostic{
+				Message: "typechecker: " + detail,
+				Node:    expr,
+			})
+			c.infer.set(expr, UnknownType{})
+			return diags, UnknownType{}
+		}
+		if fnType, ok := c.lookupUfcsFreeFunction(env, objectType, memberName); ok {
 			final := c.finalizeMemberAccessType(expr, wrapType, fnType)
 			return diags, final
 		}
@@ -153,7 +186,18 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 			break
 		}
 		if ty.Kind == PrimitiveString {
-			if fnType, ok := c.lookupMethod(objectType, memberName); ok {
+			if fnType, ok, detail := c.lookupMethod(objectType, memberName); ok {
+				final := c.finalizeMemberAccessType(expr, wrapType, fnType)
+				return diags, final
+			} else if detail != "" {
+				diags = append(diags, Diagnostic{
+					Message: "typechecker: " + detail,
+					Node:    expr,
+				})
+				c.infer.set(expr, UnknownType{})
+				return diags, UnknownType{}
+			}
+			if fnType, ok := c.lookupUfcsFreeFunction(env, objectType, memberName); ok {
 				final := c.finalizeMemberAccessType(expr, wrapType, fnType)
 				return diags, final
 			}
@@ -162,6 +206,10 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 				Node:    expr,
 			})
 			break
+		}
+		if fnType, ok := c.lookupUfcsFreeFunction(env, objectType, memberName); ok {
+			final := c.finalizeMemberAccessType(expr, wrapType, fnType)
+			return diags, final
 		}
 		diags = append(diags, Diagnostic{
 			Message: fmt.Sprintf("typechecker: cannot access member '%s' on type %s", memberName, typeName(objectType)),
@@ -174,6 +222,12 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 				Node:    expr,
 			})
 			break
+		}
+		if ty.InterfaceName == "Error" {
+			if memberType, ok := c.errorMemberType(memberName); ok {
+				final := c.finalizeMemberAccessType(expr, wrapType, memberType)
+				return diags, final
+			}
 		}
 		if ty.Methods != nil {
 			if methodType, ok := ty.Methods[memberName]; ok {
@@ -195,6 +249,12 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 			break
 		}
 		if iface, ok := ty.Base.(InterfaceType); ok {
+			if iface.InterfaceName == "Error" {
+				if memberType, ok := c.errorMemberType(memberName); ok {
+					final := c.finalizeMemberAccessType(expr, wrapType, memberType)
+					return diags, final
+				}
+			}
 			if iface.Methods != nil {
 				if methodType, ok := iface.Methods[memberName]; ok {
 					subst := make(map[string]Type, len(iface.TypeParams))
@@ -215,9 +275,51 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 			})
 			break
 		}
-		if fnType, ok := c.lookupMethod(objectType, memberName); ok {
+		if baseStruct, ok := ty.Base.(StructType); ok {
+			subst := make(map[string]Type, len(baseStruct.TypeParams))
+			for i, param := range baseStruct.TypeParams {
+				if param.Name == "" {
+					continue
+				}
+				if i < len(ty.Arguments) && ty.Arguments[i] != nil {
+					subst[param.Name] = ty.Arguments[i]
+				}
+			}
+			if positionalAccess {
+				if positionalIndex < len(baseStruct.Positional) {
+					fieldType := baseStruct.Positional[positionalIndex]
+					if len(subst) > 0 {
+						fieldType = substituteType(fieldType, subst)
+					}
+					final := c.finalizeMemberAccessType(expr, wrapType, fieldType)
+					return diags, final
+				}
+				diags = append(diags, Diagnostic{
+					Message: fmt.Sprintf("typechecker: struct '%s' has no positional member %d", baseStruct.StructName, positionalIndex),
+					Node:    expr,
+				})
+				break
+			}
+			if baseStruct.Fields != nil {
+				if fieldType, ok := baseStruct.Fields[memberName]; ok {
+					if len(subst) > 0 {
+						fieldType = substituteType(fieldType, subst)
+					}
+					final := c.finalizeMemberAccessType(expr, wrapType, fieldType)
+					return diags, final
+				}
+			}
+		}
+		if fnType, ok, detail := c.lookupMethod(objectType, memberName); ok {
 			final := c.finalizeMemberAccessType(expr, wrapType, fnType)
 			return diags, final
+		} else if detail != "" {
+			diags = append(diags, Diagnostic{
+				Message: "typechecker: " + detail,
+				Node:    expr,
+			})
+			c.infer.set(expr, UnknownType{})
+			return diags, UnknownType{}
 		}
 	case IteratorType:
 		if positionalAccess {
@@ -309,6 +411,29 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 			Message: fmt.Sprintf("typechecker: package '%s' has no symbol '%s'", ty.Package, memberName),
 			Node:    expr,
 		})
+	case ImplementationNamespaceType:
+		if positionalAccess {
+			diags = append(diags, Diagnostic{
+				Message: "typechecker: positional member access not supported on implementations",
+				Node:    expr,
+			})
+			break
+		}
+		if fnType, detail, ok := c.lookupImplementationNamespaceMethod(ty, memberName); ok {
+			final := c.finalizeMemberAccessType(expr, wrapType, fnType)
+			return diags, final
+		} else if detail != "" {
+			diags = append(diags, Diagnostic{
+				Message: "typechecker: " + detail,
+				Node:    expr,
+			})
+			c.infer.set(expr, UnknownType{})
+			return diags, UnknownType{}
+		}
+		diags = append(diags, Diagnostic{
+			Message: fmt.Sprintf("typechecker: implementation has no member '%s'", memberName),
+			Node:    expr,
+		})
 	case UnknownType:
 		c.infer.set(expr, UnknownType{})
 		return diags, UnknownType{}
@@ -336,9 +461,16 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 			})
 			break
 		}
-		if fnType, ok := c.lookupMethod(objectType, memberName); ok {
+		if fnType, ok, detail := c.lookupMethod(objectType, memberName); ok {
 			final := c.finalizeMemberAccessType(expr, wrapType, fnType)
 			return diags, final
+		} else if detail != "" {
+			diags = append(diags, Diagnostic{
+				Message: "typechecker: " + detail,
+				Node:    expr,
+			})
+			c.infer.set(expr, UnknownType{})
+			return diags, UnknownType{}
 		}
 		diags = append(diags, Diagnostic{
 			Message: fmt.Sprintf("typechecker: cannot access member '%s' on type %s", memberName, typeName(objectType)),
@@ -396,15 +528,16 @@ func stripNilFromUnion(u UnionLiteralType) Type {
 	}
 }
 
-func (c *Checker) lookupMethod(object Type, name string) (FunctionType, bool) {
+func (c *Checker) lookupMethod(object Type, name string) (FunctionType, bool, string) {
 	bestFn, bestScore, found := c.lookupMethodInMethodSets(object, name)
-	if implFn, implScore, implFound := c.lookupMethodInImplementations(object, name); implFound {
-		if !found || implScore > bestScore {
-			return implFn, true
-		}
-		return bestFn, true
+	implFn, implScore, implFound, implDetail := c.lookupMethodInImplementations(object, name)
+	if implFound && (!found || implScore > bestScore) {
+		return implFn, true, ""
 	}
-	return bestFn, found
+	if found {
+		return bestFn, true, ""
+	}
+	return FunctionType{}, false, implDetail
 }
 
 func (c *Checker) lookupMethodInMethodSets(object Type, name string) (FunctionType, int, bool) {
@@ -521,58 +654,187 @@ func methodSetOwnerLabel(spec MethodSetSpec, substitution map[string]Type, metho
 	return fmt.Sprintf("methods for %s::%s", label, methodName)
 }
 
-func (c *Checker) lookupMethodInImplementations(object Type, name string) (FunctionType, int, bool) {
+type implementationMethodBuild struct {
+	fn           FunctionType
+	substitution map[string]Type
+	actualArgs   []Type
+}
+
+func (c *Checker) buildImplementationMethodCandidate(spec ImplementationSpec, object Type, name string) (implementationMethodBuild, int, bool, string) {
+	if spec.ImplName != "" {
+		return implementationMethodBuild{}, 0, false, ""
+	}
+	method, ok := spec.Methods[name]
+	if !ok {
+		return implementationMethodBuild{}, 0, false, ""
+	}
+	subst, score, ok := matchMethodTarget(object, spec.Target, spec.TypeParams)
+	if !ok {
+		return implementationMethodBuild{}, 0, false, ""
+	}
+	substitution := cloneTypeMap(subst)
+	if substitution == nil {
+		substitution = make(map[string]Type)
+	}
+	if object != nil {
+		substitution["Self"] = object
+	}
+	if res := c.interfaceFromName(spec.InterfaceName); res.err == "" && res.iface.InterfaceName != "" {
+		extendImplementationSubstitution(substitution, res.iface, spec.InterfaceArgs)
+	}
+	for _, param := range spec.TypeParams {
+		if param.Name == "" {
+			continue
+		}
+		if _, ok := substitution[param.Name]; !ok {
+			substitution[param.Name] = UnknownType{}
+		}
+	}
+	actualArgs := make([]Type, len(spec.InterfaceArgs))
+	for i, arg := range spec.InterfaceArgs {
+		actualArgs[i] = substituteType(arg, substitution)
+	}
+	var substitutedObligations []ConstraintObligation
+	if len(spec.Obligations) > 0 {
+		populated := populateObligationSubjects(spec.Obligations, object)
+		substitutedObligations = substituteObligations(populated, substitution)
+		if ok, detail, ob := c.obligationSetSatisfied(substitutedObligations); !ok {
+			annotated := annotateImplementationFailure(detail, spec, object, substitution, actualArgs, ob)
+			return implementationMethodBuild{}, 0, false, annotated
+		}
+	}
+	if len(substitution) > 0 {
+		method = substituteFunctionType(method, substitution)
+	}
+	if len(substitutedObligations) > 0 {
+		method.Obligations = append(method.Obligations, substitutedObligations...)
+	}
+	if shouldBindSelfParam(method, object) {
+		method = bindMethodType(method)
+	}
+	return implementationMethodBuild{
+		fn:           method,
+		substitution: substitution,
+		actualArgs:   actualArgs,
+	}, score, true, ""
+}
+
+type implementationMethodCandidate struct {
+	match  implementationMatch
+	method FunctionType
+	score  int
+}
+
+func (c *Checker) lookupMethodInImplementations(object Type, name string) (FunctionType, int, bool, string) {
 	if len(c.implementations) == 0 {
-		return FunctionType{}, -1, false
+		return FunctionType{}, -1, false, ""
 	}
 	var (
-		found     bool
-		bestScore = -1
-		bestFn    FunctionType
+		candidates []implementationMethodCandidate
+		bestDetail string
 	)
 	for _, spec := range c.implementations {
-		subst, score, ok := matchMethodTarget(object, spec.Target, spec.TypeParams)
+		method, score, ok, detail := c.buildImplementationMethodCandidate(spec, object, name)
 		if !ok {
+			if detail != "" && len(detail) > len(bestDetail) {
+				bestDetail = detail
+			}
 			continue
 		}
-		method, ok := spec.Methods[name]
-		if !ok {
+		candidates = append(candidates, implementationMethodCandidate{
+			match: implementationMatch{
+				spec:           spec,
+				substitution:   method.substitution,
+				actualArgs:     method.actualArgs,
+				specificity:    computeImplementationSpecificity(spec),
+				constraintKeys: buildImplementationConstraintKeySet(spec),
+				isConcrete:     !implementationTargetUsesTypeParams(spec.Target),
+			},
+			method: method.fn,
+			score:  score,
+		})
+	}
+	if len(candidates) == 0 {
+		return FunctionType{}, -1, false, bestDetail
+	}
+	if len(candidates) == 1 {
+		cand := candidates[0]
+		return cand.method, cand.score, true, ""
+	}
+	best := candidates[0]
+	contenders := []implementationMethodCandidate{best}
+	for _, candidate := range candidates[1:] {
+		cmp := compareImplementationMatches(candidate.match, best.match)
+		if cmp > 0 {
+			best = candidate
+			contenders = []implementationMethodCandidate{candidate}
 			continue
 		}
-		substitution := cloneTypeMap(subst)
-		if substitution == nil {
-			substitution = make(map[string]Type)
-		}
-		if object != nil {
-			substitution["Self"] = object
-		}
-		if spec.InterfaceName != "" {
-			res := c.interfaceFromName(spec.InterfaceName)
-			if res.err == "" && res.iface.InterfaceName != "" {
-				extendImplementationSubstitution(substitution, res.iface, spec.InterfaceArgs)
+		if cmp == 0 {
+			reverse := compareImplementationMatches(best.match, candidate.match)
+			if reverse < 0 {
+				best = candidate
+				contenders = []implementationMethodCandidate{candidate}
+			} else if reverse == 0 {
+				contenders = append(contenders, candidate)
 			}
-		}
-		for _, param := range spec.TypeParams {
-			if param.Name == "" {
-				continue
-			}
-			if _, ok := substitution[param.Name]; !ok {
-				substitution[param.Name] = UnknownType{}
-			}
-		}
-		if len(substitution) > 0 {
-			method = substituteFunctionType(method, substitution)
-		}
-		if shouldBindSelfParam(method, object) {
-			method = bindMethodType(method)
-		}
-		if !found || score > bestScore {
-			bestScore = score
-			bestFn = method
-			found = true
 		}
 	}
-	return bestFn, bestScore, found
+	if len(contenders) == 1 {
+		return best.method, best.score, true, ""
+	}
+	iface := InterfaceType{InterfaceName: contenders[0].match.spec.InterfaceName}
+	if res := c.interfaceFromName(iface.InterfaceName); res.err == "" && res.iface.InterfaceName != "" {
+		iface = res.iface
+	}
+	matches := make([]implementationMatch, len(contenders))
+	for i, cand := range contenders {
+		match := cand.match
+		match.substitution = nil
+		match.actualArgs = nil
+		matches[i] = match
+	}
+	detail := formatAmbiguousImplementationDetail(iface, object, matches)
+	return FunctionType{}, -1, false, detail
+}
+
+func (c *Checker) lookupImplementationNamespaceMethod(ns ImplementationNamespaceType, name string) (FunctionType, string, bool) {
+	if ns.Impl == nil {
+		return FunctionType{}, "implementation has no methods", false
+	}
+	method, ok := ns.Impl.Methods[name]
+	if !ok {
+		label := "implementation"
+		if ns.Impl.ImplName != "" {
+			label = fmt.Sprintf("implementation '%s'", ns.Impl.ImplName)
+		}
+		return FunctionType{}, fmt.Sprintf("%s has no method '%s'", label, name), false
+	}
+	substitution := make(map[string]Type)
+	target := ns.Impl.Target
+	if target != nil {
+		substitution["Self"] = target
+	}
+	if res := c.interfaceFromName(ns.Impl.InterfaceName); res.err == "" && res.iface.InterfaceName != "" {
+		extendImplementationSubstitution(substitution, res.iface, ns.Impl.InterfaceArgs)
+	}
+	for _, param := range ns.Impl.TypeParams {
+		if param.Name == "" {
+			continue
+		}
+		if _, ok := substitution[param.Name]; !ok {
+			substitution[param.Name] = TypeParameterType{ParameterName: param.Name}
+		}
+	}
+	if len(substitution) > 0 {
+		method = substituteFunctionType(method, substitution)
+	}
+	if len(ns.Impl.Obligations) > 0 {
+		obligations := populateObligationSubjects(ns.Impl.Obligations, target)
+		obligations = substituteObligations(obligations, substitution)
+		method.Obligations = append(method.Obligations, obligations...)
+	}
+	return method, "", true
 }
 
 func (c *Checker) lookupUfcsInherentMethod(object Type, name string) (FunctionType, bool) {
@@ -635,6 +897,24 @@ func (c *Checker) lookupUfcsInherentMethod(object Type, name string) (FunctionTy
 		}
 	}
 	return bestFn, found
+}
+
+func (c *Checker) lookupUfcsFreeFunction(env *Environment, object Type, name string) (FunctionType, bool) {
+	if env == nil {
+		return FunctionType{}, false
+	}
+	typ, ok := env.Lookup(name)
+	if !ok {
+		return FunctionType{}, false
+	}
+	fnType, ok := typ.(FunctionType)
+	if !ok {
+		return FunctionType{}, false
+	}
+	if !shouldBindSelfParam(fnType, object) {
+		return FunctionType{}, false
+	}
+	return bindMethodType(fnType), true
 }
 
 func isErrorStructType(ty StructType) bool {
@@ -702,6 +982,14 @@ func matchMethodTarget(object Type, target Type, params []GenericParamSpec) (map
 		if targetFloat, ok := target.(FloatType); ok && targetFloat.Suffix == objFloat.Suffix {
 			return nil, 0, true
 		}
+	}
+	if _, ok := target.(TypeParameterType); ok {
+		subst := make(map[string]Type)
+		ok, score := matchTypeArgument(object, target, subst)
+		if !ok {
+			return nil, 0, false
+		}
+		return finalizeMatchResult(subst, params, score)
 	}
 	if targetUnion, ok := target.(UnionLiteralType); ok {
 		return matchUnionLiteralTarget(object, targetUnion, params)
@@ -1020,6 +1308,11 @@ func shouldBindSelfParam(method FunctionType, subject Type) bool {
 			if infoSubject, ok := structInfoFromType(subject); ok && infoParam.name != "" && infoParam.name == infoSubject.name {
 				return true
 			}
+		}
+	}
+	if subject != nil && !isUnknownType(subject) {
+		if typeAssignable(subject, first) {
+			return true
 		}
 	}
 	return false

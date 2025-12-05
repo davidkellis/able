@@ -75,7 +75,7 @@ func (c *Checker) checkBinaryExpression(env *Environment, expr *ast.BinaryExpres
 	var diags []Diagnostic
 	diags = append(diags, leftDiags...)
 
-	if expr.Operator == "|>" {
+	if expr.Operator == "|>" || expr.Operator == "|>>" {
 		c.pushPipeContext()
 		rightDiags, _ := c.checkExpression(env, expr.Right)
 		c.popPipeContext()
@@ -175,7 +175,7 @@ func (c *Checker) checkBinaryExpression(env *Environment, expr *ast.BinaryExpres
 			break
 		}
 		resultType = intType
-	case "|>":
+	case "|>", "|>>":
 		// Pipe expressions are desugared by the interpreter; the checker currently
 		// treats them as opaque and propagates the right-hand side type.
 		resultType = rightType

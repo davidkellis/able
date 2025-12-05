@@ -36,7 +36,7 @@ fn expand(chars: Array char, left: i32, right: i32) -> Array i32 {
   r := right
   size := chars.size()
 
-  while l >= 0 and r < size and chars[l] == chars[r] {
+  while l >= 0 && r < size && chars[l] == chars[r] {
     l = l - 1
     r = r + 1
   }

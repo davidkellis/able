@@ -31,7 +31,7 @@ export function parsePackageStatement(ctx: ParseContext, node: Node): AST.Packag
 }
 
 export function parseQualifiedIdentifier(ctx: ParseContext, node: Node | null | undefined): Identifier[] {
-  if (!node || node.type !== "qualified_identifier") {
+  if (!node || (node.type !== "qualified_identifier" && node.type !== "import_path")) {
     throw new MapperError("parser: expected qualified identifier");
   }
   const { source } = ctx;
@@ -53,16 +53,13 @@ export function parseImportClause(
 ): {
   isWildcard: boolean;
   selectors?: ImportSelector[];
-  alias?: Identifier;
 } {
   if (!node) {
     return { isWildcard: false };
   }
 
-  const { source } = ctx;
   let isWildcard = false;
   const selectors: ImportSelector[] = [];
-  let alias: Identifier | undefined;
 
   for (let i = 0; i < node.namedChildCount; i++) {
     const child = node.namedChild(i);
@@ -74,12 +71,6 @@ export function parseImportClause(
       case "import_wildcard_clause":
         isWildcard = true;
         break;
-      case "identifier":
-        if (alias) {
-          throw new MapperError("parser: multiple aliases in import clause");
-        }
-        alias = parseIdentifier(child, source);
-        break;
       default:
         throw new MapperError(`parser: unsupported import clause node ${child.type}`);
     }
@@ -88,11 +79,8 @@ export function parseImportClause(
   if (isWildcard && selectors.length > 0) {
     throw new MapperError("parser: wildcard import cannot include selectors");
   }
-  if (alias && selectors.length > 0) {
-    throw new MapperError("parser: alias cannot be combined with selectors");
-  }
 
-  return { isWildcard, selectors: selectors.length ? selectors : undefined, alias };
+  return { isWildcard, selectors: selectors.length ? selectors : undefined };
 }
 
 export function parseImportSelector(ctx: ParseContext, node: Node): ImportSelector {

@@ -199,6 +199,9 @@ function parseStructDefinition(
     }
   }
 
+  if (id?.name) {
+    ctx.structKinds.set(id.name, kind);
+  }
   const definition = AST.structDefinition(id, fields, kind, generics, whereClause, isPrivate);
   return annotateStatement(definition, node) as StructDefinition;
 }
@@ -528,6 +531,10 @@ function parseInterfaceDefinition(
       throw new MapperError("parser: interface member missing signature");
     }
     const signature = parseFunctionSignature(sigNode, source, ctx);
+    const defaultBody = child.childForFieldName("default_body");
+    if (defaultBody) {
+      signature.defaultImpl = ctx.parseBlock(defaultBody);
+    }
     signatures.push(signature);
   }
 
@@ -542,9 +549,17 @@ function parseFunctionSignature(
   source: string,
   ctx: ParseContext = getActiveParseContext(),
 ): FunctionSignature {
+  const hasBody = Boolean(node.childForFieldName("body"));
   const signature = parseFunctionCore(node, source, ctx);
   return annotate(
-    AST.functionSignature(signature.name, signature.params, signature.returnType, signature.generics, signature.whereClause, undefined),
+    AST.functionSignature(
+      signature.name,
+      signature.params,
+      signature.returnType,
+      signature.generics,
+      signature.whereClause,
+      hasBody ? signature.body : undefined,
+    ),
     node,
   ) as FunctionSignature;
 }

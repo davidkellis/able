@@ -126,15 +126,6 @@ function parseStructPattern(node: Node, source: string, ctx: ParseContext): Patt
     }
 
     if (elem.type === "struct_pattern_field") {
-      if (!elem.childForFieldName("binding") && !elem.childForFieldName("value")) {
-        const fieldNode = elem.childForFieldName("field");
-        if (!fieldNode) {
-          throw new MapperError("parser: struct pattern field missing identifier");
-        }
-        const pat = parseIdentifier(fieldNode, source);
-        fields.push(annotatePatternNode(AST.structPatternField(pat, undefined, undefined), elem) as StructPatternField);
-        continue;
-      }
       fields.push(parseStructPatternField(elem, source, ctx));
       continue;
     }
@@ -143,7 +134,16 @@ function parseStructPattern(node: Node, source: string, ctx: ParseContext): Patt
     fields.push(annotatePatternNode(AST.structPatternField(pattern, undefined, undefined), elem) as StructPatternField);
   }
 
-  const isPositional = fields.some(field => !field.fieldName);
+  const structKind = resolveStructKind(structType, ctx);
+  if (structKind === "positional") {
+    for (const field of fields) {
+      if (field.fieldName) {
+        field.fieldName = undefined;
+      }
+    }
+  }
+
+  const isPositional = structKind === "positional" ? true : fields.some((field) => !field.fieldName);
 
   return annotatePatternNode(AST.structPattern(fields, isPositional, structType), node) as StructPattern;
 }
@@ -165,19 +165,47 @@ function parseStructPatternField(node: Node, source: string, ctx: ParseContext):
     binding = parseIdentifier(bindingNode, source);
   }
 
-  let pattern: Pattern;
+  const typeNode = node.childForFieldName("type");
+  const typeAnnotation = typeNode ? ctx.parseTypeExpression(typeNode) ?? undefined : undefined;
+
   const valueNode = node.childForFieldName("value");
+  const alias = binding ?? fieldName;
+
+  let pattern: Pattern | undefined;
   if (valueNode) {
     pattern = parsePattern(valueNode, source, ctx);
-  } else if (binding) {
-    pattern = binding;
-  } else if (fieldName) {
-    pattern = fieldName;
+  } else if (alias) {
+    pattern = alias;
   } else {
     pattern = annotatePatternNode(AST.wildcardPattern(), node) as Pattern;
   }
 
-  return annotatePatternNode(AST.structPatternField(pattern, fieldName, binding), node) as StructPatternField;
+  if (
+    pattern &&
+    pattern.type === "StructPattern" &&
+    !pattern.structType &&
+    typeAnnotation &&
+    typeAnnotation.type === "SimpleTypeExpression" &&
+    typeAnnotation.name
+  ) {
+    pattern.structType = typeAnnotation.name as Identifier;
+  }
+
+  const bindingForField = valueNode && binding ? binding : undefined;
+
+  return annotatePatternNode(AST.structPatternField(pattern, fieldName, bindingForField, typeAnnotation), node) as StructPatternField;
+}
+
+function resolveStructKind(structType: Identifier | undefined, ctx: ParseContext): AST.StructDefinition["kind"] | undefined {
+  if (!structType) return undefined;
+  const direct = ctx.structKinds.get(structType.name);
+  if (direct) return direct;
+  const parts = structType.name.split(".");
+  if (parts.length > 1) {
+    const base = parts[parts.length - 1];
+    return ctx.structKinds.get(base);
+  }
+  return undefined;
 }
 
 function parseArrayPattern(node: Node, source: string, ctx: ParseContext): Pattern {

@@ -86,11 +86,11 @@ fn main() -> i32 {
     case _ => {}
   }
 
-  if values.contains("right") {
+  if values.contains("right") == true {
     sum = sum + 5
   }
 
-  if values.is_empty() {
+  if values.is_empty() == true {
     sum = sum + 100
   } else {
     sum = sum + values.size()

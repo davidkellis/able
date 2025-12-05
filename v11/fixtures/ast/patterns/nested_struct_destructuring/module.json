@@ -278,6 +278,13 @@
                 }
               ],
               "isPositional": false
+            },
+            "typeAnnotation": {
+              "type": "SimpleTypeExpression",
+              "name": {
+                "type": "Identifier",
+                "name": "Point"
+              }
             }
           },
           {
@@ -300,7 +307,15 @@
                     "name": "x"
                   },
                   "pattern": {
-                    "type": "WildcardPattern"
+                    "type": "Identifier",
+                    "name": "right_x"
+                  },
+                  "typeAnnotation": {
+                    "type": "SimpleTypeExpression",
+                    "name": {
+                      "type": "Identifier",
+                      "name": "i32"
+                    }
                   }
                 },
                 {
@@ -316,6 +331,13 @@
                 }
               ],
               "isPositional": false
+            },
+            "typeAnnotation": {
+              "type": "SimpleTypeExpression",
+              "name": {
+                "type": "Identifier",
+                "name": "Point"
+              }
             }
           },
           {
@@ -336,6 +358,25 @@
                 "type": "Identifier",
                 "name": "rest_values"
               }
+            },
+            "typeAnnotation": {
+              "type": "GenericTypeExpression",
+              "base": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Array"
+                }
+              },
+              "arguments": [
+                {
+                  "type": "SimpleTypeExpression",
+                  "name": {
+                    "type": "Identifier",
+                    "name": "i32"
+                  }
+                }
+              ]
             }
           }
         ],

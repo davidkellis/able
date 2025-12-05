@@ -350,28 +350,29 @@ function maybeReportTypecheckDiagnostics(
     return [];
   }
 
-  const formattedActual = actual.map(formatTypecheckerDiagnostic);
+  const formattedActual = dedupeDiagnostics(actual.map(formatTypecheckerDiagnostic));
+  const expectedNormalized = expected ? dedupeDiagnostics(expected) : null;
 
-  if (expected && expected.length > 0) {
+  if (expectedNormalized && expectedNormalized.length > 0) {
     if (formattedActual.length === 0) {
       if (mode === "strict") {
         throw new Error(
-          `Fixture ${dir} expected typechecker diagnostics ${JSON.stringify(expected)} but none were produced`,
+          `Fixture ${dir} expected typechecker diagnostics ${JSON.stringify(expectedNormalized)} but none were produced`,
         );
       }
       console.warn(
-        `typechecker: fixture ${dir} expected diagnostics ${JSON.stringify(expected)} but checker returned none (mode=${mode})`,
+        `typechecker: fixture ${dir} expected diagnostics ${JSON.stringify(expectedNormalized)} but checker returned none (mode=${mode})`,
       );
       return formattedActual;
     }
     const actualKeys = formattedActual.map(toDiagnosticKey);
-    const expectedKeys = expected.map(toDiagnosticKey);
+    const expectedKeys = expectedNormalized.map(toDiagnosticKey);
     const allExpectedPresent = expectedKeys.every(expectedKey =>
       actualKeys.some(actualKey => diagnosticKeyMatches(actualKey, expectedKey)),
     );
     if (!allExpectedPresent) {
       printPackageSummaries(summaries);
-      const message = `Fixture ${dir} expected typechecker diagnostics ${JSON.stringify(expected)}, got ${JSON.stringify(formattedActual)}`;
+      const message = `Fixture ${dir} expected typechecker diagnostics ${JSON.stringify(expectedNormalized)}, got ${JSON.stringify(formattedActual)}`;
       if (mode === "strict") {
         throw new Error(message);
       }
@@ -402,21 +403,22 @@ function enforceTypecheckBaseline(
   baseline: Record<string, string[]> | null,
 ) {
   if (mode === "off" || !baseline) return;
-  const expected = baseline[rel] ?? [];
+  const expected = dedupeDiagnostics(baseline[rel] ?? []);
+  const dedupedActual = dedupeDiagnostics(actual);
   if (expected.length === 0) {
-    if (actual.length > 0) {
-      throw new Error(`typechecker diagnostics mismatch for ${rel}: expected none, got ${JSON.stringify(actual)}`);
+    if (dedupedActual.length > 0) {
+      throw new Error(`typechecker diagnostics mismatch for ${rel}: expected none, got ${JSON.stringify(dedupedActual)}`);
     }
     return;
   }
-  const actualKeys = actual.map(toDiagnosticKey);
+  const actualKeys = dedupedActual.map(toDiagnosticKey);
   const expectedKeys = expected.map(toDiagnosticKey);
   if (expectedKeys.length !== actualKeys.length) {
-    throw new Error(`typechecker diagnostics mismatch for ${rel}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+    throw new Error(`typechecker diagnostics mismatch for ${rel}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(dedupedActual)}`);
   }
   for (let i = 0; i < expectedKeys.length; i += 1) {
     if (!diagnosticKeyMatches(actualKeys[i], expectedKeys[i])) {
-      throw new Error(`typechecker diagnostics mismatch for ${rel}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+      throw new Error(`typechecker diagnostics mismatch for ${rel}: expected ${JSON.stringify(expected)}, got ${JSON.stringify(dedupedActual)}`);
     }
   }
 }
@@ -428,8 +430,8 @@ function diffBaselineMaps(
   const differences: string[] = [];
   const allKeys = new Set([...Object.keys(actual), ...Object.keys(expected)]);
   for (const key of [...allKeys].sort()) {
-    const actualValues = actual[key] ?? [];
-    const expectedValues = expected[key] ?? [];
+    const actualValues = dedupeDiagnostics(actual[key] ?? []);
+    const expectedValues = dedupeDiagnostics(expected[key] ?? []);
     if (actual[key] === undefined && expected[key] !== undefined && expectedValues.length > 0) {
       differences.push(`${key}: expected ${JSON.stringify(expectedValues)} but fixture was not executed`);
       continue;
@@ -518,6 +520,18 @@ function diagnosticKeyMatches(actual: string, expected: string): boolean {
     return false;
   }
   return true;
+}
+
+function dedupeDiagnostics(entries: string[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const entry of entries) {
+    const key = toDiagnosticKey(entry);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(entry);
+  }
+  return result;
 }
 
 main().catch((err) => {

@@ -25,6 +25,19 @@ func (i *Interpreter) getTypeInfoForValue(value runtime.Value) (typeInfo, bool) 
 			return info, true
 		}
 		return typeInfo{}, false
+	case runtime.ErrorValue:
+		if v.TypeName != nil && v.TypeName.Name != "" {
+			return typeInfo{name: v.TypeName.Name}, true
+		}
+		return typeInfo{name: "Error"}, true
+	case *runtime.ErrorValue:
+		if v == nil {
+			return typeInfo{}, false
+		}
+		if v.TypeName != nil && v.TypeName.Name != "" {
+			return typeInfo{name: v.TypeName.Name}, true
+		}
+		return typeInfo{name: "Error"}, true
 	default:
 		return typeInfo{}, false
 	}
@@ -115,7 +128,7 @@ func (i *Interpreter) lookupImplEntry(info typeInfo, interfaceName string) (*imp
 		if typeDesc == "<unknown>" {
 			typeDesc = info.name
 		}
-		return nil, fmt.Errorf("Ambiguous impl for interface '%s' on type '%s' (candidates: %s)", interfaceName, typeDesc, strings.Join(detail, ", "))
+		return nil, fmt.Errorf("ambiguous implementations of %s for %s: %s", interfaceName, typeDesc, strings.Join(detail, ", "))
 	}
 	if best == nil {
 		return nil, nil
@@ -162,7 +175,14 @@ func (i *Interpreter) findMethod(info typeInfo, methodName string, interfaceFilt
 		if typeDesc == "<unknown>" {
 			typeDesc = info.name
 		}
-		return nil, fmt.Errorf("Ambiguous method '%s' for type '%s' (candidates: %s)", methodName, typeDesc, strings.Join(detail, ", "))
+		ifaceName := methodName
+		if len(ambiguous) > 0 && ambiguous[0].candidate.entry != nil && ambiguous[0].candidate.entry.interfaceName != "" {
+			ifaceName = ambiguous[0].candidate.entry.interfaceName
+		}
+		if len(detail) == 0 {
+			detail = []string{"<unknown>"}
+		}
+		return nil, fmt.Errorf("ambiguous implementations of %s for %s: %s", ifaceName, typeDesc, strings.Join(detail, ", "))
 	}
 	if best == nil {
 		return nil, nil
@@ -291,6 +311,46 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 			}
 			return true
 		}
+		info, ok := i.getTypeInfoForValue(value)
+		if !ok {
+			return true
+		}
+		var baseName string
+		if simple, ok := t.Base.(*ast.SimpleTypeExpression); ok && simple.Name != nil {
+			baseName = simple.Name.Name
+		}
+		if baseName != "" && info.name != "" && baseName != info.name {
+			return false
+		}
+		if len(t.Arguments) > 0 {
+			if len(info.typeArgs) == 0 {
+				return true
+			}
+			if len(t.Arguments) != len(info.typeArgs) {
+				return false
+			}
+			for idx, arg := range t.Arguments {
+				actual := info.typeArgs[idx]
+				if arg == nil || actual == nil {
+					continue
+				}
+				if _, ok := actual.(*ast.WildcardTypeExpression); ok {
+					continue
+				}
+				if simple, ok := arg.(*ast.SimpleTypeExpression); ok && simple.Name != nil {
+					name := simple.Name.Name
+					if !i.isKnownTypeName(name) && !isPrimitiveName(name) {
+						continue
+					}
+				}
+				if _, ok := arg.(*ast.WildcardTypeExpression); ok {
+					continue
+				}
+				if !typeExpressionsEqual(arg, actual) {
+					return false
+				}
+			}
+		}
 		return true
 	case *ast.FunctionTypeExpression:
 		return runtime.IsFunctionLike(value)
@@ -328,6 +388,19 @@ func (i *Interpreter) isKnownTypeName(name string) bool {
 	return false
 }
 
+func isPrimitiveName(name string) bool {
+	switch name {
+	case "bool", "string", "char", "nil", "void":
+		return true
+	case "f32", "f64":
+		return true
+	}
+	if _, err := getIntegerInfo(runtime.IntegerType(name)); err == nil {
+		return true
+	}
+	return false
+}
+
 func (i *Interpreter) coerceValueToType(typeExpr ast.TypeExpression, value runtime.Value) (runtime.Value, error) {
 	switch t := typeExpr.(type) {
 	case *ast.SimpleTypeExpression:
@@ -344,6 +417,14 @@ func (i *Interpreter) coerceValueToType(typeExpr ast.TypeExpression, value runti
 					if val != nil && val.TypeSuffix != targetKind && integerRangeWithinKinds(val.TypeSuffix, targetKind) {
 						return runtime.IntegerValue{Val: new(big.Int).Set(val.Val), TypeSuffix: targetKind}, nil
 					}
+				}
+			}
+			if name == "Error" {
+				if _, ok := value.(runtime.ErrorValue); ok {
+					return value, nil
+				}
+				if errVal, ok := value.(*runtime.ErrorValue); ok && errVal != nil {
+					return value, nil
 				}
 			}
 			if _, ok := i.interfaces[name]; ok {

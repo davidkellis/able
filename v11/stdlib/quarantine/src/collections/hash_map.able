@@ -157,7 +157,7 @@ methods HashMap K V where K: Hash + Eq K + Clone, V: Clone {
           self.entries.write_slot(index, slot_tombstone())
           if first_tombstone < 0 { first_tombstone = index }
         },
-        case SlotFilled { key: existing_key, value: existing_value, hash: existing_hash } => {
+        case SlotFilled { key::existing_key, value::existing_value, hash::existing_hash } => {
           keys_equal := (existing_hash == hash) && key.clone().eq(existing_key.clone())
           if keys_equal {
             self.entries.write_slot(index, slot_filled(existing_key, value, hash))
@@ -235,7 +235,7 @@ impl Map K V for HashMap K V where K: Hash + Eq K + Clone, V: Clone {
     if index < 0 { return nil }
     slot := self.entries.read_slot(index)
     match slot {
-      case SlotFilled { key: existing_key, value: existing_value, hash: existing_hash } => {
+      case SlotFilled { key::existing_key, value::existing_value, hash::existing_hash } => {
         result := existing_value.clone()
         self.entries.write_slot(index, slot_filled(existing_key, existing_value, existing_hash))
         result
@@ -264,7 +264,7 @@ impl Map K V for HashMap K V where K: Hash + Eq K + Clone, V: Clone {
 
     slot := self.entries.read_slot(index)
     match slot {
-      case SlotFilled { key: existing_key, value: existing_value, hash: existing_hash } => {
+      case SlotFilled { key::existing_key, value::existing_value, hash::existing_hash } => {
         self.entries.write_slot(index, slot_tombstone())
         self.len = self.len - 1
         existing_value
@@ -298,7 +298,7 @@ impl Index K (V | IndexError) for HashMap K V where K: Hash + Eq K + Clone, V: C
       IndexError { index: (-1 as i64), length: self.len as i64 }
     } else {
       match self.entries.read_slot(index) {
-        case SlotFilled { key: existing_key, value: existing_value, hash: existing_hash } => {
+        case SlotFilled { key::existing_key, value::existing_value, hash::existing_hash } => {
           result := existing_value.clone()
           self.entries.write_slot(index, slot_filled(existing_key, existing_value, existing_hash))
           result

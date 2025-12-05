@@ -75,7 +75,7 @@ export function applyPlaceholderAugmentations(cls: typeof InterpreterV10): void 
     }
     const plan = analyzePlaceholderExpression(node);
     if (!plan) return null;
-    if (node.type === "BinaryExpression" && node.operator === "|>") {
+    if (node.type === "BinaryExpression" && (node.operator === "|>" || node.operator === "|>>")) {
       return null;
     }
     if (node.type === "FunctionCall") {

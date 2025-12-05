@@ -18,14 +18,21 @@ declare module "./index" {
       methodName: string,
       opts?: { typeArgs?: AST.TypeExpression[]; typeArgMap?: Map<string, AST.TypeExpression>; interfaceName?: string },
     ): Extract<V10Value, { kind: "function" | "function_overload" }> | null;
-    compareMethodMatches(a: { entry: ImplMethodEntry; bindings: Map<string, AST.TypeExpression>; constraints: ConstraintSpec[] }, b: { entry: ImplMethodEntry; bindings: Map<string, AST.TypeExpression>; constraints: ConstraintSpec[] }): number;
+    resolveInterfaceImplementation(
+      typeName: string,
+      interfaceName: string,
+      opts?: { typeArgs?: AST.TypeExpression[]; typeArgMap?: Map<string, AST.TypeExpression> },
+    ): { ok: boolean; error?: Error };
+    compareMethodMatches(
+      a: { entry: ImplMethodEntry; bindings: Map<string, AST.TypeExpression>; constraints: ConstraintSpec[]; isConcreteTarget: boolean; score: number; method?: Extract<V10Value, { kind: "function" | "function_overload" }> },
+      b: { entry: ImplMethodEntry; bindings: Map<string, AST.TypeExpression>; constraints: ConstraintSpec[]; isConcreteTarget: boolean; score: number; method?: Extract<V10Value, { kind: "function" | "function_overload" }> },
+    ): number;
     buildConstraintKeySet(constraints: ConstraintSpec[]): Set<string>;
     isConstraintSuperset(a: Set<string>, b: Set<string>): boolean;
     isProperSubset(a: string[], b: string[]): boolean;
-    matchImplEntry(entry: ImplMethodEntry, opts?: { typeArgs?: AST.TypeExpression[]; typeArgMap?: Map<string, AST.TypeExpression> }): Map<string, AST.TypeExpression> | null;
+    matchImplEntry(entry: ImplMethodEntry, opts?: { typeArgs?: AST.TypeExpression[]; typeArgMap?: Map<string, AST.TypeExpression>; subjectType?: AST.TypeExpression }): Map<string, AST.TypeExpression> | null;
     matchTypeExpressionTemplate(template: AST.TypeExpression, actual: AST.TypeExpression, genericNames: Set<string>, bindings: Map<string, AST.TypeExpression>): boolean;
     expandImplementationTargetVariants(target: AST.TypeExpression): Array<{ typeName: string; argTemplates: AST.TypeExpression[]; signature: string }>;
-    computeImplSpecificity(entry: ImplMethodEntry, bindings: Map<string, AST.TypeExpression>, constraints: ConstraintSpec[]): number;
     measureTemplateSpecificity(t: AST.TypeExpression, genericNames: Set<string>): number;
     attachDefaultInterfaceMethods(
       imp: AST.ImplementationDefinition,
@@ -195,33 +202,38 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
   cls.prototype.findMethod = function findMethod(this: InterpreterV10, typeName: string, methodName: string, opts?: { typeArgs?: AST.TypeExpression[]; typeArgMap?: Map<string, AST.TypeExpression>; interfaceName?: string }): Extract<V10Value, { kind: "function" | "function_overload" }> | null {
   const inherent = this.inherentMethods.get(typeName);
   if (inherent && inherent.has(methodName)) return inherent.get(methodName)!;
-  const entries = this.implMethods.get(typeName);
+  const subjectType = typeExpressionFromInfo(typeName, opts?.typeArgs);
+  const entries = [
+    ...(this.implMethods.get(typeName) ?? []),
+    ...this.genericImplMethods,
+  ];
   let constraintError: Error | null = null;
   const matches: Array<{
     method: Extract<V10Value, { kind: "function" }>;
     score: number;
     entry: ImplMethodEntry;
     constraints: ConstraintSpec[];
+    isConcreteTarget: boolean;
   }> = [];
-  if (entries) {
-    for (const entry of entries) {
-      if (opts?.interfaceName && entry.def.interfaceName.name !== opts.interfaceName) continue;
-      const bindings = this.matchImplEntry(entry, opts);
-      if (!bindings) continue;
-      const method = entry.methods.get(methodName);
-      if (!method) continue;
-      const constraints = this.collectConstraintSpecs(entry.genericParams, entry.whereClause);
-      if (constraints.length > 0) {
-        try {
-          this.enforceConstraintSpecs(constraints, bindings, `impl ${entry.def.interfaceName.name} for ${typeName}`);
-        } catch (err) {
-          if (!constraintError && err instanceof Error) constraintError = err;
-          continue;
-        }
+  for (const entry of entries) {
+    if (opts?.interfaceName && entry.def.interfaceName.name !== opts.interfaceName) continue;
+    const bindings = this.matchImplEntry(entry, { ...opts, subjectType });
+    if (!bindings) continue;
+    const method = entry.methods.get(methodName);
+    if (!method) continue;
+    const constraints = this.collectConstraintSpecs(entry.genericParams, entry.whereClause);
+    if (constraints.length > 0) {
+      try {
+        this.enforceConstraintSpecs(constraints, bindings, `impl ${entry.def.interfaceName.name} for ${typeName}`);
+      } catch (err) {
+        if (!constraintError && err instanceof Error) constraintError = err;
+        continue;
       }
-      const score = this.computeImplSpecificity(entry, bindings, constraints);
-      matches.push({ method, score, entry, constraints });
     }
+    const genericNames = collectImplGenericNames(entry);
+    const score = this.measureTemplateSpecificity(entry.def.targetType, genericNames);
+    const isConcreteTarget = !typeExpressionUsesGenerics(entry.def.targetType, genericNames);
+    matches.push({ method, score, entry, constraints, isConcreteTarget });
   }
   if (matches.length === 0) {
     if (constraintError) throw constraintError;
@@ -248,19 +260,103 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
     }
   }
   if (contenders.length > 1) {
-    const detail = Array.from(new Set(contenders.map(c => this.typeExpressionToString(c.entry.def.targetType)))).join(", ");
-    throw new Error(`Ambiguous method '${methodName}' for type '${typeName}' (candidates: ${detail})`);
+    const ifaceName = contenders[0].entry.def.interfaceName.name || methodName;
+    const detail = Array.from(new Set(contenders.map(c => `impl ${c.entry.def.interfaceName.name} for ${this.typeExpressionToString(c.entry.def.targetType)}`))).join(", ");
+    throw new Error(`ambiguous implementations of ${ifaceName} for ${typeName}: ${detail}`);
   }
   return best.method;
 };
 
-  cls.prototype.compareMethodMatches = function compareMethodMatches(this: InterpreterV10, a: { method: Extract<V10Value, { kind: "function" | "function_overload" }>; score: number; entry: ImplMethodEntry; constraints: ConstraintSpec[] }, b: { method: Extract<V10Value, { kind: "function" | "function_overload" }>; score: number; entry: ImplMethodEntry; constraints: ConstraintSpec[] }): number {
-  if (a.score > b.score) return 1;
-  if (a.score < b.score) return -1;
+  cls.prototype.resolveInterfaceImplementation = function resolveInterfaceImplementation(this: InterpreterV10, typeName: string, interfaceName: string, opts?: { typeArgs?: AST.TypeExpression[]; typeArgMap?: Map<string, AST.TypeExpression> }): { ok: boolean; error?: Error } {
+  if (interfaceName === "Error" && typeName === "Error") {
+    return { ok: true };
+  }
+  const subjectType = typeExpressionFromInfo(typeName, opts?.typeArgs);
+  const entries = [
+    ...(this.implMethods.get(typeName) ?? []),
+    ...this.genericImplMethods,
+  ];
+  if (entries.length === 0) return { ok: false };
+  const matches: Array<{
+    entry: ImplMethodEntry;
+    constraints: ConstraintSpec[];
+    score: number;
+    isConcreteTarget: boolean;
+  }> = [];
+  let constraintError: Error | undefined;
+  for (const entry of entries) {
+    if (entry.def.interfaceName.name !== interfaceName) continue;
+    const bindings = this.matchImplEntry(entry, { ...opts, subjectType });
+    if (!bindings) continue;
+    const constraints = this.collectConstraintSpecs(entry.genericParams, entry.whereClause);
+    if (constraints.length > 0) {
+      try {
+        this.enforceConstraintSpecs(constraints, bindings, `impl ${entry.def.interfaceName.name} for ${typeName}`);
+      } catch (err) {
+        if (!constraintError && err instanceof Error) constraintError = err;
+        continue;
+      }
+    }
+    const genericNames = collectImplGenericNames(entry);
+    matches.push({
+      entry,
+      constraints,
+      score: this.measureTemplateSpecificity(entry.def.targetType, genericNames),
+      isConcreteTarget: !typeExpressionUsesGenerics(entry.def.targetType, genericNames),
+    });
+  }
+  if (matches.length === 0) {
+    if (constraintError) {
+      return { ok: false, error: constraintError };
+    }
+    const ifaceDef = this.interfaces.get(interfaceName);
+    if (ifaceDef && Array.isArray(ifaceDef.signatures) && ifaceDef.signatures.length > 0) {
+      const missing = ifaceDef.signatures[0]?.id?.name ?? "<unknown>";
+      return { ok: false, error: new Error(`Type '${typeName}' does not satisfy interface '${interfaceName}': missing method '${missing}'`) };
+    }
+    return { ok: false };
+  }
+  let best = matches[0]!;
+  let contenders: typeof matches = [best];
+  for (const candidate of matches.slice(1)) {
+    const cmp = this.compareMethodMatches(candidate, best);
+    if (cmp > 0) {
+      best = candidate;
+      contenders = [candidate];
+      continue;
+    }
+    if (cmp === 0) {
+      const reverse = this.compareMethodMatches(best, candidate);
+      if (reverse < 0) {
+        best = candidate;
+        contenders = [candidate];
+      } else if (reverse === 0) {
+        contenders.push(candidate);
+      }
+    }
+  }
+  if (contenders.length > 1) {
+    const detail = Array.from(new Set(contenders.map(c => `impl ${c.entry.def.interfaceName.name} for ${this.typeExpressionToString(c.entry.def.targetType)}`))).join(", ");
+    return { ok: false, error: new Error(`ambiguous implementations of ${interfaceName} for ${typeName}: ${detail}`) };
+  }
+  return { ok: true };
+};
+
+  cls.prototype.compareMethodMatches = function compareMethodMatches(this: InterpreterV10, a: { method?: Extract<V10Value, { kind: "function" | "function_overload" }>; score: number; entry: ImplMethodEntry; constraints: ConstraintSpec[]; isConcreteTarget: boolean }, b: { method?: Extract<V10Value, { kind: "function" | "function_overload" }>; score: number; entry: ImplMethodEntry; constraints: ConstraintSpec[]; isConcreteTarget: boolean }): number {
+  if (a.isConcreteTarget && !b.isConcreteTarget) return 1;
+  if (b.isConcreteTarget && !a.isConcreteTarget) return -1;
+  const aConstraints = this.buildConstraintKeySet(a.constraints);
+  const bConstraints = this.buildConstraintKeySet(b.constraints);
+  if (this.isConstraintSuperset(aConstraints, bConstraints)) return 1;
+  if (this.isConstraintSuperset(bConstraints, aConstraints)) return -1;
   const aUnion = a.entry.unionVariantSignatures;
   const bUnion = b.entry.unionVariantSignatures;
-  if (aUnion && !bUnion) return -1;
-  if (!aUnion && bUnion) return 1;
+  const aUnionSize = aUnion?.length ?? 0;
+  const bUnionSize = bUnion?.length ?? 0;
+  if (aUnionSize !== bUnionSize) {
+    if (aUnionSize === 0) return 1;
+    if (bUnionSize === 0) return -1;
+  }
   if (aUnion && bUnion) {
     if (this.isProperSubset(aUnion, bUnion)) return 1;
     if (this.isProperSubset(bUnion, aUnion)) return -1;
@@ -268,10 +364,8 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
       return aUnion.length < bUnion.length ? 1 : -1;
     }
   }
-  const aConstraints = this.buildConstraintKeySet(a.constraints);
-  const bConstraints = this.buildConstraintKeySet(b.constraints);
-  if (this.isConstraintSuperset(aConstraints, bConstraints)) return 1;
-  if (this.isConstraintSuperset(bConstraints, aConstraints)) return -1;
+  if (a.score > b.score) return 1;
+  if (a.score < b.score) return -1;
   return 0;
 };
 
@@ -302,38 +396,14 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
     if (!bSet.has(val)) return false;
   }
   return true;
-};
-
-  cls.prototype.matchImplEntry = function matchImplEntry(this: InterpreterV10, entry: ImplMethodEntry, opts?: { typeArgs?: AST.TypeExpression[]; typeArgMap?: Map<string, AST.TypeExpression> }): Map<string, AST.TypeExpression> | null {
-  const bindings = new Map<string, AST.TypeExpression>();
-  const genericNames = new Set(entry.genericParams.map(g => g.name.name));
-  const considerAsGeneric = (t: AST.TypeExpression | undefined): void => {
-    if (!t) return;
-    switch (t.type) {
-      case "SimpleTypeExpression": {
-        const name = t.name.name;
-        if (/^[A-Z]$/.test(name)) {
-          genericNames.add(name);
-        }
-        return;
-      }
-      case "GenericTypeExpression":
-        considerAsGeneric(t.base);
-        for (const arg of t.arguments ?? []) considerAsGeneric(arg);
-        return;
-      case "NullableTypeExpression":
-      case "ResultTypeExpression":
-        considerAsGeneric(t.innerType);
-        return;
-      case "UnionTypeExpression":
-        for (const member of t.members) considerAsGeneric(member);
-        return;
-      default:
-        return;
-    }
   };
-  for (const ifaceArg of entry.def.interfaceArgs ?? []) considerAsGeneric(ifaceArg);
-  for (const template of entry.targetArgTemplates) considerAsGeneric(template);
+
+  cls.prototype.matchImplEntry = function matchImplEntry(this: InterpreterV10, entry: ImplMethodEntry, opts?: { typeArgs?: AST.TypeExpression[]; typeArgMap?: Map<string, AST.TypeExpression>; subjectType?: AST.TypeExpression }): Map<string, AST.TypeExpression> | null {
+  const bindings = new Map<string, AST.TypeExpression>();
+  const genericNames = collectImplGenericNames(entry);
+  if (opts?.subjectType) {
+    this.matchTypeExpressionTemplate(entry.def.targetType, opts.subjectType, genericNames, bindings);
+  }
   const expectedArgs = entry.targetArgTemplates;
   const actualArgs = opts?.typeArgs;
   if (expectedArgs.length > 0) {
@@ -416,18 +486,6 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
     }
   }
   throw new Error("Only simple, generic, or union target types supported in impl");
-};
-
-  cls.prototype.computeImplSpecificity = function computeImplSpecificity(this: InterpreterV10, entry: ImplMethodEntry, bindings: Map<string, AST.TypeExpression>, constraints: ConstraintSpec[]): number {
-  const genericNames = new Set(entry.genericParams.map(g => g.name.name));
-  let concreteScore = 0;
-  for (const template of entry.targetArgTemplates) {
-    concreteScore += this.measureTemplateSpecificity(template, genericNames);
-  }
-  const constraintScore = constraints.length;
-  const bindingScore = bindings.size;
-  const unionPenalty = entry.unionVariantSignatures ? entry.unionVariantSignatures.length : 0;
-  return concreteScore * 100 + constraintScore * 10 + bindingScore - unionPenalty;
 };
 
   cls.prototype.measureTemplateSpecificity = function measureTemplateSpecificity(this: InterpreterV10, t: AST.TypeExpression, genericNames: Set<string>): number {
@@ -576,4 +634,63 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
   }
   return pattern;
 };
+}
+
+function typeExpressionFromInfo(name: string, typeArgs?: AST.TypeExpression[]): AST.TypeExpression {
+  const base: AST.SimpleTypeExpression = { type: "SimpleTypeExpression", name: AST.identifier(name) };
+  if (!typeArgs || typeArgs.length === 0) return base;
+  return { type: "GenericTypeExpression", base, arguments: typeArgs };
+}
+
+function collectImplGenericNames(entry: ImplMethodEntry): Set<string> {
+  const genericNames = new Set<string>(entry.genericParams.map(g => g.name.name));
+  const considerAsGeneric = (t: AST.TypeExpression | undefined): void => {
+    if (!t) return;
+    switch (t.type) {
+      case "SimpleTypeExpression": {
+        const name = t.name.name;
+        if (/^[A-Z]$/.test(name)) {
+          genericNames.add(name);
+        }
+        return;
+      }
+      case "GenericTypeExpression":
+        considerAsGeneric(t.base);
+        for (const arg of t.arguments ?? []) considerAsGeneric(arg);
+        return;
+      case "NullableTypeExpression":
+      case "ResultTypeExpression":
+        considerAsGeneric(t.innerType);
+        return;
+      case "UnionTypeExpression":
+        for (const member of t.members) considerAsGeneric(member);
+        return;
+      default:
+        return;
+    }
+  };
+  for (const ifaceArg of entry.def.interfaceArgs ?? []) considerAsGeneric(ifaceArg);
+  for (const template of entry.targetArgTemplates) considerAsGeneric(template);
+  return genericNames;
+}
+
+function typeExpressionUsesGenerics(expr: AST.TypeExpression | undefined, genericNames: Set<string>): boolean {
+  if (!expr) return false;
+  switch (expr.type) {
+    case "SimpleTypeExpression":
+      return genericNames.has(expr.name.name);
+    case "GenericTypeExpression":
+      if (typeExpressionUsesGenerics(expr.base, genericNames)) return true;
+      return (expr.arguments ?? []).some(arg => typeExpressionUsesGenerics(arg, genericNames));
+    case "NullableTypeExpression":
+    case "ResultTypeExpression":
+      return typeExpressionUsesGenerics(expr.innerType, genericNames);
+    case "UnionTypeExpression":
+      return expr.members.some(member => typeExpressionUsesGenerics(member, genericNames));
+    case "FunctionTypeExpression":
+      if (typeExpressionUsesGenerics(expr.returnType, genericNames)) return true;
+      return expr.paramTypes.some(param => typeExpressionUsesGenerics(param, genericNames));
+    default:
+      return false;
+  }
 }

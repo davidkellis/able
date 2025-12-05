@@ -386,7 +386,7 @@ function importKey(imp: ImportStatement): string {
     const selectorParts = imp.selectors
       .map((sel) => {
         if (!sel?.name?.name) return "";
-        return sel.alias?.name ? `${sel.name.name} as ${sel.alias.name}` : sel.name.name;
+        return sel.alias?.name ? `${sel.name.name}::${sel.alias.name}` : sel.name.name;
       })
       .filter(Boolean)
       .join(",");

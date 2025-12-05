@@ -4,34 +4,33 @@ struct Point { x: f64, y: f64 }
 struct Circle { radius: f64 }
 struct Rectangle { width: f64, height: f64 }
 struct MoveTo { to: Point }
-union Shape = Circle | Rectangle | MoveTo
+union Shape = Circle, Rectangle, MoveTo
 
 fn area(shape: Shape) -> f64 {
   shape match {
-    case Circle { radius: radius } => 3.14159 * radius * radius,
-    case Rectangle { width: width, height: height } => width * height,
-    case MoveTo { to: Point { x: x, y: y } } => {
+    case Circle { radius } => 3.14159 * radius * radius,
+    case Rectangle { width, height } => width * height,
+    case MoveTo { to: Point { x, y } } => {
       print(`Marker moved to (${x}, ${y}) — no area to measure`)
       0.0
     },
   }
 }
 
-fn describe(maybe_shape) -> string {
+fn describe(maybe_shape: ?Shape) -> string {
   maybe_shape match {
     case nil => "no shape",
-    case Circle { radius: radius } => `circle with radius ${radius}`,
-    case Rectangle { width: width, height: height } => `rectangle ${width} x ${height}`,
-    case MoveTo { to: Point { x: x, y: y } } => `marker moved to (${x}, ${y})`,
+    case Circle { radius } => `circle with radius ${radius}`,
+    case Rectangle { width, height } => `rectangle ${width} x ${height}`,
+    case MoveTo { to: Point { x, y } } => `marker moved to (${x}, ${y})`,
   }
 }
 
 fn main() -> void {
-  shapes := [
-    Circle { radius: 2.5 },
-    Rectangle { width: 3.0, height: 4.0 },
-    MoveTo { to: Point { x: 1.0, y: 2.0 } }
-  ]
+  c := Circle { radius: 2.5 }
+  r := Rectangle { width: 3.0, height: 4.0 }
+  m := MoveTo { to: (Point { x: 1.0, y: 2.0 }) }
+  shapes := [c, r, m]
 
   for shape in shapes {
     print(`Area result: ${area(shape)}`)

@@ -3,8 +3,9 @@ import { formatType, unknownType } from "../types";
 import type { TypeInfo } from "../types";
 import {
   buildConstraintKeySet,
-  computeImplementationSpecificity,
+  measureTargetInstantiation,
   selectMostSpecificImplementationMatch,
+  targetUsesGenerics,
   type ImplementationMatch,
 } from "./impl_matches";
 import type { ImplementationContext } from "./implementation-context";
@@ -190,6 +191,19 @@ export function typeImplementsInterface(
   interfaceName: string,
   expectedArgs: string[] = [],
 ): InterfaceCheckResult {
+  if (type.kind === "interface" && type.name === interfaceName) {
+    return { ok: true };
+  }
+  if (implementsBuiltinInterface(type, interfaceName)) {
+    return { ok: true };
+  }
+  const bucket = ctx.getImplementationBucket?.(formatType(type));
+  if (bucket) {
+    const matching = bucket.filter((record) => record.interfaceName === interfaceName);
+    if (matching.length === 1) {
+      return { ok: true };
+    }
+  }
   if (!type || type.kind === "unknown") {
     return { ok: true };
   }
@@ -257,6 +271,21 @@ export function typeImplementsInterface(
   return { ok: false };
 }
 
+function implementsBuiltinInterface(type: TypeInfo, interfaceName: string): boolean {
+  if (type.kind !== "primitive") {
+    return false;
+  }
+  switch (interfaceName) {
+    case "Display":
+    case "Clone":
+      return type.name === "string" || type.name === "bool" || type.name === "char" || type.name === "i32" || type.name === "f64";
+    case "Ord":
+      return type.name === "i32" || type.name === "string";
+    default:
+      return false;
+  }
+}
+
 function resolveInterfaceArgumentLabels(
   ctx: ImplementationContext,
   expr: AST.TypeExpression | null | undefined,
@@ -298,6 +327,9 @@ function implementationProvidesInterface(
   const matches: ImplementationMatch[] = [];
   let bestDetail: string | undefined;
   for (const record of candidates) {
+    if ((record.definition as AST.ImplementationDefinition | undefined)?.implName?.name) {
+      continue;
+    }
     if (record.interfaceName !== interfaceName) {
       continue;
     }
@@ -346,12 +378,14 @@ function implementationProvidesInterface(
     if (failedDetail) {
       continue;
     }
+    const genericNames = new Set(record.genericParams);
     matches.push({
       record,
       substitutions,
       interfaceArgs: actualArgs,
-      score: computeImplementationSpecificity(ctx, record, substitutions),
+      score: measureTargetInstantiation(record, genericNames),
       constraintKeys: buildConstraintKeySet(ctx, record.obligations),
+      isConcreteTarget: !targetUsesGenerics(record.target, genericNames),
     });
   }
   if (matches.length === 0) {
@@ -454,6 +488,13 @@ function matchImplementationTarget(
         }
         return true;
       }
+      if (paramNames.size > 0) {
+        for (const param of paramNames) {
+          if (!substitutions.has(param)) {
+            substitutions.set(param, unknownType);
+          }
+        }
+      }
       return formatType(actual) === name;
     }
     case "GenericTypeExpression": {
@@ -476,9 +517,13 @@ function matchImplementationTarget(
         return false;
       }
       const expectedArgs = Array.isArray(target.arguments) ? target.arguments : [];
-      const actualArgs = actual.typeArguments ?? [];
+      let actualArgs = actual.typeArguments ?? [];
       if (expectedArgs.length !== actualArgs.length) {
-        return false;
+        if (paramNames.size > 0 && actualArgs.length === 0) {
+          actualArgs = new Array(expectedArgs.length).fill(unknownType);
+        } else {
+          return false;
+        }
       }
       for (let index = 0; index < expectedArgs.length; index += 1) {
         const expectedArg = expectedArgs[index];
@@ -488,6 +533,13 @@ function matchImplementationTarget(
         }
         if (!matchImplementationTarget(ctx, actualArg, expectedArg, paramNames, substitutions)) {
           return false;
+        }
+      }
+      if (paramNames.size > 0) {
+        for (const param of paramNames) {
+          if (!substitutions.has(param)) {
+            substitutions.set(param, unknownType);
+          }
         }
       }
       return true;
@@ -572,6 +624,12 @@ function annotateImplementationFailure(
 }
 
 function interfaceArgsCompatible(actual: string[], expected: string[]): boolean {
+  if (expected.length === 0) {
+    return true;
+  }
+  if (actual.length === 0) {
+    return expected.every((exp) => exp === "Unknown");
+  }
   if (actual.length !== expected.length) {
     return false;
   }

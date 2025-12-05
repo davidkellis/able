@@ -1,22 +1,53 @@
 package typechecker
 
 func (c *Checker) initBuiltinInterfaces() {
+	stringType := PrimitiveType{Kind: PrimitiveString}
 	display := InterfaceType{
 		InterfaceName: "Display",
+		Methods: map[string]FunctionType{
+			"to_string": {
+				Params: []Type{
+					TypeParameterType{ParameterName: "Self"},
+				},
+				Return: stringType,
+			},
+		},
 	}
 	clone := InterfaceType{
 		InterfaceName: "Clone",
+		Methods: map[string]FunctionType{
+			"clone": {
+				Params: []Type{
+					TypeParameterType{ParameterName: "Self"},
+				},
+				Return: TypeParameterType{ParameterName: "Self"},
+			},
+		},
+	}
+	errorIface := InterfaceType{
+		InterfaceName: "Error",
+		Methods: map[string]FunctionType{
+			"message": {
+				Params: []Type{
+					TypeParameterType{ParameterName: "Self"},
+				},
+				Return: stringType,
+			},
+			"cause": {
+				Params: []Type{
+					TypeParameterType{ParameterName: "Self"},
+				},
+				Return: NullableType{Inner: InterfaceType{InterfaceName: "Error"}},
+			},
+		},
 	}
 	ord := InterfaceType{
 		InterfaceName: "Ord",
-		TypeParams: []GenericParamSpec{
-			{Name: "Rhs"},
-		},
 		Methods: map[string]FunctionType{
 			"cmp": {
 				Params: []Type{
 					TypeParameterType{ParameterName: "Self"},
-					TypeParameterType{ParameterName: "Rhs"},
+					TypeParameterType{ParameterName: "Self"},
 				},
 				Return: ordering,
 			},
@@ -24,6 +55,7 @@ func (c *Checker) initBuiltinInterfaces() {
 	}
 	c.global.Define("Display", display)
 	c.global.Define("Clone", clone)
+	c.global.Define("Error", errorIface)
 	c.global.Define("Ord", ord)
 
 	var impls []ImplementationSpec
@@ -43,21 +75,39 @@ func (c *Checker) initBuiltinInterfaces() {
 		{"Clone", FloatType{Suffix: "f64"}},
 		{"Ord", IntegerType{Suffix: "i32"}},
 		{"Ord", PrimitiveType{Kind: PrimitiveString}},
+		{"Error", StructType{StructName: "ProcError"}},
 	} {
 		methods := map[string]FunctionType{}
-		var ifaceArgs []Type
-		if entry.iface == "Ord" {
+		switch entry.iface {
+		case "Ord":
 			methods["cmp"] = FunctionType{
 				Params: []Type{entry.typ, entry.typ},
 				Return: ordering,
 			}
-			ifaceArgs = []Type{entry.typ}
+		case "Display":
+			methods["to_string"] = FunctionType{
+				Params: []Type{entry.typ},
+				Return: stringType,
+			}
+		case "Clone":
+			methods["clone"] = FunctionType{
+				Params: []Type{entry.typ},
+				Return: entry.typ,
+			}
+		case "Error":
+			methods["message"] = FunctionType{
+				Params: []Type{entry.typ},
+				Return: stringType,
+			}
+			methods["cause"] = FunctionType{
+				Params: []Type{entry.typ},
+				Return: NullableType{Inner: errorIface},
+			}
 		}
 		impls = append(impls, ImplementationSpec{
 			InterfaceName: entry.iface,
 			Target:        entry.typ,
 			Methods:       methods,
-			InterfaceArgs: ifaceArgs,
 		})
 	}
 	c.builtinImplementations = impls

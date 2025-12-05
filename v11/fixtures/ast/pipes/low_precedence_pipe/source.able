@@ -1,0 +1,17 @@
+fn inc(x: i32) -> i32 {
+  return x + 1
+}
+fn bool_to_int(value: bool) -> i32 {
+  return if value {
+    return 1
+  }
+else {
+    return 0
+  }
+}
+a := 0
+b := 0
+res1 := a = 5 |>> inc
+res2 := b = (1 |> inc)
+flag := (false || true |> bool_to_int)
+[res1, a, res2, b, flag]

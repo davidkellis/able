@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -101,9 +102,18 @@ func normalizeSourcePath(raw string) string {
 		}
 	}
 	root := repositoryRoot()
+	anchors := []string{}
 	if root != "" {
-		if rel, err := filepath.Rel(root, path); err == nil {
+		anchors = append(anchors, filepath.Join(root, "v11", "interpreters", "ts", "scripts"))
+		anchors = append(anchors, root)
+	}
+	for _, anchor := range anchors {
+		if anchor == "" {
+			continue
+		}
+		if rel, err := filepath.Rel(anchor, path); err == nil {
 			path = rel
+			break
 		}
 	}
 	return filepath.ToSlash(path)
@@ -111,12 +121,27 @@ func normalizeSourcePath(raw string) string {
 
 func repositoryRoot() string {
 	repoRootOnce.Do(func() {
-		root, err := filepath.Abs(filepath.Join("..", "..", ".."))
-		if err != nil {
-			repoRootErr = err
-			return
+		start := ""
+		if _, file, _, ok := runtime.Caller(0); ok {
+			start = filepath.Dir(file)
+		} else if wd, err := os.Getwd(); err == nil {
+			start = wd
 		}
-		repoRootPath = root
+		dir := start
+		for i := 0; i < 10 && dir != "" && dir != string(filepath.Separator); i++ {
+			if info, err := os.Stat(filepath.Join(dir, ".git")); err == nil && info.IsDir() {
+				repoRootPath = dir
+				return
+			}
+			parent := filepath.Dir(dir)
+			if parent == dir {
+				break
+			}
+			dir = parent
+		}
+		if repoRootPath == "" {
+			repoRootErr = fmt.Errorf("repository root not found from %s", start)
+		}
 	})
 	if repoRootErr != nil {
 		return ""

@@ -327,7 +327,7 @@ func (i *Interpreter) tryBuildPlaceholderFunction(node ast.Expression, env *runt
 	case *ast.AssignmentExpression:
 		return nil, false, nil
 	case *ast.BinaryExpression:
-		if expr.Operator == "|>" {
+		if expr.Operator == "|>" || expr.Operator == "|>>" {
 			return nil, false, nil
 		}
 	}

@@ -1,3 +1,3 @@
-import util_static as U
+import util_static::U
 
 U.hidden()

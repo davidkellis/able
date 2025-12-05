@@ -82,8 +82,8 @@ fn main() -> i32 {
   }
 
   removed := 0
-  if map.remove("beta") { removed = 5 }
-  missing := if map.contains("missing") { 100 } else { 1 }
+  if map.remove("beta") == true { removed = 5 }
+  missing := if map.contains("missing") == true { 100 } else { 1 }
 
   iter_sum + first_value + last_value + removed + map.len() + missing
 }

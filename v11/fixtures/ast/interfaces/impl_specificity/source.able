@@ -1,0 +1,65 @@
+interface Show for T {
+  fn show(self: Self) -> string
+}
+
+interface TraitA for T {}
+interface TraitB for T {}
+
+struct Box<T> { value: T }
+struct Wrapper<T> { value: T }
+struct Pair<L, R> { left: L, right: R }
+struct Alpha {}
+struct Beta {}
+struct Gamma {}
+
+impl Show for Box<i32> {
+  fn show(self: Self) -> string { "box-i32" }
+}
+impl<T> Show for Box<T> {
+  fn show(self: Self) -> string { "box-generic" }
+}
+Fancy = impl Show for Box<i32> {
+  fn show(self: Self) -> string { "box-named" }
+}
+
+impl<T: TraitA + TraitB> Show for Wrapper<T> {
+  fn show(self: Self) -> string { "constraints-ab" }
+}
+impl<T: TraitA> Show for Wrapper<T> {
+  fn show(self: Self) -> string { "constraints-a" }
+}
+
+impl Show for Alpha | Beta {
+  fn show(self: Self) -> string { "union-narrow" }
+}
+impl Show for Alpha | Beta | Gamma {
+  fn show(self: Self) -> string { "union-wide" }
+}
+
+impl<T> Show for Pair<T, i32> {
+  fn show(self: Self) -> string { "pair-tail" }
+}
+impl<U, V> Show for Pair<U, V> {
+  fn show(self: Self) -> string { "pair-generic" }
+}
+
+impl TraitA for Alpha {}
+impl TraitB for Alpha {}
+impl TraitA for Beta {}
+
+box_i32 := Box<i32> { value: 3 }
+box_str := Box<string> { value: "hi" }
+wrapper := Wrapper<Alpha> { value: Alpha {} }
+union_val: Alpha | Beta = Alpha {}
+pair := Pair<i32, i32> { left: 1, right: 2 }
+iface_val: Show = box_i32
+
+[
+  box_i32.show(),
+  box_str.show(),
+  Fancy.show(box_i32),
+  wrapper.show(),
+  union_val.show(),
+  pair.show(),
+  iface_val.show()
+]

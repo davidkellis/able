@@ -63,7 +63,7 @@ func (i *Interpreter) evaluateInterfaceDefinition(def *ast.InterfaceDefinition, 
 	return runtime.NilValue{}, nil
 }
 
-func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDefinition, env *runtime.Environment) (runtime.Value, error) {
+func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDefinition, env *runtime.Environment, isBuiltin bool) (runtime.Value, error) {
 	if def.InterfaceName == nil {
 		return nil, fmt.Errorf("Implementation requires interface name")
 	}
@@ -105,10 +105,17 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 	constraintSpecs := collectConstraintSpecs(def.GenericParams, def.WhereClause)
 	baseConstraintSig := constraintSignature(constraintSpecs)
 	targetDescription := typeExpressionToString(def.TargetType)
+	genericNames := genericNameSet(mergedGenerics)
 	for _, variant := range variants {
 		if def.ImplName == nil {
-			if err := i.registerUnnamedImpl(ifaceName, def.InterfaceArgs, variant, unionSignatures, baseConstraintSig, targetDescription); err != nil {
-				return nil, err
+			isGenericTarget := false
+			if len(genericNames) > 0 {
+				_, isGenericTarget = genericNames[variant.typeName]
+			}
+			if !isGenericTarget {
+				if err := i.registerUnnamedImpl(ifaceName, def.InterfaceArgs, variant, unionSignatures, baseConstraintSig, targetDescription, isBuiltin); err != nil {
+					return nil, err
+				}
 			}
 			entry := implEntry{
 				interfaceName: ifaceName,
@@ -122,9 +129,13 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 			if len(unionSignatures) > 0 {
 				entry.unionVariants = append([]string(nil), unionSignatures...)
 			}
-			i.implMethods[variant.typeName] = append(i.implMethods[variant.typeName], entry)
-			if ifaceName == "Range" {
-				i.registerRangeImplementation(entry, def.InterfaceArgs)
+			if isGenericTarget {
+				i.genericImpls = append(i.genericImpls, entry)
+			} else {
+				i.implMethods[variant.typeName] = append(i.implMethods[variant.typeName], entry)
+				if ifaceName == "Range" {
+					i.registerRangeImplementation(entry, def.InterfaceArgs)
+				}
 			}
 		}
 	}

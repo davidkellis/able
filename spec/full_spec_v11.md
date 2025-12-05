@@ -159,7 +159,7 @@ Defines how raw text is converted into tokens.
 
 *   **Character Set:** UTF-8 source files are recommended.
 *   **Identifiers:** Start with a letter (`a-z`, `A-Z`) or underscore (`_`), followed by letters, digits (`0-9`), or underscores. Typically `[a-zA-Z_][a-zA-Z0-9_]*`. Identifiers are case-sensitive. Package/directory names mapping to identifiers treat hyphens (`-`) as underscores. The identifier `_` is reserved as the wildcard pattern (see Section [5.2.2](#522-wildcard-pattern-_)) and for unbound type parameters (see Section [4.4](#44-reserved-identifier-_-in-types)). The tokens `@` and `@n` (e.g., `@1`, `@2`, ...) are reserved for expression placeholders and cannot be used as identifiers.
-*   **Keywords:** Reserved words that cannot be used as identifiers: `fn`, `struct`, `union`, `interface`, `impl`, `methods`, `type`, `package`, `import`, `dynimport`, `extern`, `prelude`, `private`, `Self`, `do`, `return`, `if`, `or`, `else`, `while`, `for`, `in`, `match`, `case`, `breakpoint`, `break`, `raise`, `rescue`, `ensure`, `rethrow`, `proc`, `spawn`, `as`, `nil`, `void`, `true`, `false`.
+*   **Keywords:** Reserved words that cannot be used as identifiers: `fn`, `struct`, `union`, `interface`, `impl`, `methods`, `type`, `package`, `import`, `dynimport`, `extern`, `prelude`, `private`, `Self`, `do`, `return`, `if`, `or`, `else`, `while`, `for`, `in`, `match`, `case`, `breakpoint`, `break`, `raise`, `rescue`, `ensure`, `rethrow`, `proc`, `spawn`, `nil`, `void`, `true`, `false`.
 *   **Reserved Tokens (non-identifiers):** `@` and numbered placeholders `@n` (e.g., `@1`, `@2`, ...), used for expression placeholder lambdas; `%` as the pipe-topic token usable only within the right-hand side of `|>`.
 *   **Operators:** Symbols with specific meanings (See Section [6.3](#63-operators)). Includes assignment/declaration operators `:=` and `=`.
 *   **Literals:** Source code representations of fixed values (See Section [4.2](#42-primitive-types) and Section [6.1](#61-literals)).
@@ -856,12 +856,13 @@ Additional note: There is no `const` keyword and no per-field immutability modif
 
 Patterns are used on the left-hand side of `:=` (declaration) and `=` (assignment) to determine how the value from the `Expression` is deconstructed and which identifiers are bound or assigned to.
 
-Pattern binding forms (named-field contexts) follow these rules:
+Pattern binding forms (named-field contexts) follow these rules (the same grammar applies in `:=` / `=` assignments and in `match` / `rescue` patterns):
+- `::` is the **rename operator** for patterns. It never performs namespace traversal; use dot (`.`) for packages/static methods.
 - `field` is shorthand for `field::field` (bind the field to a local of the same name).
 - `field::binding` binds the field to the specified binding name.
-- `field: Type` binds the field to a same-named local with a type annotation.
+- `field: Type` binds the field to a same-named local with a type annotation. `:` never renames.
 - `field::binding: Type` combines a rename with a type annotation.
-- Nested destructuring is written after the type, e.g., `field::b: Address { street, city }` destructures the field value after binding/annotating `b`.
+- Any of the above may be followed by a nested pattern to destructure the field value, e.g., `field::b: Address { street, city }` destructures the field value after binding/annotating `b`.
 
 #### 5.2.1. Identifier Pattern
 
@@ -943,8 +944,8 @@ Destructures instances of structs defined with named fields.
     *   `StructTypeName` (optional): If present, the value must be an instance of this struct; otherwise type is inferred/checked.
     *   `FieldEntry` forms:
         - `field` — shorthand binding (`field::field`), binds the field to a local of the same name.
-        - `field::binding` — binds the field to `binding`.
-        - `field: Type` — binds the field to a same-named local with a type annotation.
+        - `field::binding` — binds the field to `binding` (rename). `::` is reserved for pattern renames, never for namespace traversal.
+        - `field: Type` — binds the field to a same-named local with a type annotation (`:` never renames).
         - `field::binding: Type` — binds to `binding` with a type annotation.
         - Any of the above may be followed by a nested pattern to destructure the field value, e.g., `address::addr: Address { street, city }`.
     *   `...` is not supported; unmentioned fields are ignored, extra pattern fields still error.
@@ -974,8 +975,11 @@ Destructures instances of structs defined with named fields.
     ## Assignment (reuse existing bindings)
     existing_x = 0.0; existing_y = 0.0
     Point { x::existing_x, y::existing_y } = p ## reassigns existing_x, existing_y
+
+    ## Match/rescue patterns use the same grammar
+    p match { case Point { x, y } => `Point: ${x}, ${y}` }
     ```
-*   **Semantics**: Matches fields by name. If `StructTypeName` is present, the value must be an instance of that struct type; otherwise evaluation fails (`"struct type mismatch in destructuring"`). Each referenced field must exist (`"Missing field 'name' during destructuring"`).
+*   **Semantics**: Matches fields by name. If `StructTypeName` is present, the value must be an instance of that struct type; otherwise evaluation fails (`"struct type mismatch in destructuring"`). Each referenced field must exist (`"Missing field 'name' during destructuring"`); extra pattern fields are an error and unmentioned fields are ignored. Type annotations assert compatibility on the bound identifier (widening allowed, narrowing diagnosed). The same rules apply in assignment (`=`), declaration (`:=`), and pattern positions in `match`/`rescue`.
 
 #### 5.2.4. Struct Pattern (Positional Fields / Named Tuples)
 
@@ -1213,7 +1217,7 @@ Literals are the source code representation of fixed values.
 ##### string Representation
 
 -   `string` values represent immutable sequences of UTF-8 bytes.
--   Operations that inspect textual structure (code points, grapheme clusters, normalisation) are performed through library routines (`string::chars()`, `string::graphemes()`, `string::to_nfc()`, etc.) rather than implicit runtime behaviour.
+-   Operations that inspect textual structure (code points, grapheme clusters, normalisation) are performed through library routines (`string.chars()`, `string.graphemes()`, `string.to_nfc()`, etc.) rather than implicit runtime behaviour.
 -   The `char` type corresponds to a single Unicode code point value (`u32` range). A distinct `Grapheme` type in the standard library models user-perceived characters; it is derived from strings via segmentation helpers.
 -   Unless specified otherwise, indices and spans refer to byte offsets within the UTF-8 sequence.
 -   Required `string` helper methods are listed in §6.12.1.
@@ -2135,6 +2139,9 @@ When `receiver.name(args...)` is encountered:
 2.  Check for inherent method `name`.
 3.  Check for interface method `name`.
 4.  Check for free function or inherent instance method `name` applicable via UFCS (Universal Function Call Syntax).
+    * The first parameter must be compatible with the receiver type (after any required generic instantiation or constraint satisfaction); interface methods and named implementations are not considered.
+    * The call is equivalent to piping the receiver into a topic-argument call: `receiver.name(args...)` == `receiver |> name(%, args...)`.
+    * Overload resolution uses the post-injection argument list (the receiver is removed from the scored arguments) when selecting a single most specific candidate.
 5.  Invoke the first match found, passing `receiver` appropriately.
 6.  Ambiguity or no match results in an error.
 
@@ -2784,9 +2791,11 @@ Let `ReceiverType` be the static type of the `ReceiverExpression`. The compiler 
     *   Search the current scope for candidates named `Identifier` that are either:
         - Free (non-method) functions whose *first parameter* type is compatible with `ReceiverType`, or
         - Inherent **instance** methods from any visible `methods Type { ... }` block (not interface methods) whose first parameter `self: Type` is compatible with `ReceiverType`.
-    *   If exactly one such candidate is found, the call resolves to this function, passing `ReceiverExpression` as the first argument (`Identifier(ReceiverExpression, ArgumentList)`).
+    *   Compatibility uses the same assignability rules as ordinary calls and accounts for generic instantiation and where-clause obligations on the chosen candidate; inference proceeds as if the receiver had been supplied as the first positional argument.
+    *   If exactly one such candidate is found, the call resolves to this function, passing `ReceiverExpression` as the first argument (`Identifier(ReceiverExpression, ArgumentList)`), and overload scoring ignores the injected receiver when comparing the remaining positional arguments.
     *   If multiple such candidates exist, apply the overload/specificity rules (§7.7) to select a single most specific match. If ambiguity remains, this step fails with an error.
     *   Named implementations and interface methods are not part of the UFCS candidate pool; use explicit qualification (`ImplName.method(...)` or `InterfaceName.method(...)`) to call them.
+    *   The transformed call is pipe-equivalent: `ReceiverExpression.Identifier(args...)` is the same as `ReceiverExpression |> Identifier(%, args...)`.
 
 **Precedence and Error Handling:**
 
@@ -2819,7 +2828,7 @@ methods Wrapper where Self: Display {
 }
 ```
 
-Calling `Wrapper.describe` requires a matching `impl Display for Wrapper`; otherwise the compiler reports that the `methods Wrapper::describe` constraint is not satisfied. The shared fixtures `errors/method_set_where_constraint` and `functions/method_set_where_constraint_ok` illustrate the failing and successful cases.
+Calling `Wrapper.describe` requires a matching `impl Display for Wrapper`; otherwise the compiler reports that the `methods Wrapper.describe` constraint is not satisfied. The shared fixtures `errors/method_set_where_constraint` and `functions/method_set_where_constraint_ok` illustrate the failing and successful cases.
 
 ## 10. Interfaces and Implementations
 
@@ -3088,13 +3097,13 @@ When multiple `impl` blocks could apply to a given type and interface, Able uses
 - Named impls are never chosen implicitly; they require explicit qualification.
 
 **Specificity ordering (strongest → weakest)**
-1. **Concrete target beats generic target**  
+1. **Concrete target beats generic target**
    `impl Show for Array i32` > `impl<T> Show for Array T`.
-2. **Constraint superset beats subset**  
+2. **Constraint superset beats subset**
    `impl<T: A+B> Show for T` > `impl<T: A> Show for T`.
-3. **Union subset beats union superset**  
+3. **Union subset beats union superset**
    `impl Show for i32 | f32` > `impl Show for i32 | f32 | f64`.
-4. **More-instantiated generics beat less-instantiated**  
+4. **More-instantiated generics beat less-instantiated**
    `impl<T> Show for Pair T i32` > `impl<U V> Show for Pair U V` when the call site has `Pair i32 i32`.
 5. If still tied, the call is ambiguous; no impl is chosen.
 
@@ -4087,8 +4096,9 @@ The `import` statement makes identifiers from other packages available in the cu
     *   Package import: `import io;` (makes `io.puts` etc. available)
     *   Wildcard import: `import io.*;` (brings all public identifiers from `io` into scope - use with caution)
     *   Selective import: `import io.{puts, gets, SomeType};` (brings specific identifiers into scope)
-    *   Aliased import: `import internationalization as i18n;` (imports package under alias)
-    *   Aliased selective import: `import io.{puts as print_line, gets};` (imports specific items with aliases)
+    *   Renamed package import: `import internationalization::i18n;` (imports package under alias)
+    *   Renamed selective import: `import io.{puts::print_line, gets};` (imports specific items with optional renames)
+    *   `::` in imports is the rename operator only; package traversal continues to use dot (`.`). Outside imports and struct patterns, `::` has no meaning.
 *   **Scope**: Imports can occur at the top level of a file (package scope) or within any local scope (e.g., inside a function).
 *   **Binding Semantics**: Importing an identifier creates a new binding in the current scope. This binding refers to the same underlying definition (function, type, etc.) as the original identifier in the imported package.
 
@@ -4099,7 +4109,7 @@ The `dynimport` statement binds identifiers from dynamically defined packages (c
 *   **Syntax Forms**:
     *   Package import: `dynimport foo;`
     *   Selective import: `dynimport foo.{Point, do_something};`
-    *   Aliased import: `dynimport foo as f;`
+    *   Renamed import: `dynimport foo::f;`
 *   **Resolution**:
     *   Looks up a dynamic package object via `dyn.package("foo")` and binds requested names from its current dynamic namespace.
     *   Fails at runtime with `Error` if the package or names do not exist.
@@ -4117,7 +4127,7 @@ The `dynimport` statement binds identifiers from dynamically defined packages (c
     -   Import-scoped resolution: An implementation `(Interface, TargetType)` participates in implicit method resolution at a call site only if the `impl` is in scope at that site (defined locally or exported by a package that has been imported) and both `Interface` and `TargetType` are visible.
     -   Interface-typed values (dynamic dispatch) carry their implementation dictionary. If a package constructs a value of type `Interface` using a visible `impl` and returns it, consumers can call interface methods on that value even if the `impl` is not in scope in the consumer package.
     -   Unnamed coherence (per package scope): For any visible pair `(Interface, TargetType)`, at most one unnamed (default) `impl` may be in scope. If multiple unnamed implementations are in scope, it is a compile-time error in that package until imports are adjusted.
-    -   Named implementations are never chosen implicitly. They require explicit selection (see Named Impl Invocation TBD) and follow the same visibility/import rules as other top-level items. Named impl identifiers must be unique within the importing scope; if collisions occur, use selective import with aliasing.
+    -   Named implementations are never chosen implicitly. They require explicit selection (see Named Impl Invocation TBD) and follow the same visibility/import rules as other top-level items. Named impl identifiers must be unique within the importing scope; if collisions occur, use selective import with renaming (`import pkg.{ImplName::Alias}`).
     -   No orphan restriction: Packages may define `impl Interface for TargetType` even if they do not own the interface or the type. Which implementation is used is determined solely by what impls are in scope in the using package (via its imports).
 
     -   Specificity with multiple visible impls: If more than one unnamed `impl` is visible for the same `(Interface, TargetType)`, and one is strictly more specific (§10.2.5), the more specific one is chosen; otherwise, ambiguity is a compile-time error. Use imports to hide the undesired impl or call explicitly via a named implementation.
@@ -4208,8 +4218,8 @@ interface IndexMut Key Value for Self {
 }
 ```
 
--   `receiver[key]` desugars to `receiver.Index::get(key)` and returns `!Value`.
--   `receiver[key] = value` desugars to `receiver.IndexMut::set(key, value)` (returning `!void`) and therefore requires both `Index` + `IndexMut`.
+-   `receiver[key]` desugars to `receiver.Index.get(key)` and returns `!Value`.
+-   `receiver[key] = value` desugars to `receiver.IndexMut.set(key, value)` (returning `!void`) and therefore requires both `Index` + `IndexMut`.
 -   Implementations should surface `IndexError` (or a subtype implementing `Error`) when `key` is invalid so callers can propagate or inspect it.
 
 Example:
@@ -4289,7 +4299,7 @@ impl Apply i64 i64 for Multiplier {
 }
 
 doubler := Multiplier { factor: 2 }
-result = doubler(21)   ## -> 42 via Apply::apply
+result = doubler(21)   ## -> 42 via Apply.apply
 ```
 
 #### 14.1.4. Arithmetic & Bitwise Operators
@@ -4457,7 +4467,7 @@ interface Awaitable Output for SelfType {
 -   `struct Regex { pattern: string, options: RegexOptions, program: RegexHandle }` — immutable compiled expression. `RegexHandle` is an opaque runtime-specific value; Able code never inspects it directly.
 -   `struct RegexOptions { case_insensitive: bool, multiline: bool, dot_matches_newline: bool, unicode: bool, anchored: bool, unicode_case: bool, grapheme_mode: bool }`
     -   Defaults: `case_insensitive=false`, `multiline=false`, `dot_matches_newline=false`, `unicode=true`, `anchored=false`, `unicode_case=false`, `grapheme_mode=false`.
-    -   `grapheme_mode` toggles cluster-aware iteration; when true, quantifiers and the `.` atom advance using `string::graphemes()` rather than raw code points.
+    -   `grapheme_mode` toggles cluster-aware iteration; when true, quantifiers and the `.` atom advance using `string.graphemes()` rather than raw code points.
 -   `struct RegexError = InvalidPattern { message: string, span: Span } | UnsupportedFeature { message: string, hint: ?string } | CompileFailure { message: string }`
 -   `struct Span { start: u64, end: u64 }` — byte offsets into the haystack (`start` inclusive, `end` exclusive). Offsets are measured in UTF-8 bytes and never exceed `string.len_bytes()`.
 -   `struct Match { matched: string, span: Span, groups: Array Group, named_groups: Map string Group }`
@@ -4473,28 +4483,28 @@ All structs are shareable across threads/procs; compiled programs are immutable 
 
 | Helper | Signature | Description |
 | --- | --- | --- |
-| `Regex.compile` | `fn compile(pattern: string, options: RegexOptions = RegexOptions::default()) -> Result Regex RegexError` | Parses, validates, and compiles the pattern. No error is raised at runtime; invalid syntax is reported via `RegexError`. |
-| `Regex::is_match` | `fn is_match(self: Regex, haystack: string) -> bool` | Returns true if at least one match exists. |
-| `Regex::match` | `fn match(self: Regex, haystack: string) -> ?Match` | Returns the first match (if any). |
-| `Regex::find_all` | `fn find_all(self: Regex, haystack: string) -> RegexIter` | Returns an iterator over non-overlapping matches. The iterator captures a reference to the haystack to keep spans valid. |
-| `Regex::replace` | `fn replace(self: Regex, haystack: string, replacement: Replacement) -> Result string RegexError` | Applies either a literal replacement (`$1`/`\k<name>` substitutions follow the RE2 rules) or a callback that receives the current `Match`. |
-| `Regex::split` | `fn split(self: Regex, haystack: string, limit: ?u64 = nil) -> Array string` | Splits on matches, mirroring `string::split` semantics with an optional match limit. |
-| `Regex::scan` | `fn scan(self: Regex, haystack: string) -> RegexScanner` | Produces a stateful scanner when chunked processing is required. |
-| `regex_is_match` | `fn regex_is_match(pattern: string, haystack: string, options: RegexOptions = RegexOptions::default()) -> Result bool RegexError` | Convenience helper used throughout the stdlib/testing packages. |
+| `Regex.compile` | `fn compile(pattern: string, options: RegexOptions = RegexOptions.default()) -> Result Regex RegexError` | Parses, validates, and compiles the pattern. No error is raised at runtime; invalid syntax is reported via `RegexError`. |
+| `Regex.is_match` | `fn is_match(self: Regex, haystack: string) -> bool` | Returns true if at least one match exists. |
+| `Regex.match` | `fn match(self: Regex, haystack: string) -> ?Match` | Returns the first match (if any). |
+| `Regex.find_all` | `fn find_all(self: Regex, haystack: string) -> RegexIter` | Returns an iterator over non-overlapping matches. The iterator captures a reference to the haystack to keep spans valid. |
+| `Regex.replace` | `fn replace(self: Regex, haystack: string, replacement: Replacement) -> Result string RegexError` | Applies either a literal replacement (`$1`/`\k<name>` substitutions follow the RE2 rules) or a callback that receives the current `Match`. |
+| `Regex.split` | `fn split(self: Regex, haystack: string, limit: ?u64 = nil) -> Array string` | Splits on matches, mirroring `string.split` semantics with an optional match limit. |
+| `Regex.scan` | `fn scan(self: Regex, haystack: string) -> RegexScanner` | Produces a stateful scanner when chunked processing is required. |
+| `regex_is_match` | `fn regex_is_match(pattern: string, haystack: string, options: RegexOptions = RegexOptions.default()) -> Result bool RegexError` | Convenience helper used throughout the stdlib/testing packages. |
 
-`Regex::to_program()` (implementation-defined) may expose the compiled automaton for tooling and debugging. Engines MAY additionally surface `Regex::captured_names()` and other introspection helpers provided they remain deterministic.
+`Regex.to_program()` (implementation-defined) may expose the compiled automaton for tooling and debugging. Engines MAY additionally surface `Regex.captured_names()` and other introspection helpers provided they remain deterministic.
 
 #### 14.2.3. Execution Semantics
 
--   Matching walks the haystack in code-point units by default. All pattern constructs—ranges, classes, `.`—interpret text as Unicode scalar values. When `grapheme_mode` is enabled, the engine segments the haystack using `string::graphemes()` before evaluating atoms and quantifiers so user-perceived characters stay intact.
--   Every API guarantees linear time with respect to `pattern.len_chars() + haystack.len_chars()`. Backreferences and other constructs that require unbounded backtracking are rejected with `RegexError::UnsupportedFeature`.
+-   Matching walks the haystack in code-point units by default. All pattern constructs—ranges, classes, `.`—interpret text as Unicode scalar values. When `grapheme_mode` is enabled, the engine segments the haystack using `string.graphemes()` before evaluating atoms and quantifiers so user-perceived characters stay intact.
+-   Every API guarantees linear time with respect to `pattern.len_chars() + haystack.len_chars()`. Backreferences and other constructs that require unbounded backtracking are rejected with `RegexError.UnsupportedFeature`.
 -   Matches borrow from the haystack. `Match.matched` and each group’s `value` are `string` instances created by slicing the original bytes; their `span` offsets always refer to the source haystack and remain valid even if the haystack is larger than the matched segment.
 -   Capture groups are numbered in declaration order; named groups populate both `groups` (by ordinal) and `named_groups` (by identifier). Groups that do not participate in the match return `value=nil`, `span=nil`.
 -   Replacement callbacks run synchronously and may `raise`; the error propagates to the caller and aborts the replace operation at the current match.
 
 #### 14.2.4. Regex Sets & Streaming
 
--   `RegexSet.compile(patterns: Array string, options: RegexOptions = RegexOptions::default()) -> Result RegexSet RegexError` compiles every pattern into a single automaton. Matching APIs include:
+-   `RegexSet.compile(patterns: Array string, options: RegexOptions = RegexOptions.default()) -> Result RegexSet RegexError` compiles every pattern into a single automaton. Matching APIs include:
     -   `fn is_match(self: RegexSet, haystack: string) -> bool`
     -   `fn matches(self: RegexSet, haystack: string) -> Array u64` (indices of patterns that matched)
     -   `fn iter(self: RegexSet, haystack: string) -> (Iterator RegexSetMatch)` where `RegexSetMatch { pattern_index: u64, span: Span }`
@@ -4504,7 +4514,7 @@ All structs are shareable across threads/procs; compiled programs are immutable 
 #### 14.2.5. Integration Points
 
 -   The testing helpers (`able.testing.assertions.match_regex`) delegate to `regex_is_match`, so diagnostic output and failure modes flow through the regex module rather than bespoke matchers.
--   Channel/mutex diagnostics (§12.7) and the text processing utilities consume regex spans directly; consumers should treat `Span.start`/`Span.end` as byte offsets and rely on `string::substring` or `string::graphemes()` when human-facing presentation is needed.
+-   Channel/mutex diagnostics (§12.7) and the text processing utilities consume regex spans directly; consumers should treat `Span.start`/`Span.end` as byte offsets and rely on `string.substring` or `string.graphemes()` when human-facing presentation is needed.
 -   Because regex captures rely on byte offsets, any API that displays indices alongside grapheme-oriented UIs must convert them explicitly (e.g., by counting graphemes up to `span.start`).
 
 ## 15. Program Entry Point
@@ -4683,8 +4693,6 @@ extern ruby fn new_uuid() -> string { SecureRandom.uuid }
 
 # Unresolved questions
 
-* Struct Mutability (4.5): Unresolved—awaiting "immutability patterns" subsection.
-* Overlapping Implementations (10.2.3): Partially resolved but open for specificity lattice/examples (10.2.5).
 * Shared Data in Concurrency (12.5): Unresolved—awaiting "races and ownership patterns" note with examples.
 * HKTs/Variance/Coercion: Unresolved—awaiting minimal rules.
 * Self Interpretation (10.1.3): Unresolved—no recursive details yet.

@@ -173,13 +173,6 @@ func (c *Checker) resolveTypeReference(expr ast.TypeExpression) Type {
 		for i, arg := range t.Arguments {
 			args[i] = c.resolveTypeReference(arg)
 		}
-		if st, ok := base.(StructType); ok && st.StructName == "Array" {
-			var elem Type = UnknownType{}
-			if len(args) > 0 {
-				elem = args[0]
-			}
-			return ArrayType{Element: elem}
-		}
 		if base == nil {
 			return UnknownType{}
 		}
@@ -250,11 +243,17 @@ func (c *Checker) bindStructPattern(env *Environment, pat *ast.StructPattern, va
 		if field == nil {
 			return
 		}
+		effective := expected
+		if field.TypeAnnotation != nil {
+			if resolved := c.resolveTypeReference(field.TypeAnnotation); resolved != nil {
+				effective = resolved
+			}
+		}
 		if field.Binding != nil {
-			diags = append(diags, c.bindPattern(env, field.Binding, expected, allowDefine, intent)...)
+			diags = append(diags, c.bindPattern(env, field.Binding, effective, allowDefine, intent)...)
 		}
 		if inner, ok := field.Pattern.(ast.AssignmentTarget); ok {
-			diags = append(diags, c.bindPattern(env, inner, expected, allowDefine, intent)...)
+			diags = append(diags, c.bindPattern(env, inner, effective, allowDefine, intent)...)
 		}
 	}
 

@@ -409,8 +409,8 @@ Blocking operations must observe task cancellation. `value()` calls are re-entra
 ```able
 import math
 import math.{sqrt, pow}
-import io as console
-import io.{print as println}
+import io::console
+import io.{print::println}
 import math.*
 ```
 

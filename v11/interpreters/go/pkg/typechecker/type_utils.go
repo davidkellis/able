@@ -106,6 +106,11 @@ func formatType(t Type) string {
 			params[i] = formatType(param)
 		}
 		return fmt.Sprintf("fn(%s) -> %s", strings.Join(params, ", "), formatType(val.Return))
+	case ImplementationNamespaceType:
+		if val.Impl != nil && val.Impl.ImplName != "" {
+			return val.Impl.ImplName
+		}
+		return "implementation"
 	}
 
 	return t.Name()
@@ -377,6 +382,17 @@ func typeAssignable(from, to Type) bool {
 		return typeAssignable(from, target.Inner)
 	case UnionLiteralType:
 		return unionAssignable(from, target)
+	case UnionType:
+		if union, ok := from.(UnionType); ok {
+			if union.UnionName != "" && target.UnionName != "" && union.UnionName == target.UnionName {
+				return true
+			}
+			return unionLiteralAssignableToNamed(UnionLiteralType{Members: union.Variants}, target)
+		}
+		if literal, ok := from.(UnionLiteralType); ok {
+			return unionLiteralAssignableToNamed(literal, target)
+		}
+		return typeAssignableToAny(from, target.Variants)
 	case AppliedType:
 		if applied, ok := from.(AppliedType); ok {
 			return appliedTypesAssignable(applied, target)

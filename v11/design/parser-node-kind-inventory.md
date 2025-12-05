@@ -93,9 +93,9 @@ This note records the tree-sitter node kinds we must handle in the Go parser for
 | Feature | Tree-sitter node kinds | Grammar notes |
 |---------|-----------------------|---------------|
 | Package statement | `package_statement`, `identifier` | Present. |
-| Import selectors (`import pkg.{Foo, Bar as B}`) | `import_statement`, `import_clause`, `import_selector` | Present. |
+| Import selectors (`import pkg.{Foo, Bar::B}`) | `import_statement`, `import_clause`, `import_selector` | Present. |
 | Wildcard import (`*`) | `import_statement`, `import_wildcard_clause` | Present. |
-| Alias import (`import pkg as alias`) | `import_statement`, `import_clause`, alias `identifier` | Present. |
+| Alias import (`import pkg::alias`) | `import_statement`, `import_clause`, alias `identifier` | Present. |
 | Dynamic import (`dynimport`) | `import_statement` with `kind` token `dynimport` | Present. |
 | Prelude statement (`prelude {}`) | `prelude_statement`, `host_code_block` | Present. |
 

@@ -4,7 +4,7 @@
     "named": true,
     "subtypes": [
       {
-        "type": "pipe_expression",
+        "type": "low_precedence_pipe_expression",
         "named": true
       }
     ]
@@ -257,7 +257,7 @@
       "required": false,
       "types": [
         {
-          "type": "range_expression",
+          "type": "pipe_expression",
           "named": true
         }
       ]
@@ -296,7 +296,7 @@
       "required": true,
       "types": [
         {
-          "type": "assignment_expression",
+          "type": "postfix_expression",
           "named": true
         }
       ]
@@ -575,11 +575,11 @@
       "required": true,
       "types": [
         {
-          "type": "assignment_expression",
+          "type": "handling_expression",
           "named": true
         },
         {
-          "type": "handling_expression",
+          "type": "pipe_operand_base",
           "named": true
         },
         {
@@ -899,11 +899,11 @@
       "required": true,
       "types": [
         {
-          "type": "assignment_expression",
+          "type": "else_clause",
           "named": true
         },
         {
-          "type": "else_clause",
+          "type": "pipe_operand_base",
           "named": true
         },
         {
@@ -1074,15 +1074,26 @@
       "required": true,
       "types": [
         {
-          "type": "identifier",
-          "named": true
-        },
-        {
           "type": "import_selector",
           "named": true
         },
         {
           "type": "import_wildcard_clause",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "import_path",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "identifier",
           "named": true
         }
       ]
@@ -1107,6 +1118,16 @@
     "type": "import_statement",
     "named": true,
     "fields": {
+      "alias": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "identifier",
+            "named": true
+          }
+        ]
+      },
       "clause": {
         "multiple": false,
         "required": false,
@@ -1136,7 +1157,7 @@
         "required": true,
         "types": [
           {
-            "type": "qualified_identifier",
+            "type": "import_path",
             "named": true
           }
         ]
@@ -1499,6 +1520,21 @@
     }
   },
   {
+    "type": "low_precedence_pipe_expression",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "assignment_expression",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "map_literal",
     "named": true,
     "fields": {},
@@ -1664,18 +1700,6 @@
       "required": true,
       "types": [
         {
-          "type": "assignment_expression",
-          "named": true
-        },
-        {
-          "type": "await_expression",
-          "named": true
-        },
-        {
-          "type": "breakpoint_expression",
-          "named": true
-        },
-        {
           "type": "ensure_expression",
           "named": true
         },
@@ -1684,19 +1708,11 @@
           "named": true
         },
         {
-          "type": "match_expression",
-          "named": true
-        },
-        {
-          "type": "proc_expression",
+          "type": "pipe_operand_base",
           "named": true
         },
         {
           "type": "rescue_expression",
-          "named": true
-        },
-        {
-          "type": "spawn_expression",
           "named": true
         }
       ]
@@ -2017,6 +2033,41 @@
     }
   },
   {
+    "type": "pipe_operand_base",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "await_expression",
+          "named": true
+        },
+        {
+          "type": "breakpoint_expression",
+          "named": true
+        },
+        {
+          "type": "match_expression",
+          "named": true
+        },
+        {
+          "type": "proc_expression",
+          "named": true
+        },
+        {
+          "type": "range_expression",
+          "named": true
+        },
+        {
+          "type": "spawn_expression",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "postfix_expression",
     "named": true,
     "fields": {},
@@ -2274,11 +2325,11 @@
       "required": true,
       "types": [
         {
-          "type": "assignment_expression",
+          "type": "handling_expression",
           "named": true
         },
         {
-          "type": "handling_expression",
+          "type": "pipe_operand_base",
           "named": true
         }
       ]
@@ -2711,6 +2762,16 @@
         "types": [
           {
             "type": "identifier",
+            "named": true
+          }
+        ]
+      },
+      "type": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "type_expression",
             "named": true
           }
         ]
@@ -3238,6 +3299,10 @@
     "named": false
   },
   {
+    "type": "::",
+    "named": false
+  },
+  {
     "type": ":=",
     "named": false
   },
@@ -3331,10 +3396,6 @@
   },
   {
     "type": "`",
-    "named": false
-  },
-  {
-    "type": "as",
     "named": false
   },
   {
@@ -3576,6 +3637,10 @@
   },
   {
     "type": "|>",
+    "named": false
+  },
+  {
+    "type": "|>>",
     "named": false
   },
   {

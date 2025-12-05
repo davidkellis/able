@@ -266,17 +266,23 @@ func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diag
 			}
 			argCount := len(argTypesForCheck)
 			paramCount := len(expectedParams)
+			skipTypeChecks := false
 			if argCount != paramCount {
 				if !(optionalLast && argCount == paramCount-1) {
 					diags = append(diags, Diagnostic{
 						Message: fmt.Sprintf("typechecker: function expects %d arguments, got %d", paramCount, argCount),
 						Node:    e,
 					})
+					skipTypeChecks = true
 				}
 			}
 			if optionalLast && argCount == paramCount-1 {
 				expectedParams = expectedParams[:len(expectedParams)-1]
 				paramCount = len(expectedParams)
+			}
+			if skipTypeChecks {
+				c.infer.set(e, instantiated.Return)
+				return diags, instantiated.Return
 			}
 			compareCount := len(argTypes)
 			if paramCount < compareCount {
@@ -432,6 +438,40 @@ func (c *Checker) checkStatement(env *Environment, stmt ast.Statement) []Diagnos
 			c.infer.set(s, UnknownType{})
 			return diags
 		}
+		if member, ok := s.Left.(*ast.MemberAccessExpression); ok {
+			var diags []Diagnostic
+			if s.Operator == ast.AssignmentDeclare {
+				diags = append(diags, Diagnostic{
+					Message: "typechecker: cannot declare new binding on member assignment",
+					Node:    s,
+				})
+			}
+			memberDiags, memberType := c.checkMemberAccess(env, member)
+			diags = append(diags, memberDiags...)
+			rhsDiags, rhsType := c.checkExpression(env, s.Right)
+			diags = append(diags, rhsDiags...)
+			if memberType == nil {
+				memberType = UnknownType{}
+			}
+			if rhsType == nil {
+				rhsType = UnknownType{}
+			}
+			if !isUnknownType(memberType) && !isUnknownType(rhsType) && !typeAssignable(rhsType, memberType) {
+				if msg, ok := literalMismatchMessage(rhsType, memberType); ok {
+					diags = append(diags, Diagnostic{
+						Message: fmt.Sprintf("typechecker: %s", msg),
+						Node:    s.Right,
+					})
+				} else {
+					diags = append(diags, Diagnostic{
+						Message: fmt.Sprintf("typechecker: cannot assign %s to member (expected %s)", typeName(rhsType), typeName(memberType)),
+						Node:    s,
+					})
+				}
+			}
+			c.infer.set(s, UnknownType{})
+			return diags
+		}
 		var diags []Diagnostic
 		var intent *patternIntent
 		if s.Operator == ast.AssignmentDeclare {
@@ -507,6 +547,13 @@ func (c *Checker) checkStatement(env *Environment, stmt ast.Statement) []Diagnos
 		return c.checkImplementationDefinition(env, s)
 	case *ast.MethodsDefinition:
 		return c.checkMethodsDefinition(env, s)
+	case *ast.ExternFunctionBody:
+		if s == nil || s.Signature == nil {
+			return nil
+		}
+		return c.checkFunctionDefinition(env, s.Signature)
+	case *ast.PreludeStatement:
+		return nil
 	case *ast.ReturnStatement:
 		return c.checkReturnStatement(env, s)
 	case ast.Expression:
@@ -667,7 +714,7 @@ func (c *Checker) checkIteratorYield(env *Environment, stmt *ast.YieldStatement,
 
 func (c *Checker) resolveApplyCall(calleeType Type, argTypes []Type, call *ast.FunctionCall) (Type, []Diagnostic, bool) {
 	var diags []Diagnostic
-	if fnType, ok := c.lookupMethod(calleeType, "apply"); ok {
+	if fnType, ok, detail := c.lookupMethod(calleeType, "apply"); ok {
 		params := fnType.Params
 		optionalLast := len(params) > 0
 		if optionalLast {
@@ -709,6 +756,11 @@ func (c *Checker) resolveApplyCall(calleeType Type, argTypes []Type, call *ast.F
 			}
 		}
 		return fnType.Return, diags, true
+	} else if detail != "" {
+		diags = append(diags, Diagnostic{
+			Message: "typechecker: " + detail,
+			Node:    call,
+		})
 	}
 	switch t := calleeType.(type) {
 	case AppliedType:

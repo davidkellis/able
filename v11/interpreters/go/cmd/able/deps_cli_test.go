@@ -44,7 +44,7 @@ dependencies:
 	writeFile(t, filepath.Join(project, "src", "main.able"), `
 package main
 
-import util.core as core
+import util.core::core
 
 fn main() -> void {
   print(core.value())
@@ -138,7 +138,7 @@ dependencies:
 	writeFile(t, filepath.Join(project, "src", "main.able"), `
 package main
 
-import util.core as core
+import util.core::core
 
 fn main() -> void {
   print(core.value())
@@ -165,7 +165,7 @@ fn main() -> void {
 	writeFile(t, filepath.Join(project, "src", "main.able"), `
 package main
 
-import util.core as core
+import util.core::core
 
 fn main() -> void {
   print(core.value() + 1)

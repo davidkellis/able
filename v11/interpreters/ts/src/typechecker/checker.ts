@@ -110,6 +110,16 @@ const RESERVED_TYPE_NAMES = new Set<string>([
   "Error",
 ]);
 
+export interface TypeCheckerPrelude {
+  structs: Map<string, AST.StructDefinition>;
+  interfaces: Map<string, AST.InterfaceDefinition>;
+  typeAliases: Map<string, AST.TypeAliasDefinition>;
+  unions: Map<string, AST.UnionDefinition>;
+  functionInfos: Map<string, FunctionInfo[]>;
+  methodSets: MethodSetRecord[];
+  implementationRecords: ImplementationRecord[];
+}
+
 export interface TypeCheckerOptions {
   /**
    * When true, the checker will attempt to continue after diagnostics instead of
@@ -121,16 +131,49 @@ export interface TypeCheckerOptions {
    * resolve imports and surface package metadata to consumers.
    */
   packageSummaries?: Map<string, PackageSummary> | Record<string, PackageSummary>;
+  /**
+   * Prelude of already-checked symbols and methods that should be available to
+   * the current module (e.g., stdlib packages loaded earlier in the session).
+   */
+  prelude?: TypeCheckerPrelude;
+}
+
+function clonePrelude(prelude?: TypeCheckerPrelude): TypeCheckerPrelude | undefined {
+  if (!prelude) {
+    return undefined;
+  }
+  return {
+    structs: new Map(prelude.structs ?? new Map()),
+    interfaces: new Map(prelude.interfaces ?? new Map()),
+    typeAliases: new Map(prelude.typeAliases ?? new Map()),
+    unions: new Map(prelude.unions ?? new Map()),
+    functionInfos: cloneFunctionInfoMap(prelude.functionInfos),
+    methodSets: [...(prelude.methodSets ?? [])],
+    implementationRecords: [...(prelude.implementationRecords ?? [])],
+  };
+}
+
+function cloneFunctionInfoMap(source?: Map<string, FunctionInfo[]>): Map<string, FunctionInfo[]> {
+  const cloned = new Map<string, FunctionInfo[]>();
+  if (!source) {
+    return cloned;
+  }
+  for (const [key, infos] of source.entries()) {
+    cloned.set(key, [...infos]);
+  }
+  return cloned;
 }
 
 export class TypeChecker {
   private env: Environment;
   private readonly options: TypeCheckerOptions;
   private readonly packageSummaries: Map<string, PackageSummary>;
+  private readonly prelude?: TypeCheckerPrelude;
   private diagnostics: TypecheckerDiagnostic[] = [];
   private structDefinitions: Map<string, AST.StructDefinition> = new Map();
   private interfaceDefinitions: Map<string, AST.InterfaceDefinition> = new Map();
   private typeAliases: Map<string, AST.TypeAliasDefinition> = new Map();
+  private unionDefinitions: Map<string, AST.UnionDefinition> = new Map();
   private functionInfos: Map<string, FunctionInfo[]> = new Map();
   private methodSets: MethodSetRecord[] = [];
   private implementationRecords: ImplementationRecord[] = [];
@@ -154,6 +197,7 @@ export class TypeChecker {
     this.env = new Environment();
     this.options = options;
     this.packageSummaries = clonePackageSummaries(options.packageSummaries);
+    this.prelude = clonePrelude(options.prelude);
     this.typeResolution = createTypeResolutionHelpers(this.createTypeResolutionContext());
     this.context = this.createCheckerContext();
     this.declarationsContext = this.context as DeclarationsContext;
@@ -166,6 +210,7 @@ export class TypeChecker {
     this.structDefinitions = new Map();
     this.interfaceDefinitions = new Map();
     this.typeAliases = new Map();
+    this.unionDefinitions = new Map();
     this.functionInfos = new Map();
     this.methodSets = [];
     this.implementationRecords = [];
@@ -175,6 +220,7 @@ export class TypeChecker {
     this.loopResultStack = [];
     this.breakpointStack = [];
     this.installBuiltins();
+    this.installPrelude();
     this.packageAliases.clear();
     this.reportedPackageMemberAccess = new WeakSet();
     this.allowDynamicLookups = false;
@@ -206,6 +252,33 @@ export class TypeChecker {
     });
   }
 
+  private installPrelude(): void {
+    if (!this.prelude) {
+      return;
+    }
+    for (const definition of this.prelude.structs.values()) {
+      this.registerStructDefinition(definition);
+    }
+    for (const definition of this.prelude.interfaces.values()) {
+      this.registerInterfaceDefinition(definition);
+    }
+    for (const definition of this.prelude.unions.values()) {
+      this.registerUnionDefinition(definition);
+    }
+    for (const definition of this.prelude.typeAliases.values()) {
+      this.registerTypeAlias(definition);
+    }
+    for (const [key, infos] of this.prelude.functionInfos.entries()) {
+      for (const info of infos) {
+        this.addFunctionInfo(key, info);
+      }
+    }
+    this.methodSets.push(...this.prelude.methodSets);
+    for (const record of this.prelude.implementationRecords) {
+      this.registerImplementationRecord(record);
+    }
+  }
+
   private collectModuleDeclarations(module: AST.Module): void {
     if (!Array.isArray(module.body)) {
       return;
@@ -219,7 +292,8 @@ export class TypeChecker {
         statement &&
         (statement.type === "StructDefinition" ||
           statement.type === "InterfaceDefinition" ||
-          statement.type === "TypeAliasDefinition")
+          statement.type === "TypeAliasDefinition" ||
+          statement.type === "UnionDefinition")
       ) {
         continue;
       }
@@ -239,6 +313,9 @@ export class TypeChecker {
       case "InterfaceDefinition":
         this.registerInterfaceDefinition(node);
         break;
+      case "UnionDefinition":
+        this.registerUnionDefinition(node);
+        break;
       case "TypeAliasDefinition":
         this.registerTypeAlias(node);
         break;
@@ -252,6 +329,9 @@ export class TypeChecker {
     switch (node.type) {
       case "InterfaceDefinition":
         this.registerInterfaceDefinition(node);
+        break;
+      case "UnionDefinition":
+        this.registerUnionDefinition(node);
         break;
       case "TypeAliasDefinition":
         this.registerTypeAlias(node);
@@ -311,6 +391,9 @@ export class TypeChecker {
     if (this.structDefinitions.has(name)) {
       return true;
     }
+    if (this.unionDefinitions.has(name)) {
+      return true;
+    }
     if (this.interfaceDefinitions.has(name)) {
       return true;
     }
@@ -345,6 +428,17 @@ export class TypeChecker {
 
   private registerTypeAlias(definition: AST.TypeAliasDefinition): void {
     registerTypeAliasHelper(this.registryContext(), definition);
+  }
+
+  private registerUnionDefinition(definition: AST.UnionDefinition): void {
+    const name = definition.id?.name;
+    if (!name) {
+      return;
+    }
+    if (!this.ensureUniqueDeclaration(name, definition)) {
+      return;
+    }
+    this.unionDefinitions.set(name, definition);
   }
 
   private registerImplementationRecord(record: ImplementationRecord): void {
@@ -495,6 +589,31 @@ export class TypeChecker {
       this.report(literalMessage, statement.argument ?? statement);
       return;
     }
+    if (expected.kind === "result") {
+      if (this.isTypeAssignable(actual, expected.inner)) {
+        return;
+      }
+      if (typeImplementsInterface(this.implementationContext, actual, "Error", [] as string[]).ok) {
+        return;
+      }
+    }
+    const unionMatches = (member: TypeInfo | undefined): boolean => {
+      if (!member) return false;
+      if (member.kind === "union") {
+        return member.members?.some((inner) => unionMatches(inner)) ?? false;
+      }
+      if (member.kind === "interface") {
+        const args = (member.typeArguments ?? []).map((arg) => formatType(arg));
+        return typeImplementsInterface(this.implementationContext, actual, member.name, args).ok;
+      }
+      if (member.kind === "struct" && member.name === "Error") {
+        return typeImplementsInterface(this.implementationContext, actual, "Error", []).ok;
+      }
+      return false;
+    };
+    if (expected.kind === "union" && expected.members?.some((member) => unionMatches(member))) {
+      return;
+    }
     if (!this.isTypeAssignable(actual, expected)) {
       this.report(
         `typechecker: return expects ${formatType(expected)}, got ${formatType(actual)}`,
@@ -617,7 +736,7 @@ export class TypeChecker {
       checkBuiltinCallContext: this.checkBuiltinCallContext.bind(this),
       getBuiltinCallName: this.getBuiltinCallName.bind(this),
       typeImplementsInterface: (type, interfaceName, expectedArgs) =>
-        typeImplementsInterface(this.implementationContext, type, expectedArgs ?? []),
+        typeImplementsInterface(this.implementationContext, type, interfaceName, expectedArgs ?? []),
       statementContext: this.context,
     };
   }
@@ -812,6 +931,8 @@ export class TypeChecker {
       getInterfaceDefinition: (name: string) => this.interfaceDefinitions.get(name),
       hasInterfaceDefinition: (name: string) => this.interfaceDefinitions.has(name),
       getStructDefinition: (name: string) => this.structDefinitions.get(name),
+      getUnionDefinition: (name: string) => this.unionDefinitions.get(name),
+      hasUnionDefinition: (name: string) => this.unionDefinitions.has(name),
       getIdentifierName: (identifier: AST.Identifier | null | undefined) => this.getIdentifierName(identifier),
     };
   }
@@ -827,7 +948,10 @@ export class TypeChecker {
       describeTypeExpression: this.describeTypeExpression.bind(this),
       isKnownTypeName: (name: string) => this.isKnownTypeName(name),
       hasTypeDefinition: (name: string) =>
-        this.structDefinitions.has(name) || this.interfaceDefinitions.has(name) || this.typeAliases.has(name),
+        this.structDefinitions.has(name) ||
+        this.unionDefinitions.has(name) ||
+        this.interfaceDefinitions.has(name) ||
+        this.typeAliases.has(name),
       typeInfosEquivalent: this.typeInfosEquivalent.bind(this),
       isTypeAssignable: this.isTypeAssignable.bind(this),
       describeLiteralMismatch: this.describeLiteralMismatch.bind(this),
@@ -864,7 +988,7 @@ export class TypeChecker {
       handleBreakStatement: this.checkBreakStatement.bind(this),
       handleContinueStatement: this.checkContinueStatement.bind(this),
       typeImplementsInterface: (type, interfaceName, expectedArgs) =>
-        typeImplementsInterface(this.implementationContext, type, expectedArgs ?? []),
+        typeImplementsInterface(this.implementationContext, type, interfaceName, expectedArgs ?? []),
     });
   }
 
@@ -887,6 +1011,18 @@ export class TypeChecker {
 
   private buildPackageSummary(module: AST.Module): PackageSummary | null {
     return buildPackageSummaryHelper(this.implementationContext, module);
+  }
+
+  exportPrelude(): TypeCheckerPrelude {
+    return {
+      structs: new Map(this.structDefinitions),
+      interfaces: new Map(this.interfaceDefinitions),
+      typeAliases: new Map(this.typeAliases),
+      unions: new Map(this.unionDefinitions),
+      functionInfos: cloneFunctionInfoMap(this.functionInfos),
+      methodSets: [...this.methodSets],
+      implementationRecords: [...this.implementationRecords],
+    };
   }
 
   private addFunctionInfo(key: string, info: FunctionInfo): void {

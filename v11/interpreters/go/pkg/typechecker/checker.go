@@ -33,6 +33,7 @@ type Checker struct {
 
 	builtinImplementations []ImplementationSpec
 	pendingDiagnostics     []Diagnostic
+	duplicateFunctions     map[*ast.FunctionDefinition]struct{}
 }
 
 // Diagnostic represents a type-checking error or warning.
@@ -112,6 +113,7 @@ func (c *Checker) CheckModule(module *ast.Module) ([]Diagnostic, error) {
 	c.preludeImplCount = 0
 	c.preludeMethodCount = 0
 	c.pendingDiagnostics = nil
+	c.duplicateFunctions = nil
 	declDiags := c.collectDeclarations(module)
 	var diagnostics []Diagnostic
 	diagnostics = append(diagnostics, declDiags...)
@@ -274,7 +276,8 @@ func (c *Checker) builtinImplsForModule(module *ast.Module) []ImplementationSpec
 	disableDisplay := moduleDefinesInterface(module, "Display")
 	disableClone := moduleDefinesInterface(module, "Clone")
 	disableOrd := moduleDefinesInterface(module, "Ord")
-	if !disableDisplay && !disableClone && !disableOrd {
+	disableError := moduleDefinesInterface(module, "Error")
+	if !disableDisplay && !disableClone && !disableOrd && !disableError {
 		return c.builtinImplementations
 	}
 	filtered := make([]ImplementationSpec, 0, len(c.builtinImplementations))
@@ -290,6 +293,10 @@ func (c *Checker) builtinImplsForModule(module *ast.Module) []ImplementationSpec
 			}
 		case "Ord":
 			if disableOrd {
+				continue
+			}
+		case "Error":
+			if disableError {
 				continue
 			}
 		}

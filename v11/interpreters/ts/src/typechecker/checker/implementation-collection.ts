@@ -3,6 +3,7 @@ import { collectFunctionDefinition } from "./declarations";
 import { collectUnionVariantLabels } from "./impl_matches";
 import type { ImplementationContext } from "./implementation-context";
 import type { ImplementationObligation, ImplementationRecord, MethodSetRecord } from "./types";
+import { unknownType } from "../types";
 
 const PRIMITIVE_TYPE_NAMES = new Set([
   "i8",
@@ -24,18 +25,31 @@ const PRIMITIVE_TYPE_NAMES = new Set([
   "void",
 ]);
 
+function collectTargetTypeParams(ctx: ImplementationContext, targetType: AST.TypeExpression | null | undefined): string[] {
+  if (!targetType) return [];
+  if (targetType.type === "GenericTypeExpression" && Array.isArray(targetType.arguments)) {
+    return targetType.arguments
+      .map((arg) => ctx.getIdentifierNameFromTypeExpression(arg))
+      .filter((name): name is string => Boolean(name) && !ctx.isKnownTypeName(name));
+  }
+  return [];
+}
+
 export function collectMethodsDefinition(ctx: ImplementationContext, definition: AST.MethodsDefinition): void {
   const structLabel =
     ctx.formatImplementationTarget(definition.targetType) ?? ctx.getIdentifierNameFromTypeExpression(definition.targetType);
   if (!structLabel) return;
+  const explicitParams = Array.isArray(definition.genericParams)
+    ? definition.genericParams
+        .map((param) => ctx.getIdentifierName(param?.name))
+        .filter((name): name is string => Boolean(name))
+    : [];
+  const targetParams = collectTargetTypeParams(ctx, definition.targetType);
+  const genericParams = [...new Set([...targetParams, ...explicitParams])];
   const record: MethodSetRecord = {
     label: `methods for ${structLabel}`,
     target: definition.targetType,
-    genericParams: Array.isArray(definition.genericParams)
-      ? definition.genericParams
-          .map((param) => ctx.getIdentifierName(param?.name))
-          .filter((name): name is string => Boolean(name))
-      : [],
+    genericParams,
     obligations: extractMethodSetObligations(ctx, definition),
     definition,
   };
@@ -56,6 +70,9 @@ export function collectImplementationDefinition(
   const interfaceName = ctx.getIdentifierName(definition.interfaceName);
   if (!interfaceName) {
     return;
+  }
+  if (definition.implName?.name) {
+    ctx.defineValue(definition.implName.name, unknownType);
   }
   const targetLabel = ctx.formatImplementationTarget(definition.targetType);
   const fallbackName = ctx.getIdentifierNameFromTypeExpression(definition.targetType);
@@ -434,8 +451,11 @@ function isPatternPlaceholderName(
   name: string,
   interfaceGenericNames: Set<string>,
 ): boolean {
-  if (!name || name === "Self") {
+  if (!name) {
     return false;
+  }
+  if (name === "Self") {
+    return true;
   }
   if (interfaceGenericNames.has(name)) {
     return true;
@@ -518,6 +538,9 @@ function ensureImplementationMethods(
     const methodName = ctx.getIdentifierName(signature.name);
     if (!methodName) continue;
     if (!provided.has(methodName)) {
+      if (signature.defaultImpl) {
+        continue;
+      }
       ctx.report(`typechecker: ${label} missing method '${methodName}'`, implementation);
       allRequiredPresent = false;
       continue;
@@ -540,14 +563,6 @@ function ensureImplementationMethods(
     }
   }
 
-  for (const methodName of provided.keys()) {
-    const extraMethod = provided.get(methodName);
-    ctx.report(
-      `typechecker: ${label} defines method '${methodName}' not declared in interface ${interfaceName}`,
-      extraMethod ?? implementation,
-    );
-  }
-
   return allRequiredPresent;
 }
 
@@ -561,17 +576,20 @@ function validateImplementationMethod(
   targetLabel: string,
 ): boolean {
   let valid = true;
+  const interfaceDefinitionGenerics = Array.isArray(interfaceDefinition.genericParams)
+    ? interfaceDefinition.genericParams.length
+    : 0;
   const interfaceGenerics = Array.isArray(signature.genericParams) ? signature.genericParams.length : 0;
   const implementationGenerics = Array.isArray(method.genericParams) ? method.genericParams.length : 0;
   const substitutions = buildImplementationSubstitutions(ctx, interfaceDefinition, implementation, targetLabel);
-  if (interfaceGenerics !== implementationGenerics) {
+  const expectedGenerics = interfaceGenerics === interfaceDefinitionGenerics ? 0 : interfaceGenerics;
+  if (expectedGenerics !== implementationGenerics) {
     ctx.report(
-      `typechecker: ${label} method '${signature.name?.name ?? "<anonymous>"}' expects ${interfaceGenerics} generic parameter(s), got ${implementationGenerics}`,
+      `typechecker: ${label} method '${signature.name?.name ?? "<anonymous>"}' expects ${expectedGenerics} generic parameter(s), got ${implementationGenerics}`,
       method,
     );
     valid = false;
   }
-
   const interfaceParams = Array.isArray(signature.params) ? signature.params : [];
   const implementationParams = Array.isArray(method.params) ? method.params : [];
   if (interfaceParams.length !== implementationParams.length) {

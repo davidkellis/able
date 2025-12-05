@@ -1,0 +1,31 @@
+{
+  "description": "Low-precedence pipe (|>>) runs after assignment; |> binds above assignment but below ||",
+  "expect": {
+    "result": {
+      "kind": "array",
+      "elements": [
+        {
+          "kind": "i32",
+          "value": "6"
+        },
+        {
+          "kind": "i32",
+          "value": "5"
+        },
+        {
+          "kind": "i32",
+          "value": "2"
+        },
+        {
+          "kind": "i32",
+          "value": "2"
+        },
+        {
+          "kind": "i32",
+          "value": "1"
+        }
+      ]
+    }
+  },
+  "entry": "module.json"
+}

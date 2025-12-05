@@ -13,17 +13,17 @@ fn match_from(text: Array char, ti: i32, pattern: Array char, pi: i32) -> bool {
 
   first := false
   if ti < text.size() {
-    if pattern[pi] == '.' or pattern[pi] == text[ti] {
+    if pattern[pi] == '.' || pattern[pi] == text[ti] {
       first = true
     }
   }
 
-  has_star := pi + 1 < pattern.size() and pattern[pi + 1] == '*'
+  has_star := pi + 1 < pattern.size() && pattern[pi + 1] == '*'
   if has_star {
-    return match_from(text, ti, pattern, pi + 2) or (first and match_from(text, ti + 1, pattern, pi))
+    return match_from(text, ti, pattern, pi + 2) || (first && match_from(text, ti + 1, pattern, pi))
   }
 
-  first and match_from(text, ti + 1, pattern, pi + 1)
+  first && match_from(text, ti + 1, pattern, pi + 1)
 }
 
 fn show_match(text: Array char, pattern: Array char) -> void {

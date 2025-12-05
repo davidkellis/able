@@ -1,11 +1,6 @@
 package tutorial.sync
 
-fn with_lock(m: Mutex, f) {
-  m.lock()
-  result := f()
-  m.unlock()
-  result
-}
+import able.concurrency.{Channel, Mutex, Await, with_lock}
 
 fn main() -> void {
   ch: Channel string = Channel.new(0)
@@ -25,13 +20,16 @@ fn main() -> void {
 
   buffered: Channel i32 = Channel.new(1)
   sent = await [
-    buffered.try_send(42, { value => "sent without blocking" }),
+    buffered.await_send(42, { => "sent without blocking" }),
     Await.default({ => "default arm" })
   ]
   print(sent)
 
   received = await [
-    buffered.try_recv({ v => `await saw ${v}` }),
+    buffered.await_receive({ maybe => maybe match {
+      case nil => "channel empty",
+      case value => `await saw ${value}`
+    } }),
     Await.default({ => "no value ready" })
   ]
   print(received)

@@ -216,16 +216,52 @@ func registerBuiltins(env *Environment) {
 	env.Define("Greater", greaterType)
 	env.Define("Ordering", ordering)
 
+	displayIface := InterfaceType{
+		InterfaceName: "Display",
+		Methods: map[string]FunctionType{
+			"to_string": {
+				Params: []Type{
+					TypeParameterType{ParameterName: "Self"},
+				},
+				Return: stringType,
+			},
+		},
+	}
+	cloneIface := InterfaceType{
+		InterfaceName: "Clone",
+		Methods: map[string]FunctionType{
+			"clone": {
+				Params: []Type{
+					TypeParameterType{ParameterName: "Self"},
+				},
+				Return: TypeParameterType{ParameterName: "Self"},
+			},
+		},
+	}
+	errorIface := InterfaceType{
+		InterfaceName: "Error",
+		Methods: map[string]FunctionType{
+			"message": {
+				Params: []Type{
+					TypeParameterType{ParameterName: "Self"},
+				},
+				Return: stringType,
+			},
+			"cause": {
+				Params: []Type{
+					TypeParameterType{ParameterName: "Self"},
+				},
+				Return: NullableType{Inner: InterfaceType{InterfaceName: "Error"}},
+			},
+		},
+	}
 	ordIface := InterfaceType{
 		InterfaceName: "Ord",
-		TypeParams: []GenericParamSpec{
-			{Name: "Rhs"},
-		},
 		Methods: map[string]FunctionType{
 			"cmp": {
 				Params: []Type{
 					TypeParameterType{ParameterName: "Self"},
-					TypeParameterType{ParameterName: "Rhs"},
+					TypeParameterType{ParameterName: "Self"},
 				},
 				Return: ordering,
 			},
@@ -233,12 +269,9 @@ func registerBuiltins(env *Environment) {
 	}
 	env.Define("Ord", ordIface)
 
-	env.Define("Display", InterfaceType{
-		InterfaceName: "Display",
-	})
-	env.Define("Clone", InterfaceType{
-		InterfaceName: "Clone",
-	})
+	env.Define("Display", displayIface)
+	env.Define("Clone", cloneIface)
+	env.Define("Error", errorIface)
 	procErrorFields := map[string]Type{
 		"details": stringType,
 	}

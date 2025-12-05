@@ -12,7 +12,7 @@ fn add_digits(lhs: Array i32, rhs: Array i32) -> Array i32 {
   left_len := lhs.size()
   right_len := rhs.size()
 
-  while i < left_len or i < right_len or carry > 0 {
+  while i < left_len || i < right_len || carry > 0 {
     left_digit := if i < left_len { lhs[i] } or { 0 }
     right_digit := if i < right_len { rhs[i] } or { 0 }
 

@@ -13,11 +13,12 @@ import (
 // parser state (currently the module source bytes) so helpers can share the
 // same view of the file without threading arguments everywhere.
 type parseContext struct {
-	source []byte
+	source      []byte
+	structKinds map[string]ast.StructKind
 }
 
 func newParseContext(source []byte) *parseContext {
-	return &parseContext{source: source}
+	return &parseContext{source: source, structKinds: make(map[string]ast.StructKind)}
 }
 
 func (ctx *parseContext) parseQualifiedIdentifier(node *sitter.Node) ([]*ast.Identifier, error) {
@@ -118,6 +119,23 @@ func findIdentifier(node *sitter.Node, source []byte) (*ast.Identifier, bool) {
 	return nil, false
 }
 
+func (ctx *parseContext) resolveStructKind(id *ast.Identifier) (ast.StructKind, bool) {
+	if id == nil || ctx == nil {
+		return "", false
+	}
+	if kind, ok := ctx.structKinds[id.Name]; ok {
+		return kind, true
+	}
+	if strings.Contains(id.Name, ".") {
+		parts := strings.Split(id.Name, ".")
+		name := parts[len(parts)-1]
+		if kind, ok := ctx.structKinds[name]; ok {
+			return kind, true
+		}
+	}
+	return "", false
+}
+
 func findNamedChildIndex(parent, target *sitter.Node) int {
 	if parent == nil || target == nil {
 		return -1
@@ -146,6 +164,39 @@ func hasSemicolonBetween(source []byte, left, right *sitter.Node) bool {
 	for i := start; i < end; i++ {
 		if source[i] == ';' {
 			return true
+		}
+	}
+	return false
+}
+
+func hasLegacyImportAlias(node *sitter.Node, source []byte) bool {
+	if node == nil {
+		return false
+	}
+	i := int(node.EndByte())
+	for i < len(source) {
+		b := source[i]
+		switch b {
+		case ' ', '\t', ';':
+			i++
+			continue
+		case '\n', '\r':
+			return false
+		case '#':
+			if i+1 < len(source) && source[i+1] == '#' {
+				return false
+			}
+			return false
+		case 'a':
+			if i+1 < len(source) && source[i+1] == 's' {
+				j := i + 2
+				if j >= len(source) || source[j] == ' ' || source[j] == '\t' {
+					return true
+				}
+			}
+			return false
+		default:
+			return false
 		}
 	}
 	return false

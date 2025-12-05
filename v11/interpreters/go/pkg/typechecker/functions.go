@@ -2,6 +2,7 @@ package typechecker
 
 import (
 	"fmt"
+	"strings"
 
 	"able/interpreter10-go/pkg/ast"
 )
@@ -19,6 +20,16 @@ func isVoidType(t Type) bool {
 func (c *Checker) checkFunctionDefinition(env *Environment, def *ast.FunctionDefinition) []Diagnostic {
 	if def == nil {
 		return nil
+	}
+	if def != nil {
+		if _, dup := c.duplicateFunctions[def]; dup {
+			return nil
+		}
+	}
+	if def.ID != nil {
+		if typ, ok := env.Lookup(def.ID.Name); ok && isUnknownType(typ) {
+			return nil
+		}
 	}
 	c.pushFunctionGenericContext(def)
 	defer c.popFunctionGenericContext()
@@ -95,11 +106,30 @@ func (c *Checker) checkFunctionDefinition(env *Environment, def *ast.FunctionDef
 			}
 			if coerced, ok := normalizeResultReturn(bodyType, expectedReturn); ok {
 				bodyType = coerced
-			} else if !typeAssignable(bodyType, expectedReturn) {
-				diags = append(diags, Diagnostic{
-					Message: fmt.Sprintf("typechecker: function '%s' body returns %s, expected %s", defName(def), typeName(bodyType), typeName(expectedReturn)),
-					Node:    def.Body,
-				})
+			} else {
+				assignable := typeAssignable(bodyType, expectedReturn)
+				if !assignable {
+					if iface, args, ok := interfaceFromType(expectedReturn); ok {
+						if ok, _ := c.typeImplementsInterface(bodyType, iface, args); ok {
+							assignable = true
+						}
+					}
+				}
+				if !assignable {
+					if _, ok := resultAppliedType(expectedReturn); ok {
+						if ok, _ := c.typeImplementsInterface(bodyType, InterfaceType{InterfaceName: "Error"}, nil); ok {
+							assignable = true
+						} else if name, ok := structName(bodyType); ok && strings.HasSuffix(name, "Error") {
+							assignable = true
+						}
+					}
+				}
+				if !assignable {
+					diags = append(diags, Diagnostic{
+						Message: fmt.Sprintf("typechecker: function '%s' body returns %s, expected %s", defName(def), typeName(bodyType), typeName(expectedReturn)),
+						Node:    def.Body,
+					})
+				}
 			}
 		}
 	}
@@ -145,6 +175,18 @@ func defName(def *ast.FunctionDefinition) string {
 		return def.ID.Name
 	}
 	return "<anonymous>"
+}
+
+func interfaceFromType(t Type) (InterfaceType, []Type, bool) {
+	switch v := t.(type) {
+	case InterfaceType:
+		return v, nil, true
+	case AppliedType:
+		if iface, ok := v.Base.(InterfaceType); ok {
+			return iface, v.Arguments, true
+		}
+	}
+	return InterfaceType{}, nil, false
 }
 
 func (c *Checker) checkLambdaExpression(env *Environment, expr *ast.LambdaExpression) ([]Diagnostic, Type) {
@@ -294,17 +336,36 @@ func (c *Checker) checkReturnStatement(env *Environment, stmt *ast.ReturnStateme
 			}
 			if coerced, ok := normalizeResultReturn(returnType, expected); ok {
 				returnType = coerced
-			} else if !typeAssignable(returnType, expected) {
-				message := fmt.Sprintf("typechecker: return expects %s, got %s", typeName(expected), typeName(returnType))
-				if msg, ok := literalMismatchMessage(returnType, expected); ok {
-					message = fmt.Sprintf("typechecker: %s", msg)
-				}
-				diags = append(diags, Diagnostic{
-					Message: message,
-					Node:    stmt,
-				})
 			} else {
-				returnType = expected
+				assignable := typeAssignable(returnType, expected)
+				if !assignable {
+					if iface, args, ok := interfaceFromType(expected); ok {
+						if ok, _ := c.typeImplementsInterface(returnType, iface, args); ok {
+							assignable = true
+						}
+					}
+				}
+				if !assignable {
+					if _, ok := resultAppliedType(expected); ok {
+						if ok, _ := c.typeImplementsInterface(returnType, InterfaceType{InterfaceName: "Error"}, nil); ok {
+							assignable = true
+						} else if name, ok := structName(returnType); ok && strings.HasSuffix(name, "Error") {
+							assignable = true
+						}
+					}
+				}
+				if !assignable {
+					message := fmt.Sprintf("typechecker: return expects %s, got %s", typeName(expected), typeName(returnType))
+					if msg, ok := literalMismatchMessage(returnType, expected); ok {
+						message = fmt.Sprintf("typechecker: %s", msg)
+					}
+					diags = append(diags, Diagnostic{
+						Message: message,
+						Node:    stmt,
+					})
+				} else {
+					returnType = expected
+				}
 			}
 		} else {
 			returnType = expected
