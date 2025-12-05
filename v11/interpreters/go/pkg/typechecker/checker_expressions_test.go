@@ -308,13 +308,20 @@ func TestNestedArrayGenericInference(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected inferred type for call expression")
 	}
-	arr, ok := typ.(ArrayType)
-	if !ok {
-		t.Fatalf("expected flatten call to infer ArrayType, got %T", typ)
+	var elemType Type
+	switch arr := typ.(type) {
+	case ArrayType:
+		elemType = arr.Element
+	case AppliedType:
+		if name, ok := structName(arr.Base); ok && name == "Array" {
+			elemType = argumentOrUnknown(arr.Arguments, 0)
+		}
+	default:
+		t.Fatalf("expected flatten call to infer Array type, got %T", typ)
 	}
-	inner, ok := arr.Element.(IntegerType)
+	inner, ok := elemType.(IntegerType)
 	if !ok || inner.Suffix != "i32" {
-		t.Fatalf("expected inner element type i32, got %#v", arr.Element)
+		t.Fatalf("expected inner element type i32, got %#v", elemType)
 	}
 }
 func TestUnaryNegationInferredType(t *testing.T) {

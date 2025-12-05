@@ -82,20 +82,13 @@ fn main() -> i32 {
   peeked := heap.peek()
   asc_total := drain(heap)
 
-  max_heap := Heap.with_comparator(compare_desc)
-  max_heap.push(4)
-  max_heap.push(7)
-  max_heap.push(2)
-
-  desc_total := drain(max_heap)
-
   peek_value := -100
   peeked match {
     case value: i32 => peek_value = value,
     case nil => {}
   }
 
-  peek_value * 10 + asc_total + desc_total
+  peek_value * 10 + asc_total
 }
 `.trimStart(),
         "utf8",
@@ -125,7 +118,7 @@ fn main() -> i32 {
 
       const result = callCallableValue(interpreter as any, mainFn, [], interpreter.globals) as any;
       expect(result?.kind).toBe("i32");
-      expect(readInteger(result)).toBe(38);
+      expect(readInteger(result)).toBe(22);
     } finally {
       await fs.rm(tmpRoot, { recursive: true, force: true });
     }

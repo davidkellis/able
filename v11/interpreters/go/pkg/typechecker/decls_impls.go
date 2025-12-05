@@ -47,6 +47,8 @@ func (c *declarationCollector) collectImplementationDefinition(def *ast.Implemen
 		return nil, nil
 	}
 
+	c.ensureImplementationGenericInference(def)
+
 	var diags []Diagnostic
 	if def.InterfaceName == nil {
 		diags = append(diags, Diagnostic{
@@ -136,10 +138,7 @@ func (c *declarationCollector) collectImplementationDefinition(def *ast.Implemen
 			continue
 		}
 		if _, exists := methods[fn.ID.Name]; exists {
-			diags = append(diags, Diagnostic{
-				Message: fmt.Sprintf("typechecker: duplicate method '%s' in implementation", fn.ID.Name),
-				Node:    fn,
-			})
+			// Allow overload-like duplicates by keeping the first declaration.
 			continue
 		}
 		methodOwner := fmt.Sprintf("%s::%s", implLabel, functionName(fn))
@@ -162,6 +161,11 @@ func (c *declarationCollector) collectImplementationDefinition(def *ast.Implemen
 	spec.Obligations = obligationsFromSpecs(implLabel, params, where, def)
 	c.obligations = append(c.obligations, spec.Obligations...)
 
+	if spec.ImplName != "" {
+		ns := ImplementationNamespaceType{Impl: spec}
+		c.declare(spec.ImplName, ns, def)
+	}
+
 	return spec, diags
 }
 
@@ -169,6 +173,8 @@ func (c *declarationCollector) collectMethodsDefinition(def *ast.MethodsDefiniti
 	if def == nil {
 		return nil, nil
 	}
+
+	c.ensureMethodsGenericInference(def)
 
 	params, paramScope := c.convertGenericParams(def.GenericParams)
 	scope := copyTypeScope(paramScope)
@@ -193,10 +199,7 @@ func (c *declarationCollector) collectMethodsDefinition(def *ast.MethodsDefiniti
 			continue
 		}
 		if _, exists := methods[fn.ID.Name]; exists {
-			diags = append(diags, Diagnostic{
-				Message: fmt.Sprintf("typechecker: duplicate method '%s' for target", fn.ID.Name),
-				Node:    fn,
-			})
+			// Allow overload-like duplicates by keeping the first declaration.
 			continue
 		}
 		methodOwner := fmt.Sprintf("%s::%s", methodsLabel, functionName(fn))

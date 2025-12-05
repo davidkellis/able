@@ -25,6 +25,7 @@ type implCandidate struct {
 	bindings    map[string]ast.TypeExpression
 	constraints []constraintSpec
 	score       int
+	isConcrete  bool
 }
 
 type methodMatch struct {
@@ -140,11 +141,11 @@ func constraintSignature(specs []constraintSpec) string {
 	return strings.Join(parts, "&")
 }
 
-func (i *Interpreter) registerUnnamedImpl(ifaceName string, ifaceArgs []ast.TypeExpression, variant targetVariant, unionSignatures []string, baseConstraintSig string, targetDescription string) error {
+func (i *Interpreter) registerUnnamedImpl(ifaceName string, ifaceArgs []ast.TypeExpression, variant targetVariant, unionSignatures []string, baseConstraintSig string, targetDescription string, isBuiltin bool) error {
 	key := ifaceName + "::" + variant.typeName
 	bucket, ok := i.unnamedImpls[key]
 	if !ok {
-		bucket = make(map[string]map[string]struct{})
+		bucket = make(map[string]map[string]bool)
 		i.unnamedImpls[key] = bucket
 	}
 	ifaceKey := "<none>"
@@ -180,13 +181,16 @@ func (i *Interpreter) registerUnnamedImpl(ifaceName string, ifaceArgs []ast.Type
 	}
 	constraintSet, ok := bucket[templateKey]
 	if !ok {
-		constraintSet = make(map[string]struct{})
+		constraintSet = make(map[string]bool)
 		bucket[templateKey] = constraintSet
 	}
-	if _, exists := constraintSet[constraintKey]; exists {
+	if existingBuiltin, exists := constraintSet[constraintKey]; exists {
+		if existingBuiltin || isBuiltin {
+			return nil
+		}
 		return fmt.Errorf("Unnamed impl for (%s, %s) already exists", ifaceName, targetDescription)
 	}
-	constraintSet[constraintKey] = struct{}{}
+	constraintSet[constraintKey] = isBuiltin
 	return nil
 }
 
@@ -235,20 +239,96 @@ func measureTemplateSpecificity(expr ast.TypeExpression, genericNames map[string
 	}
 }
 
-func computeImplSpecificity(entry *implEntry, bindings map[string]ast.TypeExpression, constraints []constraintSpec) int {
-	genericNames := genericNameSet(entry.genericParams)
-	concreteScore := 0
+func collectImplGenericNames(entry *implEntry) map[string]struct{} {
+	names := genericNameSet(entry.genericParams)
+	if entry == nil || entry.definition == nil {
+		return names
+	}
+	var consider func(ast.TypeExpression)
+	consider = func(expr ast.TypeExpression) {
+		switch val := expr.(type) {
+		case *ast.SimpleTypeExpression:
+			if val.Name != nil && len(val.Name.Name) == 1 && val.Name.Name[0] >= 'A' && val.Name.Name[0] <= 'Z' {
+				names[val.Name.Name] = struct{}{}
+			}
+		case *ast.GenericTypeExpression:
+			consider(val.Base)
+			for _, arg := range val.Arguments {
+				if arg == nil {
+					continue
+				}
+				consider(arg)
+			}
+		case *ast.NullableTypeExpression:
+			consider(val.InnerType)
+		case *ast.ResultTypeExpression:
+			consider(val.InnerType)
+		case *ast.UnionTypeExpression:
+			for _, member := range val.Members {
+				if member == nil {
+					continue
+				}
+				consider(member)
+			}
+		}
+	}
+	for _, ifaceArg := range entry.definition.InterfaceArgs {
+		if ifaceArg != nil {
+			consider(ifaceArg)
+		}
+	}
 	for _, tmpl := range entry.argTemplates {
-		concreteScore += measureTemplateSpecificity(tmpl, genericNames)
+		if tmpl != nil {
+			consider(tmpl)
+		}
 	}
-	constraintScore := len(constraints)
-	bindingScore := len(bindings)
-	unionPenalty := len(entry.unionVariants)
-	defaultPenalty := 0
-	if entry.defaultOnly {
-		defaultPenalty = 1
+	return names
+}
+
+func typeExpressionUsesGenerics(expr ast.TypeExpression, genericNames map[string]struct{}) bool {
+	switch val := expr.(type) {
+	case nil:
+		return false
+	case *ast.SimpleTypeExpression:
+		if val.Name == nil {
+			return false
+		}
+		_, ok := genericNames[val.Name.Name]
+		return ok
+	case *ast.GenericTypeExpression:
+		if typeExpressionUsesGenerics(val.Base, genericNames) {
+			return true
+		}
+		for _, arg := range val.Arguments {
+			if typeExpressionUsesGenerics(arg, genericNames) {
+				return true
+			}
+		}
+		return false
+	case *ast.NullableTypeExpression:
+		return typeExpressionUsesGenerics(val.InnerType, genericNames)
+	case *ast.ResultTypeExpression:
+		return typeExpressionUsesGenerics(val.InnerType, genericNames)
+	case *ast.UnionTypeExpression:
+		for _, member := range val.Members {
+			if typeExpressionUsesGenerics(member, genericNames) {
+				return true
+			}
+		}
+		return false
+	case *ast.FunctionTypeExpression:
+		if typeExpressionUsesGenerics(val.ReturnType, genericNames) {
+			return true
+		}
+		for _, param := range val.ParamTypes {
+			if typeExpressionUsesGenerics(param, genericNames) {
+				return true
+			}
+		}
+		return false
+	default:
+		return false
 	}
-	return concreteScore*100 + constraintScore*10 + bindingScore - unionPenalty - defaultPenalty
 }
 
 func typeExpressionsEqual(a, b ast.TypeExpression) bool {
@@ -395,7 +475,13 @@ func (i *Interpreter) matchImplEntry(entry *implEntry, info typeInfo) (map[strin
 		return nil, false
 	}
 	bindings := make(map[string]ast.TypeExpression)
-	genericNames := genericNameSet(entry.genericParams)
+	genericNames := collectImplGenericNames(entry)
+	if entry.definition != nil {
+		actual := typeExpressionFromInfo(info)
+		if actual != nil {
+			matchTypeExpressionTemplate(entry.definition.TargetType, actual, genericNames, bindings)
+		}
+	}
 	if len(entry.argTemplates) > 0 {
 		if len(info.typeArgs) != len(entry.argTemplates) {
 			return nil, false
@@ -421,7 +507,10 @@ func (i *Interpreter) collectImplCandidates(info typeInfo, interfaceFilter strin
 	if info.name == "" {
 		return nil, nil
 	}
-	entries := i.implMethods[info.name]
+	entries := append([]implEntry{}, i.implMethods[info.name]...)
+	if len(i.genericImpls) > 0 {
+		entries = append(entries, i.genericImpls...)
+	}
 	matches := make([]implCandidate, 0)
 	var constraintErr error
 	for idx := range entries {
@@ -445,12 +534,15 @@ func (i *Interpreter) collectImplCandidates(info typeInfo, interfaceFilter strin
 				continue
 			}
 		}
-		score := computeImplSpecificity(entry, bindings, constraints)
+		genericNames := collectImplGenericNames(entry)
+		score := measureTemplateSpecificity(entry.definition.TargetType, genericNames)
+		isConcrete := !typeExpressionUsesGenerics(entry.definition.TargetType, genericNames)
 		matches = append(matches, implCandidate{
 			entry:       entry,
 			bindings:    bindings,
 			constraints: constraints,
 			score:       score,
+			isConcrete:  isConcrete,
 		})
 	}
 	if len(matches) == 0 {
@@ -482,10 +574,18 @@ func (i *Interpreter) implProvidesMethod(entry *implEntry, methodName string) bo
 }
 
 func (i *Interpreter) compareMethodMatches(a, b implCandidate) int {
-	if a.score > b.score {
+	if a.isConcrete && !b.isConcrete {
 		return 1
 	}
-	if a.score < b.score {
+	if b.isConcrete && !a.isConcrete {
+		return -1
+	}
+	aConstraints := i.buildConstraintKeySet(a.constraints)
+	bConstraints := i.buildConstraintKeySet(b.constraints)
+	if isConstraintSuperset(aConstraints, bConstraints) {
+		return 1
+	}
+	if isConstraintSuperset(bConstraints, aConstraints) {
 		return -1
 	}
 	aUnion := a.entry.unionVariants
@@ -510,12 +610,10 @@ func (i *Interpreter) compareMethodMatches(a, b implCandidate) int {
 			return -1
 		}
 	}
-	aConstraints := i.buildConstraintKeySet(a.constraints)
-	bConstraints := i.buildConstraintKeySet(b.constraints)
-	if isConstraintSuperset(aConstraints, bConstraints) {
+	if a.score > b.score {
 		return 1
 	}
-	if isConstraintSuperset(bConstraints, aConstraints) {
+	if a.score < b.score {
 		return -1
 	}
 	return 0
@@ -678,14 +776,26 @@ func typeInfoToString(info typeInfo) string {
 	return fmt.Sprintf("%s<%s>", info.name, strings.Join(parts, ", "))
 }
 
+func typeExpressionFromInfo(info typeInfo) ast.TypeExpression {
+	if info.name == "" {
+		return nil
+	}
+	base := ast.Ty(info.name)
+	if len(info.typeArgs) == 0 {
+		return base
+	}
+	return ast.Gen(base, info.typeArgs...)
+}
+
 func descriptionsFromMethodMatches(matches []methodMatch) []string {
 	set := make(map[string]struct{})
 	for _, match := range matches {
 		if match.candidate.entry == nil || match.candidate.entry.definition == nil {
 			continue
 		}
-		desc := typeExpressionToString(match.candidate.entry.definition.TargetType)
-		set[desc] = struct{}{}
+		target := typeExpressionToString(match.candidate.entry.definition.TargetType)
+		label := fmt.Sprintf("impl %s for %s", match.candidate.entry.interfaceName, target)
+		set[strings.TrimSpace(label)] = struct{}{}
 	}
 	return sortedKeys(set)
 }
@@ -696,8 +806,9 @@ func descriptionsFromCandidates(matches []implCandidate) []string {
 		if match.entry == nil || match.entry.definition == nil {
 			continue
 		}
-		desc := typeExpressionToString(match.entry.definition.TargetType)
-		set[desc] = struct{}{}
+		target := typeExpressionToString(match.entry.definition.TargetType)
+		label := fmt.Sprintf("impl %s for %s", match.entry.interfaceName, target)
+		set[strings.TrimSpace(label)] = struct{}{}
 	}
 	return sortedKeys(set)
 }

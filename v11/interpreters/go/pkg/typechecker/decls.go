@@ -16,6 +16,7 @@ type declarationCollector struct {
 	methodSets  []MethodSetSpec
 	obligations []ConstraintObligation
 	exports     []exportRecord
+	duplicates  map[*ast.FunctionDefinition]struct{}
 }
 
 func (c *Checker) collectDeclarations(module *ast.Module) []Diagnostic {
@@ -28,9 +29,10 @@ func (c *Checker) collectDeclarations(module *ast.Module) []Diagnostic {
 		})
 	}
 	collector := &declarationCollector{
-		env:       rootEnv,
-		origins:   c.nodeOrigins,
-		declNodes: make(map[string]ast.Node),
+		env:        rootEnv,
+		origins:    c.nodeOrigins,
+		declNodes:  make(map[string]ast.Node),
+		duplicates: make(map[*ast.FunctionDefinition]struct{}),
 	}
 	// Register built-in primitives in the global scope for convenience.
 	collector.env.Define("true", PrimitiveType{Kind: PrimitiveBool})
@@ -49,7 +51,37 @@ func (c *Checker) collectDeclarations(module *ast.Module) []Diagnostic {
 	c.methodSets = collector.methodSets
 	c.obligations = collector.obligations
 	c.publicDeclarations = collector.exports
+	c.duplicateFunctions = collector.duplicates
 	return collector.diags
+}
+
+func (c *declarationCollector) registerExternFunction(def *ast.ExternFunctionBody) {
+	if def == nil || def.Signature == nil || def.Signature.ID == nil {
+		return
+	}
+	sig := def.Signature
+	name := sig.ID.Name
+	owner := fmt.Sprintf("extern fn %s", functionName(sig))
+	fnType := c.functionTypeFromDefinition(sig, nil, owner, sig)
+	if prev, exists := c.declNodes[name]; exists {
+		if existing, ok := c.env.Lookup(name); ok {
+			if prevFn, ok := existing.(FunctionType); ok && typesEquivalentForSignature(prevFn, fnType) {
+				return
+			}
+		}
+		location := formatNodeLocation(prev, c.origins)
+		msg := fmt.Sprintf("typechecker: duplicate declaration '%s' (previous declaration at %s)", name, location)
+		c.diags = append(c.diags, Diagnostic{Message: msg, Node: def})
+		if c.duplicates != nil {
+			c.duplicates[def.Signature] = struct{}{}
+		}
+		return
+	}
+	c.env.Define(name, fnType)
+	c.declNodes[name] = sig
+	if shouldExportTopLevel(sig) {
+		c.exports = append(c.exports, exportRecord{name: name, node: sig})
+	}
 }
 
 func (c *declarationCollector) registerTypeDeclaration(stmt ast.Statement) {
@@ -98,6 +130,9 @@ func (c *declarationCollector) registerTypeDeclaration(stmt ast.Statement) {
 			if paramScope == nil {
 				paramScope = make(map[string]Type)
 			}
+			if _, exists := paramScope[s.ID.Name]; !exists {
+				paramScope[s.ID.Name] = InterfaceType{InterfaceName: s.ID.Name}
+			}
 			if _, exists := paramScope["Self"]; !exists {
 				paramScope["Self"] = TypeParameterType{ParameterName: "Self"}
 			}
@@ -124,6 +159,8 @@ func (c *declarationCollector) visitStatement(stmt ast.Statement) {
 			sig := c.functionTypeFromDefinition(s, nil, owner, s)
 			c.declare(s.ID.Name, sig, s)
 		}
+	case *ast.ExternFunctionBody:
+		c.registerExternFunction(s)
 	case *ast.ImplementationDefinition:
 		spec, diags := c.collectImplementationDefinition(s)
 		c.diags = append(c.diags, diags...)
@@ -147,6 +184,11 @@ func (c *declarationCollector) declare(name string, typ Type, node ast.Node) {
 		location := formatNodeLocation(prev, c.origins)
 		msg := fmt.Sprintf("typechecker: duplicate declaration '%s' (previous declaration at %s)", name, location)
 		c.diags = append(c.diags, Diagnostic{Message: msg, Node: node})
+		if fn, ok := node.(*ast.FunctionDefinition); ok {
+			if c.duplicates != nil {
+				c.duplicates[fn] = struct{}{}
+			}
+		}
 		return
 	}
 	c.env.Define(name, typ)
@@ -174,6 +216,8 @@ func shouldExportTopLevel(node ast.Node) bool {
 		return true
 	case *ast.TypeAliasDefinition:
 		return def != nil && def.ID != nil && !def.IsPrivate
+	case *ast.ImplementationDefinition:
+		return def != nil && def.ImplName != nil && def.ImplName.Name != "" && !def.IsPrivate
 	default:
 		return false
 	}
@@ -186,7 +230,7 @@ func formatNodeLocation(node ast.Node, origins map[ast.Node]string) string {
 	path := "<unknown file>"
 	if origins != nil {
 		if origin, ok := origins[node]; ok && origin != "" {
-			path = origin
+			path = normalizeDiagnosticPath(origin)
 		}
 	}
 	span := node.Span()

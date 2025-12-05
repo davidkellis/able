@@ -152,7 +152,15 @@ func decodeStructPatternField(node map[string]any) (*ast.StructPatternField, err
 		}
 		binding = id
 	}
-	return ast.NewStructPatternField(pattern, fieldName, binding), nil
+	var typeAnnotation ast.TypeExpression
+	if typeRaw, ok := node["typeAnnotation"].(map[string]any); ok {
+		resolved, err := decodeTypeExpression(typeRaw)
+		if err != nil {
+			return nil, err
+		}
+		typeAnnotation = resolved
+	}
+	return ast.NewStructPatternField(pattern, fieldName, binding, typeAnnotation), nil
 }
 
 func decodeTypeExpression(node map[string]any) (ast.TypeExpression, error) {

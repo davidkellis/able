@@ -12,9 +12,9 @@ fn combined_median(left: Array i32, right: Array i32) -> f64 {
   }
   mid := total / 2
   if total % 2 == 1 {
-    return merged[mid] as f64
+    return merged[mid] + 0.0
   }
-  (merged[mid - 1] + merged[mid]) as f64 / 2.0
+  (merged[mid - 1] + merged[mid]) / 2.0
 }
 
 fn merge_sorted(left: Array i32, right: Array i32) -> Array i32 {
@@ -24,8 +24,8 @@ fn merge_sorted(left: Array i32, right: Array i32) -> Array i32 {
   left_len := left.size()
   right_len := right.size()
 
-  while i < left_len or j < right_len {
-    if j >= right_len or (i < left_len and left[i] <= right[j]) {
+  while i < left_len || j < right_len {
+    if j >= right_len || (i < left_len && left[i] <= right[j]) {
       result.push(left[i])
       i = i + 1
     } else {

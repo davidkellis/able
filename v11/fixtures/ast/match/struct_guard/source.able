@@ -3,5 +3,5 @@ struct Point {
   y: i32
 }
 Point { x: 1, y: 2 } match {
-  case Point { x: a, y: b } if b > a => a + b
+  case Point { x::a, y::b } if b > a => a + b
 }

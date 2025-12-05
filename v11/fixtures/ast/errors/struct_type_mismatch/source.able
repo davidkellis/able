@@ -7,4 +7,4 @@ struct Vector {
 }
 
 p := Point { x: 1 }
-Vector { dx: dx } := p
+Vector { dx } := p

@@ -221,7 +221,7 @@ func TestImplResolutionUnionAmbiguousWithoutSubset(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected ambiguity error")
 	}
-	if !strings.Contains(err.Error(), "Ambiguous method 'to_string'") {
+	if !strings.Contains(err.Error(), "ambiguous implementations of Show") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }

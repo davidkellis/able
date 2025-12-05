@@ -6,6 +6,8 @@ func structName(t Type) (string, bool) {
 		return s.StructName, true
 	case StructInstanceType:
 		return s.StructName, true
+	case ArrayType:
+		return "Array", true
 	case AppliedType:
 		if base, ok := s.Base.(StructType); ok {
 			return base.StructName, true

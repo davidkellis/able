@@ -1,0 +1,10 @@
+{
+  "description": "Struct pattern shorthand, rename, type annotation, and nested destructuring using ::",
+  "expect": {
+    "result": {
+      "kind": "string",
+      "value": "Terry-29-Main-94107-SF"
+    }
+  },
+  "entry": "module.json"
+}

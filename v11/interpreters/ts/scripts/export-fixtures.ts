@@ -104,12 +104,12 @@ function printImport(imp: AST.ImportStatement): string {
   }
   if (imp.selectors && imp.selectors.length > 0) {
     const selectors = imp.selectors
-      .map((sel) => (sel.alias ? `${printIdentifier(sel.name)} as ${printIdentifier(sel.alias)}` : printIdentifier(sel.name)))
+      .map((sel) => (sel.alias ? `${printIdentifier(sel.name)}::${printIdentifier(sel.alias)}` : printIdentifier(sel.name)))
       .join(", ");
     return `import ${path}.{${selectors}}`;
   }
   if (imp.alias) {
-    return `import ${path} as ${printIdentifier(imp.alias)}`;
+    return `import ${path}::${printIdentifier(imp.alias)}`;
   }
   return `import ${path}`;
 }
@@ -121,12 +121,12 @@ function printDynImport(imp: AST.DynImportStatement, level: number): string {
   }
   if (imp.selectors && imp.selectors.length > 0) {
     const selectors = imp.selectors
-      .map((sel) => (sel.alias ? `${printIdentifier(sel.name)} as ${printIdentifier(sel.alias)}` : printIdentifier(sel.name)))
+      .map((sel) => (sel.alias ? `${printIdentifier(sel.name)}::${printIdentifier(sel.alias)}` : printIdentifier(sel.name)))
       .join(", ");
     return `${indent(level)}dynimport ${path}.{${selectors}}`;
   }
   if (imp.alias) {
-    return `${indent(level)}dynimport ${path} as ${printIdentifier(imp.alias)}`;
+    return `${indent(level)}dynimport ${path}::${printIdentifier(imp.alias)}`;
   }
   return `${indent(level)}dynimport ${path}`;
 }
@@ -452,7 +452,13 @@ function printStructLiteral(lit: AST.StructLiteral, level: number): string {
   const baseName = lit.structType ? printIdentifier(lit.structType) : "";
   const head = baseName ? `${baseName}${typeArgs}` : "";
   if (lit.isPositional) {
-    const values = lit.fields.map((field) => printExpression(field.value!, level)).join(", ");
+    const values = lit.fields
+      .map((field) => {
+        const value = field.value!;
+        const rendered = value.type === "StructLiteral" ? `(${printExpression(value, level)})` : printExpression(value, level);
+        return rendered;
+      })
+      .join(", ");
     return head ? `${head} { ${values} }` : `{ ${values} }`;
   }
   const fields = lit.fields.map((field) => {
@@ -460,7 +466,9 @@ function printStructLiteral(lit: AST.StructLiteral, level: number): string {
       return printIdentifier(field.name);
     }
     if (field.name) {
-      return `${printIdentifier(field.name)}: ${printExpression(field.value!, level)}`;
+      const value = field.value!;
+      const rendered = value.type === "StructLiteral" ? `(${printExpression(value, level)})` : printExpression(value, level);
+      return `${printIdentifier(field.name)}: ${rendered}`;
     }
     return printExpression(field.value!, level);
   });
@@ -708,12 +716,7 @@ function printPattern(pattern: AST.Pattern): string {
         const prefix = pattern.structType ? `${printIdentifier(pattern.structType)} ` : "";
         return `${prefix}{ ${fields} }`;
       }
-      const namedFields = pattern.fields.map((field) => {
-        if (field.fieldName) {
-          return `${printIdentifier(field.fieldName)}: ${printPattern(field.pattern)}`;
-        }
-        return printPattern(field.pattern);
-      });
+      const namedFields = pattern.fields.map(printNamedStructPatternField);
       return `${pattern.structType ? `${printIdentifier(pattern.structType)} ` : ""}{ ${namedFields.join(", ")} }`;
     case "ArrayPattern":
       const elements = pattern.elements.map(printPattern).join(", ");
@@ -731,6 +734,41 @@ function printFunctionParameter(param: AST.FunctionParameter): string {
     return `${printPattern(param.name)}: ${printTypeExpression(param.paramType)}`;
   }
   return printPattern(param.name);
+}
+
+function printNamedStructPatternField(field: AST.StructPatternField): string {
+  const fieldName = field.fieldName ? printIdentifier(field.fieldName) : undefined;
+  const binding = field.binding ? printIdentifier(field.binding) : undefined;
+
+  let pattern = field.pattern;
+  let patternTypeAnnotation: AST.TypeExpression | undefined;
+  if (pattern?.type === "TypedPattern") {
+    patternTypeAnnotation = pattern.typeAnnotation;
+    pattern = pattern.pattern;
+  }
+
+  const patternIsIdentifier = pattern?.type === "Identifier";
+  const patternIdentifier = patternIsIdentifier ? printIdentifier(pattern as AST.Identifier) : undefined;
+  const alias = binding ?? patternIdentifier;
+  const typeAnnotation = field.typeAnnotation ?? patternTypeAnnotation;
+
+  let patternForPrint: AST.Pattern | undefined = pattern;
+  if (typeAnnotation && pattern && pattern.type === "StructPattern" && pattern.structType) {
+    patternForPrint = { ...pattern, structType: undefined };
+  }
+
+  let rendered = fieldName ?? alias ?? (pattern ? printPattern(pattern as AST.Pattern) : "");
+  const needsRename = alias && fieldName && alias !== fieldName;
+  if (needsRename) {
+    rendered += `::${alias}`;
+  }
+  if (typeAnnotation) {
+    rendered += `: ${printTypeExpression(typeAnnotation)}`;
+  }
+  if (patternForPrint && patternForPrint.type !== "Identifier") {
+    rendered += ` ${printPattern(patternForPrint as AST.Pattern)}`;
+  }
+  return rendered;
 }
 
 function printGenericParameter(param: AST.GenericParameter): string {

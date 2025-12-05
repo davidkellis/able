@@ -21,6 +21,22 @@ function cloneSignature(): AST.FunctionSignature {
   );
 }
 
+function errorMessageSignature(): AST.FunctionSignature {
+  return AST.functionSignature(
+    "message",
+    [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
+    AST.simpleTypeExpression("string"),
+  );
+}
+
+function errorCauseSignature(): AST.FunctionSignature {
+  return AST.functionSignature(
+    "cause",
+    [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
+    AST.nullableTypeExpression(AST.simpleTypeExpression("Error")),
+  );
+}
+
 function displayImpl(
   typeName: string,
   bodyExpression: AST.Expression,
@@ -54,6 +70,54 @@ function cloneImpl(typeName: string): AST.ImplementationDefinition {
   );
 }
 
+function errorImplForErrorValue(): AST.ImplementationDefinition {
+  const selfIdent = AST.identifier("self");
+  const messageFn = AST.functionDefinition(
+    "message",
+    [AST.functionParameter("self", AST.simpleTypeExpression("Error"))],
+    AST.blockExpression([
+      AST.returnStatement(AST.functionCall(AST.memberAccessExpression(selfIdent, AST.identifier("message")), [])),
+    ]),
+    AST.simpleTypeExpression("string"),
+  );
+  const causeFn = AST.functionDefinition(
+    "cause",
+    [AST.functionParameter("self", AST.simpleTypeExpression("Error"))],
+    AST.blockExpression([
+      AST.returnStatement(AST.functionCall(AST.memberAccessExpression(selfIdent, AST.identifier("cause")), [])),
+    ]),
+    AST.nullableTypeExpression(AST.simpleTypeExpression("Error")),
+  );
+  return AST.implementationDefinition(
+    "Error",
+    AST.simpleTypeExpression("Error"),
+    [messageFn, causeFn],
+  );
+}
+
+function errorImplForProcError(): AST.ImplementationDefinition {
+  const selfIdent = AST.identifier("self");
+  const messageFn = AST.functionDefinition(
+    "message",
+    [AST.functionParameter("self", AST.simpleTypeExpression("ProcError"))],
+    AST.blockExpression([
+      AST.returnStatement(AST.memberAccessExpression(selfIdent, AST.identifier("details"))),
+    ]),
+    AST.simpleTypeExpression("string"),
+  );
+  const causeFn = AST.functionDefinition(
+    "cause",
+    [AST.functionParameter("self", AST.simpleTypeExpression("ProcError"))],
+    AST.blockExpression([AST.returnStatement(AST.nilLiteral())]),
+    AST.nullableTypeExpression(AST.simpleTypeExpression("Error")),
+  );
+  return AST.implementationDefinition(
+    "Error",
+    AST.simpleTypeExpression("ProcError"),
+    [messageFn, causeFn],
+  );
+}
+
 function interpolationOfSelf(): AST.StringInterpolation {
   return AST.stringInterpolation([AST.identifier("self")]);
 }
@@ -62,6 +126,7 @@ export function buildStandardInterfaceBuiltins(): BuiltinInterfaceBundle {
   const interfaces = [
     AST.interfaceDefinition("Display", [displaySignature()]),
     AST.interfaceDefinition("Clone", [cloneSignature()]),
+    AST.interfaceDefinition("Error", [errorMessageSignature(), errorCauseSignature()]),
   ];
 
   const implementations: AST.ImplementationDefinition[] = [
@@ -75,6 +140,7 @@ export function buildStandardInterfaceBuiltins(): BuiltinInterfaceBundle {
     cloneImpl("bool"),
     cloneImpl("char"),
     cloneImpl("f64"),
+    errorImplForProcError(),
   ];
 
   return { interfaces, implementations };

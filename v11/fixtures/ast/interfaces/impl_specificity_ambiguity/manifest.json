@@ -1,0 +1,12 @@
+{
+  "description": "Ambiguous overlapping impls surface specificity tie error",
+  "expect": {
+    "errors": [
+      "ambiguous implementations of Ambig for Named: impl Ambig for T"
+    ],
+    "typecheckDiagnostics": [
+      "typechecker: ../fixtures/ast/interfaces/impl_specificity_ambiguity/source.able:21:1 typechecker: ambiguous implementations of Ambig for Named: impl Ambig for T"
+    ]
+  },
+  "entry": "module.json"
+}

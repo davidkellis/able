@@ -431,14 +431,14 @@ func (i *Interpreter) tryUfcs(env *runtime.Environment, funcName string, receive
 		return nil, false
 	}
 	if val, err := env.Get(funcName); err == nil {
-		if runtime.IsFunctionLike(val) {
-			return &runtime.BoundMethodValue{Receiver: receiver, Method: val}, true
+		if bound, ok := i.selectUfcsCallable(val, receiver, false); ok {
+			return &runtime.BoundMethodValue{Receiver: receiver, Method: bound}, true
 		}
 	}
 	if info, ok := i.getTypeInfoForValue(receiver); ok {
 		if bucket, ok := i.inherentMethods[info.name]; ok {
 			if method := bucket[funcName]; method != nil {
-				if callable, ok := instanceCallable(method); ok {
+				if callable, ok := i.selectUfcsCallable(method, receiver, true); ok {
 					return &runtime.BoundMethodValue{Receiver: receiver, Method: callable}, true
 				}
 			}
@@ -447,18 +447,45 @@ func (i *Interpreter) tryUfcs(env *runtime.Environment, funcName string, receive
 	return nil, false
 }
 
-func instanceCallable(method runtime.Value) (runtime.Value, bool) {
+func (i *Interpreter) selectUfcsCallable(method runtime.Value, receiver runtime.Value, requireSelf bool) (runtime.Value, bool) {
 	switch fn := method.(type) {
 	case *runtime.FunctionValue:
-		if functionExpectsSelf(fn) {
+		if (!requireSelf || functionExpectsSelf(fn)) && i.functionFirstParamMatches(fn, receiver) {
 			return fn, true
 		}
 		return nil, false
 	case *runtime.FunctionOverloadValue:
 		filtered := make([]*runtime.FunctionValue, 0, len(fn.Overloads))
 		for _, entry := range fn.Overloads {
-			if functionExpectsSelf(entry) {
-				filtered = append(filtered, entry)
+			if entry == nil {
+				continue
+			}
+			if requireSelf && !functionExpectsSelf(entry) {
+				continue
+			}
+			if !i.functionFirstParamMatches(entry, receiver) {
+				continue
+			}
+			filtered = append(filtered, entry)
+		}
+		if len(filtered) > 1 {
+			if recvType := i.typeExpressionFromValue(receiver); recvType != nil {
+				narrowed := make([]*runtime.FunctionValue, 0, len(filtered))
+				for _, entry := range filtered {
+					if def, ok := entry.Declaration.(*ast.FunctionDefinition); ok && def != nil {
+						if len(def.Params) > 0 && def.Params[0] != nil && def.Params[0].ParamType != nil {
+							if typeExpressionsEqual(def.Params[0].ParamType, recvType) {
+								narrowed = append(narrowed, entry)
+							}
+						}
+					}
+				}
+				if len(narrowed) == 1 {
+					return narrowed[0], true
+				}
+				if len(narrowed) > 0 {
+					filtered = narrowed
+				}
 			}
 		}
 		if len(filtered) == 0 {
@@ -498,6 +525,40 @@ func functionExpectsSelf(fn *runtime.FunctionValue) bool {
 		return true
 	}
 	return false
+}
+
+func (i *Interpreter) functionFirstParamMatches(fn *runtime.FunctionValue, receiver runtime.Value) bool {
+	if fn == nil || fn.Declaration == nil {
+		return false
+	}
+	switch decl := fn.Declaration.(type) {
+	case *ast.FunctionDefinition:
+		if len(decl.Params) == 0 {
+			return false
+		}
+		first := decl.Params[0]
+		if first == nil {
+			return false
+		}
+		if first.ParamType == nil {
+			return true
+		}
+		return i.matchesType(first.ParamType, receiver)
+	case *ast.LambdaExpression:
+		if len(decl.Params) == 0 {
+			return false
+		}
+		first := decl.Params[0]
+		if first == nil {
+			return false
+		}
+		if first.ParamType == nil {
+			return true
+		}
+		return i.matchesType(first.ParamType, receiver)
+	default:
+		return false
+	}
 }
 
 func (i *Interpreter) structDefinitionMember(def *runtime.StructDefinitionValue, member ast.Expression) (runtime.Value, error) {

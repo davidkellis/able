@@ -1,6 +1,78 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { TypeChecker } from "../../src/typechecker";
+
+function builtinDisplayClone(): AST.Statement[] {
+  const display = AST.interfaceDefinition(
+    "Display",
+    [
+      AST.functionSignature(
+        "to_string",
+        [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
+        AST.simpleTypeExpression("string"),
+      ),
+    ],
+  );
+  const clone = AST.interfaceDefinition(
+    "Clone",
+    [
+      AST.functionSignature(
+        "clone",
+        [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
+        AST.simpleTypeExpression("Self"),
+      ),
+    ],
+  );
+  const displayString = AST.implementationDefinition(
+    AST.identifier("Display"),
+    AST.simpleTypeExpression("string"),
+    [
+      AST.functionDefinition(
+        "to_string",
+        [AST.functionParameter("self", AST.simpleTypeExpression("string"))],
+        AST.blockExpression([AST.returnStatement(AST.identifier("self"))]),
+        AST.simpleTypeExpression("string"),
+      ),
+    ],
+  );
+  const displayI32 = AST.implementationDefinition(
+    AST.identifier("Display"),
+    AST.simpleTypeExpression("i32"),
+    [
+      AST.functionDefinition(
+        "to_string",
+        [AST.functionParameter("self", AST.simpleTypeExpression("i32"))],
+        AST.blockExpression([AST.returnStatement(AST.stringLiteral("<int>"))]),
+        AST.simpleTypeExpression("string"),
+      ),
+    ],
+  );
+  const cloneString = AST.implementationDefinition(
+    AST.identifier("Clone"),
+    AST.simpleTypeExpression("string"),
+    [
+      AST.functionDefinition(
+        "clone",
+        [AST.functionParameter("self", AST.simpleTypeExpression("string"))],
+        AST.blockExpression([AST.returnStatement(AST.identifier("self"))]),
+        AST.simpleTypeExpression("string"),
+      ),
+    ],
+  );
+  const cloneI32 = AST.implementationDefinition(
+    AST.identifier("Clone"),
+    AST.simpleTypeExpression("i32"),
+    [
+      AST.functionDefinition(
+        "clone",
+        [AST.functionParameter("self", AST.simpleTypeExpression("i32"))],
+        AST.blockExpression([AST.returnStatement(AST.identifier("self"))]),
+        AST.simpleTypeExpression("i32"),
+      ),
+    ],
+  );
+  return [display, clone, displayString, displayI32, cloneString, cloneI32];
+}
 function buildShowInterface(): AST.InterfaceDefinition {
   return AST.interfaceDefinition("Show", [
     AST.functionSignature(
@@ -95,12 +167,13 @@ function buildNullableCallExpression(): AST.Expression {
 }
 function buildNullableModule(includePointImpl: boolean): AST.Module {
   const body: AST.Statement[] = [
+    ...builtinDisplayClone(),
     buildPointStruct(),
     buildNullableDisplayImplementation(),
     buildUseDisplayNullableFunction(),
   ];
   if (includePointImpl) {
-    body.splice(2, 0, buildPointDisplayImplementation());
+    body.splice(body.length - 1, 0, buildPointDisplayImplementation());
   }
   body.push(buildNullableCallExpression() as unknown as AST.Statement);
   return AST.module(body);
@@ -270,7 +343,7 @@ describe("TypeChecker constraint resolution", () => {
       [AST.stringLiteral("winner"), AST.integerLiteral(1)],
       [AST.simpleTypeExpression("string"), AST.simpleTypeExpression("i32")],
     ) as unknown as AST.Statement;
-    const moduleAst = AST.module([chooseFirst, invocation]);
+    const moduleAst = AST.module([...builtinDisplayClone(), chooseFirst, invocation]);
     const checker = new TypeChecker();
     const result = checker.checkModule(moduleAst);
     expect(result.diagnostics).toEqual([]);

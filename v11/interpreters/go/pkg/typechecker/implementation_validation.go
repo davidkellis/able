@@ -72,11 +72,29 @@ func compareImplementationMethodSignature(label string, spec ImplementationSpec,
 	var diags []Diagnostic
 	node := implementationMethodNode(spec.Definition, methodName)
 
-	if len(expected.TypeParams) != len(actual.TypeParams) {
+	expectedParams := expected.TypeParams
+	actualParams := actual.TypeParams
+	if len(spec.TypeParams) > 0 && len(actualParams) > 0 {
+		implParams := collectGenericParamNameSet(spec.TypeParams)
+		filtered := make([]GenericParamSpec, 0, len(actualParams))
+		for _, param := range actualParams {
+			if param.Name == "" {
+				filtered = append(filtered, param)
+				continue
+			}
+			if _, ok := implParams[param.Name]; ok {
+				continue
+			}
+			filtered = append(filtered, param)
+		}
+		actualParams = filtered
+	}
+
+	if len(expectedParams) != len(actualParams) {
 		diags = append(diags, Diagnostic{
 			Message: fmt.Sprintf(
 				"typechecker: %s method '%s' expects %d generic parameter(s), got %d",
-				label, methodName, len(expected.TypeParams), len(actual.TypeParams),
+				label, methodName, len(expectedParams), len(actualParams),
 			),
 			Node: node,
 		})

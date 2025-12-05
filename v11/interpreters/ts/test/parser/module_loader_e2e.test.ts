@@ -110,7 +110,7 @@ fn greet(name: string) -> string {
         `
 package main
 
-import sample.helpers as Helpers
+import sample.helpers::Helpers
 
 fn call_secret() -> string {
   Helpers.secret()

@@ -1,5 +1,5 @@
 import * as AST from "../ast";
-import type { Expression, FunctionCall, ImportStatement, Module, Statement } from "../ast";
+import type { Expression, FunctionCall, Identifier, ImportStatement, Module, Statement } from "../ast";
 import {
   MapperError,
   Node,
@@ -8,6 +8,7 @@ import {
   createParseContext,
   inheritMetadata,
   isIgnorableNode,
+  parseIdentifier,
   pruneUndefined,
   setActiveParseContext,
   setMapperOrigin,
@@ -62,12 +63,21 @@ export function mapSourceFile(root: Node, source: string, origin?: string): Modu
           const path = context.parseQualifiedIdentifier(pathNode);
           const clauseNode = node.childForFieldName("clause");
           const clause = context.parseImportClause(clauseNode);
+          const aliasNode = node.childForFieldName("alias");
+          const alias: Identifier | undefined = aliasNode ? parseIdentifier(aliasNode, context.source) : undefined;
+
+          if (alias && clause.selectors && clause.selectors.length > 0) {
+            throw new MapperError("parser: alias cannot be combined with selectors");
+          }
+          if (alias && clause.isWildcard) {
+            throw new MapperError("parser: alias cannot be combined with wildcard imports");
+          }
           if (kindNode.type === "import") {
             imports.push(
-              annotate(AST.importStatement(path, clause.isWildcard, clause.selectors, clause.alias), node) as ImportStatement,
+              annotate(AST.importStatement(path, clause.isWildcard, clause.selectors, alias), node) as ImportStatement,
             );
           } else if (kindNode.type === "dynimport") {
-            body.push(annotate(AST.dynImportStatement(path, clause.isWildcard, clause.selectors, clause.alias), node));
+            body.push(annotate(AST.dynImportStatement(path, clause.isWildcard, clause.selectors, alias), node));
           } else {
             throw new MapperError(`parser: unsupported import kind ${kindNode.type}`);
           }

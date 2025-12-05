@@ -164,8 +164,15 @@ function parseExpression(node: Node | null | undefined, source: string): Express
       throw new MapperError("parser: empty parenthesized expression");
     }
     case "pipe_expression":
-      return parsePipeExpression(node, source);
+      return parsePipeChain(node, source, "|>");
+    case "low_precedence_pipe_expression":
+      return parsePipeChain(node, source, "|>>");
     case "matchable_expression": {
+      const child = firstNamedChild(node);
+      if (child) return parseExpression(child, source);
+      break;
+    }
+    case "pipe_operand_base": {
       const child = firstNamedChild(node);
       if (child) return parseExpression(child, source);
       break;
@@ -393,17 +400,28 @@ function parseCallArguments(node: Node, source: string): Expression[] {
 }
 
 
-function parsePipeExpression(node: Node, source: string): Expression {
+function parsePipeChain(node: Node, source: string, operator: string): Expression {
   if (node.namedChildCount === 0) {
     throw new MapperError("parser: empty pipe expression");
   }
   let result = parseExpression(node.namedChild(0), source);
+  let assignmentLeft: AssignmentExpression["left"] | undefined;
+  let assignmentOperator: AssignmentExpression["operator"] | undefined;
+  if (operator === "|>>" && node.namedChildCount > 1 && result.type === "AssignmentExpression") {
+    assignmentLeft = result.left;
+    assignmentOperator = result.operator;
+    result = result.right;
+  }
   for (let i = 1; i < node.namedChildCount; i++) {
     const stepNode = node.namedChild(i);
     const stepExpr = parseExpression(stepNode, source);
-    result = annotateExpressionNode(AST.binaryExpression("|>", result, stepExpr), stepNode);
+    result = annotateExpressionNode(AST.binaryExpression(operator, result, stepExpr), stepNode);
   }
-  return annotateExpressionNode(result, node);
+  const finalResult =
+    assignmentLeft && assignmentOperator
+      ? AST.assignmentExpression(assignmentOperator, assignmentLeft, result)
+      : result;
+  return annotateExpressionNode(finalResult, node);
 }
 
 

@@ -439,6 +439,115 @@ const functionsFixtures: Fixture[] = [
         },
       },
     },
+
+  {
+      name: "functions/ufcs_generic_overloads",
+      module: AST.module([
+        AST.structDefinition(
+          "Box",
+          [AST.structFieldDefinition(AST.simpleTypeExpression("T"), "value")],
+          "named",
+          [AST.genericParameter("T")],
+        ),
+        AST.functionDefinition(
+          "describe",
+          [
+            AST.functionParameter(
+              "box",
+              AST.genericTypeExpression(AST.simpleTypeExpression("Box"), [AST.simpleTypeExpression("T")]),
+            ),
+          ],
+          AST.blockExpression([AST.int(1)]),
+          AST.simpleTypeExpression("i32"),
+          [AST.genericParameter("T")],
+        ),
+        AST.functionDefinition(
+          "describe",
+          [
+            AST.functionParameter(
+              "box",
+              AST.genericTypeExpression(AST.simpleTypeExpression("Box"), [AST.simpleTypeExpression("i32")]),
+            ),
+          ],
+          AST.blockExpression([
+            AST.binaryExpression("+", AST.memberAccessExpression(AST.id("box"), "value"), AST.int(1)),
+          ]),
+          AST.simpleTypeExpression("i32"),
+        ),
+        AST.functionDefinition(
+          "sum",
+          [
+            AST.functionParameter(
+              "box",
+              AST.genericTypeExpression(AST.simpleTypeExpression("Box"), [AST.simpleTypeExpression("i32")]),
+            ),
+            AST.functionParameter("delta", AST.simpleTypeExpression("i32")),
+          ],
+          AST.blockExpression([
+            AST.binaryExpression("+", AST.memberAccessExpression(AST.id("box"), "value"), AST.id("delta")),
+          ]),
+          AST.simpleTypeExpression("i32"),
+        ),
+        AST.assign(
+          "intBox",
+          AST.structLiteral(
+            [AST.structFieldInitializer(AST.int(5), "value")],
+            false,
+            "Box",
+            undefined,
+            [AST.simpleTypeExpression("i32")],
+          ),
+        ),
+        AST.assign(
+          "boolBox",
+          AST.structLiteral(
+            [AST.structFieldInitializer(AST.booleanLiteral(false), "value")],
+            false,
+            "Box",
+            undefined,
+            [AST.simpleTypeExpression("bool")],
+          ),
+        ),
+        AST.arrayLiteral([
+          AST.functionCall(AST.memberAccessExpression(AST.id("intBox"), "describe"), []),
+          AST.functionCall(AST.memberAccessExpression(AST.id("boolBox"), "describe"), []),
+          AST.binaryExpression(
+            "|>",
+            AST.id("intBox"),
+            AST.functionCall(AST.id("describe"), [AST.topicReferenceExpression()]),
+          ),
+          AST.functionCall(AST.id("sum"), [AST.id("intBox"), AST.int(2)]),
+          AST.functionCall(AST.memberAccessExpression(AST.id("intBox"), "sum"), [AST.int(3)]),
+          AST.binaryExpression(
+            "|>",
+            AST.id("intBox"),
+            AST.functionCall(AST.id("sum"), [AST.topicReferenceExpression(), AST.int(4)]),
+          ),
+          AST.binaryExpression(
+            "|>",
+            AST.id("boolBox"),
+            AST.functionCall(AST.id("describe"), [AST.topicReferenceExpression()]),
+          ),
+        ]),
+      ]),
+      manifest: {
+        description: "UFCS resolves overloaded and generic free functions, matching pipe and method-style calls",
+        expect: {
+          result: {
+            kind: "array",
+            elements: [
+              { kind: "i32", value: 6n },
+              { kind: "i32", value: 1n },
+              { kind: "i32", value: 6n },
+              { kind: "i32", value: 7n },
+              { kind: "i32", value: 8n },
+              { kind: "i32", value: 9n },
+              { kind: "i32", value: 1n },
+            ],
+          },
+        },
+      },
+    },
 ];
 
 export default functionsFixtures;

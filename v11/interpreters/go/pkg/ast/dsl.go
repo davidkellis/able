@@ -108,8 +108,12 @@ func TypedP(pattern Pattern, typeAnnotation TypeExpression) *TypedPattern {
 	return NewTypedPattern(pattern, typeAnnotation)
 }
 
-func FieldP(pattern Pattern, fieldName interface{}, binding interface{}) *StructPatternField {
-	return NewStructPatternField(pattern, identifierPtr(fieldName), identifierPtr(binding))
+func FieldP(pattern Pattern, fieldName interface{}, binding interface{}, typeAnnotation ...TypeExpression) *StructPatternField {
+	var ann TypeExpression
+	if len(typeAnnotation) > 0 {
+		ann = typeAnnotation[0]
+	}
+	return NewStructPatternField(pattern, identifierPtr(fieldName), identifierPtr(binding), ann)
 }
 
 func StructP(fields []*StructPatternField, isPositional bool, structType interface{}) *StructPattern {

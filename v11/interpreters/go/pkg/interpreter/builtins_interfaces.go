@@ -24,7 +24,7 @@ func (i *Interpreter) initInterfaceBuiltins() {
 		if impl == nil {
 			continue
 		}
-		_, _ = i.evaluateImplementationDefinition(impl, i.global)
+		_, _ = i.evaluateImplementationDefinition(impl, i.global, true)
 	}
 	i.interfaceBuiltinsReady = true
 }
@@ -50,18 +50,40 @@ func buildInterfaceBundle() interfaceBundle {
 		nil,
 		nil,
 	)
+	errorMessageSig := ast.NewFunctionSignature(
+		ast.NewIdentifier("message"),
+		[]*ast.FunctionParameter{
+			ast.NewFunctionParameter(ast.NewIdentifier("self"), ast.NewSimpleTypeExpression(ast.NewIdentifier("Self"))),
+		},
+		ast.NewSimpleTypeExpression(ast.NewIdentifier("string")),
+		nil,
+		nil,
+		nil,
+	)
+	errorCauseSig := ast.NewFunctionSignature(
+		ast.NewIdentifier("cause"),
+		[]*ast.FunctionParameter{
+			ast.NewFunctionParameter(ast.NewIdentifier("self"), ast.NewSimpleTypeExpression(ast.NewIdentifier("Self"))),
+		},
+		ast.NewNullableTypeExpression(ast.NewSimpleTypeExpression(ast.NewIdentifier("Error"))),
+		nil,
+		nil,
+		nil,
+	)
 
 	displayDef := ast.NewInterfaceDefinition(ast.NewIdentifier("Display"), []*ast.FunctionSignature{displaySig}, nil, nil, nil, nil, false)
 	cloneDef := ast.NewInterfaceDefinition(ast.NewIdentifier("Clone"), []*ast.FunctionSignature{cloneSig}, nil, nil, nil, nil, false)
+	errorDef := ast.NewInterfaceDefinition(ast.NewIdentifier("Error"), []*ast.FunctionSignature{errorMessageSig, errorCauseSig}, nil, nil, nil, nil, false)
 
 	var implementations []*ast.ImplementationDefinition
 	for _, typeName := range []string{"string", "i32", "bool", "char", "f64"} {
 		implementations = append(implementations, makeDisplayImpl(typeName))
 		implementations = append(implementations, makeCloneImpl(typeName))
 	}
+	implementations = append(implementations, makeErrorImpl())
 
 	return interfaceBundle{
-		interfaces:      []*ast.InterfaceDefinition{displayDef, cloneDef},
+		interfaces:      []*ast.InterfaceDefinition{displayDef, cloneDef, errorDef},
 		implementations: implementations,
 	}
 }
@@ -116,6 +138,51 @@ func makeCloneImpl(typeName string) *ast.ImplementationDefinition {
 		ast.NewIdentifier("Clone"),
 		selfType,
 		[]*ast.FunctionDefinition{fn},
+		nil,
+		nil,
+		nil,
+		nil,
+		false,
+	)
+}
+
+func makeErrorImpl() *ast.ImplementationDefinition {
+	selfType := ast.NewSimpleTypeExpression(ast.NewIdentifier("ProcError"))
+
+	messageFn := ast.NewFunctionDefinition(
+		ast.NewIdentifier("message"),
+		[]*ast.FunctionParameter{
+			ast.NewFunctionParameter(ast.NewIdentifier("self"), selfType),
+		},
+		ast.NewBlockExpression([]ast.Statement{
+			ast.NewReturnStatement(ast.NewMemberAccessExpression(ast.NewIdentifier("self"), ast.NewIdentifier("details"))),
+		}),
+		ast.NewSimpleTypeExpression(ast.NewIdentifier("string")),
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	causeFn := ast.NewFunctionDefinition(
+		ast.NewIdentifier("cause"),
+		[]*ast.FunctionParameter{
+			ast.NewFunctionParameter(ast.NewIdentifier("self"), selfType),
+		},
+		ast.NewBlockExpression([]ast.Statement{
+			ast.NewReturnStatement(ast.NewNilLiteral()),
+		}),
+		ast.NewNullableTypeExpression(ast.NewSimpleTypeExpression(ast.NewIdentifier("Error"))),
+		nil,
+		nil,
+		false,
+		false,
+	)
+
+	return ast.NewImplementationDefinition(
+		ast.NewIdentifier("Error"),
+		selfType,
+		[]*ast.FunctionDefinition{messageFn, causeFn},
 		nil,
 		nil,
 		nil,

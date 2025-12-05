@@ -1,0 +1,10 @@
+{
+  "description": "Method-style UFCS surfaces ambiguity when overloads expect different first-parameter tail types",
+  "expect": {
+    "errors": [
+      "Ambiguous overload for tag"
+    ],
+    "typecheckDiagnostics": []
+  },
+  "entry": "module.json"
+}

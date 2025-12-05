@@ -9,29 +9,31 @@
 
 const PREC = {
   lambda: 0,
-  pipe: 1,
-  assignment: 2,
-  range: 3,
-  logical_or: 4,
-  logical_and: 5,
-  equality: 6,
-  comparison: 7,
-  bit_or: 8,
-  bit_xor: 9,
-  bit_and: 10,
-  shift: 11,
-  additive: 12,
-  multiplicative: 13,
-  unary: 14,
-  exponent: 15,
-  call: 16,
-  member: 17,
-  type_application: 18,
-  return_stmt: 19,
+  low_pipe: 1,
+  pipe: 2,
+  assignment: 3,
+  range: 4,
+  logical_or: 5,
+  logical_and: 6,
+  equality: 7,
+  comparison: 8,
+  bit_or: 9,
+  bit_xor: 10,
+  bit_and: 11,
+  shift: 12,
+  additive: 13,
+  multiplicative: 14,
+  unary: 15,
+  exponent: 16,
+  call: 17,
+  member: 18,
+  type_application: 19,
+  return_stmt: 20,
 };
 
 const commaSep = rule => optional(commaSep1(rule));
 const commaSep1 = rule => seq(rule, repeat(seq(',', rule)));
+const renameOperator = token("::");
 
 const KEYWORDS = [
   "fn",
@@ -136,6 +138,7 @@ module.exports = grammar({
     [$.literal, $.literal_pattern],
     [$.pattern_base, $.struct_pattern_field],
     [$.primary_expression, $.pattern_base, $.struct_pattern_field],
+    [$.primary_expression, $.pattern_base, $.qualified_identifier],
     [$.lambda_parameter, $.pattern_base, $.struct_pattern_field],
     [$.proc_expression, $.primary_expression],
     [$.spawn_expression, $.primary_expression],
@@ -149,6 +152,8 @@ module.exports = grammar({
     [$.struct_literal_field, $.pattern_base],
     [$.block, $.struct_pattern],
     [$.struct_record, $.struct_tuple],
+    [$.type_identifier, $.nil_literal],
+    [$.pattern_base, $.wildcard_type],
   ],
 
   rules: {
@@ -169,8 +174,11 @@ module.exports = grammar({
 
     import_statement: $ => seq(
       field("kind", choice("import", "dynimport")),
-      field("path", $.qualified_identifier),
-      optional(field("clause", $.import_clause)),
+      field("path", $.import_path),
+      optional(choice(
+        seq(renameOperator, field("alias", $.identifier)),
+        field("clause", $.import_clause),
+      )),
       optional(";"),
     ),
 
@@ -182,12 +190,16 @@ module.exports = grammar({
         optional(","),
         "}"
       ),
-      seq("as", $.identifier),
+    ),
+
+    import_path: $ => seq(
+      $.identifier,
+      repeat(seq(".", $.identifier)),
     ),
 
     import_selector: $ => seq(
       $.identifier,
-      optional(seq("as", $.identifier)),
+      optional(seq(renameOperator, $.identifier)),
     ),
 
     statement: $ => choice(
@@ -490,7 +502,15 @@ module.exports = grammar({
       $.block,
     ),
 
-    expression: $ => $.pipe_expression,
+    expression: $ => $.low_precedence_pipe_expression,
+
+    low_precedence_pipe_expression: $ => prec.left(
+      PREC.low_pipe,
+      seq(
+        $.assignment_expression,
+        repeat(seq("|>>", $.assignment_expression)),
+      ),
+    ),
 
     pipe_expression: $ => prec.left(
       PREC.pipe,
@@ -504,28 +524,32 @@ module.exports = grammar({
       $.ensure_expression,
       $.rescue_expression,
       $.handling_expression,
+      $.pipe_operand_base,
+    ),
+
+    pipe_operand_base: $ => choice(
       $.proc_expression,
       $.spawn_expression,
       $.await_expression,
       $.breakpoint_expression,
       $.match_expression,
-      $.assignment_expression,
+      $.range_expression,
     ),
 
     ensure_expression: $ => seq(
-      choice($.rescue_expression, $.handling_expression, $.assignment_expression),
+      choice($.rescue_expression, $.handling_expression, $.pipe_operand_base),
       "ensure",
       field("ensure", $.block),
     ),
 
     rescue_expression: $ => seq(
-      choice($.handling_expression, $.assignment_expression),
+      choice($.handling_expression, $.pipe_operand_base),
       "rescue",
       field("rescue", $.rescue_block),
     ),
 
     handling_expression: $ => prec.left(seq(
-      choice($.rescue_postfix_expression, $.assignment_expression),
+      choice($.rescue_postfix_expression, $.pipe_operand_base),
       repeat1($.else_clause),
     )),
 
@@ -591,7 +615,7 @@ module.exports = grammar({
 
     await_expression: $ => seq(
       "await",
-      $.assignment_expression,
+      $.postfix_expression,
     ),
 
     breakpoint_expression: $ => seq(
@@ -611,7 +635,7 @@ module.exports = grammar({
           field("right", $.assignment_expression),
         ),
       ),
-      $.range_expression,
+      $.pipe_expression,
     ),
 
     assignment_target: $ => choice(
@@ -1048,8 +1072,12 @@ module.exports = grammar({
 
     struct_pattern_field: $ => seq(
       field("field", $.identifier),
-      optional(seq("as", field("binding", $.identifier))),
-      optional(seq(":", field("value", $.pattern))),
+      optional(seq(renameOperator, field("binding", $.identifier))),
+      optional(seq(
+        ":",
+        field("type", $.type_expression),
+        optional(field("value", $.pattern)),
+      )),
     ),
 
     array_pattern: $ => seq(
@@ -1131,10 +1159,10 @@ module.exports = grammar({
       "void",
     ),
 
-    qualified_identifier: $ => prec.right(seq(
+    qualified_identifier: $ => seq(
       $.identifier,
       repeat(seq(".", $.identifier)),
-    )),
+    ),
 
     placeholder_expression: _ => token(choice("@", /@[1-9][0-9]*/)),
     implicit_member_expression: $ => seq(

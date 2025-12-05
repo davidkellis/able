@@ -35,7 +35,7 @@ func TestParsePackageStatement(t *testing.T) {
 }
 
 func TestParseImportSelectors(t *testing.T) {
-	source := `import alpha.beta.{Foo, Bar as B};
+	source := `import alpha.beta.{Foo, Bar::B};
 `
 
 	p, err := NewModuleParser()
@@ -100,7 +100,7 @@ func TestParseWildcardImport(t *testing.T) {
 }
 
 func TestParseImportAlias(t *testing.T) {
-	source := `import util.io as io_util;
+	source := `import util.io::io_util;
 `
 
 	p, err := NewModuleParser()
@@ -130,9 +130,29 @@ func TestParseImportAlias(t *testing.T) {
 	assertModulesEqual(t, expected, mod)
 }
 
+func TestParseImportAliasLegacySyntaxRejected(t *testing.T) {
+	sources := []string{
+		"import util.io as io_util;",
+		"import alpha.beta.{Foo as Bar};",
+		"dynimport host.bindings as host;",
+	}
+
+	for _, source := range sources {
+		p, err := NewModuleParser()
+		if err != nil {
+			t.Fatalf("NewModuleParser error: %v", err)
+		}
+
+		if _, err := p.ParseModule([]byte(source)); err == nil {
+			t.Fatalf("expected parse error for legacy alias syntax: %s", source)
+		}
+		p.Close()
+	}
+}
+
 func TestParseDynImportSelectors(t *testing.T) {
-	source := `dynimport host.bindings as host;
-dynimport host.bindings.{Device as HostDevice, Logger};
+	source := `dynimport host.bindings::host;
+dynimport host.bindings.{Device::HostDevice, Logger};
 dynimport plugin.widgets.*;
 `
 
@@ -185,12 +205,12 @@ func TestParseModuleImports(t *testing.T) {
 	}
 	defer p.Close()
 
-	source := []byte(`package sample.core;
+source := []byte(`package sample.core;
 
-import alpha.beta.{Foo, Bar as B};
+import alpha.beta.{Foo, Bar::B};
 import gamma.delta.*;
 import util.io;
-dynimport host.bindings as host;
+dynimport host.bindings::host;
 
 fn process(items) -> util.Strings {
   items + 1

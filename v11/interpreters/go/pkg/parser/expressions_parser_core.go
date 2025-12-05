@@ -264,12 +264,26 @@ func parseExpressionInternal(ctx *parseContext, node *sitter.Node) (ast.Expressi
 		}
 		return nil, fmt.Errorf("parser: empty parenthesized expression")
 	case "pipe_expression":
-		expr, err := ctx.parsePipeExpression(node)
+		expr, err := ctx.parsePipeExpression(node, "|>")
+		if err != nil {
+			return nil, err
+		}
+		return annotateExpression(expr, node), nil
+	case "low_precedence_pipe_expression":
+		expr, err := ctx.parsePipeExpression(node, "|>>")
 		if err != nil {
 			return nil, err
 		}
 		return annotateExpression(expr, node), nil
 	case "matchable_expression":
+		if child := firstNamedChild(node); child != nil {
+			expr, err := parseExpressionInternal(ctx, child)
+			if err != nil {
+				return nil, err
+			}
+			return annotateExpression(expr, node), nil
+		}
+	case "pipe_operand_base":
 		if child := firstNamedChild(node); child != nil {
 			expr, err := parseExpressionInternal(ctx, child)
 			if err != nil {
@@ -580,7 +594,7 @@ func (ctx *parseContext) parseUnaryExpression(node *sitter.Node) (ast.Expression
 	}
 }
 
-func (ctx *parseContext) parsePipeExpression(node *sitter.Node) (ast.Expression, error) {
+func (ctx *parseContext) parsePipeExpression(node *sitter.Node, operator string) (ast.Expression, error) {
 	if node.NamedChildCount() == 0 {
 		return nil, fmt.Errorf("parser: empty pipe expression")
 	}
@@ -595,7 +609,7 @@ func (ctx *parseContext) parsePipeExpression(node *sitter.Node) (ast.Expression,
 			return nil, err
 		}
 		prev := result
-		result = annotateCompositeExpression(ast.NewBinaryExpression("|>", result, stepExpr), prev, stepNode)
+		result = annotateCompositeExpression(ast.NewBinaryExpression(operator, result, stepExpr), prev, stepNode)
 	}
 	return annotateExpression(result, node), nil
 }

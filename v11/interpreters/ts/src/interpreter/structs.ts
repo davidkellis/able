@@ -217,6 +217,20 @@ export function memberAccessOnValue(
   if (obj.kind === "interface_value") {
     if (member.type !== "Identifier") throw new Error("Interface member access expects identifier");
     const underlying = obj.value;
+    if (obj.interfaceName === "Error" && member.type === "Identifier") {
+      if (member.name === "value") {
+        if (underlying.kind === "error") {
+          return underlying.value ?? { kind: "nil", value: null };
+        }
+        return { kind: "nil", value: null };
+      }
+      if (underlying.kind === "error") {
+        const fn = (ctx.errorNativeMethods as Record<string, Extract<V10Value, { kind: "native_function" }>>)[member.name];
+        if (fn) {
+          return ctx.bindNativeMethod(fn, underlying);
+        }
+      }
+    }
     const typeName = ctx.getTypeNameForValue(underlying);
     if (!typeName) throw new Error(`No method '${member.name}' for interface ${obj.interfaceName}`);
     const typeArgs = underlying.kind === "struct_instance" ? underlying.typeArguments : undefined;

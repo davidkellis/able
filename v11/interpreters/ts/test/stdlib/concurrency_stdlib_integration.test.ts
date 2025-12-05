@@ -58,9 +58,15 @@ fn main() -> string {
 
   combined := ""
   first := ch.receive()
-  if first != nil { combined = combined + first }
+  first match {
+    case value: string => { combined = combined + value },
+    case nil => {}
+  }
   second := ch.receive()
-  if second != nil { combined = combined + second }
+  second match {
+    case value: string => { combined = combined + value },
+    case nil => {}
+  }
 
   mutex := Mutex.new()
   mutex.lock()

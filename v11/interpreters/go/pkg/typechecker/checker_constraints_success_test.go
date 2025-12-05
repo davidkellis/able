@@ -933,12 +933,17 @@ func TestFunctionCallConstraintObligationsSubstituted(t *testing.T) {
 		if len(applied.Arguments) != 1 {
 			continue
 		}
-		arrayArg, ok := applied.Arguments[0].(ArrayType)
-		if !ok {
-			continue
+		var elemType Type
+		switch arrayArg := applied.Arguments[0].(type) {
+		case ArrayType:
+			elemType = arrayArg.Element
+		case AppliedType:
+			if name, ok := structName(arrayArg.Base); ok && name == "Array" {
+				elemType = argumentOrUnknown(arrayArg.Arguments, 0)
+			}
 		}
-		elem, ok := arrayArg.Element.(IntegerType)
-		if !ok || elem.Suffix != "i32" {
+		intElem, ok := elemType.(IntegerType)
+		if !ok || intElem.Suffix != "i32" {
 			continue
 		}
 		found = true

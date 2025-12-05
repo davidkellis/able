@@ -358,7 +358,7 @@ func TestImplResolutionAmbiguousMultiTraitConstraints(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected ambiguity error, got nil")
 	}
-	if !strings.Contains(err.Error(), "Ambiguous method 'to_string'") {
+	if !strings.Contains(err.Error(), "ambiguous implementations of Show") {
 		t.Fatalf("expected ambiguous method error, got %v", err)
 	}
 }

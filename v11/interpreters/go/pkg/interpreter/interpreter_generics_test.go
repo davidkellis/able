@@ -16,7 +16,7 @@ func TestFunctionDefinitionUnknownInterfaceConstraint(t *testing.T) {
 		[]ast.Statement{ast.ID("value")},
 		nil,
 		[]*ast.GenericParameter{
-			ast.GenericParam("T", ast.InterfaceConstr(ast.Ty("Error"))),
+			ast.GenericParam("T", ast.InterfaceConstr(ast.Ty("MissingInterface"))),
 		},
 		nil,
 		false,
@@ -25,7 +25,7 @@ func TestFunctionDefinitionUnknownInterfaceConstraint(t *testing.T) {
 	module := ast.Mod([]ast.Statement{fn}, nil, nil)
 	if _, _, err := interp.EvaluateModule(module); err == nil {
 		t.Fatalf("expected unknown interface error")
-	} else if err.Error() != "Unknown interface 'Error' in constraint on 'T'" {
+	} else if err.Error() != "Unknown interface 'MissingInterface' in constraint on 'T'" {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -526,7 +526,7 @@ func TestNamedImplDisambiguation(t *testing.T) {
 	}, nil, nil)
 	if _, _, err := interp.EvaluateModule(ambiguous); err == nil {
 		t.Fatalf("expected ambiguity error")
-	} else if !strings.Contains(err.Error(), "Ambiguous method 'act' for type 'Service'") {
+	} else if !strings.Contains(err.Error(), "ambiguous implementations of A for Service") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	callA := ast.Mod([]ast.Statement{

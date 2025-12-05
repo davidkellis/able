@@ -41,21 +41,35 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 
 ## TODO (working queue: tackle in order, move completed items to LOG.md)
 
+### Go stdlib/typechecker parity (no shortcuts; required for ablego/tutorials)
+- [ ] **Ordering/Ord correctness:** Align `able.core.interfaces` and `able.core.errors` with the Go typechecker so `Ord.cmp` returns the declared `Ordering` variants and primitive/Error impls satisfy parameter/return types.
+- [ ] **Extern acceptance:** Teach the Go typechecker to accept extern function bodies in stdlib modules (e.g., `able.collections.array` extern helpers) instead of rejecting them as unsupported statements.
+- [ ] **Array Iterable/Iterator self typing:** Fix Go typechecker handling of `Iterable`/`Iterator` impls in `able.collections.array` so `Self` matches instantiated type args and member accesses (`length`, `storage_handle`, etc.) are recognized.
+- [ ] **Clone/Default/Index parity:** Ensure the Go typechecker validates stdlib impls for Clone/Default/Index/IndexMut on primitives and Array without spurious generic-arity errors.
+- [ ] **Rule: do not bypass stdlib checks:** Keep stdlib typechecking enabled in ablego; fix checker + stdlib so `v11/examples/tutorial/04_functions_and_lambdas.able` (and the rest of the tutorials) run cleanly with the full stdlib loaded.
+
 ### v11 Spec Delta Implementation Plan
-- [ ] Pipe precedence + low-precedence pipe `|>>` per §6.3.1/§6.3.2:
-  - Parser: adjust precedence table for `|>` above assignment; add `|>>` token with lower precedence.
-  - TS checker/runtime: adopt new precedence; implement `|>>` semantics (reuse topic/callable fallback); add fixtures (`a = 5 |>> print`, logical op interactions).
-  - Go checker/runtime: same precedence + `|>>` support; fixtures aligned.
-- [ ] Apply updated impl specificity rules (§10.2.5):
-  - TS/Go typecheckers: enforce tie-break ordering (concrete>generic, constraint superset, union subset, more-instantiated generics), emit ambiguity diagnostics.
-  - TS/Go runtimes: ensure dynamic/interface upcast uses same rules or surfaces ambiguity.
-  - Fixtures: add cases for each rule and an ambiguity example; include named-impl explicit call coverage.
+- [ ] **Correct examples**: Fix broken examples in the v11/examples directory.
+   - help me use the ablets and ablego scripts in the v11 directory to run the example programs in v11/examples/* and let's start identifying which ones don't work and then figure out what we'll need to do to correct them or fix the interpreters so that the example programs work. I want to identify problems first and capture those items in the PLAN and start working through why they don't work and getting things corrected where they're broken, expanding stdlib to make things work, etc.
+   - identify broken examples that are due to missing stdlib features
+   - identify broken examples that are due to language features from the v11 spec that are not yet implemented yet or are currently not working properly
+      - these issues are the highest priority and should be addressed first
+   - TS ablets sweep (current): everything passes except:
+     - `greet_typecheck_fail.able` (intentional type error)
+     - `leetcode4_median_of_two_sorted_arrays.able` — needs numeric conversion support (`as f64` / return type mismatch)
+      - `leetcode8_string_to_integer.able` — literal `2147483648` overflows `i32` (example should widen or adjust literal)
+      - `leetcode9_palindrome_number.able` — parser rejects `and` (tree-sitter parse error; grammar needs `and` or the sample should use `&&`)
+   - Tutorials (TS): 01–14 typecheck after stdlib iterator/channel fixes; Go parity still pending.
+- [ ] **Stdlib numeric conversions:** Add explicit conversion helpers on numeric types (e.g., to_f64, to_i64) in the stdlib and wire through TS/Go so examples/tests can rely on them instead of the nonexistent `as` cast.
 - [ ] **Stdlib API expansions (regex, §§6.12 & 14.2)** — **lowest priority; defer until higher items advance.**
    - **Tests:** expand stdlib test suites + fixtures to cover each helper, regex compilation failures, streaming use cases, and confirm both interpreters return identical traces.
 
-
 ### Tutorials & Examples (cleanup backlog)
-- Fix tutorials requiring missing stdlib imports/stubs (Channel/Mutex await sample) once the stdlib surfaces are wired back in.
-- Update options/results/exceptions/interop tutorials to reference the `Error` interface correctly (or import the stdlib definition) so they typecheck.
-- Adjust concurrency proc/spawn tutorial to avoid `proc_yield` misuse and return-type mismatches.
-- Align package/import tutorials with correct package names (`tutorial_packages_*`) so the loader resolves dependencies.
+- v11/examples triage (ablets/ablego):
+  - Root examples: `assign/greet/hello_world/loop` pass in TS (Go sweep pending); `greet_typecheck_fail` intentionally errors.
+  - Tutorials: TS 01–14 typecheck; Go parity still needs a fresh run after stdlib plumbing.
+  - Leetcode (TS): all but 4/8/9 typecheck (see above); Go not yet rerun.
+- Fix tutorials requiring missing stdlib imports/stubs (Channel/Mutex await sample, array and string helpers) once the stdlib surfaces are wired back in; align Apply/Callable support across runtimes (Go still needs parity).
+- Update options/results/exceptions/interop tutorials to reference/import the stdlib `Error` interface so they typecheck (done for TS; Go still pending).
+- Adjust concurrency proc/spawn tutorial to avoid `proc_yield` misuse and return-type mismatches; revisit union-pattern check in Go (tutorial 03) and add Go support for prelude/extern.
+- Go fixture/typechecker hygiene: keep overload fixtures (`overload_resolution_success`, UFCS overload cases) green by allowing method overloads without duplicate diagnostics and keeping diagnostic paths aligned with the TS harness.

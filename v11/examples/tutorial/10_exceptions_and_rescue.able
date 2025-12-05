@@ -1,5 +1,7 @@
 package tutorial.exceptions
 
+import able.core.interfaces.{Error}
+
 struct NetworkError { message: string }
 
 impl Error for NetworkError {
@@ -14,8 +16,8 @@ fn fetch(url: string) -> string {
 
 fn fetch_with_logging(url: string) -> string {
   fetch(url) rescue {
-    case err: NetworkError => {
-      print(`caught network error: ${err.message()}`)
+    case _ => {
+      print("caught network error")
       "serving cached body"
     }
   } ensure {
@@ -25,7 +27,7 @@ fn fetch_with_logging(url: string) -> string {
 
 fn retry_once(url: string) -> string {
   fetch(url) rescue {
-    case _: NetworkError => {
+    case _ => {
       print("retrying once then rethrowing")
       rethrow
     }
@@ -36,6 +38,6 @@ fn main() -> void {
   print(fetch_with_logging(""))
   print(fetch_with_logging("https://example.com"))
 
-  outcome = retry_once("") rescue { case _: Error => "gave up after retry" }
+  outcome = retry_once("") rescue { case _ => "gave up after retry" }
   print(outcome)
 }

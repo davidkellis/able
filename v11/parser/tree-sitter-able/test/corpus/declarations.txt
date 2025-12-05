@@ -5,7 +5,7 @@ Top-Level Declarations
 package demo.core;
 
 import std.io;
-dynimport dyn.tools as toolset;
+dynimport dyn.tools::toolset;
 
 struct Point T {
   x: T,
@@ -41,15 +41,14 @@ methods Point i32 {
     (identifier)
     (identifier))
   (import_statement
-    (qualified_identifier
+    (import_path
       (identifier)
       (identifier)))
   (import_statement
-    (qualified_identifier
+    (import_path
       (identifier)
       (identifier))
-    (import_clause
-      (identifier)))
+    (identifier))
   (struct_definition
     (identifier)
     (declaration_type_parameters

@@ -81,6 +81,24 @@ func (c *Checker) checkIndexExpression(env *Environment, expr *ast.IndexExpressi
 			return diags, val
 		}
 	case AppliedType:
+		if elem, ok := arrayElementType(ty); ok {
+			if indexType != nil && !isUnknownType(indexType) && !isIntegerType(indexType) {
+				diags = append(diags, Diagnostic{
+					Message: "typechecker: index must be an integer",
+					Node:    expr.Index,
+				})
+			}
+			if elem == nil {
+				elem = UnknownType{}
+			}
+			c.infer.set(expr, elem)
+			return diags, elem
+		}
+		if name, ok := structName(ty.Base); ok && name == "HashMap" && len(ty.Arguments) >= 2 {
+			val := ty.Arguments[1]
+			c.infer.set(expr, val)
+			return diags, val
+		}
 		if iface, ok := ty.Base.(InterfaceType); ok && iface.InterfaceName == "Index" {
 			var keyType, valueType Type = UnknownType{}, UnknownType{}
 			if len(ty.Arguments) > 0 {
@@ -213,6 +231,23 @@ func (c *Checker) checkIndexAssignment(env *Environment, expr *ast.IndexExpressi
 			return diags
 		}
 	case AppliedType:
+		if elem, ok := arrayElementType(ty); ok {
+			requireIntegerIndex()
+			checkValueAssignable(elem)
+			return diags
+		}
+		if name, ok := structName(ty.Base); ok && name == "HashMap" && len(ty.Arguments) >= 2 {
+			keyType := ty.Arguments[0]
+			valType := ty.Arguments[1]
+			if keyType != nil && indexType != nil && !isUnknownType(keyType) && !isUnknownType(indexType) && !typeAssignable(indexType, keyType) {
+				diags = append(diags, Diagnostic{
+					Message: fmt.Sprintf("typechecker: index expects type %s, got %s", typeName(keyType), typeName(indexType)),
+					Node:    expr.Index,
+				})
+			}
+			checkValueAssignable(valType)
+			return diags
+		}
 		if iface, ok := ty.Base.(InterfaceType); ok && iface.InterfaceName == "IndexMut" {
 			var keyType, valType Type = UnknownType{}, UnknownType{}
 			if len(ty.Arguments) > 0 {

@@ -133,7 +133,6 @@ func (ctx *parseContext) parseStructPattern(node *sitter.Node) (ast.Pattern, err
 	}
 
 	fields := make([]*ast.StructPatternField, 0)
-	isPositional := false
 	for i := uint(0); i < node.NamedChildCount(); i++ {
 		child := node.NamedChild(i)
 		if child == nil || isIgnorableNode(child) {
@@ -154,20 +153,6 @@ func (ctx *parseContext) parseStructPattern(node *sitter.Node) (ast.Pattern, err
 		}
 
 		if elem.Kind() == "struct_pattern_field" {
-			if elem.ChildByFieldName("binding") == nil && elem.ChildByFieldName("value") == nil {
-				fieldNode := elem.ChildByFieldName("field")
-				if fieldNode == nil {
-					return nil, fmt.Errorf("parser: struct pattern field missing identifier")
-				}
-				pat, err := parseIdentifier(fieldNode, ctx.source)
-				if err != nil {
-					return nil, err
-				}
-				field := ast.NewStructPatternField(pat, nil, nil)
-				annotateSpan(field, elem)
-				fields = append(fields, field)
-				continue
-			}
 			field, err := ctx.parseStructPatternField(elem)
 			if err != nil {
 				return nil, err
@@ -179,21 +164,32 @@ func (ctx *parseContext) parseStructPattern(node *sitter.Node) (ast.Pattern, err
 		if err != nil {
 			return nil, err
 		}
-		field := ast.NewStructPatternField(pattern, nil, nil)
+		field := ast.NewStructPatternField(pattern, nil, nil, nil)
 		annotateSpan(field, elem)
 		fields = append(fields, field)
 	}
 
-	for _, field := range fields {
-		if field.FieldName == nil {
-			isPositional = true
-			break
+	structKind, hasStructKind := ctx.resolveStructKind(structType)
+	if hasStructKind && structKind == ast.StructKindPositional {
+		for _, field := range fields {
+			field.FieldName = nil
 		}
 	}
+
+	isPositional := structKind == ast.StructKindPositional || hasPositionalStructFields(fields)
 
 	pattern := ast.NewStructPattern(fields, isPositional, structType)
 	annotatePattern(pattern, node)
 	return pattern, nil
+}
+
+func hasPositionalStructFields(fields []*ast.StructPatternField) bool {
+	for _, field := range fields {
+		if field.FieldName == nil {
+			return true
+		}
+	}
+	return false
 }
 
 func (ctx *parseContext) parseStructPatternField(node *sitter.Node) (*ast.StructPatternField, error) {
@@ -219,6 +215,13 @@ func (ctx *parseContext) parseStructPatternField(node *sitter.Node) (*ast.Struct
 		binding = id
 	}
 
+	var typeAnnotation ast.TypeExpression
+	if typeNode := node.ChildByFieldName("type"); typeNode != nil {
+		if typeExpr := ctx.parseTypeExpression(typeNode); typeExpr != nil {
+			typeAnnotation = typeExpr
+		}
+	}
+
 	var pattern ast.Pattern
 	if valueNode := node.ChildByFieldName("value"); valueNode != nil {
 		valuePattern, err := ctx.parsePattern(valueNode)
@@ -237,7 +240,18 @@ func (ctx *parseContext) parseStructPatternField(node *sitter.Node) (*ast.Struct
 		}
 	}
 
-	field := ast.NewStructPatternField(pattern, fieldName, binding)
+	if sp, ok := pattern.(*ast.StructPattern); ok && sp.StructType == nil {
+		if simple, ok := typeAnnotation.(*ast.SimpleTypeExpression); ok && simple.Name != nil {
+			sp.StructType = simple.Name
+		}
+	}
+
+	var bindingForField *ast.Identifier
+	if valueNode := node.ChildByFieldName("value"); valueNode != nil && binding != nil {
+		bindingForField = binding
+	}
+
+	field := ast.NewStructPatternField(pattern, fieldName, bindingForField, typeAnnotation)
 	annotateSpan(field, node)
 	return field, nil
 }

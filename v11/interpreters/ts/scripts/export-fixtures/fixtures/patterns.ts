@@ -134,38 +134,52 @@ const patternsFixtures: Fixture[] = [
           AST.structPattern(
             [
               AST.structPatternField(
-                AST.structPattern(
-                  [
-                    AST.structPatternField(AST.identifier("left_x"), "x"),
-                    AST.structPatternField(AST.identifier("left_y"), "y"),
-                  ],
-                  false,
-                  "Point",
-                ),
-                "left",
+              AST.structPattern(
+                [
+                  AST.structPatternField(AST.identifier("left_x"), "x"),
+                  AST.structPatternField(AST.identifier("left_y"), "y"),
+                ],
+                false,
+                "Point",
               ),
+              "left",
+              undefined,
+              AST.simpleTypeExpression("Point"),
+            ),
               AST.structPatternField(
                 AST.structPattern(
                   [
-                    AST.structPatternField(AST.wildcardPattern(), "x"),
+                    AST.structPatternField(
+                      AST.identifier("right_x"),
+                      "x",
+                      undefined,
+                      AST.simpleTypeExpression("i32"),
+                    ),
                     AST.structPatternField(AST.identifier("right_y"), "y"),
                   ],
                   false,
                   "Point",
                 ),
                 "right",
+                undefined,
+                AST.simpleTypeExpression("Point"),
               ),
-              AST.structPatternField(
-                AST.arrayPattern(
-                  [AST.identifier("first_value")],
-                  "rest_values",
-                ),
-                "values",
+            AST.structPatternField(
+              AST.arrayPattern(
+                [AST.identifier("first_value")],
+                "rest_values",
               ),
-            ],
-            false,
-            "Wrapper",
-          ),
+              "values",
+              undefined,
+              AST.genericTypeExpression(
+                AST.simpleTypeExpression("Array"),
+                [AST.simpleTypeExpression("i32")],
+              ),
+            ),
+          ],
+          false,
+          "Wrapper",
+        ),
           AST.identifier("wrapper"),
         ),
         AST.binaryExpression(
@@ -186,6 +200,99 @@ const patternsFixtures: Fixture[] = [
         description: "Nested struct and array patterns destructure composite value",
         expect: {
           result: { kind: "i32", value: 35n },
+        },
+      },
+    },
+
+  {
+      name: "patterns/struct_pattern_rename",
+      module: AST.module([
+        AST.structDefinition(
+          "Address",
+          [
+            AST.structFieldDefinition(AST.simpleTypeExpression("string"), "street"),
+            AST.structFieldDefinition(AST.simpleTypeExpression("string"), "city"),
+            AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "zip"),
+          ],
+          "named",
+        ),
+        AST.structDefinition(
+          "Person",
+          [
+            AST.structFieldDefinition(AST.simpleTypeExpression("string"), "name"),
+            AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "age"),
+            AST.structFieldDefinition(AST.simpleTypeExpression("Address"), "address"),
+          ],
+          "named",
+        ),
+        AST.assign(
+          "person",
+          AST.structLiteral(
+            [
+              AST.structFieldInitializer(AST.stringLiteral("Terry"), "name"),
+              AST.structFieldInitializer(AST.integerLiteral(29), "age"),
+              AST.structFieldInitializer(
+                AST.structLiteral(
+                  [
+                    AST.structFieldInitializer(AST.stringLiteral("Main"), "street"),
+                    AST.structFieldInitializer(AST.stringLiteral("SF"), "city"),
+                    AST.structFieldInitializer(AST.integerLiteral(94107), "zip"),
+                  ],
+                  false,
+                  "Address",
+                ),
+                "address",
+              ),
+            ],
+            false,
+            "Person",
+          ),
+        ),
+        AST.assign(
+          AST.structPattern(
+            [
+              AST.structPatternField(AST.identifier("name"), "name"),
+              AST.structPatternField(
+                AST.identifier("years"),
+                "age",
+                undefined,
+                AST.simpleTypeExpression("i32"),
+              ),
+              AST.structPatternField(
+                AST.structPattern(
+                  [
+                    AST.structPatternField(AST.identifier("street"), "street"),
+                    AST.structPatternField(AST.identifier("zip"), "zip"),
+                  ],
+                  false,
+                  "Address",
+                ),
+                "address",
+                AST.identifier("addr"),
+                AST.simpleTypeExpression("Address"),
+              ),
+            ],
+            false,
+            "Person",
+          ),
+          AST.identifier("person"),
+        ),
+        AST.stringInterpolation([
+          AST.identifier("name"),
+          AST.stringLiteral("-"),
+          AST.identifier("years"),
+          AST.stringLiteral("-"),
+          AST.identifier("street"),
+          AST.stringLiteral("-"),
+          AST.identifier("zip"),
+          AST.stringLiteral("-"),
+          AST.member(AST.identifier("addr"), "city"),
+        ]),
+      ]),
+      manifest: {
+        description: "Struct pattern shorthand, rename, type annotation, and nested destructuring using ::",
+        expect: {
+          result: { kind: "string", value: "Terry-29-Main-94107-SF" },
         },
       },
     },

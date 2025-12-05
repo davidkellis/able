@@ -335,12 +335,12 @@ export function evaluateRescueExpression(ctx: ExpressionContext, expression: AST
 }
 
 export function lookupErrorType(ctx: ExpressionContext): TypeInfo {
-  const structDefinition = ctx.getStructDefinition("Error");
+  const interfaceDefinition = ctx.getInterfaceDefinition("Error");
   return {
-    kind: "struct",
+    kind: "interface",
     name: "Error",
     typeArguments: [],
-    definition: structDefinition,
+    definition: interfaceDefinition,
   };
 }
 
@@ -413,10 +413,10 @@ function resolveIndexResultType(
     }
     return valueType ?? unknownType;
   }
-  if (ctx.typeImplementsInterface?.(objectType, "Index", ["Idx", "Val"])?.ok) {
+  if (ctx.typeImplementsInterface?.(objectType, "Index", ["Unknown", "Unknown"])?.ok) {
     return unknownType;
   }
-  if (ctx.typeImplementsInterface?.(objectType, "IndexMut", ["Idx", "Val"])?.ok) {
+  if (ctx.typeImplementsInterface?.(objectType, "IndexMut", ["Unknown", "Unknown"])?.ok) {
     return unknownType;
   }
   ctx.report(`typechecker: cannot index into type ${formatType(objectType)}`, node);
@@ -538,12 +538,13 @@ function inferBinaryExpression(ctx: ExpressionContext, expression: AST.BinaryExp
   if (!expression) {
     return unknownType;
   }
-  const left = ctx.inferExpression(expression.left);
-  const right = ctx.inferExpression(expression.right);
   const operator = expression.operator;
-  if (operator === "|>") {
+  if (operator === "|>" || operator === "|>>") {
+    ctx.inferExpression(expression.left);
     return unknownType;
   }
+  const left = ctx.inferExpression(expression.left);
+  const right = ctx.inferExpression(expression.right);
   if (operator === "&&" || operator === "||") {
     if (!isBoolean(left)) {
       ctx.report(`typechecker: '${operator}' left operand must be bool (got ${describe(left)})`, expression);
@@ -687,6 +688,11 @@ function promoteIntegerInfos(leftInfo: IntegerTypeInfo, rightInfo: IntegerTypeIn
     const targetBits = Math.max(leftInfo.bits, rightInfo.bits);
     return leftInfo.signed ? findSmallestSigned(targetBits) : findSmallestUnsigned(targetBits);
   }
+  const signed = leftInfo.signed ? leftInfo : rightInfo;
+  const unsigned = leftInfo.signed ? rightInfo : leftInfo;
+  if (signed.bits > unsigned.bits) {
+    return findSmallestSigned(signed.bits) ?? null;
+  }
   const bitsNeeded = Math.max(leftInfo.bits + 1, rightInfo.bits + 1);
   const signedCandidate = findSmallestSigned(bitsNeeded);
   if (signedCandidate) {
@@ -700,6 +706,9 @@ function promoteIntegerInfos(leftInfo: IntegerTypeInfo, rightInfo: IntegerTypeIn
 }
 
 function extractIntegerInfo(type: TypeInfo): IntegerTypeInfo | null {
+  if (type.kind === "primitive" && type.name === "char") {
+    return getIntegerTypeInfo("i32") ?? null;
+  }
   if (type.kind !== "primitive" || !isIntegerPrimitiveType(type)) {
     return null;
   }
@@ -716,6 +725,10 @@ function classifyNumericPrimitive(type: TypeInfo): PrimitiveNumericClassificatio
   }
   if (isFloatPrimitiveType(type)) {
     return { kind: "float", name: type.name };
+  }
+  if (type.name === "char") {
+    const info = getIntegerTypeInfo("i32");
+    return info ? { kind: "integer", info } : null;
   }
   if (isIntegerPrimitiveType(type)) {
     const info = getIntegerTypeInfo(type.name);
@@ -786,8 +799,9 @@ function checkStructLiteral(ctx: ExpressionContext, literal: AST.StructLiteral):
   const typeArguments = Array.isArray(literal.typeArguments)
     ? literal.typeArguments.map((arg) => ctx.resolveTypeExpression(arg))
     : [];
+  const structBinding = structName ? ctx.lookupIdentifier(structName) : undefined;
   const definition = structName ? ctx.getStructDefinition(structName) : undefined;
-  if (structName && !definition) {
+  if (structName && !definition && structBinding?.kind !== "struct") {
     ctx.report(`typechecker: unknown struct '${structName}'`, literal);
   }
   const substitution = buildStructTypeSubstitution(ctx, definition, typeArguments, literal, structName);
@@ -870,7 +884,7 @@ function checkStructLiteral(ctx: ExpressionContext, literal: AST.StructLiteral):
       kind: "struct",
       name: structName,
       typeArguments,
-      definition,
+      definition: definition ?? (structBinding?.kind === "struct" ? structBinding.definition : undefined),
     };
   }
   return unknownType;

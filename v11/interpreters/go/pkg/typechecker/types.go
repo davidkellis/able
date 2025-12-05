@@ -180,6 +180,17 @@ type ImplementationSpec struct {
 	Definition    *ast.ImplementationDefinition
 }
 
+type ImplementationNamespaceType struct {
+	Impl *ImplementationSpec
+}
+
+func (i ImplementationNamespaceType) Name() string {
+	if i.Impl != nil && i.Impl.ImplName != "" {
+		return "Implementation:" + i.Impl.ImplName
+	}
+	return "Implementation"
+}
+
 type MethodSetSpec struct {
 	TypeParams  []GenericParamSpec
 	Target      Type

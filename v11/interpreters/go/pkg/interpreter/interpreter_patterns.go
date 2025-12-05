@@ -57,10 +57,7 @@ func (i *Interpreter) assignPattern(
 				return fmt.Errorf("Struct type mismatch in destructuring")
 			}
 		}
-		if p.IsPositional {
-			if structVal.Positional == nil {
-				return fmt.Errorf("Expected positional struct")
-			}
+		if structVal.Positional != nil {
 			if len(p.Fields) != len(structVal.Positional) {
 				return fmt.Errorf("Struct field count mismatch")
 			}

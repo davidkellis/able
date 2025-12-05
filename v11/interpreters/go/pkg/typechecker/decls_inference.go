@@ -184,6 +184,52 @@ func newInferredGenericParameter(name string, node ast.Node) *ast.GenericParamet
 	return param
 }
 
+func (c *declarationCollector) ensureImplementationGenericInference(def *ast.ImplementationDefinition) {
+	if def == nil {
+		return
+	}
+	occs := collectImplementationTypeOccurrences(def)
+	scope := map[string]Type{
+		"Self": TypeParameterType{ParameterName: "Self"},
+	}
+	inferred := c.selectInferredGenericParameters(occs, def.GenericParams, scope)
+	if len(inferred) == 0 {
+		return
+	}
+	paramMap := make(map[string]*ast.GenericParameter, len(inferred))
+	for _, param := range inferred {
+		if param == nil || param.Name == nil {
+			continue
+		}
+		paramMap[param.Name.Name] = param
+	}
+	def.WhereClause = hoistWhereConstraints(def.WhereClause, paramMap)
+	def.GenericParams = append(def.GenericParams, inferred...)
+}
+
+func (c *declarationCollector) ensureMethodsGenericInference(def *ast.MethodsDefinition) {
+	if def == nil {
+		return
+	}
+	occs := collectMethodsTypeOccurrences(def)
+	scope := map[string]Type{
+		"Self": TypeParameterType{ParameterName: "Self"},
+	}
+	inferred := c.selectInferredGenericParameters(occs, def.GenericParams, scope)
+	if len(inferred) == 0 {
+		return
+	}
+	paramMap := make(map[string]*ast.GenericParameter, len(inferred))
+	for _, param := range inferred {
+		if param == nil || param.Name == nil {
+			continue
+		}
+		paramMap[param.Name.Name] = param
+	}
+	def.WhereClause = hoistWhereConstraints(def.WhereClause, paramMap)
+	def.GenericParams = append(def.GenericParams, inferred...)
+}
+
 func collectFunctionTypeOccurrences(def *ast.FunctionDefinition) []typeIdentifierOccurrence {
 	var occs []typeIdentifierOccurrence
 	if def == nil {
@@ -252,6 +298,53 @@ func collectTypeExpressionOccurrences(expr ast.TypeExpression, occs *[]typeIdent
 	case *ast.UnionTypeExpression:
 		for _, member := range t.Members {
 			collectTypeExpressionOccurrences(member, occs)
+		}
+	}
+}
+
+func collectImplementationTypeOccurrences(def *ast.ImplementationDefinition) []typeIdentifierOccurrence {
+	var occs []typeIdentifierOccurrence
+	if def == nil {
+		return occs
+	}
+	collectTypeExpressionOccurrences(def.TargetType, &occs)
+	for _, arg := range def.InterfaceArgs {
+		collectTypeExpressionOccurrences(arg, &occs)
+	}
+	collectWhereClauseOccurrences(def.WhereClause, &occs)
+	return occs
+}
+
+func collectMethodsTypeOccurrences(def *ast.MethodsDefinition) []typeIdentifierOccurrence {
+	var occs []typeIdentifierOccurrence
+	if def == nil {
+		return occs
+	}
+	collectTypeExpressionOccurrences(def.TargetType, &occs)
+	collectWhereClauseOccurrences(def.WhereClause, &occs)
+	return occs
+}
+
+func collectWhereClauseOccurrences(where []*ast.WhereClauseConstraint, occs *[]typeIdentifierOccurrence) {
+	if len(where) == 0 {
+		return
+	}
+	for _, clause := range where {
+		if clause == nil {
+			continue
+		}
+		if clause.TypeParam != nil {
+			*occs = append(*occs, typeIdentifierOccurrence{
+				name:            clause.TypeParam.Name,
+				node:            clause.TypeParam,
+				fromWhereClause: true,
+			})
+		}
+		for _, constraint := range clause.Constraints {
+			if constraint == nil || constraint.InterfaceType == nil {
+				continue
+			}
+			collectTypeExpressionOccurrences(constraint.InterfaceType, occs)
 		}
 	}
 }

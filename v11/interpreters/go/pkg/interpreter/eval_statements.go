@@ -22,7 +22,7 @@ func (i *Interpreter) evaluateStatement(node ast.Statement, env *runtime.Environ
 	case *ast.InterfaceDefinition:
 		return i.evaluateInterfaceDefinition(n, env)
 	case *ast.ImplementationDefinition:
-		return i.evaluateImplementationDefinition(n, env)
+		return i.evaluateImplementationDefinition(n, env, false)
 	case *ast.FunctionDefinition:
 		return i.evaluateFunctionDefinition(n, env)
 	case *ast.WhileLoop:

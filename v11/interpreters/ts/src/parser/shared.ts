@@ -252,7 +252,7 @@ type ContextFns = {
   parseQualifiedIdentifier: (node: Node | null | undefined) => Identifier[];
   parseImportClause: (
     node: Node | null | undefined,
-  ) => { isWildcard: boolean; selectors?: ImportSelector[]; alias?: Identifier };
+  ) => { isWildcard: boolean; selectors?: ImportSelector[] };
   parsePackageStatement: (node: Node) => AST.PackageStatement;
   parseFunctionDefinition: (node: Node) => FunctionDefinition;
   parseStructDefinition: (node: Node) => StructDefinition;
@@ -268,9 +268,10 @@ type ContextFns = {
 
 export interface ParseContext extends ContextFns {
   readonly source: string;
+  readonly structKinds: Map<string, AST.StructDefinition["kind"]>;
 }
 
-export type MutableParseContext = ContextFns & { source: string };
+export type MutableParseContext = ContextFns & { source: string; structKinds: Map<string, AST.StructDefinition["kind"]> };
 
 export function createParseContext(source: string): MutableParseContext {
   const uninitialized = (name: string) => (): never => {
@@ -278,6 +279,7 @@ export function createParseContext(source: string): MutableParseContext {
   };
   return {
     source,
+    structKinds: new Map(),
     parseExpression: uninitialized("parseExpression"),
     parsePattern: uninitialized("parsePattern"),
     parseBlock: uninitialized("parseBlock"),

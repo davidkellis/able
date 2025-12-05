@@ -96,7 +96,7 @@ High-level evaluation flow:
 5) Functions/lambdas: closures capture the defining environment; parameters support destructuring patterns.
 6) Pattern matching: identifier, wildcard, literal, struct, array, typed patterns (minimal runtime checks).
 7) Error handling: raise, rescue (with guards), or-else, propagation `expr!`, ensure, rethrow (with raise stack).
-8) Modules/imports: executes body in a module/global env; selector imports and aliasing; privacy enforced for functions/types/interfaces/unions. Wildcard imports bring only public symbols. `import pkg as Alias` binds a `package` value exposing public members. `dynimport` binds late-resolving `dyn_ref`s or `dyn_package` aliases.
+8) Modules/imports: executes body in a module/global env; selector imports and aliasing; privacy enforced for functions/types/interfaces/unions. Wildcard imports bring only public symbols. `import pkg::Alias` binds a `package` value exposing public members. `dynimport` binds late-resolving `dyn_ref`s or `dyn_package` aliases.
 9) Concurrency: `proc` returns a lightweight handle (`status`, `value`, `cancel`) backed by `ProcStatus` (`Pending`, `Resolved`, `Cancelled`, `Failed`) and `ProcError`; `spawn` returns a memoizing future handle with the same `status`/`value` API. Tasks start asynchronously; `value()` blocks and returns `!T` (either the underlying value or an `error` whose payload is a `ProcError`, so `!`/pattern matching work naturally).
 
 ### Using the interpreter
@@ -136,7 +136,7 @@ const result = interp.evaluate(mod as any); // { kind: 'i32', value: 5 }
 ### How the new logic works (high level)
 
 - Package registry and imports:
-  - Modules with `package` declarations register top-level definitions in an internal registry keyed by package path. Qualified names (e.g., `pkg.name`) are placed in globals for selector imports. Wildcard imports copy only public symbols into the importing env. `import pkg as Alias` binds a `package` value whose `Alias.member` yields the symbol. `dynimport` binds `dyn_ref` and `dyn_package` placeholders that resolve at use-time.
+  - Modules with `package` declarations register top-level definitions in an internal registry keyed by package path. Qualified names (e.g., `pkg.name`) are placed in globals for selector imports. Wildcard imports copy only public symbols into the importing env. `import pkg::Alias` binds a `package` value whose `Alias.member` yields the symbol. `dynimport` binds `dyn_ref` and `dyn_package` placeholders that resolve at use-time.
 
 - Named `impl` exposure:
   - Named `impl` blocks are exposed as `impl_namespace` values (not packages). Methods are accessed as `ImplName.method(...)`. Unnamed impls populate the implicit method tables for instance method calls.

@@ -1,5 +1,5 @@
 struct Pair { x: i32, y: i32 }
 p := Pair { x: 1, y: 2 }
-Pair { x: head: i32, y: tail } := p
+Pair { x::head: i32, y::tail } := p
 [first_elem: i32, ...rest] := [1, 2, 3]
 head + first_elem

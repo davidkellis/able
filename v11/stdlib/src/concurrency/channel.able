@@ -100,4 +100,8 @@ impl Iterable T for Channel T {
       }
     }
   }
+
+  fn iterator(self: Self) -> (Iterator T) {
+    ChannelIterator { channel: self }
+  }
 }

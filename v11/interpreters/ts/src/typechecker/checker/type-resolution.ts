@@ -14,6 +14,8 @@ export type TypeResolutionContext = {
   getInterfaceDefinition(name: string): AST.InterfaceDefinition | undefined;
   hasInterfaceDefinition(name: string): boolean;
   getStructDefinition(name: string): AST.StructDefinition | undefined;
+  getUnionDefinition(name: string): AST.UnionDefinition | undefined;
+  hasUnionDefinition(name: string): boolean;
   getIdentifierName(node: AST.Identifier | null | undefined): string | null;
 };
 
@@ -24,6 +26,11 @@ export type TypeResolutionHelpers = {
   ): TypeInfo;
   instantiateTypeAlias(
     definition: AST.TypeAliasDefinition,
+    typeArguments: TypeInfo[],
+    outerSubstitutions?: Map<string, TypeInfo>,
+  ): TypeInfo;
+  instantiateUnionDefinition(
+    definition: AST.UnionDefinition,
     typeArguments: TypeInfo[],
     outerSubstitutions?: Map<string, TypeInfo>,
   ): TypeInfo;
@@ -83,14 +90,26 @@ export function createTypeResolutionHelpers(context: TypeResolutionContext): Typ
             if (context.hasInterfaceDefinition(name)) {
               return { kind: "interface", name, typeArguments: [] };
             }
-            return {
-              kind: "struct",
-              name,
-              typeArguments: [],
-              definition: context.getStructDefinition(name),
+            const unionDef = context.getUnionDefinition(name);
+          if (unionDef) {
+            return instantiateUnionDefinition(unionDef, [], substitutions);
+          }
+          const structDef = context.getStructDefinition(name);
+          if (structDef) {
+              return {
+                kind: "struct",
+                name,
+                typeArguments: [],
+              definition: structDef,
             };
           }
+          const builtin = resolveBuiltinStructuralType(name, []);
+          if (builtin) {
+            return builtin;
+          }
+          return unknownType;
         }
+      }
       }
       case "GenericTypeExpression": {
         const baseName = getIdentifierNameFromTypeExpression(expr.base);
@@ -109,12 +128,24 @@ export function createTypeResolutionHelpers(context: TypeResolutionContext): Typ
         if (context.hasInterfaceDefinition(baseName)) {
           return { kind: "interface", name: baseName, typeArguments };
         }
-        return {
-          kind: "struct",
-          name: baseName,
-          typeArguments,
-          definition: context.getStructDefinition(baseName),
-        };
+        const unionDef = context.getUnionDefinition(baseName);
+        if (unionDef) {
+          return instantiateUnionDefinition(unionDef, typeArguments, substitutions);
+        }
+        const structDef = context.getStructDefinition(baseName);
+        if (structDef) {
+          return {
+            kind: "struct",
+            name: baseName,
+            typeArguments,
+            definition: structDef,
+          };
+        }
+        const builtin = resolveBuiltinStructuralType(baseName, typeArguments);
+        if (builtin) {
+          return builtin;
+        }
+        return unknownType;
       }
       case "NullableTypeExpression":
         return {
@@ -167,6 +198,31 @@ export function createTypeResolutionHelpers(context: TypeResolutionContext): Typ
     return resolveTypeExpression(definition.targetType, substitution);
   }
 
+  function instantiateUnionDefinition(
+    definition: AST.UnionDefinition,
+    typeArguments: TypeInfo[],
+    outerSubstitutions?: Map<string, TypeInfo>,
+  ): TypeInfo {
+    const substitutions = new Map<string, TypeInfo>();
+    if (outerSubstitutions) {
+      for (const [key, value] of outerSubstitutions.entries()) {
+        substitutions.set(key, value);
+      }
+    }
+    const paramNames = Array.isArray(definition.genericParams)
+      ? definition.genericParams
+          .map((param) => context.getIdentifierName(param?.name))
+          .filter((name): name is string => Boolean(name))
+      : [];
+    paramNames.forEach((name, index) => {
+      substitutions.set(name, typeArguments[index] ?? unknownType);
+    });
+    const members = Array.isArray(definition.variants)
+      ? definition.variants.map((variant) => resolveTypeExpression(variant, substitutions))
+      : [];
+    return { kind: "union", members };
+  }
+
   function canonicalizeStructuralType(type: TypeInfo): TypeInfo {
     if (!type || type.kind !== "struct") {
       return type;
@@ -191,6 +247,32 @@ export function createTypeResolutionHelpers(context: TypeResolutionContext): Typ
       }
       default:
         return type;
+    }
+  }
+
+  function resolveBuiltinStructuralType(name: string, typeArguments: TypeInfo[]): TypeInfo | null {
+    switch (name) {
+      case "Array":
+        return { kind: "array", element: typeArguments[0] ?? unknownType };
+      case "Iterator":
+        return { kind: "iterator", element: typeArguments[0] ?? unknownType };
+      case "Range":
+        return { kind: "range", element: typeArguments[0] ?? unknownType };
+      case "Proc":
+        return { kind: "proc", result: typeArguments[0] ?? unknownType };
+      case "Future":
+        return { kind: "future", result: typeArguments[0] ?? unknownType };
+      case "Map":
+        return {
+          kind: "map",
+          key: typeArguments[0] ?? unknownType,
+          value: typeArguments[1] ?? unknownType,
+        };
+      case "Channel":
+      case "Mutex":
+        return { kind: "struct", name, typeArguments };
+      default:
+        return null;
     }
   }
 
@@ -570,6 +652,7 @@ export function createTypeResolutionHelpers(context: TypeResolutionContext): Typ
     formatTypeExpression,
     lookupSubstitution,
     describeTypeArgument,
+    instantiateUnionDefinition,
     appendInterfaceArgsToLabel,
   };
 }

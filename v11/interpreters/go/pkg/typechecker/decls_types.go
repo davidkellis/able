@@ -82,12 +82,8 @@ func (c *declarationCollector) resolveTypeExpression(expr ast.TypeExpression, ty
 		for i, arg := range t.Arguments {
 			args[i] = c.resolveTypeExpression(arg, typeParams)
 		}
-		if st, ok := base.(StructType); ok && st.StructName == "Array" {
-			var elem Type = UnknownType{}
-			if len(args) > 0 && args[0] != nil {
-				elem = args[0]
-			}
-			return ArrayType{Element: elem}
+		if base == nil {
+			return UnknownType{}
 		}
 		return AppliedType{Base: base, Arguments: args}
 	case *ast.FunctionTypeExpression:

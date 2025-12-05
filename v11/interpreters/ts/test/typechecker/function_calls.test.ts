@@ -68,4 +68,29 @@ describe("typechecker function calls", () => {
     const { diagnostics } = checker.checkModule(module);
     expect(diagnostics).toEqual([]);
   });
+
+  test("method-style UFCS binds free function when the first parameter matches the receiver", () => {
+    const checker = new TypeChecker();
+    const point = AST.structDefinition(
+      "Point",
+      [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "x")],
+      "named",
+    );
+    const tag = AST.functionDefinition(
+      "tag",
+      [AST.functionParameter("p", AST.simpleTypeExpression("Point"))],
+      AST.blockExpression([AST.returnStatement(AST.stringLiteral("<point>"))]),
+      AST.simpleTypeExpression("string"),
+    );
+    const pointValue = AST.structLiteral(
+      [AST.structFieldInitializer(AST.integerLiteral(1), "x")],
+      false,
+      "Point",
+    );
+    const call = AST.functionCall(AST.memberAccessExpression(pointValue, AST.identifier("tag")), []);
+    const module = AST.module([point, tag, call as unknown as AST.Statement]);
+
+    const { diagnostics } = checker.checkModule(module);
+    expect(diagnostics).toHaveLength(0);
+  });
 });

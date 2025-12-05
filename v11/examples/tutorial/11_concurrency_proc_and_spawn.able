@@ -1,12 +1,12 @@
 package tutorial.concurrency
 
-fn slow_double(x: i32) -> i32 {
-  proc_yield()
-  x * 2
-}
+fn slow_double(x: i32) -> i32 { x * 2 }
 
 fn main() -> void {
-  doubled := proc slow_double(10)
+  doubled := proc do {
+    proc_yield()
+    slow_double(10)
+  }
   greeting := proc do {
     proc_yield()
     "hello from a proc"
@@ -18,13 +18,16 @@ fn main() -> void {
   print(`doubled -> ${doubled.value()}`)
   print(`greeting -> ${greeting.value()}`)
 
-  future := spawn slow_double(5)
+  future := spawn do {
+    proc_yield()
+    slow_double(5)
+  }
   print(`first future read blocks then memoizes -> ${future}`)
   print(`second future read is memoized -> ${future}`)
 
   cancel_me := proc do {
     loop {
-      if proc_cancelled() { return 0 }
+      if proc_cancelled() { break }
       proc_yield()
     }
   }

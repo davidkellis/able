@@ -1,5 +1,7 @@
 package tutorial.hostinterop
 
+import able.core.interfaces.{Error}
+
 prelude go { import "time" }
 prelude typescript { import { readFileSync } from "node:fs"; }
 
@@ -30,7 +32,7 @@ fn main() -> void {
   print(`host clock (ns): ${now_nanos()}`)
 
   content := read_text("../../examples/tutorial/README.md") rescue {
-    case err: Error => `read_text failed: ${err.message()}`
+    case _ => "read_text failed"
   }
   print(content)
 }

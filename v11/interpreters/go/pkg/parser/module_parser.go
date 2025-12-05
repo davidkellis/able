@@ -85,9 +85,26 @@ func (p *ModuleParser) ParseModule(source []byte) (*ast.Module, error) {
 				return nil, err
 			}
 
-			isWildcard, selectors, alias, err := ctx.parseImportClause(node.ChildByFieldName("clause"))
+			aliasNode := node.ChildByFieldName("alias")
+			var alias *ast.Identifier
+			if aliasNode != nil {
+				alias, err = parseIdentifier(aliasNode, ctx.source)
+				if err != nil {
+					return nil, err
+				}
+			}
+
+			isWildcard, selectors, err := ctx.parseImportClause(node.ChildByFieldName("clause"))
 			if err != nil {
 				return nil, err
+			}
+
+			if alias != nil && len(selectors) > 0 {
+				return nil, fmt.Errorf("parser: alias cannot be combined with selectors")
+			}
+
+			if alias == nil && !isWildcard && len(selectors) == 0 && hasLegacyImportAlias(node, ctx.source) {
+				return nil, fmt.Errorf("parser: legacy import alias syntax is unsupported; use :: for renames")
 			}
 
 			switch kindNode.Kind() {
@@ -172,7 +189,13 @@ func (ctx *parseContext) parsePackageStatement(node *sitter.Node) (*ast.PackageS
 }
 
 func parseQualifiedIdentifier(node *sitter.Node, source []byte) ([]*ast.Identifier, error) {
-	if node == nil || node.Kind() != "qualified_identifier" {
+	if node == nil {
+		return nil, fmt.Errorf("parser: expected qualified identifier")
+	}
+
+	switch node.Kind() {
+	case "qualified_identifier", "import_path":
+	default:
 		return nil, fmt.Errorf("parser: expected qualified identifier")
 	}
 
@@ -194,15 +217,14 @@ func parseQualifiedIdentifier(node *sitter.Node, source []byte) ([]*ast.Identifi
 	return parts, nil
 }
 
-func (ctx *parseContext) parseImportClause(node *sitter.Node) (bool, []*ast.ImportSelector, *ast.Identifier, error) {
+func (ctx *parseContext) parseImportClause(node *sitter.Node) (bool, []*ast.ImportSelector, error) {
 	if node == nil {
-		return false, nil, nil, nil
+		return false, nil, nil
 	}
 
 	var (
 		isWildcard bool
 		selectors  []*ast.ImportSelector
-		alias      *ast.Identifier
 	)
 
 	for i := uint(0); i < node.NamedChildCount(); i++ {
@@ -214,33 +236,21 @@ func (ctx *parseContext) parseImportClause(node *sitter.Node) (bool, []*ast.Impo
 		case "import_selector":
 			selector, err := parseImportSelector(child, ctx.source)
 			if err != nil {
-				return false, nil, nil, err
+				return false, nil, err
 			}
 			selectors = append(selectors, selector)
 		case "import_wildcard_clause":
 			isWildcard = true
-		case "identifier":
-			if alias != nil {
-				return false, nil, nil, fmt.Errorf("parser: multiple aliases in import clause")
-			}
-			var err error
-			alias, err = parseIdentifier(child, ctx.source)
-			if err != nil {
-				return false, nil, nil, err
-			}
 		default:
-			return false, nil, nil, fmt.Errorf("parser: unsupported import clause node %q", child.Kind())
+			return false, nil, fmt.Errorf("parser: unsupported import clause node %q", child.Kind())
 		}
 	}
 
 	if isWildcard && len(selectors) > 0 {
-		return false, nil, nil, fmt.Errorf("parser: wildcard import cannot include selectors")
-	}
-	if alias != nil && len(selectors) > 0 {
-		return false, nil, nil, fmt.Errorf("parser: alias cannot be combined with selectors")
+		return false, nil, fmt.Errorf("parser: wildcard import cannot include selectors")
 	}
 
-	return isWildcard, selectors, alias, nil
+	return isWildcard, selectors, nil
 }
 
 func parseImportSelector(node *sitter.Node, source []byte) (*ast.ImportSelector, error) {

@@ -150,7 +150,13 @@ export function whereClauseConstraint(typeParam: Identifier | string, constraint
 
 export interface WildcardPattern extends AstNode { type: 'WildcardPattern'; }
 export interface LiteralPattern extends AstNode { type: 'LiteralPattern'; literal: Literal; }
-export interface StructPatternField extends AstNode { type: 'StructPatternField'; fieldName?: Identifier; pattern: Pattern; binding?: Identifier; }
+export interface StructPatternField extends AstNode {
+  type: 'StructPatternField';
+  fieldName?: Identifier;
+  pattern: Pattern;
+  binding?: Identifier;
+  typeAnnotation?: TypeExpression;
+}
 export interface StructPattern extends AstNode { type: 'StructPattern'; structType?: Identifier; fields: StructPatternField[]; isPositional: boolean; }
 export interface ArrayPattern extends AstNode { type: 'ArrayPattern'; elements: Pattern[]; restPattern?: Identifier | WildcardPattern; }
 
@@ -164,8 +170,19 @@ export function typedPattern(pattern: Pattern, typeAnnotation: TypeExpression): 
 
 export function wildcardPattern(): WildcardPattern { return { type: 'WildcardPattern' }; }
 export function literalPattern(literal: Literal): LiteralPattern { return { type: 'LiteralPattern', literal }; }
-export function structPatternField(pattern: Pattern, fieldName?: Identifier | string, binding?: Identifier | string): StructPatternField {
-  return { type: 'StructPatternField', fieldName: typeof fieldName === 'string' ? identifier(fieldName) : fieldName, pattern, binding: typeof binding === 'string' ? identifier(binding) : binding };
+export function structPatternField(
+  pattern: Pattern,
+  fieldName?: Identifier | string,
+  binding?: Identifier | string,
+  typeAnnotation?: TypeExpression,
+): StructPatternField {
+  return {
+    type: 'StructPatternField',
+    fieldName: typeof fieldName === 'string' ? identifier(fieldName) : fieldName,
+    pattern,
+    binding: typeof binding === 'string' ? identifier(binding) : binding,
+    typeAnnotation,
+  };
 }
 export function structPattern(fields: StructPatternField[], isPositional: boolean, structType?: Identifier | string): StructPattern {
   return { type: 'StructPattern', structType: typeof structType === 'string' ? identifier(structType) : structType, fields, isPositional };
@@ -698,8 +715,13 @@ export const wildT = wildcardTypeExpression;
 export const wc = wildcardPattern;
 export const litP = literalPattern;
 export const typedP = typedPattern;
-export function fieldP(pattern: Pattern, fieldName?: Identifier | string, binding?: Identifier | string): StructPatternField {
-  return structPatternField(pattern, fieldName, binding);
+export function fieldP(
+  pattern: Pattern,
+  fieldName?: Identifier | string,
+  binding?: Identifier | string,
+  typeAnnotation?: TypeExpression,
+): StructPatternField {
+  return structPatternField(pattern, fieldName, binding, typeAnnotation);
 }
 export function structP(fields: StructPatternField[], isPositional: boolean, structType?: Identifier | string): StructPattern {
   return structPattern(fields, isPositional, structType);

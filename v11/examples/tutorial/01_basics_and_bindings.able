@@ -22,8 +22,8 @@ fn main() -> void {
   print(`Computed value: ${computed}`)
 
   maybe_name: ?string := nil
-  length_hint := maybe_name?.len_bytes()
-  print(`Optional length -> ${length_hint}`)
+  fallback := maybe_name else { "mystery" }
+  print(`Optional value -> ${fallback}`)
 
   excited := (language |> (`Welcome to ${%}!`))
   print(excited)
