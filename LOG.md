@@ -1,5 +1,20 @@
 # Able Project Log
 
+## 2025-12-07 — Operators tutorial + xor parity (v11)
+- Added tutorial `02a_operators_and_builtin_types.able` to showcase built-in scalars, arithmetic (`/ // %% /%`), comparisons, bitwise/shift ops, and boolean logic; confirmed it runs in TS+Go.
+- Enabled `\xor` in the Go interpreter/typechecker and added a shared fixture (`functions/bitwise_xor_operator`) so bitwise xor stays covered across runtimes.
+- Go/TS suites remain green after exporting fixtures and rerunning the operators tutorial with both CLIs.
+
+## 2025-12-06 — Option/Result `else` handling fixed (v11)
+- Implemented spec-compliant `else {}` handling for `?T`/`!T` across TS/Go interpreters and typecheckers: failures now trigger handler blocks on `nil` or `Error` values, with error bindings and optional early-return narrowing.
+- Updated the Go runtime type test so interface-backed errors (e.g., `MathError`) satisfy `Error`, letting `or-else` handlers bind user-defined errors instead of treating them as successes.
+- The tutorial 09 example now runs to completion in both interpreters (`Handled error: need two numbers`), clearing the option-narrowing runtime/typechecker regression from the PLAN backlog.
+
+## 2025-12-05 — Go stdlib typecheck parity (v11)
+- Go ProgramChecker sweep (driver.NewLoader RootStdlib against `v11/stdlib/src`) now reports zero diagnostics; stdlib modules typecheck cleanly with the Go checker.
+- `./run_all_tests.sh --version=v11` stays green (TS + Go units, fixtures, parity, CLI); Go unit suites no longer flag await manual waker.
+- Removed the Go stdlib/typechecker parity worklist from PLAN since the stdlib checker is stable again.
+
 ## 2025-12-05 — UFCS method-style fallback finalized (v11)
 - Clarified UFCS spec wording (§7.4/§9.4) covering pipe equivalence, receiver-compatible overload selection, and self-parameter trimming; marked the TODO as complete and removed the PLAN item.
 - Added shared UFCS fixtures: `functions/ufcs_generic_overloads` (generic + overloaded free-function binding parity across pipe/member syntax) and `errors/ufcs_overload_ambiguity` (method-style ambiguity diagnostics). Exporter now emits these fixtures.

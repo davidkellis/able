@@ -1,4 +1,14 @@
 import { arrayType, primitiveType, unknownType, type TypeInfo } from "../types";
+import {
+  functionSignature,
+  functionParameter,
+  genericParameter,
+  interfaceDefinition,
+  nullableTypeExpression,
+  simpleTypeExpression,
+  structDefinition,
+  structFieldDefinition,
+} from "../../ast";
 import type { Environment } from "../environment";
 import type { FunctionInfo } from "./types";
 
@@ -75,6 +85,34 @@ export function installBuiltins(context: BuiltinContext): void {
   register("__able_hasher_create", [], i64Type);
   register("__able_hasher_write", [i64Type, stringType], voidType);
   register("__able_hasher_finish", [i64Type], i64Type);
+
+  const divModStruct = structDefinition(
+    "DivMod",
+    [
+      structFieldDefinition(simpleTypeExpression("T"), "quotient"),
+      structFieldDefinition(simpleTypeExpression("T"), "remainder"),
+    ],
+    "named",
+    [genericParameter("T")],
+  );
+  (divModStruct as any)._builtin = true;
+  (divModStruct as any).origin = "<builtin>";
+  context.registerStructDefinition(divModStruct as any);
+
+  const errorInterface = interfaceDefinition(
+    "Error",
+    [
+      functionSignature("message", [functionParameter("self", simpleTypeExpression("Self"))], stringType),
+      functionSignature(
+        "cause",
+        [functionParameter("self", simpleTypeExpression("Self"))],
+        nullableTypeExpression(simpleTypeExpression("Error")),
+      ),
+    ],
+  );
+  (errorInterface as any)._builtin = true;
+  (errorInterface as any).origin = "<builtin>";
+  context.registerInterfaceDefinition(errorInterface as any);
 }
 
 function registerBuiltinFunction(

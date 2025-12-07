@@ -272,6 +272,15 @@ func registerBuiltins(env *Environment) {
 	env.Define("Display", displayIface)
 	env.Define("Clone", cloneIface)
 	env.Define("Error", errorIface)
+	divModFields := map[string]Type{
+		"quotient":  TypeParameterType{ParameterName: "T"},
+		"remainder": TypeParameterType{ParameterName: "T"},
+	}
+	env.Define("DivMod", StructType{
+		StructName: "DivMod",
+		TypeParams: []GenericParamSpec{{Name: "T"}},
+		Fields:     divModFields,
+	})
 	procErrorFields := map[string]Type{
 		"details": stringType,
 	}

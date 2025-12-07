@@ -2,7 +2,7 @@ package parity.examples.errors
 
 fn describe(value: i32) -> string {
   do {
-    if value % 2 == 0 {
+    if value %% 2 == 0 {
       raise "even value"
     }
     `odd value ${value}`

@@ -451,7 +451,6 @@ const (
 	AssignmentSub     AssignmentOperator = "-="
 	AssignmentMul     AssignmentOperator = "*="
 	AssignmentDiv     AssignmentOperator = "/="
-	AssignmentMod     AssignmentOperator = "%="
 	AssignmentBitAnd  AssignmentOperator = "&="
 	AssignmentBitOr   AssignmentOperator = "|="
 	AssignmentBitXor  AssignmentOperator = `\xor=`

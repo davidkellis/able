@@ -3,6 +3,7 @@ package interpreter
 import (
 	"math"
 	"math/big"
+	"strings"
 	"testing"
 
 	"able/interpreter10-go/pkg/ast"
@@ -63,7 +64,9 @@ func TestDivisionByZeroDiagnostics(t *testing.T) {
 	env := interp.GlobalEnvironment()
 	cases := []ast.Expression{
 		ast.Bin("/", ast.Int(4), ast.Int(0)),
-		ast.Bin("%", ast.Int(4), ast.Int(0)),
+		ast.Bin("//", ast.Int(4), ast.Int(0)),
+		ast.Bin("%%", ast.Int(4), ast.Int(0)),
+		ast.Bin("/%", ast.Int(4), ast.Int(0)),
 	}
 	for idx, expr := range cases {
 		_, err := interp.evaluateExpression(expr, env)
@@ -84,6 +87,7 @@ func TestArithmeticMixedNumericTypes(t *testing.T) {
 		expr   ast.Expression
 		expect float64
 	}{
+		{"DivIntsPromoteToFloat", ast.Bin("/", ast.Int(5), ast.Int(2)), 2.5},
 		{"AddMixed", ast.Bin("+", ast.Int(1), ast.Flt(1.5)), 2.5},
 		{"SubMixed", ast.Bin("-", ast.Flt(2.5), ast.Int(1)), 1.5},
 		{"MulMixed", ast.Bin("*", ast.Int(2), ast.Flt(3.5)), 7},
@@ -104,36 +108,96 @@ func TestArithmeticMixedNumericTypes(t *testing.T) {
 	}
 }
 
-func TestModuloMixedNumericTypes(t *testing.T) {
+func TestDivModRequiresIntegerOperands(t *testing.T) {
 	interp := New()
 	env := interp.GlobalEnvironment()
 	cases := []struct {
 		name   string
 		expr   ast.Expression
-		expect float64
 	}{
-		{"ModuloIntFloat", ast.Bin("%", ast.Int(5), ast.Flt(2)), 1},
-		{"ModuloFloatInt", ast.Bin("%", ast.Flt(5), ast.Int(2)), 1},
+		{"QuotientWithFloat", ast.Bin("//", ast.Int(5), ast.Flt(2))},
+		{"RemainderWithFloat", ast.Bin("%%", ast.Flt(5), ast.Int(2))},
+		{"DivModStructWithFloat", ast.Bin("/%", ast.Flt(5), ast.Int(2))},
 	}
 	for _, tc := range cases {
 		val, err := interp.evaluateExpression(tc.expr, env)
-		if err != nil {
-			t.Fatalf("%s: unexpected error %v", tc.name, err)
+		if val != nil {
+			t.Fatalf("%s: expected no value", tc.name)
 		}
-		fv, ok := val.(runtime.FloatValue)
-		if ok {
-			if math.Abs(fv.Val-tc.expect) > 1e-9 {
-				t.Fatalf("%s: expected %v, got %v", tc.name, tc.expect, fv.Val)
-			}
-			continue
+		if err == nil {
+			t.Fatalf("%s: expected error", tc.name)
 		}
-		iv, ok := val.(runtime.IntegerValue)
-		if !ok {
-			t.Fatalf("%s: unexpected result %#v", tc.name, val)
+		if !strings.Contains(err.Error(), "requires integer operands") {
+			t.Fatalf("%s: expected integer operand diagnostic, got %q", tc.name, err.Error())
 		}
-		if iv.Val.Cmp(bigInt(int64(tc.expect))) != 0 {
-			t.Fatalf("%s: expected %v, got %v", tc.name, tc.expect, iv.Val)
-		}
+	}
+}
+
+func TestDivModEuclidean(t *testing.T) {
+	interp := New()
+	env := interp.GlobalEnvironment()
+
+	quot, err := interp.evaluateExpression(ast.Bin("//", ast.Int(-5), ast.Int(3)), env)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	qVal, ok := quot.(runtime.IntegerValue)
+	if !ok {
+		t.Fatalf("expected integer quotient, got %#v", quot)
+	}
+	if qVal.Val.Cmp(big.NewInt(-2)) != 0 {
+		t.Fatalf("expected quotient -2, got %v", qVal.Val)
+	}
+
+	rem, err := interp.evaluateExpression(ast.Bin("%%", ast.Int(-5), ast.Int(3)), env)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	rVal, ok := rem.(runtime.IntegerValue)
+	if !ok {
+		t.Fatalf("expected integer remainder, got %#v", rem)
+	}
+	if rVal.Val.Cmp(big.NewInt(1)) != 0 {
+		t.Fatalf("expected remainder 1, got %v", rVal.Val)
+	}
+}
+
+func TestDivModStructResult(t *testing.T) {
+	interp := New()
+	env := interp.GlobalEnvironment()
+	val, err := interp.evaluateExpression(ast.Bin("/%", ast.Int(7), ast.Int(3)), env)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	inst, ok := val.(*runtime.StructInstanceValue)
+	if !ok {
+		t.Fatalf("expected struct instance, got %#v", val)
+	}
+	if inst.Definition == nil || inst.Definition.Node == nil || inst.Definition.Node.ID == nil {
+		t.Fatalf("expected DivMod struct definition")
+	}
+	if inst.Definition.Node.ID.Name != "DivMod" {
+		t.Fatalf("expected DivMod struct, got %s", inst.Definition.Node.ID.Name)
+	}
+	if len(inst.TypeArguments) != 1 {
+		t.Fatalf("expected one type argument, got %d", len(inst.TypeArguments))
+	}
+	if simple, ok := inst.TypeArguments[0].(*ast.SimpleTypeExpression); !ok || simple.Name.Name != "i32" {
+		t.Fatalf("expected type argument i32, got %#v", inst.TypeArguments[0])
+	}
+	quotVal, ok := inst.Fields["quotient"].(runtime.IntegerValue)
+	if !ok {
+		t.Fatalf("expected integer quotient field, got %#v", inst.Fields["quotient"])
+	}
+	if quotVal.Val.Cmp(big.NewInt(2)) != 0 {
+		t.Fatalf("expected quotient 2, got %v", quotVal.Val)
+	}
+	remVal, ok := inst.Fields["remainder"].(runtime.IntegerValue)
+	if !ok {
+		t.Fatalf("expected integer remainder field, got %#v", inst.Fields["remainder"])
+	}
+	if remVal.Val.Cmp(big.NewInt(1)) != 0 {
+		t.Fatalf("expected remainder 1, got %v", remVal.Val)
 	}
 }
 

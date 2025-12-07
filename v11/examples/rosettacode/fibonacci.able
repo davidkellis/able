@@ -1,8 +1,10 @@
 package rosettacode_fibonacci
 
+import able.collections.array
+
 ## Rosetta Code — Fibonacci sequence (https://rosettacode.org/wiki/Fibonacci_sequence)
-fn fib_sequence(count: i32) -> Array i64 {
-  seq: Array i64 = []
+fn fib_sequence(count: i32) -> Array i32 {
+  seq: Array i32 = []
 
   if count <= 0 {
     return seq

@@ -49,6 +49,8 @@ const FLOAT_INFO: Record<FloatKind, FloatInfo> = {
   f64: { kind: "f64", apply: (value: number) => value },
 };
 
+type IntegerValue = Extract<V10Value, { kind: IntegerKind }>;
+
 export function integerKinds(): IntegerKind[] {
   return [...SIGNED_SEQUENCE, ...UNSIGNED_SEQUENCE];
 }
@@ -224,9 +226,6 @@ function applyFloatOperation(op: string, left: number, right: number, kind: Floa
     case "/":
       if (right === 0) throw new Error("Division by zero");
       return FLOAT_INFO[kind].apply(left / right);
-    case "%":
-      if (right === 0) throw new Error("Division by zero");
-      return FLOAT_INFO[kind].apply(left % right);
     default:
       throw new Error(`Unsupported arithmetic operator ${op}`);
   }
@@ -240,12 +239,6 @@ function applyIntegerOperation(op: string, left: bigint, right: bigint, info: In
       return left - right;
     case "*":
       return left * right;
-    case "/":
-      if (right === 0n) throw new Error("Division by zero");
-      return left / right;
-    case "%":
-      if (right === 0n) throw new Error("Division by zero");
-      return left % right;
     default:
       throw new Error(`Unsupported arithmetic operator ${op}`);
   }
@@ -274,7 +267,20 @@ export function applyBitwiseNot(value: V10Value): V10Value {
   return { kind: classified.info.kind, value: result };
 }
 
-export function applyArithmeticBinary(op: string, left: V10Value, right: V10Value): V10Value {
+export function applyArithmeticBinary(
+  op: string,
+  left: V10Value,
+  right: V10Value,
+  options?: {
+    makeDivMod?: (
+      kind: IntegerKind,
+      parts: {
+        quotient: Extract<V10Value, { kind: IntegerKind }>;
+        remainder: Extract<V10Value, { kind: IntegerKind }>;
+      },
+    ) => V10Value;
+  },
+): V10Value {
   const leftClass = classifyNumeric(left);
   const rightClass = classifyNumeric(right);
   if (!leftClass || !rightClass) {
@@ -282,18 +288,94 @@ export function applyArithmeticBinary(op: string, left: V10Value, right: V10Valu
     const rightKind = (right as any)?.kind ?? "unknown";
     throw new Error(`Arithmetic requires numeric operands (left: ${leftKind}, right: ${rightKind})`);
   }
-  const promotion = promoteNumericKinds(leftClass, rightClass);
-  if (promotion.tag === "float") {
-    const leftFloat = convertToFloat(leftClass, promotion.kind);
-    const rightFloat = convertToFloat(rightClass, promotion.kind);
-    const value = applyFloatOperation(op, leftFloat, rightFloat, promotion.kind);
-    return makeFloatValue(promotion.kind, value);
+
+  if (op === "/") {
+    const targetKind = resolveDivisionFloatKind(leftClass, rightClass);
+    const leftFloat = convertToFloat(leftClass, targetKind);
+    const rightFloat = convertToFloat(rightClass, targetKind);
+    const value = applyFloatOperation(op, leftFloat, rightFloat, targetKind);
+    return makeFloatValue(targetKind, value);
   }
-  const leftValue = leftClass.tag === "integer" ? leftClass.value : BigInt(Math.trunc(leftClass.value));
-  const rightValue = rightClass.tag === "integer" ? rightClass.value : BigInt(Math.trunc(rightClass.value));
-  const result = applyIntegerOperation(op, leftValue, rightValue, promotion.info);
-  ensureIntegerInRange(result, promotion.info);
-  return { kind: promotion.info.kind, value: result };
+
+  if (op === "//" || op === "%%" || op === "/%") {
+    if (leftClass.tag !== "integer" || rightClass.tag !== "integer") {
+      const leftKind = (left as any)?.kind ?? "unknown";
+      const rightKind = (right as any)?.kind ?? "unknown";
+      throw new Error(`'${op}' requires integer operands (left: ${leftKind}, right: ${rightKind})`);
+    }
+    const divMod = computeDivMod(leftClass, rightClass);
+    if (op === "//") return divMod.quotient;
+    if (op === "%%") return divMod.remainder;
+    if (!options?.makeDivMod) {
+      throw new Error("DivMod factory not provided for '/%'");
+    }
+    return options.makeDivMod(divMod.kind, { quotient: divMod.quotient, remainder: divMod.remainder });
+  }
+
+  if (op === "+" || op === "-" || op === "*") {
+    const promotion = promoteNumericKinds(leftClass, rightClass);
+    if (promotion.tag === "float") {
+      const leftFloat = convertToFloat(leftClass, promotion.kind);
+      const rightFloat = convertToFloat(rightClass, promotion.kind);
+      const value = applyFloatOperation(op, leftFloat, rightFloat, promotion.kind);
+      return makeFloatValue(promotion.kind, value);
+    }
+    const leftValue = leftClass.tag === "integer" ? leftClass.value : BigInt(Math.trunc(leftClass.value));
+    const rightValue = rightClass.tag === "integer" ? rightClass.value : BigInt(Math.trunc(rightClass.value));
+    const result = applyIntegerOperation(op, leftValue, rightValue, promotion.info);
+    ensureIntegerInRange(result, promotion.info);
+    return { kind: promotion.info.kind, value: result };
+  }
+
+  throw new Error(`Unsupported arithmetic operator ${op}`);
+}
+
+function resolveDivisionFloatKind(left: NumericClassification, right: NumericClassification): FloatKind {
+  if (left.tag === "float" || right.tag === "float") {
+    const leftKind = left.tag === "float" ? left.kind : "f32";
+    const rightKind = right.tag === "float" ? right.kind : "f32";
+    return promoteFloatKinds(leftKind, rightKind);
+  }
+  return "f64";
+}
+
+function computeDivMod(
+  left: Extract<NumericClassification, { tag: "integer" }>,
+  right: Extract<NumericClassification, { tag: "integer" }>,
+): { kind: IntegerKind; quotient: IntegerValue; remainder: IntegerValue } {
+  const promotion = promoteIntegerInfos(left.info, right.info);
+  if (!promotion) {
+    throw new Error("Arithmetic operands exceed supported integer widths");
+  }
+  if (right.value === 0n) {
+    throw new Error("Division by zero");
+  }
+  const { quotient, remainder } = euclideanDivMod(left.value, right.value);
+  ensureIntegerInRange(quotient, promotion);
+  ensureIntegerInRange(remainder, promotion);
+  return {
+    kind: promotion.kind,
+    quotient: makeIntegerValue(promotion.kind, quotient),
+    remainder: makeIntegerValue(promotion.kind, remainder),
+  };
+}
+
+function euclideanDivMod(dividend: bigint, divisor: bigint): { quotient: bigint; remainder: bigint } {
+  if (divisor === 0n) {
+    throw new Error("Division by zero");
+  }
+  let quotient = dividend / divisor;
+  let remainder = dividend % divisor;
+  if (remainder < 0n) {
+    if (divisor > 0n) {
+      quotient -= 1n;
+      remainder += divisor;
+    } else {
+      quotient += 1n;
+      remainder -= divisor;
+    }
+  }
+  return { quotient, remainder };
 }
 
 export function applyComparisonBinary(op: string, left: V10Value, right: V10Value): V10Value {

@@ -1,7 +1,7 @@
 package concurrency
 
 import able.core.interfaces.{Error}
-import able.core.iteration.{Iterable, IteratorEnd}
+import able.core.iteration.{Iterable, Iterator, IteratorEnd}
 
 struct ChannelClosed {}
 struct ChannelNil {}
@@ -80,7 +80,7 @@ methods Channel T {
   }
 }
 
-methods ChannelIterator T {
+impl Iterator T for ChannelIterator T {
   fn next(self: Self) -> T | IteratorEnd {
     received := self.channel.try_receive()
     received match {
@@ -94,10 +94,8 @@ impl Iterable T for Channel T {
   fn each(self: Self, visit: T -> void) -> void {
     loop {
       received := self.receive()
-      received match {
-        case value: T => visit(value),
-        case nil => break
-      }
+      if received == nil { break }
+      visit(received)
     }
   }
 

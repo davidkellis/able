@@ -284,21 +284,21 @@ export class TypeChecker {
       return;
     }
     const statements = module.body as Array<AST.Statement | AST.Expression>;
-    for (const statement of statements) {
-      this.registerPrimaryTypeDeclaration(statement);
-    }
-    for (const statement of statements) {
-      if (
-        statement &&
-        (statement.type === "StructDefinition" ||
-          statement.type === "InterfaceDefinition" ||
-          statement.type === "TypeAliasDefinition" ||
-          statement.type === "UnionDefinition")
-      ) {
-        continue;
+      for (const statement of statements) {
+        this.registerPrimaryTypeDeclaration(statement);
       }
-      this.collectPrimaryDeclaration(statement);
-    }
+      for (const statement of statements) {
+        if (
+          statement &&
+          (statement.type === "StructDefinition" ||
+            statement.type === "InterfaceDefinition" ||
+            statement.type === "TypeAliasDefinition" ||
+            statement.type === "UnionDefinition")
+        ) {
+          continue;
+        }
+        this.collectPrimaryDeclaration(statement);
+      }
     for (const statement of statements) {
       this.collectImplementationDeclaration(statement);
     }
@@ -338,6 +338,9 @@ export class TypeChecker {
         break;
       case "StructDefinition":
         this.registerStructDefinition(node);
+        break;
+      case "ExternFunctionBody":
+        this.collectExternFunctionBody(node);
         break;
       case "MethodsDefinition":
         collectMethodsDefinitionHelper(this.implementationContext, node);
@@ -450,6 +453,22 @@ export class TypeChecker {
     context: FunctionContext | undefined,
   ): void {
     collectFunctionDefinitionHelper(this.declarationsContext, definition, context);
+  }
+
+  private collectExternFunctionBody(extern: AST.ExternFunctionBody): void {
+    const name = extern.signature?.id?.name;
+    if (!name) {
+      return;
+    }
+    const existing = this.declarationOrigins.get(name);
+    if (!existing) {
+      this.declarationOrigins.set(name, extern);
+      this.collectFunctionDefinition(extern.signature, undefined);
+      return;
+    }
+    if (!this.env.has(name)) {
+      this.collectFunctionDefinition(extern.signature, undefined);
+    }
   }
 
   private formatImplementationLabel(interfaceName: string, targetName: string): string {

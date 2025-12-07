@@ -86,7 +86,7 @@ impl Map K V for HashMap K V where K: Hash + Eq {
   ## Also returns a boolean indicating if the key was found (in a USED state).
   fn #find_index(key: K) -> (i32, bool) {
     hash_val := key.hash()
-    index := (hash_val % self.capacity) as i32 ## Assuming capacity is power of 2, could use bitwise AND later
+    index := (hash_val %% self.capacity) as i32 ## Assuming capacity is power of 2, could use bitwise AND later
     first_deleted_index := -1
 
     loop {
@@ -116,7 +116,7 @@ impl Map K V for HashMap K V where K: Hash + Eq {
       }
 
       ## Linear probing: move to the next index, wrap around if necessary.
-      index = (index + 1) % self.capacity
+      index = (index + 1) %% self.capacity
     }
     ## Should not be reached if capacity > 0 and load factor < 1
     panic("Infinite loop detected in find_index - should not happen")

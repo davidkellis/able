@@ -634,7 +634,9 @@ function getBinaryPrecedence(operator: string): number {
       return 9;
     case "*":
     case "/":
-    case "%":
+    case "//":
+    case "%%":
+    case "/%":
       return 10;
     case "**":
       return 11;

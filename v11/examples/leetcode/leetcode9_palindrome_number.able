@@ -4,17 +4,18 @@ fn is_palindrome(value: i32) -> bool {
   if value < 0 {
     return false
   }
-  if value != 0 and value % 10 == 0 {
+  if value != 0 && value %% 10 == 0 {
     return false
   }
 
-  reversed := 0
   original := value
+  reversed := 0
+  remaining := value
 
-  while value > 0 {
-    digit := value % 10
-    reversed = reversed * 10 + digit
-    value = value / 10
+  while remaining > 0 {
+    pair := remaining /% 10
+    reversed = reversed * 10 + pair.remainder
+    remaining = pair.quotient
   }
 
   original == reversed

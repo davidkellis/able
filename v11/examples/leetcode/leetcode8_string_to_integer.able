@@ -2,7 +2,9 @@ package leetcode8
 
 import able.collections.array
 
-fn parse(chars: Array char) -> i32 {
+fn parse(chars: Array char) -> i64 {
+  MAX: i64 = 2147483647
+  MIN: i64 = MAX + 1
   i := 0
   length := chars.size()
 
@@ -10,7 +12,7 @@ fn parse(chars: Array char) -> i32 {
     i = i + 1
   }
 
-  sign := 1
+  sign: i64 := 1
   if i < length && chars[i] == '-' {
     sign = -1
     i = i + 1
@@ -18,7 +20,7 @@ fn parse(chars: Array char) -> i32 {
     i = i + 1
   }
 
-  value := 0
+  value: i64 := 0
   while i < length {
     digit := digit_value(chars[i])
     if digit == -1 {
@@ -27,11 +29,11 @@ fn parse(chars: Array char) -> i32 {
 
     value = value * 10 + digit
 
-    if sign == 1 && value > 2147483647 {
-      return 2147483647
+    if sign == 1 && value > MAX {
+      return MAX
     }
-    if sign == -1 && value > 2147483648 {
-      return -2147483648
+    if sign == -1 && value > MIN {
+      return -MIN
     }
 
     i = i + 1
@@ -40,7 +42,7 @@ fn parse(chars: Array char) -> i32 {
   sign * value
 }
 
-fn digit_value(ch: char) -> i32 {
+fn digit_value(ch: char) -> i64 {
   if ch == '0' { return 0 }
   if ch == '1' { return 1 }
   if ch == '2' { return 2 }

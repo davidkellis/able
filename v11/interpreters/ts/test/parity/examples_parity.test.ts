@@ -30,13 +30,13 @@ describe("examples parity (testdata)", async () => {
     });
     return;
   }
+  const goRunner = await goAbleRunnerPromise;
 
   for (const entryPath of examples) {
     const relative = path.relative(EXAMPLES_ROOT, entryPath).split(path.sep).join("/");
     test(relative, async () => {
-      const runner = await goAbleRunnerPromise;
       const tsOutcome = await evaluateExampleTS(entryPath);
-      const goOutcome = await evaluateExampleGo(entryPath, runner);
+      const goOutcome = await evaluateExampleGo(entryPath, goRunner);
       const diff = compareExampleOutcomes(relative, tsOutcome, goOutcome);
       if (diff) {
         throw new Error(formatExampleDiff(diff));

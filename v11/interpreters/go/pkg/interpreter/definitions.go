@@ -2,10 +2,56 @@ package interpreter
 
 import (
 	"fmt"
+	"math/big"
+	"os"
+	"time"
 
 	"able/interpreter10-go/pkg/ast"
 	"able/interpreter10-go/pkg/runtime"
 )
+
+type externNativeFactory func(i *Interpreter, def *ast.ExternFunctionBody, arity int) *runtime.NativeFunctionValue
+
+var externNativeHandlers = map[ast.HostTarget]map[string]externNativeFactory{
+	ast.HostTargetGo: {
+		"now_nanos": func(_ *Interpreter, _ *ast.ExternFunctionBody, arity int) *runtime.NativeFunctionValue {
+			return &runtime.NativeFunctionValue{
+				Name:  "now_nanos",
+				Arity: arity,
+				Impl: func(_ *runtime.NativeCallContext, _ []runtime.Value) (runtime.Value, error) {
+					return runtime.IntegerValue{Val: big.NewInt(time.Now().UnixNano()), TypeSuffix: runtime.IntegerI64}, nil
+				},
+			}
+		},
+		"read_text": func(_ *Interpreter, _ *ast.ExternFunctionBody, arity int) *runtime.NativeFunctionValue {
+			return &runtime.NativeFunctionValue{
+				Name:  "read_text",
+				Arity: arity,
+				Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+					if len(args) < 1 {
+						return nil, fmt.Errorf("read_text expects a path argument")
+					}
+					path, ok := args[0].(runtime.StringValue)
+					if !ok {
+						return nil, fmt.Errorf("read_text expects a string path")
+					}
+					data, err := os.ReadFile(path.Val)
+					if err != nil {
+						return nil, raiseSignal{value: runtime.ErrorValue{Message: err.Error()}}
+					}
+					return runtime.StringValue{Val: string(data)}, nil
+				},
+			}
+		},
+	},
+}
+
+func registerExternNativeHandler(target ast.HostTarget, name string, handler externNativeFactory) {
+	if _, ok := externNativeHandlers[target]; !ok {
+		externNativeHandlers[target] = make(map[string]externNativeFactory)
+	}
+	externNativeHandlers[target][name] = handler
+}
 
 func (i *Interpreter) evaluateFunctionDefinition(def *ast.FunctionDefinition, env *runtime.Environment) (runtime.Value, error) {
 	if def.ID == nil {
@@ -21,6 +67,54 @@ func (i *Interpreter) evaluateFunctionDefinition(def *ast.FunctionDefinition, en
 		i.global.Define(qn, fnVal)
 	}
 	return runtime.NilValue{}, nil
+}
+
+func (i *Interpreter) evaluateExternFunctionBody(def *ast.ExternFunctionBody, env *runtime.Environment) (runtime.Value, error) {
+	if def == nil || def.Signature == nil || def.Signature.ID == nil {
+		return runtime.NilValue{}, nil
+	}
+	name := def.Signature.ID.Name
+	if name == "" {
+		return runtime.NilValue{}, nil
+	}
+	if _, err := env.Get(name); err == nil {
+		return runtime.NilValue{}, nil
+	}
+	native := i.makeExternNative(def)
+	if native == nil {
+		return runtime.NilValue{}, nil
+	}
+	env.Define(name, native)
+	i.registerSymbol(name, native)
+	if qn := i.qualifiedName(name); qn != "" {
+		i.global.Define(qn, native)
+	}
+	return runtime.NilValue{}, nil
+}
+
+func (i *Interpreter) makeExternNative(def *ast.ExternFunctionBody) *runtime.NativeFunctionValue {
+	if def == nil || def.Signature == nil || def.Signature.ID == nil {
+		return nil
+	}
+	name := def.Signature.ID.Name
+	arity := len(def.Signature.Params)
+	if def.Target != ast.HostTargetGo {
+		return nil
+	}
+	if factory, ok := externNativeHandlers[def.Target][name]; ok {
+		return factory(i, def, arity)
+	}
+	return i.makeMissingExternNative(name, def.Target, arity)
+}
+
+func (i *Interpreter) makeMissingExternNative(name string, target ast.HostTarget, arity int) *runtime.NativeFunctionValue {
+	return &runtime.NativeFunctionValue{
+		Name:  name,
+		Arity: arity,
+		Impl: func(_ *runtime.NativeCallContext, _ []runtime.Value) (runtime.Value, error) {
+			return nil, fmt.Errorf("extern function %s for target %s is not implemented", name, target)
+		},
+	}
 }
 
 func (i *Interpreter) evaluateStructDefinition(def *ast.StructDefinition, env *runtime.Environment) (runtime.Value, error) {
@@ -42,6 +136,7 @@ func (i *Interpreter) evaluateUnionDefinition(def *ast.UnionDefinition, env *run
 	}
 	unionVal := runtime.UnionDefinitionValue{Node: def}
 	env.Define(def.ID.Name, unionVal)
+	i.unionDefinitions[def.ID.Name] = &unionVal
 	i.registerSymbol(def.ID.Name, unionVal)
 	if qn := i.qualifiedName(def.ID.Name); qn != "" {
 		i.global.Define(qn, unionVal)

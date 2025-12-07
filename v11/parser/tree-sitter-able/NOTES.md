@@ -14,7 +14,7 @@ source of truth.
 
 The grammar should treat these as reserved tokens when parsing identifiers.
 
-## Operator precedence (v10)
+## Operator precedence (v11)
 
 Pulled from §6.3.1. Highest precedence is listed first.
 
@@ -24,7 +24,7 @@ Pulled from §6.3.1. Highest precedence is listed first.
 | 14   | `()`, `[]`, postfix `!`                                                   | Calls, indexing, error propagation   |
 | 13   | `^`                                                                        | Exponentiation (right-associative)   |
 | 12   | unary `-`, `!`, `~`                                                       | Arithmetic / logical / bitwise NOT   |
-| 11   | `*`, `/`, `%`                                                             | Multiplicative                       |
+| 11   | `*`, `/`, `//`, `%%`, `/%`                                                | Multiplicative                       |
 | 10   | `+`, `-`                                                                  | Additive                             |
 | 9    | `<<`, `>>`                                                                | Shifts                               |
 | 8    | `&`                                                                       | Bitwise AND                          |
@@ -35,7 +35,7 @@ Pulled from §6.3.1. Highest precedence is listed first.
 | 4    | `&&`                                                                      | Logical AND                          |
 | 3    | `||`                                                                      | Logical OR                           |
 | 2    | `..`, `...`                                                               | Range constructors                   |
-| 1    | `:=`, `=`, `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `\\xor=`, `<<=`, `>>=` | Assignment family (right-assoc)      |
+| 1    | `:=`, `=`, `+=`, `-=`, `*=`, `/=`, `&=`, `|=`, `\\xor=`, `<<=`, `>>=` | Assignment family (right-assoc)      |
 | 0    | `\\|>`                                                                    | Pipe-forward                          |
 
 Notes:

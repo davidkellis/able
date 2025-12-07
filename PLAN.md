@@ -1,9 +1,9 @@
 # Able Project Roadmap (v11 focus)
 
-Standard onboarding prompt:
+## Standard onboarding prompt
 Read AGENTS, PLAN, and the v11 spec, then start on the highest priority PLAN work. Proceed with next steps. We need to correct any bugs if bugs or broken tests are outstanding. We want to work toward completing the items in the PLAN file. Please mark off and remove completed items from the PLAN file once they are complete. Remember to keep files under one thousand lines and to refactor them if they are going to exceed one thousand lines. You have permission to run tests. Tests should run quickly; no test should take more than one minute to complete.
 
-Standard next steps prompt:
+## Standard next steps prompt
 Proceed with next steps as suggested; don't talk about doing it - do it. We need to correct any bugs if bugs or broken tests are outstanding. We want to work toward completing the items in the PLAN file. Please mark off and remove completed items from the PLAN file once they are complete. Remember to keep files under one thousand lines and to refactor them if they are going to exceed one thousand lines. Tests should run quickly; no test should take more than one minute to complete.
 
 ## Scope
@@ -30,7 +30,7 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 - Keep `AGENTS.md` synced with onboarding steps for new contributors.
 - Historical notes + completed milestones now live in `LOG.md`.
 - Keep this `PLAN.md` file up to date with current progress and immediate next actions, but move completed items to `LOG.md`.
-- Status: interface alignment is in place (Apply/Index/Awaitable + stdlib helpers) and the v11 sweep is green; next focus is regex stdlib expansions and tutorial cleanup.
+- Status: interface alignment is in place (Apply/Index/Awaitable + stdlib helpers); latest example sweeps surfaced regressions listed below. Next focus is regex stdlib expansions and tutorial cleanup.
 
 ## Guardrails (must stay true)
 - `v11/interpreters/ts/scripts/run-parity.ts` remains the authoritative entry point for fixtures/examples parity; `./run_all_tests.sh --version=v11` must stay green (TS + Go unit tests, fixture suites, parity CLI). Run the v10 suite only when explicitly asked to investigate archival regressions.
@@ -41,35 +41,31 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 
 ## TODO (working queue: tackle in order, move completed items to LOG.md)
 
-### Go stdlib/typechecker parity (no shortcuts; required for ablego/tutorials)
-- [ ] **Ordering/Ord correctness:** Align `able.core.interfaces` and `able.core.errors` with the Go typechecker so `Ord.cmp` returns the declared `Ordering` variants and primitive/Error impls satisfy parameter/return types.
-- [ ] **Extern acceptance:** Teach the Go typechecker to accept extern function bodies in stdlib modules (e.g., `able.collections.array` extern helpers) instead of rejecting them as unsupported statements.
-- [ ] **Array Iterable/Iterator self typing:** Fix Go typechecker handling of `Iterable`/`Iterator` impls in `able.collections.array` so `Self` matches instantiated type args and member accesses (`length`, `storage_handle`, etc.) are recognized.
-- [ ] **Clone/Default/Index parity:** Ensure the Go typechecker validates stdlib impls for Clone/Default/Index/IndexMut on primitives and Array without spurious generic-arity errors.
-- [ ] **Rule: do not bypass stdlib checks:** Keep stdlib typechecking enabled in ablego; fix checker + stdlib so `v11/examples/tutorial/04_functions_and_lambdas.able` (and the rest of the tutorials) run cleanly with the full stdlib loaded.
-
 ### v11 Spec Delta Implementation Plan
 - [ ] **Correct examples**: Fix broken examples in the v11/examples directory.
    - help me use the ablets and ablego scripts in the v11 directory to run the example programs in v11/examples/* and let's start identifying which ones don't work and then figure out what we'll need to do to correct them or fix the interpreters so that the example programs work. I want to identify problems first and capture those items in the PLAN and start working through why they don't work and getting things corrected where they're broken, expanding stdlib to make things work, etc.
    - identify broken examples that are due to missing stdlib features
    - identify broken examples that are due to language features from the v11 spec that are not yet implemented yet or are currently not working properly
       - these issues are the highest priority and should be addressed first
-   - TS ablets sweep (current): everything passes except:
-     - `greet_typecheck_fail.able` (intentional type error)
-     - `leetcode4_median_of_two_sorted_arrays.able` — needs numeric conversion support (`as f64` / return type mismatch)
-      - `leetcode8_string_to_integer.able` — literal `2147483648` overflows `i32` (example should widen or adjust literal)
-      - `leetcode9_palindrome_number.able` — parser rejects `and` (tree-sitter parse error; grammar needs `and` or the sample should use `&&`)
-   - Tutorials (TS): 01–14 typecheck after stdlib iterator/channel fixes; Go parity still pending.
+   - Latest ablets sweep (TS): no current blockers after fixing concurrency + extern tutorial samples.
+   - Latest ablego sweep (Go): no current blockers after fixing concurrency + extern tutorial samples.
+   - Recent reruns: `leetcode7_reverse_integer.able` and `leetcode9_palindrome_number.able` now succeed in TS+Go after rebuilding the tree-sitter grammar for `//`/`%%`/`/%`.
 - [ ] **Stdlib numeric conversions:** Add explicit conversion helpers on numeric types (e.g., to_f64, to_i64) in the stdlib and wire through TS/Go so examples/tests can rely on them instead of the nonexistent `as` cast.
+- [ ] **Numeric operators & Ratio/DivMod rollout:** Implement the finalized operator set (`/` float, `//` floor div, `%%` modulo, `/%` -> `DivMod`, no bare `%`) and the `Ratio`/`to_r()` surface across spec/runtime/typechecker/stdlib.
+   - Grammar/AST/parser: add tokens for `//`, `%%`, `/%`; remove `%` as modulo; ensure pipeline `%` topic stays reserved.
+   - Runtimes (TS/Go): implement `//`, `%%`, `/%` semantics with Euclidean rules and `DivisionByZeroError`; wire `DivMod<T>` prelude struct; keep compound assignment list in sync.
+   - Typecheckers: enforce operand types/rules for the new operators; model `DivMod<T>` result; adjust literal adoption/promotion for `/` vs `//`.
+   - Stdlib: add `Ratio { num: i64, den: i64 }`, `to_r()` for ints/floats (exact binary expansion, reject NaN/Inf/overflow), Ratio arithmetic/ordering; expose `DivMod` in prelude.
+   - Tests/fixtures/examples: update leetcode7/9 and other examples to use `//`/`%%`/`/%`; add parity/unit tests for negative operands, zero division, Ratio arithmetic; regenerate fixtures as needed.
 - [ ] **Stdlib API expansions (regex, §§6.12 & 14.2)** — **lowest priority; defer until higher items advance.**
    - **Tests:** expand stdlib test suites + fixtures to cover each helper, regex compilation failures, streaming use cases, and confirm both interpreters return identical traces.
 
 ### Tutorials & Examples (cleanup backlog)
 - v11/examples triage (ablets/ablego):
-  - Root examples: `assign/greet/hello_world/loop` pass in TS (Go sweep pending); `greet_typecheck_fail` intentionally errors.
-  - Tutorials: TS 01–14 typecheck; Go parity still needs a fresh run after stdlib plumbing.
-  - Leetcode (TS): all but 4/8/9 typecheck (see above); Go not yet rerun.
+  - Root examples: `assign/greet/hello_world/loop` pass; `greet_typecheck_fail` intentionally errors.
+  - Rosetta Code: all run after adding array import (outputs still minimal for arrays).
+  - Tutorials: 01/02a/02/03/04/05/06/07/08/09/10/11/12/13/14 (TS+Go) pass after fixing proc scheduling and extern bindings.
+  - Leetcode: 1/2/3/4/5/6/7/8/9/10/11/12 (TS+Go) run; 7/9 now return correct results with the new division operators; 8 clamps correctly; 11 fixed by widening to i128.
 - Fix tutorials requiring missing stdlib imports/stubs (Channel/Mutex await sample, array and string helpers) once the stdlib surfaces are wired back in; align Apply/Callable support across runtimes (Go still needs parity).
-- Update options/results/exceptions/interop tutorials to reference/import the stdlib `Error` interface so they typecheck (done for TS; Go still pending).
-- Adjust concurrency proc/spawn tutorial to avoid `proc_yield` misuse and return-type mismatches; revisit union-pattern check in Go (tutorial 03) and add Go support for prelude/extern.
-- Go fixture/typechecker hygiene: keep overload fixtures (`overload_resolution_success`, UFCS overload cases) green by allowing method overloads without duplicate diagnostics and keeping diagnostic paths aligned with the TS harness.
+- Ensure Go handles extern + Able bodies for tutorial 14.
+- Adjust concurrency proc/spawn tutorial to avoid `proc_yield` misuse and return-type mismatches; align `await` behaviour (proc vs main) across interpreters.

@@ -1,7 +1,5 @@
 package tutorial.hostinterop
 
-import able.core.interfaces.{Error}
-
 prelude go { import "time" }
 prelude typescript { import { readFileSync } from "node:fs"; }
 
@@ -11,21 +9,8 @@ extern typescript fn now_nanos() -> i64 {
   return Date.now() * 1000000 ## JavaScript Date.now() returns milliseconds
 }
 
-fn now_nanos() -> i64 { 0 } ## Pure Able fallback if no host body matches
-
 extern typescript fn read_text(path: string) -> !string {
   try { return readFileSync(path, "utf8") } catch (e) { throw host_error(string(e)) }
-}
-
-struct HostFallbackError { message: string }
-
-impl Error for HostFallbackError {
-  fn message(self: Self) -> string { self.message }
-  fn cause(self: Self) -> ?Error { nil }
-}
-
-fn read_text(path: string) -> !string {
-  raise HostFallbackError { message: `no host body available for ${path}` }
 }
 
 fn main() -> void {

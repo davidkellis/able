@@ -5,7 +5,7 @@
       "Type 'i32' does not satisfy interface 'Error': missing method 'message'"
     ],
     "typecheckDiagnostics": [
-      "typechecker: fixtures/ast/errors/generic_type_mismatch/source.able:5:10 typechecker: fn identity constraint on T is not satisfied: i32 does not implement Error"
+      "typechecker: ../../../fixtures/ast/errors/generic_type_mismatch/source.able:5:10 typechecker: fn identity constraint on T is not satisfied: i32 does not implement Error"
     ]
   },
   "entry": "source.able"

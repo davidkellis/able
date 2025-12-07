@@ -4,7 +4,7 @@ import able.collections.array.{Array}
 import able.collections.hash_map.{HashMap}
 import able.collections.set.{Set}
 import able.collections.enumerable.{Enumerable}
-import able.core.interfaces.{Clone, Default}
+import able.core.interfaces.{Clone, Default, Hash, Eq}
 import able.core.iteration.{Iterable, Iterator, IteratorEnd}
 
 struct HashSet T {
@@ -16,17 +16,17 @@ struct HashSetIterator T {
   index: i32
 }
 
-fn collect_keys<T>(source: HashMap T bool) -> HashSetIterator T {
+fn collect_keys<T>(source: HashMap T bool) -> HashSetIterator T where T: Hash + Eq T {
   keys: Array T := Array.with_capacity(source.size())
   source.for_each({ key, _value => keys.push(key) })
   HashSetIterator { keys: keys, index: 0 }
 }
 
-fn visit_keys<T>(source: HashMap T bool, visit: T -> void) -> void {
+fn visit_keys<T>(source: HashMap T bool, visit: T -> void) -> void where T: Hash + Eq T {
   source.for_each({ key, _value => visit(key) })
 }
 
-methods HashSet T {
+methods HashSet T where T: Hash + Eq T {
   fn new() -> HashSet T {
     HashSet { map: HashMap.new() }
   }
@@ -49,15 +49,15 @@ methods HashSet T {
   fn is_empty(self: Self) -> bool { self.map.size() == 0 }
 }
 
-impl Default for HashSet T {
+impl Default for HashSet T where T: Hash + Eq T {
   fn default() -> HashSet T { HashSet.new() }
 }
 
-impl Clone for HashSet T {
+impl Clone for HashSet T where T: Hash + Eq T {
   fn clone(self: Self) -> HashSet T { HashSet { map: self.map.clone() } }
 }
 
-impl Set T for HashSet T {
+impl Set T for HashSet T where T: Hash + Eq T {
   fn add(self: Self, value: T) -> bool {
     existed := self.map.contains(value)
     self.map.set(value, true)
@@ -72,7 +72,7 @@ impl Set T for HashSet T {
   fn is_empty(self: Self) -> bool { self.map.size() == 0 }
 }
 
-impl Iterable T for HashSet T {
+impl Iterable T for HashSet T where T: Hash + Eq T {
   fn iterator(self: Self) -> (Iterator T) {
     collect_keys(self.map)
   }
@@ -82,7 +82,7 @@ impl Iterable T for HashSet T {
   }
 }
 
-impl Enumerable T for HashSet T {
+impl Enumerable T for HashSet T where T: Hash + Eq T {
   fn each(self: Self, visit: T -> void) -> void {
     visit_keys(self.map, visit)
   }

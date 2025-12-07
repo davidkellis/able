@@ -36,6 +36,8 @@ export function resolveIndexFunction(
 declare module "./index" {
   interface InterpreterV10 {
     computeBinaryForCompound(op: string, left: V10Value, right: V10Value): V10Value;
+    ensureDivModStruct(): AST.StructDefinition;
+    divModStruct?: AST.StructDefinition;
   }
 }
 
@@ -103,8 +105,24 @@ export function evaluateBinaryExpression(ctx: InterpreterV10, node: AST.BinaryEx
     return { kind: "string", value: left.value + right.value };
   }
 
-  if (["+","-","*","/","%"].includes(b.operator)) {
-    return applyArithmeticBinary(b.operator, left, right);
+  if (["+","-","*","/","//","%%","/%"].includes(b.operator)) {
+    return applyArithmeticBinary(b.operator, left, right, {
+      makeDivMod: (kind, parts) => {
+        const structDef = ctx.ensureDivModStruct();
+        const typeArg = AST.simpleTypeExpression(kind);
+        const typeArgMap = ctx.mapTypeArguments(structDef.genericParams ?? [], [typeArg], "DivMod");
+        return {
+          kind: "struct_instance",
+          def: structDef,
+          values: new Map([
+            ["quotient", parts.quotient],
+            ["remainder", parts.remainder],
+          ]),
+          typeArguments: [typeArg],
+          typeArgMap,
+        };
+      },
+    });
   }
 
   if ([">","<",">=","<=","==","!="].includes(b.operator)) {
@@ -202,8 +220,29 @@ export function evaluateTopicReferenceExpression(ctx: InterpreterV10): V10Value 
 }
 
 export function applyOperationsAugmentations(cls: typeof InterpreterV10): void {
+  cls.prototype.ensureDivModStruct = function ensureDivModStruct(this: InterpreterV10): AST.StructDefinition {
+    if (this.divModStruct) return this.divModStruct;
+    const divModDef = AST.structDefinition(
+      "DivMod",
+      [
+        AST.structFieldDefinition(AST.simpleTypeExpression("T"), "quotient"),
+        AST.structFieldDefinition(AST.simpleTypeExpression("T"), "remainder"),
+      ],
+      "named",
+      [AST.genericParameter("T")],
+    );
+    this.evaluate(divModDef, this.globals);
+    const resolved = this.globals.get("DivMod");
+    if (resolved && resolved.kind === "struct_def") {
+      this.divModStruct = resolved.def;
+    } else {
+      this.divModStruct = divModDef;
+    }
+    return this.divModStruct;
+  };
+
   cls.prototype.computeBinaryForCompound = function computeBinaryForCompound(this: InterpreterV10, op: string, left: V10Value, right: V10Value): V10Value {
-    if (["+","-","*","/","%"].includes(op)) {
+    if (["+","-","*","/"].includes(op)) {
       return applyArithmeticBinary(op, left, right);
     }
 

@@ -512,11 +512,7 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
       }
     } catch (e) {
       if (e instanceof ProcYieldSignal) {
-        const manualYield = this.manualYieldRequested;
         this.manualYieldRequested = false;
-        if (manualYield && !handle.awaitBlocked) {
-          procContext.reset();
-        }
         if (!handle.awaitBlocked && handle.runner) {
           this.scheduleAsync(handle.runner);
         }
@@ -584,11 +580,7 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
       }
     } catch (e) {
       if (e instanceof ProcYieldSignal) {
-        const manualYield = this.manualYieldRequested;
         this.manualYieldRequested = false;
-        if (manualYield) {
-          futureContext.reset();
-        }
         if (future.runner) {
           this.scheduleAsync(future.runner);
         }

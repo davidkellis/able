@@ -132,6 +132,8 @@ export function inferExpression(ctx: ExpressionContext, expression: AST.Expressi
       return evaluateMatchExpression(ctx, expression);
     case "RescueExpression":
       return evaluateRescueExpression(ctx, expression);
+    case "OrElseExpression":
+      return inferOrElseExpression(ctx, expression);
     case "IfExpression": {
       const branchTypes: TypeInfo[] = [];
       const condType = ctx.inferExpression(expression.ifCondition);
@@ -334,6 +336,34 @@ export function evaluateRescueExpression(ctx: ExpressionContext, expression: AST
   return mergeBranchTypes(ctx, branchTypes);
 }
 
+export function inferOrElseExpression(ctx: ExpressionContext, expression: AST.OrElseExpression): TypeInfo {
+  if (!expression) {
+    return unknownType;
+  }
+  const expressionType = ctx.inferExpression(expression.expression);
+  const successType = stripOptionOrResult(ctx, expressionType);
+
+  let handlerType: TypeInfo = primitiveType("nil");
+  let handlerReturns = false;
+  if (expression.handler) {
+    ctx.pushScope();
+    try {
+      if (expression.errorBinding?.name) {
+        ctx.defineValue(expression.errorBinding.name, lookupErrorType(ctx));
+      }
+      handlerType = ctx.inferExpression(expression.handler);
+      handlerReturns = blockHasReturn(expression.handler);
+    } finally {
+      ctx.popScope();
+    }
+  }
+
+  if (handlerReturns) {
+    return successType ?? unknownType;
+  }
+  return mergeElseTypes(ctx, successType, handlerType);
+}
+
 export function lookupErrorType(ctx: ExpressionContext): TypeInfo {
   const interfaceDefinition = ctx.getInterfaceDefinition("Error");
   return {
@@ -362,6 +392,61 @@ export function mergeBranchTypes(ctx: ExpressionContext, types: TypeInfo[]): Typ
     }
   }
   return current;
+}
+
+function stripOptionOrResult(ctx: ExpressionContext, type: TypeInfo): TypeInfo {
+  if (!type || type.kind === "unknown") {
+    return unknownType;
+  }
+  switch (type.kind) {
+    case "nullable":
+      return stripOptionOrResult(ctx, type.inner);
+    case "result":
+      return stripOptionOrResult(ctx, type.inner);
+    case "union": {
+      const members = (type.members ?? []).filter((member) => !isFailureType(ctx, member));
+      if (members.length === 0) {
+        return unknownType;
+      }
+      if (members.length === 1) {
+        return stripOptionOrResult(ctx, members[0] ?? unknownType);
+      }
+      return { kind: "union", members: members.map((member) => stripOptionOrResult(ctx, member)) };
+    }
+    default:
+      return type;
+  }
+}
+
+function isFailureType(ctx: ExpressionContext, type: TypeInfo | undefined): boolean {
+  if (!type || type.kind === "unknown") return false;
+  if (type.kind === "primitive" && type.name === "nil") return true;
+  if (type.kind === "interface" && type.name === "Error") return true;
+  if (type.kind === "struct" && type.name === "Error") return true;
+  if (type.kind === "union") {
+    return (type.members ?? []).some((member) => isFailureType(ctx, member));
+  }
+  if (ctx.typeImplementsInterface && ctx.typeImplementsInterface(type, "Error").ok) {
+    return true;
+  }
+  return false;
+}
+
+function mergeElseTypes(ctx: ExpressionContext, success: TypeInfo, handler: TypeInfo): TypeInfo {
+  const members: TypeInfo[] = [];
+  for (const candidate of [success, handler]) {
+    if (!candidate || candidate.kind === "unknown") continue;
+    const exists = members.some((existing) => ctx.typeInfosEquivalent(existing, candidate));
+    if (!exists) members.push(candidate);
+  }
+  if (members.length === 0) return unknownType;
+  if (members.length === 1) return members[0]!;
+  return { kind: "union", members };
+}
+
+function blockHasReturn(block: AST.BlockExpression | null | undefined): boolean {
+  if (!block || !Array.isArray(block.body)) return false;
+  return block.body.some((stmt) => stmt?.type === "ReturnStatement");
 }
 
 function inferIndexExpression(ctx: ExpressionContext, expression: AST.IndexExpression): TypeInfo {
@@ -559,8 +644,29 @@ function inferBinaryExpression(ctx: ExpressionContext, expression: AST.BinaryExp
       return primitiveType("string");
     }
   }
-  if (["+", "-", "*", "/", "%"].includes(operator)) {
+  if (["+", "-", "*"].includes(operator)) {
     const result = resolveNumericBinaryType(left, right);
+    return applyNumericResolution(ctx, expression, operator, result);
+  }
+  if (operator === "/") {
+    const result = resolveDivisionType(left, right);
+    return applyNumericResolution(ctx, expression, operator, result);
+  }
+  if (operator === "//" || operator === "%%") {
+    const result = resolveIntegerBinaryType(left, right);
+    return applyNumericResolution(ctx, expression, operator, result);
+  }
+  if (operator === "/%") {
+    const result = resolveIntegerBinaryType(left, right);
+    if (result.kind === "ok") {
+      const base = ctx.getStructDefinition("DivMod");
+      return {
+        kind: "struct",
+        name: "DivMod",
+        typeArguments: [result.type ?? unknownType],
+        definition: base,
+      };
+    }
     return applyNumericResolution(ctx, expression, operator, result);
   }
   if (operator === "==" || operator === "!=") {
@@ -651,6 +757,29 @@ function resolveNumericBinaryType(left: TypeInfo, right: TypeInfo): NumericResol
     return { kind: "ok", type: primitiveType(resultName) };
   }
   return resolveIntegerBinaryFromInfos(leftClass.info, rightClass.info);
+}
+
+function resolveDivisionType(left: TypeInfo, right: TypeInfo): NumericResolution {
+  if (!left || left.kind === "unknown" || !right || right.kind === "unknown") {
+    return { kind: "unknown" };
+  }
+  const leftClass = classifyNumericPrimitive(left);
+  const rightClass = classifyNumericPrimitive(right);
+  if (!leftClass || !rightClass) {
+    return {
+      kind: "error",
+      message: `requires numeric operands (got ${formatType(left)} and ${formatType(right)})`,
+    };
+  }
+  if (leftClass.kind === "float" || rightClass.kind === "float") {
+    const resultName = leftClass.kind === "float" && leftClass.name === "f64"
+      ? "f64"
+      : rightClass.kind === "float" && rightClass.name === "f64"
+        ? "f64"
+        : "f32";
+    return { kind: "ok", type: primitiveType(resultName) };
+  }
+  return { kind: "ok", type: primitiveType("f64") };
 }
 
 function resolveIntegerBinaryType(left: TypeInfo, right: TypeInfo): NumericResolution {

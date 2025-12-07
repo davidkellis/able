@@ -292,29 +292,21 @@ methods string {
     self.bytes()
   }
 
-  fn substring(self: Self, start: u64, length: ?u64) -> Result string {
-    if start > 2147483647 {
-      return RangeError { message: "substring start out of range" }
-    }
-    start_idx: i32 = start
-    len_arg: ?i32 := nil
-    if length != nil {
-      if length > 2147483647 {
-        return RangeError { message: "substring length out of range" }
-      }
-      len_arg = length
-    }
+  fn substring(self: Self, start: i32, length: ?i32) -> Result string {
+    if start < 0 { return RangeError { message: "substring start must be non-negative" } }
     bytes := validated_bytes(self)
     total_chars := count_chars(bytes, bytes.len())
-    if start_idx > total_chars { return RangeError { message: "substring start out of range" } }
+    if start > total_chars { return RangeError { message: "substring start out of range" } }
+
     offset := 0
-    codepoint_offset(bytes, bytes.len(), start_idx) match {
+    codepoint_offset(bytes, bytes.len(), start) match {
       case err: Error => { return err },
       case value: i32 => offset = value
     }
     target_end := bytes.len()
-    if len_arg != nil {
-      limit := start_idx + len_arg
+    if length != nil {
+      if length < 0 { return RangeError { message: "substring length must be non-negative" } }
+      limit := start + length
       if limit > total_chars { return RangeError { message: "substring range out of bounds" } }
       codepoint_offset(bytes, bytes.len(), limit) match {
         case err: Error => { return err },

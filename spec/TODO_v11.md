@@ -22,6 +22,15 @@ like `fn choose_first<T, U>(first: T, second: U) -> T where T: Display + Clone, 
 - [x] **Pipe precedence**: The `|>` pipe operator should be higher precedence than the assignment operator. Check with me before implementing anything; I want to review the design and spec changes before proceeding with an implementation. Confirm moving `|>` above assignment in precedence so pipelines compose with `=`/`:=` without extra parens, update the table in §6.3.1, and add parser/typechecker/runtime fixtures to lock it in. Check with me before implementing anything; I want to review the design and spec changes before proceeding with an implementation.
 - [x] **Overlapping impl specificity**: §10.2.5 now documents the deterministic tie-breaker list (concrete > generic, constraint superset, union subset, more-instantiated generics), ambiguity diagnostics, and named-impl opt-in, with fixtures and runtimes/typecheckers aligned.
 - [x] **UFCS method-style fallback**: Finalize spec wording and implementation plan for calling free functions as methods when the receiver type matches the first parameter (`add(1, 2)` == `1.add(2)`). Spell out precedence with Apply/fields/interface/inherent methods (§7.4/§9.4), overload resolution for UFCS candidates (including generics), and the pipe equivalence (`receiver.method(args)` == `method(receiver, args)`). Add fixtures/tests and wire both interpreters/typecheckers to honor the expanded UFCS step.
+- [ ] **Distinction between integer division, modulo, and division with remainder, as well as integer flooring division**: We need to expand the operators to distinguish between integer division, modulo, and division with remainder. We need to document the semantics of each operator and how they are used in the spec. We also need an integer division operator that returns the quotient and a division with remainder operator that returns the quotient and remainder. Let's use the following operators:
+   - `/` for division producing a floating point value
+   - `%` for modulo
+   - `/%` for division with remainder
+   - `floor_div` for integer flooring division
+   - `floor_mod` for integer flooring modulo
+   - `floor_div_mod` for integer flooring division with remainder
+   - `floor_div_mod_result` for integer flooring division with remainder result
+   - `floor_div_mod_result_result` for integer flooring division with remainder result result
 
 ## Candidate features from other popular languages (undecided if we should add them)
 

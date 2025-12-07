@@ -9,6 +9,7 @@ Each file in this folder demonstrates one major Able language concept with small
 
 Examples (run in order):
 - `01_basics_and_bindings.able` — declarations vs assignment, type annotations, block expressions, interpolation, safe navigation, and pipe-forward basics.
+- `02a_operators_and_builtin_types.able` — scalar literals, arithmetic (`/ // %% /%`), comparisons, bitwise/shift ops, and truthiness for logical operators.
 - `02_patterns_and_destructuring.able` — struct/array patterns, named and positional structs, nested destructuring, and wildcards.
 - `03_structs_unions_and_match.able` — struct construction, unions, nullable shorthand, and exhaustive `match`.
 - `04_functions_and_lambdas.able` — named functions, anonymous functions, lambdas, trailing lambdas, partial application placeholders, and pipe topics (`%`).

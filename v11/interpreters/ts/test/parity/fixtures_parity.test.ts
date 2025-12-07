@@ -32,6 +32,7 @@ describe("fixture parity", async () => {
     typeof MAX_FIXTURES === "number"
       ? fixtures.slice(0, Math.min(MAX_FIXTURES, fixtures.length))
       : fixtures;
+  const goFixtureRunner = await goFixtureRunnerPromise;
 
   for (const fixtureDir of selected) {
     const manifest = await readManifest(fixtureDir);
@@ -47,9 +48,8 @@ describe("fixture parity", async () => {
     const entry = manifest?.entry ?? "module.json";
 
     test(relativeName, async () => {
-      const runner = await goFixtureRunnerPromise;
       const tsOutcome = await evaluateFixtureTS(fixtureDir, manifest ?? null, entry);
-      const goOutcome = await evaluateFixtureGo(runner, fixtureDir, entry);
+      const goOutcome = await evaluateFixtureGo(goFixtureRunner, fixtureDir, entry);
       const diff = compareFixtureOutcomes(tsOutcome, goOutcome, relativeName, manifest ?? null);
       if (diff) {
         throw new Error(formatFixtureDiff(diff));

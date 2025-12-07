@@ -3,6 +3,9 @@
   "expect": {
     "errors": [
       "Ambiguous overload for collide"
+    ],
+    "typecheckDiagnostics": [
+      "typechecker: ../../../fixtures/ast/functions/overload_function_ambiguity/source.able:4:1 typechecker: duplicate declaration 'collide' (previous declaration at ../../../../fixtures/ast/functions/overload_function_ambiguity/source.able:1:1)"
     ]
   },
   "entry": "module.json"
