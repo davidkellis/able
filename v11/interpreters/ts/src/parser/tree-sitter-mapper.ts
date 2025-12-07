@@ -91,6 +91,20 @@ export function mapSourceFile(root: Node, source: string, origin?: string): Modu
           }
           if (stmt.type === "LambdaExpression" && body.length > 0) {
             const prev = body[body.length - 1];
+            if (prev.type === "AssignmentExpression") {
+              const rhs = prev.right;
+              if (rhs.type === "FunctionCall") {
+                rhs.arguments.push(stmt);
+                rhs.isTrailingLambda = true;
+                continue;
+              }
+              if ((rhs as Expression).type) {
+                const call = inheritMetadata(AST.functionCall(rhs as Expression, [], undefined, true), rhs as Expression, stmt);
+                call.arguments.push(stmt);
+                prev.right = call;
+                continue;
+              }
+            }
             if (prev.type === "FunctionCall") {
               const call = prev as FunctionCall;
               if (call.arguments.length === 0 || call.arguments[call.arguments.length - 1] !== stmt) {

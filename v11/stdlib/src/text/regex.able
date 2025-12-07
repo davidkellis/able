@@ -57,6 +57,11 @@ struct RegexCompileFailure {
   message: string
 }
 
+union RegexError =
+  RegexInvalidPattern |
+  RegexUnsupportedFeature |
+  RegexCompileFailure
+
 impl Error for RegexInvalidPattern {
   fn message(self: Self) -> string { self.message }
   fn cause(self: Self) -> ?Error { nil }

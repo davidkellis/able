@@ -70,7 +70,7 @@ const errorsFixtures: Fixture[] = [
         skipTargets: ["go"],
         expect: {
           typecheckDiagnostics: [
-            "typechecker: ../fixtures/ast/errors/implicit_generic_redeclaration/source.able typechecker: cannot redeclare inferred type parameter 'T' inside fn wrap (inferred at ../../fixtures/ast/errors/implicit_generic_redeclaration/source.able:0:0)",
+            "typechecker: ../../../fixtures/ast/errors/implicit_generic_redeclaration/source.able:2:3 typechecker: cannot redeclare inferred type parameter 'T' inside fn wrap (inferred at ../../../../fixtures/ast/errors/implicit_generic_redeclaration/source.able:1:16)",
           ],
         },
       },
@@ -492,7 +492,9 @@ const errorsFixtures: Fixture[] = [
         description: "Method-style UFCS surfaces ambiguity when overloads expect different first-parameter tail types",
         expect: {
           errors: ["Ambiguous overload for tag"],
-          typecheckDiagnostics: [],
+          typecheckDiagnostics: [
+            "typechecker: ../../../fixtures/ast/errors/ufcs_overload_ambiguity/source.able:7:1 typechecker: duplicate declaration 'tag' (previous declaration at ../../../../fixtures/ast/errors/ufcs_overload_ambiguity/source.able:4:1)",
+          ],
         },
       },
     },

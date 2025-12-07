@@ -18,7 +18,7 @@ var infixOperatorSets = map[string][]string{
 	"comparison_expression":        {">", "<", ">=", "<="},
 	"shift_expression":             {"<<", ">>"},
 	"additive_expression":          {"+", "-"},
-	"multiplicative_expression":    {"*", "/", "%"},
+	"multiplicative_expression":    {"*", "/", "//", "%%", "/%"},
 	"exponent_expression":          {"**"},
 	"topic_placeholder_expression": {"%"},
 }
@@ -30,7 +30,6 @@ var assignmentOperatorMap = map[string]ast.AssignmentOperator{
 	"-=":     ast.AssignmentSub,
 	"*=":     ast.AssignmentMul,
 	"/=":     ast.AssignmentDiv,
-	"%=":     ast.AssignmentMod,
 	"&=":     ast.AssignmentBitAnd,
 	"|=":     ast.AssignmentBitOr,
 	"\\xor=": ast.AssignmentBitXor,
@@ -425,13 +424,37 @@ func (ctx *parseContext) parsePostfixExpression(node *sitter.Node) (ast.Expressi
 				lastCall.IsTrailingLambda = true
 				extendExpressionToNode(lastCall, suffix)
 				result = lastCall
-			} else {
-				callExpr := ast.NewFunctionCall(prev, nil, typeArgs, true)
-				callExpr.Arguments = append(callExpr.Arguments, lambdaExpr)
-				annotateCompositeExpression(callExpr, prev, suffix)
-				result = callExpr
-				lastCall = callExpr
+				break
 			}
+
+			// Bind trailing lambda to RHS when the current expression is an assignment whose
+			// right-hand side is (or becomes) a call.
+			if assign, ok := result.(*ast.AssignmentExpression); ok {
+				switch rhs := assign.Right.(type) {
+				case *ast.FunctionCall:
+					if !rhs.IsTrailingLambda {
+						rhs.Arguments = append(rhs.Arguments, lambdaExpr)
+						rhs.IsTrailingLambda = true
+						extendExpressionToNode(rhs, suffix)
+						lastCall = rhs
+						break
+					}
+				default:
+					callExpr := ast.NewFunctionCall(rhs, nil, typeArgs, true)
+					callExpr.Arguments = append(callExpr.Arguments, lambdaExpr)
+					annotateCompositeExpression(callExpr, rhs, suffix)
+					assign.Right = callExpr
+					lastCall = callExpr
+					break
+				}
+				break
+			}
+
+			callExpr := ast.NewFunctionCall(prev, nil, typeArgs, true)
+			callExpr.Arguments = append(callExpr.Arguments, lambdaExpr)
+			annotateCompositeExpression(callExpr, prev, suffix)
+			result = callExpr
+			lastCall = callExpr
 		case "propagate_suffix":
 			if len(pendingTypeArgs) > 0 {
 				return nil, fmt.Errorf("parser: dangling type arguments before propagation")

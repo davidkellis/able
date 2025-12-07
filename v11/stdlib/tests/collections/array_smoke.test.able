@@ -10,7 +10,7 @@ fn assert(condition: bool, message: string) -> void {
 }
 
 fn double(value: i32) -> i32 { value * 2 }
-fn is_even(value: i32) -> bool { value % 2 == 0 }
+fn is_even(value: i32) -> bool { value %% 2 == 0 }
 
 fn check_basic_ops() -> void {
   arr := Array.new()

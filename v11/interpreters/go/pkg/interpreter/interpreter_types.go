@@ -229,6 +229,12 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 		return true
 	case *ast.SimpleTypeExpression:
 		name := t.Name.Name
+		if name == "Error" {
+			switch value.(type) {
+			case runtime.ErrorValue, *runtime.ErrorValue:
+				return true
+			}
+		}
 		switch name {
 		case "string":
 			_, ok := value.(runtime.StringValue)
@@ -263,10 +269,15 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 				return false
 			}
 			return string(fv.TypeSuffix) == name
-		case "Error":
-			_, ok := value.(runtime.ErrorValue)
-			return ok
 		default:
+			if unionDef, ok := i.unionDefinitions[name]; ok && unionDef != nil && unionDef.Node != nil {
+				for _, variant := range unionDef.Node.Variants {
+					if variant != nil && i.matchesType(variant, value) {
+						return true
+					}
+				}
+				return false
+			}
 			if _, ok := i.interfaces[name]; ok {
 				switch v := value.(type) {
 				case *runtime.InterfaceValue:
@@ -318,6 +329,16 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 		var baseName string
 		if simple, ok := t.Base.(*ast.SimpleTypeExpression); ok && simple.Name != nil {
 			baseName = simple.Name.Name
+		}
+		if baseName != "" {
+			if unionDef, ok := i.unionDefinitions[baseName]; ok && unionDef != nil && unionDef.Node != nil {
+				for _, variant := range unionDef.Node.Variants {
+					if variant != nil && i.matchesType(variant, value) {
+						return true
+					}
+				}
+				return false
+			}
 		}
 		if baseName != "" && info.name != "" && baseName != info.name {
 			return false

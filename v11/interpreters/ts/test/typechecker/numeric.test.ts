@@ -97,4 +97,61 @@ describe("typechecker numeric promotion", () => {
     expect(diagnostics).toHaveLength(1);
     expect(diagnostics[0]?.message).toContain("requires numeric operands");
   });
+
+  test("/ promotes integer operands to f64", () => {
+    const checker = new TypeChecker();
+    const module = AST.module([
+      asStatement(
+        AST.assignmentExpression(
+          ":=",
+          AST.typedPattern(AST.identifier("value"), AST.simpleTypeExpression("f64")),
+          AST.binaryExpression("/", AST.integerLiteral(5), AST.integerLiteral(2)),
+        ),
+      ),
+    ]);
+    const { diagnostics } = checker.checkModule(module);
+    expect(diagnostics).toEqual([]);
+  });
+
+  test("// and %% require integer operands", () => {
+    const checker = new TypeChecker();
+    const module = AST.module([
+      asStatement(
+        AST.assignmentExpression(
+          ":=",
+          AST.identifier("badQuot"),
+          AST.binaryExpression("//", AST.integerLiteral(5), AST.floatLiteral(2.0)),
+        ),
+      ),
+      asStatement(
+        AST.assignmentExpression(
+          ":=",
+          AST.identifier("badRem"),
+          AST.binaryExpression("%%", AST.floatLiteral(5.0), AST.integerLiteral(2)),
+        ),
+      ),
+    ]);
+    const { diagnostics } = checker.checkModule(module);
+    expect(diagnostics).toHaveLength(2);
+    expect(diagnostics[0]?.message).toContain("requires integer operands");
+    expect(diagnostics[1]?.message).toContain("requires integer operands");
+  });
+
+  test("/% yields DivMod struct with integer type argument", () => {
+    const checker = new TypeChecker();
+    const module = AST.module([
+      asStatement(
+        AST.assignmentExpression(
+          ":=",
+          AST.typedPattern(
+            AST.identifier("pair"),
+            AST.genericTypeExpression(AST.simpleTypeExpression("DivMod"), [AST.simpleTypeExpression("i32")]),
+          ),
+          AST.binaryExpression("/%", AST.integerLiteral(7), AST.integerLiteral(3)),
+        ),
+      ),
+    ]);
+    const { diagnostics } = checker.checkModule(module);
+    expect(diagnostics).toEqual([]);
+  });
 });

@@ -4,13 +4,13 @@ fn main() {
   x := 5
   print(x)
 
-  y = x * 2
+  y := x * 2
   print(y)
 
   y = y + 5
   y |> print
 
   for i in 1..5 {
-    y = y + i |> print
+    y = y + i |>> print
   }
 }

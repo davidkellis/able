@@ -16,7 +16,7 @@ fn make_iter(start, finish) {
 fn ad_hoc(xs) {
   Iterator { driver =>
     for x in xs {
-      if x % 2 == 0 {
+      if x %% 2 == 0 {
         driver.yield(x)
       }
     }

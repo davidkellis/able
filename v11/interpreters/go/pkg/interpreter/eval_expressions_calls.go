@@ -603,7 +603,7 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 			if err != nil {
 				return nil, err
 			}
-			computed, err := applyBinaryOperator(binaryOp, current, value)
+			computed, err := applyBinaryOperator(i, binaryOp, current, value)
 			if err != nil {
 				return nil, err
 			}
@@ -625,7 +625,7 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 		}
 		switch inst := target.(type) {
 		case *runtime.StructInstanceValue:
-			return assignStructMember(inst, lhs.Member, value, assign.Operator, binaryOp, isCompound)
+			return assignStructMember(i, inst, lhs.Member, value, assign.Operator, binaryOp, isCompound)
 		case *runtime.ArrayValue:
 			arrayVal := inst
 			switch member := lhs.Member.(type) {
@@ -650,7 +650,7 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 					return nil, fmt.Errorf("unsupported assignment operator %s", assign.Operator)
 				}
 				current := state.values[idx]
-				computed, err := applyBinaryOperator(binaryOp, current, value)
+				computed, err := applyBinaryOperator(i, binaryOp, current, value)
 				if err != nil {
 					return nil, err
 				}
@@ -733,7 +733,7 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 		}
 		switch inst := receiver.(type) {
 		case *runtime.StructInstanceValue:
-			return assignStructMember(inst, lhs.Member, value, assign.Operator, binaryOp, isCompound)
+			return assignStructMember(i, inst, lhs.Member, value, assign.Operator, binaryOp, isCompound)
 		default:
 			return nil, fmt.Errorf("Implicit member assignments supported only on struct instances")
 		}
@@ -772,7 +772,7 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 			if err != nil {
 				return nil, err
 			}
-			computed, err := applyBinaryOperator(binaryOp, current, value)
+			computed, err := applyBinaryOperator(i, binaryOp, current, value)
 			if err != nil {
 				return nil, err
 			}
@@ -805,7 +805,7 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 			return nil, fmt.Errorf("unsupported assignment operator %s", assign.Operator)
 		}
 		current := state.values[idx]
-		computed, err := applyBinaryOperator(binaryOp, current, value)
+		computed, err := applyBinaryOperator(i, binaryOp, current, value)
 		if err != nil {
 			return nil, err
 		}

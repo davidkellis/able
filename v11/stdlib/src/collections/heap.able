@@ -1,27 +1,15 @@
 package collections.heap
 
 import able.collections.array.{Array}
-
-type Comparator T = (T, T) -> i32
+import able.core.interfaces.{Ord, Less, Greater}
 
 struct Heap T {
-  data: Array T,
-  compare: Comparator T
+  data: Array T
 }
 
-fn default_compare<T>(a: T, b: T) -> i32 {
-  if a < b { return -1 }
-  if a > b { return 1 }
-  0
-}
-
-methods Heap T {
+methods Heap T where T: Ord {
   fn new() -> Heap T {
-    Heap { data: Array.new(), compare: default_compare }
-  }
-
-  fn with_comparator(compare: Comparator T) -> Heap T {
-    Heap { data: Array.new(), compare: compare }
+    Heap { data: Array.new() }
   }
 
   fn len(self: Self) -> i32 { self.data.len() }
@@ -54,10 +42,10 @@ methods Heap T {
     position := index
     loop {
       if position == 0 { break }
-      parent := (position - 1) / 2
+      parent := (position - 1) // 2
       current := self.data.get(position)!
       parent_value := self.data.get(parent)!
-      if self.compare(current, parent_value) >= 0 { break }
+      if Heap.compare_values(current, parent_value) >= 0 { break }
       self.data.write_slot(position, parent_value)
       self.data.write_slot(parent, current)
       position = parent
@@ -75,7 +63,7 @@ methods Heap T {
       if left < size {
         left_value := self.data.get(left)!
         smallest_value := self.data.get(smallest)!
-        if self.compare(left_value, smallest_value) < 0 {
+        if Heap.compare_values(left_value, smallest_value) < 0 {
           smallest = left
         }
       }
@@ -83,7 +71,7 @@ methods Heap T {
       if right < size {
         right_value := self.data.get(right)!
         smallest_value := self.data.get(smallest)!
-        if self.compare(right_value, smallest_value) < 0 {
+        if Heap.compare_values(right_value, smallest_value) < 0 {
           smallest = right
         }
       }
@@ -95,6 +83,14 @@ methods Heap T {
       self.data.write_slot(position, smallest_value)
       self.data.write_slot(smallest, index_value)
       position = smallest
+    }
+  }
+
+  fn compare_values(a: T, b: T) -> i32 {
+    a.cmp(b) match {
+      case _: Less => -1,
+      case _: Greater => 1,
+      case _ => 0
     }
   }
 }

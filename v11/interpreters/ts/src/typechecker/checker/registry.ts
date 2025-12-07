@@ -24,6 +24,10 @@ export function ensureUniqueDeclaration(
   }
   const existing = ctx.declarationOrigins.get(name);
   if (existing) {
+    if ((existing as unknown as { _builtin?: boolean })._builtin) {
+      ctx.declarationOrigins.set(name, node);
+      return true;
+    }
     const location = formatNodeOrigin(existing);
     ctx.report(`typechecker: duplicate declaration '${name}' (previous declaration at ${location})`, node);
     return false;

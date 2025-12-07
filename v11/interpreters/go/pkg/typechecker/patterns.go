@@ -221,6 +221,26 @@ func (c *Checker) bindStructPattern(env *Environment, pat *ast.StructPattern, va
 	} else if candidate, ok := c.structFromUnionVariant(valueType, pat); ok {
 		structInfo = candidate
 		hasInfo = true
+	} else if nullable, ok := valueType.(NullableType); ok {
+		inner := nullable.Inner
+		if inst, ok := inner.(StructInstanceType); ok {
+			structInfo = StructType{StructName: inst.StructName, Fields: inst.Fields, Positional: inst.Positional}
+			hasInfo = true
+		} else if st, ok := inner.(StructType); ok {
+			structInfo = st
+			hasInfo = true
+		} else if candidate, ok := c.structFromUnionVariant(inner, pat); ok {
+			structInfo = candidate
+			hasInfo = true
+		} else if isUnionLike(inner) {
+			// allow unknown field types for union members
+		} else if !isUnknownType(inner) {
+			diags = append(diags, Diagnostic{
+				Message: fmt.Sprintf("typechecker: struct pattern cannot match type %s", typeName(inner)),
+				Node:    pat,
+			})
+		}
+		valueType = inner
 	} else if isUnionLike(valueType) {
 		// Union with no struct match; permit pattern binding with unknown field types.
 	} else if !isUnknownType(valueType) {

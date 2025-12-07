@@ -479,7 +479,7 @@ func TestParseWhileLoopWithBreakAndContinue(t *testing.T) {
 	source := `value := 0
 while value < 10 {
   value += 1
-  if value % 2 == 0 {
+  if value %% 2 == 0 {
     continue
   }
   if value == 5 {
@@ -504,7 +504,7 @@ while value < 10 {
 	increment := ast.AssignOp(ast.AssignmentAdd, ast.ID("value"), ast.Int(1))
 
 	modCondition := ast.Bin("==",
-		ast.Bin("%", ast.ID("value"), ast.Int(2)),
+		ast.Bin("%%", ast.ID("value"), ast.Int(2)),
 		ast.Int(0),
 	)
 

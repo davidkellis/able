@@ -341,10 +341,23 @@ func (i *Interpreter) evaluateOrElseExpression(expr *ast.OrElseExpression, env *
 		}
 		return nil, err
 	}
-	if errVal, ok := asErrorValue(val); ok {
+	failureKind := ""
+	var failureValue runtime.Value
+	if val == nil {
+		failureKind = "nil"
+	} else if val.Kind() == runtime.KindNil {
+		failureKind = "nil"
+	} else if errVal, ok := asErrorValue(val); ok {
+		failureKind = "error"
+		failureValue = errVal
+	} else if i.matchesType(ast.Ty("Error"), val) {
+		failureKind = "error"
+		failureValue = val
+	}
+	if failureKind != "" {
 		handlerEnv := runtime.NewEnvironment(env)
-		if expr.ErrorBinding != nil {
-			handlerEnv.Define(expr.ErrorBinding.Name, errVal)
+		if expr.ErrorBinding != nil && failureKind == "error" {
+			handlerEnv.Define(expr.ErrorBinding.Name, failureValue)
 		}
 		result, handlerErr := i.evaluateBlock(expr.Handler, handlerEnv)
 		if handlerErr != nil {
@@ -525,7 +538,7 @@ func (i *Interpreter) evaluateBinaryExpression(expr *ast.BinaryExpression, env *
 				return nil, fmt.Errorf("Arithmetic requires numeric operands")
 			}
 		}
-		return applyBinaryOperator(expr.Operator, leftVal, rightVal)
+		return applyBinaryOperator(i, expr.Operator, leftVal, rightVal)
 	}
 }
 

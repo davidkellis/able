@@ -116,7 +116,47 @@ func (c *Checker) checkOrElseExpression(env *Environment, expr *ast.OrElseExpres
 	exprDiags, exprType := c.checkExpression(env, expr.Expression)
 	diags = append(diags, exprDiags...)
 
+	var stripOptionOrResult func(t Type) Type
+	stripOptionOrResult = func(t Type) Type {
+		switch v := t.(type) {
+		case NullableType:
+			return stripOptionOrResult(v.Inner)
+		case AppliedType:
+			if name, ok := structName(v.Base); ok && name == "Result" && len(v.Arguments) > 0 {
+				return stripOptionOrResult(v.Arguments[0])
+			}
+		case UnionLiteralType:
+			var members []Type
+			for _, member := range v.Members {
+				if member == nil || isUnknownType(member) {
+					continue
+				}
+				if isFailureType(c, member) {
+					continue
+				}
+				members = append(members, stripOptionOrResult(member))
+			}
+			return buildUnionType(members...)
+		case UnionType:
+			var members []Type
+			for _, member := range v.Variants {
+				if member == nil || isUnknownType(member) {
+					continue
+				}
+				if isFailureType(c, member) {
+					continue
+				}
+				members = append(members, stripOptionOrResult(member))
+			}
+			return buildUnionType(members...)
+		}
+		return t
+	}
+
+	successType := stripOptionOrResult(exprType)
+
 	handlerType := Type(PrimitiveType{Kind: PrimitiveNil})
+	handlerReturns := false
 	if expr.Handler != nil {
 		handlerEnv := env.Extend()
 		if expr.ErrorBinding != nil {
@@ -125,9 +165,21 @@ func (c *Checker) checkOrElseExpression(env *Environment, expr *ast.OrElseExpres
 		handlerDiags, inferredHandlerType := c.checkExpression(handlerEnv, expr.Handler)
 		diags = append(diags, handlerDiags...)
 		handlerType = inferredHandlerType
+		for _, stmt := range expr.Handler.Body {
+			if stmt == nil {
+				continue
+			}
+			if _, ok := stmt.(*ast.ReturnStatement); ok {
+				handlerReturns = true
+				break
+			}
+		}
 	}
 
-	resultType := mergeTypesAllowUnion(exprType, handlerType)
+	resultType := successType
+	if !handlerReturns {
+		resultType = mergeTypesAllowUnion(successType, handlerType)
+	}
 	c.infer.set(expr, resultType)
 	return diags, resultType
 }
@@ -165,4 +217,30 @@ func (c *Checker) checkRethrowStatement(stmt *ast.RethrowStatement) []Diagnostic
 	}
 	c.infer.set(stmt, PrimitiveType{Kind: PrimitiveNil})
 	return nil
+}
+
+func isFailureType(c *Checker, t Type) bool {
+	if t == nil || isUnknownType(t) {
+		return false
+	}
+	if prim, ok := t.(PrimitiveType); ok && prim.Kind == PrimitiveNil {
+		return true
+	}
+	if iface, ok := t.(InterfaceType); ok && iface.InterfaceName == "Error" {
+		return true
+	}
+	if name, ok := structName(t); ok && name == "Error" {
+		return true
+	}
+	if ok, _ := c.typeImplementsInterface(t, InterfaceType{InterfaceName: "Error"}, nil); ok {
+		return true
+	}
+	if union, ok := t.(UnionLiteralType); ok {
+		for _, member := range union.Members {
+			if isFailureType(c, member) {
+				return true
+			}
+		}
+	}
+	return false
 }

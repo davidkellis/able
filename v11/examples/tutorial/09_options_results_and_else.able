@@ -12,7 +12,7 @@ impl Error for MathError {
 
 fn safe_div(num: i32, den: i32) -> MathError | i32 {
   if den == 0 { return MathError { message: "division by zero" } }
-  num / den
+  num // den
 }
 
 fn ratio_sum(values: Array i32) -> MathError | i32 {

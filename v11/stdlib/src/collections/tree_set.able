@@ -9,9 +9,10 @@ struct TreeSet T {
   map: TreeMap T bool
 }
 
-methods TreeSet T {
+methods TreeSet T where T: Ord + Clone {
   fn new() -> TreeSet T {
-    TreeSet { map: TreeMap.new() }
+    map: TreeMap T bool := TreeMap.new()
+    TreeSet { map: map }
   }
 
   fn len(self: Self) -> i32 { self.map.len() }
@@ -59,7 +60,7 @@ methods TreeSet T {
   }
 }
 
-impl Enumerable T for TreeSet T {
+impl Enumerable T for TreeSet T where T: Ord + Clone {
   fn each(self: Self, visit: T -> void) -> void {
     self.map.each_key(visit)
   }

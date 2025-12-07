@@ -54,7 +54,7 @@ const INFIX_OPERATOR_SETS = new Map<string, string[]>([
   ["comparison_expression", [">", "<", ">=", "<="]],
   ["shift_expression", ["<<", ">>"]],
   ["additive_expression", ["+", "-"]],
-  ["multiplicative_expression", ["*", "/", "%"]],
+  ["multiplicative_expression", ["*", "/", "//", "%%", "/%"]],
   ["exponent_expression", ["**"]],
 ]);
 
@@ -65,7 +65,6 @@ const ASSIGNMENT_OPERATORS = new Set([
   "-=",
   "*=",
   "/=",
-  "%=",
   "&=",
   "|=",
   "\\xor=",
@@ -356,6 +355,20 @@ function parsePostfixExpression(node: Node, source: string): Expression {
         const lambdaExpr = parseLambdaExpression(suffix, source);
         const typeArgs = pendingTypeArgs ?? undefined;
         pendingTypeArgs = null;
+        if (result.type === "AssignmentExpression") {
+          const rhs = result.right;
+          if (rhs.type === "FunctionCall" && !rhs.isTrailingLambda) {
+            rhs.arguments.push(lambdaExpr);
+            rhs.isTrailingLambda = true;
+            lastCall = rhs;
+          } else {
+            const callExpr = annotateExpressionNode(AST.functionCall(rhs, [], typeArgs, true), suffix);
+            callExpr.arguments.push(lambdaExpr);
+            result.right = callExpr;
+            lastCall = callExpr;
+          }
+          break;
+        }
         if (lastCall && !lastCall.isTrailingLambda) {
           lastCall.arguments.push(lambdaExpr);
           lastCall.isTrailingLambda = true;
@@ -405,23 +418,12 @@ function parsePipeChain(node: Node, source: string, operator: string): Expressio
     throw new MapperError("parser: empty pipe expression");
   }
   let result = parseExpression(node.namedChild(0), source);
-  let assignmentLeft: AssignmentExpression["left"] | undefined;
-  let assignmentOperator: AssignmentExpression["operator"] | undefined;
-  if (operator === "|>>" && node.namedChildCount > 1 && result.type === "AssignmentExpression") {
-    assignmentLeft = result.left;
-    assignmentOperator = result.operator;
-    result = result.right;
-  }
   for (let i = 1; i < node.namedChildCount; i++) {
     const stepNode = node.namedChild(i);
     const stepExpr = parseExpression(stepNode, source);
     result = annotateExpressionNode(AST.binaryExpression(operator, result, stepExpr), stepNode);
   }
-  const finalResult =
-    assignmentLeft && assignmentOperator
-      ? AST.assignmentExpression(assignmentOperator, assignmentLeft, result)
-      : result;
-  return annotateExpressionNode(finalResult, node);
+  return annotateExpressionNode(result, node);
 }
 
 
@@ -484,7 +486,22 @@ function parseAssignmentExpression(node: Node, source: string): Expression {
     throw new MapperError("parser: malformed assignment expression");
   }
   const left = parseAssignmentTarget(leftNode, source);
-  const right = parseExpression(rightNode, source);
+  let right = parseExpression(rightNode, source);
+  // Trailing lambdas after assignments should bind to the right-hand call.
+  const trailingLambdaNode = node.namedChildren.find(
+    (child) => child !== leftNode && child !== rightNode && child !== operatorNode && child.type === "lambda_expression",
+  );
+  if (trailingLambdaNode) {
+    const lambdaExpr = parseLambdaExpression(trailingLambdaNode, source);
+    if (right.type === "FunctionCall" && !right.isTrailingLambda) {
+      right.arguments.push(lambdaExpr);
+      right.isTrailingLambda = true;
+    } else {
+      const callExpr = annotateExpressionNode(AST.functionCall(right, [], undefined, true), trailingLambdaNode);
+      callExpr.arguments.push(lambdaExpr);
+      right = callExpr;
+    }
+  }
   const operatorText = sliceText(operatorNode, source).trim();
   if (!ASSIGNMENT_OPERATORS.has(operatorText)) {
     throw new MapperError(`parser: unsupported assignment operator ${operatorText}`);

@@ -22,7 +22,7 @@ import { evaluateMemberAccessExpression, evaluateStructDefinition, evaluateStruc
 import { evaluateLiteral } from "./literals";
 import { evaluateMapLiteral } from "./maps";
 import { evaluateIndexExpression, evaluateRangeExpression, evaluateBinaryExpression, evaluateUnaryExpression, evaluateTopicReferenceExpression } from "./operations";
-import { evaluateProcExpression, evaluateSpawnExpression, evaluateBreakpointExpression, evaluateStringInterpolation } from "./runtime_extras";
+import { evaluateProcExpression, evaluateSpawnExpression, evaluateBreakpointExpression, evaluateStringInterpolation, evaluateExternFunctionBody } from "./runtime_extras";
 import { evaluateIteratorLiteral, evaluateYieldStatement } from "./iterators";
 import { ProcContinuationContext } from "./proc_continuations";
 import type { V10Value } from "./values";
@@ -189,7 +189,7 @@ export function applyEvaluationAugmentations(cls: typeof InterpreterV10): void {
       case "ImplementationDefinition":
         return evaluateImplementationDefinition(this, node as AST.ImplementationDefinition, env);
       case "ExternFunctionBody":
-        return NIL;
+        return evaluateExternFunctionBody(this, node as AST.ExternFunctionBody);
       case "PreludeStatement":
         return NIL;
       default:

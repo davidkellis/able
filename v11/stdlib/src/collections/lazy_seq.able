@@ -178,3 +178,10 @@ impl Enumerable T for LazySeq T {
     mut_copy.for_each(visit)
   }
 }
+
+impl Iterable T for LazySeq T {
+  fn iterator(self: Self) -> (Iterator T) {
+    mut_copy := self
+    Iterator { gen => mut_copy.for_each(gen.yield) }
+  }
+}

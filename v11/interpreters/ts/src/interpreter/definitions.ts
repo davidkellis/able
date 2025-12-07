@@ -36,6 +36,7 @@ function insertFunction(
 
 export function evaluateUnionDefinition(ctx: InterpreterV10, node: AST.UnionDefinition, env: Environment): V10Value {
   env.define(node.id.name, { kind: "union_def", def: node });
+  ctx.unions.set(node.id.name, node);
   ctx.registerSymbol(node.id.name, { kind: "union_def", def: node });
   const qn = ctx.qualifiedName(node.id.name);
   if (qn) {
