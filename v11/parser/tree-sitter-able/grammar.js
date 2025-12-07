@@ -87,7 +87,6 @@ const ASSIGN_OPERATORS = [
   '-=',
   '*=',
   '/=',
-  '%=',
   '&=',
   '|=',
   '\\xor=',
@@ -733,7 +732,7 @@ module.exports = grammar({
       PREC.multiplicative,
       seq(
         $.unary_expression,
-        repeat(seq(choice("*", "/", "%"), $.unary_expression)),
+        repeat(seq(choice("//", "%%", "/%", "*", "/"), $.unary_expression)),
       ),
     ),
 

@@ -1,6 +1,7 @@
 package interpreter
 
 import (
+	"errors"
 	"fmt"
 
 	"able/interpreter10-go/pkg/ast"
@@ -65,25 +66,70 @@ func (i *Interpreter) evaluateStatement(node ast.Statement, env *runtime.Environ
 	case *ast.PreludeStatement:
 		return runtime.NilValue{}, nil
 	case *ast.ExternFunctionBody:
-		return runtime.NilValue{}, nil
+		return i.evaluateExternFunctionBody(n, env)
 	default:
 		return nil, fmt.Errorf("unsupported statement type: %s", n.NodeType())
 	}
 }
 
 func (i *Interpreter) evaluateBlock(block *ast.BlockExpression, env *runtime.Environment) (runtime.Value, error) {
-	scope := runtime.NewEnvironment(env)
-	var result runtime.Value = runtime.NilValue{}
-	for _, stmt := range block.Body {
-		val, err := i.evaluateStatement(stmt, scope)
-		if err != nil {
-			if _, ok := err.(returnSignal); ok {
+	payload := payloadFromState(env.RuntimeData())
+	if payload == nil {
+		scope := runtime.NewEnvironment(env)
+		var result runtime.Value = runtime.NilValue{}
+		for _, stmt := range block.Body {
+			val, err := i.evaluateStatement(stmt, scope)
+			if err != nil {
 				return nil, err
 			}
+			result = val
+		}
+		return result, nil
+	}
+
+	state := i.stateFromEnv(env)
+	if state == nil {
+		return runtime.NilValue{}, fmt.Errorf("async evaluation state missing")
+	}
+	if state.blockFrames == nil {
+		state.blockFrames = make(map[*ast.BlockExpression]*blockFrame)
+	}
+	frame := state.blockFrames[block]
+	if frame == nil {
+		frame = &blockFrame{
+			env:    runtime.NewEnvironment(env),
+			index:  0,
+			result: runtime.NilValue{},
+		}
+		state.blockFrames[block] = frame
+	}
+	scope := frame.env
+	if scope == nil {
+		scope = runtime.NewEnvironment(env)
+		frame.env = scope
+	}
+	result := frame.result
+	idx := frame.index
+	for idx < len(block.Body) {
+		stmt := block.Body[idx]
+		val, err := i.evaluateStatement(stmt, scope)
+		if err != nil {
+			if errors.Is(err, errSerialYield) {
+				nextIdx := idx
+				if !payload.awaitBlocked {
+					nextIdx++
+				}
+				frame.index = nextIdx
+				frame.result = result
+				return nil, err
+			}
+			delete(state.blockFrames, block)
 			return nil, err
 		}
 		result = val
+		idx++
 	}
+	delete(state.blockFrames, block)
 	return result, nil
 }
 

@@ -46,7 +46,16 @@ export function evaluateRescueExpression(ctx: InterpreterV10, node: AST.RescueEx
 
 export function evaluateOrElseExpression(ctx: InterpreterV10, node: AST.OrElseExpression, env: Environment): V10Value {
   try {
-    return ctx.evaluate(node.expression, env);
+    const value = ctx.evaluate(node.expression, env);
+    const failure = classifyOptionOrResultFailure(ctx, value);
+    if (!failure) {
+      return value;
+    }
+    const handlerEnv = new Environment(env);
+    if (failure.kind === "error" && node.errorBinding) {
+      handlerEnv.define(node.errorBinding.name, failure.value);
+    }
+    return ctx.evaluate(node.handler, handlerEnv);
   } catch (e) {
     if (e instanceof RaiseSignal) {
       const handlerEnv = new Environment(env);
@@ -60,6 +69,23 @@ export function evaluateOrElseExpression(ctx: InterpreterV10, node: AST.OrElseEx
     }
     throw e;
   }
+}
+
+type FailureKind = { kind: "nil" } | { kind: "error"; value: V10Value };
+
+function classifyOptionOrResultFailure(ctx: InterpreterV10, value: V10Value): FailureKind | null {
+  if (value.kind === "nil") return { kind: "nil" };
+  if (value.kind === "error") return { kind: "error", value };
+  if (value.kind === "interface_value" && value.interfaceName === "Error") {
+    return { kind: "error", value: value.value };
+  }
+  const typeName = ctx.getTypeNameForValue(value);
+  if (!typeName) return null;
+  const typeArgs = value.kind === "struct_instance" ? value.typeArguments : undefined;
+  if (ctx.typeImplementsInterface(typeName, "Error", typeArgs)) {
+    return { kind: "error", value };
+  }
+  return null;
 }
 
 export function evaluatePropagationExpression(ctx: InterpreterV10, node: AST.PropagationExpression, env: Environment): V10Value {

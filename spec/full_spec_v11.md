@@ -160,7 +160,7 @@ Defines how raw text is converted into tokens.
 *   **Character Set:** UTF-8 source files are recommended.
 *   **Identifiers:** Start with a letter (`a-z`, `A-Z`) or underscore (`_`), followed by letters, digits (`0-9`), or underscores. Typically `[a-zA-Z_][a-zA-Z0-9_]*`. Identifiers are case-sensitive. Package/directory names mapping to identifiers treat hyphens (`-`) as underscores. The identifier `_` is reserved as the wildcard pattern (see Section [5.2.2](#522-wildcard-pattern-_)) and for unbound type parameters (see Section [4.4](#44-reserved-identifier-_-in-types)). The tokens `@` and `@n` (e.g., `@1`, `@2`, ...) are reserved for expression placeholders and cannot be used as identifiers.
 *   **Keywords:** Reserved words that cannot be used as identifiers: `fn`, `struct`, `union`, `interface`, `impl`, `methods`, `type`, `package`, `import`, `dynimport`, `extern`, `prelude`, `private`, `Self`, `do`, `return`, `if`, `or`, `else`, `while`, `for`, `in`, `match`, `case`, `breakpoint`, `break`, `raise`, `rescue`, `ensure`, `rethrow`, `proc`, `spawn`, `nil`, `void`, `true`, `false`.
-*   **Reserved Tokens (non-identifiers):** `@` and numbered placeholders `@n` (e.g., `@1`, `@2`, ...), used for expression placeholder lambdas; `%` as the pipe-topic token usable only within the right-hand side of `|>`.
+*   **Reserved Tokens (non-identifiers):** `@` and numbered placeholders `@n` (e.g., `@1`, `@2`, ...), used for expression placeholder lambdas; `%` as the pipe-topic token usable only within the right-hand side of `|>` (there is **no** single-`%` arithmetic operator; modulo uses `%%`).
 *   **Operators:** Symbols with specific meanings (See Section [6.3](#63-operators)). Includes assignment/declaration operators `:=` and `=`.
 *   **Literals:** Source code representations of fixed values (See Section [4.2](#42-primitive-types) and Section [6.1](#61-literals)).
 *   **Comments:** Line comments start with `##` and continue to the end of the line. Block comment syntax is TBD.
@@ -1320,7 +1320,7 @@ Operators are evaluated in a specific order determined by precedence (higher bin
 | 12         | `-` (unary)           | Arithmetic Negation                     | Non-assoc     | (Effectively Right-to-left in practice)                 |
 | 12         | `!` (unary)           | **Logical NOT**                         | Non-assoc     | (Effectively Right-to-left in practice)                 |
 | 12         | `~` (unary)           | **Bitwise NOT (Complement)**            | Non-assoc     | (Effectively Right-to-left in practice)                 |
-| 11         | `*`, `/`, `%`         | Multiplication, Division, Remainder     | Left-to-right |                                                           |
+| 11         | `*`, `/`, `//`, `%%`, `/%` | Multiplication; float div; floor div; modulo; div-with-remainder | Left-to-right | `%%`/`/%` are the integer Euclidean pair; `%` alone is reserved for the pipe topic. |
 | 10         | `+`, `-` (binary)     | Addition, Subtraction                   | Left-to-right |                                                           |
 | 9          | `<<`, `>>`            | Left Shift, Right Shift                 | Left-to-right |                                                           |
 | 8          | `&` (binary)          | Bitwise AND                             | Left-to-right |                                                           |
@@ -1334,18 +1334,18 @@ Operators are evaluated in a specific order determined by precedence (higher bin
 | 1          | `\|>`                 | Pipe Forward                            | Left-to-right | Binds tighter than assignment; looser than `||`/`&&`      |
 | 0          | `:=`                  | **Declaration and Initialization**      | Right-to-left | See Section [5.1](#51-operators---)                     |
 | 0          | `=`                   | **Reassignment / Mutation**             | Right-to-left | See Section [5.1](#51-operators---)                     |
-| 0          | `+=`, `-=`, `*=`, `/=`, `%=`, `&=`, `|=`, `\xor=`, `<<=`, `>>=` | Compound Assignment                      | Right-to-left | Desugars to `a = a OP b` (no `^=`).                       |
+| 0          | `+=`, `-=`, `*=`, `/=`, `&=`, `|=`, `\xor=`, `<<=`, `>>=` | Compound Assignment                      | Right-to-left | Desugars to `a = a OP b` (no `^=`).                       |
 | -1         | `\|>>`                | Low-Precedence Pipe Forward             | Left-to-right | Binds looser than assignment (lowest)                    |
 
 *(Note: Precedence levels are relative; specific numerical values may vary but the order shown is based on Rust.)*
 
 #### 6.3.2. Operator Semantics
 
-*   **Arithmetic (`+`, `-`, `*`, `/`, `%`):** Standard math operations on numeric types. Division (`/`) or remainder (`%`) by zero **raises a runtime exception** (e.g., `DivisionByZeroError`). See Section [11.3](#113-exceptions-raise--rescue).
-    *   Numeric promotion (P1):
+*   **Arithmetic (`+`, `-`, `*`, `/`, `//`, `%%`, `/%`):**
+    *   Numeric promotion (P1) for `+`, `-`, `*`, `/`:
         1.  **Classify operands.** Each operand is either an integer (signed/unsigned, width 8–128) or a float (`f32`, `f64`). Literals adopt operand types per §6.1.1 before this step.
-        2.  **Floating precedence:** If either operand is floating-point, both convert to the wider float (if any side is `f64`, promote both to `f64`; otherwise promote to `f32`). The expression type is that float.
-        3.  **Integer-only rules:**
+        2.  **Floating precedence (`/` only):** If either operand is floating-point, both convert to the wider float (if any side is `f64`, promote both to `f64`; otherwise promote to `f32`). The expression type is that float.
+        3.  **Integer-only rules (`+`, `-`, `*`, `/` when both operands are ints and `Ratio` is not involved):**
             -   Identical signedness ⇒ promote both to the wider width while keeping signedness (e.g., `i16 + i64` → `i64`).
             -   Mixed signed/unsigned ⇒ promote both to a signed type whose width can represent both ranges. Compute `needed_bits = max(width(lhs)+1, width(rhs)+1)` and choose the smallest signed type ≥ `needed_bits` (preferring `i16`, `i32`, `i64`, `i128`). If no built-in width suffices, emit a compile-time error requesting an explicit big-int implementation or narrowing cast.
             -   When the unsigned operand already subsumes the signed range (e.g., `u128` with `i32`), the compiler may keep the unsigned width to avoid unnecessary sign changes. Otherwise the signed rule above applies.
@@ -1360,6 +1360,13 @@ Operators are evaluated in a specific order determined by precedence (higher bin
 
             precise = 1_000_000 + 0.5_f64  ## float wins ⇒ f64
             ```
+    *   **Division family:**
+        -   `/` (float division): follows promotion rules above; integer / integer yields `f64`. Division by zero **raises** `DivisionByZeroError`.
+        -   `//` (Euclidean floor division): integers only. `q = floor(a / b)`; zero divisor **raises** `DivisionByZeroError`. Examples: `5 // 3 = 1`; `-5 // 3 = -2`.
+        -   `%%` (Euclidean modulo): integers only. `r = a - b * floor(a / b)`; guarantees `0 <= r < |b|` when `b != 0`. Zero divisor **raises** `DivisionByZeroError`. Examples: `5 %% 3 = 2`; `-5 %% 3 = 1`.
+        -   `/%` (Euclidean div-with-remainder): integers only. Returns `DivMod<T> { quotient: T, remainder: T }` where `T` matches the operand integer type. Uses the same `q`/`r` as `//`/`%%`; zero divisor **raises** `DivisionByZeroError`.
+        -   `%` alone is **not** an operator (it remains the pipe-topic token); use `%%` instead of `%`.
+    *   **Ratio-aware operations:** The standard library provides a `Ratio` type (`num: i64`, `den: i64`, `den > 0`, gcd-reduced) plus `to_r()` conversions on integers/floats. Arithmetic on `Ratio` mirrors `+`, `-`, `*`, `/` with exact rational results; mixed Ratio/primitive operations follow the Ratio implementation rules (see §6.12.3).
     *   Integer overflow (O1):
         -   Checked by default. On overflow in `+`, `-`, `*`, raises a runtime exception `OverflowError { message: "integer overflow" }`.
         -   Division and remainder by zero already raise `DivisionByZeroError`.
@@ -1914,6 +1921,27 @@ Implementations must raise `IndexError` when out-of-range `set`/`push`/`pop` ope
 
 Implementation note: these helpers live in the Able stdlib and are backed by kernel array buffer hooks for allocation and slot access. Any existing native implementations in a runtime are transitional and not part of the kernel contract.
 
+#### 6.12.3. Numeric Helpers (Ratio, DivMod)
+
+**`Ratio`**
+
+-   Struct: `struct Ratio { num: i64, den: i64 }` with invariants:
+    -   `den > 0`.
+    -   `(num, den)` always reduced by `gcd(|num|, den)`.
+    -   Sign carried by `num` (negative ratios have `num < 0`).
+    -   Construction with `den == 0` is invalid and must raise `DivisionByZeroError`.
+-   Conversions:
+    -   `i*.to_r() -> Ratio` (exact; overflow to `i64` is an error).
+    -   `f*.to_r() -> !Ratio` (exact binary expansion; rejects `NaN`/`Inf`/overflow).
+-   Arithmetic: `+`, `-`, `*`, `/` defined on `Ratio` (and mixed Ratio/int/float where implemented) return reduced `Ratio` or raise `DivisionByZeroError` when dividing by zero.
+-   Equality/ordering: defined via cross-multiplication on reduced forms.
+
+**`DivMod`**
+
+-   Built-in generic struct surfaced by the prelude: `struct DivMod T { quotient: T, remainder: T }`.
+-   Produced by the `/%` operator on integer operands. `quotient`/`remainder` use the Euclidean pair: `q = floor(a / b)`, `r = a - b*q`, so `0 <= r < |b|` when `b != 0`.
+-   Division by zero raises `DivisionByZeroError`.
+
 ## 7. Functions
 
 This section defines the syntax and semantics for function definition, invocation, partial application, and related concepts like closures and anonymous functions in Able. Functions are first-class values.
@@ -2082,7 +2110,7 @@ Provides early exit from a function. (See also Section [11.1](#111-explicit-retu
 #### Syntax
 ```able
 return Expression
-return // Equivalent to 'return void' if function returns void
+return ## Equivalent to 'return void' if function returns void
 ```
 
 #### Semantics
@@ -2361,7 +2389,7 @@ if Condition1 { ExpressionList1 }
 [or Condition2 { ExpressionList2 }]
 ...
 [or ConditionN { ExpressionListN }]
-[or { DefaultExpressionList }] // Final 'or' without condition acts as 'else'
+[or { DefaultExpressionList }] ## Final 'or' without condition acts as 'else'
 ```
 
 -   **`if Condition1 { ExpressionList1 }`**: Required start. Executes `ExpressionList1` if `Condition1` (`bool`) is true.
@@ -2587,8 +2615,8 @@ Provide a concise way to create iterable sequences of integers.
 ##### Syntax
 
 ```able
-StartExpr .. EndExpr   // Inclusive range [StartExpr, EndExpr]
-StartExpr ... EndExpr  // Exclusive range [StartExpr, EndExpr)
+StartExpr .. EndExpr   ## Inclusive range [StartExpr, EndExpr]
+StartExpr ... EndExpr  ## Exclusive range [StartExpr, EndExpr)
 ```
 
 -   **`StartExpr`, `EndExpr`**: Integer expressions.
@@ -2655,7 +2683,7 @@ break ['LabelName] [ValueExpression]
     }                    ## If xs: Array T, result: ?T (N1/B1)
 
     result2 = breakpoint 'mix {
-      if c { break 'mix 1 } else { break 'mix "a" }
+      if c { break 'mix 1 } or { break 'mix "a" }
     }                    ## i32 | string (C1/B1)
     ```
 
@@ -3274,7 +3302,7 @@ Functions can return a value before reaching the end of their body using the `re
 #### Syntax
 ```able
 return Expression
-return // Equivalent to 'return void' if function returns void
+return ## Equivalent to 'return void' if function returns void
 ```
 
 -   **`return`**: Keyword initiating an early return.
@@ -3393,7 +3421,7 @@ Provides a way to handle the `nil` or `Error` case of an `Option` or `Result` im
 ##### Syntax
 ```able
 ExpressionReturningOptionOrResult else { BlockExpression }
-ExpressionReturningOptionOrResult else { |err| BlockExpression } // Capture error
+ExpressionReturningOptionOrResult else { |err| BlockExpression } ## Capture error
 ```
 
 ##### Semantics

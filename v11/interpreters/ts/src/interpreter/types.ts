@@ -166,6 +166,10 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
         if (name === "bool") return v.kind === "bool";
         if (name === "char") return v.kind === "char";
         if (name === "nil") return v.kind === "nil";
+        if (this.unions.has(name)) {
+          const unionDef = this.unions.get(name)!;
+          return (unionDef.variants ?? []).some(variant => this.matchesType(variant, v));
+        }
         if (INTEGER_KINDS.includes(name as IntegerKind)) {
           if (!isIntegerValue(v)) {
             return false;
@@ -202,6 +206,10 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
         }
         if (t.base.type === "SimpleTypeExpression") {
           const baseName = t.base.name.name;
+          if (this.unions.has(baseName)) {
+            const unionDef = this.unions.get(baseName)!;
+            return (unionDef.variants ?? []).some(variant => this.matchesType(variant, v));
+          }
           const valueTypeName = this.getTypeNameForValue(v);
           if (!valueTypeName || valueTypeName !== baseName) {
             if (this.interfaces.has(baseName)) {

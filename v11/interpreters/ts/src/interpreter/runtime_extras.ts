@@ -1,8 +1,48 @@
+import fs from "node:fs";
+
 import * as AST from "../ast";
 import { Environment } from "./environment";
 import { InterpreterV10 } from "./index";
-import { BreakLabelSignal } from "./signals";
+import { BreakLabelSignal, RaiseSignal } from "./signals";
+import { makeIntegerValue } from "./numeric";
 import type { V10Value } from "./values";
+
+type ExternHandler = (
+  ctx: InterpreterV10,
+  extern: AST.ExternFunctionBody,
+  arity: number,
+) => Extract<V10Value, { kind: "native_function" }>;
+
+const externHandlers: Partial<Record<AST.HostTarget, Record<string, ExternHandler>>> = {
+  typescript: {
+    now_nanos: (ctx, _extern, arity) =>
+      ctx.makeNativeFunction("now_nanos", arity, () => {
+        const millis = BigInt(Date.now());
+        return makeIntegerValue("i64", millis * 1_000_000n);
+      }),
+    read_text: (ctx, _extern, arity) =>
+      ctx.makeNativeFunction("read_text", arity, (interp, args) => {
+        const pathVal = args[0];
+        if (!pathVal || pathVal.kind !== "string") {
+          throw new Error("read_text expects a string path");
+        }
+        try {
+          const data = fs.readFileSync(pathVal.value, "utf8");
+          return { kind: "string", value: data };
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          throw new RaiseSignal(interp.makeRuntimeError(message));
+        }
+      }),
+  },
+};
+
+export function registerExternHandler(target: AST.HostTarget, name: string, handler: ExternHandler): void {
+  if (!externHandlers[target]) {
+    externHandlers[target] = {};
+  }
+  externHandlers[target]![name] = handler;
+}
 
 export function evaluateStringInterpolation(ctx: InterpreterV10, node: AST.StringInterpolation, env: Environment): V10Value {
   let out = "";
@@ -61,4 +101,44 @@ export function evaluateSpawnExpression(ctx: InterpreterV10, node: AST.SpawnExpr
   future.runner = () => ctx.runFuture(future);
   ctx.scheduleAsync(future.runner);
   return future;
+}
+
+export function evaluateExternFunctionBody(ctx: InterpreterV10, node: AST.ExternFunctionBody): V10Value {
+  const name = node.signature?.id?.name;
+  if (!name) {
+    return { kind: "nil", value: null };
+  }
+  if (node.target !== "typescript") {
+    return { kind: "nil", value: null };
+  }
+  const arity = Array.isArray(node.signature.params) ? node.signature.params.length : 0;
+  let binding: V10Value | null = null;
+  try {
+    binding = ctx.globals.get(name);
+  } catch {
+    // ignore; we'll install a handler or stub below
+  }
+
+  if (!binding) {
+    const handler = externHandlers[node.target]?.[name];
+    if (handler) {
+      binding = handler(ctx, node, arity);
+    }
+  }
+
+  if (!binding) {
+    binding = ctx.makeNativeFunction(name, arity, () => {
+      throw new RaiseSignal(ctx.makeRuntimeError(`extern function ${name} for ${node.target} is not implemented`));
+    });
+  }
+
+  if (!ctx.globals.has(name)) {
+    ctx.globals.define(name, binding);
+  }
+  const qualified = ctx.qualifiedName(name);
+  if (qualified && !ctx.globals.has(qualified)) {
+    ctx.globals.define(qualified, binding);
+  }
+  ctx.registerSymbol(name, binding);
+  return binding;
 }

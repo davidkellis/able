@@ -59,10 +59,17 @@ function evaluateBlockExpressionWithContinuation(
       result = ctx.evaluate(statement, blockEnv);
     } catch (err) {
       if (isContinuationYield(continuation, err)) {
-        if (
-          continuation.kind === "generator" &&
-          (statement.type === "YieldStatement" || isGenYieldCall(statement))
-        ) {
+        let advanceIndex = false;
+        if (continuation.kind === "generator" && (statement.type === "YieldStatement" || isGenYieldCall(statement))) {
+          advanceIndex = true;
+        } else if (continuation.kind === "proc") {
+          const asyncCtx = ctx.currentAsyncContext ? ctx.currentAsyncContext() : null;
+          const awaitBlocked = asyncCtx && asyncCtx.kind === "proc" ? asyncCtx.handle.awaitBlocked : false;
+          if (ctx.manualYieldRequested && !awaitBlocked) {
+            advanceIndex = true;
+          }
+        }
+        if (advanceIndex) {
           index += 1;
         }
         state.index = index;

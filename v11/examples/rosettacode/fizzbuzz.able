@@ -2,9 +2,9 @@ package rosettacode_fizzbuzz
 
 ## Rosetta Code — FizzBuzz (https://rosettacode.org/wiki/FizzBuzz)
 fn fizzbuzz_label(value: i32) -> string {
-  if value % 15 == 0 { "FizzBuzz" }
-  or value % 3 == 0 { "Fizz" }
-  or value % 5 == 0 { "Buzz" }
+  if value %% 15 == 0 { "FizzBuzz" }
+  or value %% 3 == 0 { "Fizz" }
+  or value %% 5 == 0 { "Buzz" }
   or { `${value}` }
 }
 

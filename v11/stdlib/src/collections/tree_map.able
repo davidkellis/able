@@ -12,9 +12,10 @@ struct TreeMap K V {
   entries: Array (TreeEntry K V)
 }
 
-methods TreeMap K V where K: Ord K + Clone, V: Clone {
+methods TreeMap K V where K: Ord + Clone, V: Clone {
   fn new() -> TreeMap K V {
-    TreeMap { entries: Array.new() }
+    entries: Array (TreeEntry K V) := Array.new()
+    TreeMap { entries: entries }
   }
 
   fn len(self: Self) -> i32 { self.entries.len() }

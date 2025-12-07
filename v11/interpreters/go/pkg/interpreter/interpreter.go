@@ -22,6 +22,7 @@ type evalState struct {
 	topicStack        []runtime.Value
 	topicUsage        []bool
 	placeholderStack  []placeholderFrame
+	blockFrames       map[*ast.BlockExpression]*blockFrame
 }
 
 func newEvalState() *evalState {
@@ -32,7 +33,14 @@ func newEvalState() *evalState {
 		topicStack:        make([]runtime.Value, 0),
 		topicUsage:        make([]bool, 0),
 		placeholderStack:  make([]placeholderFrame, 0),
+		blockFrames:       make(map[*ast.BlockExpression]*blockFrame),
 	}
+}
+
+type blockFrame struct {
+	env    *runtime.Environment
+	index  int
+	result runtime.Value
 }
 
 func (s *evalState) pushBreakpoint(label string) {
@@ -222,6 +230,7 @@ type Interpreter struct {
 	global               *runtime.Environment
 	inherentMethods      map[string]map[string]runtime.Value
 	interfaces           map[string]*runtime.InterfaceDefinitionValue
+	unionDefinitions     map[string]*runtime.UnionDefinitionValue
 	implMethods          map[string][]implEntry
 	genericImpls         []implEntry
 	rangeImplementations []rangeImplementation
@@ -260,6 +269,7 @@ type Interpreter struct {
 	nextHasherHandle int64
 
 	orderingStructs map[string]*runtime.StructDefinitionValue
+	divModStruct    *runtime.StructDefinitionValue
 
 	arrayReady      bool
 	arrayStates     map[int64]*arrayState
@@ -356,6 +366,7 @@ func NewWithExecutor(exec Executor) *Interpreter {
 		global:               runtime.NewEnvironment(nil),
 		inherentMethods:      make(map[string]map[string]runtime.Value),
 		interfaces:           make(map[string]*runtime.InterfaceDefinitionValue),
+		unionDefinitions:     make(map[string]*runtime.UnionDefinitionValue),
 		implMethods:          make(map[string][]implEntry),
 		genericImpls:         make([]implEntry, 0),
 		rangeImplementations: make([]rangeImplementation, 0),

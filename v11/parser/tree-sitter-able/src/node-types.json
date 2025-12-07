@@ -2819,11 +2819,6 @@
     }
   },
   {
-    "type": "topic_reference",
-    "named": true,
-    "fields": {}
-  },
-  {
     "type": "type_alias_definition",
     "named": true,
     "fields": {
@@ -3215,11 +3210,7 @@
     "named": false
   },
   {
-    "type": "%",
-    "named": false
-  },
-  {
-    "type": "%=",
+    "type": "%%",
     "named": false
   },
   {
@@ -3288,6 +3279,14 @@
   },
   {
     "type": "/",
+    "named": false
+  },
+  {
+    "type": "/%",
+    "named": false
+  },
+  {
+    "type": "//",
     "named": false
   },
   {
@@ -3594,6 +3593,10 @@
   {
     "type": "struct",
     "named": false
+  },
+  {
+    "type": "topic_reference",
+    "named": true
   },
   {
     "type": "true",

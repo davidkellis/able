@@ -11,11 +11,11 @@ struct BitSet {
 fn word_bits() -> i32 { 64 }
 
 fn word_index(bit: i32) -> i32 {
-  bit / word_bits()
+  bit // word_bits()
 }
 
 fn bit_mask(bit: i32) -> u64 {
-  1_u64 << (bit % word_bits())
+  1_u64 << (bit %% word_bits())
 }
 
 fn visit_bits(set: BitSet, visit: i32 -> void) -> void {
@@ -67,10 +67,11 @@ methods BitSet {
 
   fn flip(self: Self, bit: i32) -> void {
     if bit < 0 { return }
-    self.ensure_capacity(bit)
-    idx := word_index(bit)
-    value := self.words.get(idx)!
-    self.words.write_slot(idx, value \xor bit_mask(bit))
+    if self.contains(bit) {
+      self.reset(bit)
+    } else {
+      self.set(bit)
+    }
   }
 
   fn contains(self: Self, bit: i32) -> bool {

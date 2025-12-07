@@ -17,8 +17,8 @@ fn add_digits(lhs: Array i32, rhs: Array i32) -> Array i32 {
     right_digit := if i < right_len { rhs[i] } or { 0 }
 
     sum := left_digit + right_digit + carry
-    result.push(sum % 10)
-    carry = sum / 10
+    result.push(sum %% 10)
+    carry = sum // 10
 
     i = i + 1
   }

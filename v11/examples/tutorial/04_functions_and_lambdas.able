@@ -28,14 +28,14 @@ fn main() -> void {
   doubled := my_map(numbers, { n => n * 2 })
   print(`Doubled: ${doubled}`)
 
-  ##doubled1 := my_map(numbers) { n => n * 2 }
-  ##print(`Doubled: ${doubled1}`)
+  doubled1 := my_map(numbers) { n => n * 2 }
+  print(`Doubled: ${doubled1}`)
 
   doubled1 = numbers.my_map({ n => n * 2 })
   print(`Doubled: ${doubled1}`)
 
-  ##doubled2 = numbers.my_map { n => n * 2 }
-  ##print(`Doubled: ${doubled2}`)
+  doubled2 = numbers.my_map { n => n * 2 }
+  print(`Doubled: ${doubled2}`)
 
   add_five = { x => add(x, 5) }
   print(`7 + 5 = ${add_five(7)}`)

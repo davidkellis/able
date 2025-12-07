@@ -22,8 +22,6 @@ func binaryOpForAssignment(op ast.AssignmentOperator) (string, bool) {
 		return "*", true
 	case ast.AssignmentDiv:
 		return "/", true
-	case ast.AssignmentMod:
-		return "%", true
 	case ast.AssignmentBitAnd:
 		return "&", true
 	case ast.AssignmentBitOr:
@@ -39,12 +37,17 @@ func binaryOpForAssignment(op ast.AssignmentOperator) (string, bool) {
 	}
 }
 
-func applyBinaryOperator(op string, left runtime.Value, right runtime.Value) (runtime.Value, error) {
+func applyBinaryOperator(i *Interpreter, op string, left runtime.Value, right runtime.Value) (runtime.Value, error) {
+	if op == "\\xor" {
+		op = "^"
+	}
 	switch op {
-	case "+", "-", "*", "/":
+	case "+", "-", "*":
 		return evaluateArithmetic(op, left, right)
-	case "%":
-		return evaluateModulo(left, right)
+	case "/":
+		return evaluateDivision(left, right)
+	case "//", "%%", "/%":
+		return evaluateDivMod(i, op, left, right)
 	case "<", "<=", ">", ">=":
 		return evaluateComparison(op, left, right)
 	case "==":
@@ -58,46 +61,77 @@ func applyBinaryOperator(op string, left runtime.Value, right runtime.Value) (ru
 	}
 }
 
-func evaluateModulo(left runtime.Value, right runtime.Value) (runtime.Value, error) {
+func evaluateDivision(left runtime.Value, right runtime.Value) (runtime.Value, error) {
 	if !isNumericValue(left) || !isNumericValue(right) {
 		return nil, fmt.Errorf("Arithmetic requires numeric operands")
 	}
-	if lv, ok := left.(runtime.IntegerValue); ok {
-		if rv, ok := right.(runtime.IntegerValue); ok {
-			if rv.Val == nil || rv.Val.Sign() == 0 {
-				return nil, fmt.Errorf("division by zero")
-			}
-			targetType, err := promoteIntegerTypes(lv.TypeSuffix, rv.TypeSuffix)
-			if err != nil {
-				return nil, err
-			}
-			info, err := getIntegerInfo(targetType)
-			if err != nil {
-				return nil, err
-			}
-			result := new(big.Int).Rem(runtime.CloneBigInt(lv.Val), rv.Val)
-			if err := ensureFitsInteger(info, result); err != nil {
-				return nil, err
-			}
-			return runtime.IntegerValue{Val: result, TypeSuffix: targetType}, nil
+	_, leftIsFloat := left.(runtime.FloatValue)
+	_, rightIsFloat := right.(runtime.FloatValue)
+	if leftIsFloat || rightIsFloat {
+		targetFloatKind := floatResultKind(left, right)
+		leftFloat, err := numericToFloat(left)
+		if err != nil {
+			return nil, err
 		}
+		rightFloat, err := numericToFloat(right)
+		if err != nil {
+			return nil, err
+		}
+		if rightFloat == 0 {
+			return nil, fmt.Errorf("division by zero")
+		}
+		val := normalizeFloat(targetFloatKind, leftFloat/rightFloat)
+		return runtime.FloatValue{Val: val, TypeSuffix: targetFloatKind}, nil
 	}
-	leftFloat, err := numericToFloat(left)
-	if err != nil {
-		return nil, err
+	leftInt, ok := left.(runtime.IntegerValue)
+	if !ok {
+		return nil, fmt.Errorf("Arithmetic requires numeric operands")
 	}
-	rightFloat, err := numericToFloat(right)
-	if err != nil {
-		return nil, err
+	rightInt, ok := right.(runtime.IntegerValue)
+	if !ok {
+		return nil, fmt.Errorf("Arithmetic requires numeric operands")
 	}
+	if rightInt.Val == nil || rightInt.Val.Sign() == 0 {
+		return nil, fmt.Errorf("division by zero")
+	}
+	leftFloat := bigIntToFloat(leftInt.Val)
+	rightFloat := bigIntToFloat(rightInt.Val)
 	if rightFloat == 0 {
 		return nil, fmt.Errorf("division by zero")
 	}
-	targetFloatKind := floatResultKind(left, right)
-	return runtime.FloatValue{Val: normalizeFloat(targetFloatKind, math.Mod(leftFloat, rightFloat)), TypeSuffix: targetFloatKind}, nil
+	val := normalizeFloat(runtime.FloatF64, leftFloat/rightFloat)
+	return runtime.FloatValue{Val: val, TypeSuffix: runtime.FloatF64}, nil
+}
+
+func evaluateDivMod(i *Interpreter, op string, left runtime.Value, right runtime.Value) (runtime.Value, error) {
+	lv, ok := left.(runtime.IntegerValue)
+	if !ok {
+		return nil, fmt.Errorf("Arithmetic requires integer operands")
+	}
+	rv, ok := right.(runtime.IntegerValue)
+	if !ok {
+		return nil, fmt.Errorf("Arithmetic requires integer operands")
+	}
+	quotient, remainder, targetType, err := computeDivMod(lv, rv)
+	if err != nil {
+		return nil, err
+	}
+	switch op {
+	case "//":
+		return quotient, nil
+	case "%%":
+		return remainder, nil
+	case "/%":
+		return i.makeDivModResult(targetType, quotient, remainder)
+	default:
+		return nil, fmt.Errorf("unsupported div/mod operator %s", op)
+	}
 }
 
 func evaluateBitwise(op string, left runtime.Value, right runtime.Value) (runtime.Value, error) {
+	if op == "\\xor" {
+		op = "^"
+	}
 	lv, ok := left.(runtime.IntegerValue)
 	if !ok {
 		return nil, fmt.Errorf("Bitwise requires integer operands")
@@ -204,11 +238,6 @@ func evaluateArithmetic(op string, left runtime.Value, right runtime.Value) (run
 			result.Sub(lv, rv)
 		case "*":
 			result.Mul(lv, rv)
-		case "/":
-			if rv.Sign() == 0 {
-				return nil, fmt.Errorf("division by zero")
-			}
-			result.Quo(lv, rv)
 		default:
 			return nil, fmt.Errorf("unsupported arithmetic operator %s", op)
 		}
@@ -237,16 +266,56 @@ func evaluateArithmetic(op string, left runtime.Value, right runtime.Value) (run
 		val = leftFloat - rightFloat
 	case "*":
 		val = leftFloat * rightFloat
-	case "/":
-		if rightFloat == 0 {
-			return nil, fmt.Errorf("division by zero")
-		}
-		val = leftFloat / rightFloat
 	default:
 		return nil, fmt.Errorf("unsupported arithmetic operator %s", op)
 	}
 	val = normalizeFloat(targetFloatKind, val)
 	return runtime.FloatValue{Val: val, TypeSuffix: targetFloatKind}, nil
+}
+
+func computeDivMod(left runtime.IntegerValue, right runtime.IntegerValue) (runtime.IntegerValue, runtime.IntegerValue, runtime.IntegerType, error) {
+	if right.Val == nil || right.Val.Sign() == 0 {
+		return runtime.IntegerValue{}, runtime.IntegerValue{}, runtime.IntegerI32, fmt.Errorf("division by zero")
+	}
+	targetType, err := promoteIntegerTypes(left.TypeSuffix, right.TypeSuffix)
+	if err != nil {
+		return runtime.IntegerValue{}, runtime.IntegerValue{}, runtime.IntegerI32, err
+	}
+	info, err := getIntegerInfo(targetType)
+	if err != nil {
+		return runtime.IntegerValue{}, runtime.IntegerValue{}, runtime.IntegerI32, err
+	}
+	dividend := runtime.CloneBigInt(left.Val)
+	divisor := runtime.CloneBigInt(right.Val)
+	quotient, remainder, err := euclideanDivModBig(dividend, divisor)
+	if err != nil {
+		return runtime.IntegerValue{}, runtime.IntegerValue{}, runtime.IntegerI32, err
+	}
+	if err := ensureFitsInteger(info, quotient); err != nil {
+		return runtime.IntegerValue{}, runtime.IntegerValue{}, runtime.IntegerI32, err
+	}
+	if err := ensureFitsInteger(info, remainder); err != nil {
+		return runtime.IntegerValue{}, runtime.IntegerValue{}, runtime.IntegerI32, err
+	}
+	return runtime.IntegerValue{Val: quotient, TypeSuffix: targetType}, runtime.IntegerValue{Val: remainder, TypeSuffix: targetType}, targetType, nil
+}
+
+func euclideanDivModBig(dividend *big.Int, divisor *big.Int) (*big.Int, *big.Int, error) {
+	if divisor == nil || divisor.Sign() == 0 {
+		return nil, nil, fmt.Errorf("division by zero")
+	}
+	quotient := new(big.Int).Quo(dividend, divisor)
+	remainder := new(big.Int).Rem(dividend, divisor)
+	if remainder.Sign() < 0 {
+		if divisor.Sign() > 0 {
+			quotient.Sub(quotient, big.NewInt(1))
+			remainder.Add(remainder, divisor)
+		} else {
+			quotient.Add(quotient, big.NewInt(1))
+			remainder.Sub(remainder, divisor)
+		}
+	}
+	return quotient, remainder, nil
 }
 
 func valuesEqual(left runtime.Value, right runtime.Value) bool {
@@ -302,6 +371,59 @@ func valuesEqual(left runtime.Value, right runtime.Value) bool {
 		}
 	}
 	return false
+}
+
+func (i *Interpreter) makeDivModResult(kind runtime.IntegerType, quotient runtime.IntegerValue, remainder runtime.IntegerValue) (runtime.Value, error) {
+	def, err := i.ensureDivModStruct()
+	if err != nil {
+		return nil, err
+	}
+	fields := map[string]runtime.Value{
+		"quotient":  quotient,
+		"remainder": remainder,
+	}
+	typeArg := ast.NewSimpleTypeExpression(ast.NewIdentifier(string(kind)))
+	return &runtime.StructInstanceValue{
+		Definition:    def,
+		Fields:        fields,
+		TypeArguments: []ast.TypeExpression{typeArg},
+	}, nil
+}
+
+func (i *Interpreter) ensureDivModStruct() (*runtime.StructDefinitionValue, error) {
+	if i.divModStruct != nil {
+		return i.divModStruct, nil
+	}
+	if val, err := i.global.Get("DivMod"); err == nil {
+		if def, conv := toStructDefinitionValue(val, "DivMod"); conv == nil {
+			i.divModStruct = def
+			return def, nil
+		}
+	}
+	typeParam := ast.NewGenericParameter(ast.NewIdentifier("T"), nil)
+	quotientField := ast.NewStructFieldDefinition(ast.NewSimpleTypeExpression(ast.NewIdentifier("T")), ast.NewIdentifier("quotient"))
+	remainderField := ast.NewStructFieldDefinition(ast.NewSimpleTypeExpression(ast.NewIdentifier("T")), ast.NewIdentifier("remainder"))
+	definition := ast.NewStructDefinition(
+		ast.NewIdentifier("DivMod"),
+		[]*ast.StructFieldDefinition{quotientField, remainderField},
+		ast.StructKindNamed,
+		[]*ast.GenericParameter{typeParam},
+		nil,
+		false,
+	)
+	if _, err := i.evaluateStructDefinition(definition, i.global); err != nil {
+		return nil, err
+	}
+	val, err := i.global.Get("DivMod")
+	if err != nil {
+		return nil, err
+	}
+	structDef, conv := toStructDefinitionValue(val, "DivMod")
+	if conv != nil {
+		return nil, conv
+	}
+	i.divModStruct = structDef
+	return structDef, nil
 }
 
 func structDefName(def runtime.StructDefinitionValue) string {

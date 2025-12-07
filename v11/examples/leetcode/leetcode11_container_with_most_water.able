@@ -2,15 +2,15 @@ package leetcode11
 
 import able.collections.array
 
-fn max_area(heights: Array i32) -> i32 {
+fn max_area(heights: Array i32) -> i128 {
   left := 0
   right := heights.size() - 1
-  best := 0
+  best: i128 := 0
 
   while left < right {
-    width := right - left
-    h := heights[left]
-    if heights[right] < h {
+    width: i128 := right - left
+    h: i128 := heights[left]
+    if heights[right] < heights[left] {
       h = heights[right]
     }
     area := width * h

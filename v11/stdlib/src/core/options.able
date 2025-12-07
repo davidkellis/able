@@ -20,5 +20,4 @@ struct ResultUnwrapError { cause: Error }
 impl Error for ResultUnwrapError {
   fn message(self: Self) -> string { "called Result.unwrap() on Error" }
   fn cause(self: Self) -> ?Error { self.cause }
-
 }

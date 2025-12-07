@@ -33,7 +33,10 @@
           "value": "1"
         }
       ]
-    }
+    },
+    "typecheckDiagnostics": [
+      "typechecker: ../../../fixtures/ast/functions/ufcs_generic_overloads/source.able:7:1 typechecker: duplicate declaration 'describe' (previous declaration at ../../../../fixtures/ast/functions/ufcs_generic_overloads/source.able:4:1)"
+    ]
   },
   "entry": "module.json"
 }

@@ -88,6 +88,22 @@ const functionsFixtures: Fixture[] = [
     },
 
   {
+      name: "functions/bitwise_xor_operator",
+      module: AST.module([
+        AST.assign("lhs", AST.int(0b1010)),
+        AST.assign("rhs", AST.int(0b1100)),
+        AST.assign("mask", AST.bin("\\xor", AST.id("lhs"), AST.id("rhs"))),
+        AST.identifier("mask"),
+      ]),
+      manifest: {
+        description: "Bitwise xor operator is supported and returns integer result",
+        expect: {
+          result: { kind: "i32", value: 0b0110n },
+        },
+      },
+    },
+
+  {
       name: "functions/hkt_interface_impl_ok",
       module: AST.module([
         AST.interfaceDefinition(
@@ -270,6 +286,15 @@ const functionsFixtures: Fixture[] = [
               { kind: "i32", value: 205n },
             ],
           },
+          typecheckDiagnostics: [
+            "typechecker: ../../../fixtures/ast/functions/overload_resolution_success/source.able:4:1 typechecker: duplicate declaration 'pick' (previous declaration at ../../../../fixtures/ast/functions/overload_resolution_success/source.able:1:1)",
+            "typechecker: ../../../fixtures/ast/functions/overload_resolution_success/source.able:10:1 typechecker: duplicate declaration 'pick' (previous declaration at ../../../../fixtures/ast/functions/overload_resolution_success/source.able:1:1)",
+            "typechecker: ../../../fixtures/ast/functions/overload_resolution_success/source.able:28:7 typechecker: argument 1 has type i32, expected string",
+            "typechecker: ../../../fixtures/ast/functions/overload_resolution_success/source.able:28:15 typechecker: function expects 1 arguments, got 2",
+            "typechecker: ../../../fixtures/ast/functions/overload_resolution_success/source.able:28:45 typechecker: argument 1 has type bool, expected string",
+            "typechecker: ../../../fixtures/ast/functions/overload_resolution_success/source.able:28:73 typechecker: function expects 1 arguments, got 0",
+            "typechecker: ../../../fixtures/ast/functions/overload_resolution_success/source.able:28:86 typechecker: argument 1 has type string, expected i32",
+          ],
         },
       },
     },
@@ -295,6 +320,9 @@ const functionsFixtures: Fixture[] = [
         description: "Duplicate free function overloads surface an ambiguity error",
         expect: {
           errors: ["Ambiguous overload for collide"],
+          typecheckDiagnostics: [
+            "typechecker: ../../../fixtures/ast/functions/overload_function_ambiguity/source.able:4:1 typechecker: duplicate declaration 'collide' (previous declaration at ../../../../fixtures/ast/functions/overload_function_ambiguity/source.able:1:1)",
+          ],
         },
       },
     },
@@ -545,6 +573,9 @@ const functionsFixtures: Fixture[] = [
               { kind: "i32", value: 1n },
             ],
           },
+          typecheckDiagnostics: [
+            "typechecker: ../../../fixtures/ast/functions/ufcs_generic_overloads/source.able:7:1 typechecker: duplicate declaration 'describe' (previous declaration at ../../../../fixtures/ast/functions/ufcs_generic_overloads/source.able:4:1)",
+          ],
         },
       },
     },

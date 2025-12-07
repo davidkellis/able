@@ -57,7 +57,7 @@ func numericToFloat(val runtime.Value) (float64, error) {
 	}
 }
 
-func assignStructMember(inst *runtime.StructInstanceValue, member ast.Expression, value runtime.Value, operator ast.AssignmentOperator, binaryOp string, isCompound bool) (runtime.Value, error) {
+func assignStructMember(interp *Interpreter, inst *runtime.StructInstanceValue, member ast.Expression, value runtime.Value, operator ast.AssignmentOperator, binaryOp string, isCompound bool) (runtime.Value, error) {
 	if inst == nil {
 		return nil, fmt.Errorf("struct instance is nil")
 	}
@@ -77,7 +77,7 @@ func assignStructMember(inst *runtime.StructInstanceValue, member ast.Expression
 		if !isCompound {
 			return nil, fmt.Errorf("unsupported assignment operator %s", operator)
 		}
-		computed, err := applyBinaryOperator(binaryOp, current, value)
+		computed, err := applyBinaryOperator(interp, binaryOp, current, value)
 		if err != nil {
 			return nil, err
 		}
@@ -102,7 +102,7 @@ func assignStructMember(inst *runtime.StructInstanceValue, member ast.Expression
 			return nil, fmt.Errorf("unsupported assignment operator %s", operator)
 		}
 		current := inst.Positional[idx]
-		computed, err := applyBinaryOperator(binaryOp, current, value)
+		computed, err := applyBinaryOperator(interp, binaryOp, current, value)
 		if err != nil {
 			return nil, err
 		}

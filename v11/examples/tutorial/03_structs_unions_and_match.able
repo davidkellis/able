@@ -4,7 +4,7 @@ struct Point { x: f64, y: f64 }
 struct Circle { radius: f64 }
 struct Rectangle { width: f64, height: f64 }
 struct MoveTo { to: Point }
-union Shape = Circle, Rectangle, MoveTo
+union Shape = Circle | Rectangle | MoveTo
 
 fn area(shape: Shape) -> f64 {
   shape match {

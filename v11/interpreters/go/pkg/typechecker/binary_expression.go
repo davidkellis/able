@@ -122,7 +122,7 @@ func (c *Checker) checkBinaryExpression(env *Environment, expr *ast.BinaryExpres
 				resultType = resType
 			}
 		}
-	case "-", "*", "/", "%":
+	case "-", "*":
 		resType, err := resolveNumericBinaryType(leftType, rightType)
 		if err != "" {
 			diags = append(diags, Diagnostic{
@@ -133,6 +133,45 @@ func (c *Checker) checkBinaryExpression(env *Environment, expr *ast.BinaryExpres
 			break
 		}
 		resultType = resType
+	case "/":
+		resType, err := resolveDivisionBinaryType(leftType, rightType)
+		if err != "" {
+			diags = append(diags, Diagnostic{
+				Message: fmt.Sprintf("typechecker: '%s' %s", expr.Operator, err),
+				Node:    expr,
+			})
+			resultType = UnknownType{}
+			break
+		}
+		resultType = resType
+	case "//", "%%":
+		intType, err := resolveIntegerBinaryType(leftType, rightType)
+		if err != "" {
+			diags = append(diags, Diagnostic{
+				Message: fmt.Sprintf("typechecker: '%s' %s", expr.Operator, err),
+				Node:    expr,
+			})
+			resultType = UnknownType{}
+			break
+		}
+		resultType = intType
+	case "/%":
+		intType, err := resolveIntegerBinaryType(leftType, rightType)
+		if err != "" {
+			diags = append(diags, Diagnostic{
+				Message: fmt.Sprintf("typechecker: '%s' %s", expr.Operator, err),
+				Node:    expr,
+			})
+			resultType = UnknownType{}
+			break
+		}
+		resultType = AppliedType{
+			Base: StructType{
+				StructName: "DivMod",
+				TypeParams: []GenericParamSpec{{Name: "T"}},
+			},
+			Arguments: []Type{intType},
+		}
 	case ">", "<", ">=", "<=":
 		if isUnknownType(leftType) || isUnknownType(rightType) {
 			resultType = boolType
@@ -153,7 +192,7 @@ func (c *Checker) checkBinaryExpression(env *Environment, expr *ast.BinaryExpres
 	case "==", "!=":
 		// Equality comparisons are defined for all types; we only assign bool.
 		resultType = boolType
-	case "&", "|", "^":
+	case "&", "|", "^", "\\xor":
 		intType, err := resolveIntegerBinaryType(leftType, rightType)
 		if err != "" {
 			diags = append(diags, Diagnostic{
@@ -205,6 +244,22 @@ func resolveNumericBinaryType(left, right Type) (Type, string) {
 		return UnknownType{}, fmt.Sprintf("requires numeric operands, got %s and %s", typeName(left), typeName(right))
 	}
 	return resolveIntegerBinaryType(left, right)
+}
+
+func resolveDivisionBinaryType(left, right Type) (Type, string) {
+	if isUnknownType(left) || isUnknownType(right) {
+		return UnknownType{}, ""
+	}
+	if isFloatType(left) || isFloatType(right) {
+		if !isNumericType(left) || !isNumericType(right) {
+			return UnknownType{}, fmt.Sprintf("requires numeric operands, got %s and %s", typeName(left), typeName(right))
+		}
+		return resolveFloatBinaryType(left, right)
+	}
+	if !isNumericType(left) || !isNumericType(right) {
+		return UnknownType{}, fmt.Sprintf("requires numeric operands, got %s and %s", typeName(left), typeName(right))
+	}
+	return FloatType{Suffix: "f64"}, ""
 }
 
 func resolveFloatBinaryType(left, right Type) (Type, string) {

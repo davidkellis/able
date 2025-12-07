@@ -1,5 +1,7 @@
 package rosettacode_sieve_of_eratosthenes
 
+import able.collections.array
+
 ## Rosetta Code — Sieve of Eratosthenes (https://rosettacode.org/wiki/Sieve_of_Eratosthenes)
 fn sieve(limit: i32) -> Array i32 {
   if limit < 2 {

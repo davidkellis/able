@@ -37,9 +37,9 @@ impl Error for MutexPoisoned {
   fn cause(self: Self) -> ?Error { nil }
 }
 
-fn with_lock(m: Mutex, f: () -> T) -> T {
+fn with_lock<T>(m: Mutex, f: fn() -> T) -> T {
   m.lock()
-  f() ensure {
-    m.unlock()
-  }
+  result := f()
+  m.unlock()
+  result
 }
