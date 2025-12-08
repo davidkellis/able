@@ -100,7 +100,7 @@ func TestBinaryExpressionReportsOverflowWhenNoWidthAvailable(t *testing.T) {
 
 func TestBitwiseRequiresIntegerOperands(t *testing.T) {
 	checker := New()
-	expr := ast.Bin("&", ast.Int(1), ast.Str("bad"))
+	expr := ast.Bin(".&", ast.Int(1), ast.Str("bad"))
 	assign := ast.Assign(ast.ID("value"), expr)
 	module := ast.NewModule([]ast.Statement{assign}, nil, nil)
 
@@ -118,7 +118,7 @@ func TestBitwiseRequiresIntegerOperands(t *testing.T) {
 
 func TestBitwiseXorSupported(t *testing.T) {
 	checker := New()
-	expr := ast.Bin(`\xor`, ast.Int(1), ast.Int(2))
+	expr := ast.Bin(".^", ast.Int(1), ast.Int(2))
 	assign := ast.Assign(ast.ID("mask"), expr)
 	module := ast.NewModule([]ast.Statement{assign}, nil, nil)
 
@@ -127,7 +127,7 @@ func TestBitwiseXorSupported(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(diags) != 0 {
-		t.Fatalf("expected no diagnostics for \\xor, got %v", diags)
+		t.Fatalf("expected no diagnostics for .^, got %v", diags)
 	}
 }
 

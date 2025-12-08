@@ -2725,23 +2725,23 @@
         },
         {
           "type": "STRING",
-          "value": "&="
+          "value": ".&="
         },
         {
           "type": "STRING",
-          "value": "|="
+          "value": ".|="
         },
         {
           "type": "STRING",
-          "value": "\\xor="
+          "value": ".^="
         },
         {
           "type": "STRING",
-          "value": "<<="
+          "value": ".<<="
         },
         {
           "type": "STRING",
-          "value": ">>="
+          "value": ".>>="
         }
       ]
     },
@@ -2863,7 +2863,7 @@
               "members": [
                 {
                   "type": "STRING",
-                  "value": "|"
+                  "value": ".|"
                 },
                 {
                   "type": "SYMBOL",
@@ -2892,7 +2892,7 @@
               "members": [
                 {
                   "type": "STRING",
-                  "value": "\\xor"
+                  "value": ".^"
                 },
                 {
                   "type": "SYMBOL",
@@ -2921,7 +2921,7 @@
               "members": [
                 {
                   "type": "STRING",
-                  "value": "&"
+                  "value": ".&"
                 },
                 {
                   "type": "SYMBOL",
@@ -3037,11 +3037,11 @@
                   "members": [
                     {
                       "type": "STRING",
-                      "value": "<<"
+                      "value": ".<<"
                     },
                     {
                       "type": "STRING",
-                      "value": ">>"
+                      "value": ".>>"
                     }
                   ]
                 },
@@ -3165,7 +3165,7 @@
                   },
                   {
                     "type": "STRING",
-                    "value": "~"
+                    "value": ".~"
                   }
                 ]
               },

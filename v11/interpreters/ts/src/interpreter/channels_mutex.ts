@@ -93,6 +93,7 @@ function blockOnNilChannel(interp: InterpreterV10): V10Value {
   if (!ctx || ctx.kind !== "proc") {
     throw new Error("Nil channel operations must occur inside a proc");
   }
+  ctx.handle.awaitBlocked = true;
   const cancelled = interp.procCancelled() as BoolValue;
   if (cancelled.value) {
     return NIL;
@@ -110,6 +111,7 @@ function requireProcContext(interp: InterpreterV10, action: string): ProcHandleV
 }
 
 function scheduleProc(interp: InterpreterV10, handle: ProcHandleValue): void {
+  handle.awaitBlocked = false;
   if (!handle.runner) {
     handle.runner = () => interp.runProcHandle(handle);
   }
@@ -464,6 +466,7 @@ export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void
         if (state.capacity === 0 && hadSendWaiters === 0 && state.sendWaiters.length > 0) {
           notifyChannelAwaiters(interp, state, "receive");
         }
+        procHandle.awaitBlocked = true;
         interp.procYield();
         return NIL;
       }),
@@ -554,6 +557,7 @@ export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void
         if (state.capacity === 0 && hadWaiters === 0 && state.receiveWaiters.length > 0) {
           notifyChannelAwaiters(interp, state, "send");
         }
+        procHandle.awaitBlocked = true;
         interp.procYield();
         return NIL;
       }),
@@ -738,6 +742,7 @@ export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void
             state.waiters.push(procHandle);
           }
           (procHandle as any).waitingMutex = state;
+          procHandle.awaitBlocked = true;
           interp.procYield();
           return NIL;
         }
@@ -767,10 +772,7 @@ export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void
           if ((next as any).waitingMutex === state) {
             delete (next as any).waitingMutex;
           }
-          if (!next.runner) {
-            next.runner = () => interp.runProcHandle(next);
-          }
-          interp.scheduleAsync(next.runner);
+          scheduleProc(interp, next);
         }
 
         return NIL;

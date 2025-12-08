@@ -72,7 +72,7 @@ describe("typechecker numeric promotion", () => {
         AST.assignmentExpression(
           ":=",
           AST.identifier("value"),
-          AST.binaryExpression("&", AST.integerLiteral(1, "i32"), AST.stringLiteral("nope")),
+          AST.binaryExpression(".&", AST.integerLiteral(1, "i32"), AST.stringLiteral("nope")),
         ),
       ),
     ]);

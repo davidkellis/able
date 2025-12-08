@@ -1,4 +1,4 @@
 lhs := 10
 rhs := 12
-mask := lhs \xor rhs
+mask := lhs .^ rhs
 mask

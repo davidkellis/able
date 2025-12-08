@@ -46,7 +46,7 @@ func (c *Checker) checkUnaryExpression(env *Environment, expr *ast.UnaryExpressi
 		}
 		if !isIntegerType(operandType) {
 			diags = append(diags, Diagnostic{
-				Message: fmt.Sprintf("typechecker: unary '~' requires integer operand (got %s)", typeName(operandType)),
+				Message: fmt.Sprintf("typechecker: unary '%s' requires integer operand (got %s)", expr.Operator, typeName(operandType)),
 				Node:    expr,
 			})
 			resultType = UnknownType{}
@@ -192,7 +192,7 @@ func (c *Checker) checkBinaryExpression(env *Environment, expr *ast.BinaryExpres
 	case "==", "!=":
 		// Equality comparisons are defined for all types; we only assign bool.
 		resultType = boolType
-	case "&", "|", "^", "\\xor":
+	case ".&", "&", ".|", "|", ".^", "^":
 		intType, err := resolveIntegerBinaryType(leftType, rightType)
 		if err != "" {
 			diags = append(diags, Diagnostic{
@@ -203,7 +203,7 @@ func (c *Checker) checkBinaryExpression(env *Environment, expr *ast.BinaryExpres
 			break
 		}
 		resultType = intType
-	case "<<", ">>":
+	case ".<<", "<<", ".>>", ">>":
 		intType, err := resolveIntegerBinaryType(leftType, rightType)
 		if err != "" {
 			diags = append(diags, Diagnostic{

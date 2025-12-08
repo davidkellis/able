@@ -1319,13 +1319,13 @@ Operators are evaluated in a specific order determined by precedence (higher bin
 | 13         | `^`                   | Exponentiation                          | Right-to-left | Binds tighter than unary `-`. `-x^2` == `-(x^2)`          |
 | 12         | `-` (unary)           | Arithmetic Negation                     | Non-assoc     | (Effectively Right-to-left in practice)                 |
 | 12         | `!` (unary)           | **Logical NOT**                         | Non-assoc     | (Effectively Right-to-left in practice)                 |
-| 12         | `~` (unary)           | **Bitwise NOT (Complement)**            | Non-assoc     | (Effectively Right-to-left in practice)                 |
+| 12         | `.~` (unary)          | **Bitwise NOT (Complement)**            | Non-assoc     | (Effectively Right-to-left in practice)                 |
 | 11         | `*`, `/`, `//`, `%%`, `/%` | Multiplication; float div; floor div; modulo; div-with-remainder | Left-to-right | `%%`/`/%` are the integer Euclidean pair; `%` alone is reserved for the pipe topic. |
 | 10         | `+`, `-` (binary)     | Addition, Subtraction                   | Left-to-right |                                                           |
-| 9          | `<<`, `>>`            | Left Shift, Right Shift                 | Left-to-right |                                                           |
-| 8          | `&` (binary)          | Bitwise AND                             | Left-to-right |                                                           |
-| 7          | `\xor`               | Bitwise XOR                             | Left-to-right |                                                           |
-| 6          | `|` (binary)          | Bitwise OR                              | Left-to-right |                                                           |
+| 9          | `.<<`, `.>>`          | Left Shift, Right Shift                 | Left-to-right |                                                           |
+| 8          | `.&` (binary)         | Bitwise AND                             | Left-to-right |                                                           |
+| 7          | `.^`                  | Bitwise XOR                             | Left-to-right |                                                           |
+| 6          | `.|` (binary)         | Bitwise OR                              | Left-to-right |                                                           |
 | 6          | `>`, `<`, `>=`, `<=`    | Ordering Comparisons                    | Non-assoc     | Chaining requires explicit grouping (`(a<b) && (b<c)`) |
 | 5          | `==`, `!=`            | Equality, Inequality Comparisons        | Non-assoc     | Chaining requires explicit grouping                     |
 | 4          | `&&`                  | Logical AND (short-circuiting)          | Left-to-right |                                                           |
@@ -1384,12 +1384,12 @@ Operators are evaluated in a specific order determined by precedence (higher bin
         -   Type: union of operand types after flow; commonly `TypeOf(a) | TypeOf(b)`.
     *   `!x` (NOT): Returns a `bool` equal to `false` iff `x` is truthy, `true` iff `x` is falsy.
     *   Object identity is preserved for returned operands (no coercion); only `!` yields a `bool`.
-*   **Bitwise (`&`, `|`, `\xor`, `<<`, `>>`, `~`):**
-    *   `&`, `|`, `\xor`: Standard bitwise AND, OR, XOR on integer types (`i*`, `u*`).
-    *   `<<`, `>>` (Shift semantics, S1):
+*   **Bitwise (`.&`, `.|`, `.^`, `.<<`, `.>>`, `.~`):**
+    *   `.&`, `.|`, `.^`: Standard bitwise AND, OR, XOR on integer types (`i*`, `u*`).
+    *   `.<<`, `.>>` (Shift semantics, S1):
         -   Shift count must be in range `0..bits` for the left operand's type. Out-of-range shift counts raise `ShiftOutOfRangeError { message: "shift out of range" }`.
         -   Right shift of signed integers is arithmetic (sign-extending), matching Go semantics; right shift of unsigned integers is logical (zero-filling).
-    *   `~` (Bitwise NOT): Unary operator, performs bitwise complement on integer types.
+    *   `.~` (Bitwise NOT): Unary operator, performs bitwise complement on integer types.
 *   **Unary (`-`):** Arithmetic negation for numeric types.
 *   **Member Access (`.`):** Access fields/methods, UFCS, static methods. See Section [9.4](#94-method-call-syntax-resolution).
 *   **Function Call (`()`):** Invokes functions/methods. See Section [7.4](#74-function-invocation).
@@ -1429,7 +1429,7 @@ a = 5 |>> print    ## parses as (a = 5) first, then pipes the resulting value to
 
 #### 6.3.3. Overloading (Via Interfaces)
 
-Behavior for non-primitive types relies on implementing standard library interfaces (e.g., `Add`, `Sub`, `Mul`, `Div`, `Rem`, `Neg` (for unary `-`), `Not` (for bitwise `~`), `BitAnd`, `BitOr`, `BitXor`, `Shl`, `Shr`, `PartialEq`, `Eq`, `PartialOrd`, `Ord`, `Index`, `IndexMut`). These interfaces need definition (See Section [14](#14-standard-library-interfaces-conceptual--tbd)). Note that logical `!` is not overloaded.
+Behavior for non-primitive types relies on implementing standard library interfaces (e.g., `Add`, `Sub`, `Mul`, `Div`, `Rem`, `Neg` (for unary `-`), `Not` (for bitwise `.~`), `BitAnd`, `BitOr`, `BitXor`, `Shl`, `Shr`, `PartialEq`, `Eq`, `PartialOrd`, `Ord`, `Index`, `IndexMut`). These interfaces need definition (See Section [14](#14-standard-library-interfaces-conceptual--tbd)). Note that logical `!` is not overloaded.
 
 > **Operator participation rule:** User code cannot define new operators or overload existing ones directly. The only way for a custom type (e.g., a struct) to participate in an operator is to implement the corresponding standard interface (`Add`, `Eq`, `Index`, etc.). If the interface is not implemented (or not in scope), the operator is unavailable for that type. This keeps the grammar fixed and makes operator behavior explicitly tied to the shared interface contracts.
 
@@ -1438,8 +1438,8 @@ Operator-to-interface mapping (when operands are not primitives):
 - `+` → `Add`
 - `-` (binary) → `Sub`; `-` (unary) → `Neg`
 - `*` → `Mul`; `/` → `Div`; `%` → `Rem`
-- `&` → `BitAnd`; `|` → `BitOr`; `\xor` → `BitXor`
-- `<<` → `Shl`; `>>` → `Shr`; `~` → `Not` (bitwise complement)
+- `.&` → `BitAnd`; `.|` → `BitOr`; `.^` → `BitXor`
+- `.<<` → `Shl`; `.>>` → `Shr`; `.~` → `Not` (bitwise complement)
 - `==`, `!=` → `PartialEq`/`Eq`
 - `<`, `>`, `<=`, `>=` → `PartialOrd`/`Ord`
 - `[]` (indexing) → `Index`; `[]=` (mutation) → `IndexMut`
@@ -4357,12 +4357,12 @@ interface Shr Shift Result for Self { fn shr(self: Self, amount: Shift) -> Resul
 - `*` → `Mul`
 - `/` → `Div`
 - `%` → `Rem`
-- `&` → `BitAnd`
-- `|` → `BitOr`
-- `\xor` → `BitXor`
-- `<<` → `Shl`
-- `>>` → `Shr`
-- `~` → `Not`
+- `.&` → `BitAnd`
+- `.|` → `BitOr`
+- `.^` → `BitXor`
+- `.<<` → `Shl`
+- `.>>` → `Shr`
+- `.~` → `Not`
 
 Implementers pick whatever `Result`/`Shift` types make sense (often `Self`/`u32`), but all operands must be concrete types.
 
