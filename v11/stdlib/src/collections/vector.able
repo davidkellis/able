@@ -85,7 +85,7 @@ fn vector_node_population<T>(node: VectorNode T) -> i32 {
 }
 
 fn tail_offset_for(count: i32) -> i32 {
-  if count < branch_size() { 0 } else { ((count - 1) >> branch_bits()) << branch_bits() }
+  if count < branch_size() { 0 } else { ((count - 1) .>> branch_bits()) .<< branch_bits() }
 }
 
 fn tail_length_for(count: i32) -> i32 {
@@ -105,7 +105,7 @@ fn copy_values<T>(source: Array T, length: i32) -> Array T {
 
 fn vector_array_for_node<T>(node: VectorNode T, level: i32, index: i32) -> Array T {
   shift_amount := if level <= 0 { 0 } else { level }
-  slot_idx := (index >> shift_amount) & branch_mask()
+  slot_idx := (index .>> shift_amount) .& branch_mask()
   slot := node.slots.read_slot(slot_idx)
   if level <= branch_bits() {
     slot match {
@@ -147,7 +147,7 @@ fn new_vector_path<T>(level: i32, leaf: Array T) -> VectorNode T {
 }
 
 fn push_tail_recursive<T>(level: i32, parent: VectorNode T, count: i32, tail_node: Array T) -> VectorNode T {
-  idx := ((count >> level) & branch_mask())
+  idx := ((count .>> level) .& branch_mask())
   cloned := vector_node_clone(parent)
   if level == branch_bits() {
     cloned.slots.write_slot(idx, vector_slot_leaf(tail_node))
@@ -166,7 +166,7 @@ fn push_tail_recursive<T>(level: i32, parent: VectorNode T, count: i32, tail_nod
 
 fn assoc_node<T>(level: i32, node: VectorNode T, index: i32, value: T) -> VectorNode T {
   cloned := vector_node_clone(node)
-  slot_idx := (index >> level) & branch_mask()
+  slot_idx := (index .>> level) .& branch_mask()
   slot := node.slots.read_slot(slot_idx)
   if level == branch_bits() {
     leaf := slot match {
@@ -174,7 +174,7 @@ fn assoc_node<T>(level: i32, node: VectorNode T, index: i32, value: T) -> Vector
       case _ => Array.with_capacity(branch_size())
     }
     new_leaf := copy_values(leaf, branch_size())
-    new_leaf.write_slot(index & branch_mask(), value)
+    new_leaf.write_slot(index .& branch_mask(), value)
     cloned.slots.write_slot(slot_idx, vector_slot_leaf(new_leaf))
   } else {
     child := slot match {
@@ -188,7 +188,7 @@ fn assoc_node<T>(level: i32, node: VectorNode T, index: i32, value: T) -> Vector
 }
 
 fn pop_tail_recursive<T>(level: i32, node: VectorNode T, count: i32) -> VectorNode T {
-  idx := ((count >> level) & branch_mask())
+  idx := ((count .>> level) .& branch_mask())
   cloned := vector_node_clone(node)
   if level > branch_bits() {
     slot := node.slots.read_slot(idx)
@@ -231,10 +231,10 @@ methods Vector T {
   fn get(self: Self, index: i32) -> ?T {
     if index < 0 || index >= self.count { return nil }
     if index >= self.tail_offset() {
-      return self.tail.read_slot(index & branch_mask())
+      return self.tail.read_slot(index .& branch_mask())
     } else {
       chunk := vector_array_for(self, index)
-      return chunk.read_slot(index & branch_mask())
+      return chunk.read_slot(index .& branch_mask())
     }
   }
 
@@ -248,7 +248,7 @@ methods Vector T {
     if index < 0 || index >= self.count { return self }
     if index >= self.tail_offset() {
       new_tail := copy_values(self.tail, self.tail_len)
-      new_tail.write_slot(index & branch_mask(), value)
+      new_tail.write_slot(index .& branch_mask(), value)
       Vector { count: self.count, shift: self.shift, root: self.root, tail: new_tail, tail_len: self.tail_len }
     } else {
       new_root := assoc_node(self.shift, self.root, index, value)
@@ -265,7 +265,7 @@ methods Vector T {
       tail_node := copy_values(self.tail, branch_size())
       new_shift := self.shift
       new_root := self.root
-      if ((self.count >> branch_bits()) > (1 << self.shift)) {
+      if ((self.count .>> branch_bits()) > (1 .<< self.shift)) {
         elevated := vector_node_new()
         elevated.slots.write_slot(0, vector_slot_node(self.root))
         elevated.slots.write_slot(1, vector_slot_node(new_vector_path(self.shift, tail_node)))

@@ -11,15 +11,15 @@ import (
 var infixOperatorSets = map[string][]string{
 	"logical_or_expression":        {"||"},
 	"logical_and_expression":       {"&&"},
-	"bitwise_or_expression":        {"|"},
-	"bitwise_xor_expression":       {"\\xor"},
-	"bitwise_and_expression":       {"&"},
+	"bitwise_or_expression":        {".|"},
+	"bitwise_xor_expression":       {".^"},
+	"bitwise_and_expression":       {".&"},
 	"equality_expression":          {"==", "!="},
 	"comparison_expression":        {">", "<", ">=", "<="},
-	"shift_expression":             {"<<", ">>"},
+	"shift_expression":             {".<<", ".>>"},
 	"additive_expression":          {"+", "-"},
 	"multiplicative_expression":    {"*", "/", "//", "%%", "/%"},
-	"exponent_expression":          {"**"},
+	"exponent_expression":          {"^"},
 	"topic_placeholder_expression": {"%"},
 }
 
@@ -30,11 +30,11 @@ var assignmentOperatorMap = map[string]ast.AssignmentOperator{
 	"-=":     ast.AssignmentSub,
 	"*=":     ast.AssignmentMul,
 	"/=":     ast.AssignmentDiv,
-	"&=":     ast.AssignmentBitAnd,
-	"|=":     ast.AssignmentBitOr,
-	"\\xor=": ast.AssignmentBitXor,
-	"<<=":    ast.AssignmentShiftL,
-	">>=":    ast.AssignmentShiftR,
+	".&=":    ast.AssignmentBitAnd,
+	".|=":    ast.AssignmentBitOr,
+	".^=":    ast.AssignmentBitXor,
+	".<<=":   ast.AssignmentShiftL,
+	".>>=":   ast.AssignmentShiftR,
 }
 
 func parseExpressionInternal(ctx *parseContext, node *sitter.Node) (ast.Expression, error) {
@@ -610,7 +610,7 @@ func (ctx *parseContext) parseUnaryExpression(node *sitter.Node) (ast.Expression
 		return annotateExpression(ast.NewUnaryExpression(ast.UnaryOperatorNegate, operand), node), nil
 	case "!":
 		return annotateExpression(ast.NewUnaryExpression(ast.UnaryOperatorNot, operand), node), nil
-	case "~":
+	case ".~":
 		return annotateExpression(ast.NewUnaryExpression(ast.UnaryOperatorBitNot, operand), node), nil
 	default:
 		return nil, fmt.Errorf("parser: unsupported unary operator %q", operatorText)

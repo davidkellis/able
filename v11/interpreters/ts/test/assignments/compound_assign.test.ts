@@ -8,7 +8,7 @@ describe("v11 interpreter - compound assignments", () => {
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("x"), AST.integerLiteral(2)));
     I.evaluate(AST.assignmentExpression("+=", AST.identifier("x"), AST.integerLiteral(3)));
     expect(I.evaluate(AST.identifier("x"))).toEqual({ kind: 'i32', value: 5n });
-    I.evaluate(AST.assignmentExpression("<<=", AST.identifier("x"), AST.integerLiteral(1)));
+    I.evaluate(AST.assignmentExpression(".<<=", AST.identifier("x"), AST.integerLiteral(1)));
     expect(I.evaluate(AST.identifier("x"))).toEqual({ kind: 'i32', value: 10n });
   });
 
@@ -30,5 +30,4 @@ describe("v11 interpreter - compound assignments", () => {
     expect(a1).toEqual({ kind: 'i32', value: 8n });
   });
 });
-
 

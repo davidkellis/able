@@ -198,11 +198,11 @@ export function arrayPattern(elements: Pattern[], restPattern?: Identifier | Wil
 // Expressions
 // -----------------------------------------------------------------------------
 
-export interface UnaryExpression extends AstNode { type: 'UnaryExpression'; operator: '-' | '!' | '~'; operand: Expression; }
+export interface UnaryExpression extends AstNode { type: 'UnaryExpression'; operator: '-' | '!' | '.~'; operand: Expression; }
 export interface BinaryExpression extends AstNode { type: 'BinaryExpression'; operator: string; left: Expression; right: Expression; }
 export interface FunctionCall extends AstNode { type: 'FunctionCall'; callee: Expression; arguments: Expression[]; typeArguments?: TypeExpression[]; isTrailingLambda: boolean; }
 export interface BlockExpression extends AstNode { type: 'BlockExpression'; body: Statement[]; }
-export interface AssignmentExpression extends AstNode { type: 'AssignmentExpression'; operator: ':=' | '=' | '+=' | '-=' | '*=' | '/=' | '&=' | '|=' | '\\xor=' | '<<=' | '>>='; left: Pattern | MemberAccessExpression | IndexExpression; right: Expression; }
+export interface AssignmentExpression extends AstNode { type: 'AssignmentExpression'; operator: ':=' | '=' | '+=' | '-=' | '*=' | '/=' | '.&=' | '.|=' | '.^=' | '.<<=' | '.>>='; left: Pattern | MemberAccessExpression | IndexExpression; right: Expression; }
 export interface RangeExpression extends AstNode { type: 'RangeExpression'; start: Expression; end: Expression; inclusive: boolean; }
 export interface StringInterpolation extends AstNode { type: 'StringInterpolation'; parts: (StringLiteral | Expression)[]; }
 export interface MemberAccessExpression extends AstNode {

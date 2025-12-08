@@ -47,15 +47,15 @@ export function registerExpressionParsers(ctx: MutableParseContext): void {
 const INFIX_OPERATOR_SETS = new Map<string, string[]>([
   ["logical_or_expression", ["||"]],
   ["logical_and_expression", ["&&"]],
-  ["bitwise_or_expression", ["|"]],
-  ["bitwise_xor_expression", ["\\xor"]],
-  ["bitwise_and_expression", ["&"]],
+  ["bitwise_or_expression", [".|"]],
+  ["bitwise_xor_expression", [".^"]],
+  ["bitwise_and_expression", [".&"]],
   ["equality_expression", ["==", "!="]],
   ["comparison_expression", [">", "<", ">=", "<="]],
-  ["shift_expression", ["<<", ">>"]],
+  ["shift_expression", [".<<", ".>>"]],
   ["additive_expression", ["+", "-"]],
   ["multiplicative_expression", ["*", "/", "//", "%%", "/%"]],
-  ["exponent_expression", ["**"]],
+  ["exponent_expression", ["^"]],
 ]);
 
 const ASSIGNMENT_OPERATORS = new Set([
@@ -65,11 +65,11 @@ const ASSIGNMENT_OPERATORS = new Set([
   "-=",
   "*=",
   "/=",
-  "&=",
-  "|=",
-  "\\xor=",
-  "<<=",
-  ">>=",
+  ".&=",
+  ".|=",
+  ".^=",
+  ".<<=",
+  ".>>=",
 ]);
 function parseExpression(node: Node | null | undefined, source: string): Expression {
   if (!node) {
@@ -562,8 +562,8 @@ function parseUnaryExpression(node: Node, source: string): Expression {
     return parseExpression(operandNode, source);
   }
   const operand = parseExpression(operandNode, source);
-  if (operatorText === "-" || operatorText === "!" || operatorText === "~") {
-    return annotateExpressionNode(AST.unaryExpression(operatorText as "-" | "!" | "~", operand), node);
+  if (operatorText === "-" || operatorText === "!" || operatorText === ".~") {
+    return annotateExpressionNode(AST.unaryExpression(operatorText as "-" | "!" | ".~", operand), node);
   }
   throw new MapperError(`parser: unsupported unary operator ${operatorText}`);
 }

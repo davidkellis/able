@@ -50,7 +50,7 @@ export function evaluateUnaryExpression(ctx: InterpreterV10, node: AST.UnaryExpr
     if (v.kind === "bool") return { kind: "bool", value: !v.value };
     throw new Error("Unary '!' requires boolean operand");
   }
-  if (node.operator === "~") {
+  if (node.operator === ".~") {
     return applyBitwiseNot(v);
   }
   throw new Error(`Unknown unary operator ${node.operator}`);
@@ -144,7 +144,7 @@ export function evaluateBinaryExpression(ctx: InterpreterV10, node: AST.BinaryEx
     throw new Error("Unsupported comparison operands");
   }
 
-  if (["&","|","\\xor","<<",">>"] .includes(b.operator)) {
+  if ([".&",".|",".^",".<<",".>>"].includes(b.operator)) {
     return applyBitwiseBinary(b.operator, left, right);
   }
 
@@ -246,7 +246,7 @@ export function applyOperationsAugmentations(cls: typeof InterpreterV10): void {
       return applyArithmeticBinary(op, left, right);
     }
 
-    if (["&","|","\\xor","<<",">>"] .includes(op)) {
+    if ([".&",".|",".^",".<<",".>>"].includes(op)) {
       return applyBitwiseBinary(op, left, right);
     }
 

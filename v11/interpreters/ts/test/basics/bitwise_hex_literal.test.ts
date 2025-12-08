@@ -39,7 +39,7 @@ describe("v11 interpreter - bitwise hex literal parsing", () => {
 package main
 
 fn main() -> i32 {
-  0xE0 & 0xff
+  0xE0 .& 0xff
 }
 `.trimStart(),
         "utf8",

@@ -3214,15 +3214,7 @@
     "named": false
   },
   {
-    "type": "&",
-    "named": false
-  },
-  {
     "type": "&&",
-    "named": false
-  },
-  {
-    "type": "&=",
     "named": false
   },
   {
@@ -3270,11 +3262,55 @@
     "named": false
   },
   {
+    "type": ".&",
+    "named": false
+  },
+  {
+    "type": ".&=",
+    "named": false
+  },
+  {
     "type": "..",
     "named": false
   },
   {
     "type": "...",
+    "named": false
+  },
+  {
+    "type": ".<<",
+    "named": false
+  },
+  {
+    "type": ".<<=",
+    "named": false
+  },
+  {
+    "type": ".>>",
+    "named": false
+  },
+  {
+    "type": ".>>=",
+    "named": false
+  },
+  {
+    "type": ".^",
+    "named": false
+  },
+  {
+    "type": ".^=",
+    "named": false
+  },
+  {
+    "type": ".|",
+    "named": false
+  },
+  {
+    "type": ".|=",
+    "named": false
+  },
+  {
+    "type": ".~",
     "named": false
   },
   {
@@ -3314,14 +3350,6 @@
     "named": false
   },
   {
-    "type": "<<",
-    "named": false
-  },
-  {
-    "type": "<<=",
-    "named": false
-  },
-  {
     "type": "<=",
     "named": false
   },
@@ -3346,14 +3374,6 @@
     "named": false
   },
   {
-    "type": ">>",
-    "named": false
-  },
-  {
-    "type": ">>=",
-    "named": false
-  },
-  {
     "type": "?",
     "named": false
   },
@@ -3371,14 +3391,6 @@
   },
   {
     "type": "[",
-    "named": false
-  },
-  {
-    "type": "\\xor",
-    "named": false
-  },
-  {
-    "type": "\\xor=",
     "named": false
   },
   {
@@ -3635,10 +3647,6 @@
     "named": false
   },
   {
-    "type": "|=",
-    "named": false
-  },
-  {
     "type": "|>",
     "named": false
   },
@@ -3652,10 +3660,6 @@
   },
   {
     "type": "}",
-    "named": false
-  },
-  {
-    "type": "~",
     "named": false
   }
 ]

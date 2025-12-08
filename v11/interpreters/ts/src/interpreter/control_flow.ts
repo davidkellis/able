@@ -60,16 +60,23 @@ function evaluateBlockExpressionWithContinuation(
     } catch (err) {
       if (isContinuationYield(continuation, err)) {
         let advanceIndex = false;
+        let repeatStatement = false;
+        let awaitBlocked = false;
         if (continuation.kind === "generator" && (statement.type === "YieldStatement" || isGenYieldCall(statement))) {
           advanceIndex = true;
         } else if (continuation.kind === "proc") {
+          if (typeof (continuation as any).consumeRepeatCurrentStatement === "function") {
+            repeatStatement = (continuation as any).consumeRepeatCurrentStatement();
+          }
           const asyncCtx = ctx.currentAsyncContext ? ctx.currentAsyncContext() : null;
-          const awaitBlocked = asyncCtx && asyncCtx.kind === "proc" ? asyncCtx.handle.awaitBlocked : false;
-          if (ctx.manualYieldRequested && !awaitBlocked) {
+          awaitBlocked = asyncCtx && asyncCtx.kind === "proc" ? asyncCtx.handle.awaitBlocked : false;
+          if (!repeatStatement && ctx.manualYieldRequested && !awaitBlocked) {
             advanceIndex = true;
           }
         }
-        if (advanceIndex) {
+        if (continuation.kind === "proc" && repeatStatement && ctx.manualYieldRequested && !awaitBlocked) {
+          index = 0;
+        } else if (advanceIndex) {
           index += 1;
         }
         state.index = index;
@@ -152,6 +159,9 @@ function evaluateIfExpressionWithContinuation(
         } catch (err) {
           if (isContinuationYield(continuation, err)) {
             continuation.markStatementIncomplete();
+            if (continuation.kind === "proc") {
+              continuation.clearIfState(node);
+            }
           } else {
             continuation.clearIfState(node);
           }
@@ -166,6 +176,9 @@ function evaluateIfExpressionWithContinuation(
         } catch (err) {
           if (isContinuationYield(continuation, err)) {
             continuation.markStatementIncomplete();
+            if (continuation.kind === "proc") {
+              continuation.clearIfState(node);
+            }
           } else {
             continuation.clearIfState(node);
           }
@@ -193,6 +206,9 @@ function evaluateIfExpressionWithContinuation(
         } catch (err) {
           if (isContinuationYield(continuation, err)) {
             continuation.markStatementIncomplete();
+            if (continuation.kind === "proc") {
+              continuation.clearIfState(node);
+            }
           } else {
             continuation.clearIfState(node);
           }
@@ -208,6 +224,9 @@ function evaluateIfExpressionWithContinuation(
         } catch (err) {
           if (isContinuationYield(continuation, err)) {
             continuation.markStatementIncomplete();
+            if (continuation.kind === "proc") {
+              continuation.clearIfState(node);
+            }
           } else {
             continuation.clearIfState(node);
           }

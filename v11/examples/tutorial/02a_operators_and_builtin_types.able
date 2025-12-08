@@ -38,10 +38,10 @@ fn numeric_operators(a: i32, b: i32) -> void {
 fn bitwise_operators() -> void {
   mask_a := 0b1010_i32
   mask_b := 0b1100_i32
-  anded := mask_a & mask_b
-  ored := mask_a | mask_b
-  xored := mask_a \xor mask_b
-  shifted := 1_i32 << 3
+  anded := mask_a .& mask_b
+  ored := mask_a .| mask_b
+  xored := mask_a .^ mask_b
+  shifted := 1_i32 .<< 3
   print(`bitwise AND: ${anded}, OR: ${ored}, XOR: ${xored}, shift: ${shifted}`)
 }
 

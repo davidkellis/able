@@ -452,7 +452,7 @@ func (i *Interpreter) evaluateUnaryExpression(expr *ast.UnaryExpression, env *ru
 			return runtime.BoolValue{Val: !bv.Val}, nil
 		}
 		return nil, fmt.Errorf("unary '!' expects bool, got %T", operand)
-	case "~":
+	case "~", ".~":
 		switch v := operand.(type) {
 		case runtime.IntegerValue:
 			if strings.HasPrefix(string(v.TypeSuffix), "u") {
@@ -471,7 +471,7 @@ func (i *Interpreter) evaluateUnaryExpression(expr *ast.UnaryExpression, env *ru
 			neg := new(big.Int).Neg(new(big.Int).Add(v.Val, big.NewInt(1)))
 			return runtime.IntegerValue{Val: neg, TypeSuffix: v.TypeSuffix}, nil
 		default:
-			return nil, fmt.Errorf("unary '~' not supported for %T", operand)
+			return nil, fmt.Errorf("unary '%s' not supported for %T", expr.Operator, operand)
 		}
 	default:
 		return nil, fmt.Errorf("unsupported unary operator %s", expr.Operator)

@@ -612,11 +612,11 @@ function getBinaryPrecedence(operator: string): number {
       return 1;
     case "&&":
       return 2;
-    case "|":
+    case ".|":
       return 3;
-    case "\\xor":
+    case ".^":
       return 4;
-    case "&":
+    case ".&":
       return 5;
     case "==":
     case "!=":
@@ -626,8 +626,8 @@ function getBinaryPrecedence(operator: string): number {
     case ">=":
     case "<=":
       return 7;
-    case "<<":
-    case ">>":
+    case ".<<":
+    case ".>>":
       return 8;
     case "+":
     case "-":

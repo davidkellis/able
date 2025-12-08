@@ -42,14 +42,11 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 ## TODO (working queue: tackle in order, move completed items to LOG.md)
 
 ### v11 Spec Delta Implementation Plan
-- [ ] **Correct examples**: Fix broken examples in the v11/examples directory.
-   - help me use the ablets and ablego scripts in the v11 directory to run the example programs in v11/examples/* and let's start identifying which ones don't work and then figure out what we'll need to do to correct them or fix the interpreters so that the example programs work. I want to identify problems first and capture those items in the PLAN and start working through why they don't work and getting things corrected where they're broken, expanding stdlib to make things work, etc.
-   - identify broken examples that are due to missing stdlib features
-   - identify broken examples that are due to language features from the v11 spec that are not yet implemented yet or are currently not working properly
-      - these issues are the highest priority and should be addressed first
-   - Latest ablets sweep (TS): no current blockers after fixing concurrency + extern tutorial samples.
-   - Latest ablego sweep (Go): no current blockers after fixing concurrency + extern tutorial samples.
-   - Recent reruns: `leetcode7_reverse_integer.able` and `leetcode9_palindrome_number.able` now succeed in TS+Go after rebuilding the tree-sitter grammar for `//`/`%%`/`/%`.
+- [ ] **Bitwise operator refactor (dot-prefixed set)**: switch bitwise ops to `.&`/`.|`/.`^`/`.<<`/`.>>`/`.~`.
+   - Grammar/AST/parser: add the new tokens and remove legacy `&`/`|`/`\xor`/`<<`/`>>`/`~` bindings for bitwise semantics.
+   - Runtimes (TS/Go): route dot-prefixed bitwise operators through the existing bitwise execution paths; update compound assignments to the dot-prefixed forms.
+   - Typecheckers: accept and type rules for the dot-prefixed operators; migrate diagnostics to the new spellings.
+   - Fixtures/examples/tests: update tutorials, parity fixtures (e.g., `functions/bitwise_xor_operator`), and any unit tests to the new operator forms; regenerate exported fixtures and baselines.
 - [ ] **Stdlib numeric conversions:** Add explicit conversion helpers on numeric types (e.g., to_f64, to_i64) in the stdlib and wire through TS/Go so examples/tests can rely on them instead of the nonexistent `as` cast.
 - [ ] **Numeric operators & Ratio/DivMod rollout:** Implement the finalized operator set (`/` float, `//` floor div, `%%` modulo, `/%` -> `DivMod`, no bare `%`) and the `Ratio`/`to_r()` surface across spec/runtime/typechecker/stdlib.
    - Grammar/AST/parser: add tokens for `//`, `%%`, `/%`; remove `%` as modulo; ensure pipeline `%` topic stays reserved.

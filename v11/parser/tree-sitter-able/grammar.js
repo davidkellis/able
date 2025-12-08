@@ -87,11 +87,11 @@ const ASSIGN_OPERATORS = [
   '-=',
   '*=',
   '/=',
-  '&=',
-  '|=',
-  '\\xor=',
-  '<<=',
-  '>>=',
+  '.&=',
+  '.|=',
+  '.^=',
+  '.<<=',
+  '.>>=',
 ];
 
 const DECIMAL_DIGITS = "[0-9](?:_?[0-9])*";
@@ -676,7 +676,7 @@ module.exports = grammar({
       PREC.bit_or,
       seq(
         $.bitwise_xor_expression,
-        repeat(seq("|", $.bitwise_xor_expression)),
+        repeat(seq(".|", $.bitwise_xor_expression)),
       ),
     ),
 
@@ -684,7 +684,7 @@ module.exports = grammar({
       PREC.bit_xor,
       seq(
         $.bitwise_and_expression,
-        repeat(seq("\\xor", $.bitwise_and_expression)),
+        repeat(seq(".^", $.bitwise_and_expression)),
       ),
     ),
 
@@ -692,7 +692,7 @@ module.exports = grammar({
       PREC.bit_and,
       seq(
         $.equality_expression,
-        repeat(seq("&", $.equality_expression)),
+        repeat(seq(".&", $.equality_expression)),
       ),
     ),
 
@@ -716,7 +716,7 @@ module.exports = grammar({
       PREC.shift,
       seq(
         $.additive_expression,
-        repeat(seq(choice("<<", ">>"), $.additive_expression)),
+        repeat(seq(choice(".<<", ".>>"), $.additive_expression)),
       ),
     ),
 
@@ -740,7 +740,7 @@ module.exports = grammar({
       prec.right(
         PREC.unary,
         seq(
-          choice("-", "!", "~"),
+          choice("-", "!", ".~"),
           $.unary_expression,
         ),
       ),

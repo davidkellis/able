@@ -258,7 +258,7 @@ export function applyNumericUnaryMinus(value: V10Value): V10Value {
 export function applyBitwiseNot(value: V10Value): V10Value {
   const classified = classifyNumeric(value);
   if (!classified || classified.tag !== "integer") {
-    throw new Error("Unary '~' requires integer operand");
+    throw new Error("Unary '.~' requires integer operand");
   }
   const pattern = bitPattern(classified.value, classified.info);
   const inverted = pattern ^ classified.info.mask;
@@ -440,6 +440,7 @@ export function numericEquals(left: V10Value, right: V10Value): boolean {
 }
 
 export function applyBitwiseBinary(op: string, left: V10Value, right: V10Value): V10Value {
+  const normalized = op.startsWith(".") ? op.slice(1) : op;
   const leftClass = classifyNumeric(left);
   const rightClass = classifyNumeric(right);
   if (!leftClass || !rightClass || leftClass.tag !== "integer" || rightClass.tag !== "integer") {
@@ -451,20 +452,20 @@ export function applyBitwiseBinary(op: string, left: V10Value, right: V10Value):
   if (!promotion) {
     throw new Error("Bitwise operands exceed supported widths");
   }
-  if (op === "<<" || op === ">>") {
-    return applyShift(op, leftClass.value, rightClass.value, promotion);
+  if (normalized === "<<" || normalized === ">>") {
+    return applyShift(normalized, leftClass.value, rightClass.value, promotion);
   }
   const leftPattern = bitPattern(leftClass.value, promotion);
   const rightPattern = bitPattern(rightClass.value, promotion);
   let resultPattern: bigint;
-  switch (op) {
+  switch (normalized) {
     case "&":
       resultPattern = leftPattern & rightPattern;
       break;
     case "|":
       resultPattern = leftPattern | rightPattern;
       break;
-    case "\\xor":
+    case "^":
       resultPattern = leftPattern ^ rightPattern;
       break;
     default:

@@ -731,23 +731,23 @@ fn utf8_decode(bytes: Array u8, offset: i32, length: i32) -> Utf8DecodeResult | 
     case nil => encoding_error("unexpected end of UTF-8 sequence", offset),
     case raw: u8 => {
       first := raw
-      if (first & 0x80) == 0 {
+      if (first .& 0x80) == 0 {
         return Utf8DecodeResult {
           codepoint: __able_char_from_codepoint(first),
           next_offset: offset + 1
         }
       }
 
-      if (first & 0xE0) == 0xC0 {
-        return decode_multibyte(bytes, offset, length, first & 0x1F, 1, 0x80, offset + 1, 0x110000)
+      if (first .& 0xE0) == 0xC0 {
+        return decode_multibyte(bytes, offset, length, first .& 0x1F, 1, 0x80, offset + 1, 0x110000)
       }
 
-      if (first & 0xF0) == 0xE0 {
-        return decode_multibyte(bytes, offset, length, first & 0x0F, 2, 0x800, offset + 1, 0x110000)
+      if (first .& 0xF0) == 0xE0 {
+        return decode_multibyte(bytes, offset, length, first .& 0x0F, 2, 0x800, offset + 1, 0x110000)
       }
 
-      if (first & 0xF8) == 0xF0 {
-        return decode_multibyte(bytes, offset, length, first & 0x07, 3, 0x10000, offset + 1, 0x110000)
+      if (first .& 0xF8) == 0xF0 {
+        return decode_multibyte(bytes, offset, length, first .& 0x07, 3, 0x10000, offset + 1, 0x110000)
       }
 
       encoding_error("invalid UTF-8 leading byte", offset)
@@ -778,10 +778,10 @@ fn decode_multibyte(
       case nil => { return encoding_error("unexpected end of UTF-8 sequence", offset) },
       case raw: u8 => {
         value := raw
-        if (value & 0xC0) != 0x80 {
+        if (value .& 0xC0) != 0x80 {
           return encoding_error("invalid UTF-8 continuation byte", offset)
         }
-        codepoint = (codepoint << 6) | (value & 0x3F)
+        codepoint = (codepoint .<< 6) .| (value .& 0x3F)
       }
     }
 
@@ -837,18 +837,18 @@ fn char_to_utf8(value: char) -> Array u8 {
     bytes.push(code)
   } else {
     if code <= 0x7FF {
-      bytes.push(((code >> 6) | 0xC0))
-      bytes.push(((code & 0x3F) | 0x80))
+      bytes.push(((code .>> 6) .| 0xC0))
+      bytes.push(((code .& 0x3F) .| 0x80))
     } else {
       if code <= 0xFFFF {
-        bytes.push(((code >> 12) | 0xE0))
-        bytes.push((((code >> 6) & 0x3F) | 0x80))
-        bytes.push(((code & 0x3F) | 0x80))
+        bytes.push(((code .>> 12) .| 0xE0))
+        bytes.push((((code .>> 6) .& 0x3F) .| 0x80))
+        bytes.push(((code .& 0x3F) .| 0x80))
       } else {
-        bytes.push(((code >> 18) | 0xF0))
-        bytes.push((((code >> 12) & 0x3F) | 0x80))
-        bytes.push((((code >> 6) & 0x3F) | 0x80))
-        bytes.push(((code & 0x3F) | 0x80))
+        bytes.push(((code .>> 18) .| 0xF0))
+        bytes.push((((code .>> 12) .& 0x3F) .| 0x80))
+        bytes.push((((code .>> 6) .& 0x3F) .| 0x80))
+        bytes.push(((code .& 0x3F) .| 0x80))
       }
     }
   }

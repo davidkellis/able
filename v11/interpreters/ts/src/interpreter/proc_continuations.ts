@@ -11,6 +11,7 @@ import type {
 
 export class ProcContinuationContext implements ContinuationContext {
   readonly kind = "proc" as const;
+  private repeatCurrentStatement = false;
 
   private blockStates: WeakMap<AST.BlockExpression, BlockState> = new WeakMap();
   private forLoopStates: WeakMap<AST.ForLoop, ForLoopState> = new WeakMap();
@@ -21,7 +22,13 @@ export class ProcContinuationContext implements ContinuationContext {
   private awaitStates: WeakMap<AST.AwaitExpression, unknown> = new WeakMap();
 
   markStatementIncomplete(): void {
-    // Proc continuations resume from the same statement automatically via stored state.
+    this.repeatCurrentStatement = true;
+  }
+
+  consumeRepeatCurrentStatement(): boolean {
+    const repeat = this.repeatCurrentStatement;
+    this.repeatCurrentStatement = false;
+    return repeat;
   }
 
   getBlockState(node: AST.BlockExpression): BlockState | undefined {
@@ -109,6 +116,7 @@ export class ProcContinuationContext implements ContinuationContext {
   }
 
   reset(): void {
+    this.repeatCurrentStatement = false;
     this.blockStates = new WeakMap();
     this.forLoopStates = new WeakMap();
     this.whileLoopStates = new WeakMap();

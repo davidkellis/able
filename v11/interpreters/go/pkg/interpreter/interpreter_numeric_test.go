@@ -20,12 +20,12 @@ func TestBitshiftRangeDiagnostics(t *testing.T) {
 	}{
 		{
 			name: "NegativeShift",
-			expr: ast.Bin("<<", ast.Int(1), ast.Int(-1)),
+			expr: ast.Bin(".<<", ast.Int(1), ast.Int(-1)),
 			msg:  "shift out of range",
 		},
 		{
 			name: "LargeShift",
-			expr: ast.Bin(">>", ast.Int(1), ast.Int(32)),
+			expr: ast.Bin(".>>", ast.Int(1), ast.Int(32)),
 			msg:  "shift out of range",
 		},
 	}
@@ -44,9 +44,9 @@ func TestBitwiseRequiresIntegerOperands(t *testing.T) {
 	interp := New()
 	env := interp.GlobalEnvironment()
 	cases := []ast.Expression{
-		ast.Bin("&", ast.Int(1), ast.Flt(1.0)),
-		ast.Bin("|", ast.Flt(1.0), ast.Int(1)),
-		ast.Bin("^", ast.Flt(1.0), ast.Flt(1.0)),
+		ast.Bin(".&", ast.Int(1), ast.Flt(1.0)),
+		ast.Bin(".|", ast.Flt(1.0), ast.Int(1)),
+		ast.Bin(".^", ast.Flt(1.0), ast.Flt(1.0)),
 	}
 	for idx, expr := range cases {
 		_, err := interp.evaluateExpression(expr, env)
@@ -378,8 +378,8 @@ func TestBitshiftRangeChecks(t *testing.T) {
 		name string
 		expr ast.Expression
 	}{
-		{"ShiftLeftOutOfRange", ast.Bin("<<", ast.Int(1), ast.Int(32))},
-		{"ShiftRightOutOfRange", ast.Bin(">>", ast.Int(1), ast.Int(33))},
+		{"ShiftLeftOutOfRange", ast.Bin(".<<", ast.Int(1), ast.Int(32))},
+		{"ShiftRightOutOfRange", ast.Bin(".>>", ast.Int(1), ast.Int(33))},
 	}
 	for _, tc := range cases {
 		if _, err := interp.evaluateExpression(tc.expr, env); err == nil {

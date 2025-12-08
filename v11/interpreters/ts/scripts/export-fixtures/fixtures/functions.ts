@@ -92,7 +92,7 @@ const functionsFixtures: Fixture[] = [
       module: AST.module([
         AST.assign("lhs", AST.int(0b1010)),
         AST.assign("rhs", AST.int(0b1100)),
-        AST.assign("mask", AST.bin("\\xor", AST.id("lhs"), AST.id("rhs"))),
+        AST.assign("mask", AST.bin(".^", AST.id("lhs"), AST.id("rhs"))),
         AST.identifier("mask"),
       ]),
       manifest: {
