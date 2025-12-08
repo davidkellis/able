@@ -36,7 +36,7 @@ fn hash_bool(value: bool) -> i32 {
 
 fn hash_i32(value: i32) -> i32 {
   normalized := normalize_hash(value)
-  mixed := normalized + (normalized >> 16)
+  mixed := normalized + (normalized .>> 16)
   normalize_hash(mixed)
 }
 
@@ -48,7 +48,7 @@ fn hash_string(value: string) -> i32 {
       case byte: u8 => {
         if state > 2000000000 { state = state - 1500000000 }
         state = state + byte
-        state = state + (state >> 5)
+        state = state + (state .>> 5)
       },
       case _: IteratorEnd => { break },
       case _ => { break }
@@ -157,7 +157,7 @@ methods HashMap K V where K: Hash + Eq K {
 
     capacity := self.capacity()
     mask := capacity - 1
-    index := hash & mask
+    index := hash .& mask
     first_tombstone := -1
 
     loop {
@@ -188,7 +188,7 @@ methods HashMap K V where K: Hash + Eq K {
         }
       }
 
-      index = (index + 1) & mask
+      index = (index + 1) .& mask
     }
   }
 
@@ -196,7 +196,7 @@ methods HashMap K V where K: Hash + Eq K {
     if self.len == 0 { return -1 }
     capacity := self.capacity()
     mask := capacity - 1
-    index := hash & mask
+    index := hash .& mask
 
     loop {
       slot := self.entries.read_slot(index)
@@ -214,7 +214,7 @@ methods HashMap K V where K: Hash + Eq K {
         }
       }
 
-      index = (index + 1) & mask
+      index = (index + 1) .& mask
     }
   }
 
@@ -360,11 +360,11 @@ impl IndexMut K V for HashMap K V where K: Hash + Eq K {
 fn next_power_of_two(value: i32) -> i32 {
   if value <= 1 { return 1 }
   v := value - 1
-  v = v | (v >> 1)
-  v = v | (v >> 2)
-  v = v | (v >> 4)
-  v = v | (v >> 8)
-  v = v | (v >> 16)
+  v = v .| (v .>> 1)
+  v = v .| (v .>> 2)
+  v = v .| (v .>> 4)
+  v = v .| (v .>> 8)
+  v = v .| (v .>> 16)
   v + 1
 }
 

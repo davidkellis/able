@@ -23,24 +23,43 @@ func binaryOpForAssignment(op ast.AssignmentOperator) (string, bool) {
 	case ast.AssignmentDiv:
 		return "/", true
 	case ast.AssignmentBitAnd:
-		return "&", true
+		return ".&", true
 	case ast.AssignmentBitOr:
-		return "|", true
+		return ".|", true
 	case ast.AssignmentBitXor:
-		return "^", true
+		return ".^", true
 	case ast.AssignmentShiftL:
-		return "<<", true
+		return ".<<", true
 	case ast.AssignmentShiftR:
-		return ">>", true
+		return ".>>", true
 	default:
 		return "", false
 	}
 }
 
-func applyBinaryOperator(i *Interpreter, op string, left runtime.Value, right runtime.Value) (runtime.Value, error) {
-	if op == "\\xor" {
-		op = "^"
+func normalizeOperator(op string) string {
+	switch op {
+	case ".&":
+		return "&"
+	case ".|":
+		return "|"
+	case ".^":
+		return "^"
+	case ".<<":
+		return "<<"
+	case ".>>":
+		return ">>"
+	case ".~":
+		return "~"
+	case "\\xor":
+		return "^"
+	default:
+		return op
 	}
+}
+
+func applyBinaryOperator(i *Interpreter, op string, left runtime.Value, right runtime.Value) (runtime.Value, error) {
+	op = normalizeOperator(op)
 	switch op {
 	case "+", "-", "*":
 		return evaluateArithmetic(op, left, right)
@@ -129,9 +148,7 @@ func evaluateDivMod(i *Interpreter, op string, left runtime.Value, right runtime
 }
 
 func evaluateBitwise(op string, left runtime.Value, right runtime.Value) (runtime.Value, error) {
-	if op == "\\xor" {
-		op = "^"
-	}
+	op = normalizeOperator(op)
 	lv, ok := left.(runtime.IntegerValue)
 	if !ok {
 		return nil, fmt.Errorf("Bitwise requires integer operands")

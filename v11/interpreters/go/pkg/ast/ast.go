@@ -333,7 +333,7 @@ type UnaryOperator string
 const (
 	UnaryOperatorNegate UnaryOperator = "-"
 	UnaryOperatorNot    UnaryOperator = "!"
-	UnaryOperatorBitNot UnaryOperator = "~"
+	UnaryOperatorBitNot UnaryOperator = ".~"
 )
 
 type UnaryExpression struct {
@@ -451,11 +451,11 @@ const (
 	AssignmentSub     AssignmentOperator = "-="
 	AssignmentMul     AssignmentOperator = "*="
 	AssignmentDiv     AssignmentOperator = "/="
-	AssignmentBitAnd  AssignmentOperator = "&="
-	AssignmentBitOr   AssignmentOperator = "|="
-	AssignmentBitXor  AssignmentOperator = `\xor=`
-	AssignmentShiftL  AssignmentOperator = "<<="
-	AssignmentShiftR  AssignmentOperator = ">>="
+	AssignmentBitAnd  AssignmentOperator = ".&="
+	AssignmentBitOr   AssignmentOperator = ".|="
+	AssignmentBitXor  AssignmentOperator = ".^="
+	AssignmentShiftL  AssignmentOperator = ".<<="
+	AssignmentShiftR  AssignmentOperator = ".>>="
 )
 
 type AssignmentTarget interface {

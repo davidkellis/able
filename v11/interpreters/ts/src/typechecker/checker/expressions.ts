@@ -604,12 +604,12 @@ function inferUnaryExpression(ctx: ExpressionContext, expression: AST.UnaryExpre
         ctx.report("typechecker: unary '!' requires boolean operand", expression);
       }
       return primitiveType("bool");
-    case "~":
+    case ".~":
       if (operandType.kind === "unknown") {
         return unknownType;
       }
       if (!isIntegerPrimitiveType(operandType)) {
-        ctx.report(`typechecker: unary '~' requires integer operand (got ${describe(operandType)})`, expression);
+        ctx.report(`typechecker: unary '.~' requires integer operand (got ${describe(operandType)})`, expression);
         return unknownType;
       }
       return operandType;
@@ -682,11 +682,11 @@ function inferBinaryExpression(ctx: ExpressionContext, expression: AST.BinaryExp
     }
     return primitiveType("bool");
   }
-  if (["&", "|", "\\xor"].includes(operator)) {
+  if ([".&", ".|", ".^"].includes(operator)) {
     const result = resolveIntegerBinaryType(left, right);
     return applyNumericResolution(ctx, expression, operator, result);
   }
-  if (["<<", ">>"].includes(operator)) {
+  if ([".<<", ".>>"].includes(operator)) {
     const result = resolveIntegerBinaryType(left, right);
     return applyNumericResolution(ctx, expression, operator, result);
   }

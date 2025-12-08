@@ -23,19 +23,19 @@ Pulled from §6.3.1. Highest precedence is listed first.
 | 15   | `.`                                                                        | Member access                        |
 | 14   | `()`, `[]`, postfix `!`                                                   | Calls, indexing, error propagation   |
 | 13   | `^`                                                                        | Exponentiation (right-associative)   |
-| 12   | unary `-`, `!`, `~`                                                       | Arithmetic / logical / bitwise NOT   |
+| 12   | unary `-`, `!`, `.~`                                                      | Arithmetic / logical / bitwise NOT   |
 | 11   | `*`, `/`, `//`, `%%`, `/%`                                                | Multiplicative                       |
 | 10   | `+`, `-`                                                                  | Additive                             |
-| 9    | `<<`, `>>`                                                                | Shifts                               |
-| 8    | `&`                                                                       | Bitwise AND                          |
-| 7    | `\\xor`                                                                   | Bitwise XOR                          |
-| 6    | `|`                                                                       | Bitwise OR                           |
+| 9    | `.<<`, `.>>`                                                              | Shifts                               |
+| 8    | `.&`                                                                      | Bitwise AND                          |
+| 7    | `.^`                                                                      | Bitwise XOR                          |
+| 6    | `.|`                                                                      | Bitwise OR                           |
 | 6    | `>`, `<`, `>=`, `<=`                                                      | Comparisons (non-associative)        |
 | 5    | `==`, `!=`                                                                | Equality (non-associative)           |
 | 4    | `&&`                                                                      | Logical AND                          |
 | 3    | `||`                                                                      | Logical OR                           |
 | 2    | `..`, `...`                                                               | Range constructors                   |
-| 1    | `:=`, `=`, `+=`, `-=`, `*=`, `/=`, `&=`, `|=`, `\\xor=`, `<<=`, `>>=` | Assignment family (right-assoc)      |
+| 1    | `:=`, `=`, `+=`, `-=`, `*=`, `/=`, `.&=`, `.|=`, `.^=`, `.<<=`, `.>>=` | Assignment family (right-assoc)      |
 | 0    | `\\|>`                                                                    | Pipe-forward                          |
 
 Notes:

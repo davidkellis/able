@@ -8,7 +8,7 @@ describe("v11 interpreter - unary/binary ops and ranges", () => {
   test("unary", () => {
     expect(I.evaluate(AST.unaryExpression('-', AST.integerLiteral(5)))).toEqual({ kind: 'i32', value: -5n });
     expect(I.evaluate(AST.unaryExpression('!', AST.booleanLiteral(false)))).toEqual({ kind: 'bool', value: true });
-    expect(I.evaluate(AST.unaryExpression('~', AST.integerLiteral(0)))).toEqual({ kind: 'i32', value: -1n });
+    expect(I.evaluate(AST.unaryExpression('.~', AST.integerLiteral(0)))).toEqual({ kind: 'i32', value: -1n });
   });
 
   test("arithmetic & string +", () => {
@@ -33,8 +33,8 @@ describe("v11 interpreter - unary/binary ops and ranges", () => {
   });
 
   test("bitwise", () => {
-    expect(I.evaluate(AST.binaryExpression('&', AST.integerLiteral(6), AST.integerLiteral(3)))).toEqual({ kind: 'i32', value: 2n });
-    expect(I.evaluate(AST.binaryExpression('|', AST.integerLiteral(4), AST.integerLiteral(1)))).toEqual({ kind: 'i32', value: 5n });
+    expect(I.evaluate(AST.binaryExpression('.&', AST.integerLiteral(6), AST.integerLiteral(3)))).toEqual({ kind: 'i32', value: 2n });
+    expect(I.evaluate(AST.binaryExpression('.|', AST.integerLiteral(4), AST.integerLiteral(1)))).toEqual({ kind: 'i32', value: 5n });
   });
 
   test("range expression", () => {
@@ -52,4 +52,3 @@ describe("v11 interpreter - unary/binary ops and ranges", () => {
     expect(r2).toEqual({ kind: 'array', elements: [{ kind: 'i32', value: 0n }] });
   });
 });
-

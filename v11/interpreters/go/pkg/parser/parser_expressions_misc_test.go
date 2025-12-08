@@ -426,7 +426,7 @@ func TestParseErrorHandlingExpressions(t *testing.T) {
 }
 
 func TestParseBitwiseXorExpression(t *testing.T) {
-	source := `value := left \xor right`
+	source := `value := left .^ right`
 
 	p, err := NewModuleParser()
 	if err != nil {
@@ -444,7 +444,7 @@ func TestParseBitwiseXorExpression(t *testing.T) {
 			ast.NewAssignmentExpression(
 				ast.AssignmentDeclare,
 				ast.ID("value"),
-				ast.NewBinaryExpression(`\xor`, ast.ID("left"), ast.ID("right")),
+				ast.NewBinaryExpression(".^", ast.ID("left"), ast.ID("right")),
 			),
 		},
 		nil,
@@ -457,7 +457,7 @@ func TestParseBitwiseXorExpression(t *testing.T) {
 
 func TestParseBitwiseXorAssignment(t *testing.T) {
 	source := `value := 0
-value \xor= mask
+value .^= mask
 `
 
 	p, err := NewModuleParser()

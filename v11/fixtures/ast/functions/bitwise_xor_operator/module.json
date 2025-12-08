@@ -35,7 +35,7 @@
       },
       "right": {
         "type": "BinaryExpression",
-        "operator": "\\xor",
+        "operator": ".^",
         "left": {
           "type": "Identifier",
           "name": "lhs"
