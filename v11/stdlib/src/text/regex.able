@@ -38,23 +38,23 @@ methods RegexOptions {
 struct RegexHandle {}
 
 struct Regex {
-  pattern: string,
+  pattern: String,
   options: RegexOptions,
   program: RegexHandle
 }
 
 struct RegexInvalidPattern {
-  message: string,
+  message: String,
   span: Span
 }
 
 struct RegexUnsupportedFeature {
-  message: string,
-  hint: ?string
+  message: String,
+  hint: ?String
 }
 
 struct RegexCompileFailure {
-  message: string
+  message: String
 }
 
 union RegexError =
@@ -63,21 +63,21 @@ union RegexError =
   RegexCompileFailure
 
 impl Error for RegexInvalidPattern {
-  fn message(self: Self) -> string { self.message }
+  fn message(self: Self) -> String { self.message }
   fn cause(self: Self) -> ?Error { nil }
 }
 
 impl Error for RegexUnsupportedFeature {
-  fn message(self: Self) -> string { self.message }
+  fn message(self: Self) -> String { self.message }
   fn cause(self: Self) -> ?Error { nil }
 }
 
 impl Error for RegexCompileFailure {
-  fn message(self: Self) -> string { self.message }
+  fn message(self: Self) -> String { self.message }
   fn cause(self: Self) -> ?Error { nil }
 }
 
-fn unsupported(feature: string) -> RegexUnsupportedFeature {
+fn unsupported(feature: String) -> RegexUnsupportedFeature {
   RegexUnsupportedFeature {
     message: `regex ${feature} is not implemented yet`,
     hint: nil
@@ -85,24 +85,24 @@ fn unsupported(feature: string) -> RegexUnsupportedFeature {
 }
 
 struct RegexGroup {
-  name: ?string,
-  value: ?string,
+  name: ?String,
+  value: ?String,
   span: ?Span
 }
 
 struct RegexMatch {
-  matched: string,
+  matched: String,
   span: Span,
   groups: Array RegexGroup,
-  named_groups: HashMap string RegexGroup
+  named_groups: HashMap String RegexGroup
 }
 
 union RegexReplacement =
-  RegexReplacementLiteral string |
-  RegexReplacementFunction (RegexMatch -> string)
+  RegexReplacementLiteral String |
+  RegexReplacementFunction (RegexMatch -> String)
 
 struct RegexIter {
-  haystack: string,
+  haystack: String,
   regex: Regex
 }
 
@@ -119,44 +119,44 @@ struct RegexScanner {
 }
 
 methods Regex {
-  fn compile(pattern: string) -> Result Regex {
+  fn compile(pattern: String) -> Result Regex {
     Regex.compile_with_options(pattern, RegexOptions.default())
   }
 
-  fn compile_with_options(pattern: string, options: RegexOptions) -> Result Regex {
+  fn compile_with_options(pattern: String, options: RegexOptions) -> Result Regex {
     Regex { pattern: pattern, options: options, program: RegexHandle {} }
   }
 
-  fn is_match(self: Self, haystack: string) -> Result bool {
+  fn is_match(self: Self, haystack: String) -> Result bool {
     unsupported("is_match")
   }
 
-  fn match(self: Self, haystack: string) -> Result ?RegexMatch {
+  fn match(self: Self, haystack: String) -> Result ?RegexMatch {
     unsupported("match")
   }
 
-  fn find_all(self: Self, haystack: string) -> Result RegexIter {
+  fn find_all(self: Self, haystack: String) -> Result RegexIter {
     unsupported("find_all")
   }
 
-  fn replace(self: Self, haystack: string, replacement: RegexReplacement) -> Result string {
+  fn replace(self: Self, haystack: String, replacement: RegexReplacement) -> Result String {
     unsupported("replace")
   }
 
-  fn split(self: Self, haystack: string, limit: ?u64) -> Result RegexSplit {
+  fn split(self: Self, haystack: String, limit: ?u64) -> Result RegexSplit {
     unsupported("split")
   }
 
-  fn scan(self: Self, haystack: string) -> Result RegexScanner {
+  fn scan(self: Self, haystack: String) -> Result RegexScanner {
     unsupported("scan")
   }
 }
 
 struct RegexSplit {
-  segments: Array string
+  segments: Array String
 }
 
-fn regex_is_match(pattern: string, haystack: string) -> Result bool {
+fn regex_is_match(pattern: String, haystack: String) -> Result bool {
   Regex.compile(pattern) match {
     case err: Error => err,
     case regex: Regex => regex.is_match(haystack)

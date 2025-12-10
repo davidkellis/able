@@ -33,7 +33,7 @@
           (channels, timers, futures, sockets, custom callbacks).
         </p>
         <h2 id="proc">10.1 <code>proc</code> (cooperative tasks)</h2>
-        <pre><code class="language-able">handle: Proc string = proc fetch_data(url)
+        <pre><code class="language-able">handle: Proc String = proc fetch_data(url)
 
 proc_flush(32) ## advance cooperative scheduler (TS runtime helper)
 
@@ -76,7 +76,7 @@ print(`Total: ${total}`)</code></pre>
   Await.default { "idle" }
 ]</code></pre>
         <h2 id="channels">10.4 Channels &amp; Mutexes</h2>
-        <pre><code class="language-able">ch: Channel string = Channel.new(0)
+        <pre><code class="language-able">ch: Channel String = Channel.new(0)
 
 producer = proc do {
   for name in names { ch.send(name) }

@@ -117,14 +117,11 @@ export function evaluateIfExpression(ctx: InterpreterV10, node: AST.IfExpression
   }
   const cond = ctx.evaluate(node.ifCondition, env);
   if (ctx.isTruthy(cond)) return ctx.evaluate(node.ifBody, env);
-  for (const clause of node.orClauses) {
-    if (clause.condition) {
-      const c = ctx.evaluate(clause.condition, env);
-      if (ctx.isTruthy(c)) return ctx.evaluate(clause.body, env);
-    } else {
-      return ctx.evaluate(clause.body, env);
-    }
+  for (const clause of node.elseIfClauses) {
+    const c = ctx.evaluate(clause.condition, env);
+    if (ctx.isTruthy(c)) return ctx.evaluate(clause.body, env);
   }
+  if (node.elseBody) return ctx.evaluate(node.elseBody, env);
   return { kind: "nil", value: null };
 }
 
@@ -138,7 +135,7 @@ function evaluateIfExpressionWithContinuation(
   if (!state) {
     state = {
       stage: "if_condition",
-      orIndex: 0,
+      elseIfIndex: 0,
       result: { kind: "nil", value: null },
     };
     continuation.setIfState(node, state);
@@ -153,8 +150,8 @@ function evaluateIfExpressionWithContinuation(
             state.stage = "if_body";
             continue;
           }
-          state.stage = "or_condition";
-          state.orIndex = 0;
+          state.stage = "elseif_condition";
+          state.elseIfIndex = 0;
           continue;
         } catch (err) {
           if (isContinuationYield(continuation, err)) {
@@ -185,23 +182,19 @@ function evaluateIfExpressionWithContinuation(
           throw err;
         }
       }
-      case "or_condition": {
-        if (state.orIndex >= node.orClauses.length) {
-          continuation.clearIfState(node);
-          return { kind: "nil", value: null };
-        }
-        const clause = node.orClauses[state.orIndex]!;
-        if (!clause.condition) {
-          state.stage = "or_body";
+      case "elseif_condition": {
+        if (state.elseIfIndex >= node.elseIfClauses.length) {
+          state.stage = "else_body";
           continue;
         }
+        const clause = node.elseIfClauses[state.elseIfIndex]!;
         try {
           const cond = ctx.evaluate(clause.condition, env);
           if (ctx.isTruthy(cond)) {
-            state.stage = "or_body";
+            state.stage = "elseif_body";
             continue;
           }
-          state.orIndex += 1;
+          state.elseIfIndex += 1;
           continue;
         } catch (err) {
           if (isContinuationYield(continuation, err)) {
@@ -215,8 +208,8 @@ function evaluateIfExpressionWithContinuation(
           throw err;
         }
       }
-      case "or_body": {
-        const clause = node.orClauses[state.orIndex]!;
+      case "elseif_body": {
+        const clause = node.elseIfClauses[state.elseIfIndex]!;
         try {
           const result = ctx.evaluate(clause.body, env);
           continuation.clearIfState(node);
@@ -233,9 +226,27 @@ function evaluateIfExpressionWithContinuation(
           throw err;
         }
       }
-      default:
+      case "else_body": {
+        try {
+          const result = node.elseBody ? ctx.evaluate(node.elseBody, env) : { kind: "nil", value: null };
+          continuation.clearIfState(node);
+          return result;
+        } catch (err) {
+          if (isContinuationYield(continuation, err)) {
+            continuation.markStatementIncomplete();
+            if (continuation.kind === "proc") {
+              continuation.clearIfState(node);
+            }
+          } else {
+            continuation.clearIfState(node);
+          }
+          throw err;
+        }
+      }
+      default: {
         continuation.clearIfState(node);
         return { kind: "nil", value: null };
+      }
     }
   }
 }

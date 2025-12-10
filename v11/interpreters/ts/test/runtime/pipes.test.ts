@@ -3,31 +3,49 @@ import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
 describe("v11 interpreter - pipes", () => {
-  test("topic reference uses pipe subject", () => {
+  test("pipes call placeholder-built callables with the subject first", () => {
     const I = new InterpreterV10();
     const expr = AST.binaryExpression(
       "|>",
       AST.integerLiteral(5),
-      AST.binaryExpression("+", AST.topicReferenceExpression(), AST.integerLiteral(3))
+      AST.binaryExpression("+", AST.placeholderExpression(), AST.integerLiteral(3)),
     );
     const result = I.evaluate(expr);
     expect(result).toEqual({ kind: "i32", value: 8n });
   });
 
-  test("topic used inside function call", () => {
+  test("bare @ placeholders all reference the first argument", () => {
+    const I = new InterpreterV10();
+    I.evaluate(
+      AST.assignmentExpression(
+        ":=",
+        AST.identifier("square"),
+        AST.binaryExpression("*", AST.placeholderExpression(), AST.placeholderExpression()),
+      ),
+    );
+    const result = I.evaluate(AST.functionCall(AST.identifier("square"), [AST.integerLiteral(6)]));
+    expect(result).toEqual({ kind: "i32", value: 36n });
+  });
+
+  test("under-applied pipe returns a partial callable", () => {
     const I = new InterpreterV10();
     const add = AST.functionDefinition(
       "add",
       [AST.functionParameter("left"), AST.functionParameter("right")],
-      AST.blockExpression([AST.returnStatement(AST.binaryExpression("+", AST.identifier("left"), AST.identifier("right")))]),
+      AST.blockExpression([
+        AST.returnStatement(AST.binaryExpression("+", AST.identifier("left"), AST.identifier("right"))),
+      ]),
     );
     I.evaluate(add);
-    const expr = AST.binaryExpression(
-      "|>",
-      AST.integerLiteral(4),
-      AST.functionCall(AST.identifier("add"), [AST.topicReferenceExpression(), AST.integerLiteral(1)]),
+    I.evaluate(
+      AST.assignmentExpression(
+        ":=",
+        AST.identifier("partial"),
+        AST.binaryExpression("|>", AST.integerLiteral(4), AST.identifier("add")),
+      ),
     );
-    expect(I.evaluate(expr)).toEqual({ kind: "i32", value: 5n });
+    const result = I.evaluate(AST.functionCall(AST.identifier("partial"), [AST.integerLiteral(6)]));
+    expect(result).toEqual({ kind: "i32", value: 10n });
   });
 
   test("implicit member shorthand binds receiver once", () => {
@@ -84,22 +102,6 @@ describe("v11 interpreter - pipes", () => {
 
     expect(first).toEqual({ kind: "i32", value: 6n });
     expect(second).toEqual({ kind: "i32", value: 10n });
-  });
-
-  test("placeholder callable as pipe RHS", () => {
-    const I = new InterpreterV10();
-    const add = AST.functionDefinition(
-      "add",
-      [AST.functionParameter("left"), AST.functionParameter("right")],
-      AST.blockExpression([AST.returnStatement(AST.binaryExpression("+", AST.identifier("left"), AST.identifier("right")))]),
-    );
-    I.evaluate(add);
-    const expr = AST.binaryExpression(
-      "|>",
-      AST.integerLiteral(9),
-      AST.functionCall(AST.identifier("add"), [AST.placeholderExpression(), AST.integerLiteral(1)]),
-    );
-    expect(I.evaluate(expr)).toEqual({ kind: "i32", value: 10n });
   });
 
   test("UFCS free function via pipe", () => {

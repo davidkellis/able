@@ -2271,18 +2271,18 @@
             "type": "REPEAT1",
             "content": {
               "type": "SYMBOL",
-              "name": "else_clause"
+              "name": "or_handler_clause"
             }
           }
         ]
       }
     },
-    "else_clause": {
+    "or_handler_clause": {
       "type": "SEQ",
       "members": [
         {
           "type": "STRING",
-          "value": "else"
+          "value": "or"
         },
         {
           "type": "FIELD",
@@ -2308,10 +2308,6 @@
               "type": "SEQ",
               "members": [
                 {
-                  "type": "STRING",
-                  "value": "|"
-                },
-                {
                   "type": "FIELD",
                   "name": "binding",
                   "content": {
@@ -2321,7 +2317,7 @@
                 },
                 {
                   "type": "STRING",
-                  "value": "|"
+                  "value": "=>"
                 }
               ]
             },
@@ -2725,6 +2721,10 @@
         },
         {
           "type": "STRING",
+          "value": "%="
+        },
+        {
+          "type": "STRING",
           "value": ".&="
         },
         {
@@ -3117,7 +3117,7 @@
                     },
                     {
                       "type": "STRING",
-                      "value": "%%"
+                      "value": "%"
                     },
                     {
                       "type": "STRING",
@@ -3745,10 +3745,6 @@
         },
         {
           "type": "SYMBOL",
-          "name": "topic_reference"
-        },
-        {
-          "type": "SYMBOL",
           "name": "if_expression"
         },
         {
@@ -3927,10 +3923,10 @@
             "type": "REPEAT",
             "content": {
               "type": "FIELD",
-              "name": "or_clause",
+              "name": "elsif_clause",
               "content": {
                 "type": "SYMBOL",
-                "name": "or_clause"
+                "name": "elsif_clause"
               }
             }
           },
@@ -3945,8 +3941,12 @@
                     "value": "else"
                   },
                   {
-                    "type": "SYMBOL",
-                    "name": "block"
+                    "type": "FIELD",
+                    "name": "alternative",
+                    "content": {
+                      "type": "SYMBOL",
+                      "name": "block"
+                    }
                   }
                 ]
               },
@@ -3958,27 +3958,19 @@
         ]
       }
     },
-    "or_clause": {
+    "elsif_clause": {
       "type": "SEQ",
       "members": [
         {
           "type": "STRING",
-          "value": "or"
+          "value": "elsif"
         },
         {
           "type": "FIELD",
           "name": "condition",
           "content": {
-            "type": "CHOICE",
-            "members": [
-              {
-                "type": "SYMBOL",
-                "name": "expression"
-              },
-              {
-                "type": "BLANK"
-              }
-            ]
+            "type": "SYMBOL",
+            "name": "expression"
           }
         },
         {
@@ -5188,13 +5180,6 @@
           }
         }
       ]
-    },
-    "topic_reference": {
-      "type": "TOKEN",
-      "content": {
-        "type": "STRING",
-        "value": "%"
-      }
     },
     "identifier": {
       "type": "TOKEN",

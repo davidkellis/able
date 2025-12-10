@@ -24,14 +24,14 @@ describe("Enumerable helpers") { suite =>
   }
 
   suite.it("computes predicates") { _ctx =>
-    values: Array string := Array.new()
+    values: Array String := Array.new()
     values.push("a")
     values.push("bb")
     values.push("ccc")
 
-    expect(values.any(fn(value: string) -> bool { value.len() == 2 })).to(be_truthy())
-    expect(values.all(fn(value: string) -> bool { value.len() >= 1 })).to(be_truthy())
-    expect(values.none(fn(value: string) -> bool { value == "zzz" })).to(be_truthy())
+    expect(values.any(fn(value: String) -> bool { value.len() == 2 })).to(be_truthy())
+    expect(values.all(fn(value: String) -> bool { value.len() >= 1 })).to(be_truthy())
+    expect(values.none(fn(value: String) -> bool { value == "zzz" })).to(be_truthy())
   }
 
   suite.it("finds elements") { _ctx =>
@@ -80,7 +80,7 @@ describe("Enumerable helpers") { suite =>
   }
 
   suite.it("zips with index") { _ctx =>
-    values: Array string := Array.new()
+    values: Array String := Array.new()
     values.push("a")
     values.push("b")
     zipped := values.zip_with_index()

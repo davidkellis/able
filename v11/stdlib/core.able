@@ -5,16 +5,16 @@ package able
 ## Error Handling (`Error`)
 ## Essential for !Type shorthand (T | Error) and raise/rescue.
 interface Error for T {
-  fn #message() -> string
+  fn #message() -> String
 
   ## Optional: fn cause(self: Self) -> ?Error;
   ## Optional: fn stacktrace(self: Self) -> ?Stacktrace; ## Requires Stacktrace type
 }
 
 ## Display (`Display`)
-## Used for string conversion, especially in interpolation `${...}`.
+## Used for String conversion, especially in interpolation `${...}`.
 interface Display for T {
-  fn #to_string() -> string
+  fn #to_string() -> String
 }
 
 ## Cloning (`Clone`)

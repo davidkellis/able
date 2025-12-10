@@ -41,11 +41,6 @@ func (i *Interpreter) evaluateFunctionCall(call *ast.FunctionCall, env *runtime.
 			argValues = append(argValues, val)
 		}
 		if lookupErr != nil {
-			if len(argValues) > 0 {
-				if bound, ok := i.tryUfcs(env, ident.Name, argValues[0]); ok {
-					return i.callCallableValue(bound, argValues[1:], env, call)
-				}
-			}
 			return nil, lookupErr
 		}
 		return i.callCallableValue(calleeVal, argValues, env, call)
@@ -199,6 +194,16 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 	}
 }
 
+func makePartialFunctionValue(target runtime.Value, bound []runtime.Value, call *ast.FunctionCall) runtime.Value {
+	argsCopy := make([]runtime.Value, len(bound))
+	copy(argsCopy, bound)
+	return &runtime.PartialFunctionValue{
+		Target:    target,
+		BoundArgs: argsCopy,
+		Call:      call,
+	}
+}
+
 func (i *Interpreter) callCallableValue(callee runtime.Value, args []runtime.Value, env *runtime.Environment, call *ast.FunctionCall) (runtime.Value, error) {
 	if callee == nil {
 		return nil, fmt.Errorf("call target missing function value")
@@ -210,21 +215,37 @@ func (i *Interpreter) callCallableValue(callee runtime.Value, args []runtime.Val
 	var native *runtime.NativeFunctionValue
 	var injected []runtime.Value
 	var overloads []*runtime.FunctionValue
+	partialTarget := callee
 
 	switch fn := callee.(type) {
+	case runtime.PartialFunctionValue:
+		merged := append([]runtime.Value{}, fn.BoundArgs...)
+		merged = append(merged, args...)
+		return i.callCallableValue(fn.Target, merged, env, call)
+	case *runtime.PartialFunctionValue:
+		if fn == nil {
+			return nil, fmt.Errorf("partial function is nil")
+		}
+		merged := append([]runtime.Value{}, fn.BoundArgs...)
+		merged = append(merged, args...)
+		return i.callCallableValue(fn.Target, merged, env, call)
 	case runtime.NativeFunctionValue:
 		native = &fn
+		partialTarget = native
 	case *runtime.NativeFunctionValue:
 		native = fn
+		partialTarget = fn
 	case runtime.NativeBoundMethodValue:
 		native = &fn.Method
 		injected = append(injected, fn.Receiver)
+		partialTarget = native
 	case *runtime.NativeBoundMethodValue:
 		if fn == nil {
 			return nil, fmt.Errorf("native bound method is nil")
 		}
 		native = &fn.Method
 		injected = append(injected, fn.Receiver)
+		partialTarget = native
 	case runtime.DynRefValue:
 		resolved, err := i.resolveDynRef(fn)
 		if err != nil {
@@ -243,12 +264,14 @@ func (i *Interpreter) callCallableValue(callee runtime.Value, args []runtime.Val
 	case runtime.BoundMethodValue:
 		injected = append(injected, fn.Receiver)
 		overloads = functionOverloads(fn.Method)
+		partialTarget = fn.Method
 	case *runtime.BoundMethodValue:
 		if fn == nil {
 			return nil, fmt.Errorf("bound method is nil")
 		}
 		injected = append(injected, fn.Receiver)
 		overloads = functionOverloads(fn.Method)
+		partialTarget = fn.Method
 	default:
 		overloads = functionOverloads(callee)
 	}
@@ -256,12 +279,21 @@ func (i *Interpreter) callCallableValue(callee runtime.Value, args []runtime.Val
 	evalArgs := append(injected, args...)
 
 	if native != nil {
-		if native.Arity >= 0 && len(injected) == 0 && len(evalArgs) != native.Arity {
-			name := native.Name
-			if name == "" {
-				name = "(native)"
+		if native.Arity >= 0 {
+			provided := len(evalArgs) - len(injected)
+			if provided < 0 {
+				provided = 0
 			}
-			return nil, fmt.Errorf("Arity mismatch calling %s: expected %d, got %d", name, native.Arity, len(evalArgs))
+			if provided > native.Arity {
+				name := native.Name
+				if name == "" {
+					name = "(native)"
+				}
+				return nil, fmt.Errorf("Arity mismatch calling %s: expected %d, got %d", name, native.Arity, provided)
+			}
+			if provided < native.Arity {
+				return makePartialFunctionValue(partialTarget, evalArgs, call), nil
+			}
 		}
 		ctx := &runtime.NativeCallContext{Env: env, State: callState}
 		return native.Impl(ctx, evalArgs)
@@ -275,6 +307,13 @@ func (i *Interpreter) callCallableValue(callee runtime.Value, args []runtime.Val
 			return nil, err
 		}
 		return nil, fmt.Errorf("calling non-function value of kind %s (%T)", callee.Kind(), callee)
+	}
+
+	if len(overloads) > 0 {
+		minRequired := minArgsForOverloads(overloads)
+		if len(evalArgs) < minRequired {
+			return makePartialFunctionValue(partialTarget, evalArgs, call), nil
+		}
 	}
 
 	selected, err := i.selectRuntimeOverload(overloads, evalArgs, call)
@@ -292,8 +331,9 @@ func (i *Interpreter) callCallableValue(callee runtime.Value, args []runtime.Val
 
 func (i *Interpreter) selectRuntimeOverload(overloads []*runtime.FunctionValue, evalArgs []runtime.Value, call *ast.FunctionCall) (*runtime.FunctionValue, error) {
 	type candidate struct {
-		fn    *runtime.FunctionValue
-		score float64
+		fn       *runtime.FunctionValue
+		score    float64
+		priority float64
 	}
 	candidates := make([]candidate, 0, len(overloads))
 	for _, fn := range overloads {
@@ -343,15 +383,15 @@ func (i *Interpreter) selectRuntimeOverload(overloads []*runtime.FunctionValue, 
 				}
 			}
 			if compatible {
-				candidates = append(candidates, candidate{fn: fn, score: score})
+				candidates = append(candidates, candidate{fn: fn, score: score, priority: fn.MethodPriority})
 			}
 		case *ast.LambdaExpression:
 			if len(decl.Params) != len(evalArgs) {
 				continue
 			}
-			candidates = append(candidates, candidate{fn: fn, score: 0})
+			candidates = append(candidates, candidate{fn: fn, score: 0, priority: fn.MethodPriority})
 		default:
-			candidates = append(candidates, candidate{fn: fn, score: 0})
+			candidates = append(candidates, candidate{fn: fn, score: 0, priority: fn.MethodPriority})
 		}
 	}
 	if len(candidates) == 0 {
@@ -360,10 +400,10 @@ func (i *Interpreter) selectRuntimeOverload(overloads []*runtime.FunctionValue, 
 	best := candidates[0]
 	ties := []candidate{best}
 	for _, cand := range candidates[1:] {
-		if cand.score > best.score {
+		if cand.score > best.score || (cand.score == best.score && cand.priority > best.priority) {
 			best = cand
 			ties = []candidate{cand}
-		} else if cand.score == best.score {
+		} else if cand.score == best.score && cand.priority == best.priority {
 			ties = append(ties, cand)
 		}
 	}
@@ -371,6 +411,58 @@ func (i *Interpreter) selectRuntimeOverload(overloads []*runtime.FunctionValue, 
 		return nil, fmt.Errorf("Ambiguous overload for %s", overloadName(call))
 	}
 	return best.fn, nil
+}
+
+func minArgsForOverloads(overloads []*runtime.FunctionValue) int {
+	min := -1
+	for _, fn := range overloads {
+		if fn == nil {
+			continue
+		}
+		req := minArgsForFunctionValue(fn)
+		if req < 0 {
+			continue
+		}
+		if min < 0 || req < min {
+			min = req
+		}
+	}
+	if min < 0 {
+		return 0
+	}
+	return min
+}
+
+func minArgsForFunctionValue(fn *runtime.FunctionValue) int {
+	if fn == nil || fn.Declaration == nil {
+		return 0
+	}
+	switch decl := fn.Declaration.(type) {
+	case *ast.FunctionDefinition:
+		paramCount := len(decl.Params)
+		expected := paramCount
+		if decl.IsMethodShorthand {
+			expected++
+		}
+		if paramCount > 0 && isNullableParam(decl.Params[paramCount-1]) {
+			expected--
+		}
+		if expected < 0 {
+			return 0
+		}
+		return expected
+	case *ast.LambdaExpression:
+		paramCount := len(decl.Params)
+		if paramCount > 0 && isNullableParam(decl.Params[paramCount-1]) {
+			paramCount--
+		}
+		if paramCount < 0 {
+			return 0
+		}
+		return paramCount
+	default:
+		return 0
+	}
 }
 
 func overloadName(call *ast.FunctionCall) string {
@@ -432,20 +524,55 @@ func isNullableParam(param *ast.FunctionParameter) bool {
 
 func (i *Interpreter) evaluatePipeExpression(subject runtime.Value, rhs ast.Expression, env *runtime.Environment) (runtime.Value, error) {
 	state := i.stateFromEnv(env)
-	state.pushTopic(subject)
 	state.pushImplicitReceiver(subject)
-	rhsVal, err := i.evaluateExpression(rhs, env)
-	state.popImplicitReceiver()
-	used := state.topicWasUsed()
-	state.popTopic()
-	if err != nil {
+	defer state.popImplicitReceiver()
+
+	if placeholderCallable, ok, err := i.tryBuildPlaceholderFunction(rhs, env); err != nil {
 		return nil, err
-	}
-	if used {
-		if rhsVal == nil {
+	} else if ok {
+		result, callErr := i.callCallableValue(placeholderCallable, []runtime.Value{subject}, env, nil)
+		if callErr != nil {
+			return nil, fmt.Errorf("pipe RHS must be callable: %w", callErr)
+		}
+		if result == nil {
 			return runtime.NilValue{}, nil
 		}
-		return rhsVal, nil
+		return result, nil
+	}
+
+	if call, isCall := rhs.(*ast.FunctionCall); isCall {
+		calleeVal, err := i.evaluateExpression(call.Callee, env)
+		if err != nil {
+			return nil, err
+		}
+		argValues := make([]runtime.Value, 0, len(call.Arguments))
+		for _, arg := range call.Arguments {
+			val, evalErr := i.evaluateExpression(arg, env)
+			if evalErr != nil {
+				return nil, evalErr
+			}
+			argValues = append(argValues, val)
+		}
+		callArgs := argValues
+		switch calleeVal.(type) {
+		case runtime.BoundMethodValue, *runtime.BoundMethodValue, runtime.NativeBoundMethodValue, *runtime.NativeBoundMethodValue:
+			// Bound methods already capture the receiver.
+		default:
+			callArgs = append([]runtime.Value{subject}, argValues...)
+		}
+		result, callErr := i.callCallableValue(calleeVal, callArgs, env, call)
+		if callErr != nil {
+			return nil, fmt.Errorf("pipe RHS must be callable: %w", callErr)
+		}
+		if result == nil {
+			return runtime.NilValue{}, nil
+		}
+		return result, nil
+	}
+
+	rhsVal, err := i.evaluateExpression(rhs, env)
+	if err != nil {
+		return nil, err
 	}
 	callArgs := []runtime.Value{subject}
 	switch rhsVal.(type) {
@@ -454,25 +581,12 @@ func (i *Interpreter) evaluatePipeExpression(subject runtime.Value, rhs ast.Expr
 	}
 	result, err := i.callCallableValue(rhsVal, callArgs, env, nil)
 	if err != nil {
-		return nil, fmt.Errorf("pipe RHS must be callable when '%%' is not used: %w", err)
+		return nil, fmt.Errorf("pipe RHS must be callable: %w", err)
 	}
 	if result == nil {
 		return runtime.NilValue{}, nil
 	}
 	return result, nil
-}
-
-func (i *Interpreter) evaluateTopicReferenceExpression(_ *ast.TopicReferenceExpression, env *runtime.Environment) (runtime.Value, error) {
-	state := i.stateFromEnv(env)
-	val, ok := state.currentTopic()
-	if !ok {
-		return nil, fmt.Errorf("Topic reference '%%' used outside of pipe expression")
-	}
-	state.markTopicUsed()
-	if val == nil {
-		return runtime.NilValue{}, nil
-	}
-	return val, nil
 }
 
 func (i *Interpreter) populateCallTypeArguments(funcNode ast.Node, call *ast.FunctionCall, args []runtime.Value) error {
@@ -839,59 +953,6 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 	}
 
 	return value, nil
-}
-
-func analyzePatternDeclarationNames(env *runtime.Environment, pattern ast.Pattern) (map[string]struct{}, bool) {
-	names := make(map[string]struct{})
-	collectPatternIdentifiers(pattern, names)
-	newNames := make(map[string]struct{})
-	for name := range names {
-		if !env.HasInCurrentScope(name) {
-			newNames[name] = struct{}{}
-		}
-	}
-	return newNames, len(names) > 0
-}
-
-func collectPatternIdentifiers(pattern ast.Pattern, into map[string]struct{}) {
-	switch p := pattern.(type) {
-	case *ast.Identifier:
-		if p.Name != "" {
-			into[p.Name] = struct{}{}
-		}
-	case *ast.StructPattern:
-		for _, field := range p.Fields {
-			if field == nil {
-				continue
-			}
-			if field.Binding != nil && field.Binding.Name != "" {
-				into[field.Binding.Name] = struct{}{}
-			}
-			if inner, ok := field.Pattern.(ast.Pattern); ok {
-				collectPatternIdentifiers(inner, into)
-			}
-		}
-	case *ast.ArrayPattern:
-		for _, elem := range p.Elements {
-			if elem == nil {
-				continue
-			}
-			if inner, ok := elem.(ast.Pattern); ok {
-				collectPatternIdentifiers(inner, into)
-			}
-		}
-		if rest := p.RestPattern; rest != nil {
-			if inner, ok := rest.(ast.Pattern); ok {
-				collectPatternIdentifiers(inner, into)
-			} else if ident, ok := rest.(*ast.Identifier); ok && ident.Name != "" {
-				into[ident.Name] = struct{}{}
-			}
-		}
-	case *ast.TypedPattern:
-		if inner, ok := p.Pattern.(ast.Pattern); ok {
-			collectPatternIdentifiers(inner, into)
-		}
-	}
 }
 
 func (i *Interpreter) evaluateIteratorLiteral(expr *ast.IteratorLiteral, env *runtime.Environment) (runtime.Value, error) {

@@ -5,19 +5,19 @@
       "kind": "array",
       "elements": [
         {
-          "kind": "string",
+          "kind": "String",
           "value": "payload"
         },
         {
-          "kind": "string",
+          "kind": "String",
           "value": "sent"
         },
         {
-          "kind": "string",
+          "kind": "String",
           "value": "payload"
         },
         {
-          "kind": "string",
+          "kind": "String",
           "value": "sent"
         }
       ]

@@ -13,7 +13,7 @@ declare module "./index" {
 }
 
 function expectString(value: V10Value, label: string): string {
-  if (value.kind !== "string") {
+  if (value.kind !== "String") {
     throw new Error(`${label} must be a string`);
   }
   return value.value;
@@ -74,19 +74,19 @@ export function applyStringHostAugmentations(cls: typeof InterpreterV10): void {
       }
     };
 
-    defineIfMissing("__able_string_from_builtin", () =>
-      this.makeNativeFunction("__able_string_from_builtin", 1, (_interp, args) => {
-        if (args.length !== 1) throw new Error("__able_string_from_builtin expects one argument");
-        const input = expectString(args[0], "string");
+    defineIfMissing("__able_String_from_builtin", () =>
+      this.makeNativeFunction("__able_String_from_builtin", 1, (_interp, args) => {
+        if (args.length !== 1) throw new Error("__able_String_from_builtin expects one argument");
+        const input = expectString(args[0], "String");
         const encoded = encoder.encode(input);
         const elements = Array.from(encoded, (byte): V10Value => makeIntegerValue("u8", BigInt(byte)));
         return this.makeArrayValue(elements);
       }),
     );
 
-    defineIfMissing("__able_string_to_builtin", () =>
-      this.makeNativeFunction("__able_string_to_builtin", 1, (_interp, args) => {
-        if (args.length !== 1) throw new Error("__able_string_to_builtin expects one argument");
+    defineIfMissing("__able_String_to_builtin", () =>
+      this.makeNativeFunction("__able_String_to_builtin", 1, (_interp, args) => {
+        if (args.length !== 1) throw new Error("__able_String_to_builtin expects one argument");
         const arr = expectArray(this, args[0], "bytes array");
         const bytes = Uint8Array.from(arr.elements.map((element, idx) => toByte(element, idx)));
         let decoded: string;
@@ -96,7 +96,7 @@ export function applyStringHostAugmentations(cls: typeof InterpreterV10): void {
           const message = e instanceof Error ? e.message : "invalid UTF-8 bytes";
           throw new Error(message);
         }
-        return { kind: "string", value: decoded };
+        return { kind: "String", value: decoded };
       }),
     );
 

@@ -6,16 +6,16 @@ describe("typechecker duplicate declarations", () => {
   test("reports previous declaration location for top-level functions", () => {
     const first = AST.functionDefinition(
       "greet",
-      [AST.functionParameter("_", AST.simpleTypeExpression("string"))],
+      [AST.functionParameter("_", AST.simpleTypeExpression("String"))],
       AST.blockExpression([AST.returnStatement(AST.stringLiteral("hi"))]),
-      AST.simpleTypeExpression("string"),
+      AST.simpleTypeExpression("String"),
     );
     first.origin = "first.able";
     const second = AST.functionDefinition(
       "greet",
-      [AST.functionParameter("_", AST.simpleTypeExpression("string"))],
+      [AST.functionParameter("_", AST.simpleTypeExpression("String"))],
       AST.blockExpression([AST.returnStatement(AST.stringLiteral("ho"))]),
-      AST.simpleTypeExpression("string"),
+      AST.simpleTypeExpression("String"),
     );
     second.origin = "second.able";
     const module = AST.module([first, second]);

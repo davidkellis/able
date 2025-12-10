@@ -12,8 +12,8 @@ failure_description := do {
   "ok"
 } rescue {
   case err: Error => err
-}! else {
-  | err |
+}! or {
+  err =>
   payload := err.value
   payload_tag := (payload match {
     case ChannelNil {  } => "ChannelNil",

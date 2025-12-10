@@ -105,21 +105,18 @@ describe("v11 interpreter - proc & spawn handles", () => {
                 ),
                 AST.functionCall(AST.identifier("proc_yield"), []),
               ]),
-              [
-                AST.orClause(
-                  AST.blockExpression([
-                    AST.assignmentExpression(
-                      "=",
-                      AST.identifier("trace"),
-                      AST.binaryExpression(
-                        "+",
-                        AST.identifier("trace"),
-                        AST.stringLiteral("C")
-                      )
-                    ),
-                  ])
+              [],
+              AST.blockExpression([
+                AST.assignmentExpression(
+                  "=",
+                  AST.identifier("trace"),
+                  AST.binaryExpression(
+                    "+",
+                    AST.identifier("trace"),
+                    AST.stringLiteral("C")
+                  )
                 ),
-              ]
+              ])
             ),
             AST.integerLiteral(1),
           ])
@@ -167,7 +164,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
     expect(slowValue).toEqual({ kind: "i32", value: 1n });
 
     const traceVal = I.evaluate(AST.identifier("trace"));
-    expect(traceVal).toEqual({ kind: "string", value: "ABC" });
+    expect(traceVal).toEqual({ kind: "String", value: "ABC" });
 
     const slowStatus = I.evaluate(slowStatusCall) as any;
     expect(slowStatus.kind).toBe("struct_instance");
@@ -226,7 +223,12 @@ describe("v11 interpreter - proc & spawn handles", () => {
                 AST.integerLiteral(0),
               ]),
               [
-                AST.orClause(
+                AST.elseIfClause(
+                  AST.binaryExpression(
+                    "==",
+                    AST.identifier("worker_stage"),
+                    AST.integerLiteral(1)
+                  ),
                   AST.blockExpression([
                     appendToTrace("A2"),
                     AST.assignmentExpression(
@@ -237,13 +239,13 @@ describe("v11 interpreter - proc & spawn handles", () => {
                     AST.functionCall(AST.identifier("proc_yield"), []),
                     AST.integerLiteral(0),
                   ]),
+                ),
+                AST.elseIfClause(
                   AST.binaryExpression(
                     "==",
                     AST.identifier("worker_stage"),
-                    AST.integerLiteral(1)
-                  )
-                ),
-                AST.orClause(
+                    AST.integerLiteral(2)
+                  ),
                   AST.blockExpression([
                     appendToTrace("A3"),
                     AST.assignmentExpression(
@@ -253,11 +255,6 @@ describe("v11 interpreter - proc & spawn handles", () => {
                     ),
                     AST.integerLiteral(0),
                   ]),
-                  AST.binaryExpression(
-                    "==",
-                    AST.identifier("worker_stage"),
-                    AST.integerLiteral(2)
-                  )
                 ),
               ]
             ),
@@ -290,7 +287,12 @@ describe("v11 interpreter - proc & spawn handles", () => {
                 AST.integerLiteral(0),
               ]),
               [
-                AST.orClause(
+                AST.elseIfClause(
+                  AST.binaryExpression(
+                    "==",
+                    AST.identifier("future_stage"),
+                    AST.integerLiteral(1)
+                  ),
                   AST.blockExpression([
                     appendToTrace("B2"),
                     AST.assignmentExpression(
@@ -300,11 +302,6 @@ describe("v11 interpreter - proc & spawn handles", () => {
                     ),
                     AST.integerLiteral(0),
                   ]),
-                  AST.binaryExpression(
-                    "==",
-                    AST.identifier("future_stage"),
-                    AST.integerLiteral(1)
-                  )
                 ),
               ]
             ),
@@ -317,7 +314,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
     drainScheduler(I);
 
     const traceVal = I.evaluate(AST.identifier("trace"));
-    expect(traceVal).toEqual({ kind: "string", value: "A1B1A2B2A3" });
+    expect(traceVal).toEqual({ kind: "String", value: "A1B1A2B2A3" });
 
     const workerStatusCall = AST.functionCall(
       AST.memberAccessExpression(AST.identifier("worker"), "status"),
@@ -456,7 +453,12 @@ describe("v11 interpreter - proc & spawn handles", () => {
                           AST.integerLiteral(7),
                         ]),
                         [
-                          AST.orClause(
+                          AST.elseIfClause(
+                            AST.binaryExpression(
+                              "==",
+                              AST.identifier("inner_stage"),
+                              AST.integerLiteral(1)
+                            ),
                             AST.blockExpression([
                               appendToTrace("D"),
                               AST.assignmentExpression(
@@ -466,11 +468,6 @@ describe("v11 interpreter - proc & spawn handles", () => {
                               ),
                               AST.integerLiteral(7),
                             ]),
-                            AST.binaryExpression(
-                              "==",
-                              AST.identifier("inner_stage"),
-                              AST.integerLiteral(1)
-                            )
                           ),
                         ]
                       ),
@@ -478,50 +475,50 @@ describe("v11 interpreter - proc & spawn handles", () => {
                     ])
                   )
                 ),
-                AST.assignmentExpression(
-                  "=",
+              AST.assignmentExpression(
+                "=",
+                AST.identifier("outer_stage"),
+                AST.integerLiteral(1)
+              ),
+              AST.functionCall(AST.identifier("proc_yield"), []),
+              AST.integerLiteral(0),
+            ]),
+            [
+              AST.elseIfClause(
+                AST.binaryExpression(
+                  "==",
                   AST.identifier("outer_stage"),
                   AST.integerLiteral(1)
                 ),
-                AST.functionCall(AST.identifier("proc_yield"), []),
-                AST.integerLiteral(0),
-              ]),
-              [
-                AST.orClause(
-                  AST.blockExpression([
-                    appendToTrace("C"),
-                    AST.assignmentExpression(
-                      ":=",
-                      AST.identifier("result"),
-                      AST.functionCall(
-                        AST.memberAccessExpression(AST.identifier("future_handle"), "value"),
-                        []
-                      )
-                    ),
-                    AST.assignmentExpression(
-                      "=",
-                      AST.identifier("outer_stage"),
-                      AST.integerLiteral(2)
-                    ),
+                AST.blockExpression([
+                  appendToTrace("C"),
+                  AST.assignmentExpression(
+                    ":=",
                     AST.identifier("result"),
-                  ]),
-                  AST.binaryExpression(
-                    "==",
+                    AST.functionCall(
+                      AST.memberAccessExpression(AST.identifier("future_handle"), "value"),
+                      []
+                    )
+                  ),
+                  AST.assignmentExpression(
+                    "=",
                     AST.identifier("outer_stage"),
-                    AST.integerLiteral(1)
-                  )
-                ),
-              ]
-            ),
-          ])
-        )
+                    AST.integerLiteral(2)
+                  ),
+                  AST.identifier("result"),
+                ]),
+              ),
+            ]
+          ),
+        ])
       )
-    );
+    )
+  );
 
     drainScheduler(I);
 
     const traceVal = I.evaluate(AST.identifier("trace"));
-    expect(traceVal).toEqual({ kind: "string", value: "ABCD" });
+    expect(traceVal).toEqual({ kind: "String", value: "ABCD" });
 
     const futureStatusCall = AST.functionCall(
       AST.memberAccessExpression(AST.identifier("future_handle"), "status"),

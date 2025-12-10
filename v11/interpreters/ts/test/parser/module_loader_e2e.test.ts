@@ -34,7 +34,7 @@ fn main() -> void {
         `
 package shared
 
-fn greet(name: string) -> string {
+fn greet(name: String) -> String {
   \`hello \${name}\`
 }
 `.trimStart(),
@@ -95,11 +95,11 @@ describe("ModuleLoader alias imports & privacy", () => {
         `
 package helpers
 
-private fn secret() -> string {
+private fn secret() -> String {
   "hidden"
 }
 
-fn greet(name: string) -> string {
+fn greet(name: String) -> String {
   \`hi \${name}\`
 }
 `.trimStart(),
@@ -112,7 +112,7 @@ package main
 
 import sample.helpers::Helpers
 
-fn call_secret() -> string {
+fn call_secret() -> String {
   Helpers.secret()
 }
 
@@ -174,7 +174,7 @@ describe("ModuleLoader dynimport scenarios", () => {
         `
 package shared
 
-fn greet(name: string) -> string {
+fn greet(name: String) -> String {
   \`hey \${name}\`
 }
 `.trimStart(),
@@ -187,7 +187,7 @@ package caller
 
 dynimport sample.shared.{greet}
 
-fn call(name: string) -> string {
+fn call(name: String) -> String {
   greet(name)
 }
 `.trimStart(),
@@ -252,7 +252,7 @@ fn main() -> void {
         `
 package shared
 
-private fn secret() -> string {
+private fn secret() -> String {
   "nope"
 }
 `.trimStart(),
@@ -325,7 +325,7 @@ fn main() -> void {}
         `
 package shared
 
-fn value() -> string { "primary" }
+fn value() -> String { "primary" }
 `.trimStart(),
         "utf8",
       );
@@ -336,7 +336,7 @@ fn value() -> string { "primary" }
         `
 package shared
 
-fn value() -> string { "secondary" }
+fn value() -> String { "secondary" }
 `.trimStart(),
         "utf8",
       );
@@ -383,7 +383,7 @@ describe("ModuleLoader pipeline with typechecker", () => {
         `
 package shared
 
-fn welcome(name: string) -> string {
+fn welcome(name: String) -> String {
   \`welcome \${name}\`
 }
 `.trimStart(),

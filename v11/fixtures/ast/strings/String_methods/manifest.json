@@ -1,0 +1,88 @@
+{
+  "description": "String helpers cover length, subString, split, replace, and prefix/suffix checks",
+  "skipTargets": [
+    "ts"
+  ],
+  "expect": {
+    "result": {
+      "kind": "array",
+      "elements": [
+        {
+          "kind": "u64",
+          "value": "6"
+        },
+        {
+          "kind": "u64",
+          "value": "5"
+        },
+        {
+          "kind": "u64",
+          "value": "5"
+        },
+        {
+          "kind": "String",
+          "value": "éll"
+        },
+        {
+          "kind": "String",
+          "value": "llo"
+        },
+        {
+          "kind": "array",
+          "elements": [
+            {
+              "kind": "String",
+              "value": "hé"
+            },
+            {
+              "kind": "String",
+              "value": ""
+            },
+            {
+              "kind": "String",
+              "value": "o"
+            }
+          ]
+        },
+        {
+          "kind": "array",
+          "elements": [
+            {
+              "kind": "String",
+              "value": "h"
+            },
+            {
+              "kind": "String",
+              "value": "é"
+            },
+            {
+              "kind": "String",
+              "value": "l"
+            },
+            {
+              "kind": "String",
+              "value": "l"
+            },
+            {
+              "kind": "String",
+              "value": "o"
+            }
+          ]
+        },
+        {
+          "kind": "String",
+          "value": "héLLo"
+        },
+        {
+          "kind": "bool",
+          "value": true
+        },
+        {
+          "kind": "bool",
+          "value": true
+        }
+      ]
+    }
+  },
+  "entry": "module.json"
+}

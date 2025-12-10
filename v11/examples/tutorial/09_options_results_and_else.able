@@ -3,10 +3,10 @@ package tutorial.results
 import able.collections.array
 import able.core.interfaces.{Error}
 
-struct MathError { message: string }
+struct MathError { message: String }
 
 impl Error for MathError {
-  fn message(self: Self) -> string { self.message }
+  fn message(self: Self) -> String { self.message }
   fn cause(self: Self) -> ?Error { nil }
 }
 
@@ -21,7 +21,7 @@ fn ratio_sum(values: Array i32) -> MathError | i32 {
   safe_div(first + second, second)!
 }
 
-fn greet(name: ?string) -> string {
+fn greet(name: ?String) -> String {
   actual := name else { "friend" }
   `Hi, ${actual}`
 }

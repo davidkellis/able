@@ -37,7 +37,7 @@ const channelProgressFixtures: Fixture[] = [
             ],
           ),
         ]),
-        AST.simpleTypeExpression("string"),
+        AST.simpleTypeExpression("String"),
       ),
       AST.assign(
         "sender_a",
@@ -69,32 +69,29 @@ const channelProgressFixtures: Fixture[] = [
               ),
               AST.blockExpression([
                 AST.ifExpression(
-                  AST.functionCall(AST.identifier("__able_channel_try_send"), [
-                    AST.identifier("handle"),
-                    AST.integerLiteral(10),
-                  ]),
-                  AST.blockExpression([
-                    AST.assignmentExpression(
-                      "=",
-                      AST.identifier("sent"),
-                      AST.bool(true),
-                    ),
-                  ]),
-                  [
-                    AST.orClause(
-                      AST.blockExpression([
-                        AST.assignmentExpression(
-                          "+=",
-                          AST.identifier("attempts"),
-                          AST.integerLiteral(1),
-                        ),
-                        AST.functionCall(AST.identifier("proc_yield"), []),
-                      ]),
-                    ),
-                  ],
-                ),
-              ]),
-            ),
+                AST.functionCall(AST.identifier("__able_channel_try_send"), [
+                  AST.identifier("handle"),
+                  AST.integerLiteral(10),
+                ]),
+                AST.blockExpression([
+                  AST.assignmentExpression(
+                    "=",
+                    AST.identifier("sent"),
+                    AST.bool(true),
+                  ),
+                ]),
+                [],
+                AST.blockExpression([
+                  AST.assignmentExpression(
+                    "+=",
+                    AST.identifier("attempts"),
+                    AST.integerLiteral(1),
+                  ),
+                  AST.functionCall(AST.identifier("proc_yield"), []),
+                ]),
+              ),
+            ]),
+          ),
             AST.identifier("sent"),
           ]),
         ),
@@ -140,18 +137,15 @@ const channelProgressFixtures: Fixture[] = [
                       AST.bool(true),
                     ),
                   ]),
-                  [
-                    AST.orClause(
-                      AST.blockExpression([
-                        AST.assignmentExpression(
-                          "+=",
-                          AST.identifier("attempts"),
-                          AST.integerLiteral(1),
-                        ),
-                        AST.functionCall(AST.identifier("proc_yield"), []),
-                      ]),
+                  [],
+                  AST.blockExpression([
+                    AST.assignmentExpression(
+                      "+=",
+                      AST.identifier("attempts"),
+                      AST.integerLiteral(1),
                     ),
-                  ],
+                    AST.functionCall(AST.identifier("proc_yield"), []),
+                  ]),
                 ),
               ]),
             ),
@@ -207,32 +201,29 @@ const channelProgressFixtures: Fixture[] = [
                     AST.nilLiteral(),
                   ),
                   AST.blockExpression([
-                    AST.assignmentExpression(
-                      "+=",
-                      AST.identifier("attempts"),
-                      AST.integerLiteral(1),
-                    ),
-                    AST.functionCall(AST.identifier("proc_yield"), []),
-                  ]),
-                  [
-                    AST.orClause(
-                      AST.blockExpression([
-                        AST.assignmentExpression(
-                          "+=",
-                          AST.identifier("sum"),
-                          AST.identifier("value"),
-                        ),
-                        AST.assignmentExpression(
-                          "+=",
-                          AST.identifier("received"),
-                          AST.integerLiteral(1),
-                        ),
-                      ]),
-                    ),
-                  ],
-                ),
-              ]),
-            ),
+                  AST.assignmentExpression(
+                    "+=",
+                    AST.identifier("attempts"),
+                    AST.integerLiteral(1),
+                  ),
+                  AST.functionCall(AST.identifier("proc_yield"), []),
+                ]),
+                [],
+                AST.blockExpression([
+                  AST.assignmentExpression(
+                    "+=",
+                    AST.identifier("sum"),
+                    AST.identifier("value"),
+                  ),
+                  AST.assignmentExpression(
+                    "+=",
+                    AST.identifier("received"),
+                    AST.integerLiteral(1),
+                  ),
+                ]),
+              ),
+            ]),
+          ),
             AST.identifier("sum"),
           ]),
         ),

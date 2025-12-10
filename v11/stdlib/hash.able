@@ -15,5 +15,5 @@ interface Hasher {
   fn #write_i32(i: i32) { ... }
   fn #write_i64(i: i64) { ... }
   fn #write_i128(i: i128) { ... }
-  fn #write_str(s: string) { ... }
+  fn #write_str(s: String) { ... }
 }

@@ -11,16 +11,16 @@
       "fields": [
         {
           "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "value"
+          },
           "fieldType": {
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
               "name": "i32"
             }
-          },
-          "name": {
-            "type": "Identifier",
-            "name": "value"
           }
         }
       ],
@@ -66,6 +66,13 @@
               }
             ]
           },
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          },
           "isMethodShorthand": true,
           "isPrivate": false
         },
@@ -98,6 +105,13 @@
                 }
               }
             ]
+          },
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
           },
           "isMethodShorthand": true,
           "isPrivate": false

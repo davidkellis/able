@@ -9,32 +9,32 @@ import (
 )
 
 var infixOperatorSets = map[string][]string{
-	"logical_or_expression":        {"||"},
-	"logical_and_expression":       {"&&"},
-	"bitwise_or_expression":        {".|"},
-	"bitwise_xor_expression":       {".^"},
-	"bitwise_and_expression":       {".&"},
-	"equality_expression":          {"==", "!="},
-	"comparison_expression":        {">", "<", ">=", "<="},
-	"shift_expression":             {".<<", ".>>"},
-	"additive_expression":          {"+", "-"},
-	"multiplicative_expression":    {"*", "/", "//", "%%", "/%"},
-	"exponent_expression":          {"^"},
-	"topic_placeholder_expression": {"%"},
+	"logical_or_expression":     {"||"},
+	"logical_and_expression":    {"&&"},
+	"bitwise_or_expression":     {".|"},
+	"bitwise_xor_expression":    {".^"},
+	"bitwise_and_expression":    {".&"},
+	"equality_expression":       {"==", "!="},
+	"comparison_expression":     {">", "<", ">=", "<="},
+	"shift_expression":          {".<<", ".>>"},
+	"additive_expression":       {"+", "-"},
+	"multiplicative_expression": {"*", "/", "//", "%", "/%"},
+	"exponent_expression":       {"^"},
 }
 
 var assignmentOperatorMap = map[string]ast.AssignmentOperator{
-	":=":     ast.AssignmentDeclare,
-	"=":      ast.AssignmentAssign,
-	"+=":     ast.AssignmentAdd,
-	"-=":     ast.AssignmentSub,
-	"*=":     ast.AssignmentMul,
-	"/=":     ast.AssignmentDiv,
-	".&=":    ast.AssignmentBitAnd,
-	".|=":    ast.AssignmentBitOr,
-	".^=":    ast.AssignmentBitXor,
-	".<<=":   ast.AssignmentShiftL,
-	".>>=":   ast.AssignmentShiftR,
+	":=":   ast.AssignmentDeclare,
+	"=":    ast.AssignmentAssign,
+	"+=":   ast.AssignmentAdd,
+	"-=":   ast.AssignmentSub,
+	"*=":   ast.AssignmentMul,
+	"/=":   ast.AssignmentDiv,
+	"%=":   ast.AssignmentMod,
+	".&=":  ast.AssignmentBitAnd,
+	".|=":  ast.AssignmentBitOr,
+	".^=":  ast.AssignmentBitXor,
+	".<<=": ast.AssignmentShiftL,
+	".>>=": ast.AssignmentShiftR,
 }
 
 func parseExpressionInternal(ctx *parseContext, node *sitter.Node) (ast.Expression, error) {
@@ -239,8 +239,6 @@ func parseExpressionInternal(ctx *parseContext, node *sitter.Node) (ast.Expressi
 			return nil, err
 		}
 		return annotateExpression(expr, node), nil
-	case "topic_reference":
-		return annotateExpression(ast.NewTopicReferenceExpression(), node), nil
 	case "interpolated_string":
 		expr, err := ctx.parseInterpolatedString(node)
 		if err != nil {
@@ -624,6 +622,22 @@ func (ctx *parseContext) parsePipeExpression(node *sitter.Node, operator string)
 	result, err := ctx.parseExpression(node.NamedChild(0))
 	if err != nil {
 		return nil, err
+	}
+	if operator == "|>>" {
+		if assign, ok := result.(*ast.AssignmentExpression); ok && node.NamedChildCount() > 1 {
+			piped := assign.Right
+			for i := uint(1); i < node.NamedChildCount(); i++ {
+				stepNode := node.NamedChild(i)
+				stepExpr, err := ctx.parseExpression(stepNode)
+				if err != nil {
+					return nil, err
+				}
+				prev := piped
+				piped = annotateCompositeExpression(ast.NewBinaryExpression(operator, piped, stepExpr), prev, stepNode)
+			}
+			assign.Right = piped
+			return annotateExpression(assign, node), nil
+		}
 	}
 	for i := uint(1); i < node.NamedChildCount(); i++ {
 		stepNode := node.NamedChild(i)

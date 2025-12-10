@@ -41,7 +41,7 @@ func (c *declarationCollector) resolveTypeExpression(expr ast.TypeExpression, ty
 			switch name {
 			case "bool":
 				return PrimitiveType{Kind: PrimitiveBool}
-			case "string":
+			case "String":
 				return PrimitiveType{Kind: PrimitiveString}
 			case "char":
 				return PrimitiveType{Kind: PrimitiveChar}

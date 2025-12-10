@@ -2,7 +2,7 @@
   "description": "Function uses union type in parameter and return",
   "expect": {
     "result": {
-      "kind": "string",
+      "kind": "String",
       "value": "hello"
     }
   },

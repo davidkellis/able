@@ -166,8 +166,8 @@ func TestStringInterpolationInfersStringType(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected interpolation inference entry")
 	}
-	if typeName(typ) != "string" {
-		t.Fatalf("expected interpolation to yield string, got %q", typeName(typ))
+	if typeName(typ) != "String" {
+		t.Fatalf("expected interpolation to yield String, got %q", typeName(typ))
 	}
 }
 func TestStringInterpolationAllowsNonStringPartsForNow(t *testing.T) {
@@ -188,7 +188,7 @@ func TestRethrowAllowedInsideRescue(t *testing.T) {
 	errorStruct := ast.StructDef(
 		"Error",
 		[]*ast.StructFieldDefinition{
-			ast.FieldDef(ast.Ty("string"), "message"),
+			ast.FieldDef(ast.Ty("String"), "message"),
 		},
 		ast.StructKindNamed,
 		nil,

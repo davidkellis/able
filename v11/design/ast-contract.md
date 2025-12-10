@@ -68,7 +68,7 @@ Key nodes and metadata:
 - Literals: carry raw values plus numeric suffix (`IntegerType`, `FloatType`).
 - `FunctionCall`: supports positional args, optional type arguments, and UFCS via
   member access.
-- Control flow: `IfExpression` + `OrClause`, `MatchExpression` with clause
+- Control flow: `IfExpression` with `ElseIfClause` + optional else body, `MatchExpression` with clause
   patterns & guards, `RescueExpression`, `EnsureExpression`, `OrElseExpression`,
   `PropagationExpression`.
 - Async: `ProcExpression`, `SpawnExpression`, `BreakpointExpression`.

@@ -9,7 +9,7 @@ describe("TypeChecker implementation validation", () => {
     const checker = new TypeChecker();
     const { diagnostics } = checker.checkModule(moduleAst);
     expect(diagnostics).toEqual([
-      { severity: "error", message: "typechecker: impl Show for Point missing method 'to_string'" },
+      { severity: "error", message: "typechecker: impl Show for Point missing method 'to_String'" },
     ]);
   });
 
@@ -21,7 +21,7 @@ describe("TypeChecker implementation validation", () => {
         "extra",
         [AST.functionParameter("self", AST.simpleTypeExpression("Point"))],
         AST.blockExpression([AST.returnStatement(AST.stringLiteral("extra"))]),
-        AST.simpleTypeExpression("string"),
+        AST.simpleTypeExpression("String"),
       ),
     ]);
     const checker = new TypeChecker();
@@ -70,9 +70,9 @@ describe("TypeChecker implementation validation", () => {
         "format",
         [
           AST.functionParameter("self", AST.simpleTypeExpression("Self")),
-          AST.functionParameter("prefix", AST.simpleTypeExpression("string")),
+          AST.functionParameter("prefix", AST.simpleTypeExpression("String")),
         ],
-        AST.simpleTypeExpression("string"),
+        AST.simpleTypeExpression("String"),
       ),
     ]);
     const moduleAst = buildModule(interfaceDef, [
@@ -83,14 +83,14 @@ describe("TypeChecker implementation validation", () => {
           AST.functionParameter("prefix", AST.simpleTypeExpression("i32")),
         ],
         AST.blockExpression([AST.returnStatement(AST.stringLiteral("<point>"))]),
-        AST.simpleTypeExpression("string"),
+        AST.simpleTypeExpression("String"),
       ),
     ]);
     const checker = new TypeChecker();
     const { diagnostics } = checker.checkModule(moduleAst);
     expect(diagnostics).toContainEqual({
       severity: "error",
-      message: "typechecker: impl Formatter for Point method 'format' parameter 2 expected string, got i32",
+      message: "typechecker: impl Formatter for Point method 'format' parameter 2 expected String, got i32",
     });
   });
 
@@ -107,14 +107,14 @@ describe("TypeChecker implementation validation", () => {
         "clone",
         [AST.functionParameter("self", AST.simpleTypeExpression("Point"))],
         AST.blockExpression([AST.returnStatement(AST.stringLiteral("<point>"))]),
-        AST.simpleTypeExpression("string"),
+        AST.simpleTypeExpression("String"),
       ),
     ]);
     const checker = new TypeChecker();
     const { diagnostics } = checker.checkModule(moduleAst);
     expect(diagnostics).toContainEqual({
       severity: "error",
-      message: "typechecker: impl Cloner for Point method 'clone' return type expected Result Point, got string",
+      message: "typechecker: impl Cloner for Point method 'clone' return type expected Result Point, got String",
     });
   });
 
@@ -183,7 +183,7 @@ describe("TypeChecker implementation validation", () => {
     const moduleAst = buildModule(
       interfaceDef,
       [buildToStringImplementation()],
-      [AST.simpleTypeExpression("string")],
+      [AST.simpleTypeExpression("String")],
     );
     const checker = new TypeChecker();
     const { diagnostics } = checker.checkModule(moduleAst);
@@ -203,7 +203,7 @@ describe("TypeChecker implementation validation", () => {
     const { diagnostics } = checker.checkModule(moduleAst);
     expect(diagnostics).toContainEqual({
       severity: "error",
-      message: "typechecker: impl Show for Point defines duplicate method 'to_string'",
+      message: "typechecker: impl Show for Point defines duplicate method 'to_String'",
     });
   });
 
@@ -393,19 +393,19 @@ describe("TypeChecker implementation validation", () => {
 function buildShowInterface(): AST.InterfaceDefinition {
   return AST.interfaceDefinition("Show", [
     AST.functionSignature(
-      "to_string",
+      "to_String",
       [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
-      AST.simpleTypeExpression("string"),
+      AST.simpleTypeExpression("String"),
     ),
   ]);
 }
 
 function buildToStringImplementation(): AST.FunctionDefinition {
   return AST.functionDefinition(
-    "to_string",
+    "to_String",
     [AST.functionParameter("self", AST.simpleTypeExpression("Point"))],
     AST.blockExpression([AST.returnStatement(AST.stringLiteral("<point>"))]),
-    AST.simpleTypeExpression("string"),
+    AST.simpleTypeExpression("String"),
   );
 }
 

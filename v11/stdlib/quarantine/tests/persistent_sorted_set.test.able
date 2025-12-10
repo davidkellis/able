@@ -20,7 +20,7 @@ describe("PersistentSortedSet") { suite =>
   }
 
   suite.it("removes values without mutating previous versions") { _ctx =>
-    set: PersistentSortedSet string := PersistentSortedSet.empty()
+    set: PersistentSortedSet String := PersistentSortedSet.empty()
     set = set.insert("alpha").insert("beta").insert("gamma")
     trimmed := set.remove("beta")
 

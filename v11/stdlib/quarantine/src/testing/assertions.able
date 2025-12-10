@@ -8,22 +8,22 @@ import able.testing.protocol.{Failure, SourceLocation}
 
 ## Error raised when an expectation does not hold.
 struct AssertionError {
-  message: string,
-  details: ?string,
+  message: String,
+  details: ?String,
   location: ?SourceLocation
 }
 
 impl Error for AssertionError {
-  fn message(self: Self) -> string { self.message }
+  fn message(self: Self) -> String { self.message }
   fn cause(self: Self) -> ?Error { nil }
 }
 
 ## Result returned by matchers to communicate assertion state.
 struct MatcherResult {
   passed: bool,
-  message: string,
-  negated_message: string,
-  details: ?string
+  message: String,
+  negated_message: String,
+  details: ?String
 }
 
 interface Matcher T for M {
@@ -161,14 +161,14 @@ impl Matcher bool for BeFalseMatcher {
 }
 
 struct RaiseErrorMatcher {
-  expected_message: ?string
+  expected_message: ?String
 }
 
 fn raise_error() -> RaiseErrorMatcher {
   RaiseErrorMatcher { expected_message: nil }
 }
 
-fn raise_error_with_message(message: string) -> RaiseErrorMatcher {
+fn raise_error_with_message(message: String) -> RaiseErrorMatcher {
   RaiseErrorMatcher { expected_message: message }
 }
 
@@ -197,7 +197,7 @@ impl Matcher (() -> void) for RaiseErrorMatcher {
             negated_message: "expected block not to raise an error",
             details: nil
           },
-          case expected: string => {
+          case expected: String => {
             let matches_message = err.message() == expected
             let detail = `expected error message ${expected}, got ${err.message()}`
             MatcherResult {
@@ -214,15 +214,15 @@ impl Matcher (() -> void) for RaiseErrorMatcher {
 }
 
 struct StringEqMatcher {
-  expected: string
+  expected: String
 }
 
-fn eq_string(expected: string) -> StringEqMatcher {
+fn eq_string(expected: String) -> StringEqMatcher {
   StringEqMatcher { expected }
 }
 
-impl Matcher string for StringEqMatcher {
-  fn matches(self: Self, actual: string) -> MatcherResult {
+impl Matcher String for StringEqMatcher {
+  fn matches(self: Self, actual: String) -> MatcherResult {
     if actual == self.expected {
       MatcherResult {
         passed: true,
@@ -242,23 +242,23 @@ impl Matcher string for StringEqMatcher {
 }
 
 struct StartsWithMatcher {
-  prefix: string
+  prefix: String
 }
 
 struct EndsWithMatcher {
-  suffix: string
+  suffix: String
 }
 
-fn start_with(prefix: string) -> StartsWithMatcher {
+fn start_with(prefix: String) -> StartsWithMatcher {
   StartsWithMatcher { prefix }
 }
 
-fn end_with(suffix: string) -> EndsWithMatcher {
+fn end_with(suffix: String) -> EndsWithMatcher {
   EndsWithMatcher { suffix }
 }
 
-impl Matcher string for StartsWithMatcher {
-  fn matches(self: Self, actual: string) -> MatcherResult {
+impl Matcher String for StartsWithMatcher {
+  fn matches(self: Self, actual: String) -> MatcherResult {
     if actual.starts_with(self.prefix) {
       MatcherResult {
         passed: true,
@@ -277,8 +277,8 @@ impl Matcher string for StartsWithMatcher {
   }
 }
 
-impl Matcher string for EndsWithMatcher {
-  fn matches(self: Self, actual: string) -> MatcherResult {
+impl Matcher String for EndsWithMatcher {
+  fn matches(self: Self, actual: String) -> MatcherResult {
     if actual.ends_with(self.suffix) {
       MatcherResult {
         passed: true,
@@ -298,15 +298,15 @@ impl Matcher string for EndsWithMatcher {
 }
 
 struct IncludeSubstringMatcher {
-  substring: string
+  substring: String
 }
 
-fn include_substring(substring: string) -> IncludeSubstringMatcher {
+fn include_substring(substring: String) -> IncludeSubstringMatcher {
   IncludeSubstringMatcher { substring }
 }
 
-impl Matcher string for IncludeSubstringMatcher {
-  fn matches(self: Self, actual: string) -> MatcherResult {
+impl Matcher String for IncludeSubstringMatcher {
+  fn matches(self: Self, actual: String) -> MatcherResult {
     if actual.contains(self.substring) {
       MatcherResult {
         passed: true,
@@ -492,8 +492,8 @@ fn array_contains T (array: Array T, target: T) -> bool where T: Eq T {
   false
 }
 
-impl Matcher string for SnapshotMatcher {
-  fn matches(self: Self, actual: string) -> MatcherResult {
+impl Matcher String for SnapshotMatcher {
+  fn matches(self: Self, actual: String) -> MatcherResult {
     if actual == self.expected {
       MatcherResult {
         passed: true,
@@ -563,15 +563,15 @@ impl Matcher i64 for BeBetweenMatcher i64 {
   }
 }
 struct MatchRegexMatcher {
-  pattern: string
+  pattern: String
 }
 
-fn match_regex(pattern: string) -> MatchRegexMatcher {
+fn match_regex(pattern: String) -> MatchRegexMatcher {
   MatchRegexMatcher { pattern }
 }
 
-impl Matcher string for MatchRegexMatcher {
-  fn matches(self: Self, actual: string) -> MatcherResult {
+impl Matcher String for MatchRegexMatcher {
+  fn matches(self: Self, actual: String) -> MatcherResult {
     if regex_match(self.pattern, actual) {
       MatcherResult {
         passed: true,
@@ -590,7 +590,7 @@ impl Matcher string for MatchRegexMatcher {
   }
 }
 
-fn regex_match(pattern: string, value: string) -> bool {
+fn regex_match(pattern: String, value: String) -> bool {
   match regex_is_match(pattern, value) {
     case matched: bool => matched,
     case _: Error => pattern == value
@@ -598,24 +598,24 @@ fn regex_match(pattern: string, value: string) -> bool {
 }
 
 struct SnapshotMatcher {
-  name: string,
+  name: String,
   store: SnapshotStore
 }
 
-fn match_snapshot(name: string) -> SnapshotMatcher {
+fn match_snapshot(name: String) -> SnapshotMatcher {
   SnapshotMatcher { name, store: default_snapshot_store() }
 }
 
 struct CustomMatcher T {
-  message: string,
-  negated_message: string,
+  message: String,
+  negated_message: String,
   predicate: T -> bool,
-  detail: ?(T -> ?string)
+  detail: ?(T -> ?String)
 }
 
 fn matcher T (
-  message: string,
-  negated_message: string,
+  message: String,
+  negated_message: String,
   predicate: T -> bool
 ) -> CustomMatcher T {
   CustomMatcher T {
@@ -627,10 +627,10 @@ fn matcher T (
 }
 
 fn matcher_with_details T (
-  message: string,
-  negated_message: string,
+  message: String,
+  negated_message: String,
   predicate: T -> bool,
-  detail: T -> ?string
+  detail: T -> ?String
 ) -> CustomMatcher T {
   CustomMatcher T {
     message,
@@ -652,7 +652,7 @@ impl Matcher T for CustomMatcher T {
     } else {
       let details = match self.detail {
         case nil => nil,
-        case detail_fn: (T -> ?string) => detail_fn(actual)
+        case detail_fn: (T -> ?String) => detail_fn(actual)
       }
       MatcherResult {
         passed: false,
@@ -664,18 +664,18 @@ impl Matcher T for CustomMatcher T {
   }
 }
 
-fn match_snapshot_with_store(name: string, store: SnapshotStore) -> SnapshotMatcher {
+fn match_snapshot_with_store(name: String, store: SnapshotStore) -> SnapshotMatcher {
   SnapshotMatcher { name, store }
 }
 
 impl SnapshotMatcher {
-  fn describe(self: Self) -> string {
+  fn describe(self: Self) -> String {
     `snapshot "${self.name}"`
   }
 }
 
-impl Matcher string for SnapshotMatcher {
-  fn matches(self: Self, actual: string) -> MatcherResult {
+impl Matcher String for SnapshotMatcher {
+  fn matches(self: Self, actual: String) -> MatcherResult {
     match self.store.read(self.name) {
       case nil => {
         if self.store.update_mode() {
@@ -695,7 +695,7 @@ impl Matcher string for SnapshotMatcher {
           }
         }
       },
-      case expected: string => {
+      case expected: String => {
         if actual == expected {
           MatcherResult {
             passed: true,

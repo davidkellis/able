@@ -16,7 +16,7 @@ describe("PersistentQueue") { suite =>
   }
 
   suite.it("dequeues without mutating previous versions") { _ctx =>
-    queue: PersistentQueue string := PersistentQueue.empty()
+    queue: PersistentQueue String := PersistentQueue.empty()
     queue = queue.enqueue("a").enqueue("b").enqueue("c")
     next := queue.dequeue()
 

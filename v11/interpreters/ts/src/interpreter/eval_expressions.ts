@@ -21,7 +21,7 @@ import { evaluateMatchExpression } from "./match";
 import { evaluateMemberAccessExpression, evaluateStructDefinition, evaluateStructLiteral, evaluateImplicitMemberExpression, memberAccessOnValue } from "./structs";
 import { evaluateLiteral } from "./literals";
 import { evaluateMapLiteral } from "./maps";
-import { evaluateIndexExpression, evaluateRangeExpression, evaluateBinaryExpression, evaluateUnaryExpression, evaluateTopicReferenceExpression } from "./operations";
+import { evaluateIndexExpression, evaluateRangeExpression, evaluateBinaryExpression, evaluateUnaryExpression } from "./operations";
 import { evaluateProcExpression, evaluateSpawnExpression, evaluateBreakpointExpression, evaluateStringInterpolation, evaluateExternFunctionBody } from "./runtime_extras";
 import { evaluateIteratorLiteral, evaluateYieldStatement } from "./iterators";
 import { ProcContinuationContext } from "./proc_continuations";
@@ -62,7 +62,6 @@ const EXPRESSION_TYPES = new Set<AST.AstNode["type"]>([
   "IteratorLiteral",
   "ImplicitMemberExpression",
   "PlaceholderExpression",
-  "TopicReferenceExpression",
   "IfExpression",
   "MatchExpression",
   "StructLiteral",
@@ -168,8 +167,6 @@ export function applyEvaluationAugmentations(cls: typeof InterpreterV10): void {
         return evaluateIteratorLiteral(this, node as AST.IteratorLiteral, env);
       case "YieldStatement":
         return evaluateYieldStatement(this, node as AST.YieldStatement, env);
-      case "TopicReferenceExpression":
-        return evaluateTopicReferenceExpression(this);
       case "Module":
         return evaluateModule(this, node as AST.Module);
       case "PackageStatement":

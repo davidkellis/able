@@ -210,8 +210,8 @@ const patternsFixtures: Fixture[] = [
         AST.structDefinition(
           "Address",
           [
-            AST.structFieldDefinition(AST.simpleTypeExpression("string"), "street"),
-            AST.structFieldDefinition(AST.simpleTypeExpression("string"), "city"),
+            AST.structFieldDefinition(AST.simpleTypeExpression("String"), "street"),
+            AST.structFieldDefinition(AST.simpleTypeExpression("String"), "city"),
             AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "zip"),
           ],
           "named",
@@ -219,7 +219,7 @@ const patternsFixtures: Fixture[] = [
         AST.structDefinition(
           "Person",
           [
-            AST.structFieldDefinition(AST.simpleTypeExpression("string"), "name"),
+            AST.structFieldDefinition(AST.simpleTypeExpression("String"), "name"),
             AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "age"),
             AST.structFieldDefinition(AST.simpleTypeExpression("Address"), "address"),
           ],
@@ -292,7 +292,7 @@ const patternsFixtures: Fixture[] = [
       manifest: {
         description: "Struct pattern shorthand, rename, type annotation, and nested destructuring using ::",
         expect: {
-          result: { kind: "string", value: "Terry-29-Main-94107-SF" },
+          result: { kind: "String", value: "Terry-29-Main-94107-SF" },
         },
       },
     },
@@ -353,7 +353,7 @@ const patternsFixtures: Fixture[] = [
       manifest: {
         description: "Typed pattern mismatch raises error",
         expect: {
-          errors: ["Typed pattern mismatch in assignment: expected i32, got string"],
+          errors: ["Typed pattern mismatch in assignment: expected i32, got String"],
         },
       },
     },

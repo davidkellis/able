@@ -1,7 +1,7 @@
 package tutorial.interfaces
 
 interface Formatter {
-  fn format(self: Self) -> string
+  fn format(self: Self) -> String
 }
 
 interface Scale {
@@ -15,21 +15,21 @@ methods Point {
 }
 
 impl Formatter for Point {
-  fn format(self: Self) -> string { `(${self.x}, ${self.y})` }
+  fn format(self: Self) -> String { `(${self.x}, ${self.y})` }
 }
 
 impl Scale for Point {
   fn scale(self: Self, by: f64) -> Point { Point { x: self.x * by, y: self.y * by } }
 }
 
-struct Report { title: string, body: string }
+struct Report { title: String, body: String }
 
 methods Report {
-  fn new(title: string, body: string) -> Report { Report { title: title, body: body } }
+  fn new(title: String, body: String) -> Report { Report { title: title, body: body } }
 }
 
 impl Formatter for Report {
-  fn format(self: Self) -> string { `${self.title}: ${self.body}` }
+  fn format(self: Self) -> String { `${self.title}: ${self.body}` }
 }
 
 fn show(item: Formatter) -> void {

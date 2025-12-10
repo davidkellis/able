@@ -13,7 +13,7 @@ describe("v11 interpreter - rethrow", () => {
       inner,
       [AST.matchClause(AST.wildcardPattern(), AST.stringLiteral("handled"))]
     );
-    expect(I.evaluate(outer)).toEqual({ kind: 'string', value: 'handled' });
+    expect(I.evaluate(outer)).toEqual({ kind: 'String', value: 'handled' });
   });
 });
 

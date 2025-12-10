@@ -8,7 +8,7 @@ export type PrimitiveName =
   | FloatPrimitive
   | "bool"
   | "char"
-  | "string"
+  | "String"
   | "nil"
   | "void";
 

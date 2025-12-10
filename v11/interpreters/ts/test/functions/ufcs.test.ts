@@ -44,13 +44,13 @@ describe("v11 interpreter - UFCS fallback", () => {
       "tag",
       [AST.functionParameter("p", AST.simpleTypeExpression("Point"))],
       AST.blockExpression([AST.returnStatement(AST.stringLiteral("point"))]),
-      AST.simpleTypeExpression("string"),
+      AST.simpleTypeExpression("String"),
     );
     const stringTag = AST.functionDefinition(
       "tag",
-      [AST.functionParameter("s", AST.simpleTypeExpression("string"))],
-      AST.blockExpression([AST.returnStatement(AST.stringLiteral("string"))]),
-      AST.simpleTypeExpression("string"),
+      [AST.functionParameter("s", AST.simpleTypeExpression("String"))],
+      AST.blockExpression([AST.returnStatement(AST.stringLiteral("String"))]),
+      AST.simpleTypeExpression("String"),
     );
     I.evaluate(pointTag);
     I.evaluate(stringTag);
@@ -65,8 +65,8 @@ describe("v11 interpreter - UFCS fallback", () => {
     const callOnPoint = AST.functionCall(AST.memberAccessExpression(AST.identifier("p"), "tag"), []);
     const callOnString = AST.functionCall(AST.memberAccessExpression(AST.stringLiteral("hi"), "tag"), []);
 
-    expect(I.evaluate(callOnPoint)).toEqual({ kind: "string", value: "point" });
-    expect(I.evaluate(callOnString)).toEqual({ kind: "string", value: "string" });
+    expect(I.evaluate(callOnPoint)).toEqual({ kind: "String", value: "point" });
+    expect(I.evaluate(callOnString)).toEqual({ kind: "String", value: "String" });
   });
 
   test("rejects UFCS binding when the receiver type mismatches the first parameter", () => {
@@ -75,9 +75,9 @@ describe("v11 interpreter - UFCS fallback", () => {
     I.evaluate(point);
     const onlyString = AST.functionDefinition(
       "label",
-      [AST.functionParameter("s", AST.simpleTypeExpression("string"))],
+      [AST.functionParameter("s", AST.simpleTypeExpression("String"))],
       AST.blockExpression([AST.returnStatement(AST.stringLiteral("nope"))]),
-      AST.simpleTypeExpression("string"),
+      AST.simpleTypeExpression("String"),
     );
     I.evaluate(onlyString);
 
@@ -86,5 +86,93 @@ describe("v11 interpreter - UFCS fallback", () => {
     const call = AST.functionCall(AST.memberAccessExpression(AST.identifier("p"), "label"), []);
 
     expect(() => I.evaluate(call)).toThrow(/field or method/i);
+  });
+
+  test("callable field takes precedence over methods", () => {
+    const I = new InterpreterV10();
+    const box = AST.structDefinition(
+      "Box",
+      [
+        AST.structFieldDefinition(AST.simpleTypeExpression("String"), "name"),
+        AST.structFieldDefinition(undefined, "action"),
+      ],
+      "named",
+    );
+    const methods = AST.methodsDefinition(AST.simpleTypeExpression("Box"), [
+      AST.fn(
+        "action",
+        [],
+        AST.blockExpression([AST.returnStatement(AST.stringLiteral("method"))]),
+        AST.simpleTypeExpression("String"),
+        undefined,
+        undefined,
+        true,
+      ),
+    ]);
+    I.evaluate(box);
+    I.evaluate(methods);
+    const instance = AST.structLiteral(
+      [
+        AST.structFieldInitializer(AST.stringLiteral("ok"), "name"),
+        AST.structFieldInitializer(AST.lambdaExpression([], AST.stringLiteral("field")), "action"),
+      ],
+      false,
+      "Box",
+    );
+    I.evaluate(AST.assignmentExpression(":=", AST.identifier("b"), instance));
+    const call = AST.functionCall(AST.memberAccessExpression(AST.identifier("b"), "action"), []);
+
+    expect(I.evaluate(call)).toEqual({ kind: "String", value: "field" });
+  });
+
+  test("identifier calls no longer bind via UFCS fallback", () => {
+    const I = new InterpreterV10();
+    const point = AST.structDefinition("Point", [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "x")], "named");
+    const methods = AST.methodsDefinition(AST.simpleTypeExpression("Point"), [
+      AST.fn(
+        "tag",
+        [],
+        AST.blockExpression([AST.returnStatement(AST.stringLiteral("point"))]),
+        AST.simpleTypeExpression("String"),
+        undefined,
+        undefined,
+        true,
+      ),
+    ]);
+    I.evaluate(point);
+    I.evaluate(methods);
+    I.evaluate(AST.assignmentExpression(":=", AST.identifier("p"), AST.structLiteral([AST.structFieldInitializer(AST.integerLiteral(1), "x")], false, "Point")));
+    const call = AST.functionCall(AST.identifier("tag"), [AST.identifier("p")]);
+
+    expect(() => I.evaluate(call)).toThrow(/undefined variable/i);
+  });
+
+  test("reports ambiguity when inherent methods overlap with UFCS free functions", () => {
+    const I = new InterpreterV10();
+    const point = AST.structDefinition("Point", [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "x")], "named");
+    const methods = AST.methodsDefinition(AST.simpleTypeExpression("Point"), [
+      AST.fn(
+        "describe",
+        [AST.functionParameter("self", AST.simpleTypeExpression("Point"))],
+        AST.blockExpression([AST.returnStatement(AST.stringLiteral("method"))]),
+        AST.simpleTypeExpression("String"),
+        undefined,
+        undefined,
+        false,
+      ),
+    ]);
+    const freeDescribe = AST.functionDefinition(
+      "describe",
+      [AST.functionParameter("p", AST.simpleTypeExpression("Point"))],
+      AST.blockExpression([AST.returnStatement(AST.stringLiteral("free"))]),
+      AST.simpleTypeExpression("String"),
+    );
+    I.evaluate(point);
+    I.evaluate(methods);
+    I.evaluate(freeDescribe);
+    I.evaluate(AST.assignmentExpression(":=", AST.identifier("p"), AST.structLiteral([AST.structFieldInitializer(AST.integerLiteral(1), "x")], false, "Point")));
+    const call = AST.functionCall(AST.memberAccessExpression(AST.identifier("p"), "describe"), []);
+
+    expect(() => I.evaluate(call)).toThrow(/ambiguous/i);
   });
 });

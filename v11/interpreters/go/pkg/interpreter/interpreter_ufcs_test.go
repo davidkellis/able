@@ -29,7 +29,7 @@ func TestUfcsPrefersMatchingReceiverType(t *testing.T) {
 				[]ast.Statement{
 					ast.Ret(ast.Str("point")),
 				},
-				ast.Ty("string"),
+				ast.Ty("String"),
 				nil,
 				nil,
 				false,
@@ -38,12 +38,12 @@ func TestUfcsPrefersMatchingReceiverType(t *testing.T) {
 			ast.Fn(
 				"tag",
 				[]*ast.FunctionParameter{
-					ast.Param("s", ast.Ty("string")),
+					ast.Param("s", ast.Ty("String")),
 				},
 				[]ast.Statement{
 					ast.Ret(ast.Str("string")),
 				},
-				ast.Ty("string"),
+				ast.Ty("String"),
 				nil,
 				nil,
 				false,
@@ -98,12 +98,12 @@ func TestUfcsRejectsMismatchedReceiver(t *testing.T) {
 			ast.Fn(
 				"label",
 				[]*ast.FunctionParameter{
-					ast.Param("s", ast.Ty("string")),
+					ast.Param("s", ast.Ty("String")),
 				},
 				[]ast.Statement{
 					ast.Ret(ast.Str("nope")),
 				},
-				ast.Ty("string"),
+				ast.Ty("String"),
 				nil,
 				nil,
 				false,
@@ -122,5 +122,129 @@ func TestUfcsRejectsMismatchedReceiver(t *testing.T) {
 	}
 	if !strings.Contains(strings.ToLower(err.Error()), "field or method") {
 		t.Fatalf("expected member access error, got %v", err)
+	}
+}
+
+func TestCallableFieldPrecedenceOverMethods(t *testing.T) {
+	interp := New()
+	module := ast.Mod(
+		[]ast.Statement{
+			ast.StructDef(
+				"Box",
+				[]*ast.StructFieldDefinition{
+					ast.FieldDef(ast.Ty("String"), "name"),
+					ast.FieldDef(nil, "action"),
+				},
+				ast.StructKindNamed,
+				nil,
+				nil,
+				false,
+			),
+			ast.Methods(
+				ast.Ty("Box"),
+				[]*ast.FunctionDefinition{
+					ast.Fn(
+						"action",
+						nil,
+						[]ast.Statement{ast.Ret(ast.Str("method"))},
+						ast.Ty("String"),
+						nil,
+						nil,
+						true,
+						false,
+					),
+				},
+				nil,
+				nil,
+			),
+			ast.Assign(
+				ast.ID("b"),
+				ast.StructLit(
+					[]*ast.StructFieldInitializer{
+						ast.FieldInit(ast.Str("ok"), "name"),
+						ast.FieldInit(ast.Lam(nil, ast.Str("field")), "action"),
+					},
+					false,
+					"Box",
+					nil,
+					nil,
+				),
+			),
+			ast.Assign(ast.ID("result"), ast.CallExpr(ast.Member(ast.ID("b"), "action"))),
+		},
+		nil,
+		nil,
+	)
+	_, env, err := interp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("module evaluation failed: %v", err)
+	}
+	value, err := env.Get("result")
+	if err != nil {
+		t.Fatalf("env lookup failed: %v", err)
+	}
+	str, ok := value.(runtime.StringValue)
+	if !ok || str.Val != "field" {
+		t.Fatalf("expected callable field to win, got %T (%v)", value, value)
+	}
+}
+
+func TestAmbiguousCallablePoolWithInherentAndFreeFunction(t *testing.T) {
+	interp := New()
+	module := ast.Mod(
+		[]ast.Statement{
+			ast.StructDef(
+				"Point",
+				[]*ast.StructFieldDefinition{
+					ast.FieldDef(ast.Ty("i32"), "x"),
+				},
+				ast.StructKindNamed,
+				nil,
+				nil,
+				false,
+			),
+			ast.Methods(
+				ast.Ty("Point"),
+				[]*ast.FunctionDefinition{
+					ast.Fn(
+						"describe",
+						[]*ast.FunctionParameter{
+							ast.Param("self", ast.Ty("Point")),
+						},
+						[]ast.Statement{ast.Ret(ast.Str("method"))},
+						ast.Ty("String"),
+						nil,
+						nil,
+						false,
+						false,
+					),
+				},
+				nil,
+				nil,
+			),
+			ast.Fn(
+				"describe",
+				[]*ast.FunctionParameter{
+					ast.Param("p", ast.Ty("Point")),
+				},
+				[]ast.Statement{ast.Ret(ast.Str("free"))},
+				ast.Ty("String"),
+				nil,
+				nil,
+				false,
+				false,
+			),
+			ast.Assign(ast.ID("p"), ast.StructLit([]*ast.StructFieldInitializer{
+				ast.FieldInit(ast.Int(1), "x"),
+			}, false, "Point", nil, nil)),
+			ast.CallExpr(ast.Member(ast.ID("p"), "describe")),
+		},
+		nil,
+		nil,
+	)
+	if _, _, err := interp.EvaluateModule(module); err == nil {
+		t.Fatalf("expected ambiguity error, got nil")
+	} else if !strings.Contains(strings.ToLower(err.Error()), "ambiguous") {
+		t.Fatalf("expected ambiguous callable error, got %v", err)
 	}
 }

@@ -2,7 +2,7 @@
   "description": "Function where clause constrains generic parameters",
   "expect": {
     "result": {
-      "kind": "string",
+      "kind": "String",
       "value": "winner"
     }
   },

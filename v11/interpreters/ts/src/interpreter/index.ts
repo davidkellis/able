@@ -45,14 +45,12 @@ export class InterpreterV10 {
   genericImplMethods: ImplMethodEntry[] = [];
   rangeImplementations: RangeImplementationRecord[] = [];
   unnamedImplsSeen: Map<string, Map<string, Set<string>>> = new Map();
-  implDuplicateAllowlist: Set<string> = new Set(["Error::ProcError"]);
+  implDuplicateAllowlist: Set<string> = new Set(["Error::ProcError", "Clone::String", "Clone::Grapheme"]);
   raiseStack: V10Value[] = [];
   packageRegistry: Map<string, Map<string, V10Value>> = new Map();
   currentPackage: string | null = null;
   breakpointStack: string[] = [];
   implicitReceiverStack: V10Value[] = [];
-  topicStack: V10Value[] = [];
-  topicUsageStack: boolean[] = [];
   placeholderFrames: PlaceholderFrame[] = [];
 
   procNativeMethods!: {
@@ -200,7 +198,7 @@ export class InterpreterV10 {
       message: this.makeNativeFunction("Error.message", 1, (_interp, args) => {
         const self = args[0];
         if (!self || self.kind !== "error") throw new Error("Error.message called on non-error");
-        return { kind: "string", value: self.message ?? "" };
+        return { kind: "String", value: self.message ?? "" };
       }),
       cause: this.makeNativeFunction("Error.cause", 1, (_interp, args) => {
         const self = args[0];

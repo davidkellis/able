@@ -1,5 +1,5 @@
 interface CustomDisplay {
-  fn show(self: Self) -> string
+  fn show(self: Self) -> String
 }
 
 struct Wrapper {
@@ -7,7 +7,7 @@ struct Wrapper {
 }
 
 methods Wrapper where Self: CustomDisplay {
-  fn describe(self: Wrapper) -> string {
+  fn describe(self: Wrapper) -> String {
     return self.show()
   }
 }

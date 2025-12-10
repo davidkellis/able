@@ -119,7 +119,7 @@
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "string",
+              "name": "String",
               "span": {
                 "start": {
                   "line": 2,
@@ -1026,7 +1026,7 @@
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "string",
+              "name": "String",
               "span": {
                 "start": {
                   "line": 16,
@@ -1302,7 +1302,7 @@
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "string",
+              "name": "String",
               "span": {
                 "start": {
                   "line": 19,
@@ -1562,7 +1562,7 @@
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "string",
+              "name": "String",
               "span": {
                 "start": {
                   "line": 22,
@@ -1926,7 +1926,7 @@
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "string",
+              "name": "String",
               "span": {
                 "start": {
                   "line": 26,
@@ -2247,7 +2247,7 @@
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "string",
+              "name": "String",
               "span": {
                 "start": {
                   "line": 29,
@@ -2492,7 +2492,7 @@
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "string",
+              "name": "String",
               "span": {
                 "start": {
                   "line": 33,
@@ -2766,7 +2766,7 @@
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "string",
+              "name": "String",
               "span": {
                 "start": {
                   "line": 36,
@@ -3071,7 +3071,7 @@
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "string",
+              "name": "String",
               "span": {
                 "start": {
                   "line": 40,
@@ -3405,7 +3405,7 @@
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "string",
+              "name": "String",
               "span": {
                 "start": {
                   "line": 43,
@@ -3860,7 +3860,7 @@
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "string",
+              "name": "String",
               "span": {
                 "start": {
                   "line": 51,

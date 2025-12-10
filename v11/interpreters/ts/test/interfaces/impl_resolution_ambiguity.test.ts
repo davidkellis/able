@@ -10,7 +10,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
       AST.functionSignature(
         "read",
         [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
-        AST.simpleTypeExpression("string")
+        AST.simpleTypeExpression("String")
       ),
     ]);
     I.evaluate(readable);
@@ -36,7 +36,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
       AST.functionSignature(
         "show",
         [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
-        AST.simpleTypeExpression("string")
+        AST.simpleTypeExpression("String")
       ),
     ]);
     I.evaluate(show);
@@ -63,7 +63,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
               ])
             ),
           ]),
-          AST.simpleTypeExpression("string")
+          AST.simpleTypeExpression("String")
         ),
       ]
     );
@@ -106,7 +106,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
               )
             ),
           ]),
-          AST.simpleTypeExpression("string")
+          AST.simpleTypeExpression("String")
         ),
       ],
       undefined,
@@ -130,7 +130,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
           AST.blockExpression([
             AST.returnStatement(AST.stringLiteral("comparable")),
           ]),
-          AST.simpleTypeExpression("string")
+          AST.simpleTypeExpression("String")
         ),
       ],
       undefined,
@@ -158,7 +158,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
       AST.memberAccessExpression(value, "show"),
       []
     );
-    expect(I.evaluate(call)).toEqual({ kind: "string", value: "comparable" });
+    expect(I.evaluate(call)).toEqual({ kind: "String", value: "comparable" });
   });
 
   test("incomparable impls trigger ambiguity error", () => {
@@ -166,9 +166,9 @@ describe("v11 interpreter - impl resolution semantics", () => {
 
     const show = AST.interfaceDefinition("Show", [
       AST.functionSignature(
-        "to_string",
+        "to_String",
         [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
-        AST.simpleTypeExpression("string")
+        AST.simpleTypeExpression("String")
       ),
     ]);
     I.evaluate(show);
@@ -196,12 +196,12 @@ describe("v11 interpreter - impl resolution semantics", () => {
       AST.simpleTypeExpression("Point"),
       [
         AST.functionDefinition(
-          "to_string",
+          "to_String",
           [AST.functionParameter("self", AST.simpleTypeExpression("Point"))],
           AST.blockExpression([
             AST.returnStatement(AST.stringLiteral("Point")),
           ]),
-          AST.simpleTypeExpression("string")
+          AST.simpleTypeExpression("String")
         ),
       ]
     );
@@ -212,12 +212,12 @@ describe("v11 interpreter - impl resolution semantics", () => {
       AST.simpleTypeExpression("Point"),
       [
         AST.functionDefinition(
-          "to_string",
+          "to_String",
           [AST.functionParameter("self", AST.simpleTypeExpression("Point"))],
           AST.blockExpression([
             AST.returnStatement(AST.stringLiteral("Point")),
           ]),
-          AST.simpleTypeExpression("string")
+          AST.simpleTypeExpression("String")
         ),
       ]
     );
@@ -252,12 +252,12 @@ describe("v11 interpreter - impl resolution semantics", () => {
       AST.genericTypeExpression(AST.simpleTypeExpression("Wrapper"), [AST.simpleTypeExpression("T")]),
       [
         AST.functionDefinition(
-          "to_string",
+          "to_String",
           [AST.functionParameter("self", AST.simpleTypeExpression("Wrapper"))],
           AST.blockExpression([
             AST.returnStatement(AST.stringLiteral("show-constrained")),
           ]),
-          AST.simpleTypeExpression("string")
+          AST.simpleTypeExpression("String")
         ),
       ],
       undefined,
@@ -270,12 +270,12 @@ describe("v11 interpreter - impl resolution semantics", () => {
       AST.genericTypeExpression(AST.simpleTypeExpression("Wrapper"), [AST.simpleTypeExpression("T")]),
       [
         AST.functionDefinition(
-          "to_string",
+          "to_String",
           [AST.functionParameter("self", AST.simpleTypeExpression("Wrapper"))],
           AST.blockExpression([
             AST.returnStatement(AST.stringLiteral("copy-constrained")),
           ]),
-          AST.simpleTypeExpression("string")
+          AST.simpleTypeExpression("String")
         ),
       ],
       undefined,
@@ -297,7 +297,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
     );
 
     const call = AST.functionCall(
-      AST.memberAccessExpression(wrapperPointLiteral, "to_string"),
+      AST.memberAccessExpression(wrapperPointLiteral, "to_String"),
       []
     );
     expect(() => I.evaluate(call)).toThrow(/ambiguous implementations of Show/);
@@ -338,7 +338,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
               ])
             ),
           ]),
-          AST.simpleTypeExpression("string")
+          AST.simpleTypeExpression("String")
         ),
       ]
     );
@@ -378,7 +378,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
           AST.blockExpression([
             AST.returnStatement(AST.stringLiteral("generic")),
           ]),
-          AST.simpleTypeExpression("string")
+          AST.simpleTypeExpression("String")
         ),
       ],
       undefined,
@@ -396,7 +396,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
           AST.blockExpression([
             AST.returnStatement(AST.stringLiteral("copyable")),
           ]),
-          AST.simpleTypeExpression("string")
+          AST.simpleTypeExpression("String")
         ),
       ],
       undefined,
@@ -423,7 +423,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
       AST.memberAccessExpression(wrapperItem, "to_string"),
       []
     );
-    expect(I.evaluate(call)).toEqual({ kind: "string", value: "copyable" });
+    expect(I.evaluate(call)).toEqual({ kind: "String", value: "copyable" });
   });
 
   test("ambiguous methods can be disambiguated via named impls", () => {
@@ -440,14 +440,14 @@ describe("v11 interpreter - impl resolution semantics", () => {
       AST.functionSignature(
         "act",
         [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
-        AST.simpleTypeExpression("string")
+        AST.simpleTypeExpression("String")
       ),
     ]);
     const B = AST.interfaceDefinition("B", [
       AST.functionSignature(
         "act",
         [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
-        AST.simpleTypeExpression("string")
+        AST.simpleTypeExpression("String")
       ),
     ]);
     I.evaluate(A);
@@ -463,7 +463,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
           AST.blockExpression([
             AST.returnStatement(AST.stringLiteral("A")),
           ]),
-          AST.simpleTypeExpression("string")
+          AST.simpleTypeExpression("String")
         ),
       ]
     );
@@ -479,7 +479,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
           AST.blockExpression([
             AST.returnStatement(AST.stringLiteral("B")),
           ]),
-          AST.simpleTypeExpression("string")
+          AST.simpleTypeExpression("String")
         ),
       ]
     );
@@ -495,7 +495,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
           AST.blockExpression([
             AST.returnStatement(AST.stringLiteral("A.named")),
           ]),
-          AST.simpleTypeExpression("string")
+          AST.simpleTypeExpression("String")
         ),
       ],
       "ActA"
@@ -512,7 +512,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
           AST.blockExpression([
             AST.returnStatement(AST.stringLiteral("B.named")),
           ]),
-          AST.simpleTypeExpression("string")
+          AST.simpleTypeExpression("String")
         ),
       ],
       "ActB"
@@ -531,12 +531,12 @@ describe("v11 interpreter - impl resolution semantics", () => {
       AST.memberAccessExpression(AST.identifier("ActA"), "act"),
       [svc]
     );
-    expect(I.evaluate(callA)).toEqual({ kind: "string", value: "A.named" });
+    expect(I.evaluate(callA)).toEqual({ kind: "String", value: "A.named" });
 
     const callB = AST.functionCall(
       AST.memberAccessExpression(AST.identifier("ActB"), "act"),
       [svc]
     );
-    expect(I.evaluate(callB)).toEqual({ kind: "string", value: "B.named" });
+    expect(I.evaluate(callB)).toEqual({ kind: "String", value: "B.named" });
   });
 });

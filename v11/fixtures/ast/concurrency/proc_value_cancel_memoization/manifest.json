@@ -6,15 +6,15 @@
       "length": 3,
       "elements": [
         {
-          "kind": "string",
+          "kind": "String",
           "value": "Proc cancelled"
         },
         {
-          "kind": "string",
+          "kind": "String",
           "value": "Proc cancelled"
         },
         {
-          "kind": "string",
+          "kind": "String",
           "value": "0"
         }
       ]

@@ -35,7 +35,7 @@
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "string"
+              "name": "String"
             }
           }
         }
@@ -59,7 +59,7 @@
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "string"
+              "name": "String"
             }
           }
         }
@@ -83,7 +83,7 @@
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "string"
+              "name": "String"
             }
           }
         }
@@ -131,7 +131,7 @@
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "string"
+              "name": "String"
             }
           }
         },
@@ -220,7 +220,7 @@
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "string"
+              "name": "String"
             }
           },
           "isMethodShorthand": false,
@@ -296,7 +296,7 @@
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "string"
+              "name": "String"
             }
           },
           "isMethodShorthand": false,
@@ -372,7 +372,7 @@
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "string"
+              "name": "String"
             }
           },
           "isMethodShorthand": false,
@@ -444,7 +444,7 @@
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "string"
+              "name": "String"
             }
           },
           "isMethodShorthand": false,

@@ -17,7 +17,7 @@ fn area(shape: Shape) -> f64 {
   }
 }
 
-fn describe(maybe_shape: ?Shape) -> string {
+fn describe(maybe_shape: ?Shape) -> String {
   maybe_shape match {
     case nil => "no shape",
     case Circle { radius } => `circle with radius ${radius}`,

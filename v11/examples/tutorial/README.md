@@ -9,10 +9,10 @@ Each file in this folder demonstrates one major Able language concept with small
 
 Examples (run in order):
 - `01_basics_and_bindings.able` — declarations vs assignment, type annotations, block expressions, interpolation, safe navigation, and pipe-forward basics.
-- `02a_operators_and_builtin_types.able` — scalar literals, arithmetic (`/ // %% /%`), comparisons, bitwise/shift ops, and truthiness for logical operators.
+- `02a_operators_and_builtin_types.able` — scalar literals, arithmetic (`/ // % /%`), comparisons, bitwise/shift ops, and truthiness for logical operators.
 - `02_patterns_and_destructuring.able` — struct/array patterns, named and positional structs, nested destructuring, and wildcards.
 - `03_structs_unions_and_match.able` — struct construction, unions, nullable shorthand, and exhaustive `match`.
-- `04_functions_and_lambdas.able` — named functions, anonymous functions, lambdas, trailing lambdas, partial application placeholders, and pipe topics (`%`).
+- `04_functions_and_lambdas.able` — named functions, anonymous functions, lambdas, trailing lambdas, partial application placeholders, and pipe-driven callables.
 - `05_methods_and_implicit_self.able` — `methods` blocks, implicit `self` (`fn #method`), `#field` shorthand, and UFCS-style calls.
 - `06_interfaces_and_impls.able` — defining interfaces, implementing them for concrete types, static vs instance methods, and interface-typed values.
 - `07_arrays_ranges_and_iteration.able` — array literals, mutation, for/while loops, ranges (`..` / `...`), and generator literals (`Iterator { ... }`).

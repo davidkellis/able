@@ -16,8 +16,8 @@ describe("runtime map literals", () => {
     expect(mapValue.kind).toBe("hash_map");
     const entries = toSimpleEntries(mapValue as HashMapValue);
     expect(entries).toEqual([
-      { key: { kind: "string", value: "host" }, value: { kind: "string", value: "api" } },
-      { key: { kind: "string", value: "port" }, value: { kind: "i32", value: 443n } },
+      { key: { kind: "String", value: "host" }, value: { kind: "String", value: "api" } },
+      { key: { kind: "String", value: "port" }, value: { kind: "i32", value: 443n } },
     ]);
   });
 
@@ -42,9 +42,9 @@ describe("runtime map literals", () => {
     expect(mapValue.kind).toBe("hash_map");
     const entries = toSimpleEntries(mapValue as HashMapValue);
     expect(entries).toEqual([
-      { key: { kind: "string", value: "content-type" }, value: { kind: "string", value: "application/json" } },
-      { key: { kind: "string", value: "accept" }, value: { kind: "string", value: "application/json" } },
-      { key: { kind: "string", value: "cache" }, value: { kind: "string", value: "max-age=0" } },
+      { key: { kind: "String", value: "content-type" }, value: { kind: "String", value: "application/json" } },
+      { key: { kind: "String", value: "accept" }, value: { kind: "String", value: "application/json" } },
+      { key: { kind: "String", value: "cache" }, value: { kind: "String", value: "max-age=0" } },
     ]);
   });
 });

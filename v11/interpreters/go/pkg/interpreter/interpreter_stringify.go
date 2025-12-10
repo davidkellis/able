@@ -144,13 +144,26 @@ func valueToString(val runtime.Value) string {
 	case *runtime.NativeFunctionValue:
 		return fmt.Sprintf("<native %s>", v.Name)
 	case runtime.BoundMethodValue:
-		return "<bound method>"
+		methodStr := valueToString(v.Method)
+		if methodStr == "" {
+			return "<bound method>"
+		}
+		return fmt.Sprintf("<bound method %s>", methodStr)
 	case *runtime.BoundMethodValue:
-		return "<bound method>"
+		if v == nil {
+			return "<bound method>"
+		}
+		target := valueToString(v.Method)
+		if target == "" {
+			return "<bound method>"
+		}
+		return fmt.Sprintf("<bound method %s>", target)
 	case runtime.NativeBoundMethodValue:
 		return fmt.Sprintf("<native bound %s>", v.Method.Name)
 	case *runtime.NativeBoundMethodValue:
 		return fmt.Sprintf("<native bound %s>", v.Method.Name)
+	case runtime.PartialFunctionValue, *runtime.PartialFunctionValue:
+		return "<partial>"
 	case runtime.PackageValue:
 		name := v.Name
 		if name == "" {

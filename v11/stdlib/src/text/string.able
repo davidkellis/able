@@ -6,11 +6,11 @@ import able.core.iteration.{Iterable, Iterator, IteratorEnd}
 import able.core.options.{Result}
 import able.core.errors.{RangeError}
 
-extern typescript fn __able_string_from_builtin(value: string) -> Array u8 {}
-extern typescript fn __able_string_to_builtin(bytes: Array u8) -> string {}
+extern typescript fn __able_String_from_builtin(value: String) -> Array u8 {}
+extern typescript fn __able_String_to_builtin(bytes: Array u8) -> String {}
 extern typescript fn __able_char_from_codepoint(value: i32) -> char {}
-extern go fn __able_string_from_builtin(value: string) -> Array u8 {}
-extern go fn __able_string_to_builtin(bytes: Array u8) -> string {}
+extern go fn __able_String_from_builtin(value: String) -> Array u8 {}
+extern go fn __able_String_to_builtin(bytes: Array u8) -> String {}
 extern go fn __able_char_from_codepoint(value: i32) -> char {}
 
 private struct String {
@@ -59,12 +59,12 @@ private struct Utf8DecodeResult {
 }
 
 struct StringEncodingError {
-  message: string,
+  message: String,
   offset: ?i32
 }
 
 impl Error for StringEncodingError {
-  fn message(self: Self) -> string { self.message }
+  fn message(self: Self) -> String { self.message }
   fn cause(self: Self) -> ?Error { nil }
 }
 
@@ -73,9 +73,7 @@ methods String {
     String { bytes: Array.with_capacity(0), len_bytes: 0 }
   }
 
-  fn from_bytes_unchecked(bytes: Array u8) -> String {
-    String { len_bytes: bytes.len(), bytes }
-  }
+  fn from_bytes_unchecked(bytes: Array u8) -> String { String { len_bytes: bytes.len(), bytes } }
 
   fn from_bytes(bytes: Array u8) -> Result String {
     utf8_validate(bytes) match {
@@ -84,111 +82,24 @@ methods String {
     }
   }
 
-  fn from_builtin(value: string) -> Result String {
-    data := __able_string_from_builtin(value)
+  fn from_builtin(value: String) -> Result String {
+    data := __able_String_from_builtin(value)
     utf8_validate(data) match {
       case err: StringEncodingError => err,
       case nil => String.from_bytes_unchecked(data)
     }
   }
 
-  fn len_bytes(self: Self) -> i32 { self.len_bytes }
-
-  fn len_chars(self: Self) -> i32 {
-    count_chars(self.bytes, self.len_bytes)
-  }
-
-  fn len_graphemes(self: Self) -> i32 {
-    count_graphemes(self.bytes, self.len_bytes)
-  }
   fn is_empty(self: Self) -> bool { self.len_bytes == 0 }
 
-  fn bytes(self: Self) -> Array u8 { self.bytes.clone() }
-
-  fn byte_iter(self: Self) -> StringBytesIter {
-    StringBytesIter { string: self, offset: 0 }
-  }
-
-  fn chars(self: Self) -> StringCharsIter {
-    StringCharsIter { string: self, offset: 0 }
-  }
-
-  fn graphemes(self: Self) -> StringGraphemesIter {
-    StringGraphemesIter { string: self, offset: 0 }
-  }
-
-  fn to_builtin(self: Self) -> Result string {
-    __able_string_to_builtin(self.bytes.clone())
+  fn to_builtin(self: Self) -> Result String {
+    __able_String_to_builtin(self.bytes.clone())
   }
 
   fn to_builder(self: Self) -> StringBuilder {
     builder := StringBuilder.with_capacity(self.len_bytes)
     builder.push_bytes(self.bytes.clone())
     builder
-  }
-
-  fn substring(self: Self, start: i32, length: ?i32) -> Result String {
-    if start < 0 { return RangeError { message: "substring start must be non-negative" } }
-    total := self.len_chars()
-    if start > total { return RangeError { message: "substring start out of range" } }
-
-    offset := 0
-    codepoint_offset(self.bytes, self.len_bytes, start) match {
-      case err: Error => { return err },
-      case value: i32 => offset = value
-    }
-    target_end := self.len_bytes
-    if length != nil {
-      if length < 0 { return RangeError { message: "substring length must be non-negative" } }
-      limit := start + length
-      if limit > total { return RangeError { message: "substring range out of bounds" } }
-      codepoint_offset(self.bytes, self.len_bytes, limit) match {
-        case err: Error => { return err },
-        case value: i32 => { target_end = value }
-      }
-    }
-    slice := slice_bytes(self.bytes, offset, target_end)
-    String.from_bytes(slice)
-  }
-
-  fn starts_with(self: Self, prefix: String) -> bool {
-    if prefix.len_bytes > self.len_bytes { return false }
-    compare_length := prefix.len_bytes
-    idx := 0
-    loop {
-      if idx >= compare_length { break }
-      read_byte(prefix.bytes, idx) match {
-        case nil => { return false },
-        case pb: u8 => {
-          read_byte(self.bytes, idx) match {
-            case nil => { return false },
-            case sb: u8 => { if pb != sb { return false } }
-          }
-        }
-      }
-      idx = idx + 1
-    }
-    true
-  }
-
-  fn ends_with(self: Self, suffix: String) -> bool {
-    if suffix.len_bytes > self.len_bytes { return false }
-    offset := self.len_bytes - suffix.len_bytes
-    idx := 0
-    loop {
-      if idx >= suffix.len_bytes { break }
-      read_byte(suffix.bytes, idx) match {
-        case nil => { return false },
-        case sb: u8 => {
-          read_byte(self.bytes, offset + idx) match {
-            case nil => { return false },
-            case pb: u8 => { if sb != pb { return false } }
-          }
-        }
-      }
-      idx = idx + 1
-    }
-    true
   }
 
   fn concat(strings: Array String) -> String {
@@ -201,7 +112,7 @@ methods String {
       }
       idx = idx + 1
     }
-    builder.finish() match { case result: string => wrap_string(result), case err: Error => { raise err } }
+    builder.finish() match { case result: String => wrap_string(result), case err: Error => { raise err } }
   }
 
   fn join(strings: Array String, separator: String) -> String {
@@ -218,61 +129,38 @@ methods String {
       }
       idx = idx + 1
     }
-    builder.finish() match { case result: string => wrap_string(result), case err: Error => { raise err } }
-  }
-
-  fn split(self: Self, delimiter: String) -> Array String {
-    hay := unwrap_string(self)
-    needle := unwrap_string(delimiter)
-    pieces := hay.split(needle)
-    result: Array String := Array.new()
-    idx := 0
-    loop {
-      pieces.get(idx) match {
-        case nil => { break },
-        case s: string => result.push(wrap_string(s))
-      }
-      idx = idx + 1
-    }
-    result
-  }
-
-  fn replace(self: Self, old: String, new: String) -> String {
-    hay := unwrap_string(self)
-    old_value := unwrap_string(old)
-    new_value := unwrap_string(new)
-    wrap_string(hay.replace(old_value, new_value))
+    builder.finish() match { case result: String => wrap_string(result), case err: Error => { raise err } }
   }
 }
 
-private fn to_result_string(value: Result String) -> Result string {
+private fn to_result_string(value: Result String) -> Result String {
   value match {
     case err: Error => err,
     case s: String => s.to_builtin()
   }
 }
 
-private fn validated_bytes(value: string) -> Array u8 {
-  data := __able_string_from_builtin(value)
+private fn validated_bytes(value: String) -> Array u8 {
+  data := __able_String_from_builtin(value)
   utf8_validate(data) match {
     case err: StringEncodingError => { raise err },
     case nil => data
   }
 }
 
-private fn wrap_string(value: string) -> String {
+private fn wrap_string(value: String) -> String {
   String.from_builtin(value) match { case err: Error => { raise err }, case s: String => s }
 }
 
-private fn unwrap_string(value: String) -> string {
-  value.to_builtin() match { case err: Error => { raise err }, case text: string => text }
+private fn unwrap_string(value: String) -> String {
+  value.to_builtin() match { case err: Error => { raise err }, case text: String => text }
 }
 
 private fn to_u64(value: i32) -> u64 {
   if value <= 0 { 0 } else { value }
 }
 
-methods string {
+methods String {
   fn len_bytes(self: Self) -> u64 {
     bytes := validated_bytes(self)
     to_u64(bytes.len())
@@ -292,11 +180,11 @@ methods string {
     self.bytes()
   }
 
-  fn substring(self: Self, start: i32, length: ?i32) -> Result string {
-    if start < 0 { return RangeError { message: "substring start must be non-negative" } }
+  fn substring(self: Self, start: i32, length: ?i32) -> Result String {
+    if start < 0 { return RangeError { message: "subString start must be non-negative" } }
     bytes := validated_bytes(self)
     total_chars := count_chars(bytes, bytes.len())
-    if start > total_chars { return RangeError { message: "substring start out of range" } }
+    if start > total_chars { return RangeError { message: "subString start out of range" } }
 
     offset := 0
     codepoint_offset(bytes, bytes.len(), start) match {
@@ -305,45 +193,54 @@ methods string {
     }
     target_end := bytes.len()
     if length != nil {
-      if length < 0 { return RangeError { message: "substring length must be non-negative" } }
+      if length < 0 { return RangeError { message: "subString length must be non-negative" } }
       limit := start + length
-      if limit > total_chars { return RangeError { message: "substring range out of bounds" } }
+      if limit > total_chars { return RangeError { message: "subString range out of bounds" } }
       codepoint_offset(bytes, bytes.len(), limit) match {
         case err: Error => { return err },
         case value: i32 => target_end = value
       }
     }
     slice := slice_bytes(bytes, offset, target_end)
-    __able_string_to_builtin(slice)
+    __able_String_to_builtin(slice)
   }
 
-  fn split(self: Self, delimiter: string) -> Array string {
+  fn subString(self: Self, start: i32, length: ?i32) -> Result String {
+    self.substring(start, length)
+  }
+
+  fn split(self: Self, delimiter: String) -> Array String {
     haystack := validated_bytes(self)
     needle := validated_bytes(delimiter)
     hay_len := haystack.len()
     needle_len := needle.len()
-    result: Array string := Array.new()
+    result: Array String := Array.new()
 
     if needle_len == 0 {
-      iter := RawStringGraphemesIter { bytes: haystack, offset: 0, len_bytes: hay_len }
+      offset := 0
       loop {
-        iter.next() match {
-          case g: Grapheme => result.push(__able_string_to_builtin(g.bytes.clone())),
-          case _: IteratorEnd => { break }
+        if offset >= hay_len { break }
+        utf8_decode(haystack, offset, hay_len) match {
+          case err: StringEncodingError => { raise err },
+          case res: Utf8DecodeResult => {
+            segment := slice_bytes(haystack, offset, res.next_offset)
+            result.push(__able_String_to_builtin(segment))
+            offset = res.next_offset
+          }
         }
       }
       return result
     }
 
     start := 0
-    idx := 0
+    pos := 0
     loop {
-      if idx > hay_len - needle_len { break }
+      if pos > hay_len - needle_len { break }
       matched := true
       j := 0
       loop {
         if j >= needle_len { break }
-        read_byte(haystack, idx + j) match {
+        read_byte(haystack, pos + j) match {
           case nil => { matched = false; break },
           case hb: u8 => {
             read_byte(needle, j) match {
@@ -357,28 +254,29 @@ methods string {
         j = j + 1
       }
       if matched {
-        segment := slice_bytes(haystack, start, idx)
-        result.push(__able_string_to_builtin(segment))
-        idx = idx + needle_len
-        start = idx
-      } else {
-        idx = idx + 1
+        segment := slice_bytes(haystack, start, pos)
+        result.push(__able_String_to_builtin(segment))
+        pos = pos + needle_len
+        start = pos
+      }
+      if !matched {
+        pos = pos + 1
       }
     }
 
     tail := slice_bytes(haystack, start, hay_len)
-    result.push(__able_string_to_builtin(tail))
+    result.push(__able_String_to_builtin(tail))
 
     result
   }
 
-  fn replace(self: Self, old: string, new: string) -> string {
+  fn replace(self: Self, old: String, new: String) -> String {
     haystack := validated_bytes(self)
     needle := validated_bytes(old)
     replacement := validated_bytes(new)
     hay_len := haystack.len()
     needle_len := needle.len()
-    if needle_len == 0 { return __able_string_to_builtin(haystack) }
+    if needle_len == 0 { return __able_String_to_builtin(haystack) }
 
     builder := StringBuilder.with_capacity(hay_len)
     idx := 0
@@ -406,16 +304,15 @@ methods string {
         builder.push_bytes(replacement.clone())
         idx = idx + needle_len
         start = idx
-      } else {
-        idx = idx + 1
       }
+      if !matched { idx = idx + 1 }
     }
     trailing := slice_bytes(haystack, start, hay_len)
     builder.push_bytes(trailing)
-    __able_string_to_builtin(builder.buffer)
+    __able_String_to_builtin(builder.buffer)
   }
 
-  fn starts_with(self: Self, prefix: string) -> bool {
+  fn starts_with(self: Self, prefix: String) -> bool {
     haystack := validated_bytes(self)
     needle := validated_bytes(prefix)
     if needle.len() > haystack.len() { return false }
@@ -437,7 +334,7 @@ methods string {
     true
   }
 
-  fn ends_with(self: Self, suffix: string) -> bool {
+  fn ends_with(self: Self, suffix: String) -> bool {
     haystack := validated_bytes(self)
     needle := validated_bytes(suffix)
     if needle.len() > haystack.len() { return false }
@@ -490,7 +387,7 @@ impl Clone for Grapheme {
 methods Grapheme {
   fn len_bytes(self: Self) -> u64 { to_u64(self.bytes.len()) }
   fn bytes(self: Self) -> Array u8 { self.bytes.clone() }
-  fn as_string(self: Self) -> string { __able_string_to_builtin(self.bytes.clone()) }
+  fn as_string(self: Self) -> String { __able_String_to_builtin(self.bytes.clone()) }
 }
 
 methods StringBuilder {
@@ -517,7 +414,7 @@ methods StringBuilder {
     self.buffer.push_all(bytes)
   }
 
-  fn push_string(self: Self, value: string) -> void {
+  fn push_string(self: Self, value: String) -> void {
     self.buffer.push_all(validated_bytes(value))
   }
 
@@ -527,13 +424,13 @@ methods StringBuilder {
 
   fn len_bytes(self: Self) -> u64 { to_u64(self.buffer.len()) }
 
-  fn finish(self: Self) -> Result string {
+  fn finish(self: Self) -> Result String {
     to_result_string(String.from_bytes(self.buffer))
   }
 }
 
 impl Iterable u8 for String {
-  fn iterator(self: Self) -> (Iterator u8) { self.byte_iter() }
+  fn iterator(self: Self) -> (Iterator u8) { self.bytes() }
 }
 
 impl Iterator u8 for RawStringBytesIter {
@@ -855,7 +752,7 @@ fn char_to_utf8(value: char) -> Array u8 {
   bytes
 }
 
-fn encoding_error(message: string, offset: ?i32) -> StringEncodingError {
+fn encoding_error(message: String, offset: ?i32) -> StringEncodingError {
   StringEncodingError { message, offset }
 }
 

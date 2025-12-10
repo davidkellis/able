@@ -16,7 +16,7 @@ import able.core.options.{Result}
 const I64_MIN_I128 = -9223372036854775808_i64 as i128
 const I64_MAX_I128 = 9223372036854775807_i64 as i128
 
-fn rational_conversion_error(message: string) -> NumericConversionError {
+fn rational_conversion_error(message: String) -> NumericConversionError {
   NumericConversionError { message }
 }
 
@@ -199,7 +199,7 @@ methods Rational {
     (self.numerator as f64) / (self.denominator as f64)
   }
 
-  fn to_string(self: Self) -> string {
+  fn to_string(self: Self) -> String {
     if self.denominator == 1 { `${self.numerator}` } else { `${self.numerator}/${self.denominator}` }
   }
 }
@@ -207,7 +207,7 @@ methods Rational {
 ## Trait implementations -----------------------------------------------------
 
 impl Display for Rational {
-  fn to_string(self: Self) -> string { self.to_string() }
+  fn to_string(self: Self) -> String { self.to_string() }
 }
 
 impl Eq Rational for Rational {

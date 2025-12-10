@@ -22,7 +22,7 @@
           ],
           "returnType": {
             "type": "SimpleTypeExpression",
-            "name": { "type": "Identifier", "name": "string" }
+            "name": { "type": "Identifier", "name": "String" }
           }
         }
       ]
@@ -65,7 +65,7 @@
           ],
           "returnType": {
             "type": "SimpleTypeExpression",
-            "name": { "type": "Identifier", "name": "string" }
+            "name": { "type": "Identifier", "name": "String" }
           },
           "body": {
             "type": "BlockExpression",
@@ -129,7 +129,7 @@
           ],
           "returnType": {
             "type": "SimpleTypeExpression",
-            "name": { "type": "Identifier", "name": "string" }
+            "name": { "type": "Identifier", "name": "String" }
           },
           "body": {
             "type": "BlockExpression",

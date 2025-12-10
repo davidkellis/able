@@ -10,7 +10,7 @@ import (
 func (i *Interpreter) initErrorBuiltins() {
 	i.errorNativeMethods["message"] = runtime.NativeFunctionValue{
 		Name:  "Error.message",
-		Arity: 1,
+		Arity: 0,
 		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 			if len(args) != 1 {
 				return nil, fmt.Errorf("Error.message expects only a receiver")
@@ -24,7 +24,7 @@ func (i *Interpreter) initErrorBuiltins() {
 	}
 	i.errorNativeMethods["cause"] = runtime.NativeFunctionValue{
 		Name:  "Error.cause",
-		Arity: 1,
+		Arity: 0,
 		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 			if len(args) != 1 {
 				return nil, fmt.Errorf("Error.cause expects only a receiver")
@@ -59,7 +59,9 @@ func (i *Interpreter) errorMember(err runtime.ErrorValue, member ast.Expression,
 	if method, ok := i.errorNativeMethods[ident.Name]; ok {
 		return &runtime.NativeBoundMethodValue{Receiver: err, Method: method}, nil
 	}
-	if bound, ok := i.tryUfcs(env, ident.Name, err); ok {
+	if bound, err := i.resolveMethodFromPool(env, ident.Name, err, ""); err != nil {
+		return nil, err
+	} else if bound != nil {
 		return bound, nil
 	}
 	return nil, fmt.Errorf("Error value has no member '%s'", ident.Name)

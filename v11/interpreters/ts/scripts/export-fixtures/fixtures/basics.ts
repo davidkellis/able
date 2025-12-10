@@ -3,12 +3,12 @@ import type { Fixture } from "../../types";
 
 const basicsFixtures: Fixture[] = [
   {
-      name: "basics/string_literal",
+      name: "basics/String_literal",
       module: AST.module([AST.str("hello")]),
       manifest: {
-        description: "Evaluates a simple string literal module",
+        description: "Evaluates a simple String literal module",
         expect: {
-          result: { kind: "string", value: "hello" },
+          result: { kind: "String", value: "hello" },
         },
       },
     },

@@ -100,18 +100,18 @@ const typesFixtures: Fixture[] = [
           [
             AST.param(
               "value",
-              AST.nullableTypeExpression(AST.simpleTypeExpression("string")),
+              AST.nullableTypeExpression(AST.simpleTypeExpression("String")),
             ),
           ],
           [AST.identifier("value")],
-          AST.nullableTypeExpression(AST.simpleTypeExpression("string")),
+          AST.nullableTypeExpression(AST.simpleTypeExpression("String")),
         ),
         AST.call("maybe_identity", AST.stringLiteral("ready")),
       ]),
       manifest: {
         description: "Function parameter and return use nullable type",
         expect: {
-          result: { kind: "string", value: "ready" },
+          result: { kind: "String", value: "ready" },
         },
       },
     },
@@ -144,14 +144,14 @@ const typesFixtures: Fixture[] = [
             AST.param(
               "value",
               AST.unionTypeExpression([
-                AST.simpleTypeExpression("string"),
+                AST.simpleTypeExpression("String"),
                 AST.simpleTypeExpression("i32"),
               ]),
             ),
           ],
           [AST.identifier("value")],
           AST.unionTypeExpression([
-            AST.simpleTypeExpression("string"),
+            AST.simpleTypeExpression("String"),
             AST.simpleTypeExpression("i32"),
           ]),
         ),
@@ -160,7 +160,7 @@ const typesFixtures: Fixture[] = [
       manifest: {
         description: "Function uses union type in parameter and return",
         expect: {
-          result: { kind: "string", value: "hello" },
+          result: { kind: "String", value: "hello" },
         },
       },
     },
@@ -193,7 +193,7 @@ const typesFixtures: Fixture[] = [
       AST.callT(
         "choose_first",
         [
-          AST.simpleTypeExpression("string"),
+          AST.simpleTypeExpression("String"),
           AST.simpleTypeExpression("i32"),
         ],
         AST.stringLiteral("winner"),
@@ -203,7 +203,7 @@ const typesFixtures: Fixture[] = [
     manifest: {
       description: "Function where clause constrains generic parameters",
       expect: {
-        result: { kind: "string", value: "winner" },
+        result: { kind: "String", value: "winner" },
       },
     },
   },

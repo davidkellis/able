@@ -4,7 +4,7 @@ struct Point {
 fn tag(p: Point, values: Array i32) -> i32 {
   1
 }
-fn tag(p: Point, values: Array string) -> i32 {
+fn tag(p: Point, values: Array String) -> i32 {
   2
 }
 p := Point { x: 0 }

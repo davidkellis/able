@@ -99,8 +99,8 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
 
   cls.prototype.typeExpressionFromValue = function typeExpressionFromValue(this: InterpreterV10, value: V10Value): AST.TypeExpression | null {
     switch (value.kind) {
-      case "string":
-        return AST.simpleTypeExpression("string");
+      case "String":
+        return AST.simpleTypeExpression("String");
       case "bool":
         return AST.simpleTypeExpression("bool");
       case "char":
@@ -162,7 +162,7 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
         const name = t.name.name;
         if (name === "Self") return true;
         if (/^[A-Z]$/.test(name)) return true;
-        if (name === "string") return v.kind === "string";
+        if (name === "String") return v.kind === "String";
         if (name === "bool") return v.kind === "bool";
         if (name === "char") return v.kind === "char";
         if (name === "nil") return v.kind === "nil";
@@ -267,8 +267,8 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
         return this.getTypeNameForValue(value.value);
       case "error":
         return "Error";
-      case "string":
-        return "string";
+      case "String":
+        return "String";
       case "bool":
         return "bool";
       case "char":

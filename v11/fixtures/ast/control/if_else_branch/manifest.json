@@ -5,7 +5,7 @@
       "false"
     ],
     "result": {
-      "kind": "string",
+      "kind": "String",
       "value": "after"
     }
   },

@@ -19,8 +19,8 @@ describe("PersistentSet") { suite =>
   }
 
   suite.it("unions and intersects") { _ctx =>
-    left: PersistentSet string := PersistentSet.empty().insert("a").insert("b")
-    right: PersistentSet string := PersistentSet.empty().insert("b").insert("c")
+    left: PersistentSet String := PersistentSet.empty().insert("a").insert("b")
+    right: PersistentSet String := PersistentSet.empty().insert("b").insert("c")
 
     union := left.union(right)
     expect(union.len()).to(eq(3))
@@ -33,7 +33,7 @@ describe("PersistentSet") { suite =>
   }
 
   suite.it("builds sets via builder") { _ctx =>
-    builder := PersistentSetBuilder.new<string>()
+    builder := PersistentSetBuilder.new<String>()
     builder.insert("alpha")
     builder.insert("beta")
     set := builder.finish()

@@ -124,7 +124,7 @@ func TestApplyImplementationArgumentMismatch(t *testing.T) {
 	applyIface := makeApplyInterface()
 	appenderStruct := ast.StructDef(
 		"Appender",
-		[]*ast.StructFieldDefinition{ast.FieldDef(ast.Ty("string"), "prefix")},
+		[]*ast.StructFieldDefinition{ast.FieldDef(ast.Ty("String"), "prefix")},
 		ast.StructKindNamed,
 		nil,
 		nil,
@@ -134,12 +134,12 @@ func TestApplyImplementationArgumentMismatch(t *testing.T) {
 		"apply",
 		[]*ast.FunctionParameter{
 			ast.Param("self", ast.Ty("Self")),
-			ast.Param("suffix", ast.Ty("string")),
+			ast.Param("suffix", ast.Ty("String")),
 		},
 		[]ast.Statement{
 			ast.Ret(ast.Bin("+", ast.ImplicitMember("prefix"), ast.ID("suffix"))),
 		},
-		ast.Ty("string"),
+		ast.Ty("String"),
 		nil,
 		nil,
 		false,
@@ -151,7 +151,7 @@ func TestApplyImplementationArgumentMismatch(t *testing.T) {
 		[]*ast.FunctionDefinition{applyFn},
 		nil,
 		nil,
-		[]ast.TypeExpression{ast.Ty("string"), ast.Ty("string")},
+		[]ast.TypeExpression{ast.Ty("String"), ast.Ty("String")},
 		nil,
 		false,
 	)

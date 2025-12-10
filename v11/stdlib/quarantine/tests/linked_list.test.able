@@ -6,7 +6,7 @@ import able.collections.linked_list.{LinkedList, ListNode}
 
 describe("LinkedList") { suite =>
   suite.it("pushes and pops from both ends") { _ctx =>
-    list: LinkedList string := LinkedList.new()
+    list: LinkedList String := LinkedList.new()
     list.push_front("b")
     list.push_front("a")
     list.push_back("c")

@@ -32,7 +32,7 @@ package main
 
 import able.text.regex.{regex_is_match}
 
-fn main() -> string {
+fn main() -> String {
   _ = regex_is_match("a", "a")
   "regex stub"
 }

@@ -70,20 +70,20 @@ func (c *Checker) checkBinaryExpression(env *Environment, expr *ast.BinaryExpres
 		return nil, UnknownType{}
 	}
 
+	if expr.Operator == "|>" || expr.Operator == "|>>" {
+		pipeCall := buildPipeCall(expr)
+		if pipeCall == nil {
+			return []Diagnostic{{Message: "typechecker: invalid pipe expression", Node: expr}}, UnknownType{}
+		}
+		pipeDiags, pipeType := c.checkFunctionCallExpression(env, pipeCall)
+		c.infer.set(expr, pipeType)
+		return pipeDiags, pipeType
+	}
+
 	leftDiags, leftType := c.checkExpression(env, expr.Left)
 
 	var diags []Diagnostic
 	diags = append(diags, leftDiags...)
-
-	if expr.Operator == "|>" || expr.Operator == "|>>" {
-		c.pushPipeContext()
-		rightDiags, _ := c.checkExpression(env, expr.Right)
-		c.popPipeContext()
-		diags = append(diags, rightDiags...)
-		resultType := Type(UnknownType{})
-		c.infer.set(expr, resultType)
-		return diags, resultType
-	}
 
 	rightDiags, rightType := c.checkExpression(env, expr.Right)
 	diags = append(diags, rightDiags...)
@@ -122,7 +122,7 @@ func (c *Checker) checkBinaryExpression(env *Environment, expr *ast.BinaryExpres
 				resultType = resType
 			}
 		}
-	case "-", "*":
+	case "-", "*", "^":
 		resType, err := resolveNumericBinaryType(leftType, rightType)
 		if err != "" {
 			diags = append(diags, Diagnostic{
@@ -144,7 +144,7 @@ func (c *Checker) checkBinaryExpression(env *Environment, expr *ast.BinaryExpres
 			break
 		}
 		resultType = resType
-	case "//", "%%":
+	case "//", "%":
 		intType, err := resolveIntegerBinaryType(leftType, rightType)
 		if err != "" {
 			diags = append(diags, Diagnostic{
@@ -192,7 +192,7 @@ func (c *Checker) checkBinaryExpression(env *Environment, expr *ast.BinaryExpres
 	case "==", "!=":
 		// Equality comparisons are defined for all types; we only assign bool.
 		resultType = boolType
-	case ".&", "&", ".|", "|", ".^", "^":
+	case ".&", "&", ".|", "|", ".^":
 		intType, err := resolveIntegerBinaryType(leftType, rightType)
 		if err != "" {
 			diags = append(diags, Diagnostic{
@@ -228,6 +228,26 @@ func (c *Checker) checkBinaryExpression(env *Environment, expr *ast.BinaryExpres
 
 	c.infer.set(expr, resultType)
 	return diags, resultType
+}
+
+func buildPipeCall(expr *ast.BinaryExpression) *ast.FunctionCall {
+	if expr == nil {
+		return nil
+	}
+	if _, ok := placeholderFunctionPlan(expr.Right); ok {
+		return ast.NewFunctionCall(expr.Right, []ast.Expression{expr.Left}, nil, false)
+	}
+	if call, ok := expr.Right.(*ast.FunctionCall); ok && call != nil {
+		args := append([]ast.Expression{expr.Left}, call.Arguments...)
+		typeArgs := call.TypeArguments
+		if len(typeArgs) > 0 {
+			copied := make([]ast.TypeExpression, len(typeArgs))
+			copy(copied, typeArgs)
+			typeArgs = copied
+		}
+		return ast.NewFunctionCall(call.Callee, args, typeArgs, call.IsTrailingLambda)
+	}
+	return ast.NewFunctionCall(expr.Right, []ast.Expression{expr.Left}, nil, false)
 }
 
 func resolveNumericBinaryType(left, right Type) (Type, string) {

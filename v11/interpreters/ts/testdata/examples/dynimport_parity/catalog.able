@@ -1,9 +1,9 @@
 package catalog
 
-fn list_items() -> Array string {
+fn list_items() -> Array String {
   ["espresso", "tonic", "cocoa"]
 }
 
-fn featured_label() -> string {
+fn featured_label() -> String {
   "espresso"
 }

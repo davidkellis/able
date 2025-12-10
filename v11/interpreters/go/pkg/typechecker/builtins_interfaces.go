@@ -5,7 +5,7 @@ func (c *Checker) initBuiltinInterfaces() {
 	display := InterfaceType{
 		InterfaceName: "Display",
 		Methods: map[string]FunctionType{
-			"to_string": {
+			"to_String": {
 				Params: []Type{
 					TypeParameterType{ParameterName: "Self"},
 				},
@@ -85,7 +85,7 @@ func (c *Checker) initBuiltinInterfaces() {
 				Return: ordering,
 			}
 		case "Display":
-			methods["to_string"] = FunctionType{
+			methods["to_String"] = FunctionType{
 				Params: []Type{entry.typ},
 				Return: stringType,
 			}

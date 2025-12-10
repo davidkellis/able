@@ -12,10 +12,10 @@ describe("TypeInfo formatting", () => {
   });
 
   test("formats nullable and result types", () => {
-    const nullableString: TypeInfo = { kind: "nullable", inner: primitiveType("string") };
-    const resultString: TypeInfo = { kind: "result", inner: primitiveType("string") };
-    expect(formatType(nullableString)).toBe("string?");
-    expect(formatType(resultString)).toBe("Result string");
+    const nullableString: TypeInfo = { kind: "nullable", inner: primitiveType("String") };
+    const resultString: TypeInfo = { kind: "result", inner: primitiveType("String") };
+    expect(formatType(nullableString)).toBe("String?");
+    expect(formatType(resultString)).toBe("Result String");
   });
 
   test("formats unions and nested generics", () => {

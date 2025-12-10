@@ -6,12 +6,12 @@ import able.numbers.primitives
 
 ## Domain error raised when a math function receives an input outside its definition range.
 struct MathDomainError {
-  message: string,
+  message: String,
   value: ?f64
 }
 
 impl Error for MathDomainError {
-  fn message(self: Self) -> string { self.message }
+  fn message(self: Self) -> String { self.message }
   fn cause(self: Self) -> ?Error { nil }
 }
 

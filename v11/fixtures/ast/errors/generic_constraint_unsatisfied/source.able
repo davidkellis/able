@@ -1,5 +1,5 @@
 interface Show {
-  fn to_string(self: Self) -> string;
+  fn to_string(self: Self) -> String;
 }
 
 struct Point {
@@ -8,11 +8,11 @@ struct Point {
 }
 
 methods Point {
-  fn to_string(self: Point) -> string {
+  fn to_string(self: Point) -> String {
     return `Point(${self.x}, ${self.y})`;
   }
 
-  fn accept_show<T: Show>(self: Point, x: T) -> string {
+  fn accept_show<T: Show>(self: Point, x: T) -> String {
     return x.to_string();
   }
 }

@@ -27,12 +27,8 @@ export const procSchedulingPart2: Fixture[] = [
                   AST.nilLiteral(),
                 ),
                 AST.blockExpression([AST.stringLiteral("no-error")]),
-                [
-                  AST.orClause(
-                    AST.blockExpression([AST.stringLiteral("has-cause")]),
-                    AST.booleanLiteral(true),
-                  ),
-                ],
+                [],
+                AST.blockExpression([AST.stringLiteral("has-cause")]),
               ),
             ),
             AST.stringInterpolation([
@@ -44,7 +40,7 @@ export const procSchedulingPart2: Fixture[] = [
               AST.identifier("flag"),
             ]),
           ]),
-          AST.simpleTypeExpression("string"),
+          AST.simpleTypeExpression("String"),
         ),
         AST.assignmentExpression(
           ":=",
@@ -80,7 +76,7 @@ export const procSchedulingPart2: Fixture[] = [
       manifest: {
         description: "Future value failures expose ProcError causes to handlers",
         expect: {
-          result: { kind: "string", value: "Future failed: boom|has-cause" },
+          result: { kind: "String", value: "Future failed: boom|has-cause" },
         },
       },
     },
@@ -114,7 +110,7 @@ export const procSchedulingPart2: Fixture[] = [
               ],
             ),
           ]),
-          AST.simpleTypeExpression("string"),
+          AST.simpleTypeExpression("String"),
         ),
         AST.assign("iterations", AST.integerLiteral(2048)),
         AST.assign("future_started", AST.bool(false)),
@@ -286,7 +282,7 @@ export const procSchedulingPart2: Fixture[] = [
               ],
             ),
           ]),
-          AST.simpleTypeExpression("string"),
+          AST.simpleTypeExpression("String"),
         ),
         AST.assign(
           "handle",
@@ -428,7 +424,7 @@ export const procSchedulingPart2: Fixture[] = [
               ],
             ),
           ]),
-          AST.simpleTypeExpression("string"),
+          AST.simpleTypeExpression("String"),
         ),
         AST.assign(
           "future",

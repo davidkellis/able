@@ -64,27 +64,24 @@ describe("v11 interpreter - proc & spawn handles", () => {
                 ),
                 AST.functionCall(AST.identifier("proc_yield"), []),
               ]),
-              [
-                AST.orClause(
-                  AST.blockExpression([
-                    AST.assignmentExpression(
-                      "=",
-                      AST.identifier("trace"),
-                      AST.binaryExpression(
-                        "+",
-                        AST.identifier("trace"),
-                        AST.stringLiteral("x")
-                      )
-                    ),
-                    AST.assignmentExpression(
-                      "=",
-                      AST.identifier("saw_cancel"),
-                      AST.functionCall(AST.identifier("proc_cancelled"), [])
-                    ),
-                    AST.integerLiteral(0),
-                  ])
+              [],
+              AST.blockExpression([
+                AST.assignmentExpression(
+                  "=",
+                  AST.identifier("trace"),
+                  AST.binaryExpression(
+                    "+",
+                    AST.identifier("trace"),
+                    AST.stringLiteral("x")
+                  )
                 ),
-              ]
+                AST.assignmentExpression(
+                  "=",
+                  AST.identifier("saw_cancel"),
+                  AST.functionCall(AST.identifier("proc_cancelled"), [])
+                ),
+                AST.integerLiteral(0),
+              ])
             ),
             AST.integerLiteral(0),
           ])
@@ -94,7 +91,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
 
     const handleVal = I.evaluate(AST.identifier("handle"));
     (I as any).runProcHandle(handleVal);
-    expect(I.evaluate(AST.identifier("trace"))).toEqual({ kind: "string", value: "w" });
+    expect(I.evaluate(AST.identifier("trace"))).toEqual({ kind: "String", value: "w" });
 
     handleVal.cancelRequested = true;
     (I as any).runProcHandle(handleVal);
@@ -119,7 +116,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
     expect(sawCancel).toEqual({ kind: "bool", value: true });
 
     const trace = I.evaluate(AST.identifier("trace"));
-    expect(trace.kind).toBe("string");
+    expect(trace.kind).toBe("String");
     expect(trace.value).toBe("wx");
   });
 

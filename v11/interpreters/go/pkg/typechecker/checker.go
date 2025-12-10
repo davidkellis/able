@@ -29,7 +29,6 @@ type Checker struct {
 	preludeImplCount     int
 	preludeMethodCount   int
 	publicDeclarations   []exportRecord
-	pipeContextDepth     int
 
 	builtinImplementations []ImplementationSpec
 	pendingDiagnostics     []Diagnostic

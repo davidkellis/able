@@ -9,7 +9,7 @@ function displaySignature(): AST.FunctionSignature {
   return AST.functionSignature(
     "to_string",
     [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
-    AST.simpleTypeExpression("string"),
+    AST.simpleTypeExpression("String"),
   );
 }
 
@@ -25,7 +25,7 @@ function errorMessageSignature(): AST.FunctionSignature {
   return AST.functionSignature(
     "message",
     [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
-    AST.simpleTypeExpression("string"),
+    AST.simpleTypeExpression("String"),
   );
 }
 
@@ -49,7 +49,7 @@ function displayImpl(
         "to_string",
         [AST.functionParameter("self", AST.simpleTypeExpression(typeName))],
         AST.blockExpression([AST.returnStatement(bodyExpression)]),
-        AST.simpleTypeExpression("string"),
+        AST.simpleTypeExpression("String"),
       ),
     ],
   );
@@ -78,7 +78,7 @@ function errorImplForErrorValue(): AST.ImplementationDefinition {
     AST.blockExpression([
       AST.returnStatement(AST.functionCall(AST.memberAccessExpression(selfIdent, AST.identifier("message")), [])),
     ]),
-    AST.simpleTypeExpression("string"),
+    AST.simpleTypeExpression("String"),
   );
   const causeFn = AST.functionDefinition(
     "cause",
@@ -103,7 +103,7 @@ function errorImplForProcError(): AST.ImplementationDefinition {
     AST.blockExpression([
       AST.returnStatement(AST.memberAccessExpression(selfIdent, AST.identifier("details"))),
     ]),
-    AST.simpleTypeExpression("string"),
+    AST.simpleTypeExpression("String"),
   );
   const causeFn = AST.functionDefinition(
     "cause",
@@ -130,12 +130,12 @@ export function buildStandardInterfaceBuiltins(): BuiltinInterfaceBundle {
   ];
 
   const implementations: AST.ImplementationDefinition[] = [
-    displayImpl("string", AST.identifier("self")),
+    displayImpl("String", AST.identifier("self")),
     displayImpl("i32", interpolationOfSelf()),
     displayImpl("bool", interpolationOfSelf()),
     displayImpl("char", interpolationOfSelf()),
     displayImpl("f64", interpolationOfSelf()),
-    cloneImpl("string"),
+    cloneImpl("String"),
     cloneImpl("i32"),
     cloneImpl("bool"),
     cloneImpl("char"),

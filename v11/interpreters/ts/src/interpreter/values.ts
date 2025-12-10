@@ -16,7 +16,7 @@ export type ImplMethodEntry = {
 };
 
 export type V10Value =
-  | { kind: "string"; value: string }
+  | { kind: "String"; value: string }
   | { kind: "bool"; value: boolean }
   | { kind: "char"; value: string }
   | { kind: "nil"; value: null }
@@ -115,6 +115,12 @@ export type V10Value =
       kind: "native_bound_method";
       func: Extract<V10Value, { kind: "native_function" }>;
       self: V10Value;
+    }
+  | {
+      kind: "partial_function";
+      target: V10Value;
+      boundArgs: V10Value[];
+      callNode?: AST.FunctionCall;
     };
 
 export type HashMapValue = Extract<V10Value, { kind: "hash_map" }>;

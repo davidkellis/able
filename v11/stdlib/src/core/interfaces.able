@@ -8,7 +8,7 @@ union Ordering = Less | Equal | Greater
 
 ## Displayable values produce user-facing strings (used by interpolation).
 interface Display for T {
-  fn to_string(self: Self) -> string;
+  fn to_string(self: Self) -> String;
 }
 
 ## Cloneable values provide a logical copy operation.
@@ -24,7 +24,7 @@ interface Default for T {
 ## Hashing support for map/set keys.
 interface Hasher {
   fn finish(self: Self) -> u64;
-  fn write_bytes(self: Self, bytes: string) -> void;
+  fn write_bytes(self: Self, bytes: String) -> void;
 }
 
 interface Hash for T {
@@ -33,7 +33,7 @@ interface Hash for T {
 
 ## Error values participate in raise/rescue.
 interface Error for T {
-  fn message(self: Self) -> string;
+  fn message(self: Self) -> String;
   fn cause(self: Self) -> ?Error;
 }
 
@@ -130,8 +130,8 @@ methods i32 {
   }
 }
 
-methods string {
-  fn cmp(self: Self, other: string) -> Ordering {
+methods String {
+  fn cmp(self: Self, other: String) -> Ordering {
     if self < other { return Less {} }
     if self > other { return Greater {} }
     Equal {}
@@ -146,8 +146,8 @@ impl Ord for i32 {
   }
 }
 
-impl Ord for string {
-  fn cmp(self: Self, other: string) -> Ordering {
+impl Ord for String {
+  fn cmp(self: Self, other: String) -> Ordering {
     if self < other { return Less {} }
     if self > other { return Greater {} }
     Equal {}

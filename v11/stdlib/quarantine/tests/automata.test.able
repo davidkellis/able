@@ -10,7 +10,7 @@ import able.text.automata.{
 }
 import able.text.automata_dsl.{AutomataDSL}
 
-fn make_string(value: string) -> String {
+fn make_string(value: String) -> String {
   match String::from_builtin(value) {
     case err: Error => raise err,
     case created: String => created

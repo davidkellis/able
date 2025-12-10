@@ -30,7 +30,7 @@ export function installBuiltins(context: BuiltinContext): void {
   const i64Type = primitiveType("i64");
   const u64Type = primitiveType("u64");
   const u8Type = primitiveType("u8");
-  const stringType = primitiveType("string");
+  const stringType = primitiveType("String");
   const charType = primitiveType("char");
   const anyType = unknownType;
   const unknown = unknownType;
@@ -70,8 +70,8 @@ export function installBuiltins(context: BuiltinContext): void {
   register("__able_array_reserve", [i64Type, i32Type], u64Type);
   register("__able_array_clone", [i64Type], i64Type);
 
-  register("__able_string_from_builtin", [stringType], arrayType(u8Type));
-  register("__able_string_to_builtin", [arrayType(u8Type)], stringType);
+  register("__able_String_from_builtin", [stringType], arrayType(u8Type));
+  register("__able_String_to_builtin", [arrayType(u8Type)], stringType);
   register("__able_char_from_codepoint", [i32Type], charType);
 
   const awaitableUnknown: TypeInfo = { kind: "interface", name: "Awaitable", typeArguments: [unknown] };

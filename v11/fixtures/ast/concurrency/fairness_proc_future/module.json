@@ -114,7 +114,7 @@
                   }
                 ]
               },
-              "orClauses": []
+              "elseIfClauses": []
             },
             {
               "type": "IfExpression",
@@ -176,7 +176,7 @@
                   }
                 ]
               },
-              "orClauses": []
+              "elseIfClauses": []
             },
             {
               "type": "IfExpression",
@@ -229,7 +229,7 @@
                   }
                 ]
               },
-              "orClauses": []
+              "elseIfClauses": []
             },
             {
               "type": "IntegerLiteral",
@@ -295,9 +295,9 @@
                   }
                 ]
               },
-              "orClauses": [
+              "elseIfClauses": [
                 {
-                  "type": "OrClause",
+                  "type": "ElseIfClause",
                   "condition": {
                     "type": "BinaryExpression",
                     "operator": "==",

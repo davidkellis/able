@@ -2,13 +2,13 @@ import * as AST from "../ast";
 import type {
   AssignmentExpression,
   BlockExpression,
+  ElseIfClause,
   Expression,
   FunctionCall,
   Identifier,
   IteratorLiteral,
   LambdaExpression,
   MatchClause,
-  OrClause,
   Pattern,
   Statement,
   TypeExpression,
@@ -39,6 +39,7 @@ import {
   parseStringLiteral,
   parseStructLiteral,
 } from "./literals";
+import { parsePlaceholderExpression } from "./placeholders";
 
 export function registerExpressionParsers(ctx: MutableParseContext): void {
   ctx.parseExpression = node => parseExpression(node, ctx.source);
@@ -54,7 +55,7 @@ const INFIX_OPERATOR_SETS = new Map<string, string[]>([
   ["comparison_expression", [">", "<", ">=", "<="]],
   ["shift_expression", [".<<", ".>>"]],
   ["additive_expression", ["+", "-"]],
-  ["multiplicative_expression", ["*", "/", "//", "%%", "/%"]],
+  ["multiplicative_expression", ["*", "/", "//", "%", "/%"]],
   ["exponent_expression", ["^"]],
 ]);
 
@@ -65,6 +66,7 @@ const ASSIGNMENT_OPERATORS = new Set([
   "-=",
   "*=",
   "/=",
+  "%=",
   ".&=",
   ".|=",
   ".^=",
@@ -149,8 +151,6 @@ function parseExpression(node: Node | null | undefined, source: string): Express
       return parseImplicitMemberExpression(node, source);
     case "placeholder_expression":
       return parsePlaceholderExpression(node, source);
-    case "topic_reference":
-    return annotateExpressionNode(AST.topicReferenceExpression(), node);
     case "interpolated_string":
       return parseInterpolatedString(node, source);
     case "iterator_literal":
@@ -204,26 +204,6 @@ function parseImplicitMemberExpression(node: Node, source: string): Expression {
   }
   const member = parseIdentifier(memberNode, source);
   return annotateExpressionNode(AST.implicitMemberExpression(member), node);
-}
-
-
-function parsePlaceholderExpression(node: Node, source: string): Expression {
-  const raw = sliceText(node, source).trim();
-  if (raw === "@" || raw === "@0") {
-    return annotateExpressionNode(AST.placeholderExpression(), node);
-  }
-  if (raw.startsWith("@")) {
-    const value = raw.slice(1);
-    if (value === "") {
-      return annotateExpressionNode(AST.placeholderExpression(), node);
-    }
-    const index = Number.parseInt(value, 10);
-    if (!Number.isInteger(index) || index <= 0) {
-      throw new MapperError(`parser: invalid placeholder index ${raw}`);
-    }
-    return annotateExpressionNode(AST.placeholderExpression(index), node);
-  }
-  throw new MapperError(`parser: unsupported placeholder token ${raw}`);
 }
 
 
@@ -418,6 +398,15 @@ function parsePipeChain(node: Node, source: string, operator: string): Expressio
     throw new MapperError("parser: empty pipe expression");
   }
   let result = parseExpression(node.namedChild(0), source);
+  if (operator === "|>>" && result.type === "AssignmentExpression" && node.namedChildCount > 1) {
+    let piped = result.right;
+    for (let i = 1; i < node.namedChildCount; i++) {
+      const stepNode = node.namedChild(i);
+      const stepExpr = parseExpression(stepNode, source);
+      piped = annotateExpressionNode(AST.binaryExpression(operator, piped, stepExpr), stepNode);
+    }
+    return annotateExpressionNode(AST.assignmentExpression(result.operator, result.left, piped), node);
+  }
   for (let i = 1; i < node.namedChildCount; i++) {
     const stepNode = node.namedChild(i);
     const stepExpr = parseExpression(stepNode, source);
@@ -639,53 +628,35 @@ function parseIfExpression(node: Node, source: string): Expression {
   }
   const body = getActiveParseContext().parseBlock(bodyNode);
 
-  const clauses: OrClause[] = [];
+  const elseIfClauses: ElseIfClause[] = [];
   for (let i = 0; i < node.namedChildCount; i++) {
     const child = node.namedChild(i);
-    if (child.type === "or_clause") {
-      clauses.push(parseOrClause(child, source));
+    if (child.type === "elsif_clause") {
+      elseIfClauses.push(parseElseIfClause(child, source));
     }
   }
 
-  const elseNode = findElseBlock(node, bodyNode);
-  if (elseNode) {
-    const elseBody = getActiveParseContext().parseBlock(elseNode);
-    clauses.push(annotate(AST.orClause(elseBody, undefined), elseNode) as OrClause);
-  }
+  const elseNode = node.childForFieldName("alternative");
+  const elseBody = elseNode ? getActiveParseContext().parseBlock(elseNode) : undefined;
 
-  return annotateExpressionNode(AST.ifExpression(condition, body, clauses), node);
+  return annotateExpressionNode(AST.ifExpression(condition, body, elseIfClauses, elseBody), node);
 }
 
 
-function parseOrClause(node: Node, source: string): OrClause {
+function parseElseIfClause(node: Node, source: string): ElseIfClause {
   const bodyNode = node.childForFieldName("consequence");
   if (!bodyNode) {
-    throw new MapperError("parser: or clause missing body");
+    throw new MapperError("parser: elsif clause missing body");
   }
   const body = getActiveParseContext().parseBlock(bodyNode);
 
   const conditionNode = node.childForFieldName("condition");
-  let condition: Expression | undefined;
-  if (conditionNode) {
-    condition = parseExpression(conditionNode, source);
+  if (!conditionNode) {
+    throw new MapperError("parser: elsif clause missing condition");
   }
+  const condition = parseExpression(conditionNode, source);
 
-  return annotate(AST.orClause(body, condition), node) as OrClause;
-}
-
-
-function findElseBlock(ifNode: Node, consequence: Node): Node | null {
-  const consequenceStart = consequence.startIndex;
-  const consequenceEnd = consequence.endIndex;
-  for (let i = 0; i < ifNode.namedChildCount; i++) {
-    const child = ifNode.namedChild(i);
-    if (child.type !== "block") continue;
-    if (child.startIndex === consequenceStart && child.endIndex === consequenceEnd) {
-      continue;
-    }
-    return child;
-  }
-  return null;
+  return annotate(AST.elseIfClause(condition, body), node) as ElseIfClause;
 }
 
 
@@ -768,10 +739,10 @@ function parseHandlingExpression(node: Node, source: string): Expression {
 
   for (let i = 1; i < node.namedChildCount; i++) {
     const child = node.namedChild(i);
-    if (!child || child.type !== "else_clause") continue;
+    if (!child || child.type !== "or_handler_clause") continue;
     const handlerNode = child.childForFieldName("handler");
     if (!handlerNode) {
-      throw new MapperError("parser: else clause missing handler block");
+      throw new MapperError("parser: or clause missing handler block");
     }
     const { block, binding } = parseHandlingBlock(handlerNode, source);
     current = annotateExpressionNode(AST.orElseExpression(current, block, binding), child);

@@ -540,15 +540,25 @@
     }
   },
   {
-    "type": "else_clause",
+    "type": "elsif_clause",
     "named": true,
     "fields": {
-      "handler": {
+      "condition": {
         "multiple": false,
         "required": true,
         "types": [
           {
-            "type": "handling_block",
+            "type": "expression",
+            "named": true
+          }
+        ]
+      },
+      "consequence": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "block",
             "named": true
           }
         ]
@@ -899,7 +909,7 @@
       "required": true,
       "types": [
         {
-          "type": "else_clause",
+          "type": "or_handler_clause",
           "named": true
         },
         {
@@ -941,6 +951,16 @@
     "type": "if_expression",
     "named": true,
     "fields": {
+      "alternative": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "block",
+            "named": true
+          }
+        ]
+      },
       "condition": {
         "multiple": false,
         "required": true,
@@ -961,26 +981,16 @@
           }
         ]
       },
-      "or_clause": {
+      "elsif_clause": {
         "multiple": true,
         "required": false,
         "types": [
           {
-            "type": "or_clause",
+            "type": "elsif_clause",
             "named": true
           }
         ]
       }
-    },
-    "children": {
-      "multiple": false,
-      "required": false,
-      "types": [
-        {
-          "type": "block",
-          "named": true
-        }
-      ]
     }
   },
   {
@@ -1860,25 +1870,15 @@
     "fields": {}
   },
   {
-    "type": "or_clause",
+    "type": "or_handler_clause",
     "named": true,
     "fields": {
-      "condition": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "expression",
-            "named": true
-          }
-        ]
-      },
-      "consequence": {
+      "handler": {
         "multiple": false,
         "required": true,
         "types": [
           {
-            "type": "block",
+            "type": "handling_block",
             "named": true
           }
         ]
@@ -2198,10 +2198,6 @@
         },
         {
           "type": "placeholder_expression",
-          "named": true
-        },
-        {
-          "type": "topic_reference",
           "named": true
         }
       ]
@@ -3210,7 +3206,11 @@
     "named": false
   },
   {
-    "type": "%%",
+    "type": "%",
+    "named": false
+  },
+  {
+    "type": "%=",
     "named": false
   },
   {
@@ -3455,6 +3455,10 @@
     "named": false
   },
   {
+    "type": "elsif",
+    "named": false
+  },
+  {
     "type": "ensure",
     "named": false
   },
@@ -3605,10 +3609,6 @@
   {
     "type": "struct",
     "named": false
-  },
-  {
-    "type": "topic_reference",
-    "named": true
   },
   {
     "type": "true",

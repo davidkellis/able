@@ -67,8 +67,8 @@ export function valuesEqual(left: V10Value, right: V10Value): boolean {
     return numericEquals(left, right);
   }
   switch (left.kind) {
-    case "string":
-      return right.kind === "string" && left.value === right.value;
+    case "String":
+      return right.kind === "String" && left.value === right.value;
     case "bool":
       return right.kind === "bool" && left.value === right.value;
     case "char":

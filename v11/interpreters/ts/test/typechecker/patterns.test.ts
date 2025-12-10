@@ -8,7 +8,7 @@ describe("typechecker typed patterns", () => {
     const module = AST.module([
       AST.assignmentExpression(
         ":=",
-        AST.typedPattern(AST.identifier("value"), AST.simpleTypeExpression("string")),
+        AST.typedPattern(AST.identifier("value"), AST.simpleTypeExpression("String")),
         AST.integerLiteral(1),
       ) as unknown as AST.Statement,
     ]);
@@ -128,7 +128,7 @@ describe("typechecker typed patterns", () => {
         AST.typedPattern(
           AST.identifier("headers"),
           AST.genericTypeExpression(AST.simpleTypeExpression("Map"), [
-            AST.simpleTypeExpression("string"),
+            AST.simpleTypeExpression("String"),
             AST.genericTypeExpression(AST.simpleTypeExpression("Array"), [AST.simpleTypeExpression("u8")]),
           ]),
         ),
@@ -149,7 +149,7 @@ describe("typechecker typed patterns", () => {
         AST.typedPattern(
           AST.identifier("headers"),
           AST.genericTypeExpression(AST.simpleTypeExpression("Map"), [
-            AST.simpleTypeExpression("string"),
+            AST.simpleTypeExpression("String"),
             AST.genericTypeExpression(AST.simpleTypeExpression("Array"), [AST.simpleTypeExpression("u8")]),
           ]),
         ),

@@ -2,7 +2,7 @@
   "description": "Future value failures expose ProcError causes to handlers",
   "expect": {
     "result": {
-      "kind": "string",
+      "kind": "String",
       "value": "Future failed: boom|has-cause"
     }
   },

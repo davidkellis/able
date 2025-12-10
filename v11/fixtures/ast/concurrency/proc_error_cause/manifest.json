@@ -2,7 +2,7 @@
   "description": "Proc handle errors expose ProcError causes to handlers",
   "expect": {
     "result": {
-      "kind": "string",
+      "kind": "String",
       "value": "Proc failed: boom|has-cause"
     }
   },

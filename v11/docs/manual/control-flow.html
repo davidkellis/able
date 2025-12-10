@@ -37,14 +37,13 @@
 }</code></pre>
         <h2 id="conditionals">6.1 Conditionals</h2>
         <p>
-          <code>if … or …</code> chains mirror Julia’s
-          <code>if/elseif/else</code>. Branches return their expression value.
+          <code>if/elsif/else</code> chains return their expression value.
           Only <code>false</code>, <code>nil</code>, and values of type
           <code>Error</code> are falsy.
         </p>
         <pre><code class="language-able">grade = if score >= 90 { "A" }
-        or score >= 80 { "B" }
-        or { "C or lower" }</code></pre>
+        elsif score >= 80 { "B" }
+        else { "C or lower" }</code></pre>
         <h2 id="loops">6.2 Loops</h2>
         <p>Loops evaluate to <code>void</code>.</p>
         <pre><code class="language-able">while counter &lt; 3 {

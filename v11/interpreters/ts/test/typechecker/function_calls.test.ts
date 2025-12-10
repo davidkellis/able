@@ -34,8 +34,7 @@ describe("typechecker function calls", () => {
     const module = AST.module([fn, call as unknown as AST.Statement]);
 
     const { diagnostics } = checker.checkModule(module);
-    expect(diagnostics).toHaveLength(1);
-    expect(diagnostics[0]?.message).toContain("function expects 2 arguments, got 1");
+    expect(diagnostics).toHaveLength(0);
   });
 
   test("reports type mismatch when argument type differs from parameter type", () => {
@@ -80,7 +79,7 @@ describe("typechecker function calls", () => {
       "tag",
       [AST.functionParameter("p", AST.simpleTypeExpression("Point"))],
       AST.blockExpression([AST.returnStatement(AST.stringLiteral("<point>"))]),
-      AST.simpleTypeExpression("string"),
+      AST.simpleTypeExpression("String"),
     );
     const pointValue = AST.structLiteral(
       [AST.structFieldInitializer(AST.integerLiteral(1), "x")],
@@ -92,5 +91,86 @@ describe("typechecker function calls", () => {
 
     const { diagnostics } = checker.checkModule(module);
     expect(diagnostics).toHaveLength(0);
+  });
+
+  test("pipe RHS must be callable", () => {
+    const checker = new TypeChecker();
+    const init = AST.assignmentExpression(":=", AST.identifier("value"), AST.integerLiteral(2));
+    const pipe = AST.binaryExpression("|>", AST.identifier("value"), AST.integerLiteral(3));
+    const module = AST.module([init, pipe as unknown as AST.Statement]);
+
+    const { diagnostics } = checker.checkModule(module);
+    expect(diagnostics.some((diag) => diag.message.includes("non-callable"))).toBe(true);
+  });
+
+  test("callable fields are preferred over methods with the same name", () => {
+    const checker = new TypeChecker();
+    const box = AST.structDefinition(
+      "Box",
+      [
+        AST.structFieldDefinition(
+          AST.fnType([AST.simpleTypeExpression("String")], AST.simpleTypeExpression("String")),
+          "action",
+        ),
+      ],
+      "named",
+    );
+    const methods = AST.methodsDefinition(AST.simpleTypeExpression("Box"), [
+      AST.fn(
+        "action",
+        [],
+        AST.blockExpression([AST.returnStatement(AST.integerLiteral(1))]),
+        AST.simpleTypeExpression("i32"),
+        undefined,
+        undefined,
+        true,
+      ),
+    ]);
+    const literal = AST.structLiteral(
+      [AST.structFieldInitializer(AST.lambdaExpression([AST.functionParameter("msg")], AST.stringLiteral("ok")), "action")],
+      false,
+      "Box",
+    );
+    const call = AST.functionCall(AST.memberAccessExpression(literal, AST.identifier("action")), [AST.stringLiteral("hi")]);
+    const module = AST.module([box, methods, call as unknown as AST.Statement]);
+
+    const { diagnostics } = checker.checkModule(module);
+    expect(diagnostics).toHaveLength(0);
+  });
+
+  test("method and UFCS free functions with matching signatures are ambiguous", () => {
+    const checker = new TypeChecker();
+    const point = AST.structDefinition(
+      "Point",
+      [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "x")],
+      "named",
+    );
+    const methods = AST.methodsDefinition(AST.simpleTypeExpression("Point"), [
+      AST.fn(
+        "describe",
+        [],
+        AST.blockExpression([AST.returnStatement(AST.stringLiteral("method"))]),
+        AST.simpleTypeExpression("String"),
+        undefined,
+        undefined,
+        true,
+      ),
+    ]);
+    const freeDescribe = AST.functionDefinition(
+      "describe",
+      [AST.functionParameter("p", AST.simpleTypeExpression("Point"))],
+      AST.blockExpression([AST.returnStatement(AST.stringLiteral("free"))]),
+      AST.simpleTypeExpression("String"),
+    );
+    const literal = AST.structLiteral(
+      [AST.structFieldInitializer(AST.integerLiteral(1), "x")],
+      false,
+      "Point",
+    );
+    const call = AST.functionCall(AST.memberAccessExpression(literal, AST.identifier("describe")), []);
+    const module = AST.module([point, methods, freeDescribe, call as unknown as AST.Statement]);
+
+    const { diagnostics } = checker.checkModule(module);
+    expect(diagnostics.some((d) => d.message?.toLowerCase().includes("ambiguous"))).toBe(true);
   });
 });

@@ -2,7 +2,7 @@
   "description": "Propagation succeeds without invoking handler",
   "expect": {
     "result": {
-      "kind": "string",
+      "kind": "String",
       "value": "ok"
     }
   },

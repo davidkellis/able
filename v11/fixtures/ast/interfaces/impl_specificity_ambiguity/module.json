@@ -239,7 +239,7 @@
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "string",
+              "name": "String",
               "span": {
                 "start": {
                   "line": 5,
@@ -663,7 +663,7 @@
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "string",
+              "name": "String",
               "span": {
                 "start": {
                   "line": 14,
@@ -939,7 +939,7 @@
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "string",
+              "name": "String",
               "span": {
                 "start": {
                   "line": 17,

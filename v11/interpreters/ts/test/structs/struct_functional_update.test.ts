@@ -9,7 +9,7 @@ describe("v11 interpreter - struct functional update", () => {
       "User",
       [
         AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "id"),
-        AST.structFieldDefinition(AST.simpleTypeExpression("string"), "name"),
+        AST.structFieldDefinition(AST.simpleTypeExpression("String"), "name"),
         AST.structFieldDefinition(AST.simpleTypeExpression("bool"), "active"),
       ],
       "named"
@@ -34,7 +34,7 @@ describe("v11 interpreter - struct functional update", () => {
 
     // Check fields
     const nameField = I.evaluate(AST.memberAccessExpression(updated, "name"));
-    expect(nameField).toEqual({ kind: "string", value: "Bob" });
+    expect(nameField).toEqual({ kind: "String", value: "Bob" });
     const idField = I.evaluate(AST.memberAccessExpression(updated, "id"));
     expect(idField).toEqual({ kind: "i32", value: 1n });
     const activeField = I.evaluate(AST.memberAccessExpression(updated, "active"));
@@ -42,7 +42,7 @@ describe("v11 interpreter - struct functional update", () => {
 
     // Ensure base did not change
     const nameBase = I.evaluate(AST.memberAccessExpression(base, "name"));
-    expect(nameBase).toEqual({ kind: "string", value: "Alice" });
+    expect(nameBase).toEqual({ kind: "String", value: "Alice" });
   });
 
   test("functional update rejects wrong-type source or positional source", () => {

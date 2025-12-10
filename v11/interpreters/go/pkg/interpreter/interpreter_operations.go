@@ -22,6 +22,8 @@ func binaryOpForAssignment(op ast.AssignmentOperator) (string, bool) {
 		return "*", true
 	case ast.AssignmentDiv:
 		return "/", true
+	case ast.AssignmentMod:
+		return "%", true
 	case ast.AssignmentBitAnd:
 		return ".&", true
 	case ast.AssignmentBitOr:
@@ -37,35 +39,38 @@ func binaryOpForAssignment(op ast.AssignmentOperator) (string, bool) {
 	}
 }
 
-func normalizeOperator(op string) string {
+func normalizeOperator(op string) (string, bool) {
 	switch op {
 	case ".&":
-		return "&"
+		return "&", true
 	case ".|":
-		return "|"
+		return "|", true
 	case ".^":
-		return "^"
+		return "^", true
 	case ".<<":
-		return "<<"
+		return "<<", true
 	case ".>>":
-		return ">>"
+		return ">>", true
 	case ".~":
-		return "~"
+		return "~", true
 	case "\\xor":
-		return "^"
+		return "^", false
 	default:
-		return op
+		return op, false
 	}
 }
 
 func applyBinaryOperator(i *Interpreter, op string, left runtime.Value, right runtime.Value) (runtime.Value, error) {
-	op = normalizeOperator(op)
+	op, dotted := normalizeOperator(op)
 	switch op {
-	case "+", "-", "*":
+	case "+", "-", "*", "^":
+		if op == "^" && dotted {
+			return evaluateBitwise(op, left, right)
+		}
 		return evaluateArithmetic(op, left, right)
 	case "/":
 		return evaluateDivision(left, right)
-	case "//", "%%", "/%":
+	case "//", "%", "/%":
 		return evaluateDivMod(i, op, left, right)
 	case "<", "<=", ">", ">=":
 		return evaluateComparison(op, left, right)
@@ -73,7 +78,7 @@ func applyBinaryOperator(i *Interpreter, op string, left runtime.Value, right ru
 		return runtime.BoolValue{Val: valuesEqual(left, right)}, nil
 	case "!=":
 		return runtime.BoolValue{Val: !valuesEqual(left, right)}, nil
-	case "&", "|", "^", "<<", ">>":
+	case "&", "|", "<<", ">>":
 		return evaluateBitwise(op, left, right)
 	default:
 		return nil, fmt.Errorf("unsupported binary operator %s", op)
@@ -138,7 +143,7 @@ func evaluateDivMod(i *Interpreter, op string, left runtime.Value, right runtime
 	switch op {
 	case "//":
 		return quotient, nil
-	case "%%":
+	case "%":
 		return remainder, nil
 	case "/%":
 		return i.makeDivModResult(targetType, quotient, remainder)
@@ -148,7 +153,6 @@ func evaluateDivMod(i *Interpreter, op string, left runtime.Value, right runtime
 }
 
 func evaluateBitwise(op string, left runtime.Value, right runtime.Value) (runtime.Value, error) {
-	op = normalizeOperator(op)
 	lv, ok := left.(runtime.IntegerValue)
 	if !ok {
 		return nil, fmt.Errorf("Bitwise requires integer operands")
@@ -255,6 +259,11 @@ func evaluateArithmetic(op string, left runtime.Value, right runtime.Value) (run
 			result.Sub(lv, rv)
 		case "*":
 			result.Mul(lv, rv)
+		case "^":
+			if rv.Sign() < 0 {
+				return nil, fmt.Errorf("Negative integer exponent is not supported")
+			}
+			result.Exp(lv, rv, nil)
 		default:
 			return nil, fmt.Errorf("unsupported arithmetic operator %s", op)
 		}
@@ -283,6 +292,8 @@ func evaluateArithmetic(op string, left runtime.Value, right runtime.Value) (run
 		val = leftFloat - rightFloat
 	case "*":
 		val = leftFloat * rightFloat
+	case "^":
+		val = math.Pow(leftFloat, rightFloat)
 	default:
 		return nil, fmt.Errorf("unsupported arithmetic operator %s", op)
 	}

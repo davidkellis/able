@@ -3,7 +3,7 @@ package tutorial.sync
 import able.concurrency.{Channel, Mutex, with_lock}
 
 fn main() -> void {
-  ch: Channel string = Channel.new(2)
+  ch: Channel String = Channel.new(2)
   ch.send("hi")
   ch.send("bye")
   ch.close()

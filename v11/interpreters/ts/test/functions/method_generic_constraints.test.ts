@@ -8,7 +8,7 @@ describe("v11 interpreter - method-level generic constraints (minimal runtime ch
 
     // interface Show { fn to_string(self: Self) -> string }
     const show = AST.interfaceDefinition("Show", [
-      AST.functionSignature("to_string", [AST.functionParameter("self", AST.simpleTypeExpression("Self"))], AST.simpleTypeExpression("string")),
+      AST.functionSignature("to_String", [AST.functionParameter("self", AST.simpleTypeExpression("Self"))], AST.simpleTypeExpression("String")),
     ]);
     I.evaluate(show);
 
@@ -26,7 +26,7 @@ describe("v11 interpreter - method-level generic constraints (minimal runtime ch
       AST.simpleTypeExpression("Point"),
       [
         AST.functionDefinition(
-          "to_string",
+          "to_String",
           [AST.functionParameter("self", AST.simpleTypeExpression("Point"))],
           AST.blockExpression([
             AST.returnStatement(
@@ -49,10 +49,10 @@ describe("v11 interpreter - method-level generic constraints (minimal runtime ch
           ],
           AST.blockExpression([
             AST.returnStatement(
-              AST.functionCall(AST.memberAccessExpression(AST.identifier("x"), "to_string"), [])
+              AST.functionCall(AST.memberAccessExpression(AST.identifier("x"), "to_String"), [])
             ),
           ]),
-          AST.simpleTypeExpression("string"),
+          AST.simpleTypeExpression("String"),
           [AST.genericParameter("T", [AST.interfaceConstraint(AST.simpleTypeExpression("Show"))])]
         ),
       ]
@@ -71,7 +71,7 @@ describe("v11 interpreter - method-level generic constraints (minimal runtime ch
       [AST.simpleTypeExpression("Point")]
     );
     const okVal = I.evaluate(ok);
-    expect(okVal).toEqual({ kind: "string", value: "Point(1, 2)" });
+    expect(okVal).toEqual({ kind: "String", value: "Point(1, 2)" });
 
     // Not OK: x is i32 which does not implement Show
     const bad = AST.functionCall(
@@ -79,7 +79,7 @@ describe("v11 interpreter - method-level generic constraints (minimal runtime ch
       [AST.integerLiteral(3)],
       [AST.simpleTypeExpression("i32")]
     );
-    expect(() => I.evaluate(bad)).toThrow(/does not satisfy interface 'Show': missing method 'to_string'/);
+    expect(() => I.evaluate(bad)).toThrow(/does not satisfy interface 'Show': missing method 'to_String'/);
   });
 });
 

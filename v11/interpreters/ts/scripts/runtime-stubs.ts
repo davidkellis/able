@@ -15,7 +15,7 @@ export function ensureConsolePrint(interpreter: InterpreterV10): void {
       console.log(String(value.value));
     } else {
       switch (value.kind) {
-        case "string":
+        case "String":
         case "char":
           console.log(String(value.value));
           break;
@@ -411,16 +411,16 @@ export function installRuntimeStubs(interpreter: InterpreterV10): void {
     }) ?? { kind: "nil", value: null },
   );
 
-  defineIfMissing("__able_string_from_builtin", () =>
-    (interpreter as any).makeNativeFunction?.("__able_string_from_builtin", 1, (_ctx: InterpreterV10, [value]: V10Value[]) => {
-      if (!value || value.kind !== "string") throw new Error("argument must be string");
+  defineIfMissing("__able_String_from_builtin", () =>
+    (interpreter as any).makeNativeFunction?.("__able_String_from_builtin", 1, (_ctx: InterpreterV10, [value]: V10Value[]) => {
+      if (!value || value.kind !== "String") throw new Error("argument must be String");
       const bytes = textEncoder.encode(value.value);
       return { kind: "array", elements: Array.from(bytes, (b) => makeIntegerValue("i32", BigInt(b))) };
     }) ?? { kind: "nil", value: null },
   );
 
-  defineIfMissing("__able_string_to_builtin", () =>
-    (interpreter as any).makeNativeFunction?.("__able_string_to_builtin", 1, (_ctx: InterpreterV10, [arr]: V10Value[]) => {
+  defineIfMissing("__able_String_to_builtin", () =>
+    (interpreter as any).makeNativeFunction?.("__able_String_to_builtin", 1, (_ctx: InterpreterV10, [arr]: V10Value[]) => {
       if (!arr || arr.kind !== "array") throw new Error("argument must be array");
       const bytes = Uint8Array.from(arr.elements.map((el, idx) => {
         if (!el) throw new Error(`array element ${idx} must be numeric`);
@@ -428,8 +428,8 @@ export function installRuntimeStubs(interpreter: InterpreterV10): void {
         if (n < 0 || n > 0xff) throw new Error(`array element ${idx} must be in range 0..255`);
         return n;
       }));
-      return { kind: "string", value: textDecoder.decode(bytes) };
-    }) ?? { kind: "string", value: "" },
+      return { kind: "String", value: textDecoder.decode(bytes) };
+    }) ?? { kind: "String", value: "" },
   );
 
   defineIfMissing("__able_char_from_codepoint", () =>
@@ -455,7 +455,7 @@ export function installRuntimeStubs(interpreter: InterpreterV10): void {
   defineIfMissing("__able_hasher_write", () =>
     (interpreter as any).makeNativeFunction?.("__able_hasher_write", 2, (_ctx: InterpreterV10, [handleArg, bytesArg]: V10Value[]) => {
       const handle = toHandle(handleArg);
-      if (!bytesArg || bytesArg.kind !== "string") throw new Error("bytes must be string");
+      if (!bytesArg || bytesArg.kind !== "String") throw new Error("bytes must be String");
       const state = hashers.get(handle);
       if (state === undefined) throw new Error("unknown hasher handle");
       let hash = state >>> 0;

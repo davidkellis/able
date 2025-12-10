@@ -179,8 +179,6 @@ func (i *Interpreter) evaluateExpression(node ast.Expression, env *runtime.Envir
 		return i.evaluateIndexExpression(n, env)
 	case *ast.UnaryExpression:
 		return i.evaluateUnaryExpression(n, env)
-	case *ast.TopicReferenceExpression:
-		return i.evaluateTopicReferenceExpression(n, env)
 	case *ast.PlaceholderExpression:
 		return i.evaluatePlaceholderExpression(n, env)
 	case *ast.Identifier:
@@ -232,17 +230,17 @@ func (i *Interpreter) evaluateIfExpression(expr *ast.IfExpression, env *runtime.
 	if isTruthy(cond) {
 		return i.evaluateBlock(expr.IfBody, env)
 	}
-	for _, clause := range expr.OrClauses {
-		if clause.Condition != nil {
-			clauseCond, err := i.evaluateExpression(clause.Condition, env)
-			if err != nil {
-				return nil, err
-			}
-			if !isTruthy(clauseCond) {
-				continue
-			}
+	for _, clause := range expr.ElseIfClauses {
+		clauseCond, err := i.evaluateExpression(clause.Condition, env)
+		if err != nil {
+			return nil, err
 		}
-		return i.evaluateBlock(clause.Body, env)
+		if isTruthy(clauseCond) {
+			return i.evaluateBlock(clause.Body, env)
+		}
+	}
+	if expr.ElseBody != nil {
+		return i.evaluateBlock(expr.ElseBody, env)
 	}
 	return runtime.NilValue{}, nil
 }
@@ -549,17 +547,15 @@ func (p *placeholderAnalyzer) visitExpression(expr ast.Expression) error {
 	switch e := expr.(type) {
 	case *ast.PlaceholderExpression:
 		p.hasPlaceholder = true
+		idx := 1
 		if e.Index != nil {
-			idx := *e.Index
-			if idx <= 0 {
-				return fmt.Errorf("Placeholder index must be positive, found @%d", idx)
-			}
-			p.explicit[idx] = struct{}{}
-			if idx > p.highestExplicit {
-				p.highestExplicit = idx
-			}
-		} else {
-			p.implicitCount++
+			idx = *e.Index
+		}
+		if idx <= 0 {
+			return fmt.Errorf("Placeholder index must be positive, found @%d", idx)
+		}
+		if idx > p.highestExplicit {
+			p.highestExplicit = idx
 		}
 	case *ast.BinaryExpression:
 		if err := p.visitExpression(e.Left); err != nil {
@@ -694,16 +690,19 @@ func (p *placeholderAnalyzer) visitExpression(expr ast.Expression) error {
 		if err := p.visitExpression(e.IfBody); err != nil {
 			return err
 		}
-		for _, clause := range e.OrClauses {
+		for _, clause := range e.ElseIfClauses {
 			if clause == nil {
 				continue
 			}
-			if clause.Condition != nil {
-				if err := p.visitExpression(clause.Condition); err != nil {
-					return err
-				}
+			if err := p.visitExpression(clause.Condition); err != nil {
+				return err
 			}
 			if err := p.visitExpression(clause.Body); err != nil {
+				return err
+			}
+		}
+		if e.ElseBody != nil {
+			if err := p.visitExpression(e.ElseBody); err != nil {
 				return err
 			}
 		}
@@ -714,8 +713,7 @@ func (p *placeholderAnalyzer) visitExpression(expr ast.Expression) error {
 		return nil
 	case *ast.ProcExpression, *ast.SpawnExpression, *ast.AwaitExpression:
 		return nil
-	case *ast.TopicReferenceExpression,
-		*ast.Identifier,
+	case *ast.Identifier,
 		*ast.IntegerLiteral,
 		*ast.FloatLiteral,
 		*ast.BooleanLiteral,
@@ -779,7 +777,7 @@ func (p *placeholderClosure) invoke(args []runtime.Value) (runtime.Value, error)
 	}
 	callEnv := runtime.NewEnvironment(p.env)
 	state := p.interpreter.stateFromEnv(callEnv)
-	state.pushPlaceholderFrame(p.plan.explicitIndices, p.plan.paramCount, args)
+	state.pushPlaceholderFrame(p.plan.paramCount, args)
 	defer state.popPlaceholderFrame()
 	result, err := p.interpreter.evaluateExpression(p.expression, callEnv)
 	if err != nil {

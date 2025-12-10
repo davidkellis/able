@@ -10,7 +10,7 @@ function createHashMap(): HashMapValue {
 
 function keyLabel(value: V10Value): string {
   switch (value.kind) {
-    case "string":
+    case "String":
       return `s:${value.value}`;
     case "bool":
       return `b:${value.value ? 1 : 0}`;
@@ -28,7 +28,7 @@ function keyLabel(value: V10Value): string {
         }
         return `f:${value.value}`;
       }
-      throw new Error("Map literal keys must be primitives (string, bool, char, nil, numeric)");
+      throw new Error("Map literal keys must be primitives (String, bool, char, nil, numeric)");
   }
 }
 

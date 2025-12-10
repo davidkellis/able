@@ -1,4 +1,4 @@
-fn status_name(status) -> string {
+fn status_name(status) -> String {
   status match {
     case Pending {  } => "Pending",
     case Resolved {  } => "Resolved",

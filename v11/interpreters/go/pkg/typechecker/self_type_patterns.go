@@ -21,7 +21,7 @@ var primitiveTypeNameSet = map[string]struct{}{
 	"f32":    {},
 	"f64":    {},
 	"bool":   {},
-	"string": {},
+	"String": {},
 	"char":   {},
 	"nil":    {},
 	"void":   {},

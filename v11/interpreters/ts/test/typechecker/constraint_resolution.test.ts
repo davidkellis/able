@@ -7,9 +7,9 @@ function builtinDisplayClone(): AST.Statement[] {
     "Display",
     [
       AST.functionSignature(
-        "to_string",
+        "to_String",
         [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
-        AST.simpleTypeExpression("string"),
+        AST.simpleTypeExpression("String"),
       ),
     ],
   );
@@ -25,13 +25,13 @@ function builtinDisplayClone(): AST.Statement[] {
   );
   const displayString = AST.implementationDefinition(
     AST.identifier("Display"),
-    AST.simpleTypeExpression("string"),
+    AST.simpleTypeExpression("String"),
     [
       AST.functionDefinition(
-        "to_string",
-        [AST.functionParameter("self", AST.simpleTypeExpression("string"))],
+        "to_String",
+        [AST.functionParameter("self", AST.simpleTypeExpression("String"))],
         AST.blockExpression([AST.returnStatement(AST.identifier("self"))]),
-        AST.simpleTypeExpression("string"),
+        AST.simpleTypeExpression("String"),
       ),
     ],
   );
@@ -40,22 +40,22 @@ function builtinDisplayClone(): AST.Statement[] {
     AST.simpleTypeExpression("i32"),
     [
       AST.functionDefinition(
-        "to_string",
+        "to_String",
         [AST.functionParameter("self", AST.simpleTypeExpression("i32"))],
         AST.blockExpression([AST.returnStatement(AST.stringLiteral("<int>"))]),
-        AST.simpleTypeExpression("string"),
+        AST.simpleTypeExpression("String"),
       ),
     ],
   );
   const cloneString = AST.implementationDefinition(
     AST.identifier("Clone"),
-    AST.simpleTypeExpression("string"),
+    AST.simpleTypeExpression("String"),
     [
       AST.functionDefinition(
         "clone",
-        [AST.functionParameter("self", AST.simpleTypeExpression("string"))],
+        [AST.functionParameter("self", AST.simpleTypeExpression("String"))],
         AST.blockExpression([AST.returnStatement(AST.identifier("self"))]),
-        AST.simpleTypeExpression("string"),
+        AST.simpleTypeExpression("String"),
       ),
     ],
   );
@@ -76,9 +76,9 @@ function builtinDisplayClone(): AST.Statement[] {
 function buildShowInterface(): AST.InterfaceDefinition {
   return AST.interfaceDefinition("Show", [
     AST.functionSignature(
-      "to_string",
+      "to_String",
       [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
-      AST.simpleTypeExpression("string"),
+      AST.simpleTypeExpression("String"),
     ),
   ]);
 }
@@ -86,7 +86,7 @@ function buildPointStruct(): AST.StructDefinition {
   return AST.structDefinition("Point", [], "named");
 }
 function resultStringType(): AST.TypeExpression {
-  return AST.resultTypeExpression(AST.simpleTypeExpression("string"));
+  return AST.resultTypeExpression(AST.simpleTypeExpression("String"));
 }
 function buildShowImplementation(): AST.ImplementationDefinition {
   return AST.implementationDefinition(
@@ -94,10 +94,10 @@ function buildShowImplementation(): AST.ImplementationDefinition {
     AST.simpleTypeExpression("Point"),
     [
       AST.functionDefinition(
-        "to_string",
+        "to_String",
         [AST.functionParameter("self", AST.simpleTypeExpression("Point"))],
         AST.blockExpression([AST.returnStatement(AST.stringLiteral("<point>"))]),
-        AST.simpleTypeExpression("string"),
+        AST.simpleTypeExpression("String"),
       ),
     ],
   );
@@ -106,10 +106,10 @@ function buildNullableDisplayImplementation(): AST.ImplementationDefinition {
   const genericParam = AST.genericParameter("T", [AST.interfaceConstraint(AST.simpleTypeExpression("Display"))]);
   const nullableType = AST.nullableTypeExpression(AST.simpleTypeExpression("T"));
   const method = AST.functionDefinition(
-    "to_string",
+    "to_String",
     [AST.functionParameter("self", nullableType)],
     AST.blockExpression([AST.returnStatement(AST.stringLiteral("nullable"))]),
-    AST.simpleTypeExpression("string"),
+    AST.simpleTypeExpression("String"),
     [],
     [],
   );
@@ -125,10 +125,10 @@ function buildNullableDisplayImplementation(): AST.ImplementationDefinition {
 }
 function buildPointDisplayImplementation(): AST.ImplementationDefinition {
   const method = AST.functionDefinition(
-    "to_string",
+    "to_String",
     [AST.functionParameter("self", AST.simpleTypeExpression("Point"))],
     AST.blockExpression([AST.returnStatement(AST.stringLiteral("point"))]),
-    AST.simpleTypeExpression("string"),
+    AST.simpleTypeExpression("String"),
   );
   return AST.implementationDefinition(
     AST.identifier("Display"),
@@ -148,13 +148,13 @@ function buildUseDisplayNullableFunction(): AST.FunctionDefinition {
     AST.blockExpression([
       AST.returnStatement(
         AST.functionCall(
-          AST.memberAccessExpression(AST.identifier("value"), AST.identifier("to_string")),
+          AST.memberAccessExpression(AST.identifier("value"), AST.identifier("to_String")),
           [],
           [],
         ),
       ),
     ]),
-    AST.simpleTypeExpression("string"),
+    AST.simpleTypeExpression("String"),
     [AST.genericParameter("T", [AST.interfaceConstraint(AST.simpleTypeExpression("Display"))])],
   );
 }
@@ -187,13 +187,13 @@ function buildUseShowFunction(): AST.FunctionDefinition {
     AST.blockExpression([
       AST.returnStatement(
         AST.functionCall(
-          AST.memberAccessExpression(AST.identifier("value"), AST.identifier("to_string")),
+          AST.memberAccessExpression(AST.identifier("value"), AST.identifier("to_String")),
           [],
           [],
         ),
       ),
     ]),
-    AST.simpleTypeExpression("string"),
+    AST.simpleTypeExpression("String"),
     [
       AST.genericParameter(
         "T",
@@ -222,12 +222,12 @@ function buildModule(includeImpl: boolean): AST.Module {
   return AST.module(body);
 }
 
-function buildPointMethodSet(methodName = "to_string"): AST.MethodsDefinition {
+function buildPointMethodSet(methodName = "to_String"): AST.MethodsDefinition {
   const method = AST.functionDefinition(
     methodName,
     [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
     AST.blockExpression([AST.returnStatement(AST.stringLiteral(`<${methodName}>`))]),
-    AST.simpleTypeExpression("string"),
+    AST.simpleTypeExpression("String"),
   );
   return AST.methodsDefinition(AST.simpleTypeExpression("Point"), [method]);
 }
@@ -239,10 +239,10 @@ function buildResultShowImplementation(): AST.ImplementationDefinition {
     typeExpr,
     [
       AST.functionDefinition(
-        "to_string",
+        "to_String",
         [AST.functionParameter("self", resultStringType())],
         AST.blockExpression([AST.returnStatement(AST.stringLiteral("result"))]),
-        AST.simpleTypeExpression("string"),
+        AST.simpleTypeExpression("String"),
       ),
     ],
   );
@@ -260,7 +260,7 @@ function buildResultWrapperFunction(): AST.FunctionDefinition {
         ),
       ),
     ]),
-    AST.simpleTypeExpression("string"),
+    AST.simpleTypeExpression("String"),
   );
 }
 function buildResultModule(includeImpl: boolean): AST.Module {
@@ -301,7 +301,7 @@ describe("TypeChecker constraint resolution", () => {
     expect(result.diagnostics.length).toBeGreaterThan(0);
     const first = result.diagnostics[0]?.message ?? "";
     expect(first).toContain("constraint on T is not satisfied");
-    expect(first).toContain("Result string");
+    expect(first).toContain("Result String");
   });
   test("reports unsatisfied constraints for nullable implementations without inner implementation", () => {
     const moduleAst = buildNullableModule(false);
@@ -341,7 +341,7 @@ describe("TypeChecker constraint resolution", () => {
     const invocation = AST.functionCall(
       AST.identifier("choose_first"),
       [AST.stringLiteral("winner"), AST.integerLiteral(1)],
-      [AST.simpleTypeExpression("string"), AST.simpleTypeExpression("i32")],
+      [AST.simpleTypeExpression("String"), AST.simpleTypeExpression("i32")],
     ) as unknown as AST.Statement;
     const moduleAst = AST.module([...builtinDisplayClone(), chooseFirst, invocation]);
     const checker = new TypeChecker();
@@ -358,10 +358,10 @@ describe("TypeChecker constraint resolution", () => {
       ]),
       [
         AST.functionDefinition(
-          "to_string",
+          "to_String",
           [AST.functionParameter("self")],
           AST.blockExpression([AST.returnStatement(AST.stringLiteral("union"))]),
-          AST.simpleTypeExpression("string"),
+          AST.simpleTypeExpression("String"),
         ),
       ],
     );
@@ -391,10 +391,10 @@ describe("TypeChecker constraint resolution", () => {
       ]),
       [
         AST.functionDefinition(
-          "to_string",
+          "to_String",
           [AST.functionParameter("self")],
           AST.blockExpression([AST.returnStatement(AST.stringLiteral("ab"))]),
-          AST.simpleTypeExpression("string"),
+          AST.simpleTypeExpression("String"),
         ),
       ],
     );
@@ -406,10 +406,10 @@ describe("TypeChecker constraint resolution", () => {
       ]),
       [
         AST.functionDefinition(
-          "to_string",
+          "to_String",
           [AST.functionParameter("self")],
           AST.blockExpression([AST.returnStatement(AST.stringLiteral("ag"))]),
-          AST.simpleTypeExpression("string"),
+          AST.simpleTypeExpression("String"),
         ),
       ],
     );
@@ -462,6 +462,6 @@ describe("TypeChecker constraint resolution", () => {
     expect(result.diagnostics.length).toBeGreaterThan(0);
     const message = result.diagnostics[0]?.message ?? "";
     expect(message).toContain("methods for Point");
-    expect(message).toContain("to_string");
+    expect(message).toContain("to_String");
   });
 });

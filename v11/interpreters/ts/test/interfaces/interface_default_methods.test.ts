@@ -10,7 +10,7 @@ describe("v11 interpreter - interface default methods", () => {
       AST.functionSignature(
         "speak",
         [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
-        AST.simpleTypeExpression("string"),
+        AST.simpleTypeExpression("String"),
         undefined,
         undefined,
         AST.blockExpression([
@@ -22,7 +22,7 @@ describe("v11 interpreter - interface default methods", () => {
 
     const botDef = AST.structDefinition(
       "Bot",
-      [AST.structFieldDefinition(AST.simpleTypeExpression("string"), "name")],
+      [AST.structFieldDefinition(AST.simpleTypeExpression("String"), "name")],
       "named"
     );
     I.evaluate(botDef);
@@ -42,7 +42,7 @@ describe("v11 interpreter - interface default methods", () => {
       AST.memberAccessExpression(botLiteral, "speak"),
       []
     );
-    expect(I.evaluate(call)).toEqual({ kind: "string", value: "default" });
+    expect(I.evaluate(call)).toEqual({ kind: "String", value: "default" });
   });
 
   test("impl overrides default when method provided", () => {
@@ -52,7 +52,7 @@ describe("v11 interpreter - interface default methods", () => {
       AST.functionSignature(
         "speak",
         [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
-        AST.simpleTypeExpression("string"),
+        AST.simpleTypeExpression("String"),
         undefined,
         undefined,
         AST.blockExpression([
@@ -64,7 +64,7 @@ describe("v11 interpreter - interface default methods", () => {
 
     const botDef = AST.structDefinition(
       "Bot",
-      [AST.structFieldDefinition(AST.simpleTypeExpression("string"), "name")],
+      [AST.structFieldDefinition(AST.simpleTypeExpression("String"), "name")],
       "named"
     );
     I.evaluate(botDef);
@@ -79,7 +79,7 @@ describe("v11 interpreter - interface default methods", () => {
           AST.blockExpression([
             AST.returnStatement(AST.stringLiteral("custom")),
           ]),
-          AST.simpleTypeExpression("string"),
+          AST.simpleTypeExpression("String"),
         ),
       ]
     );
@@ -93,7 +93,7 @@ describe("v11 interpreter - interface default methods", () => {
       AST.memberAccessExpression(botLiteral, "speak"),
       []
     );
-    expect(I.evaluate(call)).toEqual({ kind: "string", value: "custom" });
+    expect(I.evaluate(call)).toEqual({ kind: "String", value: "custom" });
   });
 });
 

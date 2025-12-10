@@ -506,7 +506,7 @@ describe("v11 interpreter - await expression", () => {
     (I as any).runProcHandle(handleVal);
 
     const result = I.evaluate(AST.identifier("result"));
-    expect(result).toEqual({ kind: "string", value: "fallback" });
+    expect(result).toEqual({ kind: "String", value: "fallback" });
 
     await flushScheduler();
     await new Promise((resolve) => setTimeout(resolve, 15));
@@ -544,7 +544,7 @@ describe("v11 interpreter - await expression", () => {
 
     expect((handleVal as any).state).toBe("resolved");
     const result = I.evaluate(AST.identifier("result"));
-    expect(result).toEqual({ kind: "string", value: "timer" });
+    expect(result).toEqual({ kind: "String", value: "timer" });
   });
 
   test("await cancellation cancels registrations and suppresses callbacks", async () => {
@@ -602,7 +602,7 @@ describe("v11 interpreter - await expression", () => {
     const hits = I.evaluate(AST.identifier("hits"));
     expect(hits).toEqual({ kind: "i32", value: 0n });
     const finalResult = I.evaluate(AST.identifier("result"));
-    expect(finalResult).toEqual({ kind: "string", value: "pending" });
+    expect(finalResult).toEqual({ kind: "String", value: "pending" });
   });
 
   test("await channel awaitable registers + cancels on proc cancellation", async () => {
@@ -660,7 +660,7 @@ describe("v11 interpreter - await expression", () => {
     const hits = I.evaluate(AST.identifier("hits"));
     expect(hits).toEqual({ kind: "i32", value: 0n });
     const finalResult = I.evaluate(AST.identifier("result"));
-    expect(finalResult).toEqual({ kind: "string", value: "pending" });
+    expect(finalResult).toEqual({ kind: "String", value: "pending" });
   });
 
   test("await channel send awaitable cancels pending send on cancellation", () => {
@@ -713,6 +713,6 @@ describe("v11 interpreter - await expression", () => {
     const hits = I.evaluate(AST.identifier("hits"));
     expect(hits).toEqual({ kind: "i32", value: 0n });
     const finalResult = I.evaluate(AST.identifier("result"));
-    expect(finalResult).toEqual({ kind: "string", value: "pending" });
+    expect(finalResult).toEqual({ kind: "String", value: "pending" });
   });
 });

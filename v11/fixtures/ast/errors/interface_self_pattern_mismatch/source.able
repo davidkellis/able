@@ -1,6 +1,6 @@
 interface PointDisplay for Point
 {
-  fn describe (self: Self) -> string
+  fn describe (self: Self) -> String
 }
 struct Point {
   x: i32,
@@ -12,7 +12,7 @@ struct Line {
 }
 impl PointDisplay for Line
 {
-  fn describe(self: Line) -> string {
+  fn describe(self: Line) -> String {
     "line"
   }
 }

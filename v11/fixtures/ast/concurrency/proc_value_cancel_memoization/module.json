@@ -149,7 +149,7 @@
       "operator": ":=",
       "left": {
         "type": "Identifier",
-        "name": "ran_string"
+        "name": "ran_String"
       },
       "right": {
         "type": "StringInterpolation",
@@ -174,7 +174,7 @@
         },
         {
           "type": "Identifier",
-          "name": "ran_string"
+          "name": "ran_String"
         }
       ]
     }

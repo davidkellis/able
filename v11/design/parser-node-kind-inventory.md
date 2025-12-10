@@ -17,7 +17,7 @@ This note records the tree-sitter node kinds we must handle in the Go parser for
 | Unary expressions | `unary_expression` | Present. |
 | Binary operators (arithmetic/bitwise) | `logical_or_expression`, `logical_and_expression`, `bitwise_or_expression`, `bitwise_xor_expression`, `bitwise_and_expression`, `equality_expression`, `comparison_expression`, `shift_expression`, `additive_expression`, `multiplicative_expression`, `exponent_expression` | All precedence tiers exist; parser must fold into AST operator nodes. |
 | Block expression (`do {}`) | `do_expression`, `block` | Present. |
-| If / if-or / else | `if_expression`, `or_clause`, `block` | Present. |
+| If / elsif / else | `if_expression`, `elsif_clause`, `block` | Present. |
 | Match expression (identifier + literal) | `match_expression`, `match_clause`, `match_guard`, `pattern`, `literal_pattern` | Present. |
 | Match expression (struct guard) | `match_expression`, `match_clause`, `match_guard`, `struct_pattern`, `struct_pattern_field` | Present. |
 | Lambda expression (inline) | `lambda_expression`, `lambda_parameter_list`, `lambda_parameter` | Present. |

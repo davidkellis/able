@@ -44,6 +44,7 @@ export interface FunctionInfo {
   fullName: string;
   structName?: string;
   hasImplicitSelf?: boolean;
+  methodResolutionPriority?: number;
   parameters: TypeInfo[];
   genericConstraints: Array<{
     paramName: string;

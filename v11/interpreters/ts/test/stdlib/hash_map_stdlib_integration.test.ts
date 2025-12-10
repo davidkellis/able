@@ -52,7 +52,7 @@ package main
 
 import able.collections.hash_map.{HashMap}
 
-fn build_map() -> HashMap string i32 {
+fn build_map() -> HashMap String i32 {
   map := HashMap.new()
   map.set("left", 1)
   map.set("right", 2)

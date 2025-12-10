@@ -28,12 +28,12 @@ methods Mutex {
 }
 
 impl Error for MutexUnlocked {
-  fn message(self: Self) -> string { "unlock of unlocked mutex" }
+  fn message(self: Self) -> String { "unlock of unlocked mutex" }
   fn cause(self: Self) -> ?Error { nil }
 }
 
 impl Error for MutexPoisoned {
-  fn message(self: Self) -> string { "mutex poisoned" }
+  fn message(self: Self) -> String { "mutex poisoned" }
   fn cause(self: Self) -> ?Error { nil }
 }
 

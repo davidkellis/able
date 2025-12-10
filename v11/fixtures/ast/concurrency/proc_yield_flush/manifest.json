@@ -2,7 +2,7 @@
   "description": "proc_yield cooperates with proc_flush to resume the task",
   "expect": {
     "result": {
-      "kind": "string",
+      "kind": "String",
       "value": "Pending:Resolved:Resolved:AB:done"
     }
   },

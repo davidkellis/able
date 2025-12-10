@@ -3,7 +3,7 @@ package collections.range.tests
 import able.collections.range.{IntRangeFactory}
 import able.core.iteration.{IteratorEnd}
 
-fn assert(condition: bool, message: string) -> void {
+fn assert(condition: bool, message: String) -> void {
   if condition { return }
   raise message
 }

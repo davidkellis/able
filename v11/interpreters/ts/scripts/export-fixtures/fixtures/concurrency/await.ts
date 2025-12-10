@@ -71,10 +71,10 @@ const awaitFixtures: Fixture[] = [
         result: {
           kind: "array",
           elements: [
-            { kind: "string", value: "payload" },
-            { kind: "string", value: "sent" },
-            { kind: "string", value: "payload" },
-            { kind: "string", value: "sent" },
+            { kind: "String", value: "payload" },
+            { kind: "String", value: "sent" },
+            { kind: "String", value: "payload" },
+            { kind: "String", value: "sent" },
           ],
         },
       },
@@ -184,7 +184,7 @@ const awaitFixtures: Fixture[] = [
     manifest: {
       description: "await rotates ready channel arms round-robin instead of preferring the first entry",
       expect: {
-        result: { kind: "string", value: "A1B1A2B2" },
+        result: { kind: "String", value: "A1B1A2B2" },
       },
     },
   },

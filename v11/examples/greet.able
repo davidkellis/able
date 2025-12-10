@@ -1,6 +1,6 @@
 package greet
 
-fn greet(name: string) -> string {
+fn greet(name: String) -> String {
   `Hello ${name}`
 }
 

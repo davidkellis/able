@@ -46,7 +46,7 @@ func (i *Interpreter) getTypeInfoForValue(value runtime.Value) (typeInfo, bool) 
 func (i *Interpreter) typeExpressionFromValue(value runtime.Value) ast.TypeExpression {
 	switch v := value.(type) {
 	case runtime.StringValue:
-		return ast.Ty("string")
+		return ast.Ty("String")
 	case runtime.BoolValue:
 		return ast.Ty("bool")
 	case runtime.CharValue:
@@ -151,7 +151,7 @@ func (i *Interpreter) findMethod(info typeInfo, methodName string, interfaceFilt
 						continue
 					}
 					defaultDef := ast.NewFunctionDefinition(sig.Name, sig.Params, sig.DefaultImpl, sig.ReturnType, sig.GenericParams, sig.WhereClause, false, false)
-					method = &runtime.FunctionValue{Declaration: defaultDef, Closure: ifaceDef.Env}
+					method = &runtime.FunctionValue{Declaration: defaultDef, Closure: ifaceDef.Env, MethodPriority: -1}
 					if cand.entry.methods == nil {
 						cand.entry.methods = make(map[string]runtime.Value)
 					}
@@ -235,8 +235,11 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 				return true
 			}
 		}
+		if name == "Self" {
+			return true
+		}
 		switch name {
-		case "string":
+		case "String":
 			_, ok := value.(runtime.StringValue)
 			return ok
 		case "bool":
@@ -411,7 +414,7 @@ func (i *Interpreter) isKnownTypeName(name string) bool {
 
 func isPrimitiveName(name string) bool {
 	switch name {
-	case "bool", "string", "char", "nil", "void":
+	case "bool", "String", "char", "nil", "void":
 		return true
 	case "f32", "f64":
 		return true

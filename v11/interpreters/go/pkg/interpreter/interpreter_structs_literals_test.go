@@ -401,7 +401,7 @@ func TestStructFunctionalUpdate(t *testing.T) {
 			"User",
 			[]*ast.StructFieldDefinition{
 				ast.FieldDef(ast.Ty("i32"), "id"),
-				ast.FieldDef(ast.Ty("string"), "name"),
+				ast.FieldDef(ast.Ty("String"), "name"),
 				ast.FieldDef(ast.Ty("bool"), "active"),
 			},
 			ast.StructKindNamed,

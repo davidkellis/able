@@ -183,7 +183,7 @@ func TestLoopExpressionMatchesExampleLoop(t *testing.T) {
 	interp := New()
 	breakBlock := ast.Block(ast.Brk(nil, nil))
 	breakIf := ast.IfExpr(ast.Bin("<=", ast.ID("a"), ast.Int(0)), breakBlock)
-	breakIf.OrClauses = []*ast.OrClause{}
+	breakIf.ElseIfClauses = []*ast.ElseIfClause{}
 	loopBody := ast.Block(
 		breakIf,
 		ast.AssignOp(
@@ -357,7 +357,7 @@ func TestForLoopBreakValuePropagates(t *testing.T) {
 	}
 }
 
-func TestIfOrSelectsFirstBranch(t *testing.T) {
+func TestIfSelectsFirstBranch(t *testing.T) {
 	interp := New()
 	module := ast.Mod([]ast.Statement{
 		ast.IfExpr(
@@ -376,16 +376,15 @@ func TestIfOrSelectsFirstBranch(t *testing.T) {
 	}
 }
 
-func TestIfOrFallsThroughToElse(t *testing.T) {
+func TestIfFallsThroughToElse(t *testing.T) {
 	interp := New()
-	module := ast.Mod([]ast.Statement{
-		ast.IfExpr(
-			ast.Bool(false),
-			ast.Block(ast.Int(1)),
-			ast.OrC(ast.Block(ast.Int(2)), ast.Bool(false)),
-			ast.OrC(ast.Block(ast.Int(3)), nil),
-		),
-	}, nil, nil)
+	ifExpr := ast.IfExpr(
+		ast.Bool(false),
+		ast.Block(ast.Int(1)),
+		ast.ElseIf(ast.Block(ast.Int(2)), ast.Bool(false)),
+	)
+	ifExpr.ElseBody = ast.Block(ast.Int(3))
+	module := ast.Mod([]ast.Statement{ifExpr}, nil, nil)
 
 	result, _, err := interp.EvaluateModule(module)
 	if err != nil {
@@ -397,16 +396,15 @@ func TestIfOrFallsThroughToElse(t *testing.T) {
 	}
 }
 
-func TestIfOrConditionClause(t *testing.T) {
+func TestElsifConditionClause(t *testing.T) {
 	interp := New()
-	module := ast.Mod([]ast.Statement{
-		ast.IfExpr(
-			ast.Bool(false),
-			ast.Block(ast.Int(1)),
-			ast.OrC(ast.Block(ast.Int(2)), ast.Bool(true)),
-			ast.OrC(ast.Block(ast.Int(3)), nil),
-		),
-	}, nil, nil)
+	ifExpr := ast.IfExpr(
+		ast.Bool(false),
+		ast.Block(ast.Int(1)),
+		ast.ElseIf(ast.Block(ast.Int(2)), ast.Bool(true)),
+	)
+	ifExpr.ElseBody = ast.Block(ast.Int(3))
+	module := ast.Mod([]ast.Statement{ifExpr}, nil, nil)
 
 	result, _, err := interp.EvaluateModule(module)
 	if err != nil {

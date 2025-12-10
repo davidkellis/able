@@ -11,7 +11,7 @@ func TestStringFromBuiltinProducesBytes(t *testing.T) {
 	interp := New()
 	global := interp.GlobalEnvironment()
 
-	val, err := interp.evaluateExpression(ast.Call("__able_string_from_builtin", ast.Str("Hi")), global)
+	val, err := interp.evaluateExpression(ast.Call("__able_String_from_builtin", ast.Str("Hi")), global)
 	if err != nil {
 		t.Fatalf("evaluation failed: %v", err)
 	}
@@ -38,7 +38,7 @@ func TestStringToBuiltinDecodesUTF8(t *testing.T) {
 	global := interp.GlobalEnvironment()
 
 	val, err := interp.evaluateExpression(
-		ast.Call("__able_string_to_builtin", ast.Arr(ast.Int(0xE2), ast.Int(0x82), ast.Int(0xAC))),
+		ast.Call("__able_String_to_builtin", ast.Arr(ast.Int(0xE2), ast.Int(0x82), ast.Int(0xAC))),
 		global,
 	)
 	if err != nil {

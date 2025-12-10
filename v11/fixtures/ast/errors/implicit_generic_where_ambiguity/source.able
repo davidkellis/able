@@ -1,6 +1,6 @@
 interface Show for Self
 {
-  fn render (self: Self) -> string
+  fn render (self: Self) -> String
 }
 struct Point {
   x: i32,

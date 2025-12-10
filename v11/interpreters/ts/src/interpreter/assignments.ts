@@ -73,7 +73,7 @@ function analyzeDeclarationTargets(
 
 export function evaluateAssignmentExpression(ctx: InterpreterV10, node: AST.AssignmentExpression, env: Environment): V10Value {
   const value = ctx.evaluate(node.right, env);
-  const isCompound = ["+=", "-=", "*=", "/=", ".&=", ".|=", ".^=", ".<<=", ".>>="].includes(node.operator);
+  const isCompound = ["+=", "-=", "*=", "/=", "%=", ".&=", ".|=", ".^=", ".<<=", ".>>="].includes(node.operator);
 
   if (node.left.type === "ImplicitMemberExpression") {
     if (node.operator === ":=") throw new Error("Cannot use := on implicit member access");

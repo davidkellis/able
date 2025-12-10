@@ -71,21 +71,21 @@ function typecheckProgram(
   return diagnostics;
 }
 
-describe("stdlib-backed string helpers", () => {
-  test("method sets override native string helpers when defined", async () => {
-    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "able-string-methods-"));
+describe("stdlib-backed String helpers", () => {
+  test("method sets override native String helpers when defined", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "able-String-methods-"));
     try {
-      await fs.writeFile(path.join(tmpRoot, "package.yml"), "name: string_override\n", "utf8");
+      await fs.writeFile(path.join(tmpRoot, "package.yml"), "name: String_override\n", "utf8");
       await fs.writeFile(
         path.join(tmpRoot, "main.able"),
         `
 package main
 
-methods string {
-  fn len_bytes(self: Self) -> string { "custom-len" }
+methods String {
+  fn len_bytes(self: Self) -> String { "custom-len" }
 }
 
-fn main() -> string {
+fn main() -> String {
   "hello".len_bytes()
 }
 `.trimStart(),
@@ -110,17 +110,17 @@ fn main() -> string {
         throw new Error("entry module missing main");
       }
       const result = callCallableValue(interpreter as any, mainFn, [], interpreter.globals) as any;
-      expect(result?.kind).toBe("string");
+      expect(result?.kind).toBe("String");
       expect(readString(result)).toBe("custom-len");
     } finally {
       await fs.rm(tmpRoot, { recursive: true, force: true });
     }
   });
 
-  test("stdlib string methods run via ModuleLoader", async () => {
-    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "able-string-stdlib-"));
+  test("stdlib String methods run via ModuleLoader", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "able-String-stdlib-"));
     try {
-      await fs.writeFile(path.join(tmpRoot, "package.yml"), "name: string_stdlib\n", "utf8");
+      await fs.writeFile(path.join(tmpRoot, "package.yml"), "name: String_stdlib\n", "utf8");
       await fs.writeFile(
         path.join(tmpRoot, "main.able"),
         `
@@ -165,10 +165,10 @@ fn main() -> i32 {
     }
   });
 
-  test("substring out of range surfaces stdlib RangeError", async () => {
-    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "able-string-range-"));
+  test("subString out of range surfaces stdlib RangeError", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "able-String-range-"));
     try {
-      await fs.writeFile(path.join(tmpRoot, "package.yml"), "name: string_range_error\n", "utf8");
+      await fs.writeFile(path.join(tmpRoot, "package.yml"), "name: String_range_error\n", "utf8");
       await fs.writeFile(
         path.join(tmpRoot, "main.able"),
         `
@@ -178,7 +178,7 @@ import able.text.string
 import able.core.errors.{RangeError}
 
 fn main() {
-  "hey".substring(10, nil)
+  "hey".subString(10, nil)
 }
 `.trimStart(),
         "utf8",
@@ -215,16 +215,16 @@ fn main() {
         [],
         interpreter.globals,
       );
-      expect(readString(message)).toBe("substring start out of range");
+      expect(readString(message)).toBe("subString start out of range");
     } finally {
       await fs.rm(tmpRoot, { recursive: true, force: true });
     }
   });
 
-  test("substring length overflow surfaces stdlib RangeError", async () => {
-    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "able-string-range-len-"));
+  test("subString length overflow surfaces stdlib RangeError", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "able-String-range-len-"));
     try {
-      await fs.writeFile(path.join(tmpRoot, "package.yml"), "name: string_range_len_error\n", "utf8");
+      await fs.writeFile(path.join(tmpRoot, "package.yml"), "name: String_range_len_error\n", "utf8");
       await fs.writeFile(
         path.join(tmpRoot, "main.able"),
         `
@@ -234,7 +234,7 @@ import able.text.string
 import able.core.errors.{RangeError}
 
 fn main() {
-  "hi".substring(0, 10)
+  "hi".subString(0, 10)
 }
 `.trimStart(),
         "utf8",
@@ -271,16 +271,16 @@ fn main() {
         [],
         interpreter.globals,
       );
-      expect(readString(message)).toBe("substring range out of bounds");
+      expect(readString(message)).toBe("subString range out of bounds");
     } finally {
       await fs.rm(tmpRoot, { recursive: true, force: true });
     }
   });
 
   test("split with empty delimiter emits grapheme slices", async () => {
-    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "able-string-split-empty-"));
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "able-String-split-empty-"));
     try {
-      await fs.writeFile(path.join(tmpRoot, "package.yml"), "name: string_split_empty\n", "utf8");
+      await fs.writeFile(path.join(tmpRoot, "package.yml"), "name: String_split_empty\n", "utf8");
       await fs.writeFile(
         path.join(tmpRoot, "main.able"),
         `
@@ -288,7 +288,7 @@ package main
 
 import able.text.string
 
-fn main() -> Array string {
+fn main() -> Array String {
   "abc".split("")
 }
 `.trimStart(),
@@ -324,9 +324,9 @@ fn main() -> Array string {
   });
 
   test("replace with empty needle returns the receiver", async () => {
-    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "able-string-replace-empty-"));
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "able-String-replace-empty-"));
     try {
-      await fs.writeFile(path.join(tmpRoot, "package.yml"), "name: string_replace_empty\n", "utf8");
+      await fs.writeFile(path.join(tmpRoot, "package.yml"), "name: String_replace_empty\n", "utf8");
       await fs.writeFile(
         path.join(tmpRoot, "main.able"),
         `
@@ -334,7 +334,7 @@ package main
 
 import able.text.string
 
-fn main() -> string {
+fn main() -> String {
   "foobar".replace("", "X")
 }
 `.trimStart(),
@@ -369,10 +369,10 @@ fn main() -> string {
     }
   });
 
-  test("split with missing delimiter returns original string", async () => {
-    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "able-string-split-missing-"));
+  test("split with missing delimiter returns original String", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "able-String-split-missing-"));
     try {
-      await fs.writeFile(path.join(tmpRoot, "package.yml"), "name: string_split_missing\n", "utf8");
+      await fs.writeFile(path.join(tmpRoot, "package.yml"), "name: String_split_missing\n", "utf8");
       await fs.writeFile(
         path.join(tmpRoot, "main.able"),
         `
@@ -380,7 +380,7 @@ package main
 
 import able.text.string
 
-fn main() -> Array string {
+fn main() -> Array String {
   "abc".split("|")
 }
 `.trimStart(),
@@ -415,10 +415,10 @@ fn main() -> Array string {
     }
   });
 
-  test("replace with missing needle returns original string", async () => {
-    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "able-string-replace-missing-"));
+  test("replace with missing needle returns original String", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "able-String-replace-missing-"));
     try {
-      await fs.writeFile(path.join(tmpRoot, "package.yml"), "name: string_replace_missing\n", "utf8");
+      await fs.writeFile(path.join(tmpRoot, "package.yml"), "name: String_replace_missing\n", "utf8");
       await fs.writeFile(
         path.join(tmpRoot, "main.able"),
         `
@@ -426,7 +426,7 @@ package main
 
 import able.text.string
 
-fn main() -> string {
+fn main() -> String {
   "abc".replace("zzz", "x")
 }
 `.trimStart(),
@@ -462,9 +462,9 @@ fn main() -> string {
   });
 
   test("split with multi-byte delimiter respects code points", async () => {
-    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "able-string-split-utf8-"));
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "able-String-split-utf8-"));
     try {
-      await fs.writeFile(path.join(tmpRoot, "package.yml"), "name: string_split_utf8\n", "utf8");
+      await fs.writeFile(path.join(tmpRoot, "package.yml"), "name: String_split_utf8\n", "utf8");
       await fs.writeFile(
         path.join(tmpRoot, "main.able"),
         `
@@ -472,7 +472,7 @@ package main
 
 import able.text.string
 
-fn main() -> Array string {
+fn main() -> Array String {
   "cafébar".split("é")
 }
 `.trimStart(),
@@ -508,9 +508,9 @@ fn main() -> Array string {
   });
 
   test("replace with multi-byte needle swaps correctly", async () => {
-    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "able-string-replace-utf8-"));
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "able-String-replace-utf8-"));
     try {
-      await fs.writeFile(path.join(tmpRoot, "package.yml"), "name: string_replace_utf8\n", "utf8");
+      await fs.writeFile(path.join(tmpRoot, "package.yml"), "name: String_replace_utf8\n", "utf8");
       await fs.writeFile(
         path.join(tmpRoot, "main.able"),
         `
@@ -518,7 +518,7 @@ package main
 
 import able.text.string
 
-fn main() -> string {
+fn main() -> String {
   "abaéaba".replace("é", "δ")
 }
 `.trimStart(),
@@ -553,10 +553,10 @@ fn main() -> string {
     }
   });
 
-  test("for-loops over strings iterate bytes via stdlib iterator", async () => {
-    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "able-string-iter-"));
+  test("for-loops over Strings iterate bytes via stdlib iterator", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "able-String-iter-"));
     try {
-      await fs.writeFile(path.join(tmpRoot, "package.yml"), "name: string_iterator\n", "utf8");
+      await fs.writeFile(path.join(tmpRoot, "package.yml"), "name: String_iterator\n", "utf8");
       await fs.writeFile(
         path.join(tmpRoot, "main.able"),
         `
@@ -605,10 +605,10 @@ fn main() -> i32 {
     }
   });
 
-  test("Ord.cmp for strings returns stable ordering", async () => {
-    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "able-string-ord-"));
+  test("Ord.cmp for Strings returns stable ordering", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "able-String-ord-"));
     try {
-      await fs.writeFile(path.join(tmpRoot, "package.yml"), "name: string_ord_cmp\n", "utf8");
+      await fs.writeFile(path.join(tmpRoot, "package.yml"), "name: String_ord_cmp\n", "utf8");
       await fs.writeFile(
         path.join(tmpRoot, "main.able"),
         `
@@ -620,7 +620,7 @@ import able.core.interfaces.{Less, Equal, Greater}
 fn cmp_lt() { "a".cmp("b") }
 fn cmp_eq() { "mid".cmp("mid") }
 fn cmp_gt() { "z".cmp("m") }
-fn cmp_label(a: string, b: string) -> string {
+fn cmp_label(a: String, b: String) -> String {
   cmp := a.cmp(b)
   if cmp == Less { "less" }
   else {
@@ -672,8 +672,8 @@ fn cmp_label(a: string, b: string) -> string {
         interpreter as any,
         cmpLabel as any,
         [
-          { kind: "string", value: "a" },
-          { kind: "string", value: "b" },
+          { kind: "String", value: "a" },
+          { kind: "String", value: "b" },
         ],
         interpreter.globals,
       ) as any;
@@ -681,8 +681,8 @@ fn cmp_label(a: string, b: string) -> string {
         interpreter as any,
         cmpLabel as any,
         [
-          { kind: "string", value: "mid" },
-          { kind: "string", value: "mid" },
+          { kind: "String", value: "mid" },
+          { kind: "String", value: "mid" },
         ],
         interpreter.globals,
       ) as any;
@@ -690,8 +690,8 @@ fn cmp_label(a: string, b: string) -> string {
         interpreter as any,
         cmpLabel as any,
         [
-          { kind: "string", value: "z" },
-          { kind: "string", value: "m" },
+          { kind: "String", value: "z" },
+          { kind: "String", value: "m" },
         ],
         interpreter.globals,
       ) as any;
@@ -709,12 +709,12 @@ fn cmp_label(a: string, b: string) -> string {
           interpreter.globals,
           { preferMethods: true },
         );
-        return callCallableValue(interpreter as any, method as any, [{ kind: "string", value: other }], interpreter.globals);
+        return callCallableValue(interpreter as any, method as any, [{ kind: "String", value: other }], interpreter.globals);
       };
 
-      const ltIface = cmpViaInterface({ kind: "string", value: "a" }, "b");
-      const eqIface = cmpViaInterface({ kind: "string", value: "mid" }, "mid");
-      const gtIface = cmpViaInterface({ kind: "string", value: "z" }, "m");
+      const ltIface = cmpViaInterface({ kind: "String", value: "a" }, "b");
+      const eqIface = cmpViaInterface({ kind: "String", value: "mid" }, "mid");
+      const gtIface = cmpViaInterface({ kind: "String", value: "z" }, "m");
 
       expect(orderingTag(ltIface)).toBe("Less");
       expect(orderingTag(eqIface)).toBe("Equal");

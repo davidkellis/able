@@ -511,7 +511,7 @@ const controlFixtures: Fixture[] = [
         description: "If expression emits stdout",
         expect: {
           stdout: ["branch"],
-          result: { kind: "string", value: "done" },
+          result: { kind: "String", value: "done" },
         },
       },
     },
@@ -522,7 +522,8 @@ const controlFixtures: Fixture[] = [
         AST.ifExpression(
           AST.bool(false),
           AST.block(AST.call("print", AST.str("true"))),
-          [AST.orClause(AST.block(AST.call("print", AST.str("false"))))],
+          [],
+          AST.block(AST.call("print", AST.str("false"))),
         ),
         AST.str("after"),
       ]),
@@ -530,7 +531,7 @@ const controlFixtures: Fixture[] = [
         description: "Else branch executes when condition false",
         expect: {
           stdout: ["false"],
-          result: { kind: "string", value: "after" },
+          result: { kind: "String", value: "after" },
         },
       },
     },
@@ -545,12 +546,12 @@ const controlFixtures: Fixture[] = [
             AST.bin(">=", AST.id("score"), AST.int(90)),
             AST.block(AST.str("A")),
             [
-              AST.orClause(
-                AST.block(AST.str("B")),
+              AST.elseIfClause(
                 AST.bin(">=", AST.id("score"), AST.int(80)),
+                AST.block(AST.str("B")),
               ),
-              AST.orClause(AST.block(AST.str("C or lower"))),
             ],
+            AST.block(AST.str("C or lower")),
           ),
         ),
         AST.id("grade"),
@@ -558,7 +559,7 @@ const controlFixtures: Fixture[] = [
       manifest: {
         description: "If-or chain picks first matching clause with default fallback",
         expect: {
-          result: { kind: "string", value: "B" },
+          result: { kind: "String", value: "B" },
         },
       },
     },

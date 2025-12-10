@@ -77,7 +77,7 @@ export function createTypeResolutionHelpers(context: TypeResolutionContext): Typ
           case "f32":
           case "f64":
           case "bool":
-          case "string":
+          case "String":
           case "char":
           case "nil":
           case "void":
