@@ -226,6 +226,8 @@ function applyFloatOperation(op: string, left: number, right: number, kind: Floa
     case "/":
       if (right === 0) throw new Error("Division by zero");
       return FLOAT_INFO[kind].apply(left / right);
+    case "^":
+      return FLOAT_INFO[kind].apply(left ** right);
     default:
       throw new Error(`Unsupported arithmetic operator ${op}`);
   }
@@ -239,6 +241,12 @@ function applyIntegerOperation(op: string, left: bigint, right: bigint, info: In
       return left - right;
     case "*":
       return left * right;
+    case "^": {
+      if (right < 0n) {
+        throw new Error("Negative integer exponent is not supported");
+      }
+      return left ** right;
+    }
     default:
       throw new Error(`Unsupported arithmetic operator ${op}`);
   }
@@ -297,7 +305,7 @@ export function applyArithmeticBinary(
     return makeFloatValue(targetKind, value);
   }
 
-  if (op === "//" || op === "%%" || op === "/%") {
+  if (op === "//" || op === "%" || op === "/%") {
     if (leftClass.tag !== "integer" || rightClass.tag !== "integer") {
       const leftKind = (left as any)?.kind ?? "unknown";
       const rightKind = (right as any)?.kind ?? "unknown";
@@ -305,11 +313,29 @@ export function applyArithmeticBinary(
     }
     const divMod = computeDivMod(leftClass, rightClass);
     if (op === "//") return divMod.quotient;
-    if (op === "%%") return divMod.remainder;
+    if (op === "%") return divMod.remainder;
     if (!options?.makeDivMod) {
       throw new Error("DivMod factory not provided for '/%'");
     }
     return options.makeDivMod(divMod.kind, { quotient: divMod.quotient, remainder: divMod.remainder });
+  }
+
+  if (op === "^") {
+    const promotion = promoteNumericKinds(leftClass, rightClass);
+    if (promotion.tag === "float") {
+      const leftFloat = convertToFloat(leftClass, promotion.kind);
+      const rightFloat = convertToFloat(rightClass, promotion.kind);
+      const value = applyFloatOperation(op, leftFloat, rightFloat, promotion.kind);
+      return makeFloatValue(promotion.kind, value);
+    }
+    const base = leftClass.tag === "integer" ? leftClass.value : BigInt(Math.trunc(leftClass.value));
+    const exp = rightClass.tag === "integer" ? rightClass.value : BigInt(Math.trunc(rightClass.value));
+    if (exp < 0n) {
+      throw new Error("Negative integer exponent is not supported");
+    }
+    const result = applyIntegerOperation(op, base, exp, promotion.info);
+    ensureIntegerInRange(result, promotion.info);
+    return { kind: promotion.info.kind, value: result };
   }
 
   if (op === "+" || op === "-" || op === "*") {

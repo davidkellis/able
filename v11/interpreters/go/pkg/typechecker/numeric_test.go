@@ -192,7 +192,7 @@ func TestDivModRequiresIntegerOperands(t *testing.T) {
 func TestDivModTypes(t *testing.T) {
 	checker := New()
 	quot := ast.Bin("//", ast.Int(7), ast.Int(3))
-	rem := ast.Bin("%%", ast.Int(7), ast.Int(3))
+	rem := ast.Bin("%", ast.Int(7), ast.Int(3))
 	divMod := ast.Bin("/%", ast.Int(7), ast.Int(3))
 	module := ast.NewModule([]ast.Statement{
 		ast.Assign(ast.ID("q"), quot),

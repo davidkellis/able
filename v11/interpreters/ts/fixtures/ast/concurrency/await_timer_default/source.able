@@ -16,7 +16,7 @@ methods Timer {
   fn register(self, _waker) -> CancelReg {
     CancelReg {  }
   }
-  fn commit(self) -> string {
+  fn commit(self) -> String {
     "timer"
   }
   fn is_default(self) -> bool {
@@ -24,7 +24,7 @@ methods Timer {
   }
 }
 struct DefaultArm {
-  value: string
+  value: String
 }
 methods DefaultArm {
   fn is_ready(self) -> bool {
@@ -33,14 +33,14 @@ methods DefaultArm {
   fn register(self, _waker) -> CancelReg {
     CancelReg {  }
   }
-  fn commit(self) -> string {
+  fn commit(self) -> String {
     self.value
   }
   fn is_default(self) -> bool {
     true
   }
 }
-fn default_arm(value: string) -> DefaultArm {
+fn default_arm(value: String) -> DefaultArm {
   DefaultArm { value: value }
 }
 timer := Timer { ready: true }

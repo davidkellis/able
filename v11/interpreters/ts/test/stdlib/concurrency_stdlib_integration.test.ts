@@ -50,8 +50,8 @@ package main
 
 import able.concurrency.{Channel, Mutex, with_lock}
 
-fn main() -> string {
-  ch: Channel string := Channel.new(2)
+fn main() -> String {
+  ch: Channel String := Channel.new(2)
   ch.send("a")
   ch.send("b")
   ch.close()
@@ -59,12 +59,12 @@ fn main() -> string {
   combined := ""
   first := ch.receive()
   first match {
-    case value: string => { combined = combined + value },
+    case value: String => { combined = combined + value },
     case nil => {}
   }
   second := ch.receive()
   second match {
-    case value: string => { combined = combined + value },
+    case value: String => { combined = combined + value },
     case nil => {}
   }
 
@@ -102,7 +102,7 @@ fn main() -> string {
       }
 
       const result = callCallableValue(interpreter as any, mainFn, [], interpreter.globals) as any;
-      expect(result?.kind).toBe("string");
+      expect(result?.kind).toBe("String");
       expect(result.value).toBe("ab!");
     } finally {
       await fs.rm(tmpRoot, { recursive: true, force: true });

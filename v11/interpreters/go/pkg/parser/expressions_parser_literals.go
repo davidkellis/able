@@ -26,12 +26,14 @@ func (ctx *parseContext) parsePlaceholderExpression(node *sitter.Node) (ast.Expr
 		return nil, fmt.Errorf("parser: empty placeholder expression")
 	}
 	if raw == "@" {
-		return annotateExpression(ast.NewPlaceholderExpression(nil), node), nil
+		defaultIndex := 1
+		return annotateExpression(ast.NewPlaceholderExpression(&defaultIndex), node), nil
 	}
 	if strings.HasPrefix(raw, "@") {
 		value := raw[1:]
 		if value == "" {
-			return annotateExpression(ast.NewPlaceholderExpression(nil), node), nil
+			defaultIndex := 1
+			return annotateExpression(ast.NewPlaceholderExpression(&defaultIndex), node), nil
 		}
 		index, err := strconv.Atoi(value)
 		if err != nil || index <= 0 {

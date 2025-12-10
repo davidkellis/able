@@ -89,6 +89,7 @@ export function lookupMethodSetsForCall(
       fullName: `${record.label}::${methodName}`,
       structName: structLabel,
       hasImplicitSelf,
+      methodResolutionPriority: -1,
       parameters: parameterTypes,
       genericConstraints: [],
       genericParamNames: methodGenericNames,
@@ -278,9 +279,9 @@ function implementsBuiltinInterface(type: TypeInfo, interfaceName: string): bool
   switch (interfaceName) {
     case "Display":
     case "Clone":
-      return type.name === "string" || type.name === "bool" || type.name === "char" || type.name === "i32" || type.name === "f64";
+      return type.name === "String" || type.name === "bool" || type.name === "char" || type.name === "i32" || type.name === "f64";
     case "Ord":
-      return type.name === "i32" || type.name === "string";
+      return type.name === "i32" || type.name === "String";
     default:
       return false;
   }

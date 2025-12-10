@@ -23,7 +23,7 @@ func TestProgramCheckerResolvesDependencies(t *testing.T) {
 						),
 					),
 				},
-				ast.Ty("string"),
+				ast.Ty("String"),
 				nil, nil, false, false,
 			),
 		},
@@ -60,7 +60,7 @@ func TestProgramCheckerReportsUnknownPackage(t *testing.T) {
 				[]ast.Statement{
 					ast.Ret(ast.Str("noop")),
 				},
-				ast.Ty("string"),
+				ast.Ty("String"),
 				nil, nil, false, false,
 			),
 		},
@@ -90,7 +90,7 @@ func TestProgramCheckerReportsUnknownPackage(t *testing.T) {
 func TestProgramCheckerRejectsPrivatePackageImport(t *testing.T) {
 	priv := ast.Mod(
 		[]ast.Statement{
-			ast.Fn("reveal", nil, []ast.Statement{ast.Ret(ast.Str("secret"))}, ast.Ty("string"), nil, nil, false, false),
+			ast.Fn("reveal", nil, []ast.Statement{ast.Ret(ast.Str("secret"))}, ast.Ty("String"), nil, nil, false, false),
 		},
 		nil,
 		ast.Pkg([]interface{}{"lib", "secret"}, true),
@@ -103,7 +103,7 @@ func TestProgramCheckerRejectsPrivatePackageImport(t *testing.T) {
 				[]ast.Statement{
 					ast.Ret(ast.Str("noop")),
 				},
-				ast.Ty("string"),
+				ast.Ty("String"),
 				nil, nil, false, false,
 			),
 		},
@@ -134,8 +134,8 @@ func TestProgramCheckerRejectsPrivatePackageImport(t *testing.T) {
 func TestProgramCheckerReportsPrivateSelectors(t *testing.T) {
 	dep := ast.Mod(
 		[]ast.Statement{
-			ast.Fn("visible", nil, []ast.Statement{ast.Ret(ast.Str("ok"))}, ast.Ty("string"), nil, nil, false, false),
-			ast.Fn("secret", nil, []ast.Statement{ast.Ret(ast.Str("hidden"))}, ast.Ty("string"), nil, nil, false, true),
+			ast.Fn("visible", nil, []ast.Statement{ast.Ret(ast.Str("ok"))}, ast.Ty("String"), nil, nil, false, false),
+			ast.Fn("secret", nil, []ast.Statement{ast.Ret(ast.Str("hidden"))}, ast.Ty("String"), nil, nil, false, true),
 		},
 		nil,
 		ast.Pkg([]interface{}{"dep"}, false),
@@ -148,7 +148,7 @@ func TestProgramCheckerReportsPrivateSelectors(t *testing.T) {
 				[]ast.Statement{
 					ast.Ret(ast.CallExpr(ast.ID("alias"))),
 				},
-				ast.Ty("string"),
+				ast.Ty("String"),
 				nil, nil, false, false,
 			),
 		},
@@ -183,12 +183,12 @@ func TestProgramCheckerExposesPublicExports(t *testing.T) {
 		[]ast.Statement{
 			ast.StructDef("PublicStruct", nil, ast.StructKindNamed, nil, nil, false),
 			ast.StructDef("PrivateStruct", nil, ast.StructKindNamed, nil, nil, true),
-			ast.Fn("public_fn", nil, []ast.Statement{ast.Ret(ast.Str("ok"))}, ast.Ty("string"), nil, nil, false, false),
-			ast.Fn("secret_fn", nil, []ast.Statement{ast.Ret(ast.Str("nope"))}, ast.Ty("string"), nil, nil, false, true),
+			ast.Fn("public_fn", nil, []ast.Statement{ast.Ret(ast.Str("ok"))}, ast.Ty("String"), nil, nil, false, false),
+			ast.Fn("secret_fn", nil, []ast.Statement{ast.Ret(ast.Str("nope"))}, ast.Ty("String"), nil, nil, false, true),
 			ast.Iface("Display", []*ast.FunctionSignature{
 				ast.FnSig("show", []*ast.FunctionParameter{
 					ast.Param("self", ast.Ty("Self")),
-				}, ast.Ty("string"), nil, nil, nil),
+				}, ast.Ty("String"), nil, nil, nil),
 			}, nil, nil, nil, nil, false),
 			ast.Methods(
 				ast.Ty("PublicStruct"),
@@ -201,7 +201,7 @@ func TestProgramCheckerExposesPublicExports(t *testing.T) {
 						[]ast.Statement{
 							ast.Ret(ast.Str("desc")),
 						},
-						ast.Ty("string"),
+						ast.Ty("String"),
 						nil, nil, false, false,
 					),
 				},
@@ -220,7 +220,7 @@ func TestProgramCheckerExposesPublicExports(t *testing.T) {
 						[]ast.Statement{
 							ast.Ret(ast.Str("shown")),
 						},
-						ast.Ty("string"),
+						ast.Ty("String"),
 						nil, nil, false, false,
 					),
 				},
@@ -348,7 +348,7 @@ func testDependencyModule() *ast.Module {
 	return ast.Mod(
 		[]ast.Statement{
 			ast.StructDef("Item", nil, ast.StructKindNamed, nil, nil, false),
-			ast.Fn("provide", nil, []ast.Statement{ast.Ret(ast.Str("dep"))}, ast.Ty("string"), nil, nil, false, false),
+			ast.Fn("provide", nil, []ast.Statement{ast.Ret(ast.Str("dep"))}, ast.Ty("String"), nil, nil, false, false),
 		},
 		nil,
 		ast.Pkg([]interface{}{"dep"}, false),

@@ -3,21 +3,21 @@ package collections.tree_map.tests
 import able.collections.tree_map.{TreeMap, TreeEntry}
 import able.collections.array.{Array}
 
-fn assert(condition: bool, message: string) -> void {
+fn assert(condition: bool, message: String) -> void {
   if condition { return }
   raise message
 }
 
-fn expect_i32(value: ?i32, expected: i32, message: string) -> void {
+fn expect_i32(value: ?i32, expected: i32, message: String) -> void {
   value match {
     case actual: i32 => assert(actual == expected, message),
     case nil => raise(message)
   }
 }
 
-fn expect_string(value: ?string, expected: string, message: string) -> void {
+fn expect_string(value: ?String, expected: String, message: String) -> void {
   value match {
-    case actual: string => assert(actual == expected, message),
+    case actual: String => assert(actual == expected, message),
     case nil => raise(message)
   }
 }
@@ -38,7 +38,7 @@ fn check_insert_and_update() -> void {
 }
 
 fn check_remove_and_contains() -> void {
-  map: TreeMap i32 string := TreeMap.new()
+  map: TreeMap i32 String := TreeMap.new()
   map.set(1, "one")
   map.set(2, "two")
   map.set(3, "three")
@@ -50,7 +50,7 @@ fn check_remove_and_contains() -> void {
 }
 
 fn check_sorted_iteration() -> void {
-  map: TreeMap i32 string := TreeMap.new()
+  map: TreeMap i32 String := TreeMap.new()
   map.set(5, "e")
   map.set(1, "a")
   map.set(3, "c")

@@ -4,6 +4,21 @@ import type { InterpreterV10 } from "./index";
 import type { V10Value } from "./values";
 import { makeIntegerFromNumber, numericToNumber } from "./numeric";
 
+function isCallable(value: V10Value): boolean {
+  switch (value.kind) {
+    case "function":
+    case "function_overload":
+    case "native_function":
+    case "native_bound_method":
+    case "bound_method":
+    case "partial_function":
+    case "dyn_ref":
+      return true;
+    default:
+      return false;
+  }
+}
+
 export function evaluateStructDefinition(ctx: InterpreterV10, node: AST.StructDefinition, env: Environment): V10Value {
   env.define(node.id.name, { kind: "struct_def", def: node });
   ctx.registerSymbol(node.id.name, { kind: "struct_def", def: node });
@@ -201,14 +216,14 @@ export function memberAccessOnValue(
   if (obj.kind === "impl_namespace") {
     if (member.type !== "Identifier") throw new Error("Impl namespace member access expects identifier");
     if (member.name === "interface") {
-      return { kind: "string", value: obj.meta.interfaceName };
+      return { kind: "String", value: obj.meta.interfaceName };
     }
     if (member.name === "target") {
-      return { kind: "string", value: ctx.typeExpressionToString(obj.meta.target) };
+      return { kind: "String", value: ctx.typeExpressionToString(obj.meta.target) };
     }
     if (member.name === "interface_args") {
       const args = obj.meta.interfaceArgs ?? [];
-      return ctx.makeArrayValue(args.map(a => ({ kind: "string", value: ctx.typeExpressionToString(a) } as V10Value)));
+      return ctx.makeArrayValue(args.map(a => ({ kind: "String", value: ctx.typeExpressionToString(a) } as V10Value)));
     }
     const sym = obj.symbols.get(member.name);
     if (!sym) throw new Error(`No method '${member.name}' on impl ${obj.def.implName?.name ?? "<unnamed>"}`);
@@ -275,14 +290,14 @@ export function memberAccessOnValue(
     if (fn) {
       return ctx.bindNativeMethod(fn, obj);
     }
-    const ufcs = ctx.tryUfcs(env, member.name, obj);
-    if (ufcs) return ufcs;
+    const bound = ctx.resolveMethodFromPool(env, member.name, obj);
+    if (bound) return bound;
     throw new Error(`No field or method named '${member.name}' on error value`);
   }
 
-  if (member.type === "Identifier" && obj.kind !== "struct_instance" && obj.kind !== "array" && obj.kind !== "string") {
-    const ufcs = ctx.tryUfcs(env, member.name, obj);
-    if (ufcs) return ufcs;
+  if (member.type === "Identifier" && obj.kind !== "struct_instance" && obj.kind !== "array" && obj.kind !== "String") {
+    const bound = ctx.resolveMethodFromPool(env, member.name, obj);
+    if (bound) return bound;
     const typeName = ctx.getTypeNameForValue(obj);
     if (typeName) {
       const method = ctx.findMethod(typeName, member.name);
@@ -299,27 +314,19 @@ export function memberAccessOnValue(
   if (obj.kind === "struct_instance") {
     if (member.type === "Identifier") {
       if (!(obj.values instanceof Map)) throw new Error("Expected named struct instance");
-      const typeName = obj.def.id.name;
-      const method = ctx.findMethod(typeName, member.name, { typeArgs: obj.typeArguments, typeArgMap: obj.typeArgMap });
-      if (opts?.preferMethods && method) {
-        const methodNode = method.kind === "function_overload" ? method.overloads[0]?.node : method.node;
-        if (methodNode?.type === "FunctionDefinition" && methodNode.isPrivate) {
-          throw new Error(`Method '${member.name}' on ${typeName} is private`);
-        }
-        return { kind: "bound_method", func: method, self: obj };
-      }
       if (obj.values.has(member.name)) {
-        return obj.values.get(member.name)!;
-      }
-      if (method) {
-        const methodNode = method.kind === "function_overload" ? method.overloads[0]?.node : method.node;
-        if (methodNode?.type === "FunctionDefinition" && methodNode.isPrivate) {
-          throw new Error(`Method '${member.name}' on ${typeName} is private`);
+        const fieldVal = obj.values.get(member.name)!;
+        if (opts?.preferMethods) {
+          if (isCallable(fieldVal)) {
+            return fieldVal;
+          }
+          const bound = ctx.resolveMethodFromPool(env, member.name, obj);
+          if (bound) return bound;
         }
-        return { kind: "bound_method", func: method, self: obj };
+        return fieldVal;
       }
-      const ufcs = ctx.tryUfcs(env, member.name, obj);
-      if (ufcs) return ufcs;
+      const bound = ctx.resolveMethodFromPool(env, member.name, obj);
+      if (bound) return bound;
       throw new Error(`No field or method named '${member.name}'`);
     }
     const idx = Number(member.value);
@@ -333,6 +340,10 @@ export function memberAccessOnValue(
     ctx.ensureArrayState(obj);
     if (member.type === "Identifier") {
       const name = member.name;
+      if (opts?.preferMethods) {
+        const bound = ctx.resolveMethodFromPool(env, name, obj);
+        if (bound) return bound;
+      }
       if (name === "storage_handle") {
         const handle = obj.handle ?? 0;
         return makeIntegerFromNumber("i64", handle);
@@ -345,14 +356,8 @@ export function memberAccessOnValue(
         const state = ctx.ensureArrayState(obj);
         return makeIntegerFromNumber("i32", state.capacity);
       }
-      const ufcsFirst = ctx.tryUfcs(env, name, obj);
-      if (ufcsFirst) return ufcsFirst;
-      const method = ctx.findMethod("Array", name, { typeArgs: [AST.wildcardTypeExpression()] });
-      if (method) {
-        return { kind: "bound_method", func: method, self: obj };
-      }
-      const ufcs = ctx.tryUfcs(env, name, obj);
-      if (ufcs) return ufcs;
+      const bound = ctx.resolveMethodFromPool(env, name, obj);
+      if (bound) return bound;
       throw new Error(`Array has no member '${name}' (import able.collections.array for stdlib helpers)`);
     }
     if (member.type === "IntegerLiteral") {
@@ -365,22 +370,18 @@ export function memberAccessOnValue(
     }
     throw new Error("Array member access expects identifier or positional index");
   }
-  if (obj.kind === "string") {
+  if (obj.kind === "String") {
     if (member.type !== "Identifier") {
       throw new Error("String member access expects identifier");
     }
     const name = member.name;
-    const ufcsFirst = ctx.tryUfcs(env, name, obj);
-    if (ufcsFirst) return ufcsFirst;
-    const method = ctx.findMethod("string", name);
-    if (method) {
-      return { kind: "bound_method", func: method, self: obj };
-    }
+    const bound = ctx.resolveMethodFromPool(env, name, obj);
+    if (bound) return bound;
     throw new Error(`String has no member '${name}' (import able.text.string for stdlib helpers)`);
   }
   if (member.type === "Identifier") {
-    const ufcs = ctx.tryUfcs(env, member.name, obj);
-    if (ufcs) return ufcs;
+    const bound = ctx.resolveMethodFromPool(env, member.name, obj);
+    if (bound) return bound;
   }
   throw new Error("Member access only supported on structs/arrays in this milestone");
 }

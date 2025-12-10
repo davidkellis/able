@@ -1,5 +1,24 @@
 # Able Project Log
 
+# 2025-12-10 — Conditional/unwrap syntax shift (v11)
+- Landed the new `if/elsif/else` syntax and `{ expr or { err => ... } }` handlers across grammar/AST/TS+Go interpreters/typecheckers; regenerated tree-sitter artifacts and aligned AST fixtures/printers with the new `elseIfClauses`/`elseBody` layout.
+- Updated fixtures, examples, tutorials, and tests (TS + Go) to drop the legacy `if/or` + `| err |` handler forms; handling blocks now use `binding =>` with optional binding, and parser mappers no longer misclassify handler statements as bindings.
+- Exported the fixture corpus and reran the full parity + CLI + Go/TS suites to green.
+- Tests: `./run_all_tests.sh --version=v11`.
+
+# 2025-12-09 — Pipe/placeholder alignment (v11)
+- Made bare `@` placeholders behave as `@1` across parsers/interpreters/typecheckers; placeholder lambdas now reuse the first argument when unnumbered tokens repeat, with new runtime tests in TS/Go to lock the behaviour.
+- Pipe expressions now typecheck as callable invocations (including low-precedence `|>>`), emitting non-callable diagnostics instead of silently returning `unknown`, and placeholder-driven pipes follow the callable-only model.
+- Exported the AST fixture corpus after the placeholder changes so shared fixtures/exports include explicit placeholder indices.
+- Tests: `cd v11/interpreters/ts && bun test test/runtime/pipes.test.ts && bun test test/typechecker/function_calls.test.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter -run Placeholder && go test ./pkg/typechecker`.
+
+## 2025-12-08 — Parity harness green (v11)
+- Normalized Go fixture results (String kind) and fixed native Error methods to use receiver-bound arity so messages propagate correctly through fixture CLI output and parity reporting.
+- Cleaned up TS fixture/parity scripts (type checks and stringify usage) and aligned stringification on both runtimes: TS honours `to_string`, Go bound-method stringification now includes targets, and stdout capture no longer misreports types.
+- Parity sweep now fully green with the latest fixture export; report saved to `tmp/parity-report.json`.
+- Updated the v11 spec + manuals/onboarding to canonicalize the `String` type (lowercase reserved for scalar primitives) and remove the remaining lowercase `string` references in type signatures/examples.
+- Tests: `cd v11/interpreters/go && go test ./...`; `cd v11/interpreters/ts && bun run scripts/run-parity.ts`.
+
 ## 2025-12-07 — Operators tutorial + xor parity (v11)
 - Added tutorial `02a_operators_and_builtin_types.able` to showcase built-in scalars, arithmetic (`/ // %% /%`), comparisons, bitwise/shift ops, and boolean logic; confirmed it runs in TS+Go.
 - Enabled `\xor` in the Go interpreter/typechecker and added a shared fixture (`functions/bitwise_xor_operator`) so bitwise xor stays covered across runtimes.
@@ -286,3 +305,7 @@ Open items (2025-11-02 audit):
 - Swapped import alias syntax to the `::` rename operator across the tree-sitter grammar, TS/Go parsers, and module loaders, rejecting legacy `as` aliases while keeping dot traversal unchanged.
 - Updated fixtures/docs/tests to the new syntax (package aliases, selective aliases for static/dynimport, struct-pattern rename coverage) and re-exported the shared fixture corpus.
 - Ran `./run_all_tests.sh --version=v11` (TS+Go units, fixtures, parity); all suites passed and parity report saved to `v11/tmp/parity-report.json`.
+
+### 2025-12-09
+- Finalized the v11 operator surface: `%`/`//`/`/%` follow Euclidean semantics, `%=` compounds and the dot-prefixed bitwise set (`.& .| .^ .<< .>>`) are supported, `^` acts as exponent (bitwise xor remains dotted), and the operator interfaces in `core.interfaces` mirror the runtime behavior. Parser/AST/typechecker/stdlib fixtures all align and legacy `%%` syntax is gone.
+- Verified the full sweep (`./run_all_tests.sh --version=v11`) stays green after the operator updates (TS + Go units, fixtures, parity harness).

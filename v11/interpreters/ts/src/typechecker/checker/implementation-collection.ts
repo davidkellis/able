@@ -19,7 +19,7 @@ const PRIMITIVE_TYPE_NAMES = new Set([
   "f32",
   "f64",
   "bool",
-  "string",
+  "String",
   "char",
   "nil",
   "void",

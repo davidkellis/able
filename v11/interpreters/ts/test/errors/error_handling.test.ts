@@ -20,7 +20,7 @@ describe("v11 interpreter - error handling", () => {
       AST.blockExpression([AST.stringLiteral("handled")]),
       "e"
     );
-    expect(I.evaluate(expr)).toEqual({ kind: 'string', value: 'handled' });
+    expect(I.evaluate(expr)).toEqual({ kind: 'String', value: 'handled' });
   });
 
   test("ensure runs even on error", () => {
@@ -33,8 +33,8 @@ describe("v11 interpreter - error handling", () => {
       ),
       AST.blockExpression([AST.assignmentExpression("=", AST.identifier("flag"), AST.stringLiteral("done"))])
     );
-    expect(I.evaluate(expr)).toEqual({ kind: 'string', value: 'rescued' });
-    expect(I.evaluate(AST.identifier("flag"))).toEqual({ kind: 'string', value: 'done' });
+    expect(I.evaluate(expr)).toEqual({ kind: 'String', value: 'rescued' });
+    expect(I.evaluate(AST.identifier("flag"))).toEqual({ kind: 'String', value: 'done' });
   });
 });
 

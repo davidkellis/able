@@ -257,7 +257,7 @@ export const procCoreFixtures: Fixture[] = [
         manifest: {
           description: "proc_yield cooperates with proc_flush to resume the task",
           expect: {
-            result: { kind: "string", value: "Pending:Resolved:Resolved:AB:done" },
+            result: { kind: "String", value: "Pending:Resolved:Resolved:AB:done" },
           },
         },
       },
@@ -386,7 +386,7 @@ export const procCoreFixtures: Fixture[] = [
         manifest: {
           description: "proc_flush drains the queue in creation order to keep scheduling fair",
           expect: {
-            result: { kind: "string", value: "A1B2" },
+            result: { kind: "String", value: "A1B2" },
           },
         },
       },

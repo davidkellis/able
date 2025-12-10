@@ -11,6 +11,6 @@ methods Point {
   }
 }
 p := Point { x: 3, y: 4 }
-scaled := scale(p, 2)
-pipeScaled := (p |> scale(%, 3))
-[norm(p), scaled.x, scaled.y, p |> norm(%), pipeScaled.x, pipeScaled.y]
+scaled := p.scale(2)
+pipeScaled := p.scale(3)
+[p.norm(), scaled.x, scaled.y, p |> #norm, pipeScaled.x, pipeScaled.y]

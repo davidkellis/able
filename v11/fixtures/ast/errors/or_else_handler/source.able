@@ -1,6 +1,6 @@
 do {
   raise "boom"
-}! else {
-  | err |
+}! or {
+  err =>
   "handled"
 }

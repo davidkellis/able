@@ -27,30 +27,26 @@
           }
         ]
       },
-      "orClauses": [
-        {
-          "type": "OrClause",
-          "body": {
-            "type": "BlockExpression",
-            "body": [
+      "elseIfClauses": [],
+      "elseBody": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "FunctionCall",
+            "callee": {
+              "type": "Identifier",
+              "name": "print"
+            },
+            "arguments": [
               {
-                "type": "FunctionCall",
-                "callee": {
-                  "type": "Identifier",
-                  "name": "print"
-                },
-                "arguments": [
-                  {
-                    "type": "StringLiteral",
-                    "value": "false"
-                  }
-                ],
-                "isTrailingLambda": false
+                "type": "StringLiteral",
+                "value": "false"
               }
-            ]
+            ],
+            "isTrailingLambda": false
           }
-        }
-      ]
+        ]
+      }
     },
     {
       "type": "StringLiteral",

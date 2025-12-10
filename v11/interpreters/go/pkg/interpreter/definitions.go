@@ -181,7 +181,7 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 		if fn == nil || fn.ID == nil {
 			return nil, fmt.Errorf("Implementation method requires identifier")
 		}
-		mergeFunctionLike(methods, fn.ID.Name, &runtime.FunctionValue{Declaration: fn, Closure: env})
+		mergeFunctionLike(methods, fn.ID.Name, &runtime.FunctionValue{Declaration: fn, Closure: env, MethodPriority: -1})
 		hasExplicit = true
 	}
 	if ifaceDef.Node != nil {
@@ -193,8 +193,11 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 			if sig.DefaultImpl == nil {
 				continue
 			}
+			if _, exists := methods[name]; exists {
+				continue
+			}
 			defaultDef := ast.NewFunctionDefinition(sig.Name, sig.Params, sig.DefaultImpl, sig.ReturnType, sig.GenericParams, sig.WhereClause, false, false)
-			mergeFunctionLike(methods, name, &runtime.FunctionValue{Declaration: defaultDef, Closure: ifaceDef.Env})
+			mergeFunctionLike(methods, name, &runtime.FunctionValue{Declaration: defaultDef, Closure: ifaceDef.Env, MethodPriority: -1})
 		}
 	}
 	constraintSpecs := collectConstraintSpecs(def.GenericParams, def.WhereClause)

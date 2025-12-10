@@ -3,7 +3,7 @@ package collections.hash_set.tests
 import able.collections.hash_set.{HashSet}
 import able.core.iteration.{IteratorEnd}
 
-fn assert(condition: bool, message: string) -> void {
+fn assert(condition: bool, message: String) -> void {
   if condition { return }
   raise message
 }

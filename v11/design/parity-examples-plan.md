@@ -16,7 +16,7 @@
 | `generics_typeclass` | generic helpers + type arguments | ✅ |
 | `patterns_match` | `match` guards + struct patterns + ordered fallbacks | ✅ Added to parity suite (parser + mapper now stable) |
 | `patterns_destructure` | struct destructuring inside loops + matches | ✅ |
-| `pipes_topics` | `%` topic references, placeholder callables, topic methods | ✅ |
+| `pipes_topics` | pipeline callables, placeholder-based transforms, method pipes | ✅ |
 | `dynimport_parity` | `dynimport` aliasing, dyn packages, selector imports | ✅ |
 | `dynimport_multiroot` | Multi-root `dynimport` (external package roots via `ABLE_MODULE_PATHS`) | ✅ Added with shared deps under `interpreter10/testdata/examples/deps/` |
 
@@ -26,7 +26,7 @@
 | `channel_select` | Multi-branch `select` exercising channel send/receive readiness, default clauses, and cancellation helpers (`proc_cancelled`, `proc_flush`). | Tree-sitter + Go/TS interpreters lack `select` syntax/evaluator support; spec work tracked in `spec/todo.md` (`Channel select semantics`). | Draft the program once the parser + runtimes expose the `select` AST nodes. Should cover buffered/unbuffered channels plus cancellation. |
 
 ## Next Steps
-1. Keep the new parity samples green—update them whenever the underlying semantics change (match guards, destructuring assignment rules, or pipe/topic behaviour).
+1. Keep the new parity samples green—update them whenever the underlying semantics change (match guards, destructuring assignment rules, or pipe semantics).
 2. Brainstorm the next curated additions once upcoming work (e.g., channel select, advanced dynimport scenarios) lands and the parser/Go runtime expose the new constructs.
 3. Continue updating `interpreter10/test/parity/examples_parity.test.ts` and this plan whenever examples are added/removed so downstream contributors know the current coverage.
 

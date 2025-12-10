@@ -13,7 +13,7 @@ import able.core.numeric.{
 }
 import able.core.options.{Result}
 
-fn numeric_error(message: string) -> NumericConversionError {
+fn numeric_error(message: String) -> NumericConversionError {
   NumericConversionError { message }
 }
 

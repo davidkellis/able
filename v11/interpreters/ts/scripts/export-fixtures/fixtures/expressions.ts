@@ -171,9 +171,9 @@ const expressionsFixtures: Fixture[] = [
           result: {
             kind: "hash_map",
             entries: [
-              { key: { kind: "string", value: "content-type" }, value: { kind: "string", value: "application/json" } },
-              { key: { kind: "string", value: "accept" }, value: { kind: "string", value: "application/json" } },
-              { key: { kind: "string", value: "authorization" }, value: { kind: "string", value: "Bearer abc" } },
+              { key: { kind: "String", value: "content-type" }, value: { kind: "String", value: "application/json" } },
+              { key: { kind: "String", value: "accept" }, value: { kind: "String", value: "application/json" } },
+              { key: { kind: "String", value: "authorization" }, value: { kind: "String", value: "Bearer abc" } },
             ],
           },
         },
@@ -196,7 +196,7 @@ const expressionsFixtures: Fixture[] = [
       manifest: {
         description: "Propagation succeeds without invoking handler",
         expect: {
-          result: { kind: "string", value: "ok" },
+          result: { kind: "String", value: "ok" },
         },
       },
     },
@@ -217,7 +217,7 @@ const expressionsFixtures: Fixture[] = [
       manifest: {
         description: "Rescue expression returns original value when no error is raised",
         expect: {
-          result: { kind: "string", value: "safe" },
+          result: { kind: "String", value: "safe" },
         },
       },
     },
@@ -236,7 +236,7 @@ const expressionsFixtures: Fixture[] = [
         description: "Ensure block runs even when try expression succeeds",
         expect: {
           stdout: ["ensure"],
-          result: { kind: "string", value: "body" },
+          result: { kind: "String", value: "body" },
         },
       },
     },
@@ -257,15 +257,18 @@ const expressionsFixtures: Fixture[] = [
     },
 
   {
-      name: "pipes/multi_stage_chain",
+      name: "pipes/topic_placeholder",
       module: AST.module([
         AST.fn(
           "add",
-          [
-            AST.param("left", AST.simpleTypeExpression("i32")),
-            AST.param("right", AST.simpleTypeExpression("i32")),
-          ],
-          [AST.ret(AST.bin("+", AST.id("left"), AST.id("right")))],
+          [AST.param("x", AST.simpleTypeExpression("i32")), AST.param("y", AST.simpleTypeExpression("i32"))],
+          [AST.ret(AST.bin("+", AST.id("x"), AST.id("y")))],
+          AST.simpleTypeExpression("i32"),
+        ),
+        AST.fn(
+          "double",
+          [AST.param("x", AST.simpleTypeExpression("i32"))],
+          [AST.ret(AST.bin("*", AST.id("x"), AST.int(2)))],
           AST.simpleTypeExpression("i32"),
         ),
         AST.structDefinition(
@@ -277,27 +280,76 @@ const expressionsFixtures: Fixture[] = [
           AST.simpleTypeExpression("Box"),
           [
             AST.fn(
-              "augment",
-              [AST.param("delta", AST.simpleTypeExpression("i32"))],
-              [
-                AST.ret(
-                  AST.structLiteral(
-                    [
-                      AST.fieldInit(
-                        AST.bin(
-                          "+",
-                          AST.implicitMemberExpression("value"),
-                          AST.id("delta"),
-                        ),
-                        "value",
-                      ),
-                    ],
-                    false,
-                    "Box",
-                  ),
-                ),
-              ],
-              AST.simpleTypeExpression("Self"),
+              "double",
+              [],
+              [AST.ret(AST.bin("*", AST.implicitMemberExpression("value"), AST.int(2)))],
+              AST.simpleTypeExpression("i32"),
+              undefined,
+              undefined,
+              true,
+            ),
+          ],
+        ),
+        AST.assign("value", AST.int(5)),
+        AST.assign(
+          "arithmetic",
+          AST.binaryExpression("|>", AST.id("value"), AST.bin("+", AST.placeholderExpression(), AST.int(3))),
+        ),
+        AST.assign(
+          "pipePlaceholder",
+          AST.binaryExpression("|>", AST.id("value"), AST.call(AST.id("add"), AST.placeholderExpression(), AST.int(4))),
+        ),
+        AST.assign(
+          "lambdaResult",
+          AST.call(AST.call(AST.id("add"), AST.placeholderExpression(), AST.int(4)), AST.id("value")),
+        ),
+        AST.assign("ufcs", AST.binaryExpression("|>", AST.id("value"), AST.id("double"))),
+        AST.assign(
+          "boxed",
+          AST.binaryExpression(
+            "|>",
+            AST.structLiteral([AST.fieldInit(AST.id("value"), "value")], false, "Box"),
+            AST.implicitMemberExpression("double"),
+          ),
+        ),
+        AST.assign(
+          "total",
+          AST.bin(
+            "+",
+            AST.bin(
+              "+",
+              AST.bin("+", AST.bin("+", AST.id("arithmetic"), AST.id("pipePlaceholder")), AST.id("lambdaResult")),
+              AST.id("ufcs"),
+            ),
+            AST.id("boxed"),
+          ),
+        ),
+        AST.id("total"),
+      ]),
+      manifest: {
+        description: "Pipelines cover placeholder (@) callables, UFCS, and method steps",
+        expect: {
+          result: { kind: "i32", value: 46n },
+        },
+      },
+    },
+
+  {
+      name: "pipes/member_topic",
+      module: AST.module([
+        AST.structDefinition(
+          "Box",
+          [AST.fieldDef(AST.simpleTypeExpression("i32"), "value")],
+          "named",
+        ),
+        AST.methodsDefinition(
+          AST.simpleTypeExpression("Box"),
+          [
+            AST.fn(
+              "increment",
+              [],
+              [AST.ret(AST.bin("+", AST.implicitMemberExpression("value"), AST.int(1)))],
+              AST.simpleTypeExpression("i32"),
               undefined,
               undefined,
               true,
@@ -313,28 +365,121 @@ const expressionsFixtures: Fixture[] = [
             ),
           ],
         ),
+        AST.assign(
+          "box",
+          AST.structLiteral([AST.fieldInit(AST.int(5), "value")], false, "Box"),
+        ),
+        AST.assign("first", AST.binaryExpression("|>", AST.id("box"), AST.implicitMemberExpression("increment"))),
+        AST.assign("second", AST.binaryExpression("|>", AST.id("box"), AST.implicitMemberExpression("double"))),
+        AST.stringInterpolation([AST.id("first"), AST.stringLiteral(","), AST.id("second")]),
+      ]),
+      manifest: {
+        description: "Pipe uses pipe/apply to call implicit methods without topic placeholder",
+        expect: {
+          result: { kind: "String", value: "6,10" },
+        },
+      },
+    },
+
+  {
+      name: "pipes/multi_stage_chain",
+      module: AST.module([
+        AST.fn(
+          "add",
+          [
+            AST.param("left", AST.simpleTypeExpression("i32")),
+            AST.param("right", AST.simpleTypeExpression("i32")),
+          ],
+          [AST.ret(AST.bin("+", AST.id("left"), AST.id("right")))],
+          AST.simpleTypeExpression("i32"),
+        ),
+        AST.fn(
+          "toBox",
+          [AST.param("value", AST.simpleTypeExpression("i32"))],
+          [
+            AST.ret(
+              AST.structLiteral(
+                [AST.fieldInit(AST.id("value"), "value")],
+                false,
+                "Box",
+              ),
+            ),
+          ],
+          AST.simpleTypeExpression("Box"),
+        ),
+        AST.structDefinition(
+          "Box",
+          [AST.fieldDef(AST.simpleTypeExpression("i32"), "value")],
+          "named",
+        ),
+        AST.methodsDefinition(
+          AST.simpleTypeExpression("Box"),
+          [
+            AST.fn(
+              "augment",
+              [
+                AST.param("self", AST.simpleTypeExpression("Box")),
+                AST.param("delta", AST.simpleTypeExpression("i32")),
+              ],
+              [
+                AST.ret(
+                  AST.structLiteral(
+                    [
+                      AST.fieldInit(
+                        AST.bin(
+                          "+",
+                          AST.member(AST.id("self"), "value"),
+                          AST.id("delta"),
+                        ),
+                        "value",
+                      ),
+                    ],
+                    false,
+                    "Box",
+                  ),
+                ),
+              ],
+              AST.simpleTypeExpression("Self"),
+            ),
+            AST.fn(
+              "double",
+              [AST.param("self", AST.simpleTypeExpression("Box"))],
+              [AST.ret(AST.bin("*", AST.member(AST.id("self"), "value"), AST.int(2)))],
+              AST.simpleTypeExpression("i32"),
+            ),
+          ],
+        ),
+        AST.fn(
+          "augmentBy4",
+          [AST.param("box", AST.simpleTypeExpression("Box"))],
+          [
+            AST.ret(
+              AST.call(AST.memberAccessExpression(AST.id("box"), "augment"), AST.int(4)),
+            ),
+          ],
+          AST.simpleTypeExpression("Box"),
+        ),
+        AST.fn(
+          "doubleBox",
+          [AST.param("box", AST.simpleTypeExpression("Box"))],
+          [AST.ret(AST.call(AST.memberAccessExpression(AST.id("box"), "double")))],
+          AST.simpleTypeExpression("i32"),
+        ),
         AST.assign("start", AST.int(5)),
         AST.assign(
           "result",
           pipeChain(AST.id("start"), [
-            AST.bin("*", AST.topicReferenceExpression(), AST.int(2)),
+            AST.bin("*", AST.placeholderExpression(), AST.int(2)),
             AST.call(AST.id("add"), AST.placeholderExpression(), AST.int(3)),
-            AST.structLiteral(
-              [AST.fieldInit(AST.topicReferenceExpression(), "value")],
-              false,
-              "Box",
-            ),
-            AST.call(
-              AST.memberAccessExpression(AST.topicReferenceExpression(), AST.id("augment")),
-              AST.int(4),
-            ),
-            AST.implicitMemberExpression("double"),
+            AST.id("toBox"),
+            AST.id("augmentBy4"),
+            AST.id("doubleBox"),
           ]),
         ),
         AST.id("result"),
       ]),
       manifest: {
-        description: "Multi-stage pipeline mixing % topic steps, placeholder callables, and bound methods",
+        description: "Multi-stage pipeline mixing placeholder-built callables and bound methods",
         expect: {
           result: { kind: "i32", value: 34n },
         },
@@ -358,7 +503,8 @@ const expressionsFixtures: Fixture[] = [
               AST.ifExpression(
                 AST.id("value"),
                 AST.block(AST.ret(AST.int(1))),
-                [AST.orClause(AST.block(AST.ret(AST.int(0))))],
+                [],
+                AST.block(AST.ret(AST.int(0))),
               ),
             ),
           ],

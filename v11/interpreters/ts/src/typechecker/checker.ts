@@ -14,7 +14,22 @@ import {
   type TypeInfo,
   type IntegerPrimitive,
 } from "./types";
+import {
+  cloneFunctionInfoMap,
+  clonePrelude,
+  LocalTypeDeclaration,
+  RESERVED_TYPE_NAMES,
+  TypeCheckerOptions,
+  TypeCheckerPrelude,
+} from "./checker/core";
 import type { StatementContext } from "./checker/expression-context";
+import {
+  buildCheckerContext,
+  buildImportContext,
+  buildImplementationContext,
+  buildRegistryContext,
+  buildTypeResolutionContext,
+} from "./checker/context-builders";
 import { collectFunctionDefinition as collectFunctionDefinitionHelper, type DeclarationsContext } from "./checker/declarations";
 import {
   collectImplementationDefinition as collectImplementationDefinitionHelper,
@@ -33,7 +48,6 @@ import {
   registerStructDefinition as registerStructDefinitionHelper,
   registerTypeAlias as registerTypeAliasHelper,
 } from "./checker/registry";
-import { createCheckerContext as createCheckerContextHelper } from "./checker/context";
 import {
   FunctionContext,
   FunctionInfo,
@@ -50,6 +64,7 @@ export type {
   FunctionContext,
   FunctionInfo,
 } from "./checker/types";
+export type { TypeCheckerOptions, TypeCheckerPrelude } from "./checker/core";
 import type { DiagnosticLocation, TypecheckerDiagnostic, TypecheckResult, PackageSummary } from "./diagnostics";
 import { createTypeResolutionHelpers, type TypeResolutionHelpers } from "./checker/type-resolution";
 import { installBuiltins as installBuiltinsHelper } from "./checker/builtins";
@@ -65,104 +80,10 @@ import {
   inferFunctionCallReturnType as inferFunctionCallReturnTypeHelper,
 } from "./checker/function-calls";
 
-type LocalTypeDeclaration =
-  | AST.StructDefinition
-  | AST.UnionDefinition
-  | AST.InterfaceDefinition
-  | AST.TypeAliasDefinition;
-
 type FunctionGenericContext = {
   label: string;
   inferred: Map<string, AST.GenericParameter>;
 };
-
-const RESERVED_TYPE_NAMES = new Set<string>([
-  "Self",
-  "bool",
-  "string",
-  "char",
-  "nil",
-  "void",
-  "i8",
-  "i16",
-  "i32",
-  "i64",
-  "i128",
-  "isize",
-  "u8",
-  "u16",
-  "u32",
-  "u64",
-  "u128",
-  "usize",
-  "f32",
-  "f64",
-  "Array",
-  "Map",
-  "Range",
-  "Iterator",
-  "Result",
-  "Option",
-  "Proc",
-  "Future",
-  "Channel",
-  "Mutex",
-  "Error",
-]);
-
-export interface TypeCheckerPrelude {
-  structs: Map<string, AST.StructDefinition>;
-  interfaces: Map<string, AST.InterfaceDefinition>;
-  typeAliases: Map<string, AST.TypeAliasDefinition>;
-  unions: Map<string, AST.UnionDefinition>;
-  functionInfos: Map<string, FunctionInfo[]>;
-  methodSets: MethodSetRecord[];
-  implementationRecords: ImplementationRecord[];
-}
-
-export interface TypeCheckerOptions {
-  /**
-   * When true, the checker will attempt to continue after diagnostics instead of
-   * aborting immediately. The checker currently always continues.
-   */
-  continueAfterDiagnostics?: boolean;
-  /**
-   * Package summaries collected from previously-checked modules. Used to
-   * resolve imports and surface package metadata to consumers.
-   */
-  packageSummaries?: Map<string, PackageSummary> | Record<string, PackageSummary>;
-  /**
-   * Prelude of already-checked symbols and methods that should be available to
-   * the current module (e.g., stdlib packages loaded earlier in the session).
-   */
-  prelude?: TypeCheckerPrelude;
-}
-
-function clonePrelude(prelude?: TypeCheckerPrelude): TypeCheckerPrelude | undefined {
-  if (!prelude) {
-    return undefined;
-  }
-  return {
-    structs: new Map(prelude.structs ?? new Map()),
-    interfaces: new Map(prelude.interfaces ?? new Map()),
-    typeAliases: new Map(prelude.typeAliases ?? new Map()),
-    unions: new Map(prelude.unions ?? new Map()),
-    functionInfos: cloneFunctionInfoMap(prelude.functionInfos),
-    methodSets: [...(prelude.methodSets ?? [])],
-    implementationRecords: [...(prelude.implementationRecords ?? [])],
-  };
-}
-
-function cloneFunctionInfoMap(source?: Map<string, FunctionInfo[]>): Map<string, FunctionInfo[]> {
-  const cloned = new Map<string, FunctionInfo[]>();
-  if (!source) {
-    return cloned;
-  }
-  for (const [key, infos] of source.entries()) {
-    cloned.set(key, [...infos]);
-  }
-  return cloned;
-}
 
 export class TypeChecker {
   private env: Environment;
@@ -198,10 +119,10 @@ export class TypeChecker {
     this.options = options;
     this.packageSummaries = clonePackageSummaries(options.packageSummaries);
     this.prelude = clonePrelude(options.prelude);
-    this.typeResolution = createTypeResolutionHelpers(this.createTypeResolutionContext());
-    this.context = this.createCheckerContext();
+    this.typeResolution = createTypeResolutionHelpers(buildTypeResolutionContext(this));
+    this.context = buildCheckerContext(this);
     this.declarationsContext = this.context as DeclarationsContext;
-    this.implementationContext = this.createImplementationContext();
+    this.implementationContext = buildImplementationContext(this);
   }
 
   checkModule(module: AST.Module): TypecheckResult {
@@ -747,6 +668,8 @@ export class TypeChecker {
       functionInfos: this.functionInfos,
       structDefinitions: this.structDefinitions,
       inferExpression: (expression: AST.Expression | undefined | null) => this.inferExpression(expression),
+      resolveTypeExpression: (expr: AST.TypeExpression | null | undefined, substitutions?: Map<string, TypeInfo>) =>
+        this.resolveTypeExpression(expr, substitutions),
       describeLiteralMismatch: this.describeLiteralMismatch.bind(this),
       isTypeAssignable: this.isTypeAssignable.bind(this),
       report: this.report.bind(this),
@@ -899,37 +822,15 @@ export class TypeChecker {
   }
 
   private applyImports(module: AST.Module): void {
-    applyImportsHelper(this.importContext(), module);
-  }
-
-  private importContext() {
-    return {
-      env: this.env,
-      packageSummaries: this.packageSummaries,
-      packageAliases: this.packageAliases,
-      reportedPackageMemberAccess: this.reportedPackageMemberAccess,
-      currentPackageName: this.currentPackageName,
-      report: this.report.bind(this),
-      getIdentifierName: this.getIdentifierName.bind(this),
-    };
+    applyImportsHelper(buildImportContext(this), module);
   }
 
   private registryContext() {
-    return {
-      structDefinitions: this.structDefinitions,
-      interfaceDefinitions: this.interfaceDefinitions,
-      typeAliases: this.typeAliases,
-      implementationRecords: this.implementationRecords,
-      implementationIndex: this.implementationIndex,
-      declarationOrigins: this.declarationOrigins,
-      declarationsContext: this.declarationsContext,
-      getIdentifierName: (identifier: AST.Identifier | null | undefined) => this.getIdentifierName(identifier),
-      report: this.report.bind(this),
-    };
+    return buildRegistryContext(this);
   }
 
   private applyImportStatement(imp: AST.ImportStatement | null | undefined): void {
-    applyImportStatementHelper(this.importContext(), imp);
+    applyImportStatementHelper(buildImportContext(this), imp);
   }
 
   private applyDynImportStatement(statement: AST.DynImportStatement | null | undefined): void {
@@ -937,95 +838,11 @@ export class TypeChecker {
       this.allowDynamicLookups = true;
       return;
     }
-    applyDynImportStatementHelper(this.importContext(), statement);
+    applyDynImportStatementHelper(buildImportContext(this), statement);
   }
 
   private handlePackageMemberAccess(expression: AST.MemberAccessExpression): boolean {
-    return handlePackageMemberAccessHelper(this.importContext(), expression);
-  }
-
-  private createTypeResolutionContext() {
-    return {
-      getTypeAlias: (name: string) => this.typeAliases.get(name),
-      getInterfaceDefinition: (name: string) => this.interfaceDefinitions.get(name),
-      hasInterfaceDefinition: (name: string) => this.interfaceDefinitions.has(name),
-      getStructDefinition: (name: string) => this.structDefinitions.get(name),
-      getUnionDefinition: (name: string) => this.unionDefinitions.get(name),
-      hasUnionDefinition: (name: string) => this.unionDefinitions.has(name),
-      getIdentifierName: (identifier: AST.Identifier | null | undefined) => this.getIdentifierName(identifier),
-    };
-  }
-
-  private createCheckerContext(): StatementContext {
-    return createCheckerContextHelper({
-      resolveStructDefinitionForPattern: this.resolveStructDefinitionForPattern.bind(this),
-      getIdentifierName: this.getIdentifierName.bind(this),
-      getIdentifierNameFromTypeExpression: this.getIdentifierNameFromTypeExpression.bind(this),
-      getInterfaceNameFromConstraint: this.getInterfaceNameFromConstraint.bind(this),
-      getInterfaceNameFromTypeExpression: this.getInterfaceNameFromTypeExpression.bind(this),
-      report: this.report.bind(this),
-      describeTypeExpression: this.describeTypeExpression.bind(this),
-      isKnownTypeName: (name: string) => this.isKnownTypeName(name),
-      hasTypeDefinition: (name: string) =>
-        this.structDefinitions.has(name) ||
-        this.unionDefinitions.has(name) ||
-        this.interfaceDefinitions.has(name) ||
-        this.typeAliases.has(name),
-      typeInfosEquivalent: this.typeInfosEquivalent.bind(this),
-      isTypeAssignable: this.isTypeAssignable.bind(this),
-      describeLiteralMismatch: this.describeLiteralMismatch.bind(this),
-      resolveTypeExpression: this.resolveTypeExpression.bind(this),
-      getStructDefinition: (name: string) => this.structDefinitions.get(name),
-      getInterfaceDefinition: (name: string) => this.interfaceDefinitions.get(name),
-      hasInterfaceDefinition: (name: string) => this.interfaceDefinitions.has(name),
-      handlePackageMemberAccess: this.handlePackageMemberAccess.bind(this),
-      pushAsyncContext: this.pushAsyncContext.bind(this),
-      popAsyncContext: this.popAsyncContext.bind(this),
-      checkReturnStatement: this.checkReturnStatement.bind(this),
-      checkFunctionCall: this.checkFunctionCall.bind(this),
-      inferFunctionCallReturnType: this.inferFunctionCallReturnType.bind(this),
-      checkFunctionDefinition: this.checkFunctionDefinition.bind(this),
-      pushLoopContext: this.pushLoopContext.bind(this),
-      popLoopContext: () => this.popLoopContext(),
-      inLoopContext: () => this.inLoopContext(),
-      pushScope: () => this.env.pushScope(),
-      popScope: () => this.env.popScope(),
-      withForkedEnv: <T>(fn: () => T) => this.withForkedEnv(fn),
-      lookupIdentifier: (name: string) => this.env.lookup(name),
-      defineValue: (name: string, valueType: TypeInfo) => this.env.define(name, valueType),
-      assignValue: (name: string, valueType: TypeInfo) => this.env.assign(name, valueType),
-      hasBinding: (name: string) => this.env.has(name),
-      hasBindingInCurrentScope: (name: string) => this.env.hasInCurrentScope(name),
-      allowDynamicLookup: () => this.allowDynamicLookups,
-      getFunctionInfos: (key: string) => this.getFunctionInfos(key),
-      addFunctionInfo: (key: string, info: FunctionInfo) => this.addFunctionInfo(key, info),
-      isExpression: (node: AST.Node | undefined | null): node is AST.Expression => this.isExpression(node),
-      handleTypeDeclaration: (node) => this.checkLocalTypeDeclaration(node as LocalTypeDeclaration),
-      pushBreakpointLabel: (label: string) => this.pushBreakpointLabel(label),
-      popBreakpointLabel: () => this.popBreakpointLabel(),
-      hasBreakpointLabel: (label: string) => this.hasBreakpointLabel(label),
-      handleBreakStatement: this.checkBreakStatement.bind(this),
-      handleContinueStatement: this.checkContinueStatement.bind(this),
-      typeImplementsInterface: (type, interfaceName, expectedArgs) =>
-        typeImplementsInterface(this.implementationContext, type, interfaceName, expectedArgs ?? []),
-    });
-  }
-
-  private createImplementationContext(): ImplementationContext {
-    const ctx = this.declarationsContext as ImplementationContext;
-    ctx.formatImplementationTarget = this.formatImplementationTarget.bind(this);
-    ctx.formatImplementationLabel = this.formatImplementationLabel.bind(this);
-    ctx.registerMethodSet = (record) => {
-      this.methodSets.push(record);
-    };
-    ctx.getMethodSets = () => this.methodSets;
-    ctx.registerImplementationRecord = (record) => this.registerImplementationRecord(record);
-    ctx.getImplementationRecords = () => this.implementationRecords;
-    ctx.getImplementationBucket = (key: string) => this.implementationIndex.get(key);
-    ctx.describeTypeArgument = this.describeTypeArgument.bind(this);
-    ctx.appendInterfaceArgsToLabel = this.appendInterfaceArgsToLabel.bind(this);
-    ctx.formatTypeExpression = this.formatTypeExpression.bind(this);
-    return ctx;
+    return handlePackageMemberAccessHelper(buildImportContext(this), expression);
   }
 
   private buildPackageSummary(module: AST.Module): PackageSummary | null {

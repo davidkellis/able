@@ -15,7 +15,7 @@ struct Point T {
 union MaybeNumber = nil | i64
 
 interface Display for T {
-  fn to_string(self: Self) -> string;
+  fn to_string(self: Self) -> String;
 }
 
 Sum = impl Monoid for i32 {
@@ -23,7 +23,7 @@ Sum = impl Monoid for i32 {
 }
 
 impl Display for Point i32 {
-  fn to_string(self: Self) -> string {
+  fn to_string(self: Self) -> String {
     "Point"
   }
 }
@@ -152,25 +152,27 @@ methods Point i32 {
                           (identifier)))))))))
           (block
             (expression_statement
-              (pipe_expression
-                (matchable_expression
-                  (assignment_expression
-                    (range_expression
-                      (logical_or_expression
-                        (logical_and_expression
-                          (bitwise_or_expression
-                            (bitwise_xor_expression
-                              (bitwise_and_expression
-                                (equality_expression
-                                  (comparison_expression
-                                    (shift_expression
-                                      (additive_expression
-                                        (multiplicative_expression
-                                          (unary_expression
-                                            (exponent_expression
-                                              (postfix_expression
-                                                (primary_expression
-                                                  (number_literal)))))))))))))))))))))))))
+              (low_precedence_pipe_expression
+                (assignment_expression
+                  (pipe_expression
+                    (matchable_expression
+                      (pipe_operand_base
+                        (range_expression
+                          (logical_or_expression
+                            (logical_and_expression
+                              (bitwise_or_expression
+                                (bitwise_xor_expression
+                                  (bitwise_and_expression
+                                    (equality_expression
+                                      (comparison_expression
+                                        (shift_expression
+                                          (additive_expression
+                                            (multiplicative_expression
+                                              (unary_expression
+                                                (exponent_expression
+                                                  (postfix_expression
+                                                    (primary_expression
+                                                      (number_literal)))))))))))))))))))))))))))
   (implementation_definition
     (qualified_identifier
       (identifier))
@@ -212,25 +214,27 @@ methods Point i32 {
                         (identifier)))))))))
         (block
           (expression_statement
-            (pipe_expression
-              (matchable_expression
-                (assignment_expression
-                  (range_expression
-                    (logical_or_expression
-                      (logical_and_expression
-                        (bitwise_or_expression
-                          (bitwise_xor_expression
-                            (bitwise_and_expression
-                              (equality_expression
-                                (comparison_expression
-                                  (shift_expression
-                                    (additive_expression
-                                      (multiplicative_expression
-                                        (unary_expression
-                                          (exponent_expression
-                                            (postfix_expression
-                                              (primary_expression
-                                                (string_literal))))))))))))))))))))))))
+            (low_precedence_pipe_expression
+              (assignment_expression
+                (pipe_expression
+                  (matchable_expression
+                    (pipe_operand_base
+                      (range_expression
+                        (logical_or_expression
+                          (logical_and_expression
+                            (bitwise_or_expression
+                              (bitwise_xor_expression
+                                (bitwise_and_expression
+                                  (equality_expression
+                                    (comparison_expression
+                                      (shift_expression
+                                        (additive_expression
+                                          (multiplicative_expression
+                                            (unary_expression
+                                              (exponent_expression
+                                                (postfix_expression
+                                                  (primary_expression
+                                                    (string_literal))))))))))))))))))))))))))
   (methods_definition
     (type_union
       (type_arrow
@@ -270,49 +274,51 @@ methods Point i32 {
                         (identifier)))))))))
         (block
           (expression_statement
-            (pipe_expression
-              (matchable_expression
-                (assignment_expression
-                  (range_expression
-                    (logical_or_expression
-                      (logical_and_expression
-                        (bitwise_or_expression
-                          (bitwise_xor_expression
-                            (bitwise_and_expression
-                              (equality_expression
-                                (comparison_expression
-                                  (shift_expression
-                                    (additive_expression
-                                      (multiplicative_expression
-                                        (unary_expression
-                                          (exponent_expression
-                                            (postfix_expression
-                                              (primary_expression
-                                                (identifier))
-                                              (member_access
-                                                (identifier)))))
-                                        (unary_expression
-                                          (exponent_expression
-                                            (postfix_expression
-                                              (primary_expression
-                                                (identifier))
-                                              (member_access
-                                                (identifier))))))
-                                      (multiplicative_expression
-                                        (unary_expression
-                                          (exponent_expression
-                                            (postfix_expression
-                                              (primary_expression
-                                                (identifier))
-                                              (member_access
-                                                (identifier)))))
-                                        (unary_expression
-                                          (exponent_expression
-                                            (postfix_expression
-                                              (primary_expression
-                                                (identifier))
-                                              (member_access
-                                                (identifier)))))))))))))))))))))))))
+            (low_precedence_pipe_expression
+              (assignment_expression
+                (pipe_expression
+                  (matchable_expression
+                    (pipe_operand_base
+                      (range_expression
+                        (logical_or_expression
+                          (logical_and_expression
+                            (bitwise_or_expression
+                              (bitwise_xor_expression
+                                (bitwise_and_expression
+                                  (equality_expression
+                                    (comparison_expression
+                                      (shift_expression
+                                        (additive_expression
+                                          (multiplicative_expression
+                                            (unary_expression
+                                              (exponent_expression
+                                                (postfix_expression
+                                                  (primary_expression
+                                                    (identifier))
+                                                  (member_access
+                                                    (identifier)))))
+                                            (unary_expression
+                                              (exponent_expression
+                                                (postfix_expression
+                                                  (primary_expression
+                                                    (identifier))
+                                                  (member_access
+                                                    (identifier))))))
+                                          (multiplicative_expression
+                                            (unary_expression
+                                              (exponent_expression
+                                                (postfix_expression
+                                                  (primary_expression
+                                                    (identifier))
+                                                  (member_access
+                                                    (identifier)))))
+                                            (unary_expression
+                                              (exponent_expression
+                                                (postfix_expression
+                                                  (primary_expression
+                                                    (identifier))
+                                                  (member_access
+                                                    (identifier)))))))))))))))))))))))))))
 
 ==================
 Implicit Method Definitions
@@ -333,7 +339,7 @@ methods Counter {
 }
 
 impl Display for Counter {
-  fn #to_string() -> string {
+  fn #to_string() -> String {
     `Counter(${#value})`
   }
 }
@@ -369,39 +375,41 @@ impl Display for Counter {
         (parameter_list)
         (block
           (expression_statement
-            (pipe_expression
-              (matchable_expression
+            (low_precedence_pipe_expression
+              (assignment_expression
+                (assignment_target
+                  (postfix_expression
+                    (primary_expression
+                      (implicit_member_expression
+                        (identifier)))))
+                (assignment_operator)
                 (assignment_expression
-                  (assignment_target
-                    (postfix_expression
-                      (primary_expression
-                        (implicit_member_expression
-                          (identifier)))))
-                  (assignment_operator)
-                  (assignment_expression
-                    (range_expression
-                      (logical_or_expression
-                        (logical_and_expression
-                          (bitwise_or_expression
-                            (bitwise_xor_expression
-                              (bitwise_and_expression
-                                (equality_expression
-                                  (comparison_expression
-                                    (shift_expression
-                                      (additive_expression
-                                        (multiplicative_expression
-                                          (unary_expression
-                                            (exponent_expression
-                                              (postfix_expression
-                                                (primary_expression
-                                                  (implicit_member_expression
-                                                    (identifier)))))))
-                                        (multiplicative_expression
-                                          (unary_expression
-                                            (exponent_expression
-                                              (postfix_expression
-                                                (primary_expression
-                                                  (number_literal))))))))))))))))))))))))
+                  (pipe_expression
+                    (matchable_expression
+                      (pipe_operand_base
+                        (range_expression
+                          (logical_or_expression
+                            (logical_and_expression
+                              (bitwise_or_expression
+                                (bitwise_xor_expression
+                                  (bitwise_and_expression
+                                    (equality_expression
+                                      (comparison_expression
+                                        (shift_expression
+                                          (additive_expression
+                                            (multiplicative_expression
+                                              (unary_expression
+                                                (exponent_expression
+                                                  (postfix_expression
+                                                    (primary_expression
+                                                      (implicit_member_expression
+                                                        (identifier)))))))
+                                            (multiplicative_expression
+                                              (unary_expression
+                                                (exponent_expression
+                                                  (postfix_expression
+                                                    (primary_expression
+                                                      (number_literal))))))))))))))))))))))))))
     (method_member
       (function_definition
         (identifier)
@@ -420,39 +428,41 @@ impl Display for Counter {
                             (identifier)))))))))))
         (block
           (expression_statement
-            (pipe_expression
-              (matchable_expression
+            (low_precedence_pipe_expression
+              (assignment_expression
+                (assignment_target
+                  (postfix_expression
+                    (primary_expression
+                      (implicit_member_expression
+                        (identifier)))))
+                (assignment_operator)
                 (assignment_expression
-                  (assignment_target
-                    (postfix_expression
-                      (primary_expression
-                        (implicit_member_expression
-                          (identifier)))))
-                  (assignment_operator)
-                  (assignment_expression
-                    (range_expression
-                      (logical_or_expression
-                        (logical_and_expression
-                          (bitwise_or_expression
-                            (bitwise_xor_expression
-                              (bitwise_and_expression
-                                (equality_expression
-                                  (comparison_expression
-                                    (shift_expression
-                                      (additive_expression
-                                        (multiplicative_expression
-                                          (unary_expression
-                                            (exponent_expression
-                                              (postfix_expression
-                                                (primary_expression
-                                                  (implicit_member_expression
-                                                    (identifier)))))))
-                                        (multiplicative_expression
-                                          (unary_expression
-                                            (exponent_expression
-                                              (postfix_expression
-                                                (primary_expression
-                                                  (identifier)))))))))))))))))))))))))
+                  (pipe_expression
+                    (matchable_expression
+                      (pipe_operand_base
+                        (range_expression
+                          (logical_or_expression
+                            (logical_and_expression
+                              (bitwise_or_expression
+                                (bitwise_xor_expression
+                                  (bitwise_and_expression
+                                    (equality_expression
+                                      (comparison_expression
+                                        (shift_expression
+                                          (additive_expression
+                                            (multiplicative_expression
+                                              (unary_expression
+                                                (exponent_expression
+                                                  (postfix_expression
+                                                    (primary_expression
+                                                      (implicit_member_expression
+                                                        (identifier)))))))
+                                            (multiplicative_expression
+                                              (unary_expression
+                                                (exponent_expression
+                                                  (postfix_expression
+                                                    (primary_expression
+                                                      (identifier)))))))))))))))))))))))))))
   (implementation_definition
     (qualified_identifier
       (identifier))
@@ -479,48 +489,52 @@ impl Display for Counter {
                         (identifier)))))))))
         (block
           (expression_statement
-            (pipe_expression
-              (matchable_expression
-                (assignment_expression
-                  (range_expression
-                    (logical_or_expression
-                      (logical_and_expression
-                        (bitwise_or_expression
-                          (bitwise_xor_expression
-                            (bitwise_and_expression
-                              (equality_expression
-                                (comparison_expression
-                                  (shift_expression
-                                    (additive_expression
-                                      (multiplicative_expression
-                                        (unary_expression
-                                          (exponent_expression
-                                            (postfix_expression
-                                              (primary_expression
-                                                (interpolated_string
-                                                  (interpolation_text)
-                                                  (string_interpolation
-                                                    (pipe_expression
-                                                      (matchable_expression
-                                                        (assignment_expression
-                                                          (range_expression
-                                                            (logical_or_expression
-                                                              (logical_and_expression
-                                                                (bitwise_or_expression
-                                                                  (bitwise_xor_expression
-                                                                    (bitwise_and_expression
-                                                                      (equality_expression
-                                                                        (comparison_expression
-                                                                          (shift_expression
-                                                                            (additive_expression
-                                                                              (multiplicative_expression
-                                                                                (unary_expression
-                                                                                  (exponent_expression
-                                                                                    (postfix_expression
-                                                                                      (primary_expression
-                                                                                        (implicit_member_expression
-                                                                                          (identifier)))))))))))))))))))))
-                                                  (interpolation_text))))))))))))))))))))))))))
+            (low_precedence_pipe_expression
+              (assignment_expression
+                (pipe_expression
+                  (matchable_expression
+                    (pipe_operand_base
+                      (range_expression
+                        (logical_or_expression
+                          (logical_and_expression
+                            (bitwise_or_expression
+                              (bitwise_xor_expression
+                                (bitwise_and_expression
+                                  (equality_expression
+                                    (comparison_expression
+                                      (shift_expression
+                                        (additive_expression
+                                          (multiplicative_expression
+                                            (unary_expression
+                                              (exponent_expression
+                                                (postfix_expression
+                                                  (primary_expression
+                                                    (interpolated_string
+                                                      (interpolation_text)
+                                                      (string_interpolation
+                                                        (low_precedence_pipe_expression
+                                                          (assignment_expression
+                                                            (pipe_expression
+                                                              (matchable_expression
+                                                                (pipe_operand_base
+                                                                  (range_expression
+                                                                    (logical_or_expression
+                                                                      (logical_and_expression
+                                                                        (bitwise_or_expression
+                                                                          (bitwise_xor_expression
+                                                                            (bitwise_and_expression
+                                                                              (equality_expression
+                                                                                (comparison_expression
+                                                                                  (shift_expression
+                                                                                    (additive_expression
+                                                                                      (multiplicative_expression
+                                                                                        (unary_expression
+                                                                                          (exponent_expression
+                                                                                            (postfix_expression
+                                                                                              (primary_expression
+                                                                                                (implicit_member_expression
+                                                                                                  (identifier)))))))))))))))))))))))
+                                                      (interpolation_text))))))))))))))))))))))))))))
 
 ==================
 Type Alias Definitions

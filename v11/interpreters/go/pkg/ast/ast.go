@@ -48,7 +48,7 @@ const (
 	NodeAwaitExpression          NodeType = "AwaitExpression"
 	NodeOrElseExpression         NodeType = "OrElseExpression"
 	NodeBreakpointExpression     NodeType = "BreakpointExpression"
-	NodeOrClause                 NodeType = "OrClause"
+	NodeElseIfClause             NodeType = "ElseIfClause"
 	NodeIfExpression             NodeType = "IfExpression"
 	NodeMatchClause              NodeType = "MatchClause"
 	NodeMatchExpression          NodeType = "MatchExpression"
@@ -82,7 +82,6 @@ const (
 	NodeIteratorLiteral          NodeType = "IteratorLiteral"
 	NodeImplicitMemberExpression NodeType = "ImplicitMemberExpression"
 	NodePlaceholderExpression    NodeType = "PlaceholderExpression"
-	NodeTopicReferenceExpression NodeType = "TopicReferenceExpression"
 	NodeYieldStatement           NodeType = "YieldStatement"
 	NodePreludeStatement         NodeType = "PreludeStatement"
 	NodeExternFunctionBody       NodeType = "ExternFunctionBody"
@@ -429,17 +428,11 @@ type PlaceholderExpression struct {
 }
 
 func NewPlaceholderExpression(index *int) *PlaceholderExpression {
+	if index == nil {
+		defaultIndex := 1
+		index = &defaultIndex
+	}
 	return &PlaceholderExpression{nodeImpl: newNodeImpl(NodePlaceholderExpression), Index: index}
-}
-
-type TopicReferenceExpression struct {
-	nodeImpl
-	expressionMarker
-	statementMarker
-}
-
-func NewTopicReferenceExpression() *TopicReferenceExpression {
-	return &TopicReferenceExpression{nodeImpl: newNodeImpl(NodeTopicReferenceExpression)}
 }
 
 type AssignmentOperator string
@@ -451,6 +444,7 @@ const (
 	AssignmentSub     AssignmentOperator = "-="
 	AssignmentMul     AssignmentOperator = "*="
 	AssignmentDiv     AssignmentOperator = "/="
+	AssignmentMod     AssignmentOperator = "%="
 	AssignmentBitAnd  AssignmentOperator = ".&="
 	AssignmentBitOr   AssignmentOperator = ".|="
 	AssignmentBitXor  AssignmentOperator = ".^="
@@ -630,15 +624,15 @@ func NewBreakpointExpression(label *Identifier, body *BlockExpression) *Breakpoi
 
 // Control flow
 
-type OrClause struct {
+type ElseIfClause struct {
 	nodeImpl
 
-	Condition Expression       `json:"condition,omitempty"`
+	Condition Expression       `json:"condition"`
 	Body      *BlockExpression `json:"body"`
 }
 
-func NewOrClause(body *BlockExpression, condition Expression) *OrClause {
-	return &OrClause{nodeImpl: newNodeImpl(NodeOrClause), Condition: condition, Body: body}
+func NewElseIfClause(body *BlockExpression, condition Expression) *ElseIfClause {
+	return &ElseIfClause{nodeImpl: newNodeImpl(NodeElseIfClause), Condition: condition, Body: body}
 }
 
 type IfExpression struct {
@@ -646,13 +640,20 @@ type IfExpression struct {
 	expressionMarker
 	statementMarker
 
-	IfCondition Expression       `json:"ifCondition"`
-	IfBody      *BlockExpression `json:"ifBody"`
-	OrClauses   []*OrClause      `json:"orClauses"`
+	IfCondition    Expression        `json:"ifCondition"`
+	IfBody         *BlockExpression  `json:"ifBody"`
+	ElseIfClauses  []*ElseIfClause   `json:"elseIfClauses"`
+	ElseBody       *BlockExpression  `json:"elseBody,omitempty"`
 }
 
-func NewIfExpression(ifCondition Expression, ifBody *BlockExpression, orClauses []*OrClause) *IfExpression {
-	return &IfExpression{nodeImpl: newNodeImpl(NodeIfExpression), IfCondition: ifCondition, IfBody: ifBody, OrClauses: orClauses}
+func NewIfExpression(ifCondition Expression, ifBody *BlockExpression, elseIfClauses []*ElseIfClause, elseBody *BlockExpression) *IfExpression {
+	return &IfExpression{
+		nodeImpl:      newNodeImpl(NodeIfExpression),
+		IfCondition:   ifCondition,
+		IfBody:        ifBody,
+		ElseIfClauses: elseIfClauses,
+		ElseBody:      elseBody,
+	}
 }
 
 type MatchClause struct {

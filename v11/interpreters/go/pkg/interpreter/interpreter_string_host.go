@@ -41,11 +41,11 @@ func (i *Interpreter) initStringHostBuiltins() {
 	}
 
 	stringFromBuiltin := runtime.NativeFunctionValue{
-		Name:  "__able_string_from_builtin",
+		Name:  "__able_String_from_builtin",
 		Arity: 1,
 		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 			if len(args) != 1 {
-				return nil, fmt.Errorf("__able_string_from_builtin expects one argument")
+				return nil, fmt.Errorf("__able_String_from_builtin expects one argument")
 			}
 			var input string
 			switch v := args[0].(type) {
@@ -72,11 +72,11 @@ func (i *Interpreter) initStringHostBuiltins() {
 	}
 
 	stringToBuiltin := runtime.NativeFunctionValue{
-		Name:  "__able_string_to_builtin",
+		Name:  "__able_String_to_builtin",
 		Arity: 1,
 		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
 			if len(args) != 1 {
-				return nil, fmt.Errorf("__able_string_to_builtin expects one argument")
+				return nil, fmt.Errorf("__able_String_to_builtin expects one argument")
 			}
 			arr, err := i.toArrayValue(args[0])
 			if err != nil {
@@ -125,8 +125,8 @@ func (i *Interpreter) initStringHostBuiltins() {
 		},
 	}
 
-	i.global.Define("__able_string_from_builtin", stringFromBuiltin)
-	i.global.Define("__able_string_to_builtin", stringToBuiltin)
+	i.global.Define("__able_String_from_builtin", stringFromBuiltin)
+	i.global.Define("__able_String_to_builtin", stringToBuiltin)
 	i.global.Define("__able_char_from_codepoint", charFromCodepoint)
 	i.stringHostReady = true
 }

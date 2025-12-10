@@ -17,7 +17,7 @@ declare module "./index" {
 }
 
 function expectString(value: V10Value, label: string): string {
-  if (value.kind !== "string") {
+  if (value.kind !== "String") {
     throw new Error(`${label} must be a string`);
   }
   return value.value;

@@ -9,8 +9,8 @@ extern typescript fn now_nanos() -> i64 {
   return Date.now() * 1000000 ## JavaScript Date.now() returns milliseconds
 }
 
-extern typescript fn read_text(path: string) -> !string {
-  try { return readFileSync(path, "utf8") } catch (e) { throw host_error(string(e)) }
+extern typescript fn read_text(path: String) -> !String {
+  try { return readFileSync(path, "utf8") } catch (e) { throw host_error(String(e)) }
 }
 
 fn main() -> void {

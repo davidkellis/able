@@ -38,7 +38,7 @@ let even_with_details = matcher_with_details(
   "expected value to be even",
   "expected value to be odd",
   fn(value: i64) -> bool { value % 2 == 0 },
-  fn(value: i64) -> ?string { `actual ${value}` }
+  fn(value: i64) -> ?String { `actual ${value}` }
 )
 
 expect(6).to(even_with_details)

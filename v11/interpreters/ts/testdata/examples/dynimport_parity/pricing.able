@@ -1,6 +1,6 @@
 package pricing
 
-fn price_for(item: string) -> i32 {
+fn price_for(item: String) -> i32 {
   if item == "espresso" {
     4
   } else {

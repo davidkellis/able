@@ -53,7 +53,7 @@ unit := void              # Unit type
 ```able
 # Named fields
 struct Person {
-  name: string
+  name: String
   age: i32
 }
 
@@ -78,8 +78,8 @@ result := Success
 ```able
 # Define union
 union Result {
-  Ok(string)
-  Error(string)
+  Ok(String)
+  Error(String)
 }
 
 # Construct variants
@@ -93,7 +93,7 @@ message := match result {
 }
 
 # Nullable shorthand
-?string                   # Equivalent to: nil | string
+?String                   # Equivalent to: nil | String
 ```
 
 ### Arrays
@@ -125,7 +125,7 @@ fn identity<T>(value: T) -> T {
 }
 
 # With explicit return
-fn process(x: i32) -> string {
+fn process(x: i32) -> String {
   if x < 0 {
     return "negative"     # Early return
   }
@@ -165,13 +165,13 @@ numbers.each(|item| print(item))
 ### Conditional Expressions
 
 ```able
-# if/or chain (replaces if/else if/else)
+# if/elsif/else chain
 grade := if score >= 90 { "A" }
-         or score >= 80 { "B" }
-         or { "C" }
+         elsif score >= 80 { "B" }
+         else { "C" }
 
 # All branches are expressions
-value := if condition { 10 } or { 20 }
+value := if condition { 10 } else { 20 }
 ```
 
 ### Pattern Matching
@@ -245,7 +245,7 @@ print("Exited nested loops")
 ```able
 # Interface for displayable types
 interface Display for T {
-  fn to_string(self: Self) -> string
+  fn to_string(self: Self) -> String
 }
 
 # Generic interface
@@ -259,7 +259,7 @@ interface Mappable M {
 ```able
 # Implement for specific type
 impl Display for Person {
-  fn to_string(self: Self) -> string {
+  fn to_string(self: Self) -> String {
     `Person: ${self.name} (${self.age})`
   }
 }
@@ -297,10 +297,10 @@ for item in items {
 
 ```able
 # Nullable type shorthand
-?string                   # nil | string
+?String                   # nil | String
 
 # Result type shorthand  
-!string                   # Error | string
+!String                   # Error | String
 
 # Error propagation with !
 data := risky_operation()!
@@ -328,7 +328,7 @@ fn validate(age: i32) -> void {
 }
 
 # Rescue exceptions
-process := fn() -> string {
+process := fn() -> String {
   validate(user_age)
   "success"
 } rescue {
@@ -408,7 +408,7 @@ dynimport "runtime_config"
 
 ```able
 # Function with constraints
-fn process_all<T: Display + Clone>(items: Array T) -> Array string {
+fn process_all<T: Display + Clone>(items: Array T) -> Array String {
   items.map(|item| item.to_string().clone())
 }
 ```
@@ -446,13 +446,13 @@ methods Point {
 | Lambda | `|params| expression` | `|x| x * 2` |
 | Conditional | `if cond { expr } or { expr }` | `if x > 0 { "pos" } or { "neg" }` |
 | Pattern Match | `match value { pattern => expr }` | `match x { 0 => "zero" }` |
-| Struct | `struct Name { field: type }` | `struct Person { name: string }` |
-| Union | `union Name { Variant(type) }` | `union Result { Ok(string) }` |
-| Interface | `interface Name for T { fn sig }` | `interface Display for T { fn to_string(self: Self) -> string }` |
+| Struct | `struct Name { field: type }` | `struct Person { name: String }` |
+| Union | `union Name { Variant(type) }` | `union Result { Ok(String) }` |
+| Interface | `interface Name for T { fn sig }` | `interface Display for T { fn to_string(self: Self) -> String }` |
 | Implementation | `impl Interface for Type { body }` | `impl Display for Person { ... }` |
 | Async | `proc expression` | `handle := proc fetch_data()` |
-| Nullable | `?Type` | `?string` |
-| Result | `!Type` | `!string` |
+| Nullable | `?Type` | `?String` |
+| Result | `!Type` | `!String` |
 
 ## Getting Started
 

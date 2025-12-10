@@ -131,7 +131,7 @@ func (c *Checker) resolveTypeReference(expr ast.TypeExpression) Type {
 		switch name {
 		case "bool":
 			return PrimitiveType{Kind: PrimitiveBool}
-		case "string":
+		case "String":
 			return PrimitiveType{Kind: PrimitiveString}
 		case "char":
 			return PrimitiveType{Kind: PrimitiveChar}

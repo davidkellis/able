@@ -21,7 +21,7 @@ describe("v11 interpreter - interface dynamic dispatch", () => {
       AST.simpleTypeExpression("Point"),
       [
         AST.functionDefinition(
-          "to_string",
+          "to_String",
           [AST.functionParameter("self", AST.simpleTypeExpression("Point"))],
           AST.blockExpression([
             AST.returnStatement(
@@ -34,7 +34,7 @@ describe("v11 interpreter - interface dynamic dispatch", () => {
               ])
             ),
           ]),
-          AST.simpleTypeExpression("string")
+          AST.simpleTypeExpression("String")
         ),
       ]
     );
@@ -51,10 +51,10 @@ describe("v11 interpreter - interface dynamic dispatch", () => {
     I.evaluate(assign);
 
     const call = AST.functionCall(
-      AST.memberAccessExpression(AST.identifier("value"), "to_string"),
+      AST.memberAccessExpression(AST.identifier("value"), "to_String"),
       []
     );
-    expect(I.evaluate(call)).toEqual({ kind: "string", value: "Point(2, 3)" });
+    expect(I.evaluate(call)).toEqual({ kind: "String", value: "Point(2, 3)" });
   });
 
   test("array of interface values uses most specific impl", () => {
@@ -64,21 +64,21 @@ describe("v11 interpreter - interface dynamic dispatch", () => {
       AST.functionSignature(
         "describe",
         [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
-        AST.simpleTypeExpression("string")
+        AST.simpleTypeExpression("String")
       ),
     ]);
     I.evaluate(show);
 
     const fancyDef = AST.structDefinition(
       "Fancy",
-      [AST.structFieldDefinition(AST.simpleTypeExpression("string"), "label")],
+      [AST.structFieldDefinition(AST.simpleTypeExpression("String"), "label")],
       "named"
     );
     I.evaluate(fancyDef);
 
     const basicDef = AST.structDefinition(
       "Basic",
-      [AST.structFieldDefinition(AST.simpleTypeExpression("string"), "label")],
+      [AST.structFieldDefinition(AST.simpleTypeExpression("String"), "label")],
       "named"
     );
     I.evaluate(basicDef);
@@ -93,7 +93,7 @@ describe("v11 interpreter - interface dynamic dispatch", () => {
           AST.blockExpression([
             AST.returnStatement(AST.stringLiteral("fancy")),
           ]),
-          AST.simpleTypeExpression("string")
+          AST.simpleTypeExpression("String")
         ),
       ]
     );
@@ -109,7 +109,7 @@ describe("v11 interpreter - interface dynamic dispatch", () => {
           AST.blockExpression([
             AST.returnStatement(AST.stringLiteral("basic")),
           ]),
-          AST.simpleTypeExpression("string")
+          AST.simpleTypeExpression("String")
         ),
       ]
     );
@@ -128,7 +128,7 @@ describe("v11 interpreter - interface dynamic dispatch", () => {
           AST.blockExpression([
             AST.returnStatement(AST.stringLiteral("union")),
           ]),
-          AST.simpleTypeExpression("string")
+          AST.simpleTypeExpression("String")
         ),
       ]
     );
@@ -167,6 +167,6 @@ describe("v11 interpreter - interface dynamic dispatch", () => {
         ])
       )
     );
-    expect(I.evaluate(AST.identifier("buffer"))).toEqual({ kind: "string", value: "fancybasic" });
+    expect(I.evaluate(AST.identifier("buffer"))).toEqual({ kind: "String", value: "fancybasic" });
   });
 });

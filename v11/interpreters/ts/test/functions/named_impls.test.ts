@@ -53,9 +53,9 @@ describe("v11 interpreter - named impls as callable namespaces", () => {
     expect(prodVal).toEqual({ kind: "i32", value: 1n });
 
     const ifaceName = I.evaluate(AST.memberAccessExpression(AST.identifier("Sum"), "interface"));
-    expect(ifaceName).toEqual({ kind: "string", value: "Monoid" });
+    expect(ifaceName).toEqual({ kind: "String", value: "Monoid" });
     const targetName = I.evaluate(AST.memberAccessExpression(AST.identifier("Sum"), "target"));
-    expect(targetName).toEqual({ kind: "string", value: "i32" });
+    expect(targetName).toEqual({ kind: "String", value: "i32" });
   });
 });
 

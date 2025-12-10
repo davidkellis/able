@@ -1,15 +1,15 @@
 package tutorial.control
 
-fn classify(score: i32) -> string {
+fn classify(score: i32) -> String {
   if score > 90 { "excellent" }
-  or score > 70 { "solid" }
+  elsif score > 70 { "solid" }
   else { "keep practicing" }
 }
 
 fn find_first_even(values: Array i32) -> ?i32 {
   breakpoint 'first {
     for value in values {
-      if value %% 2 != 0 { continue }
+      if value % 2 != 0 { continue }
       break 'first value
     }
     nil

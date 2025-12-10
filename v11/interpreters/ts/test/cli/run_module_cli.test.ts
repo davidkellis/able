@@ -63,7 +63,7 @@ fn main() -> void {
         "support.able": `
 package cli_multi
 
-fn helper_value() -> string {
+fn helper_value() -> String {
   "helper-output"
 }
 `,
@@ -82,7 +82,7 @@ fn helper_value() -> string {
         depDir,
         "helpers/greetings.able",
         `
-fn greeting() -> string {
+fn greeting() -> String {
   "Hello from dependency"
 }
 `,
@@ -124,7 +124,7 @@ fn main() -> void {
         `
 package tools
 
-fn message() -> string { "dynimport hello" }
+fn message() -> String { "dynimport hello" }
 `.trimStart(),
       );
 
@@ -162,7 +162,7 @@ fn main() -> void {
         depDir,
         "helpers/greetings.able",
         `
-fn greeting() -> string {
+fn greeting() -> String {
   "Hello from alias dependency"
 }
 `,
@@ -204,7 +204,7 @@ fn main() -> void {
         `
 package custom
 
-fn greeting() -> string { "Hello from custom stdlib" }
+fn greeting() -> String { "Hello from custom stdlib" }
 `,
       );
 
@@ -463,7 +463,7 @@ function typecheckFailureProgram(): Record<string, string> {
 package cli_warn
 
 interface Show {
-  fn to_string(self: Self) -> string
+  fn to_String(self: Self) -> String
 }
 
 struct Point {
@@ -471,7 +471,7 @@ struct Point {
 }
 
 impl Show for Point {
-  fn display(self: Self) -> string {
+  fn display(self: Self) -> String {
     "point"
   }
 }

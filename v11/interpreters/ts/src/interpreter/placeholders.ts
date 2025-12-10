@@ -5,14 +5,10 @@ import type { V10Value } from "./values";
 
 export type PlaceholderFrame = {
   args: V10Value[];
-  explicit: Set<number>;
-  implicitAssigned: Set<number>;
-  nextImplicit: number;
   paramCount: number;
 };
 
 type PlaceholderPlan = {
-  explicitIndices: Set<number>;
   paramCount: number;
 };
 
@@ -34,13 +30,7 @@ export function applyPlaceholderAugmentations(cls: typeof InterpreterV10): void 
   };
 
   cls.prototype.pushPlaceholderFrame = function pushPlaceholderFrame(this: InterpreterV10, plan: PlaceholderPlan, args: V10Value[]): void {
-    const frame: PlaceholderFrame = {
-      args,
-      explicit: new Set(plan.explicitIndices),
-      implicitAssigned: new Set(),
-      nextImplicit: 1,
-      paramCount: plan.paramCount,
-    };
+    const frame: PlaceholderFrame = { args, paramCount: plan.paramCount };
     this.placeholderFrames.push(frame);
   };
 
@@ -59,12 +49,8 @@ export function applyPlaceholderAugmentations(cls: typeof InterpreterV10): void 
     if (!frame) {
       throw new Error("Expression placeholder used outside of placeholder lambda");
     }
-    if (node.index !== undefined) {
-      const idx = node.index;
-      if (idx <= 0) throw new Error(`Placeholder index must be positive, found @${idx}`);
-      return placeholderValueAt(frame, idx);
-    }
-    const idx = nextImplicitIndex(frame);
+    const idx = (node.index ?? 1);
+    if (idx <= 0) throw new Error(`Placeholder index must be positive, found @${idx}`);
     return placeholderValueAt(frame, idx);
   };
 
@@ -126,34 +112,17 @@ function placeholderValueAt(frame: PlaceholderFrame, index: number): V10Value {
   return val;
 }
 
-function nextImplicitIndex(frame: PlaceholderFrame): number {
-  while (frame.nextImplicit <= frame.paramCount) {
-    const idx = frame.nextImplicit;
-    frame.nextImplicit += 1;
-    if (frame.explicit.has(idx)) continue;
-    if (frame.implicitAssigned.has(idx)) continue;
-    frame.implicitAssigned.add(idx);
-    return idx;
-  }
-  throw new Error("no implicit placeholder slots available");
-}
-
 function analyzePlaceholderExpression(expr: AST.Expression): PlaceholderPlan | null {
   const analyzer = new PlaceholderAnalyzer();
   analyzer.visitExpression(expr);
   if (!analyzer.hasPlaceholder) return null;
-  let paramCount = analyzer.highestExplicit;
-  const implicitTotal = analyzer.explicit.size + analyzer.implicitCount;
-  if (implicitTotal > paramCount) paramCount = implicitTotal;
+  const paramCount = analyzer.highestExplicit > 0 ? analyzer.highestExplicit : 1;
   return {
-    explicitIndices: analyzer.explicit,
     paramCount,
   };
 }
 
 class PlaceholderAnalyzer {
-  explicit = new Set<number>();
-  implicitCount = 0;
   highestExplicit = 0;
   hasPlaceholder = false;
 
@@ -162,15 +131,12 @@ class PlaceholderAnalyzer {
     switch (expr.type) {
       case "PlaceholderExpression":
         this.hasPlaceholder = true;
-        if (expr.index !== undefined) {
-          const idx = expr.index;
+        {
+          const idx = expr.index ?? 1;
           if (idx <= 0) {
             throw new Error(`Placeholder index must be positive, found @${idx}`);
           }
-          this.explicit.add(idx);
           if (idx > this.highestExplicit) this.highestExplicit = idx;
-        } else {
-          this.implicitCount += 1;
         }
         return;
       case "BinaryExpression":
@@ -262,11 +228,12 @@ class PlaceholderAnalyzer {
       case "IfExpression":
         this.visitExpression(expr.ifCondition);
         this.visitExpression(expr.ifBody);
-        for (const clause of expr.orClauses) {
+        for (const clause of expr.elseIfClauses) {
           if (!clause) continue;
-          if (clause.condition) this.visitExpression(clause.condition);
+          this.visitExpression(clause.condition);
           this.visitExpression(clause.body);
         }
+        if (expr.elseBody) this.visitExpression(expr.elseBody);
         return;
       case "PropagationExpression":
         this.visitExpression(expr.expression);
@@ -278,7 +245,6 @@ class PlaceholderAnalyzer {
       case "LambdaExpression":
       case "ProcExpression":
       case "SpawnExpression":
-      case "TopicReferenceExpression":
       case "Identifier":
       case "IntegerLiteral":
       case "FloatLiteral":
@@ -393,12 +359,16 @@ function expressionContainsPlaceholder(expr: AST.Expression | null | undefined):
       return expressionContainsPlaceholder(expr.tryExpression) || expressionContainsPlaceholder(expr.ensureBlock);
     case "IfExpression":
       if (expressionContainsPlaceholder(expr.ifCondition) || expressionContainsPlaceholder(expr.ifBody)) return true;
-      return expr.orClauses.some(
-        (clause) =>
-          !!clause &&
-          ((clause.condition && expressionContainsPlaceholder(clause.condition)) ||
-            expressionContainsPlaceholder(clause.body)),
-      );
+      if (
+        expr.elseIfClauses.some(
+          (clause) =>
+            !!clause &&
+            (expressionContainsPlaceholder(clause.condition) || expressionContainsPlaceholder(clause.body)),
+        )
+      ) {
+        return true;
+      }
+      return expr.elseBody ? expressionContainsPlaceholder(expr.elseBody) : false;
     case "PropagationExpression":
       return expressionContainsPlaceholder(expr.expression);
     case "AwaitExpression":
@@ -410,7 +380,6 @@ function expressionContainsPlaceholder(expr: AST.Expression | null | undefined):
     case "ProcExpression":
     case "SpawnExpression":
     case "AwaitExpression":
-    case "TopicReferenceExpression":
     case "Identifier":
     case "IntegerLiteral":
     case "FloatLiteral":
@@ -481,7 +450,6 @@ function isExpression(node: AST.AstNode | null | undefined): node is AST.Express
     case "LoopExpression":
     case "ImplicitMemberExpression":
     case "PlaceholderExpression":
-    case "TopicReferenceExpression":
     case "AwaitExpression":
     case "IfExpression":
     case "MatchExpression":

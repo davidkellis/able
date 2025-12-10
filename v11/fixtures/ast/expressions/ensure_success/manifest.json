@@ -5,7 +5,7 @@
       "ensure"
     ],
     "result": {
-      "kind": "string",
+      "kind": "String",
       "value": "body"
     }
   },

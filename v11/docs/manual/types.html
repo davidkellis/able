@@ -29,19 +29,19 @@
         <p>
           Able is statically typed with inference. Annotate as
           <code>name: Type</code>; runtime values always have concrete types.
-          Type arguments are space-separated (<code>Array string</code>,
-          <code>Map string (Array i32)</code>).
+          Type arguments are space-separated (<code>Array String</code>,
+          <code>Map String (Array i32)</code>).
         </p>
         <h2 id="primitives">4.1 Primitive &amp; Composite Types</h2>
         <ul>
-          <li>Primitives: signed/unsigned ints (<code>i8..i128</code> / <code>u8..u128</code>), <code>f32</code>/<code>f64</code>, <code>bool</code>, <code>char</code>, <code>string</code>, <code>nil</code>, <code>void</code>.</li>
+          <li>Primitives: signed/unsigned ints (<code>i8..i128</code> / <code>u8..u128</code>), <code>f32</code>/<code>f64</code>, <code>bool</code>, <code>char</code>, <code>String</code>, <code>nil</code>, <code>void</code>.</li>
           <li>Arrays: <code>[1, 2, 3]</code> produce <code>Array i32</code>; mutable and iterable.</li>
           <li>Ranges: <code>a..b</code> inclusive, <code>a...b</code> exclusive; used in loops.</li>
           <li>Generator literal: <code>Iterator { gen =&gt; ... gen.yield(v) ... }</code> builds custom iterators.</li>
           <li>Maps via stdlib helpers (<code>scores.set("Ada", 42)</code>)</li>
         </ul>
         <h2 id="structs">4.2 Structs</h2>
-        <pre><code class="language-able">struct User { id: i64, name: string, email: ?string }
+        <pre><code class="language-able">struct User { id: i64, name: String, email: ?String }
 struct Pair T U (T, U)           ## positional / named-tuple style
 struct Active                    ## singleton (no fields)
 
@@ -61,7 +61,7 @@ Pair { fst, snd } := Pair { 1, 2 }</code></pre>
         </p>
         <h2 id="aliases">4.4 Type Aliases</h2>
         <p>
-          <code>type PairStr = Pair string string</code>. Aliases may be generic
+          <code>type PairStr = Pair String String</code>. Aliases may be generic
           or recursive. They do not create new nominal types and can participate
           in <code>methods</code>/<code>impl</code> definitions.
         </p>

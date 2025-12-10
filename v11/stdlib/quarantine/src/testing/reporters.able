@@ -9,7 +9,7 @@ import able.testing.protocol.{
 }
 
 struct ReporterOutput {
-  write_line: (string -> void)
+  write_line: (String -> void)
 }
 
 struct DocReporter {
@@ -18,38 +18,38 @@ struct DocReporter {
 
 struct ProgressReporter {
   output: ReporterOutput,
-  mut buffer: string
+  mut buffer: String
 }
 
-fn ReporterOutput(write_line: string -> void) -> ReporterOutput {
+fn ReporterOutput(write_line: String -> void) -> ReporterOutput {
   ReporterOutput { write_line }
 }
 
-fn render_failure_line(descriptor: TestDescriptor, failure: Failure) -> string {
+fn render_failure_line(descriptor: TestDescriptor, failure: Failure) -> String {
   let mut line = `${descriptor.display_name} … FAIL`
   match failure.details {
     case nil => {},
-    case details: string => line = `${line} (${details})`
+    case details: String => line = `${line} (${details})`
   }
   line
 }
 
-fn render_success_line(descriptor: TestDescriptor) -> string {
+fn render_success_line(descriptor: TestDescriptor) -> String {
   `${descriptor.display_name} … ok`
 }
 
-fn render_skip_line(descriptor: TestDescriptor, reason: ?string) -> string {
+fn render_skip_line(descriptor: TestDescriptor, reason: ?String) -> String {
   match reason {
     case nil => `${descriptor.display_name} … SKIP`,
-    case value: string => `${descriptor.display_name} … SKIP (${value})`
+    case value: String => `${descriptor.display_name} … SKIP (${value})`
   }
 }
 
-fn render_framework_error(message: string) -> string {
+fn render_framework_error(message: String) -> String {
   `framework error: ${message}`
 }
 
-fn DocReporter(output: string -> void) -> DocReporter {
+fn DocReporter(output: String -> void) -> DocReporter {
   DocReporter { output: ReporterOutput(output) }
 }
 
@@ -65,7 +65,7 @@ impl Reporter for DocReporter {
   }
 }
 
-fn ProgressReporter(output: string -> void) -> ProgressReporter {
+fn ProgressReporter(output: String -> void) -> ProgressReporter {
   ProgressReporter { output: ReporterOutput(output), buffer: "" }
 }
 

@@ -53,7 +53,7 @@ package main
 import able.collections.tree_map.{TreeMap, TreeEntry}
 
 fn main() -> i32 {
-  map: TreeMap string i32 := TreeMap.new()
+  map: TreeMap String i32 := TreeMap.new()
   map.set("beta", 2)
   map.set("alpha", 1)
   map.set("gamma", 3)
@@ -134,7 +134,7 @@ import able.collections.tree_map.{TreeMap}
 import able.core.interfaces.{Ordering}
 
 struct Key {
-  raw: string
+  raw: String
 }
 
 methods Key {
@@ -142,7 +142,7 @@ methods Key {
   fn clone(self: Self) -> Key { Key { raw: self.raw } }
 }
 
-fn main() -> string {
+fn main() -> String {
   map: TreeMap Key i32 := TreeMap.new()
   map.set(Key { raw: "delta" }, 4)
   map.set(Key { raw: "alpha" }, 1)
@@ -188,7 +188,7 @@ fn main() -> string {
       }
 
       const result = callCallableValue(interpreter as any, mainFn, [], interpreter.globals) as any;
-      expect(result?.kind).toBe("string");
+      expect(result?.kind).toBe("String");
       expect(result.value).toBe("alpha;beta;charlie;delta;");
     } finally {
       await fs.rm(tmpRoot, { recursive: true, force: true });

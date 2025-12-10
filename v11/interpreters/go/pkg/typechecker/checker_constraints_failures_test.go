@@ -13,7 +13,7 @@ func TestConstraintSolverReportsMissingImpl(t *testing.T) {
 		[]*ast.FunctionParameter{
 			ast.Param("self", ast.Ty("Self")),
 		},
-		ast.Ty("string"),
+		ast.Ty("String"),
 		nil,
 		nil,
 		nil,
@@ -22,7 +22,7 @@ func TestConstraintSolverReportsMissingImpl(t *testing.T) {
 	wrapperStruct := ast.StructDef(
 		"Wrapper",
 		[]*ast.StructFieldDefinition{
-			ast.FieldDef(ast.Ty("string"), "value"),
+			ast.FieldDef(ast.Ty("String"), "value"),
 		},
 		ast.StructKindNamed,
 		nil,
@@ -85,7 +85,7 @@ func TestConstraintSolverMethodSetGenericWhereFails(t *testing.T) {
 			ast.Param("self", ast.Ty("Self")),
 			ast.Param("value", ast.Ty("T")),
 		},
-		ast.Ty("string"),
+		ast.Ty("String"),
 		nil,
 		nil,
 		nil,
@@ -95,7 +95,7 @@ func TestConstraintSolverMethodSetGenericWhereFails(t *testing.T) {
 		[]*ast.FunctionParameter{
 			ast.Param("self", ast.Ty("Self")),
 		},
-		ast.Ty("string"),
+		ast.Ty("String"),
 		nil,
 		nil,
 		nil,
@@ -115,7 +115,7 @@ func TestConstraintSolverMethodSetGenericWhereFails(t *testing.T) {
 	wrapperStruct := ast.StructDef(
 		"Wrapper",
 		[]*ast.StructFieldDefinition{
-			ast.FieldDef(ast.Ty("string"), "value"),
+			ast.FieldDef(ast.Ty("String"), "value"),
 		},
 		ast.StructKindNamed,
 		nil,
@@ -131,7 +131,7 @@ func TestConstraintSolverMethodSetGenericWhereFails(t *testing.T) {
 		[]ast.Statement{
 			ast.Block(ast.Str("ok")),
 		},
-		ast.Ty("string"),
+		ast.Ty("String"),
 		[]*ast.GenericParameter{
 			ast.GenericParam("T"),
 		},
@@ -209,7 +209,7 @@ func TestConstraintSolverMethodSetSelfWhereAppliedConstraintFails(t *testing.T) 
 			ast.Param("self", ast.Ty("Self")),
 			ast.Param("value", ast.Ty("T")),
 		},
-		ast.Ty("string"),
+		ast.Ty("String"),
 		nil,
 		nil,
 		nil,
@@ -228,7 +228,7 @@ func TestConstraintSolverMethodSetSelfWhereAppliedConstraintFails(t *testing.T) 
 		[]*ast.FunctionParameter{
 			ast.Param("self", ast.Ty("Self")),
 		},
-		ast.Ty("string"),
+		ast.Ty("String"),
 		nil,
 		nil,
 		nil,
@@ -237,7 +237,7 @@ func TestConstraintSolverMethodSetSelfWhereAppliedConstraintFails(t *testing.T) 
 	wrapperStruct := ast.StructDef(
 		"Wrapper",
 		[]*ast.StructFieldDefinition{
-			ast.FieldDef(ast.Ty("string"), "value"),
+			ast.FieldDef(ast.Ty("String"), "value"),
 		},
 		ast.StructKindNamed,
 		nil,
@@ -252,7 +252,7 @@ func TestConstraintSolverMethodSetSelfWhereAppliedConstraintFails(t *testing.T) 
 		[]ast.Statement{
 			ast.Block(ast.Str("ok")),
 		},
-		ast.Ty("string"),
+		ast.Ty("String"),
 		nil,
 		nil,
 		false,
@@ -263,7 +263,7 @@ func TestConstraintSolverMethodSetSelfWhereAppliedConstraintFails(t *testing.T) 
 		[]*ast.FunctionDefinition{describeMethod},
 		nil,
 		[]*ast.WhereClauseConstraint{
-			ast.WhereConstraint("Self", ast.InterfaceConstr(ast.Gen(ast.Ty("Formatter"), ast.Ty("string")))),
+			ast.WhereConstraint("Self", ast.InterfaceConstr(ast.Gen(ast.Ty("Formatter"), ast.Ty("String")))),
 		},
 	)
 	genericParam := ast.GenericParam("S", ast.InterfaceConstr(ast.Ty("Describable")))
@@ -305,7 +305,7 @@ func TestConstraintSolverMethodSetSelfWhereAppliedConstraintFails(t *testing.T) 
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(diags) == 0 {
-		t.Fatalf("expected diagnostic for missing Formatter<string> implementation")
+		t.Fatalf("expected diagnostic for missing Formatter<String> implementation")
 	}
 	referencedConstraint := false
 	contextIncluded := false
@@ -334,7 +334,7 @@ func TestConstraintSolverMethodSetGenericObligationFails(t *testing.T) {
 		[]*ast.FunctionParameter{
 			ast.Param("self", ast.Ty("Self")),
 		},
-		ast.Ty("string"),
+		ast.Ty("String"),
 		nil,
 		nil,
 		nil,
@@ -360,7 +360,7 @@ func TestConstraintSolverMethodSetGenericObligationFails(t *testing.T) {
 		[]ast.Statement{
 			ast.Block(ast.Str("ok")),
 		},
-		ast.Ty("string"),
+		ast.Ty("String"),
 		nil,
 		nil,
 		false,
@@ -423,7 +423,7 @@ func TestConstraintSolverMethodSetAmbiguousFailureIncludesCandidate(t *testing.T
 			ast.Param("self", ast.Ty("Self")),
 			ast.Param("value", ast.Ty("bool")),
 		},
-		ast.Ty("string"),
+		ast.Ty("String"),
 		nil,
 		nil,
 		nil,
@@ -432,7 +432,7 @@ func TestConstraintSolverMethodSetAmbiguousFailureIncludesCandidate(t *testing.T
 	wrapperStruct := ast.StructDef(
 		"Wrapper",
 		[]*ast.StructFieldDefinition{
-			ast.FieldDef(ast.Ty("string"), "value"),
+			ast.FieldDef(ast.Ty("String"), "value"),
 		},
 		ast.StructKindNamed,
 		nil,
@@ -444,12 +444,12 @@ func TestConstraintSolverMethodSetAmbiguousFailureIncludesCandidate(t *testing.T
 		"format",
 		[]*ast.FunctionParameter{
 			ast.Param("self", ast.Ty("Self")),
-			ast.Param("value", ast.Ty("string")),
+			ast.Param("value", ast.Ty("String")),
 		},
 		[]ast.Statement{
 			ast.Block(ast.Str("ok")),
 		},
-		ast.Ty("string"),
+		ast.Ty("String"),
 		nil,
 		nil,
 		false,

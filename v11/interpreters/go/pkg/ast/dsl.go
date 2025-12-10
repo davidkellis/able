@@ -217,10 +217,6 @@ func PlaceholderN(index int) *PlaceholderExpression {
 	return NewPlaceholderExpression(&idx)
 }
 
-func TopicRef() *TopicReferenceExpression {
-	return NewTopicReferenceExpression()
-}
-
 func LamBlock(params []*FunctionParameter, body *BlockExpression) *LambdaExpression {
 	return NewLambdaExpression(params, body, nil, nil, nil, true)
 }
@@ -259,12 +255,12 @@ func Bp(label interface{}, statements ...Statement) *BreakpointExpression {
 
 // Control flow helpers.
 
-func OrC(body *BlockExpression, condition Expression) *OrClause {
-	return NewOrClause(body, condition)
+func ElseIf(body *BlockExpression, condition Expression) *ElseIfClause {
+	return NewElseIfClause(body, condition)
 }
 
-func IfExpr(condition Expression, body *BlockExpression, orClauses ...*OrClause) *IfExpression {
-	return NewIfExpression(condition, body, orClauses)
+func IfExpr(condition Expression, body *BlockExpression, elseIfClauses ...*ElseIfClause) *IfExpression {
+	return NewIfExpression(condition, body, elseIfClauses, nil)
 }
 
 func Iff(condition Expression, statements ...Statement) *IfExpression {

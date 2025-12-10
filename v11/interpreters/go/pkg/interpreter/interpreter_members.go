@@ -76,40 +76,10 @@ func (i *Interpreter) memberAccessOnValueWithOptions(obj runtime.Value, member a
 		return i.stringMemberWithOverrides(*v, member, env)
 	default:
 		if ident, ok := member.(*ast.Identifier); ok {
-			if info, ok := i.getTypeInfoForValue(obj); ok {
-				if bucket, ok := i.inherentMethods[info.name]; ok {
-					if method := bucket[ident.Name]; method != nil {
-						if fn := firstFunction(method); fn != nil {
-							if fnDef, ok := fn.Declaration.(*ast.FunctionDefinition); ok && fnDef.IsPrivate {
-								return nil, fmt.Errorf("Method '%s' on %s is private", ident.Name, info.name)
-							}
-						}
-						return &runtime.BoundMethodValue{Receiver: obj, Method: method}, nil
-					}
-				}
-				if resolved, err := i.findMethod(info, ident.Name, ""); err == nil && resolved != nil {
-					return &runtime.BoundMethodValue{Receiver: obj, Method: resolved}, nil
-				}
-			}
-			if bound, ok := i.tryUfcs(env, ident.Name, obj); ok {
+			if bound, err := i.resolveMethodFromPool(env, ident.Name, obj, ""); err != nil {
+				return nil, err
+			} else if bound != nil {
 				return bound, nil
-			}
-			typeExpr := i.typeExpressionFromValue(obj)
-			if info, ok := parseTypeExpression(typeExpr); ok {
-				if bucket, ok := i.inherentMethods[info.name]; ok {
-					if method := bucket[ident.Name]; method != nil {
-						if fn := firstFunction(method); fn != nil {
-							if fnDef, ok := fn.Declaration.(*ast.FunctionDefinition); ok && fnDef.IsPrivate {
-								return nil, fmt.Errorf("Method '%s' on %s is private", ident.Name, info.name)
-							}
-						}
-						return &runtime.BoundMethodValue{Receiver: obj, Method: method}, nil
-					}
-				}
-				resolved, err := i.findMethod(info, ident.Name, "")
-				if err == nil && resolved != nil {
-					return &runtime.BoundMethodValue{Receiver: obj, Method: resolved}, nil
-				}
 			}
 		}
 		return nil, fmt.Errorf("Member access only supported on structs/arrays in this milestone (got %s)", obj.Kind())
@@ -130,26 +100,9 @@ func (i *Interpreter) evaluateImplicitMemberExpression(expr *ast.ImplicitMemberE
 
 func (i *Interpreter) stringMemberWithOverrides(str runtime.StringValue, member ast.Expression, env *runtime.Environment) (runtime.Value, error) {
 	if ident, ok := member.(*ast.Identifier); ok {
-		if bucket, ok := i.inherentMethods["string"]; ok {
-			if method, ok := bucket[ident.Name]; ok {
-				if fn := firstFunction(method); fn != nil {
-					if fnDef, ok := fn.Declaration.(*ast.FunctionDefinition); ok && fnDef.IsPrivate {
-						return nil, fmt.Errorf("Method '%s' on string is private", ident.Name)
-					}
-				}
-				return &runtime.BoundMethodValue{Receiver: str, Method: method}, nil
-			}
-		}
-		if info, ok := i.getTypeInfoForValue(str); ok {
-			resolved, err := i.findMethod(info, ident.Name, "")
-			if err != nil {
-				return nil, err
-			}
-			if resolved != nil {
-				return &runtime.BoundMethodValue{Receiver: str, Method: resolved}, nil
-			}
-		}
-		if bound, ok := i.tryUfcs(env, ident.Name, str); ok {
+		if bound, err := i.resolveMethodFromPool(env, ident.Name, str, ""); err != nil {
+			return nil, err
+		} else if bound != nil {
 			return bound, nil
 		}
 	}
@@ -167,26 +120,9 @@ func (i *Interpreter) arrayMemberWithOverrides(arr *runtime.ArrayValue, member a
 	if !ok {
 		return nil, fmt.Errorf("array member access expects identifier")
 	}
-	if bucket, ok := i.inherentMethods["Array"]; ok {
-		if method, ok := bucket[ident.Name]; ok {
-			if fn := firstFunction(method); fn != nil {
-				if fnDef, ok := fn.Declaration.(*ast.FunctionDefinition); ok && fnDef.IsPrivate {
-					return nil, fmt.Errorf("Method '%s' on Array is private", ident.Name)
-				}
-			}
-			return &runtime.BoundMethodValue{Receiver: arr, Method: method}, nil
-		}
-	}
-	if info, ok := i.getTypeInfoForValue(arr); ok {
-		resolved, err := i.findMethod(info, ident.Name, "")
-		if err != nil {
-			return nil, err
-		}
-		if resolved != nil {
-			return &runtime.BoundMethodValue{Receiver: arr, Method: resolved}, nil
-		}
-	}
-	if bound, ok := i.tryUfcs(env, ident.Name, arr); ok {
+	if bound, err := i.resolveMethodFromPool(env, ident.Name, arr, ""); err != nil {
+		return nil, err
+	} else if bound != nil {
 		return bound, nil
 	}
 	return i.arrayMember(arr, member)
@@ -311,48 +247,19 @@ func (i *Interpreter) structInstanceMember(inst *runtime.StructInstanceValue, me
 	if inst == nil {
 		return nil, fmt.Errorf("Member access only supported on structs/arrays in this milestone")
 	}
+	_ = preferMethods
 	switch ident := member.(type) {
 	case *ast.Identifier:
-		lookupMethod := func() (runtime.Value, error) {
-			if inst.Definition == nil || inst.Definition.Node == nil || inst.Definition.Node.ID == nil {
-				return nil, nil
-			}
-			typeName := inst.Definition.Node.ID.Name
-			if bucket, ok := i.inherentMethods[typeName]; ok {
-				if method, ok := bucket[ident.Name]; ok {
-					if fn := firstFunction(method); fn != nil {
-						if fnDef, ok := fn.Declaration.(*ast.FunctionDefinition); ok && fnDef.IsPrivate {
-							return nil, fmt.Errorf("Method '%s' on %s is private", ident.Name, typeName)
-						}
-					}
-					return &runtime.BoundMethodValue{Receiver: inst, Method: method}, nil
-				}
-			}
-			method, err := i.selectStructMethod(inst, ident.Name)
-			if err != nil {
-				return nil, err
-			}
-			if method != nil {
-				return &runtime.BoundMethodValue{Receiver: inst, Method: method}, nil
-			}
-			if bound, ok := i.tryUfcs(env, ident.Name, inst); ok {
-				return bound, nil
-			}
-			return nil, nil
-		}
-		if preferMethods {
-			if bound, err := lookupMethod(); err != nil || bound != nil {
-				return bound, err
-			}
-		}
 		if inst.Fields == nil {
 			return nil, fmt.Errorf("Expected named struct instance")
 		}
 		if val, ok := inst.Fields[ident.Name]; ok {
 			return val, nil
 		}
-		if bound, err := lookupMethod(); err != nil || bound != nil {
-			return bound, err
+		if bound, err := i.resolveMethodFromPool(env, ident.Name, inst, ""); err != nil {
+			return nil, err
+		} else if bound != nil {
+			return bound, nil
 		}
 		return nil, fmt.Errorf("No field or method named '%s'", ident.Name)
 	case *ast.IntegerLiteral:
@@ -426,25 +333,144 @@ func (i *Interpreter) iteratorMember(iter *runtime.IteratorValue, member ast.Exp
 	}
 }
 
-func (i *Interpreter) tryUfcs(env *runtime.Environment, funcName string, receiver runtime.Value) (runtime.Value, bool) {
-	if env == nil {
-		return nil, false
-	}
-	if val, err := env.Get(funcName); err == nil {
-		if bound, ok := i.selectUfcsCallable(val, receiver, false); ok {
-			return &runtime.BoundMethodValue{Receiver: receiver, Method: bound}, true
+func (i *Interpreter) resolveMethodFromPool(env *runtime.Environment, funcName string, receiver runtime.Value, ifaceFilter string) (runtime.Value, error) {
+	functionCandidates := make([]*runtime.FunctionValue, 0)
+	nativeCandidates := make([]runtime.Value, 0)
+	seenFuncs := make(map[*runtime.FunctionValue]struct{})
+	seenNatives := make(map[string]struct{})
+
+	var addCallable func(method runtime.Value, privacyContext string) error
+	addCallable = func(method runtime.Value, privacyContext string) error {
+		switch fn := method.(type) {
+		case *runtime.FunctionValue:
+			if fn == nil {
+				return nil
+			}
+			if fnDecl, ok := fn.Declaration.(*ast.FunctionDefinition); ok && fnDecl != nil && fnDecl.IsPrivate {
+				name := privacyContext
+				if name == "" {
+					name = "<unknown>"
+				}
+				return fmt.Errorf("Method '%s' on %s is private", funcName, name)
+			}
+			if _, ok := seenFuncs[fn]; ok {
+				return nil
+			}
+			seenFuncs[fn] = struct{}{}
+			functionCandidates = append(functionCandidates, fn)
+		case *runtime.FunctionOverloadValue:
+			if fn == nil {
+				return nil
+			}
+			for _, entry := range fn.Overloads {
+				if entry == nil {
+					continue
+				}
+				if err := addCallable(entry, privacyContext); err != nil {
+					return err
+				}
+			}
+		case runtime.NativeFunctionValue:
+			key := fn.Name
+			if key == "" {
+				key = fmt.Sprintf("%p", &fn)
+			}
+			if _, ok := seenNatives[key]; ok {
+				return nil
+			}
+			seenNatives[key] = struct{}{}
+			nativeCandidates = append(nativeCandidates, runtime.NativeBoundMethodValue{Receiver: receiver, Method: fn})
+		case *runtime.NativeFunctionValue:
+			if fn == nil {
+				return nil
+			}
+			key := fn.Name
+			if key == "" {
+				key = fmt.Sprintf("%p", fn)
+			}
+			if _, ok := seenNatives[key]; ok {
+				return nil
+			}
+			seenNatives[key] = struct{}{}
+			nativeCandidates = append(nativeCandidates, runtime.NativeBoundMethodValue{Receiver: receiver, Method: *fn})
+		case runtime.NativeBoundMethodValue:
+			key := fn.Method.Name
+			if key == "" {
+				key = fmt.Sprintf("%p", &fn)
+			}
+			if _, ok := seenNatives[key]; ok {
+				return nil
+			}
+			seenNatives[key] = struct{}{}
+			nativeCandidates = append(nativeCandidates, fn)
+		case *runtime.NativeBoundMethodValue:
+			if fn == nil {
+				return nil
+			}
+			key := fn.Method.Name
+			if key == "" {
+				key = fmt.Sprintf("%p", fn)
+			}
+			if _, ok := seenNatives[key]; ok {
+				return nil
+			}
+			seenNatives[key] = struct{}{}
+			nativeCandidates = append(nativeCandidates, *fn)
 		}
+		return nil
 	}
+
 	if info, ok := i.getTypeInfoForValue(receiver); ok {
 		if bucket, ok := i.inherentMethods[info.name]; ok {
 			if method := bucket[funcName]; method != nil {
 				if callable, ok := i.selectUfcsCallable(method, receiver, true); ok {
-					return &runtime.BoundMethodValue{Receiver: receiver, Method: callable}, true
+					if err := addCallable(callable, info.name); err != nil {
+						return nil, err
+					}
+				}
+			}
+		}
+		existing := len(functionCandidates) + len(nativeCandidates)
+		if method, err := i.findMethod(info, funcName, ifaceFilter); err == nil && method != nil {
+			if err := addCallable(method, info.name); err != nil {
+				return nil, err
+			}
+		} else if err != nil {
+			if existing == 0 {
+				return nil, err
+			}
+		}
+	}
+
+	if env != nil {
+		if val, err := env.Get(funcName); err == nil {
+			if callable, ok := i.selectUfcsCallable(val, receiver, false); ok {
+				if err := addCallable(callable, ""); err != nil {
+					return nil, err
 				}
 			}
 		}
 	}
-	return nil, false
+
+	if len(functionCandidates) > 0 && len(nativeCandidates) > 0 {
+		return nil, fmt.Errorf("Ambiguous overload for %s", funcName)
+	}
+	if len(functionCandidates) > 0 {
+		var callable runtime.Value
+		if len(functionCandidates) == 1 {
+			callable = functionCandidates[0]
+		} else {
+			callable = &runtime.FunctionOverloadValue{Overloads: functionCandidates}
+		}
+		return &runtime.BoundMethodValue{Receiver: receiver, Method: callable}, nil
+	}
+	if len(nativeCandidates) > 0 {
+		if len(nativeCandidates) > 1 {
+			return nil, fmt.Errorf("Ambiguous overload for %s", funcName)
+		}
+		return nativeCandidates[0], nil
+	}
+	return nil, nil
 }
 
 func (i *Interpreter) selectUfcsCallable(method runtime.Value, receiver runtime.Value, requireSelf bool) (runtime.Value, bool) {
@@ -533,6 +559,9 @@ func (i *Interpreter) functionFirstParamMatches(fn *runtime.FunctionValue, recei
 	}
 	switch decl := fn.Declaration.(type) {
 	case *ast.FunctionDefinition:
+		if decl.IsMethodShorthand {
+			return true
+		}
 		if len(decl.Params) == 0 {
 			return false
 		}

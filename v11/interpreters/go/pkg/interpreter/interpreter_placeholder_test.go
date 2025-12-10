@@ -45,6 +45,29 @@ func TestPlaceholderSimplePartialApplication(t *testing.T) {
 	}
 }
 
+func TestPlaceholderBareAtUsesFirstArgument(t *testing.T) {
+	interp := New()
+	module := ast.Mod([]ast.Statement{
+		ast.Assign(
+			ast.ID("square"),
+			ast.Bin("*", ast.Placeholder(), ast.Placeholder()),
+		),
+		ast.Call("square", ast.Int(6)),
+	}, nil, nil)
+
+	result, _, err := interp.EvaluateModule(module)
+	if err != nil {
+		t.Fatalf("placeholder square evaluation failed: %v", err)
+	}
+	intResult, ok := result.(runtime.IntegerValue)
+	if !ok {
+		t.Fatalf("expected integer result, got %#v", result)
+	}
+	if intResult.Val.Cmp(bigInt(36)) != 0 {
+		t.Fatalf("expected 36, got %#v", intResult.Val)
+	}
+}
+
 func TestPlaceholderMixedIndices(t *testing.T) {
 	interp := New()
 	module := ast.Mod([]ast.Statement{
@@ -90,27 +113,8 @@ func TestPlaceholderMixedIndices(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected integer result, got %#v", result)
 	}
-	if intResult.Val.Cmp(bigInt(789)) != 0 {
-		t.Fatalf("expected 789, got %#v", intResult.Val)
-	}
-}
-
-func TestPipeTopicReference(t *testing.T) {
-	interp := New()
-	module := ast.Mod([]ast.Statement{
-		ast.Bin("|>", ast.Int(5), ast.Bin("+", ast.TopicRef(), ast.Int(3))),
-	}, nil, nil)
-
-	result, _, err := interp.EvaluateModule(module)
-	if err != nil {
-		t.Fatalf("pipe topic evaluation failed: %v", err)
-	}
-	intResult, ok := result.(runtime.IntegerValue)
-	if !ok {
-		t.Fatalf("expected integer result, got %#v", result)
-	}
-	if intResult.Val.Cmp(bigInt(8)) != 0 {
-		t.Fatalf("expected 8, got %#v", intResult.Val)
+	if intResult.Val.Cmp(bigInt(779)) != 0 {
+		t.Fatalf("expected 779, got %#v", intResult.Val)
 	}
 }
 

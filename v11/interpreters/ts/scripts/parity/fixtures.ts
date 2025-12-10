@@ -411,7 +411,7 @@ const FLOAT_VALUE_KINDS = new Set<string>(["f32", "f64"]);
 
 function normalizeTSValue(value: V10.V10Value): NormalizedValue {
   switch (value.kind) {
-    case "string":
+    case "String":
     case "char":
       return { kind: value.kind, value: String(value.value) };
     case "bool":

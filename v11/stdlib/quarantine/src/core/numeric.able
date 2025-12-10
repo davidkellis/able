@@ -11,11 +11,11 @@ struct DivModResult T {
 
 ## Error raised when a numeric conversion cannot be performed without loss.
 struct NumericConversionError {
-  message: string
+  message: String
 }
 
 impl Error for NumericConversionError {
-  fn message(self: Self) -> string { self.message }
+  fn message(self: Self) -> String { self.message }
   fn cause(self: Self) -> ?Error { nil }
 }
 

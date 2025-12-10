@@ -34,8 +34,8 @@ fn default_options() -> RunOptions {
   RunOptions { shuffle_seed: nil, fail_fast: false, parallelism: 1, repeat: 1 }
 }
 
-fn make_emit_buffer(out: Array string) -> (string -> void) {
-  fn(message: string) -> void { out.push(message) }
+fn make_emit_buffer(out: Array String) -> (String -> void) {
+  fn(message: String) -> void { out.push(message) }
 }
 
 describe("able.testing harness") { suite =>
@@ -81,7 +81,7 @@ describe("able.testing harness") { suite =>
     match discover_all(request) {
       case failure: Failure => raise AssertionError { message: failure.message, details: nil, location: nil },
       case descriptors: Array TestDescriptor => {
-        let mut lines: Array string = Array.new()
+        let mut lines: Array String = Array.new()
         let reporter = DocReporter(make_emit_buffer(lines))
         match run_all(request, default_options(), reporter) {
           case nil => {},
@@ -124,7 +124,7 @@ describe("able.testing harness") { suite =>
     match discover_all(request) {
       case failure: Failure => raise AssertionError { message: failure.message, details: nil, location: nil },
       case descriptors: Array TestDescriptor => {
-        let mut lines: Array string = Array.new()
+        let mut lines: Array String = Array.new()
         let reporter = DocReporter(make_emit_buffer(lines))
         match run_all(request, default_options(), reporter) {
           case nil => {},
@@ -133,7 +133,7 @@ describe("able.testing harness") { suite =>
         expect(lines.len()).to(eq(1))
         match lines.get(0) {
           case nil => raise AssertionError { message: "missing focus output", details: nil, location: nil },
-          case value: string => expect(value).to(eq("Focus suite focused example … ok"))
+          case value: String => expect(value).to(eq("Focus suite focused example … ok"))
         }
       }
     }
@@ -151,7 +151,7 @@ describe("able.testing harness") { suite =>
     match discover_all(request) {
       case failure: Failure => raise AssertionError { message: failure.message, details: nil, location: nil },
       case descriptors: Array TestDescriptor => {
-        let mut lines: Array string = Array.new()
+        let mut lines: Array String = Array.new()
         let reporter = DocReporter(make_emit_buffer(lines))
         match run_all(request, default_options(), reporter) {
           case nil => {},
@@ -160,7 +160,7 @@ describe("able.testing harness") { suite =>
         expect(lines.len()).to(eq(1))
         match lines.get(0) {
           case nil => raise AssertionError { message: "missing skip output", details: nil, location: nil },
-          case value: string => expect(value).to(eq("Skip suite pending feature … SKIP (skipped)"))
+          case value: String => expect(value).to(eq("Skip suite pending feature … SKIP (skipped)"))
         }
       }
     }
@@ -180,7 +180,7 @@ describe("able.testing harness") { suite =>
     match discover_all(request) {
       case failure: Failure => raise AssertionError { message: failure.message, details: nil, location: nil },
       case descriptors: Array TestDescriptor => {
-        let mut lines: Array string = Array.new()
+        let mut lines: Array String = Array.new()
         let reporter = DocReporter(make_emit_buffer(lines))
         match run_all(request, default_options(), reporter) {
           case nil => {},
@@ -189,15 +189,15 @@ describe("able.testing harness") { suite =>
         expect(lines.len()).to(eq(1))
         match lines.get(0) {
           case nil => raise AssertionError { message: "missing options output", details: nil, location: nil },
-          case value: string => expect(value).to(eq("Options suite focused option … ok"))
+          case value: String => expect(value).to(eq("Options suite focused option … ok"))
         }
       }
     }
   }
 }
 
-fn array_with(value: string) -> Array string {
-  let mut arr: Array string = Array.new()
+fn array_with(value: String) -> Array String {
+  let mut arr: Array String = Array.new()
   arr.push(value)
   arr
 }

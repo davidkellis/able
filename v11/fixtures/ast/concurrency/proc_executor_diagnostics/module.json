@@ -45,7 +45,7 @@
           }
         ]
       },
-      "orClauses": []
+      "elseIfClauses": []
     },
     {
       "type": "AssignmentExpression",
@@ -130,7 +130,7 @@
           }
         ]
       },
-      "orClauses": []
+      "elseIfClauses": []
     },
     {
       "type": "FunctionCall",
@@ -282,7 +282,7 @@
           }
         ]
       },
-      "orClauses": []
+      "elseIfClauses": []
     },
     {
       "type": "BooleanLiteral",

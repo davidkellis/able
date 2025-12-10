@@ -19,7 +19,7 @@ describe("Heap") { suite =>
   }
 
   suite.it("supports peek without removal") { _ctx =>
-    heap: Heap string := Heap.new()
+    heap: Heap String := Heap.new()
     heap.push("c")
     heap.push("a")
     heap.push("b")

@@ -5,11 +5,11 @@
       "kind": "array",
       "elements": [
         {
-          "kind": "string",
+          "kind": "String",
           "value": "counter:0counter:1"
         },
         {
-          "kind": "string",
+          "kind": "String",
           "value": "fancy:fbasic:b"
         }
       ]

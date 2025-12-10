@@ -5,8 +5,8 @@ import { InterpreterV10 } from "../../src/interpreter";
 describe("v11 interpreter - primitives", () => {
   const I = new InterpreterV10();
 
-  test("string, bool, char, nil", () => {
-    expect(I.evaluate(AST.stringLiteral("hi")).kind).toBe("string");
+  test("String, bool, char, nil", () => {
+    expect(I.evaluate(AST.stringLiteral("hi")).kind).toBe("String");
     expect(I.evaluate(AST.booleanLiteral(true))).toEqual({ kind: "bool", value: true });
     expect(I.evaluate(AST.charLiteral("x"))).toEqual({ kind: "char", value: "x" });
     expect(I.evaluate(AST.nilLiteral())).toEqual({ kind: "nil", value: null });
@@ -19,7 +19,7 @@ describe("v11 interpreter - primitives", () => {
 
   test("array literal evaluates elements", () => {
     const arr = AST.arrayLiteral([AST.integerLiteral(1), AST.stringLiteral("a")]);
-    expect(I.evaluate(arr)).toEqual({ kind: "array", elements: [{ kind: "i32", value: 1n }, { kind: "string", value: "a" }] });
+    expect(I.evaluate(arr)).toEqual({ kind: "array", elements: [{ kind: "i32", value: 1n }, { kind: "String", value: "a" }] });
   });
 
   test("explicit integer suffix preserved", () => {

@@ -105,7 +105,7 @@ fn main() -> i32 {
 	if len(check.Diagnostics) == 0 {
 		t.Fatalf("expected diagnostics for invalid program")
 	}
-	if want := "returns string, expected i32"; !strings.Contains(check.Diagnostics[0].Diagnostic.Message, want) {
+	if want := "returns String, expected i32"; !strings.Contains(check.Diagnostics[0].Diagnostic.Message, want) {
 		t.Fatalf("expected diagnostic containing %q, got %q", want, check.Diagnostics[0].Diagnostic.Message)
 	}
 

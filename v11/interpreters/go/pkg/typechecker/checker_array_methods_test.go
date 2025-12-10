@@ -22,7 +22,7 @@ func TestArrayMethodSetOverridesNativeSignatures(t *testing.T) {
 				[]ast.Statement{
 					ast.Ret(ast.Str("ok")),
 				},
-				ast.Ty("string"),
+				ast.Ty("String"),
 				nil,
 				nil,
 				false,
@@ -36,12 +36,12 @@ func TestArrayMethodSetOverridesNativeSignatures(t *testing.T) {
 	probe := ast.Fn(
 		"probe",
 		[]*ast.FunctionParameter{
-			ast.Param("arr", ast.Gen(ast.Ty("Array"), ast.Ty("string"))),
+			ast.Param("arr", ast.Gen(ast.Ty("Array"), ast.Ty("String"))),
 		},
 		[]ast.Statement{
 			ast.Ret(call),
 		},
-		ast.Ty("string"),
+		ast.Ty("String"),
 		nil,
 		nil,
 		false,
@@ -58,7 +58,7 @@ func TestArrayMethodSetOverridesNativeSignatures(t *testing.T) {
 	}
 	if typ, ok := checker.infer[call]; !ok {
 		t.Fatalf("expected inference entry for array size call")
-	} else if typeName(typ) != "string" {
+	} else if typeName(typ) != "String" {
 		t.Fatalf("expected array size to use method set return type, got %q", typeName(typ))
 	}
 }

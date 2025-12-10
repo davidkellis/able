@@ -1,7 +1,7 @@
 package packages.strings
 
-private fn suffix() -> string { "!" }
+private fn suffix() -> String { "!" }
 
-fn shout(text: string) -> string { `${text}${suffix()}` }
+fn shout(text: String) -> String { `${text}${suffix()}` }
 
-fn make_label(prefix: string, n: i32) -> string { `${prefix}-${n}` }
+fn make_label(prefix: String, n: i32) -> String { `${prefix}-${n}` }

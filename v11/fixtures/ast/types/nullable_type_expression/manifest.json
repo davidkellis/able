@@ -2,7 +2,7 @@
   "description": "Function parameter and return use nullable type",
   "expect": {
     "result": {
-      "kind": "string",
+      "kind": "String",
       "value": "ready"
     }
   },

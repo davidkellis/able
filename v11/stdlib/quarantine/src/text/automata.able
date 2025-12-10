@@ -5,11 +5,11 @@ import able.core.interfaces.{Error}
 import able.core.iteration.{Iterator, IteratorEnd}
 
 struct AutomataError {
-  message: string
+  message: String
 }
 
 impl Error for AutomataError {
-  fn message(self: Self) -> string { self.message }
+  fn message(self: Self) -> String { self.message }
   fn cause(self: Self) -> ?Error { nil }
 }
 

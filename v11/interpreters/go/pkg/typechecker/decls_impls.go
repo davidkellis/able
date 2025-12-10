@@ -198,14 +198,18 @@ func (c *declarationCollector) collectMethodsDefinition(def *ast.MethodsDefiniti
 			})
 			continue
 		}
-		if _, exists := methods[fn.ID.Name]; exists {
-			// Allow overload-like duplicates by keeping the first declaration.
+		name := fn.ID.Name
+		if existing, exists := methods[name]; exists {
+			// Flag overloaded method sets as unknown to avoid mismatched arity diagnostics.
+			if !isUnknownFunctionSignature(existing) {
+				methods[name] = FunctionType{Return: UnknownType{}}
+			}
 			continue
 		}
 		methodOwner := fmt.Sprintf("%s::%s", methodsLabel, functionName(fn))
 		fnType := c.functionTypeFromDefinition(fn, scope, methodOwner, fn)
 		fnType = applyImplicitSelfParam(fn, fnType, targetType)
-		methods[fn.ID.Name] = fnType
+		methods[name] = fnType
 	}
 
 	spec := &MethodSetSpec{

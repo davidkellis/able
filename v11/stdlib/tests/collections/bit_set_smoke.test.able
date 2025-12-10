@@ -3,12 +3,12 @@ package collections.bit_set.tests
 import able.collections.array.{Array}
 import able.collections.bit_set.{BitSet}
 
-fn assert(condition: bool, message: string) -> void {
+fn assert(condition: bool, message: String) -> void {
   if condition { return }
   raise message
 }
 
-fn expect_i32(value: ?i32, expected: i32, message: string) -> void {
+fn expect_i32(value: ?i32, expected: i32, message: String) -> void {
   value match {
     case actual: i32 => assert(actual == expected, message),
     case nil => { raise message }

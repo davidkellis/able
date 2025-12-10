@@ -3,7 +3,7 @@ package leetcode3
 import able.collections.array
 
 ## Computes the length of the longest sequence of unique characters.
-## The input is an array of characters to avoid relying on string indexing.
+## The input is an array of characters to avoid relying on String indexing.
 fn longest_unique_span(chars: Array char) -> i32 {
   best := 0
   size := chars.size()

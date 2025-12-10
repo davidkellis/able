@@ -4,7 +4,7 @@ import able.testing.rspec.{describe, expect, eq}
 import able.core.interfaces{Error}
 import able.text.string.{String}
 
-fn s(value: string) -> String {
+fn s(value: String) -> String {
   match String::from_builtin(value) {
     case ok: String => ok,
     case err: Error => raise err

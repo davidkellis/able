@@ -32,15 +32,15 @@ import able.testing.registry.{framework_by_id}
 import able.core.interfaces.{Error}
 
 struct SampleError {
-  label: string
+  label: String
 }
 
 impl Error for SampleError {
-  fn message(self: Self) -> string { self.label }
+  fn message(self: Self) -> String { self.label }
   fn cause(self: Self) -> ?Error { nil }
 }
 
-fn raise_sample(label: string) -> void {
+fn raise_sample(label: String) -> void {
   raise SampleError { label }
 }
 
@@ -84,22 +84,22 @@ describe("able.testing assertions") { suite =>
   }
 
   suite.it("asserts array containment") { _ctx =>
-    let mut values: Array string = Array.new()
+    let mut values: Array String = Array.new()
     values.push("a")
     values.push("b")
     expect(values).to(contain("b"))
   }
 
   suite.it("fails array containment when missing") { _ctx =>
-    let values: Array string = Array.new()
+    let values: Array String = Array.new()
     expect(fn() { expect(values).to(contain("missing")) }).to(raise_error())
   }
 
   suite.it("checks multiple containment") { _ctx =>
-    let mut values: Array string = Array.new()
+    let mut values: Array String = Array.new()
     values.push("a")
     values.push("b")
-    let mut expected: Array string = Array.new()
+    let mut expected: Array String = Array.new()
     expected.push("a")
     expect(values).to(contain_all(expected))
   }
@@ -144,11 +144,11 @@ describe("able.testing assertions") { suite =>
   }
 
   suite.it("supports custom snapshot stores") { _ctx =>
-    let mut stored: ?string = nil
+    let mut stored: ?String = nil
     let mut update = true
     let store = SnapshotStore(
-      fn(_name: string) -> ?string { stored },
-      fn(_name: string, value: string) -> void { stored = value },
+      fn(_name: String) -> ?String { stored },
+      fn(_name: String, value: String) -> void { stored = value },
       fn() -> bool { update }
     )
 
@@ -172,7 +172,7 @@ describe("able.testing assertions") { suite =>
       "expected value to be even",
       "expected value to be odd",
       fn(value: i64) -> bool { value % 2 == 0 },
-      fn(value: i64) -> ?string { `actual ${value}` }
+      fn(value: i64) -> ?String { `actual ${value}` }
     )
     expect(fn() { expect(5).to(even_with_details) }).to(raise_error())
   }

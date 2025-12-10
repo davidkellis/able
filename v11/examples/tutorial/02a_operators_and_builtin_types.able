@@ -1,18 +1,18 @@
 package tutorial.operators
 
-## Built-in scalar types: integers, floats, bool, char, string, nil, void.
+## Built-in scalar types: integers, floats, bool, char, String, nil, void.
 fn scalar_showcase() -> void {
   lang := "Able"
   major_version: i32 := 11
   release: f64 := 11.0
   initial: char := 'A'
   is_stable := true
-  nothing: ?string := nil
+  nothing: ?String := nil
 
   print(`Language: ${lang} v${release}`)
   print(`Major version as i32: ${major_version}`)
   print(`Char literal: ${initial}`)
-  print(`Booleans drive control flow: ${if is_stable { "stable" } or { "nightly" }}`)
+print(`Booleans drive control flow: ${if is_stable { "stable" } else { "nightly" }}`)
   print(`Optional unwrap with else: ${nothing else { "unset" }}`)
 }
 
@@ -24,7 +24,7 @@ fn numeric_operators(a: i32, b: i32) -> void {
   print(`product (*): ${a * b}`)
   print(`float division (/): ${a / b}`) ## integer / integer promotes to f64
   print(`floor division (//): ${a // b}`)
-  print(`modulo (%%): ${a %% b}`)
+  print(`modulo (%): ${a % b}`)
 
   pair := a /% b
   print(`div + mod (/%): q=${pair.quotient}, r=${pair.remainder}`)

@@ -37,7 +37,7 @@
 | Pipe operator (`|>`) — basic chain | §6.3.2 | `pipes/member_topic` | `TestParsePipeChainExpression` | Done | Chain parsing covered, but topic/placeholders tracked separately. |
 | Pipe operator (`|>`) — topic / placeholder combos | §6.3.2, §7.6.1 | `pipes/topic_placeholder` | `TestParsePipeTopicAndPlaceholderSteps` | Done | Covers `%` arithmetic, placeholder-generated callables, and topic method calls; extend when new pipe forms land. |
 | Block expression (`do {}`) | §6.2 | `expressions/block_expression` | `TestParseExpressionFixtures` | Done | Block fixture parsed via expression suite. |
-| If / if-or / else | §6.5 | `control/if_else_branch`, `control/if_or_else` | `TestParseIfOrExpression` | Done | Parser test exercises chained `or` clauses with a trailing default block. |
+| If / elsif / else | §6.5 | `control/if_else_branch`, `control/if_or_else` | `TestParseIfExpression` | Done | Parser test exercises elsif chains with a trailing default block. |
 | Match expression (identifier + literal) | §6.5 / §4.6 | `match/identifier_literal`, `match/guard_clause`, `match/wildcard_pattern` | `TestParseMatchFixtures`, `TestParseMatchExpression` | Done | Parser fixtures now cover literal, identifier, guard, and wildcard fallback match clauses. |
 | Match expression (struct guard) | §6.5 | `match/struct_guard`, `match/struct_positional_pattern` | `TestParseMatchFixtures`, `TestParseMatchExpression` | Done | Fixture suite now covers guarded named matches and positional struct destructuring. |
 | Lambda expression (inline) | §6.4 | `functions/lambda_expression` | `TestParseLambdaExpressionLiteral` | Done | Parser now asserts standalone lambdas assigned to locals. |

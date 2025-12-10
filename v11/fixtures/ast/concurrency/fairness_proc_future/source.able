@@ -25,7 +25,7 @@ future := spawn {
     proc_yield()
     0
   }
-or stage_future == 1 {
+elsif stage_future == 1 {
     future_stage2_safe = stage_proc >= 2
     0
     stage_future = 2

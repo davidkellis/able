@@ -2,7 +2,7 @@
   "description": "Result handlers can call Error.message()/cause()/value",
   "expect": {
     "result": {
-      "kind": "string",
+      "kind": "String",
       "value": "close of nil channel|ChannelNil|nil"
     }
   },

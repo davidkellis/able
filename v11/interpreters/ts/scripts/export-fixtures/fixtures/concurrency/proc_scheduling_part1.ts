@@ -54,7 +54,7 @@ export const procSchedulingPart1: Fixture[] = [
         manifest: {
           description: "Proc uses proc_cancelled() after yielding to observe cancellation flag",
           expect: {
-            result: { kind: "string", value: "AC" },
+            result: { kind: "String", value: "AC" },
           },
         },
       },
@@ -363,7 +363,12 @@ export const procSchedulingPart1: Fixture[] = [
                     AST.integerLiteral(0),
                   ]),
                   [
-                    AST.orClause(
+                    AST.elseIfClause(
+                      AST.binaryExpression(
+                        "==",
+                        AST.identifier("stage_future"),
+                        AST.integerLiteral(1),
+                      ),
                       AST.blockExpression([
                         AST.assignmentExpression(
                           "=",
@@ -381,11 +386,6 @@ export const procSchedulingPart1: Fixture[] = [
                           AST.integerLiteral(2),
                         ),
                       ]),
-                      AST.binaryExpression(
-                        "==",
-                        AST.identifier("stage_future"),
-                        AST.integerLiteral(1),
-                      ),
                     ),
                   ],
                 ),
@@ -533,12 +533,8 @@ export const procSchedulingPart1: Fixture[] = [
                   AST.nilLiteral(),
                 ),
                 AST.blockExpression([AST.stringLiteral("no-error")]),
-                [
-                  AST.orClause(
-                    AST.blockExpression([AST.stringLiteral("has-cause")]),
-                    AST.booleanLiteral(true),
-                  ),
-                ],
+                [],
+                AST.blockExpression([AST.stringLiteral("has-cause")]),
               ),
             ),
             AST.stringInterpolation([
@@ -550,7 +546,7 @@ export const procSchedulingPart1: Fixture[] = [
               AST.identifier("flag"),
             ]),
           ]),
-          AST.simpleTypeExpression("string"),
+          AST.simpleTypeExpression("String"),
         ),
         AST.assignmentExpression(
           ":=",
@@ -586,7 +582,7 @@ export const procSchedulingPart1: Fixture[] = [
       manifest: {
         description: "Proc handle errors expose ProcError causes to handlers",
         expect: {
-          result: { kind: "string", value: "Proc failed: boom|has-cause" },
+          result: { kind: "String", value: "Proc failed: boom|has-cause" },
         },
       },
     },

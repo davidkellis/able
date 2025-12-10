@@ -3,30 +3,30 @@ package testing
 import able.collections.array.{Array}
 
 struct SnapshotEntry {
-  name: string,
-  value: string
+  name: String,
+  value: String
 }
 
 struct SnapshotStore {
-  read_fn: string -> ?string,
-  write_fn: (string, string) -> void,
+  read_fn: String -> ?String,
+  write_fn: (String, String) -> void,
   update_fn: () -> bool
 }
 
 fn SnapshotStore(
-  read_fn: string -> ?string,
-  write_fn: (string, string) -> void,
+  read_fn: String -> ?String,
+  write_fn: (String, String) -> void,
   update_fn: () -> bool
 ) -> SnapshotStore {
   SnapshotStore { read_fn, write_fn, update_fn }
 }
 
 impl SnapshotStore {
-  fn read(self: Self, name: string) -> ?string {
+  fn read(self: Self, name: String) -> ?String {
     self.read_fn(name)
   }
 
-  fn write(self: Self, name: string, value: string) -> void {
+  fn write(self: Self, name: String, value: String) -> void {
     self.write_fn(name, value)
   }
 
@@ -52,7 +52,7 @@ fn snapshot_clear() -> void {
 
 fn default_update_mode() -> bool { DEFAULT_UPDATE_MODE }
 
-fn default_read(name: string) -> ?string {
+fn default_read(name: String) -> ?String {
   let mut idx = 0
   loop {
     if idx >= DEFAULT_ENTRIES.len() { break }
@@ -67,7 +67,7 @@ fn default_read(name: string) -> ?string {
   nil
 }
 
-fn default_write(name: string, value: string) -> void {
+fn default_write(name: String, value: String) -> void {
   let mut idx = 0
   loop {
     if idx >= DEFAULT_ENTRIES.len() { break }

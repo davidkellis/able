@@ -4,13 +4,13 @@
     "result": {
       "kind": "array",
       "elements": [
-        { "kind": "string", "value": "box-i32" },
-        { "kind": "string", "value": "box-generic" },
-        { "kind": "string", "value": "box-named" },
-        { "kind": "string", "value": "constraints-ab" },
-        { "kind": "string", "value": "union-narrow" },
-        { "kind": "string", "value": "pair-tail" },
-        { "kind": "string", "value": "box-i32" }
+        { "kind": "String", "value": "box-i32" },
+        { "kind": "String", "value": "box-generic" },
+        { "kind": "String", "value": "box-named" },
+        { "kind": "String", "value": "constraints-ab" },
+        { "kind": "String", "value": "union-narrow" },
+        { "kind": "String", "value": "pair-tail" },
+        { "kind": "String", "value": "box-i32" }
       ]
     }
   },

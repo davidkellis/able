@@ -2,7 +2,7 @@
   "description": "If-or chain picks first matching clause with default fallback",
   "expect": {
     "result": {
-      "kind": "string",
+      "kind": "String",
       "value": "B"
     }
   },

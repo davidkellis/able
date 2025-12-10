@@ -25,13 +25,13 @@ round-trip programs into the shared AST (`design/ast-contract.md`).
   expression (including `rescue`), and `rethrow` stays a standalone statement.
 - Type expressions cover union pipes, function arrows, nullable/result
   shorthands, wildcard placeholders, and space-delimited applications (e.g.,
-  `Array string`, `Self A`), while expressions recognise pipe topics (`%`) and
+  `Array string`, `Self A`), while expressions cover callable-only pipes and
   placeholder lambdas (`@`, `@n`).
 - Corpus directory stubbed at `tree-sitter-able/test/corpus`; add cases once the
   grammar stabilises. Use `npm run test` (alias for `tree-sitter test`) to drive
   regression suites as fixtures land.
 - Next steps: clarify any outstanding `type` alias semantics once the spec
   nails them down, plan the future safe member access operator once it is
-  specced, thread placeholders/topic references into AST generation, populate
-  the corpus, and hook the parser output into AST builders for integration
-  smoke tests.
+  specced, thread placeholder handling into AST generation, populate the
+  corpus, and hook the parser output into AST builders for integration smoke
+  tests.

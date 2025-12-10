@@ -81,7 +81,7 @@ const matchFixtures: Fixture[] = [
       manifest: {
         description: "Wildcard fallback handles unmatched cases",
         expect: {
-          result: { kind: "string", value: "Other" },
+          result: { kind: "String", value: "Other" },
         },
       },
     },

@@ -40,7 +40,7 @@ fn hash_i32(value: i32) -> i32 {
   normalize_hash(mixed)
 }
 
-fn hash_string(value: string) -> i32 {
+fn hash_string(value: String) -> i32 {
   state: i32 = 0
   iter := value.bytes()
   loop {
@@ -61,7 +61,7 @@ fn hash_key<K>(key: K) -> i32 {
   key match {
     case value: i32 => hash_i32(value),
     case value: bool => hash_bool(value),
-    case value: string => hash_string(value),
+    case value: String => hash_string(value),
     case _ => 0
   }
 }

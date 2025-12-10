@@ -6,31 +6,31 @@
       "entries": [
         {
           "key": {
-            "kind": "string",
+            "kind": "String",
             "value": "content-type"
           },
           "value": {
-            "kind": "string",
+            "kind": "String",
             "value": "application/json"
           }
         },
         {
           "key": {
-            "kind": "string",
+            "kind": "String",
             "value": "accept"
           },
           "value": {
-            "kind": "string",
+            "kind": "String",
             "value": "application/json"
           }
         },
         {
           "key": {
-            "kind": "string",
+            "kind": "String",
             "value": "authorization"
           },
           "value": {
-            "kind": "string",
+            "kind": "String",
             "value": "Bearer abc"
           }
         }

@@ -110,7 +110,7 @@
                   }
                 ]
               },
-              "orClauses": []
+              "elseIfClauses": []
             },
             {
               "type": "IfExpression",
@@ -163,7 +163,7 @@
                   }
                 ]
               },
-              "orClauses": []
+              "elseIfClauses": []
             }
           ]
         }
@@ -241,7 +241,7 @@
                   }
                 ]
               },
-              "orClauses": []
+              "elseIfClauses": []
             },
             {
               "type": "IfExpression",
@@ -294,7 +294,7 @@
                   }
                 ]
               },
-              "orClauses": []
+              "elseIfClauses": []
             }
           ]
         }

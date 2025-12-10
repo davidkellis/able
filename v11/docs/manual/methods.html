@@ -50,7 +50,7 @@ methods Counter {
           parameterise with <code>for T</code>/<code>for A B</code> (including
           higher-kinded forms).
         </p>
-        <pre><code class="language-able">interface Display for T { fn to_string(self: Self) -&gt; string }
+        <pre><code class="language-able">interface Display for T { fn to_string(self: Self) -&gt; String }
 interface Iterable T { fn iterator(self: Self) -&gt; (Iterator T) }
 </code></pre>
         <h2 id="impl">8.3 Implementations</h2>
@@ -59,7 +59,7 @@ interface Iterable T { fn iterator(self: Self) -&gt; (Iterator T) }
           generic, higher-kinded, named, or include static methods.
         </p>
         <pre><code class="language-able">impl Display for User {
-  fn to_string(self: Self) -&gt; string { `User(${self.id}, ${self.name})` }
+  fn to_string(self: Self) -&gt; String { `User(${self.id}, ${self.name})` }
 }
 
 Sum = impl Monoid for i32 {
@@ -75,7 +75,7 @@ Sum = impl Monoid for i32 {
         <ul>
           <li>Method-call syntax first checks inherent methods, then applicable <code>impl</code>s in scope.</li>
           <li>Operator sugar routes through standard interfaces (Index/IndexMut, Iterable/Iterator, Apply, arithmetic/bitwise, comparison/hash, Display, Error).</li>
-          <li>Interface types enable dynamic dispatch: <code>fn render(value: Display) -&gt; string { value.to_string() }</code>.</li>
+          <li>Interface types enable dynamic dispatch: <code>fn render(value: Display) -&gt; String { value.to_string() }</code>.</li>
         </ul>
         <footer class="manual-footer">
           Able v11 manual · Methods, Interfaces, Dispatch

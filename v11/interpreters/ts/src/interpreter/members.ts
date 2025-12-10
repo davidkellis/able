@@ -5,30 +5,87 @@ import type { V10Value } from "./values";
 
 declare module "./index" {
   interface InterpreterV10 {
-    tryUfcs(env: Environment, funcName: string, receiver: V10Value): Extract<V10Value, { kind: "bound_method" }> | null;
+    resolveMethodFromPool(
+      env: Environment,
+      funcName: string,
+      receiver: V10Value,
+      opts?: { interfaceName?: string },
+    ): Extract<V10Value, { kind: "bound_method" }> | null;
   }
 }
 
 export function applyMemberAugmentations(cls: typeof InterpreterV10): void {
-  cls.prototype.tryUfcs = function tryUfcs(this: InterpreterV10, env: Environment, funcName: string, receiver: V10Value): Extract<V10Value, { kind: "bound_method" }> | null {
+  cls.prototype.resolveMethodFromPool = function resolveMethodFromPool(
+    this: InterpreterV10,
+    env: Environment,
+    funcName: string,
+    receiver: V10Value,
+    opts?: { interfaceName?: string },
+  ): Extract<V10Value, { kind: "bound_method" }> | null {
+    const typeName = this.getTypeNameForValue(receiver);
+    let typeArgs = receiver.kind === "struct_instance" ? receiver.typeArguments : undefined;
+    const typeArgMap = receiver.kind === "struct_instance" ? receiver.typeArgMap : undefined;
+    if (!typeArgs) {
+      if (receiver.kind === "array") {
+        typeArgs = [AST.wildcardTypeExpression()];
+      }
+    }
+    const seen = new Set<Extract<V10Value, { kind: "function" }>>();
+    const candidates: Array<Extract<V10Value, { kind: "function" }>> = [];
+
+    const addCandidate = (
+      callable: Extract<V10Value, { kind: "function" | "function_overload" }> | null,
+      privacyContext?: string,
+    ): void => {
+      if (!callable) return;
+      const functions = callable.kind === "function_overload" ? callable.overloads : [callable];
+      for (const fn of functions) {
+        if (!fn) continue;
+        if (fn.node?.type === "FunctionDefinition" && fn.node.isPrivate) {
+          if (privacyContext) {
+            throw new Error(`Method '${funcName}' on ${privacyContext} is private`);
+          }
+          continue;
+        }
+        if (seen.has(fn)) {
+          continue;
+        }
+        seen.add(fn);
+        candidates.push(fn);
+      }
+    };
+
+    if (typeName) {
+      const bucket = this.inherentMethods.get(typeName);
+      const inherent = bucket?.get(funcName);
+      const instanceCallable = inherent ? selectInstanceCallable(inherent, receiver, this) : null;
+      addCandidate(instanceCallable, typeName);
+      const preExisting = candidates.length;
+      let method: Extract<V10Value, { kind: "function" | "function_overload" }> | null = null;
+      try {
+        method = this.findMethod(typeName, funcName, {
+          typeArgs,
+          typeArgMap,
+          interfaceName: opts?.interfaceName,
+          includeInherent: false,
+        });
+      } catch (err) {
+        if (!preExisting) throw err;
+      }
+      addCandidate(method, typeName);
+    }
     try {
       const candidate = env.get(funcName);
       if (candidate && (candidate.kind === "function" || candidate.kind === "function_overload")) {
         const ufcs = selectUfcsCallable(candidate, receiver, this);
-        if (ufcs) {
-          return { kind: "bound_method", func: ufcs, self: receiver };
-        }
+        addCandidate(ufcs);
       }
     } catch {}
-    const typeName = this.getTypeNameForValue(receiver);
-    if (!typeName) return null;
-    const bucket = this.inherentMethods.get(typeName);
-    if (!bucket) return null;
-    const method = bucket.get(funcName);
-    if (!method) return null;
-    const instanceCallable = selectInstanceCallable(method, receiver, this);
-    if (!instanceCallable) return null;
-    return { kind: "bound_method", func: instanceCallable, self: receiver };
+
+    if (!candidates.length) return null;
+    const callable: Extract<V10Value, { kind: "function" | "function_overload" }> =
+      candidates.length === 1 ? candidates[0]! : { kind: "function_overload", overloads: candidates };
+    return { kind: "bound_method", func: callable, self: receiver };
   };
 }
 
@@ -86,6 +143,7 @@ function firstParamMatches(
   ctx: InterpreterV10 | undefined,
 ): boolean {
   if (def.type !== "FunctionDefinition") return false;
+  if (def.isMethodShorthand) return true;
   const params = Array.isArray(def.params) ? def.params : [];
   if (!params.length) return false;
   if (!receiver || !ctx?.matchesType) return true;

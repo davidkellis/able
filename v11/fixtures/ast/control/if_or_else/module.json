@@ -44,9 +44,9 @@
             }
           ]
         },
-        "orClauses": [
+        "elseIfClauses": [
           {
-            "type": "OrClause",
+            "type": "ElseIfClause",
             "condition": {
               "type": "BinaryExpression",
               "operator": ">=",
@@ -68,20 +68,17 @@
                 }
               ]
             }
-          },
-          {
-            "type": "OrClause",
-            "body": {
-              "type": "BlockExpression",
-              "body": [
-                {
-                  "type": "StringLiteral",
-                  "value": "C or lower"
-                }
-              ]
-            }
           }
-        ]
+        ],
+        "elseBody": {
+          "type": "BlockExpression",
+          "body": [
+            {
+              "type": "StringLiteral",
+              "value": "C or lower"
+            }
+          ]
+        }
       }
     },
     {

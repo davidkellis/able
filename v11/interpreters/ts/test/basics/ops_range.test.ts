@@ -11,13 +11,13 @@ describe("v11 interpreter - unary/binary ops and ranges", () => {
     expect(I.evaluate(AST.unaryExpression('.~', AST.integerLiteral(0)))).toEqual({ kind: 'i32', value: -1n });
   });
 
-  test("arithmetic & string +", () => {
+  test("arithmetic & String +", () => {
     const add = AST.binaryExpression('+', AST.integerLiteral(2), AST.integerLiteral(3));
     expect(I.evaluate(add)).toEqual({ kind: 'i32', value: 5n });
     const fadd = AST.binaryExpression('+', AST.floatLiteral(1.5), AST.floatLiteral(2.25));
     expect(I.evaluate(fadd)).toEqual({ kind: 'f64', value: 3.75 });
     const s = AST.binaryExpression('+', AST.stringLiteral('a'), AST.stringLiteral('b'));
-    expect(I.evaluate(s)).toEqual({ kind: 'string', value: 'ab' });
+    expect(I.evaluate(s)).toEqual({ kind: 'String', value: 'ab' });
   });
 
   test("logical && || with short-circuit", () => {

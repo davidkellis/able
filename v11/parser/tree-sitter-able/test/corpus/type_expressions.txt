@@ -2,7 +2,7 @@
 Type Expressions
 =================
 
-fn type_examples(arr: Array i32, pair: (i32, string), cb: (i32, string) -> ?Result bool) -> !Iterator string {
+fn type_examples(arr: Array i32, pair: (i32, String), cb: (i32, String) -> ?Result bool) -> !Iterator String {
   nil
 }
 ---
@@ -110,25 +110,27 @@ fn type_examples(arr: Array i32, pair: (i32, string), cb: (i32, string) -> ?Resu
                         (identifier)))))))))))
     (block
       (expression_statement
-        (pipe_expression
-          (matchable_expression
-            (assignment_expression
-              (range_expression
-                (logical_or_expression
-                  (logical_and_expression
-                    (bitwise_or_expression
-                      (bitwise_xor_expression
-                        (bitwise_and_expression
-                          (equality_expression
-                            (comparison_expression
-                              (shift_expression
-                                (additive_expression
-                                  (multiplicative_expression
-                                    (unary_expression
-                                      (exponent_expression
-                                        (postfix_expression
-                                          (primary_expression
-                                            (nil_literal)))))))))))))))))))))))
+        (low_precedence_pipe_expression
+          (assignment_expression
+            (pipe_expression
+              (matchable_expression
+                (pipe_operand_base
+                  (range_expression
+                    (logical_or_expression
+                      (logical_and_expression
+                        (bitwise_or_expression
+                          (bitwise_xor_expression
+                            (bitwise_and_expression
+                              (equality_expression
+                                (comparison_expression
+                                  (shift_expression
+                                    (additive_expression
+                                      (multiplicative_expression
+                                        (unary_expression
+                                          (exponent_expression
+                                            (postfix_expression
+                                              (primary_expression
+                                                (nil_literal)))))))))))))))))))))))))
 
 =======================
 Where Clause Type Constraints
@@ -215,22 +217,24 @@ fn generic_where<T, U>(value: T, other: U) -> bool where T: Display + Clone, U: 
                         (identifier)))))))))))
     (block
       (expression_statement
-        (pipe_expression
-          (matchable_expression
-            (assignment_expression
-              (range_expression
-                (logical_or_expression
-                  (logical_and_expression
-                    (bitwise_or_expression
-                      (bitwise_xor_expression
-                        (bitwise_and_expression
-                          (equality_expression
-                            (comparison_expression
-                              (shift_expression
-                                (additive_expression
-                                  (multiplicative_expression
-                                    (unary_expression
-                                      (exponent_expression
-                                        (postfix_expression
-                                          (primary_expression
-                                            (boolean_literal)))))))))))))))))))))))
+        (low_precedence_pipe_expression
+          (assignment_expression
+            (pipe_expression
+              (matchable_expression
+                (pipe_operand_base
+                  (range_expression
+                    (logical_or_expression
+                      (logical_and_expression
+                        (bitwise_or_expression
+                          (bitwise_xor_expression
+                            (bitwise_and_expression
+                              (equality_expression
+                                (comparison_expression
+                                  (shift_expression
+                                    (additive_expression
+                                      (multiplicative_expression
+                                        (unary_expression
+                                          (exponent_expression
+                                            (postfix_expression
+                                              (primary_expression
+                                                (boolean_literal)))))))))))))))))))))))))

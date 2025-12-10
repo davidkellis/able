@@ -81,24 +81,16 @@
                   }
                 ]
               },
-              "orClauses": [
-                {
-                  "type": "OrClause",
-                  "condition": {
-                    "type": "BooleanLiteral",
-                    "value": true
-                  },
-                  "body": {
-                    "type": "BlockExpression",
-                    "body": [
-                      {
-                        "type": "StringLiteral",
-                        "value": "has-cause"
-                      }
-                    ]
+              "elseIfClauses": [],
+              "elseBody": {
+                "type": "BlockExpression",
+                "body": [
+                  {
+                    "type": "StringLiteral",
+                    "value": "has-cause"
                   }
-                }
-              ]
+                ]
+              }
             }
           },
           {
@@ -136,7 +128,7 @@
         "type": "SimpleTypeExpression",
         "name": {
           "type": "Identifier",
-          "name": "string"
+          "name": "String"
         }
       },
       "isMethodShorthand": false,

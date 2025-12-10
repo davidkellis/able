@@ -103,7 +103,7 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
 
     const procErrorDefAst = AST.structDefinition(
       "ProcError",
-      [AST.structFieldDefinition(AST.simpleTypeExpression("string"), "details")],
+      [AST.structFieldDefinition(AST.simpleTypeExpression("String"), "details")],
       "named"
     );
     const pendingDefAst = AST.structDefinition("Pending", [], "named");
@@ -253,14 +253,14 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
   };
 
   cls.prototype.makeProcError = function makeProcError(this: InterpreterV10, details: string): V10Value {
-    return this.makeNamedStructInstance(this.procErrorStruct, [["details", { kind: "string", value: details }]]);
+    return this.makeNamedStructInstance(this.procErrorStruct, [["details", { kind: "String", value: details }]]);
   };
 
   cls.prototype.getProcErrorDetails = function getProcErrorDetails(this: InterpreterV10, procError: V10Value): string {
     if (procError.kind === "struct_instance" && procError.def.id.name === "ProcError") {
       const map = procError.values as Map<string, V10Value>;
       const detailsVal = map.get("details");
-      if (detailsVal && detailsVal.kind === "string") return detailsVal.value;
+      if (detailsVal && detailsVal.kind === "String") return detailsVal.value;
     }
     return "unknown failure";
   };

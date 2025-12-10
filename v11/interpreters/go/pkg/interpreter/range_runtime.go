@@ -33,7 +33,7 @@ func (i *Interpreter) typeExpressionForValue(val runtime.Value) ast.TypeExpressi
 	case runtime.FloatValue:
 		return ast.NewSimpleTypeExpression(ast.NewIdentifier(string(v.TypeSuffix)))
 	case runtime.StringValue:
-		return ast.NewSimpleTypeExpression(ast.NewIdentifier("string"))
+		return ast.NewSimpleTypeExpression(ast.NewIdentifier("String"))
 	case runtime.BoolValue:
 		return ast.NewSimpleTypeExpression(ast.NewIdentifier("bool"))
 	case runtime.CharValue:
@@ -71,7 +71,7 @@ func (i *Interpreter) describeRuntimeType(val runtime.Value) string {
 	case runtime.FloatValue:
 		return string(v.TypeSuffix)
 	case runtime.StringValue:
-		return "string"
+		return "String"
 	case runtime.BoolValue:
 		return "bool"
 	case runtime.CharValue:

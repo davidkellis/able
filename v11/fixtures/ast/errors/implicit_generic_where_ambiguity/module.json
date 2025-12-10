@@ -42,7 +42,7 @@
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
-              "name": "string"
+              "name": "String"
             }
           }
         }

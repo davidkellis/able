@@ -1,4 +1,4 @@
-fn maybe_identity(value: ?string) -> ?string {
+fn maybe_identity(value: ?String) -> ?String {
   value
 }
 maybe_identity("ready")

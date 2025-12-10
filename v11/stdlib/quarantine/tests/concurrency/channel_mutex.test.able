@@ -7,17 +7,17 @@ import able.concurrency.mutex{Mutex, with_lock}
 
 describe("Channel") { suite =>
   suite.it("supports send/receive/close operations") { _ctx =>
-    channel: Channel string := Channel.new(1)
+    channel: Channel String := Channel.new(1)
     channel.send("hello")
 
     match channel.receive() {
-      case value: string => expect(value).to(eq("hello")),
+      case value: String => expect(value).to(eq("hello")),
       case nil => raise AssertionError { message: "expected channel value", details: nil, location: nil }
     }
 
     expect(channel.try_send("world")).to(be_truthy())
     match channel.try_receive() {
-      case value: string => expect(value).to(eq("world")),
+      case value: String => expect(value).to(eq("world")),
       case nil => raise AssertionError { message: "expected try_receive value", details: nil, location: nil }
     }
 

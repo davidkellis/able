@@ -5,7 +5,7 @@ struct Point {
   y: i32
 }
 
-fn classify(point: Point) -> string {
+fn classify(point: Point) -> String {
   point match {
     case Point { x, y } if x == 0 && y == 0 => "origin",
     case Point { x, y } if x == y => `diagonal (${x})`,

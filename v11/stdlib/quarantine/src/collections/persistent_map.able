@@ -44,7 +44,7 @@ struct HamtDissocResult K V {
 }
 
 extern fn __able_hasher_create() -> i64;
-extern fn __able_hasher_write(handle: i64, bytes: string) -> void;
+extern fn __able_hasher_write(handle: i64, bytes: String) -> void;
 extern fn __able_hasher_finish(handle: i64) -> u64;
 
 struct RuntimeHasher {
@@ -53,7 +53,7 @@ struct RuntimeHasher {
 
 impl Hasher for RuntimeHasher {
   fn finish(self: Self) -> u64 { __able_hasher_finish(self.handle) }
-  fn write_bytes(self: Self, bytes: string) -> void { __able_hasher_write(self.handle, bytes) }
+  fn write_bytes(self: Self, bytes: String) -> void { __able_hasher_write(self.handle, bytes) }
 }
 
 fn make_hasher() -> RuntimeHasher { RuntimeHasher { handle: __able_hasher_create() } }

@@ -21,7 +21,9 @@ function insertFunction(
   bucket: Map<string, Extract<V10Value, { kind: "function" | "function_overload" }>>,
   name: string,
   fn: Extract<V10Value, { kind: "function" }>,
+  priority = 0,
 ): void {
+  (fn as any).methodResolutionPriority = priority;
   const existing = bucket.get(name);
   if (!existing) {
     bucket.set(name, fn);
@@ -59,7 +61,7 @@ export function evaluateMethodsDefinition(ctx: InterpreterV10, node: AST.Methods
   if (!ctx.inherentMethods.has(typeName)) ctx.inherentMethods.set(typeName, new Map());
   const bucket = ctx.inherentMethods.get(typeName)!;
   for (const def of node.definitions) {
-    insertFunction(bucket, def.id.name, { kind: "function", node: def, closureEnv: env });
+    insertFunction(bucket, def.id.name, { kind: "function", node: def, closureEnv: env }, 0);
   }
   return NIL;
 }
@@ -71,7 +73,7 @@ export function evaluateImplementationDefinition(ctx: InterpreterV10, node: AST.
     : undefined;
   const funcs = new Map<string, Extract<V10Value, { kind: "function" | "function_overload" }>>();
   for (const def of node.definitions) {
-    insertFunction(funcs, def.id.name, { kind: "function", node: def, closureEnv: env });
+    insertFunction(funcs, def.id.name, { kind: "function", node: def, closureEnv: env }, -1);
   }
   ctx.attachDefaultInterfaceMethods(node, funcs);
   if (node.implName) {

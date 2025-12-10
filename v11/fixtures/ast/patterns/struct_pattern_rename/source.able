@@ -1,10 +1,10 @@
 struct Address {
-  street: string,
-  city: string,
+  street: String,
+  city: String,
   zip: i32
 }
 struct Person {
-  name: string,
+  name: String,
   age: i32,
   address: Address
 }

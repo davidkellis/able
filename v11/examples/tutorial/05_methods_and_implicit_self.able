@@ -1,9 +1,9 @@
 package tutorial.methods
 
-struct Counter { value: i32, label: string }
+struct Counter { value: i32, label: String }
 
 methods Counter {
-  fn new(label: string) -> Counter { Counter { value: 0, label: label } }
+  fn new(label: String) -> Counter { Counter { value: 0, label: label } }
 
   fn increment(self: Self) -> void { self.value = self.value + 1 }
 
@@ -12,16 +12,16 @@ methods Counter {
     self.value
   }
 
-  fn rename(self: Self, to: string) -> Counter {
+  fn rename(self: Self, to: String) -> Counter {
     Counter { value: self.value, label: to }
   }
 
-  fn describe(self: Self) -> string {
+  fn describe(self: Self) -> String {
     `${self.label}: ${self.value}`
   }
 }
 
-fn tag(counter: Counter, prefix: string) -> string {
+fn tag(counter: Counter, prefix: String) -> String {
   `${prefix} ${counter.describe()}`
 }
 

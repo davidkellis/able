@@ -16,8 +16,8 @@ describe("array helpers", () => {
   });
 });
 
-describe("string helpers", () => {
-  test("native string helpers are absent without stdlib import", () => {
+describe("String helpers", () => {
+  test("native String helpers are absent without stdlib import", () => {
     const I = new InterpreterV10();
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("s"), AST.stringLiteral("hi")));
     expect(() => I.evaluate(methodCall(AST.identifier("s"), "len_bytes"))).toThrow();

@@ -188,13 +188,13 @@ export async function readPackageName(manifestPath: string): Promise<string | nu
 }
 
 export async function indexSourceFiles(
-  rootDir: string,
-  rootName: string,
-): Promise<{ packages: Map<string, PackageLocation>; fileToPackage: Map<string, string> }> {
-  const packages = new Map<string, PackageLocation>();
-  const fileToPackage = new Map<string, string>();
+  rootDir: String,
+  rootName: String,
+): Promise<{ packages: Map<String, PackageLocation>; fileToPackage: Map<String, String> }> {
+  const packages = new Map<String, PackageLocation>();
+  const fileToPackage = new Map<String, String>();
 
-  async function walk(current: string) {
+  async function walk(current: String) {
     const entries = await fs.readdir(current, { withFileTypes: true });
     for (const entry of entries) {
       const fullPath = path.join(current, entry.name);
@@ -230,7 +230,7 @@ export async function indexSourceFiles(
   return { packages, fileToPackage };
 }
 
-export async function scanPackageDeclaration(filePath: string): Promise<string[] | null> {
+export async function scanPackageDeclaration(filePath: String): Promise<String[] | null> {
   try {
     const data = await fs.readFile(filePath, "utf8");
     const lines = data.split(/\r?\n/);
@@ -266,12 +266,12 @@ export async function scanPackageDeclaration(filePath: string): Promise<string[]
 }
 
 export function buildPackageSegments(
-  rootDir: string,
-  rootPackage: string,
-  filePath: string,
-  declared: string[],
-): string[] {
-  const segments: string[] = [sanitizeSegment(rootPackage) || "pkg"];
+  rootDir: String,
+  rootPackage: String,
+  filePath: String,
+  declared: String[],
+): String[] {
+  const segments: String[] = [sanitizeSegment(rootPackage) || "pkg"];
   const declaredSegments = declared.map((seg) => sanitizeSegment(seg)).filter(Boolean);
   if (declaredSegments.length > 0) {
     segments.push(...declaredSegments);
@@ -297,12 +297,12 @@ export function buildPackageSegments(
 }
 
 export function buildPackageSegmentsForModule(
-  rootDir: string,
-  rootPackage: string,
-  filePath: string,
+  rootDir: String,
+  rootPackage: String,
+  filePath: String,
   module: AST.Module,
-): { segments: string[]; isPrivate: boolean } {
-  const declaredSegments: string[] = [];
+): { segments: String[]; isPrivate: boolean } {
+  const declaredSegments: String[] = [];
   let isPrivate = false;
   if (module.package) {
     isPrivate = Boolean(module.package.isPrivate);
@@ -316,16 +316,16 @@ export function buildPackageSegmentsForModule(
   return { segments, isPrivate };
 }
 
-export function sanitizeSegment(value: string): string {
+export function sanitizeSegment(value: String): String {
   return value.trim().replace(/-/g, "_");
 }
 
-function extractErrorMessage(err: unknown): string {
+function extractErrorMessage(err: unknown): String {
   if (!err) return "";
   if (typeof err === "string") return err;
   if (err instanceof Error) return err.message;
   if (typeof err === "object" && err) {
-    const anyErr = err as Record<string, unknown>;
+    const anyErr = err as Record<String, unknown>;
     if (typeof anyErr.message === "string") return anyErr.message;
   }
   return String(err);

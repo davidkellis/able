@@ -2,7 +2,7 @@
   "description": "Interpolates literals and expressions",
   "expect": {
     "result": {
-      "kind": "string",
+      "kind": "String",
       "value": "x = 2, sum = 7"
     }
   },

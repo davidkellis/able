@@ -3,10 +3,10 @@
   "expect": {
     "errors": [
       "Logical operands must be bool",
-      "typechecker: '&&' left operand must be bool (got string)"
+      "typechecker: '&&' left operand must be bool (got String)"
     ],
     "typecheckDiagnostics": [
-      "typechecker: fixtures/ast/errors/logic_operand_type/source.able:1:11 typechecker: '&&' left operand must be bool (got string)"
+      "typechecker: fixtures/ast/errors/logic_operand_type/source.able:1:11 typechecker: '&&' left operand must be bool (got String)"
     ]
   },
   "entry": "source.able"

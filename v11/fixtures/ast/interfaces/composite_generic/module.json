@@ -22,7 +22,7 @@
           ],
           "returnType": {
             "type": "SimpleTypeExpression",
-            "name": { "type": "Identifier", "name": "string" }
+            "name": { "type": "Identifier", "name": "String" }
           }
         }
       ]
@@ -48,7 +48,7 @@
           "arguments": [
             {
               "type": "SimpleTypeExpression",
-              "name": { "type": "Identifier", "name": "string" }
+              "name": { "type": "Identifier", "name": "String" }
             }
           ]
         },

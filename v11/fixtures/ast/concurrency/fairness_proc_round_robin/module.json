@@ -102,7 +102,7 @@
                   }
                 ]
               },
-              "orClauses": []
+              "elseIfClauses": []
             },
             {
               "type": "IfExpression",
@@ -155,7 +155,7 @@
                   }
                 ]
               },
-              "orClauses": []
+              "elseIfClauses": []
             },
             {
               "type": "IntegerLiteral",
@@ -217,7 +217,7 @@
                   }
                 ]
               },
-              "orClauses": []
+              "elseIfClauses": []
             },
             {
               "type": "IfExpression",
@@ -270,7 +270,7 @@
                   }
                 ]
               },
-              "orClauses": []
+              "elseIfClauses": []
             },
             {
               "type": "IntegerLiteral",

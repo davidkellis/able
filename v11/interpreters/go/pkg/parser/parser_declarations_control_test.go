@@ -7,7 +7,7 @@ import (
 )
 
 func TestParseImplicitMethods(t *testing.T) {
-	source := "struct Counter {\n  value: i32,\n}\n\nmethods Counter {\n  fn #increment() {\n    #value = #value + 1\n  }\n\n  fn #add(amount: i32) {\n    #value = #value + amount\n  }\n}\n\nimpl Display for Counter {\n  fn #to_string() -> string {\n    `Counter(${#value})`\n  }\n}\n"
+	source := "struct Counter {\n  value: i32,\n}\n\nmethods Counter {\n  fn #increment() {\n    #value = #value + 1\n  }\n\n  fn #add(amount: i32) {\n    #value = #value + amount\n  }\n}\n\nimpl Display for Counter {\n  fn #to_string() -> String {\n    `Counter(${#value})`\n  }\n}\n"
 
 	p, err := NewModuleParser()
 	if err != nil {
@@ -92,7 +92,7 @@ func TestParseImplicitMethods(t *testing.T) {
 				ast.ID("to_string"),
 				nil,
 				toStringBody,
-				ast.Ty("string"),
+				ast.Ty("String"),
 				nil,
 				nil,
 				true,
@@ -243,7 +243,7 @@ func TestParseFunctionCallWithTypeArguments(t *testing.T) {
 }
 
 func TestParseFunctionTypeMultiParam(t *testing.T) {
-	source := `fn register(handler: (i32, string) -> void) {}`
+	source := `fn register(handler: (i32, String) -> void) {}`
 
 	p, err := NewModuleParser()
 	if err != nil {
@@ -257,7 +257,7 @@ func TestParseFunctionTypeMultiParam(t *testing.T) {
 	}
 
 	paramType := ast.NewFunctionTypeExpression(
-		[]ast.TypeExpression{ast.Ty("i32"), ast.Ty("string")},
+		[]ast.TypeExpression{ast.Ty("i32"), ast.Ty("String")},
 		ast.Ty("void"),
 	)
 	fn := ast.NewFunctionDefinition(
@@ -479,7 +479,7 @@ func TestParseWhileLoopWithBreakAndContinue(t *testing.T) {
 	source := `value := 0
 while value < 10 {
   value += 1
-  if value %% 2 == 0 {
+  if value % 2 == 0 {
     continue
   }
   if value == 5 {
@@ -504,18 +504,18 @@ while value < 10 {
 	increment := ast.AssignOp(ast.AssignmentAdd, ast.ID("value"), ast.Int(1))
 
 	modCondition := ast.Bin("==",
-		ast.Bin("%%", ast.ID("value"), ast.Int(2)),
+		ast.Bin("%", ast.ID("value"), ast.Int(2)),
 		ast.Int(0),
 	)
 
 	continueBlock := ast.Block(ast.NewContinueStatement(nil))
 	continueIf := ast.IfExpr(modCondition, continueBlock)
-	continueIf.OrClauses = []*ast.OrClause{}
+	continueIf.ElseIfClauses = []*ast.ElseIfClause{}
 
 	breakCondition := ast.Bin("==", ast.ID("value"), ast.Int(5))
 	breakBlock := ast.Block(ast.NewBreakStatement(nil, ast.ID("value")))
 	breakIf := ast.IfExpr(breakCondition, breakBlock)
-	breakIf.OrClauses = []*ast.OrClause{}
+	breakIf.ElseIfClauses = []*ast.ElseIfClause{}
 
 	whileBody := ast.Block(
 		increment,
@@ -559,7 +559,7 @@ func TestParseLoopExpression(t *testing.T) {
 
 	breakBlock := ast.Block(ast.NewBreakStatement(nil, ast.ID("counter")))
 	breakIf := ast.IfExpr(ast.Bin(">=", ast.ID("counter"), ast.Int(2)), breakBlock)
-	breakIf.OrClauses = []*ast.OrClause{}
+	breakIf.ElseIfClauses = []*ast.ElseIfClause{}
 
 	loopExpr := ast.Loop(breakIf)
 	expected := ast.NewModule(
@@ -605,7 +605,7 @@ loop {
 
 	breakBlock := ast.Block(ast.NewBreakStatement(nil, nil))
 	breakIf := ast.IfExpr(ast.Bin("<", ast.ID("counter"), ast.Int(0)), breakBlock)
-	breakIf.OrClauses = []*ast.OrClause{}
+	breakIf.ElseIfClauses = []*ast.ElseIfClause{}
 
 	loopExpr := ast.Loop(decrement, breakIf)
 
@@ -653,7 +653,7 @@ loop {
 
 	breakBlock := ast.Block(ast.NewBreakStatement(nil, nil))
 	breakIf := ast.IfExpr(ast.Bin("<", ast.ID("counter"), ast.Int(0)), breakBlock)
-	breakIf.OrClauses = []*ast.OrClause{}
+	breakIf.ElseIfClauses = []*ast.ElseIfClause{}
 
 	loopExpr := ast.Loop(decrement, breakIf)
 
@@ -738,7 +738,7 @@ func TestParseReturnStatements(t *testing.T) {
 
 	ifBody := ast.Block(ast.NewReturnStatement(nil))
 	ifExpr := ast.IfExpr(ast.ID("flag"), ifBody)
-	ifExpr.OrClauses = []*ast.OrClause{}
+	ifExpr.ElseIfClauses = []*ast.ElseIfClause{}
 
 	fnBody := ast.Block(
 		ifExpr,

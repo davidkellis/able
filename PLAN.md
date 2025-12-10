@@ -30,7 +30,7 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 - Keep `AGENTS.md` synced with onboarding steps for new contributors.
 - Historical notes + completed milestones now live in `LOG.md`.
 - Keep this `PLAN.md` file up to date with current progress and immediate next actions, but move completed items to `LOG.md`.
-- Status: interface alignment is in place (Apply/Index/Awaitable + stdlib helpers); latest example sweeps surfaced regressions listed below. Next focus is regex stdlib expansions and tutorial cleanup.
+- Status: interface alignment is in place (Apply/Index/Awaitable + stdlib helpers); parity harness is green with the latest sweep saved to `tmp/parity-report.json`; next focus is regex stdlib expansions and tutorial cleanup.
 
 ## Guardrails (must stay true)
 - `v11/interpreters/ts/scripts/run-parity.ts` remains the authoritative entry point for fixtures/examples parity; `./run_all_tests.sh --version=v11` must stay green (TS + Go unit tests, fixture suites, parity CLI). Run the v10 suite only when explicitly asked to investigate archival regressions.
@@ -42,18 +42,10 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 ## TODO (working queue: tackle in order, move completed items to LOG.md)
 
 ### v11 Spec Delta Implementation Plan
-- [ ] **Bitwise operator refactor (dot-prefixed set)**: switch bitwise ops to `.&`/`.|`/.`^`/`.<<`/`.>>`/`.~`.
-   - Grammar/AST/parser: add the new tokens and remove legacy `&`/`|`/`\xor`/`<<`/`>>`/`~` bindings for bitwise semantics.
-   - Runtimes (TS/Go): route dot-prefixed bitwise operators through the existing bitwise execution paths; update compound assignments to the dot-prefixed forms.
-   - Typecheckers: accept and type rules for the dot-prefixed operators; migrate diagnostics to the new spellings.
-   - Fixtures/examples/tests: update tutorials, parity fixtures (e.g., `functions/bitwise_xor_operator`), and any unit tests to the new operator forms; regenerate exported fixtures and baselines.
-- [ ] **Stdlib numeric conversions:** Add explicit conversion helpers on numeric types (e.g., to_f64, to_i64) in the stdlib and wire through TS/Go so examples/tests can rely on them instead of the nonexistent `as` cast.
-- [ ] **Numeric operators & Ratio/DivMod rollout:** Implement the finalized operator set (`/` float, `//` floor div, `%%` modulo, `/%` -> `DivMod`, no bare `%`) and the `Ratio`/`to_r()` surface across spec/runtime/typechecker/stdlib.
-   - Grammar/AST/parser: add tokens for `//`, `%%`, `/%`; remove `%` as modulo; ensure pipeline `%` topic stays reserved.
-   - Runtimes (TS/Go): implement `//`, `%%`, `/%` semantics with Euclidean rules and `DivisionByZeroError`; wire `DivMod<T>` prelude struct; keep compound assignment list in sync.
-   - Typecheckers: enforce operand types/rules for the new operators; model `DivMod<T>` result; adjust literal adoption/promotion for `/` vs `//`.
-   - Stdlib: add `Ratio { num: i64, den: i64 }`, `to_r()` for ints/floats (exact binary expansion, reject NaN/Inf/overflow), Ratio arithmetic/ordering; expose `DivMod` in prelude.
-   - Tests/fixtures/examples: update leetcode7/9 and other examples to use `//`/`%%`/`/%`; add parity/unit tests for negative operands, zero division, Ratio arithmetic; regenerate fixtures as needed.
+- [ ] **UFCS/method resolution unification**: dot-only qualification; unified callable pool (inherent/imported, interface impls in scope, imported free fns); callable field precedence; ambiguity diagnostics; dispatch without pipe transforms. Update resolver/typechecker/runtime, adjust docs/tests.
+- [ ] **Kernel/stdib/deps**: establish `v11/kernel` Able-authored, auto-loaded; stdlib as normal dependency with manifest pin (default bundled); single resolver roots (no stdlib-specific env var). Add loader changes and packaging/doc updates; adjust tests to mirror default boot (kernel always loaded).
+- [ ] **Inherent methods as functions**: ensure `methods`-defined functions are exported like other functions unless `private`; method-call syntax remains sugar for calling a function with receiver as first arg. Align parser/resolvers/docs/tests with this model.
+- [ ] **Stdlib numeric conversions and Ratio/DivMod**: keep `Ratio`/`DivMod` in kernel/stdlib with exact semantics; add conversion helpers (`to_r`, numeric to/from). Wire through TS/Go, typechecker, stdlib, tests.
 - [ ] **Stdlib API expansions (regex, §§6.12 & 14.2)** — **lowest priority; defer until higher items advance.**
    - **Tests:** expand stdlib test suites + fixtures to cover each helper, regex compilation failures, streaming use cases, and confirm both interpreters return identical traces.
 

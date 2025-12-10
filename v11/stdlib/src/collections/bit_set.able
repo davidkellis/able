@@ -15,7 +15,7 @@ fn word_index(bit: i32) -> i32 {
 }
 
 fn bit_mask(bit: i32) -> u64 {
-  1_u64 .<< (bit %% word_bits())
+  1_u64 .<< (bit % word_bits())
 }
 
 fn visit_bits(set: BitSet, visit: i32 -> void) -> void {
