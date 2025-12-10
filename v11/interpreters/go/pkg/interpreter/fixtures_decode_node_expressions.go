@@ -333,17 +333,17 @@ func decodeExpressionNodes(node map[string]any, typ string) (ast.Node, bool, err
 		if !ok {
 			return nil, true, fmt.Errorf("invalid if body %T", bodyNode)
 		}
-		var orClauses []*ast.OrClause
-		if clausesRaw, ok := node["orClauses"].([]any); ok {
-			orClauses = make([]*ast.OrClause, 0, len(clausesRaw))
+		var elseIfClauses []*ast.ElseIfClause
+		if clausesRaw, ok := node["elseIfClauses"].([]any); ok {
+			elseIfClauses = make([]*ast.ElseIfClause, 0, len(clausesRaw))
 			for _, raw := range clausesRaw {
 				clauseNode, ok := raw.(map[string]any)
 				if !ok {
-					return nil, true, fmt.Errorf("invalid or clause %T", raw)
+					return nil, true, fmt.Errorf("invalid elsif clause %T", raw)
 				}
 				bodyRaw, ok := clauseNode["body"].(map[string]any)
 				if !ok {
-					return nil, true, fmt.Errorf("or clause missing body")
+					return nil, true, fmt.Errorf("elsif clause missing body")
 				}
 				bodyNode, err := decodeNode(bodyRaw)
 				if err != nil {
@@ -351,24 +351,36 @@ func decodeExpressionNodes(node map[string]any, typ string) (ast.Node, bool, err
 				}
 				body, ok := bodyNode.(*ast.BlockExpression)
 				if !ok {
-					return nil, true, fmt.Errorf("invalid or clause body %T", bodyNode)
+					return nil, true, fmt.Errorf("invalid elsif clause body %T", bodyNode)
 				}
-				var condition ast.Expression
-				if condRaw, ok := clauseNode["condition"].(map[string]any); ok {
-					condNode, err := decodeNode(condRaw)
-					if err != nil {
-						return nil, true, err
-					}
-					condExpr, ok := condNode.(ast.Expression)
-					if !ok {
-						return nil, true, fmt.Errorf("invalid or clause condition %T", condNode)
-					}
-					condition = condExpr
+				condRaw, ok := clauseNode["condition"].(map[string]any)
+				if !ok {
+					return nil, true, fmt.Errorf("elsif clause missing condition")
 				}
-				orClauses = append(orClauses, ast.NewOrClause(body, condition))
+				condNode, err := decodeNode(condRaw)
+				if err != nil {
+					return nil, true, err
+				}
+				condExpr, ok := condNode.(ast.Expression)
+				if !ok {
+					return nil, true, fmt.Errorf("invalid elsif clause condition %T", condNode)
+				}
+				elseIfClauses = append(elseIfClauses, ast.NewElseIfClause(body, condExpr))
 			}
 		}
-		return ast.NewIfExpression(ifCondition, ifBody, orClauses), true, nil
+		var elseBody *ast.BlockExpression
+		if elseRaw, ok := node["elseBody"].(map[string]any); ok {
+			elseNode, err := decodeNode(elseRaw)
+			if err != nil {
+				return nil, true, err
+			}
+			block, ok := elseNode.(*ast.BlockExpression)
+			if !ok {
+				return nil, true, fmt.Errorf("invalid else body %T", elseNode)
+			}
+			elseBody = block
+		}
+		return ast.NewIfExpression(ifCondition, ifBody, elseIfClauses, elseBody), true, nil
 	case "LambdaExpression":
 		paramsVal, _ := node["parameters"].([]any)
 		if len(paramsVal) == 0 {
@@ -505,8 +517,6 @@ func decodeExpressionNodes(node map[string]any, typ string) (ast.Node, bool, err
 			return nil, true, fmt.Errorf("invalid index expression %T", indexNode)
 		}
 		return ast.NewIndexExpression(object, indexExpr), true, nil
-	case "TopicReferenceExpression":
-		return ast.NewTopicReferenceExpression(), true, nil
 	case "PlaceholderExpression":
 		if idxRaw, ok := node["index"]; ok {
 			switch v := idxRaw.(type) {

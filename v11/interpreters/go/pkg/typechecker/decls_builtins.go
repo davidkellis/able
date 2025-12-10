@@ -185,11 +185,11 @@ func registerBuiltins(env *Environment) {
 		Return: i64Type,
 	})
 
-	env.Define("__able_string_from_builtin", FunctionType{
+	env.Define("__able_String_from_builtin", FunctionType{
 		Params: []Type{stringType},
 		Return: byteArrayType,
 	})
-	env.Define("__able_string_to_builtin", FunctionType{
+	env.Define("__able_String_to_builtin", FunctionType{
 		Params: []Type{byteArrayType},
 		Return: stringType,
 	})
@@ -219,7 +219,7 @@ func registerBuiltins(env *Environment) {
 	displayIface := InterfaceType{
 		InterfaceName: "Display",
 		Methods: map[string]FunctionType{
-			"to_string": {
+			"to_String": {
 				Params: []Type{
 					TypeParameterType{ParameterName: "Self"},
 				},

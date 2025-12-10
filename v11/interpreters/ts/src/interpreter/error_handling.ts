@@ -139,7 +139,7 @@ function coerceToErrorValue(ctx: InterpreterV10, val: V10Value, env: Environment
   try {
     const msgMember = memberAccessOnValue(ctx, errorIface, AST.identifier("message"), env);
     const msgVal = callCallableValue(ctx, msgMember, [], env);
-    if (msgVal.kind === "string") {
+    if (msgVal.kind === "String") {
       message = msgVal.value;
     }
   } catch {

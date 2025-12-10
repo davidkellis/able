@@ -19,8 +19,6 @@ type evalState struct {
 	raiseStack        []runtime.Value
 	breakpoints       []string
 	implicitReceivers []runtime.Value
-	topicStack        []runtime.Value
-	topicUsage        []bool
 	placeholderStack  []placeholderFrame
 	blockFrames       map[*ast.BlockExpression]*blockFrame
 }
@@ -30,8 +28,6 @@ func newEvalState() *evalState {
 		raiseStack:        make([]runtime.Value, 0),
 		breakpoints:       make([]string, 0),
 		implicitReceivers: make([]runtime.Value, 0),
-		topicStack:        make([]runtime.Value, 0),
-		topicUsage:        make([]bool, 0),
 		placeholderStack:  make([]placeholderFrame, 0),
 		blockFrames:       make(map[*ast.BlockExpression]*blockFrame),
 	}
@@ -113,57 +109,13 @@ func (s *evalState) currentImplicitReceiver() (runtime.Value, bool) {
 	return s.implicitReceivers[len(s.implicitReceivers)-1], true
 }
 
-func (s *evalState) pushTopic(val runtime.Value) {
+func (s *evalState) pushPlaceholderFrame(paramCount int, args []runtime.Value) {
 	if s == nil {
 		return
-	}
-	s.topicStack = append(s.topicStack, val)
-	s.topicUsage = append(s.topicUsage, false)
-}
-
-func (s *evalState) popTopic() {
-	if s == nil || len(s.topicStack) == 0 {
-		return
-	}
-	s.topicStack = s.topicStack[:len(s.topicStack)-1]
-	s.topicUsage = s.topicUsage[:len(s.topicUsage)-1]
-}
-
-func (s *evalState) currentTopic() (runtime.Value, bool) {
-	if s == nil || len(s.topicStack) == 0 {
-		return nil, false
-	}
-	return s.topicStack[len(s.topicStack)-1], true
-}
-
-func (s *evalState) markTopicUsed() {
-	if s == nil || len(s.topicUsage) == 0 {
-		return
-	}
-	s.topicUsage[len(s.topicUsage)-1] = true
-}
-
-func (s *evalState) topicWasUsed() bool {
-	if s == nil || len(s.topicUsage) == 0 {
-		return false
-	}
-	return s.topicUsage[len(s.topicUsage)-1]
-}
-
-func (s *evalState) pushPlaceholderFrame(explicit map[int]struct{}, paramCount int, args []runtime.Value) {
-	if s == nil {
-		return
-	}
-	frameExplicit := make(map[int]struct{}, len(explicit))
-	for idx := range explicit {
-		frameExplicit[idx] = struct{}{}
 	}
 	frame := placeholderFrame{
-		args:             args,
-		explicit:         frameExplicit,
-		implicitAssigned: make(map[int]struct{}),
-		nextImplicit:     1,
-		paramCount:       paramCount,
+		args:       args,
+		paramCount: paramCount,
 	}
 	s.placeholderStack = append(s.placeholderStack, frame)
 }
@@ -187,11 +139,8 @@ func (s *evalState) hasPlaceholderFrame() bool {
 }
 
 type placeholderFrame struct {
-	args             []runtime.Value
-	explicit         map[int]struct{}
-	implicitAssigned map[int]struct{}
-	nextImplicit     int
-	paramCount       int
+	args       []runtime.Value
+	paramCount int
 }
 
 func (f *placeholderFrame) valueAt(index int) (runtime.Value, error) {
@@ -199,30 +148,6 @@ func (f *placeholderFrame) valueAt(index int) (runtime.Value, error) {
 		return nil, fmt.Errorf("Placeholder index @%d is out of range", index)
 	}
 	return f.args[index-1], nil
-}
-
-func (f *placeholderFrame) nextImplicitIndex() (int, error) {
-	if f == nil {
-		return 0, fmt.Errorf("placeholder frame missing")
-	}
-	idx := f.nextImplicit
-	if idx < 1 {
-		idx = 1
-	}
-	for idx <= f.paramCount {
-		if _, reserved := f.explicit[idx]; reserved {
-			idx++
-			continue
-		}
-		if _, used := f.implicitAssigned[idx]; used {
-			idx++
-			continue
-		}
-		f.implicitAssigned[idx] = struct{}{}
-		f.nextImplicit = idx + 1
-		return idx, nil
-	}
-	return 0, fmt.Errorf("no implicit placeholder slots available")
 }
 
 // Interpreter drives evaluation of Able v10 AST nodes.

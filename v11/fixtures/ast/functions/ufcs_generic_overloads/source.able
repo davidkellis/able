@@ -12,4 +12,4 @@ fn sum(box: Box i32, delta: i32) -> i32 {
 }
 intBox := Box<i32> { value: 5 }
 boolBox := Box<bool> { value: false }
-[intBox.describe(), boolBox.describe(), intBox |> describe(%), sum(intBox, 2), intBox.sum(3), intBox |> sum(%, 4), boolBox |> describe(%)]
+[intBox.describe(), boolBox.describe(), intBox |> describe, sum(intBox, 2), intBox.sum(3), intBox |> sum(4), boolBox |> describe]

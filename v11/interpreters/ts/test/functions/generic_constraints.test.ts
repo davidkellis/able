@@ -28,10 +28,10 @@ describe("v11 interpreter - generic where-constraints (minimal runtime checks)",
     const call = AST.functionCall(
       AST.identifier("choose_first"),
       [AST.stringLiteral("winner"), AST.integerLiteral(1)],
-      [AST.simpleTypeExpression("string"), AST.simpleTypeExpression("i32")],
+      [AST.simpleTypeExpression("String"), AST.simpleTypeExpression("i32")],
     );
     const value = I.evaluate(call);
-    expect(value).toEqual({ kind: "string", value: "winner" });
+    expect(value).toEqual({ kind: "String", value: "winner" });
   });
 
   test("fn constrained by Interface is enforced at call site", () => {
@@ -39,7 +39,7 @@ describe("v11 interpreter - generic where-constraints (minimal runtime checks)",
 
     // interface Show { fn to_string(self: Self) -> string }
     const show = AST.interfaceDefinition("Show", [
-      AST.functionSignature("to_string", [AST.functionParameter("self", AST.simpleTypeExpression("Self"))], AST.simpleTypeExpression("string")),
+      AST.functionSignature("to_String", [AST.functionParameter("self", AST.simpleTypeExpression("Self"))], AST.simpleTypeExpression("String")),
     ]);
     I.evaluate(show);
 
@@ -57,7 +57,7 @@ describe("v11 interpreter - generic where-constraints (minimal runtime checks)",
       AST.simpleTypeExpression("Point"),
       [
         AST.functionDefinition(
-          "to_string",
+          "to_String",
           [AST.functionParameter("self", AST.simpleTypeExpression("Point"))],
           AST.blockExpression([
             AST.returnStatement(
@@ -80,9 +80,9 @@ describe("v11 interpreter - generic where-constraints (minimal runtime checks)",
       "show_val",
       [AST.functionParameter("x")],
       AST.blockExpression([
-        AST.returnStatement(AST.functionCall(AST.memberAccessExpression(AST.identifier("x"), "to_string"), [])),
+        AST.returnStatement(AST.functionCall(AST.memberAccessExpression(AST.identifier("x"), "to_String"), [])),
       ]),
-      AST.simpleTypeExpression("string"),
+      AST.simpleTypeExpression("String"),
       [AST.genericParameter("T", [AST.interfaceConstraint(AST.simpleTypeExpression("Show"))])],
     );
     I.evaluate(showVal);
@@ -94,11 +94,11 @@ describe("v11 interpreter - generic where-constraints (minimal runtime checks)",
 
     const ok = AST.functionCall(AST.identifier("show_val"), [p], [AST.simpleTypeExpression("Point")]);
     const okVal = I.evaluate(ok);
-    expect(okVal).toEqual({ kind: "string", value: "Point(1, 2)" });
+    expect(okVal).toEqual({ kind: "String", value: "Point(1, 2)" });
 
     // call with unconstrained type (i32) should fail before body executes
     const badCall = AST.functionCall(AST.identifier("show_val"), [AST.integerLiteral(3)], [AST.simpleTypeExpression("i32")]);
-    expect(() => I.evaluate(badCall)).toThrow(/does not satisfy interface 'Show': missing method 'to_string'/);
+    expect(() => I.evaluate(badCall)).toThrow(/does not satisfy interface 'Show': missing method 'to_String'/);
   });
 
   test("mismatched type argument count is rejected", () => {

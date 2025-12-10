@@ -10,7 +10,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
       AST.functionSignature(
         "speak",
         [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
-        AST.simpleTypeExpression("string")
+        AST.simpleTypeExpression("String")
       ),
     ]);
     I.evaluate(speakable);
@@ -31,7 +31,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
           AST.blockExpression([
             AST.returnStatement(AST.stringLiteral("beep inherent")),
           ]),
-          AST.simpleTypeExpression("string")
+          AST.simpleTypeExpression("String")
         ),
       ]
     );
@@ -47,7 +47,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
           AST.blockExpression([
             AST.returnStatement(AST.stringLiteral("beep impl")),
           ]),
-          AST.simpleTypeExpression("string")
+          AST.simpleTypeExpression("String")
         ),
       ]
     );
@@ -60,7 +60,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
     );
 
     const call = AST.functionCall(AST.memberAccessExpression(botLiteral, "speak"), []);
-    expect(I.evaluate(call)).toEqual({ kind: "string", value: "beep inherent" });
+    expect(I.evaluate(call)).toEqual({ kind: "String", value: "beep inherent" });
   });
 
   test("more specific impl wins over generic", () => {
@@ -68,9 +68,9 @@ describe("v11 interpreter - impl resolution semantics", () => {
 
     const show = AST.interfaceDefinition("Show", [
       AST.functionSignature(
-        "to_string",
+        "to_String",
         [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
-        AST.simpleTypeExpression("string")
+        AST.simpleTypeExpression("String")
       ),
     ]);
     I.evaluate(show);
@@ -89,12 +89,12 @@ describe("v11 interpreter - impl resolution semantics", () => {
       AST.simpleTypeExpression("Point"),
       [
         AST.functionDefinition(
-          "to_string",
+          "to_String",
           [AST.functionParameter("self", AST.simpleTypeExpression("Point"))],
           AST.blockExpression([
             AST.returnStatement(AST.stringLiteral("Point inherent")),
           ]),
-          AST.simpleTypeExpression("string")
+          AST.simpleTypeExpression("String")
         ),
       ]
     );
@@ -113,12 +113,12 @@ describe("v11 interpreter - impl resolution semantics", () => {
       AST.genericTypeExpression(AST.simpleTypeExpression("Wrapper"), [AST.simpleTypeExpression("T")]),
       [
         AST.functionDefinition(
-          "to_string",
+          "to_String",
           [AST.functionParameter("self", AST.simpleTypeExpression("Wrapper"))],
           AST.blockExpression([
             AST.returnStatement(AST.stringLiteral("generic")),
           ]),
-          AST.simpleTypeExpression("string")
+          AST.simpleTypeExpression("String")
         ),
       ],
       undefined,
@@ -131,12 +131,12 @@ describe("v11 interpreter - impl resolution semantics", () => {
       AST.genericTypeExpression(AST.simpleTypeExpression("Wrapper"), [AST.simpleTypeExpression("Point")]),
       [
         AST.functionDefinition(
-          "to_string",
+          "to_String",
           [AST.functionParameter("self", AST.simpleTypeExpression("Wrapper"))],
           AST.blockExpression([
             AST.returnStatement(AST.stringLiteral("specific")),
           ]),
-          AST.simpleTypeExpression("string")
+          AST.simpleTypeExpression("String")
         ),
       ]
     );
@@ -156,10 +156,10 @@ describe("v11 interpreter - impl resolution semantics", () => {
     );
 
     const call = AST.functionCall(
-      AST.memberAccessExpression(wrapperPointLiteral, "to_string"),
+      AST.memberAccessExpression(wrapperPointLiteral, "to_String"),
       []
     );
-    expect(I.evaluate(call)).toEqual({ kind: "string", value: "specific" });
+    expect(I.evaluate(call)).toEqual({ kind: "String", value: "specific" });
   });
 
   test("impl with superset constraints is more specific", () => {
@@ -169,7 +169,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
       AST.functionSignature(
         "trait_a",
         [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
-        AST.simpleTypeExpression("string")
+        AST.simpleTypeExpression("String")
       ),
     ]);
     I.evaluate(traitA);
@@ -178,30 +178,30 @@ describe("v11 interpreter - impl resolution semantics", () => {
       AST.functionSignature(
         "trait_b",
         [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
-        AST.simpleTypeExpression("string")
+        AST.simpleTypeExpression("String")
       ),
     ]);
     I.evaluate(traitB);
 
     const show = AST.interfaceDefinition("Show", [
       AST.functionSignature(
-        "to_string",
+        "to_String",
         [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
-        AST.simpleTypeExpression("string")
+        AST.simpleTypeExpression("String")
       ),
     ]);
     I.evaluate(show);
 
     const fancyDef = AST.structDefinition(
       "Fancy",
-      [AST.structFieldDefinition(AST.simpleTypeExpression("string"), "label")],
+      [AST.structFieldDefinition(AST.simpleTypeExpression("String"), "label")],
       "named"
     );
     I.evaluate(fancyDef);
 
     const basicDef = AST.structDefinition(
       "Basic",
-      [AST.structFieldDefinition(AST.simpleTypeExpression("string"), "label")],
+      [AST.structFieldDefinition(AST.simpleTypeExpression("String"), "label")],
       "named"
     );
     I.evaluate(basicDef);
@@ -224,7 +224,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
           AST.blockExpression([
             AST.returnStatement(AST.stringLiteral("A:Fancy")),
           ]),
-          AST.simpleTypeExpression("string")
+          AST.simpleTypeExpression("String")
         ),
       ]
     );
@@ -240,7 +240,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
           AST.blockExpression([
             AST.returnStatement(AST.stringLiteral("B:Fancy")),
           ]),
-          AST.simpleTypeExpression("string")
+          AST.simpleTypeExpression("String")
         ),
       ]
     );
@@ -256,7 +256,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
           AST.blockExpression([
             AST.returnStatement(AST.stringLiteral("A:Basic")),
           ]),
-          AST.simpleTypeExpression("string")
+          AST.simpleTypeExpression("String")
         ),
       ]
     );
@@ -267,7 +267,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
       AST.genericTypeExpression(AST.simpleTypeExpression("Wrapper"), [AST.simpleTypeExpression("T")]),
       [
         AST.functionDefinition(
-          "to_string",
+          "to_String",
           [AST.functionParameter("self", AST.simpleTypeExpression("Wrapper"))],
           AST.blockExpression([
             AST.returnStatement(
@@ -280,7 +280,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
               )
             ),
           ]),
-          AST.simpleTypeExpression("string")
+          AST.simpleTypeExpression("String")
         ),
       ],
       undefined,
@@ -293,7 +293,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
       AST.genericTypeExpression(AST.simpleTypeExpression("Wrapper"), [AST.simpleTypeExpression("T")]),
       [
         AST.functionDefinition(
-          "to_string",
+          "to_String",
           [AST.functionParameter("self", AST.simpleTypeExpression("Wrapper"))],
           AST.blockExpression([
             AST.returnStatement(
@@ -306,7 +306,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
               )
             ),
           ]),
-          AST.simpleTypeExpression("string")
+          AST.simpleTypeExpression("String")
         ),
       ],
       undefined,
@@ -328,10 +328,10 @@ describe("v11 interpreter - impl resolution semantics", () => {
     ], false, "Wrapper", undefined, [AST.simpleTypeExpression("Fancy")]);
 
     const fancyCall = AST.functionCall(
-      AST.memberAccessExpression(fancyWrapper, "to_string"),
+      AST.memberAccessExpression(fancyWrapper, "to_String"),
       []
     );
-    expect(I.evaluate(fancyCall)).toEqual({ kind: "string", value: "B:Fancy" });
+    expect(I.evaluate(fancyCall)).toEqual({ kind: "String", value: "B:Fancy" });
 
     const basicLiteral = AST.structLiteral([
       AST.structFieldInitializer(AST.stringLiteral("b"), "label"),
@@ -342,10 +342,10 @@ describe("v11 interpreter - impl resolution semantics", () => {
     ], false, "Wrapper", undefined, [AST.simpleTypeExpression("Basic")]);
 
     const basicCall = AST.functionCall(
-      AST.memberAccessExpression(basicWrapper, "to_string"),
+      AST.memberAccessExpression(basicWrapper, "to_String"),
       []
     );
-    expect(I.evaluate(basicCall)).toEqual({ kind: "string", value: "A:Basic" });
+    expect(I.evaluate(basicCall)).toEqual({ kind: "String", value: "A:Basic" });
   });
 
   test("impl with where-clause superset constraints is more specific", () => {
@@ -355,7 +355,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
       AST.functionSignature(
         "read",
         [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
-        AST.simpleTypeExpression("string")
+        AST.simpleTypeExpression("String")
       ),
     ]);
     I.evaluate(readable);
@@ -364,30 +364,30 @@ describe("v11 interpreter - impl resolution semantics", () => {
       AST.functionSignature(
         "write",
         [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
-        AST.simpleTypeExpression("string")
+        AST.simpleTypeExpression("String")
       ),
     ]);
     I.evaluate(writable);
 
     const show = AST.interfaceDefinition("Show", [
       AST.functionSignature(
-        "to_string",
+        "to_String",
         [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
-        AST.simpleTypeExpression("string")
+        AST.simpleTypeExpression("String")
       ),
     ]);
     I.evaluate(show);
 
     const fancyDef = AST.structDefinition(
       "Fancy",
-      [AST.structFieldDefinition(AST.simpleTypeExpression("string"), "label")],
+      [AST.structFieldDefinition(AST.simpleTypeExpression("String"), "label")],
       "named"
     );
     I.evaluate(fancyDef);
 
     const basicDef = AST.structDefinition(
       "Basic",
-      [AST.structFieldDefinition(AST.simpleTypeExpression("string"), "label")],
+      [AST.structFieldDefinition(AST.simpleTypeExpression("String"), "label")],
       "named"
     );
     I.evaluate(basicDef);
@@ -410,7 +410,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
           AST.blockExpression([
             AST.returnStatement(AST.stringLiteral("read-fancy")),
           ]),
-          AST.simpleTypeExpression("string")
+          AST.simpleTypeExpression("String")
         ),
       ]
     );
@@ -426,7 +426,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
           AST.blockExpression([
             AST.returnStatement(AST.stringLiteral("write-fancy")),
           ]),
-          AST.simpleTypeExpression("string")
+          AST.simpleTypeExpression("String")
         ),
       ]
     );
@@ -442,7 +442,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
           AST.blockExpression([
             AST.returnStatement(AST.stringLiteral("read-basic")),
           ]),
-          AST.simpleTypeExpression("string")
+          AST.simpleTypeExpression("String")
         ),
       ]
     );
@@ -453,7 +453,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
       AST.genericTypeExpression(AST.simpleTypeExpression("Wrap"), [AST.simpleTypeExpression("T")]),
       [
         AST.functionDefinition(
-          "to_string",
+          "to_String",
           [AST.functionParameter("self", AST.simpleTypeExpression("Wrap"))],
           AST.blockExpression([
             AST.returnStatement(
@@ -466,7 +466,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
               )
             ),
           ]),
-          AST.simpleTypeExpression("string")
+          AST.simpleTypeExpression("String")
         ),
       ],
       undefined,
@@ -485,7 +485,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
       AST.genericTypeExpression(AST.simpleTypeExpression("Wrap"), [AST.simpleTypeExpression("T")]),
       [
         AST.functionDefinition(
-          "to_string",
+          "to_String",
           [AST.functionParameter("self", AST.simpleTypeExpression("Wrap"))],
           AST.blockExpression([
             AST.returnStatement(
@@ -498,7 +498,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
               )
             ),
           ]),
-          AST.simpleTypeExpression("string")
+          AST.simpleTypeExpression("String")
         ),
       ],
       undefined,
@@ -523,10 +523,10 @@ describe("v11 interpreter - impl resolution semantics", () => {
     ], false, "Wrap", undefined, [AST.simpleTypeExpression("Fancy")]);
 
     const fancyCall = AST.functionCall(
-      AST.memberAccessExpression(fancyWrap, "to_string"),
+      AST.memberAccessExpression(fancyWrap, "to_String"),
       []
     );
-    expect(I.evaluate(fancyCall)).toEqual({ kind: "string", value: "write-fancy" });
+    expect(I.evaluate(fancyCall)).toEqual({ kind: "String", value: "write-fancy" });
 
     const basicWrap = AST.structLiteral([
       AST.structFieldInitializer(
@@ -538,10 +538,10 @@ describe("v11 interpreter - impl resolution semantics", () => {
     ], false, "Wrap", undefined, [AST.simpleTypeExpression("Basic")]);
 
     const basicCall = AST.functionCall(
-      AST.memberAccessExpression(basicWrap, "to_string"),
+      AST.memberAccessExpression(basicWrap, "to_String"),
       []
     );
-    expect(I.evaluate(basicCall)).toEqual({ kind: "string", value: "read-basic" });
+    expect(I.evaluate(basicCall)).toEqual({ kind: "String", value: "read-basic" });
   });
 
 });

@@ -5,15 +5,15 @@ import { InterpreterV10 } from "../src/interpreter";
 const call = (name: string, args = []) =>
   AST.functionCall(AST.identifier(name), args);
 
-describe("string host builtins", () => {
-  test("__able_string_from_builtin returns UTF-8 bytes", () => {
+describe("String host builtins", () => {
+  test("__able_String_from_builtin returns UTF-8 bytes", () => {
     const I = new InterpreterV10();
-    const result = I.evaluate(call("__able_string_from_builtin", [AST.stringLiteral("Hi")])) as any;
+    const result = I.evaluate(call("__able_String_from_builtin", [AST.stringLiteral("Hi")])) as any;
     expect(result.kind).toBe("array");
     expect(result.elements.map((el: any) => Number(el.value))).toEqual([72, 105]);
   });
 
-  test("__able_string_to_builtin decodes UTF-8 arrays", () => {
+  test("__able_String_to_builtin decodes UTF-8 arrays", () => {
     const I = new InterpreterV10();
     I.evaluate(
       AST.assignmentExpression(
@@ -22,8 +22,8 @@ describe("string host builtins", () => {
         AST.arrayLiteral([AST.integerLiteral(0xE2), AST.integerLiteral(0x82), AST.integerLiteral(0xAC)]),
       ),
     );
-    const result = I.evaluate(call("__able_string_to_builtin", [AST.identifier("bytes")])) as any;
-    expect(result).toEqual({ kind: "string", value: "€" });
+    const result = I.evaluate(call("__able_String_to_builtin", [AST.identifier("bytes")])) as any;
+    expect(result).toEqual({ kind: "String", value: "€" });
   });
 
   test("__able_char_from_codepoint builds chars", () => {

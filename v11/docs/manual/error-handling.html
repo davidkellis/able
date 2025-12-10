@@ -32,7 +32,7 @@
           rescue exceptions for exceptional paths.
         </p>
         <h2 id="propagation">9.1 Propagation with <code>!</code> and <code>else</code></h2>
-        <pre><code class="language-able">fn read_config(path: string) -&gt; !Config { ... }
+        <pre><code class="language-able">fn read_config(path: String) -&gt; !Config { ... }
 
 fn boot() -&gt; !void {
   config := read_config(path)!          ## returns early on Error

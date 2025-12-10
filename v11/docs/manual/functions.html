@@ -33,7 +33,7 @@
           <code>methods</code>/<code>impl</code>.
         </p>
         <h2 id="named">5.1 Named Functions</h2>
-        <pre><code class="language-able">fn greet(name: string) -&gt; string {
+        <pre><code class="language-able">fn greet(name: String) -&gt; String {
   `Hello ${name}`
 }
 
@@ -50,7 +50,7 @@ fn find_first_negative(items: Array i32) -&gt; ?i32 {
           inferred. Return types may be omitted when obvious.
         </p>
         <h2 id="anonymous">5.2 Anonymous Functions &amp; Lambdas</h2>
-        <pre><code class="language-able">fn(x: i32) -&gt; string { x.to_string() }   ## verbose
+        <pre><code class="language-able">fn(x: i32) -&gt; String { x.to_string() }   ## verbose
 { x, y =&gt; x + y }                       ## lambda shorthand
 
 numbers.map(@ * 2)                      ## placeholder lambda
@@ -60,8 +60,9 @@ sum = numbers.reduce(0) { acc, n =&gt; acc + n } ## trailing (do) lambda
 </code></pre>
         <p>
           Closures capture outer bindings by reference. Placeholders
-          (<code>@, @2</code>) and pipe topics (<code>%</code>) are limited to
-          expression positions that allow them.
+          (<code>@, @2</code>) are limited to expression positions that allow
+          them; pipes rely on callable RHS expressions rather than a topic
+          token.
         </p>
         <h2 id="shorthand">5.3 Shorthand Receivers</h2>
         <p>
@@ -73,14 +74,14 @@ sum = numbers.reduce(0) { acc, n =&gt; acc + n } ## trailing (do) lambda
 }</code></pre>
         <h2 id="pipelines">5.4 Pipelines &amp; Callable Values</h2>
         <p>
-          <code>|&gt;</code> forwards the left value into the right-hand
-          expression using the topic <code>%</code> or by invoking a unary
-          callable produced on the RHS. Any value implementing the
-          <code>Apply</code> interface can be called like
+          <code>|&gt;</code> forwards the left value into a callable produced
+          on the right-hand side, passing the subject as the first argument.
+          Build callables with placeholders when needed. Any value
+          implementing the <code>Apply</code> interface can be called like
           <code>callable(arg)</code>.
         </p>
         <pre><code class="language-able">result = value
-  |&gt; %.normalize()
+  |&gt; normalize
   |&gt; clamp(@, 0, 1)
   |&gt; (@ * 100)</code></pre>
         <footer class="manual-footer">

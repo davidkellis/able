@@ -6,8 +6,8 @@ import able.core.iteration.{Iterable, Iterator, IteratorEnd}
 import able.core.options.{Result}
 import able.core.errors.{RangeError}
 
-extern fn __able_string_from_builtin(value: string) -> Array u8;
-extern fn __able_string_to_builtin(bytes: Array u8) -> string;
+extern fn __able_String_from_builtin(value: String) -> Array u8;
+extern fn __able_String_to_builtin(bytes: Array u8) -> String;
 extern fn __able_char_from_codepoint(value: i32) -> char;
 
 struct String {
@@ -44,12 +44,12 @@ struct Utf8DecodeResult {
 }
 
 struct StringEncodingError {
-  message: string,
+  message: String,
   offset: ?i32
 }
 
 impl Error for StringEncodingError {
-  fn message(self: Self) -> string { self.message }
+  fn message(self: Self) -> String { self.message }
   fn cause(self: Self) -> ?Error { nil }
 }
 
@@ -69,8 +69,8 @@ methods String {
     }
   }
 
-  fn from_builtin(value: string) -> Result String {
-    data := __able_string_from_builtin(value)
+  fn from_builtin(value: String) -> Result String {
+    data := __able_String_from_builtin(value)
     match utf8_validate(data) {
       case err: StringEncodingError => err,
       case nil => String::from_bytes_unchecked(data)
@@ -102,8 +102,8 @@ methods String {
     StringGraphemesIter { string: self, offset: 0 }
   }
 
-  fn to_builtin(self: Self) -> Result string {
-    __able_string_to_builtin(self.bytes.clone())
+  fn to_builtin(self: Self) -> Result String {
+    __able_String_to_builtin(self.bytes.clone())
   }
 
   fn to_builder(self: Self) -> StringBuilder {
@@ -615,7 +615,7 @@ fn char_to_utf8(value: char) -> Array u8 {
   bytes
 }
 
-fn encoding_error(message: string, offset: ?i32) -> StringEncodingError {
+fn encoding_error(message: String, offset: ?i32) -> StringEncodingError {
   StringEncodingError { message, offset }
 }
 

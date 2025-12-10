@@ -33,7 +33,7 @@ func setupShowPoint(t *testing.T, interp *Interpreter) {
 			ast.FnSig(
 				"to_string",
 				[]*ast.FunctionParameter{ast.Param("self", ast.Ty("Self"))},
-				ast.Ty("string"),
+				ast.Ty("String"),
 				nil,
 				nil,
 				nil,
@@ -76,7 +76,7 @@ func setupShowPoint(t *testing.T, interp *Interpreter) {
 				),
 			),
 		},
-		ast.Ty("string"),
+		ast.Ty("String"),
 		nil,
 		nil,
 		false,
@@ -91,7 +91,7 @@ func setupShowPoint(t *testing.T, interp *Interpreter) {
 		[]ast.Statement{
 			ast.Ret(ast.CallExpr(ast.Member(ast.ID("x"), "to_string"))),
 		},
-		ast.Ty("string"),
+		ast.Ty("String"),
 		[]*ast.GenericParameter{
 			ast.GenericParam("T", ast.InterfaceConstr(ast.Ty("Show"))),
 		},

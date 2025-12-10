@@ -29,7 +29,7 @@ func TestInterpreterEvaluateProgramTypecheckFailure(t *testing.T) {
 			[]ast.Statement{
 				ast.Fn("shout", nil, []ast.Statement{
 					ast.Ret(ast.Bin("+", ast.CallExpr(ast.Member(ast.ID("dep"), ast.ID("provide"))), ast.Str("!"))),
-				}, ast.Ty("string"), nil, nil, false, false),
+				}, ast.Ty("String"), nil, nil, false, false),
 			},
 			[]*ast.ImportStatement{ast.Imp([]interface{}{"dep"}, false, nil, nil)},
 			ast.Pkg([]interface{}{"root"}, false),
@@ -69,7 +69,7 @@ func TestInterpreterEvaluateProgramSuccess(t *testing.T) {
 		Package: "dep",
 		AST: ast.Mod(
 			[]ast.Statement{
-				ast.Fn("provide", nil, []ast.Statement{ast.Ret(ast.Str("dep"))}, ast.Ty("string"), nil, nil, false, false),
+				ast.Fn("provide", nil, []ast.Statement{ast.Ret(ast.Str("dep"))}, ast.Ty("String"), nil, nil, false, false),
 			},
 			nil,
 			ast.Pkg([]interface{}{"dep"}, false),
@@ -85,7 +85,7 @@ func TestInterpreterEvaluateProgramSuccess(t *testing.T) {
 			[]ast.Statement{
 				ast.Fn("shout", nil, []ast.Statement{
 					ast.Ret(ast.Bin("+", ast.CallExpr(ast.Member(ast.ID("dep"), ast.ID("provide"))), ast.Str("!"))),
-				}, ast.Ty("string"), nil, nil, false, false),
+				}, ast.Ty("String"), nil, nil, false, false),
 			},
 			[]*ast.ImportStatement{ast.Imp([]interface{}{"dep"}, false, nil, nil)},
 			ast.Pkg([]interface{}{"root"}, false),
@@ -125,7 +125,7 @@ func TestInterpreterEvaluateProgramAllowsDiagnostics(t *testing.T) {
 		Package: "dep",
 		AST: ast.Mod(
 			[]ast.Statement{
-				ast.Fn("provide", nil, []ast.Statement{ast.Ret(ast.Str("dep"))}, ast.Ty("string"), nil, nil, false, false),
+				ast.Fn("provide", nil, []ast.Statement{ast.Ret(ast.Str("dep"))}, ast.Ty("String"), nil, nil, false, false),
 			},
 			nil,
 			ast.Pkg([]interface{}{"dep"}, false),

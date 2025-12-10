@@ -2,7 +2,7 @@
   "description": "Wildcard fallback handles unmatched cases",
   "expect": {
     "result": {
-      "kind": "string",
+      "kind": "String",
       "value": "Other"
     }
   },

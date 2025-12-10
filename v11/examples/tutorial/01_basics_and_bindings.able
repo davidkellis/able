@@ -1,6 +1,6 @@
 package tutorial.basics
 
-fn greet(name: string) -> string {
+fn greet(name: String) -> String {
   `Hello, ${name}!`
 }
 
@@ -21,7 +21,7 @@ fn main() -> void {
   }
   print(`Computed value: ${computed}`)
 
-  maybe_name: ?string := nil
+  maybe_name: ?String := nil
   fallback := maybe_name else { "mystery" }
   print(`Optional value -> ${fallback}`)
 

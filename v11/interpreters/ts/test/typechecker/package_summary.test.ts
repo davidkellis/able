@@ -21,13 +21,13 @@ describe("TypeChecker package summary", () => {
     expect(summary.structs.Point.fields).toEqual({ x: "i32", y: "i32" });
     expect(summary.functions.make_point.parameters).toEqual(["i32", "i32"]);
     expect(summary.functions.make_point.returnType).toBe("Point");
-    expect(summary.interfaces.Show.methods.to_string.returnType).toBe("string");
+    expect(summary.interfaces.Show.methods.to_string.returnType).toBe("String");
 
     expect(summary.implementations).toHaveLength(1);
     expect(summary.implementations[0].interface).toBe("Show");
     expect(summary.methodSets).toHaveLength(1);
     expect(summary.methodSets[0].target).toBe("Point");
-    expect(summary.methodSets[0].methods.display.returnType).toBe("string");
+    expect(summary.methodSets[0].methods.display.returnType).toBe("String");
   });
 
   test("falls back to anonymous package name", () => {
@@ -91,7 +91,7 @@ function buildSampleModule(): AST.Module {
       [
         AST.functionParameter("self", AST.simpleTypeExpression("Self")),
       ],
-      AST.simpleTypeExpression("string"),
+      AST.simpleTypeExpression("String"),
     ),
   ]);
 
@@ -137,7 +137,7 @@ function buildSampleModule(): AST.Module {
           AST.functionParameter("self", AST.simpleTypeExpression("Point")),
         ],
         AST.blockExpression([AST.returnStatement(AST.stringLiteral("<point>"))]),
-        AST.simpleTypeExpression("string"),
+        AST.simpleTypeExpression("String"),
       ),
     ],
   );
@@ -147,9 +147,9 @@ function buildSampleModule(): AST.Module {
     [
       AST.functionDefinition(
         "display",
-        [AST.functionParameter("prefix", AST.simpleTypeExpression("string"))],
+        [AST.functionParameter("prefix", AST.simpleTypeExpression("String"))],
         AST.blockExpression([AST.returnStatement(AST.stringLiteral("display"))]),
-        AST.simpleTypeExpression("string"),
+        AST.simpleTypeExpression("String"),
         undefined,
         undefined,
         true,

@@ -65,7 +65,7 @@ func TestDivisionByZeroDiagnostics(t *testing.T) {
 	cases := []ast.Expression{
 		ast.Bin("/", ast.Int(4), ast.Int(0)),
 		ast.Bin("//", ast.Int(4), ast.Int(0)),
-		ast.Bin("%%", ast.Int(4), ast.Int(0)),
+		ast.Bin("%", ast.Int(4), ast.Int(0)),
 		ast.Bin("/%", ast.Int(4), ast.Int(0)),
 	}
 	for idx, expr := range cases {
@@ -112,11 +112,11 @@ func TestDivModRequiresIntegerOperands(t *testing.T) {
 	interp := New()
 	env := interp.GlobalEnvironment()
 	cases := []struct {
-		name   string
-		expr   ast.Expression
+		name string
+		expr ast.Expression
 	}{
 		{"QuotientWithFloat", ast.Bin("//", ast.Int(5), ast.Flt(2))},
-		{"RemainderWithFloat", ast.Bin("%%", ast.Flt(5), ast.Int(2))},
+		{"RemainderWithFloat", ast.Bin("%", ast.Flt(5), ast.Int(2))},
 		{"DivModStructWithFloat", ast.Bin("/%", ast.Flt(5), ast.Int(2))},
 	}
 	for _, tc := range cases {
@@ -149,7 +149,7 @@ func TestDivModEuclidean(t *testing.T) {
 		t.Fatalf("expected quotient -2, got %v", qVal.Val)
 	}
 
-	rem, err := interp.evaluateExpression(ast.Bin("%%", ast.Int(-5), ast.Int(3)), env)
+	rem, err := interp.evaluateExpression(ast.Bin("%", ast.Int(-5), ast.Int(3)), env)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

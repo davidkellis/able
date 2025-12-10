@@ -4,7 +4,7 @@ import able.collections.array.{Array}
 import able.testing.protocol.{Framework}
 
 struct FrameworkEntry {
-  id: string,
+  id: String,
   framework: Framework
 }
 
@@ -41,7 +41,7 @@ fn each_framework(visit: Framework -> void) -> void {
   }
 }
 
-fn framework_by_id(id: string) -> ?Framework {
+fn framework_by_id(id: String) -> ?Framework {
   let mut idx = 0
   loop {
     if idx >= REGISTERED.len() { break }

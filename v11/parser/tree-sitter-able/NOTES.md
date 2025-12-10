@@ -24,7 +24,7 @@ Pulled from §6.3.1. Highest precedence is listed first.
 | 14   | `()`, `[]`, postfix `!`                                                   | Calls, indexing, error propagation   |
 | 13   | `^`                                                                        | Exponentiation (right-associative)   |
 | 12   | unary `-`, `!`, `.~`                                                      | Arithmetic / logical / bitwise NOT   |
-| 11   | `*`, `/`, `//`, `%%`, `/%`                                                | Multiplicative                       |
+| 11   | `*`, `/`, `//`, `%`, `/%`                                                 | Multiplicative                       |
 | 10   | `+`, `-`                                                                  | Additive                             |
 | 9    | `.<<`, `.>>`                                                              | Shifts                               |
 | 8    | `.&`                                                                      | Bitwise AND                          |
@@ -49,8 +49,8 @@ Notes:
 1. Confirm the v10 story for `type` aliases / module metadata before adding
    syntax; declaration generics + composite interfaces + host interop are now
    covered.
-2. Thread placeholder/topic tokens and enriched async/error nodes through the
-   AST builders once the parser integration layer is in place.
+2. Thread placeholder tokens and enriched async/error nodes through the AST
+   builders once the parser integration layer is in place.
 3. Expand corpus coverage once grammar stabilises (declarations, async/error
    expressions, advanced patterns) and start mapping parser output to AST
    builders for integration tests.

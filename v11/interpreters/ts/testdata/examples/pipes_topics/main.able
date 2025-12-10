@@ -19,17 +19,17 @@ fn double(x: i32) -> i32 {
 }
 
 value := 5
-topicStep := (value |> (% + 3))
+unaryStep := (value |> (@ + 3))
 placeholderStep := (value |> add(@, 4))
 lambdaStep := (add(@, 1))(value)
-methodStep := (Box { value: value } |> %.double())
+methodStep := (Box { value: value } |> @.double())
 chain := (value
-  |> (% + 1)
+  |> (@ + 1)
   |> add(@, 2)
-  |> double(%))
+  |> double)
 
 fn main() {
-  print(`topic ${topicStep}`)
+  print(`unary ${unaryStep}`)
   print(`placeholder ${placeholderStep}`)
   print(`lambda ${lambdaStep}`)
   print(`method ${methodStep}`)

@@ -1,7 +1,7 @@
-fn pick(value: string) -> i32 {
+fn pick(value: String) -> i32 {
   20
 }
-fn pick(value: i32, note: ?string) -> i32 {
+fn pick(value: i32, note: ?String) -> i32 {
   note match {
     case nil => 30,
     case _ => 40
@@ -17,7 +17,7 @@ methods Box {
   fn mark(self: Box, delta: i32) -> i32 {
     self.value + delta
   }
-  fn mark(self: Box, tag: ?string) -> i32 {
+  fn mark(self: Box, tag: ?String) -> i32 {
     tag match {
       case nil => self.value + 100,
       case _ => self.value + 200

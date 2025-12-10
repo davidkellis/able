@@ -1,41 +1,41 @@
 interface Show
 {
-  fn describe (self: Self) -> string
+  fn describe (self: Self) -> String
 }
 struct Fancy {
-  label: string
+  label: String
 }
 struct Basic {
-  label: string
+  label: String
 }
 struct Counter {
   value: i32
 }
 struct Entry {
-  key: string,
+  key: String,
   value: Show
 }
 impl Show for Fancy
 {
-  fn describe(self: Fancy) -> string {
+  fn describe(self: Fancy) -> String {
     return `fancy:${self.label}`
   }
 }
 impl Show for Basic
 {
-  fn describe(self: Basic) -> string {
+  fn describe(self: Basic) -> String {
     return `basic:${self.label}`
   }
 }
 impl Show for Counter
 {
-  fn describe(self: Counter) -> string {
+  fn describe(self: Counter) -> String {
     return `counter:${self.value}`
   }
 }
 impl Show for Fancy | Basic | Counter
 {
-  fn describe(self) -> string {
+  fn describe(self) -> String {
     return "union"
   }
 }

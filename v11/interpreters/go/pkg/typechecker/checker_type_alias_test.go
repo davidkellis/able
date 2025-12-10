@@ -31,7 +31,7 @@ func TestTypeAliasGenericInstantiation(t *testing.T) {
 	)
 	arrayLiteral := ast.Arr(ast.Str("a"), ast.Str("b"))
 	binding := ast.Assign(
-		ast.TypedP(ast.ID("values"), ast.Gen(ast.Ty("Box"), ast.Ty("string"))),
+		ast.TypedP(ast.ID("values"), ast.Gen(ast.Ty("Box"), ast.Ty("String"))),
 		arrayLiteral,
 	)
 	module := ast.Mod([]ast.Statement{genericAlias, binding}, nil, ast.Pkg(nil, false))
@@ -82,7 +82,7 @@ func TestTypeAliasWhereClauseEnforced(t *testing.T) {
 	structDef := ast.StructDef(
 		"Plain",
 		[]*ast.StructFieldDefinition{
-			ast.NewStructFieldDefinition(ast.Ty("string"), ast.ID("label")),
+			ast.NewStructFieldDefinition(ast.Ty("String"), ast.ID("label")),
 		},
 		ast.StructKindNamed,
 		nil,
@@ -113,6 +113,6 @@ func TestTypeAliasWhereClauseEnforced(t *testing.T) {
 		t.Fatalf("expected diagnostic enforcing alias constraints")
 	}
 	if got := diags[0].Message; got == "" {
-		t.Fatalf("expected diagnostic message, got empty string")
+		t.Fatalf("expected diagnostic message, got empty String")
 	}
 }

@@ -11,7 +11,7 @@ describe("ConcurrentQueue") { suite =>
   }
 
   suite.it("supports try operations and close") { _ctx =>
-    queue: ConcurrentQueue string := ConcurrentQueue.new(1)
+    queue: ConcurrentQueue String := ConcurrentQueue.new(1)
     expect(queue.try_enqueue("msg")).to(be_truthy())
     expect(queue.try_dequeue()).to(eq("msg"))
     queue.close()

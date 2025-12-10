@@ -16,7 +16,12 @@ declare module "./index" {
     findMethod(
       typeName: string,
       methodName: string,
-      opts?: { typeArgs?: AST.TypeExpression[]; typeArgMap?: Map<string, AST.TypeExpression>; interfaceName?: string },
+      opts?: {
+        typeArgs?: AST.TypeExpression[];
+        typeArgMap?: Map<string, AST.TypeExpression>;
+        interfaceName?: string;
+        includeInherent?: boolean;
+      },
     ): Extract<V10Value, { kind: "function" | "function_overload" }> | null;
     resolveInterfaceImplementation(
       typeName: string,
@@ -178,7 +183,7 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
     const ta = args[i]!;
     const name = `${gp.name.name}_type`;
     const s = this.typeExpressionToString(ta);
-    try { env.define(name, { kind: "string", value: s }); } catch {}
+    try { env.define(name, { kind: "String", value: s }); } catch {}
   }
 };
 
@@ -200,8 +205,11 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
 };
 
   cls.prototype.findMethod = function findMethod(this: InterpreterV10, typeName: string, methodName: string, opts?: { typeArgs?: AST.TypeExpression[]; typeArgMap?: Map<string, AST.TypeExpression>; interfaceName?: string }): Extract<V10Value, { kind: "function" | "function_overload" }> | null {
-  const inherent = this.inherentMethods.get(typeName);
-  if (inherent && inherent.has(methodName)) return inherent.get(methodName)!;
+  const includeInherent = opts?.includeInherent !== false;
+  if (includeInherent) {
+    const inherent = this.inherentMethods.get(typeName);
+    if (inherent && inherent.has(methodName)) return inherent.get(methodName)!;
+  }
   const subjectType = typeExpressionFromInfo(typeName, opts?.typeArgs);
   const entries = [
     ...(this.implMethods.get(typeName) ?? []),
@@ -544,7 +552,9 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
     isMethodShorthand: false,
     isPrivate: false,
   };
-  return { kind: "function", node: fnDef, closureEnv: env };
+  const func: Extract<V10Value, { kind: "function" }> = { kind: "function", node: fnDef, closureEnv: env };
+  (func as any).methodResolutionPriority = -1;
+  return func;
 };
 
   cls.prototype.substituteSelfTypeExpression = function substituteSelfTypeExpression(this: InterpreterV10, t: AST.TypeExpression | undefined, target: AST.TypeExpression): AST.TypeExpression | undefined {

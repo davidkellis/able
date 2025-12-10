@@ -8,7 +8,7 @@ fn scale_and_shift(value: i32, scale: i32, offset: i32) -> i32 {
   value * scale + offset
 }
 
-fn greet_with(prefix: string, name: string) -> string {
+fn greet_with(prefix: String, name: String) -> String {
   `${prefix}, ${name}!`
 }
 

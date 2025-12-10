@@ -460,28 +460,24 @@
                 }
               ]
             },
-            "orClauses": [
-              {
-                "type": "OrClause",
-                "body": {
-                  "type": "BlockExpression",
-                  "body": [
-                    {
-                      "type": "AssignmentExpression",
-                      "operator": "+=",
-                      "left": {
-                        "type": "Identifier",
-                        "name": "sum"
-                      },
-                      "right": {
-                        "type": "Identifier",
-                        "name": "value"
-                      }
-                    }
-                  ]
+            "elseIfClauses": [],
+            "elseBody": {
+              "type": "BlockExpression",
+              "body": [
+                {
+                  "type": "AssignmentExpression",
+                  "operator": "+=",
+                  "left": {
+                    "type": "Identifier",
+                    "name": "sum"
+                  },
+                  "right": {
+                    "type": "Identifier",
+                    "name": "value"
+                  }
                 }
-              }
-            ]
+              ]
+            }
           }
         ]
       }

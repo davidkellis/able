@@ -1,7 +1,7 @@
-fn list_items() -> Array string {
+fn list_items() -> Array String {
   ["espresso", "tonic", "cocoa"]
 }
 
-fn featured() -> string {
+fn featured() -> String {
   "espresso"
 }

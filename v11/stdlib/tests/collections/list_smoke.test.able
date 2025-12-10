@@ -3,21 +3,21 @@ package collections.list.tests
 import able.collections.list.{List}
 import able.core.iteration.{IteratorEnd}
 
-fn assert(condition: bool, message: string) -> void {
+fn assert(condition: bool, message: String) -> void {
   if condition { return }
   raise message
 }
 
-fn expect_i32(value: ?i32, expected: i32, message: string) -> void {
+fn expect_i32(value: ?i32, expected: i32, message: String) -> void {
   match value {
     case actual: i32 => assert(actual == expected, message),
     case nil => { raise message }
   }
 }
 
-fn expect_string(value: ?string, expected: string, message: string) -> void {
+fn expect_string(value: ?String, expected: String, message: String) -> void {
   match value {
-    case actual: string => assert(actual == expected, message),
+    case actual: String => assert(actual == expected, message),
     case nil => { raise message }
   }
 }

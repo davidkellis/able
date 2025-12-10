@@ -4,13 +4,13 @@ import able.collections.array.{Array}
 import able.core.errors.{IndexError}
 import able.core.iteration.{IteratorEnd}
 
-fn assert(condition: bool, message: string) -> void {
+fn assert(condition: bool, message: String) -> void {
   if condition { return }
   raise message
 }
 
 fn double(value: i32) -> i32 { value * 2 }
-fn is_even(value: i32) -> bool { value %% 2 == 0 }
+fn is_even(value: i32) -> bool { value % 2 == 0 }
 
 fn check_basic_ops() -> void {
   arr := Array.new()

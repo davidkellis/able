@@ -2,7 +2,7 @@ package core.numeric.tests
 
 import able.core.numeric.{DivModResult, NumericConversionError}
 
-fn assert(condition: bool, message: string) -> void {
+fn assert(condition: bool, message: String) -> void {
   if condition { return }
   raise message
 }

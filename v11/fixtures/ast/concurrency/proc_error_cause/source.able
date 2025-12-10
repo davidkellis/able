@@ -1,9 +1,9 @@
-fn describe_error(err: Error) -> string {
+fn describe_error(err: Error) -> String {
   cause := err.cause()
   flag := if cause == nil {
     "no-error"
   }
-or true {
+else {
     "has-cause"
   }
   `${err.message()}|${flag}`
@@ -12,8 +12,8 @@ handle := proc {
   raise "boom"
 }
 proc_flush()
-summary := handle.value()! else {
-  | err |
+summary := handle.value()! or {
+  err =>
   describe_error(err)
 }
 summary

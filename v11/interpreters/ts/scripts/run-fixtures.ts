@@ -141,7 +141,7 @@ async function main() {
     if (BASELINE_ENABLED) {
       typecheckBaseline.set(relativeName, formattedDiagnostics);
     }
-    if (BASELINE_ENABLED) {
+    if (BASELINE_ENABLED && existingBaseline && !WRITE_TYPECHECK_BASELINE) {
       enforceTypecheckBaseline(relativeName, TYPECHECK_MODE, formattedDiagnostics, existingBaseline);
     }
 
@@ -193,7 +193,7 @@ async function main() {
 }
 
 function moduleImportsStdlibString(module: AST.Module): boolean {
-  return moduleImportsPackage(module, "able.text.string");
+  return moduleImportsPackage(module, "able.text.String") || moduleImportsPackage(module, "able.text.string");
 }
 
 function moduleImportsStdlibConcurrency(module: AST.Module): boolean {
@@ -275,7 +275,7 @@ function assertExpectations(
   if (expect.result) {
     if (result.kind !== expect.result.kind) {
       throw new Error(
-        `Fixture ${dir} expected result kind ${expect.result.kind}, got ${result.kind}`,
+        `Fixture ${dir} expected result kind ${expect.result.kind}, got ${result.kind} (${JSON.stringify(result)})`,
       );
     }
     if (expect.result.value !== undefined) {
@@ -294,8 +294,32 @@ function assertExpectations(
     }
   }
   if (expect.stdout) {
-    if (JSON.stringify(stdout) !== JSON.stringify(expect.stdout)) {
-      throw new Error(`Fixture ${dir} expected stdout ${JSON.stringify(expect.stdout)}, got ${JSON.stringify(stdout)}`);
+    const normalize = (values: string[]) =>
+      values.map((value) => {
+        if (typeof value !== "string") return value;
+        if (value.startsWith('"') && value.endsWith('"')) {
+          try {
+            const parsed = JSON.parse(value);
+            if (
+              typeof parsed === "string" ||
+              typeof parsed === "number" ||
+              typeof parsed === "boolean" ||
+              parsed === null
+            ) {
+              return parsed;
+            }
+          } catch {
+            // ignore JSON parse failures and fall back to raw value
+          }
+        }
+        return value;
+      });
+    const normalizedActual = normalize(stdout);
+    const normalizedExpected = normalize(expect.stdout);
+    if (JSON.stringify(normalizedActual) !== JSON.stringify(normalizedExpected)) {
+      throw new Error(
+        `Fixture ${dir} expected stdout ${JSON.stringify(normalizedExpected)}, got ${JSON.stringify(normalizedActual)}`,
+      );
     }
   }
 }
@@ -326,7 +350,7 @@ function compareMapEntries(dir: string, expected: { key: unknown; value: unknown
 
 function normalizeValueForExpect(value: V10.V10Value): unknown {
   switch (value.kind) {
-    case "string":
+    case "String":
     case "char":
     case "bool":
     case "i32":

@@ -9,7 +9,7 @@ fn check_roundtrip() -> void {
   if !(text.len_graphemes() == 5) { raise "len_graphemes should count graphemes" }
 
   text.substring(0, 4) match {
-    case slice: string => {
+    case slice: String => {
       if !(slice == "Able") { raise "substring should slice by Unicode scalars" }
     }
     case err => { raise err }
@@ -19,7 +19,7 @@ fn check_roundtrip() -> void {
   builder.push_string("Hi")
   builder.push_char('!')
   builder.finish() match {
-    case result: string => {
+    case result: String => {
       if !(result == "Hi!") { raise "StringBuilder should emit a built-in string" }
     }
     case err => { raise err }

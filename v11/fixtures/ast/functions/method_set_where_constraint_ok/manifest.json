@@ -2,7 +2,7 @@
   "description": "Method-set where clause succeeds when type arguments implement the required interface",
   "expect": {
     "result": {
-      "kind": "string",
+      "kind": "String",
       "value": "Wrapper(7)"
     }
   },

@@ -6,7 +6,7 @@ import able.collections.persistent_map.{PersistentMap}
 import able.core.interfaces.{Hash, Hasher, Eq, Clone}
 
 struct BadKey {
-  label: string
+  label: String
 }
 
 impl Clone for BadKey {
@@ -26,7 +26,7 @@ impl Hash for BadKey {
 
 describe("PersistentMap") { suite =>
   suite.it("stores, reads, and updates entries") { _ctx =>
-    map: PersistentMap string i32 := PersistentMap.empty()
+    map: PersistentMap String i32 := PersistentMap.empty()
     map = map.set("a", 1)
     map = map.set("b", 2)
 
@@ -41,7 +41,7 @@ describe("PersistentMap") { suite =>
   }
 
   suite.it("handles hash collisions without losing data") { _ctx =>
-    map: PersistentMap BadKey string := PersistentMap.empty()
+    map: PersistentMap BadKey String := PersistentMap.empty()
     key1 := BadKey { label: "x" }
     key2 := BadKey { label: "y" }
     map = map.set(key1, "first")
@@ -56,7 +56,7 @@ describe("PersistentMap") { suite =>
   }
 
   suite.it("removes entries and preserves older versions") { _ctx =>
-    map: PersistentMap string i32 := PersistentMap.empty()
+    map: PersistentMap String i32 := PersistentMap.empty()
     map = map.set("keep", 1)
     map = map.set("drop", 2)
 
@@ -70,7 +70,7 @@ describe("PersistentMap") { suite =>
   }
 
   suite.it("iterates entries via Enumerable") { _ctx =>
-    map: PersistentMap string i32 := PersistentMap.empty()
+    map: PersistentMap String i32 := PersistentMap.empty()
     map = map.set("a", 1)
     map = map.set("b", 2)
     total := 0
@@ -79,7 +79,7 @@ describe("PersistentMap") { suite =>
   }
 
   suite.it("builds maps via builder") { _ctx =>
-    builder := PersistentMapBuilder.new<string, i32>()
+    builder := PersistentMapBuilder.new<String, i32>()
     builder.insert("x", 10)
     builder.insert("y", 20)
     map := builder.finish()

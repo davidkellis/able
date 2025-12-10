@@ -23,7 +23,7 @@ describe("v11 interpreter - labeled breakpoint/break", () => {
     ]);
     const bp = AST.breakpointExpression("exit", body);
     const res = I.evaluate(bp as any);
-    expect(res).toEqual({ kind: "string", value: "done" });
+    expect(res).toEqual({ kind: "String", value: "done" });
     // ensure loop didn't error
   });
 

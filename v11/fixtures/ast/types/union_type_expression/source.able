@@ -1,4 +1,4 @@
-fn identity_union(value: string | i32) -> string | i32 {
+fn identity_union(value: String | i32) -> String | i32 {
   value
 }
 identity_union("hello")

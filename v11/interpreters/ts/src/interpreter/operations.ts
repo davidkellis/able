@@ -75,37 +75,52 @@ export function evaluateBinaryExpression(ctx: InterpreterV10, node: AST.BinaryEx
 
   if (b.operator === "|>" || b.operator === "|>>") {
     const subject = ctx.evaluate(b.left, env);
-    ctx.topicStack.push(subject);
-    ctx.topicUsageStack.push(false);
     ctx.implicitReceiverStack.push(subject);
     try {
-      const rhsVal = ctx.evaluate(b.right, env);
-      const topicUsed = ctx.topicUsageStack[ctx.topicUsageStack.length - 1] ?? false;
-      if (topicUsed) {
-        return rhsVal;
+      const placeholderCallable = ctx.tryBuildPlaceholderFunction(b.right, env);
+      if (placeholderCallable) {
+        try {
+          return callCallableValue(ctx, placeholderCallable, [subject], env);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          throw new Error(`pipe RHS must be callable: ${message}`);
+        }
       }
+      if (b.right.type === "FunctionCall") {
+        const calleeVal = ctx.evaluate(b.right.callee, env);
+        const evaluatedArgs = b.right.arguments.map((arg) => ctx.evaluate(arg, env));
+        const callArgs =
+          calleeVal.kind === "bound_method" || calleeVal.kind === "native_bound_method"
+            ? evaluatedArgs
+            : [subject, ...evaluatedArgs];
+        try {
+          return callCallableValue(ctx, calleeVal, callArgs, env);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          throw new Error(`pipe RHS must be callable: ${message}`);
+        }
+      }
+      const rhsVal = ctx.evaluate(b.right, env);
       const callArgs = (rhsVal.kind === "bound_method" || rhsVal.kind === "native_bound_method") ? [] : [subject];
       try {
         return callCallableValue(ctx, rhsVal, callArgs, env);
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        throw new Error(`pipe RHS must be callable when '%' is not used: ${message}`);
+        throw new Error(`pipe RHS must be callable: ${message}`);
       }
     } finally {
       ctx.implicitReceiverStack.pop();
-      ctx.topicUsageStack.pop();
-      ctx.topicStack.pop();
     }
   }
 
   const left = ctx.evaluate(b.left, env);
   const right = ctx.evaluate(b.right, env);
 
-  if (b.operator === "+" && left.kind === "string" && right.kind === "string") {
-    return { kind: "string", value: left.value + right.value };
+  if (b.operator === "+" && left.kind === "String" && right.kind === "String") {
+    return { kind: "String", value: left.value + right.value };
   }
 
-  if (["+","-","*","/","//","%%","/%"].includes(b.operator)) {
+  if (["+","-","*","/","//","%","/%","^"].includes(b.operator)) {
     return applyArithmeticBinary(b.operator, left, right, {
       makeDivMod: (kind, parts) => {
         const structDef = ctx.ensureDivModStruct();
@@ -129,7 +144,7 @@ export function evaluateBinaryExpression(ctx: InterpreterV10, node: AST.BinaryEx
     if (isNumericValue(left) && isNumericValue(right)) {
       return applyComparisonBinary(b.operator, left, right);
     }
-    if (left.kind === "string" && right.kind === "string") {
+    if (left.kind === "String" && right.kind === "String") {
       switch (b.operator) {
         case ">": return { kind: "bool", value: left.value > right.value };
         case "<": return { kind: "bool", value: left.value < right.value };
@@ -210,15 +225,6 @@ export function evaluateIndexExpression(ctx: InterpreterV10, node: AST.IndexExpr
   return el;
 }
 
-export function evaluateTopicReferenceExpression(ctx: InterpreterV10): V10Value {
-  if (ctx.topicStack.length === 0 || ctx.topicUsageStack.length === 0) {
-    throw new Error("Topic reference '%' used outside of pipe expression");
-  }
-  ctx.topicUsageStack[ctx.topicUsageStack.length - 1] = true;
-  const current = ctx.topicStack[ctx.topicStack.length - 1];
-  return current;
-}
-
 export function applyOperationsAugmentations(cls: typeof InterpreterV10): void {
   cls.prototype.ensureDivModStruct = function ensureDivModStruct(this: InterpreterV10): AST.StructDefinition {
     if (this.divModStruct) return this.divModStruct;
@@ -242,7 +248,7 @@ export function applyOperationsAugmentations(cls: typeof InterpreterV10): void {
   };
 
   cls.prototype.computeBinaryForCompound = function computeBinaryForCompound(this: InterpreterV10, op: string, left: V10Value, right: V10Value): V10Value {
-    if (["+","-","*","/"].includes(op)) {
+    if (["+","-","*","/","%"].includes(op)) {
       return applyArithmeticBinary(op, left, right);
     }
 

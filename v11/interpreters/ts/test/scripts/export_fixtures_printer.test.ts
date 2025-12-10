@@ -11,7 +11,7 @@ describe("export-fixtures printer", () => {
         AST.functionSignature(
           "show",
           [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
-          AST.simpleTypeExpression("string"),
+          AST.simpleTypeExpression("String"),
         ),
       ],
       undefined,
@@ -20,7 +20,7 @@ describe("export-fixtures printer", () => {
     const module = AST.module([iface]);
     const output = moduleToSource(module).trim();
     expect(output).toContain("interface Display for Point");
-    expect(output).toContain("fn show (self: Self) -> string");
+    expect(output).toContain("fn show (self: Self) -> String");
   });
 
   test("omits inferred generics when printing function definitions", () => {

@@ -11,7 +11,7 @@ const errorsFixtures: Fixture[] = [
             AST.functionSignature(
               "render",
               [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
-              AST.simpleTypeExpression("string"),
+              AST.simpleTypeExpression("String"),
             ),
           ],
           undefined,
@@ -133,7 +133,7 @@ const errorsFixtures: Fixture[] = [
         description: "Rescue expression catches raise",
         expect: {
           stdout: ["[error]"],
-          result: { kind: "string", value: "handled" },
+          result: { kind: "String", value: "handled" },
         },
       },
     },
@@ -154,7 +154,7 @@ const errorsFixtures: Fixture[] = [
       manifest: {
         description: "Typed pattern catches raised error",
         expect: {
-          result: { kind: "string", value: "caught" },
+          result: { kind: "String", value: "caught" },
         },
       },
     },
@@ -173,7 +173,7 @@ const errorsFixtures: Fixture[] = [
       manifest: {
         description: "Or else handler runs when propagation raises",
         expect: {
-          result: { kind: "string", value: "handled" },
+          result: { kind: "String", value: "handled" },
         },
       },
     },
@@ -193,7 +193,7 @@ const errorsFixtures: Fixture[] = [
         description: "Ensure block executes regardless of rescue",
         expect: {
           stdout: ["ensure"],
-          result: { kind: "string", value: "rescued" },
+          result: { kind: "String", value: "rescued" },
         },
       },
     },
@@ -285,7 +285,7 @@ const errorsFixtures: Fixture[] = [
       manifest: {
         description: "Result handlers can call Error.message()/cause()/value",
         expect: {
-          result: { kind: "string", value: "close of nil channel|ChannelNil|nil" },
+          result: { kind: "String", value: "close of nil channel|ChannelNil|nil" },
         },
       },
     },
@@ -299,7 +299,7 @@ const errorsFixtures: Fixture[] = [
             AST.functionSignature(
               "describe",
               [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
-              AST.simpleTypeExpression("string"),
+              AST.simpleTypeExpression("String"),
             ),
           ],
           undefined,
@@ -329,7 +329,7 @@ const errorsFixtures: Fixture[] = [
               "describe",
               [AST.functionParameter("self", AST.simpleTypeExpression("Line"))],
               AST.blockExpression([AST.stringLiteral("line")]),
-              AST.simpleTypeExpression("string"),
+              AST.simpleTypeExpression("String"),
             ),
           ],
         ),
@@ -476,7 +476,7 @@ const errorsFixtures: Fixture[] = [
             AST.functionParameter("p", AST.simpleTypeExpression("Point")),
             AST.functionParameter(
               "values",
-              AST.genericTypeExpression(AST.simpleTypeExpression("Array"), [AST.simpleTypeExpression("string")]),
+              AST.genericTypeExpression(AST.simpleTypeExpression("Array"), [AST.simpleTypeExpression("String")]),
             ),
           ],
           AST.blockExpression([AST.int(2)]),

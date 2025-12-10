@@ -1,8 +1,8 @@
 {
-  "description": "Evaluates a simple string literal module",
+  "description": "Evaluates a simple String literal module",
   "expect": {
     "result": {
-      "kind": "string",
+      "kind": "String",
       "value": "hello"
     }
   },

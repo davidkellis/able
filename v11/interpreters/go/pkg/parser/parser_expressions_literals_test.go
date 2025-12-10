@@ -159,9 +159,9 @@ fn classify(point: Point) -> i32 {
 }
 
 func TestParsePropagationAndOrElse(t *testing.T) {
-	source := `fn handlers(opt: ?i32, res: !i32) -> !i32 {
- 	value := opt! else { 0 }
- 	processed := res! else { |err| err }
+source := `fn handlers(opt: ?i32, res: !i32) -> !i32 {
+ 	value := opt! or { 0 }
+ 	processed := res! or { err => err }
  	processed
 }
 `
@@ -223,15 +223,15 @@ func TestParsePropagationAndOrElse(t *testing.T) {
 
 func TestParseRescueAndEnsure(t *testing.T) {
 	source := `struct MyError {
-  message: string,
+  message: String,
 }
 
 impl Error for MyError {
-  fn message(self: Self) -> string { "boom" }
+  fn message(self: Self) -> String { "boom" }
   fn cause(self: Self) -> ?Error { nil }
 }
 
-fn guard() -> string {
+fn guard() -> String {
   attempt := (do {
     raise MyError{ message: "boom" }
     "ok"
@@ -258,7 +258,7 @@ fn guard() -> string {
 	myErrorStruct := ast.NewStructDefinition(
 		ast.ID("MyError"),
 		[]*ast.StructFieldDefinition{
-			ast.NewStructFieldDefinition(ast.Ty("string"), ast.ID("message")),
+			ast.NewStructFieldDefinition(ast.Ty("String"), ast.ID("message")),
 		},
 		ast.StructKindNamed,
 		nil,
@@ -272,7 +272,7 @@ fn guard() -> string {
 			ast.NewFunctionParameter(ast.ID("self"), ast.Ty("Self")),
 		},
 		ast.Block(ast.Str("boom")),
-		ast.Ty("string"),
+		ast.Ty("String"),
 		nil,
 		nil,
 		false,
@@ -340,7 +340,7 @@ fn guard() -> string {
 		ast.ID("guard"),
 		nil,
 		fnBody,
-		ast.Ty("string"),
+		ast.Ty("String"),
 		nil,
 		nil,
 		false,
@@ -358,11 +358,11 @@ fn guard() -> string {
 	assertModulesEqual(t, expected, mod)
 }
 
-func TestParseIfOrExpression(t *testing.T) {
-	source := `fn grade(score: i32) -> string {
+func TestParseIfElsifExpression(t *testing.T) {
+	source := `fn grade(score: i32) -> String {
   if score >= 90 { "A" }
-  or score >= 80 { "B" }
-  or { "C" }
+  elsif score >= 80 { "B" }
+  else { "C" }
 }
 `
 
@@ -386,10 +386,10 @@ func TestParseIfOrExpression(t *testing.T) {
 	ifExpr := ast.NewIfExpression(
 		firstCond,
 		firstBody,
-		[]*ast.OrClause{
-			ast.NewOrClause(secondBody, secondCond),
-			ast.NewOrClause(defaultBody, nil),
+		[]*ast.ElseIfClause{
+			ast.NewElseIfClause(secondBody, secondCond),
 		},
+		defaultBody,
 	)
 
 	fnBody := ast.Block(ifExpr)
@@ -400,7 +400,7 @@ func TestParseIfOrExpression(t *testing.T) {
 			ast.NewFunctionParameter(ast.ID("score"), ast.Ty("i32")),
 		},
 		fnBody,
-		ast.Ty("string"),
+		ast.Ty("String"),
 		nil,
 		nil,
 		false,
@@ -499,8 +499,8 @@ func TestParsePipeChainExpression(t *testing.T) {
 	assertModulesEqual(t, expected, mod)
 }
 
-func TestParsePipeTopicAndPlaceholderSteps(t *testing.T) {
-	source := `result := (value |> (% + 2) |> add(@, 3) |> %.double())`
+func TestParsePipeWithPlaceholderSteps(t *testing.T) {
+	source := `result := (value |> (@ + 2) |> add(@, 3) |> double)`
 
 	p, err := NewModuleParser()
 	if err != nil {
@@ -513,11 +513,9 @@ func TestParsePipeTopicAndPlaceholderSteps(t *testing.T) {
 		t.Fatalf("ParseModule error: %v", err)
 	}
 
-	step1 := ast.NewBinaryExpression("|>", ast.ID("value"), ast.NewBinaryExpression("+", ast.TopicRef(), ast.Int(2)))
+	step1 := ast.NewBinaryExpression("|>", ast.ID("value"), ast.NewBinaryExpression("+", ast.Placeholder(), ast.Int(2)))
 	step2 := ast.NewBinaryExpression("|>", step1, ast.Call("add", ast.Placeholder(), ast.Int(3)))
-	topicMethod := ast.Member(ast.TopicRef(), "double")
-	topicCall := ast.NewFunctionCall(topicMethod, []ast.Expression{}, nil, false)
-	step3 := ast.NewBinaryExpression("|>", step2, topicCall)
+	step3 := ast.NewBinaryExpression("|>", step2, ast.ID("double"))
 
 	expected := ast.NewModule(
 		[]ast.Statement{

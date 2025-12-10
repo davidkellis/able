@@ -133,7 +133,7 @@ methods AutomataExpr {
 module AutomataDSL
   extend self
 
-  fn literal(value: string) -> AutomataExpr | Error {
+  fn literal(value: String) -> AutomataExpr | Error {
     match String::from_builtin(value) {
       case err: Error => err,
       case string_value: String => literal_string(string_value)

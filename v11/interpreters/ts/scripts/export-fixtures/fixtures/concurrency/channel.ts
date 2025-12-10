@@ -443,24 +443,23 @@ const channelConcurrencyFixtures: Fixture[] = [
                 ),
               ),
               AST.ifExpression(
-                AST.binaryExpression(
-                  "==",
-                  AST.identifier("value"),
-                  AST.nilLiteral(),
-                ),
-                AST.blockExpression([AST.breakStatement()]),
-                [AST.orClause(
-                  AST.blockExpression([
-                    AST.assignmentExpression(
-                      "+=",
-                      AST.identifier("sum"),
-                      AST.identifier("value"),
-                    ),
-                  ]),
-                )],
+              AST.binaryExpression(
+                "==",
+                AST.identifier("value"),
+                AST.nilLiteral(),
               ),
-            ]),
-          ),
+              AST.blockExpression([AST.breakStatement()]),
+              [],
+              AST.blockExpression([
+                AST.assignmentExpression(
+                  "+=",
+                  AST.identifier("sum"),
+                  AST.identifier("value"),
+                ),
+              ]),
+            ),
+          ]),
+        ),
           AST.identifier("sum"),
         ]),
         manifest: {
@@ -553,7 +552,7 @@ const channelConcurrencyFixtures: Fixture[] = [
                 ],
               ),
             ]),
-            AST.simpleTypeExpression("string"),
+            AST.simpleTypeExpression("String"),
           ),
           AST.assignmentExpression(
             ":=",
@@ -629,7 +628,7 @@ const channelConcurrencyFixtures: Fixture[] = [
         manifest: {
           description: "Able code can rescue channel errors and inspect the struct payloads",
           expect: {
-            result: { kind: "string", value: "ChannelNil,ChannelClosed,ChannelSendOnClosed" },
+            result: { kind: "String", value: "ChannelNil,ChannelClosed,ChannelSendOnClosed" },
           },
         },
       },

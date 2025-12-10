@@ -121,7 +121,7 @@
         "type": "SimpleTypeExpression",
         "name": {
           "type": "Identifier",
-          "name": "string"
+          "name": "String"
         }
       },
       "isMethodShorthand": false,
@@ -233,37 +233,33 @@
                         }
                       ]
                     },
-                    "orClauses": [
-                      {
-                        "type": "OrClause",
-                        "body": {
-                          "type": "BlockExpression",
-                          "body": [
-                            {
-                              "type": "AssignmentExpression",
-                              "operator": "+=",
-                              "left": {
-                                "type": "Identifier",
-                                "name": "attempts"
-                              },
-                              "right": {
-                                "type": "IntegerLiteral",
-                                "value": 1
-                              }
-                            },
-                            {
-                              "type": "FunctionCall",
-                              "callee": {
-                                "type": "Identifier",
-                                "name": "proc_yield"
-                              },
-                              "arguments": [],
-                              "isTrailingLambda": false
-                            }
-                          ]
+                    "elseIfClauses": [],
+                    "elseBody": {
+                      "type": "BlockExpression",
+                      "body": [
+                        {
+                          "type": "AssignmentExpression",
+                          "operator": "+=",
+                          "left": {
+                            "type": "Identifier",
+                            "name": "attempts"
+                          },
+                          "right": {
+                            "type": "IntegerLiteral",
+                            "value": 1
+                          }
+                        },
+                        {
+                          "type": "FunctionCall",
+                          "callee": {
+                            "type": "Identifier",
+                            "name": "proc_yield"
+                          },
+                          "arguments": [],
+                          "isTrailingLambda": false
                         }
-                      }
-                    ]
+                      ]
+                    }
                   }
                 ]
               }
@@ -382,37 +378,33 @@
                         }
                       ]
                     },
-                    "orClauses": [
-                      {
-                        "type": "OrClause",
-                        "body": {
-                          "type": "BlockExpression",
-                          "body": [
-                            {
-                              "type": "AssignmentExpression",
-                              "operator": "+=",
-                              "left": {
-                                "type": "Identifier",
-                                "name": "attempts"
-                              },
-                              "right": {
-                                "type": "IntegerLiteral",
-                                "value": 1
-                              }
-                            },
-                            {
-                              "type": "FunctionCall",
-                              "callee": {
-                                "type": "Identifier",
-                                "name": "proc_yield"
-                              },
-                              "arguments": [],
-                              "isTrailingLambda": false
-                            }
-                          ]
+                    "elseIfClauses": [],
+                    "elseBody": {
+                      "type": "BlockExpression",
+                      "body": [
+                        {
+                          "type": "AssignmentExpression",
+                          "operator": "+=",
+                          "left": {
+                            "type": "Identifier",
+                            "name": "attempts"
+                          },
+                          "right": {
+                            "type": "IntegerLiteral",
+                            "value": 1
+                          }
+                        },
+                        {
+                          "type": "FunctionCall",
+                          "callee": {
+                            "type": "Identifier",
+                            "name": "proc_yield"
+                          },
+                          "arguments": [],
+                          "isTrailingLambda": false
                         }
-                      }
-                    ]
+                      ]
+                    }
                   }
                 ]
               }
@@ -568,40 +560,36 @@
                         }
                       ]
                     },
-                    "orClauses": [
-                      {
-                        "type": "OrClause",
-                        "body": {
-                          "type": "BlockExpression",
-                          "body": [
-                            {
-                              "type": "AssignmentExpression",
-                              "operator": "+=",
-                              "left": {
-                                "type": "Identifier",
-                                "name": "sum"
-                              },
-                              "right": {
-                                "type": "Identifier",
-                                "name": "value"
-                              }
-                            },
-                            {
-                              "type": "AssignmentExpression",
-                              "operator": "+=",
-                              "left": {
-                                "type": "Identifier",
-                                "name": "received"
-                              },
-                              "right": {
-                                "type": "IntegerLiteral",
-                                "value": 1
-                              }
-                            }
-                          ]
+                    "elseIfClauses": [],
+                    "elseBody": {
+                      "type": "BlockExpression",
+                      "body": [
+                        {
+                          "type": "AssignmentExpression",
+                          "operator": "+=",
+                          "left": {
+                            "type": "Identifier",
+                            "name": "sum"
+                          },
+                          "right": {
+                            "type": "Identifier",
+                            "name": "value"
+                          }
+                        },
+                        {
+                          "type": "AssignmentExpression",
+                          "operator": "+=",
+                          "left": {
+                            "type": "Identifier",
+                            "name": "received"
+                          },
+                          "right": {
+                            "type": "IntegerLiteral",
+                            "value": 1
+                          }
                         }
-                      }
-                    ]
+                      ]
+                    }
                   }
                 ]
               }
@@ -1002,7 +990,7 @@
           }
         ]
       },
-      "orClauses": []
+      "elseIfClauses": []
     },
     {
       "type": "IfExpression",
@@ -1047,7 +1035,7 @@
           }
         ]
       },
-      "orClauses": []
+      "elseIfClauses": []
     },
     {
       "type": "IfExpression",
@@ -1092,7 +1080,7 @@
           }
         ]
       },
-      "orClauses": []
+      "elseIfClauses": []
     },
     {
       "type": "ArrayLiteral",

@@ -25,7 +25,7 @@ describe("TypeChecker Apply interface calls", () => {
     const applyInterface = makeApplyInterface();
     const appenderStruct = AST.structDefinition(
       "Appender",
-      [AST.structFieldDefinition(AST.simpleTypeExpression("string"), "prefix")],
+      [AST.structFieldDefinition(AST.simpleTypeExpression("String"), "prefix")],
       "named",
     );
     const applyImpl = AST.implementationDefinition(
@@ -36,14 +36,14 @@ describe("TypeChecker Apply interface calls", () => {
           "apply",
           [
             AST.functionParameter("self", AST.simpleTypeExpression("Self")),
-            AST.functionParameter("suffix", AST.simpleTypeExpression("string")),
+            AST.functionParameter("suffix", AST.simpleTypeExpression("String")),
           ],
           AST.blockExpression([
             AST.returnStatement(
               AST.binaryExpression("+", AST.implicitMemberExpression("prefix"), AST.identifier("suffix")),
             ),
           ]),
-          AST.simpleTypeExpression("string"),
+          AST.simpleTypeExpression("String"),
           undefined,
           undefined,
           true,
@@ -51,15 +51,15 @@ describe("TypeChecker Apply interface calls", () => {
       ],
       undefined,
       undefined,
-      [AST.simpleTypeExpression("string"), AST.simpleTypeExpression("string")],
+      [AST.simpleTypeExpression("String"), AST.simpleTypeExpression("String")],
     );
     const bind = AST.assignmentExpression(
       ":=",
       AST.typedPattern(
         AST.identifier("callable"),
         AST.genericTypeExpression(AST.simpleTypeExpression("Apply"), [
-          AST.simpleTypeExpression("string"),
-          AST.simpleTypeExpression("string"),
+          AST.simpleTypeExpression("String"),
+          AST.simpleTypeExpression("String"),
         ]),
       ),
       AST.structLiteral(
@@ -150,7 +150,7 @@ describe("TypeChecker Apply interface calls", () => {
     const applyInterface = makeApplyInterface();
     const appenderStruct = AST.structDefinition(
       "Appender",
-      [AST.structFieldDefinition(AST.simpleTypeExpression("string"), "prefix")],
+      [AST.structFieldDefinition(AST.simpleTypeExpression("String"), "prefix")],
       "named",
     );
     const applyImpl = AST.implementationDefinition(
@@ -161,14 +161,14 @@ describe("TypeChecker Apply interface calls", () => {
           "apply",
           [
             AST.functionParameter("self", AST.simpleTypeExpression("Self")),
-            AST.functionParameter("suffix", AST.simpleTypeExpression("string")),
+            AST.functionParameter("suffix", AST.simpleTypeExpression("String")),
           ],
           AST.blockExpression([
             AST.returnStatement(
               AST.binaryExpression("+", AST.implicitMemberExpression("prefix"), AST.identifier("suffix")),
             ),
           ]),
-          AST.simpleTypeExpression("string"),
+          AST.simpleTypeExpression("String"),
           undefined,
           undefined,
           true,
@@ -176,7 +176,7 @@ describe("TypeChecker Apply interface calls", () => {
       ],
       undefined,
       undefined,
-      [AST.simpleTypeExpression("string"), AST.simpleTypeExpression("string")],
+      [AST.simpleTypeExpression("String"), AST.simpleTypeExpression("String")],
     );
     const bind = AST.assignmentExpression(
       ":=",

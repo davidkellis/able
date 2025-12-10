@@ -7,7 +7,7 @@ struct ChannelNil {
 struct ChannelSendOnClosed {
 
 }
-fn capture(action: () -> void) -> string {
+fn capture(action: () -> void) -> String {
   do {
     action()
     "ok"

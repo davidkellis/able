@@ -40,7 +40,7 @@ func TestFunctionCallInferredReturnType(t *testing.T) {
 		t.Fatalf("expected call to have type i32, got %q", typName)
 	}
 }
-func TestFunctionCallArgumentCountMismatch(t *testing.T) {
+func TestFunctionCallProducesPartialWhenArgumentsMissing(t *testing.T) {
 	checker := New()
 	addFn := ast.Fn(
 		"add",
@@ -63,11 +63,50 @@ func TestFunctionCallArgumentCountMismatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(diags) != 1 {
-		t.Fatalf("expected one diagnostic, got %v", diags)
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics, got %v", diags)
 	}
-	if want := "expects 2 arguments"; !strings.Contains(diags[0].Message, want) {
-		t.Fatalf("expected diagnostic to mention %q, got %q", want, diags[0].Message)
+	typ, ok := checker.infer[call]
+	if !ok {
+		t.Fatalf("expected inferred type for call expression")
+	}
+	fnType, ok := typ.(FunctionType)
+	if !ok {
+		t.Fatalf("expected FunctionType, got %#v", typ)
+	}
+	if len(fnType.Params) != 1 {
+		t.Fatalf("expected 1 remaining parameter, got %d", len(fnType.Params))
+	}
+	if typeName(fnType.Params[0]) != "i32" {
+		t.Fatalf("expected remaining parameter type i32, got %q", typeName(fnType.Params[0]))
+	}
+	if fnType.Return == nil || typeName(fnType.Return) != "i32" {
+		t.Fatalf("expected partial return type i32, got %#v", fnType.Return)
+	}
+}
+
+func TestPipeRhsMustBeCallable(t *testing.T) {
+	checker := New()
+	assign := ast.Assign(ast.ID("value"), ast.Int(2))
+	pipe := ast.Bin("|>", ast.ID("value"), ast.Int(3))
+	module := ast.NewModule([]ast.Statement{assign, pipe}, nil, nil)
+
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) == 0 {
+		t.Fatalf("expected diagnostic for non-callable pipe RHS")
+	}
+	found := false
+	for _, d := range diags {
+		if strings.Contains(d.Message, "non-callable") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected non-callable diagnostic, got %v", diags)
 	}
 }
 
@@ -399,8 +438,8 @@ func TestBinaryAdditionStringConcatenation(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected binary expression inference entry")
 	}
-	if typeName(typ) != "string" {
-		t.Fatalf("expected string concatenation to infer string, got %q", typeName(typ))
+	if typeName(typ) != "String" {
+		t.Fatalf("expected String concatenation to infer String, got %q", typeName(typ))
 	}
 }
 func TestBinaryAdditionMismatchedOperandsDiagnostic(t *testing.T) {
@@ -516,7 +555,7 @@ func TestLambdaInferenceUsesBodyType(t *testing.T) {
 	}
 }
 
-func TestPipelineAllowsTopicAndPlaceholderCalls(t *testing.T) {
+func TestPipelineAllowsCallableAndPlaceholderCalls(t *testing.T) {
 	checker := New()
 	addFn := ast.Fn(
 		"add",
@@ -548,12 +587,12 @@ func TestPipelineAllowsTopicAndPlaceholderCalls(t *testing.T) {
 		false,
 	)
 	valueDecl := ast.Assign(ast.ID("value"), ast.Int(21))
-	topicPipe := ast.Assign(
+	simplePipe := ast.Assign(
 		ast.ID("topicResult"),
 		ast.Bin(
 			"|>",
 			ast.ID("value"),
-			ast.CallExpr(ast.ID("double"), ast.TopicRef()),
+			ast.ID("double"),
 		),
 	)
 	placeholderPipe := ast.Assign(
@@ -568,7 +607,7 @@ func TestPipelineAllowsTopicAndPlaceholderCalls(t *testing.T) {
 		addFn,
 		doubleFn,
 		valueDecl,
-		topicPipe,
+		simplePipe,
 		placeholderPipe,
 	}, nil, nil)
 
@@ -587,7 +626,7 @@ func TestLambdaReturnAnnotationMismatch(t *testing.T) {
 	lambda := ast.NewLambdaExpression(
 		[]*ast.FunctionParameter{param},
 		ast.ID("x"),
-		ast.Ty("string"),
+		ast.Ty("String"),
 		nil,
 		nil,
 		false,

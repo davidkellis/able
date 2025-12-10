@@ -2,7 +2,7 @@
   "description": "Or else handler runs when propagation raises",
   "expect": {
     "result": {
-      "kind": "string",
+      "kind": "String",
       "value": "handled"
     }
   },

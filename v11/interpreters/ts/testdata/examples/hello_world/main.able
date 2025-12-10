@@ -1,6 +1,6 @@
 package parity.examples.hello
 
-fn greet(name: string) -> string {
+fn greet(name: String) -> String {
   `Hello ${name}`
 }
 

@@ -7,7 +7,7 @@ function buildShowcaseInterface(): AST.InterfaceDefinition {
     AST.functionSignature(
       "show",
       [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
-      AST.simpleTypeExpression("string"),
+      AST.simpleTypeExpression("String"),
     ),
   ]);
 }
@@ -18,7 +18,7 @@ function buildFormatterMethodSet(): AST.MethodsDefinition {
     "describe",
     [AST.functionParameter("self", selfType)],
     AST.blockExpression([AST.returnStatement(AST.stringLiteral("ok"))]),
-    AST.simpleTypeExpression("string"),
+    AST.simpleTypeExpression("String"),
   );
   return AST.methodsDefinition(
     selfType,
@@ -83,7 +83,7 @@ describe("typechecker method-set obligations", () => {
           "show",
           [AST.functionParameter("self", AST.simpleTypeExpression("Point"))],
           AST.blockExpression([AST.returnStatement(AST.stringLiteral("<point>"))]),
-          AST.simpleTypeExpression("string"),
+          AST.simpleTypeExpression("String"),
         ),
       ],
     );
@@ -128,7 +128,7 @@ describe("typechecker method-set obligations", () => {
               ),
             ),
           ]),
-          AST.simpleTypeExpression("string"),
+          AST.simpleTypeExpression("String"),
         ),
       ],
       [],

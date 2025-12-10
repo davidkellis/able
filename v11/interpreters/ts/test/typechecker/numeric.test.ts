@@ -81,7 +81,7 @@ describe("typechecker numeric promotion", () => {
     expect(diagnostics[0]?.message).toContain("requires integer operands");
   });
 
-  test("comparison diagnostics mention numeric requirement when not comparing strings", () => {
+  test("comparison diagnostics mention numeric requirement when not comparing Strings", () => {
     const checker = new TypeChecker();
     const module = AST.module([
       asStatement(AST.assignmentExpression(":=", AST.identifier("foo"), AST.stringLiteral("hey"))),
@@ -113,7 +113,7 @@ describe("typechecker numeric promotion", () => {
     expect(diagnostics).toEqual([]);
   });
 
-  test("// and %% require integer operands", () => {
+  test("// and % require integer operands", () => {
     const checker = new TypeChecker();
     const module = AST.module([
       asStatement(
@@ -127,7 +127,7 @@ describe("typechecker numeric promotion", () => {
         AST.assignmentExpression(
           ":=",
           AST.identifier("badRem"),
-          AST.binaryExpression("%%", AST.floatLiteral(5.0), AST.integerLiteral(2)),
+          AST.binaryExpression("%", AST.floatLiteral(5.0), AST.integerLiteral(2)),
         ),
       ),
     ]);

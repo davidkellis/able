@@ -2,7 +2,7 @@
   "description": "Calling non-Apply values and assigning through Index-only values surface Apply/IndexMut diagnostics",
   "expect": {
     "result": {
-      "kind": "string",
+      "kind": "String",
       "value": "done"
     },
     "typecheckDiagnostics": [

@@ -14,7 +14,7 @@ func TestInterfaceDeclarationRegistersMethods(t *testing.T) {
 		[]*ast.FunctionParameter{
 			ast.Param("self", ast.Ty("Self")),
 		},
-		ast.Ty("string"),
+		ast.Ty("String"),
 		nil,
 		nil,
 		nil,
@@ -51,8 +51,8 @@ func TestInterfaceDeclarationRegistersMethods(t *testing.T) {
 	if typeName(method.Params[0]) != "Self" {
 		t.Fatalf("expected parameter type Self, got %q", typeName(method.Params[0]))
 	}
-	if method.Return == nil || typeName(method.Return) != "string" {
-		t.Fatalf("expected return type string, got %#v", method.Return)
+	if method.Return == nil || typeName(method.Return) != "String" {
+		t.Fatalf("expected return type String, got %#v", method.Return)
 	}
 }
 
@@ -63,7 +63,7 @@ func TestInterfaceMemberAccessUsesSignature(t *testing.T) {
 		[]*ast.FunctionParameter{
 			ast.Param("self", ast.Ty("Self")),
 		},
-		ast.Ty("string"),
+		ast.Ty("String"),
 		nil,
 		nil,
 		nil,
@@ -100,8 +100,8 @@ func TestInterfaceMemberAccessUsesSignature(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected FunctionType, got %#v", memberType)
 	}
-	if fnType.Return == nil || typeName(fnType.Return) != "string" {
-		t.Fatalf("expected method return type string, got %#v", fnType.Return)
+	if fnType.Return == nil || typeName(fnType.Return) != "String" {
+		t.Fatalf("expected method return type String, got %#v", fnType.Return)
 	}
 
 	missing := ast.Member(ast.ID("value"), "missing")
@@ -172,8 +172,8 @@ func TestInterfaceGenericMethodSubstitutesArguments(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected FunctionType, got %#v", memberType)
 	}
-	if fnType.Return == nil || typeName(fnType.Return) != "string" {
-		t.Fatalf("expected method return type string, got %#v", fnType.Return)
+	if fnType.Return == nil || typeName(fnType.Return) != "String" {
+		t.Fatalf("expected method return type String, got %#v", fnType.Return)
 	}
 }
 
@@ -184,7 +184,7 @@ func TestInterfaceDuplicateMethodDiagnostic(t *testing.T) {
 		[]*ast.FunctionParameter{
 			ast.Param("self", ast.Ty("Self")),
 		},
-		ast.Ty("string"),
+		ast.Ty("String"),
 		nil,
 		nil,
 		nil,
@@ -193,9 +193,9 @@ func TestInterfaceDuplicateMethodDiagnostic(t *testing.T) {
 		"show",
 		[]*ast.FunctionParameter{
 			ast.Param("self", ast.Ty("Self")),
-			ast.Param("fmt", ast.Ty("string")),
+			ast.Param("fmt", ast.Ty("String")),
 		},
-		ast.Ty("string"),
+		ast.Ty("String"),
 		nil,
 		nil,
 		nil,
@@ -249,7 +249,7 @@ func TestFunctionConstraintRequiresTypeArguments(t *testing.T) {
 		[]*ast.FunctionParameter{
 			ast.Param("self", ast.Ty("Self")),
 		},
-		ast.Ty("string"),
+		ast.Ty("String"),
 		nil,
 		nil,
 		nil,
@@ -296,7 +296,7 @@ func TestImplementationConstraintMissingInterfaceDiagnostic(t *testing.T) {
 		"show",
 		[]*ast.FunctionParameter{ast.Param("self", ast.Gen(ast.Ty("Wrapper"), ast.Ty("T")))},
 		[]ast.Statement{ast.Ret(ast.Str("wrapper"))},
-		ast.Ty("string"),
+		ast.Ty("String"),
 		[]*ast.GenericParameter{implGeneric},
 		nil,
 		false,
@@ -408,7 +408,7 @@ func TestImplementationInterfaceTypeArgumentMismatch(t *testing.T) {
 		nil,
 		nil,
 		nil,
-		[]ast.TypeExpression{ast.Ty("string"), ast.Ty("i32")},
+		[]ast.TypeExpression{ast.Ty("String"), ast.Ty("i32")},
 		nil,
 		false,
 	)
@@ -440,7 +440,7 @@ func TestImplementationMissingMethodDiagnostic(t *testing.T) {
 		[]*ast.FunctionParameter{
 			ast.Param("self", ast.Ty("Self")),
 		},
-		ast.Ty("string"),
+		ast.Ty("String"),
 		nil,
 		nil,
 		nil,
@@ -477,7 +477,7 @@ func TestImplementationMethodSignatureMismatch(t *testing.T) {
 		[]*ast.FunctionParameter{
 			ast.Param("self", ast.Ty("Self")),
 		},
-		ast.Ty("string"),
+		ast.Ty("String"),
 		nil,
 		nil,
 		nil,
@@ -512,7 +512,7 @@ func TestImplementationMethodSignatureMismatch(t *testing.T) {
 	}
 	found := false
 	for _, d := range diags {
-		if strings.Contains(d.Message, "return type expected string") {
+		if strings.Contains(d.Message, "return type expected String") {
 			found = true
 			break
 		}
@@ -529,7 +529,7 @@ func TestImplementationMethodMatchesInterface(t *testing.T) {
 		[]*ast.FunctionParameter{
 			ast.Param("self", ast.Ty("Self")),
 		},
-		ast.Ty("string"),
+		ast.Ty("String"),
 		nil,
 		nil,
 		nil,
@@ -545,7 +545,7 @@ func TestImplementationMethodMatchesInterface(t *testing.T) {
 		[]ast.Statement{
 			ast.Ret(ast.Str("value")),
 		},
-		ast.Ty("string"),
+		ast.Ty("String"),
 		nil,
 		nil,
 		false,

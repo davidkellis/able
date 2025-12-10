@@ -22,7 +22,7 @@ export function applyStringifyAugmentations(cls: typeof InterpreterV10): void {
       return String(v.value);
     }
     switch (v.kind) {
-      case "string": return v.value;
+      case "String": return v.value;
       case "bool": return String(v.value);
       case "char": return v.value;
       case "nil": return "nil";
@@ -32,7 +32,9 @@ export function applyStringifyAugmentations(cls: typeof InterpreterV10): void {
       case "interface_def": return `<interface ${v.def.id.name}>`;
       case "union_def": return `<union ${v.def.id.name}>`;
       case "struct_instance": {
-        const toStr = this.findMethod(v.def.id.name, "to_string", { typeArgs: v.typeArguments, typeArgMap: v.typeArgMap });
+        const toStr =
+          this.findMethod(v.def.id.name, "to_String", { typeArgs: v.typeArguments, typeArgMap: v.typeArgMap }) ??
+          this.findMethod(v.def.id.name, "to_string", { typeArgs: v.typeArguments, typeArgMap: v.typeArgMap });
         if (toStr) {
           try {
             const funcNode = toStr.node;
@@ -48,7 +50,7 @@ export function applyStringifyAugmentations(cls: typeof InterpreterV10): void {
             } catch (e) {
               if (e instanceof ReturnSignal) rv = e.value; else throw e;
             }
-            if (rv.kind === "string") return rv.value;
+            if (rv.kind === "String") return rv.value;
           } catch {}
         }
         if (Array.isArray(v.values)) {
@@ -65,6 +67,7 @@ export function applyStringifyAugmentations(cls: typeof InterpreterV10): void {
       case "iterator_end": return "IteratorEnd";
       case "native_function": return `<native ${v.name}>`;
       case "native_bound_method": return `<native bound ${v.func.name}>`;
+      case "partial_function": return "<partial>";
       case "error": return `<error ${v.message}>`;
       case "dyn_package": return `<dyn package ${v.name}>`;
       case "dyn_ref": return `<dyn ref ${v.pkg}.${v.name}>`;

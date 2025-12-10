@@ -13,7 +13,7 @@ import able.core.options.{Result}
 const UINT64_MASK = 18446744073709551615_u128 ## 2^64 - 1
 const UINT128_MAX = 340282366920938463463374607431768211455_u128 ## 2^128 - 1
 
-fn uint128_conversion_error(message: string) -> NumericConversionError {
+fn uint128_conversion_error(message: String) -> NumericConversionError {
   NumericConversionError { message }
 }
 
@@ -28,7 +28,7 @@ fn uint128_to_u128(value: UInt128) -> u128 {
   ((value.high as u128) << 64) | (value.low as u128)
 }
 
-fn uint128_check_overflow(sum: u128, lhs: u128, rhs: u128, operation: string) -> void {
+fn uint128_check_overflow(sum: u128, lhs: u128, rhs: u128, operation: String) -> void {
   if sum < lhs || sum < rhs {
     raise OverflowError { operation }
   }
@@ -201,13 +201,13 @@ methods UInt128 {
     else { 128 }
   }
 
-  fn to_string(self: Self) -> string { `${self.to_u128()}` }
+  fn to_string(self: Self) -> String { `${self.to_u128()}` }
 }
 
 ## Trait implementations -----------------------------------------------------
 
 impl Display for UInt128 {
-  fn to_string(self: Self) -> string { self.to_string() }
+  fn to_string(self: Self) -> String { self.to_string() }
 }
 
 impl Eq UInt128 for UInt128 {

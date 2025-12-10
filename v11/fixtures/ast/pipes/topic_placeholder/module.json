@@ -38,29 +38,32 @@
           }
         }
       ],
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "argument": {
+              "type": "BinaryExpression",
+              "operator": "+",
+              "left": {
+                "type": "Identifier",
+                "name": "x"
+              },
+              "right": {
+                "type": "Identifier",
+                "name": "y"
+              }
+            }
+          }
+        ]
+      },
       "returnType": {
         "type": "SimpleTypeExpression",
         "name": {
           "type": "Identifier",
           "name": "i32"
         }
-      },
-      "body": {
-        "type": "BlockExpression",
-        "body": [
-          {
-            "type": "BinaryExpression",
-            "operator": "+",
-            "left": {
-              "type": "Identifier",
-              "name": "x"
-            },
-            "right": {
-              "type": "Identifier",
-              "name": "y"
-            }
-          }
-        ]
       },
       "isMethodShorthand": false,
       "isPrivate": false
@@ -87,29 +90,32 @@
           }
         }
       ],
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "ReturnStatement",
+            "argument": {
+              "type": "BinaryExpression",
+              "operator": "*",
+              "left": {
+                "type": "Identifier",
+                "name": "x"
+              },
+              "right": {
+                "type": "IntegerLiteral",
+                "value": 2
+              }
+            }
+          }
+        ]
+      },
       "returnType": {
         "type": "SimpleTypeExpression",
         "name": {
           "type": "Identifier",
           "name": "i32"
         }
-      },
-      "body": {
-        "type": "BlockExpression",
-        "body": [
-          {
-            "type": "BinaryExpression",
-            "operator": "*",
-            "left": {
-              "type": "Identifier",
-              "name": "x"
-            },
-            "right": {
-              "type": "IntegerLiteral",
-              "value": 2
-            }
-          }
-        ]
       },
       "isMethodShorthand": false,
       "isPrivate": false
@@ -155,32 +161,35 @@
             "name": "double"
           },
           "params": [],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "ReturnStatement",
+                "argument": {
+                  "type": "BinaryExpression",
+                  "operator": "*",
+                  "left": {
+                    "type": "ImplicitMemberExpression",
+                    "member": {
+                      "type": "Identifier",
+                      "name": "value"
+                    }
+                  },
+                  "right": {
+                    "type": "IntegerLiteral",
+                    "value": 2
+                  }
+                }
+              }
+            ]
+          },
           "returnType": {
             "type": "SimpleTypeExpression",
             "name": {
               "type": "Identifier",
               "name": "i32"
             }
-          },
-          "body": {
-            "type": "BlockExpression",
-            "body": [
-              {
-                "type": "BinaryExpression",
-                "operator": "*",
-                "left": {
-                  "type": "ImplicitMemberExpression",
-                  "member": {
-                    "type": "Identifier",
-                    "name": "value"
-                  }
-                },
-                "right": {
-                  "type": "IntegerLiteral",
-                  "value": 2
-                }
-              }
-            ]
           },
           "isMethodShorthand": true,
           "isPrivate": false
@@ -217,7 +226,8 @@
           "type": "BinaryExpression",
           "operator": "+",
           "left": {
-            "type": "TopicReferenceExpression"
+            "type": "PlaceholderExpression",
+            "index": 1
           },
           "right": {
             "type": "IntegerLiteral",
@@ -248,7 +258,8 @@
           },
           "arguments": [
             {
-              "type": "PlaceholderExpression"
+              "type": "PlaceholderExpression",
+              "index": 1
             },
             {
               "type": "IntegerLiteral",
@@ -276,7 +287,8 @@
           },
           "arguments": [
             {
-              "type": "PlaceholderExpression"
+              "type": "PlaceholderExpression",
+              "index": 1
             },
             {
               "type": "IntegerLiteral",
@@ -309,17 +321,8 @@
           "name": "value"
         },
         "right": {
-          "type": "FunctionCall",
-          "callee": {
-            "type": "Identifier",
-            "name": "double"
-          },
-          "arguments": [
-            {
-              "type": "TopicReferenceExpression"
-            }
-          ],
-          "isTrailingLambda": false
+          "type": "Identifier",
+          "name": "double"
         }
       }
     },
@@ -356,19 +359,11 @@
           "isPositional": false
         },
         "right": {
-          "type": "FunctionCall",
-          "callee": {
-            "type": "MemberAccessExpression",
-            "object": {
-              "type": "TopicReferenceExpression"
-            },
-            "member": {
-              "type": "Identifier",
-              "name": "double"
-            }
-          },
-          "arguments": [],
-          "isTrailingLambda": false
+          "type": "ImplicitMemberExpression",
+          "member": {
+            "type": "Identifier",
+            "name": "double"
+          }
         }
       }
     },

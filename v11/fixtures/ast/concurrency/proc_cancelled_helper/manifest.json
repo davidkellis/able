@@ -2,7 +2,7 @@
   "description": "Proc uses proc_cancelled() after yielding to observe cancellation flag",
   "expect": {
     "result": {
-      "kind": "string",
+      "kind": "String",
       "value": "AC"
     }
   },

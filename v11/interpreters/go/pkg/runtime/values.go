@@ -42,12 +42,13 @@ const (
 	KindFuture
 	KindIterator
 	KindIteratorEnd
+	KindPartialFunction
 )
 
 func (k Kind) String() string {
 	switch k {
 	case KindString:
-		return "string"
+		return "String"
 	case KindBool:
 		return "bool"
 	case KindChar:
@@ -102,6 +103,8 @@ func (k Kind) String() string {
 		return "iterator"
 	case KindIteratorEnd:
 		return "iterator_end"
+	case KindPartialFunction:
+		return "partial_function"
 	default:
 		return fmt.Sprintf("unknown_kind_%d", int(k))
 	}
@@ -272,8 +275,9 @@ var IteratorEnd = IteratorEndValue{}
 //-----------------------------------------------------------------------------
 
 type FunctionValue struct {
-	Declaration ast.Node // LambdaExpression or FunctionDefinition
-	Closure     *Environment
+	Declaration    ast.Node // LambdaExpression or FunctionDefinition
+	Closure        *Environment
+	MethodPriority float64
 }
 
 func (v *FunctionValue) Kind() Kind { return KindFunction }
@@ -316,6 +320,14 @@ type NativeBoundMethodValue struct {
 }
 
 func (v NativeBoundMethodValue) Kind() Kind { return KindNativeBoundMethod }
+
+type PartialFunctionValue struct {
+	Target    Value
+	BoundArgs []Value
+	Call      *ast.FunctionCall
+}
+
+func (v PartialFunctionValue) Kind() Kind { return KindPartialFunction }
 
 // IsFunctionLike reports whether the value is a function or overload set.
 func IsFunctionLike(v Value) bool {

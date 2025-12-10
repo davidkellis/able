@@ -51,10 +51,11 @@ const KEYWORDS = [
   "private",
   "Self",
   "do",
-  "return",
-  "if",
-  "or",
-  "else",
+    "return",
+    "if",
+    "elsif",
+    "or",
+    "else",
   "while",
   "loop",
   "for",
@@ -87,6 +88,7 @@ const ASSIGN_OPERATORS = [
   '-=',
   '*=',
   '/=',
+  '%=',
   '.&=',
   '.|=',
   '.^=',
@@ -549,20 +551,19 @@ module.exports = grammar({
 
     handling_expression: $ => prec.left(seq(
       choice($.rescue_postfix_expression, $.pipe_operand_base),
-      repeat1($.else_clause),
+      repeat1($.or_handler_clause),
     )),
 
-    else_clause: $ => seq(
-      "else",
+    or_handler_clause: $ => seq(
+      "or",
       field("handler", $.handling_block),
     ),
 
     handling_block: $ => seq(
       "{",
       optional(seq(
-        "|",
         field("binding", $.identifier),
-        "|",
+        "=>",
       )),
       repeat($.statement),
       "}",
@@ -732,7 +733,7 @@ module.exports = grammar({
       PREC.multiplicative,
       seq(
         $.unary_expression,
-        repeat(seq(choice("//", "%%", "/%", "*", "/"), $.unary_expression)),
+        repeat(seq(choice("//", "%", "/%", "*", "/"), $.unary_expression)),
       ),
     ),
 
@@ -879,7 +880,6 @@ module.exports = grammar({
       $.identifier,
       $.placeholder_expression,
       $.implicit_member_expression,
-      $.topic_reference,
       $.if_expression,
       $.loop_expression,
       $.do_expression,
@@ -914,13 +914,13 @@ module.exports = grammar({
       "if",
       field("condition", $.expression),
       field("consequence", $.block),
-      repeat(field("or_clause", $.or_clause)),
-      optional(seq("else", $.block)),
+      repeat(field("elsif_clause", $.elsif_clause)),
+      optional(seq("else", field("alternative", $.block))),
     )),
 
-    or_clause: $ => seq(
-      "or",
-      field("condition", optional($.expression)),
+    elsif_clause: $ => seq(
+      "elsif",
+      field("condition", $.expression),
       field("consequence", $.block),
     ),
 
@@ -1168,8 +1168,6 @@ module.exports = grammar({
       "#",
       field("member", $.identifier),
     ),
-
-    topic_reference: _ => token("%"),
 
     identifier: _ => token(prec(-1, /[A-KM-Za-km-zA-Z_][A-Za-z0-9_]*|l|lo|loo|l[A-Za-np-zA-Z0-9_][A-Za-z0-9_]*|lo[A-Za-np-zA-Z0-9_][A-Za-z0-9_]*|loo[A-Za-oq-zA-Z0-9_][A-Za-z0-9_]*|loop[A-Za-z0-9_]+/)),
 

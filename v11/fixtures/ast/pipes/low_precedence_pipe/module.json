@@ -99,23 +99,19 @@
                   }
                 ]
               },
-              "orClauses": [
-                {
-                  "type": "OrClause",
-                  "body": {
-                    "type": "BlockExpression",
-                    "body": [
-                      {
-                        "type": "ReturnStatement",
-                        "argument": {
-                          "type": "IntegerLiteral",
-                          "value": 0
-                        }
-                      }
-                    ]
+              "elseIfClauses": [],
+              "elseBody": {
+                "type": "BlockExpression",
+                "body": [
+                  {
+                    "type": "ReturnStatement",
+                    "argument": {
+                      "type": "IntegerLiteral",
+                      "value": 0
+                    }
                   }
-                }
-              ]
+                ]
+              }
             }
           }
         ]
@@ -155,16 +151,16 @@
       }
     },
     {
-      "type": "BinaryExpression",
-      "operator": "|>>",
+      "type": "AssignmentExpression",
+      "operator": ":=",
       "left": {
-        "type": "AssignmentExpression",
-        "operator": ":=",
+        "type": "Identifier",
+        "name": "res1"
+      },
+      "right": {
+        "type": "BinaryExpression",
+        "operator": "|>>",
         "left": {
-          "type": "Identifier",
-          "name": "res1"
-        },
-        "right": {
           "type": "AssignmentExpression",
           "operator": "=",
           "left": {
@@ -175,11 +171,11 @@
             "type": "IntegerLiteral",
             "value": 5
           }
+        },
+        "right": {
+          "type": "Identifier",
+          "name": "inc"
         }
-      },
-      "right": {
-        "type": "Identifier",
-        "name": "inc"
       }
     },
     {

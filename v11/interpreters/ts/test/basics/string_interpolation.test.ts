@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { InterpreterV10 } from "../../src/interpreter";
 
-describe("v11 interpreter - string interpolation", () => {
+describe("v11 interpreter - String interpolation", () => {
   test("interpolates literals and expressions", () => {
     const I = new InterpreterV10();
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("x"), AST.integerLiteral(2)));
@@ -12,10 +12,10 @@ describe("v11 interpreter - string interpolation", () => {
       AST.stringLiteral(", sum = "),
       AST.binaryExpression("+", AST.integerLiteral(3), AST.integerLiteral(4)),
     ]);
-    expect(I.evaluate(str)).toEqual({ kind: 'string', value: 'x = 2, sum = 7' });
+    expect(I.evaluate(str)).toEqual({ kind: 'String', value: 'x = 2, sum = 7' });
   });
 
-  test("uses to_string method on struct instances when available", () => {
+  test("uses to_String method on struct instances when available", () => {
     const I = new InterpreterV10();
     const Def = AST.structDefinition("Point", [
       AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "x"),
@@ -23,7 +23,7 @@ describe("v11 interpreter - string interpolation", () => {
     ], "named");
     I.evaluate(Def);
     const Meths = AST.methodsDefinition(AST.simpleTypeExpression("Point"), [
-      AST.functionDefinition("to_string", [AST.functionParameter("self")], AST.blockExpression([
+      AST.functionDefinition("to_String", [AST.functionParameter("self")], AST.blockExpression([
         AST.returnStatement(AST.stringInterpolation([
           AST.stringLiteral("Point("),
           AST.memberAccessExpression(AST.identifier("self"), "x"),
@@ -42,7 +42,7 @@ describe("v11 interpreter - string interpolation", () => {
       AST.stringLiteral("P= "),
       AST.identifier("p"),
     ]);
-    expect(I.evaluate(s)).toEqual({ kind: 'string', value: 'P= Point(1,2)' });
+    expect(I.evaluate(s)).toEqual({ kind: 'String', value: 'P= Point(1,2)' });
   });
 });
 

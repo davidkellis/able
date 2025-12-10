@@ -35,7 +35,7 @@ func buildInterfaceBundle() interfaceBundle {
 		[]*ast.FunctionParameter{
 			ast.NewFunctionParameter(ast.NewIdentifier("self"), ast.NewSimpleTypeExpression(ast.NewIdentifier("Self"))),
 		},
-		ast.NewSimpleTypeExpression(ast.NewIdentifier("string")),
+		ast.NewSimpleTypeExpression(ast.NewIdentifier("String")),
 		nil,
 		nil,
 		nil,
@@ -55,7 +55,7 @@ func buildInterfaceBundle() interfaceBundle {
 		[]*ast.FunctionParameter{
 			ast.NewFunctionParameter(ast.NewIdentifier("self"), ast.NewSimpleTypeExpression(ast.NewIdentifier("Self"))),
 		},
-		ast.NewSimpleTypeExpression(ast.NewIdentifier("string")),
+		ast.NewSimpleTypeExpression(ast.NewIdentifier("String")),
 		nil,
 		nil,
 		nil,
@@ -76,7 +76,7 @@ func buildInterfaceBundle() interfaceBundle {
 	errorDef := ast.NewInterfaceDefinition(ast.NewIdentifier("Error"), []*ast.FunctionSignature{errorMessageSig, errorCauseSig}, nil, nil, nil, nil, false)
 
 	var implementations []*ast.ImplementationDefinition
-	for _, typeName := range []string{"string", "i32", "bool", "char", "f64"} {
+	for _, typeName := range []string{"String", "i32", "bool", "char", "f64"} {
 		implementations = append(implementations, makeDisplayImpl(typeName))
 		implementations = append(implementations, makeCloneImpl(typeName))
 	}
@@ -91,7 +91,7 @@ func buildInterfaceBundle() interfaceBundle {
 func makeDisplayImpl(typeName string) *ast.ImplementationDefinition {
 	selfType := ast.NewSimpleTypeExpression(ast.NewIdentifier(typeName))
 	var bodyExpr ast.Expression
-	if typeName == "string" {
+	if typeName == "String" {
 		bodyExpr = ast.NewIdentifier("self")
 	} else {
 		bodyExpr = ast.NewStringInterpolation([]ast.Expression{ast.NewIdentifier("self")})
@@ -102,7 +102,7 @@ func makeDisplayImpl(typeName string) *ast.ImplementationDefinition {
 			ast.NewFunctionParameter(ast.NewIdentifier("self"), selfType),
 		},
 		ast.NewBlockExpression([]ast.Statement{ast.NewReturnStatement(bodyExpr)}),
-		ast.NewSimpleTypeExpression(ast.NewIdentifier("string")),
+		ast.NewSimpleTypeExpression(ast.NewIdentifier("String")),
 		nil,
 		nil,
 		false,
@@ -157,7 +157,7 @@ func makeErrorImpl() *ast.ImplementationDefinition {
 		ast.NewBlockExpression([]ast.Statement{
 			ast.NewReturnStatement(ast.NewMemberAccessExpression(ast.NewIdentifier("self"), ast.NewIdentifier("details"))),
 		}),
-		ast.NewSimpleTypeExpression(ast.NewIdentifier("string")),
+		ast.NewSimpleTypeExpression(ast.NewIdentifier("String")),
 		nil,
 		nil,
 		false,

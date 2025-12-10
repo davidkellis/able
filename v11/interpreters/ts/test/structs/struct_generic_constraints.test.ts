@@ -8,9 +8,9 @@ describe("v11 interpreter - struct generic constraints", () => {
 
     const show = AST.interfaceDefinition("Show", [
       AST.functionSignature(
-        "to_string",
+        "to_String",
         [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
-        AST.simpleTypeExpression("string")
+        AST.simpleTypeExpression("String")
       ),
     ]);
     I.evaluate(show);
@@ -29,7 +29,7 @@ describe("v11 interpreter - struct generic constraints", () => {
       AST.simpleTypeExpression("Point"),
       [
         AST.functionDefinition(
-          "to_string",
+          "to_String",
           [AST.functionParameter("self", AST.simpleTypeExpression("Point"))],
           AST.blockExpression([
             AST.returnStatement(
@@ -42,7 +42,7 @@ describe("v11 interpreter - struct generic constraints", () => {
               ])
             ),
           ]),
-          AST.simpleTypeExpression("string")
+          AST.simpleTypeExpression("String")
         ),
       ]
     );
@@ -78,7 +78,7 @@ describe("v11 interpreter - struct generic constraints", () => {
       undefined,
       [AST.simpleTypeExpression("i32")]
     );
-    expect(() => I.evaluate(badLiteral)).toThrow(/does not satisfy interface 'Show': missing method 'to_string'/);
+    expect(() => I.evaluate(badLiteral)).toThrow(/does not satisfy interface 'Show': missing method 'to_String'/);
   });
 
   test("struct literal rejects missing type arguments", () => {
@@ -86,9 +86,9 @@ describe("v11 interpreter - struct generic constraints", () => {
 
     const show = AST.interfaceDefinition("Show", [
       AST.functionSignature(
-        "to_string",
+        "to_String",
         [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
-        AST.simpleTypeExpression("string")
+        AST.simpleTypeExpression("String")
       ),
     ]);
     I.evaluate(show);

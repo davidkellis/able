@@ -2,7 +2,7 @@
   "basics/bool_literal": [],
   "basics/char_literal": [],
   "basics/nil_literal": [],
-  "basics/string_literal": [],
+  "basics/String_literal": [],
   "concurrency/await_channel_arms": [],
   "concurrency/await_channel_fairness": [],
   "concurrency/await_channel_receive_cancel": [],
@@ -75,7 +75,7 @@
     "typechecker: ../../../fixtures/ast/errors/interface_self_pattern_mismatch/source.able:13:1 typechecker: impl PointDisplay for Line must match interface self type 'Point'"
   ],
   "errors/logic_operand_type": [
-    "typechecker: ../../../fixtures/ast/errors/logic_operand_type/source.able:1:11 typechecker: '&&' left operand must be bool (got string)"
+    "typechecker: ../../../fixtures/ast/errors/logic_operand_type/source.able:1:11 typechecker: '&&' left operand must be bool (got String)"
   ],
   "errors/method_set_where_constraint": [
     "typechecker: ../../../fixtures/ast/errors/method_set_where_constraint/source.able:16:17 typechecker: methods for Wrapper::describe constraint on Self is not satisfied: Wrapper does not implement CustomDisplay: methods for Wrapper: method 'show' not provided"
@@ -128,6 +128,7 @@
   "expressions/reassignment": [],
   "expressions/rescue_success": [],
   "expressions/unary_negation": [],
+  "functions/bitwise_xor_operator": [],
   "functions/generic_application": [],
   "functions/hkt_interface_impl_ok": [],
   "functions/implicit_generic_inference": [],
@@ -140,11 +141,9 @@
   "functions/overload_resolution_success": [
     "typechecker: ../../../fixtures/ast/functions/overload_resolution_success/source.able:4:1 typechecker: duplicate declaration 'pick' (previous declaration at ../../../../fixtures/ast/functions/overload_resolution_success/source.able:1:1)",
     "typechecker: ../../../fixtures/ast/functions/overload_resolution_success/source.able:10:1 typechecker: duplicate declaration 'pick' (previous declaration at ../../../../fixtures/ast/functions/overload_resolution_success/source.able:1:1)",
-    "typechecker: ../../../fixtures/ast/functions/overload_resolution_success/source.able:28:7 typechecker: argument 1 has type i32, expected string",
+    "typechecker: ../../../fixtures/ast/functions/overload_resolution_success/source.able:28:7 typechecker: argument 1 has type i32, expected String",
     "typechecker: ../../../fixtures/ast/functions/overload_resolution_success/source.able:28:15 typechecker: function expects 1 arguments, got 2",
-    "typechecker: ../../../fixtures/ast/functions/overload_resolution_success/source.able:28:45 typechecker: argument 1 has type bool, expected string",
-    "typechecker: ../../../fixtures/ast/functions/overload_resolution_success/source.able:28:73 typechecker: function expects 1 arguments, got 0",
-    "typechecker: ../../../fixtures/ast/functions/overload_resolution_success/source.able:28:86 typechecker: argument 1 has type string, expected i32"
+    "typechecker: ../../../fixtures/ast/functions/overload_resolution_success/source.able:28:45 typechecker: argument 1 has type bool, expected String"
   ],
   "functions/trailing_lambda_call": [],
   "functions/ufcs_generic_overloads": [
@@ -200,8 +199,7 @@
   "stdlib/channel_mutex_helpers": [],
   "stdlib/range_iterator": [],
   "strings/interpolation_basic": [],
-  "strings/interpolation_struct_to_string": [],
-  "strings/string_methods": [],
+  "strings/interpolation_struct_to_String": [],
   "structs/functional_update": [],
   "structs/named_literal": [],
   "structs/positional_literal": [],

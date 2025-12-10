@@ -62,10 +62,10 @@ describe("stdlib-backed array helpers", () => {
 package main
 
 methods Array T {
-  fn size(self: Self) -> string { "custom-size" }
+  fn size(self: Self) -> String { "custom-size" }
 }
 
-fn main() -> string {
+fn main() -> String {
   arr := [1, 2, 3]
   arr.size()
 }
@@ -91,7 +91,7 @@ fn main() -> string {
         throw new Error("entry module missing main");
       }
       const result = callCallableValue(interpreter as any, mainFn, [], interpreter.globals) as any;
-      expect(result?.kind).toBe("string");
+      expect(result?.kind).toBe("String");
       expect(readString(result)).toBe("custom-size");
     } finally {
       await fs.rm(tmpRoot, { recursive: true, force: true });

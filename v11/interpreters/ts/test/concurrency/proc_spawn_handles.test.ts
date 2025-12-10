@@ -87,7 +87,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
     const procErr = expectStructInstance(cancelledResult.value, "ProcError");
     const procErrDetails = (procErr.values as Map<string, any>).get("details");
     expect(procErrDetails).toBeDefined();
-    expect(procErrDetails?.kind).toBe("string");
+    expect(procErrDetails?.kind).toBe("String");
     expect((procErrDetails as any).value).toMatch(/cancelled/);
 
     // ! operator should propagate the ProcError
@@ -140,7 +140,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
     const procErr = expectStructInstance(failureValue.value, "ProcError");
     const details = (procErr.values as Map<string, any>).get("details");
     expect(details).toBeDefined();
-    expect(details?.kind).toBe("string");
+    expect(details?.kind).toBe("String");
     expect((details as any).value).toMatch(/kaboom/);
 
     const failedStatus = I.evaluate(statusCall) as any;
@@ -151,7 +151,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
     expect(statusErr.kind).toBe("struct_instance");
     expect(statusErr.def.id.name).toBe("ProcError");
     const statusDetails = (statusErr.values as Map<string, any>).get("details");
-    expect(statusDetails.kind).toBe("string");
+    expect(statusDetails.kind).toBe("String");
     expect(statusDetails.value).toMatch(/kaboom/);
 
     const propagate = AST.propagationExpression(valueCall);
@@ -246,7 +246,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
     const futureErr = expectStructInstance(badResult.value, "ProcError");
     const futureErrDetails = (futureErr.values as Map<string, any>).get("details");
     expect(futureErrDetails).toBeDefined();
-    expect(futureErrDetails?.kind).toBe("string");
+    expect(futureErrDetails?.kind).toBe("String");
     expect((futureErrDetails as any).value).toMatch(/boom/);
 
     const propagateFailure = AST.propagationExpression(badValue);
@@ -273,7 +273,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
     expect(procError.def.id.name).toBe("ProcError");
     const detailsMap = procError.values as Map<string, any>;
     const detailsVal = detailsMap.get("details");
-    expect(detailsVal.kind).toBe("string");
+    expect(detailsVal.kind).toBe("String");
     expect(detailsVal.value).toMatch(/boom/);
   });
 
@@ -385,7 +385,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
     const errPayload = expectStructInstance(cancelledResult.value, "ProcError");
     const details = (errPayload.values as Map<string, any>).get("details");
     expect(details).toBeDefined();
-    expect(details?.kind).toBe("string");
+    expect(details?.kind).toBe("String");
     expect((details as any).value).toMatch(/cancelled/);
     expect(I.evaluate(AST.identifier("flag"))).toEqual({ kind: "i32", value: 0n });
   });
@@ -426,20 +426,16 @@ describe("v11 interpreter - proc & spawn handles", () => {
           AST.assignmentExpression(
             ":=",
             AST.identifier("flag"),
-            AST.ifExpression(
-              AST.binaryExpression(
-                "==",
-                AST.identifier("cause"),
-                AST.nilLiteral(),
-              ),
-              AST.blockExpression([AST.stringLiteral("no-error")]),
-              [
-                AST.orClause(
-                  AST.blockExpression([AST.stringLiteral("has-cause")]),
-                  AST.booleanLiteral(true),
-                ),
-              ],
+          AST.ifExpression(
+            AST.binaryExpression(
+              "==",
+              AST.identifier("cause"),
+              AST.nilLiteral(),
             ),
+            AST.blockExpression([AST.stringLiteral("no-error")]),
+            [],
+            AST.blockExpression([AST.stringLiteral("has-cause")]),
+          ),
           ),
           AST.stringInterpolation([
             AST.functionCall(AST.memberAccessExpression(AST.identifier("err"), "message"), []),
@@ -447,7 +443,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
             AST.identifier("flag"),
           ]),
         ]),
-        AST.simpleTypeExpression("string"),
+        AST.simpleTypeExpression("String"),
       ),
     );
     const valueCall = AST.functionCall(
@@ -465,7 +461,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
     );
 
     const summary = I.evaluate(causeSummary) as V10Value;
-    expect(summary.kind).toBe("string");
+    expect(summary.kind).toBe("String");
     expect(summary.value).toBe("Proc failed: boom|has-cause");
   });
 

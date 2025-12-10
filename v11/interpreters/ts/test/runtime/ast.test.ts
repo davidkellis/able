@@ -11,7 +11,7 @@ describe("AST builders", () => {
   });
 
   test("types", () => {
-    const T = AST.simpleTypeExpression("string");
+    const T = AST.simpleTypeExpression("String");
     const U = AST.simpleTypeExpression("i32");
     expect(AST.functionTypeExpression([T], U)).toEqual({ type: "FunctionTypeExpression", paramTypes: [T], returnType: U });
     expect(AST.nullableTypeExpression(T)).toEqual({ type: "NullableTypeExpression", innerType: T });

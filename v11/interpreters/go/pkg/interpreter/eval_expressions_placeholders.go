@@ -8,24 +8,12 @@ import (
 )
 
 type placeholderPlan struct {
-	explicitIndices map[int]struct{}
-	paramCount      int
+	paramCount int
 }
 
-type placeholderContext int
-
-const (
-	contextRoot placeholderContext = iota
-	contextCallCallee
-	contextOther
-)
-
 type placeholderAnalyzer struct {
-	explicit        map[int]struct{}
-	implicitCount   int
 	highestExplicit int
 	hasPlaceholder  bool
-	relevant        bool
 }
 
 func expressionContainsPlaceholder(expr ast.Expression) bool {
@@ -149,16 +137,19 @@ func expressionContainsPlaceholder(expr ast.Expression) bool {
 		if expressionContainsPlaceholder(e.IfCondition) || expressionContainsPlaceholder(e.IfBody) {
 			return true
 		}
-		for _, clause := range e.OrClauses {
+		for _, clause := range e.ElseIfClauses {
 			if clause == nil {
 				continue
 			}
-			if clause.Condition != nil && expressionContainsPlaceholder(clause.Condition) {
+			if expressionContainsPlaceholder(clause.Condition) {
 				return true
 			}
 			if expressionContainsPlaceholder(clause.Body) {
 				return true
 			}
+		}
+		if e.ElseBody != nil && expressionContainsPlaceholder(e.ElseBody) {
+			return true
 		}
 		return false
 	case *ast.IteratorLiteral:
@@ -167,8 +158,7 @@ func expressionContainsPlaceholder(expr ast.Expression) bool {
 		return false
 	case *ast.ProcExpression, *ast.SpawnExpression, *ast.AwaitExpression:
 		return false
-	case *ast.TopicReferenceExpression,
-		*ast.Identifier,
+	case *ast.Identifier,
 		*ast.IntegerLiteral,
 		*ast.FloatLiteral,
 		*ast.BooleanLiteral,
@@ -226,9 +216,7 @@ func statementContainsPlaceholder(stmt ast.Statement) bool {
 }
 
 func analyzePlaceholderExpression(expr ast.Expression) (placeholderPlan, bool, error) {
-	analyzer := &placeholderAnalyzer{
-		explicit: make(map[int]struct{}),
-	}
+	analyzer := &placeholderAnalyzer{}
 	if err := analyzer.visitExpression(expr); err != nil {
 		return placeholderPlan{}, false, err
 	}
@@ -236,13 +224,11 @@ func analyzePlaceholderExpression(expr ast.Expression) (placeholderPlan, bool, e
 		return placeholderPlan{}, false, nil
 	}
 	paramCount := analyzer.highestExplicit
-	implicitTotal := len(analyzer.explicit) + analyzer.implicitCount
-	if implicitTotal > paramCount {
-		paramCount = implicitTotal
+	if paramCount == 0 {
+		paramCount = 1
 	}
 	return placeholderPlan{
-		explicitIndices: analyzer.explicit,
-		paramCount:      paramCount,
+		paramCount: paramCount,
 	}, true, nil
 }
 
@@ -293,20 +279,9 @@ func (i *Interpreter) evaluatePlaceholderExpression(expr *ast.PlaceholderExpress
 	if !ok {
 		return nil, fmt.Errorf("Expression placeholder used outside of placeholder lambda")
 	}
+	idx := 1
 	if expr.Index != nil {
-		idx := *expr.Index
-		val, err := frame.valueAt(idx)
-		if err != nil {
-			return nil, err
-		}
-		if val == nil {
-			return runtime.NilValue{}, nil
-		}
-		return val, nil
-	}
-	idx, err := frame.nextImplicitIndex()
-	if err != nil {
-		return nil, err
+		idx = *expr.Index
 	}
 	val, err := frame.valueAt(idx)
 	if err != nil {

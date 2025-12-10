@@ -8,7 +8,7 @@ This document tracks the remaining gaps between the two interpreters. For each f
 
 The table above captures line-item status; the following themes summarise what still blocks full parity:
 
-- **Control flow coverage** — Core while/range/if-or semantics and for-loop destructuring now mirror the TS suite (`interpreter_control_flow_test.go`, `interpreter_patterns_test.go`), leaving no outstanding control-flow gaps.
+- **Control flow coverage** — Core while/range/if/elsif/else semantics and for-loop destructuring now mirror the TS suite (`interpreter_control_flow_test.go`, `interpreter_patterns_test.go`), leaving no outstanding control-flow gaps.
 - **Modules & imports** — Static/dynamic imports (including nested re-exports) now align with TS.
 - **Interfaces & generics** — Dispatch precedence, default methods, constraints, and named impl disambiguation mirror TS coverage.
 - **Data access & operators** — Bitshift/range checks and mixed numeric comparisons now match TS semantics.

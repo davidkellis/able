@@ -2,7 +2,7 @@ package tutorial.patterns
 
 struct Point { x: i32, y: i32 }
 struct Dimensions { i32, i32 }
-struct Person { name: string, favorite: Point }
+struct Person { name: String, favorite: Point }
 
 fn main() -> void {
   origin := Point { x: 1, y: 5 }

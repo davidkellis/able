@@ -1,7 +1,7 @@
 interface CustomDisplay {
-  fn to_string(self: Self) -> string;
+  fn to_string(self: Self) -> String;
 }
 
-interface Feed<T> = Iterable string + Sized
+interface Feed<T> = Iterable String + Sized
 
 nil

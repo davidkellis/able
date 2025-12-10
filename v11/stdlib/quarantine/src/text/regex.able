@@ -34,16 +34,16 @@ struct Regex {
 }
 
 struct RegexUnsupportedError {
-  feature: string,
-  message: string
+  feature: String,
+  message: String
 }
 
 impl Error for RegexUnsupportedError {
-  fn message(self: Self) -> string { self.message }
+  fn message(self: Self) -> String { self.message }
   fn cause(self: Self) -> ?Error { nil }
 }
 
-fn unsupported(feature: string) -> RegexUnsupportedError {
+fn unsupported(feature: String) -> RegexUnsupportedError {
   RegexUnsupportedError {
     feature,
     message: `regex ${feature} is not implemented yet`
@@ -88,7 +88,7 @@ struct RegexSpan {
 }
 
 struct RegexCapture {
-  name: ?string,
+  name: ?String,
   value: ?String,
   span: ?RegexSpan
 }
@@ -106,7 +106,7 @@ struct RegexSplit {
   segments: Array String
 }
 
-fn regex_is_match(pattern: string, haystack: string) -> Result bool {
+fn regex_is_match(pattern: String, haystack: String) -> Result bool {
   match String::from_builtin(pattern) {
     case err: Error => err,
     case pattern_string: String => match String::from_builtin(haystack) {

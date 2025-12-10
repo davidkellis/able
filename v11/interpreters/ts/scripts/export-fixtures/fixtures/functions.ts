@@ -199,7 +199,7 @@ const functionsFixtures: Fixture[] = [
       module: AST.module([
         AST.functionDefinition(
           "pick",
-          [AST.functionParameter("value", AST.simpleTypeExpression("string"))],
+          [AST.functionParameter("value", AST.simpleTypeExpression("String"))],
           AST.blockExpression([AST.int(20)]),
           AST.simpleTypeExpression("i32"),
         ),
@@ -207,7 +207,7 @@ const functionsFixtures: Fixture[] = [
           "pick",
           [
             AST.functionParameter("value", AST.simpleTypeExpression("i32")),
-            AST.functionParameter("note", AST.nullableTypeExpression(AST.simpleTypeExpression("string"))),
+            AST.functionParameter("note", AST.nullableTypeExpression(AST.simpleTypeExpression("String"))),
           ],
           AST.blockExpression([
             AST.matchExpression(AST.id("note"), [
@@ -242,7 +242,7 @@ const functionsFixtures: Fixture[] = [
               "mark",
               [
                 AST.functionParameter("self", AST.simpleTypeExpression("Box")),
-                AST.functionParameter("tag", AST.nullableTypeExpression(AST.simpleTypeExpression("string"))),
+                AST.functionParameter("tag", AST.nullableTypeExpression(AST.simpleTypeExpression("String"))),
               ],
               AST.blockExpression([
                 AST.matchExpression(AST.id("tag"), [
@@ -289,11 +289,9 @@ const functionsFixtures: Fixture[] = [
           typecheckDiagnostics: [
             "typechecker: ../../../fixtures/ast/functions/overload_resolution_success/source.able:4:1 typechecker: duplicate declaration 'pick' (previous declaration at ../../../../fixtures/ast/functions/overload_resolution_success/source.able:1:1)",
             "typechecker: ../../../fixtures/ast/functions/overload_resolution_success/source.able:10:1 typechecker: duplicate declaration 'pick' (previous declaration at ../../../../fixtures/ast/functions/overload_resolution_success/source.able:1:1)",
-            "typechecker: ../../../fixtures/ast/functions/overload_resolution_success/source.able:28:7 typechecker: argument 1 has type i32, expected string",
+            "typechecker: ../../../fixtures/ast/functions/overload_resolution_success/source.able:28:7 typechecker: argument 1 has type i32, expected String",
             "typechecker: ../../../fixtures/ast/functions/overload_resolution_success/source.able:28:15 typechecker: function expects 1 arguments, got 2",
-            "typechecker: ../../../fixtures/ast/functions/overload_resolution_success/source.able:28:45 typechecker: argument 1 has type bool, expected string",
-            "typechecker: ../../../fixtures/ast/functions/overload_resolution_success/source.able:28:73 typechecker: function expects 1 arguments, got 0",
-            "typechecker: ../../../fixtures/ast/functions/overload_resolution_success/source.able:28:86 typechecker: argument 1 has type string, expected i32",
+            "typechecker: ../../../fixtures/ast/functions/overload_resolution_success/source.able:28:45 typechecker: argument 1 has type bool, expected String",
           ],
         },
       },
@@ -428,24 +426,13 @@ const functionsFixtures: Fixture[] = [
             "Point",
           ),
         ),
-        AST.assign("scaled", AST.functionCall(AST.id("scale"), [AST.id("p"), AST.int(2)])),
-        AST.assign(
-          "pipeScaled",
-          AST.binaryExpression(
-            "|>",
-            AST.id("p"),
-            AST.functionCall(AST.id("scale"), [AST.topicReferenceExpression(), AST.int(3)]),
-          ),
-        ),
+        AST.assign("scaled", AST.functionCall(AST.memberAccessExpression(AST.id("p"), "scale"), [AST.int(2)])),
+        AST.assign("pipeScaled", AST.functionCall(AST.memberAccessExpression(AST.id("p"), "scale"), [AST.int(3)])),
         AST.arrayLiteral([
-          AST.functionCall(AST.id("norm"), [AST.id("p")]),
+          AST.functionCall(AST.memberAccessExpression(AST.id("p"), "norm"), []),
           AST.member(AST.id("scaled"), "x"),
           AST.member(AST.id("scaled"), "y"),
-          AST.binaryExpression(
-            "|>",
-            AST.id("p"),
-            AST.functionCall(AST.id("norm"), [AST.topicReferenceExpression()]),
-          ),
+          AST.binaryExpression("|>", AST.id("p"), AST.implicitMemberExpression("norm")),
           AST.member(AST.id("pipeScaled"), "x"),
           AST.member(AST.id("pipeScaled"), "y"),
         ]),
@@ -539,23 +526,11 @@ const functionsFixtures: Fixture[] = [
         AST.arrayLiteral([
           AST.functionCall(AST.memberAccessExpression(AST.id("intBox"), "describe"), []),
           AST.functionCall(AST.memberAccessExpression(AST.id("boolBox"), "describe"), []),
-          AST.binaryExpression(
-            "|>",
-            AST.id("intBox"),
-            AST.functionCall(AST.id("describe"), [AST.topicReferenceExpression()]),
-          ),
+          AST.binaryExpression("|>", AST.id("intBox"), AST.id("describe")),
           AST.functionCall(AST.id("sum"), [AST.id("intBox"), AST.int(2)]),
           AST.functionCall(AST.memberAccessExpression(AST.id("intBox"), "sum"), [AST.int(3)]),
-          AST.binaryExpression(
-            "|>",
-            AST.id("intBox"),
-            AST.functionCall(AST.id("sum"), [AST.topicReferenceExpression(), AST.int(4)]),
-          ),
-          AST.binaryExpression(
-            "|>",
-            AST.id("boolBox"),
-            AST.functionCall(AST.id("describe"), [AST.topicReferenceExpression()]),
-          ),
+          AST.binaryExpression("|>", AST.id("intBox"), AST.functionCall(AST.id("sum"), [AST.int(4)])),
+          AST.binaryExpression("|>", AST.id("boolBox"), AST.id("describe")),
         ]),
       ]),
       manifest: {

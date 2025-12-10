@@ -1,5 +1,5 @@
 interface Show for T {
-  fn show(self: Self) -> string
+  fn show(self: Self) -> String
 }
 
 interface TraitA for T {}
@@ -13,34 +13,34 @@ struct Beta {}
 struct Gamma {}
 
 impl Show for Box<i32> {
-  fn show(self: Self) -> string { "box-i32" }
+  fn show(self: Self) -> String { "box-i32" }
 }
 impl<T> Show for Box<T> {
-  fn show(self: Self) -> string { "box-generic" }
+  fn show(self: Self) -> String { "box-generic" }
 }
 Fancy = impl Show for Box<i32> {
-  fn show(self: Self) -> string { "box-named" }
+  fn show(self: Self) -> String { "box-named" }
 }
 
 impl<T: TraitA + TraitB> Show for Wrapper<T> {
-  fn show(self: Self) -> string { "constraints-ab" }
+  fn show(self: Self) -> String { "constraints-ab" }
 }
 impl<T: TraitA> Show for Wrapper<T> {
-  fn show(self: Self) -> string { "constraints-a" }
+  fn show(self: Self) -> String { "constraints-a" }
 }
 
 impl Show for Alpha | Beta {
-  fn show(self: Self) -> string { "union-narrow" }
+  fn show(self: Self) -> String { "union-narrow" }
 }
 impl Show for Alpha | Beta | Gamma {
-  fn show(self: Self) -> string { "union-wide" }
+  fn show(self: Self) -> String { "union-wide" }
 }
 
 impl<T> Show for Pair<T, i32> {
-  fn show(self: Self) -> string { "pair-tail" }
+  fn show(self: Self) -> String { "pair-tail" }
 }
 impl<U, V> Show for Pair<U, V> {
-  fn show(self: Self) -> string { "pair-generic" }
+  fn show(self: Self) -> String { "pair-generic" }
 }
 
 impl TraitA for Alpha {}
@@ -48,7 +48,7 @@ impl TraitB for Alpha {}
 impl TraitA for Beta {}
 
 box_i32 := Box<i32> { value: 3 }
-box_str := Box<string> { value: "hi" }
+box_str := Box<String> { value: "hi" }
 wrapper := Wrapper<Alpha> { value: Alpha {} }
 union_val: Alpha | Beta = Alpha {}
 pair := Pair<i32, i32> { left: 1, right: 2 }

@@ -1,7 +1,7 @@
 package parity.examples.patterns
 
 struct Entry {
-  label: string,
+  label: String,
   value: i32
 }
 

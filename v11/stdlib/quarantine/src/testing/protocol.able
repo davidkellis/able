@@ -4,19 +4,19 @@ import able.collections.array.{Array}
 
 ## Optional source location metadata for test reporting.
 struct SourceLocation {
-  module_path: string,
+  module_path: String,
   line: i32,
   column: i32
 }
 
 ## Parameters provided by the CLI during discovery.
 struct DiscoveryRequest {
-  include_paths: Array string,
-  exclude_paths: Array string,
-  include_names: Array string,
-  exclude_names: Array string,
-  include_tags: Array string,
-  exclude_tags: Array string,
+  include_paths: Array String,
+  exclude_paths: Array String,
+  include_names: Array String,
+  exclude_names: Array String,
+  include_tags: Array String,
+  exclude_tags: Array String,
   list_only: bool
 }
 
@@ -30,18 +30,18 @@ struct RunOptions {
 
 ## Key-value metadata entry used for extensible descriptors.
 struct MetadataEntry {
-  key: string,
-  value: string
+  key: String,
+  value: String
 }
 
 ## Test descriptor emitted during discovery.
 struct TestDescriptor {
-  framework_id: string,
-  module_path: string,
-  test_id: string,
-  display_name: string,
+  framework_id: String,
+  module_path: String,
+  test_id: String,
+  display_name: String,
   location: ?SourceLocation,
-  tags: Array string,
+  tags: Array String,
   metadata: Array MetadataEntry
 }
 
@@ -52,8 +52,8 @@ struct TestPlan {
 
 ## Failure payload shared across discovery and execution.
 struct Failure {
-  message: string,
-  details: ?string,
+  message: String,
+  details: ?String,
   location: ?SourceLocation
 }
 
@@ -65,15 +65,15 @@ union TestEvent =
       duration_ms: i64,
       failure: Failure
     }
-  | case_skipped { descriptor: TestDescriptor, reason: ?string }
-  | framework_error { message: string }
+  | case_skipped { descriptor: TestDescriptor, reason: ?String }
+  | framework_error { message: String }
 
 interface Reporter {
   fn emit(self: Self, event: TestEvent) -> void
 }
 
 interface Framework {
-  fn id(self: Self) -> string
+  fn id(self: Self) -> String
   fn discover(
     self: Self,
     request: DiscoveryRequest,

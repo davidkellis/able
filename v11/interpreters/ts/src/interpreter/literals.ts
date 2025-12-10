@@ -7,7 +7,7 @@ import { makeFloatValue, makeIntegerValue } from "./numeric";
 export function evaluateLiteral(ctx: InterpreterV10, node: AST.AstNode, env: Environment): V10Value {
   switch (node.type) {
     case "StringLiteral":
-      return { kind: "string", value: (node as AST.StringLiteral).value };
+      return { kind: "String", value: (node as AST.StringLiteral).value };
     case "BooleanLiteral":
       return { kind: "bool", value: (node as AST.BooleanLiteral).value };
     case "CharLiteral":

@@ -3,7 +3,7 @@ package app
 dynimport extras.catalog::catalog
 dynimport extras.pricing.{ price_for }
 
-fn describe(item: string) -> string {
+fn describe(item: String) -> String {
   `  ${item}: ${price_for(item)}`
 }
 

@@ -312,14 +312,17 @@
       "right": {
         "type": "FunctionCall",
         "callee": {
-          "type": "Identifier",
-          "name": "scale"
-        },
-        "arguments": [
-          {
+          "type": "MemberAccessExpression",
+          "object": {
             "type": "Identifier",
             "name": "p"
           },
+          "member": {
+            "type": "Identifier",
+            "name": "scale"
+          }
+        },
+        "arguments": [
           {
             "type": "IntegerLiteral",
             "value": 2
@@ -336,29 +339,25 @@
         "name": "pipeScaled"
       },
       "right": {
-        "type": "BinaryExpression",
-        "operator": "|>",
-        "left": {
-          "type": "Identifier",
-          "name": "p"
-        },
-        "right": {
-          "type": "FunctionCall",
-          "callee": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "p"
+          },
+          "member": {
             "type": "Identifier",
             "name": "scale"
-          },
-          "arguments": [
-            {
-              "type": "TopicReferenceExpression"
-            },
-            {
-              "type": "IntegerLiteral",
-              "value": 3
-            }
-          ],
-          "isTrailingLambda": false
-        }
+          }
+        },
+        "arguments": [
+          {
+            "type": "IntegerLiteral",
+            "value": 3
+          }
+        ],
+        "isTrailingLambda": false
       }
     },
     {
@@ -367,15 +366,17 @@
         {
           "type": "FunctionCall",
           "callee": {
-            "type": "Identifier",
-            "name": "norm"
-          },
-          "arguments": [
-            {
+            "type": "MemberAccessExpression",
+            "object": {
               "type": "Identifier",
               "name": "p"
+            },
+            "member": {
+              "type": "Identifier",
+              "name": "norm"
             }
-          ],
+          },
+          "arguments": [],
           "isTrailingLambda": false
         },
         {
@@ -408,17 +409,11 @@
             "name": "p"
           },
           "right": {
-            "type": "FunctionCall",
-            "callee": {
+            "type": "ImplicitMemberExpression",
+            "member": {
               "type": "Identifier",
               "name": "norm"
-            },
-            "arguments": [
-              {
-                "type": "TopicReferenceExpression"
-              }
-            ],
-            "isTrailingLambda": false
+            }
           }
         },
         {

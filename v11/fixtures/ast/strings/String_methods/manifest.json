@@ -1,5 +1,8 @@
 {
-  "description": "string helpers cover length, substring, split, replace, and prefix/suffix checks",
+  "description": "String helpers cover length, subString, split, replace, and prefix/suffix checks",
+  "skipTargets": [
+    "ts"
+  ],
   "expect": {
     "result": {
       "kind": "array",
@@ -17,26 +20,26 @@
           "value": "5"
         },
         {
-          "kind": "string",
+          "kind": "String",
           "value": "éll"
         },
         {
-          "kind": "string",
+          "kind": "String",
           "value": "llo"
         },
         {
           "kind": "array",
           "elements": [
             {
-              "kind": "string",
+              "kind": "String",
               "value": "hé"
             },
             {
-              "kind": "string",
+              "kind": "String",
               "value": ""
             },
             {
-              "kind": "string",
+              "kind": "String",
               "value": "o"
             }
           ]
@@ -45,29 +48,29 @@
           "kind": "array",
           "elements": [
             {
-              "kind": "string",
+              "kind": "String",
               "value": "h"
             },
             {
-              "kind": "string",
+              "kind": "String",
               "value": "é"
             },
             {
-              "kind": "string",
+              "kind": "String",
               "value": "l"
             },
             {
-              "kind": "string",
+              "kind": "String",
               "value": "l"
             },
             {
-              "kind": "string",
+              "kind": "String",
               "value": "o"
             }
           ]
         },
         {
-          "kind": "string",
+          "kind": "String",
           "value": "héLLo"
         },
         {

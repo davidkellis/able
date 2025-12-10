@@ -9,10 +9,10 @@ describe("v11 interpreter - division operators", () => {
     expect(I.evaluate(expr)).toEqual({ kind: "f64", value: 2.5 });
   });
 
-  test("// and %% follow Euclidean semantics for integers", () => {
+  test("// and % follow Euclidean semantics for integers", () => {
     const I = new InterpreterV10();
     const quotient = AST.binaryExpression("//", AST.integerLiteral(-5), AST.integerLiteral(3));
-    const remainder = AST.binaryExpression("%%", AST.integerLiteral(-5), AST.integerLiteral(3));
+    const remainder = AST.binaryExpression("%", AST.integerLiteral(-5), AST.integerLiteral(3));
     expect(I.evaluate(quotient)).toEqual({ kind: "i32", value: -2n });
     expect(I.evaluate(remainder)).toEqual({ kind: "i32", value: 1n });
   });
@@ -34,7 +34,7 @@ describe("v11 interpreter - division operators", () => {
   test("division family rejects zero divisors", () => {
     const I = new InterpreterV10();
     expect(() =>
-      I.evaluate(AST.binaryExpression("%%", AST.integerLiteral(4), AST.integerLiteral(0))),
+      I.evaluate(AST.binaryExpression("%", AST.integerLiteral(4), AST.integerLiteral(0))),
     ).toThrow(/division by zero/i);
     expect(() =>
       I.evaluate(AST.binaryExpression("//", AST.integerLiteral(4), AST.integerLiteral(0))),

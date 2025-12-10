@@ -516,7 +516,7 @@ export function interceptStdout(buffer: string[], fn: () => void): void {
 
 export function formatValue(value: V10.V10Value): string {
   switch (value.kind) {
-    case "string":
+    case "String":
     case "char":
       return String(value.value);
     case "bool":

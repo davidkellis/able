@@ -2,7 +2,7 @@ package concurrency.channel_mutex.tests
 
 import able.concurrency.{Channel, Mutex, with_lock}
 
-fn assert(condition: bool, message: string) -> void {
+fn assert(condition: bool, message: String) -> void {
   if condition { return }
   raise message
 }

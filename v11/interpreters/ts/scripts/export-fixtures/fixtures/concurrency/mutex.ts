@@ -101,7 +101,7 @@ const mutexConcurrencyFixtures: Fixture[] = [
         manifest: {
           description: "Mutex lock/unlock methods mutate in sequence",
           expect: {
-            result: { kind: "string", value: "AB" },
+            result: { kind: "String", value: "AB" },
           },
         },
       },
@@ -237,7 +237,7 @@ const mutexConcurrencyFixtures: Fixture[] = [
         manifest: {
           description: "Mutex contention ensures the waiting proc resumes only after unlock",
           expect: {
-            result: { kind: "string", value: "Pending:Resolved:ABC" },
+            result: { kind: "String", value: "Pending:Resolved:ABC" },
           },
         },
       },

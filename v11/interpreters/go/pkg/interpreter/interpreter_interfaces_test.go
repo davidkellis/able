@@ -17,7 +17,7 @@ func TestInterfaceDynamicDispatch(t *testing.T) {
 				ast.FnSig(
 					"to_string",
 					[]*ast.FunctionParameter{ast.Param("self", ast.Ty("Self"))},
-					ast.Ty("string"),
+					ast.Ty("String"),
 					nil,
 					nil,
 					nil,
@@ -48,7 +48,7 @@ func TestInterfaceDynamicDispatch(t *testing.T) {
 					"to_string",
 					[]*ast.FunctionParameter{ast.Param("self", ast.Ty("Point"))},
 					[]ast.Statement{ast.Ret(ast.Str("point"))},
-					ast.Ty("string"),
+					ast.Ty("String"),
 					nil,
 					nil,
 					false,
@@ -96,7 +96,7 @@ func TestInterfaceAssignmentMissingImplementation(t *testing.T) {
 				ast.FnSig(
 					"to_string",
 					[]*ast.FunctionParameter{ast.Param("self", ast.Ty("Self"))},
-					ast.Ty("string"),
+					ast.Ty("String"),
 					nil,
 					nil,
 					nil,
@@ -152,7 +152,7 @@ func TestInterfaceUnionDispatchPrefersSpecific(t *testing.T) {
 				ast.FnSig(
 					"describe",
 					[]*ast.FunctionParameter{ast.Param("self", ast.Ty("Self"))},
-					ast.Ty("string"),
+					ast.Ty("String"),
 					nil,
 					nil,
 					nil,
@@ -167,7 +167,7 @@ func TestInterfaceUnionDispatchPrefersSpecific(t *testing.T) {
 		ast.StructDef(
 			"Fancy",
 			[]*ast.StructFieldDefinition{
-				ast.FieldDef(ast.Ty("string"), "label"),
+				ast.FieldDef(ast.Ty("String"), "label"),
 			},
 			ast.StructKindNamed,
 			nil,
@@ -177,7 +177,7 @@ func TestInterfaceUnionDispatchPrefersSpecific(t *testing.T) {
 		ast.StructDef(
 			"Basic",
 			[]*ast.StructFieldDefinition{
-				ast.FieldDef(ast.Ty("string"), "label"),
+				ast.FieldDef(ast.Ty("String"), "label"),
 			},
 			ast.StructKindNamed,
 			nil,
@@ -192,7 +192,7 @@ func TestInterfaceUnionDispatchPrefersSpecific(t *testing.T) {
 					"describe",
 					[]*ast.FunctionParameter{ast.Param("self", ast.Ty("Fancy"))},
 					[]ast.Statement{ast.Ret(ast.Str("fancy"))},
-					ast.Ty("string"),
+					ast.Ty("String"),
 					nil,
 					nil,
 					false,
@@ -213,7 +213,7 @@ func TestInterfaceUnionDispatchPrefersSpecific(t *testing.T) {
 					"describe",
 					[]*ast.FunctionParameter{ast.Param("self", ast.Ty("Basic"))},
 					[]ast.Statement{ast.Ret(ast.Str("basic"))},
-					ast.Ty("string"),
+					ast.Ty("String"),
 					nil,
 					nil,
 					false,
@@ -234,7 +234,7 @@ func TestInterfaceUnionDispatchPrefersSpecific(t *testing.T) {
 					"describe",
 					[]*ast.FunctionParameter{ast.Param("self", nil)},
 					[]ast.Statement{ast.Ret(ast.Str("union"))},
-					ast.Ty("string"),
+					ast.Ty("String"),
 					nil,
 					nil,
 					false,
@@ -292,7 +292,7 @@ func TestInterfaceDefaultMethodFallback(t *testing.T) {
 				ast.FnSig(
 					"speak",
 					[]*ast.FunctionParameter{ast.Param("self", ast.Ty("Self"))},
-					ast.Ty("string"),
+					ast.Ty("String"),
 					nil,
 					nil,
 					ast.Block(ast.Ret(ast.Str("default"))),
@@ -307,7 +307,7 @@ func TestInterfaceDefaultMethodFallback(t *testing.T) {
 		ast.StructDef(
 			"Bot",
 			[]*ast.StructFieldDefinition{
-				ast.FieldDef(ast.Ty("string"), "name"),
+				ast.FieldDef(ast.Ty("String"), "name"),
 			},
 			ast.StructKindNamed,
 			nil,
@@ -351,7 +351,7 @@ func TestInterfaceDefaultMethodOverride(t *testing.T) {
 				ast.FnSig(
 					"speak",
 					[]*ast.FunctionParameter{ast.Param("self", ast.Ty("Self"))},
-					ast.Ty("string"),
+					ast.Ty("String"),
 					nil,
 					nil,
 					ast.Block(ast.Ret(ast.Str("default"))),
@@ -366,7 +366,7 @@ func TestInterfaceDefaultMethodOverride(t *testing.T) {
 		ast.StructDef(
 			"Bot",
 			[]*ast.StructFieldDefinition{
-				ast.FieldDef(ast.Ty("string"), "name"),
+				ast.FieldDef(ast.Ty("String"), "name"),
 			},
 			ast.StructKindNamed,
 			nil,
@@ -381,7 +381,7 @@ func TestInterfaceDefaultMethodOverride(t *testing.T) {
 					"speak",
 					[]*ast.FunctionParameter{ast.Param("self", ast.Ty("Bot"))},
 					[]ast.Statement{ast.Ret(ast.Str("custom"))},
-					ast.Ty("string"),
+					ast.Ty("String"),
 					nil,
 					nil,
 					false,
@@ -421,7 +421,7 @@ func TestInterfaceDynamicDispatchUsesUnderlyingImpl(t *testing.T) {
 				ast.FnSig(
 					"to_string",
 					[]*ast.FunctionParameter{ast.Param("self", ast.Ty("Self"))},
-					ast.Ty("string"),
+					ast.Ty("String"),
 					nil,
 					nil,
 					nil,
@@ -462,7 +462,7 @@ func TestInterfaceDynamicDispatchUsesUnderlyingImpl(t *testing.T) {
 							),
 						),
 					},
-					ast.Ty("string"),
+					ast.Ty("String"),
 					nil,
 					nil,
 					false,
@@ -510,7 +510,7 @@ func TestInterfaceDynamicDispatchPrefersMostSpecificImpl(t *testing.T) {
 				ast.FnSig(
 					"describe",
 					[]*ast.FunctionParameter{ast.Param("self", ast.Ty("Self"))},
-					ast.Ty("string"),
+					ast.Ty("String"),
 					nil,
 					nil,
 					nil,
@@ -525,7 +525,7 @@ func TestInterfaceDynamicDispatchPrefersMostSpecificImpl(t *testing.T) {
 		ast.StructDef(
 			"Fancy",
 			[]*ast.StructFieldDefinition{
-				ast.FieldDef(ast.Ty("string"), "label"),
+				ast.FieldDef(ast.Ty("String"), "label"),
 			},
 			ast.StructKindNamed,
 			nil,
@@ -535,7 +535,7 @@ func TestInterfaceDynamicDispatchPrefersMostSpecificImpl(t *testing.T) {
 		ast.StructDef(
 			"Basic",
 			[]*ast.StructFieldDefinition{
-				ast.FieldDef(ast.Ty("string"), "label"),
+				ast.FieldDef(ast.Ty("String"), "label"),
 			},
 			ast.StructKindNamed,
 			nil,
@@ -550,7 +550,7 @@ func TestInterfaceDynamicDispatchPrefersMostSpecificImpl(t *testing.T) {
 					"describe",
 					[]*ast.FunctionParameter{ast.Param("self", ast.Ty("Fancy"))},
 					[]ast.Statement{ast.Ret(ast.Str("fancy"))},
-					ast.Ty("string"),
+					ast.Ty("String"),
 					nil,
 					nil,
 					false,
@@ -571,7 +571,7 @@ func TestInterfaceDynamicDispatchPrefersMostSpecificImpl(t *testing.T) {
 					"describe",
 					[]*ast.FunctionParameter{ast.Param("self", ast.Ty("Basic"))},
 					[]ast.Statement{ast.Ret(ast.Str("basic"))},
-					ast.Ty("string"),
+					ast.Ty("String"),
 					nil,
 					nil,
 					false,
@@ -592,7 +592,7 @@ func TestInterfaceDynamicDispatchPrefersMostSpecificImpl(t *testing.T) {
 					"describe",
 					[]*ast.FunctionParameter{ast.Param("self", nil)},
 					[]ast.Statement{ast.Ret(ast.Str("union"))},
-					ast.Ty("string"),
+					ast.Ty("String"),
 					nil,
 					nil,
 					false,

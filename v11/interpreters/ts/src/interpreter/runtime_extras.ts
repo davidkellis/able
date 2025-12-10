@@ -23,12 +23,12 @@ const externHandlers: Partial<Record<AST.HostTarget, Record<string, ExternHandle
     read_text: (ctx, _extern, arity) =>
       ctx.makeNativeFunction("read_text", arity, (interp, args) => {
         const pathVal = args[0];
-        if (!pathVal || pathVal.kind !== "string") {
-          throw new Error("read_text expects a string path");
+        if (!pathVal || pathVal.kind !== "String") {
+          throw new Error("read_text expects a String path");
         }
         try {
           const data = fs.readFileSync(pathVal.value, "utf8");
-          return { kind: "string", value: data };
+          return { kind: "String", value: data };
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
           throw new RaiseSignal(interp.makeRuntimeError(message));
@@ -53,7 +53,7 @@ export function evaluateStringInterpolation(ctx: InterpreterV10, node: AST.Strin
       out += ctx.valueToStringWithEnv(val, env);
     }
   }
-  return { kind: "string", value: out };
+  return { kind: "String", value: out };
 }
 
 export function evaluateBreakpointExpression(ctx: InterpreterV10, node: AST.BreakpointExpression, env: Environment): V10Value {

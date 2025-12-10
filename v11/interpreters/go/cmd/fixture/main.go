@@ -185,7 +185,7 @@ func modeString(mode typecheckMode) string {
 func normalizeValue(val runtime.Value) parityValue {
 	switch v := val.(type) {
 	case runtime.StringValue:
-		return parityValue{Kind: "string", Value: v.Val}
+		return parityValue{Kind: "String", Value: v.Val}
 	case runtime.BoolValue:
 		return parityValue{Kind: "bool", Bool: &v.Val}
 	case runtime.CharValue:

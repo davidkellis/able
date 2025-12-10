@@ -36,7 +36,7 @@ fn discover_all(request: DiscoveryRequest) -> !(Array TestDescriptor) {
   }
 }
 
-fn descriptors_for_framework(descriptors: Array TestDescriptor, id: string) -> Array TestDescriptor {
+fn descriptors_for_framework(descriptors: Array TestDescriptor, id: String) -> Array TestDescriptor {
   let mut filtered: Array TestDescriptor = Array.new()
   let mut idx = 0
   loop {
@@ -113,13 +113,13 @@ fn filter_focus(descriptors: Array TestDescriptor) -> Array TestDescriptor {
   filtered
 }
 
-fn tag_contains(tags: Array string, needle: string) -> bool {
+fn tag_contains(tags: Array String, needle: String) -> bool {
   let mut idx = 0
   loop {
     if idx >= tags.len() { break }
     match tags.get(idx) {
       case nil => {},
-      case value: string => {
+      case value: String => {
         if value == needle { return true }
       }
     }

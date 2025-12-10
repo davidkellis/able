@@ -1,9 +1,10 @@
 {
-  "description": "Pipe uses topic reference to call implicit methods",
+  "description": "Pipe uses pipe/apply to call implicit methods without topic placeholder",
   "expect": {
     "result": {
-      "kind": "string",
+      "kind": "String",
       "value": "6,10"
     }
-  }
+  },
+  "entry": "module.json"
 }

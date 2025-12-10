@@ -322,7 +322,7 @@ counter
   test("maps interface self type pattern from 'for' clause", async () => {
     const parser = await getTreeSitterParser();
     const source = `interface Display for Point {
-  fn show(self: Self) -> string
+  fn show(self: Self) -> String
 }
 `;
     const tree = parser.parse(source);

@@ -21,7 +21,7 @@ func TestWildcardPatternIgnoresValue(t *testing.T) {
 func TestTypedPatternMismatchDoesNotProduceDiagnosticInAssignment(t *testing.T) {
 	checker := New()
 	assign := ast.Assign(
-		ast.TypedP(ast.ID("value"), ast.Ty("string")),
+		ast.TypedP(ast.ID("value"), ast.Ty("String")),
 		ast.Int(1),
 	)
 	module := ast.NewModule([]ast.Statement{assign}, nil, nil)
@@ -74,7 +74,7 @@ func TestTypedPatternAllowsIntegerWidening(t *testing.T) {
 func TestTypedArrayPatternMismatchDoesNotProduceDiagnostic(t *testing.T) {
 	checker := New()
 	assign := ast.Assign(
-		ast.TypedP(ast.ID("values"), ast.Gen(ast.Ty("Array"), ast.Ty("string"))),
+		ast.TypedP(ast.ID("values"), ast.Gen(ast.Ty("Array"), ast.Ty("String"))),
 		ast.Arr(ast.Int(1)),
 	)
 	module := ast.NewModule([]ast.Statement{assign}, nil, nil)
@@ -283,7 +283,7 @@ func TestTypedMapPatternAdoptsNestedLiterals(t *testing.T) {
 			ast.ID("headers"),
 			ast.Gen(
 				ast.Ty("Map"),
-				ast.Ty("string"),
+				ast.Ty("String"),
 				ast.Gen(ast.Ty("Array"), ast.Ty("u8")),
 			),
 		),
@@ -308,7 +308,7 @@ func TestTypedMapPatternReportsNestedLiteralOverflow(t *testing.T) {
 			ast.ID("headers"),
 			ast.Gen(
 				ast.Ty("Map"),
-				ast.Ty("string"),
+				ast.Ty("String"),
 				ast.Gen(ast.Ty("Array"), ast.Ty("u8")),
 			),
 		),
@@ -443,7 +443,7 @@ func TestTypedPatternProvidesAnnotationTypeWhenSubjectUnknown(t *testing.T) {
 	checker := New()
 	valueUse := ast.ID("value")
 	clause := ast.Mc(
-		ast.TypedP(ast.ID("value"), ast.Ty("string")),
+		ast.TypedP(ast.ID("value"), ast.Ty("String")),
 		valueUse,
 	)
 	matchExpr := ast.Match(ast.ID("subject"), clause)
@@ -455,7 +455,7 @@ func TestTypedPatternProvidesAnnotationTypeWhenSubjectUnknown(t *testing.T) {
 		[]ast.Statement{
 			ast.Ret(matchExpr),
 		},
-		ast.Ty("string"),
+		ast.Ty("String"),
 		nil,
 		nil,
 		false,
@@ -473,21 +473,21 @@ func TestTypedPatternProvidesAnnotationTypeWhenSubjectUnknown(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected inference entry for value identifier")
 	}
-	if typeName(typ) != "string" {
-		t.Fatalf("expected value to infer string type, got %q", typeName(typ))
+	if typeName(typ) != "String" {
+		t.Fatalf("expected value to infer String type, got %q", typeName(typ))
 	}
 	matchType, ok := checker.infer[matchExpr]
 	if !ok {
 		t.Fatalf("expected inference entry for match expression")
 	}
-	if typeName(matchType) != "string" {
-		t.Fatalf("expected match expression to infer string, got %q", typeName(matchType))
+	if typeName(matchType) != "String" {
+		t.Fatalf("expected match expression to infer String, got %q", typeName(matchType))
 	}
 }
 func TestTypedPatternMismatchDoesNotProduceDiagnosticInMatch(t *testing.T) {
 	checker := New()
 	clause := ast.Mc(
-		ast.TypedP(ast.ID("value"), ast.Ty("string")),
+		ast.TypedP(ast.ID("value"), ast.Ty("String")),
 		ast.ID("value"),
 	)
 	matchExpr := ast.Match(ast.ID("subject"), clause)

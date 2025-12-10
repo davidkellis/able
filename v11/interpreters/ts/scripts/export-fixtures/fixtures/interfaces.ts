@@ -5,19 +5,19 @@ const showInterface = AST.iface("Show", [
   AST.fnSig(
     "describe",
     [AST.param("self", AST.ty("Self"))],
-    AST.ty("string"),
+    AST.ty("String"),
   ),
 ]);
 
 const fancyStruct = AST.structDef(
   "Fancy",
-  [AST.fieldDef(AST.ty("string"), "label")],
+  [AST.fieldDef(AST.ty("String"), "label")],
   "named",
 );
 
 const basicStruct = AST.structDef(
   "Basic",
-  [AST.fieldDef(AST.ty("string"), "label")],
+  [AST.fieldDef(AST.ty("String"), "label")],
   "named",
 );
 
@@ -30,7 +30,7 @@ const counterStruct = AST.structDef(
 const entryStruct = AST.structDef(
   "Entry",
   [
-    AST.fieldDef(AST.ty("string"), "key"),
+    AST.fieldDef(AST.ty("String"), "key"),
     AST.fieldDef(AST.ty("Show"), "value"),
   ],
   "named",
@@ -47,7 +47,7 @@ const fancyDescribe = AST.fn(
       ]),
     ),
   ],
-  AST.ty("string"),
+  AST.ty("String"),
 );
 
 const basicDescribe = AST.fn(
@@ -61,7 +61,7 @@ const basicDescribe = AST.fn(
       ]),
     ),
   ],
-  AST.ty("string"),
+  AST.ty("String"),
 );
 
 const counterDescribe = AST.fn(
@@ -75,14 +75,14 @@ const counterDescribe = AST.fn(
       ]),
     ),
   ],
-  AST.ty("string"),
+  AST.ty("String"),
 );
 
 const unionDescribe = AST.fn(
   "describe",
   [AST.param("self")],
   [AST.ret(AST.str("union"))],
-  AST.ty("string"),
+  AST.ty("String"),
 );
 
 const fancyImpl = AST.impl("Show", AST.ty("Fancy"), [fancyDescribe]);
@@ -470,7 +470,7 @@ const applyIndexDiagnostics: Fixture = {
     description:
       "Calling non-Apply values and assigning through Index-only values surface Apply/IndexMut diagnostics",
     expect: {
-      result: { kind: "string", value: "done" },
+      result: { kind: "String", value: "done" },
       typecheckDiagnostics: [
         "typechecker: ../../../fixtures/ast/interfaces/apply_index_missing_impls/source.able:23:3 typechecker: cannot call non-callable value ReadOnlyPair (missing Apply implementation)",
         "typechecker: ../../../fixtures/ast/interfaces/apply_index_missing_impls/source.able:27:10 typechecker: cannot assign via [] without IndexMut implementation on type Index i32 i32",
@@ -490,8 +490,8 @@ const interfacesFixtures: Fixture[] = [
         result: {
           kind: "array",
           elements: [
-            { kind: "string", value: "counter:0counter:1" },
-            { kind: "string", value: "fancy:fbasic:b" },
+            { kind: "String", value: "counter:0counter:1" },
+            { kind: "String", value: "fancy:fbasic:b" },
           ],
         },
       },

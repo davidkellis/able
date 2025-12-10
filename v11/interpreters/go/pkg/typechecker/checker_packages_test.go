@@ -12,8 +12,8 @@ func TestCheckerExportsRespectPrivacy(t *testing.T) {
 		[]ast.Statement{
 			ast.StructDef("PublicStruct", nil, ast.StructKindNamed, nil, nil, false),
 			ast.StructDef("PrivateStruct", nil, ast.StructKindNamed, nil, nil, true),
-			ast.Fn("public_fn", nil, []ast.Statement{ast.Ret(ast.Str("ok"))}, ast.Ty("string"), nil, nil, false, false),
-			ast.Fn("secret_fn", nil, []ast.Statement{ast.Ret(ast.Str("nope"))}, ast.Ty("string"), nil, nil, false, true),
+			ast.Fn("public_fn", nil, []ast.Statement{ast.Ret(ast.Str("ok"))}, ast.Ty("String"), nil, nil, false, false),
+			ast.Fn("secret_fn", nil, []ast.Statement{ast.Ret(ast.Str("nope"))}, ast.Ty("String"), nil, nil, false, true),
 		},
 		nil,
 		ast.Pkg([]interface{}{"dep"}, false),
@@ -56,7 +56,7 @@ func TestCheckerPackageAliasMemberAccess(t *testing.T) {
 				[]ast.Statement{
 					ast.Ret(ast.CallExpr(ast.Member(ast.ID("lib"), ast.ID("provide")))),
 				},
-				ast.Ty("string"),
+				ast.Ty("String"),
 				nil, nil, false, false,
 			),
 		},
@@ -101,7 +101,7 @@ func TestCheckerWildcardImportBindsSymbols(t *testing.T) {
 				[]ast.Statement{
 					ast.Ret(ast.CallExpr(ast.ID("provide"))),
 				},
-				ast.Ty("string"),
+				ast.Ty("String"),
 				nil, nil, false, false,
 			),
 		},
@@ -137,7 +137,7 @@ func TestCheckerSelectiveImportBindsSymbol(t *testing.T) {
 				[]ast.Statement{
 					ast.Ret(ast.CallExpr(ast.ID("alias"))),
 				},
-				ast.Ty("string"),
+				ast.Ty("String"),
 				nil, nil, false, false,
 			),
 		},
@@ -159,8 +159,8 @@ func TestCheckerSelectiveImportBindsSymbol(t *testing.T) {
 func TestCheckerPrivateSymbolsNotImported(t *testing.T) {
 	depModule := ast.Mod(
 		[]ast.Statement{
-			ast.Fn("provide", nil, []ast.Statement{ast.Ret(ast.Str("dep"))}, ast.Ty("string"), nil, nil, false, false),
-			ast.Fn("secret", nil, []ast.Statement{ast.Ret(ast.Str("hidden"))}, ast.Ty("string"), nil, nil, false, true),
+			ast.Fn("provide", nil, []ast.Statement{ast.Ret(ast.Str("dep"))}, ast.Ty("String"), nil, nil, false, false),
+			ast.Fn("secret", nil, []ast.Statement{ast.Ret(ast.Str("hidden"))}, ast.Ty("String"), nil, nil, false, true),
 		},
 		nil,
 		ast.Pkg([]interface{}{"dep"}, false),
@@ -180,7 +180,7 @@ func TestCheckerPrivateSymbolsNotImported(t *testing.T) {
 				[]ast.Statement{
 					ast.Ret(ast.CallExpr(ast.Member(ast.ID("lib"), ast.ID("secret")))),
 				},
-				ast.Ty("string"),
+				ast.Ty("String"),
 				nil, nil, false, false,
 			),
 		},
@@ -214,7 +214,7 @@ func dependencyModule() *ast.Module {
 	return ast.Mod(
 		[]ast.Statement{
 			ast.StructDef("Item", nil, ast.StructKindNamed, nil, nil, false),
-			ast.Fn("provide", nil, []ast.Statement{ast.Ret(ast.Str("dep"))}, ast.Ty("string"), nil, nil, false, false),
+			ast.Fn("provide", nil, []ast.Statement{ast.Ret(ast.Str("dep"))}, ast.Ty("String"), nil, nil, false, false),
 		},
 		nil,
 		ast.Pkg([]interface{}{"dep"}, false),

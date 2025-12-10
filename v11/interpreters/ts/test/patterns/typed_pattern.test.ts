@@ -5,10 +5,10 @@ import { InterpreterV10 } from "../../src/interpreter";
 describe("v11 interpreter - typed patterns", () => {
   test("typed pattern in match filters by type", () => {
     const I = new InterpreterV10();
-    const pat = AST.typedPattern(AST.identifier("s"), AST.simpleTypeExpression("string"));
+    const pat = AST.typedPattern(AST.identifier("s"), AST.simpleTypeExpression("String"));
     const clause = AST.matchClause(pat, AST.identifier("s"));
     const m = AST.matchExpression(AST.stringLiteral("ok"), [clause]);
-    expect(I.evaluate(m)).toEqual({ kind: 'string', value: 'ok' });
+    expect(I.evaluate(m)).toEqual({ kind: 'String', value: 'ok' });
   });
 
   test("typed pattern in assignment enforces type", () => {

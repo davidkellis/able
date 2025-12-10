@@ -55,10 +55,10 @@ describe("channel helpers", () => {
     const senderStatus = I.evaluate(memberCall("sender", "status")) as any;
     expect(senderStatus.def.id.name).toBe("Resolved");
     const senderValue = I.evaluate(memberCall("sender", "value")) as any;
-    expect(senderValue).toEqual({ kind: "string", value: "done" });
+    expect(senderValue).toEqual({ kind: "String", value: "done" });
 
     const receiverResult = I.evaluate(memberCall("receiver", "value")) as any;
-    expect(receiverResult).toEqual({ kind: "string", value: "value" });
+    expect(receiverResult).toEqual({ kind: "String", value: "value" });
   });
 
   test("buffered channel blocks when capacity is exhausted", () => {
@@ -94,17 +94,17 @@ describe("channel helpers", () => {
     expect(blockedStatus.def.id.name).toBe("Pending");
 
     const firstValue = I.evaluate(call("__able_channel_receive", [AST.identifier("ch")])) as any;
-    expect(firstValue).toEqual({ kind: "string", value: "first" });
+    expect(firstValue).toEqual({ kind: "String", value: "first" });
 
     I.evaluate(call("proc_flush"));
 
     const blockedStatusAfter = I.evaluate(memberCall("blocked", "status")) as any;
     expect(blockedStatusAfter.def.id.name).toBe("Resolved");
     const blockedReturn = I.evaluate(memberCall("blocked", "value")) as any;
-    expect(blockedReturn).toEqual({ kind: "string", value: "sent" });
+    expect(blockedReturn).toEqual({ kind: "String", value: "sent" });
 
     const secondValue = I.evaluate(call("__able_channel_receive", [AST.identifier("ch")])) as any;
-    expect(secondValue).toEqual({ kind: "string", value: "second" });
+    expect(secondValue).toEqual({ kind: "String", value: "second" });
   });
 
   test("closing a channel wakes waiting receivers and errors senders", () => {
@@ -229,10 +229,10 @@ describe("channel helpers", () => {
     const sender2Status = I.evaluate(memberCall("sender2", "status")) as any;
     expect(sender2Status.def.id.name).toBe("Resolved");
     const sender2Value = I.evaluate(memberCall("sender2", "value")) as any;
-    expect(sender2Value).toEqual({ kind: "string", value: "ok" });
+    expect(sender2Value).toEqual({ kind: "String", value: "ok" });
 
     const receiver2Value = I.evaluate(memberCall("receiver2", "value")) as any;
-    expect(receiver2Value).toEqual({ kind: "string", value: "second" });
+    expect(receiver2Value).toEqual({ kind: "String", value: "second" });
 
     I.evaluate(call("proc_flush"));
   });
@@ -381,7 +381,7 @@ describe("channel helpers", () => {
     expect(receiverStatus.def.id.name).toBe("Resolved");
     expect(senderStatus.def.id.name).toBe("Resolved");
     const finalValue = I.evaluate(AST.identifier("result")) as any;
-    expect(finalValue).toEqual({ kind: "string", value: "ping" });
+    expect(finalValue).toEqual({ kind: "String", value: "ping" });
   });
 
   test("await send arm waits for a receiver and runs the callback", () => {
@@ -440,11 +440,11 @@ describe("channel helpers", () => {
     expect(receiverStatus.def.id.name).toBe("Resolved");
 
     const senderValue = I.evaluate(memberCall("sender", "value")) as any;
-    expect(senderValue).toEqual({ kind: "string", value: "sent" });
+    expect(senderValue).toEqual({ kind: "String", value: "sent" });
     const receiverValue = I.evaluate(memberCall("receiver", "value")) as any;
-    expect(receiverValue).toEqual({ kind: "string", value: "payload" });
+    expect(receiverValue).toEqual({ kind: "String", value: "payload" });
     const finalResult = I.evaluate(AST.identifier("result")) as any;
-    expect(finalResult).toEqual({ kind: "string", value: "sent" });
+    expect(finalResult).toEqual({ kind: "String", value: "sent" });
   });
 });
 

@@ -22,7 +22,7 @@ describe("Vector") { suite =>
   }
 
   suite.it("supports set without mutating prior versions") { _ctx =>
-    base: Vector string := Vector.new()
+    base: Vector String := Vector.new()
     base = base.push("zero")
     base = base.push("one")
     base = base.push("two")

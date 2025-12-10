@@ -436,7 +436,7 @@ func TestParseUnionAndInterface(t *testing.T) {
 	source := `union Number = i32, f64
 
 interface Display {
-  fn to_string() -> string;
+  fn to_string() -> String;
 }
 `
 
@@ -465,7 +465,7 @@ interface Display {
 	signature := ast.NewFunctionSignature(
 		ast.ID("to_string"),
 		nil,
-		ast.Ty("string"),
+		ast.Ty("String"),
 		nil,
 		nil,
 		nil,
@@ -579,7 +579,7 @@ extern python fn run() {
 }
 
 func TestParseInterfaceCompositeGenerics(t *testing.T) {
-	source := `interface Repository<T> where T: Display = Iterable string + Sized
+	source := `interface Repository<T> where T: Display = Iterable String + Sized
 `
 
 	p, err := NewModuleParser()
@@ -601,7 +601,7 @@ func TestParseInterfaceCompositeGenerics(t *testing.T) {
 		},
 	)
 
-	iterBase := ast.NewGenericTypeExpression(ast.Ty("Iterable"), []ast.TypeExpression{ast.Ty("string")})
+	iterBase := ast.NewGenericTypeExpression(ast.Ty("Iterable"), []ast.TypeExpression{ast.Ty("String")})
 
 	expected := ast.NewModule(
 		[]ast.Statement{
@@ -627,7 +627,7 @@ func TestParseInterfaceCompositeGenerics(t *testing.T) {
 }
 
 func TestParseInterfaceCompositeNestedGenerics(t *testing.T) {
-	source := `interface Feed<T> = Iterable (Option string) + Display + Sized
+	source := `interface Feed<T> = Iterable (Option String) + Display + Sized
 `
 
 	p, err := NewModuleParser()
@@ -641,7 +641,7 @@ func TestParseInterfaceCompositeNestedGenerics(t *testing.T) {
 		t.Fatalf("ParseModule error: %v", err)
 	}
 
-	optionString := ast.NewGenericTypeExpression(ast.Ty("Option"), []ast.TypeExpression{ast.Ty("string")})
+	optionString := ast.NewGenericTypeExpression(ast.Ty("Option"), []ast.TypeExpression{ast.Ty("String")})
 	iterOptionString := ast.NewGenericTypeExpression(ast.Ty("Iterable"), []ast.TypeExpression{optionString})
 
 	expected := ast.NewModule(

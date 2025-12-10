@@ -99,13 +99,13 @@ const procMemoizationFixtures: Fixture[] = [
             AST.stringInterpolation([AST.identifier("second_raw")]),
           ),
           AST.assign(
-            "ran_string",
+            "ran_String",
             AST.stringInterpolation([AST.identifier("ran")]),
           ),
           AST.arrayLiteral([
             AST.identifier("first"),
             AST.identifier("second"),
-            AST.identifier("ran_string"),
+            AST.identifier("ran_String"),
           ]),
         ]),
         manifest: {
@@ -115,9 +115,9 @@ const procMemoizationFixtures: Fixture[] = [
               kind: "array",
               length: 3,
               elements: [
-                { kind: "string", value: "Proc cancelled" },
-                { kind: "string", value: "Proc cancelled" },
-                { kind: "string", value: "0" },
+                { kind: "String", value: "Proc cancelled" },
+                { kind: "String", value: "Proc cancelled" },
+                { kind: "String", value: "0" },
               ],
             },
           },

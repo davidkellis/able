@@ -27,7 +27,7 @@ describe("typechecker type aliases", () => {
       ":=",
       AST.typedPattern(
         AST.identifier("values"),
-        AST.genericTypeExpression(AST.simpleTypeExpression("Box"), [AST.simpleTypeExpression("string")]),
+        AST.genericTypeExpression(AST.simpleTypeExpression("Box"), [AST.simpleTypeExpression("String")]),
       ),
       AST.arrayLiteral([AST.stringLiteral("a"), AST.stringLiteral("b")]),
     );

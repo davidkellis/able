@@ -202,7 +202,7 @@ export interface UnaryExpression extends AstNode { type: 'UnaryExpression'; oper
 export interface BinaryExpression extends AstNode { type: 'BinaryExpression'; operator: string; left: Expression; right: Expression; }
 export interface FunctionCall extends AstNode { type: 'FunctionCall'; callee: Expression; arguments: Expression[]; typeArguments?: TypeExpression[]; isTrailingLambda: boolean; }
 export interface BlockExpression extends AstNode { type: 'BlockExpression'; body: Statement[]; }
-export interface AssignmentExpression extends AstNode { type: 'AssignmentExpression'; operator: ':=' | '=' | '+=' | '-=' | '*=' | '/=' | '.&=' | '.|=' | '.^=' | '.<<=' | '.>>='; left: Pattern | MemberAccessExpression | IndexExpression; right: Expression; }
+export interface AssignmentExpression extends AstNode { type: 'AssignmentExpression'; operator: ':=' | '=' | '+=' | '-=' | '*=' | '/=' | '%=' | '.&=' | '.|=' | '.^=' | '.<<=' | '.>>='; left: Pattern | MemberAccessExpression | IndexExpression; right: Expression; }
 export interface RangeExpression extends AstNode { type: 'RangeExpression'; start: Expression; end: Expression; inclusive: boolean; }
 export interface StringInterpolation extends AstNode { type: 'StringInterpolation'; parts: (StringLiteral | Expression)[]; }
 export interface MemberAccessExpression extends AstNode {
@@ -227,7 +227,6 @@ export interface IteratorLiteral extends AstNode {
 }
 export interface ImplicitMemberExpression extends AstNode { type: 'ImplicitMemberExpression'; member: Identifier; }
 export interface PlaceholderExpression extends AstNode { type: 'PlaceholderExpression'; index?: number; }
-export interface TopicReferenceExpression extends AstNode { type: 'TopicReferenceExpression'; }
 
 export type Expression =
   | Identifier
@@ -251,7 +250,6 @@ export type Expression =
   | IteratorLiteral
   | ImplicitMemberExpression
   | PlaceholderExpression
-  | TopicReferenceExpression
   | IfExpression
   | MatchExpression
   | StructLiteral
@@ -335,19 +333,16 @@ export function implicitMemberExpression(member: Identifier | string): ImplicitM
 }
 
 export function placeholderExpression(index?: number): PlaceholderExpression {
-  return index === undefined ? { type: 'PlaceholderExpression' } : { type: 'PlaceholderExpression', index };
-}
-
-export function topicReferenceExpression(): TopicReferenceExpression {
-  return { type: 'TopicReferenceExpression' };
+  const resolved = index ?? 1;
+  return { type: 'PlaceholderExpression', index: resolved };
 }
 
 // -----------------------------------------------------------------------------
 // Control Flow
 // -----------------------------------------------------------------------------
 
-export interface OrClause extends AstNode { type: 'OrClause'; condition?: Expression; body: BlockExpression; }
-export interface IfExpression extends AstNode { type: 'IfExpression'; ifCondition: Expression; ifBody: BlockExpression; orClauses: OrClause[]; }
+export interface ElseIfClause extends AstNode { type: 'ElseIfClause'; condition: Expression; body: BlockExpression; }
+export interface IfExpression extends AstNode { type: 'IfExpression'; ifCondition: Expression; ifBody: BlockExpression; elseIfClauses: ElseIfClause[]; elseBody?: BlockExpression; }
 export interface MatchClause extends AstNode { type: 'MatchClause'; pattern: Pattern; guard?: Expression; body: Expression; }
 export interface MatchExpression extends AstNode { type: 'MatchExpression'; subject: Expression; clauses: MatchClause[]; }
 export interface WhileLoop extends AstNode { type: 'WhileLoop'; condition: Expression; body: BlockExpression; }
@@ -357,8 +352,12 @@ export interface BreakStatement extends AstNode { type: 'BreakStatement'; label?
 export interface ContinueStatement extends AstNode { type: 'ContinueStatement'; label?: Identifier; }
 export interface YieldStatement extends AstNode { type: 'YieldStatement'; expression?: Expression; }
 
-export function orClause(body: BlockExpression, condition?: Expression): OrClause { return { type: 'OrClause', condition, body }; }
-export function ifExpression(ifCondition: Expression, ifBody: BlockExpression, orClauses: OrClause[] = []): IfExpression { return { type: 'IfExpression', ifCondition, ifBody, orClauses }; }
+export function elseIfClause(condition: Expression, body: BlockExpression): ElseIfClause { return { type: 'ElseIfClause', condition, body }; }
+export function ifExpression(ifCondition: Expression, ifBody: BlockExpression, elseIfClauses: ElseIfClause[] = [], elseBody?: BlockExpression): IfExpression {
+  const expr: IfExpression = { type: 'IfExpression', ifCondition, ifBody, elseIfClauses };
+  if (elseBody) expr.elseBody = elseBody;
+  return expr;
+}
 export function matchClause(pattern: Pattern, body: Expression, guard?: Expression): MatchClause { return { type: 'MatchClause', pattern, guard, body }; }
 export function matchExpression(subject: Expression, clauses: MatchClause[]): MatchExpression { return { type: 'MatchExpression', subject, clauses }; }
 export function whileLoop(condition: Expression, body: BlockExpression): WhileLoop { return { type: 'WhileLoop', condition, body }; }
@@ -775,7 +774,6 @@ export const iter = iteratorLiteral;
 export function iff(condition: Expression, ...stmts: Statement[]): IfExpression {
   return ifExpression(condition, blockExpression(stmts));
 }
-export const orC = orClause;
 export const wloop = whileLoop;
 export const loopExpr = loopExpression;
 export function forIn(pattern: Pattern | string, iterable: Expression, ...stmts: Statement[]): ForLoop {
@@ -807,8 +805,18 @@ export function shorthandField(name: Identifier | string): StructFieldInitialize
 }
 export const unionDef = unionDefinition;
 export const param = functionParameter;
-export function fn(name: Identifier | string, params: FunctionParameter[], bodyStmts: Statement[], returnType?: TypeExpression, genericParams?: GenericParameter[], whereClause?: WhereClauseConstraint[], isMethodShorthand = false, isPrivate = false): FunctionDefinition {
-  return functionDefinition(name, params, blockExpression(bodyStmts), returnType, genericParams, whereClause, isMethodShorthand, isPrivate);
+export function fn(
+  name: Identifier | string,
+  params: FunctionParameter[],
+  body: Statement[] | BlockExpression,
+  returnType?: TypeExpression,
+  genericParams?: GenericParameter[],
+  whereClause?: WhereClauseConstraint[],
+  isMethodShorthand = false,
+  isPrivate = false,
+): FunctionDefinition {
+  const bodyNode = Array.isArray(body) ? blockExpression(body) : body;
+  return functionDefinition(name, params, bodyNode, returnType, genericParams, whereClause, isMethodShorthand, isPrivate);
 }
 export const fnSig = functionSignature;
 export const iface = interfaceDefinition;

@@ -2,7 +2,7 @@
   "description": "Mutex lock/unlock methods mutate in sequence",
   "expect": {
     "result": {
-      "kind": "string",
+      "kind": "String",
       "value": "AB"
     }
   },

@@ -17,7 +17,7 @@
           "name": "string"
         }
       ],
-      "isWildcard": true
+      "isWildcard": false
     }
   ],
   "body": [
@@ -96,7 +96,7 @@
               },
               "member": {
                 "type": "Identifier",
-                "name": "substring"
+                "name": "subString"
               }
             },
             "arguments": [
@@ -124,7 +124,7 @@
               },
               "member": {
                 "type": "Identifier",
-                "name": "substring"
+                "name": "subString"
               }
             },
             "arguments": [

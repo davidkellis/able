@@ -4,27 +4,27 @@ import able.core.interfaces{Error}
 
 ## Arithmetic errors.
 struct DivisionByZeroError;
-struct OverflowError { operation: string }
+struct OverflowError { operation: String }
 struct ShiftOutOfRangeError { shift: i32 }
-struct RangeError { message: string }
+struct RangeError { message: String }
 
 impl Error for DivisionByZeroError {
-  fn message(self: Self) -> string { "division by zero" }
+  fn message(self: Self) -> String { "division by zero" }
   fn cause(self: Self) -> ?Error { nil }
 }
 
 impl Error for OverflowError {
-  fn message(self: Self) -> string { self.operation }
+  fn message(self: Self) -> String { self.operation }
   fn cause(self: Self) -> ?Error { nil }
 }
 
 impl Error for ShiftOutOfRangeError {
-  fn message(self: Self) -> string { `shift ${self.shift} out of range` }
+  fn message(self: Self) -> String { `shift ${self.shift} out of range` }
   fn cause(self: Self) -> ?Error { nil }
 }
 
 impl Error for RangeError {
-  fn message(self: Self) -> string { self.message }
+  fn message(self: Self) -> String { self.message }
   fn cause(self: Self) -> ?Error { nil }
 }
 
@@ -32,7 +32,7 @@ impl Error for RangeError {
 struct IndexError { index: i64, length: i64 }
 
 impl Error for IndexError {
-  fn message(self: Self) -> string {
+  fn message(self: Self) -> String {
     `index ${self.index} out of bounds for length ${self.length}`
   }
   fn cause(self: Self) -> ?Error { nil }

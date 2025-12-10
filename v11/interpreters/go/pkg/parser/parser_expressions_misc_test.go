@@ -375,7 +375,7 @@ fn retry() {
 }
 
 func TestParseErrorHandlingExpressions(t *testing.T) {
-	source := `value := (maybe() else { |err|
+source := `value := (maybe() or { err =>
   err
 } rescue {
   case err => err
@@ -528,7 +528,7 @@ total := 4 + 6 / 3
 }
 
 func TestParseSimpleTypeExpressions(t *testing.T) {
-	source := `fn format(flag: bool) -> string {
+	source := `fn format(flag: bool) -> String {
   if flag { "yes" } else { "no" }
 }
 `
@@ -547,9 +547,8 @@ func TestParseSimpleTypeExpressions(t *testing.T) {
 	ifExpr := ast.NewIfExpression(
 		ast.ID("flag"),
 		ast.Block(ast.Str("yes")),
-		[]*ast.OrClause{
-			ast.NewOrClause(ast.Block(ast.Str("no")), nil),
-		},
+		[]*ast.ElseIfClause{},
+		ast.Block(ast.Str("no")),
 	)
 
 	fn := ast.NewFunctionDefinition(
@@ -558,7 +557,7 @@ func TestParseSimpleTypeExpressions(t *testing.T) {
 			ast.NewFunctionParameter(ast.ID("flag"), ast.Ty("bool")),
 		},
 		ast.Block(ifExpr),
-		ast.Ty("string"),
+		ast.Ty("String"),
 		nil,
 		nil,
 		false,

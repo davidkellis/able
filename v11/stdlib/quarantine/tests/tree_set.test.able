@@ -22,7 +22,7 @@ describe("TreeSet") { suite =>
   }
 
   suite.it("removes values and reports empty state") { _ctx =>
-    set: TreeSet string := TreeSet.new()
+    set: TreeSet String := TreeSet.new()
     set.insert("a")
     set.insert("b")
     removed := set.remove("a")

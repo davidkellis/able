@@ -98,7 +98,7 @@
                   }
                 ]
               },
-              "orClauses": []
+              "elseIfClauses": []
             },
             {
               "type": "IfExpression",
@@ -151,7 +151,7 @@
                   }
                 ]
               },
-              "orClauses": []
+              "elseIfClauses": []
             },
             {
               "type": "StringLiteral",

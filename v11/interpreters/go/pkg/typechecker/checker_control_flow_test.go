@@ -36,9 +36,9 @@ func TestIfExpressionMergesBranchTypes(t *testing.T) {
 	ifExpr := ast.IfExpr(
 		ast.Bool(true),
 		ast.Block(ast.Int(1)),
-		ast.OrC(ast.Block(ast.Int(2)), ast.Bool(false)),
-		ast.OrC(ast.Block(ast.Int(3)), nil),
+		ast.ElseIf(ast.Block(ast.Int(2)), ast.Bool(false)),
 	)
+	ifExpr.ElseBody = ast.Block(ast.Int(3))
 	assign := ast.Assign(ast.ID("value"), ifExpr)
 	module := ast.NewModule([]ast.Statement{assign}, nil, nil)
 	diags, err := checker.CheckModule(module)
@@ -114,8 +114,8 @@ func TestRescueExpressionMergesTypes(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected inference entry for rescue expression")
 	}
-	if typeName(typ) != "string" {
-		t.Fatalf("expected rescue expression to infer string, got %q", typeName(typ))
+	if typeName(typ) != "String" {
+		t.Fatalf("expected rescue expression to infer String, got %q", typeName(typ))
 	}
 }
 func TestRescueGuardMustBeBool(t *testing.T) {
@@ -199,8 +199,8 @@ func TestOrElseExpressionMergesTypes(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected inference entry for or-else expression")
 	}
-	if typeName(typ) != "string" {
-		t.Fatalf("expected or-else expression to infer string, got %q", typeName(typ))
+	if typeName(typ) != "String" {
+		t.Fatalf("expected or-else expression to infer String, got %q", typeName(typ))
 	}
 }
 func TestOrElseProducesUnionWhenTypesDiffer(t *testing.T) {
@@ -222,7 +222,7 @@ func TestOrElseProducesUnionWhenTypesDiffer(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected inference entry for or-else expression")
 	}
-	if typeName(typ) != "i32 | string" {
+	if typeName(typ) != "i32 | String" {
 		t.Fatalf("expected union literal for mismatched or-else types, got %q", typeName(typ))
 	}
 }
@@ -231,7 +231,7 @@ func TestOrElseBindsErrorInHandler(t *testing.T) {
 	errorStruct := ast.StructDef(
 		"Error",
 		[]*ast.StructFieldDefinition{
-			ast.FieldDef(ast.Ty("string"), "message"),
+			ast.FieldDef(ast.Ty("String"), "message"),
 		},
 		ast.StructKindNamed,
 		nil,
@@ -292,7 +292,7 @@ func TestRaiseAcceptsErrorStruct(t *testing.T) {
 	errorStruct := ast.StructDef(
 		"Error",
 		[]*ast.StructFieldDefinition{
-			ast.FieldDef(ast.Ty("string"), "message"),
+			ast.FieldDef(ast.Ty("String"), "message"),
 		},
 		ast.StructKindNamed,
 		nil,
@@ -392,7 +392,7 @@ func TestForLoopIterableMustBeArrayRangeOrIterator(t *testing.T) {
 	}
 	found := false
 	for _, d := range diags {
-		if strings.Contains(d.Message, "for-loop iterable must be array, range, string, or iterator") {
+		if strings.Contains(d.Message, "for-loop iterable must be array, range, String, or iterator") {
 			found = true
 			break
 		}
@@ -443,7 +443,7 @@ func TestForLoopIterableSupportsStdlibCollections(t *testing.T) {
 	linkedValue := ast.ID("linkedValue")
 	lazyValue := ast.ID("lazyValue")
 	listLoop := ast.ForLoopPattern(
-		ast.TypedP(ast.PatternFrom(ast.ID("value")), ast.Ty("string")),
+		ast.TypedP(ast.PatternFrom(ast.ID("value")), ast.Ty("String")),
 		ast.ID("items"),
 		ast.Block(listValue),
 	)
@@ -453,7 +453,7 @@ func TestForLoopIterableSupportsStdlibCollections(t *testing.T) {
 		ast.Block(linkedValue),
 	)
 	lazySeqLoop := ast.ForLoopPattern(
-		ast.TypedP(ast.PatternFrom(ast.ID("lazyValue")), ast.Ty("string")),
+		ast.TypedP(ast.PatternFrom(ast.ID("lazyValue")), ast.Ty("String")),
 		ast.ID("lazyItems"),
 		ast.Block(lazyValue),
 	)
@@ -467,14 +467,14 @@ func TestForLoopIterableSupportsStdlibCollections(t *testing.T) {
 
 	setValue := ast.ID("entry")
 	setLoop := ast.ForLoopPattern(
-		ast.TypedP(ast.PatternFrom(ast.ID("entry")), ast.Ty("string")),
+		ast.TypedP(ast.PatternFrom(ast.ID("entry")), ast.Ty("String")),
 		ast.ID("entries"),
 		ast.Block(setValue),
 	)
 
 	dequeValue := ast.ID("dequeValue")
 	dequeLoop := ast.ForLoopPattern(
-		ast.TypedP(ast.PatternFrom(ast.ID("dequeValue")), ast.Ty("string")),
+		ast.TypedP(ast.PatternFrom(ast.ID("dequeValue")), ast.Ty("String")),
 		ast.ID("dequeItems"),
 		ast.Block(dequeValue),
 	)
@@ -487,7 +487,7 @@ func TestForLoopIterableSupportsStdlibCollections(t *testing.T) {
 	)
 	channelValue := ast.ID("channelValue")
 	channelLoop := ast.ForLoopPattern(
-		ast.TypedP(ast.PatternFrom(ast.ID("channelValue")), ast.Ty("string")),
+		ast.TypedP(ast.PatternFrom(ast.ID("channelValue")), ast.Ty("String")),
 		ast.ID("channelItems"),
 		ast.Block(channelValue),
 	)
@@ -501,7 +501,7 @@ func TestForLoopIterableSupportsStdlibCollections(t *testing.T) {
 	listFn := ast.Fn(
 		"consumeList",
 		[]*ast.FunctionParameter{
-			ast.Param("items", ast.Gen(ast.Ty("List"), ast.Ty("string"))),
+			ast.Param("items", ast.Gen(ast.Ty("List"), ast.Ty("String"))),
 		},
 		[]ast.Statement{
 			listLoop,
@@ -533,7 +533,7 @@ func TestForLoopIterableSupportsStdlibCollections(t *testing.T) {
 	lazySeqFn := ast.Fn(
 		"consumeLazySeq",
 		[]*ast.FunctionParameter{
-			ast.Param("lazyItems", ast.Gen(ast.Ty("LazySeq"), ast.Ty("string"))),
+			ast.Param("lazyItems", ast.Gen(ast.Ty("LazySeq"), ast.Ty("String"))),
 		},
 		[]ast.Statement{
 			lazySeqLoop,
@@ -565,7 +565,7 @@ func TestForLoopIterableSupportsStdlibCollections(t *testing.T) {
 	setFn := ast.Fn(
 		"consumeHashSet",
 		[]*ast.FunctionParameter{
-			ast.Param("entries", ast.Gen(ast.Ty("HashSet"), ast.Ty("string"))),
+			ast.Param("entries", ast.Gen(ast.Ty("HashSet"), ast.Ty("String"))),
 		},
 		[]ast.Statement{
 			setLoop,
@@ -581,7 +581,7 @@ func TestForLoopIterableSupportsStdlibCollections(t *testing.T) {
 	dequeFn := ast.Fn(
 		"consumeDeque",
 		[]*ast.FunctionParameter{
-			ast.Param("dequeItems", ast.Gen(ast.Ty("Deque"), ast.Ty("string"))),
+			ast.Param("dequeItems", ast.Gen(ast.Ty("Deque"), ast.Ty("String"))),
 		},
 		[]ast.Statement{
 			dequeLoop,
@@ -612,7 +612,7 @@ func TestForLoopIterableSupportsStdlibCollections(t *testing.T) {
 	channelFn := ast.Fn(
 		"consumeChannel",
 		[]*ast.FunctionParameter{
-			ast.Param("channelItems", ast.Gen(ast.Ty("Channel"), ast.Ty("string"))),
+			ast.Param("channelItems", ast.Gen(ast.Ty("Channel"), ast.Ty("String"))),
 		},
 		[]ast.Statement{
 			channelLoop,
@@ -677,8 +677,8 @@ func TestForLoopIterableSupportsStdlibCollections(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected inference for list loop value")
 	}
-	if typeName(typ) != "string" {
-		t.Fatalf("expected list loop value to infer string, got %q", typeName(typ))
+	if typeName(typ) != "String" {
+		t.Fatalf("expected list loop value to infer String, got %q", typeName(typ))
 	}
 
 	typ, ok = checker.infer[linkedValue]
@@ -693,8 +693,8 @@ func TestForLoopIterableSupportsStdlibCollections(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected inference for lazy seq loop value")
 	}
-	if typeName(typ) != "string" {
-		t.Fatalf("expected lazy seq loop value to infer string, got %q", typeName(typ))
+	if typeName(typ) != "String" {
+		t.Fatalf("expected lazy seq loop value to infer String, got %q", typeName(typ))
 	}
 
 	typ, ok = checker.infer[vectorValue]
@@ -709,16 +709,16 @@ func TestForLoopIterableSupportsStdlibCollections(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected inference for hash set loop value")
 	}
-	if typeName(typ) != "string" {
-		t.Fatalf("expected hash set loop value to infer string, got %q", typeName(typ))
+	if typeName(typ) != "String" {
+		t.Fatalf("expected hash set loop value to infer String, got %q", typeName(typ))
 	}
 
 	typ, ok = checker.infer[dequeValue]
 	if !ok {
 		t.Fatalf("expected inference for deque loop value")
 	}
-	if typeName(typ) != "string" {
-		t.Fatalf("expected deque loop value to infer string, got %q", typeName(typ))
+	if typeName(typ) != "String" {
+		t.Fatalf("expected deque loop value to infer String, got %q", typeName(typ))
 	}
 
 	typ, ok = checker.infer[queueValue]
@@ -733,8 +733,8 @@ func TestForLoopIterableSupportsStdlibCollections(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected inference for channel loop value")
 	}
-	if typeName(typ) != "string" {
-		t.Fatalf("expected channel loop value to infer string, got %q", typeName(typ))
+	if typeName(typ) != "String" {
+		t.Fatalf("expected channel loop value to infer String, got %q", typeName(typ))
 	}
 
 	typ, ok = checker.infer[bitValue]

@@ -357,7 +357,10 @@ function printExternFunction(externFn: AST.ExternFunctionBody, level: number): s
   return `${header} {\n${body}\n${indent(level)}}`;
 }
 
-function printExpression(expr: AST.Expression, level: number): string {
+function printExpression(expr: AST.Expression | string, level: number): string {
+  if (typeof expr === "string") {
+    return expr;
+  }
   switch (expr.type) {
     case "StringLiteral":
       return `"${expr.value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
@@ -422,7 +425,7 @@ function printExpression(expr: AST.Expression, level: number): string {
     case "PropagationExpression":
       return `${printExpression(expr.expression, level)}!`;
     case "OrElseExpression":
-      return `${printExpression(expr.expression, level)} else ${printHandlingBlock(expr.handler, expr.errorBinding, level)}`;
+      return `${printExpression(expr.expression, level)} or ${printHandlingBlock(expr.handler, expr.errorBinding, level)}`;
     case "EnsureExpression":
       return `${printExpression(expr.tryExpression, level)} ensure ${printBlock(expr.ensureBlock, level)}`;
     case "RescueExpression":
@@ -431,8 +434,6 @@ function printExpression(expr: AST.Expression, level: number): string {
       return printIteratorLiteral(expr, level);
     case "LoopExpression":
       return `loop ${printBlock(expr.body, level)}`;
-    case "TopicReferenceExpression":
-      return "%";
     case "PlaceholderExpression":
       return expr.index ? `@${expr.index}` : "@";
     case "BreakpointExpression":
@@ -514,7 +515,7 @@ function printIteratorLiteral(lit: AST.IteratorLiteral, level: number): string {
 function printHandlingBlock(block: AST.BlockExpression, binding: AST.Identifier | undefined, level: number): string {
   const lines = ["{"];
   if (binding) {
-    lines.push(`${indent(level + 1)}| ${printIdentifier(binding)} |`);
+    lines.push(`${indent(level + 1)}${printIdentifier(binding)} =>`);
   }
   for (const stmt of block.body ?? []) {
     lines.push(printStatement(stmt, level + 1));
@@ -548,7 +549,7 @@ function printStringInterpolation(interp: AST.StringInterpolation, level: number
   return `\`${parts}\``;
 }
 
-function printFunctionCall(call: AST.FunctionCall, level: number): string {
+function printFunctionCall(call: AST.FunctionCall, level: number): String {
   const callee = printExpression(call.callee, level);
   const typeArgs = call.typeArguments && call.typeArguments.length > 0 ? `<${call.typeArguments.map(printTypeExpression).join(", ")}>` : "";
   if (call.isTrailingLambda && call.arguments.length > 0) {
@@ -564,7 +565,7 @@ function printFunctionCall(call: AST.FunctionCall, level: number): string {
   return `${callee}${typeArgs}(${args})`;
 }
 
-function printLambda(lambda: AST.LambdaExpression, level: number): string {
+function printLambda(lambda: AST.LambdaExpression, level: number): String {
   const params = lambda.params.map((param) => printPattern(param.name)).join(", ");
   let result = "{";
   if (params.length > 0) {
@@ -584,7 +585,7 @@ function printLambda(lambda: AST.LambdaExpression, level: number): string {
   return result;
 }
 
-function printBinaryOperand(expr: AST.Expression, parentOperator: string, side: "left" | "right", level: number): string {
+function printBinaryOperand(expr: AST.Expression, parentOperator: String, side: "left" | "right", level: number): String {
   const rendered = printExpression(expr, level);
   if (expr.type !== "BinaryExpression") {
     return rendered;
@@ -606,7 +607,7 @@ function printBinaryOperand(expr: AST.Expression, parentOperator: string, side: 
   return rendered;
 }
 
-function getBinaryPrecedence(operator: string): number {
+function getBinaryPrecedence(operator: String): number {
   switch (operator) {
     case "||":
       return 1;
@@ -635,34 +636,33 @@ function getBinaryPrecedence(operator: string): number {
     case "*":
     case "/":
     case "//":
-    case "%%":
+    case "%":
     case "/%":
       return 10;
-    case "**":
+    case "^":
       return 11;
     default:
       return -1;
   }
 }
 
-function isRightAssociative(operator: string): boolean {
-  return operator === "**";
+function isRightAssociative(operator: String): boolean {
+  return operator === "^";
 }
 
-function printIfExpression(expr: AST.IfExpression, level: number): string {
-  const parts: string[] = [];
+function printIfExpression(expr: AST.IfExpression, level: number): String {
+  const parts: String[] = [];
   parts.push(`if ${printExpression(expr.ifCondition, level)} ${printBlock(expr.ifBody, level)}`);
-  for (const clause of expr.orClauses ?? []) {
-    if (clause.condition) {
-      parts.push(`or ${printExpression(clause.condition, level)} ${printBlock(clause.body, level)}`);
-    } else {
-      parts.push(`else ${printBlock(clause.body, level)}`);
-    }
+  for (const clause of expr.elseIfClauses ?? []) {
+    parts.push(`elsif ${printExpression(clause.condition, level)} ${printBlock(clause.body, level)}`);
+  }
+  if (expr.elseBody) {
+    parts.push(`else ${printBlock(expr.elseBody, level)}`);
   }
   return parts.join("\n");
 }
 
-function printMatchExpression(expr: AST.MatchExpression, level: number): string {
+function printMatchExpression(expr: AST.MatchExpression, level: number): String {
   const subject = printExpression(expr.subject, level);
   const lines = [`${subject} match {`];
   const clauses = expr.clauses ?? [];
@@ -674,14 +674,14 @@ function printMatchExpression(expr: AST.MatchExpression, level: number): string 
   return lines.join("\n");
 }
 
-function printMatchClause(clause: AST.MatchClause, level: number): string {
+function printMatchClause(clause: AST.MatchClause, level: number): String {
   const pattern = printPattern(clause.pattern);
   const guard = clause.guard ? ` if ${printExpression(clause.guard, level)}` : "";
   const body = clause.body.type === "BlockExpression" ? printBlock(clause.body, level).trim() : printExpression(clause.body, level);
   return `case ${pattern}${guard} => ${body}`;
 }
 
-function printBlock(block: AST.BlockExpression, level: number): string {
+function printBlock(block: AST.BlockExpression, level: number): String {
   const lines = ["{"];
   for (const stmt of block.body ?? []) {
     lines.push(printStatement(stmt, level + 1));
@@ -690,7 +690,10 @@ function printBlock(block: AST.BlockExpression, level: number): string {
   return lines.join("\n");
 }
 
-function printAssignmentLeft(left: AST.Pattern | AST.MemberAccessExpression | AST.IndexExpression): string {
+function printAssignmentLeft(left: AST.Pattern | AST.MemberAccessExpression | AST.IndexExpression | string): String {
+  if (typeof left === "string") {
+    return left;
+  }
   if (left.type === "MemberAccessExpression" || left.type === "IndexExpression") {
     return printExpression(left, 0);
   }
@@ -704,7 +707,7 @@ function assignmentRightNeedsParens(expr: AST.Expression): boolean {
   return false;
 }
 
-function printPattern(pattern: AST.Pattern): string {
+function printPattern(pattern: AST.Pattern): String {
   switch (pattern.type) {
     case "Identifier":
       return printIdentifier(pattern);
@@ -731,14 +734,14 @@ function printPattern(pattern: AST.Pattern): string {
   }
 }
 
-function printFunctionParameter(param: AST.FunctionParameter): string {
+function printFunctionParameter(param: AST.FunctionParameter): String {
   if (param.paramType) {
     return `${printPattern(param.name)}: ${printTypeExpression(param.paramType)}`;
   }
   return printPattern(param.name);
 }
 
-function printNamedStructPatternField(field: AST.StructPatternField): string {
+function printNamedStructPatternField(field: AST.StructPatternField): String {
   const fieldName = field.fieldName ? printIdentifier(field.fieldName) : undefined;
   const binding = field.binding ? printIdentifier(field.binding) : undefined;
 
@@ -773,18 +776,18 @@ function printNamedStructPatternField(field: AST.StructPatternField): string {
   return rendered;
 }
 
-function printGenericParameter(param: AST.GenericParameter): string {
+function printGenericParameter(param: AST.GenericParameter): String {
   if (param.constraints && param.constraints.length > 0) {
     return `${printIdentifier(param.name)}: ${param.constraints.map((c) => printTypeExpression(c.interfaceType)).join(" + ")}`;
   }
   return printIdentifier(param.name);
 }
 
-function printWhereClause(clause: AST.WhereClauseConstraint): string {
+function printWhereClause(clause: AST.WhereClauseConstraint): String {
   return `${printIdentifier(clause.typeParam)}: ${clause.constraints.map((c) => printTypeExpression(c.interfaceType)).join(" + ")}`;
 }
 
-function printTypeExpression(typeExpr: AST.TypeExpression): string {
+function printTypeExpression(typeExpr: AST.TypeExpression): String {
   switch (typeExpr.type) {
     case "SimpleTypeExpression":
       return printIdentifier(typeExpr.name);
@@ -805,8 +808,8 @@ function printTypeExpression(typeExpr: AST.TypeExpression): string {
   }
 }
 
-function printFunctionSignature(sig: AST.FunctionSignature): string {
-  const parts: string[] = [];
+function printFunctionSignature(sig: AST.FunctionSignature): String {
+  const parts: String[] = [];
   parts.push("fn");
   parts.push(printIdentifier(sig.name));
   const sigGenerics = explicitGenericParams(sig.genericParams);

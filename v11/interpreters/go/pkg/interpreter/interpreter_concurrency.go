@@ -25,7 +25,7 @@ func (i *Interpreter) initConcurrencyBuiltins() {
 		return
 	}
 
-	stringIdent := ast.NewIdentifier("string")
+	stringIdent := ast.NewIdentifier("String")
 	stringType := ast.NewSimpleTypeExpression(stringIdent)
 	detailsField := ast.NewStructFieldDefinition(stringType, ast.NewIdentifier("details"))
 	procErrorDef := ast.NewStructDefinition(ast.NewIdentifier("ProcError"), []*ast.StructFieldDefinition{detailsField}, ast.StructKindNamed, nil, nil, false)
@@ -503,6 +503,10 @@ func (i *Interpreter) procHandleMember(handle *runtime.ProcHandleValue, member a
 				recv, ok := args[0].(*runtime.ProcHandleValue)
 				if !ok {
 					return nil, fmt.Errorf("cancel receiver must be a proc handle")
+				}
+				if recv.Status() == runtime.ProcPending {
+					recv.Cancel(nil)
+					return runtime.NilValue{}, nil
 				}
 				recv.RequestCancel()
 				return runtime.NilValue{}, nil

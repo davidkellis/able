@@ -3,7 +3,7 @@ package parity.examples.control
 fn sum_even(values: Array i32) -> i32 {
   total := 0
   for value in values {
-    if value %% 2 == 0 {
+    if value % 2 == 0 {
       total = total + value
     }
   }

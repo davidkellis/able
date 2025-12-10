@@ -2,7 +2,7 @@
   "description": "Mutex contention ensures the waiting proc resumes only after unlock",
   "expect": {
     "result": {
-      "kind": "string",
+      "kind": "String",
       "value": "Pending:Resolved:ABC"
     }
   },

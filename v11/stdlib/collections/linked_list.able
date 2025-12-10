@@ -125,7 +125,7 @@ methods LinkedList T {
 
 ## Example Usage
 ## fn main() {
-##   list := LinkedList.new<string>()
+##   list := LinkedList.new<String>()
 ##   list.append("apple")
 ##   list.prepend("banana")
 ##

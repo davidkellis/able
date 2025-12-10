@@ -35,7 +35,7 @@ describe("v11 interpreter - placeholders", () => {
     expect(result).toEqual({ kind: "i32", value: 10n });
   });
 
-  test("mixed explicit and implicit placeholders", () => {
+  test("mixed explicit and implicit placeholders reuse the first argument", () => {
     const I = new InterpreterV10();
     const combine = AST.functionDefinition(
       "combine",
@@ -70,7 +70,7 @@ describe("v11 interpreter - placeholders", () => {
       ),
       [AST.integerLiteral(7), AST.integerLiteral(8), AST.integerLiteral(9)],
     );
-    expect(I.evaluate(call)).toEqual({ kind: "i32", value: 789n });
+    expect(I.evaluate(call)).toEqual({ kind: "i32", value: 779n });
   });
 
   test("lambda containing placeholder evaluates to callable", () => {

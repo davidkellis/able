@@ -6,9 +6,9 @@ describe("v11 interpreter - impl generic constraints", () => {
   function registerShowInterfaceAndPoint(interpreter: InterpreterV10) {
     const show = AST.interfaceDefinition("Show", [
       AST.functionSignature(
-        "to_string",
+        "to_String",
         [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
-        AST.simpleTypeExpression("string")
+        AST.simpleTypeExpression("String")
       ),
     ]);
     interpreter.evaluate(show);
@@ -27,7 +27,7 @@ describe("v11 interpreter - impl generic constraints", () => {
       AST.simpleTypeExpression("Point"),
       [
         AST.functionDefinition(
-          "to_string",
+          "to_String",
           [AST.functionParameter("self", AST.simpleTypeExpression("Point"))],
           AST.blockExpression([
             AST.returnStatement(
@@ -40,7 +40,7 @@ describe("v11 interpreter - impl generic constraints", () => {
               ])
             ),
           ]),
-          AST.simpleTypeExpression("string")
+          AST.simpleTypeExpression("String")
         ),
       ]
     );
@@ -64,20 +64,20 @@ describe("v11 interpreter - impl generic constraints", () => {
       AST.genericTypeExpression(AST.simpleTypeExpression("Wrapper"), [AST.simpleTypeExpression("T")]),
       [
         AST.functionDefinition(
-          "to_string",
+          "to_String",
           [AST.functionParameter("self", AST.simpleTypeExpression("Wrapper"))],
           AST.blockExpression([
             AST.returnStatement(
               AST.functionCall(
                 AST.memberAccessExpression(
                   AST.memberAccessExpression(AST.identifier("self"), "value"),
-                  "to_string"
+                  "to_String"
                 ),
                 []
               )
             ),
           ]),
-          AST.simpleTypeExpression("string")
+          AST.simpleTypeExpression("String")
         ),
       ],
       undefined,
@@ -100,10 +100,10 @@ describe("v11 interpreter - impl generic constraints", () => {
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("good"), wrapperPointLiteral));
 
     const callGood = AST.functionCall(
-      AST.memberAccessExpression(AST.identifier("good"), "to_string"),
+      AST.memberAccessExpression(AST.identifier("good"), "to_String"),
       []
     );
-    expect(I.evaluate(callGood)).toEqual({ kind: "string", value: "Point(1, 2)" });
+    expect(I.evaluate(callGood)).toEqual({ kind: "String", value: "Point(1, 2)" });
 
     const wrapperI32Literal = AST.structLiteral(
       [AST.structFieldInitializer(AST.integerLiteral(7), "value")],
@@ -115,10 +115,10 @@ describe("v11 interpreter - impl generic constraints", () => {
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("bad"), wrapperI32Literal));
 
     const callBad = AST.functionCall(
-      AST.memberAccessExpression(AST.identifier("bad"), "to_string"),
+      AST.memberAccessExpression(AST.identifier("bad"), "to_String"),
       []
     );
-    expect(() => I.evaluate(callBad)).toThrow(/does not satisfy interface 'Show': missing method 'to_string'/);
+    expect(() => I.evaluate(callBad)).toThrow(/does not satisfy interface 'Show': missing method 'to_String'/);
   });
 });
 

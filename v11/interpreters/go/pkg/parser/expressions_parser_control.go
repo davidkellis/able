@@ -151,12 +151,12 @@ func (ctx *parseContext) parseHandlingExpression(node *sitter.Node) (ast.Express
 	}
 	for i := uint(1); i < node.NamedChildCount(); i++ {
 		child := node.NamedChild(i)
-		if child == nil || child.Kind() != "else_clause" {
+		if child == nil || child.Kind() != "or_handler_clause" {
 			continue
 		}
 		handlerNode := child.ChildByFieldName("handler")
 		if handlerNode == nil {
-			return nil, fmt.Errorf("parser: else clause missing handler block")
+			return nil, fmt.Errorf("parser: or clause missing handler block")
 		}
 		handler, binding, err := ctx.parseHandlingBlock(handlerNode)
 		if err != nil {
@@ -203,7 +203,7 @@ func (ctx *parseContext) parseHandlingBlock(node *sitter.Node) (*ast.BlockExpres
 		if child == nil || !child.IsNamed() {
 			continue
 		}
-		if node.FieldNameForChild(uint32(i)) == "binding" {
+		if node.FieldNameForChild(uint32(i)) == "binding" && child.Kind() == "identifier" {
 			continue
 		}
 		stmt, err := ctx.parseStatement(child)
@@ -446,72 +446,48 @@ func (ctx *parseContext) parseIfExpression(node *sitter.Node) (ast.Expression, e
 	if err != nil {
 		return nil, err
 	}
-	clauses := make([]*ast.OrClause, 0)
+	clauses := make([]*ast.ElseIfClause, 0)
 	for i := uint(0); i < node.NamedChildCount(); i++ {
 		child := node.NamedChild(i)
-		if child.Kind() == "or_clause" {
-			clause, err := ctx.parseOrClause(child)
+		if child.Kind() == "elsif_clause" {
+			clause, err := ctx.parseElseIfClause(child)
 			if err != nil {
 				return nil, err
 			}
 			clauses = append(clauses, clause)
 		}
 	}
-	if elseNode := findElseBlock(node, bodyNode); elseNode != nil {
-		elseBody, err := ctx.parseBlock(elseNode)
+	var elseBody *ast.BlockExpression
+	if elseNode := node.ChildByFieldName("alternative"); elseNode != nil {
+		block, err := ctx.parseBlock(elseNode)
 		if err != nil {
 			return nil, err
 		}
-		elseClause := ast.NewOrClause(elseBody, nil)
-		annotateSpan(elseClause, elseNode)
-		clauses = append(clauses, elseClause)
+		elseBody = block
 	}
-	return annotateExpression(ast.NewIfExpression(condition, body, clauses), node), nil
+	return annotateExpression(ast.NewIfExpression(condition, body, clauses, elseBody), node), nil
 }
 
-func (ctx *parseContext) parseOrClause(node *sitter.Node) (*ast.OrClause, error) {
+func (ctx *parseContext) parseElseIfClause(node *sitter.Node) (*ast.ElseIfClause, error) {
 	bodyNode := node.ChildByFieldName("consequence")
 	if bodyNode == nil {
-		return nil, fmt.Errorf("parser: or clause missing body")
+		return nil, fmt.Errorf("parser: elsif clause missing body")
 	}
 	body, err := ctx.parseBlock(bodyNode)
 	if err != nil {
 		return nil, err
 	}
 	conditionNode := node.ChildByFieldName("condition")
-	var condition ast.Expression
-	if conditionNode != nil {
-		condExpr, err := ctx.parseExpression(conditionNode)
-		if err != nil {
-			return nil, err
-		}
-		condition = condExpr
+	if conditionNode == nil {
+		return nil, fmt.Errorf("parser: elsif clause missing condition")
 	}
-	clause := ast.NewOrClause(body, condition)
+	condExpr, err := ctx.parseExpression(conditionNode)
+	if err != nil {
+		return nil, err
+	}
+	clause := ast.NewElseIfClause(body, condExpr)
 	annotateSpan(clause, node)
 	return clause, nil
-}
-
-func findElseBlock(ifNode *sitter.Node, consequence *sitter.Node) *sitter.Node {
-	if ifNode == nil {
-		return nil
-	}
-	var consequenceRangeStart, consequenceRangeEnd uint
-	if consequence != nil {
-		consequenceRangeStart = consequence.StartByte()
-		consequenceRangeEnd = consequence.EndByte()
-	}
-	for i := uint(0); i < ifNode.NamedChildCount(); i++ {
-		child := ifNode.NamedChild(i)
-		if child.Kind() != "block" {
-			continue
-		}
-		if consequence != nil && child.StartByte() == consequenceRangeStart && child.EndByte() == consequenceRangeEnd {
-			continue
-		}
-		return child
-	}
-	return nil
 }
 
 func (ctx *parseContext) parseRangeExpression(node *sitter.Node) (ast.Expression, error) {

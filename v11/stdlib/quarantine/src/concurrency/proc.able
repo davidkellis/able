@@ -8,10 +8,10 @@ struct Cancelled;
 struct Failed { error: ProcError }
 union ProcStatus = Pending | Resolved | Cancelled | Failed
 
-struct ProcError { details: string }
+struct ProcError { details: String }
 
 impl Error for ProcError {
-  fn message(self: Self) -> string { self.details }
+  fn message(self: Self) -> String { self.details }
   fn cause(self: Self) -> ?Error { nil }
 }
 

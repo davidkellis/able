@@ -9,7 +9,7 @@ describe("TypeChecker iterables", () => {
       AST.functionSignature(
         "describe",
         [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
-        AST.simpleTypeExpression("string"),
+        AST.simpleTypeExpression("String"),
       ),
     ]);
 
@@ -26,7 +26,7 @@ describe("TypeChecker iterables", () => {
     );
 
     const iterableType = AST.genericTypeExpression(AST.simpleTypeExpression("Iterable"), [
-      AST.simpleTypeExpression("string"),
+      AST.simpleTypeExpression("String"),
     ]);
 
     const makeItemsFn = AST.functionDefinition("make_items", [], AST.blockExpression([AST.nilLiteral()]), iterableType);
@@ -55,7 +55,7 @@ describe("TypeChecker iterables", () => {
     const loopDiag = diagnostics.find((diag) =>
       diag.message.includes("for-loop pattern expects type Display"),
     );
-    expect(loopDiag?.message).toContain("got string");
+    expect(loopDiag?.message).toContain("got String");
   });
 
   test("accepts stdlib collection iterables", () => {
@@ -70,7 +70,7 @@ describe("TypeChecker iterables", () => {
     const bitSetStruct = AST.structDefinition("BitSet", [], "named");
 
     const listLoop = AST.forLoop(
-      AST.typedPattern(AST.identifier("value"), AST.simpleTypeExpression("string")),
+      AST.typedPattern(AST.identifier("value"), AST.simpleTypeExpression("String")),
       AST.identifier("items"),
       AST.blockExpression([AST.identifier("value") as unknown as AST.Statement]),
     );
@@ -80,7 +80,7 @@ describe("TypeChecker iterables", () => {
       AST.blockExpression([AST.identifier("linked") as unknown as AST.Statement]),
     );
     const lazySeqLoop = AST.forLoop(
-      AST.typedPattern(AST.identifier("lazyValue"), AST.simpleTypeExpression("string")),
+      AST.typedPattern(AST.identifier("lazyValue"), AST.simpleTypeExpression("String")),
       AST.identifier("lazyItems"),
       AST.blockExpression([AST.identifier("lazyValue") as unknown as AST.Statement]),
     );
@@ -90,12 +90,12 @@ describe("TypeChecker iterables", () => {
       AST.blockExpression([AST.identifier("item") as unknown as AST.Statement]),
     );
     const setLoop = AST.forLoop(
-      AST.typedPattern(AST.identifier("entry"), AST.simpleTypeExpression("string")),
+      AST.typedPattern(AST.identifier("entry"), AST.simpleTypeExpression("String")),
       AST.identifier("entries"),
       AST.blockExpression([AST.identifier("entry") as unknown as AST.Statement]),
     );
     const dequeLoop = AST.forLoop(
-      AST.typedPattern(AST.identifier("dequeValue"), AST.simpleTypeExpression("string")),
+      AST.typedPattern(AST.identifier("dequeValue"), AST.simpleTypeExpression("String")),
       AST.identifier("dequeItems"),
       AST.blockExpression([AST.identifier("dequeValue") as unknown as AST.Statement]),
     );
@@ -112,7 +112,7 @@ describe("TypeChecker iterables", () => {
 
     const listFn = AST.functionDefinition(
       "consume_list",
-      [AST.functionParameter("items", AST.genericTypeExpression(AST.simpleTypeExpression("List"), [AST.simpleTypeExpression("string")]))],
+      [AST.functionParameter("items", AST.genericTypeExpression(AST.simpleTypeExpression("List"), [AST.simpleTypeExpression("String")]))],
       AST.blockExpression([listLoop, AST.returnStatement(AST.integerLiteral(0))]),
       AST.simpleTypeExpression("i32"),
     );
@@ -132,7 +132,7 @@ describe("TypeChecker iterables", () => {
       [
         AST.functionParameter(
           "lazyItems",
-          AST.genericTypeExpression(AST.simpleTypeExpression("LazySeq"), [AST.simpleTypeExpression("string")]),
+          AST.genericTypeExpression(AST.simpleTypeExpression("LazySeq"), [AST.simpleTypeExpression("String")]),
         ),
       ],
       AST.blockExpression([lazySeqLoop, AST.returnStatement(AST.integerLiteral(0))]),
@@ -146,13 +146,13 @@ describe("TypeChecker iterables", () => {
     );
     const setFn = AST.functionDefinition(
       "consume_hash_set",
-      [AST.functionParameter("entries", AST.genericTypeExpression(AST.simpleTypeExpression("HashSet"), [AST.simpleTypeExpression("string")]))],
+      [AST.functionParameter("entries", AST.genericTypeExpression(AST.simpleTypeExpression("HashSet"), [AST.simpleTypeExpression("String")]))],
       AST.blockExpression([setLoop, AST.returnStatement(AST.integerLiteral(0))]),
       AST.simpleTypeExpression("i32"),
     );
     const dequeFn = AST.functionDefinition(
       "consume_deque",
-      [AST.functionParameter("dequeItems", AST.genericTypeExpression(AST.simpleTypeExpression("Deque"), [AST.simpleTypeExpression("string")]))],
+      [AST.functionParameter("dequeItems", AST.genericTypeExpression(AST.simpleTypeExpression("Deque"), [AST.simpleTypeExpression("String")]))],
       AST.blockExpression([dequeLoop, AST.returnStatement(AST.integerLiteral(0))]),
       AST.simpleTypeExpression("i32"),
     );

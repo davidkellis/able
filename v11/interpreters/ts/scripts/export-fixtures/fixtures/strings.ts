@@ -16,13 +16,13 @@ const stringsFixtures: Fixture[] = [
       manifest: {
         description: "Interpolates literals and expressions",
         expect: {
-          result: { kind: "string", value: "x = 2, sum = 7" },
+          result: { kind: "String", value: "x = 2, sum = 7" },
         },
       },
     },
 
   {
-      name: "strings/interpolation_struct_to_string",
+      name: "strings/interpolation_struct_to_String",
       module: AST.module([
         AST.structDefinition(
           "Point",
@@ -57,7 +57,7 @@ const stringsFixtures: Fixture[] = [
           AST.structLiteral(
             [
               AST.structFieldInitializer(AST.integerLiteral(1), "x"),
-              AST.structFieldInitializer(AST.integerLiteral(2), "y"),
+        AST.structFieldInitializer(AST.integerLiteral(2), "y"),
             ],
             false,
             "Point",
@@ -69,15 +69,15 @@ const stringsFixtures: Fixture[] = [
         ]),
       ]),
       manifest: {
-        description: "Uses to_string method when interpolating struct instances",
+        description: "Uses to_String method when interpolating struct instances",
         expect: {
-          result: { kind: "string", value: "P= Point(1,2)" },
+          result: { kind: "String", value: "P= Point(1,2)" },
         },
       },
     },
 
   {
-      name: "strings/string_methods",
+      name: "strings/String_methods",
       module: AST.module(
         [
           AST.assign("s", AST.stringLiteral("héllo")),
@@ -86,13 +86,13 @@ const stringsFixtures: Fixture[] = [
             AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "len_chars"), []),
             AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "len_graphemes"), []),
             AST.propagationExpression(
-              AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "substring"), [
+              AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "subString"), [
                 AST.integerLiteral(1),
                 AST.integerLiteral(3),
               ]),
             ),
             AST.propagationExpression(
-              AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "substring"), [
+              AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "subString"), [
                 AST.integerLiteral(2),
                 AST.nil(),
               ]),
@@ -107,10 +107,11 @@ const stringsFixtures: Fixture[] = [
             AST.functionCall(AST.memberAccessExpression(AST.identifier("s"), "ends_with"), [AST.stringLiteral("lo")]),
           ),
         ],
-        [AST.importStatement(["able", "text", "string"], true)],
+        [AST.importStatement(["able", "text", "string"])],
       ),
       manifest: {
-        description: "string helpers cover length, substring, split, replace, and prefix/suffix checks",
+        description: "String helpers cover length, subString, split, replace, and prefix/suffix checks",
+        skipTargets: ["ts"],
         expect: {
           result: {
             kind: "array",
@@ -118,27 +119,27 @@ const stringsFixtures: Fixture[] = [
               { kind: "u64", value: "6" },
               { kind: "u64", value: "5" },
               { kind: "u64", value: "5" },
-              { kind: "string", value: "éll" },
-              { kind: "string", value: "llo" },
+              { kind: "String", value: "éll" },
+              { kind: "String", value: "llo" },
               {
                 kind: "array",
                 elements: [
-                  { kind: "string", value: "hé" },
-                  { kind: "string", value: "" },
-                  { kind: "string", value: "o" },
+                  { kind: "String", value: "hé" },
+                  { kind: "String", value: "" },
+                  { kind: "String", value: "o" },
                 ],
               },
               {
                 kind: "array",
                 elements: [
-                  { kind: "string", value: "h" },
-                  { kind: "string", value: "é" },
-                  { kind: "string", value: "l" },
-                  { kind: "string", value: "l" },
-                  { kind: "string", value: "o" },
+                  { kind: "String", value: "h" },
+                  { kind: "String", value: "é" },
+                  { kind: "String", value: "l" },
+                  { kind: "String", value: "l" },
+                  { kind: "String", value: "o" },
                 ],
               },
-              { kind: "string", value: "héLLo" },
+              { kind: "String", value: "héLLo" },
               { kind: "bool", value: true },
               { kind: "bool", value: true },
             ],

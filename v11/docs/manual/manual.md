@@ -74,7 +74,7 @@ Unified harness (runs TS + Go suites and fixtures):
 - `spec/`: language specs (v1–v11). Use only v11 for behaviour.
 - `v10/`: frozen—do not edit unless explicitly requested.
 - Standard library ships as `able.*` packages; the namespace is reserved.
-- Kernel builtins are minimal: host-provided globals (print, scheduler, channels/mutexes/hashers), array helpers, and string byte view only (`len_bytes`, `bytes`). Higher-level string/regex/collection helpers live in the Able stdlib layered on top.
+- Kernel builtins are minimal: host-provided globals (print, scheduler, channels/mutexes/hashers), array helpers, and String byte view only (`len_bytes`, `bytes`). Higher-level string/regex/collection helpers live in the Able stdlib layered on top.
 
 ## 2. Syntax & Expressions
 
@@ -114,11 +114,11 @@ Usual arithmetic/logical operators plus:
 - Assignment: `:=` (declare), `=` (reassign).
 - Range: `a..b` (inclusive), `a...b` (exclusive).
 - Safe navigation: `expr?.field` / `expr?.fn()` short-circuits to `nil` on `nil`.
-- Pipe forward `|>` with topic `%`: `value |> %.normalize()` or apply unary callable `value |> (@ + 1)`.
-- Placeholders: `@` or numbered `@2` inside lambdas; `%` only on the RHS of `|>`.
+- Pipe forward `|>` (callable-only) and low-precedence `|>>`: `value |> normalize` or apply a placeholder callable `value |> (@ + 1)`; `|>>` runs after assignment without extra parens.
+- Placeholders: `@` or numbered `@2` inside lambdas to build callables; `%` is modulo.
 - Safe navigation and indexing rely on stdlib interfaces (Index/IndexMut, etc.).
 
-Consult the spec’s precedence table; `|>` has the lowest precedence.
+Consult the spec’s precedence table; `|>>` is the loosest, `|>` sits between `||/&&` and assignment.
 
 ### 2.6 String Interpolation
 
@@ -143,7 +143,7 @@ Patterns work in `:=`, `=`, `for`, `match`, parameter lists, and `else` handlers
 - Struct (named fields): `Point { x, y }`
 - Struct (positional): `{ x, y }`
 - Array: `[first, ...rest]`
-- Nested and typed patterns: `case Err { msg: string }`
+- Nested and typed patterns: `case Err { msg: String }`
 
 Pattern mismatch yields an `Error` (falsy). Typed patterns act as guards and fail if the runtime type does not conform.
 
@@ -159,11 +159,11 @@ point = Point { ...point, y: point.y + 1 }
 
 ### 4.1 Type Expressions & Generics
 
-Type arguments are space-delimited: `Array string`, `Map string (Array i32)`. Generic parameters use `T`, `U`, etc.; constraints use interfaces (`T: Display + Clone`). Unused generic parameters can be inferred.
+Type arguments are space-delimited: `Array String`, `Map String (Array i32)`. Generic parameters use `T`, `U`, etc.; constraints use interfaces (`T: Display + Clone`). Unused generic parameters can be inferred.
 
 ### 4.2 Primitive & Composite Types
 
-- Primitives: `i8/i16/i32/i64/i128`, unsigned variants, `f32/f64`, `bool`, `char`, `string`, `nil`, `void`.
+- Primitives: `i8/i16/i32/i64/i128`, unsigned variants, `f32/f64`, `bool`, `char`, `String`, `nil`, `void`.
 - Arrays: typed, mutable, iterable; see stdlib helpers (§11).
 - Ranges: `Range` values from `a..b` (inclusive) or `a...b` (exclusive), usable in `for`.
 - Maps: constructed via stdlib; indexing uses `Index`/`IndexMut`.
@@ -174,7 +174,7 @@ Type arguments are space-delimited: `Array string`, `Map string (Array i32)`. Ge
 Forms:
 
 - Singleton: `struct Active`
-- Named fields: `struct User { id: i64, name: string, email: ?string }`
+- Named fields: `struct User { id: i64, name: String, email: ?String }`
 - Positional (named-tuple style): `struct Pair T U (T, U)`
 
 Instantiation matches the declaration form. Fields are mutable unless an API restricts them.
@@ -194,14 +194,14 @@ union Shape =
 
 ### 4.5 Type Aliases
 
-`type PairStr = Pair string string`. Aliases may be generic and recursive; they don’t create nominal distinctions. Aliases can be used in `methods`/`impl` definitions and across modules.
+`type PairStr = Pair String String`. Aliases may be generic and recursive; they don’t create nominal distinctions. Aliases can be used in `methods`/`impl` definitions and across modules.
 
 ## 5. Functions & Functional Tools
 
 ### 5.1 Named Functions
 
 ```able
-fn greet(name: string) -> string { `Hello ${name}` }
+fn greet(name: String) -> String { `Hello ${name}` }
 fn add<T: Numeric>(a: T, b: T) -> T { a + b }
 ```
 
@@ -211,7 +211,7 @@ fn add<T: Numeric>(a: T, b: T) -> T { a + b }
 
 ### 5.2 Anonymous Functions & Lambdas
 
-- Verbose: `fn(x: i32) -> string { x.to_string() }`
+- Verbose: `fn(x: i32) -> String { x.to_string() }`
 - Lambda shorthand: `{ x, y => x + y }`
 - Trailing lambda: `items.map { x => x * 2 }`
 - Closures capture lexical bindings by reference; mutation uses outer mutability rules.
@@ -221,7 +221,7 @@ fn add<T: Numeric>(a: T, b: T) -> T { a + b }
 - Implicit first param (`#member`): inside functions/methods, `#field` means `self.field`.
 - Implicit self parameter: `fn #increment(by: i32) { #value = #value + by }`
 - Placeholder lambdas: `numbers.map(@ * 2)`, `add_prefix = add("hi", @2)`
-- Pipe forward: `value |> %.trim().to_string() |> (@ + "!")`
+- Pipe forward: `value |> (@.trim().to_string()) |> (@ + "!")`
 
 ### 5.4 Calls & Callable Values
 
@@ -231,12 +231,12 @@ Standard call syntax plus method-call sugar (`value.method(args)`) that resolves
 
 ### 6.1 Conditionals
 
-`if { } or { }` chains mirror Julia’s `if/elseif/else` and yield expression values:
+`if/elsif/else` chains yield expression values:
 
 ```able
 grade = if score >= 90 { "A" }
-        or score >= 80 { "B" }
-        or { "C or lower" }
+        elsif score >= 80 { "B" }
+        else { "C or lower" }
 ```
 
 ### 6.2 Pattern Matching
@@ -292,7 +292,7 @@ Method-call syntax (`counter.inc(2)`) is sugar for calling these functions with 
 Interfaces describe behaviour; `Self` refers to the implementing type when omitted from `for`:
 
 ```able
-interface Display for T { fn to_string(self: Self) -> string }
+interface Display for T { fn to_string(self: Self) -> String }
 interface Iterable T { fn iterator(self: Self) -> (Iterator T) }
 ```
 
@@ -302,7 +302,7 @@ Interfaces may have default bodies (including static methods).
 
 ```able
 impl Display for User {
-  fn to_string(self: Self) -> string { `User(${self.id}, ${self.name})` }
+  fn to_string(self: Self) -> String { `User(${self.id}, ${self.name})` }
 }
 ```
 
@@ -364,7 +364,7 @@ Able mirrors Go-style semantics with shared interfaces across runtimes.
 `proc expr` spawns an asynchronous task and returns `Proc T`:
 
 ```able
-handle: Proc string = proc fetch(url)
+handle: Proc String = proc fetch(url)
 proc_flush(32) ## advance cooperative scheduler (TS runtime exposes this helper)
 
 handle.status() match {

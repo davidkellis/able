@@ -9,7 +9,7 @@ import (
 
 var reservedTypeNames = map[string]struct{}{
 	"bool":     {},
-	"string":   {},
+	"String":   {},
 	"char":     {},
 	"nil":      {},
 	"void":     {},
