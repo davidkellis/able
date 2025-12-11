@@ -28,6 +28,14 @@ export function ensureUniqueDeclaration(
       ctx.declarationOrigins.set(name, node);
       return true;
     }
+    const existingOrigin = (existing as { origin?: string }).origin ?? "";
+    const nextOrigin = (node as { origin?: string }).origin ?? "";
+    // Allow non-builtin declarations to override kernel bridge symbols so stdlib/package
+    // versions win without emitting duplicate errors.
+    if (existingOrigin.includes("/kernel/") && existingOrigin !== nextOrigin) {
+      ctx.declarationOrigins.set(name, node);
+      return true;
+    }
     const location = formatNodeOrigin(existing);
     ctx.report(`typechecker: duplicate declaration '${name}' (previous declaration at ${location})`, node);
     return false;

@@ -20,11 +20,11 @@ fn main() -> void {
   received := buffered.try_receive()
   received match {
     case nil => print("channel empty"),
-    case value => print(`saw ${value}`)
+    case value => print(`saw ${value}`),
   }
 
   shared := 0
   m := Mutex.new()
-  next = with_lock(m, { => do { shared = shared + 1; shared } })
+  next := with_lock(m, { => shared = shared + 1; shared })
   print(`mutex protected value -> ${next}`)
 }

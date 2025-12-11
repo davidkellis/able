@@ -634,6 +634,21 @@
     }
   },
   {
+    "type": "expression_list",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "expression_statement",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "expression_statement",
     "named": true,
     "fields": {
@@ -1396,6 +1411,10 @@
           },
           {
             "type": "expression",
+            "named": true
+          },
+          {
+            "type": "expression_list",
             "named": true
           }
         ]

@@ -302,7 +302,9 @@ export class TypeChecker {
   }
 
   private ensureUniqueDeclaration(name: string | null | undefined, node: AST.Node | null | undefined): boolean {
-    return ensureUniqueDeclarationHelper(this.registryContext(), name, node);
+    const pkg = this.currentPackageName ?? "<unknown>";
+    const key = name ? `${pkg}::${name}` : name;
+    return ensureUniqueDeclarationHelper(this.registryContext(), key, node);
   }
 
   private isKnownTypeName(name: string | null | undefined): boolean {

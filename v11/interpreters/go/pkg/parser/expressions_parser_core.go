@@ -105,6 +105,12 @@ func parseExpressionInternal(ctx *parseContext, node *sitter.Node) (ast.Expressi
 			return nil, err
 		}
 		return annotateExpression(expr, node), nil
+	case "expression_list":
+		expr, err := ctx.parseExpressionList(node)
+		if err != nil {
+			return nil, err
+		}
+		return annotateExpression(expr, node), nil
 	case "do_expression":
 		expr, err := ctx.parseDoExpression(node)
 		if err != nil {
@@ -758,6 +764,27 @@ func parseLambdaParameter(node *sitter.Node, source []byte) (*ast.FunctionParame
 	param := ast.NewFunctionParameter(id, nil)
 	annotateSpan(param, node)
 	return param, nil
+}
+
+func (ctx *parseContext) parseExpressionList(node *sitter.Node) (*ast.BlockExpression, error) {
+	statements := make([]ast.Statement, 0)
+	for i := uint(0); i < node.NamedChildCount(); i++ {
+		child := node.NamedChild(i)
+		if child == nil || !child.IsNamed() {
+			continue
+		}
+		stmt, err := ctx.parseStatement(child)
+		if err != nil {
+			return nil, err
+		}
+		if stmt != nil {
+			statements = append(statements, stmt)
+		}
+	}
+
+	block := ast.NewBlockExpression(statements)
+	annotateExpression(block, node)
+	return block, nil
 }
 
 func (ctx *parseContext) parseExpression(node *sitter.Node) (ast.Expression, error) {

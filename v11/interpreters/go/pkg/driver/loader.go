@@ -491,6 +491,9 @@ func indexSourceFiles(rootDir, rootPackage string, kind RootKind) (map[string][]
 			return err
 		}
 		if d.IsDir() {
+			if d.Name() == "quarantine" {
+				return fs.SkipDir
+			}
 			return nil
 		}
 		if filepath.Ext(path) != ".able" {

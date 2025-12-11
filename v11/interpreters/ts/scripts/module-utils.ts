@@ -198,6 +198,9 @@ export async function indexSourceFiles(
     const entries = await fs.readdir(current, { withFileTypes: true });
     for (const entry of entries) {
       const fullPath = path.join(current, entry.name);
+      if (entry.isDirectory() && entry.name === "quarantine") {
+        continue;
+      }
       if (entry.isDirectory()) {
         await walk(fullPath);
         continue;
