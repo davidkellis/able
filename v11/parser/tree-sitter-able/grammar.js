@@ -895,9 +895,14 @@ module.exports = grammar({
         optional(field("parameters", $.lambda_parameter_list)),
         optional(seq("->", field("return_type", $.type_expression))),
         "=>",
-        field("body", choice($.block, $.expression)),
+        field("body", choice($.block, $.expression_list, $.expression)),
         "}",
       ),
+    ),
+
+    expression_list: $ => seq(
+      $.expression_statement,
+      repeat1($.expression_statement),
     ),
 
     lambda_parameter_list: $ => seq(

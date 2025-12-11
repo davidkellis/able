@@ -3397,7 +3397,7 @@ fn get_nested_value(data: ?Container) -> ?Value {
 
 #### 11.2.3. Error/Option Handling (`or {}`)
 
-Provides a way to handle the `nil` or `Error` case of an `Option` or `Result` immediately, typically providing a default value or executing alternative logic.
+Provides a way to handle the `nil` or `Error` case of an `Option` or `Result` immediately, typically providing a default value or executing alternative logic. Implementations also treat any value that implements the `Error` interface as a failure for the purposes of `or` handling.
 
 ##### Syntax
 ```able
@@ -3406,11 +3406,11 @@ ExpressionReturningOptionOrResult or { err => BlockExpression } ## Capture error
 ```
 
 ##### Semantics
--   Applies to an expression whose type is `?T` (`nil | T`) or `!T` (`Error | T`).
+-   Applies to an expression whose type is `?T` (`nil | T`) or `!T` (`Error | T`). Implementations must also treat *any* value whose runtime type implements the `Error` interface as a failure value for `or` (even if the static type is a plain union).
 -   If the expression evaluates to the "successful" variant (`T`), the overall expression evaluates to that unwrapped value (`T`). The `or` block is *not* executed.
--   If the expression evaluates to the "failure" variant (`nil` or an `Error`):
+-   If the expression evaluates to the "failure" variant (`nil` or an `Error`/`Error`-implementer):
     *   The `BlockExpression` inside the `or { ... }` is executed.
-    *   If the form `or { err => ... }` is used *and* the failure value was an `Error`, the error value is bound to the identifier `err` (or chosen name) within the scope of the `BlockExpression`. If the failure value was `nil`, `err` is not bound.
+    *   If the form `or { err => ... }` is used *and* the failure value was an `Error` (or an `Error`-implementer), the error value is bound to the identifier `err` (or chosen name) within the scope of the `BlockExpression`. If the failure value was `nil`, `err` is not bound.
     *   The entire `Expression or { ... }` expression evaluates to the result of the `BlockExpression`.
 -   **Type Compatibility:** The type of the "successful" variant (`T`) and the type returned by the `BlockExpression` must be compatible. The overall expression has this common compatible type. If the two types are distinct and no expected type is provided by the surrounding context, the overall type is inferred as their union.
 

@@ -3836,6 +3836,10 @@
                 },
                 {
                   "type": "SYMBOL",
+                  "name": "expression_list"
+                },
+                {
+                  "type": "SYMBOL",
                   "name": "expression"
                 }
               ]
@@ -3847,6 +3851,22 @@
           }
         ]
       }
+    },
+    "expression_list": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "expression_statement"
+        },
+        {
+          "type": "REPEAT1",
+          "content": {
+            "type": "SYMBOL",
+            "name": "expression_statement"
+          }
+        }
+      ]
     },
     "lambda_parameter_list": {
       "type": "SEQ",
