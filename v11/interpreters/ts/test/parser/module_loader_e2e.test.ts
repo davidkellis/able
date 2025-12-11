@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 
 import { ModuleLoader, type Program as LoadedProgram } from "../../scripts/module-loader";
+import { collectModuleSearchPaths } from "../../scripts/module-search-paths";
 import { discoverRoot, indexSourceFiles } from "../../scripts/module-utils";
 import { ensureConsolePrint, installRuntimeStubs } from "../../scripts/runtime-stubs";
 import { callCallableValue } from "../../src/interpreter/functions";
@@ -351,7 +352,147 @@ fn value() -> String { "secondary" }
     }
   });
 
-  test("rejects user packages in the reserved able namespace", async () => {
+  test("auto-loads kernel packages discovered via search paths", async () => {
+    const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "able-module-loader-kernel-"));
+    const kernelRoot = path.join(tmpRoot, "kernel");
+    const kernelSrc = path.join(kernelRoot, "src");
+    const appRoot = path.join(tmpRoot, "app");
+    try {
+      await fs.mkdir(kernelSrc, { recursive: true });
+      await fs.writeFile(path.join(kernelRoot, "package.yml"), "name: kernel\n", "utf8");
+      await fs.writeFile(
+        path.join(kernelSrc, "boot.able"),
+        `
+package boot
+
+fn kernel_ready() -> bool { true }
+`.trimStart(),
+        "utf8",
+      );
+
+      await fs.mkdir(appRoot, { recursive: true });
+      const entryPath = path.join(appRoot, "main.able");
+      await fs.writeFile(
+        entryPath,
+        `
+package main
+
+fn main() -> void {}
+`.trimStart(),
+        "utf8",
+      );
+
+      const loader = new ModuleLoader([{ path: kernelSrc, isStdlib: true }]);
+      const program = await loader.load(entryPath);
+      expect(program.modules.some((mod) => mod.packageName === "kernel.boot")).toBe(true);
+    } finally {
+      await fs.rm(tmpRoot, { recursive: true, force: true });
+    }
+  });
+
+  test("auto-detects kernel under v11 layout via bundled root scan", async () => {
+    const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "able-module-loader-v11-kernel-"));
+    const kernelRoot = path.join(repoRoot, "v11", "kernel");
+    const kernelSrc = path.join(kernelRoot, "src");
+    const appRoot = path.join(repoRoot, "workspace");
+    try {
+      await fs.mkdir(kernelSrc, { recursive: true });
+      await fs.writeFile(path.join(kernelRoot, "package.yml"), "name: kernel\n", "utf8");
+      await fs.writeFile(
+        path.join(kernelSrc, "boot.able"),
+        `
+package boot
+
+fn kernel_ready() -> bool { true }
+`.trimStart(),
+        "utf8",
+      );
+
+      await fs.mkdir(appRoot, { recursive: true });
+      await fs.writeFile(path.join(appRoot, "package.yml"), "name: app\n", "utf8");
+      const entryPath = path.join(appRoot, "main.able");
+      await fs.writeFile(
+        entryPath,
+        `
+package main
+
+fn main() -> void {}
+`.trimStart(),
+        "utf8",
+      );
+
+      const searchPaths = collectModuleSearchPaths({ cwd: appRoot, probeFrom: [appRoot] });
+      expect(searchPaths.some((sp) => sp.path === path.resolve(kernelSrc))).toBe(true);
+
+      const loader = new ModuleLoader(searchPaths);
+      const program = await loader.load(entryPath);
+      expect(program.modules.some((mod) => mod.packageName === "kernel.boot")).toBe(true);
+    } finally {
+      await fs.rm(repoRoot, { recursive: true, force: true });
+    }
+  });
+
+  test("auto-detects stdlib under v11 layout via bundled root scan", async () => {
+    const repoRoot = await fs.mkdtemp(path.join(os.tmpdir(), "able-module-loader-v11-stdlib-"));
+    const stdlibRoot = path.join(repoRoot, "v11", "stdlib");
+    const stdlibSrc = path.join(stdlibRoot, "src");
+    const appRoot = path.join(repoRoot, "workspace");
+    try {
+      await fs.mkdir(stdlibSrc, { recursive: true });
+      await fs.writeFile(path.join(stdlibRoot, "package.yml"), "name: able\n", "utf8");
+      await fs.writeFile(
+        path.join(stdlibSrc, "custom.able"),
+        `
+package custom
+
+fn greeting() -> String { "hello from stdlib" }
+`.trimStart(),
+        "utf8",
+      );
+
+      await fs.mkdir(appRoot, { recursive: true });
+      await fs.writeFile(path.join(appRoot, "package.yml"), "name: app\n", "utf8");
+      const entryPath = path.join(appRoot, "main.able");
+      await fs.writeFile(
+        entryPath,
+        `
+package main
+
+import able.custom.{greeting}
+
+fn main() -> void { print(greeting()) }
+`.trimStart(),
+        "utf8",
+      );
+
+      const searchPaths = collectModuleSearchPaths({ cwd: appRoot, probeFrom: [appRoot] });
+      expect(searchPaths.some((sp) => sp.path === path.resolve(stdlibSrc) && sp.isStdlib)).toBe(true);
+
+      const loader = new ModuleLoader(searchPaths);
+      const program = await loader.load(entryPath);
+      const interpreter = new V10.InterpreterV10();
+      ensureConsolePrint(interpreter);
+      installRuntimeStubs(interpreter);
+      evaluateAllModules(interpreter, program);
+      const entryPackage = interpreter.packageRegistry.get(program.entry.packageName);
+      if (!entryPackage) throw new Error("entry package missing");
+      const mainFn = entryPackage.get("main");
+      if (!mainFn) throw new Error("main missing");
+      const logs: string[] = [];
+      const originalLog = console.log;
+      console.log = (...args: unknown[]) => logs.push(args.join(" "));
+      try {
+        callCallableValue(interpreter as any, mainFn, [], interpreter.globals);
+      } finally {
+        console.log = originalLog;
+      }
+      expect(logs.join(" ")).toContain("hello from stdlib");
+    } finally {
+      await fs.rm(repoRoot, { recursive: true, force: true });
+    }
+  });
+
+  test("treats able namespace as stdlib root", async () => {
     const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), "able-module-loader-reserved-"));
     try {
       await fs.writeFile(path.join(tmpRoot, "package.yml"), "name: able\n", "utf8");
@@ -366,7 +507,8 @@ fn main() -> void {}
       );
 
       const loader = new ModuleLoader();
-      await expect(loader.load(path.join(tmpRoot, "main.able"))).rejects.toThrow(/able\.\*/);
+      const program = await loader.load(path.join(tmpRoot, "main.able"));
+      expect(program.entry.packageName).toBe("able.main");
     } finally {
       await fs.rm(tmpRoot, { recursive: true, force: true });
     }

@@ -5,6 +5,9 @@ export type PlaceholderPlan = { paramCount: number };
 export function placeholderFunctionPlan(expr: AST.Expression | null | undefined): PlaceholderPlan | null {
   if (!expr) return null;
   if (expr.type === "AssignmentExpression") return null;
+  // Block expressions should be typechecked normally; placeholder presence inside a block
+  // (e.g., via a pipe) must not coerce the whole block into a placeholder function.
+  if (expr.type === "BlockExpression") return null;
   if (expr.type === "BinaryExpression" && (expr.operator === "|>" || expr.operator === "|>>")) {
     return null;
   }

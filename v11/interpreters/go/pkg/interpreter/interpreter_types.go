@@ -265,7 +265,13 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 				return false
 			}
 			targetKind := runtime.IntegerType(name)
-			return integerRangeWithinKinds(iv.TypeSuffix, targetKind)
+			if iv.TypeSuffix == targetKind || integerRangeWithinKinds(iv.TypeSuffix, targetKind) {
+				return true
+			}
+			if iv.Val != nil && integerValueWithinRange(iv.Val, targetKind) {
+				return true
+			}
+			return false
 		case "f32", "f64":
 			fv, ok := value.(runtime.FloatValue)
 			if !ok {

@@ -280,7 +280,13 @@ func (i *Interpreter) evaluateMethodsDefinition(def *ast.MethodsDefinition, env 
 		if fn == nil || fn.ID == nil {
 			return nil, fmt.Errorf("Method definition requires identifier")
 		}
-		mergeFunctionLike(bucket, fn.ID.Name, &runtime.FunctionValue{Declaration: fn, Closure: env})
+		fnVal := &runtime.FunctionValue{Declaration: fn, Closure: env}
+		mergeFunctionLike(bucket, fn.ID.Name, fnVal)
+		env.Define(fn.ID.Name, fnVal)
+		i.registerSymbol(fn.ID.Name, fnVal)
+		if qn := i.qualifiedName(fn.ID.Name); qn != "" {
+			i.global.Define(qn, fnVal)
+		}
 	}
 	return runtime.NilValue{}, nil
 }

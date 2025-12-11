@@ -91,6 +91,15 @@ func (c *Checker) checkBinaryExpression(env *Environment, expr *ast.BinaryExpres
 	resultType := Type(UnknownType{})
 	boolType := PrimitiveType{Kind: PrimitiveBool}
 
+	if expr.Operator == "^" && (isRatioType(leftType) || isRatioType(rightType)) {
+		diags = append(diags, Diagnostic{
+			Message: "typechecker: '^' does not support Ratio operands",
+			Node:    expr,
+		})
+		c.infer.set(expr, UnknownType{})
+		return diags, UnknownType{}
+	}
+
 	switch expr.Operator {
 	case "&&", "||":
 		if !typeAssignable(leftType, boolType) && !isUnknownType(leftType) {
@@ -254,6 +263,12 @@ func resolveNumericBinaryType(left, right Type) (Type, string) {
 	if isUnknownType(left) || isUnknownType(right) {
 		return UnknownType{}, ""
 	}
+	if isRatioType(left) || isRatioType(right) {
+		if !isNumericType(left) || !isNumericType(right) {
+			return UnknownType{}, fmt.Sprintf("requires numeric operands, got %s and %s", typeName(left), typeName(right))
+		}
+		return StructType{StructName: "Ratio"}, ""
+	}
 	if isFloatType(left) || isFloatType(right) {
 		if !isNumericType(left) || !isNumericType(right) {
 			return UnknownType{}, fmt.Sprintf("requires numeric operands, got %s and %s", typeName(left), typeName(right))
@@ -269,6 +284,12 @@ func resolveNumericBinaryType(left, right Type) (Type, string) {
 func resolveDivisionBinaryType(left, right Type) (Type, string) {
 	if isUnknownType(left) || isUnknownType(right) {
 		return UnknownType{}, ""
+	}
+	if isRatioType(left) || isRatioType(right) {
+		if !isNumericType(left) || !isNumericType(right) {
+			return UnknownType{}, fmt.Sprintf("requires numeric operands, got %s and %s", typeName(left), typeName(right))
+		}
+		return StructType{StructName: "Ratio"}, ""
 	}
 	if isFloatType(left) || isFloatType(right) {
 		if !isNumericType(left) || !isNumericType(right) {

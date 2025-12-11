@@ -14,6 +14,7 @@ import { applyIteratorAugmentations } from "./iterators";
 import { applyChannelMutexAugmentations } from "./channels_mutex";
 import { applyStringHostAugmentations } from "./string_host";
 import { applyHasherHostAugmentations } from "./hasher_host";
+import { applyNumericHostAugmentations } from "./numeric_host";
 import { buildStandardInterfaceBuiltins } from "../builtins/interfaces";
 import { applyArrayKernelAugmentations, type ArrayState } from "./array_kernel";
 import { evaluateImplementationDefinition, evaluateInterfaceDefinition } from "./definitions";
@@ -92,6 +93,7 @@ export class InterpreterV10 {
   channelMutexBuiltinsInitialized = false;
   stringHostBuiltinsInitialized = false;
   hasherBuiltinsInitialized = false;
+  numericBuiltinsInitialized = false;
   nextChannelHandle = 1;
   channelStates: Map<number, any> = new Map();
   channelErrorStructs: Map<string, AST.StructDefinition> = new Map();
@@ -120,6 +122,7 @@ export class InterpreterV10 {
     this.ensureChannelMutexBuiltins();
     this.ensureStringHostBuiltins();
     this.ensureHasherBuiltins();
+    this.ensureNumericBuiltins();
     this.procNativeMethods = {
       status: this.makeNativeFunction("Proc.status", 1, (interp, args) => {
         const self = args[0];
@@ -263,6 +266,7 @@ applyArrayKernelAugmentations(InterpreterV10);
 applyChannelMutexAugmentations(InterpreterV10);
 applyStringHostAugmentations(InterpreterV10);
 applyHasherHostAugmentations(InterpreterV10);
+applyNumericHostAugmentations(InterpreterV10);
 applyEvaluationAugmentations(InterpreterV10);
 applyConcurrencyAugmentations(InterpreterV10);
 

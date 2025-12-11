@@ -1,6 +1,6 @@
 package core.numeric.tests
 
-import able.core.numeric.{DivModResult, NumericConversionError}
+import able.core.numeric.{NumericConversionError, Ratio}
 
 fn assert(condition: bool, message: String) -> void {
   if condition { return }
@@ -12,15 +12,33 @@ fn check_numeric_conversion_error() -> void {
   assert(err.message == "cannot convert", "expected NumericConversionError.message to echo input")
 }
 
-fn check_div_mod_result_struct() -> void {
-  pair := DivModResult { quotient: 7, remainder: 2 }
-  assert(pair.quotient == 7, "DivModResult.quotient should be set")
-  assert(pair.remainder == 2, "DivModResult.remainder should be set")
+fn check_ratio_normalization() -> void {
+  reduced := Ratio.new(6, -8)
+  assert(reduced.numerator() == -3, "Ratio.new should reduce numerator")
+  assert(reduced.denominator() == 4, "Ratio.new should keep positive denominator")
+}
+
+fn check_to_r_helpers() -> void {
+  whole := 7_i64.to_r()
+  assert(whole.numerator() == 7 && whole.denominator() == 1, "i64.to_r should build whole Ratio")
+
+  half := 0.5.to_r()
+  assert(half.numerator() == 1 && half.denominator() == 2, "f64.to_r should preserve exact fraction")
+}
+
+fn check_ratio_result_conversions() -> void {
+  int_ok := Ratio.new(9, 3).to_i32()
+  assert(int_ok == 3, "Ratio.to_i32 should return integer component when denominator == 1")
+
+  int_err := Ratio.new(1, 2).to_i32()
+  assert(int_err.message() == "cannot convert non-integer Ratio to i32", "Ratio.to_i32 should surface conversion error")
 }
 
 fn main() -> void {
   check_numeric_conversion_error()
-  check_div_mod_result_struct()
+  check_ratio_normalization()
+  check_to_r_helpers()
+  check_ratio_result_conversions()
 }
 
 main()

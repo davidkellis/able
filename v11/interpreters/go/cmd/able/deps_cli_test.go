@@ -54,6 +54,7 @@ fn main() -> void {
 	cacheDir := filepath.Join(root, "cache")
 	t.Setenv("ABLE_HOME", cacheDir)
 	t.Setenv("ABLE_REGISTRY", registry)
+	t.Setenv("ABLE_MODULE_PATHS", repoStdlibPath(t)+string(os.PathListSeparator)+repoKernelPath(t))
 
 	originalWD, err := os.Getwd()
 	if err != nil {
@@ -75,16 +76,22 @@ fn main() -> void {
 	if err != nil {
 		t.Fatalf("LoadLockfile: %v", err)
 	}
-	if len(lock.Packages) != 1 {
+	if len(lock.Packages) != 3 {
 		t.Fatalf("lock packages unexpected: %#v", lock.Packages)
 	}
-	pkg := lock.Packages[0]
-	if pkg.Name != "util" || pkg.Version != "1.0.0" {
+	pkg := findLockedPackage(lock.Packages, "util")
+	if pkg == nil || pkg.Version != "1.0.0" {
 		t.Fatalf("lock entry unexpected: %#v", pkg)
 	}
 	expectedSource := fmt.Sprintf("registry:default/%s/%s", pkg.Name, pkg.Version)
 	if pkg.Source != expectedSource {
 		t.Fatalf("pkg.Source = %q, want %q", pkg.Source, expectedSource)
+	}
+	if stdlib := findLockedPackage(lock.Packages, "able"); stdlib == nil {
+		t.Fatalf("expected stdlib entry in lock: %#v", lock.Packages)
+	}
+	if kernel := findLockedPackage(lock.Packages, "kernel"); kernel == nil {
+		t.Fatalf("expected kernel entry in lock: %#v", lock.Packages)
 	}
 
 	code, stdout, stderr := captureCLI(t, []string{"run"})
@@ -148,6 +155,7 @@ fn main() -> void {
 	cacheDir := filepath.Join(root, "cache")
 	t.Setenv("ABLE_HOME", cacheDir)
 	t.Setenv("ABLE_REGISTRY", registry)
+	t.Setenv("ABLE_MODULE_PATHS", repoStdlibPath(t)+string(os.PathListSeparator)+repoKernelPath(t))
 
 	originalWD, err := os.Getwd()
 	if err != nil {

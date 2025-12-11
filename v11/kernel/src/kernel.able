@@ -1,0 +1,91 @@
+package kernel
+
+## Minimal host bridge surface loaded ahead of workspace code.
+
+type ArrayHandle = i64
+type ChannelHandle = i64
+type MutexHandle = i64
+type HasherHandle = i64
+
+struct AwaitWaker { wake: fn() -> void }
+
+struct AwaitRegistration { cancel: fn() -> void }
+
+interface Awaitable Output for Self {
+  fn is_ready(self: Self) -> bool;
+  fn register(self: Self, waker: AwaitWaker) -> AwaitRegistration;
+  fn commit(self: Self) -> Output;
+  fn is_default(self: Self) -> bool { false }
+}
+
+## Array buffer hooks
+extern typescript fn __able_array_new() -> ArrayHandle {}
+extern typescript fn __able_array_with_capacity(capacity: i32) -> ArrayHandle {}
+extern typescript fn __able_array_size(handle: ArrayHandle) -> i32 {}
+extern typescript fn __able_array_capacity(handle: ArrayHandle) -> i32 {}
+extern typescript fn __able_array_set_len(handle: ArrayHandle, length: i32) -> void {}
+extern typescript fn __able_array_read(handle: ArrayHandle, idx: i32) -> _ {}
+extern typescript fn __able_array_write(handle: ArrayHandle, idx: i32, value: _) -> void {}
+extern typescript fn __able_array_reserve(handle: ArrayHandle, capacity: i32) -> ArrayHandle {}
+extern typescript fn __able_array_clone(handle: ArrayHandle) -> ArrayHandle {}
+extern go fn __able_array_new() -> ArrayHandle {}
+extern go fn __able_array_with_capacity(capacity: i32) -> ArrayHandle {}
+extern go fn __able_array_size(handle: ArrayHandle) -> i32 {}
+extern go fn __able_array_capacity(handle: ArrayHandle) -> i32 {}
+extern go fn __able_array_set_len(handle: ArrayHandle, length: i32) -> void {}
+extern go fn __able_array_read(handle: ArrayHandle, idx: i32) -> _ {}
+extern go fn __able_array_write(handle: ArrayHandle, idx: i32, value: _) -> void {}
+extern go fn __able_array_reserve(handle: ArrayHandle, capacity: i32) -> ArrayHandle {}
+extern go fn __able_array_clone(handle: ArrayHandle) -> ArrayHandle {}
+
+## String encoding bridges (byte-level)
+extern typescript fn __able_String_from_builtin(value: String) -> _ {}
+extern typescript fn __able_String_to_builtin(bytes: _) -> String {}
+extern typescript fn __able_char_from_codepoint(value: i32) -> char {}
+extern go fn __able_String_from_builtin(value: String) -> _ {}
+extern go fn __able_String_to_builtin(bytes: _) -> String {}
+extern go fn __able_char_from_codepoint(value: i32) -> char {}
+
+## Channel bridges
+extern typescript fn __able_channel_new(capacity: i32) -> ChannelHandle {}
+extern typescript fn __able_channel_send(handle: ChannelHandle, value: _) -> void {}
+extern typescript fn __able_channel_receive(handle: ChannelHandle) -> ?_ {}
+extern typescript fn __able_channel_try_send(handle: ChannelHandle, value: _) -> bool {}
+extern typescript fn __able_channel_try_receive(handle: ChannelHandle) -> ?_ {}
+extern typescript fn __able_channel_await_try_recv(handle: ChannelHandle, callback: fn(?_) -> _) -> (Awaitable _) {}
+extern typescript fn __able_channel_await_try_send(handle: ChannelHandle, value: _, callback: fn() -> _) -> (Awaitable _) {}
+extern typescript fn __able_channel_close(handle: ChannelHandle) -> void {}
+extern typescript fn __able_channel_is_closed(handle: ChannelHandle) -> bool {}
+extern go fn __able_channel_new(capacity: i32) -> ChannelHandle {}
+extern go fn __able_channel_send(handle: ChannelHandle, value: _) -> void {}
+extern go fn __able_channel_receive(handle: ChannelHandle) -> ?_ {}
+extern go fn __able_channel_try_send(handle: ChannelHandle, value: _) -> bool {}
+extern go fn __able_channel_try_receive(handle: ChannelHandle) -> ?_ {}
+extern go fn __able_channel_await_try_recv(handle: ChannelHandle, callback: fn(?_) -> _) -> (Awaitable _) {}
+extern go fn __able_channel_await_try_send(handle: ChannelHandle, value: _, callback: fn() -> _) -> (Awaitable _) {}
+extern go fn __able_channel_close(handle: ChannelHandle) -> void {}
+extern go fn __able_channel_is_closed(handle: ChannelHandle) -> bool {}
+
+## Mutex bridges
+extern typescript fn __able_mutex_new() -> MutexHandle {}
+extern typescript fn __able_mutex_lock(handle: MutexHandle) -> void {}
+extern typescript fn __able_mutex_unlock(handle: MutexHandle) -> void {}
+extern typescript fn __able_mutex_await_lock(handle: MutexHandle, callback: fn() -> _) -> (Awaitable _) {}
+extern go fn __able_mutex_new() -> MutexHandle {}
+extern go fn __able_mutex_lock(handle: MutexHandle) -> void {}
+extern go fn __able_mutex_unlock(handle: MutexHandle) -> void {}
+extern go fn __able_mutex_await_lock(handle: MutexHandle, callback: fn() -> _) -> (Awaitable _) {}
+
+## Await helpers
+extern typescript fn __able_await_default(callback: fn() -> _) -> (Awaitable _) {}
+extern typescript fn __able_await_sleep_ms(duration: i64, callback: fn() -> _) -> (Awaitable _) {}
+extern go fn __able_await_default(callback: fn() -> _) -> (Awaitable _) {}
+extern go fn __able_await_sleep_ms(duration: i64, callback: fn() -> _) -> (Awaitable _) {}
+
+## Hasher bridges
+extern typescript fn __able_hasher_create() -> HasherHandle {}
+extern typescript fn __able_hasher_write(handle: HasherHandle, bytes: String) -> void {}
+extern typescript fn __able_hasher_finish(handle: HasherHandle) -> i64 {}
+extern go fn __able_hasher_create() -> HasherHandle {}
+extern go fn __able_hasher_write(handle: HasherHandle, bytes: String) -> void {}
+extern go fn __able_hasher_finish(handle: HasherHandle) -> i64 {}

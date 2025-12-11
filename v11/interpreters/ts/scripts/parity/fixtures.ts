@@ -250,8 +250,10 @@ export function compareFixtureOutcomes(
     return { kind: "go-skipped", message: `Go fixture runner reported skipped for ${fixture}` };
   }
   if (ts.error || go.error) {
-    const expectedError = ts.error ?? "<none>";
-    const actualError = go.error ?? "<none>";
+    const normalizeError = (message: string | undefined): string =>
+      (message ?? "").replace(/\s+at\s+.+$/, "").trim();
+    const expectedError = normalizeError(ts.error) || "<none>";
+    const actualError = normalizeError(go.error) || "<none>";
     if (!actualError.includes(expectedError)) {
       return {
         kind: "runtime-error",

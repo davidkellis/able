@@ -30,8 +30,27 @@ func (c *Checker) evaluateObligations(obligations []ConstraintObligation) []Diag
 	if len(obligations) == 0 {
 		return nil
 	}
-	var diags []Diagnostic
+	methodObligation := map[string]bool{}
 	for _, ob := range obligations {
+		if strings.HasPrefix(ob.Owner, "methods for ") && strings.Contains(ob.Owner, "::") {
+			label := strings.TrimSpace(strings.TrimPrefix(ob.Owner, "methods for "))
+			if parts := strings.Split(label, "::"); len(parts) > 0 {
+				methodObligation[parts[0]] = true
+			}
+		}
+	}
+	filtered := make([]ConstraintObligation, 0, len(obligations))
+	for _, ob := range obligations {
+		if strings.HasPrefix(ob.Owner, "methods for ") && !strings.Contains(ob.Owner, "::") && ob.Context == "via method set" {
+			label := strings.TrimSpace(strings.TrimPrefix(ob.Owner, "methods for "))
+			if methodObligation[label] {
+				continue
+			}
+		}
+		filtered = append(filtered, ob)
+	}
+	var diags []Diagnostic
+	for _, ob := range filtered {
 		diags = append(diags, c.evaluateObligation(ob)...)
 	}
 	return diags
@@ -42,6 +61,9 @@ func (c *Checker) evaluateObligation(ob ConstraintObligation) []Diagnostic {
 	contextLabel := ""
 	if ob.Context != "" {
 		contextLabel = " (" + ob.Context + ")"
+	}
+	if ob.Context == "via method set" && strings.HasPrefix(ob.Owner, "methods for ") {
+		contextLabel = ""
 	}
 	if res.err != "" {
 		diags := []Diagnostic{{
@@ -419,8 +441,15 @@ func annotateMethodSetFailure(detail string, spec MethodSetSpec, subject Type, s
 		label = formatMethodSetCandidateLabel(spec, subject, subst)
 	}
 	trimmed := strings.TrimSpace(detail)
+	context := strings.TrimSpace(ob.Context)
 	if trimmed == "" {
+		if context != "" {
+			return label + ": " + context
+		}
 		return label
+	}
+	if context != "" && !strings.Contains(trimmed, context) {
+		trimmed = trimmed + " (" + context + ")"
 	}
 	if strings.HasPrefix(trimmed, label) {
 		return trimmed

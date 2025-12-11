@@ -320,13 +320,63 @@ func (i *Interpreter) callCallableValue(callee runtime.Value, args []runtime.Val
 	if err != nil {
 		return nil, err
 	}
-	if selected == nil && len(overloads) == 1 {
-		selected = overloads[0]
-	}
 	if selected == nil {
+		if len(overloads) == 1 {
+			if mismatchErr := i.reportOverloadMismatch(overloads[0], evalArgs, call); mismatchErr != nil {
+				return nil, mismatchErr
+			}
+		}
 		return nil, fmt.Errorf("No overloads of %s match provided arguments", overloadName(call))
 	}
 	return i.invokeFunction(selected, evalArgs, call)
+}
+
+func (i *Interpreter) reportOverloadMismatch(fn *runtime.FunctionValue, evalArgs []runtime.Value, call *ast.FunctionCall) error {
+	if fn == nil || fn.Declaration == nil {
+		return nil
+	}
+	decl, ok := fn.Declaration.(*ast.FunctionDefinition)
+	if !ok || decl == nil {
+		return nil
+	}
+	params := decl.Params
+	paramCount := len(params)
+	expectedArgs := paramCount
+	if decl.IsMethodShorthand {
+		expectedArgs++
+	}
+	optionalLast := paramCount > 0 && isNullableParam(params[paramCount-1])
+	paramsForCheck := params
+	argsForCheck := evalArgs
+	if decl.IsMethodShorthand && len(argsForCheck) > 0 {
+		argsForCheck = argsForCheck[1:]
+	}
+	if optionalLast && len(evalArgs) == expectedArgs-1 && len(paramsForCheck) > 0 {
+		paramsForCheck = paramsForCheck[:len(paramsForCheck)-1]
+	}
+	if len(paramsForCheck) != len(argsForCheck) {
+		return nil
+	}
+	generics := genericNameSet(decl.GenericParams)
+	for idx, param := range paramsForCheck {
+		if param == nil || param.ParamType == nil {
+			continue
+		}
+		if paramUsesGeneric(param.ParamType, generics) {
+			continue
+		}
+		if i.matchesType(param.ParamType, argsForCheck[idx]) {
+			continue
+		}
+		name := fmt.Sprintf("param_%d", idx)
+		if id, ok := param.Name.(*ast.Identifier); ok && id != nil {
+			name = id.Name
+		}
+		expected := typeExpressionToString(param.ParamType)
+		actual := describeRuntimeValue(argsForCheck[idx])
+		return fmt.Errorf("Parameter type mismatch for '%s': expected %s, got %s", name, expected, actual)
+	}
+	return nil
 }
 
 func (i *Interpreter) selectRuntimeOverload(overloads []*runtime.FunctionValue, evalArgs []runtime.Value, call *ast.FunctionCall) (*runtime.FunctionValue, error) {
@@ -520,6 +570,49 @@ func isNullableParam(param *ast.FunctionParameter) bool {
 	}
 	_, ok := param.ParamType.(*ast.NullableTypeExpression)
 	return ok
+}
+
+func paramUsesGeneric(typeExpr ast.TypeExpression, generics map[string]struct{}) bool {
+	simple, ok := typeExpr.(*ast.SimpleTypeExpression)
+	if !ok || simple == nil || simple.Name == nil {
+		return false
+	}
+	_, ok = generics[simple.Name.Name]
+	return ok
+}
+
+func describeRuntimeValue(val runtime.Value) string {
+	switch v := val.(type) {
+	case runtime.StringValue:
+		return "String"
+	case runtime.BoolValue:
+		return "bool"
+	case runtime.CharValue:
+		return "char"
+	case runtime.IntegerValue:
+		return string(v.TypeSuffix)
+	case *runtime.IntegerValue:
+		if v == nil {
+			return "nil"
+		}
+		return string(v.TypeSuffix)
+	case runtime.FloatValue:
+		return string(v.TypeSuffix)
+	case *runtime.StructInstanceValue:
+		if v == nil {
+			return "nil"
+		}
+		if name := structTypeName(v); name != "" {
+			return name
+		}
+		return "struct_instance"
+	case runtime.NilValue:
+		return "nil"
+	}
+	if val == nil {
+		return "<nil>"
+	}
+	return val.Kind().String()
 }
 
 func (i *Interpreter) evaluatePipeExpression(subject runtime.Value, rhs ast.Expression, env *runtime.Environment) (runtime.Value, error) {

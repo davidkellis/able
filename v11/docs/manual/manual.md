@@ -432,9 +432,9 @@ Loader search order (deduplicated):
 2. Current working directory / CLI-provided roots
 3. `ABLE_PATH` entries
 4. `ABLE_MODULE_PATHS` entries (preferred override for fixtures/REPL)
-5. Standard library roots from `ABLE_STD_LIB` or bundled path
+5. Bundled kernel/stdlib roots discovered near the workspace/executable (or pinned via the resolver)
 
-Collisions of the same package path across roots are errors. `able.*` is reserved for the bundled stdlib; tooling treats it as read-only and honour overrides via `ABLE_STD_LIB=/path/to/stdlib/src`.
+Collisions of the same package path across roots are errors. `able.*` is reserved for the stdlib chosen by the resolver; tooling treats the bundled copy as read-only and uses `ABLE_MODULE_PATHS`/lockfile pins for overrides (no stdlib-specific env knob).
 
 ## 11. Standard Library Essentials
 

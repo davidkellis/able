@@ -109,7 +109,7 @@
     "typechecker: ../../../fixtures/ast/errors/ufcs_overload_ambiguity/source.able:7:1 typechecker: duplicate declaration 'tag' (previous declaration at ../../../../fixtures/ast/errors/ufcs_overload_ambiguity/source.able:4:1)"
   ],
   "errors/ufcs_static_method_not_found": [
-    "typechecker: ../../../fixtures/ast/errors/ufcs_static_method_not_found/source.able:13:8 typechecker: undefined identifier 'build'"
+    "typechecker: ../../../fixtures/ast/errors/ufcs_static_method_not_found/source.able:13:14 typechecker: argument 1 has type Counter, expected i32"
   ],
   "expressions/array_literal_empty": [],
   "expressions/assignment_declare": [],

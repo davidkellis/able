@@ -210,6 +210,10 @@ func registerBuiltins(env *Environment) {
 		Params: []Type{i64Type},
 		Return: i64Type,
 	})
+	env.Define("__able_ratio_from_float", FunctionType{
+		Params: []Type{FloatType{Suffix: "f64"}},
+		Return: StructType{StructName: "Ratio"},
+	})
 
 	env.Define("Less", lessType)
 	env.Define("Equal", equalType)
@@ -272,6 +276,10 @@ func registerBuiltins(env *Environment) {
 	env.Define("Display", displayIface)
 	env.Define("Clone", cloneIface)
 	env.Define("Error", errorIface)
+	ratioFields := map[string]Type{
+		"num": i64Type,
+		"den": i64Type,
+	}
 	divModFields := map[string]Type{
 		"quotient":  TypeParameterType{ParameterName: "T"},
 		"remainder": TypeParameterType{ParameterName: "T"},
@@ -280,6 +288,10 @@ func registerBuiltins(env *Environment) {
 		StructName: "DivMod",
 		TypeParams: []GenericParamSpec{{Name: "T"}},
 		Fields:     divModFields,
+	})
+	env.Define("Ratio", StructType{
+		StructName: "Ratio",
+		Fields:     ratioFields,
 	})
 	procErrorFields := map[string]Type{
 		"details": stringType,

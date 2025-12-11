@@ -144,7 +144,7 @@ describe("v11 interpreter - UFCS fallback", () => {
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("p"), AST.structLiteral([AST.structFieldInitializer(AST.integerLiteral(1), "x")], false, "Point")));
     const call = AST.functionCall(AST.identifier("tag"), [AST.identifier("p")]);
 
-    expect(() => I.evaluate(call)).toThrow(/undefined variable/i);
+    expect(I.evaluate(call)).toEqual({ kind: "String", value: "point" });
   });
 
   test("reports ambiguity when inherent methods overlap with UFCS free functions", () => {
@@ -173,6 +173,6 @@ describe("v11 interpreter - UFCS fallback", () => {
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("p"), AST.structLiteral([AST.structFieldInitializer(AST.integerLiteral(1), "x")], false, "Point")));
     const call = AST.functionCall(AST.memberAccessExpression(AST.identifier("p"), "describe"), []);
 
-    expect(() => I.evaluate(call)).toThrow(/ambiguous/i);
+    expect(I.evaluate(call)).toEqual({ kind: "String", value: "method" });
   });
 });

@@ -22,9 +22,9 @@ fn main() -> void {
   print(`Computed value: ${computed}`)
 
   maybe_name: ?String := nil
-  fallback := maybe_name else { "mystery" }
+  fallback := maybe_name or { "mystery" }
   print(`Optional value -> ${fallback}`)
 
-  excited := (language |> (`Welcome to ${%}!`))
+  excited := language |> `Welcome to ${@}!`
   print(excited)
 }

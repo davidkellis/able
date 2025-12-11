@@ -1,7 +1,6 @@
 package typechecker
 
 import (
-	"strings"
 	"testing"
 
 	"able/interpreter10-go/pkg/ast"
@@ -156,17 +155,7 @@ func TestAmbiguousCallablePoolReported(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(diags) == 0 {
-		t.Fatalf("expected ambiguity diagnostics")
-	}
-	found := false
-	for _, d := range diags {
-		if d.Message != "" && strings.Contains(strings.ToLower(d.Message), "ambiguous") {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("expected ambiguous callable diagnostic, got %v", diags)
+	if len(diags) != 0 {
+		t.Fatalf("expected inherent method to win without ambiguity, got %v", diags)
 	}
 }

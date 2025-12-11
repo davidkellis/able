@@ -210,10 +210,7 @@ func shouldExportTopLevel(node ast.Node) bool {
 		if def == nil || def.ID == nil {
 			return false
 		}
-		if def.IsPrivate || def.IsMethodShorthand {
-			return false
-		}
-		return true
+		return !def.IsPrivate
 	case *ast.TypeAliasDefinition:
 		return def != nil && def.ID != nil && !def.IsPrivate
 	case *ast.ImplementationDefinition:

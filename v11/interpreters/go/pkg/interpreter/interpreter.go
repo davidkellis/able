@@ -192,9 +192,11 @@ type Interpreter struct {
 	hasherMu         sync.Mutex
 	hashers          map[int64]*hasherState
 	nextHasherHandle int64
+	ratioReady       bool
 
 	orderingStructs map[string]*runtime.StructDefinitionValue
 	divModStruct    *runtime.StructDefinitionValue
+	ratioStruct     *runtime.StructDefinitionValue
 
 	arrayReady      bool
 	arrayStates     map[int64]*arrayState
@@ -325,6 +327,7 @@ func NewWithExecutor(exec Executor) *Interpreter {
 	i.initStringHostBuiltins()
 	i.initErrorBuiltins()
 	i.initHasherBuiltins()
+	i.initRatioBuiltins()
 	i.initInterfaceBuiltins()
 	return i
 }

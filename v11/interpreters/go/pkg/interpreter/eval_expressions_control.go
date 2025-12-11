@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"fmt"
+	"math/big"
 
 	"able/interpreter10-go/pkg/ast"
 	"able/interpreter10-go/pkg/runtime"
@@ -41,6 +42,8 @@ func isNumericValue(val runtime.Value) bool {
 	switch val.(type) {
 	case runtime.IntegerValue, runtime.FloatValue:
 		return true
+	case *runtime.StructInstanceValue:
+		return isRatioValue(val)
 	default:
 		return false
 	}
@@ -52,6 +55,20 @@ func numericToFloat(val runtime.Value) (float64, error) {
 		return v.Val, nil
 	case runtime.IntegerValue:
 		return bigIntToFloat(v.Val), nil
+	case *runtime.StructInstanceValue:
+		if isRatioValue(v) {
+			parts, err := coerceToRatio(v)
+			if err != nil {
+				return 0, err
+			}
+			num := new(big.Rat).SetFrac(parts.num, parts.den)
+			if num == nil {
+				return 0, fmt.Errorf("Arithmetic requires numeric operands")
+			}
+			f, _ := num.Float64()
+			return f, nil
+		}
+		return 0, fmt.Errorf("Arithmetic requires numeric operands")
 	default:
 		return 0, fmt.Errorf("Arithmetic requires numeric operands")
 	}

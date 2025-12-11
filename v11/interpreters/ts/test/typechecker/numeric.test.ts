@@ -154,4 +154,74 @@ describe("typechecker numeric promotion", () => {
     const { diagnostics } = checker.checkModule(module);
     expect(diagnostics).toEqual([]);
   });
+
+  test("Ratio arithmetic yields Ratio type", () => {
+    const checker = new TypeChecker();
+    const ratioLiteral = AST.structLiteral(
+      [
+        AST.structFieldInitializer(AST.integerLiteral(1, "i64"), "num"),
+        AST.structFieldInitializer(AST.integerLiteral(2, "i64"), "den"),
+      ],
+      false,
+      "Ratio",
+    );
+    const module = AST.module([
+      asStatement(
+        AST.assignmentExpression(
+          ":=",
+          AST.typedPattern(AST.identifier("sum"), AST.simpleTypeExpression("Ratio")),
+          AST.binaryExpression("+", ratioLiteral, ratioLiteral),
+        ),
+      ),
+    ]);
+    const { diagnostics } = checker.checkModule(module);
+    expect(diagnostics).toEqual([]);
+  });
+
+  test("Ratio mixes with integers and produces Ratio", () => {
+    const checker = new TypeChecker();
+    const ratioLiteral = AST.structLiteral(
+      [
+        AST.structFieldInitializer(AST.integerLiteral(3, "i64"), "num"),
+        AST.structFieldInitializer(AST.integerLiteral(4, "i64"), "den"),
+      ],
+      false,
+      "Ratio",
+    );
+    const module = AST.module([
+      asStatement(
+        AST.assignmentExpression(
+          ":=",
+          AST.typedPattern(AST.identifier("result"), AST.simpleTypeExpression("Ratio")),
+          AST.binaryExpression("-", ratioLiteral, AST.integerLiteral(1, "i32")),
+        ),
+      ),
+    ]);
+    const { diagnostics } = checker.checkModule(module);
+    expect(diagnostics).toEqual([]);
+  });
+
+  test("^ rejects Ratio operands", () => {
+    const checker = new TypeChecker();
+    const ratioLiteral = AST.structLiteral(
+      [
+        AST.structFieldInitializer(AST.integerLiteral(1, "i64"), "num"),
+        AST.structFieldInitializer(AST.integerLiteral(2, "i64"), "den"),
+      ],
+      false,
+      "Ratio",
+    );
+    const module = AST.module([
+      asStatement(
+        AST.assignmentExpression(
+          ":=",
+          AST.identifier("value"),
+          AST.binaryExpression("^", ratioLiteral, ratioLiteral),
+        ),
+      ),
+    ]);
+    const { diagnostics } = checker.checkModule(module);
+    expect(diagnostics).toHaveLength(1);
+    expect(diagnostics[0]?.message).toContain("does not support Ratio operands");
+  });
 });

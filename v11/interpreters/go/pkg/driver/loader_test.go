@@ -121,7 +121,7 @@ fn value() -> string { "secondary" }
 	}
 }
 
-func TestLoaderRejectsAbleNamespace(t *testing.T) {
+func TestLoaderAllowsAbleNamespace(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "package.yml"), "name: able\n")
 	entry := filepath.Join(root, "main.able")
@@ -137,10 +137,8 @@ fn main() -> void {}
 	}
 	defer loader.Close()
 
-	if _, err := loader.Load(entry); err == nil {
-		t.Fatalf("expected namespace validation failure")
-	} else if !strings.Contains(err.Error(), "able.*") {
-		t.Fatalf("unexpected error: %v", err)
+	if _, err := loader.Load(entry); err != nil {
+		t.Fatalf("expected able namespace to be accepted, got %v", err)
 	}
 }
 
@@ -192,6 +190,55 @@ fn main() -> void { message() }
 	}
 	if !found {
 		t.Fatalf("expected dynimport target extras.tools to be loaded; modules: %#v", program.Modules)
+	}
+}
+
+func TestLoaderAutoIncludesKernelPackages(t *testing.T) {
+	root := t.TempDir()
+
+	kernelRoot := filepath.Join(root, "kernel")
+	kernelSrc := filepath.Join(kernelRoot, "src")
+	if err := os.MkdirAll(kernelSrc, 0o755); err != nil {
+		t.Fatalf("mkdir kernel src: %v", err)
+	}
+	writeFile(t, filepath.Join(kernelRoot, "package.yml"), "name: kernel\n")
+	writeFile(t, filepath.Join(kernelSrc, "boot.able"), `
+package boot
+
+fn kernel_ready() -> bool { true }
+`)
+
+	appDir := filepath.Join(root, "app")
+	if err := os.MkdirAll(appDir, 0o755); err != nil {
+		t.Fatalf("mkdir app dir: %v", err)
+	}
+	entryPath := filepath.Join(appDir, "main.able")
+	writeFile(t, entryPath, `
+package main
+
+fn main() -> void {}
+`)
+
+	loader, err := NewLoader([]SearchPath{{Path: kernelSrc, Kind: RootStdlib}})
+	if err != nil {
+		t.Fatalf("NewLoader: %v", err)
+	}
+	defer loader.Close()
+
+	program, err := loader.Load(entryPath)
+	if err != nil {
+		t.Fatalf("loader.Load returned error: %v", err)
+	}
+
+	found := false
+	for _, mod := range program.Modules {
+		if mod != nil && mod.Package == "kernel.boot" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected kernel.boot to be auto-loaded; modules: %#v", program.Modules)
 	}
 }
 

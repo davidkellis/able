@@ -7,8 +7,7 @@ fn main() {
   y := x * 2
   print(y)
 
-  y = y + 5
-  y |> print
+  y = y + 5 |>> print
 
   for i in 1..5 {
     y = y + i |>> print

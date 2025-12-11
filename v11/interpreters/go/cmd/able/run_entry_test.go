@@ -121,7 +121,7 @@ fn stdlib_message() -> string {
 	if err != nil {
 		t.Fatalf("Getwd: %v", err)
 	}
-	t.Setenv("ABLE_STD_LIB", stdlibSrc)
+	t.Setenv("ABLE_MODULE_PATHS", stdlibSrc)
 
 	defer func() {
 		if chdirErr := os.Chdir(oldWD); chdirErr != nil {
@@ -132,8 +132,8 @@ fn stdlib_message() -> string {
 		t.Fatalf("Chdir: %v", err)
 	}
 
-	paths := collectSearchPaths()
-	if !containsSearchPath(paths, stdlibSrc) {
+	paths := collectSearchPaths(tempDir)
+	if !containsSearchPath(paths, stdlibSrc) && !containsSearchPath(paths, stdlibRoot) {
 		t.Fatalf("expected search paths to include stdlib: %v", paths)
 	}
 
@@ -178,13 +178,13 @@ func TestCollectSearchPathsIncludesAbleModulePaths(t *testing.T) {
 	joined := strings.Join([]string{extraOne, extraTwo}, string(os.PathListSeparator))
 	t.Setenv("ABLE_MODULE_PATHS", joined)
 
-	paths := collectSearchPaths()
+	paths := collectSearchPaths(tempDir)
 	if !containsSearchPath(paths, extraOne) || !containsSearchPath(paths, extraTwo) {
 		t.Fatalf("expected search paths to include %s and %s, got %v", extraOne, extraTwo, paths)
 	}
 }
 
-func TestFindStdlibRootPrefersFlattenedLayout(t *testing.T) {
+func TestFindStdlibRootsPreferFlattenedLayout(t *testing.T) {
 	tempDir := t.TempDir()
 	repoDir := filepath.Join(tempDir, "repo")
 	nested := filepath.Join(repoDir, "nested", "project")
@@ -197,9 +197,194 @@ func TestFindStdlibRootPrefersFlattenedLayout(t *testing.T) {
 		t.Fatalf("mkdir stdlib: %v", err)
 	}
 
-	found := findStdlibRoot(nested)
-	if found != stdlibDir {
-		t.Fatalf("expected findStdlibRoot to return %q, got %q", stdlibDir, found)
+	roots := findStdlibRoots(nested)
+	if len(roots) == 0 || roots[0] != stdlibDir {
+		t.Fatalf("expected findStdlibRoots to return %q first, got %v", stdlibDir, roots)
+	}
+}
+
+func TestFindStdlibRootsDetectsV11Layout(t *testing.T) {
+	tempDir := t.TempDir()
+	repoRoot := filepath.Join(tempDir, "repo")
+	workDir := filepath.Join(repoRoot, "workspace")
+	stdlibDir := filepath.Join(repoRoot, "v11", "stdlib", "src")
+
+	if err := os.MkdirAll(workDir, 0o755); err != nil {
+		t.Fatalf("mkdir workspace: %v", err)
+	}
+	if err := os.MkdirAll(stdlibDir, 0o755); err != nil {
+		t.Fatalf("mkdir stdlib: %v", err)
+	}
+
+	roots := findStdlibRoots(workDir)
+	found := false
+	for _, root := range roots {
+		if filepath.Clean(root) == filepath.Clean(stdlibDir) {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected findStdlibRoots to include %q, got %v", stdlibDir, roots)
+	}
+}
+
+func TestFindKernelRootsDetectsV11Layout(t *testing.T) {
+	tempDir := t.TempDir()
+	repoRoot := filepath.Join(tempDir, "repo")
+	workDir := filepath.Join(repoRoot, "workspace")
+	kernelDir := filepath.Join(repoRoot, "v11", "kernel", "src")
+
+	if err := os.MkdirAll(workDir, 0o755); err != nil {
+		t.Fatalf("mkdir workspace: %v", err)
+	}
+	if err := os.MkdirAll(kernelDir, 0o755); err != nil {
+		t.Fatalf("mkdir kernel: %v", err)
+	}
+
+	roots := findKernelRoots(workDir)
+	found := false
+	for _, root := range roots {
+		if filepath.Clean(root) == filepath.Clean(kernelDir) {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected findKernelRoots to include %q, got %v", kernelDir, roots)
+	}
+}
+
+func TestRunFileAutoDetectsBundledV11Stdlib(t *testing.T) {
+	root := t.TempDir()
+	repoRoot := filepath.Join(root, "repo")
+	stdlibSrc := filepath.Join(repoRoot, "v11", "stdlib", "src")
+	appRoot := filepath.Join(repoRoot, "app")
+
+	if err := os.MkdirAll(stdlibSrc, 0o755); err != nil {
+		t.Fatalf("mkdir stdlib: %v", err)
+	}
+	if err := os.MkdirAll(appRoot, 0o755); err != nil {
+		t.Fatalf("mkdir app: %v", err)
+	}
+
+	writeFile(t, filepath.Join(repoRoot, "v11", "stdlib", "package.yml"), "name: able\n")
+	writeFile(t, filepath.Join(stdlibSrc, "custom.able"), `
+package custom
+
+fn greeting() -> string { "hello from bundled stdlib" }
+`)
+
+	writeFile(t, filepath.Join(appRoot, "main.able"), `
+package main
+
+import able.custom.{greeting}
+
+fn main() {
+  print(greeting())
+}
+`)
+
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(oldWD)
+	}()
+	if err := os.Chdir(appRoot); err != nil {
+		t.Fatalf("chdir app root: %v", err)
+	}
+
+	code, stdout, stderr := captureCLI(t, []string{"main.able"})
+	if code != 0 {
+		t.Fatalf("run returned %d stderr=%q", code, stderr)
+	}
+	if !strings.Contains(stdout, "hello from bundled stdlib") {
+		t.Fatalf("expected stdlib greeting in stdout, got %q", stdout)
+	}
+}
+
+func TestRunUsesManifestLockForStdlibAndKernel(t *testing.T) {
+	root := t.TempDir()
+	depsRoot := filepath.Join(root, "deps")
+	stdlibSrc := filepath.Join(depsRoot, "stdlib", "src")
+	kernelSrc := filepath.Join(depsRoot, "kernel", "src")
+	appRoot := filepath.Join(root, "app")
+
+	for _, dir := range []string{
+		stdlibSrc,
+		kernelSrc,
+		filepath.Join(appRoot, "src"),
+	} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", dir, err)
+		}
+	}
+
+	writeFile(t, filepath.Join(depsRoot, "stdlib", "package.yml"), "name: able\nversion: 9.9.9\n")
+	writeFile(t, filepath.Join(stdlibSrc, "locktest.able"), `
+package locktest
+
+fn greeting() -> string { "hello from locked stdlib" }
+`)
+
+	writeFile(t, filepath.Join(depsRoot, "kernel", "package.yml"), "name: kernel\nversion: 1.0.0\n")
+	writeFile(t, filepath.Join(kernelSrc, "boot.able"), `
+package boot
+
+fn kernel_ready() -> bool { true }
+`)
+
+	writeFile(t, filepath.Join(appRoot, "package.yml"), `
+name: sample
+version: 0.0.1
+dependencies:
+  able: "9.9.9"
+targets:
+  app: src/main.able
+`)
+	writeFile(t, filepath.Join(appRoot, "package.lock"), `
+root: sample
+packages:
+  - name: able
+    version: 9.9.9
+    source: path:../deps/stdlib/src
+  - name: kernel
+    version: 1.0.0
+    source: path:../deps/kernel/src
+`)
+	writeFile(t, filepath.Join(appRoot, "src", "main.able"), `
+package main
+
+import able.locktest.{greeting}
+import kernel.boot.{kernel_ready}
+
+fn main() {
+  if kernel_ready() {
+    print(greeting())
+  }
+}
+`)
+
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %v", err)
+	}
+	defer func() { _ = os.Chdir(oldWD) }()
+	if err := os.Chdir(appRoot); err != nil {
+		t.Fatalf("Chdir: %v", err)
+	}
+
+	code, stdout, stderr := captureCLI(t, []string{"run"})
+	if code != 0 {
+		t.Fatalf("able run exited %d (stderr: %q)", code, stderr)
+	}
+	if !strings.Contains(stdout, "hello from locked stdlib") {
+		t.Fatalf("expected stdlib output, got %q", stdout)
+	}
+	if stderr != "" {
+		t.Fatalf("expected empty stderr, got %q", stderr)
 	}
 }
 
@@ -231,7 +416,7 @@ fn stdlib_message() -> string {
 	if err != nil {
 		t.Fatalf("Getwd: %v", err)
 	}
-	t.Setenv("ABLE_STD_LIB", stdlibSrc)
+	t.Setenv("ABLE_MODULE_PATHS", stdlibSrc)
 
 	defer func() {
 		if chdirErr := os.Chdir(oldWD); chdirErr != nil {

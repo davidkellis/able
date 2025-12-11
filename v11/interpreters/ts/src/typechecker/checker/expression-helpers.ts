@@ -5,6 +5,8 @@ import {
   unknownType,
   isFloatPrimitiveType,
   isIntegerPrimitiveType,
+  isNumeric,
+  isRatioType,
   type TypeInfo,
   type FloatPrimitive,
 } from "../types";
@@ -63,6 +65,15 @@ export function resolveNumericBinaryType(left: TypeInfo, right: TypeInfo): Numer
   if (!left || left.kind === "unknown" || !right || right.kind === "unknown") {
     return { kind: "unknown" };
   }
+  if (isRatioType(left) || isRatioType(right)) {
+    if (!isNumeric(left) || !isNumeric(right)) {
+      return {
+        kind: "error",
+        message: `requires numeric operands (got ${formatType(left)} and ${formatType(right)})`,
+      };
+    }
+    return { kind: "ok", type: { kind: "struct", name: "Ratio", typeArguments: [] } };
+  }
   const leftClass = classifyNumericPrimitive(left);
   const rightClass = classifyNumericPrimitive(right);
   if (!leftClass || !rightClass) {
@@ -85,6 +96,15 @@ export function resolveNumericBinaryType(left: TypeInfo, right: TypeInfo): Numer
 export function resolveDivisionType(left: TypeInfo, right: TypeInfo): NumericResolution {
   if (!left || left.kind === "unknown" || !right || right.kind === "unknown") {
     return { kind: "unknown" };
+  }
+  if (isRatioType(left) || isRatioType(right)) {
+    if (!isNumeric(left) || !isNumeric(right)) {
+      return {
+        kind: "error",
+        message: `requires numeric operands (got ${formatType(left)} and ${formatType(right)})`,
+      };
+    }
+    return { kind: "ok", type: { kind: "struct", name: "Ratio", typeArguments: [] } };
   }
   const leftClass = classifyNumericPrimitive(left);
   const rightClass = classifyNumericPrimitive(right);

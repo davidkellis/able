@@ -171,6 +171,130 @@ describe("typechecker function calls", () => {
     const module = AST.module([point, methods, freeDescribe, call as unknown as AST.Statement]);
 
     const { diagnostics } = checker.checkModule(module);
-    expect(diagnostics.some((d) => d.message?.toLowerCase().includes("ambiguous"))).toBe(true);
+    expect(diagnostics).toHaveLength(0);
+  });
+
+  test("methods from method sets can be called as exported functions", () => {
+    const checker = new TypeChecker();
+    const point = AST.structDefinition(
+      "Point",
+      [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "x")],
+      "named",
+    );
+    const methods = AST.methodsDefinition(AST.simpleTypeExpression("Point"), [
+      AST.fn(
+        "norm",
+        [],
+        AST.blockExpression([AST.returnStatement(AST.integerLiteral(1))]),
+        AST.simpleTypeExpression("i32"),
+        undefined,
+        undefined,
+        true,
+      ),
+    ]);
+    const literal = AST.structLiteral([AST.structFieldInitializer(AST.integerLiteral(1), "x")], false, "Point");
+    const call = AST.functionCall(AST.identifier("norm"), [literal]);
+    const module = AST.module([point, methods, call as unknown as AST.Statement]);
+
+    const { diagnostics } = checker.checkModule(module);
+    expect(diagnostics).toHaveLength(0);
+  });
+
+  test("method exports enforce receiver type when called directly", () => {
+    const checker = new TypeChecker();
+    const point = AST.structDefinition(
+      "Point",
+      [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "x")],
+      "named",
+    );
+    const methods = AST.methodsDefinition(AST.simpleTypeExpression("Point"), [
+      AST.fn(
+        "norm",
+        [],
+        AST.blockExpression([AST.returnStatement(AST.integerLiteral(1))]),
+        AST.simpleTypeExpression("i32"),
+        undefined,
+        undefined,
+        true,
+      ),
+    ]);
+    const call = AST.functionCall(AST.identifier("norm"), [AST.integerLiteral(3)]);
+    const module = AST.module([point, methods, call as unknown as AST.Statement]);
+
+    const { diagnostics } = checker.checkModule(module);
+    expect(diagnostics).toHaveLength(1);
+    expect(diagnostics[0]?.message).toContain("expected Point");
+  });
+
+  test("method set where clause obligations apply to exported functions", () => {
+    const checker = new TypeChecker();
+    const display = AST.interfaceDefinition("Display", [
+      AST.functionSignature(
+        "show",
+        [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
+        AST.simpleTypeExpression("String"),
+      ),
+    ]);
+    const doc = AST.structDefinition(
+      "Doc",
+      [AST.structFieldDefinition(AST.simpleTypeExpression("String"), "body")],
+      "named",
+    );
+    const methods = AST.methodsDefinition(
+      AST.simpleTypeExpression("Doc"),
+      [
+        AST.fn(
+          "title",
+          [],
+          AST.blockExpression([AST.returnStatement(AST.stringLiteral("hi"))]),
+          AST.simpleTypeExpression("String"),
+          undefined,
+          undefined,
+          true,
+        ),
+      ],
+      undefined,
+      [AST.whereClauseConstraint("Self", [AST.interfaceConstraint(AST.simpleTypeExpression("Display"))])],
+    );
+    const call = AST.functionCall(
+      AST.identifier("title"),
+      [
+        AST.structLiteral(
+          [AST.structFieldInitializer(AST.stringLiteral("body"), "body")],
+          false,
+          "Doc",
+        ),
+      ],
+    );
+    const module = AST.module([display, doc, methods, call as unknown as AST.Statement]);
+
+    const { diagnostics } = checker.checkModule(module);
+    expect(diagnostics.length).toBeGreaterThan(0);
+    expect(diagnostics[0]?.message).toContain("Display");
+  });
+
+  test("method shorthand exports still require a receiver when called as functions", () => {
+    const checker = new TypeChecker();
+    const point = AST.structDefinition(
+      "Point",
+      [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "x")],
+      "named",
+    );
+    const methods = AST.methodsDefinition(AST.simpleTypeExpression("Point"), [
+      AST.fn(
+        "norm",
+        [],
+        AST.blockExpression([AST.returnStatement(AST.integerLiteral(1))]),
+        AST.simpleTypeExpression("i32"),
+        undefined,
+        undefined,
+        true,
+      ),
+    ]);
+    const call = AST.functionCall(AST.identifier("norm"), []);
+    const module = AST.module([point, methods, call as unknown as AST.Statement]);
+
+    const { diagnostics } = checker.checkModule(module);
+    expect(diagnostics).toHaveLength(0);
   });
 });

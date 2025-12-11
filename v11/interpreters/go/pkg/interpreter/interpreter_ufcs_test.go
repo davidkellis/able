@@ -242,9 +242,12 @@ func TestAmbiguousCallablePoolWithInherentAndFreeFunction(t *testing.T) {
 		nil,
 		nil,
 	)
-	if _, _, err := interp.EvaluateModule(module); err == nil {
-		t.Fatalf("expected ambiguity error, got nil")
-	} else if !strings.Contains(strings.ToLower(err.Error()), "ambiguous") {
-		t.Fatalf("expected ambiguous callable error, got %v", err)
+	value := mustEvalModule(t, interp, module)
+	str, ok := value.(runtime.StringValue)
+	if !ok {
+		t.Fatalf("expected string result, got %#v", value)
+	}
+	if str.Val != "method" {
+		t.Fatalf("expected inherent method to win, got %q", str.Val)
 	}
 }

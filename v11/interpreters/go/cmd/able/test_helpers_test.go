@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -85,6 +86,45 @@ func containsSearchPath(paths []driver.SearchPath, target string) bool {
 		}
 	}
 	return false
+}
+
+func findLockedPackage(pkgs []*driver.LockedPackage, name string) *driver.LockedPackage {
+	for _, pkg := range pkgs {
+		if pkg != nil && pkg.Name == name {
+			return pkg
+		}
+	}
+	return nil
+}
+
+func repoStdlibPath(t *testing.T) string {
+	t.Helper()
+	_, current, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatalf("runtime.Caller failed")
+	}
+	base := filepath.Dir(current) // .../v11/interpreters/go/cmd/able
+	repoRoot := filepath.Clean(filepath.Join(base, "..", "..", "..", "..", ".."))
+	path := filepath.Join(repoRoot, "v11", "stdlib", "src")
+	if info, err := os.Stat(path); err != nil || !info.IsDir() {
+		t.Fatalf("stdlib path %s invalid: %v", path, err)
+	}
+	return path
+}
+
+func repoKernelPath(t *testing.T) string {
+	t.Helper()
+	_, current, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatalf("runtime.Caller failed")
+	}
+	base := filepath.Dir(current)
+	repoRoot := filepath.Clean(filepath.Join(base, "..", "..", "..", "..", ".."))
+	path := filepath.Join(repoRoot, "v11", "kernel", "src")
+	if info, err := os.Stat(path); err != nil || !info.IsDir() {
+		t.Fatalf("kernel path %s invalid: %v", path, err)
+	}
+	return path
 }
 
 func captureCLI(t *testing.T, args []string) (int, string, string) {

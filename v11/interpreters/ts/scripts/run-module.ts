@@ -11,7 +11,8 @@ import { formatTypecheckerDiagnostic, printPackageSummaries } from "./typecheck-
 import { resolveTypecheckMode, type TypecheckMode } from "./typecheck-mode";
 import { ModuleLoader, type Program } from "./module-loader";
 import { callCallableValue } from "../src/interpreter/functions";
-import { collectModuleSearchPaths } from "./module-search-paths";
+import { collectModuleSearchPaths, type ModuleSearchPath } from "./module-search-paths";
+import { buildExecutionSearchPaths, loadManifestContext } from "./module-deps";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_VERSION = process.env.ABLE_TS_VERSION ?? "able-ts dev";
@@ -19,7 +20,6 @@ const rawTypecheckMode = process.env.ABLE_TYPECHECK_FIXTURES;
 const TYPECHECK_MODE = resolveTypecheckMode(rawTypecheckMode !== undefined ? rawTypecheckMode : "strict");
 const ABLE_PATH_ENV = process.env.ABLE_PATH ?? "";
 const ABLE_MODULE_PATHS_ENV = process.env.ABLE_MODULE_PATHS ?? "";
-const ABLE_STD_LIB_ENV = process.env.ABLE_STD_LIB ?? "";
 
 type CLICommand = "run" | "check" | "test";
 type TestReporterFormat = "doc" | "progress" | "tap" | "json";
@@ -251,24 +251,17 @@ function maybeTypecheckProgram(
 }
 
 async function loadProgram(entryPath: string): Promise<Program | null> {
-  const loader = createModuleLoader();
+  const searchPaths = await resolveSearchPaths(entryPath);
+  if (!searchPaths) {
+    return null;
+  }
+  const loader = new ModuleLoader(searchPaths);
   try {
     return await loader.load(entryPath);
   } catch (error) {
     console.error(`failed to load program: ${extractErrorMessage(error)}`);
     return null;
   }
-}
-
-function createModuleLoader(): ModuleLoader {
-  const searchPaths = collectModuleSearchPaths({
-    cwd: process.cwd(),
-    ablePathEnv: ABLE_PATH_ENV,
-    ableModulePathsEnv: ABLE_MODULE_PATHS_ENV,
-    ableStdLibEnv: ABLE_STD_LIB_ENV,
-    probeStdlibFrom: [process.cwd(), path.dirname(fileURLToPath(import.meta.url)), path.dirname(process.execPath)],
-  });
-  return new ModuleLoader(searchPaths);
 }
 
 async function resolveEntryPath(input: string): Promise<string | null> {
@@ -312,6 +305,35 @@ function fsExistsSync(target: string): boolean {
   } catch {
     return false;
   }
+}
+
+async function resolveSearchPaths(entryPath: string): Promise<ModuleSearchPath[] | null> {
+  const entryDir = path.dirname(path.resolve(entryPath));
+  let manifestRoot: string | null = null;
+  let extras: ModuleSearchPath[] = [];
+  try {
+    const manifestContext = await loadManifestContext(entryDir);
+    manifestRoot = manifestContext.manifest?.path ? path.dirname(manifestContext.manifest.path) : null;
+    extras = buildExecutionSearchPaths(manifestContext.manifest, manifestContext.lock);
+  } catch (error) {
+    console.error(extractErrorMessage(error));
+    return null;
+  }
+  const probeFrom = [
+    entryDir,
+    manifestRoot ?? undefined,
+    process.cwd(),
+    path.dirname(fileURLToPath(import.meta.url)),
+    path.dirname(process.execPath),
+  ].filter(Boolean) as string[];
+
+  return collectModuleSearchPaths({
+    cwd: entryDir ?? process.cwd(),
+    ablePathEnv: ABLE_PATH_ENV,
+    ableModulePathsEnv: ABLE_MODULE_PATHS_ENV,
+    extras,
+    probeFrom,
+  });
 }
 
 function parseTestArguments(args: string[]): TestCliConfig {

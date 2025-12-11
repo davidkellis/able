@@ -85,9 +85,13 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 				return diags, final
 			}
 		}
-		var candidates []FunctionType
+		var (
+			candidates  []FunctionType
+			methodFound bool
+		)
 		if fnType, ok, detail := c.lookupMethod(objectType, memberName); ok {
 			candidates = append(candidates, fnType)
+			methodFound = true
 		} else if detail != "" {
 			diags = append(diags, Diagnostic{
 				Message: "typechecker: " + detail,
@@ -102,7 +106,7 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 				return diags, final
 			}
 		}
-		if fnType, ok := c.lookupUfcsFreeFunction(env, objectType, memberName); ok {
+		if fnType, ok := c.lookupUfcsFreeFunction(env, objectType, memberName); ok && !methodFound {
 			candidates = append(candidates, fnType)
 		}
 		if len(candidates) > 1 {
@@ -138,9 +142,13 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 			final := c.finalizeMemberAccessType(expr, wrapType, fieldType)
 			return diags, final
 		}
-		var candidates []FunctionType
+		var (
+			candidates  []FunctionType
+			methodFound bool
+		)
 		if fnType, ok, detail := c.lookupMethod(objectType, memberName); ok {
 			candidates = append(candidates, fnType)
+			methodFound = true
 		} else if detail != "" {
 			diags = append(diags, Diagnostic{
 				Message: "typechecker: " + detail,
@@ -155,7 +163,7 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 				return diags, final
 			}
 		}
-		if fnType, ok := c.lookupUfcsFreeFunction(env, objectType, memberName); ok {
+		if fnType, ok := c.lookupUfcsFreeFunction(env, objectType, memberName); ok && !methodFound {
 			candidates = append(candidates, fnType)
 		}
 		if len(candidates) > 1 {
@@ -179,9 +187,13 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 			c.infer.set(expr, UnknownType{})
 			return diags, UnknownType{}
 		}
-		var candidates []FunctionType
+		var (
+			candidates  []FunctionType
+			methodFound bool
+		)
 		if fnType, ok, detail := c.lookupMethod(objectType, memberName); ok {
 			candidates = append(candidates, fnType)
+			methodFound = true
 		} else if detail != "" {
 			diags = append(diags, Diagnostic{
 				Message: "typechecker: " + detail,
@@ -190,7 +202,7 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 			c.infer.set(expr, UnknownType{})
 			return diags, UnknownType{}
 		}
-		if fnType, ok := c.lookupUfcsFreeFunction(env, objectType, memberName); ok {
+		if fnType, ok := c.lookupUfcsFreeFunction(env, objectType, memberName); ok && !methodFound {
 			candidates = append(candidates, fnType)
 		}
 		if len(candidates) > 1 {
@@ -218,9 +230,13 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 			break
 		}
 		if ty.Kind == PrimitiveString {
-			var candidates []FunctionType
+			var (
+				candidates  []FunctionType
+				methodFound bool
+			)
 			if fnType, ok, detail := c.lookupMethod(objectType, memberName); ok {
 				candidates = append(candidates, fnType)
+				methodFound = true
 			} else if detail != "" {
 				diags = append(diags, Diagnostic{
 					Message: "typechecker: " + detail,
@@ -229,7 +245,7 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 				c.infer.set(expr, UnknownType{})
 				return diags, UnknownType{}
 			}
-			if fnType, ok := c.lookupUfcsFreeFunction(env, objectType, memberName); ok {
+			if fnType, ok := c.lookupUfcsFreeFunction(env, objectType, memberName); ok && !methodFound {
 				candidates = append(candidates, fnType)
 			}
 			if len(candidates) > 1 {
@@ -353,9 +369,13 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 				}
 			}
 		}
-		var candidates []FunctionType
+		var (
+			candidates  []FunctionType
+			methodFound bool
+		)
 		if fnType, ok, detail := c.lookupMethod(objectType, memberName); ok {
 			candidates = append(candidates, fnType)
+			methodFound = true
 		} else if detail != "" {
 			diags = append(diags, Diagnostic{
 				Message: "typechecker: " + detail,
@@ -364,7 +384,7 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 			c.infer.set(expr, UnknownType{})
 			return diags, UnknownType{}
 		}
-		if fnType, ok := c.lookupUfcsFreeFunction(env, objectType, memberName); ok {
+		if fnType, ok := c.lookupUfcsFreeFunction(env, objectType, memberName); ok && !methodFound {
 			candidates = append(candidates, fnType)
 		}
 		if len(candidates) > 1 {
@@ -520,8 +540,10 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 			break
 		}
 		var candidates []FunctionType
+		methodFound := false
 		if fnType, ok, detail := c.lookupMethod(objectType, memberName); ok {
 			candidates = append(candidates, fnType)
+			methodFound = true
 		} else if detail != "" {
 			diags = append(diags, Diagnostic{
 				Message: "typechecker: " + detail,
@@ -530,7 +552,7 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 			c.infer.set(expr, UnknownType{})
 			return diags, UnknownType{}
 		}
-		if fnType, ok := c.lookupUfcsFreeFunction(env, objectType, memberName); ok {
+		if fnType, ok := c.lookupUfcsFreeFunction(env, objectType, memberName); ok && !methodFound {
 			candidates = append(candidates, fnType)
 		}
 		if len(candidates) > 1 {
