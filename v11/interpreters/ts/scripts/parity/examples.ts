@@ -26,7 +26,6 @@ if (fsExists(DEFAULT_PARITY_DEPS_ROOT)) {
 }
 const ABLE_PATH_ENV = process.env.ABLE_PATH ?? "";
 const ABLE_MODULE_PATHS_ENV = process.env.ABLE_MODULE_PATHS ?? "";
-const ABLE_STD_LIB_ENV = process.env.ABLE_STD_LIB ?? "";
 const MODULE_SEARCH_PATHS = computeModuleSearchPaths();
 const GO_STD_ENV = fsExists(STDLIB_PATH) ? STDLIB_PATH : "";
 
@@ -132,12 +131,13 @@ export async function evaluateExampleTS(entryPath: string): Promise<TSExampleOut
 }
 
 export async function evaluateExampleGo(entryPath: string, runner: GoAbleRunner): Promise<GoExampleOutcome> {
+  const mergedModulePaths = [ABLE_MODULE_PATHS_ENV, GO_STD_ENV].filter(Boolean).join(path.delimiter);
   return new Promise((resolve, reject) => {
     const child = spawn(runner.binaryPath, ["run", entryPath], {
       cwd: GO_WORKDIR,
       env: {
         ...process.env,
-        ABLE_STD_LIB: GO_STD_ENV,
+        ABLE_MODULE_PATHS: mergedModulePaths,
       },
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -319,9 +319,8 @@ function computeModuleSearchPaths(): ModuleSearchPath[] {
     cwd: process.cwd(),
     ablePathEnv: ABLE_PATH_ENV,
     ableModulePathsEnv: ABLE_MODULE_PATHS_ENV,
-    ableStdLibEnv: ABLE_STD_LIB_ENV,
     extras,
-    probeStdlibFrom: [process.cwd(), __dirname, path.dirname(process.execPath)],
+    probeFrom: [process.cwd(), __dirname, path.dirname(process.execPath)],
   });
 }
 

@@ -34,7 +34,10 @@
           <li><strong>Interfaces:</strong> language-facing catalogue includes Index/IndexMut, Iterable/Iterator/Range, Apply, arithmetic/bitwise, comparison/hash, Display, Error, Clone, Default, concurrency types (Proc/ProcError/Awaitable). Operator sugar routes through these.</li>
           <li><strong>Numeric helpers:</strong> math constants and helpers (<code>abs</code>, <code>min/max</code>, <code>clamp</code>, <code>pow</code>, <code>sqrt</code>, rounding), rational and 128-bit integers, and numeric interface implementations under <code>able.*</code>.</li>
         </ul>
-        <p><code>able.*</code> is reserved; override discovery via <code>ABLE_STD_LIB</code> for local testing.</p>
+        <p>
+          <code>able.*</code> is reserved; override the bundled stdlib via
+          <code>ABLE_MODULE_PATHS</code> or lockfile pins (no stdlib-specific env knob).
+        </p>
         <h2 id="dynamic">12.2 Dynamic Metaprogramming</h2>
         <p>
           Interpreted execution can create/extend dynamic packages and import

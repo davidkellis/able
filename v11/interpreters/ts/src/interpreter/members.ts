@@ -74,11 +74,15 @@ export function applyMemberAugmentations(cls: typeof InterpreterV10): void {
       }
       addCandidate(method, typeName);
     }
+
+    const hasMethodCandidate = candidates.length > 0;
     try {
       const candidate = env.get(funcName);
       if (candidate && (candidate.kind === "function" || candidate.kind === "function_overload")) {
         const ufcs = selectUfcsCallable(candidate, receiver, this);
-        addCandidate(ufcs);
+        if (!hasMethodCandidate) {
+          addCandidate(ufcs);
+        }
       }
     } catch {}
 

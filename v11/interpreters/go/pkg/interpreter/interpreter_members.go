@@ -247,19 +247,27 @@ func (i *Interpreter) structInstanceMember(inst *runtime.StructInstanceValue, me
 	if inst == nil {
 		return nil, fmt.Errorf("Member access only supported on structs/arrays in this milestone")
 	}
-	_ = preferMethods
 	switch ident := member.(type) {
 	case *ast.Identifier:
 		if inst.Fields == nil {
 			return nil, fmt.Errorf("Expected named struct instance")
 		}
+		if preferMethods {
+			if bound, err := i.resolveMethodFromPool(env, ident.Name, inst, ""); err != nil {
+				return nil, err
+			} else if bound != nil {
+				return bound, nil
+			}
+		}
 		if val, ok := inst.Fields[ident.Name]; ok {
 			return val, nil
 		}
-		if bound, err := i.resolveMethodFromPool(env, ident.Name, inst, ""); err != nil {
-			return nil, err
-		} else if bound != nil {
-			return bound, nil
+		if !preferMethods {
+			if bound, err := i.resolveMethodFromPool(env, ident.Name, inst, ""); err != nil {
+				return nil, err
+			} else if bound != nil {
+				return bound, nil
+			}
 		}
 		return nil, fmt.Errorf("No field or method named '%s'", ident.Name)
 	case *ast.IntegerLiteral:
@@ -442,7 +450,9 @@ func (i *Interpreter) resolveMethodFromPool(env *runtime.Environment, funcName s
 		}
 	}
 
-	if env != nil {
+	hasMethodCandidate := len(functionCandidates)+len(nativeCandidates) > 0
+
+	if env != nil && !hasMethodCandidate {
 		if val, err := env.Get(funcName); err == nil {
 			if callable, ok := i.selectUfcsCallable(val, receiver, false); ok {
 				if err := addCallable(callable, ""); err != nil {

@@ -68,7 +68,7 @@ fn main() -> Array bool {
 
       const searchPaths = collectModuleSearchPaths({
         cwd: tmpRoot,
-        probeStdlibFrom: [PROBE_ROOT],
+        probeFrom: [PROBE_ROOT],
       });
       const loader = new ModuleLoader(searchPaths);
       const program = await loader.load(path.join(tmpRoot, "main.able"));

@@ -78,7 +78,7 @@ go test ./pkg/interpreter</code></pre>
           <li><code>v11/</code>: active workspace (interpreters, parser, stdlib, fixtures)</li>
           <li><code>spec/</code>: specs v1&ndash;v11; rely on v11 for behaviour</li>
           <li><code>v10/</code>: frozen reference (do not modify)</li>
-          <li><code>able.*</code>: reserved stdlib namespace (discoverable via <code>ABLE_STD_LIB</code>)</li>
+          <li><code>able.*</code>: reserved stdlib namespace (auto-detected; override via lockfile or <code>ABLE_MODULE_PATHS</code>)</li>
         </ul>
         <footer class="manual-footer">
           Able v11 manual · Derived from spec/full_spec_v11.md

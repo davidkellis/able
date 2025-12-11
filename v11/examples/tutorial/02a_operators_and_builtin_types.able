@@ -12,8 +12,8 @@ fn scalar_showcase() -> void {
   print(`Language: ${lang} v${release}`)
   print(`Major version as i32: ${major_version}`)
   print(`Char literal: ${initial}`)
-print(`Booleans drive control flow: ${if is_stable { "stable" } else { "nightly" }}`)
-  print(`Optional unwrap with else: ${nothing else { "unset" }}`)
+  print(`Booleans drive control flow: ${if is_stable { "stable" } else { "nightly" }}`)
+  print(`Optional unwrap with else: ${nothing or { "unset" }}`)
 }
 
 ## Arithmetic and comparison operators.

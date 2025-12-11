@@ -34,6 +34,7 @@ export function installBuiltins(context: BuiltinContext): void {
   const charType = primitiveType("char");
   const anyType = unknownType;
   const unknown = unknownType;
+  const ratioType: TypeInfo = { kind: "struct", name: "Ratio", typeArguments: [] };
 
   const register = (name: string, params: TypeInfo[], returnType: TypeInfo) => {
     registerBuiltinFunction(context.env, context.functionInfos, name, params, returnType);
@@ -85,6 +86,7 @@ export function installBuiltins(context: BuiltinContext): void {
   register("__able_hasher_create", [], i64Type);
   register("__able_hasher_write", [i64Type, stringType], voidType);
   register("__able_hasher_finish", [i64Type], i64Type);
+  register("__able_ratio_from_float", [primitiveType("f64")], ratioType);
 
   const divModStruct = structDefinition(
     "DivMod",
@@ -98,6 +100,18 @@ export function installBuiltins(context: BuiltinContext): void {
   (divModStruct as any)._builtin = true;
   (divModStruct as any).origin = "<builtin>";
   context.registerStructDefinition(divModStruct as any);
+
+  const ratioStruct = structDefinition(
+    "Ratio",
+    [
+      structFieldDefinition(simpleTypeExpression("i64"), "num"),
+      structFieldDefinition(simpleTypeExpression("i64"), "den"),
+    ],
+    "named",
+  );
+  (ratioStruct as any)._builtin = true;
+  (ratioStruct as any).origin = "<builtin>";
+  context.registerStructDefinition(ratioStruct as any);
 
   const errorInterface = interfaceDefinition(
     "Error",

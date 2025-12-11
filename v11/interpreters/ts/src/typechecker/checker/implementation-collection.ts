@@ -3,7 +3,7 @@ import { collectFunctionDefinition } from "./declarations";
 import { collectUnionVariantLabels } from "./impl_matches";
 import type { ImplementationContext } from "./implementation-context";
 import type { ImplementationObligation, ImplementationRecord, MethodSetRecord } from "./types";
-import { unknownType } from "../types";
+import { unknownType, type TypeInfo } from "../types";
 
 const PRIMITIVE_TYPE_NAMES = new Set([
   "i8",
@@ -46,6 +46,9 @@ export function collectMethodsDefinition(ctx: ImplementationContext, definition:
     : [];
   const targetParams = collectTargetTypeParams(ctx, definition.targetType);
   const genericParams = [...new Set([...targetParams, ...explicitParams])];
+  const substitutionMap = new Map<string, TypeInfo>();
+  genericParams.forEach((name) => substitutionMap.set(name, unknownType));
+  const selfType = ctx.resolveTypeExpression(definition.targetType, substitutionMap);
   const record: MethodSetRecord = {
     label: `methods for ${structLabel}`,
     target: definition.targetType,
@@ -54,10 +57,15 @@ export function collectMethodsDefinition(ctx: ImplementationContext, definition:
     definition,
   };
   ctx.registerMethodSet(record);
+  const methodObligations = Array.isArray(record.obligations) ? record.obligations : [];
   if (Array.isArray(definition.definitions)) {
     for (const entry of definition.definitions) {
       if (entry?.type === "FunctionDefinition") {
         collectFunctionDefinition(ctx, entry, { structName: structLabel, typeParamNames: record.genericParams });
+        if (entry.id?.name && methodObligations.length > 0) {
+          const fullName = `${structLabel}::${entry.id.name}`;
+          appendMethodSetObligations(ctx, fullName, methodObligations, selfType ?? unknownType);
+        }
       }
     }
   }
@@ -167,6 +175,31 @@ function extractMethodSetObligations(
   }
 
   return obligations;
+}
+
+function appendMethodSetObligations(
+  ctx: ImplementationContext,
+  key: string,
+  obligations: ImplementationObligation[],
+  selfType: TypeInfo,
+): void {
+  if (!key || !Array.isArray(obligations) || obligations.length === 0) {
+    return;
+  }
+  const infos = ctx.getFunctionInfos(key);
+  if (!Array.isArray(infos) || infos.length === 0) {
+    return;
+  }
+  for (const info of infos) {
+    if (!info) {
+      continue;
+    }
+    const existing = Array.isArray(info.whereClause) ? info.whereClause : [];
+    info.whereClause = [...existing, ...obligations];
+    if (!info.methodSetSubstitutions || !info.methodSetSubstitutions.length) {
+      info.methodSetSubstitutions = [["Self", selfType]];
+    }
+  }
 }
 
 function extractImplementationObligations(
@@ -582,7 +615,7 @@ function validateImplementationMethod(
   const interfaceGenerics = Array.isArray(signature.genericParams) ? signature.genericParams.length : 0;
   const implementationGenerics = Array.isArray(method.genericParams) ? method.genericParams.length : 0;
   const substitutions = buildImplementationSubstitutions(ctx, interfaceDefinition, implementation, targetLabel);
-  const expectedGenerics = interfaceGenerics === interfaceDefinitionGenerics ? 0 : interfaceGenerics;
+  const expectedGenerics = interfaceGenerics;
   if (expectedGenerics !== implementationGenerics) {
     ctx.report(
       `typechecker: ${label} method '${signature.name?.name ?? "<anonymous>"}' expects ${expectedGenerics} generic parameter(s), got ${implementationGenerics}`,

@@ -44,7 +44,7 @@ fn main() -> void {
   print(`reorder(8, 3) = scale_and_shift(3, 11, 8) = ${reorder(8, 3)}`)
 
   greeting := "Able"
-  piped := greeting |> greet_with("Hello", %)
+  piped := greeting |> greet_with("Hello", @)
   print(piped)
 
   print(`Square of 5 -> ${square(5)}`)

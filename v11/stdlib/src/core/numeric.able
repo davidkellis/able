@@ -1,12 +1,17 @@
 package core.numeric
 
+import able.core.errors.{DivisionByZeroError, OverflowError}
 import able.core.interfaces.{Error}
 import able.core.options.{Result}
 
-## Shared result returned by Integral#div_mod implementations.
-struct DivModResult {
-  quotient: i64,
-  remainder: i64
+extern typescript fn __able_ratio_from_float(value: f64) -> Ratio {}
+extern go fn __able_ratio_from_float(value: f64) -> Ratio {}
+
+## Exact rational numbers with reduced numerator/denominator.
+## Invariants: den > 0, gcd(|num|, den) == 1, num/den fit in i64.
+struct Ratio {
+  num: i64,
+  den: i64
 }
 
 ## Error raised when a numeric conversion cannot be performed without loss.
@@ -22,6 +27,227 @@ impl Error for NumericConversionError {
 methods NumericConversionError {
   fn message(self: Self) -> String { self.message }
   fn cause(self: Self) -> ?Error { nil }
+}
+
+fn numeric_conversion_error(message: String) -> NumericConversionError {
+  NumericConversionError { message }
+}
+
+## Ratio helpers -------------------------------------------------------------
+
+const I64_MIN_I128 = -9223372036854775808_i64 as i128
+const I64_MAX_I128 = 9223372036854775807_i64 as i128
+
+fn ratio_abs(value: i128) -> i128 {
+  if value < 0_i128 { -value } else { value }
+}
+
+fn ratio_gcd(a: i128, b: i128) -> i128 {
+  mut x := ratio_abs(a)
+  mut y := ratio_abs(b)
+  loop {
+    if y == 0_i128 { break }
+    tmp := x % y
+    x = y
+    y = tmp
+  }
+  if x == 0_i128 { 1_i128 } else { x }
+}
+
+fn ratio_normalize(num: i128, den: i128) -> Ratio {
+  if den == 0_i128 { raise DivisionByZeroError {} }
+
+  mut n := num
+  mut d := den
+  if d < 0_i128 {
+    n = -n
+    d = -d
+  }
+
+  if n == 0_i128 {
+    d = 1_i128
+  } else {
+    divisor := ratio_gcd(ratio_abs(n), d)
+    n = n / divisor
+    d = d / divisor
+  }
+
+  if n < I64_MIN_I128 || n > I64_MAX_I128 {
+    raise OverflowError { operation: "ratio numerator overflow" }
+  }
+  if d < 1_i128 || d > I64_MAX_I128 {
+    raise OverflowError { operation: "ratio denominator overflow" }
+  }
+
+  Ratio { num: n as i64, den: d as i64 }
+}
+
+methods Ratio {
+  fn new(num: i64, den: i64) -> Ratio { ratio_normalize(num as i128, den as i128) }
+  fn numerator(self: Self) -> i64 { self.num }
+  fn denominator(self: Self) -> i64 { self.den }
+}
+
+## Integer conversions and Ratio entry points --------------------------------
+
+methods i32 {
+  fn to_i32(self: Self) -> Result i32 { self }
+  fn to_u32(self: Self) -> Result u32 {
+    if self < 0 { numeric_conversion_error("cannot convert negative i32 to u32") }
+    else { self as u32 }
+  }
+  fn to_i64(self: Self) -> Result i64 { self as i64 }
+  fn to_u64(self: Self) -> Result u64 {
+    if self < 0 { numeric_conversion_error("cannot convert negative i32 to u64") }
+    else { self as u64 }
+  }
+  fn to_f64(self: Self) -> Result f64 { self as f64 }
+  fn to_r(self: Self) -> Ratio { ratio_normalize(self as i128, 1_i128) }
+}
+
+methods i64 {
+  fn to_i32(self: Self) -> Result i32 {
+    if self < -2147483648_i64 || self > 2147483647_i64 {
+      numeric_conversion_error("value out of range for i32")
+    } else { self as i32 }
+  }
+  fn to_u32(self: Self) -> Result u32 {
+    if self < 0 || self > 4294967295_i64 {
+      numeric_conversion_error("value out of range for u32")
+    } else { self as u32 }
+  }
+  fn to_i64(self: Self) -> Result i64 { self }
+  fn to_u64(self: Self) -> Result u64 {
+    if self < 0 { numeric_conversion_error("cannot convert negative i64 to u64") }
+    else { self as u64 }
+  }
+  fn to_f64(self: Self) -> Result f64 { self as f64 }
+  fn to_r(self: Self) -> Ratio { ratio_normalize(self as i128, 1_i128) }
+}
+
+methods u32 {
+  fn to_i32(self: Self) -> Result i32 {
+    if self > 2147483647_u32 {
+      numeric_conversion_error("value out of range for i32")
+    } else { self as i32 }
+  }
+  fn to_u32(self: Self) -> Result u32 { self }
+  fn to_i64(self: Self) -> Result i64 { self as i64 }
+  fn to_u64(self: Self) -> Result u64 { self as u64 }
+  fn to_f64(self: Self) -> Result f64 { self as f64 }
+  fn to_r(self: Self) -> Ratio { ratio_normalize(self as i128, 1_i128) }
+}
+
+methods u64 {
+  fn to_i32(self: Self) -> Result i32 {
+    if self > 2147483647_u64 {
+      numeric_conversion_error("value out of range for i32")
+    } else { self as i32 }
+  }
+  fn to_u32(self: Self) -> Result u32 {
+    if self > 4294967295_u64 {
+      numeric_conversion_error("value out of range for u32")
+    } else { self as u32 }
+  }
+  fn to_i64(self: Self) -> Result i64 {
+    if self > 9223372036854775807_u64 {
+      numeric_conversion_error("value out of range for i64")
+    } else { self as i64 }
+  }
+  fn to_u64(self: Self) -> Result u64 { self }
+  fn to_f64(self: Self) -> Result f64 { self as f64 }
+  fn to_r(self: Self) -> Ratio { ratio_normalize(self as i128, 1_i128) }
+}
+
+fn f64_is_nan(value: f64) -> bool { value != value }
+
+methods f64 {
+  fn to_i32(self: Self) -> Result i32 {
+    if f64_is_nan(self) { numeric_conversion_error("cannot convert NaN to i32") }
+    else if self < -2147483648.0 || self > 2147483647.0 {
+      numeric_conversion_error("value out of range for i32")
+    } else {
+      value: i32 = self as i32
+      if (value as f64) != self { numeric_conversion_error("cannot convert fractional f64 to i32") }
+      else { value }
+    }
+  }
+
+  fn to_u32(self: Self) -> Result u32 {
+    if f64_is_nan(self) { numeric_conversion_error("cannot convert NaN to u32") }
+    else if self < 0.0 || self > 4294967295.0 {
+      numeric_conversion_error("value out of range for u32")
+    } else {
+      value: u32 = self as u32
+      if (value as f64) != self { numeric_conversion_error("cannot convert fractional f64 to u32") }
+      else { value }
+    }
+  }
+
+  fn to_i64(self: Self) -> Result i64 {
+    if f64_is_nan(self) { numeric_conversion_error("cannot convert NaN to i64") }
+    else if self < -9223372036854775808.0 || self > 9223372036854775807.0 {
+      numeric_conversion_error("value out of range for i64")
+    } else {
+      value: i64 = self as i64
+      if (value as f64) != self { numeric_conversion_error("cannot convert fractional f64 to i64") }
+      else { value }
+    }
+  }
+
+  fn to_u64(self: Self) -> Result u64 {
+    if f64_is_nan(self) { numeric_conversion_error("cannot convert NaN to u64") }
+    else if self < 0.0 || self > 18446744073709551615.0 {
+      numeric_conversion_error("value out of range for u64")
+    } else {
+      value: u64 = self as u64
+      if (value as f64) != self { numeric_conversion_error("cannot convert fractional f64 to u64") }
+      else { value }
+    }
+  }
+
+  fn to_f64(self: Self) -> Result f64 { self }
+  fn to_r(self: Self) -> Ratio { __able_ratio_from_float(self) }
+}
+
+methods f32 {
+  fn to_i32(self: Self) -> Result i32 { (self as f64).to_i32() }
+  fn to_u32(self: Self) -> Result u32 { (self as f64).to_u32() }
+  fn to_i64(self: Self) -> Result i64 { (self as f64).to_i64() }
+  fn to_u64(self: Self) -> Result u64 { (self as f64).to_u64() }
+  fn to_f64(self: Self) -> Result f64 { self as f64 }
+  fn to_r(self: Self) -> Ratio { __able_ratio_from_float(self as f64) }
+}
+
+methods Ratio {
+  fn to_i32(self: Self) -> Result i32 {
+    if self.den != 1 { numeric_conversion_error("cannot convert non-integer Ratio to i32") }
+    else if self.num < -2147483648_i64 || self.num > 2147483647_i64 {
+      numeric_conversion_error("value out of range for i32")
+    } else { self.num as i32 }
+  }
+
+  fn to_u32(self: Self) -> Result u32 {
+    if self.den != 1 { numeric_conversion_error("cannot convert non-integer Ratio to u32") }
+    else if self.num < 0 || self.num > 4294967295_i64 {
+      numeric_conversion_error("value out of range for u32")
+    } else { self.num as u32 }
+  }
+
+  fn to_i64(self: Self) -> Result i64 {
+    if self.den != 1 { numeric_conversion_error("cannot convert non-integer Ratio to i64") }
+    else { self.num }
+  }
+
+  fn to_u64(self: Self) -> Result u64 {
+    if self.den != 1 { numeric_conversion_error("cannot convert non-integer Ratio to u64") }
+    else if self.num < 0 {
+      numeric_conversion_error("cannot convert negative Ratio to u64")
+    } else { self.num as u64 }
+  }
+
+  fn to_f64(self: Self) -> Result f64 { (self.num as f64) / (self.den as f64) }
+  fn to_r(self: Self) -> Ratio { self }
 }
 
 ## Basic algebraic hierarchy (mirrors the design document terminology).
@@ -78,7 +304,7 @@ interface Unsigned for T {
 }
 
 interface Integral for T {
-  fn div_mod(self: Self, other: Self) -> DivModResult;
+  fn div_mod(self: Self, other: Self) -> DivMod Self;
   fn bit_length(self: Self) -> i32;
   fn bit_count(self: Self) -> i32;
   fn is_even(self: Self) -> bool;

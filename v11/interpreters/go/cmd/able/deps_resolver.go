@@ -136,6 +136,8 @@ func (d *dependencyInstaller) Install(lock *driver.Lockfile) (bool, []string, er
 	d.resolving = make(map[string]bool)
 	d.resolvingPkg = make(map[string]bool)
 
+	hasStdlibDep := false
+	hasKernelDep := false
 	names := make([]string, 0, len(d.manifest.Dependencies))
 	for name := range d.manifest.Dependencies {
 		names = append(names, name)
@@ -147,8 +149,26 @@ func (d *dependencyInstaller) Install(lock *driver.Lockfile) (bool, []string, er
 		if spec == nil {
 			return false, d.logs, fmt.Errorf("dependency %q has no descriptor", name)
 		}
+		if sanitizeName(name) == "able" {
+			hasStdlibDep = true
+		}
+		if sanitizeName(name) == "kernel" {
+			hasKernelDep = true
+		}
 		if err := d.installDependency(name, cloneDependencySpec(spec)); err != nil {
 			return false, d.logs, err
+		}
+	}
+
+	if !hasStdlibDep {
+		if err := d.installDependency("able", &driver.DependencySpec{}); err != nil {
+			return false, d.logs, fmt.Errorf("resolve stdlib: %w", err)
+		}
+	}
+
+	if !hasKernelDep {
+		if err := d.installDependency("kernel", &driver.DependencySpec{}); err != nil {
+			return false, d.logs, fmt.Errorf("resolve kernel: %w", err)
 		}
 	}
 
@@ -302,6 +322,9 @@ func (d *dependencyInstaller) resolveDependency(name string, spec *driver.Depend
 	if sanitizeName(name) == "able" {
 		return d.resolveStdlibDependency(spec)
 	}
+	if sanitizeName(name) == "kernel" {
+		return d.resolveKernelDependency(spec)
+	}
 	if spec.Git != "" {
 		return d.resolveGitDependency(name, spec)
 	}
@@ -360,7 +383,7 @@ func (d *dependencyInstaller) resolvePathDependency(name string, spec *driver.De
 }
 
 func (d *dependencyInstaller) resolveStdlibDependency(spec *driver.DependencySpec) (*resolvedPackage, error) {
-	paths := collectStdlibPaths()
+	paths := collectStdlibPaths(d.manifestRoot)
 	for _, candidate := range paths {
 		root, manifestPath := ascendToManifest(candidate)
 		if manifestPath == "" {
@@ -370,12 +393,19 @@ func (d *dependencyInstaller) resolveStdlibDependency(spec *driver.DependencySpe
 		if err != nil {
 			continue
 		}
+		pkgName := sanitizeName(stdManifest.Name)
+		if pkgName == "" {
+			pkgName = "able"
+		}
+		if pkgName != "able" {
+			continue
+		}
 		version := strings.TrimSpace(stdManifest.Version)
 		if version == "" {
 			version = "0.0.0"
 		}
 		if spec.Version != "" && !constraintContainsVersion(spec.Version, version) {
-			return nil, fmt.Errorf("stdlib version %s does not satisfy constraint %q", version, spec.Version)
+			continue
 		}
 		src := candidate
 		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
@@ -385,7 +415,7 @@ func (d *dependencyInstaller) resolveStdlibDependency(spec *driver.DependencySpe
 		}
 		d.logs = append(d.logs, fmt.Sprintf("using stdlib %s (%s)", version, d.displayPath(src)))
 		lock := &driver.LockedPackage{
-			Name:    stdManifest.Name,
+			Name:    "able",
 			Version: version,
 			Source:  fmt.Sprintf("path:%s", src),
 		}
@@ -396,6 +426,52 @@ func (d *dependencyInstaller) resolveStdlibDependency(spec *driver.DependencySpe
 		}, nil
 	}
 	return nil, fmt.Errorf("stdlib dependency requested but no stdlib distribution found")
+}
+
+func (d *dependencyInstaller) resolveKernelDependency(spec *driver.DependencySpec) (*resolvedPackage, error) {
+	paths := collectKernelPaths(d.manifestRoot)
+	for _, candidate := range paths {
+		root, manifestPath := ascendToManifest(candidate)
+		if manifestPath == "" {
+			continue
+		}
+		kernelManifest, err := driver.LoadManifest(manifestPath)
+		if err != nil {
+			continue
+		}
+		pkgName := sanitizeName(kernelManifest.Name)
+		if pkgName == "" {
+			pkgName = "kernel"
+		}
+		if pkgName != "kernel" {
+			continue
+		}
+		version := strings.TrimSpace(kernelManifest.Version)
+		if version == "" {
+			version = "0.0.0"
+		}
+		if spec.Version != "" && !constraintContainsVersion(spec.Version, version) {
+			continue
+		}
+		src := candidate
+		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+			// already src directory
+		} else {
+			src = filepath.Join(root, "src")
+		}
+		d.logs = append(d.logs, fmt.Sprintf("using kernel %s (%s)", version, d.displayPath(src)))
+		lock := &driver.LockedPackage{
+			Name:    "kernel",
+			Version: version,
+			Source:  fmt.Sprintf("path:%s", src),
+		}
+		return &resolvedPackage{
+			pkg:      lock,
+			manifest: kernelManifest,
+			root:     root,
+		}, nil
+	}
+	return nil, fmt.Errorf("kernel dependency requested but no kernel distribution found")
 }
 
 func (d *dependencyInstaller) resolveRegistryDependency(name string, spec *driver.DependencySpec) (*resolvedPackage, error) {

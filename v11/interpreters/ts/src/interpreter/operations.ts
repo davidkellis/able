@@ -12,6 +12,7 @@ import {
   applyNumericUnaryMinus,
   isNumericValue,
   numericToNumber,
+  makeIntegerValue,
 } from "./numeric";
 import { makeIntegerFromNumber } from "./numeric";
 import { valuesEqual } from "./value_equals";
@@ -37,7 +38,9 @@ declare module "./index" {
   interface InterpreterV10 {
     computeBinaryForCompound(op: string, left: V10Value, right: V10Value): V10Value;
     ensureDivModStruct(): AST.StructDefinition;
+    ensureRatioStruct(): AST.StructDefinition;
     divModStruct?: AST.StructDefinition;
+    ratioStruct?: AST.StructDefinition;
   }
 }
 
@@ -135,6 +138,17 @@ export function evaluateBinaryExpression(ctx: InterpreterV10, node: AST.BinaryEx
           ]),
           typeArguments: [typeArg],
           typeArgMap,
+        };
+      },
+      makeRatio: (parts) => {
+        const structDef = ctx.ensureRatioStruct();
+        return {
+          kind: "struct_instance",
+          def: structDef,
+          values: new Map([
+            ["num", makeIntegerValue("i64", parts.num)],
+            ["den", makeIntegerValue("i64", parts.den)],
+          ]),
         };
       },
     });
@@ -247,9 +261,48 @@ export function applyOperationsAugmentations(cls: typeof InterpreterV10): void {
     return this.divModStruct;
   };
 
+  cls.prototype.ensureRatioStruct = function ensureRatioStruct(this: InterpreterV10): AST.StructDefinition {
+    if (this.ratioStruct) return this.ratioStruct;
+    try {
+      const existing = this.globals.get("Ratio");
+      if (existing?.kind === "struct_def") {
+        this.ratioStruct = existing.def;
+        return this.ratioStruct;
+      }
+    } catch {}
+    const ratioDef = AST.structDefinition(
+      "Ratio",
+      [
+        AST.structFieldDefinition(AST.simpleTypeExpression("i64"), "num"),
+        AST.structFieldDefinition(AST.simpleTypeExpression("i64"), "den"),
+      ],
+      "named",
+    );
+    this.evaluate(ratioDef, this.globals);
+    const resolved = this.globals.get("Ratio");
+    if (resolved && resolved.kind === "struct_def") {
+      this.ratioStruct = resolved.def;
+    } else {
+      this.ratioStruct = ratioDef;
+    }
+    return this.ratioStruct;
+  };
+
   cls.prototype.computeBinaryForCompound = function computeBinaryForCompound(this: InterpreterV10, op: string, left: V10Value, right: V10Value): V10Value {
     if (["+","-","*","/","%"].includes(op)) {
-      return applyArithmeticBinary(op, left, right);
+      return applyArithmeticBinary(op, left, right, {
+        makeRatio: (parts) => {
+          const structDef = this.ensureRatioStruct();
+          return {
+            kind: "struct_instance",
+            def: structDef,
+            values: new Map([
+              ["num", makeIntegerValue("i64", parts.num)],
+              ["den", makeIntegerValue("i64", parts.den)],
+            ]),
+          };
+        },
+      });
     }
 
     if ([".&",".|",".^",".<<",".>>"].includes(op)) {

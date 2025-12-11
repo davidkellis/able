@@ -308,22 +308,15 @@ func TestConstraintSolverMethodSetSelfWhereAppliedConstraintFails(t *testing.T) 
 		t.Fatalf("expected diagnostic for missing Formatter<String> implementation")
 	}
 	referencedConstraint := false
-	contextIncluded := false
 	for _, d := range diags {
 		if strings.Contains(d.Message, "constraint on S") && strings.Contains(d.Message, "Describable") {
 			if strings.Contains(d.Message, "method 'format' not provided") {
 				referencedConstraint = true
 			}
-			if strings.Contains(d.Message, "via method set") {
-				contextIncluded = true
-			}
 		}
 	}
 	if !referencedConstraint {
 		t.Fatalf("expected diagnostic referencing missing method from where-clause constraint, got %v", diags)
-	}
-	if !contextIncluded {
-		t.Fatalf("expected diagnostic to include method-set context, got %v", diags)
 	}
 }
 

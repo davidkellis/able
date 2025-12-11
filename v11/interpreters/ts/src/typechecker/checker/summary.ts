@@ -91,9 +91,25 @@ export function buildPackageSummary(ctx: ImplementationContext, module: AST.Modu
       case "ImplementationDefinition":
         implementationDefinitions.add(entry);
         break;
-      case "MethodsDefinition":
+      case "MethodsDefinition": {
         methodSetDefinitions.add(entry);
+        if (Array.isArray(entry.definitions)) {
+          for (const def of entry.definitions) {
+            if (!def?.id?.name) continue;
+            const fnName = def.id.name;
+            if (def.isPrivate) {
+              if (!symbols[fnName]) {
+                privateSymbols[fnName] = { type: describeFunctionType(ctx, def), visibility: "private" };
+              }
+              continue;
+            }
+            symbols[fnName] = { type: describeFunctionType(ctx, def), visibility: "public" };
+            functions[fnName] = summarizeFunctionDefinition(ctx, def);
+            delete privateSymbols[fnName];
+          }
+        }
         break;
+      }
       default:
         break;
     }
