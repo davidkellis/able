@@ -262,6 +262,9 @@ func typeCanBeNil(t Type) bool {
 }
 
 func isNumericType(t Type) bool {
+	if isRatioType(t) {
+		return true
+	}
 	return isIntegerType(t) || isFloatType(t)
 }
 
@@ -307,4 +310,17 @@ func isPrimitiveInt(t Type) bool {
 		return prim.Kind == PrimitiveInt
 	}
 	return false
+}
+
+func isRatioType(t Type) bool {
+	switch v := t.(type) {
+	case StructType:
+		return v.StructName == "Ratio"
+	case StructInstanceType:
+		return v.StructName == "Ratio"
+	case AppliedType:
+		return isRatioType(v.Base)
+	default:
+		return false
+	}
 }

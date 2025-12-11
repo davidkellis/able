@@ -410,7 +410,9 @@ function resolveFunctionInfos(ctx: FunctionCallContext, callee: AST.Expression |
     return resolution.candidates;
   }
   if (callee.type === "Identifier") {
-    return ctx.functionInfos.get(callee.name) ?? [];
+    const infos = ctx.functionInfos.get(callee.name) ?? [];
+    const nonMethodInfos = infos.filter((info) => !info.structName);
+    return nonMethodInfos.length > 0 ? nonMethodInfos : infos;
   }
   return [];
 }
@@ -556,6 +558,7 @@ function collectUnifiedMemberCandidates(
     const baseName = entry.name ?? entry.fullName;
     return `${receiverLabel}::${baseName}::${methodFlag}::${paramSig}`;
   };
+  const methodSignatures = new Set<string>();
   const append = (entries: FunctionInfo[]) => {
     for (const entry of entries) {
       if (!entry) continue;
@@ -567,9 +570,15 @@ function collectUnifiedMemberCandidates(
       if (!existing || incomingPriority > existingPriority) {
         bySignature.set(key, entry);
       }
+      if (entry.structName) {
+        methodSignatures.add(key);
+      }
     }
   };
   append(ctx.functionInfos.get(`${receiver.label}::${memberName}`) ?? []);
+  if (receiver.lookupType.kind === "struct" && receiver.lookupType.name) {
+    append(ctx.functionInfos.get(`${receiver.lookupType.name}::${memberName}`) ?? []);
+  }
   const genericMatches = lookupMethodSetsForCallHelper(
     ctx.implementationContext,
     receiver.label,
@@ -577,7 +586,9 @@ function collectUnifiedMemberCandidates(
     receiver.lookupType,
   );
   append(genericMatches);
-  append(resolveUfcsFreeFunctionCandidates(ctx, receiver.lookupType, memberName));
+  if (!methodSignatures.size) {
+    append(resolveUfcsFreeFunctionCandidates(ctx, receiver.lookupType, memberName));
+  }
   return Array.from(bySignature.values());
 }
 
@@ -639,7 +650,8 @@ function resolveUfcsFreeFunctionCandidates(
 }
 
 function typesMatchReceiverForFreeFunction(receiver: TypeInfo, param: TypeInfo | undefined): boolean {
-  if (!param || param.kind === "unknown") return true;
+  if (!param) return true;
+  if (param.kind === "unknown") return false;
   if (param.kind === "type_parameter") return true;
   return typesMatchReceiver(receiver, param);
 }

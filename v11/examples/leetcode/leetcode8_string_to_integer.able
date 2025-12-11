@@ -16,7 +16,7 @@ fn parse(chars: Array char) -> i64 {
   if i < length && chars[i] == '-' {
     sign = -1
     i = i + 1
-  } or i < length && chars[i] == '+' {
+  } elsif i < length && chars[i] == '+' {
     i = i + 1
   }
 

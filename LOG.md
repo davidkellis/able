@@ -1,5 +1,17 @@
 # Able Project Log
 
+# 2025-12-12 — Inherent methods as functions (v11)
+- Exported method functions now carry their method-set obligations: Go binds implicit `self` for method shorthand, substitutes the receiver into exported signatures, and preserves method-set context so free-call constraints fail when receivers/where-clauses are violated.
+- TypeScript attaches method-set obligations/substitutions to exported method infos so direct calls enforce receiver typing and block missing `where` constraints; §9 in the spec now spells out the export + sugar model for inherent methods.
+- Tests: `cd v11/interpreters/ts && bun test test/typechecker/function_calls.test.ts`; `cd v11/interpreters/go && go test ./pkg/typechecker`.
+
+# 2025-12-11 — UFCS overload priority (v11)
+- Added overload priority metadata so inherent methods outrank interface/default impls without masking UFCS ambiguities; runtime dispatch now tags impl/default entries with lower priority and tolerates impl ambiguity when other candidates are present.
+- Typechecker mirrors the priority model, keeping the highest-priority candidate per signature and sorting overloads by score then priority to stay aligned with runtime selection.
+- Go interpreter/runtime carry the same priority metadata for parity with the TypeScript path.
+- Module loaders now auto-discover bundled kernel/stdlib roots (no `ABLE_STD_LIB` knob); the `able` namespace is treated as a normal dependency resolved through the standard search paths/lockfile.
+- Tests: `bun test test/stdlib/string_stdlib_integration.test.ts`; `bun test test/stdlib/concurrency_stdlib_integration.test.ts test/stdlib/await_stdlib_integration.test.ts test/stdlib/hash_set_stdlib_integration.test.ts test/stdlib/bit_set_stdlib_integration.test.ts test/stdlib/hash_map_stdlib_integration.test.ts`; `./run_all_tests.sh --version=v11`.
+
 # 2025-12-10 — Conditional/unwrap syntax shift (v11)
 - Landed the new `if/elsif/else` syntax and `{ expr or { err => ... } }` handlers across grammar/AST/TS+Go interpreters/typecheckers; regenerated tree-sitter artifacts and aligned AST fixtures/printers with the new `elseIfClauses`/`elseBody` layout.
 - Updated fixtures, examples, tutorials, and tests (TS + Go) to drop the legacy `if/or` + `| err |` handler forms; handling blocks now use `binding =>` with optional binding, and parser mappers no longer misclassify handler statements as bindings.
@@ -309,3 +321,14 @@ Open items (2025-11-02 audit):
 ### 2025-12-09
 - Finalized the v11 operator surface: `%`/`//`/`/%` follow Euclidean semantics, `%=` compounds and the dot-prefixed bitwise set (`.& .| .^ .<< .>>`) are supported, `^` acts as exponent (bitwise xor remains dotted), and the operator interfaces in `core.interfaces` mirror the runtime behavior. Parser/AST/typechecker/stdlib fixtures all align and legacy `%%` syntax is gone.
 - Verified the full sweep (`./run_all_tests.sh --version=v11`) stays green after the operator updates (TS + Go units, fixtures, parity harness).
+
+### 2025-12-10
+- Kernel/stdlib discovery now covers the v11 layout: search-path collectors scan `v11/kernel/src` and `v11/stdlib/src`, TS ModuleLoader/Go CLI auto-load kernel packages when bundled, and new tests in both runtimes assert the v11 scan paths.
+- TS/Go CLI/module loader tests updated to exercise the bundled scan; stdlib README notes the expanded auto-detection coverage.
+- Manifested runs now pin the bundled boot packages: Go `able deps install` injects both stdlib and kernel into `package.lock`, kernel search-path discovery honors module-path env entries, and the TS CLI reads `package.yml`/`package.lock` to add dependency roots before falling back to bundled detection. New CLI tests cover lock-required runs plus pinned stdlib/kernel boot without env overrides.
+
+### 2025-12-10 — Ratio & Numeric Conversions
+- Implemented exact `Ratio` struct and normalization helpers in the stdlib kernel, added `to_r` conversions for integers/floats, and expanded numeric smoke tests (`v11/stdlib/src/core/numeric.able`, `v11/stdlib/tests/core/numeric_smoke.test.able`).
+- TypeScript runtime/typechecker now treat `Ratio` as numeric: builtin `__able_ratio_from_float`, exact ratio arithmetic/comparisons, NumericConversions support, and new ratio tests (`v11/interpreters/ts/src/interpreter/{numeric.ts,operations.ts,numeric_host.ts}`, `v11/interpreters/ts/src/typechecker/**`, `v11/interpreters/ts/test/{typechecker/numeric.test.ts,basics/ratio.test.ts}`).
+- Go runtime/typechecker mirror the Ratio struct/builtin and conversion helpers with adjusted constraint diagnostics plus coverage in interpreter/typechecker suites (`v11/interpreters/go/pkg/interpreter/*`, `v11/interpreters/go/pkg/typechecker/*`).
+- Tests: `cd v11/interpreters/ts && bun test test/typechecker/numeric.test.ts`; `cd v11/interpreters/ts && bun test test/basics/ratio.test.ts`; `cd v11/interpreters/go && go test ./pkg/typechecker`; `cd v11/interpreters/go && go test ./pkg/interpreter`.

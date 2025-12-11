@@ -194,7 +194,7 @@ fn main() -> void {
     }
   });
 
-  test("run command respects ABLE_STD_LIB override order", () => {
+  test("run command uses stdlib discovered via module search paths", () => {
     const stdlibRoot = mkdtempSync(path.join(os.tmpdir(), "able-cli-stdlib-"));
     try {
       writeFixtureFile(stdlibRoot, "package.yml", "name: able\n");
@@ -222,7 +222,7 @@ fn main() -> void {
 `,
         },
         env: {
-          ABLE_STD_LIB: path.join(stdlibRoot, "src"),
+          ABLE_MODULE_PATHS: path.join(stdlibRoot, "src"),
         },
       });
 
@@ -232,6 +232,104 @@ fn main() -> void {
     } finally {
       rmSync(stdlibRoot, { recursive: true, force: true });
     }
+  });
+
+  test("run command auto-detects bundled v11 stdlib layout without env overrides", () => {
+    const result = runCli("run", {
+      files: {
+        "v11/stdlib/package.yml": "name: able\n",
+        "v11/stdlib/src/custom.able": `
+package custom
+
+fn greeting() -> String { "Hello from bundled stdlib" }
+`,
+        "main.able": `
+package cli_bundled_stdlib
+
+import able.custom.{greeting}
+
+fn main() -> void { print(greeting()) }
+`,
+      },
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("Hello from bundled stdlib");
+    expect(result.stderr).toBe("");
+  });
+
+  test("run command requires package.lock when manifest declares dependencies", () => {
+    const result = runCli("run", {
+      files: {
+        "package.yml": `
+name: needs_lock
+version: 0.0.1
+dependencies:
+  able: "9.9.9"
+`,
+        "main.able": `
+package needs_lock
+
+fn main() -> void {
+  print("missing lock")
+}
+`,
+      },
+    });
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("package.lock missing");
+  });
+
+  test("run command uses manifest lock for stdlib and kernel without env overrides", () => {
+    const result = runCli("run", {
+      files: {
+        "package.yml": `
+name: locked_app
+version: 0.0.1
+dependencies:
+  able: "9.9.9"
+`,
+        "package.lock": `
+root: locked_app
+packages:
+  - name: able
+    version: 9.9.9
+    source: path:./deps/stdlib/src
+  - name: kernel
+    version: 1.0.0
+    source: path:./deps/kernel/src
+`,
+        "deps/stdlib/package.yml": "name: able\nversion: 9.9.9\n",
+        "deps/stdlib/src/locktest.able": `
+package locktest
+
+fn greeting() -> String { "hello from locked stdlib" }
+`,
+        "deps/kernel/package.yml": "name: kernel\nversion: 1.0.0\n",
+        "deps/kernel/src/boot.able": `
+package boot
+
+fn kernel_ready() -> bool { true }
+`,
+        "main.able": `
+package locked_app
+
+import able.locktest.{greeting}
+import kernel.boot.{kernel_ready}
+
+fn main() -> void {
+  if kernel_ready() {
+    print(greeting())
+  }
+}
+`,
+      },
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("hello from locked stdlib");
+    expect(result.stderr).toBe("");
   });
 
   test("run command skips missing search paths with a warning", () => {
@@ -400,6 +498,7 @@ function runCli(command: CLICommand, options: RunCliOptions): CliResult {
     const result = spawnSync(BUN_BIN, ["run", SCRIPT_PATH, command, entryPath], {
       encoding: "utf8",
       env,
+      cwd: dir,
     });
     const status = result.status ?? (result.error ? 1 : 0);
     const stderr = `${result.stderr ?? ""}${result.error ? String(result.error) : ""}`;

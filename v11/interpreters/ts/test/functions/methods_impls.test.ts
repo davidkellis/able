@@ -39,6 +39,51 @@ describe("v11 interpreter - methods & impls", () => {
     const call = AST.functionCall(AST.memberAccessExpression(AST.identifier("p"), "sum"), []);
     expect(I.evaluate(call)).toEqual({ kind: 'i32', value: 5n });
   });
-});
 
+  test("methods are exported as callable functions", () => {
+    const I = new InterpreterV10();
+    const pointDef = AST.structDefinition(
+      "Point",
+      [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "x")],
+      "named",
+    );
+    I.evaluate(pointDef);
+
+    const methods = AST.methodsDefinition(
+      AST.simpleTypeExpression("Point"),
+      [
+        AST.fn(
+          "norm",
+          [],
+          AST.blockExpression([AST.returnStatement(AST.integerLiteral(1))]),
+          AST.simpleTypeExpression("i32"),
+          undefined,
+          undefined,
+          true,
+        ),
+        AST.fn(
+          "origin",
+          [],
+          AST.blockExpression([
+            AST.returnStatement(
+              AST.structLiteral([AST.structFieldInitializer(AST.integerLiteral(0), "x")], false, "Point"),
+            ),
+          ]),
+        ),
+      ],
+    );
+    I.evaluate(methods);
+
+    const pointValue = AST.structLiteral([AST.structFieldInitializer(AST.integerLiteral(3), "x")], false, "Point");
+    const callAsMethod = AST.functionCall(AST.memberAccessExpression(pointValue, "norm"), []);
+    const callAsFunction = AST.functionCall(AST.identifier("norm"), [pointValue]);
+    const staticCall = AST.functionCall(AST.identifier("origin"), []);
+
+    expect(I.evaluate(callAsMethod)).toEqual({ kind: "i32", value: 1n });
+    expect(I.evaluate(callAsFunction)).toEqual({ kind: "i32", value: 1n });
+
+    const origin = I.evaluate(staticCall);
+    expect(origin.kind).toBe("struct_instance");
+  });
+});
 

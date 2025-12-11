@@ -623,22 +623,6 @@ func (ctx *parseContext) parsePipeExpression(node *sitter.Node, operator string)
 	if err != nil {
 		return nil, err
 	}
-	if operator == "|>>" {
-		if assign, ok := result.(*ast.AssignmentExpression); ok && node.NamedChildCount() > 1 {
-			piped := assign.Right
-			for i := uint(1); i < node.NamedChildCount(); i++ {
-				stepNode := node.NamedChild(i)
-				stepExpr, err := ctx.parseExpression(stepNode)
-				if err != nil {
-					return nil, err
-				}
-				prev := piped
-				piped = annotateCompositeExpression(ast.NewBinaryExpression(operator, piped, stepExpr), prev, stepNode)
-			}
-			assign.Right = piped
-			return annotateExpression(assign, node), nil
-		}
-	}
 	for i := uint(1); i < node.NamedChildCount(); i++ {
 		stepNode := node.NamedChild(i)
 		stepExpr, err := ctx.parseExpression(stepNode)

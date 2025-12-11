@@ -198,6 +198,94 @@ func TestPrivateInstanceMethodNotAccessible(t *testing.T) {
 	}
 }
 
+func TestMethodsExportedAsFunctions(t *testing.T) {
+	interp := New()
+	defModule := ast.Mod([]ast.Statement{
+		ast.StructDef(
+			"Point",
+			[]*ast.StructFieldDefinition{
+				ast.FieldDef(ast.Ty("i32"), "x"),
+			},
+			ast.StructKindNamed,
+			nil,
+			nil,
+			false,
+		),
+		ast.Methods(
+			ast.Ty("Point"),
+			[]*ast.FunctionDefinition{
+				ast.Fn(
+					"norm",
+					nil,
+					[]ast.Statement{ast.Ret(ast.Int(1))},
+					ast.Ty("i32"),
+					nil,
+					nil,
+					true,
+					false,
+				),
+				ast.Fn(
+					"origin",
+					nil,
+					[]ast.Statement{
+						ast.Ret(
+							ast.StructLit(
+								[]*ast.StructFieldInitializer{ast.FieldInit(ast.Int(0), "x")},
+								false,
+								"Point",
+								nil,
+								nil,
+							),
+						),
+					},
+					nil,
+					nil,
+					nil,
+					false,
+					false,
+				),
+			},
+			nil,
+			nil,
+		),
+	}, nil, nil)
+
+	mustEvalModule(t, interp, defModule)
+	mustEvalModule(t, interp, ast.Mod([]ast.Statement{
+		ast.Assign(
+			ast.ID("p"),
+			ast.StructLit(
+				[]*ast.StructFieldInitializer{ast.FieldInit(ast.Int(3), "x")},
+				false,
+				"Point",
+				nil,
+				nil,
+			),
+		),
+	}, nil, nil))
+
+	methodResult := mustEvalModule(t, interp, ast.Mod([]ast.Statement{
+		ast.CallExpr(ast.Member(ast.ID("p"), "norm")),
+	}, nil, nil))
+	if v, ok := methodResult.(runtime.IntegerValue); !ok || v.Val.Cmp(bigInt(1)) != 0 {
+		t.Fatalf("expected norm() via method to return 1, got %#v", methodResult)
+	}
+
+	fnResult := mustEvalModule(t, interp, ast.Mod([]ast.Statement{
+		ast.CallExpr(ast.ID("norm"), ast.ID("p")),
+	}, nil, nil))
+	if v, ok := fnResult.(runtime.IntegerValue); !ok || v.Val.Cmp(bigInt(1)) != 0 {
+		t.Fatalf("expected norm(Point) free call to return 1, got %#v", fnResult)
+	}
+
+	origin := mustEvalModule(t, interp, ast.Mod([]ast.Statement{
+		ast.CallExpr(ast.ID("origin")),
+	}, nil, nil))
+	if origin.Kind() != runtime.KindStructInstance {
+		t.Fatalf("expected origin() to return struct instance, got %#v", origin)
+	}
+}
+
 func TestMethodShorthandImplicitMember(t *testing.T) {
 	interp := New()
 	structDef := ast.StructDef(

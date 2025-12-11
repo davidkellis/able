@@ -49,6 +49,35 @@ const FLOAT_INFO: Record<FloatKind, FloatInfo> = {
   f64: { kind: "f64", apply: (value: number) => value },
 };
 
+const I64_MIN = -(1n << 63n);
+const I64_MAX = (1n << 63n) - 1n;
+
+type RatioParts = { num: bigint; den: bigint };
+
+function ratioFieldsFromStruct(value: V10Value): RatioParts | null {
+  if (value.kind !== "struct_instance") return null;
+  const structName = value.def?.id?.name;
+  if (structName !== "Ratio") return null;
+  const extractField = (fieldName: string): V10Value | undefined => {
+    if (value.values instanceof Map) {
+      return value.values.get(fieldName);
+    }
+    if (Array.isArray(value.values) && value.def?.fields?.length) {
+      const idx = value.def.fields.findIndex((field) => field?.name?.name === fieldName);
+      if (idx >= 0) {
+        return value.values[idx];
+      }
+    }
+    return undefined;
+  };
+  const numVal = extractField("num");
+  const denVal = extractField("den");
+  if (!numVal || !denVal || !isIntegerValue(numVal) || !isIntegerValue(denVal)) {
+    return null;
+  }
+  return { num: numVal.value, den: denVal.value };
+}
+
 type IntegerValue = Extract<V10Value, { kind: IntegerKind }>;
 
 export function integerKinds(): IntegerKind[] {
@@ -88,15 +117,20 @@ export function isFloatValue(value: V10Value): value is Extract<V10Value, { kind
   return Object.prototype.hasOwnProperty.call(FLOAT_INFO, value.kind);
 }
 
-export function isNumericValue(value: V10Value): value is Extract<V10Value, { kind: IntegerKind | FloatKind }> {
-  return isIntegerValue(value) || isFloatValue(value);
+export function isNumericValue(value: V10Value): boolean {
+  return classifyNumeric(value) !== null;
 }
 
 type NumericClassification =
   | { tag: "integer"; info: IntegerInfo; value: bigint }
-  | { tag: "float"; kind: FloatKind; value: number };
+  | { tag: "float"; kind: FloatKind; value: number }
+  | { tag: "ratio"; parts: RatioParts };
 
 function classifyNumeric(value: V10Value): NumericClassification | null {
+  const ratio = ratioFieldsFromStruct(value);
+  if (ratio) {
+    return { tag: "ratio", parts: ratio };
+  }
   if (isIntegerValue(value)) {
     return { tag: "integer", info: getIntegerInfo(value.kind), value: value.value };
   }
@@ -215,6 +249,131 @@ function patternToInteger(pattern: bigint, info: IntegerInfo): bigint {
   return masked;
 }
 
+function gcdBigInt(a: bigint, b: bigint): bigint {
+  let x = a < 0n ? -a : a;
+  let y = b < 0n ? -b : b;
+  while (y !== 0n) {
+    const tmp = x % y;
+    x = y;
+    y = tmp;
+  }
+  return x === 0n ? 1n : x;
+}
+
+function normalizeRatioParts(num: bigint, den: bigint): RatioParts {
+  if (den === 0n) {
+    throw new Error("division by zero");
+  }
+  let n = num;
+  let d = den;
+  if (d < 0n) {
+    n = -n;
+    d = -d;
+  }
+  if (n === 0n) {
+    d = 1n;
+  } else {
+    const divisor = gcdBigInt(n, d);
+    n /= divisor;
+    d /= divisor;
+  }
+  if (n < I64_MIN || n > I64_MAX || d < 1n || d > I64_MAX) {
+    throw new Error("ratio overflow");
+  }
+  return { num: n, den: d };
+}
+
+function decomposeFloat(value: number, kind: FloatKind): { mantissa: bigint; exponent: number } {
+  if (value === 0) {
+    return { mantissa: 0n, exponent: 0 };
+  }
+  if (kind === "f32") {
+    const buffer = new ArrayBuffer(4);
+    const view = new DataView(buffer);
+    view.setFloat32(0, value, false);
+    const bits = BigInt(view.getUint32(0, false));
+    const exponentBits = Number((bits >> 23n) & 0xffn);
+    const fractionBits = bits & ((1n << 23n) - 1n);
+    const bias = 127;
+    const mantissaBits = 23;
+    if (exponentBits === 0) {
+      return {
+        mantissa: fractionBits,
+        exponent: 1 - bias - mantissaBits,
+      };
+    }
+    return {
+      mantissa: (1n << 23n) | fractionBits,
+      exponent: exponentBits - bias - mantissaBits,
+    };
+  }
+  const buffer = new ArrayBuffer(8);
+  const view = new DataView(buffer);
+  view.setFloat64(0, value, false);
+  const bits = view.getBigUint64(0, false);
+  const exponentBits = Number((bits >> 52n) & 0x7ffn);
+  const fractionBits = bits & ((1n << 52n) - 1n);
+  const bias = 1023;
+  const mantissaBits = 52;
+  if (exponentBits === 0) {
+    return {
+      mantissa: fractionBits,
+      exponent: 1 - bias - mantissaBits,
+    };
+  }
+  return {
+    mantissa: (1n << 52n) | fractionBits,
+    exponent: exponentBits - bias - mantissaBits,
+  };
+}
+
+export function ratioFromFloat(value: number, kind: FloatKind): RatioParts {
+  if (!Number.isFinite(value)) {
+    throw new Error("cannot convert non-finite float to Ratio");
+  }
+  if (value === 0) {
+    return { num: 0n, den: 1n };
+  }
+  const sign = value < 0 ? -1n : 1n;
+  const abs = Math.abs(value);
+  const { mantissa, exponent } = decomposeFloat(abs, kind);
+  if (mantissa === 0n) {
+    return { num: 0n, den: 1n };
+  }
+  let num = mantissa;
+  let den = 1n;
+  if (exponent >= 0) {
+    num <<= BigInt(exponent);
+  } else {
+    den <<= BigInt(-exponent);
+  }
+  if (sign < 0) {
+    num = -num;
+  }
+  return normalizeRatioParts(num, den);
+}
+
+function ratioFromClassification(numeric: NumericClassification): RatioParts {
+  switch (numeric.tag) {
+    case "ratio":
+      return normalizeRatioParts(numeric.parts.num, numeric.parts.den);
+    case "integer":
+      return normalizeRatioParts(numeric.value, 1n);
+    case "float":
+      return ratioFromFloat(numeric.value, numeric.kind);
+    default:
+      throw new Error("unsupported numeric classification");
+  }
+}
+
+function compareRatios(left: RatioParts, right: RatioParts): number {
+  const leftCross = left.num * right.den;
+  const rightCross = right.num * left.den;
+  if (leftCross < rightCross) return -1;
+  if (leftCross > rightCross) return 1;
+  return 0;
+}
+
 function applyFloatOperation(op: string, left: number, right: number, kind: FloatKind): number {
   switch (op) {
     case "+":
@@ -258,6 +417,22 @@ export function applyNumericUnaryMinus(value: V10Value): V10Value {
   if (classified.tag === "float") {
     return makeFloatValue(classified.kind, -classified.value);
   }
+  if (classified.tag === "ratio") {
+    const negated = normalizeRatioParts(-classified.parts.num, classified.parts.den);
+    if (value.kind === "struct_instance") {
+      return {
+        kind: "struct_instance",
+        def: value.def,
+        values: new Map([
+          ["num", makeIntegerValue("i64", negated.num)],
+          ["den", makeIntegerValue("i64", negated.den)],
+        ]),
+        typeArguments: value.typeArguments,
+        typeArgMap: value.typeArgMap,
+      };
+    }
+    throw new Error("Ratio value is missing struct metadata");
+  }
   const negated = -classified.value;
   ensureIntegerInRange(negated, classified.info);
   return { kind: classified.info.kind, value: negated };
@@ -287,6 +462,7 @@ export function applyArithmeticBinary(
         remainder: Extract<V10Value, { kind: IntegerKind }>;
       },
     ) => V10Value;
+    makeRatio?: (parts: RatioParts) => V10Value;
   },
 ): V10Value {
   const leftClass = classifyNumeric(left);
@@ -295,6 +471,48 @@ export function applyArithmeticBinary(
     const leftKind = (left as any)?.kind ?? "unknown";
     const rightKind = (right as any)?.kind ?? "unknown";
     throw new Error(`Arithmetic requires numeric operands (left: ${leftKind}, right: ${rightKind})`);
+  }
+
+  const involvesRatio = leftClass.tag === "ratio" || rightClass.tag === "ratio";
+  if (involvesRatio && !["+", "-", "*", "/"].includes(op)) {
+    throw new Error(`Ratio operands are not supported for '${op}'`);
+  }
+  if (involvesRatio && (op === "+" || op === "-" || op === "*" || op === "/")) {
+    if (!options?.makeRatio) {
+      throw new Error("Ratio factory not provided for arithmetic");
+    }
+    const leftRatio = ratioFromClassification(leftClass);
+    const rightRatio = ratioFromClassification(rightClass);
+    let result: RatioParts;
+    switch (op) {
+      case "+": {
+        const num = leftRatio.num * rightRatio.den + rightRatio.num * leftRatio.den;
+        const den = leftRatio.den * rightRatio.den;
+        result = normalizeRatioParts(num, den);
+        break;
+      }
+      case "-": {
+        const num = leftRatio.num * rightRatio.den - rightRatio.num * leftRatio.den;
+        const den = leftRatio.den * rightRatio.den;
+        result = normalizeRatioParts(num, den);
+        break;
+      }
+      case "*": {
+        const num = leftRatio.num * rightRatio.num;
+        const den = leftRatio.den * rightRatio.den;
+        result = normalizeRatioParts(num, den);
+        break;
+      }
+      case "/": {
+        const num = leftRatio.num * rightRatio.den;
+        const den = leftRatio.den * rightRatio.num;
+        result = normalizeRatioParts(num, den);
+        break;
+      }
+      default:
+        throw new Error(`unsupported ratio operator ${op}`);
+    }
+    return options.makeRatio(result);
   }
 
   if (op === "/") {
@@ -410,6 +628,25 @@ export function applyComparisonBinary(op: string, left: V10Value, right: V10Valu
   if (!leftClass || !rightClass) {
     throw new Error("Arithmetic requires numeric operands");
   }
+  if (leftClass.tag === "ratio" || rightClass.tag === "ratio") {
+    const comparison = compareRatios(ratioFromClassification(leftClass), ratioFromClassification(rightClass));
+    switch (op) {
+      case "<":
+        return { kind: "bool", value: comparison < 0 };
+      case "<=":
+        return { kind: "bool", value: comparison <= 0 };
+      case ">":
+        return { kind: "bool", value: comparison > 0 };
+      case ">=":
+        return { kind: "bool", value: comparison >= 0 };
+      case "==":
+        return { kind: "bool", value: comparison === 0 };
+      case "!=":
+        return { kind: "bool", value: comparison !== 0 };
+      default:
+        throw new Error(`Unsupported comparison operator ${op}`);
+    }
+  }
   if (op === "==" || op === "!=") {
     const equal = numericEquals(left, right);
     return { kind: "bool", value: op === "==" ? equal : !equal };
@@ -452,6 +689,9 @@ export function numericEquals(left: V10Value, right: V10Value): boolean {
   const rightClass = classifyNumeric(right);
   if (!leftClass || !rightClass) {
     return false;
+  }
+  if (leftClass.tag === "ratio" || rightClass.tag === "ratio") {
+    return compareRatios(ratioFromClassification(leftClass), ratioFromClassification(rightClass)) === 0;
   }
   if (leftClass.tag === "integer" && rightClass.tag === "integer") {
     return leftClass.value === rightClass.value;
@@ -530,6 +770,17 @@ export function numericToNumber(value: V10Value, label: string, options?: { requ
   }
   if (isIntegerValue(value)) {
     const num = Number(value.value);
+    if (!Number.isFinite(num)) {
+      throw new Error(`${label} is too large for numeric conversion`);
+    }
+    if (options?.requireSafeInteger && !Number.isSafeInteger(num)) {
+      throw new Error(`${label} exceeds supported numeric range`);
+    }
+    return num;
+  }
+  const ratio = ratioFieldsFromStruct(value);
+  if (ratio) {
+    const num = Number(ratio.num) / Number(ratio.den);
     if (!Number.isFinite(num)) {
       throw new Error(`${label} is too large for numeric conversion`);
     }

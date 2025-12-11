@@ -27,7 +27,7 @@ fn zigzag(chars: Array char, rows: i32) -> Array char {
     if current_row == rows {
       current_row = rows - 2
       direction = -1
-    } or current_row < 0 {
+    } elsif current_row < 0 {
       current_row = 1
       direction = 1
     }

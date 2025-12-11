@@ -30,7 +30,7 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 - Keep `AGENTS.md` synced with onboarding steps for new contributors.
 - Historical notes + completed milestones now live in `LOG.md`.
 - Keep this `PLAN.md` file up to date with current progress and immediate next actions, but move completed items to `LOG.md`.
-- Status: interface alignment is in place (Apply/Index/Awaitable + stdlib helpers); parity harness is green with the latest sweep saved to `tmp/parity-report.json`; next focus is regex stdlib expansions and tutorial cleanup.
+- Status: interface alignment is in place (Apply/Index/Awaitable + stdlib helpers); parity harness is green with the latest sweep saved to `tmp/parity-report.json`; kernel/stdlib loader auto-detection is bundled; Ratio/numeric conversions are landed; next focus is regex stdlib expansions and tutorial cleanup.
 
 ## Guardrails (must stay true)
 - `v11/interpreters/ts/scripts/run-parity.ts` remains the authoritative entry point for fixtures/examples parity; `./run_all_tests.sh --version=v11` must stay green (TS + Go unit tests, fixture suites, parity CLI). Run the v10 suite only when explicitly asked to investigate archival regressions.
@@ -42,19 +42,15 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 ## TODO (working queue: tackle in order, move completed items to LOG.md)
 
 ### v11 Spec Delta Implementation Plan
-- [ ] **UFCS/method resolution unification**: dot-only qualification; unified callable pool (inherent/imported, interface impls in scope, imported free fns); callable field precedence; ambiguity diagnostics; dispatch without pipe transforms. Update resolver/typechecker/runtime, adjust docs/tests.
-- [ ] **Kernel/stdib/deps**: establish `v11/kernel` Able-authored, auto-loaded; stdlib as normal dependency with manifest pin (default bundled); single resolver roots (no stdlib-specific env var). Add loader changes and packaging/doc updates; adjust tests to mirror default boot (kernel always loaded).
-- [ ] **Inherent methods as functions**: ensure `methods`-defined functions are exported like other functions unless `private`; method-call syntax remains sugar for calling a function with receiver as first arg. Align parser/resolvers/docs/tests with this model.
-- [ ] **Stdlib numeric conversions and Ratio/DivMod**: keep `Ratio`/`DivMod` in kernel/stdlib with exact semantics; add conversion helpers (`to_r`, numeric to/from). Wire through TS/Go, typechecker, stdlib, tests.
 - [ ] **Stdlib API expansions (regex, §§6.12 & 14.2)** — **lowest priority; defer until higher items advance.**
    - **Tests:** expand stdlib test suites + fixtures to cover each helper, regex compilation failures, streaming use cases, and confirm both interpreters return identical traces.
 
 ### Tutorials & Examples (cleanup backlog)
-- v11/examples triage (ablets/ablego):
-  - Root examples: `assign/greet/hello_world/loop` pass; `greet_typecheck_fail` intentionally errors.
-  - Rosetta Code: all run after adding array import (outputs still minimal for arrays).
-  - Tutorials: 01/02a/02/03/04/05/06/07/08/09/10/11/12/13/14 (TS+Go) pass after fixing proc scheduling and extern bindings.
-  - Leetcode: 1/2/3/4/5/6/7/8/9/10/11/12 (TS+Go) run; 7/9 now return correct results with the new division operators; 8 clamps correctly; 11 fixed by widening to i128.
-- Fix tutorials requiring missing stdlib imports/stubs (Channel/Mutex await sample, array and string helpers) once the stdlib surfaces are wired back in; align Apply/Callable support across runtimes (Go still needs parity).
-- Ensure Go handles extern + Able bodies for tutorial 14.
-- Adjust concurrency proc/spawn tutorial to avoid `proc_yield` misuse and return-type mismatches; align `await` behaviour (proc vs main) across interpreters.
+- Latest ablets/ablego sweep:
+  - Root examples pass (`assign/greet/hello_world/loop`); `greet_typecheck_fail` intentionally errors.
+  - Leetcode + Rosetta Code now run in TS/Go (regex match, arrays, etc.); prior TS `isIntegerPrimitiveType` crash fixed.
+  - Tutorials: 01/02a/02/03/04/05/06/07/08/09/10/11 pass TS+Go after placeholder and syntax fixes.
+  - Remaining issues:
+    * tutorial/12_channels_mutex_and_await: TS sees duplicate kernel vs able.concurrency definitions; Go loader hits parse errors in stdlib/quarantine channel file.
+    * tutorial/13_packages_and_imports_math|strings have no `main` (support modules; only `13_packages_and_imports_main` is runnable).
+    * tutorial/14_host_interop: Go runtime fails (`read_text` undefined); TypeScript passes.

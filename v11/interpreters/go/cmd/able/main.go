@@ -161,12 +161,18 @@ func executeEntry(entry string, manifest *driver.Manifest, lock *driver.Lockfile
 		return 1
 	}
 
+	entryAbs, err := filepath.Abs(entry)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "resolve entry path: %v\n", err)
+		return 1
+	}
+
 	extras, err := buildExecutionSearchPaths(manifest, lock)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to prepare execution environment: %v\n", err)
 		return 1
 	}
-	searchPaths := collectSearchPaths(extras...)
+	searchPaths := collectSearchPaths(filepath.Dir(entryAbs), extras...)
 
 	loader, err := driver.NewLoader(searchPaths)
 	if err != nil {
@@ -175,7 +181,7 @@ func executeEntry(entry string, manifest *driver.Manifest, lock *driver.Lockfile
 	}
 	defer loader.Close()
 
-	program, err := loader.Load(entry)
+	program, err := loader.Load(entryAbs)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to load program: %v\n", err)
 		return 1
@@ -294,7 +300,7 @@ func runDeps(args []string) int {
 	}
 }
 
-func collectSearchPaths(extra ...string) []driver.SearchPath {
+func collectSearchPaths(base string, extra ...string) []driver.SearchPath {
 	seen := make(map[string]struct{})
 	var paths []driver.SearchPath
 
@@ -305,6 +311,18 @@ func collectSearchPaths(extra ...string) []driver.SearchPath {
 		abs, err := filepath.Abs(path)
 		if err != nil {
 			return
+		}
+		if kind != driver.RootStdlib && looksLikeStdlibPathCLI(abs) {
+			kind = driver.RootStdlib
+		}
+		if kind != driver.RootStdlib && looksLikeKernelPathCLI(abs) {
+			kind = driver.RootStdlib
+		}
+		if kind == driver.RootStdlib && strings.HasSuffix(abs, string(os.PathSeparator)+"src") {
+			parent := filepath.Dir(abs)
+			if _, err := os.Stat(filepath.Join(parent, "package.yml")); err == nil {
+				abs = parent
+			}
 		}
 		info, err := os.Stat(abs)
 		if err != nil || !info.IsDir() {
@@ -321,6 +339,10 @@ func collectSearchPaths(extra ...string) []driver.SearchPath {
 		add(path, driver.RootUser)
 	}
 
+	if base != "" {
+		add(base, driver.RootUser)
+	}
+
 	if cwd, err := os.Getwd(); err == nil {
 		add(cwd, driver.RootUser)
 	}
@@ -333,7 +355,11 @@ func collectSearchPaths(extra ...string) []driver.SearchPath {
 		add(part, driver.RootUser)
 	}
 
-	for _, path := range collectStdlibPaths() {
+	for _, path := range collectKernelPaths(base) {
+		add(path, driver.RootStdlib)
+	}
+
+	for _, path := range collectStdlibPaths(base) {
 		add(path, driver.RootStdlib)
 	}
 
@@ -361,6 +387,30 @@ func modeCommandLabel(mode executionMode) string {
 	default:
 		return "able run"
 	}
+}
+
+func looksLikeStdlibPathCLI(path string) bool {
+	clean := filepath.Clean(path)
+	parts := strings.Split(clean, string(os.PathSeparator))
+	for _, part := range parts {
+		switch strings.ToLower(part) {
+		case "stdlib", "stdlib_v11", "stdlib_v10", "able-stdlib", "able_stdlib":
+			return true
+		}
+	}
+	return false
+}
+
+func looksLikeKernelPathCLI(path string) bool {
+	clean := filepath.Clean(path)
+	parts := strings.Split(clean, string(os.PathSeparator))
+	for _, part := range parts {
+		switch strings.ToLower(part) {
+		case "kernel", "ablekernel", "able_kernel":
+			return true
+		}
+	}
+	return false
 }
 
 func loadManifestFrom(start string) (*driver.Manifest, error) {
@@ -641,48 +691,126 @@ func resolveAbleHome() (string, error) {
 	return filepath.Join(userHome, ".able"), nil
 }
 
-func collectStdlibPaths() []string {
+func collectKernelPaths(base string) []string {
 	var paths []string
-	// Explicit overrides via ABLE_STD_LIB support OS-specific separators.
-	if env := strings.TrimSpace(os.Getenv("ABLE_STD_LIB")); env != "" {
-		for _, part := range strings.Split(env, string(os.PathListSeparator)) {
-			part = strings.TrimSpace(part)
-			if part == "" {
-				continue
+
+	add := func(candidate string) {
+		if candidate == "" {
+			return
+		}
+		abs, err := filepath.Abs(candidate)
+		if err != nil {
+			return
+		}
+		for _, existing := range paths {
+			if existing == abs {
+				return
 			}
-			paths = append(paths, part)
+		}
+		paths = append(paths, abs)
+	}
+
+	// Discover bundled kernel relative to the entry directory first.
+	if base != "" {
+		for _, found := range findKernelRoots(base) {
+			add(found)
 		}
 	}
 
-	// Fall back to discovering stdlib relative to the working directory.
+	for _, entry := range splitPathListEnv(os.Getenv("ABLE_MODULE_PATHS")) {
+		add(entry)
+	}
+	for _, entry := range splitPathListEnv(os.Getenv("ABLE_PATH")) {
+		add(entry)
+	}
+
+	// Discover bundled kernel relative to the working directory.
 	if cwd, err := os.Getwd(); err == nil {
-		if found := findStdlibRoot(cwd); found != "" {
-			paths = append(paths, found)
+		for _, found := range findKernelRoots(cwd) {
+			add(found)
 		}
 	}
 
 	// Also probe relative to the executable for installed builds.
 	if exe, err := os.Executable(); err == nil {
-		exeDir := filepath.Dir(exe)
-		if found := findStdlibRoot(exeDir); found != "" {
-			paths = append(paths, found)
+		for _, found := range findKernelRoots(filepath.Dir(exe)) {
+			add(found)
 		}
 	}
 
 	return paths
 }
 
-func findStdlibRoot(start string) string {
+func collectStdlibPaths(base string) []string {
+	var paths []string
+
+	add := func(candidate string) {
+		if candidate == "" {
+			return
+		}
+		abs, err := filepath.Abs(candidate)
+		if err != nil {
+			return
+		}
+		for _, existing := range paths {
+			if existing == abs {
+				return
+			}
+		}
+		paths = append(paths, abs)
+	}
+
+	for _, entry := range splitPathListEnv(os.Getenv("ABLE_MODULE_PATHS")) {
+		add(entry)
+	}
+	for _, entry := range splitPathListEnv(os.Getenv("ABLE_PATH")) {
+		add(entry)
+	}
+
+	// Discover bundled stdlib relative to the entry directory first.
+	if base != "" {
+		for _, found := range findStdlibRoots(base) {
+			add(found)
+		}
+	}
+
+	// Discover bundled stdlib relative to the working directory.
+	if cwd, err := os.Getwd(); err == nil {
+		for _, found := range findStdlibRoots(cwd) {
+			add(found)
+		}
+	}
+
+	// Also probe relative to the executable for installed builds.
+	if exe, err := os.Executable(); err == nil {
+		for _, found := range findStdlibRoots(filepath.Dir(exe)) {
+			add(found)
+		}
+	}
+
+	return paths
+}
+
+func findKernelRoots(start string) []string {
+	var roots []string
+	add := func(candidate string) {
+		if candidate == "" {
+			return
+		}
+		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+			roots = append(roots, candidate)
+		}
+	}
+
 	dir := start
 	for {
 		for _, candidate := range []string{
-			filepath.Join(dir, "stdlib", "src"),
-			filepath.Join(dir, "stdlib", "v11", "src"),
-			filepath.Join(dir, "stdlib", "v10", "src"),
+			filepath.Join(dir, "kernel", "src"),
+			filepath.Join(dir, "v11", "kernel", "src"),
+			filepath.Join(dir, "ablekernel", "src"),
+			filepath.Join(dir, "able_kernel", "src"),
 		} {
-			if info, err := os.Stat(candidate); err == nil && info.IsDir() {
-				return candidate
-			}
+			add(candidate)
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
@@ -690,7 +818,39 @@ func findStdlibRoot(start string) string {
 		}
 		dir = parent
 	}
-	return ""
+	return roots
+}
+
+func findStdlibRoots(start string) []string {
+	var roots []string
+	add := func(candidate string) {
+		if candidate == "" {
+			return
+		}
+		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+			roots = append(roots, candidate)
+		}
+	}
+
+	dir := start
+	for {
+		for _, candidate := range []string{
+			filepath.Join(dir, "stdlib", "src"),
+			filepath.Join(dir, "v11", "stdlib", "src"),
+			filepath.Join(dir, "stdlib", "v11", "src"),
+			filepath.Join(dir, "stdlib", "v10", "src"),
+			filepath.Join(dir, "able-stdlib", "src"),
+			filepath.Join(dir, "able_stdlib", "src"),
+		} {
+			add(candidate)
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	return roots
 }
 
 func registerPrint(interp *interpreter.Interpreter) {

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"testing"
 
@@ -54,18 +53,27 @@ version: 0.2.0
 	if len(logs) == 0 {
 		t.Fatalf("expected logging output for dependency resolution")
 	}
-	if len(lock.Packages) != 1 {
+	if len(lock.Packages) != 3 {
 		t.Fatalf("lock packages = %#v", lock.Packages)
 	}
-	pkg := lock.Packages[0]
-	if pkg.Name != "dep" || pkg.Version != "0.2.0" {
-		t.Fatalf("lock entry unexpected: %#v", pkg)
+	depPkg := findLockedPackage(lock.Packages, "dep")
+	if depPkg == nil {
+		t.Fatalf("missing dep entry: %#v", lock.Packages)
 	}
-	if !strings.HasPrefix(pkg.Source, "path:") {
-		t.Fatalf("expected path source, got %q", pkg.Source)
+	if depPkg.Version != "0.2.0" {
+		t.Fatalf("dep version unexpected: %#v", depPkg)
 	}
-	if len(pkg.Dependencies) != 0 {
-		t.Fatalf("expected no transitive dependencies, got %#v", pkg.Dependencies)
+	if !strings.HasPrefix(depPkg.Source, "path:") {
+		t.Fatalf("expected path source, got %q", depPkg.Source)
+	}
+	if len(depPkg.Dependencies) != 0 {
+		t.Fatalf("expected no transitive dependencies, got %#v", depPkg.Dependencies)
+	}
+	if stdlib := findLockedPackage(lock.Packages, "able"); stdlib == nil {
+		t.Fatalf("missing stdlib entry: %#v", lock.Packages)
+	}
+	if kernel := findLockedPackage(lock.Packages, "kernel"); kernel == nil {
+		t.Fatalf("missing kernel entry: %#v", lock.Packages)
 	}
 }
 
@@ -122,19 +130,24 @@ version: 2.0.0
 	if !changed {
 		t.Fatalf("expected lockfile to record new dependencies")
 	}
-	if len(lock.Packages) != 2 {
-		t.Fatalf("expected two packages in lock, got %#v", lock.Packages)
+	if len(lock.Packages) != 4 {
+		t.Fatalf("expected four packages in lock, got %#v", lock.Packages)
 	}
-	first := lock.Packages[0]
-	second := lock.Packages[1]
-	if first.Name != "dep" || second.Name != "sub" {
-		t.Fatalf("unexpected package ordering: %#v", lock.Packages)
+	if dep := findLockedPackage(lock.Packages, "dep"); dep == nil {
+		t.Fatalf("expected dep package in lock")
+	} else if len(dep.Dependencies) != 1 || dep.Dependencies[0].Name != "sub" {
+		t.Fatalf("dep dependencies incorrect: %#v", dep.Dependencies)
 	}
-	if len(first.Dependencies) != 1 || first.Dependencies[0].Name != "sub" {
-		t.Fatalf("dep dependencies incorrect: %#v", first.Dependencies)
+	if sub := findLockedPackage(lock.Packages, "sub"); sub == nil {
+		t.Fatalf("expected sub package in lock")
+	} else if len(sub.Dependencies) != 0 {
+		t.Fatalf("sub should have no dependencies, got %#v", sub.Dependencies)
 	}
-	if len(second.Dependencies) != 0 {
-		t.Fatalf("sub should have no dependencies, got %#v", second.Dependencies)
+	if stdlib := findLockedPackage(lock.Packages, "able"); stdlib == nil {
+		t.Fatalf("expected stdlib package in lock")
+	}
+	if kernel := findLockedPackage(lock.Packages, "kernel"); kernel == nil {
+		t.Fatalf("expected kernel package in lock")
 	}
 }
 
@@ -204,16 +217,15 @@ dependencies:
 	if !changed {
 		t.Fatalf("expected lockfile change for registry dependency")
 	}
-	if len(lock.Packages) != 2 {
-		t.Fatalf("expected two packages in lockfile, got %#v", lock.Packages)
+	if len(lock.Packages) != 4 {
+		t.Fatalf("expected four packages in lockfile, got %#v", lock.Packages)
 	}
-	sort.Slice(lock.Packages, func(i, j int) bool {
-		return lock.Packages[i].Name < lock.Packages[j].Name
-	})
-	mathPkg := lock.Packages[1]
-	helperPkg := lock.Packages[0]
-	if mathPkg.Name != "math" || helperPkg.Name != "helper" {
-		t.Fatalf("unexpected lockfile entries: %#v", lock.Packages)
+	mathPkg := findLockedPackage(lock.Packages, "math")
+	helperPkg := findLockedPackage(lock.Packages, "helper")
+	stdlibPkg := findLockedPackage(lock.Packages, "able")
+	kernelPkg := findLockedPackage(lock.Packages, "kernel")
+	if mathPkg == nil || helperPkg == nil || stdlibPkg == nil || kernelPkg == nil {
+		t.Fatalf("missing expected lockfile entries: %#v", lock.Packages)
 	}
 	if len(mathPkg.Dependencies) != 1 || mathPkg.Dependencies[0].Name != "helper" {
 		t.Fatalf("math dependencies incorrect: %#v", mathPkg.Dependencies)
@@ -268,16 +280,16 @@ dependencies:
 	if !changed {
 		t.Fatalf("expected lockfile change for git dependency")
 	}
-	if len(lock.Packages) != 1 {
+	if len(lock.Packages) != 3 {
 		t.Fatalf("lock packages unexpected: %#v", lock.Packages)
 	}
-	pkg := lock.Packages[0]
+	pkg := findLockedPackage(lock.Packages, "gitpkg")
+	if pkg == nil {
+		t.Fatalf("missing gitpkg entry: %#v", lock.Packages)
+	}
 	expectedSource := fmt.Sprintf("git+%s@%s", repo, rev)
 	if pkg.Source != expectedSource {
 		t.Fatalf("pkg.Source = %q, want %q", pkg.Source, expectedSource)
-	}
-	if pkg.Name != "gitpkg" {
-		t.Fatalf("pkg.Name = %q, want gitpkg", pkg.Name)
 	}
 	cached := filepath.Join(cacheDir, "pkg", "src", pkg.Name, sanitizePathSegment(pkg.Version))
 	if _, err := os.Stat(cached); err != nil {
@@ -288,6 +300,12 @@ dependencies:
 	}
 	if len(pkg.Dependencies) != 0 {
 		t.Fatalf("expected no transitive dependencies for git package, got %#v", pkg.Dependencies)
+	}
+	if stdlib := findLockedPackage(lock.Packages, "able"); stdlib == nil {
+		t.Fatalf("missing stdlib entry: %#v", lock.Packages)
+	}
+	if kernel := findLockedPackage(lock.Packages, "kernel"); kernel == nil {
+		t.Fatalf("missing kernel entry: %#v", lock.Packages)
 	}
 }
 
@@ -336,16 +354,16 @@ dependencies:
 	if !changed {
 		t.Fatalf("expected lockfile change for git branch dependency")
 	}
-	if len(lock.Packages) != 1 {
+	if len(lock.Packages) != 3 {
 		t.Fatalf("lock packages unexpected: %#v", lock.Packages)
 	}
-	pkg := lock.Packages[0]
+	pkg := findLockedPackage(lock.Packages, "gitpkg")
+	if pkg == nil {
+		t.Fatalf("missing gitpkg entry: %#v", lock.Packages)
+	}
 	wantVersion := fmt.Sprintf("master@%s", rev)
 	if pkg.Version != wantVersion {
 		t.Fatalf("pkg.Version = %q, want %q", pkg.Version, wantVersion)
-	}
-	if pkg.Name != "gitpkg" {
-		t.Fatalf("pkg.Name = %q, want gitpkg", pkg.Name)
 	}
 	expectedSource := fmt.Sprintf("git+%s@%s", repo, rev)
 	if pkg.Source != expectedSource {
@@ -354,5 +372,85 @@ dependencies:
 	cached := filepath.Join(cacheDir, "pkg", "src", pkg.Name, sanitizePathSegment(pkg.Version))
 	if _, err := os.Stat(cached); err != nil {
 		t.Fatalf("expected cached git package at %s: %v", cached, err)
+	}
+	if stdlib := findLockedPackage(lock.Packages, "able"); stdlib == nil {
+		t.Fatalf("missing stdlib entry: %#v", lock.Packages)
+	}
+	if kernel := findLockedPackage(lock.Packages, "kernel"); kernel == nil {
+		t.Fatalf("missing kernel entry: %#v", lock.Packages)
+	}
+}
+
+func TestDependencyInstaller_PinsBundledStdlib(t *testing.T) {
+	root := t.TempDir()
+
+	stdlibRoot := filepath.Join(root, "stdlib")
+	stdlibSrc := filepath.Join(stdlibRoot, "src")
+	if err := os.MkdirAll(stdlibSrc, 0o755); err != nil {
+		t.Fatalf("mkdir stdlib: %v", err)
+	}
+	writeFile(t, filepath.Join(stdlibRoot, "package.yml"), `
+name: able
+version: 1.2.3
+`)
+
+	kernelRoot := filepath.Join(root, "kernel")
+	kernelSrc := filepath.Join(kernelRoot, "src")
+	if err := os.MkdirAll(kernelSrc, 0o755); err != nil {
+		t.Fatalf("mkdir kernel: %v", err)
+	}
+	writeFile(t, filepath.Join(kernelRoot, "package.yml"), "name: kernel\n")
+
+	appRoot := filepath.Join(root, "app")
+	if err := os.MkdirAll(filepath.Join(appRoot, "src"), 0o755); err != nil {
+		t.Fatalf("mkdir app: %v", err)
+	}
+	manifestPath := filepath.Join(appRoot, "package.yml")
+	writeFile(t, manifestPath, `
+name: sample
+version: 0.0.1
+`)
+
+	manifest, err := driver.LoadManifest(manifestPath)
+	if err != nil {
+		t.Fatalf("LoadManifest: %v", err)
+	}
+	lock := driver.NewLockfile(manifest.Name, cliToolVersion)
+	installer := newDependencyInstaller(manifest, filepath.Join(root, ".able"))
+
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd: %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(oldWD)
+	}()
+	if err := os.Chdir(root); err != nil {
+		t.Fatalf("chdir root: %v", err)
+	}
+
+	changed, logs, err := installer.Install(lock)
+	if err != nil {
+		t.Fatalf("Install returned error: %v (logs: %v)", err, logs)
+	}
+	if !changed {
+		t.Fatalf("expected lockfile to include stdlib entry")
+	}
+	if len(lock.Packages) != 2 {
+		t.Fatalf("expected stdlib and kernel entries, got %#v", lock.Packages)
+	}
+	stdlib := findLockedPackage(lock.Packages, "able")
+	if stdlib == nil || stdlib.Version != "1.2.3" {
+		t.Fatalf("unexpected stdlib lock entry: %#v", stdlib)
+	}
+	if stdlib.Source != fmt.Sprintf("path:%s", stdlibSrc) {
+		t.Fatalf("expected stdlib source %s, got %s", stdlibSrc, stdlib.Source)
+	}
+	kernel := findLockedPackage(lock.Packages, "kernel")
+	if kernel == nil || kernel.Source == "" {
+		t.Fatalf("expected kernel entry, got %#v", kernel)
+	}
+	if kernel.Source != fmt.Sprintf("path:%s", kernelSrc) {
+		t.Fatalf("expected kernel source %s, got %s", kernelSrc, kernel.Source)
 	}
 }

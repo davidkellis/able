@@ -69,12 +69,13 @@ dynimport widgets::w</code></pre>
           <li>Current working directory and CLI-provided roots</li>
           <li><code>ABLE_PATH</code> entries (legacy)</li>
           <li><code>ABLE_MODULE_PATHS</code> entries (preferred overrides for fixtures/REPL)</li>
-          <li>Standard library roots from <code>ABLE_STD_LIB</code> or the bundled path</li>
+          <li>Bundled kernel/stdlib roots discovered near the workspace/executable (or resolver pins)</li>
         </ol>
         <p>
           Duplicate package paths across roots are errors. The
-          <code>able.*</code> namespace is reserved for the bundled stdlib and
-          treated as read-only.
+          <code>able.*</code> namespace is reserved for the stdlib chosen by the
+          resolver; use <code>ABLE_MODULE_PATHS</code> or lockfile pins for
+          overrides (no stdlib-specific env knob).
         </p>
         <h2 id="entry">11.5 Entry Points</h2>
         <p>

@@ -79,6 +79,17 @@ func integerRangeWithinKinds(source runtime.IntegerType, target runtime.IntegerT
 	return sourceInfo.min.Cmp(targetInfo.min) >= 0 && sourceInfo.max.Cmp(targetInfo.max) <= 0
 }
 
+func integerValueWithinRange(val *big.Int, target runtime.IntegerType) bool {
+	if val == nil {
+		return false
+	}
+	info, err := getIntegerInfo(target)
+	if err != nil {
+		return false
+	}
+	return val.Cmp(info.min) >= 0 && val.Cmp(info.max) <= 0
+}
+
 func ensureFitsInteger(info integerInfo, value *big.Int) error {
 	if value.Cmp(info.min) < 0 || value.Cmp(info.max) > 0 {
 		return fmt.Errorf("integer overflow")

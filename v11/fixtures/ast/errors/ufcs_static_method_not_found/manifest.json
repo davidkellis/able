@@ -2,10 +2,10 @@
   "description": "UFCS ignores static methods that lack a self parameter",
   "expect": {
     "errors": [
-      "Undefined variable 'build'"
+      "Parameter type mismatch for 'start': expected i32, got Counter"
     ],
     "typecheckDiagnostics": [
-      "typechecker: ../fixtures/ast/errors/ufcs_static_method_not_found/source.able:13:8 typechecker: undefined identifier 'build'"
+      "typechecker: ../fixtures/ast/errors/ufcs_static_method_not_found/source.able:13:14 typechecker: argument 1 has type Counter, expected i32"
     ]
   },
   "entry": "module.json"

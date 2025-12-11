@@ -61,7 +61,14 @@ export function evaluateMethodsDefinition(ctx: InterpreterV10, node: AST.Methods
   if (!ctx.inherentMethods.has(typeName)) ctx.inherentMethods.set(typeName, new Map());
   const bucket = ctx.inherentMethods.get(typeName)!;
   for (const def of node.definitions) {
-    insertFunction(bucket, def.id.name, { kind: "function", node: def, closureEnv: env }, 0);
+    const fnValue: Extract<V10Value, { kind: "function" }> = { kind: "function", node: def, closureEnv: env };
+    insertFunction(bucket, def.id.name, fnValue, 0);
+    env.define(def.id.name, fnValue);
+    ctx.registerSymbol(def.id.name, fnValue);
+    const qn = ctx.qualifiedName(def.id.name);
+    if (qn) {
+      try { ctx.globals.define(qn, fnValue); } catch {}
+    }
   }
   return NIL;
 }

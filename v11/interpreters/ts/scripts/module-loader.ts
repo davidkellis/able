@@ -36,6 +36,7 @@ export type Program = {
 type PackageOrigin = {
   root: string;
   isStdlib: boolean;
+  rootName: string;
 };
 
 type RootInfo = {
@@ -73,9 +74,11 @@ export class ModuleLoader {
     const { rootDir, rootName } = await discoverRoot(resolvedEntry);
     const pkgIndex = new Map<string, PackageLocation>();
     const packageOrigins = new Map<string, PackageOrigin>();
-    const entryIsStdlib = this.searchPaths.some((sp) =>
-      sp.isStdlib ? pathsOverlap(sp.path, rootDir) || pathsOverlap(rootDir, sp.path) : false,
-    );
+    const entryIsStdlib =
+      rootName === "able" ||
+      this.searchPaths.some((sp) =>
+        sp.isStdlib ? pathsOverlap(sp.path, rootDir) || pathsOverlap(rootDir, sp.path) : false,
+      );
     const entryRoot: RootInfo = { rootDir, rootName, isStdlib: entryIsStdlib };
     ensureNamespaceAllowed(entryRoot);
     const { packages, fileToPackage } = await indexSourceFiles(rootDir, rootName);
@@ -88,6 +91,9 @@ export class ModuleLoader {
     }
 
     const include = new Set<string>(options.includePackages ? options.includePackages : []);
+    for (const pkgName of collectKernelPackages(packageOrigins)) {
+      include.add(pkgName);
+    }
     include.add(entryPackage);
 
     const loaded = new Map<string, LoadedModule>();
@@ -112,23 +118,23 @@ export class ModuleLoader {
         if (fm.packageName !== pkgName) {
           throw new Error(
             `loader: file ${filePath} resolves to package ${fm.packageName}, expected ${pkgName}`,
-      );
-    }
-    fileModules.push(fm);
-  }
-  const combined = combinePackage(pkgName, fileModules);
-  for (const dep of combined.imports) {
-    if (dep === pkgName) continue;
-    if (!pkgIndex.has(dep)) {
-      throw new Error(`loader: package ${pkgName} imports unknown package ${dep}`);
-    }
-    await loadPackage(dep);
-  }
-  loaded.set(pkgName, combined);
-  ordered.push(combined);
-  inProgress.delete(pkgName);
-  return combined;
-};
+          );
+        }
+        fileModules.push(fm);
+      }
+      const combined = combinePackage(pkgName, fileModules);
+      for (const dep of combined.imports) {
+        if (dep === pkgName) continue;
+        if (!pkgIndex.has(dep)) {
+          throw new Error(`loader: package ${pkgName} imports unknown package ${dep}`);
+        }
+        await loadPackage(dep);
+      }
+      loaded.set(pkgName, combined);
+      ordered.push(combined);
+      inProgress.delete(pkgName);
+      return combined;
+    };
 
     for (const pkgName of include) {
       await loadPackage(pkgName);
@@ -170,7 +176,7 @@ export class ModuleLoader {
           break;
         }
       }
-      if (overlaps) {
+      if (overlaps && !searchPath.isStdlib) {
         continue;
       }
       if (used.has(resolvedSearchPath)) {
@@ -191,7 +197,7 @@ export class ModuleLoader {
       const indexedRoot: RootInfo = {
         rootDir: rootInfo.abs,
         rootName: rootInfo.rootName,
-        isStdlib: Boolean(searchPath.isStdlib),
+        isStdlib: Boolean(searchPath.isStdlib || rootInfo.rootName === "able"),
       };
       if (!ensureNamespaceAllowed(indexedRoot, true)) {
         continue;
@@ -230,17 +236,21 @@ function looksLikeStdlibPath(dir: string): boolean {
     .some((segment) => segment === "stdlib" || segment === "stdlib_v11" || segment === "stdlib_v10");
 }
 
+function looksLikeKernelPath(dir: string): boolean {
+  return path
+    .resolve(dir)
+    .split(path.sep)
+    .some((segment) => segment === "kernel" || segment === "ablekernel" || segment === "able_kernel");
+}
+
 function ensureNamespaceAllowed(root: RootInfo, allowSkip = false): boolean {
-  if (root.rootName === "able" && !root.isStdlib) {
-    if (looksLikeStdlibPath(root.rootDir)) {
-      root.isStdlib = true;
-      return true;
-    }
-    const message = `loader: package namespace 'able.*' is reserved for the standard library (path: ${root.rootDir})`;
-    if (allowSkip) {
-      return false;
-    }
-    throw new Error(message);
+  if (root.rootName === "able") {
+    root.isStdlib = true;
+    return true;
+  }
+  if (!root.isStdlib && looksLikeStdlibPath(root.rootDir)) {
+    root.isStdlib = true;
+    return true;
   }
   return true;
 }
@@ -259,9 +269,21 @@ function registerPackages(
         `loader: package ${name} found in multiple roots (${existing.root}, ${root.rootDir})`,
       );
     }
-    origins.set(name, { root: root.rootDir, isStdlib: root.isStdlib });
+    origins.set(name, { root: root.rootDir, isStdlib: root.isStdlib, rootName: root.rootName });
     pkgIndex.set(name, loc);
   }
+}
+
+function collectKernelPackages(origins: Map<string, PackageOrigin>): string[] {
+  const kernel: string[] = [];
+  for (const [pkgName, origin] of origins.entries()) {
+    if (!origin) continue;
+    if (origin.rootName === "kernel" || looksLikeKernelPath(origin.root)) {
+      kernel.push(pkgName);
+    }
+  }
+  kernel.sort();
+  return kernel;
 }
 
 async function parseFile(filePath: string, rootDir: string, rootPackage: string): Promise<FileModule> {

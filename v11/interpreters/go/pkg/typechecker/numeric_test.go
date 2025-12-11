@@ -232,3 +232,54 @@ func TestDivModTypes(t *testing.T) {
 		t.Fatalf("expected DivMod i32, got %s", name)
 	}
 }
+
+func TestRatioArithmeticAccepted(t *testing.T) {
+	checker := New()
+	ratio := ast.Call("__able_ratio_from_float", ast.Flt(0.5))
+	expr := ast.Bin("+", ratio, ratio)
+	assign := ast.Assign(ast.ID("r"), expr)
+	module := ast.NewModule([]ast.Statement{assign}, nil, nil)
+
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics for Ratio arithmetic, got %v", diags)
+	}
+}
+
+func TestRatioMixesWithIntegers(t *testing.T) {
+	checker := New()
+	ratio := ast.Call("__able_ratio_from_float", ast.Flt(0.5))
+	expr := ast.Bin("-", ratio, ast.Int(1))
+	assign := ast.Assign(ast.ID("value"), expr)
+	module := ast.NewModule([]ast.Statement{assign}, nil, nil)
+
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics, got %v", diags)
+	}
+}
+
+func TestRatioExponentRejected(t *testing.T) {
+	checker := New()
+	ratio := ast.Call("__able_ratio_from_float", ast.Flt(0.5))
+	expr := ast.Bin("^", ratio, ratio)
+	assign := ast.Assign(ast.ID("value"), expr)
+	module := ast.NewModule([]ast.Statement{assign}, nil, nil)
+
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) == 0 {
+		t.Fatalf("expected diagnostics for Ratio exponent")
+	}
+	if want := "does not support Ratio operands"; !strings.Contains(diags[0].Message, want) {
+		t.Fatalf("expected diagnostic mentioning %q, got %q", want, diags[0].Message)
+	}
+}

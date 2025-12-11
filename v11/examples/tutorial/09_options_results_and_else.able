@@ -16,13 +16,13 @@ fn safe_div(num: i32, den: i32) -> MathError | i32 {
 }
 
 fn ratio_sum(values: Array i32) -> MathError | i32 {
-  first := values.get(0) else { return MathError { message: "need two numbers" } }
-  second := values.get(1) else { return MathError { message: "need two numbers" } }
+  first := values.get(0) or { return MathError { message: "need two numbers" } }
+  second := values.get(1) or { return MathError { message: "need two numbers" } }
   safe_div(first + second, second)!
 }
 
 fn greet(name: ?String) -> String {
-  actual := name else { "friend" }
+  actual := name or { "friend" }
   `Hi, ${actual}`
 }
 
@@ -34,6 +34,6 @@ fn main() -> void {
   print(`ratio_sum => ${ratio_sum(numbers)}`)
 
   missing: Array i32 := []
-  handled := ratio_sum(missing) else { |err| `Handled error: ${err.message()}` }
+  handled := ratio_sum(missing) or { err => `Handled error: ${err.message()}` }
   print(handled)
 }

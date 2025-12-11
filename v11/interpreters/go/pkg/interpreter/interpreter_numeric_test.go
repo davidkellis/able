@@ -201,6 +201,72 @@ func TestDivModStructResult(t *testing.T) {
 	}
 }
 
+func TestRatioArithmetic(t *testing.T) {
+	interp := New()
+	env := interp.GlobalEnvironment()
+	half := ast.Call("__able_ratio_from_float", ast.Flt(0.5))
+	quarter := ast.Call("__able_ratio_from_float", ast.Flt(0.25))
+	sum := ast.Bin("+", half, quarter)
+
+	val, err := interp.evaluateExpression(sum, env)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	inst, ok := val.(*runtime.StructInstanceValue)
+	if !ok {
+		t.Fatalf("expected Ratio struct instance, got %#v", val)
+	}
+	if inst.Definition == nil || inst.Definition.Node == nil || inst.Definition.Node.ID == nil || inst.Definition.Node.ID.Name != "Ratio" {
+		t.Fatalf("expected Ratio struct definition")
+	}
+	numVal, ok := inst.Fields["num"].(runtime.IntegerValue)
+	if !ok || numVal.Val.Cmp(big.NewInt(3)) != 0 {
+		t.Fatalf("expected numerator 3, got %#v", inst.Fields["num"])
+	}
+	denVal, ok := inst.Fields["den"].(runtime.IntegerValue)
+	if !ok || denVal.Val.Cmp(big.NewInt(4)) != 0 {
+		t.Fatalf("expected denominator 4, got %#v", inst.Fields["den"])
+	}
+}
+
+func TestRatioMixesWithIntegers(t *testing.T) {
+	interp := New()
+	env := interp.GlobalEnvironment()
+	half := ast.Call("__able_ratio_from_float", ast.Flt(0.5))
+	expr := ast.Bin("-", half, ast.Int(1))
+
+	val, err := interp.evaluateExpression(expr, env)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	inst, ok := val.(*runtime.StructInstanceValue)
+	if !ok {
+		t.Fatalf("expected Ratio struct instance, got %#v", val)
+	}
+	numVal, ok := inst.Fields["num"].(runtime.IntegerValue)
+	if !ok || numVal.Val.Cmp(big.NewInt(-1)) != 0 {
+		t.Fatalf("expected numerator -1, got %#v", inst.Fields["num"])
+	}
+	denVal, ok := inst.Fields["den"].(runtime.IntegerValue)
+	if !ok || denVal.Val.Cmp(big.NewInt(2)) != 0 {
+		t.Fatalf("expected denominator 2, got %#v", inst.Fields["den"])
+	}
+}
+
+func TestRatioDivisionByZero(t *testing.T) {
+	interp := New()
+	env := interp.GlobalEnvironment()
+	half := ast.Call("__able_ratio_from_float", ast.Flt(0.5))
+	zero := ast.Call("__able_ratio_from_float", ast.Flt(0.0))
+	_, err := interp.evaluateExpression(ast.Bin("/", half, zero), env)
+	if err == nil {
+		t.Fatalf("expected division by zero error")
+	}
+	if err.Error() != "division by zero" {
+		t.Fatalf("expected division by zero message, got %q", err.Error())
+	}
+}
+
 func TestMixedNumericComparisons(t *testing.T) {
 	interp := New()
 	env := interp.GlobalEnvironment()

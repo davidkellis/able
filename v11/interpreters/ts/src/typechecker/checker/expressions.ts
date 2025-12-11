@@ -6,7 +6,9 @@ import {
   futureType,
   iteratorType,
   isBoolean,
+  isIntegerPrimitiveType,
   isNumeric,
+  isRatioType,
   primitiveType,
   procType,
   rangeType,
@@ -683,6 +685,10 @@ function inferBinaryExpression(ctx: ExpressionContext, expression: AST.BinaryExp
     }
   }
   if (["+", "-", "*", "^"].includes(operator)) {
+    if (operator === "^" && (isRatioType(left) || isRatioType(right))) {
+      ctx.report("typechecker: '^' does not support Ratio operands", expression);
+      return unknownType;
+    }
     const result = resolveNumericBinaryType(left, right);
     return applyNumericResolution(ctx, expression, operator, result);
   }

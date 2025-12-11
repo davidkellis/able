@@ -2785,6 +2785,12 @@ addr_string = addr.to_s()     ## Call instance method
 addr.update_zip(90211)        ## Call instance method (mutates addr)
 ```
 
+**Exports and function form:**
+
+*   Functions declared inside a `methods` block behave like ordinary module-level functions. Unless marked `private`, they are exported and can be imported alongside other functions.
+*   `receiver.method(args...)` is sugar for calling the exported function with `receiver` as the first argument; static methods omit the receiver entirely.
+*   Generic/`where` obligations on the `methods` block continue to apply whether the function is invoked via member syntax or directly by name.
+
 ### 9.4 Method Call Syntax Resolution
 
 This section details how Able resolves `ReceiverExpression.Identifier(ArgumentList)`.
@@ -3307,7 +3313,7 @@ fn process_or_skip(item: i32) -> void {
 }
 ```
 
-### 11.2. V-Lang Style Error Handling (`Option`/`Result`, `!`, `else`)
+### 11.2. V-Lang Style Error Handling (`Option`/`Result`, `!`, `or`)
 
 This mechanism is the default for handling *expected* errors or optional values gracefully without exceptions.
 
@@ -4174,10 +4180,10 @@ Typing and dynamic imports:
 
 ### 13.6. Standard Library Packaging (`able.*`)
 
--   Able distributes a versioned standard library bundle whose manifest (`package.yml`) declares the root name `able`. The canonical layout is `<tool-root>/stdlib/src`, but tooling MUST respect an override supplied via the `ABLE_STD_LIB` environment variable (OS-specific path list). Each entry points to the `src` directory that contains the stdlib package structure; interpreters deduplicate paths and use the first one that exists.
--   `import able.*` always resolves against this bundled root. User code MAY NOT publish a package named `able` or any `able.*` descendants; the namespace is reserved for the standard library and versioned alongside the toolchain so every runtime observes the same APIs.
--   When no override is present, the CLI discovers the stdlib relative to (1) the caller’s working directory and (2) the CLI executable path. This keeps repository checkouts and installed builds in sync without additional configuration.
--   Tooling MUST treat the stdlib bundle as read-only. Projects that need to test local changes set `ABLE_STD_LIB=/path/to/custom/stdlib/src` (paths separated by `:` on Unix / `;` on Windows). The loader probes entries in order and falls back to the bundled version if every override is invalid.
+-   Able distributes Able-authored kernel and standard library bundles versioned with the toolchain. The kernel lives under `<tool-root>/kernel/src` and is automatically injected ahead of workspace code to surface host bridges (scheduler/channel/mutex/string/hasher shims).
+-   The standard library is a normal package named `able` resolved through the usual search path + lockfile rules. When no pinned dependency is present, tooling falls back to the bundled copy at `<tool-root>/stdlib/src` (or `<tool-root>/stdlib/v11/src` when installed in a multi-version layout).
+-   `import able.*` always resolves against whichever `able` root the loader selects. User code MUST NOT publish an `able` namespace; any root whose manifest declares `name: able` is treated as the stdlib, and the loader reports collisions rather than shadowing.
+-   Tooling treats the bundled kernel/stdlib as read-only. Local edits rely on the dependency resolver (lockfile pin) or general search-path overrides (`ABLE_MODULE_PATHS`/workspace deps); there is no stdlib-specific environment knob.
 
 ### 13.7. Module Search Paths & Environment Overrides
 
@@ -4187,7 +4193,7 @@ Typing and dynamic imports:
 2.  The current working directory and any explicit paths passed on the CLI (reserved for future flags) so ad-hoc scripts can import sibling files without manifests.
 3.  Entries from `ABLE_PATH` (OS path list). This predates `ABLE_MODULE_PATHS` and is kept for backward compatibility.
 4.  Entries from `ABLE_MODULE_PATHS` (also an OS path list). This is the preferred knob for injecting additional package roots—fixtures, local dependency mirrors, dynamic package sandboxes, etc. Both interpreters honor it for static imports *and* `dynimport`.
-5.  Standard library roots discovered via `ABLE_STD_LIB` and the auto-detection logic described in §13.6.
+5.  Bundled kernel/stdlib roots discovered via the auto-detection logic described in §13.6 (including installed bundles) plus any resolver-provided copies (e.g., a lockfile pin for `able`).
 
 Each search root is normalised to an absolute directory, verified to exist, and assigned a root package name. If a `package.yml` is present, its `name` field (after sanitising hyphen → underscore) becomes the root segment; otherwise the directory name is used. All `.able` files under the root participate in package assembly, and `package` statements inside those files may append further segments. If the same package path appears in multiple roots, the loader reports a collision rather than silently shadowing one with another.
 

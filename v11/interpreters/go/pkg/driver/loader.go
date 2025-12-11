@@ -51,8 +51,9 @@ type packageLocation struct {
 }
 
 type packageOrigin struct {
-	root string
-	kind RootKind
+	root     string
+	rootName string
+	kind     RootKind
 }
 
 type rootInfo struct {
@@ -136,6 +137,9 @@ func (l *Loader) Load(entry string) (*Program, error) {
 	}
 
 	entryKind := RootUser
+	if rootName == "able" || looksLikeStdlibPath(rootDir) || looksLikeKernelPath(rootDir) {
+		entryKind = RootStdlib
+	}
 	for _, sp := range l.searchPaths {
 		if sp.Kind == RootStdlib && pathsOverlap(sp.Path, rootDir) {
 			entryKind = RootStdlib
@@ -221,6 +225,12 @@ func (l *Loader) Load(entry string) (*Program, error) {
 		return mod, nil
 	}
 
+	for _, name := range collectKernelPackages(origins) {
+		if _, err := loadPackage(name); err != nil {
+			return nil, err
+		}
+	}
+
 	entryModule, err := loadPackage(entryPackage)
 	if err != nil {
 		return nil, err
@@ -253,6 +263,7 @@ func (l *Loader) indexAdditionalRoots(pkgIndex map[string]*packageLocation, orig
 		if err != nil {
 			return err
 		}
+		kind := root.Kind
 		clean := filepath.Clean(abs)
 		overlaps := false
 		for _, seen := range usedList {
@@ -262,12 +273,19 @@ func (l *Loader) indexAdditionalRoots(pkgIndex map[string]*packageLocation, orig
 			}
 		}
 		if overlaps {
-			continue
+			if kind == RootStdlib && entryRoot.kind == RootStdlib {
+				continue
+			}
+			if kind != RootStdlib {
+				continue
+			}
 		}
 		used[clean] = struct{}{}
 		usedList = append(usedList, clean)
-		kind := root.Kind
-		if kind != RootStdlib {
+		if kind != RootStdlib &&
+			(rootName == "able" || looksLikeStdlibPath(abs) || looksLikeKernelPath(abs)) {
+			kind = RootStdlib
+		} else if kind != RootStdlib {
 			kind = RootUser
 		}
 		info := rootInfo{rootDir: abs, rootName: rootName, kind: kind}
@@ -291,11 +309,11 @@ func (l *Loader) indexAdditionalRoots(pkgIndex map[string]*packageLocation, orig
 }
 
 func ensureNamespaceAllowed(root rootInfo, allowSkip bool) (bool, error) {
-	if root.rootName == "able" && root.kind != RootStdlib {
-		if allowSkip {
-			return false, nil
-		}
-		return false, fmt.Errorf("loader: package namespace 'able.*' is reserved for the standard library (path: %s)", root.rootDir)
+	if root.rootName == "able" {
+		return true, nil
+	}
+	if root.kind == RootStdlib {
+		return true, nil
 	}
 	return true, nil
 }
@@ -308,7 +326,7 @@ func registerPackages(pkgIndex map[string]*packageLocation, packages map[string]
 		if existing, ok := origins[name]; ok {
 			return fmt.Errorf("loader: package %s found in multiple roots (%s, %s)", name, existing.root, root.rootDir)
 		}
-		origins[name] = packageOrigin{root: root.rootDir, kind: root.kind}
+		origins[name] = packageOrigin{root: root.rootDir, rootName: root.rootName, kind: root.kind}
 		pkgIndex[name] = &packageLocation{
 			rootDir:  root.rootDir,
 			rootName: root.rootName,
@@ -319,10 +337,52 @@ func registerPackages(pkgIndex map[string]*packageLocation, packages map[string]
 	return nil
 }
 
+func collectKernelPackages(origins map[string]packageOrigin) []string {
+	names := make([]string, 0, len(origins))
+	for name, origin := range origins {
+		if isKernelOrigin(origin) {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	return names
+}
+
+func isKernelOrigin(origin packageOrigin) bool {
+	if origin.rootName == "kernel" {
+		return true
+	}
+	return looksLikeKernelPath(origin.root)
+}
+
 func pathsOverlap(a, b string) bool {
 	aClean := filepath.Clean(a)
 	bClean := filepath.Clean(b)
 	return containsPathPrefix(aClean, bClean) || containsPathPrefix(bClean, aClean)
+}
+
+func looksLikeStdlibPath(path string) bool {
+	clean := filepath.Clean(path)
+	parts := strings.Split(clean, string(os.PathSeparator))
+	for _, part := range parts {
+		switch strings.ToLower(part) {
+		case "stdlib", "stdlib_v11", "stdlib_v10", "able-stdlib", "able_stdlib":
+			return true
+		}
+	}
+	return false
+}
+
+func looksLikeKernelPath(path string) bool {
+	clean := filepath.Clean(path)
+	parts := strings.Split(clean, string(os.PathSeparator))
+	for _, part := range parts {
+		switch strings.ToLower(part) {
+		case "kernel", "ablekernel", "able_kernel":
+			return true
+		}
+	}
+	return false
 }
 
 func containsPathPrefix(base, target string) bool {

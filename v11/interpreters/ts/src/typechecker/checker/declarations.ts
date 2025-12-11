@@ -32,8 +32,22 @@ export function collectFunctionDefinition(
   const fullName = structName ? `${structName}::${name}` : name;
   const substitutions = buildGenericSubstitutions(ctx, definition, scope);
   const returnType = ctx.resolveTypeExpression(definition.returnType, substitutions);
-  const hasImplicitSelf = injectImplicitSelfParameter(definition, scope);
-  const parameterTypes = resolveFunctionParameterTypes(ctx, definition, substitutions);
+  const selfType =
+    structName !== undefined
+      ? structTypeFromScope(structName, scope?.typeParamNames)
+      : unknownType;
+  let hasImplicitSelf = injectImplicitSelfParameter(definition, scope);
+  let parameterTypes = resolveFunctionParameterTypes(ctx, definition, substitutions);
+  if (definition.isMethodShorthand && !hasImplicitSelf) {
+    hasImplicitSelf = true;
+    parameterTypes = [selfType, ...parameterTypes];
+  } else if (hasImplicitSelf && structName) {
+    if (parameterTypes.length > 0) {
+      parameterTypes = [selfType, ...parameterTypes.slice(1)];
+    } else {
+      parameterTypes = [selfType];
+    }
+  }
 
   const info: FunctionInfo = {
     name,
@@ -76,15 +90,13 @@ export function collectFunctionDefinition(
   }
 
   ctx.addFunctionInfo(fullName, info);
-  if (!structName) {
+  if (definition.id?.name) {
     ctx.addFunctionInfo(name, info);
-    if (definition.id?.name) {
-      ctx.defineValue(definition.id.name, {
-        kind: "function",
-        parameters: parameterTypes,
-        returnType,
-      });
-    }
+    ctx.defineValue(definition.id.name, {
+      kind: "function",
+      parameters: parameterTypes,
+      returnType,
+    });
   }
 }
 
@@ -363,6 +375,18 @@ function classifyInferenceCandidate(
     return "skip";
   }
   return "infer";
+}
+
+function structTypeFromScope(structName: string, typeParamNames?: string[]): TypeInfo {
+  const baseName = structName.split("<")[0]?.trim() ?? structName;
+  const args = Array.isArray(typeParamNames)
+    ? typeParamNames.map((paramName) => (paramName ? unknownType : unknownType))
+    : [];
+  return {
+    kind: "struct",
+    name: baseName,
+    typeArguments: args,
+  };
 }
 
 function hoistWhereClauses(

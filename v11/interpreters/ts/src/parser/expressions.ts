@@ -398,15 +398,6 @@ function parsePipeChain(node: Node, source: string, operator: string): Expressio
     throw new MapperError("parser: empty pipe expression");
   }
   let result = parseExpression(node.namedChild(0), source);
-  if (operator === "|>>" && result.type === "AssignmentExpression" && node.namedChildCount > 1) {
-    let piped = result.right;
-    for (let i = 1; i < node.namedChildCount; i++) {
-      const stepNode = node.namedChild(i);
-      const stepExpr = parseExpression(stepNode, source);
-      piped = annotateExpressionNode(AST.binaryExpression(operator, piped, stepExpr), stepNode);
-    }
-    return annotateExpressionNode(AST.assignmentExpression(result.operator, result.left, piped), node);
-  }
   for (let i = 1; i < node.namedChildCount; i++) {
     const stepNode = node.namedChild(i);
     const stepExpr = parseExpression(stepNode, source);

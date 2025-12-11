@@ -109,11 +109,18 @@ const INTEGER_NAMES: Set<PrimitiveName> = new Set([
 const FLOAT_NAMES: Set<PrimitiveName> = new Set(["f32", "f64"]);
 
 export function isNumeric(type: TypeInfo): boolean {
+  if (type.kind === "struct" && type.name === "Ratio") {
+    return true;
+  }
   return type.kind === "primitive" && (INTEGER_NAMES.has(type.name) || FLOAT_NAMES.has(type.name));
 }
 
 export function isIntegerPrimitiveType(type: TypeInfo): type is PrimitiveTypeInfo {
   return type.kind === "primitive" && INTEGER_NAMES.has(type.name);
+}
+
+export function isRatioType(type: TypeInfo): boolean {
+  return type.kind === "struct" && type.name === "Ratio";
 }
 
 export function isFloatPrimitiveType(type: TypeInfo): type is PrimitiveTypeInfo {
