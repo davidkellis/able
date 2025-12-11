@@ -49,8 +49,8 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 - Latest ablets/ablego sweep:
   - Root examples pass (`assign/greet/hello_world/loop`); `greet_typecheck_fail` intentionally errors.
   - Leetcode + Rosetta Code now run in TS/Go (regex match, arrays, etc.); prior TS `isIntegerPrimitiveType` crash fixed.
-  - Tutorials: 01/02a/02/03/04/05/06/07/08/09/10/11 pass TS+Go after placeholder and syntax fixes.
+  - Tutorials: 01/02a/02/03/04/05/06/07/08/09/10/11/12 pass TS+Go after placeholder, loader, and lambda body fixes.
   - Remaining issues:
-    * tutorial/12_channels_mutex_and_await: TS sees duplicate kernel vs able.concurrency definitions; Go loader hits parse errors in stdlib/quarantine channel file.
     * tutorial/13_packages_and_imports_math|strings have no `main` (support modules; only `13_packages_and_imports_main` is runnable).
     * tutorial/14_host_interop: Go runtime fails (`read_text` undefined); TypeScript passes.
+    * Parser should reject prefix `match <expr> { ... }` (spec allows only `<expr> match { ... }`).

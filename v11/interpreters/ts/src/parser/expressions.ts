@@ -99,6 +99,8 @@ function parseExpression(node: Node | null | undefined, source: string): Express
       return parseStructLiteral(getActiveParseContext(), node);
     case "block":
       return getActiveParseContext().parseBlock(node);
+    case "expression_list":
+      return parseExpressionList(node, source);
     case "loop_expression": {
       const bodyNode = firstNamedChild(node);
       const body = getActiveParseContext().parseBlock(bodyNode);
@@ -593,6 +595,20 @@ function parseLambdaExpression(node: Node, source: string): LambdaExpression {
   const bodyExpr = parseExpression(bodyNode, source);
 
   return annotateExpressionNode(AST.lambdaExpression(params, bodyExpr, returnType, undefined, undefined, false), node) as LambdaExpression;
+}
+
+function parseExpressionList(node: Node, source: string): BlockExpression {
+  const ctx = getActiveParseContext();
+  const statements: Statement[] = [];
+  for (let i = 0; i < node.namedChildCount; i++) {
+    const child = node.namedChild(i);
+    if (!child || !child.isNamed || isIgnorableNode(child)) continue;
+    const stmt = ctx.parseStatement(child);
+    if (stmt) {
+      statements.push(stmt);
+    }
+  }
+  return annotateExpressionNode(AST.blockExpression(statements), node) as BlockExpression;
 }
 
 
