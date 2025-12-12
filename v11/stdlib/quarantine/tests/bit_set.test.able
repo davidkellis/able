@@ -1,4 +1,4 @@
-package collections.bit_set.specs
+package bit_set_specs
 
 import able.testing.rspec.{describe, expect, eq, be_truthy, be_false}
 import able.collections.bit_set.{BitSet}

@@ -2,7 +2,7 @@
 Top-Level Declarations
 ==================
 
-package demo.core;
+package demo;
 
 import std.io;
 dynimport dyn.tools::toolset;
@@ -38,7 +38,6 @@ methods Point i32 {
 
 (source_file
   (package_statement
-    (identifier)
     (identifier))
   (import_statement
     (import_path

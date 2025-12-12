@@ -1,5 +1,10 @@
 # Able Project Log
 
+# 2025-12-13 — Host interop tutorial unblocked + prefix match guard (v11)
+- Added the Go-side `read_text` extern for tutorial 14 (imports `os`, returns `host_error` on failure) so the host interop example now runs on the Go runtime alongside the existing TS path.
+- Tree-sitter grammar usage is now enforced to reject prefix-style `match <expr> { ... }`: added Go parser and TS tree-sitter/mapper tests that expect syntax errors for the legacy ordering, matching the spec requirement of `<expr> match { ... }`.
+- Tests: `cd v11/interpreters/go && go test ./pkg/parser -run PrefixMatch`; `cd v11/interpreters/ts && bun test test/parser/fixtures_parser.test.ts`.
+
 # 2025-12-12 — Inherent methods as functions (v11)
 - Exported method functions now carry their method-set obligations: Go binds implicit `self` for method shorthand, substitutes the receiver into exported signatures, and preserves method-set context so free-call constraints fail when receivers/where-clauses are violated.
 - TypeScript attaches method-set obligations/substitutions to exported method infos so direct calls enforce receiver typing and block missing `where` constraints; §9 in the spec now spells out the export + sugar model for inherent methods.

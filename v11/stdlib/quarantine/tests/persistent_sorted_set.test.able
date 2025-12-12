@@ -1,4 +1,4 @@
-package collections.persistent_sorted_set.specs
+package persistent_sorted_set_specs
 
 import able.testing.rspec.{describe, expect, eq, be_truthy, be_false}
 import able.collections.persistent_sorted_set.{PersistentSortedSet}

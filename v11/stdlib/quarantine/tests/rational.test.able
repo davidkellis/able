@@ -1,4 +1,4 @@
-package numbers.rational.specs
+package rational_specs
 
 import able.numbers.rational.{Rational}
 import able.core.interfaces.{Less, Greater}

@@ -1,4 +1,4 @@
-package parity.examples.control
+package control
 
 fn sum_even(values: Array i32) -> i32 {
   total := 0

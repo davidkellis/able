@@ -1,4 +1,4 @@
-package collections.hash_set.tests
+package hash_set_tests
 
 import able.collections.hash_set.{HashSet}
 import able.core.iteration.{IteratorEnd}

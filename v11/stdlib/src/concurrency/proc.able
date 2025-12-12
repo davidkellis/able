@@ -1,5 +1,3 @@
-package concurrency
-
 import able.core.interfaces.{Error}
 
 struct Pending {}

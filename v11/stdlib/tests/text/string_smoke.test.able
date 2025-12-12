@@ -1,4 +1,4 @@
-package text.string.tests
+package string_tests
 
 import able.text.string.{StringBuilder}
 

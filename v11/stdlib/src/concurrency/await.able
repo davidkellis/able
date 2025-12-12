@@ -1,5 +1,3 @@
-package concurrency
-
 ## Duration unit used by Await helpers (milliseconds).
 type Milliseconds = i64
 

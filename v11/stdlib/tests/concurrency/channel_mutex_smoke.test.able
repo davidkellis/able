@@ -1,4 +1,4 @@
-package concurrency.channel_mutex.tests
+package channel_mutex_tests
 
 import able.concurrency.{Channel, Mutex, with_lock}
 

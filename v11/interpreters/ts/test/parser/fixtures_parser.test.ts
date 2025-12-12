@@ -122,6 +122,27 @@ fn main() -> void {
     expect(tree.rootNode.hasError).toBe(false);
   });
 
+  test("rejects prefix-style match expressions", async () => {
+    const { Parser, Language } = await import("web-tree-sitter");
+    await Parser.init();
+    const parser = new Parser();
+    const language = await Language.load(WASM_PATH);
+    parser.setLanguage(language);
+
+    const source = `fn main() {
+  match 1 {
+    case _ => 2
+  }
+}
+`;
+
+    const tree = parser.parse(source);
+    if (!tree) throw new Error("failed to parse prefix match sample");
+    expect(tree.rootNode.type).toBe("source_file");
+    expect(tree.rootNode.hasError).toBe(true);
+    expect(() => mapSourceFile(tree.rootNode, source, "<inline>")).toThrow(/syntax errors present/);
+  });
+
   test("range operators map inclusivity correctly", async () => {
     const { Parser, Language } = await import("web-tree-sitter");
     await Parser.init();

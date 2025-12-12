@@ -1,4 +1,4 @@
-package collections.array.tests
+package array_tests
 
 import able.collections.array.{Array}
 import able.core.errors.{IndexError}

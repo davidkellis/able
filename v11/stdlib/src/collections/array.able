@@ -1,5 +1,4 @@
-package collections.array
-
+package array
 import able.core.interfaces.{Default, Clone, Index, IndexMut}
 import able.core.iteration.{Iterable, Iterator, IteratorEnd}
 import able.core.errors.{IndexError}

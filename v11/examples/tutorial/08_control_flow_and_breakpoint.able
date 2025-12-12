@@ -1,4 +1,4 @@
-package tutorial.control
+package control
 
 fn classify(score: i32) -> String {
   if score > 90 { "excellent" }

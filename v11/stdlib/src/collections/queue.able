@@ -1,5 +1,4 @@
-package collections.queue
-
+package queue
 import able.collections.deque.{Deque}
 import able.collections.enumerable.{Enumerable}
 import able.core.interfaces.{Clone, Default}

@@ -1,4 +1,4 @@
-package collections.vector.tests
+package vector_tests
 
 import able.collections.vector.{Vector}
 import able.core.iteration.{IteratorEnd}

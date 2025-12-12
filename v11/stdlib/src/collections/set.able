@@ -1,5 +1,4 @@
-package collections.set
-
+package set
 import able.core.interfaces.{Eq}
 
 interface Set T for S {

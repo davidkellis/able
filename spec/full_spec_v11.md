@@ -4048,18 +4048,21 @@ Packages form a tree of namespaces rooted at the name of the library, and the hi
 
 ### 13.2. Package Declaration in Source Files
 
+*   **Single-segment declaration**: `package` accepts exactly one identifier segment (e.g., `package math;`). Qualified names such as `package util.math;` or any use of `::` are invalid; nested packages must be expressed via directories.
+*   **Directory prefix always included**: The directory path of the file (relative to the package root, after hyphens are normalized to underscores) always prefixes the package path. A package declaration appends one additional segment; it never skips or replaces the directory-derived prefix.
 *   **Optional Declaration**: A source file can optionally declare which sub-package its contents belong to using `package <unqualified-name>;`.
-*   **Implicit Package**:
+*   **Implicit vs. explicit package**:
     *   If a file `src/foo/bar.able` contains `package my_bar;`, and the root package name is `my_pkg`, its fully qualified package is `my_pkg.foo.my_bar`.
     *   If a file `src/foo/baz.able` has *no* `package` declaration, its fully qualified package is determined by its directory path relative to the root: `my_pkg.foo`.
+    *   If a file `src/foo/qux.able` declares `package root;`, its fully qualified package is `my_pkg.foo.root` (the `foo` directory still contributes to the package path).
 *   **Multiple Files**: Multiple files can contribute to the same fully qualified package name, either by residing in the same directory (without `package` declarations) or by declaring the same package name within different directories.
 
 #### Example
 
-Assume a package root `/home/david/projects/hello-world` with `package.yml` specifying `name: hello_world`.
+Assume a package root `/home/david/projects/greet` with `package.yml` specifying `name: hello_world`.
 
 ```
-/home/david/projects/hello-world/
+/home/david/projects/greet/
 ├── package.yml         (name: hello_world)
 ├── foo.able            (no package declaration)
 ├── bar.able            (contains: package bar;)

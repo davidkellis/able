@@ -512,7 +512,7 @@ const expressionsFixtures: Fixture[] = [
         ),
         AST.assign("a", AST.int(0)),
         AST.assign("b", AST.int(0)),
-        AST.assign("res1", AST.binaryExpression("|>>", AST.assign("a", AST.int(5), "="), AST.id("inc"))),
+        AST.binaryExpression("|>>", AST.assign("res1", AST.assign("a", AST.int(5), "=")), AST.id("inc")),
         AST.assign("res2", AST.assign("b", AST.binaryExpression("|>", AST.int(1), AST.id("inc")), "=")),
         AST.assign("flag", AST.binaryExpression("|>", AST.bin("||", AST.bool(false), AST.bool(true)), AST.id("bool_to_int"))),
         AST.arr(AST.id("res1"), AST.id("a"), AST.id("res2"), AST.id("b"), AST.id("flag")),
@@ -523,7 +523,7 @@ const expressionsFixtures: Fixture[] = [
           result: {
             kind: "array",
             elements: [
-              { kind: "i32", value: 6n },
+              { kind: "i32", value: 5n },
               { kind: "i32", value: 5n },
               { kind: "i32", value: 2n },
               { kind: "i32", value: 2n },

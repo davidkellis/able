@@ -1,4 +1,4 @@
-package math.specs
+package math_specs
 
 import able.math.{
   pi,

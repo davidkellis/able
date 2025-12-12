@@ -1,4 +1,4 @@
-package concurrency.channel_mutex.specs
+package channel_mutex_specs
 
 import able.testing.assertions{AssertionError}
 import able.testing.rspec{describe, expect, eq, be_truthy, raise_error}

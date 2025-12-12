@@ -109,8 +109,12 @@ func TestRunFileWithoutManifestStdlibAvailable(t *testing.T) {
 name: able
 version: 0.0.1
 `)
+	writeFile(t, filepath.Join(stdlibSrc, "package.yml"), `
+name: able
+version: 0.0.1
+`)
 	writeFile(t, filepath.Join(stdlibSrc, "core", "thing.able"), `
-package core.thing
+package thing
 
 fn stdlib_message() -> string {
   "std"
@@ -404,8 +408,12 @@ func TestRunFileWithoutManifestMissingDependencyFails(t *testing.T) {
 name: able
 version: 0.0.1
 `)
+	writeFile(t, filepath.Join(stdlibSrc, "package.yml"), `
+name: able
+version: 0.0.1
+`)
 	writeFile(t, filepath.Join(stdlibSrc, "core", "thing.able"), `
-package core.thing
+package thing
 
 fn stdlib_message() -> string {
   "std"

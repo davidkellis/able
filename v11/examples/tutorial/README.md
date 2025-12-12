@@ -21,5 +21,5 @@ Examples (run in order):
 - `10_exceptions_and_rescue.able` — `raise`, `rescue`, `ensure`, and `rethrow` with a custom `Error` implementation.
 - `11_concurrency_proc_and_spawn.able` — `proc` vs `spawn`, cooperative helpers (`proc_yield`, `proc_flush`, `proc_pending_tasks`), and memoization of futures.
 - `12_channels_mutex_and_await.able` — channel creation, buffered/unbuffered sends, `try_*` helpers, `await` with defaults, and a simple mutex guard.
-- `13_packages_and_imports_main.able` — package naming, visibility with `private`, re-exports, and static imports across sibling modules (entrypoint uses the helpers).
+- `13_packages_and_imports_main.able` — package naming, visibility with `private`, re-exports, and static imports across sibling modules (entrypoint uses helper packages `tutorial13_math.able` and `tutorial13_strings.able`).
 - `14_host_interop.able` — `prelude <target>` setup, `extern` host bodies for Go/TypeScript, and a pure Able fallback.

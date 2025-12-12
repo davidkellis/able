@@ -7,7 +7,7 @@ import (
 )
 
 func TestParsePackageStatement(t *testing.T) {
-	source := `package sample.core;
+	source := `package sample;
 `
 
 	p, err := NewModuleParser()
@@ -25,7 +25,7 @@ func TestParsePackageStatement(t *testing.T) {
 		[]ast.Statement{},
 		nil,
 		ast.NewPackageStatement(
-			[]*ast.Identifier{ast.ID("sample"), ast.ID("core")},
+			[]*ast.Identifier{ast.ID("sample")},
 			false,
 		),
 	)
@@ -205,7 +205,7 @@ func TestParseModuleImports(t *testing.T) {
 	}
 	defer p.Close()
 
-source := []byte(`package sample.core;
+source := []byte(`package sample;
 
 import alpha.beta.{Foo, Bar::B};
 import gamma.delta.*;
@@ -444,7 +444,7 @@ fn map_items(items) {
 				nil,
 			),
 		},
-		ast.NewPackageStatement([]*ast.Identifier{ast.ID("sample"), ast.ID("core")}, false),
+		ast.NewPackageStatement([]*ast.Identifier{ast.ID("sample")}, false),
 	)
 
 	assertModulesEqual(t, expected, mod)

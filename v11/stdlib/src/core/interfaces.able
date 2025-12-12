@@ -1,5 +1,4 @@
-package core.interfaces
-
+package interfaces
 ## Ordering enumeration used by comparison interfaces.
 struct Less {}
 struct Equal {}

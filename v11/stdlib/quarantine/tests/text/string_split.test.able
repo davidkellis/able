@@ -1,4 +1,4 @@
-package text.string_split.specs
+package string_split_specs
 
 import able.testing.rspec.{describe, expect, eq}
 import able.core.interfaces{Error}

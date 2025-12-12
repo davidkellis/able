@@ -1,4 +1,4 @@
-package collections.linked_list.specs
+package linked_list_specs
 
 import able.testing.rspec.{describe, expect, eq, be_truthy}
 import able.collections.array.{Array}

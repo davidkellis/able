@@ -1,4 +1,4 @@
-package collections.heap.specs
+package heap_specs
 
 import able.testing.rspec.{describe, expect, eq}
 import able.collections.heap.{Heap}

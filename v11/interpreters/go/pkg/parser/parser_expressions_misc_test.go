@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strings"
 	"testing"
 
 	"able/interpreter10-go/pkg/ast"
@@ -165,6 +166,31 @@ fn extract(point: Point) -> i32 {
 		t.Fatalf("expected second match clause to use wildcard pattern, got %T", matchExpr.Clauses[1].Pattern)
 	}
 	checkSpan(t, "wildcard pattern", wildcardPattern.Span(), 11, 10, 11, 11)
+}
+
+func TestParseRejectsPrefixMatchExpression(t *testing.T) {
+	mp, err := NewModuleParser()
+	if err != nil {
+		t.Fatalf("NewModuleParser: %v", err)
+	}
+	t.Cleanup(func() { mp.Close() })
+
+	source := []byte(`package sample
+
+fn main() {
+  match 1 {
+    case _ => 2
+  }
+}
+`)
+
+	_, err = mp.ParseModule(source)
+	if err == nil {
+		t.Fatalf("expected parse error for prefix match expression")
+	}
+	if !strings.Contains(err.Error(), "syntax errors") {
+		t.Fatalf("unexpected error for prefix match expression: %v", err)
+	}
 }
 
 func TestParsePlaceholderExpressions(t *testing.T) {
@@ -375,7 +401,7 @@ fn retry() {
 }
 
 func TestParseErrorHandlingExpressions(t *testing.T) {
-source := `value := (maybe() or { err =>
+	source := `value := (maybe() or { err =>
   err
 } rescue {
   case err => err

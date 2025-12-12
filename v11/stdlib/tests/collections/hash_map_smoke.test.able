@@ -1,4 +1,4 @@
-package collections.hash_map.tests
+package hash_map_tests
 
 import able.collections.hash_map.{HashMap}
 import able.core.errors.{IndexError}

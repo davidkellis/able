@@ -1,4 +1,4 @@
-package text.string_builder.specs
+package string_builder_specs
 
 import able.testing.rspec.{describe, expect, eq}
 import able.core.interfaces{Error}

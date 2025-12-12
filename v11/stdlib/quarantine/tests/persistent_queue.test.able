@@ -1,4 +1,4 @@
-package collections.persistent_queue.specs
+package persistent_queue_specs
 
 import able.testing.rspec.{describe, expect, eq, be_truthy}
 import able.collections.array.{Array}

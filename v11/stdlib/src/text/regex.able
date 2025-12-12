@@ -1,5 +1,4 @@
-package text.regex
-
+package regex
 import able.collections.array.{Array}
 import able.collections.hash_map.{HashMap}
 import able.core.interfaces.{Error}

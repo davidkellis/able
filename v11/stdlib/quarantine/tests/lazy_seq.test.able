@@ -1,4 +1,4 @@
-package collections.lazy_seq.specs
+package lazy_seq_specs
 
 import able.testing.rspec.{describe, expect, eq, be_truthy}
 import able.collections.array.{Array}

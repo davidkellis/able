@@ -1,5 +1,4 @@
-package core.errors
-
+package errors
 import able.core.interfaces.{Error}
 
 ## Arithmetic errors.

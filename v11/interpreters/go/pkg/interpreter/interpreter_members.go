@@ -253,16 +253,24 @@ func (i *Interpreter) structInstanceMember(inst *runtime.StructInstanceValue, me
 			return nil, fmt.Errorf("Expected named struct instance")
 		}
 		if preferMethods {
+			if val, ok := inst.Fields[ident.Name]; ok {
+				if isCallableRuntimeValue(val) {
+					return val, nil
+				}
+				// Fall back to methods when the field exists but is not callable.
+			}
 			if bound, err := i.resolveMethodFromPool(env, ident.Name, inst, ""); err != nil {
 				return nil, err
 			} else if bound != nil {
 				return bound, nil
 			}
-		}
-		if val, ok := inst.Fields[ident.Name]; ok {
-			return val, nil
-		}
-		if !preferMethods {
+			if val, ok := inst.Fields[ident.Name]; ok {
+				return val, nil
+			}
+		} else {
+			if val, ok := inst.Fields[ident.Name]; ok {
+				return val, nil
+			}
 			if bound, err := i.resolveMethodFromPool(env, ident.Name, inst, ""); err != nil {
 				return nil, err
 			} else if bound != nil {
@@ -295,6 +303,20 @@ func isNilRuntimeValue(val runtime.Value) bool {
 	case runtime.NilValue:
 		return true
 	case *runtime.NilValue:
+		return true
+	default:
+		return false
+	}
+}
+
+func isCallableRuntimeValue(val runtime.Value) bool {
+	switch val.(type) {
+	case *runtime.FunctionValue,
+		*runtime.FunctionOverloadValue,
+		runtime.NativeFunctionValue, *runtime.NativeFunctionValue,
+		runtime.BoundMethodValue, *runtime.BoundMethodValue,
+		runtime.NativeBoundMethodValue, *runtime.NativeBoundMethodValue,
+		runtime.PartialFunctionValue, *runtime.PartialFunctionValue:
 		return true
 	default:
 		return false

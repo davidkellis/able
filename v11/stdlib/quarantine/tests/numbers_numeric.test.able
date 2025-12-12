@@ -1,4 +1,4 @@
-package numbers.numeric.specs
+package numeric_specs
 
 import able.core.numeric.{NumericConversionError}
 import able.numbers.primitives
