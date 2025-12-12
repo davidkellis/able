@@ -1,4 +1,4 @@
-package collections.lazy_seq.tests
+package lazy_seq_tests
 
 import able.collections.array.{Array}
 import able.collections.lazy_seq.{LazySeq}

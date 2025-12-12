@@ -496,10 +496,17 @@ function resolveModulePackageName(module: AST.Module | undefined | null): string
 }
 
 function emitDiagnostics(diags: ModuleDiagnosticEntry[]): void {
+  const seen = new Set<string>();
   for (const entry of diags) {
-    console.error(
-      formatTypecheckerDiagnostic(entry.diagnostic, { packageName: entry.packageName }),
-    );
+    const formatted = formatTypecheckerDiagnostic(entry.diagnostic, {
+      packageName: entry.packageName,
+      absolutePath: true,
+    });
+    if (seen.has(formatted)) {
+      continue;
+    }
+    seen.add(formatted);
+    console.error(formatted);
   }
 }
 

@@ -1,4 +1,4 @@
-package tutorial.exceptions
+package exceptions
 
 import able.core.interfaces.{Error}
 

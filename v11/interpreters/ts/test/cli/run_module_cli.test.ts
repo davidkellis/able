@@ -358,7 +358,7 @@ fn main() -> void {
       manifestName: "cli_diag",
       files: {
         "main.able": `
-package cli_diag.main
+package main
 
 import cli_diag.support.{missing_symbol}
 
@@ -442,7 +442,7 @@ fn available() -> void {}
           manifestName: "cli_tests",
           files: {
             "tests/example.test.able": `
-package cli_tests.tests
+package tests
 
 fn main() -> void {}
 `,

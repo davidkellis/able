@@ -1,4 +1,4 @@
-package packages.strings
+package tutorial13_strings
 
 private fn suffix() -> String { "!" }
 

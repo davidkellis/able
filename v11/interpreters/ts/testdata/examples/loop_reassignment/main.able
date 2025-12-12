@@ -1,4 +1,4 @@
-package parity.examples.loop_reassignment
+package loop_reassignment
 
 fn main() {
   a = 5

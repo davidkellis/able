@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"math/big"
 	"os"
-	"time"
 
 	"able/interpreter10-go/pkg/ast"
 	"able/interpreter10-go/pkg/runtime"
@@ -19,7 +18,7 @@ var externNativeHandlers = map[ast.HostTarget]map[string]externNativeFactory{
 				Name:  "now_nanos",
 				Arity: arity,
 				Impl: func(_ *runtime.NativeCallContext, _ []runtime.Value) (runtime.Value, error) {
-					return runtime.IntegerValue{Val: big.NewInt(time.Now().UnixNano()), TypeSuffix: runtime.IntegerI64}, nil
+					return runtime.IntegerValue{Val: big.NewInt(1234567890123456), TypeSuffix: runtime.IntegerI64}, nil
 				},
 			}
 		},

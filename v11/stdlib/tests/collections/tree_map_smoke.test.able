@@ -1,4 +1,4 @@
-package collections.tree_map.tests
+package tree_map_tests
 
 import able.collections.tree_map.{TreeMap, TreeEntry}
 import able.collections.array.{Array}

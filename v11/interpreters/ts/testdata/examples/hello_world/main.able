@@ -1,4 +1,4 @@
-package parity.examples.hello
+package hello
 
 fn greet(name: String) -> String {
   `Hello ${name}`

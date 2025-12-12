@@ -1,4 +1,4 @@
-package parity.examples.pipes
+package pipes
 
 struct Box {
   value: i32

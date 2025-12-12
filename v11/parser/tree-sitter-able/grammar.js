@@ -169,7 +169,6 @@ module.exports = grammar({
     package_statement: $ => seq(
       "package",
       $.identifier,
-      repeat(seq(".", $.identifier)),
       optional(";"),
     ),
 

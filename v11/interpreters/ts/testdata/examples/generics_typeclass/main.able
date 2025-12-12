@@ -1,4 +1,4 @@
-package parity.examples.generics
+package generics
 
 fn identity<T>(value: T) -> T {
   value

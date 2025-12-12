@@ -1,5 +1,4 @@
-package collections.deque
-
+package deque
 import able.collections.array.{Array}
 import able.collections.enumerable.{Enumerable}
 import able.core.interfaces.{Clone, Default}

@@ -1,4 +1,4 @@
-package collections.enumerable.tests
+package enumerable_tests
 
 import able.collections.array.{Array}
 import able.collections.enumerable.{Indexed}

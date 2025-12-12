@@ -1,4 +1,4 @@
-package collections.specs
+package collections_specs
 
 import able.testing.assertions.{AssertionError}
 import able.testing.rspec.{describe, expect, eq, be_truthy, be_false}

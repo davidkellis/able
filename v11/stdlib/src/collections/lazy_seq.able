@@ -1,5 +1,4 @@
-package collections.lazy_seq
-
+package lazy_seq
 import able.collections.array.{Array}
 import able.collections.enumerable.{Enumerable}
 import able.core.iteration.{Iterator, IteratorEnd, Iterable}

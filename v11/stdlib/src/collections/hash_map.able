@@ -1,5 +1,4 @@
-package collections.hash_map
-
+package hash_map
 import able.collections.array.{Array}
 import able.collections.map.{Map}
 import able.core.errors.{IndexError}

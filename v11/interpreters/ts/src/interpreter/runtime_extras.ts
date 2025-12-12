@@ -17,8 +17,7 @@ const externHandlers: Partial<Record<AST.HostTarget, Record<string, ExternHandle
   typescript: {
     now_nanos: (ctx, _extern, arity) =>
       ctx.makeNativeFunction("now_nanos", arity, () => {
-        const millis = BigInt(Date.now());
-        return makeIntegerValue("i64", millis * 1_000_000n);
+        return makeIntegerValue("i64", 1_234_567_890_123_456n);
       }),
     read_text: (ctx, _extern, arity) =>
       ctx.makeNativeFunction("read_text", arity, (interp, args) => {

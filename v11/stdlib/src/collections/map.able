@@ -1,5 +1,4 @@
-package collections.map
-
+package map
 import able.core.interfaces.{Hash, Eq}
 
 interface Map K V for M where K: Hash + Eq K {

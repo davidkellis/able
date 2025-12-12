@@ -196,6 +196,9 @@ func (ctx *parseContext) parsePackageStatement(node *sitter.Node) (*ast.PackageS
 	if len(parts) == 0 {
 		return nil, fmt.Errorf("parser: empty package statement")
 	}
+	if len(parts) != 1 {
+		return nil, fmt.Errorf("parser: package statement must use a single, unqualified name")
+	}
 
 	stmt := ast.NewPackageStatement(parts, false)
 	annotateSpan(stmt, node)

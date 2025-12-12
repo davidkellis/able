@@ -1,5 +1,4 @@
-package collections.tree_map
-
+package tree_map
 import able.collections.array.{Array}
 import able.core.interfaces.{Ord, Clone, Less, Equal}
 

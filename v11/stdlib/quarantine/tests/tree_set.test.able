@@ -1,4 +1,4 @@
-package collections.tree_set.specs
+package tree_set_specs
 
 import able.testing.rspec.{describe, expect, eq, be_truthy, be_false}
 import able.collections.array.{Array}

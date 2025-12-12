@@ -1,4 +1,4 @@
-package parity.examples.patterns
+package patterns
 
 struct Point {
   x: i32,

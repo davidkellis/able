@@ -34,6 +34,8 @@ declare module "./index" {
 }
 
 const NIL: V10Value = { kind: "nil", value: null };
+// Placeholder detection only runs for standalone expression forms; container nodes like blocks or
+// assignments need to execute normally so nested expressions can evaluate placeholders correctly.
 const EXPRESSION_TYPES = new Set<AST.AstNode["type"]>([
   "Identifier",
   "StringLiteral",
@@ -46,8 +48,6 @@ const EXPRESSION_TYPES = new Set<AST.AstNode["type"]>([
   "UnaryExpression",
   "BinaryExpression",
   "FunctionCall",
-  "BlockExpression",
-  "AssignmentExpression",
   "RangeExpression",
   "StringInterpolation",
   "MemberAccessExpression",

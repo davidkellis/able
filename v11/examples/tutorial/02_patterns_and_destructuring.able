@@ -1,4 +1,4 @@
-package tutorial.patterns
+package patterns
 
 struct Point { x: i32, y: i32 }
 struct Dimensions { i32, i32 }

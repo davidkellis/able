@@ -1,4 +1,4 @@
-package collections.persistent_set.specs
+package persistent_set_specs
 
 import able.testing.rspec.{describe, expect, eq, be_truthy, be_false}
 import able.collections.persistent_map.{PersistentSet}

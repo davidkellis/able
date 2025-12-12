@@ -44,13 +44,3 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 ### v11 Spec Delta Implementation Plan
 - [ ] **Stdlib API expansions (regex, §§6.12 & 14.2)** — **lowest priority; defer until higher items advance.**
    - **Tests:** expand stdlib test suites + fixtures to cover each helper, regex compilation failures, streaming use cases, and confirm both interpreters return identical traces.
-
-### Tutorials & Examples (cleanup backlog)
-- Latest ablets/ablego sweep:
-  - Root examples pass (`assign/greet/hello_world/loop`); `greet_typecheck_fail` intentionally errors.
-  - Leetcode + Rosetta Code now run in TS/Go (regex match, arrays, etc.); prior TS `isIntegerPrimitiveType` crash fixed.
-  - Tutorials: 01/02a/02/03/04/05/06/07/08/09/10/11/12 pass TS+Go after placeholder, loader, and lambda body fixes.
-  - Remaining issues:
-    * tutorial/13_packages_and_imports_math|strings have no `main` (support modules; only `13_packages_and_imports_main` is runnable).
-    * tutorial/14_host_interop: Go runtime fails (`read_text` undefined); TypeScript passes.
-    * Parser should reject prefix `match <expr> { ... }` (spec allows only `<expr> match { ... }`).

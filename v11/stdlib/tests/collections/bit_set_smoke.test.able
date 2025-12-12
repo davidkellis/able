@@ -1,4 +1,4 @@
-package collections.bit_set.tests
+package bit_set_tests
 
 import able.collections.array.{Array}
 import able.collections.bit_set.{BitSet}

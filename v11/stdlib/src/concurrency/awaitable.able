@@ -1,5 +1,3 @@
-package concurrency
-
 struct AwaitWaker {
   wake: fn() -> void
 }

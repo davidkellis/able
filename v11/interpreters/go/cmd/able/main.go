@@ -318,12 +318,6 @@ func collectSearchPaths(base string, extra ...string) []driver.SearchPath {
 		if kind != driver.RootStdlib && looksLikeKernelPathCLI(abs) {
 			kind = driver.RootStdlib
 		}
-		if kind == driver.RootStdlib && strings.HasSuffix(abs, string(os.PathSeparator)+"src") {
-			parent := filepath.Dir(abs)
-			if _, err := os.Stat(filepath.Join(parent, "package.yml")); err == nil {
-				abs = parent
-			}
-		}
 		info, err := os.Stat(abs)
 		if err != nil || !info.IsDir() {
 			return

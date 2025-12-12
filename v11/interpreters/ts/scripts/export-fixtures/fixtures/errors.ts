@@ -440,11 +440,11 @@ const errorsFixtures: Fixture[] = [
         AST.id("bad"),
       ]),
       manifest: {
-        description: "UFCS ignores static methods that lack a self parameter",
+        description: "Static method called without qualifying type; call resolves but argument types must match",
         expect: {
-          errors: ["Undefined variable 'build'"],
-          typecheckDiagnostics: [
-            "typechecker: ../fixtures/ast/errors/ufcs_static_method_not_found/source.able:13:8 typechecker: undefined identifier 'build'",
+          errors: [
+            "Parameter type mismatch for 'start': expected i32, got Counter at ../../../../fixtures/ast/errors/ufcs_static_method_not_found/source.able:14:14",
+            "Parameter type mismatch for 'start': expected i32, got Counter",
           ],
         },
       },

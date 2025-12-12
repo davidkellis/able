@@ -1,5 +1,4 @@
-package core.iteration
-
+package iteration
 ## Sentinel returned by Iterator.next() to signal completion.
 struct IteratorEnd {}
 

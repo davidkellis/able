@@ -552,6 +552,9 @@ func scanPackageDeclaration(path string) ([]string, error) {
 			return nil, nil
 		}
 		parts := strings.Split(rest, ".")
+		if len(parts) > 1 {
+			return nil, fmt.Errorf("loader: package declaration must be unqualified in %s", path)
+		}
 		segments := make([]string, 0, len(parts))
 		for _, part := range parts {
 			part = strings.TrimSpace(part)
@@ -586,7 +589,13 @@ func buildPackageSegments(rootDir, rootPackage, filePath string, declared []stri
 			segments = append(segments, sanitizeSegment(part))
 		}
 	}
-	segments = append(segments, declared...)
+	for _, part := range declared {
+		clean := sanitizeSegment(part)
+		if clean == "" {
+			continue
+		}
+		segments = append(segments, clean)
+	}
 	return segments, nil
 }
 
@@ -610,16 +619,6 @@ func computePackageSegments(rootDir, rootPackage, filePath string, module *ast.M
 }
 
 func resolvePackageSegments(rootDir, rootPackage, filePath string, declared []string, kind RootKind) ([]string, error) {
-	if kind == RootStdlib && len(declared) > 0 {
-		segments := []string{sanitizeSegment(rootPackage)}
-		for _, part := range declared {
-			if part == "" {
-				continue
-			}
-			segments = append(segments, sanitizeSegment(part))
-		}
-		return segments, nil
-	}
 	return buildPackageSegments(rootDir, rootPackage, filePath, declared)
 }
 

@@ -16,6 +16,8 @@ func (i *Interpreter) evaluateFunctionCall(call *ast.FunctionCall, env *runtime.
 		if member.Safe && isNilRuntimeValue(target) {
 			return runtime.NilValue{}, nil
 		}
+		// When a member access appears in callee position, prefer methods over fields so
+		// method names that overlap with struct fields still bind to the callable.
 		calleeVal, err := i.memberAccessOnValueWithOptions(target, member.Member, env, true)
 		if err != nil {
 			return nil, err

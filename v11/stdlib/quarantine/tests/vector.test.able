@@ -1,4 +1,4 @@
-package collections.vector.specs
+package vector_specs
 
 import able.testing.assertions.{AssertionError}
 import able.testing.rspec.{describe, expect, eq}

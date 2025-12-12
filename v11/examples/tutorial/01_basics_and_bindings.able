@@ -1,10 +1,10 @@
-package tutorial.basics
+package basics
 
 fn greet(name: String) -> String {
   `Hello, ${name}!`
 }
 
-fn main() -> void {
+fn main() {
   language := "Able"
   version: f64 := 11.0
   is_fun := true

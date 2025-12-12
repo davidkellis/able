@@ -1,4 +1,4 @@
-package packages.math
+package tutorial13_math
 
 struct Pair { left: i32, right: i32 }
 

@@ -1,4 +1,4 @@
-package collections.range.tests
+package range_tests
 
 import able.collections.range.{IntRangeFactory}
 import able.core.iteration.{IteratorEnd}
