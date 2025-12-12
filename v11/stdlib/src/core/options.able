@@ -1,5 +1,4 @@
-package core.options
-
+package options
 import able.core.interfaces.{Error}
 
 ## Canonical Option/Result unions used throughout the spec.

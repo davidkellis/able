@@ -1,5 +1,4 @@
-package collections.hash_set
-
+package hash_set
 import able.collections.array.{Array}
 import able.collections.hash_map.{HashMap}
 import able.collections.set.{Set}

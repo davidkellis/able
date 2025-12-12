@@ -1,5 +1,4 @@
-package collections.enumerable
-
+package enumerable
 import able.collections.array.{Array}
 
 struct Indexed T {

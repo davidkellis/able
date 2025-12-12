@@ -1,4 +1,4 @@
-package collections.heap.tests
+package heap_tests
 
 import able.collections.heap.{Heap}
 

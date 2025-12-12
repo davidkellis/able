@@ -1,4 +1,4 @@
-package collections.list.tests
+package list_tests
 
 import able.collections.list.{List}
 import able.core.iteration.{IteratorEnd}

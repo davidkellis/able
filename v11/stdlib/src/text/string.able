@@ -1,5 +1,4 @@
-package text.string
-
+package string
 import able.collections.array.{Array}
 import able.core.interfaces.{Clone, Error}
 import able.core.iteration.{Iterable, Iterator, IteratorEnd}

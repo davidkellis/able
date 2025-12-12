@@ -1,4 +1,4 @@
-package parity.examples.proc
+package proc
 
 fn main() {
   count := 0

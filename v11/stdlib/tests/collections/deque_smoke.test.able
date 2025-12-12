@@ -1,4 +1,4 @@
-package collections.deque.tests
+package deque_tests
 
 import able.collections.deque.{Deque}
 import able.core.iteration.{IteratorEnd}

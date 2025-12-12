@@ -1,4 +1,4 @@
-package collections.persistent_map.specs
+package persistent_map_specs
 
 import able.testing.assertions.{AssertionError}
 import able.testing.rspec.{describe, expect, eq, be_truthy, be_false}

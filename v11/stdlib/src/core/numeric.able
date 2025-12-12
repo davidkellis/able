@@ -1,5 +1,4 @@
-package core.numeric
-
+package numeric
 import able.core.errors.{DivisionByZeroError, OverflowError}
 import able.core.interfaces.{Error}
 import able.core.options.{Result}

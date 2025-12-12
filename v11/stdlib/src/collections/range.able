@@ -1,5 +1,4 @@
-package collections.range
-
+package range
 import able.core.iteration.{Iterator, Iterable, Range}
 
 struct IntRange {

@@ -27,6 +27,9 @@ export function parsePackageStatement(ctx: ParseContext, node: Node): AST.Packag
   if (parts.length === 0) {
     throw new MapperError("parser: empty package statement");
   }
+  if (parts.length !== 1) {
+    throw new MapperError("parser: package statement must use a single, unqualified name");
+  }
   return annotate(AST.packageStatement(parts, false), node) as AST.PackageStatement;
 }
 

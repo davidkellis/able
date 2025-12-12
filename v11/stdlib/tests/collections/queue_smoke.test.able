@@ -1,4 +1,4 @@
-package collections.queue.tests
+package queue_tests
 
 import able.collections.queue.{Queue}
 import able.core.iteration.{IteratorEnd}

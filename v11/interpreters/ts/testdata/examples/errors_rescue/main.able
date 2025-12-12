@@ -1,4 +1,4 @@
-package parity.examples.errors
+package errors
 
 fn describe(value: i32) -> String {
   do {

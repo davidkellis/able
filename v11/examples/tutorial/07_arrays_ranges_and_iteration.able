@@ -1,4 +1,4 @@
-package tutorial.iteration
+package iteration
 
 import able.collections.array
 

@@ -1,4 +1,4 @@
-package tutorial.interfaces
+package interfaces
 
 interface Formatter {
   fn format(self: Self) -> String

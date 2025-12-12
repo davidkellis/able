@@ -1,4 +1,4 @@
-package tutorial.functions
+package functions
 
 import able.collections.array
 

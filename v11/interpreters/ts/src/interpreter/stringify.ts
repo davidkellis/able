@@ -53,10 +53,14 @@ export function applyStringifyAugmentations(cls: typeof InterpreterV10): void {
             if (rv.kind === "String") return rv.value;
           } catch {}
         }
+        const renderEntries = (entries: string[]): string => {
+          const inner = entries.join(", ");
+          return inner ? `${v.def.id.name} { ${inner} }` : `${v.def.id.name} { }`;
+        };
         if (Array.isArray(v.values)) {
-          return `${v.def.id.name} { ${v.values.map(e => this.valueToString(e)).join(", ")} }`;
+          return renderEntries(v.values.map(e => this.valueToString(e)));
         }
-        return `${v.def.id.name} { ${Array.from(v.values.entries()).map(([k, val]) => `${k}: ${this.valueToString(val)}`).join(", ")} }`;
+        return renderEntries(Array.from(v.values.entries()).map(([k, val]) => `${k}: ${this.valueToString(val)}`));
       }
       case "package": return `<package ${v.name}>`;
       case "impl_namespace": return `<impl ${v.def.interfaceName.name} for ${v.meta.target.type === "SimpleTypeExpression" ? v.meta.target.name.name : "target"}>`;

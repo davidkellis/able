@@ -1,4 +1,4 @@
-package tutorial.methods
+package methods
 
 struct Counter { value: i32, label: String }
 

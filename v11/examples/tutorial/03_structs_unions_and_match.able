@@ -1,4 +1,4 @@
-package tutorial.unions
+package unions
 
 struct Point { x: f64, y: f64 }
 struct Circle { radius: f64 }

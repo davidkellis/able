@@ -1,4 +1,4 @@
-package collections.linked_list.tests
+package linked_list_tests
 
 import able.collections.array.{Array}
 import able.collections.linked_list.{LinkedList}

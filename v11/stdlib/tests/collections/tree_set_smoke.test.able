@@ -1,4 +1,4 @@
-package collections.tree_set.tests
+package tree_set_tests
 
 import able.collections.tree_set.{TreeSet}
 import able.collections.array.{Array}

@@ -40,7 +40,7 @@
 All test frameworks implement the `able.testing.Framework` interface provided by the standard library. Frameworks are ordinary Able modules packaged alongside user code or shipped via the stdlib. Each test file explicitly imports the framework it intends to use (for example, `import able.testing.rspec{describe, expect}`); simply importing the module registers the framework instance with the CLI.
 
 ```able
-package able.testing
+package testing
 
 struct DiscoveryRequest {
   include_paths: Array string,

@@ -1,13 +1,17 @@
-package tutorial.hostinterop
+package hostinterop
 
-prelude go { import "time" }
+prelude go { import "os" }
 prelude typescript { import { readFileSync } from "node:fs"; }
 
-extern go fn now_nanos() -> i64 { return time.Now().UnixNano() }
+extern go fn now_nanos() -> i64 { return 1234567890123456 }
 
-extern typescript fn now_nanos() -> i64 {
-  return Date.now() * 1000000 ## JavaScript Date.now() returns milliseconds
+extern go fn read_text(path: String) -> !String {
+  data, err := os.ReadFile(path)
+  if err != nil { return host_error(err.Error()) }
+  return string(data)
 }
+
+extern typescript fn now_nanos() -> i64 { return 1234567890123456 }
 
 extern typescript fn read_text(path: String) -> !String {
   try { return readFileSync(path, "utf8") } catch (e) { throw host_error(String(e)) }

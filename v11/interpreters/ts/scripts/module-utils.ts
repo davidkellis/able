@@ -258,6 +258,9 @@ export async function scanPackageDeclaration(filePath: String): Promise<String[]
       }
       if (!body) return null;
       const parts = body.split(".");
+      if (parts.length > 1) {
+        throw new Error(`loader: package declaration must be unqualified in ${filePath}`);
+      }
       const segments = parts.map((part) => sanitizeSegment(part)).filter(Boolean);
       return segments.length > 0 ? segments : null;
     }
@@ -276,10 +279,6 @@ export function buildPackageSegments(
 ): String[] {
   const segments: String[] = [sanitizeSegment(rootPackage) || "pkg"];
   const declaredSegments = declared.map((seg) => sanitizeSegment(seg)).filter(Boolean);
-  if (declaredSegments.length > 0) {
-    segments.push(...declaredSegments);
-    return segments;
-  }
   const rel = path.relative(rootDir, filePath);
   const relDir = path.dirname(rel);
   if (relDir && relDir !== "." && relDir !== path.sep) {
@@ -290,12 +289,7 @@ export function buildPackageSegments(
       }
     }
   }
-  for (const seg of declared) {
-    const sanitized = sanitizeSegment(seg);
-    if (sanitized) {
-      segments.push(sanitized);
-    }
-  }
+  segments.push(...declaredSegments);
   return segments;
 }
 

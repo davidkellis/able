@@ -1,4 +1,4 @@
-package tutorial.operators
+package operators
 
 ## Built-in scalar types: integers, floats, bool, char, String, nil, void.
 fn scalar_showcase() -> void {

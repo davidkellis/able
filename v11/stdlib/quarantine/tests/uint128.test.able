@@ -1,4 +1,4 @@
-package numbers.uint128.specs
+package uint128_specs
 
 import able.numbers.uint128.{UInt128}
 import able.core.interfaces.{Less, Greater}

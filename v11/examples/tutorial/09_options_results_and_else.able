@@ -1,4 +1,4 @@
-package tutorial.results
+package results
 
 import able.collections.array
 import able.core.interfaces.{Error}
