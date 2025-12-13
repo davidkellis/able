@@ -1,6 +1,7 @@
 package bit_set_tests
 
-import able.collections.array.{Array}
+import able.kernel.{Array}
+import able.collections.array
 import able.collections.bit_set.{BitSet}
 
 fn assert(condition: bool, message: String) -> void {

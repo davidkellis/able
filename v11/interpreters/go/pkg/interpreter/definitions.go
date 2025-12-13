@@ -166,7 +166,7 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 	if !ok {
 		return nil, fmt.Errorf("Interface '%s' is not defined", ifaceName)
 	}
-	variants, unionSignatures, err := expandImplementationTargetVariants(def.TargetType)
+	variants, unionSignatures, err := expandImplementationTargetVariants(def.TargetType, i.typeAliases)
 	if err != nil {
 		return nil, err
 	}
@@ -200,8 +200,10 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 		}
 	}
 	constraintSpecs := collectConstraintSpecs(def.GenericParams, def.WhereClause)
-	baseConstraintSig := constraintSignature(constraintSpecs)
-	targetDescription := typeExpressionToString(def.TargetType)
+	baseConstraintSig := constraintSignature(constraintSpecs, func(expr ast.TypeExpression) string {
+		return typeExpressionToString(expandTypeAliases(expr, i.typeAliases, nil))
+	})
+	targetDescription := typeExpressionToString(expandTypeAliases(def.TargetType, i.typeAliases, nil))
 	genericNames := genericNameSet(mergedGenerics)
 	for _, variant := range variants {
 		if def.ImplName == nil {
@@ -255,7 +257,8 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 
 func (i *Interpreter) evaluateMethodsDefinition(def *ast.MethodsDefinition, env *runtime.Environment) (runtime.Value, error) {
 	var typeName string
-	switch t := def.TargetType.(type) {
+	target := expandTypeAliases(def.TargetType, i.typeAliases, nil)
+	switch t := target.(type) {
 	case *ast.SimpleTypeExpression:
 		if t.Name == nil {
 			return nil, fmt.Errorf("MethodsDefinition requires simple target type")

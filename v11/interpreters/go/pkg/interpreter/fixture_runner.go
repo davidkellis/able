@@ -18,6 +18,7 @@ import (
 var (
 	repoRoot               = repositoryRoot()
 	stdlibRoot             = fallbackPath(filepath.Join(repoRoot, "v11", "stdlib", "src"), filepath.Join("..", "..", "stdlib", "src"))
+	kernelRoot             = fallbackPath(filepath.Join(repoRoot, "v11", "kernel", "src"), filepath.Join("..", "..", "kernel", "src"))
 	stdlibStringEntry      = filepath.Join(stdlibRoot, "text", "string.able")
 	typecheckBaselineOnce  sync.Once
 	typecheckBaselineData  map[string][]string
@@ -75,10 +76,13 @@ func runFixtureWithExecutor(t testingT, dir string, rel string, executor Executo
 
 	entryModule := fixtureDriverModule(module, moduleOrigin)
 	added[entryModule.Package] = true
-	recordImports(imports, entryModule.Imports)
+		recordImports(imports, entryModule.Imports)
 	if hasImport(imports, "able.text.string") {
 		if stdlibLoader == nil {
-			loader, err := driver.NewLoader([]driver.SearchPath{{Path: stdlibRoot, Kind: driver.RootStdlib}})
+			loader, err := driver.NewLoader([]driver.SearchPath{
+				{Path: stdlibRoot, Kind: driver.RootStdlib},
+				{Path: kernelRoot, Kind: driver.RootStdlib},
+			})
 			if err != nil {
 				t.Fatalf("stdlib loader init: %v", err)
 			}
@@ -102,7 +106,10 @@ func runFixtureWithExecutor(t testingT, dir string, rel string, executor Executo
 	}
 	if hasImportWithPrefix(imports, "able.concurrency") {
 		if stdlibLoader == nil {
-			loader, err := driver.NewLoader([]driver.SearchPath{{Path: stdlibRoot, Kind: driver.RootStdlib}})
+			loader, err := driver.NewLoader([]driver.SearchPath{
+				{Path: stdlibRoot, Kind: driver.RootStdlib},
+				{Path: kernelRoot, Kind: driver.RootStdlib},
+			})
 			if err != nil {
 				t.Fatalf("stdlib loader init: %v", err)
 			}

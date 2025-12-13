@@ -1,5 +1,6 @@
 package enumerable
-import able.collections.array.{Array}
+import able.kernel.{Array}
+import able.collections.array
 
 struct Indexed T {
   value: T,

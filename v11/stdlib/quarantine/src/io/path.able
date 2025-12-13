@@ -1,6 +1,7 @@
 package io
 
-import able.collections.array{Array}
+import able.kernel.{Array}
+import able.collections.array
 
 ## Immutable, normalized representation of filesystem paths.
 struct Path {

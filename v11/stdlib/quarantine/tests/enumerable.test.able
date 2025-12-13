@@ -2,7 +2,8 @@ package collections_specs
 
 import able.testing.assertions.{AssertionError}
 import able.testing.rspec.{describe, expect, eq, be_truthy, be_false}
-import able.collections.array.{Array}
+import able.kernel.{Array}
+import able.collections.array
 
 describe("Enumerable helpers") { suite =>
   suite.it("maps and filters arrays") { _ctx =>

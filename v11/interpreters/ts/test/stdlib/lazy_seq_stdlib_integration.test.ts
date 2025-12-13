@@ -50,7 +50,8 @@ describe("stdlib-backed lazy seq helpers", () => {
         `
 package main
 
-import able.collections.array.{Array}
+import able.kernel.{Array}
+import able.collections.array
 import able.collections.lazy_seq.{LazySeq}
 import able.core.iteration.{Iterator, IteratorEnd}
 

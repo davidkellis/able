@@ -2,7 +2,8 @@
 ## Do not edit directly; update the files under stdlib/src/testing/rspec/parts and rerun the builder.
 package rspec
 
-import able.collections.array.{Array}
+import able.kernel.{Array}
+import able.collections.array
 import able.core.interfaces.{Error}
 import able.testing.assertions.{
   AssertionError,

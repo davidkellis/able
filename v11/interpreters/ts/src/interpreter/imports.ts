@@ -60,6 +60,18 @@ export function evaluateImportStatement(ctx: InterpreterV10, node: AST.ImportSta
       const original = sel.name.name;
       const alias = sel.alias ? sel.alias.name : original;
       let val: V10Value | null = null;
+      const fq = pkg ? `${pkg}.${original}` : original;
+      const reexports: Record<string, string> = {
+        "able.collections.array.Array": "able.kernel.Array",
+        "able.collections.range.Range": "able.kernel.Range",
+        "able.collections.range.RangeFactory": "able.kernel.RangeFactory",
+        "able.core.numeric.Ratio": "able.kernel.Ratio",
+        "able.concurrency.Channel": "able.kernel.Channel",
+        "able.concurrency.Mutex": "able.kernel.Mutex",
+        "able.concurrency.Awaitable": "able.kernel.Awaitable",
+        "able.concurrency.AwaitWaker": "able.kernel.AwaitWaker",
+        "able.concurrency.AwaitRegistration": "able.kernel.AwaitRegistration",
+      };
       if (pkg) {
         try { val = ctx.globals.get(`${pkg}.${original}`); } catch {}
       }
@@ -68,6 +80,12 @@ export function evaluateImportStatement(ctx: InterpreterV10, node: AST.ImportSta
       }
       if (!val && pkg) {
         try { val = ctx.globals.get(`${pkg}.${original}`); } catch {}
+      }
+      if (!val) {
+        const fallback = reexports[fq];
+        if (fallback) {
+          try { val = ctx.globals.get(fallback); } catch {}
+        }
       }
       if (!val) throw new Error(`Import error: symbol '${original}'${pkg ? ` from '${pkg}'` : ""} not found in globals`);
       if (val.kind === "function" && val.node.type === "FunctionDefinition" && val.node.isPrivate) {

@@ -1,6 +1,7 @@
 package collections
 
-import able.collections.array.{Array}
+import able.kernel.{Array}
+import able.collections.array
 import able.collections.enumerable.{Enumerable}
 import able.core.interfaces.{Hash, Hasher, Eq, Clone}
 

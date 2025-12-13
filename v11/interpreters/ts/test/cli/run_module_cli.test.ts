@@ -316,7 +316,7 @@ fn kernel_ready() -> bool { true }
 package locked_app
 
 import able.locktest.{greeting}
-import kernel.boot.{kernel_ready}
+import able.kernel.boot.{kernel_ready}
 
 fn main() -> void {
   if kernel_ready() {

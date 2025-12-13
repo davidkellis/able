@@ -1,6 +1,7 @@
 package testing
 
-import able.collections.array.{Array}
+import able.kernel.{Array}
+import able.collections.array
 import able.core.interfaces.{Error, Eq}
 import able.testing.snapshots.{SnapshotStore, default_snapshot_store}
 import able.text.regex.{regex_is_match}

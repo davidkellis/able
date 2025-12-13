@@ -20,7 +20,8 @@ type targetVariant struct {
 	signature    string
 }
 
-func expandImplementationTargetVariants(target ast.TypeExpression) ([]targetVariant, []string, error) {
+func expandImplementationTargetVariants(target ast.TypeExpression, aliases map[string]*ast.TypeAliasDefinition) ([]targetVariant, []string, error) {
+	target = expandTypeAliases(target, aliases, nil)
 	switch t := target.(type) {
 	case *ast.SimpleTypeExpression:
 		if t.Name == nil {
@@ -43,7 +44,7 @@ func expandImplementationTargetVariants(target ast.TypeExpression) ([]targetVari
 		var variants []targetVariant
 		signatureSet := make(map[string]struct{})
 		for _, member := range t.Members {
-			childVariants, childSigs, err := expandImplementationTargetVariants(member)
+			childVariants, childSigs, err := expandImplementationTargetVariants(member, aliases)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -99,13 +100,13 @@ func collectConstraintSpecs(generics []*ast.GenericParameter, whereClause []*ast
 	return specs
 }
 
-func constraintSignature(specs []constraintSpec) string {
+func constraintSignature(specs []constraintSpec, stringify func(ast.TypeExpression) string) string {
 	if len(specs) == 0 {
 		return "<none>"
 	}
 	parts := make([]string, 0, len(specs))
 	for _, spec := range specs {
-		parts = append(parts, fmt.Sprintf("%s->%s", spec.typeParam, typeExpressionToString(spec.ifaceType)))
+		parts = append(parts, fmt.Sprintf("%s->%s", spec.typeParam, stringify(spec.ifaceType)))
 	}
 	sort.Strings(parts)
 	return strings.Join(parts, "&")
@@ -461,9 +462,11 @@ func (i *Interpreter) typeHasMethod(info typeInfo, methodName, ifaceName string)
 	if info.name == "" {
 		return false
 	}
-	if bucket, ok := i.inherentMethods[info.name]; ok {
-		if _, exists := bucket[methodName]; exists {
-			return true
+	for _, name := range i.canonicalTypeNames(info.name) {
+		if bucket, ok := i.inherentMethods[name]; ok {
+			if _, exists := bucket[methodName]; exists {
+				return true
+			}
 		}
 	}
 	method, err := i.findMethod(info, methodName, ifaceName)

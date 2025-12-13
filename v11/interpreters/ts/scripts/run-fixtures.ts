@@ -34,9 +34,10 @@ const WRITE_TYPECHECK_BASELINE = process.argv.includes("--write-typecheck-baseli
 const FIXTURE_FILTER = process.env.ABLE_FIXTURE_FILTER?.trim() ?? null;
 const BASELINE_ENABLED = TYPECHECK_MODE !== "off" && !FIXTURE_FILTER;
 const STDLIB_ROOT = path.resolve(__dirname, "../../../stdlib/src");
+const KERNEL_ROOT = path.resolve(__dirname, "../../../kernel/src");
 const STDLIB_STRING_ENTRY = path.join(STDLIB_ROOT, "text", "string.able");
 const STDLIB_CONCURRENCY_ENTRY = path.join(STDLIB_ROOT, "concurrency", "await.able");
-const stdlibLoader = new ModuleLoader([STDLIB_ROOT]);
+const stdlibLoader = new ModuleLoader([STDLIB_ROOT, KERNEL_ROOT]);
 let stdlibStringProgram: Program | null = null;
 let stdlibConcurrencyProgram: Program | null = null;
 

@@ -451,11 +451,13 @@ func (i *Interpreter) resolveMethodFromPool(env *runtime.Environment, funcName s
 	}
 
 	if info, ok := i.getTypeInfoForValue(receiver); ok {
-		if bucket, ok := i.inherentMethods[info.name]; ok {
-			if method := bucket[funcName]; method != nil {
-				if callable, ok := i.selectUfcsCallable(method, receiver, true); ok {
-					if err := addCallable(callable, info.name); err != nil {
-						return nil, err
+		for _, name := range i.canonicalTypeNames(info.name) {
+			if bucket, ok := i.inherentMethods[name]; ok {
+				if method := bucket[funcName]; method != nil {
+					if callable, ok := i.selectUfcsCallable(method, receiver, true); ok {
+						if err := addCallable(callable, name); err != nil {
+							return nil, err
+						}
 					}
 				}
 			}

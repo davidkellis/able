@@ -409,11 +409,13 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
   cls.prototype.matchImplEntry = function matchImplEntry(this: InterpreterV10, entry: ImplMethodEntry, opts?: { typeArgs?: AST.TypeExpression[]; typeArgMap?: Map<string, AST.TypeExpression>; subjectType?: AST.TypeExpression }): Map<string, AST.TypeExpression> | null {
   const bindings = new Map<string, AST.TypeExpression>();
   const genericNames = collectImplGenericNames(entry);
-  if (opts?.subjectType) {
-    this.matchTypeExpressionTemplate(entry.def.targetType, opts.subjectType, genericNames, bindings);
+  const canonicalTemplate = this.expandTypeAliases(entry.def.targetType);
+  const canonicalSubject = opts?.subjectType ? this.expandTypeAliases(opts.subjectType) : undefined;
+  if (canonicalTemplate && canonicalSubject) {
+    this.matchTypeExpressionTemplate(canonicalTemplate, canonicalSubject, genericNames, bindings);
   }
-  const expectedArgs = entry.targetArgTemplates;
-  const actualArgs = opts?.typeArgs;
+  const expectedArgs = entry.targetArgTemplates.map(t => this.expandTypeAliases(t));
+  const actualArgs = opts?.typeArgs?.map(t => this.expandTypeAliases(t));
   if (expectedArgs.length > 0) {
     if (!actualArgs || actualArgs.length !== expectedArgs.length) return null;
     for (let i = 0; i < expectedArgs.length; i++) {
@@ -434,6 +436,9 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
 };
 
   cls.prototype.matchTypeExpressionTemplate = function matchTypeExpressionTemplate(this: InterpreterV10, template: AST.TypeExpression, actual: AST.TypeExpression, genericNames: Set<string>, bindings: Map<string, AST.TypeExpression>): boolean {
+  if (template.type === "WildcardTypeExpression" || actual.type === "WildcardTypeExpression") {
+    return true;
+  }
   if (template.type === "SimpleTypeExpression") {
     const name = template.name.name;
     if (genericNames.has(name)) {
@@ -459,9 +464,10 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
 };
 
   cls.prototype.expandImplementationTargetVariants = function expandImplementationTargetVariants(this: InterpreterV10, target: AST.TypeExpression): Array<{ typeName: string; argTemplates: AST.TypeExpression[]; signature: string }> {
-  if (target.type === "UnionTypeExpression") {
+  const canonical = this.expandTypeAliases(target);
+  if (canonical.type === "UnionTypeExpression") {
     const expanded: Array<{ typeName: string; argTemplates: AST.TypeExpression[]; signature: string }> = [];
-    for (const member of target.members) {
+    for (const member of canonical.members) {
       const memberVariants = this.expandImplementationTargetVariants(member);
       for (const variant of memberVariants) expanded.push(variant);
     }
@@ -477,19 +483,19 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
     }
     return unique;
   }
-  if (target.type === "SimpleTypeExpression") {
-    const signature = this.typeExpressionToString(target);
-    return [{ typeName: target.name.name, argTemplates: [], signature }];
+  if (canonical.type === "SimpleTypeExpression") {
+    const signature = this.typeExpressionToString(canonical);
+    return [{ typeName: canonical.name.name, argTemplates: [], signature }];
   }
-  if (target.type === "GenericTypeExpression") {
+  if (canonical.type === "GenericTypeExpression") {
     const argTemplates: AST.TypeExpression[] = [];
-    let current: AST.TypeExpression = target;
+    let current: AST.TypeExpression = canonical;
     while (current.type === "GenericTypeExpression") {
       if (current.arguments) argTemplates.unshift(...current.arguments);
       current = current.base;
     }
     if (current.type === "SimpleTypeExpression") {
-      const signature = this.typeExpressionToString(target);
+      const signature = this.typeExpressionToString(canonical);
       return [{ typeName: current.name.name, argTemplates, signature }];
     }
   }

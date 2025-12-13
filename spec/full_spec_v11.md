@@ -4113,6 +4113,15 @@ The `import` statement makes identifiers from other packages available in the cu
     *   `::` in imports is the rename operator only; package traversal continues to use dot (`.`). Outside imports and struct patterns, `::` has no meaning.
 *   **Scope**: Imports can occur at the top level of a file (package scope) or within any local scope (e.g., inside a function).
 *   **Binding Semantics**: Importing an identifier creates a new binding in the current scope. This binding refers to the same underlying definition (function, type, etc.) as the original identifier in the imported package.
+*   **Re-exports preserve identity**:
+    -   Selective or wildcard imports that are immediately re-exported (e.g., `import able.kernel.{Array}; export Array;` or `export * from able.kernel;`) do **not** create a new type. They bind the same nominal definition to an additional package path.
+    -   Method or `impl` blocks declared for a re-exported struct/union/interface extend that original nominal type. Once the exporting package is imported, those methods become available on all values of that type, regardless of where the value was constructed.
+    -   The only way to get a distinct nominal type is to declare a new `struct/union/interface` with its own name. Aliases (§4.7) and re-exports never introduce a fresh nominal type.
+*   **Aliases extend the underlying type (even when the alias is private)**:
+    -   `type Alias = Target` never introduces a new nominal type. Any `methods Alias { ... }` or `impl Interface for Alias` attaches to `Target`.
+    -   The alias binding itself follows normal visibility rules; a private alias cannot be imported. However, public methods/impls defined for that alias are exported and become available to all packages that import the defining package. Consumers do **not** need the alias binding to call those methods; importing the package is enough.
+    -   This applies to all packages, not just `able.kernel`: a package that wraps `foo.Bar` with `type Baz = foo.Bar` can add methods on `Baz`, and those methods extend `foo.Bar` for any client that imports the wrapper package.
+    -   Implementations and method sets must be keyed by the canonical underlying type so that alias visibility does not gate method availability. The only way to obtain a distinct nominal type is to declare a fresh `struct/union/interface`.
 
 #### Dynamic Imports (`dynimport`)
 

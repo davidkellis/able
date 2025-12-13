@@ -1,11 +1,38 @@
-package kernel
-
 ## Minimal host bridge surface loaded ahead of workspace code.
 
 type ArrayHandle = i64
 type ChannelHandle = i64
 type MutexHandle = i64
 type HasherHandle = i64
+
+## Core language structs. Stdlib layers richer APIs on top of these shapes.
+struct Array T {
+  length: i32,
+  capacity: i32,
+  storage_handle: ArrayHandle
+}
+
+struct Ratio {
+  num: i64,
+  den: i64
+}
+
+struct Range {
+  start: i32,
+  end: i32,
+  inclusive: bool
+}
+
+struct RangeFactory {}
+
+struct Channel T {
+  capacity: i32,
+  handle: ChannelHandle
+}
+
+struct Mutex {
+  handle: MutexHandle
+}
 
 struct AwaitWaker { wake: fn() -> void }
 
@@ -16,6 +43,87 @@ interface Awaitable Output for Self {
   fn register(self: Self, waker: AwaitWaker) -> AwaitRegistration;
   fn commit(self: Self) -> Output;
   fn is_default(self: Self) -> bool { false }
+}
+
+## Base Array operations backed by host bridges.
+methods Array T {
+  fn new() -> Array T {
+    handle := __able_array_new()
+    arr := Array { length: 0, capacity: 0, storage_handle: handle }
+    arr.refresh_metadata()
+    arr
+  }
+
+  fn with_capacity(capacity: i32) -> Array T {
+    handle := __able_array_with_capacity(capacity)
+    arr := Array { length: 0, capacity: capacity, storage_handle: handle }
+    arr.refresh_metadata()
+    arr
+  }
+
+  fn size(self: Self) -> u64 {
+    len := self.len()
+    if len <= 0 { 0 } else { len }
+  }
+
+  fn len(self: Self) -> i32 {
+    self.length = __able_array_size(self.storage_handle)
+    self.length
+  }
+
+  fn capacity(self: Self) -> i32 {
+    self.capacity = __able_array_capacity(self.storage_handle)
+    self.capacity
+  }
+
+  fn is_empty(self: Self) -> bool { self.len() == 0 }
+
+  fn push(self: Self, value: T) -> void {
+    self.refresh_metadata()
+    __able_array_write(self.storage_handle, self.length, value)
+    self.refresh_metadata()
+  }
+
+  fn pop(self: Self) -> ?T {
+    self.refresh_metadata()
+    if self.length <= 0 { return nil }
+    idx := self.length - 1
+    value := __able_array_read(self.storage_handle, idx)
+    __able_array_set_len(self.storage_handle, idx)
+    self.refresh_metadata()
+    value
+  }
+
+  fn clear(self: Self) -> void {
+    __able_array_set_len(self.storage_handle, 0)
+    self.refresh_metadata()
+  }
+
+  fn read_slot(self: Self, idx: i32) -> T {
+    __able_array_read(self.storage_handle, idx)
+  }
+
+  fn write_slot(self: Self, idx: i32, value: T) -> void {
+    __able_array_write(self.storage_handle, idx, value)
+  }
+
+  fn reserve(self: Self, capacity: i32) -> void {
+    handle := __able_array_reserve(self.storage_handle, capacity)
+    self.storage_handle = handle
+    self.refresh_metadata()
+  }
+
+  fn clone_shallow(self: Self) -> Array T {
+    handle := __able_array_clone(self.storage_handle)
+    cloned := Array { length: self.length, capacity: self.capacity, storage_handle: handle }
+    cloned.refresh_metadata()
+    cloned
+  }
+
+  fn refresh_metadata(self: Self) -> void {
+    self.length = __able_array_size(self.storage_handle)
+    self.capacity = __able_array_capacity(self.storage_handle)
+  }
 }
 
 ## Array buffer hooks
@@ -45,6 +153,69 @@ extern typescript fn __able_char_from_codepoint(value: i32) -> char {}
 extern go fn __able_String_from_builtin(value: String) -> _ {}
 extern go fn __able_String_to_builtin(bytes: _) -> String {}
 extern go fn __able_char_from_codepoint(value: i32) -> char {}
+
+## Numeric bridges
+extern typescript fn __able_ratio_from_float(value: f64) -> _ {}
+extern go fn __able_ratio_from_float(value: f64) -> _ {}
+
+## Channel primitives
+methods Channel T {
+  fn new(capacity: i32) -> Channel T {
+    handle := __able_channel_new(capacity)
+    Channel { capacity: capacity, handle: handle }
+  }
+
+  fn send(self: Self, value: T) -> void {
+    __able_channel_send(self.handle, value)
+  }
+
+  fn receive(self: Self) -> ?T {
+    __able_channel_receive(self.handle)
+  }
+
+  fn try_send(self: Self, value: T) -> bool {
+    __able_channel_try_send(self.handle, value)
+  }
+
+  fn try_receive(self: Self) -> ?T {
+    __able_channel_try_receive(self.handle)
+  }
+
+  fn await_receive<R>(self: Self, callback: fn(?T) -> R) -> (Awaitable R) {
+    __able_channel_await_try_recv(self.handle, callback)
+  }
+
+  fn await_send<R>(self: Self, value: T, callback: fn() -> R) -> (Awaitable R) {
+    __able_channel_await_try_send(self.handle, value, callback)
+  }
+
+  fn close(self: Self) -> void {
+    __able_channel_close(self.handle)
+  }
+
+  fn is_closed(self: Self) -> bool {
+    __able_channel_is_closed(self.handle)
+  }
+}
+
+## Mutex primitives
+methods Mutex {
+  fn new() -> Mutex {
+    Mutex { handle: __able_mutex_new() }
+  }
+
+  fn lock(self: Self) -> void {
+    __able_mutex_lock(self.handle)
+  }
+
+  fn unlock(self: Self) -> void {
+    __able_mutex_unlock(self.handle)
+  }
+
+  fn await_lock<R>(self: Self, callback: fn() -> R) -> (Awaitable R) {
+    __able_mutex_await_lock(self.handle, callback)
+  }
+}
 
 ## Channel bridges
 extern typescript fn __able_channel_new(capacity: i32) -> ChannelHandle {}
@@ -76,6 +247,21 @@ extern go fn __able_mutex_lock(handle: MutexHandle) -> void {}
 extern go fn __able_mutex_unlock(handle: MutexHandle) -> void {}
 extern go fn __able_mutex_await_lock(handle: MutexHandle, callback: fn() -> _) -> (Awaitable _) {}
 
+## Range primitives
+methods RangeFactory {
+  fn inclusive_range(start: i32, finish: i32) -> Range {
+    Range { start: start, end: finish, inclusive: true }
+  }
+
+  fn exclusive_range(start: i32, finish: i32) -> Range {
+    Range { start: start, end: finish, inclusive: false }
+  }
+}
+
+methods Range {
+  fn is_inclusive(self: Self) -> bool { self.inclusive }
+}
+
 ## Await helpers
 extern typescript fn __able_await_default(callback: fn() -> _) -> (Awaitable _) {}
 extern typescript fn __able_await_sleep_ms(duration: i64, callback: fn() -> _) -> (Awaitable _) {}
@@ -89,3 +275,13 @@ extern typescript fn __able_hasher_finish(handle: HasherHandle) -> i64 {}
 extern go fn __able_hasher_create() -> HasherHandle {}
 extern go fn __able_hasher_write(handle: HasherHandle, bytes: String) -> void {}
 extern go fn __able_hasher_finish(handle: HasherHandle) -> i64 {}
+
+## Ratio primitives
+fn ratio_from_float(value: f64) -> Ratio {
+  __able_ratio_from_float(value)
+}
+
+methods Ratio {
+  fn numerator(self: Self) -> i64 { self.num }
+  fn denominator(self: Self) -> i64 { self.den }
+}

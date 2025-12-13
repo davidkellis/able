@@ -2,8 +2,9 @@ package channel_mutex_specs
 
 import able.testing.assertions{AssertionError}
 import able.testing.rspec{describe, expect, eq, be_truthy, raise_error}
-import able.concurrency.channel{Channel}
-import able.concurrency.mutex{Mutex, with_lock}
+import able.kernel.{Channel, Mutex}
+import able.concurrency
+import able.concurrency.{with_lock}
 
 describe("Channel") { suite =>
   suite.it("supports send/receive/close operations") { _ctx =>

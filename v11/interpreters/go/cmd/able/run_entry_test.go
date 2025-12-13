@@ -362,7 +362,7 @@ packages:
 package main
 
 import able.locktest.{greeting}
-import kernel.boot.{kernel_ready}
+import able.kernel.boot.{kernel_ready}
 
 fn main() {
   if kernel_ready() {

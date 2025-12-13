@@ -1,7 +1,8 @@
 package linked_list_specs
 
 import able.testing.rspec.{describe, expect, eq, be_truthy}
-import able.collections.array.{Array}
+import able.kernel.{Array}
+import able.collections.array
 import able.collections.linked_list.{LinkedList, ListNode}
 
 describe("LinkedList") { suite =>

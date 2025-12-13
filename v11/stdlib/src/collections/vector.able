@@ -1,5 +1,6 @@
 package vector
-import able.collections.array.{Array}
+import able.kernel.{Array}
+import able.collections.array
 import able.collections.enumerable.{Enumerable}
 import able.core.interfaces.{Default}
 import able.core.iteration.{Iterable, Iterator, IteratorEnd}

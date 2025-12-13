@@ -1,7 +1,8 @@
 package tree_map_tests
 
 import able.collections.tree_map.{TreeMap, TreeEntry}
-import able.collections.array.{Array}
+import able.kernel.{Array}
+import able.collections.array
 
 fn assert(condition: bool, message: String) -> void {
   if condition { return }

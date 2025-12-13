@@ -4,6 +4,7 @@ import type { DeclarationsContext } from "./declarations";
 import type { ImplementationRecord, MethodSetRecord } from "./types";
 
 export interface ImplementationContext extends DeclarationsContext {
+  getTypeAlias?(name: string): AST.TypeAliasDefinition | undefined;
   formatImplementationTarget(expr: AST.TypeExpression | null | undefined): string | null;
   formatImplementationLabel(interfaceName: string, targetLabel: string): string;
   registerMethodSet(record: MethodSetRecord): void;

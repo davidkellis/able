@@ -1,5 +1,6 @@
 package heap
-import able.collections.array.{Array}
+import able.kernel.{Array}
+import able.collections.array
 import able.core.interfaces.{Ord, Less, Greater}
 
 struct Heap T {

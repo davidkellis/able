@@ -42,5 +42,10 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 ## TODO (working queue: tackle in order, move completed items to LOG.md)
 
 ### v11 Spec Delta Implementation Plan
+- [ ] Alias/re-export method propagation (spec §§4.7, 13.4 updates) — **priority**
+   - **Spec:** Done (v11 spec clarifies that aliases/re-exports never create new nominal types and methods/impls on aliases attach to the underlying type even if the alias binding is private).
+   - **TS implementation:** Canonicalize method/impl receiver types to their underlying definitions when aliases are involved; method sets/impls should be keyed by the canonical type so private aliases don’t block extensions. Ensure import resolution/call resolution does not require the alias symbol to be exported for methods to surface.
+   - **Go implementation:** Mirror the TS behaviour in the typechecker and interpreter import resolution so stdlib wrappers (Array/Channel/Mutex/Range/Ratio) extend kernel types without exporting alias bindings.
+   - **Tests/fixtures:** Add targeted coverage where a package defines a private alias to a foreign type (Array/Channel/Mutex/Range/Ratio), adds public methods/impls, and clients can call those methods after importing the package without importing the alias binding. Cover both typechecker and runtime for TS and Go.
 - [ ] **Stdlib API expansions (regex, §§6.12 & 14.2)** — **lowest priority; defer until higher items advance.**
    - **Tests:** expand stdlib test suites + fixtures to cover each helper, regex compilation failures, streaming use cases, and confirm both interpreters return identical traces.

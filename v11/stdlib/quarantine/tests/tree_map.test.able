@@ -1,7 +1,8 @@
 package tree_map_specs
 
 import able.testing.rspec.{describe, expect, eq, be_truthy, be_false}
-import able.collections.array.{Array}
+import able.kernel.{Array}
+import able.collections.array
 import able.collections.tree_map.{TreeMap}
 
 describe("TreeMap") { suite =>
