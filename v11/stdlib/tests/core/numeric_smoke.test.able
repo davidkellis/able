@@ -1,6 +1,8 @@
 package numeric_tests
 
-import able.core.numeric.{NumericConversionError, Ratio}
+import able.kernel.{Ratio}
+import able.core.numeric
+import able.core.numeric.{NumericConversionError}
 
 fn assert(condition: bool, message: String) -> void {
   if condition { return }

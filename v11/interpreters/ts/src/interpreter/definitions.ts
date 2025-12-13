@@ -48,8 +48,9 @@ export function evaluateUnionDefinition(ctx: InterpreterV10, node: AST.UnionDefi
 }
 
 export function evaluateMethodsDefinition(ctx: InterpreterV10, node: AST.MethodsDefinition, env: Environment): V10Value {
+  const targetType = ctx.expandTypeAliases(node.targetType);
   const typeName = (() => {
-    let current: AST.TypeExpression = node.targetType;
+    let current: AST.TypeExpression = targetType;
     while (current.type === "GenericTypeExpression") {
       current = current.base;
     }

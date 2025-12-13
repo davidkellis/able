@@ -1,6 +1,7 @@
 package array_tests
 
-import able.collections.array.{Array}
+import able.kernel.{Array}
+import able.collections.array
 import able.core.errors.{IndexError}
 import able.core.iteration.{IteratorEnd}
 

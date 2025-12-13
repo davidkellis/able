@@ -156,6 +156,7 @@ type Interpreter struct {
 	inherentMethods      map[string]map[string]runtime.Value
 	interfaces           map[string]*runtime.InterfaceDefinitionValue
 	unionDefinitions     map[string]*runtime.UnionDefinitionValue
+	typeAliases          map[string]*ast.TypeAliasDefinition
 	implMethods          map[string][]implEntry
 	genericImpls         []implEntry
 	rangeImplementations []rangeImplementation
@@ -294,6 +295,7 @@ func NewWithExecutor(exec Executor) *Interpreter {
 		inherentMethods:      make(map[string]map[string]runtime.Value),
 		interfaces:           make(map[string]*runtime.InterfaceDefinitionValue),
 		unionDefinitions:     make(map[string]*runtime.UnionDefinitionValue),
+		typeAliases:          make(map[string]*ast.TypeAliasDefinition),
 		implMethods:          make(map[string][]implEntry),
 		genericImpls:         make([]implEntry, 0),
 		rangeImplementations: make([]rangeImplementation, 0),

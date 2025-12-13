@@ -1,5 +1,6 @@
 package bit_set
-import able.collections.array.{Array}
+import able.kernel.{Array}
+import able.collections.array
 import able.collections.enumerable.{Enumerable}
 import able.core.iteration.{Iterable, Iterator}
 

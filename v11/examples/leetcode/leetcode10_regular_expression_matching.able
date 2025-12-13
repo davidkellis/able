@@ -1,5 +1,6 @@
 package leetcode10
 
+import able.kernel.{Array}
 import able.collections.array
 
 fn is_match(text: Array char, pattern: Array char) -> bool {

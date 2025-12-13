@@ -1,5 +1,6 @@
 package rosettacode_sieve_of_eratosthenes
 
+import able.kernel.{Array}
 import able.collections.array
 
 ## Rosetta Code — Sieve of Eratosthenes (https://rosettacode.org/wiki/Sieve_of_Eratosthenes)

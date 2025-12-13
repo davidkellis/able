@@ -1,10 +1,19 @@
 import able.core.interfaces.{Error}
 import able.core.iteration.{Iterable, Iterator, IteratorEnd}
+import able.kernel.{Channel::KernelChannel}
 
 struct ChannelClosed {}
 struct ChannelNil {}
 struct ChannelSendOnClosed {}
 struct ChannelTimeout {}
+
+struct ChannelIterator T {
+  channel: Channel T
+}
+
+## Re-export kernel Channel under the stdlib namespace.
+type Channel T = KernelChannel T
+Channel := KernelChannel
 
 impl Error for ChannelClosed {
   fn message(self: Self) -> String { "channel already closed" }
@@ -26,51 +35,13 @@ impl Error for ChannelTimeout {
   fn cause(self: Self) -> ?Error { nil }
 }
 
-struct Channel T {
-  capacity: i32,
-  handle: i64
-}
-
-struct ChannelIterator T {
-  channel: Channel T
-}
-
 methods Channel T {
-  fn new(capacity: i32) -> Channel T {
-    handle := __able_channel_new(capacity)
-    Channel { capacity: capacity, handle: handle }
-  }
-
-  fn send(self: Self, value: T) -> void {
-    __able_channel_send(self.handle, value)
-  }
-
-  fn receive(self: Self) -> ?T {
-    __able_channel_receive(self.handle)
-  }
-
-  fn try_send(self: Self, value: T) -> bool {
-    __able_channel_try_send(self.handle, value)
-  }
-
-  fn try_receive(self: Self) -> ?T {
-    __able_channel_try_receive(self.handle)
-  }
-
-  fn await_receive<R>(self: Self, callback: fn(?T) -> R) -> (Awaitable R) {
-    __able_channel_await_try_recv(self.handle, callback)
-  }
-
-  fn await_send<R>(self: Self, value: T, callback: fn() -> R) -> (Awaitable R) {
-    __able_channel_await_try_send(self.handle, value, callback)
-  }
-
-  fn close(self: Self) -> void {
-    __able_channel_close(self.handle)
-  }
-
-  fn is_closed(self: Self) -> bool {
-    __able_channel_is_closed(self.handle)
+  fn each(self: Self, visit: T -> void) -> void {
+    loop {
+      received := self.receive()
+      if received == nil { break }
+      visit(received)
+    }
   }
 
   fn iterator(self: Self) -> (Iterator T) {
@@ -85,19 +56,5 @@ impl Iterator T for ChannelIterator T {
       case nil => IteratorEnd {},
       case value: T => value
     }
-  }
-}
-
-impl Iterable T for Channel T {
-  fn each(self: Self, visit: T -> void) -> void {
-    loop {
-      received := self.receive()
-      if received == nil { break }
-      visit(received)
-    }
-  }
-
-  fn iterator(self: Self) -> (Iterator T) {
-    ChannelIterator { channel: self }
   }
 }

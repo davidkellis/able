@@ -17,6 +17,9 @@ func (i *Interpreter) evaluateStatement(node ast.Statement, env *runtime.Environ
 	case *ast.UnionDefinition:
 		return i.evaluateUnionDefinition(n, env)
 	case *ast.TypeAliasDefinition:
+		if n.ID != nil {
+			i.typeAliases[n.ID.Name] = n
+		}
 		return runtime.NilValue{}, nil
 	case *ast.MethodsDefinition:
 		return i.evaluateMethodsDefinition(n, env)

@@ -2,32 +2,7 @@ package array
 import able.core.interfaces.{Default, Clone, Index, IndexMut}
 import able.core.iteration.{Iterable, Iterator, IteratorEnd}
 import able.core.errors.{IndexError}
-
-extern typescript fn __able_array_new() -> i64 {}
-extern typescript fn __able_array_with_capacity(capacity: i32) -> i64 {}
-extern typescript fn __able_array_size(handle: i64) -> i32 {}
-extern typescript fn __able_array_capacity(handle: i64) -> i32 {}
-extern typescript fn __able_array_set_len(handle: i64, length: i32) -> void {}
-extern typescript fn __able_array_read(handle: i64, idx: i32) -> _ {}
-extern typescript fn __able_array_write(handle: i64, idx: i32, value: _) -> void {}
-extern typescript fn __able_array_reserve(handle: i64, capacity: i32) -> i64 {}
-extern typescript fn __able_array_clone(handle: i64) -> i64 {}
-extern go fn __able_array_new() -> i64 {}
-extern go fn __able_array_with_capacity(capacity: i32) -> i64 {}
-extern go fn __able_array_size(handle: i64) -> i32 {}
-extern go fn __able_array_capacity(handle: i64) -> i32 {}
-extern go fn __able_array_set_len(handle: i64, length: i32) -> void {}
-extern go fn __able_array_read(handle: i64, idx: i32) -> _ {}
-extern go fn __able_array_write(handle: i64, idx: i32, value: _) -> void {}
-extern go fn __able_array_reserve(handle: i64, capacity: i32) -> i64 {}
-extern go fn __able_array_clone(handle: i64) -> i64 {}
-
-## Opaque runtime-managed array storing contiguous elements of type T.
-struct Array T {
-  length: i32,
-  capacity: i32,
-  storage_handle: i64 ## Runtime handle for the backing buffer.
-}
+import able.kernel.{Array::KernelArray}
 
 struct ArrayIterator T {
   array: Array T,
@@ -35,67 +10,12 @@ struct ArrayIterator T {
   length: i32,
 }
 
-## Constructors and mutation helpers will be provided by the host runtime.
+## Re-export kernel Array under the stdlib namespace.
+type Array T = KernelArray T
+Array := KernelArray
+
+## Stdlib extensions layered on the kernel-backed Array.
 methods Array T {
-  fn new() -> Array T {
-    handle := __able_array_new()
-    arr := Array { length: 0, capacity: 0, storage_handle: handle }
-    arr.refresh_metadata()
-    arr
-  }
-
-  fn with_capacity(capacity: i32) -> Array T {
-    handle := __able_array_with_capacity(capacity)
-    arr := Array { length: 0, capacity: capacity, storage_handle: handle }
-    arr.refresh_metadata()
-    arr
-  }
-
-  fn size(self: Self) -> u64 {
-    len := self.len()
-    if len <= 0 { 0 } else { len }
-  }
-
-  fn push(self: Self, value: T) -> void {
-    self.refresh_metadata()
-    __able_array_write(self.storage_handle, self.length, value)
-    self.refresh_metadata()
-  }
-
-  fn pop(self: Self) -> ?T {
-    self.refresh_metadata()
-    if self.length <= 0 { return nil }
-    idx := self.length - 1
-    value := __able_array_read(self.storage_handle, idx)
-    __able_array_set_len(self.storage_handle, idx)
-    self.refresh_metadata()
-    value
-  }
-
-  fn clear(self: Self) -> void {
-    __able_array_set_len(self.storage_handle, 0)
-    self.refresh_metadata()
-  }
-
-  fn read_slot(self: Self, idx: i32) -> T {
-    __able_array_read(self.storage_handle, idx)
-  }
-
-  fn write_slot(self: Self, idx: i32, value: T) -> void {
-    __able_array_write(self.storage_handle, idx, value)
-  }
-
-  fn len(self: Self) -> i32 {
-    self.length = __able_array_size(self.storage_handle)
-    self.length
-  }
-
-  fn capacity(self: Self) -> i32 {
-    self.capacity = __able_array_capacity(self.storage_handle)
-    self.capacity
-  }
-  fn is_empty(self: Self) -> bool { self.len() == 0 }
-
   fn get(self: Self, idx: i32) -> ?T {
     arr := self
     arr.refresh_metadata()
@@ -173,15 +93,12 @@ methods Array T where T: Clone {
 }
 
 impl Default for Array T {
-  fn default() -> Array T { Array { length: 0, capacity: 0, storage_handle: 0 } }
+  fn default() -> Array T { Array.new() }
 }
 
 impl Clone for Array T {
   fn clone(self: Self) -> Array T {
-    handle := __able_array_clone(self.storage_handle)
-    cloned := Array { length: self.length, capacity: self.capacity, storage_handle: handle }
-    cloned.refresh_metadata()
-    cloned
+    self.clone_shallow()
   }
 }
 
@@ -222,12 +139,5 @@ impl Index i32 T for Array T {
 impl IndexMut i32 T for Array T {
   fn set(self: Self, idx: i32, value: T) -> !void {
     if idx < 0 || idx >= self.len() { IndexError { index: idx, length: self.len() } } else { self.write_slot(idx, value) }
-  }
-}
-
-methods Array T {
-  fn refresh_metadata(self: Self) -> void {
-    self.length = __able_array_size(self.storage_handle)
-    self.capacity = __able_array_capacity(self.storage_handle)
   }
 }

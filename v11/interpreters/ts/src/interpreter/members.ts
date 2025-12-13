@@ -25,6 +25,12 @@ export function applyMemberAugmentations(cls: typeof InterpreterV10): void {
     const typeName = this.getTypeNameForValue(receiver);
     let typeArgs = receiver.kind === "struct_instance" ? receiver.typeArguments : undefined;
     const typeArgMap = receiver.kind === "struct_instance" ? receiver.typeArgMap : undefined;
+    const canonicalTypeName = typeName
+      ? this.parseTypeExpression(this.expandTypeAliases(AST.simpleTypeExpression(typeName)))?.name
+      : null;
+    const candidateTypeNames = new Set<string>();
+    if (typeName) candidateTypeNames.add(typeName);
+    if (canonicalTypeName && canonicalTypeName !== typeName) candidateTypeNames.add(canonicalTypeName);
     if (!typeArgs) {
       if (receiver.kind === "array") {
         typeArgs = [AST.wildcardTypeExpression()];
@@ -55,15 +61,15 @@ export function applyMemberAugmentations(cls: typeof InterpreterV10): void {
       }
     };
 
-    if (typeName) {
-      const bucket = this.inherentMethods.get(typeName);
+    for (const name of candidateTypeNames) {
+      const bucket = this.inherentMethods.get(name);
       const inherent = bucket?.get(funcName);
       const instanceCallable = inherent ? selectInstanceCallable(inherent, receiver, this) : null;
-      addCandidate(instanceCallable, typeName);
+      addCandidate(instanceCallable, name);
       const preExisting = candidates.length;
       let method: Extract<V10Value, { kind: "function" | "function_overload" }> | null = null;
       try {
-        method = this.findMethod(typeName, funcName, {
+        method = this.findMethod(name, funcName, {
           typeArgs,
           typeArgMap,
           interfaceName: opts?.interfaceName,
@@ -72,7 +78,7 @@ export function applyMemberAugmentations(cls: typeof InterpreterV10): void {
       } catch (err) {
         if (!preExisting) throw err;
       }
-      addCandidate(method, typeName);
+      addCandidate(method, name);
     }
 
     const hasMethodCandidate = candidates.length > 0;

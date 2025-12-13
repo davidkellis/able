@@ -1,5 +1,6 @@
 package regex
-import able.collections.array.{Array}
+import able.kernel.{Array}
+import able.collections.array
 import able.collections.hash_map.{HashMap}
 import able.core.interfaces.{Error}
 import able.core.iteration.{Iterator, IteratorEnd}

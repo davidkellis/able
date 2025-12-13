@@ -1,5 +1,6 @@
 package leetcode1
 
+import able.kernel.{Array}
 import able.collections.array
 
 ## Brute-force two sum for arrays of integers.

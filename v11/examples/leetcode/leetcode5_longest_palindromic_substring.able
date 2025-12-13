@@ -1,5 +1,6 @@
 package leetcode5
 
+import able.kernel.{Array}
 import able.collections.array
 
 fn longest_palindrome(chars: Array char) -> Array char {

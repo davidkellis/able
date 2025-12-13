@@ -1,7 +1,8 @@
 package lazy_seq_specs
 
 import able.testing.rspec.{describe, expect, eq, be_truthy}
-import able.collections.array.{Array}
+import able.kernel.{Array}
+import able.collections.array
 import able.collections.lazy_seq.{LazySeq}
 import able.core.iteration.{Iterator, IteratorEnd}
 

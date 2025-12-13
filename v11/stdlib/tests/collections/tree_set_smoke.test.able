@@ -1,7 +1,8 @@
 package tree_set_tests
 
 import able.collections.tree_set.{TreeSet}
-import able.collections.array.{Array}
+import able.kernel.{Array}
+import able.collections.array
 
 fn assert(condition: bool, message: String) -> void {
   if condition { return }

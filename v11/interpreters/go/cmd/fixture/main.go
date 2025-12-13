@@ -121,9 +121,62 @@ func runFixture(dir, entry string, setup []string, executor interpreter.Executor
 	}
 
 	entryDriver := fixtureDriverModule(entryModule, entryOrigin)
+
+	// Collect imports to opportunistically load stdlib/kernel modules needed by the fixture.
+	imports := make(map[string]struct{})
+	for _, mod := range setupModules {
+		recordImports(imports, mod.Imports)
+	}
+	recordImports(imports, entryDriver.Imports)
+
+	modules := make([]*driver.Module, 0, len(setupModules)+4)
+	added := make(map[string]bool)
+	modules = append(modules, setupModules...)
+
+	loadStdlib := func(entryFile string) error {
+		repoRoot := filepath.Clean(filepath.Join("..", "..", ".."))
+		stdlibRoot := filepath.Join(repoRoot, "v11", "stdlib", "src")
+		kernelRoot := filepath.Join(repoRoot, "v11", "kernel", "src")
+		loader, err := driver.NewLoader([]driver.SearchPath{
+			{Path: stdlibRoot, Kind: driver.RootStdlib},
+			{Path: kernelRoot, Kind: driver.RootStdlib},
+		})
+		if err != nil {
+			return err
+		}
+		prog, err := loader.Load(filepath.Join(stdlibRoot, entryFile))
+		if err != nil {
+			return err
+		}
+		for _, mod := range prog.Modules {
+			if mod == nil || added[mod.Package] {
+				continue
+			}
+			modules = append(modules, mod)
+			added[mod.Package] = true
+		}
+		if prog.Entry != nil && !added[prog.Entry.Package] {
+			modules = append(modules, prog.Entry)
+			added[prog.Entry.Package] = true
+		}
+		return nil
+	}
+
+	if hasImportWithPrefix(imports, "able.text.string") {
+		if err := loadStdlib(filepath.Join("text", "string.able")); err != nil {
+			return output, fmt.Errorf("load stdlib string: %w", err)
+		}
+	}
+	if hasImportWithPrefix(imports, "able.concurrency") {
+		if err := loadStdlib(filepath.Join("concurrency", "await.able")); err != nil {
+			return output, fmt.Errorf("load stdlib concurrency: %w", err)
+		}
+	}
+
+	modules = append(modules, entryDriver)
 	program := &driver.Program{
 		Entry:   entryDriver,
-		Modules: append(setupModules, entryDriver),
+		Modules: modules,
 	}
 
 	interp := interpreter.NewWithExecutor(executor)
@@ -169,6 +222,30 @@ func configureTypechecker(interp *interpreter.Interpreter) typecheckMode {
 		interp.EnableTypechecker(interpreter.TypecheckConfig{})
 		return modeWarn
 	}
+}
+
+func recordImports(dst map[string]struct{}, imports []string) {
+	if len(imports) == 0 {
+		return
+	}
+	for _, name := range imports {
+		if name == "" {
+			continue
+		}
+		dst[name] = struct{}{}
+	}
+}
+
+func hasImportWithPrefix(imports map[string]struct{}, prefix string) bool {
+	if prefix == "" {
+		return false
+	}
+	for name := range imports {
+		if strings.HasPrefix(name, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 func modeString(mode typecheckMode) string {

@@ -1,16 +1,11 @@
 package string
-import able.collections.array.{Array}
+import able.kernel.{Array}
+import able.collections.array
 import able.core.interfaces.{Clone, Error}
 import able.core.iteration.{Iterable, Iterator, IteratorEnd}
 import able.core.options.{Result}
 import able.core.errors.{RangeError}
-
-extern typescript fn __able_String_from_builtin(value: String) -> Array u8 {}
-extern typescript fn __able_String_to_builtin(bytes: Array u8) -> String {}
-extern typescript fn __able_char_from_codepoint(value: i32) -> char {}
-extern go fn __able_String_from_builtin(value: String) -> Array u8 {}
-extern go fn __able_String_to_builtin(bytes: Array u8) -> String {}
-extern go fn __able_char_from_codepoint(value: i32) -> char {}
+import able.kernel.{__able_String_from_builtin, __able_String_to_builtin, __able_char_from_codepoint}
 
 private struct String {
   bytes: Array u8,

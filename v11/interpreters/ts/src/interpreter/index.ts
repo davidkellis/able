@@ -40,6 +40,7 @@ export class InterpreterV10 {
 
   interfaces: Map<string, AST.InterfaceDefinition> = new Map();
   unions: Map<string, AST.UnionDefinition> = new Map();
+  typeAliases: Map<string, AST.TypeAliasDefinition> = new Map();
   interfaceEnvs: Map<string, Environment> = new Map();
   inherentMethods: Map<string, Map<string, Extract<V10Value, { kind: "function" | "function_overload" }>>> = new Map();
   implMethods: Map<string, ImplMethodEntry[]> = new Map();

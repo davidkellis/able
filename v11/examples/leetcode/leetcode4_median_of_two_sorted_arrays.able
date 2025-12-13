@@ -1,5 +1,6 @@
 package leetcode4
 
+import able.kernel.{Array}
 import able.collections.array
 
 ## Merges two sorted arrays and returns the median as a float.

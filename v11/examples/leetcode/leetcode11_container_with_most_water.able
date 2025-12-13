@@ -1,5 +1,6 @@
 package leetcode11
 
+import able.kernel.{Array}
 import able.collections.array
 
 fn max_area(heights: Array i32) -> i128 {

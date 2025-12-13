@@ -572,6 +572,10 @@ func scanPackageDeclaration(path string) ([]string, error) {
 }
 
 func buildPackageSegments(rootDir, rootPackage, filePath string, declared []string) ([]string, error) {
+	return buildPackageSegmentsWithBase([]string{sanitizeSegment(rootPackage)}, rootDir, filePath, declared)
+}
+
+func buildPackageSegmentsWithBase(base []string, rootDir, filePath string, declared []string) ([]string, error) {
 	rel, err := filepath.Rel(rootDir, filePath)
 	if err != nil {
 		return nil, fmt.Errorf("loader: compute relative path for %s: %w", filePath, err)
@@ -579,7 +583,7 @@ func buildPackageSegments(rootDir, rootPackage, filePath string, declared []stri
 	rel = filepath.ToSlash(rel)
 	relDir := filepath.Dir(rel)
 
-	segments := []string{sanitizeSegment(rootPackage)}
+	segments := append([]string{}, base...)
 	if relDir != "." && relDir != "/" {
 		for _, part := range strings.Split(relDir, "/") {
 			part = strings.TrimSpace(part)
@@ -619,6 +623,14 @@ func computePackageSegments(rootDir, rootPackage, filePath string, module *ast.M
 }
 
 func resolvePackageSegments(rootDir, rootPackage, filePath string, declared []string, kind RootKind) ([]string, error) {
+	if rootPackage == "kernel" || looksLikeKernelPath(rootDir) {
+		return buildPackageSegmentsWithBase(
+			[]string{sanitizeSegment("able"), sanitizeSegment("kernel")},
+			rootDir,
+			filePath,
+			declared,
+		)
+	}
 	return buildPackageSegments(rootDir, rootPackage, filePath, declared)
 }
 

@@ -116,6 +116,32 @@ func (i *Interpreter) typeExpressionFromValue(value runtime.Value) ast.TypeExpre
 	}
 }
 
+func (i *Interpreter) canonicalTypeNames(name string) []string {
+	seen := make(map[string]struct{})
+	add := func(n string) {
+		if n == "" {
+			return
+		}
+		if _, ok := seen[n]; ok {
+			return
+		}
+		seen[n] = struct{}{}
+	}
+	add(name)
+	if name != "" {
+		if expanded := expandTypeAliases(ast.Ty(name), i.typeAliases, nil); expanded != nil {
+			if info, ok := parseTypeExpression(expanded); ok && info.name != "" {
+				add(info.name)
+			}
+		}
+	}
+	names := make([]string, 0, len(seen))
+	for n := range seen {
+		names = append(names, n)
+	}
+	return names
+}
+
 func (i *Interpreter) lookupImplEntry(info typeInfo, interfaceName string) (*implCandidate, error) {
 	matches, err := i.collectImplCandidates(info, interfaceName, "")
 	if len(matches) == 0 {

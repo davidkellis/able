@@ -1,5 +1,6 @@
 package leetcode8
 
+import able.kernel.{Array}
 import able.collections.array
 
 fn parse(chars: Array char) -> i64 {

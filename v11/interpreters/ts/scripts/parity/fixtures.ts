@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 
 import { V10 } from "../../index";
 import type { AST } from "../../index";
+import { ModuleLoader } from "../module-loader";
 import {
   ensurePrint,
   installRuntimeStubs,
@@ -23,6 +24,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(fileURLToPath(new URL("../../../../..", import.meta.url)));
 const NORMALIZED_REPO_ROOT = REPO_ROOT.replace(/\\/g, "/");
 export const DEFAULT_FIXTURE_ROOT = path.resolve(REPO_ROOT, "v11/fixtures/ast");
+const STD_LIB_ROOT = path.resolve(REPO_ROOT, "v11/stdlib/src");
 
 export type NormalizedValue = {
   kind: string;
@@ -155,6 +157,51 @@ export async function evaluateFixtureTS(dir: string, manifest: Manifest | null, 
     }
   }
 
+  const imports = new Set<string>();
+  const recordImports = (mod: AST.Module) => {
+    if (!mod?.imports) return;
+    for (const imp of mod.imports) {
+      if (!imp || !imp.packagePath) continue;
+      const pkg = imp.packagePath.map((p) => p.name).filter(Boolean).join(".");
+      if (pkg) imports.add(pkg);
+    }
+  };
+  setupModules.forEach(recordImports);
+  recordImports(entryModule);
+
+  const preloadModules: AST.Module[] = [];
+  const needsImportWithPrefix = (prefix: string) => {
+    for (const name of imports) {
+      if (name === prefix || name.startsWith(`${prefix}.`)) return true;
+    }
+    return false;
+  };
+
+  const moduleLoader = new ModuleLoader([
+    { path: STD_LIB_ROOT, isStdlib: true },
+    { path: path.resolve(REPO_ROOT, "v11/kernel/src"), isStdlib: true },
+  ]);
+
+  const appendProgramModules = (program: Awaited<ReturnType<ModuleLoader["load"]>>) => {
+    const seen = new Set<string>(preloadModules.map((m) => m.packageName ?? ""));
+    for (const loaded of program.modules) {
+      if (loaded && loaded.module && !seen.has(loaded.packageName)) {
+        preloadModules.push(loaded.module);
+        seen.add(loaded.packageName);
+      }
+    }
+    if (program.entry && !seen.has(program.entry.packageName)) {
+      preloadModules.push(program.entry.module);
+    }
+  };
+
+  if (needsImportWithPrefix("able.text.string")) {
+    appendProgramModules(await moduleLoader.load(path.join(STD_LIB_ROOT, "text", "string.able")));
+  }
+  if (needsImportWithPrefix("able.concurrency")) {
+    appendProgramModules(await moduleLoader.load(path.join(STD_LIB_ROOT, "concurrency", "await.able")));
+  }
+
   let evaluationError: unknown;
   let result: NormalizedValue | undefined;
   const diagnostics: string[] = [];
@@ -168,6 +215,9 @@ export async function evaluateFixtureTS(dir: string, manifest: Manifest | null, 
         diagnostics.push(formatTypecheckerDiagnostic(diag));
       }
     };
+    for (const module of preloadModules) {
+      collectDiagnostics(module);
+    }
     for (const module of setupModules) {
       collectDiagnostics(module);
     }
@@ -176,6 +226,9 @@ export async function evaluateFixtureTS(dir: string, manifest: Manifest | null, 
 
   interceptStdout(stdout, () => {
     try {
+      for (const module of preloadModules) {
+        interpreter.evaluate(module);
+      }
       for (const module of setupModules) {
         interpreter.evaluate(module);
       }
