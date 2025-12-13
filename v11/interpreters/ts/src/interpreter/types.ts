@@ -20,6 +20,7 @@ function integerValueWithinRange(raw: bigint, target: IntegerKind): boolean {
 
 declare module "./index" {
   interface InterpreterV10 {
+    expandTypeAliases(t: AST.TypeExpression): AST.TypeExpression;
     typeExpressionToString(t: AST.TypeExpression): string;
     parseTypeExpression(t: AST.TypeExpression): { name: string; typeArgs: AST.TypeExpression[] } | null;
     typeExpressionsEqual(a: AST.TypeExpression, b: AST.TypeExpression): boolean;
@@ -34,20 +35,106 @@ declare module "./index" {
 }
 
 export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
-  cls.prototype.typeExpressionToString = function typeExpressionToString(this: InterpreterV10, t: AST.TypeExpression): string {
+  cls.prototype.expandTypeAliases = function expandTypeAliases(this: InterpreterV10, t: AST.TypeExpression, seen = new Set<string>()): AST.TypeExpression {
+    if (!t) return t;
     switch (t.type) {
-      case "SimpleTypeExpression":
-        return t.name.name;
-      case "GenericTypeExpression":
-        return `${this.typeExpressionToString(t.base)}<${(t.arguments ?? []).map(arg => this.typeExpressionToString(arg)).join(",")}>`;
+      case "SimpleTypeExpression": {
+        const name = t.name.name;
+        const alias = this.typeAliases.get(name);
+        if (!alias?.targetType || seen.has(name)) {
+          return t;
+        }
+        seen.add(name);
+        const expanded = this.expandTypeAliases(alias.targetType, seen);
+        seen.delete(name);
+        return expanded ?? t;
+      }
+      case "GenericTypeExpression": {
+        const baseName = t.base.type === "SimpleTypeExpression" ? t.base.name.name : null;
+        const expandedBase = this.expandTypeAliases(t.base, seen);
+        const expandedArgs = (t.arguments ?? []).map((arg) => (arg ? this.expandTypeAliases(arg, seen) : arg));
+        if (!baseName) {
+          return { ...t, base: expandedBase, arguments: expandedArgs };
+        }
+        const alias = this.typeAliases.get(baseName);
+        if (!alias?.targetType || seen.has(baseName)) {
+          return { ...t, base: expandedBase, arguments: expandedArgs };
+        }
+        const substitutions = new Map<string, AST.TypeExpression>();
+        (alias.genericParams ?? []).forEach((param, index) => {
+          const paramName = param?.name?.name;
+          if (!paramName) return;
+          substitutions.set(paramName, expandedArgs[index] ?? AST.wildcardTypeExpression());
+        });
+        const substitute = (expr: AST.TypeExpression): AST.TypeExpression => {
+          switch (expr.type) {
+            case "SimpleTypeExpression": {
+              const name = expr.name.name;
+              if (substitutions.has(name)) {
+                return this.expandTypeAliases(substitutions.get(name)!, seen);
+              }
+              return this.expandTypeAliases(expr, seen);
+            }
+            case "GenericTypeExpression":
+              return {
+                ...expr,
+                base: substitute(expr.base),
+                arguments: (expr.arguments ?? []).map((arg) => (arg ? substitute(arg) : arg)),
+              };
+            case "NullableTypeExpression":
+              return { ...expr, innerType: substitute(expr.innerType) };
+            case "ResultTypeExpression":
+              return { ...expr, innerType: substitute(expr.innerType) };
+            case "UnionTypeExpression":
+              return { ...expr, members: (expr.members ?? []).map((member) => substitute(member)) };
+            case "FunctionTypeExpression":
+              return {
+                ...expr,
+                paramTypes: (expr.paramTypes ?? []).map((param) => substitute(param)),
+                returnType: substitute(expr.returnType),
+              };
+            default:
+              return expr;
+          }
+        };
+        seen.add(baseName);
+        const substituted = substitute(alias.targetType);
+        const expanded = this.expandTypeAliases(substituted, seen);
+        seen.delete(baseName);
+        return expanded ?? substituted;
+      }
       case "NullableTypeExpression":
-        return `${this.typeExpressionToString(t.innerType)}?`;
+        return { ...t, innerType: this.expandTypeAliases(t.innerType, seen) };
       case "ResultTypeExpression":
-        return `Result<${this.typeExpressionToString(t.innerType)}>`;
-      case "FunctionTypeExpression":
-        return `(${t.paramTypes.map(pt => this.typeExpressionToString(pt)).join(", ")}) -> ${this.typeExpressionToString(t.returnType)}`;
+        return { ...t, innerType: this.expandTypeAliases(t.innerType, seen) };
       case "UnionTypeExpression":
-        return t.members.map(member => this.typeExpressionToString(member)).join(" | ");
+        return { ...t, members: (t.members ?? []).map((member) => this.expandTypeAliases(member, seen)) };
+      case "FunctionTypeExpression":
+        return {
+          ...t,
+          paramTypes: (t.paramTypes ?? []).map((param) => this.expandTypeAliases(param, seen)),
+          returnType: this.expandTypeAliases(t.returnType, seen),
+        };
+      default:
+        return t;
+    }
+  };
+
+  cls.prototype.typeExpressionToString = function typeExpressionToString(this: InterpreterV10, t: AST.TypeExpression): string {
+    const canonical = this.expandTypeAliases(t);
+    switch (canonical.type) {
+      case "SimpleTypeExpression":
+        return canonical.name.name;
+      case "GenericTypeExpression":
+        return `${this.typeExpressionToString(canonical.base)}<${(canonical.arguments ?? []).map(arg => this.typeExpressionToString(arg)).join(",")}>`;
+      case "NullableTypeExpression":
+        return `${this.typeExpressionToString(canonical.innerType)}?`;
+      case "ResultTypeExpression":
+        return `Result<${this.typeExpressionToString(canonical.innerType)}>`;
+      case "FunctionTypeExpression":
+        return `(${canonical.paramTypes.map(pt => this.typeExpressionToString(pt)).join(", ")}) -> ${this.typeExpressionToString(canonical.returnType)}`;
+      case "UnionTypeExpression":
+        return canonical.members.map(member => this.typeExpressionToString(member)).join(" | ");
       case "WildcardTypeExpression":
         return "_";
       default:
@@ -56,11 +143,12 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
   };
 
   cls.prototype.parseTypeExpression = function parseTypeExpression(this: InterpreterV10, t: AST.TypeExpression): { name: string; typeArgs: AST.TypeExpression[] } | null {
-    if (t.type === "SimpleTypeExpression") {
-      return { name: t.name.name, typeArgs: [] };
+    const canonical = this.expandTypeAliases(t);
+    if (canonical.type === "SimpleTypeExpression") {
+      return { name: canonical.name.name, typeArgs: [] };
     }
-    if (t.type === "GenericTypeExpression" && t.base.type === "SimpleTypeExpression") {
-      return { name: t.base.name.name, typeArgs: t.arguments ?? [] };
+    if (canonical.type === "GenericTypeExpression" && canonical.base.type === "SimpleTypeExpression") {
+      return { name: canonical.base.name.name, typeArgs: canonical.arguments ?? [] };
     }
     return null;
   };
@@ -155,11 +243,19 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
   };
 
   cls.prototype.matchesType = function matchesType(this: InterpreterV10, t: AST.TypeExpression, v: V10Value): boolean {
-    switch (t.type) {
+    const target = this.expandTypeAliases(t);
+    const valueTypeExpr = this.typeExpressionFromValue(v);
+    if (valueTypeExpr) {
+      const canonicalValue = this.expandTypeAliases(valueTypeExpr);
+      if (this.typeExpressionsEqual(target, canonicalValue)) {
+        return true;
+      }
+    }
+    switch (target.type) {
       case "WildcardTypeExpression":
         return true;
       case "SimpleTypeExpression": {
-        const name = t.name.name;
+        const name = target.name.name;
         if (name === "Self") return true;
         if (/^[A-Z]$/.test(name)) return true;
         if (name === "String") return v.kind === "String";
@@ -168,7 +264,7 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
         if (name === "nil") return v.kind === "nil";
         if (this.unions.has(name)) {
           const unionDef = this.unions.get(name)!;
-          return (unionDef.variants ?? []).some(variant => this.matchesType(variant, v));
+          return (unionDef.variants ?? []).some((variant) => this.matchesType(variant, v));
         }
         if (INTEGER_KINDS.includes(name as IntegerKind)) {
           if (!isIntegerValue(v)) {
@@ -187,31 +283,50 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
         if (this.interfaces.has(name)) {
           if (v.kind === "interface_value") return v.interfaceName === name;
           const typeName = this.getTypeNameForValue(v);
+          const canonicalName = typeName
+            ? this.parseTypeExpression(this.expandTypeAliases(AST.simpleTypeExpression(typeName)))?.name
+            : null;
+          if (!typeName && !canonicalName) return false;
+          if (canonicalName && canonicalName !== typeName && canonicalName === name) {
+            return true;
+          }
           if (!typeName) return false;
           const typeArgs = v.kind === "struct_instance" ? v.typeArguments : undefined;
           return this.typeImplementsInterface(typeName, name, typeArgs);
         }
-        return v.kind === "struct_instance" && v.def.id.name === name;
+        if (v.kind === "struct_instance") {
+          const typeName = v.def.id.name;
+          if (typeName === name) return true;
+          const canonicalName = this.parseTypeExpression(this.expandTypeAliases(AST.simpleTypeExpression(typeName)))?.name;
+          return canonicalName === name;
+        }
+        return false;
       }
       case "GenericTypeExpression": {
-        if (t.base.type === "SimpleTypeExpression" && t.base.name.name === "Array") {
+        if (target.base.type === "SimpleTypeExpression" && target.base.name.name === "Array") {
           const isArrayValue = v.kind === "array" || (v.kind === "struct_instance" && v.def.id.name === "Array");
           if (!isArrayValue) return false;
-          if (!t.arguments || t.arguments.length === 0) return true;
-          const elemT = t.arguments[0]!;
+          if (!target.arguments || target.arguments.length === 0) return true;
+          const elemT = target.arguments[0]!;
           if (v.kind === "array") {
-            return v.elements.every(el => this.matchesType(elemT, el));
+            return v.elements.every((el) => this.matchesType(elemT, el));
           }
           return true;
         }
-        if (t.base.type === "SimpleTypeExpression") {
-          const baseName = t.base.name.name;
+        if (target.base.type === "SimpleTypeExpression") {
+          const baseName = target.base.name.name;
           if (this.unions.has(baseName)) {
             const unionDef = this.unions.get(baseName)!;
-            return (unionDef.variants ?? []).some(variant => this.matchesType(variant, v));
+            return (unionDef.variants ?? []).some((variant) => this.matchesType(variant, v));
           }
           const valueTypeName = this.getTypeNameForValue(v);
-          if (!valueTypeName || valueTypeName !== baseName) {
+          const canonicalValueName = valueTypeName
+            ? this.parseTypeExpression(this.expandTypeAliases(AST.simpleTypeExpression(valueTypeName)))?.name
+            : null;
+          const matchesBase =
+            valueTypeName === baseName ||
+            (!!canonicalValueName && canonicalValueName === baseName);
+          if (!matchesBase) {
             if (this.interfaces.has(baseName)) {
               const typeArgs = v.kind === "struct_instance" ? v.typeArguments : undefined;
               if (valueTypeName && this.typeImplementsInterface(valueTypeName, baseName, typeArgs)) {
@@ -221,11 +336,11 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
             return false;
           }
           if (v.kind === "struct_instance") {
-            if (!t.arguments || t.arguments.length === 0) return true;
+            if (!target.arguments || target.arguments.length === 0) return true;
             const actualArgs = v.typeArguments ?? [];
             if (actualArgs.length === 0) return true;
-            if (actualArgs.length !== t.arguments.length) return false;
-            return t.arguments.every((expected, idx) => {
+            if (actualArgs.length !== target.arguments.length) return false;
+            return target.arguments.every((expected, idx) => {
               const actual = actualArgs[idx]!;
               if (actual.type === "WildcardTypeExpression") return true;
               if (expected.type === "WildcardTypeExpression") return true;
@@ -243,11 +358,11 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
         return v.kind === "function";
       case "NullableTypeExpression":
         if (v.kind === "nil") return true;
-        return this.matchesType(t.innerType, v);
+        return this.matchesType(target.innerType, v);
       case "ResultTypeExpression":
-        return this.matchesType(t.innerType, v);
+        return this.matchesType(target.innerType, v);
       case "UnionTypeExpression":
-        return t.members.some(member => this.matchesType(member, v));
+        return target.members.some((member) => this.matchesType(member, v));
       default:
         return true;
     }
@@ -300,8 +415,9 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
 
   cls.prototype.coerceValueToType = function coerceValueToType(this: InterpreterV10, typeExpr: AST.TypeExpression | undefined, value: V10Value): V10Value {
     if (!typeExpr) return value;
-    if (typeExpr.type === "SimpleTypeExpression") {
-      const name = typeExpr.name.name;
+    const canonical = this.expandTypeAliases(typeExpr);
+    if (canonical.type === "SimpleTypeExpression") {
+      const name = canonical.name.name;
       if (INTEGER_KIND_SET.has(name as IntegerKind) && isIntegerValue(value)) {
         const targetKind = name as IntegerKind;
         const actualKind = value.kind as IntegerKind;

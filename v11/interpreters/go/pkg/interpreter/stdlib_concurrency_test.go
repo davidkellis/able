@@ -381,7 +381,9 @@ func TestStdlibChannelMutexModuleLoader(t *testing.T) {
 	writeTestFile(t, filepath.Join(root, "main.able"), `
 package main
 
-import able.concurrency.{Channel, Mutex, with_lock}
+import able.kernel.{Channel, Mutex}
+import able.concurrency
+import able.concurrency.{with_lock}
 
 fn main() -> i32 {
   ch: Channel i32 := Channel.new(2)
@@ -400,10 +402,11 @@ fn main() -> i32 {
   with_lock(mutex, { => observed = total })
   observed
 }
-`)
+ `)
 
 	loader, err := driver.NewLoader([]driver.SearchPath{
 		{Path: filepath.Join("..", "..", "..", "..", "stdlib", "src"), Kind: driver.RootStdlib},
+		{Path: filepath.Join("..", "..", "..", "..", "kernel", "src"), Kind: driver.RootStdlib},
 	})
 	if err != nil {
 		t.Fatalf("loader init: %v", err)

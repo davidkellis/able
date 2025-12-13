@@ -1,5 +1,6 @@
 package hash_map
-import able.collections.array.{Array}
+import able.kernel.{Array}
+import able.collections.array
 import able.collections.map.{Map}
 import able.core.errors.{IndexError}
 import able.core.interfaces.{Clone, Default, Hash, Eq, Index, IndexMut}

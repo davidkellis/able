@@ -114,5 +114,6 @@ export function buildImplementationContext(checker: any): ImplementationContext 
   ctx.describeTypeArgument = checker.describeTypeArgument.bind(checker);
   ctx.appendInterfaceArgsToLabel = checker.appendInterfaceArgsToLabel.bind(checker);
   ctx.formatTypeExpression = checker.formatTypeExpression.bind(checker);
+  ctx.getTypeAlias = (name: string) => checker.typeAliases.get(name);
   return ctx;
 }

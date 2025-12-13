@@ -1,6 +1,7 @@
 package range_tests
 
-import able.collections.range.{IntRangeFactory}
+import able.kernel.{Range, RangeFactory}
+import able.collections.range
 import able.core.iteration.{IteratorEnd}
 
 fn assert(condition: bool, message: String) -> void {
@@ -9,17 +10,17 @@ fn assert(condition: bool, message: String) -> void {
 }
 
 fn check_inclusive_increasing() -> void {
-  iter := IntRangeFactory.inclusive_range(1, 3).iterator()
+  iter := RangeFactory.inclusive_range(1, 3).iterator()
   iter.next() match {
-    case value: i64 => assert(value == 1, "inclusive range should start at the lower bound"),
+    case value: i32 => assert(value == 1, "inclusive range should start at the lower bound"),
     case IteratorEnd => { raise "unexpected end of iterator" }
   }
   iter.next() match {
-    case value: i64 => assert(value == 2, "inclusive range should include interior values"),
+    case value: i32 => assert(value == 2, "inclusive range should include interior values"),
     case IteratorEnd => { raise "unexpected end of iterator" }
   }
   iter.next() match {
-    case value: i64 => assert(value == 3, "inclusive range should include the upper bound"),
+    case value: i32 => assert(value == 3, "inclusive range should include the upper bound"),
     case IteratorEnd => { raise "unexpected end of iterator" }
   }
   iter.next() match {
@@ -29,17 +30,17 @@ fn check_inclusive_increasing() -> void {
 }
 
 fn check_exclusive_decreasing() -> void {
-  iter := IntRangeFactory.exclusive_range(3, 0).iterator()
+  iter := RangeFactory.exclusive_range(3, 0).iterator()
   iter.next() match {
-    case value: i64 => assert(value == 3, "exclusive range should start at the first value"),
+    case value: i32 => assert(value == 3, "exclusive range should start at the first value"),
     case IteratorEnd => { raise "unexpected end of iterator" }
   }
   iter.next() match {
-    case value: i64 => assert(value == 2, "exclusive descending range steps backward"),
+    case value: i32 => assert(value == 2, "exclusive descending range steps backward"),
     case IteratorEnd => { raise "unexpected end of iterator" }
   }
   iter.next() match {
-    case value: i64 => assert(value == 1, "exclusive descending range stops before the end bound"),
+    case value: i32 => assert(value == 1, "exclusive descending range stops before the end bound"),
     case IteratorEnd => { raise "unexpected end of iterator" }
   }
   iter.next() match {

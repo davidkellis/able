@@ -1,5 +1,6 @@
 package results
 
+import able.kernel.{Array}
 import able.collections.array
 import able.core.interfaces.{Error}
 

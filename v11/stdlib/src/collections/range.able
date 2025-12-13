@@ -1,13 +1,14 @@
 package range
-import able.core.iteration.{Iterator, Iterable, Range}
+import able.core.iteration.{Iterator, Iterable, Range::RangeInterface}
+import able.kernel.{Range::KernelRange, RangeFactory::KernelRangeFactory}
 
-struct IntRange {
-  start: i32,
-  end: i32,
-  inclusive: bool
-}
+## Re-export kernel Range types under the stdlib namespace.
+type Range = KernelRange
+type RangeFactory = KernelRangeFactory
+Range := KernelRange
+RangeFactory := KernelRangeFactory
 
-impl Iterable i32 for IntRange {
+impl Iterable i32 for Range {
   fn iterator(self: Self) -> (Iterator i32) {
     Iterator i32 { gen =>
       step := 1
@@ -37,14 +38,12 @@ impl Iterable i32 for IntRange {
   }
 }
 
-struct IntRangeFactory {}
-
-impl Range i32 i32 i32 for IntRangeFactory {
+impl RangeInterface i32 i32 i32 for RangeFactory {
   fn inclusive_range(start: i32, finish: i32) -> Iterable i32 {
-    IntRange { start: start, end: finish, inclusive: true }
+    Range { start: start, end: finish, inclusive: true }
   }
 
   fn exclusive_range(start: i32, finish: i32) -> Iterable i32 {
-    IntRange { start: start, end: finish, inclusive: false }
+    Range { start: start, end: finish, inclusive: false }
   }
 }

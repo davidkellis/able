@@ -1,6 +1,7 @@
 package testing_specs
 
-import able.collections.array.{Array}
+import able.kernel.{Array}
+import able.collections.array
 import able.testing.assertions.{AssertionError}
 import able.testing.harness.{discover_all, run_all}
 import able.testing.protocol.{

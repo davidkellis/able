@@ -180,6 +180,9 @@ export function applyEvaluationAugmentations(cls: typeof InterpreterV10): void {
       case "UnionDefinition":
         return evaluateUnionDefinition(this, node as AST.UnionDefinition, env);
       case "TypeAliasDefinition":
+        if (node.id?.name) {
+          this.typeAliases.set(node.id.name, node as AST.TypeAliasDefinition);
+        }
         return NIL;
       case "MethodsDefinition":
         return evaluateMethodsDefinition(this, node as AST.MethodsDefinition, env);

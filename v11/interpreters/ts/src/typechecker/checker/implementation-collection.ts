@@ -25,6 +25,110 @@ const PRIMITIVE_TYPE_NAMES = new Set([
   "void",
 ]);
 
+function substituteTypeExpression(
+  ctx: ImplementationContext,
+  expr: AST.TypeExpression,
+  substitutions: Map<string, AST.TypeExpression>,
+  seen: Set<string>,
+): AST.TypeExpression {
+  switch (expr.type) {
+    case "SimpleTypeExpression": {
+      const name = ctx.getIdentifierName(expr.name);
+      if (name && substitutions.has(name)) {
+        return expandTypeAliases(ctx, substitutions.get(name), seen) ?? substitutions.get(name)!;
+      }
+      return expr;
+    }
+    case "GenericTypeExpression": {
+      const base = expandTypeAliases(ctx, expr.base, seen) ?? expr.base;
+      const args = (expr.arguments ?? []).map((arg) => {
+        const next = arg ? substituteTypeExpression(ctx, arg, substitutions, seen) : undefined;
+        return expandTypeAliases(ctx, next, seen) ?? next ?? arg;
+      });
+      return { ...expr, base, arguments: args };
+    }
+    case "NullableTypeExpression":
+      return { ...expr, innerType: expandTypeAliases(ctx, substituteTypeExpression(ctx, expr.innerType, substitutions, seen), seen) };
+    case "ResultTypeExpression":
+      return { ...expr, innerType: expandTypeAliases(ctx, substituteTypeExpression(ctx, expr.innerType, substitutions, seen), seen) };
+    case "UnionTypeExpression":
+      return {
+        ...expr,
+        members: (expr.members ?? []).map((member) =>
+          expandTypeAliases(ctx, substituteTypeExpression(ctx, member, substitutions, seen), seen),
+        ),
+      };
+    case "FunctionTypeExpression":
+      return {
+        ...expr,
+        paramTypes: (expr.paramTypes ?? []).map((param) =>
+          expandTypeAliases(ctx, substituteTypeExpression(ctx, param, substitutions, seen), seen),
+        ),
+        returnType: expandTypeAliases(ctx, substituteTypeExpression(ctx, expr.returnType, substitutions, seen), seen) ?? expr.returnType,
+      };
+    default:
+      return expr;
+  }
+}
+
+function expandTypeAliases(
+  ctx: ImplementationContext,
+  expr: AST.TypeExpression | null | undefined,
+  seen: Set<string> = new Set(),
+): AST.TypeExpression | null | undefined {
+  if (!expr) return expr;
+  switch (expr.type) {
+    case "SimpleTypeExpression": {
+      const name = ctx.getIdentifierName(expr.name);
+      if (!name || !ctx.getTypeAlias) return expr;
+      if (seen.has(name)) return expr;
+      const alias = ctx.getTypeAlias(name);
+      if (!alias?.targetType) return expr;
+      seen.add(name);
+      const expanded = expandTypeAliases(ctx, alias.targetType, seen);
+      seen.delete(name);
+      return expanded ?? expr;
+    }
+    case "GenericTypeExpression": {
+      const baseName = ctx.getIdentifierNameFromTypeExpression(expr.base);
+      const expandedBase = expandTypeAliases(ctx, expr.base, seen) ?? expr.base;
+      const expandedArgs = (expr.arguments ?? []).map((arg) => expandTypeAliases(ctx, arg, seen) ?? arg);
+      if (!baseName || !ctx.getTypeAlias || seen.has(baseName)) {
+        return { ...expr, base: expandedBase, arguments: expandedArgs };
+      }
+      const alias = ctx.getTypeAlias(baseName);
+      if (!alias?.targetType) {
+        return { ...expr, base: expandedBase, arguments: expandedArgs };
+      }
+      const substitutions = new Map<string, AST.TypeExpression>();
+      (alias.genericParams ?? []).forEach((param, index) => {
+        const paramName = ctx.getIdentifierName(param?.name);
+        if (!paramName) return;
+        substitutions.set(paramName, expandedArgs[index] ?? AST.wildcardTypeExpression());
+      });
+      seen.add(baseName);
+      const substituted = substituteTypeExpression(ctx, alias.targetType, substitutions, seen);
+      const expanded = expandTypeAliases(ctx, substituted, seen);
+      seen.delete(baseName);
+      return expanded ?? substituted;
+    }
+    case "NullableTypeExpression":
+      return { ...expr, innerType: expandTypeAliases(ctx, expr.innerType, seen) ?? expr.innerType };
+    case "ResultTypeExpression":
+      return { ...expr, innerType: expandTypeAliases(ctx, expr.innerType, seen) ?? expr.innerType };
+    case "UnionTypeExpression":
+      return { ...expr, members: (expr.members ?? []).map((member) => expandTypeAliases(ctx, member, seen) ?? member) };
+    case "FunctionTypeExpression":
+      return {
+        ...expr,
+        paramTypes: (expr.paramTypes ?? []).map((param) => expandTypeAliases(ctx, param, seen) ?? param),
+        returnType: expandTypeAliases(ctx, expr.returnType, seen) ?? expr.returnType,
+      };
+    default:
+      return expr;
+  }
+}
+
 function collectTargetTypeParams(ctx: ImplementationContext, targetType: AST.TypeExpression | null | undefined): string[] {
   if (!targetType) return [];
   if (targetType.type === "GenericTypeExpression" && Array.isArray(targetType.arguments)) {
@@ -36,22 +140,23 @@ function collectTargetTypeParams(ctx: ImplementationContext, targetType: AST.Typ
 }
 
 export function collectMethodsDefinition(ctx: ImplementationContext, definition: AST.MethodsDefinition): void {
+  const targetType = expandTypeAliases(ctx, definition.targetType);
   const structLabel =
-    ctx.formatImplementationTarget(definition.targetType) ?? ctx.getIdentifierNameFromTypeExpression(definition.targetType);
+    ctx.formatImplementationTarget(targetType) ?? ctx.getIdentifierNameFromTypeExpression(targetType);
   if (!structLabel) return;
   const explicitParams = Array.isArray(definition.genericParams)
     ? definition.genericParams
         .map((param) => ctx.getIdentifierName(param?.name))
         .filter((name): name is string => Boolean(name))
     : [];
-  const targetParams = collectTargetTypeParams(ctx, definition.targetType);
+  const targetParams = collectTargetTypeParams(ctx, targetType);
   const genericParams = [...new Set([...targetParams, ...explicitParams])];
   const substitutionMap = new Map<string, TypeInfo>();
   genericParams.forEach((name) => substitutionMap.set(name, unknownType));
-  const selfType = ctx.resolveTypeExpression(definition.targetType, substitutionMap);
+  const selfType = ctx.resolveTypeExpression(targetType, substitutionMap);
   const record: MethodSetRecord = {
     label: `methods for ${structLabel}`,
-    target: definition.targetType,
+    target: targetType ?? definition.targetType,
     genericParams,
     obligations: extractMethodSetObligations(ctx, definition),
     definition,
@@ -75,6 +180,7 @@ export function collectImplementationDefinition(
   ctx: ImplementationContext,
   definition: AST.ImplementationDefinition,
 ): void {
+  const targetType = expandTypeAliases(ctx, definition.targetType);
   const interfaceName = ctx.getIdentifierName(definition.interfaceName);
   if (!interfaceName) {
     return;
@@ -82,13 +188,13 @@ export function collectImplementationDefinition(
   if (definition.implName?.name) {
     ctx.defineValue(definition.implName.name, unknownType);
   }
-  const targetLabel = ctx.formatImplementationTarget(definition.targetType);
-  const fallbackName = ctx.getIdentifierNameFromTypeExpression(definition.targetType);
+  const targetLabel = ctx.formatImplementationTarget(targetType);
+  const fallbackName = ctx.getIdentifierNameFromTypeExpression(targetType);
   const contextName = targetLabel ?? fallbackName ?? "<unknown>";
   const targetKey = contextName;
   const interfaceDefinition = ctx.getInterfaceDefinition(interfaceName);
   if (!interfaceDefinition) {
-    const fallback = ctx.getIdentifierNameFromTypeExpression(definition.targetType);
+    const fallback = ctx.getIdentifierNameFromTypeExpression(targetType);
     ctx.report(
       `typechecker: impl for ${fallback ?? "<unknown>"} references unknown interface '${interfaceName}'`,
       definition,
@@ -101,6 +207,7 @@ export function collectImplementationDefinition(
   const implementationGenericNameSet = new Set(implementationGenericNames);
   const targetValid = validateImplementationSelfTypePattern(
     ctx,
+    targetType ?? definition.targetType,
     definition,
     interfaceDefinition,
     contextName,
@@ -119,6 +226,7 @@ export function collectImplementationDefinition(
       contextName,
       targetKey,
       implementationGenericNames,
+      targetType ?? definition.targetType,
     );
     if (record) {
       ctx.registerImplementationRecord(record);
@@ -249,8 +357,10 @@ function createImplementationRecord(
   targetLabel: string,
   targetKey: string,
   implementationGenericNames?: string[],
+  targetType?: AST.TypeExpression,
 ): ImplementationRecord | null {
-  if (!definition.targetType) {
+  const resolvedTarget = targetType ?? definition.targetType;
+  if (!resolvedTarget) {
     return null;
   }
   const genericParams =
@@ -264,11 +374,11 @@ function createImplementationRecord(
   const interfaceArgs = Array.isArray(definition.interfaceArgs)
     ? definition.interfaceArgs.filter((arg): arg is AST.TypeExpression => Boolean(arg))
     : [];
-  const unionVariants = collectUnionVariantLabels(ctx, definition.targetType);
+  const unionVariants = collectUnionVariantLabels(ctx, resolvedTarget);
   return {
     interfaceName,
     label: ctx.formatImplementationLabel(interfaceName, targetLabel),
-    target: definition.targetType,
+    target: resolvedTarget,
     targetKey,
     genericParams,
     obligations,
@@ -340,6 +450,7 @@ function validateImplementationInterfaceArguments(
 
 function validateImplementationSelfTypePattern(
   ctx: ImplementationContext,
+  targetType: AST.TypeExpression | null | undefined,
   implementation: AST.ImplementationDefinition,
   interfaceDefinition: AST.InterfaceDefinition,
   targetLabel: string,
@@ -347,12 +458,13 @@ function validateImplementationSelfTypePattern(
   interfaceGenericNames: Set<string>,
   implementationGenericNames: Set<string>,
 ): boolean {
-  if (!implementation.targetType) {
+  const subject = targetType ?? implementation.targetType;
+  if (!subject) {
     return false;
   }
   const selfPattern = interfaceDefinition.selfTypePattern;
   if (selfPattern) {
-    const matches = doesSelfPatternMatchTarget(ctx, selfPattern, implementation.targetType, interfaceGenericNames);
+    const matches = doesSelfPatternMatchTarget(ctx, selfPattern, subject, interfaceGenericNames);
     if (!matches) {
       const expected = ctx.formatTypeExpression(selfPattern);
       ctx.report(
@@ -363,7 +475,7 @@ function validateImplementationSelfTypePattern(
     }
     return true;
   }
-  if (targetsBareTypeConstructor(ctx, implementation.targetType, implementationGenericNames)) {
+  if (targetsBareTypeConstructor(ctx, subject, implementationGenericNames)) {
     ctx.report(
       `typechecker: impl ${interfaceName} for ${targetLabel} cannot target a type constructor because the interface does not declare a self type (use 'for ...' to enable constructor implementations)`,
       implementation,

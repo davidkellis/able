@@ -384,7 +384,7 @@ fn main() -> void {}
 
       const loader = new ModuleLoader([{ path: kernelSrc, isStdlib: true }]);
       const program = await loader.load(entryPath);
-      expect(program.modules.some((mod) => mod.packageName === "kernel.boot")).toBe(true);
+      expect(program.modules.some((mod) => mod.packageName === "able.kernel.boot")).toBe(true);
     } finally {
       await fs.rm(tmpRoot, { recursive: true, force: true });
     }
@@ -426,7 +426,7 @@ fn main() -> void {}
 
       const loader = new ModuleLoader(searchPaths);
       const program = await loader.load(entryPath);
-      expect(program.modules.some((mod) => mod.packageName === "kernel.boot")).toBe(true);
+      expect(program.modules.some((mod) => mod.packageName === "able.kernel.boot")).toBe(true);
     } finally {
       await fs.rm(repoRoot, { recursive: true, force: true });
     }

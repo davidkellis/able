@@ -1,5 +1,6 @@
 package rosettacode_fibonacci
 
+import able.kernel.{Array}
 import able.collections.array
 
 ## Rosetta Code — Fibonacci sequence (https://rosettacode.org/wiki/Fibonacci_sequence)

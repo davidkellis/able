@@ -1,5 +1,6 @@
 package leetcode2
 
+import able.kernel.{Array}
 import able.collections.array
 
 ## Adds two numbers encoded as reversed digit arrays.

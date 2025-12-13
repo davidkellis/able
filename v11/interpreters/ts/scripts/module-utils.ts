@@ -4,6 +4,7 @@ import path from "node:path";
 import * as AST from "../src/ast";
 import { mapSourceFile } from "../src/parser/tree-sitter-mapper";
 import { getTreeSitterParser } from "../src/parser/tree-sitter-loader";
+import { looksLikeKernelPath } from "./module-search-paths";
 
 export type PackageLocation = {
   rootDir: string;
@@ -277,7 +278,20 @@ export function buildPackageSegments(
   filePath: String,
   declared: String[],
 ): String[] {
-  const segments: String[] = [sanitizeSegment(rootPackage) || "pkg"];
+  const base =
+    rootPackage === "kernel" || looksLikeKernelPath(String(rootDir))
+      ? [sanitizeSegment("able"), sanitizeSegment("kernel")]
+      : [sanitizeSegment(rootPackage) || "pkg"];
+  return buildPackageSegmentsWithBase(base, rootDir, filePath, declared);
+}
+
+function buildPackageSegmentsWithBase(
+  base: String[],
+  rootDir: String,
+  filePath: String,
+  declared: String[],
+): String[] {
+  const segments: String[] = [...base];
   const declaredSegments = declared.map((seg) => sanitizeSegment(seg)).filter(Boolean);
   const rel = path.relative(rootDir, filePath);
   const relDir = path.dirname(rel);

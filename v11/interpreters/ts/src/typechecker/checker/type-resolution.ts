@@ -82,32 +82,32 @@ export function createTypeResolutionHelpers(context: TypeResolutionContext): Typ
           case "nil":
           case "void":
             return primitiveType(name as PrimitiveName);
-          default: {
-            const alias = context.getTypeAlias(name);
-            if (alias) {
-              return instantiateTypeAlias(alias, [], substitutions);
-            }
-            if (context.hasInterfaceDefinition(name)) {
-              return { kind: "interface", name, typeArguments: [] };
-            }
-            const unionDef = context.getUnionDefinition(name);
-          if (unionDef) {
-            return instantiateUnionDefinition(unionDef, [], substitutions);
-          }
-          const structDef = context.getStructDefinition(name);
-          if (structDef) {
-              return {
-                kind: "struct",
-                name,
-                typeArguments: [],
-              definition: structDef,
-            };
-          }
-          const builtin = resolveBuiltinStructuralType(name, []);
-          if (builtin) {
-            return builtin;
-          }
-          return unknownType;
+      default: {
+        const structDef = context.getStructDefinition(name);
+        if (structDef) {
+          return {
+            kind: "struct",
+            name,
+            typeArguments: [],
+            definition: structDef,
+          };
+        }
+        const unionDef = context.getUnionDefinition(name);
+        if (unionDef) {
+          return instantiateUnionDefinition(unionDef, [], substitutions);
+        }
+        if (context.hasInterfaceDefinition(name)) {
+          return { kind: "interface", name, typeArguments: [] };
+        }
+        const alias = context.getTypeAlias(name);
+        if (alias) {
+          return instantiateTypeAlias(alias, [], substitutions);
+        }
+        const builtin = resolveBuiltinStructuralType(name, []);
+        if (builtin) {
+          return builtin;
+        }
+        return unknownType;
         }
       }
       }
@@ -121,17 +121,6 @@ export function createTypeResolutionHelpers(context: TypeResolutionContext): Typ
           ...(Array.isArray(expr.arguments) ? expr.arguments : []),
         ] as Array<AST.TypeExpression | null | undefined>;
         const typeArguments = rawArgs.map((arg) => resolveTypeExpression(arg, substitutions));
-        const alias = context.getTypeAlias(baseName);
-        if (alias) {
-          return instantiateTypeAlias(alias, typeArguments, substitutions);
-        }
-        if (context.hasInterfaceDefinition(baseName)) {
-          return { kind: "interface", name: baseName, typeArguments };
-        }
-        const unionDef = context.getUnionDefinition(baseName);
-        if (unionDef) {
-          return instantiateUnionDefinition(unionDef, typeArguments, substitutions);
-        }
         const structDef = context.getStructDefinition(baseName);
         if (structDef) {
           return {
@@ -140,6 +129,17 @@ export function createTypeResolutionHelpers(context: TypeResolutionContext): Typ
             typeArguments,
             definition: structDef,
           };
+        }
+        const unionDef = context.getUnionDefinition(baseName);
+        if (unionDef) {
+          return instantiateUnionDefinition(unionDef, typeArguments, substitutions);
+        }
+        if (context.hasInterfaceDefinition(baseName)) {
+          return { kind: "interface", name: baseName, typeArguments };
+        }
+        const alias = context.getTypeAlias(baseName);
+        if (alias) {
+          return instantiateTypeAlias(alias, typeArguments, substitutions);
         }
         const builtin = resolveBuiltinStructuralType(baseName, typeArguments);
         if (builtin) {

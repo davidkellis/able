@@ -28,6 +28,35 @@ export function applyImportStatement(ctx: ImportContext, imp: AST.ImportStatemen
   }
   const packageName = formatImportPath(ctx, imp.packagePath);
   const summary = packageName ? ctx.packageSummaries.get(packageName) : undefined;
+  const reexports: Record<string, { pkg: string; symbol: string }> = {
+    "able.collections.array.Array": { pkg: "able.kernel", symbol: "Array" },
+    "able.collections.range.Range": { pkg: "able.kernel", symbol: "Range" },
+    "able.collections.range.RangeFactory": { pkg: "able.kernel", symbol: "RangeFactory" },
+    "able.core.numeric.Ratio": { pkg: "able.kernel", symbol: "Ratio" },
+    "able.concurrency.Channel": { pkg: "able.kernel", symbol: "Channel" },
+    "able.concurrency.Mutex": { pkg: "able.kernel", symbol: "Mutex" },
+    "able.concurrency.Awaitable": { pkg: "able.kernel", symbol: "Awaitable" },
+    "able.concurrency.AwaitWaker": { pkg: "able.kernel", symbol: "AwaitWaker" },
+    "able.concurrency.AwaitRegistration": { pkg: "able.kernel", symbol: "AwaitRegistration" },
+  };
+  const resolveImported = (
+    symbolName: string,
+  ): { type: TypeInfo; hasSymbol: boolean; hasFallback: boolean } => {
+    const hasSymbol = !!summary?.symbols?.[symbolName];
+    const resolved = hasSymbol && summary ? resolveImportedSymbolType(summary, symbolName) : unknownType;
+    const reexportKey = packageName ? `${packageName}.${symbolName}` : symbolName;
+    const fallback = reexportKey ? reexports[reexportKey] : undefined;
+    const fallbackSummary = fallback ? ctx.packageSummaries.get(fallback.pkg) : undefined;
+    const hasFallback = !!fallbackSummary?.symbols?.[fallback?.symbol ?? ""];
+    let typeInfo: TypeInfo = resolved ?? unknownType;
+    if ((typeInfo === unknownType || typeInfo?.kind === "unknown") && fallbackSummary && fallback) {
+      const fallbackType = resolveImportedSymbolType(fallbackSummary, fallback.symbol);
+      if (fallbackType) {
+        typeInfo = fallbackType;
+      }
+    }
+    return { type: typeInfo ?? unknownType, hasSymbol, hasFallback };
+  };
   if (!summary) {
     const label = packageName ?? "<unknown>";
     ctx.report(`typechecker: import references unknown package '${label}'`, imp);
@@ -41,7 +70,8 @@ export function applyImportStatement(ctx: ImportContext, imp: AST.ImportStatemen
     if (summary.symbols) {
       for (const symbolName of Object.keys(summary.symbols)) {
         if (!ctx.env.has(symbolName)) {
-          ctx.env.define(symbolName, resolveImportedSymbolType(summary, symbolName));
+          const resolved = resolveImported(symbolName);
+          ctx.env.define(symbolName, resolved.type);
         }
       }
     }
@@ -53,8 +83,8 @@ export function applyImportStatement(ctx: ImportContext, imp: AST.ImportStatemen
       const selectorName = ctx.getIdentifierName(selector.name);
       if (!selectorName) continue;
       const aliasName = ctx.getIdentifierName(selector.alias) ?? selectorName;
-      const hasSymbol = !!summary.symbols?.[selectorName];
-      if (!hasSymbol) {
+      const resolved = resolveImported(selectorName);
+      if (!resolved.hasSymbol && !resolved.hasFallback) {
         if (summary.privateSymbols?.[selectorName]) {
           const label = packageName ?? "<unknown>";
           ctx.report(`typechecker: package '${label}' symbol '${selectorName}' is private`, selector);
@@ -65,7 +95,7 @@ export function applyImportStatement(ctx: ImportContext, imp: AST.ImportStatemen
         continue;
       }
       if (!ctx.env.has(aliasName)) {
-        ctx.env.define(aliasName, resolveImportedSymbolType(summary, selectorName));
+        ctx.env.define(aliasName, resolved.type);
       }
     }
     return;

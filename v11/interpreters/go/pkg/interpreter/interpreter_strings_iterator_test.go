@@ -11,6 +11,7 @@ import (
 func TestStringIteratorRunsAfterStdlibImport(t *testing.T) {
 	loader, err := driver.NewLoader([]driver.SearchPath{
 		{Path: filepath.Join("..", "..", "..", "..", "stdlib", "src"), Kind: driver.RootStdlib},
+		{Path: filepath.Join("..", "..", "..", "..", "kernel", "src"), Kind: driver.RootStdlib},
 	})
 	if err != nil {
 		t.Fatalf("loader init: %v", err)

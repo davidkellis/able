@@ -1,29 +1,12 @@
 import able.core.interfaces.{Error}
+import able.kernel.{Mutex::KernelMutex}
 
 struct MutexUnlocked {}
 struct MutexPoisoned {}
 
-struct Mutex {
-  handle: i64
-}
-
-methods Mutex {
-  fn new() -> Mutex {
-    Mutex { handle: __able_mutex_new() }
-  }
-
-  fn lock(self: Self) -> void {
-    __able_mutex_lock(self.handle)
-  }
-
-  fn unlock(self: Self) -> void {
-    __able_mutex_unlock(self.handle)
-  }
-
-  fn await_lock<R>(self: Self, callback: fn() -> R) -> (Awaitable R) {
-    __able_mutex_await_lock(self.handle, callback)
-  }
-}
+## Re-export kernel Mutex under the stdlib namespace.
+type Mutex = KernelMutex
+const Mutex = KernelMutex
 
 impl Error for MutexUnlocked {
   fn message(self: Self) -> String { "unlock of unlocked mutex" }

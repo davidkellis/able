@@ -100,7 +100,8 @@ func (i *Interpreter) matchImplEntry(entry *implEntry, info typeInfo) (map[strin
 	if entry.definition != nil {
 		actual := typeExpressionFromInfo(info)
 		if actual != nil {
-			matchTypeExpressionTemplate(entry.definition.TargetType, actual, genericNames, bindings)
+			template := expandTypeAliases(entry.definition.TargetType, i.typeAliases, nil)
+			matchTypeExpressionTemplate(template, expandTypeAliases(actual, i.typeAliases, nil), genericNames, bindings)
 		}
 	}
 	if len(entry.argTemplates) > 0 {
@@ -108,7 +109,7 @@ func (i *Interpreter) matchImplEntry(entry *implEntry, info typeInfo) (map[strin
 			return nil, false
 		}
 		for idx, tmpl := range entry.argTemplates {
-			if !matchTypeExpressionTemplate(tmpl, info.typeArgs[idx], genericNames, bindings) {
+			if !matchTypeExpressionTemplate(expandTypeAliases(tmpl, i.typeAliases, nil), expandTypeAliases(info.typeArgs[idx], i.typeAliases, nil), genericNames, bindings) {
 				return nil, false
 			}
 		}
@@ -128,7 +129,13 @@ func (i *Interpreter) collectImplCandidates(info typeInfo, interfaceFilter strin
 	if info.name == "" {
 		return nil, nil
 	}
-	entries := append([]implEntry{}, i.implMethods[info.name]...)
+	typeNames := i.canonicalTypeNames(info.name)
+	entries := make([]implEntry, 0)
+	for _, name := range typeNames {
+		if impls, ok := i.implMethods[name]; ok {
+			entries = append(entries, impls...)
+		}
+	}
 	if len(i.genericImpls) > 0 {
 		entries = append(entries, i.genericImpls...)
 	}
@@ -142,7 +149,8 @@ func (i *Interpreter) collectImplCandidates(info typeInfo, interfaceFilter strin
 		if methodFilter != "" && !i.implProvidesMethod(entry, methodFilter) {
 			continue
 		}
-		bindings, ok := i.matchImplEntry(entry, info)
+		entryInfo := info
+		bindings, ok := i.matchImplEntry(entry, entryInfo)
 		if !ok {
 			continue
 		}

@@ -1,5 +1,6 @@
 package leetcode6
 
+import able.kernel.{Array}
 import able.collections.array
 
 ## Zigzag conversion using rows of characters.

@@ -232,13 +232,13 @@ fn main() -> void {}
 
 	found := false
 	for _, mod := range program.Modules {
-		if mod != nil && mod.Package == "kernel.boot" {
+		if mod != nil && mod.Package == "able.kernel.boot" {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Fatalf("expected kernel.boot to be auto-loaded; modules: %#v", program.Modules)
+		t.Fatalf("expected able.kernel.boot to be auto-loaded; modules: %#v", program.Modules)
 	}
 }
 

@@ -2,16 +2,11 @@ package numeric
 import able.core.errors.{DivisionByZeroError, OverflowError}
 import able.core.interfaces.{Error}
 import able.core.options.{Result}
+import able.kernel.{Ratio::KernelRatio, ratio_from_float}
 
-extern typescript fn __able_ratio_from_float(value: f64) -> Ratio {}
-extern go fn __able_ratio_from_float(value: f64) -> Ratio {}
-
-## Exact rational numbers with reduced numerator/denominator.
-## Invariants: den > 0, gcd(|num|, den) == 1, num/den fit in i64.
-struct Ratio {
-  num: i64,
-  den: i64
-}
+## Re-export kernel Ratio under the stdlib namespace.
+type Ratio = KernelRatio
+Ratio := KernelRatio
 
 ## Error raised when a numeric conversion cannot be performed without loss.
 struct NumericConversionError {
@@ -206,7 +201,7 @@ methods f64 {
   }
 
   fn to_f64(self: Self) -> Result f64 { self }
-  fn to_r(self: Self) -> Ratio { __able_ratio_from_float(self) }
+  fn to_r(self: Self) -> Ratio { ratio_from_float(self) }
 }
 
 methods f32 {
@@ -215,7 +210,7 @@ methods f32 {
   fn to_i64(self: Self) -> Result i64 { (self as f64).to_i64() }
   fn to_u64(self: Self) -> Result u64 { (self as f64).to_u64() }
   fn to_f64(self: Self) -> Result f64 { self as f64 }
-  fn to_r(self: Self) -> Ratio { __able_ratio_from_float(self as f64) }
+  fn to_r(self: Self) -> Ratio { ratio_from_float(self as f64) }
 }
 
 methods Ratio {
@@ -240,88 +235,37 @@ methods Ratio {
 
   fn to_u64(self: Self) -> Result u64 {
     if self.den != 1 { numeric_conversion_error("cannot convert non-integer Ratio to u64") }
-    else if self.num < 0 {
-      numeric_conversion_error("cannot convert negative Ratio to u64")
-    } else { self.num as u64 }
+    else if self.num < 0 { numeric_conversion_error("cannot convert negative Ratio to u64") }
+    else { self.num as u64 }
   }
 
   fn to_f64(self: Self) -> Result f64 { (self.num as f64) / (self.den as f64) }
   fn to_r(self: Self) -> Ratio { self }
 }
 
-## Basic algebraic hierarchy (mirrors the design document terminology).
-interface Semigroup for T {
-  fn combine(self: Self, other: Self) -> Self;
+## Arithmetic and comparisons ------------------------------------------------
+
+fn ratio_add(lhs: Ratio, rhs: Ratio) -> Ratio {
+  ratio_normalize((lhs.num as i128 * rhs.den as i128) + (rhs.num as i128 * lhs.den as i128), lhs.den as i128 * rhs.den as i128)
 }
 
-interface Monoid for T {
-  fn empty() -> Self;
-  fn combine(self: Self, other: Self) -> Self;
+fn ratio_sub(lhs: Ratio, rhs: Ratio) -> Ratio {
+  ratio_normalize((lhs.num as i128 * rhs.den as i128) - (rhs.num as i128 * lhs.den as i128), lhs.den as i128 * rhs.den as i128)
 }
 
-interface AdditiveMonoid for T {
-  fn zero() -> Self;
-  fn add(self: Self, other: Self) -> Self;
+fn ratio_mul(lhs: Ratio, rhs: Ratio) -> Ratio {
+  ratio_normalize(lhs.num as i128 * rhs.num as i128, lhs.den as i128 * rhs.den as i128)
 }
 
-interface AdditiveGroup for T {
-  fn zero() -> Self;
-  fn add(self: Self, other: Self) -> Self;
-  fn negate(self: Self) -> Self;
+fn ratio_div(lhs: Ratio, rhs: Ratio) -> Ratio {
+  if rhs.num == 0 { raise DivisionByZeroError {} }
+  ratio_normalize(lhs.num as i128 * rhs.den as i128, lhs.den as i128 * rhs.num as i128)
 }
 
-interface MultiplicativeMonoid for T {
-  fn one() -> Self;
-  fn mul(self: Self, other: Self) -> Self;
+fn ratio_eq(lhs: Ratio, rhs: Ratio) -> bool {
+  lhs.num == rhs.num && lhs.den == rhs.den
 }
 
-interface MultiplicativeGroup for T {
-  fn one() -> Self;
-  fn mul(self: Self, other: Self) -> Self;
-  fn reciprocal(self: Self) -> Self;
-}
-
-## Core numeric surface shared across integers/floats.
-interface Numeric for T {
-  fn zero() -> Self;
-  fn one() -> Self;
-  fn abs(self: Self) -> Self;
-  fn sign(self: Self) -> i32;
-  fn min(self: Self, other: Self) -> Self;
-  fn max(self: Self, other: Self) -> Self;
-  fn clamp(self: Self, min_value: Self, max_value: Self) -> Self;
-}
-
-interface Signed for T {
-  fn is_positive(self: Self) -> bool;
-  fn is_negative(self: Self) -> bool;
-}
-
-interface Unsigned for T {
-  fn leading_zeros(self: Self) -> i32;
-  fn trailing_zeros(self: Self) -> i32;
-}
-
-interface Integral for T {
-  fn div_mod(self: Self, other: Self) -> DivMod Self;
-  fn bit_length(self: Self) -> i32;
-  fn bit_count(self: Self) -> i32;
-  fn is_even(self: Self) -> bool;
-  fn is_odd(self: Self) -> bool;
-}
-
-interface Fractional for T {
-  fn floor(self: Self) -> Self;
-  fn ceil(self: Self) -> Self;
-  fn round(self: Self) -> Self;
-  fn reciprocal(self: Self) -> Self;
-  fn fract(self: Self) -> Self;
-}
-
-interface NumericConversions for T {
-  fn to_i32(self: Self) -> Result i32;
-  fn to_u32(self: Self) -> Result u32;
-  fn to_i64(self: Self) -> Result i64;
-  fn to_u64(self: Self) -> Result u64;
-  fn to_f64(self: Self) -> Result f64;
+fn ratio_lt(lhs: Ratio, rhs: Ratio) -> bool {
+  (lhs.num as i128 * rhs.den as i128) < (rhs.num as i128 * lhs.den as i128)
 }
