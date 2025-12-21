@@ -25,6 +25,7 @@ import {
 } from "./fixture-utils";
 import { startRunTimeout } from "./test-timeouts";
 import { serializeMapEntries } from "../src/interpreter/maps";
+import { callCallableValue } from "../src/interpreter/functions";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_ROOT = path.resolve(__dirname, "../../../fixtures/ast");
@@ -40,6 +41,7 @@ const STDLIB_CONCURRENCY_ENTRY = path.join(STDLIB_ROOT, "concurrency", "await.ab
 const stdlibLoader = new ModuleLoader([STDLIB_ROOT, KERNEL_ROOT]);
 let stdlibStringProgram: Program | null = null;
 let stdlibConcurrencyProgram: Program | null = null;
+const EXEC_ROOT = path.resolve(__dirname, "../../../fixtures/exec");
 
 type FixtureResult = { name: string; description?: string };
 
@@ -187,10 +189,124 @@ async function main() {
       const desc = res.description ? ` - ${res.description}` : "";
       console.log(`✓ ${res.name}${desc}`);
     }
+    const execFixtures = await collectExecFixtures(EXEC_ROOT);
+    for (const execDir of execFixtures) {
+      const relativeName = path.relative(EXEC_ROOT, execDir).split(path.sep).join("/");
+      if (FIXTURE_FILTER && !relativeName.includes(FIXTURE_FILTER)) {
+        continue;
+      }
+      const res = await runExecFixture(execDir);
+      results.push(res);
+      const desc = res.description ? ` - ${res.description}` : "";
+      console.log(`✓ ${res.name}${desc}`);
+    }
     console.log(`Executed ${results.length} fixture(s).`);
   } finally {
     clearTimeouts();
   }
+}
+
+async function collectExecFixtures(root: string): Promise<string[]> {
+  const dirs: string[] = [];
+  async function walk(current: string) {
+    const entries = await fs.readdir(current, { withFileTypes: true });
+    let hasManifest = false;
+    for (const entry of entries) {
+      if (entry.isFile() && entry.name === "manifest.json") {
+        hasManifest = true;
+        break;
+      }
+    }
+    if (hasManifest) {
+      dirs.push(current);
+    }
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        await walk(path.join(current, entry.name));
+      }
+    }
+  }
+  try {
+    await walk(root);
+  } catch (err: any) {
+    if (err && err.code === "ENOENT") {
+      return [];
+    }
+    throw err;
+  }
+  return dirs.sort();
+}
+
+async function runExecFixture(dir: string): Promise<FixtureResult> {
+  const manifest = await readManifest(dir);
+  const entryRel = manifest.entry ?? "main.able";
+  const entryPath = path.join(dir, entryRel);
+  const loader = new ModuleLoader([STDLIB_ROOT, KERNEL_ROOT]);
+  const program = await loader.load(entryPath);
+
+  const interpreter = new V10.InterpreterV10();
+  installRuntimeStubs(interpreter);
+
+  const stdout: string[] = [];
+  const nilValue: V10.V10Value = { kind: "nil", value: null };
+  interpreter.globals.define(
+    "print",
+    interpreter.makeNativeFunction("print", 1, (_interp, args) => {
+      const parts = args.map((value) => formatValue(value));
+      stdout.push(parts.join(" "));
+      return nilValue;
+    }),
+  );
+  let exitCode = 0;
+  let runtimeError: unknown;
+
+  try {
+    const nonEntry = program.modules.filter((mod) => mod.packageName !== program.entry.packageName);
+    for (const mod of nonEntry) {
+      interpreter.evaluate(mod.module);
+    }
+    interpreter.evaluate(program.entry.module);
+    const pkg = interpreter.packageRegistry.get(program.entry.packageName);
+    const mainFn = pkg?.get("main");
+    if (!mainFn) {
+      throw new Error("entry module missing main");
+    }
+    callCallableValue(interpreter as any, mainFn, [], interpreter.globals);
+  } catch (err) {
+    exitCode = 1;
+    runtimeError = err;
+  }
+
+  const expected = manifest.expect ?? {};
+  if (runtimeError) {
+    if (expected.exit === undefined || exitCode !== expected.exit) {
+      throw runtimeError instanceof Error ? runtimeError : new Error(String(runtimeError));
+    }
+  }
+  if (expected.stdout) {
+    if (JSON.stringify(stdout) !== JSON.stringify(expected.stdout)) {
+      throw new Error(
+        `stdout mismatch for ${dir}: expected ${JSON.stringify(expected.stdout)}, got ${JSON.stringify(stdout)}`,
+      );
+    }
+  }
+  if (expected.stderr) {
+    const actualErr = runtimeError ? [extractErrorMessage(runtimeError)] : [];
+    if (JSON.stringify(actualErr) !== JSON.stringify(expected.stderr)) {
+      throw new Error(
+        `stderr mismatch for ${dir}: expected ${JSON.stringify(expected.stderr)}, got ${JSON.stringify(actualErr)}`,
+      );
+    }
+  }
+  if (expected.exit !== undefined) {
+    if (exitCode !== expected.exit) {
+      throw new Error(`exit code mismatch for ${dir}: expected ${expected.exit}, got ${exitCode}`);
+    }
+  } else if (runtimeError) {
+    throw runtimeError instanceof Error ? runtimeError : new Error(String(runtimeError));
+  }
+
+  return { name: `exec/${path.basename(dir)}`, description: manifest.description };
 }
 
 function moduleImportsStdlibString(module: AST.Module): boolean {

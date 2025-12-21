@@ -1,0 +1,7 @@
+{
+  "description": "sends values across a channel between procs and prints them",
+  "expect": {
+    "stdout": ["1", "2"],
+    "exit": 0
+  }
+}

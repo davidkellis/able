@@ -50,7 +50,7 @@ describe("stdlib-backed linked list helpers", () => {
         `
 package main
 
-import able.collections.linked_list.{LinkedList}
+import able.collections.linked_list.*
 
 fn main() -> i32 {
   list := LinkedList.new()

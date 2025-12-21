@@ -25,6 +25,118 @@ const PRIMITIVE_TYPE_NAMES = new Set([
   "void",
 ]);
 
+function typeInfoToTypeExpression(type: TypeInfo | undefined): AST.TypeExpression | null {
+  if (!type) return null;
+  switch (type.kind) {
+    case "primitive":
+      return AST.simpleTypeExpression(type.name);
+    case "struct": {
+      const base = AST.simpleTypeExpression(type.name);
+      const args =
+        Array.isArray(type.typeArguments) && type.typeArguments.length > 0
+          ? type.typeArguments.map((arg) => typeInfoToTypeExpression(arg) ?? AST.wildcardTypeExpression())
+          : undefined;
+      return args && args.length > 0 ? AST.genericTypeExpression(base, args) : base;
+    }
+    case "interface": {
+      const base = AST.simpleTypeExpression(type.name);
+      const args =
+        Array.isArray(type.typeArguments) && type.typeArguments.length > 0
+          ? type.typeArguments.map((arg) => typeInfoToTypeExpression(arg) ?? AST.wildcardTypeExpression())
+          : undefined;
+      return args && args.length > 0 ? AST.genericTypeExpression(base, args) : base;
+    }
+    case "array":
+      return AST.genericTypeExpression(
+        AST.simpleTypeExpression("Array"),
+        [typeInfoToTypeExpression(type.element) ?? AST.wildcardTypeExpression()],
+      );
+    case "map":
+      return AST.genericTypeExpression(
+        AST.simpleTypeExpression("Map"),
+        [
+          typeInfoToTypeExpression(type.key) ?? AST.wildcardTypeExpression(),
+          typeInfoToTypeExpression(type.value) ?? AST.wildcardTypeExpression(),
+        ],
+      );
+    case "range":
+      return AST.genericTypeExpression(
+        AST.simpleTypeExpression("Range"),
+        [typeInfoToTypeExpression(type.element) ?? AST.wildcardTypeExpression()],
+      );
+    case "iterator":
+      return AST.genericTypeExpression(
+        AST.simpleTypeExpression("Iterator"),
+        [typeInfoToTypeExpression(type.element) ?? AST.wildcardTypeExpression()],
+      );
+    case "proc":
+      return AST.genericTypeExpression(
+        AST.simpleTypeExpression("Proc"),
+        [typeInfoToTypeExpression(type.result) ?? AST.wildcardTypeExpression()],
+      );
+    case "future":
+      return AST.genericTypeExpression(
+        AST.simpleTypeExpression("Future"),
+        [typeInfoToTypeExpression(type.result) ?? AST.wildcardTypeExpression()],
+      );
+    case "nullable":
+      return AST.nullableTypeExpression(typeInfoToTypeExpression(type.inner) ?? AST.wildcardTypeExpression());
+    case "result":
+      return AST.resultTypeExpression(typeInfoToTypeExpression(type.inner) ?? AST.wildcardTypeExpression());
+    case "union":
+      return AST.unionTypeExpression(
+        type.members.map((member) => typeInfoToTypeExpression(member) ?? AST.wildcardTypeExpression()),
+      );
+    case "function": {
+      const params = (type.parameters ?? []).map((param) => typeInfoToTypeExpression(param) ?? AST.wildcardTypeExpression());
+      const returnType = typeInfoToTypeExpression(type.returnType) ?? AST.wildcardTypeExpression();
+      return AST.functionTypeExpression(params, returnType);
+    }
+    default:
+      return AST.wildcardTypeExpression();
+  }
+}
+
+function canonicalizeTargetType(
+  ctx: ImplementationContext,
+  expr: AST.TypeExpression | null | undefined,
+): AST.TypeExpression | null | undefined {
+  const expanded = expandTypeAliases(ctx, expr);
+  switch (expanded?.type) {
+    case "SimpleTypeExpression": {
+      const name = ctx.getIdentifierName(expanded.name);
+      if (name) {
+        const binding = ctx.lookupIdentifier?.(name);
+        const canonical = binding ? typeInfoToTypeExpression(binding) : null;
+        if (canonical) {
+          return canonical;
+        }
+      }
+      return expanded;
+    }
+    case "GenericTypeExpression":
+      return {
+        ...expanded,
+        base: canonicalizeTargetType(ctx, expanded.base) ?? expanded.base,
+        arguments: (expanded.arguments ?? []).map((arg) => canonicalizeTargetType(ctx, arg) ?? arg),
+      };
+    case "NullableTypeExpression":
+      return { ...expanded, innerType: canonicalizeTargetType(ctx, expanded.innerType) ?? expanded.innerType };
+    case "ResultTypeExpression":
+      return { ...expanded, innerType: canonicalizeTargetType(ctx, expanded.innerType) ?? expanded.innerType };
+    case "UnionTypeExpression":
+      return { ...expanded, members: (expanded.members ?? []).map((member) => canonicalizeTargetType(ctx, member) ?? member) };
+    case "FunctionTypeExpression":
+      return {
+        ...expanded,
+        paramTypes: (expanded.paramTypes ?? []).map((param) => canonicalizeTargetType(ctx, param) ?? param),
+        returnType: canonicalizeTargetType(ctx, expanded.returnType) ?? expanded.returnType,
+      };
+    default:
+      return expanded;
+  }
+}
+
 function substituteTypeExpression(
   ctx: ImplementationContext,
   expr: AST.TypeExpression,
@@ -140,10 +252,7 @@ function collectTargetTypeParams(ctx: ImplementationContext, targetType: AST.Typ
 }
 
 export function collectMethodsDefinition(ctx: ImplementationContext, definition: AST.MethodsDefinition): void {
-  const targetType = expandTypeAliases(ctx, definition.targetType);
-  const structLabel =
-    ctx.formatImplementationTarget(targetType) ?? ctx.getIdentifierNameFromTypeExpression(targetType);
-  if (!structLabel) return;
+  const targetType = canonicalizeTargetType(ctx, definition.targetType);
   const explicitParams = Array.isArray(definition.genericParams)
     ? definition.genericParams
         .map((param) => ctx.getIdentifierName(param?.name))
@@ -154,21 +263,36 @@ export function collectMethodsDefinition(ctx: ImplementationContext, definition:
   const substitutionMap = new Map<string, TypeInfo>();
   genericParams.forEach((name) => substitutionMap.set(name, unknownType));
   const selfType = ctx.resolveTypeExpression(targetType, substitutionMap);
+  const canonicalTarget = typeInfoToTypeExpression(selfType) ?? targetType ?? definition.targetType;
+  const structLabel =
+    ctx.describeTypeArgument(selfType ?? unknownType) ??
+    ctx.formatImplementationTarget(canonicalTarget) ??
+    ctx.getIdentifierNameFromTypeExpression(canonicalTarget);
+  const structBaseName =
+    ctx.getIdentifierNameFromTypeExpression?.(canonicalTarget) ??
+    ctx.getIdentifierNameFromTypeExpression?.(definition.targetType);
+  const structName = structBaseName ?? structLabel;
+  if (!structLabel) return;
   const record: MethodSetRecord = {
     label: `methods for ${structLabel}`,
-    target: targetType ?? definition.targetType,
+    target: canonicalTarget,
     genericParams,
     obligations: extractMethodSetObligations(ctx, definition),
     definition,
+    resolvedTarget: selfType ?? unknownType,
   };
   ctx.registerMethodSet(record);
   const methodObligations = Array.isArray(record.obligations) ? record.obligations : [];
   if (Array.isArray(definition.definitions)) {
     for (const entry of definition.definitions) {
       if (entry?.type === "FunctionDefinition") {
-        collectFunctionDefinition(ctx, entry, { structName: structLabel, typeParamNames: record.genericParams });
+        collectFunctionDefinition(ctx, entry, {
+          structName,
+          structBaseName,
+          typeParamNames: record.genericParams,
+        });
         if (entry.id?.name && methodObligations.length > 0) {
-          const fullName = `${structLabel}::${entry.id.name}`;
+          const fullName = `${structName ?? structLabel}::${entry.id.name}`;
           appendMethodSetObligations(ctx, fullName, methodObligations, selfType ?? unknownType);
         }
       }
@@ -180,7 +304,7 @@ export function collectImplementationDefinition(
   ctx: ImplementationContext,
   definition: AST.ImplementationDefinition,
 ): void {
-  const targetType = expandTypeAliases(ctx, definition.targetType);
+  const targetType = canonicalizeTargetType(ctx, definition.targetType);
   const interfaceName = ctx.getIdentifierName(definition.interfaceName);
   if (!interfaceName) {
     return;
@@ -190,8 +314,8 @@ export function collectImplementationDefinition(
   }
   const targetLabel = ctx.formatImplementationTarget(targetType);
   const fallbackName = ctx.getIdentifierNameFromTypeExpression(targetType);
-  const contextName = targetLabel ?? fallbackName ?? "<unknown>";
-  const targetKey = contextName;
+  const initialContextName = targetLabel ?? fallbackName ?? "<unknown>";
+  let contextName = initialContextName;
   const interfaceDefinition = ctx.getInterfaceDefinition(interfaceName);
   if (!interfaceDefinition) {
     const fallback = ctx.getIdentifierNameFromTypeExpression(targetType);
@@ -205,12 +329,28 @@ export function collectImplementationDefinition(
   const interfaceGenericNames = collectInterfaceGenericParamNames(ctx, interfaceDefinition);
   const implementationGenericNames = collectImplementationGenericParamNames(ctx, definition);
   const implementationGenericNameSet = new Set(implementationGenericNames);
+  const substitutionMap = new Map<string, TypeInfo>();
+  implementationGenericNames.forEach((name) => substitutionMap.set(name, unknownType));
+  const resolvedTarget =
+    targetType ?? definition.targetType
+      ? ctx.resolveTypeExpression(targetType ?? definition.targetType, substitutionMap)
+      : unknownType;
+  const resolvedTargetExpr = typeInfoToTypeExpression(resolvedTarget ?? unknownType);
+  const canonicalTarget =
+    resolvedTargetExpr && resolvedTargetExpr.type !== "WildcardTypeExpression"
+      ? resolvedTargetExpr
+      : targetType ?? definition.targetType;
+  const resolvedLabel = resolvedTarget && resolvedTarget.kind !== "unknown"
+    ? ctx.describeTypeArgument(resolvedTarget)
+    : null;
+  const canonicalTargetLabel = ctx.formatImplementationTarget(canonicalTarget) ?? resolvedLabel ?? initialContextName;
+  contextName = canonicalTargetLabel ?? initialContextName;
   const targetValid = validateImplementationSelfTypePattern(
     ctx,
-    targetType ?? definition.targetType,
+    canonicalTarget ?? targetType ?? definition.targetType,
     definition,
     interfaceDefinition,
-    contextName,
+    canonicalTargetLabel ?? contextName,
     interfaceName,
     interfaceGenericNames,
     implementationGenericNameSet,
@@ -224,9 +364,10 @@ export function collectImplementationDefinition(
       definition,
       interfaceName,
       contextName,
-      targetKey,
+      contextName,
       implementationGenericNames,
-      targetType ?? definition.targetType,
+      canonicalTarget ?? targetType ?? definition.targetType,
+      resolvedTarget ?? unknownType,
     );
     if (record) {
       ctx.registerImplementationRecord(record);
@@ -358,9 +499,10 @@ function createImplementationRecord(
   targetKey: string,
   implementationGenericNames?: string[],
   targetType?: AST.TypeExpression,
+  resolvedTarget?: TypeInfo,
 ): ImplementationRecord | null {
-  const resolvedTarget = targetType ?? definition.targetType;
-  if (!resolvedTarget) {
+  const resolvedTargetExpr = targetType ?? definition.targetType;
+  if (!resolvedTargetExpr) {
     return null;
   }
   const genericParams =
@@ -378,14 +520,15 @@ function createImplementationRecord(
   return {
     interfaceName,
     label: ctx.formatImplementationLabel(interfaceName, targetLabel),
-    target: resolvedTarget,
-    targetKey,
-    genericParams,
-    obligations,
-    interfaceArgs,
-    unionVariants,
-    definition,
-  };
+      target: resolvedTargetExpr,
+      targetKey,
+      genericParams,
+      obligations,
+      interfaceArgs,
+      unionVariants,
+      resolvedTarget,
+      definition,
+    };
 }
 
 function collectImplementationGenericParamNames(
@@ -726,7 +869,13 @@ function validateImplementationMethod(
     : 0;
   const interfaceGenerics = Array.isArray(signature.genericParams) ? signature.genericParams.length : 0;
   const implementationGenerics = Array.isArray(method.genericParams) ? method.genericParams.length : 0;
-  const substitutions = buildImplementationSubstitutions(ctx, interfaceDefinition, implementation, targetLabel);
+  const substitutions = buildImplementationSubstitutions(
+    ctx,
+    interfaceDefinition,
+    implementation,
+    targetLabel,
+    implementation.targetType ?? null,
+  );
   const expectedGenerics = interfaceGenerics;
   if (expectedGenerics !== implementationGenerics) {
     ctx.report(
@@ -803,9 +952,18 @@ function buildImplementationSubstitutions(
   interfaceDefinition: AST.InterfaceDefinition,
   implementation: AST.ImplementationDefinition,
   targetLabel: string,
+  targetType: AST.TypeExpression | null | undefined,
 ): Map<string, string> {
   const substitutions = new Map<string, string>();
-  substitutions.set("Self", targetLabel);
+  const implGenerics = Array.isArray(implementation.genericParams) ? implementation.genericParams : [];
+  implGenerics.forEach((param) => {
+    const name = ctx.getIdentifierName(param?.name);
+    if (name) {
+      substitutions.set(name, name);
+    }
+  });
+  const formattedSelf = targetType ? ctx.formatTypeExpression(targetType, substitutions) : null;
+  substitutions.set("Self", formattedSelf ?? targetLabel);
   const interfaceArgs = Array.isArray(implementation.interfaceArgs) ? implementation.interfaceArgs : [];
   const interfaceParams = Array.isArray(interfaceDefinition.genericParams) ? interfaceDefinition.genericParams : [];
   interfaceParams.forEach((param, index) => {

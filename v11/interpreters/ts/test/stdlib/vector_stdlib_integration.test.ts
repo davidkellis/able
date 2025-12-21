@@ -50,7 +50,7 @@ describe("stdlib-backed vector helpers", () => {
         `
 package main
 
-import able.collections.vector.{Vector}
+import able.collections.vector.*
 
 fn build_vector(limit: i32) -> Vector i32 {
   vec := Vector.new()

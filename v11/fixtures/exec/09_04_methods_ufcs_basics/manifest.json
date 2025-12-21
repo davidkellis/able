@@ -1,0 +1,11 @@
+{
+  "description": "UFCS and method-call resolution for inherent, free, and type-qualified functions",
+  "expect": {
+    "stdout": [
+      "moved 4,6 norm 52",
+      "ufcs 0,4",
+      "static 0,-1"
+    ],
+    "exit": 0
+  }
+}

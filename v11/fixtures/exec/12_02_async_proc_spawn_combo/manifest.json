@@ -1,0 +1,15 @@
+{
+  "description": "proc vs spawn scheduling with cooperative yields and future status/value",
+  "expect": {
+    "stdout": [
+      "future initial Pending",
+      "proc:start",
+      "spawn:start",
+      "proc:end",
+      "spawn:end",
+      "future final Resolved",
+      "future value done"
+    ],
+    "exit": 0
+  }
+}

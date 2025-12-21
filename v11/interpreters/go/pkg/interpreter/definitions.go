@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"strings"
 
 	"able/interpreter10-go/pkg/ast"
 	"able/interpreter10-go/pkg/runtime"
@@ -50,6 +51,76 @@ func registerExternNativeHandler(target ast.HostTarget, name string, handler ext
 		externNativeHandlers[target] = make(map[string]externNativeFactory)
 	}
 	externNativeHandlers[target][name] = handler
+}
+
+func canonicalTypeName(env *runtime.Environment, name string) string {
+	if env == nil {
+		return name
+	}
+	val, err := env.Get(name)
+	if err != nil {
+		return name
+	}
+	switch v := val.(type) {
+	case *runtime.StructDefinitionValue:
+		if v.Node != nil && v.Node.ID != nil && v.Node.ID.Name != "" {
+			return v.Node.ID.Name
+		}
+	case *runtime.InterfaceDefinitionValue:
+		if v.Node != nil && v.Node.ID != nil && v.Node.ID.Name != "" {
+			return v.Node.ID.Name
+		}
+	}
+	return name
+}
+
+func canonicalizeTypeExpression(expr ast.TypeExpression, env *runtime.Environment, aliases map[string]*ast.TypeAliasDefinition) ast.TypeExpression {
+	if expr == nil {
+		return nil
+	}
+	expanded := expandTypeAliases(expr, aliases, nil)
+	switch t := expanded.(type) {
+	case *ast.SimpleTypeExpression:
+		if t.Name == nil {
+			return expanded
+		}
+		name := canonicalTypeName(env, t.Name.Name)
+		if name == t.Name.Name {
+			return expanded
+		}
+		return ast.Ty(name)
+	case *ast.GenericTypeExpression:
+		base := canonicalizeTypeExpression(t.Base, env, aliases)
+		args := make([]ast.TypeExpression, len(t.Arguments))
+		for idx, arg := range t.Arguments {
+			if arg == nil {
+				continue
+			}
+			args[idx] = canonicalizeTypeExpression(arg, env, aliases)
+		}
+		return ast.Gen(base, args...)
+	case *ast.NullableTypeExpression:
+		return ast.Nullable(canonicalizeTypeExpression(t.InnerType, env, aliases))
+	case *ast.ResultTypeExpression:
+		return ast.Result(canonicalizeTypeExpression(t.InnerType, env, aliases))
+	case *ast.UnionTypeExpression:
+		members := make([]ast.TypeExpression, len(t.Members))
+		for idx, member := range t.Members {
+			if member == nil {
+				continue
+			}
+			members[idx] = canonicalizeTypeExpression(member, env, aliases)
+		}
+		return ast.UnionT(members...)
+	case *ast.FunctionTypeExpression:
+		params := make([]ast.TypeExpression, len(t.ParamTypes))
+		for idx, param := range t.ParamTypes {
+			params[idx] = canonicalizeTypeExpression(param, env, aliases)
+		}
+		return ast.FnType(params, canonicalizeTypeExpression(t.ReturnType, env, aliases))
+	default:
+		return expanded
+	}
 }
 
 func (i *Interpreter) evaluateFunctionDefinition(def *ast.FunctionDefinition, env *runtime.Environment) (runtime.Value, error) {
@@ -161,22 +232,26 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 	if def.InterfaceName == nil {
 		return nil, fmt.Errorf("Implementation requires interface name")
 	}
-	ifaceName := def.InterfaceName.Name
+	ifaceName := canonicalTypeName(env, def.InterfaceName.Name)
 	ifaceDef, ok := i.interfaces[ifaceName]
 	if !ok {
 		return nil, fmt.Errorf("Interface '%s' is not defined", ifaceName)
 	}
-	variants, unionSignatures, err := expandImplementationTargetVariants(def.TargetType, i.typeAliases)
+	canonicalTarget := canonicalizeTypeExpression(def.TargetType, env, i.typeAliases)
+	canonicalDef := *def
+	canonicalDef.InterfaceName = ast.ID(ifaceName)
+	canonicalDef.TargetType = canonicalTarget
+	variants, unionSignatures, err := expandImplementationTargetVariants(canonicalDef.TargetType, i.typeAliases)
 	if err != nil {
 		return nil, err
 	}
 	if len(variants) == 0 {
 		return nil, fmt.Errorf("Implementation target must reference at least one concrete type")
 	}
-	mergedGenerics := i.mergeImplementationGenerics(def, env)
+	mergedGenerics := i.mergeImplementationGenerics(&canonicalDef, env)
 	methods := make(map[string]runtime.Value)
 	hasExplicit := false
-	for _, fn := range def.Definitions {
+	for _, fn := range canonicalDef.Definitions {
 		if fn == nil || fn.ID == nil {
 			return nil, fmt.Errorf("Implementation method requires identifier")
 		}
@@ -199,30 +274,30 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 			mergeFunctionLike(methods, name, &runtime.FunctionValue{Declaration: defaultDef, Closure: ifaceDef.Env, MethodPriority: -1})
 		}
 	}
-	constraintSpecs := collectConstraintSpecs(def.GenericParams, def.WhereClause)
+	constraintSpecs := collectConstraintSpecs(canonicalDef.GenericParams, canonicalDef.WhereClause)
 	baseConstraintSig := constraintSignature(constraintSpecs, func(expr ast.TypeExpression) string {
 		return typeExpressionToString(expandTypeAliases(expr, i.typeAliases, nil))
 	})
-	targetDescription := typeExpressionToString(expandTypeAliases(def.TargetType, i.typeAliases, nil))
+	targetDescription := typeExpressionToString(expandTypeAliases(canonicalDef.TargetType, i.typeAliases, nil))
 	genericNames := genericNameSet(mergedGenerics)
 	for _, variant := range variants {
-		if def.ImplName == nil {
+		if canonicalDef.ImplName == nil {
 			isGenericTarget := false
 			if len(genericNames) > 0 {
 				_, isGenericTarget = genericNames[variant.typeName]
 			}
 			if !isGenericTarget {
-				if err := i.registerUnnamedImpl(ifaceName, def.InterfaceArgs, variant, unionSignatures, baseConstraintSig, targetDescription, isBuiltin); err != nil {
+				if err := i.registerUnnamedImpl(ifaceName, canonicalDef.InterfaceArgs, variant, unionSignatures, baseConstraintSig, targetDescription, isBuiltin); err != nil {
 					return nil, err
 				}
 			}
 			entry := implEntry{
 				interfaceName: ifaceName,
 				methods:       methods,
-				definition:    def,
+				definition:    &canonicalDef,
 				argTemplates:  variant.argTemplates,
 				genericParams: mergedGenerics,
-				whereClause:   def.WhereClause,
+				whereClause:   canonicalDef.WhereClause,
 				defaultOnly:   !hasExplicit,
 			}
 			if len(unionSignatures) > 0 {
@@ -233,17 +308,17 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 			} else {
 				i.implMethods[variant.typeName] = append(i.implMethods[variant.typeName], entry)
 				if ifaceName == "Range" {
-					i.registerRangeImplementation(entry, def.InterfaceArgs)
+					i.registerRangeImplementation(entry, canonicalDef.InterfaceArgs)
 				}
 			}
 		}
 	}
-	if def.ImplName != nil {
-		name := def.ImplName.Name
+	if canonicalDef.ImplName != nil {
+		name := canonicalDef.ImplName.Name
 		implVal := runtime.ImplementationNamespaceValue{
-			Name:          def.ImplName,
-			InterfaceName: def.InterfaceName,
-			TargetType:    def.TargetType,
+			Name:          canonicalDef.ImplName,
+			InterfaceName: canonicalDef.InterfaceName,
+			TargetType:    canonicalDef.TargetType,
 			Methods:       methods,
 		}
 		env.Define(name, implVal)
@@ -257,19 +332,19 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 
 func (i *Interpreter) evaluateMethodsDefinition(def *ast.MethodsDefinition, env *runtime.Environment) (runtime.Value, error) {
 	var typeName string
-	target := expandTypeAliases(def.TargetType, i.typeAliases, nil)
+	target := canonicalizeTypeExpression(def.TargetType, env, i.typeAliases)
 	switch t := target.(type) {
 	case *ast.SimpleTypeExpression:
 		if t.Name == nil {
 			return nil, fmt.Errorf("MethodsDefinition requires simple target type")
 		}
-		typeName = t.Name.Name
+		typeName = canonicalTypeName(env, t.Name.Name)
 	case *ast.GenericTypeExpression:
 		base, ok := t.Base.(*ast.SimpleTypeExpression)
 		if !ok || base.Name == nil {
 			return nil, fmt.Errorf("MethodsDefinition requires simple target type")
 		}
-		typeName = base.Name.Name
+		typeName = canonicalTypeName(env, base.Name.Name)
 	default:
 		return nil, fmt.Errorf("MethodsDefinition requires simple target type")
 	}
@@ -282,15 +357,43 @@ func (i *Interpreter) evaluateMethodsDefinition(def *ast.MethodsDefinition, env 
 		if fn == nil || fn.ID == nil {
 			return nil, fmt.Errorf("Method definition requires identifier")
 		}
-		fnVal := &runtime.FunctionValue{Declaration: fn, Closure: env}
+		expectsSelf := functionDefinitionExpectsSelf(fn)
+		exportedName := fn.ID.Name
+		if !expectsSelf {
+			exportedName = fmt.Sprintf("%s.%s", typeName, fn.ID.Name)
+		}
+		fnVal := &runtime.FunctionValue{Declaration: fn, Closure: env, TypeQualified: !expectsSelf}
 		mergeFunctionLike(bucket, fn.ID.Name, fnVal)
-		env.Define(fn.ID.Name, fnVal)
-		i.registerSymbol(fn.ID.Name, fnVal)
-		if qn := i.qualifiedName(fn.ID.Name); qn != "" {
+		env.Define(exportedName, fnVal)
+		i.registerSymbol(exportedName, fnVal)
+		if qn := i.qualifiedName(exportedName); qn != "" {
 			i.global.Define(qn, fnVal)
 		}
 	}
 	return runtime.NilValue{}, nil
+}
+
+func functionDefinitionExpectsSelf(def *ast.FunctionDefinition) bool {
+	if def == nil {
+		return false
+	}
+	if def.IsMethodShorthand {
+		return true
+	}
+	if len(def.Params) == 0 {
+		return false
+	}
+	first := def.Params[0]
+	if first == nil {
+		return false
+	}
+	if ident, ok := first.Name.(*ast.Identifier); ok && strings.EqualFold(ident.Name, "self") {
+		return true
+	}
+	if simple, ok := first.ParamType.(*ast.SimpleTypeExpression); ok && simple.Name != nil && simple.Name.Name == "Self" {
+		return true
+	}
+	return false
 }
 
 func (i *Interpreter) mergeImplementationGenerics(def *ast.ImplementationDefinition, env *runtime.Environment) []*ast.GenericParameter {

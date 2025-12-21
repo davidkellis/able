@@ -50,7 +50,7 @@ describe("stdlib-backed queue helpers", () => {
         `
 package main
 
-import able.collections.queue.{Queue}
+import able.collections.queue.*
 import able.core.iteration.{IteratorEnd}
 
 fn main() -> i32 {

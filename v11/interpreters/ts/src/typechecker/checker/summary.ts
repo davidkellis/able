@@ -26,6 +26,14 @@ export function buildPackageSummary(ctx: ImplementationContext, module: AST.Modu
   const functions: Record<string, ExportedFunctionSummary> = {};
   const implementationDefinitions = new Set<AST.ImplementationDefinition>();
   const methodSetDefinitions = new Set<AST.MethodsDefinition>();
+  const methodSetRecordFor = (def: AST.MethodsDefinition): MethodSetRecord | undefined => {
+    for (const record of ctx.getMethodSets()) {
+      if (record.definition === def) {
+        return record;
+      }
+    }
+    return undefined;
+  };
 
   const statements = Array.isArray(module.body)
     ? (module.body as Array<AST.Statement | AST.Expression | null | undefined>)
@@ -66,6 +74,18 @@ export function buildPackageSummary(ctx: ImplementationContext, module: AST.Modu
         functions[name] = summarizeFunctionDefinition(ctx, entry);
         break;
       }
+      case "ExternFunctionBody": {
+        const def = entry.signature;
+        const name = def?.id?.name;
+        if (!name) break;
+        if (def.isPrivate || def.isMethodShorthand) {
+          privateSymbols[name] = { type: describeFunctionType(ctx, def), visibility: "private" };
+          break;
+        }
+        symbols[name] = { type: describeFunctionType(ctx, def), visibility: "public" };
+        functions[name] = summarizeFunctionDefinition(ctx, def);
+        break;
+      }
       case "TypeAliasDefinition": {
         const name = entry.id?.name;
         if (!name) break;
@@ -88,11 +108,8 @@ export function buildPackageSummary(ctx: ImplementationContext, module: AST.Modu
         unions[name] = summarizeUnionDefinition(ctx, entry);
         break;
       }
-      case "ImplementationDefinition":
+      case "ImplementationDefinition": {
         implementationDefinitions.add(entry);
-        break;
-      case "MethodsDefinition": {
-        methodSetDefinitions.add(entry);
         if (Array.isArray(entry.definitions)) {
           for (const def of entry.definitions) {
             if (!def?.id?.name) continue;
@@ -106,6 +123,37 @@ export function buildPackageSummary(ctx: ImplementationContext, module: AST.Modu
             symbols[fnName] = { type: describeFunctionType(ctx, def), visibility: "public" };
             functions[fnName] = summarizeFunctionDefinition(ctx, def);
             delete privateSymbols[fnName];
+          }
+        }
+        break;
+      }
+      case "MethodsDefinition": {
+        methodSetDefinitions.add(entry);
+        const record = methodSetRecordFor(entry);
+        const targetBaseName =
+          ctx.getIdentifierNameFromTypeExpression?.(record?.target ?? entry.targetType) ??
+          ctx.getIdentifierNameFromTypeExpression?.(entry.targetType);
+        if (Array.isArray(entry.definitions)) {
+          for (const def of entry.definitions) {
+            if (!def?.id?.name) continue;
+            const fnName = def.id.name;
+            const firstParam = Array.isArray(def.params) ? def.params[0] : undefined;
+            const isSelfMethod =
+              Boolean(def.isMethodShorthand) ||
+              (firstParam?.name?.type === "Identifier" && firstParam.name.name?.toLowerCase() === "self") ||
+              (firstParam?.paramType?.type === "SimpleTypeExpression" &&
+                ctx.getIdentifierName(firstParam.paramType.name) === "Self");
+            const exportName = isSelfMethod || !targetBaseName ? fnName : `${targetBaseName}.${fnName}`;
+            if (def.isPrivate) {
+              if (exportName && !symbols[exportName]) {
+                privateSymbols[exportName] = { type: describeFunctionType(ctx, def), visibility: "private" };
+              }
+              continue;
+            }
+            if (!exportName) continue;
+            symbols[exportName] = { type: describeFunctionType(ctx, def), visibility: "public" };
+            functions[exportName] = summarizeFunctionDefinition(ctx, def);
+            delete privateSymbols[exportName];
           }
         }
         break;
@@ -263,10 +311,14 @@ function summarizeImplementationRecord(
 }
 
 function summarizeMethodSet(ctx: ImplementationContext, record: MethodSetRecord): ExportedMethodSetSummary {
+  const typeQualifier = ctx.getIdentifierNameFromTypeExpression?.(record.target);
   return {
     typeParams: summarizeGenericParameters(ctx, record.definition.genericParams) ?? [],
     target: ctx.formatTypeExpression(record.target),
-    methods: summarizeFunctionCollection(ctx, record.definition.definitions, { includeMethodShorthand: true }),
+    methods: summarizeFunctionCollection(ctx, record.definition.definitions, {
+      includeMethodShorthand: true,
+      typeQualifier,
+    }),
     where: summarizeWhereClauses(ctx, record.definition.whereClause) ?? [],
     obligations: summarizeObligations(ctx, record.obligations, record.label) ?? [],
   };
@@ -275,7 +327,7 @@ function summarizeMethodSet(ctx: ImplementationContext, record: MethodSetRecord)
 function summarizeFunctionCollection(
   ctx: ImplementationContext,
   definitions: Array<AST.FunctionDefinition | null | undefined> | undefined,
-  options?: { includeMethodShorthand?: boolean },
+  options?: { includeMethodShorthand?: boolean; typeQualifier?: string | null },
 ): Record<string, ExportedFunctionSummary> {
   const methods: Record<string, ExportedFunctionSummary> = {};
   if (!Array.isArray(definitions)) {
@@ -284,7 +336,14 @@ function summarizeFunctionCollection(
   for (const fn of definitions) {
     if (!fn || fn.isPrivate || !fn.id?.name) continue;
     if (!options?.includeMethodShorthand && fn.isMethodShorthand) continue;
-    methods[fn.id.name] = summarizeFunctionDefinition(ctx, fn);
+    const firstParam = Array.isArray(fn.params) ? fn.params[0] : undefined;
+    const expectsSelf =
+      Boolean(fn.isMethodShorthand) ||
+      (firstParam?.name?.type === "Identifier" && firstParam.name.name?.toLowerCase() === "self") ||
+      (firstParam?.paramType?.type === "SimpleTypeExpression" &&
+        ctx.getIdentifierName(firstParam.paramType.name) === "Self");
+    const exportName = !options?.typeQualifier || expectsSelf ? fn.id.name : `${options.typeQualifier}.${fn.id.name}`;
+    methods[exportName] = summarizeFunctionDefinition(ctx, fn);
   }
   return methods;
 }

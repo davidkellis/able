@@ -427,6 +427,9 @@ func (i *Interpreter) selectRuntimeOverload(overloads []*runtime.FunctionValue, 
 					break
 				}
 				if param.ParamType != nil {
+					if paramUsesGeneric(param.ParamType, generics) {
+						continue
+					}
 					if !i.matchesType(param.ParamType, argsForCheck[idx]) {
 						compatible = false
 						break

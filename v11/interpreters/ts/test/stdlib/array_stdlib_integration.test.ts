@@ -107,7 +107,7 @@ fn main() -> String {
         `
 package main
 
-import able.collections.array.{Array}
+import able.collections.array.*
 
 fn double(value: i32) -> i32 { value * 2 }
 
@@ -171,7 +171,7 @@ fn main() -> i32 {
         `
 package main
 
-import able.collections.array.{Array}
+import able.collections.array.*
 
 fn main() {
   values := Array.new()
@@ -218,7 +218,7 @@ fn main() {
         `
 package main
 
-import able.collections.array.{Array}
+import able.collections.array.*
 import able.core.errors.{IndexError}
 
 fn main() {
@@ -274,7 +274,7 @@ fn main() {
         `
 package main
 
-import able.collections.array.{Array}
+import able.collections.array.*
 
 fn main() {
   values := Array.new()
@@ -322,7 +322,7 @@ fn main() {
         `
 package main
 
-import able.collections.array.{Array}
+import able.collections.array.*
 import able.core.errors.{IndexError}
 
 fn main() {

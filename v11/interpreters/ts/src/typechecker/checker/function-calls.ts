@@ -2,6 +2,7 @@ import type * as AST from "../../ast";
 import { formatType, primitiveType, unknownType, type TypeInfo } from "../types";
 import type { ImplementationContext } from "./implementations";
 import {
+  ambiguousImplementationDetail,
   enforceFunctionConstraints as enforceFunctionConstraintsHelper,
   lookupMethodSetsForCall as lookupMethodSetsForCallHelper,
   typeImplementsInterface,
@@ -55,6 +56,11 @@ function reportAmbiguousInterfaceMethod(
     }
   }
   for (const interfaceName of interfaces) {
+    const detail = ambiguousImplementationDetail(ctx.implementationContext, receiverType, interfaceName);
+    if (detail) {
+      ctx.report(`typechecker: ${detail}`, node);
+      return true;
+    }
     const result = typeImplementsInterface(ctx.implementationContext, receiverType, interfaceName);
     if (!result.ok && result.detail && result.detail.includes("ambiguous implementations")) {
       ctx.report(`typechecker: ${result.detail}`, node);
@@ -419,7 +425,13 @@ function resolveFunctionInfos(ctx: FunctionCallContext, callee: AST.Expression |
 
 type MemberAccessResolution = { candidates: FunctionInfo[]; fieldError?: string };
 
-type ReceiverLookup = { lookupType: TypeInfo; label: string; memberName: string };
+type ReceiverLookup = {
+  lookupType: TypeInfo;
+  label: string;
+  memberName: string;
+  isTypeReference?: boolean;
+  typeQualifier?: string | null;
+};
 
 function resolveMemberAccessCandidates(
   ctx: FunctionCallContext,
@@ -448,6 +460,9 @@ function buildReceiverLookup(
   callee: AST.MemberAccessExpression,
   memberName: string,
 ): ReceiverLookup | null {
+  const objectName = callee.object?.type === "Identifier" ? callee.object.name : null;
+  const isTypeName = objectName ? ctx.structDefinitions.has(objectName) : false;
+  const hasObjectBinding = objectName ? ctx.statementContext.hasBinding?.(objectName) ?? false : true;
   let objectType = ctx.inferExpression(callee.object);
   if (
     objectType.kind !== "struct" &&
@@ -462,15 +477,20 @@ function buildReceiverLookup(
       definition: ctx.structDefinitions.get(callee.object.name),
     };
   }
+  const isTypeReference =
+    callee.object?.type === "Identifier" &&
+    objectType.kind === "struct" &&
+    (!hasObjectBinding || isTypeName);
   if (objectType.kind === "array") {
     const lookupType: TypeInfo = {
       kind: "struct",
       name: "Array",
       typeArguments: [objectType.element ?? unknownType],
     };
-    return { lookupType, label: formatType(lookupType), memberName };
+    return { lookupType, label: formatType(lookupType), memberName, typeQualifier: "Array" };
   }
-  return { lookupType: objectType, label: formatType(objectType), memberName };
+  const typeQualifier = objectType.kind === "struct" ? objectType.name : null;
+  return { lookupType: objectType, label: formatType(objectType), memberName, isTypeReference, typeQualifier };
 }
 
 function resolveCallableFieldCandidate(
@@ -550,6 +570,15 @@ function collectUnifiedMemberCandidates(
   memberName: string,
 ): FunctionInfo[] {
   if (!receiver.lookupType || receiver.lookupType.kind === "unknown") return [];
+  const unqualifiedInScope = ctx.statementContext.hasBinding?.(memberName) ?? false;
+  const qualifier = receiver.typeQualifier ?? (receiver.lookupType.kind === "struct" ? receiver.lookupType.name : null);
+  const typeQualifiedLabel = qualifier ? `${qualifier}.${memberName}` : null;
+  const typeQualifiedInScope = typeQualifiedLabel ? ctx.statementContext.hasBinding?.(typeQualifiedLabel) ?? false : false;
+  const allowTypeQualified = Boolean(receiver.isTypeReference);
+  const isPrimitiveReceiver =
+    receiver.lookupType.kind === "primitive" ||
+    (receiver.lookupType.kind === "struct" && receiver.lookupType.name === "Array");
+  const allowInherent = unqualifiedInScope || isPrimitiveReceiver;
   const bySignature = new Map<string, FunctionInfo>();
   const signatureKey = (entry: FunctionInfo): string => {
     const paramSig = (entry.parameters ?? []).map((param) => formatType(param ?? unknownType)).join("|");
@@ -559,18 +588,59 @@ function collectUnifiedMemberCandidates(
     return `${receiverLabel}::${baseName}::${methodFlag}::${paramSig}`;
   };
   const methodSignatures = new Set<string>();
+  const candidateAllowed = (entry: FunctionInfo): boolean => {
+    if (!entry) return false;
+    if (entry.isTypeQualified) {
+      if (!allowTypeQualified) return false;
+      if (entry.typeQualifier && qualifier && entry.typeQualifier !== qualifier) return false;
+      return typeQualifiedInScope || allowTypeQualified;
+    }
+    if (entry.structName && !entry.isTypeQualified) {
+      return allowInherent;
+    }
+    return unqualifiedInScope;
+  };
+  const enrichMethodSubstitutions = (entry: FunctionInfo): FunctionInfo => {
+    if (!entry || receiver.lookupType.kind !== "struct") {
+      return entry;
+    }
+    const def = receiver.lookupType.name ? ctx.structDefinitions.get(receiver.lookupType.name) : undefined;
+    if (!def?.genericParams?.length) {
+      return entry;
+    }
+    const mapped = new Map(entry.methodSetSubstitutions ?? []);
+    if (!mapped.has("Self")) {
+      mapped.set("Self", receiver.lookupType);
+    }
+    def.genericParams.forEach((param, idx) => {
+      const paramName = ctx.getIdentifierName(param?.name);
+      if (!paramName) return;
+      if (mapped.has(paramName)) return;
+      const arg = Array.isArray(receiver.lookupType.typeArguments) ? receiver.lookupType.typeArguments[idx] : undefined;
+      if (arg) {
+        mapped.set(paramName, arg);
+      }
+    });
+    if (!mapped.size) {
+      return entry;
+    }
+    return { ...entry, methodSetSubstitutions: Array.from(mapped.entries()) };
+  };
   const append = (entries: FunctionInfo[]) => {
     for (const entry of entries) {
       if (!entry) continue;
-      const key = signatureKey(entry);
-      const incomingPriority = typeof entry.methodResolutionPriority === "number" ? entry.methodResolutionPriority : 0;
+      if (!candidateAllowed(entry)) continue;
+      const enriched = enrichMethodSubstitutions(entry);
+      const key = signatureKey(enriched);
+      const incomingPriority =
+        typeof enriched.methodResolutionPriority === "number" ? enriched.methodResolutionPriority : 0;
       const existing = bySignature.get(key);
       const existingPriority =
         typeof existing?.methodResolutionPriority === "number" ? existing.methodResolutionPriority : Number.NEGATIVE_INFINITY;
       if (!existing || incomingPriority > existingPriority) {
-        bySignature.set(key, entry);
+        bySignature.set(key, enriched);
       }
-      if (entry.structName) {
+      if (enriched.structName && !enriched.isTypeQualified) {
         methodSignatures.add(key);
       }
     }
@@ -587,7 +657,7 @@ function collectUnifiedMemberCandidates(
   );
   append(genericMatches);
   if (!methodSignatures.size) {
-    append(resolveUfcsFreeFunctionCandidates(ctx, receiver.lookupType, memberName));
+    append(resolveUfcsFreeFunctionCandidates(ctx, receiver.lookupType, memberName, unqualifiedInScope));
   }
   return Array.from(bySignature.values());
 }
@@ -628,7 +698,9 @@ function resolveUfcsFreeFunctionCandidates(
   ctx: FunctionCallContext,
   receiverType: TypeInfo,
   memberName: string,
+  inScope: boolean,
 ): FunctionInfo[] {
+  if (!inScope) return [];
   const candidates: FunctionInfo[] = [];
   const entries = ctx.functionInfos.get(memberName) ?? [];
   for (const entry of entries) {

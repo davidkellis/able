@@ -89,7 +89,7 @@ export function lookupMethodSetsForCall(
       fullName: `${record.label}::${methodName}`,
       structName: structLabel,
       hasImplicitSelf,
-      methodResolutionPriority: -1,
+      methodResolutionPriority: 1,
       parameters: parameterTypes,
       genericConstraints: [],
       genericParamNames: methodGenericNames,
@@ -272,11 +272,82 @@ export function typeImplementsInterface(
   return { ok: false };
 }
 
+export function ambiguousImplementationDetail(
+  ctx: ImplementationContext,
+  type: TypeInfo,
+  interfaceName: string,
+  expectedArgs: string[] = [],
+): string | null {
+  const candidates = lookupImplementationCandidates(ctx, type);
+  const matches: ImplementationMatch[] = [];
+  for (const record of candidates) {
+    if ((record.definition as AST.ImplementationDefinition | undefined)?.implName?.name) {
+      continue;
+    }
+    if (record.interfaceName !== interfaceName) {
+      continue;
+    }
+    const paramNames = new Set(record.genericParams);
+    const substitutions = new Map<string, TypeInfo>();
+    substitutions.set("Self", type);
+    if (!matchImplementationTarget(ctx, type, record.target, paramNames, substitutions)) {
+      continue;
+    }
+    const actualArgs = record.interfaceArgs.length
+      ? resolveInterfaceArgumentLabelsFromArray(ctx, record.interfaceArgs, substitutions)
+      : [];
+    if (!interfaceArgsCompatible(actualArgs, expectedArgs)) {
+      continue;
+    }
+    let failed = false;
+    for (const obligation of record.obligations) {
+      const subject = lookupObligationSubject(ctx, obligation.typeParam, substitutions, type);
+      if (!subject) {
+        continue;
+      }
+      const obligationArgs = resolveInterfaceArgumentLabels(ctx, obligation.interfaceType, substitutions);
+      const result = typeImplementsInterface(ctx, subject, obligation.interfaceName, obligationArgs);
+      if (!result.ok) {
+        failed = true;
+        break;
+      }
+    }
+    if (failed) {
+      continue;
+    }
+    const genericNames = new Set(record.genericParams);
+    matches.push({
+      record,
+      substitutions,
+      interfaceArgs: actualArgs,
+      score: measureTargetInstantiation(record, genericNames),
+      constraintKeys: buildConstraintKeySet(ctx, record.obligations),
+      isConcreteTarget: !targetUsesGenerics(record.target, genericNames),
+    });
+  }
+  if (matches.length <= 1) {
+    return null;
+  }
+  const resolution = selectMostSpecificImplementationMatch(ctx, matches, interfaceName, type);
+  if (resolution.ok) {
+    return null;
+  }
+  return resolution.detail ?? null;
+}
+
 function implementsBuiltinInterface(type: TypeInfo, interfaceName: string): boolean {
   if (type.kind !== "primitive") {
     return false;
   }
   switch (interfaceName) {
+    case "Hash":
+    case "Eq":
+      return (
+        type.name === "String" ||
+        type.name === "bool" ||
+        type.name === "char" ||
+        type.name === "i32"
+      );
     case "Display":
     case "Clone":
       return type.name === "String" || type.name === "bool" || type.name === "char" || type.name === "i32" || type.name === "f64";

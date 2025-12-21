@@ -291,14 +291,17 @@ func TestProgramCheckerExposesPublicExports(t *testing.T) {
 		t.Fatalf("Display missing from interface metadata")
 	}
 	functions := summary.Functions
-	if len(functions) != 2 {
-		t.Fatalf("expected 2 public functions, got %d", len(functions))
+	if len(functions) != 3 {
+		t.Fatalf("expected 3 public functions, got %d", len(functions))
 	}
 	if _, ok := functions["public_fn"]; !ok {
 		t.Fatalf("public_fn missing from function metadata")
 	}
 	if _, ok := functions["describe"]; !ok {
 		t.Fatalf("method describe missing from function metadata")
+	}
+	if _, ok := functions["show"]; !ok {
+		t.Fatalf("implementation method show missing from function metadata")
 	}
 	privateSymbols := summary.PrivateSymbols
 	if privateSymbols == nil {

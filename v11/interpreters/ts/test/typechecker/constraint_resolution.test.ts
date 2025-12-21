@@ -310,7 +310,7 @@ describe("TypeChecker constraint resolution", () => {
     expect(result.diagnostics.length).toBeGreaterThan(0);
     const message = result.diagnostics[0]?.message ?? "";
     expect(message).toContain("constraint on T");
-    expect(message).toContain("impl Display");
+    expect(message).toContain("does not implement Display");
   });
   test("honours nullable implementations when obligations are satisfied", () => {
     const moduleAst = buildNullableModule(true);

@@ -50,7 +50,7 @@ describe("stdlib-backed hash map helpers", () => {
         `
 package main
 
-import able.collections.hash_map.{HashMap}
+import able.collections.hash_map.*
 
 fn build_map() -> HashMap String i32 {
   map := HashMap.new()

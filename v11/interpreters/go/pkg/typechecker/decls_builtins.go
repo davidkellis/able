@@ -223,7 +223,7 @@ func registerBuiltins(env *Environment) {
 	displayIface := InterfaceType{
 		InterfaceName: "Display",
 		Methods: map[string]FunctionType{
-			"to_String": {
+			"to_string": {
 				Params: []Type{
 					TypeParameterType{ParameterName: "Self"},
 				},

@@ -1,0 +1,35 @@
+package exec_12_05_concurrency_channel_ping_pong
+
+## Semantics: buffered channel send/receive across procs; receiver drains until `receive` returns nil after close; `proc_flush` drives scheduled tasks.
+
+struct Channel { handle: i64 }
+
+methods Channel {
+  fn send(self, value) { __able_channel_send(self.handle, value) }
+  fn receive(self) { return __able_channel_receive(self.handle) }
+  fn close(self) { __able_channel_close(self.handle) }
+}
+
+fn make_channel(capacity: i32) -> Channel {
+  handle := __able_channel_new(capacity)
+  return Channel { handle: handle }
+}
+
+fn main() -> void {
+  channel := make_channel(2)
+  proc {
+    channel.send(1)
+    channel.send(2)
+    channel.close()
+  }
+  proc {
+    loop {
+      value := channel.receive()
+      if value == nil {
+        break
+      }
+      print(value)
+    }
+  }
+  proc_flush()
+}

@@ -1,0 +1,4 @@
+import speaklib.*
+
+talker := Talker { name: "hi" }
+talker.speak()

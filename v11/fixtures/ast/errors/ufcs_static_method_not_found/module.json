@@ -193,8 +193,15 @@
       "right": {
         "type": "FunctionCall",
         "callee": {
-          "type": "Identifier",
-          "name": "build"
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "Counter"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "build"
+          }
         },
         "arguments": [
           {
