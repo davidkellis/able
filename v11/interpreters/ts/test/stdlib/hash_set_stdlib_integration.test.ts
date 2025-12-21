@@ -50,7 +50,7 @@ describe("stdlib-backed hash set helpers", () => {
         `
 package main
 
-import able.collections.hash_set.{HashSet}
+import able.collections.hash_set.*
 
 fn main() -> i32 {
   set := HashSet.new()

@@ -6,28 +6,32 @@ export function ensureConsolePrint(interpreter: InterpreterV10): void {
   if ((interpreter.globals as any).lookup && interpreter.globals.lookup("print")) {
     return;
   }
-  const printFn = (interpreter as any).makeNativeFunction?.("print", 1, (_ctx: InterpreterV10, [value]: V10Value[]) => {
-    if (!value) {
-      console.log("nil");
-      return { kind: "nil", value: null };
-    }
-    if (isIntegerValue(value) || isFloatValue(value)) {
-      console.log(String(value.value));
-    } else {
-      switch (value.kind) {
-        case "String":
-        case "char":
-          console.log(String(value.value));
-          break;
-        case "bool":
-          console.log(value.value ? "true" : "false");
-          break;
-        default:
-          console.log(`[${value.kind}]`);
+  const printFn = (interpreter as any).makeNativeFunction?.(
+    "print",
+    1,
+    (_ctx: InterpreterV10, [value]: V10Value[]) => {
+      if (!value) {
+        console.log("nil");
+        return { kind: "nil", value: null };
       }
-    }
-    return { kind: "nil", value: null };
-  });
+      if (isIntegerValue(value) || isFloatValue(value)) {
+        console.log(String(value.value));
+      } else {
+        switch (value.kind) {
+          case "String":
+          case "char":
+            console.log(String(value.value));
+            break;
+          case "bool":
+            console.log(value.value ? "true" : "false");
+            break;
+          default:
+            console.log(`[${value.kind}]`);
+        }
+      }
+      return { kind: "nil", value: null };
+    },
+  );
   if (printFn) {
     interpreter.globals.define("print", printFn);
   }

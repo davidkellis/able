@@ -278,8 +278,16 @@ func TestMethodsExportedAsFunctions(t *testing.T) {
 		t.Fatalf("expected norm(Point) free call to return 1, got %#v", fnResult)
 	}
 
-	origin := mustEvalModule(t, interp, ast.Mod([]ast.Statement{
+	if _, _, err := interp.EvaluateModule(ast.Mod([]ast.Statement{
 		ast.CallExpr(ast.ID("origin")),
+	}, nil, nil)); err == nil {
+		t.Fatalf("expected unqualified type-qualified function call to fail")
+	} else if err.Error() != "Undefined variable 'origin'" {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	origin := mustEvalModule(t, interp, ast.Mod([]ast.Statement{
+		ast.CallExpr(ast.ID("Point.origin")),
 	}, nil, nil))
 	if origin.Kind() != runtime.KindStructInstance {
 		t.Fatalf("expected origin() to return struct instance, got %#v", origin)

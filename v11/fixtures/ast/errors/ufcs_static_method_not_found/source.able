@@ -10,5 +10,5 @@ methods Counter {
   }
 }
 c := Counter { value: 1 }
-bad := build(c)
+bad := Counter.build(c)
 bad

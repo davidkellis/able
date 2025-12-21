@@ -1,0 +1,11 @@
+{
+  "description": "Option/Result propagation with or/! unwrapping and error handling",
+  "expect": {
+    "stdout": [
+      "present 10",
+      "missing -1",
+      "error boom"
+    ],
+    "exit": 0
+  }
+}

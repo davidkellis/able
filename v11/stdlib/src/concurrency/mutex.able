@@ -1,5 +1,5 @@
 import able.core.interfaces.{Error}
-import able.kernel.{Mutex::KernelMutex}
+import able.kernel.{Mutex::KernelMutex, lock, unlock, await_lock}
 
 struct MutexUnlocked {}
 struct MutexPoisoned {}

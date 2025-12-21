@@ -21,6 +21,8 @@ type fixtureManifest struct {
 			Value interface{} `json:"value"`
 		} `json:"result"`
 		Stdout               []string `json:"stdout"`
+		Stderr               []string `json:"stderr"`
+		Exit                 *int     `json:"exit"`
 		Errors               []string `json:"errors"`
 		TypecheckDiagnostics []string `json:"typecheckDiagnostics"`
 	} `json:"expect"`

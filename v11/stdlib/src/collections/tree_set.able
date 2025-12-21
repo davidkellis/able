@@ -1,5 +1,5 @@
 package tree_set
-import able.collections.tree_map.{TreeMap, TreeEntry}
+import able.collections.tree_map.*
 import able.kernel.{Array}
 import able.collections.array
 import able.collections.enumerable.{Enumerable}

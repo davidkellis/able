@@ -50,7 +50,7 @@ describe("stdlib-backed tree map helpers", () => {
         `
 package main
 
-import able.collections.tree_map.{TreeMap, TreeEntry}
+import able.collections.tree_map.*
 
 fn main() -> i32 {
   map: TreeMap String i32 := TreeMap.new()
@@ -130,8 +130,8 @@ fn main() -> i32 {
         `
 package main
 
-import able.collections.tree_map.{TreeMap}
-import able.core.interfaces.{Ordering}
+import able.collections.tree_map.*
+import able.core.interfaces.{Ordering, Ord, Clone}
 
 struct Key {
   raw: String
@@ -139,6 +139,14 @@ struct Key {
 
 methods Key {
   fn cmp(self: Self, other: Key) -> Ordering { self.raw.cmp(other.raw) }
+  fn clone(self: Self) -> Key { Key { raw: self.raw } }
+}
+
+impl Ord for Key {
+  fn cmp(self: Self, other: Key) -> Ordering { self.raw.cmp(other.raw) }
+}
+
+impl Clone for Key {
   fn clone(self: Self) -> Key { Key { raw: self.raw } }
 }
 

@@ -1,0 +1,10 @@
+{
+  "description": "type alias + union with generic function inference fallback",
+  "expect": {
+    "stdout": [
+      "id 7",
+      "fallback 99"
+    ],
+    "exit": 0
+  }
+}

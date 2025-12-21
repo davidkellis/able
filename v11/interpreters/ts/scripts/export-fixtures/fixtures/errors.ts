@@ -436,16 +436,149 @@ const errorsFixtures: Fixture[] = [
           ],
         ),
         AST.assign("c", AST.structLiteral([AST.structFieldInitializer(AST.int(1), "value")], false, "Counter")),
-        AST.assign("bad", AST.functionCall(AST.id("build"), [AST.id("c")])),
+        AST.assign(
+          "bad",
+          AST.functionCall(AST.memberAccessExpression(AST.identifier("Counter"), "build"), [AST.id("c")]),
+        ),
         AST.id("bad"),
       ]),
       manifest: {
-        description: "Static method called without qualifying type; call resolves but argument types must match",
+        description: "Type-qualified static method rejects incorrect argument types",
         expect: {
           errors: [
-            "Parameter type mismatch for 'start': expected i32, got Counter at ../../../../fixtures/ast/errors/ufcs_static_method_not_found/source.able:14:14",
+            "Parameter type mismatch for 'start': expected i32, got Counter at ../../../../fixtures/ast/errors/ufcs_static_method_not_found/source.able:14:22",
             "Parameter type mismatch for 'start': expected i32, got Counter",
           ],
+        },
+      },
+    },
+
+  {
+      name: "errors/method_scope_missing_import",
+      setupModules: {
+        "package.json": AST.module(
+          [
+            AST.structDefinition("Widget", [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "value")], "named"),
+            AST.methodsDefinition(
+              AST.simpleTypeExpression("Widget"),
+              [
+                AST.functionDefinition(
+                  "bump",
+                  [
+                    AST.functionParameter("self", AST.simpleTypeExpression("Self")),
+                    AST.functionParameter("delta", AST.simpleTypeExpression("i32")),
+                  ],
+                  AST.blockExpression([
+                    AST.bin("+", AST.member(AST.id("self"), "value"), AST.id("delta")),
+                  ]),
+                  AST.simpleTypeExpression("i32"),
+                ),
+                AST.functionDefinition(
+                  "augment",
+                  [
+                    AST.functionParameter("item", AST.simpleTypeExpression("Widget")),
+                    AST.functionParameter("delta", AST.simpleTypeExpression("i32")),
+                  ],
+                  AST.blockExpression([
+                    AST.bin("+", AST.member(AST.id("item"), "value"), AST.id("delta")),
+                  ]),
+                  AST.simpleTypeExpression("i32"),
+                ),
+                AST.functionDefinition(
+                  "make",
+                  [AST.functionParameter("start", AST.simpleTypeExpression("i32"))],
+                  AST.blockExpression([
+                    AST.structLiteral(
+                      [AST.structFieldInitializer(AST.id("start"), "value")],
+                      false,
+                      "Widget",
+                    ),
+                  ]),
+                  AST.simpleTypeExpression("Widget"),
+                ),
+              ],
+            ),
+          ],
+          [],
+          AST.packageStatement(["pkgmethods"]),
+        ),
+      },
+      module: AST.module(
+        [
+          AST.assign(
+            "inst",
+            AST.functionCall(
+              AST.memberAccessExpression(AST.memberAccessExpression(AST.identifier("pkgmethods"), "Widget"), "make"),
+              [AST.int(3)],
+            ),
+          ),
+          AST.functionCall(AST.memberAccessExpression(AST.id("inst"), "bump"), [AST.int(1)]),
+        ],
+        [AST.importStatement(["pkgmethods"])],
+      ),
+      manifest: {
+        description: "Package alias imports do not surface method names for receiver sugar",
+        setup: ["package.json"],
+        expect: {
+          errors: ["No field or method named 'bump'"],
+        },
+      },
+    },
+
+  {
+      name: "errors/type_qualified_method_call",
+      setupModules: {
+        "package.json": AST.module(
+          [
+            AST.structDefinition("Widget", [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "value")], "named"),
+            AST.methodsDefinition(
+              AST.simpleTypeExpression("Widget"),
+              [
+                AST.functionDefinition(
+                  "augment",
+                  [
+                    AST.functionParameter("item", AST.simpleTypeExpression("Widget")),
+                    AST.functionParameter("delta", AST.simpleTypeExpression("i32")),
+                  ],
+                  AST.blockExpression([
+                    AST.bin("+", AST.member(AST.id("item"), "value"), AST.id("delta")),
+                  ]),
+                  AST.simpleTypeExpression("i32"),
+                ),
+                AST.functionDefinition(
+                  "make",
+                  [AST.functionParameter("start", AST.simpleTypeExpression("i32"))],
+                  AST.blockExpression([
+                    AST.structLiteral(
+                      [AST.structFieldInitializer(AST.id("start"), "value")],
+                      false,
+                      "Widget",
+                    ),
+                  ]),
+                  AST.simpleTypeExpression("Widget"),
+                ),
+              ],
+            ),
+          ],
+          [],
+          AST.packageStatement(["pkgmethods"]),
+        ),
+      },
+      module: AST.module(
+        [
+          AST.assign(
+            "inst",
+            AST.functionCall(AST.memberAccessExpression(AST.identifier("Widget"), "make"), [AST.int(7)]),
+          ),
+          AST.functionCall(AST.memberAccessExpression(AST.id("inst"), "augment"), [AST.int(1)]),
+        ],
+        [AST.importStatement(["pkgmethods"], true)],
+      ),
+      manifest: {
+        description: "Type-qualified functions stay out of UFCS/method lookup even when imported",
+        setup: ["package.json"],
+        expect: {
+          errors: ["No field or method named 'augment'"],
         },
       },
     },

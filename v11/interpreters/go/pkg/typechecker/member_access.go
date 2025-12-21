@@ -89,7 +89,7 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 			candidates  []FunctionType
 			methodFound bool
 		)
-		if fnType, ok, detail := c.lookupMethod(objectType, memberName); ok {
+		if fnType, ok, detail := c.lookupMethod(objectType, memberName, true, true); ok {
 			candidates = append(candidates, fnType)
 			methodFound = true
 		} else if detail != "" {
@@ -146,7 +146,8 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 			candidates  []FunctionType
 			methodFound bool
 		)
-		if fnType, ok, detail := c.lookupMethod(objectType, memberName); ok {
+		allowMethodSets := true
+		if fnType, ok, detail := c.lookupMethod(objectType, memberName, allowMethodSets, false); ok {
 			candidates = append(candidates, fnType)
 			methodFound = true
 		} else if detail != "" {
@@ -191,7 +192,8 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 			candidates  []FunctionType
 			methodFound bool
 		)
-		if fnType, ok, detail := c.lookupMethod(objectType, memberName); ok {
+		allowMethodSets := true
+		if fnType, ok, detail := c.lookupMethod(objectType, memberName, allowMethodSets, false); ok {
 			candidates = append(candidates, fnType)
 			methodFound = true
 		} else if detail != "" {
@@ -234,7 +236,7 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 				candidates  []FunctionType
 				methodFound bool
 			)
-			if fnType, ok, detail := c.lookupMethod(objectType, memberName); ok {
+			if fnType, ok, detail := c.lookupMethod(objectType, memberName, true, false); ok {
 				candidates = append(candidates, fnType)
 				methodFound = true
 			} else if detail != "" {
@@ -373,7 +375,13 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 			candidates  []FunctionType
 			methodFound bool
 		)
-		if fnType, ok, detail := c.lookupMethod(objectType, memberName); ok {
+		allowMethodSets := false
+		if env != nil {
+			if _, ok := env.Lookup(memberName); ok {
+				allowMethodSets = true
+			}
+		}
+		if fnType, ok, detail := c.lookupMethod(objectType, memberName, allowMethodSets, false); ok {
 			candidates = append(candidates, fnType)
 			methodFound = true
 		} else if detail != "" {
@@ -541,7 +549,13 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 		}
 		var candidates []FunctionType
 		methodFound := false
-		if fnType, ok, detail := c.lookupMethod(objectType, memberName); ok {
+		allowMethodSets := false
+		if env != nil {
+			if _, ok := env.Lookup(memberName); ok {
+				allowMethodSets = true
+			}
+		}
+		if fnType, ok, detail := c.lookupMethod(objectType, memberName, allowMethodSets, false); ok {
 			candidates = append(candidates, fnType)
 			methodFound = true
 		} else if detail != "" {

@@ -1,0 +1,15 @@
+package exec_11_03_rescue_ensure
+
+## Semantics: `rescue` handles the raised error and mutates captured state before `ensure`, which still runs after the rescue executes.
+
+fn main() -> void {
+  result := ""
+  do {
+    raise "boom"
+  } rescue {
+    case err => { result = `rescued: ${err.message()}` }
+  } ensure {
+    print(result)
+    print("ensured")
+  }
+}

@@ -59,8 +59,16 @@ export function checkStatement(ctx: StatementContext, node: AST.Statement | AST.
 }
 
 export function checkAssignment(ctx: StatementContext, node: AST.AssignmentExpression): TypeInfo {
+  const declarationAssignmentsSeen: WeakSet<AST.AssignmentExpression> =
+    (checkAssignment as any)._seen ?? new WeakSet<AST.AssignmentExpression>();
+  (checkAssignment as any)._seen = declarationAssignmentsSeen;
+  const alreadyProcessed = declarationAssignmentsSeen.has(node);
+  const isDeclaration = node.operator === ":=" && !alreadyProcessed;
+  if (node.operator === ":=" && !alreadyProcessed) {
+    declarationAssignmentsSeen.add(node);
+  }
   let declarationNames: Set<string> | undefined;
-  if (node.operator === ":=" && isPatternNode(node.left)) {
+  if (isDeclaration && isPatternNode(node.left)) {
     const analysis = analyzePatternDeclarations(ctx, node.left);
     declarationNames = analysis.declarationNames;
     if (analysis.hasAny && declarationNames.size === 0) {
@@ -96,8 +104,8 @@ export function checkAssignment(ctx: StatementContext, node: AST.AssignmentExpre
   const bindingOptions = {
     suppressMismatchReport: true,
     declarationNames,
-    isDeclaration: node.operator === ":=",
-    allowFallbackDeclaration: node.operator !== ":=",
+    isDeclaration,
+    allowFallbackDeclaration: !isDeclaration,
   };
   bindPatternToEnv(ctx, node.left as AST.Pattern, targetType, "assignment pattern", bindingOptions);
   return valueType;

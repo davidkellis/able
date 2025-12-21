@@ -532,6 +532,33 @@ func (pc *ProgramChecker) captureExports(mod *driver.Module, checker *Checker) {
 	if mod == nil {
 		return
 	}
+	var methodQualifier func(Type) string
+	methodQualifier = func(t Type) string {
+		switch tv := t.(type) {
+		case StructType:
+			return tv.StructName
+		case StructInstanceType:
+			return tv.StructName
+		case ArrayType:
+			return "Array"
+		case RangeType:
+			return "Range"
+		case IteratorType:
+			return "Iterator"
+		case ProcType:
+			return "Proc"
+		case FutureType:
+			return "Future"
+		case NullableType:
+			return methodQualifier(tv.Inner)
+		case AppliedType:
+			return methodQualifier(tv.Base)
+		case AliasType:
+			return methodQualifier(tv.Target)
+		default:
+			return typeName(t)
+		}
+	}
 	visibility := "public"
 	if mod.AST != nil && mod.AST.Package != nil && mod.AST.Package.IsPrivate {
 		visibility = "private"
@@ -562,8 +589,61 @@ func (pc *ProgramChecker) captureExports(mod *driver.Module, checker *Checker) {
 		}
 		export.impls = append(export.impls, impl)
 	}
+	for _, impl := range export.impls {
+		privacy := make(map[string]bool)
+		if impl.Definition != nil {
+			for _, fn := range impl.Definition.Definitions {
+				if fn == nil || fn.ID == nil {
+					continue
+				}
+				privacy[fn.ID.Name] = fn.IsPrivate
+			}
+		}
+		for name, fn := range impl.Methods {
+			export.functions[name] = fn
+			if privacy[name] {
+				export.private[name] = fn
+				delete(export.symbols, name)
+			} else {
+				export.symbols[name] = fn
+				delete(export.private, name)
+			}
+		}
+	}
 	for _, methods := range checker.ModuleMethodSets() {
 		export.methodSets = append(export.methodSets, methods)
+	}
+
+	methodPrivacy := func(def *ast.MethodsDefinition) map[string]bool {
+		privacy := make(map[string]bool)
+		if def == nil {
+			return privacy
+		}
+		for _, fn := range def.Definitions {
+			if fn == nil || fn.ID == nil {
+				continue
+			}
+			privacy[fn.ID.Name] = fn.IsPrivate
+		}
+		return privacy
+	}
+	for _, spec := range export.methodSets {
+		qualifier := methodQualifier(spec.Target)
+		privacy := methodPrivacy(spec.Definition)
+		for name, fn := range spec.Methods {
+			key := name
+			if spec.TypeQualified != nil && spec.TypeQualified[name] && qualifier != "" {
+				key = fmt.Sprintf("%s.%s", qualifier, name)
+			}
+			export.functions[key] = fn
+			if privacy[name] {
+				export.private[key] = fn
+				delete(export.symbols, key)
+			} else {
+				export.symbols[key] = fn
+				delete(export.private, key)
+			}
+		}
 	}
 
 	recordPrivate := func(name string) {
@@ -715,10 +795,23 @@ func summarizeImplementation(src ImplementationSpec) ExportedImplementationSumma
 }
 
 func summarizeMethodSet(src MethodSetSpec) ExportedMethodSetSummary {
+	qualifier := typeName(src.Target)
+	methods := src.Methods
+	if len(src.TypeQualified) > 0 && qualifier != "" {
+		remapped := make(map[string]FunctionType, len(src.Methods))
+		for name, fn := range src.Methods {
+			key := name
+			if src.TypeQualified != nil && src.TypeQualified[name] && qualifier != "" {
+				key = fmt.Sprintf("%s.%s", qualifier, name)
+			}
+			remapped[key] = fn
+		}
+		methods = remapped
+	}
 	return ExportedMethodSetSummary{
 		TypeParams:  summarizeGenericParams(src.TypeParams),
 		Target:      formatType(src.Target),
-		Methods:     summarizeFunctionMap(src.Methods),
+		Methods:     summarizeFunctionMap(methods),
 		Where:       summarizeWhereConstraints(src.Where),
 		Obligations: summarizeObligations(src.Obligations),
 	}

@@ -29,31 +29,58 @@ export function collectFunctionDefinition(
   inferFunctionGenerics(ctx, definition, scope);
   const name = definition.id?.name ?? "<anonymous>";
   const structName = scope?.structName;
+  const structBaseName = scope?.structBaseName ?? structName;
   const fullName = structName ? `${structName}::${name}` : name;
-  const substitutions = buildGenericSubstitutions(ctx, definition, scope);
+  let substitutions = buildGenericSubstitutions(ctx, definition, scope);
   const returnType = ctx.resolveTypeExpression(definition.returnType, substitutions);
   const selfType =
     structName !== undefined
       ? structTypeFromScope(structName, scope?.typeParamNames)
       : unknownType;
-  let hasImplicitSelf = injectImplicitSelfParameter(definition, scope);
+  if (structName) {
+    substitutions = substitutions ?? new Map<string, TypeInfo>();
+    substitutions.set("Self", selfType);
+  }
+  const firstParam = Array.isArray(definition.params) ? definition.params[0] : undefined;
+  const injectedSelf = injectImplicitSelfParameter(definition, scope);
+  const firstParamTypeName =
+    firstParam?.paramType?.type === "SimpleTypeExpression"
+      ? ctx.getIdentifierName(firstParam.paramType.name)
+      : null;
+  const firstParamBaseName =
+    firstParam?.paramType?.type === "GenericTypeExpression"
+      ? ctx.getIdentifierNameFromTypeExpression(firstParam.paramType.base)
+      : firstParamTypeName;
+  const paramNameIsSelf = firstParam?.name?.type === "Identifier" && firstParam.name.name?.toLowerCase() === "self";
+  const matchesSelfParam =
+    Boolean(structName) &&
+    (paramNameIsSelf ||
+      (Boolean(firstParamBaseName) &&
+        (firstParamBaseName === "Self" || firstParamBaseName === structBaseName || firstParamBaseName === structName)));
+  const expectsSelfParam =
+    Boolean(definition.isMethodShorthand) ||
+    injectedSelf ||
+    matchesSelfParam;
   let parameterTypes = resolveFunctionParameterTypes(ctx, definition, substitutions);
-  if (definition.isMethodShorthand && !hasImplicitSelf) {
-    hasImplicitSelf = true;
-    parameterTypes = [selfType, ...parameterTypes];
-  } else if (hasImplicitSelf && structName) {
+  if (expectsSelfParam && structName) {
     if (parameterTypes.length > 0) {
       parameterTypes = [selfType, ...parameterTypes.slice(1)];
     } else {
       parameterTypes = [selfType];
     }
   }
+  const isTypeQualified = Boolean(structName) && !expectsSelfParam;
+  const typeQualifier = isTypeQualified ? structBaseName ?? structName : undefined;
+  const exportedName = isTypeQualified && typeQualifier ? `${typeQualifier}.${name}` : undefined;
 
   const info: FunctionInfo = {
     name,
     fullName,
     structName,
-    hasImplicitSelf,
+    hasImplicitSelf: expectsSelfParam,
+    isTypeQualified,
+    typeQualifier,
+    exportedName,
     parameters: parameterTypes,
     genericConstraints: [],
     whereClause: extractFunctionWhereObligations(ctx, definition),
@@ -91,12 +118,23 @@ export function collectFunctionDefinition(
 
   ctx.addFunctionInfo(fullName, info);
   if (definition.id?.name) {
-    ctx.addFunctionInfo(name, info);
-    ctx.defineValue(definition.id.name, {
-      kind: "function",
-      parameters: parameterTypes,
-      returnType,
-    });
+    if (isTypeQualified) {
+      if (exportedName) {
+        ctx.addFunctionInfo(exportedName, info);
+        ctx.defineValue(exportedName, {
+          kind: "function",
+          parameters: parameterTypes,
+          returnType,
+        });
+      }
+    } else {
+      ctx.addFunctionInfo(name, info);
+      ctx.defineValue(definition.id.name, {
+        kind: "function",
+        parameters: parameterTypes,
+        returnType,
+      });
+    }
   }
 }
 

@@ -278,6 +278,7 @@ type FunctionValue struct {
 	Declaration    ast.Node // LambdaExpression or FunctionDefinition
 	Closure        *Environment
 	MethodPriority float64
+	TypeQualified  bool
 }
 
 func (v *FunctionValue) Kind() Kind { return KindFunction }

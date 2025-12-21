@@ -126,7 +126,7 @@ fn main() -> String {
         `
 package main
 
-import able.text.string
+import able.text.string.*
 
 fn main() -> i32 {
   parts := "one|two|three".split("|")
@@ -174,7 +174,7 @@ fn main() -> i32 {
         `
 package main
 
-import able.text.string
+import able.text.string.*
 import able.core.errors.{RangeError}
 
 fn main() {
@@ -230,7 +230,7 @@ fn main() {
         `
 package main
 
-import able.text.string
+import able.text.string.*
 import able.core.errors.{RangeError}
 
 fn main() {
@@ -286,7 +286,7 @@ fn main() {
         `
 package main
 
-import able.text.string
+import able.text.string.*
 
 fn main() -> Array String {
   "abc".split("")
@@ -332,7 +332,7 @@ fn main() -> Array String {
         `
 package main
 
-import able.text.string
+import able.text.string.*
 
 fn main() -> String {
   "foobar".replace("", "X")
@@ -378,7 +378,7 @@ fn main() -> String {
         `
 package main
 
-import able.text.string
+import able.text.string.*
 
 fn main() -> Array String {
   "abc".split("|")
@@ -424,7 +424,7 @@ fn main() -> Array String {
         `
 package main
 
-import able.text.string
+import able.text.string.*
 
 fn main() -> String {
   "abc".replace("zzz", "x")
@@ -470,7 +470,7 @@ fn main() -> String {
         `
 package main
 
-import able.text.string
+import able.text.string.*
 
 fn main() -> Array String {
   "cafébar".split("é")
@@ -516,7 +516,7 @@ fn main() -> Array String {
         `
 package main
 
-import able.text.string
+import able.text.string.*
 
 fn main() -> String {
   "abaéaba".replace("é", "δ")
@@ -562,7 +562,7 @@ fn main() -> String {
         `
 package main
 
-import able.text.string
+import able.text.string.*
 
 fn main() -> i32 {
   count := 0

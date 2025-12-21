@@ -209,6 +209,8 @@ func (c *declarationCollector) collectMethodsDefinition(def *ast.MethodsDefiniti
 
 	var diags []Diagnostic
 	methods := make(map[string]FunctionType, len(def.Definitions))
+	typeQualified := make(map[string]bool)
+	baseName := typeName(targetType)
 	for _, fn := range def.Definitions {
 		if fn == nil || fn.ID == nil {
 			diags = append(diags, Diagnostic{
@@ -231,6 +233,23 @@ func (c *declarationCollector) collectMethodsDefinition(def *ast.MethodsDefiniti
 		if len(functionObligations) > 0 {
 			fnType.Obligations = append(fnType.Obligations, functionObligations...)
 		}
+		isSelfMethod := fn.IsMethodShorthand
+		if len(fn.Params) > 0 {
+			first := fn.Params[0]
+			if first != nil {
+				if first.Name != nil {
+					if ident, ok := first.Name.(*ast.Identifier); ok && ident != nil && strings.EqualFold(ident.Name, "self") {
+						isSelfMethod = true
+					}
+				}
+				if simple, ok := first.ParamType.(*ast.SimpleTypeExpression); ok && simple != nil && simple.Name != nil && simple.Name.Name == "Self" {
+					isSelfMethod = true
+				}
+			}
+		}
+		if !isSelfMethod {
+			typeQualified[name] = true
+		}
 		methods[name] = fnType
 	}
 
@@ -244,23 +263,28 @@ func (c *declarationCollector) collectMethodsDefinition(def *ast.MethodsDefiniti
 		if !ok {
 			continue
 		}
-		if _, exists := c.env.Lookup(name); !exists {
-			c.env.Define(name, fnType)
+		exportName := name
+		if typeQualified[name] && baseName != "" {
+			exportName = fmt.Sprintf("%s.%s", baseName, name)
+		}
+		if _, exists := c.env.Lookup(exportName); !exists {
+			c.env.Define(exportName, fnType)
 		}
 		if !fn.IsPrivate {
-			if _, exists := exported[name]; !exists {
-				c.exports = append(c.exports, exportRecord{name: name, node: fn})
-				exported[name] = struct{}{}
+			if _, exists := exported[exportName]; !exists {
+				c.exports = append(c.exports, exportRecord{name: exportName, node: fn})
+				exported[exportName] = struct{}{}
 			}
 		}
 	}
 
 	spec := &MethodSetSpec{
-		TypeParams: params,
-		Target:     targetType,
-		Methods:    methods,
-		Where:      where,
-		Definition: def,
+		TypeParams:    params,
+		Target:        targetType,
+		Methods:       methods,
+		TypeQualified: typeQualified,
+		Where:         where,
+		Definition:    def,
 	}
 	spec.Obligations = obligations
 	return spec, diags
@@ -386,6 +410,13 @@ func applyImplicitSelfParam(def *ast.FunctionDefinition, fnType FunctionType, ta
 		return fnType
 	}
 	if firstParam.ParamType != nil && !isUnknownType(fnType.Params[0]) {
+		if simple, ok := firstParam.ParamType.(*ast.SimpleTypeExpression); ok && simple != nil && simple.Name != nil && simple.Name.Name == "Self" {
+			if target == nil || isUnknownType(target) {
+				fnType.Params[0] = TypeParameterType{ParameterName: "Self"}
+			} else {
+				fnType.Params[0] = target
+			}
+		}
 		return fnType
 	}
 	name := functionParameterName(firstParam)

@@ -767,21 +767,21 @@ function adaptIteratorValue(ctx: InterpreterV10, candidate: V10Value, env: Envir
   const closeMethod = bindIteratorMethod(ctx, receiver, "close", env);
   return {
     kind: "iterator",
-    iterator: {
-      next: () => {
-        const step = callCallableValue(ctx as any, nextMethod as any, [], env);
-        if (isIteratorEnd(ctx, step)) {
-          return { done: true, value: ctx.iteratorEndValue };
-        }
-        return { done: false, value: step ?? ctx.iteratorEndValue };
+      iterator: {
+        next: () => {
+          const step = callCallableValue(ctx as any, nextMethod as any, [], env);
+          if (isIteratorEnd(ctx, step)) {
+            return { done: true, value: ctx.iteratorEndValue };
+          }
+          return { done: false, value: step ?? ctx.iteratorEndValue };
+        },
+        close: () => {
+          if (closeMethod) {
+            callCallableValue(ctx as any, closeMethod as any, [], env);
+          }
+        },
       },
-      close: () => {
-        if (closeMethod) {
-          callCallableValue(ctx as any, closeMethod as any, [], env);
-        }
-      },
-    },
-  };
+    };
 }
 
 function bindIteratorMethod(ctx: InterpreterV10, receiver: V10Value, name: string, env: Environment): V10Value | null {

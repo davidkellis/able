@@ -92,3 +92,48 @@ func TestAliasMethodsPropagate(t *testing.T) {
 		t.Fatalf("expected strVal to be '<strlist>', got %#v", strVal)
 	}
 }
+
+func TestAliasMethodsUseCanonicalTypeName(t *testing.T) {
+	interp := New()
+	env := runtime.NewEnvironment(nil)
+
+	widget := ast.NewStructDefinition(
+		ast.ID("Widget"),
+		[]*ast.StructFieldDefinition{ast.NewStructFieldDefinition(ast.Ty("i32"), ast.ID("value"))},
+		ast.StructKindNamed,
+		nil,
+		nil,
+		false,
+	)
+	if _, err := interp.evaluateStructDefinition(widget, env); err != nil {
+		t.Fatalf("evaluate struct: %v", err)
+	}
+	orig, err := env.Get("Widget")
+	if err != nil {
+		t.Fatalf("widget binding missing: %v", err)
+	}
+	env.Define("AliasWidget", orig)
+
+	describeFn := ast.Fn(
+		"describe",
+		[]*ast.FunctionParameter{ast.Param("self", ast.Ty("Self"))},
+		[]ast.Statement{ast.Ret(ast.Str("ok"))},
+		ast.Ty("String"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+	methods := ast.Methods(ast.Ty("AliasWidget"), []*ast.FunctionDefinition{describeFn}, nil, nil)
+	if _, err := interp.evaluateMethodsDefinition(methods, env); err != nil {
+		t.Fatalf("evaluate methods: %v", err)
+	}
+
+	bucket, ok := interp.inherentMethods["Widget"]
+	if !ok {
+		t.Fatalf("expected methods bucket for Widget")
+	}
+	if _, exists := bucket["describe"]; !exists {
+		t.Fatalf("expected describe to register under canonical type name, got %#v", bucket)
+	}
+}

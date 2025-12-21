@@ -108,6 +108,10 @@ export function evaluateAssignmentExpression(ctx: InterpreterV10, node: AST.Assi
         throw new Error(":= requires at least one new binding");
       }
       env.define(node.left.name, value);
+      const enclosing = (env as any).enclosing;
+      if (ctx.currentPackage && (!enclosing || enclosing === ctx.globals)) {
+        ctx.registerSymbol(node.left.name, value);
+      }
       return value;
     }
     if (isCompound) {

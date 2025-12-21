@@ -1,0 +1,13 @@
+{
+  "description": "Wildcard imports bring interface impls into scope for method dispatch",
+  "setup": [
+    "package.json"
+  ],
+  "expect": {
+    "result": {
+      "kind": "String",
+      "value": "hi"
+    }
+  },
+  "entry": "module.json"
+}

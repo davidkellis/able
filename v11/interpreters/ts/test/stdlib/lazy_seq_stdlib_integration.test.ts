@@ -50,9 +50,9 @@ describe("stdlib-backed lazy seq helpers", () => {
         `
 package main
 
-import able.kernel.{Array}
-import able.collections.array
-import able.collections.lazy_seq.{LazySeq}
+import able.kernel.*
+import able.collections.array.*
+import able.collections.lazy_seq.*
 import able.core.iteration.{Iterator, IteratorEnd}
 
 struct RecordingIterator {

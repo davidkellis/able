@@ -50,7 +50,7 @@ describe("stdlib-backed heap helpers", () => {
         `
 package main
 
-import able.collections.heap.{Heap}
+import able.collections.heap.*
 
 fn compare_desc(a: i32, b: i32) -> i32 {
   if a > b { return -1 }

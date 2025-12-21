@@ -77,6 +77,7 @@
   "errors/logic_operand_type": [
     "typechecker: ../../../fixtures/ast/errors/logic_operand_type/source.able:1:11 typechecker: '&&' left operand must be bool (got String)"
   ],
+  "errors/method_scope_missing_import": [],
   "errors/method_set_where_constraint": [
     "typechecker: ../../../fixtures/ast/errors/method_set_where_constraint/source.able:16:17 typechecker: methods for Wrapper::describe constraint on Self is not satisfied: Wrapper does not implement CustomDisplay: methods for Wrapper: method 'show' not provided"
   ],
@@ -105,11 +106,12 @@
   "errors/struct_type_mismatch": [
     "typechecker: ../../../fixtures/ast/errors/struct_type_mismatch/source.able:10:10 typechecker: struct pattern field 'dx' not found"
   ],
+  "errors/type_qualified_method_call": [],
   "errors/ufcs_overload_ambiguity": [
     "typechecker: ../../../fixtures/ast/errors/ufcs_overload_ambiguity/source.able:7:1 typechecker: duplicate declaration 'tag' (previous declaration at ../../../../fixtures/ast/errors/ufcs_overload_ambiguity/source.able:4:1)"
   ],
   "errors/ufcs_static_method_not_found": [
-    "typechecker: ../../../fixtures/ast/errors/ufcs_static_method_not_found/source.able:13:14 typechecker: argument 1 has type Counter, expected i32"
+    "typechecker: ../../../fixtures/ast/errors/ufcs_static_method_not_found/source.able:13:22 typechecker: argument 1 has type Counter, expected i32"
   ],
   "expressions/array_literal_empty": [],
   "expressions/assignment_declare": [],
@@ -133,6 +135,7 @@
   "functions/hkt_interface_impl_ok": [],
   "functions/implicit_generic_inference": [],
   "functions/lambda_expression": [],
+  "functions/method_scope_imports": [],
   "functions/method_set_where_constraint_ok": [],
   "functions/overload_function_ambiguity": [
     "typechecker: ../../../fixtures/ast/functions/overload_function_ambiguity/source.able:4:1 typechecker: duplicate declaration 'collide' (previous declaration at ../../../../fixtures/ast/functions/overload_function_ambiguity/source.able:1:1)"
@@ -175,6 +178,7 @@
   "interfaces/impl_specificity_ambiguity": [
     "typechecker: ../../../fixtures/ast/interfaces/impl_specificity_ambiguity/source.able:21:10 typechecker: ambiguous implementations of Ambig for Named: impl Ambig for T"
   ],
+  "interfaces/imported_impl_dispatch": [],
   "match/guard_clause": [],
   "match/identifier_literal": [],
   "match/struct_guard": [],

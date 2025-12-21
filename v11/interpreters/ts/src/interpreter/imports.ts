@@ -30,7 +30,7 @@ export function evaluatePackageStatement(): V10Value {
 }
 
 export function evaluateImportStatement(ctx: InterpreterV10, node: AST.ImportStatement, env: Environment): V10Value {
-  if (!node.isWildcard && (!node.selectors || node.selectors.length === 0) && node.alias) {
+  if (!node.isWildcard && (!node.selectors || node.selectors.length === 0)) {
     const pkg = node.packagePath.map(p => p.name).join(".");
     const bucket = ctx.packageRegistry.get(pkg);
     if (!bucket) throw new Error(`Import error: package '${pkg}' not found`);
@@ -42,7 +42,8 @@ export function evaluateImportStatement(ctx: InterpreterV10, node: AST.ImportSta
       if (val.kind === "union_def" && val.def.isPrivate) continue;
       filtered.set(name, val);
     }
-    env.define(node.alias.name, { kind: "package", name: pkg, symbols: filtered });
+    const alias = node.alias?.name ?? pkg;
+    env.define(alias, { kind: "package", name: pkg, symbols: filtered });
   } else if (node.isWildcard) {
     const pkg = node.packagePath.map(p => p.name).join(".");
     const bucket = ctx.packageRegistry.get(pkg);
@@ -130,8 +131,9 @@ export function evaluateDynImportStatement(ctx: InterpreterV10, node: AST.DynImp
       if (val.kind === "union_def" && val.def.isPrivate) throw new Error(`dynimport error: union '${original}' is private`);
       env.define(alias, { kind: "dyn_ref", pkg, name: original });
     }
-  } else if (node.alias) {
-    env.define(node.alias.name, { kind: "dyn_package", name: pkg });
+  } else {
+    const alias = node.alias?.name ?? pkg;
+    env.define(alias, { kind: "dyn_package", name: pkg });
   }
   return NIL;
 }

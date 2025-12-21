@@ -1,7 +1,7 @@
 package hash_set
 import able.kernel.{Array}
 import able.collections.array
-import able.collections.hash_map.{HashMap}
+import able.collections.hash_map.*
 import able.collections.set.{Set}
 import able.collections.enumerable.{Enumerable}
 import able.core.interfaces.{Clone, Default, Hash, Eq}
