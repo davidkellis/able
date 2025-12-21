@@ -1,0 +1,9 @@
+package pkg_visibility
+
+private struct Hidden { value: String }
+struct Visible { value: String }
+
+fn make_visible(msg: String) -> Visible { Visible { value: msg } }
+fn describe(v: Visible) -> String { `visible ${v.value}` }
+
+private fn hidden_msg() -> String { "secret" }

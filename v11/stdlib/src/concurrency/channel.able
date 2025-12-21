@@ -1,6 +1,6 @@
 import able.core.interfaces.{Error}
 import able.core.iteration.{Iterable, Iterator, IteratorEnd}
-import able.kernel.{Channel::KernelChannel}
+import able.kernel.{Channel::KernelChannel, send, receive, try_receive, await_receive, await_send, close, is_closed}
 
 struct ChannelClosed {}
 struct ChannelNil {}

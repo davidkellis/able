@@ -14,6 +14,7 @@ export interface ImplementationRecord {
   label: string;
   target: AST.TypeExpression;
   targetKey: string;
+  resolvedTarget?: TypeInfo;
   genericParams: string[];
   obligations: ImplementationObligation[];
   interfaceArgs: AST.TypeExpression[];
@@ -29,6 +30,7 @@ export interface InterfaceCheckResult {
 export interface MethodSetRecord {
   label: string;
   target: AST.TypeExpression;
+  resolvedTarget?: TypeInfo;
   genericParams: string[];
   obligations: ImplementationObligation[];
   definition: AST.MethodsDefinition;
@@ -36,6 +38,7 @@ export interface MethodSetRecord {
 
 export type FunctionContext = {
   structName?: string;
+  structBaseName?: string;
   typeParamNames?: string[];
 };
 
@@ -44,6 +47,9 @@ export interface FunctionInfo {
   fullName: string;
   structName?: string;
   hasImplicitSelf?: boolean;
+  isTypeQualified?: boolean;
+  typeQualifier?: string;
+  exportedName?: string;
   methodResolutionPriority?: number;
   parameters: TypeInfo[];
   genericConstraints: Array<{

@@ -50,7 +50,7 @@ describe("stdlib-backed list helpers", () => {
         `
 package main
 
-import able.collections.list.{List}
+import able.collections.list.*
 
 fn main() -> i32 {
   first := List.empty()

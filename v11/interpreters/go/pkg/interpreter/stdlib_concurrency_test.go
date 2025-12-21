@@ -381,9 +381,8 @@ func TestStdlibChannelMutexModuleLoader(t *testing.T) {
 	writeTestFile(t, filepath.Join(root, "main.able"), `
 package main
 
-import able.kernel.{Channel, Mutex}
-import able.concurrency
-import able.concurrency.{with_lock}
+import able.kernel.*
+import able.concurrency.{iterator, each, with_lock}
 
 fn main() -> i32 {
   ch: Channel i32 := Channel.new(2)

@@ -38,6 +38,8 @@ export function applyMemberAugmentations(cls: typeof InterpreterV10): void {
     }
     const seen = new Set<Extract<V10Value, { kind: "function" }>>();
     const candidates: Array<Extract<V10Value, { kind: "function" }>> = [];
+    const nameInScope = env.has(funcName);
+    const allowInherent = nameInScope || isPrimitiveReceiver(receiver, typeName);
 
     const addCandidate = (
       callable: Extract<V10Value, { kind: "function" | "function_overload" }> | null,
@@ -63,7 +65,7 @@ export function applyMemberAugmentations(cls: typeof InterpreterV10): void {
 
     for (const name of candidateTypeNames) {
       const bucket = this.inherentMethods.get(name);
-      const inherent = bucket?.get(funcName);
+      const inherent = allowInherent ? bucket?.get(funcName) : null;
       const instanceCallable = inherent ? selectInstanceCallable(inherent, receiver, this) : null;
       addCandidate(instanceCallable, name);
       const preExisting = candidates.length;
@@ -83,7 +85,7 @@ export function applyMemberAugmentations(cls: typeof InterpreterV10): void {
 
     const hasMethodCandidate = candidates.length > 0;
     try {
-      const candidate = env.get(funcName);
+      const candidate = nameInScope ? env.get(funcName) : null;
       if (candidate && (candidate.kind === "function" || candidate.kind === "function_overload")) {
         const ufcs = selectUfcsCallable(candidate, receiver, this);
         if (!hasMethodCandidate) {
@@ -97,6 +99,23 @@ export function applyMemberAugmentations(cls: typeof InterpreterV10): void {
       candidates.length === 1 ? candidates[0]! : { kind: "function_overload", overloads: candidates };
     return { kind: "bound_method", func: callable, self: receiver };
   };
+}
+
+function isPrimitiveReceiver(receiver: V10Value, typeName?: string | null): boolean {
+  switch (receiver.kind) {
+    case "String":
+    case "array":
+    case "integer":
+    case "float":
+    case "bool":
+    case "char":
+    case "nil":
+      return true;
+    case "struct_instance":
+      return typeName === "Array";
+    default:
+      return false;
+  }
 }
 
 function selectInstanceCallable(
@@ -125,9 +144,14 @@ function selectUfcsCallable(
   ctx: InterpreterV10,
 ): Extract<V10Value, { kind: "function" | "function_overload" }> | null {
   if (func.kind === "function") {
+    if ((func as any).typeQualified) {
+      return null;
+    }
     return firstParamMatches(func.node, receiver, ctx) ? func : null;
   }
-  const ufcsOverloads = func.overloads.filter((entry) => entry?.node && firstParamMatches(entry.node, receiver, ctx));
+  const ufcsOverloads = func.overloads.filter(
+    (entry) => entry?.node && !(entry as any).typeQualified && firstParamMatches(entry.node, receiver, ctx),
+  );
   if (!ufcsOverloads.length) {
     return null;
   }
@@ -153,6 +177,11 @@ function firstParamMatches(
   ctx: InterpreterV10 | undefined,
 ): boolean {
   if (def.type !== "FunctionDefinition") return false;
+  const structName = (def as any).structName ?? (def as any).struct_name;
+  const receiverTypeName = receiver && ctx ? ctx.getTypeNameForValue(receiver) : null;
+  if (structName && receiverTypeName && receiverTypeName !== structName) {
+    return false;
+  }
   if (def.isMethodShorthand) return true;
   const params = Array.isArray(def.params) ? def.params : [];
   if (!params.length) return false;

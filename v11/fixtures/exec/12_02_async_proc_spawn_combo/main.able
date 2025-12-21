@@ -1,0 +1,33 @@
+package exec_12_02_async_proc_spawn_combo
+
+## Semantics: cooperative scheduling across `proc` and `spawn`; `proc_yield` interleaves work, `proc_flush` drains tasks, and future status/value reflect completion.
+
+fn status_name(status) -> String {
+  status match {
+    case Pending { } => "Pending",
+    case Resolved { } => "Resolved",
+    case Cancelled { } => "Cancelled",
+    case Failed { } => "Failed",
+    case _ => "Unknown"
+  }
+}
+
+fn main() -> void {
+  proc {
+    print("proc:start")
+    proc_yield()
+    print("proc:end")
+  }
+
+  future := spawn {
+    print("spawn:start")
+    proc_yield()
+    print("spawn:end")
+    "done"
+  }
+
+  print(`future initial ${status_name(future.status())}`)
+  proc_flush()
+  print(`future final ${status_name(future.status())}`)
+  print(`future value ${future.value()}`)
+}

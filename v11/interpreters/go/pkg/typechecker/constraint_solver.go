@@ -169,6 +169,9 @@ func (c *Checker) obligationSatisfied(ob ConstraintObligation, res interfaceReso
 }
 
 func (c *Checker) typeImplementsInterface(subject Type, iface InterfaceType, args []Type) (bool, string) {
+	if implementsIntrinsicInterface(subject, iface.InterfaceName) {
+		return true, ""
+	}
 	var implDetail string
 	switch val := subject.(type) {
 	case NullableType:
@@ -225,6 +228,19 @@ func (c *Checker) typeImplementsInterface(subject Type, iface InterfaceType, arg
 		return false, implDetail
 	}
 	return false, ""
+}
+
+func implementsIntrinsicInterface(subject Type, interfaceName string) bool {
+	switch interfaceName {
+	case "Hash", "Eq":
+		switch val := subject.(type) {
+		case PrimitiveType:
+			return val.Kind == PrimitiveString || val.Kind == PrimitiveBool || val.Kind == PrimitiveChar
+		case IntegerType:
+			return val.Suffix == "i32"
+		}
+	}
+	return false
 }
 
 func subjectMatchesInterface(subject Type, iface InterfaceType, args []Type) bool {

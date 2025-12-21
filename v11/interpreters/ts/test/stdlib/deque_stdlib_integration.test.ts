@@ -50,7 +50,7 @@ describe("stdlib-backed deque helpers", () => {
         `
 package main
 
-import able.collections.deque.{Deque}
+import able.collections.deque.*
 import able.core.iteration.{IteratorEnd}
 
 fn main() -> i32 {

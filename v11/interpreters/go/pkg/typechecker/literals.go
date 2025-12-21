@@ -722,7 +722,7 @@ func (c *Checker) checkIteratorYield(env *Environment, stmt *ast.YieldStatement,
 
 func (c *Checker) resolveApplyCall(calleeType Type, argTypes []Type, call *ast.FunctionCall) (Type, []Diagnostic, bool) {
 	var diags []Diagnostic
-	if fnType, ok, detail := c.lookupMethod(calleeType, "apply"); ok {
+	if fnType, ok, detail := c.lookupMethod(calleeType, "apply", true, true); ok {
 		params := fnType.Params
 		optionalLast := len(params) > 0
 		if optionalLast {

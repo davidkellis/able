@@ -1,0 +1,7 @@
+package exec_11_03_raise_exit_unhandled
+
+## Semantics: uncaught `raise` propagates out of `main`, terminating the program with a non-zero exit status.
+
+fn main() -> void {
+  raise("boom")
+}

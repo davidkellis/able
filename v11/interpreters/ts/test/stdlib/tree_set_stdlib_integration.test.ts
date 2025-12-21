@@ -50,7 +50,7 @@ describe("stdlib-backed tree set helpers", () => {
         `
 package main
 
-import able.collections.tree_set.{TreeSet}
+import able.collections.tree_set.*
 
 fn main() -> i32 {
   set: TreeSet i32 := TreeSet.new()

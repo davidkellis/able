@@ -323,6 +323,22 @@ func isCallableRuntimeValue(val runtime.Value) bool {
 	}
 }
 
+func isPrimitiveReceiver(val runtime.Value) bool {
+	switch v := val.(type) {
+	case runtime.StringValue, *runtime.StringValue,
+		runtime.BoolValue, runtime.CharValue, runtime.NilValue, *runtime.NilValue,
+		runtime.IntegerValue, *runtime.IntegerValue,
+		runtime.FloatValue, *runtime.FloatValue,
+		*runtime.ArrayValue:
+		return true
+	case *runtime.InterfaceValue:
+		if v != nil {
+			return isPrimitiveReceiver(v.Underlying)
+		}
+	}
+	return false
+}
+
 func (i *Interpreter) iteratorMember(iter *runtime.IteratorValue, member ast.Expression) (runtime.Value, error) {
 	if iter == nil {
 		return nil, fmt.Errorf("iterator receiver is nil")
@@ -368,6 +384,8 @@ func (i *Interpreter) resolveMethodFromPool(env *runtime.Environment, funcName s
 	nativeCandidates := make([]runtime.Value, 0)
 	seenFuncs := make(map[*runtime.FunctionValue]struct{})
 	seenNatives := make(map[string]struct{})
+	nameInScope := env != nil && env.Has(funcName)
+	allowInherent := nameInScope || isPrimitiveReceiver(receiver)
 
 	var addCallable func(method runtime.Value, privacyContext string) error
 	addCallable = func(method runtime.Value, privacyContext string) error {
@@ -451,12 +469,14 @@ func (i *Interpreter) resolveMethodFromPool(env *runtime.Environment, funcName s
 	}
 
 	if info, ok := i.getTypeInfoForValue(receiver); ok {
-		for _, name := range i.canonicalTypeNames(info.name) {
-			if bucket, ok := i.inherentMethods[name]; ok {
-				if method := bucket[funcName]; method != nil {
-					if callable, ok := i.selectUfcsCallable(method, receiver, true); ok {
-						if err := addCallable(callable, name); err != nil {
-							return nil, err
+		if allowInherent {
+			for _, name := range i.canonicalTypeNames(info.name) {
+				if bucket, ok := i.inherentMethods[name]; ok {
+					if method := bucket[funcName]; method != nil {
+						if callable, ok := i.selectUfcsCallable(method, receiver, true); ok {
+							if err := addCallable(callable, name); err != nil {
+								return nil, err
+							}
 						}
 					}
 				}
@@ -476,7 +496,7 @@ func (i *Interpreter) resolveMethodFromPool(env *runtime.Environment, funcName s
 
 	hasMethodCandidate := len(functionCandidates)+len(nativeCandidates) > 0
 
-	if env != nil && !hasMethodCandidate {
+	if env != nil && !hasMethodCandidate && nameInScope {
 		if val, err := env.Get(funcName); err == nil {
 			if callable, ok := i.selectUfcsCallable(val, receiver, false); ok {
 				if err := addCallable(callable, ""); err != nil {
@@ -511,6 +531,9 @@ func (i *Interpreter) selectUfcsCallable(method runtime.Value, receiver runtime.
 	switch fn := method.(type) {
 	case *runtime.FunctionValue:
 		if (!requireSelf || functionExpectsSelf(fn)) && i.functionFirstParamMatches(fn, receiver) {
+			if !requireSelf && fn.TypeQualified {
+				return nil, false
+			}
 			return fn, true
 		}
 		return nil, false
@@ -518,6 +541,9 @@ func (i *Interpreter) selectUfcsCallable(method runtime.Value, receiver runtime.
 		filtered := make([]*runtime.FunctionValue, 0, len(fn.Overloads))
 		for _, entry := range fn.Overloads {
 			if entry == nil {
+				continue
+			}
+			if !requireSelf && entry.TypeQualified {
 				continue
 			}
 			if requireSelf && !functionExpectsSelf(entry) {

@@ -1,0 +1,143 @@
+{
+  "type": "Module",
+  "package": {
+    "type": "PackageStatement",
+    "namePath": [
+      {
+        "type": "Identifier",
+        "name": "speaklib"
+      }
+    ]
+  },
+  "imports": [],
+  "body": [
+    {
+      "type": "StructDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "Talker"
+      },
+      "fields": [
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "name"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "String"
+            }
+          }
+        }
+      ],
+      "kind": "named"
+    },
+    {
+      "type": "InterfaceDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "Speaker"
+      },
+      "signatures": [
+        {
+          "type": "FunctionSignature",
+          "name": {
+            "type": "Identifier",
+            "name": "speak"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Self"
+                }
+              }
+            }
+          ],
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "String"
+            }
+          }
+        }
+      ],
+      "isPrivate": false
+    },
+    {
+      "type": "ImplementationDefinition",
+      "interfaceName": {
+        "type": "Identifier",
+        "name": "Speaker"
+      },
+      "targetType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "Talker"
+        }
+      },
+      "definitions": [
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "speak"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Talker"
+                }
+              }
+            }
+          ],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "MemberAccessExpression",
+                "object": {
+                  "type": "Identifier",
+                  "name": "self"
+                },
+                "member": {
+                  "type": "Identifier",
+                  "name": "name"
+                }
+              }
+            ]
+          },
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "String"
+            }
+          },
+          "isMethodShorthand": false,
+          "isPrivate": false
+        }
+      ]
+    }
+  ]
+}

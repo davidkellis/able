@@ -364,6 +364,118 @@ const functionsFixtures: Fixture[] = [
     },
 
   {
+      name: "functions/method_scope_imports",
+      setupModules: {
+        "package.json": AST.module(
+          [
+            AST.structDefinition("Widget", [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "value")], "named"),
+            AST.methodsDefinition(
+              AST.simpleTypeExpression("Widget"),
+              [
+                AST.functionDefinition(
+                  "bump",
+                  [
+                    AST.functionParameter("self", AST.simpleTypeExpression("Self")),
+                    AST.functionParameter("delta", AST.simpleTypeExpression("i32")),
+                  ],
+                  AST.blockExpression([
+                    AST.bin("+", AST.member(AST.id("self"), "value"), AST.id("delta")),
+                  ]),
+                  AST.simpleTypeExpression("i32"),
+                ),
+                AST.functionDefinition(
+                  "augment",
+                  [
+                    AST.functionParameter("item", AST.simpleTypeExpression("Widget")),
+                    AST.functionParameter("delta", AST.simpleTypeExpression("i32")),
+                  ],
+                  AST.blockExpression([
+                    AST.bin("+", AST.member(AST.id("item"), "value"), AST.id("delta")),
+                  ]),
+                  AST.simpleTypeExpression("i32"),
+                ),
+                AST.functionDefinition(
+                  "make",
+                  [AST.functionParameter("start", AST.simpleTypeExpression("i32"))],
+                  AST.blockExpression([
+                    AST.structLiteral(
+                      [AST.structFieldInitializer(AST.id("start"), "value")],
+                      false,
+                      "Widget",
+                    ),
+                  ]),
+                  AST.simpleTypeExpression("Widget"),
+                ),
+              ],
+            ),
+          ],
+          [],
+          AST.packageStatement(["pkgmethods"]),
+        ),
+      },
+      module: AST.module(
+        [
+          AST.assign(
+            "first",
+            AST.functionCall(AST.memberAccessExpression(AST.identifier("Widget"), "make"), [AST.int(10)]),
+          ),
+          AST.assign(
+            "bumped",
+            AST.functionCall(AST.memberAccessExpression(AST.id("first"), "bump"), [AST.int(3)]),
+          ),
+          AST.assign(
+            "second",
+            AST.functionCall(
+              AST.memberAccessExpression(AST.memberAccessExpression(AST.identifier("pkgmethods"), "Widget"), "make"),
+              [AST.int(4)],
+            ),
+          ),
+          AST.assign(
+            "qualified",
+            AST.functionCall(
+              AST.memberAccessExpression(AST.identifier("Widget"), "augment"),
+              [AST.id("first"), AST.int(2)],
+            ),
+          ),
+          AST.assign(
+            "aliased",
+            AST.functionCall(
+              AST.memberAccessExpression(AST.memberAccessExpression(AST.identifier("pkgmethods"), "Widget"), "augment"),
+              [AST.id("second"), AST.int(1)],
+            ),
+          ),
+          AST.arrayLiteral([
+            AST.memberAccessExpression(AST.id("first"), "value"),
+            AST.id("bumped"),
+            AST.id("qualified"),
+            AST.memberAccessExpression(AST.id("second"), "value"),
+            AST.id("aliased"),
+          ]),
+        ],
+        [
+          AST.importStatement(["pkgmethods"]),
+          AST.importStatement(["pkgmethods"], true),
+        ],
+      ),
+      manifest: {
+        description: "Wildcard import surfaces method sugar and type-qualified exports (including via package alias)",
+        setup: ["package.json"],
+        expect: {
+          result: {
+            kind: "array",
+            elements: [
+              { kind: "i32", value: 10n },
+              { kind: "i32", value: 13n },
+              { kind: "i32", value: 12n },
+              { kind: "i32", value: 4n },
+              { kind: "i32", value: 5n },
+            ],
+          },
+        },
+      },
+    },
+
+  {
       name: "functions/ufcs_inherent_methods",
       module: AST.module([
         AST.structDefinition(

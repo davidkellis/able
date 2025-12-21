@@ -48,9 +48,8 @@ describe("stdlib-backed concurrency helpers", () => {
         `
 package main
 
-import able.kernel.{Channel, Mutex}
-import able.concurrency
-import able.concurrency.{with_lock}
+import able.kernel.*
+import able.concurrency.*
 
 fn main() -> String {
   ch: Channel String := Channel.new(2)

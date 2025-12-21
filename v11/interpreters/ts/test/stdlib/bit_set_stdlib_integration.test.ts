@@ -58,7 +58,7 @@ describe("stdlib-backed bit set helpers", () => {
         `
 package main
 
-import able.collections.bit_set.{BitSet}
+import able.collections.bit_set.*
 
 fn main() -> i32 {
   bits: BitSet := BitSet.new()

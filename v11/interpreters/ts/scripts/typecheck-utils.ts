@@ -20,9 +20,9 @@ export function formatTypecheckerDiagnostic(
     message = `${options.packageName}: ${message}`;
   }
   if (location) {
-    message = `${message} (${location})`;
+    return `typechecker: ${location} ${message}`;
   }
-  return message;
+  return `typechecker: ${message}`;
 }
 
 export function printPackageSummaries(summaries: Map<string, PackageSummary>): void {

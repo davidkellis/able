@@ -37,7 +37,8 @@ export function ensureUniqueDeclaration(
       return true;
     }
     const location = formatNodeOrigin(existing);
-    ctx.report(`typechecker: duplicate declaration '${name}' (previous declaration at ${location})`, node);
+    const displayName = name.startsWith("<anonymous>::") ? name.slice("<anonymous>::".length) : name;
+    ctx.report(`typechecker: duplicate declaration '${displayName}' (previous declaration at ${location})`, node);
     return false;
   }
   ctx.declarationOrigins.set(name, node);

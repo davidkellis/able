@@ -19,6 +19,8 @@ export type Manifest = {
   expect?: {
     result?: { kind: string; value?: unknown };
     stdout?: string[];
+    stderr?: string[];
+    exit?: number;
     errors?: string[];
     typecheckDiagnostics?: string[];
   };

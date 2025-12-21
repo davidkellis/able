@@ -1,5 +1,11 @@
 # Able Project Log
 
+# 2025-12-18 — Exec fixtures renamed to spec sections (v11)
+- Renamed exec fixtures/packages to use spec section prefixes, refreshed manifests/comments, and regenerated the coverage index + docs with the spec-based naming scheme.
+- Added/updated exec fixtures for async proc/spawn scheduling, methods/UFCS, option/result handling via raise/rescue, package visibility with explicit aliases, and alias/union generic combos; each case documents the exercised semantics inline.
+- Conformance docs now carry the seeded coverage matrix and exec fixtures guide keyed to the new IDs, with the JSON coverage index tracked alongside.
+- `run_all_tests.sh` runs `scripts/check-exec-coverage.mjs` before the suites; `./run_all_tests.sh --version=v11` passes after the exec fixture sweep.
+
 # 2025-12-13 — Host interop tutorial unblocked + prefix match guard (v11)
 - Added the Go-side `read_text` extern for tutorial 14 (imports `os`, returns `host_error` on failure) so the host interop example now runs on the Go runtime alongside the existing TS path.
 - Tree-sitter grammar usage is now enforced to reject prefix-style `match <expr> { ... }`: added Go parser and TS tree-sitter/mapper tests that expect syntax errors for the legacy ordering, matching the spec requirement of `<expr> match { ... }`.

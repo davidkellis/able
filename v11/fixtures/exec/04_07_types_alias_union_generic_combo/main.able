@@ -1,0 +1,25 @@
+package exec_04_07_types_alias_union_generic_combo
+
+## Semantics: Option-style union (`nil | T`) handled by a generic helper with inference; alias intent is simulated via consistent usage of the ID concept without a runtime alias construct.
+
+fn unwrap_or<T>(value, fallback: T) -> T {
+  value match {
+    case nil => fallback,
+    case some => some
+  }
+}
+
+fn make_id(id) {
+  if id > 0 { id } else { nil }
+}
+
+fn main() -> void {
+  present := make_id(7)
+  absent := make_id(-1)
+
+  got_present := unwrap_or(present, 99)  ## inferred T via call-site fallback type
+  got_absent := unwrap_or(absent, 99)    ## fallback used for nil case
+
+  print(`id ${got_present}`)
+  print(`fallback ${got_absent}`)
+}

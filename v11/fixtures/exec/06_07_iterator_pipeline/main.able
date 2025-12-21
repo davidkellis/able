@@ -1,0 +1,27 @@
+package exec_06_07_iterator_pipeline
+
+## Semantics: generator literal yields via `gen.yield`, consumer handles `IteratorEnd` from `next()`, and pipeline `|>` forwards values into a function.
+
+fn square(n: i32) -> i32 { n * n }
+
+fn main() -> void {
+  iter := Iterator {
+    count := 1
+    while count <= 4 {
+      gen.yield(count)
+      count = count + 1
+    }
+  }
+  loop {
+    next := iter.next()
+    next match {
+      case IteratorEnd {} => { break },
+      case value: i32 => {
+        doubled := value * 2
+        squared := doubled |> square
+        print(`value ${value} doubled ${doubled} squared ${squared}`)
+      },
+      case _ => { break }
+    }
+  }
+}

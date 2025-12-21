@@ -182,6 +182,20 @@ export function applyEvaluationAugmentations(cls: typeof InterpreterV10): void {
       case "TypeAliasDefinition":
         if (node.id?.name) {
           this.typeAliases.set(node.id.name, node as AST.TypeAliasDefinition);
+          const targetName =
+            node.targetType?.type === "SimpleTypeExpression"
+              ? node.targetType.name?.name
+              : node.targetType?.type === "GenericTypeExpression"
+                ? node.targetType.base?.type === "SimpleTypeExpression"
+                  ? node.targetType.base.name?.name
+                  : null
+                : null;
+          if (targetName) {
+            try {
+              const targetVal = env.get(targetName);
+              this.registerSymbol(node.id.name, targetVal);
+            } catch {}
+          }
         }
         return NIL;
       case "MethodsDefinition":

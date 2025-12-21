@@ -1,0 +1,7 @@
+{
+  "description": "raises an error and exits non-zero",
+  "expect": {
+    "stderr": ["boom"],
+    "exit": 1
+  }
+}

@@ -53,9 +53,9 @@ func stripNilFromUnion(u UnionLiteralType) Type {
 	}
 }
 
-func (c *Checker) lookupMethod(object Type, name string) (FunctionType, bool, string) {
-	bestFn, bestScore, found := c.lookupMethodInMethodSets(object, name)
-	implFn, implScore, implFound, implDetail := c.lookupMethodInImplementations(object, name)
+func (c *Checker) lookupMethod(object Type, name string, allowMethodSets bool, allowTypeQualified bool) (FunctionType, bool, string) {
+	bestFn, bestScore, found := c.lookupMethodInMethodSets(object, name, allowMethodSets, allowTypeQualified)
+	implFn, implScore, implFound, implDetail := c.lookupMethodInImplementations(object, name, true)
 	if implFound && (!found || implScore > bestScore) {
 		return implFn, true, ""
 	}
@@ -65,8 +65,8 @@ func (c *Checker) lookupMethod(object Type, name string) (FunctionType, bool, st
 	return FunctionType{}, false, implDetail
 }
 
-func (c *Checker) lookupMethodInMethodSets(object Type, name string) (FunctionType, int, bool) {
-	if len(c.methodSets) == 0 {
+func (c *Checker) lookupMethodInMethodSets(object Type, name string, allowMethodSets bool, allowTypeQualified bool) (FunctionType, int, bool) {
+	if len(c.methodSets) == 0 || !allowMethodSets {
 		return FunctionType{}, -1, false
 	}
 	var (
@@ -88,6 +88,9 @@ func (c *Checker) lookupMethodInMethodSets(object Type, name string) (FunctionTy
 		}
 		method, ok := spec.Methods[name]
 		derivedFromConstraints := false
+		if spec.TypeQualified != nil && spec.TypeQualified[name] && !allowTypeQualified {
+			continue
+		}
 		if !ok {
 			if inferred, inferredOK := c.methodFromMethodSetConstraints(spec.Obligations, substitution, name); inferredOK {
 				method = inferred
@@ -250,8 +253,8 @@ type implementationMethodCandidate struct {
 	score  int
 }
 
-func (c *Checker) lookupMethodInImplementations(object Type, name string) (FunctionType, int, bool, string) {
-	if len(c.implementations) == 0 {
+func (c *Checker) lookupMethodInImplementations(object Type, name string, allow bool) (FunctionType, int, bool, string) {
+	if len(c.implementations) == 0 || !allow {
 		return FunctionType{}, -1, false, ""
 	}
 	var (

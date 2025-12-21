@@ -77,7 +77,7 @@ describe("v11 interpreter - methods & impls", () => {
     const pointValue = AST.structLiteral([AST.structFieldInitializer(AST.integerLiteral(3), "x")], false, "Point");
     const callAsMethod = AST.functionCall(AST.memberAccessExpression(pointValue, "norm"), []);
     const callAsFunction = AST.functionCall(AST.identifier("norm"), [pointValue]);
-    const staticCall = AST.functionCall(AST.identifier("origin"), []);
+    const staticCall = AST.functionCall(AST.memberAccessExpression(AST.identifier("Point"), "origin"), []);
 
     expect(I.evaluate(callAsMethod)).toEqual({ kind: "i32", value: 1n });
     expect(I.evaluate(callAsFunction)).toEqual({ kind: "i32", value: 1n });
@@ -86,4 +86,3 @@ describe("v11 interpreter - methods & impls", () => {
     expect(origin.kind).toBe("struct_instance");
   });
 });
-

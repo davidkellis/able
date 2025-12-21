@@ -192,12 +192,13 @@ func (i ImplementationNamespaceType) Name() string {
 }
 
 type MethodSetSpec struct {
-	TypeParams  []GenericParamSpec
-	Target      Type
-	Methods     map[string]FunctionType
-	Where       []WhereConstraintSpec
-	Obligations []ConstraintObligation
-	Definition  *ast.MethodsDefinition
+	TypeParams    []GenericParamSpec
+	Target        Type
+	Methods       map[string]FunctionType
+	TypeQualified map[string]bool
+	Where         []WhereConstraintSpec
+	Obligations   []ConstraintObligation
+	Definition    *ast.MethodsDefinition
 }
 
 type ConstraintObligation struct {

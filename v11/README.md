@@ -15,7 +15,7 @@ Able is an experimental programming language. This workspace hosts the actively 
 - `interpreters/ts/` — Bun/TypeScript interpreter, tests, CLI tooling, and AST builders.
 - `interpreters/go/` — Go interpreter, CLI, and canonical AST/typechecker definitions.
 - `parser/` — Tree-sitter oriented parser experiments copied from the v10 workspace.
-- `fixtures/`, `examples/`, `stdlib/` — Shared AST fixtures, curated example programs, and stdlib sketches.
+- `fixtures/`, `examples/`, `stdlib/` — Shared AST fixtures, curated example programs, runnable exec fixtures (`fixtures/exec`), and stdlib sketches. See `docs/exec-fixtures.md` for authoring/running exec programs.
 - `design/`, `docs/`, `README.md`, `PLAN.md`, `AGENTS.md` — Copied documentation and roadmap files that we will update specifically for v11 work.
 
 ## How We Work
@@ -38,6 +38,9 @@ Combined test suites:
 # Include Go fixture typechecking (warn logs diagnostics, strict enforces them)
 ./run_all_tests.sh --version=v11 --typecheck-fixtures=warn
 ./run_all_tests.sh --version=v11 --typecheck-fixtures=strict
+
+# Fixture-only sweep (TS fixtures + parity + Go fixture runner)
+./run_all_tests.sh --version=v11 --fixture
 ```
 
 See `docs/parity-reporting.md` for details on directing the parity JSON report into CI artifacts (`ABLE_PARITY_REPORT_DEST`, `CI_ARTIFACTS_DIR`) and consuming the machine-readable diffs.

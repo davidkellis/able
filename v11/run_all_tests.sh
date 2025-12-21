@@ -8,6 +8,7 @@ PARITY_REPORT_PATH="$PARITY_REPORT_DIR/parity-report.json"
 declare -a PARITY_REPORT_COPIES=()
 
 TYPECHECK_FIXTURES_MODE=""
+FIXTURE_ONLY=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -27,11 +28,16 @@ while [[ $# -gt 0 ]]; do
       TYPECHECK_FIXTURES_MODE="strict"
       shift
       ;;
+    --fixture)
+      FIXTURE_ONLY=true
+      shift
+      ;;
     --help|-h)
       cat <<'EOF'
 Usage: run_all_tests.sh [options]
 
 Options:
+  --fixture                 Run only fixture suites (TS fixtures, parity, Go fixture tests).
   --typecheck-fixtures[=MODE]  Enable Go fixture typechecking (MODE: warn|strict, default warn).
   --typecheck-fixtures-warn    Shorthand for --typecheck-fixtures=warn.
   --typecheck-fixtures-strict  Shorthand for --typecheck-fixtures=strict.
@@ -73,17 +79,22 @@ copy_parity_report() {
 echo ">>> Exporting fixtures"
 "$ROOT_DIR/export_fixtures.sh"
 
-echo ">>> Running TypeScript unit tests"
-(
-  cd "$ROOT_DIR/interpreters/ts"
-  bun test
-)
+echo ">>> Checking exec coverage index"
+node "$ROOT_DIR/scripts/check-exec-coverage.mjs"
 
-echo ">>> Running Able CLI tests"
-(
-  cd "$ROOT_DIR/interpreters/ts"
-  bun test test/cli
-)
+if [[ "$FIXTURE_ONLY" == false ]]; then
+  echo ">>> Running TypeScript unit tests"
+  (
+    cd "$ROOT_DIR/interpreters/ts"
+    bun test
+  )
+
+  echo ">>> Running Able CLI tests"
+  (
+    cd "$ROOT_DIR/interpreters/ts"
+    bun test test/cli
+  )
+fi
 
 echo ">>> Running TypeScript fixture suite"
 (
@@ -111,15 +122,23 @@ if [[ -n "${CI_ARTIFACTS_DIR:-}" ]]; then
   copy_parity_report "$CI_ARTIFACTS_DIR/parity-report.json"
 fi
 
-echo ">>> Running Go unit tests"
+echo ">>> Running Go tests"
 (
   cd "$ROOT_DIR/interpreters/go"
   tmp_gocache="$(mktemp -d)"
   trap 'rm -rf "$tmp_gocache"' EXIT
-  if [[ -n "$TYPECHECK_FIXTURES_MODE" ]]; then
-    ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" GOCACHE="$tmp_gocache" go test ./...
+  if [[ "$FIXTURE_ONLY" == true ]]; then
+    if [[ -n "$TYPECHECK_FIXTURES_MODE" ]]; then
+      ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" GOCACHE="$tmp_gocache" go test ./pkg/interpreter -run 'Fixture' -count=1
+    else
+      GOCACHE="$tmp_gocache" go test ./pkg/interpreter -run 'Fixture' -count=1
+    fi
   else
-    GOCACHE="$tmp_gocache" go test ./...
+    if [[ -n "$TYPECHECK_FIXTURES_MODE" ]]; then
+      ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" GOCACHE="$tmp_gocache" go test ./...
+    else
+      GOCACHE="$tmp_gocache" go test ./...
+    fi
   fi
 )
 

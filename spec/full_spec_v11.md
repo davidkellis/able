@@ -2152,23 +2152,23 @@ items.map { item => item.process() }
 
 #### 7.4.3. Method Call Syntax
 
-Allows calling functions using dot notation on the first argument. In Able, "methods" are ordinary functions; the `methods` block syntax is a convenience for defining functions whose first parameter is the receiver type. (See Section [9.4](#94-method-call-syntax-resolution) for resolution details).
+Allows calling functions using dot notation on the first argument. In Able, "methods" are ordinary functions; the `methods` block syntax is a convenience for defining functions whose first parameter is the receiver type. (See Section [9.4](#94-method-call-syntax-resolution) for the full resolution rules and import scoping.)
 
 ##### Syntax
 ```able
 ReceiverExpression . FunctionOrMethodName ( RemainingArgumentList )
 ```
 
-##### Semantics (Simplified - see Section 9.4 for full rules)
+##### Semantics (Simplified)
 When `receiver.name(args...)` is encountered:
 1.  If `receiver` has a callable field `name`, invoke it.
-2.  Otherwise, resolve `name` against the unified callable pool (inherent functions from `methods` blocks, interface methods, imported free functions) whose first parameter matches the receiver; pick the single most specific candidate.
+2.  Otherwise, resolve `name` against the unified callable pool consisting only of callable *names that are actually in scope* whose first parameter is compatible with the receiver (inherent functions from `methods` blocks, interface methods, and free/UFCS functions). Pick the single most specific candidate.
 3.  Invoke the chosen callable with `receiver` prepended as the first argument.
 4.  Ambiguity or no match results in an error.
 
 Notes:
-- Functions defined inside `methods Type { ... }` are just functions whose first parameter is `Type`; they are exported like other functions unless marked `private`.
-- Qualified functions (often called “static methods”) may be defined in `methods Type { ... }` blocks or as top-level functions with qualified names (e.g., `fn Array.new_with_capacity(...) { ... }`) and called with type qualification; they are otherwise regular functions.
+- Functions defined inside `methods Type { ... }` whose first parameter is `Self` are exported under their unqualified name (e.g., `foo`) and are eligible for method-call sytactic sugar and UFCS.
+- Functions in `methods` blocks whose first parameter is **not** `Self` are *type-qualified functions*; they export as `Type.foo` (Type = the base nominal name) and are called only with type qualification (`Type.foo<T>(...)`), never via receiver syntax.
 - Method-call syntax is sugar for calling a function with the receiver as the first argument; there are no special “method objects” beyond the callable values themselves.
 
 ##### Example (Method Call Syntax on Free Function)
@@ -2748,13 +2748,16 @@ methods [GenericParams] TypeName [GenericArgs] {
 
 Within a `methods TypeName { ... }` block:
 
-1.  **Instance Methods:** Operate on an instance of `TypeName`. Defined using:
+1.  **Method-style functions (first param `Self`):** Operate on an instance of `TypeName`. Defined using:
     *   Explicit `self`: `fn method_name(self: Self, ...) { ... }`
     *   Shorthand `fn #`: `fn #method_name(...) { ... }` (implicitly adds `self: Self` as the first parameter). See Section [7.6.2](#762-implicit-self-parameter-definition-fn-method).
     *   `Self` refers to `TypeName` (with its generic arguments, if any).
-2.  **Static Methods:** Associated with the type itself, not a specific instance. Defined *without* `self` as the first parameter and *without* using the `#` prefix shorthand.
-    *   `fn static_name(...) { ... }`
-    *   Often used for constructors or type-level operations.
+    *   **Export/name:** Unless marked `private`, these export under the unqualified name (`method_name`) and are eligible for method-call sugar/UFCS when the name is in scope.
+2.  **Type-qualified functions (first param not `Self`):** Associated with the nominal type but **not** usable via receiver syntax.
+    *   Defined without `self` as the first parameter and without `#`.
+    *   Exported symbol is `TypeName.function_name` (TypeName = the base nominal name; generic arguments are ignored for the symbol).
+    *   Called only with type qualification: `TypeName.function_name<T>(...)` or `pkg.TypeName.function_name<T>(...)`. The qualifier never carries type arguments; they follow the function name with angle brackets.
+    *   Never participates in method-call sugar/UFCS because the first parameter is not `Self`.
 
 ### 9.3. Example: `methods` block for `Address`
 
@@ -2788,30 +2791,38 @@ addr.update_zip(90211)        ## Call instance method (mutates addr)
 **Exports and function form:**
 
 *   Functions declared inside a `methods` block behave like ordinary module-level functions. Unless marked `private`, they are exported and can be imported alongside other functions.
-*   `receiver.method(args...)` is sugar for calling the exported function with `receiver` as the first argument; static methods omit the receiver entirely.
-*   Generic/`where` obligations on the `methods` block continue to apply whether the function is invoked via member syntax or directly by name.
+*   If the first parameter is `Self`, `receiver.method(args...)` is sugar for calling the exported function with `receiver` as the first argument.
+*   If the first parameter is **not** `Self`, the export is `Type.method` and it is called only as `Type.method(...)` (or `pkg.Type.method(...)`); it never participates in `receiver.method(...)` sugar.
+*   Generic/`where` obligations on the `methods` block continue to apply whether the function is invoked via member syntax (where applicable) or directly by name.
+
+**Imports and visibility:**
+
+*   `import pkg.*` brings both `foo` and `Type.foo` symbols into scope. Selective/rename imports work on both (`import pkg.{foo, Type.bar::alias}`).
+*   Package-alias-only imports (`import pkg`) do **not** surface any function names; use qualification (`pkg.foo`, `pkg.Type.foo`) in that case.
+*   Re-exports/aliases do not create new nominal types; method sets and type-qualified function symbols attach to the underlying type name.
 
 ### 9.4 Method Call Syntax Resolution
 
-This section details how Able resolves `ReceiverExpression.Identifier(ArgumentList)`.
+This section details how Able resolves `ReceiverExpression.Identifier(ArgumentList)` and how import scoping interacts with method-call sugar/UFCS.
 
 **Resolution Steps (Unified Callable Pool):**
 
-Let `ReceiverType` be the static type of the `ReceiverExpression`. The compiler resolves as follows:
+Let `ReceiverType` be the static type of `ReceiverExpression`. The compiler resolves as follows:
 
 1.  **Callable Field:** If `ReceiverType` has a field named `Identifier` whose value is callable (a function/closure or implements `Apply`), call it directly with `ReceiverExpression` removed and `ArgumentList` as arguments. If the field exists but is not callable, invoking it is a compile-time error.
-2.  **Callable Pool:** Gather all visible callables named `Identifier` whose first parameter is compatible with `ReceiverType`:
-    *   Inherent methods defined for `ReceiverType` (only if their defining module is imported/in scope).
+2.  **Callable Pool (names in scope only):** Gather callables named `Identifier` that are **actually in scope by name** (locally defined or imported via wildcard/selective/rename; package-alias-only imports do not contribute names) and whose first parameter is compatible with `ReceiverType`. Compatibility covers direct type equality (after alias canonicalization), interface satisfaction, and generic constraints (e.g., `fn foo<T: Display>(x: T, ...)` when `ReceiverType` satisfies `Display`). Sources:
+    *   Inherent functions from `methods` blocks for the receiver type, but only if their **function names** are in scope.
     *   Interface methods for interfaces that `ReceiverType` implements and whose impls are in scope.
-    *   Free functions in scope (and any other UFCS-eligible callables) whose first parameter matches.
-3.  **Select Most Specific:** Apply overload/specificity rules (arity, type specificity, constraints) to choose a single best candidate from the pool. There is no category priority within the pool beyond specificity. The receiver is treated as the first argument for scoring.
-4.  **Ambiguity:** If no single most specific candidate exists, emit a compile-time ambiguity error. The caller must disambiguate with dotted qualification (`Module.name(receiver, ...)`, `Type.name(receiver, ...)`, or `Interface.name(receiver, ...)`).
+    *   Free/UFCS functions that are in scope and whose first parameter matches.
+    *   **Excluded:** type-qualified functions (`Type.Identifier`) because their first parameter is not `Self`; call them via type qualification instead.
+3.  **Select Most Specific:** Apply the existing overload/specificity rules (arity, type specificity, constraints) to choose a single best candidate from the pool. There is no category priority within the pool beyond specificity. The receiver is treated as the first argument for scoring.
+4.  **Ambiguity:** If no single most specific candidate exists, emit a compile-time ambiguity error. The caller must disambiguate with explicit qualification (`pkg.name(receiver, ...)`, `Type.name(receiver, ...)`, `Interface.name(receiver, ...)`, or by narrowing imports).
 5.  **Dispatch:** Invoke the chosen callable directly with `ReceiverExpression` prepended as the first argument, followed by `ArgumentList`. No pipe transformation is involved.
 
 **Precedence and Error Handling:**
 
 *   If a callable field is usable, it wins. Otherwise, resolution uses the unified pool. No match yields "method not found".
-*   Named implementations still require explicit selection where applicable; visibility rules apply (import scope for free functions/inherent methods; interface impls must be in scope).
+*   Named implementations still require explicit selection where applicable; visibility rules apply (import scope for free functions/inherent methods; interface impls must be in scope). Type-qualified functions require type qualification; they are never candidates for receiver syntax.
 
 ### 9.5. Method-Set Generics and Where-Clause Obligations
 
@@ -3021,9 +3032,9 @@ Provides bodies for interface methods. Can use `fn #method` shorthand if desired
 
 *   **Association, Not Scoping:** An `impl InterfaceName for TargetType { ... }` block does **not** directly add the defined methods (`ConcreteFunctionDefinitions`) into the namespace or scope of `TargetType` itself. Inherent methods defined in a `methods TargetType { ... }` block are directly associated with the type's scope.
 *   **Contract Fulfillment:** The primary role of an `impl` block is to **register** with the compiler that `TargetType` conforms to `InterfaceName`. It provides the necessary evidence (the concrete method bodies) for this conformance.
-*   **Method Lookup Table:** Conceptually, the compiler maintains a mapping: for each pair `(InterfaceName, TargetType)`, it knows the location of the function implementations provided by the corresponding `impl` block. This mapping is crucial for method resolution (Section [9.4](#94-method-call-syntax-resolution-revised-and-expanded)).
+*   **Method Lookup Table:** Conceptually, the compiler maintains a mapping: for each pair `(InterfaceName, TargetType)`, it knows the location of the function implementations provided by the corresponding `impl` block. This mapping is crucial for method resolution (Section [9.4](#94-method-call-syntax-resolution)).
 *   **Visibility:** The `impl` block itself follows the visibility rules of where it's defined. However, the *association* it creates between the type and interface becomes known wherever both the `TargetType` and `InterfaceName` are visible. Public types implementing public interfaces can be used polymorphically across package boundaries. Private types or implementations for private interfaces are restricted.
-*   **Dispatch:** When an interface method is called (e.g., `receiver.interface_method()`), the compiler uses the type of `receiver` and the method name to look up the correct implementation via the `(InterfaceName, TargetType)` mapping established by the `impl` block (details in Section [9.4](#94-method-call-syntax-resolution-revised-and-expanded) and Section [10.3](#103-usage-revised)).
+*   **Dispatch:** When an interface method is called (e.g., `receiver.interface_method()`), the compiler uses the type of `receiver` and the method name to look up the correct implementation via the `(InterfaceName, TargetType)` mapping established by the `impl` block (details in Section [9.4](#94-method-call-syntax-resolution) and Section [10.3](#103-usage)).
 
 #### 10.2.3. HKT Implementation Syntax (Refined)
 
@@ -3167,13 +3178,13 @@ This section explains how interface methods are invoked and how different dispat
 
 When calling a method using dot notation `receiver.method_name(args...)`:
 
-*   **Resolution:** The compiler follows the steps outlined in Section [9.4](#94-method-call-syntax-resolution-revised-and-expanded). If resolution points to an interface method implementation (Step 3), the specific `impl` block is identified.
+*   **Resolution:** The compiler follows the steps outlined in Section [9.4](#94-method-call-syntax-resolution). If resolution points to an interface method implementation (Step 3), the specific `impl` block is identified.
 *   **Static Dispatch (Monomorphization):**
     *   If the `receiver` has a **concrete type** (`Point`, `Array i32`, etc.) at the call site, the compiler knows the exact `impl` block to use. It typically generates code that directly calls the specific function defined within that `impl` block.
     *   This also applies when the `receiver` has a **generic type `T` constrained by the interface** (e.g., `fn process<T: Display>(item: T) { item.to_string() }`). During compilation (often through monomorphization), the compiler generates specialized versions of `process` for each concrete type `T` used, and the `item.to_string()` call within each specialized version directly calls the correct implementation for that concrete type.
     *   This is the most common form of dispatch – efficient and resolved at compile time.
 *   **Dynamic Dispatch:**
-    *   This occurs when the `receiver` has an **interface type** (e.g., `Display` used in a type position — see Section [10.3.4](#1034-interface-types-dynamic-dispatch-revised)). The actual concrete type of the value is not known at compile time.
+    *   This occurs when the `receiver` has an **interface type** (e.g., `Display` used in a type position — see Section [10.3.4](#1034-interface-types-dynamic-dispatch)). The actual concrete type of the value is not known at compile time.
     *   The call `receiver.method_name(args...)` is dispatched at *runtime*. The `receiver` value (often represented as a "fat pointer" containing a pointer to the data and a pointer to a **vtable**) uses the vtable to find the address of the correct `method_name` implementation for the underlying concrete type and then calls it.
     *   This enables runtime polymorphism but incurs a small runtime overhead compared to static dispatch.
 
@@ -3214,7 +3225,7 @@ Static methods defined within an interface (those not taking `self`) are called 
 
 #### 10.3.3. Disambiguation (Named Impls and Explicit Paths)
 
-When method call resolution (Section [9.4](#94-method-call-syntax-resolution-revised-and-expanded)) results in ambiguity (multiple equally specific interface methods) or when you need to explicitly choose a non-default implementation, use more qualified syntax:
+When method call resolution (Section [9.4](#94-method-call-syntax-resolution)) results in ambiguity (multiple equally specific interface methods) or when you need to explicitly choose a non-default implementation, use more qualified syntax:
 
 1.  **Named Implementation Calls:** If an implementation was named (`ImplName = impl ...`), you can select its methods explicitly, but not via instance method syntax.
     *   **Static Methods:** `ImplName.static_method(args...)` (as shown above).
