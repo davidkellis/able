@@ -8,8 +8,8 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"able/interpreter10-go/pkg/ast"
-	"able/interpreter10-go/pkg/runtime"
+	"able/interpreter-go/pkg/ast"
+	"able/interpreter-go/pkg/runtime"
 )
 
 // ProcTask represents a unit of asynchronous Able work executed by an Executor.

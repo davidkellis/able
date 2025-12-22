@@ -1,7 +1,7 @@
 import * as AST from "../ast";
 import type { Environment } from "./environment";
-import type { InterpreterV10 } from "./index";
-import type { V10Value } from "./values";
+import type { Interpreter } from "./index";
+import type { RuntimeValue } from "./values";
 import { collectTypeDispatches } from "./type-dispatch";
 import { callCallableValue } from "./functions";
 import {
@@ -18,11 +18,11 @@ import { makeIntegerFromNumber } from "./numeric";
 import { valuesEqual } from "./value_equals";
 
 export function resolveIndexFunction(
-  ctx: InterpreterV10,
-  receiver: V10Value,
+  ctx: Interpreter,
+  receiver: RuntimeValue,
   methodName: string,
   interfaceName: string,
-): Extract<V10Value, { kind: "function" | "function_overload" }> | null {
+): Extract<RuntimeValue, { kind: "function" | "function_overload" }> | null {
   const dispatches = collectTypeDispatches(ctx, receiver);
   for (const dispatch of dispatches) {
     const method = ctx.findMethod(dispatch.typeName, methodName, {
@@ -35,8 +35,8 @@ export function resolveIndexFunction(
 }
 
 declare module "./index" {
-  interface InterpreterV10 {
-    computeBinaryForCompound(op: string, left: V10Value, right: V10Value): V10Value;
+  interface Interpreter {
+    computeBinaryForCompound(op: string, left: RuntimeValue, right: RuntimeValue): RuntimeValue;
     ensureDivModStruct(): AST.StructDefinition;
     ensureRatioStruct(): AST.StructDefinition;
     divModStruct?: AST.StructDefinition;
@@ -44,7 +44,7 @@ declare module "./index" {
   }
 }
 
-export function evaluateUnaryExpression(ctx: InterpreterV10, node: AST.UnaryExpression, env: Environment): V10Value {
+export function evaluateUnaryExpression(ctx: Interpreter, node: AST.UnaryExpression, env: Environment): RuntimeValue {
   const v = ctx.evaluate(node.operand, env);
   if (node.operator === "-") {
     return applyNumericUnaryMinus(v);
@@ -59,7 +59,7 @@ export function evaluateUnaryExpression(ctx: InterpreterV10, node: AST.UnaryExpr
   throw new Error(`Unknown unary operator ${node.operator}`);
 }
 
-export function evaluateBinaryExpression(ctx: InterpreterV10, node: AST.BinaryExpression, env: Environment): V10Value {
+export function evaluateBinaryExpression(ctx: Interpreter, node: AST.BinaryExpression, env: Environment): RuntimeValue {
   const b = node;
   if (b.operator === "&&" || b.operator === "||") {
     const lv = ctx.evaluate(b.left, env);
@@ -180,7 +180,7 @@ export function evaluateBinaryExpression(ctx: InterpreterV10, node: AST.BinaryEx
   throw new Error(`Unknown binary operator ${b.operator}`);
 }
 
-export function evaluateRangeExpression(ctx: InterpreterV10, node: AST.RangeExpression, env: Environment): V10Value {
+export function evaluateRangeExpression(ctx: Interpreter, node: AST.RangeExpression, env: Environment): RuntimeValue {
   const start = ctx.evaluate(node.start, env);
   const end = ctx.evaluate(node.end, env);
   const viaInterface = ctx.tryInvokeRangeImplementation(start, end, node.inclusive, env);
@@ -205,7 +205,7 @@ export function evaluateRangeExpression(ctx: InterpreterV10, node: AST.RangeExpr
   const startInt = Math.trunc(startNum);
   const endInt = Math.trunc(endNum);
   const step = startInt <= endInt ? 1 : -1;
-  const elements: V10Value[] = [];
+  const elements: RuntimeValue[] = [];
   for (let current = startInt; ; current += step) {
     if (step > 0) {
       if (node.inclusive) {
@@ -223,7 +223,7 @@ export function evaluateRangeExpression(ctx: InterpreterV10, node: AST.RangeExpr
   return ctx.makeArrayValue(elements);
 }
 
-export function evaluateIndexExpression(ctx: InterpreterV10, node: AST.IndexExpression, env: Environment): V10Value {
+export function evaluateIndexExpression(ctx: Interpreter, node: AST.IndexExpression, env: Environment): RuntimeValue {
   const obj = ctx.evaluate(node.object, env);
   const idxVal = ctx.evaluate(node.index, env);
   const viaInterface = resolveIndexFunction(ctx, obj, "get", "Index");
@@ -239,8 +239,8 @@ export function evaluateIndexExpression(ctx: InterpreterV10, node: AST.IndexExpr
   return el;
 }
 
-export function applyOperationsAugmentations(cls: typeof InterpreterV10): void {
-  cls.prototype.ensureDivModStruct = function ensureDivModStruct(this: InterpreterV10): AST.StructDefinition {
+export function applyOperationsAugmentations(cls: typeof Interpreter): void {
+  cls.prototype.ensureDivModStruct = function ensureDivModStruct(this: Interpreter): AST.StructDefinition {
     if (this.divModStruct) return this.divModStruct;
     const divModDef = AST.structDefinition(
       "DivMod",
@@ -261,7 +261,7 @@ export function applyOperationsAugmentations(cls: typeof InterpreterV10): void {
     return this.divModStruct;
   };
 
-  cls.prototype.ensureRatioStruct = function ensureRatioStruct(this: InterpreterV10): AST.StructDefinition {
+  cls.prototype.ensureRatioStruct = function ensureRatioStruct(this: Interpreter): AST.StructDefinition {
     if (this.ratioStruct) return this.ratioStruct;
     try {
       const existing = this.globals.get("Ratio");
@@ -288,7 +288,7 @@ export function applyOperationsAugmentations(cls: typeof InterpreterV10): void {
     return this.ratioStruct;
   };
 
-  cls.prototype.computeBinaryForCompound = function computeBinaryForCompound(this: InterpreterV10, op: string, left: V10Value, right: V10Value): V10Value {
+  cls.prototype.computeBinaryForCompound = function computeBinaryForCompound(this: Interpreter, op: string, left: RuntimeValue, right: RuntimeValue): RuntimeValue {
     if (["+","-","*","/","%"].includes(op)) {
       return applyArithmeticBinary(op, left, right, {
         makeRatio: (parts) => {

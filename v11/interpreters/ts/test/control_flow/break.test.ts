@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - break statement", () => {
   test("break exits while loop", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("i"), AST.integerLiteral(0)));
     const loop = AST.whileLoop(
       AST.booleanLiteral(true),

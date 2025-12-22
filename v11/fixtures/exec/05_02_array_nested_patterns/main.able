@@ -1,0 +1,30 @@
+package exec_05_02_array_nested_patterns
+
+## Semantics: array patterns bind by position, rest patterns capture tail, nested patterns destructure elements.
+
+struct Point { x: i32, y: i32 }
+
+fn main() -> void {
+  data := [10, 20, 30, 40]
+  [first, second, ...tail] := data
+
+  print(`first ${first}`)
+  print(`second ${second}`)
+  print(`tail ${tail[0]}:${tail[1]}`)
+
+  points := [
+    Point { x: 1, y: 2 },
+    Point { x: 3, y: 4 },
+    Point { x: 5, y: 6 }
+  ]
+
+  [
+    Point { x::x1, y::y1 },
+    Point { x::x2, y::y2 },
+    ...rest
+  ] := points
+
+  print(`p1 ${x1},${y1}`)
+  print(`p2 ${x2},${y2}`)
+  print(`rest ${rest[0].x},${rest[0].y}`)
+}

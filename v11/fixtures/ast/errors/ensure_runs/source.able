@@ -3,5 +3,5 @@ do {
 } rescue {
   case _ => "rescued"
 } ensure {
-  print("ensure")
-}
+  print("ensure");
+};

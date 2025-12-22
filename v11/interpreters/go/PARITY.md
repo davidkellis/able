@@ -1,6 +1,6 @@
 # Go Interpreter Parity Checklist
 
-The TypeScript interpreter (`interpreter10/`) is currently our reference implementation for Able v10 semantics. The Go interpreter must eventually support the same behaviour (with goroutines/channels replacing the cooperative scheduler used in TypeScript).
+The TypeScript interpreter (`v11/interpreters/ts/`) is currently our reference implementation for Able v11 semantics. The Go interpreter must eventually support the same behaviour (with goroutines/channels replacing the cooperative scheduler used in TypeScript).
 
 This document tracks the remaining gaps between the two interpreters. For each feature the table lists the primary TypeScript test coverage and the current Go status.
 

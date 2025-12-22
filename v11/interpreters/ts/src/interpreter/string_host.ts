@@ -1,34 +1,34 @@
-import type { InterpreterV10 } from "./index";
-import type { V10Value } from "./values";
+import type { Interpreter } from "./index";
+import type { RuntimeValue } from "./values";
 import { makeIntegerValue, numericToNumber } from "./numeric";
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
 declare module "./index" {
-  interface InterpreterV10 {
+  interface Interpreter {
     ensureStringHostBuiltins(): void;
     stringHostBuiltinsInitialized: boolean;
   }
 }
 
-function expectString(value: V10Value, label: string): string {
+function expectString(value: RuntimeValue, label: string): string {
   if (value.kind !== "String") {
     throw new Error(`${label} must be a string`);
   }
   return value.value;
 }
 
-function expectArray(interp: InterpreterV10, value: V10Value, label: string): Extract<V10Value, { kind: "array" }> {
+function expectArray(interp: Interpreter, value: RuntimeValue, label: string): Extract<RuntimeValue, { kind: "array" }> {
   if (value.kind === "array") {
     return value;
   }
   if (value.kind === "struct_instance" && value.def.id.name === "Array") {
-    let handleVal: V10Value | undefined;
+    let handleVal: RuntimeValue | undefined;
     if (value.values instanceof Map) {
       handleVal = value.values.get("storage_handle");
     } else if (Array.isArray(value.values)) {
-      handleVal = (value.values as V10Value[])[2];
+      handleVal = (value.values as RuntimeValue[])[2];
     }
     let handle = 0;
     if (handleVal) {
@@ -48,11 +48,11 @@ function expectArray(interp: InterpreterV10, value: V10Value, label: string): Ex
   throw new Error(`${label} must be an array`);
 }
 
-function expectNumeric(value: V10Value, label: string): number {
+function expectNumeric(value: RuntimeValue, label: string): number {
   return Math.trunc(numericToNumber(value, label, { requireSafeInteger: true }));
 }
 
-function toByte(value: V10Value, index: number): number {
+function toByte(value: RuntimeValue, index: number): number {
   const num = expectNumeric(value, `Array element ${index}`);
   if (Number.isNaN(num) || num < 0 || num > 0xff) {
     throw new Error(`Array element ${index} must be in range 0..255`);
@@ -60,12 +60,12 @@ function toByte(value: V10Value, index: number): number {
   return num;
 }
 
-export function applyStringHostAugmentations(cls: typeof InterpreterV10): void {
-  cls.prototype.ensureStringHostBuiltins = function ensureStringHostBuiltins(this: InterpreterV10): void {
+export function applyStringHostAugmentations(cls: typeof Interpreter): void {
+  cls.prototype.ensureStringHostBuiltins = function ensureStringHostBuiltins(this: Interpreter): void {
     if (this.stringHostBuiltinsInitialized) return;
     this.stringHostBuiltinsInitialized = true;
 
-    const defineIfMissing = (name: string, factory: () => Extract<V10Value, { kind: "native_function" }>) => {
+    const defineIfMissing = (name: string, factory: () => Extract<RuntimeValue, { kind: "native_function" }>) => {
       try {
         this.globals.get(name);
         return;
@@ -79,7 +79,7 @@ export function applyStringHostAugmentations(cls: typeof InterpreterV10): void {
         if (args.length !== 1) throw new Error("__able_String_from_builtin expects one argument");
         const input = expectString(args[0], "String");
         const encoded = encoder.encode(input);
-        const elements = Array.from(encoded, (byte): V10Value => makeIntegerValue("u8", BigInt(byte)));
+        const elements = Array.from(encoded, (byte): RuntimeValue => makeIntegerValue("u8", BigInt(byte)));
         return this.makeArrayValue(elements);
       }),
     );

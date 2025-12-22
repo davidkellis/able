@@ -1,9 +1,9 @@
 import * as AST from "../ast";
 import { Environment } from "./environment";
-import type { InterpreterV10 } from "./index";
+import type { Interpreter } from "./index";
 import type { Executor } from "./executor";
 import { ProcYieldSignal, RaiseSignal } from "./signals";
-import type { V10Value } from "./values";
+import type { RuntimeValue } from "./values";
 import { ProcContinuationContext } from "./proc_continuations";
 import { isFloatValue, isIntegerValue, makeIntegerValue } from "./numeric";
 import { callCallableValue } from "./functions";
@@ -18,12 +18,12 @@ type TimerAwaitableState = {
   ready: boolean;
   cancelled: boolean;
   timerId?: ReturnType<typeof setTimeout>;
-  callback?: V10Value;
+  callback?: RuntimeValue;
 };
 
 const MAX_SLEEP_DELAY_MS = 2_147_483_647;
 
-function toMilliseconds(value: V10Value): number {
+function toMilliseconds(value: RuntimeValue): number {
   if (isIntegerValue(value)) {
     const limit = BigInt(MAX_SLEEP_DELAY_MS);
     const clamped = value.value < 0n ? 0n : value.value > limit ? limit : value.value;
@@ -40,47 +40,47 @@ function toMilliseconds(value: V10Value): number {
 }
 
 declare module "./index" {
-  interface InterpreterV10 {
+  interface Interpreter {
     initConcurrencyBuiltins(): void;
     scheduleAsync(fn: () => void): void;
     ensureSchedulerTick(): void;
-    currentAsyncContext(): { kind: "proc"; handle: Extract<V10Value, { kind: "proc_handle" }> } | { kind: "future"; handle: Extract<V10Value, { kind: "future" }> } | null;
-    createAwaitWaker(handle: Extract<V10Value, { kind: "proc_handle" }>, state: unknown): Extract<V10Value, { kind: "struct_instance" }>;
-    makeAwaitRegistration(cancelFn?: () => void): Extract<V10Value, { kind: "struct_instance" }>;
-    invokeAwaitWaker(waker: V10Value): void;
+    currentAsyncContext(): { kind: "proc"; handle: Extract<RuntimeValue, { kind: "proc_handle" }> } | { kind: "future"; handle: Extract<RuntimeValue, { kind: "future" }> } | null;
+    createAwaitWaker(handle: Extract<RuntimeValue, { kind: "proc_handle" }>, state: unknown): Extract<RuntimeValue, { kind: "struct_instance" }>;
+    makeAwaitRegistration(cancelFn?: () => void): Extract<RuntimeValue, { kind: "struct_instance" }>;
+    invokeAwaitWaker(waker: RuntimeValue): void;
     registerProcAwaiter(
-      handle: Extract<V10Value, { kind: "proc_handle" }>,
-      waker: Extract<V10Value, { kind: "struct_instance" }>,
-    ): Extract<V10Value, { kind: "struct_instance" }>;
+      handle: Extract<RuntimeValue, { kind: "proc_handle" }>,
+      waker: Extract<RuntimeValue, { kind: "struct_instance" }>,
+    ): Extract<RuntimeValue, { kind: "struct_instance" }>;
     registerFutureAwaiter(
-      future: Extract<V10Value, { kind: "future" }>,
-      waker: Extract<V10Value, { kind: "struct_instance" }>,
-    ): Extract<V10Value, { kind: "struct_instance" }>;
-    triggerProcAwaiters(handle: Extract<V10Value, { kind: "proc_handle" }>): void;
-    triggerFutureAwaiters(future: Extract<V10Value, { kind: "future" }>): void;
-    procYield(): V10Value;
-    procCancelled(): V10Value;
-    procFlush(): V10Value;
-    procPendingTasks(): V10Value;
+      future: Extract<RuntimeValue, { kind: "future" }>,
+      waker: Extract<RuntimeValue, { kind: "struct_instance" }>,
+    ): Extract<RuntimeValue, { kind: "struct_instance" }>;
+    triggerProcAwaiters(handle: Extract<RuntimeValue, { kind: "proc_handle" }>): void;
+    triggerFutureAwaiters(future: Extract<RuntimeValue, { kind: "future" }>): void;
+    procYield(): RuntimeValue;
+    procCancelled(): RuntimeValue;
+    procFlush(): RuntimeValue;
+    procPendingTasks(): RuntimeValue;
     processScheduler(limit?: number): void;
-    makeNamedStructInstance(def: AST.StructDefinition, entries: Array<[string, V10Value]>): V10Value;
-    makeProcError(details: string): V10Value;
-    getProcErrorDetails(procError: V10Value): string;
-    makeProcStatusFailed(procError: V10Value): V10Value;
-    markProcCancelled(handle: Extract<V10Value, { kind: "proc_handle" }>, message?: string): void;
-    markFutureCancelled(future: Extract<V10Value, { kind: "future" }>, message?: string): void;
-    procHandleStatus(handle: Extract<V10Value, { kind: "proc_handle" }>): V10Value;
-    futureStatus(future: Extract<V10Value, { kind: "future" }>): V10Value;
-    toProcError(value: V10Value | undefined, fallback: string): V10Value;
-    makeNativeFunction(name: string, arity: number, impl: (interpreter: InterpreterV10, args: V10Value[]) => V10Value): Extract<V10Value, { kind: "native_function" }>;
-    bindNativeMethod(func: Extract<V10Value, { kind: "native_function" }>, self: V10Value): Extract<V10Value, { kind: "native_bound_method" }>;
-    procHandleValue(handle: Extract<V10Value, { kind: "proc_handle" }>): V10Value;
-    procHandleCancel(handle: Extract<V10Value, { kind: "proc_handle" }>): void;
-    futureCancel(future: Extract<V10Value, { kind: "future" }>): void;
-    futureValue(future: Extract<V10Value, { kind: "future" }>): V10Value;
-    runProcHandle(handle: Extract<V10Value, { kind: "proc_handle" }>): void;
-    runFuture(future: Extract<V10Value, { kind: "future" }>): void;
-    makeRuntimeError(message: string, value?: V10Value, cause?: V10Value): V10Value;
+    makeNamedStructInstance(def: AST.StructDefinition, entries: Array<[string, RuntimeValue]>): RuntimeValue;
+    makeProcError(details: string): RuntimeValue;
+    getProcErrorDetails(procError: RuntimeValue): string;
+    makeProcStatusFailed(procError: RuntimeValue): RuntimeValue;
+    markProcCancelled(handle: Extract<RuntimeValue, { kind: "proc_handle" }>, message?: string): void;
+    markFutureCancelled(future: Extract<RuntimeValue, { kind: "future" }>, message?: string): void;
+    procHandleStatus(handle: Extract<RuntimeValue, { kind: "proc_handle" }>): RuntimeValue;
+    futureStatus(future: Extract<RuntimeValue, { kind: "future" }>): RuntimeValue;
+    toProcError(value: RuntimeValue | undefined, fallback: string): RuntimeValue;
+    makeNativeFunction(name: string, arity: number, impl: (interpreter: Interpreter, args: RuntimeValue[]) => RuntimeValue): Extract<RuntimeValue, { kind: "native_function" }>;
+    bindNativeMethod(func: Extract<RuntimeValue, { kind: "native_function" }>, self: RuntimeValue): Extract<RuntimeValue, { kind: "native_bound_method" }>;
+    procHandleValue(handle: Extract<RuntimeValue, { kind: "proc_handle" }>): RuntimeValue;
+    procHandleCancel(handle: Extract<RuntimeValue, { kind: "proc_handle" }>): void;
+    futureCancel(future: Extract<RuntimeValue, { kind: "future" }>): void;
+    futureValue(future: Extract<RuntimeValue, { kind: "future" }>): RuntimeValue;
+    runProcHandle(handle: Extract<RuntimeValue, { kind: "proc_handle" }>): void;
+    runFuture(future: Extract<RuntimeValue, { kind: "future" }>): void;
+    makeRuntimeError(message: string, value?: RuntimeValue, cause?: RuntimeValue): RuntimeValue;
     executor: Executor;
     pushProcContext(ctx: ProcContinuationContext): void;
     popProcContext(ctx: ProcContinuationContext): void;
@@ -89,15 +89,15 @@ declare module "./index" {
     awaitWakerStruct?: AST.StructDefinition;
     awaitRegistrationStruct?: AST.StructDefinition;
     awaitWakerNativeMethods?: {
-      wake: Extract<V10Value, { kind: "native_function" }>;
+      wake: Extract<RuntimeValue, { kind: "native_function" }>;
     };
     awaitHelpersBuiltinsInitialized?: boolean;
     ensureAwaitHelperBuiltins(): void;
   }
 }
 
-export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void {
-  cls.prototype.initConcurrencyBuiltins = function initConcurrencyBuiltins(this: InterpreterV10): void {
+export function applyConcurrencyAugmentations(cls: typeof Interpreter): void {
+  cls.prototype.initConcurrencyBuiltins = function initConcurrencyBuiltins(this: Interpreter): void {
     if (this.concurrencyBuiltinsInitialized) return;
     this.concurrencyBuiltinsInitialized = true;
 
@@ -183,22 +183,22 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
     this.ensureAwaitHelperBuiltins();
   };
 
-  cls.prototype.scheduleAsync = function scheduleAsync(this: InterpreterV10, fn: () => void): void {
+  cls.prototype.scheduleAsync = function scheduleAsync(this: Interpreter, fn: () => void): void {
     this.executor.schedule(fn);
   };
 
-  cls.prototype.ensureSchedulerTick = function ensureSchedulerTick(this: InterpreterV10): void {
+  cls.prototype.ensureSchedulerTick = function ensureSchedulerTick(this: Interpreter): void {
     this.executor.ensureTick();
   };
 
-  cls.prototype.pushProcContext = function pushProcContext(this: InterpreterV10, ctx: ProcContinuationContext): void {
+  cls.prototype.pushProcContext = function pushProcContext(this: Interpreter, ctx: ProcContinuationContext): void {
     if (!this.procContextStack) {
       this.procContextStack = [];
     }
     this.procContextStack.push(ctx);
   };
 
-  cls.prototype.popProcContext = function popProcContext(this: InterpreterV10, ctx: ProcContinuationContext): void {
+  cls.prototype.popProcContext = function popProcContext(this: Interpreter, ctx: ProcContinuationContext): void {
     if (!this.procContextStack || this.procContextStack.length === 0) return;
     const top = this.procContextStack[this.procContextStack.length - 1];
     if (top === ctx) {
@@ -206,24 +206,24 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
     }
   };
 
-  cls.prototype.currentProcContext = function currentProcContext(this: InterpreterV10): ProcContinuationContext | null {
+  cls.prototype.currentProcContext = function currentProcContext(this: Interpreter): ProcContinuationContext | null {
     if (!this.procContextStack || this.procContextStack.length === 0) return null;
     return this.procContextStack[this.procContextStack.length - 1]!;
   };
 
-  cls.prototype.currentAsyncContext = function currentAsyncContext(this: InterpreterV10): { kind: "proc"; handle: Extract<V10Value, { kind: "proc_handle" }> } | { kind: "future"; handle: Extract<V10Value, { kind: "future" }> } | null {
+  cls.prototype.currentAsyncContext = function currentAsyncContext(this: Interpreter): { kind: "proc"; handle: Extract<RuntimeValue, { kind: "proc_handle" }> } | { kind: "future"; handle: Extract<RuntimeValue, { kind: "future" }> } | null {
     if (this.asyncContextStack.length === 0) return null;
     return this.asyncContextStack[this.asyncContextStack.length - 1];
   };
 
-  cls.prototype.procYield = function procYield(this: InterpreterV10): V10Value {
+  cls.prototype.procYield = function procYield(this: Interpreter): RuntimeValue {
     const ctx = this.currentAsyncContext();
     if (!ctx) throw new Error("proc_yield must be called inside an asynchronous task");
     this.manualYieldRequested = true;
     throw new ProcYieldSignal();
   };
 
-  cls.prototype.procCancelled = function procCancelled(this: InterpreterV10): V10Value {
+  cls.prototype.procCancelled = function procCancelled(this: Interpreter): RuntimeValue {
     const ctx = this.currentAsyncContext();
     if (!ctx) throw new Error("proc_cancelled must be called inside an asynchronous task");
     if (ctx.kind === "proc") {
@@ -232,48 +232,48 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
     return { kind: "bool", value: false };
   };
 
-  cls.prototype.procFlush = function procFlush(this: InterpreterV10): V10Value {
+  cls.prototype.procFlush = function procFlush(this: Interpreter): RuntimeValue {
     this.processScheduler(this.schedulerMaxSteps);
     return { kind: "nil", value: null };
   };
 
-  cls.prototype.procPendingTasks = function procPendingTasks(this: InterpreterV10): V10Value {
+  cls.prototype.procPendingTasks = function procPendingTasks(this: Interpreter): RuntimeValue {
     const pending = typeof this.executor.pendingTasks === "function" ? this.executor.pendingTasks() : 0;
     return makeIntegerValue("i32", BigInt(pending));
   };
 
-  cls.prototype.processScheduler = function processScheduler(this: InterpreterV10, limit: number = this.schedulerMaxSteps): void {
+  cls.prototype.processScheduler = function processScheduler(this: Interpreter, limit: number = this.schedulerMaxSteps): void {
     this.executor.flush(limit);
   };
 
-  cls.prototype.makeNamedStructInstance = function makeNamedStructInstance(this: InterpreterV10, def: AST.StructDefinition, entries: Array<[string, V10Value]>): V10Value {
-    const map = new Map<string, V10Value>();
+  cls.prototype.makeNamedStructInstance = function makeNamedStructInstance(this: Interpreter, def: AST.StructDefinition, entries: Array<[string, RuntimeValue]>): RuntimeValue {
+    const map = new Map<string, RuntimeValue>();
     for (const [key, value] of entries) map.set(key, value);
     return { kind: "struct_instance", def, values: map };
   };
 
-  cls.prototype.makeProcError = function makeProcError(this: InterpreterV10, details: string): V10Value {
+  cls.prototype.makeProcError = function makeProcError(this: Interpreter, details: string): RuntimeValue {
     return this.makeNamedStructInstance(this.procErrorStruct, [["details", { kind: "String", value: details }]]);
   };
 
-  cls.prototype.getProcErrorDetails = function getProcErrorDetails(this: InterpreterV10, procError: V10Value): string {
+  cls.prototype.getProcErrorDetails = function getProcErrorDetails(this: Interpreter, procError: RuntimeValue): string {
     if (procError.kind === "struct_instance" && procError.def.id.name === "ProcError") {
-      const map = procError.values as Map<string, V10Value>;
+      const map = procError.values as Map<string, RuntimeValue>;
       const detailsVal = map.get("details");
       if (detailsVal && detailsVal.kind === "String") return detailsVal.value;
     }
     return "unknown failure";
   };
 
-  cls.prototype.makeProcStatusFailed = function makeProcStatusFailed(this: InterpreterV10, procError: V10Value): V10Value {
+  cls.prototype.makeProcStatusFailed = function makeProcStatusFailed(this: Interpreter, procError: RuntimeValue): RuntimeValue {
     return this.makeNamedStructInstance(this.procStatusStructs.Failed, [["error", procError]]);
   };
 
-  cls.prototype.markProcCancelled = function markProcCancelled(this: InterpreterV10, handle: Extract<V10Value, { kind: "proc_handle" }>, message = "Proc cancelled"): void {
+  cls.prototype.markProcCancelled = function markProcCancelled(this: Interpreter, handle: Extract<RuntimeValue, { kind: "proc_handle" }>, message = "Proc cancelled"): void {
     const pendingSend = (handle as any).waitingChannelSend as
       | {
           state: any;
-          value: V10Value;
+          value: RuntimeValue;
         }
       | undefined;
     if (pendingSend) {
@@ -304,11 +304,11 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
     this.triggerProcAwaiters(handle);
   };
 
-  cls.prototype.markFutureCancelled = function markFutureCancelled(this: InterpreterV10, future: Extract<V10Value, { kind: "future" }>, message = "Future cancelled"): void {
+  cls.prototype.markFutureCancelled = function markFutureCancelled(this: Interpreter, future: Extract<RuntimeValue, { kind: "future" }>, message = "Future cancelled"): void {
     const pendingSend = (future as any).waitingChannelSend as
       | {
           state: any;
-          value: V10Value;
+          value: RuntimeValue;
         }
       | undefined;
     if (pendingSend) {
@@ -338,7 +338,7 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
     this.triggerFutureAwaiters(future);
   };
 
-  cls.prototype.procHandleStatus = function procHandleStatus(this: InterpreterV10, handle: Extract<V10Value, { kind: "proc_handle" }>): V10Value {
+  cls.prototype.procHandleStatus = function procHandleStatus(this: Interpreter, handle: Extract<RuntimeValue, { kind: "proc_handle" }>): RuntimeValue {
     switch (handle.state) {
       case "pending":
         return this.procStatusPendingValue;
@@ -355,7 +355,7 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
     }
   };
 
-  cls.prototype.futureStatus = function futureStatus(this: InterpreterV10, future: Extract<V10Value, { kind: "future" }>): V10Value {
+  cls.prototype.futureStatus = function futureStatus(this: Interpreter, future: Extract<RuntimeValue, { kind: "future" }>): RuntimeValue {
     switch (future.state) {
       case "pending":
         return this.procStatusPendingValue;
@@ -370,7 +370,7 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
     }
   };
 
-  cls.prototype.toProcError = function toProcError(this: InterpreterV10, value: V10Value | undefined, fallback: string): V10Value {
+  cls.prototype.toProcError = function toProcError(this: Interpreter, value: RuntimeValue | undefined, fallback: string): RuntimeValue {
     if (value) {
       if (value.kind === "struct_instance" && value.def.id.name === "ProcError") {
         return value;
@@ -389,15 +389,15 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
     return this.makeProcError(fallback);
   };
 
-  cls.prototype.makeNativeFunction = function makeNativeFunction(this: InterpreterV10, name: string, arity: number, impl: (interpreter: InterpreterV10, args: V10Value[]) => V10Value): Extract<V10Value, { kind: "native_function" }> {
+  cls.prototype.makeNativeFunction = function makeNativeFunction(this: Interpreter, name: string, arity: number, impl: (interpreter: Interpreter, args: RuntimeValue[]) => RuntimeValue): Extract<RuntimeValue, { kind: "native_function" }> {
     return { kind: "native_function", name, arity, impl };
   };
 
-  cls.prototype.bindNativeMethod = function bindNativeMethod(this: InterpreterV10, func: Extract<V10Value, { kind: "native_function" }>, self: V10Value): Extract<V10Value, { kind: "native_bound_method" }> {
+  cls.prototype.bindNativeMethod = function bindNativeMethod(this: Interpreter, func: Extract<RuntimeValue, { kind: "native_function" }>, self: RuntimeValue): Extract<RuntimeValue, { kind: "native_bound_method" }> {
     return { kind: "native_bound_method", func, self };
   };
 
-  cls.prototype.procHandleValue = function procHandleValue(this: InterpreterV10, handle: Extract<V10Value, { kind: "proc_handle" }>): V10Value {
+  cls.prototype.procHandleValue = function procHandleValue(this: Interpreter, handle: Extract<RuntimeValue, { kind: "proc_handle" }>): RuntimeValue {
     if (handle.state === "pending") {
       if (handle.runner) {
         const runner = handle.runner;
@@ -430,7 +430,7 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
     }
   };
 
-  cls.prototype.procHandleCancel = function procHandleCancel(this: InterpreterV10, handle: Extract<V10Value, { kind: "proc_handle" }>): void {
+  cls.prototype.procHandleCancel = function procHandleCancel(this: Interpreter, handle: Extract<RuntimeValue, { kind: "proc_handle" }>): void {
     if (handle.state === "resolved" || handle.state === "failed" || handle.state === "cancelled") return;
     handle.cancelRequested = true;
     if (handle.state === "pending" && !handle.isEvaluating) {
@@ -439,7 +439,7 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
     }
   };
 
-  cls.prototype.futureCancel = function futureCancel(this: InterpreterV10, future: Extract<V10Value, { kind: "future" }>): void {
+  cls.prototype.futureCancel = function futureCancel(this: Interpreter, future: Extract<RuntimeValue, { kind: "future" }>): void {
     if (future.state === "resolved" || future.state === "failed" || future.state === "cancelled") return;
     future.cancelRequested = true;
     if (future.state === "pending" && !future.isEvaluating) {
@@ -448,7 +448,7 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
     }
   };
 
-  cls.prototype.futureValue = function futureValue(this: InterpreterV10, future: Extract<V10Value, { kind: "future" }>): V10Value {
+  cls.prototype.futureValue = function futureValue(this: Interpreter, future: Extract<RuntimeValue, { kind: "future" }>): RuntimeValue {
     if (future.state === "pending") {
       if (future.runner) {
         const runner = future.runner;
@@ -481,7 +481,7 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
     }
   };
 
-  cls.prototype.runProcHandle = function runProcHandle(this: InterpreterV10, handle: Extract<V10Value, { kind: "proc_handle" }>): void {
+  cls.prototype.runProcHandle = function runProcHandle(this: Interpreter, handle: Extract<RuntimeValue, { kind: "proc_handle" }>): void {
     if (handle.state !== "pending" || handle.isEvaluating) return;
     if (!handle.runner) {
       handle.runner = () => this.runProcHandle(handle);
@@ -548,7 +548,7 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
     }
   };
 
-  cls.prototype.runFuture = function runFuture(this: InterpreterV10, future: Extract<V10Value, { kind: "future" }>): void {
+  cls.prototype.runFuture = function runFuture(this: Interpreter, future: Extract<RuntimeValue, { kind: "future" }>): void {
     if (future.state !== "pending" || future.isEvaluating) return;
     if (!future.runner) {
       future.runner = () => this.runFuture(future);
@@ -616,8 +616,8 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
     }
   };
 
-  cls.prototype.makeRuntimeError = function makeRuntimeError(this: InterpreterV10, message: string, value?: V10Value, cause?: V10Value): V10Value {
-    const err: Extract<V10Value, { kind: "error" }> = { kind: "error", message };
+  cls.prototype.makeRuntimeError = function makeRuntimeError(this: Interpreter, message: string, value?: RuntimeValue, cause?: RuntimeValue): RuntimeValue {
+    const err: Extract<RuntimeValue, { kind: "error" }> = { kind: "error", message };
     if (value !== undefined) {
       err.value = value;
     }
@@ -630,13 +630,13 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
   };
 
   cls.prototype.makeAwaitRegistration = function makeAwaitRegistration(
-    this: InterpreterV10,
+    this: Interpreter,
     cancelFn?: () => void,
-  ): Extract<V10Value, { kind: "struct_instance" }> {
+  ): Extract<RuntimeValue, { kind: "struct_instance" }> {
     if (!this.awaitRegistrationStruct) {
       throw new Error("Await registration builtins are not initialized");
     }
-    const registration: Extract<V10Value, { kind: "struct_instance" }> = {
+    const registration: Extract<RuntimeValue, { kind: "struct_instance" }> = {
       kind: "struct_instance",
       def: this.awaitRegistrationStruct,
       values: new Map(),
@@ -649,7 +649,7 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
     return registration;
   };
 
-  cls.prototype.invokeAwaitWaker = function invokeAwaitWaker(this: InterpreterV10, waker: V10Value): void {
+  cls.prototype.invokeAwaitWaker = function invokeAwaitWaker(this: Interpreter, waker: RuntimeValue): void {
     try {
       const member = memberAccessOnValue(this, waker, AST.identifier("wake"), this.globals);
       callCallableValue(this, member, [], this.globals);
@@ -659,10 +659,10 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
   };
 
   cls.prototype.registerProcAwaiter = function registerProcAwaiter(
-    this: InterpreterV10,
-    handle: Extract<V10Value, { kind: "proc_handle" }>,
-    waker: Extract<V10Value, { kind: "struct_instance" }>,
-  ): Extract<V10Value, { kind: "struct_instance" }> {
+    this: Interpreter,
+    handle: Extract<RuntimeValue, { kind: "proc_handle" }>,
+    waker: Extract<RuntimeValue, { kind: "struct_instance" }>,
+  ): Extract<RuntimeValue, { kind: "struct_instance" }> {
     if (!handle || handle.state !== "pending") {
       this.invokeAwaitWaker(waker);
       return this.makeAwaitRegistration();
@@ -682,10 +682,10 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
   };
 
   cls.prototype.registerFutureAwaiter = function registerFutureAwaiter(
-    this: InterpreterV10,
-    future: Extract<V10Value, { kind: "future" }>,
-    waker: Extract<V10Value, { kind: "struct_instance" }>,
-  ): Extract<V10Value, { kind: "struct_instance" }> {
+    this: Interpreter,
+    future: Extract<RuntimeValue, { kind: "future" }>,
+    waker: Extract<RuntimeValue, { kind: "struct_instance" }>,
+  ): Extract<RuntimeValue, { kind: "struct_instance" }> {
     if (!future || future.state !== "pending") {
       this.invokeAwaitWaker(waker);
       return this.makeAwaitRegistration();
@@ -705,10 +705,10 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
   };
 
   cls.prototype.triggerProcAwaiters = function triggerProcAwaiters(
-    this: InterpreterV10,
-    handle: Extract<V10Value, { kind: "proc_handle" }>,
+    this: Interpreter,
+    handle: Extract<RuntimeValue, { kind: "proc_handle" }>,
   ): void {
-    const bucket: Set<{ waker: Extract<V10Value, { kind: "struct_instance" }>; cancelled: boolean }> | undefined = (handle as any)
+    const bucket: Set<{ waker: Extract<RuntimeValue, { kind: "struct_instance" }>; cancelled: boolean }> | undefined = (handle as any)
       .awaitRegistrations;
     if (!bucket || bucket.size === 0) return;
     delete (handle as any).awaitRegistrations;
@@ -720,10 +720,10 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
   };
 
   cls.prototype.triggerFutureAwaiters = function triggerFutureAwaiters(
-    this: InterpreterV10,
-    future: Extract<V10Value, { kind: "future" }>,
+    this: Interpreter,
+    future: Extract<RuntimeValue, { kind: "future" }>,
   ): void {
-    const bucket: Set<{ waker: Extract<V10Value, { kind: "struct_instance" }>; cancelled: boolean }> | undefined = (future as any)
+    const bucket: Set<{ waker: Extract<RuntimeValue, { kind: "struct_instance" }>; cancelled: boolean }> | undefined = (future as any)
       .awaitRegistrations;
     if (!bucket || bucket.size === 0) return;
     delete (future as any).awaitRegistrations;
@@ -735,14 +735,14 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
   };
 
   cls.prototype.createAwaitWaker = function createAwaitWaker(
-    this: InterpreterV10,
-    handle: Extract<V10Value, { kind: "proc_handle" }>,
+    this: Interpreter,
+    handle: Extract<RuntimeValue, { kind: "proc_handle" }>,
     state: unknown,
-  ): Extract<V10Value, { kind: "struct_instance" }> {
+  ): Extract<RuntimeValue, { kind: "struct_instance" }> {
     if (!this.awaitWakerStruct || !this.awaitWakerNativeMethods) {
       throw new Error("Await waker builtins are not initialized");
     }
-    const instance = this.makeNamedStructInstance(this.awaitWakerStruct, []) as Extract<V10Value, { kind: "struct_instance" }>;
+    const instance = this.makeNamedStructInstance(this.awaitWakerStruct, []) as Extract<RuntimeValue, { kind: "struct_instance" }>;
     const payload: AwaitWakerPayload = {
       wake: () => {
         if ((instance as any).__awaitTriggered) return;
@@ -759,19 +759,19 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
     };
     (instance as any).__awaitPayload = payload;
     const wakeMethod = this.bindNativeMethod(this.awaitWakerNativeMethods.wake, instance);
-    const values = instance.values as Map<string, V10Value>;
+    const values = instance.values as Map<string, RuntimeValue>;
     values.set("wake", wakeMethod);
     return instance;
   };
 
-  cls.prototype.ensureAwaitHelperBuiltins = function ensureAwaitHelperBuiltins(this: InterpreterV10): void {
+  cls.prototype.ensureAwaitHelperBuiltins = function ensureAwaitHelperBuiltins(this: Interpreter): void {
     if (this.awaitHelpersBuiltinsInitialized) return;
     this.awaitHelpersBuiltinsInitialized = true;
 
     const awaitableStruct = AST.structDefinition("AwaitHelper", [], "named");
 
-    const makeDefaultAwaitable = (callback?: V10Value): Extract<V10Value, { kind: "struct_instance" }> => {
-      const inst: Extract<V10Value, { kind: "struct_instance" }> = {
+    const makeDefaultAwaitable = (callback?: RuntimeValue): Extract<RuntimeValue, { kind: "struct_instance" }> => {
+      const inst: Extract<RuntimeValue, { kind: "struct_instance" }> = {
         kind: "struct_instance",
         def: awaitableStruct,
         values: new Map(),
@@ -785,7 +785,7 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
         return callCallableValue(nativeInterp, callback, [], nativeInterp.globals);
       });
       const isDefault = this.makeNativeFunction("Awaitable.is_default", 1, () => ({ kind: "bool", value: true }));
-      const values = inst.values as Map<string, V10Value>;
+      const values = inst.values as Map<string, RuntimeValue>;
       values.set("is_ready", this.bindNativeMethod(isReady, inst));
       values.set("register", this.bindNativeMethod(register, inst));
       values.set("commit", this.bindNativeMethod(commit, inst));
@@ -793,14 +793,14 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
       return inst;
     };
 
-    const makeTimerAwaitable = (durationMs: number, callback?: V10Value): Extract<V10Value, { kind: "struct_instance" }> => {
+    const makeTimerAwaitable = (durationMs: number, callback?: RuntimeValue): Extract<RuntimeValue, { kind: "struct_instance" }> => {
       const state: TimerAwaitableState = {
         deadlineMs: Date.now() + durationMs,
         ready: durationMs <= 0,
         cancelled: false,
         callback,
       };
-      const inst: Extract<V10Value, { kind: "struct_instance" }> = {
+      const inst: Extract<RuntimeValue, { kind: "struct_instance" }> = {
         kind: "struct_instance",
         def: awaitableStruct,
         values: new Map(),
@@ -862,7 +862,7 @@ export function applyConcurrencyAugmentations(cls: typeof InterpreterV10): void 
       });
 
       const isDefault = this.makeNativeFunction("Awaitable.is_default", 1, () => ({ kind: "bool", value: false }));
-      const values = inst.values as Map<string, V10Value>;
+      const values = inst.values as Map<string, RuntimeValue>;
       values.set("is_ready", this.bindNativeMethod(isReady, inst));
       values.set("register", this.bindNativeMethod(register, inst));
       values.set("commit", this.bindNativeMethod(commit, inst));

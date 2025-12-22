@@ -1,0 +1,32 @@
+package exec_04_07_05_alias_recursion_termination
+
+## Semantics: alias recursion must terminate through a nominal type; wrapping a recursive struct is permitted.
+
+struct Node T {
+  value: T,
+  next: ?Node T
+}
+
+type List T = ?Node T
+
+fn push<T>(value: T, rest: List T) -> List T {
+  Node T { value: value, next: rest }
+}
+
+fn to_csv(list: List String) -> String {
+  cursor := list
+  acc := ""
+  first := true
+  loop {
+    if cursor == nil { break }
+    if first { acc = cursor.value } else { acc = `${acc},${cursor.value}` }
+    first = false
+    cursor = cursor.next
+  }
+  `list ${acc}`
+}
+
+fn main() -> void {
+  names := push("head", push("tail", nil))
+  print(to_csv(names))
+}

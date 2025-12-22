@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 import { RaiseSignal } from "../../src/interpreter/signals";
 
 const call = (name: string, args = []) =>
@@ -11,7 +11,7 @@ const memberCall = (object: string, member: string, args = []) =>
 
 describe("channel helpers", () => {
   test("unbuffered send blocks until a receiver arrives", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     I.evaluate(
       AST.assignmentExpression(
@@ -62,7 +62,7 @@ describe("channel helpers", () => {
   });
 
   test("buffered channel blocks when capacity is exhausted", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     I.evaluate(
       AST.assignmentExpression(
@@ -108,7 +108,7 @@ describe("channel helpers", () => {
   });
 
   test("closing a channel wakes waiting receivers and errors senders", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     I.evaluate(
       AST.assignmentExpression(
@@ -161,7 +161,7 @@ describe("channel helpers", () => {
   });
 
   test("cancelling a blocked sender removes it from waiters", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     I.evaluate(
       AST.assignmentExpression(
@@ -238,7 +238,7 @@ describe("channel helpers", () => {
   });
 
   test("nil channel send blocks until cancellation", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     I.evaluate(
       AST.assignmentExpression(
@@ -269,7 +269,7 @@ describe("channel helpers", () => {
   });
 
   test("nil channel receive blocks until cancellation", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     I.evaluate(
       AST.assignmentExpression(
@@ -300,7 +300,7 @@ describe("channel helpers", () => {
   });
 
   test("send on closed channel surfaces ChannelSendOnClosed struct", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     I.evaluate(
       AST.assignmentExpression(
@@ -327,7 +327,7 @@ describe("channel helpers", () => {
   });
 
   test("await receive arm resolves when a message arrives", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     I.evaluate(
       AST.assignmentExpression(
@@ -385,7 +385,7 @@ describe("channel helpers", () => {
   });
 
   test("await send arm waits for a receiver and runs the callback", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     I.evaluate(
       AST.assignmentExpression(
@@ -450,7 +450,7 @@ describe("channel helpers", () => {
 
 describe("mutex helpers", () => {
   test("lock/unlock errors when reentered outside procs", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     I.evaluate(
       AST.assignmentExpression(

@@ -1,9 +1,9 @@
 import * as AST from "../ast";
 import type { Environment } from "./environment";
-import type { InterpreterV10 } from "./index";
-import type { ImplMethodEntry, V10Value } from "./values";
+import type { Interpreter } from "./index";
+import type { ImplMethodEntry, RuntimeValue } from "./values";
 
-const NIL: V10Value = { kind: "nil", value: null };
+const NIL: RuntimeValue = { kind: "nil", value: null };
 
 function canonicalizeIdentifier(env: Environment, name: string): string {
   if (!env.has(name)) {
@@ -16,7 +16,7 @@ function canonicalizeIdentifier(env: Environment, name: string): string {
   return name;
 }
 
-function canonicalizeTypeExpression(ctx: InterpreterV10, env: Environment, expr: AST.TypeExpression): AST.TypeExpression {
+function canonicalizeTypeExpression(ctx: Interpreter, env: Environment, expr: AST.TypeExpression): AST.TypeExpression {
   const expanded = ctx.expandTypeAliases(expr);
   switch (expanded.type) {
     case "SimpleTypeExpression": {
@@ -47,7 +47,7 @@ function canonicalizeTypeExpression(ctx: InterpreterV10, env: Environment, expr:
   }
 }
 
-export function evaluateInterfaceDefinition(ctx: InterpreterV10, node: AST.InterfaceDefinition, env: Environment): V10Value {
+export function evaluateInterfaceDefinition(ctx: Interpreter, node: AST.InterfaceDefinition, env: Environment): RuntimeValue {
   ctx.interfaces.set(node.id.name, node);
   ctx.interfaceEnvs.set(node.id.name, env);
   env.define(node.id.name, { kind: "interface_def", def: node });
@@ -60,9 +60,9 @@ export function evaluateInterfaceDefinition(ctx: InterpreterV10, node: AST.Inter
 }
 
 function insertFunction(
-  bucket: Map<string, Extract<V10Value, { kind: "function" | "function_overload" }>>,
+  bucket: Map<string, Extract<RuntimeValue, { kind: "function" | "function_overload" }>>,
   name: string,
-  fn: Extract<V10Value, { kind: "function" }>,
+  fn: Extract<RuntimeValue, { kind: "function" }>,
   priority = 0,
 ): void {
   (fn as any).methodResolutionPriority = priority;
@@ -87,7 +87,7 @@ function functionExpectsSelf(def: AST.FunctionDefinition): boolean {
   return false;
 }
 
-export function evaluateUnionDefinition(ctx: InterpreterV10, node: AST.UnionDefinition, env: Environment): V10Value {
+export function evaluateUnionDefinition(ctx: Interpreter, node: AST.UnionDefinition, env: Environment): RuntimeValue {
   env.define(node.id.name, { kind: "union_def", def: node });
   ctx.unions.set(node.id.name, node);
   ctx.registerSymbol(node.id.name, { kind: "union_def", def: node });
@@ -98,7 +98,7 @@ export function evaluateUnionDefinition(ctx: InterpreterV10, node: AST.UnionDefi
   return NIL;
 }
 
-export function evaluateMethodsDefinition(ctx: InterpreterV10, node: AST.MethodsDefinition, env: Environment): V10Value {
+export function evaluateMethodsDefinition(ctx: Interpreter, node: AST.MethodsDefinition, env: Environment): RuntimeValue {
   const targetType = canonicalizeTypeExpression(ctx, env, node.targetType);
   const typeName = (() => {
     let current: AST.TypeExpression = targetType;
@@ -116,7 +116,7 @@ export function evaluateMethodsDefinition(ctx: InterpreterV10, node: AST.Methods
     const expectsSelf = functionExpectsSelf(def);
     const exportedName = expectsSelf ? def.id.name : `${typeName}.${def.id.name}`;
     (def as any).structName = typeName;
-    const fnValue: Extract<V10Value, { kind: "function" }> = { kind: "function", node: def, closureEnv: env };
+    const fnValue: Extract<RuntimeValue, { kind: "function" }> = { kind: "function", node: def, closureEnv: env };
     (fnValue as any).structName = typeName;
     if (!expectsSelf) {
       (fnValue as any).typeQualified = true;
@@ -132,7 +132,7 @@ export function evaluateMethodsDefinition(ctx: InterpreterV10, node: AST.Methods
   return NIL;
 }
 
-export function evaluateImplementationDefinition(ctx: InterpreterV10, node: AST.ImplementationDefinition, env: Environment): V10Value {
+export function evaluateImplementationDefinition(ctx: Interpreter, node: AST.ImplementationDefinition, env: Environment): RuntimeValue {
   const canonicalInterfaceName = canonicalizeIdentifier(env, node.interfaceName.name);
   const canonicalTarget = canonicalizeTypeExpression(ctx, env, node.targetType);
   const implNode: AST.ImplementationDefinition = {
@@ -144,16 +144,16 @@ export function evaluateImplementationDefinition(ctx: InterpreterV10, node: AST.
   const unionVariantSignatures = implNode.targetType.type === "UnionTypeExpression"
     ? [...new Set(variants.map(v => v.signature))].sort()
     : undefined;
-  const funcs = new Map<string, Extract<V10Value, { kind: "function" | "function_overload" }>>();
+  const funcs = new Map<string, Extract<RuntimeValue, { kind: "function" | "function_overload" }>>();
   for (const def of implNode.definitions) {
     insertFunction(funcs, def.id.name, { kind: "function", node: def, closureEnv: env }, -1);
   }
   ctx.attachDefaultInterfaceMethods(implNode, funcs);
   if (implNode.implName) {
     const name = implNode.implName.name;
-    const symMap = new Map<string, V10Value>();
+    const symMap = new Map<string, RuntimeValue>();
     for (const [k, v] of funcs.entries()) symMap.set(k, v);
-    const implVal: V10Value = {
+    const implVal: RuntimeValue = {
       kind: "impl_namespace",
       def: implNode,
       symbols: symMap,

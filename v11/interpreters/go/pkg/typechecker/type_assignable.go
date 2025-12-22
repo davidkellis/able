@@ -555,6 +555,8 @@ func convertSpecialAppliedType(name string, args []Type) (Type, bool) {
 		return RangeType{Element: argumentOrUnknown(args, 0)}, true
 	case "Map":
 		return MapType{Key: argumentOrUnknown(args, 0), Value: argumentOrUnknown(args, 1)}, true
+	case "HashMap":
+		return MapType{Key: argumentOrUnknown(args, 0), Value: argumentOrUnknown(args, 1)}, true
 	case "Proc":
 		return ProcType{Result: argumentOrUnknown(args, 0)}, true
 	case "Future":

@@ -1,4 +1,4 @@
 fn maybe_identity(value: ?String) -> ?String {
-  value
+  value;
 }
-maybe_identity("ready")
+maybe_identity("ready");

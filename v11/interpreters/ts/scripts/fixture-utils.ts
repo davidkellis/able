@@ -2,7 +2,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { AST, V10 } from "../index";
+import { AST, V11 } from "../index";
 import { mapSourceFile } from "../src/parser/tree-sitter-mapper";
 import { getTreeSitterParser } from "../src/parser/tree-sitter-loader";
 import { makeIntegerValue, numericToNumber } from "../src/interpreter/numeric";
@@ -222,7 +222,7 @@ function copyNodeSpans(target: AST.Node | undefined, source: AST.Node | undefine
   }
 }
 
-export function ensurePrint(interpreter: V10.InterpreterV10): void {
+export function ensurePrint(interpreter: V11.Interpreter): void {
   try {
     const existing = interpreter.globals.get("print");
     if (existing && typeof existing === "object") return;
@@ -239,19 +239,19 @@ export function ensurePrint(interpreter: V10.InterpreterV10): void {
   );
 }
 
-export function installRuntimeStubs(interpreter: V10.InterpreterV10): void {
+export function installRuntimeStubs(interpreter: V11.Interpreter): void {
   const globals = interpreter.globals;
 
   const defineStub = (
     name: string,
     arity: number,
-    impl: (interp: V10.InterpreterV10, args: V10.V10Value[]) => V10.V10Value | null,
+    impl: (interp: V11.Interpreter, args: V11.RuntimeValue[]) => V11.RuntimeValue | null,
   ) => {
     try {
       globals.define(
         name,
         interpreter.makeNativeFunction(name, arity, (innerInterp, args) => {
-          const result = impl(innerInterp as V10.InterpreterV10, args);
+          const result = impl(innerInterp as V11.Interpreter, args);
           return result ?? { kind: "nil", value: null };
         }),
       );
@@ -270,11 +270,11 @@ export function installRuntimeStubs(interpreter: V10.InterpreterV10): void {
   };
 
   let nextHandle = 1;
-  const makeHandle = (): V10.V10Value => makeIntegerValue("i32", BigInt(nextHandle++));
+  const makeHandle = (): V11.RuntimeValue => makeIntegerValue("i32", BigInt(nextHandle++));
 
   type ChannelState = {
     capacity: number;
-    queue: V10.V10Value[];
+    queue: V11.RuntimeValue[];
     closed: boolean;
   };
 
@@ -284,12 +284,12 @@ export function installRuntimeStubs(interpreter: V10.InterpreterV10): void {
   };
   const mutexes = new Map<number, MutexState>();
 
-  const toNumber = (value: V10.V10Value, label = "numeric value"): number => {
+  const toNumber = (value: V11.RuntimeValue, label = "numeric value"): number => {
     return numericToNumber(value, label);
   };
-  const toHandle = (value: V10.V10Value): number => Math.trunc(toNumber(value, "handle"));
+  const toHandle = (value: V11.RuntimeValue): number => Math.trunc(toNumber(value, "handle"));
 
-  const checkCancelled = (interp: V10.InterpreterV10): boolean => {
+  const checkCancelled = (interp: V11.Interpreter): boolean => {
     try {
       const cancelled = interp.procCancelled();
       return cancelled.kind === "bool" && cancelled.value;
@@ -298,7 +298,7 @@ export function installRuntimeStubs(interpreter: V10.InterpreterV10): void {
     }
   };
 
-  const blockOnNilChannel = (interp: V10.InterpreterV10): V10.V10Value | null => {
+  const blockOnNilChannel = (interp: V11.Interpreter): V11.RuntimeValue | null => {
     if (checkCancelled(interp)) {
       return { kind: "nil", value: null };
     }
@@ -309,24 +309,24 @@ export function installRuntimeStubs(interpreter: V10.InterpreterV10): void {
   const awaitableDef = AST.structDefinition("ChannelAwaitable", [], "named");
   const awaitRegistrationDef = AST.structDefinition("AwaitRegistration", [], "named");
 
-  const makeAwaitRegistration = (interp: V10.InterpreterV10, cancel?: () => void): V10.V10Value => {
-    const inst: V10.V10Value = { kind: "struct_instance", def: awaitRegistrationDef, values: new Map() };
+  const makeAwaitRegistration = (interp: V11.Interpreter, cancel?: () => void): V11.RuntimeValue => {
+    const inst: V11.RuntimeValue = { kind: "struct_instance", def: awaitRegistrationDef, values: new Map() };
     const cancelNative = interp.makeNativeFunction("AwaitRegistration.cancel", 1, () => {
       if (cancel) cancel();
       return { kind: "nil", value: null };
     });
-    (inst.values as Map<string, V10.V10Value>).set("cancel", interp.bindNativeMethod(cancelNative, inst));
+    (inst.values as Map<string, V11.RuntimeValue>).set("cancel", interp.bindNativeMethod(cancelNative, inst));
     return inst;
   };
 
   const makeAwaitable = (
-    interp: V10.InterpreterV10,
+    interp: V11.Interpreter,
     handle: number,
     op: "send" | "receive",
-    payload: V10.V10Value | null,
-    callback?: V10.V10Value,
-  ): V10.V10Value => {
-    const inst: V10.V10Value = { kind: "struct_instance", def: awaitableDef, values: new Map() };
+    payload: V11.RuntimeValue | null,
+    callback?: V11.RuntimeValue,
+  ): V11.RuntimeValue => {
+    const inst: V11.RuntimeValue = { kind: "struct_instance", def: awaitableDef, values: new Map() };
     const isReady = interp.makeNativeFunction("Awaitable.is_ready", 1, () => {
       const channel = channels.get(handle);
       if (!channel) return { kind: "bool", value: false };
@@ -365,7 +365,7 @@ export function installRuntimeStubs(interpreter: V10.InterpreterV10): void {
       return { kind: "nil", value: null };
     });
     const isDefault = interp.makeNativeFunction("Awaitable.is_default", 1, () => ({ kind: "bool", value: false }));
-    const values = inst.values as Map<string, V10.V10Value>;
+    const values = inst.values as Map<string, V11.RuntimeValue>;
     values.set("is_ready", interp.bindNativeMethod(isReady, inst));
     values.set("register", interp.bindNativeMethod(register, inst));
     values.set("commit", interp.bindNativeMethod(commit, inst));
@@ -516,13 +516,15 @@ export function interceptStdout(buffer: string[], fn: () => void): void {
   }
 }
 
-export function formatValue(value: V10.V10Value): string {
+export function formatValue(value: V11.RuntimeValue): string {
   switch (value.kind) {
     case "String":
     case "char":
       return String(value.value);
     case "bool":
       return value.value ? "true" : "false";
+    case "void":
+      return "void";
     case "i32":
     case "f32":
     case "f64":

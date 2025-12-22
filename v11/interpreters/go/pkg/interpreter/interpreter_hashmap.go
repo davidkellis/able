@@ -7,8 +7,7 @@ import (
 	"math/big"
 	"unicode/utf8"
 
-	"able/interpreter10-go/pkg/ast"
-	"able/interpreter10-go/pkg/runtime"
+	"able/interpreter-go/pkg/runtime"
 )
 
 func (i *Interpreter) ensureHashMapBuiltins() {
@@ -23,199 +22,288 @@ func (i *Interpreter) initHashMapBuiltins() {
 		return
 	}
 
-	hashMapPkg := &runtime.PackageValue{
-		Name:   "HashMap",
-		Public: make(map[string]runtime.Value),
+	if i.hashMapStates == nil {
+		i.hashMapStates = make(map[int64]*runtime.HashMapValue)
+	}
+	if i.nextHashMapHandle == 0 {
+		i.nextHashMapHandle = 1
 	}
 
-	newFn := runtime.NativeFunctionValue{
-		Name:  "HashMap.new",
+	parseHandle := func(val runtime.Value) (int64, error) {
+		intVal, ok := val.(runtime.IntegerValue)
+		if !ok || intVal.Val == nil {
+			return 0, fmt.Errorf("hash map handle must be an integer")
+		}
+		if !intVal.Val.IsInt64() {
+			return 0, fmt.Errorf("hash map handle is out of range")
+		}
+		return intVal.Val.Int64(), nil
+	}
+
+	hashMapNew := runtime.NativeFunctionValue{
+		Name:  "__able_hash_map_new",
 		Arity: 0,
 		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
-			capacity := 0
-			if len(args) > 1 {
-				return nil, fmt.Errorf("HashMap.new expects zero or one argument")
+			if len(args) != 0 {
+				return nil, fmt.Errorf("__able_hash_map_new expects no arguments")
 			}
-			if len(args) == 1 {
-				val, err := arrayIndexFromValue(args[0])
-				if err != nil {
-					return nil, fmt.Errorf("HashMap.new capacity must be a non-negative integer")
-				}
-				if val < 0 {
-					return nil, fmt.Errorf("HashMap.new capacity must be non-negative")
-				}
-				capacity = val
-			}
-			if capacity < 0 {
-				capacity = 0
-			}
-			return &runtime.HashMapValue{Entries: make([]runtime.HashMapEntry, 0, capacity)}, nil
+			handle := i.newHashMapHandle(0)
+			return runtime.IntegerValue{Val: big.NewInt(handle), TypeSuffix: runtime.IntegerI64}, nil
 		},
 	}
 
-	hashMapPkg.Public["new"] = newFn
-	i.global.Define("HashMap", hashMapPkg)
+	hashMapWithCapacity := runtime.NativeFunctionValue{
+		Name:  "__able_hash_map_with_capacity",
+		Arity: 1,
+		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+			if len(args) != 1 {
+				return nil, fmt.Errorf("__able_hash_map_with_capacity expects capacity argument")
+			}
+			capacity, err := arrayIndexFromValue(args[0])
+			if err != nil {
+				return nil, fmt.Errorf("capacity must be a non-negative integer")
+			}
+			handle := i.newHashMapHandle(capacity)
+			return runtime.IntegerValue{Val: big.NewInt(handle), TypeSuffix: runtime.IntegerI64}, nil
+		},
+	}
+
+	hashMapGet := runtime.NativeFunctionValue{
+		Name:  "__able_hash_map_get",
+		Arity: 2,
+		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+			if len(args) != 2 {
+				return nil, fmt.Errorf("__able_hash_map_get expects handle and key")
+			}
+			handle, err := parseHandle(args[0])
+			if err != nil {
+				return nil, err
+			}
+			state, err := i.hashMapStateForHandle(handle)
+			if err != nil {
+				return nil, err
+			}
+			hash, err := i.hashMapHashValue(args[1])
+			if err != nil {
+				return nil, err
+			}
+			idx, found, err := i.hashMapFindEntryWithHash(state, hash, args[1])
+			if err != nil {
+				return nil, err
+			}
+			if found {
+				return state.Entries[idx].Value, nil
+			}
+			return runtime.NilValue{}, nil
+		},
+	}
+
+	hashMapSet := runtime.NativeFunctionValue{
+		Name:  "__able_hash_map_set",
+		Arity: 3,
+		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+			if len(args) != 3 {
+				return nil, fmt.Errorf("__able_hash_map_set expects handle, key, and value")
+			}
+			handle, err := parseHandle(args[0])
+			if err != nil {
+				return nil, err
+			}
+			state, err := i.hashMapStateForHandle(handle)
+			if err != nil {
+				return nil, err
+			}
+			if err := i.hashMapInsertEntry(state, args[1], args[2]); err != nil {
+				return nil, err
+			}
+			return runtime.NilValue{}, nil
+		},
+	}
+
+	hashMapRemove := runtime.NativeFunctionValue{
+		Name:  "__able_hash_map_remove",
+		Arity: 2,
+		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+			if len(args) != 2 {
+				return nil, fmt.Errorf("__able_hash_map_remove expects handle and key")
+			}
+			handle, err := parseHandle(args[0])
+			if err != nil {
+				return nil, err
+			}
+			state, err := i.hashMapStateForHandle(handle)
+			if err != nil {
+				return nil, err
+			}
+			hash, err := i.hashMapHashValue(args[1])
+			if err != nil {
+				return nil, err
+			}
+			idx, found, err := i.hashMapFindEntryWithHash(state, hash, args[1])
+			if err != nil {
+				return nil, err
+			}
+			if found {
+				val := state.Entries[idx].Value
+				state.Entries = append(state.Entries[:idx], state.Entries[idx+1:]...)
+				return val, nil
+			}
+			return runtime.NilValue{}, nil
+		},
+	}
+
+	hashMapContains := runtime.NativeFunctionValue{
+		Name:  "__able_hash_map_contains",
+		Arity: 2,
+		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+			if len(args) != 2 {
+				return nil, fmt.Errorf("__able_hash_map_contains expects handle and key")
+			}
+			handle, err := parseHandle(args[0])
+			if err != nil {
+				return nil, err
+			}
+			state, err := i.hashMapStateForHandle(handle)
+			if err != nil {
+				return nil, err
+			}
+			hash, err := i.hashMapHashValue(args[1])
+			if err != nil {
+				return nil, err
+			}
+			_, found, err := i.hashMapFindEntryWithHash(state, hash, args[1])
+			if err != nil {
+				return nil, err
+			}
+			return runtime.BoolValue{Val: found}, nil
+		},
+	}
+
+	hashMapSize := runtime.NativeFunctionValue{
+		Name:  "__able_hash_map_size",
+		Arity: 1,
+		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+			if len(args) != 1 {
+				return nil, fmt.Errorf("__able_hash_map_size expects handle")
+			}
+			handle, err := parseHandle(args[0])
+			if err != nil {
+				return nil, err
+			}
+			state, err := i.hashMapStateForHandle(handle)
+			if err != nil {
+				return nil, err
+			}
+			return runtime.IntegerValue{Val: big.NewInt(int64(len(state.Entries))), TypeSuffix: runtime.IntegerI32}, nil
+		},
+	}
+
+	hashMapClear := runtime.NativeFunctionValue{
+		Name:  "__able_hash_map_clear",
+		Arity: 1,
+		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+			if len(args) != 1 {
+				return nil, fmt.Errorf("__able_hash_map_clear expects handle")
+			}
+			handle, err := parseHandle(args[0])
+			if err != nil {
+				return nil, err
+			}
+			state, err := i.hashMapStateForHandle(handle)
+			if err != nil {
+				return nil, err
+			}
+			state.Entries = state.Entries[:0]
+			return runtime.NilValue{}, nil
+		},
+	}
+
+	hashMapForEach := runtime.NativeFunctionValue{
+		Name:  "__able_hash_map_for_each",
+		Arity: 2,
+		Impl: func(ctx *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+			if len(args) != 2 {
+				return nil, fmt.Errorf("__able_hash_map_for_each expects handle and callback")
+			}
+			handle, err := parseHandle(args[0])
+			if err != nil {
+				return nil, err
+			}
+			state, err := i.hashMapStateForHandle(handle)
+			if err != nil {
+				return nil, err
+			}
+			callback := args[1]
+			for _, entry := range state.Entries {
+				if _, err := i.callCallableValue(callback, []runtime.Value{entry.Key, entry.Value}, ctx.Env, nil); err != nil {
+					return nil, err
+				}
+			}
+			return runtime.NilValue{}, nil
+		},
+	}
+
+	hashMapClone := runtime.NativeFunctionValue{
+		Name:  "__able_hash_map_clone",
+		Arity: 1,
+		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+			if len(args) != 1 {
+				return nil, fmt.Errorf("__able_hash_map_clone expects handle")
+			}
+			handle, err := parseHandle(args[0])
+			if err != nil {
+				return nil, err
+			}
+			state, err := i.hashMapStateForHandle(handle)
+			if err != nil {
+				return nil, err
+			}
+			cloned := make([]runtime.HashMapEntry, len(state.Entries))
+			copy(cloned, state.Entries)
+			newHandle := i.newHashMapHandle(len(cloned))
+			i.hashMapStates[newHandle].Entries = cloned
+			return runtime.IntegerValue{Val: big.NewInt(newHandle), TypeSuffix: runtime.IntegerI64}, nil
+		},
+	}
+
+	i.global.Define("__able_hash_map_new", hashMapNew)
+	i.global.Define("__able_hash_map_with_capacity", hashMapWithCapacity)
+	i.global.Define("__able_hash_map_get", hashMapGet)
+	i.global.Define("__able_hash_map_set", hashMapSet)
+	i.global.Define("__able_hash_map_remove", hashMapRemove)
+	i.global.Define("__able_hash_map_contains", hashMapContains)
+	i.global.Define("__able_hash_map_size", hashMapSize)
+	i.global.Define("__able_hash_map_clear", hashMapClear)
+	i.global.Define("__able_hash_map_for_each", hashMapForEach)
+	i.global.Define("__able_hash_map_clone", hashMapClone)
 	i.hashMapReady = true
 }
 
-func (i *Interpreter) hashMapMember(hm *runtime.HashMapValue, member ast.Expression) (runtime.Value, error) {
-	if hm == nil {
-		return nil, fmt.Errorf("hash map receiver is nil")
+func (i *Interpreter) newHashMapHandle(capacity int) int64 {
+	if i.hashMapStates == nil {
+		i.hashMapStates = make(map[int64]*runtime.HashMapValue)
 	}
-	ident, ok := member.(*ast.Identifier)
-	if !ok {
-		return nil, fmt.Errorf("hash map member access expects identifier")
+	if i.nextHashMapHandle == 0 {
+		i.nextHashMapHandle = 1
 	}
-	switch ident.Name {
-	case "set":
-		fn := runtime.NativeFunctionValue{
-			Name:  "hash_map.set",
-			Arity: 2,
-			Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
-				if len(args) != 3 {
-					return nil, fmt.Errorf("set expects a receiver, key, and value")
-				}
-				receiver, ok := args[0].(*runtime.HashMapValue)
-				if !ok {
-					return nil, fmt.Errorf("set receiver must be a hash map")
-				}
-				hash, err := i.hashMapHashValue(args[1])
-				if err != nil {
-					return nil, err
-				}
-				idx, found, err := i.hashMapFindEntryWithHash(receiver, hash, args[1])
-				if err != nil {
-					return nil, err
-				}
-				if found {
-					receiver.Entries[idx].Hash = hash
-					receiver.Entries[idx].Value = args[2]
-				} else {
-					receiver.Entries = append(receiver.Entries, runtime.HashMapEntry{Key: args[1], Value: args[2], Hash: hash})
-				}
-				return runtime.NilValue{}, nil
-			},
-		}
-		return &runtime.NativeBoundMethodValue{Receiver: hm, Method: fn}, nil
-	case "get":
-		fn := runtime.NativeFunctionValue{
-			Name:  "hash_map.get",
-			Arity: 1,
-			Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
-				if len(args) != 2 {
-					return nil, fmt.Errorf("get expects a receiver and a key")
-				}
-				receiver, ok := args[0].(*runtime.HashMapValue)
-				if !ok {
-					return nil, fmt.Errorf("get receiver must be a hash map")
-				}
-				hash, err := i.hashMapHashValue(args[1])
-				if err != nil {
-					return nil, err
-				}
-				idx, found, err := i.hashMapFindEntryWithHash(receiver, hash, args[1])
-				if err != nil {
-					return nil, err
-				}
-				if found {
-					return receiver.Entries[idx].Value, nil
-				}
-				return runtime.NilValue{}, nil
-			},
-		}
-		return &runtime.NativeBoundMethodValue{Receiver: hm, Method: fn}, nil
-	case "remove":
-		fn := runtime.NativeFunctionValue{
-			Name:  "hash_map.remove",
-			Arity: 1,
-			Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
-				if len(args) != 2 {
-					return nil, fmt.Errorf("remove expects a receiver and a key")
-				}
-				receiver, ok := args[0].(*runtime.HashMapValue)
-				if !ok {
-					return nil, fmt.Errorf("remove receiver must be a hash map")
-				}
-				hash, err := i.hashMapHashValue(args[1])
-				if err != nil {
-					return nil, err
-				}
-				idx, found, err := i.hashMapFindEntryWithHash(receiver, hash, args[1])
-				if err != nil {
-					return nil, err
-				}
-				if found {
-					val := receiver.Entries[idx].Value
-					receiver.Entries = append(receiver.Entries[:idx], receiver.Entries[idx+1:]...)
-					return val, nil
-				}
-				return runtime.NilValue{}, nil
-			},
-		}
-		return &runtime.NativeBoundMethodValue{Receiver: hm, Method: fn}, nil
-	case "contains":
-		fn := runtime.NativeFunctionValue{
-			Name:  "hash_map.contains",
-			Arity: 1,
-			Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
-				if len(args) != 2 {
-					return nil, fmt.Errorf("contains expects a receiver and a key")
-				}
-				receiver, ok := args[0].(*runtime.HashMapValue)
-				if !ok {
-					return nil, fmt.Errorf("contains receiver must be a hash map")
-				}
-				hash, err := i.hashMapHashValue(args[1])
-				if err != nil {
-					return nil, err
-				}
-				_, found, err := i.hashMapFindEntryWithHash(receiver, hash, args[1])
-				if err != nil {
-					return nil, err
-				}
-				return runtime.BoolValue{Val: found}, nil
-			},
-		}
-		return &runtime.NativeBoundMethodValue{Receiver: hm, Method: fn}, nil
-	case "size":
-		fn := runtime.NativeFunctionValue{
-			Name:  "hash_map.size",
-			Arity: 0,
-			Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
-				if len(args) != 1 {
-					return nil, fmt.Errorf("size expects only a receiver")
-				}
-				receiver, ok := args[0].(*runtime.HashMapValue)
-				if !ok {
-					return nil, fmt.Errorf("size receiver must be a hash map")
-				}
-				return runtime.IntegerValue{
-					Val:        big.NewInt(int64(len(receiver.Entries))),
-					TypeSuffix: runtime.IntegerU64,
-				}, nil
-			},
-		}
-		return &runtime.NativeBoundMethodValue{Receiver: hm, Method: fn}, nil
-	case "clear":
-		fn := runtime.NativeFunctionValue{
-			Name:  "hash_map.clear",
-			Arity: 0,
-			Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
-				if len(args) != 1 {
-					return nil, fmt.Errorf("clear expects only a receiver")
-				}
-				receiver, ok := args[0].(*runtime.HashMapValue)
-				if !ok {
-					return nil, fmt.Errorf("clear receiver must be a hash map")
-				}
-				receiver.Entries = receiver.Entries[:0]
-				return runtime.NilValue{}, nil
-			},
-		}
-		return &runtime.NativeBoundMethodValue{Receiver: hm, Method: fn}, nil
-	default:
-		return nil, fmt.Errorf("unknown hash map method '%s'", ident.Name)
+	if capacity < 0 {
+		capacity = 0
 	}
+	handle := i.nextHashMapHandle
+	i.nextHashMapHandle++
+	i.hashMapStates[handle] = &runtime.HashMapValue{Entries: make([]runtime.HashMapEntry, 0, capacity)}
+	return handle
+}
+
+func (i *Interpreter) hashMapStateForHandle(handle int64) (*runtime.HashMapValue, error) {
+	if i.hashMapStates == nil {
+		return nil, fmt.Errorf("hash map state is not initialized")
+	}
+	state, ok := i.hashMapStates[handle]
+	if !ok || state == nil {
+		return nil, fmt.Errorf("hash map handle %d is not defined", handle)
+	}
+	return state, nil
 }
 
 func (i *Interpreter) hashMapFindEntryWithHash(hm *runtime.HashMapValue, hash uint64, key runtime.Value) (int, bool, error) {

@@ -7,13 +7,13 @@ import { ModuleLoader } from "../../scripts/module-loader";
 import { collectModuleSearchPaths } from "../../scripts/module-search-paths";
 import { ensureConsolePrint, installRuntimeStubs } from "../../scripts/runtime-stubs";
 import { callCallableValue } from "../../src/interpreter/functions";
-import { TypeChecker, V10 } from "../../index";
+import { TypeChecker, V11 } from "../../index";
 
 const PROBE_ROOT = path.resolve(__dirname, "../../..");
 
 const readInteger = (value: any): number => Number(value?.value ?? 0);
 
-function evaluateAllModules(interpreter: V10.InterpreterV10, program: { modules: any[]; entry: any }): void {
+function evaluateAllModules(interpreter: V11.Interpreter, program: { modules: any[]; entry: any }): void {
   const nonEntry = program.modules.filter((mod) => mod.packageName !== program.entry.packageName);
   for (const mod of nonEntry) {
     interpreter.evaluate(mod.module);
@@ -96,7 +96,7 @@ fn main() -> i32 {
       const diagnostics = typecheckProgram(session, program, { ignoreNonEntryDiagnostics: true });
       expect(diagnostics).toEqual([]);
 
-      const interpreter = new V10.InterpreterV10();
+      const interpreter = new V11.Interpreter();
       ensureConsolePrint(interpreter);
       installRuntimeStubs(interpreter);
       evaluateAllModules(interpreter, program);

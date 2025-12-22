@@ -3,7 +3,7 @@ package interpreter
 import (
 	"fmt"
 
-	"able/interpreter10-go/pkg/runtime"
+	"able/interpreter-go/pkg/runtime"
 )
 
 // CallFunction invokes an Able function value with the provided arguments.

@@ -1,27 +1,27 @@
 import * as AST from "../ast";
 import { Environment } from "./environment";
-import type { InterpreterV10 } from "./index";
-import type { V10Value } from "./values";
+import type { Interpreter } from "./index";
+import type { RuntimeValue } from "./values";
 
 declare module "./index" {
-  interface InterpreterV10 {
+  interface Interpreter {
     resolveMethodFromPool(
       env: Environment,
       funcName: string,
-      receiver: V10Value,
+      receiver: RuntimeValue,
       opts?: { interfaceName?: string },
-    ): Extract<V10Value, { kind: "bound_method" }> | null;
+    ): Extract<RuntimeValue, { kind: "bound_method" }> | null;
   }
 }
 
-export function applyMemberAugmentations(cls: typeof InterpreterV10): void {
+export function applyMemberAugmentations(cls: typeof Interpreter): void {
   cls.prototype.resolveMethodFromPool = function resolveMethodFromPool(
-    this: InterpreterV10,
+    this: Interpreter,
     env: Environment,
     funcName: string,
-    receiver: V10Value,
+    receiver: RuntimeValue,
     opts?: { interfaceName?: string },
-  ): Extract<V10Value, { kind: "bound_method" }> | null {
+  ): Extract<RuntimeValue, { kind: "bound_method" }> | null {
     const typeName = this.getTypeNameForValue(receiver);
     let typeArgs = receiver.kind === "struct_instance" ? receiver.typeArguments : undefined;
     const typeArgMap = receiver.kind === "struct_instance" ? receiver.typeArgMap : undefined;
@@ -36,13 +36,13 @@ export function applyMemberAugmentations(cls: typeof InterpreterV10): void {
         typeArgs = [AST.wildcardTypeExpression()];
       }
     }
-    const seen = new Set<Extract<V10Value, { kind: "function" }>>();
-    const candidates: Array<Extract<V10Value, { kind: "function" }>> = [];
+    const seen = new Set<Extract<RuntimeValue, { kind: "function" }>>();
+    const candidates: Array<Extract<RuntimeValue, { kind: "function" }>> = [];
     const nameInScope = env.has(funcName);
     const allowInherent = nameInScope || isPrimitiveReceiver(receiver, typeName);
 
     const addCandidate = (
-      callable: Extract<V10Value, { kind: "function" | "function_overload" }> | null,
+      callable: Extract<RuntimeValue, { kind: "function" | "function_overload" }> | null,
       privacyContext?: string,
     ): void => {
       if (!callable) return;
@@ -69,7 +69,7 @@ export function applyMemberAugmentations(cls: typeof InterpreterV10): void {
       const instanceCallable = inherent ? selectInstanceCallable(inherent, receiver, this) : null;
       addCandidate(instanceCallable, name);
       const preExisting = candidates.length;
-      let method: Extract<V10Value, { kind: "function" | "function_overload" }> | null = null;
+      let method: Extract<RuntimeValue, { kind: "function" | "function_overload" }> | null = null;
       try {
         method = this.findMethod(name, funcName, {
           typeArgs,
@@ -95,13 +95,13 @@ export function applyMemberAugmentations(cls: typeof InterpreterV10): void {
     } catch {}
 
     if (!candidates.length) return null;
-    const callable: Extract<V10Value, { kind: "function" | "function_overload" }> =
+    const callable: Extract<RuntimeValue, { kind: "function" | "function_overload" }> =
       candidates.length === 1 ? candidates[0]! : { kind: "function_overload", overloads: candidates };
     return { kind: "bound_method", func: callable, self: receiver };
   };
 }
 
-function isPrimitiveReceiver(receiver: V10Value, typeName?: string | null): boolean {
+function isPrimitiveReceiver(receiver: RuntimeValue, typeName?: string | null): boolean {
   switch (receiver.kind) {
     case "String":
     case "array":
@@ -119,10 +119,10 @@ function isPrimitiveReceiver(receiver: V10Value, typeName?: string | null): bool
 }
 
 function selectInstanceCallable(
-  func: Extract<V10Value, { kind: "function" | "function_overload" }>,
-  receiver?: V10Value,
-  ctx?: InterpreterV10,
-): Extract<V10Value, { kind: "function" | "function_overload" }> | null {
+  func: Extract<RuntimeValue, { kind: "function" | "function_overload" }>,
+  receiver?: RuntimeValue,
+  ctx?: Interpreter,
+): Extract<RuntimeValue, { kind: "function" | "function_overload" }> | null {
   if (func.kind === "function") {
     return functionExpectsSelf(func.node) && firstParamMatches(func.node, receiver, ctx) ? func : null;
   }
@@ -139,10 +139,10 @@ function selectInstanceCallable(
 }
 
 function selectUfcsCallable(
-  func: Extract<V10Value, { kind: "function" | "function_overload" }>,
-  receiver: V10Value,
-  ctx: InterpreterV10,
-): Extract<V10Value, { kind: "function" | "function_overload" }> | null {
+  func: Extract<RuntimeValue, { kind: "function" | "function_overload" }>,
+  receiver: RuntimeValue,
+  ctx: Interpreter,
+): Extract<RuntimeValue, { kind: "function" | "function_overload" }> | null {
   if (func.kind === "function") {
     if ((func as any).typeQualified) {
       return null;
@@ -173,8 +173,8 @@ function functionExpectsSelf(def: AST.FunctionDefinition | AST.LambdaExpression)
 
 function firstParamMatches(
   def: AST.FunctionDefinition | AST.LambdaExpression,
-  receiver: V10Value | undefined,
-  ctx: InterpreterV10 | undefined,
+  receiver: RuntimeValue | undefined,
+  ctx: Interpreter | undefined,
 ): boolean {
   if (def.type !== "FunctionDefinition") return false;
   const structName = (def as any).structName ?? (def as any).struct_name;

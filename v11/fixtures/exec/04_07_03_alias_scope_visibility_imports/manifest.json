@@ -1,0 +1,11 @@
+{
+  "description": "alias visibility across imports with selective vs qualified access",
+  "setup": ["aliases.able"],
+  "expect": {
+    "stdout": [
+      "first tag able",
+      "pkg:tag lang"
+    ],
+    "exit": 0
+  }
+}

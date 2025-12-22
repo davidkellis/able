@@ -3,7 +3,7 @@ package interpreter
 import (
 	"fmt"
 
-	"able/interpreter10-go/pkg/runtime"
+	"able/interpreter-go/pkg/runtime"
 )
 
 type breakSignal struct {

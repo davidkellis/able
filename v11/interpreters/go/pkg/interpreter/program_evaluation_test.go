@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"able/interpreter10-go/pkg/ast"
-	"able/interpreter10-go/pkg/driver"
+	"able/interpreter-go/pkg/ast"
+	"able/interpreter-go/pkg/driver"
 )
 
 func TestInterpreterEvaluateProgramTypecheckFailure(t *testing.T) {

@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - module", () => {
   test("module evaluates definitions and top-level statements", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const fn = AST.functionDefinition(
       "add1",
       [AST.functionParameter("x")],

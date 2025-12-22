@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - match", () => {
   test("match with identifier/wildcard/literal", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const subject = AST.integerLiteral(2);
     const m = AST.matchExpression(subject, [
       AST.matchClause(AST.literalPattern(AST.integerLiteral(1)), AST.integerLiteral(10)),
@@ -14,7 +14,7 @@ describe("v11 interpreter - match", () => {
   });
 
   test("match struct named fields with guard", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const pointDef = AST.structDefinition(
       "Point",
       [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "x"), AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "y")],

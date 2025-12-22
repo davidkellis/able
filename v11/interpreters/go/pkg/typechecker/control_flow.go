@@ -3,7 +3,7 @@ package typechecker
 import (
 	"fmt"
 
-	"able/interpreter10-go/pkg/ast"
+	"able/interpreter-go/pkg/ast"
 )
 
 func (c *Checker) checkWhileLoop(env *Environment, loop *ast.WhileLoop) ([]Diagnostic, Type) {

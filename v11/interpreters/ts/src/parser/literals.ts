@@ -1,10 +1,9 @@
 import * as AST from "../ast";
-import type { Expression, Identifier, StructFieldInitializer } from "../ast";
+import type { Expression, Identifier, SimpleTypeExpression, StructFieldInitializer, TypeExpression } from "../ast";
 import {
   annotate,
   annotateExpressionNode,
   firstNamedChild,
-  identifiersToStrings,
   isIgnorableNode,
   MapperError,
   Node,
@@ -122,23 +121,39 @@ export function parseArrayLiteral(ctx: ParseContext, node: Node): Expression {
   return annotateExpressionNode(AST.arrayLiteral(elements), node);
 }
 
+function collectStructLiteralType(expr: TypeExpression): { base: SimpleTypeExpression; args: TypeExpression[] } | null {
+  switch (expr.type) {
+    case "SimpleTypeExpression":
+      return { base: expr, args: [] };
+    case "GenericTypeExpression": {
+      const inner = collectStructLiteralType(expr.base);
+      if (!inner) return null;
+      return { base: inner.base, args: [...inner.args, ...expr.arguments] };
+    }
+    default:
+      return null;
+  }
+}
+
 export function parseStructLiteral(ctx: ParseContext, node: Node): Expression {
   const source = ctx.source;
   const typeNode = node.childForFieldName("type");
   if (!typeNode) {
     throw new MapperError("parser: struct literal missing type");
   }
-  const parts = ctx.parseQualifiedIdentifier(typeNode);
-  if (parts.length === 0) {
+  const typeExpr = ctx.parseTypeExpression(typeNode);
+  if (!typeExpr) {
     throw new MapperError("parser: invalid struct literal type");
   }
-  let structType = parts[parts.length - 1];
-  if (parts.length > 1) {
-    structType = annotate(AST.identifier(identifiersToStrings(parts).join(".")), typeNode) as Identifier;
+  const typeParts = collectStructLiteralType(typeExpr);
+  if (!typeParts) {
+    throw new MapperError("parser: struct literal type must be nominal");
   }
-
-  const typeArgsNode = node.childForFieldName("type_arguments");
-  const typeArguments = typeArgsNode ? ctx.parseTypeArgumentList(typeArgsNode) ?? undefined : undefined;
+  let structType: Identifier = typeParts.base.name;
+  if (structType.name.includes(".")) {
+    structType = annotate(AST.identifier(structType.name), typeNode) as Identifier;
+  }
+  const typeArguments = typeParts.args.length > 0 ? typeParts.args : undefined;
 
   const fields: StructFieldInitializer[] = [];
   const functionalUpdates: Expression[] = [];
@@ -149,9 +164,7 @@ export function parseStructLiteral(ctx: ParseContext, node: Node): Expression {
     const fieldName = node.fieldNameForChild(i);
     if (
       fieldName === "type" ||
-      fieldName === "type_arguments" ||
-      sameNode(child, typeNode) ||
-      (typeArgsNode && sameNode(child, typeArgsNode))
+      sameNode(child, typeNode)
     ) {
       continue;
     }

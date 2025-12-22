@@ -1,0 +1,15 @@
+{
+  "description": "bindings: `:=` declares/shadows, `=` reassigns or declares; value mutation vs rebinding",
+  "expect": {
+    "stdout": [
+      "count 2",
+      "shadow 15",
+      "outer 2",
+      "implicit 7",
+      "alias 9",
+      "box 2",
+      "alias_after 9"
+    ],
+    "exit": 0
+  }
+}

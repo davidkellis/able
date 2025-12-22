@@ -11,8 +11,8 @@ import (
 	"sort"
 	"strings"
 
-	"able/interpreter10-go/pkg/ast"
-	"able/interpreter10-go/pkg/parser"
+	"able/interpreter-go/pkg/ast"
+	"able/interpreter-go/pkg/parser"
 )
 
 type RootKind int
@@ -108,7 +108,7 @@ func (l *Loader) Close() {
 	}
 }
 
-// Load aggregates the entry package and its dependencies according to the v10 package rules.
+// Load aggregates the entry package and its dependencies according to the v11 package rules.
 func (l *Loader) Load(entry string) (*Program, error) {
 	if l == nil || l.parser == nil {
 		return nil, fmt.Errorf("loader: closed")
@@ -365,8 +365,8 @@ func looksLikeStdlibPath(path string) bool {
 	clean := filepath.Clean(path)
 	parts := strings.Split(clean, string(os.PathSeparator))
 	for _, part := range parts {
-		switch strings.ToLower(part) {
-		case "stdlib", "stdlib_v11", "stdlib_v10", "able-stdlib", "able_stdlib":
+		lower := strings.ToLower(part)
+		if lower == "stdlib" || strings.HasPrefix(lower, "stdlib_") || lower == "able-stdlib" || lower == "able_stdlib" {
 			return true
 		}
 	}

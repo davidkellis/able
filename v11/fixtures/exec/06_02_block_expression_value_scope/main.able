@@ -1,0 +1,32 @@
+package exec_06_02_block_expression_value_scope
+
+## Semantics: `do` blocks introduce scope and evaluate to the last expression's value.
+
+fn main() -> void {
+  outer := 10
+
+  total := do {
+    base := 4
+    offset := do {
+      inner := 2
+      inner + 1
+    }
+    base + offset
+  }
+
+  shadowed := do {
+    outer := 1
+    outer + 5
+  }
+
+  do {
+    tick := 0
+    tick = tick + 1
+    print(`tick ${tick}`)
+    do { }
+  }
+
+  print(`total ${total}`)
+  print(`shadowed ${shadowed}`)
+  print(`outer ${outer}`)
+}

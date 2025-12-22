@@ -1,0 +1,13 @@
+{
+  "description": "lexical: comments ignored, identifiers and placeholders, line joining, trailing commas",
+  "expect": {
+    "stdout": [
+      "joined 18",
+      "values[2] 18",
+      "pair 10+7",
+      "placeholder 17",
+      "text ## not a comment"
+    ],
+    "exit": 0
+  }
+}

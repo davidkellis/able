@@ -9,7 +9,7 @@ import { collectModuleSearchPaths } from "../../scripts/module-search-paths";
 import { ensureConsolePrint, installRuntimeStubs } from "../../scripts/runtime-stubs";
 import { callCallableValue } from "../../src/interpreter/functions";
 import { memberAccessOnValue } from "../../src/interpreter/structs";
-import { TypeChecker, V10 } from "../../index";
+import { TypeChecker, V11 } from "../../index";
 
 const PROBE_ROOT = path.resolve(__dirname, "../../..");
 
@@ -19,7 +19,7 @@ const readArrayStrings = (value: any): string[] => {
   if (!value || value.kind !== "array" || !Array.isArray(value.elements)) return [];
   return value.elements.map(readString);
 };
-const collectStrings = (interp: V10.InterpreterV10, value: any): string[] => {
+const collectStrings = (interp: V11.Interpreter, value: any): string[] => {
   if (!value) return [];
   if (value.kind === "array" && Array.isArray(value.elements)) return value.elements.map(readString);
   if (value.kind === "struct_instance" && value.def?.id?.name === "Array") {
@@ -44,7 +44,7 @@ const orderingTag = (value: any): string => {
   return value.kind ?? "unknown";
 };
 
-function evaluateAllModules(interpreter: V10.InterpreterV10, program: { modules: any[]; entry: any }): void {
+function evaluateAllModules(interpreter: V11.Interpreter, program: { modules: any[]; entry: any }): void {
   const nonEntry = program.modules.filter((mod) => mod.packageName !== program.entry.packageName);
   for (const mod of nonEntry) {
     interpreter.evaluate(mod.module);
@@ -99,7 +99,7 @@ fn main() -> String {
       const diagnostics = typecheckProgram(session, program);
       expect(diagnostics).toEqual([]);
 
-      const interpreter = new V10.InterpreterV10();
+      const interpreter = new V11.Interpreter();
       ensureConsolePrint(interpreter);
       installRuntimeStubs(interpreter);
       evaluateAllModules(interpreter, program);
@@ -147,7 +147,7 @@ fn main() -> i32 {
       const diagnostics = typecheckProgram(session, program, { ignoreNonEntryDiagnostics: true });
       expect(diagnostics).toEqual([]);
 
-      const interpreter = new V10.InterpreterV10();
+      const interpreter = new V11.Interpreter();
       ensureConsolePrint(interpreter);
       installRuntimeStubs(interpreter);
       evaluateAllModules(interpreter, program);
@@ -195,7 +195,7 @@ fn main() {
       const diagnostics = typecheckProgram(session, program, { ignoreNonEntryDiagnostics: true });
       expect(diagnostics).toEqual([]);
 
-      const interpreter = new V10.InterpreterV10();
+      const interpreter = new V11.Interpreter();
       ensureConsolePrint(interpreter);
       installRuntimeStubs(interpreter);
       evaluateAllModules(interpreter, program);
@@ -251,7 +251,7 @@ fn main() {
       const diagnostics = typecheckProgram(session, program, { ignoreNonEntryDiagnostics: true });
       expect(diagnostics).toEqual([]);
 
-      const interpreter = new V10.InterpreterV10();
+      const interpreter = new V11.Interpreter();
       ensureConsolePrint(interpreter);
       installRuntimeStubs(interpreter);
       evaluateAllModules(interpreter, program);
@@ -306,7 +306,7 @@ fn main() -> Array String {
       const diagnostics = typecheckProgram(session, program, { ignoreNonEntryDiagnostics: true });
       expect(diagnostics).toEqual([]);
 
-      const interpreter = new V10.InterpreterV10();
+      const interpreter = new V11.Interpreter();
       ensureConsolePrint(interpreter);
       installRuntimeStubs(interpreter);
       evaluateAllModules(interpreter, program);
@@ -352,7 +352,7 @@ fn main() -> String {
       const diagnostics = typecheckProgram(session, program, { ignoreNonEntryDiagnostics: true });
       expect(diagnostics).toEqual([]);
 
-      const interpreter = new V10.InterpreterV10();
+      const interpreter = new V11.Interpreter();
       ensureConsolePrint(interpreter);
       installRuntimeStubs(interpreter);
       evaluateAllModules(interpreter, program);
@@ -398,7 +398,7 @@ fn main() -> Array String {
       const diagnostics = typecheckProgram(session, program, { ignoreNonEntryDiagnostics: true });
       expect(diagnostics).toEqual([]);
 
-      const interpreter = new V10.InterpreterV10();
+      const interpreter = new V11.Interpreter();
       ensureConsolePrint(interpreter);
       installRuntimeStubs(interpreter);
       evaluateAllModules(interpreter, program);
@@ -444,7 +444,7 @@ fn main() -> String {
       const diagnostics = typecheckProgram(session, program, { ignoreNonEntryDiagnostics: true });
       expect(diagnostics).toEqual([]);
 
-      const interpreter = new V10.InterpreterV10();
+      const interpreter = new V11.Interpreter();
       ensureConsolePrint(interpreter);
       installRuntimeStubs(interpreter);
       evaluateAllModules(interpreter, program);
@@ -490,7 +490,7 @@ fn main() -> Array String {
       const diagnostics = typecheckProgram(session, program, { ignoreNonEntryDiagnostics: true });
       expect(diagnostics).toEqual([]);
 
-      const interpreter = new V10.InterpreterV10();
+      const interpreter = new V11.Interpreter();
       ensureConsolePrint(interpreter);
       installRuntimeStubs(interpreter);
       evaluateAllModules(interpreter, program);
@@ -536,7 +536,7 @@ fn main() -> String {
       const diagnostics = typecheckProgram(session, program, { ignoreNonEntryDiagnostics: true });
       expect(diagnostics).toEqual([]);
 
-      const interpreter = new V10.InterpreterV10();
+      const interpreter = new V11.Interpreter();
       ensureConsolePrint(interpreter);
       installRuntimeStubs(interpreter);
       evaluateAllModules(interpreter, program);
@@ -587,7 +587,7 @@ fn main() -> i32 {
       const diagnostics = typecheckProgram(session, program, { ignoreNonEntryDiagnostics: true });
       expect(diagnostics).toEqual([]);
 
-      const interpreter = new V10.InterpreterV10();
+      const interpreter = new V11.Interpreter();
       ensureConsolePrint(interpreter);
       installRuntimeStubs(interpreter);
       evaluateAllModules(interpreter, program);
@@ -643,7 +643,7 @@ fn cmp_label(a: String, b: String) -> String {
       const diagnostics = typecheckProgram(session, program, { ignoreNonEntryDiagnostics: true });
       expect(diagnostics).toEqual([]);
 
-      const interpreter = new V10.InterpreterV10();
+      const interpreter = new V11.Interpreter();
       ensureConsolePrint(interpreter);
       installRuntimeStubs(interpreter);
       evaluateAllModules(interpreter, program);

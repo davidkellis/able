@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"able/interpreter10-go/pkg/driver"
-	"able/interpreter10-go/pkg/runtime"
+	"able/interpreter-go/pkg/driver"
+	"able/interpreter-go/pkg/runtime"
 )
 
 func TestInterpreterPipelineFromSource(t *testing.T) {

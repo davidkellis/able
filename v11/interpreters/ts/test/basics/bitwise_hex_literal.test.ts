@@ -6,9 +6,9 @@ import path from "node:path";
 import { callCallableValue } from "../../src/interpreter/functions";
 import { ensureConsolePrint, installRuntimeStubs } from "../../scripts/runtime-stubs";
 import { ModuleLoader } from "../../scripts/module-loader";
-import { TypeChecker, V10 } from "../../index";
+import { TypeChecker, V11 } from "../../index";
 
-function evaluateAllModules(interpreter: V10.InterpreterV10, program: { modules: any[]; entry: any }): void {
+function evaluateAllModules(interpreter: V11.Interpreter, program: { modules: any[]; entry: any }): void {
   const nonEntry = program.modules.filter((mod) => mod.packageName !== program.entry.packageName);
   for (const mod of nonEntry) {
     interpreter.evaluate(mod.module);
@@ -56,7 +56,7 @@ fn main() -> i32 {
       }
       expect(diagnostics).toEqual([]);
 
-      const interpreter = new V10.InterpreterV10();
+      const interpreter = new V11.Interpreter();
       ensureConsolePrint(interpreter);
       installRuntimeStubs(interpreter);
       evaluateAllModules(interpreter, program);

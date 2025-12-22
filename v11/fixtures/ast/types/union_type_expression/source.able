@@ -1,4 +1,4 @@
 fn identity_union(value: String | i32) -> String | i32 {
-  value
+  value;
 }
-identity_union("hello")
+identity_union("hello");

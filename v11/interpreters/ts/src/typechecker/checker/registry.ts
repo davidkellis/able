@@ -78,6 +78,10 @@ export function registerInterfaceDefinition(ctx: RegistryContext, definition: AS
 export function registerTypeAlias(ctx: RegistryContext, definition: AST.TypeAliasDefinition): void {
   const name = definition.id?.name;
   if (!name) return;
+  if (name === "_") {
+    ctx.report("typechecker: type alias name '_' is reserved", definition);
+    return;
+  }
   if (!ensureUniqueDeclaration(ctx, name, definition)) {
     return;
   }

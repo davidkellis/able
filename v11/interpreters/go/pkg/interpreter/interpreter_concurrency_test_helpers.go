@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"able/interpreter10-go/pkg/runtime"
+	"able/interpreter-go/pkg/runtime"
 )
 
 func waitForStatus(handle *runtime.ProcHandleValue, desired runtime.ProcStatus, timeout time.Duration) bool {

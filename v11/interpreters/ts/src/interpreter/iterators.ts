@@ -1,8 +1,8 @@
 import * as AST from "../ast";
 import { Environment } from "./environment";
-import type { InterpreterV10 } from "./index";
+import type { Interpreter } from "./index";
 import { GeneratorStopSignal, GeneratorYieldSignal, ReturnSignal } from "./signals";
-import type { IteratorStep, IteratorValue, V10Value } from "./values";
+import type { IteratorStep, IteratorValue, RuntimeValue } from "./values";
 import type {
   BlockState,
   ContinuationContext,
@@ -22,7 +22,7 @@ class GeneratorContext implements ContinuationContext {
   private busy = false;
   private done = false;
   private closed = false;
-  private pendingValue: V10Value | null = null;
+  private pendingValue: RuntimeValue | null = null;
   private storedError: unknown = null;
   private resumeCurrentStatement = false;
   private currentStatementIndex = -1;
@@ -35,7 +35,7 @@ class GeneratorContext implements ContinuationContext {
   private readonly matchStates = new WeakMap<AST.MatchExpression, MatchExpressionState>();
 
   constructor(
-    private readonly interpreter: InterpreterV10,
+    private readonly interpreter: Interpreter,
     readonly env: Environment,
     private readonly body: AST.Statement[],
   ) {
@@ -48,7 +48,7 @@ class GeneratorContext implements ContinuationContext {
     };
   }
 
-  controllerValue(): V10Value {
+  controllerValue(): RuntimeValue {
     const yieldFn = this.interpreter.makeNativeFunction("Generator.yield", 1, (_interp, args) => {
       const value = args[0] ?? { kind: "nil", value: null };
       this.emit(value);
@@ -58,7 +58,7 @@ class GeneratorContext implements ContinuationContext {
       this.stop();
       return { kind: "nil", value: null };
     });
-    const map = new Map<string, V10Value>();
+    const map = new Map<string, RuntimeValue>();
     map.set("yield", yieldFn);
     map.set("stop", stopFn);
     return {
@@ -68,7 +68,7 @@ class GeneratorContext implements ContinuationContext {
     };
   }
 
-  emit(value: V10Value): never {
+  emit(value: RuntimeValue): never {
     if (this.closed) {
       throw new Error("Cannot yield from a closed iterator");
     }
@@ -246,12 +246,12 @@ class GeneratorContext implements ContinuationContext {
 }
 
 declare module "./index" {
-  interface InterpreterV10 {
+  interface Interpreter {
     iteratorNativeMethods: {
-      next: Extract<V10Value, { kind: "native_function" }>;
-      close: Extract<V10Value, { kind: "native_function" }>;
+      next: Extract<RuntimeValue, { kind: "native_function" }>;
+      close: Extract<RuntimeValue, { kind: "native_function" }>;
     };
-    iteratorEndValue: Extract<V10Value, { kind: "iterator_end" }>;
+    iteratorEndValue: Extract<RuntimeValue, { kind: "iterator_end" }>;
     generatorControllerStruct: AST.StructDefinition;
     generatorBuiltinsInitialized: boolean;
     generatorStack: GeneratorContext[];
@@ -263,8 +263,8 @@ declare module "./index" {
   }
 }
 
-export function applyIteratorAugmentations(cls: typeof InterpreterV10): void {
-  cls.prototype.ensureIteratorBuiltins = function ensureIteratorBuiltins(this: InterpreterV10): void {
+export function applyIteratorAugmentations(cls: typeof Interpreter): void {
+  cls.prototype.ensureIteratorBuiltins = function ensureIteratorBuiltins(this: Interpreter): void {
     if (this.generatorBuiltinsInitialized) return;
     this.generatorBuiltinsInitialized = true;
     this.iteratorEndValue = { kind: "iterator_end" };
@@ -294,12 +294,12 @@ export function applyIteratorAugmentations(cls: typeof InterpreterV10): void {
     };
   };
 
-  cls.prototype.pushGeneratorContext = function pushGeneratorContext(this: InterpreterV10, ctx: GeneratorContext): void {
+  cls.prototype.pushGeneratorContext = function pushGeneratorContext(this: Interpreter, ctx: GeneratorContext): void {
     this.ensureIteratorBuiltins();
     this.generatorStack.push(ctx);
   };
 
-  cls.prototype.popGeneratorContext = function popGeneratorContext(this: InterpreterV10, ctx: GeneratorContext): void {
+  cls.prototype.popGeneratorContext = function popGeneratorContext(this: Interpreter, ctx: GeneratorContext): void {
     if (!this.generatorStack || this.generatorStack.length === 0) return;
     const top = this.generatorStack[this.generatorStack.length - 1];
     if (top === ctx) {
@@ -307,12 +307,12 @@ export function applyIteratorAugmentations(cls: typeof InterpreterV10): void {
     }
   };
 
-  cls.prototype.currentGeneratorContext = function currentGeneratorContext(this: InterpreterV10): GeneratorContext | null {
+  cls.prototype.currentGeneratorContext = function currentGeneratorContext(this: Interpreter): GeneratorContext | null {
     if (!this.generatorStack || this.generatorStack.length === 0) return null;
     return this.generatorStack[this.generatorStack.length - 1]!;
   };
 
-  cls.prototype.createIteratorFromLiteral = function createIteratorFromLiteral(this: InterpreterV10, node: AST.IteratorLiteral, env: Environment): IteratorValue {
+  cls.prototype.createIteratorFromLiteral = function createIteratorFromLiteral(this: Interpreter, node: AST.IteratorLiteral, env: Environment): IteratorValue {
     this.ensureIteratorBuiltins();
     const generatorEnv = new Environment(env);
     const context = new GeneratorContext(this, generatorEnv, node.body);
@@ -326,11 +326,11 @@ export function applyIteratorAugmentations(cls: typeof InterpreterV10): void {
   };
 }
 
-export function evaluateIteratorLiteral(ctx: InterpreterV10, node: AST.IteratorLiteral, env: Environment): V10Value {
+export function evaluateIteratorLiteral(ctx: Interpreter, node: AST.IteratorLiteral, env: Environment): RuntimeValue {
   return ctx.createIteratorFromLiteral(node, env);
 }
 
-export function evaluateYieldStatement(ctx: InterpreterV10, node: AST.YieldStatement, env: Environment): V10Value {
+export function evaluateYieldStatement(ctx: Interpreter, node: AST.YieldStatement, env: Environment): RuntimeValue {
   const generator = ctx.currentGeneratorContext();
   if (!generator) throw new Error("yield must be used inside a generator literal");
   const value = node.expression ? ctx.evaluate(node.expression, env) : { kind: "nil", value: null };

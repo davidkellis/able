@@ -1,20 +1,20 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../src/ast";
-import { InterpreterV10 } from "../src/interpreter";
+import { Interpreter } from "../src/interpreter";
 
 const call = (name: string, args = []) =>
   AST.functionCall(AST.identifier(name), args);
 
 describe("String host builtins", () => {
   test("__able_String_from_builtin returns UTF-8 bytes", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const result = I.evaluate(call("__able_String_from_builtin", [AST.stringLiteral("Hi")])) as any;
     expect(result.kind).toBe("array");
     expect(result.elements.map((el: any) => Number(el.value))).toEqual([72, 105]);
   });
 
   test("__able_String_to_builtin decodes UTF-8 arrays", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     I.evaluate(
       AST.assignmentExpression(
         ":=",
@@ -27,7 +27,7 @@ describe("String host builtins", () => {
   });
 
   test("__able_char_from_codepoint builds chars", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const charVal = I.evaluate(call("__able_char_from_codepoint", [AST.integerLiteral(0x1F600)])) as any;
     expect(charVal).toEqual({ kind: "char", value: "😀" });
   });
@@ -35,7 +35,7 @@ describe("String host builtins", () => {
 
 describe("hasher host builtins", () => {
   test("__able_hasher_create/write/finish round trips hash state", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("hasher"), call("__able_hasher_create")));
     I.evaluate(call("__able_hasher_write", [AST.identifier("hasher"), AST.stringLiteral("abc")]));

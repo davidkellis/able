@@ -449,25 +449,20 @@
               "typeAnnotation": {
                 "type": "GenericTypeExpression",
                 "base": {
-                  "type": "GenericTypeExpression",
-                  "base": {
+                  "type": "SimpleTypeExpression",
+                  "name": {
+                    "type": "Identifier",
+                    "name": "Index"
+                  }
+                },
+                "arguments": [
+                  {
                     "type": "SimpleTypeExpression",
                     "name": {
                       "type": "Identifier",
-                      "name": "Index"
+                      "name": "i32"
                     }
                   },
-                  "arguments": [
-                    {
-                      "type": "SimpleTypeExpression",
-                      "name": {
-                        "type": "Identifier",
-                        "name": "i32"
-                      }
-                    }
-                  ]
-                },
-                "arguments": [
                   {
                     "type": "SimpleTypeExpression",
                     "name": {

@@ -4,8 +4,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"able/interpreter10-go/pkg/driver"
-	"able/interpreter10-go/pkg/runtime"
+	"able/interpreter-go/pkg/driver"
+	"able/interpreter-go/pkg/runtime"
 )
 
 func TestStringIteratorRunsAfterStdlibImport(t *testing.T) {

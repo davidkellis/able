@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - destructuring assignment", () => {
   test("array destructuring with rest", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const arr = AST.arrayLiteral([AST.integerLiteral(1), AST.integerLiteral(2), AST.integerLiteral(3)]);
     const pat = AST.arrayPattern([AST.identifier("a"), AST.identifier("b")], AST.identifier("rest"));
     I.evaluate(AST.assignmentExpression(":=", pat as any, arr));
@@ -15,7 +15,7 @@ describe("v11 interpreter - destructuring assignment", () => {
   });
 
   test("destructuring assignment with = declares bindings when missing", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const arr = AST.arrayLiteral([AST.integerLiteral(4), AST.integerLiteral(5)]);
     const pat = AST.arrayPattern([AST.identifier("left"), AST.identifier("right")]);
     I.evaluate(AST.assignmentExpression("=", pat as any, arr));
@@ -24,7 +24,7 @@ describe("v11 interpreter - destructuring assignment", () => {
   });
 
   test(":= requires at least one new binding in destructuring", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const first = AST.arrayLiteral([AST.integerLiteral(8), AST.integerLiteral(9)]);
     const pat = AST.arrayPattern([AST.identifier("m"), AST.identifier("n")]);
     I.evaluate(AST.assignmentExpression(":=", pat as any, first));
@@ -32,7 +32,7 @@ describe("v11 interpreter - destructuring assignment", () => {
   });
 
   test(":= allows reassignment in pattern when at least one name is new", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const initial = AST.arrayLiteral([AST.integerLiteral(1), AST.integerLiteral(2)]);
     const pat = AST.arrayPattern([AST.identifier("x"), AST.identifier("y")]);
     I.evaluate(AST.assignmentExpression(":=", pat as any, initial));
@@ -44,7 +44,7 @@ describe("v11 interpreter - destructuring assignment", () => {
   });
 
   test("struct destructuring named fields", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const pointDef = AST.structDefinition(
       "Point",
       [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "x"), AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "y")],

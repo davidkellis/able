@@ -1,4 +1,4 @@
-import type { FloatKind, IntegerKind, V10Value } from "./values";
+import type { FloatKind, IntegerKind, RuntimeValue } from "./values";
 
 type IntegerInfo = {
   kind: IntegerKind;
@@ -54,11 +54,11 @@ const I64_MAX = (1n << 63n) - 1n;
 
 type RatioParts = { num: bigint; den: bigint };
 
-function ratioFieldsFromStruct(value: V10Value): RatioParts | null {
+function ratioFieldsFromStruct(value: RuntimeValue): RatioParts | null {
   if (value.kind !== "struct_instance") return null;
   const structName = value.def?.id?.name;
   if (structName !== "Ratio") return null;
-  const extractField = (fieldName: string): V10Value | undefined => {
+  const extractField = (fieldName: string): RuntimeValue | undefined => {
     if (value.values instanceof Map) {
       return value.values.get(fieldName);
     }
@@ -78,7 +78,7 @@ function ratioFieldsFromStruct(value: V10Value): RatioParts | null {
   return { num: numVal.value, den: denVal.value };
 }
 
-type IntegerValue = Extract<V10Value, { kind: IntegerKind }>;
+type IntegerValue = Extract<RuntimeValue, { kind: IntegerKind }>;
 
 export function integerKinds(): IntegerKind[] {
   return [...SIGNED_SEQUENCE, ...UNSIGNED_SEQUENCE];
@@ -90,34 +90,34 @@ export function getIntegerInfo(kind: IntegerKind): IntegerInfo {
   return info;
 }
 
-export function makeIntegerValue(kind: IntegerKind, raw: bigint): Extract<V10Value, { kind: IntegerKind }> {
+export function makeIntegerValue(kind: IntegerKind, raw: bigint): Extract<RuntimeValue, { kind: IntegerKind }> {
   const info = getIntegerInfo(kind);
   ensureIntegerInRange(raw, info);
   return { kind, value: raw };
 }
 
-export function makeIntegerFromNumber(kind: IntegerKind, raw: number): Extract<V10Value, { kind: IntegerKind }> {
+export function makeIntegerFromNumber(kind: IntegerKind, raw: number): Extract<RuntimeValue, { kind: IntegerKind }> {
   if (!Number.isFinite(raw)) {
     throw new Error("integer requires finite numeric value");
   }
   return makeIntegerValue(kind, BigInt(Math.trunc(raw)));
 }
 
-export function makeFloatValue(kind: FloatKind, raw: number): Extract<V10Value, { kind: FloatKind }> {
+export function makeFloatValue(kind: FloatKind, raw: number): Extract<RuntimeValue, { kind: FloatKind }> {
   const info = FLOAT_INFO[kind];
   if (!info) throw new Error(`Unknown float kind ${kind}`);
   return { kind, value: info.apply(raw) };
 }
 
-export function isIntegerValue(value: V10Value): value is Extract<V10Value, { kind: IntegerKind }> {
+export function isIntegerValue(value: RuntimeValue): value is Extract<RuntimeValue, { kind: IntegerKind }> {
   return Object.prototype.hasOwnProperty.call(INTEGER_INFO, value.kind);
 }
 
-export function isFloatValue(value: V10Value): value is Extract<V10Value, { kind: FloatKind }> {
+export function isFloatValue(value: RuntimeValue): value is Extract<RuntimeValue, { kind: FloatKind }> {
   return Object.prototype.hasOwnProperty.call(FLOAT_INFO, value.kind);
 }
 
-export function isNumericValue(value: V10Value): boolean {
+export function isNumericValue(value: RuntimeValue): boolean {
   return classifyNumeric(value) !== null;
 }
 
@@ -126,7 +126,7 @@ type NumericClassification =
   | { tag: "float"; kind: FloatKind; value: number }
   | { tag: "ratio"; parts: RatioParts };
 
-function classifyNumeric(value: V10Value): NumericClassification | null {
+function classifyNumeric(value: RuntimeValue): NumericClassification | null {
   const ratio = ratioFieldsFromStruct(value);
   if (ratio) {
     return { tag: "ratio", parts: ratio };
@@ -411,7 +411,7 @@ function applyIntegerOperation(op: string, left: bigint, right: bigint, info: In
   }
 }
 
-export function applyNumericUnaryMinus(value: V10Value): V10Value {
+export function applyNumericUnaryMinus(value: RuntimeValue): RuntimeValue {
   const classified = classifyNumeric(value);
   if (!classified) throw new Error("Unary '-' requires numeric operand");
   if (classified.tag === "float") {
@@ -438,7 +438,7 @@ export function applyNumericUnaryMinus(value: V10Value): V10Value {
   return { kind: classified.info.kind, value: negated };
 }
 
-export function applyBitwiseNot(value: V10Value): V10Value {
+export function applyBitwiseNot(value: RuntimeValue): RuntimeValue {
   const classified = classifyNumeric(value);
   if (!classified || classified.tag !== "integer") {
     throw new Error("Unary '.~' requires integer operand");
@@ -452,19 +452,19 @@ export function applyBitwiseNot(value: V10Value): V10Value {
 
 export function applyArithmeticBinary(
   op: string,
-  left: V10Value,
-  right: V10Value,
+  left: RuntimeValue,
+  right: RuntimeValue,
   options?: {
     makeDivMod?: (
       kind: IntegerKind,
       parts: {
-        quotient: Extract<V10Value, { kind: IntegerKind }>;
-        remainder: Extract<V10Value, { kind: IntegerKind }>;
+        quotient: Extract<RuntimeValue, { kind: IntegerKind }>;
+        remainder: Extract<RuntimeValue, { kind: IntegerKind }>;
       },
-    ) => V10Value;
-    makeRatio?: (parts: RatioParts) => V10Value;
+    ) => RuntimeValue;
+    makeRatio?: (parts: RatioParts) => RuntimeValue;
   },
-): V10Value {
+): RuntimeValue {
   const leftClass = classifyNumeric(left);
   const rightClass = classifyNumeric(right);
   if (!leftClass || !rightClass) {
@@ -622,7 +622,7 @@ function euclideanDivMod(dividend: bigint, divisor: bigint): { quotient: bigint;
   return { quotient, remainder };
 }
 
-export function applyComparisonBinary(op: string, left: V10Value, right: V10Value): V10Value {
+export function applyComparisonBinary(op: string, left: RuntimeValue, right: RuntimeValue): RuntimeValue {
   const leftClass = classifyNumeric(left);
   const rightClass = classifyNumeric(right);
   if (!leftClass || !rightClass) {
@@ -684,7 +684,7 @@ export function applyComparisonBinary(op: string, left: V10Value, right: V10Valu
   return { kind: "bool", value: result };
 }
 
-export function numericEquals(left: V10Value, right: V10Value): boolean {
+export function numericEquals(left: RuntimeValue, right: RuntimeValue): boolean {
   const leftClass = classifyNumeric(left);
   const rightClass = classifyNumeric(right);
   if (!leftClass || !rightClass) {
@@ -705,7 +705,7 @@ export function numericEquals(left: V10Value, right: V10Value): boolean {
   return Object.is(leftFloat, rightFloat);
 }
 
-export function applyBitwiseBinary(op: string, left: V10Value, right: V10Value): V10Value {
+export function applyBitwiseBinary(op: string, left: RuntimeValue, right: RuntimeValue): RuntimeValue {
   const normalized = op.startsWith(".") ? op.slice(1) : op;
   const leftClass = classifyNumeric(left);
   const rightClass = classifyNumeric(right);
@@ -742,7 +742,7 @@ export function applyBitwiseBinary(op: string, left: V10Value, right: V10Value):
   return { kind: promotion.kind, value: result };
 }
 
-function applyShift(op: string, left: bigint, right: bigint, info: IntegerInfo): Extract<V10Value, { kind: IntegerKind }> {
+function applyShift(op: string, left: bigint, right: bigint, info: IntegerInfo): Extract<RuntimeValue, { kind: IntegerKind }> {
   if (right < 0n || right >= BigInt(info.bits)) {
     throw new Error("shift out of range");
   }
@@ -761,7 +761,7 @@ function applyShift(op: string, left: bigint, right: bigint, info: IntegerInfo):
   return { kind: info.kind, value: result };
 }
 
-export function numericToNumber(value: V10Value, label: string, options?: { requireSafeInteger?: boolean }): number {
+export function numericToNumber(value: RuntimeValue, label: string, options?: { requireSafeInteger?: boolean }): number {
   if (isFloatValue(value)) {
     if (!Number.isFinite(value.value)) {
       throw new Error(`${label} must be finite`);

@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"able/interpreter10-go/pkg/ast"
+	"able/interpreter-go/pkg/ast"
 )
 
 // Kind identifies the runtime value category.
@@ -18,6 +18,7 @@ const (
 	KindBool
 	KindChar
 	KindNil
+	KindVoid
 	KindInteger
 	KindFloat
 	KindArray
@@ -55,6 +56,8 @@ func (k Kind) String() string {
 		return "char"
 	case KindNil:
 		return "nil"
+	case KindVoid:
+		return "void"
 	case KindInteger:
 		return "integer"
 	case KindFloat:
@@ -140,6 +143,10 @@ func (v CharValue) Kind() Kind { return KindChar }
 type NilValue struct{}
 
 func (NilValue) Kind() Kind { return KindNil }
+
+type VoidValue struct{}
+
+func (VoidValue) Kind() Kind { return KindVoid }
 
 // Integer sub-types mirror the spec’s suffix set.
 type IntegerType string

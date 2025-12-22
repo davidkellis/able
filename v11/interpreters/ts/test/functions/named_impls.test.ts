@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - named impls as callable namespaces", () => {
   test("define two named impls and call their static methods via name", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     // interface Monoid for T { fn id() -> Self; fn op(self: Self, other: Self) -> Self }
     const monoid = AST.interfaceDefinition("Monoid", [

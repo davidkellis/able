@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - dynimport", () => {
   test("dynimport selectors and alias work; wildcard binds dynamic refs", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const pkg = AST.packageStatement(["dynp"]);
     const defs = [
       AST.functionDefinition("f", [], AST.blockExpression([AST.returnStatement(AST.integerLiteral(11))])),

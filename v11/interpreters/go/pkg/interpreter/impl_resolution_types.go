@@ -5,8 +5,8 @@ import (
 	"sort"
 	"strings"
 
-	"able/interpreter10-go/pkg/ast"
-	"able/interpreter10-go/pkg/runtime"
+	"able/interpreter-go/pkg/ast"
+	"able/interpreter-go/pkg/runtime"
 )
 
 type typeInfo struct {
@@ -461,6 +461,9 @@ func (i *Interpreter) ensureTypeSatisfiesInterface(tInfo typeInfo, ifaceExpr ast
 func (i *Interpreter) typeHasMethod(info typeInfo, methodName, ifaceName string) bool {
 	if info.name == "" {
 		return false
+	}
+	if primitiveImplementsInterfaceMethod(info.name, ifaceName, methodName) {
+		return true
 	}
 	for _, name := range i.canonicalTypeNames(info.name) {
 		if bucket, ok := i.inherentMethods[name]; ok {

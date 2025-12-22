@@ -4,7 +4,7 @@ do {
   case "ignore" => "ignored",
   case msg => {
     if msg == "boom" {
-      "handled"
-    }
+      "handled";
+    };
   }
-}
+};

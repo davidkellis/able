@@ -1,6 +1,6 @@
 handle := proc {
-  0
-}
-_cancelResult := handle.cancel()
-result := handle.value()
-result
+  0;
+};
+_cancelResult := handle.cancel();
+result := handle.value();
+result;

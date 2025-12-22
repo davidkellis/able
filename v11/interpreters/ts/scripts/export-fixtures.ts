@@ -178,7 +178,7 @@ function printStatement(stmt: AST.Statement, level: number): string {
       return printDynImport(stmt, level);
     default:
       if (isExpression(stmt)) {
-        return `${indent(level)}${printExpression(stmt, level)}`;
+        return `${indent(level)}${printExpression(stmt, level)};`;
       }
       return `${indent(level)}/* unsupported ${stmt.type} */`;
   }

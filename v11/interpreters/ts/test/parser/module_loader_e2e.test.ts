@@ -8,7 +8,7 @@ import { collectModuleSearchPaths } from "../../scripts/module-search-paths";
 import { discoverRoot, indexSourceFiles } from "../../scripts/module-utils";
 import { ensureConsolePrint, installRuntimeStubs } from "../../scripts/runtime-stubs";
 import { callCallableValue } from "../../src/interpreter/functions";
-import { TypeChecker, V10 } from "../../index";
+import { TypeChecker, V11 } from "../../index";
 import { getTreeSitterParser } from "../../src/parser/tree-sitter-loader";
 import { format } from "node:util";
 
@@ -53,7 +53,7 @@ fn greet(name: String) -> String {
       const entryPath = path.join(tmpRoot, "main.able");
       const program = await loader.load(entryPath);
 
-      const interpreter = new V10.InterpreterV10();
+      const interpreter = new V11.Interpreter();
       ensureConsolePrint(interpreter);
       installRuntimeStubs(interpreter);
 
@@ -127,7 +127,7 @@ fn main() -> void {
       const loader = new ModuleLoader();
       const program = await loader.load(path.join(tmpRoot, "main.able"));
 
-      const interpreter = new V10.InterpreterV10();
+      const interpreter = new V11.Interpreter();
       ensureConsolePrint(interpreter);
       installRuntimeStubs(interpreter);
       evaluateAllModules(interpreter, program);
@@ -220,7 +220,7 @@ fn main() -> void {
       const loader = new ModuleLoader();
       const program = await loader.load(entryPath, { includePackages: [sharedPackageName] });
       expect(program.modules.some((mod) => mod.packageName === sharedPackageName)).toBe(true);
-      const interpreter = new V10.InterpreterV10();
+      const interpreter = new V11.Interpreter();
       ensureConsolePrint(interpreter);
       installRuntimeStubs(interpreter);
       evaluateAllModules(interpreter, program);
@@ -287,7 +287,7 @@ fn main() -> void {
       const loader = new ModuleLoader();
       const program = await loader.load(entryPath, { includePackages: [sharedPackageName] });
       expect(program.modules.some((mod) => mod.packageName === sharedPackageName)).toBe(true);
-      const interpreter = new V10.InterpreterV10();
+      const interpreter = new V11.Interpreter();
       ensureConsolePrint(interpreter);
       installRuntimeStubs(interpreter);
 
@@ -470,7 +470,7 @@ fn main() -> void { print(greeting()) }
 
       const loader = new ModuleLoader(searchPaths);
       const program = await loader.load(entryPath);
-      const interpreter = new V10.InterpreterV10();
+      const interpreter = new V11.Interpreter();
       ensureConsolePrint(interpreter);
       installRuntimeStubs(interpreter);
       evaluateAllModules(interpreter, program);
@@ -559,7 +559,7 @@ fn main() -> void {
       }
       expect(diagnostics).toEqual([]);
 
-      const interpreter = new V10.InterpreterV10();
+      const interpreter = new V11.Interpreter();
       ensureConsolePrint(interpreter);
       installRuntimeStubs(interpreter);
       evaluateAllModules(interpreter, program);
@@ -632,7 +632,7 @@ fn available() -> void {}
   });
 });
 
-function evaluateAllModules(interpreter: V10.InterpreterV10, program: LoadedProgram): void {
+function evaluateAllModules(interpreter: V11.Interpreter, program: LoadedProgram): void {
   const nonEntry = program.modules.filter((mod) => mod.packageName !== program.entry.packageName);
   for (const mod of nonEntry) {
     interpreter.evaluate(mod.module);

@@ -17,17 +17,18 @@ import { applyHasherHostAugmentations } from "./hasher_host";
 import { applyNumericHostAugmentations } from "./numeric_host";
 import { buildStandardInterfaceBuiltins } from "../builtins/interfaces";
 import { applyArrayKernelAugmentations, type ArrayState } from "./array_kernel";
+import { applyHashMapKernelAugmentations, type HashMapState } from "./hash_map_kernel";
 import { evaluateImplementationDefinition, evaluateInterfaceDefinition } from "./definitions";
 import "./imports";
 
 import { Environment } from "./environment";
-import type { ImplMethodEntry, V10Value, ConstraintSpec } from "./values";
+import type { ImplMethodEntry, RuntimeValue, ConstraintSpec } from "./values";
 import { CooperativeExecutor, type Executor } from "./executor";
 import { ProcYieldSignal } from "./signals";
 import type { ProcContinuationContext } from "./proc_continuations";
 
 // =============================================================================
-// v10 Interpreter (modular layout)
+// Interpreter (modular layout)
 // =============================================================================
 
 export type InterpreterOptions = {
@@ -35,48 +36,51 @@ export type InterpreterOptions = {
   schedulerMaxSteps?: number;
 };
 
-export class InterpreterV10 {
+export class Interpreter {
   readonly globals = new Environment();
 
   interfaces: Map<string, AST.InterfaceDefinition> = new Map();
   unions: Map<string, AST.UnionDefinition> = new Map();
   typeAliases: Map<string, AST.TypeAliasDefinition> = new Map();
   interfaceEnvs: Map<string, Environment> = new Map();
-  inherentMethods: Map<string, Map<string, Extract<V10Value, { kind: "function" | "function_overload" }>>> = new Map();
+  inherentMethods: Map<string, Map<string, Extract<RuntimeValue, { kind: "function" | "function_overload" }>>> = new Map();
   implMethods: Map<string, ImplMethodEntry[]> = new Map();
   genericImplMethods: ImplMethodEntry[] = [];
   rangeImplementations: RangeImplementationRecord[] = [];
   unnamedImplsSeen: Map<string, Map<string, Set<string>>> = new Map();
   implDuplicateAllowlist: Set<string> = new Set(["Error::ProcError", "Clone::String", "Clone::Grapheme"]);
-  raiseStack: V10Value[] = [];
-  packageRegistry: Map<string, Map<string, V10Value>> = new Map();
+  raiseStack: RuntimeValue[] = [];
+  packageRegistry: Map<string, Map<string, RuntimeValue>> = new Map();
   currentPackage: string | null = null;
   breakpointStack: string[] = [];
-  implicitReceiverStack: V10Value[] = [];
+  implicitReceiverStack: RuntimeValue[] = [];
   placeholderFrames: PlaceholderFrame[] = [];
 
   procNativeMethods!: {
-    status: Extract<V10Value, { kind: "native_function" }>;
-    value: Extract<V10Value, { kind: "native_function" }>;
-    cancel: Extract<V10Value, { kind: "native_function" }>;
+    status: Extract<RuntimeValue, { kind: "native_function" }>;
+    value: Extract<RuntimeValue, { kind: "native_function" }>;
+    cancel: Extract<RuntimeValue, { kind: "native_function" }>;
   };
 
   futureNativeMethods!: {
-    status: Extract<V10Value, { kind: "native_function" }>;
-    value: Extract<V10Value, { kind: "native_function" }>;
-    cancel: Extract<V10Value, { kind: "native_function" }>;
+    status: Extract<RuntimeValue, { kind: "native_function" }>;
+    value: Extract<RuntimeValue, { kind: "native_function" }>;
+    cancel: Extract<RuntimeValue, { kind: "native_function" }>;
   };
 
   errorNativeMethods!: {
-    message: Extract<V10Value, { kind: "native_function" }>;
-    cause: Extract<V10Value, { kind: "native_function" }>;
+    message: Extract<RuntimeValue, { kind: "native_function" }>;
+    cause: Extract<RuntimeValue, { kind: "native_function" }>;
   };
 
-  arrayNativeMethods: Record<string, Extract<V10Value, { kind: "native_function" }>> = {};
+  arrayNativeMethods: Record<string, Extract<RuntimeValue, { kind: "native_function" }>> = {};
 
   arrayBuiltinsInitialized = false;
   nextArrayHandle = 1;
   arrayStates: Map<number, ArrayState> = new Map();
+  hashMapBuiltinsInitialized = false;
+  nextHashMapHandle = 1;
+  hashMapStates: Map<number, HashMapState> = new Map();
 
   concurrencyBuiltinsInitialized = false;
   procErrorStruct!: AST.StructDefinition;
@@ -86,9 +90,9 @@ export class InterpreterV10 {
     Cancelled: AST.StructDefinition;
     Failed: AST.StructDefinition;
   };
-  procStatusPendingValue!: V10Value;
-  procStatusResolvedValue!: V10Value;
-  procStatusCancelledValue!: V10Value;
+  procStatusPendingValue!: RuntimeValue;
+  procStatusResolvedValue!: RuntimeValue;
+  procStatusCancelledValue!: RuntimeValue;
   awaitHelpersBuiltinsInitialized = false;
 
   channelMutexBuiltinsInitialized = false;
@@ -108,8 +112,8 @@ export class InterpreterV10 {
   timeSliceCounter = 0;
   manualYieldRequested = false;
   asyncContextStack: Array<
-    { kind: "proc"; handle: Extract<V10Value, { kind: "proc_handle" }> } |
-    { kind: "future"; handle: Extract<V10Value, { kind: "future" }> }
+    { kind: "proc"; handle: Extract<RuntimeValue, { kind: "proc_handle" }> } |
+    { kind: "future"; handle: Extract<RuntimeValue, { kind: "future" }> }
   > = [];
   procContextStack: ProcContinuationContext[] = [];
   awaitRoundRobinIndex = 0;
@@ -226,6 +230,7 @@ export class InterpreterV10 {
     this.globals.define("proc_flush", procFlushFn);
     this.globals.define("proc_pending_tasks", procPendingTasksFn);
     this.ensureArrayKernelBuiltins();
+    this.ensureHashMapKernelBuiltins();
     this.installBuiltinInterfaces();
   }
 
@@ -253,34 +258,35 @@ export class InterpreterV10 {
   }
 }
 
-applyHelperAugmentations(InterpreterV10);
-applyOperationsAugmentations(InterpreterV10);
-applyStringifyAugmentations(InterpreterV10);
-applyPatternAugmentations(InterpreterV10);
-applyTypesAugmentations(InterpreterV10);
-applyMemberAugmentations(InterpreterV10);
-applyImplResolutionAugmentations(InterpreterV10);
-applyRangeAugmentations(InterpreterV10);
-applyPlaceholderAugmentations(InterpreterV10);
-applyIteratorAugmentations(InterpreterV10);
-applyArrayKernelAugmentations(InterpreterV10);
-applyChannelMutexAugmentations(InterpreterV10);
-applyStringHostAugmentations(InterpreterV10);
-applyHasherHostAugmentations(InterpreterV10);
-applyNumericHostAugmentations(InterpreterV10);
-applyEvaluationAugmentations(InterpreterV10);
-applyConcurrencyAugmentations(InterpreterV10);
+applyHelperAugmentations(Interpreter);
+applyOperationsAugmentations(Interpreter);
+applyStringifyAugmentations(Interpreter);
+applyPatternAugmentations(Interpreter);
+applyTypesAugmentations(Interpreter);
+applyMemberAugmentations(Interpreter);
+applyImplResolutionAugmentations(Interpreter);
+applyRangeAugmentations(Interpreter);
+applyPlaceholderAugmentations(Interpreter);
+applyIteratorAugmentations(Interpreter);
+applyArrayKernelAugmentations(Interpreter);
+applyHashMapKernelAugmentations(Interpreter);
+applyChannelMutexAugmentations(Interpreter);
+applyStringHostAugmentations(Interpreter);
+applyHasherHostAugmentations(Interpreter);
+applyNumericHostAugmentations(Interpreter);
+applyEvaluationAugmentations(Interpreter);
+applyConcurrencyAugmentations(Interpreter);
 
 export type { ConstraintSpec as InterpreterConstraintSpec } from "./values";
 
 export { Environment } from "./environment";
-export type { V10Value } from "./values";
+export type { RuntimeValue } from "./values";
 export type { Executor } from "./executor";
 export { CooperativeExecutor } from "./executor";
 
 export type { PlaceholderFrame } from "./placeholders";
-// Side-effectful module imports attach feature-specific behaviour to InterpreterV10.
+// Side-effectful module imports attach feature-specific behaviour to Interpreter.
 
-export function evaluate(node: AST.AstNode | null, env?: Environment): V10Value {
-  return new InterpreterV10().evaluate(node, env);
+export function evaluate(node: AST.AstNode | null, env?: Environment): RuntimeValue {
+  return new Interpreter().evaluate(node, env);
 }

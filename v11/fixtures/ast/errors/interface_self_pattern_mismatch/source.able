@@ -13,7 +13,7 @@ struct Line {
 impl PointDisplay for Line
 {
   fn describe(self: Line) -> String {
-    "line"
+    "line";
   }
 }
-nil
+nil;

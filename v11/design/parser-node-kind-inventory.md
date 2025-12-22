@@ -1,4 +1,4 @@
-# Tree-sitter Node Inventory (Able v10)
+# Tree-sitter Node Inventory (Able v11)
 
 This note records the tree-sitter node kinds we must handle in the Go parser for every feature tracked in `design/parser-ast-coverage.md`. Use it as the handoff checklist while we extend `parseExpression`, `parseStatement`, and related helpers.
 

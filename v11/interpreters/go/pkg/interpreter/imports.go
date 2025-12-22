@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"able/interpreter10-go/pkg/ast"
-	"able/interpreter10-go/pkg/runtime"
+	"able/interpreter-go/pkg/ast"
+	"able/interpreter-go/pkg/runtime"
 )
 
 func isPrivateSymbol(val runtime.Value) bool {
@@ -173,6 +173,20 @@ func (i *Interpreter) processImport(packagePath []*ast.Identifier, isWildcard bo
 			}
 			val, err := i.lookupImportSymbol(pkgName, original)
 			if err != nil {
+				if aliasDef, ok := i.typeAliases[original]; ok {
+					if aliasDef == nil {
+						continue
+					}
+					if aliasDef.IsPrivate {
+						return nil, fmt.Errorf("Import error: type alias '%s' is private", original)
+					}
+					if aliasName != "" && aliasName != original {
+						clone := *aliasDef
+						clone.ID = ast.ID(aliasName)
+						i.typeAliases[aliasName] = &clone
+					}
+					continue
+				}
 				return nil, err
 			}
 			if isPrivateSymbol(val) {

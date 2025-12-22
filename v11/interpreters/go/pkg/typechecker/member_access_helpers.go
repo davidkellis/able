@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"able/interpreter10-go/pkg/ast"
+	"able/interpreter-go/pkg/ast"
 )
 
 func (c *Checker) finalizeMemberAccessType(expr *ast.MemberAccessExpression, objectType Type, memberType Type) Type {

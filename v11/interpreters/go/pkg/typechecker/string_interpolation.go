@@ -1,6 +1,6 @@
 package typechecker
 
-import "able/interpreter10-go/pkg/ast"
+import "able/interpreter-go/pkg/ast"
 
 func (c *Checker) checkStringInterpolation(env *Environment, expr *ast.StringInterpolation) ([]Diagnostic, Type) {
 	if expr == nil {

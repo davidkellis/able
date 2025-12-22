@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"able/interpreter10-go/pkg/driver"
+	"able/interpreter-go/pkg/driver"
 
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"

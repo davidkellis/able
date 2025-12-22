@@ -3,7 +3,7 @@ package parser
 import (
 	"testing"
 
-	"able/interpreter10-go/pkg/ast"
+	"able/interpreter-go/pkg/ast"
 )
 
 func TestParseLiteralExpressions(t *testing.T) {

@@ -9,7 +9,7 @@ methods Box {
     return #value * 2
   }
 }
-box := Box { value: 5 }
-first := (box |> #increment)
-second := (box |> #double)
-`${first},${second}`
+box := Box { value: 5 };
+first := (box |> #increment);
+second := (box |> #double);
+`${first},${second}`;

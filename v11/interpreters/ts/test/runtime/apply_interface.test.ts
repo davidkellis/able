@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
 
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - Apply interface calls", () => {
   test("calls apply implementation when invoking callable values", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     const multStruct = AST.structDefinition(
       "Multiplier",

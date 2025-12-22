@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - structs", () => {
   test("named struct literal and member access", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     // struct Point { x: i32, y: i32 }
     const pointDef = AST.structDefinition(
       "Point",
@@ -24,7 +24,7 @@ describe("v11 interpreter - structs", () => {
   });
 
   test("positional struct literal and index access", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     // struct Color (i32, i32, i32)
     const colorDef = AST.structDefinition(
       "Color",

@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
-import type { V10Value } from "../../src/interpreter/values";
+import { Interpreter } from "../../src/interpreter";
+import type { RuntimeValue } from "../../src/interpreter/values";
 
 function buildMethodScopePackage(): AST.Module {
   const widget = AST.structDefinition(
@@ -61,7 +61,7 @@ function buildMethodScopePackage(): AST.Module {
 
 describe("method import scoping and type-qualified UFCS exclusions", () => {
   test("receiver sugar requires the method name to be imported", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     I.evaluate(buildMethodScopePackage());
 
     const entry = AST.module(
@@ -83,7 +83,7 @@ describe("method import scoping and type-qualified UFCS exclusions", () => {
   });
 
   test("type-qualified functions are callable explicitly but excluded from UFCS", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     I.evaluate(buildMethodScopePackage());
 
     const entry = AST.module(
@@ -118,7 +118,7 @@ describe("method import scoping and type-qualified UFCS exclusions", () => {
   });
 
   test("wildcard import surfaces type-qualified exports", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     I.evaluate(buildMethodScopePackage());
 
     const entry = AST.module(

@@ -7,5 +7,5 @@ struct Point {
   y: i32
 }
 fn format_point(value: Point) -> Point where Point: Show {
-  value
+  value;
 }

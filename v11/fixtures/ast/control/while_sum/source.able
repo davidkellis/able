@@ -1,8 +1,8 @@
-sum := 0
-i := 0
-limit := 3
+sum := 0;
+i := 0;
+limit := 3;
 while i < limit {
-  sum = sum + i
-  i = i + 1
+  sum = sum + i;
+  i = i + 1;
 }
-sum
+sum;

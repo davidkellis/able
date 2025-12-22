@@ -1,0 +1,33 @@
+package exec_04_07_04_alias_methods_impls_interaction
+
+import able.core.interfaces.{Display}
+
+## Semantics: methods/impls attached to an alias apply to the underlying type for lookup and dispatch.
+
+struct Counter { value: i32 }
+type Count = Counter
+
+methods Count {
+  fn add(self: Self, delta: i32) -> Count {
+    Counter { value: self.value + delta }
+  }
+
+  fn label(self: Self) -> String { `count ${self.value}` }
+}
+
+impl Display for Count {
+  fn to_string(self: Count) -> String { self.label() }
+}
+
+fn describe(counter: Counter) -> String {
+  bumped := counter.add(2)
+  `${counter.label()} -> ${bumped.to_string()}`
+}
+
+fn main() -> void {
+  start := Counter { value: 5 }
+  alias_view: Count = start.add(1)
+
+  print(describe(start))
+  print(`alias ${alias_view.label()}`)
+}

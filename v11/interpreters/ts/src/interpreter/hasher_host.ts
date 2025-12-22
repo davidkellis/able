@@ -1,5 +1,5 @@
-import type { InterpreterV10 } from "./index";
-import type { V10Value } from "./values";
+import type { Interpreter } from "./index";
+import type { RuntimeValue } from "./values";
 import { makeIntegerValue, numericToNumber } from "./numeric";
 
 const FNV_OFFSET = 0x811c9dc5;
@@ -8,7 +8,7 @@ const FNV_PRIME = 0x01000193;
 const encoder = new TextEncoder();
 
 declare module "./index" {
-  interface InterpreterV10 {
+  interface Interpreter {
     ensureHasherBuiltins(): void;
     hasherBuiltinsInitialized: boolean;
     nextHasherHandle: number;
@@ -16,7 +16,7 @@ declare module "./index" {
   }
 }
 
-function expectString(value: V10Value, label: string): string {
+function expectString(value: RuntimeValue, label: string): string {
   if (value.kind !== "String") {
     throw new Error(`${label} must be a string`);
   }
@@ -32,12 +32,12 @@ function updateHash(current: number, bytes: Uint8Array): number {
   return hash >>> 0;
 }
 
-export function applyHasherHostAugmentations(cls: typeof InterpreterV10): void {
-  cls.prototype.ensureHasherBuiltins = function ensureHasherBuiltins(this: InterpreterV10): void {
+export function applyHasherHostAugmentations(cls: typeof Interpreter): void {
+  cls.prototype.ensureHasherBuiltins = function ensureHasherBuiltins(this: Interpreter): void {
     if (this.hasherBuiltinsInitialized) return;
     this.hasherBuiltinsInitialized = true;
 
-    const defineIfMissing = (name: string, factory: () => Extract<V10Value, { kind: "native_function" }>) => {
+    const defineIfMissing = (name: string, factory: () => Extract<RuntimeValue, { kind: "native_function" }>) => {
       try {
         this.globals.get(name);
         return;

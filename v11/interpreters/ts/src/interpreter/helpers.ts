@@ -1,16 +1,16 @@
-import type { InterpreterV10 } from "./index";
-import type { V10Value } from "./values";
+import type { Interpreter } from "./index";
+import type { RuntimeValue } from "./values";
 
 declare module "./index" {
-  interface InterpreterV10 {
-    registerSymbol(name: string, value: V10Value): void;
+  interface Interpreter {
+    registerSymbol(name: string, value: RuntimeValue): void;
     qualifiedName(name: string): string | null;
-    isTruthy(v: V10Value): boolean;
+    isTruthy(v: RuntimeValue): boolean;
   }
 }
 
-export function applyHelperAugmentations(cls: typeof InterpreterV10): void {
-  cls.prototype.registerSymbol = function registerSymbol(this: InterpreterV10, name: string, value: V10Value): void {
+export function applyHelperAugmentations(cls: typeof Interpreter): void {
+  cls.prototype.registerSymbol = function registerSymbol(this: Interpreter, name: string, value: RuntimeValue): void {
     if (!this.currentPackage) return;
     if (!this.packageRegistry.has(this.currentPackage)) this.packageRegistry.set(this.currentPackage, new Map());
     const bucket = this.packageRegistry.get(this.currentPackage)!;
@@ -27,22 +27,31 @@ export function applyHelperAugmentations(cls: typeof InterpreterV10): void {
     }
   };
 
-  cls.prototype.qualifiedName = function qualifiedName(this: InterpreterV10, name: string): string | null {
+  cls.prototype.qualifiedName = function qualifiedName(this: Interpreter, name: string): string | null {
     return this.currentPackage ? `${this.currentPackage}.${name}` : null;
   };
 
-  cls.prototype.isTruthy = function isTruthy(this: InterpreterV10, v: V10Value): boolean {
+  cls.prototype.isTruthy = function isTruthy(this: Interpreter, v: RuntimeValue): boolean {
     switch (v.kind) {
       case "bool":
         return v.value;
       case "nil":
         return false;
+      case "error":
+        return false;
+      case "interface_value":
+        if (v.interfaceName === "Error") return false;
+        break;
       default:
-        return true;
+        break;
     }
+    const typeName = this.getTypeNameForValue(v);
+    if (!typeName) return true;
+    const typeArgs = v.kind === "struct_instance" ? v.typeArguments : undefined;
+    return !this.typeImplementsInterface(typeName, "Error", typeArgs);
   };
 }
 
-function isFunctionLike(v: V10Value): v is Extract<V10Value, { kind: "function" | "function_overload" }> {
+function isFunctionLike(v: RuntimeValue): v is Extract<RuntimeValue, { kind: "function" | "function_overload" }> {
   return v.kind === "function" || v.kind === "function_overload";
 }

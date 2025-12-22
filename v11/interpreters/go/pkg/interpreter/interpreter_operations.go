@@ -6,8 +6,8 @@ import (
 	"math/big"
 	"strings"
 
-	"able/interpreter10-go/pkg/ast"
-	"able/interpreter10-go/pkg/runtime"
+	"able/interpreter-go/pkg/ast"
+	"able/interpreter-go/pkg/runtime"
 )
 
 const numericEpsilon = 1e-9
@@ -500,10 +500,30 @@ func valuesEqual(left runtime.Value, right runtime.Value) bool {
 		return valuesEqual(left, iv.Underlying)
 	}
 	switch lv := left.(type) {
+	case *runtime.StructDefinitionValue:
+		if lv == nil {
+			return false
+		}
+		switch rv := right.(type) {
+		case *runtime.StructDefinitionValue:
+			if rv == nil {
+				return false
+			}
+			return structDefName(*lv) != "" && structDefName(*lv) == structDefName(*rv)
+		case runtime.StructDefinitionValue:
+			return structDefName(*lv) != "" && structDefName(*lv) == structDefName(rv)
+		case *runtime.StructInstanceValue:
+			return structDefName(*lv) != "" && structDefName(*lv) == structInstanceName(rv) && structInstanceEmpty(rv)
+		}
 	case runtime.StructDefinitionValue:
 		switch rv := right.(type) {
 		case runtime.StructDefinitionValue:
 			return structDefName(lv) != "" && structDefName(lv) == structDefName(rv)
+		case *runtime.StructDefinitionValue:
+			if rv == nil {
+				return false
+			}
+			return structDefName(lv) != "" && structDefName(lv) == structDefName(*rv)
 		case *runtime.StructInstanceValue:
 			return structDefName(lv) != "" && structDefName(lv) == structInstanceName(rv) && structInstanceEmpty(rv)
 		}
@@ -511,6 +531,11 @@ func valuesEqual(left runtime.Value, right runtime.Value) bool {
 		switch rv := right.(type) {
 		case runtime.StructDefinitionValue:
 			return structInstanceName(lv) != "" && structInstanceName(lv) == structDefName(rv) && structInstanceEmpty(lv)
+		case *runtime.StructDefinitionValue:
+			if rv == nil {
+				return false
+			}
+			return structInstanceName(lv) != "" && structInstanceName(lv) == structDefName(*rv) && structInstanceEmpty(lv)
 		case *runtime.StructInstanceValue:
 			return structInstancesEqual(lv, rv)
 		}
@@ -528,6 +553,9 @@ func valuesEqual(left runtime.Value, right runtime.Value) bool {
 		}
 	case runtime.NilValue:
 		_, ok := right.(runtime.NilValue)
+		return ok
+	case runtime.VoidValue:
+		_, ok := right.(runtime.VoidValue)
 		return ok
 	case runtime.IntegerValue:
 		switch rv := right.(type) {

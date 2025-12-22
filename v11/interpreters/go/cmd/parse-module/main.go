@@ -6,7 +6,7 @@ import (
 	"io"
 	"os"
 
-	"able/interpreter10-go/pkg/parser"
+	"able/interpreter-go/pkg/parser"
 )
 
 func main() {

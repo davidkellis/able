@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - labeled breakpoint/break", () => {
   test("break to label returns value and unwinds through loop", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const body = AST.blockExpression([
       AST.assignmentExpression(":=", AST.identifier("sum"), AST.integerLiteral(0)),
       AST.forLoop(
@@ -28,7 +28,7 @@ describe("v11 interpreter - labeled breakpoint/break", () => {
   });
 
   test("no break: returns last body expr", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const body = AST.blockExpression([
       AST.integerLiteral(1), AST.integerLiteral(2)
     ]);

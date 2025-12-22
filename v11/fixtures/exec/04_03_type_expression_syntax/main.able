@@ -1,0 +1,41 @@
+package exec_04_03_type_expression_syntax
+
+## Semantics: nested type expressions and generic application syntax.
+
+struct Pair A B { left: A, right: B }
+struct Box T { value: T }
+
+type IntOrText = i32 | String
+## PairList exercises multiple type arguments with space-delimited syntax.
+type PairList = Array (Pair i32 String)
+## NestedBox exercises nested generic arguments with parentheses.
+type NestedBox = Box (Array (Pair i32 String))
+
+fn sum_left(values: PairList) -> i32 {
+  total := 0
+  for v in values {
+    total = total + v.left
+  }
+  return total
+}
+
+fn describe(value: IntOrText) -> String {
+  value match {
+    case n: i32 => `int ${n}`,
+    case s: String => `text ${s}`
+  }
+}
+
+fn main() -> void {
+  ## Explicit generic application in type annotations.
+  one: Pair i32 String = Pair { left: 1, right: "one" }
+  two: Pair i32 String = Pair { left: 2, right: "two" }
+
+  ## Nested generic application via alias and array literal.
+  boxed: NestedBox = Box { value: [one, two] }
+  print(`sum ${sum_left(boxed.value)}`)
+
+  ## Union type expression via alias + match.
+  print(describe(3))
+  print(describe("hi"))
+}

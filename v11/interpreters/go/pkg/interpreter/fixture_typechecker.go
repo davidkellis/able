@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	"able/interpreter10-go/pkg/typechecker"
+	"able/interpreter-go/pkg/typechecker"
 )
 
 const fixtureTypecheckEnv = "ABLE_TYPECHECK_FIXTURES"

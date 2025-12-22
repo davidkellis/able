@@ -1,19 +1,19 @@
 import * as AST from "../ast";
-import type { InterpreterV10 } from "./index";
-import type { V10Value } from "./values";
+import type { Interpreter } from "./index";
+import type { RuntimeValue } from "./values";
 import { RaiseSignal } from "./signals";
 import { makeIntegerValue, numericToNumber } from "./numeric";
 import { callCallableValue } from "./functions";
 import { memberAccessOnValue } from "./structs";
 
-type ProcHandleValue = Extract<V10Value, { kind: "proc_handle" }>;
-type BoolValue = Extract<V10Value, { kind: "bool" }>;
-type NilValue = Extract<V10Value, { kind: "nil" }>;
-type ErrorValue = Extract<V10Value, { kind: "error" }>;
+type ProcHandleValue = Extract<RuntimeValue, { kind: "proc_handle" }>;
+type BoolValue = Extract<RuntimeValue, { kind: "bool" }>;
+type NilValue = Extract<RuntimeValue, { kind: "nil" }>;
+type ErrorValue = Extract<RuntimeValue, { kind: "error" }>;
 
 interface ChannelSendWaiter {
   handle: ProcHandleValue;
-  value: V10Value;
+  value: RuntimeValue;
   error?: ErrorValue;
 }
 
@@ -24,7 +24,7 @@ interface ChannelReceiveWaiter {
 interface ChannelState {
   id: number;
   capacity: number;
-  queue: V10Value[];
+  queue: RuntimeValue[];
   closed: boolean;
   sendWaiters: ChannelSendWaiter[];
   receiveWaiters: ChannelReceiveWaiter[];
@@ -41,13 +41,13 @@ interface MutexState {
 }
 
 interface MutexAwaitRegistration {
-  waker: Extract<V10Value, { kind: "struct_instance" }>;
+  waker: Extract<RuntimeValue, { kind: "struct_instance" }>;
   cancelled?: boolean;
 }
 
 interface ChannelAwaitRegistration {
   kind: "send" | "receive";
-  waker: Extract<V10Value, { kind: "struct_instance" }>;
+  waker: Extract<RuntimeValue, { kind: "struct_instance" }>;
   cancelled?: boolean;
 }
 
@@ -55,7 +55,7 @@ const NIL: NilValue = { kind: "nil", value: null };
 const AWAITABLE_STRUCT = AST.structDefinition("ChannelAwaitable", [], "named");
 
 declare module "./index" {
-  interface InterpreterV10 {
+  interface Interpreter {
     ensureChannelMutexBuiltins(): void;
     channelMutexBuiltinsInitialized: boolean;
     nextChannelHandle: number;
@@ -71,24 +71,24 @@ declare module "./values" {
     waitingMutex?: MutexState;
     waitingChannelSend?: {
       state: ChannelState;
-      value: V10Value;
+      value: RuntimeValue;
       delivered?: boolean;
       error?: ErrorValue;
     };
     waitingChannelReceive?: {
       state: ChannelState;
       ready?: boolean;
-      value?: V10Value;
+      value?: RuntimeValue;
       closed?: boolean;
     };
   }
 }
 
-function toHandleNumber(value: V10Value, label: string): number {
+function toHandleNumber(value: RuntimeValue, label: string): number {
   return Math.trunc(numericToNumber(value, label, { requireSafeInteger: true }));
 }
 
-function blockOnNilChannel(interp: InterpreterV10): V10Value {
+function blockOnNilChannel(interp: Interpreter): RuntimeValue {
   const ctx = interp.currentAsyncContext();
   if (!ctx || ctx.kind !== "proc") {
     throw new Error("Nil channel operations must occur inside a proc");
@@ -102,7 +102,7 @@ function blockOnNilChannel(interp: InterpreterV10): V10Value {
   return NIL;
 }
 
-function requireProcContext(interp: InterpreterV10, action: string): ProcHandleValue {
+function requireProcContext(interp: Interpreter, action: string): ProcHandleValue {
   const ctx = interp.currentAsyncContext();
   if (!ctx || ctx.kind !== "proc") {
     throw new Error(`${action} must occur inside a proc`);
@@ -110,7 +110,7 @@ function requireProcContext(interp: InterpreterV10, action: string): ProcHandleV
   return ctx.handle;
 }
 
-function scheduleProc(interp: InterpreterV10, handle: ProcHandleValue): void {
+function scheduleProc(interp: Interpreter, handle: ProcHandleValue): void {
   handle.awaitBlocked = false;
   if (!handle.runner) {
     handle.runner = () => interp.runProcHandle(handle);
@@ -118,7 +118,7 @@ function scheduleProc(interp: InterpreterV10, handle: ProcHandleValue): void {
   interp.scheduleAsync(handle.runner);
 }
 
-function getChannelState(interp: InterpreterV10, handle: number): ChannelState | undefined {
+function getChannelState(interp: Interpreter, handle: number): ChannelState | undefined {
   const state = interp.channelStates.get(handle);
   if (state) {
     if (!state.sendWaiters) {
@@ -131,7 +131,7 @@ function getChannelState(interp: InterpreterV10, handle: number): ChannelState |
   return state;
 }
 
-function resolveChannelErrorStruct(interp: InterpreterV10, structName: string): AST.StructDefinition | null {
+function resolveChannelErrorStruct(interp: Interpreter, structName: string): AST.StructDefinition | null {
   if (interp.channelErrorStructs.has(structName)) {
     return interp.channelErrorStructs.get(structName)!;
   }
@@ -164,17 +164,17 @@ function resolveChannelErrorStruct(interp: InterpreterV10, structName: string): 
   return null;
 }
 
-function makeChannelErrorValue(interp: InterpreterV10, structName: string, fallbackMessage: string): ErrorValue {
+function makeChannelErrorValue(interp: Interpreter, structName: string, fallbackMessage: string): ErrorValue {
   let structDef = resolveChannelErrorStruct(interp, structName);
   if (!structDef) {
     structDef = AST.structDefinition(structName, [], "named");
     interp.channelErrorStructs.set(structName, structDef);
   }
-  const instance = interp.makeNamedStructInstance(structDef, []) as Extract<V10Value, { kind: "struct_instance" }>;
+  const instance = interp.makeNamedStructInstance(structDef, []) as Extract<RuntimeValue, { kind: "struct_instance" }>;
   return { kind: "error", message: fallbackMessage, value: instance };
 }
 
-function raiseChannelError(interp: InterpreterV10, structName: string, fallbackMessage: string): never {
+function raiseChannelError(interp: Interpreter, structName: string, fallbackMessage: string): never {
   const err = makeChannelErrorValue(interp, structName, fallbackMessage);
   throw new RaiseSignal(err);
 }
@@ -182,7 +182,7 @@ function raiseChannelError(interp: InterpreterV10, structName: string, fallbackM
 function addChannelAwaiter(
   state: ChannelState,
   kind: ChannelAwaitRegistration["kind"],
-  waker: Extract<V10Value, { kind: "struct_instance" }>,
+  waker: Extract<RuntimeValue, { kind: "struct_instance" }>,
 ): ChannelAwaitRegistration {
   const registration: ChannelAwaitRegistration = { kind, waker };
   const bucketKey = kind === "send" ? "awaitSendRegistrations" : "awaitReceiveRegistrations";
@@ -200,7 +200,7 @@ function cancelChannelAwaiter(state: ChannelState, registration: ChannelAwaitReg
   bucket?.delete(registration);
 }
 
-function triggerChannelAwaiter(interp: InterpreterV10, registration: ChannelAwaitRegistration): void {
+function triggerChannelAwaiter(interp: Interpreter, registration: ChannelAwaitRegistration): void {
   if (!registration || registration.cancelled) return;
   const wakeMember = AST.identifier("wake");
   try {
@@ -212,7 +212,7 @@ function triggerChannelAwaiter(interp: InterpreterV10, registration: ChannelAwai
 }
 
 function notifyChannelAwaiters(
-  interp: InterpreterV10,
+  interp: Interpreter,
   state: ChannelState,
   kind: ChannelAwaitRegistration["kind"],
 ): void {
@@ -223,7 +223,7 @@ function notifyChannelAwaiters(
   }
 }
 
-function addMutexAwaiter(state: MutexState, waker: Extract<V10Value, { kind: "struct_instance" }>): MutexAwaitRegistration {
+function addMutexAwaiter(state: MutexState, waker: Extract<RuntimeValue, { kind: "struct_instance" }>): MutexAwaitRegistration {
   const registration: MutexAwaitRegistration = { waker };
   if (!state.awaitRegistrations) {
     state.awaitRegistrations = new Set();
@@ -238,7 +238,7 @@ function cancelMutexAwaiter(state: MutexState, registration: MutexAwaitRegistrat
   state.awaitRegistrations?.delete(registration);
 }
 
-function notifyMutexAwaiters(interp: InterpreterV10, state: MutexState): void {
+function notifyMutexAwaiters(interp: Interpreter, state: MutexState): void {
   const regs = state.awaitRegistrations ? Array.from(state.awaitRegistrations) : [];
   state.awaitRegistrations?.clear();
   for (const reg of regs) {
@@ -252,15 +252,15 @@ function notifyMutexAwaiters(interp: InterpreterV10, state: MutexState): void {
   }
 }
 
-export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void {
-  cls.prototype.ensureChannelMutexBuiltins = function ensureChannelMutexBuiltins(this: InterpreterV10): void {
+export function applyChannelMutexAugmentations(cls: typeof Interpreter): void {
+  cls.prototype.ensureChannelMutexBuiltins = function ensureChannelMutexBuiltins(this: Interpreter): void {
     if (this.channelMutexBuiltinsInitialized) return;
     this.channelMutexBuiltinsInitialized = true;
 
     if (!this.channelStates) this.channelStates = new Map();
     if (!this.mutexStates) this.mutexStates = new Map();
 
-    const defineIfMissing = (name: string, factory: () => Extract<V10Value, { kind: "native_function" }>) => {
+    const defineIfMissing = (name: string, factory: () => Extract<RuntimeValue, { kind: "native_function" }>) => {
       try {
         this.globals.get(name);
         return;
@@ -273,10 +273,10 @@ export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void
     const makeChannelAwaitable = (
       handleNumber: number,
       op: "send" | "receive",
-      payload: V10Value | null,
-      callback?: V10Value,
-    ): Extract<V10Value, { kind: "struct_instance" }> => {
-      const inst: Extract<V10Value, { kind: "struct_instance" }> = {
+      payload: RuntimeValue | null,
+      callback?: RuntimeValue,
+    ): Extract<RuntimeValue, { kind: "struct_instance" }> => {
+      const inst: Extract<RuntimeValue, { kind: "struct_instance" }> = {
         kind: "struct_instance",
         def: AWAITABLE_STRUCT,
         values: new Map(),
@@ -348,7 +348,7 @@ export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void
 
       const isDefault = this.makeNativeFunction("Awaitable.is_default", 1, () => ({ kind: "bool", value: false }));
 
-      const values = inst.values as Map<string, V10Value>;
+      const values = inst.values as Map<string, RuntimeValue>;
       values.set("is_ready", this.bindNativeMethod(isReady, inst));
       values.set("register", this.bindNativeMethod(register, inst));
       values.set("commit", this.bindNativeMethod(commit, inst));
@@ -783,7 +783,7 @@ export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void
       this.makeNativeFunction("__able_mutex_await_lock", 2, (interp, args) => {
         const handle = toHandleNumber(args[0], "mutex handle");
         const callback = args[1];
-        const inst: Extract<V10Value, { kind: "struct_instance" }> = {
+        const inst: Extract<RuntimeValue, { kind: "struct_instance" }> = {
           kind: "struct_instance",
           def: AWAITABLE_STRUCT,
           values: new Map(),
@@ -823,7 +823,7 @@ export function applyChannelMutexAugmentations(cls: typeof InterpreterV10): void
           return callCallableValue(nativeInterp, callback, [], nativeInterp.globals);
         });
         const isDefault = interp.makeNativeFunction("Awaitable.is_default", 1, () => ({ kind: "bool", value: false }));
-        const values = inst.values as Map<string, V10Value>;
+        const values = inst.values as Map<string, RuntimeValue>;
         values.set("is_ready", interp.bindNativeMethod(isReady, inst));
         values.set("register", interp.bindNativeMethod(register, inst));
         values.set("commit", interp.bindNativeMethod(commit, inst));

@@ -1,5 +1,5 @@
 struct Box {
   values: Array i32
 }
-box := Box { values: [1, 2, 3] }
-box.values
+box := Box { values: [1, 2, 3] };
+box.values;

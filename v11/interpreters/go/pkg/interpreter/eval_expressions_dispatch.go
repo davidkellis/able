@@ -5,8 +5,8 @@ import (
 	"math/big"
 	"strings"
 
-	"able/interpreter10-go/pkg/ast"
-	"able/interpreter10-go/pkg/runtime"
+	"able/interpreter-go/pkg/ast"
+	"able/interpreter-go/pkg/runtime"
 )
 
 func (i *Interpreter) evaluateExpression(node ast.Expression, env *runtime.Environment) (runtime.Value, error) {
@@ -227,7 +227,7 @@ func (i *Interpreter) evaluateIfExpression(expr *ast.IfExpression, env *runtime.
 	if err != nil {
 		return nil, err
 	}
-	if isTruthy(cond) {
+	if i.isTruthy(cond) {
 		return i.evaluateBlock(expr.IfBody, env)
 	}
 	for _, clause := range expr.ElseIfClauses {
@@ -235,14 +235,14 @@ func (i *Interpreter) evaluateIfExpression(expr *ast.IfExpression, env *runtime.
 		if err != nil {
 			return nil, err
 		}
-		if isTruthy(clauseCond) {
+		if i.isTruthy(clauseCond) {
 			return i.evaluateBlock(clause.Body, env)
 		}
 	}
 	if expr.ElseBody != nil {
 		return i.evaluateBlock(expr.ElseBody, env)
 	}
-	return runtime.NilValue{}, nil
+	return runtime.VoidValue{}, nil
 }
 
 func (i *Interpreter) evaluateMatchExpression(expr *ast.MatchExpression, env *runtime.Environment) (runtime.Value, error) {
@@ -263,7 +263,7 @@ func (i *Interpreter) evaluateMatchExpression(expr *ast.MatchExpression, env *ru
 			if err != nil {
 				return nil, err
 			}
-			if !isTruthy(guardVal) {
+			if !i.isTruthy(guardVal) {
 				continue
 			}
 		}
@@ -294,7 +294,7 @@ func (i *Interpreter) evaluateRescueExpression(expr *ast.RescueExpression, env *
 				state.popRaise()
 				return nil, gErr
 			}
-			if !isTruthy(guardVal) {
+			if !i.isTruthy(guardVal) {
 				state.popRaise()
 				continue
 			}

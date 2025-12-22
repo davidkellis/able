@@ -1,5 +1,5 @@
-value := "ok"
+value := "ok";
 result := value! or {
-  "fallback"
-}
-result
+  "fallback";
+};
+result;

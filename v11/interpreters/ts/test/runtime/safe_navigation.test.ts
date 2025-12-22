@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("runtime safe navigation", () => {
   test("returns nil when receiver is nil", () => {
-    const interpreter = new InterpreterV10();
+    const interpreter = new Interpreter();
     interpreter.evaluate(AST.assign("user", AST.nilLiteral()));
     const result = interpreter.evaluate(
       AST.memberAccessExpression(AST.identifier("user"), "profile", { isSafe: true }),
@@ -13,7 +13,7 @@ describe("runtime safe navigation", () => {
   });
 
   test("short-circuits method call arguments when receiver is nil", () => {
-    const interpreter = new InterpreterV10();
+    const interpreter = new Interpreter();
     interpreter.evaluate(AST.assign("calls", AST.int(0)));
     interpreter.evaluate(
       AST.functionDefinition(

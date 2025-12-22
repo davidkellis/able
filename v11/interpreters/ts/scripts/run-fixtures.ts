@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import type { AST } from "../index";
-import { TypeChecker, V10 } from "../index";
+import { TypeChecker, V11 } from "../index";
 import type {
   PackageSummary,
   TypecheckerDiagnostic,
@@ -38,9 +38,11 @@ const STDLIB_ROOT = path.resolve(__dirname, "../../../stdlib/src");
 const KERNEL_ROOT = path.resolve(__dirname, "../../../kernel/src");
 const STDLIB_STRING_ENTRY = path.join(STDLIB_ROOT, "text", "string.able");
 const STDLIB_CONCURRENCY_ENTRY = path.join(STDLIB_ROOT, "concurrency", "await.able");
+const STDLIB_HASH_MAP_ENTRY = path.join(STDLIB_ROOT, "collections", "hash_map.able");
 const stdlibLoader = new ModuleLoader([STDLIB_ROOT, KERNEL_ROOT]);
 let stdlibStringProgram: Program | null = null;
 let stdlibConcurrencyProgram: Program | null = null;
+let stdlibHashMapProgram: Program | null = null;
 const EXEC_ROOT = path.resolve(__dirname, "../../../fixtures/exec");
 
 type FixtureResult = { name: string; description?: string };
@@ -80,7 +82,7 @@ async function main() {
       if (FIXTURE_FILTER && !relativeName.includes(FIXTURE_FILTER)) {
         continue;
       }
-      const interpreter = new V10.InterpreterV10();
+      const interpreter = new V11.Interpreter();
       ensurePrint(interpreter);
       installRuntimeStubs(interpreter);
 
@@ -91,12 +93,16 @@ async function main() {
       const moduleAst = await loadModuleFromFixture(fixtureDir, entry);
       const needsStdlibString = moduleImportsStdlibString(moduleAst);
       const needsStdlibConcurrency = moduleImportsStdlibConcurrency(moduleAst);
+      const needsStdlibHashMap = moduleImportsStdlibHashMap(moduleAst);
       const stdlibPrograms: Program[] = [];
       if (needsStdlibString) {
         stdlibPrograms.push(await ensureStdlibStringProgram());
       }
       if (needsStdlibConcurrency) {
         stdlibPrograms.push(await ensureStdlibConcurrencyProgram());
+      }
+      if (needsStdlibHashMap) {
+        stdlibPrograms.push(await ensureStdlibHashMapProgram());
       }
       const setupModules: AST.Module[] = [];
       if (manifest.setup) {
@@ -148,7 +154,7 @@ async function main() {
       enforceTypecheckBaseline(relativeName, TYPECHECK_MODE, formattedDiagnostics, existingBaseline);
     }
 
-      let result: V10.V10Value | undefined;
+      let result: V11.RuntimeValue | undefined;
       interceptStdout(stdout, () => {
         try {
           for (const stdlibProgram of stdlibPrograms) {
@@ -163,7 +169,7 @@ async function main() {
         }
       });
 
-      assertExpectations(fixtureDir, manifest.expect, result, stdout, evaluationError, typecheckDiagnostics);
+      assertExpectations(fixtureDir, manifest.expect, result, stdout, evaluationError, typecheckDiagnostics, interpreter);
       results.push({ name: relativeName, description: manifest.description });
     }
 
@@ -244,11 +250,11 @@ async function runExecFixture(dir: string): Promise<FixtureResult> {
   const loader = new ModuleLoader([STDLIB_ROOT, KERNEL_ROOT]);
   const program = await loader.load(entryPath);
 
-  const interpreter = new V10.InterpreterV10();
+  const interpreter = new V11.Interpreter();
   installRuntimeStubs(interpreter);
 
   const stdout: string[] = [];
-  const nilValue: V10.V10Value = { kind: "nil", value: null };
+  const nilValue: V11.RuntimeValue = { kind: "nil", value: null };
   interpreter.globals.define(
     "print",
     interpreter.makeNativeFunction("print", 1, (_interp, args) => {
@@ -317,6 +323,10 @@ function moduleImportsStdlibConcurrency(module: AST.Module): boolean {
   return moduleImportsPackage(module, "able.concurrency");
 }
 
+function moduleImportsStdlibHashMap(module: AST.Module): boolean {
+  return moduleImportsPackage(module, "able.collections.hash_map");
+}
+
 function moduleImportsPackage(module: AST.Module, pkgName: string): boolean {
   return Array.isArray((module as any)?.imports)
     ? (module as any).imports.some((imp: any) => {
@@ -341,7 +351,14 @@ async function ensureStdlibConcurrencyProgram(): Promise<Program> {
   return stdlibConcurrencyProgram;
 }
 
-function evaluateProgram(interpreter: V10.InterpreterV10, program: Program): void {
+async function ensureStdlibHashMapProgram(): Promise<Program> {
+  if (!stdlibHashMapProgram) {
+    stdlibHashMapProgram = await stdlibLoader.load(STDLIB_HASH_MAP_ENTRY);
+  }
+  return stdlibHashMapProgram;
+}
+
+function evaluateProgram(interpreter: V11.Interpreter, program: Program): void {
   const nonEntry = program.modules.filter((mod) => mod.packageName !== program.entry.packageName);
   for (const mod of nonEntry) {
     interpreter.evaluate(mod.module);
@@ -362,10 +379,11 @@ async function readExistingBaseline(filePath: string): Promise<Record<string, st
 function assertExpectations(
   dir: string,
   expect: Manifest["expect"],
-  result: V10.V10Value | undefined,
+  result: V11.RuntimeValue | undefined,
   stdout: string[],
   evaluationError: unknown,
   _typecheckDiagnostics: TypecheckerDiagnostic[],
+  interpreter: V11.Interpreter,
 ) {
   if (!expect) {
     if (evaluationError) {
@@ -404,10 +422,7 @@ function assertExpectations(
       }
     }
     if (expect.result.entries) {
-      if (result.kind !== "hash_map") {
-        throw new Error(`Fixture ${dir} expected hash_map entries but result was ${result.kind}`);
-      }
-      compareMapEntries(dir, expect.result.entries, result);
+      compareMapEntries(interpreter, dir, expect.result.entries, result);
     }
   }
   if (expect.stdout) {
@@ -441,8 +456,13 @@ function assertExpectations(
   }
 }
 
-function compareMapEntries(dir: string, expected: { key: unknown; value: unknown }[], value: V10.V10Value): void {
-  const entries = serializeMapEntries(value as Extract<V10.V10Value, { kind: "hash_map" }>);
+function compareMapEntries(
+  interpreter: V11.Interpreter,
+  dir: string,
+  expected: { key: unknown; value: unknown }[],
+  value: V11.RuntimeValue,
+): void {
+  const entries = serializeMapEntries(interpreter, value);
   if (entries.length !== expected.length) {
     throw new Error(
       `Fixture ${dir} expected ${expected.length} map entries, got ${entries.length}`,
@@ -465,7 +485,7 @@ function compareMapEntries(dir: string, expected: { key: unknown; value: unknown
   }
 }
 
-function normalizeValueForExpect(value: V10.V10Value): unknown {
+function normalizeValueForExpect(value: V11.RuntimeValue): unknown {
   switch (value.kind) {
     case "String":
     case "char":
@@ -475,6 +495,8 @@ function normalizeValueForExpect(value: V10.V10Value): unknown {
       return { kind: value.kind, value: value.value };
     case "nil":
       return { kind: "nil", value: null };
+    case "void":
+      return { kind: "void" };
     default:
       return { kind: value.kind };
   }

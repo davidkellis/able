@@ -1,5 +1,5 @@
 // =============================================================================
-// Able v10 AST (minimal, complete coverage of concepts; TS-only data model)
+// Able v11 AST (minimal, complete coverage of concepts; TS-only data model)
 // =============================================================================
 
 // Base node with discriminant
@@ -83,7 +83,7 @@ export function mapLiteral(entries: (MapLiteralEntry | MapLiteralSpread)[]): Map
 }
 
 // -----------------------------------------------------------------------------
-// Types (surface type expressions sufficient to represent v10 authoring)
+// Types (surface type expressions sufficient to represent v11 authoring)
 // -----------------------------------------------------------------------------
 
 export interface SimpleTypeExpression extends AstNode { type: 'SimpleTypeExpression'; name: Identifier; }

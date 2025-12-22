@@ -1,14 +1,14 @@
-import type { V10Value } from "./values";
+import type { RuntimeValue } from "./values";
 import { isNumericValue, numericEquals } from "./numeric";
 
-const structName = (value: Extract<V10Value, { kind: "struct_def" | "struct_instance" }>): string | null => {
+const structName = (value: Extract<RuntimeValue, { kind: "struct_def" | "struct_instance" }>): string | null => {
   if (value.kind === "struct_def") {
     return value.def?.id?.name ?? null;
   }
   return value.def?.id?.name ?? null;
 };
 
-const isStructInstanceEmpty = (value: Extract<V10Value, { kind: "struct_instance" }>): boolean => {
+const isStructInstanceEmpty = (value: Extract<RuntimeValue, { kind: "struct_instance" }>): boolean => {
   if (Array.isArray(value.values)) {
     return value.values.length === 0;
   }
@@ -19,8 +19,8 @@ const isStructInstanceEmpty = (value: Extract<V10Value, { kind: "struct_instance
 };
 
 const structInstancesEqual = (
-  left: Extract<V10Value, { kind: "struct_instance" }>,
-  right: Extract<V10Value, { kind: "struct_instance" }>,
+  left: Extract<RuntimeValue, { kind: "struct_instance" }>,
+  right: Extract<RuntimeValue, { kind: "struct_instance" }>,
 ): boolean => {
   const leftName = structName(left);
   const rightName = structName(right);
@@ -56,7 +56,7 @@ const structInstancesEqual = (
  * match literals and runtime equality behave consistently without relying
  * on JSON.stringify (which cannot handle BigInt payloads).
  */
-export function valuesEqual(left: V10Value, right: V10Value): boolean {
+export function valuesEqual(left: RuntimeValue, right: RuntimeValue): boolean {
   if (left.kind === "interface_value") {
     return valuesEqual(left.value, right);
   }
@@ -75,6 +75,20 @@ export function valuesEqual(left: V10Value, right: V10Value): boolean {
       return right.kind === "char" && left.value === right.value;
     case "nil":
       return right.kind === "nil";
+    case "void":
+      return right.kind === "void";
+    case "iterator_end": {
+      if (right.kind === "iterator_end") return true;
+      if (right.kind === "struct_def") {
+        const rightName = structName(right);
+        return rightName === "IteratorEnd";
+      }
+      if (right.kind === "struct_instance") {
+        const rightName = structName(right);
+        return rightName === "IteratorEnd" && isStructInstanceEmpty(right);
+      }
+      return false;
+    }
     case "struct_def": {
       if (right.kind === "struct_def") {
         const leftName = structName(left);
@@ -86,6 +100,10 @@ export function valuesEqual(left: V10Value, right: V10Value): boolean {
         const rightName = structName(right);
         return !!leftName && leftName === rightName && isStructInstanceEmpty(right);
       }
+      if (right.kind === "iterator_end") {
+        const leftName = structName(left);
+        return leftName === "IteratorEnd";
+      }
       return false;
     }
     case "struct_instance": {
@@ -93,6 +111,10 @@ export function valuesEqual(left: V10Value, right: V10Value): boolean {
         const leftName = structName(left);
         const rightName = structName(right);
         return !!leftName && leftName === rightName && isStructInstanceEmpty(left);
+      }
+      if (right.kind === "iterator_end") {
+        const leftName = structName(left);
+        return leftName === "IteratorEnd" && isStructInstanceEmpty(left);
       }
       if (right.kind !== "struct_instance") return false;
       return structInstancesEqual(left, right);

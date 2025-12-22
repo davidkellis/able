@@ -3,7 +3,7 @@ package typechecker
 import (
 	"testing"
 
-	"able/interpreter10-go/pkg/ast"
+	"able/interpreter-go/pkg/ast"
 )
 
 func TestArrayMethodSetOverridesNativeSignatures(t *testing.T) {

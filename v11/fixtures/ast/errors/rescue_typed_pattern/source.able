@@ -2,4 +2,4 @@ do {
   raise "boom"
 } rescue {
   case err: Error => "caught"
-}
+};

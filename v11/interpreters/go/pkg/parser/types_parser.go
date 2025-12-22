@@ -6,7 +6,7 @@ import (
 
 	sitter "github.com/tree-sitter/go-tree-sitter"
 
-	"able/interpreter10-go/pkg/ast"
+	"able/interpreter-go/pkg/ast"
 )
 
 func applyGenericType(base ast.TypeExpression, args []ast.TypeExpression) ast.TypeExpression {
@@ -21,7 +21,25 @@ func applyGenericType(base ast.TypeExpression, args []ast.TypeExpression) ast.Ty
 		inner := applyGenericType(typed.InnerType, args)
 		return ast.NewResultTypeExpression(inner)
 	default:
-		return ast.NewGenericTypeExpression(base, args)
+		flattenedBase := base
+		flattenedArgs := args
+		if generic, ok := base.(*ast.GenericTypeExpression); ok {
+			var collected []ast.TypeExpression
+			current := ast.TypeExpression(generic)
+			for {
+				next, ok := current.(*ast.GenericTypeExpression)
+				if !ok {
+					break
+				}
+				if len(next.Arguments) > 0 {
+					collected = append(next.Arguments, collected...)
+				}
+				current = next.Base
+			}
+			flattenedBase = current
+			flattenedArgs = append(collected, args...)
+		}
+		return ast.NewGenericTypeExpression(flattenedBase, flattenedArgs)
 	}
 }
 

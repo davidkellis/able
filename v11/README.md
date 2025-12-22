@@ -1,20 +1,20 @@
 # Able v11 Workspace
 
-Able is an experimental programming language. This workspace hosts the actively developed Able v11 toolchain; the frozen v10 artifacts live at the repository root for historical reference only.
+Able is an experimental programming language. This workspace hosts the actively developed Able v11 toolchain; frozen legacy artifacts live at the repository root for historical reference only.
 
 ## Project Highlights
-- **Spec-first**: `spec/full_spec_v11.md` is the authoritative document for all new behaviour; reference `spec/full_spec_v10.md` only for historical context.
+- **Spec-first**: `spec/full_spec_v11.md` is the authoritative document for all new behaviour; consult archived specs only for historical context.
 - **Go reference interpreter**: `interpreters/go/` remains the canonical runtime, defining the shared AST (`pkg/ast`) and typechecker semantics that every other implementation must match.
 - **TypeScript interpreter**: `interpreters/ts/` mirrors the Go implementation (with Bun as the host runtime) and must stay structurally aligned with the Go AST/semantics.
 - **Canonical AST & semantics**: all runtimes consume the same AST contract. Any divergence between interpreters is treated as a bug or a spec gap that must be resolved immediately.
-- **Parser & tooling**: the v11 workspace carries its own tree-sitter grammar (`parser/`) and docs so parser work can proceed without touching the frozen v10 sources.
-- **Manual & docs**: the manuals under `docs/` currently describe v10 semantics; update them alongside spec changes so they reflect v11 behaviour.
+- **Parser & tooling**: the v11 workspace carries its own tree-sitter grammar (`parser/`) and docs so parser work can proceed without touching archived sources.
+- **Manual & docs**: the manuals under `docs/` should describe v11 semantics; update them alongside spec changes so they reflect v11 behaviour.
 
 ## Repository Layout
 - `spec/` — Language specs (v1–v11) plus TODO trackers. `full_spec_v11.md` is the active v11 document.
 - `interpreters/ts/` — Bun/TypeScript interpreter, tests, CLI tooling, and AST builders.
 - `interpreters/go/` — Go interpreter, CLI, and canonical AST/typechecker definitions.
-- `parser/` — Tree-sitter oriented parser experiments copied from the v10 workspace.
+- `parser/` — Tree-sitter oriented parser experiments copied from the archived workspace.
 - `fixtures/`, `examples/`, `stdlib/` — Shared AST fixtures, curated example programs, runnable exec fixtures (`fixtures/exec`), and stdlib sketches. See `docs/exec-fixtures.md` for authoring/running exec programs.
 - `design/`, `docs/`, `README.md`, `PLAN.md`, `AGENTS.md` — Copied documentation and roadmap files that we will update specifically for v11 work.
 
@@ -27,7 +27,7 @@ Able is an experimental programming language. This workspace hosts the actively 
 ## Getting Started
 - **Go interpreter**: install Go ≥ 1.22 and run `go test ./...` inside `interpreters/go/`. Before handing off work, prefer `./run_all_tests.sh --version=v11 --typecheck-fixtures=strict` from the repo root.
 - **TypeScript interpreter**: inside `interpreters/ts/`, run `bun install`, `bun test`, and `ABLE_TYPECHECK_FIXTURES=strict bun run scripts/run-fixtures.ts` to keep the checker aligned with Go.
-- **Specs**: edit `spec/full_spec_v11.md` for new behaviour; consult `spec/full_spec_v10.md` only to understand the frozen baseline.
+- **Specs**: edit `spec/full_spec_v11.md` for new behaviour; consult archived specs only to understand the baseline.
 
 Combined test suites:
 

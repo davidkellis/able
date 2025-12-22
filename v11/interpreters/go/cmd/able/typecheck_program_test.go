@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"able/interpreter10-go/pkg/driver"
-	"able/interpreter10-go/pkg/interpreter"
+	"able/interpreter-go/pkg/driver"
+	"able/interpreter-go/pkg/interpreter"
 )
 
 func TestRunProgramTypecheckDetectsCrossPackageMismatch(t *testing.T) {

@@ -1,0 +1,9 @@
+{
+  "description": "recursive aliases terminate via nominal struct indirection",
+  "expect": {
+    "stdout": [
+      "list head,tail"
+    ],
+    "exit": 0
+  }
+}

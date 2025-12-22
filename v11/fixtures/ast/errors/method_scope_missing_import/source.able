@@ -1,4 +1,4 @@
 import pkgmethods
 
-inst := pkgmethods.Widget.make(3)
-inst.bump(1)
+inst := pkgmethods.Widget.make(3);
+inst.bump(1);

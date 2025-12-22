@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
-import type { V10Value } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
+import type { RuntimeValue } from "../../src/interpreter";
 
 import { appendToTrace, drainScheduler, expectErrorValue, expectStructInstance, flushScheduler } from "./proc_spawn.helpers";
 
 describe("v11 interpreter - proc & spawn handles", () => {
   test("proc handle supports status, value, and cancel", async () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     const add1 = AST.functionDefinition(
       "add1",
@@ -104,7 +104,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
   });
 
   test("proc failure surfaces ProcStatus::Failed and ProcError", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     const boom = AST.functionDefinition(
       "boom",
@@ -167,7 +167,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
   });
 
   test("spawn returns memoized future handle", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     I.evaluate(
       AST.assignmentExpression(
@@ -278,7 +278,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
   });
 
   test("proc handle progresses without explicit join", async () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     I.evaluate(
       AST.assignmentExpression(
@@ -333,7 +333,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
   });
 
   test("proc cancel before start surfaces ProcError", async () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     I.evaluate(
       AST.assignmentExpression(
@@ -391,7 +391,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
   });
 
   test("proc errors expose cause via err.cause()", async () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     I.evaluate(
       AST.assignmentExpression(
@@ -460,13 +460,13 @@ describe("v11 interpreter - proc & spawn handles", () => {
       "err",
     );
 
-    const summary = I.evaluate(causeSummary) as V10Value;
+    const summary = I.evaluate(causeSummary) as RuntimeValue;
     expect(summary.kind).toBe("String");
     expect(summary.value).toBe("Proc failed: boom|has-cause");
   });
 
   test("proc cancel after resolve is no-op", async () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     I.evaluate(
       AST.assignmentExpression(

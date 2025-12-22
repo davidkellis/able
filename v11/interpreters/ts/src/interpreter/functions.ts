@@ -1,7 +1,7 @@
 import * as AST from "../ast";
 import { Environment } from "./environment";
-import type { InterpreterV10 } from "./index";
-import type { V10Value } from "./values";
+import type { Interpreter } from "./index";
+import type { RuntimeValue } from "./values";
 import { ReturnSignal } from "./signals";
 import { memberAccessOnValue } from "./structs";
 import { collectTypeDispatches } from "./type-dispatch";
@@ -14,8 +14,8 @@ function isGenericTypeReference(typeExpr: AST.TypeExpression | undefined, generi
   return false;
 }
 
-export function evaluateFunctionDefinition(ctx: InterpreterV10, node: AST.FunctionDefinition, env: Environment): V10Value {
-  const value: V10Value = { kind: "function", node, closureEnv: env };
+export function evaluateFunctionDefinition(ctx: Interpreter, node: AST.FunctionDefinition, env: Environment): RuntimeValue {
+  const value: RuntimeValue = { kind: "function", node, closureEnv: env };
   env.define(node.id.name, value);
   ctx.registerSymbol(node.id.name, value);
   const qn = ctx.qualifiedName(node.id.name);
@@ -25,14 +25,14 @@ export function evaluateFunctionDefinition(ctx: InterpreterV10, node: AST.Functi
   return { kind: "nil", value: null };
 }
 
-export function evaluateLambdaExpression(ctx: InterpreterV10, node: AST.LambdaExpression, env: Environment): V10Value {
+export function evaluateLambdaExpression(ctx: Interpreter, node: AST.LambdaExpression, env: Environment): RuntimeValue {
   return { kind: "function", node, closureEnv: env };
 }
 
 function resolveApplyFunction(
-  ctx: InterpreterV10,
-  callee: V10Value,
-): Extract<V10Value, { kind: "function" | "function_overload" }> | null {
+  ctx: Interpreter,
+  callee: RuntimeValue,
+): Extract<RuntimeValue, { kind: "function" | "function_overload" }> | null {
   const dispatches = collectTypeDispatches(ctx, callee);
   for (const dispatch of dispatches) {
     const method = ctx.findMethod(dispatch.typeName, "apply", {
@@ -44,7 +44,7 @@ function resolveApplyFunction(
   return null;
 }
 
-export function evaluateFunctionCall(ctx: InterpreterV10, node: AST.FunctionCall, env: Environment): V10Value {
+export function evaluateFunctionCall(ctx: Interpreter, node: AST.FunctionCall, env: Environment): RuntimeValue {
   if (node.callee.type === "MemberAccessExpression") {
     const receiver = ctx.evaluate(node.callee.object, env);
     if (node.callee.isSafe && receiver.kind === "nil") {
@@ -55,7 +55,7 @@ export function evaluateFunctionCall(ctx: InterpreterV10, node: AST.FunctionCall
     return callCallableValue(ctx, memberValue, callArgs, env, node);
   }
   if (node.callee.type === "Identifier") {
-    let calleeValue: V10Value | null = null;
+    let calleeValue: RuntimeValue | null = null;
     let lookupError: unknown;
     try {
       calleeValue = env.get(node.callee.name);
@@ -76,16 +76,16 @@ export function evaluateFunctionCall(ctx: InterpreterV10, node: AST.FunctionCall
   return callCallableValue(ctx, calleeEvaluated, callArgs, env, node);
 }
 
-export function callCallableValue(ctx: InterpreterV10, callee: V10Value, args: V10Value[], env: Environment, callNode?: AST.FunctionCall): V10Value {
+export function callCallableValue(ctx: Interpreter, callee: RuntimeValue, args: RuntimeValue[], env: Environment, callNode?: AST.FunctionCall): RuntimeValue {
   if (callee.kind === "partial_function") {
     const mergedCall = callNode ?? callee.callNode;
     return callCallableValue(ctx, callee.target, [...callee.boundArgs, ...args], env, mergedCall);
   }
 
-  let funcValue: Extract<V10Value, { kind: "function" }> | null = null;
-  let overloadSet: Extract<V10Value, { kind: "function_overload" }> | null = null;
-  let nativeFunc: Extract<V10Value, { kind: "native_function" }> | null = null;
-  let injectedArgs: V10Value[] = [];
+  let funcValue: Extract<RuntimeValue, { kind: "function" }> | null = null;
+  let overloadSet: Extract<RuntimeValue, { kind: "function_overload" }> | null = null;
+  let nativeFunc: Extract<RuntimeValue, { kind: "native_function" }> | null = null;
+  let injectedArgs: RuntimeValue[] = [];
 
   if (callee.kind === "bound_method") {
     if (callee.func.kind === "function_overload") {
@@ -183,7 +183,7 @@ export function callCallableValue(ctx: InterpreterV10, callee: V10Value, args: V
     const params = funcNode.params;
     const paramCount = params.length;
     let bindArgs = evalArgs;
-    let implicitReceiver: V10Value | null = null;
+    let implicitReceiver: RuntimeValue | null = null;
     let hasImplicit = false;
     if (funcNode.isMethodShorthand) {
       implicitReceiver = evalArgs[0]!;
@@ -297,7 +297,7 @@ export function callCallableValue(ctx: InterpreterV10, callee: V10Value, args: V
   throw new Error("calling unsupported function declaration");
 }
 
-function makePartialFunction(target: V10Value, boundArgs: V10Value[], callNode?: AST.FunctionCall): Extract<V10Value, { kind: "partial_function" }> {
+function makePartialFunction(target: RuntimeValue, boundArgs: RuntimeValue[], callNode?: AST.FunctionCall): Extract<RuntimeValue, { kind: "partial_function" }> {
   return { kind: "partial_function", target, boundArgs, callNode };
 }
 
@@ -310,7 +310,7 @@ function functionArityRange(funcNode: AST.FunctionDefinition | AST.LambdaExpress
   return { minArgs, maxArgs, optionalLast };
 }
 
-function overloadArityRange(overloads: Array<Extract<V10Value, { kind: "function" }>>): { minArgs: number; maxArgs: number } {
+function overloadArityRange(overloads: Array<Extract<RuntimeValue, { kind: "function" }>>): { minArgs: number; maxArgs: number } {
   let minArgs = Number.POSITIVE_INFINITY;
   let maxArgs = 0;
   for (const fn of overloads) {
@@ -323,13 +323,13 @@ function overloadArityRange(overloads: Array<Extract<V10Value, { kind: "function
 }
 
 function selectRuntimeOverload(
-  ctx: InterpreterV10,
-  overloads: Array<Extract<V10Value, { kind: "function" }>>,
-  evalArgs: V10Value[],
+  ctx: Interpreter,
+  overloads: Array<Extract<RuntimeValue, { kind: "function" }>>,
+  evalArgs: RuntimeValue[],
   callNode?: AST.FunctionCall,
-): Extract<V10Value, { kind: "function" }> | null {
+): Extract<RuntimeValue, { kind: "function" }> | null {
   const candidates: Array<{
-    fn: Extract<V10Value, { kind: "function" }>;
+    fn: Extract<RuntimeValue, { kind: "function" }>;
     params: AST.FunctionParameter[];
     optionalLast: boolean;
     score: number;

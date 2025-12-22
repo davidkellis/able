@@ -11,7 +11,7 @@ struct TreeSet T {
 
 methods TreeSet T where T: Ord + Clone {
   fn new() -> TreeSet T {
-    map: TreeMap T bool := TreeMap.new()
+    map: TreeMap T bool := TreeMap.new();
     TreeSet { map: map }
   }
 

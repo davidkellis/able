@@ -5,8 +5,8 @@ import (
 	"reflect"
 	"strings"
 
-	"able/interpreter10-go/pkg/ast"
-	"able/interpreter10-go/pkg/runtime"
+	"able/interpreter-go/pkg/ast"
+	"able/interpreter-go/pkg/runtime"
 )
 
 func decodePattern(node map[string]any) (ast.Pattern, error) {
@@ -745,6 +745,8 @@ func formatRuntimeValue(val runtime.Value) string {
 			return "true"
 		}
 		return "false"
+	case runtime.VoidValue:
+		return "void"
 	case runtime.IntegerValue:
 		return v.Val.String()
 	case runtime.FloatValue:

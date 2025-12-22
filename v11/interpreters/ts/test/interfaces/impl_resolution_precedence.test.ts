@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - impl resolution semantics", () => {
   test("inherent methods take precedence over impl methods", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     const speakable = AST.interfaceDefinition("Speakable", [
       AST.functionSignature(
@@ -64,7 +64,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
   });
 
   test("more specific impl wins over generic", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     const show = AST.interfaceDefinition("Show", [
       AST.functionSignature(
@@ -163,7 +163,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
   });
 
   test("impl with superset constraints is more specific", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     const traitA = AST.interfaceDefinition("TraitA", [
       AST.functionSignature(
@@ -349,7 +349,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
   });
 
   test("impl with where-clause superset constraints is more specific", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     const readable = AST.interfaceDefinition("Readable", [
       AST.functionSignature(

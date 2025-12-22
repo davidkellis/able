@@ -2,7 +2,7 @@
   "description": "Map literal supports spreads and overrides",
   "expect": {
     "result": {
-      "kind": "hash_map",
+      "kind": "struct_instance",
       "entries": [
         {
           "key": {

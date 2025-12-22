@@ -4230,23 +4230,7 @@
             "name": "type",
             "content": {
               "type": "SYMBOL",
-              "name": "qualified_identifier"
-            }
-          },
-          {
-            "type": "FIELD",
-            "name": "type_arguments",
-            "content": {
-              "type": "CHOICE",
-              "members": [
-                {
-                  "type": "SYMBOL",
-                  "name": "type_arguments"
-                },
-                {
-                  "type": "BLANK"
-                }
-              ]
+              "name": "type_suffix"
             }
           },
           {
@@ -5453,6 +5437,14 @@
     [
       "pattern_base",
       "wildcard_type"
+    ],
+    [
+      "struct_pattern",
+      "type_identifier"
+    ],
+    [
+      "type_suffix",
+      "type_prefix"
     ]
   ],
   "precedences": [],

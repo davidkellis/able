@@ -1,6 +1,6 @@
 import * as AST from "../ast";
 import type { Environment } from "./environment";
-import type { InterpreterV10 } from "./index";
+import type { Interpreter } from "./index";
 import { evaluateAssignmentExpression } from "./assignments";
 import {
   evaluateBlockExpression,
@@ -25,15 +25,15 @@ import { evaluateIndexExpression, evaluateRangeExpression, evaluateBinaryExpress
 import { evaluateProcExpression, evaluateSpawnExpression, evaluateBreakpointExpression, evaluateStringInterpolation, evaluateExternFunctionBody } from "./runtime_extras";
 import { evaluateIteratorLiteral, evaluateYieldStatement } from "./iterators";
 import { ProcContinuationContext } from "./proc_continuations";
-import type { V10Value } from "./values";
+import type { RuntimeValue } from "./values";
 
 declare module "./index" {
-  interface InterpreterV10 {
-    evaluate(node: AST.AstNode | null, env?: Environment): V10Value;
+  interface Interpreter {
+    evaluate(node: AST.AstNode | null, env?: Environment): RuntimeValue;
   }
 }
 
-const NIL: V10Value = { kind: "nil", value: null };
+const NIL: RuntimeValue = { kind: "nil", value: null };
 // Placeholder detection only runs for standalone expression forms; container nodes like blocks or
 // assignments need to execute normally so nested expressions can evaluate placeholders correctly.
 const EXPRESSION_TYPES = new Set<AST.AstNode["type"]>([
@@ -70,8 +70,8 @@ const EXPRESSION_TYPES = new Set<AST.AstNode["type"]>([
   "EnsureExpression",
 ]);
 
-export function applyEvaluationAugmentations(cls: typeof InterpreterV10): void {
-  cls.prototype.evaluate = function evaluate(this: InterpreterV10, node: AST.AstNode | null, env: Environment = this.globals): V10Value {
+export function applyEvaluationAugmentations(cls: typeof Interpreter): void {
+  cls.prototype.evaluate = function evaluate(this: Interpreter, node: AST.AstNode | null, env: Environment = this.globals): RuntimeValue {
     if (!node) return NIL;
     if (EXPRESSION_TYPES.has(node.type as AST.AstNode["type"]) && !this.hasPlaceholderFrame()) {
       const placeholderFn = this.tryBuildPlaceholderFunction(node as AST.Expression, env);
@@ -180,6 +180,9 @@ export function applyEvaluationAugmentations(cls: typeof InterpreterV10): void {
       case "UnionDefinition":
         return evaluateUnionDefinition(this, node as AST.UnionDefinition, env);
       case "TypeAliasDefinition":
+        if (node.id?.name === "_") {
+          throw new Error("type alias name '_' is reserved");
+        }
         if (node.id?.name) {
           this.typeAliases.set(node.id.name, node as AST.TypeAliasDefinition);
           const targetName =
@@ -213,9 +216,9 @@ export function applyEvaluationAugmentations(cls: typeof InterpreterV10): void {
 }
 
 type AwaitArmState = {
-  awaitable: V10Value;
+  awaitable: RuntimeValue;
   isDefault: boolean;
-  registration?: V10Value;
+  registration?: RuntimeValue;
 };
 
 type AwaitEvaluationState = {
@@ -224,10 +227,10 @@ type AwaitEvaluationState = {
   defaultArm?: AwaitArmState;
   waiting: boolean;
   wakePending: boolean;
-  waker?: Extract<V10Value, { kind: "struct_instance" }>;
+  waker?: Extract<RuntimeValue, { kind: "struct_instance" }>;
 };
 
-function evaluateAwaitExpression(ctx: InterpreterV10, node: AST.AwaitExpression, env: Environment): V10Value {
+function evaluateAwaitExpression(ctx: Interpreter, node: AST.AwaitExpression, env: Environment): RuntimeValue {
   const asyncCtx = ctx.currentAsyncContext();
   if (!asyncCtx || asyncCtx.kind !== "proc") {
     throw new Error("await expressions must run inside a proc");
@@ -266,10 +269,10 @@ function evaluateAwaitExpression(ctx: InterpreterV10, node: AST.AwaitExpression,
 }
 
 function initializeAwaitState(
-  ctx: InterpreterV10,
+  ctx: Interpreter,
   node: AST.AwaitExpression,
   env: Environment,
-  handle: Extract<V10Value, { kind: "proc_handle" }>,
+  handle: Extract<RuntimeValue, { kind: "proc_handle" }>,
 ): AwaitEvaluationState {
   const iterableValue = ctx.evaluate(node.expression, env);
   const arms = collectAwaitArms(ctx, iterableValue, env);
@@ -291,7 +294,7 @@ function initializeAwaitState(
   return state;
 }
 
-function collectAwaitArms(ctx: InterpreterV10, iterable: V10Value, env: Environment): AwaitArmState[] {
+function collectAwaitArms(ctx: Interpreter, iterable: RuntimeValue, env: Environment): AwaitArmState[] {
   if (iterable.kind === "array") {
     return iterable.elements.map((value) => ({
       awaitable: value,
@@ -315,7 +318,7 @@ function collectAwaitArms(ctx: InterpreterV10, iterable: V10Value, env: Environm
   return arms;
 }
 
-function checkAwaitArmIsDefault(ctx: InterpreterV10, awaitable: V10Value, env: Environment): boolean {
+function checkAwaitArmIsDefault(ctx: Interpreter, awaitable: RuntimeValue, env: Environment): boolean {
   try {
     const member = memberAccessOnValue(ctx, awaitable, AST.identifier("is_default"), env);
     const result = callCallableValue(ctx, member, [], env);
@@ -325,7 +328,7 @@ function checkAwaitArmIsDefault(ctx: InterpreterV10, awaitable: V10Value, env: E
   }
 }
 
-function selectReadyAwaitArm(ctx: InterpreterV10, state: AwaitEvaluationState): AwaitArmState | undefined {
+function selectReadyAwaitArm(ctx: Interpreter, state: AwaitEvaluationState): AwaitArmState | undefined {
   const ready: AwaitArmState[] = [];
   for (const arm of state.arms) {
     if (arm.isDefault) continue;
@@ -340,7 +343,7 @@ function selectReadyAwaitArm(ctx: InterpreterV10, state: AwaitEvaluationState): 
   return ready[start];
 }
 
-function registerAwaitState(ctx: InterpreterV10, state: AwaitEvaluationState): void {
+function registerAwaitState(ctx: Interpreter, state: AwaitEvaluationState): void {
   const waker = state.waker;
   if (!waker) return;
   for (const arm of state.arms) {
@@ -354,11 +357,11 @@ function registerAwaitState(ctx: InterpreterV10, state: AwaitEvaluationState): v
 }
 
 function cleanupAwaitState(
-  ctx: InterpreterV10,
+  ctx: Interpreter,
   procContext: ProcContinuationContext,
   node: AST.AwaitExpression,
   state: AwaitEvaluationState,
-  handle?: Extract<V10Value, { kind: "proc_handle" }>,
+  handle?: Extract<RuntimeValue, { kind: "proc_handle" }>,
 ): void {
   procContext.clearAwaitState(node);
   for (const arm of state.arms) {
@@ -374,13 +377,13 @@ function cleanupAwaitState(
 }
 
 function completeAwait(
-  ctx: InterpreterV10,
+  ctx: Interpreter,
   procContext: ProcContinuationContext,
   node: AST.AwaitExpression,
   state: AwaitEvaluationState,
   winner: AwaitArmState,
-  handle: Extract<V10Value, { kind: "proc_handle" }>,
-): V10Value {
+  handle: Extract<RuntimeValue, { kind: "proc_handle" }>,
+): RuntimeValue {
   for (const arm of state.arms) {
     if (arm === winner) continue;
     if (arm.registration) {
@@ -394,7 +397,7 @@ function completeAwait(
   return result;
 }
 
-function cancelAwaitRegistration(ctx: InterpreterV10, registration: V10Value, env: Environment): void {
+function cancelAwaitRegistration(ctx: Interpreter, registration: RuntimeValue, env: Environment): void {
   try {
     const member = memberAccessOnValue(ctx, registration, AST.identifier("cancel"), env);
     callCallableValue(ctx, member, [], env);
@@ -404,12 +407,12 @@ function cancelAwaitRegistration(ctx: InterpreterV10, registration: V10Value, en
 }
 
 function invokeAwaitableMethod(
-  ctx: InterpreterV10,
-  awaitable: V10Value,
+  ctx: Interpreter,
+  awaitable: RuntimeValue,
   methodName: string,
-  args: V10Value[],
+  args: RuntimeValue[],
   env: Environment,
-): V10Value {
+): RuntimeValue {
   const member = memberAccessOnValue(ctx, awaitable, AST.identifier(methodName), env);
   return callCallableValue(ctx, member, args, env);
 }

@@ -1,4 +1,4 @@
 import speaklib.*
 
-talker := Talker { name: "hi" }
-talker.speak()
+talker := Talker { name: "hi" };
+talker.speak();

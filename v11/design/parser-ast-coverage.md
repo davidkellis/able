@@ -1,7 +1,7 @@
-# Parser & AST Coverage Checklist (Able v10)
+# Parser & AST Coverage Checklist (Able v11)
 
 ## Purpose
-- Track every surface feature defined in [`spec/full_spec_v10.md`](../spec/full_spec_v10.md) and confirm that:
+- Track every surface feature defined in [`spec/full_spec_v11.md`](../spec/full_spec_v11.md) and confirm that:
   - the parser produces the correct concrete syntax tree and canonical AST, and
   - the shared AST fixture suite exercises the feature (both interpreters consume these fixtures).
 - Serve as the canonical backlog for parser/AST gaps until every item is verified by dedicated tests/fixtures.
@@ -13,9 +13,9 @@
 
 > **Note:** As of the latest audit, every feature now has AST fixtures (`TODO` appears only in the “Parser Tests” column). Remaining `TODO` entries indicate missing parser assertions, not fixture gaps.
 
-> **Note:** “Parser Tests” refers to focused assertions in `interpreter10-go/pkg/parser/*`. “AST Fixtures” refers to entries under `fixtures/ast` exported via `interpreter10/scripts/export-fixtures.ts`.
+> **Note:** “Parser Tests” refers to focused assertions in `interpreter-go/pkg/parser/*`. “AST Fixtures” refers to entries under `fixtures/ast` exported via `v11/interpreters/ts/scripts/export-fixtures.ts`.
 
-> **Note:** Fixtures that include a `source.able` file are automatically round-tripped by the TypeScript harness (`interpreter10/test/parser/fixtures_parser.test.ts`), which shells out to the Go parser CLI for now.
+> **Note:** Fixtures that include a `source.able` file are automatically round-tripped by the TypeScript harness (`v11/interpreters/ts/test/parser/fixtures_parser.test.ts`), which shells out to the Go parser CLI for now.
 
 ---
 

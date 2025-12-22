@@ -1,10 +1,10 @@
 import * as AST from "../ast";
 import { Environment } from "./environment";
-import type { InterpreterV10 } from "./index";
-import type { V10Value } from "./values";
+import type { Interpreter } from "./index";
+import type { RuntimeValue } from "./values";
 
 export type PlaceholderFrame = {
-  args: V10Value[];
+  args: RuntimeValue[];
   paramCount: number;
 };
 
@@ -13,38 +13,38 @@ type PlaceholderPlan = {
 };
 
 declare module "./index" {
-  interface InterpreterV10 {
+  interface Interpreter {
     placeholderFrames: PlaceholderFrame[];
     hasPlaceholderFrame(): boolean;
-    pushPlaceholderFrame(plan: PlaceholderPlan, args: V10Value[]): void;
+    pushPlaceholderFrame(plan: PlaceholderPlan, args: RuntimeValue[]): void;
     popPlaceholderFrame(): void;
     currentPlaceholderFrame(): PlaceholderFrame | undefined;
-    evaluatePlaceholderExpression(node: AST.PlaceholderExpression, env: Environment): V10Value;
-    tryBuildPlaceholderFunction(node: AST.Expression, env: Environment): V10Value | null;
+    evaluatePlaceholderExpression(node: AST.PlaceholderExpression, env: Environment): RuntimeValue;
+    tryBuildPlaceholderFunction(node: AST.Expression, env: Environment): RuntimeValue | null;
   }
 }
 
-export function applyPlaceholderAugmentations(cls: typeof InterpreterV10): void {
-  cls.prototype.hasPlaceholderFrame = function hasPlaceholderFrame(this: InterpreterV10): boolean {
+export function applyPlaceholderAugmentations(cls: typeof Interpreter): void {
+  cls.prototype.hasPlaceholderFrame = function hasPlaceholderFrame(this: Interpreter): boolean {
     return this.placeholderFrames.length > 0;
   };
 
-  cls.prototype.pushPlaceholderFrame = function pushPlaceholderFrame(this: InterpreterV10, plan: PlaceholderPlan, args: V10Value[]): void {
+  cls.prototype.pushPlaceholderFrame = function pushPlaceholderFrame(this: Interpreter, plan: PlaceholderPlan, args: RuntimeValue[]): void {
     const frame: PlaceholderFrame = { args, paramCount: plan.paramCount };
     this.placeholderFrames.push(frame);
   };
 
-  cls.prototype.popPlaceholderFrame = function popPlaceholderFrame(this: InterpreterV10): void {
+  cls.prototype.popPlaceholderFrame = function popPlaceholderFrame(this: Interpreter): void {
     if (this.placeholderFrames.length === 0) return;
     this.placeholderFrames.pop();
   };
 
-  cls.prototype.currentPlaceholderFrame = function currentPlaceholderFrame(this: InterpreterV10): PlaceholderFrame | undefined {
+  cls.prototype.currentPlaceholderFrame = function currentPlaceholderFrame(this: Interpreter): PlaceholderFrame | undefined {
     if (this.placeholderFrames.length === 0) return undefined;
     return this.placeholderFrames[this.placeholderFrames.length - 1];
   };
 
-  cls.prototype.evaluatePlaceholderExpression = function evaluatePlaceholderExpression(this: InterpreterV10, node: AST.PlaceholderExpression): V10Value {
+  cls.prototype.evaluatePlaceholderExpression = function evaluatePlaceholderExpression(this: Interpreter, node: AST.PlaceholderExpression): RuntimeValue {
     const frame = this.currentPlaceholderFrame();
     if (!frame) {
       throw new Error("Expression placeholder used outside of placeholder lambda");
@@ -54,7 +54,7 @@ export function applyPlaceholderAugmentations(cls: typeof InterpreterV10): void 
     return placeholderValueAt(frame, idx);
   };
 
-  cls.prototype.tryBuildPlaceholderFunction = function tryBuildPlaceholderFunction(this: InterpreterV10, node: AST.Expression, env: Environment): V10Value | null {
+  cls.prototype.tryBuildPlaceholderFunction = function tryBuildPlaceholderFunction(this: Interpreter, node: AST.Expression, env: Environment): RuntimeValue | null {
     if (this.hasPlaceholderFrame()) return null;
     if (node.type === "AssignmentExpression") {
       return null;
@@ -79,7 +79,7 @@ export function applyPlaceholderAugmentations(cls: typeof InterpreterV10): void 
     }
     const placeholderExpr = node;
     const placeholderEnv = env;
-    const func: Extract<V10Value, { kind: "native_function" }> = {
+    const func: Extract<RuntimeValue, { kind: "native_function" }> = {
       kind: "native_function",
       name: "<placeholder>",
       arity: plan.paramCount,
@@ -101,7 +101,7 @@ export function applyPlaceholderAugmentations(cls: typeof InterpreterV10): void 
   };
 }
 
-function placeholderValueAt(frame: PlaceholderFrame, index: number): V10Value {
+function placeholderValueAt(frame: PlaceholderFrame, index: number): RuntimeValue {
   if (index <= 0 || index > frame.args.length) {
     throw new Error(`Placeholder index @${index} is out of range`);
   }

@@ -1,6 +1,6 @@
 package typechecker
 
-import "able/interpreter10-go/pkg/ast"
+import "able/interpreter-go/pkg/ast"
 
 // InferenceMap tracks the resolved type of each AST node.
 type InferenceMap map[ast.Node]Type

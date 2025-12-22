@@ -1,6 +1,6 @@
 package typechecker
 
-import "able/interpreter10-go/pkg/ast"
+import "able/interpreter-go/pkg/ast"
 
 type placeholderPlan struct {
 	paramCount int

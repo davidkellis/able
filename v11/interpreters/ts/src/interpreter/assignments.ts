@@ -1,7 +1,7 @@
 import * as AST from "../ast";
 import type { Environment } from "./environment";
-import type { InterpreterV10 } from "./index";
-import type { V10Value } from "./values";
+import type { Interpreter } from "./index";
+import type { RuntimeValue } from "./values";
 import { numericToNumber } from "./numeric";
 import { resolveIndexFunction } from "./operations";
 import { callCallableValue } from "./functions";
@@ -71,7 +71,7 @@ function analyzeDeclarationTargets(
   return { declarationNames, hasAny: names.size > 0 };
 }
 
-export function evaluateAssignmentExpression(ctx: InterpreterV10, node: AST.AssignmentExpression, env: Environment): V10Value {
+export function evaluateAssignmentExpression(ctx: Interpreter, node: AST.AssignmentExpression, env: Environment): RuntimeValue {
   const value = ctx.evaluate(node.right, env);
   const isCompound = ["+=", "-=", "*=", "/=", "%=", ".&=", ".|=", ".^=", ".<<=", ".>>="].includes(node.operator);
 
@@ -164,7 +164,7 @@ export function evaluateAssignmentExpression(ctx: InterpreterV10, node: AST.Assi
       const idx = Number(node.left.member.value);
       if (idx < 0 || idx >= targetObj.values.length) throw new Error("Struct field index out of bounds");
       if (isCompound) {
-        const current = targetObj.values[idx] as V10Value;
+        const current = targetObj.values[idx] as RuntimeValue;
         const op = node.operator.slice(0, -1);
         const computed = ctx.computeBinaryForCompound(op, current, value);
         targetObj.values[idx] = computed;
@@ -183,7 +183,7 @@ export function evaluateAssignmentExpression(ctx: InterpreterV10, node: AST.Assi
           return value;
         }
         if (name === "length") {
-          const nilValue: V10Value = { kind: "nil", value: null };
+          const nilValue: RuntimeValue = { kind: "nil", value: null };
           const len = Math.max(0, Math.trunc(numericToNumber(value, "array length", { requireSafeInteger: true })));
           if (len < state.values.length) {
             state.values.length = len;

@@ -1,6 +1,6 @@
 import * as AST from "../ast";
-import type { InterpreterV10 } from "./index";
-import type { V10Value } from "./values";
+import type { Interpreter } from "./index";
+import type { RuntimeValue } from "./values";
 
 export type TypeDispatch = { typeName: string; typeArgs: AST.TypeExpression[] };
 
@@ -16,7 +16,7 @@ function parseTypeDispatch(expr: AST.TypeExpression | null | undefined): TypeDis
   return { typeName: base.name.name, typeArgs: args };
 }
 
-export function collectTypeDispatches(ctx: InterpreterV10, value: V10Value): TypeDispatch[] {
+export function collectTypeDispatches(ctx: Interpreter, value: RuntimeValue): TypeDispatch[] {
   const dispatches: TypeDispatch[] = [];
   const primary = parseTypeDispatch(ctx.typeExpressionForValue(value));
   if (primary) dispatches.push(primary);

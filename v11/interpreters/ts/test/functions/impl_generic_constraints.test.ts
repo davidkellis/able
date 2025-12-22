@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - impl generic constraints", () => {
-  function registerShowInterfaceAndPoint(interpreter: InterpreterV10) {
+  function registerShowInterfaceAndPoint(interpreter: Interpreter) {
     const show = AST.interfaceDefinition("Show", [
       AST.functionSignature(
         "to_String",
@@ -48,7 +48,7 @@ describe("v11 interpreter - impl generic constraints", () => {
   }
 
   test("impl method dispatch enforces constraints before call", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     registerShowInterfaceAndPoint(I);
 
     const wrapperDef = AST.structDefinition(

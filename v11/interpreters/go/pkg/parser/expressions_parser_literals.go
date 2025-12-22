@@ -1,7 +1,7 @@
 package parser
 
 import (
-	"able/interpreter10-go/pkg/ast"
+	"able/interpreter-go/pkg/ast"
 	"fmt"
 	sitter "github.com/tree-sitter/go-tree-sitter"
 	"strconv"
@@ -143,6 +143,27 @@ func (ctx *parseContext) parseArrayLiteral(node *sitter.Node) (ast.Expression, e
 	return annotateExpression(ast.NewArrayLiteral(elements), node), nil
 }
 
+func extractStructLiteralType(expr ast.TypeExpression) (*ast.Identifier, []ast.TypeExpression, error) {
+	switch typed := expr.(type) {
+	case *ast.SimpleTypeExpression:
+		if typed.Name == nil {
+			return nil, nil, fmt.Errorf("parser: struct literal missing type identifier")
+		}
+		return typed.Name, nil, nil
+	case *ast.GenericTypeExpression:
+		base, baseArgs, err := extractStructLiteralType(typed.Base)
+		if err != nil {
+			return nil, nil, err
+		}
+		args := make([]ast.TypeExpression, 0, len(baseArgs)+len(typed.Arguments))
+		args = append(args, baseArgs...)
+		args = append(args, typed.Arguments...)
+		return base, args, nil
+	default:
+		return nil, nil, fmt.Errorf("parser: struct literal type must be nominal")
+	}
+}
+
 func (ctx *parseContext) parseStructLiteral(node *sitter.Node) (ast.Expression, error) {
 	if node == nil || node.Kind() != "struct_literal" {
 		return nil, fmt.Errorf("parser: expected struct literal node")
@@ -152,21 +173,11 @@ func (ctx *parseContext) parseStructLiteral(node *sitter.Node) (ast.Expression, 
 	if typeNode == nil {
 		return nil, fmt.Errorf("parser: struct literal missing type")
 	}
-
-	parts, err := parseQualifiedIdentifier(typeNode, ctx.source)
-	if err != nil {
-		return nil, err
-	}
-	if len(parts) == 0 {
+	typeExpr := ctx.parseTypeExpression(typeNode)
+	if typeExpr == nil {
 		return nil, fmt.Errorf("parser: invalid struct literal type")
 	}
-
-	structType := collapseQualifiedIdentifier(parts)
-	if structType == nil {
-		return nil, fmt.Errorf("parser: struct literal missing type identifier")
-	}
-
-	typeArgs, err := ctx.parseTypeArgumentList(node.ChildByFieldName("type_arguments"))
+	structType, typeArgs, err := extractStructLiteralType(typeExpr)
 	if err != nil {
 		return nil, err
 	}
@@ -174,15 +185,13 @@ func (ctx *parseContext) parseStructLiteral(node *sitter.Node) (ast.Expression, 
 	fields := make([]*ast.StructFieldInitializer, 0)
 	var functionalUpdates []ast.Expression
 
-	typeArgsNode := node.ChildByFieldName("type_arguments")
-
 	for i := uint(0); i < node.NamedChildCount(); i++ {
 		child := node.NamedChild(i)
 		if child == nil || isIgnorableNode(child) {
 			continue
 		}
 		fieldName := node.FieldNameForChild(uint32(i))
-		if fieldName == "type" || fieldName == "type_arguments" || sameNode(child, typeNode) || sameNode(child, typeArgsNode) {
+		if fieldName == "type" || sameNode(child, typeNode) {
 			continue
 		}
 
@@ -270,6 +279,11 @@ func (ctx *parseContext) parseMapLiteral(node *sitter.Node) (ast.Expression, err
 		child := node.NamedChild(i)
 		if child == nil || isIgnorableNode(child) {
 			continue
+		}
+		if child.Kind() == "map_literal_element" {
+			if nested := firstNamedChild(child); nested != nil {
+				child = nested
+			}
 		}
 		switch child.Kind() {
 		case "map_literal_entry":

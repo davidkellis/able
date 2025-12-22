@@ -1,302 +1,45 @@
 package hash_map
-import able.kernel.{Array}
-import able.collections.array
+import able.kernel.{HashMap::KernelHashMap, raw_get, raw_set, raw_remove, raw_contains, raw_size, raw_clear, raw_for_each, raw_clone}
 import able.collections.map.{Map}
-import able.core.errors.{IndexError}
 import able.core.interfaces.{Clone, Default, Hash, Eq, Index, IndexMut}
-import able.core.iteration.{IteratorEnd}
-import able.text.string
+import able.core.errors.{IndexError}
 
-struct SlotEntry K V { key: K, value: V, hash: i32 }
+## Re-export kernel HashMap under the stdlib namespace.
+type HashMap K V = KernelHashMap K V
+HashMap := KernelHashMap
 
-struct Slot K V {
-  tag: i32,
-  entry: ?SlotEntry K V
+methods HashMap K V {
+  fn get(self: Self, key: K) -> ?V { self.raw_get(key) }
+  fn set(self: Self, key: K, value: V) -> void { self.raw_set(key, value) }
+  fn remove(self: Self, key: K) -> ?V { self.raw_remove(key) }
+  fn contains(self: Self, key: K) -> bool { self.raw_contains(key) }
+  fn size(self: Self) -> i32 { self.raw_size() }
+  fn is_empty(self: Self) -> bool { self.raw_size() == 0 }
+  fn clear(self: Self) -> void { self.raw_clear() }
+  fn for_each(self: Self, visit: (K, V) -> void) -> void { self.raw_for_each(visit) }
+  fn clone_shallow(self: Self) -> HashMap K V { self.raw_clone() }
 }
 
-fn tag_empty() -> i32 { 0 }
-fn tag_tombstone() -> i32 { 1 }
-fn tag_filled() -> i32 { 2 }
-
-fn min_capacity() -> i32 { 8 }
-fn load_factor_num() -> i32 { 7 }
-fn load_factor_den() -> i32 { 10 }
-
-fn normalize_hash(value: i32) -> i32 {
-  if value < 0 {
-    if value == -2147483648 { 2147483647 } else { 0 - value }
-  } else {
-    value
-  }
+impl Map K V for HashMap K V where K: Hash + Eq K {
+  fn get(self: Self, key: K) -> ?V { self.raw_get(key) }
+  fn set(self: Self, key: K, value: V) -> void { self.raw_set(key, value) }
+  fn remove(self: Self, key: K) -> ?V { self.raw_remove(key) }
+  fn contains(self: Self, key: K) -> bool { self.raw_contains(key) }
+  fn size(self: Self) -> i32 { self.raw_size() }
 }
 
-fn hash_bool(value: bool) -> i32 {
-  if value { 1 } else { 0 }
-}
-
-fn hash_i32(value: i32) -> i32 {
-  normalized := normalize_hash(value)
-  mixed := normalized + (normalized .>> 16)
-  normalize_hash(mixed)
-}
-
-fn hash_string(value: String) -> i32 {
-  state: i32 = 0
-  iter := value.bytes()
-  loop {
-    iter.next() match {
-      case byte: u8 => {
-        if state > 2000000000 { state = state - 1500000000 }
-        state = state + byte
-        state = state + (state .>> 5)
-      },
-      case _: IteratorEnd => { break },
-      case _ => { break }
+impl Index K V for HashMap K V where K: Hash + Eq K {
+  fn get(self: Self, key: K) -> !V {
+    self.raw_get(key) match {
+      case nil => IndexError { index: -1, length: self.raw_size() },
+      case value: V => value
     }
-  }
-  normalize_hash(state)
-}
-
-fn hash_key<K>(key: K) -> i32 {
-  key match {
-    case value: i32 => hash_i32(value),
-    case value: bool => hash_bool(value),
-    case value: String => hash_string(value),
-    case _ => 0
   }
 }
 
-fn keys_equal<K>(left: K, right: K) -> bool {
-  left == right
-}
-
-fn slot_empty<K, V>() -> Slot K V { Slot { tag: tag_empty(), entry: nil } }
-fn slot_tombstone<K, V>() -> Slot K V { Slot { tag: tag_tombstone(), entry: nil } }
-fn slot_filled<K, V>(key: K, value: V, hash: i32) -> Slot K V {
-  Slot { tag: tag_filled(), entry: SlotEntry { key: key, value: value, hash: hash } }
-}
-
-fn fill_with_empty<K, V>(entries: Array (Slot K V)) -> void {
-  capacity := entries.capacity()
-  idx := 0
-  loop {
-    if idx >= capacity { break }
-    entries.write_slot(idx, slot_empty())
-    idx = idx + 1
-  }
-}
-
-struct HashMap K V {
-  entries: Array (Slot K V),
-  len: i32,
-  used: i32
-}
-
-methods HashMap K V where K: Hash + Eq K {
-  fn new() -> HashMap K V { HashMap.with_capacity(min_capacity()) }
-
-  fn with_capacity(capacity: i32) -> HashMap K V {
-    target := max_i32(min_capacity(), next_power_of_two(capacity))
-    entries := Array.with_capacity(target)
-    fill_with_empty(entries)
-    HashMap { entries: entries, len: 0, used: 0 }
-  }
-
-  fn clear(self: Self) -> void {
-    fill_with_empty(self.entries)
-    self.len = 0
-    self.used = 0
-  }
-
-  fn capacity(self: Self) -> i32 { self.entries.capacity() }
-
-  fn mask(self: Self) -> i32 { self.capacity() - 1 }
-
-  fn load_limit(self: Self) -> i32 {
-    (self.capacity() * load_factor_num()) // load_factor_den()
-  }
-
-  fn is_empty(self: Self) -> bool { self.len == 0 }
-
-  fn maybe_grow(self: Self) -> void {
-    if self.used >= self.load_limit() {
-      self.resize(self.capacity() * 2)
-    }
-  }
-
-  fn resize(self: Self, new_capacity: i32) -> void {
-    fresh_capacity := max_i32(min_capacity(), next_power_of_two(new_capacity))
-    new_entries := Array.with_capacity(fresh_capacity)
-    fill_with_empty(new_entries)
-
-    old_entries := self.entries
-    old_capacity := old_entries.capacity()
-
-    self.entries = new_entries
-    self.len = 0
-    self.used = 0
-
-    idx := 0
-    loop {
-      if idx >= old_capacity { break }
-      slot := old_entries.read_slot(idx)
-      if slot.tag == tag_filled() {
-        slot.entry match {
-          case nil => {},
-          case filled => self.insert_internal(filled.hash, filled.key, filled.value, false)
-        }
-      }
-      idx = idx + 1
-    }
-  }
-
-  fn insert_internal(self: Self, hash: i32, key: K, value: V, allow_resize: bool) -> void {
-    if allow_resize {
-      self.maybe_grow()
-    }
-
-    capacity := self.capacity()
-    mask := capacity - 1
-    index := hash .& mask
-    first_tombstone := -1
-
-    loop {
-      slot := self.entries.read_slot(index)
-      if slot.tag == tag_empty() {
-        target := index
-        if first_tombstone >= 0 { target = first_tombstone }
-        self.entries.write_slot(target, slot_filled(key, value, hash))
-        if first_tombstone < 0 { self.used = self.used + 1 }
-        self.len = self.len + 1
-        return
-      }
-
-      if slot.tag == tag_tombstone() {
-        if first_tombstone < 0 { first_tombstone = index }
-      }
-
-      if slot.tag == tag_filled() {
-        slot.entry match {
-          case nil => {},
-          case filled => {
-            equal_keys := (filled.hash == hash) && keys_equal(key, filled.key)
-            if equal_keys {
-              self.entries.write_slot(index, slot_filled(filled.key, value, hash))
-              return
-            }
-          }
-        }
-      }
-
-      index = (index + 1) .& mask
-    }
-  }
-
-  fn find_index(self: Self, hash: i32, key: K) -> i32 {
-    if self.len == 0 { return -1 }
-    capacity := self.capacity()
-    mask := capacity - 1
-    index := hash .& mask
-
-    loop {
-      slot := self.entries.read_slot(index)
-      if slot.tag == tag_empty() {
-        return -1
-      }
-
-      if slot.tag == tag_filled() {
-        slot.entry match {
-          case nil => {},
-          case filled => {
-            equal_keys := (filled.hash == hash) && keys_equal(key, filled.key)
-            if equal_keys { return index }
-          }
-        }
-      }
-
-      index = (index + 1) .& mask
-    }
-  }
-
-  fn get_entry(self: Self, key: K) -> ?SlotEntry K V {
-    hash := hash_key(key)
-    index := self.find_index(hash, key)
-    if index < 0 { return nil }
-    slot := self.entries.read_slot(index)
-    if slot.tag != tag_filled() { return nil }
-    slot.entry
-  }
-
-  fn get_value(self: Self, key: K) -> ?V {
-    self.get_entry(key) match {
-      case nil => nil,
-      case filled => filled.value
-    }
-  }
-
-  fn put_value(self: Self, key: K, value: V) -> void {
-    hash := hash_key(key)
-    self.insert_internal(hash, key, value, true)
-  }
-
-  fn take_value(self: Self, key: K) -> ?V {
-    if self.len == 0 { return nil }
-    hash := hash_key(key)
-    index := self.find_index(hash, key)
-    if index < 0 { return nil }
-
-    slot := self.entries.read_slot(index)
-    if slot.tag != tag_filled() { return nil }
-
-    slot.entry match {
-      case nil => nil,
-      case filled => {
-        self.entries.write_slot(index, slot_tombstone())
-        self.len = self.len - 1
-        filled.value
-      }
-    }
-  }
-
-  fn has_key(self: Self, key: K) -> bool {
-    self.get_entry(key) match {
-      case nil => false,
-      case _ => true
-    }
-  }
-
-  fn get(self: Self, key: K) -> ?V {
-    self.get_value(key)
-  }
-
-  fn set(self: Self, key: K, value: V) -> void {
-    self.put_value(key, value)
-  }
-
-  fn remove(self: Self, key: K) -> ?V {
-    self.take_value(key)
-  }
-
-  fn contains(self: Self, key: K) -> bool {
-    self.has_key(key)
-  }
-
-  fn size(self: Self) -> i32 { self.len }
-
-  fn for_each(self: Self, visit: (K, V) -> void) -> void {
-    capacity := self.entries.capacity()
-    idx := 0
-    loop {
-      if idx >= capacity { break }
-      slot := self.entries.read_slot(idx)
-      if slot.tag == tag_filled() {
-        slot.entry match {
-          case nil => {},
-          case filled => visit(filled.key, filled.value)
-        }
-      }
-      idx = idx + 1
-    }
+impl IndexMut K V for HashMap K V where K: Hash + Eq K {
+  fn set(self: Self, key: K, value: V) -> !void {
+    self.raw_set(key, value)
   }
 }
 
@@ -305,69 +48,5 @@ impl Default for HashMap K V where K: Hash + Eq K {
 }
 
 impl Clone for HashMap K V where K: Hash + Eq K {
-  fn clone(self: Self) -> HashMap K V {
-    HashMap { entries: self.entries.clone(), len: self.len, used: self.used }
-  }
-}
-
-impl Map K V for HashMap K V where K: Hash + Eq K {
-  fn get(self: Self, key: K) -> ?V {
-    self.get_value(key)
-  }
-
-  fn set(self: Self, key: K, value: V) -> void {
-    self.put_value(key, value)
-  }
-
-  fn remove(self: Self, key: K) -> ?V {
-    self.take_value(key)
-  }
-
-  fn contains(self: Self, key: K) -> bool {
-    self.has_key(key)
-  }
-
-  fn size(self: Self) -> i32 { self.len }
-}
-
-impl Index K V for HashMap K V where K: Hash + Eq K {
-  fn get(self: Self, key: K) -> !V {
-    hash := hash_key(key)
-    index := self.find_index(hash, key)
-    if index < 0 {
-      IndexError { index: -1, length: self.len }
-    } else {
-      slot := self.entries.read_slot(index)
-      if slot.tag != tag_filled() {
-        IndexError { index: -1, length: self.len }
-      } else {
-        slot.entry match {
-          case nil => IndexError { index: -1, length: self.len },
-          case filled => filled.value
-        }
-      }
-    }
-  }
-}
-
-impl IndexMut K V for HashMap K V where K: Hash + Eq K {
-  fn set(self: Self, key: K, value: V) -> !void {
-    hash := hash_key(key)
-    self.insert_internal(hash, key, value, true)
-  }
-}
-
-fn next_power_of_two(value: i32) -> i32 {
-  if value <= 1 { return 1 }
-  v := value - 1
-  v = v .| (v .>> 1)
-  v = v .| (v .>> 2)
-  v = v .| (v .>> 4)
-  v = v .| (v .>> 8)
-  v = v .| (v .>> 16)
-  v + 1
-}
-
-fn max_i32(a: i32, b: i32) -> i32 {
-  if a > b { a } else { b }
+  fn clone(self: Self) -> HashMap K V { self.clone_shallow() }
 }

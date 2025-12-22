@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"able/interpreter10-go/pkg/ast"
-	"able/interpreter10-go/pkg/driver"
+	"able/interpreter-go/pkg/ast"
+	"able/interpreter-go/pkg/driver"
 )
 
 // ModuleDiagnostic ties a diagnostic to the package/files that produced it.

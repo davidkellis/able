@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"unicode/utf8"
 
-	"able/interpreter10-go/pkg/runtime"
+	"able/interpreter-go/pkg/runtime"
 )
 
 func (i *Interpreter) ensureStringHostBuiltins() {

@@ -22,7 +22,7 @@ impl Index i32 i32 for Pair
 impl IndexMut i32 i32 for Pair
 {
   fn set(self: Self, idx: i32, value: i32) -> void {
-    self.values[idx] = value
+    self.values[idx] = value;
     return nil
   }
 }
@@ -32,7 +32,7 @@ impl Apply i32 i32 for Pair
     return self.get(idx)
   }
 }
-pair := Pair { values: [2, 5] }
-pair[0] = pair(1) + 3
-pair[1] = pair[0] + pair(1)
-pair[0] + pair(1)
+pair := Pair { values: [2, 5] };
+pair[0] = pair(1) + 3;
+pair[1] = pair[0] + pair(1);
+pair[0] + pair(1);

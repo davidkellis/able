@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - destructuring function parameters", () => {
   test("array destructuring params", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const fn = AST.functionDefinition(
       "sum2",
       [AST.functionParameter(AST.arrayPattern([AST.identifier("a"), AST.identifier("b")]))],
@@ -18,7 +18,7 @@ describe("v11 interpreter - destructuring function parameters", () => {
   });
 
   test("struct destructuring params", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const pointDef = AST.structDefinition(
       "Point",
       [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "x"), AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "y")],

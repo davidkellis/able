@@ -66,6 +66,78 @@
     "focus": "package imports, private type/impl visibility errors"
   },
   {
+    "id": "exec/04_07_02_alias_generic_substitution",
+    "status": "seeded",
+    "spec_sections": ["4.7.2"],
+    "focus": "generic alias substitution/inference through chains and nested arguments"
+  },
+  {
+    "id": "exec/04_07_03_alias_scope_visibility_imports",
+    "status": "seeded",
+    "spec_sections": ["4.7.3", "13.4"],
+    "focus": "alias export/import visibility with selective vs qualified access"
+  },
+  {
+    "id": "exec/04_07_04_alias_methods_impls_interaction",
+    "status": "seeded",
+    "spec_sections": ["4.7.4", "9", "14.1.6"],
+    "focus": "alias-attached methods and impls dispatching via the underlying type"
+  },
+  {
+    "id": "exec/04_07_05_alias_recursion_termination",
+    "status": "seeded",
+    "spec_sections": ["4.7.5"],
+    "focus": "recursive alias allowed through nominal indirection; direct cycles rejected"
+  },
+  {
+    "id": "exec/05_00_mutability_declaration_vs_assignment",
+    "status": "seeded",
+    "spec_sections": ["5.0", "5.1"],
+    "focus": "declaring vs reassigning bindings and shared mutation across aliases"
+  },
+  {
+    "id": "exec/05_02_identifier_wildcard_typed_patterns",
+    "status": "seeded",
+    "spec_sections": ["5.2.1", "5.2.2", "5.2.7"],
+    "focus": "identifier vs wildcard patterns with inline type annotations in destructuring"
+  },
+  {
+    "id": "exec/05_02_struct_pattern_rename_typed",
+    "status": "seeded",
+    "spec_sections": ["5.2.3"],
+    "focus": "struct pattern rename operator with inline type annotations and nesting"
+  },
+  {
+    "id": "exec/05_02_array_nested_patterns",
+    "status": "seeded",
+    "spec_sections": ["5.2.5", "5.2.6"],
+    "focus": "array and nested destructuring with rest bindings"
+  },
+  {
+    "id": "exec/05_03_assignment_evaluation_order",
+    "status": "seeded",
+    "spec_sections": ["5.3", "5.3.1"],
+    "focus": "assignment evaluates RHS once before binding compound patterns"
+  },
+  {
+    "id": "exec/06_01_literals_array_map_inference",
+    "status": "seeded",
+    "spec_sections": ["6.1.7", "6.1.8"],
+    "focus": "array literal inference with nested arrays maintaining element typing"
+  },
+  {
+    "id": "exec/06_02_block_expression_value_scope",
+    "status": "seeded",
+    "spec_sections": ["6.2"],
+    "focus": "block expression value equals last expression; inner bindings stay scoped"
+  },
+  {
+    "id": "exec/06_03_operator_precedence_associativity",
+    "status": "seeded",
+    "spec_sections": ["6.3.1"],
+    "focus": "operator precedence/associativity across arithmetic and boolean chains"
+  },
+  {
     "id": "exec/04_07_types_alias_union_generic_combo",
     "status": "seeded",
     "spec_sections": ["4.7", "4.6", "7.1"],
@@ -76,5 +148,47 @@
     "status": "seeded",
     "spec_sections": ["11.2"],
     "focus": "option/result propagation with ! and or handling"
+  },
+  {
+    "id": "exec/02_lexical_comments_identifiers",
+    "status": "seeded",
+    "spec_sections": ["2", "6.9"],
+    "focus": "identifiers vs placeholder tokens, comments ignored, trailing commas, delimiter-based line joining"
+  },
+  {
+    "id": "exec/03_blocks_expr_separation",
+    "status": "seeded",
+    "spec_sections": ["3", "6.2"],
+    "focus": "block expression separation via newline/semicolon with last expression value and scoped bindings"
+  },
+  {
+    "id": "exec/04_01_type_inference_constraints",
+    "status": "seeded",
+    "spec_sections": ["4.1.4-4.1.6"],
+    "focus": "generic inference via combine helper with Display-backed to_string output"
+  },
+  {
+    "id": "exec/04_02_primitives_truthiness_numeric",
+    "status": "seeded",
+    "spec_sections": ["4.2", "6.1.1-6.1.3", "6.3.2", "6.11"],
+    "focus": "primitive literal forms, Euclidean div/mod, and truthiness for nil/false/error"
+  },
+  {
+    "id": "exec/04_03_type_expression_syntax",
+    "status": "seeded",
+    "spec_sections": ["4.3"],
+    "focus": "nested type expressions with generic application and unions"
+  },
+  {
+    "id": "exec/04_04_reserved_underscore_types",
+    "status": "seeded",
+    "spec_sections": ["4.4"],
+    "focus": "underscore placeholder for unbound type parameters in type expressions"
+  },
+  {
+    "id": "exec/04_05_01_struct_singleton_usage",
+    "status": "seeded",
+    "spec_sections": ["4.5.1"],
+    "focus": "singleton structs as enum-style tags used directly in expressions and patterns"
   }
 ]

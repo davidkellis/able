@@ -148,28 +148,31 @@ const expressionsFixtures: Fixture[] = [
 
   {
       name: "expressions/map_literal_spread",
-      module: AST.module([
-        AST.assign(
-          "defaults",
-          AST.mapLit([
-            AST.mapEntry(AST.stringLiteral("accept"), AST.stringLiteral("application/json")),
-          ]),
-        ),
-        AST.assign(
-          "headers",
-          AST.mapLit([
-            AST.mapEntry(AST.stringLiteral("content-type"), AST.stringLiteral("application/json")),
-            AST.mapSpread(AST.identifier("defaults")),
-            AST.mapEntry(AST.stringLiteral("authorization"), AST.stringLiteral("Bearer abc")),
-          ]),
-        ),
-        AST.identifier("headers"),
-      ]),
+      module: AST.module(
+        [
+          AST.assign(
+            "defaults",
+            AST.mapLit([
+              AST.mapEntry(AST.stringLiteral("accept"), AST.stringLiteral("application/json")),
+            ]),
+          ),
+          AST.assign(
+            "headers",
+            AST.mapLit([
+              AST.mapEntry(AST.stringLiteral("content-type"), AST.stringLiteral("application/json")),
+              AST.mapSpread(AST.identifier("defaults")),
+              AST.mapEntry(AST.stringLiteral("authorization"), AST.stringLiteral("Bearer abc")),
+            ]),
+          ),
+          AST.identifier("headers"),
+        ],
+        [AST.importStatement(["able", "collections", "hash_map"], true)],
+      ),
       manifest: {
         description: "Map literal supports spreads and overrides",
         expect: {
           result: {
-            kind: "hash_map",
+            kind: "struct_instance",
             entries: [
               { key: { kind: "String", value: "content-type" }, value: { kind: "String", value: "application/json" } },
               { key: { kind: "String", value: "accept" }, value: { kind: "String", value: "application/json" } },

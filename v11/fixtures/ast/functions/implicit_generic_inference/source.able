@@ -1,4 +1,4 @@
 fn choose(first: T, second: U) -> T {
-  first
+  first;
 }
-nil
+nil;
