@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
-import type { V10Value } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
+import type { RuntimeValue } from "../../src/interpreter";
 
 import { appendToTrace, drainScheduler, expectErrorValue, expectStructInstance, flushScheduler } from "./proc_spawn.helpers";
 
 describe("v11 interpreter - proc & spawn handles", () => {
   test("future resolves after scheduler tick", async () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     I.evaluate(
       AST.assignmentExpression(
@@ -58,7 +58,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
   });
 
   test("proc yield allows interleaving tasks", async () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     I.evaluate(
       AST.assignmentExpression(
@@ -176,7 +176,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
   });
 
   test("proc and future interleave across multiple yields", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     I.evaluate(
       AST.assignmentExpression(
@@ -346,10 +346,10 @@ describe("v11 interpreter - proc & spawn handles", () => {
   });
 
   test("proc_pending_tasks reports queued cooperative work", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const pendingCall = () => AST.functionCall(AST.identifier("proc_pending_tasks"), []);
 
-    const initial = I.evaluate(pendingCall()) as V10Value;
+    const initial = I.evaluate(pendingCall()) as RuntimeValue;
     expect(initial).toEqual({ kind: "i32", value: 0n });
 
     I.evaluate(
@@ -360,7 +360,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
       ),
     );
 
-    const pendingAfterSpawn = I.evaluate(pendingCall()) as V10Value;
+    const pendingAfterSpawn = I.evaluate(pendingCall()) as RuntimeValue;
     expect(pendingAfterSpawn.kind).toBe("i32");
     if (pendingAfterSpawn.kind !== "i32") throw new Error("expected integer result");
     expect(pendingAfterSpawn.value).toBeGreaterThan(0);
@@ -368,7 +368,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
     let drained = false;
     for (let attempt = 0; attempt < 16; attempt += 1) {
       I.evaluate(AST.functionCall(AST.identifier("proc_flush"), []));
-      const pendingAfterFlush = I.evaluate(pendingCall()) as V10Value;
+      const pendingAfterFlush = I.evaluate(pendingCall()) as RuntimeValue;
       expect(pendingAfterFlush.kind).toBe("i32");
       if (pendingAfterFlush.kind !== "i32") throw new Error("expected integer result");
       if (pendingAfterFlush.value === 0) {
@@ -379,14 +379,14 @@ describe("v11 interpreter - proc & spawn handles", () => {
     if (!drained) {
       drainScheduler(I);
     }
-    const finalPending = I.evaluate(pendingCall()) as V10Value;
+    const finalPending = I.evaluate(pendingCall()) as RuntimeValue;
     expect(finalPending.kind).toBe("i32");
     if (finalPending.kind !== "i32") throw new Error("expected integer result");
     expect(finalPending.value).toBe(0n);
   });
 
   test("proc awaiting future with nested yields resolves cleanly", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     I.evaluate(
       AST.assignmentExpression(

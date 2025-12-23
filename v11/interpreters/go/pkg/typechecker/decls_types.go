@@ -3,11 +3,15 @@ package typechecker
 import (
 	"fmt"
 
-	"able/interpreter10-go/pkg/ast"
+	"able/interpreter-go/pkg/ast"
 )
 
 func (c *declarationCollector) collectTypeAliasDefinition(def *ast.TypeAliasDefinition) {
 	if def == nil || def.ID == nil || def.ID.Name == "" {
+		return
+	}
+	if def.ID.Name == "_" {
+		c.diags = append(c.diags, Diagnostic{Message: "typechecker: type alias name '_' is reserved", Node: def})
 		return
 	}
 	params, paramScope := c.convertGenericParams(def.GenericParams)

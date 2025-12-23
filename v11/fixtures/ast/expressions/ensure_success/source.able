@@ -1,5 +1,5 @@
 do {
-  "body"
+  "body";
 } ensure {
-  print("ensure")
-}
+  print("ensure");
+};

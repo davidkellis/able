@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - method-level generic constraints (minimal runtime checks)", () => {
   test("instance method with constrained type parameter is enforced", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     // interface Show { fn to_string(self: Self) -> string }
     const show = AST.interfaceDefinition("Show", [

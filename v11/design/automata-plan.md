@@ -1,4 +1,4 @@
-# Able v10 Automata Plan
+# Able v11 Automata Plan
 
 ## Goals
 - Provide reusable NFA/DFA builders and executors implemented entirely in Able, specialised for UTF-8 `String` input.

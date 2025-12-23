@@ -208,7 +208,7 @@ methods String {
     needle := validated_bytes(delimiter)
     hay_len := haystack.len()
     needle_len := needle.len()
-    result: Array String := Array.new()
+    result: Array String := Array.new();
 
     if needle_len == 0 {
       offset := 0

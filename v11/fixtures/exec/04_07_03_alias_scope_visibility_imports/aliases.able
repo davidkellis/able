@@ -1,0 +1,22 @@
+package aliases
+
+## Semantics: exported aliases are imported like other types; private aliases stay scoped to this module.
+
+private type InternalTag = String
+type PublicName = String
+type PublicList = Array PublicName
+type PublicListAlias = PublicList
+
+fn tag(raw: PublicName) -> PublicName {
+  stamp: InternalTag = `tag ${raw}`
+  stamp
+}
+
+fn wrap(names: PublicListAlias) -> PublicList {
+  names
+}
+
+fn describe(name: PublicName) -> String {
+  prefix: InternalTag = "pkg"
+  `${prefix}:${name}`
+}

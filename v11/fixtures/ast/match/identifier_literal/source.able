@@ -1,4 +1,4 @@
 2 match {
   case 1 => 10,
   case x => x + 5
-}
+};

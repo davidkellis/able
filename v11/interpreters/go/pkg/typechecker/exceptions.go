@@ -1,6 +1,6 @@
 package typechecker
 
-import "able/interpreter10-go/pkg/ast"
+import "able/interpreter-go/pkg/ast"
 
 func (c *Checker) checkPropagationExpression(env *Environment, expr *ast.PropagationExpression) ([]Diagnostic, Type) {
 	bodyDiags, bodyType := c.checkExpression(env, expr.Expression)

@@ -91,7 +91,6 @@ function findRootCandidates(start: string): { path: string; isStdlib: boolean }[
       { path: path.join(dir, "stdlib", "src"), isStdlib: true },
       { path: path.join(dir, "v11", "stdlib", "src"), isStdlib: true },
       { path: path.join(dir, "stdlib", "v11", "src"), isStdlib: true },
-      { path: path.join(dir, "stdlib", "v10", "src"), isStdlib: true },
     ]) {
       if (fsExists(candidate.path)) {
         roots.push(candidate);

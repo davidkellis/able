@@ -2,16 +2,16 @@ import fs from "node:fs";
 
 import * as AST from "../ast";
 import { Environment } from "./environment";
-import { InterpreterV10 } from "./index";
+import { Interpreter } from "./index";
 import { BreakLabelSignal, RaiseSignal } from "./signals";
 import { makeIntegerValue } from "./numeric";
-import type { V10Value } from "./values";
+import type { RuntimeValue } from "./values";
 
 type ExternHandler = (
-  ctx: InterpreterV10,
+  ctx: Interpreter,
   extern: AST.ExternFunctionBody,
   arity: number,
-) => Extract<V10Value, { kind: "native_function" }>;
+) => Extract<RuntimeValue, { kind: "native_function" }>;
 
 const externHandlers: Partial<Record<AST.HostTarget, Record<string, ExternHandler>>> = {
   typescript: {
@@ -43,7 +43,7 @@ export function registerExternHandler(target: AST.HostTarget, name: string, hand
   externHandlers[target]![name] = handler;
 }
 
-export function evaluateStringInterpolation(ctx: InterpreterV10, node: AST.StringInterpolation, env: Environment): V10Value {
+export function evaluateStringInterpolation(ctx: Interpreter, node: AST.StringInterpolation, env: Environment): RuntimeValue {
   let out = "";
   for (const part of node.parts) {
     if (part.type === "StringLiteral") out += part.value;
@@ -55,7 +55,7 @@ export function evaluateStringInterpolation(ctx: InterpreterV10, node: AST.Strin
   return { kind: "String", value: out };
 }
 
-export function evaluateBreakpointExpression(ctx: InterpreterV10, node: AST.BreakpointExpression, env: Environment): V10Value {
+export function evaluateBreakpointExpression(ctx: Interpreter, node: AST.BreakpointExpression, env: Environment): RuntimeValue {
   ctx.breakpointStack.push(node.label.name);
   try {
     return ctx.evaluate(node.body, env);
@@ -70,9 +70,9 @@ export function evaluateBreakpointExpression(ctx: InterpreterV10, node: AST.Brea
   }
 }
 
-export function evaluateProcExpression(ctx: InterpreterV10, node: AST.ProcExpression, env: Environment): V10Value {
+export function evaluateProcExpression(ctx: Interpreter, node: AST.ProcExpression, env: Environment): RuntimeValue {
   const capturedEnv = new Environment(env);
-  const handle: Extract<V10Value, { kind: "proc_handle" }> = {
+  const handle: Extract<RuntimeValue, { kind: "proc_handle" }> = {
     kind: "proc_handle",
     state: "pending",
     expression: node.expression,
@@ -86,9 +86,9 @@ export function evaluateProcExpression(ctx: InterpreterV10, node: AST.ProcExpres
   return handle;
 }
 
-export function evaluateSpawnExpression(ctx: InterpreterV10, node: AST.SpawnExpression, env: Environment): V10Value {
+export function evaluateSpawnExpression(ctx: Interpreter, node: AST.SpawnExpression, env: Environment): RuntimeValue {
   const capturedEnv = new Environment(env);
-  const future: Extract<V10Value, { kind: "future" }> = {
+  const future: Extract<RuntimeValue, { kind: "future" }> = {
     kind: "future",
     state: "pending",
     expression: node.expression,
@@ -102,7 +102,7 @@ export function evaluateSpawnExpression(ctx: InterpreterV10, node: AST.SpawnExpr
   return future;
 }
 
-export function evaluateExternFunctionBody(ctx: InterpreterV10, node: AST.ExternFunctionBody): V10Value {
+export function evaluateExternFunctionBody(ctx: Interpreter, node: AST.ExternFunctionBody): RuntimeValue {
   const name = node.signature?.id?.name;
   if (!name) {
     return { kind: "nil", value: null };
@@ -111,7 +111,7 @@ export function evaluateExternFunctionBody(ctx: InterpreterV10, node: AST.Extern
     return { kind: "nil", value: null };
   }
   const arity = Array.isArray(node.signature.params) ? node.signature.params.length : 0;
-  let binding: V10Value | null = null;
+  let binding: RuntimeValue | null = null;
   try {
     binding = ctx.globals.get(name);
   } catch {

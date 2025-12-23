@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"able/interpreter10-go/pkg/ast"
-	goParser "able/interpreter10-go/pkg/parser"
+	"able/interpreter-go/pkg/ast"
+	goParser "able/interpreter-go/pkg/parser"
 )
 
 func parseSourceModule(path string) (*ast.Module, error) {

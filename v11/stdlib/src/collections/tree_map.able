@@ -14,7 +14,7 @@ struct TreeMap K V {
 
 methods TreeMap K V where K: Ord + Clone, V: Clone {
   fn new() -> TreeMap K V {
-    entries: Array (TreeEntry K V) := Array.new()
+    entries: Array (TreeEntry K V) := Array.new();
     TreeMap { entries: entries }
   }
 
@@ -74,7 +74,7 @@ methods TreeMap K V where K: Ord + Clone, V: Clone {
     self.find_index(key) match {
       case nil => {
         insert_at := self.insertion_index(key)
-        new_entries := Array.new()
+        new_entries := Array.new();
         idx := 0
         total := self.entries.len()
         inserted := false
@@ -104,7 +104,7 @@ methods TreeMap K V where K: Ord + Clone, V: Clone {
     self.find_index(key) match {
       case nil => false,
       case idx => {
-        new_entries := Array.new()
+        new_entries := Array.new();
         total := self.entries.len()
         current := 0
         while current < total {
@@ -146,7 +146,7 @@ methods TreeMap K V where K: Ord + Clone, V: Clone {
   }
 
   fn to_array(self: Self) -> Array (TreeEntry K V) {
-    result: Array (TreeEntry K V) := Array.new()
+    result: Array (TreeEntry K V) := Array.new();
     idx := 0
     total := self.len()
     while idx < total {
@@ -160,7 +160,7 @@ methods TreeMap K V where K: Ord + Clone, V: Clone {
   }
 
   fn keys(self: Self) -> Array K {
-    result: Array K := Array.new()
+    result: Array K := Array.new();
     idx := 0
     total := self.len()
     while idx < total {
@@ -174,7 +174,7 @@ methods TreeMap K V where K: Ord + Clone, V: Clone {
   }
 
   fn values(self: Self) -> Array V {
-    result: Array V := Array.new()
+    result: Array V := Array.new();
     idx := 0
     total := self.len()
     while idx < total {

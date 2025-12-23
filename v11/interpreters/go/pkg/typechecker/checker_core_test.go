@@ -1,7 +1,7 @@
 package typechecker
 
 import (
-	"able/interpreter10-go/pkg/ast"
+	"able/interpreter-go/pkg/ast"
 	"strings"
 	"testing"
 )
@@ -524,8 +524,16 @@ func TestArrayIndexExpressionInfersElementType(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected inference entry for index expression")
 	}
-	if typeName(idxType) != "i32" {
-		t.Fatalf("expected index expression to have type i32, got %q", typeName(idxType))
+	applied, ok := idxType.(AppliedType)
+	if !ok {
+		t.Fatalf("expected index expression to have Result type, got %T", idxType)
+	}
+	base, ok := applied.Base.(StructType)
+	if !ok || base.StructName != "Result" {
+		t.Fatalf("expected Result base, got %#v", applied.Base)
+	}
+	if len(applied.Arguments) != 1 || typeName(applied.Arguments[0]) != "i32" {
+		t.Fatalf("expected Result i32, got %#v", idxType)
 	}
 }
 func TestArrayIndexExpressionRequiresIntegerIndex(t *testing.T) {

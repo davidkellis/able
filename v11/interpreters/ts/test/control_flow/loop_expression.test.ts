@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
 
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - loop expression", () => {
   test("loop expression returns break payload", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const loop = AST.loopExpression(
       AST.blockExpression([AST.breakStatement(undefined, AST.integerLiteral(42))]),
     );
@@ -14,14 +14,14 @@ describe("v11 interpreter - loop expression", () => {
   });
 
   test("loop expression returns nil when break omits payload", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const loop = AST.loopExpression(AST.blockExpression([AST.breakStatement()]));
     const result = I.evaluate(loop);
     expect(result).toEqual({ kind: "nil", value: null });
   });
 
   test("loop expression honors continue before breaking", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("count"), AST.integerLiteral(0)));
     const loop = AST.loopExpression(
       AST.blockExpression([
@@ -44,7 +44,7 @@ describe("v11 interpreter - loop expression", () => {
   });
 
   test("loop expression can be used as a standalone statement", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("counter"), AST.integerLiteral(3)));
 
     const loop = AST.loopExpression(

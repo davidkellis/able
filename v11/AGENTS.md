@@ -1,11 +1,11 @@
 # Able Project — Agent Onboarding
 
-This document gives contributors the context required to work across the Able v11 effort (TypeScript + Go interpreters, spec, and tooling) while keeping the original v10 artefacts untouched at the repo root.
+This document gives contributors the context required to work across the Able v11 effort (TypeScript + Go interpreters, spec, and tooling) while keeping legacy artefacts untouched at the repo root.
 
-Unconditionally read PLAN.md and spec/full_spec_v11.md (using spec/full_spec_v10.md as the frozen reference) before starting any work.
+Unconditionally read PLAN.md and spec/full_spec_v11.md (using archived specs as historical reference) before starting any work.
 
 ## Mission & Principles
-- Keep the Able v11 language spec (`spec/full_spec_v11.md`) authoritative while referencing the frozen v10 doc when questions arise. The spec is the ultimate arbiter for every runtime feature.
+- Keep the Able v11 language spec (`spec/full_spec_v11.md`) authoritative while referencing archived specs when questions arise. The spec is the ultimate arbiter for every runtime feature.
 - Treat the AST as part of the language contract with the Go definitions as canonical. Every interpreter must share the same structure and field semantics, and the v11 spec will codify this canonical AST form and its evaluation rules.
 - Use the Go interpreter as the reference implementation while ensuring the TypeScript interpreter—and any future runtimes—match the same semantics defined in the spec.
 - Prefer incremental, well-tested changes. Mirror behavior across interpreters whenever possible.
@@ -16,15 +16,15 @@ Unconditionally read PLAN.md and spec/full_spec_v11.md (using spec/full_spec_v10
 - Defer AST mapping work until the parser produces the expected parse trees (as captured in the grammar corpus) for every feature under development; once grammar coverage is complete and stable, implement the mapping logic.
 
 ## Repository Map
-- `interpreters/ts/`: Bun/TypeScript interpreter, AST definition, and comprehensive tests. This is the v11 copy of the v10 runtime.
+- `interpreters/ts/`: Bun/TypeScript interpreter, AST definition, and comprehensive tests aligned with the Go runtime.
 - `interpreters/go/`: Go interpreter and canonical Able runtime. Go-specific design docs live under `design/` (see `go-concurrency.md`, `typechecker.md`).
-- `parser/`: Tree-sitter grammar work copied from v10 so we can continue parser experiments in the v11 branch.
+- `parser/`: Tree-sitter grammar work copied from the archived workspace so we can continue parser experiments in the v11 branch.
 - `spec/`: Language specification (v1–v11); focus on `full_spec_v11.md` plus topic-specific supplements.
 - `examples/`, `fixtures/`, `stdlib*/`: Sample programs, shared AST fixtures, and stdlib sketches used for conformance testing.
 - `design/`: High-level architecture notes, historical context, and future proposals.
 
 ## Getting Started
-1. Read `spec/full_spec_v11.md` (and skim `spec/full_spec_v10.md` for historical context) plus `interpreters/ts/README.md` to internalize semantics and existing architecture.
+1. Read `spec/full_spec_v11.md` (and skim archived specs for historical context) plus `interpreters/ts/README.md` to internalize semantics and existing architecture.
 2. Review `PLAN.md` (project-level) and the interpreter-specific notes in `interpreters/ts/README.md` / `interpreters/go/README.md` for current priorities.
 3. Set up tooling:
    - **Go**: Go ≥ 1.22, `go test ./...` inside `interpreters/go/`.

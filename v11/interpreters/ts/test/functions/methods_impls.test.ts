@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - methods & impls", () => {
   test("inherent method on struct instance", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     // struct Point { x: i32, y: i32 }
     const pointDef = AST.structDefinition(
       "Point",
@@ -41,7 +41,7 @@ describe("v11 interpreter - methods & impls", () => {
   });
 
   test("methods are exported as callable functions", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const pointDef = AST.structDefinition(
       "Point",
       [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "x")],

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"able/interpreter10-go/pkg/ast"
+	"able/interpreter-go/pkg/ast"
 )
 
 var reservedTypeNames = map[string]struct{}{

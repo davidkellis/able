@@ -1,6 +1,6 @@
 package interpreter
 
-import "able/interpreter10-go/pkg/ast"
+import "able/interpreter-go/pkg/ast"
 
 func substituteAliasTypeExpression(
 	expr ast.TypeExpression,

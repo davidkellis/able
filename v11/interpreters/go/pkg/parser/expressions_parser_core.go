@@ -1,7 +1,7 @@
 package parser
 
 import (
-	"able/interpreter10-go/pkg/ast"
+	"able/interpreter-go/pkg/ast"
 	"fmt"
 	sitter "github.com/tree-sitter/go-tree-sitter"
 	"strconv"

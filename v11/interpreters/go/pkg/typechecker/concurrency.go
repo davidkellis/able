@@ -1,6 +1,6 @@
 package typechecker
 
-import "able/interpreter10-go/pkg/ast"
+import "able/interpreter-go/pkg/ast"
 
 func (c *Checker) checkProcExpression(env *Environment, expr *ast.ProcExpression) ([]Diagnostic, Type) {
 	c.pushAsyncContext()

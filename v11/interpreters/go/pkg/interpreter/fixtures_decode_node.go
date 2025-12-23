@@ -6,7 +6,7 @@ import (
 	"io/fs"
 	"math/big"
 
-	"able/interpreter10-go/pkg/ast"
+	"able/interpreter-go/pkg/ast"
 )
 
 type nodeCategoryDecoder func(map[string]any, string) (ast.Node, bool, error)

@@ -1,7 +1,7 @@
 package interpreter
 
 import (
-	"able/interpreter10-go/pkg/typechecker"
+	"able/interpreter-go/pkg/typechecker"
 )
 
 // TypecheckConfig configures optional typechecker integration.

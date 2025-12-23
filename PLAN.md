@@ -50,33 +50,30 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 - [x] Ensure `scripts/export-fixtures`/`run_all_tests` include the new exec fixtures and add a simple coverage index (JSON/YAML) generated from the matrix to prevent gaps; consider a CI check to flag missing headings.
 
 ### v11 Exec Fixture Backlog (heading-specific coverage)
-- [ ] `exec/02_lexical_comments_identifiers` — §2/§6.9: identifiers vs reserved placeholders, comments ignored, trailing commas/line join tolerated.
-- [ ] `exec/03_blocks_expr_separation` — §3: newline vs semicolon separation and last-expression block value with scoped bindings.
-- [ ] `exec/04_01_type_inference_constraints` — §4.1.4–4.1.6: polymorphic function calls with inferred type params and constraint satisfaction.
-- [ ] `exec/04_02_primitives_truthiness_numeric` — §4.2/§6.1.1–6.1.3: integer/float/bool literal semantics (division/mod semantics, truthiness).
-- [ ] `exec/04_03_type_expression_syntax` — §4.3: nested type expressions (arrays, maps, unions) with explicit/implicit generic args.
-- [ ] `exec/04_04_reserved_underscore_types` — §4.4: `_` as unbound type param placeholder; rejecting `_` as named type alias.
-- [ ] `exec/04_05_01_struct_singleton_usage` — §4.5.1: singleton struct declaration/use equality and immutability guidance.
+Note: It is expected that some new fixtures will fail due to interpreter bugs/deficiencies.We should implement fixtures strictly in accordance with the v11 spec semantics. Do not weaken or sidestep the behavior under test to “make tests pass”. If a fixture fails under a given interpreter, follow up by fixing the interpreter so the implementation honors the spec. The interpreters should perfectly implement all the semantics described in the v11 spec.
+- [x] `exec/02_lexical_comments_identifiers` — §2/§6.9: identifiers vs reserved placeholders, comments ignored, trailing commas/line join tolerated.
+- [x] `exec/03_blocks_expr_separation` — §3: newline vs semicolon separation and last-expression block value with scoped bindings.
+- [x] `exec/04_01_type_inference_constraints` — §4.1.4–4.1.6: polymorphic function calls with inferred type params and constraint satisfaction.
 - [ ] `exec/04_05_02_struct_named_update_mutation` — §4.5.2: named-field instantiation, functional update vs in-place mutation semantics.
 - [ ] `exec/04_05_03_struct_positional_named_tuple` — §4.5.3: positional field access/update semantics and named-tuple destructuring.
 - [ ] `exec/04_06_01_union_payload_patterns` — §4.6.1/§4.6.3: payload-bearing variant construction and pattern matching with bindings.
 - [ ] `exec/04_06_02_nullable_truthiness` — §4.6.2: `?T` equivalence to `nil | T`, truthiness of `nil` vs non-nil.
 - [ ] `exec/04_06_03_union_construction_result_option` — §4.6.3: constructing Result/Option-style unions and consuming them without `!`.
 - [ ] `exec/04_06_04_union_guarded_match_exhaustive` — §4.6.4/§8.1.2: match ordering, guarded clauses, and exhaustive coverage diagnostics.
-- [ ] `exec/04_07_02_alias_generic_substitution` — §4.7.2: generic alias expansion, substitution, and inference through alias chains.
-- [ ] `exec/04_07_03_alias_scope_visibility_imports` — §4.7.3: alias visibility across packages with `import`/`private` and alias re-export.
-- [ ] `exec/04_07_04_alias_methods_impls_interaction` — §4.7.4: aliases preserving method/impl dispatch and type-based feature lookups.
-- [ ] `exec/04_07_05_alias_recursion_termination` — §4.7.5: rejecting/handling recursive aliases per termination rules (diagnostic path).
-- [ ] `exec/05_00_mutability_declaration_vs_assignment` — §5.0/§5.1: `:=` introduces new bindings, `=` requires existing, mutation rules.
-- [ ] `exec/05_02_identifier_wildcard_typed_patterns` — §5.2.1–5.2.2/§5.2.7: identifier vs `_` binding and typed patterns in declarations.
-- [ ] `exec/05_02_struct_pattern_rename_typed` — §5.2.3: struct pattern with `::` renames, optional fields, and typed destructuring.
-- [ ] `exec/05_02_array_nested_patterns` — §5.2.5–§5.2.6: array/nested destructuring with mixed patterns and rest handling (if applicable).
-- [ ] `exec/05_03_assignment_evaluation_order` — §5.3/§5.3.1: RHS evaluated once, compound patterns, mutable reassignment side effects.
+- [x] `exec/04_07_02_alias_generic_substitution` — §4.7.2: generic alias expansion, substitution, and inference through alias chains.
+- [x] `exec/04_07_03_alias_scope_visibility_imports` — §4.7.3: alias visibility across packages with `import`/`private` and alias re-export.
+- [x] `exec/04_07_04_alias_methods_impls_interaction` — §4.7.4: aliases preserving method/impl dispatch and type-based feature lookups.
+- [x] `exec/04_07_05_alias_recursion_termination` — §4.7.5: rejecting/handling recursive aliases per termination rules (diagnostic path).
+- [x] `exec/05_00_mutability_declaration_vs_assignment` — §5.0/§5.1: `:=` introduces new bindings, `=` requires existing, mutation rules.
+- [x] `exec/05_02_identifier_wildcard_typed_patterns` — §5.2.1–5.2.2/§5.2.7: identifier vs `_` binding and typed patterns in declarations.
+- [x] `exec/05_02_struct_pattern_rename_typed` — §5.2.3: struct pattern with `::` renames, optional fields, and typed destructuring.
+- [x] `exec/05_02_array_nested_patterns` — §5.2.5–§5.2.6: array/nested destructuring with mixed patterns and rest handling (if applicable).
+- [x] `exec/05_03_assignment_evaluation_order` — §5.3/§5.3.1: RHS evaluated once, compound patterns, mutable reassignment side effects.
 - [ ] `exec/06_01_literals_numeric_contextual` — §6.1.1–§6.1.2: contextual typing of integer/float literals (coercion, overflow guards).
 - [ ] `exec/06_01_literals_string_char_escape` — §6.1.4–§6.1.5: char vs string escapes, interpolation disabled inside raw literals.
-- [ ] `exec/06_01_literals_array_map_inference` — §6.1.7–§6.1.9: array/map literal inference, spread/entry order, mixed element unification.
-- [ ] `exec/06_02_block_expression_value_scope` — §6.2: block-as-expression value, inner scope bindings, void-return blocks.
-- [ ] `exec/06_03_operator_precedence_associativity` — §6.3.1: precedence/associativity across pipes, assignment, arithmetic/boolean ops.
+- [x] `exec/06_01_literals_array_map_inference` — §6.1.7–§6.1.9: array/map literal inference, spread/entry order, mixed element unification.
+- [x] `exec/06_02_block_expression_value_scope` — §6.2: block-as-expression value, inner scope bindings, void-return blocks.
+- [x] `exec/06_03_operator_precedence_associativity` — §6.3.1: precedence/associativity across pipes, assignment, arithmetic/boolean ops.
 - [ ] `exec/06_03_operator_overloading_interfaces` — §6.3.2–§6.3.3: operator dispatch via interfaces (e.g., custom `+`/`[]`/`Apply`).
 - [ ] `exec/06_03_safe_navigation_nil_short_circuit` — §6.3.4: `?.` short-circuit on nil without evaluating arguments/receivers twice.
 - [ ] `exec/06_04_function_call_eval_order_trailing_lambda` — §6.4/§7.4.2: argument evaluation order and trailing-lambda call equivalence.

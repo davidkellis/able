@@ -2,5 +2,5 @@ struct Point {
   x: i32,
   y: i32
 }
-point := Point { x: 3, y: 4 }
-point.x
+point := Point { x: 3, y: 4 };
+point.x;

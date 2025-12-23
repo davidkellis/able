@@ -3,7 +3,7 @@ package parser
 import (
 	sitter "github.com/tree-sitter/go-tree-sitter"
 
-	"able/interpreter10-go/pkg/ast"
+	"able/interpreter-go/pkg/ast"
 )
 
 func spanFromNode(node *sitter.Node) ast.Span {

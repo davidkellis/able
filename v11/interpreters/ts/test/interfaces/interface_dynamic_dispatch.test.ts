@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - interface dynamic dispatch", () => {
   test("value stored as interface dispatches to underlying impl", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     const pointDef = AST.structDefinition(
       "Point",
@@ -58,7 +58,7 @@ describe("v11 interpreter - interface dynamic dispatch", () => {
   });
 
   test("array of interface values uses most specific impl", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     const show = AST.interfaceDefinition("Show", [
       AST.functionSignature(

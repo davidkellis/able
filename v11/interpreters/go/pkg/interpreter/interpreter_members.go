@@ -5,8 +5,8 @@ import (
 	"math"
 	"strings"
 
-	"able/interpreter10-go/pkg/ast"
-	"able/interpreter10-go/pkg/runtime"
+	"able/interpreter-go/pkg/ast"
+	"able/interpreter-go/pkg/runtime"
 )
 
 func (i *Interpreter) evaluateMemberAccess(expr *ast.MemberAccessExpression, env *runtime.Environment) (runtime.Value, error) {
@@ -49,9 +49,6 @@ func (i *Interpreter) memberAccessOnValueWithOptions(obj runtime.Value, member a
 	case *runtime.ArrayValue:
 		i.ensureArrayBuiltins()
 		return i.arrayMemberWithOverrides(v, member, env)
-	case *runtime.HashMapValue:
-		i.ensureHashMapBuiltins()
-		return i.hashMapMember(v, member)
 	case *runtime.HasherValue:
 		return i.hasherMember(v, member)
 	case *runtime.ProcHandleValue:

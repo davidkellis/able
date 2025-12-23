@@ -1,19 +1,19 @@
 handle := proc {
-  __able_channel_send(0, "value")
-  1
-}
-handle.cancel()
-value_result := handle.value()
-status_text := handle.status()
+  __able_channel_send(0, "value");
+  1;
+};
+handle.cancel();
+value_result := handle.value();
+status_text := handle.status();
 status_ok := status_text match {
   case Pending {  } => "Pending",
   case Resolved {  } => "Resolved",
   case Cancelled {  } => "Cancelled",
   case Failed {  } => "Failed",
   case _ => "Other"
-} == "Cancelled"
+} == "Cancelled";
 value_ok := (value_result match {
   case err: Error => err.message() == "Proc cancelled",
   case _ => false
-})
-[status_ok, value_ok]
+});
+[status_ok, value_ok];

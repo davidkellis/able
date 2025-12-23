@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"able/interpreter10-go/pkg/ast"
-	"able/interpreter10-go/pkg/runtime"
+	"able/interpreter-go/pkg/ast"
+	"able/interpreter-go/pkg/runtime"
 )
 
 func newAsyncInterpreter(t *testing.T) *Interpreter {

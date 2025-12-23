@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 function buildAliasDefs() {
   const bagAlias = AST.typeAliasDefinition(
@@ -55,7 +55,7 @@ function buildAliasDefs() {
 
 describe("runtime alias method propagation", () => {
   test("private alias methods/impls attach to the underlying type", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const [bagAlias, strListAlias, methods, displayImpl] = buildAliasDefs();
 
     I.evaluate(AST.module([bagAlias, strListAlias, methods, displayImpl]));
@@ -76,7 +76,7 @@ describe("runtime alias method propagation", () => {
   });
 
   test("methods defined via imported aliases register under the canonical type", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const widgetStruct = AST.structDefinition(
       "Widget",
       [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "value")],

@@ -1,13 +1,13 @@
-count := 0
+count := 0;
 iter := Iterator {
-  count = count + 1
-  gen.yield(count)
-  count = count + 1
-  gen.yield(count)
-}
-before := count
-first := iter.next()
-second := iter.next()
-third := iter.next()
-after := count
-[before, first, second, third, after]
+  count = count + 1;
+  gen.yield(count);
+  count = count + 1;
+  gen.yield(count);
+};
+before := count;
+first := iter.next();
+second := iter.next();
+third := iter.next();
+after := count;
+[before, first, second, third, after];

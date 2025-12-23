@@ -1,7 +1,7 @@
 package typechecker
 
 import (
-	"able/interpreter10-go/pkg/ast"
+	"able/interpreter-go/pkg/ast"
 	"strings"
 	"testing"
 )
@@ -321,7 +321,7 @@ func TestNestedArrayGenericInference(t *testing.T) {
 		[]ast.Statement{
 			ast.Ret(ast.Index(ast.ID("values"), ast.Int(0))),
 		},
-		ast.Gen(ast.Ty("Array"), ast.Ty("T")),
+		ast.Result(ast.Gen(ast.Ty("Array"), ast.Ty("T"))),
 		[]*ast.GenericParameter{genericParam},
 		nil,
 		false,
@@ -347,8 +347,16 @@ func TestNestedArrayGenericInference(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected inferred type for call expression")
 	}
+	applied, ok := typ.(AppliedType)
+	if !ok {
+		t.Fatalf("expected flatten call to infer Result type, got %T", typ)
+	}
+	if name, ok := structName(applied.Base); !ok || name != "Result" {
+		t.Fatalf("expected flatten call to infer Result type, got %T", typ)
+	}
+	innerType := argumentOrUnknown(applied.Arguments, 0)
 	var elemType Type
-	switch arr := typ.(type) {
+	switch arr := innerType.(type) {
 	case ArrayType:
 		elemType = arr.Element
 	case AppliedType:
@@ -356,7 +364,7 @@ func TestNestedArrayGenericInference(t *testing.T) {
 			elemType = argumentOrUnknown(arr.Arguments, 0)
 		}
 	default:
-		t.Fatalf("expected flatten call to infer Array type, got %T", typ)
+		t.Fatalf("expected flatten call to infer Result Array type, got %T", innerType)
 	}
 	inner, ok := elemType.(IntegerType)
 	if !ok || inner.Suffix != "i32" {

@@ -5,91 +5,91 @@ struct IntRange {
 }
 methods IntRange {
   fn iterator(self) {
-    current := self.start
+    current := self.start;
     return Iterator i32 {
       if self.end >= self.start {
         if self.inclusive {
           while current <= self.end {
-            gen.yield(current)
-            current += 1
+            gen.yield(current);
+            current += 1;
           }
         }
 else {
           while current < self.end {
-            gen.yield(current)
-            current += 1
+            gen.yield(current);
+            current += 1;
           }
-        }
+        };
       }
 else {
         if self.inclusive {
           while current >= self.end {
-            gen.yield(current)
-            current -= 1
+            gen.yield(current);
+            current -= 1;
           }
         }
 else {
           while current > self.end {
-            gen.yield(current)
-            current -= 1
+            gen.yield(current);
+            current -= 1;
           }
-        }
-      }
+        };
+      };
     }
   }
 }
-forward := IntRange { start: 1, end: 3, inclusive: true }
-forward_iter := forward.iterator()
-forward_sum := 0
-forward_value := forward_iter.next()
+forward := IntRange { start: 1, end: 3, inclusive: true };
+forward_iter := forward.iterator();
+forward_sum := 0;
+forward_value := forward_iter.next();
 while true {
   forward_value match {
     case IteratorEnd {  } => {
       break
     },
     case value: i32 => {
-      forward_sum += value
-      forward_value = forward_iter.next()
+      forward_sum += value;
+      forward_value = forward_iter.next();
     },
     case _ => {
       break
     }
-  }
+  };
 }
-exclusive := IntRange { start: 1, end: 1, inclusive: false }
-exclusive_iter := exclusive.iterator()
-exclusive_sum := 0
-exclusive_value := exclusive_iter.next()
+exclusive := IntRange { start: 1, end: 1, inclusive: false };
+exclusive_iter := exclusive.iterator();
+exclusive_sum := 0;
+exclusive_value := exclusive_iter.next();
 while true {
   exclusive_value match {
     case IteratorEnd {  } => {
       break
     },
     case value: i32 => {
-      exclusive_sum += value
-      exclusive_value = exclusive_iter.next()
+      exclusive_sum += value;
+      exclusive_value = exclusive_iter.next();
     },
     case _ => {
       break
     }
-  }
+  };
 }
-descending := IntRange { start: 3, end: 1, inclusive: true }
-descending_iter := descending.iterator()
-descending_sum := 0
-descending_value := descending_iter.next()
+descending := IntRange { start: 3, end: 1, inclusive: true };
+descending_iter := descending.iterator();
+descending_sum := 0;
+descending_value := descending_iter.next();
 while true {
   descending_value match {
     case IteratorEnd {  } => {
       break
     },
     case value: i32 => {
-      descending_sum += value
-      descending_value = descending_iter.next()
+      descending_sum += value;
+      descending_value = descending_iter.next();
     },
     case _ => {
       break
     }
-  }
+  };
 }
-[forward_sum, exclusive_sum, descending_sum]
+[forward_sum, exclusive_sum, descending_sum];

@@ -247,22 +247,22 @@ methods Vector T {
   fn set(self: Self, index: i32, value: T) -> Vector T {
     if index < 0 || index >= self.count { return self }
     if index >= self.tail_offset() {
-      new_tail := copy_values(self.tail, self.tail_len)
-      new_tail.write_slot(index .& branch_mask(), value)
+      new_tail := copy_values(self.tail, self.tail_len);
+      new_tail.write_slot(index .& branch_mask(), value);
       Vector { count: self.count, shift: self.shift, root: self.root, tail: new_tail, tail_len: self.tail_len }
     } else {
-      new_root := assoc_node(self.shift, self.root, index, value)
+      new_root := assoc_node(self.shift, self.root, index, value);
       Vector { count: self.count, shift: self.shift, root: new_root, tail: self.tail, tail_len: self.tail_len }
     }
   }
 
   fn push(self: Self, value: T) -> Vector T {
     if self.tail_len < branch_size() {
-      new_tail := copy_values(self.tail, self.tail_len)
-      new_tail.write_slot(self.tail_len, value)
+      new_tail := copy_values(self.tail, self.tail_len);
+      new_tail.write_slot(self.tail_len, value);
       Vector { count: self.count + 1, shift: self.shift, root: self.root, tail: new_tail, tail_len: self.tail_len + 1 }
     } else {
-      tail_node := copy_values(self.tail, branch_size())
+      tail_node := copy_values(self.tail, branch_size());
       new_shift := self.shift
       new_root := self.root
       if ((self.count .>> branch_bits()) > (1 .<< self.shift)) {
@@ -274,8 +274,8 @@ methods Vector T {
       } else {
         new_root = push_tail_recursive(self.shift, self.root, self.count - 1, tail_node)
       }
-      fresh_tail := Array.with_capacity(branch_size())
-      fresh_tail.write_slot(0, value)
+      fresh_tail := Array.with_capacity(branch_size());
+      fresh_tail.write_slot(0, value);
       Vector { count: self.count + 1, shift: new_shift, root: new_root, tail: fresh_tail, tail_len: 1 }
     }
   }

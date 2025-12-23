@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - impl ambiguity/coherence", () => {
   test("reject multiple unnamed impls for same (Interface, Type)", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const iface = AST.interfaceDefinition("M", [
       AST.functionSignature("id", [], AST.simpleTypeExpression("Self")),
     ]);
@@ -26,7 +26,7 @@ describe("v11 interpreter - impl ambiguity/coherence", () => {
   });
 
   test("allow multiple named impls for same (Interface, Type)", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const iface = AST.interfaceDefinition("N", [
       AST.functionSignature("id", [], AST.simpleTypeExpression("Self")),
     ]);

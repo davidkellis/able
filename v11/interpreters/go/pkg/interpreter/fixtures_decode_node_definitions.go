@@ -3,7 +3,7 @@ package interpreter
 import (
 	"fmt"
 
-	"able/interpreter10-go/pkg/ast"
+	"able/interpreter-go/pkg/ast"
 )
 
 func decodeDefinitionNodes(node map[string]any, typ string) (ast.Node, bool, error) {

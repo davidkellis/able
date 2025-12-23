@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - package alias import", () => {
   test("import package via alias and access public members; private hidden", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const pkg = AST.packageStatement(["util"]);
     const defs = [
       AST.functionDefinition("foo", [], AST.blockExpression([AST.returnStatement(AST.integerLiteral(3))])),

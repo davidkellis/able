@@ -3,11 +3,11 @@ struct Bag {
 }
 methods Bag {
   fn do(self: Bag, x: i32) -> i32 {
-    self.value + x
+    self.value + x;
   }
   fn do(self: Bag, x: i32) -> i32 {
-    self.value
+    self.value;
   }
 }
-bag := Bag { value: 10 }
-bag.do(1)
+bag := Bag { value: 10 };
+bag.do(1);

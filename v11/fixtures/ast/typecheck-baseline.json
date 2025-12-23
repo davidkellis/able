@@ -1,8 +1,8 @@
 {
+  "basics/String_literal": [],
   "basics/bool_literal": [],
   "basics/char_literal": [],
   "basics/nil_literal": [],
-  "basics/String_literal": [],
   "concurrency/await_channel_arms": [],
   "concurrency/await_channel_fairness": [],
   "concurrency/await_channel_receive_cancel": [],
@@ -105,6 +105,9 @@
   ],
   "errors/struct_type_mismatch": [
     "typechecker: ../../../fixtures/ast/errors/struct_type_mismatch/source.able:10:10 typechecker: struct pattern field 'dx' not found"
+  ],
+  "errors/type_alias_underscore_reserved": [
+    "typechecker: ../../../fixtures/ast/errors/type_alias_underscore_reserved/source.able:1:1 typechecker: type alias name '_' is reserved"
   ],
   "errors/type_qualified_method_call": [],
   "errors/ufcs_overload_ambiguity": [

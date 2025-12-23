@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - for loop destructuring", () => {
   test("array destructuring in loop", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("sum"), AST.integerLiteral(0)));
     const loop = AST.forLoop(
       AST.arrayPattern([AST.identifier("a"), AST.identifier("b")]),
@@ -21,7 +21,7 @@ describe("v11 interpreter - for loop destructuring", () => {
   });
 
   test("struct destructuring in loop", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const P = AST.structDefinition("P", [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "x"), AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "y")], "named");
     I.evaluate(P);
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("sum"), AST.integerLiteral(0)));

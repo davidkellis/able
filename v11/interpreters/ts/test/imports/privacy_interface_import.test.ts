@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - privacy in interface imports", () => {
   test("importing private interface fails; public interface succeeds", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     const privIface = AST.interfaceDefinition("HiddenI", [], undefined, undefined, undefined, undefined, true);
     I.evaluate(privIface);

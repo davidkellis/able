@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"able/interpreter10-go/pkg/ast"
+	"able/interpreter-go/pkg/ast"
 )
 
 func decodeExpressionNodes(node map[string]any, typ string) (ast.Node, bool, error) {

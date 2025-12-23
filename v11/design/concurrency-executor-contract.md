@@ -5,7 +5,7 @@ Owners: Able Agents
 
 ## Purpose
 
-Able v10 runtimes now share a minimal executor abstraction that drives `proc` and
+Able v11 runtimes now share a minimal executor abstraction that drives `proc` and
 `spawn` evaluation. This note documents the contract so TypeScript, Go, and any
 future runtimes implement compatible semantics while retaining freedom over the
 underlying scheduling strategy.
@@ -37,7 +37,7 @@ underlying scheduling strategy.
     drained. Runtimes that cannot cheaply expose this count should omit it and
     adjust their tests accordingly.
 
-- **Interpreter integration.** `InterpreterV10` takes an optional `executor`
+- **Interpreter integration.** `Interpreter` takes an optional `executor`
   when constructed. If none is provided, it instantiates a cooperative executor
   (`CooperativeExecutor` in TypeScript, `SerialExecutor` in Go tests) with a
   shared default `maxSteps` of 1024 per flush. Production Go builds continue to
@@ -70,7 +70,7 @@ underlying scheduling strategy.
 
 ## Runtime mappings
 
-- **TypeScript (`interpreter10/`).**
+- **TypeScript (`v11/interpreters/ts/`).**
   - `CooperativeExecutor` maintains the existing FIFO queue, wrapping the former
     `schedulerQueue`/`processScheduler` logic. The interpreter delegates all
     scheduling to this executor.
@@ -85,7 +85,7 @@ underlying scheduling strategy.
     This continuation layer is what lets a single-threaded JS host emulate Go-like
     pre-emption without user code changes.
 
-- **Go (`interpreter10-go/`).**
+- **Go (`interpreter-go/`).**
   - **Production executor.** `GoroutineExecutor` launches each Able `proc`/`spawn`
     as a native goroutine. Go’s scheduler handles suspension, resumption, and
     fair progress automatically; we do not maintain an explicit continuation layer.
@@ -121,7 +121,7 @@ the task so that other queued work can run. The default budget is **1024**
 steps per flush; this value balances throughput with fairness for the current
 fixture corpus.
 
-- **Configuring the budget.** `new InterpreterV10({ schedulerMaxSteps: N })`
+- **Configuring the budget.** `new Interpreter({ schedulerMaxSteps: N })`
   overrides the default for TypeScript runs (CLI tools expose the same option
   when they construct interpreters). Lower values make fairness fixtures
   (e.g. `concurrency/fairness_proc_round_robin`) more sensitive by forcing the
@@ -146,7 +146,7 @@ or design notes so the cooperative and goroutine executors stay aligned.
 
 ## Follow-ups
 
-- Document `proc_yield`/`proc_flush` guarantees in the v10 specification once
+- Document `proc_yield`/`proc_flush` guarantees in the v11 specification once
   wording is final.
 - Investigate fairness fixtures that rely on specific scheduling orders; any
   additional coordination helpers must be added to both executors (or guarded by

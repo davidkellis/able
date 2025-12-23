@@ -9,6 +9,7 @@ import {
   unknownType,
 } from "../types";
 import type { StatementContext } from "./expression-context";
+import { refineTypeWithExpected } from "./expressions";
 import { bindPatternToEnv } from "./patterns";
 
 export function checkStatement(ctx: StatementContext, node: AST.Statement | AST.Expression | undefined | null): void {
@@ -76,7 +77,19 @@ export function checkAssignment(ctx: StatementContext, node: AST.AssignmentExpre
     }
     predeclarePattern(ctx, node.left, declarationNames);
   }
-  const valueType = ctx.inferExpression(node.right);
+  let expectedType: TypeInfo | null = null;
+  if (node.left?.type === "TypedPattern" && node.left.typeAnnotation) {
+    expectedType = ctx.resolveTypeExpression(node.left.typeAnnotation);
+  } else if (node.operator === "=" && node.left?.type === "Identifier") {
+    const existing = ctx.lookupIdentifier(node.left.name);
+    if (existing && existing.kind !== "unknown") {
+      expectedType = existing;
+    }
+  }
+  let valueType = ctx.inferExpression(node.right);
+  if (expectedType && expectedType.kind !== "unknown" && node.right?.type === "FunctionCall") {
+    valueType = refineTypeWithExpected(valueType, expectedType);
+  }
   let targetType = valueType;
   if (node.operator === "=" && node.left?.type === "Identifier") {
     const existing = ctx.lookupIdentifier(node.left.name);

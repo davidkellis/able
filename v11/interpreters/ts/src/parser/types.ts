@@ -43,7 +43,21 @@ export function applyGenericType(base: TypeExpression | null, args: TypeExpressi
     const result = AST.resultTypeExpression(inner ?? base.innerType);
     return inheritMetadata(result, base, inner ?? undefined);
   }
-  const result = AST.genericTypeExpression(base, args);
+  let flattenedBase: TypeExpression = base;
+  let flattenedArgs = args;
+  if (base.type === "GenericTypeExpression") {
+    const collected: TypeExpression[] = [];
+    let current: TypeExpression = base;
+    while (current.type === "GenericTypeExpression") {
+      if (current.arguments && current.arguments.length > 0) {
+        collected.unshift(...current.arguments);
+      }
+      current = current.base;
+    }
+    flattenedBase = current;
+    flattenedArgs = [...collected, ...args];
+  }
+  const result = AST.genericTypeExpression(flattenedBase, flattenedArgs);
   return inheritMetadata(result, base);
 }
 

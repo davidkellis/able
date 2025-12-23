@@ -1,4 +1,4 @@
 0 match {
   case 1 => "One",
   case _ => "Other"
-}
+};

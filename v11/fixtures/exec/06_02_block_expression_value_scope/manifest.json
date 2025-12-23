@@ -1,0 +1,12 @@
+{
+  "description": "do blocks: scoped bindings and last-expression value",
+  "expect": {
+    "stdout": [
+      "tick 1",
+      "total 7",
+      "shadowed 6",
+      "outer 10"
+    ],
+    "exit": 0
+  }
+}

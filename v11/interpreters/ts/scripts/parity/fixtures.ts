@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { V10 } from "../../index";
+import { V11 } from "../../index";
 import type { AST } from "../../index";
 import { ModuleLoader } from "../module-loader";
 import {
@@ -143,7 +143,7 @@ export function shouldSkipFixture(manifest: Manifest | null): boolean {
 }
 
 export async function evaluateFixtureTS(dir: string, manifest: Manifest | null, entry: string): Promise<TSOutcome> {
-  const interpreter = new V10.InterpreterV10();
+  const interpreter = new V11.Interpreter();
   ensurePrint(interpreter);
   installRuntimeStubs(interpreter);
 
@@ -464,7 +464,7 @@ const INTEGER_VALUE_KINDS = new Set<string>([
 ]);
 const FLOAT_VALUE_KINDS = new Set<string>(["f32", "f64"]);
 
-function normalizeTSValue(value: V10.V10Value): NormalizedValue {
+function normalizeTSValue(value: V11.RuntimeValue): NormalizedValue {
   switch (value.kind) {
     case "String":
     case "char":

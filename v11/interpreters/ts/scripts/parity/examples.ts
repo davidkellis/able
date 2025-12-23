@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { V10 } from "../../index";
+import { V11 } from "../../index";
 import { callCallableValue } from "../../src/interpreter/functions";
 import { TypecheckerSession } from "../../src/typechecker";
 import type { DiagnosticLocation } from "../../src/typechecker/diagnostics";
@@ -105,7 +105,7 @@ export async function evaluateExampleTS(entryPath: string): Promise<TSExampleOut
     };
   }
 
-  const interpreter = new V10.InterpreterV10();
+  const interpreter = new V11.Interpreter();
   ensurePrint(interpreter);
   installRuntimeStubs(interpreter);
 
@@ -289,7 +289,7 @@ export function formatExampleDiff(diff: ExampleParityDiff): string {
   }
 }
 
-function invokeEntryMain(interpreter: V10.InterpreterV10, entry: Program["entry"]): void {
+function invokeEntryMain(interpreter: V11.Interpreter, entry: Program["entry"]): void {
   const packageBucket = interpreter.packageRegistry.get(entry.packageName);
   if (!packageBucket) {
     throw new Error(`entry package '${entry.packageName}' is not available at runtime`);
@@ -298,7 +298,7 @@ function invokeEntryMain(interpreter: V10.InterpreterV10, entry: Program["entry"
   if (!mainValue) {
     throw new Error("entry module does not define a main function");
   }
-  callCallableValue(interpreter as unknown as V10.InterpreterV10, mainValue, [], interpreter.globals);
+  callCallableValue(interpreter as unknown as V11.Interpreter, mainValue, [], interpreter.globals);
 }
 
 async function fileExists(candidate: string): Promise<boolean> {

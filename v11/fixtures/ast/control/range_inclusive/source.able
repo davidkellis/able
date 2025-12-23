@@ -1,5 +1,5 @@
-sum := 0
+sum := 0;
 for n in 0 .. 5 {
-  sum = sum + n
+  sum = sum + n;
 }
-sum
+sum;

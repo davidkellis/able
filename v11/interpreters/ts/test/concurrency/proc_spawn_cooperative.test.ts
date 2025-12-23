@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
-import type { V10Value } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
+import type { RuntimeValue } from "../../src/interpreter";
 
 import { appendToTrace, drainScheduler, expectErrorValue, expectStructInstance, flushScheduler } from "./proc_spawn.helpers";
 
 describe("v11 interpreter - proc & spawn handles", () => {
   test("proc task observes cancellation cooperatively", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     I.evaluate(
       AST.assignmentExpression(
@@ -121,7 +121,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
   });
 
   test("automatic time slicing yields progress without explicit proc_yield", () => {
-    const I = new InterpreterV10({ schedulerMaxSteps: 4 });
+    const I = new Interpreter({ schedulerMaxSteps: 4 });
 
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("counter"), AST.integerLiteral(0)));
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("done"), AST.booleanLiteral(false)));

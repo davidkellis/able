@@ -1,0 +1,32 @@
+package exec_05_00_mutability_declaration_vs_assignment
+
+## Semantics: `:=` introduces new bindings (shadowing), `=` reassigns or declares if missing, fields mutate in place.
+
+struct Box { value: i32 }
+
+fn main() -> void {
+  count := 1
+  count = count + 1
+  print(`count ${count}`)
+
+  shadow := do {
+    count := 10
+    count = count + 5
+    count
+  }
+  print(`shadow ${shadow}`)
+  print(`outer ${count}`)
+
+  do {
+    implicit = 7
+    print(`implicit ${implicit}`)
+  }
+
+  box := Box { value: 1 }
+  alias := box
+  box.value = 9
+  print(`alias ${alias.value}`)
+  box = Box { value: 2 }
+  print(`box ${box.value}`)
+  print(`alias_after ${alias.value}`)
+}

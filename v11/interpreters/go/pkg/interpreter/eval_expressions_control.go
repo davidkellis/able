@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"math/big"
 
-	"able/interpreter10-go/pkg/ast"
-	"able/interpreter10-go/pkg/runtime"
+	"able/interpreter-go/pkg/ast"
+	"able/interpreter-go/pkg/runtime"
 )
 
 func comparisonOp(op string, cmp int) bool {
@@ -27,15 +27,25 @@ func comparisonOp(op string, cmp int) bool {
 	}
 }
 
-func isTruthy(val runtime.Value) bool {
+func (i *Interpreter) isTruthy(val runtime.Value) bool {
 	switch v := val.(type) {
 	case runtime.BoolValue:
 		return v.Val
 	case runtime.NilValue:
 		return false
-	default:
-		return true
+	case runtime.ErrorValue:
+		return false
+	case runtime.InterfaceValue:
+		if v.Interface != nil && v.Interface.Node != nil && v.Interface.Node.ID != nil && v.Interface.Node.ID.Name == "Error" {
+			return false
+		}
 	}
+	if info, ok := i.getTypeInfoForValue(val); ok {
+		if entry, _ := i.lookupImplEntry(info, "Error"); entry != nil {
+			return false
+		}
+	}
+	return true
 }
 
 func isNumericValue(val runtime.Value) bool {

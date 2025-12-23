@@ -50,7 +50,7 @@ methods LazySeq T {
     self.ensure_index(0) match {
       case nil => self,
       case _ => {
-        new_cache: Array T := Array.new()
+        new_cache: Array T := Array.new();
         idx := 1
         loop {
           self.cache.get(idx) match {
@@ -85,7 +85,7 @@ methods LazySeq T {
   fn take(self: Self, count: i32) -> Array T {
     if count <= 0 { return Array.new() }
     self.ensure_index(count - 1)
-    result := Array.new()
+    result := Array.new();
     idx := 0
     loop {
       if idx >= count { break }

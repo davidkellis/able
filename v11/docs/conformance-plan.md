@@ -23,6 +23,7 @@ This document tracks end-to-end exec fixtures for Able v11 and maps them to the 
 | 7.4, 9, 10 | Method call syntax + UFCS + impl dispatch | `exec/09_04_methods_ufcs_basics` | Seeded: inherent method sugar, UFCS free function, type-qualified static |
 | 13.2–13.5 | Packages/import visibility and private types | `exec/13_02_packages_visibility_diag` | Seeded: alias vs selective import scope; private helpers encapsulated |
 | 4.7, 4.6, 7.1 | Type aliases/unions with generic functions | `exec/04_07_types_alias_union_generic_combo` | Seeded: alias applied to union + generic function inference fallback |
+| 4.3 | Type expression syntax (nested generics + unions) | `exec/04_03_type_expression_syntax` | Seeded: multi-arg generics and nested type expressions |
 | 11.2 | `!`/`or` propagation for `Option`/`Result` | `exec/11_02_option_result_propagation` | Seeded: Option unwrap + error handling via `! or {}` |
 
 The matrix is also materialized as `v11/fixtures/exec/coverage-index.json` to enable tooling/CI checks.

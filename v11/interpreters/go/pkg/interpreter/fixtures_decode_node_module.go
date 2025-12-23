@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io/fs"
 
-	"able/interpreter10-go/pkg/ast"
+	"able/interpreter-go/pkg/ast"
 )
 
 func decodeModuleNodes(node map[string]any, typ string) (ast.Node, bool, error) {

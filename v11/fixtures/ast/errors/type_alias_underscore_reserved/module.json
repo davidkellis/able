@@ -1,0 +1,20 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "TypeAliasDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "_"
+      },
+      "targetType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "i64"
+        }
+      }
+    }
+  ]
+}

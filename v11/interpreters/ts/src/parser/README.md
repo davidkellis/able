@@ -11,7 +11,7 @@ The TypeScript mapper now mirrors the modular plan in `PLAN.md`. Each helper fil
 - `expressions.ts` – all expression forms (calls, pipes, match/if, rescue/ensure, iterators, etc.).
 - `definitions.ts` – structs, unions, interfaces, impls, functions, extern/prelude helpers.
 - `tree-sitter-mapper.ts` – the thin orchestrator: instantiate a context, register the helper modules, and map a source file into an AST module.
-- The Go parser in `interpreter10-go/pkg/parser` is adopting the same `ParseContext` contract; imports, declarations, patterns, and statements now call context methods to keep both runtimes aligned.
+- The Go parser in `interpreter-go/pkg/parser` is adopting the same `ParseContext` contract; imports, declarations, patterns, and statements now call context methods to keep both runtimes aligned.
 
 When adding new helpers, follow the same pattern:
 
@@ -21,6 +21,6 @@ When adding new helpers, follow the same pattern:
 
 ## Spec Cross-References
 
-- Expressions, statements, and control-flow helpers align with §6–§8 of [`spec/full_spec_v10.md`](../../spec/full_spec_v10.md).
+- Expressions, statements, and control-flow helpers align with §6–§8 of [`spec/full_spec_v11.md`](../../spec/full_spec_v11.md).
 - Type/generic helpers map to §4 and §10 references in the same spec file; keep TODOs in sync with `spec/todo.md`.
 - Concurrency/rescue helpers mirror §11–§12 semantics; document any delta in `design/channels-mutexes.md`.

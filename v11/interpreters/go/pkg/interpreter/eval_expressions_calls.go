@@ -3,8 +3,8 @@ package interpreter
 import (
 	"fmt"
 
-	"able/interpreter10-go/pkg/ast"
-	"able/interpreter10-go/pkg/runtime"
+	"able/interpreter-go/pkg/ast"
+	"able/interpreter-go/pkg/runtime"
 )
 
 func (i *Interpreter) evaluateFunctionCall(call *ast.FunctionCall, env *runtime.Environment) (runtime.Value, error) {
@@ -803,9 +803,15 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 				return nil, fmt.Errorf(":= requires at least one new binding")
 			}
 			env.Define(lhs.Name, value)
+			if i.currentPackage != "" && env.Parent() == i.global {
+				i.registerSymbol(lhs.Name, value)
+			}
 		case ast.AssignmentAssign:
 			if !env.AssignExisting(lhs.Name, value) {
 				env.Define(lhs.Name, value)
+				if i.currentPackage != "" && env.Parent() == i.global {
+					i.registerSymbol(lhs.Name, value)
+				}
 			}
 		default:
 			if !isCompound {

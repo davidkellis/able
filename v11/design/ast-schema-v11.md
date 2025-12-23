@@ -1,6 +1,6 @@
-# Able v10 Canonical AST Schema
+# Able v11 Canonical AST Schema
 
-This document defines the language-agnostic Abstract Syntax Tree for Able v10 programs. It is derived directly from `spec/full_spec_v10.md` and is intended to be implemented verbatim by every interpreter, compiler, or tooling project targeting Able v10.
+This document defines the language-agnostic Abstract Syntax Tree for Able v11 programs. It is derived directly from `spec/full_spec_v11.md` and is intended to be implemented verbatim by every interpreter, compiler, or tooling project targeting Able v11.
 
 The schema uses neutral terminology so it can map cleanly to TypeScript, Go, Crystal, or any other host language. Each implementation is responsible for preserving the structure and semantics described here.
 
@@ -202,7 +202,7 @@ Statement :=
 `ReturnStatement` carries an optional `argument: Expression`.
 
 ---
-## 11. Alignment with v10 Spec
+## 11. Alignment with v11 Spec
 
 - **Core expressions** map to the evaluation rules in §6 (Expressions) and §7 (Operators).
 - **Control flow** covers `if/or`, loops, labeled breaks (§8).

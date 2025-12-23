@@ -1,10 +1,54 @@
 # Able Project Log
 
+# 2025-12-22 — Kernel alias normalization for typed patterns (v11)
+- Normalized runtime type matching to map KernelChannel/KernelMutex/KernelRange/KernelRangeFactory/KernelRatio/KernelAwaitable/AwaitWaker/AwaitRegistration to their stdlib names so typed patterns match kernel aliases.
+- Tests: `GOCACHE=/home/david/sync/projects/able/.tmp/go-build GOMODCACHE=/home/david/sync/projects/able/.tmp/gomod go test ./pkg/interpreter -run TestStdlibChannelMutexModuleLoader`; `GOCACHE=/home/david/sync/projects/able/.tmp/go-build GOMODCACHE=/home/david/sync/projects/able/.tmp/gomod ./run_all_tests.sh --version=v11`.
+
+# 2025-12-22 — Singleton struct exec fixture (v11)
+- Added `exec/04_05_01_struct_singleton_usage` covering singleton struct tags and pattern matching; updated exec coverage index and PLAN backlog.
+- Treated singleton struct definitions as runtime values in TS/Go (typed pattern checks + type-name reporting) and matched singleton identifiers as constant patterns; Go `valuesEqual` now handles struct definition pointers.
+- Tests: `GOCACHE=/home/david/sync/projects/able/.tmp/go-build GOMODCACHE=/home/david/sync/projects/able/.tmp/gomod ./run_all_tests.sh --version=v11 --fixture`.
+
+# 2025-12-20 — Reserved underscore type aliases (v11)
+- Added `exec/04_04_reserved_underscore_types` for `_` placeholder type expressions and updated the exec coverage index + PLAN backlog.
+- Added AST fixture `errors/type_alias_underscore_reserved` and enforced runtime/typechecker rejection of type alias name `_` in TS + Go.
+- Refreshed the typecheck baseline to include the new alias diagnostic.
+- Tests: `./run_all_tests.sh --version=v11 --fixture`; `ABLE_TYPECHECK_FIXTURES=warn bun run scripts/run-fixtures.ts -- --write-typecheck-baseline`.
+
+# 2025-12-20 — Go type matching + constraint parity fixes (v11)
+- Normalized runtime type matching for kernel alias names (`KernelArray`, `KernelHashMap`) and treated generic type args as wildcards during concrete matches to align alias recursion fixtures.
+- Treated primitives as satisfying `Hash`/`Eq` method presence during impl resolution and expanded intrinsic Hash/Eq coverage to include all integer/float types.
+- Stopped Go typechecker from typechecking impl/method bodies to mirror TS diagnostics for interface conformance tests.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestFixtureParityStringLiteral/strings/String_methods -count=1`; `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtures/04_07_05_alias_recursion_termination -count=1`; `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestExecFixtures/06_01_literals_array_map_inference -count=1`; `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter -run TestFixtureParityStringLiteral/interfaces/apply_index_missing_impls -count=1`; `./run_all_tests.sh --version=v11 --fixture`.
+
+# 2025-12-19 — Type expression syntax exec fixture (v11)
+- Added `exec/04_03_type_expression_syntax` to cover nested type expressions with generic application and unions, including inline semantics comments.
+- Updated `v11/fixtures/exec/coverage-index.json` and removed the completed PLAN backlog item.
+- Tests not run (not requested).
+
+# 2025-12-19 — Primitives truthiness exec fixture (v11)
+- Added `exec/04_02_primitives_truthiness_numeric` to cover literal forms, Euclidean `//`/`%`, and truthiness for `nil`/`false`/`Error`/`void`.
+- Updated `v11/fixtures/exec/coverage-index.json` and removed the completed PLAN backlog item.
+- Tests not run (not requested).
+
+# 2025-12-19 — Exec fixture reimplementation pass (v11)
+- Reimplemented exec fixtures for §2, §3, §4.1, §4.7.2–§4.7.5, §5.0–§5.3, §6.1.7–§6.1.9, §6.2, and §6.3.1 with fresh programs aligned to spec semantics; refreshed manifests/expectations accordingly.
+- Updated `PLAN.md` note to emphasize spec-first fixtures even when interpreters fail.
+- Tests not run (exec fixtures pending re-sweep).
+
+# 2025-12-19 — Exec fixture expansion (v11)
+- Seeded exec fixtures for §2 (lexical comments/identifiers/trailing commas), §3 (block expression separation/value), and §4.1.4–§4.1.6 (generic inference with constrained interface methods), each with inline semantics notes.
+- Coverage index and PLAN backlog updated to reflect the new fixtures; exec coverage guard stays green. Go runtime updated to treat generic-parameter types as wildcards during overload selection so the new §4.1 fixture runs.
+- Tests: `./run_all_tests.sh --version=v11 --fixture`.
+
 # 2025-12-18 — Exec fixtures renamed to spec sections (v11)
 - Renamed exec fixtures/packages to use spec section prefixes, refreshed manifests/comments, and regenerated the coverage index + docs with the spec-based naming scheme.
 - Added/updated exec fixtures for async proc/spawn scheduling, methods/UFCS, option/result handling via raise/rescue, package visibility with explicit aliases, and alias/union generic combos; each case documents the exercised semantics inline.
 - Conformance docs now carry the seeded coverage matrix and exec fixtures guide keyed to the new IDs, with the JSON coverage index tracked alongside.
 - `run_all_tests.sh` runs `scripts/check-exec-coverage.mjs` before the suites; `./run_all_tests.sh --version=v11` passes after the exec fixture sweep.
+- Seeded new exec fixtures for §4.7.2–§4.7.5 (generic alias substitution, import visibility, alias-backed methods/impls, and recursive alias termination via nominal indirection) with manifests and package wiring.
+- Coverage index and PLAN backlog updated to reflect the new alias fixtures.
+- Added exec fixtures for §5.0–§5.2 (mutability declaration vs assignment, identifier/wildcard typed patterns, struct pattern rename with typed nesting) and brought coverage index + PLAN in sync.
 
 # 2025-12-13 — Host interop tutorial unblocked + prefix match guard (v11)
 - Added the Go-side `read_text` extern for tutorial 14 (imports `os`, returns `host_error` on failure) so the host interop example now runs on the Go runtime alongside the existing TS path.

@@ -1,0 +1,15 @@
+{
+  "description": "operator precedence/associativity across arithmetic, exponentiation, boolean, pipe",
+  "expect": {
+    "stdout": [
+      "add_mul 7",
+      "grouped 9",
+      "left_sub 7",
+      "power 512",
+      "neg_power -4",
+      "bools true",
+      "pipe 4"
+    ],
+    "exit": 0
+  }
+}

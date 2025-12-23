@@ -7,13 +7,13 @@ import { ModuleLoader } from "../../scripts/module-loader";
 import { collectModuleSearchPaths } from "../../scripts/module-search-paths";
 import { ensureConsolePrint, installRuntimeStubs } from "../../scripts/runtime-stubs";
 import { callCallableValue } from "../../src/interpreter/functions";
-import { V10 } from "../../index";
+import { V11 } from "../../index";
 
 const PROBE_ROOT = path.resolve(__dirname, "../../..");
 
 const readString = (value: any): string => String(value?.value ?? "");
 
-function evaluateAllModules(interpreter: V10.InterpreterV10, program: { modules: any[]; entry: any }): void {
+function evaluateAllModules(interpreter: V11.Interpreter, program: { modules: any[]; entry: any }): void {
   const nonEntry = program.modules.filter((mod) => mod.packageName !== program.entry.packageName);
   for (const mod of nonEntry) {
     interpreter.evaluate(mod.module);
@@ -47,7 +47,7 @@ fn main() -> String {
       const loader = new ModuleLoader(searchPaths);
       const program = await loader.load(path.join(tmpRoot, "main.able"));
 
-      const interpreter = new V10.InterpreterV10();
+      const interpreter = new V11.Interpreter();
       ensureConsolePrint(interpreter);
       installRuntimeStubs(interpreter);
       evaluateAllModules(interpreter, program);

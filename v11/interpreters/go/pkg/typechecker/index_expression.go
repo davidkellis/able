@@ -3,7 +3,7 @@ package typechecker
 import (
 	"fmt"
 
-	"able/interpreter10-go/pkg/ast"
+	"able/interpreter-go/pkg/ast"
 )
 
 func (c *Checker) checkIndexExpression(env *Environment, expr *ast.IndexExpression) ([]Diagnostic, Type) {
@@ -12,6 +12,15 @@ func (c *Checker) checkIndexExpression(env *Environment, expr *ast.IndexExpressi
 	}
 
 	var diags []Diagnostic
+	wrapResult := func(inner Type) Type {
+		if inner == nil {
+			inner = UnknownType{}
+		}
+		return AppliedType{
+			Base:      StructType{StructName: "Result"},
+			Arguments: []Type{inner},
+		}
+	}
 
 	objDiags, objectType := c.checkExpression(env, expr.Object)
 	diags = append(diags, objDiags...)
@@ -31,8 +40,9 @@ func (c *Checker) checkIndexExpression(env *Environment, expr *ast.IndexExpressi
 				Node:    expr.Index,
 			})
 		}
-		c.infer.set(expr, elem)
-		return diags, elem
+		result := wrapResult(elem)
+		c.infer.set(expr, result)
+		return diags, result
 	case MapType:
 		if indexType != nil && ty.Key != nil && !isUnknownType(indexType) && !typeAssignable(indexType, ty.Key) {
 			diags = append(diags, Diagnostic{
@@ -44,8 +54,9 @@ func (c *Checker) checkIndexExpression(env *Environment, expr *ast.IndexExpressi
 		if val == nil {
 			val = UnknownType{}
 		}
-		c.infer.set(expr, val)
-		return diags, val
+		result := wrapResult(val)
+		c.infer.set(expr, result)
+		return diags, result
 	case StructInstanceType:
 		if ty.StructName == "Array" && len(ty.Positional) > 0 {
 			elem := ty.Positional[0]
@@ -55,13 +66,15 @@ func (c *Checker) checkIndexExpression(env *Environment, expr *ast.IndexExpressi
 					Node:    expr.Index,
 				})
 			}
-			c.infer.set(expr, elem)
-			return diags, elem
+			result := wrapResult(elem)
+			c.infer.set(expr, result)
+			return diags, result
 		}
 		if ty.StructName == "HashMap" && len(ty.TypeArgs) >= 2 {
 			val := ty.TypeArgs[1]
-			c.infer.set(expr, val)
-			return diags, val
+			result := wrapResult(val)
+			c.infer.set(expr, result)
+			return diags, result
 		}
 	case StructType:
 		if ty.StructName == "Array" && len(ty.Positional) > 0 {
@@ -72,13 +85,15 @@ func (c *Checker) checkIndexExpression(env *Environment, expr *ast.IndexExpressi
 					Node:    expr.Index,
 				})
 			}
-			c.infer.set(expr, elem)
-			return diags, elem
+			result := wrapResult(elem)
+			c.infer.set(expr, result)
+			return diags, result
 		}
 		if ty.StructName == "HashMap" && len(ty.Positional) >= 2 {
 			val := ty.Positional[1]
-			c.infer.set(expr, val)
-			return diags, val
+			result := wrapResult(val)
+			c.infer.set(expr, result)
+			return diags, result
 		}
 	case AppliedType:
 		if elem, ok := arrayElementType(ty); ok {
@@ -91,13 +106,15 @@ func (c *Checker) checkIndexExpression(env *Environment, expr *ast.IndexExpressi
 			if elem == nil {
 				elem = UnknownType{}
 			}
-			c.infer.set(expr, elem)
-			return diags, elem
+			result := wrapResult(elem)
+			c.infer.set(expr, result)
+			return diags, result
 		}
 		if name, ok := structName(ty.Base); ok && name == "HashMap" && len(ty.Arguments) >= 2 {
 			val := ty.Arguments[1]
-			c.infer.set(expr, val)
-			return diags, val
+			result := wrapResult(val)
+			c.infer.set(expr, result)
+			return diags, result
 		}
 		if iface, ok := ty.Base.(InterfaceType); ok && iface.InterfaceName == "Index" {
 			var keyType, valueType Type = UnknownType{}, UnknownType{}
@@ -113,21 +130,25 @@ func (c *Checker) checkIndexExpression(env *Environment, expr *ast.IndexExpressi
 					Node:    expr.Index,
 				})
 			}
-			c.infer.set(expr, valueType)
-			return diags, valueType
+			result := wrapResult(valueType)
+			c.infer.set(expr, result)
+			return diags, result
 		}
 	case UnknownType:
-		c.infer.set(expr, UnknownType{})
-		return diags, UnknownType{}
+		result := wrapResult(UnknownType{})
+		c.infer.set(expr, result)
+		return diags, result
 	}
 
 	if ok, _ := c.typeImplementsInterface(objectType, InterfaceType{InterfaceName: "Index"}, nil); ok {
-		c.infer.set(expr, UnknownType{})
-		return diags, UnknownType{}
+		result := wrapResult(UnknownType{})
+		c.infer.set(expr, result)
+		return diags, result
 	}
 	if ok, _ := c.typeImplementsInterface(objectType, InterfaceType{InterfaceName: "IndexMut"}, nil); ok {
-		c.infer.set(expr, UnknownType{})
-		return diags, UnknownType{}
+		result := wrapResult(UnknownType{})
+		c.infer.set(expr, result)
+		return diags, result
 	}
 
 	if !isUnknownType(objectType) {
@@ -137,8 +158,9 @@ func (c *Checker) checkIndexExpression(env *Environment, expr *ast.IndexExpressi
 		})
 	}
 
-	c.infer.set(expr, UnknownType{})
-	return diags, UnknownType{}
+	result := wrapResult(UnknownType{})
+	c.infer.set(expr, result)
+	return diags, result
 }
 
 func (c *Checker) checkIndexAssignment(env *Environment, expr *ast.IndexExpression, valueType Type, op ast.AssignmentOperator) []Diagnostic {

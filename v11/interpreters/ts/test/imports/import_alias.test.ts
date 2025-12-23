@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - import alias selectors", () => {
   test("import selector with alias binds in module env", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     // Predefine a function in globals
     I.evaluate(AST.functionDefinition("foo", [], AST.blockExpression([AST.returnStatement(AST.integerLiteral(42))])));
 

@@ -161,12 +161,26 @@ export function inferExpression(ctx: ExpressionContext, expression: AST.Expressi
           if (spreadType.kind === "map") {
             keyType = mergeMapComponent(ctx, keyType, spreadType.key, "map key", entry.expression);
             valueType = mergeMapComponent(ctx, valueType, spreadType.value, "map value", entry.expression);
-          } else if (spreadType.kind !== "unknown") {
-            ctx.report(`typechecker: map spread expects Map, got ${formatType(spreadType)}`, entry.expression);
+            continue;
+          }
+          if (spreadType.kind === "struct" && spreadType.name === "HashMap") {
+            const args = spreadType.typeArguments ?? [];
+            keyType = mergeMapComponent(ctx, keyType, args[0] ?? unknownType, "map key", entry.expression);
+            valueType = mergeMapComponent(ctx, valueType, args[1] ?? unknownType, "map value", entry.expression);
+            continue;
+          }
+          if (spreadType.kind !== "unknown") {
+            ctx.report(`typechecker: map spread expects Map or HashMap, got ${formatType(spreadType)}`, entry.expression);
           }
         }
       }
-      return { kind: "map", key: keyType ?? unknownType, value: valueType ?? unknownType };
+      const structDef = ctx.getStructDefinition("HashMap");
+      return {
+        kind: "struct",
+        name: "HashMap",
+        typeArguments: [keyType ?? unknownType, valueType ?? unknownType],
+        definition: structDef,
+      };
     }
     case "MatchExpression":
       return evaluateMatchExpression(ctx, expression);
@@ -252,6 +266,78 @@ export function inferExpression(ctx: ExpressionContext, expression: AST.Expressi
       return checkIteratorLiteral(ctx, expression);
     default:
       return unknownType;
+  }
+}
+
+export function refineTypeWithExpected(actual: TypeInfo | undefined | null, expected: TypeInfo | undefined | null): TypeInfo {
+  if (!expected || expected.kind === "unknown") {
+    return actual ?? unknownType;
+  }
+  if (!actual || actual.kind === "unknown") {
+    return expected;
+  }
+  if (actual.kind !== expected.kind) {
+    return actual;
+  }
+  switch (actual.kind) {
+    case "array":
+      return { kind: "array", element: refineTypeWithExpected(actual.element, expected.element) };
+    case "map":
+      return {
+        kind: "map",
+        key: refineTypeWithExpected(actual.key, expected.key),
+        value: refineTypeWithExpected(actual.value, expected.value),
+      };
+    case "range":
+      return { kind: "range", element: refineTypeWithExpected(actual.element, expected.element), bounds: actual.bounds };
+    case "iterator":
+      return { kind: "iterator", element: refineTypeWithExpected(actual.element, expected.element) };
+    case "proc":
+      return { kind: "proc", result: refineTypeWithExpected(actual.result, expected.result) };
+    case "future":
+      return { kind: "future", result: refineTypeWithExpected(actual.result, expected.result) };
+    case "nullable":
+      return { kind: "nullable", inner: refineTypeWithExpected(actual.inner, expected.inner) };
+    case "result":
+      return { kind: "result", inner: refineTypeWithExpected(actual.inner, expected.inner) };
+    case "struct": {
+      if (actual.name !== expected.name) {
+        return actual;
+      }
+      const actualArgs = Array.isArray(actual.typeArguments) ? actual.typeArguments : [];
+      const expectedArgs = Array.isArray(expected.typeArguments) ? expected.typeArguments : [];
+      if (actualArgs.length === 0) {
+        return actual;
+      }
+      const typeArguments = actualArgs.map((arg, index) => refineTypeWithExpected(arg, expectedArgs[index]));
+      return { ...actual, typeArguments };
+    }
+    case "interface": {
+      if (actual.name !== expected.name) {
+        return actual;
+      }
+      const actualArgs = Array.isArray(actual.typeArguments) ? actual.typeArguments : [];
+      const expectedArgs = Array.isArray(expected.typeArguments) ? expected.typeArguments : [];
+      if (actualArgs.length === 0) {
+        return actual;
+      }
+      const typeArguments = actualArgs.map((arg, index) => refineTypeWithExpected(arg, expectedArgs[index]));
+      return { ...actual, typeArguments };
+    }
+    case "union": {
+      if (!Array.isArray(actual.members) || !Array.isArray(expected.members)) {
+        return actual;
+      }
+      if (actual.members.length !== expected.members.length) {
+        return actual;
+      }
+      return {
+        kind: "union",
+        members: actual.members.map((member, index) => refineTypeWithExpected(member, expected.members[index])),
+      };
+    }
+    default:
+      return actual;
   }
 }
 
@@ -500,6 +586,7 @@ function resolveIndexResultType(
   indexType: TypeInfo,
   node: AST.Node,
 ): TypeInfo {
+  const wrapResult = (inner: TypeInfo): TypeInfo => ({ kind: "result", inner: inner ?? unknownType });
   const requiresIntegerIndex = (): void => {
     if (!isIntegerPrimitiveType(indexType) && indexType.kind !== "unknown") {
       ctx.report("typechecker: index must be an integer", node);
@@ -510,21 +597,21 @@ function resolveIndexResultType(
   }
   if (objectType.kind === "array") {
     requiresIntegerIndex();
-    return objectType.element ?? unknownType;
+    return wrapResult(objectType.element ?? unknownType);
   }
   if (objectType.kind === "struct" && objectType.name === "Array") {
     requiresIntegerIndex();
-    return (objectType.typeArguments ?? [])[0] ?? unknownType;
+    return wrapResult((objectType.typeArguments ?? [])[0] ?? unknownType);
   }
   if (objectType.kind === "map") {
-    return objectType.value ?? unknownType;
+    return wrapResult(objectType.value ?? unknownType);
   }
   if (objectType.kind === "struct" && objectType.name === "HashMap") {
     const args = objectType.typeArguments ?? [];
     if (args.length >= 2) {
-      return args[1] ?? unknownType;
+      return wrapResult(args[1] ?? unknownType);
     }
-    return unknownType;
+    return wrapResult(unknownType);
   }
   if (objectType.kind === "interface" && objectType.name === "Index") {
     const keyType = (objectType.typeArguments ?? [])[0];
@@ -535,13 +622,13 @@ function resolveIndexResultType(
         node,
       );
     }
-    return valueType ?? unknownType;
+    return wrapResult(valueType ?? unknownType);
   }
   if (ctx.typeImplementsInterface?.(objectType, "Index", ["Unknown", "Unknown"])?.ok) {
-    return unknownType;
+    return wrapResult(unknownType);
   }
   if (ctx.typeImplementsInterface?.(objectType, "IndexMut", ["Unknown", "Unknown"])?.ok) {
-    return unknownType;
+    return wrapResult(unknownType);
   }
   ctx.report(`typechecker: cannot index into type ${formatType(objectType)}`, node);
   return unknownType;

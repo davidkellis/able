@@ -1,11 +1,11 @@
-score := 85
+score := 85;
 grade := if score >= 90 {
-  "A"
+  "A";
 }
 elsif score >= 80 {
-  "B"
+  "B";
 }
 else {
-  "C or lower"
-}
-grade
+  "C or lower";
+};
+grade;

@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - compound assignments", () => {
   test("identifier targets for arithmetic and bitwise", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("x"), AST.integerLiteral(2)));
     I.evaluate(AST.assignmentExpression("+=", AST.identifier("x"), AST.integerLiteral(3)));
     expect(I.evaluate(AST.identifier("x"))).toEqual({ kind: 'i32', value: 5n });
@@ -13,7 +13,7 @@ describe("v11 interpreter - compound assignments", () => {
   });
 
   test("struct field and array index compound assignment", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const Def = AST.structDefinition("Point", [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "x"), AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "y")], "named");
     I.evaluate(Def);
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("p"), AST.structLiteral([

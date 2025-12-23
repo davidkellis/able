@@ -1,5 +1,5 @@
 do {
-  "safe"
+  "safe";
 } rescue {
   case _ => "handled"
-}
+};

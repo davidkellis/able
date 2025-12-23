@@ -7,19 +7,19 @@ Owner: Able Agents
 
 The Go typechecker recently relaxed several behaviours to mirror the runtime more closely:
 
-- Declaration bindings are installed before analysing the right-hand side so recursive async/proc scenarios do not trip undefined errors (`interpreter10-go/pkg/typechecker/literals.go:203`).
-- Wildcard `dynimport` and static wildcard imports seed placeholder bindings and enable dynamic name lookup (`interpreter10-go/pkg/typechecker/checker.go:90`, `interpreter10-go/pkg/typechecker/literals.go:255`).
-- Builtins now include `print`, and async helper diagnostics match the runtime (`interpreter10-go/pkg/typechecker/decls.go:323`, `interpreter10-go/pkg/typechecker/builtins.go:21`).
-- Struct functional updates inherit field/positional metadata from the source value (`interpreter10-go/pkg/typechecker/struct_literal.go:80`).
-- Literal patterns contribute potential non-match types without forcing false negatives (`interpreter10-go/pkg/typechecker/patterns.go:28`).
-- Member access recognises positional selectors (`pair.0`) and honours alias metadata from imports/dynimports (`interpreter10-go/pkg/typechecker/member_access.go:9`, `interpreter10-go/pkg/typechecker/literals.go:250`).
+- Declaration bindings are installed before analysing the right-hand side so recursive async/proc scenarios do not trip undefined errors (`interpreter-go/pkg/typechecker/literals.go:203`).
+- Wildcard `dynimport` and static wildcard imports seed placeholder bindings and enable dynamic name lookup (`interpreter-go/pkg/typechecker/checker.go:90`, `interpreter-go/pkg/typechecker/literals.go:255`).
+- Builtins now include `print`, and async helper diagnostics match the runtime (`interpreter-go/pkg/typechecker/decls.go:323`, `interpreter-go/pkg/typechecker/builtins.go:21`).
+- Struct functional updates inherit field/positional metadata from the source value (`interpreter-go/pkg/typechecker/struct_literal.go:80`).
+- Literal patterns contribute potential non-match types without forcing false negatives (`interpreter-go/pkg/typechecker/patterns.go:28`).
+- Member access recognises positional selectors (`pair.0`) and honours alias metadata from imports/dynimports (`interpreter-go/pkg/typechecker/member_access.go:9`, `interpreter-go/pkg/typechecker/literals.go:250`).
 
 Before the TypeScript checker is enabled, we need parity so both runtimes agree on permissive behaviour and diagnostics.
 
 ## Plan of record
 
 1. **Scaffold the TypeScript checker**
-   - Establish a `interpreter10/src/typechecker/` module with `checker.ts`, `environment.ts`, `types.ts`, and `inference.ts` mirroring the Go structure.
+   - Establish a `v11/interpreters/ts/src/typechecker/` module with `checker.ts`, `environment.ts`, `types.ts`, and `inference.ts` mirroring the Go structure.
    - Port declaration collection and builtin registration first so scopes/builtins align.
 
 2. **Port permissive rules**
@@ -33,7 +33,7 @@ Before the TypeScript checker is enabled, we need parity so both runtimes agree 
 
 3. **Diagnostics parity**
    - Ensure diagnostic messages use the same text as the Go checker so shared fixtures stay in sync. Reuse the `typechecker:` prefix for easier manifest comparison.
-   - Surface diagnostics through a harness-friendly API (matching `InterpreterV10` once the checker integrates with the TS runner).
+   - Surface diagnostics through a harness-friendly API (matching `Interpreter` once the checker integrates with the TS runner).
 
 4. **Tests and fixtures**
    - Mirror existing Go checker unit tests in TypeScript once the checker lands (start with the fixtures touched above).

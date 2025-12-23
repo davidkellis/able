@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"able/interpreter10-go/pkg/ast"
+	"able/interpreter-go/pkg/ast"
 )
 
 func makeIndexInterfaces() (*ast.InterfaceDefinition, *ast.InterfaceDefinition) {
@@ -19,7 +19,7 @@ func makeIndexInterfaces() (*ast.InterfaceDefinition, *ast.InterfaceDefinition) 
 					ast.Param("self", ast.Ty("Self")),
 					ast.Param("idx", ast.Ty("Idx")),
 				},
-				ast.Ty("Val"),
+				ast.Result(ast.Ty("Val")),
 				nil,
 				nil,
 				nil,
@@ -41,7 +41,7 @@ func makeIndexInterfaces() (*ast.InterfaceDefinition, *ast.InterfaceDefinition) 
 					ast.Param("idx", ast.Ty("Idx")),
 					ast.Param("value", ast.Ty("Val")),
 				},
-				ast.Ty("void"),
+				ast.Result(ast.Ty("void")),
 				nil,
 				nil,
 				nil,
@@ -79,7 +79,7 @@ func TestIndexAssignmentUsesIndexMutImplementation(t *testing.T) {
 			ast.Param("idx", ast.Ty("i32")),
 		},
 		[]ast.Statement{ast.Ret(ast.ImplicitMember("value"))},
-		ast.Ty("i32"),
+		ast.Result(ast.Ty("i32")),
 		nil,
 		nil,
 		true,
@@ -93,7 +93,7 @@ func TestIndexAssignmentUsesIndexMutImplementation(t *testing.T) {
 			ast.Param("value", ast.Ty("i32")),
 		},
 		[]ast.Statement{ast.Ret(ast.Nil())},
-		ast.Ty("void"),
+		ast.Result(ast.Ty("void")),
 		nil,
 		nil,
 		true,
@@ -129,7 +129,7 @@ func TestIndexAssignmentRequiresIndexMut(t *testing.T) {
 			ast.Param("idx", ast.Ty("i32")),
 		},
 		[]ast.Statement{ast.Ret(ast.ImplicitMember("value"))},
-		ast.Ty("i32"),
+		ast.Result(ast.Ty("i32")),
 		nil,
 		nil,
 		true,

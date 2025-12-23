@@ -233,7 +233,7 @@ function looksLikeStdlibPath(dir: string): boolean {
   return path
     .resolve(dir)
     .split(path.sep)
-    .some((segment) => segment === "stdlib" || segment === "stdlib_v11" || segment === "stdlib_v10");
+    .some((segment) => segment === "stdlib" || segment.startsWith("stdlib_"));
 }
 
 function looksLikeKernelPath(dir: string): boolean {

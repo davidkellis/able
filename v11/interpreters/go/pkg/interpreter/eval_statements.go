@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 
-	"able/interpreter10-go/pkg/ast"
-	"able/interpreter10-go/pkg/runtime"
+	"able/interpreter-go/pkg/ast"
+	"able/interpreter-go/pkg/runtime"
 )
 
 func (i *Interpreter) evaluateStatement(node ast.Statement, env *runtime.Environment) (runtime.Value, error) {
@@ -18,6 +18,9 @@ func (i *Interpreter) evaluateStatement(node ast.Statement, env *runtime.Environ
 		return i.evaluateUnionDefinition(n, env)
 	case *ast.TypeAliasDefinition:
 		if n.ID != nil {
+			if n.ID.Name == "_" {
+				return nil, errors.New("type alias name '_' is reserved")
+			}
 			i.typeAliases[n.ID.Name] = n
 		}
 		return runtime.NilValue{}, nil
@@ -79,7 +82,7 @@ func (i *Interpreter) evaluateBlock(block *ast.BlockExpression, env *runtime.Env
 	payload := payloadFromState(env.RuntimeData())
 	if payload == nil {
 		scope := runtime.NewEnvironment(env)
-		var result runtime.Value = runtime.NilValue{}
+		var result runtime.Value = runtime.VoidValue{}
 		for _, stmt := range block.Body {
 			val, err := i.evaluateStatement(stmt, scope)
 			if err != nil {
@@ -102,7 +105,7 @@ func (i *Interpreter) evaluateBlock(block *ast.BlockExpression, env *runtime.Env
 		frame = &blockFrame{
 			env:    runtime.NewEnvironment(env),
 			index:  0,
-			result: runtime.NilValue{},
+			result: runtime.VoidValue{},
 		}
 		state.blockFrames[block] = frame
 	}
@@ -142,8 +145,8 @@ func (i *Interpreter) evaluateWhileLoop(loop *ast.WhileLoop, env *runtime.Enviro
 		if err != nil {
 			return nil, err
 		}
-		if !isTruthy(cond) {
-			return runtime.NilValue{}, nil
+		if !i.isTruthy(cond) {
+			return runtime.VoidValue{}, nil
 		}
 		if _, err := i.evaluateBlock(loop.Body, env); err != nil {
 			switch sig := err.(type) {
@@ -170,7 +173,7 @@ func (i *Interpreter) evaluateWhileLoop(loop *ast.WhileLoop, env *runtime.Enviro
 
 func (i *Interpreter) evaluateLoopExpression(loop *ast.LoopExpression, env *runtime.Environment) (runtime.Value, error) {
 	if loop == nil || loop.Body == nil {
-		return runtime.NilValue{}, nil
+		return runtime.VoidValue{}, nil
 	}
 	for {
 		_, err := i.evaluateBlock(loop.Body, env)
@@ -207,7 +210,7 @@ func (i *Interpreter) evaluateRaiseStatement(stmt *ast.RaiseStatement, env *runt
 }
 
 func (i *Interpreter) evaluateReturnStatement(stmt *ast.ReturnStatement, env *runtime.Environment) (runtime.Value, error) {
-	var result runtime.Value = runtime.NilValue{}
+	var result runtime.Value = runtime.VoidValue{}
 	if stmt.Argument != nil {
 		val, err := i.evaluateExpression(stmt.Argument, env)
 		if err != nil {
@@ -252,7 +255,7 @@ func (i *Interpreter) iterateStaticValues(loop *ast.ForLoop, baseEnv *runtime.En
 			return val, nil
 		}
 	}
-	return runtime.NilValue{}, nil
+	return runtime.VoidValue{}, nil
 }
 
 func (i *Interpreter) iterateDynamicIterator(loop *ast.ForLoop, baseEnv *runtime.Environment, iterator *runtime.IteratorValue) (runtime.Value, error) {
@@ -266,7 +269,7 @@ func (i *Interpreter) iterateDynamicIterator(loop *ast.ForLoop, baseEnv *runtime
 			return nil, err
 		}
 		if done {
-			return runtime.NilValue{}, nil
+			return runtime.VoidValue{}, nil
 		}
 		val, continueLoop, err := i.runForLoopBody(loop, baseEnv, value)
 		if err != nil {

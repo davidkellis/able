@@ -1,4 +1,4 @@
-# Able v10 Regex Module Design
+# Able v11 Regex Module Design
 
 ## Background
 - `match_regex` in `able.testing.assertions` is a placeholder that delegates to string equality.
@@ -6,7 +6,7 @@
 - No runtime support or parser exists today; the interpreters expose no regex primitives.
 
 ## Goals
-- Provide a consistent, spec-backed `Regex` library for Able v10 with identical semantics across Go and TypeScript runtimes.
+- Provide a consistent, spec-backed `Regex` library for Able v11 with identical semantics across Go and TypeScript runtimes.
 - Guarantee linear-time matching (no catastrophic backtracking) while supporting Unicode-aware patterns, lookaround, and rich replacement APIs.
 - Expose layered functionality: immediate matching helpers, compiled regex handles, multi-pattern search, streaming scanners, and automata inspection.
 - Keep the Able stdlib surface idiomatic: ergonomic modules, strong typing, clear error reporting, and integration with the existing testing matchers.

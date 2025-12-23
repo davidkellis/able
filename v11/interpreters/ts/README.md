@@ -1,6 +1,6 @@
-## interpreter10
+## TypeScript Interpreter
 
-Able v10 AST and reference interpreter (TypeScript), built with Bun.
+Able v11 AST and reference interpreter (TypeScript), built with Bun.
 
 ### Quick start
 
@@ -54,15 +54,15 @@ The upcoming `able test` workflow is reserved for the stdlib-backed testing harn
 
 ### Language spec
 
-For the complete v10 language definition and semantics, see: [full_spec_v10.md](../spec/full_spec_v10.md).
+For the complete v11 language definition and semantics, see: [full_spec_v11.md](../spec/full_spec_v11.md).
 The Go interpreter is the designated reference runtime, but every interpreter in this repository must match the written specification and share the same AST contract—any behavioural drift is treated as a spec or implementation bug that we fix immediately.
 
 ### What’s in this package
 
-- `src/ast.ts`: v10 AST data model and DSL helpers to build nodes.
-- `src/interpreter.ts`: v10 reference interpreter (single pass evaluator).
+- `src/ast.ts`: v11 AST data model and DSL helpers to build nodes.
+- `src/interpreter.ts`: v11 reference interpreter (single pass evaluator).
 - `test/*.test.ts`: Jest-compatible Bun tests covering interpreter features.
-- `index.ts`: exports `AST` and `V10` (interpreter) for external use.
+- `index.ts`: exports `AST` and `V11` (interpreter) for external use.
 - `scripts/export-fixtures.ts`: writes canonical JSON AST fixtures under `fixtures/ast`.
 - `scripts/run-fixtures.ts`: executes every fixture module against this interpreter and checks manifest expectations (also used to keep the Go harness in sync).
 - `fixtures/ast/`: JSON fixtures and manifests shared with the Go interpreter and future runtimes.
@@ -73,7 +73,7 @@ The Go interpreter is the designated reference runtime, but every interpreter in
 
 The interpreter evaluates AST nodes directly (tree-walk). Key pieces:
 
-- Runtime value union (`V10Value`): string, bool, char, nil, i32, f64, array, range, function, struct_def, struct_instance, error, bound_method, interface_def, union_def, package, impl_namespace, dyn_package, dyn_ref.
+- Runtime value union (`RuntimeValue`): string, bool, char, nil, i32, f64, array, range, function, struct_def, struct_instance, error, bound_method, interface_def, union_def, package, impl_namespace, dyn_package, dyn_ref.
 - `Environment`: nested lexical scopes with `define`, `assign`, and `get`.
 - Control-flow signals: `ReturnSignal`, `RaiseSignal`, loop-only break signal, and labeled `BreakLabelSignal` for non-local jumps to `breakpoint`.
 - Method lookup: inherent methods (`MethodsDefinition`) and interface `ImplementationDefinition` registered by type name. Named `impl` blocks are exposed as `impl_namespace` values (explicit calls only).
@@ -104,7 +104,7 @@ High-level evaluation flow:
 Programmatic usage:
 
 ```ts
-import { AST, V10 } from "./index";
+import { AST, V11 } from "./index";
 
 const mod = AST.module([
   AST.functionDefinition(
@@ -121,7 +121,7 @@ const mod = AST.module([
   ),
 ]);
 
-const interp = new V10.InterpreterV10();
+const interp = new V11.Interpreter();
 const result = interp.evaluate(mod as any); // { kind: 'i32', value: 5 }
 ```
 
@@ -187,7 +187,7 @@ Under the hood the interpreter maintains an `asyncContextStack` so helper invoca
 
 ### Extending the interpreter
 
-- New node: add to `V10Value` if needed, add a case in `evaluate`, and tests under `test/`.
+- New node: add to `RuntimeValue` if needed, add a case in `evaluate`, and tests under `test/`.
 - Performance: consider caching method lookups and optimizing environment chains.
 - Concurrency: evolve `proc`/`spawn` to real async handles with `join`.
 

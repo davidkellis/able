@@ -1,11 +1,11 @@
 # Parity Reporting & CI Integration
 
-The cross-interpreter parity harness (`interpreter10/scripts/run-parity.ts`) runs inside `./run_all_tests.sh`. Every run produces `tmp/parity-report.json`, a machine-readable summary that records the Bun vs. Go parity status for fixtures and curated examples.
+The cross-interpreter parity harness (`v11/interpreters/ts/scripts/run-parity.ts`) runs inside `./run_all_tests.sh`. Every run produces `tmp/parity-report.json`, a machine-readable summary that records the Bun vs. Go parity status for fixtures and curated examples.
 
 ## Generating reports locally
 
 ```bash
-cd interpreter10
+cd v11/interpreters/ts
 bun run scripts/run-parity.ts --suite fixtures --suite examples --json
 ```
 

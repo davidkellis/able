@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - error handling", () => {
   test("raise and rescue with pattern", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     // raise a simple number, rescue wildcard
     const expr = AST.rescueExpression(
       AST.blockExpression([AST.raiseStatement(AST.integerLiteral(42))]),
@@ -14,7 +14,7 @@ describe("v11 interpreter - error handling", () => {
   });
 
   test("or-else binds error", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const expr = AST.orElseExpression(
       AST.propagationExpression(AST.blockExpression([AST.raiseStatement(AST.stringLiteral("x"))])),
       AST.blockExpression([AST.stringLiteral("handled")]),
@@ -24,7 +24,7 @@ describe("v11 interpreter - error handling", () => {
   });
 
   test("ensure runs even on error", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("flag"), AST.stringLiteral("")));
     const expr = AST.ensureExpression(
       AST.rescueExpression(

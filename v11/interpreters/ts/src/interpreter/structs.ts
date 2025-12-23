@@ -1,10 +1,10 @@
 import * as AST from "../ast";
 import type { Environment } from "./environment";
-import type { InterpreterV10 } from "./index";
-import type { V10Value } from "./values";
+import type { Interpreter } from "./index";
+import type { RuntimeValue } from "./values";
 import { makeIntegerFromNumber, numericToNumber } from "./numeric";
 
-function isCallable(value: V10Value): boolean {
+function isCallable(value: RuntimeValue): boolean {
   switch (value.kind) {
     case "function":
     case "function_overload":
@@ -19,7 +19,7 @@ function isCallable(value: V10Value): boolean {
   }
 }
 
-export function evaluateStructDefinition(ctx: InterpreterV10, node: AST.StructDefinition, env: Environment): V10Value {
+export function evaluateStructDefinition(ctx: Interpreter, node: AST.StructDefinition, env: Environment): RuntimeValue {
   env.define(node.id.name, { kind: "struct_def", def: node });
   ctx.registerSymbol(node.id.name, { kind: "struct_def", def: node });
   const qn = ctx.qualifiedName(node.id.name);
@@ -29,7 +29,7 @@ export function evaluateStructDefinition(ctx: InterpreterV10, node: AST.StructDe
   return { kind: "nil", value: null };
 }
 
-export function evaluateStructLiteral(ctx: InterpreterV10, node: AST.StructLiteral, env: Environment): V10Value {
+export function evaluateStructLiteral(ctx: Interpreter, node: AST.StructLiteral, env: Environment): RuntimeValue {
   if (!node.structType) throw new Error("Struct literal requires explicit struct type");
   const defVal = env.get(node.structType.name);
   if (defVal.kind !== "struct_def") throw new Error(`'${node.structType.name}' is not a struct type`);
@@ -37,7 +37,7 @@ export function evaluateStructLiteral(ctx: InterpreterV10, node: AST.StructLiter
   const generics = structDef.genericParams;
   const constraints = ctx.collectConstraintSpecs(generics, structDef.whereClause);
   if (node.isPositional) {
-    const vals: V10Value[] = node.fields.map(f => ctx.evaluate(f.value, env));
+    const vals: RuntimeValue[] = node.fields.map(f => ctx.evaluate(f.value, env));
     let typeArguments: AST.TypeExpression[] | undefined = node.typeArguments;
     let typeArgMap: Map<string, AST.TypeExpression> | undefined;
     if (generics && generics.length > 0) {
@@ -66,7 +66,7 @@ export function evaluateStructLiteral(ctx: InterpreterV10, node: AST.StructLiter
     };
   }
 
-  const map = new Map<string, V10Value>();
+  const map = new Map<string, RuntimeValue>();
   const legacySource = (node as any).functionalUpdateSource as AST.Expression | undefined;
   const updateSources = node.functionalUpdateSources ?? (legacySource ? [legacySource] : []);
   let canonicalBaseTypeArgs: AST.TypeExpression[] | undefined;
@@ -148,7 +148,7 @@ export function evaluateStructLiteral(ctx: InterpreterV10, node: AST.StructLiter
   };
 }
 
-function inferStructTypeArguments(ctx: InterpreterV10, def: AST.StructDefinition, values: V10Value[] | Map<string, V10Value>): AST.TypeExpression[] {
+function inferStructTypeArguments(ctx: Interpreter, def: AST.StructDefinition, values: RuntimeValue[] | Map<string, RuntimeValue>): AST.TypeExpression[] {
   const generics = def.genericParams ?? [];
   if (generics.length === 0) return [];
   const bindings = new Map<string, AST.TypeExpression>();
@@ -174,12 +174,12 @@ function inferStructTypeArguments(ctx: InterpreterV10, def: AST.StructDefinition
 }
 
 export function memberAccessOnValue(
-  ctx: InterpreterV10,
-  obj: V10Value,
+  ctx: Interpreter,
+  obj: RuntimeValue,
   member: AST.Identifier | AST.IntegerLiteral,
   env: Environment,
   opts?: { preferMethods?: boolean },
-): V10Value {
+): RuntimeValue {
   if (obj.kind === "struct_def" && member.type === "Identifier") {
     const typeName = obj.def.id.name;
     const method = ctx.findMethod(typeName, member.name);
@@ -223,7 +223,7 @@ export function memberAccessOnValue(
     }
     if (member.name === "interface_args") {
       const args = obj.meta.interfaceArgs ?? [];
-      return ctx.makeArrayValue(args.map(a => ({ kind: "String", value: ctx.typeExpressionToString(a) } as V10Value)));
+      return ctx.makeArrayValue(args.map(a => ({ kind: "String", value: ctx.typeExpressionToString(a) } as RuntimeValue)));
     }
     const sym = obj.symbols.get(member.name);
     if (!sym) throw new Error(`No method '${member.name}' on impl ${obj.def.implName?.name ?? "<unnamed>"}`);
@@ -240,7 +240,7 @@ export function memberAccessOnValue(
         return { kind: "nil", value: null };
       }
       if (underlying.kind === "error") {
-        const fn = (ctx.errorNativeMethods as Record<string, Extract<V10Value, { kind: "native_function" }>>)[member.name];
+        const fn = (ctx.errorNativeMethods as Record<string, Extract<RuntimeValue, { kind: "native_function" }>>)[member.name];
         if (fn) {
           return ctx.bindNativeMethod(fn, underlying);
         }
@@ -264,20 +264,20 @@ export function memberAccessOnValue(
   }
   if (obj.kind === "proc_handle") {
     if (member.type !== "Identifier") throw new Error("Proc handle member access expects identifier");
-    const fn = (ctx.procNativeMethods as Record<string, Extract<V10Value, { kind: "native_function" }>>)[member.name];
+    const fn = (ctx.procNativeMethods as Record<string, Extract<RuntimeValue, { kind: "native_function" }>>)[member.name];
     if (!fn) throw new Error(`Unknown proc handle method '${member.name}'`);
     return ctx.bindNativeMethod(fn, obj);
   }
   if (obj.kind === "future") {
     if (member.type !== "Identifier") throw new Error("Future member access expects identifier");
-    const fn = (ctx.futureNativeMethods as Record<string, Extract<V10Value, { kind: "native_function" }>>)[member.name];
+    const fn = (ctx.futureNativeMethods as Record<string, Extract<RuntimeValue, { kind: "native_function" }>>)[member.name];
     if (!fn) throw new Error(`Unknown future method '${member.name}'`);
     return ctx.bindNativeMethod(fn, obj);
   }
   if (obj.kind === "iterator") {
     if (member.type !== "Identifier") throw new Error("Iterator member access expects identifier");
     ctx.ensureIteratorBuiltins();
-    const fn = (ctx.iteratorNativeMethods as Record<string, Extract<V10Value, { kind: "native_function" }>>)[member.name];
+    const fn = (ctx.iteratorNativeMethods as Record<string, Extract<RuntimeValue, { kind: "native_function" }>>)[member.name];
     if (!fn) throw new Error(`Unknown iterator method '${member.name}'`);
     return ctx.bindNativeMethod(fn, obj);
   }
@@ -286,7 +286,7 @@ export function memberAccessOnValue(
     if (member.name === "value") {
       return obj.value ?? { kind: "nil", value: null };
     }
-    const fn = (ctx.errorNativeMethods as Record<string, Extract<V10Value, { kind: "native_function" }>>)[member.name];
+    const fn = (ctx.errorNativeMethods as Record<string, Extract<RuntimeValue, { kind: "native_function" }>>)[member.name];
     if (fn) {
       return ctx.bindNativeMethod(fn, obj);
     }
@@ -386,7 +386,7 @@ export function memberAccessOnValue(
   throw new Error("Member access only supported on structs/arrays in this milestone");
 }
 
-export function evaluateMemberAccessExpression(ctx: InterpreterV10, node: AST.MemberAccessExpression, env: Environment): V10Value {
+export function evaluateMemberAccessExpression(ctx: Interpreter, node: AST.MemberAccessExpression, env: Environment): RuntimeValue {
   const obj = ctx.evaluate(node.object, env);
   if (node.isSafe && obj.kind === "nil") {
     return obj;
@@ -394,7 +394,7 @@ export function evaluateMemberAccessExpression(ctx: InterpreterV10, node: AST.Me
   return memberAccessOnValue(ctx, obj, node.member, env);
 }
 
-export function evaluateImplicitMemberExpression(ctx: InterpreterV10, node: AST.ImplicitMemberExpression, env: Environment): V10Value {
+export function evaluateImplicitMemberExpression(ctx: Interpreter, node: AST.ImplicitMemberExpression, env: Environment): RuntimeValue {
   if (node.member.type !== "Identifier") throw new Error("Implicit member expects identifier");
   if (ctx.implicitReceiverStack.length === 0) {
     throw new Error(`Implicit member '#${node.member.name}' used outside of function with implicit receiver`);
@@ -406,7 +406,7 @@ export function evaluateImplicitMemberExpression(ctx: InterpreterV10, node: AST.
   return memberAccessOnValue(ctx, receiver, node.member, env);
 }
 
-function toSafeIndex(value: V10Value | undefined, label: string): number {
+function toSafeIndex(value: RuntimeValue | undefined, label: string): number {
   const raw = numericToNumber(value ?? { kind: "nil", value: null }, label, { requireSafeInteger: true });
   const idx = Math.trunc(raw);
   if (idx < 0) throw new Error(`${label} must be non-negative`);

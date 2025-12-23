@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - interface default methods", () => {
   test("default method is used when impl omits definition", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     const speakable = AST.interfaceDefinition("Speakable", [
       AST.functionSignature(
@@ -46,7 +46,7 @@ describe("v11 interpreter - interface default methods", () => {
   });
 
   test("impl overrides default when method provided", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     const speakable = AST.interfaceDefinition("Speakable", [
       AST.functionSignature(

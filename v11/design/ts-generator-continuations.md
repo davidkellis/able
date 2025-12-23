@@ -1,10 +1,10 @@
 # TypeScript Generator Continuations
 
 Status: Draft – implementation pending  
-Owners: Able v10 TypeScript interpreter track
+Owners: Able v11 TypeScript interpreter track
 
 ## Goals
-- Add lazy iterator semantics to the TypeScript interpreter that match §6.7 / §14 of the v10 spec and the new Go runtime implementation.
+- Add lazy iterator semantics to the TypeScript interpreter that match §6.7 / §14 of the v11 spec and the new Go runtime implementation.
 - Support generator literals (`Iterator { gen => ... }`) and the `Iterator`/`Iterable` protocol without forcing eager precomputation of elements.
 - Keep the implementation incremental: surface the iterator runtime primitives first, then port `for` loops and stdlib helpers to consume them lazily.
 
@@ -27,14 +27,14 @@ Owners: Able v10 TypeScript interpreter track
 ## Design Overview
 
 ### Runtime Values
-- Extend `V10Value` with:
+- Extend `RuntimeValue` with:
   - `IteratorValue` carrying `state`, `next`, and `close` handlers.
   - `IteratorEndValue` singleton (`{ kind: "iterator_end" }`) used as the sentinel result.
 - Expose `iterator_end` via globals (mirroring Go’s `IteratorEnd`) and ensure `valueToString` renders it as `"IteratorEnd"`.
 - `IteratorValue.next()` drives the generator context; it returns either the yielded Able value or `IteratorEndValue`, and propagates runtime errors.
 
 ### Generator Context & Frames
-- Add `generatorStack: GeneratorContext[]` to `InterpreterV10`. Each context tracks:
+- Add `generatorStack: GeneratorContext[]` to `Interpreter`. Each context tracks:
   - Captured lexical environment.
   - Generator controller object exposed as `gen`.
   - A frame stack (`GeneratorFrame[]`) describing the suspended execution.
@@ -90,7 +90,7 @@ Owners: Able v10 TypeScript interpreter track
    - Surface `IteratorEnd`, ensure `iterator()` dispatch works, and update stdlib/channel helpers once runtime is stable.
 
 ## Testing Strategy
-- Mirror the Go tests in `interpreter10-go/pkg/interpreter/interpreter_iterators_test.go` with Bun tests under `interpreter10/test/runtime/iterators.test.ts`.
+- Mirror the Go tests in `interpreter-go/pkg/interpreter/interpreter_iterators_test.go` with Bun tests under `v11/interpreters/ts/test/runtime/iterators.test.ts`.
 - Add fixture coverage (`fixtures/ast/*`) once the runtime semantics are solid so both interpreters stay in lockstep.
 - Run `./run_all_tests.sh` before landing to keep TypeScript + Go parity green.
 

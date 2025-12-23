@@ -1,11 +1,17 @@
 import * as AST from "../ast";
-import type { InterpreterV10 } from "./index";
+import type { Interpreter } from "./index";
 import { getIntegerInfo, isIntegerValue, makeIntegerValue } from "./numeric";
-import type { FloatKind, IntegerKind, V10Value } from "./values";
+import type { FloatKind, IntegerKind, RuntimeValue } from "./values";
 
 const INTEGER_KINDS: IntegerKind[] = ["i8", "i16", "i32", "i64", "i128", "u8", "u16", "u32", "u64", "u128"];
 const FLOAT_KINDS: FloatKind[] = ["f32", "f64"];
 const INTEGER_KIND_SET: Set<IntegerKind> = new Set(INTEGER_KINDS);
+
+function isSingletonStructDef(def: AST.StructDefinition): boolean {
+  if (!def || (def.genericParams && def.genericParams.length > 0)) return false;
+  if (def.kind === "singleton") return true;
+  return def.kind === "named" && def.fields.length === 0;
+}
 
 function integerRangeWithin(source: IntegerKind, target: IntegerKind): boolean {
   const sourceInfo = getIntegerInfo(source);
@@ -19,23 +25,23 @@ function integerValueWithinRange(raw: bigint, target: IntegerKind): boolean {
 }
 
 declare module "./index" {
-  interface InterpreterV10 {
+  interface Interpreter {
     expandTypeAliases(t: AST.TypeExpression): AST.TypeExpression;
     typeExpressionToString(t: AST.TypeExpression): string;
     parseTypeExpression(t: AST.TypeExpression): { name: string; typeArgs: AST.TypeExpression[] } | null;
     typeExpressionsEqual(a: AST.TypeExpression, b: AST.TypeExpression): boolean;
     cloneTypeExpression(t: AST.TypeExpression): AST.TypeExpression;
-    typeExpressionFromValue(value: V10Value): AST.TypeExpression | null;
-    matchesType(t: AST.TypeExpression, v: V10Value): boolean;
-    getTypeNameForValue(value: V10Value): string | null;
+    typeExpressionFromValue(value: RuntimeValue): AST.TypeExpression | null;
+    matchesType(t: AST.TypeExpression, v: RuntimeValue): boolean;
+    getTypeNameForValue(value: RuntimeValue): string | null;
     typeImplementsInterface(typeName: string, interfaceName: string, typeArgs?: AST.TypeExpression[]): boolean;
-    coerceValueToType(typeExpr: AST.TypeExpression | undefined, value: V10Value): V10Value;
-    toInterfaceValue(interfaceName: string, rawValue: V10Value): V10Value;
+    coerceValueToType(typeExpr: AST.TypeExpression | undefined, value: RuntimeValue): RuntimeValue;
+    toInterfaceValue(interfaceName: string, rawValue: RuntimeValue): RuntimeValue;
   }
 }
 
-export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
-  cls.prototype.expandTypeAliases = function expandTypeAliases(this: InterpreterV10, t: AST.TypeExpression, seen = new Set<string>()): AST.TypeExpression {
+export function applyTypesAugmentations(cls: typeof Interpreter): void {
+  cls.prototype.expandTypeAliases = function expandTypeAliases(this: Interpreter, t: AST.TypeExpression, seen = new Set<string>()): AST.TypeExpression {
     if (!t) return t;
     switch (t.type) {
       case "SimpleTypeExpression": {
@@ -120,7 +126,7 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
     }
   };
 
-  cls.prototype.typeExpressionToString = function typeExpressionToString(this: InterpreterV10, t: AST.TypeExpression): string {
+  cls.prototype.typeExpressionToString = function typeExpressionToString(this: Interpreter, t: AST.TypeExpression): string {
     const canonical = this.expandTypeAliases(t);
     switch (canonical.type) {
       case "SimpleTypeExpression":
@@ -142,7 +148,7 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
     }
   };
 
-  cls.prototype.parseTypeExpression = function parseTypeExpression(this: InterpreterV10, t: AST.TypeExpression): { name: string; typeArgs: AST.TypeExpression[] } | null {
+  cls.prototype.parseTypeExpression = function parseTypeExpression(this: Interpreter, t: AST.TypeExpression): { name: string; typeArgs: AST.TypeExpression[] } | null {
     const canonical = this.expandTypeAliases(t);
     if (canonical.type === "SimpleTypeExpression") {
       return { name: canonical.name.name, typeArgs: [] };
@@ -153,7 +159,7 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
     return null;
   };
 
-  cls.prototype.cloneTypeExpression = function cloneTypeExpression(this: InterpreterV10, t: AST.TypeExpression): AST.TypeExpression {
+  cls.prototype.cloneTypeExpression = function cloneTypeExpression(this: Interpreter, t: AST.TypeExpression): AST.TypeExpression {
     switch (t.type) {
       case "SimpleTypeExpression":
         return { type: "SimpleTypeExpression", name: AST.identifier(t.name.name) };
@@ -181,11 +187,11 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
     }
   };
 
-  cls.prototype.typeExpressionsEqual = function typeExpressionsEqual(this: InterpreterV10, a: AST.TypeExpression, b: AST.TypeExpression): boolean {
+  cls.prototype.typeExpressionsEqual = function typeExpressionsEqual(this: Interpreter, a: AST.TypeExpression, b: AST.TypeExpression): boolean {
     return this.typeExpressionToString(a) === this.typeExpressionToString(b);
   };
 
-  cls.prototype.typeExpressionFromValue = function typeExpressionFromValue(this: InterpreterV10, value: V10Value): AST.TypeExpression | null {
+  cls.prototype.typeExpressionFromValue = function typeExpressionFromValue(this: Interpreter, value: RuntimeValue): AST.TypeExpression | null {
     switch (value.kind) {
       case "String":
         return AST.simpleTypeExpression("String");
@@ -199,10 +205,57 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
         return AST.simpleTypeExpression("Error");
       case "struct_instance": {
         const base = AST.simpleTypeExpression(value.def.id.name);
-        if (value.typeArguments && value.typeArguments.length > 0) {
-          return AST.genericTypeExpression(base, value.typeArguments);
+        const generics = value.def.genericParams ?? [];
+        if (generics.length > 0) {
+          const genericNames = new Set(generics.map(gp => gp.name.name));
+          let typeArgs = value.typeArguments ?? [];
+          let needsInference = typeArgs.length !== generics.length;
+          if (!needsInference) {
+            for (const arg of typeArgs) {
+              if (!arg || arg.type === "WildcardTypeExpression") {
+                needsInference = true;
+                break;
+              }
+              if (arg.type === "SimpleTypeExpression" && genericNames.has(arg.name.name)) {
+                needsInference = true;
+                break;
+              }
+            }
+          }
+          if (needsInference) {
+            const bindings = new Map<string, AST.TypeExpression>();
+            if (Array.isArray(value.values)) {
+              for (let i = 0; i < value.def.fields.length && i < value.values.length; i++) {
+                const field = value.def.fields[i];
+                const actualVal = value.values[i];
+                if (!field?.fieldType || !actualVal) continue;
+                const actual = this.typeExpressionFromValue(actualVal);
+                if (!actual) continue;
+                this.matchTypeExpressionTemplate(field.fieldType, actual, genericNames, bindings);
+              }
+            } else {
+              for (const field of value.def.fields) {
+                if (!field?.name || !field.fieldType) continue;
+                const actualVal = value.values.get(field.name.name);
+                if (!actualVal) continue;
+                const actual = this.typeExpressionFromValue(actualVal);
+                if (!actual) continue;
+                this.matchTypeExpressionTemplate(field.fieldType, actual, genericNames, bindings);
+              }
+            }
+            typeArgs = generics.map(gp => bindings.get(gp.name.name) ?? AST.wildcardTypeExpression());
+          }
+          if (typeArgs.length > 0) {
+            return AST.genericTypeExpression(base, typeArgs);
+          }
         }
         return base;
+      }
+      case "iterator_end":
+        return AST.simpleTypeExpression("IteratorEnd");
+      case "struct_def": {
+        if (!isSingletonStructDef(value.def)) return null;
+        return AST.simpleTypeExpression(value.def.id.name);
       }
       case "interface_value":
         return AST.simpleTypeExpression(value.interfaceName);
@@ -242,7 +295,7 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
     }
   };
 
-  cls.prototype.matchesType = function matchesType(this: InterpreterV10, t: AST.TypeExpression, v: V10Value): boolean {
+  cls.prototype.matchesType = function matchesType(this: Interpreter, t: AST.TypeExpression, v: RuntimeValue): boolean {
     const target = this.expandTypeAliases(t);
     const valueTypeExpr = this.typeExpressionFromValue(v);
     if (valueTypeExpr) {
@@ -280,6 +333,7 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
         }
         if (FLOAT_KINDS.includes(name as FloatKind)) return v.kind === name;
         if (name === "Error" && v.kind === "error") return true;
+        if (name === "IteratorEnd" && v.kind === "iterator_end") return true;
         if (this.interfaces.has(name)) {
           if (v.kind === "interface_value") return v.interfaceName === name;
           const typeName = this.getTypeNameForValue(v);
@@ -368,7 +422,7 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
     }
   };
 
-  cls.prototype.getTypeNameForValue = function getTypeNameForValue(this: InterpreterV10, value: V10Value): string | null {
+  cls.prototype.getTypeNameForValue = function getTypeNameForValue(this: Interpreter, value: RuntimeValue): string | null {
     if (INTEGER_KINDS.includes(value.kind as IntegerKind)) {
       return value.kind;
     }
@@ -378,6 +432,10 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
     switch (value.kind) {
       case "struct_instance":
         return value.def.id.name;
+      case "iterator_end":
+        return "IteratorEnd";
+      case "struct_def":
+        return isSingletonStructDef(value.def) ? value.def.id.name : null;
       case "interface_value":
         return this.getTypeNameForValue(value.value);
       case "error":
@@ -388,6 +446,8 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
         return "bool";
       case "char":
         return "char";
+      case "void":
+        return "void";
       case "array":
         return "Array";
       default:
@@ -395,7 +455,7 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
     }
   };
 
-  cls.prototype.typeImplementsInterface = function typeImplementsInterface(this: InterpreterV10, typeName: string, interfaceName: string, typeArgs?: AST.TypeExpression[]): boolean {
+  cls.prototype.typeImplementsInterface = function typeImplementsInterface(this: Interpreter, typeName: string, interfaceName: string, typeArgs?: AST.TypeExpression[]): boolean {
     if (interfaceName === "Error" && typeName === "Error") {
       return true;
     }
@@ -413,7 +473,7 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
     return false;
   };
 
-  cls.prototype.coerceValueToType = function coerceValueToType(this: InterpreterV10, typeExpr: AST.TypeExpression | undefined, value: V10Value): V10Value {
+  cls.prototype.coerceValueToType = function coerceValueToType(this: Interpreter, typeExpr: AST.TypeExpression | undefined, value: RuntimeValue): RuntimeValue {
     if (!typeExpr) return value;
     const canonical = this.expandTypeAliases(typeExpr);
     if (canonical.type === "SimpleTypeExpression") {
@@ -432,7 +492,7 @@ export function applyTypesAugmentations(cls: typeof InterpreterV10): void {
     return value;
   };
 
-  cls.prototype.toInterfaceValue = function toInterfaceValue(this: InterpreterV10, interfaceName: string, rawValue: V10Value): V10Value {
+  cls.prototype.toInterfaceValue = function toInterfaceValue(this: Interpreter, interfaceName: string, rawValue: RuntimeValue): RuntimeValue {
   if (!this.interfaces.has(interfaceName)) {
     throw new Error(`Unknown interface '${interfaceName}'`);
   }

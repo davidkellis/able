@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - pipes", () => {
   test("pipes call placeholder-built callables with the subject first", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const expr = AST.binaryExpression(
       "|>",
       AST.integerLiteral(5),
@@ -15,7 +15,7 @@ describe("v11 interpreter - pipes", () => {
   });
 
   test("bare @ placeholders all reference the first argument", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     I.evaluate(
       AST.assignmentExpression(
         ":=",
@@ -28,7 +28,7 @@ describe("v11 interpreter - pipes", () => {
   });
 
   test("under-applied pipe returns a partial callable", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const add = AST.functionDefinition(
       "add",
       [AST.functionParameter("left"), AST.functionParameter("right")],
@@ -49,7 +49,7 @@ describe("v11 interpreter - pipes", () => {
   });
 
   test("implicit member shorthand binds receiver once", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const Box = AST.structDefinition(
       "Box",
       [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "value")],
@@ -105,7 +105,7 @@ describe("v11 interpreter - pipes", () => {
   });
 
   test("UFCS free function via pipe", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const Point = AST.structDefinition(
       "Point",
       [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "x")],

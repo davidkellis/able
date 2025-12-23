@@ -115,8 +115,8 @@ impl Iterable T for Array T {
   }
 
   fn iterator(self: Self) -> (Iterator T) {
-    snapshot := self
-    snapshot.refresh_metadata()
+    snapshot := self;
+    snapshot.refresh_metadata();
     ArrayIterator { array: snapshot, index: 0, length: snapshot.length }
   }
 }

@@ -12,7 +12,7 @@ import (
 	"unsafe"
 )
 
-// Able returns the tree-sitter language for Able v10.
+// Able returns the tree-sitter language for Able v11.
 func Able() *sitter.Language {
 	return sitter.NewLanguage(unsafe.Pointer(C.tree_sitter_able()))
 }

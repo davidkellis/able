@@ -1,13 +1,13 @@
-ch := __able_channel_new(0)
-receiver_result := "pending"
-sender_result := "pending"
+ch := __able_channel_new(0);
+receiver_result := "pending";
+sender_result := "pending";
 receiver := proc {
-  receiver_result = await [__able_channel_await_try_recv(ch, { v => v})]
-  receiver_result
-}
+  receiver_result = await [__able_channel_await_try_recv(ch, { v => v})];
+  receiver_result;
+};
 sender := proc {
-  sender_result = await [__able_channel_await_try_send(ch, "payload", { => "sent"})]
-  sender_result
-}
-proc_flush()
-[receiver_result, sender_result, receiver.value(), sender.value()]
+  sender_result = await [__able_channel_await_try_send(ch, "payload", { => "sent"})];
+  sender_result;
+};
+proc_flush();
+[receiver_result, sender_result, receiver.value(), sender.value()];

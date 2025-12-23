@@ -1,8 +1,16 @@
 import * as AST from "../ast";
 import { Environment } from "./environment";
-import type { InterpreterV10 } from "./index";
-import type { V10Value } from "./values";
+import type { Interpreter } from "./index";
+import type { RuntimeValue } from "./values";
 import { valuesEqual } from "./value_equals";
+
+const isSingletonStructDef = (value: RuntimeValue): value is { kind: "struct_def"; def: AST.StructDefinition } => {
+  if (value.kind !== "struct_def") return false;
+  const def = value.def;
+  if (!def || (def.genericParams && def.genericParams.length > 0)) return false;
+  if (def.kind === "singleton") return true;
+  return def.kind === "named" && def.fields.length === 0;
+};
 
 interface PatternAssignmentOptions {
   declarationNames?: Set<string>;
@@ -10,11 +18,11 @@ interface PatternAssignmentOptions {
 }
 
 declare module "./index" {
-  interface InterpreterV10 {
-    tryMatchPattern(pattern: AST.Pattern, value: V10Value, baseEnv: Environment): Environment | null;
+  interface Interpreter {
+    tryMatchPattern(pattern: AST.Pattern, value: RuntimeValue, baseEnv: Environment): Environment | null;
     assignByPattern(
       pattern: AST.Pattern,
-      value: V10Value,
+      value: RuntimeValue,
       env: Environment,
       isDeclaration: boolean,
       options?: PatternAssignmentOptions,
@@ -22,9 +30,15 @@ declare module "./index" {
   }
 }
 
-export function applyPatternAugmentations(cls: typeof InterpreterV10): void {
-  cls.prototype.tryMatchPattern = function tryMatchPattern(this: InterpreterV10, pattern: AST.Pattern, value: V10Value, baseEnv: Environment): Environment | null {
+export function applyPatternAugmentations(cls: typeof Interpreter): void {
+  cls.prototype.tryMatchPattern = function tryMatchPattern(this: Interpreter, pattern: AST.Pattern, value: RuntimeValue, baseEnv: Environment): Environment | null {
     if (pattern.type === "Identifier") {
+      if (baseEnv.has(pattern.name)) {
+        const existing = baseEnv.get(pattern.name);
+        if (isSingletonStructDef(existing)) {
+          return valuesEqual(existing, value) ? new Environment(baseEnv) : null;
+        }
+      }
       const e = new Environment(baseEnv);
       e.define(pattern.name, value);
       return e;
@@ -46,7 +60,7 @@ export function applyPatternAugmentations(cls: typeof InterpreterV10): void {
           const field = pattern.fields[i];
           const val = value.values[i];
           if (!field || val === undefined) return null;
-          const sub = this.tryMatchPattern(field.pattern, val as V10Value, env);
+          const sub = this.tryMatchPattern(field.pattern, val as RuntimeValue, env);
           if (!sub) return null;
           env = sub;
         }
@@ -57,7 +71,7 @@ export function applyPatternAugmentations(cls: typeof InterpreterV10): void {
         if (!f.fieldName) return null;
         const name = f.fieldName.name;
         if (!value.values.has(name)) return null;
-        const sub = this.tryMatchPattern(f.pattern, value.values.get(name) as V10Value, env);
+        const sub = this.tryMatchPattern(f.pattern, value.values.get(name) as RuntimeValue, env);
         if (!sub) return null;
         env = sub;
       }
@@ -94,9 +108,9 @@ export function applyPatternAugmentations(cls: typeof InterpreterV10): void {
   };
 
   cls.prototype.assignByPattern = function assignByPattern(
-    this: InterpreterV10,
+    this: Interpreter,
     pattern: AST.Pattern,
-    value: V10Value,
+    value: RuntimeValue,
     env: Environment,
     isDeclaration: boolean,
     options?: PatternAssignmentOptions,
@@ -168,7 +182,7 @@ export function applyPatternAugmentations(cls: typeof InterpreterV10): void {
         this.assignByPattern(pe, av, env, isDeclaration, options);
       }
       if (hasRest && pattern.restPattern && pattern.restPattern.type === "Identifier") {
-        const rest = this.makeArrayValue(arr.slice(minLen)) as V10Value;
+        const rest = this.makeArrayValue(arr.slice(minLen)) as RuntimeValue;
         if (isDeclaration) {
           const shouldDeclare = !declarationNames || declarationNames.has(pattern.restPattern.name);
           if (shouldDeclare) env.define(pattern.restPattern.name, rest);

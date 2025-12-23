@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - placeholders", () => {
   test("partial application with implicit placeholder", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const add = AST.functionDefinition(
       "add",
       [AST.functionParameter("left"), AST.functionParameter("right")],
@@ -19,7 +19,7 @@ describe("v11 interpreter - placeholders", () => {
   });
 
   test("placeholder native function invocation", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const add = AST.functionDefinition(
       "add",
       [AST.functionParameter("left"), AST.functionParameter("right")],
@@ -36,7 +36,7 @@ describe("v11 interpreter - placeholders", () => {
   });
 
   test("mixed explicit and implicit placeholders reuse the first argument", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const combine = AST.functionDefinition(
       "combine",
       [
@@ -74,7 +74,7 @@ describe("v11 interpreter - placeholders", () => {
   });
 
   test("lambda containing placeholder evaluates to callable", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     I.evaluate(
       AST.assignmentExpression(
         ":=",

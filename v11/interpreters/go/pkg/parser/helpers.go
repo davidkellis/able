@@ -6,7 +6,7 @@ import (
 
 	sitter "github.com/tree-sitter/go-tree-sitter"
 
-	"able/interpreter10-go/pkg/ast"
+	"able/interpreter-go/pkg/ast"
 )
 
 // parseContext mirrors the TypeScript ParseContext glue: it carries immutable

@@ -1,6 +1,6 @@
 package interpreter
 
-import "able/interpreter10-go/pkg/runtime"
+import "able/interpreter-go/pkg/runtime"
 
 // mergeFunctionLike inserts a function or overload into the bucket, merging with
 // any existing function-like value.

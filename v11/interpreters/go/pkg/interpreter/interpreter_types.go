@@ -6,17 +6,24 @@ import (
 	"math/big"
 	"strings"
 
-	"able/interpreter10-go/pkg/ast"
-	"able/interpreter10-go/pkg/runtime"
+	"able/interpreter-go/pkg/ast"
+	"able/interpreter-go/pkg/runtime"
 )
 
 func (i *Interpreter) getTypeInfoForValue(value runtime.Value) (typeInfo, bool) {
 	switch v := value.(type) {
+	case *runtime.StructDefinitionValue:
+		if v == nil || v.Node == nil || v.Node.ID == nil || !isSingletonStructDef(v.Node) {
+			return typeInfo{}, false
+		}
+		return typeInfo{name: v.Node.ID.Name}, true
+	case runtime.StructDefinitionValue:
+		return i.getTypeInfoForValue(&v)
 	case *runtime.StructInstanceValue:
 		return i.typeInfoFromStructInstance(v)
 	case *runtime.InterfaceValue:
 		return i.getTypeInfoForValue(v.Underlying)
-	case runtime.StringValue, runtime.BoolValue, runtime.CharValue, runtime.NilValue,
+	case runtime.StringValue, runtime.BoolValue, runtime.CharValue, runtime.NilValue, runtime.VoidValue,
 		runtime.IntegerValue, *runtime.IntegerValue,
 		runtime.FloatValue, *runtime.FloatValue,
 		*runtime.ArrayValue:
@@ -45,6 +52,13 @@ func (i *Interpreter) getTypeInfoForValue(value runtime.Value) (typeInfo, bool) 
 
 func (i *Interpreter) typeExpressionFromValue(value runtime.Value) ast.TypeExpression {
 	switch v := value.(type) {
+	case *runtime.StructDefinitionValue:
+		if v == nil || v.Node == nil || v.Node.ID == nil || !isSingletonStructDef(v.Node) {
+			return nil
+		}
+		return ast.Ty(v.Node.ID.Name)
+	case runtime.StructDefinitionValue:
+		return i.typeExpressionFromValue(&v)
 	case runtime.StringValue:
 		return ast.Ty("String")
 	case runtime.BoolValue:
@@ -53,6 +67,8 @@ func (i *Interpreter) typeExpressionFromValue(value runtime.Value) ast.TypeExpre
 		return ast.Ty("char")
 	case runtime.NilValue:
 		return ast.Ty("nil")
+	case runtime.VoidValue:
+		return ast.Ty("void")
 	case runtime.IntegerValue:
 		return ast.Ty(string(v.TypeSuffix))
 	case *runtime.IntegerValue:
@@ -72,8 +88,35 @@ func (i *Interpreter) typeExpressionFromValue(value runtime.Value) ast.TypeExpre
 			return nil
 		}
 		base := ast.Ty(v.Definition.Node.ID.Name)
-		if len(v.TypeArguments) > 0 {
-			return ast.Gen(base, v.TypeArguments...)
+		generics := v.Definition.Node.GenericParams
+		if len(generics) > 0 {
+			typeArgs := v.TypeArguments
+			needsInference := len(typeArgs) != len(generics)
+			if !needsInference {
+				genericNames := genericNameSet(generics)
+				for _, arg := range typeArgs {
+					if arg == nil {
+						needsInference = true
+						break
+					}
+					if _, ok := arg.(*ast.WildcardTypeExpression); ok {
+						needsInference = true
+						break
+					}
+					if simple, ok := arg.(*ast.SimpleTypeExpression); ok && simple.Name != nil {
+						if _, ok := genericNames[simple.Name.Name]; ok {
+							needsInference = true
+							break
+						}
+					}
+				}
+			}
+			if needsInference {
+				typeArgs = i.inferStructTypeArguments(v.Definition.Node, v.Fields, v.Positional)
+			}
+			if len(typeArgs) > 0 {
+				return ast.Gen(base, typeArgs...)
+			}
 		}
 		return base
 	case *runtime.InterfaceValue:
@@ -250,11 +293,16 @@ func (i *Interpreter) selectStructMethod(inst *runtime.StructInstanceValue, meth
 }
 
 func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Value) bool {
+	if typeExpr != nil {
+		if expanded := expandTypeAliases(typeExpr, i.typeAliases, nil); expanded != nil {
+			typeExpr = expanded
+		}
+	}
 	switch t := typeExpr.(type) {
 	case *ast.WildcardTypeExpression:
 		return true
 	case *ast.SimpleTypeExpression:
-		name := t.Name.Name
+		name := normalizeKernelAliasName(t.Name.Name)
 		if name == "Error" {
 			switch value.(type) {
 			case runtime.ErrorValue, *runtime.ErrorValue:
@@ -330,6 +378,16 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 					return false
 				}
 			}
+			if defVal, ok := value.(*runtime.StructDefinitionValue); ok && isSingletonStructDef(defVal.Node) {
+				if defVal.Node != nil && defVal.Node.ID != nil {
+					return defVal.Node.ID.Name == name
+				}
+			}
+			if defVal, ok := value.(runtime.StructDefinitionValue); ok && isSingletonStructDef(defVal.Node) {
+				if defVal.Node != nil && defVal.Node.ID != nil {
+					return defVal.Node.ID.Name == name
+				}
+			}
 			if structVal, ok := value.(*runtime.StructInstanceValue); ok {
 				if structVal.Definition != nil && structVal.Definition.Node != nil && structVal.Definition.Node.ID != nil {
 					return structVal.Definition.Node.ID.Name == name
@@ -341,7 +399,11 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 			return true
 		}
 	case *ast.GenericTypeExpression:
-		if base, ok := t.Base.(*ast.SimpleTypeExpression); ok && base.Name.Name == "Array" {
+		var baseName string
+		if base, ok := t.Base.(*ast.SimpleTypeExpression); ok && base.Name != nil {
+			baseName = normalizeKernelAliasName(base.Name.Name)
+		}
+		if baseName == "Array" {
 			arr, ok := value.(*runtime.ArrayValue)
 			if !ok {
 				return false
@@ -361,9 +423,10 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 		if !ok {
 			return true
 		}
-		var baseName string
-		if simple, ok := t.Base.(*ast.SimpleTypeExpression); ok && simple.Name != nil {
-			baseName = simple.Name.Name
+		if baseName == "" {
+			if simple, ok := t.Base.(*ast.SimpleTypeExpression); ok && simple.Name != nil {
+				baseName = normalizeKernelAliasName(simple.Name.Name)
+			}
 		}
 		if baseName != "" {
 			if unionDef, ok := i.unionDefinitions[baseName]; ok && unionDef != nil && unionDef.Node != nil {
@@ -392,6 +455,12 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 				}
 				if _, ok := actual.(*ast.WildcardTypeExpression); ok {
 					continue
+				}
+				if simple, ok := actual.(*ast.SimpleTypeExpression); ok && simple.Name != nil {
+					name := simple.Name.Name
+					if !i.isKnownTypeName(name) && !isPrimitiveName(name) {
+						continue
+					}
 				}
 				if simple, ok := arg.(*ast.SimpleTypeExpression); ok && simple.Name != nil {
 					name := simple.Name.Name
@@ -455,6 +524,60 @@ func isPrimitiveName(name string) bool {
 		return true
 	}
 	return false
+}
+
+func normalizeKernelAliasName(name string) string {
+	switch name {
+	case "KernelArray":
+		return "Array"
+	case "KernelChannel":
+		return "Channel"
+	case "KernelHashMap":
+		return "HashMap"
+	case "KernelMutex":
+		return "Mutex"
+	case "KernelRange":
+		return "Range"
+	case "KernelRangeFactory":
+		return "RangeFactory"
+	case "KernelRatio":
+		return "Ratio"
+	case "KernelAwaitable":
+		return "Awaitable"
+	case "KernelAwaitWaker":
+		return "AwaitWaker"
+	case "KernelAwaitRegistration":
+		return "AwaitRegistration"
+	default:
+		return name
+	}
+}
+
+func isSingletonStructDef(def *ast.StructDefinition) bool {
+	if def == nil || len(def.GenericParams) > 0 {
+		return false
+	}
+	if def.Kind == ast.StructKindSingleton {
+		return true
+	}
+	return def.Kind == ast.StructKindNamed && len(def.Fields) == 0
+}
+
+func primitiveImplementsInterfaceMethod(typeName, ifaceName, methodName string) bool {
+	if typeName == "" || typeName == "nil" || typeName == "void" {
+		return false
+	}
+	if !isPrimitiveName(typeName) {
+		return false
+	}
+	switch ifaceName {
+	case "Hash":
+		return methodName == "hash"
+	case "Eq":
+		return methodName == "eq" || methodName == "ne"
+	default:
+		return false
+	}
 }
 
 func (i *Interpreter) coerceValueToType(typeExpr ast.TypeExpression, value runtime.Value) (runtime.Value, error) {

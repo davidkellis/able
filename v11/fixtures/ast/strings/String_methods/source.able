@@ -1,4 +1,4 @@
 import able.text.string
 
-s := "héllo"
-[s.len_bytes(), s.len_chars(), s.len_graphemes(), s.subString(1, 3)!, s.subString(2, nil)!, s.split("l"), s.split(""), s.replace("l", "L"), s.starts_with("hé"), s.ends_with("lo")]
+s := "héllo";
+[s.len_bytes(), s.len_chars(), s.len_graphemes(), s.subString(1, 3)!, s.subString(2, nil)!, s.split("l"), s.split(""), s.replace("l", "L"), s.starts_with("hé"), s.ends_with("lo")];

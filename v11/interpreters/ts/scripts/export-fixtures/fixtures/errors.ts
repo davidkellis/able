@@ -77,6 +77,19 @@ const errorsFixtures: Fixture[] = [
     },
 
   {
+      name: "errors/type_alias_underscore_reserved",
+      module: AST.module([
+        AST.typeAliasDefinition("_", AST.simpleTypeExpression("i64")),
+      ]),
+      manifest: {
+        description: "Type alias name '_' is reserved",
+        expect: {
+          errors: ["type alias name '_' is reserved"],
+        },
+      },
+    },
+
+  {
       name: "errors/rescue_guard",
       module: AST.module([
         AST.rescue(
@@ -98,7 +111,7 @@ const errorsFixtures: Fixture[] = [
       manifest: {
         description: "Rescue guard selects matching clause",
         expect: {
-          result: { kind: "nil" },
+          result: { kind: "void" },
         },
       },
     },

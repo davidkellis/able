@@ -9,9 +9,9 @@ import (
 	"sort"
 	"strings"
 
-	"able/interpreter10-go/pkg/driver"
-	"able/interpreter10-go/pkg/interpreter"
-	"able/interpreter10-go/pkg/runtime"
+	"able/interpreter-go/pkg/driver"
+	"able/interpreter-go/pkg/interpreter"
+	"able/interpreter-go/pkg/runtime"
 )
 
 const cliToolVersion = "able-cli 0.0.0-dev"
@@ -387,8 +387,8 @@ func looksLikeStdlibPathCLI(path string) bool {
 	clean := filepath.Clean(path)
 	parts := strings.Split(clean, string(os.PathSeparator))
 	for _, part := range parts {
-		switch strings.ToLower(part) {
-		case "stdlib", "stdlib_v11", "stdlib_v10", "able-stdlib", "able_stdlib":
+		lower := strings.ToLower(part)
+		if lower == "stdlib" || strings.HasPrefix(lower, "stdlib_") || lower == "able-stdlib" || lower == "able_stdlib" {
 			return true
 		}
 	}
@@ -832,7 +832,6 @@ func findStdlibRoots(start string) []string {
 			filepath.Join(dir, "stdlib", "src"),
 			filepath.Join(dir, "v11", "stdlib", "src"),
 			filepath.Join(dir, "stdlib", "v11", "src"),
-			filepath.Join(dir, "stdlib", "v10", "src"),
 			filepath.Join(dir, "able-stdlib", "src"),
 			filepath.Join(dir, "able_stdlib", "src"),
 		} {

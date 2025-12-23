@@ -1,5 +1,5 @@
 /**
- * @file Able language parser (v10 spec)
+ * @file Able language parser (v11 spec)
  * @author David Ellis <david@conquerthelawn.com>
  * @license epl-2.0
  */
@@ -155,6 +155,8 @@ module.exports = grammar({
     [$.struct_record, $.struct_tuple],
     [$.type_identifier, $.nil_literal],
     [$.pattern_base, $.wildcard_type],
+    [$.struct_pattern, $.type_identifier],
+    [$.type_suffix, $.type_prefix],
   ],
 
   rules: {
@@ -983,8 +985,7 @@ module.exports = grammar({
     ),
 
     struct_literal: $ => prec.left(-1, seq(
-      field("type", $.qualified_identifier),
-      field("type_arguments", optional($.type_arguments)),
+      field("type", $.type_suffix),
       "{",
       optional(seq(
         commaSep1($.struct_literal_element),

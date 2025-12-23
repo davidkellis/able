@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - index & member assignment", () => {
   test("array index mutation", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const arr = AST.arrayLiteral([AST.integerLiteral(1), AST.integerLiteral(2)]);
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("a"), arr));
     I.evaluate(AST.assignmentExpression("=", AST.indexExpression(AST.identifier("a"), AST.integerLiteral(1) as any), AST.integerLiteral(9)) as any);
@@ -12,7 +12,7 @@ describe("v11 interpreter - index & member assignment", () => {
   });
 
   test("named struct field mutation", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const pointDef = AST.structDefinition(
       "Point",
       [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "x"), AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "y")],

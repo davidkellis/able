@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"able/interpreter10-go/pkg/ast"
-	"able/interpreter10-go/pkg/runtime"
+	"able/interpreter-go/pkg/ast"
+	"able/interpreter-go/pkg/runtime"
 )
 
 type externNativeFactory func(i *Interpreter, def *ast.ExternFunctionBody, arity int) *runtime.NativeFunctionValue

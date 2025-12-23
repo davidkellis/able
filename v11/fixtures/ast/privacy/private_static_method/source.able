@@ -10,4 +10,4 @@ methods Point {
     return Point { x: 0, y: 0 }
   }
 }
-Point.hidden_static()
+Point.hidden_static();

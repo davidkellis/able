@@ -1,7 +1,7 @@
 if false {
-  print("true")
+  print("true");
 }
 else {
-  print("false")
-}
-"after"
+  print("false");
+};
+"after";

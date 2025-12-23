@@ -1,6 +1,6 @@
 import * as AST from "../ast";
 import type { Environment } from "./environment";
-import type { InterpreterV10 } from "./index";
+import type { Interpreter } from "./index";
 import type { ProcContinuationContext } from "./proc_continuations";
 
 export type IntegerKind = "i8" | "i16" | "i32" | "i64" | "i128" | "u8" | "u16" | "u32" | "u64" | "u128";
@@ -8,24 +8,25 @@ export type FloatKind = "f32" | "f64";
 
 export type ImplMethodEntry = {
   def: AST.ImplementationDefinition;
-  methods: Map<string, Extract<V10Value, { kind: "function" | "function_overload" }>>;
+  methods: Map<string, Extract<RuntimeValue, { kind: "function" | "function_overload" }>>;
   targetArgTemplates: AST.TypeExpression[];
   genericParams: AST.GenericParameter[];
   whereClause?: AST.WhereClauseConstraint[];
   unionVariantSignatures?: string[];
 };
 
-export type V10Value =
+export type RuntimeValue =
   | { kind: "String"; value: string }
   | { kind: "bool"; value: boolean }
   | { kind: "char"; value: string }
   | { kind: "nil"; value: null }
+  | { kind: "void" }
   | { kind: IntegerKind; value: bigint }
   | { kind: FloatKind; value: number }
-  | { kind: "array"; elements: V10Value[]; handle?: number }
+  | { kind: "array"; elements: RuntimeValue[]; handle?: number }
   | {
       kind: "hash_map";
-      entries: Map<string, { key: V10Value; value: V10Value }>;
+      entries: Map<string, { key: RuntimeValue; value: RuntimeValue }>;
       order: string[];
     }
   | IteratorValue
@@ -35,17 +36,17 @@ export type V10Value =
   | {
       kind: "struct_instance";
       def: AST.StructDefinition;
-      values: V10Value[] | Map<string, V10Value>;
+      values: RuntimeValue[] | Map<string, RuntimeValue>;
       typeArguments?: AST.TypeExpression[];
       typeArgMap?: Map<string, AST.TypeExpression>;
     }
   | { kind: "interface_def"; def: AST.InterfaceDefinition }
   | { kind: "union_def"; def: AST.UnionDefinition }
-  | { kind: "package"; name: string; symbols: Map<string, V10Value> }
+  | { kind: "package"; name: string; symbols: Map<string, RuntimeValue> }
   | {
       kind: "impl_namespace";
       def: AST.ImplementationDefinition;
-      symbols: Map<string, V10Value>;
+      symbols: Map<string, RuntimeValue>;
       meta: {
         interfaceName: string;
         target: AST.TypeExpression;
@@ -54,16 +55,16 @@ export type V10Value =
     }
   | {
       kind: "function_overload";
-      overloads: Array<Extract<V10Value, { kind: "function" }>>;
+      overloads: Array<Extract<RuntimeValue, { kind: "function" }>>;
     }
   | { kind: "dyn_package"; name: string }
   | { kind: "dyn_ref"; pkg: string; name: string }
-  | { kind: "error"; message: string; value?: V10Value; cause?: V10Value }
-  | { kind: "bound_method"; func: Extract<V10Value, { kind: "function" | "function_overload" }>; self: V10Value }
+  | { kind: "error"; message: string; value?: RuntimeValue; cause?: RuntimeValue }
+  | { kind: "bound_method"; func: Extract<RuntimeValue, { kind: "function" | "function_overload" }>; self: RuntimeValue }
   | {
       kind: "interface_value";
       interfaceName: string;
-      value: V10Value;
+      value: RuntimeValue;
       typeArguments?: AST.TypeExpression[];
       typeArgMap?: Map<string, AST.TypeExpression>;
     }
@@ -73,9 +74,9 @@ export type V10Value =
       expression: AST.FunctionCall | AST.BlockExpression;
       env: Environment;
       runner: (() => void) | null;
-      result?: V10Value;
-      error?: V10Value;
-      failureInfo?: V10Value;
+      result?: RuntimeValue;
+      error?: RuntimeValue;
+      failureInfo?: RuntimeValue;
       isEvaluating?: boolean;
       cancelRequested?: boolean;
       hasStarted?: boolean;
@@ -89,16 +90,16 @@ export type V10Value =
       expression: AST.FunctionCall | AST.BlockExpression;
       env: Environment;
       runner: (() => void) | null;
-      result?: V10Value;
-      error?: V10Value;
-      failureInfo?: V10Value;
+      result?: RuntimeValue;
+      error?: RuntimeValue;
+      failureInfo?: RuntimeValue;
       isEvaluating?: boolean;
       continuation?: ProcContinuationContext;
       cancelRequested?: boolean;
       hasStarted?: boolean;
       waitingChannelSend?: {
         state: any;
-        value: V10Value;
+        value: RuntimeValue;
       };
       waitingChannelReceive?: {
         state: any;
@@ -109,22 +110,22 @@ export type V10Value =
       kind: "native_function";
       name: string;
       arity: number;
-      impl: (interpreter: InterpreterV10, args: V10Value[]) => V10Value;
+      impl: (interpreter: Interpreter, args: RuntimeValue[]) => RuntimeValue;
     }
   | {
       kind: "native_bound_method";
-      func: Extract<V10Value, { kind: "native_function" }>;
-      self: V10Value;
+      func: Extract<RuntimeValue, { kind: "native_function" }>;
+      self: RuntimeValue;
     }
   | {
       kind: "partial_function";
-      target: V10Value;
-      boundArgs: V10Value[];
+      target: RuntimeValue;
+      boundArgs: RuntimeValue[];
       callNode?: AST.FunctionCall;
     };
 
-export type HashMapValue = Extract<V10Value, { kind: "hash_map" }>;
-export type HashMapEntry = { key: V10Value; value: V10Value };
+export type HashMapValue = Extract<RuntimeValue, { kind: "hash_map" }>;
+export type HashMapEntry = { key: RuntimeValue; value: RuntimeValue };
 
 export type ConstraintSpec = {
   typeParam: string;
@@ -132,7 +133,7 @@ export type ConstraintSpec = {
 };
 
 export type IteratorStep = {
-  value: V10Value;
+  value: RuntimeValue;
   done: boolean;
 };
 

@@ -1,27 +1,27 @@
-trace := ""
-firstStage := 0
-secondStage := 0
+trace := "";
+firstStage := 0;
+secondStage := 0;
 first := proc {
   if firstStage == 0 {
-    trace = trace + "A"
-    firstStage = 1
-    proc_yield()
-  }
+    trace = trace + "A";
+    firstStage = 1;
+    proc_yield();
+  };
   if firstStage == 1 {
-    trace = trace + "B"
-    firstStage = 2
-  }
-}
+    trace = trace + "B";
+    firstStage = 2;
+  };
+};
 second := proc {
   if secondStage == 0 {
-    trace = trace + "1"
-    secondStage = 1
-    proc_yield()
-  }
+    trace = trace + "1";
+    secondStage = 1;
+    proc_yield();
+  };
   if secondStage == 1 {
-    trace = trace + "2"
-    secondStage = 2
-  }
-}
-proc_flush()
-trace
+    trace = trace + "2";
+    secondStage = 2;
+  };
+};
+proc_flush();
+trace;

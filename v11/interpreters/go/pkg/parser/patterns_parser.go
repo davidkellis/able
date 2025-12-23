@@ -6,7 +6,7 @@ import (
 
 	sitter "github.com/tree-sitter/go-tree-sitter"
 
-	"able/interpreter10-go/pkg/ast"
+	"able/interpreter-go/pkg/ast"
 )
 
 func (ctx *parseContext) parsePattern(node *sitter.Node) (ast.Pattern, error) {
