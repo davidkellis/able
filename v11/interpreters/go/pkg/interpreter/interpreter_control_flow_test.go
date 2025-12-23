@@ -4,8 +4,8 @@ import (
 	"math"
 	"testing"
 
-	"able/interpreter10-go/pkg/ast"
-	"able/interpreter10-go/pkg/runtime"
+	"able/interpreter-go/pkg/ast"
+	"able/interpreter-go/pkg/runtime"
 )
 
 func TestForLoopSumArray(t *testing.T) {
@@ -63,7 +63,7 @@ func TestWhileLoopIncrementsCounter(t *testing.T) {
 	}
 }
 
-func TestWhileLoopReturnsNilWithoutBreak(t *testing.T) {
+func TestWhileLoopReturnsVoidWithoutBreak(t *testing.T) {
 	interp := New()
 	module := ast.Mod([]ast.Statement{
 		ast.Assign(ast.ID("i"), ast.Int(0)),
@@ -83,8 +83,8 @@ func TestWhileLoopReturnsNilWithoutBreak(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if _, ok := result.(runtime.NilValue); !ok {
-		t.Fatalf("expected while loop result to be nil, got %#v", result)
+	if _, ok := result.(runtime.VoidValue); !ok {
+		t.Fatalf("expected while loop result to be void, got %#v", result)
 	}
 }
 
@@ -208,7 +208,7 @@ func TestLoopExpressionMatchesExampleLoop(t *testing.T) {
 	}
 }
 
-func TestForLoopRangeEndpointMustBeFinite(t *testing.T) {
+func TestForLoopRangeRequiresIntegerBounds(t *testing.T) {
 	cases := []struct {
 		name  string
 		start ast.Expression
@@ -230,7 +230,7 @@ func TestForLoopRangeEndpointMustBeFinite(t *testing.T) {
 
 			if _, _, err := interp.EvaluateModule(module); err == nil {
 				t.Fatalf("expected error for %s", tc.name)
-			} else if err.Error() != "Range endpoint must be finite" {
+			} else if err.Error() != "Range boundaries must be numeric" {
 				t.Fatalf("unexpected error for %s: %v", tc.name, err)
 			}
 		})
@@ -313,7 +313,7 @@ func TestLoopAssignmentWithEquals(t *testing.T) {
 	}
 }
 
-func TestForLoopReturnsNilWithoutBreak(t *testing.T) {
+func TestForLoopReturnsVoidWithoutBreak(t *testing.T) {
 	interp := New()
 	module := ast.Mod([]ast.Statement{
 		ast.ForLoopPattern(
@@ -327,8 +327,8 @@ func TestForLoopReturnsNilWithoutBreak(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if _, ok := result.(runtime.NilValue); !ok {
-		t.Fatalf("expected for loop result to be nil, got %#v", result)
+	if _, ok := result.(runtime.VoidValue); !ok {
+		t.Fatalf("expected for loop result to be void, got %#v", result)
 	}
 }
 

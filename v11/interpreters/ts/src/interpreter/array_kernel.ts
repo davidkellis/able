@@ -1,26 +1,26 @@
-import type { InterpreterV10 } from "./index";
-import type { V10Value } from "./values";
+import type { Interpreter } from "./index";
+import type { RuntimeValue } from "./values";
 import { makeIntegerFromNumber, numericToNumber } from "./numeric";
 
-type ArrayState = { values: V10Value[]; capacity: number };
+type ArrayState = { values: RuntimeValue[]; capacity: number };
 
-const NIL: Extract<V10Value, { kind: "nil" }> = { kind: "nil", value: null };
+const NIL: Extract<RuntimeValue, { kind: "nil" }> = { kind: "nil", value: null };
 
 declare module "./index" {
-  interface InterpreterV10 {
+  interface Interpreter {
     arrayBuiltinsInitialized: boolean;
     nextArrayHandle: number;
     arrayStates: Map<number, ArrayState>;
     ensureArrayKernelBuiltins(): void;
-    ensureArrayState(value: Extract<V10Value, { kind: "array" }>, capacityHint?: number): ArrayState;
-    makeArrayValue(elements?: V10Value[], capacityHint?: number): Extract<V10Value, { kind: "array" }>;
+    ensureArrayState(value: Extract<RuntimeValue, { kind: "array" }>, capacityHint?: number): ArrayState;
+    makeArrayValue(elements?: RuntimeValue[], capacityHint?: number): Extract<RuntimeValue, { kind: "array" }>;
   }
 }
 
-const toHandleNumber = (value: V10Value, label: string): number =>
+const toHandleNumber = (value: RuntimeValue, label: string): number =>
   Math.trunc(numericToNumber(value, label, { requireSafeInteger: true }));
 
-const arrayStateForHandle = (interp: InterpreterV10, handle: number): ArrayState => {
+const arrayStateForHandle = (interp: Interpreter, handle: number): ArrayState => {
   const state = interp.arrayStates.get(handle);
   if (!state) {
     throw new Error(`array handle ${handle} is not defined`);
@@ -28,7 +28,7 @@ const arrayStateForHandle = (interp: InterpreterV10, handle: number): ArrayState
   return state;
 };
 
-const defineHandle = (value: Extract<V10Value, { kind: "array" }>, handle: number): void => {
+const defineHandle = (value: Extract<RuntimeValue, { kind: "array" }>, handle: number): void => {
   Object.defineProperty(value, "handle", {
     value: handle,
     writable: true,
@@ -62,10 +62,10 @@ const setLength = (state: ArrayState, length: number): void => {
   }
 };
 
-export function applyArrayKernelAugmentations(cls: typeof InterpreterV10): void {
+export function applyArrayKernelAugmentations(cls: typeof Interpreter): void {
   cls.prototype.ensureArrayState = function ensureArrayState(
-    this: InterpreterV10,
-    value: Extract<V10Value, { kind: "array" }>,
+    this: Interpreter,
+    value: Extract<RuntimeValue, { kind: "array" }>,
     capacityHint?: number,
   ): ArrayState {
     if (!value || value.kind !== "array") throw new Error("array state requires array value");
@@ -86,21 +86,21 @@ export function applyArrayKernelAugmentations(cls: typeof InterpreterV10): void 
   };
 
   cls.prototype.makeArrayValue = function makeArrayValue(
-    this: InterpreterV10,
-    elements: V10Value[] = [],
+    this: Interpreter,
+    elements: RuntimeValue[] = [],
     capacityHint?: number,
-  ): Extract<V10Value, { kind: "array" }> {
+  ): Extract<RuntimeValue, { kind: "array" }> {
     const backing = elements.slice();
-    const arr: Extract<V10Value, { kind: "array" }> = { kind: "array", elements: backing };
+    const arr: Extract<RuntimeValue, { kind: "array" }> = { kind: "array", elements: backing };
     this.ensureArrayState(arr, capacityHint);
     return arr;
   };
 
-  cls.prototype.ensureArrayKernelBuiltins = function ensureArrayKernelBuiltins(this: InterpreterV10): void {
+  cls.prototype.ensureArrayKernelBuiltins = function ensureArrayKernelBuiltins(this: Interpreter): void {
     if (this.arrayBuiltinsInitialized) return;
     this.arrayBuiltinsInitialized = true;
 
-    const defineIfMissing = (name: string, factory: () => Extract<V10Value, { kind: "native_function" }>) => {
+    const defineIfMissing = (name: string, factory: () => Extract<RuntimeValue, { kind: "native_function" }>) => {
       try {
         this.globals.get(name);
         return;

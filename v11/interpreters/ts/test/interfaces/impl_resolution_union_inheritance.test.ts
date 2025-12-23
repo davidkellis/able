@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - impl resolution semantics", () => {
   test("where-clause superset across multiple type params is preferred", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     const readable = AST.interfaceDefinition("Readable", [
       AST.functionSignature(
@@ -225,7 +225,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
   });
 
   test("union impl specificity prefers smaller subset", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     const show = AST.interfaceDefinition("Show", [
       AST.functionSignature(
@@ -318,7 +318,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
   });
 
   test("overlapping union impls without subset remain ambiguous", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     const show = AST.interfaceDefinition("Show", [
       AST.functionSignature(
@@ -401,7 +401,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
   });
 
   test("dynamic interface value uses union-target impl", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     const show = AST.interfaceDefinition("Show", [
       AST.functionSignature(
@@ -482,7 +482,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
   });
 
   test("interface inheritance constraints prefer deeper hierarchy", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     const show = AST.interfaceDefinition("Show", [
       AST.functionSignature(

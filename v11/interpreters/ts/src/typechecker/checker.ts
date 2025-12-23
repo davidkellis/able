@@ -79,6 +79,7 @@ import {
   checkFunctionCall as checkFunctionCallHelper,
   inferFunctionCallReturnType as inferFunctionCallReturnTypeHelper,
 } from "./checker/function-calls";
+import { refineTypeWithExpected } from "./checker/expressions";
 
 type FunctionGenericContext = {
   label: string;
@@ -515,7 +516,10 @@ export class TypeChecker {
   private checkReturnStatement(statement: AST.ReturnStatement): void {
     if (!statement) return;
     const expected = this.currentReturnType();
-    const actual = statement.argument ? this.inferExpression(statement.argument) : primitiveType("nil");
+    let actual = statement.argument ? this.inferExpression(statement.argument) : primitiveType("nil");
+    if (statement.argument?.type === "FunctionCall" && expected && expected.kind !== "unknown") {
+      actual = refineTypeWithExpected(actual, expected);
+    }
     if (!expected) {
       this.report("typechecker: return statement outside function", statement);
       return;

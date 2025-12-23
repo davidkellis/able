@@ -1,0 +1,7 @@
+{
+  "description": "out-of-range numeric literal in typed context raises an error",
+  "expect": {
+    "stderr": ["Typed pattern mismatch in assignment: expected u8, got i32"],
+    "exit": 1
+  }
+}

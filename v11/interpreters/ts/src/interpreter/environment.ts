@@ -1,11 +1,11 @@
-import type { V10Value } from "./values";
+import type { RuntimeValue } from "./values";
 
 export class Environment {
-  private values: Map<string, V10Value> = new Map();
+  private values: Map<string, RuntimeValue> = new Map();
 
   constructor(private enclosing: Environment | null = null) {}
 
-  define(name: string, value: V10Value): void {
+  define(name: string, value: RuntimeValue): void {
     if (this.values.has(name)) {
       const existing = this.values.get(name)!;
       const merged = mergeFunctionValue(existing, value);
@@ -18,7 +18,7 @@ export class Environment {
     this.values.set(name, value);
   }
 
-  assign(name: string, value: V10Value): void {
+  assign(name: string, value: RuntimeValue): void {
     if (this.values.has(name)) {
       this.values.set(name, value);
       return;
@@ -30,7 +30,7 @@ export class Environment {
     throw new Error(`Undefined variable '${name}'`);
   }
 
-  get(name: string): V10Value {
+  get(name: string): RuntimeValue {
     if (this.values.has(name)) {
       return this.values.get(name)!;
     }
@@ -51,7 +51,7 @@ export class Environment {
     return this.values.has(name);
   }
 
-  assignExisting(name: string, value: V10Value): boolean {
+  assignExisting(name: string, value: RuntimeValue): boolean {
     if (this.values.has(name)) {
       this.values.set(name, value);
       return true;
@@ -63,10 +63,10 @@ export class Environment {
   }
 }
 
-function mergeFunctionValue(existing: V10Value, incoming: V10Value): V10Value | null {
-  const isFunctionLike = (v: V10Value) => v.kind === "function" || v.kind === "function_overload";
+function mergeFunctionValue(existing: RuntimeValue, incoming: RuntimeValue): RuntimeValue | null {
+  const isFunctionLike = (v: RuntimeValue) => v.kind === "function" || v.kind === "function_overload";
   if (isFunctionLike(existing) && isFunctionLike(incoming)) {
-    const overloads: Array<Extract<V10Value, { kind: "function" }>> = [];
+    const overloads: Array<Extract<RuntimeValue, { kind: "function" }>> = [];
     if (existing.kind === "function") overloads.push(existing);
     if (existing.kind === "function_overload") overloads.push(...existing.overloads);
     if (incoming.kind === "function") overloads.push(incoming);

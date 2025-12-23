@@ -1,4 +1,4 @@
 import pkgmethods.*
 
-inst := Widget.make(7)
-inst.augment(1)
+inst := Widget.make(7);
+inst.augment(1);

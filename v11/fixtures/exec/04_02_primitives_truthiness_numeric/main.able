@@ -1,0 +1,31 @@
+package exec_04_02_primitives_truthiness_numeric
+import able.core.errors.{DivisionByZeroError}
+
+## Semantics: numeric literal forms, operator semantics, and truthiness rules.
+
+fn main() -> void {
+  ## Literal forms (underscores and base prefixes).
+  print(1_000_000)
+  print(0xff)
+  print(0b1010_1111)
+
+  ## Integer division and modulo use Euclidean rules.
+  print(`5 // 3 = ${5 // 3}`)
+  print(`-5 // 3 = ${-5 // 3}`)
+  print(`5 % 3 = ${5 % 3}`)
+  print(`-5 % 3 = ${-5 % 3}`)
+
+  ## / performs float division even for integer operands.
+  print(`5 / 2 = ${5 / 2}`)
+  print(`6 / 3 = ${6 / 3}`)
+
+  ## Truthiness: only false, nil, and Error values are falsy.
+  if true { print("true truthy") } else { print("true falsy") }
+  if false { print("false truthy") } else { print("false falsy") }
+  if nil { print("nil truthy") } else { print("nil falsy") }
+  if 0 { print("zero truthy") } else { print("zero falsy") }
+  void_value := do { }
+  if void_value { print("void truthy") } else { print("void falsy") }
+  err := DivisionByZeroError {}
+  if err { print("error truthy") } else { print("error falsy") }
+}

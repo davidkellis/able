@@ -11,7 +11,7 @@ interface Enumerable T for E {
   fn each(self: Self, visit: T -> void) -> void;
 
   fn map<U>(self: Self, f: T -> U) -> Array U {
-    result: Array U := Array.new()
+    result: Array U := Array.new();
     for value in self {
       result.push(f(value))
     }
@@ -19,7 +19,7 @@ interface Enumerable T for E {
   }
 
   fn to_array(self: Self) -> Array T {
-    result: Array T := Array.new()
+    result: Array T := Array.new();
     for value in self {
       result.push(value)
     }
@@ -35,7 +35,7 @@ interface Enumerable T for E {
   }
 
   fn filter(self: Self, predicate: T -> bool) -> Array T {
-    result: Array T := Array.new()
+    result: Array T := Array.new();
     for value in self {
       if predicate(value) {
         result.push(value)
@@ -101,7 +101,7 @@ interface Enumerable T for E {
   }
 
   fn take(self: Self, count: i32) -> Array T {
-    result: Array T := Array.new()
+    result: Array T := Array.new();
     if count <= 0 { return result }
     remaining := count
     for value in self {
@@ -113,7 +113,7 @@ interface Enumerable T for E {
   }
 
   fn drop(self: Self, count: i32) -> Array T {
-    result: Array T := Array.new()
+    result: Array T := Array.new();
     if count <= 0 {
       return self.to_array()
     }
@@ -129,7 +129,7 @@ interface Enumerable T for E {
   }
 
   fn zip_with_index(self: Self) -> Array Indexed T {
-    result: Array Indexed T := Array.new()
+    result: Array Indexed T := Array.new();
     idx := 0
     for value in self {
       result.push(Indexed { value: value, index: idx })
@@ -220,7 +220,7 @@ impl Enumerable T for Array T {
   }
 
   fn take(self: Self, count: i32) -> Array T {
-    result: Array T := Array.new()
+    result: Array T := Array.new();
     if count <= 0 { return result }
     total := self.len()
     idx := 0
@@ -236,7 +236,7 @@ impl Enumerable T for Array T {
   }
 
   fn drop(self: Self, count: i32) -> Array T {
-    result: Array T := Array.new()
+    result: Array T := Array.new();
     start := count
     if start < 0 { start = 0 }
     total := self.len()
@@ -250,7 +250,7 @@ impl Enumerable T for Array T {
   }
 
   fn zip_with_index(self: Self) -> Array Indexed T {
-    result: Array Indexed T := Array.new()
+    result: Array Indexed T := Array.new();
     total := self.len()
     idx := 0
     loop {

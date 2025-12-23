@@ -1,0 +1,38 @@
+package exec_02_lexical_comments_identifiers
+
+## Semantics: line comments ignored, identifiers allow underscores/digits, placeholder tokens are distinct, line-join within delimiters, trailing commas allowed in array/struct literals.
+
+struct Pair { first: i32, second: i32 }
+
+fn main() -> void {
+  snake_case_1 := 10           ## comment ignored
+  camelCase2 := 7
+
+  ## newline join inside parentheses
+  line_joined := (
+    snake_case_1
+    + camelCase2
+    + 1
+  )
+
+  values := [
+    snake_case_1,
+    camelCase2,
+    line_joined,
+  ]
+
+  pair := Pair {
+    first: values[0],
+    second: values[1],
+  }
+
+  placeholder_sum := snake_case_1 |> (@ + camelCase2)
+
+  literal_with_hash := "text ## not a comment"
+
+  print(`joined ${line_joined}`)
+  print(`values[2] ${values[2]}`)
+  print(`pair ${pair.first}+${pair.second}`)
+  print(`placeholder ${placeholder_sum}`)
+  print(literal_with_hash)
+}

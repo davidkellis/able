@@ -1,0 +1,11 @@
+{
+  "description": "type inference and constraints: call-site binding with interface requirements",
+  "expect": {
+    "stdout": [
+      "Item:a & Item:b",
+      "Count:3 & Count:4",
+      "id 42"
+    ],
+    "exit": 0
+  }
+}

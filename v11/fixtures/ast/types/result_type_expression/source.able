@@ -1,4 +1,4 @@
 fn always_ok() -> !i32 {
-  7
+  7;
 }
-always_ok()
+always_ok();

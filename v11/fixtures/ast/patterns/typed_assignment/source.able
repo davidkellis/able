@@ -1,3 +1,3 @@
-value := 42
-n: i32 := value
-n
+value := 42;
+n: i32 := value;
+n;

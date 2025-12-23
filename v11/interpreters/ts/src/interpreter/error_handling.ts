@@ -1,14 +1,14 @@
 import * as AST from "../ast";
 import { Environment } from "./environment";
-import type { InterpreterV10 } from "./index";
+import type { Interpreter } from "./index";
 import { callCallableValue } from "./functions";
 import { RaiseSignal } from "./signals";
 import { memberAccessOnValue } from "./structs";
-import type { V10Value } from "./values";
+import type { RuntimeValue } from "./values";
 
-export function evaluateRaiseStatement(ctx: InterpreterV10, node: AST.RaiseStatement, env: Environment): never {
+export function evaluateRaiseStatement(ctx: Interpreter, node: AST.RaiseStatement, env: Environment): never {
   const val = ctx.evaluate(node.expression, env);
-  const err: V10Value = val.kind === "error" ? val : { kind: "error", message: ctx.valueToString(val), value: val };
+  const err: RuntimeValue = val.kind === "error" ? val : { kind: "error", message: ctx.valueToString(val), value: val };
   ctx.raiseStack.push(err);
   try {
     throw new RaiseSignal(err);
@@ -17,7 +17,7 @@ export function evaluateRaiseStatement(ctx: InterpreterV10, node: AST.RaiseState
   }
 }
 
-export function evaluateRescueExpression(ctx: InterpreterV10, node: AST.RescueExpression, env: Environment): V10Value {
+export function evaluateRescueExpression(ctx: Interpreter, node: AST.RescueExpression, env: Environment): RuntimeValue {
   try {
     return ctx.evaluate(node.monitoredExpression, env);
   } catch (e) {
@@ -44,7 +44,7 @@ export function evaluateRescueExpression(ctx: InterpreterV10, node: AST.RescueEx
   }
 }
 
-export function evaluateOrElseExpression(ctx: InterpreterV10, node: AST.OrElseExpression, env: Environment): V10Value {
+export function evaluateOrElseExpression(ctx: Interpreter, node: AST.OrElseExpression, env: Environment): RuntimeValue {
   try {
     const value = ctx.evaluate(node.expression, env);
     const failure = classifyOptionOrResultFailure(ctx, value);
@@ -71,9 +71,9 @@ export function evaluateOrElseExpression(ctx: InterpreterV10, node: AST.OrElseEx
   }
 }
 
-type FailureKind = { kind: "nil" } | { kind: "error"; value: V10Value };
+type FailureKind = { kind: "nil" } | { kind: "error"; value: RuntimeValue };
 
-function classifyOptionOrResultFailure(ctx: InterpreterV10, value: V10Value): FailureKind | null {
+function classifyOptionOrResultFailure(ctx: Interpreter, value: RuntimeValue): FailureKind | null {
   if (value.kind === "nil") return { kind: "nil" };
   if (value.kind === "error") return { kind: "error", value };
   if (value.kind === "interface_value" && value.interfaceName === "Error") {
@@ -88,7 +88,7 @@ function classifyOptionOrResultFailure(ctx: InterpreterV10, value: V10Value): Fa
   return null;
 }
 
-export function evaluatePropagationExpression(ctx: InterpreterV10, node: AST.PropagationExpression, env: Environment): V10Value {
+export function evaluatePropagationExpression(ctx: Interpreter, node: AST.PropagationExpression, env: Environment): RuntimeValue {
   try {
     const val = ctx.evaluate(node.expression, env);
     const errVal = coerceToErrorValue(ctx, val, env);
@@ -100,8 +100,8 @@ export function evaluatePropagationExpression(ctx: InterpreterV10, node: AST.Pro
   }
 }
 
-export function evaluateEnsureExpression(ctx: InterpreterV10, node: AST.EnsureExpression, env: Environment): V10Value {
-  let result: V10Value | null = null;
+export function evaluateEnsureExpression(ctx: Interpreter, node: AST.EnsureExpression, env: Environment): RuntimeValue {
+  let result: RuntimeValue | null = null;
   let caught: RaiseSignal | null = null;
   try {
     result = ctx.evaluate(node.tryExpression, env);
@@ -114,12 +114,12 @@ export function evaluateEnsureExpression(ctx: InterpreterV10, node: AST.EnsureEx
   return result ?? { kind: "nil", value: null };
 }
 
-export function evaluateRethrowStatement(ctx: InterpreterV10, _node: AST.RethrowStatement): never {
-  const err = ctx.raiseStack[ctx.raiseStack.length - 1] || { kind: "error", message: "Unknown rethrow" } as V10Value;
+export function evaluateRethrowStatement(ctx: Interpreter, _node: AST.RethrowStatement): never {
+  const err = ctx.raiseStack[ctx.raiseStack.length - 1] || { kind: "error", message: "Unknown rethrow" } as RuntimeValue;
   throw new RaiseSignal(err);
 }
 
-function coerceToErrorValue(ctx: InterpreterV10, val: V10Value, env: Environment): Extract<V10Value, { kind: "error" }> | null {
+function coerceToErrorValue(ctx: Interpreter, val: RuntimeValue, env: Environment): Extract<RuntimeValue, { kind: "error" }> | null {
   if (val.kind === "error") return val;
   if (val.kind === "interface_value" && val.interfaceName === "Error" && val.value.kind === "error") {
     return val.value;
@@ -130,7 +130,7 @@ function coerceToErrorValue(ctx: InterpreterV10, val: V10Value, env: Environment
     : val.kind === "interface_value" && val.interfaceName === "Error";
   if (!implementsError) return null;
 
-  let errorIface: V10Value = val;
+  let errorIface: RuntimeValue = val;
   if (val.kind !== "interface_value" || val.interfaceName !== "Error") {
     errorIface = ctx.toInterfaceValue("Error", val);
   }
@@ -146,7 +146,7 @@ function coerceToErrorValue(ctx: InterpreterV10, val: V10Value, env: Environment
     // fall back to valueToString
   }
 
-  let cause: V10Value | undefined;
+  let cause: RuntimeValue | undefined;
   try {
     const causeMember = memberAccessOnValue(ctx, errorIface, AST.identifier("cause"), env);
     const causeVal = callCallableValue(ctx, causeMember, [], env);

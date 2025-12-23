@@ -80,6 +80,7 @@ function parseExpression(node: Node | null | undefined, source: string): Express
 
   switch (node.type) {
     case "identifier":
+    case "keyword_identifier":
       return parseIdentifier(node, source);
     case "number_literal":
       return parseNumberLiteral(getActiveParseContext(), node);
@@ -147,6 +148,8 @@ function parseExpression(node: Node | null | undefined, source: string): Express
       return parseRangeExpression(node, source);
     case "assignment_expression":
       return parseAssignmentExpression(node, source);
+    case "cast_expression":
+      return parseCastExpression(node, source);
     case "unary_expression":
       return parseUnaryExpression(node, source);
     case "implicit_member_expression":
@@ -216,7 +219,7 @@ function parseInterpolatedString(node: Node, source: string): Expression {
     if (!child || isIgnorableNode(child)) continue;
     switch (child.type) {
       case "interpolation_text": {
-        const text = sliceText(child, source);
+        const text = unescapeInterpolationText(sliceText(child, source));
         if (text !== "") {
           parts.push(annotateExpressionNode(AST.stringLiteral(text), child) as AST.StringLiteral);
         }
@@ -235,6 +238,42 @@ function parseInterpolatedString(node: Node, source: string): Expression {
     }
   }
   return annotateExpressionNode(AST.stringInterpolation(parts), node);
+}
+
+function unescapeInterpolationText(text: string): string {
+  if (text.indexOf("\\") === -1) return text;
+  let out = "";
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (ch !== "\\") {
+      out += ch;
+      continue;
+    }
+    if (i + 1 >= text.length) {
+      out += "\\";
+      break;
+    }
+    const next = text[i + 1];
+    switch (next) {
+      case "`":
+        out += "`";
+        i += 1;
+        break;
+      case "$":
+        out += "$";
+        i += 1;
+        break;
+      case "\\":
+        out += "\\";
+        i += 1;
+        break;
+      default:
+        out += `\\${next}`;
+        i += 1;
+        break;
+    }
+  }
+  return out;
 }
 
 
@@ -512,7 +551,7 @@ function parseAssignmentTarget(node: Node, source: string): AssignmentExpression
       return getActiveParseContext().parsePattern(node);
     default: {
       const expr = parseExpression(node, source);
-      if (expr.type === "MemberAccessExpression" || expr.type === "IndexExpression") {
+      if (expr.type === "MemberAccessExpression" || expr.type === "IndexExpression" || expr.type === "ImplicitMemberExpression") {
         return expr;
       }
       if (
@@ -548,6 +587,27 @@ function parseUnaryExpression(node: Node, source: string): Expression {
     return annotateExpressionNode(AST.unaryExpression(operatorText as "-" | "!" | ".~", operand), node);
   }
   throw new MapperError(`parser: unsupported unary operator ${operatorText}`);
+}
+
+function parseCastExpression(node: Node, source: string): Expression {
+  if (node.namedChildCount < 2) {
+    const child = firstNamedChild(node);
+    if (child) return parseExpression(child, source);
+    throw new MapperError("parser: cast expression missing target type");
+  }
+  const ctx = getActiveParseContext();
+  const baseExpr = parseExpression(node.namedChild(0), source);
+  let result: Expression = baseExpr;
+  for (let i = 1; i < node.namedChildCount; i++) {
+    const typeNode = node.namedChild(i);
+    if (!typeNode) continue;
+    const targetType = ctx.parseTypeExpression(typeNode);
+    if (!targetType) {
+      throw new MapperError("parser: cast expression missing target type");
+    }
+    result = AST.typeCastExpression(result, targetType);
+  }
+  return annotateExpressionNode(result, node);
 }
 
 

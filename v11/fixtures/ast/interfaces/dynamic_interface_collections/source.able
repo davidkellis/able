@@ -39,17 +39,17 @@ impl Show for Fancy | Basic | Counter
     return "union"
   }
 }
-fancy_value: Show := Fancy { label: "f" }
-basic_value: Show := Basic { label: "b" }
-entries := [Entry { key: "f", value: fancy_value }, Entry { key: "b", value: basic_value }]
-range_result := ""
-map_result := ""
+fancy_value: Show := Fancy { label: "f" };
+basic_value: Show := Basic { label: "b" };
+entries := [Entry { key: "f", value: fancy_value }, Entry { key: "b", value: basic_value }];
+range_result := "";
+map_result := "";
 for range_idx in 0 .. 1 {
-  counter := Counter { value: range_idx }
-  range_value: Show := counter
-  range_result = range_result + range_value.describe()
+  counter := Counter { value: range_idx };
+  range_value: Show := counter;
+  range_result = range_result + range_value.describe();
 }
 for entry in entries {
-  map_result = map_result + entry.value.describe()
+  map_result = map_result + entry.value.describe();
 }
-[range_result, map_result]
+[range_result, map_result];

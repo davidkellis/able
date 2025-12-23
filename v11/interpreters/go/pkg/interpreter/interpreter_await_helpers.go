@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"able/interpreter10-go/pkg/runtime"
+	"able/interpreter-go/pkg/runtime"
 )
 
 const maxSleepMilliseconds = int64(2_147_483_647)

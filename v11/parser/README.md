@@ -1,11 +1,11 @@
-# Able v10 Parser Workspace
+# Able v11 Parser Workspace
 
-This directory hosts the tree-sitter grammar for the Able v10 language. The
+This directory hosts the tree-sitter grammar for the Able v11 language. The
 initial scaffold lives in `tree-sitter-able/` and will evolve until it can
 round-trip programs into the shared AST (`design/ast-contract.md`).
 
 ## Immediate goals
-- Capture the v10 lexical surface (identifiers, literals, comments, keywords).
+- Capture the v11 lexical surface (identifiers, literals, comments, keywords).
 - Encode the top-level grammar (package/import statements, declarations,
   expression statements) without the v11 safe-navigation operator.
 - Map grammar productions to canonical AST constructors so the Go/TS runtimes
@@ -14,7 +14,7 @@ round-trip programs into the shared AST (`design/ast-contract.md`).
 
 ## Status
 - `tree-sitter init` scaffold committed.
-- `grammar.js` now tracks the v10 declaration surface: spec-style generics for
+- `grammar.js` now tracks the v11 declaration surface: spec-style generics for
   structs/unions/interfaces/methods, interface compositions (`=` + `+`), and
   `impl` headers that accept space-delimited interface arguments.
 - Host interop is parsed via dedicated `prelude <target> { ... }` and

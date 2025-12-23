@@ -2,7 +2,7 @@ do {
   raise "boom"
 } rescue {
   case err => {
-    print(err)
-    "handled"
+    print(err);
+    "handled";
   }
-}
+};

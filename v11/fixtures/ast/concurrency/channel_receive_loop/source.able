@@ -4,32 +4,32 @@ struct Channel {
 }
 methods Channel {
   fn new(capacity: i32) -> Channel {
-    handle := __able_channel_new(capacity)
+    handle := __able_channel_new(capacity);
     return Channel { capacity: capacity, handle: handle }
   }
   fn send(self, value) {
-    __able_channel_send(self.handle, value)
+    __able_channel_send(self.handle, value);
   }
   fn receive(self) {
     return __able_channel_receive(self.handle)
   }
   fn close(self) {
-    __able_channel_close(self.handle)
+    __able_channel_close(self.handle);
   }
 }
-channel := Channel.new(3)
-channel.send(2)
-channel.send(3)
-channel.close()
-sum := 0
-value := nil
+channel := Channel.new(3);
+channel.send(2);
+channel.send(3);
+channel.close();
+sum := 0;
+value := nil;
 while true {
-  value := channel.receive()
+  value := channel.receive();
   if value == nil {
     break
   }
 else {
-    sum += value
-  }
+    sum += value;
+  };
 }
-sum
+sum;

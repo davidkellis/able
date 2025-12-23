@@ -1,10 +1,10 @@
 import * as AST from "../ast";
 import type { Environment } from "./environment";
-import type { InterpreterV10 } from "./index";
-import type { FloatKind, IntegerKind, V10Value } from "./values";
+import type { Interpreter } from "./index";
+import type { FloatKind, IntegerKind, RuntimeValue } from "./values";
 import { makeFloatValue, makeIntegerValue } from "./numeric";
 
-export function evaluateLiteral(ctx: InterpreterV10, node: AST.AstNode, env: Environment): V10Value {
+export function evaluateLiteral(ctx: Interpreter, node: AST.AstNode, env: Environment): RuntimeValue {
   switch (node.type) {
     case "StringLiteral":
       return { kind: "String", value: (node as AST.StringLiteral).value };

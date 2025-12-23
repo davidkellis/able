@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - privacy in imports", () => {
   test("importing private function fails", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     // define private function in globals
     const priv = AST.functionDefinition("secret", [], AST.blockExpression([AST.returnStatement(AST.integerLiteral(1))]), undefined, undefined, undefined, false, true);
     I.evaluate(priv);
@@ -14,7 +14,7 @@ describe("v11 interpreter - privacy in imports", () => {
   });
 
   test("importing private struct fails; public struct succeeds", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     // private struct
     const pstruct = AST.structDefinition("Hidden", [], "named", undefined, undefined, true);
     I.evaluate(pstruct);

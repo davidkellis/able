@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"able/interpreter10-go/pkg/driver"
+	"able/interpreter-go/pkg/driver"
 )
 
 func TestAbleDepsInstallAndRunWithCachedDependency(t *testing.T) {

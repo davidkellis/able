@@ -1,6 +1,6 @@
 package typechecker
 
-import "able/interpreter10-go/pkg/ast"
+import "able/interpreter-go/pkg/ast"
 
 type placeholderPlan struct {
 	paramCount int
@@ -84,6 +84,8 @@ func (p *placeholderAnalyzer) visitExpression(expr ast.Expression) error {
 		return p.visitExpression(e.Right)
 	case *ast.UnaryExpression:
 		return p.visitExpression(e.Operand)
+	case *ast.TypeCastExpression:
+		return p.visitExpression(e.Expression)
 	case *ast.FunctionCall:
 		if err := p.visitExpression(e.Callee); err != nil {
 			return err

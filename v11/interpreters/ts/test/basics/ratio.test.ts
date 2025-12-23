@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 const ratioLiteral = (num: number, den: number) =>
   AST.structLiteral(
@@ -14,7 +14,7 @@ const ratioLiteral = (num: number, den: number) =>
 
 describe("v11 interpreter - Ratio support", () => {
   test("arithmetic with Ratio stays exact", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     I.ensureRatioStruct();
     const half = ratioLiteral(1, 2);
     const quarter = ratioLiteral(1, 4);
@@ -29,7 +29,7 @@ describe("v11 interpreter - Ratio support", () => {
   });
 
   test("Ratio mixes with integers and floats", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     I.ensureRatioStruct();
     const third = ratioLiteral(1, 3);
     const expr = AST.binaryExpression("+", third, AST.floatLiteral(0.5));
@@ -44,7 +44,7 @@ describe("v11 interpreter - Ratio support", () => {
   });
 
   test("Ratio division by zero raises", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     I.ensureRatioStruct();
     const half = ratioLiteral(1, 2);
     const zero = ratioLiteral(0, 1);
@@ -52,7 +52,7 @@ describe("v11 interpreter - Ratio support", () => {
   });
 
   test("builtin float->Ratio conversion preserves fraction", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     I.ensureRatioStruct();
     const expr = AST.functionCall(AST.identifier("__able_ratio_from_float"), [AST.floatLiteral(0.25)]);
     const value = I.evaluate(expr);

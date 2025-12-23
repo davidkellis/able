@@ -1,29 +1,29 @@
 import type * as AST from "../ast";
 import type { Environment } from "./environment";
-import type { IteratorValue, V10Value } from "./values";
+import type { IteratorValue, RuntimeValue } from "./values";
 
 export type BlockState = {
   env: Environment;
   index: number;
-  result: V10Value;
+  result: RuntimeValue;
 };
 
 export type ForLoopState = {
   mode: "static" | "iterator";
-  values?: V10Value[];
+  values?: RuntimeValue[];
   iterator?: IteratorValue;
   baseEnv: Environment;
   index: number;
-  result: V10Value;
+  result: RuntimeValue;
   iterationEnv?: Environment;
   awaitingBody: boolean;
-  pendingValue?: V10Value;
+  pendingValue?: RuntimeValue;
   iteratorClosed?: boolean;
 };
 
 export type WhileLoopState = {
   baseEnv: Environment;
-  result: V10Value;
+  result: RuntimeValue;
   inBody: boolean;
   loopEnv?: Environment;
   conditionInProgress: boolean;
@@ -31,7 +31,7 @@ export type WhileLoopState = {
 
 export type LoopExpressionState = {
   baseEnv: Environment;
-  result: V10Value;
+  result: RuntimeValue;
   inBody: boolean;
   loopEnv?: Environment;
 };
@@ -39,13 +39,13 @@ export type LoopExpressionState = {
 export type IfExpressionState = {
   stage: "if_condition" | "if_body" | "or_condition" | "or_body";
   orIndex: number;
-  result?: V10Value;
+  result?: RuntimeValue;
 };
 
 export type MatchExpressionState = {
   stage: "subject" | "clause" | "guard" | "body";
   clauseIndex: number;
-  subject?: V10Value;
+  subject?: RuntimeValue;
   matchEnv?: Environment;
 };
 

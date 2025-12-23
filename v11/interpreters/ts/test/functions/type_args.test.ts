@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - generic type arguments (accepted, no typecheck)", () => {
   test("function call with typeArguments is ignored at runtime but accepted", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const id = AST.functionDefinition(
       "id",
       [AST.functionParameter("x")],

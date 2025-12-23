@@ -1,4 +1,4 @@
-"""Able language parser (v10 spec)"""
+"""Able language parser (v11 spec)"""
 
 from importlib.resources import files as _files
 

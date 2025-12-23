@@ -1,19 +1,19 @@
-import type { InterpreterV10 } from "./index";
+import type { Interpreter } from "./index";
 import { makeIntegerValue, ratioFromFloat } from "./numeric";
 
 declare module "./index" {
-  interface InterpreterV10 {
+  interface Interpreter {
     ensureNumericBuiltins(): void;
     numericBuiltinsInitialized?: boolean;
   }
 }
 
-export function applyNumericHostAugmentations(cls: typeof InterpreterV10): void {
-  cls.prototype.ensureNumericBuiltins = function ensureNumericBuiltins(this: InterpreterV10): void {
+export function applyNumericHostAugmentations(cls: typeof Interpreter): void {
+  cls.prototype.ensureNumericBuiltins = function ensureNumericBuiltins(this: Interpreter): void {
     if (this.numericBuiltinsInitialized) return;
     this.numericBuiltinsInitialized = true;
 
-    const defineIfMissing = (name: string, thunk: () => ReturnType<InterpreterV10["makeNativeFunction"]>) => {
+    const defineIfMissing = (name: string, thunk: () => ReturnType<Interpreter["makeNativeFunction"]>) => {
       if (this.globals.has(name)) return;
       this.globals.define(name, thunk());
     };

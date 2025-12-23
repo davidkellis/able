@@ -2,14 +2,15 @@ package parser
 
 import (
 	"fmt"
+	"strings"
 
 	sitter "github.com/tree-sitter/go-tree-sitter"
 
-	"able/interpreter10-go/pkg/ast"
-	"able/interpreter10-go/pkg/parser/language"
+	"able/interpreter-go/pkg/ast"
+	"able/interpreter-go/pkg/parser/language"
 )
 
-// ModuleParser wraps a tree-sitter parser configured for Able v10 modules.
+// ModuleParser wraps a tree-sitter parser configured for Able v11 modules.
 type ModuleParser struct {
 	parser *sitter.Parser
 }
@@ -172,8 +173,96 @@ func (p *ModuleParser) ParseModule(source []byte) (*ast.Module, error) {
 	}
 
 	module := ast.NewModule(body, imports, modulePackage)
+	module.Body = repairTypeAliasTargets(module.Body, source)
 	annotateSpan(module, root)
 	return module, nil
+}
+
+func repairTypeAliasTargets(body []ast.Statement, source []byte) []ast.Statement {
+	if len(body) == 0 {
+		return body
+	}
+	lines := strings.Split(string(source), "\n")
+	repaired := make([]ast.Statement, 0, len(body))
+	for i := 0; i < len(body); i++ {
+		stmt := body[i]
+		alias, ok := stmt.(*ast.TypeAliasDefinition)
+		if !ok || alias.TargetType == nil || len(alias.GenericParams) == 0 {
+			repaired = append(repaired, stmt)
+			continue
+		}
+		genericNames := make(map[string]struct{})
+		for _, gp := range alias.GenericParams {
+			if gp == nil || gp.Name == nil || gp.Name.Name == "" {
+				continue
+			}
+			genericNames[gp.Name.Name] = struct{}{}
+		}
+		if len(genericNames) == 0 {
+			repaired = append(repaired, stmt)
+			continue
+		}
+		span := alias.Span()
+		end := span.End
+		if end.Line == 0 {
+			repaired = append(repaired, stmt)
+			continue
+		}
+		target := alias.TargetType
+		consumed := 0
+		for j := i + 1; j < len(body); j++ {
+			ident, ok := body[j].(*ast.Identifier)
+			if !ok {
+				break
+			}
+			idSpan := ident.Span()
+			if idSpan.Start.Line != end.Line {
+				break
+			}
+			lineText := ""
+			if idx := end.Line - 1; idx >= 0 && idx < len(lines) {
+				lineText = lines[idx]
+			}
+			startCol := end.Column - 1
+			endCol := idSpan.Start.Column - 1
+			if startCol < 0 {
+				startCol = 0
+			}
+			if endCol < 0 {
+				endCol = 0
+			}
+			if startCol > len(lineText) {
+				startCol = len(lineText)
+			}
+			if endCol > len(lineText) {
+				endCol = len(lineText)
+			}
+			if strings.TrimSpace(lineText[startCol:endCol]) != "" {
+				break
+			}
+			if _, ok := genericNames[ident.Name]; !ok {
+				break
+			}
+			extraArg := ast.Ty(ident.Name)
+			switch t := target.(type) {
+			case *ast.GenericTypeExpression:
+				t.Arguments = append(t.Arguments, extraArg)
+				target = t
+			default:
+				target = ast.Gen(target, extraArg)
+			}
+			end = idSpan.End
+			consumed++
+		}
+		if consumed > 0 {
+			alias.TargetType = target
+			span.End = end
+			ast.SetSpan(alias, span)
+			i += consumed
+		}
+		repaired = append(repaired, alias)
+	}
+	return repaired
 }
 
 func (ctx *parseContext) parsePackageStatement(node *sitter.Node) (*ast.PackageStatement, error) {

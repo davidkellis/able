@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - unary/binary ops and ranges", () => {
-  const I = new InterpreterV10();
+  const I = new Interpreter();
 
   test("unary", () => {
     expect(I.evaluate(AST.unaryExpression('-', AST.integerLiteral(5)))).toEqual({ kind: 'i32', value: -5n });
@@ -48,7 +48,7 @@ describe("v11 interpreter - unary/binary ops and ranges", () => {
         { kind: 'i32', value: 3n },
       ],
     });
-    const r2 = I.evaluate(AST.rangeExpression(AST.floatLiteral(0.0), AST.floatLiteral(1.0), false));
-    expect(r2).toEqual({ kind: 'array', elements: [{ kind: 'i32', value: 0n }] });
+    expect(() => I.evaluate(AST.rangeExpression(AST.floatLiteral(0.0), AST.floatLiteral(1.0), false)))
+      .toThrow("Range boundaries must be numeric");
   });
 });

@@ -1,0 +1,5 @@
+## Semantics: no package declaration means the package name is derived from the directory path.
+
+fn double(value: i32) -> i32 {
+  value * 2
+}

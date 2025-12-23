@@ -5,9 +5,9 @@ import (
 	"strings"
 	"sync"
 
-	"able/interpreter10-go/pkg/ast"
-	"able/interpreter10-go/pkg/runtime"
-	"able/interpreter10-go/pkg/typechecker"
+	"able/interpreter-go/pkg/ast"
+	"able/interpreter-go/pkg/runtime"
+	"able/interpreter-go/pkg/typechecker"
 )
 
 type packageMeta struct {
@@ -150,7 +150,7 @@ func (f *placeholderFrame) valueAt(index int) (runtime.Value, error) {
 	return f.args[index-1], nil
 }
 
-// Interpreter drives evaluation of Able v10 AST nodes.
+// Interpreter drives evaluation of Able v11 AST nodes.
 type Interpreter struct {
 	global               *runtime.Environment
 	inherentMethods      map[string]map[string]runtime.Value
@@ -164,6 +164,8 @@ type Interpreter struct {
 	packageRegistry      map[string]map[string]runtime.Value
 	packageMetadata      map[string]packageMeta
 	currentPackage       string
+	dynamicDefinitionMode bool
+	dynPackageDefMethod   runtime.NativeFunctionValue
 	executor             Executor
 	rootState            *evalState
 
@@ -204,6 +206,8 @@ type Interpreter struct {
 	arraysByHandle  map[int64]map[*runtime.ArrayValue]struct{}
 	nextArrayHandle int64
 	hashMapReady    bool
+	hashMapStates   map[int64]*runtime.HashMapValue
+	nextHashMapHandle int64
 
 	errorNativeMethods map[string]runtime.NativeFunctionValue
 
@@ -269,9 +273,11 @@ func (i *Interpreter) registerSymbol(name string, value runtime.Value) {
 		bucket = make(map[string]runtime.Value)
 		i.packageRegistry[i.currentPackage] = bucket
 	}
-	if existing, ok := bucket[name]; ok {
-		if merged, ok := runtime.MergeFunctionValues(existing, value); ok {
-			value = merged
+	if !i.dynamicDefinitionMode {
+		if existing, ok := bucket[name]; ok {
+			if merged, ok := runtime.MergeFunctionValues(existing, value); ok {
+				value = merged
+			}
 		}
 	}
 	bucket[name] = value
@@ -320,6 +326,8 @@ func NewWithExecutor(exec Executor) *Interpreter {
 		arrayStates:             make(map[int64]*arrayState),
 		arraysByHandle:          make(map[int64]map[*runtime.ArrayValue]struct{}),
 		nextArrayHandle:         1,
+		hashMapStates:           make(map[int64]*runtime.HashMapValue),
+		nextHashMapHandle:       1,
 		errorNativeMethods:      make(map[string]runtime.NativeFunctionValue),
 	}
 	i.initConcurrencyBuiltins()
@@ -331,6 +339,7 @@ func NewWithExecutor(exec Executor) *Interpreter {
 	i.initHasherBuiltins()
 	i.initRatioBuiltins()
 	i.initInterfaceBuiltins()
+	i.initDynamicBuiltins()
 	return i
 }
 

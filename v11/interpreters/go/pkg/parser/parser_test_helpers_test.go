@@ -9,7 +9,7 @@ import (
 	"sort"
 	"testing"
 
-	"able/interpreter10-go/pkg/ast"
+	"able/interpreter-go/pkg/ast"
 )
 
 type fixtureCase struct {

@@ -3,8 +3,8 @@ package interpreter
 import (
 	"fmt"
 
-	"able/interpreter10-go/pkg/ast"
-	"able/interpreter10-go/pkg/runtime"
+	"able/interpreter-go/pkg/ast"
+	"able/interpreter-go/pkg/runtime"
 )
 
 type placeholderPlan struct {
@@ -27,6 +27,8 @@ func expressionContainsPlaceholder(expr ast.Expression) bool {
 		return expressionContainsPlaceholder(e.Left) || expressionContainsPlaceholder(e.Right)
 	case *ast.UnaryExpression:
 		return expressionContainsPlaceholder(e.Operand)
+	case *ast.TypeCastExpression:
+		return expressionContainsPlaceholder(e.Expression)
 	case *ast.FunctionCall:
 		if expressionContainsPlaceholder(e.Callee) {
 			return true

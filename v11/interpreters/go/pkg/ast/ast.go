@@ -33,6 +33,7 @@ const (
 	NodeArrayPattern             NodeType = "ArrayPattern"
 	NodeTypedPattern             NodeType = "TypedPattern"
 	NodeUnaryExpression          NodeType = "UnaryExpression"
+	NodeTypeCastExpression       NodeType = "TypeCastExpression"
 	NodeBinaryExpression         NodeType = "BinaryExpression"
 	NodeFunctionCall             NodeType = "FunctionCall"
 	NodeBlockExpression          NodeType = "BlockExpression"
@@ -346,6 +347,19 @@ type UnaryExpression struct {
 
 func NewUnaryExpression(operator UnaryOperator, operand Expression) *UnaryExpression {
 	return &UnaryExpression{nodeImpl: newNodeImpl(NodeUnaryExpression), Operator: operator, Operand: operand}
+}
+
+type TypeCastExpression struct {
+	nodeImpl
+	expressionMarker
+	statementMarker
+
+	Expression Expression    `json:"expression"`
+	TargetType TypeExpression `json:"targetType"`
+}
+
+func NewTypeCastExpression(expression Expression, targetType TypeExpression) *TypeCastExpression {
+	return &TypeCastExpression{nodeImpl: newNodeImpl(NodeTypeCastExpression), Expression: expression, TargetType: targetType}
 }
 
 type BinaryExpression struct {

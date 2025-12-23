@@ -1,23 +1,23 @@
 import type * as AST from "../ast";
 import { ReturnSignal } from "./signals";
 import { Environment } from "./environment";
-import type { V10Value } from "./values";
-import type { InterpreterV10 } from "./index";
+import type { RuntimeValue } from "./values";
+import type { Interpreter } from "./index";
 import { isFloatValue, isIntegerValue } from "./numeric";
 
 declare module "./index" {
-  interface InterpreterV10 {
-    valueToString(v: V10Value): string;
-    valueToStringWithEnv(v: V10Value, env: Environment): string;
+  interface Interpreter {
+    valueToString(v: RuntimeValue): string;
+    valueToStringWithEnv(v: RuntimeValue, env: Environment): string;
   }
 }
 
-export function applyStringifyAugmentations(cls: typeof InterpreterV10): void {
-  cls.prototype.valueToString = function valueToString(this: InterpreterV10, v: V10Value): string {
+export function applyStringifyAugmentations(cls: typeof Interpreter): void {
+  cls.prototype.valueToString = function valueToString(this: Interpreter, v: RuntimeValue): string {
     return this.valueToStringWithEnv(v, this.globals);
   };
 
-  cls.prototype.valueToStringWithEnv = function valueToStringWithEnv(this: InterpreterV10, v: V10Value, env: Environment): string {
+  cls.prototype.valueToStringWithEnv = function valueToStringWithEnv(this: Interpreter, v: RuntimeValue, env: Environment): string {
     if (isIntegerValue(v) || isFloatValue(v)) {
       return String(v.value);
     }
@@ -26,6 +26,7 @@ export function applyStringifyAugmentations(cls: typeof InterpreterV10): void {
       case "bool": return String(v.value);
       case "char": return v.value;
       case "nil": return "nil";
+      case "void": return "void";
       case "array": return `[${v.elements.map(e => this.valueToString(e)).join(", ")}]`;
       case "function": return "<function>";
       case "struct_def": return `<struct ${v.def.id.name}>`;
@@ -44,7 +45,7 @@ export function applyStringifyAugmentations(cls: typeof InterpreterV10): void {
               if (firstParam.name.type === "Identifier") funcEnv.define(firstParam.name.name, v);
               else this.assignByPattern(firstParam.name as AST.Pattern, v, funcEnv, true);
             }
-            let rv: V10Value;
+            let rv: RuntimeValue;
             try {
               rv = this.evaluate(funcNode.body, funcEnv);
             } catch (e) {

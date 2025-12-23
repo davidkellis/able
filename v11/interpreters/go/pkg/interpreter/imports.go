@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"able/interpreter10-go/pkg/ast"
-	"able/interpreter10-go/pkg/runtime"
+	"able/interpreter-go/pkg/ast"
+	"able/interpreter-go/pkg/runtime"
 )
 
 func isPrivateSymbol(val runtime.Value) bool {
@@ -173,6 +173,20 @@ func (i *Interpreter) processImport(packagePath []*ast.Identifier, isWildcard bo
 			}
 			val, err := i.lookupImportSymbol(pkgName, original)
 			if err != nil {
+				if aliasDef, ok := i.typeAliases[original]; ok {
+					if aliasDef == nil {
+						continue
+					}
+					if aliasDef.IsPrivate {
+						return nil, fmt.Errorf("Import error: type alias '%s' is private", original)
+					}
+					if aliasName != "" && aliasName != original {
+						clone := *aliasDef
+						clone.ID = ast.ID(aliasName)
+						i.typeAliases[aliasName] = &clone
+					}
+					continue
+				}
 				return nil, err
 			}
 			if isPrivateSymbol(val) {
@@ -204,7 +218,39 @@ func (i *Interpreter) processImport(packagePath []*ast.Identifier, isWildcard bo
 func (i *Interpreter) processDynImport(pkgName string, pkgParts []string, isWildcard bool, selectors []*ast.ImportSelector, alias *ast.Identifier, env *runtime.Environment) (runtime.Value, error) {
 	bucket, ok := i.packageRegistry[pkgName]
 	if !ok {
-		return nil, fmt.Errorf("dynimport error: package '%s' not found", pkgName)
+		if isWildcard {
+			return nil, fmt.Errorf("dynimport error: package '%s' not found", pkgName)
+		}
+		if len(selectors) > 0 {
+			for _, sel := range selectors {
+				if sel == nil || sel.Name == nil {
+					return nil, fmt.Errorf("dynimport selector missing name")
+				}
+				original := sel.Name.Name
+				aliasName := original
+				if sel.Alias != nil {
+					aliasName = sel.Alias.Name
+				}
+				env.Define(aliasName, runtime.DynRefValue{Package: pkgName, Name: original})
+			}
+			return runtime.NilValue{}, nil
+		}
+		if alias != nil {
+			env.Define(alias.Name, runtime.DynPackageValue{
+				Name:      pkgName,
+				NamePath:  append([]string{}, pkgParts...),
+				IsPrivate: false,
+			})
+			return runtime.NilValue{}, nil
+		}
+		if pkgName != "" && alias == nil {
+			env.Define(pkgName, runtime.DynPackageValue{
+				Name:      pkgName,
+				NamePath:  append([]string{}, pkgParts...),
+				IsPrivate: false,
+			})
+		}
+		return runtime.NilValue{}, nil
 	}
 
 	if alias != nil && !isWildcard && len(selectors) == 0 {
@@ -237,12 +283,10 @@ func (i *Interpreter) processDynImport(pkgName string, pkgParts []string, isWild
 			if sel.Alias != nil {
 				aliasName = sel.Alias.Name
 			}
-			sym, ok := bucket[original]
-			if !ok {
-				return nil, fmt.Errorf("dynimport error: '%s' not found in '%s'", original, pkgName)
-			}
-			if isPrivateSymbol(sym) {
-				return nil, dynImportPrivacyError(original, sym)
+			if sym, ok := bucket[original]; ok {
+				if isPrivateSymbol(sym) {
+					return nil, dynImportPrivacyError(original, sym)
+				}
 			}
 			env.Define(aliasName, runtime.DynRefValue{Package: pkgName, Name: original})
 		}

@@ -1,8 +1,8 @@
 import * as AST from "../ast";
 import { Environment } from "./environment";
-import type { InterpreterV10 } from "./index";
+import type { Interpreter } from "./index";
 import { callCallableValue } from "./functions";
-import type { ImplMethodEntry, V10Value } from "./values";
+import type { ImplMethodEntry, RuntimeValue } from "./values";
 
 export type RangeImplementationRecord = {
   entry: ImplMethodEntry;
@@ -10,25 +10,25 @@ export type RangeImplementationRecord = {
 };
 
 declare module "./index" {
-  interface InterpreterV10 {
+  interface Interpreter {
     rangeImplementations: RangeImplementationRecord[];
     registerRangeImplementation(entry: ImplMethodEntry, interfaceArgs?: (AST.TypeExpression | null)[]): void;
-    tryInvokeRangeImplementation(start: V10Value, end: V10Value, inclusive: boolean, env: Environment): V10Value | null;
-    typeExpressionForValue(value: V10Value): AST.TypeExpression | null;
-    describeRuntimeType(value: V10Value): string;
+    tryInvokeRangeImplementation(start: RuntimeValue, end: RuntimeValue, inclusive: boolean, env: Environment): RuntimeValue | null;
+    typeExpressionForValue(value: RuntimeValue): AST.TypeExpression | null;
+    describeRuntimeType(value: RuntimeValue): string;
   }
 }
 
-function cloneTypeArgs(ctx: InterpreterV10, args?: AST.TypeExpression[]): AST.TypeExpression[] {
+function cloneTypeArgs(ctx: Interpreter, args?: AST.TypeExpression[]): AST.TypeExpression[] {
   if (!Array.isArray(args)) return [];
   return args
     .filter((arg): arg is AST.TypeExpression => Boolean(arg))
     .map(arg => ctx.cloneTypeExpression(arg));
 }
 
-export function applyRangeAugmentations(cls: typeof InterpreterV10): void {
+export function applyRangeAugmentations(cls: typeof Interpreter): void {
   cls.prototype.registerRangeImplementation = function registerRangeImplementation(
-    this: InterpreterV10,
+    this: Interpreter,
     entry: ImplMethodEntry,
     interfaceArgs?: (AST.TypeExpression | null)[],
   ): void {
@@ -40,12 +40,12 @@ export function applyRangeAugmentations(cls: typeof InterpreterV10): void {
   };
 
   cls.prototype.tryInvokeRangeImplementation = function tryInvokeRangeImplementation(
-    this: InterpreterV10,
-    start: V10Value,
-    end: V10Value,
+    this: Interpreter,
+    start: RuntimeValue,
+    end: RuntimeValue,
     inclusive: boolean,
     env: Environment,
-  ): V10Value | null {
+  ): RuntimeValue | null {
     if (!Array.isArray(this.rangeImplementations) || this.rangeImplementations.length === 0) {
       return null;
     }
@@ -92,7 +92,7 @@ export function applyRangeAugmentations(cls: typeof InterpreterV10): void {
     return null;
   };
 
-  cls.prototype.typeExpressionForValue = function typeExpressionForValue(this: InterpreterV10, value: V10Value): AST.TypeExpression | null {
+  cls.prototype.typeExpressionForValue = function typeExpressionForValue(this: Interpreter, value: RuntimeValue): AST.TypeExpression | null {
     if (value.kind === "struct_instance") {
       const typeName = value.def.id.name;
       const base = AST.simpleTypeExpression(typeName);
@@ -112,7 +112,7 @@ export function applyRangeAugmentations(cls: typeof InterpreterV10): void {
     return null;
   };
 
-  cls.prototype.describeRuntimeType = function describeRuntimeType(this: InterpreterV10, value: V10Value): string {
+  cls.prototype.describeRuntimeType = function describeRuntimeType(this: Interpreter, value: RuntimeValue): string {
     const name = this.getTypeNameForValue(value);
     if (name) return name;
     if (value.kind === "struct_instance") {

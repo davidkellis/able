@@ -1,6 +1,6 @@
-# Able v10 Go Interpreter
+# Able v11 Go Interpreter
 
-This package hosts the Go reference interpreter for the Able v10 language. The Go implementation is the canonical runtime that must match `spec/full_spec_v10.md` exactly and stay in lockstep with other interpreters on the shared AST and semantics.
+This package hosts the Go reference interpreter for the Able v11 language. The Go implementation is the canonical runtime that must match `spec/full_spec_v11.md` exactly and stay in lockstep with other interpreters on the shared AST and semantics.
 
 This repository now hosts the stable, canonical runtime. Shared AST fixtures
 (`fixtures/ast`) and the strict test harness keep the Go and Bun interpreters in
@@ -8,7 +8,7 @@ lockstep with the specification (`./run_all_tests.sh --typecheck-fixtures=strict
 
 ## Cross-interpreter parity harness
 
-Run `./run_all_tests.sh` (or `bun run scripts/run-parity.ts` inside `interpreter10/`) to evaluate both interpreters against the shared AST fixtures and curated examples. The script:
+Run `./run_all_tests.sh` (or `bun run scripts/run-parity.ts` inside `v11/interpreters/ts/`) to evaluate both interpreters against the shared AST fixtures and curated examples. The script:
 
 - Builds the Go fixture CLI (`cmd/fixture`) and example runner (`cmd/able`) once per run.
 - Executes Bun + Go for every fixture/example, diffing results, stdout, and diagnostics.
@@ -66,7 +66,7 @@ See `design/go-concurrency.md` for a deeper dive and open follow-ups.
 
 ## Typechecker status
 
-- The Go-native typechecker in `pkg/typechecker` now covers the full v10 surface
+- The Go-native typechecker in `pkg/typechecker` now covers the full v11 surface
   (declarations, expressions, patterns, constraint solving).
 - Design notes and future enhancement ideas live in `design/typechecker.md` and
   `design/typechecker-plan.md` (spans, incremental checking, TS parity).

@@ -1,102 +1,73 @@
 package interpreter
 
 import (
+	"fmt"
 	"math/big"
 	"testing"
 
-	"able/interpreter10-go/pkg/ast"
-	"able/interpreter10-go/pkg/runtime"
+	"able/interpreter-go/pkg/ast"
+	"able/interpreter-go/pkg/runtime"
 )
 
 func TestHashMapBuiltins(t *testing.T) {
 	interp := New()
 	global := interp.GlobalEnvironment()
 
-	val, err := global.Get("HashMap")
-	if err != nil {
-		t.Fatalf("HashMap package not registered: %v", err)
-	}
-
-	var pkg *runtime.PackageValue
-	switch v := val.(type) {
-	case *runtime.PackageValue:
-		pkg = v
-	case runtime.PackageValue:
-		pkg = &v
-	default:
-		t.Fatalf("unexpected HashMap binding type %T", val)
-	}
-
-	newSym, ok := pkg.Public["new"]
-	if !ok {
-		t.Fatalf("HashMap.new missing from package")
-	}
-
-	var newFn runtime.NativeFunctionValue
-	switch fn := newSym.(type) {
-	case runtime.NativeFunctionValue:
-		newFn = fn
-	case *runtime.NativeFunctionValue:
-		newFn = *fn
-	default:
-		t.Fatalf("HashMap.new unexpected type %T", newSym)
-	}
-
 	ctx := &runtime.NativeCallContext{Env: global}
-	mapVal, err := newFn.Impl(ctx, nil)
-	if err != nil {
-		t.Fatalf("HashMap.new failed: %v", err)
-	}
+	newFn := mustNativeFunction(t, global, "__able_hash_map_new")
+	setFn := mustNativeFunction(t, global, "__able_hash_map_set")
+	getFn := mustNativeFunction(t, global, "__able_hash_map_get")
+	removeFn := mustNativeFunction(t, global, "__able_hash_map_remove")
+	containsFn := mustNativeFunction(t, global, "__able_hash_map_contains")
+	sizeFn := mustNativeFunction(t, global, "__able_hash_map_size")
+	clearFn := mustNativeFunction(t, global, "__able_hash_map_clear")
+	cloneFn := mustNativeFunction(t, global, "__able_hash_map_clone")
+	forEachFn := mustNativeFunction(t, global, "__able_hash_map_for_each")
 
-	hm, ok := mapVal.(*runtime.HashMapValue)
-	if !ok {
-		t.Fatalf("HashMap.new returned unexpected value %T", mapVal)
+	handleVal, err := newFn.Impl(ctx, nil)
+	if err != nil {
+		t.Fatalf("__able_hash_map_new failed: %v", err)
 	}
-	if len(hm.Entries) != 0 {
+	handle := mustInt64Value(t, handleVal)
+	state, err := interp.hashMapStateForHandle(handle)
+	if err != nil {
+		t.Fatalf("missing hash map state: %v", err)
+	}
+	if len(state.Entries) != 0 {
 		t.Fatalf("expected new hash map to be empty")
 	}
 
 	// set
-	setVal, err := interp.hashMapMember(hm, ast.NewIdentifier("set"))
-	if err != nil {
-		t.Fatalf("set lookup failed: %v", err)
-	}
-	setFn := setVal.(*runtime.NativeBoundMethodValue)
 	key := runtime.StringValue{Val: "hello"}
 	value := runtime.IntegerValue{Val: big.NewInt(1), TypeSuffix: runtime.IntegerI32}
-	if _, err := setFn.Method.Impl(ctx, []runtime.Value{setFn.Receiver, key, value}); err != nil {
+	if _, err := setFn.Impl(ctx, []runtime.Value{handleVal, key, value}); err != nil {
 		t.Fatalf("set failed: %v", err)
 	}
-	if len(hm.Entries) != 1 {
+	if len(state.Entries) != 1 {
 		t.Fatalf("set should add entry")
 	}
 
 	boolKey := runtime.BoolValue{Val: true}
-	if _, err := setFn.Method.Impl(ctx, []runtime.Value{setFn.Receiver, boolKey, runtime.StringValue{Val: "yes"}}); err != nil {
+	if _, err := setFn.Impl(ctx, []runtime.Value{handleVal, boolKey, runtime.StringValue{Val: "yes"}}); err != nil {
 		t.Fatalf("set bool key failed: %v", err)
 	}
 	intKey := runtime.IntegerValue{Val: big.NewInt(-42), TypeSuffix: runtime.IntegerI32}
-	if _, err := setFn.Method.Impl(ctx, []runtime.Value{setFn.Receiver, intKey, runtime.StringValue{Val: "neg"}}); err != nil {
+	if _, err := setFn.Impl(ctx, []runtime.Value{handleVal, intKey, runtime.StringValue{Val: "neg"}}); err != nil {
 		t.Fatalf("set int key failed: %v", err)
 	}
-	if len(hm.Entries) != 3 {
+	if len(state.Entries) != 3 {
 		t.Fatalf("expected three entries after inserting bool/int keys")
 	}
 
 	// contains
-	containsVal, err := interp.hashMapMember(hm, ast.NewIdentifier("contains"))
-	if err != nil {
-		t.Fatalf("contains lookup failed: %v", err)
-	}
-	containsFn := containsVal.(*runtime.NativeBoundMethodValue)
-	containsRes, err := containsFn.Method.Impl(ctx, []runtime.Value{containsFn.Receiver, key})
+	containsRes, err := containsFn.Impl(ctx, []runtime.Value{handleVal, key})
 	if err != nil {
 		t.Fatalf("contains failed: %v", err)
 	}
 	if v, ok := containsRes.(runtime.BoolValue); !ok || !v.Val {
 		t.Fatalf("contains should return true, got %#v", containsRes)
 	}
-	containsRes, err = containsFn.Method.Impl(ctx, []runtime.Value{containsFn.Receiver, boolKey})
+	containsRes, err = containsFn.Impl(ctx, []runtime.Value{handleVal, boolKey})
 	if err != nil {
 		t.Fatalf("contains bool key failed: %v", err)
 	}
@@ -105,33 +76,28 @@ func TestHashMapBuiltins(t *testing.T) {
 	}
 
 	// get
-	getVal, err := interp.hashMapMember(hm, ast.NewIdentifier("get"))
-	if err != nil {
-		t.Fatalf("get lookup failed: %v", err)
-	}
-	getFn := getVal.(*runtime.NativeBoundMethodValue)
-	got, err := getFn.Method.Impl(ctx, []runtime.Value{getFn.Receiver, key})
+	got, err := getFn.Impl(ctx, []runtime.Value{handleVal, key})
 	if err != nil {
 		t.Fatalf("get failed: %v", err)
 	}
 	if v, ok := got.(runtime.IntegerValue); !ok || v.Val.Int64() != 1 {
 		t.Fatalf("get returned unexpected value %#v", got)
 	}
-	boolValue, err := getFn.Method.Impl(ctx, []runtime.Value{getFn.Receiver, boolKey})
+	boolValue, err := getFn.Impl(ctx, []runtime.Value{handleVal, boolKey})
 	if err != nil {
 		t.Fatalf("get bool key failed: %v", err)
 	}
 	if v, ok := boolValue.(runtime.StringValue); !ok || v.Val != "yes" {
 		t.Fatalf("get bool key returned unexpected value %#v", boolValue)
 	}
-	intValue, err := getFn.Method.Impl(ctx, []runtime.Value{getFn.Receiver, intKey})
+	intValue, err := getFn.Impl(ctx, []runtime.Value{handleVal, intKey})
 	if err != nil {
 		t.Fatalf("get int key failed: %v", err)
 	}
 	if v, ok := intValue.(runtime.StringValue); !ok || v.Val != "neg" {
 		t.Fatalf("get int key returned unexpected value %#v", intValue)
 	}
-	missing, err := getFn.Method.Impl(ctx, []runtime.Value{getFn.Receiver, runtime.StringValue{Val: "missing"}})
+	missing, err := getFn.Impl(ctx, []runtime.Value{handleVal, runtime.StringValue{Val: "missing"}})
 	if err != nil {
 		t.Fatalf("get missing failed: %v", err)
 	}
@@ -140,12 +106,7 @@ func TestHashMapBuiltins(t *testing.T) {
 	}
 
 	// size
-	sizeVal, err := interp.hashMapMember(hm, ast.NewIdentifier("size"))
-	if err != nil {
-		t.Fatalf("size lookup failed: %v", err)
-	}
-	sizeFn := sizeVal.(*runtime.NativeBoundMethodValue)
-	sizeRes, err := sizeFn.Method.Impl(ctx, []runtime.Value{sizeFn.Receiver})
+	sizeRes, err := sizeFn.Impl(ctx, []runtime.Value{handleVal})
 	if err != nil {
 		t.Fatalf("size failed: %v", err)
 	}
@@ -153,32 +114,64 @@ func TestHashMapBuiltins(t *testing.T) {
 		t.Fatalf("size returned unexpected value %#v", sizeRes)
 	}
 
-	// remove
-	removeVal, err := interp.hashMapMember(hm, ast.NewIdentifier("remove"))
-	if err != nil {
-		t.Fatalf("remove lookup failed: %v", err)
+	// for_each
+	var seen int
+	visitor := runtime.NativeFunctionValue{
+		Name:  "visit",
+		Arity: 2,
+		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+			if len(args) != 2 {
+				return nil, fmt.Errorf("visit expects key and value")
+			}
+			seen++
+			return runtime.NilValue{}, nil
+		},
 	}
-	removeFn := removeVal.(*runtime.NativeBoundMethodValue)
-	removed, err := removeFn.Method.Impl(ctx, []runtime.Value{removeFn.Receiver, key})
+	if _, err := forEachFn.Impl(ctx, []runtime.Value{handleVal, visitor}); err != nil {
+		t.Fatalf("for_each failed: %v", err)
+	}
+	if seen != 3 {
+		t.Fatalf("expected for_each to visit 3 entries, got %d", seen)
+	}
+
+	// clone
+	cloneVal, err := cloneFn.Impl(ctx, []runtime.Value{handleVal})
+	if err != nil {
+		t.Fatalf("clone failed: %v", err)
+	}
+	cloneHandle := mustInt64Value(t, cloneVal)
+	if cloneHandle == handle {
+		t.Fatalf("clone should return a new handle")
+	}
+	cloneState, err := interp.hashMapStateForHandle(cloneHandle)
+	if err != nil {
+		t.Fatalf("missing clone state: %v", err)
+	}
+	if len(cloneState.Entries) != 3 {
+		t.Fatalf("clone should copy entries, got %d", len(cloneState.Entries))
+	}
+
+	// remove
+	removed, err := removeFn.Impl(ctx, []runtime.Value{handleVal, key})
 	if err != nil {
 		t.Fatalf("remove failed: %v", err)
 	}
 	if v, ok := removed.(runtime.IntegerValue); !ok || v.Val.Int64() != 1 {
 		t.Fatalf("remove returned unexpected value %#v", removed)
 	}
-	if len(hm.Entries) != 2 {
+	if len(state.Entries) != 2 {
 		t.Fatalf("remove should delete one entry")
 	}
-	if _, err := removeFn.Method.Impl(ctx, []runtime.Value{removeFn.Receiver, boolKey}); err != nil {
+	if _, err := removeFn.Impl(ctx, []runtime.Value{handleVal, boolKey}); err != nil {
 		t.Fatalf("remove bool key failed: %v", err)
 	}
-	if _, err := removeFn.Method.Impl(ctx, []runtime.Value{removeFn.Receiver, intKey}); err != nil {
+	if _, err := removeFn.Impl(ctx, []runtime.Value{handleVal, intKey}); err != nil {
 		t.Fatalf("remove int key failed: %v", err)
 	}
-	if len(hm.Entries) != 0 {
+	if len(state.Entries) != 0 {
 		t.Fatalf("all entries should be removed")
 	}
-	removed, err = removeFn.Method.Impl(ctx, []runtime.Value{removeFn.Receiver, key})
+	removed, err = removeFn.Impl(ctx, []runtime.Value{handleVal, key})
 	if err != nil {
 		t.Fatalf("remove missing failed: %v", err)
 	}
@@ -187,24 +180,19 @@ func TestHashMapBuiltins(t *testing.T) {
 	}
 
 	// clear
-	if _, err := setFn.Method.Impl(ctx, []runtime.Value{setFn.Receiver, key, value}); err != nil {
+	if _, err := setFn.Impl(ctx, []runtime.Value{handleVal, key, value}); err != nil {
 		t.Fatalf("set before clear failed: %v", err)
 	}
-	clearVal, err := interp.hashMapMember(hm, ast.NewIdentifier("clear"))
-	if err != nil {
-		t.Fatalf("clear lookup failed: %v", err)
-	}
-	clearFn := clearVal.(*runtime.NativeBoundMethodValue)
-	if _, err := clearFn.Method.Impl(ctx, []runtime.Value{clearFn.Receiver}); err != nil {
+	if _, err := clearFn.Impl(ctx, []runtime.Value{handleVal}); err != nil {
 		t.Fatalf("clear failed: %v", err)
 	}
-	if len(hm.Entries) != 0 {
+	if len(state.Entries) != 0 {
 		t.Fatalf("clear should remove all entries")
 	}
 
 	// unsupported key type should error
 	unsupported := runtime.NativeFunctionValue{Name: "fn", Arity: 0}
-	if _, err := setFn.Method.Impl(ctx, []runtime.Value{setFn.Receiver, unsupported, runtime.NilValue{}}); err == nil {
+	if _, err := setFn.Impl(ctx, []runtime.Value{handleVal, unsupported, runtime.NilValue{}}); err == nil {
 		t.Fatalf("expected error for unsupported key type")
 	}
 }
@@ -398,60 +386,28 @@ func TestHashMapCustomHash(t *testing.T) {
 	}
 
 	global := interp.GlobalEnvironment()
-	val, err := global.Get("HashMap")
-	if err != nil {
-		t.Fatalf("HashMap package not registered: %v", err)
-	}
-
-	var pkg *runtime.PackageValue
-	switch v := val.(type) {
-	case *runtime.PackageValue:
-		pkg = v
-	case runtime.PackageValue:
-		pkg = &v
-	default:
-		t.Fatalf("unexpected HashMap binding type %T", val)
-	}
-
-	newSym, ok := pkg.Public["new"]
-	if !ok {
-		t.Fatalf("HashMap.new missing from package")
-	}
-
-	var newFn runtime.NativeFunctionValue
-	switch fn := newSym.(type) {
-	case runtime.NativeFunctionValue:
-		newFn = fn
-	case *runtime.NativeFunctionValue:
-		newFn = *fn
-	default:
-		t.Fatalf("HashMap.new unexpected type %T", newSym)
-	}
-
 	ctx := &runtime.NativeCallContext{Env: global}
-	mapVal, err := newFn.Impl(ctx, nil)
-	if err != nil {
-		t.Fatalf("HashMap.new failed: %v", err)
-	}
+	newFn := mustNativeFunction(t, global, "__able_hash_map_new")
+	setFn := mustNativeFunction(t, global, "__able_hash_map_set")
+	getFn := mustNativeFunction(t, global, "__able_hash_map_get")
 
-	hm, ok := mapVal.(*runtime.HashMapValue)
-	if !ok {
-		t.Fatalf("HashMap.new returned unexpected value %T", mapVal)
-	}
-
-	setVal, err := interp.hashMapMember(hm, ast.NewIdentifier("set"))
+	handleVal, err := newFn.Impl(ctx, nil)
 	if err != nil {
-		t.Fatalf("set lookup failed: %v", err)
+		t.Fatalf("__able_hash_map_new failed: %v", err)
 	}
-	setFn := setVal.(*runtime.NativeBoundMethodValue)
-	if _, err := setFn.Method.Impl(ctx, []runtime.Value{setFn.Receiver, keyInst, runtime.StringValue{Val: "value"}}); err != nil {
+	handle := mustInt64Value(t, handleVal)
+	if _, err := setFn.Impl(ctx, []runtime.Value{handleVal, keyInst, runtime.StringValue{Val: "value"}}); err != nil {
 		t.Fatalf("set invocation failed: %v", err)
 	}
 
-	if len(hm.Entries) != 1 {
-		t.Fatalf("expected 1 entry, got %d", len(hm.Entries))
+	state, err := interp.hashMapStateForHandle(handle)
+	if err != nil {
+		t.Fatalf("missing hash map state: %v", err)
 	}
-	entry := hm.Entries[0]
+	if len(state.Entries) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(state.Entries))
+	}
+	entry := state.Entries[0]
 	if entry.Hash != hash {
 		t.Fatalf("entry hash = %d, want %d", entry.Hash, hash)
 	}
@@ -468,12 +424,7 @@ func TestHashMapCustomHash(t *testing.T) {
 		t.Fatalf("second struct literal evaluation failed: %v", err)
 	}
 
-	getVal, err := interp.hashMapMember(hm, ast.NewIdentifier("get"))
-	if err != nil {
-		t.Fatalf("get lookup failed: %v", err)
-	}
-	getFn := getVal.(*runtime.NativeBoundMethodValue)
-	retrieved, err := getFn.Method.Impl(ctx, []runtime.Value{getFn.Receiver, keyVal2})
+	retrieved, err := getFn.Impl(ctx, []runtime.Value{handleVal, keyVal2})
 	if err != nil {
 		t.Fatalf("get with second key failed: %v", err)
 	}
@@ -481,4 +432,40 @@ func TestHashMapCustomHash(t *testing.T) {
 	if !ok || strVal.Val != "value" {
 		t.Fatalf("get returned unexpected value %#v", retrieved)
 	}
+}
+
+func mustNativeFunction(t *testing.T, env *runtime.Environment, name string) runtime.NativeFunctionValue {
+	t.Helper()
+	val, err := env.Get(name)
+	if err != nil {
+		t.Fatalf("missing native function %s: %v", name, err)
+	}
+	switch fn := val.(type) {
+	case runtime.NativeFunctionValue:
+		return fn
+	case *runtime.NativeFunctionValue:
+		return *fn
+	default:
+		t.Fatalf("unexpected native function binding %s: %T", name, val)
+	}
+	return runtime.NativeFunctionValue{}
+}
+
+func mustInt64Value(t *testing.T, value runtime.Value) int64 {
+	t.Helper()
+	switch v := value.(type) {
+	case runtime.IntegerValue:
+		if v.Val == nil || !v.Val.IsInt64() {
+			t.Fatalf("expected int64 value, got %#v", value)
+		}
+		return v.Val.Int64()
+	case *runtime.IntegerValue:
+		if v == nil || v.Val == nil || !v.Val.IsInt64() {
+			t.Fatalf("expected int64 value, got %#v", value)
+		}
+		return v.Val.Int64()
+	default:
+		t.Fatalf("expected integer value, got %T", value)
+	}
+	return 0
 }

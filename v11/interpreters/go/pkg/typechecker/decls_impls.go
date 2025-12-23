@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"able/interpreter10-go/pkg/ast"
+	"able/interpreter-go/pkg/ast"
 )
 
 func (c *declarationCollector) functionTypeFromDefinition(def *ast.FunctionDefinition, parentScope map[string]Type, owner string, node ast.Node) FunctionType {

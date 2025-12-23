@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"able/interpreter10-go/pkg/ast"
+	"able/interpreter-go/pkg/ast"
 )
 
 type fixtureManifest struct {

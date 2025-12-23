@@ -1,8 +1,8 @@
-count := 0
+count := 0;
 future := spawn {
-  count += 1
-  1
-}
-first := future.value()
-second := future.value()
-count
+  count += 1;
+  1;
+};
+first := future.value();
+second := future.value();
+count;

@@ -1,15 +1,15 @@
-## Able v10 Interpreter — Agent Onboarding
+## Able v11 Interpreter — Agent Onboarding
 
-This document gives agents the context needed to extend and maintain the Able v10 reference interpreter in `interpreter10/`.
+This document gives agents the context needed to extend and maintain the Able v11 reference interpreter in `v11/interpreters/ts/`.
 
-Note: The full v10 language specification lives at [full_spec_v10.md](../spec/full_spec_v10.md).
+Note: The full v11 language specification lives at [full_spec_v11.md](../spec/full_spec_v11.md).
 
 ### Repository map (local to this package)
 
-- `src/ast.ts`: v10 AST data model + DSL builders (e.g., `identifier`, `functionCall`, `structLiteral`, plus aliases like `id`, `str`, `int`, `block`, `assign`, `call`).
+- `src/ast.ts`: v11 AST data model + DSL builders (e.g., `identifier`, `functionCall`, `structLiteral`, plus aliases like `id`, `str`, `int`, `block`, `assign`, `call`).
 - `src/interpreter.ts`: single-file reference interpreter (tree-walk evaluator).
 - `test/*.test.ts`: Bun test suites (Jest-compatible) verifying each feature.
-- `index.ts`: exports `AST` (all builders/types) and `V10` (interpreter APIs).
+- `index.ts`: exports `AST` (all builders/types) and `V11` (interpreter APIs).
 - `PLAN.md`: implementation plan, current status, and prioritized next steps.
 - `README.md`: human-focused overview and usage.
 
@@ -24,7 +24,7 @@ bun run typecheck      # TypeScript typecheck (no emit)
 
 ### Interpreter architecture (src/interpreter.ts)
 
-- Runtime values are a tagged union `V10Value` with kinds:
+- Runtime values are a tagged union `RuntimeValue` with kinds:
   - `string`, `bool`, `char`, `nil`, `i32`, `f64`
   - `array`, `range`
   - `function` (closure with `node` + `closureEnv`), `bound_method` (function + `self`), `native_function`, `native_bound_method`
@@ -60,7 +60,7 @@ bun run typecheck      # TypeScript typecheck (no emit)
   - We keep scheduling inside the interpreter (simple cooperative queue) rather than using JavaScript `async`/`await` so evaluation stays synchronous/ deterministic and cancellation can flip pending tasks immediately without relying on host promise semantics.
   - Cooperative helpers are available to Able code: `proc_yield()` triggers a `ProcYieldSignal`, re-queueing the current runner, and `proc_cancelled()` surfaces the `cancelRequested` flag on the active handle. The interpreter keeps an `asyncContextStack` so these helpers know which async value is executing.
   - `runProcHandle`/`runFuture` push the active handle on the stack before evaluating and pop it in `finally`. They also prevent cancellation from short-circuiting once evaluation has begun via a `hasStarted` flag.
-  - `procHandleCancel` now schedules the existing runner instead of marking the handle immediately; cancellation is finalized inside the next `runProcHandle` tick so task code can poll `proc_cancelled()` and exit cooperatively. Tests may call `runProcHandle` directly (via `InterpreterV10` cast to `any`) when they need fine-grained control over staging.
+  - `procHandleCancel` now schedules the existing runner instead of marking the handle immediately; cancellation is finalized inside the next `runProcHandle` tick so task code can poll `proc_cancelled()` and exit cooperatively. Tests may call `runProcHandle` directly (via `Interpreter` cast to `any`) when they need fine-grained control over staging.
   - When you add additional async helpers, mirror this pattern: throw a dedicated signal, schedule the existing runner if the task should resume, and avoid leaking the helper into normal synchronous execution.
 
 See `README.md` for human-facing details and examples.
@@ -70,7 +70,7 @@ See `README.md` for human-facing details and examples.
 1) Write focused tests under `test/` for the exact behavior you intend to add/change.
 2) Implement the evaluator change in `src/interpreter.ts`:
    - Add/extend a `case` in the big `switch (node.type)` inside `evaluate`.
-   - If a new runtime shape is needed, add a kind to `V10Value`.
+   - If a new runtime shape is needed, add a kind to `RuntimeValue`.
    - Prefer existing helpers (`assignByPattern`, `tryMatchPattern`, `matchesType`, `findMethod`, `valueToString`, `isTruthy`).
 3) Run `bun test` and fix failures. Keep tests deterministic.
 4) Lint/typecheck via `bun run typecheck` if you change types significantly.
@@ -134,7 +134,7 @@ Per-feature checklist:
 
 - [ ] Add or confirm the AST node exists in `src/ast.ts` and ensure builders exist for tests
 - [ ] Add a `case` in `evaluate` and supporting helpers as needed
-- [ ] If a new runtime value is required, extend `V10Value` with a new `kind`
+- [ ] If a new runtime value is required, extend `RuntimeValue` with a new `kind`
 - [ ] Add tests (success + failure) in `test/`
 - [ ] Run `bun test` to confirm green; keep lints clean
 - [ ] Update `PLAN.md` status/next steps if applicable; update `README.md` if user-facing

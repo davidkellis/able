@@ -11,8 +11,8 @@ import (
 	"sync"
 	"testing"
 
-	"able/interpreter10-go/pkg/ast"
-	"able/interpreter10-go/pkg/driver"
+	"able/interpreter-go/pkg/ast"
+	"able/interpreter-go/pkg/driver"
 )
 
 var (
@@ -24,6 +24,7 @@ var (
 	typecheckBaselineData  map[string][]string
 	typecheckBaselineErr   error
 	stdlibConcurrencyEntry = filepath.Join(stdlibRoot, "concurrency", "await.able")
+	stdlibHashMapEntry     = filepath.Join(stdlibRoot, "collections", "hash_map.able")
 	stdlibLoader           *driver.Loader
 )
 
@@ -118,6 +119,33 @@ func runFixtureWithExecutor(t testingT, dir string, rel string, executor Executo
 		stdlibProgram, err := stdlibLoader.Load(stdlibConcurrencyEntry)
 		if err != nil {
 			t.Fatalf("load stdlib concurrency: %v", err)
+		}
+		for _, mod := range stdlibProgram.Modules {
+			if mod == nil || added[mod.Package] {
+				continue
+			}
+			programModules = append(programModules, mod)
+			added[mod.Package] = true
+		}
+		if stdlibProgram.Entry != nil && !added[stdlibProgram.Entry.Package] {
+			programModules = append(programModules, stdlibProgram.Entry)
+			added[stdlibProgram.Entry.Package] = true
+		}
+	}
+	if hasImport(imports, "able.collections.hash_map") {
+		if stdlibLoader == nil {
+			loader, err := driver.NewLoader([]driver.SearchPath{
+				{Path: stdlibRoot, Kind: driver.RootStdlib},
+				{Path: kernelRoot, Kind: driver.RootStdlib},
+			})
+			if err != nil {
+				t.Fatalf("stdlib loader init: %v", err)
+			}
+			stdlibLoader = loader
+		}
+		stdlibProgram, err := stdlibLoader.Load(stdlibHashMapEntry)
+		if err != nil {
+			t.Fatalf("load stdlib hash_map: %v", err)
 		}
 		for _, mod := range stdlibProgram.Modules {
 			if mod == nil || added[mod.Package] {

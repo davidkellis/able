@@ -291,6 +291,9 @@ export function createTypeResolutionHelpers(context: TypeResolutionContext): Typ
       if (literal.explicit) {
         return literalType === expected;
       }
+      if (expected === "f32" || expected === "f64") {
+        return true;
+      }
       if (!hasIntegerBounds(expected)) {
         return literalType === expected;
       }
@@ -391,6 +394,16 @@ export function createTypeResolutionHelpers(context: TypeResolutionContext): Typ
     if (typeInfosEquivalent(normalizedActual, normalizedExpected)) {
       return true;
     }
+    if (
+      normalizedExpected.kind === "map" &&
+      normalizedActual.kind === "struct" &&
+      normalizedActual.name === "HashMap"
+    ) {
+      const args = normalizedActual.typeArguments ?? [];
+      const keyArg = args[0] ?? unknownType;
+      const valueArg = args[1] ?? unknownType;
+      return isTypeAssignable(keyArg, normalizedExpected.key) && isTypeAssignable(valueArg, normalizedExpected.value);
+    }
     if (normalizedExpected.kind === "nullable") {
       if (normalizedActual.kind === "primitive" && normalizedActual.name === "nil") {
         return true;
@@ -464,6 +477,14 @@ export function createTypeResolutionHelpers(context: TypeResolutionContext): Typ
     }
     let normalizedActual = canonicalizeLiteralComparison(actual);
     let normalizedExpected = canonicalizeLiteralComparison(expected);
+    if (normalizedActual.kind === "struct" && normalizedActual.name === "HashMap") {
+      const args = normalizedActual.typeArguments ?? [];
+      normalizedActual = { kind: "map", key: args[0] ?? unknownType, value: args[1] ?? unknownType };
+    }
+    if (normalizedExpected.kind === "struct" && normalizedExpected.name === "HashMap") {
+      const args = normalizedExpected.typeArguments ?? [];
+      normalizedExpected = { kind: "map", key: args[0] ?? unknownType, value: args[1] ?? unknownType };
+    }
     const nextActual = canonicalizeStructuralType(normalizedActual);
     const nextExpected = canonicalizeStructuralType(normalizedExpected);
     if (nextActual !== normalizedActual || nextExpected !== normalizedExpected) {

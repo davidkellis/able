@@ -192,7 +192,7 @@ export function findIdentifier(node: Node | null | undefined, source: string): I
   for (let i = 0; i < node.namedChildCount; i++) {
     const child = node.namedChild(i);
     if (!child || isIgnorableNode(child)) continue;
-    if (child.type === "identifier") {
+    if (child.type === "identifier" || child.type === "keyword_identifier") {
       return annotate(AST.identifier(sliceText(child, source)), child);
     }
     const nested = findIdentifier(child, source);
@@ -202,7 +202,7 @@ export function findIdentifier(node: Node | null | undefined, source: string): I
 }
 
 export function parseIdentifier(node: Node | null | undefined, source: string): Identifier {
-  if (!node || node.type !== "identifier") {
+  if (!node || (node.type !== "identifier" && node.type !== "keyword_identifier")) {
     throw new MapperError("parser: expected identifier node");
   }
   const id = annotate(AST.identifier(sliceText(node, source)), node);

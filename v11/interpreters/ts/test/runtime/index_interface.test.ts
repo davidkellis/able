@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - index expressions via Index impl", () => {
   test("invokes Index/IndexMut implementations on custom types", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     const boxStruct = AST.structDefinition(
       "Box",

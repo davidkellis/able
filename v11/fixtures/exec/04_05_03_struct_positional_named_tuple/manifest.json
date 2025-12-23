@@ -1,0 +1,13 @@
+{
+  "description": "positional struct literals, indexed access/mutation, and positional destructuring",
+  "expect": {
+    "stdout": [
+      "pair 3,4",
+      "mut 10,5",
+      "bind 10,5",
+      "assign 10,5",
+      "triple -2,9"
+    ],
+    "exit": 0
+  }
+}

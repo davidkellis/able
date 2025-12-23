@@ -9,8 +9,8 @@ import (
 
 	goRuntime "runtime"
 
-	"able/interpreter10-go/pkg/ast"
-	"able/interpreter10-go/pkg/runtime"
+	"able/interpreter-go/pkg/ast"
+	"able/interpreter-go/pkg/runtime"
 )
 
 func (i *Interpreter) ensureConcurrencyBuiltins() {

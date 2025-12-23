@@ -2,10 +2,10 @@ struct Point {
   x: i32
 }
 fn tag(p: Point, values: Array i32) -> i32 {
-  1
+  1;
 }
 fn tag(p: Point, values: Array String) -> i32 {
-  2
+  2;
 }
-p := Point { x: 0 }
-p.tag([])
+p := Point { x: 0 };
+p.tag([]);

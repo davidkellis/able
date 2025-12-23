@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - method privacy", () => {
   test("private static method is not accessible; public static is", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const Point = AST.structDefinition(
       "Point",
       [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "x"), AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "y")],
@@ -59,7 +59,7 @@ describe("v11 interpreter - method privacy", () => {
   });
 
   test("private instance method is not accessible; public instance is", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const C = AST.structDefinition("Counter", [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "value")], "named");
     I.evaluate(C);
 

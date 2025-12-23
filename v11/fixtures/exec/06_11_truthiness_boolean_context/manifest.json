@@ -1,0 +1,24 @@
+{
+  "description": "truthiness for boolean contexts, logical operators, and unary not",
+  "expect": {
+    "stdout": [
+      "bang_nil true",
+      "bang_zero false",
+      "bang_void false",
+      "bang_err true",
+      "and_false false",
+      "and_nil nil",
+      "and_zero 7",
+      "and_err error",
+      "or_false 9",
+      "or_nil 9",
+      "or_zero 0",
+      "or_err 9",
+      "opt falsy",
+      "opt2 truthy",
+      "res falsy",
+      "res2 truthy"
+    ],
+    "exit": 0
+  }
+}

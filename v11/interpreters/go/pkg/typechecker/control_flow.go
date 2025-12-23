@@ -3,7 +3,7 @@ package typechecker
 import (
 	"fmt"
 
-	"able/interpreter10-go/pkg/ast"
+	"able/interpreter-go/pkg/ast"
 )
 
 func (c *Checker) checkWhileLoop(env *Environment, loop *ast.WhileLoop) ([]Diagnostic, Type) {
@@ -12,14 +12,8 @@ func (c *Checker) checkWhileLoop(env *Environment, loop *ast.WhileLoop) ([]Diagn
 	}
 	var diags []Diagnostic
 
-	condDiags, condType := c.checkExpression(env, loop.Condition)
+	condDiags, _ := c.checkExpression(env, loop.Condition)
 	diags = append(diags, condDiags...)
-	if !typeAssignable(condType, PrimitiveType{Kind: PrimitiveBool}) && !isUnknownType(condType) {
-		diags = append(diags, Diagnostic{
-			Message: "typechecker: while condition must be bool",
-			Node:    loop.Condition,
-		})
-	}
 
 	bodyType := Type(UnknownType{})
 	c.pushLoopContext()

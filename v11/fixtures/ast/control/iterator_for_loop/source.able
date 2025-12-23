@@ -1,10 +1,10 @@
-sum := 0
+sum := 0;
 iter := Iterator {
   for item in [1, 2, 3] {
-    gen.yield(item)
+    gen.yield(item);
   }
-}
+};
 for value in iter {
-  sum = sum + value
+  sum = sum + value;
 }
-sum
+sum;

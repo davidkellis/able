@@ -1,8 +1,8 @@
 package interpreter
 
 import (
-	"able/interpreter10-go/pkg/driver"
-	"able/interpreter10-go/pkg/typechecker"
+	"able/interpreter-go/pkg/driver"
+	"able/interpreter-go/pkg/typechecker"
 )
 
 // ModuleDiagnostic is re-exported for backwards compatibility.

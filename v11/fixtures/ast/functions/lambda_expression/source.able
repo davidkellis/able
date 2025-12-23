@@ -1,2 +1,2 @@
-adder := { x, y => x + y}
-adder(2, 3)
+adder := { x, y => x + y};
+adder(2, 3);

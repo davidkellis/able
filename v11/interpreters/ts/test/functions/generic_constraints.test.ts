@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - generic where-constraints (minimal runtime checks)", () => {
   test("built-in Display/Clone interfaces are available without declarations", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const chooseFirst = AST.functionDefinition(
       "choose_first",
       [
@@ -35,7 +35,7 @@ describe("v11 interpreter - generic where-constraints (minimal runtime checks)",
   });
 
   test("fn constrained by Interface is enforced at call site", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     // interface Show { fn to_string(self: Self) -> string }
     const show = AST.interfaceDefinition("Show", [
@@ -102,7 +102,7 @@ describe("v11 interpreter - generic where-constraints (minimal runtime checks)",
   });
 
   test("mismatched type argument count is rejected", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const id = AST.functionDefinition(
       "id",
       [AST.functionParameter("x")],

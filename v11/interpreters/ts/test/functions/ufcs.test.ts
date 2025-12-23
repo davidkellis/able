@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - UFCS fallback", () => {
   test("free function add(a,b) callable as 4.add(5)", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const add = AST.functionDefinition(
       "add",
       [AST.functionParameter("a"), AST.functionParameter("b")],
@@ -16,7 +16,7 @@ describe("v11 interpreter - UFCS fallback", () => {
   });
 
   test("struct receiver with free function move(Point, dx) called as p.move(dx)", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const Point = AST.structDefinition("Point", [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "x")], "named");
     I.evaluate(Point);
     const move = AST.functionDefinition(
@@ -37,7 +37,7 @@ describe("v11 interpreter - UFCS fallback", () => {
   });
 
   test("prefers UFCS candidate whose first parameter matches the receiver type", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const point = AST.structDefinition("Point", [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "x")], "named");
     I.evaluate(point);
     const pointTag = AST.functionDefinition(
@@ -70,7 +70,7 @@ describe("v11 interpreter - UFCS fallback", () => {
   });
 
   test("rejects UFCS binding when the receiver type mismatches the first parameter", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const point = AST.structDefinition("Point", [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "x")], "named");
     I.evaluate(point);
     const onlyString = AST.functionDefinition(
@@ -89,7 +89,7 @@ describe("v11 interpreter - UFCS fallback", () => {
   });
 
   test("callable field takes precedence over methods", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const box = AST.structDefinition(
       "Box",
       [
@@ -126,7 +126,7 @@ describe("v11 interpreter - UFCS fallback", () => {
   });
 
   test("identifier calls no longer bind via UFCS fallback", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const point = AST.structDefinition("Point", [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "x")], "named");
     const methods = AST.methodsDefinition(AST.simpleTypeExpression("Point"), [
       AST.fn(
@@ -148,7 +148,7 @@ describe("v11 interpreter - UFCS fallback", () => {
   });
 
   test("reports ambiguity when inherent methods overlap with UFCS free functions", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const point = AST.structDefinition("Point", [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "x")], "named");
     const methods = AST.methodsDefinition(AST.simpleTypeExpression("Point"), [
       AST.fn(

@@ -1,0 +1,60 @@
+package exec_04_05_01_struct_singleton_usage
+
+## Semantics: singleton structs declare a type with exactly one value; use the identifier directly.
+
+struct Red {}
+struct Green {}
+struct Blue {}
+
+union Color = Red | Green | Blue
+
+struct Ready {}
+struct Waiting {}
+
+union State = Ready | Waiting
+
+fn color_name(color: Color) -> String {
+  color match {
+    case Red => "red",
+    case Green => "green",
+    case Blue => "blue"
+  }
+}
+
+fn state_label(state: State) -> String {
+  state match {
+    case Ready => "ready",
+    case Waiting => "waiting"
+  }
+}
+
+fn main() -> void {
+  ## Instantiation uses the identifier, not a literal form.
+  favorite: Color = Green
+  print(color_name(favorite))
+  print(color_name(Red))
+
+  ## Singleton structs work as enum-style tags for unions.
+  current := Ready
+  print(state_label(current))
+  print(state_label(Waiting))
+
+  ## Pattern matching uses the identifier for singleton values.
+  status := Ready
+  status match {
+    case Ready => print("status ready"),
+    case Waiting => print("status waiting")
+  }
+
+  ## Singleton structs have no fields to mutate; immutability is by design.
+  tag1 := Waiting
+  tag2 := Waiting
+  tag1 match {
+    case Ready => print("tag1 ready"),
+    case Waiting => print("tag1 waiting")
+  }
+  tag2 match {
+    case Ready => print("tag2 ready"),
+    case Waiting => print("tag2 waiting")
+  }
+}

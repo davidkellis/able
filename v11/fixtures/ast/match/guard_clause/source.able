@@ -1,4 +1,4 @@
 3 match {
   case value if value > 2 => value * 2,
   case _ => 0
-}
+};

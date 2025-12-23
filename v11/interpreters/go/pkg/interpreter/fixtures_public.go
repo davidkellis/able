@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"able/interpreter10-go/pkg/ast"
+	"able/interpreter-go/pkg/ast"
 )
 
 // DecodeModule constructs an AST module from the fixture JSON payload using the shared decoder.

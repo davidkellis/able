@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - struct generic constraints", () => {
   test("struct literal enforces type parameter interface constraints", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     const show = AST.interfaceDefinition("Show", [
       AST.functionSignature(
@@ -82,7 +82,7 @@ describe("v11 interpreter - struct generic constraints", () => {
   });
 
   test("struct literal rejects missing type arguments", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     const show = AST.interfaceDefinition("Show", [
       AST.functionSignature(

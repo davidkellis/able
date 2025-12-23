@@ -1,6 +1,7 @@
 ## Minimal host bridge surface loaded ahead of workspace code.
 
 type ArrayHandle = i64
+type HashMapHandle = i64
 type ChannelHandle = i64
 type MutexHandle = i64
 type HasherHandle = i64
@@ -10,6 +11,10 @@ struct Array T {
   length: i32,
   capacity: i32,
   storage_handle: ArrayHandle
+}
+
+struct HashMap K V {
+  handle: HashMapHandle
 }
 
 struct Ratio {
@@ -126,6 +131,26 @@ methods Array T {
   }
 }
 
+## Kernel-backed HashMap operations.
+methods HashMap K V {
+  fn new() -> HashMap K V {
+    HashMap { handle: __able_hash_map_new() }
+  }
+
+  fn with_capacity(capacity: i32) -> HashMap K V {
+    HashMap { handle: __able_hash_map_with_capacity(capacity) }
+  }
+
+  fn raw_get(self: Self, key: K) -> ?V { __able_hash_map_get(self.handle, key) }
+  fn raw_set(self: Self, key: K, value: V) -> void { __able_hash_map_set(self.handle, key, value) }
+  fn raw_remove(self: Self, key: K) -> ?V { __able_hash_map_remove(self.handle, key) }
+  fn raw_contains(self: Self, key: K) -> bool { __able_hash_map_contains(self.handle, key) }
+  fn raw_size(self: Self) -> i32 { __able_hash_map_size(self.handle) }
+  fn raw_clear(self: Self) -> void { __able_hash_map_clear(self.handle) }
+  fn raw_for_each(self: Self, visit: (K, V) -> void) -> void { __able_hash_map_for_each(self.handle, visit) }
+  fn raw_clone(self: Self) -> HashMap K V { HashMap { handle: __able_hash_map_clone(self.handle) } }
+}
+
 ## Array buffer hooks
 extern typescript fn __able_array_new() -> ArrayHandle {}
 extern typescript fn __able_array_with_capacity(capacity: i32) -> ArrayHandle {}
@@ -145,6 +170,28 @@ extern go fn __able_array_read(handle: ArrayHandle, idx: i32) -> _ {}
 extern go fn __able_array_write(handle: ArrayHandle, idx: i32, value: _) -> void {}
 extern go fn __able_array_reserve(handle: ArrayHandle, capacity: i32) -> ArrayHandle {}
 extern go fn __able_array_clone(handle: ArrayHandle) -> ArrayHandle {}
+
+## HashMap hooks
+extern typescript fn __able_hash_map_new() -> HashMapHandle {}
+extern typescript fn __able_hash_map_with_capacity(capacity: i32) -> HashMapHandle {}
+extern typescript fn __able_hash_map_get(handle: HashMapHandle, key: _) -> ?_ {}
+extern typescript fn __able_hash_map_set(handle: HashMapHandle, key: _, value: _) -> void {}
+extern typescript fn __able_hash_map_remove(handle: HashMapHandle, key: _) -> ?_ {}
+extern typescript fn __able_hash_map_contains(handle: HashMapHandle, key: _) -> bool {}
+extern typescript fn __able_hash_map_size(handle: HashMapHandle) -> i32 {}
+extern typescript fn __able_hash_map_clear(handle: HashMapHandle) -> void {}
+extern typescript fn __able_hash_map_for_each(handle: HashMapHandle, visit: (_, _) -> void) -> void {}
+extern typescript fn __able_hash_map_clone(handle: HashMapHandle) -> HashMapHandle {}
+extern go fn __able_hash_map_new() -> HashMapHandle {}
+extern go fn __able_hash_map_with_capacity(capacity: i32) -> HashMapHandle {}
+extern go fn __able_hash_map_get(handle: HashMapHandle, key: _) -> ?_ {}
+extern go fn __able_hash_map_set(handle: HashMapHandle, key: _, value: _) -> void {}
+extern go fn __able_hash_map_remove(handle: HashMapHandle, key: _) -> ?_ {}
+extern go fn __able_hash_map_contains(handle: HashMapHandle, key: _) -> bool {}
+extern go fn __able_hash_map_size(handle: HashMapHandle) -> i32 {}
+extern go fn __able_hash_map_clear(handle: HashMapHandle) -> void {}
+extern go fn __able_hash_map_for_each(handle: HashMapHandle, visit: (_, _) -> void) -> void {}
+extern go fn __able_hash_map_clone(handle: HashMapHandle) -> HashMapHandle {}
 
 ## String encoding bridges (byte-level)
 extern typescript fn __able_String_from_builtin(value: String) -> _ {}

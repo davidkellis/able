@@ -1,16 +1,16 @@
 import * as AST from "../ast";
 import { Environment } from "./environment";
-import type { InterpreterV10 } from "./index";
-import type { ConstraintSpec, ImplMethodEntry, V10Value } from "./values";
+import type { Interpreter } from "./index";
+import type { ConstraintSpec, ImplMethodEntry, RuntimeValue } from "./values";
 
 declare module "./index" {
-  interface InterpreterV10 {
+  interface Interpreter {
     enforceGenericConstraintsIfAny(funcNode: AST.FunctionDefinition | AST.LambdaExpression, call: AST.FunctionCall): void;
     collectConstraintSpecs(generics?: AST.GenericParameter[], where?: AST.WhereClauseConstraint[]): ConstraintSpec[];
     mapTypeArguments(generics: AST.GenericParameter[] | undefined, provided: AST.TypeExpression[] | undefined, context: string): Map<string, AST.TypeExpression>;
     enforceConstraintSpecs(constraints: ConstraintSpec[], typeArgMap: Map<string, AST.TypeExpression>, context: string): void;
     ensureTypeSatisfiesInterface(typeInfo: { name: string; typeArgs: AST.TypeExpression[] }, interfaceType: AST.TypeExpression, context: string, visited: Set<string>): void;
-    inferTypeArgumentsFromCall(funcNode: AST.FunctionDefinition | AST.LambdaExpression, call: AST.FunctionCall, args: V10Value[]): void;
+    inferTypeArgumentsFromCall(funcNode: AST.FunctionDefinition | AST.LambdaExpression, call: AST.FunctionCall, args: RuntimeValue[]): void;
     bindTypeArgumentsIfAny(funcNode: AST.FunctionDefinition | AST.LambdaExpression, call: AST.FunctionCall, env: Environment): void;
     collectInterfaceConstraintExpressions(typeExpr: AST.TypeExpression, memo?: Set<string>): AST.TypeExpression[];
     findMethod(
@@ -22,15 +22,15 @@ declare module "./index" {
         interfaceName?: string;
         includeInherent?: boolean;
       },
-    ): Extract<V10Value, { kind: "function" | "function_overload" }> | null;
+    ): Extract<RuntimeValue, { kind: "function" | "function_overload" }> | null;
     resolveInterfaceImplementation(
       typeName: string,
       interfaceName: string,
       opts?: { typeArgs?: AST.TypeExpression[]; typeArgMap?: Map<string, AST.TypeExpression> },
     ): { ok: boolean; error?: Error };
     compareMethodMatches(
-      a: { entry: ImplMethodEntry; bindings: Map<string, AST.TypeExpression>; constraints: ConstraintSpec[]; isConcreteTarget: boolean; score: number; method?: Extract<V10Value, { kind: "function" | "function_overload" }> },
-      b: { entry: ImplMethodEntry; bindings: Map<string, AST.TypeExpression>; constraints: ConstraintSpec[]; isConcreteTarget: boolean; score: number; method?: Extract<V10Value, { kind: "function" | "function_overload" }> },
+      a: { entry: ImplMethodEntry; bindings: Map<string, AST.TypeExpression>; constraints: ConstraintSpec[]; isConcreteTarget: boolean; score: number; method?: Extract<RuntimeValue, { kind: "function" | "function_overload" }> },
+      b: { entry: ImplMethodEntry; bindings: Map<string, AST.TypeExpression>; constraints: ConstraintSpec[]; isConcreteTarget: boolean; score: number; method?: Extract<RuntimeValue, { kind: "function" | "function_overload" }> },
     ): number;
     buildConstraintKeySet(constraints: ConstraintSpec[]): Set<string>;
     isConstraintSuperset(a: Set<string>, b: Set<string>): boolean;
@@ -41,20 +41,20 @@ declare module "./index" {
     measureTemplateSpecificity(t: AST.TypeExpression, genericNames: Set<string>): number;
     attachDefaultInterfaceMethods(
       imp: AST.ImplementationDefinition,
-      funcs: Map<string, Extract<V10Value, { kind: "function" | "function_overload" }>>,
+      funcs: Map<string, Extract<RuntimeValue, { kind: "function" | "function_overload" }>>,
     ): void;
     createDefaultMethodFunction(
       sig: AST.FunctionSignature,
       env: Environment,
       targetType: AST.TypeExpression,
-    ): Extract<V10Value, { kind: "function" }> | null;
+    ): Extract<RuntimeValue, { kind: "function" }> | null;
     substituteSelfTypeExpression(t: AST.TypeExpression | undefined, target: AST.TypeExpression): AST.TypeExpression | undefined;
     substituteSelfInPattern(pattern: AST.Pattern, target: AST.TypeExpression): AST.Pattern;
   }
 }
 
-export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): void {
-  cls.prototype.enforceGenericConstraintsIfAny = function enforceGenericConstraintsIfAny(this: InterpreterV10, funcNode: AST.FunctionDefinition | AST.LambdaExpression, call: AST.FunctionCall): void {
+export function applyImplResolutionAugmentations(cls: typeof Interpreter): void {
+  cls.prototype.enforceGenericConstraintsIfAny = function enforceGenericConstraintsIfAny(this: Interpreter, funcNode: AST.FunctionDefinition | AST.LambdaExpression, call: AST.FunctionCall): void {
   const generics = (funcNode as any).genericParams as AST.GenericParameter[] | undefined;
   const where = (funcNode as any).whereClause as AST.WhereClauseConstraint[] | undefined;
   const typeArgs = call.typeArguments ?? [];
@@ -70,7 +70,7 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
   this.enforceConstraintSpecs(constraints, typeArgMap, `function ${name}`);
 };
 
-  cls.prototype.collectConstraintSpecs = function collectConstraintSpecs(this: InterpreterV10, generics?: AST.GenericParameter[], where?: AST.WhereClauseConstraint[]): ConstraintSpec[] {
+  cls.prototype.collectConstraintSpecs = function collectConstraintSpecs(this: Interpreter, generics?: AST.GenericParameter[], where?: AST.WhereClauseConstraint[]): ConstraintSpec[] {
   const all: ConstraintSpec[] = [];
   if (generics) {
     for (const gp of generics) {
@@ -90,7 +90,7 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
   return all;
 };
 
-  cls.prototype.mapTypeArguments = function mapTypeArguments(this: InterpreterV10, generics: AST.GenericParameter[] | undefined, provided: AST.TypeExpression[] | undefined, context: string): Map<string, AST.TypeExpression> {
+  cls.prototype.mapTypeArguments = function mapTypeArguments(this: Interpreter, generics: AST.GenericParameter[] | undefined, provided: AST.TypeExpression[] | undefined, context: string): Map<string, AST.TypeExpression> {
   const map = new Map<string, AST.TypeExpression>();
   if (!generics || generics.length === 0) return map;
   const actual = provided ?? [];
@@ -108,7 +108,7 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
   return map;
 };
 
-  cls.prototype.enforceConstraintSpecs = function enforceConstraintSpecs(this: InterpreterV10, constraints: ConstraintSpec[], typeArgMap: Map<string, AST.TypeExpression>, context: string): void {
+  cls.prototype.enforceConstraintSpecs = function enforceConstraintSpecs(this: Interpreter, constraints: ConstraintSpec[], typeArgMap: Map<string, AST.TypeExpression>, context: string): void {
   for (const c of constraints) {
     const actual = typeArgMap.get(c.typeParam);
     if (!actual) {
@@ -120,7 +120,7 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
   }
 };
 
-  cls.prototype.ensureTypeSatisfiesInterface = function ensureTypeSatisfiesInterface(this: InterpreterV10, typeInfo: { name: string; typeArgs: AST.TypeExpression[] }, interfaceType: AST.TypeExpression, context: string, visited: Set<string>): void {
+  cls.prototype.ensureTypeSatisfiesInterface = function ensureTypeSatisfiesInterface(this: Interpreter, typeInfo: { name: string; typeArgs: AST.TypeExpression[] }, interfaceType: AST.TypeExpression, context: string, visited: Set<string>): void {
   const ifaceInfo = this.parseTypeExpression(interfaceType);
   if (!ifaceInfo) return;
   if (visited.has(ifaceInfo.name)) return;
@@ -139,7 +139,7 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
   }
 };
 
-  cls.prototype.inferTypeArgumentsFromCall = function inferTypeArgumentsFromCall(this: InterpreterV10, funcNode: AST.FunctionDefinition | AST.LambdaExpression, call: AST.FunctionCall, args: V10Value[]): void {
+  cls.prototype.inferTypeArgumentsFromCall = function inferTypeArgumentsFromCall(this: Interpreter, funcNode: AST.FunctionDefinition | AST.LambdaExpression, call: AST.FunctionCall, args: RuntimeValue[]): void {
   const generics = (funcNode as any).genericParams as AST.GenericParameter[] | undefined;
   if (!generics || generics.length === 0) return;
   if (call.typeArguments && call.typeArguments.length > 0) {
@@ -173,7 +173,7 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
   });
 };
 
-  cls.prototype.bindTypeArgumentsIfAny = function bindTypeArgumentsIfAny(this: InterpreterV10, funcNode: AST.FunctionDefinition | AST.LambdaExpression, call: AST.FunctionCall, env: Environment): void {
+  cls.prototype.bindTypeArgumentsIfAny = function bindTypeArgumentsIfAny(this: Interpreter, funcNode: AST.FunctionDefinition | AST.LambdaExpression, call: AST.FunctionCall, env: Environment): void {
   const generics = (funcNode as any).genericParams as AST.GenericParameter[] | undefined;
   if (!generics || generics.length === 0) return;
   const args = call.typeArguments ?? [];
@@ -187,7 +187,7 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
   }
 };
 
-  cls.prototype.collectInterfaceConstraintExpressions = function collectInterfaceConstraintExpressions(this: InterpreterV10, typeExpr: AST.TypeExpression, memo: Set<string> = new Set()): AST.TypeExpression[] {
+  cls.prototype.collectInterfaceConstraintExpressions = function collectInterfaceConstraintExpressions(this: Interpreter, typeExpr: AST.TypeExpression, memo: Set<string> = new Set()): AST.TypeExpression[] {
   const key = this.typeExpressionToString(typeExpr);
   if (memo.has(key)) return [];
   memo.add(key);
@@ -204,7 +204,7 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
   return expressions;
 };
 
-  cls.prototype.findMethod = function findMethod(this: InterpreterV10, typeName: string, methodName: string, opts?: { typeArgs?: AST.TypeExpression[]; typeArgMap?: Map<string, AST.TypeExpression>; interfaceName?: string }): Extract<V10Value, { kind: "function" | "function_overload" }> | null {
+  cls.prototype.findMethod = function findMethod(this: Interpreter, typeName: string, methodName: string, opts?: { typeArgs?: AST.TypeExpression[]; typeArgMap?: Map<string, AST.TypeExpression>; interfaceName?: string }): Extract<RuntimeValue, { kind: "function" | "function_overload" }> | null {
   const includeInherent = opts?.includeInherent !== false;
   if (includeInherent) {
     const inherent = this.inherentMethods.get(typeName);
@@ -217,7 +217,7 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
   ];
   let constraintError: Error | null = null;
   const matches: Array<{
-    method: Extract<V10Value, { kind: "function" }>;
+    method: Extract<RuntimeValue, { kind: "function" }>;
     score: number;
     entry: ImplMethodEntry;
     constraints: ConstraintSpec[];
@@ -275,7 +275,7 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
   return best.method;
 };
 
-  cls.prototype.resolveInterfaceImplementation = function resolveInterfaceImplementation(this: InterpreterV10, typeName: string, interfaceName: string, opts?: { typeArgs?: AST.TypeExpression[]; typeArgMap?: Map<string, AST.TypeExpression> }): { ok: boolean; error?: Error } {
+  cls.prototype.resolveInterfaceImplementation = function resolveInterfaceImplementation(this: Interpreter, typeName: string, interfaceName: string, opts?: { typeArgs?: AST.TypeExpression[]; typeArgMap?: Map<string, AST.TypeExpression> }): { ok: boolean; error?: Error } {
   if (interfaceName === "Error" && typeName === "Error") {
     return { ok: true };
   }
@@ -350,7 +350,7 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
   return { ok: true };
 };
 
-  cls.prototype.compareMethodMatches = function compareMethodMatches(this: InterpreterV10, a: { method?: Extract<V10Value, { kind: "function" | "function_overload" }>; score: number; entry: ImplMethodEntry; constraints: ConstraintSpec[]; isConcreteTarget: boolean }, b: { method?: Extract<V10Value, { kind: "function" | "function_overload" }>; score: number; entry: ImplMethodEntry; constraints: ConstraintSpec[]; isConcreteTarget: boolean }): number {
+  cls.prototype.compareMethodMatches = function compareMethodMatches(this: Interpreter, a: { method?: Extract<RuntimeValue, { kind: "function" | "function_overload" }>; score: number; entry: ImplMethodEntry; constraints: ConstraintSpec[]; isConcreteTarget: boolean }, b: { method?: Extract<RuntimeValue, { kind: "function" | "function_overload" }>; score: number; entry: ImplMethodEntry; constraints: ConstraintSpec[]; isConcreteTarget: boolean }): number {
   if (a.isConcreteTarget && !b.isConcreteTarget) return 1;
   if (b.isConcreteTarget && !a.isConcreteTarget) return -1;
   const aConstraints = this.buildConstraintKeySet(a.constraints);
@@ -377,7 +377,7 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
   return 0;
 };
 
-  cls.prototype.buildConstraintKeySet = function buildConstraintKeySet(this: InterpreterV10, constraints: ConstraintSpec[]): Set<string> {
+  cls.prototype.buildConstraintKeySet = function buildConstraintKeySet(this: Interpreter, constraints: ConstraintSpec[]): Set<string> {
   const set = new Set<string>();
   for (const c of constraints) {
     const expanded = this.collectInterfaceConstraintExpressions(c.ifaceType);
@@ -388,7 +388,7 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
   return set;
 };
 
-  cls.prototype.isConstraintSuperset = function isConstraintSuperset(this: InterpreterV10, a: Set<string>, b: Set<string>): boolean {
+  cls.prototype.isConstraintSuperset = function isConstraintSuperset(this: Interpreter, a: Set<string>, b: Set<string>): boolean {
   if (a.size <= b.size) return false;
   for (const key of b) {
     if (!a.has(key)) return false;
@@ -396,7 +396,7 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
   return true;
 };
 
-  cls.prototype.isProperSubset = function isProperSubset(this: InterpreterV10, a: string[], b: string[]): boolean {
+  cls.prototype.isProperSubset = function isProperSubset(this: Interpreter, a: string[], b: string[]): boolean {
   const aSet = new Set(a);
   const bSet = new Set(b);
   if (aSet.size >= bSet.size) return false;
@@ -406,7 +406,7 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
   return true;
   };
 
-  cls.prototype.matchImplEntry = function matchImplEntry(this: InterpreterV10, entry: ImplMethodEntry, opts?: { typeArgs?: AST.TypeExpression[]; typeArgMap?: Map<string, AST.TypeExpression>; subjectType?: AST.TypeExpression }): Map<string, AST.TypeExpression> | null {
+  cls.prototype.matchImplEntry = function matchImplEntry(this: Interpreter, entry: ImplMethodEntry, opts?: { typeArgs?: AST.TypeExpression[]; typeArgMap?: Map<string, AST.TypeExpression>; subjectType?: AST.TypeExpression }): Map<string, AST.TypeExpression> | null {
   const bindings = new Map<string, AST.TypeExpression>();
   const genericNames = collectImplGenericNames(entry);
   const canonicalTemplate = this.expandTypeAliases(entry.def.targetType);
@@ -435,7 +435,7 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
   return bindings;
 };
 
-  cls.prototype.matchTypeExpressionTemplate = function matchTypeExpressionTemplate(this: InterpreterV10, template: AST.TypeExpression, actual: AST.TypeExpression, genericNames: Set<string>, bindings: Map<string, AST.TypeExpression>): boolean {
+  cls.prototype.matchTypeExpressionTemplate = function matchTypeExpressionTemplate(this: Interpreter, template: AST.TypeExpression, actual: AST.TypeExpression, genericNames: Set<string>, bindings: Map<string, AST.TypeExpression>): boolean {
   if (template.type === "WildcardTypeExpression" || actual.type === "WildcardTypeExpression") {
     return true;
   }
@@ -463,7 +463,7 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
   return this.typeExpressionsEqual(template, actual);
 };
 
-  cls.prototype.expandImplementationTargetVariants = function expandImplementationTargetVariants(this: InterpreterV10, target: AST.TypeExpression): Array<{ typeName: string; argTemplates: AST.TypeExpression[]; signature: string }> {
+  cls.prototype.expandImplementationTargetVariants = function expandImplementationTargetVariants(this: Interpreter, target: AST.TypeExpression): Array<{ typeName: string; argTemplates: AST.TypeExpression[]; signature: string }> {
   const canonical = this.expandTypeAliases(target);
   if (canonical.type === "UnionTypeExpression") {
     const expanded: Array<{ typeName: string; argTemplates: AST.TypeExpression[]; signature: string }> = [];
@@ -502,7 +502,7 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
   throw new Error("Only simple, generic, or union target types supported in impl");
 };
 
-  cls.prototype.measureTemplateSpecificity = function measureTemplateSpecificity(this: InterpreterV10, t: AST.TypeExpression, genericNames: Set<string>): number {
+  cls.prototype.measureTemplateSpecificity = function measureTemplateSpecificity(this: Interpreter, t: AST.TypeExpression, genericNames: Set<string>): number {
   switch (t.type) {
     case "SimpleTypeExpression":
       return genericNames.has(t.name.name) ? 0 : 1;
@@ -523,7 +523,7 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
   }
 };
 
-  cls.prototype.attachDefaultInterfaceMethods = function attachDefaultInterfaceMethods(this: InterpreterV10, imp: AST.ImplementationDefinition, funcs: Map<string, Extract<V10Value, { kind: "function" | "function_overload" }>>): void {
+  cls.prototype.attachDefaultInterfaceMethods = function attachDefaultInterfaceMethods(this: Interpreter, imp: AST.ImplementationDefinition, funcs: Map<string, Extract<RuntimeValue, { kind: "function" | "function_overload" }>>): void {
   const interfaceName = imp.interfaceName.name;
   const iface = this.interfaces.get(interfaceName);
   if (!iface) return;
@@ -538,7 +538,7 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
   }
 };
 
-  cls.prototype.createDefaultMethodFunction = function createDefaultMethodFunction(this: InterpreterV10, sig: AST.FunctionSignature, env: Environment, targetType: AST.TypeExpression): Extract<V10Value, { kind: "function" }> | null {
+  cls.prototype.createDefaultMethodFunction = function createDefaultMethodFunction(this: Interpreter, sig: AST.FunctionSignature, env: Environment, targetType: AST.TypeExpression): Extract<RuntimeValue, { kind: "function" }> | null {
   if (!sig.defaultImpl) return null;
   const params = sig.params.map(param => {
     const substitutedPattern = this.substituteSelfInPattern(param.name as AST.Pattern, targetType);
@@ -558,12 +558,12 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
     isMethodShorthand: false,
     isPrivate: false,
   };
-  const func: Extract<V10Value, { kind: "function" }> = { kind: "function", node: fnDef, closureEnv: env };
+  const func: Extract<RuntimeValue, { kind: "function" }> = { kind: "function", node: fnDef, closureEnv: env };
   (func as any).methodResolutionPriority = -1;
   return func;
 };
 
-  cls.prototype.substituteSelfTypeExpression = function substituteSelfTypeExpression(this: InterpreterV10, t: AST.TypeExpression | undefined, target: AST.TypeExpression): AST.TypeExpression | undefined {
+  cls.prototype.substituteSelfTypeExpression = function substituteSelfTypeExpression(this: Interpreter, t: AST.TypeExpression | undefined, target: AST.TypeExpression): AST.TypeExpression | undefined {
   if (!t) return t;
   switch (t.type) {
     case "SimpleTypeExpression":
@@ -607,7 +607,7 @@ export function applyImplResolutionAugmentations(cls: typeof InterpreterV10): vo
   }
 };
 
-  cls.prototype.substituteSelfInPattern = function substituteSelfInPattern(this: InterpreterV10, pattern: AST.Pattern, target: AST.TypeExpression): AST.Pattern {
+  cls.prototype.substituteSelfInPattern = function substituteSelfInPattern(this: Interpreter, pattern: AST.Pattern, target: AST.TypeExpression): AST.Pattern {
   if ((pattern as any).type === "TypedPattern") {
     const tp = pattern as AST.TypedPattern;
     const inner = this.substituteSelfInPattern(tp.pattern, target);

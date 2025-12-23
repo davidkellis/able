@@ -1,7 +1,7 @@
 {
   "name": "tree-sitter-able",
   "version": "0.1.0",
-  "description": "Able language parser (v10 spec)",
+  "description": "Able language parser (v11 spec)",
   "repository": "https://github.com/davidkellis/able",
   "license": "EPL-2.0",
   "author": {

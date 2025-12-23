@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"sync"
 
-	"able/interpreter10-go/pkg/runtime"
+	"able/interpreter-go/pkg/runtime"
 )
 
 type mutexAwaitRegistration struct {

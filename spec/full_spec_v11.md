@@ -742,6 +742,7 @@ type Timestamp = time.Instant
 -   Aliases obey the module’s visibility/export mechanics (e.g., `pub type` in host scaffolding, explicit export lists, etc.). Importing a module brings its exported aliases into scope just like other types: `import net.http; request: http.Request = ...`.
 -   Within a module, aliases participate in lexical scoping: once declared, they are visible throughout the remainder of the file. Re-declaring the same alias name in the same scope is an error; shadowing via nested modules is allowed but discouraged unless intentionally creating versioned namespaces.
 -   Because aliases live in the type namespace, they do not interfere with value-level identifiers. `type Path = String` can coexist with `fn Path() -> Path` (though readability may suffer).
+-   Importing aliases is **type-only**: `import pkg.{Alias}` (or `import pkg.{Alias::Local}`) makes the alias name available in type positions within the importing module, but does **not** create a runtime value binding. Renames apply only to the type namespace.
 
 #### 4.7.4. Interaction with `methods`, `impl`, and Type-Based Features
 
@@ -1258,12 +1259,13 @@ Literals are the source code representation of fixed values.
 
 #### 6.1.9. Map Literals
 
-Able v11 introduces a dedicated literal form for `Map` values.
+Able v11 introduces a dedicated literal form for hash-map values. Map literals construct the standard library `HashMap K V` (from `able.collections.hash_map`), which implements the `Map` interface.
 
 -   **Syntax:** `#{ KeyExpr: ValueExpr, ... }`. Entries are comma-delimited; trailing commas and multiline formatting are permitted. Whitespace is insignificant outside expressions. The empty literal is written `#{}`.
--   **Type inference:** Literal entries must agree on a single key type `K` and value type `V`. The compiler infers `Map K V` from the entries when possible. If either dimension cannot be inferred (e.g., `#{}`), provide context or an explicit annotation:
+-   **Type inference:** Literal entries must agree on a single key type `K` and value type `V`. The compiler infers `HashMap K V` from the entries when possible. If either dimension cannot be inferred (e.g., `#{}`), provide context or an explicit annotation (either `HashMap K V` or the `Map K V` interface):
     ```able
-    counts: Map String u64 = #{}
+    counts: HashMap String u64 = #{}
+    view: Map String u64 = counts
     data := #<String, String>{ "name": user.name, "id": user.id }
     ```
 -   **Key constraints:** The key type must satisfy the same requirements imposed by the standard library `Map` implementation (typically `Hash + Eq`). Using a key expression whose type cannot act as a map key is a compile-time error.
@@ -1277,7 +1279,7 @@ Able v11 introduces a dedicated literal form for `Map` values.
       ...user_overrides
     }
     ```
-    Each spread expression must evaluate to a `Map K V` compatible with the literal's inferred key/value types. Spreads execute in place: entries insert in the position of the spread, and later clauses can overwrite them.
+    Each spread expression must evaluate to a `HashMap K V` (or another map implementation that can enumerate entries) compatible with the literal's inferred key/value types. Spreads execute in place: entries insert in the position of the spread, and later clauses can overwrite them.
 -   **Runtime checks:** Attempting to spread a non-map value or inserting a key/value that does not conform to the inferred `Map K V` type raises an `Error` at runtime (or a compile-time diagnostic when statically provable).
 -   **Examples:**
     ```able
@@ -4228,7 +4230,7 @@ Many language features rely on interfaces expected to be in the standard library
 
 Editorial note on built-ins vs. stdlib:
 
-- Aside from primitives (`i*`, `u*`, `f*`, `bool`, `char`, `nil`, `void`), core collection/concurrency types used in this spec (e.g., `String`, `Array T`, `Map K V`, `Channel T`, `Mutex`, `Range`) are defined in the standard library. Syntactic constructs that reference them (array literals/patterns, indexing, ranges `..`/`...`) rely on those stdlib interfaces being in scope (e.g., `Index`, `Iterable`, `Range`). Implementations MUST provide a canonical stdlib that satisfies these expectations for the syntax to be usable. The kernel library bundled with the interpreter (v11 loads `v11/kernel`) supplies the foundational interfaces and minimal implementations; the stdlib is a normal dependency resolved via the package manager (defaulting to the bundled `able` stdlib when unspecified).
+- Aside from primitives (`i*`, `u*`, `f*`, `bool`, `char`, `nil`, `void`), core collection/concurrency types used in this spec (e.g., `String`, `Array T`, `HashMap K V`, `Channel T`, `Mutex`, `Range`, plus interfaces like `Map K V`) are defined in the standard library. Syntactic constructs that reference them (array literals/patterns, indexing, ranges `..`/`...`) rely on those stdlib interfaces being in scope (e.g., `Index`, `Iterable`, `Range`). Implementations MUST provide a canonical stdlib that satisfies these expectations for the syntax to be usable. The kernel library bundled with the interpreter (v11 loads `v11/kernel`) supplies the foundational interfaces and minimal implementations; the stdlib is a normal dependency resolved via the package manager (defaulting to the bundled `able` stdlib when unspecified).
 
 ### 14.1. Language-Supported Interface Catalogue
 

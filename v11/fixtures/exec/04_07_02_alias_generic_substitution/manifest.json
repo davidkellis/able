@@ -1,0 +1,11 @@
+{
+  "description": "generic aliases: eager substitution, chains, and inference",
+  "expect": {
+    "stdout": [
+      "sum 10",
+      "first hi",
+      "recovered fallback"
+    ],
+    "exit": 0
+  }
+}

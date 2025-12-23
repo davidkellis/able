@@ -4,7 +4,7 @@ import { promises as fsPromises } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { AST, TypeChecker, V10 } from "../index";
+import { AST, TypeChecker, V11 } from "../index";
 import type { PackageSummary, TypecheckerDiagnostic } from "../src/typechecker/diagnostics";
 import { ensureConsolePrint, installRuntimeStubs } from "./runtime-stubs";
 import { formatTypecheckerDiagnostic, printPackageSummaries } from "./typecheck-utils";
@@ -133,7 +133,7 @@ async function handleRunCommand(args: string[]): Promise<void> {
     return;
   }
 
-  const interpreter = new V10.InterpreterV10();
+  const interpreter = new V11.Interpreter();
   ensureConsolePrint(interpreter);
   installRuntimeStubs(interpreter);
 
@@ -145,7 +145,7 @@ async function handleRunCommand(args: string[]): Promise<void> {
   await invokeEntryMain(interpreter, program.entry);
 }
 
-async function invokeEntryMain(interpreter: V10.InterpreterV10, entry: Program["entry"]): Promise<void> {
+async function invokeEntryMain(interpreter: V11.Interpreter, entry: Program["entry"]): Promise<void> {
   const packageBucket = interpreter.packageRegistry.get(entry.packageName);
   if (!packageBucket) {
     console.error(`runtime error: entry package '${entry.packageName}' is not available at runtime`);
@@ -285,7 +285,7 @@ async function resolveEntryPath(input: string): Promise<string | null> {
   }
 }
 
-async function evaluateProgram(interpreter: V10.InterpreterV10, modules: Program["modules"]): Promise<boolean> {
+async function evaluateProgram(interpreter: V11.Interpreter, modules: Program["modules"]): Promise<boolean> {
   for (const mod of modules) {
     try {
       interpreter.evaluate(mod.module);

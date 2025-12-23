@@ -1,0 +1,16 @@
+{
+  "description": "stdlib string helpers for lengths, substring, split, replace, and prefix/suffix",
+  "expect": {
+    "stdout": [
+      "lens 4 3 3",
+      "substring 2 1",
+      "substring range error",
+      "prefix true false",
+      "suffix true false",
+      "split 3 1 2 1",
+      "split2 4 1 0 1 1",
+      "replace xba"
+    ],
+    "exit": 0
+  }
+}

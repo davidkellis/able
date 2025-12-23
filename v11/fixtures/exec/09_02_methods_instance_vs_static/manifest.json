@@ -1,0 +1,11 @@
+{
+  "description": "instance vs static methods with imports and UFCS",
+  "expect": {
+    "stdout": [
+      "moved 2,3 sum 5",
+      "ufcs -1,4",
+      "static 0,0"
+    ],
+    "exit": 0
+  }
+}

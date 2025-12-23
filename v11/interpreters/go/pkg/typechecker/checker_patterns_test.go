@@ -1,7 +1,7 @@
 package typechecker
 
 import (
-	"able/interpreter10-go/pkg/ast"
+	"able/interpreter-go/pkg/ast"
 	"strings"
 	"testing"
 )

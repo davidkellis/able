@@ -1,0 +1,15 @@
+package exec_09_02_methods_instance_vs_static
+
+import exec_09_02_methods_instance_vs_static.geometry.*
+
+## Semantics: wildcard imports surface method sugar; instance/static methods and UFCS work on imported definitions.
+
+fn main() -> void {
+  base := Point.origin()
+  moved := base.translate(2, 3)
+  via_ufcs := base.shift(-1, 4)
+
+  print(`moved ${moved.x},${moved.y} sum ${moved.sum()}`)
+  print(`ufcs ${via_ufcs.x},${via_ufcs.y}`)
+  print(`static ${base.x},${base.y}`)
+}

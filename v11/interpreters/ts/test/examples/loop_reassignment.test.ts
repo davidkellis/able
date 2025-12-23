@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("loop reassignment regression", () => {
   test("loop expression updates existing binding with =", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const env = I.globals;
 
     // a = 5

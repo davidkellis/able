@@ -1,0 +1,7 @@
+{
+  "description": "division by zero raises DivisionByZeroError",
+  "expect": {
+    "stderr": ["division by zero"],
+    "exit": 1
+  }
+}

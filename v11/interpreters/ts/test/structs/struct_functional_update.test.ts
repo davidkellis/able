@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - struct functional update", () => {
   test("named-field struct: spread base then override fields", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const Def = AST.structDefinition(
       "User",
       [
@@ -46,7 +46,7 @@ describe("v11 interpreter - struct functional update", () => {
   });
 
   test("functional update rejects wrong-type source or positional source", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const A = AST.structDefinition("A", [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "x")], "named");
     const B = AST.structDefinition("B", [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "y")], "named");
     I.evaluate(A);
@@ -61,7 +61,7 @@ describe("v11 interpreter - struct functional update", () => {
   });
 
   test("functional update accepts multiple spreads", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const Point = AST.structDefinition(
       "Point",
       [

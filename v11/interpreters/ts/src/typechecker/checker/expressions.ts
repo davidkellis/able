@@ -6,6 +6,7 @@ import {
   futureType,
   iteratorType,
   isBoolean,
+  isFloatPrimitiveType,
   isIntegerPrimitiveType,
   isNumeric,
   isRatioType,
@@ -119,23 +120,25 @@ export function inferExpression(ctx: ExpressionContext, expression: AST.Expressi
     }
     case "UnaryExpression":
       return inferUnaryExpression(ctx, expression);
+    case "TypeCastExpression":
+      return inferTypeCastExpression(ctx, expression);
     case "BinaryExpression":
       return inferBinaryExpression(ctx, expression);
     case "RangeExpression": {
       const start = ctx.inferExpression(expression.start);
-      if (!isNumeric(start)) {
+      if (start.kind !== "unknown" && !isIntegerPrimitiveType(start)) {
         ctx.report("typechecker: range start must be numeric", expression);
       }
       const end = ctx.inferExpression(expression.end);
-      if (!isNumeric(end)) {
+      if (end.kind !== "unknown" && !isIntegerPrimitiveType(end)) {
         ctx.report("typechecker: range end must be numeric", expression);
       }
       const elementType = resolveRangeElementType(ctx, start, end);
       const bounds: TypeInfo[] = [];
-      if (start && start.kind !== "unknown") {
+      if (start.kind !== "unknown" && isIntegerPrimitiveType(start)) {
         bounds.push(start);
       }
-      if (end && end.kind !== "unknown") {
+      if (end.kind !== "unknown" && isIntegerPrimitiveType(end)) {
         bounds.push(end);
       }
       return rangeType(elementType, bounds.length > 0 ? bounds : undefined);
@@ -161,12 +164,26 @@ export function inferExpression(ctx: ExpressionContext, expression: AST.Expressi
           if (spreadType.kind === "map") {
             keyType = mergeMapComponent(ctx, keyType, spreadType.key, "map key", entry.expression);
             valueType = mergeMapComponent(ctx, valueType, spreadType.value, "map value", entry.expression);
-          } else if (spreadType.kind !== "unknown") {
-            ctx.report(`typechecker: map spread expects Map, got ${formatType(spreadType)}`, entry.expression);
+            continue;
+          }
+          if (spreadType.kind === "struct" && spreadType.name === "HashMap") {
+            const args = spreadType.typeArguments ?? [];
+            keyType = mergeMapComponent(ctx, keyType, args[0] ?? unknownType, "map key", entry.expression);
+            valueType = mergeMapComponent(ctx, valueType, args[1] ?? unknownType, "map value", entry.expression);
+            continue;
+          }
+          if (spreadType.kind !== "unknown") {
+            ctx.report(`typechecker: map spread expects Map or HashMap, got ${formatType(spreadType)}`, entry.expression);
           }
         }
       }
-      return { kind: "map", key: keyType ?? unknownType, value: valueType ?? unknownType };
+      const structDef = ctx.getStructDefinition("HashMap");
+      return {
+        kind: "struct",
+        name: "HashMap",
+        typeArguments: [keyType ?? unknownType, valueType ?? unknownType],
+        definition: structDef,
+      };
     }
     case "MatchExpression":
       return evaluateMatchExpression(ctx, expression);
@@ -176,17 +193,11 @@ export function inferExpression(ctx: ExpressionContext, expression: AST.Expressi
       return inferOrElseExpression(ctx, expression);
     case "IfExpression": {
       const branchTypes: TypeInfo[] = [];
-      const condType = ctx.inferExpression(expression.ifCondition);
-      if (!isBoolean(condType)) {
-        ctx.report("typechecker: if condition must be bool", expression.ifCondition);
-      }
+      ctx.inferExpression(expression.ifCondition);
       branchTypes.push(ctx.inferExpression(expression.ifBody));
       for (const clause of expression.elseIfClauses ?? []) {
         if (!clause) continue;
-        const clauseCond = ctx.inferExpression(clause.condition);
-        if (!isBoolean(clauseCond)) {
-          ctx.report("typechecker: elsif condition must be bool", clause.condition);
-        }
+        ctx.inferExpression(clause.condition);
         branchTypes.push(ctx.inferExpression(clause.body));
       }
       if (expression.elseBody) {
@@ -252,6 +263,78 @@ export function inferExpression(ctx: ExpressionContext, expression: AST.Expressi
       return checkIteratorLiteral(ctx, expression);
     default:
       return unknownType;
+  }
+}
+
+export function refineTypeWithExpected(actual: TypeInfo | undefined | null, expected: TypeInfo | undefined | null): TypeInfo {
+  if (!expected || expected.kind === "unknown") {
+    return actual ?? unknownType;
+  }
+  if (!actual || actual.kind === "unknown") {
+    return expected;
+  }
+  if (actual.kind !== expected.kind) {
+    return actual;
+  }
+  switch (actual.kind) {
+    case "array":
+      return { kind: "array", element: refineTypeWithExpected(actual.element, expected.element) };
+    case "map":
+      return {
+        kind: "map",
+        key: refineTypeWithExpected(actual.key, expected.key),
+        value: refineTypeWithExpected(actual.value, expected.value),
+      };
+    case "range":
+      return { kind: "range", element: refineTypeWithExpected(actual.element, expected.element), bounds: actual.bounds };
+    case "iterator":
+      return { kind: "iterator", element: refineTypeWithExpected(actual.element, expected.element) };
+    case "proc":
+      return { kind: "proc", result: refineTypeWithExpected(actual.result, expected.result) };
+    case "future":
+      return { kind: "future", result: refineTypeWithExpected(actual.result, expected.result) };
+    case "nullable":
+      return { kind: "nullable", inner: refineTypeWithExpected(actual.inner, expected.inner) };
+    case "result":
+      return { kind: "result", inner: refineTypeWithExpected(actual.inner, expected.inner) };
+    case "struct": {
+      if (actual.name !== expected.name) {
+        return actual;
+      }
+      const actualArgs = Array.isArray(actual.typeArguments) ? actual.typeArguments : [];
+      const expectedArgs = Array.isArray(expected.typeArguments) ? expected.typeArguments : [];
+      if (actualArgs.length === 0) {
+        return actual;
+      }
+      const typeArguments = actualArgs.map((arg, index) => refineTypeWithExpected(arg, expectedArgs[index]));
+      return { ...actual, typeArguments };
+    }
+    case "interface": {
+      if (actual.name !== expected.name) {
+        return actual;
+      }
+      const actualArgs = Array.isArray(actual.typeArguments) ? actual.typeArguments : [];
+      const expectedArgs = Array.isArray(expected.typeArguments) ? expected.typeArguments : [];
+      if (actualArgs.length === 0) {
+        return actual;
+      }
+      const typeArguments = actualArgs.map((arg, index) => refineTypeWithExpected(arg, expectedArgs[index]));
+      return { ...actual, typeArguments };
+    }
+    case "union": {
+      if (!Array.isArray(actual.members) || !Array.isArray(expected.members)) {
+        return actual;
+      }
+      if (actual.members.length !== expected.members.length) {
+        return actual;
+      }
+      return {
+        kind: "union",
+        members: actual.members.map((member, index) => refineTypeWithExpected(member, expected.members[index])),
+      };
+    }
+    default:
+      return actual;
   }
 }
 
@@ -334,10 +417,7 @@ export function evaluateMatchExpression(ctx: ExpressionContext, expression: AST.
     try {
       bindPatternToEnv(ctx, clause.pattern as AST.Pattern, subjectType, "match pattern");
       if (clause.guard) {
-        const guardType = ctx.inferExpression(clause.guard);
-        if (guardType && guardType.kind !== "unknown" && !isBoolean(guardType)) {
-          ctx.report("typechecker: match guard must be bool", clause.guard);
-        }
+        ctx.inferExpression(clause.guard);
       }
       branchTypes.push(ctx.inferExpression(clause.body));
     } finally {
@@ -361,10 +441,7 @@ export function evaluateRescueExpression(ctx: ExpressionContext, expression: AST
       try {
         bindPatternToEnv(ctx, clause.pattern as AST.Pattern, errorType, "rescue pattern");
         if (clause.guard) {
-          const guardType = ctx.inferExpression(clause.guard);
-          if (guardType && guardType.kind !== "unknown" && !isBoolean(guardType)) {
-            ctx.report("typechecker: rescue guard must be bool", clause.guard);
-          }
+          ctx.inferExpression(clause.guard);
         }
         branchTypes.push(ctx.inferExpression(clause.body));
       } finally {
@@ -500,6 +577,7 @@ function resolveIndexResultType(
   indexType: TypeInfo,
   node: AST.Node,
 ): TypeInfo {
+  const wrapResult = (inner: TypeInfo): TypeInfo => ({ kind: "result", inner: inner ?? unknownType });
   const requiresIntegerIndex = (): void => {
     if (!isIntegerPrimitiveType(indexType) && indexType.kind !== "unknown") {
       ctx.report("typechecker: index must be an integer", node);
@@ -510,21 +588,21 @@ function resolveIndexResultType(
   }
   if (objectType.kind === "array") {
     requiresIntegerIndex();
-    return objectType.element ?? unknownType;
+    return wrapResult(objectType.element ?? unknownType);
   }
   if (objectType.kind === "struct" && objectType.name === "Array") {
     requiresIntegerIndex();
-    return (objectType.typeArguments ?? [])[0] ?? unknownType;
+    return wrapResult((objectType.typeArguments ?? [])[0] ?? unknownType);
   }
   if (objectType.kind === "map") {
-    return objectType.value ?? unknownType;
+    return wrapResult(objectType.value ?? unknownType);
   }
   if (objectType.kind === "struct" && objectType.name === "HashMap") {
     const args = objectType.typeArguments ?? [];
     if (args.length >= 2) {
-      return args[1] ?? unknownType;
+      return wrapResult(args[1] ?? unknownType);
     }
-    return unknownType;
+    return wrapResult(unknownType);
   }
   if (objectType.kind === "interface" && objectType.name === "Index") {
     const keyType = (objectType.typeArguments ?? [])[0];
@@ -535,13 +613,13 @@ function resolveIndexResultType(
         node,
       );
     }
-    return valueType ?? unknownType;
+    return wrapResult(valueType ?? unknownType);
   }
   if (ctx.typeImplementsInterface?.(objectType, "Index", ["Unknown", "Unknown"])?.ok) {
-    return unknownType;
+    return wrapResult(unknownType);
   }
   if (ctx.typeImplementsInterface?.(objectType, "IndexMut", ["Unknown", "Unknown"])?.ok) {
-    return unknownType;
+    return wrapResult(unknownType);
   }
   ctx.report(`typechecker: cannot index into type ${formatType(objectType)}`, node);
   return unknownType;
@@ -639,9 +717,6 @@ function inferUnaryExpression(ctx: ExpressionContext, expression: AST.UnaryExpre
       }
       return operandType;
     case "!":
-      if (!isBoolean(operandType) && operandType.kind !== "unknown") {
-        ctx.report("typechecker: unary '!' requires boolean operand", expression);
-      }
       return primitiveType("bool");
     case ".~":
       if (operandType.kind === "unknown") {
@@ -658,6 +733,26 @@ function inferUnaryExpression(ctx: ExpressionContext, expression: AST.UnaryExpre
   }
 }
 
+function isPrimitiveNumericType(type: TypeInfo): boolean {
+  return isIntegerPrimitiveType(type) || isFloatPrimitiveType(type);
+}
+
+function inferTypeCastExpression(ctx: ExpressionContext, expression: AST.TypeCastExpression): TypeInfo {
+  const valueType = ctx.inferExpression(expression.expression);
+  const targetType = ctx.resolveTypeExpression(expression.targetType);
+  if (valueType.kind === "unknown" || targetType.kind === "unknown") {
+    return targetType;
+  }
+  if (ctx.isTypeAssignable(valueType, targetType)) {
+    return targetType;
+  }
+  if (isPrimitiveNumericType(valueType) && isPrimitiveNumericType(targetType)) {
+    return targetType;
+  }
+  ctx.report(`typechecker: cannot cast ${describe(valueType)} to ${describe(targetType)}`, expression);
+  return targetType;
+}
+
 function inferBinaryExpression(ctx: ExpressionContext, expression: AST.BinaryExpression): TypeInfo {
   if (!expression) {
     return unknownType;
@@ -671,13 +766,7 @@ function inferBinaryExpression(ctx: ExpressionContext, expression: AST.BinaryExp
   const left = ctx.inferExpression(expression.left);
   const right = ctx.inferExpression(expression.right);
   if (operator === "&&" || operator === "||") {
-    if (!isBoolean(left)) {
-      ctx.report(`typechecker: '${operator}' left operand must be bool (got ${describe(left)})`, expression);
-    }
-    if (!isBoolean(right)) {
-      ctx.report(`typechecker: '${operator}' right operand must be bool (got ${describe(right)})`, expression);
-    }
-    return primitiveType("bool");
+    return mergeBranchTypes(ctx, [left, right]);
   }
   if (operator === "+") {
     if (isStringType(left) && isStringType(right)) {

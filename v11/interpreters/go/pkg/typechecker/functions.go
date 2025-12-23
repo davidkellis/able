@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"able/interpreter10-go/pkg/ast"
+	"able/interpreter-go/pkg/ast"
 )
 
 func isVoidType(t Type) bool {
@@ -300,7 +300,7 @@ func (c *Checker) checkReturnStatement(env *Environment, stmt *ast.ReturnStateme
 
 	var returnType Type = PrimitiveType{Kind: PrimitiveNil}
 	if stmt.Argument != nil {
-		argDiags, argType := c.checkExpression(env, stmt.Argument)
+		argDiags, argType := c.checkExpressionWithExpectedType(env, stmt.Argument, expected)
 		diags = append(diags, argDiags...)
 		returnType = argType
 	}
@@ -381,7 +381,6 @@ func (c *Checker) checkImplementationDefinition(env *Environment, def *ast.Imple
 		return nil
 	}
 	var diags []Diagnostic
-	localEnv := env.Extend()
 	var spec *ImplementationSpec
 	for i := range c.implementations {
 		if c.implementations[i].Definition == def {
@@ -404,17 +403,6 @@ func (c *Checker) checkImplementationDefinition(env *Environment, def *ast.Imple
 			}
 		}
 	}
-	for _, fn := range def.Definitions {
-		if fn == nil {
-			continue
-		}
-		if spec != nil && fn.ID != nil {
-			if sig, ok := spec.Methods[fn.ID.Name]; ok {
-				localEnv.Define(fn.ID.Name, sig)
-			}
-		}
-		diags = append(diags, c.checkFunctionDefinition(localEnv, fn)...)
-	}
 	return diags
 }
 
@@ -423,7 +411,6 @@ func (c *Checker) checkMethodsDefinition(env *Environment, def *ast.MethodsDefin
 		return nil
 	}
 	var diags []Diagnostic
-	localEnv := env.Extend()
 	var spec *MethodSetSpec
 	for i := range c.methodSets {
 		if c.methodSets[i].Definition == def {
@@ -434,17 +421,6 @@ func (c *Checker) checkMethodsDefinition(env *Environment, def *ast.MethodsDefin
 	if spec != nil {
 		c.pushConstraintScope(spec.TypeParams, spec.Where)
 		defer c.popConstraintScope()
-	}
-	for _, fn := range def.Definitions {
-		if fn == nil {
-			continue
-		}
-		if spec != nil && fn.ID != nil {
-			if sig, ok := spec.Methods[fn.ID.Name]; ok {
-				localEnv.Define(fn.ID.Name, sig)
-			}
-		}
-		diags = append(diags, c.checkFunctionDefinition(localEnv, fn)...)
 	}
 	return diags
 }

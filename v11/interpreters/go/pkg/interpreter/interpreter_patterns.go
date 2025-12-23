@@ -3,8 +3,8 @@ package interpreter
 import (
 	"fmt"
 
-	"able/interpreter10-go/pkg/ast"
-	"able/interpreter10-go/pkg/runtime"
+	"able/interpreter-go/pkg/ast"
+	"able/interpreter-go/pkg/runtime"
 )
 
 type bindingIntent struct {
@@ -41,6 +41,13 @@ func (i *Interpreter) assignPattern(
 		}
 		return nil
 	case *ast.StructPattern:
+		switch value.(type) {
+		case runtime.IteratorEndValue, *runtime.IteratorEndValue:
+			if p.StructType != nil && p.StructType.Name == "IteratorEnd" && len(p.Fields) == 0 {
+				return nil
+			}
+			return fmt.Errorf("Cannot destructure non-struct value")
+		}
 		if errVal, ok := value.(runtime.ErrorValue); ok {
 			value = errorValueToStructInstance(errVal)
 		}
@@ -178,6 +185,26 @@ func errorValueToStructInstance(err runtime.ErrorValue) *runtime.StructInstanceV
 func (i *Interpreter) matchPattern(pattern ast.Pattern, value runtime.Value, base *runtime.Environment) (*runtime.Environment, bool) {
 	if pattern == nil {
 		return nil, false
+	}
+	if ident, ok := pattern.(*ast.Identifier); ok && ident != nil {
+		if existing, err := base.Get(ident.Name); err == nil {
+			switch defVal := existing.(type) {
+			case *runtime.StructDefinitionValue:
+				if isSingletonStructDef(defVal.Node) {
+					if valuesEqual(existing, value) {
+						return runtime.NewEnvironment(base), true
+					}
+					return nil, false
+				}
+			case runtime.StructDefinitionValue:
+				if isSingletonStructDef(defVal.Node) {
+					if valuesEqual(existing, value) {
+						return runtime.NewEnvironment(base), true
+					}
+					return nil, false
+				}
+			}
+		}
 	}
 	matchEnv := runtime.NewEnvironment(base)
 	if err := i.assignPattern(pattern, value, matchEnv, true, nil); err != nil {

@@ -185,6 +185,12 @@ func literalAssignableTo(from, to Type) bool {
 	if !ok || source.Literal == nil {
 		return false
 	}
+	if target, ok := to.(FloatType); ok {
+		if source.Explicit {
+			return false
+		}
+		return target.Suffix == "f32" || target.Suffix == "f64"
+	}
 	target, ok := to.(IntegerType)
 	if !ok {
 		return false
@@ -554,6 +560,8 @@ func convertSpecialAppliedType(name string, args []Type) (Type, bool) {
 	case "Range":
 		return RangeType{Element: argumentOrUnknown(args, 0)}, true
 	case "Map":
+		return MapType{Key: argumentOrUnknown(args, 0), Value: argumentOrUnknown(args, 1)}, true
+	case "HashMap":
 		return MapType{Key: argumentOrUnknown(args, 0), Value: argumentOrUnknown(args, 1)}, true
 	case "Proc":
 		return ProcType{Result: argumentOrUnknown(args, 0)}, true

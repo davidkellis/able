@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - functions & lambdas", () => {
   test("define and call function returning sum", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const int = AST.integerLiteral;
 
     const sumFn = AST.functionDefinition(
@@ -23,7 +23,7 @@ describe("v11 interpreter - functions & lambdas", () => {
   });
 
   test("lambda expression capturing outer variable (closure)", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     // x := 10
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("x"), AST.integerLiteral(10)));
     // lam = { |a| => a + x }
@@ -41,7 +41,7 @@ describe("v11 interpreter - functions & lambdas", () => {
   });
 
   test("typed parameters are checked at runtime (minimal)", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const fn = AST.functionDefinition(
       "add",
       [AST.functionParameter(AST.identifier("a"), AST.simpleTypeExpression("i32")), AST.functionParameter(AST.identifier("b"), AST.simpleTypeExpression("i32"))],

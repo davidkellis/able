@@ -1,0 +1,9 @@
+{
+  "description": "composition: imports + generics + inherent methods",
+  "expect": {
+    "stdout": [
+      "(right) id-7-alpha"
+    ],
+    "exit": 0
+  }
+}

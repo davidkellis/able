@@ -1,25 +1,25 @@
-import type { V10Value } from "./values";
+import type { RuntimeValue } from "./values";
 
 export class ReturnSignal extends Error {
-  constructor(public value: V10Value) {
+  constructor(public value: RuntimeValue) {
     super("ReturnSignal");
   }
 }
 
 export class RaiseSignal extends Error {
-  constructor(public value: V10Value) {
+  constructor(public value: RuntimeValue) {
     super("RaiseSignal");
   }
 }
 
 export class BreakSignal extends Error {
-  constructor(public label: string | null, public value: V10Value) {
+  constructor(public label: string | null, public value: RuntimeValue) {
     super("BreakSignal");
   }
 }
 
 export class BreakLabelSignal extends Error {
-  constructor(public label: string, public value: V10Value) {
+  constructor(public label: string, public value: RuntimeValue) {
     super("BreakLabelSignal");
   }
 }

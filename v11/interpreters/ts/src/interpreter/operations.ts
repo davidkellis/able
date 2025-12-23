@@ -1,7 +1,7 @@
 import * as AST from "../ast";
 import type { Environment } from "./environment";
-import type { InterpreterV10 } from "./index";
-import type { V10Value } from "./values";
+import type { Interpreter } from "./index";
+import type { RuntimeValue } from "./values";
 import { collectTypeDispatches } from "./type-dispatch";
 import { callCallableValue } from "./functions";
 import {
@@ -10,6 +10,7 @@ import {
   applyBitwiseNot,
   applyComparisonBinary,
   applyNumericUnaryMinus,
+  isIntegerValue,
   isNumericValue,
   numericToNumber,
   makeIntegerValue,
@@ -18,11 +19,11 @@ import { makeIntegerFromNumber } from "./numeric";
 import { valuesEqual } from "./value_equals";
 
 export function resolveIndexFunction(
-  ctx: InterpreterV10,
-  receiver: V10Value,
+  ctx: Interpreter,
+  receiver: RuntimeValue,
   methodName: string,
   interfaceName: string,
-): Extract<V10Value, { kind: "function" | "function_overload" }> | null {
+): Extract<RuntimeValue, { kind: "function" | "function_overload" }> | null {
   const dispatches = collectTypeDispatches(ctx, receiver);
   for (const dispatch of dispatches) {
     const method = ctx.findMethod(dispatch.typeName, methodName, {
@@ -34,9 +35,38 @@ export function resolveIndexFunction(
   return null;
 }
 
+type OperatorDispatch = { interfaceName: string; methodName: string };
+
+const OPERATOR_INTERFACES: Record<string, OperatorDispatch> = {
+  "+": { interfaceName: "Add", methodName: "add" },
+  "-": { interfaceName: "Sub", methodName: "sub" },
+  "*": { interfaceName: "Mul", methodName: "mul" },
+  "/": { interfaceName: "Div", methodName: "div" },
+  "%": { interfaceName: "Rem", methodName: "rem" },
+};
+
+function resolveOperatorFunction(
+  ctx: Interpreter,
+  receiver: RuntimeValue,
+  op: string,
+): Extract<RuntimeValue, { kind: "function" | "function_overload" }> | null {
+  const dispatch = OPERATOR_INTERFACES[op];
+  if (!dispatch) return null;
+  const dispatches = collectTypeDispatches(ctx, receiver);
+  for (const entry of dispatches) {
+    const method = ctx.findMethod(entry.typeName, dispatch.methodName, {
+      typeArgs: entry.typeArgs,
+      interfaceName: dispatch.interfaceName,
+      includeInherent: false,
+    });
+    if (method) return method;
+  }
+  return null;
+}
+
 declare module "./index" {
-  interface InterpreterV10 {
-    computeBinaryForCompound(op: string, left: V10Value, right: V10Value): V10Value;
+  interface Interpreter {
+    computeBinaryForCompound(op: string, left: RuntimeValue, right: RuntimeValue): RuntimeValue;
     ensureDivModStruct(): AST.StructDefinition;
     ensureRatioStruct(): AST.StructDefinition;
     divModStruct?: AST.StructDefinition;
@@ -44,14 +74,13 @@ declare module "./index" {
   }
 }
 
-export function evaluateUnaryExpression(ctx: InterpreterV10, node: AST.UnaryExpression, env: Environment): V10Value {
+export function evaluateUnaryExpression(ctx: Interpreter, node: AST.UnaryExpression, env: Environment): RuntimeValue {
   const v = ctx.evaluate(node.operand, env);
   if (node.operator === "-") {
     return applyNumericUnaryMinus(v);
   }
   if (node.operator === "!") {
-    if (v.kind === "bool") return { kind: "bool", value: !v.value };
-    throw new Error("Unary '!' requires boolean operand");
+    return { kind: "bool", value: !ctx.isTruthy(v) };
   }
   if (node.operator === ".~") {
     return applyBitwiseNot(v);
@@ -59,21 +88,18 @@ export function evaluateUnaryExpression(ctx: InterpreterV10, node: AST.UnaryExpr
   throw new Error(`Unknown unary operator ${node.operator}`);
 }
 
-export function evaluateBinaryExpression(ctx: InterpreterV10, node: AST.BinaryExpression, env: Environment): V10Value {
+export function evaluateBinaryExpression(ctx: Interpreter, node: AST.BinaryExpression, env: Environment): RuntimeValue {
   const b = node;
   if (b.operator === "&&" || b.operator === "||") {
     const lv = ctx.evaluate(b.left, env);
-    if (lv.kind !== "bool") throw new Error("Logical operands must be bool");
     if (b.operator === "&&") {
-      if (!lv.value) return { kind: "bool", value: false };
+      if (!ctx.isTruthy(lv)) return lv;
       const rv = ctx.evaluate(b.right, env);
-      if (rv.kind !== "bool") throw new Error("Logical operands must be bool");
-      return { kind: "bool", value: lv.value && rv.value };
+      return rv;
     }
-    if (lv.value) return { kind: "bool", value: true };
+    if (ctx.isTruthy(lv)) return lv;
     const rv = ctx.evaluate(b.right, env);
-    if (rv.kind !== "bool") throw new Error("Logical operands must be bool");
-    return { kind: "bool", value: lv.value || rv.value };
+    return rv;
   }
 
   if (b.operator === "|>" || b.operator === "|>>") {
@@ -124,6 +150,40 @@ export function evaluateBinaryExpression(ctx: InterpreterV10, node: AST.BinaryEx
   }
 
   if (["+","-","*","/","//","%","/%","^"].includes(b.operator)) {
+    if (isNumericValue(left) && isNumericValue(right)) {
+      return applyArithmeticBinary(b.operator, left, right, {
+        makeDivMod: (kind, parts) => {
+          const structDef = ctx.ensureDivModStruct();
+          const typeArg = AST.simpleTypeExpression(kind);
+          const typeArgMap = ctx.mapTypeArguments(structDef.genericParams ?? [], [typeArg], "DivMod");
+          return {
+            kind: "struct_instance",
+            def: structDef,
+            values: new Map([
+              ["quotient", parts.quotient],
+              ["remainder", parts.remainder],
+            ]),
+            typeArguments: [typeArg],
+            typeArgMap,
+          };
+        },
+        makeRatio: (parts) => {
+          const structDef = ctx.ensureRatioStruct();
+          return {
+            kind: "struct_instance",
+            def: structDef,
+            values: new Map([
+              ["num", makeIntegerValue("i64", parts.num)],
+              ["den", makeIntegerValue("i64", parts.den)],
+            ]),
+          };
+        },
+      });
+    }
+    const method = resolveOperatorFunction(ctx, left, b.operator);
+    if (method) {
+      return callCallableValue(ctx, method, [left, right], env);
+    }
     return applyArithmeticBinary(b.operator, left, right, {
       makeDivMod: (kind, parts) => {
         const structDef = ctx.ensureDivModStruct();
@@ -180,12 +240,15 @@ export function evaluateBinaryExpression(ctx: InterpreterV10, node: AST.BinaryEx
   throw new Error(`Unknown binary operator ${b.operator}`);
 }
 
-export function evaluateRangeExpression(ctx: InterpreterV10, node: AST.RangeExpression, env: Environment): V10Value {
+export function evaluateRangeExpression(ctx: Interpreter, node: AST.RangeExpression, env: Environment): RuntimeValue {
   const start = ctx.evaluate(node.start, env);
   const end = ctx.evaluate(node.end, env);
   const viaInterface = ctx.tryInvokeRangeImplementation(start, end, node.inclusive, env);
   if (viaInterface) {
     return viaInterface;
+  }
+  if (!isIntegerValue(start) || !isIntegerValue(end)) {
+    throw new Error("Range boundaries must be numeric");
   }
   let startNum: number;
   let endNum: number;
@@ -205,7 +268,7 @@ export function evaluateRangeExpression(ctx: InterpreterV10, node: AST.RangeExpr
   const startInt = Math.trunc(startNum);
   const endInt = Math.trunc(endNum);
   const step = startInt <= endInt ? 1 : -1;
-  const elements: V10Value[] = [];
+  const elements: RuntimeValue[] = [];
   for (let current = startInt; ; current += step) {
     if (step > 0) {
       if (node.inclusive) {
@@ -223,7 +286,7 @@ export function evaluateRangeExpression(ctx: InterpreterV10, node: AST.RangeExpr
   return ctx.makeArrayValue(elements);
 }
 
-export function evaluateIndexExpression(ctx: InterpreterV10, node: AST.IndexExpression, env: Environment): V10Value {
+export function evaluateIndexExpression(ctx: Interpreter, node: AST.IndexExpression, env: Environment): RuntimeValue {
   const obj = ctx.evaluate(node.object, env);
   const idxVal = ctx.evaluate(node.index, env);
   const viaInterface = resolveIndexFunction(ctx, obj, "get", "Index");
@@ -239,8 +302,8 @@ export function evaluateIndexExpression(ctx: InterpreterV10, node: AST.IndexExpr
   return el;
 }
 
-export function applyOperationsAugmentations(cls: typeof InterpreterV10): void {
-  cls.prototype.ensureDivModStruct = function ensureDivModStruct(this: InterpreterV10): AST.StructDefinition {
+export function applyOperationsAugmentations(cls: typeof Interpreter): void {
+  cls.prototype.ensureDivModStruct = function ensureDivModStruct(this: Interpreter): AST.StructDefinition {
     if (this.divModStruct) return this.divModStruct;
     const divModDef = AST.structDefinition(
       "DivMod",
@@ -261,7 +324,7 @@ export function applyOperationsAugmentations(cls: typeof InterpreterV10): void {
     return this.divModStruct;
   };
 
-  cls.prototype.ensureRatioStruct = function ensureRatioStruct(this: InterpreterV10): AST.StructDefinition {
+  cls.prototype.ensureRatioStruct = function ensureRatioStruct(this: Interpreter): AST.StructDefinition {
     if (this.ratioStruct) return this.ratioStruct;
     try {
       const existing = this.globals.get("Ratio");
@@ -288,7 +351,7 @@ export function applyOperationsAugmentations(cls: typeof InterpreterV10): void {
     return this.ratioStruct;
   };
 
-  cls.prototype.computeBinaryForCompound = function computeBinaryForCompound(this: InterpreterV10, op: string, left: V10Value, right: V10Value): V10Value {
+  cls.prototype.computeBinaryForCompound = function computeBinaryForCompound(this: Interpreter, op: string, left: RuntimeValue, right: RuntimeValue): RuntimeValue {
     if (["+","-","*","/","%"].includes(op)) {
       return applyArithmeticBinary(op, left, right, {
         makeRatio: (parts) => {

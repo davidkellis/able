@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"able/interpreter10-go/pkg/ast"
+	"able/interpreter-go/pkg/ast"
 )
 
 func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diagnostic, Type) {
@@ -78,6 +78,12 @@ func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diag
 		var diags []Diagnostic
 		var keyType Type = UnknownType{}
 		var valueType Type = UnknownType{}
+		extractHashMapArgs := func(t Type) (Type, Type, bool) {
+			if name, ok := structName(t); ok && name == "HashMap" {
+				return typeArgumentOrUnknown(t, 0), typeArgumentOrUnknown(t, 1), true
+			}
+			return nil, nil, false
+		}
 		for _, element := range e.Elements {
 			switch entry := element.(type) {
 			case *ast.MapLiteralEntry:
@@ -99,9 +105,15 @@ func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diag
 					diags = append(diags, mergeDiags...)
 					valueType, mergeDiags = mergeMapComponentType(valueType, mapType.Value, "map value", entry.Expression)
 					diags = append(diags, mergeDiags...)
+				} else if keyArg, valArg, ok := extractHashMapArgs(spreadType); ok {
+					var mergeDiags []Diagnostic
+					keyType, mergeDiags = mergeMapComponentType(keyType, keyArg, "map key", entry.Expression)
+					diags = append(diags, mergeDiags...)
+					valueType, mergeDiags = mergeMapComponentType(valueType, valArg, "map value", entry.Expression)
+					diags = append(diags, mergeDiags...)
 				} else if !isUnknownType(spreadType) {
 					diags = append(diags, Diagnostic{
-						Message: fmt.Sprintf("typechecker: map spread expects Map, got %s", spreadType.Name()),
+						Message: fmt.Sprintf("typechecker: map spread expects Map/HashMap, got %s", spreadType.Name()),
 						Node:    entry.Expression,
 					})
 				}
@@ -112,7 +124,10 @@ func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diag
 				})
 			}
 		}
-		resultType := MapType{Key: keyType, Value: valueType}
+		resultType := StructInstanceType{
+			StructName: "HashMap",
+			TypeArgs:   []Type{keyType, valueType},
+		}
 		c.infer.set(e, resultType)
 		return diags, resultType
 	case *ast.BlockExpression:
@@ -145,14 +160,8 @@ func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diag
 		return diags, resultType
 	case *ast.IfExpression:
 		var diags []Diagnostic
-		condDiags, condType := c.checkExpression(env, e.IfCondition)
+		condDiags, _ := c.checkExpression(env, e.IfCondition)
 		diags = append(diags, condDiags...)
-		if !typeAssignable(condType, PrimitiveType{Kind: PrimitiveBool}) {
-			diags = append(diags, Diagnostic{
-				Message: "typechecker: if condition must be bool",
-				Node:    e.IfCondition,
-			})
-		}
 
 		branchTypes := make([]Type, 0, 1+len(e.ElseIfClauses))
 		if e.IfBody != nil {
@@ -167,14 +176,8 @@ func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diag
 			if clause == nil {
 				continue
 			}
-			orCondDiags, orCondType := c.checkExpression(env, clause.Condition)
+			orCondDiags, _ := c.checkExpression(env, clause.Condition)
 			diags = append(diags, orCondDiags...)
-			if !typeAssignable(orCondType, PrimitiveType{Kind: PrimitiveBool}) {
-				diags = append(diags, Diagnostic{
-					Message: "typechecker: elsif condition must be bool",
-					Node:    clause.Condition,
-				})
-			}
 			if clause.Body != nil {
 				bodyDiags, bodyType := c.checkExpression(env, clause.Body)
 				diags = append(diags, bodyDiags...)
@@ -195,6 +198,8 @@ func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diag
 		return diags, resultType
 	case *ast.UnaryExpression:
 		return c.checkUnaryExpression(env, e)
+	case *ast.TypeCastExpression:
+		return c.checkTypeCastExpression(env, e)
 	case *ast.BinaryExpression:
 		return c.checkBinaryExpression(env, e)
 	case *ast.LambdaExpression:
@@ -294,7 +299,39 @@ func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diag
 	}
 }
 
-func (c *Checker) checkFunctionCallExpression(env *Environment, e *ast.FunctionCall) ([]Diagnostic, Type) {
+func (c *Checker) checkTypeCastExpression(env *Environment, expr *ast.TypeCastExpression) ([]Diagnostic, Type) {
+	var diags []Diagnostic
+	valueDiags, valueType := c.checkExpression(env, expr.Expression)
+	diags = append(diags, valueDiags...)
+	targetType := c.resolveTypeReference(expr.TargetType)
+	c.infer.set(expr, targetType)
+	if isUnknownType(valueType) || isUnknownType(targetType) {
+		return diags, targetType
+	}
+	if typeAssignable(valueType, targetType) {
+		return diags, targetType
+	}
+	if isNumericType(valueType) && isNumericType(targetType) {
+		return diags, targetType
+	}
+	diags = append(diags, Diagnostic{
+		Message: fmt.Sprintf("typechecker: cannot cast %s to %s", typeName(valueType), typeName(targetType)),
+		Node:    expr,
+	})
+	return diags, targetType
+}
+
+func (c *Checker) checkExpressionWithExpectedType(env *Environment, expr ast.Expression, expected Type) ([]Diagnostic, Type) {
+	if expr == nil || expected == nil || isUnknownType(expected) {
+		return c.checkExpression(env, expr)
+	}
+	if call, ok := expr.(*ast.FunctionCall); ok && call != nil {
+		return c.checkFunctionCallExpressionWithExpectedReturn(env, call, expected)
+	}
+	return c.checkExpression(env, expr)
+}
+
+func (c *Checker) checkFunctionCallExpressionWithExpectedReturn(env *Environment, e *ast.FunctionCall, expectedReturn Type) ([]Diagnostic, Type) {
 	var diags []Diagnostic
 	var builtinName string
 	if ident, ok := e.Callee.(*ast.Identifier); ok && ident != nil {
@@ -342,7 +379,7 @@ func (c *Checker) checkFunctionCallExpression(env *Environment, e *ast.FunctionC
 				Node:    e,
 			})
 		}
-		instantiated, instDiags := c.instantiateFunctionCall(fnType, e, argTypesForCheck)
+		instantiated, instDiags := c.instantiateFunctionCall(fnType, e, argTypesForCheck, expectedReturn)
 		diags = append(diags, instDiags...)
 		if len(instantiated.Obligations) > 0 {
 			c.obligations = append(c.obligations, instantiated.Obligations...)
@@ -432,6 +469,10 @@ func (c *Checker) checkFunctionCallExpression(env *Environment, e *ast.FunctionC
 	return diags, resultType
 }
 
+func (c *Checker) checkFunctionCallExpression(env *Environment, e *ast.FunctionCall) ([]Diagnostic, Type) {
+	return c.checkFunctionCallExpressionWithExpectedReturn(env, e, UnknownType{})
+}
+
 func (c *Checker) checkStatement(env *Environment, stmt ast.Statement) []Diagnostic {
 	switch s := stmt.(type) {
 	case *ast.AssignmentExpression:
@@ -493,7 +534,17 @@ func (c *Checker) checkStatement(env *Environment, stmt ast.Statement) []Diagnos
 			intent = &patternIntent{declarationNames: newNames}
 			diags = append(diags, c.bindPattern(env, s.Left, UnknownType{}, true, intent)...)
 		}
-		rhsDiags, typ := c.checkExpression(env, s.Right)
+		expectedType := Type(UnknownType{})
+		if typed, ok := s.Left.(*ast.TypedPattern); ok && typed.TypeAnnotation != nil {
+			expectedType = c.resolveTypeReference(typed.TypeAnnotation)
+		} else if s.Operator == ast.AssignmentAssign {
+			if ident, ok := s.Left.(*ast.Identifier); ok && ident.Name != "" {
+				if existing, ok := env.Lookup(ident.Name); ok {
+					expectedType = existing
+				}
+			}
+		}
+		rhsDiags, typ := c.checkExpressionWithExpectedType(env, s.Right, expectedType)
 		diags = append(diags, rhsDiags...)
 		if typ == nil {
 			typ = UnknownType{}

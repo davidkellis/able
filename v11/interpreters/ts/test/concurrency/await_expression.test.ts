@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 import { flushScheduler } from "./proc_spawn.helpers";
 
 describe("v11 interpreter - await expression", () => {
   test("await resolves manual awaitable once waker fires", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("last_waker"), AST.nilLiteral()));
 
@@ -163,7 +163,7 @@ describe("v11 interpreter - await expression", () => {
   });
 
   test("await consumes iterable arms (iterator literal)", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     const readyAwaitableStruct = AST.structDefinition(
       "ReadyAwaitable",
@@ -269,7 +269,7 @@ describe("v11 interpreter - await expression", () => {
   });
 
   test("await resolves Future handles", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("result"), AST.integerLiteral(0)));
 
     I.evaluate(
@@ -306,7 +306,7 @@ describe("v11 interpreter - await expression", () => {
   });
 
   test("await resolves Proc handles", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("result"), AST.integerLiteral(0)));
 
     I.evaluate(
@@ -343,7 +343,7 @@ describe("v11 interpreter - await expression", () => {
   });
 
   test("await rotates ready arms fairly", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     const registrationDef = AST.structDefinition("ManualRegistration", [], "named");
     I.evaluate(registrationDef);
@@ -473,7 +473,7 @@ describe("v11 interpreter - await expression", () => {
   });
 
   test("Await.default helper produces a default arm", async () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("result"), AST.stringLiteral("pending")));
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("timer_hits"), AST.integerLiteral(0)));
 
@@ -517,7 +517,7 @@ describe("v11 interpreter - await expression", () => {
   });
 
   test("Await.sleep_ms awaitable wakes after the deadline", async () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("result"), AST.stringLiteral("pending")));
 
     const timerArm = AST.functionCall(AST.identifier("__able_await_sleep_ms"), [
@@ -548,7 +548,7 @@ describe("v11 interpreter - await expression", () => {
   });
 
   test("await cancellation cancels registrations and suppresses callbacks", async () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("hits"), AST.integerLiteral(0)));
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("result"), AST.stringLiteral("pending")));
 
@@ -606,7 +606,7 @@ describe("v11 interpreter - await expression", () => {
   });
 
   test("await channel awaitable registers + cancels on proc cancellation", async () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("ch"), AST.functionCall(AST.identifier("__able_channel_new"), [AST.integerLiteral(1)])));
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("hits"), AST.integerLiteral(0)));
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("result"), AST.stringLiteral("pending")));
@@ -664,7 +664,7 @@ describe("v11 interpreter - await expression", () => {
   });
 
   test("await channel send awaitable cancels pending send on cancellation", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("ch"), AST.functionCall(AST.identifier("__able_channel_new"), [AST.integerLiteral(0)])));
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("hits"), AST.integerLiteral(0)));
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("result"), AST.stringLiteral("pending")));

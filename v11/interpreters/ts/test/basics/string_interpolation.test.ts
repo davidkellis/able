@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - String interpolation", () => {
   test("interpolates literals and expressions", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("x"), AST.integerLiteral(2)));
     const str = AST.stringInterpolation([
       AST.stringLiteral("x = "),
@@ -16,7 +16,7 @@ describe("v11 interpreter - String interpolation", () => {
   });
 
   test("uses to_String method on struct instances when available", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const Def = AST.structDefinition("Point", [
       AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "x"),
       AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "y"),

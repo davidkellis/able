@@ -1,11 +1,11 @@
 package typechecker
 
 import (
-	"able/interpreter10-go/pkg/ast"
+	"able/interpreter-go/pkg/ast"
 	"math/big"
 )
 
-// Type represents an Able v10 type understood by the checker.
+// Type represents an Able v11 type understood by the checker.
 type Type interface {
 	Name() string
 }

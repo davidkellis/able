@@ -72,7 +72,7 @@ Unified harness (runs TS + Go suites and fixtures):
 
 - `v11/`: active workspace (interpreters, parser, stdlib, fixtures)
 - `spec/`: language specs (v1–v11). Use only v11 for behaviour.
-- `v10/`: frozen—do not edit unless explicitly requested.
+- Archived workspace at the repo root: frozen—do not edit unless explicitly requested.
 - Standard library ships as `able.*` packages; the namespace is reserved.
 - Kernel builtins are minimal: host-provided globals (print, scheduler, channels/mutexes/hashers), array helpers, and String byte view only (`len_bytes`, `bytes`). Higher-level string/regex/collection helpers live in the Able stdlib layered on top.
 

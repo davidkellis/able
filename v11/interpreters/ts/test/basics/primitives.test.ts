@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - primitives", () => {
-  const I = new InterpreterV10();
+  const I = new Interpreter();
 
   test("String, bool, char, nil", () => {
     expect(I.evaluate(AST.stringLiteral("hi")).kind).toBe("String");

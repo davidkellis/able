@@ -1,6 +1,6 @@
 # Shared AST Fixture Plan
 
-Goal: validate that the Go and TypeScript interpreters consume identical Able v10 AST structures and produce the same observable behaviour.
+Goal: validate that the Go and TypeScript interpreters consume identical Able v11 AST structures and produce the same observable behaviour.
 
 ## 1. Fixture Format
 
@@ -10,8 +10,8 @@ Goal: validate that the Go and TypeScript interpreters consume identical Able v1
 
 ## 2. Generation
 
-1. Author fixtures using the TypeScript AST DSL (`interpreter10/src/ast.ts` helpers) to maintain a single source of truth.
-2. Add a Bun script (`interpreter10/scripts/export-fixtures.ts`) that constructs ASTs with the DSL and writes JSON into `fixtures/ast/` using a stable serialization order (sorted object keys, arrays preserved).
+1. Author fixtures using the TypeScript AST DSL (`v11/interpreters/ts/src/ast.ts` helpers) to maintain a single source of truth.
+2. Add a Bun script (`v11/interpreters/ts/scripts/export-fixtures.ts`) that constructs ASTs with the DSL and writes JSON into `fixtures/ast/` using a stable serialization order (sorted object keys, arrays preserved).
 3. Commit the generated JSON alongside a manifest describing expected outcomes (see below).
 
 ## 3. Manifest Structure

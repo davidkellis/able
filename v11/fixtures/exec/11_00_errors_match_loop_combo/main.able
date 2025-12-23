@@ -1,0 +1,40 @@
+package exec_11_00_errors_match_loop_combo
+
+## Semantics: match-driven control flow combines with raise/rescue inside a loop.
+
+struct Ok { value: i32 }
+struct Err { message: String }
+
+type DivResult = Ok | Err
+
+fn divide(numer: i32, denom: i32) -> DivResult {
+  if denom == 0 { Err { message: "zero" } } else { Ok { value: numer / denom } }
+}
+
+fn unwrap_or_raise(result: DivResult) -> i32 {
+  result match {
+    case Ok { value } => value,
+    case Err { message } => { raise(message) }
+  }
+}
+
+fn main() -> void {
+  total := 0
+
+  do {
+    for step in 1..3 {
+      denom := step match {
+        case 1 => 2,
+        case 2 => 1,
+        case _ => 0
+      }
+      total = total + unwrap_or_raise(divide(6, denom))
+    }
+    print(`total ${total}`)
+  } rescue {
+    case err => {
+      print(`rescued ${err.message()}`)
+      print(`partial ${total}`)
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "description": "string interpolation, escapes, and multiline literals",
+  "expect": {
+    "stdout": [
+      "cost $3",
+      "back ` tick",
+      "raw ${price}",
+      "point P(1,2)",
+      "lens 11 9"
+    ],
+    "exit": 0
+  }
+}

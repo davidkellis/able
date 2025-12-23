@@ -3,7 +3,7 @@ import * as AST from "../../src/ast";
 import { TypeChecker } from "../../src/typechecker";
 
 describe("typechecker match/rescue", () => {
-  test("reports diagnostic when match guard is not bool", () => {
+  test("accepts truthy match guards", () => {
     const checker = new TypeChecker();
     const matchExpr = AST.matchExpression(AST.integerLiteral(1), [
       AST.matchClause(
@@ -15,11 +15,10 @@ describe("typechecker match/rescue", () => {
     const module = AST.module([matchExpr as unknown as AST.Statement]);
 
     const result = checker.checkModule(module);
-    expect(result.diagnostics).toHaveLength(1);
-    expect(result.diagnostics[0]?.message).toContain("match guard must be bool");
+    expect(result.diagnostics).toHaveLength(0);
   });
 
-  test("reports diagnostic when rescue guard is not bool", () => {
+  test("accepts truthy rescue guards", () => {
     const checker = new TypeChecker();
     const rescueExpr = AST.rescueExpression(AST.stringLiteral("ok"), [
       AST.matchClause(
@@ -31,7 +30,6 @@ describe("typechecker match/rescue", () => {
     const module = AST.module([rescueExpr as unknown as AST.Statement]);
 
     const result = checker.checkModule(module);
-    expect(result.diagnostics).toHaveLength(1);
-    expect(result.diagnostics[0]?.message).toContain("rescue guard must be bool");
+    expect(result.diagnostics).toHaveLength(0);
   });
 });

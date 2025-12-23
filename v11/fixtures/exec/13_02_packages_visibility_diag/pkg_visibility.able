@@ -1,5 +1,7 @@
 package pkg_visibility
 
+## Semantics: private declarations stay scoped to the package; exported structs and helpers form the public surface.
+
 private struct Hidden { value: String }
 struct Visible { value: String }
 

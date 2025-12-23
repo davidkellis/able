@@ -20,10 +20,10 @@ impl Index i32 i32 for ReadOnlyPair
   }
 }
 fn call_missing_apply(pair: ReadOnlyPair) -> void {
-  pair()
+  pair();
 }
 fn assign_missing_index_mut(pair: ReadOnlyPair) -> i32 {
-  indexed: Index i32 i32 := pair
-  indexed[0] = 7
+  indexed: Index i32 i32 := pair;
+  indexed[0] = 7;
 }
-"done"
+"done";

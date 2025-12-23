@@ -237,7 +237,9 @@ func implementsIntrinsicInterface(subject Type, interfaceName string) bool {
 		case PrimitiveType:
 			return val.Kind == PrimitiveString || val.Kind == PrimitiveBool || val.Kind == PrimitiveChar
 		case IntegerType:
-			return val.Suffix == "i32"
+			return val.Suffix != ""
+		case FloatType:
+			return val.Suffix != ""
 		}
 	}
 	return false

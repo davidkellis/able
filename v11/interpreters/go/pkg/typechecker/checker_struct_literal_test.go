@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"able/interpreter10-go/pkg/ast"
+	"able/interpreter-go/pkg/ast"
 )
 
 func TestStructLiteralReportsLiteralOverflow(t *testing.T) {

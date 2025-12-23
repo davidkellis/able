@@ -23,11 +23,69 @@ export async function parseModuleFromSource(sourcePath: string): Promise<AST.Mod
     if ((tree.rootNode as unknown as { hasError?: boolean }).hasError) {
       throw new Error("tree-sitter reported syntax errors");
     }
-    return mapSourceFile(tree.rootNode, source, sourcePath);
+    const moduleAst = mapSourceFile(tree.rootNode, source, sourcePath);
+    if (moduleAst) {
+      repairTypeAliasTargets(moduleAst, source);
+    }
+    return moduleAst;
   } catch (error) {
     console.error(`Failed to parse ${sourcePath}: ${extractErrorMessage(error)}`);
     return null;
   }
+}
+
+function repairTypeAliasTargets(moduleAst: AST.Module, source: string): void {
+  const body = moduleAst.body ?? [];
+  if (body.length === 0) return;
+  const lines = source.split(/\r?\n/);
+  const repaired: AST.Statement[] = [];
+  for (let i = 0; i < body.length; i += 1) {
+    const stmt = body[i];
+    if (!stmt || stmt.type !== "TypeAliasDefinition") {
+      repaired.push(stmt as AST.Statement);
+      continue;
+    }
+    if (!stmt.targetType || !stmt.genericParams || stmt.genericParams.length === 0) {
+      repaired.push(stmt);
+      continue;
+    }
+    const genericNames = new Set(
+      stmt.genericParams.map((param) => param?.name?.name).filter((name): name is string => !!name),
+    );
+    if (genericNames.size === 0 || !stmt.span?.end) {
+      repaired.push(stmt);
+      continue;
+    }
+    let targetType = stmt.targetType;
+    let end = stmt.span.end;
+    let consumed = 0;
+    for (let j = i + 1; j < body.length; j += 1) {
+      const next = body[j];
+      if (!next || next.type !== "Identifier" || !next.span) break;
+      if (next.span.start.line !== end.line) break;
+      const line = lines[end.line - 1] ?? "";
+      const startCol = Math.max(end.column - 1, 0);
+      const endCol = Math.max(next.span.start.column - 1, 0);
+      const between = line.slice(startCol, endCol);
+      if (between.trim() !== "") break;
+      if (!genericNames.has(next.name)) break;
+      const extraArg = AST.simpleTypeExpression(next);
+      if (targetType.type === "GenericTypeExpression") {
+        targetType = { ...targetType, arguments: [...targetType.arguments, extraArg] };
+      } else {
+        targetType = AST.genericTypeExpression(targetType, [extraArg]);
+      }
+      end = next.span.end;
+      consumed += 1;
+    }
+    if (consumed > 0) {
+      stmt.targetType = targetType;
+      stmt.span = stmt.span ? { ...stmt.span, end } : stmt.span;
+    }
+    repaired.push(stmt);
+    i += consumed;
+  }
+  moduleAst.body = repaired;
 }
 
 export async function readJsonModule(filePath: string): Promise<AST.Module> {

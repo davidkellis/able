@@ -1,0 +1,9 @@
+{
+  "description": "Type alias name '_' is reserved",
+  "expect": {
+    "errors": [
+      "type alias name '_' is reserved"
+    ]
+  },
+  "entry": "module.json"
+}

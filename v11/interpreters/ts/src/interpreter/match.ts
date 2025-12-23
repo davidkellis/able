@@ -1,7 +1,7 @@
 import * as AST from "../ast";
 import type { Environment } from "./environment";
-import type { InterpreterV10 } from "./index";
-import type { V10Value } from "./values";
+import type { Interpreter } from "./index";
+import type { RuntimeValue } from "./values";
 import { GeneratorYieldSignal, ProcYieldSignal } from "./signals";
 import type { ContinuationContext } from "./continuations";
 
@@ -12,7 +12,7 @@ function isContinuationYield(context: ContinuationContext, err: unknown): boolea
   return err instanceof ProcYieldSignal;
 }
 
-export function evaluateMatchExpression(ctx: InterpreterV10, node: AST.MatchExpression, env: Environment): V10Value {
+export function evaluateMatchExpression(ctx: Interpreter, node: AST.MatchExpression, env: Environment): RuntimeValue {
   const procContext = ctx.currentProcContext ? ctx.currentProcContext() : null;
   if (procContext) {
     return evaluateMatchExpressionWithContinuation(ctx, node, env, procContext);
@@ -37,11 +37,11 @@ export function evaluateMatchExpression(ctx: InterpreterV10, node: AST.MatchExpr
 }
 
 function evaluateMatchExpressionWithContinuation(
-  ctx: InterpreterV10,
+  ctx: Interpreter,
   node: AST.MatchExpression,
   env: Environment,
   continuation: ContinuationContext,
-): V10Value {
+): RuntimeValue {
   let state = continuation.getMatchState(node);
   if (!state) {
     state = {

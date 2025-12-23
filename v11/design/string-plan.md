@@ -1,4 +1,4 @@
-# Able v10 String & Text Plan
+# Able v11 String & Text Plan
 
 ## Goals
 - Treat `String` as the canonical, host-independent representation of textual data while preserving the existing `string` primitive for literals and interoperable APIs.

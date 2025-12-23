@@ -439,10 +439,7 @@ const assignMissingIndexMut = AST.fn(
     AST.assign(
       AST.typedP(
         AST.id("indexed"),
-        AST.gen(
-          AST.gen(AST.ty("Index"), [AST.ty("i32")]),
-          [AST.ty("i32")],
-        ),
+      AST.gen(AST.ty("Index"), [AST.ty("i32"), AST.ty("i32")]),
       ),
       AST.id("pair"),
     ),

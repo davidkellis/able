@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10, Environment } from "../../src/interpreter";
+import { Interpreter, Environment } from "../../src/interpreter";
 
 describe("v11 interpreter - assignments & blocks", () => {
   test(":= defines in current scope; = reassigns outer; redeclare errors", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const env = I.globals;
 
     // x := 1
@@ -20,7 +20,7 @@ describe("v11 interpreter - assignments & blocks", () => {
   });
 
   test("block creates a new scope; inner := shadows; outer unchanged", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const env = I.globals;
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("y"), AST.integerLiteral(10)), env);
 
@@ -34,7 +34,7 @@ describe("v11 interpreter - assignments & blocks", () => {
   });
 
   test("= creates a binding when none exists", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
     const env = I.globals;
     I.evaluate(AST.assignmentExpression("=", AST.identifier("fresh"), AST.integerLiteral(42)), env);
     expect(env.get("fresh")).toEqual({ kind: "i32", value: 42n });

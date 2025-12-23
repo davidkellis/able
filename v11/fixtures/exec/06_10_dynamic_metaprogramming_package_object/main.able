@@ -1,0 +1,19 @@
+package exec_06_10_dynamic_metaprogramming_package_object
+
+## Semantics: dyn.def_package/dyn.package create package objects, def defines dynamic code, and dynimport late-binds redefinitions.
+
+dynimport exec.dynamic.{answer}
+dynimport exec.dynamic.{extra}
+
+pkg := dyn.def_package("exec.dynamic")!
+pkg.def("fn answer() -> i32 { 40 + 2 }")!
+
+pkg2 := dyn.package("exec.dynamic")!
+pkg2.def("fn extra() -> i32 { 3 }")!
+
+fn main() -> void {
+  print(`first ${answer()}`)
+  pkg.def("fn answer() -> i32 { 7 }")!
+  print(`second ${answer()}`)
+  print(`extra ${extra()}`)
+}

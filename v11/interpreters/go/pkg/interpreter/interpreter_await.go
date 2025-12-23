@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"sync"
 
-	"able/interpreter10-go/pkg/ast"
-	"able/interpreter10-go/pkg/runtime"
+	"able/interpreter-go/pkg/ast"
+	"able/interpreter-go/pkg/runtime"
 )
 
 type awaitArmState struct {
@@ -249,7 +249,7 @@ func (i *Interpreter) awaitArmIsDefault(awaitable runtime.Value, env *runtime.En
 	if err != nil {
 		return false
 	}
-	return isTruthy(result)
+	return i.isTruthy(result)
 }
 
 func (i *Interpreter) selectReadyAwaitArm(state *awaitEvalState, env *runtime.Environment) (*awaitArmState, error) {
@@ -262,7 +262,7 @@ func (i *Interpreter) selectReadyAwaitArm(state *awaitEvalState, env *runtime.En
 		if err != nil {
 			return nil, err
 		}
-		if isTruthy(result) {
+		if i.isTruthy(result) {
 			ready = append(ready, arm)
 		}
 	}

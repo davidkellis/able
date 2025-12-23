@@ -3,10 +3,10 @@ package typechecker
 import (
 	"fmt"
 
-	"able/interpreter10-go/pkg/ast"
+	"able/interpreter-go/pkg/ast"
 )
 
-func (c *Checker) instantiateFunctionCall(fnType FunctionType, call *ast.FunctionCall, argTypes []Type) (FunctionType, []Diagnostic) {
+func (c *Checker) instantiateFunctionCall(fnType FunctionType, call *ast.FunctionCall, argTypes []Type, expectedReturn Type) (FunctionType, []Diagnostic) {
 	subst := make(map[string]Type)
 	var diags []Diagnostic
 
@@ -80,6 +80,22 @@ func (c *Checker) instantiateFunctionCall(fnType FunctionType, call *ast.Functio
 			}
 		}
 		diags = append(diags, c.inferTypeArguments(fnType.Params[i], argTypes[i], subst, argNode, i)...)
+	}
+
+	if expectedReturn != nil && !isUnknownType(expectedReturn) && len(fnType.TypeParams) > 0 {
+		needsInference := false
+		for _, param := range fnType.TypeParams {
+			if param.Name == "" {
+				continue
+			}
+			if _, ok := subst[param.Name]; !ok {
+				needsInference = true
+				break
+			}
+		}
+		if needsInference {
+			_ = c.inferTypeArguments(fnType.Return, expectedReturn, subst, call, -1)
+		}
 	}
 
 	inst := substituteFunctionType(fnType, subst)

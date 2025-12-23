@@ -1,0 +1,7 @@
+{
+  "description": "non-exhaustive match over union raises an error",
+  "expect": {
+    "stderr": ["Non-exhaustive match"],
+    "exit": 1
+  }
+}

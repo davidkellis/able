@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 
 describe("v11 interpreter - impl resolution semantics", () => {
   test("nested generic constraints pick most specific impl", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     const readable = AST.interfaceDefinition("Readable", [
       AST.functionSignature(
@@ -162,7 +162,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
   });
 
   test("incomparable impls trigger ambiguity error", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     const show = AST.interfaceDefinition("Show", [
       AST.functionSignature(
@@ -304,7 +304,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
   });
 
   test("impl with stricter constraints wins over looser one", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     const copyable = AST.interfaceDefinition("Copyable", [
       AST.functionSignature(
@@ -427,7 +427,7 @@ describe("v11 interpreter - impl resolution semantics", () => {
   });
 
   test("ambiguous methods can be disambiguated via named impls", () => {
-    const I = new InterpreterV10();
+    const I = new Interpreter();
 
     const service = AST.structDefinition(
       "Service",

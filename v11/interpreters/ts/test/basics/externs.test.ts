@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
-import { InterpreterV10 } from "../../src/interpreter";
+import { Interpreter } from "../../src/interpreter";
 import { RaiseSignal } from "../../src/interpreter/signals";
 
 const emptyBlock = AST.blockExpression([]);
 
 describe("v11 interpreter - extern handling", () => {
   test("registers handled externs in globals and package registry", () => {
-    const interpreter = new InterpreterV10();
+    const interpreter = new Interpreter();
     const signature = AST.functionDefinition("now_nanos", [], emptyBlock, AST.simpleTypeExpression("i64"));
     const mod = AST.module([AST.externFunctionBody("typescript", signature, "")], [], AST.packageStatement(["host"]));
 
@@ -20,7 +20,7 @@ describe("v11 interpreter - extern handling", () => {
   });
 
   test("preserves existing bindings when an extern is already provided", () => {
-    const interpreter = new InterpreterV10();
+    const interpreter = new Interpreter();
     const existing = interpreter.makeNativeFunction("now_nanos", 0, () => ({ kind: "i32", value: 1n }));
     interpreter.globals.define("now_nanos", existing);
 
@@ -31,7 +31,7 @@ describe("v11 interpreter - extern handling", () => {
   });
 
   test("installs a stub for unknown externs", () => {
-    const interpreter = new InterpreterV10();
+    const interpreter = new Interpreter();
     const signature = AST.functionDefinition("not_impl", [], emptyBlock, AST.simpleTypeExpression("i64"));
     interpreter.evaluate(AST.externFunctionBody("typescript", signature, ""));
     const call = AST.functionCall(AST.identifier("not_impl"), []);

@@ -6,7 +6,7 @@ import (
 
 	sitter "github.com/tree-sitter/go-tree-sitter"
 
-	"able/interpreter10-go/pkg/ast"
+	"able/interpreter-go/pkg/ast"
 )
 
 // parseContext mirrors the TypeScript ParseContext glue: it carries immutable
@@ -26,7 +26,7 @@ func (ctx *parseContext) parseQualifiedIdentifier(node *sitter.Node) ([]*ast.Ide
 }
 
 func parseIdentifier(node *sitter.Node, source []byte) (*ast.Identifier, error) {
-	if node == nil || node.Kind() != "identifier" {
+	if node == nil || (node.Kind() != "identifier" && node.Kind() != "keyword_identifier") {
 		return nil, fmt.Errorf("parser: expected identifier")
 	}
 	content := sliceContent(node, source)

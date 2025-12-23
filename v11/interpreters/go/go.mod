@@ -1,4 +1,4 @@
-module able/interpreter10-go
+module able/interpreter-go
 
 go 1.25
 

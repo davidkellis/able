@@ -1,0 +1,24 @@
+package exec_07_04_trailing_lambda_method_syntax
+
+## Semantics: method call syntax desugars to a receiver-first call, and trailing
+## lambdas behave the same as explicit lambda arguments for both UFCS and methods.
+
+struct Box { value: i32 }
+
+methods Box {
+  fn #map_value(f: (i32 -> i32)) -> i32 { f(#value) }
+  fn #combine(seed: i32, f: (i32, i32) -> i32) -> i32 { f(#value, seed) }
+}
+
+fn main() -> void {
+  box := Box { value: 5 }
+  map_a := box.map_value { x => x * 2 }
+  map_b := map_value(box) { x => x * 2 }
+  map_c := box.map_value({ x => x * 2 })
+  print(`map ${map_a} ${map_b} ${map_c}`)
+
+  comb_a := box.combine(7) { x, y => x + y }
+  comb_b := combine(box, 7) { x, y => x + y }
+  comb_c := box.combine(7, { x, y => x + y })
+  print(`combine ${comb_a} ${comb_b} ${comb_c}`)
+}

@@ -3,12 +3,12 @@ struct Counter {
 }
 methods Counter {
   fn next(self: Counter) -> i32 {
-    self.value + 1
+    self.value + 1;
   }
   fn build(start: i32) -> Counter {
-    Counter { value: start }
+    Counter { value: start };
   }
 }
-c := Counter { value: 1 }
-bad := Counter.build(c)
-bad
+c := Counter { value: 1 };
+bad := Counter.build(c);
+bad;

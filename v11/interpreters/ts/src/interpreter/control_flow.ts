@@ -1,11 +1,13 @@
 import { Environment } from "./environment";
-import type { InterpreterV10 } from "./index";
+import type { Interpreter } from "./index";
 import { BreakLabelSignal, BreakSignal, ContinueSignal, GeneratorYieldSignal, ProcYieldSignal, ReturnSignal } from "./signals";
-import type { IteratorValue, V10Value } from "./values";
+import type { IteratorValue, RuntimeValue } from "./values";
 import * as AST from "../ast";
 import type { ContinuationContext } from "./continuations";
 import { memberAccessOnValue } from "./structs";
 import { callCallableValue } from "./functions";
+
+const VOID_VALUE: RuntimeValue = { kind: "void" };
 
 function isContinuationYield(context: ContinuationContext, err: unknown): boolean {
   if (context.kind === "generator") {
@@ -14,7 +16,7 @@ function isContinuationYield(context: ContinuationContext, err: unknown): boolea
   return err instanceof ProcYieldSignal;
 }
 
-export function evaluateBlockExpression(ctx: InterpreterV10, node: AST.BlockExpression, env: Environment): V10Value {
+export function evaluateBlockExpression(ctx: Interpreter, node: AST.BlockExpression, env: Environment): RuntimeValue {
   const procContext = ctx.currentProcContext ? ctx.currentProcContext() : null;
   if (procContext) {
     return evaluateBlockExpressionWithContinuation(ctx, node, env, procContext);
@@ -24,7 +26,7 @@ export function evaluateBlockExpression(ctx: InterpreterV10, node: AST.BlockExpr
     return evaluateBlockExpressionWithContinuation(ctx, node, env, generator);
   }
   const blockEnv = new Environment(env);
-  let result: V10Value = { kind: "nil", value: null };
+  let result: RuntimeValue = VOID_VALUE;
   for (const statement of node.body) {
     ctx.checkTimeSlice();
     result = ctx.evaluate(statement, blockEnv);
@@ -33,23 +35,23 @@ export function evaluateBlockExpression(ctx: InterpreterV10, node: AST.BlockExpr
 }
 
 function evaluateBlockExpressionWithContinuation(
-  ctx: InterpreterV10,
+  ctx: Interpreter,
   node: AST.BlockExpression,
   env: Environment,
   continuation: ContinuationContext,
-): V10Value {
+): RuntimeValue {
   let state = continuation.getBlockState(node);
   if (!state) {
     state = {
       env: new Environment(env),
       index: 0,
-      result: { kind: "nil", value: null },
+      result: VOID_VALUE,
     };
     continuation.setBlockState(node, state);
   }
 
   const blockEnv = state.env;
-  let result = state.result ?? { kind: "nil", value: null };
+  let result = state.result ?? VOID_VALUE;
   let index = state.index;
 
   while (index < node.body.length) {
@@ -106,7 +108,7 @@ function isGenYieldCall(statement: AST.Statement): boolean {
   return object.name === "gen" && member.name === "yield";
 }
 
-export function evaluateIfExpression(ctx: InterpreterV10, node: AST.IfExpression, env: Environment): V10Value {
+export function evaluateIfExpression(ctx: Interpreter, node: AST.IfExpression, env: Environment): RuntimeValue {
   const procContext = ctx.currentProcContext ? ctx.currentProcContext() : null;
   if (procContext) {
     return evaluateIfExpressionWithContinuation(ctx, node, env, procContext);
@@ -122,21 +124,21 @@ export function evaluateIfExpression(ctx: InterpreterV10, node: AST.IfExpression
     if (ctx.isTruthy(c)) return ctx.evaluate(clause.body, env);
   }
   if (node.elseBody) return ctx.evaluate(node.elseBody, env);
-  return { kind: "nil", value: null };
+  return VOID_VALUE;
 }
 
 function evaluateIfExpressionWithContinuation(
-  ctx: InterpreterV10,
+  ctx: Interpreter,
   node: AST.IfExpression,
   env: Environment,
   continuation: ContinuationContext,
-): V10Value {
+): RuntimeValue {
   let state = continuation.getIfState(node);
   if (!state) {
     state = {
       stage: "if_condition",
       elseIfIndex: 0,
-      result: { kind: "nil", value: null },
+      result: VOID_VALUE,
     };
     continuation.setIfState(node, state);
   }
@@ -228,7 +230,7 @@ function evaluateIfExpressionWithContinuation(
       }
       case "else_body": {
         try {
-          const result = node.elseBody ? ctx.evaluate(node.elseBody, env) : { kind: "nil", value: null };
+          const result = node.elseBody ? ctx.evaluate(node.elseBody, env) : VOID_VALUE;
           continuation.clearIfState(node);
           return result;
         } catch (err) {
@@ -245,13 +247,13 @@ function evaluateIfExpressionWithContinuation(
       }
       default: {
         continuation.clearIfState(node);
-        return { kind: "nil", value: null };
+        return VOID_VALUE;
       }
     }
   }
 }
 
-export function evaluateWhileLoop(ctx: InterpreterV10, node: AST.WhileLoop, env: Environment): V10Value {
+export function evaluateWhileLoop(ctx: Interpreter, node: AST.WhileLoop, env: Environment): RuntimeValue {
   const procContext = ctx.currentProcContext ? ctx.currentProcContext() : null;
   if (procContext) {
     return evaluateWhileLoopWithContinuation(ctx, node, env, procContext);
@@ -264,7 +266,7 @@ export function evaluateWhileLoop(ctx: InterpreterV10, node: AST.WhileLoop, env:
     ctx.checkTimeSlice();
     const condition = ctx.evaluate(node.condition, env);
     if (!ctx.isTruthy(condition)) {
-      return { kind: "nil", value: null };
+      return VOID_VALUE;
     }
     const bodyEnv = new Environment(env);
     try {
@@ -284,7 +286,7 @@ export function evaluateWhileLoop(ctx: InterpreterV10, node: AST.WhileLoop, env:
   }
 }
 
-export function evaluateLoopExpression(ctx: InterpreterV10, node: AST.LoopExpression, env: Environment): V10Value {
+export function evaluateLoopExpression(ctx: Interpreter, node: AST.LoopExpression, env: Environment): RuntimeValue {
   const procContext = ctx.currentProcContext ? ctx.currentProcContext() : null;
   if (procContext) {
     return evaluateLoopExpressionWithContinuation(ctx, node, env, procContext);
@@ -293,7 +295,7 @@ export function evaluateLoopExpression(ctx: InterpreterV10, node: AST.LoopExpres
   if (generator) {
     return evaluateLoopExpressionWithContinuation(ctx, node, env, generator);
   }
-  let result: V10Value = { kind: "nil", value: null };
+  let result: RuntimeValue = VOID_VALUE;
   while (true) {
     ctx.checkTimeSlice();
     const loopEnv = new Environment(env);
@@ -315,24 +317,24 @@ export function evaluateLoopExpression(ctx: InterpreterV10, node: AST.LoopExpres
 }
 
 function evaluateLoopExpressionWithContinuation(
-  ctx: InterpreterV10,
+  ctx: Interpreter,
   node: AST.LoopExpression,
   env: Environment,
   continuation: ContinuationContext,
-): V10Value {
+): RuntimeValue {
   if (!continuation) throw new Error("Continuation context missing");
   let state = continuation.getLoopExpressionState(node);
   if (!state) {
     state = {
       baseEnv: env,
-      result: { kind: "nil", value: null },
+      result: VOID_VALUE,
       inBody: false,
       loopEnv: undefined,
     };
     continuation.setLoopExpressionState(node, state);
   }
 
-  let result = state.result ?? { kind: "nil", value: null };
+  let result = state.result ?? VOID_VALUE;
 
   const resetBody = () => {
     state.inBody = false;
@@ -385,18 +387,18 @@ function evaluateLoopExpressionWithContinuation(
 }
 
 function evaluateWhileLoopWithContinuation(
-  ctx: InterpreterV10,
+  ctx: Interpreter,
   node: AST.WhileLoop,
   env: Environment,
   continuation: ContinuationContext,
-): V10Value {
+): RuntimeValue {
   if (!continuation) throw new Error("Continuation context missing");
 
   let state = continuation.getWhileLoopState(node);
   if (!state) {
     state = {
       baseEnv: env,
-      result: { kind: "nil", value: null },
+      result: VOID_VALUE,
       inBody: false,
       loopEnv: undefined,
       conditionInProgress: false,
@@ -404,7 +406,7 @@ function evaluateWhileLoopWithContinuation(
     continuation.setWhileLoopState(node, state);
   }
 
-  let result = state.result ?? { kind: "nil", value: null };
+  let result = state.result ?? VOID_VALUE;
 
   const resetBody = () => {
     state.inBody = false;
@@ -415,7 +417,7 @@ function evaluateWhileLoopWithContinuation(
     ctx.checkTimeSlice();
     if (!state.inBody) {
       state.conditionInProgress = true;
-      let condition: V10Value;
+      let condition: RuntimeValue;
       try {
         condition = ctx.evaluate(node.condition, env);
       } catch (err) {
@@ -431,7 +433,7 @@ function evaluateWhileLoopWithContinuation(
       }
       if (!ctx.isTruthy(condition)) {
         continuation.clearWhileLoopState(node);
-        return { kind: "nil", value: null };
+        return VOID_VALUE;
       }
       state.inBody = true;
       state.loopEnv = new Environment(state.baseEnv);
@@ -476,7 +478,7 @@ function evaluateWhileLoopWithContinuation(
   }
 }
 
-export function evaluateBreakStatement(ctx: InterpreterV10, node: AST.BreakStatement, env: Environment): never {
+export function evaluateBreakStatement(ctx: Interpreter, node: AST.BreakStatement, env: Environment): never {
   const labelName = node.label ? node.label.name : null;
   const value = node.value ? ctx.evaluate(node.value, env) : { kind: "nil", value: null };
   if (labelName && ctx.breakpointStack.includes(labelName)) {
@@ -485,13 +487,13 @@ export function evaluateBreakStatement(ctx: InterpreterV10, node: AST.BreakState
   throw new BreakSignal(labelName, value);
 }
 
-export function evaluateContinueStatement(ctx: InterpreterV10, node: AST.ContinueStatement): never {
+export function evaluateContinueStatement(ctx: Interpreter, node: AST.ContinueStatement): never {
   const labelName = node.label ? node.label.name : null;
   if (labelName) throw new Error("Labeled continue not supported");
   throw new ContinueSignal(null);
 }
 
-export function evaluateForLoop(ctx: InterpreterV10, node: AST.ForLoop, env: Environment): V10Value {
+export function evaluateForLoop(ctx: Interpreter, node: AST.ForLoop, env: Environment): RuntimeValue {
   const iterableValue = ctx.evaluate(node.iterable, env);
   const procContext = ctx.currentProcContext ? ctx.currentProcContext() : null;
   if (procContext) {
@@ -502,7 +504,7 @@ export function evaluateForLoop(ctx: InterpreterV10, node: AST.ForLoop, env: Env
     return evaluateForLoopWithContinuation(ctx, node, env, generator, iterableValue);
   }
   const baseEnv = new Environment(env);
-  const values: V10Value[] = [];
+  const values: RuntimeValue[] = [];
   if (iterableValue.kind === "array") {
     values.push(...iterableValue.elements);
   } else if (iterableValue.kind === "iterator") {
@@ -512,7 +514,7 @@ export function evaluateForLoop(ctx: InterpreterV10, node: AST.ForLoop, env: Env
     return iterateDynamicIterator(ctx, node, baseEnv, iterator);
   }
 
-  let last: V10Value = { kind: "nil", value: null };
+  let last: RuntimeValue = VOID_VALUE;
   for (const value of values) {
     ctx.checkTimeSlice();
     const loopEnv = new Environment(baseEnv);
@@ -532,11 +534,11 @@ export function evaluateForLoop(ctx: InterpreterV10, node: AST.ForLoop, env: Env
       throw e;
     }
   }
-  return { kind: "nil", value: null };
+  return VOID_VALUE;
 }
 
-function iterateDynamicIterator(ctx: InterpreterV10, loop: AST.ForLoop, baseEnv: Environment, iterator: IteratorValue): V10Value {
-  let result: V10Value = { kind: "nil", value: null };
+function iterateDynamicIterator(ctx: Interpreter, loop: AST.ForLoop, baseEnv: Environment, iterator: IteratorValue): RuntimeValue {
+  let result: RuntimeValue = VOID_VALUE;
   try {
     while (true) {
       ctx.checkTimeSlice();
@@ -547,7 +549,7 @@ function iterateDynamicIterator(ctx: InterpreterV10, loop: AST.ForLoop, baseEnv:
         throw err;
       }
       if (step.done) {
-        return { kind: "nil", value: null };
+        return VOID_VALUE;
       }
       const loopEnv = new Environment(baseEnv);
       bindPattern(ctx, loop.pattern, step.value, loopEnv);
@@ -573,12 +575,12 @@ function iterateDynamicIterator(ctx: InterpreterV10, loop: AST.ForLoop, baseEnv:
 }
 
 function evaluateForLoopWithContinuation(
-  ctx: InterpreterV10,
+  ctx: Interpreter,
   loop: AST.ForLoop,
   env: Environment,
   continuation: ContinuationContext,
-  iterableValue: V10Value,
-): V10Value {
+  iterableValue: RuntimeValue,
+): RuntimeValue {
   if (!continuation) {
     throw new Error("Continuation context missing");
   }
@@ -586,7 +588,7 @@ function evaluateForLoopWithContinuation(
   let state = continuation.getForLoopState(loop);
   if (!state) {
     const baseEnv = new Environment(env);
-    const initialResult: V10Value = { kind: "nil", value: null };
+    const initialResult: RuntimeValue = VOID_VALUE;
     if (iterableValue.kind === "array") {
       state = {
         mode: "static",
@@ -620,7 +622,7 @@ function evaluateForLoopWithContinuation(
   }
 
   const baseEnv = state.baseEnv;
-  let result = state.result ?? { kind: "nil", value: null };
+  let result = state.result ?? VOID_VALUE;
 
   const cleanup = () => {
     if (state?.mode === "iterator" && state.iterator && !state.iteratorClosed) {
@@ -635,7 +637,7 @@ function evaluateForLoopWithContinuation(
   while (true) {
     ctx.checkTimeSlice();
     let iterationEnv = state.iterationEnv;
-    let value: V10Value | undefined;
+    let value: RuntimeValue | undefined;
     if (state.awaitingBody && iterationEnv) {
       value = state.pendingValue;
     } else {
@@ -643,7 +645,7 @@ function evaluateForLoopWithContinuation(
         const values = state.values ?? [];
         if (state.index >= values.length) {
           cleanup();
-          return { kind: "nil", value: null };
+          return VOID_VALUE;
         }
         value = values[state.index]!;
       } else {
@@ -661,7 +663,7 @@ function evaluateForLoopWithContinuation(
         }
         if (step.done) {
           cleanup();
-          return { kind: "nil", value: null };
+          return VOID_VALUE;
         }
         value = step.value;
       }
@@ -721,7 +723,7 @@ function evaluateForLoopWithContinuation(
   }
 }
 
-function bindPattern(ctx: InterpreterV10, pattern: AST.Pattern, value: V10Value, env: Environment): void {
+function bindPattern(ctx: Interpreter, pattern: AST.Pattern, value: RuntimeValue, env: Environment): void {
   if (pattern.type === "Identifier") {
     env.define(pattern.name, value);
     return;
@@ -732,7 +734,7 @@ function bindPattern(ctx: InterpreterV10, pattern: AST.Pattern, value: V10Value,
   ctx.assignByPattern(pattern as AST.Pattern, value, env, true);
 }
 
-export function resolveIteratorValue(ctx: InterpreterV10, iterable: V10Value, env: Environment): IteratorValue {
+export function resolveIteratorValue(ctx: Interpreter, iterable: RuntimeValue, env: Environment): IteratorValue {
   ctx.ensureIteratorBuiltins();
   if (iterable.kind === "iterator") {
     return iterable;
@@ -757,7 +759,7 @@ export function resolveIteratorValue(ctx: InterpreterV10, iterable: V10Value, en
   return result;
 }
 
-function adaptIteratorValue(ctx: InterpreterV10, candidate: V10Value, env: Environment): IteratorValue | null {
+function adaptIteratorValue(ctx: Interpreter, candidate: RuntimeValue, env: Environment): IteratorValue | null {
   const receiver = candidate.kind === "interface_value" ? candidate.value : candidate;
   if (!receiver || receiver.kind !== "struct_instance") {
     return null;
@@ -784,7 +786,7 @@ function adaptIteratorValue(ctx: InterpreterV10, candidate: V10Value, env: Envir
     };
 }
 
-function bindIteratorMethod(ctx: InterpreterV10, receiver: V10Value, name: string, env: Environment): V10Value | null {
+function bindIteratorMethod(ctx: Interpreter, receiver: RuntimeValue, name: string, env: Environment): RuntimeValue | null {
   try {
     const access = memberAccessOnValue(ctx, receiver, AST.identifier(name), env, { preferMethods: true });
     if (access && (access.kind === "bound_method" || access.kind === "native_bound_method" || access.kind === "function")) {
@@ -794,7 +796,7 @@ function bindIteratorMethod(ctx: InterpreterV10, receiver: V10Value, name: strin
   return null;
 }
 
-function isIteratorEnd(ctx: InterpreterV10, value: V10Value): boolean {
+function isIteratorEnd(ctx: Interpreter, value: RuntimeValue): boolean {
   if (!value) return false;
   if (value.kind === "iterator_end") return true;
   if (value.kind === "interface_value") return isIteratorEnd(ctx, value.value);
@@ -802,7 +804,7 @@ function isIteratorEnd(ctx: InterpreterV10, value: V10Value): boolean {
   return false;
 }
 
-export function evaluateReturnStatement(ctx: InterpreterV10, node: AST.ReturnStatement, env: Environment): never {
-  const value = node.argument ? ctx.evaluate(node.argument, env) : { kind: "nil", value: null };
+export function evaluateReturnStatement(ctx: Interpreter, node: AST.ReturnStatement, env: Environment): never {
+  const value = node.argument ? ctx.evaluate(node.argument, env) : VOID_VALUE;
   throw new ReturnSignal(value);
 }

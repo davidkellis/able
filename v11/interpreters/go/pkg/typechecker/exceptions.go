@@ -1,6 +1,6 @@
 package typechecker
 
-import "able/interpreter10-go/pkg/ast"
+import "able/interpreter-go/pkg/ast"
 
 func (c *Checker) checkPropagationExpression(env *Environment, expr *ast.PropagationExpression) ([]Diagnostic, Type) {
 	bodyDiags, bodyType := c.checkExpression(env, expr.Expression)
@@ -88,14 +88,8 @@ func (c *Checker) checkRescueExpression(env *Environment, expr *ast.RescueExpres
 		}
 		c.pushRescueContext()
 		if clause.Guard != nil {
-			guardDiags, guardType := c.checkExpression(clauseEnv, clause.Guard)
+			guardDiags, _ := c.checkExpression(clauseEnv, clause.Guard)
 			diags = append(diags, guardDiags...)
-			if !typeAssignable(guardType, PrimitiveType{Kind: PrimitiveBool}) && !isUnknownType(guardType) {
-				diags = append(diags, Diagnostic{
-					Message: "typechecker: rescue guard must evaluate to bool",
-					Node:    clause.Guard,
-				})
-			}
 		}
 		bodyDiags, bodyType := c.checkExpression(clauseEnv, clause.Body)
 		diags = append(diags, bodyDiags...)
