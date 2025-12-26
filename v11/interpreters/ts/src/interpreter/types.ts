@@ -1,6 +1,6 @@
 import * as AST from "../ast";
 import type { Interpreter } from "./index";
-import { getIntegerInfo, isIntegerValue, makeIntegerValue } from "./numeric";
+import { getIntegerInfo, isFloatValue, isIntegerValue, makeFloatValue, makeIntegerValue } from "./numeric";
 import type { FloatKind, IntegerKind, RuntimeValue } from "./values";
 
 const INTEGER_KINDS: IntegerKind[] = ["i8", "i16", "i32", "i64", "i128", "u8", "u16", "u32", "u64", "u128"];
@@ -36,6 +36,7 @@ declare module "./index" {
     getTypeNameForValue(value: RuntimeValue): string | null;
     typeImplementsInterface(typeName: string, interfaceName: string, typeArgs?: AST.TypeExpression[]): boolean;
     coerceValueToType(typeExpr: AST.TypeExpression | undefined, value: RuntimeValue): RuntimeValue;
+    castValueToType(typeExpr: AST.TypeExpression, value: RuntimeValue): RuntimeValue;
     toInterfaceValue(interfaceName: string, rawValue: RuntimeValue): RuntimeValue;
   }
 }
@@ -331,7 +332,10 @@ export function applyTypesAugmentations(cls: typeof Interpreter): void {
             integerValueWithinRange(v.value, expectedKind)
           );
         }
-        if (FLOAT_KINDS.includes(name as FloatKind)) return v.kind === name;
+        if (FLOAT_KINDS.includes(name as FloatKind)) {
+          if (isFloatValue(v)) return true;
+          return isIntegerValue(v);
+        }
         if (name === "Error" && v.kind === "error") return true;
         if (name === "IteratorEnd" && v.kind === "iterator_end") return true;
         if (this.interfaces.has(name)) {
@@ -488,8 +492,61 @@ export function applyTypesAugmentations(cls: typeof Interpreter): void {
       if (this.interfaces.has(name)) {
         return this.toInterfaceValue(name, value);
       }
+      if (FLOAT_KINDS.includes(name as FloatKind)) {
+        const targetKind = name as FloatKind;
+        if (isFloatValue(value) && value.kind !== targetKind) {
+          return makeFloatValue(targetKind, value.value);
+        }
+        if (isIntegerValue(value)) {
+          return makeFloatValue(targetKind, Number(value.value));
+        }
+      }
     }
     return value;
+  };
+
+  cls.prototype.castValueToType = function castValueToType(this: Interpreter, typeExpr: AST.TypeExpression, value: RuntimeValue): RuntimeValue {
+    const canonical = this.expandTypeAliases(typeExpr);
+    if (this.matchesType(canonical, value)) return value;
+    const rawValue = value.kind === "interface_value" ? value.value : value;
+    if (canonical.type === "SimpleTypeExpression") {
+      const name = canonical.name.name;
+      if (INTEGER_KIND_SET.has(name as IntegerKind)) {
+        const targetKind = name as IntegerKind;
+        if (isIntegerValue(rawValue)) {
+          if (!integerValueWithinRange(rawValue.value, targetKind)) {
+            throw new Error(`value out of range for ${targetKind}`);
+          }
+          return makeIntegerValue(targetKind, rawValue.value);
+        }
+        if (isFloatValue(rawValue)) {
+          if (!Number.isFinite(rawValue.value)) {
+            throw new Error(`cannot cast non-finite float to ${targetKind}`);
+          }
+          const truncated = BigInt(Math.trunc(rawValue.value));
+          if (!integerValueWithinRange(truncated, targetKind)) {
+            throw new Error(`value out of range for ${targetKind}`);
+          }
+          return makeIntegerValue(targetKind, truncated);
+        }
+      }
+      if (FLOAT_KINDS.includes(name as FloatKind)) {
+        const targetKind = name as FloatKind;
+        if (isFloatValue(rawValue)) {
+          return makeFloatValue(targetKind, rawValue.value);
+        }
+        if (isIntegerValue(rawValue)) {
+          return makeFloatValue(targetKind, Number(rawValue.value));
+        }
+      }
+      if (name === "Error" && rawValue.kind === "error") {
+        return rawValue;
+      }
+      if (this.interfaces.has(name)) {
+        return this.toInterfaceValue(name, value);
+      }
+    }
+    throw new Error(`cannot cast ${this.getTypeNameForValue(rawValue) ?? rawValue.kind} to ${this.typeExpressionToString(canonical)}`);
   };
 
   cls.prototype.toInterfaceValue = function toInterfaceValue(this: Interpreter, interfaceName: string, rawValue: RuntimeValue): RuntimeValue {

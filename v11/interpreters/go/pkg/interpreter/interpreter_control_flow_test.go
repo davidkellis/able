@@ -208,7 +208,7 @@ func TestLoopExpressionMatchesExampleLoop(t *testing.T) {
 	}
 }
 
-func TestForLoopRangeEndpointMustBeFinite(t *testing.T) {
+func TestForLoopRangeRequiresIntegerBounds(t *testing.T) {
 	cases := []struct {
 		name  string
 		start ast.Expression
@@ -230,7 +230,7 @@ func TestForLoopRangeEndpointMustBeFinite(t *testing.T) {
 
 			if _, _, err := interp.EvaluateModule(module); err == nil {
 				t.Fatalf("expected error for %s", tc.name)
-			} else if err.Error() != "Range endpoint must be finite" {
+			} else if err.Error() != "Range boundaries must be numeric" {
 				t.Fatalf("unexpected error for %s: %v", tc.name, err)
 			}
 		})

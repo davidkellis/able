@@ -46,6 +46,7 @@ const EXPRESSION_TYPES = new Set<AST.AstNode["type"]>([
   "IntegerLiteral",
   "ArrayLiteral",
   "UnaryExpression",
+  "TypeCastExpression",
   "BinaryExpression",
   "FunctionCall",
   "RangeExpression",
@@ -90,6 +91,11 @@ export function applyEvaluationAugmentations(cls: typeof Interpreter): void {
         return evaluateLiteral(this, node, env);
       case "UnaryExpression":
         return evaluateUnaryExpression(this, node as AST.UnaryExpression, env);
+      case "TypeCastExpression": {
+        const castNode = node as AST.TypeCastExpression;
+        const value = this.evaluate(castNode.expression, env);
+        return this.castValueToType(castNode.targetType, value);
+      }
       case "BinaryExpression":
         return evaluateBinaryExpression(this, node as AST.BinaryExpression, env);
       case "RangeExpression":

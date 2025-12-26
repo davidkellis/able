@@ -46,6 +46,7 @@ func parseExpressionInternal(ctx *parseContext, node *sitter.Node) (ast.Expressi
 
 	switch node.Kind() {
 	case "identifier":
+	case "keyword_identifier":
 		expr, err := parseIdentifier(node, source)
 		if err != nil {
 			return nil, err
@@ -223,6 +224,12 @@ func parseExpressionInternal(ctx *parseContext, node *sitter.Node) (ast.Expressi
 		return annotateExpression(expr, node), nil
 	case "assignment_expression":
 		expr, err := ctx.parseAssignmentExpression(node)
+		if err != nil {
+			return nil, err
+		}
+		return annotateExpression(expr, node), nil
+	case "cast_expression":
+		expr, err := ctx.parseCastExpression(node)
 		if err != nil {
 			return nil, err
 		}
@@ -619,6 +626,32 @@ func (ctx *parseContext) parseUnaryExpression(node *sitter.Node) (ast.Expression
 	default:
 		return nil, fmt.Errorf("parser: unsupported unary operator %q", operatorText)
 	}
+}
+
+func (ctx *parseContext) parseCastExpression(node *sitter.Node) (ast.Expression, error) {
+	if node.NamedChildCount() < 2 {
+		if child := firstNamedChild(node); child != nil {
+			return ctx.parseExpression(child)
+		}
+		return nil, fmt.Errorf("parser: cast expression missing target type")
+	}
+	baseExpr, err := ctx.parseExpression(node.NamedChild(0))
+	if err != nil {
+		return nil, err
+	}
+	result := baseExpr
+	for i := uint(1); i < node.NamedChildCount(); i++ {
+		typeNode := node.NamedChild(i)
+		if typeNode == nil {
+			continue
+		}
+		targetType := ctx.parseTypeExpression(typeNode)
+		if targetType == nil {
+			return nil, fmt.Errorf("parser: cast expression missing target type")
+		}
+		result = ast.NewTypeCastExpression(result, targetType)
+	}
+	return annotateExpression(result, node), nil
 }
 
 func (ctx *parseContext) parsePipeExpression(node *sitter.Node, operator string) (ast.Expression, error) {

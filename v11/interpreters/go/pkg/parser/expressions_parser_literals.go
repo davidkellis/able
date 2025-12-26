@@ -53,7 +53,7 @@ func (ctx *parseContext) parseInterpolatedString(node *sitter.Node) (ast.Express
 		}
 		switch child.Kind() {
 		case "interpolation_text":
-			text := sliceContent(child, ctx.source)
+			text := unescapeInterpolationText(sliceContent(child, ctx.source))
 			if text != "" {
 				parts = append(parts, annotateExpression(ast.Str(text), child))
 			}
@@ -70,6 +70,42 @@ func (ctx *parseContext) parseInterpolatedString(node *sitter.Node) (ast.Express
 		}
 	}
 	return annotateExpression(ast.NewStringInterpolation(parts), node), nil
+}
+
+func unescapeInterpolationText(text string) string {
+	if !strings.Contains(text, "\\") {
+		return text
+	}
+	var builder strings.Builder
+	builder.Grow(len(text))
+	for i := 0; i < len(text); i++ {
+		ch := text[i]
+		if ch != '\\' {
+			builder.WriteByte(ch)
+			continue
+		}
+		if i+1 >= len(text) {
+			builder.WriteByte('\\')
+			break
+		}
+		next := text[i+1]
+		switch next {
+		case '`':
+			builder.WriteByte('`')
+			i++
+		case '$':
+			builder.WriteByte('$')
+			i++
+		case '\\':
+			builder.WriteByte('\\')
+			i++
+		default:
+			builder.WriteByte('\\')
+			builder.WriteByte(next)
+			i++
+		}
+	}
+	return builder.String()
 }
 
 func (ctx *parseContext) parseIteratorLiteral(node *sitter.Node) (ast.Expression, error) {

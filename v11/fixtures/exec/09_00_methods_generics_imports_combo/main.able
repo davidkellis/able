@@ -1,0 +1,22 @@
+package exec_09_00_methods_generics_imports_combo
+
+import exec_09_00_methods_generics_imports_combo.helpers.{pick}
+import exec_09_00_methods_generics_imports_combo.helpers.fmt.{decorate}
+
+## Semantics: combine imports, generic helpers, and inherent methods in one flow.
+
+struct Badge { id: i32, name: String }
+
+methods Badge {
+  fn label(self: Self, prefix: String) -> String {
+    `${prefix}-${self.id}-${self.name}`
+  }
+}
+
+fn main() -> void {
+  badge := Badge { id: 7, name: "alpha" }
+  tag := badge.label("id")           ## method-call sugar for inherent methods
+  chosen := pick<String>("left", "right", false) ## generic helper selects typed value
+  output := decorate(tag, chosen)     ## import from explicit package name
+  print(output)
+}

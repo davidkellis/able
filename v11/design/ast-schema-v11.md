@@ -75,7 +75,7 @@ Core expression union:
 
 ```
 Expression :=
-  Identifier | Literal | UnaryExpression | BinaryExpression |
+  Identifier | Literal | UnaryExpression | TypeCastExpression | BinaryExpression |
   FunctionCall | BlockExpression | AssignmentExpression |
   RangeExpression | StringInterpolation | MemberAccessExpression |
   IndexExpression | ImplicitMemberExpression | LambdaExpression |
@@ -90,6 +90,7 @@ Node definitions:
 | Node | Fields |
 |------|--------|
 | `UnaryExpression` | `operator: enum {- , ! , ~}`, `operand: Expression`
+| `TypeCastExpression` | `expression: Expression`, `target_type: TypeExpression`
 | `BinaryExpression` | `operator: string`, `left: Expression`, `right: Expression`
 | `FunctionCall` | `callee: Expression`, `arguments: Expression[]`, `type_arguments?: TypeExpression[]`, `is_trailing_lambda: bool`
 | `BlockExpression` | `body: Statement[]`

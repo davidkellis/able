@@ -3,7 +3,7 @@ import * as AST from "../../src/ast";
 import { TypeChecker } from "../../src/typechecker";
 
 describe("typechecker control flow", () => {
-  test("reports diagnostic when if condition is not bool", () => {
+  test("accepts truthy values in if conditions", () => {
     const checker = new TypeChecker();
     const ifExpr = AST.ifExpression(
       AST.integerLiteral(1),
@@ -12,11 +12,10 @@ describe("typechecker control flow", () => {
     const module = AST.module([ifExpr as unknown as AST.Statement]);
 
     const result = checker.checkModule(module);
-    expect(result.diagnostics).toHaveLength(1);
-    expect(result.diagnostics[0]?.message).toContain("if condition must be bool");
+    expect(result.diagnostics).toHaveLength(0);
   });
 
-  test("reports diagnostic when while condition is not bool", () => {
+  test("accepts truthy values in while conditions", () => {
     const checker = new TypeChecker();
     const loop = AST.whileLoop(
       AST.integerLiteral(1),
@@ -25,8 +24,7 @@ describe("typechecker control flow", () => {
     const module = AST.module([loop]);
 
     const result = checker.checkModule(module);
-    expect(result.diagnostics).toHaveLength(1);
-    expect(result.diagnostics[0]?.message).toContain("while condition must be bool");
+    expect(result.diagnostics).toHaveLength(0);
   });
 
   test("accepts equality expressions in if conditions", () => {

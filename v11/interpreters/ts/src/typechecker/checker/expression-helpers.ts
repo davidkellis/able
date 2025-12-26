@@ -416,10 +416,10 @@ export function resolveStructFieldTypes(
 }
 
 export function resolveRangeElementType(ctx: ExpressionContext, start: TypeInfo, end: TypeInfo): TypeInfo {
-  if (start && start.kind !== "unknown") {
+  if (start && start.kind !== "unknown" && isIntegerPrimitiveType(start)) {
     return start;
   }
-  if (end && end.kind !== "unknown") {
+  if (end && end.kind !== "unknown" && isIntegerPrimitiveType(end)) {
     return end;
   }
   return primitiveType("i32");

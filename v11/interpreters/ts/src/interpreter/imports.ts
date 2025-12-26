@@ -121,9 +121,9 @@ export function evaluateImportStatement(ctx: Interpreter, node: AST.ImportStatem
 
 export function evaluateDynImportStatement(ctx: Interpreter, node: AST.DynImportStatement, env: Environment): RuntimeValue {
   const pkg = node.packagePath.map(p => p.name).join(".");
-  const bucket = ctx.packageRegistry.get(pkg);
-  if (!bucket) throw new Error(`dynimport error: package '${pkg}' not found`);
   if (node.isWildcard) {
+    const bucket = ctx.packageRegistry.get(pkg);
+    if (!bucket) throw new Error(`dynimport error: package '${pkg}' not found`);
     for (const [name, val] of bucket.entries()) {
       if (val.kind === "function" && val.node.type === "FunctionDefinition" && val.node.isPrivate) continue;
       if (val.kind === "struct_def" && val.def.isPrivate) continue;
@@ -132,15 +132,15 @@ export function evaluateDynImportStatement(ctx: Interpreter, node: AST.DynImport
       try { env.define(name, { kind: "dyn_ref", pkg, name }); } catch {}
     }
   } else if (node.selectors && node.selectors.length > 0) {
+    const bucket = ctx.packageRegistry.get(pkg);
     for (const sel of node.selectors) {
       const original = sel.name.name;
       const alias = sel.alias ? sel.alias.name : original;
-      const val = bucket.get(original);
-      if (!val) throw new Error(`dynimport error: '${original}' not found in '${pkg}'`);
-      if (val.kind === "function" && val.node.type === "FunctionDefinition" && val.node.isPrivate) throw new Error(`dynimport error: function '${original}' is private`);
-      if (val.kind === "struct_def" && val.def.isPrivate) throw new Error(`dynimport error: struct '${original}' is private`);
-      if (val.kind === "interface_def" && val.def.isPrivate) throw new Error(`dynimport error: interface '${original}' is private`);
-      if (val.kind === "union_def" && val.def.isPrivate) throw new Error(`dynimport error: union '${original}' is private`);
+      const val = bucket?.get(original);
+      if (val?.kind === "function" && val.node.type === "FunctionDefinition" && val.node.isPrivate) throw new Error(`dynimport error: function '${original}' is private`);
+      if (val?.kind === "struct_def" && val.def.isPrivate) throw new Error(`dynimport error: struct '${original}' is private`);
+      if (val?.kind === "interface_def" && val.def.isPrivate) throw new Error(`dynimport error: interface '${original}' is private`);
+      if (val?.kind === "union_def" && val.def.isPrivate) throw new Error(`dynimport error: union '${original}' is private`);
       env.define(alias, { kind: "dyn_ref", pkg, name: original });
     }
   } else {

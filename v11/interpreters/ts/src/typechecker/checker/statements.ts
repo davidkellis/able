@@ -114,6 +114,13 @@ export function checkAssignment(ctx: StatementContext, node: AST.AssignmentExpre
     ctx.inferExpression(node.left);
     return valueType;
   }
+  if (node.left.type === "ImplicitMemberExpression") {
+    if (node.operator === ":=") {
+      ctx.report("typechecker: cannot use := on implicit member access", node.left);
+    }
+    ctx.inferExpression(node.left);
+    return valueType;
+  }
   const bindingOptions = {
     suppressMismatchReport: true,
     declarationNames,
@@ -161,10 +168,7 @@ function checkForLoop(ctx: StatementContext, loop: AST.ForLoop): void {
 
 function checkWhileLoop(ctx: StatementContext, loop: AST.WhileLoop): void {
   if (!loop) return;
-  const conditionType = ctx.inferExpression(loop.condition);
-  if (!isBoolean(conditionType)) {
-    ctx.report("typechecker: while condition must be bool", loop.condition);
-  }
+    ctx.inferExpression(loop.condition);
   ctx.pushLoopContext();
   ctx.pushScope();
   try {

@@ -393,26 +393,43 @@ func TestComparisonTypeErrors(t *testing.T) {
 	}
 }
 
-func TestLogicalOperandErrors(t *testing.T) {
+func TestLogicalOperandsTruthiness(t *testing.T) {
 	interp := New()
 	env := interp.GlobalEnvironment()
 	cases := []struct {
-		name string
-		expr ast.Expression
-		msg  string
+		name     string
+		expr     ast.Expression
+		kind     string
+		intValue int64
+		boolVal  bool
 	}{
-		{"LogicalAndLeft", ast.Bin("&&", ast.Int(1), ast.Bool(true)), "Logical operands must be bool"},
-		{"LogicalAndRight", ast.Bin("&&", ast.Bool(true), ast.Int(1)), "Logical operands must be bool"},
-		{"LogicalOrLeft", ast.Bin("||", ast.Int(0), ast.Bool(false)), "Logical operands must be bool"},
-		{"LogicalOrRight", ast.Bin("||", ast.Bool(false), ast.Int(1)), "Logical operands must be bool"},
+		{"LogicalAndTruthy", ast.Bin("&&", ast.Int(1), ast.Int(2)), "int", 2, false},
+		{"LogicalAndNil", ast.Bin("&&", ast.Nil(), ast.Int(2)), "nil", 0, false},
+		{"LogicalOrTruthy", ast.Bin("||", ast.Int(0), ast.Int(2)), "int", 0, false},
+		{"LogicalOrFalse", ast.Bin("||", ast.Bool(false), ast.Int(2)), "int", 2, false},
 	}
 	for _, tc := range cases {
-		_, err := interp.evaluateExpression(tc.expr, env)
-		if err == nil {
-			t.Fatalf("%s: expected error", tc.name)
+		val, err := interp.evaluateExpression(tc.expr, env)
+		if err != nil {
+			t.Fatalf("%s: unexpected error %v", tc.name, err)
 		}
-		if err.Error() != tc.msg {
-			t.Fatalf("%s: expected %q, got %q", tc.name, tc.msg, err.Error())
+		switch tc.kind {
+		case "int":
+			intVal, ok := val.(runtime.IntegerValue)
+			if !ok || intVal.Val.Cmp(bigInt(tc.intValue)) != 0 {
+				t.Fatalf("%s: expected int %d, got %#v", tc.name, tc.intValue, val)
+			}
+		case "bool":
+			boolVal, ok := val.(runtime.BoolValue)
+			if !ok || boolVal.Val != tc.boolVal {
+				t.Fatalf("%s: expected bool %v, got %#v", tc.name, tc.boolVal, val)
+			}
+		case "nil":
+			if _, ok := val.(runtime.NilValue); !ok {
+				t.Fatalf("%s: expected nil, got %#v", tc.name, val)
+			}
+		default:
+			t.Fatalf("%s: unknown expectation %q", tc.name, tc.kind)
 		}
 	}
 }

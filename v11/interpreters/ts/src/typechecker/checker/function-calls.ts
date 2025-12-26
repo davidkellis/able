@@ -578,7 +578,11 @@ function collectUnifiedMemberCandidates(
   const isPrimitiveReceiver =
     receiver.lookupType.kind === "primitive" ||
     (receiver.lookupType.kind === "struct" && receiver.lookupType.name === "Array");
-  const allowInherent = unqualifiedInScope || isPrimitiveReceiver;
+  const typeNameInScope =
+    receiver.lookupType.kind === "struct" && receiver.lookupType.name
+      ? ctx.statementContext.hasBinding?.(receiver.lookupType.name) ?? false
+      : false;
+  const allowInherent = unqualifiedInScope || typeNameInScope || isPrimitiveReceiver;
   const bySignature = new Map<string, FunctionInfo>();
   const signatureKey = (entry: FunctionInfo): string => {
     const paramSig = (entry.parameters ?? []).map((param) => formatType(param ?? unknownType)).join("|");

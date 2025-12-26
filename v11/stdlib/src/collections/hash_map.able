@@ -5,7 +5,7 @@ import able.core.interfaces.{Clone, Default, Hash, Eq, Index, IndexMut}
 import able.core.errors.{IndexError}
 
 ## Re-export kernel HashMap under the stdlib namespace.
-type HashMap K V = KernelHashMap K V
+type HashMap K V = KernelHashMap K V;
 HashMap := KernelHashMap
 
 methods HashMap K V {

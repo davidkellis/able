@@ -1,0 +1,29 @@
+package exec_07_03_explicit_return_flow
+
+## Semantics: explicit return exits the entire function even when used inside nested blocks.
+
+fn do_return(flag: bool) -> String {
+  if flag {
+    do {
+      print("do before")
+      return "early"
+    }
+  }
+  print("after")
+  "late"
+}
+
+fn log_if(flag: bool) -> void {
+  if flag {
+    print("log before")
+    return
+  }
+  print("log after")
+}
+
+fn main() -> void {
+  print(do_return(true))
+  print(do_return(false))
+  log_if(true)
+  log_if(false)
+}

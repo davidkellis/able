@@ -1212,6 +1212,18 @@
             "type": "SYMBOL",
             "name": "type_expression"
           }
+        },
+        {
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "STRING",
+              "value": ";"
+            },
+            {
+              "type": "BLANK"
+            }
+          ]
         }
       ]
     },
@@ -3084,8 +3096,17 @@
         "type": "SEQ",
         "members": [
           {
-            "type": "SYMBOL",
-            "name": "unary_expression"
+            "type": "CHOICE",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "cast_expression"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "unary_expression"
+              }
+            ]
           },
           {
             "type": "REPEAT",
@@ -3118,8 +3139,17 @@
                   ]
                 },
                 {
-                  "type": "SYMBOL",
-                  "name": "unary_expression"
+                  "type": "CHOICE",
+                  "members": [
+                    {
+                      "type": "SYMBOL",
+                      "name": "cast_expression"
+                    },
+                    {
+                      "type": "SYMBOL",
+                      "name": "unary_expression"
+                    }
+                  ]
                 }
               ]
             }
@@ -3165,6 +3195,35 @@
           "name": "exponent_expression"
         }
       ]
+    },
+    "cast_expression": {
+      "type": "PREC_LEFT",
+      "value": 0,
+      "content": {
+        "type": "SEQ",
+        "members": [
+          {
+            "type": "SYMBOL",
+            "name": "unary_expression"
+          },
+          {
+            "type": "REPEAT1",
+            "content": {
+              "type": "SEQ",
+              "members": [
+                {
+                  "type": "STRING",
+                  "value": "as"
+                },
+                {
+                  "type": "SYMBOL",
+                  "name": "type_expression"
+                }
+              ]
+            }
+          }
+        ]
+      }
     },
     "exponent_expression": {
       "type": "CHOICE",
@@ -3697,6 +3756,10 @@
                 {
                   "type": "SYMBOL",
                   "name": "identifier"
+                },
+                {
+                  "type": "SYMBOL",
+                  "name": "keyword_identifier"
                 },
                 {
                   "type": "SYMBOL",
@@ -5180,6 +5243,10 @@
         }
       }
     },
+    "keyword_identifier": {
+      "type": "STRING",
+      "value": "package"
+    },
     "numeric_member": {
       "type": "IMMEDIATE_TOKEN",
       "content": {
@@ -5234,7 +5301,7 @@
               "members": [
                 {
                   "type": "PATTERN",
-                  "value": "[^\"\\\\\\n]+"
+                  "value": "[^\"\\\\]+"
                 },
                 {
                   "type": "PATTERN",

@@ -4,7 +4,7 @@ import { TypeChecker } from "../../src/typechecker";
 
 describe("TypeChecker diagnostic locations", () => {
   test("includes location metadata when span information is present", () => {
-    const expr = AST.binaryExpression("&&", AST.stringLiteral("nope"), AST.integerLiteral(1));
+    const expr = AST.identifier("missing");
     (expr as any).span = { start: { line: 5, column: 3 }, end: { line: 5, column: 15 } };
     (expr as any).origin = "example.able";
 

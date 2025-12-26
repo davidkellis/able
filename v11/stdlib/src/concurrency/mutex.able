@@ -5,8 +5,8 @@ struct MutexUnlocked {}
 struct MutexPoisoned {}
 
 ## Re-export kernel Mutex under the stdlib namespace.
-type Mutex = KernelMutex
-const Mutex = KernelMutex
+type Mutex = KernelMutex;
+Mutex := KernelMutex
 
 impl Error for MutexUnlocked {
   fn message(self: Self) -> String { "unlock of unlocked mutex" }

@@ -12,7 +12,7 @@ struct ChannelIterator T {
 }
 
 ## Re-export kernel Channel under the stdlib namespace.
-type Channel T = KernelChannel T
+type Channel T = KernelChannel T;
 Channel := KernelChannel
 
 impl Error for ChannelClosed {

@@ -10,6 +10,7 @@ import {
   applyBitwiseNot,
   applyComparisonBinary,
   applyNumericUnaryMinus,
+  isIntegerValue,
   isNumericValue,
   numericToNumber,
   makeIntegerValue,
@@ -34,6 +35,35 @@ export function resolveIndexFunction(
   return null;
 }
 
+type OperatorDispatch = { interfaceName: string; methodName: string };
+
+const OPERATOR_INTERFACES: Record<string, OperatorDispatch> = {
+  "+": { interfaceName: "Add", methodName: "add" },
+  "-": { interfaceName: "Sub", methodName: "sub" },
+  "*": { interfaceName: "Mul", methodName: "mul" },
+  "/": { interfaceName: "Div", methodName: "div" },
+  "%": { interfaceName: "Rem", methodName: "rem" },
+};
+
+function resolveOperatorFunction(
+  ctx: Interpreter,
+  receiver: RuntimeValue,
+  op: string,
+): Extract<RuntimeValue, { kind: "function" | "function_overload" }> | null {
+  const dispatch = OPERATOR_INTERFACES[op];
+  if (!dispatch) return null;
+  const dispatches = collectTypeDispatches(ctx, receiver);
+  for (const entry of dispatches) {
+    const method = ctx.findMethod(entry.typeName, dispatch.methodName, {
+      typeArgs: entry.typeArgs,
+      interfaceName: dispatch.interfaceName,
+      includeInherent: false,
+    });
+    if (method) return method;
+  }
+  return null;
+}
+
 declare module "./index" {
   interface Interpreter {
     computeBinaryForCompound(op: string, left: RuntimeValue, right: RuntimeValue): RuntimeValue;
@@ -50,8 +80,7 @@ export function evaluateUnaryExpression(ctx: Interpreter, node: AST.UnaryExpress
     return applyNumericUnaryMinus(v);
   }
   if (node.operator === "!") {
-    if (v.kind === "bool") return { kind: "bool", value: !v.value };
-    throw new Error("Unary '!' requires boolean operand");
+    return { kind: "bool", value: !ctx.isTruthy(v) };
   }
   if (node.operator === ".~") {
     return applyBitwiseNot(v);
@@ -63,17 +92,14 @@ export function evaluateBinaryExpression(ctx: Interpreter, node: AST.BinaryExpre
   const b = node;
   if (b.operator === "&&" || b.operator === "||") {
     const lv = ctx.evaluate(b.left, env);
-    if (lv.kind !== "bool") throw new Error("Logical operands must be bool");
     if (b.operator === "&&") {
-      if (!lv.value) return { kind: "bool", value: false };
+      if (!ctx.isTruthy(lv)) return lv;
       const rv = ctx.evaluate(b.right, env);
-      if (rv.kind !== "bool") throw new Error("Logical operands must be bool");
-      return { kind: "bool", value: lv.value && rv.value };
+      return rv;
     }
-    if (lv.value) return { kind: "bool", value: true };
+    if (ctx.isTruthy(lv)) return lv;
     const rv = ctx.evaluate(b.right, env);
-    if (rv.kind !== "bool") throw new Error("Logical operands must be bool");
-    return { kind: "bool", value: lv.value || rv.value };
+    return rv;
   }
 
   if (b.operator === "|>" || b.operator === "|>>") {
@@ -124,6 +150,40 @@ export function evaluateBinaryExpression(ctx: Interpreter, node: AST.BinaryExpre
   }
 
   if (["+","-","*","/","//","%","/%","^"].includes(b.operator)) {
+    if (isNumericValue(left) && isNumericValue(right)) {
+      return applyArithmeticBinary(b.operator, left, right, {
+        makeDivMod: (kind, parts) => {
+          const structDef = ctx.ensureDivModStruct();
+          const typeArg = AST.simpleTypeExpression(kind);
+          const typeArgMap = ctx.mapTypeArguments(structDef.genericParams ?? [], [typeArg], "DivMod");
+          return {
+            kind: "struct_instance",
+            def: structDef,
+            values: new Map([
+              ["quotient", parts.quotient],
+              ["remainder", parts.remainder],
+            ]),
+            typeArguments: [typeArg],
+            typeArgMap,
+          };
+        },
+        makeRatio: (parts) => {
+          const structDef = ctx.ensureRatioStruct();
+          return {
+            kind: "struct_instance",
+            def: structDef,
+            values: new Map([
+              ["num", makeIntegerValue("i64", parts.num)],
+              ["den", makeIntegerValue("i64", parts.den)],
+            ]),
+          };
+        },
+      });
+    }
+    const method = resolveOperatorFunction(ctx, left, b.operator);
+    if (method) {
+      return callCallableValue(ctx, method, [left, right], env);
+    }
     return applyArithmeticBinary(b.operator, left, right, {
       makeDivMod: (kind, parts) => {
         const structDef = ctx.ensureDivModStruct();
@@ -186,6 +246,9 @@ export function evaluateRangeExpression(ctx: Interpreter, node: AST.RangeExpress
   const viaInterface = ctx.tryInvokeRangeImplementation(start, end, node.inclusive, env);
   if (viaInterface) {
     return viaInterface;
+  }
+  if (!isIntegerValue(start) || !isIntegerValue(end)) {
+    throw new Error("Range boundaries must be numeric");
   }
   let startNum: number;
   let endNum: number;

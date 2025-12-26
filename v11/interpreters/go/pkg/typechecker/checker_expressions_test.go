@@ -390,7 +390,7 @@ func TestUnaryNegationInferredType(t *testing.T) {
 		t.Fatalf("expected unary negation to infer i32, got %q", typeName(typ))
 	}
 }
-func TestUnaryNotRequiresBoolDiagnostic(t *testing.T) {
+func TestUnaryNotAllowsTruthiness(t *testing.T) {
 	checker := New()
 	expr := ast.Un(ast.UnaryOperatorNot, ast.Int(1))
 	module := ast.NewModule([]ast.Statement{expr}, nil, nil)
@@ -398,18 +398,8 @@ func TestUnaryNotRequiresBoolDiagnostic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(diags) == 0 {
-		t.Fatalf("expected diagnostic for unary ! operand")
-	}
-	found := false
-	for _, d := range diags {
-		if strings.Contains(d.Message, "unary '!'") {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("missing unary ! diagnostic: %v", diags)
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics for truthy unary !, got %v", diags)
 	}
 }
 func TestBinaryAdditionNumericInference(t *testing.T) {
@@ -472,7 +462,7 @@ func TestBinaryAdditionMismatchedOperandsDiagnostic(t *testing.T) {
 		t.Fatalf("missing mismatched operands diagnostic: %v", diags)
 	}
 }
-func TestBinaryLogicalOperandsMustBeBool(t *testing.T) {
+func TestBinaryLogicalAllowsTruthiness(t *testing.T) {
 	checker := New()
 	expr := ast.Bin("&&", ast.Bool(true), ast.Int(1))
 	module := ast.NewModule([]ast.Statement{expr}, nil, nil)
@@ -480,18 +470,8 @@ func TestBinaryLogicalOperandsMustBeBool(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(diags) == 0 {
-		t.Fatalf("expected diagnostic for logical operands")
-	}
-	found := false
-	for _, d := range diags {
-		if strings.Contains(d.Message, "right operand must be bool") {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("missing logical operand diagnostic: %v", diags)
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics for truthy logical operands, got %v", diags)
 	}
 }
 func TestFunctionDefinitionReturnTypeMismatch(t *testing.T) {

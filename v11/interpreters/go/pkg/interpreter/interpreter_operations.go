@@ -70,6 +70,53 @@ func normalizeOperator(op string) (string, bool) {
 	}
 }
 
+type operatorDispatch struct {
+	interfaceName string
+	methodName    string
+}
+
+var operatorInterfaces = map[string]operatorDispatch{
+	"+":   {interfaceName: "Add", methodName: "add"},
+	"-":   {interfaceName: "Sub", methodName: "sub"},
+	"*":   {interfaceName: "Mul", methodName: "mul"},
+	"/":   {interfaceName: "Div", methodName: "div"},
+	"%":   {interfaceName: "Rem", methodName: "rem"},
+	".&":  {interfaceName: "BitAnd", methodName: "bit_and"},
+	".|":  {interfaceName: "BitOr", methodName: "bit_or"},
+	".^":  {interfaceName: "BitXor", methodName: "bit_xor"},
+	".<<": {interfaceName: "Shl", methodName: "shl"},
+	".>>": {interfaceName: "Shr", methodName: "shr"},
+}
+
+func isIntegerValue(val runtime.Value) bool {
+	_, ok := val.(runtime.IntegerValue)
+	return ok
+}
+
+func (i *Interpreter) resolveOperatorMethod(receiver runtime.Value, op string) (runtime.Value, error) {
+	dispatch, ok := operatorInterfaces[op]
+	if !ok {
+		return nil, nil
+	}
+	info, ok := i.getTypeInfoForValue(receiver)
+	if !ok {
+		return nil, nil
+	}
+	return i.findMethod(info, dispatch.methodName, dispatch.interfaceName)
+}
+
+func (i *Interpreter) applyOperatorInterface(op string, left runtime.Value, right runtime.Value) (runtime.Value, bool, error) {
+	method, err := i.resolveOperatorMethod(left, op)
+	if err != nil {
+		return nil, true, err
+	}
+	if method == nil {
+		return nil, false, nil
+	}
+	result, err := i.CallFunction(method, []runtime.Value{left, right})
+	return result, true, err
+}
+
 func isRatioValue(val runtime.Value) bool {
 	_, ok := ratioPartsFromStruct(val)
 	return ok
@@ -153,16 +200,46 @@ func coerceToRatio(val runtime.Value) (ratioParts, error) {
 }
 
 func applyBinaryOperator(i *Interpreter, op string, left runtime.Value, right runtime.Value) (runtime.Value, error) {
+	rawOp := op
 	op, dotted := normalizeOperator(op)
 	switch op {
 	case "+", "-", "*", "^":
 		if op == "^" && dotted {
+			if isIntegerValue(left) && isIntegerValue(right) {
+				return evaluateBitwise(op, left, right)
+			}
+			if result, ok, err := i.applyOperatorInterface(rawOp, left, right); ok {
+				return result, err
+			}
 			return evaluateBitwise(op, left, right)
+		}
+		if isNumericValue(left) && isNumericValue(right) {
+			return evaluateArithmetic(i, op, left, right)
+		}
+		if op != "^" {
+			if result, ok, err := i.applyOperatorInterface(rawOp, left, right); ok {
+				return result, err
+			}
 		}
 		return evaluateArithmetic(i, op, left, right)
 	case "/":
+		if isNumericValue(left) && isNumericValue(right) {
+			return evaluateDivision(i, left, right)
+		}
+		if result, ok, err := i.applyOperatorInterface(rawOp, left, right); ok {
+			return result, err
+		}
 		return evaluateDivision(i, left, right)
 	case "//", "%", "/%":
+		if op == "%" {
+			if isIntegerValue(left) && isIntegerValue(right) {
+				return evaluateDivMod(i, op, left, right)
+			}
+			if result, ok, err := i.applyOperatorInterface(rawOp, left, right); ok {
+				return result, err
+			}
+			return evaluateDivMod(i, op, left, right)
+		}
 		return evaluateDivMod(i, op, left, right)
 	case "<", "<=", ">", ">=":
 		return evaluateComparison(op, left, right)
@@ -171,6 +248,12 @@ func applyBinaryOperator(i *Interpreter, op string, left runtime.Value, right ru
 	case "!=":
 		return runtime.BoolValue{Val: !valuesEqual(left, right)}, nil
 	case "&", "|", "<<", ">>":
+		if isIntegerValue(left) && isIntegerValue(right) {
+			return evaluateBitwise(op, left, right)
+		}
+		if result, ok, err := i.applyOperatorInterface(rawOp, left, right); ok {
+			return result, err
+		}
 		return evaluateBitwise(op, left, right)
 	default:
 		return nil, fmt.Errorf("unsupported binary operator %s", op)

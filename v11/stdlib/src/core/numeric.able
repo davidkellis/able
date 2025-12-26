@@ -5,7 +5,7 @@ import able.core.options.{Result}
 import able.kernel.{Ratio::KernelRatio, ratio_from_float}
 
 ## Re-export kernel Ratio under the stdlib namespace.
-type Ratio = KernelRatio
+type Ratio = KernelRatio;
 Ratio := KernelRatio
 
 ## Error raised when a numeric conversion cannot be performed without loss.
@@ -29,16 +29,16 @@ fn numeric_conversion_error(message: String) -> NumericConversionError {
 
 ## Ratio helpers -------------------------------------------------------------
 
-const I64_MIN_I128 = -9223372036854775808_i64 as i128
-const I64_MAX_I128 = 9223372036854775807_i64 as i128
+I64_MIN_I128 := -9223372036854775808_i128;
+I64_MAX_I128 := 9223372036854775807_i128;
 
 fn ratio_abs(value: i128) -> i128 {
   if value < 0_i128 { -value } else { value }
 }
 
 fn ratio_gcd(a: i128, b: i128) -> i128 {
-  mut x := ratio_abs(a)
-  mut y := ratio_abs(b)
+  x := ratio_abs(a)
+  y := ratio_abs(b)
   loop {
     if y == 0_i128 { break }
     tmp := x % y
@@ -51,8 +51,8 @@ fn ratio_gcd(a: i128, b: i128) -> i128 {
 fn ratio_normalize(num: i128, den: i128) -> Ratio {
   if den == 0_i128 { raise DivisionByZeroError {} }
 
-  mut n := num
-  mut d := den
+  n := num
+  d := den
   if d < 0_i128 {
     n = -n
     d = -d
@@ -78,8 +78,6 @@ fn ratio_normalize(num: i128, den: i128) -> Ratio {
 
 methods Ratio {
   fn new(num: i64, den: i64) -> Ratio { ratio_normalize(num as i128, den as i128) }
-  fn numerator(self: Self) -> i64 { self.num }
-  fn denominator(self: Self) -> i64 { self.den }
 }
 
 ## Integer conversions and Ratio entry points --------------------------------
@@ -158,7 +156,7 @@ fn f64_is_nan(value: f64) -> bool { value != value }
 methods f64 {
   fn to_i32(self: Self) -> Result i32 {
     if f64_is_nan(self) { numeric_conversion_error("cannot convert NaN to i32") }
-    else if self < -2147483648.0 || self > 2147483647.0 {
+    elsif self < -2147483648.0 || self > 2147483647.0 {
       numeric_conversion_error("value out of range for i32")
     } else {
       value: i32 = self as i32
@@ -169,7 +167,7 @@ methods f64 {
 
   fn to_u32(self: Self) -> Result u32 {
     if f64_is_nan(self) { numeric_conversion_error("cannot convert NaN to u32") }
-    else if self < 0.0 || self > 4294967295.0 {
+    elsif self < 0.0 || self > 4294967295.0 {
       numeric_conversion_error("value out of range for u32")
     } else {
       value: u32 = self as u32
@@ -180,7 +178,7 @@ methods f64 {
 
   fn to_i64(self: Self) -> Result i64 {
     if f64_is_nan(self) { numeric_conversion_error("cannot convert NaN to i64") }
-    else if self < -9223372036854775808.0 || self > 9223372036854775807.0 {
+    elsif self < -9223372036854775808.0 || self > 9223372036854775807.0 {
       numeric_conversion_error("value out of range for i64")
     } else {
       value: i64 = self as i64
@@ -191,7 +189,7 @@ methods f64 {
 
   fn to_u64(self: Self) -> Result u64 {
     if f64_is_nan(self) { numeric_conversion_error("cannot convert NaN to u64") }
-    else if self < 0.0 || self > 18446744073709551615.0 {
+    elsif self < 0.0 || self > 18446744073709551615.0 {
       numeric_conversion_error("value out of range for u64")
     } else {
       value: u64 = self as u64
@@ -216,14 +214,14 @@ methods f32 {
 methods Ratio {
   fn to_i32(self: Self) -> Result i32 {
     if self.den != 1 { numeric_conversion_error("cannot convert non-integer Ratio to i32") }
-    else if self.num < -2147483648_i64 || self.num > 2147483647_i64 {
+    elsif self.num < -2147483648_i64 || self.num > 2147483647_i64 {
       numeric_conversion_error("value out of range for i32")
     } else { self.num as i32 }
   }
 
   fn to_u32(self: Self) -> Result u32 {
     if self.den != 1 { numeric_conversion_error("cannot convert non-integer Ratio to u32") }
-    else if self.num < 0 || self.num > 4294967295_i64 {
+    elsif self.num < 0 || self.num > 4294967295_i64 {
       numeric_conversion_error("value out of range for u32")
     } else { self.num as u32 }
   }
@@ -235,7 +233,7 @@ methods Ratio {
 
   fn to_u64(self: Self) -> Result u64 {
     if self.den != 1 { numeric_conversion_error("cannot convert non-integer Ratio to u64") }
-    else if self.num < 0 { numeric_conversion_error("cannot convert negative Ratio to u64") }
+    elsif self.num < 0 { numeric_conversion_error("cannot convert negative Ratio to u64") }
     else { self.num as u64 }
   }
 

@@ -1,0 +1,12 @@
+{
+  "description": "construct Option/Result unions and consume them via match without propagation",
+  "expect": {
+    "stdout": [
+      "some 4",
+      "none",
+      "ok 9",
+      "err"
+    ],
+    "exit": 0
+  }
+}

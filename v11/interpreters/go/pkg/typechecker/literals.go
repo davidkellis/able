@@ -160,14 +160,8 @@ func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diag
 		return diags, resultType
 	case *ast.IfExpression:
 		var diags []Diagnostic
-		condDiags, condType := c.checkExpression(env, e.IfCondition)
+		condDiags, _ := c.checkExpression(env, e.IfCondition)
 		diags = append(diags, condDiags...)
-		if !typeAssignable(condType, PrimitiveType{Kind: PrimitiveBool}) {
-			diags = append(diags, Diagnostic{
-				Message: "typechecker: if condition must be bool",
-				Node:    e.IfCondition,
-			})
-		}
 
 		branchTypes := make([]Type, 0, 1+len(e.ElseIfClauses))
 		if e.IfBody != nil {
@@ -182,14 +176,8 @@ func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diag
 			if clause == nil {
 				continue
 			}
-			orCondDiags, orCondType := c.checkExpression(env, clause.Condition)
+			orCondDiags, _ := c.checkExpression(env, clause.Condition)
 			diags = append(diags, orCondDiags...)
-			if !typeAssignable(orCondType, PrimitiveType{Kind: PrimitiveBool}) {
-				diags = append(diags, Diagnostic{
-					Message: "typechecker: elsif condition must be bool",
-					Node:    clause.Condition,
-				})
-			}
 			if clause.Body != nil {
 				bodyDiags, bodyType := c.checkExpression(env, clause.Body)
 				diags = append(diags, bodyDiags...)
@@ -210,6 +198,8 @@ func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diag
 		return diags, resultType
 	case *ast.UnaryExpression:
 		return c.checkUnaryExpression(env, e)
+	case *ast.TypeCastExpression:
+		return c.checkTypeCastExpression(env, e)
 	case *ast.BinaryExpression:
 		return c.checkBinaryExpression(env, e)
 	case *ast.LambdaExpression:
@@ -307,6 +297,28 @@ func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diag
 		diag := Diagnostic{Message: fmt.Sprintf("typechecker: unsupported expression %T", expr), Node: expr}
 		return []Diagnostic{diag}, UnknownType{}
 	}
+}
+
+func (c *Checker) checkTypeCastExpression(env *Environment, expr *ast.TypeCastExpression) ([]Diagnostic, Type) {
+	var diags []Diagnostic
+	valueDiags, valueType := c.checkExpression(env, expr.Expression)
+	diags = append(diags, valueDiags...)
+	targetType := c.resolveTypeReference(expr.TargetType)
+	c.infer.set(expr, targetType)
+	if isUnknownType(valueType) || isUnknownType(targetType) {
+		return diags, targetType
+	}
+	if typeAssignable(valueType, targetType) {
+		return diags, targetType
+	}
+	if isNumericType(valueType) && isNumericType(targetType) {
+		return diags, targetType
+	}
+	diags = append(diags, Diagnostic{
+		Message: fmt.Sprintf("typechecker: cannot cast %s to %s", typeName(valueType), typeName(targetType)),
+		Node:    expr,
+	})
+	return diags, targetType
 }
 
 func (c *Checker) checkExpressionWithExpectedType(env *Environment, expr ast.Expression, expected Type) ([]Diagnostic, Type) {

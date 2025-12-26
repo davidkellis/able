@@ -1,0 +1,11 @@
+{
+  "description": "if/match expressions evaluate to the selected branch value",
+  "expect": {
+    "stdout": [
+      "if 7",
+      "match two",
+      "if_else no"
+    ],
+    "exit": 0
+  }
+}

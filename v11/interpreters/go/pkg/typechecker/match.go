@@ -30,14 +30,8 @@ func (c *Checker) checkMatchExpression(env *Environment, expr *ast.MatchExpressi
 			}
 		}
 		if clause.Guard != nil {
-			guardDiags, guardType := c.checkExpression(clauseEnv, clause.Guard)
+			guardDiags, _ := c.checkExpression(clauseEnv, clause.Guard)
 			diags = append(diags, guardDiags...)
-			if !typeAssignable(guardType, PrimitiveType{Kind: PrimitiveBool}) {
-				diags = append(diags, Diagnostic{
-					Message: "typechecker: match guard must be bool",
-					Node:    clause.Guard,
-				})
-			}
 		}
 		bodyDiags, bodyType := c.checkExpression(clauseEnv, clause.Body)
 		diags = append(diags, bodyDiags...)

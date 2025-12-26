@@ -1,0 +1,38 @@
+package exec_06_03_operator_overloading_interfaces
+
+import able.core.interfaces.{Add, Index, IndexMut}
+
+## Semantics: operators dispatch through standard interfaces for custom types.
+
+struct Vec2 { x: i32, y: i32 }
+
+impl Add Vec2 Vec2 for Vec2 {
+  fn add(self: Self, rhs: Vec2) -> Vec2 {
+    Vec2 { x: self.x + rhs.x, y: self.y + rhs.y }
+  }
+}
+
+struct Bag { items: Array i32 }
+
+impl Index i32 i32 for Bag {
+  fn get(self: Self, idx: i32) -> !i32 { self.items[idx] }
+}
+
+impl IndexMut i32 i32 for Bag {
+  fn set(self: Self, idx: i32, value: i32) -> !void {
+    self.items[idx] = value
+  }
+}
+
+fn main() -> void {
+  left := Vec2 { x: 1, y: 2 }
+  right := Vec2 { x: 3, y: 4 }
+  sum := left + right
+  print(`sum ${sum.x},${sum.y}`)
+
+  bag := Bag { items: [10, 20, 30] }
+  first := bag[0]
+  bag[1] = 99
+  second := bag[1]
+  print(`idx ${first} ${second}`)
+}

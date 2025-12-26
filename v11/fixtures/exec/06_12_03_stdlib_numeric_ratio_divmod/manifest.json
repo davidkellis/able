@@ -1,0 +1,16 @@
+{
+  "description": "stdlib numeric helpers for Ratio normalization and divmod results",
+  "expect": {
+    "stdout": [
+      "ratio -3 4",
+      "ratio0 0 1",
+      "whole 7 1",
+      "half 1 2",
+      "sum 3 4",
+      "divmod 2 1",
+      "divmod2 -3 2",
+      "divmod3 -2 1"
+    ],
+    "exit": 0
+  }
+}

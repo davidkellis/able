@@ -1,0 +1,12 @@
+{
+  "description": "lambda closures capture outer bindings with explicit return",
+  "expect": {
+    "stdout": [
+      "closure 5",
+      "factory 12",
+      "verbose 12",
+      "apply 22"
+    ],
+    "exit": 0
+  }
+}

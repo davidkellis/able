@@ -91,7 +91,7 @@ export function parseNilLiteral(ctx: ParseContext, node: Node): Expression {
 export function parseStringLiteral(ctx: ParseContext, node: Node): Expression {
   const raw = sliceText(node, ctx.source);
   try {
-    return annotateExpressionNode(AST.stringLiteral(JSON.parse(raw)), node);
+    return annotateExpressionNode(AST.stringLiteral(unescapeQuotedLiteral(raw, "string")), node);
   } catch (error) {
     throw new MapperError(`parser: invalid string literal ${raw}: ${error}`);
   }
@@ -101,7 +101,7 @@ export function parseCharLiteral(ctx: ParseContext, node: Node): Expression {
   const raw = sliceText(node, ctx.source);
   let value: string;
   try {
-    value = JSON.parse(raw.replace(/^'|'+$/g, match => (match === "'" ? '"' : match)));
+    value = unescapeQuotedLiteral(raw, "character");
   } catch (error) {
     throw new MapperError(`parser: invalid character literal ${raw}: ${error}`);
   }
@@ -109,6 +109,101 @@ export function parseCharLiteral(ctx: ParseContext, node: Node): Expression {
     throw new MapperError(`parser: character literal ${raw} must resolve to a single rune`);
   }
   return annotateExpressionNode(AST.charLiteral(value), node);
+}
+
+function unescapeQuotedLiteral(raw: string, kind: "string" | "character"): string {
+  if (raw.length < 2) {
+    throw new Error(`${kind} literal is empty`);
+  }
+  const quote = raw[0];
+  if ((quote !== "\"" && quote !== "'") || raw[raw.length - 1] !== quote) {
+    throw new Error(`${kind} literal is not properly quoted`);
+  }
+  let result = "";
+  for (let i = 1; i < raw.length - 1; i++) {
+    const ch = raw[i];
+    if (ch !== "\\") {
+      result += ch;
+      continue;
+    }
+    i += 1;
+    if (i >= raw.length - 1) {
+      throw new Error(`${kind} literal ends with escape`);
+    }
+    const esc = raw[i];
+    switch (esc) {
+      case "n":
+        result += "\n";
+        break;
+      case "r":
+        result += "\r";
+        break;
+      case "t":
+        result += "\t";
+        break;
+      case "b":
+        result += "\b";
+        break;
+      case "f":
+        result += "\f";
+        break;
+      case "\\":
+        result += "\\";
+        break;
+      case "\"":
+        result += "\"";
+        break;
+      case "'":
+        result += "'";
+        break;
+      case "/":
+        result += "/";
+        break;
+      case "u": {
+        if (raw[i + 1] === "{") {
+          const start = i + 2;
+          let end = start;
+          while (end < raw.length - 1 && raw[end] !== "}") {
+            end += 1;
+          }
+          if (end >= raw.length - 1) {
+            throw new Error(`${kind} literal has unterminated unicode escape`);
+          }
+          const hex = raw.slice(start, end);
+          if (hex.length < 1 || hex.length > 6 || !isHexSequence(hex)) {
+            throw new Error(`${kind} literal has invalid unicode escape`);
+          }
+          const codepoint = parseInt(hex, 16);
+          if (codepoint > 0x10ffff || (codepoint >= 0xd800 && codepoint <= 0xdfff)) {
+            throw new Error(`${kind} literal has invalid unicode scalar`);
+          }
+          result += String.fromCodePoint(codepoint);
+          i = end;
+          break;
+        }
+        const hex = raw.slice(i + 1, i + 5);
+        if (hex.length !== 4 || !isHexSequence(hex)) {
+          throw new Error(`${kind} literal has invalid unicode escape`);
+        }
+        const codepoint = parseInt(hex, 16);
+        result += String.fromCodePoint(codepoint);
+        i += 4;
+        break;
+      }
+      default:
+        throw new Error(`${kind} literal has invalid escape \\${esc}`);
+    }
+  }
+  return result;
+}
+
+function isHexSequence(value: string): boolean {
+  for (const ch of value) {
+    if (!((ch >= "0" && ch <= "9") || (ch >= "a" && ch <= "f") || (ch >= "A" && ch <= "F"))) {
+      return false;
+    }
+  }
+  return true;
 }
 
 export function parseArrayLiteral(ctx: ParseContext, node: Node): Expression {

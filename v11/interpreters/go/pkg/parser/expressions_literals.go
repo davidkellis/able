@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	sitter "github.com/tree-sitter/go-tree-sitter"
 
@@ -140,7 +141,7 @@ func isNumericSuffix(s string) bool {
 
 func (ctx *parseContext) parseStringLiteral(node *sitter.Node) (ast.Expression, error) {
 	raw := sliceContent(node, ctx.source)
-	unquoted, err := strconv.Unquote(raw)
+	unquoted, err := unescapeQuotedLiteral(raw, "string")
 	if err != nil {
 		return nil, fmt.Errorf("parser: invalid string literal %q: %w", raw, err)
 	}
@@ -149,7 +150,7 @@ func (ctx *parseContext) parseStringLiteral(node *sitter.Node) (ast.Expression, 
 
 func (ctx *parseContext) parseCharLiteral(node *sitter.Node) (ast.Expression, error) {
 	raw := sliceContent(node, ctx.source)
-	unquoted, err := strconv.Unquote(raw)
+	unquoted, err := unescapeQuotedLiteral(raw, "character")
 	if err != nil {
 		return nil, fmt.Errorf("parser: invalid character literal %q: %w", raw, err)
 	}
@@ -160,4 +161,114 @@ func (ctx *parseContext) parseCharLiteral(node *sitter.Node) (ast.Expression, er
 		return nil, fmt.Errorf("parser: character literal %q must resolve to a single rune", raw)
 	}
 	return annotateExpression(ast.Chr(unquoted), node), nil
+}
+
+func unescapeQuotedLiteral(raw string, kind string) (string, error) {
+	if len(raw) < 2 {
+		return "", fmt.Errorf("%s literal is empty", kind)
+	}
+	quote := raw[0]
+	if (quote != '"' && quote != '\'') || raw[len(raw)-1] != quote {
+		return "", fmt.Errorf("%s literal is not properly quoted", kind)
+	}
+	var builder strings.Builder
+	builder.Grow(len(raw) - 2)
+	for i := 1; i < len(raw)-1; i++ {
+		ch := raw[i]
+		if ch != '\\' {
+			builder.WriteByte(ch)
+			continue
+		}
+		i++
+		if i >= len(raw)-1 {
+			return "", fmt.Errorf("%s literal ends with escape", kind)
+		}
+		esc := raw[i]
+		switch esc {
+		case 'n':
+			builder.WriteByte('\n')
+		case 'r':
+			builder.WriteByte('\r')
+		case 't':
+			builder.WriteByte('\t')
+		case 'b':
+			builder.WriteByte('\b')
+		case 'f':
+			builder.WriteByte('\f')
+		case '\\':
+			builder.WriteByte('\\')
+		case '"':
+			builder.WriteByte('"')
+		case '\'':
+			builder.WriteByte('\'')
+		case '/':
+			builder.WriteByte('/')
+		case 'u':
+			r, advance, err := parseUnicodeEscape(raw, i)
+			if err != nil {
+				return "", fmt.Errorf("%s literal has invalid unicode escape: %w", kind, err)
+			}
+			builder.WriteRune(r)
+			i += advance
+		default:
+			return "", fmt.Errorf("%s literal has invalid escape \\%c", kind, esc)
+		}
+	}
+	return builder.String(), nil
+}
+
+func parseUnicodeEscape(raw string, index int) (rune, int, error) {
+	if index+1 < len(raw)-1 && raw[index+1] == '{' {
+		start := index + 2
+		end := start
+		for end < len(raw)-1 && raw[end] != '}' {
+			end++
+		}
+		if end >= len(raw)-1 {
+			return 0, 0, fmt.Errorf("unterminated unicode escape")
+		}
+		hex := raw[start:end]
+		if len(hex) < 1 || len(hex) > 6 || !isHexSequence(hex) {
+			return 0, 0, fmt.Errorf("invalid unicode escape")
+		}
+		r, err := parseCodepoint(hex)
+		if err != nil {
+			return 0, 0, err
+		}
+		return r, end - index, nil
+	}
+	if index+4 >= len(raw) {
+		return 0, 0, fmt.Errorf("invalid unicode escape")
+	}
+	hex := raw[index+1 : index+5]
+	if !isHexSequence(hex) {
+		return 0, 0, fmt.Errorf("invalid unicode escape")
+	}
+	r, err := parseCodepoint(hex)
+	if err != nil {
+		return 0, 0, err
+	}
+	return r, 4, nil
+}
+
+func parseCodepoint(hex string) (rune, error) {
+	value, err := strconv.ParseInt(hex, 16, 32)
+	if err != nil {
+		return 0, fmt.Errorf("invalid unicode escape")
+	}
+	r := rune(value)
+	if !utf8.ValidRune(r) {
+		return 0, fmt.Errorf("invalid unicode scalar")
+	}
+	return r, nil
+}
+
+func isHexSequence(value string) bool {
+	for i := 0; i < len(value); i++ {
+		ch := value[i]
+		if !(ch >= '0' && ch <= '9') && !(ch >= 'a' && ch <= 'f') && !(ch >= 'A' && ch <= 'F') {
+			return false
+		}
+	}
+	return true
 }

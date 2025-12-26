@@ -1,0 +1,16 @@
+package exec_06_01_literals_numeric_contextual
+
+## Semantics: integer/float literals adopt the contextual numeric type when the value fits; float contexts may round.
+
+fn show_u8(x: u8) -> String { `${x}` }
+fn show_i8(x: i8) -> String { `${x}` }
+fn show_f32(x: f32) -> String { `${x}` }
+
+fn main() -> void {
+  print(`u8 ${show_u8(200)}`)
+  print(`i8 ${show_i8(-5)}`)
+  print(`f32-int ${show_f32(10)}`)
+  rounded := show_f32(16777217)
+  expected := show_f32(16777216)
+  print(`f32-round ${rounded == expected}`)
+}

@@ -1,0 +1,43 @@
+package exec_06_12_02_stdlib_array_helpers
+
+import able.collections.array.*
+import able.core.errors.{IndexError}
+
+## Semantics: Array helpers expose size/push/pop/get/set/clear with bounds checks.
+
+fn main() -> void {
+  arr := [1, 2]
+  print(`size ${arr.size()}`)
+
+  arr.set(0, 5) match {
+    case nil => print(`set ${arr[0]!}`),
+    case _: IndexError => print("set error")
+  }
+
+  arr.push(3)
+  print(`push ${arr.size()} ${arr[2]!}`)
+
+  popped := arr.pop()
+  popped match {
+    case value: i32 => print(`pop ${value} size ${arr.size()}`),
+    case nil => print("pop nil")
+  }
+
+  arr.get(99) match {
+    case nil => print("get nil"),
+    case _ => print("get value")
+  }
+
+  arr.set(99, 10) match {
+    case _: IndexError => print("set error"),
+    case nil => print("set ok")
+  }
+
+  arr.clear()
+  print(`clear ${arr.size()}`)
+
+  arr.pop() match {
+    case nil => print("pop nil"),
+    case value: i32 => print(`pop ${value}`)
+  }
+}

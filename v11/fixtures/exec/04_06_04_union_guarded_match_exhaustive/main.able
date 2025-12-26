@@ -1,0 +1,23 @@
+package exec_04_06_04_union_guarded_match_exhaustive
+
+## Semantics: union match clauses apply in order; guards filter clauses; coverage is exhaustive when every variant is handled.
+
+struct Ok { value: i32 }
+struct Err { message: String }
+union Result = Ok | Err
+
+fn describe(result: Result) -> String {
+  result match {
+    case Ok { value } if value > 0 => `ok ${value}`,
+    case Ok { value } => `zero ${value}`,
+    case Err { message } if message == "timeout" => "retry",
+    case Err { message } => `err ${message}`
+  }
+}
+
+fn main() -> void {
+  print(describe(Ok { value: 3 }))
+  print(describe(Ok { value: 0 }))
+  print(describe(Err { message: "timeout" }))
+  print(describe(Err { message: "oops" }))
+}

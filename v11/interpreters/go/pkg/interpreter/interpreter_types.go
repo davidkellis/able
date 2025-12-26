@@ -346,12 +346,19 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 				return true
 			}
 			return false
-		case "f32", "f64":
-			fv, ok := value.(runtime.FloatValue)
-			if !ok {
-				return false
-			}
-			return string(fv.TypeSuffix) == name
+	case "f32", "f64":
+		switch val := value.(type) {
+		case runtime.FloatValue:
+			return true
+		case *runtime.FloatValue:
+			return val != nil
+		case runtime.IntegerValue:
+			return true
+		case *runtime.IntegerValue:
+			return val != nil
+		default:
+			return false
+		}
 		default:
 			if unionDef, ok := i.unionDefinitions[name]; ok && unionDef != nil && unionDef.Node != nil {
 				for _, variant := range unionDef.Node.Variants {
@@ -598,6 +605,29 @@ func (i *Interpreter) coerceValueToType(typeExpr ast.TypeExpression, value runti
 					}
 				}
 			}
+			if name == "f32" || name == "f64" {
+				targetFloat := runtime.FloatType(name)
+				switch val := value.(type) {
+				case runtime.FloatValue:
+					if val.TypeSuffix != targetFloat {
+						return runtime.FloatValue{Val: normalizeFloat(targetFloat, val.Val), TypeSuffix: targetFloat}, nil
+					}
+				case *runtime.FloatValue:
+					if val != nil && val.TypeSuffix != targetFloat {
+						return runtime.FloatValue{Val: normalizeFloat(targetFloat, val.Val), TypeSuffix: targetFloat}, nil
+					}
+				case runtime.IntegerValue:
+					if val.Val != nil {
+						f := bigIntToFloat(val.Val)
+						return runtime.FloatValue{Val: normalizeFloat(targetFloat, f), TypeSuffix: targetFloat}, nil
+					}
+				case *runtime.IntegerValue:
+					if val != nil && val.Val != nil {
+						f := bigIntToFloat(val.Val)
+						return runtime.FloatValue{Val: normalizeFloat(targetFloat, f), TypeSuffix: targetFloat}, nil
+					}
+				}
+			}
 			if name == "Error" {
 				if _, ok := value.(runtime.ErrorValue); ok {
 					return value, nil
@@ -612,6 +642,112 @@ func (i *Interpreter) coerceValueToType(typeExpr ast.TypeExpression, value runti
 		}
 	}
 	return value, nil
+}
+
+func (i *Interpreter) castValueToType(typeExpr ast.TypeExpression, value runtime.Value) (runtime.Value, error) {
+	if typeExpr != nil {
+		if expanded := expandTypeAliases(typeExpr, i.typeAliases, nil); expanded != nil {
+			typeExpr = expanded
+		}
+	}
+	if i.matchesType(typeExpr, value) {
+		return value, nil
+	}
+	rawValue := value
+	switch v := value.(type) {
+	case runtime.InterfaceValue:
+		rawValue = v.Underlying
+	case *runtime.InterfaceValue:
+		if v != nil {
+			rawValue = v.Underlying
+		}
+	}
+	switch t := typeExpr.(type) {
+	case *ast.SimpleTypeExpression:
+		if t.Name == nil {
+			break
+		}
+		name := normalizeKernelAliasName(t.Name.Name)
+		targetKind := runtime.IntegerType(name)
+		if info, err := getIntegerInfo(targetKind); err == nil {
+			switch val := rawValue.(type) {
+			case runtime.IntegerValue:
+				if err := ensureFitsInteger(info, val.Val); err != nil {
+					return nil, err
+				}
+				return runtime.IntegerValue{Val: new(big.Int).Set(val.Val), TypeSuffix: targetKind}, nil
+			case *runtime.IntegerValue:
+				if val == nil {
+					return nil, fmt.Errorf("cannot cast <nil> to %s", targetKind)
+				}
+				if err := ensureFitsInteger(info, val.Val); err != nil {
+					return nil, err
+				}
+				return runtime.IntegerValue{Val: new(big.Int).Set(val.Val), TypeSuffix: targetKind}, nil
+			case runtime.FloatValue:
+				if math.IsNaN(val.Val) || math.IsInf(val.Val, 0) {
+					return nil, fmt.Errorf("cannot cast non-finite float to %s", targetKind)
+				}
+				f := new(big.Float).SetFloat64(val.Val)
+				intVal, _ := f.Int(nil)
+				if err := ensureFitsInteger(info, intVal); err != nil {
+					return nil, err
+				}
+				return runtime.IntegerValue{Val: intVal, TypeSuffix: targetKind}, nil
+			case *runtime.FloatValue:
+				if val == nil {
+					return nil, fmt.Errorf("cannot cast <nil> to %s", targetKind)
+				}
+				if math.IsNaN(val.Val) || math.IsInf(val.Val, 0) {
+					return nil, fmt.Errorf("cannot cast non-finite float to %s", targetKind)
+				}
+				f := new(big.Float).SetFloat64(val.Val)
+				intVal, _ := f.Int(nil)
+				if err := ensureFitsInteger(info, intVal); err != nil {
+					return nil, err
+				}
+				return runtime.IntegerValue{Val: intVal, TypeSuffix: targetKind}, nil
+			}
+		}
+		if name == "f32" || name == "f64" {
+			targetFloat := runtime.FloatType(name)
+			switch val := rawValue.(type) {
+			case runtime.FloatValue:
+				return runtime.FloatValue{Val: normalizeFloat(targetFloat, val.Val), TypeSuffix: targetFloat}, nil
+			case *runtime.FloatValue:
+				if val == nil {
+					return nil, fmt.Errorf("cannot cast <nil> to %s", name)
+				}
+				return runtime.FloatValue{Val: normalizeFloat(targetFloat, val.Val), TypeSuffix: targetFloat}, nil
+			case runtime.IntegerValue:
+				if val.Val == nil {
+					return nil, fmt.Errorf("cannot cast <nil> to %s", name)
+				}
+				f := bigIntToFloat(val.Val)
+				return runtime.FloatValue{Val: normalizeFloat(targetFloat, f), TypeSuffix: targetFloat}, nil
+			case *runtime.IntegerValue:
+				if val == nil || val.Val == nil {
+					return nil, fmt.Errorf("cannot cast <nil> to %s", name)
+				}
+				f := bigIntToFloat(val.Val)
+				return runtime.FloatValue{Val: normalizeFloat(targetFloat, f), TypeSuffix: targetFloat}, nil
+			}
+		}
+		if name == "Error" {
+			switch rawValue.(type) {
+			case runtime.ErrorValue, *runtime.ErrorValue:
+				return rawValue, nil
+			}
+		}
+		if _, ok := i.interfaces[name]; ok {
+			return i.coerceToInterfaceValue(name, value)
+		}
+	}
+	typeDesc := "<unknown>"
+	if info, ok := i.getTypeInfoForValue(rawValue); ok {
+		typeDesc = typeInfoToString(info)
+	}
+	return nil, fmt.Errorf("cannot cast %s to %s", typeDesc, typeExpressionToString(typeExpr))
 }
 
 func (i *Interpreter) coerceToInterfaceValue(interfaceName string, value runtime.Value) (runtime.Value, error) {

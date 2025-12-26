@@ -56,7 +56,7 @@ func TestIfExpressionMergesBranchTypes(t *testing.T) {
 		t.Fatalf("expected if expression to have type i32, got %q", typeName(typ))
 	}
 }
-func TestIfExpressionConditionMustBeBool(t *testing.T) {
+func TestIfExpressionConditionAllowsTruthiness(t *testing.T) {
 	checker := New()
 	ifExpr := ast.IfExpr(
 		ast.Int(1),
@@ -67,18 +67,8 @@ func TestIfExpressionConditionMustBeBool(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(diags) == 0 {
-		t.Fatalf("expected diagnostics for non-bool condition")
-	}
-	found := false
-	for _, d := range diags {
-		if strings.Contains(d.Message, "condition must be bool") {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("expected condition bool diagnostic, got %v", diags)
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics for truthy condition, got %v", diags)
 	}
 }
 func TestReturnOutsideFunctionProducesDiagnostic(t *testing.T) {
@@ -118,7 +108,7 @@ func TestRescueExpressionMergesTypes(t *testing.T) {
 		t.Fatalf("expected rescue expression to infer String, got %q", typeName(typ))
 	}
 }
-func TestRescueGuardMustBeBool(t *testing.T) {
+func TestRescueGuardAllowsTruthiness(t *testing.T) {
 	checker := New()
 	assign := ast.Assign(ast.ID("value"), ast.Str("ok"))
 	rescue := ast.Rescue(
@@ -130,15 +120,8 @@ func TestRescueGuardMustBeBool(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	found := false
-	for _, d := range diags {
-		if strings.Contains(d.Message, "rescue guard must evaluate to bool") {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("expected rescue guard diagnostic, got %v", diags)
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics for truthy rescue guard, got %v", diags)
 	}
 }
 
@@ -364,7 +347,7 @@ func TestContinueRequiresLoop(t *testing.T) {
 		t.Fatalf("missing continue diagnostic: %v", diags)
 	}
 }
-func TestWhileConditionMustBeBool(t *testing.T) {
+func TestWhileConditionAllowsTruthiness(t *testing.T) {
 	checker := New()
 	loop := ast.Wloop(
 		ast.Int(1),
@@ -375,11 +358,8 @@ func TestWhileConditionMustBeBool(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(diags) == 0 {
-		t.Fatalf("expected diagnostic for while condition")
-	}
-	if want := "while condition must be bool"; !strings.Contains(diags[0].Message, want) {
-		t.Fatalf("expected message %q, got %q", want, diags[0].Message)
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics for truthy while condition, got %v", diags)
 	}
 }
 func TestForLoopIterableMustBeArrayRangeOrIterator(t *testing.T) {

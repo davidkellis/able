@@ -1,0 +1,39 @@
+package exec_06_09_lexical_trailing_commas_line_join
+
+import able.collections.array.*
+import able.core.errors.{
+  IndexError,
+}
+
+## Semantics: line-join inside delimiters and trailing commas in arrays/structs/imports.
+
+struct Pair { left: i32, right: i32 }
+
+fn add(a: i32, b: i32) -> i32 { a + b }
+
+fn main() -> void {
+  joined := add(
+    5,
+    7
+  )
+
+  arr := [
+    1
+    + 2,
+    joined,
+  ]
+
+  pair := Pair {
+    left: arr[0]!,
+    right: arr[1]!,
+  }
+
+  arr.set(99, 1) match {
+    case _: IndexError => print("set error"),
+    case nil => print("set ok")
+  }
+
+  print(`joined ${joined}`)
+  print(`arr ${arr[0]!} ${arr[1]!}`)
+  print(`pair ${pair.left} ${pair.right}`)
+}

@@ -19,6 +19,7 @@ type FileModule = {
   packageName: string;
   ast: AST.Module;
   imports: string[];
+  dynImports: string[];
 };
 
 export type LoadedModule = {
@@ -26,6 +27,7 @@ export type LoadedModule = {
   module: AST.Module;
   files: string[];
   imports: string[];
+  dynImports: string[];
 };
 
 export type Program = {
@@ -128,6 +130,11 @@ export class ModuleLoader {
         if (!pkgIndex.has(dep)) {
           throw new Error(`loader: package ${pkgName} imports unknown package ${dep}`);
         }
+        await loadPackage(dep);
+      }
+      for (const dep of combined.dynImports) {
+        if (dep === pkgName) continue;
+        if (!pkgIndex.has(dep)) continue;
         await loadPackage(dep);
       }
       loaded.set(pkgName, combined);
@@ -297,6 +304,7 @@ async function parseFile(filePath: string, rootDir: string, rootPackage: string)
   annotateModuleOrigin(moduleAST, filePath);
 
   const importSet = new Set<string>();
+  const dynImportSet = new Set<string>();
   for (const imp of (moduleAST.imports || [])) {
     const name = formatImportPath(imp);
     if (!name) {
@@ -304,9 +312,10 @@ async function parseFile(filePath: string, rootDir: string, rootPackage: string)
     }
     importSet.add(name);
   }
-  collectDynImportPackages(moduleAST, importSet);
+  collectDynImportPackages(moduleAST, dynImportSet);
   const imports = [...importSet].sort();
-  return { path: filePath, packageName: pkgName, ast: moduleAST, imports };
+  const dynImports = [...dynImportSet].sort();
+  return { path: filePath, packageName: pkgName, ast: moduleAST, imports, dynImports };
 }
 
 function combinePackage(packageName: string, files: FileModule[]): LoadedModule {
@@ -319,6 +328,7 @@ function combinePackage(packageName: string, files: FileModule[]): LoadedModule 
   const importNodes: ImportStatement[] = [];
   const importNodeKeys = new Set<string>();
   const importNames = new Set<string>();
+  const dynImportNames = new Set<string>();
   let pkgStmt: AST.PackageStatement | undefined;
 
   for (const file of sortedFiles) {
@@ -339,6 +349,10 @@ function combinePackage(packageName: string, files: FileModule[]): LoadedModule 
       if (name === packageName) continue;
       importNames.add(name);
     }
+    for (const name of file.dynImports) {
+      if (name === packageName) continue;
+      dynImportNames.add(name);
+    }
     body.push(...file.ast.body);
   }
   if (!pkgStmt) {
@@ -353,6 +367,7 @@ function combinePackage(packageName: string, files: FileModule[]): LoadedModule 
     module,
     files: sortedFiles.map((f) => f.path),
     imports: [...importNames].sort(),
+    dynImports: [...dynImportNames].sort(),
   };
 }
 

@@ -353,6 +353,7 @@ module.exports = grammar({
       field("where_clause", optional($.where_clause)),
       "=",
       field("target", $.type_expression),
+      optional(";"),
     ),
 
     interface_definition: $ => seq(
@@ -733,8 +734,8 @@ module.exports = grammar({
     multiplicative_expression: $ => prec.left(
       PREC.multiplicative,
       seq(
-        $.unary_expression,
-        repeat(seq(choice("//", "%", "/%", "*", "/"), $.unary_expression)),
+        choice($.cast_expression, $.unary_expression),
+        repeat(seq(choice("//", "%", "/%", "*", "/"), choice($.cast_expression, $.unary_expression))),
       ),
     ),
 
@@ -747,6 +748,13 @@ module.exports = grammar({
         ),
       ),
       $.exponent_expression,
+    ),
+
+    cast_expression: $ => prec.left(
+      seq(
+        $.unary_expression,
+        repeat1(seq("as", $.type_expression)),
+      ),
     ),
 
     exponent_expression: $ => choice(
@@ -872,7 +880,7 @@ module.exports = grammar({
       PREC.member,
       seq(
         field("operator", choice(".", "?.")),
-        field("member", choice($.identifier, $.numeric_member)),
+        field("member", choice($.identifier, $.keyword_identifier, $.numeric_member)),
       ),
     ),
 
@@ -1175,6 +1183,7 @@ module.exports = grammar({
     ),
 
     identifier: _ => token(prec(-1, /[A-KM-Za-km-zA-Z_][A-Za-z0-9_]*|l|lo|loo|l[A-Za-np-zA-Z0-9_][A-Za-z0-9_]*|lo[A-Za-np-zA-Z0-9_][A-Za-z0-9_]*|loo[A-Za-oq-zA-Z0-9_][A-Za-z0-9_]*|loop[A-Za-z0-9_]+/)),
+    keyword_identifier: _ => "package",
 
     numeric_member: _ => token.immediate(/[0-9]+/),
 
@@ -1188,7 +1197,7 @@ module.exports = grammar({
 
     string_literal: _ => token(seq(
       '"',
-      repeat(choice(/[^"\\\n]+/, /\\./)),
+      repeat(choice(/[^"\\]+/, /\\./)),
       '"',
     )),
 

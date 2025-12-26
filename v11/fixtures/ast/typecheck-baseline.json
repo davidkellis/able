@@ -74,9 +74,7 @@
   "errors/interface_self_pattern_mismatch": [
     "typechecker: ../../../fixtures/ast/errors/interface_self_pattern_mismatch/source.able:13:1 typechecker: impl PointDisplay for Line must match interface self type 'Point'"
   ],
-  "errors/logic_operand_type": [
-    "typechecker: ../../../fixtures/ast/errors/logic_operand_type/source.able:1:11 typechecker: '&&' left operand must be bool (got String)"
-  ],
+  "errors/logic_operand_type": [],
   "errors/method_scope_missing_import": [],
   "errors/method_set_where_constraint": [
     "typechecker: ../../../fixtures/ast/errors/method_set_where_constraint/source.able:16:17 typechecker: methods for Wrapper::describe constraint on Self is not satisfied: Wrapper does not implement CustomDisplay: methods for Wrapper: method 'show' not provided"

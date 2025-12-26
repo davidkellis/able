@@ -164,6 +164,8 @@ type Interpreter struct {
 	packageRegistry      map[string]map[string]runtime.Value
 	packageMetadata      map[string]packageMeta
 	currentPackage       string
+	dynamicDefinitionMode bool
+	dynPackageDefMethod   runtime.NativeFunctionValue
 	executor             Executor
 	rootState            *evalState
 
@@ -271,9 +273,11 @@ func (i *Interpreter) registerSymbol(name string, value runtime.Value) {
 		bucket = make(map[string]runtime.Value)
 		i.packageRegistry[i.currentPackage] = bucket
 	}
-	if existing, ok := bucket[name]; ok {
-		if merged, ok := runtime.MergeFunctionValues(existing, value); ok {
-			value = merged
+	if !i.dynamicDefinitionMode {
+		if existing, ok := bucket[name]; ok {
+			if merged, ok := runtime.MergeFunctionValues(existing, value); ok {
+				value = merged
+			}
 		}
 	}
 	bucket[name] = value
@@ -335,6 +339,7 @@ func NewWithExecutor(exec Executor) *Interpreter {
 	i.initHasherBuiltins()
 	i.initRatioBuiltins()
 	i.initInterfaceBuiltins()
+	i.initDynamicBuiltins()
 	return i
 }
 

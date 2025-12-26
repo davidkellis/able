@@ -6,6 +6,7 @@ declare module "./index" {
     registerSymbol(name: string, value: RuntimeValue): void;
     qualifiedName(name: string): string | null;
     isTruthy(v: RuntimeValue): boolean;
+    dynamicDefinitionMode: boolean;
   }
 }
 
@@ -15,7 +16,7 @@ export function applyHelperAugmentations(cls: typeof Interpreter): void {
     if (!this.packageRegistry.has(this.currentPackage)) this.packageRegistry.set(this.currentPackage, new Map());
     const bucket = this.packageRegistry.get(this.currentPackage)!;
     const existing = bucket.get(name);
-    if (existing && isFunctionLike(existing) && isFunctionLike(value)) {
+    if (!this.dynamicDefinitionMode && existing && isFunctionLike(existing) && isFunctionLike(value)) {
       const overloads = [];
       if (existing.kind === "function") overloads.push(existing);
       if (existing.kind === "function_overload") overloads.push(...existing.overloads);

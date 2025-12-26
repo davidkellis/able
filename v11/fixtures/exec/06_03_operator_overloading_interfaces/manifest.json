@@ -1,0 +1,10 @@
+{
+  "description": "operator dispatch via Add/Index/IndexMut interfaces",
+  "expect": {
+    "stdout": [
+      "sum 4,6",
+      "idx 10 99"
+    ],
+    "exit": 0
+  }
+}

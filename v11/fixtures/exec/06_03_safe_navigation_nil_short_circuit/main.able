@@ -1,0 +1,40 @@
+package exec_06_03_safe_navigation_nil_short_circuit
+
+## Semantics: safe navigation evaluates the receiver once, short-circuits on nil, and skips argument evaluation.
+
+struct Box { value: i32 }
+
+methods Box {
+  fn add(self: Self, delta: i32) -> i32 { self.value + delta }
+}
+
+ticks := 0
+
+fn tick(label: String) -> i32 {
+  ticks = ticks + 1
+  print(`tick ${label} ${ticks}`)
+  ticks
+}
+
+fn make_box(label: String, value: i32, make_nil: bool) -> ?Box {
+  print(`make ${label}`)
+  if make_nil { nil } else { Box { value: value } }
+}
+
+fn describe(value: ?i32) -> String {
+  value match {
+    case nil => "nil",
+    case v => `some ${v}`
+  }
+}
+
+fn main() -> void {
+  a := make_box("a", 5, false)?.add(tick("arg-a"))
+  print(describe(a))
+
+  b := make_box("b", 7, true)?.add(tick("arg-b"))
+  print(describe(b))
+
+  c := make_box("c", 9, false)?.value
+  print(describe(c))
+}

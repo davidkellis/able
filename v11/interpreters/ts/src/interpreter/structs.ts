@@ -198,6 +198,10 @@ export function memberAccessOnValue(
   }
   if (obj.kind === "dyn_package") {
     if (member.type !== "Identifier") throw new Error("Dyn package member access expects identifier");
+    if (member.name === "def") {
+      ctx.ensureDynamicBuiltins();
+      return { kind: "native_bound_method", func: ctx.dynPackageDefMethod, self: obj };
+    }
     const bucket = ctx.packageRegistry.get(obj.name);
     const sym = bucket?.get(member.name);
     if (!sym) throw new Error(`dyn package '${obj.name}' has no member '${member.name}'`);

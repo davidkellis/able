@@ -185,6 +185,12 @@ func literalAssignableTo(from, to Type) bool {
 	if !ok || source.Literal == nil {
 		return false
 	}
+	if target, ok := to.(FloatType); ok {
+		if source.Explicit {
+			return false
+		}
+		return target.Suffix == "f32" || target.Suffix == "f64"
+	}
 	target, ok := to.(IntegerType)
 	if !ok {
 		return false

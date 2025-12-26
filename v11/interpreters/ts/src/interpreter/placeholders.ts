@@ -146,6 +146,9 @@ class PlaceholderAnalyzer {
       case "UnaryExpression":
         this.visitExpression(expr.operand);
         return;
+      case "TypeCastExpression":
+        this.visitExpression(expr.expression);
+        return;
       case "FunctionCall":
         this.visitExpression(expr.callee);
         for (const arg of expr.arguments) {
@@ -302,6 +305,8 @@ function expressionContainsPlaceholder(expr: AST.Expression | null | undefined):
       return expressionContainsPlaceholder(expr.left) || expressionContainsPlaceholder(expr.right);
     case "UnaryExpression":
       return expressionContainsPlaceholder(expr.operand);
+    case "TypeCastExpression":
+      return expressionContainsPlaceholder(expr.expression);
     case "FunctionCall":
       if (expressionContainsPlaceholder(expr.callee)) return true;
       return expr.arguments.some((arg) => expressionContainsPlaceholder(arg));

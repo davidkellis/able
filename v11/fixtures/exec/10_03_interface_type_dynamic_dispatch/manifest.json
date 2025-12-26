@@ -1,0 +1,11 @@
+{
+  "description": "dynamic dispatch for interface-typed values",
+  "expect": {
+    "stdout": [
+      "robot-7",
+      "human-Ada",
+      "robot-7"
+    ],
+    "exit": 0
+  }
+}
