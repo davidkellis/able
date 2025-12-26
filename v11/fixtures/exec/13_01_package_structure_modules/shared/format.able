@@ -1,0 +1,7 @@
+package fmt
+
+## Semantics: package declarations add a final segment on top of the directory-derived prefix.
+
+fn label(msg: String) -> String {
+  `fmt ${msg}`
+}

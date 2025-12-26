@@ -34,6 +34,7 @@ type Module struct {
 	AST         *ast.Module
 	Files       []string
 	Imports     []string
+	DynImports  []string
 	NodeOrigins map[ast.Node]string
 }
 
@@ -220,6 +221,17 @@ func (l *Loader) Load(entry string) (*Program, error) {
 				return nil, err
 			}
 		}
+		for _, dep := range mod.DynImports {
+			if dep == name {
+				continue
+			}
+			if _, ok := pkgIndex[dep]; !ok {
+				continue
+			}
+			if _, err := loadPackage(dep); err != nil {
+				return nil, err
+			}
+		}
 
 		ordered = append(ordered, mod)
 		return mod, nil
@@ -244,6 +256,7 @@ type fileModule struct {
 	packageName string
 	ast         *ast.Module
 	imports     []string
+	dynImports  []string
 }
 
 func (l *Loader) indexAdditionalRoots(pkgIndex map[string]*packageLocation, origins map[string]packageOrigin, entryRoot rootInfo) error {
@@ -412,6 +425,7 @@ func (l *Loader) parseFile(path, rootDir, rootPackage string, kind RootKind) (*f
 	moduleAST.Package = ast.NewPackageStatement(buildIdentifiers(segments), isPrivate)
 
 	importSet := make(map[string]struct{})
+	dynImportSet := make(map[string]struct{})
 	for _, imp := range moduleAST.Imports {
 		if imp == nil {
 			continue
@@ -422,18 +436,24 @@ func (l *Loader) parseFile(path, rootDir, rootPackage string, kind RootKind) (*f
 		}
 		importSet[name] = struct{}{}
 	}
-	collectDynImports(moduleAST, importSet, make(map[uintptr]struct{}))
+	collectDynImports(moduleAST, dynImportSet, make(map[uintptr]struct{}))
 	imports := make([]string, 0, len(importSet))
 	for name := range importSet {
 		imports = append(imports, name)
 	}
 	sort.Strings(imports)
+	dynImports := make([]string, 0, len(dynImportSet))
+	for name := range dynImportSet {
+		dynImports = append(dynImports, name)
+	}
+	sort.Strings(dynImports)
 
 	return &fileModule{
 		path:        path,
 		packageName: pkgName,
 		ast:         moduleAST,
 		imports:     imports,
+		dynImports:  dynImports,
 	}, nil
 }
 
@@ -701,6 +721,8 @@ func combinePackage(packageName string, files []*fileModule) (*Module, error) {
 	importNodeSeen := make(map[string]struct{})
 	var importNodes []*ast.ImportStatement
 	var importNames []string
+	dynImportSeen := make(map[string]struct{})
+	var dynImportNames []string
 	var body []ast.Statement
 	filePaths := make([]string, 0, len(files))
 	origins := make(map[ast.Node]string)
@@ -732,9 +754,20 @@ func combinePackage(packageName string, files []*fileModule) (*Module, error) {
 			importSeen[name] = struct{}{}
 			importNames = append(importNames, name)
 		}
+		for _, name := range fm.dynImports {
+			if name == packageName {
+				continue
+			}
+			if _, ok := dynImportSeen[name]; ok {
+				continue
+			}
+			dynImportSeen[name] = struct{}{}
+			dynImportNames = append(dynImportNames, name)
+		}
 		body = append(body, fm.ast.Body...)
 	}
 	sort.Strings(importNames)
+	sort.Strings(dynImportNames)
 
 	if pkgStmt == nil {
 		pkgStmt = ast.NewPackageStatement(buildIdentifiers(strings.Split(packageName, ".")), false)
@@ -751,6 +784,7 @@ func combinePackage(packageName string, files []*fileModule) (*Module, error) {
 		AST:         module,
 		Files:       filePaths,
 		Imports:     importNames,
+		DynImports:  dynImportNames,
 		NodeOrigins: origins,
 	}, nil
 }

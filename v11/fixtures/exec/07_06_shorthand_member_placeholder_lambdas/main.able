@@ -1,0 +1,35 @@
+package exec_07_06_shorthand_member_placeholder_lambdas
+
+## Semantics: #member uses the first parameter, fn #method inserts self, and
+## placeholder lambdas (@/@n) create callable values with local scope.
+
+struct Box { value: i32 }
+
+methods Box {
+  fn #bump() -> i32 {
+    #value = #value + 1
+    #value
+  }
+
+  fn #scale(factor: i32) -> i32 { #value * factor }
+}
+
+fn describe(box: Box) -> String { `value ${#value}` }
+
+fn main() -> void {
+  box := Box { value: 3 }
+  print(describe(box))
+  print(`bump ${box.bump()}`)
+  print(`scale ${box.scale(2)}`)
+
+  swap := @2 * 100 + @1
+  print(`swap ${swap(7, 9)}`)
+
+  make_adder := { offset => (@ + offset) }
+  adder := make_adder(5)
+  print(`adder ${adder(7)}`)
+
+  nested := { => (@ * 2) }
+  doubler := nested()
+  print(`double ${doubler(4)}`)
+}

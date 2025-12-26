@@ -104,6 +104,16 @@ export function callCallableValue(ctx: Interpreter, callee: RuntimeValue, args: 
     if (!sym || (sym.kind !== "function" && sym.kind !== "function_overload")) {
       throw new Error(`dyn ref '${callee.pkg}.${callee.name}' is not callable`);
     }
+    if (sym.kind === "function") {
+      if (sym.node.type === "FunctionDefinition" && sym.node.isPrivate) {
+        throw new Error(`dyn ref '${callee.pkg}.${callee.name}' is private`);
+      }
+    } else {
+      const first = sym.overloads[0];
+      if (first?.node.type === "FunctionDefinition" && first.node.isPrivate) {
+        throw new Error(`dyn ref '${callee.pkg}.${callee.name}' is private`);
+      }
+    }
     if (sym.kind === "function_overload") {
       overloadSet = sym;
     } else {

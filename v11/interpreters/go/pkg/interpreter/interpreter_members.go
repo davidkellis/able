@@ -382,7 +382,21 @@ func (i *Interpreter) resolveMethodFromPool(env *runtime.Environment, funcName s
 	seenFuncs := make(map[*runtime.FunctionValue]struct{})
 	seenNatives := make(map[string]struct{})
 	nameInScope := env != nil && env.Has(funcName)
-	allowInherent := nameInScope || isPrimitiveReceiver(receiver)
+	var info typeInfo
+	var hasInfo bool
+	if receiver != nil {
+		info, hasInfo = i.getTypeInfoForValue(receiver)
+	}
+	typeNameInScope := false
+	if hasInfo && env != nil {
+		for _, name := range i.canonicalTypeNames(info.name) {
+			if env.Has(name) {
+				typeNameInScope = true
+				break
+			}
+		}
+	}
+	allowInherent := nameInScope || typeNameInScope || isPrimitiveReceiver(receiver)
 
 	var addCallable func(method runtime.Value, privacyContext string) error
 	addCallable = func(method runtime.Value, privacyContext string) error {
@@ -465,7 +479,7 @@ func (i *Interpreter) resolveMethodFromPool(env *runtime.Environment, funcName s
 		return nil
 	}
 
-	if info, ok := i.getTypeInfoForValue(receiver); ok {
+	if hasInfo {
 		if allowInherent {
 			for _, name := range i.canonicalTypeNames(info.name) {
 				if bucket, ok := i.inherentMethods[name]; ok {
@@ -493,7 +507,7 @@ func (i *Interpreter) resolveMethodFromPool(env *runtime.Environment, funcName s
 
 	hasMethodCandidate := len(functionCandidates)+len(nativeCandidates) > 0
 
-	if env != nil && !hasMethodCandidate && nameInScope {
+	if env != nil && nameInScope && !hasMethodCandidate {
 		if val, err := env.Get(funcName); err == nil {
 			if callable, ok := i.selectUfcsCallable(val, receiver, false); ok {
 				if err := addCallable(callable, ""); err != nil {
@@ -523,6 +537,7 @@ func (i *Interpreter) resolveMethodFromPool(env *runtime.Environment, funcName s
 	}
 	return nil, nil
 }
+
 
 func (i *Interpreter) selectUfcsCallable(method runtime.Value, receiver runtime.Value, requireSelf bool) (runtime.Value, bool) {
 	switch fn := method.(type) {
@@ -699,6 +714,9 @@ func (i *Interpreter) dynPackageMemberAccess(pkg runtime.DynPackageValue, member
 	if !ok {
 		return nil, fmt.Errorf("Dyn package member access expects identifier")
 	}
+	if ident.Name == "def" {
+		return runtime.NativeBoundMethodValue{Receiver: pkg, Method: i.dynPackageDefMethod}, nil
+	}
 	pkgName := pkg.Name
 	if pkgName == "" {
 		pkgName = strings.Join(pkg.NamePath, ".")
@@ -792,6 +810,9 @@ func (i *Interpreter) resolveDynRef(ref runtime.DynRefValue) (runtime.Value, err
 	val, ok := bucket[ref.Name]
 	if !ok {
 		return nil, fmt.Errorf("dyn ref '%s.%s' not found", ref.Package, ref.Name)
+	}
+	if isPrivateSymbol(val) {
+		return nil, fmt.Errorf("dyn ref '%s.%s' is private", ref.Package, ref.Name)
 	}
 	if runtime.IsFunctionLike(val) {
 		return val, nil

@@ -218,7 +218,39 @@ func (i *Interpreter) processImport(packagePath []*ast.Identifier, isWildcard bo
 func (i *Interpreter) processDynImport(pkgName string, pkgParts []string, isWildcard bool, selectors []*ast.ImportSelector, alias *ast.Identifier, env *runtime.Environment) (runtime.Value, error) {
 	bucket, ok := i.packageRegistry[pkgName]
 	if !ok {
-		return nil, fmt.Errorf("dynimport error: package '%s' not found", pkgName)
+		if isWildcard {
+			return nil, fmt.Errorf("dynimport error: package '%s' not found", pkgName)
+		}
+		if len(selectors) > 0 {
+			for _, sel := range selectors {
+				if sel == nil || sel.Name == nil {
+					return nil, fmt.Errorf("dynimport selector missing name")
+				}
+				original := sel.Name.Name
+				aliasName := original
+				if sel.Alias != nil {
+					aliasName = sel.Alias.Name
+				}
+				env.Define(aliasName, runtime.DynRefValue{Package: pkgName, Name: original})
+			}
+			return runtime.NilValue{}, nil
+		}
+		if alias != nil {
+			env.Define(alias.Name, runtime.DynPackageValue{
+				Name:      pkgName,
+				NamePath:  append([]string{}, pkgParts...),
+				IsPrivate: false,
+			})
+			return runtime.NilValue{}, nil
+		}
+		if pkgName != "" && alias == nil {
+			env.Define(pkgName, runtime.DynPackageValue{
+				Name:      pkgName,
+				NamePath:  append([]string{}, pkgParts...),
+				IsPrivate: false,
+			})
+		}
+		return runtime.NilValue{}, nil
 	}
 
 	if alias != nil && !isWildcard && len(selectors) == 0 {
@@ -251,12 +283,10 @@ func (i *Interpreter) processDynImport(pkgName string, pkgParts []string, isWild
 			if sel.Alias != nil {
 				aliasName = sel.Alias.Name
 			}
-			sym, ok := bucket[original]
-			if !ok {
-				return nil, fmt.Errorf("dynimport error: '%s' not found in '%s'", original, pkgName)
-			}
-			if isPrivateSymbol(sym) {
-				return nil, dynImportPrivacyError(original, sym)
+			if sym, ok := bucket[original]; ok {
+				if isPrivateSymbol(sym) {
+					return nil, dynImportPrivacyError(original, sym)
+				}
 			}
 			env.Define(aliasName, runtime.DynRefValue{Package: pkgName, Name: original})
 		}

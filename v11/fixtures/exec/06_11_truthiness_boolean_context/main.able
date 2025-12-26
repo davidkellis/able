@@ -1,0 +1,38 @@
+package exec_06_11_truthiness_boolean_context
+import able.core.errors.{DivisionByZeroError}
+
+## Semantics: truthiness rules apply in boolean contexts and logical operators return operands.
+
+fn main() -> void {
+  err := DivisionByZeroError {}
+
+  print(`bang_nil ${!nil}`)
+  print(`bang_zero ${!0}`)
+  void_value := do { }
+  print(`bang_void ${!void_value}`)
+  print(`bang_err ${!err}`)
+
+  print(`and_false ${false && 7}`)
+  print(`and_nil ${nil && 7}`)
+  print(`and_zero ${0 && 7}`)
+  and_err := err && 7
+  and_err match {
+    case _: DivisionByZeroError => print("and_err error"),
+    case _ => print("and_err other")
+  }
+
+  print(`or_false ${false || 9}`)
+  print(`or_nil ${nil || 9}`)
+  print(`or_zero ${0 || 9}`)
+  print(`or_err ${err || 9}`)
+
+  opt: ?i32 = nil
+  if opt { print("opt truthy") } else { print("opt falsy") }
+  opt = 5
+  if opt { print("opt2 truthy") } else { print("opt2 falsy") }
+
+  res := err
+  if res { print("res truthy") } else { print("res falsy") }
+  res = 11
+  if res { print("res2 truthy") } else { print("res2 falsy") }
+}

@@ -1,0 +1,25 @@
+package exec_04_06_02_nullable_truthiness
+
+## Semantics: ?T is nil | T, and boolean contexts treat nil as falsy while non-nil values are truthy.
+
+type MaybeNum = nil | i32
+
+fn label(value: ?i32) -> String {
+  if value { `some ${value}` } else { "none" }
+}
+
+fn union_label(value: MaybeNum) -> String {
+  if value { `some ${value}` } else { "none" }
+}
+
+fn main() -> void {
+  opt_none: ?i32 = nil
+  opt_some: ?i32 = 8
+  print(`opt ${label(opt_none)}`)
+  print(`opt ${label(opt_some)}`)
+
+  union_none: MaybeNum = nil
+  union_some: MaybeNum = 5
+  print(`union ${union_label(union_none)}`)
+  print(`union ${union_label(union_some)}`)
+}

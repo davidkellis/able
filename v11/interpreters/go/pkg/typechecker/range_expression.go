@@ -19,16 +19,16 @@ func (c *Checker) checkRangeExpression(env *Environment, expr *ast.RangeExpressi
 	endDiags, endType := c.checkExpression(env, expr.End)
 	diags = append(diags, endDiags...)
 
-	isStartNumeric := isNumericType(startType)
-	isEndNumeric := isNumericType(endType)
+	isStartInteger := isIntegerType(startType)
+	isEndInteger := isIntegerType(endType)
 
-	if startType != nil && !isUnknownType(startType) && !isStartNumeric {
+	if startType != nil && !isUnknownType(startType) && !isStartInteger {
 		diags = append(diags, Diagnostic{
 			Message: "typechecker: range start must be numeric",
 			Node:    expr.Start,
 		})
 	}
-	if endType != nil && !isUnknownType(endType) && !isEndNumeric {
+	if endType != nil && !isUnknownType(endType) && !isEndInteger {
 		diags = append(diags, Diagnostic{
 			Message: "typechecker: range end must be numeric",
 			Node:    expr.End,
@@ -36,7 +36,7 @@ func (c *Checker) checkRangeExpression(env *Environment, expr *ast.RangeExpressi
 	}
 
 	elementType := Type(UnknownType{})
-	if isStartNumeric && isEndNumeric {
+	if isStartInteger && isEndInteger {
 		if typeAssignable(startType, endType) {
 			elementType = startType
 		} else if typeAssignable(endType, startType) {
@@ -47,17 +47,17 @@ func (c *Checker) checkRangeExpression(env *Environment, expr *ast.RangeExpressi
 				Node:    expr,
 			})
 		}
-	} else if isStartNumeric {
+	} else if isStartInteger {
 		elementType = startType
-	} else if isEndNumeric {
+	} else if isEndInteger {
 		elementType = endType
 	}
 
 	var bounds []Type
-	if isStartNumeric && startType != nil && !isUnknownType(startType) {
+	if isStartInteger && startType != nil && !isUnknownType(startType) {
 		bounds = append(bounds, startType)
 	}
-	if isEndNumeric && endType != nil && !isUnknownType(endType) {
+	if isEndInteger && endType != nil && !isUnknownType(endType) {
 		bounds = append(bounds, endType)
 	}
 

@@ -1,0 +1,26 @@
+package exec_06_07_generator_yield_iterator_end
+
+## Semantics: generator yield resumes across next(), gen.stop ends iteration, and IteratorEnd repeats on exhaustion.
+
+fn describe(next) -> String {
+  next match {
+    case IteratorEnd {} => "end",
+    case v: i32 => `value ${v}`,
+    case _ => "other"
+  }
+}
+
+fn main() -> void {
+  iter := Iterator i32 { gen =>
+    print("gen-start")
+    gen.yield(1)
+    print("gen-after-yield")
+    gen.stop()
+    print("gen-after-stop")
+    gen.yield(2)
+  }
+
+  print(`next1 ${describe(iter.next())}`)
+  print(`next2 ${describe(iter.next())}`)
+  print(`next3 ${describe(iter.next())}`)
+}

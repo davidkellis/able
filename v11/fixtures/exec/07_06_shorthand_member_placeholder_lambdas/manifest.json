@@ -1,0 +1,14 @@
+{
+  "description": "implicit member shorthand, method shorthand, and placeholder lambdas",
+  "expect": {
+    "stdout": [
+      "value 3",
+      "bump 4",
+      "scale 8",
+      "swap 907",
+      "adder 12",
+      "double 8"
+    ],
+    "exit": 0
+  }
+}

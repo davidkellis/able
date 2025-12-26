@@ -1,0 +1,11 @@
+package exec_13_01_package_structure_modules
+
+import exec_13_01_package_structure_modules.math_utils.{double}
+import exec_13_01_package_structure_modules.shared.fmt::fmt
+
+## Semantics: directory segments prefix the package path; hyphenated directories map to underscores; package declarations append one segment.
+
+fn main() -> void {
+  print(`double ${double(6)}`)
+  print(fmt.label("ok"))
+}

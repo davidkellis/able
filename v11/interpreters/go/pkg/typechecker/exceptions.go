@@ -88,14 +88,8 @@ func (c *Checker) checkRescueExpression(env *Environment, expr *ast.RescueExpres
 		}
 		c.pushRescueContext()
 		if clause.Guard != nil {
-			guardDiags, guardType := c.checkExpression(clauseEnv, clause.Guard)
+			guardDiags, _ := c.checkExpression(clauseEnv, clause.Guard)
 			diags = append(diags, guardDiags...)
-			if !typeAssignable(guardType, PrimitiveType{Kind: PrimitiveBool}) && !isUnknownType(guardType) {
-				diags = append(diags, Diagnostic{
-					Message: "typechecker: rescue guard must evaluate to bool",
-					Node:    clause.Guard,
-				})
-			}
 		}
 		bodyDiags, bodyType := c.checkExpression(clauseEnv, clause.Body)
 		diags = append(diags, bodyDiags...)

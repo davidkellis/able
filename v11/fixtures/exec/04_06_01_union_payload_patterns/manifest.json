@@ -1,0 +1,12 @@
+{
+  "description": "payload-bearing union variants with struct patterns and generic option aliases",
+  "expect": {
+    "stdout": [
+      "sum 7",
+      "neg -5",
+      "some 9",
+      "none 0"
+    ],
+    "exit": 0
+  }
+}

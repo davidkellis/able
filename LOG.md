@@ -1,5 +1,42 @@
 # Able Project Log
 
+# 2025-12-24 — Truthiness exec fixture + boolean context alignment (v11)
+- Added `exec/06_11_truthiness_boolean_context` to cover truthiness rules, unary `!`, and `&&`/`||` operand returns; updated coverage index + conformance plan and cleared the PLAN item.
+- TS/Go runtimes now evaluate `!`, `&&`, and `||` via truthiness (returning operands) and dynimport supports late-bound packages without eager loader failures; dyn refs now re-check privacy at call time.
+- Typecheckers no longer require bool for conditions/guards or logical operands; Go typechecker/interpreter tests updated to match truthiness semantics.
+- Tests: `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=06_11_truthiness_boolean_context bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter -run TestExecFixtures/06_11_truthiness_boolean_context$`; `cd v11/interpreters/go && go test ./pkg/typechecker -run Truthiness`; `cd v11/interpreters/go && go test ./pkg/interpreter -run TestLogicalOperandsTruthiness$`; `cd v11/interpreters/go && go test ./pkg/driver -run TestLoaderDynImportDependencies$`.
+
+# 2025-12-24 — Dynamic metaprogramming exec fixture + runtime support (v11)
+- Added `exec/06_10_dynamic_metaprogramming_package_object` to cover dyn package creation/lookup, dynamic definitions, and late-bound dynimport redefinitions; updated coverage index + conformance plan and cleared the PLAN item.
+- Implemented dyn runtime helpers in TS/Go: `dyn.package`, `dyn.def_package`, and `dyn.Package.def` parse/evaluate dynamic code and replace prior definitions without overload merging.
+- Tests: `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=06_10_dynamic_metaprogramming_package_object bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter -run TestExecFixtures/06_10_dynamic_metaprogramming_package_object$`.
+
+# 2025-12-24 — Lexical line-join + trailing commas exec fixture (v11)
+- Added `exec/06_09_lexical_trailing_commas_line_join` to cover delimiter line-joining and trailing commas in arrays/structs/imports; updated conformance plan and exec coverage index.
+- Tests: `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=06_09_lexical_trailing_commas_line_join bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter -run TestExecFixtures/06_09_lexical_trailing_commas_line_join$`.
+
+# 2025-12-24 — Array ops exec fixture + IndexMut error surfacing (v11)
+- Added `exec/06_08_array_ops_mutability` to cover array mutation, bounds handling, and iteration, plus updated the conformance plan and coverage index.
+- Index assignment now returns IndexError values from IndexMut implementations instead of silently discarding them (TS + Go interpreters).
+- Tests: `cd v11/interpreters/ts && bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter -run TestExecFixtures/06_08_array_ops_mutability$`.
+
+# 2025-12-24 — Exec fixtures for structs, unions, methods, interfaces, and packages (v11)
+- Added exec fixtures for numeric literal contextual typing (plus overflow diag), positional structs, nullable truthiness, Option/Result construction, union guarded match coverage (plus a non-exhaustive diag), union payload patterns, method imports/UFCS instance-vs-static, interface dynamic dispatch, and directory-based package structure.
+- Interpreters now coerce numeric values to float parameter contexts at runtime; TS/Go typecheckers accept integer literals in float contexts per spec.
+- Updated `v11/fixtures/exec/coverage-index.json`, `v11/docs/conformance-plan.md`, and pruned completed PLAN items.
+- Tests: `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=04_05_03_struct_positional_named_tuple bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=04_06_01_union_payload_patterns bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=04_06_02_nullable_truthiness bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=04_06_03_union_construction_result_option bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=04_06_04_union_guarded_match_exhaustive bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=06_01_literals_numeric_contextual bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=09_02_methods_instance_vs_static bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=10_03_interface_type_dynamic_dispatch bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=13_01_package_structure_modules bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter -run 'TestExecFixtures/(04_05_03_struct_positional_named_tuple|04_06_01_union_payload_patterns|04_06_02_nullable_truthiness|04_06_03_union_construction_result_option|04_06_04_union_guarded_match_exhaustive(_diag)?|06_01_literals_numeric_contextual(_diag)?|09_02_methods_instance_vs_static|10_03_interface_type_dynamic_dispatch|13_01_package_structure_modules)$'`.
+
+# 2025-12-23 — Core exec fixtures + literal escape parsing (v11)
+- Added exec fixtures for struct named updates (plus diagnostic), string/char literal escapes, control-flow expression values, and lambda closures with explicit return; updated exec coverage index + conformance plan and removed completed PLAN items.
+- TS/Go parsers now unescape string/char literals with spec escapes (including `\'` and `\u{...}`) to align literal parsing across runtimes.
+- Tests: `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=04_05_02_struct_named_update_mutation bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=06_01_literals_string_char_escape bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=06_05_control_flow_expr_value bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=07_02_lambdas_closures_capture bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter -run 'TestExecFixtures/(04_05_02_struct_named_update_mutation|04_05_02_struct_named_update_mutation_diag|06_01_literals_string_char_escape|06_05_control_flow_expr_value|07_02_lambdas_closures_capture)$'`.
+
+# 2025-12-22 — Division-by-zero exec fixture (v11)
+- Added `exec/04_02_primitives_truthiness_numeric_diag` to assert division-by-zero errors, plus inline semantics comment in the package-visibility fixture module.
+- Normalized TS numeric division errors to use lowercase `division by zero` for parity with the stdlib error message and Go runtime.
+- Updated exec coverage index + conformance plan to include the new diagnostic fixture.
+- Tests: `./run_all_tests.sh --version=v11 --fixture`.
+
 # 2025-12-22 — Kernel alias normalization for typed patterns (v11)
 - Normalized runtime type matching to map KernelChannel/KernelMutex/KernelRange/KernelRangeFactory/KernelRatio/KernelAwaitable/AwaitWaker/AwaitRegistration to their stdlib names so typed patterns match kernel aliases.
 - Tests: `GOCACHE=/home/david/sync/projects/able/.tmp/go-build GOMODCACHE=/home/david/sync/projects/able/.tmp/gomod go test ./pkg/interpreter -run TestStdlibChannelMutexModuleLoader`; `GOCACHE=/home/david/sync/projects/able/.tmp/go-build GOMODCACHE=/home/david/sync/projects/able/.tmp/gomod ./run_all_tests.sh --version=v11`.
@@ -387,3 +424,31 @@ Open items (2025-11-02 audit):
 - TypeScript runtime/typechecker now treat `Ratio` as numeric: builtin `__able_ratio_from_float`, exact ratio arithmetic/comparisons, NumericConversions support, and new ratio tests (`v11/interpreters/ts/src/interpreter/{numeric.ts,operations.ts,numeric_host.ts}`, `v11/interpreters/ts/src/typechecker/**`, `v11/interpreters/ts/test/{typechecker/numeric.test.ts,basics/ratio.test.ts}`).
 - Go runtime/typechecker mirror the Ratio struct/builtin and conversion helpers with adjusted constraint diagnostics plus coverage in interpreter/typechecker suites (`v11/interpreters/go/pkg/interpreter/*`, `v11/interpreters/go/pkg/typechecker/*`).
 - Tests: `cd v11/interpreters/ts && bun test test/typechecker/numeric.test.ts`; `cd v11/interpreters/ts && bun test test/basics/ratio.test.ts`; `cd v11/interpreters/go && go test ./pkg/typechecker`; `cd v11/interpreters/go && go test ./pkg/interpreter`.
+
+### 2025-12-24
+- Added exec fixture `exec/06_03_operator_overloading_interfaces` to cover Add/Index/IndexMut operator dispatch and updated the conformance plan + coverage index.
+- Go interpreter now dispatches arithmetic/bitwise operators to interface implementations when operands are non-numeric.
+- Range expressions now enforce integer bounds in both runtimes/typecheckers; updated range diagnostics/tests to match the v11 spec.
+- Cleared the operator-overloading exec fixture item from the v11 PLAN backlog.
+- Added composition exec fixtures for combined behavior: `exec/09_00_methods_generics_imports_combo` (imports + generics + methods) and `exec/11_00_errors_match_loop_combo` (match + loop + rescue), with coverage index + conformance plan updates.
+- Added exec fixture `exec/06_03_safe_navigation_nil_short_circuit` to cover `?.` short-circuiting, receiver evaluation, and argument skipping, and updated coverage + conformance docs.
+- Added exec fixture `exec/06_04_function_call_eval_order_trailing_lambda` to cover left-to-right call argument evaluation and trailing lambda equivalence, with coverage + conformance updates.
+- Added exec fixture `exec/06_06_string_interpolation` to cover interpolation escapes and multiline string literals, with coverage + conformance updates.
+- Added exec fixture `exec/06_07_generator_yield_iterator_end` to cover yield/stop semantics and IteratorEnd exhaustion behavior, with coverage + conformance updates.
+- Tree-sitter grammar now allows multiline double-quoted strings; TS/Go parsers unescape interpolation text for `\\$`/`\\`` (and `\\\\`) so backtick escapes follow the v11 spec.
+- Pattern matching now treats `IteratorEnd {}` as a match for the iterator end sentinel in both interpreters.
+- Added exec fixture `exec/06_12_01_stdlib_string_helpers` covering required string helper semantics (lengths, substring bounds, split/replace, prefix/suffix) and updated coverage/conformance tracking; cleared the PLAN backlog item.
+- Added exec fixture `exec/06_12_02_stdlib_array_helpers` for the required array helper API (size, push/pop, get/set, clear) with coverage/conformance updates; cleared the PLAN backlog item.
+- Added exec fixture `exec/06_12_03_stdlib_numeric_ratio_divmod` covering Ratio normalization/to_r and Euclidean /% results with coverage/conformance updates; cleared the PLAN backlog item.
+- Added `as` cast expressions to the grammar + AST contract and implemented explicit numeric/interface casts in both interpreters and typecheckers.
+- Stdlib numeric cleanup: replaced unsupported `const`/`mut`/`else if`, normalized i128 constants, removed duplicate Ratio numerator/denominator methods in favor of kernel definitions, and added statement terminators where the parser requires them.
+- Inherent methods now resolve without requiring the method name in the caller scope (TS + Go) so stdlib extensions work through package imports; refreshed the numeric ratio/divmod exec fixture import to use stdlib `Ratio`.
+
+### 2025-12-26
+- Added exec fixtures `exec/07_01_function_definition_generics_inference` (implicit/explicit generics + return inference), `exec/07_03_explicit_return_flow` (explicit return flow), `exec/07_04_trailing_lambda_method_syntax` (method call syntax + trailing lambda parity), `exec/07_04_apply_callable_interface` (Apply callables), `exec/07_05_partial_application` (placeholder partial application), and `exec/07_06_shorthand_member_placeholder_lambdas` (implicit member/method shorthand + placeholder lambdas); updated the conformance plan + coverage index and cleared the related PLAN backlog items.
+- TS parser/typechecker now accept implicit member assignments as valid assignment targets, matching the runtime semantics.
+- Tests: `ABLE_FIXTURE_FILTER=07_01_function_definition_generics_inference bun run scripts/run-fixtures.ts`; `go test ./pkg/interpreter -run TestExecFixtures/07_01_function_definition_generics_inference$`; `ABLE_FIXTURE_FILTER=07_03_explicit_return_flow bun run scripts/run-fixtures.ts`; `go test ./pkg/interpreter -run TestExecFixtures/07_03_explicit_return_flow$`; `ABLE_FIXTURE_FILTER=07_04_trailing_lambda_method_syntax bun run scripts/run-fixtures.ts`; `go test ./pkg/interpreter -run TestExecFixtures/07_04_trailing_lambda_method_syntax$`; `ABLE_FIXTURE_FILTER=07_04_apply_callable_interface bun run scripts/run-fixtures.ts`; `go test ./pkg/interpreter -run TestExecFixtures/07_04_apply_callable_interface$`; `ABLE_FIXTURE_FILTER=07_05_partial_application bun run scripts/run-fixtures.ts`; `go test ./pkg/interpreter -run TestExecFixtures/07_05_partial_application$`; `ABLE_FIXTURE_FILTER=07_06_shorthand_member_placeholder_lambdas bun run scripts/run-fixtures.ts`; `go test ./pkg/interpreter -run TestExecFixtures/07_06_shorthand_member_placeholder_lambdas$`.
+- Method resolution now honors name/type-in-scope gating without breaking kernel/primitive method access; fixed UFCS name lookup and aligned TS/Go member resolution with type-name visibility.
+- Updated TS typechecker tests to match truthiness semantics (if/while/match/rescue guards) and swapped the diagnostic location test to an undefined identifier.
+- Refreshed fixtures for truthiness (`errors/logic_operand_type`) and string/numeric exec imports; updated the AST typecheck baseline for the logic operand fixture.
+- Tests: `./run_all_tests.sh --version=v11` (TS + Go units, fixtures, parity) with parity report in `v11/tmp/parity-report.json`.

@@ -6,6 +6,15 @@ import { numericToNumber } from "./numeric";
 import { resolveIndexFunction } from "./operations";
 import { callCallableValue } from "./functions";
 
+function isErrorResult(ctx: Interpreter, value: RuntimeValue): boolean {
+  if (value.kind === "error") return true;
+  if (value.kind === "interface_value" && value.interfaceName === "Error") return true;
+  const typeName = ctx.getTypeNameForValue(value);
+  if (!typeName) return false;
+  const typeArgs = value.kind === "struct_instance" ? value.typeArguments : undefined;
+  return ctx.typeImplementsInterface(typeName, "Error", typeArgs);
+}
+
 function isPatternNode(node: AST.Node | undefined | null): node is AST.Pattern {
   if (!node) return false;
   switch (node.type) {
@@ -230,10 +239,12 @@ export function evaluateAssignmentExpression(ctx: Interpreter, node: AST.Assignm
         const existing = callCallableValue(ctx, getMethod, [obj, idxVal], env);
         const op = node.operator.slice(0, -1);
         const computed = ctx.computeBinaryForCompound(op, existing, value);
-        callCallableValue(ctx, setMethod, [obj, idxVal, computed], env);
+        const setResult = callCallableValue(ctx, setMethod, [obj, idxVal, computed], env);
+        if (isErrorResult(ctx, setResult)) return setResult;
         return computed;
       }
-      callCallableValue(ctx, setMethod, [obj, idxVal, value], env);
+      const setResult = callCallableValue(ctx, setMethod, [obj, idxVal, value], env);
+      if (isErrorResult(ctx, setResult)) return setResult;
       return value;
     }
     if (obj.kind !== "array") throw new Error("Index assignment requires array");

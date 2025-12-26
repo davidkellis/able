@@ -27,6 +27,8 @@ func expressionContainsPlaceholder(expr ast.Expression) bool {
 		return expressionContainsPlaceholder(e.Left) || expressionContainsPlaceholder(e.Right)
 	case *ast.UnaryExpression:
 		return expressionContainsPlaceholder(e.Operand)
+	case *ast.TypeCastExpression:
+		return expressionContainsPlaceholder(e.Expression)
 	case *ast.FunctionCall:
 		if expressionContainsPlaceholder(e.Callee) {
 			return true

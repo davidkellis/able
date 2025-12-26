@@ -15,6 +15,7 @@ import { applyChannelMutexAugmentations } from "./channels_mutex";
 import { applyStringHostAugmentations } from "./string_host";
 import { applyHasherHostAugmentations } from "./hasher_host";
 import { applyNumericHostAugmentations } from "./numeric_host";
+import { applyDynamicAugmentations } from "./dynamic";
 import { buildStandardInterfaceBuiltins } from "../builtins/interfaces";
 import { applyArrayKernelAugmentations, type ArrayState } from "./array_kernel";
 import { applyHashMapKernelAugmentations, type HashMapState } from "./hash_map_kernel";
@@ -107,6 +108,10 @@ export class Interpreter {
   nextHasherHandle = 1;
   hasherStates: Map<number, number> = new Map();
 
+  dynamicBuiltinsInitialized = false;
+  dynPackageDefMethod!: Extract<RuntimeValue, { kind: "native_function" }>;
+  dynamicDefinitionMode = false;
+
   schedulerMaxSteps = 1024;
   executor: Executor;
   timeSliceCounter = 0;
@@ -128,6 +133,7 @@ export class Interpreter {
     this.ensureStringHostBuiltins();
     this.ensureHasherBuiltins();
     this.ensureNumericBuiltins();
+    this.ensureDynamicBuiltins();
     this.procNativeMethods = {
       status: this.makeNativeFunction("Proc.status", 1, (interp, args) => {
         const self = args[0];
@@ -274,6 +280,7 @@ applyChannelMutexAugmentations(Interpreter);
 applyStringHostAugmentations(Interpreter);
 applyHasherHostAugmentations(Interpreter);
 applyNumericHostAugmentations(Interpreter);
+applyDynamicAugmentations(Interpreter);
 applyEvaluationAugmentations(Interpreter);
 applyConcurrencyAugmentations(Interpreter);
 

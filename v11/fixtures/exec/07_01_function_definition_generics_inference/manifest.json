@@ -1,0 +1,13 @@
+{
+  "description": "function definitions infer generics from signatures and return types when omitted",
+  "expect": {
+    "stdout": [
+      "first 1",
+      "second two",
+      "swap hi 1",
+      "wrap two two",
+      "pair true 42"
+    ],
+    "exit": 0
+  }
+}

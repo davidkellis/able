@@ -1,0 +1,49 @@
+package exec_06_08_array_ops_mutability
+
+import able.collections.array.*
+import able.core.errors.{IndexError}
+
+## Semantics: arrays are mutable containers; aliasing shares storage; get/set/indexing obey bounds; size/push/pop reflect mutations.
+
+fn main() -> void {
+  arr := [1, 2, 3]
+  print(`size ${arr.size()}`)
+
+  alias := arr
+  alias[1] = 20
+  print(`alias ${arr[1]!}`)
+
+  arr.push(4)
+  print(`push ${arr.size()} ${arr[3]!}`)
+
+  popped := arr.pop()
+  popped match {
+    case value: i32 => print(`pop ${value} size ${arr.size()}`),
+    case nil => print("pop nil")
+  }
+
+  arr.get(99) match {
+    case nil => print("get nil"),
+    case _ => print("get value")
+  }
+
+  arr.set(99, 10) match {
+    case _: IndexError => print("set error"),
+    case nil => print("set ok")
+  }
+
+  assign_result := (arr[99] = 10)
+  assign_result match {
+    case _: IndexError => print("assign error"),
+    case _ => print("assign ok")
+  }
+
+  arr.set(0, 8) match {
+    case nil => print(`set ${arr[0]!}`),
+    case _: IndexError => print("set error")
+  }
+
+  sum := 0
+  for v in arr { sum = sum + v }
+  print(`sum ${sum}`)
+}

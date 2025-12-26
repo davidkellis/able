@@ -1,0 +1,12 @@
+{
+  "description": "line joining within delimiters and trailing commas in literals/imports",
+  "expect": {
+    "stdout": [
+      "set error",
+      "joined 12",
+      "arr 3 12",
+      "pair 3 12"
+    ],
+    "exit": 0
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "description": "array operations, mutability, bounds handling",
+  "expect": {
+    "stdout": [
+      "size 3",
+      "alias 20",
+      "push 4 4",
+      "pop 4 size 3",
+      "get nil",
+      "set error",
+      "assign error",
+      "set 8",
+      "sum 31"
+    ],
+    "exit": 0
+  }
+}

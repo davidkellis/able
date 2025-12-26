@@ -1,0 +1,8 @@
+package exec_06_01_literals_numeric_contextual_diag
+
+## Semantics: contextual adoption fails when the literal does not fit the target range.
+
+fn main() -> void {
+  too_big: u8 := 300
+  print(too_big)
+}

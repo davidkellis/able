@@ -1,0 +1,12 @@
+{
+  "description": "nullable sugar uses nil | T and truthiness treats nil as falsy",
+  "expect": {
+    "stdout": [
+      "opt none",
+      "opt some 8",
+      "union none",
+      "union some 5"
+    ],
+    "exit": 0
+  }
+}

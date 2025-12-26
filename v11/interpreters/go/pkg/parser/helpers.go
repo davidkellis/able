@@ -26,7 +26,7 @@ func (ctx *parseContext) parseQualifiedIdentifier(node *sitter.Node) ([]*ast.Ide
 }
 
 func parseIdentifier(node *sitter.Node, source []byte) (*ast.Identifier, error) {
-	if node == nil || node.Kind() != "identifier" {
+	if node == nil || (node.Kind() != "identifier" && node.Kind() != "keyword_identifier") {
 		return nil, fmt.Errorf("parser: expected identifier")
 	}
 	content := sliceContent(node, source)

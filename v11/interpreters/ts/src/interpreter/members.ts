@@ -36,10 +36,11 @@ export function applyMemberAugmentations(cls: typeof Interpreter): void {
         typeArgs = [AST.wildcardTypeExpression()];
       }
     }
+    const nameInScope = env?.has(funcName) ?? false;
+    const typeNameInScope = Array.from(candidateTypeNames).some((name) => env?.has(name));
     const seen = new Set<Extract<RuntimeValue, { kind: "function" }>>();
     const candidates: Array<Extract<RuntimeValue, { kind: "function" }>> = [];
-    const nameInScope = env.has(funcName);
-    const allowInherent = nameInScope || isPrimitiveReceiver(receiver, typeName);
+    const allowInherent = nameInScope || typeNameInScope || isPrimitiveReceiver(receiver, typeName);
 
     const addCandidate = (
       callable: Extract<RuntimeValue, { kind: "function" | "function_overload" }> | null,

@@ -82,6 +82,7 @@ func registerBuiltins(env *Environment) {
 	env.Define("proc_flush", procFlush)
 	env.Define("proc_pending_tasks", procPendingTasks)
 	env.Define("print", printFn)
+	env.Define("dyn", anyType)
 	env.Define("AwaitWaker", StructType{StructName: "AwaitWaker"})
 	env.Define("AwaitRegistration", StructType{StructName: "AwaitRegistration"})
 	env.Define("Awaitable", awaitableIface)

@@ -1,0 +1,7 @@
+{
+  "description": "functional update rejects mismatched struct source",
+  "expect": {
+    "stderr": ["Functional update source must be same struct type"],
+    "exit": 1
+  }
+}

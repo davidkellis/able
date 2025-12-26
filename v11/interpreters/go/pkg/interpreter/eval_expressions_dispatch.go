@@ -85,6 +85,12 @@ func (i *Interpreter) evaluateExpression(node ast.Expression, env *runtime.Envir
 			values = append(values, val)
 		}
 		return i.newArrayValue(values, len(values)), nil
+	case *ast.TypeCastExpression:
+		value, err := i.evaluateExpression(n.Expression, env)
+		if err != nil {
+			return nil, err
+		}
+		return i.castValueToType(n.TargetType, value)
 	case *ast.StringInterpolation:
 		var builder strings.Builder
 		for _, part := range n.Parts {
@@ -122,7 +128,7 @@ func (i *Interpreter) evaluateExpression(node ast.Expression, env *runtime.Envir
 		} else if result != nil {
 			return result, nil
 		}
-		if !isNumericValue(start) || !isNumericValue(endExpr) {
+		if !isIntegerValue(start) || !isIntegerValue(endExpr) {
 			return nil, fmt.Errorf("Range boundaries must be numeric")
 		}
 		startVal, err := rangeEndpoint(start)
@@ -446,10 +452,7 @@ func (i *Interpreter) evaluateUnaryExpression(expr *ast.UnaryExpression, env *ru
 			return nil, fmt.Errorf("unary '-' not supported for %T", operand)
 		}
 	case "!":
-		if bv, ok := operand.(runtime.BoolValue); ok {
-			return runtime.BoolValue{Val: !bv.Val}, nil
-		}
-		return nil, fmt.Errorf("unary '!' expects bool, got %T", operand)
+		return runtime.BoolValue{Val: !i.isTruthy(operand)}, nil
 	case "~", ".~":
 		switch v := operand.(type) {
 		case runtime.IntegerValue:
@@ -486,39 +489,23 @@ func (i *Interpreter) evaluateBinaryExpression(expr *ast.BinaryExpression, env *
 	}
 	switch expr.Operator {
 	case "&&":
-		lb, ok := leftVal.(runtime.BoolValue)
-		if !ok {
-			return nil, fmt.Errorf("Logical operands must be bool")
-		}
-		if !lb.Val {
-			return runtime.BoolValue{Val: false}, nil
+		if !i.isTruthy(leftVal) {
+			return leftVal, nil
 		}
 		rightVal, err := i.evaluateExpression(expr.Right, env)
 		if err != nil {
 			return nil, err
 		}
-		rb, ok := rightVal.(runtime.BoolValue)
-		if !ok {
-			return nil, fmt.Errorf("Logical operands must be bool")
-		}
-		return runtime.BoolValue{Val: rb.Val}, nil
+		return rightVal, nil
 	case "||":
-		lb, ok := leftVal.(runtime.BoolValue)
-		if !ok {
-			return nil, fmt.Errorf("Logical operands must be bool")
-		}
-		if lb.Val {
-			return runtime.BoolValue{Val: true}, nil
+		if i.isTruthy(leftVal) {
+			return leftVal, nil
 		}
 		rightVal, err := i.evaluateExpression(expr.Right, env)
 		if err != nil {
 			return nil, err
 		}
-		rb, ok := rightVal.(runtime.BoolValue)
-		if !ok {
-			return nil, fmt.Errorf("Logical operands must be bool")
-		}
-		return runtime.BoolValue{Val: rb.Val}, nil
+		return rightVal, nil
 	default:
 		rightVal, err := i.evaluateExpression(expr.Right, env)
 		if err != nil {

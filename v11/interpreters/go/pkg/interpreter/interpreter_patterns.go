@@ -41,6 +41,13 @@ func (i *Interpreter) assignPattern(
 		}
 		return nil
 	case *ast.StructPattern:
+		switch value.(type) {
+		case runtime.IteratorEndValue, *runtime.IteratorEndValue:
+			if p.StructType != nil && p.StructType.Name == "IteratorEnd" && len(p.Fields) == 0 {
+				return nil
+			}
+			return fmt.Errorf("Cannot destructure non-struct value")
+		}
 		if errVal, ok := value.(runtime.ErrorValue); ok {
 			value = errorValueToStructInstance(errVal)
 		}

@@ -1,0 +1,7 @@
+package exec_04_02_primitives_truthiness_numeric_diag
+
+## Semantics: division by zero raises DivisionByZeroError and exits with a non-zero status.
+
+fn main() -> void {
+  print(1 / 0)
+}

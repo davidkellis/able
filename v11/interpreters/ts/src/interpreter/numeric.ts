@@ -383,7 +383,7 @@ function applyFloatOperation(op: string, left: number, right: number, kind: Floa
     case "*":
       return FLOAT_INFO[kind].apply(left * right);
     case "/":
-      if (right === 0) throw new Error("Division by zero");
+      if (right === 0) throw new Error("division by zero");
       return FLOAT_INFO[kind].apply(left / right);
     case "^":
       return FLOAT_INFO[kind].apply(left ** right);
@@ -592,7 +592,7 @@ function computeDivMod(
     throw new Error("Arithmetic operands exceed supported integer widths");
   }
   if (right.value === 0n) {
-    throw new Error("Division by zero");
+    throw new Error("division by zero");
   }
   const { quotient, remainder } = euclideanDivMod(left.value, right.value);
   ensureIntegerInRange(quotient, promotion);
@@ -606,7 +606,7 @@ function computeDivMod(
 
 function euclideanDivMod(dividend: bigint, divisor: bigint): { quotient: bigint; remainder: bigint } {
   if (divisor === 0n) {
-    throw new Error("Division by zero");
+    throw new Error("division by zero");
   }
   let quotient = dividend / divisor;
   let remainder = dividend % divisor;

@@ -11,7 +11,7 @@ struct ArrayIterator T {
 }
 
 ## Re-export kernel Array under the stdlib namespace.
-type Array T = KernelArray T
+type Array T = KernelArray T;
 Array := KernelArray
 
 ## Stdlib extensions layered on the kernel-backed Array.

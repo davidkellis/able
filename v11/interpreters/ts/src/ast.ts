@@ -199,10 +199,11 @@ export function arrayPattern(elements: Pattern[], restPattern?: Identifier | Wil
 // -----------------------------------------------------------------------------
 
 export interface UnaryExpression extends AstNode { type: 'UnaryExpression'; operator: '-' | '!' | '.~'; operand: Expression; }
+export interface TypeCastExpression extends AstNode { type: 'TypeCastExpression'; expression: Expression; targetType: TypeExpression; }
 export interface BinaryExpression extends AstNode { type: 'BinaryExpression'; operator: string; left: Expression; right: Expression; }
 export interface FunctionCall extends AstNode { type: 'FunctionCall'; callee: Expression; arguments: Expression[]; typeArguments?: TypeExpression[]; isTrailingLambda: boolean; }
 export interface BlockExpression extends AstNode { type: 'BlockExpression'; body: Statement[]; }
-export interface AssignmentExpression extends AstNode { type: 'AssignmentExpression'; operator: ':=' | '=' | '+=' | '-=' | '*=' | '/=' | '%=' | '.&=' | '.|=' | '.^=' | '.<<=' | '.>>='; left: Pattern | MemberAccessExpression | IndexExpression; right: Expression; }
+export interface AssignmentExpression extends AstNode { type: 'AssignmentExpression'; operator: ':=' | '=' | '+=' | '-=' | '*=' | '/=' | '%=' | '.&=' | '.|=' | '.^=' | '.<<=' | '.>>='; left: Pattern | MemberAccessExpression | IndexExpression | ImplicitMemberExpression; right: Expression; }
 export interface RangeExpression extends AstNode { type: 'RangeExpression'; start: Expression; end: Expression; inclusive: boolean; }
 export interface StringInterpolation extends AstNode { type: 'StringInterpolation'; parts: (StringLiteral | Expression)[]; }
 export interface MemberAccessExpression extends AstNode {
@@ -232,6 +233,7 @@ export type Expression =
   | Identifier
   | Literal
   | UnaryExpression
+  | TypeCastExpression
   | BinaryExpression
   | FunctionCall
   | BlockExpression
@@ -258,12 +260,13 @@ export type Expression =
   | EnsureExpression;
 
 export function unaryExpression(operator: UnaryExpression['operator'], operand: Expression): UnaryExpression { return { type: 'UnaryExpression', operator, operand }; }
+export function typeCastExpression(expression: Expression, targetType: TypeExpression): TypeCastExpression { return { type: 'TypeCastExpression', expression, targetType }; }
 export function binaryExpression(operator: string, left: Expression, right: Expression): BinaryExpression { return { type: 'BinaryExpression', operator, left, right }; }
 export function functionCall(callee: Expression, args: Expression[], typeArgs?: TypeExpression[], isTrailingLambda = false): FunctionCall {
   return { type: 'FunctionCall', callee, arguments: args, typeArguments: typeArgs, isTrailingLambda };
 }
 export function blockExpression(body: Statement[]): BlockExpression { return { type: 'BlockExpression', body }; }
-export function assignmentExpression(operator: AssignmentExpression['operator'], left: Pattern | MemberAccessExpression | IndexExpression, right: Expression): AssignmentExpression {
+export function assignmentExpression(operator: AssignmentExpression['operator'], left: Pattern | MemberAccessExpression | IndexExpression | ImplicitMemberExpression, right: Expression): AssignmentExpression {
   return { type: 'AssignmentExpression', operator, left, right };
 }
 export function rangeExpression(start: Expression, end: Expression, inclusive: boolean): RangeExpression { return { type: 'RangeExpression', start, end, inclusive }; }
@@ -741,9 +744,9 @@ export function callT(callee: string | Expression, typeArgs: TypeExpression[], .
   return functionCall(calleeExpr, args, typeArgs);
 }
 export function block(...statements: Statement[]): BlockExpression { return blockExpression(statements); }
-export function assign(left: string | Pattern | MemberAccessExpression | IndexExpression, value: Expression, op: AssignmentExpression['operator'] = ':='): AssignmentExpression {
+export function assign(left: string | Pattern | MemberAccessExpression | IndexExpression | ImplicitMemberExpression, value: Expression, op: AssignmentExpression['operator'] = ':='): AssignmentExpression {
   const lhs = typeof left === 'string' ? identifier(left) : left;
-  return assignmentExpression(op, lhs as Pattern | MemberAccessExpression | IndexExpression, value);
+  return assignmentExpression(op, lhs as Pattern | MemberAccessExpression | IndexExpression | ImplicitMemberExpression, value);
 }
 export function assignMember(object: string | Expression, member: string | number, value: Expression): AssignmentExpression {
   const objExpr = typeof object === 'string' ? identifier(object) : object;

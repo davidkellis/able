@@ -121,11 +121,21 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 			}
 			return nil, fmt.Errorf("Function '%s' expects %d arguments, got %d", name, paramCount, len(bindArgs))
 		}
+		generics := genericNameSet(decl.GenericParams)
 		for idx, param := range decl.Params {
 			if param == nil {
 				return nil, fmt.Errorf("function parameter %d is nil", idx)
 			}
-			if err := i.assignPattern(param.Name, bindArgs[idx], localEnv, true, nil); err != nil {
+			arg := bindArgs[idx]
+			if param.ParamType != nil && !paramUsesGeneric(param.ParamType, generics) {
+				coerced, err := i.coerceValueToType(param.ParamType, arg)
+				if err != nil {
+					return nil, err
+				}
+				arg = coerced
+				bindArgs[idx] = coerced
+			}
+			if err := i.assignPattern(param.Name, arg, localEnv, true, nil); err != nil {
 				return nil, err
 			}
 		}
@@ -971,8 +981,12 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 			return nil, err
 		} else if setMethod != nil {
 			if assign.Operator == ast.AssignmentAssign {
-				if _, err := i.CallFunction(setMethod, []runtime.Value{arrObj, idxVal, value}); err != nil {
+				setResult, err := i.CallFunction(setMethod, []runtime.Value{arrObj, idxVal, value})
+				if err != nil {
 					return nil, err
+				}
+				if isErrorResult(i, setResult) {
+					return setResult, nil
 				}
 				return value, nil
 			}
@@ -994,8 +1008,12 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 			if err != nil {
 				return nil, err
 			}
-			if _, err := i.CallFunction(setMethod, []runtime.Value{arrObj, idxVal, computed}); err != nil {
+			setResult, err := i.CallFunction(setMethod, []runtime.Value{arrObj, idxVal, computed})
+			if err != nil {
 				return nil, err
+			}
+			if isErrorResult(i, setResult) {
+				return setResult, nil
 			}
 			return computed, nil
 		}
@@ -1057,6 +1075,16 @@ func (i *Interpreter) evaluateAssignment(assign *ast.AssignmentExpression, env *
 	}
 
 	return value, nil
+}
+
+func isErrorResult(i *Interpreter, value runtime.Value) bool {
+	if value == nil {
+		return false
+	}
+	if _, ok := asErrorValue(value); ok {
+		return true
+	}
+	return i.matchesType(ast.Ty("Error"), value)
 }
 
 func (i *Interpreter) evaluateIteratorLiteral(expr *ast.IteratorLiteral, env *runtime.Environment) (runtime.Value, error) {

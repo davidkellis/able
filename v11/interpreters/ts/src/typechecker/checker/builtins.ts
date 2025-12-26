@@ -88,6 +88,8 @@ export function installBuiltins(context: BuiltinContext): void {
   register("__able_hasher_finish", [i64Type], i64Type);
   register("__able_ratio_from_float", [primitiveType("f64")], ratioType);
 
+  context.env.define("dyn", unknownType);
+
   const divModStruct = structDefinition(
     "DivMod",
     [

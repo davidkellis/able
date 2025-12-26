@@ -1,0 +1,31 @@
+package exec_06_12_03_stdlib_numeric_ratio_divmod
+
+import able.core.numeric.*
+
+## Semantics: Ratio normalizes sign/scale, to_r conversions are exact, and /% yields Euclidean quotient/remainder.
+
+fn main() -> void {
+  reduced := Ratio.new(6, -8)
+  print(`ratio ${reduced.numerator()} ${reduced.denominator()}`)
+
+  zeroed := Ratio.new(0, -5)
+  print(`ratio0 ${zeroed.numerator()} ${zeroed.denominator()}`)
+
+  whole := 7_i64.to_r()
+  print(`whole ${whole.numerator()} ${whole.denominator()}`)
+
+  half := 0.5.to_r()
+  print(`half ${half.numerator()} ${half.denominator()}`)
+
+  sum := half + Ratio.new(1, 4)
+  print(`sum ${sum.numerator()} ${sum.denominator()}`)
+
+  divmod := 7 /% 3
+  print(`divmod ${divmod.quotient} ${divmod.remainder}`)
+
+  divmod2 := (-7) /% 3
+  print(`divmod2 ${divmod2.quotient} ${divmod2.remainder}`)
+
+  divmod3 := 7 /% -3
+  print(`divmod3 ${divmod3.quotient} ${divmod3.remainder}`)
+}

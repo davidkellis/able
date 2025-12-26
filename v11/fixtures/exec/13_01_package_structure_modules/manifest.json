@@ -1,0 +1,10 @@
+{
+  "description": "directory-derived package names with hyphen normalization and package segments",
+  "expect": {
+    "stdout": [
+      "double 12",
+      "fmt ok"
+    ],
+    "exit": 0
+  }
+}

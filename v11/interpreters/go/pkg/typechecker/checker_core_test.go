@@ -618,7 +618,7 @@ func TestRangeExpressionRequiresNumericBounds(t *testing.T) {
 		t.Fatalf("expected numeric start diagnostic, got %v", diags)
 	}
 }
-func TestRangeExpressionBoundsMustMatchType(t *testing.T) {
+func TestRangeExpressionRejectsNonIntegerBounds(t *testing.T) {
 	checker := New()
 	rangeExpr := ast.Range(ast.Int(1), ast.Flt(1.5), true)
 	module := ast.NewModule([]ast.Statement{rangeExpr}, nil, nil)
@@ -628,13 +628,13 @@ func TestRangeExpressionBoundsMustMatchType(t *testing.T) {
 	}
 	found := false
 	for _, d := range diags {
-		if strings.Contains(d.Message, "range bounds must share a numeric type") {
+		if strings.Contains(d.Message, "range end must be numeric") {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Fatalf("expected bounds mismatch diagnostic, got %v", diags)
+		t.Fatalf("expected range end numeric diagnostic, got %v", diags)
 	}
 }
 func TestSpawnExpressionReturnsFutureType(t *testing.T) {

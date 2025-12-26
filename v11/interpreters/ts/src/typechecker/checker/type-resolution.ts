@@ -291,6 +291,9 @@ export function createTypeResolutionHelpers(context: TypeResolutionContext): Typ
       if (literal.explicit) {
         return literalType === expected;
       }
+      if (expected === "f32" || expected === "f64") {
+        return true;
+      }
       if (!hasIntegerBounds(expected)) {
         return literalType === expected;
       }

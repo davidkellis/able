@@ -32,12 +32,6 @@ func (c *Checker) checkUnaryExpression(env *Environment, expr *ast.UnaryExpressi
 		resultType = operandType
 	case ast.UnaryOperatorNot:
 		boolType := PrimitiveType{Kind: PrimitiveBool}
-		if !typeAssignable(operandType, boolType) && !isUnknownType(operandType) {
-			diags = append(diags, Diagnostic{
-				Message: "typechecker: unary '!' requires boolean operand",
-				Node:    expr,
-			})
-		}
 		resultType = boolType
 	case ast.UnaryOperatorBitNot:
 		if isUnknownType(operandType) {
@@ -102,19 +96,7 @@ func (c *Checker) checkBinaryExpression(env *Environment, expr *ast.BinaryExpres
 
 	switch expr.Operator {
 	case "&&", "||":
-		if !typeAssignable(leftType, boolType) && !isUnknownType(leftType) {
-			diags = append(diags, Diagnostic{
-				Message: fmt.Sprintf("typechecker: '%s' left operand must be bool (got %s)", expr.Operator, typeName(leftType)),
-				Node:    expr.Right,
-			})
-		}
-		if !typeAssignable(rightType, boolType) && !isUnknownType(rightType) {
-			diags = append(diags, Diagnostic{
-				Message: fmt.Sprintf("typechecker: '%s' right operand must be bool (got %s)", expr.Operator, typeName(rightType)),
-				Node:    expr.Right,
-			})
-		}
-		resultType = boolType
+		resultType = mergeBranchTypes([]Type{leftType, rightType})
 	case "+": // string concatenation or numeric addition
 		switch {
 		case isStringType(leftType) && isStringType(rightType):

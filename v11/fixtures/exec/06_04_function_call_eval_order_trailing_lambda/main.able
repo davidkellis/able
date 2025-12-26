@@ -1,0 +1,42 @@
+package exec_06_04_function_call_eval_order_trailing_lambda
+
+## Semantics: call arguments evaluate left-to-right, and trailing lambdas behave like explicit lambda arguments.
+
+fn mark(label: String, value: i32) -> i32 {
+  print(label)
+  value
+}
+
+fn combine(a: i32, b: i32, f: (i32, i32) -> i32) -> i32 {
+  f(a, b)
+}
+
+fn use(f: (i32 -> i32)) -> i32 {
+  f(5)
+}
+
+fn main() -> void {
+  first := combine(mark("arg1", 1), mark("arg2", 2)) { x, y =>
+    print("lambda-1")
+    x + y
+  }
+  print(`first ${first}`)
+
+  second := combine(mark("arg3", 3), mark("arg4", 4), { x, y =>
+    print("lambda-2")
+    x * y
+  })
+  print(`second ${second}`)
+
+  third := use { x =>
+    print("lambda-3")
+    x * 2
+  }
+  print(`third ${third}`)
+
+  fourth := use({ x =>
+    print("lambda-4")
+    x + 1
+  })
+  print(`fourth ${fourth}`)
+}

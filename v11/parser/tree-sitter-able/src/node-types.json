@@ -486,6 +486,25 @@
     }
   },
   {
+    "type": "cast_expression",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "type_expression",
+          "named": true
+        },
+        {
+          "type": "unary_expression",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
     "type": "comparison_expression",
     "named": true,
     "fields": {},
@@ -1398,6 +1417,11 @@
     }
   },
   {
+    "type": "keyword_identifier",
+    "named": true,
+    "fields": {}
+  },
+  {
     "type": "lambda_expression",
     "named": true,
     "fields": {
@@ -1760,6 +1784,10 @@
             "named": true
           },
           {
+            "type": "keyword_identifier",
+            "named": true
+          },
+          {
             "type": "numeric_member",
             "named": true
           }
@@ -1850,6 +1878,10 @@
       "multiple": true,
       "required": true,
       "types": [
+        {
+          "type": "cast_expression",
+          "named": true
+        },
         {
           "type": "unary_expression",
           "named": true
@@ -3416,6 +3448,10 @@
   },
   {
     "type": "`",
+    "named": false
+  },
+  {
+    "type": "as",
     "named": false
   },
   {

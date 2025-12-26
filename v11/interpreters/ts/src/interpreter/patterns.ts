@@ -51,6 +51,12 @@ export function applyPatternAugmentations(cls: typeof Interpreter): void {
       return valuesEqual(litVal, value) ? new Environment(baseEnv) : null;
     }
     if (pattern.type === "StructPattern") {
+      if (value.kind === "iterator_end") {
+        if (pattern.structType && pattern.structType.name === "IteratorEnd" && pattern.fields.length === 0) {
+          return new Environment(baseEnv);
+        }
+        return null;
+      }
       if (value.kind !== "struct_instance") return null;
       if (pattern.structType && value.def.id.name !== pattern.structType.name) return null;
       let env = new Environment(baseEnv);

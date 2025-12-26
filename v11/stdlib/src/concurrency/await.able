@@ -1,12 +1,12 @@
 ## Duration unit used by Await helpers (milliseconds).
 import able.kernel.{Awaitable::KernelAwaitable, AwaitWaker::KernelAwaitWaker, AwaitRegistration::KernelAwaitRegistration, __able_await_default, __able_await_sleep_ms}
 
-type Milliseconds = i64
+type Milliseconds = i64;
 
 ## Re-export kernel await primitives under the stdlib namespace.
-type Awaitable Output = KernelAwaitable Output
-type AwaitWaker = KernelAwaitWaker
-type AwaitRegistration = KernelAwaitRegistration
+type Awaitable Output = KernelAwaitable Output;
+type AwaitWaker = KernelAwaitWaker;
+type AwaitRegistration = KernelAwaitRegistration;
 
 struct Await {}
 
