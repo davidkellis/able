@@ -1,5 +1,10 @@
 # Able Project Log
 
+# 2025-12-26 — Impl specificity exec fixture + array type-arg dispatch (v11)
+- Added `exec/10_02_impl_specificity_named_overrides` covering impl specificity ordering, named impl disambiguation, and HKT targets; updated the exec coverage index, conformance plan, and removed the PLAN backlog item.
+- TS runtime now derives array element type arguments during method resolution so concrete vs generic impl selection matches spec intent.
+- Tests: `cd v11/interpreters/ts && bun run scripts/export-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=10_02_impl_specificity_named_overrides bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && GOCACHE=/home/david/sync/projects/able/.tmp/go-build GOMODCACHE=/home/david/sync/projects/able/.tmp/gomod go test ./pkg/interpreter -run TestExecFixtures/10_02_impl_specificity_named_overrides$`.
+
 # 2025-12-24 — Truthiness exec fixture + boolean context alignment (v11)
 - Added `exec/06_11_truthiness_boolean_context` to cover truthiness rules, unary `!`, and `&&`/`||` operand returns; updated coverage index + conformance plan and cleared the PLAN item.
 - TS/Go runtimes now evaluate `!`, `&&`, and `||` via truthiness (returning operands) and dynimport supports late-bound packages without eager loader failures; dyn refs now re-check privacy at call time.
@@ -452,3 +457,30 @@ Open items (2025-11-02 audit):
 - Updated TS typechecker tests to match truthiness semantics (if/while/match/rescue guards) and swapped the diagnostic location test to an undefined identifier.
 - Refreshed fixtures for truthiness (`errors/logic_operand_type`) and string/numeric exec imports; updated the AST typecheck baseline for the logic operand fixture.
 - Tests: `./run_all_tests.sh --version=v11` (TS + Go units, fixtures, parity) with parity report in `v11/tmp/parity-report.json`.
+
+### 2025-12-27
+- Added exec fixtures `exec/07_07_overload_resolution_runtime`, `exec/08_01_if_truthiness_value`, and `exec/08_01_match_guards_exhaustiveness`; updated the conformance plan + coverage index and cleared the related PLAN backlog items.
+- `if` expressions now return `nil` (not `void`) when no branch matches and there is no else, aligning TS/Go runtimes with the v11 spec; updated `errors/rescue_guard` fixture expectation.
+- Tests: `bun run scripts/export-fixtures.ts`; `bun run scripts/run-fixtures.ts`; `go test ./pkg/interpreter` (with a temp `GOCACHE`).
+- Next: continue exec fixture backlog starting at `exec/08_02_while_continue_break` and `exec/08_02_loop_expression_break_value`.
+
+### 2025-12-28
+- Added exec fixtures `exec/08_02_while_continue_break`, `exec/08_02_loop_expression_break_value`, and `exec/08_02_range_inclusive_exclusive`; updated the conformance plan + coverage index and cleared the related PLAN backlog items.
+- Updated the generated AST fixture expectation for `errors/rescue_guard` in the TS export fixture source to keep it aligned with nil-returning `if` expressions.
+- Tests: `bun run scripts/export-fixtures.ts`; `bun run scripts/run-fixtures.ts`; `go test ./pkg/interpreter` (with a temp `GOCACHE`).
+- Next: continue exec fixture backlog starting at `exec/08_03_breakpoint_nonlocal_jump`.
+
+### 2025-12-29
+- Added exec fixture `exec/08_03_breakpoint_nonlocal_jump` and updated the conformance plan + coverage index; cleared the related PLAN backlog item.
+- Tests: `bun run scripts/run-fixtures.ts`; `go test ./pkg/interpreter` (with a temp `GOCACHE`).
+- Next: continue exec fixture backlog starting at `exec/09_05_method_set_generics_where`.
+
+### 2025-12-30
+- Added exec fixture `exec/09_05_method_set_generics_where` covering method-set generics/where constraints for instance + UFCS calls; updated the conformance plan + coverage index and cleared the PLAN backlog item.
+- Go interpreter now enforces method-set generic/where constraints during method calls; call helpers were split into `v11/interpreters/go/pkg/interpreter/call_helpers.go` to keep call logic files under 1000 lines.
+- Tests: `bun run scripts/export-fixtures.ts`; `bun run scripts/run-fixtures.ts`; `go test ./pkg/interpreter` (with a temp `GOCACHE`).
+
+### 2025-12-31
+- Added exec fixture `exec/10_01_interface_defaults_composites` covering interface defaults, implicit vs explicit `Self`, and composite aliases; updated the conformance plan + coverage index and cleared the PLAN backlog item.
+- TS/Go runtimes now treat composite interfaces as base-interface bundles for interface coercion and method dispatch (including default methods), with interface checks honoring base interfaces.
+- Tests: `bun run scripts/export-fixtures.ts`; `bun run scripts/run-fixtures.ts`; `go test ./pkg/interpreter` (with a temp `GOCACHE`).

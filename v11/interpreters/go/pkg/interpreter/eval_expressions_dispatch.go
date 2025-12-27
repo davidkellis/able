@@ -248,7 +248,7 @@ func (i *Interpreter) evaluateIfExpression(expr *ast.IfExpression, env *runtime.
 	if expr.ElseBody != nil {
 		return i.evaluateBlock(expr.ElseBody, env)
 	}
-	return runtime.VoidValue{}, nil
+	return runtime.NilValue{}, nil
 }
 
 func (i *Interpreter) evaluateMatchExpression(expr *ast.MatchExpression, env *runtime.Environment) (runtime.Value, error) {

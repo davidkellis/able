@@ -1,0 +1,13 @@
+{
+  "description": "method-set generics/where constraints enforced on instance + UFCS calls",
+  "expect": {
+    "stdout": [
+      "i32 7",
+      "i32 7"
+    ],
+    "stderr": [
+      "Type 'bool' does not satisfy interface 'Show': missing method 'show'"
+    ],
+    "exit": 1
+  }
+}

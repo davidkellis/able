@@ -1,0 +1,11 @@
+{
+  "description": "while loops honor continue and break control flow",
+  "expect": {
+    "stdout": [
+      "i 5",
+      "total 8",
+      "steps 3"
+    ],
+    "exit": 0
+  }
+}

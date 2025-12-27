@@ -1,0 +1,8 @@
+{
+  "description": "match guards fall through and require exhaustive coverage",
+  "expect": {
+    "stdout": ["guard zero"],
+    "stderr": ["Non-exhaustive match"],
+    "exit": 1
+  }
+}

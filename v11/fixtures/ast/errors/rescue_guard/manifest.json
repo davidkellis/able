@@ -2,7 +2,7 @@
   "description": "Rescue guard selects matching clause",
   "expect": {
     "result": {
-      "kind": "void"
+      "kind": "nil"
     }
   },
   "entry": "module.json"

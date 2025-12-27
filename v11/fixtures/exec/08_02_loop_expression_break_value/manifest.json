@@ -1,0 +1,11 @@
+{
+  "description": "loop expression yields break payloads and nil for bare breaks",
+  "expect": {
+    "stdout": [
+      "result 3",
+      "count 3",
+      "nil nil"
+    ],
+    "exit": 0
+  }
+}

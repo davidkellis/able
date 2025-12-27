@@ -460,21 +460,55 @@ export function applyTypesAugmentations(cls: typeof Interpreter): void {
   };
 
   cls.prototype.typeImplementsInterface = function typeImplementsInterface(this: Interpreter, typeName: string, interfaceName: string, typeArgs?: AST.TypeExpression[]): boolean {
-    if (interfaceName === "Error" && typeName === "Error") {
-      return true;
-    }
-    const base: AST.SimpleTypeExpression = { type: "SimpleTypeExpression", name: AST.identifier(typeName) };
-    const subjectType: AST.TypeExpression = typeArgs && typeArgs.length > 0 ? { type: "GenericTypeExpression", base, arguments: typeArgs } : base;
-    const entries = [
-      ...(this.implMethods.get(typeName) ?? []),
-      ...this.genericImplMethods,
-    ];
-    if (entries.length === 0) return false;
-    for (const entry of entries) {
-      if (entry.def.interfaceName.name !== interfaceName) continue;
-      if (this.matchImplEntry(entry, { subjectType, typeArgs })) return true;
-    }
-    return false;
+    const interfaceInfoFromExpr = (expr: AST.TypeExpression | undefined): { name: string; args?: AST.TypeExpression[] } | null => {
+      if (!expr) return null;
+      if (expr.type === "SimpleTypeExpression") {
+        return { name: expr.name.name };
+      }
+      if (expr.type === "GenericTypeExpression" && expr.base.type === "SimpleTypeExpression") {
+        return { name: expr.base.name.name, args: expr.arguments ?? [] };
+      }
+      return null;
+    };
+
+    const directImplements = (name: string, ifaceName: string, args?: AST.TypeExpression[]): boolean => {
+      if (ifaceName === "Error" && name === "Error") {
+        return true;
+      }
+      const base: AST.SimpleTypeExpression = { type: "SimpleTypeExpression", name: AST.identifier(name) };
+      const subjectType: AST.TypeExpression = args && args.length > 0 ? { type: "GenericTypeExpression", base, arguments: args } : base;
+      const entries = [
+        ...(this.implMethods.get(name) ?? []),
+        ...this.genericImplMethods,
+      ];
+      if (entries.length === 0) return false;
+      for (const entry of entries) {
+        if (entry.def.interfaceName.name !== ifaceName) continue;
+        if (this.matchImplEntry(entry, { subjectType, typeArgs: args })) return true;
+      }
+      return false;
+    };
+
+    const check = (name: string, ifaceName: string, args: AST.TypeExpression[] | undefined, visited: Set<string>): boolean => {
+      const argKey = (args ?? []).map((arg) => this.typeExpressionToString(arg)).join("|");
+      const key = `${name}::${ifaceName}::${argKey}`;
+      if (visited.has(key)) return true;
+      visited.add(key);
+      const ifaceDef = this.interfaces.get(ifaceName);
+      if (ifaceDef?.baseInterfaces && ifaceDef.baseInterfaces.length > 0) {
+        for (const base of ifaceDef.baseInterfaces) {
+          const info = interfaceInfoFromExpr(base);
+          if (!info) return false;
+          if (!check(name, info.name, info.args, visited)) return false;
+        }
+        if (!ifaceDef.signatures || ifaceDef.signatures.length === 0) {
+          return true;
+        }
+      }
+      return directImplements(name, ifaceName, args);
+    };
+
+    return check(typeName, interfaceName, typeArgs, new Set());
   };
 
   cls.prototype.coerceValueToType = function coerceValueToType(this: Interpreter, typeExpr: AST.TypeExpression | undefined, value: RuntimeValue): RuntimeValue {

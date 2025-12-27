@@ -8,6 +8,7 @@ import { memberAccessOnValue } from "./structs";
 import { callCallableValue } from "./functions";
 
 const VOID_VALUE: RuntimeValue = { kind: "void" };
+const NIL_VALUE: RuntimeValue = { kind: "nil", value: null };
 
 function isContinuationYield(context: ContinuationContext, err: unknown): boolean {
   if (context.kind === "generator") {
@@ -124,7 +125,7 @@ export function evaluateIfExpression(ctx: Interpreter, node: AST.IfExpression, e
     if (ctx.isTruthy(c)) return ctx.evaluate(clause.body, env);
   }
   if (node.elseBody) return ctx.evaluate(node.elseBody, env);
-  return VOID_VALUE;
+  return NIL_VALUE;
 }
 
 function evaluateIfExpressionWithContinuation(
@@ -230,7 +231,7 @@ function evaluateIfExpressionWithContinuation(
       }
       case "else_body": {
         try {
-          const result = node.elseBody ? ctx.evaluate(node.elseBody, env) : VOID_VALUE;
+          const result = node.elseBody ? ctx.evaluate(node.elseBody, env) : NIL_VALUE;
           continuation.clearIfState(node);
           return result;
         } catch (err) {
@@ -247,7 +248,7 @@ function evaluateIfExpressionWithContinuation(
       }
       default: {
         continuation.clearIfState(node);
-        return VOID_VALUE;
+        return NIL_VALUE;
       }
     }
   }

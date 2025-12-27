@@ -1,0 +1,40 @@
+package exec_10_01_interface_defaults_composites
+
+## Semantics: default interface methods, implicit vs explicit Self, and composite interfaces.
+
+interface Named for T {
+  fn name(self: Self) -> String
+}
+
+interface Tagged for T {
+  fn tag(self: Self) -> String { `tag:${self.name()}` }
+}
+
+interface NamedTagged for T = Named + Tagged
+
+interface Greeter {
+  fn greet(self: Self) -> String { "hello" }
+}
+
+struct Note { label: String }
+struct Badge {}
+
+impl Named for Note {
+  fn name(self: Self) -> String { self.label }
+}
+
+impl Tagged for Note {}
+
+impl Greeter for Badge {}
+
+fn main() -> void {
+  note := Note { label: "core" }
+  print(note.tag())
+
+  combo: NamedTagged = note
+  print(combo.name())
+  print(combo.tag())
+
+  badge: Greeter = Badge {}
+  print(badge.greet())
+}

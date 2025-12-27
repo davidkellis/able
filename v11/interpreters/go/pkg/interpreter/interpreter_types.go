@@ -206,7 +206,29 @@ func (i *Interpreter) lookupImplEntry(info typeInfo, interfaceName string) (*imp
 }
 
 func (i *Interpreter) findMethod(info typeInfo, methodName string, interfaceFilter string) (runtime.Value, error) {
-	matches, err := i.collectImplCandidates(info, interfaceFilter, methodName)
+	var matches []implCandidate
+	var err error
+	if interfaceFilter == "" {
+		matches, err = i.collectImplCandidates(info, "", methodName)
+	} else {
+		names := i.interfaceSearchNames(interfaceFilter, make(map[string]struct{}))
+		if len(names) == 0 {
+			names = []string{interfaceFilter}
+		}
+		var constraintErr error
+		for _, name := range names {
+			candidates, candErr := i.collectImplCandidates(info, name, methodName)
+			if candErr != nil && constraintErr == nil {
+				constraintErr = candErr
+			}
+			if len(candidates) > 0 {
+				matches = append(matches, candidates...)
+			}
+		}
+		if len(matches) == 0 {
+			return nil, constraintErr
+		}
+	}
 	if len(matches) == 0 {
 		return nil, err
 	}
@@ -264,6 +286,64 @@ func (i *Interpreter) findMethod(info typeInfo, methodName string, interfaceFilt
 	return best.method, nil
 }
 
+func (i *Interpreter) interfaceSearchNames(interfaceName string, visited map[string]struct{}) []string {
+	if interfaceName == "" {
+		return nil
+	}
+	if _, seen := visited[interfaceName]; seen {
+		return nil
+	}
+	visited[interfaceName] = struct{}{}
+	names := []string{interfaceName}
+	ifaceDef, ok := i.interfaces[interfaceName]
+	if !ok || ifaceDef == nil || ifaceDef.Node == nil {
+		return names
+	}
+	for _, base := range ifaceDef.Node.BaseInterfaces {
+		info, ok := parseTypeExpression(base)
+		if !ok || info.name == "" {
+			continue
+		}
+		names = append(names, i.interfaceSearchNames(info.name, visited)...)
+	}
+	return names
+}
+
+func (i *Interpreter) typeImplementsInterface(info typeInfo, interfaceName string, visited map[string]struct{}) (bool, error) {
+	if info.name == "" || interfaceName == "" {
+		return false, nil
+	}
+	if interfaceName == "Error" && info.name == "Error" {
+		return true, nil
+	}
+	key := interfaceName + "::" + typeInfoToString(info)
+	if _, seen := visited[key]; seen {
+		return true, nil
+	}
+	visited[key] = struct{}{}
+	ifaceDef, ok := i.interfaces[interfaceName]
+	if ok && ifaceDef != nil && ifaceDef.Node != nil && len(ifaceDef.Node.BaseInterfaces) > 0 {
+		for _, base := range ifaceDef.Node.BaseInterfaces {
+			baseInfo, ok := parseTypeExpression(base)
+			if !ok || baseInfo.name == "" {
+				return false, nil
+			}
+			okImpl, err := i.typeImplementsInterface(info, baseInfo.name, visited)
+			if err != nil || !okImpl {
+				return okImpl, err
+			}
+		}
+		if len(ifaceDef.Node.Signatures) == 0 {
+			return true, nil
+		}
+	}
+	entry, err := i.lookupImplEntry(info, interfaceName)
+	if err != nil {
+		return false, err
+	}
+	return entry != nil, nil
+}
+
 func (i *Interpreter) interfaceMatches(val *runtime.InterfaceValue, interfaceName string) bool {
 	if val == nil {
 		return false
@@ -277,8 +357,8 @@ func (i *Interpreter) interfaceMatches(val *runtime.InterfaceValue, interfaceNam
 	if !ok {
 		return false
 	}
-	entry, err := i.lookupImplEntry(info, interfaceName)
-	return err == nil && entry != nil
+	okImpl, err := i.typeImplementsInterface(info, interfaceName, make(map[string]struct{}))
+	return err == nil && okImpl
 }
 
 func (i *Interpreter) selectStructMethod(inst *runtime.StructInstanceValue, methodName string) (runtime.Value, error) {
@@ -379,10 +459,8 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 					if !ok {
 						return false
 					}
-					if candidate, err := i.lookupImplEntry(info, name); err == nil && candidate != nil {
-						return true
-					}
-					return false
+					okImpl, err := i.typeImplementsInterface(info, name, make(map[string]struct{}))
+					return err == nil && okImpl
 				}
 			}
 			if defVal, ok := value.(*runtime.StructDefinitionValue); ok && isSingletonStructDef(defVal.Node) {
@@ -769,20 +847,27 @@ func (i *Interpreter) coerceToInterfaceValue(interfaceName string, value runtime
 	if !ok {
 		return nil, fmt.Errorf("Value does not implement interface %s", interfaceName)
 	}
-	candidate, err := i.lookupImplEntry(info, interfaceName)
+	okImpl, err := i.typeImplementsInterface(info, interfaceName, make(map[string]struct{}))
 	if err != nil {
 		return nil, err
 	}
-	if candidate == nil || candidate.entry == nil {
+	if !okImpl {
 		typeDesc := typeInfoToString(info)
 		if typeDesc == "<unknown>" {
 			typeDesc = info.name
 		}
 		return nil, fmt.Errorf("Type '%s' does not implement interface %s", typeDesc, interfaceName)
 	}
-	methods := make(map[string]runtime.Value, len(candidate.entry.methods))
-	for name, fn := range candidate.entry.methods {
-		methods[name] = fn
+	candidate, err := i.lookupImplEntry(info, interfaceName)
+	if err != nil {
+		return nil, err
+	}
+	var methods map[string]runtime.Value
+	if candidate != nil && candidate.entry != nil {
+		methods = make(map[string]runtime.Value, len(candidate.entry.methods))
+		for name, fn := range candidate.entry.methods {
+			methods[name] = fn
+		}
 	}
 	return &runtime.InterfaceValue{Interface: ifaceDef, Underlying: value, Methods: methods}, nil
 }

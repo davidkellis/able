@@ -1,7 +1,0 @@
-./ast.go
-./definitions.go
-./dsl.go
-./origins.go
-./patterns.go
-./spans.go
-./type_expressions.go
