@@ -7,6 +7,65 @@ import (
 	"able/interpreter-go/pkg/runtime"
 )
 
+func isVoidTypeExpr(expr ast.TypeExpression) bool {
+	if expr == nil {
+		return false
+	}
+	if simple, ok := expr.(*ast.SimpleTypeExpression); ok && simple.Name != nil {
+		return simple.Name.Name == "void"
+	}
+	return false
+}
+
+func isVoidValue(value runtime.Value) bool {
+	switch value.(type) {
+	case runtime.VoidValue, *runtime.VoidValue:
+		return true
+	default:
+		return false
+	}
+}
+
+func isResultVoidType(expr ast.TypeExpression) bool {
+	if expr == nil {
+		return false
+	}
+	if res, ok := expr.(*ast.ResultTypeExpression); ok {
+		return isVoidTypeExpr(res.InnerType)
+	}
+	return false
+}
+
+func (i *Interpreter) coerceReturnValue(returnType ast.TypeExpression, value runtime.Value, env *runtime.Environment) (runtime.Value, error) {
+	if returnType == nil {
+		return value, nil
+	}
+	canonical := canonicalizeTypeExpression(returnType, env, i.typeAliases)
+	if isVoidTypeExpr(canonical) {
+		return runtime.VoidValue{}, nil
+	}
+	if isVoidValue(value) {
+		if isResultVoidType(canonical) {
+			return runtime.VoidValue{}, nil
+		}
+		expected := typeExpressionToString(canonical)
+		return nil, fmt.Errorf("Return type mismatch: expected %s, got void", expected)
+	}
+	if !i.matchesType(canonical, value) {
+		expected := typeExpressionToString(canonical)
+		actual := value.Kind().String()
+		if actualExpr := i.typeExpressionFromValue(value); actualExpr != nil {
+			actual = typeExpressionToString(actualExpr)
+		}
+		return nil, fmt.Errorf("Return type mismatch: expected %s, got %s", expected, actual)
+	}
+	coerced, err := i.coerceValueToType(canonical, value)
+	if err != nil {
+		return nil, err
+	}
+	return coerced, nil
+}
+
 func (i *Interpreter) evaluateFunctionCall(call *ast.FunctionCall, env *runtime.Environment) (runtime.Value, error) {
 	if member, ok := call.Callee.(*ast.MemberAccessExpression); ok {
 		target, err := i.evaluateExpression(member.Object, env)
@@ -154,17 +213,18 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 		result, err := i.evaluateBlock(decl.Body, localEnv)
 		if err != nil {
 			if ret, ok := err.(returnSignal); ok {
-				if ret.value == nil {
-					return runtime.NilValue{}, nil
+				retVal := ret.value
+				if retVal == nil {
+					retVal = runtime.NilValue{}
 				}
-				return ret.value, nil
+				return i.coerceReturnValue(decl.ReturnType, retVal, localEnv)
 			}
 			return nil, err
 		}
 		if result == nil {
-			return runtime.NilValue{}, nil
+			result = runtime.NilValue{}
 		}
-		return result, nil
+		return i.coerceReturnValue(decl.ReturnType, result, localEnv)
 	case *ast.LambdaExpression:
 		if call != nil {
 			if err := i.populateCallTypeArguments(decl, call, args); err != nil {
@@ -205,9 +265,9 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 			return nil, err
 		}
 		if result == nil {
-			return runtime.NilValue{}, nil
+			result = runtime.NilValue{}
 		}
-		return result, nil
+		return i.coerceReturnValue(decl.ReturnType, result, localEnv)
 	default:
 		return nil, fmt.Errorf("calling unsupported function declaration %T", fn.Declaration)
 	}

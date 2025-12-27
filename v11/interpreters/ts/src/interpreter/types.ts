@@ -24,6 +24,49 @@ function integerValueWithinRange(raw: bigint, target: IntegerKind): boolean {
   return raw >= targetInfo.min && raw <= targetInfo.max;
 }
 
+function normalizeKernelAliasName(name: string): string {
+  switch (name) {
+    case "KernelArray":
+      return "Array";
+    case "KernelChannel":
+      return "Channel";
+    case "KernelHashMap":
+      return "HashMap";
+    case "KernelMutex":
+      return "Mutex";
+    case "KernelRange":
+      return "Range";
+    case "KernelRangeFactory":
+      return "RangeFactory";
+    case "KernelRatio":
+      return "Ratio";
+    case "KernelAwaitable":
+      return "Awaitable";
+    case "KernelAwaitWaker":
+      return "AwaitWaker";
+    case "KernelAwaitRegistration":
+      return "AwaitRegistration";
+    default:
+      return name;
+  }
+}
+
+function isErrorValue(ctx: Interpreter, value: RuntimeValue): boolean {
+  if (value.kind === "error") return true;
+  if (value.kind === "interface_value" && value.interfaceName === "Error") return true;
+  const typeName = ctx.getTypeNameForValue(value);
+  if (!typeName) return false;
+  const typeArgs = value.kind === "struct_instance" ? value.typeArguments : undefined;
+  return ctx.typeImplementsInterface(typeName, "Error", typeArgs);
+}
+
+function isAwaitableStructInstance(value: RuntimeValue): boolean {
+  if (value.kind !== "struct_instance") return false;
+  const values = value.values as Map<string, RuntimeValue> | undefined;
+  if (!(values instanceof Map)) return false;
+  return values.has("is_ready") && values.has("register") && values.has("commit");
+}
+
 declare module "./index" {
   interface Interpreter {
     expandTypeAliases(t: AST.TypeExpression): AST.TypeExpression;
@@ -254,6 +297,8 @@ export function applyTypesAugmentations(cls: typeof Interpreter): void {
       }
       case "iterator_end":
         return AST.simpleTypeExpression("IteratorEnd");
+      case "iterator":
+        return AST.simpleTypeExpression("Iterator");
       case "struct_def": {
         if (!isSingletonStructDef(value.def)) return null;
         return AST.simpleTypeExpression(value.def.id.name);
@@ -309,13 +354,14 @@ export function applyTypesAugmentations(cls: typeof Interpreter): void {
       case "WildcardTypeExpression":
         return true;
       case "SimpleTypeExpression": {
-        const name = target.name.name;
+        const name = normalizeKernelAliasName(target.name.name);
         if (name === "Self") return true;
         if (/^[A-Z]$/.test(name)) return true;
         if (name === "String") return v.kind === "String";
         if (name === "bool") return v.kind === "bool";
         if (name === "char") return v.kind === "char";
         if (name === "nil") return v.kind === "nil";
+        if (name === "void") return v.kind === "void";
         if (this.unions.has(name)) {
           const unionDef = this.unions.get(name)!;
           return (unionDef.variants ?? []).some((variant) => this.matchesType(variant, v));
@@ -338,6 +384,8 @@ export function applyTypesAugmentations(cls: typeof Interpreter): void {
         }
         if (name === "Error" && v.kind === "error") return true;
         if (name === "IteratorEnd" && v.kind === "iterator_end") return true;
+        if (name === "Iterator" && v.kind === "iterator") return true;
+        if (name === "Awaitable" && isAwaitableStructInstance(v)) return true;
         if (this.interfaces.has(name)) {
           if (v.kind === "interface_value") return v.interfaceName === name;
           const typeName = this.getTypeNameForValue(v);
@@ -361,7 +409,10 @@ export function applyTypesAugmentations(cls: typeof Interpreter): void {
         return false;
       }
       case "GenericTypeExpression": {
-        if (target.base.type === "SimpleTypeExpression" && target.base.name.name === "Array") {
+        if (
+          target.base.type === "SimpleTypeExpression" &&
+          normalizeKernelAliasName(target.base.name.name) === "Array"
+        ) {
           const isArrayValue = v.kind === "array" || (v.kind === "struct_instance" && v.def.id.name === "Array");
           if (!isArrayValue) return false;
           if (!target.arguments || target.arguments.length === 0) return true;
@@ -372,10 +423,16 @@ export function applyTypesAugmentations(cls: typeof Interpreter): void {
           return true;
         }
         if (target.base.type === "SimpleTypeExpression") {
-          const baseName = target.base.name.name;
+          const baseName = normalizeKernelAliasName(target.base.name.name);
           if (this.unions.has(baseName)) {
             const unionDef = this.unions.get(baseName)!;
             return (unionDef.variants ?? []).some((variant) => this.matchesType(variant, v));
+          }
+          if (baseName === "Iterator" && v.kind === "iterator") {
+            return true;
+          }
+          if (baseName === "Awaitable" && isAwaitableStructInstance(v)) {
+            return true;
           }
           const valueTypeName = this.getTypeNameForValue(v);
           const canonicalValueName = valueTypeName
@@ -418,6 +475,7 @@ export function applyTypesAugmentations(cls: typeof Interpreter): void {
         if (v.kind === "nil") return true;
         return this.matchesType(target.innerType, v);
       case "ResultTypeExpression":
+        if (isErrorValue(this, v)) return true;
         return this.matchesType(target.innerType, v);
       case "UnionTypeExpression":
         return target.members.some((member) => this.matchesType(member, v));
@@ -454,6 +512,8 @@ export function applyTypesAugmentations(cls: typeof Interpreter): void {
         return "void";
       case "array":
         return "Array";
+      case "iterator":
+        return "Iterator";
       default:
         return null;
     }

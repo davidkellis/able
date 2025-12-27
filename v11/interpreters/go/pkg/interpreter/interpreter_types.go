@@ -26,7 +26,8 @@ func (i *Interpreter) getTypeInfoForValue(value runtime.Value) (typeInfo, bool) 
 	case runtime.StringValue, runtime.BoolValue, runtime.CharValue, runtime.NilValue, runtime.VoidValue,
 		runtime.IntegerValue, *runtime.IntegerValue,
 		runtime.FloatValue, *runtime.FloatValue,
-		*runtime.ArrayValue:
+		*runtime.ArrayValue,
+		*runtime.IteratorValue:
 		typeExpr := i.typeExpressionFromValue(value)
 		if info, ok := parseTypeExpression(typeExpr); ok {
 			return info, true
@@ -149,6 +150,11 @@ func (i *Interpreter) typeExpressionFromValue(value runtime.Value) ast.TypeExpre
 			elemType = ast.NewWildcardTypeExpression()
 		}
 		return ast.Gen(ast.Ty("Array"), elemType)
+	case *runtime.IteratorValue:
+		if v == nil {
+			return nil
+		}
+		return ast.Ty("Iterator")
 	case runtime.ErrorValue:
 		if v.TypeName != nil {
 			return ast.Ty(v.TypeName.Name)
@@ -405,6 +411,19 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 		case "nil":
 			_, ok := value.(runtime.NilValue)
 			return ok
+		case "void":
+			switch value.(type) {
+			case runtime.VoidValue, *runtime.VoidValue:
+				return true
+			default:
+				return false
+			}
+		case "Iterator":
+			switch value.(type) {
+			case *runtime.IteratorValue:
+				return true
+			}
+			return false
 		case "i8", "i16", "i32", "i64", "i128", "u8", "u16", "u32", "u64", "u128":
 			var iv runtime.IntegerValue
 			switch val := value.(type) {
@@ -488,6 +507,11 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 		if base, ok := t.Base.(*ast.SimpleTypeExpression); ok && base.Name != nil {
 			baseName = normalizeKernelAliasName(base.Name.Name)
 		}
+		if baseName == "Iterator" {
+			if _, ok := value.(*runtime.IteratorValue); ok {
+				return true
+			}
+		}
 		if baseName == "Array" {
 			arr, ok := value.(*runtime.ArrayValue)
 			if !ok {
@@ -521,6 +545,23 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 					}
 				}
 				return false
+			}
+		}
+		if baseName != "" {
+			if _, ok := i.interfaces[baseName]; ok {
+				switch v := value.(type) {
+				case *runtime.InterfaceValue:
+					return i.interfaceMatches(v, baseName)
+				case runtime.InterfaceValue:
+					return i.interfaceMatches(&v, baseName)
+				default:
+					info, ok := i.getTypeInfoForValue(value)
+					if !ok {
+						return false
+					}
+					okImpl, err := i.typeImplementsInterface(info, baseName, make(map[string]struct{}))
+					return err == nil && okImpl
+				}
 			}
 		}
 		if baseName != "" && info.name != "" && baseName != info.name {
@@ -570,7 +611,26 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 		}
 		return i.matchesType(t.InnerType, value)
 	case *ast.ResultTypeExpression:
-		return i.matchesType(t.InnerType, value)
+		if i.matchesType(t.InnerType, value) {
+			return true
+		}
+		switch v := value.(type) {
+		case runtime.ErrorValue, *runtime.ErrorValue:
+			return true
+		case runtime.InterfaceValue:
+			if v.Interface != nil && v.Interface.Node != nil && v.Interface.Node.ID != nil && v.Interface.Node.ID.Name == "Error" {
+				return true
+			}
+		case *runtime.InterfaceValue:
+			if v != nil && v.Interface != nil && v.Interface.Node != nil && v.Interface.Node.ID != nil && v.Interface.Node.ID.Name == "Error" {
+				return true
+			}
+		}
+		if info, ok := i.getTypeInfoForValue(value); ok {
+			okImpl, err := i.typeImplementsInterface(info, "Error", make(map[string]struct{}))
+			return err == nil && okImpl
+		}
+		return false
 	case *ast.UnionTypeExpression:
 		for _, member := range t.Members {
 			if i.matchesType(member, value) {

@@ -137,8 +137,8 @@ fn main() -> i32 {
 	if err != nil {
 		t.Fatalf("entry package missing main: %v", err)
 	}
-	if _, err := interp.CallFunction(mainValue, nil); err != nil {
-		t.Fatalf("call main after AllowDiagnostics: %v", err)
+	if _, err := interp.CallFunction(mainValue, nil); err == nil {
+		t.Fatalf("expected runtime return type mismatch after AllowDiagnostics")
 	}
 	if value == nil {
 		t.Fatalf("expected EvaluateProgram to return entry value when diagnostics allowed")

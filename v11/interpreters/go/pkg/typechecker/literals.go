@@ -136,8 +136,12 @@ func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diag
 			diags      []Diagnostic
 			resultType Type = UnknownType{}
 		)
+	loop:
 		for idx, stmt := range e.Body {
 			switch s := stmt.(type) {
+			case *ast.ReturnStatement:
+				diags = append(diags, c.checkStatement(blockEnv, s)...)
+				break loop
 			case *ast.AssignmentExpression:
 				assignDiags := c.checkStatement(blockEnv, s)
 				diags = append(diags, assignDiags...)

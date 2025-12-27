@@ -1,0 +1,43 @@
+package exec_11_02_option_result_or_handlers
+
+## Semantics: `or {}` handles nil/Errors, binds errors when present, and treats Error-implementer unions as failures.
+
+struct MyError { message: String }
+
+impl Error for MyError {
+  fn message(self: Self) -> String { self.message }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+fn maybe_value(ok: bool) -> ?i32 {
+  if ok { 7 } else { nil }
+}
+
+fn result_value(ok: bool) -> !String {
+  if ok { "ok" } else { MyError { message: "bad" } }
+}
+
+fn union_error(ok: bool) -> String | MyError {
+  if ok { "union_ok" } else { MyError { message: "union_bad" } }
+}
+
+fn main() -> void {
+  counter := 0
+
+  good_opt = maybe_value(true) or { counter = counter + 1; 0 }
+  bad_opt = maybe_value(false) or { counter = counter + 1; 42 }
+
+  good_res = result_value(true) or { "fallback" }
+  bad_res = result_value(false) or { err => `handled ${err.message()}` }
+
+  union_good = union_error(true) or { "fallback" }
+  union_bad = union_error(false) or { err => `union ${err.message()}` }
+
+  print(`good_opt ${good_opt}`)
+  print(`bad_opt ${bad_opt}`)
+  print(`counter ${counter}`)
+  print(`good_res ${good_res}`)
+  print(`bad_res ${bad_res}`)
+  print(`union_good ${union_good}`)
+  print(`union_bad ${union_bad}`)
+}
