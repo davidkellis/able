@@ -1,0 +1,14 @@
+{
+  "description": "runtime overload resolution picks best matches, nullable tail omission, and ambiguity errors",
+  "expect": {
+    "stdout": [
+      "int 7",
+      "str ok",
+      "bool true",
+      "note 4 <nil>",
+      "note 4 hi"
+    ],
+    "stderr": ["Ambiguous overload for collide"],
+    "exit": 1
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "description": "inclusive/exclusive ranges iterate with correct bounds and direction",
+  "expect": {
+    "stdout": [
+      "inc 1 2 3",
+      "exc 1 2",
+      "desc 3 2 1",
+      "desc_ex 3 2",
+      "neg -2 -1 0 1"
+    ],
+    "exit": 0
+  }
+}

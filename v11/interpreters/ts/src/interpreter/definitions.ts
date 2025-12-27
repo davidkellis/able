@@ -100,6 +100,7 @@ export function evaluateUnionDefinition(ctx: Interpreter, node: AST.UnionDefinit
 
 export function evaluateMethodsDefinition(ctx: Interpreter, node: AST.MethodsDefinition, env: Environment): RuntimeValue {
   const targetType = canonicalizeTypeExpression(ctx, env, node.targetType);
+  const methodSetConstraints = ctx.collectConstraintSpecs(node.genericParams, node.whereClause);
   const typeName = (() => {
     let current: AST.TypeExpression = targetType;
     while (current.type === "GenericTypeExpression") {
@@ -117,6 +118,9 @@ export function evaluateMethodsDefinition(ctx: Interpreter, node: AST.MethodsDef
     const exportedName = expectsSelf ? def.id.name : `${typeName}.${def.id.name}`;
     (def as any).structName = typeName;
     const fnValue: Extract<RuntimeValue, { kind: "function" }> = { kind: "function", node: def, closureEnv: env };
+    (fnValue as any).methodSetConstraints = methodSetConstraints;
+    (fnValue as any).methodSetTargetType = targetType;
+    (fnValue as any).methodSetGenericParams = node.genericParams;
     (fnValue as any).structName = typeName;
     if (!expectsSelf) {
       (fnValue as any).typeQualified = true;

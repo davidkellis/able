@@ -210,6 +210,20 @@ export function applyImplResolutionAugmentations(cls: typeof Interpreter): void 
     const inherent = this.inherentMethods.get(typeName);
     if (inherent && inherent.has(methodName)) return inherent.get(methodName)!;
   }
+  let interfaceNames: Set<string> | null = null;
+  if (opts?.interfaceName) {
+    const ifaceDef = this.interfaces.get(opts.interfaceName);
+    if (ifaceDef?.baseInterfaces && ifaceDef.baseInterfaces.length > 0) {
+      const expanded = this.collectInterfaceConstraintExpressions(AST.simpleTypeExpression(opts.interfaceName));
+      interfaceNames = new Set<string>();
+      for (const expr of expanded) {
+        const info = interfaceInfoFromTypeExpression(expr);
+        if (info) {
+          interfaceNames.add(info.name);
+        }
+      }
+    }
+  }
   const subjectType = typeExpressionFromInfo(typeName, opts?.typeArgs);
   const entries = [
     ...(this.implMethods.get(typeName) ?? []),
@@ -224,7 +238,11 @@ export function applyImplResolutionAugmentations(cls: typeof Interpreter): void 
     isConcreteTarget: boolean;
   }> = [];
   for (const entry of entries) {
-    if (opts?.interfaceName && entry.def.interfaceName.name !== opts.interfaceName) continue;
+    if (interfaceNames) {
+      if (!interfaceNames.has(entry.def.interfaceName.name)) continue;
+    } else if (opts?.interfaceName && entry.def.interfaceName.name !== opts.interfaceName) {
+      continue;
+    }
     const bindings = this.matchImplEntry(entry, { ...opts, subjectType });
     if (!bindings) continue;
     const method = entry.methods.get(methodName);
@@ -278,6 +296,20 @@ export function applyImplResolutionAugmentations(cls: typeof Interpreter): void 
   cls.prototype.resolveInterfaceImplementation = function resolveInterfaceImplementation(this: Interpreter, typeName: string, interfaceName: string, opts?: { typeArgs?: AST.TypeExpression[]; typeArgMap?: Map<string, AST.TypeExpression> }): { ok: boolean; error?: Error } {
   if (interfaceName === "Error" && typeName === "Error") {
     return { ok: true };
+  }
+  const ifaceDef = this.interfaces.get(interfaceName);
+  if (ifaceDef?.baseInterfaces && ifaceDef.baseInterfaces.length > 0) {
+    for (const base of ifaceDef.baseInterfaces) {
+      const info = interfaceInfoFromTypeExpression(base);
+      if (!info) continue;
+      const baseResult = this.resolveInterfaceImplementation(typeName, info.name, { typeArgs: info.args, typeArgMap: opts?.typeArgMap });
+      if (!baseResult.ok) {
+        return baseResult;
+      }
+    }
+    if (!ifaceDef.signatures || ifaceDef.signatures.length === 0) {
+      return { ok: true };
+    }
   }
   const subjectType = typeExpressionFromInfo(typeName, opts?.typeArgs);
   const entries = [
@@ -656,6 +688,17 @@ function typeExpressionFromInfo(name: string, typeArgs?: AST.TypeExpression[]): 
   const base: AST.SimpleTypeExpression = { type: "SimpleTypeExpression", name: AST.identifier(name) };
   if (!typeArgs || typeArgs.length === 0) return base;
   return { type: "GenericTypeExpression", base, arguments: typeArgs };
+}
+
+function interfaceInfoFromTypeExpression(expr: AST.TypeExpression | null | undefined): { name: string; args?: AST.TypeExpression[] } | null {
+  if (!expr) return null;
+  if (expr.type === "SimpleTypeExpression") {
+    return { name: expr.name.name };
+  }
+  if (expr.type === "GenericTypeExpression" && expr.base.type === "SimpleTypeExpression") {
+    return { name: expr.base.name.name, args: expr.arguments ?? [] };
+  }
+  return null;
 }
 
 function collectImplGenericNames(entry: ImplMethodEntry): Set<string> {
