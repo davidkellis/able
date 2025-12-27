@@ -21,6 +21,7 @@ impl Index i32 i32 for Bag {
 impl IndexMut i32 i32 for Bag {
   fn set(self: Self, idx: i32, value: i32) -> !void {
     self.items[idx] = value
+    return
   }
 }
 

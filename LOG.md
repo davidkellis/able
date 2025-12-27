@@ -484,3 +484,11 @@ Open items (2025-11-02 audit):
 - Added exec fixture `exec/10_01_interface_defaults_composites` covering interface defaults, implicit vs explicit `Self`, and composite aliases; updated the conformance plan + coverage index and cleared the PLAN backlog item.
 - TS/Go runtimes now treat composite interfaces as base-interface bundles for interface coercion and method dispatch (including default methods), with interface checks honoring base interfaces.
 - Tests: `bun run scripts/export-fixtures.ts`; `bun run scripts/run-fixtures.ts`; `go test ./pkg/interpreter` (with a temp `GOCACHE`).
+
+### 2025-12-26
+- Added exec fixture `exec/11_01_return_statement_type_enforcement` and updated the conformance plan + coverage index; cleared the related PLAN backlog item.
+- TS/Go runtimes now enforce return type checks (including bare return for non-void), and the TS/Go typecheckers ignore unreachable tail expressions after return while rejecting bare returns in non-void functions.
+- Updated `exec/11_00_errors_match_loop_combo` to use `//` so integer division stays within `i32` per the v11 spec.
+- Added exec fixture `exec/11_02_option_result_or_handlers` (Option/Result `or {}` handlers) and updated the conformance plan + coverage index; cleared the related PLAN backlog item.
+- Return type enforcement now treats iterator values as `Iterator` interface matches in TS/Go, and Go generic interface checks accept interface implementers; updated the pipeline diagnostics test to expect runtime mismatch under `AllowDiagnostics`.
+- Tests: `./run_all_tests.sh --version=v11 --fixture`; `./run_all_tests.sh --version=v11`.

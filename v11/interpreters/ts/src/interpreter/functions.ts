@@ -14,6 +14,79 @@ function isGenericTypeReference(typeExpr: AST.TypeExpression | undefined, generi
   return false;
 }
 
+function isVoidTypeExpression(ctx: Interpreter, expr: AST.TypeExpression): boolean {
+  const expanded = ctx.expandTypeAliases(expr);
+  return expanded.type === "SimpleTypeExpression" && expanded.name.name === "void";
+}
+
+function canonicalizeTypeExpression(ctx: Interpreter, env: Environment, expr: AST.TypeExpression): AST.TypeExpression {
+  const expanded = ctx.expandTypeAliases(expr);
+  switch (expanded.type) {
+    case "SimpleTypeExpression": {
+      const name = expanded.name.name;
+      let binding: RuntimeValue | null = null;
+      try {
+        binding = env.get(name);
+      } catch {}
+      if (!binding) return expanded;
+      if (binding.kind === "struct_def" || binding.kind === "interface_def" || binding.kind === "union_def") {
+        const canonical = binding.def.id.name;
+        if (canonical && canonical !== name) {
+          return AST.simpleTypeExpression(canonical);
+        }
+      }
+      return expanded;
+    }
+    case "GenericTypeExpression":
+      return AST.genericTypeExpression(
+        canonicalizeTypeExpression(ctx, env, expanded.base),
+        (expanded.arguments ?? []).map((arg) => (arg ? canonicalizeTypeExpression(ctx, env, arg) : arg)),
+      );
+    case "NullableTypeExpression":
+      return AST.nullableTypeExpression(canonicalizeTypeExpression(ctx, env, expanded.innerType));
+    case "ResultTypeExpression":
+      return AST.resultTypeExpression(canonicalizeTypeExpression(ctx, env, expanded.innerType));
+    case "UnionTypeExpression":
+      return AST.unionTypeExpression((expanded.members ?? []).map((member) => canonicalizeTypeExpression(ctx, env, member)));
+    case "FunctionTypeExpression":
+      return AST.functionTypeExpression(
+        (expanded.paramTypes ?? []).map((param) => canonicalizeTypeExpression(ctx, env, param)),
+        canonicalizeTypeExpression(ctx, env, expanded.returnType),
+      );
+    default:
+      return expanded;
+  }
+}
+
+function coerceReturnValue(
+  ctx: Interpreter,
+  returnType: AST.TypeExpression | undefined,
+  value: RuntimeValue,
+  genericNames: Set<string>,
+  env: Environment,
+): RuntimeValue {
+  if (!returnType) return value;
+  const canonicalReturn = canonicalizeTypeExpression(ctx, env, returnType);
+  if (canonicalReturn.type === "SimpleTypeExpression" && canonicalReturn.name.name === "void") {
+    return { kind: "void" };
+  }
+  if (value.kind === "void") {
+    if (canonicalReturn.type === "ResultTypeExpression" && isVoidTypeExpression(ctx, canonicalReturn.innerType)) {
+      return value;
+    }
+    const expected = ctx.typeExpressionToString(returnType);
+    throw new Error(`Return type mismatch: expected ${expected}, got void`);
+  }
+  const skipRuntimeTypeCheck = isGenericTypeReference(returnType, genericNames);
+  if (!skipRuntimeTypeCheck && !ctx.matchesType(returnType, value)) {
+    const expected = ctx.typeExpressionToString(returnType);
+    const actual = ctx.getTypeNameForValue(value) ?? value.kind;
+    throw new Error(`Return type mismatch: expected ${expected}, got ${actual}`);
+  }
+  if (skipRuntimeTypeCheck) return value;
+  return ctx.coerceValueToType(returnType, value);
+}
+
 export function evaluateFunctionDefinition(ctx: Interpreter, node: AST.FunctionDefinition, env: Environment): RuntimeValue {
   const value: RuntimeValue = { kind: "function", node, closureEnv: env };
   env.define(node.id.name, value);
@@ -254,9 +327,12 @@ export function callCallableValue(ctx: Interpreter, callee: RuntimeValue, args: 
       pushedImplicit = true;
     }
     try {
-      return ctx.evaluate(funcNode.body, funcEnv);
+      const result = ctx.evaluate(funcNode.body, funcEnv);
+      return coerceReturnValue(ctx, funcNode.returnType, result, genericNames, funcValue.closureEnv);
     } catch (e) {
-      if (e instanceof ReturnSignal) return e.value;
+      if (e instanceof ReturnSignal) {
+        return coerceReturnValue(ctx, funcNode.returnType, e.value, genericNames, funcValue.closureEnv);
+      }
       throw e;
     } finally {
       if (pushedImplicit) {
@@ -266,6 +342,7 @@ export function callCallableValue(ctx: Interpreter, callee: RuntimeValue, args: 
   }
 
   if (funcNode.type === "LambdaExpression") {
+    const genericNames = new Set((funcNode.genericParams ?? []).map((gp) => gp.name.name));
     const params = funcNode.params;
     if (evalArgs.length !== params.length) {
       throw new Error(`Lambda expects ${params.length} arguments, got ${evalArgs.length}`);
@@ -300,7 +377,8 @@ export function callCallableValue(ctx: Interpreter, callee: RuntimeValue, args: 
       pushedImplicit = true;
     }
     try {
-      return ctx.evaluate(funcNode.body as AST.AstNode, funcEnv);
+      const result = ctx.evaluate(funcNode.body as AST.AstNode, funcEnv);
+      return coerceReturnValue(ctx, funcNode.returnType, result, genericNames, funcValue.closureEnv);
     } finally {
       if (pushedImplicit) {
         ctx.implicitReceiverStack.pop();

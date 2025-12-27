@@ -1,0 +1,27 @@
+package exec_11_01_return_statement_type_enforcement
+
+## Semantics: return values must match the declared return type; bare returns are
+## only allowed for void functions, and statements after return are unreachable.
+
+fn early(flag: bool) -> i32 {
+  if flag {
+    print("early")
+    return 10
+  }
+  return 20
+  1 / 0
+}
+
+fn strict(flag: bool) -> i32 {
+  if flag {
+    return
+  }
+  return 5
+}
+
+fn main() -> void {
+  print(early(true))
+  print(early(false))
+  print(strict(false))
+  strict(true)
+}

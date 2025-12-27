@@ -495,7 +495,9 @@ export class TypeChecker {
         });
       }
       const bodyType = this.inferExpression(definition.body);
-      if (expectedReturn && expectedReturn.kind !== "unknown" && bodyType && bodyType.kind !== "unknown") {
+      const expectedVoid =
+        expectedReturn?.kind === "primitive" && expectedReturn.name === "void";
+      if (!expectedVoid && expectedReturn && expectedReturn.kind !== "unknown" && bodyType && bodyType.kind !== "unknown") {
         const literalMessage = this.describeLiteralMismatch(bodyType, expectedReturn);
         if (literalMessage) {
           this.report(literalMessage, definition.body ?? definition);
@@ -516,7 +518,7 @@ export class TypeChecker {
   private checkReturnStatement(statement: AST.ReturnStatement): void {
     if (!statement) return;
     const expected = this.currentReturnType();
-    let actual = statement.argument ? this.inferExpression(statement.argument) : primitiveType("nil");
+    let actual = statement.argument ? this.inferExpression(statement.argument) : primitiveType("void");
     if (statement.argument?.type === "FunctionCall" && expected && expected.kind !== "unknown") {
       actual = refineTypeWithExpected(actual, expected);
     }
@@ -525,6 +527,9 @@ export class TypeChecker {
       return;
     }
     if (expected.kind === "unknown") {
+      return;
+    }
+    if (expected.kind === "primitive" && expected.name === "void") {
       return;
     }
     if (!actual || actual.kind === "unknown") {

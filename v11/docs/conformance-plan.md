@@ -64,6 +64,7 @@ This document tracks end-to-end exec fixtures for Able v11 and maps them to the 
 | 6.5, 8.1 | `if`/`match` expression values | `exec/06_05_control_flow_expr_value` | Seeded: branches evaluate to selected values |
 | 7.1.3-7.1.5 | Function definitions: explicit/implicit generics + return inference | `exec/07_01_function_definition_generics_inference` | Seeded; implicit generics inferred from signatures with return type inference |
 | 7.3, 11.1 | Explicit return short-circuits nested blocks; void return allowed | `exec/07_03_explicit_return_flow` | Seeded; early return exits the function from inner blocks |
+| 11.1 | Return type enforcement and unreachable tail expressions after early return | `exec/11_01_return_statement_type_enforcement` | Seeded; bare return only for void, early return skips tail |
 | 7.2–7.3 | Lambdas, closures, explicit return | `exec/07_02_lambdas_closures_capture` | Seeded: closure capture and explicit return in factory |
 | 7.4.1-7.4.3 | Method call syntax + trailing lambdas vs UFCS | `exec/07_04_trailing_lambda_method_syntax` | Seeded; trailing lambdas match explicit calls for free functions and methods |
 | 7.4.4 | Apply interface call syntax for non-function callables | `exec/07_04_apply_callable_interface` | Seeded; Apply implementors can be invoked directly or via interface types |
@@ -71,6 +72,7 @@ This document tracks end-to-end exec fixtures for Able v11 and maps them to the 
 | 7.6 | Shorthand member access and placeholder lambdas | `exec/07_06_shorthand_member_placeholder_lambdas` | Seeded; #member, fn #method, and @/@n lambdas |
 | 7.7 | Overload resolution, nullable tail omission, and ambiguity | `exec/07_07_overload_resolution_runtime` | Seeded; runtime overload selection and ambiguity diagnostics |
 | 11.2 | `!`/`or` propagation for `Option`/`Result` | `exec/11_02_option_result_propagation` | Seeded: Option unwrap + error handling via `! or {}` |
+| 11.2.3 | `or {}` handlers for `Option`/`Result` + `Error` unions | `exec/11_02_option_result_or_handlers` | Seeded; `or` binds errors and treats `Error`-implementers as failure values |
 
 The matrix is also materialized as `v11/fixtures/exec/coverage-index.json` to enable tooling/CI checks.
 

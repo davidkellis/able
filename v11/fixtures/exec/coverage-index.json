@@ -276,6 +276,18 @@
     "focus": "option/result propagation with ! and or handling"
   },
   {
+    "id": "exec/11_02_option_result_or_handlers",
+    "status": "seeded",
+    "spec_sections": ["11.2.3"],
+    "focus": "or handlers for Option/Result with error binding and Error-implementer unions"
+  },
+  {
+    "id": "exec/11_01_return_statement_type_enforcement",
+    "status": "seeded",
+    "spec_sections": ["11.1"],
+    "focus": "return statements enforce declared return types and skip unreachable tails"
+  },
+  {
     "id": "exec/02_lexical_comments_identifiers",
     "status": "seeded",
     "spec_sections": ["2", "6.9"],
