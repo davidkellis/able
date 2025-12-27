@@ -1,0 +1,11 @@
+{
+  "description": "breakpoint handles labeled non-local breaks and returns payload values",
+  "expect": {
+    "stdout": [
+      "hit -2",
+      "miss 0",
+      "sum 6"
+    ],
+    "exit": 0
+  }
+}

@@ -1,7 +1,7 @@
 import * as AST from "../ast";
 import { Environment } from "./environment";
 import type { Interpreter } from "./index";
-import type { RuntimeValue } from "./values";
+import type { ConstraintSpec, RuntimeValue } from "./values";
 import { ReturnSignal } from "./signals";
 import { memberAccessOnValue } from "./structs";
 import { collectTypeDispatches } from "./type-dispatch";
@@ -178,6 +178,10 @@ export function callCallableValue(ctx: Interpreter, callee: RuntimeValue, args: 
   }
   if (arity.optionalLast && evalArgs.length === arity.maxArgs - 1) {
     evalArgs = [...evalArgs, { kind: "nil", value: null }];
+  }
+  const methodReceiver = resolveMethodSetReceiver(funcNode, evalArgs);
+  if (methodReceiver) {
+    enforceMethodSetConstraints(ctx, funcValue, methodReceiver);
   }
   if (callNode) {
     ctx.inferTypeArgumentsFromCall(funcNode, callNode, evalArgs);
@@ -404,6 +408,56 @@ function selectRuntimeOverload(
     throw new Error(`Ambiguous overload for ${name}`);
   }
   return best.fn;
+}
+
+function resolveMethodSetReceiver(
+  funcNode: AST.FunctionDefinition | AST.LambdaExpression,
+  evalArgs: RuntimeValue[],
+): RuntimeValue | null {
+  if (funcNode.type !== "FunctionDefinition") return null;
+  if (funcNode.isMethodShorthand) {
+    return evalArgs[0] ?? null;
+  }
+  const params = funcNode.params ?? [];
+  if (params.length === 0) return null;
+  const first = params[0];
+  if (!first) return null;
+  if (first.name?.type === "Identifier" && first.name.name.toLowerCase() === "self") {
+    return evalArgs[0] ?? null;
+  }
+  if (first.paramType?.type === "SimpleTypeExpression" && first.paramType.name.name === "Self") {
+    return evalArgs[0] ?? null;
+  }
+  return null;
+}
+
+function enforceMethodSetConstraints(
+  ctx: Interpreter,
+  funcValue: Extract<RuntimeValue, { kind: "function" }>,
+  receiver: RuntimeValue,
+): void {
+  const constraints = (funcValue as any).methodSetConstraints as ConstraintSpec[] | undefined;
+  if (!constraints || constraints.length === 0) return;
+  const targetType = (funcValue as any).methodSetTargetType as AST.TypeExpression | undefined;
+  const genericParams = (funcValue as any).methodSetGenericParams as AST.GenericParameter[] | undefined;
+  const actualTypeExpr = ctx.typeExpressionFromValue(receiver);
+  if (!actualTypeExpr) return;
+  const bindings = new Map<string, AST.TypeExpression>();
+  const genericNames = new Set((genericParams ?? []).map((gp) => gp.name.name));
+  if (targetType && genericNames.size > 0) {
+    const canonicalTarget = ctx.expandTypeAliases(targetType);
+    const canonicalActual = ctx.expandTypeAliases(actualTypeExpr);
+    ctx.matchTypeExpressionTemplate(canonicalTarget, canonicalActual, genericNames, bindings);
+    bindings.set("Self", canonicalActual);
+  } else {
+    bindings.set("Self", ctx.expandTypeAliases(actualTypeExpr));
+  }
+  if (receiver.kind === "struct_instance" && receiver.typeArgMap) {
+    for (const [key, value] of receiver.typeArgMap.entries()) {
+      if (!bindings.has(key)) bindings.set(key, value);
+    }
+  }
+  ctx.enforceConstraintSpecs(constraints, bindings, "method set");
 }
 
 function parameterSpecificity(typeExpr: AST.TypeExpression, generics: Set<string>): number {

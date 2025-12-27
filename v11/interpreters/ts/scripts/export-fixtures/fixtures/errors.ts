@@ -111,7 +111,7 @@ const errorsFixtures: Fixture[] = [
       manifest: {
         description: "Rescue guard selects matching clause",
         expect: {
-          result: { kind: "void" },
+          result: { kind: "nil" },
         },
       },
     },

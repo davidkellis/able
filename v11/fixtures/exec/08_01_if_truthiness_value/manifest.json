@@ -1,0 +1,12 @@
+{
+  "description": "if/elsif uses truthiness rules and yields branch values",
+  "expect": {
+    "stdout": [
+      "chain zero",
+      "no_else nil",
+      "void truthy",
+      "err falsy"
+    ],
+    "exit": 0
+  }
+}

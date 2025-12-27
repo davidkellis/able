@@ -12,6 +12,30 @@
     "focus": "integer literals, arithmetic, accumulation in for-range loop"
   },
   {
+    "id": "exec/08_02_while_continue_break",
+    "status": "seeded",
+    "spec_sections": ["8.2.1", "8.2.4"],
+    "focus": "while loop condition checks with continue skipping and break exiting"
+  },
+  {
+    "id": "exec/08_02_loop_expression_break_value",
+    "status": "seeded",
+    "spec_sections": ["8.2.3", "8.3.5"],
+    "focus": "loop expression yields break payloads or nil for bare breaks"
+  },
+  {
+    "id": "exec/08_02_range_inclusive_exclusive",
+    "status": "seeded",
+    "spec_sections": ["8.2.5"],
+    "focus": "inclusive/exclusive range iteration with ascending and descending bounds"
+  },
+  {
+    "id": "exec/08_03_breakpoint_nonlocal_jump",
+    "status": "seeded",
+    "spec_sections": ["8.3"],
+    "focus": "breakpoint returns labeled break payloads from nested blocks"
+  },
+  {
     "id": "exec/06_07_iterator_pipeline",
     "status": "seeded",
     "spec_sections": ["6.1.8", "6.3", "6.4"],
@@ -28,6 +52,18 @@
     "status": "seeded",
     "spec_sections": ["8.1.1", "8.2.2", "6.3"],
     "focus": "if/elsif/else branching with inclusive range iteration"
+  },
+  {
+    "id": "exec/08_01_if_truthiness_value",
+    "status": "seeded",
+    "spec_sections": ["8.1.1", "6.11"],
+    "focus": "if/elsif truthiness evaluation, branch values, and nil when no else"
+  },
+  {
+    "id": "exec/08_01_match_guards_exhaustiveness",
+    "status": "seeded",
+    "spec_sections": ["8.1.2"],
+    "focus": "match guards fall through to defaults and error on non-exhaustive coverage"
   },
   {
     "id": "exec/11_03_raise_exit_unhandled",
@@ -58,6 +94,24 @@
     "status": "seeded",
     "spec_sections": ["7.4", "9", "10"],
     "focus": "method call syntax, UFCS, inherent vs interface dispatch"
+  },
+  {
+    "id": "exec/09_05_method_set_generics_where",
+    "status": "seeded",
+    "spec_sections": ["9.5"],
+    "focus": "method-set generic parameters and where-clause enforcement on instance and UFCS calls"
+  },
+  {
+    "id": "exec/10_01_interface_defaults_composites",
+    "status": "seeded",
+    "spec_sections": ["10.1"],
+    "focus": "interface defaults, implicit vs explicit Self, and composite aliases"
+  },
+  {
+    "id": "exec/10_02_impl_specificity_named_overrides",
+    "status": "seeded",
+    "spec_sections": ["10.2.1-10.2.5"],
+    "focus": "impl specificity ordering, named impl disambiguation, and HKT target dispatch"
   },
   {
     "id": "exec/13_02_packages_visibility_diag",
@@ -346,6 +400,12 @@
     "status": "seeded",
     "spec_sections": ["7.6"],
     "focus": "implicit member shorthand and placeholder lambdas within nested callables"
+  },
+  {
+    "id": "exec/07_07_overload_resolution_runtime",
+    "status": "seeded",
+    "spec_sections": ["7.7"],
+    "focus": "overload selection, nullable tail omission, and ambiguity diagnostics at runtime"
   },
   {
     "id": "exec/07_02_lambdas_closures_capture",

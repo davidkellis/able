@@ -2,7 +2,7 @@
   "description": "Method-set where clause rejects Self when required interface is missing",
   "expect": {
     "errors": [
-      "No field or method named 'show'",
+      "Type 'Wrapper' does not satisfy interface 'CustomDisplay': missing method 'show'",
       "typechecker: methods for Wrapper::describe constraint on Self is not satisfied: Wrapper does not implement CustomDisplay: methods for Wrapper: method 'show' not provided"
     ],
     "typecheckDiagnostics": [

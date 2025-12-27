@@ -13,7 +13,12 @@ This document tracks end-to-end exec fixtures for Able v11 and maps them to the 
 | --- | --- | --- | --- |
 | 15.1–15.6, 6.6 | Program entry, print output, implicit `void` main | `exec/15_01_program_entry_hello_world` | Seeded (renamed from `exec_hello_world`); covers entry point signature + stdout |
 | 8.1.1, 8.2.2, 6.3 | `if/elsif/else` + `for` range iteration | `exec/08_01_control_flow_fizzbuzz` | Seeded (renamed from `exec_fizzbuzz`); ensures branch ordering + range inclusivity |
+| 8.1.1, 6.11 | `if` truthiness and expression result values | `exec/08_01_if_truthiness_value` | Seeded; truthiness drives branch selection and nil when no else |
+| 8.2.1, 8.2.4 | `while` loop with continue/break control flow | `exec/08_02_while_continue_break` | Seeded; continue skips body tail and break exits early |
 | 6.1, 6.3, 8.2.2 | Integer literals, arithmetic, accumulation in loops | `exec/08_02_numeric_sum_loop` | Seeded (renamed from `exec_math_sum`); validates `%`/`+` semantics and loop exit |
+| 8.2.3, 8.3.5 | `loop` expression break payloads | `exec/08_02_loop_expression_break_value` | Seeded; break returns payload or nil |
+| 8.2.5 | Inclusive/exclusive range iteration | `exec/08_02_range_inclusive_exclusive` | Seeded; ascending/descending range bounds |
+| 8.3 | Breakpoint non-local jumps | `exec/08_03_breakpoint_nonlocal_jump` | Seeded; labeled breaks unwind to breakpoint with payload |
 | 6.3.2, 11.3.3 | Division by zero raises a runtime error | `exec/04_02_primitives_truthiness_numeric_diag` | Seeded; confirms division-by-zero error propagation |
 | 6.3.2-6.3.3, 14.1.1, 14.1.4 | Operator dispatch via Add/Index/IndexMut interfaces | `exec/06_03_operator_overloading_interfaces` | Seeded; custom structs participate in `+` and `[]`/`[]=` |
 | 6.3.4 | Safe navigation short-circuits on nil | `exec/06_03_safe_navigation_nil_short_circuit` | Seeded; receiver evaluated once and argument evaluation skipped on nil |
@@ -29,6 +34,7 @@ This document tracks end-to-end exec fixtures for Able v11 and maps them to the 
 | 6.12.2 | Array helper API (size, push/pop, get/set, clear) | `exec/06_12_02_stdlib_array_helpers` | Seeded; bounds checks, pop nil, and clear resets size |
 | 6.12.3 | Numeric helpers (Ratio normalization, divmod) | `exec/06_12_03_stdlib_numeric_ratio_divmod` | Seeded; Ratio normalization and Euclidean /% results |
 | 6.6, 4.6, 8.1.2 | Union match expression with wildcard fallthrough | `exec/08_01_union_match_basic` | Seeded (renamed from `exec_match_union`); match ordering and wildcard coverage |
+| 8.1.2 | Match guards, default arm behavior, and exhaustiveness errors | `exec/08_01_match_guards_exhaustiveness` | Seeded; guard fallthrough uses default and missing coverage errors |
 | 4.6.1, 4.6.3-4.6.4, 8.1.2 | Payload-bearing union variants matched via struct patterns; generic union alias expansion | `exec/04_06_01_union_payload_patterns` | Seeded; union payload patterns + generic alias expansion |
 | 4.6.2, 6.11 | Nullable shorthand and truthiness of nil vs non-nil values | `exec/04_06_02_nullable_truthiness` | Seeded; ?T behaves as nil | T in boolean contexts |
 | 4.6.3 | Constructing Option/Result unions without propagation | `exec/04_06_03_union_construction_result_option` | Seeded; match handles nil/error variants directly |
@@ -40,6 +46,9 @@ This document tracks end-to-end exec fixtures for Able v11 and maps them to the 
 | 12.5 | Channels: buffered send/receive, close terminates iteration | `exec/12_05_concurrency_channel_ping_pong` | Seeded; validates rendezvous order and nil on close |
 | 12.2, 12.3, 12.6 | `proc` vs `spawn` vs `await` scheduling | `exec/12_02_async_proc_spawn_combo` | Seeded: cooperative scheduling with `proc_yield` + `proc_flush`, future status/value |
 | 7.4, 9, 10 | Method call syntax + UFCS + impl dispatch | `exec/09_04_methods_ufcs_basics` | Seeded: inherent method sugar, UFCS free function, type-qualified static |
+| 9.5 | Method-set generics and where-clause enforcement | `exec/09_05_method_set_generics_where` | Seeded; constraints gate instance and UFCS calls |
+| 10.1 | Interface defaults, implicit vs explicit `Self`, and composite aliases | `exec/10_01_interface_defaults_composites` | Seeded; default methods flow through composite interface types |
+| 10.2.1–10.2.5 | Impl specificity ordering, named impl disambiguation, HKT targets | `exec/10_02_impl_specificity_named_overrides` | Seeded; overlapping impls pick most-specific and named impls require explicit calls |
 | 7.4.3, 9.1-9.3, 13.4 | Instance vs static methods across imports; UFCS uses imported free function | `exec/09_02_methods_instance_vs_static` | Seeded; instance/static method sets with UFCS via selective import |
 | 7.1, 7.4, 9, 13.4 | Composition: generic helpers + inherent methods + imports | `exec/09_00_methods_generics_imports_combo` | Seeded; combines generics, method calls, and module imports |
 | 10.3 | Dynamic dispatch via interface-typed values | `exec/10_03_interface_type_dynamic_dispatch` | Seeded; interface-typed calls target concrete impls |
@@ -60,6 +69,7 @@ This document tracks end-to-end exec fixtures for Able v11 and maps them to the 
 | 7.4.4 | Apply interface call syntax for non-function callables | `exec/07_04_apply_callable_interface` | Seeded; Apply implementors can be invoked directly or via interface types |
 | 7.5 | Placeholder-based partial application | `exec/07_05_partial_application` | Seeded; placeholder arity + evaluation order for partial application |
 | 7.6 | Shorthand member access and placeholder lambdas | `exec/07_06_shorthand_member_placeholder_lambdas` | Seeded; #member, fn #method, and @/@n lambdas |
+| 7.7 | Overload resolution, nullable tail omission, and ambiguity | `exec/07_07_overload_resolution_runtime` | Seeded; runtime overload selection and ambiguity diagnostics |
 | 11.2 | `!`/`or` propagation for `Option`/`Result` | `exec/11_02_option_result_propagation` | Seeded: Option unwrap + error handling via `! or {}` |
 
 The matrix is also materialized as `v11/fixtures/exec/coverage-index.json` to enable tooling/CI checks.

@@ -353,6 +353,11 @@ func (i *Interpreter) evaluateMethodsDefinition(def *ast.MethodsDefinition, env 
 		bucket = make(map[string]runtime.Value)
 		i.inherentMethods[typeName] = bucket
 	}
+	methodSet := &runtime.MethodSet{
+		TargetType:    target,
+		GenericParams: def.GenericParams,
+		WhereClause:   def.WhereClause,
+	}
 	for _, fn := range def.Definitions {
 		if fn == nil || fn.ID == nil {
 			return nil, fmt.Errorf("Method definition requires identifier")
@@ -362,7 +367,7 @@ func (i *Interpreter) evaluateMethodsDefinition(def *ast.MethodsDefinition, env 
 		if !expectsSelf {
 			exportedName = fmt.Sprintf("%s.%s", typeName, fn.ID.Name)
 		}
-		fnVal := &runtime.FunctionValue{Declaration: fn, Closure: env, TypeQualified: !expectsSelf}
+		fnVal := &runtime.FunctionValue{Declaration: fn, Closure: env, TypeQualified: !expectsSelf, MethodSet: methodSet}
 		mergeFunctionLike(bucket, fn.ID.Name, fnVal)
 		env.Define(exportedName, fnVal)
 		i.registerSymbol(exportedName, fnVal)

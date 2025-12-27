@@ -1,0 +1,129 @@
+package exec_10_02_impl_specificity_named_overrides
+
+## Semantics: impl specificity (concrete vs generic, constraint supersets, union subsets, more-instantiated generics),
+## named impl disambiguation, and HKT impls for type constructors.
+
+interface Label for T {
+  fn label(self: Self) -> String
+}
+
+interface Alpha for T {
+  fn alpha(self: Self) -> String
+}
+
+interface Beta for T {
+  fn beta(self: Self) -> String
+}
+
+struct Thing { id: i32 }
+struct Solo { id: i32 }
+
+impl Alpha for Thing {
+  fn alpha(self: Self) -> String { "a" }
+}
+
+impl Beta for Thing {
+  fn beta(self: Self) -> String { "b" }
+}
+
+impl Alpha for Solo {
+  fn alpha(self: Self) -> String { "a" }
+}
+
+impl<T: Alpha> Label for T {
+  fn label(self: Self) -> String { "alpha" }
+}
+
+impl<T: Alpha + Beta> Label for T {
+  fn label(self: Self) -> String { "alpha+beta" }
+}
+
+impl Label for Array i32 {
+  fn label(self: Self) -> String { "array<i32>" }
+}
+
+impl<T> Label for Array T {
+  fn label(self: Self) -> String { "array<T>" }
+}
+
+impl Label for i32 | f32 {
+  fn label(self: Self) -> String { "narrow" }
+}
+
+impl Label for i32 | f32 | f64 {
+  fn label(self: Self) -> String { "wide" }
+}
+
+struct Pair A B { left: A, right: B }
+
+impl<T> Label for Pair T i32 {
+  fn label(self: Self) -> String { "pair<T,i32>" }
+}
+
+impl<U, V> Label for Pair U V {
+  fn label(self: Self) -> String { "pair<U,V>" }
+}
+
+interface ContainerTag A for M _ {
+  fn tag(self: Self A) -> String
+}
+
+struct Crate A { value: A }
+
+impl ContainerTag A for Array {
+  fn tag(self: Array A) -> String { "array" }
+}
+
+impl ContainerTag A for Crate {
+  fn tag(self: Crate A) -> String { "crate" }
+}
+
+interface Monoid for T {
+  fn id() -> Self
+  fn op(self: Self, other: Self) -> Self
+}
+
+impl Monoid for i32 {
+  fn id() -> Self { 0 }
+  fn op(self: Self, other: Self) -> Self { 42 }
+}
+
+Sum = impl Monoid for i32 {
+  fn id() -> Self { 0 }
+  fn op(self: Self, other: Self) -> Self { self + other }
+}
+
+Product = impl Monoid for i32 {
+  fn id() -> Self { 1 }
+  fn op(self: Self, other: Self) -> Self { self * other }
+}
+
+fn main() -> void {
+  arr_i32 := [1, 2]
+  arr_str := ["a"]
+  print(arr_i32.label())
+  print(arr_str.label())
+
+  thing := Thing { id: 1 }
+  solo := Solo { id: 2 }
+  print(thing.label())
+  print(solo.label())
+
+  value_i32 := 3
+  value_f64 := 3.5
+  print(value_i32.label())
+  print(value_f64.label())
+
+  pair := Pair { left: 1, right: 2 }
+  print(pair.label())
+
+  crate := Crate { value: "boxed" }
+  print(crate.tag())
+  print(arr_i32.tag())
+
+  print(5.op(2))
+  print(Sum.id())
+  print(Sum.op(5, 2))
+  print(Product.id())
+  print(Product.op(5, 2))
+}

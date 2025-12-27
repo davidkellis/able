@@ -31,8 +31,12 @@ export function applyMemberAugmentations(cls: typeof Interpreter): void {
     const candidateTypeNames = new Set<string>();
     if (typeName) candidateTypeNames.add(typeName);
     if (canonicalTypeName && canonicalTypeName !== typeName) candidateTypeNames.add(canonicalTypeName);
-    if (!typeArgs) {
-      if (receiver.kind === "array") {
+    if (!typeArgs && receiver.kind === "array") {
+      const inferred = this.typeExpressionFromValue(receiver);
+      const info = inferred ? this.parseTypeExpression(inferred) : null;
+      if (info?.typeArgs && info.typeArgs.length > 0) {
+        typeArgs = info.typeArgs;
+      } else {
         typeArgs = [AST.wildcardTypeExpression()];
       }
     }

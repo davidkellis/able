@@ -286,9 +286,16 @@ type FunctionValue struct {
 	Closure        *Environment
 	MethodPriority float64
 	TypeQualified  bool
+	MethodSet      *MethodSet
 }
 
 func (v *FunctionValue) Kind() Kind { return KindFunction }
+
+type MethodSet struct {
+	TargetType    ast.TypeExpression
+	GenericParams []*ast.GenericParameter
+	WhereClause   []*ast.WhereClauseConstraint
+}
 
 // FunctionOverloadValue aggregates multiple function declarations under a single name.
 type FunctionOverloadValue struct {

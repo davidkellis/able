@@ -1,0 +1,36 @@
+package exec_08_03_breakpoint_nonlocal_jump
+
+## Semantics: breakpoint captures labeled breaks from nested blocks and returns the payload.
+
+fn find_negative(values: Array i32) -> i32 {
+  breakpoint 'exit {
+    for v in values {
+      do {
+        if v < 0 {
+          break 'exit v;
+        }
+      }
+    }
+    0
+  }
+}
+
+fn main() -> void {
+  hit := find_negative([1, -2, 3])
+  print(`hit ${hit}`)
+
+  miss := find_negative([4, 5])
+  print(`miss ${miss}`)
+
+  total := breakpoint 'sum {
+    acc := 0
+    for v in [1, 2, 3] {
+      acc = acc + v;
+      if acc > 3 {
+        break 'sum acc;
+      }
+    }
+    -1
+  }
+  print(`sum ${total}`)
+}

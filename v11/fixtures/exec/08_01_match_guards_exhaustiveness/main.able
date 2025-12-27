@@ -1,0 +1,19 @@
+package exec_08_01_match_guards_exhaustiveness
+
+## Semantics: guards are evaluated in order, default arms catch guard fallthrough,
+## and missing coverage raises a non-exhaustive match error.
+
+fn main() -> void {
+  value := 0
+  label := value match {
+    case v if v > 0 => "positive",
+    case v if v < 0 => "negative",
+    case _ => "zero"
+  }
+  print(`guard ${label}`)
+
+  (-1) match {
+    case v if v > 0 => print("pos"),
+    case v if v == 0 => print("zero")
+  }
+}
