@@ -8,7 +8,7 @@ struct Err { message: String }
 type DivResult = Ok | Err
 
 fn divide(numer: i32, denom: i32) -> DivResult {
-  if denom == 0 { Err { message: "zero" } } else { Ok { value: numer / denom } }
+  if denom == 0 { Err { message: "zero" } } else { Ok { value: numer // denom } }
 }
 
 fn unwrap_or_raise(result: DivResult) -> i32 {

@@ -1,0 +1,13 @@
+{
+  "description": "return statements must match declared return type; unreachable tails are skipped",
+  "expect": {
+    "stdout": [
+      "early",
+      "10",
+      "20",
+      "5"
+    ],
+    "stderr": ["Return type mismatch: expected i32, got void"],
+    "exit": 1
+  }
+}

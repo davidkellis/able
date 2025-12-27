@@ -298,7 +298,8 @@ func (c *Checker) checkReturnStatement(env *Environment, stmt *ast.ReturnStateme
 		return diags
 	}
 
-	var returnType Type = PrimitiveType{Kind: PrimitiveNil}
+	voidType := StructType{StructName: "void"}
+	var returnType Type = voidType
 	if stmt.Argument != nil {
 		argDiags, argType := c.checkExpressionWithExpectedType(env, stmt.Argument, expected)
 		diags = append(diags, argDiags...)
@@ -311,10 +312,9 @@ func (c *Checker) checkReturnStatement(env *Environment, stmt *ast.ReturnStateme
 
 	if expected != nil && !isUnknownType(expected) {
 		if stmt.Argument == nil {
-			nilType := PrimitiveType{Kind: PrimitiveNil}
-			if !typeAssignable(nilType, expected) {
+			if !isVoidType(expected) {
 				diags = append(diags, Diagnostic{
-					Message: fmt.Sprintf("typechecker: return expects %s, got Nil", typeName(expected)),
+					Message: fmt.Sprintf("typechecker: return expects %s, got void", typeName(expected)),
 					Node:    stmt,
 				})
 			}

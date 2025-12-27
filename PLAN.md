@@ -63,8 +63,7 @@ Note: It is expected that some new fixtures will fail due to interpreter bugs/de
 - [x] `exec/06_01_literals_array_map_inference` — §6.1.7–§6.1.9: array/map literal inference, spread/entry order, mixed element unification.
 - [x] `exec/06_02_block_expression_value_scope` — §6.2: block-as-expression value, inner scope bindings, void-return blocks.
 - [x] `exec/06_03_operator_precedence_associativity` — §6.3.1: precedence/associativity across pipes, assignment, arithmetic/boolean ops.
-- [ ] `exec/11_01_return_statement_type_enforcement` — §11.1: return type enforcement and unreachable tail expressions after early return.
-- [ ] `exec/11_02_option_result_or_handlers` — §11.2.3: `or {}` handlers with/without error binding, option vs result divergence.
+- [x] `exec/11_02_option_result_or_handlers` — §11.2.3: `or {}` handlers with/without error binding, option vs result divergence.
 - [ ] `exec/11_03_rescue_rethrow_standard_errors` — §11.3: Arithmetic/Indexing errors, `rescue` with `ensure`, rethrow semantics.
 - [ ] `exec/12_02_proc_fairness_cancellation` — §12.2.5: cooperative scheduling fairness, `proc_yield`, cancellation and `proc_flush`.
 - [ ] `exec/12_03_spawn_future_status_error` — §12.3: future status/value/error propagation, repeated await, cancellation request.

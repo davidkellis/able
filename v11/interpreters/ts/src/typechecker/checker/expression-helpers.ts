@@ -224,6 +224,11 @@ export function evaluateBlockExpression(ctx: ExpressionContext, block: AST.Block
     for (let index = 0; index < statements.length; index += 1) {
       const statement = statements[index];
       if (!statement) continue;
+      if (statement.type === "ReturnStatement") {
+        ctx.checkStatement(statement as AST.Statement);
+        resultType = unknownType;
+        break;
+      }
       const isLast = index === statements.length - 1;
       const isExpr = ctx.isExpression(statement as AST.Node);
       if (isLast && isExpr) {
