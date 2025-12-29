@@ -143,7 +143,7 @@ func ratioPartsFromStruct(val runtime.Value) (ratioParts, bool) {
 
 func normalizeRatioParts(num *big.Int, den *big.Int) (ratioParts, error) {
 	if den == nil || den.Sign() == 0 {
-		return ratioParts{}, fmt.Errorf("division by zero")
+		return ratioParts{}, newDivisionByZeroError()
 	}
 	n := runtime.CloneBigInt(num)
 	d := runtime.CloneBigInt(den)
@@ -161,7 +161,7 @@ func normalizeRatioParts(num *big.Int, den *big.Int) (ratioParts, error) {
 		d.SetInt64(1)
 	}
 	if n.Cmp(bigI64Min) < 0 || n.Cmp(bigI64Max) > 0 || d.Cmp(bigI64Max) > 0 || d.Sign() <= 0 {
-		return ratioParts{}, fmt.Errorf("ratio overflow")
+		return ratioParts{}, newOverflowError("ratio overflow")
 	}
 	return ratioParts{num: n, den: d}, nil
 }
@@ -294,7 +294,7 @@ func evaluateDivision(i *Interpreter, left runtime.Value, right runtime.Value) (
 			return nil, err
 		}
 		if rightFloat == 0 {
-			return nil, fmt.Errorf("division by zero")
+			return nil, newDivisionByZeroError()
 		}
 		val := normalizeFloat(targetFloatKind, leftFloat/rightFloat)
 		return runtime.FloatValue{Val: val, TypeSuffix: targetFloatKind}, nil
@@ -308,12 +308,12 @@ func evaluateDivision(i *Interpreter, left runtime.Value, right runtime.Value) (
 		return nil, fmt.Errorf("Arithmetic requires numeric operands")
 	}
 	if rightInt.Val == nil || rightInt.Val.Sign() == 0 {
-		return nil, fmt.Errorf("division by zero")
+		return nil, newDivisionByZeroError()
 	}
 	leftFloat := bigIntToFloat(leftInt.Val)
 	rightFloat := bigIntToFloat(rightInt.Val)
 	if rightFloat == 0 {
-		return nil, fmt.Errorf("division by zero")
+		return nil, newDivisionByZeroError()
 	}
 	val := normalizeFloat(runtime.FloatF64, leftFloat/rightFloat)
 	return runtime.FloatValue{Val: val, TypeSuffix: runtime.FloatF64}, nil
@@ -382,7 +382,7 @@ func evaluateBitwise(op string, left runtime.Value, right runtime.Value) (runtim
 		result = patternToInteger(tmp, info)
 	case "<<":
 		if !rVal.IsInt64() {
-			return nil, fmt.Errorf("shift out of range")
+			return nil, newShiftOutOfRangeError(0)
 		}
 		count := int(rVal.Int64())
 		shifted, err := shiftValueLeft(lVal, count, info)
@@ -392,7 +392,7 @@ func evaluateBitwise(op string, left runtime.Value, right runtime.Value) (runtim
 		result = shifted
 	case ">>":
 		if !rVal.IsInt64() {
-			return nil, fmt.Errorf("shift out of range")
+			return nil, newShiftOutOfRangeError(0)
 		}
 		count := int(rVal.Int64())
 		shifted, err := shiftValueRight(lVal, count, info)
@@ -532,7 +532,7 @@ func evaluateArithmetic(i *Interpreter, op string, left runtime.Value, right run
 
 func computeDivMod(left runtime.IntegerValue, right runtime.IntegerValue) (runtime.IntegerValue, runtime.IntegerValue, runtime.IntegerType, error) {
 	if right.Val == nil || right.Val.Sign() == 0 {
-		return runtime.IntegerValue{}, runtime.IntegerValue{}, runtime.IntegerI32, fmt.Errorf("division by zero")
+		return runtime.IntegerValue{}, runtime.IntegerValue{}, runtime.IntegerI32, newDivisionByZeroError()
 	}
 	targetType, err := promoteIntegerTypes(left.TypeSuffix, right.TypeSuffix)
 	if err != nil {
@@ -559,7 +559,7 @@ func computeDivMod(left runtime.IntegerValue, right runtime.IntegerValue) (runti
 
 func euclideanDivModBig(dividend *big.Int, divisor *big.Int) (*big.Int, *big.Int, error) {
 	if divisor == nil || divisor.Sign() == 0 {
-		return nil, nil, fmt.Errorf("division by zero")
+		return nil, nil, newDivisionByZeroError()
 	}
 	quotient := new(big.Int).Quo(dividend, divisor)
 	remainder := new(big.Int).Rem(dividend, divisor)

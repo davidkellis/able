@@ -103,6 +103,7 @@ export class Interpreter {
   nextChannelHandle = 1;
   channelStates: Map<number, any> = new Map();
   channelErrorStructs: Map<string, AST.StructDefinition> = new Map();
+  standardErrorStructs: Map<string, AST.StructDefinition> = new Map();
   nextMutexHandle = 1;
   mutexStates: Map<number, any> = new Map();
   nextHasherHandle = 1;

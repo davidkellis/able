@@ -1,4 +1,5 @@
 import type { FloatKind, IntegerKind, RuntimeValue } from "./values";
+import { StandardRuntimeError } from "./standard_errors";
 
 type IntegerInfo = {
   kind: IntegerKind;
@@ -221,7 +222,7 @@ function convertToFloat(value: NumericClassification, target: FloatKind): number
 
 function ensureIntegerInRange(value: bigint, info: IntegerInfo): void {
   if (value < info.min || value > info.max) {
-    throw new Error("integer overflow");
+    throw new StandardRuntimeError("OverflowError", "integer overflow", { operation: "integer overflow" });
   }
 }
 
@@ -262,7 +263,7 @@ function gcdBigInt(a: bigint, b: bigint): bigint {
 
 function normalizeRatioParts(num: bigint, den: bigint): RatioParts {
   if (den === 0n) {
-    throw new Error("division by zero");
+    throw new StandardRuntimeError("DivisionByZeroError", "division by zero");
   }
   let n = num;
   let d = den;
@@ -278,7 +279,7 @@ function normalizeRatioParts(num: bigint, den: bigint): RatioParts {
     d /= divisor;
   }
   if (n < I64_MIN || n > I64_MAX || d < 1n || d > I64_MAX) {
-    throw new Error("ratio overflow");
+    throw new StandardRuntimeError("OverflowError", "ratio overflow", { operation: "ratio overflow" });
   }
   return { num: n, den: d };
 }
@@ -383,7 +384,7 @@ function applyFloatOperation(op: string, left: number, right: number, kind: Floa
     case "*":
       return FLOAT_INFO[kind].apply(left * right);
     case "/":
-      if (right === 0) throw new Error("division by zero");
+      if (right === 0) throw new StandardRuntimeError("DivisionByZeroError", "division by zero");
       return FLOAT_INFO[kind].apply(left / right);
     case "^":
       return FLOAT_INFO[kind].apply(left ** right);
@@ -592,7 +593,7 @@ function computeDivMod(
     throw new Error("Arithmetic operands exceed supported integer widths");
   }
   if (right.value === 0n) {
-    throw new Error("division by zero");
+    throw new StandardRuntimeError("DivisionByZeroError", "division by zero");
   }
   const { quotient, remainder } = euclideanDivMod(left.value, right.value);
   ensureIntegerInRange(quotient, promotion);
@@ -606,7 +607,7 @@ function computeDivMod(
 
 function euclideanDivMod(dividend: bigint, divisor: bigint): { quotient: bigint; remainder: bigint } {
   if (divisor === 0n) {
-    throw new Error("division by zero");
+    throw new StandardRuntimeError("DivisionByZeroError", "division by zero");
   }
   let quotient = dividend / divisor;
   let remainder = dividend % divisor;
@@ -744,7 +745,7 @@ export function applyBitwiseBinary(op: string, left: RuntimeValue, right: Runtim
 
 function applyShift(op: string, left: bigint, right: bigint, info: IntegerInfo): Extract<RuntimeValue, { kind: IntegerKind }> {
   if (right < 0n || right >= BigInt(info.bits)) {
-    throw new Error("shift out of range");
+    throw new StandardRuntimeError("ShiftOutOfRangeError", "shift out of range", { shift: right });
   }
   let result: bigint;
   if (op === "<<") {

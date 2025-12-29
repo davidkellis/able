@@ -26,6 +26,8 @@ import { evaluateProcExpression, evaluateSpawnExpression, evaluateBreakpointExpr
 import { evaluateIteratorLiteral, evaluateYieldStatement } from "./iterators";
 import { ProcContinuationContext } from "./proc_continuations";
 import type { RuntimeValue } from "./values";
+import { RaiseSignal } from "./signals";
+import { StandardRuntimeError, makeStandardErrorValue } from "./standard_errors";
 
 declare module "./index" {
   interface Interpreter {
@@ -80,6 +82,7 @@ export function applyEvaluationAugmentations(cls: typeof Interpreter): void {
         return placeholderFn;
       }
     }
+    try {
     switch (node.type) {
       case "StringLiteral":
       case "BooleanLiteral":
@@ -217,6 +220,15 @@ export function applyEvaluationAugmentations(cls: typeof Interpreter): void {
         return NIL;
       default:
         throw new Error(`Not implemented in milestone: ${node.type}`);
+    }
+    } catch (err) {
+      if (err instanceof RaiseSignal) {
+        throw err;
+      }
+      if (err instanceof StandardRuntimeError) {
+        throw new RaiseSignal(makeStandardErrorValue(this, err));
+      }
+      throw err;
     }
   };
 }

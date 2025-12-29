@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { Interpreter } from "../../src/interpreter";
+import { RaiseSignal } from "../../src/interpreter/signals";
 
 const ratioLiteral = (num: number, den: number) =>
   AST.structLiteral(
@@ -11,6 +12,18 @@ const ratioLiteral = (num: number, den: number) =>
     false,
     "Ratio",
   );
+
+const expectDivisionByZero = (fn: () => unknown) => {
+  try {
+    fn();
+    throw new Error("expected division by zero");
+  } catch (err) {
+    expect(err).toBeInstanceOf(RaiseSignal);
+    if (err instanceof RaiseSignal && err.value.kind === "error") {
+      expect(err.value.message).toMatch(/division by zero/i);
+    }
+  }
+};
 
 describe("v11 interpreter - Ratio support", () => {
   test("arithmetic with Ratio stays exact", () => {
@@ -48,7 +61,7 @@ describe("v11 interpreter - Ratio support", () => {
     I.ensureRatioStruct();
     const half = ratioLiteral(1, 2);
     const zero = ratioLiteral(0, 1);
-    expect(() => I.evaluate(AST.binaryExpression("/", half, zero))).toThrow(/division by zero/i);
+    expectDivisionByZero(() => I.evaluate(AST.binaryExpression("/", half, zero)));
   });
 
   test("builtin float->Ratio conversion preserves fraction", () => {

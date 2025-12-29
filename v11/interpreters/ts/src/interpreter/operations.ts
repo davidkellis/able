@@ -2,7 +2,7 @@ import * as AST from "../ast";
 import type { Environment } from "./environment";
 import type { Interpreter } from "./index";
 import type { RuntimeValue } from "./values";
-import { collectTypeDispatches } from "./type-dispatch";
+import { collectTypeDispatches, type TypeDispatch } from "./type-dispatch";
 import { callCallableValue } from "./functions";
 import {
   applyArithmeticBinary,
@@ -25,14 +25,73 @@ export function resolveIndexFunction(
   interfaceName: string,
 ): Extract<RuntimeValue, { kind: "function" | "function_overload" }> | null {
   const dispatches = collectTypeDispatches(ctx, receiver);
+  const allDispatches: TypeDispatch[] = [...dispatches];
+  const seen = new Set(dispatches.map((entry) => `${entry.typeName}::${entry.typeArgs.map((arg) => ctx.typeExpressionToString(arg)).join("|")}`));
   for (const dispatch of dispatches) {
+    const base = AST.simpleTypeExpression(dispatch.typeName);
+    const expr = dispatch.typeArgs.length > 0
+      ? AST.genericTypeExpression(base, dispatch.typeArgs)
+      : base;
+    const expanded = ctx.expandTypeAliases(expr);
+    const expandedInfo = ctx.parseTypeExpression(expanded);
+    if (expandedInfo) {
+      const key = `${expandedInfo.name}::${expandedInfo.typeArgs.map((arg) => ctx.typeExpressionToString(arg)).join("|")}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        allDispatches.push({ typeName: expandedInfo.name, typeArgs: expandedInfo.typeArgs });
+      }
+    }
+  }
+  for (const dispatch of allDispatches) {
     const method = ctx.findMethod(dispatch.typeName, methodName, {
       typeArgs: dispatch.typeArgs,
       interfaceName,
+      includeInherent: false,
     });
     if (method) return method;
   }
   return null;
+}
+
+function resolveIndexErrorStruct(ctx: Interpreter): AST.StructDefinition {
+  const name = "IndexError";
+  const cached = ctx.standardErrorStructs.get(name);
+  if (cached) return cached;
+  const candidates = [
+    name,
+    `able.core.errors.${name}`,
+    `core.errors.${name}`,
+    `errors.${name}`,
+  ];
+  for (const candidate of candidates) {
+    try {
+      const val = ctx.globals.get(candidate);
+      if (val && val.kind === "struct_def") {
+        ctx.standardErrorStructs.set(name, val.def);
+        return val.def;
+      }
+    } catch {
+      // ignore lookup errors
+    }
+  }
+  for (const bucket of ctx.packageRegistry.values()) {
+    const val = bucket.get(name);
+    if (val && val.kind === "struct_def") {
+      ctx.standardErrorStructs.set(name, val.def);
+      return val.def;
+    }
+  }
+  const placeholder = AST.structDefinition(name, [], "named");
+  ctx.standardErrorStructs.set(name, placeholder);
+  return placeholder;
+}
+
+export function makeIndexErrorInstance(ctx: Interpreter, index: number, length: number): RuntimeValue {
+  const def = resolveIndexErrorStruct(ctx);
+  return ctx.makeNamedStructInstance(def, [
+    ["index", makeIntegerValue("i64", BigInt(index))],
+    ["length", makeIntegerValue("i64", BigInt(length))],
+  ]);
 }
 
 type OperatorDispatch = { interfaceName: string; methodName: string };
@@ -296,7 +355,7 @@ export function evaluateIndexExpression(ctx: Interpreter, node: AST.IndexExpress
   if (obj.kind !== "array") throw new Error("Indexing is only supported on arrays in this milestone");
   const state = ctx.ensureArrayState(obj);
   const idx = Math.trunc(numericToNumber(idxVal, "Array index", { requireSafeInteger: true }));
-  if (idx < 0 || idx >= state.values.length) throw new Error("Array index out of bounds");
+  if (idx < 0 || idx >= state.values.length) return makeIndexErrorInstance(ctx, idx, state.values.length);
   const el = state.values[idx];
   if (el === undefined) throw new Error("Internal error: array element undefined");
   return el;

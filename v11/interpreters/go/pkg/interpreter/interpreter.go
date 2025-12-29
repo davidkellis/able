@@ -188,6 +188,7 @@ type Interpreter struct {
 	mutexes                 map[int64]*mutexState
 	nextMutexHandle         int64
 	concurrencyErrorStructs map[string]*runtime.StructDefinitionValue
+	standardErrorStructs    map[string]*runtime.StructDefinitionValue
 
 	stringHostReady bool
 
@@ -321,6 +322,7 @@ func NewWithExecutor(exec Executor) *Interpreter {
 		pendingChannelReceives:  make(map[*runtime.ProcHandleValue]*channelReceiveWaiter),
 		mutexes:                 make(map[int64]*mutexState),
 		concurrencyErrorStructs: make(map[string]*runtime.StructDefinitionValue),
+		standardErrorStructs:    make(map[string]*runtime.StructDefinitionValue),
 		hashers:                 make(map[int64]*hasherState),
 		orderingStructs:         make(map[string]*runtime.StructDefinitionValue),
 		arrayStates:             make(map[int64]*arrayState),

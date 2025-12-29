@@ -45,6 +45,12 @@ This document tracks end-to-end exec fixtures for Able v11 and maps them to the 
 | 8.1.2, 8.2.2, 11.3 | Composition: match + loop + rescue | `exec/11_00_errors_match_loop_combo` | Seeded; raise/rescue within loop with match-driven branches |
 | 12.5 | Channels: buffered send/receive, close terminates iteration | `exec/12_05_concurrency_channel_ping_pong` | Seeded; validates rendezvous order and nil on close |
 | 12.2, 12.3, 12.6 | `proc` vs `spawn` vs `await` scheduling | `exec/12_02_async_proc_spawn_combo` | Seeded: cooperative scheduling with `proc_yield` + `proc_flush`, future status/value |
+| 12.2.5 | Runtime helper fairness/cancellation | `exec/12_02_proc_fairness_cancellation` | Seeded: `proc_yield`, `proc_cancelled`, `proc_flush` queue drain |
+| 12.3 | Future status/value/error propagation | `exec/12_03_spawn_future_status_error` | Seeded: resolved/failed statuses and `Future.value()` error handling |
+| 12.4 | Proc vs spawn semantics | `exec/12_04_proc_vs_spawn_differences` | Seeded: handle vs future access, error labels, proc cancellation |
+| 12.5 | Mutex lock/unlock | `exec/12_05_mutex_lock_unlock` | Seeded: lock/unlock, helper usage, unlock error |
+| 12.6 | Await fairness/cancellation | `exec/12_06_await_fairness_cancellation` | Seeded: fair selection, default arm, cancellation during await |
+| 12.7 | Channel/mutex error payload types | `exec/12_07_channel_mutex_error_types` | Seeded: rescue matches ChannelNil/ChannelClosed/ChannelSendOnClosed/MutexUnlocked |
 | 7.4, 9, 10 | Method call syntax + UFCS + impl dispatch | `exec/09_04_methods_ufcs_basics` | Seeded: inherent method sugar, UFCS free function, type-qualified static |
 | 9.5 | Method-set generics and where-clause enforcement | `exec/09_05_method_set_generics_where` | Seeded; constraints gate instance and UFCS calls |
 | 10.1 | Interface defaults, implicit vs explicit `Self`, and composite aliases | `exec/10_01_interface_defaults_composites` | Seeded; default methods flow through composite interface types |
@@ -54,6 +60,10 @@ This document tracks end-to-end exec fixtures for Able v11 and maps them to the 
 | 10.3 | Dynamic dispatch via interface-typed values | `exec/10_03_interface_type_dynamic_dispatch` | Seeded; interface-typed calls target concrete impls |
 | 13.1-13.2, 13.4 | Directory-derived package paths, hyphen normalization, and package-segment imports | `exec/13_01_package_structure_modules` | Seeded; directory prefix + package segment mapping |
 | 13.2–13.5 | Packages/import visibility and private types | `exec/13_02_packages_visibility_diag` | Seeded: alias vs selective import scope; private helpers encapsulated |
+| 13.3 | Package config root name + preludes | `exec/13_03_package_config_prelude` | Seeded: manifest name sanitization and package-scope prelude parsing |
+| 13.4 | Import aliases, selective renames, dynimport package bindings | `exec/13_04_import_alias_selective_dynimport` | Seeded: alias and rename imports plus local-scope dynimport |
+| 13.6 | Standard library `able.*` resolution via bundled roots | `exec/13_06_stdlib_package_resolution` | Seeded: stdlib imports resolve without extra search paths |
+| 13.7 | Search path env overrides (`ABLE_MODULE_PATHS`) | `exec/13_07_search_path_env_override` | Seeded: env roots used for static imports and dynimport |
 | 4.7, 4.6, 7.1 | Type aliases/unions with generic functions | `exec/04_07_types_alias_union_generic_combo` | Seeded: alias applied to union + generic function inference fallback |
 | 4.3 | Type expression syntax (nested generics + unions) | `exec/04_03_type_expression_syntax` | Seeded: multi-arg generics and nested type expressions |
 | 4.5.2 | Named struct literals + functional update vs mutation | `exec/04_05_02_struct_named_update_mutation`, `exec/04_05_02_struct_named_update_mutation_diag` | Seeded: functional update copies base; mismatched update source errors |

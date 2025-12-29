@@ -1,0 +1,16 @@
+{
+  "description": "proc handles vs spawn futures (value access, errors, cancellation)",
+  "expect": {
+    "stdout": [
+      "values proc=10 future=20",
+      "status Resolved Resolved",
+      "proc error Proc failed: boom",
+      "future error Future failed: boom",
+      "proc raised Proc failed: boom",
+      "future raised Future failed: boom",
+      "cancel seen true",
+      "cancel status Cancelled"
+    ],
+    "exit": 0
+  }
+}

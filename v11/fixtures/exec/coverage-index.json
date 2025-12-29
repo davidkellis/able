@@ -78,6 +78,12 @@
     "focus": "rescue before ensure with side effects preserved"
   },
   {
+    "id": "exec/11_03_rescue_rethrow_standard_errors",
+    "status": "seeded",
+    "spec_sections": ["11.3"],
+    "focus": "standard arithmetic/index errors rescued, rethrown, and ensured"
+  },
+  {
     "id": "exec/12_05_concurrency_channel_ping_pong",
     "status": "seeded",
     "spec_sections": ["12.5"],
@@ -88,6 +94,42 @@
     "status": "seeded",
     "spec_sections": ["12.2", "12.3", "12.6"],
     "focus": "proc vs spawn vs await scheduling, cancellation, fairness"
+  },
+  {
+    "id": "exec/12_02_proc_fairness_cancellation",
+    "status": "seeded",
+    "spec_sections": ["12.2.5"],
+    "focus": "proc_yield fairness, proc_cancelled, and proc_flush draining"
+  },
+  {
+    "id": "exec/12_03_spawn_future_status_error",
+    "status": "seeded",
+    "spec_sections": ["12.3"],
+    "focus": "future status/value memoization and error propagation"
+  },
+  {
+    "id": "exec/12_04_proc_vs_spawn_differences",
+    "status": "seeded",
+    "spec_sections": ["12.4"],
+    "focus": "proc vs spawn value access, errors, and cancellation"
+  },
+  {
+    "id": "exec/12_05_mutex_lock_unlock",
+    "status": "seeded",
+    "spec_sections": ["12.5"],
+    "focus": "mutex lock/unlock and helper usage"
+  },
+  {
+    "id": "exec/12_06_await_fairness_cancellation",
+    "status": "seeded",
+    "spec_sections": ["12.6"],
+    "focus": "await fairness, default arm, and cancellation"
+  },
+  {
+    "id": "exec/12_07_channel_mutex_error_types",
+    "status": "seeded",
+    "spec_sections": ["12.7"],
+    "focus": "channel/mutex error structs surfaced via err.value"
   },
   {
     "id": "exec/09_04_methods_ufcs_basics",
@@ -118,6 +160,30 @@
     "status": "seeded",
     "spec_sections": ["13.2-13.5"],
     "focus": "package imports, private type/impl visibility errors"
+  },
+  {
+    "id": "exec/13_03_package_config_prelude",
+    "status": "seeded",
+    "spec_sections": ["13.3"],
+    "focus": "package.yml root name selection and package-scope preludes"
+  },
+  {
+    "id": "exec/13_04_import_alias_selective_dynimport",
+    "status": "seeded",
+    "spec_sections": ["13.4"],
+    "focus": "import aliases, selective renames, and dynimport package bindings"
+  },
+  {
+    "id": "exec/13_06_stdlib_package_resolution",
+    "status": "seeded",
+    "spec_sections": ["13.6"],
+    "focus": "stdlib able.* packages resolve via bundled roots without extra search paths"
+  },
+  {
+    "id": "exec/13_07_search_path_env_override",
+    "status": "seeded",
+    "spec_sections": ["13.7"],
+    "focus": "ABLE_MODULE_PATHS injects roots for static imports and dynimport"
   },
   {
     "id": "exec/04_07_02_alias_generic_substitution",

@@ -3,6 +3,37 @@ import { Environment } from "./environment";
 import type { Interpreter } from "./index";
 import type { ConstraintSpec, ImplMethodEntry, RuntimeValue } from "./values";
 
+const INTEGER_TYPES = new Set([
+  "i8", "i16", "i32", "i64", "i128",
+  "u8", "u16", "u32", "u64", "u128",
+]);
+
+const FLOAT_TYPES = new Set(["f32", "f64"]);
+
+function isPrimitiveTypeName(name: string): boolean {
+  if (name === "bool" || name === "String" || name === "char" || name === "nil" || name === "void") {
+    return true;
+  }
+  return INTEGER_TYPES.has(name) || FLOAT_TYPES.has(name);
+}
+
+function primitiveImplementsInterfaceMethod(typeName: string, ifaceName: string, methodName: string): boolean {
+  if (!typeName || typeName === "nil" || typeName === "void") {
+    return false;
+  }
+  if (!isPrimitiveTypeName(typeName)) {
+    return false;
+  }
+  switch (ifaceName) {
+    case "Hash":
+      return methodName === "hash";
+    case "Eq":
+      return methodName === "eq" || methodName === "ne";
+    default:
+      return false;
+  }
+}
+
 declare module "./index" {
   interface Interpreter {
     enforceGenericConstraintsIfAny(funcNode: AST.FunctionDefinition | AST.LambdaExpression, call: AST.FunctionCall): void;
@@ -132,6 +163,9 @@ export function applyImplResolutionAugmentations(cls: typeof Interpreter): void 
   }
   for (const sig of iface.signatures) {
     const methodName = sig.name.name;
+    if (primitiveImplementsInterfaceMethod(typeInfo.name, ifaceInfo.name, methodName)) {
+      continue;
+    }
     const method = this.findMethod(typeInfo.name, methodName, { typeArgs: typeInfo.typeArgs, interfaceName: ifaceInfo.name });
     if (!method) {
       throw new Error(`Type '${typeInfo.name}' does not satisfy interface '${ifaceInfo.name}': missing method '${methodName}'`);

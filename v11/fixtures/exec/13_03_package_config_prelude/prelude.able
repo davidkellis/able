@@ -1,0 +1,5 @@
+## Semantics: package.yml name defines root package; preludes parse at package scope.
+
+prelude typescript { const prelude_value = 1; }
+
+fn banner() -> String { "banner ok" }

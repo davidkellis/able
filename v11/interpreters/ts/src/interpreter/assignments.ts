@@ -3,7 +3,7 @@ import type { Environment } from "./environment";
 import type { Interpreter } from "./index";
 import type { RuntimeValue } from "./values";
 import { numericToNumber } from "./numeric";
-import { resolveIndexFunction } from "./operations";
+import { makeIndexErrorInstance, resolveIndexFunction } from "./operations";
 import { callCallableValue } from "./functions";
 
 function isErrorResult(ctx: Interpreter, value: RuntimeValue): boolean {
@@ -250,7 +250,9 @@ export function evaluateAssignmentExpression(ctx: Interpreter, node: AST.Assignm
     if (obj.kind !== "array") throw new Error("Index assignment requires array");
     const state = ctx.ensureArrayState(obj);
     const idx = Math.trunc(numericToNumber(idxVal, "Array index", { requireSafeInteger: true }));
-    if (idx < 0 || idx >= state.values.length) throw new Error("Array index out of bounds");
+    if (idx < 0 || idx >= state.values.length) {
+      return makeIndexErrorInstance(ctx, idx, state.values.length);
+    }
     if (isCompound) {
       const current = state.values[idx]!;
       const op = node.operator.slice(0, -1);

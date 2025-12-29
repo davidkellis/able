@@ -152,11 +152,11 @@ func (i *Interpreter) evaluateIndexExpression(expr *ast.IndexExpression, env *ru
 		return nil, err
 	}
 	if idx < 0 || idx >= len(state.values) {
-		return nil, fmt.Errorf("Array index out of bounds")
+		return i.makeIndexErrorValue(idx, len(state.values)), nil
 	}
 	val := state.values[idx]
 	if val == nil {
-		return nil, fmt.Errorf("Array index out of bounds")
+		return i.makeIndexErrorValue(idx, len(state.values)), nil
 	}
 	return val, nil
 }

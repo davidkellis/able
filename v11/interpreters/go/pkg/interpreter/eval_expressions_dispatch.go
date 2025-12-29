@@ -9,7 +9,10 @@ import (
 	"able/interpreter-go/pkg/runtime"
 )
 
-func (i *Interpreter) evaluateExpression(node ast.Expression, env *runtime.Environment) (runtime.Value, error) {
+func (i *Interpreter) evaluateExpression(node ast.Expression, env *runtime.Environment) (result runtime.Value, err error) {
+	defer func() {
+		err = i.wrapStandardRuntimeError(err)
+	}()
 	if node == nil {
 		return runtime.NilValue{}, nil
 	}
@@ -320,8 +323,11 @@ func (i *Interpreter) evaluatePropagationExpression(expr *ast.PropagationExpress
 	if err != nil {
 		return nil, err
 	}
-	if errVal, ok := val.(runtime.ErrorValue); ok {
+	if errVal, ok := asErrorValue(val); ok {
 		return nil, raiseSignal{value: errVal}
+	}
+	if i.matchesType(ast.Ty("Error"), val) {
+		return nil, raiseSignal{value: makeErrorValue(val)}
 	}
 	return val, nil
 }

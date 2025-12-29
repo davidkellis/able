@@ -1,0 +1,11 @@
+package exec_13_06_stdlib_package_resolution
+
+import able.text.string.*
+
+## Semantics: bundled stdlib roots resolve able.* packages without extra search paths.
+
+fn main() -> void {
+  sample := "stdlib"
+  print(`bytes ${sample.len_bytes()}`)
+  print(`suffix ${sample.ends_with("lib")}`)
+}
