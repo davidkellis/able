@@ -1,0 +1,14 @@
+{
+  "description": "proc_yield fairness, cancellation, and proc_flush scheduling",
+  "expect": {
+    "stdout": [
+      "fair trace A1B2",
+      "fair status Resolved Resolved",
+      "cancel stage 2",
+      "cancel seen true",
+      "cancel status Cancelled",
+      "pending 0"
+    ],
+    "exit": 0
+  }
+}

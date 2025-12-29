@@ -1,0 +1,3 @@
+package dyn_pkg
+
+fn ping(msg: String) -> String { `dyn ${msg}` }

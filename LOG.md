@@ -1,5 +1,19 @@
 # Able Project Log
 
+# 2025-12-28 — Exec fixtures for errors + concurrency (v11)
+- Added `exec/11_03_rescue_rethrow_standard_errors` covering arithmetic/indexing runtime errors, rescue/ensure, and rethrow semantics; updated the exec coverage index and removed the PLAN backlog item.
+- Added `exec/12_02_proc_fairness_cancellation` covering `proc_yield` fairness, cancellation via `proc_cancelled`, and `proc_flush` queue drains; updated the exec coverage index + conformance plan and removed the PLAN backlog item.
+- Added `exec/12_03_spawn_future_status_error` and `exec/12_04_proc_vs_spawn_differences` for future status/value/error propagation and proc-vs-spawn behaviour; updated the exec coverage index + conformance plan and cleared the PLAN items.
+- Added `exec/12_05_mutex_lock_unlock` and `exec/12_06_await_fairness_cancellation` for mutex/await semantics; updated the exec coverage index + conformance plan and cleared the PLAN items.
+- TS/Go runtimes now raise standard errors (`DivisionByZeroError`, `OverflowError`, `ShiftOutOfRangeError`, `IndexError`) with `Error.value` payloads for rescue matching; `!` propagation now raises any `Error` value and index fallback returns `IndexError` payloads.
+- Tests: `cd v11/interpreters/ts && bun run scripts/export-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=11_03_rescue_rethrow_standard_errors bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=12_02_proc_fairness_cancellation bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=12_03_spawn_future_status_error bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=12_04_proc_vs_spawn_differences bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=12_05_mutex_lock_unlock bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=12_06_await_fairness_cancellation bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter`.
+- Added `exec/12_07_channel_mutex_error_types` and `exec/13_03_package_config_prelude` for channel/mutex error payloads and package.yml root-name/prelude parsing; updated the exec coverage index + conformance plan and cleared the PLAN items.
+- Tests: `cd v11/interpreters/ts && bun run scripts/export-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=12_07_channel_mutex_error_types bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=13_03_package_config_prelude bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter -run 'TestExecFixtures/(12_07_channel_mutex_error_types|13_03_package_config_prelude)$'`.
+- Added `exec/13_04_import_alias_selective_dynimport` covering import aliases, selective renames, and dynimport bindings; updated the exec coverage index + conformance plan and removed the PLAN backlog item.
+- TS runtime now treats primitive types as satisfying `Hash`/`Eq` constraints for interface enforcement and returns `IndexError` values on out-of-bounds array assignments to align IndexMut semantics.
+- Updated TS division/ratio tests to assert `RaiseSignal` error payloads rather than raw error messages.
+- Tests: `./run_all_tests.sh --version=v11`.
+
 # 2025-12-26 — Impl specificity exec fixture + array type-arg dispatch (v11)
 - Added `exec/10_02_impl_specificity_named_overrides` covering impl specificity ordering, named impl disambiguation, and HKT targets; updated the exec coverage index, conformance plan, and removed the PLAN backlog item.
 - TS runtime now derives array element type arguments during method resolution so concrete vs generic impl selection matches spec intent.
@@ -469,6 +483,8 @@ Open items (2025-11-02 audit):
 - Updated the generated AST fixture expectation for `errors/rescue_guard` in the TS export fixture source to keep it aligned with nil-returning `if` expressions.
 - Tests: `bun run scripts/export-fixtures.ts`; `bun run scripts/run-fixtures.ts`; `go test ./pkg/interpreter` (with a temp `GOCACHE`).
 - Next: continue exec fixture backlog starting at `exec/08_03_breakpoint_nonlocal_jump`.
+- Added exec fixtures `exec/13_06_stdlib_package_resolution` and `exec/13_07_search_path_env_override`; updated the conformance plan + coverage index and cleared the related PLAN backlog items.
+- Exec fixture runners now honor manifest-provided env overrides for module search paths; TS uses CLI-style search path resolution and Go exec fixtures mirror the env-driven roots.
 
 ### 2025-12-29
 - Added exec fixture `exec/08_03_breakpoint_nonlocal_jump` and updated the conformance plan + coverage index; cleared the related PLAN backlog item.

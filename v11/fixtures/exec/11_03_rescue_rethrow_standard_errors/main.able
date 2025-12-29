@@ -1,0 +1,60 @@
+package exec_11_03_rescue_rethrow_standard_errors
+
+import able.collections.array.*
+import able.core.errors.{DivisionByZeroError, IndexError}
+
+## Semantics: arithmetic/indexing runtime errors flow through rescue/ensure with rethrow support.
+
+fn div_zero() {
+  1 / 0
+}
+
+fn div_with_rethrow() -> void {
+  do {
+    div_zero()
+  } rescue {
+    case err => {
+      print(`inner ${err.message()}`)
+      rethrow
+    }
+  }
+}
+
+fn out_of_bounds() {
+  arr := [10, 20]
+  arr[99]!
+}
+
+fn main() -> void {
+  value := do {
+    div_with_rethrow()
+    0
+  } rescue {
+    case err => {
+      print(`outer ${err.message()}`)
+      err.value match {
+        case _: DivisionByZeroError => print("outer type div"),
+        case _ => print("outer type other")
+      }
+      0
+    }
+  } ensure {
+    print("ensure div")
+  }
+  print(`div result ${value}`)
+
+  idx_result := (do {
+    out_of_bounds()
+  } rescue {
+    case err => {
+      err.value match {
+        case IndexError { index, length } => print(`index ${index} ${length}`),
+        case _ => print("index other")
+      }
+      99
+    }
+  }) ensure {
+    print("ensure index")
+  }
+  print(`idx result ${idx_result}`)
+}

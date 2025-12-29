@@ -11,6 +11,8 @@ import type {
 import { formatTypecheckerDiagnostic, printPackageSummaries } from "./typecheck-utils";
 import { resolveTypecheckMode, type TypecheckMode } from "./typecheck-mode";
 import { ModuleLoader, type Program } from "./module-loader";
+import { collectModuleSearchPaths, type ModuleSearchPath } from "./module-search-paths";
+import { buildExecutionSearchPaths, loadManifestContext } from "./module-deps";
 import {
   collectFixtures,
   readManifest,
@@ -247,7 +249,8 @@ async function runExecFixture(dir: string): Promise<FixtureResult> {
   const manifest = await readManifest(dir);
   const entryRel = manifest.entry ?? "main.able";
   const entryPath = path.join(dir, entryRel);
-  const loader = new ModuleLoader([STDLIB_ROOT, KERNEL_ROOT]);
+  const searchPaths = await resolveExecSearchPaths(dir, entryPath, manifest);
+  const loader = new ModuleLoader(searchPaths);
   const program = await loader.load(entryPath);
 
   const interpreter = new V11.Interpreter();
@@ -313,6 +316,47 @@ async function runExecFixture(dir: string): Promise<FixtureResult> {
   }
 
   return { name: `exec/${path.basename(dir)}`, description: manifest.description };
+}
+
+function resolveEnvPathList(raw: string | undefined, baseDir: string): string {
+  if (!raw) return "";
+  const resolved = raw
+    .split(path.delimiter)
+    .map((segment) => segment.trim())
+    .filter(Boolean)
+    .map((segment) => (path.isAbsolute(segment) ? segment : path.resolve(baseDir, segment)));
+  return resolved.join(path.delimiter);
+}
+
+async function resolveExecSearchPaths(
+  dir: string,
+  entryPath: string,
+  manifest: Manifest,
+): Promise<ModuleSearchPath[]> {
+  const entryDir = path.dirname(path.resolve(entryPath));
+  let manifestRoot: string | null = null;
+  let extras: ModuleSearchPath[] = [];
+  const context = await loadManifestContext(entryDir);
+  manifestRoot = context.manifest?.path ? path.dirname(context.manifest.path) : null;
+  extras = buildExecutionSearchPaths(context.manifest, context.lock);
+
+  const env = manifest.env ?? {};
+  const ablePathEnv = resolveEnvPathList(env.ABLE_PATH ?? process.env.ABLE_PATH, dir);
+  const ableModulePathsEnv = resolveEnvPathList(
+    env.ABLE_MODULE_PATHS ?? process.env.ABLE_MODULE_PATHS,
+    dir,
+  );
+  const probeFrom = [entryDir, manifestRoot, process.cwd(), __dirname, path.dirname(process.execPath)].filter(
+    Boolean,
+  ) as string[];
+
+  return collectModuleSearchPaths({
+    cwd: entryDir ?? process.cwd(),
+    ablePathEnv,
+    ableModulePathsEnv,
+    extras,
+    probeFrom,
+  });
 }
 
 function moduleImportsStdlibString(module: AST.Module): boolean {

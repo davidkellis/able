@@ -1,6 +1,19 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { Interpreter } from "../../src/interpreter";
+import { RaiseSignal } from "../../src/interpreter/signals";
+
+const expectDivisionByZero = (fn: () => unknown) => {
+  try {
+    fn();
+    throw new Error("expected division by zero");
+  } catch (err) {
+    expect(err).toBeInstanceOf(RaiseSignal);
+    if (err instanceof RaiseSignal && err.value.kind === "error") {
+      expect(err.value.message).toMatch(/division by zero/i);
+    }
+  }
+};
 
 describe("v11 interpreter - division operators", () => {
   test("/ promotes integer operands to f64", () => {
@@ -33,17 +46,17 @@ describe("v11 interpreter - division operators", () => {
 
   test("division family rejects zero divisors", () => {
     const I = new Interpreter();
-    expect(() =>
+    expectDivisionByZero(() =>
       I.evaluate(AST.binaryExpression("%", AST.integerLiteral(4), AST.integerLiteral(0))),
-    ).toThrow(/division by zero/i);
-    expect(() =>
+    );
+    expectDivisionByZero(() =>
       I.evaluate(AST.binaryExpression("//", AST.integerLiteral(4), AST.integerLiteral(0))),
-    ).toThrow(/division by zero/i);
-    expect(() =>
+    );
+    expectDivisionByZero(() =>
       I.evaluate(AST.binaryExpression("/%", AST.integerLiteral(4), AST.integerLiteral(0))),
-    ).toThrow(/division by zero/i);
-    expect(() =>
+    );
+    expectDivisionByZero(() =>
       I.evaluate(AST.binaryExpression("/", AST.integerLiteral(4), AST.integerLiteral(0))),
-    ).toThrow(/division by zero/i);
+    );
   });
 });

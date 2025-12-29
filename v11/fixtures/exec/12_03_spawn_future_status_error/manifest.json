@@ -1,0 +1,14 @@
+{
+  "description": "spawn future status/value/error propagation",
+  "expect": {
+    "stdout": [
+      "ok status Resolved",
+      "ok values 21 21",
+      "counter 1",
+      "err status Failed",
+      "err message Future failed: boom",
+      "err rethrow Future failed: boom"
+    ],
+    "exit": 0
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "description": "stdlib resolves able.* packages via bundled search roots",
+  "expect": {
+    "stdout": [
+      "bytes 6",
+      "suffix true"
+    ],
+    "exit": 0
+  }
+}
