@@ -1,0 +1,21 @@
+package exec_13_04_import_alias_selective_dynimport
+
+import exec_13_04_import_alias_selective_dynimport.static_tools::tools
+import exec_13_04_import_alias_selective_dynimport.static_tools.{greet::hello, tag, add}
+
+## Semantics: package aliases, selective imports with renames, and dynimported packages at package scope.
+
+dynimport exec.dynamic_imports::dyn_pkg
+dynimport exec.dynamic_imports.{ping}
+
+dyn_pkg_obj := dyn.def_package("exec.dynamic_imports")!
+dyn_pkg_obj.def("fn ping(msg: String) -> String { `dyn ${msg}` }")!
+
+fn main() -> void {
+  print(tools.greet("alias"))
+  print(hello("rename"))
+  print(tag("selective"))
+  print(`sum ${add(4, 5)}`)
+  print(dyn_pkg.ping("alias"))
+  print(ping("selective"))
+}

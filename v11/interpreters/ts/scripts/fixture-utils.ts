@@ -16,6 +16,7 @@ export type Manifest = {
   entry?: string;
   setup?: string[];
   skipTargets?: string[];
+  env?: Record<string, string>;
   expect?: {
     result?: { kind: string; value?: unknown };
     stdout?: string[];

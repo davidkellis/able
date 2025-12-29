@@ -1,0 +1,16 @@
+{
+  "description": "rescue/rethrow for arithmetic/index errors with ensure",
+  "expect": {
+    "stdout": [
+      "inner division by zero",
+      "outer division by zero",
+      "outer type div",
+      "ensure div",
+      "div result 0",
+      "index 99 2",
+      "ensure index",
+      "idx result 99"
+    ],
+    "exit": 0
+  }
+}

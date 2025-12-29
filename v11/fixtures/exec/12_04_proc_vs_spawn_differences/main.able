@@ -1,0 +1,97 @@
+package exec_12_04_proc_vs_spawn_differences
+
+## Semantics: proc returns a handle with explicit value/status/cancel control, spawn returns a future value.
+
+fn status_name(status) -> String {
+  status match {
+    case Pending { } => "Pending",
+    case Resolved { } => "Resolved",
+    case Cancelled { } => "Cancelled",
+    case Failed { } => "Failed",
+    case _ => "Unknown"
+  }
+}
+
+fn main() -> void {
+  proc_handle := proc {
+    proc_yield()
+    10
+  }
+
+  future := spawn {
+    proc_yield()
+    20
+  }
+
+  proc_flush()
+
+  proc_value := proc_handle.value()
+  future_value := future.value()
+
+  print(`values proc=${proc_value} future=${future_value}`)
+  print(`status ${status_name(proc_handle.status())} ${status_name(future.status())}`)
+
+  proc_fail := proc {
+    raise "boom"
+  }
+
+  future_fail := spawn {
+    raise "boom"
+  }
+
+  proc_flush()
+
+  proc_err := proc_fail.value()
+  future_err := future_fail.value()
+
+  print(`proc error ${proc_err.message()}`)
+  print(`future error ${future_err.message()}`)
+
+  proc_raised := (do {
+    proc_fail.value()!
+    "no"
+  } rescue {
+    case err => err.message()
+  })
+
+  future_raised := (do {
+    future_fail.value()!
+    "no"
+  } rescue {
+    case err => err.message()
+  })
+
+  print(`proc raised ${proc_raised}`)
+  print(`future raised ${future_raised}`)
+
+  cancel_stage := 0
+  cancelled_seen := false
+
+  cancellable := proc {
+    if cancel_stage == 0 {
+      cancel_stage = 1
+      proc_yield()
+    }
+    if cancel_stage == 1 {
+      cancelled_seen = proc_cancelled()
+      cancel_stage = 2
+    }
+  }
+
+  canceller := proc {
+    cancellable.cancel()
+  }
+
+  proc_flush()
+
+  cancel_status := cancellable.status() match {
+    case Pending { } => "Pending",
+    case Resolved { } => "Resolved",
+    case Cancelled { } => "Cancelled",
+    case Failed { } => "Failed",
+    case _ => "Unknown"
+  }
+
+  print(`cancel seen ${cancelled_seen}`)
+  print(`cancel status ${cancel_status}`)
+}

@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"able/interpreter-go/pkg/driver"
@@ -70,10 +71,12 @@ func runExecFixture(t *testing.T, dir string) {
 	}
 	entryPath := filepath.Join(dir, entry)
 
-	loader, err := driver.NewLoader([]driver.SearchPath{
-		{Path: stdlibRoot, Kind: driver.RootStdlib},
-		{Path: kernelRoot, Kind: driver.RootStdlib},
-	})
+	searchPaths, err := buildExecSearchPaths(entryPath, dir, manifest)
+	if err != nil {
+		t.Fatalf("exec search paths: %v", err)
+	}
+
+	loader, err := driver.NewLoader(searchPaths)
 	if err != nil {
 		t.Fatalf("loader init: %v", err)
 	}
@@ -154,4 +157,177 @@ func runExecFixture(t *testing.T, dir string) {
 	} else if runtimeErr != nil {
 		t.Fatalf("runtime error: %v", runtimeErr)
 	}
+}
+
+func buildExecSearchPaths(entryPath string, fixtureDir string, manifest fixtureManifest) ([]driver.SearchPath, error) {
+	entryAbs, err := filepath.Abs(entryPath)
+	if err != nil {
+		return nil, err
+	}
+	entryDir := filepath.Dir(entryAbs)
+
+	manifestRoot := findFixtureManifestRoot(entryDir)
+	ablePathEnv := resolveFixtureEnv("ABLE_PATH", manifest.Env, os.Getenv("ABLE_PATH"))
+	ableModulePathsEnv := resolveFixtureEnv("ABLE_MODULE_PATHS", manifest.Env, os.Getenv("ABLE_MODULE_PATHS"))
+
+	var paths []driver.SearchPath
+	seen := map[string]struct{}{}
+	add := func(candidate string, kind driver.RootKind) {
+		if candidate == "" {
+			return
+		}
+		abs, err := filepath.Abs(candidate)
+		if err != nil {
+			return
+		}
+		info, err := os.Stat(abs)
+		if err != nil || !info.IsDir() {
+			return
+		}
+		if _, ok := seen[abs]; ok {
+			return
+		}
+		seen[abs] = struct{}{}
+		paths = append(paths, driver.SearchPath{Path: abs, Kind: kind})
+	}
+
+	for _, extra := range []string{manifestRoot, entryDir} {
+		add(extra, driver.RootUser)
+	}
+	if cwd, err := os.Getwd(); err == nil {
+		add(cwd, driver.RootUser)
+	}
+	for _, entry := range resolveFixturePathList(ablePathEnv, fixtureDir) {
+		add(entry, driver.RootUser)
+	}
+	for _, entry := range resolveFixturePathList(ableModulePathsEnv, fixtureDir) {
+		add(entry, driver.RootUser)
+	}
+	for _, entry := range findKernelRoots(entryDir) {
+		add(entry, driver.RootStdlib)
+	}
+	for _, entry := range findStdlibRoots(entryDir) {
+		add(entry, driver.RootStdlib)
+	}
+	if cwd, err := os.Getwd(); err == nil {
+		for _, entry := range findKernelRoots(cwd) {
+			add(entry, driver.RootStdlib)
+		}
+		for _, entry := range findStdlibRoots(cwd) {
+			add(entry, driver.RootStdlib)
+		}
+	}
+	if exe, err := os.Executable(); err == nil {
+		exeDir := filepath.Dir(exe)
+		for _, entry := range findKernelRoots(exeDir) {
+			add(entry, driver.RootStdlib)
+		}
+		for _, entry := range findStdlibRoots(exeDir) {
+			add(entry, driver.RootStdlib)
+		}
+	}
+	return paths, nil
+}
+
+func resolveFixtureEnv(key string, env map[string]string, fallback string) string {
+	if env == nil {
+		return fallback
+	}
+	if value, ok := env[key]; ok {
+		return value
+	}
+	return fallback
+}
+
+func resolveFixturePathList(raw string, baseDir string) []string {
+	if strings.TrimSpace(raw) == "" {
+		return nil
+	}
+	rawParts := strings.Split(raw, string(os.PathListSeparator))
+	parts := make([]string, 0, len(rawParts))
+	for _, entry := range rawParts {
+		trimmed := strings.TrimSpace(entry)
+		if trimmed == "" {
+			continue
+		}
+		if !filepath.IsAbs(trimmed) {
+			trimmed = filepath.Join(baseDir, filepath.FromSlash(trimmed))
+		}
+		parts = append(parts, trimmed)
+	}
+	return parts
+}
+
+func findFixtureManifestRoot(start string) string {
+	dir := start
+	for {
+		candidate := filepath.Join(dir, "package.yml")
+		if info, err := os.Stat(candidate); err == nil && info.Mode().IsRegular() {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return ""
+		}
+		dir = parent
+	}
+}
+
+func findKernelRoots(start string) []string {
+	var roots []string
+	add := func(candidate string) {
+		if candidate == "" {
+			return
+		}
+		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+			roots = append(roots, candidate)
+		}
+	}
+	dir := start
+	for {
+		for _, candidate := range []string{
+			filepath.Join(dir, "kernel", "src"),
+			filepath.Join(dir, "v11", "kernel", "src"),
+			filepath.Join(dir, "ablekernel", "src"),
+			filepath.Join(dir, "able_kernel", "src"),
+		} {
+			add(candidate)
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	return roots
+}
+
+func findStdlibRoots(start string) []string {
+	var roots []string
+	add := func(candidate string) {
+		if candidate == "" {
+			return
+		}
+		if info, err := os.Stat(candidate); err == nil && info.IsDir() {
+			roots = append(roots, candidate)
+		}
+	}
+	dir := start
+	for {
+		for _, candidate := range []string{
+			filepath.Join(dir, "stdlib", "src"),
+			filepath.Join(dir, "v11", "stdlib", "src"),
+			filepath.Join(dir, "stdlib", "v11", "src"),
+			filepath.Join(dir, "able-stdlib", "src"),
+			filepath.Join(dir, "able_stdlib", "src"),
+		} {
+			add(candidate)
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break
+		}
+		dir = parent
+	}
+	return roots
 }

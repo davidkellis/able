@@ -15,6 +15,7 @@ type fixtureManifest struct {
 	Entry       string   `json:"entry"`
 	Setup       []string `json:"setup"`
 	SkipTargets []string `json:"skipTargets"`
+	Env         map[string]string `json:"env"`
 	Expect      struct {
 		Result *struct {
 			Kind  string      `json:"kind"`

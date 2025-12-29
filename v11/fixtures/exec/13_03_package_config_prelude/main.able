@@ -1,0 +1,9 @@
+package app
+
+import config_prelude.{banner}
+
+## Semantics: package.yml name (hyphen -> underscore) defines the root package.
+
+fn main() -> void {
+  print(banner())
+}

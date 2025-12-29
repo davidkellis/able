@@ -1,0 +1,11 @@
+package exec_13_07_search_path_env_override
+
+import env_override.helpers.{greet}
+dynimport env_override.dyn_pkg.{ping}
+
+## Semantics: ABLE_MODULE_PATHS roots are searched for static imports and dynimport.
+
+fn main() -> void {
+  print(greet("module"))
+  print(ping("path"))
+}

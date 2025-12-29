@@ -92,7 +92,7 @@ func integerValueWithinRange(val *big.Int, target runtime.IntegerType) bool {
 
 func ensureFitsInteger(info integerInfo, value *big.Int) error {
 	if value.Cmp(info.min) < 0 || value.Cmp(info.max) > 0 {
-		return fmt.Errorf("integer overflow")
+		return newOverflowError("integer overflow")
 	}
 	return nil
 }
@@ -198,7 +198,7 @@ func patternToInteger(pattern *big.Int, info integerInfo) *big.Int {
 
 func shiftValueLeft(value *big.Int, shiftCount int, info integerInfo) (*big.Int, error) {
 	if shiftCount < 0 || shiftCount >= info.bits {
-		return nil, fmt.Errorf("shift out of range")
+		return nil, newShiftOutOfRangeError(int64(shiftCount))
 	}
 	var result big.Int
 	result.Lsh(value, uint(shiftCount))
@@ -207,7 +207,7 @@ func shiftValueLeft(value *big.Int, shiftCount int, info integerInfo) (*big.Int,
 
 func shiftValueRight(value *big.Int, shiftCount int, info integerInfo) (*big.Int, error) {
 	if shiftCount < 0 || shiftCount >= info.bits {
-		return nil, fmt.Errorf("shift out of range")
+		return nil, newShiftOutOfRangeError(int64(shiftCount))
 	}
 	var result big.Int
 	if info.signed {
