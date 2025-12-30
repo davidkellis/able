@@ -672,11 +672,19 @@ func (i *Interpreter) structDefinitionMember(def *runtime.StructDefinitionValue,
 	}
 	typeName := def.Node.ID.Name
 	bucket := i.inherentMethods[typeName]
-	if bucket == nil {
-		return nil, fmt.Errorf("No static method '%s' for %s", ident.Name, typeName)
+	var method runtime.Value
+	var found bool
+	if bucket != nil {
+		method, found = bucket[ident.Name]
 	}
-	method, ok := bucket[ident.Name]
-	if !ok {
+	if !found {
+		candidate, err := i.findMethod(typeInfo{name: typeName}, ident.Name, "")
+		if err != nil {
+			return nil, err
+		}
+		method = candidate
+	}
+	if method == nil {
 		return nil, fmt.Errorf("No static method '%s' for %s", ident.Name, typeName)
 	}
 	if fn := firstFunction(method); fn != nil {

@@ -1,0 +1,9 @@
+package exec_16_01_host_interop_inline_extern
+
+## Semantics: extern host bodies bind to native handlers for the active runtime target.
+extern typescript fn now_nanos() -> i64 { return 0 }
+extern go fn now_nanos() -> i64 { return 0 }
+
+fn main() -> void {
+  print(now_nanos())
+}

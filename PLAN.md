@@ -30,7 +30,7 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 - Keep `AGENTS.md` synced with onboarding steps for new contributors.
 - Historical notes + completed milestones now live in `LOG.md`.
 - Keep this `PLAN.md` file up to date with current progress and immediate next actions, but move completed items to `LOG.md`.
-- Status: interface alignment is in place (Apply/Index/Awaitable + stdlib helpers); parity harness is green with the latest sweep saved to `tmp/parity-report.json`; kernel/stdlib loader auto-detection is bundled; Ratio/numeric conversions are landed; exec fixtures are spec-prefixed with coverage enforced via `scripts/check-exec-coverage.mjs` in `run_all_tests.sh`; next focus is regex stdlib expansions and tutorial cleanup.
+- Status: interface alignment is in place (Apply/Index/Awaitable + stdlib helpers); parity harness is green with the latest sweep saved to `tmp/parity-report.json`; kernel/stdlib loader auto-detection is bundled; Ratio/numeric conversions are landed; exec fixtures are spec-prefixed with coverage enforced via `scripts/check-exec-coverage.mjs` in `run_all_tests.sh`; regex work is stdlib-only (host hooks removed, regex fixture quarantined); next focus is regex stdlib expansions and tutorial cleanup.
 
 ## Guardrails (must stay true)
 - `v11/interpreters/ts/scripts/run-parity.ts` remains the authoritative entry point for fixtures/examples parity; `./run_all_tests.sh --version=v11` must stay green (TS + Go unit tests, fixture suites, parity CLI). Run the v10 suite only when explicitly asked to investigate archival regressions.
@@ -64,10 +64,3 @@ Note: It is expected that some new fixtures will fail due to interpreter bugs/de
 - [x] `exec/06_02_block_expression_value_scope` — §6.2: block-as-expression value, inner scope bindings, void-return blocks.
 - [x] `exec/06_03_operator_precedence_associativity` — §6.3.1: precedence/associativity across pipes, assignment, arithmetic/boolean ops.
 - [x] `exec/11_02_option_result_or_handlers` — §11.2.3: `or {}` handlers with/without error binding, option vs result divergence.
-- [ ] `exec/14_01_language_interfaces_index_apply_iterable` — §14.1.1–§14.1.3: Index/IndexMut/Apply/Iterator interfaces driving dispatch.
-- [ ] `exec/14_01_operator_interfaces_arithmetic_comparison` — §14.1.4–§14.1.7: operator interfaces (arithmetic/bitwise/compare/display/error/clone/default) backing runtime calls.
-- [ ] `exec/14_02_regex_core_match_streaming` — §14.2: regex compile/match/set/streaming semantics (pending stdlib implementation).
-- [ ] `exec/15_02_entry_args_signature` — §15.2: main signature/args handling, default void return enforced.
-- [ ] `exec/15_03_exit_status_return_value` — §15.3: exit status based on return vs runtime error, stdout/stderr ordering.
-- [ ] `exec/15_04_background_work_flush` — §15.4: background work (proc/spawn) completion expectations at program exit.
-- [ ] `exec/16_01_host_interop_inline_extern` — §16: extern host function bodies, prelude usage, error mapping for host failures.

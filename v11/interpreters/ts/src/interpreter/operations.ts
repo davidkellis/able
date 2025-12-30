@@ -104,6 +104,21 @@ const OPERATOR_INTERFACES: Record<string, OperatorDispatch> = {
   "%": { interfaceName: "Rem", methodName: "rem" },
 };
 
+const UNARY_INTERFACES: Record<string, OperatorDispatch> = {
+  "-": { interfaceName: "Neg", methodName: "neg" },
+  ".~": { interfaceName: "Not", methodName: "not" },
+};
+
+const EQUALITY_INTERFACES: OperatorDispatch[] = [
+  { interfaceName: "Eq", methodName: "eq" },
+  { interfaceName: "PartialEq", methodName: "eq" },
+];
+
+const ORDERING_INTERFACES: OperatorDispatch[] = [
+  { interfaceName: "Ord", methodName: "cmp" },
+  { interfaceName: "PartialOrd", methodName: "partial_cmp" },
+];
+
 function resolveOperatorFunction(
   ctx: Interpreter,
   receiver: RuntimeValue,
@@ -123,6 +138,69 @@ function resolveOperatorFunction(
   return null;
 }
 
+function resolveComparisonFunction(
+  ctx: Interpreter,
+  receiver: RuntimeValue,
+  dispatch: OperatorDispatch,
+): Extract<RuntimeValue, { kind: "function" | "function_overload" }> | null {
+  const dispatches = collectTypeDispatches(ctx, receiver);
+  for (const entry of dispatches) {
+    const method = ctx.findMethod(entry.typeName, dispatch.methodName, {
+      typeArgs: entry.typeArgs,
+      interfaceName: dispatch.interfaceName,
+      includeInherent: false,
+    });
+    if (method) return method;
+  }
+  return null;
+}
+
+function resolveUnaryFunction(
+  ctx: Interpreter,
+  receiver: RuntimeValue,
+  dispatch: OperatorDispatch,
+): Extract<RuntimeValue, { kind: "function" | "function_overload" }> | null {
+  const dispatches = collectTypeDispatches(ctx, receiver);
+  for (const entry of dispatches) {
+    const method = ctx.findMethod(entry.typeName, dispatch.methodName, {
+      typeArgs: entry.typeArgs,
+      interfaceName: dispatch.interfaceName,
+      includeInherent: false,
+    });
+    if (method) return method;
+  }
+  return null;
+}
+
+function orderingToCmp(ctx: Interpreter, value: RuntimeValue): number | null {
+  const typeName = ctx.getTypeNameForValue(value);
+  switch (typeName) {
+    case "Less":
+      return -1;
+    case "Equal":
+      return 0;
+    case "Greater":
+      return 1;
+    default:
+      return null;
+  }
+}
+
+function compareFromCmp(op: string, cmp: number): boolean {
+  switch (op) {
+    case "<":
+      return cmp < 0;
+    case "<=":
+      return cmp <= 0;
+    case ">":
+      return cmp > 0;
+    case ">=":
+      return cmp >= 0;
+    default:
+      return false;
+  }
+}
+
 declare module "./index" {
   interface Interpreter {
     computeBinaryForCompound(op: string, left: RuntimeValue, right: RuntimeValue): RuntimeValue;
@@ -136,12 +214,26 @@ declare module "./index" {
 export function evaluateUnaryExpression(ctx: Interpreter, node: AST.UnaryExpression, env: Environment): RuntimeValue {
   const v = ctx.evaluate(node.operand, env);
   if (node.operator === "-") {
+    if (isNumericValue(v)) {
+      return applyNumericUnaryMinus(v);
+    }
+    const method = resolveUnaryFunction(ctx, v, UNARY_INTERFACES["-"]);
+    if (method) {
+      return callCallableValue(ctx, method, [v], env);
+    }
     return applyNumericUnaryMinus(v);
   }
   if (node.operator === "!") {
     return { kind: "bool", value: !ctx.isTruthy(v) };
   }
   if (node.operator === ".~") {
+    const dispatch = UNARY_INTERFACES[".~"];
+    if (dispatch) {
+      const method = resolveUnaryFunction(ctx, v, dispatch);
+      if (method) {
+        return callCallableValue(ctx, method, [v], env);
+      }
+    }
     return applyBitwiseNot(v);
   }
   throw new Error(`Unknown unary operator ${node.operator}`);
@@ -287,8 +379,29 @@ export function evaluateBinaryExpression(ctx: Interpreter, node: AST.BinaryExpre
         case "!=": return { kind: "bool", value: left.value !== right.value };
       }
     }
-    if (b.operator === "==") return { kind: "bool", value: valuesEqual(left, right) };
-    if (b.operator === "!=") return { kind: "bool", value: !valuesEqual(left, right) };
+    if (b.operator === "==" || b.operator === "!=") {
+      for (const dispatch of EQUALITY_INTERFACES) {
+        const method = resolveComparisonFunction(ctx, left, dispatch);
+        if (!method) continue;
+        const result = callCallableValue(ctx, method, [left, right], env);
+        if (result.kind !== "bool") {
+          throw new Error(`Comparison '${b.operator}' requires a bool result from ${dispatch.interfaceName}.${dispatch.methodName}`);
+        }
+        return { kind: "bool", value: b.operator === "!=" ? !result.value : result.value };
+      }
+      if (b.operator === "==") return { kind: "bool", value: valuesEqual(left, right) };
+      return { kind: "bool", value: !valuesEqual(left, right) };
+    }
+    for (const dispatch of ORDERING_INTERFACES) {
+      const method = resolveComparisonFunction(ctx, left, dispatch);
+      if (!method) continue;
+      const result = callCallableValue(ctx, method, [left, right], env);
+      const cmp = orderingToCmp(ctx, result);
+      if (cmp === null) {
+        throw new Error(`Comparison '${b.operator}' requires Ordering result from ${dispatch.interfaceName}.${dispatch.methodName}`);
+      }
+      return { kind: "bool", value: compareFromCmp(b.operator, cmp) };
+    }
     throw new Error("Unsupported comparison operands");
   }
 

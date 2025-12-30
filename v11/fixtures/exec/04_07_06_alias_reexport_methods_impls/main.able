@@ -1,0 +1,14 @@
+package exec_04_07_06_alias_reexport_methods_impls
+
+import exec_04_07_06_alias_reexport_methods_impls.alias_reexport.{Range}
+
+## Semantics: alias-defined methods/impls remain available through re-export chains.
+
+fn main() -> void {
+  r := Range { start: 2, end: 4, inclusive: true }
+  print(r.label())
+  print(r.marker())
+
+  made := Range.make(5, 7)
+  print(made.label())
+}

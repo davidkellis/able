@@ -1,0 +1,9 @@
+package alias_reexport
+
+import exec_04_07_06_alias_reexport_methods_impls.alias_base
+import able.kernel.{Range::KernelRange}
+
+## Semantics: re-export the underlying type without the private alias binding.
+
+type Range = KernelRange;
+Range := KernelRange

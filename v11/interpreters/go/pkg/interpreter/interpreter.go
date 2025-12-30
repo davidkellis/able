@@ -152,22 +152,22 @@ func (f *placeholderFrame) valueAt(index int) (runtime.Value, error) {
 
 // Interpreter drives evaluation of Able v11 AST nodes.
 type Interpreter struct {
-	global               *runtime.Environment
-	inherentMethods      map[string]map[string]runtime.Value
-	interfaces           map[string]*runtime.InterfaceDefinitionValue
-	unionDefinitions     map[string]*runtime.UnionDefinitionValue
-	typeAliases          map[string]*ast.TypeAliasDefinition
-	implMethods          map[string][]implEntry
-	genericImpls         []implEntry
-	rangeImplementations []rangeImplementation
-	unnamedImpls         map[string]map[string]map[string]bool
-	packageRegistry      map[string]map[string]runtime.Value
-	packageMetadata      map[string]packageMeta
-	currentPackage       string
+	global                *runtime.Environment
+	inherentMethods       map[string]map[string]runtime.Value
+	interfaces            map[string]*runtime.InterfaceDefinitionValue
+	unionDefinitions      map[string]*runtime.UnionDefinitionValue
+	typeAliases           map[string]*ast.TypeAliasDefinition
+	implMethods           map[string][]implEntry
+	genericImpls          []implEntry
+	rangeImplementations  []rangeImplementation
+	unnamedImpls          map[string]map[string]map[string]bool
+	packageRegistry       map[string]map[string]runtime.Value
+	packageMetadata       map[string]packageMeta
+	currentPackage        string
 	dynamicDefinitionMode bool
 	dynPackageDefMethod   runtime.NativeFunctionValue
-	executor             Executor
-	rootState            *evalState
+	executor              Executor
+	rootState             *evalState
 
 	concurrencyReady     bool
 	procErrorStruct      *runtime.StructDefinitionValue
@@ -191,6 +191,8 @@ type Interpreter struct {
 	standardErrorStructs    map[string]*runtime.StructDefinitionValue
 
 	stringHostReady bool
+	osReady         bool
+	osArgs          []string
 
 	hasherReady      bool
 	hasherMu         sync.Mutex
@@ -202,12 +204,12 @@ type Interpreter struct {
 	divModStruct    *runtime.StructDefinitionValue
 	ratioStruct     *runtime.StructDefinitionValue
 
-	arrayReady      bool
-	arrayStates     map[int64]*arrayState
-	arraysByHandle  map[int64]map[*runtime.ArrayValue]struct{}
-	nextArrayHandle int64
-	hashMapReady    bool
-	hashMapStates   map[int64]*runtime.HashMapValue
+	arrayReady        bool
+	arrayStates       map[int64]*arrayState
+	arraysByHandle    map[int64]map[*runtime.ArrayValue]struct{}
+	nextArrayHandle   int64
+	hashMapReady      bool
+	hashMapStates     map[int64]*runtime.HashMapValue
 	nextHashMapHandle int64
 
 	errorNativeMethods map[string]runtime.NativeFunctionValue
@@ -297,7 +299,7 @@ func NewWithExecutor(exec Executor) *Interpreter {
 	if exec == nil {
 		exec = NewSerialExecutor(nil)
 	}
-	i := &Interpreter{
+		i := &Interpreter{
 		global:               runtime.NewEnvironment(nil),
 		inherentMethods:      make(map[string]map[string]runtime.Value),
 		interfaces:           make(map[string]*runtime.InterfaceDefinitionValue),
@@ -323,20 +325,21 @@ func NewWithExecutor(exec Executor) *Interpreter {
 		mutexes:                 make(map[int64]*mutexState),
 		concurrencyErrorStructs: make(map[string]*runtime.StructDefinitionValue),
 		standardErrorStructs:    make(map[string]*runtime.StructDefinitionValue),
-		hashers:                 make(map[int64]*hasherState),
-		orderingStructs:         make(map[string]*runtime.StructDefinitionValue),
-		arrayStates:             make(map[int64]*arrayState),
-		arraysByHandle:          make(map[int64]map[*runtime.ArrayValue]struct{}),
-		nextArrayHandle:         1,
-		hashMapStates:           make(map[int64]*runtime.HashMapValue),
-		nextHashMapHandle:       1,
-		errorNativeMethods:      make(map[string]runtime.NativeFunctionValue),
-	}
+			hashers:                 make(map[int64]*hasherState),
+			orderingStructs:         make(map[string]*runtime.StructDefinitionValue),
+			arrayStates:             make(map[int64]*arrayState),
+			arraysByHandle:          make(map[int64]map[*runtime.ArrayValue]struct{}),
+			nextArrayHandle:         1,
+			hashMapStates:           make(map[int64]*runtime.HashMapValue),
+			nextHashMapHandle:       1,
+			errorNativeMethods:      make(map[string]runtime.NativeFunctionValue),
+		}
 	i.initConcurrencyBuiltins()
 	i.initChannelMutexBuiltins()
 	i.initArrayBuiltins()
 	i.initHashMapBuiltins()
-	i.initStringHostBuiltins()
+		i.initStringHostBuiltins()
+		i.initOsBuiltins()
 	i.initErrorBuiltins()
 	i.initHasherBuiltins()
 	i.initRatioBuiltins()
@@ -348,6 +351,15 @@ func NewWithExecutor(exec Executor) *Interpreter {
 // GlobalEnvironment returns the interpreter’s global environment.
 func (i *Interpreter) GlobalEnvironment() *runtime.Environment {
 	return i.global
+}
+
+// SetArgs seeds os.args() for this interpreter run.
+func (i *Interpreter) SetArgs(args []string) {
+	if args == nil {
+		i.osArgs = nil
+		return
+	}
+	i.osArgs = append([]string{}, args...)
 }
 
 // EvaluateModule executes a module node and returns the last evaluated value and environment.

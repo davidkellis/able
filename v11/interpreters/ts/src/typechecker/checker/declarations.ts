@@ -91,6 +91,9 @@ export function collectFunctionDefinition(
       : [],
     returnType,
   };
+  if (scope?.fromMethodSet) {
+    info.fromMethodSet = true;
+  }
 
   if (Array.isArray(definition.genericParams)) {
     for (const param of definition.genericParams) {

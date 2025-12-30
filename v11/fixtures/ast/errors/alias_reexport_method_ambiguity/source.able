@@ -1,0 +1,8 @@
+package alias_reexport_method_ambiguity_main
+
+import alias_reexport_method_ambiguity_base.{Widget}
+import alias_reexport_method_ambiguity_a
+import alias_reexport_method_ambiguity_b
+
+w := Widget { value: 1 }
+w.tag()

@@ -1,0 +1,11 @@
+{
+  "description": "alias methods/impls propagate through a re-exported underlying type",
+  "expect": {
+    "stdout": [
+      "range 2-4",
+      "marker 2:4",
+      "range 5-7"
+    ],
+    "exit": 0
+  }
+}

@@ -93,6 +93,7 @@ func runExecFixture(t *testing.T, dir string) {
 
 	exitCode := 0
 	var runtimeErr error
+	exitSignaled := false
 
 	entryEnv := interp.GlobalEnvironment()
 	_, entryEnv, _, err = interp.EvaluateProgram(program, ProgramEvaluationOptions{
@@ -100,8 +101,13 @@ func runExecFixture(t *testing.T, dir string) {
 		AllowDiagnostics: true,
 	})
 	if err != nil {
-		runtimeErr = err
-		exitCode = 1
+		if code, ok := ExitCodeFromError(err); ok {
+			exitCode = code
+			exitSignaled = true
+		} else {
+			runtimeErr = err
+			exitCode = 1
+		}
 	}
 
 	var mainValue runtime.Value
@@ -121,8 +127,13 @@ func runExecFixture(t *testing.T, dir string) {
 
 	if runtimeErr == nil {
 		if _, err := interp.CallFunction(mainValue, nil); err != nil {
-			runtimeErr = err
-			exitCode = 1
+			if code, ok := ExitCodeFromError(err); ok {
+				exitCode = code
+				exitSignaled = true
+			} else {
+				runtimeErr = err
+				exitCode = 1
+			}
 		}
 	}
 
@@ -154,6 +165,8 @@ func runExecFixture(t *testing.T, dir string) {
 		if exitCode != *expected.Exit {
 			t.Fatalf("exit code mismatch: expected %d, got %d", *expected.Exit, exitCode)
 		}
+	} else if exitSignaled {
+		t.Fatalf("exit code mismatch: expected default exit, got %d", exitCode)
 	} else if runtimeErr != nil {
 		t.Fatalf("runtime error: %v", runtimeErr)
 	}

@@ -51,7 +51,6 @@ export function lookupMethodSetsForCall(
 ): FunctionInfo[] {
   const results: FunctionInfo[] = [];
   const methodSets = Array.from(ctx.getMethodSets());
-  let foundMatch = false;
   for (let index = methodSets.length - 1; index >= 0; index -= 1) {
     const record = methodSets[index];
     const paramNames = new Set(record.genericParams);
@@ -72,6 +71,7 @@ export function lookupMethodSetsForCall(
       continue;
     }
     const hasImplicitSelf = methodDefinitionHasImplicitSelf(ctx, method);
+    const isTypeQualified = !hasImplicitSelf;
     const methodGenericNames = Array.isArray(method.genericParams)
       ? method.genericParams
           .map((param) => ctx.getIdentifierName(param?.name))
@@ -89,7 +89,10 @@ export function lookupMethodSetsForCall(
       fullName: `${record.label}::${methodName}`,
       structName: structLabel,
       hasImplicitSelf,
+      isTypeQualified,
+      typeQualifier: isTypeQualified ? structLabel : undefined,
       methodResolutionPriority: 1,
+      fromMethodSet: true,
       parameters: parameterTypes,
       genericConstraints: [],
       genericParamNames: methodGenericNames,
@@ -113,8 +116,6 @@ export function lookupMethodSetsForCall(
       }
     }
     results.push(info);
-    foundMatch = true;
-    break;
   }
   return results;
 }

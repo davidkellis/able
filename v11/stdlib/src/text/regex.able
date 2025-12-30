@@ -1,6 +1,5 @@
 package regex
 import able.kernel.{Array}
-import able.collections.array
 import able.collections.hash_map.{HashMap}
 import able.core.interfaces.{Error}
 import able.core.iteration.{Iterator, IteratorEnd}
@@ -84,30 +83,42 @@ fn unsupported(feature: String) -> RegexUnsupportedFeature {
   }
 }
 
-struct RegexGroup {
+fn validate_options(options: RegexOptions) -> ?RegexUnsupportedFeature {
+  if options.unicode == false { return unsupported("unicode=false") }
+  if options.anchored { return unsupported("anchored") }
+  if options.unicode_case { return unsupported("unicode_case") }
+  if options.grapheme_mode { return unsupported("grapheme_mode") }
+  nil
+}
+
+struct Group {
   name: ?String,
   value: ?String,
   span: ?Span
 }
 
-struct RegexMatch {
+struct Match {
   matched: String,
   span: Span,
-  groups: Array RegexGroup,
-  named_groups: HashMap String RegexGroup
+  groups: Array Group,
+  named_groups: HashMap String Group
 }
 
-union RegexReplacement =
-  RegexReplacementLiteral String |
-  RegexReplacementFunction (RegexMatch -> String)
+union Replacement =
+  ReplacementLiteral String |
+  ReplacementFunction (Match -> String)
 
 struct RegexIter {
   haystack: String,
-  regex: Regex
+  regex: Regex,
+  offset: u64,
+  done: bool
 }
 
-impl Iterator RegexMatch for RegexIter {
-  fn next(self: Self) -> RegexMatch | IteratorEnd { IteratorEnd {} }
+impl Iterator Match for RegexIter {
+  fn next(self: Self) -> Match | IteratorEnd {
+    raise unsupported("find_all")
+  }
 }
 
 struct RegexSet {
@@ -115,45 +126,59 @@ struct RegexSet {
 }
 
 struct RegexScanner {
-  regex: Regex
+  regex: Regex,
+  buffer: String,
+  offset: u64
+}
+
+methods RegexScanner {
+  fn feed(self: Self, chunk: String) -> void {
+    raise unsupported("scan")
+  }
+
+  fn next(self: Self) -> Match | IteratorEnd {
+    raise unsupported("scan")
+  }
 }
 
 methods Regex {
-  fn compile(pattern: String) -> Result Regex {
+  fn compile(pattern: String) -> Regex | Error {
     Regex.compile_with_options(pattern, RegexOptions.default())
   }
 
-  fn compile_with_options(pattern: String, options: RegexOptions) -> Result Regex {
-    Regex { pattern: pattern, options: options, program: RegexHandle {} }
+  fn compile_with_options(pattern: String, options: RegexOptions) -> Regex | Error {
+    validate_options(options) match {
+      case err: RegexUnsupportedFeature => err,
+      case nil => unsupported("compile")
+    }
   }
 
-  fn is_match(self: Self, haystack: String) -> Result bool {
-    unsupported("is_match")
+  fn is_match(self: Self, haystack: String) -> bool {
+    self.match(haystack) match {
+      case nil => false,
+      case _: Match => true
+    }
   }
 
-  fn match(self: Self, haystack: String) -> Result ?RegexMatch {
-    unsupported("match")
+  fn match(self: Self, haystack: String) -> ?Match {
+    raise unsupported("match")
   }
 
-  fn find_all(self: Self, haystack: String) -> Result RegexIter {
-    unsupported("find_all")
+  fn find_all(self: Self, haystack: String) -> RegexIter {
+    raise unsupported("find_all")
   }
 
-  fn replace(self: Self, haystack: String, replacement: RegexReplacement) -> Result String {
+  fn replace(self: Self, haystack: String, replacement: Replacement) -> Result String {
     unsupported("replace")
   }
 
-  fn split(self: Self, haystack: String, limit: ?u64) -> Result RegexSplit {
-    unsupported("split")
+  fn split(self: Self, haystack: String, limit: ?u64) -> Array String {
+    raise unsupported("split")
   }
 
-  fn scan(self: Self, haystack: String) -> Result RegexScanner {
-    unsupported("scan")
+  fn scan(self: Self, haystack: String) -> RegexScanner {
+    raise unsupported("scan")
   }
-}
-
-struct RegexSplit {
-  segments: Array String
 }
 
 fn regex_is_match(pattern: String, haystack: String) -> Result bool {
