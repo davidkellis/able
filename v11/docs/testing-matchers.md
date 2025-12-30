@@ -99,9 +99,9 @@ expect(numbers).to(contain_all([1, 2, 3]))
 | `be_greater_than(threshold)` / `be_less_than(threshold)` | i64 ordering helpers. |
 | `be_between(lower, upper)` | Inclusive bounds check for i64 values. |
 
-## Regex (Placeholder)
+## Regex
 
-`match_regex(pattern)` now delegates to `able.text.regex`. Until the regex engine ships, compilation returns an `UnsupportedFeature` error and the matcher falls back to simple equality—existing tests keep passing and will automatically pick up real matching behaviour once the engine is implemented.
+`match_regex(pattern)` delegates to `able.text.regex.regex_is_match`. Until the stdlib regex engine lands, the helper returns a `RegexError` and the matcher falls back to string equality for compatibility.
 
 ## Errors
 
@@ -149,6 +149,5 @@ expect(render_view()).to(match_snapshot("dashboard"))
 
 ## TODO / Future Work
 
-- Replace `match_regex` placeholder with actual regex support once the runtime exposes helpers.
 - Implement file-backed snapshot store and diff formatting.
 - Extend matcher set with structural diffs, numeric closeness for integers/floats of other widths, and custom matcher authoring docs.

@@ -64,7 +64,21 @@ export class TypecheckerSession {
     mergeMaps(this.prelude.typeAliases, next.typeAliases);
     mergeMaps(this.prelude.unions, next.unions);
     mergeMaps(this.prelude.functionInfos, next.functionInfos);
-    this.prelude.methodSets.push(...(next.methodSets ?? []));
-    this.prelude.implementationRecords.push(...(next.implementationRecords ?? []));
+    appendUnique(this.prelude.methodSets, next.methodSets);
+    appendUnique(this.prelude.implementationRecords, next.implementationRecords);
+  }
+}
+
+function appendUnique<T>(target: T[], additions?: T[]): void {
+  if (!additions || additions.length === 0) {
+    return;
+  }
+  const seen = new Set(target);
+  for (const entry of additions) {
+    if (seen.has(entry)) {
+      continue;
+    }
+    seen.add(entry);
+    target.push(entry);
   }
 }

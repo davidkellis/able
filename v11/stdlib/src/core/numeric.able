@@ -95,6 +95,7 @@ methods i32 {
   }
   fn to_f64(self: Self) -> Result f64 { self as f64 }
   fn to_r(self: Self) -> Ratio { ratio_normalize(self as i128, 1_i128) }
+
 }
 
 methods i64 {
@@ -115,6 +116,7 @@ methods i64 {
   }
   fn to_f64(self: Self) -> Result f64 { self as f64 }
   fn to_r(self: Self) -> Ratio { ratio_normalize(self as i128, 1_i128) }
+
 }
 
 methods u32 {
@@ -128,6 +130,7 @@ methods u32 {
   fn to_u64(self: Self) -> Result u64 { self as u64 }
   fn to_f64(self: Self) -> Result f64 { self as f64 }
   fn to_r(self: Self) -> Ratio { ratio_normalize(self as i128, 1_i128) }
+
 }
 
 methods u64 {
@@ -149,6 +152,7 @@ methods u64 {
   fn to_u64(self: Self) -> Result u64 { self }
   fn to_f64(self: Self) -> Result f64 { self as f64 }
   fn to_r(self: Self) -> Ratio { ratio_normalize(self as i128, 1_i128) }
+
 }
 
 fn f64_is_nan(value: f64) -> bool { value != value }
@@ -240,6 +244,64 @@ methods Ratio {
   fn to_f64(self: Self) -> Result f64 { (self.num as f64) / (self.den as f64) }
   fn to_r(self: Self) -> Ratio { self }
 }
+
+## Floor-division helpers ---------------------------------------------------
+
+interface FloorOps for T {
+  fn div_floor(self: Self, rhs: T) -> T;
+  fn mod_floor(self: Self, rhs: T) -> T;
+  fn div_mod_floor(self: Self, rhs: T) -> DivMod T;
+}
+
+fn div_mod_floor_i32(lhs: i32, rhs: i32) -> DivMod i32 {
+  pair := lhs /% rhs
+  q := pair.quotient
+  r := pair.remainder
+  if rhs < 0 && r != 0 {
+    q = q - 1
+    r = r + rhs
+  }
+  DivMod i32 { quotient: q, remainder: r }
+}
+
+fn div_mod_floor_i64(lhs: i64, rhs: i64) -> DivMod i64 {
+  pair := lhs /% rhs
+  q := pair.quotient
+  r := pair.remainder
+  if rhs < 0 && r != 0 {
+    q = q - 1
+    r = r + rhs
+  }
+  DivMod i64 { quotient: q, remainder: r }
+}
+
+impl FloorOps for i32 {
+  fn div_floor(self: Self, rhs: i32) -> i32 { div_mod_floor_i32(self, rhs).quotient }
+  fn mod_floor(self: Self, rhs: i32) -> i32 { div_mod_floor_i32(self, rhs).remainder }
+  fn div_mod_floor(self: Self, rhs: i32) -> DivMod i32 { div_mod_floor_i32(self, rhs) }
+}
+
+impl FloorOps for i64 {
+  fn div_floor(self: Self, rhs: i64) -> i64 { div_mod_floor_i64(self, rhs).quotient }
+  fn mod_floor(self: Self, rhs: i64) -> i64 { div_mod_floor_i64(self, rhs).remainder }
+  fn div_mod_floor(self: Self, rhs: i64) -> DivMod i64 { div_mod_floor_i64(self, rhs) }
+}
+
+impl FloorOps for u32 {
+  fn div_floor(self: Self, rhs: u32) -> u32 { self // rhs }
+  fn mod_floor(self: Self, rhs: u32) -> u32 { self % rhs }
+  fn div_mod_floor(self: Self, rhs: u32) -> DivMod u32 { self /% rhs }
+}
+
+impl FloorOps for u64 {
+  fn div_floor(self: Self, rhs: u64) -> u64 { self // rhs }
+  fn mod_floor(self: Self, rhs: u64) -> u64 { self % rhs }
+  fn div_mod_floor(self: Self, rhs: u64) -> DivMod u64 { self /% rhs }
+}
+
+fn div_floor<T>(lhs: T, rhs: T) -> T where T: FloorOps { lhs.div_floor(rhs) }
+fn mod_floor<T>(lhs: T, rhs: T) -> T where T: FloorOps { lhs.mod_floor(rhs) }
+fn div_mod_floor<T>(lhs: T, rhs: T) -> DivMod T where T: FloorOps { lhs.div_mod_floor(rhs) }
 
 ## Arithmetic and comparisons ------------------------------------------------
 

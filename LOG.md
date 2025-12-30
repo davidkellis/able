@@ -1,5 +1,68 @@
 # Able Project Log
 
+# 2025-12-29 — Alias re-export follow-up validation (v11)
+- Progress: ran `./run_all_tests.sh --version=v11`; all green.
+- State: parity report refreshed at `v11/tmp/parity-report.json`.
+- Next: resume PLAN backlog (regex stdlib expansion + tutorial cleanup).
+
+# 2025-12-29 — Typechecker method-set dedupe + alias impl diag alignment (v11)
+- Prevented duplicate method-set candidates by tagging method-set function infos, skipping them during member lookup, and marking static method-set entries as type-qualified.
+- Kept method-set targets in generic form to preserve where-clause constraint enforcement, and deduped method sets/impl records across session preludes.
+- Aligned alias re-export impl ambiguity diagnostics to the canonical target label and updated the baseline accordingly.
+- Tests: `./run_all_tests.sh --version=v11`.
+
+# 2025-12-29 — Alias re-export impl ambiguity fixture (v11)
+- Added AST error fixture `errors/alias_reexport_impl_ambiguity` covering duplicate impl registration when alias-attached impls target the same canonical type.
+- Filled `module.json` for alias re-export method/impl ambiguity fixtures and updated the typecheck baseline for the new diagnostic.
+- Tests: `cd v11/interpreters/ts && bun test test/parser/fixtures_mapper.test.ts`; `cd v11/interpreters/ts && bun run scripts/run-fixtures.ts`.
+
+# 2025-12-29 — Document Euclidean division (v11)
+- Clarified in `spec/full_spec_v11.md` that `//`, `%`, and `/%` use Euclidean integer division (non-negative remainder), with examples and negative divisor behavior.
+
+# 2025-12-29 — Add floor division helpers (v11)
+- Added stdlib `div_floor`/`mod_floor`/`div_mod_floor` functions and methods for `i32`, `i64`, `u32`, `u64`, plus updated numeric helper fixture coverage and spec text.
+- Removed the integer floor-division TODO from `spec/TODO_v11.md` now that helpers are implemented.
+
+# 2025-12-29 — Spec TODO audit (v11)
+- Trimmed `spec/TODO_v11.md` to the remaining items with detailed scope and open questions (alias/re-export method propagation).
+
+# 2025-12-29 — Quarantine host regex hooks (v11)
+- Removed TS/Go regex host hooks and wiring; stdlib `able.text.regex` now raises `RegexUnsupportedFeature` instead of calling host engines.
+- Quarantined the exec regex fixture (`exec/14_02_regex_core_match_streaming`) and marked coverage as planned; TS regex integration test now skipped pending the stdlib engine.
+- Updated conformance/testing/manual docs and regex design notes to reflect stdlib-only regex plans.
+- Tests: `./run_all_tests.sh --version=v11 --fixture`.
+
+# 2025-12-29 — v11 fixture sweep
+- Progress: ran `./run_all_tests.sh --version=v11 --fixture`.
+- Current state: TypeScript fixtures, parity harness, and Go tests all green; parity report at `v11/tmp/parity-report.json`.
+- Next: continue PLAN backlog (regex stdlib expansion and tutorial cleanup).
+
+# 2025-12-29 — Regex core match/streaming fixture (v11)
+- Implemented stdlib regex core helpers (`Regex.compile`, `is_match`, `match`, `find_all`, `scan` + streaming `RegexScanner.feed/next`) with host-backed compile/find externs.
+- Added TS/Go regex host builtins and runtime state for compiled handles, plus span/match struct construction (empty groups/named groups for now).
+- Added exec fixture `exec/14_02_regex_core_match_streaming`, updated conformance plan + coverage index, and removed the PLAN backlog item.
+- Updated regex stdlib integration test and testing matcher docs now that regex helpers are live.
+- Go runtime now treats `IteratorEnd {}` as matching the IteratorEnd sentinel during return type checks, aligning iterator method returns with pattern matching behavior.
+- Tests: `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=14_02_regex_core_match_streaming bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter -run TestExecFixtures/14_02_regex_core_match_streaming$`.
+
+# 2025-12-29 — Interface dispatch fixture + IteratorEnd runtime alignment (v11)
+- Added exec fixture `exec/14_01_language_interfaces_index_apply_iterable` covering Index/IndexMut, Iterable/Iterator, and Apply dispatch; updated the conformance plan + coverage index and cleared the PLAN backlog item.
+- Stdlib `iteration.each` now matches `IteratorEnd {}` before visiting values, keeping IteratorEnd from flowing into visitor callbacks.
+- Go runtime now treats `IteratorEnd` as a first-class type in `matchesType`/type inference and equality comparisons, aligning match behavior with TS.
+- Added exec fixture `exec/14_01_operator_interfaces_arithmetic_comparison` covering arithmetic/comparison operator interface dispatch with Display/Clone/Default helpers; updated the conformance plan + coverage index and cleared the PLAN backlog item.
+- TS/Go runtimes now route unary `-` through `Neg` interface impls when operands are non-numeric, and both runtimes dispatch comparison operators via `Eq`/`PartialEq` and `Ord`/`PartialOrd` when available.
+- Go static method lookup now includes impl methods so interface-provided statics like `Default.default()` resolve on types.
+- Tests: `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=13_06_stdlib_package_resolution bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=13_07_search_path_env_override bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=14_01_language_interfaces_index_apply_iterable bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter -run TestExecFixtures/13_06_stdlib_package_resolution$`; `cd v11/interpreters/go && go test ./pkg/interpreter -run TestExecFixtures/13_07_search_path_env_override$`; `cd v11/interpreters/go && go test ./pkg/interpreter -run TestExecFixtures/14_01_language_interfaces_index_apply_iterable$`.
+- Tests: `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=14_01_operator_interfaces_arithmetic_comparison bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter -run TestExecFixtures/14_01_operator_interfaces_arithmetic_comparison$`.
+- Added stdlib `os` module with `args()` and runtime `__able_os_args` builtins for TS/Go; added exec fixture `exec/15_02_entry_args_signature` plus coverage/conformance updates and removed the PLAN item.
+- Tests: `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=15_02_entry_args_signature bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter -run TestExecFixtures/15_02_entry_args_signature$`.
+- Added `os.exit` runtime support (TS/Go) with CLI/fixture harness handling; added exec fixture `exec/15_03_exit_status_return_value` plus coverage/conformance updates and removed the PLAN item.
+- Tests: `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=15_03_exit_status_return_value bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter -run TestExecFixtures/15_03_exit_status_return_value$`.
+- Added exec fixture `exec/15_04_background_work_flush` to assert background procs are not awaited on exit; updated coverage/conformance and removed the PLAN item.
+- Tests: `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=15_04_background_work_flush bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter -run TestExecFixtures/15_04_background_work_flush$`.
+- Added exec fixture `exec/16_01_host_interop_inline_extern` covering extern host bindings; updated coverage/conformance and removed the PLAN item.
+- Tests: `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=16_01_host_interop_inline_extern bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter -run TestExecFixtures/16_01_host_interop_inline_extern$`.
+
 # 2025-12-28 — Exec fixtures for errors + concurrency (v11)
 - Added `exec/11_03_rescue_rethrow_standard_errors` covering arithmetic/indexing runtime errors, rescue/ensure, and rethrow semantics; updated the exec coverage index and removed the PLAN backlog item.
 - Added `exec/12_02_proc_fairness_cancellation` covering `proc_yield` fairness, cancellation via `proc_cancelled`, and `proc_flush` queue drains; updated the exec coverage index + conformance plan and removed the PLAN backlog item.
@@ -490,6 +553,9 @@ Open items (2025-11-02 audit):
 - Added exec fixture `exec/08_03_breakpoint_nonlocal_jump` and updated the conformance plan + coverage index; cleared the related PLAN backlog item.
 - Tests: `bun run scripts/run-fixtures.ts`; `go test ./pkg/interpreter` (with a temp `GOCACHE`).
 - Next: continue exec fixture backlog starting at `exec/09_05_method_set_generics_where`.
+- Codified alias/re-export method propagation and conflict semantics in the v11 spec and cleared the remaining spec TODO.
+- Added AST fixture `errors/alias_reexport_method_ambiguity` (with setup packages) plus baseline entry; TS/Go typecheckers now surface ambiguous overloads when multiple method sets attach the same signature.
+- Tests: `ABLE_FIXTURE_FILTER=alias_reexport_method_ambiguity bun run scripts/run-fixtures.ts`; `go test ./pkg/interpreter -run TestFixtureParityStringLiteral/errors/alias_reexport_method_ambiguity`.
 
 ### 2025-12-30
 - Added exec fixture `exec/09_05_method_set_generics_where` covering method-set generics/where constraints for instance + UFCS calls; updated the conformance plan + coverage index and cleared the PLAN backlog item.

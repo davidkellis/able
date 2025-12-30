@@ -64,6 +64,15 @@ func runCheck(args []string) int {
 func runEntryWithMode(args []string, mode executionMode) int {
 	var manifest *driver.Manifest
 	var manifestErr error
+	programArgs := []string{}
+
+	if len(args) > 1 {
+		if mode != modeRun {
+			fmt.Fprintf(os.Stderr, "unexpected arguments: %s\n", strings.Join(args[1:], " "))
+			return 1
+		}
+		programArgs = append([]string{}, args[1:]...)
+	}
 
 	if len(args) <= 1 {
 		manifest, manifestErr = loadManifestFrom(".")
@@ -102,12 +111,7 @@ func runEntryWithMode(args []string, mode executionMode) int {
 			fmt.Fprintf(os.Stderr, "failed to resolve target entrypoint: %v\n", err)
 			return 1
 		}
-		return executeEntry(entryPath, manifest, lock, mode)
-	}
-
-	if len(args) > 1 {
-		fmt.Fprintf(os.Stderr, "unexpected arguments: %s\n", strings.Join(args[1:], " "))
-		return 1
+		return executeEntry(entryPath, manifest, lock, mode, programArgs)
 	}
 
 	candidate := args[0]
@@ -124,7 +128,7 @@ func runEntryWithMode(args []string, mode executionMode) int {
 				fmt.Fprintf(os.Stderr, "%v\n", err)
 				return 1
 			}
-			return executeEntry(entryPath, manifest, lock, mode)
+			return executeEntry(entryPath, manifest, lock, mode, programArgs)
 		}
 	}
 
@@ -151,10 +155,10 @@ func runEntryWithMode(args []string, mode executionMode) int {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		return 1
 	}
-	return executeEntry(candidate, activeManifest, lock, mode)
+	return executeEntry(candidate, activeManifest, lock, mode, programArgs)
 }
 
-func executeEntry(entry string, manifest *driver.Manifest, lock *driver.Lockfile, mode executionMode) int {
+func executeEntry(entry string, manifest *driver.Manifest, lock *driver.Lockfile, mode executionMode, programArgs []string) int {
 	entry = strings.TrimSpace(entry)
 	if entry == "" {
 		fmt.Fprintf(os.Stderr, "%s requires a source file\n", modeCommandLabel(mode))
@@ -201,10 +205,14 @@ func executeEntry(entry string, manifest *driver.Manifest, lock *driver.Lockfile
 	}
 
 	interp := interpreter.New()
+	interp.SetArgs(programArgs)
 	registerPrint(interp)
 
 	_, entryEnv, check, err := interp.EvaluateProgram(program, interpreter.ProgramEvaluationOptions{})
 	if err != nil {
+		if code, ok := interpreter.ExitCodeFromError(err); ok {
+			return code
+		}
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		return 1
 	}
@@ -219,6 +227,9 @@ func executeEntry(entry string, manifest *driver.Manifest, lock *driver.Lockfile
 	}
 
 	if _, err := interp.CallFunction(mainValue, nil); err != nil {
+		if code, ok := interpreter.ExitCodeFromError(err); ok {
+			return code
+		}
 		fmt.Fprintf(os.Stderr, "runtime error: %v\n", err)
 		return 1
 	}

@@ -1,0 +1,13 @@
+{
+  "description": "Index/IndexMut, Iterable/Iterator, and Apply dispatch core language syntax",
+  "expect": {
+    "stdout": [
+      "index 10 41",
+      "apply 42",
+      "each 3",
+      "for 3",
+      "next 0 1 2 end"
+    ],
+    "exit": 0
+  }
+}

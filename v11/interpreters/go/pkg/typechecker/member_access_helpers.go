@@ -54,7 +54,7 @@ func stripNilFromUnion(u UnionLiteralType) Type {
 }
 
 func (c *Checker) lookupMethod(object Type, name string, allowMethodSets bool, allowTypeQualified bool) (FunctionType, bool, string) {
-	bestFn, bestScore, found := c.lookupMethodInMethodSets(object, name, allowMethodSets, allowTypeQualified)
+	bestFn, bestScore, found, detail := c.lookupMethodInMethodSets(object, name, allowMethodSets, allowTypeQualified)
 	implFn, implScore, implFound, implDetail := c.lookupMethodInImplementations(object, name, true)
 	if implFound && (!found || implScore > bestScore) {
 		return implFn, true, ""
@@ -62,18 +62,21 @@ func (c *Checker) lookupMethod(object Type, name string, allowMethodSets bool, a
 	if found {
 		return bestFn, true, ""
 	}
+	if detail != "" {
+		return FunctionType{}, false, detail
+	}
 	return FunctionType{}, false, implDetail
 }
 
-func (c *Checker) lookupMethodInMethodSets(object Type, name string, allowMethodSets bool, allowTypeQualified bool) (FunctionType, int, bool) {
+func (c *Checker) lookupMethodInMethodSets(object Type, name string, allowMethodSets bool, allowTypeQualified bool) (FunctionType, int, bool, string) {
 	if len(c.methodSets) == 0 || !allowMethodSets {
-		return FunctionType{}, -1, false
+		return FunctionType{}, -1, false, ""
 	}
-	var (
-		found     bool
-		bestScore = -1
-		bestFn    FunctionType
-	)
+	type candidate struct {
+		fn    FunctionType
+		score int
+	}
+	var candidates []candidate
 	for _, spec := range c.methodSets {
 		subst, score, ok := matchMethodTarget(object, spec.Target, spec.TypeParams)
 		if !ok {
@@ -120,13 +123,30 @@ func (c *Checker) lookupMethodInMethodSets(object Type, name string, allowMethod
 		if shouldBindSelfParam(method, object) {
 			method = bindMethodType(method)
 		}
-		if !found || score > bestScore {
-			bestScore = score
-			bestFn = method
-			found = true
+		candidates = append(candidates, candidate{fn: method, score: score})
+	}
+	if len(candidates) == 0 {
+		return FunctionType{}, -1, false, ""
+	}
+	bestIdx := 0
+	for idx := 1; idx < len(candidates); idx++ {
+		if candidates[idx].score > candidates[bestIdx].score {
+			bestIdx = idx
 		}
 	}
-	return bestFn, bestScore, found
+	best := candidates[bestIdx]
+	for idx, cand := range candidates {
+		if idx == bestIdx {
+			continue
+		}
+		if cand.score != best.score {
+			continue
+		}
+		if functionSignaturesEquivalent(cand.fn, best.fn) {
+			return FunctionType{}, -1, false, fmt.Sprintf("ambiguous overload for %s", name)
+		}
+	}
+	return best.fn, best.score, true, ""
 }
 
 func (c *Checker) methodFromMethodSetConstraints(obligations []ConstraintObligation, substitution map[string]Type, methodName string) (FunctionType, bool) {
@@ -818,6 +838,18 @@ func bindMethodType(method FunctionType) FunctionType {
 		Where:       method.Where,
 		Obligations: method.Obligations,
 	}
+}
+
+func functionSignaturesEquivalent(a, b FunctionType) bool {
+	if len(a.Params) != len(b.Params) {
+		return false
+	}
+	for i := range a.Params {
+		if !typesEquivalentForSignature(a.Params[i], b.Params[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 func shouldBindSelfParam(method FunctionType, subject Type) bool {

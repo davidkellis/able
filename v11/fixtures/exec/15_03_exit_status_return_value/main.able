@@ -1,0 +1,9 @@
+package exec_15_03_exit_status_return_value
+import able.os::os
+
+## Semantics: os.exit sets the process exit status and halts execution immediately.
+fn main() -> void {
+  print("before exit")
+  os.exit(12)
+  print("after exit")
+}

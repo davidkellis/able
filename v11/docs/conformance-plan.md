@@ -11,7 +11,11 @@ This document tracks end-to-end exec fixtures for Able v11 and maps them to the 
 
 | Spec section(s) | Semantic focus | Fixture id(s) | Status / notes |
 | --- | --- | --- | --- |
-| 15.1–15.6, 6.6 | Program entry, print output, implicit `void` main | `exec/15_01_program_entry_hello_world` | Seeded (renamed from `exec_hello_world`); covers entry point signature + stdout |
+| 15.1, 15.6, 6.6 | Program entry, print output, implicit `void` main | `exec/15_01_program_entry_hello_world` | Seeded (renamed from `exec_hello_world`); covers entry point signature + stdout |
+| 15.2 | Main signature uses `void` and args accessed via `os.args()` | `exec/15_02_entry_args_signature` | Seeded; args array provided via stdlib `os` helper |
+| 15.3 | Custom exit status via `os.exit` | `exec/15_03_exit_status_return_value` | Seeded; exit code overrides default completion status |
+| 15.4 | Background work not awaited on exit | `exec/15_04_background_work_flush` | Seeded; pending proc stays blocked when `main` returns |
+| 16 | Host interop via inline `extern` bodies | `exec/16_01_host_interop_inline_extern` | Seeded; extern bindings resolved for active runtime target |
 | 8.1.1, 8.2.2, 6.3 | `if/elsif/else` + `for` range iteration | `exec/08_01_control_flow_fizzbuzz` | Seeded (renamed from `exec_fizzbuzz`); ensures branch ordering + range inclusivity |
 | 8.1.1, 6.11 | `if` truthiness and expression result values | `exec/08_01_if_truthiness_value` | Seeded; truthiness drives branch selection and nil when no else |
 | 8.2.1, 8.2.4 | `while` loop with continue/break control flow | `exec/08_02_while_continue_break` | Seeded; continue skips body tail and break exits early |
@@ -21,6 +25,9 @@ This document tracks end-to-end exec fixtures for Able v11 and maps them to the 
 | 8.3 | Breakpoint non-local jumps | `exec/08_03_breakpoint_nonlocal_jump` | Seeded; labeled breaks unwind to breakpoint with payload |
 | 6.3.2, 11.3.3 | Division by zero raises a runtime error | `exec/04_02_primitives_truthiness_numeric_diag` | Seeded; confirms division-by-zero error propagation |
 | 6.3.2-6.3.3, 14.1.1, 14.1.4 | Operator dispatch via Add/Index/IndexMut interfaces | `exec/06_03_operator_overloading_interfaces` | Seeded; custom structs participate in `+` and `[]`/`[]=` |
+| 14.1.1-14.1.3 | Index/IndexMut + Iterable/Iterator + Apply dispatch | `exec/14_01_language_interfaces_index_apply_iterable` | Seeded; [] access, for/each iteration, and call syntax via interfaces |
+| 14.1.4-14.1.7 | Operator interfaces (arith/compare/display/clone/default) | `exec/14_01_operator_interfaces_arithmetic_comparison` | Seeded; arithmetic/comparison operators route through impls |
+| 14.2 | Regex compile/match/find_all + streaming scanner spans | `exec/14_02_regex_core_match_streaming` | Planned; quarantined until stdlib regex engine lands |
 | 6.3.4 | Safe navigation short-circuits on nil | `exec/06_03_safe_navigation_nil_short_circuit` | Seeded; receiver evaluated once and argument evaluation skipped on nil |
 | 6.4, 7.4.1, 7.4.2 | Function call argument order + trailing lambda | `exec/06_04_function_call_eval_order_trailing_lambda` | Seeded; arguments evaluate left-to-right and trailing lambda is equivalent to explicit argument |
 | 6.6 | String interpolation with escapes + multiline | `exec/06_06_string_interpolation` | Seeded; interpolation evaluates expressions and escapes `\\``/`\\$` with multiline literals preserved |

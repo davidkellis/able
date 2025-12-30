@@ -47,3 +47,9 @@ export class GeneratorStopSignal extends Error {
     super("GeneratorStopSignal");
   }
 }
+
+export class ExitSignal extends Error {
+  constructor(public code: number) {
+    super("ExitSignal");
+  }
+}

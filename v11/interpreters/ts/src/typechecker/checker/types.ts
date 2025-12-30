@@ -40,6 +40,7 @@ export type FunctionContext = {
   structName?: string;
   structBaseName?: string;
   typeParamNames?: string[];
+  fromMethodSet?: boolean;
 };
 
 export interface FunctionInfo {
@@ -51,6 +52,7 @@ export interface FunctionInfo {
   typeQualifier?: string;
   exportedName?: string;
   methodResolutionPriority?: number;
+  fromMethodSet?: boolean;
   parameters: TypeInfo[];
   genericConstraints: Array<{
     paramName: string;

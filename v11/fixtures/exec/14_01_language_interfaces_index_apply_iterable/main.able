@@ -1,0 +1,75 @@
+package exec_14_01_language_interfaces_index_apply_iterable
+
+import able.core.interfaces.{Apply, Index, IndexMut}
+import able.core.iteration.{Iterable, Iterator, IteratorEnd}
+
+## Semantics: Index/IndexMut, Iterable/Iterator, and Apply drive [], for/each, and call syntax.
+
+struct Shelf { items: Array i32 }
+
+impl Index i32 i32 for Shelf {
+  fn get(self: Self, idx: i32) -> !i32 { self.items[idx] }
+}
+
+impl IndexMut i32 i32 for Shelf {
+  fn set(self: Self, idx: i32, value: i32) -> !void {
+    self.items[idx] = value + 1
+    return
+  }
+}
+
+struct Counter { stop: i32 }
+
+impl Iterable i32 for Counter {
+  fn iterator(self: Self) -> (Iterator i32) {
+    Iterator i32 { gen =>
+      i := 0
+      while i < self.stop {
+        gen.yield(i)
+        i = i + 1
+      }
+    }
+  }
+}
+
+struct Multiplier { factor: i32 }
+
+impl Apply i32 i32 for Multiplier {
+  fn apply(self: Self, value: i32) -> i32 { self.factor * value }
+}
+
+fn format_next(value: i32 | IteratorEnd) -> String {
+  value match {
+    case v: i32 => `${v}`,
+    case IteratorEnd {} => "end"
+  }
+}
+
+fn main() -> void {
+  shelf := Shelf { items: [10, 20, 30] }
+  first := shelf[0]!
+  shelf[1] = 40
+  second := shelf[1]!
+  print(`index ${first} ${second}`)
+
+  multiplier := Multiplier { factor: 6 }
+  print(`apply ${multiplier(7)}`)
+
+  counter := Counter { stop: 3 }
+  sum_each := 0
+  counter.each { value => sum_each = sum_each + value }
+  print(`each ${sum_each}`)
+
+  sum_for := 0
+  for value in counter {
+    sum_for = sum_for + value
+  }
+  print(`for ${sum_for}`)
+
+  iter := counter.iterator()
+  first_next := format_next(iter.next())
+  second_next := format_next(iter.next())
+  third_next := format_next(iter.next())
+  fourth_next := format_next(iter.next())
+  print(`next ${first_next} ${second_next} ${third_next} ${fourth_next}`)
+}

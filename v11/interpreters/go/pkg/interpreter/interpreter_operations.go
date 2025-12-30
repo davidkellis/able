@@ -88,6 +88,22 @@ var operatorInterfaces = map[string]operatorDispatch{
 	".>>": {interfaceName: "Shr", methodName: "shr"},
 }
 
+var unaryInterfaces = map[string]operatorDispatch{
+	"-":  {interfaceName: "Neg", methodName: "neg"},
+	"~":  {interfaceName: "Not", methodName: "not"},
+	".~": {interfaceName: "Not", methodName: "not"},
+}
+
+var equalityInterfaces = []operatorDispatch{
+	{interfaceName: "Eq", methodName: "eq"},
+	{interfaceName: "PartialEq", methodName: "eq"},
+}
+
+var orderingInterfaces = []operatorDispatch{
+	{interfaceName: "Ord", methodName: "cmp"},
+	{interfaceName: "PartialOrd", methodName: "partial_cmp"},
+}
+
 func isIntegerValue(val runtime.Value) bool {
 	_, ok := val.(runtime.IntegerValue)
 	return ok
@@ -114,6 +130,114 @@ func (i *Interpreter) applyOperatorInterface(op string, left runtime.Value, righ
 		return nil, false, nil
 	}
 	result, err := i.CallFunction(method, []runtime.Value{left, right})
+	return result, true, err
+}
+
+func (i *Interpreter) resolveComparisonMethod(receiver runtime.Value, dispatch operatorDispatch) (runtime.Value, error) {
+	info, ok := i.getTypeInfoForValue(receiver)
+	if !ok {
+		return nil, nil
+	}
+	return i.findMethod(info, dispatch.methodName, dispatch.interfaceName)
+}
+
+func (i *Interpreter) applyEqualityInterface(op string, left runtime.Value, right runtime.Value) (runtime.Value, bool, error) {
+	for _, dispatch := range equalityInterfaces {
+		method, err := i.resolveComparisonMethod(left, dispatch)
+		if err != nil {
+			return nil, true, err
+		}
+		if method == nil {
+			continue
+		}
+		result, err := i.CallFunction(method, []runtime.Value{left, right})
+		if err != nil {
+			return nil, true, err
+		}
+		boolVal, ok := result.(runtime.BoolValue)
+		if !ok {
+			if ptr, okPtr := result.(*runtime.BoolValue); okPtr && ptr != nil {
+				boolVal = *ptr
+				ok = true
+			}
+		}
+		if !ok {
+			return nil, true, fmt.Errorf("comparison '%s' requires bool result from %s.%s", op, dispatch.interfaceName, dispatch.methodName)
+		}
+		if op == "!=" {
+			boolVal.Val = !boolVal.Val
+		}
+		return boolVal, true, nil
+	}
+	return nil, false, nil
+}
+
+func orderingName(value runtime.Value) string {
+	switch v := value.(type) {
+	case runtime.InterfaceValue:
+		return orderingName(v.Underlying)
+	case *runtime.StructInstanceValue:
+		return structInstanceName(v)
+	case runtime.StructDefinitionValue:
+		return structDefName(v)
+	case *runtime.StructDefinitionValue:
+		if v == nil {
+			return ""
+		}
+		return structDefName(*v)
+	default:
+		return ""
+	}
+}
+
+func orderingToCmp(value runtime.Value) (int, bool) {
+	switch orderingName(value) {
+	case "Less":
+		return -1, true
+	case "Equal":
+		return 0, true
+	case "Greater":
+		return 1, true
+	default:
+		return 0, false
+	}
+}
+
+func (i *Interpreter) applyOrderingInterface(op string, left runtime.Value, right runtime.Value) (runtime.Value, bool, error) {
+	for _, dispatch := range orderingInterfaces {
+		method, err := i.resolveComparisonMethod(left, dispatch)
+		if err != nil {
+			return nil, true, err
+		}
+		if method == nil {
+			continue
+		}
+		result, err := i.CallFunction(method, []runtime.Value{left, right})
+		if err != nil {
+			return nil, true, err
+		}
+		cmp, ok := orderingToCmp(result)
+		if !ok {
+			return nil, true, fmt.Errorf("comparison '%s' requires Ordering result from %s.%s", op, dispatch.interfaceName, dispatch.methodName)
+		}
+		return runtime.BoolValue{Val: comparisonOp(op, cmp)}, true, nil
+	}
+	return nil, false, nil
+}
+
+func (i *Interpreter) applyUnaryInterface(op string, operand runtime.Value) (runtime.Value, bool, error) {
+	dispatch, ok := unaryInterfaces[op]
+	if !ok {
+		return nil, false, nil
+	}
+	method, err := i.resolveComparisonMethod(operand, dispatch)
+	if err != nil {
+		return nil, true, err
+	}
+	if method == nil {
+		return nil, false, nil
+	}
+	result, err := i.CallFunction(method, []runtime.Value{operand})
 	return result, true, err
 }
 
@@ -242,10 +366,27 @@ func applyBinaryOperator(i *Interpreter, op string, left runtime.Value, right ru
 		}
 		return evaluateDivMod(i, op, left, right)
 	case "<", "<=", ">", ">=":
+		if isNumericValue(left) && isNumericValue(right) {
+			return evaluateComparison(op, left, right)
+		}
+		if _, ok := stringFromValue(left); ok {
+			if _, ok := stringFromValue(right); ok {
+				return evaluateComparison(op, left, right)
+			}
+		}
+		if result, ok, err := i.applyOrderingInterface(op, left, right); ok {
+			return result, err
+		}
 		return evaluateComparison(op, left, right)
 	case "==":
+		if result, ok, err := i.applyEqualityInterface(op, left, right); ok {
+			return result, err
+		}
 		return runtime.BoolValue{Val: valuesEqual(left, right)}, nil
 	case "!=":
+		if result, ok, err := i.applyEqualityInterface(op, left, right); ok {
+			return result, err
+		}
 		return runtime.BoolValue{Val: !valuesEqual(left, right)}, nil
 	case "&", "|", "<<", ">>":
 		if isIntegerValue(left) && isIntegerValue(right) {
@@ -595,6 +736,8 @@ func valuesEqual(left runtime.Value, right runtime.Value) bool {
 			return structDefName(*lv) != "" && structDefName(*lv) == structDefName(*rv)
 		case runtime.StructDefinitionValue:
 			return structDefName(*lv) != "" && structDefName(*lv) == structDefName(rv)
+		case runtime.IteratorEndValue, *runtime.IteratorEndValue:
+			return structDefName(*lv) == "IteratorEnd"
 		case *runtime.StructInstanceValue:
 			return structDefName(*lv) != "" && structDefName(*lv) == structInstanceName(rv) && structInstanceEmpty(rv)
 		}
@@ -607,6 +750,8 @@ func valuesEqual(left runtime.Value, right runtime.Value) bool {
 				return false
 			}
 			return structDefName(lv) != "" && structDefName(lv) == structDefName(*rv)
+		case runtime.IteratorEndValue, *runtime.IteratorEndValue:
+			return structDefName(lv) == "IteratorEnd"
 		case *runtime.StructInstanceValue:
 			return structDefName(lv) != "" && structDefName(lv) == structInstanceName(rv) && structInstanceEmpty(rv)
 		}
@@ -619,6 +764,8 @@ func valuesEqual(left runtime.Value, right runtime.Value) bool {
 				return false
 			}
 			return structInstanceName(lv) != "" && structInstanceName(lv) == structDefName(*rv) && structInstanceEmpty(lv)
+		case runtime.IteratorEndValue, *runtime.IteratorEndValue:
+			return structInstanceName(lv) == "IteratorEnd" && structInstanceEmpty(lv)
 		case *runtime.StructInstanceValue:
 			return structInstancesEqual(lv, rv)
 		}
@@ -640,6 +787,37 @@ func valuesEqual(left runtime.Value, right runtime.Value) bool {
 	case runtime.VoidValue:
 		_, ok := right.(runtime.VoidValue)
 		return ok
+	case runtime.IteratorEndValue:
+		switch rv := right.(type) {
+		case runtime.IteratorEndValue, *runtime.IteratorEndValue:
+			return true
+		case runtime.StructDefinitionValue:
+			return structDefName(rv) == "IteratorEnd"
+		case *runtime.StructDefinitionValue:
+			if rv == nil {
+				return false
+			}
+			return structDefName(*rv) == "IteratorEnd"
+		case *runtime.StructInstanceValue:
+			return structInstanceName(rv) == "IteratorEnd" && structInstanceEmpty(rv)
+		}
+	case *runtime.IteratorEndValue:
+		if lv == nil {
+			return false
+		}
+		switch rv := right.(type) {
+		case runtime.IteratorEndValue, *runtime.IteratorEndValue:
+			return true
+		case runtime.StructDefinitionValue:
+			return structDefName(rv) == "IteratorEnd"
+		case *runtime.StructDefinitionValue:
+			if rv == nil {
+				return false
+			}
+			return structDefName(*rv) == "IteratorEnd"
+		case *runtime.StructInstanceValue:
+			return structInstanceName(rv) == "IteratorEnd" && structInstanceEmpty(rv)
+		}
 	case runtime.IntegerValue:
 		switch rv := right.(type) {
 		case runtime.IntegerValue:

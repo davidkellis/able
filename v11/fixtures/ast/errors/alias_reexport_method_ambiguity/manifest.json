@@ -1,0 +1,17 @@
+{
+  "description": "Conflicting alias-attached method signatures are ambiguous when both packages are imported",
+  "setup": [
+    "base.able",
+    "alias_a.able",
+    "alias_b.able"
+  ],
+  "expect": {
+    "errors": [
+      "Ambiguous overload for tag"
+    ],
+    "typecheckDiagnostics": [
+      "typechecker: fixtures/ast/errors/alias_reexport_method_ambiguity/source.able:8:1 typechecker: ambiguous overload for tag"
+    ]
+  },
+  "entry": "source.able"
+}

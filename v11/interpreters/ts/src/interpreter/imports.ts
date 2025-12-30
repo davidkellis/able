@@ -61,6 +61,12 @@ export function evaluateImportStatement(ctx: Interpreter, node: AST.ImportStatem
       const original = sel.name.name;
       const alias = sel.alias ? sel.alias.name : original;
       let val: RuntimeValue | null = null;
+      if (pkg) {
+        const bucket = ctx.packageRegistry.get(pkg);
+        if (bucket?.has(original)) {
+          val = bucket.get(original) ?? null;
+        }
+      }
       const fq = pkg ? `${pkg}.${original}` : original;
       const reexports: Record<string, string> = {
         "able.collections.array.Array": "able.kernel.Array",

@@ -28,4 +28,16 @@ fn main() -> void {
 
   divmod3 := 7 /% -3
   print(`divmod3 ${divmod3.quotient} ${divmod3.remainder}`)
+
+  floor := div_floor(5_i64, -3_i64)
+  print(`floor ${floor}`)
+
+  floor_method := 5_i64.div_floor(-3_i64)
+  print(`floor_method ${floor_method}`)
+
+  mod := mod_floor(5_i64, -3_i64)
+  print(`mod ${mod}`)
+
+  floorpair := div_mod_floor(-5_i64, -3_i64)
+  print(`floorpair ${floorpair.quotient} ${floorpair.remainder}`)
 }
