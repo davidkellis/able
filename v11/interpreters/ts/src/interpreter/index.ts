@@ -15,6 +15,7 @@ import { applyChannelMutexAugmentations } from "./channels_mutex";
 import { applyStringHostAugmentations } from "./string_host";
 import { applyHasherHostAugmentations } from "./hasher_host";
 import { applyNumericHostAugmentations } from "./numeric_host";
+import { applyOsHostAugmentations } from "./os_host";
 import { applyDynamicAugmentations } from "./dynamic";
 import { buildStandardInterfaceBuiltins } from "../builtins/interfaces";
 import { applyArrayKernelAugmentations, type ArrayState } from "./array_kernel";
@@ -35,6 +36,7 @@ import type { ProcContinuationContext } from "./proc_continuations";
 export type InterpreterOptions = {
   executor?: Executor;
   schedulerMaxSteps?: number;
+  args?: string[];
 };
 
 export class Interpreter {
@@ -100,6 +102,7 @@ export class Interpreter {
   stringHostBuiltinsInitialized = false;
   hasherBuiltinsInitialized = false;
   numericBuiltinsInitialized = false;
+  osBuiltinsInitialized = false;
   nextChannelHandle = 1;
   channelStates: Map<number, any> = new Map();
   channelErrorStructs: Map<string, AST.StructDefinition> = new Map();
@@ -108,6 +111,7 @@ export class Interpreter {
   mutexStates: Map<number, any> = new Map();
   nextHasherHandle = 1;
   hasherStates: Map<number, number> = new Map();
+  osArgs: string[] = [];
 
   dynamicBuiltinsInitialized = false;
   dynPackageDefMethod!: Extract<RuntimeValue, { kind: "native_function" }>;
@@ -128,12 +132,14 @@ export class Interpreter {
     if (options.schedulerMaxSteps !== undefined) {
       this.schedulerMaxSteps = options.schedulerMaxSteps;
     }
+    this.osArgs = options.args ? [...options.args] : [];
     this.executor = options.executor ?? new CooperativeExecutor({ maxSteps: this.schedulerMaxSteps });
     this.initConcurrencyBuiltins();
     this.ensureChannelMutexBuiltins();
     this.ensureStringHostBuiltins();
     this.ensureHasherBuiltins();
     this.ensureNumericBuiltins();
+    this.ensureOsBuiltins();
     this.ensureDynamicBuiltins();
     this.procNativeMethods = {
       status: this.makeNativeFunction("Proc.status", 1, (interp, args) => {
@@ -281,6 +287,7 @@ applyChannelMutexAugmentations(Interpreter);
 applyStringHostAugmentations(Interpreter);
 applyHasherHostAugmentations(Interpreter);
 applyNumericHostAugmentations(Interpreter);
+applyOsHostAugmentations(Interpreter);
 applyDynamicAugmentations(Interpreter);
 applyEvaluationAugmentations(Interpreter);
 applyConcurrencyAugmentations(Interpreter);

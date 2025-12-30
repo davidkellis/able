@@ -263,7 +263,7 @@ export function collectMethodsDefinition(ctx: ImplementationContext, definition:
   const substitutionMap = new Map<string, TypeInfo>();
   genericParams.forEach((name) => substitutionMap.set(name, unknownType));
   const selfType = ctx.resolveTypeExpression(targetType, substitutionMap);
-  const canonicalTarget = typeInfoToTypeExpression(selfType) ?? targetType ?? definition.targetType;
+  const canonicalTarget = targetType ?? definition.targetType;
   const structLabel =
     ctx.describeTypeArgument(selfType ?? unknownType) ??
     ctx.formatImplementationTarget(canonicalTarget) ??
@@ -290,6 +290,7 @@ export function collectMethodsDefinition(ctx: ImplementationContext, definition:
           structName,
           structBaseName,
           typeParamNames: record.genericParams,
+          fromMethodSet: true,
         });
         if (entry.id?.name && methodObligations.length > 0) {
           const fullName = `${structName ?? structLabel}::${entry.id.name}`;

@@ -1,0 +1,17 @@
+package os
+import able.kernel.{Array}
+
+## Returns command-line arguments passed to the program.
+fn args() -> Array String {
+  __able_os_args()
+}
+
+## Terminates the program with the provided exit code.
+fn exit(code: i32) -> void {
+  __able_os_exit(code)
+}
+
+extern typescript fn __able_os_args() -> Array String {}
+extern go fn __able_os_args() -> Array String {}
+extern typescript fn __able_os_exit(code: i32) -> void {}
+extern go fn __able_os_exit(code: i32) -> void {}

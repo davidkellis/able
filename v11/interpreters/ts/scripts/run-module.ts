@@ -13,6 +13,7 @@ import { ModuleLoader, type Program } from "./module-loader";
 import { callCallableValue } from "../src/interpreter/functions";
 import { collectModuleSearchPaths, type ModuleSearchPath } from "./module-search-paths";
 import { buildExecutionSearchPaths, loadManifestContext } from "./module-deps";
+import { ExitSignal } from "../src/interpreter/signals";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_VERSION = process.env.ABLE_TS_VERSION ?? "able-ts dev";
@@ -117,6 +118,7 @@ async function handleRunCommand(args: string[]): Promise<void> {
     process.exitCode = 1;
     return;
   }
+  const programArgs = args.slice(1);
   const entryPath = await resolveEntryPath(entry);
   if (!entryPath) {
     process.exitCode = 1;
@@ -133,7 +135,7 @@ async function handleRunCommand(args: string[]): Promise<void> {
     return;
   }
 
-  const interpreter = new V11.Interpreter();
+  const interpreter = new V11.Interpreter({ args: programArgs });
   ensureConsolePrint(interpreter);
   installRuntimeStubs(interpreter);
 
@@ -163,6 +165,10 @@ async function invokeEntryMain(interpreter: V11.Interpreter, entry: Program["ent
     const callNode = AST.functionCall(AST.identifier("main"), []);
     callCallableValue(interpreter as any, mainValue, [], interpreter.globals, callNode);
   } catch (error) {
+    if (error instanceof ExitSignal) {
+      process.exitCode = error.code;
+      return;
+    }
     console.error(`runtime error: ${extractErrorMessage(error)}`);
     process.exitCode = 1;
   }
@@ -290,6 +296,10 @@ async function evaluateProgram(interpreter: V11.Interpreter, modules: Program["m
     try {
       interpreter.evaluate(mod.module);
     } catch (error) {
+      if (error instanceof ExitSignal) {
+        process.exitCode = error.code;
+        return false;
+      }
       console.error(`runtime error: ${extractErrorMessage(error)}`);
       process.exitCode = 1;
       return false;

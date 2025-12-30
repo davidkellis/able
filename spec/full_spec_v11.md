@@ -1322,7 +1322,7 @@ Operators are evaluated in a specific order determined by precedence (higher bin
 | 12         | `-` (unary)           | Arithmetic Negation                     | Non-assoc     | (Effectively Right-to-left in practice)                 |
 | 12         | `!` (unary)           | **Logical NOT**                         | Non-assoc     | (Effectively Right-to-left in practice)                 |
 | 12         | `.~` (unary)          | **Bitwise NOT (Complement)**            | Non-assoc     | (Effectively Right-to-left in practice)                 |
-| 11         | `*`, `/`, `//`, `%`, `/%` | Multiplication; float div; floor div; modulo; div-with-remainder | Left-to-right | `%` and `/%` follow Euclidean rules on integers. |
+| 11         | `*`, `/`, `//`, `%`, `/%` | Multiplication; float div; Euclidean int div; modulo; div-with-remainder | Left-to-right | `//`, `%`, and `/%` use Euclidean integer division. |
 | 10         | `+`, `-` (binary)     | Addition, Subtraction                   | Left-to-right |                                                           |
 | 9          | `.<<`, `.>>`          | Left Shift, Right Shift                 | Left-to-right |                                                           |
 | 8          | `.&` (binary)         | Bitwise AND                             | Left-to-right |                                                           |
@@ -1364,8 +1364,8 @@ Operators are evaluated in a specific order determined by precedence (higher bin
             ```
     *   **Division family:**
         -   `/` (float division): follows promotion rules above; integer / integer yields `f64`. Division by zero **raises** `DivisionByZeroError`.
-        -   `//` (Euclidean floor division): integers only. `q = floor(a / b)`; zero divisor **raises** `DivisionByZeroError`. Examples: `5 // 3 = 1`; `-5 // 3 = -2`.
-        -   `%` (Euclidean modulo): integers only. `r = a - b * floor(a / b)`; guarantees `0 <= r < |b|` when `b != 0`. Zero divisor **raises** `DivisionByZeroError`. Examples: `5 % 3 = 2`; `-5 % 3 = 1`.
+        -   `//` (Euclidean integer division): integers only. Defines `q` and `r` such that `a = b * q + r` and `0 <= r < |b|` when `b != 0`. If `b > 0`, this matches `q = floor(a / b)`; if `b < 0`, it matches `q = ceil(a / b)`. Zero divisor **raises** `DivisionByZeroError`. Examples: `5 // 3 = 1`; `-5 // 3 = -2`; `5 // -3 = -1`; `-5 // -3 = 2`.
+        -   `%` (Euclidean remainder): integers only. `r` is the non-negative remainder from the Euclidean pair above. Zero divisor **raises** `DivisionByZeroError`. Examples: `5 % 3 = 2`; `-5 % 3 = 1`; `5 % -3 = 2`; `-5 % -3 = 1`.
         -   `/%` (Euclidean div-with-remainder): integers only. Returns `DivMod<T> { quotient: T, remainder: T }` where `T` matches the operand integer type. Uses the same `q`/`r` as `//`/`%`; zero divisor **raises** `DivisionByZeroError`.
     *   **Exponentiation (`^`):**
         -   Floats: follows IEEE-754; negative exponents allowed; `NaN`/`Inf` propagate per host rules.
@@ -1938,8 +1938,14 @@ Implementation note: these helpers live in the Able stdlib and are backed by ker
 **`DivMod`**
 
 -   Built-in generic struct surfaced by the prelude: `struct DivMod T { quotient: T, remainder: T }`.
--   Produced by the `/%` operator on integer operands. `quotient`/`remainder` use the Euclidean pair: `q = floor(a / b)`, `r = a - b*q`, so `0 <= r < |b|` when `b != 0`.
+-   Produced by the `/%` operator on integer operands. `quotient`/`remainder` use the Euclidean pair `a = b*q + r` with `0 <= r < |b|` (so `q` is floor-based when `b > 0` and ceil-based when `b < 0`).
 -   Division by zero raises `DivisionByZeroError`.
+
+**Flooring helpers**
+
+-   Stdlib functions `div_floor`, `mod_floor`, and `div_mod_floor` are provided for integer types and forward to the matching integer methods.
+-   Semantics follow floor division: `q = floor(a / b)` and `r = a - b*q`. For `b > 0`, this matches Euclidean `//`/`%`; for `b < 0`, the remainder is negative or zero.
+-   Each integer type also exposes methods `div_floor`, `mod_floor`, and `div_mod_floor` with the same semantics and error behavior (division by zero raises `DivisionByZeroError`).
 
 ## 7. Functions
 
@@ -4132,9 +4138,12 @@ The `import` statement makes identifiers from other packages available in the cu
     -   The only way to get a distinct nominal type is to declare a new `struct/union/interface` with its own name. Aliases (§4.7) and re-exports never introduce a fresh nominal type.
 *   **Aliases extend the underlying type (even when the alias is private)**:
     -   `type Alias = Target` never introduces a new nominal type. Any `methods Alias { ... }` or `impl Interface for Alias` attaches to `Target`.
-    -   The alias binding itself follows normal visibility rules; a private alias cannot be imported. However, public methods/impls defined for that alias are exported and become available to all packages that import the defining package. Consumers do **not** need the alias binding to call those methods; importing the package is enough.
+    -   The alias binding itself follows normal visibility rules; a private alias cannot be imported. However, public methods/impls defined for that alias are exported and become available to all packages that import the defining package (directly or through a re-exporting package that depends on it). Consumers do **not** need the alias binding to call those methods; importing the package is enough.
+    -   Method/impl visibility is determined by the method/impl declaration's own `private` flag, not by the alias binding's visibility.
+    -   Alias chains must be fully expanded to the canonical underlying type before method-set/impl lookup and dispatch.
     -   This applies to all packages, not just `able.kernel`: a package that wraps `foo.Bar` with `type Baz = foo.Bar` can add methods on `Baz`, and those methods extend `foo.Bar` for any client that imports the wrapper package.
     -   Implementations and method sets must be keyed by the canonical underlying type so that alias visibility does not gate method availability. The only way to obtain a distinct nominal type is to declare a fresh `struct/union/interface`.
+    -   If multiple visible method sets attach the same method signature to the same canonical type, the call is ambiguous. Distinct signatures participate in overload resolution per §7.7; `impl` selection still follows §10.2.5.
 
 #### Dynamic Imports (`dynimport`)
 

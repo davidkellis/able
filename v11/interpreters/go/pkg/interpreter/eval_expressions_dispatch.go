@@ -455,6 +455,9 @@ func (i *Interpreter) evaluateUnaryExpression(expr *ast.UnaryExpression, env *ru
 		case runtime.FloatValue:
 			return runtime.FloatValue{Val: -v.Val, TypeSuffix: v.TypeSuffix}, nil
 		default:
+			if result, ok, err := i.applyUnaryInterface(string(expr.Operator), operand); ok {
+				return result, err
+			}
 			return nil, fmt.Errorf("unary '-' not supported for %T", operand)
 		}
 	case "!":
@@ -478,6 +481,9 @@ func (i *Interpreter) evaluateUnaryExpression(expr *ast.UnaryExpression, env *ru
 			neg := new(big.Int).Neg(new(big.Int).Add(v.Val, big.NewInt(1)))
 			return runtime.IntegerValue{Val: neg, TypeSuffix: v.TypeSuffix}, nil
 		default:
+			if result, ok, err := i.applyUnaryInterface(string(expr.Operator), operand); ok {
+				return result, err
+			}
 			return nil, fmt.Errorf("unary '%s' not supported for %T", expr.Operator, operand)
 		}
 	default:

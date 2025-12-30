@@ -9,7 +9,11 @@
       "sum 3 4",
       "divmod 2 1",
       "divmod2 -3 2",
-      "divmod3 -2 1"
+      "divmod3 -2 1",
+      "floor -2",
+      "floor_method -2",
+      "mod -1",
+      "floorpair 1 -2"
     ],
     "exit": 0
   }

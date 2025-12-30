@@ -1,0 +1,7 @@
+package alias_reexport_impl_ambiguity_base
+
+interface Taggable for T {
+  fn tag(self: Self) -> String
+}
+
+struct Widget { value: i32 }

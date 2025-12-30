@@ -584,6 +584,7 @@ function collectUnifiedMemberCandidates(
       : false;
   const allowInherent = unqualifiedInScope || typeNameInScope || isPrimitiveReceiver;
   const bySignature = new Map<string, FunctionInfo>();
+  const methodSetDuplicates = new Set<FunctionInfo>();
   const signatureKey = (entry: FunctionInfo): string => {
     const paramSig = (entry.parameters ?? []).map((param) => formatType(param ?? unknownType)).join("|");
     const receiverLabel = entry.structName ?? "";
@@ -630,9 +631,10 @@ function collectUnifiedMemberCandidates(
     }
     return { ...entry, methodSetSubstitutions: Array.from(mapped.entries()) };
   };
-  const append = (entries: FunctionInfo[]) => {
+  const append = (entries: FunctionInfo[], options?: { skipMethodSets?: boolean }) => {
     for (const entry of entries) {
       if (!entry) continue;
+      if (options?.skipMethodSets && entry.fromMethodSet) continue;
       if (!candidateAllowed(entry)) continue;
       const enriched = enrichMethodSubstitutions(entry);
       const key = signatureKey(enriched);
@@ -641,6 +643,10 @@ function collectUnifiedMemberCandidates(
       const existing = bySignature.get(key);
       const existingPriority =
         typeof existing?.methodResolutionPriority === "number" ? existing.methodResolutionPriority : Number.NEGATIVE_INFINITY;
+      if (existing && existing.fromMethodSet && enriched.fromMethodSet) {
+        methodSetDuplicates.add(existing);
+        methodSetDuplicates.add(enriched);
+      }
       if (!existing || incomingPriority > existingPriority) {
         bySignature.set(key, enriched);
       }
@@ -649,13 +655,17 @@ function collectUnifiedMemberCandidates(
       }
     }
   };
-  append(ctx.functionInfos.get(`${receiver.label}::${memberName}`) ?? []);
+  append(ctx.functionInfos.get(`${receiver.label}::${memberName}`) ?? [], { skipMethodSets: true });
   if (receiver.lookupType.kind === "struct" && receiver.lookupType.name) {
-    append(ctx.functionInfos.get(`${receiver.lookupType.name}::${memberName}`) ?? []);
+    append(ctx.functionInfos.get(`${receiver.lookupType.name}::${memberName}`) ?? [], { skipMethodSets: true });
   }
+  const methodSetLabel =
+    receiver.typeQualifier ??
+    (receiver.lookupType.kind === "struct" ? receiver.lookupType.name : null) ??
+    receiver.label;
   const genericMatches = lookupMethodSetsForCallHelper(
     ctx.implementationContext,
-    receiver.label,
+    methodSetLabel,
     memberName,
     receiver.lookupType,
   );
@@ -663,7 +673,15 @@ function collectUnifiedMemberCandidates(
   if (!methodSignatures.size) {
     append(resolveUfcsFreeFunctionCandidates(ctx, receiver.lookupType, memberName, unqualifiedInScope));
   }
-  return Array.from(bySignature.values());
+  const results = Array.from(bySignature.values());
+  if (methodSetDuplicates.size > 0) {
+    for (const entry of methodSetDuplicates) {
+      if (!results.includes(entry)) {
+        results.push(entry);
+      }
+    }
+  }
+  return results;
 }
 
 function resolveFunctionTypeCandidate(

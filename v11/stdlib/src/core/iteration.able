@@ -14,8 +14,8 @@ interface Iterable T for Self {
     loop {
       nxt := it.next();
       nxt match {
-        case value: T => visit(value),
-        case IteratorEnd => break
+        case IteratorEnd {} => { break },
+        case value => visit(value)
       }
     }
   }

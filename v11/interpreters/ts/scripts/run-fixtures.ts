@@ -28,6 +28,7 @@ import {
 import { startRunTimeout } from "./test-timeouts";
 import { serializeMapEntries } from "../src/interpreter/maps";
 import { callCallableValue } from "../src/interpreter/functions";
+import { ExitSignal } from "../src/interpreter/signals";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_ROOT = path.resolve(__dirname, "../../../fixtures/ast");
@@ -268,6 +269,7 @@ async function runExecFixture(dir: string): Promise<FixtureResult> {
   );
   let exitCode = 0;
   let runtimeError: unknown;
+  let exitSignaled = false;
 
   try {
     const nonEntry = program.modules.filter((mod) => mod.packageName !== program.entry.packageName);
@@ -282,8 +284,13 @@ async function runExecFixture(dir: string): Promise<FixtureResult> {
     }
     callCallableValue(interpreter as any, mainFn, [], interpreter.globals);
   } catch (err) {
-    exitCode = 1;
-    runtimeError = err;
+    if (err instanceof ExitSignal) {
+      exitSignaled = true;
+      exitCode = err.code;
+    } else {
+      exitCode = 1;
+      runtimeError = err;
+    }
   }
 
   const expected = manifest.expect ?? {};
@@ -311,6 +318,8 @@ async function runExecFixture(dir: string): Promise<FixtureResult> {
     if (exitCode !== expected.exit) {
       throw new Error(`exit code mismatch for ${dir}: expected ${expected.exit}, got ${exitCode}`);
     }
+  } else if (exitSignaled) {
+    throw new Error(`exit code mismatch for ${dir}: expected default exit, got ${exitCode}`);
   } else if (runtimeError) {
     throw runtimeError instanceof Error ? runtimeError : new Error(String(runtimeError));
   }

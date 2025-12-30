@@ -24,7 +24,12 @@
 - Unicode correctness: pattern escapes and character classes operate on Unicode scalar values. When grapheme mode is enabled the engine segments haystacks using the standard library `Grapheme` iterator.
 - Deterministic runtime: compiled regex values are immutable and can be shared across threads/procs safely.
 - Error handling uses `Result`/`RegexError` with precise location data; mis-specified patterns never panic.
-- Keep Able code as the orchestration layer, with host interpreters providing perf-critical primitives via well-defined extern hooks.
+- Keep the regex engine entirely in Able stdlib with no host regex hooks.
+
+## Current Implementation Notes (Phase 1 Stub)
+- The stdlib regex module is stubbed; compile/match/find_all/scan raise `RegexUnsupportedFeature`.
+- `match_regex` falls back to string equality while the stdlib engine is pending.
+- The exec fixture coverage for regex is quarantined until the pure-Able implementation lands.
 
 ## Module Layout
 - New package namespace: `able.text.regex`.
@@ -34,7 +39,7 @@
   - `stdlib/src/text/regex_builder.able` — programmatic construction utilities (phase 3).
   - `stdlib/src/text/regex_set.able` — multi-pattern support (phase 2).
   - `stdlib/src/text/regex_scanner.able` — streaming interfaces (phase 2).
-- Runtime-facing shims live under `able.core.host.regex` (one file per target) to keep host dependencies explicit.
+- No runtime-facing regex shims; the engine lives entirely in stdlib.
 
 ## Public API Surface
 ### Core Types
@@ -100,37 +105,24 @@
    - Validates syntax, emits errors with spans.
    - Expands inline flags into scoped option stacks.
 
-2. **IR & Compilation (Able + Host)**  
+2. **IR & Compilation (Able)**  
    - Convert AST to a Thompson NFA with tagged transitions for capture groups and lookaround boundaries.  
    - Optionally determinize to a DFA or lazily run the NFA using thread sets.  
    - Emit a canonical `RegexProgram` structure (states, transitions, epsilon closures, tags).  
-   - Serialize `RegexProgram` via a compact byte buffer for host execution.
+   - Store `RegexProgram` as stdlib data for interpretation and reuse.
 
-3. **Execution Engine (Host)**  
-   - Interpreters expose externs:
-     - `__able_regex_compile(program_bytes: string, options: RegexFlags) -> i64`
-     - `__able_regex_free(handle: i64) -> void`
-     - `__able_regex_is_match(handle: i64, haystack: string) -> bool`
-     - `__able_regex_find(handle: i64, haystack: string, start: i32) -> RegexMatchResult`
-     - `__able_regex_iter_next(state_handle: i64) -> RegexMatchResult`
-     - `__able_regex_scanner_new(handle: i64) -> i64`
-     - `__able_regex_scanner_feed(scanner: i64, chunk: string) -> void`
-     - `__able_regex_scanner_next(scanner: i64) -> RegexMatchResult`
-     - `__able_regex_scanner_free(scanner: i64) -> void`
-   - `RegexMatchResult` is a host-supplied struct bridged into Able (spans + capture array).
-   - Go backend uses a custom DFA runner; TypeScript backend uses a compiled bytecode interpreter running in JS.
+3. **Execution Engine (Stdlib)**  
+   - Regex execution remains in Able code using the automata primitives; no host extern hooks.
 
 4. **Caching & Thread Safety**  
-   - `RegexHandle` wraps a ref-counted host handle; Able destructors call `__able_regex_free`.  
-   - Memoize compiled handles per pattern/options combination via a weak map to avoid duplicate compilation.
+   - `RegexHandle` wraps compiled program state and is shareable across threads/procs.  
+   - Memoize compiled handles per pattern/options combination to avoid duplicate compilation.
 
 5. **RegexSet Implementation**  
-   - Combine patterns into a single automaton by building a unified start state with tagged accept states.  
-   - Host runner returns the set of accepting pattern indices for each match.
+   - Combine patterns into a single automaton by building a unified start state with tagged accept states.
 
 6. **Streaming Scanner**  
-   - Host exposes incremental matching state; the Able wrapper handles chunk boundaries and ensures matches spanning chunks are emitted correctly.  
-   - Supports `proc` scheduling by yielding between `feed`/`next` calls when requested.
+   - Stdlib manages incremental matching state, chunk boundaries, and `proc`-friendly yielding.
 
 ## Testing & Tooling
 - Add Able-level unit tests covering:
@@ -168,7 +160,7 @@ Each phase should land with synchronized Go/TypeScript implementations, updated 
 ## Follow-up Tasks
 - Draft spec additions describing regex syntax, option semantics, and result structures.
 - Update `PLAN.md` and `spec/todo.md` to track regex milestones.
-- Coordinate with interpreter teams to schedule host backend work (Go: integrate with `regexp/syntax` where possible; TS: bundle the bytecode VM).
+- Coordinate with interpreter teams to validate stdlib regex performance and ensure TS/Go parity without host hooks.
 - Revisit `docs/testing-matchers.md` once `match_regex` is backed by the real engine.
 - Investigate exposing regex support in CLI tooling (e.g., future `able test --filter` flag) after Phase 1 stabilizes.
 - Coordinate with string runtime work so `String::chars()` / `String::graphemes()` are available before Phase 1; add fixtures covering combining-mark and emoji segmentation.

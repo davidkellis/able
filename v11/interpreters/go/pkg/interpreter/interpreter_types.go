@@ -27,7 +27,9 @@ func (i *Interpreter) getTypeInfoForValue(value runtime.Value) (typeInfo, bool) 
 		runtime.IntegerValue, *runtime.IntegerValue,
 		runtime.FloatValue, *runtime.FloatValue,
 		*runtime.ArrayValue,
-		*runtime.IteratorValue:
+		*runtime.IteratorValue,
+		runtime.IteratorEndValue,
+		*runtime.IteratorEndValue:
 		typeExpr := i.typeExpressionFromValue(value)
 		if info, ok := parseTypeExpression(typeExpr); ok {
 			return info, true
@@ -70,6 +72,13 @@ func (i *Interpreter) typeExpressionFromValue(value runtime.Value) ast.TypeExpre
 		return ast.Ty("nil")
 	case runtime.VoidValue:
 		return ast.Ty("void")
+	case runtime.IteratorEndValue:
+		return ast.Ty("IteratorEnd")
+	case *runtime.IteratorEndValue:
+		if v == nil {
+			return nil
+		}
+		return ast.Ty("IteratorEnd")
 	case runtime.IntegerValue:
 		return ast.Ty(string(v.TypeSuffix))
 	case *runtime.IntegerValue:
@@ -418,6 +427,8 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 			default:
 				return false
 			}
+		case "IteratorEnd":
+			return i.isIteratorEnd(value)
 		case "Iterator":
 			switch value.(type) {
 			case *runtime.IteratorValue:

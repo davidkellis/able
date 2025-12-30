@@ -1,0 +1,25 @@
+package alias_base
+
+import able.kernel.{Range::KernelRange}
+
+## Semantics: private alias methods/impls attach to the underlying type.
+
+interface Marker for Self {
+  fn marker(self: Self) -> String
+}
+
+private type LocalRange = KernelRange
+
+methods LocalRange {
+  fn label(self: Self) -> String {
+    `range ${self.start}-${self.end}`
+  }
+
+  fn make(start: i32, end: i32) -> KernelRange {
+    KernelRange { start: start, end: end, inclusive: true }
+  }
+}
+
+impl Marker for LocalRange {
+  fn marker(self: Self) -> String { `marker ${self.start}:${self.end}` }
+}

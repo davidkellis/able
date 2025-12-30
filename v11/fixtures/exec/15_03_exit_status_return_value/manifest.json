@@ -1,0 +1,7 @@
+{
+  "description": "os.exit returns a custom exit code and stops execution",
+  "expect": {
+    "stdout": ["before exit"],
+    "exit": 12
+  }
+}
