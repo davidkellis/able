@@ -1,0 +1,37 @@
+package linked_list_specs
+
+import able.spec.*
+import able.kernel.{Array}
+import able.collections.array
+import able.collections.linked_list.{LinkedList, ListNode}
+
+describe("LinkedList") { suite =>
+  suite.it("pushes and pops from both ends") { _ctx =>
+    list: LinkedList String := LinkedList.new()
+    list.push_front("b")
+    list.push_front("a")
+    list.push_back("c")
+
+    expect(list.len()).to(eq(3))
+    expect(list.pop_front()).to(eq("a"))
+    expect(list.pop_back()).to(eq("c"))
+    expect(list.pop_back()).to(eq("b"))
+    expect(list.is_empty()).to(be_truthy())
+  }
+
+  suite.it("inserts and removes via node handles") { _ctx =>
+    list: LinkedList i32 := LinkedList.new()
+    head := list.push_back(1)
+    middle := list.insert_after(head, 2)
+    list.insert_after(middle, 3)
+
+    expect(list.len()).to(eq(3))
+    expect(list.remove_node(middle)).to(eq(2))
+    expect(list.len()).to(eq(2))
+
+    acc: Array i32 := Array.new()
+    list.for_each(fn(value: i32) -> void { acc.push(value) })
+    expect(acc.get(0)).to(eq(1))
+    expect(acc.get(1)).to(eq(3))
+  }
+}

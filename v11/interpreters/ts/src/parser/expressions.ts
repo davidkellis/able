@@ -664,9 +664,41 @@ function parseExpressionList(node: Node, source: string): BlockExpression {
     const child = node.namedChild(i);
     if (!child || !child.isNamed || isIgnorableNode(child)) continue;
     const stmt = ctx.parseStatement(child);
-    if (stmt) {
-      statements.push(stmt);
+    if (!stmt) continue;
+    if (stmt.type === "LambdaExpression" && statements.length > 0) {
+      const prev = statements[statements.length - 1];
+      if (prev.type === "AssignmentExpression") {
+        const rhs = prev.right;
+        if (rhs.type === "FunctionCall") {
+          if (rhs.arguments.length === 0 || rhs.arguments[rhs.arguments.length - 1] !== stmt) {
+            rhs.arguments.push(stmt);
+          }
+          rhs.isTrailingLambda = true;
+          continue;
+        }
+        if ((rhs as Expression).type) {
+          const call = inheritMetadata(AST.functionCall(rhs as Expression, [], undefined, true), rhs as Expression, stmt);
+          call.arguments.push(stmt);
+          prev.right = call;
+          continue;
+        }
+      }
+      if (prev.type === "FunctionCall") {
+        const call = prev as FunctionCall;
+        if (call.arguments.length === 0 || call.arguments[call.arguments.length - 1] !== stmt) {
+          call.arguments.push(stmt);
+        }
+        call.isTrailingLambda = true;
+        continue;
+      }
+      if ((prev as Expression).type) {
+        const call = inheritMetadata(AST.functionCall(prev as Expression, [], undefined, true), prev as Expression, stmt);
+        call.arguments.push(stmt);
+        statements[statements.length - 1] = call;
+        continue;
+      }
     }
+    statements.push(stmt);
   }
   return annotateExpressionNode(AST.blockExpression(statements), node) as BlockExpression;
 }

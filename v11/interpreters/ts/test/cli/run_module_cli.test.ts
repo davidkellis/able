@@ -401,12 +401,16 @@ fn available() -> void {}
     expect(result.stderr).toContain("ABLE_TYPECHECK_FIXTURES=warn");
   });
 
-  test("test command summarizes plan in list mode", () => {
-    const result = runTestCli(["--list"]);
-    expect(result.status).toBe(2);
-    expect(result.stdout).toContain("able test plan (skeleton)");
-    expect(result.stdout).toContain("list_only=true");
-    expect(result.stderr).toContain("able test CLI skeleton");
+  test("test command reports empty workspace in list mode", () => {
+    const result = runTestCli(["--list"], {
+      workspace: {
+        manifestName: "cli_empty",
+        files: {},
+      },
+    });
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("able test: no test modules found");
+    expect(result.stderr).toBe("");
   });
 
   test("test command parses filters, run options, and targets", () => {
@@ -417,7 +421,7 @@ fn available() -> void {}
         "--exclude-path",
         "tmp",
         "--name",
-        "spec",
+        "example works",
         "--exclude-name",
         "skip",
         "--tag",
@@ -434,7 +438,6 @@ fn available() -> void {}
         "--shuffle",
         "123",
         "--dry-run",
-        "--update-snapshots",
         ".",
       ],
       {
@@ -444,21 +447,26 @@ fn available() -> void {}
             "tests/example.test.able": `
 package tests
 
-fn main() -> void {}
+import able.spec.*
+
+describe("example") { suite =>
+  suite.module_path("pkg")
+  suite.tag("fast")
+  suite.it("works") { _ctx =>
+    expect(1).to(eq(1))
+  }
+}
 `,
           },
         },
       },
     );
-    expect(result.status).toBe(2);
-    expect(result.stdout).toContain("targets=.");
-    expect(result.stdout).toContain("include_paths=pkg");
-    expect(result.stdout).toContain("exclude_tags=flaky");
-    expect(result.stdout).toContain("format=progress");
-    expect(result.stdout).toContain("repeat=3");
-    expect(result.stdout).toContain("shuffle_seed=123");
-    expect(result.stdout).toContain("list_only=true");
-    expect(result.stdout).toContain("update_snapshots=true");
+    expect(result.status).toBe(0);
+    expect(result.stderr).toBe("");
+    expect(result.stdout).toContain("able.spec");
+    expect(result.stdout).toContain("example");
+    expect(result.stdout).toContain("tags=");
+    expect(result.stdout).toContain("metadata=");
   });
 });
 

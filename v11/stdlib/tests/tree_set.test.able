@@ -1,0 +1,35 @@
+package tree_set_specs
+
+import able.spec.*
+import able.kernel.{Array}
+import able.collections.array
+import able.collections.tree_set.{TreeSet}
+
+describe("TreeSet") { suite =>
+  suite.it("inserts unique values and iterates in order") { _ctx =>
+    set: TreeSet i32 := TreeSet.new()
+    set.insert(2)
+    set.insert(1)
+    set.insert(2)
+    set.insert(3)
+
+    expect(set.len()).to(eq(3))
+    expect(set.contains(1)).to(be_truthy())
+
+    acc: Array i32 := Array.new()
+    set.each(fn(value: i32) -> void { acc.push(value) })
+    expect(acc.get(0)).to(eq(1))
+    expect(acc.get(2)).to(eq(3))
+  }
+
+  suite.it("removes values and reports empty state") { _ctx =>
+    set: TreeSet String := TreeSet.new()
+    set.insert("a")
+    set.insert("b")
+    removed := set.remove("a")
+    expect(removed).to(be_truthy())
+    expect(set.contains("a")).to(be_false())
+    set.remove("b")
+    expect(set.is_empty()).to(be_truthy())
+  }
+}

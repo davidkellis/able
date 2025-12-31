@@ -73,11 +73,6 @@ func (c *declarationCollector) collectImplementationDefinition(def *ast.Implemen
 	scope["Self"] = targetType
 	targetLabel := nonEmpty(typeName(targetType))
 
-	interfaceArgs := make([]Type, len(def.InterfaceArgs))
-	for i, arg := range def.InterfaceArgs {
-		interfaceArgs[i] = c.resolveTypeExpression(arg, scope)
-	}
-
 	var ifaceType InterfaceType
 	if interfaceName != "" {
 		if decl, ok := c.env.Lookup(interfaceName); ok {
@@ -97,8 +92,13 @@ func (c *declarationCollector) collectImplementationDefinition(def *ast.Implemen
 		}
 	}
 
+	expectedParams := len(ifaceType.TypeParams)
+	interfaceArgs := make([]Type, len(def.InterfaceArgs))
+	for i, arg := range def.InterfaceArgs {
+		interfaceArgs[i] = c.resolveTypeExpression(arg, scope)
+	}
+
 	if interfaceName != "" {
-		expectedParams := len(ifaceType.TypeParams)
 		providedArgs := len(def.InterfaceArgs)
 		if expectedParams == 0 && providedArgs > 0 {
 			c.diags = append(c.diags, Diagnostic{

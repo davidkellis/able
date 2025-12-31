@@ -1,11 +1,15 @@
 # Able Testing Matchers (Draft)
 
-Able's stdlib ships a growing set of expectation helpers layered on top of `able.testing.expect`. This note captures the current matcher catalog and shows how to compose it in test files.
+This document describes the **user-facing** test framework matchers intended for
+Able program authors. It is not related to language implementation fixtures,
+parity harnesses, or spec conformance testing, which use separate tooling.
+
+Able's stdlib ships a growing set of expectation helpers layered on top of `able.spec.expect`. This note captures the current matcher catalog and shows how to compose it in test files.
 
 ## Usage Basics
 
 ```able
-import able.testing.rspec{describe, expect, eq, be_truthy}
+import able.spec{describe, expect, eq, be_truthy}
 
 describe("Math") { suite =>
   suite.it("adds numbers") { _ctx =>
@@ -26,7 +30,7 @@ describe("Math") { suite =>
 Custom matchers can be built at the call site:
 
 ```able
-import able.testing.rspec{expect, matcher}
+import able.spec{expect, matcher}
 
 let even = matcher("expected value to be even", "expected value to be odd", fn(value: i64) -> bool {
   value % 2 == 0
@@ -49,7 +53,7 @@ expect(6).to(even_with_details)
 Use `example_options()` to configure tags, focus, or skip behaviour programmatically:
 
 ```able
-import able.testing.rspec{describe, example_options}
+import able.spec{describe, example_options}
 
 describe("options") { suite =>
   let opts = example_options().tag("fast").focus()
@@ -112,35 +116,6 @@ expect(numbers).to(contain_all([1, 2, 3]))
 
 Use inside function expectations: `expect(fn() { dangerous() }).to(raise_error())`.
 
-## Snapshots
-
-Snapshots capture text output and compare it against stored expectations.
-
-```able
-import able.testing.snapshots{snapshot_clear, snapshot_set_update_mode}
-
-snapshot_clear()
-snapshot_set_update_mode(true)
-expect(render_view()).to(match_snapshot("dashboard"))
-
-snapshot_set_update_mode(false)
-expect(render_view()).to(match_snapshot("dashboard"))
-```
-
-- Enable update mode (CLI flag `--update-snapshots`) to record/refresh snapshots. Otherwise tests fail when snapshots are missing or diverge.
-- Custom storage implementations can be injected via `match_snapshot_with_store(name, SnapshotStore { ... })`.
-- Current default store is in-memory; CLI will eventually provide a file-backed store.
-
-## Snapshot Store Helpers
-
-`able.testing.snapshots` exposes:
-
-| Helper | Purpose |
-|--------|---------|
-| `snapshot_set_update_mode(bool)` | Toggles update behaviour (record/overwrite). |
-| `snapshot_clear()` | Resets the in-memory store (useful in tests). |
-| `SnapshotStore(read, write, update)` | Constructs custom stores (e.g., file-backed). |
-
 ## Reporters Recap
 
 - `DocReporter` emits readable lines: `Suite example … ok`.
@@ -149,5 +124,4 @@ expect(render_view()).to(match_snapshot("dashboard"))
 
 ## TODO / Future Work
 
-- Implement file-backed snapshot store and diff formatting.
 - Extend matcher set with structural diffs, numeric closeness for integers/floats of other widths, and custom matcher authoring docs.

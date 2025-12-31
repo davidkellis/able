@@ -72,13 +72,16 @@ export function parseTypeExpression(ctx: ParseContext, node: Node | null | undef
   switch (node.type) {
     case "return_type":
     case "type_expression":
+    case "interface_type_expression":
     case "type_prefix":
-    case "type_atom": {
+    case "interface_type_prefix":
+    case "type_atom":
+    case "interface_type_atom": {
       if (node.namedChildCount === 0) break;
       const child = firstNamedChild(node);
       if (child && child !== node) {
         const expr = parseTypeExpression(ctx, child);
-        if (node.type === "type_prefix" && expr) {
+        if ((node.type === "type_prefix" || node.type === "interface_type_prefix") && expr) {
           let text = sliceText(node, source).trim();
           let result: TypeExpression | null = expr;
           while (text.startsWith("?") || text.startsWith("!")) {
@@ -98,7 +101,8 @@ export function parseTypeExpression(ctx: ParseContext, node: Node | null | undef
       }
       break;
     }
-    case "type_suffix": {
+    case "type_suffix":
+    case "interface_type_suffix": {
       if (node.namedChildCount > 1) {
         const base = parseTypeExpression(ctx, node.namedChild(0));
         const args: TypeExpression[] = [];
@@ -123,7 +127,8 @@ export function parseTypeExpression(ctx: ParseContext, node: Node | null | undef
       }
       break;
     }
-    case "type_arrow": {
+    case "type_arrow":
+    case "interface_type_arrow": {
       if (node.namedChildCount >= 2) {
         const [paramTypes, ok] = parseFunctionParameterTypes(ctx, node.namedChild(0));
         if (ok && paramTypes) {
@@ -151,7 +156,8 @@ export function parseTypeExpression(ctx: ParseContext, node: Node | null | undef
       if (args.length === 0) return annotateTypeExpressionNode(base, node);
       return annotateTypeExpressionNode(applyGenericType(base, args) ?? base, node);
     }
-    case "type_union": {
+    case "type_union":
+    case "interface_type_union": {
       const members: TypeExpression[] = [];
       for (let i = 0; i < node.namedChildCount; i++) {
         const child = node.namedChild(i);

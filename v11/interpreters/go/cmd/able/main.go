@@ -46,6 +46,8 @@ func run(args []string) int {
 		return runEntry(args[1:])
 	case "check":
 		return runCheck(args[1:])
+	case "test":
+		return runTest(args[1:])
 	case "deps":
 		return runDeps(args[1:])
 	default:
@@ -902,6 +904,7 @@ func printUsage() {
 	fmt.Fprintln(os.Stderr, "  able <file.able>")
 	fmt.Fprintln(os.Stderr, "  able check [target]")
 	fmt.Fprintln(os.Stderr, "  able check <file.able>")
+	fmt.Fprintln(os.Stderr, "  able test [paths]")
 	fmt.Fprintln(os.Stderr, "  able deps install")
 	fmt.Fprintln(os.Stderr, "  able deps update [dependency ...]")
 }

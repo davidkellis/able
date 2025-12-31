@@ -3,7 +3,7 @@
 ## Goals
 
 - Provide a cohesive standard library surface for filesystem operations that works consistently across Able runtimes.
-- Support both high-level helpers (e.g., `read_text`) and lower-level streaming primitives (`File`) so advanced features (snapshot store, tooling) can build on the same package.
+- Support both high-level helpers (e.g., `read_text`) and lower-level streaming primitives (`File`) so advanced tooling can build on the same package.
 - Use idiomatic Able error handling (`!T`, domain-specific `Error` types) instead of exceptions for routine failures.
 - Keep the package modular to allow future expansion (temporary files, networking) without overloading a single module.
 
@@ -91,12 +91,6 @@ These ensure consistent path behaviour across runtimes.
 - **TypeScript (Bun)**: wrap Bun’s `fs` APIs. Methods can call synchronous variants or use async under the hood while presenting blocking semantics.
 - **Go**: use `os`, `io`, `path/filepath`. `File.handle` can wrap `*os.File` stored in runtime tables.
 - Methods like `File.read`/`write` become extern/native functions implemented per runtime.
-
-## Snapshot Store Integration
-
-- Snapshot store will rely on `read_text`, `write_text`, `exists`, `create_dir`, and `read_dir` to manage `__snapshots__` directories.
-- File-backed store will call `path.join` and `path.normalize` to build deterministic paths.
-- Update mode semantics (write vs. fail) remain inside snapshot matcher; the store only provides primitives.
 
 ## Error Handling Strategy
 

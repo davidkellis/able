@@ -38,6 +38,8 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 - Diagnostics parity is mandatory: both interpreters emit identical runtime + typechecker output for every fixture when `ABLE_TYPECHECK_FIXTURES` is `warn|strict`. (✅ CLI now enforces diagnostics comparison; ✅ Go typechecker infers implicit `self`/iterator helpers so warn/strict runs match.)
 - The JSON parity report (`tmp/parity-report.json`) must be archived in CI via `ABLE_PARITY_REPORT_DEST`/`CI_ARTIFACTS_DIR` to keep regression triage fast.
 - Track upcoming language work (awaitable orchestration, advanced dynimport scenarios, interface dispatch additions) so fixtures/examples land immediately once syntax/runtime support exists.
+- It is expected that some new fixtures will fail due to interpreter bugs/deficiencies.We should implement fixtures strictly in accordance with the v11 spec semantics. Do not weaken or sidestep the behavior under test to "make tests pass". If a fixture fails under a given interpreter, follow up by fixing the interpreter so the implementation honors the spec. The interpreters should perfectly implement all the semantics described in the v11 spec.
+
 
 ## TODO (working queue: tackle in order, move completed items to LOG.md)
 
@@ -46,21 +48,8 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 - [x] Draft a coverage matrix mapping every v11 spec heading/feature (and key variations) to one or more exec fixtures; land as `v11/docs/conformance-plan.md`. Include naming scheme (`exec/<section>_<feature>[_variation]/`) and mark which headings share fixtures.
 - [x] Ensure `scripts/export-fixtures`/`run_all_tests` include the new exec fixtures and add a simple coverage index (JSON/YAML) generated from the matrix to prevent gaps; consider a CI check to flag missing headings.
 
-### v11 Exec Fixture Backlog (heading-specific coverage)
-Note: It is expected that some new fixtures will fail due to interpreter bugs/deficiencies.We should implement fixtures strictly in accordance with the v11 spec semantics. Do not weaken or sidestep the behavior under test to “make tests pass”. If a fixture fails under a given interpreter, follow up by fixing the interpreter so the implementation honors the spec. The interpreters should perfectly implement all the semantics described in the v11 spec.
-- [x] `exec/02_lexical_comments_identifiers` — §2/§6.9: identifiers vs reserved placeholders, comments ignored, trailing commas/line join tolerated.
-- [x] `exec/03_blocks_expr_separation` — §3: newline vs semicolon separation and last-expression block value with scoped bindings.
-- [x] `exec/04_01_type_inference_constraints` — §4.1.4–4.1.6: polymorphic function calls with inferred type params and constraint satisfaction.
-- [x] `exec/04_07_02_alias_generic_substitution` — §4.7.2: generic alias expansion, substitution, and inference through alias chains.
-- [x] `exec/04_07_03_alias_scope_visibility_imports` — §4.7.3: alias visibility across packages with `import`/`private` and alias re-export.
-- [x] `exec/04_07_04_alias_methods_impls_interaction` — §4.7.4: aliases preserving method/impl dispatch and type-based feature lookups.
-- [x] `exec/04_07_05_alias_recursion_termination` — §4.7.5: rejecting/handling recursive aliases per termination rules (diagnostic path).
-- [x] `exec/05_00_mutability_declaration_vs_assignment` — §5.0/§5.1: `:=` introduces new bindings, `=` requires existing, mutation rules.
-- [x] `exec/05_02_identifier_wildcard_typed_patterns` — §5.2.1–5.2.2/§5.2.7: identifier vs `_` binding and typed patterns in declarations.
-- [x] `exec/05_02_struct_pattern_rename_typed` — §5.2.3: struct pattern with `::` renames, optional fields, and typed destructuring.
-- [x] `exec/05_02_array_nested_patterns` — §5.2.5–§5.2.6: array/nested destructuring with mixed patterns and rest handling (if applicable).
-- [x] `exec/05_03_assignment_evaluation_order` — §5.3/§5.3.1: RHS evaluated once, compound patterns, mutable reassignment side effects.
-- [x] `exec/06_01_literals_array_map_inference` — §6.1.7–§6.1.9: array/map literal inference, spread/entry order, mixed element unification.
-- [x] `exec/06_02_block_expression_value_scope` — §6.2: block-as-expression value, inner scope bindings, void-return blocks.
-- [x] `exec/06_03_operator_precedence_associativity` — §6.3.1: precedence/associativity across pipes, assignment, arithmetic/boolean ops.
-- [x] `exec/11_02_option_result_or_handlers` — §11.2.3: `or {}` handlers with/without error binding, option vs result divergence.
+### Testing Framework + Tooling (new workstream)
+- [x] Define the namespace split in code: `able.test.*` for protocol/harness/reporters and `able.spec` for the user DSL.
+- [x] Promote stdlib testing modules from `v11/stdlib/quarantine/src/testing` to `v11/stdlib/src/test` and `v11/stdlib/src/spec`, updating package names/imports accordingly.
+- [x] Move or mirror quarantine tests into `v11/stdlib/tests` and update them to use `able.spec` + `able.test.*`.
+- [x] Update user docs (`v11/docs/manual/tooling.html`, `v11/docs/testing-matchers.md`) to reference `able.spec`/`able.test`.

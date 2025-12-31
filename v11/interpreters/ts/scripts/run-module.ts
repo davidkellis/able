@@ -11,9 +11,31 @@ import { formatTypecheckerDiagnostic, printPackageSummaries } from "./typecheck-
 import { resolveTypecheckMode, type TypecheckMode } from "./typecheck-mode";
 import { ModuleLoader, type Program } from "./module-loader";
 import { callCallableValue } from "../src/interpreter/functions";
+import { numericToNumber } from "../src/interpreter/numeric";
 import { collectModuleSearchPaths, type ModuleSearchPath } from "./module-search-paths";
 import { buildExecutionSearchPaths, loadManifestContext } from "./module-deps";
 import { ExitSignal } from "../src/interpreter/signals";
+import {
+  buildDiscoveryRequest,
+  buildRunOptions,
+  buildTestPlan,
+  callHarnessDiscover,
+  callHarnessRun,
+  collectTestFiles,
+  evaluateTestModules,
+  loadTestPrograms,
+  maybeTypecheckTestModules,
+  resolveTestTargets,
+  type TestCliConfig,
+  type TestReporterFormat,
+  type TestRunOptions,
+  type TestCliFilters,
+} from "./test-cli";
+import {
+  createTestReporter,
+  emitTestPlanList,
+  type TestEventState,
+} from "./test-cli-reporters";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI_VERSION = process.env.ABLE_TS_VERSION ?? "able-ts dev";
@@ -23,33 +45,6 @@ const ABLE_PATH_ENV = process.env.ABLE_PATH ?? "";
 const ABLE_MODULE_PATHS_ENV = process.env.ABLE_MODULE_PATHS ?? "";
 
 type CLICommand = "run" | "check" | "test";
-type TestReporterFormat = "doc" | "progress" | "tap" | "json";
-
-type TestCliFilters = {
-  includePaths: string[];
-  excludePaths: string[];
-  includeNames: string[];
-  excludeNames: string[];
-  includeTags: string[];
-  excludeTags: string[];
-};
-
-type TestRunOptions = {
-  failFast: boolean;
-  repeat: number;
-  parallelism: number;
-  shuffleSeed?: number;
-};
-
-type TestCliConfig = {
-  targets: string[];
-  filters: TestCliFilters;
-  run: TestRunOptions;
-  reporterFormat: TestReporterFormat;
-  listOnly: boolean;
-  dryRun: boolean;
-  updateSnapshots: boolean;
-};
 
 type ModuleDiagnosticEntry = {
   packageName: string;
@@ -209,12 +204,115 @@ async function handleTestCommand(args: string[]): Promise<void> {
     return;
   }
 
-  const summary = formatTestPlanSummary(config);
-  console.log(summary);
-  console.error(
-    "able test CLI skeleton: harness integration is pending (see design/testing-cli-design.md and design/testing-cli-protocol.md).",
-  );
-  process.exitCode = 2;
+  let targets: string[];
+  try {
+    targets = await resolveTestTargets(config.targets);
+  } catch (error) {
+    console.error(`able test: ${extractErrorMessage(error)}`);
+    process.exitCode = 1;
+    return;
+  }
+
+  let testFiles: string[];
+  try {
+    testFiles = await collectTestFiles(targets);
+  } catch (error) {
+    console.error(`able test: ${extractErrorMessage(error)}`);
+    process.exitCode = 1;
+    return;
+  }
+
+  if (testFiles.length === 0) {
+    console.log("able test: no test modules found");
+    process.exitCode = 0;
+    return;
+  }
+
+  const loadResult = await loadTestPrograms(testFiles, {
+    ablePathEnv: ABLE_PATH_ENV,
+    ableModulePathsEnv: ABLE_MODULE_PATHS_ENV,
+  });
+  if (!loadResult) {
+    process.exitCode = 2;
+    return;
+  }
+
+  const session = new TypeChecker.TypecheckerSession();
+  const typecheckOk = maybeTypecheckTestModules(session, loadResult.modules, TYPECHECK_MODE);
+  if (!typecheckOk) {
+    return;
+  }
+
+  const interpreter = new V11.Interpreter();
+  ensureConsolePrint(interpreter);
+  installRuntimeStubs(interpreter);
+
+  const evaluated = evaluateTestModules(interpreter, loadResult.modules);
+  if (!evaluated) {
+    return;
+  }
+
+  const discoveryRequest = buildDiscoveryRequest(interpreter, config);
+  const discoveryResult = callHarnessDiscover(interpreter, discoveryRequest);
+  if (!discoveryResult) {
+    process.exitCode = 2;
+    return;
+  }
+
+  if (config.listOnly || config.dryRun) {
+    emitTestPlanList(interpreter, discoveryResult, config);
+    process.exitCode = 0;
+    return;
+  }
+
+  if (arrayLength(interpreter, discoveryResult) === 0) {
+    console.log("able test: no tests to run");
+    process.exitCode = 0;
+    return;
+  }
+
+  const eventState: TestEventState = {
+    total: 0,
+    failed: 0,
+    skipped: 0,
+    frameworkErrors: 0,
+  };
+
+  const reporter = await createTestReporter(interpreter, config.reporterFormat, eventState);
+  if (!reporter) {
+    process.exitCode = 2;
+    return;
+  }
+
+  let runOptions: V11.RuntimeValue;
+  let testPlan: V11.RuntimeValue;
+  try {
+    runOptions = buildRunOptions(interpreter, config.run);
+    testPlan = buildTestPlan(interpreter, discoveryResult);
+  } catch (error) {
+    console.error(`able test: ${extractErrorMessage(error)}`);
+    process.exitCode = 2;
+    return;
+  }
+  const runResult = callHarnessRun(interpreter, testPlan, runOptions, reporter.reporter);
+  if (runResult) {
+    process.exitCode = 2;
+    return;
+  }
+
+  if (reporter.finish) {
+    reporter.finish();
+  }
+
+  if (eventState.frameworkErrors > 0) {
+    process.exitCode = 2;
+    return;
+  }
+  if (eventState.failed > 0) {
+    process.exitCode = 1;
+    return;
+  }
+  process.exitCode = 0;
 }
 
 function maybeTypecheckProgram(
@@ -363,7 +461,6 @@ function parseTestArguments(args: string[]): TestCliConfig {
   let reporterFormat: TestReporterFormat = "doc";
   let listOnly = false;
   let dryRun = false;
-  let updateSnapshots = false;
   const targets: string[] = [];
   let shuffleSeed: number | undefined;
 
@@ -376,9 +473,6 @@ function parseTestArguments(args: string[]): TestCliConfig {
       case "--dry-run":
         dryRun = true;
         listOnly = true;
-        break;
-      case "--update-snapshots":
-        updateSnapshots = true;
         break;
       case "--path":
         filters.includePaths.push(expectFlagValue(arg, args[++i]));
@@ -438,33 +532,7 @@ function parseTestArguments(args: string[]): TestCliConfig {
     reporterFormat,
     listOnly,
     dryRun,
-    updateSnapshots,
   };
-}
-
-function formatTestPlanSummary(config: TestCliConfig): string {
-  const targetSummary = config.targets.length > 0 ? config.targets.join(",") : "<workspace>";
-  const filterParts = [
-    `include_paths=${formatList(config.filters.includePaths)}`,
-    `exclude_paths=${formatList(config.filters.excludePaths)}`,
-    `include_names=${formatList(config.filters.includeNames)}`,
-    `exclude_names=${formatList(config.filters.excludeNames)}`,
-    `include_tags=${formatList(config.filters.includeTags)}`,
-    `exclude_tags=${formatList(config.filters.excludeTags)}`,
-  ];
-  const runParts = [
-    `fail_fast=${config.run.failFast}`,
-    `repeat=${config.run.repeat}`,
-    `parallel=${config.run.parallelism}`,
-    `shuffle_seed=${config.run.shuffleSeed !== undefined ? String(config.run.shuffleSeed) : "-"}`,
-  ];
-  return `able test plan (skeleton): targets=${targetSummary}; format=${config.reporterFormat}; list_only=${config.listOnly}; dry_run=${config.dryRun}; update_snapshots=${config.updateSnapshots}; ${filterParts.join(
-    "; ",
-  )}; ${runParts.join("; ")}`;
-}
-
-function formatList(values: string[]): string {
-  return values.length > 0 ? values.join(",") : "-";
 }
 
 function expectFlagValue(flag: string, value: string | undefined): string {
@@ -487,6 +555,32 @@ function parsePositiveInteger(value: string, flag: string, min: number): number 
     throw new Error(`${flag} expects an integer >= ${min}`);
   }
   return parsed;
+}
+
+function arrayLength(interpreter: V11.Interpreter, value: V11.RuntimeValue): number {
+  if (!value) return 0;
+  if (value.kind === "array") {
+    return value.elements.length;
+  }
+  if (value.kind === "struct_instance" && value.def.id.name === "Array") {
+    const lengthValue = structField(value, "length");
+    return numericToNumber(lengthValue, "array length", { requireSafeInteger: true });
+  }
+  return 0;
+}
+
+function structField(
+  value: Extract<V11.RuntimeValue, { kind: "struct_instance" }>,
+  field: string,
+): V11.RuntimeValue {
+  if (value.values instanceof Map) {
+    return value.values.get(field) ?? { kind: "nil", value: null };
+  }
+  const fieldIndex = value.def.fields.findIndex((entry) => entry.name?.name === field);
+  if (fieldIndex >= 0 && Array.isArray(value.values)) {
+    return value.values[fieldIndex] ?? { kind: "nil", value: null };
+  }
+  return { kind: "nil", value: null };
 }
 
 function generateShuffleSeed(): number {
@@ -527,11 +621,24 @@ function printUsage(): void {
 Usage:
   bun run ${script} run <path>      Typecheck and execute an Able module (default command)
   bun run ${script} check <path>    Typecheck without executing
-  bun run ${script} test [paths]    Inspect test plan (skeleton; harness integration pending)
+  bun run ${script} test [paths]    Discover and run Able tests
 
 Options:
   --help, -h        Show this message
   --version, -V     Print CLI version
+  --list            Discover tests and print plan
+  --dry-run         Discover tests and skip execution (implies --list)
+  --path <value>    Include tests whose module path contains value (repeatable)
+  --exclude-path <value>
+  --name <value>    Include tests whose name contains value (repeatable)
+  --exclude-name <value>
+  --tag <value>     Include tests with tag (repeatable)
+  --exclude-tag <value>
+  --format <fmt>    Reporter format: doc, progress, tap, json
+  --shuffle [seed]  Shuffle execution order with optional seed
+  --fail-fast       Stop after first failure
+  --parallel <n>    Requested parallelism (framework may ignore)
+  --repeat <count>  Repeat entire plan (default 1)
 
 Environment:
   ABLE_TYPECHECK_FIXTURES=warn|strict|off   Controls typecheck enforcement (default strict for CLI)`);

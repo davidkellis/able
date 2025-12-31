@@ -1,0 +1,62 @@
+package testing_specs
+
+import able.kernel.{Array}
+import able.collections.array
+import able.test.protocol.{
+  TestDescriptor,
+  TestPlan,
+  TestEvent
+}
+import able.test.reporters.{DocReporter, ProgressReporter}
+import able.spec.*
+
+fn make_descriptor(name: String) -> TestDescriptor {
+  TestDescriptor {
+    framework_id: "able.spec",
+    module_path: "sample",
+    test_id: name,
+    display_name: name,
+    location: nil,
+    tags: Array.new(),
+    metadata: Array.new()
+  }
+}
+
+describe("able.test reporters") { suite =>
+  suite.it("renders doc style output lines") { _ctx =>
+    let mut lines: Array String = Array.new()
+    let emit = fn(line: String) -> void { lines.push(line) }
+    let reporter = DocReporter(emit)
+
+    let descriptor = make_descriptor("example passes")
+    reporter.emit(TestEvent.case_passed { descriptor, duration_ms: 0 })
+
+    expect(lines.len()).to(eq(1))
+    match lines.get(0) {
+      case nil => expect(lines.get(0)).not_to(be_nil()),
+      case value: String => expect(value).to(eq("example passes … ok"))
+    }
+  }
+
+  suite.it("records progress characters and flushes at finish") { _ctx =>
+    let mut lines: Array String = Array.new()
+    let emit = fn(line: String) -> void { lines.push(line) }
+    let mut reporter = ProgressReporter(emit)
+    let descriptor = make_descriptor("sample")
+
+    reporter.emit(TestEvent.case_passed { descriptor, duration_ms: 0 })
+    reporter.emit(TestEvent.case_failed { descriptor, duration_ms: 0, failure: {
+      message: "boom",
+      details: nil,
+      location: nil
+    } })
+    reporter.emit(TestEvent.case_skipped { descriptor, reason: nil })
+    reporter.finish()
+
+    expect(lines.len()).to(eq(1))
+    match lines.get(0) {
+      case nil => expect(lines.get(0)).not_to(be_nil()),
+      case value: String => expect(value).to(eq(".FS"))
+    }
+  }
+}

@@ -44,6 +44,11 @@ type Program struct {
 	Modules []*Module
 }
 
+// LoadOptions configures optional loading behavior.
+type LoadOptions struct {
+	IncludePackages []string
+}
+
 type packageLocation struct {
 	rootDir  string
 	rootName string
@@ -111,6 +116,11 @@ func (l *Loader) Close() {
 
 // Load aggregates the entry package and its dependencies according to the v11 package rules.
 func (l *Loader) Load(entry string) (*Program, error) {
+	return l.LoadWithOptions(entry, LoadOptions{})
+}
+
+// LoadWithOptions aggregates the entry package and additional packages.
+func (l *Loader) LoadWithOptions(entry string, options LoadOptions) (*Program, error) {
 	if l == nil || l.parser == nil {
 		return nil, fmt.Errorf("loader: closed")
 	}
@@ -237,7 +247,19 @@ func (l *Loader) Load(entry string) (*Program, error) {
 		return mod, nil
 	}
 
+	include := make(map[string]struct{})
+	for _, name := range options.IncludePackages {
+		if name == "" {
+			continue
+		}
+		include[name] = struct{}{}
+	}
 	for _, name := range collectKernelPackages(origins) {
+		include[name] = struct{}{}
+	}
+	include[entryPackage] = struct{}{}
+
+	for name := range include {
 		if _, err := loadPackage(name); err != nil {
 			return nil, err
 		}

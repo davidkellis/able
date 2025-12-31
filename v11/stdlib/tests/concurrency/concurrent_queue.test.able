@@ -1,0 +1,21 @@
+package concurrent_queue_specs
+
+import able.spec.*
+import able.concurrency.concurrent_queue.{ConcurrentQueue}
+
+describe("ConcurrentQueue") { suite =>
+  suite.it("enqueues and dequeues values") { _ctx =>
+    queue: ConcurrentQueue i32 := ConcurrentQueue.new(1)
+    queue.enqueue(10)
+    expect(queue.dequeue()).to(eq(10))
+  }
+
+  suite.it("supports try operations and close") { _ctx =>
+    queue: ConcurrentQueue String := ConcurrentQueue.new(1)
+    expect(queue.try_enqueue("msg")).to(be_truthy())
+    expect(queue.try_dequeue()).to(eq("msg"))
+    queue.close()
+    expect(queue.is_closed()).to(be_truthy())
+    expect(queue.dequeue()).to(eq(nil))
+  }
+}
