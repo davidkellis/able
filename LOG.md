@@ -1,5 +1,45 @@
 # Able Project Log
 
+# 2025-12-30 — Go parser interface-arg test fix (v11)
+- Fixed Go parser test coverage so `TestParseImplInterfaceArgsParentheses` is a real test (no longer embedded in a raw string for the breakpoint fixture).
+- Regenerated the tree-sitter parser/wasm and forced a Go rebuild so the cgo parser picks up the updated grammar.
+- Tests: `bun test test/parser/fixtures_parser.test.ts`; `go test -a ./pkg/parser -run TestParseImplInterfaceArgsParentheses`; `./run_all_tests.sh --version=v11`.
+
+# 2025-12-30 — Interface arg parentheses (Option 2b)
+- Updated `spec/full_spec_v11.md` to clarify that interface args are space-delimited type expressions and generic applications only form when parenthesized.
+- Updated tree-sitter grammar + TS/Go type parsers for `interface_type_*` nodes, and removed interface-arg arity grouping in TS/Go interpreter + typechecker.
+- Added TS/Go parser tests asserting interface-arg splitting vs parenthesized generic args; rebuilt tree-sitter parser/wasm.
+- Docs: noted parenthesized generic applications in `v11/parser/README.md`.
+- Tests: not run (parser build via `npm run build`).
+
+# 2025-12-30 — Go `able test` CLI wiring + integration tests (v11)
+- Implemented Go `able test` CLI (args/targets, discovery, harness/run, reporters, exit codes) plus loader support for include packages and interpreter helpers for array/method access.
+- Added lightweight Go CLI tests for `able test` list/dry-run using a stub stdlib harness to keep the suite fast and isolated.
+- Tests: `cd v11/interpreters/go && go test ./cmd/able -run TestTestCommand`.
+
+# 2025-12-30 — TypeScript `able test` CLI wiring (v11)
+- Completed TS CLI `able test` wiring end-to-end (discovery/filter/run/report/exit), including kernel `Array` decoding for reporters/list output and array-length handling for discovery results.
+- Bound trailing lambdas inside expression lists so `suite.it("...") { ... }` attaches correctly within `describe` bodies.
+- Updated stdlib tests to `import able.spec.*` so suite method names are in scope; fixed a malformed `able.spec.assertions` import.
+- Shifted testing protocol `Framework` methods to return `?Failure` and regenerated `v11/stdlib/src/spec.able`.
+- Tests: `cd v11/interpreters/ts && bun test test/cli/run_module_cli.test.ts`.
+
+# 2025-12-30 — Drop snapshots from testing framework (v11)
+- Removed snapshot matchers, stores, and CLI flag references from the stdlib testing DSL; deleted the snapshot store design doc and scrubbed snapshot mentions from testing docs/design notes/spec.
+- Updated stdlib tests and the TS CLI skeleton tests to drop `match_snapshot`/`--update-snapshots`.
+- Tests: not run.
+
+# 2025-12-30 — Testing module suffix policy (v11)
+- Codified test modules as `.test.able` or `.spec.able` in `spec/full_spec_v11.md` (new Tooling: Testing Framework section) and resolved the open decision in `v11/design/testing-plan.md`.
+- Removed the suffix-policy TODO from `PLAN.md` now that the rule is set.
+- Tests: not run.
+
+# 2025-12-30 — Split stdlib testing into able.test + able.spec (v11)
+- Moved testing protocol/harness/reporters/snapshots into `v11/stdlib/src/test` and the user DSL into `v11/stdlib/src/spec`/`v11/stdlib/src/spec.able`, renaming packages and framework id to `able.spec`.
+- Migrated quarantine stdlib tests into `v11/stdlib/tests` and updated imports to `able.spec` + `able.test.*`.
+- Updated testing docs/spec references to the new namespace split and renamed internal `RspecFramework` to `SpecFramework`.
+- Tests: not run (stdlib/CLI integration pending).
+
 # 2025-12-29 — Alias re-export follow-up validation (v11)
 - Progress: ran `./run_all_tests.sh --version=v11`; all green.
 - State: parity report refreshed at `v11/tmp/parity-report.json`.
@@ -426,7 +466,7 @@ Open items (2025-11-02 audit):
 - The Bun CLI suite (`interpreter10/test/cli/run_module_cli.test.ts`) now covers multi-file packages, custom loader search paths via the new `ABLE_MODULE_PATHS` env, and strict vs warn typecheck enforcement so the ModuleLoader refactor stays covered without pulling `stdlib/` into every run.
 - Introduced the `able test` skeleton inside `scripts/run-module.ts`: it parses the planned flags/filters, materialises run options + reporter selection, and prints a deterministic plan summary before exiting with code `2` while the stdlib testing packages remain unparsable. (See `design/testing-cli-design.md` / `design/testing-cli-protocol.md`.)
 - Extracted the shared package-scanning helpers (`discoverRoot`, `indexSourceFiles`, etc.) into `scripts/module-utils.ts` so other tooling (fixtures runner, future harnesses) can reuse the multi-module discovery logic without duplicating it.
-- **Deferral noted:** full stdlib/testing integration is still on pause until the parser accepts `stdlib/src/testing/*`; once that unblocks, wire the CLI skeleton into the able.testing harness per the design notes.
+- **Deferral noted:** full stdlib/testing integration is still on pause until the parser accepts `stdlib/src/test/*`; once that unblocks, wire the CLI skeleton into the `able.test` harness per the design notes.
 
 ### 2025-11-05
 - Step 6 regression sweep ran end-to-end: `./run_all_tests.sh --typecheck-fixtures=warn` stayed green post-refactor, and `GOCACHE=$(pwd)/.gocache GO_PARSER_FIXTURES=1 go test ./pkg/parser` uncovered/validated the Go-side AST gaps.
@@ -538,7 +578,7 @@ Open items (2025-11-02 audit):
 ### 2025-12-27
 - Added exec fixtures `exec/07_07_overload_resolution_runtime`, `exec/08_01_if_truthiness_value`, and `exec/08_01_match_guards_exhaustiveness`; updated the conformance plan + coverage index and cleared the related PLAN backlog items.
 - `if` expressions now return `nil` (not `void`) when no branch matches and there is no else, aligning TS/Go runtimes with the v11 spec; updated `errors/rescue_guard` fixture expectation.
-- Tests: `bun run scripts/export-fixtures.ts`; `bun run scripts/run-fixtures.ts`; `go test ./pkg/interpreter` (with a temp `GOCACHE`).
+- Tests: `bun run scripts/export-fixtures.ts`; `bun run scripts/run-fixtures.ts`; `go test ./pkg/interpreter` (with a temp `GOCACHE`); `./run_all_tests.sh --version=v11`.
 - Next: continue exec fixture backlog starting at `exec/08_02_while_continue_break` and `exec/08_02_loop_expression_break_value`.
 
 ### 2025-12-28
@@ -560,6 +600,9 @@ Open items (2025-11-02 audit):
 ### 2025-12-30
 - Added exec fixture `exec/09_05_method_set_generics_where` covering method-set generics/where constraints for instance + UFCS calls; updated the conformance plan + coverage index and cleared the PLAN backlog item.
 - Go interpreter now enforces method-set generic/where constraints during method calls; call helpers were split into `v11/interpreters/go/pkg/interpreter/call_helpers.go` to keep call logic files under 1000 lines.
+- Aligned TS + Go parser handling of impl interface args so space-delimited arg lists are not collapsed into a single generic application; fixture mapper parity is green again.
+- Spec: documented interface-arg grouping by interface arity (greedy left-to-right grouping with parentheses to force a single argument).
+- TS/Go typechecker + runtime now group impl interface args by interface arity, so unparenthesized generic applications like `Map K V` remain a single argument when the interface expects one.
 - Tests: `bun run scripts/export-fixtures.ts`; `bun run scripts/run-fixtures.ts`; `go test ./pkg/interpreter` (with a temp `GOCACHE`).
 
 ### 2025-12-31

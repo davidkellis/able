@@ -2,6 +2,10 @@
 
 This document tracks end-to-end exec fixtures for Able v11 and maps them to the specification. Every fixture should focus on a narrow semantic slice, emit deterministic output, and include inline `##` comments that describe the exact behaviour being asserted.
 
+These fixtures are **language implementation tests** (parser/runtime parity and
+spec coverage). They are unrelated to the user-facing `able test` framework and
+its conventions.
+
 ## Naming
 - Place fixtures under `v11/fixtures/exec`.
 - Use `exec/<section>_<feature>[_variation]/` (e.g., `exec/08_control_flow_fizzbuzz`, `exec/11_error_rescue_ensure`). Sections are zero-padded when helpful for sorting and can group related headings (e.g., `06` for expressions/types, `11` for errors).

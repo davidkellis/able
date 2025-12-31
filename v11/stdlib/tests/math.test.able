@@ -1,0 +1,125 @@
+package math_specs
+
+import able.math.{
+  pi,
+  tau,
+  half_pi,
+  e,
+  abs,
+  abs_i64,
+  min,
+  max,
+  clamp,
+  clamp_i64,
+  clamp01,
+  sign,
+  sign_i64,
+  deg_to_rad,
+  rad_to_deg,
+  lerp,
+  inverse_lerp,
+  remap,
+  remap_clamped,
+  wrap,
+  wrap_angle_radians,
+  gcd,
+  lcm,
+  floor,
+  ceil,
+  round,
+  trunc,
+  fract,
+  approx_eq,
+  approx_eq_default,
+  hypot,
+  sqrt,
+  pow
+}
+import able.spec.*
+
+describe("able.math") { suite =>
+  suite.module_path("math/core")
+
+  suite.it("exposes fundamental constants") { _ctx =>
+    expect(pi()).to(be_within(1e-12, 3.141592653589793))
+    expect(tau()).to(be_within(1e-12, 6.283185307179586))
+    expect(half_pi()).to(be_within(1e-12, 1.5707963267948966))
+    expect(e()).to(be_within(1e-12, 2.718281828459045))
+  }
+
+  suite.it("computes absolute values and signs") { _ctx =>
+    expect(abs(-5.0)).to(eq(5.0))
+    expect(abs(3.5)).to(eq(3.5))
+    expect(abs_i64(-42)).to(eq(42))
+    expect(sign(-10.0)).to(eq(-1))
+    expect(sign(0.0)).to(eq(0))
+    expect(sign(8.4)).to(eq(1))
+    expect(sign_i64(-5)).to(eq(-1))
+  }
+
+  suite.it("performs min/max/clamp operations") { _ctx =>
+    expect(min(8.0, 2.0)).to(eq(2.0))
+    expect(max(8.0, 2.0)).to(eq(8.0))
+    expect(clamp(5.0, 0.0, 10.0)).to(eq(5.0))
+    expect(clamp(-1.0, 0.0, 10.0)).to(eq(0.0))
+    expect(clamp(12.0, 0.0, 10.0)).to(eq(10.0))
+    expect(clamp_i64(15, 0, 10)).to(eq(10))
+    expect(fn() { clamp(1.0, 5.0, 2.0) }).to(raise_error())
+    expect(fn() { clamp_i64(1, 5, 2) }).to(raise_error())
+  }
+
+  suite.it("converts between radians and degrees") { _ctx =>
+    expect(deg_to_rad(180.0)).to(be_within(1e-12, pi()))
+    expect(rad_to_deg(pi())).to(be_within(1e-9, 180.0))
+  }
+
+  suite.it("supports interpolation and approximate comparison") { _ctx =>
+    expect(lerp(0.0, 10.0, 0.25)).to(eq(2.5))
+    expect(approx_eq(1.0, 1.0000005, 0.000001)).to(be_truthy())
+    expect(approx_eq_default(1.0, 1.00000000001)).to(be_truthy())
+  }
+
+  suite.it("calculates sqrt, pow, and hypot") { _ctx =>
+    expect(sqrt(9.0)).to(be_within(1e-12, 3.0))
+    expect(9.0.sqrt()).to(be_within(1e-12, 3.0))
+    expect(fn() { sqrt(-1.0) }).to(raise_error())
+
+    expect(pow(2.0, 10)).to(eq(1024.0))
+    expect(pow(4.0, -2)).to(be_within(1e-12, 0.0625))
+    expect(fn() { pow(0.0, -1) }).to(raise_error())
+
+    expect(hypot(3.0, 4.0)).to(be_within(1e-12, 5.0))
+  }
+
+  suite.it("offers rounding helpers") { _ctx =>
+    expect(floor(3.75)).to(eq(3.0))
+    expect(floor(-3.2)).to(eq(-4.0))
+    expect(ceil(-3.2)).to(eq(-3.0))
+    expect(round(3.5)).to(eq(4.0))
+    expect(round(-3.5)).to(eq(-4.0))
+    expect(trunc(-3.7)).to(eq(-3.0))
+    expect(fract(2.75)).to(be_within(1e-12, 0.75))
+    expect(fract(-2.25)).to(be_within(1e-12, 0.75))
+  }
+
+  suite.it("wraps ranges and remaps values") { _ctx =>
+    expect(clamp01(-0.5)).to(eq(0.0))
+    expect(clamp01(1.5)).to(eq(1.0))
+    expect(inverse_lerp(0.0, 10.0, 2.5)).to(eq(0.25))
+    expect(remap(5.0, 0.0, 10.0, -1.0, 1.0)).to(be_within(1e-12, 0.0))
+    expect(remap_clamped(15.0, 0.0, 10.0, 0.0, 100.0)).to(eq(100.0))
+    expect(wrap(13.0, 0.0, 5.0)).to(be_within(1e-12, 3.0))
+    expect(wrap(-1.0, 0.0, 5.0)).to(be_within(1e-12, 4.0))
+    expect(wrap_angle_radians(pi())).to(be_within(1e-12, -pi()))
+  }
+
+  suite.it("computes gcd/lcm for integers") { _ctx =>
+    expect(gcd(54, 24)).to(eq(6))
+    expect(gcd(-54, 24)).to(eq(6))
+    expect(fn() { gcd(0, 0) }).to(raise_error())
+
+    expect(lcm(21, 6)).to(eq(42))
+    expect(lcm(-21, 6)).to(eq(42))
+    expect(lcm(0, 12)).to(eq(0))
+  }
+}

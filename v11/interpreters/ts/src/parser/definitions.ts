@@ -440,6 +440,12 @@ function parseInterfaceArguments(
   for (let i = 0; i < node.namedChildCount; i++) {
     const child = node.namedChild(i);
     if (!child) continue;
+    const genericNode = findTopLevelGenericApplication(child);
+    if (genericNode) {
+      const snippet = sliceText(genericNode, source).trim();
+      const detail = snippet ? `; wrap "${snippet}" in parentheses` : "";
+      throw new MapperError(`parser: interface arguments require parenthesized generic applications${detail}`);
+    }
     const expr = ctx.parseTypeExpression(child);
     if (!expr) {
       throw new MapperError(`parser: unsupported interface argument kind ${child.type}`);
@@ -447,6 +453,27 @@ function parseInterfaceArguments(
     args.push(expr);
   }
   return args.length ? args : undefined;
+}
+
+function findTopLevelGenericApplication(node: Node): Node | null {
+  let current: Node | null = node;
+  while (current) {
+    if (current.type === "type_generic_application") {
+      return current;
+    }
+    if (current.type === "parenthesized_type") {
+      return null;
+    }
+    if (current.namedChildCount !== 1) {
+      return null;
+    }
+    const child = current.namedChild(0);
+    if (!child || !child.isNamed) {
+      return null;
+    }
+    current = child;
+  }
+  return null;
 }
 
 function parseUnionDefinition(

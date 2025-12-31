@@ -55,11 +55,22 @@
           cannot contain extern bodies.
         </p>
         <h2 id="testing">12.4 Tooling &amp; Tests</h2>
+        <p>
+          Able has two unrelated testing concerns: language implementation tests
+          (fixtures and parity harnesses) and the user-facing testing framework
+          intended for Able programs. They are intentionally separate.
+        </p>
+        <p>Language implementation tests (interpreter/spec work):</p>
         <ul>
           <li><code>bun test</code> in <code>v11/interpreters/ts</code></li>
           <li><code>go test ./...</code> in <code>v11/interpreters/go</code></li>
           <li>Fixtures: edit under <code>v11/fixtures</code>, export via <code>bun run scripts/export-fixtures.ts</code>, run with <code>bun run scripts/run-fixtures.ts</code> and <code>go test ./pkg/interpreter</code>.</li>
           <li>Full suite: <code>./run_all_tests.sh --version=v11</code></li>
+        </ul>
+        <p>User-facing testing framework (Able program tests):</p>
+        <ul>
+          <li><code>able test</code> (planned; see <code>v11/design/testing-cli-design.md</code>)</li>
+          <li>Matchers and DSL live under <code>able.spec</code>; the CLI contract and harness live under <code>able.test.*</code>.</li>
         </ul>
         <p>
           When semantics are uncertain, consult <code>spec/full_spec_v11.md</code>,

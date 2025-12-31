@@ -1,0 +1,138 @@
+package harness
+
+import able.kernel.{Array}
+import able.collections.array
+import able.test.protocol.{
+  DiscoveryRequest,
+  Failure,
+  Framework,
+  Reporter,
+  RunOptions,
+  TestDescriptor,
+  TestPlan
+}
+import able.test.registry.{each_framework}
+
+fn discover_all(request: DiscoveryRequest) -> Array TestDescriptor | Failure {
+  descriptors: Array TestDescriptor := Array.new()
+  failure: ?Failure := nil
+
+  each_framework({ framework => {
+    failure match {
+      case nil => {
+        framework.discover(request, { descriptor => descriptors.push(descriptor) }) match {
+          case nil => {},
+          case err: Failure => { failure = err }
+        }
+      },
+      case _ => {}
+    }
+  } })
+
+  failure match {
+    case nil => descriptors,
+    case err: Failure => err
+  }
+}
+
+fn descriptors_for_framework(descriptors: Array TestDescriptor, id: String) -> Array TestDescriptor {
+  filtered: Array TestDescriptor := Array.new()
+  idx := 0
+  loop {
+    if idx >= descriptors.len() { break }
+    descriptors.get(idx) match {
+      case nil => {},
+      case descriptor: TestDescriptor => {
+        if descriptor.framework_id == id {
+          filtered.push(descriptor)
+        }
+      }
+    }
+    idx = idx + 1
+  }
+  filtered
+}
+
+fn run_plan(plan: TestPlan, options: RunOptions, reporter: Reporter) -> ?Failure {
+  failure: ?Failure := nil
+  focus_filtered := filter_focus(plan.descriptors)
+
+  each_framework({ framework => {
+    failure match {
+      case nil => {
+        descriptors := descriptors_for_framework(focus_filtered, framework.id())
+        if descriptors.len() != 0 {
+          sub_plan := TestPlan { descriptors }
+          framework.run(sub_plan, options, reporter) match {
+            case nil => {},
+            case err: Failure => { failure = err }
+          }
+        }
+      },
+      case _ => {}
+    }
+  } })
+
+  failure
+}
+
+fn filter_focus(descriptors: Array TestDescriptor) -> Array TestDescriptor {
+  has_focus := false
+  idx := 0
+  loop {
+    if idx >= descriptors.len() { break }
+    descriptors.get(idx) match {
+      case nil => {},
+      case descriptor: TestDescriptor => {
+        if tag_contains(descriptor.tags, "focus") {
+          has_focus = true
+          break
+        }
+      }
+    }
+    idx = idx + 1
+  }
+
+  if !has_focus { return descriptors }
+
+  filtered: Array TestDescriptor := Array.new()
+  idx = 0
+  loop {
+    if idx >= descriptors.len() { break }
+    descriptors.get(idx) match {
+      case nil => {},
+      case descriptor: TestDescriptor => {
+        if tag_contains(descriptor.tags, "focus") {
+          filtered.push(descriptor)
+        }
+      }
+    }
+    idx = idx + 1
+  }
+  filtered
+}
+
+fn tag_contains(tags: Array String, needle: String) -> bool {
+  idx := 0
+  loop {
+    if idx >= tags.len() { break }
+    tags.get(idx) match {
+      case nil => {},
+      case value: String => {
+        if value == needle { return true }
+      }
+    }
+    idx = idx + 1
+  }
+  false
+}
+
+fn run_all(request: DiscoveryRequest, options: RunOptions, reporter: Reporter) -> ?Failure {
+  discover_all(request) match {
+    case failure: Failure => failure,
+    case descriptors: Array TestDescriptor => {
+      plan := TestPlan { descriptors }
+      run_plan(plan, options, reporter)
+    }
+  }
+}

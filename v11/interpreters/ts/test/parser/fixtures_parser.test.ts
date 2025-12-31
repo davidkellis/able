@@ -143,6 +143,35 @@ fn main() -> void {
     expect(() => mapSourceFile(tree.rootNode, source, "<inline>")).toThrow(/syntax errors present/);
   });
 
+  test("splits unparenthesized generic interface arguments", async () => {
+    const { Parser, Language } = await import("web-tree-sitter");
+    await Parser.init();
+    const parser = new Parser();
+    const language = await Language.load(WASM_PATH);
+    parser.setLanguage(language);
+
+    const source = "impl Foo Array i64 for Bar {}";
+    const tree = parser.parse(source);
+    if (!tree) throw new Error("failed to parse impl fixture");
+    expect(tree.rootNode.type).toBe("source_file");
+    expect(tree.rootNode.hasError).toBe(false);
+    const module = mapSourceFile(tree.rootNode, source, "<inline>");
+    const impl = module.body[0] as AST.ImplementationDefinition;
+    expect(impl.type).toBe("ImplementationDefinition");
+    expect(impl.interfaceArgs?.length ?? 0).toBe(2);
+
+    const okSource = "impl Foo (Array i64) for Bar {}";
+    const okTree = parser.parse(okSource);
+    if (!okTree) throw new Error("failed to parse impl fixture");
+    expect(okTree.rootNode.type).toBe("source_file");
+    expect(okTree.rootNode.hasError).toBe(false);
+    const okModule = mapSourceFile(okTree.rootNode, okSource, "<inline>");
+    const okImpl = okModule.body[0] as AST.ImplementationDefinition;
+    expect(okImpl.type).toBe("ImplementationDefinition");
+    expect(okImpl.interfaceArgs?.length ?? 0).toBe(1);
+    expect(okImpl.interfaceArgs?.[0]?.type).toBe("GenericTypeExpression");
+  });
+
   test("range operators map inclusivity correctly", async () => {
     const { Parser, Language } = await import("web-tree-sitter");
     await Parser.init();

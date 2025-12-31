@@ -4,6 +4,7 @@ import { collectUnionVariantLabels } from "./impl_matches";
 import type { ImplementationContext } from "./implementation-context";
 import type { ImplementationObligation, ImplementationRecord, MethodSetRecord } from "./types";
 import { unknownType, type TypeInfo } from "../types";
+import { typeInfoToTypeExpression } from "./type-expression-utils";
 
 const PRIMITIVE_TYPE_NAMES = new Set([
   "i8",
@@ -24,78 +25,6 @@ const PRIMITIVE_TYPE_NAMES = new Set([
   "nil",
   "void",
 ]);
-
-function typeInfoToTypeExpression(type: TypeInfo | undefined): AST.TypeExpression | null {
-  if (!type) return null;
-  switch (type.kind) {
-    case "primitive":
-      return AST.simpleTypeExpression(type.name);
-    case "struct": {
-      const base = AST.simpleTypeExpression(type.name);
-      const args =
-        Array.isArray(type.typeArguments) && type.typeArguments.length > 0
-          ? type.typeArguments.map((arg) => typeInfoToTypeExpression(arg) ?? AST.wildcardTypeExpression())
-          : undefined;
-      return args && args.length > 0 ? AST.genericTypeExpression(base, args) : base;
-    }
-    case "interface": {
-      const base = AST.simpleTypeExpression(type.name);
-      const args =
-        Array.isArray(type.typeArguments) && type.typeArguments.length > 0
-          ? type.typeArguments.map((arg) => typeInfoToTypeExpression(arg) ?? AST.wildcardTypeExpression())
-          : undefined;
-      return args && args.length > 0 ? AST.genericTypeExpression(base, args) : base;
-    }
-    case "array":
-      return AST.genericTypeExpression(
-        AST.simpleTypeExpression("Array"),
-        [typeInfoToTypeExpression(type.element) ?? AST.wildcardTypeExpression()],
-      );
-    case "map":
-      return AST.genericTypeExpression(
-        AST.simpleTypeExpression("Map"),
-        [
-          typeInfoToTypeExpression(type.key) ?? AST.wildcardTypeExpression(),
-          typeInfoToTypeExpression(type.value) ?? AST.wildcardTypeExpression(),
-        ],
-      );
-    case "range":
-      return AST.genericTypeExpression(
-        AST.simpleTypeExpression("Range"),
-        [typeInfoToTypeExpression(type.element) ?? AST.wildcardTypeExpression()],
-      );
-    case "iterator":
-      return AST.genericTypeExpression(
-        AST.simpleTypeExpression("Iterator"),
-        [typeInfoToTypeExpression(type.element) ?? AST.wildcardTypeExpression()],
-      );
-    case "proc":
-      return AST.genericTypeExpression(
-        AST.simpleTypeExpression("Proc"),
-        [typeInfoToTypeExpression(type.result) ?? AST.wildcardTypeExpression()],
-      );
-    case "future":
-      return AST.genericTypeExpression(
-        AST.simpleTypeExpression("Future"),
-        [typeInfoToTypeExpression(type.result) ?? AST.wildcardTypeExpression()],
-      );
-    case "nullable":
-      return AST.nullableTypeExpression(typeInfoToTypeExpression(type.inner) ?? AST.wildcardTypeExpression());
-    case "result":
-      return AST.resultTypeExpression(typeInfoToTypeExpression(type.inner) ?? AST.wildcardTypeExpression());
-    case "union":
-      return AST.unionTypeExpression(
-        type.members.map((member) => typeInfoToTypeExpression(member) ?? AST.wildcardTypeExpression()),
-      );
-    case "function": {
-      const params = (type.parameters ?? []).map((param) => typeInfoToTypeExpression(param) ?? AST.wildcardTypeExpression());
-      const returnType = typeInfoToTypeExpression(type.returnType) ?? AST.wildcardTypeExpression();
-      return AST.functionTypeExpression(params, returnType);
-    }
-    default:
-      return AST.wildcardTypeExpression();
-  }
-}
 
 function canonicalizeTargetType(
   ctx: ImplementationContext,
@@ -326,7 +255,13 @@ export function collectImplementationDefinition(
     );
     return;
   }
-  validateImplementationInterfaceArguments(ctx, definition, interfaceDefinition, contextName, interfaceName);
+  const interfaceArgs = resolveImplementationInterfaceArguments(
+    ctx,
+    definition,
+    interfaceDefinition,
+    contextName,
+    interfaceName,
+  );
   const interfaceGenericNames = collectInterfaceGenericParamNames(ctx, interfaceDefinition);
   const implementationGenericNames = collectImplementationGenericParamNames(ctx, definition);
   const implementationGenericNameSet = new Set(implementationGenericNames);
@@ -367,6 +302,7 @@ export function collectImplementationDefinition(
       contextName,
       contextName,
       implementationGenericNames,
+      interfaceArgs,
       canonicalTarget ?? targetType ?? definition.targetType,
       resolvedTarget ?? unknownType,
     );
@@ -499,6 +435,7 @@ function createImplementationRecord(
   targetLabel: string,
   targetKey: string,
   implementationGenericNames?: string[],
+  interfaceArgs: AST.TypeExpression[] = [],
   targetType?: AST.TypeExpression,
   resolvedTarget?: TypeInfo,
 ): ImplementationRecord | null {
@@ -514,9 +451,6 @@ function createImplementationRecord(
           .filter((name): name is string => Boolean(name))
       : []);
   const obligations = extractImplementationObligations(ctx, definition);
-  const interfaceArgs = Array.isArray(definition.interfaceArgs)
-    ? definition.interfaceArgs.filter((arg): arg is AST.TypeExpression => Boolean(arg))
-    : [];
   const unionVariants = collectUnionVariantLabels(ctx, resolvedTarget);
   return {
     interfaceName,
@@ -561,18 +495,21 @@ function collectInterfaceGenericParamNames(
   return names;
 }
 
-function validateImplementationInterfaceArguments(
+function resolveImplementationInterfaceArguments(
   ctx: ImplementationContext,
   implementation: AST.ImplementationDefinition,
   interfaceDefinition: AST.InterfaceDefinition,
   targetLabel: string,
   interfaceName: string,
-): void {
+): AST.TypeExpression[] {
   const expected = Array.isArray(interfaceDefinition.genericParams) ? interfaceDefinition.genericParams.length : 0;
-  const provided = Array.isArray(implementation.interfaceArgs) ? implementation.interfaceArgs.length : 0;
+  const rawArgs = Array.isArray(implementation.interfaceArgs)
+    ? implementation.interfaceArgs.filter((arg): arg is AST.TypeExpression => Boolean(arg))
+    : [];
+  const provided = rawArgs.length;
   if (expected === 0 && provided > 0) {
     ctx.report(`typechecker: impl ${interfaceName} does not accept type arguments`, implementation);
-    return;
+    return rawArgs;
   }
   if (expected > 0) {
     const targetDescription = targetLabel;
@@ -581,7 +518,7 @@ function validateImplementationInterfaceArguments(
         `typechecker: impl ${interfaceName} for ${targetDescription} requires ${expected} interface type argument(s)`,
         implementation,
       );
-      return;
+      return rawArgs;
     }
     if (provided !== expected) {
       ctx.report(
@@ -590,6 +527,7 @@ function validateImplementationInterfaceArguments(
       );
     }
   }
+  return rawArgs;
 }
 
 function validateImplementationSelfTypePattern(

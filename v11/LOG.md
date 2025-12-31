@@ -1,5 +1,15 @@
 # Able Project Log
 
+## 2025-12-30 — Drop snapshots from testing framework
+- Removed snapshot matchers/stores and the `--update-snapshots` flag across stdlib tests, docs, and CLI design notes; deleted the snapshot store design doc and scrubbed spec references.
+- Regenerated `v11/stdlib/src/spec.able` after removing snapshot exports from the spec DSL.
+- Tests not run.
+
+## 2025-12-30 — Testing module suffix policy
+- Added the testing framework section to `spec/full_spec_v11.md`, codifying `.test.able` and `.spec.able` as test modules plus the `able test` contract.
+- Cleared the suffix-policy open decision in `v11/design/testing-plan.md` and removed the corresponding TODO from `PLAN.md`.
+- Tests not run.
+
 ## 2025-11-11 — Stdlib Module Search Paths
 - **Pipe semantics parity**: Added the `pipes/multi_stage_chain` AST fixture so multi-stage pipelines that mix `%` topic steps, placeholder-built callables, and bound methods stay covered; `bun run scripts/run-fixtures.ts` (TypeScript) and `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter` (Go) stay green with no parity divergences observed.
 - **Typechecker strict fixtures**: TypeScript’s checker now hoists struct identifiers for static calls, predeclares `:=` bindings (so proc handles can reference themselves), binds iterator driver aliases plus struct/array pattern destructures, and hides private package members behind the standard “has no symbol” diagnostic. The full fixture suite now passes under `ABLE_TYPECHECK_FIXTURES=strict bun run scripts/run-fixtures.ts`, and manifests/baselines were updated where diagnostics are expected.
@@ -105,7 +115,7 @@ Open items (2025-11-02 audit):
 - The Bun CLI suite (`v11/interpreters/ts/test/cli/run_module_cli.test.ts`) now covers multi-file packages, custom loader search paths via the new `ABLE_MODULE_PATHS` env, and strict vs warn typecheck enforcement so the ModuleLoader refactor stays covered without pulling `stdlib/` into every run.
 - Introduced the `able test` skeleton inside `scripts/run-module.ts`: it parses the planned flags/filters, materialises run options + reporter selection, and prints a deterministic plan summary before exiting with code `2` while the stdlib testing packages remain unparsable. (See `design/testing-cli-design.md` / `design/testing-cli-protocol.md`.)
 - Extracted the shared package-scanning helpers (`discoverRoot`, `indexSourceFiles`, etc.) into `scripts/module-utils.ts` so other tooling (fixtures runner, future harnesses) can reuse the multi-module discovery logic without duplicating it.
-- **Deferral noted:** full stdlib/testing integration is still on pause until the parser accepts `stdlib/src/testing/*`; once that unblocks, wire the CLI skeleton into the able.testing harness per the design notes.
+- **Deferral noted:** full stdlib/testing integration is still on pause until the parser accepts `stdlib/src/test/*`; once that unblocks, wire the CLI skeleton into the `able.test` harness per the design notes.
 
 ### 2025-11-05
 - Step 6 regression sweep ran end-to-end: `./run_all_tests.sh --typecheck-fixtures=warn` stayed green post-refactor, and `GOCACHE=$(pwd)/.gocache GO_PARSER_FIXTURES=1 go test ./pkg/parser` uncovered/validated the Go-side AST gaps.

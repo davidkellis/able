@@ -1232,7 +1232,7 @@
       "required": true,
       "types": [
         {
-          "type": "type_identifier",
+          "type": "interface_type_expression",
           "named": true
         }
       ]
@@ -1343,6 +1343,116 @@
           }
         ]
       }
+    }
+  },
+  {
+    "type": "interface_type_arrow",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "interface_type_arrow",
+          "named": true
+        },
+        {
+          "type": "interface_type_suffix",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "interface_type_atom",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "parenthesized_type",
+          "named": true
+        },
+        {
+          "type": "type_identifier",
+          "named": true
+        },
+        {
+          "type": "wildcard_type",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "interface_type_expression",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "interface_type_union",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "interface_type_prefix",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": false,
+      "required": true,
+      "types": [
+        {
+          "type": "interface_type_atom",
+          "named": true
+        },
+        {
+          "type": "interface_type_prefix",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "interface_type_suffix",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "interface_type_prefix",
+          "named": true
+        },
+        {
+          "type": "type_arguments",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "interface_type_union",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": true,
+      "types": [
+        {
+          "type": "interface_type_arrow",
+          "named": true
+        }
+      ]
     }
   },
   {

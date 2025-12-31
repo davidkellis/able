@@ -137,6 +137,7 @@
 14. [Standard Library Interfaces (Conceptual / TBD)](#14-standard-library-interfaces-conceptual--tbd)
 15. [Program Entry Point](#15-program-entry-point)
 16. [Host Interop (Target-Language Inline Code)](#16-host-interop-target-language-inline-code)
+17. [Tooling: Testing Framework](#17-tooling-testing-framework)
 
 ## 1. Introduction
 
@@ -3022,7 +3023,7 @@ Provides bodies for interface methods. Can use `fn #method` shorthand if desired
 -   **`impl`**: Keyword.
 -   **`[<ImplGenericParams>]`**: Optional comma-separated generics for the implementation itself (e.g., `<T: Numeric>`). Use `<>` delimiters. Constraints can be specified inline here or in the `where` clause.
 -   **`InterfaceName`**: The name of the interface being implemented.
--   **`[InterfaceArgs]`**: Space-delimited type arguments for the interface's generic parameters (if any).
+-   **`[InterfaceArgs]`**: Space-delimited type expressions for the interface's generic parameters (if any), one argument per parameter. Space-delimited generic applications are only formed when parenthesized; otherwise each term is parsed as its own argument. Parenthesized or prefixed types (`?`/`!`) count as a single argument only when the generic application is parenthesized. Example: for a single-parameter interface, `impl Foo (Map K V) for ...` is valid while `impl Foo Map K V for ...` supplies three arguments and will fail arity checks. For a two-parameter interface, `impl Foo (Map K V) (Array T) for ...` supplies two arguments.
 -   **`for`**: Keyword (mandatory).
 -   **`Target`**: The specific type or type constructor implementing the interface.
     *   If the interface was defined using `interface ... for SelfTypePattern ...`, the `Target` must structurally match the `SelfTypePattern`.
@@ -4556,7 +4557,7 @@ All structs are shareable across threads/procs; compiled programs are immutable 
 
 #### 14.2.5. Integration Points
 
--   The testing helpers (`able.testing.assertions.match_regex`) delegate to `regex_is_match`, so diagnostic output and failure modes flow through the regex module rather than bespoke matchers.
+-   The testing helpers (`able.spec.match_regex`) delegate to `regex_is_match`, so diagnostic output and failure modes flow through the regex module rather than bespoke matchers.
 -   Channel/mutex diagnostics (§12.7) and the text processing utilities consume regex spans directly; consumers should treat `Span.start`/`Span.end` as byte offsets and rely on `String.substring` or `String.graphemes()` when human-facing presentation is needed.
 -   Because regex captures rely on byte offsets, any API that displays indices alongside grapheme-oriented UIs must convert them explicitly (e.g., by counting graphemes up to `span.start`).
 
@@ -4724,6 +4725,41 @@ prelude ruby { require "securerandom" }
 extern ruby fn new_uuid() -> String { SecureRandom.uuid }
 ```
 
+## 17. Tooling: Testing Framework
+
+Able ships a stdlib-backed testing framework (`able.test.*` protocol + `able.spec`
+DSL). Tooling must treat test modules as a distinct build profile so production
+builds remain slim but tests can still share package scope.
+
+### 17.1. Test Modules
+
+- Any source file ending in `.test.able` or `.spec.able` is a **test module**.
+- Test modules belong to the same package namespace as production modules in the
+  same directory tree, so they may access private members.
+- Standard commands (`able build`, `able run`, `able check`, etc.) ignore test
+  modules unless `--with-tests` is explicitly enabled.
+- `able test` always enables the test profile and typechecks production + test
+  sources together to preserve privacy semantics.
+
+### 17.2. `able test` Command Contract
+
+- `able test [OPTIONS] [TARGETS...]` discovers test modules in scope, loads them
+  once, and evaluates the registered frameworks via `able.test.harness`.
+- Discovery uses `able.test.protocol.DiscoveryRequest` with CLI-supplied path,
+  name, and tag filters; `--list` performs discovery only.
+- Execution uses `able.test.harness.run_plan` with `RunOptions` populated from
+  flags like `--shuffle`, `--repeat`, `--parallel`, and `--fail-fast`.
+- `--format` selects the reporter output format (doc/progress/tap/json).
+- Exit codes: `0` success, `1` test failures, `2` discovery/runtime errors.
+
+### 17.3. Standard Library Surface
+
+- `able.test.protocol` defines the shared structs and interfaces.
+- `able.test.registry` stores framework registrations triggered by imports.
+- `able.test.harness` provides `discover_all` + `run_plan` orchestration.
+- `able.test.reporters` supplies default reporters used by the CLI.
+- `able.spec` is the default spec-style DSL; importing it registers a framework.
+
 # Todo
 
 *   **Standard Library Implementation:** Core types (`Array`, `Map`?, `Set`?, `Range`, `Option`/`Result` details, `Proc`, `Future`), IO, string methods, Math, `Iterable`/`Iterator` protocol, Operator interfaces. Definition of standard `Error` interface.
@@ -4732,7 +4768,7 @@ extern ruby fn new_uuid() -> String { SecureRandom.uuid }
 *   **Pattern Exhaustiveness:** Rules for open sets like `Error` and refutability constraints.
 *   **Re-exports and Named Impl Aliasing:** Precise import/alias collision rules and diagnostics.
 *   **Ranges:** Concrete type vs existential for `..` and `...` results.
-*   **Tooling:** Compiler, Package manager commands, Testing framework.
+*   **Tooling:** Compiler, Package manager commands.
 
 # Unresolved questions
 

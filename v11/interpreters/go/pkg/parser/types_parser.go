@@ -60,7 +60,7 @@ func parseTypeExpression(node *sitter.Node, source []byte) ast.TypeExpression {
 		return nil
 	}
 	switch node.Kind() {
-	case "return_type", "type_expression", "type_prefix", "type_atom":
+	case "return_type", "type_expression", "interface_type_expression", "type_prefix", "interface_type_prefix", "type_atom", "interface_type_atom":
 		if node.NamedChildCount() == 0 {
 			break
 		}
@@ -69,7 +69,7 @@ func parseTypeExpression(node *sitter.Node, source []byte) ast.TypeExpression {
 			if expr == nil {
 				return nil
 			}
-			if node.Kind() == "type_prefix" {
+			if node.Kind() == "type_prefix" || node.Kind() == "interface_type_prefix" {
 				text := strings.TrimSpace(sliceContent(node, source))
 				for len(text) > 0 && (text[0] == '?' || text[0] == '!') {
 					switch text[0] {
@@ -83,7 +83,7 @@ func parseTypeExpression(node *sitter.Node, source []byte) ast.TypeExpression {
 			}
 			return annotateTypeExpression(expr, node)
 		}
-	case "type_suffix":
+	case "type_suffix", "interface_type_suffix":
 		if node.NamedChildCount() > 1 {
 			base := parseTypeExpression(node.NamedChild(0), source)
 			var args []ast.TypeExpression
@@ -112,7 +112,7 @@ func parseTypeExpression(node *sitter.Node, source []byte) ast.TypeExpression {
 			}
 			return annotateTypeExpression(expr, node)
 		}
-	case "type_arrow":
+	case "type_arrow", "interface_type_arrow":
 		if node.NamedChildCount() >= 2 {
 			paramTypes, ok := parseFunctionParameterTypes(node.NamedChild(0), source)
 			if !ok {
@@ -149,7 +149,7 @@ func parseTypeExpression(node *sitter.Node, source []byte) ast.TypeExpression {
 			return annotateTypeExpression(base, node)
 		}
 		return annotateTypeExpression(applyGenericType(base, args), node)
-	case "type_union":
+	case "type_union", "interface_type_union":
 		var members []ast.TypeExpression
 		for i := uint(0); i < node.NamedChildCount(); i++ {
 			child := node.NamedChild(i)

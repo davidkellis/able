@@ -2,6 +2,9 @@
 
 Goal: validate that the Go and TypeScript interpreters consume identical Able v11 AST structures and produce the same observable behaviour.
 
+These fixtures are **language implementation tests** and are not related to the
+user-facing `able test` framework or its conventions.
+
 ## 1. Fixture Format
 
 - Use JSON as the interchange format. Every node already carries `node_type` and snake_case fields that serialize naturally.

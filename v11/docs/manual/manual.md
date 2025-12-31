@@ -483,7 +483,8 @@ Embed host-language code via package-scope `prelude <target> { ... }` and `exter
 - Any package with public `fn main() -> void` produces a binary named after the package path. Multiple binaries are allowed.
 - `os.args()` provides CLI args; returning from `main` exits 0; unhandled exceptions exit 1; use `os.exit(code)` for custom codes.
 - Background `proc`/`spawn` tasks are not awaited when `main` returns—join explicitly if needed.
-- Testing: keep TS + Go interpreters in sync. Run `bun test`, `go test ./...`, `bun run scripts/run-fixtures.ts`, `go test ./pkg/interpreter`, and `./run_all_tests.sh --version=v11` before landing changes.
+- Language implementation testing (fixtures/parity): keep TS + Go interpreters in sync. Run `bun test`, `go test ./...`, `bun run scripts/run-fixtures.ts`, `go test ./pkg/interpreter`, and `./run_all_tests.sh --version=v11` before landing changes.
 - Fixtures: update `v11/fixtures`, export via `bun run scripts/export-fixtures.ts`, and ensure parity stays green.
+- User-facing testing (Able programs): `able test` plus the `able.spec` DSL (backed by `able.test.*`) are planned for end-user test suites and are separate from fixture/parity work.
 
 Able emphasises clarity, parity between interpreters, and spec-first behaviour. When in doubt, check the v11 spec, add fixtures, and validate in both runtimes.
