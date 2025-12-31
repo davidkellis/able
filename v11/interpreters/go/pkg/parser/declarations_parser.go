@@ -419,6 +419,15 @@ func (ctx *parseContext) parseInterfaceArguments(node *sitter.Node) ([]ast.TypeE
 		if child == nil {
 			continue
 		}
+		genericNode := findTopLevelGenericApplication(child)
+		if genericNode != nil {
+			snippet := strings.TrimSpace(sliceContent(genericNode, ctx.source))
+			detail := ""
+			if snippet != "" {
+				detail = fmt.Sprintf("; wrap %q in parentheses", snippet)
+			}
+			return nil, fmt.Errorf("parser: interface arguments require parenthesized generic applications%s", detail)
+		}
 		expr := ctx.parseTypeExpression(child)
 		if expr == nil {
 			return nil, fmt.Errorf("parser: unsupported interface argument kind %q", child.Kind())
@@ -426,6 +435,27 @@ func (ctx *parseContext) parseInterfaceArguments(node *sitter.Node) ([]ast.TypeE
 		args = append(args, expr)
 	}
 	return args, nil
+}
+
+func findTopLevelGenericApplication(node *sitter.Node) *sitter.Node {
+	current := node
+	for current != nil {
+		if current.Kind() == "type_generic_application" {
+			return current
+		}
+		if current.Kind() == "parenthesized_type" {
+			return nil
+		}
+		if current.NamedChildCount() != 1 {
+			return nil
+		}
+		child := current.NamedChild(0)
+		if child == nil || !child.IsNamed() {
+			return nil
+		}
+		current = child
+	}
+	return nil
 }
 
 func (ctx *parseContext) parseParameter(node *sitter.Node) (*ast.FunctionParameter, error) {

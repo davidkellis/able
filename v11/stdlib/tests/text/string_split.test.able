@@ -1,0 +1,34 @@
+package string_split_specs
+
+import able.spec.*
+import able.core.interfaces{Error}
+import able.text.string.{String}
+
+fn s(value: String) -> String {
+  match String::from_builtin(value) {
+    case ok: String => ok,
+    case err: Error => raise err
+  }
+}
+
+describe("String split/join") { suite =>
+  suite.it("splits by delimiter") { _ctx =>
+    parts := s("a,b,,c").split(s(","))
+    expect(parts.len()).to(eq(4))
+    expect(parts.get(0)!.to_builtin().unwrap()).to(eq("a"))
+    expect(parts.get(1)!.to_builtin().unwrap()).to(eq("b"))
+    expect(parts.get(2)!.to_builtin().unwrap()).to(eq(""))
+    expect(parts.get(3)!.to_builtin().unwrap()).to(eq("c"))
+  }
+
+  suite.it("joins and concats strings") { _ctx =>
+    arr: Array String := Array.new()
+    arr.push(s("x"))
+    arr.push(s("y"))
+    joined := String::join(arr, s("-"))
+    expect(joined.to_builtin().unwrap()).to(eq("x-y"))
+
+    concat := String::concat(arr)
+    expect(concat.to_builtin().unwrap()).to(eq("xy"))
+  }
+}

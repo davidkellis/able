@@ -26,6 +26,8 @@ function integerValueWithinRange(raw: bigint, target: IntegerKind): boolean {
 
 function normalizeKernelAliasName(name: string): string {
   switch (name) {
+    case "string":
+      return "String";
     case "KernelArray":
       return "Array";
     case "KernelChannel":

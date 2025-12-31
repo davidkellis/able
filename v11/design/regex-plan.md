@@ -1,7 +1,7 @@
 # Able v11 Regex Module Design
 
 ## Background
-- `match_regex` in `able.testing.assertions` is a placeholder that delegates to string equality.
+- `match_regex` in `able.spec` is a placeholder that delegates to string equality.
 - Section 5.5 of `design/stdlib-v11.md` outlines a long-term vision: an RE2-grade engine with deterministic performance and layered APIs (`Regex`, `RegexSet`, automata export, builders, streaming).
 - No runtime support or parser exists today; the interpreters expose no regex primitives.
 

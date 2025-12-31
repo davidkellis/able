@@ -159,6 +159,47 @@ func TestParseBreakpointExpression(t *testing.T) {
 	assertModulesEqual(t, expected, mod)
 }
 
+func TestParseImplInterfaceArgsParentheses(t *testing.T) {
+	source := "impl Foo Array i64 for Bar {}"
+
+	p, err := NewModuleParser()
+	if err != nil {
+		t.Fatalf("NewModuleParser error: %v", err)
+	}
+	defer p.Close()
+
+	mod, err := p.ParseModule([]byte(source))
+	if err != nil {
+		t.Fatalf("ParseModule error: %v", err)
+	}
+	if len(mod.Body) != 1 {
+		t.Fatalf("expected 1 statement, got %d", len(mod.Body))
+	}
+	implDef, ok := mod.Body[0].(*ast.ImplementationDefinition)
+	if !ok {
+		t.Fatalf("expected implementation definition, got %T", mod.Body[0])
+	}
+	if len(implDef.InterfaceArgs) != 2 {
+		t.Fatalf("expected 2 interface args, got %d", len(implDef.InterfaceArgs))
+	}
+
+	valid := "impl Foo (Array i64) for Bar {}"
+	validMod, err := p.ParseModule([]byte(valid))
+	if err != nil {
+		t.Fatalf("expected parenthesized interface arg to parse, got: %v", err)
+	}
+	if len(validMod.Body) != 1 {
+		t.Fatalf("expected 1 statement, got %d", len(validMod.Body))
+	}
+	validImpl, ok := validMod.Body[0].(*ast.ImplementationDefinition)
+	if !ok {
+		t.Fatalf("expected implementation definition, got %T", validMod.Body[0])
+	}
+	if len(validImpl.InterfaceArgs) != 1 {
+		t.Fatalf("expected 1 interface arg, got %d", len(validImpl.InterfaceArgs))
+	}
+}
+
 func TestParseBreakpointWithLabel(t *testing.T) {
 	source := `fn debug() {
   breakpoint 'trace {

@@ -16,7 +16,8 @@ round-trip programs into the shared AST (`design/ast-contract.md`).
 - `tree-sitter init` scaffold committed.
 - `grammar.js` now tracks the v11 declaration surface: spec-style generics for
   structs/unions/interfaces/methods, interface compositions (`=` + `+`), and
-  `impl` headers that accept space-delimited interface arguments.
+  `impl` headers that accept space-delimited interface arguments (with
+  parenthesized generic applications).
 - Host interop is parsed via dedicated `prelude <target> { ... }` and
   `extern <target> fn ... { ... }` rules that treat the body as raw host code
   while keeping signatures aligned with Able syntax.

@@ -266,7 +266,7 @@ module.exports = grammar({
       $.generic_parameter_list,
     ),
 
-    interface_argument_clause: $ => repeat1($.type_identifier),
+    interface_argument_clause: $ => repeat1($.interface_type_expression),
 
     parameter_list: $ => seq(
       "(",
@@ -1114,6 +1114,37 @@ module.exports = grammar({
       "(",
       $.pattern,
       ")",
+    ),
+
+    interface_type_expression: $ => $.interface_type_union,
+
+    interface_type_union: $ => choice(
+      prec.left(seq($.interface_type_arrow, repeat1(seq("|", $.interface_type_arrow)))),
+      $.interface_type_arrow,
+    ),
+
+    interface_type_arrow: $ => choice(
+      prec.right(seq($.interface_type_suffix, "->", $.interface_type_arrow)),
+      $.interface_type_suffix,
+    ),
+
+    interface_type_suffix: $ => prec.left(
+      seq(
+        $.interface_type_prefix,
+        repeat($.type_arguments),
+      ),
+    ),
+
+    interface_type_prefix: $ => choice(
+      seq("?", $.interface_type_prefix),
+      seq("!", $.interface_type_prefix),
+      $.interface_type_atom,
+    ),
+
+    interface_type_atom: $ => choice(
+      $.parenthesized_type,
+      $.type_identifier,
+      $.wildcard_type,
     ),
 
     type_expression: $ => $.type_union,

@@ -1,0 +1,30 @@
+package heap_specs
+
+import able.spec.*
+import able.collections.heap.{Heap}
+
+describe("Heap") { suite =>
+  suite.it("pushes and pops smallest values first") { _ctx =>
+    heap: Heap i32 := Heap.new()
+    heap.push(5)
+    heap.push(2)
+    heap.push(8)
+    heap.push(1)
+
+    expect(heap.pop()).to(eq(1))
+    expect(heap.pop()).to(eq(2))
+    expect(heap.pop()).to(eq(5))
+    expect(heap.pop()).to(eq(8))
+    expect(heap.pop()).to(eq(nil))
+  }
+
+  suite.it("supports peek without removal") { _ctx =>
+    heap: Heap String := Heap.new()
+    heap.push("c")
+    heap.push("a")
+    heap.push("b")
+
+    expect(heap.peek()).to(eq("a"))
+    expect(heap.len()).to(eq(3))
+  }
+}
