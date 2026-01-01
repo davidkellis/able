@@ -118,6 +118,12 @@ func parseExpressionInternal(ctx *parseContext, node *sitter.Node) (ast.Expressi
 			return nil, err
 		}
 		return annotateExpression(expr, node), nil
+	case "verbose_lambda_expression":
+		expr, err := ctx.parseVerboseLambdaExpression(node)
+		if err != nil {
+			return nil, err
+		}
+		return annotateExpression(expr, node), nil
 	case "lambda_expression":
 		expr, err := ctx.parseLambdaExpression(node)
 		if err != nil {
@@ -777,6 +783,38 @@ func (ctx *parseContext) parseLambdaExpression(node *sitter.Node) (ast.Expressio
 	}
 
 	return annotateExpression(ast.NewLambdaExpression(params, bodyExpr, returnType, nil, nil, false), node), nil
+}
+
+func (ctx *parseContext) parseVerboseLambdaExpression(node *sitter.Node) (ast.Expression, error) {
+	if node == nil || node.Kind() != "verbose_lambda_expression" {
+		return nil, fmt.Errorf("parser: expected verbose lambda expression")
+	}
+
+	params, err := ctx.parseParameterList(node.ChildByFieldName("parameters"))
+	if err != nil {
+		return nil, err
+	}
+
+	returnType := ctx.parseReturnType(node.ChildByFieldName("return_type"))
+	generics, err := parseTypeParameters(node.ChildByFieldName("type_parameters"), ctx.source)
+	if err != nil {
+		return nil, err
+	}
+	whereClause, err := parseWhereClause(node.ChildByFieldName("where_clause"), ctx.source)
+	if err != nil {
+		return nil, err
+	}
+
+	bodyNode := node.ChildByFieldName("body")
+	if bodyNode == nil {
+		return nil, fmt.Errorf("parser: verbose lambda missing body")
+	}
+	bodyExpr, err := ctx.parseBlock(bodyNode)
+	if err != nil {
+		return nil, err
+	}
+
+	return annotateExpression(ast.NewLambdaExpression(params, bodyExpr, returnType, generics, whereClause, true), node), nil
 }
 
 func parseLambdaParameter(node *sitter.Node, source []byte) (*ast.FunctionParameter, error) {

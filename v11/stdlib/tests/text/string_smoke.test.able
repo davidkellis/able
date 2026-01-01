@@ -1,5 +1,6 @@
 package string_tests
 
+import able.text.string
 import able.text.string.{StringBuilder}
 
 fn check_roundtrip() -> void {
@@ -11,17 +12,17 @@ fn check_roundtrip() -> void {
   text.substring(0, 4) match {
     case slice: String => {
       if !(slice == "Able") { raise "substring should slice by Unicode scalars" }
-    }
+    },
     case err => { raise err }
   }
 
-  builder := StringBuilder::new()
+  builder := StringBuilder.new()
   builder.push_string("Hi")
   builder.push_char('!')
   builder.finish() match {
     case result: String => {
       if !(result == "Hi!") { raise "StringBuilder should emit a built-in string" }
-    }
+    },
     case err => { raise err }
   }
 }

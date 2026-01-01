@@ -1,4 +1,4 @@
-package numbers
+package primitives
 
 import able.core.errors.{DivisionByZeroError, OverflowError}
 import able.core.numeric.{
@@ -14,8 +14,11 @@ import able.core.numeric.{
 import able.core.options.{Result}
 
 fn numeric_error(message: String) -> NumericConversionError {
-  NumericConversionError { message }
+  raise NumericConversionError { message }
 }
+
+I32_MIN: i32 := (-2147483647_i32) - 1
+I64_MIN: i64 := (-9223372036854775807_i64) - 1
 
 fn __f64_abs(value: f64) -> f64 {
   if value < 0.0 { -value } else { value }
@@ -26,8 +29,8 @@ fn __f64_is_nan(value: f64) -> bool {
 }
 
 fn __f64_is_truncatable(value: f64) -> bool {
-  max := 9223372036854775807_i64 as f64
-  min := -9223372036854775808_i64 as f64
+  max := (9223372036854775807_i64 as f64)
+  min := (I64_MIN as f64)
   value <= max && value >= min
 }
 
@@ -44,7 +47,7 @@ fn __f64_floor(value: f64) -> f64 {
   if value >= 0.0 || truncated == value {
     truncated
   } else {
-    truncated - 1.0
+    truncated + (-1.0)
   }
 }
 
@@ -69,7 +72,9 @@ fn __f64_round(value: f64) -> f64 {
 
 fn __f64_fract(value: f64) -> f64 {
   if __f64_is_nan(value) { return value }
-  value - __f64_floor(value)
+  floor_value := __f64_floor(value)
+  result := value - floor_value
+  result
 }
 
 ## i32 implementations -------------------------------------------------------
@@ -79,7 +84,7 @@ impl Numeric for i32 {
   fn one() -> i32 { 1 }
 
   fn abs(self: Self) -> Self {
-    min_value := -2147483648_i32
+    min_value := I32_MIN
     if self == min_value {
       raise OverflowError { operation: "abs(i32)" }
     }
@@ -88,7 +93,7 @@ impl Numeric for i32 {
 
   fn sign(self: Self) -> i32 {
     if self > 0 { 1 }
-    else if self < 0 { -1 }
+    elsif self < 0 { -1 }
     else { 0 }
   }
 
@@ -118,31 +123,31 @@ impl Signed for i32 {
 impl Integral for i32 {
   fn div_mod(self: Self, other: Self) -> DivModResult i32 {
     if other == 0 { raise DivisionByZeroError {} }
-    DivModResult { quotient: self / other, remainder: self % other }
+    DivModResult i32 { quotient: self // other, remainder: self % other }
   }
 
   fn bit_length(self: Self) -> i32 {
     if self == 0 { return 0 }
     value: i64 = if self < 0 {
-      if self == -2147483648_i32 { 2147483648_i64 } else { (-self) as i64 }
+      if self == I32_MIN { 2147483648_i64 } else { (-self) as i64 }
     } else {
-      self as i64
+      (self as i64)
     }
     count := 0
     loop {
       if value == 0 { break }
-      value = value >> 1_i64
+      value = value .>> 1_i64
       count = count + 1
     }
     count
   }
 
   fn bit_count(self: Self) -> i32 {
-    bits := self as u32
+    bits := (self as u32)
     count := 0
     loop {
       if bits == 0 { break }
-      bits = bits & (bits - 1)
+      bits = bits .& (bits - 1)
       count = count + 1
     }
     count
@@ -177,7 +182,7 @@ impl Numeric for i64 {
   fn one() -> i64 { 1 }
 
   fn abs(self: Self) -> Self {
-    min_value := -9223372036854775808_i64
+    min_value := I64_MIN
     if self == min_value {
       raise OverflowError { operation: "abs(i64)" }
     }
@@ -186,7 +191,7 @@ impl Numeric for i64 {
 
   fn sign(self: Self) -> i32 {
     if self > 0 { 1 }
-    else if self < 0 { -1 }
+    elsif self < 0 { -1 }
     else { 0 }
   }
 
@@ -216,31 +221,31 @@ impl Signed for i64 {
 impl Integral for i64 {
   fn div_mod(self: Self, other: Self) -> DivModResult i64 {
     if other == 0 { raise DivisionByZeroError {} }
-    DivModResult { quotient: self / other, remainder: self % other }
+    DivModResult i64 { quotient: self // other, remainder: self % other }
   }
 
   fn bit_length(self: Self) -> i32 {
     if self == 0 { return 0 }
     value: u64 = if self < 0 {
-      if self == -9223372036854775808_i64 { 9223372036854775808_u64 } else { (-self) as u64 }
+      if self == I64_MIN { 9223372036854775808_u64 } else { (-self) as u64 }
     } else {
-      self as u64
+      (self as u64)
     }
     count := 0
     loop {
       if value == 0 { break }
-      value = value >> 1_u64
+      value = value .>> 1_u64
       count = count + 1
     }
     count
   }
 
   fn bit_count(self: Self) -> i32 {
-    bits := self as u64
+    bits := (self as u64)
     count := 0
     loop {
       if bits == 0 { break }
-      bits = bits & (bits - 1)
+      bits = bits .& (bits - 1)
       count = count + 1
     }
     count
@@ -257,7 +262,7 @@ impl NumericConversions for i64 {
     if self < min || self > max {
       numeric_error(`value ${self} is out of range for i32`)
     } else {
-      self as i32
+      (self as i32)
     }
   }
 
@@ -265,7 +270,7 @@ impl NumericConversions for i64 {
     if self < 0 || self > 4294967295_i64 {
       numeric_error(`value ${self} is out of range for u32`)
     } else {
-      self as u32
+      (self as u32)
     }
   }
 
@@ -316,8 +321,8 @@ impl Unsigned for u32 {
     bit := 31
     loop {
       if bit < 0 { break }
-      mask := 1_u32 << (bit as u32)
-      if (self & mask) != 0_u32 { break }
+      mask := 1_u32 .<< (bit as u32)
+      if (self .& mask) != 0_u32 { break }
       count = count + 1
       bit = bit - 1
     }
@@ -329,9 +334,9 @@ impl Unsigned for u32 {
     count := 0
     value := self
     loop {
-      if (value & 1_u32) != 0_u32 { break }
+      if (value .& 1_u32) != 0_u32 { break }
       count = count + 1
-      value = value >> 1_u32
+      value = value .>> 1_u32
     }
     count
   }
@@ -340,7 +345,7 @@ impl Unsigned for u32 {
 impl Integral for u32 {
   fn div_mod(self: Self, other: Self) -> DivModResult u32 {
     if other == 0_u32 { raise DivisionByZeroError {} }
-    DivModResult { quotient: self / other, remainder: self % other }
+    DivModResult u32 { quotient: self // other, remainder: self % other }
   }
 
   fn bit_length(self: Self) -> i32 {
@@ -349,7 +354,7 @@ impl Integral for u32 {
     count := 0
     loop {
       if value == 0_u32 { break }
-      value = value >> 1_u32
+      value = value .>> 1_u32
       count = count + 1
     }
     count
@@ -360,7 +365,7 @@ impl Integral for u32 {
     count := 0
     loop {
       if bits == 0_u32 { break }
-      bits = bits & (bits - 1_u32)
+      bits = bits .& (bits - 1_u32)
       count = count + 1
     }
     count
@@ -375,7 +380,7 @@ impl NumericConversions for u32 {
     if self > 2147483647_u32 {
       numeric_error(`value ${self} is out of range for i32`)
     } else {
-      self as i32
+      (self as i32)
     }
   }
 
@@ -400,7 +405,7 @@ impl Numeric for f64 {
 
   fn sign(self: Self) -> i32 {
     if self > 0.0 { 1 }
-    else if self < 0.0 { -1 }
+    elsif self < 0.0 { -1 }
     else { 0 }
   }
 
@@ -451,7 +456,7 @@ impl NumericConversions for f64 {
     if self < min || self > max {
       numeric_error(`value ${self} is out of range for i32`)
     } else {
-      cast := self as i32
+      cast := (self as i32)
       if (cast as f64) != self {
         numeric_error(`value ${self} cannot be represented exactly as i32`)
       } else {
@@ -466,7 +471,7 @@ impl NumericConversions for f64 {
     if self < min || self > max {
       numeric_error(`value ${self} is out of range for u32`)
     } else {
-      cast := self as u32
+      cast := (self as u32)
       if (cast as f64) != self {
         numeric_error(`value ${self} cannot be represented exactly as u32`)
       } else {
@@ -481,7 +486,7 @@ impl NumericConversions for f64 {
     if self < min || self > max {
       numeric_error(`value ${self} is out of range for i64`)
     } else {
-      cast := self as i64
+      cast := (self as i64)
       if (cast as f64) != self {
         numeric_error(`value ${self} cannot be represented exactly as i64`)
       } else {
@@ -496,7 +501,7 @@ impl NumericConversions for f64 {
     if self < min || self > max {
       numeric_error(`value ${self} is out of range for u64`)
     } else {
-      cast := self as u64
+      cast := (self as u64)
       if (cast as f64) != self {
         numeric_error(`value ${self} cannot be represented exactly as u64`)
       } else {

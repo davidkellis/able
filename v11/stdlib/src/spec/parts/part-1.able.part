@@ -42,6 +42,8 @@ import able.spec.assertions.{
   eq::assertions_eq,
   eq_string::assertions_eq_string,
   expect::assertions_expect,
+  to::assertions_to,
+  not_to::assertions_not_to,
   failure_from_assertion,
   raise_error::assertions_raise_error,
   raise_error_with_message::assertions_raise_error_with_message
@@ -65,6 +67,8 @@ import able.test.protocol.{
 import able.test.registry.{register_framework}
 
 FRAMEWORK_ID := "able.spec"
+to := assertions_to
+not_to := assertions_not_to
 
 struct SpecFramework {}
 
@@ -113,7 +117,9 @@ struct ExampleDefinition {
 
 SUITE_STACK: Array SuiteState := Array.new()
 SUITES: Array SuiteDefinition := Array.new()
+SUITES_ARCHIVE: Array SuiteDefinition := Array.new()
 EXAMPLES: Array ExampleDefinition := Array.new()
+EXAMPLES_ARCHIVE: Array ExampleDefinition := Array.new()
 
 struct ExampleOptions {
   tags: Array string,

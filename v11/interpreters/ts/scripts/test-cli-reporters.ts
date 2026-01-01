@@ -47,24 +47,24 @@ package able_test_cli
 
 import able.test.protocol.{Reporter, TestEvent}
 
-struct CliReporter { emit_fn: TestEvent -> void }
-struct CliCompositeReporter { inner: Reporter, emit_fn: TestEvent -> void }
+struct CliReporterState { emit_fn: TestEvent -> void }
+struct CliCompositeReporterState { inner: Reporter, emit_fn: TestEvent -> void }
 
-fn CliReporter(emit_fn: TestEvent -> void) -> CliReporter {
-  CliReporter { emit_fn }
+fn CliReporter(emit_fn: TestEvent -> void) -> CliReporterState {
+  CliReporterState { emit_fn }
 }
 
-fn CliCompositeReporter(inner: Reporter, emit_fn: TestEvent -> void) -> CliCompositeReporter {
-  CliCompositeReporter { inner, emit_fn }
+fn CliCompositeReporter(inner: Reporter, emit_fn: TestEvent -> void) -> CliCompositeReporterState {
+  CliCompositeReporterState { inner, emit_fn }
 }
 
-impl Reporter for CliReporter {
+impl Reporter for CliReporterState {
   fn emit(self: Self, event: TestEvent) -> void {
     self.emit_fn(event)
   }
 }
 
-impl Reporter for CliCompositeReporter {
+impl Reporter for CliCompositeReporterState {
   fn emit(self: Self, event: TestEvent) -> void {
     self.inner.emit(event)
     self.emit_fn(event)

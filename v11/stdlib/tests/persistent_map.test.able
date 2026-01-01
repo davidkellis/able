@@ -2,7 +2,7 @@ package persistent_map_specs
 
 import able.spec.assertions.{AssertionError}
 import able.spec.*
-import able.collections.persistent_map.{PersistentMap}
+import able.collections.persistent_map.{PersistentMap, PersistentMapBuilder}
 import able.core.interfaces.{Hash, Hasher, Eq, Clone}
 
 struct BadKey {

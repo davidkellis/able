@@ -534,6 +534,12 @@
     "focus": "overload selection, nullable tail omission, and ambiguity diagnostics at runtime"
   },
   {
+    "id": "exec/07_02_01_verbose_anonymous_fn",
+    "status": "seeded",
+    "spec_sections": ["7.2.1"],
+    "focus": "verbose anonymous function syntax with generics and where clauses"
+  },
+  {
     "id": "exec/07_02_lambdas_closures_capture",
     "status": "seeded",
     "spec_sections": ["7.2", "7.3"],

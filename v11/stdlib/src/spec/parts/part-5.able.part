@@ -42,7 +42,7 @@ fn run_hook_sequence(hooks: Array (ExampleContext -> void), ctx: ExampleContext)
       case nil => {},
       case hook: (ExampleContext -> void) => {
         failure: ?Failure := nil
-        _ := do { hook(ctx) } rescue {
+        do { hook(ctx) } rescue {
           case assertion: AssertionError => {
             failure = failure_from_assertion(assertion)
             nil
@@ -71,7 +71,7 @@ fn run_hook_sequence_reverse(hooks: Array (ExampleContext -> void), ctx: Example
       case nil => {},
       case hook: (ExampleContext -> void) => {
         failure: ?Failure := nil
-        _ := do { hook(ctx) } rescue {
+        do { hook(ctx) } rescue {
           case assertion: AssertionError => {
             failure = failure_from_assertion(assertion)
             nil
@@ -238,7 +238,7 @@ impl Framework for SpecFramework {
 
               if failure == nil {
                 body_failure: ?Failure := nil
-                _ := do { example.body(ctx) } rescue {
+                do { example.body(ctx) } rescue {
                   case assertion: AssertionError => {
                     body_failure = failure_from_assertion(assertion)
                     nil

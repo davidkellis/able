@@ -41,7 +41,7 @@ describe("hasher host builtins", () => {
     I.evaluate(call("__able_hasher_write", [AST.identifier("hasher"), AST.stringLiteral("abc")]));
 
     const result = I.evaluate(call("__able_hasher_finish", [AST.identifier("hasher")])) as any;
-    expect(result.kind).toBe("i32");
+    expect(result.kind).toBe("i64");
     const hash = Number(result.value);
     expect(hash >>> 0).toBe(0x1A47E90B);
   });

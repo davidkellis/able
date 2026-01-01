@@ -13,7 +13,7 @@ struct RecordingIterator {
 }
 
 impl Iterator i32 for RecordingIterator {
-  fn next(mut self: Self) -> i32 | IteratorEnd {
+  fn next(self: Self) -> i32 | IteratorEnd {
     if self.index >= self.values.len() {
       return IteratorEnd {}
     }

@@ -74,10 +74,10 @@ describe("UInt128") { suite =>
   suite.it("converts to native ranges") { _ctx =>
     big := UInt128.from_u128(4294967295_u128)
     expect(big.to_u32()).to(eq(4294967295_u32))
-    expect(big.to_i32()).to(raise_error())
+    expect(fn() { big.to_i32() }).to(raise_error())
 
     fits_i64 := UInt128.from_u128(9223372036854775807_u128)
-    expect(fits_i64.to_i64()).to(eq(9223372036854775807))
+    expect(fits_i64.to_i64()).to(eq(9223372036854775807_i64))
 
     too_large := UInt128.from_u128(9223372036854775808_u128)
     expect(fn() { too_large.to_i64() }).to(raise_error())

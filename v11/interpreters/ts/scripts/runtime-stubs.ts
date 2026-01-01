@@ -445,6 +445,15 @@ export function installRuntimeStubs(interpreter: Interpreter): void {
     }) ?? { kind: "char", value: "" },
   );
 
+  defineIfMissing("__able_char_to_codepoint", () =>
+    (interpreter as any).makeNativeFunction?.("__able_char_to_codepoint", 1, (_ctx: Interpreter, [value]: RuntimeValue[]) => {
+      if (!value || value.kind !== "char") throw new Error("argument must be char");
+      const codepoint = value.value.codePointAt(0);
+      if (codepoint === undefined) throw new Error("char must be non-empty");
+      return makeIntegerValue("i32", BigInt(codepoint));
+    }) ?? makeIntegerValue("i64", 0n),
+  );
+
   const FNV_OFFSET = 0x811c9dc5;
   const FNV_PRIME = 0x01000193;
 
@@ -452,7 +461,7 @@ export function installRuntimeStubs(interpreter: Interpreter): void {
     (interpreter as any).makeNativeFunction?.("__able_hasher_create", 0, () => {
       const handle = handleCounter++;
       hashers.set(handle, FNV_OFFSET);
-      return makeIntegerValue("i32", BigInt(handle));
+      return makeIntegerValue("i64", BigInt(handle));
     }) ?? makeIntegerValue("i32", 0n),
   );
 
@@ -478,7 +487,7 @@ export function installRuntimeStubs(interpreter: Interpreter): void {
       const state = hashers.get(handle);
       if (state === undefined) throw new Error("unknown hasher handle");
       hashers.delete(handle);
-      return makeIntegerValue("i32", BigInt(state >>> 0));
-    }) ?? makeIntegerValue("i32", 0n),
+      return makeIntegerValue("i64", BigInt(state >>> 0));
+    }) ?? makeIntegerValue("i64", 0n),
   );
 }

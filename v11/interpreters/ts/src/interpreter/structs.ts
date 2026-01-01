@@ -19,6 +19,29 @@ function isCallable(value: RuntimeValue): boolean {
   }
 }
 
+function isSingletonStruct(def: AST.StructDefinition): boolean {
+  if (!def || (def.genericParams && def.genericParams.length > 0)) return false;
+  if (def.kind === "singleton") return true;
+  return def.kind === "named" && def.fields.length === 0;
+}
+
+function functionExpectsSelf(def: AST.FunctionDefinition | AST.LambdaExpression): boolean {
+  if (def.type !== "FunctionDefinition") return false;
+  if (def.isMethodShorthand) return true;
+  const firstParam = Array.isArray(def.params) ? def.params[0] : undefined;
+  if (!firstParam) return false;
+  if (firstParam.name?.type === "Identifier" && firstParam.name.name?.toLowerCase() === "self") return true;
+  if (firstParam.paramType?.type === "SimpleTypeExpression" && firstParam.paramType.name?.name === "Self") return true;
+  return false;
+}
+
+function methodExpectsSelf(method: Extract<RuntimeValue, { kind: "function" | "function_overload" }>): boolean {
+  if (method.kind === "function") {
+    return functionExpectsSelf(method.node);
+  }
+  return method.overloads.some((entry) => entry && functionExpectsSelf(entry.node));
+}
+
 export function evaluateStructDefinition(ctx: Interpreter, node: AST.StructDefinition, env: Environment): RuntimeValue {
   env.define(node.id.name, { kind: "struct_def", def: node });
   ctx.registerSymbol(node.id.name, { kind: "struct_def", def: node });
@@ -187,6 +210,9 @@ export function memberAccessOnValue(
     const methodNode = method.kind === "function_overload" ? method.overloads[0]?.node : method.node;
     if (methodNode?.type === "FunctionDefinition" && methodNode.isPrivate) {
       throw new Error(`Method '${member.name}' on ${typeName} is private`);
+    }
+    if (isSingletonStruct(obj.def) && methodExpectsSelf(method)) {
+      return { kind: "bound_method", func: method, self: obj };
     }
     return method;
   }

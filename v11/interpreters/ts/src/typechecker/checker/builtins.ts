@@ -74,6 +74,7 @@ export function installBuiltins(context: BuiltinContext): void {
   register("__able_String_from_builtin", [stringType], arrayType(u8Type));
   register("__able_String_to_builtin", [arrayType(u8Type)], stringType);
   register("__able_char_from_codepoint", [i32Type], charType);
+  register("__able_char_to_codepoint", [charType], i32Type);
 
   const awaitableUnknown: TypeInfo = { kind: "interface", name: "Awaitable", typeArguments: [unknown] };
   register("__able_await_default", [{ kind: "function", parameters: [], returnType: unknown }], awaitableUnknown);

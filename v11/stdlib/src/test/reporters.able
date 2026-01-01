@@ -2,6 +2,7 @@ package reporters
 
 import able.kernel.{Array}
 import able.collections.array
+import able.text.string
 import able.test.protocol.{
   Failure,
   Reporter,
@@ -98,7 +99,7 @@ impl Reporter for ProgressReporterState {
 
 methods ProgressReporterState {
   fn flush_if_long(self: Self) -> void {
-    if self.buffer.len() >= 40 {
+    if self.buffer.len_chars() >= 40 {
       self.output.write_line(self.buffer)
       self.buffer = ""
     }

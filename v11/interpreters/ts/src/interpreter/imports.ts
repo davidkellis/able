@@ -42,7 +42,7 @@ export function evaluateImportStatement(ctx: Interpreter, node: AST.ImportStatem
       if (val.kind === "union_def" && val.def.isPrivate) continue;
       filtered.set(name, val);
     }
-    const alias = node.alias?.name ?? pkg;
+    const alias = node.alias?.name ?? defaultPackageAlias(pkg);
     env.define(alias, { kind: "package", name: pkg, symbols: filtered });
   } else if (node.isWildcard) {
     const pkg = node.packagePath.map(p => p.name).join(".");
@@ -119,6 +119,9 @@ export function evaluateImportStatement(ctx: Interpreter, node: AST.ImportStatem
       if (val.kind === "union_def" && val.def.isPrivate) {
         throw new Error(`Import error: union '${original}' is private`);
       }
+      if (env.hasInCurrentScope(alias)) {
+        continue;
+      }
       env.define(alias, val);
     }
   }
@@ -147,11 +150,20 @@ export function evaluateDynImportStatement(ctx: Interpreter, node: AST.DynImport
       if (val?.kind === "struct_def" && val.def.isPrivate) throw new Error(`dynimport error: struct '${original}' is private`);
       if (val?.kind === "interface_def" && val.def.isPrivate) throw new Error(`dynimport error: interface '${original}' is private`);
       if (val?.kind === "union_def" && val.def.isPrivate) throw new Error(`dynimport error: union '${original}' is private`);
+      if (env.hasInCurrentScope(alias)) {
+        continue;
+      }
       env.define(alias, { kind: "dyn_ref", pkg, name: original });
     }
   } else {
-    const alias = node.alias?.name ?? pkg;
+    const alias = node.alias?.name ?? defaultPackageAlias(pkg);
     env.define(alias, { kind: "dyn_package", name: pkg });
   }
   return NIL;
+}
+
+function defaultPackageAlias(pkg: string): string {
+  if (!pkg) return pkg;
+  const parts = pkg.split(".");
+  return parts[parts.length - 1] ?? pkg;
 }

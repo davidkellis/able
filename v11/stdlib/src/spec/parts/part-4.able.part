@@ -43,7 +43,7 @@ fn merge_tags(base: Array string, extra: Array string) -> Array string {
 fn empty_string_array() -> Array string { Array.new() }
 
 fn contains_substring(target: string, needles: Array string) -> bool {
-  if needles.len() == 0 { return true }
+  if needles.len() == 0 { return false }
   idx := 0
   loop {
     if idx >= needles.len() { break }
@@ -136,4 +136,3 @@ fn matches_filters(example: ExampleDefinition, request: DiscoveryRequest) -> boo
   }
   true
 }
-

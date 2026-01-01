@@ -1,7 +1,7 @@
 package persistent_set_specs
 
 import able.spec.*
-import able.collections.persistent_map.{PersistentSet}
+import able.collections.persistent_map.{PersistentSet, PersistentSetBuilder}
 
 describe("PersistentSet") { suite =>
   suite.it("inserts, removes, and preserves structural sharing") { _ctx =>

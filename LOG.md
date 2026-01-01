@@ -1,5 +1,29 @@
 # Able Project Log
 
+# 2025-12-31 — Stdlib/runtime test fixes (v11)
+- Resolved Iterable/Enumerable method ambiguity by preferring explicit impl methods over default interface methods (fixes Vector.each).
+- Aligned hasher host builtins to return i64 handles/hashes (TS runtime + stubs + typechecker) and updated stdlib string integration expectations for subString errors.
+- Tests: `./run_all_tests.sh --version=v11`.
+
+# 2025-12-31 — Add idiomatic Able style guide (v11)
+- Added a new documentation guide covering idiomatic Able conventions with examples at `v11/docs/idiomatic-able.md`.
+- Cleared completed PLAN TODO entries now that the queue is empty.
+- Tests: not run (docs-only changes).
+
+# 2025-12-31 — Fix stdlib spec test discovery filters (v11)
+- Corrected `able.spec` discovery filtering so empty exclude lists no longer filter every example; regenerated `v11/stdlib/src/spec.able`.
+- Tests: `cd v11/interpreters/ts && ABLE_TYPECHECK_FIXTURES=off bun run scripts/run-module.ts test ../../stdlib/tests --list`.
+
+# 2025-12-30 — Stdlib test syntax cleanup (v11)
+- Rewrote stdlib tests to avoid non-spec syntax: replaced `let`/`let mut` with `:=`, switched prefix `match` to postfix form, wrapped `raise` in match/lambda bodies, removed `TestEvent.` qualifiers, and used struct-literal constructors for NFAChar.
+- Updated static calls in tests from `Type::method` to `Type.method` and replaced `_` lambda parameters with `_ctx`.
+- Tests: `bun run scripts/run-module.ts test ../../stdlib/tests` (fails: `able.text.automata` package missing from stdlib src; still in quarantine).
+
+# 2025-12-30 — Verbose anonymous function syntax (v11)
+- Added tree-sitter support for `fn(...) { ... }` anonymous functions and mapped them to `LambdaExpression` with generics/where clauses in TS/Go parsers.
+- Added exec fixture `exec/07_02_01_verbose_anonymous_fn` plus conformance/coverage index updates.
+- Tests: `bun test test/parser/fixtures_parser.test.ts`; `ABLE_FIXTURE_FILTER=07_02_01_verbose_anonymous_fn bun run scripts/run-fixtures.ts`; `go test -a ./pkg/interpreter -run TestExecFixtures/07_02_01_verbose_anonymous_fn$`.
+
 # 2025-12-30 — Go parser interface-arg test fix (v11)
 - Fixed Go parser test coverage so `TestParseImplInterfaceArgsParentheses` is a real test (no longer embedded in a raw string for the breakpoint fixture).
 - Regenerated the tree-sitter parser/wasm and forced a Go rebuild so the cgo parser picks up the updated grammar.
@@ -609,6 +633,10 @@ Open items (2025-11-02 audit):
 - Added exec fixture `exec/10_01_interface_defaults_composites` covering interface defaults, implicit vs explicit `Self`, and composite aliases; updated the conformance plan + coverage index and cleared the PLAN backlog item.
 - TS/Go runtimes now treat composite interfaces as base-interface bundles for interface coercion and method dispatch (including default methods), with interface checks honoring base interfaces.
 - Tests: `bun run scripts/export-fixtures.ts`; `bun run scripts/run-fixtures.ts`; `go test ./pkg/interpreter` (with a temp `GOCACHE`).
+- Added exec fixture `exec/07_02_01_verbose_anonymous_fn` covering verbose anonymous functions (generics + where clauses).
+- Stdlib fixes: added numeric interfaces to `core/numeric`, corrected rational i128 min/max constants, and added `Queue.is_empty` inherent method to avoid interface ambiguity.
+- String stdlib: added `__able_char_to_codepoint` host builtin (TS/Go/kernel) and rewrote `char_to_utf8` to use it; string smoke tests now import `able.text.string`.
+- Test cleanup: corrected array filter expectations, added semicolons to avoid `Array.new()`/`for` parse ambiguity, removed unsupported heap comparator test, and renamed lazy seq iterator to avoid duplicate impls.
 
 ### 2025-12-26
 - Added exec fixture `exec/11_01_return_statement_type_enforcement` and updated the conformance plan + coverage index; cleared the related PLAN backlog item.

@@ -3,7 +3,7 @@ package tree_map_specs
 import able.spec.*
 import able.kernel.{Array}
 import able.collections.array
-import able.collections.tree_map.{TreeMap}
+import able.collections.tree_map.{TreeMap, TreeEntry}
 
 describe("TreeMap") { suite =>
   suite.it("inserts, updates, and retrieves entries") { _ctx =>
@@ -38,7 +38,7 @@ describe("TreeMap") { suite =>
     map.set(3, "c")
 
     acc: Array String := Array.new()
-    map.each(fn(entry: (i32, String)) -> void { acc.push(entry.1) })
+    map.each(fn(entry: TreeEntry i32 String) -> void { acc.push(entry.value) })
     expect(acc.get(0)).to(eq("a"))
     expect(acc.get(1)).to(eq("c"))
     expect(acc.get(2)).to(eq("e"))

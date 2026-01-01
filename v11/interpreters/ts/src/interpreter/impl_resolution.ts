@@ -440,6 +440,14 @@ export function applyImplResolutionAugmentations(cls: typeof Interpreter): void 
   }
   if (a.score > b.score) return 1;
   if (a.score < b.score) return -1;
+  const aPriority = typeof (a.method as any)?.methodResolutionPriority === "number"
+    ? (a.method as any).methodResolutionPriority
+    : 0;
+  const bPriority = typeof (b.method as any)?.methodResolutionPriority === "number"
+    ? (b.method as any).methodResolutionPriority
+    : 0;
+  if (aPriority > bPriority) return 1;
+  if (aPriority < bPriority) return -1;
   return 0;
 };
 
@@ -625,7 +633,7 @@ export function applyImplResolutionAugmentations(cls: typeof Interpreter): void 
     isPrivate: false,
   };
   const func: Extract<RuntimeValue, { kind: "function" }> = { kind: "function", node: fnDef, closureEnv: env };
-  (func as any).methodResolutionPriority = -1;
+  (func as any).methodResolutionPriority = -2;
   return func;
 };
 

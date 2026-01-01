@@ -1,4 +1,6 @@
-package concurrency
+package concurrent_queue
+
+import able.concurrency.{Channel}
 
 struct ConcurrentQueue T {
   channel: Channel T

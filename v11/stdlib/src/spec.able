@@ -43,6 +43,8 @@ import able.spec.assertions.{
   eq::assertions_eq,
   eq_string::assertions_eq_string,
   expect::assertions_expect,
+  to::assertions_to,
+  not_to::assertions_not_to,
   failure_from_assertion,
   raise_error::assertions_raise_error,
   raise_error_with_message::assertions_raise_error_with_message
@@ -65,6 +67,8 @@ import able.test.protocol.{
 }
 import able.test.registry.{register_framework}
 FRAMEWORK_ID := "able.spec"
+to := assertions_to
+not_to := assertions_not_to
 struct SpecFramework {}
 struct SuiteConfig {
   allow_parallel: bool
@@ -105,7 +109,9 @@ struct ExampleDefinition {
 }
 SUITE_STACK: Array SuiteState := Array.new()
 SUITES: Array SuiteDefinition := Array.new()
+SUITES_ARCHIVE: Array SuiteDefinition := Array.new()
 EXAMPLES: Array ExampleDefinition := Array.new()
+EXAMPLES_ARCHIVE: Array ExampleDefinition := Array.new()
 struct ExampleOptions {
   tags: Array string,
   skip: bool,
@@ -333,12 +339,18 @@ methods SuiteBuilder {
       case state: SuiteState => {
         stored_path := clone_string_array(state.path)
         suite_key := build_suite_key(stored_path)
-        full_tags := merge_tags(state.tags, tags)
+        example_id := build_example_id(stored_path, name)
+        display_name := build_example_display(stored_path, name)
+        full_tags := if tags.len() == 0 {
+          clone_string_array(state.tags)
+        } else {
+          clone_string_array(tags)
+        }
         if skip { full_tags.push("skip") }
         if focus { full_tags.push("focus") }
-        EXAMPLES.push(ExampleDefinition {
-          id: build_example_id(stored_path, name),
-          display_name: build_example_display(stored_path, name),
+        example := ExampleDefinition {
+          id: example_id,
+          display_name,
           suite_key,
           suite_path: stored_path,
           tags: full_tags,
@@ -348,7 +360,23 @@ methods SuiteBuilder {
           module_path: state.module_path,
           skip,
           focus
-        })
+        }
+        EXAMPLES.push(example)
+        archive_idx := 0
+        loop {
+          if archive_idx >= EXAMPLES_ARCHIVE.len() { break }
+          EXAMPLES_ARCHIVE.get(archive_idx) match {
+            case nil => {},
+            case existing: ExampleDefinition => {
+              if existing.id == example_id {
+                EXAMPLES_ARCHIVE.set(archive_idx, example)
+                return
+              }
+            }
+          }
+          archive_idx = archive_idx + 1
+        }
+        EXAMPLES_ARCHIVE.push(example)
       }
     }
   }
@@ -415,6 +443,21 @@ fn register_suite(state: SuiteState) -> void {
       case existing: SuiteDefinition => {
         if existing.key == state.key {
           SUITES.set(idx, definition)
+          archive_idx := 0
+          loop {
+            if archive_idx >= SUITES_ARCHIVE.len() { break }
+            SUITES_ARCHIVE.get(archive_idx) match {
+              case nil => {},
+              case archived: SuiteDefinition => {
+                if archived.key == state.key {
+                  SUITES_ARCHIVE.set(archive_idx, definition)
+                  return
+                }
+              }
+            }
+            archive_idx = archive_idx + 1
+          }
+          SUITES_ARCHIVE.push(definition)
           return
         }
       }
@@ -422,12 +465,38 @@ fn register_suite(state: SuiteState) -> void {
     idx = idx + 1
   }
   SUITES.push(definition)
+  archive_idx := 0
+  loop {
+    if archive_idx >= SUITES_ARCHIVE.len() { break }
+    SUITES_ARCHIVE.get(archive_idx) match {
+      case nil => {},
+      case archived: SuiteDefinition => {
+        if archived.key == state.key {
+          SUITES_ARCHIVE.set(archive_idx, definition)
+          return
+        }
+      }
+    }
+    archive_idx = archive_idx + 1
+  }
+  SUITES_ARCHIVE.push(definition)
 }
 fn find_suite(key: string) -> ?SuiteDefinition {
   idx := 0
   loop {
     if idx >= SUITES.len() { break }
     SUITES.get(idx) match {
+      case nil => {},
+      case suite: SuiteDefinition => {
+        if suite.key == key { return suite }
+      }
+    }
+    idx = idx + 1
+  }
+  idx = 0
+  loop {
+    if idx >= SUITES_ARCHIVE.len() { break }
+    SUITES_ARCHIVE.get(idx) match {
       case nil => {},
       case suite: SuiteDefinition => {
         if suite.key == key { return suite }
@@ -442,6 +511,17 @@ fn find_example(id: string) -> ?ExampleDefinition {
   loop {
     if idx >= EXAMPLES.len() { break }
     EXAMPLES.get(idx) match {
+      case nil => {},
+      case example: ExampleDefinition => {
+        if example.id == id { return example }
+      }
+    }
+    idx = idx + 1
+  }
+  idx = 0
+  loop {
+    if idx >= EXAMPLES_ARCHIVE.len() { break }
+    EXAMPLES_ARCHIVE.get(idx) match {
       case nil => {},
       case example: ExampleDefinition => {
         if example.id == id { return example }
@@ -524,7 +604,7 @@ fn merge_tags(base: Array string, extra: Array string) -> Array string {
 }
 fn empty_string_array() -> Array string { Array.new() }
 fn contains_substring(target: string, needles: Array string) -> bool {
-  if needles.len() == 0 { return true }
+  if needles.len() == 0 { return false }
   idx := 0
   loop {
     if idx >= needles.len() { break }
@@ -653,7 +733,7 @@ fn run_hook_sequence(hooks: Array (ExampleContext -> void), ctx: ExampleContext)
       case nil => {},
       case hook: (ExampleContext -> void) => {
         failure: ?Failure := nil
-        _ := do { hook(ctx) } rescue {
+        do { hook(ctx) } rescue {
           case assertion: AssertionError => {
             failure = failure_from_assertion(assertion)
             nil
@@ -681,7 +761,7 @@ fn run_hook_sequence_reverse(hooks: Array (ExampleContext -> void), ctx: Example
       case nil => {},
       case hook: (ExampleContext -> void) => {
         failure: ?Failure := nil
-        _ := do { hook(ctx) } rescue {
+        do { hook(ctx) } rescue {
           case assertion: AssertionError => {
             failure = failure_from_assertion(assertion)
             nil
@@ -838,7 +918,7 @@ impl Framework for SpecFramework {
               failure: ?Failure := before_failure
               if failure == nil {
                 body_failure: ?Failure := nil
-                _ := do { example.body(ctx) } rescue {
+                do { example.body(ctx) } rescue {
                   case assertion: AssertionError => {
                     body_failure = failure_from_assertion(assertion)
                     nil

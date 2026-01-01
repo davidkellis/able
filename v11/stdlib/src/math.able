@@ -16,6 +16,7 @@ impl Error for MathDomainError {
 }
 
 fn __math_default_tolerance() -> f64 { 1e-12 }
+fn __math_default_compare_tolerance() -> f64 { 1e-10 }
 
 ## Fundamental constants kept as functions to avoid global mutable state.
 fn pi() -> f64 { 3.1415926535897932384626433832795 }
@@ -28,7 +29,7 @@ fn abs(value: f64) -> f64 {
 }
 
 fn abs_i64(value: i64) -> i64 {
-  min_value := -9223372036854775808_i64
+  min_value := (-9223372036854775807_i64) - 1
   if value == min_value {
     raise OverflowError { operation: "abs_i64" }
   }
@@ -102,10 +103,10 @@ fn gcd(a: i64, b: i64) -> i64 {
 fn lcm(a: i64, b: i64) -> i64 {
   if a == 0 || b == 0 { return 0 }
   divisor := gcd(a, b)
-  normalized: i128 = (a / divisor) as i128
-  product: i128 = normalized * (b as i128)
-  min := -9223372036854775808_i64 as i128
-  max := 9223372036854775807_i64 as i128
+  normalized: i128 := ((a / divisor) as i128)
+  product: i128 := normalized * (b as i128)
+  min := (((-9223372036854775807_i64) - 1) as i128)
+  max := (9223372036854775807_i64 as i128)
   if product < min || product > max {
     raise OverflowError { operation: "lcm" }
   }
@@ -148,11 +149,11 @@ fn wrap(value: f64, min_value: f64, max_value: f64) -> f64 {
   width := max_value - min_value
   offset := value - min_value
   cycles := floor(offset / width)
-  wrapped := offset - cycles * width
+  wrapped := offset - (cycles * width)
   result := wrapped + min_value
   if result >= max_value {
-    result - width
-  } else if result < min_value {
+    result + (-width)
+  } elsif result < min_value {
     result + width
   } else {
     result
@@ -165,13 +166,13 @@ fn wrap_angle_radians(value: f64) -> f64 {
 
 fn sign(value: f64) -> i32 {
   if value > 0.0 { 1 }
-  else if value < 0.0 { -1 }
+  elsif value < 0.0 { -1 }
   else { 0 }
 }
 
 fn sign_i64(value: i64) -> i32 {
   if value > 0 { 1 }
-  else if value < 0 { -1 }
+  elsif value < 0 { -1 }
   else { 0 }
 }
 
@@ -192,7 +193,7 @@ fn approx_eq(a: f64, b: f64, tolerance: f64) -> bool {
 }
 
 fn approx_eq_default(a: f64, b: f64) -> bool {
-  approx_eq(a, b, __math_default_tolerance())
+  approx_eq(a, b, __math_default_compare_tolerance())
 }
 
 fn hypot(a: f64, b: f64) -> f64 {
@@ -232,14 +233,14 @@ fn pow(base: f64, exponent: i32) -> f64 {
   }
 
   negative := exponent < 0
-  exp_value: i64 = exponent as i64
+  exp_value: i64 := exponent as i64
   if negative { exp_value = -exp_value }
   result := 1.0
   factor := base
   while exp_value > 0 {
     if exp_value % 2 == 1 { result = result * factor }
     factor = factor * factor
-    exp_value = exp_value / 2
+    exp_value = exp_value // 2
   }
 
   if negative { 1.0 / result } else { result }

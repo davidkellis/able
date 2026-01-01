@@ -1,6 +1,6 @@
 import type { Interpreter } from "./index";
 import type { RuntimeValue } from "./values";
-import { makeIntegerValue, numericToNumber } from "./numeric";
+import { makeIntegerFromNumber, makeIntegerValue, numericToNumber } from "./numeric";
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -15,6 +15,13 @@ declare module "./index" {
 function expectString(value: RuntimeValue, label: string): string {
   if (value.kind !== "String") {
     throw new Error(`${label} must be a string`);
+  }
+  return value.value;
+}
+
+function expectChar(value: RuntimeValue, label: string): string {
+  if (value.kind !== "char") {
+    throw new Error(`${label} must be a char`);
   }
   return value.value;
 }
@@ -77,10 +84,23 @@ export function applyStringHostAugmentations(cls: typeof Interpreter): void {
     defineIfMissing("__able_String_from_builtin", () =>
       this.makeNativeFunction("__able_String_from_builtin", 1, (_interp, args) => {
         if (args.length !== 1) throw new Error("__able_String_from_builtin expects one argument");
-        const input = expectString(args[0], "String");
-        const encoded = encoder.encode(input);
-        const elements = Array.from(encoded, (byte): RuntimeValue => makeIntegerValue("u8", BigInt(byte)));
-        return this.makeArrayValue(elements);
+        const input = args[0];
+        if (input.kind === "String") {
+          const encoded = encoder.encode(input.value);
+          const elements = Array.from(encoded, (byte): RuntimeValue => makeIntegerValue("u8", BigInt(byte)));
+          return this.makeArrayValue(elements);
+        }
+        if (input.kind === "struct_instance" && input.def.id.name === "String") {
+          let bytesVal: RuntimeValue | undefined;
+          if (input.values instanceof Map) {
+            bytesVal = input.values.get("bytes");
+          } else if (Array.isArray(input.values)) {
+            bytesVal = input.values[0];
+          }
+          if (!bytesVal) throw new Error("String.bytes missing");
+          return expectArray(this, bytesVal, "String.bytes");
+        }
+        throw new Error("String must be a string");
       }),
     );
 
@@ -108,6 +128,16 @@ export function applyStringHostAugmentations(cls: typeof Interpreter): void {
           throw new Error("codepoint must be within Unicode range 0..0x10FFFF");
         }
         return { kind: "char", value: String.fromCodePoint(codepoint) };
+      }),
+    );
+
+    defineIfMissing("__able_char_to_codepoint", () =>
+      this.makeNativeFunction("__able_char_to_codepoint", 1, (_interp, args) => {
+        if (args.length !== 1) throw new Error("__able_char_to_codepoint expects one argument");
+        const value = expectChar(args[0], "char");
+        const codepoint = value.codePointAt(0);
+        if (codepoint === undefined) throw new Error("char must be non-empty");
+        return makeIntegerFromNumber("i32", codepoint);
       }),
     );
   };

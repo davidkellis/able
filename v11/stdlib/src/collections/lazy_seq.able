@@ -11,12 +11,12 @@ struct LazySeq T {
 }
 
 fn lazy_seq_from_array<T>(values: Array T) -> LazySeq T {
-  LazySeq { source: nil, cache: values, exhausted: true }
+  LazySeq T { source: nil, cache: values, exhausted: true }
 }
 
 methods LazySeq T {
   fn from_iterator(iterator: Iterator T) -> LazySeq T {
-    LazySeq {
+    LazySeq T {
       source: iterator,
       cache: Array.new(),
       exhausted: false
@@ -59,7 +59,7 @@ methods LazySeq T {
           }
           idx = idx + 1
         }
-        LazySeq {
+        LazySeq T {
           source: self.source,
           cache: new_cache,
           exhausted: self.exhausted
@@ -102,22 +102,26 @@ methods LazySeq T {
     idx := 0
     loop {
       self.cache.get(idx) match {
-        case value: T => {
-          visit(value)
-        },
         case nil => {
           if self.exhausted {
             return
           }
           self.pull_next() match {
-            case nil => return,
+            case nil => { return },
             case _ => {}
           }
           continue
+        },
+        case value: T => {
+          visit(value)
         }
       }
       idx = idx + 1
     }
+  }
+
+  fn each(self: Self, visit: T -> void) -> void {
+    self.for_each(visit)
   }
 
   fn ensure_all(self: Self) -> void {

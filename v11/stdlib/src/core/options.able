@@ -1,11 +1,15 @@
 package options
-import able.core.interfaces.{Error}
+import able.core.interfaces.{Error, Clone}
 
 ## Canonical Option/Result unions used throughout the spec.
 union Option T = nil | T
 union Result T = Error | T
 
 ## TODO: restore Option/Result helpers once method definitions on generic types are supported in the runtime/typechecker.
+
+impl Clone for nil {
+  fn clone(self: Self) -> nil { nil }
+}
 
 struct OptionUnwrapError {}
 

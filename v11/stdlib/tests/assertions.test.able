@@ -54,27 +54,27 @@ describe("able.spec assertions") { suite =>
   }
 
   suite.it("detects empty arrays") { _ctx =>
-    let values: Array i32 = Array.new()
+    values: Array i32 := Array.new()
     expect(values).to(be_empty_array())
   }
 
   suite.it("asserts array containment") { _ctx =>
-    let mut values: Array String = Array.new()
+    values: Array String := Array.new()
     values.push("a")
     values.push("b")
     expect(values).to(contain("b"))
   }
 
   suite.it("fails array containment when missing") { _ctx =>
-    let values: Array String = Array.new()
+    values: Array String := Array.new()
     expect(fn() { expect(values).to(contain("missing")) }).to(raise_error())
   }
 
   suite.it("checks multiple containment") { _ctx =>
-    let mut values: Array String = Array.new()
+    values: Array String := Array.new()
     values.push("a")
     values.push("b")
-    let mut expected: Array String = Array.new()
+    expected: Array String := Array.new()
     expected.push("a")
     expect(values).to(contain_all(expected))
   }
@@ -84,10 +84,10 @@ describe("able.spec assertions") { suite =>
   }
 
   suite.it("asserts numeric comparisons") { _ctx =>
-    let five: i64 = 5
-    let one: i64 = 1
-    let two: i64 = 2
-    let three: i64 = 3
+    five: i64 := 5
+    one: i64 := 1
+    two: i64 := 2
+    three: i64 := 3
     expect(five).to(be_greater_than(two))
     expect(one).to(be_less_than(three))
   }
@@ -103,11 +103,11 @@ describe("able.spec assertions") { suite =>
   }
 
   suite.it("builds custom matchers") { _ctx =>
-    let even = matcher("expected value to be even", "expected value to be odd", fn(value: i64) -> bool { value % 2 == 0 })
+    even := matcher("expected value to be even", "expected value to be odd", fn(value: i64) -> bool { value % 2 == 0 })
     expect(4).to(even)
     expect(fn() { expect(3).to(even) }).to(raise_error())
 
-    let even_with_details = matcher_with_details(
+    even_with_details := matcher_with_details(
       "expected value to be even",
       "expected value to be odd",
       fn(value: i64) -> bool { value % 2 == 0 },
@@ -127,8 +127,8 @@ describe("able.spec assertions") { suite =>
 
 describe("able.spec hooks") { suite =>
   suite.module_path("testing/hooks")
-  let mut before_each_count = 0
-  let mut before_all_count = 0
+  before_each_count := 0
+  before_all_count := 0
   suite.before_all { _ctx =>
     before_all_count = before_all_count + 1
   }
