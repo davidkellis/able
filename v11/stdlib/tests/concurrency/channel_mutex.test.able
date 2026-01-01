@@ -11,28 +11,28 @@ describe("Channel") { suite =>
     channel: Channel String := Channel.new(1)
     channel.send("hello")
 
-    match channel.receive() {
+    channel.receive() match {
       case value: String => expect(value).to(eq("hello")),
-      case nil => raise AssertionError { message: "expected channel value", details: nil, location: nil }
+      case nil => { raise AssertionError { message: "expected channel value", details: nil, location: nil } }
     }
 
     expect(channel.try_send("world")).to(be_truthy())
-    match channel.try_receive() {
+    channel.try_receive() match {
       case value: String => expect(value).to(eq("world")),
-      case nil => raise AssertionError { message: "expected try_receive value", details: nil, location: nil }
+      case nil => { raise AssertionError { message: "expected try_receive value", details: nil, location: nil } }
     }
 
     channel.close()
     expect(channel.is_closed()).to(be_truthy())
-    match channel.receive() {
-      case nil => (),
-      case _ => raise AssertionError { message: "expected nil after close", details: nil, location: nil }
+    channel.receive() match {
+      case nil => {},
+      case _ => { raise AssertionError { message: "expected nil after close", details: nil, location: nil } }
     }
     expect(channel.try_receive()).to(eq(nil))
     expect(fn() { channel.send("fail") }).to(raise_error())
   }
 
-  suite.it("iterates buffered values until closed") { _ctx =>
+  suite.it("iterates buffered values until closed") { _ctx => {
     channel: Channel i32 := Channel.new(4)
     channel.send(1)
     channel.send(2)
@@ -44,7 +44,7 @@ describe("Channel") { suite =>
       sum += value
     }
     expect(sum).to(eq(6))
-  }
+  } }
 }
 
 describe("Mutex") { suite =>

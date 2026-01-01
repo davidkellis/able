@@ -1,54 +1,57 @@
 package string_builder_specs
 
 import able.spec.*
-import able.core.interfaces{Error}
+import able.core.interfaces.{Error}
 import able.text.string.{String, StringBuilder}
+import able.kernel.{Array}
+import able.collections.array
 
 fn make_string(value: String) -> String {
-  match String::from_builtin(value) {
+  String.from_builtin(value) match {
     case s: String => s,
-    case err: Error => raise err
+    case err: Error => { raise err }
   }
 }
 
 describe("StringBuilder") { suite =>
   suite.it("pushes strings and finishes") { _ctx =>
-    builder := StringBuilder::new()
+    builder := StringBuilder.new()
     builder.push_string(make_string("Hello"))
     builder.push_string(make_string(" World"))
-    match builder.finish() {
-      case result: String => expect(result.to_builtin().unwrap()).to(eq("Hello World")),
-      case err: Error => raise err
+    builder.finish() match {
+      case result: String => expect(result).to(eq("Hello World")),
+      case err: Error => { raise err }
     }
   }
 
   suite.it("supports push_bytes and len") { _ctx =>
-    bytes := make_string("!").bytes()
-    builder := StringBuilder::with_capacity(4)
+    bytes: Array u8 := (Array).new();
+    bytes.push(33_u8)
+    builder := StringBuilder.with_capacity(4)
     builder.push_string(make_string("Hi"))
     builder.push_bytes(bytes)
     expect(builder.len_bytes()).to(eq(3))
   }
 
   suite.it("pushes chars, clears, and appends builders") { _ctx =>
-    builder := StringBuilder::new()
+    builder := StringBuilder.new()
     builder.push_char('A')
     builder.push_char('B')
-    other := StringBuilder::new()
+    other := StringBuilder.new()
     other.push_string(make_string("C"))
     builder.append_builder(other)
-    match builder.finish() {
-      case s: String => expect(s.to_builtin().unwrap()).to(eq("ABC")),
-      case err: Error => raise err
+    builder.finish() match {
+      case s: String => expect(s).to(eq("ABC")),
+      case err: Error => { raise err }
     }
 
-    cleared := StringBuilder::new()
+    cleared := StringBuilder.new()
     cleared.push_char('Z')
     cleared.clear()
     cleared.push_char('Y')
-    match cleared.finish() {
-      case s: String => expect(s.to_builtin().unwrap()).to(eq("Y")),
-      case err: Error => raise err
+    cleared.finish() match {
+      case s: String => expect(s).to(eq("Y")),
+      case err: Error => { raise err }
     }
   }
 }

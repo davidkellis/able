@@ -197,9 +197,11 @@ extern go fn __able_hash_map_clone(handle: HashMapHandle) -> HashMapHandle {}
 extern typescript fn __able_String_from_builtin(value: String) -> _ {}
 extern typescript fn __able_String_to_builtin(bytes: _) -> String {}
 extern typescript fn __able_char_from_codepoint(value: i32) -> char {}
+extern typescript fn __able_char_to_codepoint(value: char) -> i32 {}
 extern go fn __able_String_from_builtin(value: String) -> _ {}
 extern go fn __able_String_to_builtin(bytes: _) -> String {}
 extern go fn __able_char_from_codepoint(value: i32) -> char {}
+extern go fn __able_char_to_codepoint(value: char) -> i32 {}
 
 ## Numeric bridges
 extern typescript fn __able_ratio_from_float(value: f64) -> _ {}

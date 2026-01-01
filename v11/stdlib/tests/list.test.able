@@ -14,14 +14,14 @@ describe("List") { suite =>
     expect(l1.len()).to(eq(1))
     expect(l2.len()).to(eq(2))
 
-    match l2.head() {
-      case nil => raise AssertionError { message: "expected head value", details: nil, location: nil },
+    l2.head() match {
+      case nil => { raise AssertionError { message: "expected head value", details: nil, location: nil } },
       case value: i32 => expect(value).to(eq(2))
     }
 
     tail := l2.tail()
-    match tail.head() {
-      case nil => raise AssertionError { message: "expected tail head", details: nil, location: nil },
+    tail.head() match {
+      case nil => { raise AssertionError { message: "expected tail head", details: nil, location: nil } },
       case value: i32 => expect(value).to(eq(1))
     }
 

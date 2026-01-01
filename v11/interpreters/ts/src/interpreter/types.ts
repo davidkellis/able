@@ -472,7 +472,14 @@ export function applyTypesAugmentations(cls: typeof Interpreter): void {
         return true;
       }
       case "FunctionTypeExpression":
-        return v.kind === "function";
+        return (
+          v.kind === "function" ||
+          v.kind === "function_overload" ||
+          v.kind === "bound_method" ||
+          v.kind === "native_function" ||
+          v.kind === "native_bound_method" ||
+          v.kind === "partial_function"
+        );
       case "NullableTypeExpression":
         if (v.kind === "nil") return true;
         return this.matchesType(target.innerType, v);

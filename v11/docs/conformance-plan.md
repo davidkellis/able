@@ -86,6 +86,7 @@ its conventions.
 | 7.1.3-7.1.5 | Function definitions: explicit/implicit generics + return inference | `exec/07_01_function_definition_generics_inference` | Seeded; implicit generics inferred from signatures with return type inference |
 | 7.3, 11.1 | Explicit return short-circuits nested blocks; void return allowed | `exec/07_03_explicit_return_flow` | Seeded; early return exits the function from inner blocks |
 | 11.1 | Return type enforcement and unreachable tail expressions after early return | `exec/11_01_return_statement_type_enforcement` | Seeded; bare return only for void, early return skips tail |
+| 7.2.1 | Verbose anonymous function syntax | `exec/07_02_01_verbose_anonymous_fn` | Seeded: verbose anonymous functions with generics and where clauses |
 | 7.2–7.3 | Lambdas, closures, explicit return | `exec/07_02_lambdas_closures_capture` | Seeded: closure capture and explicit return in factory |
 | 7.4.1-7.4.3 | Method call syntax + trailing lambdas vs UFCS | `exec/07_04_trailing_lambda_method_syntax` | Seeded; trailing lambdas match explicit calls for free functions and methods |
 | 7.4.4 | Apply interface call syntax for non-function callables | `exec/07_04_apply_callable_interface` | Seeded; Apply implementors can be invoked directly or via interface types |

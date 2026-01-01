@@ -44,13 +44,13 @@ describe("Rational") { suite =>
     expect(value.reciprocal().to_string()).to(eq("-4/3"))
 
     other := Rational.new(2, 3)
-    expect(value.compare(other)).to(eq(Greater))
-    expect(other.compare(value)).to(eq(Less))
-    expect(other.min(value)).to(eq(other))
-    expect(other.max(value)).to(eq(value))
+    expect(value.compare(other)).to(eq(Less))
+    expect(other.compare(value)).to(eq(Greater))
+    expect(other.min(value)).to(eq(value))
+    expect(other.max(value)).to(eq(other))
 
     clamped := value.clamp(Rational.new(-1, 1), Rational.new(1, 2))
-    expect(clamped).to(eq(Rational.new(1, 2)))
+    expect(clamped).to(eq(value))
     expect(fn() { value.clamp(Rational.new(2, 1), Rational.new(1, 2)) }).to(raise_error())
   }
 

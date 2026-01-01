@@ -893,8 +893,18 @@ module.exports = grammar({
       $.loop_expression,
       $.do_expression,
       $.iterator_literal,
+      $.verbose_lambda_expression,
       $.lambda_expression,
       $.parenthesized_expression,
+    ),
+
+    verbose_lambda_expression: $ => seq(
+      "fn",
+      field("type_parameters", optional($.type_parameter_list)),
+      field("parameters", $.parameter_list),
+      field("return_type", optional($.return_type)),
+      field("where_clause", optional($.where_clause)),
+      field("body", $.block),
     ),
 
     lambda_expression: $ => prec.right(

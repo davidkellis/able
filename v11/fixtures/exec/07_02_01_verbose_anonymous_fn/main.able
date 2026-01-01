@@ -1,0 +1,23 @@
+package exec_07_02_01_verbose_anonymous_fn
+
+import able.core.interfaces.{Display}
+
+## Semantics: verbose anonymous function syntax supports parameters, generics, and where clauses.
+
+fn make_multiplier(factor: i32) -> (i32 -> i32) {
+  return fn(value: i32) -> i32 { value * factor }
+}
+
+fn main() -> void {
+  adder := fn(x: i32, y: i32) -> i32 { x + y }
+  print(`adder ${adder(2, 3)}`)
+
+  times3 := make_multiplier(3)
+  print(`mul ${times3(4)}`)
+
+  show := fn<T: Display>(value: T) -> String { value.to_string() }
+  print(`show ${show(12)}`)
+
+  stringify := fn<T>(value: T) -> String where T: Display { value.to_string() }
+  print(`where ${stringify(7)}`)
+}

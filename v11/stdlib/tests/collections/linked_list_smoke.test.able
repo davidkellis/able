@@ -10,14 +10,14 @@ fn assert(condition: bool, message: String) -> void {
 }
 
 fn expect_string(value: ?String, expected: String, message: String) -> void {
-  match value {
+  value match {
     case actual: String => assert(actual == expected, message),
     case nil => { raise message }
   }
 }
 
 fn expect_i32(value: ?i32, expected: i32, message: String) -> void {
-  match value {
+  value match {
     case actual: i32 => assert(actual == expected, message),
     case nil => { raise message }
   }
@@ -46,7 +46,7 @@ fn check_insert_and_remove() -> void {
   expect_i32(list.remove_node(middle), 2, "remove_node returns the removed value")
   assert(list.len() == 2, "remove_node updates length")
 
-  acc := Array.new()
+  acc := Array.new();
   for value in list {
     acc.push(value)
   }

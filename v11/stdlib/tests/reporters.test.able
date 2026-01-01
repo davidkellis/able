@@ -3,11 +3,15 @@ package testing_specs
 import able.kernel.{Array}
 import able.collections.array
 import able.test.protocol.{
+  Failure,
   TestDescriptor,
   TestPlan,
-  TestEvent
+  TestEvent,
+  case_failed,
+  case_passed,
+  case_skipped
 }
-import able.test.reporters.{DocReporter, ProgressReporter}
+import able.test.reporters.{DocReporter, ProgressReporter, ProgressReporterState}
 import able.spec.*
 
 fn make_descriptor(name: String) -> TestDescriptor {
@@ -24,37 +28,37 @@ fn make_descriptor(name: String) -> TestDescriptor {
 
 describe("able.test reporters") { suite =>
   suite.it("renders doc style output lines") { _ctx =>
-    let mut lines: Array String = Array.new()
-    let emit = fn(line: String) -> void { lines.push(line) }
-    let reporter = DocReporter(emit)
+    lines: Array String := Array.new()
+    emit := fn(line: String) -> void { lines.push(line) }
+    reporter := DocReporter(emit)
 
-    let descriptor = make_descriptor("example passes")
-    reporter.emit(TestEvent.case_passed { descriptor, duration_ms: 0 })
+    descriptor := make_descriptor("example passes")
+    reporter.emit(case_passed { descriptor, duration_ms: 0 })
 
     expect(lines.len()).to(eq(1))
-    match lines.get(0) {
+    lines.get(0) match {
       case nil => expect(lines.get(0)).not_to(be_nil()),
       case value: String => expect(value).to(eq("example passes … ok"))
     }
   }
 
   suite.it("records progress characters and flushes at finish") { _ctx =>
-    let mut lines: Array String = Array.new()
-    let emit = fn(line: String) -> void { lines.push(line) }
-    let mut reporter = ProgressReporter(emit)
-    let descriptor = make_descriptor("sample")
+    lines: Array String := Array.new()
+    emit := fn(line: String) -> void { lines.push(line) }
+    reporter := ProgressReporter(emit)
+    descriptor := make_descriptor("sample")
 
-    reporter.emit(TestEvent.case_passed { descriptor, duration_ms: 0 })
-    reporter.emit(TestEvent.case_failed { descriptor, duration_ms: 0, failure: {
+    reporter.emit(case_passed { descriptor, duration_ms: 0 })
+    reporter.emit(case_failed { descriptor, duration_ms: 0, failure: Failure {
       message: "boom",
       details: nil,
       location: nil
     } })
-    reporter.emit(TestEvent.case_skipped { descriptor, reason: nil })
+    reporter.emit(case_skipped { descriptor, reason: nil })
     reporter.finish()
 
     expect(lines.len()).to(eq(1))
-    match lines.get(0) {
+    lines.get(0) match {
       case nil => expect(lines.get(0)).not_to(be_nil()),
       case value: String => expect(value).to(eq(".FS"))
     }

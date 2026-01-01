@@ -27,7 +27,7 @@ interface Hasher {
 }
 
 interface Hash for T {
-  fn hash(self: Self, hasher: Hasher) -> void;
+  fn hash(self: Self, hasher: Hasher) -> u64;
 }
 
 ## Error values participate in raise/rescue.

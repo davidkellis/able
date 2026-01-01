@@ -11,19 +11,19 @@ fn assert(condition: bool, message: String) -> void {
 }
 
 fn expect_i32(value: ?i32, expected: i32, message: String) -> void {
-  match value {
+  value match {
     case actual: i32 => assert(actual == expected, message),
     case nil => { raise message }
   }
 }
 
-struct RecordingIterator {
+struct LazySeqSmokeIterator {
   values: Array i32,
   index: i32,
   pulls: Array i32
 }
 
-impl Iterator i32 for RecordingIterator {
+impl Iterator i32 for LazySeqSmokeIterator {
   fn next(self: Self) -> i32 | IteratorEnd {
     if self.index >= self.values.len() {
       return IteratorEnd {}
@@ -35,8 +35,8 @@ impl Iterator i32 for RecordingIterator {
   }
 }
 
-fn make_iterator(values: Array i32, pulls: Array i32) -> RecordingIterator {
-  RecordingIterator { values: values, index: 0, pulls: pulls }
+fn make_iterator(values: Array i32, pulls: Array i32) -> LazySeqSmokeIterator {
+  LazySeqSmokeIterator { values: values, index: 0, pulls: pulls }
 }
 
 fn check_lazy_pulls() -> void {

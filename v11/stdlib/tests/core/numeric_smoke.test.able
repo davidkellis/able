@@ -9,6 +9,14 @@ fn assert(condition: bool, message: String) -> void {
   raise message
 }
 
+fn assert_raises(thunk: () -> void, message: String) -> void {
+  raised := false
+  do { thunk() } rescue {
+    case _ => { raised = true }
+  }
+  assert(raised, message)
+}
+
 fn check_numeric_conversion_error() -> void {
   err := NumericConversionError { message: "cannot convert" }
   assert(err.message == "cannot convert", "expected NumericConversionError.message to echo input")
@@ -32,8 +40,10 @@ fn check_ratio_result_conversions() -> void {
   int_ok := Ratio.new(9, 3).to_i32()
   assert(int_ok == 3, "Ratio.to_i32 should return integer component when denominator == 1")
 
-  int_err := Ratio.new(1, 2).to_i32()
-  assert(int_err.message() == "cannot convert non-integer Ratio to i32", "Ratio.to_i32 should surface conversion error")
+  assert_raises(
+    fn() { Ratio.new(1, 2).to_i32() },
+    "Ratio.to_i32 should raise when denominator != 1",
+  )
 }
 
 fn main() -> void {

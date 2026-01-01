@@ -128,6 +128,7 @@ function augmentKernelSummary(summary: PackageSummary): PackageSummary {
       "__able_channel_try_receive",
       "__able_channel_try_send",
       "__able_char_from_codepoint",
+      "__able_char_to_codepoint",
       "__able_hasher_create",
       "__able_hasher_finish",
       "__able_hasher_write",

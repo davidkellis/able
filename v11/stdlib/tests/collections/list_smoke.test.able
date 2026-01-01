@@ -9,14 +9,14 @@ fn assert(condition: bool, message: String) -> void {
 }
 
 fn expect_i32(value: ?i32, expected: i32, message: String) -> void {
-  match value {
+  value match {
     case actual: i32 => assert(actual == expected, message),
     case nil => { raise message }
   }
 }
 
 fn expect_string(value: ?String, expected: String, message: String) -> void {
-  match value {
+  value match {
     case actual: String => assert(actual == expected, message),
     case nil => { raise message }
   }
@@ -84,7 +84,7 @@ fn check_reverse_and_iteration() -> void {
   loop {
     iter.next() match {
       case value: i32 => sum = sum + value,
-      case IteratorEnd => { break }
+      case IteratorEnd {} => { break }
     }
   }
   assert(sum == 6, "iterator should traverse each value once")

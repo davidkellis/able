@@ -215,7 +215,7 @@ fn main() {
         [],
         interpreter.globals,
       );
-      expect(readString(message)).toBe("subString start out of range");
+      expect(readString(message)).toBe("substring start out of range");
     } finally {
       await fs.rm(tmpRoot, { recursive: true, force: true });
     }
@@ -271,7 +271,7 @@ fn main() {
         [],
         interpreter.globals,
       );
-      expect(readString(message)).toBe("subString range out of bounds");
+      expect(readString(message)).toBe("substring range out of bounds");
     } finally {
       await fs.rm(tmpRoot, { recursive: true, force: true });
     }

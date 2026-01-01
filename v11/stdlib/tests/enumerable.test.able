@@ -4,6 +4,8 @@ import able.spec.assertions.{AssertionError}
 import able.spec.*
 import able.kernel.{Array}
 import able.collections.array
+import able.collections.enumerable.{Indexed}
+import able.text.string.{String}
 
 describe("Enumerable helpers") { suite =>
   suite.it("maps and filters arrays") { _ctx =>
@@ -18,8 +20,8 @@ describe("Enumerable helpers") { suite =>
 
     evens := values.filter(fn(value: i32) -> bool { value % 2 == 0 })
     expect(evens.count()).to(eq(1))
-    match evens.first() {
-      case nil => raise AssertionError { message: "expected even element", details: nil, location: nil },
+    evens.first() match {
+      case nil => { raise AssertionError { message: "expected even element", details: nil, location: nil } },
       case value: i32 => expect(value).to(eq(2))
     }
   }
@@ -30,8 +32,8 @@ describe("Enumerable helpers") { suite =>
     values.push("bb")
     values.push("ccc")
 
-    expect(values.any(fn(value: String) -> bool { value.len() == 2 })).to(be_truthy())
-    expect(values.all(fn(value: String) -> bool { value.len() >= 1 })).to(be_truthy())
+    expect(values.any(fn(value: String) -> bool { value.len_chars() == 2 })).to(be_truthy())
+    expect(values.all(fn(value: String) -> bool { value.len_chars() >= 1 })).to(be_truthy())
     expect(values.none(fn(value: String) -> bool { value == "zzz" })).to(be_truthy())
   }
 
@@ -42,8 +44,8 @@ describe("Enumerable helpers") { suite =>
     values.push(5)
     values.push(8)
     found := values.find(fn(value: i32) -> bool { value % 2 == 0 })
-    match found {
-      case nil => raise AssertionError { message: "expected even value", details: nil, location: nil },
+    found match {
+      case nil => { raise AssertionError { message: "expected even value", details: nil, location: nil } },
       case value: i32 => expect(value).to(eq(8))
     }
     expect(values.find(fn(value: i32) -> bool { value > 10 })).to(eq(nil))
@@ -85,7 +87,19 @@ describe("Enumerable helpers") { suite =>
     values.push("a")
     values.push("b")
     zipped := values.zip_with_index()
-    expect(zipped.get(0)).to(eq(("a", 0)))
-    expect(zipped.get(1)).to(eq(("b", 1)))
+    zipped.get(0) match {
+      case nil => { raise AssertionError { message: "expected first zipped value", details: nil, location: nil } },
+      case entry: Indexed String => {
+        expect(entry.value).to(eq("a"))
+        expect(entry.index).to(eq(0))
+      }
+    }
+    zipped.get(1) match {
+      case nil => { raise AssertionError { message: "expected second zipped value", details: nil, location: nil } },
+      case entry: Indexed String => {
+        expect(entry.value).to(eq("b"))
+        expect(entry.index).to(eq(1))
+      }
+    }
   }
 }

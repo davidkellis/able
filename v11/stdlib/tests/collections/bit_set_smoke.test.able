@@ -42,7 +42,7 @@ fn check_iteration_order() -> void {
   bits.set(1)
   bits.set(65)
 
-  values: Array i32 := Array.new()
+  values: Array i32 := Array.new();
   for bit in bits {
     values.push(bit)
   }

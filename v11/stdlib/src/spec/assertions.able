@@ -4,6 +4,7 @@ import able.kernel.{Array}
 import able.collections.array
 import able.core.interfaces.{Error, Eq}
 import able.text.regex.{regex_is_match}
+import able.text.string
 import able.test.protocol.{Failure, SourceLocation}
 
 ## Error raised when an expectation does not hold.
@@ -175,7 +176,7 @@ fn raise_error_with_message(message: String) -> RaiseErrorMatcher {
 impl Matcher (() -> void) for RaiseErrorMatcher {
   fn matches(self: Self, invocation: () -> void) -> MatcherResult {
     captured: ?Error := nil
-    _ := do { invocation() } rescue {
+    do { invocation() } rescue {
       case err: Error => {
         captured = err
         nil
@@ -328,7 +329,7 @@ impl Matcher String for IncludeSubstringMatcher {
 struct BeEmptyArrayMatcher T {}
 
 fn be_empty_array<T>() -> BeEmptyArrayMatcher T {
-  BeEmptyArrayMatcher
+  BeEmptyArrayMatcher T {}
 }
 
 impl Matcher (Array T) for BeEmptyArrayMatcher T {
@@ -356,7 +357,7 @@ struct ContainMatcher T {
 }
 
 fn contain<T>(value: T) -> ContainMatcher T {
-  ContainMatcher T { expected: value }
+  ContainMatcher { expected: value }
 }
 
 impl Matcher (Array T) for ContainMatcher T where T: Eq T {
@@ -407,11 +408,11 @@ struct BeLessThanMatcher T {
 }
 
 fn be_greater_than<T>(value: T) -> BeGreaterThanMatcher T {
-  BeGreaterThanMatcher T { threshold: value }
+  BeGreaterThanMatcher { threshold: value }
 }
 
 fn be_less_than<T>(value: T) -> BeLessThanMatcher T {
-  BeLessThanMatcher T { threshold: value }
+  BeLessThanMatcher { threshold: value }
 }
 
 impl Matcher i64 for BeGreaterThanMatcher i64 {
@@ -439,7 +440,7 @@ struct ContainAllMatcher T {
 }
 
 fn contain_all<T>(values: Array T) -> ContainAllMatcher T {
-  ContainAllMatcher T { expected: values }
+  ContainAllMatcher { expected: values }
 }
 
 impl Matcher (Array T) for ContainAllMatcher T where T: Eq T {

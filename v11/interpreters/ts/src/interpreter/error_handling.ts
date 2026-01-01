@@ -8,7 +8,7 @@ import type { RuntimeValue } from "./values";
 
 export function evaluateRaiseStatement(ctx: Interpreter, node: AST.RaiseStatement, env: Environment): never {
   const val = ctx.evaluate(node.expression, env);
-  const err: RuntimeValue = val.kind === "error" ? val : { kind: "error", message: ctx.valueToString(val), value: val };
+  const err: RuntimeValue = coerceToErrorValue(ctx, val, env) ?? ctx.makeRuntimeError(ctx.valueToString(val), val);
   ctx.raiseStack.push(err);
   try {
     throw new RaiseSignal(err);
