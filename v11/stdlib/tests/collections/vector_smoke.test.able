@@ -83,7 +83,7 @@ fn check_iteration() -> void {
   loop {
     iter.next() match {
       case value: i32 => sum = sum + value,
-      case IteratorEnd => { break }
+      case IteratorEnd {} => { break }
     }
   }
   assert(sum == 12, "iterator should traverse each element once")

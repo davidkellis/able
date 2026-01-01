@@ -2,6 +2,8 @@ package persistent_sorted_set_specs
 
 import able.spec.*
 import able.collections.persistent_sorted_set.{PersistentSortedSet}
+import able.kernel.{Array}
+import able.collections.array
 
 describe("PersistentSortedSet") { suite =>
   suite.it("keeps values ordered and unique") { _ctx =>

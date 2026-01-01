@@ -1473,18 +1473,18 @@ Examples:
 
 ```able
 user: ?User = find_user(id)
-name = user?.profile?.display_name ?? "Guest"   ## ?? is a hypothetical coalesce helper
+name = user?.profile?.display_name or { "Guest" }
 
-timeout_ms = config?.network?.timeouts?.connect ?? 1_000
+timeout_ms = config?.network?.timeouts?.connect or { 1_000 }
 
 fn maybe_length(s: ?String) -> ?u64 {
   s?.len()
 }
 
-log(user?.session()?.token ?? "no session")
+log(user?.session()?.token or { "no session" })
 ```
 
-Each expression above returns `nil` if any receiver in the chain is `nil`; otherwise it produces the same value as the corresponding `.` access. The helpers `??`/`len()` are shown for illustration; they follow ordinary lookup rules once the safe-navigation step succeeds.
+Each expression above returns `nil` if any receiver in the chain is `nil`; otherwise it produces the same value as the corresponding `.` access. The helper `len()` is shown for illustration; it follows ordinary lookup rules once the safe-navigation step succeeds.
 
 ### 6.4. Function Calls
 

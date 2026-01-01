@@ -19,8 +19,6 @@ impl Error for MutexPoisoned {
 }
 
 fn with_lock<T>(m: Mutex, f: fn() -> T) -> T {
-  m.lock()
-  result := f()
-  m.unlock()
-  result
+  m.lock();
+  do { f() } ensure { m.unlock() }
 }

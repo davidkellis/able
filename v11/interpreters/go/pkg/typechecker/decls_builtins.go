@@ -198,6 +198,10 @@ func registerBuiltins(env *Environment) {
 		Params: []Type{i32Type},
 		Return: charType,
 	})
+	env.Define("__able_char_to_codepoint", FunctionType{
+		Params: []Type{charType},
+		Return: i32Type,
+	})
 
 	env.Define("__able_hasher_create", FunctionType{
 		Params: nil,

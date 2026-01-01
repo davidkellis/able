@@ -1,13 +1,13 @@
 package string
 import able.kernel.{Array}
 import able.collections.array
-import able.core.interfaces.{Clone, Error}
+import able.core.interfaces.{Clone, Eq, Error, Hash, Hasher}
 import able.core.iteration.{Iterable, Iterator, IteratorEnd}
 import able.core.options.{Result}
 import able.core.errors.{RangeError}
-import able.kernel.{__able_String_from_builtin, __able_String_to_builtin, __able_char_from_codepoint}
+import able.kernel.{__able_String_from_builtin, __able_String_to_builtin, __able_char_from_codepoint, __able_char_to_codepoint}
 
-private struct String {
+struct String {
   bytes: Array u8,
   len_bytes: i32
 }
@@ -175,10 +175,10 @@ methods String {
   }
 
   fn substring(self: Self, start: i32, length: ?i32) -> Result String {
-    if start < 0 { return RangeError { message: "subString start must be non-negative" } }
+    if start < 0 { return RangeError { message: "substring start must be non-negative" } }
     bytes := validated_bytes(self)
     total_chars := count_chars(bytes, bytes.len())
-    if start > total_chars { return RangeError { message: "subString start out of range" } }
+    if start > total_chars { return RangeError { message: "substring start out of range" } }
 
     offset := 0
     codepoint_offset(bytes, bytes.len(), start) match {
@@ -187,9 +187,9 @@ methods String {
     }
     target_end := bytes.len()
     if length != nil {
-      if length < 0 { return RangeError { message: "subString length must be non-negative" } }
+      if length < 0 { return RangeError { message: "substring length must be non-negative" } }
       limit := start + length
-      if limit > total_chars { return RangeError { message: "subString range out of bounds" } }
+      if limit > total_chars { return RangeError { message: "substring range out of bounds" } }
       codepoint_offset(bytes, bytes.len(), limit) match {
         case err: Error => { return err },
         case value: i32 => target_end = value
@@ -201,6 +201,39 @@ methods String {
 
   fn subString(self: Self, start: i32, length: ?i32) -> Result String {
     self.substring(start, length)
+  }
+
+  fn contains(self: Self, needle: String) -> bool {
+    haystack := validated_bytes(self)
+    target := validated_bytes(needle)
+    hay_len := haystack.len()
+    needle_len := target.len()
+    if needle_len == 0 { return true }
+    if needle_len > hay_len { return false }
+    pos := 0
+    loop {
+      if pos > hay_len - needle_len { break }
+      matched := true
+      j := 0
+      loop {
+        if j >= needle_len { break }
+        read_byte(haystack, pos + j) match {
+          case nil => { matched = false; break },
+          case hb: u8 => {
+            read_byte(target, j) match {
+              case nil => { matched = false; break },
+              case nb: u8 => {
+                if hb != nb { matched = false; break }
+              }
+            }
+          }
+        }
+        j = j + 1
+      }
+      if matched { return true }
+      pos = pos + 1
+    }
+    false
   }
 
   fn split(self: Self, delimiter: String) -> Array String {
@@ -369,6 +402,17 @@ methods String {
 impl Clone for String {
   fn clone(self: Self) -> String {
     String { bytes: self.bytes.clone(), len_bytes: self.len_bytes }
+  }
+}
+
+impl Eq for String {
+  fn eq(self: Self, other: Self) -> bool { self == other }
+}
+
+impl Hash for String {
+  fn hash(self: Self, hasher: Hasher) -> u64 {
+    hasher.write_bytes(unwrap_string(self))
+    hasher.finish()
   }
 }
 
@@ -723,23 +767,23 @@ fn slice_bytes(bytes: Array u8, start: i32, end: i32) -> Array u8 {
 
 fn char_to_utf8(value: char) -> Array u8 {
   bytes := Array.with_capacity(4)
-  code := value
+  code := __able_char_to_codepoint(value)
   if code <= 0x7F {
-    bytes.push(code)
+    bytes.push(code as u8)
   } else {
     if code <= 0x7FF {
-      bytes.push(((code .>> 6) .| 0xC0))
-      bytes.push(((code .& 0x3F) .| 0x80))
+      bytes.push(((code .>> 6) .| 0xC0) as u8)
+      bytes.push(((code .& 0x3F) .| 0x80) as u8)
     } else {
       if code <= 0xFFFF {
-        bytes.push(((code .>> 12) .| 0xE0))
-        bytes.push((((code .>> 6) .& 0x3F) .| 0x80))
-        bytes.push(((code .& 0x3F) .| 0x80))
+        bytes.push(((code .>> 12) .| 0xE0) as u8)
+        bytes.push((((code .>> 6) .& 0x3F) .| 0x80) as u8)
+        bytes.push(((code .& 0x3F) .| 0x80) as u8)
       } else {
-        bytes.push(((code .>> 18) .| 0xF0))
-        bytes.push((((code .>> 12) .& 0x3F) .| 0x80))
-        bytes.push((((code .>> 6) .& 0x3F) .| 0x80))
-        bytes.push(((code .& 0x3F) .| 0x80))
+        bytes.push(((code .>> 18) .| 0xF0) as u8)
+        bytes.push((((code .>> 12) .& 0x3F) .| 0x80) as u8)
+        bytes.push((((code .>> 6) .& 0x3F) .| 0x80) as u8)
+        bytes.push(((code .& 0x3F) .| 0x80) as u8)
       }
     }
   }

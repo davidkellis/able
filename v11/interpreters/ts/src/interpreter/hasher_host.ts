@@ -50,7 +50,7 @@ export function applyHasherHostAugmentations(cls: typeof Interpreter): void {
       this.makeNativeFunction("__able_hasher_create", 0, (interp) => {
         const handle = interp.nextHasherHandle++;
         interp.hasherStates.set(handle, FNV_OFFSET);
-        return makeIntegerValue("i32", BigInt(handle));
+        return makeIntegerValue("i64", BigInt(handle));
       }),
     );
 
@@ -78,7 +78,7 @@ export function applyHasherHostAugmentations(cls: typeof Interpreter): void {
           throw new Error("Unknown hasher handle");
         }
         interp.hasherStates.delete(handle);
-        return makeIntegerValue("i32", BigInt(current >>> 0));
+        return makeIntegerValue("i64", BigInt(current >>> 0));
       }),
     );
   };

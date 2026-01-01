@@ -1,4 +1,4 @@
-package text
+package automata_dsl
 
 import able.kernel.{Array}
 import able.collections.array
@@ -9,7 +9,6 @@ import able.text.automata.{
   NFABuilder,
   NFA,
   DFA,
-  NFASymbol,
   NFAChar,
   NFAEpsilon
 }
@@ -18,15 +17,28 @@ struct AutomataExpr {
   node: AutomataNode
 }
 
+struct AutomataNodeEmpty {}
+struct AutomataNodeEpsilon {}
+struct AutomataNodeLiteral { value: char }
+struct AutomataNodeCharSet { chars: Array char }
+struct AutomataNodeConcat { parts: Array AutomataExpr }
+struct AutomataNodeAppend { first: AutomataExpr, second: AutomataExpr }
+struct AutomataNodeAlternate { choices: Array AutomataExpr }
+struct AutomataNodeRepeat { expr: AutomataExpr, kind: AutomataRepeatKind }
+
 union AutomataNode =
   AutomataNodeEmpty |
   AutomataNodeEpsilon |
-  AutomataNodeLiteral { value: char } |
-  AutomataNodeCharSet { chars: Array char } |
-  AutomataNodeConcat { parts: Array AutomataExpr } |
-  AutomataNodeAppend { first: AutomataExpr, second: AutomataExpr } |
-  AutomataNodeAlternate { choices: Array AutomataExpr } |
-  AutomataNodeRepeat { expr: AutomataExpr, kind: AutomataRepeatKind }
+  AutomataNodeLiteral |
+  AutomataNodeCharSet |
+  AutomataNodeConcat |
+  AutomataNodeAppend |
+  AutomataNodeAlternate |
+  AutomataNodeRepeat
+
+struct AutomataRepeatZeroOrMore {}
+struct AutomataRepeatOneOrMore {}
+struct AutomataRepeatOptional {}
 
 union AutomataRepeatKind =
   AutomataRepeatZeroOrMore |
@@ -45,9 +57,9 @@ impl Clone for AutomataExpr {
 }
 
 fn clone_node(node: AutomataNode) -> AutomataNode {
-  match node {
-    case AutomataNodeEmpty => AutomataNodeEmpty {},
-    case AutomataNodeEpsilon => AutomataNodeEpsilon {},
+  node match {
+    case AutomataNodeEmpty {} => AutomataNodeEmpty {},
+    case AutomataNodeEpsilon {} => AutomataNodeEpsilon {},
     case AutomataNodeLiteral { value } => AutomataNodeLiteral { value },
     case AutomataNodeCharSet { chars } => AutomataNodeCharSet { chars: clone_char_array(chars) },
     case AutomataNodeConcat { parts } => AutomataNodeConcat { parts: clone_expr_array(parts) },
@@ -62,7 +74,7 @@ fn clone_expr_array(values: Array AutomataExpr) -> Array AutomataExpr {
   idx := 0
   loop {
     if idx >= values.len() { break }
-    match values.get(idx) {
+    values.get(idx) match {
       case nil => {},
       case value: AutomataExpr => result.push(value.clone())
     }
@@ -76,7 +88,7 @@ fn clone_char_array(values: Array char) -> Array char {
   idx := 0
   loop {
     if idx >= values.len() { break }
-    match values.get(idx) {
+    values.get(idx) match {
       case nil => {},
       case ch: char => result.push(ch)
     }
@@ -87,13 +99,13 @@ fn clone_char_array(values: Array char) -> Array char {
 
 methods AutomataExpr {
   fn to_nfa(self: Self) -> NFA {
-    builder := NFABuilder::new()
+    builder := NFABuilder.new()
     fragment := build_expr(self, builder)
     builder.set_start(fragment.start)
     idx := 0
     loop {
       if idx >= fragment.accepts.len() { break }
-      match fragment.accepts.get(idx) {
+      fragment.accepts.get(idx) match {
         case nil => {},
         case accept_state: i32 => builder.add_accept(accept_state)
       }
@@ -131,13 +143,13 @@ methods AutomataExpr {
   }
 }
 
-module AutomataDSL
-  extend self
+struct AutomataDSL {}
 
+methods AutomataDSL {
   fn literal(value: String) -> AutomataExpr | Error {
-    match String::from_builtin(value) {
+    String.from_builtin(value) match {
       case err: Error => err,
-      case string_value: String => literal_string(string_value)
+      case string_value: String => AutomataDSL.literal_string(string_value)
     }
   }
 
@@ -145,15 +157,18 @@ module AutomataDSL
     iter := value.chars().iterator()
     parts: Array AutomataExpr := Array.with_capacity(value.len_bytes())
     loop {
-      match iter.next() {
-        case _: IteratorEnd => break,
-        case ch: char => parts.push(literal_char(ch))
+      iter.next() match {
+        case _: IteratorEnd => { break },
+        case ch: char => parts.push(AutomataDSL.literal_char(ch))
       }
     }
     if parts.len() == 0 {
-      epsilon()
-    } else if parts.len() == 1 {
-      parts.get(0) ?? epsilon()
+      AutomataDSL.epsilon()
+    } elsif parts.len() == 1 {
+      parts.get(0) match {
+        case nil => AutomataDSL.epsilon(),
+        case expr: AutomataExpr => expr
+      }
     } else {
       AutomataExpr { node: AutomataNodeConcat { parts } }
     }
@@ -183,16 +198,16 @@ module AutomataDSL
       chars.push((code as i32) as char)
       code = code + 1
     }
-    any(chars)
+    AutomataDSL.any(chars)
   }
 
   fn dot() -> AutomataExpr {
-    any_ascii()
+    AutomataDSL.any_ascii()
   }
 
   fn range(start: char, finish: char) -> AutomataExpr {
-    start_code := start as i32
-    finish_code := finish as i32
+    start_code := (start as i32)
+    finish_code := (finish as i32)
     if finish_code < start_code {
       return AutomataExpr { node: AutomataNodeCharSet { chars: Array.with_capacity(0) } }
     }
@@ -203,7 +218,7 @@ module AutomataDSL
       chars.push((current as i32) as char)
       current = current + 1
     }
-    any(chars)
+    AutomataDSL.any(chars)
   }
 
   fn seq(exprs: Array AutomataExpr) -> AutomataExpr {
@@ -211,7 +226,7 @@ module AutomataDSL
   }
 
   fn seq(first: AutomataExpr, second: AutomataExpr) -> AutomataExpr {
-    seq(array_of(first, second))
+    AutomataDSL.seq(array_of(first, second))
   }
 
   fn union(exprs: Array AutomataExpr) -> AutomataExpr {
@@ -219,7 +234,7 @@ module AutomataDSL
   }
 
   fn union(first: AutomataExpr, second: AutomataExpr) -> AutomataExpr {
-    union(array_of(first, second))
+    AutomataDSL.union(array_of(first, second))
   }
 
   fn append(a: AutomataExpr, b: AutomataExpr) -> AutomataExpr {
@@ -237,7 +252,7 @@ module AutomataDSL
   fn optional(expr: AutomataExpr) -> AutomataExpr {
     expr.optional()
   }
-end
+}
 
 fn array_of(first: AutomataExpr, second: AutomataExpr) -> Array AutomataExpr {
   parts: Array AutomataExpr := Array.with_capacity(2)
@@ -247,9 +262,9 @@ fn array_of(first: AutomataExpr, second: AutomataExpr) -> Array AutomataExpr {
 }
 
 fn build_expr(expr: AutomataExpr, builder: NFABuilder) -> AutomataFragment {
-  match expr.node {
-    case AutomataNodeEmpty => build_empty(builder),
-    case AutomataNodeEpsilon => build_epsilon(builder),
+  expr.node match {
+    case AutomataNodeEmpty {} => build_empty(builder),
+    case AutomataNodeEpsilon {} => build_epsilon(builder),
     case AutomataNodeLiteral { value } => build_literal(builder, value),
     case AutomataNodeCharSet { chars } => build_char_set(builder, chars),
     case AutomataNodeConcat { parts } => build_concat(builder, parts),
@@ -262,7 +277,7 @@ fn build_expr(expr: AutomataExpr, builder: NFABuilder) -> AutomataFragment {
 fn build_empty(builder: NFABuilder) -> AutomataFragment {
   start := builder.add_state()
   accepts: Array i32 := Array.with_capacity(1)
-  accepts.push(start)
+  accepts.push(start);
   AutomataFragment { start, accepts }
 }
 
@@ -271,16 +286,16 @@ fn build_epsilon(builder: NFABuilder) -> AutomataFragment {
   accept := builder.add_state()
   builder.add_transition(start, accept, NFAEpsilon {})
   accepts: Array i32 := Array.with_capacity(1)
-  accepts.push(accept)
+  accepts.push(accept);
   AutomataFragment { start, accepts }
 }
 
 fn build_literal(builder: NFABuilder, value: char) -> AutomataFragment {
   start := builder.add_state()
   accept := builder.add_state()
-  builder.add_transition(start, accept, NFAChar value)
+  builder.add_transition(start, accept, NFAChar { value })
   accepts: Array i32 := Array.with_capacity(1)
-  accepts.push(accept)
+  accepts.push(accept);
   AutomataFragment { start, accepts }
 }
 
@@ -290,14 +305,14 @@ fn build_char_set(builder: NFABuilder, chars: Array char) -> AutomataFragment {
   idx := 0
   loop {
     if idx >= chars.len() { break }
-    match chars.get(idx) {
+    chars.get(idx) match {
       case nil => {},
-      case ch: char => builder.add_transition(start, accept, NFAChar ch)
+      case ch: char => builder.add_transition(start, accept, NFAChar { value: ch })
     }
     idx = idx + 1
   }
   accepts: Array i32 := Array.with_capacity(1)
-  accepts.push(accept)
+  accepts.push(accept);
   AutomataFragment { start, accepts }
 }
 
@@ -306,7 +321,7 @@ fn build_concat(builder: NFABuilder, parts: Array AutomataExpr) -> AutomataFragm
     return build_epsilon(builder)
   }
 
-  first_expr := match parts.get(0) {
+  first_expr := parts.get(0) match {
     case nil => AutomataExpr { node: AutomataNodeEpsilon {} },
     case expr: AutomataExpr => expr
   }
@@ -318,7 +333,7 @@ fn build_concat(builder: NFABuilder, parts: Array AutomataExpr) -> AutomataFragm
   idx := 1
   loop {
     if idx >= parts.len() { break }
-    next_expr := match parts.get(idx) {
+    next_expr := parts.get(idx) match {
       case nil => AutomataExpr { node: AutomataNodeEpsilon {} },
       case expr: AutomataExpr => expr
     }
@@ -349,7 +364,7 @@ fn build_alternate(builder: NFABuilder, choices: Array AutomataExpr) -> Automata
   idx := 0
   loop {
     if idx >= choices.len() { break }
-    match choices.get(idx) {
+    choices.get(idx) match {
       case nil => {},
       case choice: AutomataExpr => {
         fragment := build_expr(choice, builder)
@@ -368,19 +383,19 @@ fn build_repeat(builder: NFABuilder, expr: AutomataExpr, kind: AutomataRepeatKin
   start := builder.add_state()
   accept := builder.add_state()
 
-  match kind {
-    case AutomataRepeatZeroOrMore => {
+  kind match {
+    case AutomataRepeatZeroOrMore {} => {
       builder.add_transition(start, fragment.start, NFAEpsilon {})
       builder.add_transition(start, accept, NFAEpsilon {})
       connect_accepts(builder, fragment.accepts, fragment.start)
       connect_accepts(builder, fragment.accepts, accept)
     },
-    case AutomataRepeatOneOrMore => {
+    case AutomataRepeatOneOrMore {} => {
       builder.add_transition(start, fragment.start, NFAEpsilon {})
       connect_accepts(builder, fragment.accepts, fragment.start)
       connect_accepts(builder, fragment.accepts, accept)
     },
-    case AutomataRepeatOptional => {
+    case AutomataRepeatOptional {} => {
       builder.add_transition(start, fragment.start, NFAEpsilon {})
       builder.add_transition(start, accept, NFAEpsilon {})
       connect_accepts(builder, fragment.accepts, accept)
@@ -388,7 +403,7 @@ fn build_repeat(builder: NFABuilder, expr: AutomataExpr, kind: AutomataRepeatKin
   }
 
   accepts: Array i32 := Array.with_capacity(1)
-  accepts.push(accept)
+  accepts.push(accept);
   AutomataFragment { start, accepts }
 }
 
@@ -396,7 +411,7 @@ fn copy_states(source: Array i32, target: Array i32) -> void {
   idx := 0
   loop {
     if idx >= source.len() { break }
-    match source.get(idx) {
+    source.get(idx) match {
       case nil => {},
       case state: i32 => {
         if !contains_state(target, state) {
@@ -412,7 +427,7 @@ fn contains_state(states: Array i32, candidate: i32) -> bool {
   idx := 0
   loop {
     if idx >= states.len() { break }
-    match states.get(idx) {
+    states.get(idx) match {
       case nil => {},
       case state: i32 => {
         if state == candidate {
@@ -429,7 +444,7 @@ fn connect_accepts(builder: NFABuilder, accepts: Array i32, target: i32) -> void
   idx := 0
   loop {
     if idx >= accepts.len() { break }
-    match accepts.get(idx) {
+    accepts.get(idx) match {
       case nil => {},
       case state: i32 => builder.add_transition(state, target, NFAEpsilon {})
     }

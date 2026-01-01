@@ -66,6 +66,21 @@ fn register_suite(state: SuiteState) -> void {
       case existing: SuiteDefinition => {
         if existing.key == state.key {
           SUITES.set(idx, definition)
+          archive_idx := 0
+          loop {
+            if archive_idx >= SUITES_ARCHIVE.len() { break }
+            SUITES_ARCHIVE.get(archive_idx) match {
+              case nil => {},
+              case archived: SuiteDefinition => {
+                if archived.key == state.key {
+                  SUITES_ARCHIVE.set(archive_idx, definition)
+                  return
+                }
+              }
+            }
+            archive_idx = archive_idx + 1
+          }
+          SUITES_ARCHIVE.push(definition)
           return
         }
       }
@@ -74,6 +89,21 @@ fn register_suite(state: SuiteState) -> void {
   }
 
   SUITES.push(definition)
+  archive_idx := 0
+  loop {
+    if archive_idx >= SUITES_ARCHIVE.len() { break }
+    SUITES_ARCHIVE.get(archive_idx) match {
+      case nil => {},
+      case archived: SuiteDefinition => {
+        if archived.key == state.key {
+          SUITES_ARCHIVE.set(archive_idx, definition)
+          return
+        }
+      }
+    }
+    archive_idx = archive_idx + 1
+  }
+  SUITES_ARCHIVE.push(definition)
 }
 
 fn find_suite(key: string) -> ?SuiteDefinition {
@@ -81,6 +111,17 @@ fn find_suite(key: string) -> ?SuiteDefinition {
   loop {
     if idx >= SUITES.len() { break }
     SUITES.get(idx) match {
+      case nil => {},
+      case suite: SuiteDefinition => {
+        if suite.key == key { return suite }
+      }
+    }
+    idx = idx + 1
+  }
+  idx = 0
+  loop {
+    if idx >= SUITES_ARCHIVE.len() { break }
+    SUITES_ARCHIVE.get(idx) match {
       case nil => {},
       case suite: SuiteDefinition => {
         if suite.key == key { return suite }
@@ -96,6 +137,17 @@ fn find_example(id: string) -> ?ExampleDefinition {
   loop {
     if idx >= EXAMPLES.len() { break }
     EXAMPLES.get(idx) match {
+      case nil => {},
+      case example: ExampleDefinition => {
+        if example.id == id { return example }
+      }
+    }
+    idx = idx + 1
+  }
+  idx = 0
+  loop {
+    if idx >= EXAMPLES_ARCHIVE.len() { break }
+    EXAMPLES_ARCHIVE.get(idx) match {
       case nil => {},
       case example: ExampleDefinition => {
         if example.id == id { return example }

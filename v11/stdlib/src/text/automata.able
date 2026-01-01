@@ -1,9 +1,10 @@
-package text
+package automata
 
 import able.kernel.{Array}
 import able.collections.array
 import able.core.interfaces.{Error}
 import able.core.iteration.{Iterator, IteratorEnd}
+import able.text.string.{String}
 
 struct AutomataError {
   message: String
@@ -47,9 +48,12 @@ struct DFATransition {
   symbol: char
 }
 
+struct NFAEpsilon {}
+struct NFAChar { value: char }
+
 union NFASymbol =
   NFAEpsilon |
-  NFAChar char
+  NFAChar
 
 struct DFAStateDescriptor {
   id: i32,
@@ -72,20 +76,20 @@ methods NFABuilder {
     }
   }
 
-  fn add_state(mut self: Self) -> i32 {
+  fn add_state(self: Self) -> i32 {
     id := self.state_count
     self.state_count = self.state_count + 1
     id
   }
 
-  fn set_start(mut self: Self, state: i32) -> void {
+  fn set_start(self: Self, state: i32) -> void {
     if !self.valid_state(state) {
       raise AutomataError { message: `invalid start state ${state}` }
     }
     self.start_state = state
   }
 
-  fn add_accept(mut self: Self, state: i32) -> void {
+  fn add_accept(self: Self, state: i32) -> void {
     if !self.valid_state(state) {
       raise AutomataError { message: `invalid accept state ${state}` }
     }
@@ -95,7 +99,7 @@ methods NFABuilder {
     self.accept_states.push(state)
   }
 
-  fn add_transition(mut self: Self, from: i32, to: i32, symbol: NFASymbol) -> void {
+  fn add_transition(self: Self, from: i32, to: i32, symbol: NFASymbol) -> void {
     if !self.valid_state(from) || !self.valid_state(to) {
       raise AutomataError { message: "invalid transition endpoints" }
     }
@@ -103,8 +107,8 @@ methods NFABuilder {
   }
 
   fn build(self: Self) -> NFA {
-    start := match self.start_state {
-      case nil => raise AutomataError { message: "start state not set" },
+    start := self.start_state match {
+      case nil => { raise AutomataError { message: "start state not set" } },
       case value: i32 => value
     }
     if self.accept_states.len() == 0 {
@@ -143,8 +147,8 @@ fn nfa_matches(nfa: NFA, text: String) -> bool {
   current := epsilon_closure(nfa, singleton_state(nfa.start_state))
   iter := text.chars().iterator()
   loop {
-    match iter.next() {
-      case _: IteratorEnd => break,
+    iter.next() match {
+      case _: IteratorEnd => { break },
       case ch: char => {
         moved := nfa_move(nfa, current, ch)
         current = epsilon_closure(nfa, moved)
@@ -158,17 +162,17 @@ fn dfa_matches(dfa: DFA, text: String) -> bool {
   state := dfa.start_state
   iter := text.chars().iterator()
   loop {
-    match iter.next() {
-      case _: IteratorEnd => break,
+    iter.next() match {
+      case _: IteratorEnd => { break },
       case ch: char => {
-        match dfa_step(dfa, state, ch) {
-          case nil => return false,
+        dfa_step(dfa, state, ch) match {
+          case nil => { return false },
           case next_state: i32 => state = next_state
         }
       }
     }
   }
-  match dfa.accept_states.get(state) {
+  dfa.accept_states.get(state) match {
     case nil => false,
     case value: bool => value
   }
@@ -179,13 +183,13 @@ fn nfa_move(nfa: NFA, states: Array i32, ch: char) -> Array i32 {
   state_idx := 0
   loop {
     if state_idx >= states.len() { break }
-    match states.get(state_idx) {
+    states.get(state_idx) match {
       case nil => {},
       case state: i32 => {
         transition_idx := 0
         loop {
           if transition_idx >= nfa.transitions.len() { break }
-          match nfa.transitions.get(transition_idx) {
+          nfa.transitions.get(transition_idx) match {
             case nil => {},
             case transition: NFATransition => {
               if transition.from == state && symbol_matches(transition.symbol, ch) {
@@ -203,9 +207,9 @@ fn nfa_move(nfa: NFA, states: Array i32, ch: char) -> Array i32 {
 }
 
 fn symbol_matches(symbol: NFASymbol, ch: char) -> bool {
-  match symbol {
-    case NFAEpsilon => false,
-    case NFAChar value => value == ch
+  symbol match {
+    case NFAEpsilon {} => false,
+    case NFAChar { value } => value == ch
   }
 }
 
@@ -216,7 +220,7 @@ fn epsilon_closure(nfa: NFA, input_states: Array i32) -> Array i32 {
   idx := 0
   loop {
     if idx >= input_states.len() { break }
-    match input_states.get(idx) {
+    input_states.get(idx) match {
       case nil => {},
       case state: i32 => {
         if !contains_state(closure, state) {
@@ -229,13 +233,13 @@ fn epsilon_closure(nfa: NFA, input_states: Array i32) -> Array i32 {
   }
 
   loop {
-    match stack.pop() {
-      case nil => break,
+    stack.pop() match {
+      case nil => { break },
       case state: i32 => {
         transition_idx := 0
         loop {
           if transition_idx >= nfa.transitions.len() { break }
-          match nfa.transitions.get(transition_idx) {
+          nfa.transitions.get(transition_idx) match {
             case nil => {},
             case transition: NFATransition => {
               if transition.from == state && is_epsilon(transition.symbol) && !contains_state(closure, transition.to) {
@@ -254,8 +258,8 @@ fn epsilon_closure(nfa: NFA, input_states: Array i32) -> Array i32 {
 }
 
 fn is_epsilon(symbol: NFASymbol) -> bool {
-  match symbol {
-    case NFAEpsilon => true,
+  symbol match {
+    case NFAEpsilon {} => true,
     case _ => false
   }
 }
@@ -270,7 +274,7 @@ fn contains_state(states: Array i32, state: i32) -> bool {
   idx := 0
   loop {
     if idx >= states.len() { break }
-    match states.get(idx) {
+    states.get(idx) match {
       case nil => {},
       case value: i32 => {
         if value == state {
@@ -294,7 +298,7 @@ fn has_accepting_state(states: Array i32, accept_states: Array i32) -> bool {
   idx := 0
   loop {
     if idx >= states.len() { break }
-    match states.get(idx) {
+    states.get(idx) match {
       case nil => {},
       case state: i32 => {
         if contains_state(accept_states, state) {
@@ -322,11 +326,10 @@ fn nfa_to_dfa(nfa: NFA) -> DFA {
   queue.push(0)
 
   loop {
-    match queue.pop() {
-      case nil => break,
+    queue.pop() match {
+      case nil => { break },
       case descriptor_id: i32 => {
-        descriptor := descriptors.get(descriptor_id)
-        match descriptor {
+        descriptors.get(descriptor_id) match {
           case nil => {},
           case value: DFAStateDescriptor => process_dfa_state(nfa, value, descriptors, transitions, queue)
         }
@@ -338,7 +341,7 @@ fn nfa_to_dfa(nfa: NFA) -> DFA {
   idx := 0
   loop {
     if idx >= descriptors.len() { break }
-    match descriptors.get(idx) {
+    descriptors.get(idx) match {
       case nil => accept_flags.push(false),
       case descriptor: DFAStateDescriptor => accept_flags.push(descriptor.accepting)
     }
@@ -365,22 +368,22 @@ fn process_dfa_state(
   state_idx := 0
   loop {
     if state_idx >= descriptor.states.len() { break }
-    match descriptor.states.get(state_idx) {
+    descriptor.states.get(state_idx) match {
       case nil => {},
       case state: i32 => {
         transition_idx := 0
         loop {
           if transition_idx >= nfa.transitions.len() { break }
-          match nfa.transitions.get(transition_idx) {
+          nfa.transitions.get(transition_idx) match {
             case nil => {},
             case transition: NFATransition => {
               if transition.from != state {
                 transition_idx = transition_idx + 1
                 continue
               }
-              match transition.symbol {
-                case NFAChar symbol => add_bucket_state(buckets, symbol, transition.to, nfa.state_count),
-                case NFAEpsilon => {}
+              transition.symbol match {
+                case NFAChar { value::symbol } => add_bucket_state(buckets, symbol, transition.to, nfa.state_count),
+                case NFAEpsilon {} => {}
               }
             }
           }
@@ -394,7 +397,7 @@ fn process_dfa_state(
   bucket_idx := 0
   loop {
     if bucket_idx >= buckets.len() { break }
-    match buckets.get(bucket_idx) {
+    buckets.get(bucket_idx) match {
       case nil => {},
       case bucket: DFABucket => {
         closure := epsilon_closure(nfa, bucket.states)
@@ -415,7 +418,7 @@ fn ensure_descriptor(
   symbol: char,
   transitions: Array DFATransition
 ) -> void {
-  match find_descriptor(descriptors, states) {
+  find_descriptor(descriptors, states) match {
     case nil => {
       new_id := descriptors.len()
       descriptor := DFAStateDescriptor {
@@ -437,7 +440,7 @@ fn find_descriptor(descriptors: Array DFAStateDescriptor, states: Array i32) -> 
   idx := 0
   loop {
     if idx >= descriptors.len() { break }
-    match descriptors.get(idx) {
+    descriptors.get(idx) match {
       case nil => {},
       case descriptor: DFAStateDescriptor => {
         if state_sets_equal(descriptor.states, states) {
@@ -454,7 +457,7 @@ fn find_bucket(buckets: Array DFABucket, symbol: char) -> ?i32 {
   idx := 0
   loop {
     if idx >= buckets.len() { break }
-    match buckets.get(idx) {
+    buckets.get(idx) match {
       case nil => {},
       case bucket: DFABucket => {
         if bucket.symbol == symbol {
@@ -468,13 +471,13 @@ fn find_bucket(buckets: Array DFABucket, symbol: char) -> ?i32 {
 }
 
 fn add_bucket_state(buckets: Array DFABucket, symbol: char, state: i32, capacity: i32) -> void {
-  match find_bucket(buckets, symbol) {
+  find_bucket(buckets, symbol) match {
     case nil => {
       bucket := DFABucket { symbol, states: Array.with_capacity(capacity) }
       bucket.states.push(state)
       buckets.push(bucket)
     },
-    case index: i32 => match buckets.get(index) {
+    case index: i32 => buckets.get(index) match {
       case nil => {},
       case bucket: DFABucket => {
         add_state_unique(bucket.states, state)
@@ -492,7 +495,7 @@ fn state_sets_equal(a: Array i32, b: Array i32) -> bool {
   idx := 0
   loop {
     if idx >= a.len() { break }
-    match a.get(idx) {
+    a.get(idx) match {
       case nil => {},
       case state: i32 => {
         if !contains_state(b, state) {
@@ -509,7 +512,7 @@ fn dfa_step(dfa: DFA, state: i32, ch: char) -> ?i32 {
   idx := 0
   loop {
     if idx >= dfa.transitions.len() { break }
-    match dfa.transitions.get(idx) {
+    dfa.transitions.get(idx) match {
       case nil => {},
       case transition: DFATransition => {
         if transition.from == state && transition.symbol == ch {

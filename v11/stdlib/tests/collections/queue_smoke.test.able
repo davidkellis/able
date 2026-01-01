@@ -51,16 +51,16 @@ fn check_iteration() -> void {
   loop {
     iter.next() match {
       case value: i32 => sum = sum + value,
-      case IteratorEnd => { break }
+      case IteratorEnd {} => { break }
     }
   }
   assert(sum == 21, "iterator should traverse items in enqueue order")
 
-  loop_sum := 0
+  iteration_sum := 0
   for value in queue {
-    loop_sum = loop_sum + value
+    iteration_sum = iteration_sum + value
   }
-  assert(loop_sum == 21, "for-in loop should be powered by Enumerable.each")
+  assert(iteration_sum == 21, "for-in loop should be powered by Enumerable.each")
 }
 
 fn main() -> void {

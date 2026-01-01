@@ -25,6 +25,10 @@ methods Queue T {
   fn with_capacity(capacity: i32) -> Queue T {
     Queue { data: Deque.with_capacity(capacity) }
   }
+
+  fn is_empty(self: Self) -> bool {
+    self.data.len() == 0
+  }
 }
 
 impl QueueOps T for Queue T {

@@ -117,7 +117,7 @@ function parseFunctionCore(
   };
 }
 
-function parseParameterList(
+export function parseParameterList(
   node: Node | null | undefined,
   source: string,
   ctx: ParseContext = getActiveParseContext(),
@@ -134,7 +134,7 @@ function parseParameterList(
   return params;
 }
 
-function parseParameter(
+export function parseParameter(
   node: Node,
   source: string,
   ctx: ParseContext = getActiveParseContext(),

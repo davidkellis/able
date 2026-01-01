@@ -172,6 +172,26 @@ fn main() -> void {
     expect(okImpl.interfaceArgs?.[0]?.type).toBe("GenericTypeExpression");
   });
 
+  test("parses verbose anonymous function syntax", async () => {
+    const { Parser, Language } = await import("web-tree-sitter");
+    await Parser.init();
+    const parser = new Parser();
+    const language = await Language.load(WASM_PATH);
+    parser.setLanguage(language);
+
+    const source = "adder := fn(x: i32) -> i32 { x + 1 }\n";
+    const tree = parser.parse(source);
+    if (!tree) throw new Error("failed to parse verbose lambda fixture");
+    expect(tree.rootNode.type).toBe("source_file");
+    expect(tree.rootNode.hasError).toBe(false);
+    const module = mapSourceFile(tree.rootNode, source, "<inline>");
+    const assignment = module.body[0] as AST.AssignmentExpression;
+    expect(assignment.type).toBe("AssignmentExpression");
+    const lambda = assignment.right as AST.LambdaExpression;
+    expect(lambda.type).toBe("LambdaExpression");
+    expect(lambda.isVerboseSyntax).toBe(true);
+  });
+
   test("range operators map inclusivity correctly", async () => {
     const { Parser, Language } = await import("web-tree-sitter");
     await Parser.init();

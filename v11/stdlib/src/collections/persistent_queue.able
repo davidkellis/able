@@ -1,4 +1,4 @@
-package collections
+package persistent_queue
 
 import able.collections.list.{List}
 import able.collections.enumerable.{Enumerable}
@@ -10,11 +10,13 @@ struct PersistentQueue T {
 }
 
 fn queue_normalize<T>(queue: PersistentQueue T) -> PersistentQueue T {
-  if !queue.front.is_empty() {
+  front := (queue).front
+  if !front.is_empty() {
     return queue
   }
+  back := (queue).back
   PersistentQueue {
-    front: queue.back.reverse(),
+    front: (back).reverse(),
     back: List.empty(),
     size: queue.size
   }
@@ -22,7 +24,7 @@ fn queue_normalize<T>(queue: PersistentQueue T) -> PersistentQueue T {
 
 methods PersistentQueue T {
   fn empty() -> PersistentQueue T {
-    PersistentQueue { front: List.empty(), back: List.empty(), size: 0 }
+    PersistentQueue { front: List.empty(), back: List.empty(), size: 0_i32 }
   }
 
   fn len(self: Self) -> i32 { self.size }
@@ -33,30 +35,39 @@ methods PersistentQueue T {
     PersistentQueue {
       front: self.front,
       back: self.back.prepend(value),
-      size: self.size + 1
+      size: self.size + 1_i32
     }
   }
 
   fn peek(self: Self) -> ?T {
     normalized := queue_normalize(self)
-    normalized.front.head()
+    front := (normalized).front
+    (front).head()
   }
 
   fn dequeue(self: Self) -> PersistentQueue T {
     if self.size == 0 { return self }
     normalized := queue_normalize(self)
-    new_front := normalized.front.tail()
+    front := (normalized).front
+    new_front := (front).tail()
     PersistentQueue {
       front: new_front,
-      back: normalized.back,
-      size: self.size - 1
+      back: (normalized).back,
+      size: self.size + (-1_i32)
     }
   }
 
   fn for_each(self: Self, visit: T -> void) -> void {
     normalized := queue_normalize(self)
-    normalized.front.each(visit)
-    normalized.back.reverse().each(visit)
+    front := (normalized).front
+    back := (normalized).back
+    for value in front {
+      visit(value)
+    }
+    reversed := (back).reverse()
+    for value in reversed {
+      visit(value)
+    }
   }
 }
 

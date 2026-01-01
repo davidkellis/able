@@ -41,7 +41,7 @@ fn check_iteration() -> void {
   iter := set.iterator()
   loop {
     iter.next() match {
-      case IteratorEnd => { break }
+      case IteratorEnd {} => { break },
       case value: i32 => {
         sum = sum + value
         count = count + 1

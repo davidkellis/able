@@ -119,7 +119,7 @@ methods LinkedList T {
     current := self.head
     loop {
       current match {
-        case nil => break,
+        case nil => { break },
         case node: ListNode T => {
           visit(node.value)
           current = node.next

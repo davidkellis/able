@@ -35,7 +35,7 @@ describe("Int128") { suite =>
     y := Int128.from_i128(987654321_i128)
 
     product := x.mul(y)
-    expect(product.to_i128()).to(eq(-12193263124676116314522419290_i128))
+    expect(product.to_i128()).to(eq(-12193263112482853211126352690_i128))
 
     quotient := product.div(x)
     expect(quotient.to_i128()).to(eq(y.to_i128()))

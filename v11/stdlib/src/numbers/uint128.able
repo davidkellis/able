@@ -1,7 +1,7 @@
-package numbers
+package uint128
 
 import able.core.errors.{OverflowError, DivisionByZeroError}
-import able.core.interfaces.{Eq, Ord, Less, Greater, Equal, Display}
+import able.core.interfaces.{Eq, Ord, Less, Greater, Equal, Display, Ordering}
 import able.core.numeric.{
   Numeric,
   Unsigned,
@@ -10,22 +10,22 @@ import able.core.numeric.{
 }
 import able.core.options.{Result}
 
-const UINT64_MASK = 18446744073709551615_u128 ## 2^64 - 1
-const UINT128_MAX = 340282366920938463463374607431768211455_u128 ## 2^128 - 1
+UINT64_MASK: u128 := 18446744073709551615_u128 ## 2^64 - 1
+UINT128_MAX: u128 := 340282366920938463463374607431768211455_u128 ## 2^128 - 1
 
 fn uint128_conversion_error(message: String) -> NumericConversionError {
-  NumericConversionError { message }
+  raise NumericConversionError { message }
 }
 
 fn uint128_from_u128(value: u128) -> UInt128 {
   UInt128 {
-    high: (value >> 64) as u64,
-    low: (value & UINT64_MASK) as u64
+    high: (value .>> 64) as u64,
+    low: (value .& UINT64_MASK) as u64
   }
 }
 
 fn uint128_to_u128(value: UInt128) -> u128 {
-  ((value.high as u128) << 64) | (value.low as u128)
+  ((value.high as u128) .<< 64) .| (value.low as u128)
 }
 
 fn uint128_check_overflow(sum: u128, lhs: u128, rhs: u128, operation: String) -> void {
@@ -37,10 +37,10 @@ fn uint128_check_overflow(sum: u128, lhs: u128, rhs: u128, operation: String) ->
 fn uint128_clz_u64(value: u64) -> i32 {
   if value == 0_u64 { return 64 }
   count := 0
-  mut current := value
+  current := value
   loop {
-    if (current & 0x8000000000000000_u64) != 0_u64 { break }
-    current = current << 1_u64
+    if (current .& 0x8000000000000000_u64) != 0_u64 { break }
+    current = current .<< 1_u64
     count = count + 1
   }
   count
@@ -49,10 +49,10 @@ fn uint128_clz_u64(value: u64) -> i32 {
 fn uint128_ctz_u64(value: u64) -> i32 {
   if value == 0_u64 { return 64 }
   count := 0
-  mut current := value
+  current := value
   loop {
-    if (current & 1_u64) != 0_u64 { break }
-    current = current >> 1_u64
+    if (current .& 1_u64) != 0_u64 { break }
+    current = current .>> 1_u64
     count = count + 1
   }
   count
@@ -147,7 +147,7 @@ methods UInt128 {
     lhs := self.to_u128()
     rhs := other.to_u128()
     product := lhs * rhs
-    if rhs != 0_u128 && product / rhs != lhs {
+    if rhs != 0_u128 && product // rhs != lhs {
       raise OverflowError { operation: "UInt128.mul overflow" }
     }
     uint128_from_u128(product)
@@ -155,7 +155,7 @@ methods UInt128 {
 
   fn div(self: Self, other: UInt128) -> UInt128 {
     if other.is_zero() { raise DivisionByZeroError {} }
-    uint128_from_u128(self.to_u128() / other.to_u128())
+    uint128_from_u128(self.to_u128() // other.to_u128())
   }
 
   fn rem(self: Self, other: UInt128) -> UInt128 {
@@ -186,7 +186,7 @@ methods UInt128 {
     if lhs < rhs { return Less }
     if lhs > rhs { return Greater }
     if self.low < other.low { Less }
-    else if self.low > other.low { Greater }
+    elsif self.low > other.low { Greater }
     else { Equal }
   }
 
@@ -197,7 +197,7 @@ methods UInt128 {
 
   fn trailing_zeros(self: Self) -> i32 {
     if self.low != 0_u64 { uint128_ctz_u64(self.low) }
-    else if self.high != 0_u64 { 64 + uint128_ctz_u64(self.high) }
+    elsif self.high != 0_u64 { 64 + uint128_ctz_u64(self.high) }
     else { 128 }
   }
 

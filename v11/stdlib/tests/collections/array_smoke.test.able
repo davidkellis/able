@@ -110,7 +110,7 @@ fn check_push_all_and_iteration() -> void {
   loop {
     iter.next() match {
       case value: i32 => sum = sum + value,
-      case IteratorEnd => { break }
+      case IteratorEnd {} => { break }
     }
   }
   assert(sum == 15, "iterator should traverse all elements appended via push_all")
@@ -130,7 +130,7 @@ fn check_map_and_filter() -> void {
     case nil => { raise "expected mapped value at index 0" }
   }
 
-  even := doubled.filter(is_even)
+  even := values.filter(is_even)
   assert(even.size() == 1, "filter should keep only matching elements")
   even.get(first) match {
     case value: i32 => assert(value == 2, "filter should retain matching values"),

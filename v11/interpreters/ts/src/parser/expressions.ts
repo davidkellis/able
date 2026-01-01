@@ -40,6 +40,7 @@ import {
   parseStructLiteral,
 } from "./literals";
 import { parsePlaceholderExpression } from "./placeholders";
+import { parseParameterList } from "./definitions";
 
 export function registerExpressionParsers(ctx: MutableParseContext): void {
   ctx.parseExpression = node => parseExpression(node, ctx.source);
@@ -109,6 +110,8 @@ function parseExpression(node: Node | null | undefined, source: string): Express
     }
     case "do_expression":
       return parseDoExpression(node, source);
+    case "verbose_lambda_expression":
+      return parseVerboseLambdaExpression(node, source);
     case "lambda_expression":
       return parseLambdaExpression(node, source);
     case "postfix_expression":
@@ -655,6 +658,29 @@ function parseLambdaExpression(node: Node, source: string): LambdaExpression {
   const bodyExpr = parseExpression(bodyNode, source);
 
   return annotateExpressionNode(AST.lambdaExpression(params, bodyExpr, returnType, undefined, undefined, false), node) as LambdaExpression;
+}
+
+function parseVerboseLambdaExpression(node: Node, source: string): LambdaExpression {
+  if (node.type !== "verbose_lambda_expression") {
+    throw new MapperError("parser: expected verbose lambda expression");
+  }
+
+  const ctx = getActiveParseContext();
+  const params = parseParameterList(node.childForFieldName("parameters"), source, ctx);
+  const returnType = ctx.parseReturnType(node.childForFieldName("return_type"));
+  const generics = ctx.parseTypeParameters(node.childForFieldName("type_parameters"));
+  const whereClause = ctx.parseWhereClause(node.childForFieldName("where_clause"));
+
+  const bodyNode = node.childForFieldName("body");
+  if (!bodyNode) {
+    throw new MapperError("parser: verbose lambda missing body");
+  }
+  const bodyExpr = ctx.parseBlock(bodyNode);
+
+  return annotateExpressionNode(
+    AST.lambdaExpression(params, bodyExpr, returnType, generics, whereClause, true),
+    node,
+  ) as LambdaExpression;
 }
 
 function parseExpressionList(node: Node, source: string): BlockExpression {

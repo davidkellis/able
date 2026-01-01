@@ -135,12 +135,18 @@ methods SuiteBuilder {
       case state: SuiteState => {
         stored_path := clone_string_array(state.path)
         suite_key := build_suite_key(stored_path)
-        full_tags := merge_tags(state.tags, tags)
+        example_id := build_example_id(stored_path, name)
+        display_name := build_example_display(stored_path, name)
+        full_tags := if tags.len() == 0 {
+          clone_string_array(state.tags)
+        } else {
+          clone_string_array(tags)
+        }
         if skip { full_tags.push("skip") }
         if focus { full_tags.push("focus") }
-        EXAMPLES.push(ExampleDefinition {
-          id: build_example_id(stored_path, name),
-          display_name: build_example_display(stored_path, name),
+        example := ExampleDefinition {
+          id: example_id,
+          display_name,
           suite_key,
           suite_path: stored_path,
           tags: full_tags,
@@ -150,7 +156,23 @@ methods SuiteBuilder {
           module_path: state.module_path,
           skip,
           focus
-        })
+        }
+        EXAMPLES.push(example)
+        archive_idx := 0
+        loop {
+          if archive_idx >= EXAMPLES_ARCHIVE.len() { break }
+          EXAMPLES_ARCHIVE.get(archive_idx) match {
+            case nil => {},
+            case existing: ExampleDefinition => {
+              if existing.id == example_id {
+                EXAMPLES_ARCHIVE.set(archive_idx, example)
+                return
+              }
+            }
+          }
+          archive_idx = archive_idx + 1
+        }
+        EXAMPLES_ARCHIVE.push(example)
       }
     }
   }

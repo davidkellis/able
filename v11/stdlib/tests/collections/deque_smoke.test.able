@@ -57,7 +57,7 @@ fn check_iteration_and_growth() -> void {
         sum = sum + value
         count = count + 1
       },
-      case IteratorEnd => { break }
+      case IteratorEnd {} => { break }
     }
   }
   assert(count == 12, "iterator should traverse every element once")

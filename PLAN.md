@@ -43,13 +43,4 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 
 ## TODO (working queue: tackle in order, move completed items to LOG.md)
 
-### v11 Conformance Exec Fixture Suite (new workstream)
-- Reference: `v11/docs/conformance-plan.md` for the coverage matrix + naming scheme.
-- [x] Draft a coverage matrix mapping every v11 spec heading/feature (and key variations) to one or more exec fixtures; land as `v11/docs/conformance-plan.md`. Include naming scheme (`exec/<section>_<feature>[_variation]/`) and mark which headings share fixtures.
-- [x] Ensure `scripts/export-fixtures`/`run_all_tests` include the new exec fixtures and add a simple coverage index (JSON/YAML) generated from the matrix to prevent gaps; consider a CI check to flag missing headings.
-
-### Testing Framework + Tooling (new workstream)
-- [x] Define the namespace split in code: `able.test.*` for protocol/harness/reporters and `able.spec` for the user DSL.
-- [x] Promote stdlib testing modules from `v11/stdlib/quarantine/src/testing` to `v11/stdlib/src/test` and `v11/stdlib/src/spec`, updating package names/imports accordingly.
-- [x] Move or mirror quarantine tests into `v11/stdlib/tests` and update them to use `able.spec` + `able.test.*`.
-- [x] Update user docs (`v11/docs/manual/tooling.html`, `v11/docs/testing-matchers.md`) to reference `able.spec`/`able.test`.
+- (none queued; add new items here as work is scheduled)

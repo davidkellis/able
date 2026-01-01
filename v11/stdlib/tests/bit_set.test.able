@@ -2,6 +2,8 @@ package bit_set_specs
 
 import able.spec.*
 import able.collections.bit_set.{BitSet}
+import able.kernel.{Array}
+import able.collections.array
 
 describe("BitSet") { suite =>
   suite.it("sets, checks, and resets bits") { _ctx =>

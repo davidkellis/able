@@ -125,8 +125,30 @@ func (i *Interpreter) initStringHostBuiltins() {
 		},
 	}
 
+	charToCodepoint := runtime.NativeFunctionValue{
+		Name:  "__able_char_to_codepoint",
+		Arity: 1,
+		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+			if len(args) != 1 {
+				return nil, fmt.Errorf("__able_char_to_codepoint expects one argument")
+			}
+			switch v := args[0].(type) {
+			case runtime.CharValue:
+				return runtime.IntegerValue{Val: big.NewInt(int64(v.Val)), TypeSuffix: runtime.IntegerI32}, nil
+			case *runtime.CharValue:
+				if v == nil {
+					return nil, fmt.Errorf("char argument is nil")
+				}
+				return runtime.IntegerValue{Val: big.NewInt(int64(v.Val)), TypeSuffix: runtime.IntegerI32}, nil
+			default:
+				return nil, fmt.Errorf("argument must be a char")
+			}
+		},
+	}
+
 	i.global.Define("__able_String_from_builtin", stringFromBuiltin)
 	i.global.Define("__able_String_to_builtin", stringToBuiltin)
 	i.global.Define("__able_char_from_codepoint", charFromCodepoint)
+	i.global.Define("__able_char_to_codepoint", charToCodepoint)
 	i.stringHostReady = true
 }
