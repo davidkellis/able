@@ -8,7 +8,7 @@ its conventions.
 
 ## Naming
 - Place fixtures under `v11/fixtures/exec`.
-- Use `exec/<section>_<feature>[_variation]/` (e.g., `exec/08_control_flow_fizzbuzz`, `exec/11_error_rescue_ensure`). Sections are zero-padded when helpful for sorting and can group related headings (e.g., `06` for expressions/types, `11` for errors).
+- Use `<section>_<feature>[_variation]` directories under `v11/fixtures/exec` (e.g., `exec/08_01_control_flow_fizzbuzz`, `exec/11_03_rescue_ensure`). Sections are zero-padded when helpful for sorting and can group related headings (e.g., `06` for expressions/types, `11` for errors).
 - Use `_diag` for diagnostic/error-only cases and `_combo` for multi-feature compositions.
 
 ## Coverage Matrix (seeded + planned)
@@ -27,6 +27,7 @@ its conventions.
 | 8.2.3, 8.3.5 | `loop` expression break payloads | `exec/08_02_loop_expression_break_value` | Seeded; break returns payload or nil |
 | 8.2.5 | Inclusive/exclusive range iteration | `exec/08_02_range_inclusive_exclusive` | Seeded; ascending/descending range bounds |
 | 8.3 | Breakpoint non-local jumps | `exec/08_03_breakpoint_nonlocal_jump` | Seeded; labeled breaks unwind to breakpoint with payload |
+| 6.3.1 | Operator precedence/associativity across arithmetic and boolean chains | `exec/06_03_operator_precedence_associativity` | Seeded; precedence and associativity across arithmetic, comparison, and boolean operators |
 | 6.3.2, 11.3.3 | Division by zero raises a runtime error | `exec/04_02_primitives_truthiness_numeric_diag` | Seeded; confirms division-by-zero error propagation |
 | 6.3.2-6.3.3, 14.1.1, 14.1.4 | Operator dispatch via Add/Index/IndexMut interfaces | `exec/06_03_operator_overloading_interfaces` | Seeded; custom structs participate in `+` and `[]`/`[]=` |
 | 14.1.1-14.1.3 | Index/IndexMut + Iterable/Iterator + Apply dispatch | `exec/14_01_language_interfaces_index_apply_iterable` | Seeded; [] access, for/each iteration, and call syntax via interfaces |
@@ -38,6 +39,7 @@ its conventions.
 | 6.7 | Generator yield/stop + IteratorEnd | `exec/06_07_generator_yield_iterator_end` | Seeded; next() yields values then returns IteratorEnd repeatedly after stop |
 | 6.1.8, 6.3, 6.4 | Function calls + pipeline, generator iterator protocol (`Iterator { ... }`) | `exec/06_07_iterator_pipeline` | Seeded (renamed from `exec_iterator_pipeline`); exercises `gen.yield`, `Iterator.next`, `|>` |
 | 6.8 | Array ops and mutability (size/push/pop/get/set/index/iteration) | `exec/06_08_array_ops_mutability` | Seeded; aliases share storage and bounds errors surface via Index/IndexMut |
+| 2, 6.9 | Lexical comments/identifiers, placeholder tokens, delimiter-based line joining | `exec/02_lexical_comments_identifiers` | Seeded; comments ignored, placeholders vs identifiers, and trailing commas |
 | 6.9 | Line joining and trailing commas | `exec/06_09_lexical_trailing_commas_line_join` | Seeded; joins within delimiters with trailing commas in arrays/structs/imports |
 | 6.10 | Dynamic package objects + late-bound imports | `exec/06_10_dynamic_metaprogramming_package_object` | Seeded; dyn.def_package/def and dynimport observe redefinitions |
 | 6.11, 6.3.2 | Truthiness + logical operators in boolean contexts | `exec/06_11_truthiness_boolean_context` | Seeded; nil/false/error falsy with `!`, `&&`, `||` returning operands |
@@ -53,6 +55,7 @@ its conventions.
 | 4.6.4, 8.1.2 | Non-exhaustive union match raises error | `exec/04_06_04_union_guarded_match_exhaustive_diag` | Seeded; runtime error on missing variant coverage |
 | 11.3 | Unhandled `raise` causes non-zero exit with message | `exec/11_03_raise_exit_unhandled` | Seeded (renamed from `exec_raise_exit`); captures default exception propagation |
 | 11.3 | `rescue` + `ensure` ordering with side effects | `exec/11_03_rescue_ensure` | Seeded; ensures rescue handler runs before ensure |
+| 11.3 | Standard arithmetic/index errors rescued, rethrown, and ensured | `exec/11_03_rescue_rethrow_standard_errors` | Seeded; rescue and rethrow preserve standard error payloads |
 | 8.1.2, 8.2.2, 11.3 | Composition: match + loop + rescue | `exec/11_00_errors_match_loop_combo` | Seeded; raise/rescue within loop with match-driven branches |
 | 12.5 | Channels: buffered send/receive, close terminates iteration | `exec/12_05_concurrency_channel_ping_pong` | Seeded; validates rendezvous order and nil on close |
 | 12.2, 12.3, 12.6 | `proc` vs `spawn` vs `await` scheduling | `exec/12_02_async_proc_spawn_combo` | Seeded: cooperative scheduling with `proc_yield` + `proc_flush`, future status/value |
@@ -75,13 +78,31 @@ its conventions.
 | 13.4 | Import aliases, selective renames, dynimport package bindings | `exec/13_04_import_alias_selective_dynimport` | Seeded: alias and rename imports plus local-scope dynimport |
 | 13.6 | Standard library `able.*` resolution via bundled roots | `exec/13_06_stdlib_package_resolution` | Seeded: stdlib imports resolve without extra search paths |
 | 13.7 | Search path env overrides (`ABLE_MODULE_PATHS`) | `exec/13_07_search_path_env_override` | Seeded: env roots used for static imports and dynimport |
+| 13.7 | Search path env override support root | `exec/13_07_search_path_env_override_env_root` | Seeded; support package used by the env override fixture |
+| 4.7.2 | Generic alias substitution/inference through chains and nested arguments | `exec/04_07_02_alias_generic_substitution` | Seeded; nested generic aliases substitute through chains |
+| 4.7.3, 13.4 | Alias export/import visibility with selective vs qualified access | `exec/04_07_03_alias_scope_visibility_imports` | Seeded; alias visibility across selective and qualified imports |
+| 4.7.4, 9, 14.1.6 | Alias-attached methods and impls dispatch via underlying type | `exec/04_07_04_alias_methods_impls_interaction` | Seeded; alias methods/impls resolve on the underlying type |
+| 4.7.5 | Recursive alias allowed through nominal indirection | `exec/04_07_05_alias_recursion_termination` | Seeded; recursion terminates via nominal struct indirection |
+| 4.7.4, 13.4 | Alias methods/impls remain visible after re-export | `exec/04_07_06_alias_reexport_methods_impls` | Seeded; re-exported types keep alias method/impl visibility |
 | 4.7, 4.6, 7.1 | Type aliases/unions with generic functions | `exec/04_07_types_alias_union_generic_combo` | Seeded: alias applied to union + generic function inference fallback |
+| 4.1.4-4.1.6 | Generic inference via constraint solving | `exec/04_01_type_inference_constraints` | Seeded; inferred generics satisfy interface constraints |
+| 4.2, 6.1.1-6.1.3, 6.3.2, 6.11 | Primitive literals, Euclidean div/mod, and truthiness | `exec/04_02_primitives_truthiness_numeric` | Seeded; primitive literal forms, div/mod, and truthiness rules |
+| 4.4 | Underscore placeholder for unbound type parameters | `exec/04_04_reserved_underscore_types` | Seeded; underscores allowed in type expressions |
 | 4.3 | Type expression syntax (nested generics + unions) | `exec/04_03_type_expression_syntax` | Seeded: multi-arg generics and nested type expressions |
+| 4.5.1 | Singleton structs as enum-style tags | `exec/04_05_01_struct_singleton_usage` | Seeded; singleton structs used directly in expressions and patterns |
 | 4.5.2 | Named struct literals + functional update vs mutation | `exec/04_05_02_struct_named_update_mutation`, `exec/04_05_02_struct_named_update_mutation_diag` | Seeded: functional update copies base; mismatched update source errors |
 | 4.5.3, 5.2.4 | Positional structs: ordered literals, indexed access/mutation, positional destructuring | `exec/04_05_03_struct_positional_named_tuple` | Seeded: positional field access, mutation, and pattern binding |
+| 5.0, 5.1 | Declaration vs reassignment and shared mutation | `exec/05_00_mutability_declaration_vs_assignment` | Seeded; `:=` declares, `=` reassigns, shared alias mutation |
+| 5.2.1, 5.2.2, 5.2.7 | Identifier vs wildcard patterns with inline type annotations | `exec/05_02_identifier_wildcard_typed_patterns` | Seeded; typed bindings and wildcard ignores in patterns |
+| 5.2.3 | Struct pattern rename operator with typed bindings | `exec/05_02_struct_pattern_rename_typed` | Seeded; rename operator with typed struct patterns |
+| 5.2.5, 5.2.6 | Array and nested destructuring with rest bindings | `exec/05_02_array_nested_patterns` | Seeded; nested array patterns with rest capture |
+| 5.3, 5.3.1 | Assignment evaluation order | `exec/05_03_assignment_evaluation_order` | Seeded; RHS evaluates before pattern bindings |
 | 6.1.4–6.1.5 | Char/string escapes + non-interpolated double-quoted literals | `exec/06_01_literals_string_char_escape` | Seeded: escape sequences and literal `${}` text in standard strings |
 | 6.1.1–6.1.2 | Contextual integer/float literal typing and rounding | `exec/06_01_literals_numeric_contextual` | Seeded; numeric literals adopt target types when within range |
 | 6.1.1–6.1.2 | Out-of-range numeric literal diagnostics | `exec/06_01_literals_numeric_contextual_diag` | Seeded; overflow in typed context raises error |
+| 6.1.7, 6.1.8 | Array/map literal inference | `exec/06_01_literals_array_map_inference` | Seeded; array literals infer nested element types |
+| 6.2 | Block expression value + scope | `exec/06_02_block_expression_value_scope` | Seeded; last expression value with inner-scope bindings |
+| 3, 6.2 | Block expression separation via newline/semicolon | `exec/03_blocks_expr_separation` | Seeded; newline/semicolon separation with scoped bindings |
 | 6.5, 8.1 | `if`/`match` expression values | `exec/06_05_control_flow_expr_value` | Seeded: branches evaluate to selected values |
 | 7.1.3-7.1.5 | Function definitions: explicit/implicit generics + return inference | `exec/07_01_function_definition_generics_inference` | Seeded; implicit generics inferred from signatures with return type inference |
 | 7.3, 11.1 | Explicit return short-circuits nested blocks; void return allowed | `exec/07_03_explicit_return_flow` | Seeded; early return exits the function from inner blocks |
