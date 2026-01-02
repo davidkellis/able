@@ -9,6 +9,7 @@ import (
 // Environment provides lexical scoping for Able runtime values.
 type Environment struct {
 	values map[string]Value
+	structs map[string]*StructDefinitionValue
 	parent *Environment
 	mu     sync.RWMutex
 	data   any
@@ -17,8 +18,9 @@ type Environment struct {
 // NewEnvironment creates a new environment, optionally nested under a parent.
 func NewEnvironment(parent *Environment) *Environment {
 	return &Environment{
-		values: make(map[string]Value),
-		parent: parent,
+		values:  make(map[string]Value),
+		structs: make(map[string]*StructDefinitionValue),
+		parent:  parent,
 	}
 }
 
@@ -53,6 +55,31 @@ func (e *Environment) Define(name string, value Value) {
 	}
 	e.values[name] = value
 	e.mu.Unlock()
+}
+
+// DefineStruct records a struct definition in the current scope.
+func (e *Environment) DefineStruct(name string, def *StructDefinitionValue) {
+	if def == nil {
+		return
+	}
+	e.mu.Lock()
+	e.structs[name] = def
+	e.mu.Unlock()
+}
+
+// StructDefinition retrieves a struct definition, searching outward through the scope chain.
+func (e *Environment) StructDefinition(name string) (*StructDefinitionValue, bool) {
+	e.mu.RLock()
+	if v, ok := e.structs[name]; ok {
+		e.mu.RUnlock()
+		return v, true
+	}
+	parent := e.parent
+	e.mu.RUnlock()
+	if parent != nil {
+		return parent.StructDefinition(name)
+	}
+	return nil, false
 }
 
 // Assign updates an existing binding in the first scope where it appears.

@@ -99,6 +99,23 @@ func parameterSpecificity(typeExpr ast.TypeExpression, generics map[string]struc
 	}
 }
 
+func functionGenericNameSet(fn *runtime.FunctionValue, decl *ast.FunctionDefinition) map[string]struct{} {
+	names := genericNameSet(nil)
+	if decl != nil {
+		names = genericNameSet(decl.GenericParams)
+	}
+	if fn == nil || fn.MethodSet == nil || len(fn.MethodSet.GenericParams) == 0 {
+		return names
+	}
+	for _, gp := range fn.MethodSet.GenericParams {
+		if gp == nil || gp.Name == nil {
+			continue
+		}
+		names[gp.Name.Name] = struct{}{}
+	}
+	return names
+}
+
 func arityMatchesRuntime(expected, actual int, optionalLast bool) bool {
 	return actual == expected || (optionalLast && actual == expected-1)
 }

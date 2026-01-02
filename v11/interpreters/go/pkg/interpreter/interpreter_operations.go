@@ -379,11 +379,21 @@ func applyBinaryOperator(i *Interpreter, op string, left runtime.Value, right ru
 		}
 		return evaluateComparison(op, left, right)
 	case "==":
+		if ls, ok := stringFromValue(left); ok {
+			if rs, ok := stringFromValue(right); ok {
+				return runtime.BoolValue{Val: ls == rs}, nil
+			}
+		}
 		if result, ok, err := i.applyEqualityInterface(op, left, right); ok {
 			return result, err
 		}
 		return runtime.BoolValue{Val: valuesEqual(left, right)}, nil
 	case "!=":
+		if ls, ok := stringFromValue(left); ok {
+			if rs, ok := stringFromValue(right); ok {
+				return runtime.BoolValue{Val: ls != rs}, nil
+			}
+		}
 		if result, ok, err := i.applyEqualityInterface(op, left, right); ok {
 			return result, err
 		}
