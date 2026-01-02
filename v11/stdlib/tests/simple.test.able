@@ -1,0 +1,10 @@
+package simple_specs
+
+import able.spec.*
+
+describe("simple hello") { suite =>
+  suite.module_path("simple/hello")
+  suite.it("says hello world") { _ctx =>
+    expect("hello world").to(eq("hello world"))
+  }
+}

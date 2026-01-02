@@ -1,5 +1,16 @@
 # Able Project Log
 
+# 2026-01-01 — Trailing lambdas + struct definition bindings (v11)
+- Reattached trailing lambda bodies inside expression lists in the Go parser so call arguments match block parsing and `suite.it(...) { ... }` forms register correctly.
+- Go interpreter now treats native/bound/partial callables as valid function values for `fn(...)` type checks.
+- Go runtime records struct definitions separately from value bindings (including imports) so struct literals resolve even when constructors shadow names.
+- Tests: `./run_all_tests.sh --version=v11`; `./v11/ablego test /home/david/sync/projects/able/v11/stdlib/tests/simple.test.able`; `./v11/ablets test /home/david/sync/projects/able/v11/stdlib/tests/simple.test.able`.
+
+# 2026-01-01 — Regex literal matching (v11)
+- Implemented literal-only regex compile/match/find_all using byte-span search and stored literal bytes in the regex handle.
+- Updated the stdlib matcher test to exercise substring matches and refreshed docs to reflect partial regex support.
+- Tests: `cd v11/interpreters/ts && ABLE_TYPECHECK_FIXTURES=off bun run scripts/run-module.ts test ../../stdlib/tests`.
+
 # 2025-12-31 — Stdlib/runtime test fixes (v11)
 - Resolved Iterable/Enumerable method ambiguity by preferring explicit impl methods over default interface methods (fixes Vector.each).
 - Aligned hasher host builtins to return i64 handles/hashes (TS runtime + stubs + typechecker) and updated stdlib string integration expectations for subString errors.

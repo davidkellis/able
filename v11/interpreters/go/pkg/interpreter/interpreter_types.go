@@ -615,7 +615,7 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 		}
 		return true
 	case *ast.FunctionTypeExpression:
-		return runtime.IsFunctionLike(value)
+		return isCallableValue(value)
 	case *ast.NullableTypeExpression:
 		if _, ok := value.(runtime.NilValue); ok {
 			return true
@@ -667,6 +667,24 @@ func (i *Interpreter) isKnownTypeName(name string) bool {
 		}
 	}
 	return false
+}
+
+func isCallableValue(value runtime.Value) bool {
+	switch value.(type) {
+	case *runtime.FunctionValue,
+		*runtime.FunctionOverloadValue,
+		runtime.NativeFunctionValue,
+		*runtime.NativeFunctionValue,
+		runtime.BoundMethodValue,
+		*runtime.BoundMethodValue,
+		runtime.NativeBoundMethodValue,
+		*runtime.NativeBoundMethodValue,
+		runtime.PartialFunctionValue,
+		*runtime.PartialFunctionValue:
+		return true
+	default:
+		return false
+	}
 }
 
 func isPrimitiveName(name string) bool {

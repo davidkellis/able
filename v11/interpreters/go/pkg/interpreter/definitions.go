@@ -193,6 +193,7 @@ func (i *Interpreter) evaluateStructDefinition(def *ast.StructDefinition, env *r
 	}
 	structVal := &runtime.StructDefinitionValue{Node: def}
 	env.Define(def.ID.Name, structVal)
+	env.DefineStruct(def.ID.Name, structVal)
 	i.registerSymbol(def.ID.Name, structVal)
 	if qn := i.qualifiedName(def.ID.Name); qn != "" {
 		i.global.Define(qn, structVal)
@@ -497,13 +498,16 @@ func (i *Interpreter) evaluateStructLiteral(lit *ast.StructLiteral, env *runtime
 		return nil, fmt.Errorf("Struct literal requires explicit struct type in this milestone")
 	}
 	structName := lit.StructType.Name
-	defValue, err := env.Get(structName)
-	if err != nil {
-		return nil, err
-	}
-	structDefVal, err := toStructDefinitionValue(defValue, structName)
-	if err != nil {
-		return nil, err
+	structDefVal, ok := env.StructDefinition(structName)
+	if !ok {
+		defValue, err := env.Get(structName)
+		if err != nil {
+			return nil, err
+		}
+		structDefVal, err = toStructDefinitionValue(defValue, structName)
+		if err != nil {
+			return nil, err
+		}
 	}
 	structDef := structDefVal.Node
 	if structDef == nil {

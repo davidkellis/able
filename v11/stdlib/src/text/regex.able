@@ -1,5 +1,5 @@
 package regex
-import able.kernel.{Array}
+import able.kernel.{Array, __able_String_from_builtin, __able_String_to_builtin}
 import able.collections.hash_map.{HashMap}
 import able.core.interfaces.{Error}
 import able.core.iteration.{Iterator, IteratorEnd}
@@ -34,7 +34,9 @@ methods RegexOptions {
   }
 }
 
-struct RegexHandle {}
+struct RegexHandle {
+  literal: Array u8
+}
 
 struct Regex {
   pattern: String,
@@ -91,6 +93,95 @@ fn validate_options(options: RegexOptions) -> ?RegexUnsupportedFeature {
   nil
 }
 
+fn to_u64(value: i32) -> u64 {
+  if value <= 0 { 0 } else { value }
+}
+
+fn clamp_offset(offset: u64, len: i32) -> i32 {
+  if len <= 0 { return 0 }
+  if offset > to_u64(len) { len } else { offset as i32 }
+}
+
+fn is_meta_byte(byte: u8) -> bool {
+  (
+    byte == 36_u8 || byte == 40_u8 || byte == 41_u8 ||
+    byte == 42_u8 || byte == 43_u8 || byte == 46_u8 ||
+    byte == 63_u8 || byte == 91_u8 || byte == 92_u8 ||
+    byte == 93_u8 || byte == 94_u8 || byte == 123_u8 ||
+    byte == 124_u8 || byte == 125_u8
+  )
+}
+
+fn literal_bytes(pattern: String) -> Array u8 | Error {
+  bytes := __able_String_from_builtin(pattern)
+  idx := 0
+  loop {
+    if idx >= bytes.len() { break }
+    if is_meta_byte(bytes.read_slot(idx)) {
+      return unsupported("pattern metacharacters")
+    }
+    idx = idx + 1
+  }
+  bytes
+}
+
+fn find_literal_span(haystack: Array u8, needle: Array u8, start: i32) -> ?Span {
+  hay_len := haystack.len()
+  needle_len := needle.len()
+  if needle_len > hay_len { return nil }
+
+  pos := start
+  if pos < 0 { pos = 0 }
+  if needle_len == 0 {
+    if pos > hay_len { return nil }
+    return Span { start: to_u64(pos), end: to_u64(pos) }
+  }
+  if pos > hay_len - needle_len { return nil }
+
+  loop {
+    if pos > hay_len - needle_len { break }
+    matched := true
+    j := 0
+    loop {
+      if j >= needle_len { break }
+      if haystack.read_slot(pos + j) != needle.read_slot(j) {
+        matched = false
+        break
+      }
+      j = j + 1
+    }
+    if matched {
+      return Span { start: to_u64(pos), end: to_u64(pos + needle_len) }
+    }
+    pos = pos + 1
+  }
+  nil
+}
+
+fn slice_bytes(bytes: Array u8, start: i32, end: i32) -> Array u8 {
+  capacity := 0
+  if end > start { capacity = end - start }
+  result: Array u8 := Array.with_capacity(capacity)
+  idx := start
+  loop {
+    if idx >= end { break }
+    result.push(bytes.read_slot(idx))
+    idx = idx + 1
+  }
+  result
+}
+
+fn build_match(haystack: Array u8, span: Span) -> Match {
+  start := clamp_offset(span.start, haystack.len())
+  end := clamp_offset(span.end, haystack.len())
+  Match {
+    matched: __able_String_to_builtin(slice_bytes(haystack, start, end)),
+    span,
+    groups: Array.new(),
+    named_groups: HashMap.new()
+  }
+}
+
 struct Group {
   name: ?String,
   value: ?String,
@@ -117,7 +208,27 @@ struct RegexIter {
 
 impl Iterator Match for RegexIter {
   fn next(self: Self) -> Match | IteratorEnd {
-    raise unsupported("find_all")
+    if self.done { return IteratorEnd {} }
+    hay_bytes := __able_String_from_builtin(self.haystack)
+    start := clamp_offset(self.offset, hay_bytes.len())
+    literal := self.regex.program.literal
+    find_literal_span(hay_bytes, literal, start) match {
+      case nil => {
+        self.done = true
+        IteratorEnd {}
+      },
+      case span: Span => {
+        result := build_match(hay_bytes, span)
+        next_offset := span.end
+        if span.end == span.start { next_offset = next_offset + 1_u64 }
+        if next_offset > to_u64(hay_bytes.len()) {
+          self.done = true
+        } else {
+          self.offset = next_offset
+        }
+        result
+      }
+    }
   }
 }
 
@@ -149,7 +260,14 @@ methods Regex {
   fn compile_with_options(pattern: String, options: RegexOptions) -> Regex | Error {
     validate_options(options) match {
       case err: RegexUnsupportedFeature => err,
-      case nil => unsupported("compile")
+      case nil => literal_bytes(pattern) match {
+        case err: Error => err,
+        case bytes: Array u8 => Regex {
+          pattern,
+          options,
+          program: RegexHandle { literal: bytes }
+        }
+      }
     }
   }
 
@@ -161,11 +279,16 @@ methods Regex {
   }
 
   fn match(self: Self, haystack: String) -> ?Match {
-    raise unsupported("match")
+    hay_bytes := __able_String_from_builtin(haystack)
+    literal := self.program.literal
+    find_literal_span(hay_bytes, literal, 0) match {
+      case nil => nil,
+      case span: Span => build_match(hay_bytes, span)
+    }
   }
 
   fn find_all(self: Self, haystack: String) -> RegexIter {
-    raise unsupported("find_all")
+    RegexIter { haystack, regex: self, offset: 0, done: false }
   }
 
   fn replace(self: Self, haystack: String, replacement: Replacement) -> Result String {

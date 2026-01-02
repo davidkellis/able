@@ -849,6 +849,35 @@ func (ctx *parseContext) parseExpressionList(node *sitter.Node) (*ast.BlockExpre
 			return nil, err
 		}
 		if stmt != nil {
+			if lambda, ok := stmt.(*ast.LambdaExpression); ok && len(statements) > 0 {
+				switch prev := statements[len(statements)-1].(type) {
+				case *ast.AssignmentExpression:
+					switch rhs := prev.Right.(type) {
+					case *ast.FunctionCall:
+						if len(rhs.Arguments) == 0 || rhs.Arguments[len(rhs.Arguments)-1] != lambda {
+							rhs.Arguments = append(rhs.Arguments, lambda)
+						}
+						rhs.IsTrailingLambda = true
+						continue
+					case ast.Expression:
+						call := ast.NewFunctionCall(rhs, nil, nil, true)
+						call.Arguments = []ast.Expression{lambda}
+						prev.Right = call
+						continue
+					}
+				case *ast.FunctionCall:
+					if len(prev.Arguments) == 0 || prev.Arguments[len(prev.Arguments)-1] != lambda {
+						prev.Arguments = append(prev.Arguments, lambda)
+					}
+					prev.IsTrailingLambda = true
+					continue
+				case ast.Expression:
+					call := ast.NewFunctionCall(prev, nil, nil, true)
+					call.Arguments = []ast.Expression{lambda}
+					statements[len(statements)-1] = call
+					continue
+				}
+			}
 			statements = append(statements, stmt)
 		}
 	}
