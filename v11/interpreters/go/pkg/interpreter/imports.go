@@ -115,6 +115,18 @@ func copyPublicSymbols(bucket map[string]runtime.Value) map[string]runtime.Value
 	return public
 }
 
+func defineStructBinding(env *runtime.Environment, name string, val runtime.Value) {
+	if env == nil || name == "" || val == nil {
+		return
+	}
+	switch v := val.(type) {
+	case *runtime.StructDefinitionValue:
+		env.DefineStruct(name, v)
+	case runtime.StructDefinitionValue:
+		env.DefineStruct(name, &v)
+	}
+}
+
 func (i *Interpreter) evaluateImportStatement(imp *ast.ImportStatement, env *runtime.Environment) (runtime.Value, error) {
 	return i.processImport(imp.PackagePath, imp.IsWildcard, imp.Selectors, imp.Alias, env, false)
 }
@@ -157,6 +169,7 @@ func (i *Interpreter) processImport(packagePath []*ast.Identifier, isWildcard bo
 				continue
 			}
 			env.Define(name, val)
+			defineStructBinding(env, name, val)
 		}
 		return runtime.NilValue{}, nil
 	}
@@ -196,6 +209,7 @@ func (i *Interpreter) processImport(packagePath []*ast.Identifier, isWildcard bo
 				continue
 			}
 			env.Define(aliasName, val)
+			defineStructBinding(env, aliasName, val)
 		}
 		return runtime.NilValue{}, nil
 	}

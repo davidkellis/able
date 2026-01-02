@@ -36,7 +36,7 @@ func isResultVoidType(expr ast.TypeExpression) bool {
 	return false
 }
 
-func (i *Interpreter) coerceReturnValue(returnType ast.TypeExpression, value runtime.Value, env *runtime.Environment) (runtime.Value, error) {
+func (i *Interpreter) coerceReturnValue(returnType ast.TypeExpression, value runtime.Value, genericNames map[string]struct{}, env *runtime.Environment) (runtime.Value, error) {
 	if returnType == nil {
 		return value, nil
 	}
@@ -50,6 +50,9 @@ func (i *Interpreter) coerceReturnValue(returnType ast.TypeExpression, value run
 		}
 		expected := typeExpressionToString(canonical)
 		return nil, fmt.Errorf("Return type mismatch: expected %s, got void", expected)
+	}
+	if typeExpressionUsesGenerics(returnType, genericNames) {
+		return value, nil
 	}
 	if !i.matchesType(canonical, value) {
 		expected := typeExpressionToString(canonical)
@@ -187,7 +190,7 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 			}
 			return nil, fmt.Errorf("Function '%s' expects %d arguments, got %d", name, paramCount, len(bindArgs))
 		}
-		generics := genericNameSet(decl.GenericParams)
+		generics := functionGenericNameSet(fn, decl)
 		for idx, param := range decl.Params {
 			if param == nil {
 				return nil, fmt.Errorf("function parameter %d is nil", idx)
@@ -217,14 +220,14 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 				if retVal == nil {
 					retVal = runtime.NilValue{}
 				}
-				return i.coerceReturnValue(decl.ReturnType, retVal, localEnv)
+				return i.coerceReturnValue(decl.ReturnType, retVal, generics, localEnv)
 			}
 			return nil, err
 		}
 		if result == nil {
 			result = runtime.NilValue{}
 		}
-		return i.coerceReturnValue(decl.ReturnType, result, localEnv)
+		return i.coerceReturnValue(decl.ReturnType, result, generics, localEnv)
 	case *ast.LambdaExpression:
 		if call != nil {
 			if err := i.populateCallTypeArguments(decl, call, args); err != nil {
@@ -267,7 +270,8 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 		if result == nil {
 			result = runtime.NilValue{}
 		}
-		return i.coerceReturnValue(decl.ReturnType, result, localEnv)
+		lambdaGenerics := genericNameSet(decl.GenericParams)
+		return i.coerceReturnValue(decl.ReturnType, result, lambdaGenerics, localEnv)
 	default:
 		return nil, fmt.Errorf("calling unsupported function declaration %T", fn.Declaration)
 	}
@@ -436,7 +440,7 @@ func (i *Interpreter) reportOverloadMismatch(fn *runtime.FunctionValue, evalArgs
 	if len(paramsForCheck) != len(argsForCheck) {
 		return nil
 	}
-	generics := genericNameSet(decl.GenericParams)
+	generics := functionGenericNameSet(fn, decl)
 	for idx, param := range paramsForCheck {
 		if param == nil || param.ParamType == nil {
 			continue
@@ -492,7 +496,7 @@ func (i *Interpreter) selectRuntimeOverload(overloads []*runtime.FunctionValue, 
 			if len(argsForCheck) != len(paramsForCheck) {
 				continue
 			}
-			generics := genericNameSet(decl.GenericParams)
+			generics := functionGenericNameSet(fn, decl)
 			score := 0.0
 			if optionalLast && len(evalArgs) == expectedArgs-1 {
 				score -= 0.5

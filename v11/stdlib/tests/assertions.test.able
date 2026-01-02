@@ -97,8 +97,9 @@ describe("able.spec assertions") { suite =>
     expect(fn() { expect(0).to(be_between(1, 10)) }).to(raise_error())
   }
 
-  suite.it("matches regex patterns (placeholder)") { _ctx =>
+  suite.it("matches regex patterns") { _ctx =>
     expect("abc").to(match_regex("abc"))
+    expect("zabc").to(match_regex("abc"))
     expect(fn() { expect("def").to(match_regex("abc")) }).to(raise_error())
   }
 

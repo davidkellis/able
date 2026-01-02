@@ -636,6 +636,9 @@ func (pc *ProgramChecker) captureExports(mod *driver.Module, checker *Checker) {
 				key = fmt.Sprintf("%s.%s", qualifier, name)
 			}
 			export.functions[key] = fn
+			if _, exists := export.symbols[key]; exists {
+				continue
+			}
 			if privacy[name] {
 				export.private[key] = fn
 				delete(export.symbols, key)

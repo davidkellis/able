@@ -105,7 +105,7 @@ expect(numbers).to(contain_all([1, 2, 3]))
 
 ## Regex
 
-`match_regex(pattern)` delegates to `able.text.regex.regex_is_match`. Until the stdlib regex engine lands, the helper returns a `RegexError` and the matcher falls back to string equality for compatibility.
+`match_regex(pattern)` delegates to `able.text.regex.regex_is_match`. Literal-only matching is available today; unsupported metacharacters still return a `RegexError` and the matcher falls back to string equality for compatibility.
 
 ## Errors
 

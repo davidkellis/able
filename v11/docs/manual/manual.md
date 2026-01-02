@@ -450,7 +450,7 @@ Helpers: `size`, `push`, `pop`, `get`, `set`, `clear` with `IndexError` on inval
 
 ### 11.3 Text Regex (`able.text.regex`)
 
-Deterministic (RE2-style) regexes with compile/match/split/replace helpers, regex sets, streaming scanner, and grapheme-aware options. The stdlib engine is still pending; current helpers raise `RegexUnsupportedFeature` until the pure-Able implementation lands.
+Deterministic (RE2-style) regexes with compile/match/split/replace helpers, regex sets, streaming scanner, and grapheme-aware options. Literal-only compile/match/find_all are available; metacharacters and the advanced helpers still raise `RegexUnsupportedFeature` until the full engine lands.
 
 ### 11.4 Interface Catalogue (language-supported)
 

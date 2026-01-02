@@ -27,8 +27,9 @@ Unconditionally read PLAN.md plus `spec/full_spec_v11.md` before starting any wo
 3. Set up tooling:
    - **Go**: Go ≥ 1.22. Run `go test ./...` inside `v11/interpreters/go`.
    - **TypeScript**: Bun ≥ 1.2. Run `bun install && bun test` inside `v11/interpreters/ts`.
-4. Before changing the AST, confirm alignment implications for every interpreter and the future parser.
-5. Use `./run_all_tests.sh --version=v11` to run the TypeScript + Go suites together before handing work off. Only run the v10 variant if a maintainer explicitly requests verification of a historical regression.
+4. If you regenerate tree-sitter assets in `v11/parser/tree-sitter-able`, force Go to relink the parser by deleting `v11/interpreters/go/.gocache` or running `cd v11/interpreters/go && GOCACHE=$(pwd)/.gocache go test -a ./pkg/parser`.
+5. Before changing the AST, confirm alignment implications for every interpreter and the future parser.
+6. Use `./run_all_tests.sh --version=v11` to run the TypeScript + Go suites together before handing work off. Only run the v10 variant if a maintainer explicitly requests verification of a historical regression.
 
 ## Collaboration Guidelines
 - Update relevant PLAN files when you start/finish roadmap items. The current typechecker roadmap lives in `design/typechecker-plan.md`.

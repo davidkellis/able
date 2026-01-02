@@ -28,6 +28,7 @@ Shared coordination docs (this `README.md`, `PLAN.md`, `AGENTS.md`) live at the 
 ## Getting Started
 - **Go interpreter (v11)**: `cd v11/interpreters/go && go test ./...`
 - **TypeScript interpreter (v11)**: `cd v11/interpreters/ts && bun install && bun test`
+- **Parser regen gotcha (Go)**: after running `tree-sitter generate/build` in `v11/parser/tree-sitter-able`, Go's cgo cache can reuse stale `parser.c` when `GOCACHE` points at `v11/interpreters/go/.gocache` (used by `ablego`). Fix by deleting `v11/interpreters/go/.gocache` or running `cd v11/interpreters/go && GOCACHE=$(pwd)/.gocache go test -a ./pkg/parser`.
 - **Frozen toolchain (v10)**: run `v10/` tests only if a maintainer explicitly requests verification of an archival regression.
 - **Specs**: edit `spec/full_spec_v11.md` for new work; keep `spec/full_spec_v10.md` untouched unless errata are required.
 
