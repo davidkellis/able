@@ -473,6 +473,18 @@ func isErrorStructInstanceType(ty StructInstanceType) bool {
 	return ty.StructName == "Error"
 }
 
+func isCallableType(t Type) bool {
+	if t == nil {
+		return false
+	}
+	switch t.(type) {
+	case FunctionType:
+		return true
+	default:
+		return false
+	}
+}
+
 func (c *Checker) errorMemberType(memberName string) (Type, bool) {
 	switch memberName {
 	case "value":
@@ -516,6 +528,12 @@ func extendImplementationSubstitution(subst map[string]Type, iface InterfaceType
 }
 
 func matchMethodTarget(object Type, target Type, params []GenericParamSpec) (map[string]Type, int, bool) {
+	if isStringStructType(object) && isPrimitiveStringType(target) {
+		return nil, 0, true
+	}
+	if isStringStructType(target) && isPrimitiveStringType(object) {
+		return nil, 0, true
+	}
 	if objPrim, ok := object.(PrimitiveType); ok {
 		if targetPrim, ok := target.(PrimitiveType); ok && targetPrim.Kind == objPrim.Kind {
 			return nil, 0, true
@@ -567,6 +585,16 @@ func matchMethodTarget(object Type, target Type, params []GenericParamSpec) (map
 		score += argScore
 	}
 	return finalizeMatchResult(subst, params, score)
+}
+
+func isPrimitiveStringType(t Type) bool {
+	prim, ok := t.(PrimitiveType)
+	return ok && prim.Kind == PrimitiveString
+}
+
+func isStringStructType(t Type) bool {
+	name, ok := structName(t)
+	return ok && name == "String"
 }
 
 func matchTypeArgument(actual Type, pattern Type, subst map[string]Type) (bool, int) {

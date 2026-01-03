@@ -324,3 +324,18 @@ func isRatioType(t Type) bool {
 		return false
 	}
 }
+
+func isResultType(t Type) bool {
+	if t == nil {
+		return false
+	}
+	if name, ok := unionName(t); ok && name == "Result" {
+		return true
+	}
+	if applied, ok := t.(AppliedType); ok {
+		if name, ok := structName(applied.Base); ok && name == "Result" {
+			return true
+		}
+	}
+	return false
+}

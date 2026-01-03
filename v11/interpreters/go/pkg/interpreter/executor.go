@@ -323,7 +323,21 @@ func (e *SerialExecutor) enqueue(task serialTask) {
 		e.mu.Unlock()
 		return
 	}
-	e.queue = append(e.queue, task)
+	if task.handle != nil && !task.handle.Started() {
+		inserted := false
+		for idx, queued := range e.queue {
+			if queued.handle != nil && queued.handle.Started() {
+				e.queue = append(e.queue[:idx], append([]serialTask{task}, e.queue[idx:]...)...)
+				inserted = true
+				break
+			}
+		}
+		if !inserted {
+			e.queue = append(e.queue, task)
+		}
+	} else {
+		e.queue = append(e.queue, task)
+	}
 	e.cond.Signal()
 	e.mu.Unlock()
 }
