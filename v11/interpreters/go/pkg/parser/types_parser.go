@@ -236,7 +236,7 @@ func parseFunctionParameterTypes(node *sitter.Node, source []byte) ([]ast.TypeEx
 		}
 		if current.Kind() == "parenthesized_type" {
 			if current.NamedChildCount() == 0 {
-				return nil, false
+				return []ast.TypeExpression{}, true
 			}
 			params := make([]ast.TypeExpression, 0, current.NamedChildCount())
 			for i := uint(0); i < current.NamedChildCount(); i++ {

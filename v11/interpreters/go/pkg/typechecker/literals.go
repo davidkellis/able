@@ -318,6 +318,11 @@ func (c *Checker) checkTypeCastExpression(env *Environment, expr *ast.TypeCastEx
 	if isNumericType(valueType) && isNumericType(targetType) {
 		return diags, targetType
 	}
+	if iface, _, ok := interfaceFromType(targetType); ok && iface.InterfaceName == "Error" {
+		if isResultType(valueType) {
+			return diags, targetType
+		}
+	}
 	diags = append(diags, Diagnostic{
 		Message: fmt.Sprintf("typechecker: cannot cast %s to %s", typeName(valueType), typeName(targetType)),
 		Node:    expr,
@@ -351,7 +356,11 @@ func (c *Checker) checkFunctionCallExpressionWithExpectedReturn(env *Environment
 	argsForCheck := e.Arguments
 	argTypesForCheck := argTypes
 	calleeType := Type(UnknownType{})
-	if ident, ok := e.Callee.(*ast.Identifier); ok && ident != nil {
+	if member, ok := e.Callee.(*ast.MemberAccessExpression); ok && member != nil {
+		calleeDiags, inferred := c.checkMemberAccessWithOptions(env, member, true)
+		diags = append(diags, calleeDiags...)
+		calleeType = inferred
+	} else if ident, ok := e.Callee.(*ast.Identifier); ok && ident != nil {
 		if typ, ok := env.Lookup(ident.Name); ok {
 			calleeType = typ
 			c.infer.set(e.Callee, typ)

@@ -27,15 +27,63 @@ resolve_path() {
     printf '%s\n' "$candidate"
     return 0
   fi
-  if [[ -f "$candidate" ]]; then
+  if [[ -f "$candidate" || -d "$candidate" ]]; then
     realpath "$candidate"
     return 0
   fi
-  if [[ -f "$SCRIPT_DIR/$candidate" ]]; then
+  if [[ -f "$SCRIPT_DIR/$candidate" || -d "$SCRIPT_DIR/$candidate" ]]; then
     realpath "$SCRIPT_DIR/$candidate"
     return 0
   fi
   printf '%s\n' "$candidate"
+}
+
+build_test_args() {
+  local args=("$@")
+  local idx=0
+  local skip_next=0
+  while [[ $idx -lt ${#args[@]} ]]; do
+    local arg="${args[$idx]}"
+    if [[ $skip_next -eq 1 ]]; then
+      GO_ARGS+=("$arg")
+      skip_next=0
+      ((idx+=1))
+      continue
+    fi
+    case "$arg" in
+      --path|--exclude-path|--name|--exclude-name|--tag|--exclude-tag|--format|--repeat|--parallel)
+        GO_ARGS+=("$arg")
+        skip_next=1
+        ((idx+=1))
+        continue
+        ;;
+      --shuffle)
+        GO_ARGS+=("$arg")
+        if [[ $((idx + 1)) -lt ${#args[@]} ]]; then
+          local next="${args[$((idx + 1))]}"
+          if [[ "$next" != -* ]]; then
+            GO_ARGS+=("$next")
+            ((idx+=2))
+            continue
+          fi
+        fi
+        ((idx+=1))
+        continue
+        ;;
+    esac
+    if [[ "$arg" == -- ]]; then
+      GO_ARGS+=("$arg")
+      ((idx+=1))
+      continue
+    fi
+    if [[ "$arg" == -* ]]; then
+      GO_ARGS+=("$arg")
+      ((idx+=1))
+      continue
+    fi
+    GO_ARGS+=("$(resolve_path "$arg")")
+    ((idx+=1))
+  done
 }
 
 build_go_args() {
@@ -56,6 +104,12 @@ build_go_args() {
       fi
       if [[ $# -gt 0 ]]; then
         GO_ARGS+=("$@")
+      fi
+      ;;
+    test)
+      GO_ARGS+=("$first")
+      if [[ $# -gt 0 ]]; then
+        build_test_args "$@"
       fi
       ;;
     deps|--help|-h|--version|-V|version)
@@ -116,4 +170,3 @@ else
   echo "Able v11 Go interpreter exited with status $code" >&2
   exit "$code"
 fi
-

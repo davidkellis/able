@@ -40,6 +40,38 @@ func (i *Interpreter) initStringHostBuiltins() {
 		}
 	}
 
+	stringBytesFromStruct := func(inst *runtime.StructInstanceValue) (*runtime.ArrayValue, error) {
+		if inst == nil || inst.Definition == nil || inst.Definition.Node == nil || inst.Definition.Node.ID == nil {
+			return nil, fmt.Errorf("argument must be a string")
+		}
+		if inst.Definition.Node.ID.Name != "String" {
+			return nil, fmt.Errorf("argument must be a string")
+		}
+		var bytesVal runtime.Value
+		if inst.Fields != nil {
+			if field, ok := inst.Fields["bytes"]; ok {
+				bytesVal = field
+			}
+		}
+		if bytesVal == nil && len(inst.Positional) > 0 {
+			bytesVal = inst.Positional[0]
+		}
+		if bytesVal == nil {
+			return nil, fmt.Errorf("string bytes are missing")
+		}
+		arr, err := i.toArrayValue(bytesVal)
+		if err != nil {
+			return nil, fmt.Errorf("string bytes must be an array: %w", err)
+		}
+		state, err := i.ensureArrayState(arr, 0)
+		if err != nil {
+			return nil, err
+		}
+		cloned := make([]runtime.Value, len(state.values))
+		copy(cloned, state.values)
+		return i.newArrayValue(cloned, len(cloned)), nil
+	}
+
 	stringFromBuiltin := runtime.NativeFunctionValue{
 		Name:  "__able_String_from_builtin",
 		Arity: 1,
@@ -47,8 +79,20 @@ func (i *Interpreter) initStringHostBuiltins() {
 			if len(args) != 1 {
 				return nil, fmt.Errorf("__able_String_from_builtin expects one argument")
 			}
+			val := args[0]
+			for {
+				if iface, ok := val.(*runtime.InterfaceValue); ok && iface != nil {
+					val = iface.Underlying
+					continue
+				}
+				if iface, ok := val.(runtime.InterfaceValue); ok {
+					val = iface.Underlying
+					continue
+				}
+				break
+			}
 			var input string
-			switch v := args[0].(type) {
+			switch v := val.(type) {
 			case runtime.StringValue:
 				input = v.Val
 			case *runtime.StringValue:
@@ -56,6 +100,8 @@ func (i *Interpreter) initStringHostBuiltins() {
 					return nil, fmt.Errorf("string argument is nil")
 				}
 				input = v.Val
+			case *runtime.StructInstanceValue:
+				return stringBytesFromStruct(v)
 			default:
 				return nil, fmt.Errorf("argument must be a string")
 			}
