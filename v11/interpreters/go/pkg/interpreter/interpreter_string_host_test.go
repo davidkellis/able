@@ -1,6 +1,7 @@
 package interpreter
 
 import (
+	"math/big"
 	"testing"
 
 	"able/interpreter-go/pkg/ast"
@@ -12,6 +13,49 @@ func TestStringFromBuiltinProducesBytes(t *testing.T) {
 	global := interp.GlobalEnvironment()
 
 	val, err := interp.evaluateExpression(ast.Call("__able_String_from_builtin", ast.Str("Hi")), global)
+	if err != nil {
+		t.Fatalf("evaluation failed: %v", err)
+	}
+	arr, ok := val.(*runtime.ArrayValue)
+	if !ok {
+		t.Fatalf("expected ArrayValue, got %#v", val)
+	}
+	if len(arr.Elements) != 2 {
+		t.Fatalf("expected 2 elements, got %d", len(arr.Elements))
+	}
+	for idx, expected := range []int64{72, 105} {
+		intVal, ok := arr.Elements[idx].(runtime.IntegerValue)
+		if !ok {
+			t.Fatalf("element %d type = %T, want IntegerValue", idx, arr.Elements[idx])
+		}
+		if intVal.Val.Int64() != expected {
+			t.Fatalf("element %d = %d, want %d", idx, intVal.Val.Int64(), expected)
+		}
+	}
+}
+
+func TestStringFromBuiltinAcceptsStructString(t *testing.T) {
+	interp := New()
+	global := interp.GlobalEnvironment()
+
+	bytes := []runtime.Value{
+		runtime.IntegerValue{Val: big.NewInt(72), TypeSuffix: runtime.IntegerU8},
+		runtime.IntegerValue{Val: big.NewInt(105), TypeSuffix: runtime.IntegerU8},
+	}
+	byteArr := interp.newArrayValue(bytes, len(bytes))
+	definition := &runtime.StructDefinitionValue{
+		Node: ast.StructDef("String", nil, ast.StructKindNamed, nil, nil, false),
+	}
+	inst := &runtime.StructInstanceValue{
+		Definition: definition,
+		Fields: map[string]runtime.Value{
+			"bytes":     byteArr,
+			"len_bytes": runtime.IntegerValue{Val: big.NewInt(2), TypeSuffix: runtime.IntegerI32},
+		},
+	}
+	global.Define("value", inst)
+
+	val, err := interp.evaluateExpression(ast.Call("__able_String_from_builtin", ast.ID("value")), global)
 	if err != nil {
 		t.Fatalf("evaluation failed: %v", err)
 	}

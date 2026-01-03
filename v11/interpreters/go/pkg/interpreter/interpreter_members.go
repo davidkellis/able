@@ -48,7 +48,7 @@ func (i *Interpreter) memberAccessOnValueWithOptions(obj runtime.Value, member a
 		return i.interfaceMember(v, member)
 	case *runtime.ArrayValue:
 		i.ensureArrayBuiltins()
-		return i.arrayMemberWithOverrides(v, member, env)
+		return i.arrayMemberWithOverrides(v, member, env, preferMethods)
 	case *runtime.HasherValue:
 		return i.hasherMember(v, member)
 	case *runtime.ProcHandleValue:
@@ -106,7 +106,7 @@ func (i *Interpreter) stringMemberWithOverrides(str runtime.StringValue, member 
 	return i.stringMember(str, member)
 }
 
-func (i *Interpreter) arrayMemberWithOverrides(arr *runtime.ArrayValue, member ast.Expression, env *runtime.Environment) (runtime.Value, error) {
+func (i *Interpreter) arrayMemberWithOverrides(arr *runtime.ArrayValue, member ast.Expression, env *runtime.Environment, preferMethods bool) (runtime.Value, error) {
 	if arr == nil {
 		return nil, fmt.Errorf("array receiver is nil")
 	}
@@ -116,6 +116,17 @@ func (i *Interpreter) arrayMemberWithOverrides(arr *runtime.ArrayValue, member a
 	ident, ok := member.(*ast.Identifier)
 	if !ok {
 		return nil, fmt.Errorf("array member access expects identifier")
+	}
+	if preferMethods {
+		if bound, err := i.resolveMethodFromPool(env, ident.Name, arr, ""); err != nil {
+			return nil, err
+		} else if bound != nil {
+			return bound, nil
+		}
+		return i.arrayMember(arr, member)
+	}
+	if val, err := i.arrayMember(arr, member); err == nil {
+		return val, nil
 	}
 	if bound, err := i.resolveMethodFromPool(env, ident.Name, arr, ""); err != nil {
 		return nil, err
@@ -381,7 +392,16 @@ func (i *Interpreter) resolveMethodFromPool(env *runtime.Environment, funcName s
 	nativeCandidates := make([]runtime.Value, 0)
 	seenFuncs := make(map[*runtime.FunctionValue]struct{})
 	seenNatives := make(map[string]struct{})
-	nameInScope := env != nil && env.Has(funcName)
+	var scopeCallable runtime.Value
+	var scopeSet map[*runtime.FunctionValue]struct{}
+	nameInScope := false
+	if env != nil {
+		if val, err := env.Get(funcName); err == nil && isCallableRuntimeValue(val) {
+			nameInScope = true
+			scopeCallable = val
+			scopeSet = functionScopeSet(val)
+		}
+	}
 	var info typeInfo
 	var hasInfo bool
 	if receiver != nil {
@@ -484,7 +504,7 @@ func (i *Interpreter) resolveMethodFromPool(env *runtime.Environment, funcName s
 			for _, name := range i.canonicalTypeNames(info.name) {
 				if bucket, ok := i.inherentMethods[name]; ok {
 					if method := bucket[funcName]; method != nil {
-						if callable, ok := i.selectUfcsCallable(method, receiver, true); ok {
+						if callable, ok := i.selectUfcsCallable(method, receiver, true, scopeSet); ok {
 							if err := addCallable(callable, name); err != nil {
 								return nil, err
 							}
@@ -508,8 +528,8 @@ func (i *Interpreter) resolveMethodFromPool(env *runtime.Environment, funcName s
 	hasMethodCandidate := len(functionCandidates)+len(nativeCandidates) > 0
 
 	if env != nil && nameInScope && !hasMethodCandidate {
-		if val, err := env.Get(funcName); err == nil {
-			if callable, ok := i.selectUfcsCallable(val, receiver, false); ok {
+		if scopeCallable != nil {
+			if callable, ok := i.selectUfcsCallable(scopeCallable, receiver, false, scopeSet); ok {
 				if err := addCallable(callable, ""); err != nil {
 					return nil, err
 				}
@@ -539,9 +559,58 @@ func (i *Interpreter) resolveMethodFromPool(env *runtime.Environment, funcName s
 }
 
 
-func (i *Interpreter) selectUfcsCallable(method runtime.Value, receiver runtime.Value, requireSelf bool) (runtime.Value, bool) {
+func functionScopeSet(scope runtime.Value) map[*runtime.FunctionValue]struct{} {
+	overloads := runtime.FlattenFunctionOverloads(scope)
+	if len(overloads) == 0 {
+		return nil
+	}
+	set := make(map[*runtime.FunctionValue]struct{}, len(overloads))
+	for _, fn := range overloads {
+		if fn != nil {
+			set[fn] = struct{}{}
+		}
+	}
+	return set
+}
+
+func (i *Interpreter) methodTargetMatchesReceiver(fn *runtime.FunctionValue, receiver runtime.Value) bool {
+	if fn == nil || fn.MethodSet == nil || fn.MethodSet.TargetType == nil {
+		return true
+	}
+	inst, ok := receiver.(*runtime.StructInstanceValue)
+	if !ok || inst == nil || inst.Definition == nil {
+		return true
+	}
+	target := fn.MethodSet.TargetType
+	var targetName string
+	switch t := target.(type) {
+	case *ast.SimpleTypeExpression:
+		if t.Name != nil {
+			targetName = t.Name.Name
+		}
+	case *ast.GenericTypeExpression:
+		if base, ok := t.Base.(*ast.SimpleTypeExpression); ok && base.Name != nil {
+			targetName = base.Name.Name
+		}
+	}
+	if targetName == "" || fn.Closure == nil {
+		return true
+	}
+	def, ok := fn.Closure.StructDefinition(targetName)
+	if !ok || def == nil {
+		return true
+	}
+	return def == inst.Definition
+}
+
+func (i *Interpreter) selectUfcsCallable(method runtime.Value, receiver runtime.Value, requireSelf bool, scopeSet map[*runtime.FunctionValue]struct{}) (runtime.Value, bool) {
 	switch fn := method.(type) {
 	case *runtime.FunctionValue:
+		if scopeSet != nil {
+			if _, ok := scopeSet[fn]; !ok {
+				return nil, false
+			}
+		}
 		if (!requireSelf || functionExpectsSelf(fn)) && i.functionFirstParamMatches(fn, receiver) {
 			if !requireSelf && fn.TypeQualified {
 				return nil, false
@@ -555,6 +624,11 @@ func (i *Interpreter) selectUfcsCallable(method runtime.Value, receiver runtime.
 			if entry == nil {
 				continue
 			}
+			if scopeSet != nil {
+				if _, ok := scopeSet[entry]; !ok {
+					continue
+				}
+			}
 			if !requireSelf && entry.TypeQualified {
 				continue
 			}
@@ -565,6 +639,20 @@ func (i *Interpreter) selectUfcsCallable(method runtime.Value, receiver runtime.
 				continue
 			}
 			filtered = append(filtered, entry)
+		}
+		if len(filtered) > 1 {
+			targetFiltered := make([]*runtime.FunctionValue, 0, len(filtered))
+			for _, entry := range filtered {
+				if i.methodTargetMatchesReceiver(entry, receiver) {
+					targetFiltered = append(targetFiltered, entry)
+				}
+			}
+			if len(targetFiltered) == 1 {
+				return targetFiltered[0], true
+			}
+			if len(targetFiltered) > 0 {
+				filtered = targetFiltered
+			}
 		}
 		if len(filtered) > 1 {
 			if recvType := i.typeExpressionFromValue(receiver); recvType != nil {

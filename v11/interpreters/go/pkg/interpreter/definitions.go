@@ -250,13 +250,18 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 		return nil, fmt.Errorf("Implementation target must reference at least one concrete type")
 	}
 	mergedGenerics := i.mergeImplementationGenerics(&canonicalDef, env)
+	methodSet := &runtime.MethodSet{
+		TargetType:    canonicalDef.TargetType,
+		GenericParams: mergedGenerics,
+		WhereClause:   canonicalDef.WhereClause,
+	}
 	methods := make(map[string]runtime.Value)
 	hasExplicit := false
 	for _, fn := range canonicalDef.Definitions {
 		if fn == nil || fn.ID == nil {
 			return nil, fmt.Errorf("Implementation method requires identifier")
 		}
-		mergeFunctionLike(methods, fn.ID.Name, &runtime.FunctionValue{Declaration: fn, Closure: env, MethodPriority: -1})
+		mergeFunctionLike(methods, fn.ID.Name, &runtime.FunctionValue{Declaration: fn, Closure: env, MethodPriority: -1, MethodSet: methodSet})
 		hasExplicit = true
 	}
 	if ifaceDef.Node != nil {
@@ -272,7 +277,7 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 				continue
 			}
 			defaultDef := ast.NewFunctionDefinition(sig.Name, sig.Params, sig.DefaultImpl, sig.ReturnType, sig.GenericParams, sig.WhereClause, false, false)
-			mergeFunctionLike(methods, name, &runtime.FunctionValue{Declaration: defaultDef, Closure: ifaceDef.Env, MethodPriority: -1})
+			mergeFunctionLike(methods, name, &runtime.FunctionValue{Declaration: defaultDef, Closure: ifaceDef.Env, MethodPriority: -1, MethodSet: methodSet})
 		}
 	}
 	constraintSpecs := collectConstraintSpecs(canonicalDef.GenericParams, canonicalDef.WhereClause)
@@ -354,9 +359,10 @@ func (i *Interpreter) evaluateMethodsDefinition(def *ast.MethodsDefinition, env 
 		bucket = make(map[string]runtime.Value)
 		i.inherentMethods[typeName] = bucket
 	}
+	mergedGenerics := i.mergeMethodsGenerics(def, target, env)
 	methodSet := &runtime.MethodSet{
 		TargetType:    target,
-		GenericParams: def.GenericParams,
+		GenericParams: mergedGenerics,
 		WhereClause:   def.WhereClause,
 	}
 	for _, fn := range def.Definitions {
@@ -413,6 +419,29 @@ func (i *Interpreter) mergeImplementationGenerics(def *ast.ImplementationDefinit
 		seen[gp.Name.Name] = struct{}{}
 	}
 	for _, inferred := range i.inferGenericsFromTarget(def.TargetType, env) {
+		if inferred == nil || inferred.Name == nil {
+			continue
+		}
+		if _, ok := seen[inferred.Name.Name]; ok {
+			continue
+		}
+		result = append(result, inferred)
+		seen[inferred.Name.Name] = struct{}{}
+	}
+	return result
+}
+
+func (i *Interpreter) mergeMethodsGenerics(def *ast.MethodsDefinition, target ast.TypeExpression, env *runtime.Environment) []*ast.GenericParameter {
+	seen := make(map[string]struct{})
+	result := make([]*ast.GenericParameter, 0, len(def.GenericParams))
+	for _, gp := range def.GenericParams {
+		if gp == nil || gp.Name == nil {
+			continue
+		}
+		result = append(result, gp)
+		seen[gp.Name.Name] = struct{}{}
+	}
+	for _, inferred := range i.inferGenericsFromTarget(target, env) {
 		if inferred == nil || inferred.Name == nil {
 			continue
 		}

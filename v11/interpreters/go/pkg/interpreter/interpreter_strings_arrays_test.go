@@ -12,7 +12,7 @@ func TestArrayHelpersRequireStdlib(t *testing.T) {
 	interp.ensureArrayBuiltins()
 	arr := &runtime.ArrayValue{Elements: []runtime.Value{runtime.NilValue{}}}
 
-	iterVal, err := interp.arrayMemberWithOverrides(arr, ast.NewIdentifier("iterator"), interp.GlobalEnvironment())
+	iterVal, err := interp.arrayMemberWithOverrides(arr, ast.NewIdentifier("iterator"), interp.GlobalEnvironment(), false)
 	if err != nil {
 		t.Fatalf("iterator should remain available without stdlib: %v", err)
 	}

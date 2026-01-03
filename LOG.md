@@ -1,5 +1,32 @@
 # Able Project Log
 
+# 2026-01-02 — Placeholder member access in typechecker (v11)
+- Go typechecker: treat member access on placeholder expressions as unknown instead of rejecting the access, fixing `@.method()` in pipe shorthand.
+- Tests: `bun test test/parity/examples_parity.test.ts -t pipes_topics/main.able`; `./run_all_tests.sh --version=v11`.
+
+# 2026-01-02 — String host accepts struct-backed String (v11)
+- Go interpreter: `__able_String_from_builtin` now accepts struct-backed `String` values by extracting the `bytes` field, fixing stdlib string helpers when `String` is a struct instance.
+- Go interpreter tests: added coverage for struct-backed `String` conversions in the string host builtins.
+- Tests: `go test ./pkg/interpreter -run StringFromBuiltin`; `./v11/ablego test v11/stdlib/tests/text/string_methods.test.able`.
+
+# 2026-01-02 — Parse empty function types + numeric method resolution (v11)
+- Go parser: treat empty parenthesized types as zero-arg function parameters when parsing `() -> T`, preventing `()->T` from collapsing into a simple type.
+- Go typechecker: allow method-set lookup for integer/float values so numeric helpers like `to_r` resolve after importing `able.core.numeric`.
+- Tests: `./v11/ablego test v11/stdlib/tests/core/numeric_smoke.test.able`; `go test ./pkg/parser ./pkg/typechecker`.
+
+# 2026-01-02 — Type matching fixes + Clone primitives (v11)
+- Go interpreter: expanded runtime type matching to compare alias-expanded value types, let unknown type names match struct instances (generic union members like `T`), and accept struct-backed `String` values; added Result/Option generic matching fallback.
+- Go interpreter: primitives now satisfy `Clone` via built-in method lookup, fixing stdlib TreeSet String constraints without extra imports.
+- Tests: `ABLE_TYPECHECK_FIXTURES=off ./v11/ablego test v11/stdlib/tests --list`.
+
+# 2026-01-02 — Method resolution disambiguation (v11)
+- Go interpreter: tightened UFCS/member lookup to filter candidates by in-scope overloads and disambiguate same-name types via method target matching, fixing local `Channel.send` collisions while preserving alias reexports and Ratio methods.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter`.
+
+# 2026-01-02 — Serial executor fairness ordering (v11)
+- Go interpreter: queue freshly created serial tasks ahead of resumed ones so `proc_yield` round-robins even when procs are created in separate eval calls.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter`; `./run_all_tests.sh --version=v11`.
+
 # 2026-01-01 — Trailing lambdas + struct definition bindings (v11)
 - Reattached trailing lambda bodies inside expression lists in the Go parser so call arguments match block parsing and `suite.it(...) { ... }` forms register correctly.
 - Go interpreter now treats native/bound/partial callables as valid function values for `fn(...)` type checks.

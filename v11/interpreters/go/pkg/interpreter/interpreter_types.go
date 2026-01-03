@@ -393,6 +393,12 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 			typeExpr = expanded
 		}
 	}
+	if valueExpr := i.typeExpressionFromValue(value); valueExpr != nil {
+		expandedValue := expandTypeAliases(valueExpr, i.typeAliases, nil)
+		if expandedValue != nil && typeExpressionsEqual(typeExpr, expandedValue) {
+			return true
+		}
+	}
 	switch t := typeExpr.(type) {
 	case *ast.WildcardTypeExpression:
 		return true
@@ -407,10 +413,38 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 		if name == "Self" {
 			return true
 		}
+		if errVal, ok := asErrorValue(value); ok {
+			if errVal.TypeName != nil && errVal.TypeName.Name == name {
+				return true
+			}
+			if errVal.Payload != nil {
+				if payload, ok := errVal.Payload["value"]; ok && payload != nil {
+					if structVal, ok := payload.(*runtime.StructInstanceValue); ok {
+						if structVal.Definition != nil && structVal.Definition.Node != nil && structVal.Definition.Node.ID != nil {
+							if structVal.Definition.Node.ID.Name == name {
+								return true
+							}
+						}
+					}
+					if defVal, ok := payload.(*runtime.StructDefinitionValue); ok && isSingletonStructDef(defVal.Node) {
+						if defVal.Node != nil && defVal.Node.ID != nil && defVal.Node.ID.Name == name {
+							return true
+						}
+					}
+				}
+			}
+		}
 		switch name {
 		case "String":
-			_, ok := value.(runtime.StringValue)
-			return ok
+			if _, ok := value.(runtime.StringValue); ok {
+				return true
+			}
+			if structVal, ok := value.(*runtime.StructInstanceValue); ok {
+				if structVal.Definition != nil && structVal.Definition.Node != nil && structVal.Definition.Node.ID != nil {
+					return structVal.Definition.Node.ID.Name == "String"
+				}
+			}
+			return false
 		case "bool":
 			_, ok := value.(runtime.BoolValue)
 			return ok
@@ -495,17 +529,23 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 			}
 			if defVal, ok := value.(*runtime.StructDefinitionValue); ok && isSingletonStructDef(defVal.Node) {
 				if defVal.Node != nil && defVal.Node.ID != nil {
-					return defVal.Node.ID.Name == name
+					if defVal.Node.ID.Name == name {
+						return true
+					}
 				}
 			}
 			if defVal, ok := value.(runtime.StructDefinitionValue); ok && isSingletonStructDef(defVal.Node) {
 				if defVal.Node != nil && defVal.Node.ID != nil {
-					return defVal.Node.ID.Name == name
+					if defVal.Node.ID.Name == name {
+						return true
+					}
 				}
 			}
 			if structVal, ok := value.(*runtime.StructInstanceValue); ok {
 				if structVal.Definition != nil && structVal.Definition.Node != nil && structVal.Definition.Node.ID != nil {
-					return structVal.Definition.Node.ID.Name == name
+					if structVal.Definition.Node.ID.Name == name {
+						return true
+					}
 				}
 			}
 			if i.isKnownTypeName(name) {
@@ -551,12 +591,43 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 		if baseName != "" {
 			if unionDef, ok := i.unionDefinitions[baseName]; ok && unionDef != nil && unionDef.Node != nil {
 				for _, variant := range unionDef.Node.Variants {
-					if variant != nil && i.matchesType(variant, value) {
+					if variant == nil {
+						continue
+					}
+					if i.matchesType(variant, value) {
 						return true
 					}
 				}
 				return false
 			}
+		}
+		if baseName == "Result" && len(t.Arguments) > 0 {
+			if i.matchesType(t.Arguments[0], value) {
+				return true
+			}
+			switch v := value.(type) {
+			case runtime.ErrorValue, *runtime.ErrorValue:
+				return true
+			case runtime.InterfaceValue:
+				if v.Interface != nil && v.Interface.Node != nil && v.Interface.Node.ID != nil && v.Interface.Node.ID.Name == "Error" {
+					return true
+				}
+			case *runtime.InterfaceValue:
+				if v != nil && v.Interface != nil && v.Interface.Node != nil && v.Interface.Node.ID != nil && v.Interface.Node.ID.Name == "Error" {
+					return true
+				}
+			}
+			if info, ok := i.getTypeInfoForValue(value); ok {
+				okImpl, err := i.typeImplementsInterface(info, "Error", make(map[string]struct{}))
+				return err == nil && okImpl
+			}
+			return false
+		}
+		if baseName == "Option" && len(t.Arguments) > 0 {
+			if _, ok := value.(runtime.NilValue); ok {
+				return true
+			}
+			return i.matchesType(t.Arguments[0], value)
 		}
 		if baseName != "" {
 			if _, ok := i.interfaces[baseName]; ok {
@@ -749,6 +820,8 @@ func primitiveImplementsInterfaceMethod(typeName, ifaceName, methodName string) 
 		return methodName == "hash"
 	case "Eq":
 		return methodName == "eq" || methodName == "ne"
+	case "Clone":
+		return methodName == "clone"
 	default:
 		return false
 	}

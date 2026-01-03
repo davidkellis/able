@@ -9,8 +9,16 @@ import (
 const nullableTypeLabel = "<nullable>"
 
 func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpression) ([]Diagnostic, Type) {
+	return c.checkMemberAccessWithOptions(env, expr, false)
+}
+
+func (c *Checker) checkMemberAccessWithOptions(env *Environment, expr *ast.MemberAccessExpression, preferMethods bool) ([]Diagnostic, Type) {
 	var diags []Diagnostic
 	if expr == nil {
+		return nil, UnknownType{}
+	}
+	if expressionContainsPlaceholder(expr.Object) {
+		c.infer.set(expr, UnknownType{})
 		return nil, UnknownType{}
 	}
 	objectDiags, objectType := c.checkExpression(env, expr.Object)
@@ -79,10 +87,18 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 			})
 			break
 		}
+		var (
+			fieldType Type
+			hasField  bool
+		)
 		if ty.Fields != nil {
-			if fieldType, ok := ty.Fields[memberName]; ok {
-				final := c.finalizeMemberAccessType(expr, wrapType, fieldType)
-				return diags, final
+			if candidate, ok := ty.Fields[memberName]; ok {
+				fieldType = candidate
+				hasField = true
+				if !preferMethods || isCallableType(candidate) {
+					final := c.finalizeMemberAccessType(expr, wrapType, candidate)
+					return diags, final
+				}
 			}
 		}
 		var (
@@ -121,6 +137,10 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 			final := c.finalizeMemberAccessType(expr, wrapType, candidates[0])
 			return diags, final
 		}
+		if hasField {
+			final := c.finalizeMemberAccessType(expr, wrapType, fieldType)
+			return diags, final
+		}
 		diags = append(diags, Diagnostic{
 			Message: fmt.Sprintf("typechecker: struct '%s' has no member '%s'", ty.StructName, memberName),
 			Node:    expr,
@@ -138,9 +158,17 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 			})
 			break
 		}
-		if fieldType, ok := ty.Fields[memberName]; ok {
-			final := c.finalizeMemberAccessType(expr, wrapType, fieldType)
-			return diags, final
+		var (
+			fieldType Type
+			hasField  bool
+		)
+		if candidate, ok := ty.Fields[memberName]; ok {
+			fieldType = candidate
+			hasField = true
+			if !preferMethods || isCallableType(candidate) {
+				final := c.finalizeMemberAccessType(expr, wrapType, candidate)
+				return diags, final
+			}
 		}
 		var (
 			candidates  []FunctionType
@@ -177,6 +205,10 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 		}
 		if len(candidates) == 1 {
 			final := c.finalizeMemberAccessType(expr, wrapType, candidates[0])
+			return diags, final
+		}
+		if hasField {
+			final := c.finalizeMemberAccessType(expr, wrapType, fieldType)
 			return diags, final
 		}
 		diags = append(diags, Diagnostic{
@@ -221,6 +253,49 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 		}
 		diags = append(diags, Diagnostic{
 			Message: fmt.Sprintf("typechecker: array has no member '%s' (import able.collections.array for stdlib helpers)", memberName),
+			Node:    expr,
+		})
+	case IntegerType, FloatType:
+		if positionalAccess {
+			diags = append(diags, Diagnostic{
+				Message: fmt.Sprintf("typechecker: positional member access not supported on type %s", typeName(objectType)),
+				Node:    expr,
+			})
+			break
+		}
+		var (
+			candidates  []FunctionType
+			methodFound bool
+		)
+		allowMethodSets := true
+		if fnType, ok, detail := c.lookupMethod(objectType, memberName, allowMethodSets, false); ok {
+			candidates = append(candidates, fnType)
+			methodFound = true
+		} else if detail != "" {
+			diags = append(diags, Diagnostic{
+				Message: "typechecker: " + detail,
+				Node:    expr,
+			})
+			c.infer.set(expr, UnknownType{})
+			return diags, UnknownType{}
+		}
+		if fnType, ok := c.lookupUfcsFreeFunction(env, objectType, memberName); ok && !methodFound {
+			candidates = append(candidates, fnType)
+		}
+		if len(candidates) > 1 {
+			diags = append(diags, Diagnostic{
+				Message: fmt.Sprintf("typechecker: ambiguous method resolution for '%s'", memberName),
+				Node:    expr,
+			})
+			c.infer.set(expr, UnknownType{})
+			return diags, UnknownType{}
+		}
+		if len(candidates) == 1 {
+			final := c.finalizeMemberAccessType(expr, wrapType, candidates[0])
+			return diags, final
+		}
+		diags = append(diags, Diagnostic{
+			Message: fmt.Sprintf("typechecker: cannot access member '%s' on type %s", memberName, typeName(objectType)),
 			Node:    expr,
 		})
 	case PrimitiveType:
@@ -336,6 +411,10 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 			})
 			break
 		}
+		var (
+			fieldType Type
+			hasField  bool
+		)
 		if baseStruct, ok := ty.Base.(StructType); ok {
 			subst := make(map[string]Type, len(baseStruct.TypeParams))
 			for i, param := range baseStruct.TypeParams {
@@ -362,12 +441,16 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 				break
 			}
 			if baseStruct.Fields != nil {
-				if fieldType, ok := baseStruct.Fields[memberName]; ok {
+				if candidate, ok := baseStruct.Fields[memberName]; ok {
 					if len(subst) > 0 {
-						fieldType = substituteType(fieldType, subst)
+						candidate = substituteType(candidate, subst)
 					}
-					final := c.finalizeMemberAccessType(expr, wrapType, fieldType)
-					return diags, final
+					fieldType = candidate
+					hasField = true
+					if !preferMethods || isCallableType(candidate) {
+						final := c.finalizeMemberAccessType(expr, wrapType, candidate)
+						return diags, final
+					}
 				}
 			}
 		}
@@ -405,6 +488,10 @@ func (c *Checker) checkMemberAccess(env *Environment, expr *ast.MemberAccessExpr
 		}
 		if len(candidates) == 1 {
 			final := c.finalizeMemberAccessType(expr, wrapType, candidates[0])
+			return diags, final
+		}
+		if hasField {
+			final := c.finalizeMemberAccessType(expr, wrapType, fieldType)
 			return diags, final
 		}
 	case IteratorType:
