@@ -327,7 +327,7 @@ func (i *Interpreter) evaluatePropagationExpression(expr *ast.PropagationExpress
 		return nil, raiseSignal{value: errVal}
 	}
 	if i.matchesType(ast.Ty("Error"), val) {
-		return nil, raiseSignal{value: makeErrorValue(val)}
+		return nil, raiseSignal{value: i.makeErrorValue(val, env)}
 	}
 	return val, nil
 }

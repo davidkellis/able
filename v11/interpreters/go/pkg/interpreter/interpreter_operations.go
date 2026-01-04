@@ -504,6 +504,34 @@ func evaluateBitwise(op string, left runtime.Value, right runtime.Value) (runtim
 	if !ok {
 		return nil, fmt.Errorf("Bitwise requires integer operands")
 	}
+	lVal := runtime.CloneBigInt(lv.Val)
+	rVal := runtime.CloneBigInt(rv.Val)
+	var result *big.Int
+	switch op {
+	case "<<", ">>":
+		info, err := getIntegerInfo(lv.TypeSuffix)
+		if err != nil {
+			return nil, err
+		}
+		if !rVal.IsInt64() {
+			return nil, newShiftOutOfRangeError(0)
+		}
+		count := int(rVal.Int64())
+		var shifted *big.Int
+		if op == "<<" {
+			shifted, err = shiftValueLeft(lVal, count, info)
+		} else {
+			shifted, err = shiftValueRight(lVal, count, info)
+		}
+		if err != nil {
+			return nil, err
+		}
+		result = shifted
+		if err := ensureFitsInteger(info, result); err != nil {
+			return nil, err
+		}
+		return runtime.IntegerValue{Val: result, TypeSuffix: lv.TypeSuffix}, nil
+	}
 	targetType, err := promoteIntegerTypes(lv.TypeSuffix, rv.TypeSuffix)
 	if err != nil {
 		return nil, err
@@ -512,9 +540,6 @@ func evaluateBitwise(op string, left runtime.Value, right runtime.Value) (runtim
 	if err != nil {
 		return nil, err
 	}
-	lVal := runtime.CloneBigInt(lv.Val)
-	rVal := runtime.CloneBigInt(rv.Val)
-	var result *big.Int
 	switch op {
 	case "&":
 		leftPattern := bitPattern(lVal, info)
@@ -531,26 +556,6 @@ func evaluateBitwise(op string, left runtime.Value, right runtime.Value) (runtim
 		rightPattern := bitPattern(rVal, info)
 		tmp := new(big.Int).Xor(leftPattern, rightPattern)
 		result = patternToInteger(tmp, info)
-	case "<<":
-		if !rVal.IsInt64() {
-			return nil, newShiftOutOfRangeError(0)
-		}
-		count := int(rVal.Int64())
-		shifted, err := shiftValueLeft(lVal, count, info)
-		if err != nil {
-			return nil, err
-		}
-		result = shifted
-	case ">>":
-		if !rVal.IsInt64() {
-			return nil, newShiftOutOfRangeError(0)
-		}
-		count := int(rVal.Int64())
-		shifted, err := shiftValueRight(lVal, count, info)
-		if err != nil {
-			return nil, err
-		}
-		result = shifted
 	default:
 		return nil, fmt.Errorf("unsupported bitwise operator %s", op)
 	}
@@ -922,6 +927,22 @@ func (i *Interpreter) ensureRatioStruct() (*runtime.StructDefinitionValue, error
 		if def, conv := toStructDefinitionValue(val, "Ratio"); conv == nil {
 			i.ratioStruct = def
 			return def, nil
+		}
+	}
+	for _, key := range []string{"able.kernel.Ratio", "kernel.Ratio"} {
+		if val, err := i.global.Get(key); err == nil {
+			if def, conv := toStructDefinitionValue(val, "Ratio"); conv == nil {
+				i.ratioStruct = def
+				return def, nil
+			}
+		}
+	}
+	for _, bucket := range i.packageRegistry {
+		if val, ok := bucket["Ratio"]; ok {
+			if def, conv := toStructDefinitionValue(val, "Ratio"); conv == nil {
+				i.ratioStruct = def
+				return def, nil
+			}
 		}
 	}
 	numField := ast.NewStructFieldDefinition(ast.NewSimpleTypeExpression(ast.NewIdentifier("i64")), ast.NewIdentifier("num"))

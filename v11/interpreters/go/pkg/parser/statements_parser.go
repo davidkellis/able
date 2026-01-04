@@ -276,6 +276,12 @@ func (ctx *parseContext) parseStatement(node *sitter.Node) (ast.Statement, error
 			return nil, err
 		}
 		return annotateStatement(stmt, node), nil
+	case "function_definition":
+		stmt, err := ctx.parseFunctionDefinition(node)
+		if err != nil {
+			return nil, err
+		}
+		return annotateStatement(stmt, node), nil
 	case "prelude_statement":
 		stmt, err := ctx.parsePreludeStatement(node)
 		if err != nil {

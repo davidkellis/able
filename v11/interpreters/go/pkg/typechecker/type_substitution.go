@@ -61,8 +61,10 @@ func substituteType(t Type, subst map[string]Type) Type {
 				constraints[j] = substituteType(constraint, subst)
 			}
 			params[i] = GenericParamSpec{
-				Name:        param.Name,
-				Constraints: constraints,
+				Name:            param.Name,
+				Constraints:     constraints,
+				ConstraintNodes: param.ConstraintNodes,
+				IsInferred:      param.IsInferred,
 			}
 		}
 		where := substituteWhereSpecs(v.Where, subst)

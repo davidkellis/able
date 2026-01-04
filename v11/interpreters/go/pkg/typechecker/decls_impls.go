@@ -93,28 +93,32 @@ func (c *declarationCollector) collectImplementationDefinition(def *ast.Implemen
 	}
 
 	expectedParams := len(ifaceType.TypeParams)
+	explicitParams := expectedParams
 	interfaceArgs := make([]Type, len(def.InterfaceArgs))
 	for i, arg := range def.InterfaceArgs {
 		interfaceArgs[i] = c.resolveTypeExpression(arg, scope)
 	}
+	if interfaceName != "" {
+		explicitParams = c.interfaceExplicitParamCount(interfaceName, ifaceType)
+	}
 
 	if interfaceName != "" {
 		providedArgs := len(def.InterfaceArgs)
-		if expectedParams == 0 && providedArgs > 0 {
+		if explicitParams == 0 && providedArgs > 0 {
 			c.diags = append(c.diags, Diagnostic{
 				Message: fmt.Sprintf("typechecker: impl %s does not accept type arguments", interfaceName),
 				Node:    def,
 			})
 		}
-		if expectedParams > 0 {
+		if explicitParams > 0 {
 			if providedArgs == 0 {
 				c.diags = append(c.diags, Diagnostic{
-					Message: fmt.Sprintf("typechecker: impl %s for %s requires %d interface type argument(s)", interfaceName, typeName(targetType), expectedParams),
+					Message: fmt.Sprintf("typechecker: impl %s for %s requires %d interface type argument(s)", interfaceName, typeName(targetType), explicitParams),
 					Node:    def,
 				})
-			} else if providedArgs != expectedParams {
+			} else if providedArgs != explicitParams {
 				c.diags = append(c.diags, Diagnostic{
-					Message: fmt.Sprintf("typechecker: impl %s for %s expected %d interface type argument(s), got %d", interfaceName, typeName(targetType), expectedParams, providedArgs),
+					Message: fmt.Sprintf("typechecker: impl %s for %s expected %d interface type argument(s), got %d", interfaceName, typeName(targetType), explicitParams, providedArgs),
 					Node:    def,
 				})
 			}
@@ -171,6 +175,98 @@ func (c *declarationCollector) collectImplementationDefinition(def *ast.Implemen
 	}
 
 	return spec, diags
+}
+
+func (c *declarationCollector) interfaceExplicitParamCount(name string, iface InterfaceType) int {
+	if name == "" {
+		return len(iface.TypeParams)
+	}
+	if c != nil && c.declNodes != nil {
+		if node, ok := c.declNodes[name]; ok {
+			if def, ok := node.(*ast.InterfaceDefinition); ok {
+				count := 0
+				for _, param := range def.GenericParams {
+					if param == nil || param.IsInferred {
+						continue
+					}
+					count++
+				}
+				return count
+			}
+		}
+	}
+	if len(iface.TypeParams) == 0 {
+		return 0
+	}
+	count := 0
+	seenInferred := false
+	for _, param := range iface.TypeParams {
+		if param.IsInferred {
+			seenInferred = true
+		}
+		if param.Name == "" || param.IsInferred {
+			continue
+		}
+		count++
+	}
+	if seenInferred {
+		return count
+	}
+	selfNames := collectSelfPatternNames(iface.SelfTypePattern)
+	if len(selfNames) == 0 {
+		return len(iface.TypeParams)
+	}
+	count = 0
+	for _, param := range iface.TypeParams {
+		if param.Name == "" {
+			continue
+		}
+		if _, ok := selfNames[param.Name]; ok {
+			continue
+		}
+		count++
+	}
+	return count
+}
+
+func collectSelfPatternNames(pattern ast.TypeExpression) map[string]struct{} {
+	if pattern == nil {
+		return nil
+	}
+	names := map[string]struct{}{}
+	var walk func(ast.TypeExpression)
+	walk = func(expr ast.TypeExpression) {
+		if expr == nil {
+			return
+		}
+		switch t := expr.(type) {
+		case *ast.SimpleTypeExpression:
+			if t.Name == nil || t.Name.Name == "" || t.Name.Name == "_" {
+				return
+			}
+			names[t.Name.Name] = struct{}{}
+		case *ast.GenericTypeExpression:
+			walk(t.Base)
+			for _, arg := range t.Arguments {
+				walk(arg)
+			}
+		case *ast.FunctionTypeExpression:
+			for _, param := range t.ParamTypes {
+				walk(param)
+			}
+			walk(t.ReturnType)
+		case *ast.NullableTypeExpression:
+			walk(t.InnerType)
+		case *ast.ResultTypeExpression:
+			walk(t.InnerType)
+		case *ast.UnionTypeExpression:
+			for _, member := range t.Members {
+				walk(member)
+			}
+		}
+	}
+	walk(pattern)
+	return names
 }
 
 func (c *declarationCollector) collectMethodsDefinition(def *ast.MethodsDefinition) (*MethodSetSpec, []Diagnostic) {
@@ -248,6 +344,26 @@ func (c *declarationCollector) collectMethodsDefinition(def *ast.MethodsDefiniti
 			}
 		}
 		if !isSelfMethod {
+			if len(params) > 0 {
+				merged := make([]GenericParamSpec, 0, len(params)+len(fnType.TypeParams))
+				seen := make(map[string]struct{}, len(params)+len(fnType.TypeParams))
+				for _, param := range params {
+					merged = append(merged, param)
+					if param.Name != "" {
+						seen[param.Name] = struct{}{}
+					}
+				}
+				for _, param := range fnType.TypeParams {
+					if param.Name != "" {
+						if _, exists := seen[param.Name]; exists {
+							continue
+						}
+						seen[param.Name] = struct{}{}
+					}
+					merged = append(merged, param)
+				}
+				fnType.TypeParams = merged
+			}
 			typeQualified[name] = true
 		}
 		methods[name] = fnType

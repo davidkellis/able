@@ -132,6 +132,15 @@ func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diag
 		return diags, resultType
 	case *ast.BlockExpression:
 		blockEnv := env.Extend()
+		for _, stmt := range e.Body {
+			def, ok := stmt.(*ast.FunctionDefinition)
+			if !ok || def == nil || def.ID == nil {
+				continue
+			}
+			if !blockEnv.HasInCurrentScope(def.ID.Name) {
+				blockEnv.Define(def.ID.Name, c.localFunctionSignature(def))
+			}
+		}
 		var (
 			diags      []Diagnostic
 			resultType Type = UnknownType{}
@@ -404,6 +413,26 @@ func (c *Checker) checkFunctionCallExpressionWithExpectedReturn(env *Environment
 				optionalLast = true
 			}
 		}
+		argMatches := func(actual Type, expected Type) bool {
+			if typeAssignable(actual, expected) {
+				return true
+			}
+			if expected != nil {
+				if iface, args, ok := interfaceFromType(expected); ok {
+					if okImpl, _ := c.typeImplementsInterface(actual, iface, args); okImpl {
+						return true
+					}
+				}
+				if nullable, ok := expected.(NullableType); ok {
+					if iface, args, ok := interfaceFromType(nullable.Inner); ok {
+						if okImpl, _ := c.typeImplementsInterface(actual, iface, args); okImpl {
+							return true
+						}
+					}
+				}
+			}
+			return false
+		}
 		argCount := len(argTypesForCheck)
 		paramCount := len(expectedParams)
 		minArgs := paramCount
@@ -422,7 +451,7 @@ func (c *Checker) checkFunctionCallExpressionWithExpectedReturn(env *Environment
 			compareCount := argCount
 			for i := 0; i < compareCount; i++ {
 				expected := expectedParams[i]
-				if !typeAssignable(argTypesForCheck[i], expected) {
+				if !argMatches(argTypesForCheck[i], expected) {
 					if msg, ok := literalMismatchMessage(argTypesForCheck[i], expected); ok {
 						diags = append(diags, Diagnostic{
 							Message: fmt.Sprintf("typechecker: %s", msg),
@@ -451,7 +480,7 @@ func (c *Checker) checkFunctionCallExpressionWithExpectedReturn(env *Environment
 		}
 		for i := 0; i < compareCount; i++ {
 			expected := expectedParams[i]
-			if !typeAssignable(argTypesForCheck[i], expected) {
+			if !argMatches(argTypesForCheck[i], expected) {
 				if msg, ok := literalMismatchMessage(argTypesForCheck[i], expected); ok {
 					diags = append(diags, Diagnostic{
 						Message: fmt.Sprintf("typechecker: %s", msg),

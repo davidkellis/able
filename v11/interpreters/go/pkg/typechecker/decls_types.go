@@ -45,12 +45,16 @@ func (c *declarationCollector) resolveTypeExpression(expr ast.TypeExpression, ty
 			switch name {
 			case "bool":
 				return PrimitiveType{Kind: PrimitiveBool}
+			case "string":
+				return PrimitiveType{Kind: PrimitiveString}
 			case "String":
 				return PrimitiveType{Kind: PrimitiveString}
 			case "char":
 				return PrimitiveType{Kind: PrimitiveChar}
 			case "nil":
 				return PrimitiveType{Kind: PrimitiveNil}
+			case "_":
+				return UnknownType{}
 			case "i8", "i16", "i32", "i64", "i128", "isize", "u8", "u16", "u32", "u64", "u128", "usize":
 				return IntegerType{Suffix: name}
 			case "f32", "f64":
@@ -144,6 +148,7 @@ func (c *declarationCollector) convertGenericParams(params []*ast.GenericParamet
 			Name:            name,
 			Constraints:     constraints,
 			ConstraintNodes: constraintNodes,
+			IsInferred:      param.IsInferred,
 		})
 	}
 	return specs, typeScope
@@ -199,11 +204,12 @@ func (c *declarationCollector) collectStructFields(def *ast.StructDefinition, sc
 	return fields, positional
 }
 
-func (c *declarationCollector) collectInterfaceMethods(def *ast.InterfaceDefinition, baseScope map[string]Type) map[string]FunctionType {
+func (c *declarationCollector) collectInterfaceMethods(def *ast.InterfaceDefinition, baseScope map[string]Type) (map[string]FunctionType, map[string]bool) {
 	if def == nil || len(def.Signatures) == 0 {
-		return nil
+		return nil, nil
 	}
 	methods := make(map[string]FunctionType, len(def.Signatures))
+	defaults := make(map[string]bool)
 	for _, sig := range def.Signatures {
 		if sig == nil || sig.Name == nil {
 			continue
@@ -219,8 +225,14 @@ func (c *declarationCollector) collectInterfaceMethods(def *ast.InterfaceDefinit
 		fnType, diags := c.convertFunctionSignature(sig, baseScope)
 		c.diags = append(c.diags, diags...)
 		methods[name] = fnType
+		if sig.DefaultImpl != nil {
+			defaults[name] = true
+		}
 	}
-	return methods
+	if len(defaults) == 0 {
+		defaults = nil
+	}
+	return methods, defaults
 }
 
 func (c *declarationCollector) convertFunctionSignature(sig *ast.FunctionSignature, baseScope map[string]Type) (FunctionType, []Diagnostic) {

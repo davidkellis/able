@@ -18,6 +18,7 @@ type implEntry struct {
 	whereClause   []*ast.WhereClauseConstraint
 	unionVariants []string
 	defaultOnly   bool
+	isBuiltin     bool
 }
 
 type implCandidate struct {
@@ -97,6 +98,21 @@ func (i *Interpreter) matchImplEntry(entry *implEntry, info typeInfo) (map[strin
 	}
 	bindings := make(map[string]ast.TypeExpression)
 	genericNames := collectImplGenericNames(entry)
+	paramUsedInTarget := func(name string) bool {
+		if name == "" {
+			return false
+		}
+		lookup := map[string]struct{}{name: {}}
+		if entry.definition != nil && typeExpressionUsesGenerics(entry.definition.TargetType, lookup) {
+			return true
+		}
+		for _, tmpl := range entry.argTemplates {
+			if typeExpressionUsesGenerics(tmpl, lookup) {
+				return true
+			}
+		}
+		return false
+	}
 	if entry.definition != nil {
 		actual := typeExpressionFromInfo(info)
 		if actual != nil {
@@ -119,6 +135,9 @@ func (i *Interpreter) matchImplEntry(entry *implEntry, info typeInfo) (map[strin
 			continue
 		}
 		if _, ok := bindings[gp.Name.Name]; !ok {
+			if !paramUsedInTarget(gp.Name.Name) {
+				continue
+			}
 			return nil, false
 		}
 	}
@@ -244,6 +263,12 @@ func (i *Interpreter) compareMethodMatches(a, b implCandidate) int {
 	}
 	if a.score < b.score {
 		return -1
+	}
+	if a.entry != nil && b.entry != nil && a.entry.isBuiltin != b.entry.isBuiltin {
+		if a.entry.isBuiltin {
+			return -1
+		}
+		return 1
 	}
 	return 0
 }

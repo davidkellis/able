@@ -78,6 +78,8 @@ func buildInterfaceBundle() interfaceBundle {
 	var implementations []*ast.ImplementationDefinition
 	for _, typeName := range []string{"String", "i32", "bool", "char", "f64"} {
 		implementations = append(implementations, makeDisplayImpl(typeName))
+	}
+	for _, typeName := range []string{"String", "i32", "bool", "char", "f64"} {
 		implementations = append(implementations, makeCloneImpl(typeName))
 	}
 	implementations = append(implementations, makeErrorImpl())

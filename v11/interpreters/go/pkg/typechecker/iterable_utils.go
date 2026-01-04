@@ -8,9 +8,14 @@ func structName(t Type) (string, bool) {
 		return s.StructName, true
 	case ArrayType:
 		return "Array", true
+	case AliasType:
+		return structName(s.Target)
 	case AppliedType:
 		if base, ok := s.Base.(StructType); ok {
 			return base.StructName, true
+		}
+		if base, ok := s.Base.(AliasType); ok {
+			return structName(base.Target)
 		}
 	}
 	return "", false
