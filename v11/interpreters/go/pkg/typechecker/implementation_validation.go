@@ -36,6 +36,9 @@ func (c *Checker) validateImplementations() []Diagnostic {
 			expected := substituteFunctionType(ifaceMethod, subst)
 			actual, ok := spec.Methods[name]
 			if !ok {
+				if iface.DefaultMethods != nil && iface.DefaultMethods[name] {
+					continue
+				}
 				diags = append(diags, Diagnostic{
 					Message: fmt.Sprintf("typechecker: %s missing method '%s'", label, name),
 					Node:    implementationMethodNode(spec.Definition, name),

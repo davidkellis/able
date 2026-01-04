@@ -31,6 +31,11 @@ func (c *Checker) checkFunctionDefinition(env *Environment, def *ast.FunctionDef
 			return nil
 		}
 	}
+	if def.ID != nil && env != nil {
+		if _, exists := env.Lookup(def.ID.Name); !exists {
+			env.Define(def.ID.Name, c.localFunctionSignature(def))
+		}
+	}
 	c.pushFunctionGenericContext(def)
 	defer c.popFunctionGenericContext()
 
@@ -135,6 +140,32 @@ func (c *Checker) checkFunctionDefinition(env *Environment, def *ast.FunctionDef
 	}
 
 	return diags
+}
+
+func (c *Checker) localFunctionSignature(def *ast.FunctionDefinition) FunctionType {
+	if def == nil {
+		return FunctionType{}
+	}
+	paramTypes := make([]Type, len(def.Params))
+	for idx, param := range def.Params {
+		if param == nil {
+			paramTypes[idx] = UnknownType{}
+			continue
+		}
+		if param.ParamType != nil {
+			paramTypes[idx] = c.resolveTypeReference(param.ParamType)
+		} else {
+			paramTypes[idx] = UnknownType{}
+		}
+	}
+	if def.IsMethodShorthand {
+		paramTypes = append([]Type{UnknownType{}}, paramTypes...)
+	}
+	returnType := Type(UnknownType{})
+	if def.ReturnType != nil {
+		returnType = c.resolveTypeReference(def.ReturnType)
+	}
+	return FunctionType{Params: paramTypes, Return: returnType}
 }
 
 func (c *Checker) pushFunctionGenericContext(def *ast.FunctionDefinition) {

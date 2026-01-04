@@ -205,7 +205,7 @@ func (i *Interpreter) evaluateRaiseStatement(stmt *ast.RaiseStatement, env *runt
 	if err != nil {
 		return nil, err
 	}
-	errVal := makeErrorValue(val)
+	errVal := i.makeErrorValue(val, env)
 	return nil, raiseSignal{value: errVal}
 }
 

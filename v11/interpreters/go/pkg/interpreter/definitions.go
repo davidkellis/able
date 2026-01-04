@@ -305,6 +305,7 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 				genericParams: mergedGenerics,
 				whereClause:   canonicalDef.WhereClause,
 				defaultOnly:   !hasExplicit,
+				isBuiltin:     isBuiltin,
 			}
 			if len(unionSignatures) > 0 {
 				entry.unionVariants = append([]string(nil), unionSignatures...)

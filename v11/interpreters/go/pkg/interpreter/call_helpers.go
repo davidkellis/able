@@ -132,12 +132,51 @@ func isNullableParam(param *ast.FunctionParameter) bool {
 }
 
 func paramUsesGeneric(typeExpr ast.TypeExpression, generics map[string]struct{}) bool {
-	simple, ok := typeExpr.(*ast.SimpleTypeExpression)
-	if !ok || simple == nil || simple.Name == nil {
+	return typeExprUsesGeneric(typeExpr, generics)
+}
+
+func typeExprUsesGeneric(typeExpr ast.TypeExpression, generics map[string]struct{}) bool {
+	if typeExpr == nil || len(generics) == 0 {
 		return false
 	}
-	_, ok = generics[simple.Name.Name]
-	return ok
+	switch t := typeExpr.(type) {
+	case *ast.SimpleTypeExpression:
+		if t == nil || t.Name == nil {
+			return false
+		}
+		_, ok := generics[t.Name.Name]
+		return ok
+	case *ast.GenericTypeExpression:
+		if typeExprUsesGeneric(t.Base, generics) {
+			return true
+		}
+		for _, arg := range t.Arguments {
+			if typeExprUsesGeneric(arg, generics) {
+				return true
+			}
+		}
+		return false
+	case *ast.NullableTypeExpression:
+		return typeExprUsesGeneric(t.InnerType, generics)
+	case *ast.ResultTypeExpression:
+		return typeExprUsesGeneric(t.InnerType, generics)
+	case *ast.UnionTypeExpression:
+		for _, member := range t.Members {
+			if typeExprUsesGeneric(member, generics) {
+				return true
+			}
+		}
+		return false
+	case *ast.FunctionTypeExpression:
+		for _, param := range t.ParamTypes {
+			if typeExprUsesGeneric(param, generics) {
+				return true
+			}
+		}
+		return typeExprUsesGeneric(t.ReturnType, generics)
+	default:
+		return false
+	}
 }
 
 func describeRuntimeValue(val runtime.Value) string {

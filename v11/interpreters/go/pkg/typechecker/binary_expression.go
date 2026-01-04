@@ -245,6 +245,9 @@ func resolveNumericBinaryType(left, right Type) (Type, string) {
 	if isUnknownType(left) || isUnknownType(right) {
 		return UnknownType{}, ""
 	}
+	if isTypeParameter(left) || isTypeParameter(right) {
+		return UnknownType{}, ""
+	}
 	if isRatioType(left) || isRatioType(right) {
 		if !isNumericType(left) || !isNumericType(right) {
 			return UnknownType{}, fmt.Sprintf("requires numeric operands, got %s and %s", typeName(left), typeName(right))
@@ -265,6 +268,9 @@ func resolveNumericBinaryType(left, right Type) (Type, string) {
 
 func resolveDivisionBinaryType(left, right Type) (Type, string) {
 	if isUnknownType(left) || isUnknownType(right) {
+		return UnknownType{}, ""
+	}
+	if isTypeParameter(left) || isTypeParameter(right) {
 		return UnknownType{}, ""
 	}
 	if isRatioType(left) || isRatioType(right) {
@@ -298,6 +304,9 @@ func resolveFloatBinaryType(left, right Type) (Type, string) {
 
 func resolveIntegerBinaryType(left, right Type) (Type, string) {
 	if isUnknownType(left) || isUnknownType(right) {
+		return UnknownType{}, ""
+	}
+	if isTypeParameter(left) || isTypeParameter(right) {
 		return UnknownType{}, ""
 	}
 	leftSuffix, ok := integerSuffixForType(left)

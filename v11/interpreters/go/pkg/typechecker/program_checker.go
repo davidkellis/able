@@ -506,6 +506,8 @@ func (pc *ProgramChecker) buildPrelude(imports []*ast.ImportStatement, currentPa
 		alias := pkgName
 		if imp.Alias != nil && imp.Alias.Name != "" {
 			alias = imp.Alias.Name
+		} else if tail := lastImportSegment(imp.PackagePath); tail != "" {
+			alias = tail
 		}
 		pkgType := PackageType{
 			Package: pkgName,

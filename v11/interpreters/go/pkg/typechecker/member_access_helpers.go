@@ -104,6 +104,18 @@ func (c *Checker) lookupMethodInMethodSets(object Type, name string, allowMethod
 		if !ok {
 			continue
 		}
+		if spec.TypeQualified != nil && spec.TypeQualified[name] && len(substitution) > 0 {
+			for _, param := range spec.TypeParams {
+				if param.Name == "" {
+					continue
+				}
+				if val, exists := substitution[param.Name]; exists {
+					if val == nil || isUnknownType(val) {
+						delete(substitution, param.Name)
+					}
+				}
+			}
+		}
 		if len(substitution) > 0 {
 			method = substituteFunctionType(method, substitution)
 		}
@@ -801,6 +813,8 @@ func structInfoFromType(t Type) (structInfo, bool) {
 		}
 	case ArrayType:
 		return structInfo{name: "Array", args: []Type{v.Element}}, true
+	case AliasType:
+		return structInfoFromType(v.Target)
 	}
 	return structInfo{}, false
 }

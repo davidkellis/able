@@ -274,6 +274,17 @@ func (i *Interpreter) findMethod(info typeInfo, methodName string, interfaceFilt
 	if len(methodMatches) == 0 {
 		return nil, err
 	}
+	if len(methodMatches) > 1 {
+		explicit := make([]methodMatch, 0, len(methodMatches))
+		for _, match := range methodMatches {
+			if implDefinesMethod(match.candidate.entry, methodName) {
+				explicit = append(explicit, match)
+			}
+		}
+		if len(explicit) > 0 {
+			methodMatches = explicit
+		}
+	}
 	best, ambiguous := i.selectBestMethodCandidate(methodMatches)
 	if ambiguous != nil {
 		detail := descriptionsFromMethodMatches(ambiguous)
@@ -299,6 +310,21 @@ func (i *Interpreter) findMethod(info typeInfo, methodName string, interfaceFilt
 		}
 	}
 	return best.method, nil
+}
+
+func implDefinesMethod(entry *implEntry, methodName string) bool {
+	if entry == nil || entry.definition == nil || methodName == "" {
+		return false
+	}
+	for _, fn := range entry.definition.Definitions {
+		if fn == nil || fn.ID == nil {
+			continue
+		}
+		if fn.ID.Name == methodName {
+			return true
+		}
+	}
+	return false
 }
 
 func (i *Interpreter) interfaceSearchNames(interfaceName string, visited map[string]struct{}) []string {
@@ -512,21 +538,6 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 				}
 				return false
 			}
-			if _, ok := i.interfaces[name]; ok {
-				switch v := value.(type) {
-				case *runtime.InterfaceValue:
-					return i.interfaceMatches(v, name)
-				case runtime.InterfaceValue:
-					return i.interfaceMatches(&v, name)
-				default:
-					info, ok := i.getTypeInfoForValue(value)
-					if !ok {
-						return false
-					}
-					okImpl, err := i.typeImplementsInterface(info, name, make(map[string]struct{}))
-					return err == nil && okImpl
-				}
-			}
 			if defVal, ok := value.(*runtime.StructDefinitionValue); ok && isSingletonStructDef(defVal.Node) {
 				if defVal.Node != nil && defVal.Node.ID != nil {
 					if defVal.Node.ID.Name == name {
@@ -546,6 +557,21 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 					if structVal.Definition.Node.ID.Name == name {
 						return true
 					}
+				}
+			}
+			if _, ok := i.interfaces[name]; ok {
+				switch v := value.(type) {
+				case *runtime.InterfaceValue:
+					return i.interfaceMatches(v, name)
+				case runtime.InterfaceValue:
+					return i.interfaceMatches(&v, name)
+				default:
+					info, ok := i.getTypeInfoForValue(value)
+					if !ok {
+						return false
+					}
+					okImpl, err := i.typeImplementsInterface(info, name, make(map[string]struct{}))
+					return err == nil && okImpl
 				}
 			}
 			if i.isKnownTypeName(name) {
@@ -831,7 +857,25 @@ func (i *Interpreter) coerceValueToType(typeExpr ast.TypeExpression, value runti
 	switch t := typeExpr.(type) {
 	case *ast.SimpleTypeExpression:
 		if t.Name != nil {
-			name := t.Name.Name
+			name := normalizeKernelAliasName(t.Name.Name)
+			if errVal, ok := asErrorValue(value); ok {
+				if errVal.Payload != nil {
+					if payload, ok := errVal.Payload["value"]; ok && payload != nil {
+						if structVal, ok := payload.(*runtime.StructInstanceValue); ok {
+							if structVal.Definition != nil && structVal.Definition.Node != nil && structVal.Definition.Node.ID != nil {
+								if structVal.Definition.Node.ID.Name == name {
+									return payload, nil
+								}
+							}
+						}
+						if defVal, ok := payload.(*runtime.StructDefinitionValue); ok && isSingletonStructDef(defVal.Node) {
+							if defVal.Node != nil && defVal.Node.ID != nil && defVal.Node.ID.Name == name {
+								return payload, nil
+							}
+						}
+					}
+				}
+			}
 			targetKind := runtime.IntegerType(name)
 			if _, err := getIntegerInfo(targetKind); err == nil {
 				switch val := value.(type) {
@@ -876,6 +920,18 @@ func (i *Interpreter) coerceValueToType(typeExpr ast.TypeExpression, value runti
 					return value, nil
 				}
 			}
+			if structVal, ok := value.(*runtime.StructInstanceValue); ok {
+				if structVal.Definition != nil && structVal.Definition.Node != nil && structVal.Definition.Node.ID != nil {
+					if structVal.Definition.Node.ID.Name == name {
+						return value, nil
+					}
+				}
+			}
+			if defVal, ok := value.(*runtime.StructDefinitionValue); ok && isSingletonStructDef(defVal.Node) {
+				if defVal.Node != nil && defVal.Node.ID != nil && defVal.Node.ID.Name == name {
+					return value, nil
+				}
+			}
 			if _, ok := i.interfaces[name]; ok {
 				return i.coerceToInterfaceValue(name, value)
 			}
@@ -889,9 +945,6 @@ func (i *Interpreter) castValueToType(typeExpr ast.TypeExpression, value runtime
 		if expanded := expandTypeAliases(typeExpr, i.typeAliases, nil); expanded != nil {
 			typeExpr = expanded
 		}
-	}
-	if i.matchesType(typeExpr, value) {
-		return value, nil
 	}
 	rawValue := value
 	switch v := value.(type) {
@@ -908,6 +961,24 @@ func (i *Interpreter) castValueToType(typeExpr ast.TypeExpression, value runtime
 			break
 		}
 		name := normalizeKernelAliasName(t.Name.Name)
+		if errVal, ok := asErrorValue(value); ok {
+			if errVal.Payload != nil {
+				if payload, ok := errVal.Payload["value"]; ok && payload != nil {
+					if structVal, ok := payload.(*runtime.StructInstanceValue); ok {
+						if structVal.Definition != nil && structVal.Definition.Node != nil && structVal.Definition.Node.ID != nil {
+							if structVal.Definition.Node.ID.Name == name {
+								return payload, nil
+							}
+						}
+					}
+					if defVal, ok := payload.(*runtime.StructDefinitionValue); ok && isSingletonStructDef(defVal.Node) {
+						if defVal.Node != nil && defVal.Node.ID != nil && defVal.Node.ID.Name == name {
+							return payload, nil
+						}
+					}
+				}
+			}
+		}
 		targetKind := runtime.IntegerType(name)
 		if info, err := getIntegerInfo(targetKind); err == nil {
 			switch val := rawValue.(type) {
@@ -982,6 +1053,9 @@ func (i *Interpreter) castValueToType(typeExpr ast.TypeExpression, value runtime
 		if _, ok := i.interfaces[name]; ok {
 			return i.coerceToInterfaceValue(name, value)
 		}
+	}
+	if i.matchesType(typeExpr, value) {
+		return value, nil
 	}
 	typeDesc := "<unknown>"
 	if info, ok := i.getTypeInfoForValue(rawValue); ok {

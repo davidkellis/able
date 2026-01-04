@@ -177,6 +177,14 @@ func (c *Checker) applyImports(env *Environment, imports []*ast.ImportStatement)
 			env.Define(imp.Alias.Name, placeholder)
 			continue
 		}
+		if !imp.IsWildcard && len(imp.Selectors) == 0 {
+			if alias := lastImportSegment(imp.PackagePath); alias != "" {
+				if _, exists := env.Lookup(alias); !exists {
+					env.Define(alias, placeholder)
+				}
+			}
+			continue
+		}
 		for _, sel := range imp.Selectors {
 			if sel == nil {
 				continue
@@ -196,6 +204,18 @@ func (c *Checker) applyImports(env *Environment, imports []*ast.ImportStatement)
 			}
 		}
 	}
+}
+
+func lastImportSegment(parts []*ast.Identifier) string {
+	if len(parts) == 0 {
+		return ""
+	}
+	for i := len(parts) - 1; i >= 0; i-- {
+		if parts[i] != nil && parts[i].Name != "" {
+			return parts[i].Name
+		}
+	}
+	return ""
 }
 
 func (c *Checker) addDiagnostic(diag Diagnostic) {

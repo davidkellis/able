@@ -50,6 +50,7 @@ type GenericParamSpec struct {
 	Name            string
 	Constraints     []Type
 	ConstraintNodes []ast.TypeExpression
+	IsInferred      bool
 }
 
 // WhereConstraintSpec records a where-clause constraint (e.g. `where T: Display`).
@@ -83,6 +84,7 @@ type InterfaceType struct {
 	TypeParams      []GenericParamSpec
 	Where           []WhereConstraintSpec
 	Methods         map[string]FunctionType
+	DefaultMethods  map[string]bool
 	SelfTypePattern ast.TypeExpression
 }
 
@@ -177,6 +179,7 @@ type ImplementationSpec struct {
 	Where         []WhereConstraintSpec
 	Obligations   []ConstraintObligation
 	UnionVariants []string
+	IsBuiltin     bool
 	Definition    *ast.ImplementationDefinition
 }
 
