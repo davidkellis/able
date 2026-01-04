@@ -45,7 +45,7 @@ methods BitSet {
   fn ensure_capacity(self: Self, bit: i32) -> void {
     idx := word_index(bit)
     while idx >= self.words.len() {
-      self.words.push(0)
+      self.words.push(0_u64)
     }
   }
 
@@ -84,7 +84,7 @@ methods BitSet {
   fn clear(self: Self) -> void {
     i := 0
     while i < self.words.len() {
-      self.words.write_slot(i, 0)
+      self.words.write_slot(i, 0_u64)
       i = i + 1
     }
   }

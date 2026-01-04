@@ -73,6 +73,13 @@ func (c *Checker) checkMemberAccessWithOptions(env *Environment, expr *ast.Membe
 		}
 	}
 
+	receiverScopeNames := receiverNamesForType(objectType)
+	if alias, ok := objectType.(AliasType); ok {
+		if target, _ := instantiateAlias(alias, nil); target != nil {
+			objectType = target
+		}
+	}
+
 	switch ty := objectType.(type) {
 	case StructType:
 		if positionalAccess {
@@ -458,12 +465,7 @@ func (c *Checker) checkMemberAccessWithOptions(env *Environment, expr *ast.Membe
 			candidates  []FunctionType
 			methodFound bool
 		)
-		allowMethodSets := false
-		if env != nil {
-			if _, ok := env.Lookup(memberName); ok {
-				allowMethodSets = true
-			}
-		}
+		allowMethodSets := allowMethodSetsForMember(env, memberName, receiverScopeNames)
 		if fnType, ok, detail := c.lookupMethod(objectType, memberName, allowMethodSets, false); ok {
 			candidates = append(candidates, fnType)
 			methodFound = true
@@ -636,12 +638,7 @@ func (c *Checker) checkMemberAccessWithOptions(env *Environment, expr *ast.Membe
 		}
 		var candidates []FunctionType
 		methodFound := false
-		allowMethodSets := false
-		if env != nil {
-			if _, ok := env.Lookup(memberName); ok {
-				allowMethodSets = true
-			}
-		}
+		allowMethodSets := allowMethodSetsForMember(env, memberName, receiverScopeNames)
 		if fnType, ok, detail := c.lookupMethod(objectType, memberName, allowMethodSets, false); ok {
 			candidates = append(candidates, fnType)
 			methodFound = true
@@ -676,4 +673,38 @@ func (c *Checker) checkMemberAccessWithOptions(env *Environment, expr *ast.Membe
 
 	c.infer.set(expr, UnknownType{})
 	return diags, UnknownType{}
+}
+
+func receiverNamesForType(t Type) []string {
+	var names []string
+	if alias, ok := t.(AliasType); ok && alias.AliasName != "" {
+		names = append(names, alias.AliasName)
+	}
+	if name, ok := structName(t); ok && name != "" {
+		for _, existing := range names {
+			if existing == name {
+				return names
+			}
+		}
+		names = append(names, name)
+	}
+	return names
+}
+
+func allowMethodSetsForMember(env *Environment, memberName string, receiverNames []string) bool {
+	if env == nil {
+		return false
+	}
+	if _, ok := env.Lookup(memberName); ok {
+		return true
+	}
+	for _, name := range receiverNames {
+		if name == "" {
+			continue
+		}
+		if _, ok := env.Lookup(name); ok {
+			return true
+		}
+	}
+	return false
 }

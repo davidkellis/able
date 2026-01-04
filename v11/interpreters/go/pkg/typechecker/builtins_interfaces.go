@@ -77,6 +77,7 @@ func (c *Checker) initBuiltinInterfaces() {
 		{"Ord", PrimitiveType{Kind: PrimitiveString}},
 		{"Error", StructType{StructName: "ProcError"}},
 	} {
+		interfaceArgs := []Type{entry.typ}
 		methods := map[string]FunctionType{}
 		switch entry.iface {
 		case "Ord":
@@ -107,7 +108,9 @@ func (c *Checker) initBuiltinInterfaces() {
 		impls = append(impls, ImplementationSpec{
 			InterfaceName: entry.iface,
 			Target:        entry.typ,
+			InterfaceArgs: interfaceArgs,
 			Methods:       methods,
+			IsBuiltin:     true,
 		})
 	}
 	c.builtinImplementations = impls

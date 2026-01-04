@@ -21,6 +21,7 @@ var primitiveTypeNameSet = map[string]struct{}{
 	"f32":    {},
 	"f64":    {},
 	"bool":   {},
+	"string": {},
 	"String": {},
 	"char":   {},
 	"nil":    {},
@@ -167,7 +168,7 @@ func isTrivialSelfPattern(pattern ast.TypeExpression) bool {
 }
 
 func (c *declarationCollector) isPatternPlaceholderName(name string, interfaceGenericNames map[string]struct{}) bool {
-	if name == "" || name == "Self" {
+	if name == "" || name == "Self" || name == "_" {
 		return false
 	}
 	if interfaceGenericNames != nil {

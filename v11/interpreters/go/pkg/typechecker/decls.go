@@ -38,6 +38,7 @@ func (c *Checker) collectDeclarations(module *ast.Module) []Diagnostic {
 	collector.env.Define("true", PrimitiveType{Kind: PrimitiveBool})
 	collector.env.Define("false", PrimitiveType{Kind: PrimitiveBool})
 
+	collector.predeclareTypeNames(module.Body)
 	for _, stmt := range module.Body {
 		collector.registerTypeDeclaration(stmt)
 	}
@@ -53,6 +54,36 @@ func (c *Checker) collectDeclarations(module *ast.Module) []Diagnostic {
 	c.publicDeclarations = collector.exports
 	c.duplicateFunctions = collector.duplicates
 	return collector.diags
+}
+
+func (c *declarationCollector) predeclareTypeNames(stmts []ast.Statement) {
+	if c == nil || c.env == nil {
+		return
+	}
+	for _, stmt := range stmts {
+		switch def := stmt.(type) {
+		case *ast.StructDefinition:
+			if def.ID == nil || def.ID.Name == "" || c.env.HasInCurrentScope(def.ID.Name) {
+				continue
+			}
+			c.env.Define(def.ID.Name, StructType{StructName: def.ID.Name})
+		case *ast.UnionDefinition:
+			if def.ID == nil || def.ID.Name == "" || c.env.HasInCurrentScope(def.ID.Name) {
+				continue
+			}
+			c.env.Define(def.ID.Name, UnionType{UnionName: def.ID.Name})
+		case *ast.InterfaceDefinition:
+			if def.ID == nil || def.ID.Name == "" || c.env.HasInCurrentScope(def.ID.Name) {
+				continue
+			}
+			c.env.Define(def.ID.Name, InterfaceType{InterfaceName: def.ID.Name})
+		case *ast.TypeAliasDefinition:
+			if def.ID == nil || def.ID.Name == "" || c.env.HasInCurrentScope(def.ID.Name) {
+				continue
+			}
+			c.env.Define(def.ID.Name, AliasType{AliasName: def.ID.Name})
+		}
+	}
 }
 
 func (c *declarationCollector) registerExternFunction(def *ast.ExternFunctionBody) {
@@ -125,6 +156,7 @@ func (c *declarationCollector) registerTypeDeclaration(stmt ast.Statement) {
 		}
 	case *ast.InterfaceDefinition:
 		if s.ID != nil {
+			c.ensureInterfaceGenericInference(s)
 			params, paramScope := c.convertGenericParams(s.GenericParams)
 			where := c.convertWhereClause(s.WhereClause, paramScope)
 			if paramScope == nil {
@@ -136,12 +168,13 @@ func (c *declarationCollector) registerTypeDeclaration(stmt ast.Statement) {
 			if _, exists := paramScope["Self"]; !exists {
 				paramScope["Self"] = TypeParameterType{ParameterName: "Self"}
 			}
-			methods := c.collectInterfaceMethods(s, paramScope)
+			methods, defaults := c.collectInterfaceMethods(s, paramScope)
 			ifaceType := InterfaceType{
 				InterfaceName:   s.ID.Name,
 				TypeParams:      params,
 				Where:           where,
 				Methods:         methods,
+				DefaultMethods:  defaults,
 				SelfTypePattern: s.SelfTypePattern,
 			}
 			c.declare(s.ID.Name, ifaceType, s)

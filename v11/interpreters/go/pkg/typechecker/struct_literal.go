@@ -170,7 +170,11 @@ func (c *Checker) checkStructLiteral(env *Environment, expr *ast.StructLiteral) 
 			seen[name] = struct{}{}
 		}
 
-		valueDiags, valueType := c.checkExpression(env, field.Value)
+		valueExpr := field.Value
+		if field.IsShorthand && valueExpr == nil && field.Name != nil {
+			valueExpr = field.Name
+		}
+		valueDiags, valueType := c.checkExpression(env, valueExpr)
 		diags = append(diags, valueDiags...)
 
 		expected := Type(UnknownType{})

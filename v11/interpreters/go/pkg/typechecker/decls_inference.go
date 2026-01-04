@@ -9,11 +9,13 @@ import (
 
 var reservedTypeNames = map[string]struct{}{
 	"bool":     {},
+	"string":   {},
 	"String":   {},
 	"char":     {},
 	"nil":      {},
 	"void":     {},
 	"Self":     {},
+	"_":        {},
 	"i8":       {},
 	"i16":      {},
 	"i32":      {},
@@ -201,6 +203,7 @@ func (c *declarationCollector) ensureImplementationGenericInference(def *ast.Imp
 		if param == nil || param.Name == nil {
 			continue
 		}
+		param.IsInferred = true
 		paramMap[param.Name.Name] = param
 	}
 	def.WhereClause = hoistWhereConstraints(def.WhereClause, paramMap)
@@ -212,6 +215,30 @@ func (c *declarationCollector) ensureMethodsGenericInference(def *ast.MethodsDef
 		return
 	}
 	occs := collectMethodsTypeOccurrences(def)
+	scope := map[string]Type{
+		"Self": TypeParameterType{ParameterName: "Self"},
+	}
+	inferred := c.selectInferredGenericParameters(occs, def.GenericParams, scope)
+	if len(inferred) == 0 {
+		return
+	}
+	paramMap := make(map[string]*ast.GenericParameter, len(inferred))
+	for _, param := range inferred {
+		if param == nil || param.Name == nil {
+			continue
+		}
+		paramMap[param.Name.Name] = param
+	}
+	def.WhereClause = hoistWhereConstraints(def.WhereClause, paramMap)
+	def.GenericParams = append(def.GenericParams, inferred...)
+}
+
+func (c *declarationCollector) ensureInterfaceGenericInference(def *ast.InterfaceDefinition) {
+	if def == nil || def.SelfTypePattern == nil {
+		return
+	}
+	var occs []typeIdentifierOccurrence
+	collectTypeExpressionOccurrences(def.SelfTypePattern, &occs)
 	scope := map[string]Type{
 		"Self": TypeParameterType{ParameterName: "Self"},
 	}

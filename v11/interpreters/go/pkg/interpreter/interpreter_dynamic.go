@@ -160,7 +160,7 @@ func (i *Interpreter) evaluateDynamicDefinition(pkgName, source string) runtime.
 	if evalErr != nil {
 		switch v := evalErr.(type) {
 		case raiseSignal:
-			return makeErrorValue(v.value)
+			return i.makeErrorValue(v.value, i.global)
 		default:
 			return runtime.ErrorValue{Message: fmt.Sprintf("dyn.def error: %s", evalErr.Error())}
 		}

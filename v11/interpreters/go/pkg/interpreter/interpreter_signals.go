@@ -3,6 +3,7 @@ package interpreter
 import (
 	"fmt"
 
+	"able/interpreter-go/pkg/ast"
 	"able/interpreter-go/pkg/runtime"
 )
 
@@ -48,13 +49,33 @@ func (r returnSignal) Error() string {
 	return "return"
 }
 
-func makeErrorValue(val runtime.Value) runtime.ErrorValue {
-	if errVal, ok := val.(runtime.ErrorValue); ok {
+func (i *Interpreter) makeErrorValue(val runtime.Value, env *runtime.Environment) runtime.ErrorValue {
+	if errVal, ok := asErrorValue(val); ok {
 		return errVal
 	}
 	message := valueToString(val)
 	payload := map[string]runtime.Value{
 		"value": val,
+	}
+	if i != nil {
+		if ifaceVal, err := i.coerceToInterfaceValue("Error", val); err == nil {
+			callEnv := env
+			if callEnv == nil {
+				callEnv = i.global
+			}
+			if member, err := i.memberAccessOnValue(ifaceVal, ast.NewIdentifier("message"), callEnv); err == nil {
+				if msgVal, err := i.callCallableValue(member, nil, callEnv, nil); err == nil {
+					if msgStr, ok := msgVal.(runtime.StringValue); ok {
+						message = msgStr.Val
+					}
+				}
+			}
+			if member, err := i.memberAccessOnValue(ifaceVal, ast.NewIdentifier("cause"), callEnv); err == nil {
+				if causeVal, err := i.callCallableValue(member, nil, callEnv, nil); err == nil && !isNilRuntimeValue(causeVal) {
+					payload["cause"] = causeVal
+				}
+			}
+		}
 	}
 	return runtime.ErrorValue{Message: message, Payload: payload}
 }

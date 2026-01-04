@@ -90,12 +90,25 @@ func (c *Checker) evaluateObligation(ob ConstraintObligation) []Diagnostic {
 		return diags
 	}
 	expectedParams := len(res.iface.TypeParams)
+	explicitParams := explicitInterfaceParamCount(res.iface)
 	providedArgs := len(res.args)
-	if expectedParams > 0 && providedArgs == 0 {
+	if explicitParams > 0 && providedArgs == 0 {
 		return []Diagnostic{{
-			Message: fmt.Sprintf("typechecker: %s constraint on %s%s requires %d type argument(s) for interface '%s'", ob.Owner, ob.TypeParam, contextLabel, expectedParams, res.iface.InterfaceName),
+			Message: fmt.Sprintf("typechecker: %s constraint on %s%s requires %d type argument(s) for interface '%s'", ob.Owner, ob.TypeParam, contextLabel, explicitParams, res.iface.InterfaceName),
 			Node:    ob.Node,
 		}}
+	}
+	if explicitParams == 0 && expectedParams == 1 && providedArgs == 0 {
+		arg := ob.Subject
+		if arg == nil || isUnknownType(arg) {
+			if ob.TypeParam != "" {
+				arg = TypeParameterType{ParameterName: ob.TypeParam}
+			} else {
+				arg = UnknownType{}
+			}
+		}
+		res.args = []Type{arg}
+		providedArgs = 1
 	}
 	if expectedParams != providedArgs && providedArgs != 0 {
 		return []Diagnostic{{
@@ -116,6 +129,41 @@ func (c *Checker) evaluateObligation(ob ConstraintObligation) []Diagnostic {
 		}}
 	}
 	return nil
+}
+
+func explicitInterfaceParamCount(iface InterfaceType) int {
+	if len(iface.TypeParams) == 0 {
+		return 0
+	}
+	count := 0
+	seenInferred := false
+	for _, param := range iface.TypeParams {
+		if param.IsInferred {
+			seenInferred = true
+		}
+		if param.Name == "" || param.IsInferred {
+			continue
+		}
+		count++
+	}
+	if seenInferred {
+		return count
+	}
+	selfNames := collectSelfPatternNames(iface.SelfTypePattern)
+	if len(selfNames) == 0 {
+		return len(iface.TypeParams)
+	}
+	count = 0
+	for _, param := range iface.TypeParams {
+		if param.Name == "" {
+			continue
+		}
+		if _, ok := selfNames[param.Name]; ok {
+			continue
+		}
+		count++
+	}
+	return count
 }
 
 func (c *Checker) resolveConstraintInterfaceType(t Type) interfaceResolution {
@@ -361,6 +409,9 @@ func interfaceArgsCompatible(actual []Type, expected []Type) bool {
 		if a == nil || isUnknownType(a) || b == nil || isUnknownType(b) {
 			continue
 		}
+		if isTypeParameter(a) || isTypeParameter(b) {
+			continue
+		}
 		if !typesEquivalentForSignature(a, b) {
 			return false
 		}
@@ -550,6 +601,28 @@ func formatImplementationCandidateLabel(spec ImplementationSpec, subject Type, s
 	return fmt.Sprintf("impl %s%s for %s", interfaceName, argSuffix, name)
 }
 
+func formatImplementationCandidateLabelForAmbiguity(spec ImplementationSpec, subject Type, subst map[string]Type) string {
+	target := spec.Target
+	if len(subst) > 0 {
+		target = substituteType(target, subst)
+	}
+	if (target == nil || isUnknownType(target)) && subject != nil && !isUnknownType(subject) {
+		target = subject
+	}
+	name := formatType(target)
+	if name == "" || name == "<unknown>" {
+		name = typeName(target)
+	}
+	if name == "" {
+		name = "<unknown>"
+	}
+	interfaceName := spec.InterfaceName
+	if interfaceName == "" {
+		interfaceName = "<unknown>"
+	}
+	return fmt.Sprintf("impl %s for %s", interfaceName, name)
+}
+
 func (c *Checker) selectMostSpecificImplementationMatch(matches []implementationMatch, iface InterfaceType, subject Type) (bool, string) {
 	best := matches[0]
 	contenders := []implementationMatch{best}
@@ -617,6 +690,12 @@ func compareImplementationMatches(a, b implementationMatch) int {
 	if a.specificity < b.specificity {
 		return -1
 	}
+	if a.spec.IsBuiltin != b.spec.IsBuiltin {
+		if a.spec.IsBuiltin {
+			return -1
+		}
+		return 1
+	}
 	return 0
 }
 
@@ -637,7 +716,7 @@ func formatAmbiguousImplementationDetail(iface InterfaceType, subject Type, matc
 	}
 	labels := make([]string, 0, len(matches))
 	for _, match := range matches {
-		label := formatImplementationCandidateLabel(match.spec, subject, match.substitution, match.actualArgs)
+		label := formatImplementationCandidateLabelForAmbiguity(match.spec, subject, match.substitution)
 		labels = append(labels, label)
 	}
 	unique := uniqueSortedStrings(labels)

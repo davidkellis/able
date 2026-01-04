@@ -27,8 +27,20 @@ func (i *Interpreter) memberAccessOnValue(obj runtime.Value, member ast.Expressi
 func (i *Interpreter) memberAccessOnValueWithOptions(obj runtime.Value, member ast.Expression, env *runtime.Environment, preferMethods bool) (runtime.Value, error) {
 	switch v := obj.(type) {
 	case *runtime.StructDefinitionValue:
+		if v != nil && isSingletonStructDef(v.Node) {
+			inst := &runtime.StructInstanceValue{Definition: v, Fields: map[string]runtime.Value{}}
+			if val, err := i.structInstanceMember(inst, member, env, preferMethods); err == nil {
+				return val, nil
+			}
+		}
 		return i.structDefinitionMember(v, member)
 	case runtime.StructDefinitionValue:
+		if isSingletonStructDef(v.Node) {
+			inst := &runtime.StructInstanceValue{Definition: &v, Fields: map[string]runtime.Value{}}
+			if val, err := i.structInstanceMember(inst, member, env, preferMethods); err == nil {
+				return val, nil
+			}
+		}
 		return i.structDefinitionMember(&v, member)
 	case runtime.PackageValue:
 		return i.packageMemberAccess(v, member)
@@ -504,7 +516,7 @@ func (i *Interpreter) resolveMethodFromPool(env *runtime.Environment, funcName s
 			for _, name := range i.canonicalTypeNames(info.name) {
 				if bucket, ok := i.inherentMethods[name]; ok {
 					if method := bucket[funcName]; method != nil {
-						if callable, ok := i.selectUfcsCallable(method, receiver, true, scopeSet); ok {
+						if callable, ok := i.selectUfcsCallable(method, receiver, true, nil); ok {
 							if err := addCallable(callable, name); err != nil {
 								return nil, err
 							}
@@ -515,8 +527,10 @@ func (i *Interpreter) resolveMethodFromPool(env *runtime.Environment, funcName s
 		}
 		existing := len(functionCandidates) + len(nativeCandidates)
 		if method, err := i.findMethod(info, funcName, ifaceFilter); err == nil && method != nil {
-			if err := addCallable(method, info.name); err != nil {
-				return nil, err
+			if callable, ok := i.selectUfcsCallable(method, receiver, true, nil); ok {
+				if err := addCallable(callable, info.name); err != nil {
+					return nil, err
+				}
 			}
 		} else if err != nil {
 			if existing == 0 {
@@ -615,6 +629,9 @@ func (i *Interpreter) selectUfcsCallable(method runtime.Value, receiver runtime.
 			if !requireSelf && fn.TypeQualified {
 				return nil, false
 			}
+			if !i.methodTargetMatchesReceiver(fn, receiver) {
+				return nil, false
+			}
 			return fn, true
 		}
 		return nil, false
@@ -636,6 +653,9 @@ func (i *Interpreter) selectUfcsCallable(method runtime.Value, receiver runtime.
 				continue
 			}
 			if !i.functionFirstParamMatches(entry, receiver) {
+				continue
+			}
+			if !i.methodTargetMatchesReceiver(entry, receiver) {
 				continue
 			}
 			filtered = append(filtered, entry)
