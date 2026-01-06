@@ -66,7 +66,7 @@ describe("typechecker iterator annotations", () => {
 
     const result = checker.checkModule(module);
     expect(result.diagnostics).toHaveLength(1);
-    expect(result.diagnostics[0]?.message).toContain("for-loop iterable must be array, range, String, or iterator");
+    expect(result.diagnostics[0]?.message).toContain("for-loop iterable must implement Iterable");
   });
 
   test("reports diagnostic when array literal element type conflicts with typed pattern", () => {

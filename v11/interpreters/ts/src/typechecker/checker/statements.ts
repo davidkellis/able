@@ -146,10 +146,10 @@ function checkRethrowStatement(ctx: StatementContext, node: AST.RethrowStatement
 function checkForLoop(ctx: StatementContext, loop: AST.ForLoop): void {
   if (!loop) return;
   const iterableType = ctx.inferExpression(loop.iterable);
-  const { elementType, recognized } = resolveIterableElementType(iterableType);
+  const { elementType, recognized } = resolveIterableElementType(ctx, iterableType);
   if (!recognized && !isUnknown(iterableType)) {
     ctx.report(
-      `typechecker: for-loop iterable must be array, range, String, or iterator (got ${formatType(iterableType)})`,
+      `typechecker: for-loop iterable must implement Iterable (got ${formatType(iterableType)})`,
       loop.iterable,
     );
   }
@@ -181,7 +181,10 @@ function checkWhileLoop(ctx: StatementContext, loop: AST.WhileLoop): void {
   }
 }
 
-function resolveIterableElementType(type: TypeInfo): { elementType: TypeInfo; recognized: boolean } {
+function resolveIterableElementType(
+  ctx: StatementContext,
+  type: TypeInfo,
+): { elementType: TypeInfo; recognized: boolean } {
   if (!type || type.kind === "unknown") {
     return { elementType: unknownType, recognized: true };
   }
@@ -215,7 +218,8 @@ function resolveIterableElementType(type: TypeInfo): { elementType: TypeInfo; re
       type.name === "Vector" ||
       type.name === "HashSet" ||
       type.name === "Deque" ||
-      type.name === "Queue")
+      type.name === "Queue" ||
+      type.name === "Channel")
   ) {
     const candidate =
       Array.isArray(type.typeArguments) && type.typeArguments.length > 0 ? type.typeArguments[0]! : unknownType;
@@ -230,6 +234,12 @@ function resolveIterableElementType(type: TypeInfo): { elementType: TypeInfo; re
   if (type.kind === "interface" && type.name === "Iterable") {
     const candidate = Array.isArray(type.typeArguments) && type.typeArguments.length > 0 ? type.typeArguments[0]! : null;
     return { elementType: candidate ?? unknownType, recognized: true };
+  }
+  if (ctx.typeImplementsInterface?.(type, "Iterable", ["Unknown"])?.ok) {
+    if (type.kind === "struct" && Array.isArray(type.typeArguments) && type.typeArguments.length > 0) {
+      return { elementType: type.typeArguments[0] ?? unknownType, recognized: true };
+    }
+    return { elementType: unknownType, recognized: true };
   }
   return { elementType: unknownType, recognized: false };
 }

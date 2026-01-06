@@ -186,6 +186,12 @@ function patternAcceptsType(ctx: ExpressionContext, expected: TypeInfo, actual: 
     return actual.members.some((member) => patternAcceptsType(ctx, expected, member));
   }
   if (actual.kind === "result") {
+    if (expected.kind === "interface" && expected.name === "Error") {
+      return true;
+    }
+    if (ctx.typeImplementsInterface?.(expected, "Error")?.ok) {
+      return true;
+    }
     const members: TypeInfo[] = [];
     members.push({
       kind: "interface",

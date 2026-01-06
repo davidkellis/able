@@ -13,7 +13,7 @@ impl Clone for BadKey {
   fn clone(self: Self) -> BadKey { BadKey { label: self.label } }
 }
 
-impl Eq BadKey for BadKey {
+impl Eq for BadKey {
   fn eq(self: Self, other: BadKey) -> bool { self.label == other.label }
 }
 

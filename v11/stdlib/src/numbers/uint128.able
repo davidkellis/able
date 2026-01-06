@@ -210,7 +210,7 @@ impl Display for UInt128 {
   fn to_string(self: Self) -> String { self.to_string() }
 }
 
-impl Eq UInt128 for UInt128 {
+impl Eq for UInt128 {
   fn eq(self: Self, other: UInt128) -> bool {
     self.high == other.high && self.low == other.low
   }
