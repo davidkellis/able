@@ -124,6 +124,12 @@ func (c *declarationCollector) collectImplementationDefinition(def *ast.Implemen
 			}
 		}
 	}
+	if interfaceName != "" && len(def.InterfaceArgs) == 0 && explicitParams == 0 {
+		inferred := c.inferInterfaceArgsFromSelfPattern(ifaceType, def.TargetType, scope)
+		if len(inferred) > 0 {
+			interfaceArgs = inferred
+		}
+	}
 
 	implGenericNames := collectGenericParamNameSet(params)
 	if ifaceType.InterfaceName != "" {
@@ -175,6 +181,37 @@ func (c *declarationCollector) collectImplementationDefinition(def *ast.Implemen
 	}
 
 	return spec, diags
+}
+
+func (c *declarationCollector) inferInterfaceArgsFromSelfPattern(
+	iface InterfaceType,
+	target ast.TypeExpression,
+	scope map[string]Type,
+) []Type {
+	if iface.SelfTypePattern == nil || target == nil || len(iface.TypeParams) == 0 {
+		return nil
+	}
+	if isTrivialSelfPattern(iface.SelfTypePattern) {
+		return nil
+	}
+	interfaceGenerics := collectGenericParamNameSet(iface.TypeParams)
+	bindings := make(map[string]ast.TypeExpression)
+	if !c.matchSelfTypePattern(iface.SelfTypePattern, target, interfaceGenerics, bindings) {
+		return nil
+	}
+	args := make([]Type, len(iface.TypeParams))
+	for idx, param := range iface.TypeParams {
+		if param.Name == "" {
+			args[idx] = UnknownType{}
+			continue
+		}
+		if bound, ok := bindings[param.Name]; ok {
+			args[idx] = c.resolveTypeExpression(bound, scope)
+		} else {
+			args[idx] = UnknownType{}
+		}
+	}
+	return args
 }
 
 func (c *declarationCollector) interfaceExplicitParamCount(name string, iface InterfaceType) int {

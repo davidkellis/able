@@ -449,10 +449,14 @@ function resolveMemberAccessCandidates(
   if (fieldResolution?.callable) {
     return { candidates: [fieldResolution.callable] };
   }
+  const methodCandidates = collectUnifiedMemberCandidates(ctx, receiver, memberName);
+  if (methodCandidates.length > 0) {
+    return { candidates: methodCandidates };
+  }
   if (fieldResolution?.nonCallable) {
     return { candidates: [], fieldError: `field '${memberName}' is not callable` };
   }
-  return { candidates: collectUnifiedMemberCandidates(ctx, receiver, memberName) };
+  return { candidates: [] };
 }
 
 function buildReceiverLookup(
