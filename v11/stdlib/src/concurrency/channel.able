@@ -35,17 +35,35 @@ impl Error for ChannelTimeout {
   fn cause(self: Self) -> ?Error { nil }
 }
 
+private fn channel_each<T>(channel: Channel T, visit: T -> void) -> void {
+  loop {
+    received := channel.receive()
+    if received == nil { break }
+    visit(received)
+  }
+}
+
+private fn channel_iterator<T>(channel: Channel T) -> (Iterator T) {
+  ChannelIterator { channel: channel }
+}
+
 methods Channel T {
   fn each(self: Self, visit: T -> void) -> void {
-    loop {
-      received := self.receive()
-      if received == nil { break }
-      visit(received)
-    }
+    channel_each(self, visit)
   }
 
   fn iterator(self: Self) -> (Iterator T) {
-    ChannelIterator { channel: self }
+    channel_iterator(self)
+  }
+}
+
+impl Iterable T for Channel T {
+  fn each(self: Self, visit: T -> void) -> void {
+    channel_each(self, visit)
+  }
+
+  fn iterator(self: Self) -> (Iterator T) {
+    channel_iterator(self)
   }
 }
 

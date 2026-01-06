@@ -422,6 +422,19 @@ export function createTypeResolutionHelpers(context: TypeResolutionContext): Typ
     if (normalizedActual.kind === "nullable") {
       return isTypeAssignable(normalizedActual.inner, normalizedExpected);
     }
+    if (normalizedActual.kind === "function" && normalizedExpected.kind === "function") {
+      const actualParams = Array.isArray(normalizedActual.parameters) ? normalizedActual.parameters : [];
+      const expectedParams = Array.isArray(normalizedExpected.parameters) ? normalizedExpected.parameters : [];
+      if (actualParams.length !== expectedParams.length) {
+        return false;
+      }
+      for (let index = 0; index < expectedParams.length; index += 1) {
+        if (!isTypeAssignable(actualParams[index], expectedParams[index])) {
+          return false;
+        }
+      }
+      return isTypeAssignable(normalizedActual.returnType, normalizedExpected.returnType);
+    }
     if (normalizedActual.kind === "struct" && normalizedExpected.kind === "struct") {
       if (normalizedActual.name !== normalizedExpected.name) {
         return false;

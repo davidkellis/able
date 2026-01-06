@@ -475,13 +475,17 @@ export class TypeChecker {
   private checkFunctionDefinition(definition: AST.FunctionDefinition): void {
     if (!definition) return;
     const name = definition.id?.name ?? "<anonymous>";
-    const info = this.getFunctionInfos(name)[0];
     const paramTypes = Array.isArray(definition.params)
       ? definition.params.map((param) => this.resolveTypeExpression(param?.paramType))
       : [];
-    const expectedReturn =
-      (info?.returnType && info.returnType.kind !== "unknown" && info.returnType) ||
-      this.resolveTypeExpression(definition.returnType);
+    const expectedReturn = this.resolveTypeExpression(definition.returnType);
+    if (definition.id?.name) {
+      this.env.define(definition.id.name, {
+        kind: "function",
+        parameters: paramTypes,
+        returnType: expectedReturn ?? unknownType,
+      });
+    }
     this.pushReturnType(expectedReturn ?? unknownType);
     this.pushFunctionGenericContext(definition);
     this.env.pushScope();
