@@ -44,4 +44,24 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 
 ## TODO (working queue: tackle in order, move completed items to LOG.md)
 
-- (none queued; add new items here as work is scheduled)
+- Implement cooperative suspension for blocking host operations in the TS interpreter.
+  - Audit native function invocation and proc scheduler flow to choose suspension hook points.
+  - Define a suspended-call protocol (value shape, resume callback, error mapping, cancellation interaction).
+  - Update the scheduler/continuations so a suspended call blocks only the current task and others keep progressing.
+  - Run top-level evaluation (including `main`) as an implicit task so entrypoint IO can suspend without stalling other procs.
+  - Add TS unit tests proving a suspended call yields and resumes correctly.
+- Extend the TS host execution engine to accept async extern bodies (Promise/async completion) and resume suspended tasks with correct error mapping.
+- Implement spec-correct extern host execution across Go and TS.
+  - Generate per-package host modules with concatenated preludes and extern bodies.
+  - Inject `host_error` plus `IoHandle`/`ProcHandle` aliases in the host prologue.
+  - Go: compile plugin (`go build -buildmode=plugin`), cache artifacts, load via `plugin.Open`.
+  - TS: emit `.ts` modules and `import()` them in Bun with caching.
+  - Keep kernel bridges native; error on empty non-kernel extern bodies.
+  - Remove per-function extern handler maps and route non-empty externs through the host engine; error when extern support is unavailable.
+- Define and implement stdlib IO/FS/OS/process/term APIs (IoHandle, ProcHandle, IOError, TermSize) with externs declared in stdlib and Able-level helpers.
+  - Add Able types + helpers (buffered IO, text reader, read_line, term line editor).
+  - Implement Go extern bodies using `*os.File`/`*exec.Cmd` and map errors to `IOError`.
+  - Implement TS extern bodies using async Bun/Node APIs and the suspension bridge so IO/proc waits only block the calling task.
+- Implement dynamic eval API (`dyn.Package.eval` / `dyn.eval`) with `ParseError.is_incomplete` to support module-every-time REPL evaluation.
+- Build `able.repl` module (line editor, commands `:help`/`:quit`, auto-print non-void results) and add `able repl` CLI subcommand.
+- Add fixtures/tests for blocking IO concurrency semantics and run `bun run scripts/run-fixtures.ts` plus `go test ./pkg/interpreter`.

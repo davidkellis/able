@@ -368,6 +368,24 @@ Type constraints restrict the types that can be used for a generic type paramete
 >
 > Able exposes exactly one textual type: `String`. String literals evaluate to `String` directly, and the standard library methods described in §6.12.1 live on that same type. Naming follows a simple rule: lowercase is reserved for scalar primitives (`bool`, numeric widths, `char`, `nil`, `void`); every other built-in/nominal type uses PascalCase (`String`, `Array`, `Result`, `Error`, `Range`, etc.). Older material may show lowercase `string`; treat it only as a historical alias for `String`.
 
+#### 4.2.1. Opaque Host Handles
+
+Able includes opaque host-handle primitives used by the IO/OS/process stdlib:
+`IoHandle` and `ProcHandle`. These values wrap host runtime objects (file
+handles, processes, sockets, etc.) and are **not** inspectable from Able code.
+They are only constructible by host externs or stdlib helpers and are distinct
+from the concurrency `Proc` handle in §12 (which represents an Able async task).
+
+Semantics:
+- Equality/inequality use **identity** (two handles are equal iff they wrap the
+  same host object).
+- Hashing uses an identity hash suitable for hash maps/sets.
+- Display produces a placeholder string (e.g., `<IoHandle>`); no internal
+  details are exposed.
+- Ordering comparisons (`<`, `>`, `<=`, `>=`) are invalid and raise.
+- Handles are not serializable.
+- `Clone` returns the same handle; `Default` is not provided.
+
 ### 4.3. Type Expression Syntax Details
 
 *   **Simple:** `i32`, `String`, `MyStruct`
@@ -3763,6 +3781,19 @@ Runtimes can provide different executor implementations (goroutine-backed, coope
 
 Runtime schedulers are expected to provide eventual forward progress for runnable procs, matching the behaviour of the Go runtime. Hosts that already provide pre-emptive scheduling—such as Go—inherit this property automatically and require no additional instrumentation. Cooperative implementations SHOULD emulate the same effect (for example, by yielding after bounded interpreter work or after blocking operations) so user-visible semantics remain aligned across runtimes. Implementations may offer additional test-only executors that enforce deterministic interleavings (e.g., always running the next ready task after a `proc_yield()`), but those guarantees are outside the core language contract.
 
+##### Blocking operations (host + IO)
+
+Blocking operations MUST suspend only the calling task. Other runnable tasks
+MUST continue to make progress, even when the blocked operation originates from
+host extern bodies or stdlib IO/process helpers.
+
+Cooperative runtimes MUST integrate blocking host operations with the scheduler
+(e.g., suspend the current task and resume on completion, or offload the host
+call to a worker thread). This guarantee applies even when blocking operations
+occur in the entrypoint; runtimes MAY execute `main`/top-level evaluation as an
+implicit task to preserve progress for other procs. From Able code, these calls
+remain synchronous; the suspension is an implementation detail.
+
 ##### Re-entrant waits
 
 `proc_handle.value()` and `future.value()` may themselves be called from within other `proc`/`spawn` tasks (and even nested inside additional `value()` calls). Implementations MUST treat these operations as re-entrant:
@@ -4417,6 +4448,7 @@ Implementations must satisfy the usual algebraic laws (reflexivity, antisymmetry
 
 Built-in implementations:
 - Primitives (`bool`, all integer/float widths, `String`) ship with implicit implementations of `Display`, `Clone`, `Default`, `Eq`/`Ord`, and `Hash` provided by the runtimes. These are always in scope and cannot be redefined by user code.
+- Opaque handle primitives (`IoHandle`, `ProcHandle`) ship with implicit implementations of `Display`, `Clone`, `Eq`, and `Hash` using identity semantics. They do **not** implement `Ord` or `Default`.
 - Because the runtimes supply these unnamed impls, the stdlib must avoid re-declaring duplicate unnamed implementations for the same `(Interface, Type)` pairs to keep coherence/ambiguity rules intact. Where additional behavior is needed (e.g., custom hashing for composite structs), define implementations on those composite types instead of reintroducing primitive impls.
 
 These interfaces, along with their implementations, form the contract between the language and the standard library. Authors creating new collection or numeric types should conform to these signatures so their types slot seamlessly into existing syntax.
@@ -4657,6 +4689,7 @@ The following table summarizes mappings. Implementations MUST enforce copy-in/co
 -   Bool → bool (Go); Bool (Crystal); boolean (TS); bool (Python); TrueClass/FalseClass (Ruby)
 -   String → string (Go/TS); string (Crystal/Ruby/Python)
 -   Array T → []T (Go); Array(T) (Crystal); T[] (TS); list[T] (Python); Array(T) (Ruby) — copy-in/copy-out
+-   IoHandle/ProcHandle → opaque host object references (Go: interface{} holding `*os.File`/`*exec.Cmd`-like values; TS: object references). Handles are identity-only and may be passed through extern calls but are not introspectable or serializable in Able.
 -   ?T (Option) → nil/None/null for "no value" in the host; otherwise T mapping above
 -   !T (Result) →
     -   Go: (T, error)
@@ -4671,6 +4704,8 @@ The following table summarizes mappings. Implementations MUST enforce copy-in/co
 ### 16.4. Concurrency and Execution
 
 -   Extern bodies execute in the caller's goroutine/fiber/thread and may block.
+-   If a host extern blocks in a cooperative runtime, it MUST suspend the
+    current task and allow other runnable tasks to continue (see §12.2.5).
 -   Target-specific constraints (e.g., Go package import placement, Crystal fibers) apply within preludes/bodies.
 
 ### 16.5. Placement and Hygiene
