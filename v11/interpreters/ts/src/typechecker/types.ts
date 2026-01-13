@@ -9,6 +9,8 @@ export type PrimitiveName =
   | "bool"
   | "char"
   | "String"
+  | "IoHandle"
+  | "ProcHandle"
   | "nil"
   | "void";
 

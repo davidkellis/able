@@ -1,0 +1,94 @@
+package exec_12_08_blocking_io_concurrency
+
+import able.io.{read, write, close, string_to_bytes}
+import able.concurrency.{Channel, Mutex}
+
+## Semantics: blocking io reads suspend only the current proc while others run.
+
+prelude typescript {
+import { PassThrough } from "node:stream";
+
+let pipeStream = null;
+function ensurePipe() {
+  if (!pipeStream) pipeStream = new PassThrough();
+  return pipeStream;
+}
+}
+
+prelude go {
+import "os"
+
+var pipeReader *os.File
+var pipeWriter *os.File
+
+func ensurePipe() (*os.File, *os.File) {
+  if pipeReader == nil || pipeWriter == nil {
+    r, w, err := os.Pipe()
+    if err != nil {
+      panic(err)
+    }
+    pipeReader = r
+    pipeWriter = w
+  }
+  return pipeReader, pipeWriter
+}
+}
+
+extern typescript fn pipe_reader() -> IoHandle {
+  const stream = ensurePipe();
+  return { stream };
+}
+
+extern typescript fn pipe_writer() -> IoHandle {
+  const stream = ensurePipe();
+  return { stream };
+}
+
+extern go fn pipe_reader() -> IoHandle {
+  r, _ := ensurePipe()
+  return r
+}
+
+extern go fn pipe_writer() -> IoHandle {
+  _, w := ensurePipe()
+  return w
+}
+
+fn main() -> void {
+  reader_handle := pipe_reader()
+  writer_handle := pipe_writer()
+
+  ready := Channel.new(1)
+  trace := ""
+  trace_lock := Mutex.new()
+
+  push := { event =>
+    trace_lock.lock()
+    trace = trace + event
+    trace_lock.unlock()
+  }
+
+  reader := proc {
+    push("R")
+    ready.send(true)
+    bytes := read(reader_handle, 4)
+    push("r")
+    if bytes == nil {
+      push("<nil>")
+    } else {
+      push("pong")
+    }
+  }
+
+  writer := proc {
+    ready.receive()
+    push("W")
+    push("w")
+    write(writer_handle, string_to_bytes("pong"))
+    close(writer_handle)
+  }
+
+  reader.value()!
+  writer.value()!
+  print(trace)
+}

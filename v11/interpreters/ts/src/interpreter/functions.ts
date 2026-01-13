@@ -2,7 +2,8 @@ import * as AST from "../ast";
 import { Environment } from "./environment";
 import type { Interpreter } from "./index";
 import type { ConstraintSpec, RuntimeValue } from "./values";
-import { ReturnSignal } from "./signals";
+import { RaiseSignal, ReturnSignal } from "./signals";
+import type { NativeCallState } from "./proc_continuations";
 import { memberAccessOnValue } from "./structs";
 import { collectTypeDispatches } from "./type-dispatch";
 
@@ -74,6 +75,9 @@ function coerceReturnValue(
     if (canonicalReturn.type === "ResultTypeExpression" && isVoidTypeExpression(ctx, canonicalReturn.innerType)) {
       return value;
     }
+    if (ctx.matchesType(canonicalReturn, value)) {
+      return value;
+    }
     const expected = ctx.typeExpressionToString(returnType);
     throw new Error(`Return type mismatch: expected ${expected}, got void`);
   }
@@ -87,9 +91,24 @@ function coerceReturnValue(
   return ctx.coerceValueToType(returnType, value);
 }
 
+function isThenable(value: unknown): value is Promise<RuntimeValue> {
+  return !!value && typeof (value as any).then === "function";
+}
+
+function coerceAsyncError(ctx: Interpreter, err: unknown): RuntimeValue {
+  if (err instanceof RaiseSignal) return err.value;
+  if (err && typeof err === "object" && (err as any).kind === "error") {
+    return err as RuntimeValue;
+  }
+  if (err instanceof Error) {
+    return ctx.makeRuntimeError(err.message);
+  }
+  return ctx.makeRuntimeError(String(err));
+}
+
 export function evaluateFunctionDefinition(ctx: Interpreter, node: AST.FunctionDefinition, env: Environment): RuntimeValue {
   const value: RuntimeValue = { kind: "function", node, closureEnv: env };
-  env.define(node.id.name, value);
+  ctx.defineInEnv(env, node.id.name, value);
   ctx.registerSymbol(node.id.name, value);
   const qn = ctx.qualifiedName(node.id.name);
   if (qn) {
@@ -118,6 +137,26 @@ function resolveApplyFunction(
 }
 
 export function evaluateFunctionCall(ctx: Interpreter, node: AST.FunctionCall, env: Environment): RuntimeValue {
+  const procContext = ctx.currentProcContext ? ctx.currentProcContext() : null;
+  if (procContext) {
+    const state = procContext.getNativeCallState(node);
+    if (state) {
+      if (state.status === "resolved") {
+        procContext.clearNativeCallState(node);
+        return state.value ?? { kind: "nil", value: null };
+      }
+      if (state.status === "rejected") {
+        procContext.clearNativeCallState(node);
+        throw new RaiseSignal(state.error ?? ctx.makeRuntimeError("Async native call failed"));
+      }
+      const asyncCtx = ctx.currentAsyncContext ? ctx.currentAsyncContext() : null;
+      if (asyncCtx) {
+        (asyncCtx.handle as any).awaitBlocked = true;
+      }
+      return ctx.procYield(true);
+    }
+  }
+
   if (node.callee.type === "MemberAccessExpression") {
     const receiver = ctx.evaluate(node.callee.object, env);
     if (node.callee.isSafe && receiver.kind === "nil") {
@@ -236,7 +275,52 @@ export function callCallableValue(ctx: Interpreter, callee: RuntimeValue, args: 
         return makePartialFunction(nativeFunc, evalArgs, callNode);
       }
     }
-    return nativeFunc.impl(ctx, evalArgs);
+    const result = nativeFunc.impl(ctx, evalArgs);
+    if (isThenable(result)) {
+      if (!callNode) {
+        throw new Error(`Async native call '${nativeFunc.name}' requires a call site`);
+      }
+      const procContext = ctx.currentProcContext ? ctx.currentProcContext() : null;
+      if (!procContext) {
+        throw new Error(`Async native call '${nativeFunc.name}' requires an async context`);
+      }
+      const asyncCtx = ctx.currentAsyncContext ? ctx.currentAsyncContext() : null;
+      if (!asyncCtx) {
+        throw new Error(`Async native call '${nativeFunc.name}' requires an async task`);
+      }
+      const state: NativeCallState = { status: "pending" };
+      procContext.setNativeCallState(callNode, state);
+      const handle = asyncCtx.handle as any;
+      handle.awaitBlocked = true;
+      const scheduleResume = () => {
+        if (handle.state !== "pending") return;
+        handle.awaitBlocked = false;
+        if (!handle.runner) {
+          handle.runner = () => {
+            if (asyncCtx.kind === "proc") {
+              ctx.runProcHandle(handle);
+            } else {
+              ctx.runFuture(handle);
+            }
+          };
+        }
+        ctx.scheduleAsync(handle.runner);
+      };
+      result.then(
+        (value) => {
+          state.status = "resolved";
+          state.value = value;
+          scheduleResume();
+        },
+        (err) => {
+          state.status = "rejected";
+          state.error = coerceAsyncError(ctx, err);
+          scheduleResume();
+        },
+      );
+      return ctx.procYield(true);
+    }
+    return result;
   }
 
   if (!funcValue) throw new Error("Callable target missing function value");

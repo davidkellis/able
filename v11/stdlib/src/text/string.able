@@ -406,7 +406,19 @@ impl Clone for String {
 }
 
 impl Eq for String {
-  fn eq(self: Self, other: Self) -> bool { self == other }
+  fn eq(self: Self, other: Self) -> bool {
+    left := validated_bytes(self)
+    right := validated_bytes(other)
+    if left.len() != right.len() { return false }
+    idx := 0
+    length := left.len()
+    loop {
+      if idx >= length { break }
+      if left.read_slot(idx) != right.read_slot(idx) { return false }
+      idx = idx + 1
+    }
+    true
+  }
 }
 
 impl Hash for String {
@@ -674,15 +686,15 @@ fn utf8_decode(bytes: Array u8, offset: i32, length: i32) -> Utf8DecodeResult | 
       }
 
       if (first .& 0xE0) == 0xC0 {
-        return decode_multibyte(bytes, offset, length, first .& 0x1F, 1, 0x80, offset + 1, 0x110000)
+        return decode_multibyte(bytes, offset, length, (first .& 0x1F) as i32, 1, 0x80, offset + 1, 0x110000)
       }
 
       if (first .& 0xF0) == 0xE0 {
-        return decode_multibyte(bytes, offset, length, first .& 0x0F, 2, 0x800, offset + 1, 0x110000)
+        return decode_multibyte(bytes, offset, length, (first .& 0x0F) as i32, 2, 0x800, offset + 1, 0x110000)
       }
 
       if (first .& 0xF8) == 0xF0 {
-        return decode_multibyte(bytes, offset, length, first .& 0x07, 3, 0x10000, offset + 1, 0x110000)
+        return decode_multibyte(bytes, offset, length, (first .& 0x07) as i32, 3, 0x10000, offset + 1, 0x110000)
       }
 
       encoding_error("invalid UTF-8 leading byte", offset)
@@ -737,7 +749,7 @@ fn decode_multibyte(
   }
 
   Utf8DecodeResult {
-    codepoint: __able_char_from_codepoint(codepoint),
+    codepoint: __able_char_from_codepoint(codepoint as i32),
     next_offset: offset
   }
 }

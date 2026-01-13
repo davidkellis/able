@@ -15,6 +15,7 @@ export type Manifest = {
   description?: string;
   entry?: string;
   setup?: string[];
+  executor?: string;
   skipTargets?: string[];
   env?: Record<string, string>;
   expect?: {
@@ -505,13 +506,13 @@ export function installRuntimeStubs(interpreter: V11.Interpreter): void {
   });
 }
 
-export function interceptStdout(buffer: string[], fn: () => void): void {
+export async function interceptStdout(buffer: string[], fn: () => void | Promise<void>): Promise<void> {
   const originalLog = console.log;
   try {
     console.log = (...args: unknown[]) => {
       buffer.push(args.map((arg) => (typeof arg === "string" ? arg : JSON.stringify(arg))).join(" "));
     };
-    fn();
+    await fn();
   } finally {
     console.log = originalLog;
   }

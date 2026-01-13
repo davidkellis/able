@@ -2,27 +2,139 @@ import * as AST from "../ast";
 import { Environment } from "./environment";
 import type { Interpreter } from "./index";
 import type { RuntimeValue } from "./values";
+import { ProcYieldSignal } from "./signals";
+import { ProcContinuationContext } from "./proc_continuations";
 
 const NIL: RuntimeValue = { kind: "nil", value: null };
 
 export function evaluateModule(ctx: Interpreter, node: AST.Module): RuntimeValue {
-  const moduleEnv = node.package ? new Environment(ctx.globals) : ctx.globals;
+  const procContext = ctx.currentProcContext ? ctx.currentProcContext() : null;
+  if (procContext) {
+    return evaluateModuleWithContinuation(ctx, node, procContext);
+  }
+  return evaluateModuleDirect(ctx, node);
+}
+
+function resolveModuleEnv(ctx: Interpreter, pkgName: string | null): Environment {
+  if (!pkgName) return ctx.globals;
+  if (ctx.dynamicDefinitionMode) {
+    const existing = ctx.dynamicPackageEnvs.get(pkgName);
+    if (existing) return existing;
+    const env = new Environment(ctx.globals);
+    ctx.dynamicPackageEnvs.set(pkgName, env);
+    return env;
+  }
+  return new Environment(ctx.globals);
+}
+
+function evaluateModuleDirect(ctx: Interpreter, node: AST.Module): RuntimeValue {
+  const pkgName = node.package ? node.package.namePath.map(p => p.name).join(".") : null;
+  const moduleEnv = resolveModuleEnv(ctx, pkgName);
   const prevPkg = ctx.currentPackage;
   if (node.package) {
-    ctx.currentPackage = node.package.namePath.map(p => p.name).join(".");
+    ctx.currentPackage = pkgName;
+    if (ctx.currentPackage && !ctx.packageRegistry.has(ctx.currentPackage)) {
+      ctx.packageRegistry.set(ctx.currentPackage, new Map());
+    }
+  } else {
+    ctx.currentPackage = null;
+  }
+  try {
+    for (const imp of node.imports) {
+      ctx.evaluate(imp, moduleEnv);
+    }
+    if (typeof (ctx as any).registerExternStatements === "function") {
+      (ctx as any).registerExternStatements(node);
+    }
+    let last: RuntimeValue = NIL;
+    for (const stmt of node.body) {
+      last = ctx.evaluate(stmt, moduleEnv);
+    }
+    return last;
+  } finally {
+    ctx.currentPackage = prevPkg;
+  }
+}
+
+function evaluateModuleWithContinuation(
+  ctx: Interpreter,
+  node: AST.Module,
+  procContext: ProcContinuationContext,
+): RuntimeValue {
+  const prevPkg = ctx.currentPackage;
+  if (node.package) {
+    const pkgName = node.package.namePath.map(p => p.name).join(".");
+    ctx.currentPackage = pkgName;
     if (!ctx.packageRegistry.has(ctx.currentPackage)) ctx.packageRegistry.set(ctx.currentPackage, new Map());
   } else {
     ctx.currentPackage = null;
   }
-  for (const imp of node.imports) {
-    ctx.evaluate(imp, moduleEnv);
+
+  try {
+    let state = procContext.getModuleState(node);
+    if (!state) {
+      const pkgName = node.package ? node.package.namePath.map(p => p.name).join(".") : null;
+      const moduleEnv = resolveModuleEnv(ctx, pkgName);
+      state = {
+        env: moduleEnv,
+        index: 0,
+        result: NIL,
+        initialized: false,
+      };
+      procContext.setModuleState(node, state);
+    }
+
+    if (!state.initialized) {
+      for (const imp of node.imports) {
+        ctx.evaluate(imp, state.env);
+      }
+      if (typeof (ctx as any).registerExternStatements === "function") {
+        (ctx as any).registerExternStatements(node);
+      }
+      state.initialized = true;
+    }
+
+    let result = state.result ?? NIL;
+    let index = state.index;
+    while (index < node.body.length) {
+      const stmt = node.body[index]!;
+      try {
+        ctx.checkTimeSlice();
+        result = ctx.evaluate(stmt, state.env);
+      } catch (err) {
+        if (err instanceof ProcYieldSignal) {
+          let advanceIndex = false;
+          let repeatStatement = false;
+          const asyncCtx = ctx.currentAsyncContext ? ctx.currentAsyncContext() : null;
+          const awaitBlocked = asyncCtx ? asyncCtx.handle.awaitBlocked : false;
+          if (typeof (procContext as any).consumeRepeatCurrentStatement === "function") {
+            repeatStatement = (procContext as any).consumeRepeatCurrentStatement();
+          }
+          if (!repeatStatement && ctx.manualYieldRequested && !awaitBlocked) {
+            advanceIndex = true;
+          }
+          if (repeatStatement && ctx.manualYieldRequested && !awaitBlocked) {
+            index = 0;
+          } else if (advanceIndex) {
+            index += 1;
+          }
+          state.index = index;
+          state.result = result;
+          throw err;
+        }
+        procContext.clearModuleState(node);
+        throw err;
+      }
+      index += 1;
+      state.index = index;
+      state.result = result;
+    }
+
+    procContext.clearModuleState(node);
+    return result;
+  } finally {
+    ctx.currentPackage = prevPkg;
   }
-  let last: RuntimeValue = NIL;
-  for (const stmt of node.body) {
-    last = ctx.evaluate(stmt, moduleEnv);
-  }
-  ctx.currentPackage = prevPkg;
-  return last;
 }
 
 export function evaluatePackageStatement(): RuntimeValue {
@@ -43,7 +155,7 @@ export function evaluateImportStatement(ctx: Interpreter, node: AST.ImportStatem
       filtered.set(name, val);
     }
     const alias = node.alias?.name ?? defaultPackageAlias(pkg);
-    env.define(alias, { kind: "package", name: pkg, symbols: filtered });
+    ctx.defineInEnv(env, alias, { kind: "package", name: pkg, symbols: filtered });
   } else if (node.isWildcard) {
     const pkg = node.packagePath.map(p => p.name).join(".");
     const bucket = ctx.packageRegistry.get(pkg);
@@ -53,7 +165,7 @@ export function evaluateImportStatement(ctx: Interpreter, node: AST.ImportStatem
       if (val.kind === "struct_def" && val.def.isPrivate) continue;
       if (val.kind === "interface_def" && val.def.isPrivate) continue;
       if (val.kind === "union_def" && val.def.isPrivate) continue;
-      try { env.define(name, val); } catch {}
+      try { ctx.defineInEnv(env, name, val); } catch {}
     }
   } else if (node.selectors && node.selectors.length > 0) {
     const pkg = node.packagePath.map(p => p.name).join(".");
@@ -119,10 +231,10 @@ export function evaluateImportStatement(ctx: Interpreter, node: AST.ImportStatem
       if (val.kind === "union_def" && val.def.isPrivate) {
         throw new Error(`Import error: union '${original}' is private`);
       }
-      if (env.hasInCurrentScope(alias)) {
+      if (env.hasInCurrentScope(alias) && !ctx.dynamicDefinitionMode) {
         continue;
       }
-      env.define(alias, val);
+      ctx.defineInEnv(env, alias, val);
     }
   }
   return NIL;
@@ -138,7 +250,7 @@ export function evaluateDynImportStatement(ctx: Interpreter, node: AST.DynImport
       if (val.kind === "struct_def" && val.def.isPrivate) continue;
       if (val.kind === "interface_def" && val.def.isPrivate) continue;
       if (val.kind === "union_def" && val.def.isPrivate) continue;
-      try { env.define(name, { kind: "dyn_ref", pkg, name }); } catch {}
+      try { ctx.defineInEnv(env, name, { kind: "dyn_ref", pkg, name }); } catch {}
     }
   } else if (node.selectors && node.selectors.length > 0) {
     const bucket = ctx.packageRegistry.get(pkg);
@@ -150,14 +262,14 @@ export function evaluateDynImportStatement(ctx: Interpreter, node: AST.DynImport
       if (val?.kind === "struct_def" && val.def.isPrivate) throw new Error(`dynimport error: struct '${original}' is private`);
       if (val?.kind === "interface_def" && val.def.isPrivate) throw new Error(`dynimport error: interface '${original}' is private`);
       if (val?.kind === "union_def" && val.def.isPrivate) throw new Error(`dynimport error: union '${original}' is private`);
-      if (env.hasInCurrentScope(alias)) {
+      if (env.hasInCurrentScope(alias) && !ctx.dynamicDefinitionMode) {
         continue;
       }
-      env.define(alias, { kind: "dyn_ref", pkg, name: original });
+      ctx.defineInEnv(env, alias, { kind: "dyn_ref", pkg, name: original });
     }
   } else {
     const alias = node.alias?.name ?? defaultPackageAlias(pkg);
-    env.define(alias, { kind: "dyn_package", name: pkg });
+    ctx.defineInEnv(env, alias, { kind: "dyn_package", name: pkg });
   }
   return NIL;
 }

@@ -224,15 +224,15 @@ export async function evaluateFixtureTS(dir: string, manifest: Manifest | null, 
     collectDiagnostics(entryModule);
   }
 
-  interceptStdout(stdout, () => {
+  await interceptStdout(stdout, async () => {
     try {
       for (const module of preloadModules) {
-        interpreter.evaluate(module);
+        await interpreter.evaluateAsTask(module);
       }
       for (const module of setupModules) {
-        interpreter.evaluate(module);
+        await interpreter.evaluateAsTask(module);
       }
-      const value = interpreter.evaluate(entryModule);
+      const value = await interpreter.evaluateAsTask(entryModule);
       if (value) {
         result = normalizeTSValue(value);
       }
@@ -258,10 +258,12 @@ export async function evaluateFixtureGo(
   runner: GoFixtureRunner,
   dir: string,
   entry: string,
+  manifest: Manifest | null,
 ): Promise<GoOutcome> {
   return new Promise((resolve, reject) => {
     const cliPath = path.resolve(REPO_ROOT, "v11/interpreters/go");
-    const child = spawn(runner.binaryPath, ["--dir", dir, "--entry", entry, "--executor", "serial"], {
+    const executor = manifest?.executor?.trim() || "serial";
+    const child = spawn(runner.binaryPath, ["--dir", dir, "--entry", entry, "--executor", executor], {
       cwd: cliPath,
       env: {
         ...process.env,

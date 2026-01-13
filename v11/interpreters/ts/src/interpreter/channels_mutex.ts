@@ -94,11 +94,11 @@ function blockOnNilChannel(interp: Interpreter): RuntimeValue {
     throw new Error("Nil channel operations must occur inside a proc");
   }
   ctx.handle.awaitBlocked = true;
-  const cancelled = interp.procCancelled() as BoolValue;
+  const cancelled = interp.procCancelled(true) as BoolValue;
   if (cancelled.value) {
     return NIL;
   }
-  interp.procYield();
+  interp.procYield(true);
   return NIL;
 }
 
@@ -467,7 +467,7 @@ export function applyChannelMutexAugmentations(cls: typeof Interpreter): void {
           notifyChannelAwaiters(interp, state, "receive");
         }
         procHandle.awaitBlocked = true;
-        interp.procYield();
+        interp.procYield(true);
         return NIL;
       }),
     );
@@ -558,7 +558,7 @@ export function applyChannelMutexAugmentations(cls: typeof Interpreter): void {
           notifyChannelAwaiters(interp, state, "send");
         }
         procHandle.awaitBlocked = true;
-        interp.procYield();
+        interp.procYield(true);
         return NIL;
       }),
     );
@@ -743,7 +743,7 @@ export function applyChannelMutexAugmentations(cls: typeof Interpreter): void {
           }
           (procHandle as any).waitingMutex = state;
           procHandle.awaitBlocked = true;
-          interp.procYield();
+          interp.procYield(true);
           return NIL;
         }
 

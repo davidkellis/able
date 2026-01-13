@@ -8,6 +8,13 @@ export type BlockState = {
   result: RuntimeValue;
 };
 
+export type ModuleState = {
+  env: Environment;
+  index: number;
+  result: RuntimeValue;
+  initialized: boolean;
+};
+
 export type ForLoopState = {
   mode: "static" | "iterator";
   values?: RuntimeValue[];
@@ -49,6 +56,11 @@ export type MatchExpressionState = {
   matchEnv?: Environment;
 };
 
+export type StringInterpolationState = {
+  index: number;
+  output: string;
+};
+
 export interface ContinuationContext {
   kind: "generator" | "proc";
   markStatementIncomplete(): void;
@@ -75,4 +87,8 @@ export interface ContinuationContext {
   getMatchState(node: AST.MatchExpression): MatchExpressionState | undefined;
   setMatchState(node: AST.MatchExpression, state: MatchExpressionState): void;
   clearMatchState(node: AST.MatchExpression): void;
+
+  getStringInterpolationState(node: AST.StringInterpolation): StringInterpolationState | undefined;
+  setStringInterpolationState(node: AST.StringInterpolation, state: StringInterpolationState): void;
+  clearStringInterpolationState(node: AST.StringInterpolation): void;
 }

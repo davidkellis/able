@@ -372,7 +372,7 @@ async function runFixtureSuite(options: FixtureSuiteOptions): Promise<FixtureSui
 
       try {
         tsOutcome = await evaluateFixtureTS(fixtureDir, manifest, entryFile);
-        goOutcome = await evaluateFixtureGo(runner, fixtureDir, entryFile);
+        goOutcome = await evaluateFixtureGo(runner, fixtureDir, entryFile, manifest ?? null);
       } catch (err) {
         failed += 1;
         entries.push({

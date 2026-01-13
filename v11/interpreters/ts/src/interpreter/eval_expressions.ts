@@ -26,7 +26,7 @@ import { evaluateProcExpression, evaluateSpawnExpression, evaluateBreakpointExpr
 import { evaluateIteratorLiteral, evaluateYieldStatement } from "./iterators";
 import { ProcContinuationContext } from "./proc_continuations";
 import type { RuntimeValue } from "./values";
-import { RaiseSignal } from "./signals";
+import { ProcYieldSignal, RaiseSignal } from "./signals";
 import { StandardRuntimeError, makeStandardErrorValue } from "./standard_errors";
 
 declare module "./index" {
@@ -246,6 +246,7 @@ type AwaitEvaluationState = {
   waiting: boolean;
   wakePending: boolean;
   waker?: Extract<RuntimeValue, { kind: "struct_instance" }>;
+  committing?: AwaitArmState;
 };
 
 function evaluateAwaitExpression(ctx: Interpreter, node: AST.AwaitExpression, env: Environment): RuntimeValue {
@@ -262,6 +263,10 @@ function evaluateAwaitExpression(ctx: Interpreter, node: AST.AwaitExpression, en
   if (!state) {
     state = initializeAwaitState(ctx, node, env, asyncCtx.handle);
     procContext.setAwaitState(node, state);
+  }
+
+  if (state.committing) {
+    return completeAwait(ctx, procContext, node, state, state.committing, asyncCtx.handle);
   }
 
   const winner = selectReadyAwaitArm(ctx, state);
@@ -282,7 +287,7 @@ function evaluateAwaitExpression(ctx: Interpreter, node: AST.AwaitExpression, en
     registerAwaitState(ctx, state);
   }
   asyncCtx.handle.awaitBlocked = true;
-  ctx.procYield();
+  ctx.procYield(true);
   return { kind: "nil", value: null };
 }
 
@@ -409,10 +414,19 @@ function completeAwait(
       arm.registration = undefined;
     }
   }
-  const result = invokeAwaitableMethod(ctx, winner.awaitable, "commit", [], state.env);
-  cleanupAwaitState(ctx, procContext, node, state, handle);
-  handle.awaitBlocked = false;
-  return result;
+  state.committing = winner;
+  try {
+    const result = invokeAwaitableMethod(ctx, winner.awaitable, "commit", [], state.env);
+    cleanupAwaitState(ctx, procContext, node, state, handle);
+    handle.awaitBlocked = false;
+    return result;
+  } catch (err) {
+    if (err instanceof ProcYieldSignal) {
+      throw err;
+    }
+    cleanupAwaitState(ctx, procContext, node, state, handle);
+    throw err;
+  }
 }
 
 function cancelAwaitRegistration(ctx: Interpreter, registration: RuntimeValue, env: Environment): void {

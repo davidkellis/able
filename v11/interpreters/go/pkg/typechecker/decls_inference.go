@@ -11,6 +11,8 @@ var reservedTypeNames = map[string]struct{}{
 	"bool":     {},
 	"string":   {},
 	"String":   {},
+	"IoHandle": {},
+	"ProcHandle": {},
 	"char":     {},
 	"nil":      {},
 	"void":     {},

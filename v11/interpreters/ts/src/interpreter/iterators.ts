@@ -11,6 +11,7 @@ import type {
   MatchExpressionState,
   LoopExpressionState,
   WhileLoopState,
+  StringInterpolationState,
 } from "./continuations";
 
 class GeneratorContext implements ContinuationContext {
@@ -33,6 +34,7 @@ class GeneratorContext implements ContinuationContext {
   private readonly loopStates = new WeakMap<AST.LoopExpression, LoopExpressionState>();
   private readonly ifStates = new WeakMap<AST.IfExpression, IfExpressionState>();
   private readonly matchStates = new WeakMap<AST.MatchExpression, MatchExpressionState>();
+  private readonly stringInterpolationStates = new WeakMap<AST.StringInterpolation, StringInterpolationState>();
 
   constructor(
     private readonly interpreter: Interpreter,
@@ -242,6 +244,18 @@ class GeneratorContext implements ContinuationContext {
 
   clearMatchState(node: AST.MatchExpression): void {
     this.matchStates.delete(node);
+  }
+
+  getStringInterpolationState(node: AST.StringInterpolation): StringInterpolationState | undefined {
+    return this.stringInterpolationStates.get(node);
+  }
+
+  setStringInterpolationState(node: AST.StringInterpolation, state: StringInterpolationState): void {
+    this.stringInterpolationStates.set(node, state);
+  }
+
+  clearStringInterpolationState(node: AST.StringInterpolation): void {
+    this.stringInterpolationStates.delete(node);
   }
 }
 

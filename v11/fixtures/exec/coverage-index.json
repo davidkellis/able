@@ -156,6 +156,12 @@
     "focus": "channel/mutex error structs surfaced via err.value"
   },
   {
+    "id": "exec/12_08_blocking_io_concurrency",
+    "status": "seeded",
+    "spec_sections": ["12.2.5", "16.4"],
+    "focus": "blocking io reads suspend only the current proc while peers continue"
+  },
+  {
     "id": "exec/09_04_methods_ufcs_basics",
     "status": "seeded",
     "spec_sections": ["7.4", "9", "10"],

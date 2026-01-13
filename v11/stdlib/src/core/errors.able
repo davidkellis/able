@@ -6,6 +6,8 @@ struct DivisionByZeroError {}
 struct OverflowError { operation: String }
 struct ShiftOutOfRangeError { shift: i32 }
 struct RangeError { message: String }
+struct Span { start: u64, end: u64 }
+struct ParseError { message: String, span: Span, is_incomplete: bool }
 
 impl Error for DivisionByZeroError {
   fn message(self: Self) -> String { "division by zero" }
@@ -23,6 +25,11 @@ impl Error for ShiftOutOfRangeError {
 }
 
 impl Error for RangeError {
+  fn message(self: Self) -> String { self.message }
+  fn cause(self: Self) -> ?Error { nil }
+}
+
+impl Error for ParseError {
   fn message(self: Self) -> String { self.message }
   fn cause(self: Self) -> ?Error { nil }
 }

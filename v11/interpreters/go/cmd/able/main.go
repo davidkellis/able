@@ -44,6 +44,8 @@ func run(args []string) int {
 		return 0
 	case "run":
 		return runEntry(args[1:])
+	case "repl":
+		return runRepl(args[1:])
 	case "check":
 		return runCheck(args[1:])
 	case "test":
@@ -61,6 +63,38 @@ func runEntry(args []string) int {
 
 func runCheck(args []string) int {
 	return runEntryWithMode(args, modeCheck)
+}
+
+func runRepl(args []string) int {
+	if len(args) > 0 {
+		fmt.Fprintf(os.Stderr, "able repl does not take arguments (received %s)\n", strings.Join(args, " "))
+		return 1
+	}
+	manifest, err := loadManifestFrom(".")
+	if err != nil {
+		if !errors.Is(err, errManifestNotFound) {
+			fmt.Fprintf(os.Stderr, "failed to load manifest: %v\n", err)
+			return 1
+		}
+		manifest = nil
+	}
+	lock, err := loadLockfileForManifest(manifest)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		return 1
+	}
+	base := "."
+	if manifest != nil && manifest.Path != "" {
+		base = filepath.Dir(manifest.Path)
+	} else if cwd, cwdErr := os.Getwd(); cwdErr == nil {
+		base = cwd
+	}
+	entryPath, err := resolveReplEntryPath(base)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		return 1
+	}
+	return executeEntry(entryPath, manifest, lock, modeRun, nil)
 }
 
 func runEntryWithMode(args []string, mode executionMode) int {
@@ -798,6 +832,16 @@ func collectStdlibPaths(base string) []string {
 	return paths
 }
 
+func resolveReplEntryPath(base string) (string, error) {
+	for _, root := range collectStdlibPaths(base) {
+		candidate := filepath.Join(root, "repl.able")
+		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
+			return candidate, nil
+		}
+	}
+	return "", fmt.Errorf("unable to locate stdlib repl.able (set ABLE_PATH or ABLE_MODULE_PATHS)")
+}
+
 func findKernelRoots(start string) []string {
 	var roots []string
 	add := func(candidate string) {
@@ -905,6 +949,7 @@ func printUsage() {
 	fmt.Fprintln(os.Stderr, "  able check [target]")
 	fmt.Fprintln(os.Stderr, "  able check <file.able>")
 	fmt.Fprintln(os.Stderr, "  able test [paths]")
+	fmt.Fprintln(os.Stderr, "  able repl")
 	fmt.Fprintln(os.Stderr, "  able deps install")
 	fmt.Fprintln(os.Stderr, "  able deps update [dependency ...]")
 }
