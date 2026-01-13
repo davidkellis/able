@@ -40,6 +40,8 @@ export const RESERVED_TYPE_NAMES = new Set<string>([
   "Self",
   "bool",
   "String",
+  "IoHandle",
+  "ProcHandle",
   "char",
   "nil",
   "void",

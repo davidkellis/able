@@ -1,7 +1,7 @@
 {
-  "description": "extern host function bodies map to native handlers",
+  "description": "extern host function bodies execute via the host engine",
   "expect": {
-    "stdout": ["1234567890123456"],
+    "stdout": ["0"],
     "exit": 0
   }
 }

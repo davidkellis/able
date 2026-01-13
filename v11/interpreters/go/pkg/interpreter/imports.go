@@ -150,7 +150,7 @@ func (i *Interpreter) processImport(packagePath []*ast.Identifier, isWildcard bo
 		}
 		public := copyPublicSymbols(bucket)
 		meta := i.getPackageMeta(pkgName, pkgParts)
-		env.Define(alias.Name, runtime.PackageValue{
+		i.defineInEnv(env, alias.Name, runtime.PackageValue{
 			Name:      pkgName,
 			NamePath:  meta.namePath,
 			IsPrivate: meta.isPrivate,
@@ -168,7 +168,7 @@ func (i *Interpreter) processImport(packagePath []*ast.Identifier, isWildcard bo
 			if isPrivateSymbol(val) {
 				continue
 			}
-			env.Define(name, val)
+			i.defineInEnv(env, name, val)
 			defineStructBinding(env, name, val)
 		}
 		return runtime.NilValue{}, nil
@@ -205,10 +205,10 @@ func (i *Interpreter) processImport(packagePath []*ast.Identifier, isWildcard bo
 			if isPrivateSymbol(val) {
 				return nil, importPrivacyError(original, val)
 			}
-			if env.HasInCurrentScope(aliasName) {
+			if env.HasInCurrentScope(aliasName) && !i.dynamicDefinitionMode {
 				continue
 			}
-			env.Define(aliasName, val)
+			i.defineInEnv(env, aliasName, val)
 			defineStructBinding(env, aliasName, val)
 		}
 		return runtime.NilValue{}, nil
@@ -225,7 +225,7 @@ func (i *Interpreter) processImport(packagePath []*ast.Identifier, isWildcard bo
 		if len(pkgParts) > 0 {
 			aliasName = pkgParts[len(pkgParts)-1]
 		}
-		env.Define(aliasName, runtime.PackageValue{
+		i.defineInEnv(env, aliasName, runtime.PackageValue{
 			Name:      pkgName,
 			NamePath:  meta.namePath,
 			IsPrivate: meta.isPrivate,
@@ -252,15 +252,15 @@ func (i *Interpreter) processDynImport(pkgName string, pkgParts []string, isWild
 				if sel.Alias != nil {
 					aliasName = sel.Alias.Name
 				}
-				if env.HasInCurrentScope(aliasName) {
+				if env.HasInCurrentScope(aliasName) && !i.dynamicDefinitionMode {
 					continue
 				}
-				env.Define(aliasName, runtime.DynRefValue{Package: pkgName, Name: original})
+				i.defineInEnv(env, aliasName, runtime.DynRefValue{Package: pkgName, Name: original})
 			}
 			return runtime.NilValue{}, nil
 		}
 		if alias != nil {
-			env.Define(alias.Name, runtime.DynPackageValue{
+			i.defineInEnv(env, alias.Name, runtime.DynPackageValue{
 				Name:      pkgName,
 				NamePath:  append([]string{}, pkgParts...),
 				IsPrivate: false,
@@ -272,7 +272,7 @@ func (i *Interpreter) processDynImport(pkgName string, pkgParts []string, isWild
 			if len(pkgParts) > 0 {
 				aliasName = pkgParts[len(pkgParts)-1]
 			}
-			env.Define(aliasName, runtime.DynPackageValue{
+			i.defineInEnv(env, aliasName, runtime.DynPackageValue{
 				Name:      pkgName,
 				NamePath:  append([]string{}, pkgParts...),
 				IsPrivate: false,
@@ -283,7 +283,7 @@ func (i *Interpreter) processDynImport(pkgName string, pkgParts []string, isWild
 
 	if alias != nil && !isWildcard && len(selectors) == 0 {
 		meta := i.getPackageMeta(pkgName, pkgParts)
-		env.Define(alias.Name, runtime.DynPackageValue{
+		i.defineInEnv(env, alias.Name, runtime.DynPackageValue{
 			Name:      pkgName,
 			NamePath:  meta.namePath,
 			IsPrivate: meta.isPrivate,
@@ -296,7 +296,7 @@ func (i *Interpreter) processDynImport(pkgName string, pkgParts []string, isWild
 			if isPrivateSymbol(val) {
 				continue
 			}
-			env.Define(name, runtime.DynRefValue{Package: pkgName, Name: name})
+			i.defineInEnv(env, name, runtime.DynRefValue{Package: pkgName, Name: name})
 		}
 		return runtime.NilValue{}, nil
 	}
@@ -316,10 +316,10 @@ func (i *Interpreter) processDynImport(pkgName string, pkgParts []string, isWild
 					return nil, dynImportPrivacyError(original, sym)
 				}
 			}
-			if env.HasInCurrentScope(aliasName) {
+			if env.HasInCurrentScope(aliasName) && !i.dynamicDefinitionMode {
 				continue
 			}
-			env.Define(aliasName, runtime.DynRefValue{Package: pkgName, Name: original})
+			i.defineInEnv(env, aliasName, runtime.DynRefValue{Package: pkgName, Name: original})
 		}
 		return runtime.NilValue{}, nil
 	}
@@ -330,7 +330,7 @@ func (i *Interpreter) processDynImport(pkgName string, pkgParts []string, isWild
 		if len(pkgParts) > 0 {
 			aliasName = pkgParts[len(pkgParts)-1]
 		}
-		env.Define(aliasName, runtime.DynPackageValue{
+		i.defineInEnv(env, aliasName, runtime.DynPackageValue{
 			Name:      pkgName,
 			NamePath:  meta.namePath,
 			IsPrivate: meta.isPrivate,

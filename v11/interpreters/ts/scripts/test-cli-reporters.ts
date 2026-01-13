@@ -319,7 +319,7 @@ async function ensureCliReporterModule(interpreter: V11.Interpreter): Promise<Ma
     return null;
   }
   try {
-    interpreter.evaluate(moduleAst);
+    await interpreter.evaluateAsTask(moduleAst);
   } catch (error) {
     console.error(`able test: ${extractErrorMessage(error)}`);
     return null;

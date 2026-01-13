@@ -1,9 +1,11 @@
 import type { Interpreter } from "./index";
+import type { Environment } from "./environment";
 import type { RuntimeValue } from "./values";
 
 declare module "./index" {
   interface Interpreter {
     registerSymbol(name: string, value: RuntimeValue): void;
+    defineInEnv(env: Environment, name: string, value: RuntimeValue): void;
     qualifiedName(name: string): string | null;
     isTruthy(v: RuntimeValue): boolean;
     dynamicDefinitionMode: boolean;
@@ -30,6 +32,14 @@ export function applyHelperAugmentations(cls: typeof Interpreter): void {
 
   cls.prototype.qualifiedName = function qualifiedName(this: Interpreter, name: string): string | null {
     return this.currentPackage ? `${this.currentPackage}.${name}` : null;
+  };
+
+  cls.prototype.defineInEnv = function defineInEnv(this: Interpreter, env: Environment, name: string, value: RuntimeValue): void {
+    if (this.dynamicDefinitionMode && env.hasInCurrentScope(name)) {
+      env.assign(name, value);
+      return;
+    }
+    env.define(name, value);
   };
 
   cls.prototype.isTruthy = function isTruthy(this: Interpreter, v: RuntimeValue): boolean {

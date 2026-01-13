@@ -833,6 +833,9 @@ func (i *Interpreter) dynPackageMemberAccess(pkg runtime.DynPackageValue, member
 	if ident.Name == "def" {
 		return runtime.NativeBoundMethodValue{Receiver: pkg, Method: i.dynPackageDefMethod}, nil
 	}
+	if ident.Name == "eval" {
+		return runtime.NativeBoundMethodValue{Receiver: pkg, Method: i.dynPackageEvalMethod}, nil
+	}
 	pkgName := pkg.Name
 	if pkgName == "" {
 		pkgName = strings.Join(pkg.NamePath, ".")

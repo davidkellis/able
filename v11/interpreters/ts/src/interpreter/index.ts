@@ -17,6 +17,7 @@ import { applyHasherHostAugmentations } from "./hasher_host";
 import { applyNumericHostAugmentations } from "./numeric_host";
 import { applyOsHostAugmentations } from "./os_host";
 import { applyDynamicAugmentations } from "./dynamic";
+import { applyExternHostAugmentations } from "./extern_host";
 import { buildStandardInterfaceBuiltins } from "../builtins/interfaces";
 import { applyArrayKernelAugmentations, type ArrayState } from "./array_kernel";
 import { applyHashMapKernelAugmentations, type HashMapState } from "./hash_map_kernel";
@@ -113,9 +114,13 @@ export class Interpreter {
   hasherStates: Map<number, number> = new Map();
   osArgs: string[] = [];
 
+  externHostPackages: Map<string, any> = new Map();
+
   dynamicBuiltinsInitialized = false;
   dynPackageDefMethod!: Extract<RuntimeValue, { kind: "native_function" }>;
+  dynPackageEvalMethod!: Extract<RuntimeValue, { kind: "native_function" }>;
   dynamicDefinitionMode = false;
+  dynamicPackageEnvs: Map<string, Environment> = new Map();
 
   schedulerMaxSteps = 1024;
   executor: Executor;
@@ -288,6 +293,7 @@ applyStringHostAugmentations(Interpreter);
 applyHasherHostAugmentations(Interpreter);
 applyNumericHostAugmentations(Interpreter);
 applyOsHostAugmentations(Interpreter);
+applyExternHostAugmentations(Interpreter);
 applyDynamicAugmentations(Interpreter);
 applyEvaluationAugmentations(Interpreter);
 applyConcurrencyAugmentations(Interpreter);

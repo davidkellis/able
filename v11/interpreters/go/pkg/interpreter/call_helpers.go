@@ -196,6 +196,14 @@ func describeRuntimeValue(val runtime.Value) string {
 		return string(v.TypeSuffix)
 	case runtime.FloatValue:
 		return string(v.TypeSuffix)
+	case *runtime.HostHandleValue:
+		if v == nil {
+			return "nil"
+		}
+		if v.HandleType != "" {
+			return v.HandleType
+		}
+		return "host_handle"
 	case *runtime.StructInstanceValue:
 		if v == nil {
 			return "nil"

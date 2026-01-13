@@ -7,19 +7,19 @@ import type { ContinuationContext } from "./continuations";
 
 function isContinuationYield(context: ContinuationContext, err: unknown): boolean {
   if (context.kind === "generator") {
-    return err instanceof GeneratorYieldSignal;
+    return err instanceof GeneratorYieldSignal || err instanceof ProcYieldSignal;
   }
   return err instanceof ProcYieldSignal;
 }
 
 export function evaluateMatchExpression(ctx: Interpreter, node: AST.MatchExpression, env: Environment): RuntimeValue {
-  const procContext = ctx.currentProcContext ? ctx.currentProcContext() : null;
-  if (procContext) {
-    return evaluateMatchExpressionWithContinuation(ctx, node, env, procContext);
-  }
   const generator = ctx.currentGeneratorContext();
   if (generator) {
     return evaluateMatchExpressionWithContinuation(ctx, node, env, generator);
+  }
+  const procContext = ctx.currentProcContext ? ctx.currentProcContext() : null;
+  if (procContext) {
+    return evaluateMatchExpressionWithContinuation(ctx, node, env, procContext);
   }
   const value = ctx.evaluate(node.subject, env);
   for (const clause of node.clauses) {

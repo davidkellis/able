@@ -45,6 +45,10 @@ func (c *declarationCollector) resolveTypeExpression(expr ast.TypeExpression, ty
 			switch name {
 			case "bool":
 				return PrimitiveType{Kind: PrimitiveBool}
+			case "IoHandle":
+				return PrimitiveType{Kind: PrimitiveIoHandle}
+			case "ProcHandle":
+				return PrimitiveType{Kind: PrimitiveProcHandle}
 			case "string":
 				return PrimitiveType{Kind: PrimitiveString}
 			case "String":
@@ -90,6 +94,9 @@ func (c *declarationCollector) resolveTypeExpression(expr ast.TypeExpression, ty
 		for i, arg := range t.Arguments {
 			args[i] = c.resolveTypeExpression(arg, typeParams)
 		}
+		if unionBase, ok := base.(UnionType); ok {
+			return c.instantiateUnionType(unionBase, args)
+		}
 		if base == nil {
 			return UnknownType{}
 		}
@@ -104,6 +111,15 @@ func (c *declarationCollector) resolveTypeExpression(expr ast.TypeExpression, ty
 		return NullableType{Inner: c.resolveTypeExpression(t.InnerType, typeParams)}
 	case *ast.ResultTypeExpression:
 		inner := c.resolveTypeExpression(t.InnerType, typeParams)
+		if decl, ok := c.env.Lookup("Result"); ok {
+			if union, ok := decl.(UnionType); ok {
+				return c.instantiateUnionType(union, []Type{inner})
+			}
+			if alias, ok := decl.(AliasType); ok {
+				inst, _ := instantiateAlias(alias, []Type{inner})
+				return inst
+			}
+		}
 		return AppliedType{
 			Base:      StructType{StructName: "Result"},
 			Arguments: []Type{inner},
@@ -116,6 +132,31 @@ func (c *declarationCollector) resolveTypeExpression(expr ast.TypeExpression, ty
 		return UnionLiteralType{Members: members}
 	}
 	return UnknownType{}
+}
+
+func (c *declarationCollector) instantiateUnionType(union UnionType, args []Type) UnionType {
+	if len(union.TypeParams) == 0 {
+		return union
+	}
+	subst := make(map[string]Type, len(union.TypeParams))
+	for idx, param := range union.TypeParams {
+		if param.Name == "" {
+			continue
+		}
+		if idx < len(args) && args[idx] != nil {
+			subst[param.Name] = args[idx]
+		} else {
+			subst[param.Name] = UnknownType{}
+		}
+	}
+	inst := substituteType(union, subst)
+	if resolved, ok := inst.(UnionType); ok {
+		if len(args) >= len(union.TypeParams) {
+			resolved.TypeParams = nil
+		}
+		return resolved
+	}
+	return union
 }
 
 func (c *declarationCollector) convertGenericParams(params []*ast.GenericParameter) ([]GenericParamSpec, map[string]Type) {

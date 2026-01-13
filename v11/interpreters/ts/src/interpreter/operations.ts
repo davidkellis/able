@@ -274,7 +274,7 @@ export function evaluateBinaryExpression(ctx: Interpreter, node: AST.BinaryExpre
             ? evaluatedArgs
             : [subject, ...evaluatedArgs];
         try {
-          return callCallableValue(ctx, calleeVal, callArgs, env);
+          return callCallableValue(ctx, calleeVal, callArgs, env, b.right);
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
           throw new Error(`pipe RHS must be callable: ${message}`);

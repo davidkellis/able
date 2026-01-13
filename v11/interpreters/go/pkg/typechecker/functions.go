@@ -121,13 +121,13 @@ func (c *Checker) checkFunctionDefinition(env *Environment, def *ast.FunctionDef
 					}
 				}
 				if !assignable {
-					if _, ok := resultAppliedType(expectedReturn); ok {
-						if ok, _ := c.typeImplementsInterface(bodyType, InterfaceType{InterfaceName: "Error"}, nil); ok {
-							assignable = true
-						} else if name, ok := structName(bodyType); ok && strings.HasSuffix(name, "Error") {
-							assignable = true
-						}
+				if isResultType(expectedReturn) {
+					if ok, _ := c.typeImplementsInterface(bodyType, InterfaceType{InterfaceName: "Error"}, nil); ok {
+						assignable = true
+					} else if name, ok := structName(bodyType); ok && strings.HasSuffix(name, "Error") {
+						assignable = true
 					}
+				}
 				}
 				if !assignable {
 					diags = append(diags, Diagnostic{
@@ -377,12 +377,12 @@ func (c *Checker) checkReturnStatement(env *Environment, stmt *ast.ReturnStateme
 					}
 				}
 				if !assignable {
-					if _, ok := resultAppliedType(expected); ok {
-						if ok, _ := c.typeImplementsInterface(returnType, InterfaceType{InterfaceName: "Error"}, nil); ok {
-							assignable = true
-						} else if name, ok := structName(returnType); ok && strings.HasSuffix(name, "Error") {
-							assignable = true
-						}
+				if isResultType(expected) {
+					if ok, _ := c.typeImplementsInterface(returnType, InterfaceType{InterfaceName: "Error"}, nil); ok {
+						assignable = true
+					} else if name, ok := structName(returnType); ok && strings.HasSuffix(name, "Error") {
+						assignable = true
+					}
 					}
 				}
 				if !assignable {

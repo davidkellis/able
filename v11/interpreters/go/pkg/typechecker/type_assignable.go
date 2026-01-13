@@ -315,13 +315,12 @@ func normalizeResultReturn(actual, expected Type) (Type, bool) {
 	if actual == nil {
 		actual = PrimitiveType{Kind: PrimitiveNil}
 	}
-	if applied, ok := resultAppliedType(expected); ok {
+	if success, ok := resultSuccessType(expected); ok {
 		if typeAssignable(actual, expected) {
 			return actual, true
 		}
-		success := applied.Arguments[0]
 		if typeAssignable(actual, success) {
-			return applied, true
+			return expected, true
 		}
 		return actual, false
 	}
@@ -344,6 +343,32 @@ func resultAppliedType(t Type) (AppliedType, bool) {
 		return AppliedType{}, false
 	}
 	return applied, true
+}
+
+func resultSuccessType(t Type) (Type, bool) {
+	if applied, ok := resultAppliedType(t); ok {
+		return applied.Arguments[0], true
+	}
+	if union, ok := t.(UnionType); ok && union.UnionName == "Result" {
+		for _, variant := range union.Variants {
+			if isResultErrorVariant(variant) {
+				continue
+			}
+			return variant, true
+		}
+		return UnknownType{}, true
+	}
+	return nil, false
+}
+
+func isResultErrorVariant(t Type) bool {
+	if iface, _, ok := interfaceFromType(t); ok {
+		return iface.InterfaceName == "Error"
+	}
+	if name, ok := structName(t); ok && name == "Error" {
+		return true
+	}
+	return false
 }
 
 func mergeBranchTypes(types []Type) Type {

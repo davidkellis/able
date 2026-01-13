@@ -87,7 +87,8 @@ func runExecFixture(t *testing.T, dir string) {
 		t.Fatalf("load program: %v", err)
 	}
 
-	interp := New()
+	executor := selectFixtureExecutor(t, manifest.Executor)
+	interp := NewWithExecutor(executor)
 	var stdout []string
 	registerPrint(interp, &stdout)
 
@@ -169,6 +170,19 @@ func runExecFixture(t *testing.T, dir string) {
 		t.Fatalf("exit code mismatch: expected default exit, got %d", exitCode)
 	} else if runtimeErr != nil {
 		t.Fatalf("runtime error: %v", runtimeErr)
+	}
+}
+
+func selectFixtureExecutor(t *testing.T, name string) Executor {
+	t.Helper()
+	switch strings.ToLower(strings.TrimSpace(name)) {
+	case "", "serial":
+		return NewSerialExecutor(nil)
+	case "goroutine":
+		return NewGoroutineExecutor(nil)
+	default:
+		t.Fatalf("unknown fixture executor %q", name)
+		return nil
 	}
 }
 

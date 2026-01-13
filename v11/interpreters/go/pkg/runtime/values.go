@@ -36,6 +36,7 @@ const (
 	KindDynPackage
 	KindDynRef
 	KindError
+	KindHostHandle
 	KindBoundMethod
 	KindNativeBoundMethod
 	KindImplementationNamespace
@@ -92,6 +93,8 @@ func (k Kind) String() string {
 		return "dyn_ref"
 	case KindError:
 		return "error"
+	case KindHostHandle:
+		return "host_handle"
 	case KindBoundMethod:
 		return "bound_method"
 	case KindNativeBoundMethod:
@@ -208,6 +211,14 @@ type HashMapValue struct {
 }
 
 func (v *HashMapValue) Kind() Kind { return KindHashMap }
+
+// HostHandleValue carries opaque host handles across extern boundaries.
+type HostHandleValue struct {
+	HandleType string
+	Value      any
+}
+
+func (v *HostHandleValue) Kind() Kind { return KindHostHandle }
 
 type HasherValue struct {
 	state uint64
