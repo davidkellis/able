@@ -45,7 +45,7 @@ func (i *Interpreter) coerceReturnValue(returnType ast.TypeExpression, value run
 		return runtime.VoidValue{}, nil
 	}
 	if isVoidValue(value) {
-		if isResultVoidType(canonical) {
+		if i.matchesType(canonical, value) || isResultVoidType(canonical) {
 			return runtime.VoidValue{}, nil
 		}
 		expected := typeExpressionToString(canonical)

@@ -9,7 +9,7 @@ usage() {
 Usage: ablets [--] <command-or-entry> [args...]
 
 Runs the Able v11 TypeScript interpreter (Bun) with friendly defaults.
-Pass `run` or `check` explicitly, or provide a path to run directly.
+Pass `run`, `check`, or `repl` explicitly, or provide a path to run directly.
 
 Examples:
   # Run a source file
@@ -17,6 +17,9 @@ Examples:
 
   # Typecheck without executing
   ./v11/ablets check examples/hello_world.able
+
+  # Start the REPL
+  ./v11/ablets repl
 EOF
 }
 
@@ -94,7 +97,7 @@ build_ts_args() {
   local first="$1"
   shift || true
   case "$first" in
-    run|check)
+    run|check|repl)
       TS_ARGS+=("$first")
       if [[ $# -gt 0 ]]; then
         local candidate="$1"

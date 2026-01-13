@@ -1753,7 +1753,15 @@ methods dyn.Package {
   ## Define declarations inside this package's namespace using Able source text (interpreted).
   ## Valid constructs: interfaces, impls, package-level functions, structs, unions, methods.
   fn def(self: Self, code: String) -> !nil
+
+  ## Evaluate Able source text in this package and return the last value (or `void`).
+  fn eval(self: Self, code: String) -> !Value
 }
+
+## Evaluate Able source text in the implicit dynamic package "dyn.eval".
+dyn.eval(code: String) -> !Value
+
+Note: `Value` here denotes the runtime value produced by evaluation; `eval` is dynamically typed and does not participate in static inference.
 ```
 
 Relative vs absolute package paths inside `def`:
@@ -1786,7 +1794,7 @@ Special-form block sugar:
 
 -   Thread-safety: `dyn.package`, `dyn.def_package`, `dynimport`, and `p.def` are thread-safe. Redefinitions are atomic at symbol granularity.
 -   Races: Late-bound lookups observe either the old or new definition; behavior is well-defined at the granularity of whole-symbol replacement.
--   Errors: Parse errors, missing names, arity/shape mismatches return `Error` from dynamic APIs or raise during invocation.
+-   Errors: Parse errors, missing names, arity/shape mismatches return `Error` from dynamic APIs or raise during invocation. `dyn.Package.eval`/`dyn.eval` surface `ParseError` with `is_incomplete=true` when a syntax error is detected at end-of-input (useful for REPLs).
 
 #### Performance and Deployment
 
@@ -3578,7 +3586,14 @@ impl Error for DivisionByZeroError { fn message(self: Self) -> String { "divisio
 ## Indexing
 struct IndexError { index: u64, length: u64 }
 impl Error for IndexError { fn message(self: Self) -> String { `index ${self.index} out of bounds for length ${self.length}` } fn cause(self: Self) -> ?Error { nil } }
+
+## Parsing
+struct Span { start: u64, end: u64 }
+struct ParseError { message: String, span: Span, is_incomplete: bool }
+impl Error for ParseError { fn message(self: Self) -> String { self.message } fn cause(self: Self) -> ?Error { nil } }
 ```
+
+`Span` offsets are measured in UTF-8 bytes (`start` inclusive, `end` exclusive). `ParseError.is_incomplete` is true when the parser detects a missing token at end-of-input (e.g., an incomplete statement).
 
 Language-defined raises map to these errors:
 

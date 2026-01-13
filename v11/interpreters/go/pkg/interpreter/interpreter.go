@@ -163,9 +163,12 @@ type Interpreter struct {
 	unnamedImpls          map[string]map[string]map[string]bool
 	packageRegistry       map[string]map[string]runtime.Value
 	packageMetadata       map[string]packageMeta
+	externHostPackages    map[string]*externHostPackage
 	currentPackage        string
 	dynamicDefinitionMode bool
 	dynPackageDefMethod   runtime.NativeFunctionValue
+	dynPackageEvalMethod  runtime.NativeFunctionValue
+	dynamicPackageEnvs    map[string]*runtime.Environment
 	executor              Executor
 	rootState             *evalState
 
@@ -289,6 +292,17 @@ func (i *Interpreter) registerSymbol(name string, value runtime.Value) {
 	}
 }
 
+func (i *Interpreter) defineInEnv(env *runtime.Environment, name string, value runtime.Value) {
+	if env == nil || name == "" {
+		return
+	}
+	if i.dynamicDefinitionMode && env.HasInCurrentScope(name) {
+		_ = env.Assign(name, value)
+		return
+	}
+	env.Define(name, value)
+}
+
 // New returns an interpreter with an empty global environment.
 func New() *Interpreter {
 	return NewWithExecutor(NewSerialExecutor(nil))
@@ -299,7 +313,7 @@ func NewWithExecutor(exec Executor) *Interpreter {
 	if exec == nil {
 		exec = NewSerialExecutor(nil)
 	}
-		i := &Interpreter{
+	i := &Interpreter{
 		global:               runtime.NewEnvironment(nil),
 		inherentMethods:      make(map[string]map[string]runtime.Value),
 		interfaces:           make(map[string]*runtime.InterfaceDefinitionValue),
@@ -311,6 +325,8 @@ func NewWithExecutor(exec Executor) *Interpreter {
 		unnamedImpls:         make(map[string]map[string]map[string]bool),
 		packageRegistry:      make(map[string]map[string]runtime.Value),
 		packageMetadata:      make(map[string]packageMeta),
+		externHostPackages:   make(map[string]*externHostPackage),
+		dynamicPackageEnvs:   make(map[string]*runtime.Environment),
 		executor:             exec,
 		rootState:            newEvalState(),
 		procStatusStructs: map[string]*runtime.StructDefinitionValue{
@@ -325,21 +341,21 @@ func NewWithExecutor(exec Executor) *Interpreter {
 		mutexes:                 make(map[int64]*mutexState),
 		concurrencyErrorStructs: make(map[string]*runtime.StructDefinitionValue),
 		standardErrorStructs:    make(map[string]*runtime.StructDefinitionValue),
-			hashers:                 make(map[int64]*hasherState),
-			orderingStructs:         make(map[string]*runtime.StructDefinitionValue),
-			arrayStates:             make(map[int64]*arrayState),
-			arraysByHandle:          make(map[int64]map[*runtime.ArrayValue]struct{}),
-			nextArrayHandle:         1,
-			hashMapStates:           make(map[int64]*runtime.HashMapValue),
-			nextHashMapHandle:       1,
-			errorNativeMethods:      make(map[string]runtime.NativeFunctionValue),
-		}
+		hashers:                 make(map[int64]*hasherState),
+		orderingStructs:         make(map[string]*runtime.StructDefinitionValue),
+		arrayStates:             make(map[int64]*arrayState),
+		arraysByHandle:          make(map[int64]map[*runtime.ArrayValue]struct{}),
+		nextArrayHandle:         1,
+		hashMapStates:           make(map[int64]*runtime.HashMapValue),
+		nextHashMapHandle:       1,
+		errorNativeMethods:      make(map[string]runtime.NativeFunctionValue),
+	}
 	i.initConcurrencyBuiltins()
 	i.initChannelMutexBuiltins()
 	i.initArrayBuiltins()
 	i.initHashMapBuiltins()
-		i.initStringHostBuiltins()
-		i.initOsBuiltins()
+	i.initStringHostBuiltins()
+	i.initOsBuiltins()
 	i.initErrorBuiltins()
 	i.initHasherBuiltins()
 	i.initRatioBuiltins()
@@ -394,9 +410,18 @@ func (i *Interpreter) EvaluateModule(module *ast.Module) (runtime.Value, *runtim
 	}
 
 	if module.Package != nil {
-		moduleEnv = runtime.NewEnvironment(i.global)
 		pkgParts := identifiersToStrings(module.Package.NamePath)
 		pkgName := strings.Join(pkgParts, ".")
+		if i.dynamicDefinitionMode {
+			if existing, ok := i.dynamicPackageEnvs[pkgName]; ok {
+				moduleEnv = existing
+			} else {
+				moduleEnv = runtime.NewEnvironment(i.global)
+				i.dynamicPackageEnvs[pkgName] = moduleEnv
+			}
+		} else {
+			moduleEnv = runtime.NewEnvironment(i.global)
+		}
 		i.currentPackage = pkgName
 		if _, ok := i.packageRegistry[pkgName]; !ok {
 			i.packageRegistry[pkgName] = make(map[string]runtime.Value)
@@ -408,6 +433,7 @@ func (i *Interpreter) EvaluateModule(module *ast.Module) (runtime.Value, *runtim
 	} else {
 		i.currentPackage = ""
 	}
+	i.registerExternStatements(module)
 
 	for _, imp := range module.Imports {
 		if _, err := i.evaluateImportStatement(imp, moduleEnv); err != nil {

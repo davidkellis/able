@@ -218,7 +218,7 @@ export function maybeTypecheckTestModules(
   return true;
 }
 
-export function evaluateTestModules(interpreter: V11.Interpreter, modules: Program["modules"]): boolean {
+export async function evaluateTestModules(interpreter: V11.Interpreter, modules: Program["modules"]): Promise<boolean> {
   const evaluated = new Set<string>();
   for (const mod of modules) {
     if (evaluated.has(mod.packageName)) {
@@ -226,7 +226,7 @@ export function evaluateTestModules(interpreter: V11.Interpreter, modules: Progr
     }
     evaluated.add(mod.packageName);
     try {
-      interpreter.evaluate(mod.module);
+      await interpreter.evaluateAsTask(mod.module);
     } catch (error) {
       if (error instanceof ExitSignal) {
         process.exitCode = error.code;

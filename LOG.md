@@ -1,5 +1,32 @@
 # Able Project Log
 
+# 2026-01-11 — TS concurrency continuation fixes (v11)
+- TS interpreter: added module-level continuation state so entrypoint yields resume without replaying declarations; await commit now resumes across cooperative yields; future/proc awaitBlocked handling unified; proc/future value waits handle immediate waker completion.
+- Tests: `cd v11/interpreters/ts && bun run scripts/run-fixtures.ts`; `./run_all_tests.sh --version=v11`.
+
+# 2026-01-11 — Stdlib OS/process/term scaffolding (v11)
+- Stdlib: added `able.os`, `able.process`, and `able.term` modules with host externs and Able-level helpers (`ProcessSpec`, `ProcessStatus`, `ProcessSignal`, `TermSize`, line editor, env/cwd helpers).
+- IO: extended TS `IoHandle` support to allow stream-backed handles (child process pipes) in `io_read`/`io_write`/`io_flush`/`io_close`.
+- Go/TS hosts: implemented process spawning + wait/kill plumbing with cached status, plus term TTY hooks (Go raw mode/size limited to linux/amd64).
+- Tests: not run.
+
+# 2026-01-11 — Go extern host plugin exports (v11)
+- Go interpreter: capture extern package name at definition time so host calls resolve after module evaluation; generate exported plugin wrappers for extern functions and bump extern cache version.
+- Tests: `cd v11/interpreters/go && go test ./pkg/interpreter -run ExecFixtures`.
+- Full sweep: `./run_all_tests.sh --version=v11`.
+
+# 2026-01-10 — Extern host execution (v11)
+- TS: added per-package host module caching with `host_error`/handle aliases and routed externs through dynamic imports; empty non-kernel externs now raise runtime errors.
+- Go: added per-package plugin generation + caching, with extern calls marshaled through host functions; introduced `HostHandle` runtime values for IoHandle/ProcHandle.
+- Fixtures/tests: updated extern exec fixture expectation and extern unit tests.
+- Tests: `cd v11/interpreters/ts && bun test test/basics/externs.test.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter -run Extern`.
+
+# 2026-01-10 — String interpolation continuation (v11)
+- TS interpreter: added continuation state for string interpolation so time-slice yields resume mid-interpolation without re-running completed parts (fixes exec string helpers under scheduler yields).
+- Tests: `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=06_12_01_stdlib_string_helpers bun run scripts/run-fixtures.ts`.
+- Follow-up: ran `./run_all_tests.sh --version=v11`; all suites green and parity report refreshed at `v11/tmp/parity-report.json`.
+- TS interpreter: switched the `read_text` host extern stub to async `fs.promises.readFile` so blocking IO can suspend only the calling proc via the native Promise bridge.
+
 # 2026-01-02 — Placeholder member access in typechecker (v11)
 - Go typechecker: treat member access on placeholder expressions as unknown instead of rejecting the access, fixing `@.method()` in pipe shorthand.
 - Tests: `bun test test/parity/examples_parity.test.ts -t pipes_topics/main.able`; `./run_all_tests.sh --version=v11`.
@@ -683,3 +710,14 @@ Open items (2025-11-02 audit):
 - Added exec fixture `exec/11_02_option_result_or_handlers` (Option/Result `or {}` handlers) and updated the conformance plan + coverage index; cleared the related PLAN backlog item.
 - Return type enforcement now treats iterator values as `Iterator` interface matches in TS/Go, and Go generic interface checks accept interface implementers; updated the pipeline diagnostics test to expect runtime mismatch under `AllowDiagnostics`.
 - Tests: `./run_all_tests.sh --version=v11 --fixture`; `./run_all_tests.sh --version=v11`.
+
+### 2026-01-10
+- TS interpreter entrypoint tasks now preserve raw runtime errors, support re-entrant `proc_flush`, and prioritize generator continuations so iterator yields work inside proc contexts.
+- CLI/fixture/parity runners now bind entrypoint `main` calls via a dedicated environment to avoid missing symbol errors; entrypoint-only async helpers still gate user-facing `proc_yield`/`proc_cancelled`.
+- Tests: `bun test test/concurrency/native_suspend.test.ts`; `bun test test/cli/run_module_cli.test.ts`; `bun test test/parity/examples_parity.test.ts`; `bun test test/parity/fixtures_parity.test.ts`.
+
+### 2026-01-11
+- Added `dyn.Package.eval`/`dyn.eval` plumbing for REPL-style evaluation (parse errors return `ParseError` with `is_incomplete`), and mirrored dynamic-definition rebinding rules in Go imports/definitions.
+- Added stdlib `able.repl` module (line editor, `:help`/`:quit`, prints non-`void` results) plus `able repl` CLI support for TS and Go.
+- Spec: documented `ParseError`/`Span` plus dynamic eval APIs and REPL-oriented parse error semantics.
+- Tests: `bun run scripts/run-fixtures.ts`; `./run_all_tests.sh --version=v11`.

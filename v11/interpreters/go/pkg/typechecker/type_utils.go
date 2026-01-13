@@ -27,6 +27,10 @@ func formatType(t Type) string {
 			return "char"
 		case PrimitiveString:
 			return "String"
+		case PrimitiveIoHandle:
+			return "IoHandle"
+		case PrimitiveProcHandle:
+			return "ProcHandle"
 		case PrimitiveNil:
 			return "nil"
 		case PrimitiveInt:

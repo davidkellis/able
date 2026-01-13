@@ -19,6 +19,8 @@ const (
 	PrimitiveString PrimitiveKind = "String"
 	PrimitiveInt    PrimitiveKind = "Int"
 	PrimitiveFloat  PrimitiveKind = "Float"
+	PrimitiveIoHandle   PrimitiveKind = "IoHandle"
+	PrimitiveProcHandle PrimitiveKind = "ProcHandle"
 )
 
 type PrimitiveType struct {

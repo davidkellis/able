@@ -5,11 +5,11 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { V11 } from "../../index";
-import { callCallableValue } from "../../src/interpreter/functions";
+import { AST, V11 } from "../../index";
+import { Environment } from "../../src/interpreter/environment";
 import { TypecheckerSession } from "../../src/typechecker";
 import type { DiagnosticLocation } from "../../src/typechecker/diagnostics";
-import { ensurePrint, installRuntimeStubs, interceptStdout } from "../fixture-utils";
+import { ensurePrint, installRuntimeStubs, interceptStdout, extractErrorMessage } from "../fixture-utils";
 import { ModuleLoader, type Program } from "../module-loader";
 import { collectModuleSearchPaths, type ModuleSearchPath } from "../module-search-paths";
 
@@ -111,14 +111,14 @@ export async function evaluateExampleTS(entryPath: string): Promise<TSExampleOut
 
   const stdout: string[] = [];
   let runtimeError: string | undefined;
-  interceptStdout(stdout, () => {
+  await interceptStdout(stdout, async () => {
     try {
       for (const mod of program.modules) {
-        interpreter.evaluate(mod.module);
+        await interpreter.evaluateAsTask(mod.module);
       }
-      invokeEntryMain(interpreter, program.entry);
+      await invokeEntryMain(interpreter, program.entry);
     } catch (err) {
-      runtimeError = err instanceof Error ? err.message : String(err);
+      runtimeError = extractErrorMessage(err);
     }
   });
 
@@ -289,7 +289,7 @@ export function formatExampleDiff(diff: ExampleParityDiff): string {
   }
 }
 
-function invokeEntryMain(interpreter: V11.Interpreter, entry: Program["entry"]): void {
+async function invokeEntryMain(interpreter: V11.Interpreter, entry: Program["entry"]): Promise<void> {
   const packageBucket = interpreter.packageRegistry.get(entry.packageName);
   if (!packageBucket) {
     throw new Error(`entry package '${entry.packageName}' is not available at runtime`);
@@ -298,7 +298,10 @@ function invokeEntryMain(interpreter: V11.Interpreter, entry: Program["entry"]):
   if (!mainValue) {
     throw new Error("entry module does not define a main function");
   }
-  callCallableValue(interpreter as unknown as V11.Interpreter, mainValue, [], interpreter.globals);
+  const callEnv = new Environment(interpreter.globals);
+  callEnv.define("main", mainValue);
+  const callNode = AST.functionCall(AST.identifier("main"), []);
+  await interpreter.evaluateAsTask(callNode, callEnv);
 }
 
 async function fileExists(candidate: string): Promise<boolean> {

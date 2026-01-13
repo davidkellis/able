@@ -249,6 +249,8 @@ export function applyTypesAugmentations(cls: typeof Interpreter): void {
         return AST.simpleTypeExpression("nil");
       case "error":
         return AST.simpleTypeExpression("Error");
+      case "host_handle":
+        return AST.simpleTypeExpression(value.handleType);
       case "struct_instance": {
         const base = AST.simpleTypeExpression(value.def.id.name);
         const generics = value.def.genericParams ?? [];
@@ -385,6 +387,9 @@ export function applyTypesAugmentations(cls: typeof Interpreter): void {
           return isIntegerValue(v);
         }
         if (name === "Error" && v.kind === "error") return true;
+        if ((name === "IoHandle" || name === "ProcHandle") && v.kind === "host_handle") {
+          return v.handleType === name;
+        }
         if (name === "IteratorEnd" && v.kind === "iterator_end") return true;
         if (name === "Iterator" && v.kind === "iterator") return true;
         if (name === "Awaitable" && isAwaitableStructInstance(v)) return true;
@@ -511,6 +516,8 @@ export function applyTypesAugmentations(cls: typeof Interpreter): void {
         return this.getTypeNameForValue(value.value);
       case "error":
         return "Error";
+      case "host_handle":
+        return value.handleType;
       case "String":
         return "String";
       case "bool":

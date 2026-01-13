@@ -2,7 +2,7 @@ import * as AST from "../ast";
 import { Environment } from "./environment";
 import type { Interpreter } from "./index";
 import type { Executor } from "./executor";
-import { ProcYieldSignal, RaiseSignal } from "./signals";
+import { ExitSignal, ProcYieldSignal, RaiseSignal } from "./signals";
 import type { RuntimeValue } from "./values";
 import { ProcContinuationContext } from "./proc_continuations";
 import { isFloatValue, isIntegerValue, makeIntegerValue } from "./numeric";
@@ -11,6 +11,20 @@ import { memberAccessOnValue } from "./structs";
 
 type AwaitWakerPayload = {
   wake: () => void;
+};
+
+type AsyncHandle = Extract<RuntimeValue, { kind: "proc_handle" | "future" }>;
+
+type ProcValueWaitState = {
+  target: Extract<RuntimeValue, { kind: "proc_handle" }>;
+  registration?: RuntimeValue;
+  wakePending?: boolean;
+};
+
+type FutureValueWaitState = {
+  target: Extract<RuntimeValue, { kind: "future" }>;
+  registration?: RuntimeValue;
+  wakePending?: boolean;
 };
 
 type TimerAwaitableState = {
@@ -39,13 +53,23 @@ function toMilliseconds(value: RuntimeValue): number {
   throw new Error("sleep_ms expects a numeric duration");
 }
 
+function cancelAwaitRegistration(interp: Interpreter, registration: RuntimeValue | undefined): void {
+  if (!registration) return;
+  try {
+    const cancel = memberAccessOnValue(interp, registration, AST.identifier("cancel"), interp.globals);
+    callCallableValue(interp, cancel, [], interp.globals);
+  } catch {
+    // ignore cancellation errors
+  }
+}
+
 declare module "./index" {
   interface Interpreter {
     initConcurrencyBuiltins(): void;
     scheduleAsync(fn: () => void): void;
     ensureSchedulerTick(): void;
     currentAsyncContext(): { kind: "proc"; handle: Extract<RuntimeValue, { kind: "proc_handle" }> } | { kind: "future"; handle: Extract<RuntimeValue, { kind: "future" }> } | null;
-    createAwaitWaker(handle: Extract<RuntimeValue, { kind: "proc_handle" }>, state: unknown): Extract<RuntimeValue, { kind: "struct_instance" }>;
+    createAwaitWaker(handle: AsyncHandle, state: unknown): Extract<RuntimeValue, { kind: "struct_instance" }>;
     makeAwaitRegistration(cancelFn?: () => void): Extract<RuntimeValue, { kind: "struct_instance" }>;
     invokeAwaitWaker(waker: RuntimeValue): void;
     registerProcAwaiter(
@@ -58,8 +82,8 @@ declare module "./index" {
     ): Extract<RuntimeValue, { kind: "struct_instance" }>;
     triggerProcAwaiters(handle: Extract<RuntimeValue, { kind: "proc_handle" }>): void;
     triggerFutureAwaiters(future: Extract<RuntimeValue, { kind: "future" }>): void;
-    procYield(): RuntimeValue;
-    procCancelled(): RuntimeValue;
+    procYield(allowEntrypoint?: boolean): RuntimeValue;
+    procCancelled(allowEntrypoint?: boolean): RuntimeValue;
     procFlush(): RuntimeValue;
     procPendingTasks(): RuntimeValue;
     processScheduler(limit?: number): void;
@@ -72,12 +96,13 @@ declare module "./index" {
     procHandleStatus(handle: Extract<RuntimeValue, { kind: "proc_handle" }>): RuntimeValue;
     futureStatus(future: Extract<RuntimeValue, { kind: "future" }>): RuntimeValue;
     toProcError(value: RuntimeValue | undefined, fallback: string): RuntimeValue;
-    makeNativeFunction(name: string, arity: number, impl: (interpreter: Interpreter, args: RuntimeValue[]) => RuntimeValue): Extract<RuntimeValue, { kind: "native_function" }>;
+    makeNativeFunction(name: string, arity: number, impl: (interpreter: Interpreter, args: RuntimeValue[]) => RuntimeValue | Promise<RuntimeValue>): Extract<RuntimeValue, { kind: "native_function" }>;
     bindNativeMethod(func: Extract<RuntimeValue, { kind: "native_function" }>, self: RuntimeValue): Extract<RuntimeValue, { kind: "native_bound_method" }>;
     procHandleValue(handle: Extract<RuntimeValue, { kind: "proc_handle" }>): RuntimeValue;
     procHandleCancel(handle: Extract<RuntimeValue, { kind: "proc_handle" }>): void;
     futureCancel(future: Extract<RuntimeValue, { kind: "future" }>): void;
     futureValue(future: Extract<RuntimeValue, { kind: "future" }>): RuntimeValue;
+    evaluateAsTask(node: AST.AstNode, env?: Environment): Promise<RuntimeValue>;
     runProcHandle(handle: Extract<RuntimeValue, { kind: "proc_handle" }>): void;
     runFuture(future: Extract<RuntimeValue, { kind: "future" }>): void;
     makeRuntimeError(message: string, value?: RuntimeValue, cause?: RuntimeValue): RuntimeValue;
@@ -216,16 +241,22 @@ export function applyConcurrencyAugmentations(cls: typeof Interpreter): void {
     return this.asyncContextStack[this.asyncContextStack.length - 1];
   };
 
-  cls.prototype.procYield = function procYield(this: Interpreter): RuntimeValue {
+  cls.prototype.procYield = function procYield(this: Interpreter, allowEntrypoint = false): RuntimeValue {
     const ctx = this.currentAsyncContext();
     if (!ctx) throw new Error("proc_yield must be called inside an asynchronous task");
+    if (!allowEntrypoint && ctx.kind === "proc" && ctx.handle.entrypoint) {
+      throw new Error("proc_yield must be called inside an asynchronous task");
+    }
     this.manualYieldRequested = true;
     throw new ProcYieldSignal();
   };
 
-  cls.prototype.procCancelled = function procCancelled(this: Interpreter): RuntimeValue {
+  cls.prototype.procCancelled = function procCancelled(this: Interpreter, allowEntrypoint = false): RuntimeValue {
     const ctx = this.currentAsyncContext();
     if (!ctx) throw new Error("proc_cancelled must be called inside an asynchronous task");
+    if (!allowEntrypoint && ctx.kind === "proc" && ctx.handle.entrypoint) {
+      throw new Error("proc_cancelled must be called inside an asynchronous task");
+    }
     if (ctx.kind === "proc") {
       return { kind: "bool", value: !!ctx.handle.cancelRequested };
     }
@@ -335,6 +366,7 @@ export function applyConcurrencyAugmentations(cls: typeof Interpreter): void {
     future.failureInfo = procErr;
     future.error = this.makeRuntimeError(message, procErr, procErr);
     future.runner = null;
+    future.awaitBlocked = false;
     this.triggerFutureAwaiters(future);
   };
 
@@ -389,7 +421,12 @@ export function applyConcurrencyAugmentations(cls: typeof Interpreter): void {
     return this.makeProcError(fallback);
   };
 
-  cls.prototype.makeNativeFunction = function makeNativeFunction(this: Interpreter, name: string, arity: number, impl: (interpreter: Interpreter, args: RuntimeValue[]) => RuntimeValue): Extract<RuntimeValue, { kind: "native_function" }> {
+  cls.prototype.makeNativeFunction = function makeNativeFunction(
+    this: Interpreter,
+    name: string,
+    arity: number,
+    impl: (interpreter: Interpreter, args: RuntimeValue[]) => RuntimeValue | Promise<RuntimeValue>,
+  ): Extract<RuntimeValue, { kind: "native_function" }> {
     return { kind: "native_function", name, arity, impl };
   };
 
@@ -398,6 +435,68 @@ export function applyConcurrencyAugmentations(cls: typeof Interpreter): void {
   };
 
   cls.prototype.procHandleValue = function procHandleValue(this: Interpreter, handle: Extract<RuntimeValue, { kind: "proc_handle" }>): RuntimeValue {
+    const finalize = (): RuntimeValue => {
+      switch (handle.state) {
+        case "resolved":
+          return handle.result ?? { kind: "nil", value: null };
+        case "failed": {
+          if (handle.error) return handle.error;
+          const procErr = this.makeProcError("Proc failed");
+          return this.makeRuntimeError("Proc failed", procErr, procErr);
+        }
+        case "cancelled": {
+          if (handle.error) return handle.error;
+          const procErr = this.makeProcError("Proc cancelled");
+          return this.makeRuntimeError("Proc cancelled", procErr, procErr);
+        }
+        default: {
+          const procErr = this.makeProcError("Proc pending");
+          return this.makeRuntimeError("Proc pending", procErr, procErr);
+        }
+      }
+    };
+
+    const asyncCtx = this.currentAsyncContext();
+    if (asyncCtx) {
+      const waiter = asyncCtx.handle as AsyncHandle;
+      let waitState = (waiter as any).waitingProcValue as ProcValueWaitState | undefined;
+      if (waitState && waitState.target !== handle) {
+        cancelAwaitRegistration(this, waitState.registration);
+        delete (waiter as any).waitingProcValue;
+        waitState = undefined;
+      }
+
+      if (handle.state !== "pending") {
+        if (waitState) {
+          cancelAwaitRegistration(this, waitState.registration);
+          delete (waiter as any).waitingProcValue;
+        }
+        return finalize();
+      }
+
+      if (waiter.cancelRequested) {
+        if (waitState) {
+          cancelAwaitRegistration(this, waitState.registration);
+          delete (waiter as any).waitingProcValue;
+        }
+        throw new Error("Proc cancelled");
+      }
+
+      if (!waitState) {
+        waitState = { target: handle };
+        (waiter as any).waitingProcValue = waitState;
+        const waker = this.createAwaitWaker(waiter, waitState);
+        waitState.registration = this.registerProcAwaiter(handle, waker);
+      }
+      if (handle.state !== "pending" || waitState.wakePending) {
+        cancelAwaitRegistration(this, waitState.registration);
+        delete (waiter as any).waitingProcValue;
+        return finalize();
+      }
+      waiter.awaitBlocked = true;
+      return this.procYield(true);
+    }
+
     if (handle.state === "pending") {
       if (handle.runner) {
         const runner = handle.runner;
@@ -410,24 +509,7 @@ export function applyConcurrencyAugmentations(cls: typeof Interpreter): void {
     if (handle.state === "pending") {
       this.runProcHandle(handle);
     }
-    switch (handle.state) {
-      case "resolved":
-        return handle.result ?? { kind: "nil", value: null };
-      case "failed": {
-        if (handle.error) return handle.error;
-        const procErr = this.makeProcError("Proc failed");
-        return this.makeRuntimeError("Proc failed", procErr, procErr);
-      }
-      case "cancelled": {
-        if (handle.error) return handle.error;
-        const procErr = this.makeProcError("Proc cancelled");
-        return this.makeRuntimeError("Proc cancelled", procErr, procErr);
-      }
-      default: {
-        const procErr = this.makeProcError("Proc pending");
-        return this.makeRuntimeError("Proc pending", procErr, procErr);
-      }
-    }
+    return finalize();
   };
 
   cls.prototype.procHandleCancel = function procHandleCancel(this: Interpreter, handle: Extract<RuntimeValue, { kind: "proc_handle" }>): void {
@@ -449,6 +531,68 @@ export function applyConcurrencyAugmentations(cls: typeof Interpreter): void {
   };
 
   cls.prototype.futureValue = function futureValue(this: Interpreter, future: Extract<RuntimeValue, { kind: "future" }>): RuntimeValue {
+    const finalize = (): RuntimeValue => {
+      switch (future.state) {
+        case "failed": {
+          if (future.error) return future.error;
+          const procErr = this.makeProcError("Future failed");
+          return this.makeRuntimeError("Future failed", procErr, procErr);
+        }
+        case "cancelled": {
+          if (future.error) return future.error;
+          const procErr = this.makeProcError("Future cancelled");
+          return this.makeRuntimeError("Future cancelled", procErr, procErr);
+        }
+        case "resolved":
+          return future.result ?? { kind: "nil", value: null };
+        case "pending": {
+          const procErr = this.makeProcError("Future pending");
+          return this.makeRuntimeError("Future pending", procErr, procErr);
+        }
+      }
+    };
+
+    const asyncCtx = this.currentAsyncContext();
+    if (asyncCtx) {
+      const waiter = asyncCtx.handle as AsyncHandle;
+      let waitState = (waiter as any).waitingFutureValue as FutureValueWaitState | undefined;
+      if (waitState && waitState.target !== future) {
+        cancelAwaitRegistration(this, waitState.registration);
+        delete (waiter as any).waitingFutureValue;
+        waitState = undefined;
+      }
+
+      if (future.state !== "pending") {
+        if (waitState) {
+          cancelAwaitRegistration(this, waitState.registration);
+          delete (waiter as any).waitingFutureValue;
+        }
+        return finalize();
+      }
+
+      if (waiter.cancelRequested) {
+        if (waitState) {
+          cancelAwaitRegistration(this, waitState.registration);
+          delete (waiter as any).waitingFutureValue;
+        }
+        throw new Error("Proc cancelled");
+      }
+
+      if (!waitState) {
+        waitState = { target: future };
+        (waiter as any).waitingFutureValue = waitState;
+        const waker = this.createAwaitWaker(waiter, waitState);
+        waitState.registration = this.registerFutureAwaiter(future, waker);
+      }
+      if (future.state !== "pending" || waitState.wakePending) {
+        cancelAwaitRegistration(this, waitState.registration);
+        delete (waiter as any).waitingFutureValue;
+        return finalize();
+      }
+      waiter.awaitBlocked = true;
+      return this.procYield(true);
+    }
+
     if (future.state === "pending") {
       if (future.runner) {
         const runner = future.runner;
@@ -461,24 +605,39 @@ export function applyConcurrencyAugmentations(cls: typeof Interpreter): void {
     if (future.state === "pending") {
       this.runFuture(future);
     }
-    switch (future.state) {
-      case "failed": {
-        if (future.error) return future.error;
-        const procErr = this.makeProcError("Future failed");
-        return this.makeRuntimeError("Future failed", procErr, procErr);
-      }
-      case "cancelled": {
-        if (future.error) return future.error;
-        const procErr = this.makeProcError("Future cancelled");
-        return this.makeRuntimeError("Future cancelled", procErr, procErr);
-      }
-      case "resolved":
-        return future.result ?? { kind: "nil", value: null };
-      case "pending": {
-        const procErr = this.makeProcError("Future pending");
-        return this.makeRuntimeError("Future pending", procErr, procErr);
+    return finalize();
+  };
+
+  cls.prototype.evaluateAsTask = async function evaluateAsTask(this: Interpreter, node: AST.AstNode, env: Environment = this.globals): Promise<RuntimeValue> {
+    const capturedEnv = new Environment(env);
+    const handle: Extract<RuntimeValue, { kind: "proc_handle" }> = {
+      kind: "proc_handle",
+      state: "pending",
+      expression: node,
+      env: capturedEnv,
+      runner: null,
+      errorMode: "raw",
+      cancelRequested: false,
+      awaitBlocked: false,
+      entrypoint: true,
+    };
+    handle.runner = () => this.runProcHandle(handle);
+    this.scheduleAsync(handle.runner);
+    while (handle.state === "pending") {
+      this.processScheduler(this.schedulerMaxSteps);
+      if (handle.state !== "pending") break;
+      const pending = typeof this.executor.pendingTasks === "function" ? this.executor.pendingTasks() : 0;
+      if (pending === 0) {
+        await new Promise((resolve) => setTimeout(resolve, 0));
       }
     }
+    if (handle.state === "resolved") {
+      return handle.result ?? { kind: "nil", value: null };
+    }
+    if (handle.state === "cancelled") {
+      throw new RaiseSignal(handle.error ?? this.makeRuntimeError("Proc cancelled"));
+    }
+    throw new RaiseSignal(handle.error ?? this.makeRuntimeError("Proc failed"));
   };
 
   cls.prototype.runProcHandle = function runProcHandle(this: Interpreter, handle: Extract<RuntimeValue, { kind: "proc_handle" }>): void {
@@ -500,6 +659,7 @@ export function applyConcurrencyAugmentations(cls: typeof Interpreter): void {
     }
     this.pushProcContext(procContext);
     this.asyncContextStack.push({ kind: "proc", handle });
+    const errorMode = handle.errorMode ?? "proc";
     try {
       const value = this.evaluate(handle.expression, handle.env);
       if (handle.cancelRequested) {
@@ -511,26 +671,41 @@ export function applyConcurrencyAugmentations(cls: typeof Interpreter): void {
         handle.failureInfo = undefined;
       }
     } catch (e) {
+      if (e instanceof ExitSignal) {
+        throw e;
+      }
       if (e instanceof ProcYieldSignal) {
         this.manualYieldRequested = false;
         if (!handle.awaitBlocked && handle.runner) {
           this.scheduleAsync(handle.runner);
         }
       } else if (e instanceof RaiseSignal) {
-        const procErr = this.toProcError(e.value, "Proc task failed");
-        const details = this.getProcErrorDetails(procErr);
-        handle.failureInfo = procErr;
-        handle.error = this.makeRuntimeError(`Proc failed: ${details}`, procErr, procErr);
-        handle.state = "failed";
+        if (errorMode === "raw") {
+          handle.failureInfo = this.toProcError(e.value, "Proc task failed");
+          handle.error = e.value;
+          handle.state = "failed";
+        } else {
+          const procErr = this.toProcError(e.value, "Proc task failed");
+          const details = this.getProcErrorDetails(procErr);
+          handle.failureInfo = procErr;
+          handle.error = this.makeRuntimeError(`Proc failed: ${details}`, procErr, procErr);
+          handle.state = "failed";
+        }
       } else if (handle.cancelRequested) {
         const msg = e instanceof Error ? e.message : "Proc cancelled";
         this.markProcCancelled(handle, msg || "Proc cancelled");
       } else {
         const msg = e instanceof Error ? e.message : "Proc execution error";
-        const procErr = this.makeProcError(msg);
-        handle.failureInfo = procErr;
-        handle.error = this.makeRuntimeError(`Proc failed: ${msg}`, procErr, procErr);
-        handle.state = "failed";
+        if (errorMode === "raw") {
+          handle.failureInfo = this.makeProcError(msg);
+          handle.error = this.makeRuntimeError(msg);
+          handle.state = "failed";
+        } else {
+          const procErr = this.makeProcError(msg);
+          handle.failureInfo = procErr;
+          handle.error = this.makeRuntimeError(`Proc failed: ${msg}`, procErr, procErr);
+          handle.state = "failed";
+        }
       }
     } finally {
       this.asyncContextStack.pop();
@@ -579,9 +754,12 @@ export function applyConcurrencyAugmentations(cls: typeof Interpreter): void {
         future.failureInfo = undefined;
       }
     } catch (e) {
+      if (e instanceof ExitSignal) {
+        throw e;
+      }
       if (e instanceof ProcYieldSignal) {
         this.manualYieldRequested = false;
-        if (future.runner) {
+        if (!future.awaitBlocked && future.runner) {
           this.scheduleAsync(future.runner);
         }
       } else if (e instanceof RaiseSignal) {
@@ -736,7 +914,7 @@ export function applyConcurrencyAugmentations(cls: typeof Interpreter): void {
 
   cls.prototype.createAwaitWaker = function createAwaitWaker(
     this: Interpreter,
-    handle: Extract<RuntimeValue, { kind: "proc_handle" }>,
+    handle: AsyncHandle,
     state: unknown,
   ): Extract<RuntimeValue, { kind: "struct_instance" }> {
     if (!this.awaitWakerStruct || !this.awaitWakerNativeMethods) {
@@ -752,7 +930,13 @@ export function applyConcurrencyAugmentations(cls: typeof Interpreter): void {
         }
         handle.awaitBlocked = false;
         if (!handle.runner) {
-          handle.runner = () => this.runProcHandle(handle);
+          handle.runner = () => {
+            if (handle.kind === "proc_handle") {
+              this.runProcHandle(handle);
+            } else {
+              this.runFuture(handle);
+            }
+          };
         }
         this.scheduleAsync(handle.runner);
       },

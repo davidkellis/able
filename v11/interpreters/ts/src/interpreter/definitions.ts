@@ -50,7 +50,7 @@ function canonicalizeTypeExpression(ctx: Interpreter, env: Environment, expr: AS
 export function evaluateInterfaceDefinition(ctx: Interpreter, node: AST.InterfaceDefinition, env: Environment): RuntimeValue {
   ctx.interfaces.set(node.id.name, node);
   ctx.interfaceEnvs.set(node.id.name, env);
-  env.define(node.id.name, { kind: "interface_def", def: node });
+  ctx.defineInEnv(env, node.id.name, { kind: "interface_def", def: node });
   ctx.registerSymbol(node.id.name, { kind: "interface_def", def: node });
   const qn = ctx.qualifiedName(node.id.name);
   if (qn) {
@@ -88,7 +88,7 @@ function functionExpectsSelf(def: AST.FunctionDefinition): boolean {
 }
 
 export function evaluateUnionDefinition(ctx: Interpreter, node: AST.UnionDefinition, env: Environment): RuntimeValue {
-  env.define(node.id.name, { kind: "union_def", def: node });
+  ctx.defineInEnv(env, node.id.name, { kind: "union_def", def: node });
   ctx.unions.set(node.id.name, node);
   ctx.registerSymbol(node.id.name, { kind: "union_def", def: node });
   const qn = ctx.qualifiedName(node.id.name);
@@ -126,7 +126,7 @@ export function evaluateMethodsDefinition(ctx: Interpreter, node: AST.MethodsDef
       (fnValue as any).typeQualified = true;
     }
     insertFunction(bucket, def.id.name, fnValue, 0);
-    env.define(exportedName, fnValue);
+    ctx.defineInEnv(env, exportedName, fnValue);
     ctx.registerSymbol(exportedName, fnValue);
     const qn = ctx.qualifiedName(exportedName);
     if (qn) {
@@ -163,7 +163,7 @@ export function evaluateImplementationDefinition(ctx: Interpreter, node: AST.Imp
       symbols: symMap,
       meta: { interfaceName: implNode.interfaceName.name, target: implNode.targetType, interfaceArgs: implNode.interfaceArgs },
     };
-    env.define(name, implVal);
+    ctx.defineInEnv(env, name, implVal);
     ctx.registerSymbol(name, implVal);
     const qn = ctx.qualifiedName(name);
     if (qn) { try { ctx.globals.define(qn, implVal); } catch {} }

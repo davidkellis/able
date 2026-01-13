@@ -5,12 +5,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { AST, TypeChecker, V11 } from "../index";
+import { Environment } from "../src/interpreter/environment";
 import type { PackageSummary, TypecheckerDiagnostic } from "../src/typechecker/diagnostics";
 import { ensureConsolePrint, installRuntimeStubs } from "./runtime-stubs";
 import { formatTypecheckerDiagnostic, printPackageSummaries } from "./typecheck-utils";
 import { resolveTypecheckMode, type TypecheckMode } from "./typecheck-mode";
 import { ModuleLoader, type Program } from "./module-loader";
-import { callCallableValue } from "../src/interpreter/functions";
 import { numericToNumber } from "../src/interpreter/numeric";
 import { collectModuleSearchPaths, type ModuleSearchPath } from "./module-search-paths";
 import { buildExecutionSearchPaths, loadManifestContext } from "./module-deps";
@@ -44,7 +44,7 @@ const TYPECHECK_MODE = resolveTypecheckMode(rawTypecheckMode !== undefined ? raw
 const ABLE_PATH_ENV = process.env.ABLE_PATH ?? "";
 const ABLE_MODULE_PATHS_ENV = process.env.ABLE_MODULE_PATHS ?? "";
 
-type CLICommand = "run" | "check" | "test";
+type CLICommand = "run" | "check" | "test" | "repl";
 
 type ModuleDiagnosticEntry = {
   packageName: string;
@@ -74,6 +74,9 @@ async function main() {
     case "run":
       await handleRunCommand(args);
       return;
+    case "repl":
+      await handleReplCommand(args);
+      return;
     case "check":
       await handleCheckCommand(args);
       return;
@@ -95,7 +98,7 @@ function extractCommand(argv: string[]): { command: CLICommand; args: string[] }
 }
 
 function isCommand(value: string | undefined): value is CLICommand {
-  return value === "run" || value === "check" || value === "test";
+  return value === "run" || value === "check" || value === "test" || value === "repl";
 }
 
 function isHelpFlag(value: string | undefined): boolean {
@@ -140,6 +143,56 @@ async function handleRunCommand(args: string[]): Promise<void> {
   }
 
   await invokeEntryMain(interpreter, program.entry);
+  cleanupStdIO();
+  process.exit(process.exitCode ?? 0);
+}
+
+async function handleReplCommand(args: string[]): Promise<void> {
+  if (args.length > 0) {
+    console.error(`able repl does not take arguments (received ${args.join(" ")})`);
+    process.exitCode = 1;
+    return;
+  }
+  installReplExitHook();
+  const searchPaths = await resolveReplSearchPaths();
+  if (!searchPaths) {
+    process.exitCode = 1;
+    return;
+  }
+  const entryPath = resolveReplEntryPath(searchPaths);
+  if (!entryPath) {
+    console.error("unable to locate able.repl module in stdlib search paths");
+    process.exitCode = 1;
+    return;
+  }
+  const loader = new ModuleLoader(searchPaths);
+  let program: Program;
+  try {
+    program = await loader.load(entryPath);
+  } catch (error) {
+    console.error(`failed to load repl module: ${extractErrorMessage(error)}`);
+    process.exitCode = 1;
+    return;
+  }
+
+  const session = new TypeChecker.TypecheckerSession();
+  const ok = maybeTypecheckProgram(session, program.modules, "run");
+  if (!ok) {
+    return;
+  }
+
+  const interpreter = new V11.Interpreter({ args: [] });
+  ensureConsolePrint(interpreter);
+  installRuntimeStubs(interpreter);
+
+  const evaluated = await evaluateProgram(interpreter, program.modules);
+  if (!evaluated) {
+    return;
+  }
+
+  await invokeEntryMain(interpreter, program.entry);
+  cleanupStdIO();
+  process.exit(process.exitCode ?? 0);
 }
 
 async function invokeEntryMain(interpreter: V11.Interpreter, entry: Program["entry"]): Promise<void> {
@@ -157,8 +210,10 @@ async function invokeEntryMain(interpreter: V11.Interpreter, entry: Program["ent
   }
 
   try {
+    const callEnv = new Environment(interpreter.globals);
+    callEnv.define("main", mainValue);
     const callNode = AST.functionCall(AST.identifier("main"), []);
-    callCallableValue(interpreter as any, mainValue, [], interpreter.globals, callNode);
+    await interpreter.evaluateAsTask(callNode, callEnv);
   } catch (error) {
     if (error instanceof ExitSignal) {
       process.exitCode = error.code;
@@ -167,6 +222,43 @@ async function invokeEntryMain(interpreter: V11.Interpreter, entry: Program["ent
     console.error(`runtime error: ${extractErrorMessage(error)}`);
     process.exitCode = 1;
   }
+}
+
+function cleanupStdIO(): void {
+  const stdin = process.stdin;
+  if (stdin && typeof stdin.removeAllListeners === "function") {
+    stdin.removeAllListeners("data");
+    stdin.removeAllListeners("end");
+    stdin.removeAllListeners("error");
+    if (typeof stdin.pause === "function") {
+      stdin.pause();
+    }
+  }
+}
+
+function installReplExitHook(): void {
+  const stdin = process.stdin;
+  if (!stdin || !stdin.isTTY || typeof stdin.on !== "function") return;
+  if (typeof stdin.setEncoding === "function") {
+    stdin.setEncoding("utf8");
+  }
+  let buffer = "";
+  stdin.on("data", (chunk: string | Buffer) => {
+    buffer += typeof chunk === "string" ? chunk : chunk.toString("utf8");
+    while (buffer.length > 0) {
+      const newlineIdx = buffer.search(/[\r\n]/);
+      if (newlineIdx === -1) break;
+      const line = buffer.slice(0, newlineIdx).trim();
+      let nextIdx = newlineIdx + 1;
+      if (buffer[newlineIdx] === "\r" && buffer[nextIdx] === "\n") {
+        nextIdx += 1;
+      }
+      buffer = buffer.slice(nextIdx);
+      if (line === ":quit") {
+        process.exit(0);
+      }
+    }
+  });
 }
 
 async function handleCheckCommand(args: string[]): Promise<void> {
@@ -247,7 +339,7 @@ async function handleTestCommand(args: string[]): Promise<void> {
   ensureConsolePrint(interpreter);
   installRuntimeStubs(interpreter);
 
-  const evaluated = evaluateTestModules(interpreter, loadResult.modules);
+  const evaluated = await evaluateTestModules(interpreter, loadResult.modules);
   if (!evaluated) {
     return;
   }
@@ -392,7 +484,7 @@ async function resolveEntryPath(input: string): Promise<string | null> {
 async function evaluateProgram(interpreter: V11.Interpreter, modules: Program["modules"]): Promise<boolean> {
   for (const mod of modules) {
     try {
-      interpreter.evaluate(mod.module);
+      await interpreter.evaluateAsTask(mod.module);
     } catch (error) {
       if (error instanceof ExitSignal) {
         process.exitCode = error.code;
@@ -442,6 +534,45 @@ async function resolveSearchPaths(entryPath: string): Promise<ModuleSearchPath[]
     extras,
     probeFrom,
   });
+}
+
+async function resolveReplSearchPaths(): Promise<ModuleSearchPath[] | null> {
+  const cwd = process.cwd();
+  let manifestRoot: string | null = null;
+  let extras: ModuleSearchPath[] = [];
+  try {
+    const manifestContext = await loadManifestContext(cwd);
+    manifestRoot = manifestContext.manifest?.path ? path.dirname(manifestContext.manifest.path) : null;
+    extras = buildExecutionSearchPaths(manifestContext.manifest, manifestContext.lock);
+  } catch (error) {
+    console.error(extractErrorMessage(error));
+    return null;
+  }
+  const probeFrom = [
+    cwd,
+    manifestRoot ?? undefined,
+    path.dirname(fileURLToPath(import.meta.url)),
+    path.dirname(process.execPath),
+  ].filter(Boolean) as string[];
+
+  return collectModuleSearchPaths({
+    cwd,
+    ablePathEnv: ABLE_PATH_ENV,
+    ableModulePathsEnv: ABLE_MODULE_PATHS_ENV,
+    extras,
+    probeFrom,
+  });
+}
+
+function resolveReplEntryPath(searchPaths: ModuleSearchPath[]): string | null {
+  for (const entry of searchPaths) {
+    if (!entry.isStdlib) continue;
+    const candidate = path.join(entry.path, "repl.able");
+    if (fsExistsSync(candidate)) {
+      return candidate;
+    }
+  }
+  return null;
 }
 
 function parseTestArguments(args: string[]): TestCliConfig {
@@ -620,6 +751,7 @@ function printUsage(): void {
 
 Usage:
   bun run ${script} run <path>      Typecheck and execute an Able module (default command)
+  bun run ${script} repl            Start the Able REPL
   bun run ${script} check <path>    Typecheck without executing
   bun run ${script} test [paths]    Discover and run Able tests
 

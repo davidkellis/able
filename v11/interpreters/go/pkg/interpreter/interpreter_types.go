@@ -93,6 +93,14 @@ func (i *Interpreter) typeExpressionFromValue(value runtime.Value) ast.TypeExpre
 			return nil
 		}
 		return ast.Ty(string(v.TypeSuffix))
+	case *runtime.HostHandleValue:
+		if v == nil {
+			return nil
+		}
+		if v.HandleType == "" {
+			return nil
+		}
+		return ast.Ty(v.HandleType)
 	case *runtime.StructInstanceValue:
 		if v == nil || v.Definition == nil || v.Definition.Node == nil || v.Definition.Node.ID == nil {
 			return nil
@@ -461,6 +469,16 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 			}
 		}
 		switch name {
+		case "IoHandle", "ProcHandle":
+			switch hv := value.(type) {
+			case *runtime.HostHandleValue:
+				if hv == nil {
+					return false
+				}
+				return hv.HandleType == name
+			default:
+				return false
+			}
 		case "String":
 			if _, ok := value.(runtime.StringValue); ok {
 				return true
@@ -516,19 +534,19 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 				return true
 			}
 			return false
-	case "f32", "f64":
-		switch val := value.(type) {
-		case runtime.FloatValue:
-			return true
-		case *runtime.FloatValue:
-			return val != nil
-		case runtime.IntegerValue:
-			return true
-		case *runtime.IntegerValue:
-			return val != nil
-		default:
-			return false
-		}
+		case "f32", "f64":
+			switch val := value.(type) {
+			case runtime.FloatValue:
+				return true
+			case *runtime.FloatValue:
+				return val != nil
+			case runtime.IntegerValue:
+				return true
+			case *runtime.IntegerValue:
+				return val != nil
+			default:
+				return false
+			}
 		default:
 			if unionDef, ok := i.unionDefinitions[name]; ok && unionDef != nil && unionDef.Node != nil {
 				for _, variant := range unionDef.Node.Variants {

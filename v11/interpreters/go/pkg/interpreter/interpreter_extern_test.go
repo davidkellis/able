@@ -10,7 +10,7 @@ import (
 func TestExternHandlersRegisterNativeFunctions(t *testing.T) {
 	interp := New()
 	sig := ast.Fn("now_nanos", nil, nil, ast.Ty("i64"), nil, nil, false, false)
-	mod := ast.Mod([]ast.Statement{ast.Extern(ast.HostTargetGo, sig, "")}, nil, ast.Pkg([]interface{}{"host"}, false))
+	mod := ast.Mod([]ast.Statement{ast.Extern(ast.HostTargetGo, sig, "return 0")}, nil, ast.Pkg([]interface{}{"host"}, false))
 
 	_, env, err := interp.EvaluateModule(mod)
 	if err != nil {
@@ -49,7 +49,7 @@ func TestExternPreservesExistingBinding(t *testing.T) {
 	interp.global.Define("now_nanos", existing)
 
 	sig := ast.Fn("now_nanos", nil, nil, ast.Ty("i64"), nil, nil, false, false)
-	mod := ast.Mod([]ast.Statement{ast.Extern(ast.HostTargetGo, sig, "")}, nil, nil)
+	mod := ast.Mod([]ast.Statement{ast.Extern(ast.HostTargetGo, sig, "return 0")}, nil, nil)
 
 	_, env, err := interp.EvaluateModule(mod)
 	if err != nil {

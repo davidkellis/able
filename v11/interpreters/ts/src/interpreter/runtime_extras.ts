@@ -1,49 +1,19 @@
-import fs from "node:fs";
-
 import * as AST from "../ast";
 import { Environment } from "./environment";
 import { Interpreter } from "./index";
-import { BreakLabelSignal, RaiseSignal } from "./signals";
-import { makeIntegerValue } from "./numeric";
+import { BreakLabelSignal, GeneratorYieldSignal, ProcYieldSignal, RaiseSignal } from "./signals";
 import type { RuntimeValue } from "./values";
-
-type ExternHandler = (
-  ctx: Interpreter,
-  extern: AST.ExternFunctionBody,
-  arity: number,
-) => Extract<RuntimeValue, { kind: "native_function" }>;
-
-const externHandlers: Partial<Record<AST.HostTarget, Record<string, ExternHandler>>> = {
-  typescript: {
-    now_nanos: (ctx, _extern, arity) =>
-      ctx.makeNativeFunction("now_nanos", arity, () => {
-        return makeIntegerValue("i64", 1_234_567_890_123_456n);
-      }),
-    read_text: (ctx, _extern, arity) =>
-      ctx.makeNativeFunction("read_text", arity, (interp, args) => {
-        const pathVal = args[0];
-        if (!pathVal || pathVal.kind !== "String") {
-          throw new Error("read_text expects a String path");
-        }
-        try {
-          const data = fs.readFileSync(pathVal.value, "utf8");
-          return { kind: "String", value: data };
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          throw new RaiseSignal(interp.makeRuntimeError(message));
-        }
-      }),
-  },
-};
-
-export function registerExternHandler(target: AST.HostTarget, name: string, handler: ExternHandler): void {
-  if (!externHandlers[target]) {
-    externHandlers[target] = {};
-  }
-  externHandlers[target]![name] = handler;
-}
+import type { ContinuationContext } from "./continuations";
 
 export function evaluateStringInterpolation(ctx: Interpreter, node: AST.StringInterpolation, env: Environment): RuntimeValue {
+  const generator = ctx.currentGeneratorContext();
+  if (generator) {
+    return evaluateStringInterpolationWithContinuation(ctx, node, env, generator);
+  }
+  const procContext = ctx.currentProcContext ? ctx.currentProcContext() : null;
+  if (procContext) {
+    return evaluateStringInterpolationWithContinuation(ctx, node, env, procContext);
+  }
   let out = "";
   for (const part of node.parts) {
     if (part.type === "StringLiteral") out += part.value;
@@ -53,6 +23,50 @@ export function evaluateStringInterpolation(ctx: Interpreter, node: AST.StringIn
     }
   }
   return { kind: "String", value: out };
+}
+
+function evaluateStringInterpolationWithContinuation(
+  ctx: Interpreter,
+  node: AST.StringInterpolation,
+  env: Environment,
+  continuation: ContinuationContext,
+): RuntimeValue {
+  let state = continuation.getStringInterpolationState(node);
+  if (!state) {
+    state = { index: 0, output: "" };
+    continuation.setStringInterpolationState(node, state);
+  }
+
+  while (state.index < node.parts.length) {
+    const part = node.parts[state.index]!;
+    if (part.type === "StringLiteral") {
+      state.output += part.value;
+      state.index += 1;
+      continue;
+    }
+    try {
+      const val = ctx.evaluate(part, env);
+      state.output += ctx.valueToStringWithEnv(val, env);
+      state.index += 1;
+    } catch (err) {
+      if (isContinuationYield(continuation, err)) {
+        continuation.markStatementIncomplete();
+      } else {
+        continuation.clearStringInterpolationState(node);
+      }
+      throw err;
+    }
+  }
+
+  continuation.clearStringInterpolationState(node);
+  return { kind: "String", value: state.output };
+}
+
+function isContinuationYield(context: ContinuationContext, err: unknown): boolean {
+  if (context.kind === "generator") {
+    return err instanceof GeneratorYieldSignal || err instanceof ProcYieldSignal;
+  }
+  return err instanceof ProcYieldSignal;
 }
 
 export function evaluateBreakpointExpression(ctx: Interpreter, node: AST.BreakpointExpression, env: Environment): RuntimeValue {
@@ -96,6 +110,7 @@ export function evaluateSpawnExpression(ctx: Interpreter, node: AST.SpawnExpress
     runner: null,
     cancelRequested: false,
     hasStarted: false,
+    awaitBlocked: false,
   };
   future.runner = () => ctx.runFuture(future);
   ctx.scheduleAsync(future.runner);
@@ -110,6 +125,9 @@ export function evaluateExternFunctionBody(ctx: Interpreter, node: AST.ExternFun
   if (node.target !== "typescript") {
     return { kind: "nil", value: null };
   }
+  if (!node.body.trim() && !ctx.isKernelExtern(name)) {
+    throw new RaiseSignal(ctx.makeRuntimeError(`extern function ${name} for ${node.target} must provide a host body`));
+  }
   const arity = Array.isArray(node.signature.params) ? node.signature.params.length : 0;
   let binding: RuntimeValue | null = null;
   try {
@@ -119,16 +137,10 @@ export function evaluateExternFunctionBody(ctx: Interpreter, node: AST.ExternFun
   }
 
   if (!binding) {
-    const handler = externHandlers[node.target]?.[name];
-    if (handler) {
-      binding = handler(ctx, node, arity);
-    }
-  }
-
-  if (!binding) {
-    binding = ctx.makeNativeFunction(name, arity, () => {
-      throw new RaiseSignal(ctx.makeRuntimeError(`extern function ${name} for ${node.target} is not implemented`));
-    });
+    const pkgName = ctx.currentPackage ?? "<root>";
+    binding = ctx.makeNativeFunction(name, arity, (interp, args) =>
+      interp.invokeExternHostFunction(pkgName, node, args),
+    );
   }
 
   if (!ctx.globals.has(name)) {

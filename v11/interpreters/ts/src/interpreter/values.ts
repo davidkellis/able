@@ -60,6 +60,7 @@ export type RuntimeValue =
   | { kind: "dyn_package"; name: string }
   | { kind: "dyn_ref"; pkg: string; name: string }
   | { kind: "error"; message: string; value?: RuntimeValue; cause?: RuntimeValue }
+  | { kind: "host_handle"; handleType: "IoHandle" | "ProcHandle"; value: unknown }
   | { kind: "bound_method"; func: Extract<RuntimeValue, { kind: "function" | "function_overload" }>; self: RuntimeValue }
   | {
       kind: "interface_value";
@@ -71,15 +72,17 @@ export type RuntimeValue =
   | {
       kind: "proc_handle";
       state: "pending" | "resolved" | "failed" | "cancelled";
-      expression: AST.FunctionCall | AST.BlockExpression;
+      expression: AST.AstNode;
       env: Environment;
       runner: (() => void) | null;
       result?: RuntimeValue;
       error?: RuntimeValue;
       failureInfo?: RuntimeValue;
       isEvaluating?: boolean;
+      errorMode?: "raw" | "proc";
       cancelRequested?: boolean;
       hasStarted?: boolean;
+      entrypoint?: boolean;
       waitingMutex?: unknown;
       continuation?: ProcContinuationContext;
       awaitBlocked?: boolean;
@@ -87,7 +90,7 @@ export type RuntimeValue =
   | {
       kind: "future";
       state: "pending" | "resolved" | "failed" | "cancelled";
-      expression: AST.FunctionCall | AST.BlockExpression;
+      expression: AST.AstNode;
       env: Environment;
       runner: (() => void) | null;
       result?: RuntimeValue;
@@ -97,6 +100,7 @@ export type RuntimeValue =
       continuation?: ProcContinuationContext;
       cancelRequested?: boolean;
       hasStarted?: boolean;
+      awaitBlocked?: boolean;
       waitingChannelSend?: {
         state: any;
         value: RuntimeValue;
@@ -110,7 +114,7 @@ export type RuntimeValue =
       kind: "native_function";
       name: string;
       arity: number;
-      impl: (interpreter: Interpreter, args: RuntimeValue[]) => RuntimeValue;
+      impl: (interpreter: Interpreter, args: RuntimeValue[]) => RuntimeValue | Promise<RuntimeValue>;
     }
   | {
       kind: "native_bound_method";

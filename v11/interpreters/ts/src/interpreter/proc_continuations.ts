@@ -1,12 +1,15 @@
 import * as AST from "../ast";
+import type { RuntimeValue } from "./values";
 import type {
   ContinuationContext,
   BlockState,
+  ModuleState,
   ForLoopState,
   WhileLoopState,
   LoopExpressionState,
   IfExpressionState,
   MatchExpressionState,
+  StringInterpolationState,
 } from "./continuations";
 
 export class ProcContinuationContext implements ContinuationContext {
@@ -14,12 +17,15 @@ export class ProcContinuationContext implements ContinuationContext {
   private repeatCurrentStatement = false;
 
   private blockStates: WeakMap<AST.BlockExpression, BlockState> = new WeakMap();
+  private moduleStates: WeakMap<AST.Module, ModuleState> = new WeakMap();
   private forLoopStates: WeakMap<AST.ForLoop, ForLoopState> = new WeakMap();
   private whileLoopStates: WeakMap<AST.WhileLoop, WhileLoopState> = new WeakMap();
   private loopStates: WeakMap<AST.LoopExpression, LoopExpressionState> = new WeakMap();
   private ifStates: WeakMap<AST.IfExpression, IfExpressionState> = new WeakMap();
   private matchStates: WeakMap<AST.MatchExpression, MatchExpressionState> = new WeakMap();
+  private stringInterpolationStates: WeakMap<AST.StringInterpolation, StringInterpolationState> = new WeakMap();
   private awaitStates: WeakMap<AST.AwaitExpression, unknown> = new WeakMap();
+  private nativeCallStates: WeakMap<AST.FunctionCall, NativeCallState> = new WeakMap();
 
   markStatementIncomplete(): void {
     this.repeatCurrentStatement = true;
@@ -41,6 +47,18 @@ export class ProcContinuationContext implements ContinuationContext {
 
   clearBlockState(node: AST.BlockExpression): void {
     this.blockStates.delete(node);
+  }
+
+  getModuleState(node: AST.Module): ModuleState | undefined {
+    return this.moduleStates.get(node);
+  }
+
+  setModuleState(node: AST.Module, state: ModuleState): void {
+    this.moduleStates.set(node, state);
+  }
+
+  clearModuleState(node: AST.Module): void {
+    this.moduleStates.delete(node);
   }
 
   getForLoopState(node: AST.ForLoop): ForLoopState | undefined {
@@ -103,6 +121,18 @@ export class ProcContinuationContext implements ContinuationContext {
     this.matchStates.delete(node);
   }
 
+  getStringInterpolationState(node: AST.StringInterpolation): StringInterpolationState | undefined {
+    return this.stringInterpolationStates.get(node);
+  }
+
+  setStringInterpolationState(node: AST.StringInterpolation, state: StringInterpolationState): void {
+    this.stringInterpolationStates.set(node, state);
+  }
+
+  clearStringInterpolationState(node: AST.StringInterpolation): void {
+    this.stringInterpolationStates.delete(node);
+  }
+
   getAwaitState(node: AST.AwaitExpression): unknown {
     return this.awaitStates.get(node);
   }
@@ -115,14 +145,35 @@ export class ProcContinuationContext implements ContinuationContext {
     this.awaitStates.delete(node);
   }
 
+  getNativeCallState(node: AST.FunctionCall): NativeCallState | undefined {
+    return this.nativeCallStates.get(node);
+  }
+
+  setNativeCallState(node: AST.FunctionCall, state: NativeCallState): void {
+    this.nativeCallStates.set(node, state);
+  }
+
+  clearNativeCallState(node: AST.FunctionCall): void {
+    this.nativeCallStates.delete(node);
+  }
+
   reset(): void {
     this.repeatCurrentStatement = false;
     this.blockStates = new WeakMap();
+    this.moduleStates = new WeakMap();
     this.forLoopStates = new WeakMap();
     this.whileLoopStates = new WeakMap();
     this.loopStates = new WeakMap();
     this.ifStates = new WeakMap();
     this.matchStates = new WeakMap();
+    this.stringInterpolationStates = new WeakMap();
     this.awaitStates = new WeakMap();
+    this.nativeCallStates = new WeakMap();
   }
 }
+
+export type NativeCallState = {
+  status: "pending" | "resolved" | "rejected";
+  value?: RuntimeValue;
+  error?: RuntimeValue;
+};

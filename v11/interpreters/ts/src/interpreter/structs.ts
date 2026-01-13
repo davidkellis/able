@@ -43,7 +43,7 @@ function methodExpectsSelf(method: Extract<RuntimeValue, { kind: "function" | "f
 }
 
 export function evaluateStructDefinition(ctx: Interpreter, node: AST.StructDefinition, env: Environment): RuntimeValue {
-  env.define(node.id.name, { kind: "struct_def", def: node });
+  ctx.defineInEnv(env, node.id.name, { kind: "struct_def", def: node });
   ctx.registerSymbol(node.id.name, { kind: "struct_def", def: node });
   const qn = ctx.qualifiedName(node.id.name);
   if (qn) {
@@ -227,6 +227,10 @@ export function memberAccessOnValue(
     if (member.name === "def") {
       ctx.ensureDynamicBuiltins();
       return { kind: "native_bound_method", func: ctx.dynPackageDefMethod, self: obj };
+    }
+    if (member.name === "eval") {
+      ctx.ensureDynamicBuiltins();
+      return { kind: "native_bound_method", func: ctx.dynPackageEvalMethod, self: obj };
     }
     const bucket = ctx.packageRegistry.get(obj.name);
     const sym = bucket?.get(member.name);

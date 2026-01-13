@@ -2,56 +2,11 @@ package interpreter
 
 import (
 	"fmt"
-	"math/big"
-	"os"
 	"strings"
 
 	"able/interpreter-go/pkg/ast"
 	"able/interpreter-go/pkg/runtime"
 )
-
-type externNativeFactory func(i *Interpreter, def *ast.ExternFunctionBody, arity int) *runtime.NativeFunctionValue
-
-var externNativeHandlers = map[ast.HostTarget]map[string]externNativeFactory{
-	ast.HostTargetGo: {
-		"now_nanos": func(_ *Interpreter, _ *ast.ExternFunctionBody, arity int) *runtime.NativeFunctionValue {
-			return &runtime.NativeFunctionValue{
-				Name:  "now_nanos",
-				Arity: arity,
-				Impl: func(_ *runtime.NativeCallContext, _ []runtime.Value) (runtime.Value, error) {
-					return runtime.IntegerValue{Val: big.NewInt(1234567890123456), TypeSuffix: runtime.IntegerI64}, nil
-				},
-			}
-		},
-		"read_text": func(_ *Interpreter, _ *ast.ExternFunctionBody, arity int) *runtime.NativeFunctionValue {
-			return &runtime.NativeFunctionValue{
-				Name:  "read_text",
-				Arity: arity,
-				Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
-					if len(args) < 1 {
-						return nil, fmt.Errorf("read_text expects a path argument")
-					}
-					path, ok := args[0].(runtime.StringValue)
-					if !ok {
-						return nil, fmt.Errorf("read_text expects a string path")
-					}
-					data, err := os.ReadFile(path.Val)
-					if err != nil {
-						return nil, raiseSignal{value: runtime.ErrorValue{Message: err.Error()}}
-					}
-					return runtime.StringValue{Val: string(data)}, nil
-				},
-			}
-		},
-	},
-}
-
-func registerExternNativeHandler(target ast.HostTarget, name string, handler externNativeFactory) {
-	if _, ok := externNativeHandlers[target]; !ok {
-		externNativeHandlers[target] = make(map[string]externNativeFactory)
-	}
-	externNativeHandlers[target][name] = handler
-}
 
 func canonicalTypeName(env *runtime.Environment, name string) string {
 	if env == nil {
@@ -131,7 +86,7 @@ func (i *Interpreter) evaluateFunctionDefinition(def *ast.FunctionDefinition, en
 		return nil, err
 	}
 	fnVal := &runtime.FunctionValue{Declaration: def, Closure: env}
-	env.Define(def.ID.Name, fnVal)
+	i.defineInEnv(env, def.ID.Name, fnVal)
 	i.registerSymbol(def.ID.Name, fnVal)
 	if qn := i.qualifiedName(def.ID.Name); qn != "" {
 		i.global.Define(qn, fnVal)
@@ -150,7 +105,14 @@ func (i *Interpreter) evaluateExternFunctionBody(def *ast.ExternFunctionBody, en
 	if _, err := env.Get(name); err == nil {
 		return runtime.NilValue{}, nil
 	}
-	native := i.makeExternNative(def)
+	if def.Target == ast.HostTargetGo && strings.TrimSpace(def.Body) == "" && !i.isKernelExtern(name) {
+		return nil, raiseSignal{value: runtime.ErrorValue{Message: fmt.Sprintf("extern function %s for %s must provide a host body", name, def.Target)}}
+	}
+	pkgName := i.currentPackage
+	if pkgName == "" {
+		pkgName = "<root>"
+	}
+	native := i.makeExternNative(def, pkgName)
 	if native == nil {
 		return runtime.NilValue{}, nil
 	}
@@ -162,7 +124,7 @@ func (i *Interpreter) evaluateExternFunctionBody(def *ast.ExternFunctionBody, en
 	return runtime.NilValue{}, nil
 }
 
-func (i *Interpreter) makeExternNative(def *ast.ExternFunctionBody) *runtime.NativeFunctionValue {
+func (i *Interpreter) makeExternNative(def *ast.ExternFunctionBody, pkgName string) *runtime.NativeFunctionValue {
 	if def == nil || def.Signature == nil || def.Signature.ID == nil {
 		return nil
 	}
@@ -171,18 +133,11 @@ func (i *Interpreter) makeExternNative(def *ast.ExternFunctionBody) *runtime.Nat
 	if def.Target != ast.HostTargetGo {
 		return nil
 	}
-	if factory, ok := externNativeHandlers[def.Target][name]; ok {
-		return factory(i, def, arity)
-	}
-	return i.makeMissingExternNative(name, def.Target, arity)
-}
-
-func (i *Interpreter) makeMissingExternNative(name string, target ast.HostTarget, arity int) *runtime.NativeFunctionValue {
 	return &runtime.NativeFunctionValue{
 		Name:  name,
 		Arity: arity,
-		Impl: func(_ *runtime.NativeCallContext, _ []runtime.Value) (runtime.Value, error) {
-			return nil, fmt.Errorf("extern function %s for target %s is not implemented", name, target)
+		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+			return i.invokeExternHostFunction(pkgName, def, args)
 		},
 	}
 }
@@ -192,7 +147,7 @@ func (i *Interpreter) evaluateStructDefinition(def *ast.StructDefinition, env *r
 		return nil, fmt.Errorf("Struct definition requires identifier")
 	}
 	structVal := &runtime.StructDefinitionValue{Node: def}
-	env.Define(def.ID.Name, structVal)
+	i.defineInEnv(env, def.ID.Name, structVal)
 	env.DefineStruct(def.ID.Name, structVal)
 	i.registerSymbol(def.ID.Name, structVal)
 	if qn := i.qualifiedName(def.ID.Name); qn != "" {
@@ -206,7 +161,7 @@ func (i *Interpreter) evaluateUnionDefinition(def *ast.UnionDefinition, env *run
 		return nil, fmt.Errorf("Union definition requires identifier")
 	}
 	unionVal := runtime.UnionDefinitionValue{Node: def}
-	env.Define(def.ID.Name, unionVal)
+	i.defineInEnv(env, def.ID.Name, unionVal)
 	i.unionDefinitions[def.ID.Name] = &unionVal
 	i.registerSymbol(def.ID.Name, unionVal)
 	if qn := i.qualifiedName(def.ID.Name); qn != "" {
@@ -220,7 +175,7 @@ func (i *Interpreter) evaluateInterfaceDefinition(def *ast.InterfaceDefinition, 
 		return nil, fmt.Errorf("Interface definition requires identifier")
 	}
 	ifaceVal := &runtime.InterfaceDefinitionValue{Node: def, Env: env}
-	env.Define(def.ID.Name, ifaceVal)
+	i.defineInEnv(env, def.ID.Name, ifaceVal)
 	i.interfaces[def.ID.Name] = ifaceVal
 	i.registerSymbol(def.ID.Name, ifaceVal)
 	if qn := i.qualifiedName(def.ID.Name); qn != "" {
@@ -328,7 +283,7 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 			TargetType:    canonicalDef.TargetType,
 			Methods:       methods,
 		}
-		env.Define(name, implVal)
+		i.defineInEnv(env, name, implVal)
 		i.registerSymbol(name, implVal)
 		if qn := i.qualifiedName(name); qn != "" {
 			i.global.Define(qn, implVal)
@@ -377,7 +332,7 @@ func (i *Interpreter) evaluateMethodsDefinition(def *ast.MethodsDefinition, env 
 		}
 		fnVal := &runtime.FunctionValue{Declaration: fn, Closure: env, TypeQualified: !expectsSelf, MethodSet: methodSet}
 		mergeFunctionLike(bucket, fn.ID.Name, fnVal)
-		env.Define(exportedName, fnVal)
+		i.defineInEnv(env, exportedName, fnVal)
 		i.registerSymbol(exportedName, fnVal)
 		if qn := i.qualifiedName(exportedName); qn != "" {
 			i.global.Define(qn, fnVal)

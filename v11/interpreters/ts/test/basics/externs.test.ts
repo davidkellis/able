@@ -6,10 +6,14 @@ import { RaiseSignal } from "../../src/interpreter/signals";
 const emptyBlock = AST.blockExpression([]);
 
 describe("v11 interpreter - extern handling", () => {
-  test("registers handled externs in globals and package registry", () => {
+  test("executes extern host bodies via the host module", async () => {
     const interpreter = new Interpreter();
     const signature = AST.functionDefinition("now_nanos", [], emptyBlock, AST.simpleTypeExpression("i64"));
-    const mod = AST.module([AST.externFunctionBody("typescript", signature, "")], [], AST.packageStatement(["host"]));
+    const mod = AST.module(
+      [AST.externFunctionBody("typescript", signature, "return 42")],
+      [],
+      AST.packageStatement(["host"]),
+    );
 
     interpreter.evaluate(mod);
 
@@ -17,6 +21,10 @@ describe("v11 interpreter - extern handling", () => {
     expect(pkg?.get("now_nanos")).toBeDefined();
     const qualified = interpreter.globals.get("host.now_nanos");
     expect(qualified.kind).toBe("native_function");
+
+    const call = AST.functionCall(AST.identifier("now_nanos"), []);
+    const result = await interpreter.evaluateAsTask(call);
+    expect(result).toEqual({ kind: "i64", value: 42n });
   });
 
   test("preserves existing bindings when an extern is already provided", () => {
@@ -25,24 +33,21 @@ describe("v11 interpreter - extern handling", () => {
     interpreter.globals.define("now_nanos", existing);
 
     const signature = AST.functionDefinition("now_nanos", [], emptyBlock, AST.simpleTypeExpression("i64"));
-    interpreter.evaluate(AST.externFunctionBody("typescript", signature, ""));
+    interpreter.evaluate(AST.externFunctionBody("typescript", signature, "return 0"));
 
     expect(interpreter.globals.get("now_nanos")).toBe(existing);
   });
 
-  test("installs a stub for unknown externs", () => {
+  test("rejects empty extern bodies for non-kernel symbols", () => {
     const interpreter = new Interpreter();
     const signature = AST.functionDefinition("not_impl", [], emptyBlock, AST.simpleTypeExpression("i64"));
-    interpreter.evaluate(AST.externFunctionBody("typescript", signature, ""));
-    const call = AST.functionCall(AST.identifier("not_impl"), []);
-
     try {
-      interpreter.evaluate(call);
-      throw new Error("expected stub call to throw");
+      interpreter.evaluate(AST.externFunctionBody("typescript", signature, ""));
+      throw new Error("expected extern evaluation to throw");
     } catch (err) {
       expect(err).toBeInstanceOf(RaiseSignal);
       if (err instanceof RaiseSignal && err.value.kind === "error") {
-        expect(err.value.message).toMatch(/not implemented/i);
+        expect(err.value.message).toMatch(/must provide a host body/i);
       }
     }
   });

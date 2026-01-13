@@ -11,7 +11,7 @@ const INTEGER_TYPES = new Set([
 const FLOAT_TYPES = new Set(["f32", "f64"]);
 
 function isPrimitiveTypeName(name: string): boolean {
-  if (name === "bool" || name === "String" || name === "char" || name === "nil" || name === "void") {
+  if (name === "bool" || name === "String" || name === "IoHandle" || name === "ProcHandle" || name === "char" || name === "nil" || name === "void") {
     return true;
   }
   return INTEGER_TYPES.has(name) || FLOAT_TYPES.has(name);

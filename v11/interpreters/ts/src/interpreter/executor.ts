@@ -40,19 +40,23 @@ export class CooperativeExecutor implements Executor {
   }
 
   flush(limit?: number): void {
-    if (this.active) return;
+    const wasActive = this.active;
     const stepLimit = limit ?? this.maxSteps;
-    this.active = true;
-    this.scheduled = false;
+    if (!wasActive) {
+      this.active = true;
+      this.scheduled = false;
+    }
     let steps = 0;
     while (this.queue.length > 0 && steps < stepLimit) {
       const task = this.queue.shift()!;
       task();
       steps += 1;
     }
-    this.active = false;
-    if (this.queue.length > 0) {
-      this.ensureTick();
+    if (!wasActive) {
+      this.active = false;
+      if (this.queue.length > 0) {
+        this.ensureTick();
+      }
     }
   }
 

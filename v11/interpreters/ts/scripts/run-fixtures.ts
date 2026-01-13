@@ -2,8 +2,8 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import type { AST } from "../index";
-import { TypeChecker, V11 } from "../index";
+import { AST, TypeChecker, V11 } from "../index";
+import { Environment } from "../src/interpreter/environment";
 import type {
   PackageSummary,
   TypecheckerDiagnostic,
@@ -27,7 +27,6 @@ import {
 } from "./fixture-utils";
 import { startRunTimeout } from "./test-timeouts";
 import { serializeMapEntries } from "../src/interpreter/maps";
-import { callCallableValue } from "../src/interpreter/functions";
 import { ExitSignal } from "../src/interpreter/signals";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -158,15 +157,15 @@ async function main() {
     }
 
       let result: V11.RuntimeValue | undefined;
-      interceptStdout(stdout, () => {
+      await interceptStdout(stdout, async () => {
         try {
           for (const stdlibProgram of stdlibPrograms) {
-            evaluateProgram(interpreter, stdlibProgram);
+            await evaluateProgram(interpreter, stdlibProgram);
           }
           for (const setupModule of setupModules) {
-            interpreter.evaluate(setupModule);
+            await interpreter.evaluateAsTask(setupModule);
           }
-          result = interpreter.evaluate(moduleAst);
+          result = await interpreter.evaluateAsTask(moduleAst);
         } catch (err) {
           evaluationError = err;
         }
@@ -274,15 +273,18 @@ async function runExecFixture(dir: string): Promise<FixtureResult> {
   try {
     const nonEntry = program.modules.filter((mod) => mod.packageName !== program.entry.packageName);
     for (const mod of nonEntry) {
-      interpreter.evaluate(mod.module);
+      await interpreter.evaluateAsTask(mod.module);
     }
-    interpreter.evaluate(program.entry.module);
+    await interpreter.evaluateAsTask(program.entry.module);
     const pkg = interpreter.packageRegistry.get(program.entry.packageName);
     const mainFn = pkg?.get("main");
     if (!mainFn) {
       throw new Error("entry module missing main");
     }
-    callCallableValue(interpreter as any, mainFn, [], interpreter.globals);
+    const callEnv = new Environment(interpreter.globals);
+    callEnv.define("main", mainFn);
+    const callNode = AST.functionCall(AST.identifier("main"), []);
+    await interpreter.evaluateAsTask(callNode, callEnv);
   } catch (err) {
     if (err instanceof ExitSignal) {
       exitSignaled = true;
@@ -411,12 +413,12 @@ async function ensureStdlibHashMapProgram(): Promise<Program> {
   return stdlibHashMapProgram;
 }
 
-function evaluateProgram(interpreter: V11.Interpreter, program: Program): void {
+async function evaluateProgram(interpreter: V11.Interpreter, program: Program): Promise<void> {
   const nonEntry = program.modules.filter((mod) => mod.packageName !== program.entry.packageName);
   for (const mod of nonEntry) {
-    interpreter.evaluate(mod.module);
+    await interpreter.evaluateAsTask(mod.module);
   }
-  interpreter.evaluate(program.entry.module);
+  await interpreter.evaluateAsTask(program.entry.module);
 }
 
 async function readExistingBaseline(filePath: string): Promise<Record<string, string[]> | null> {

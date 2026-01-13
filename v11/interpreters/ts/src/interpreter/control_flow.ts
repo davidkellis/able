@@ -12,19 +12,19 @@ const NIL_VALUE: RuntimeValue = { kind: "nil", value: null };
 
 function isContinuationYield(context: ContinuationContext, err: unknown): boolean {
   if (context.kind === "generator") {
-    return err instanceof GeneratorYieldSignal;
+    return err instanceof GeneratorYieldSignal || err instanceof ProcYieldSignal;
   }
   return err instanceof ProcYieldSignal;
 }
 
 export function evaluateBlockExpression(ctx: Interpreter, node: AST.BlockExpression, env: Environment): RuntimeValue {
-  const procContext = ctx.currentProcContext ? ctx.currentProcContext() : null;
-  if (procContext) {
-    return evaluateBlockExpressionWithContinuation(ctx, node, env, procContext);
-  }
   const generator = ctx.currentGeneratorContext();
   if (generator) {
     return evaluateBlockExpressionWithContinuation(ctx, node, env, generator);
+  }
+  const procContext = ctx.currentProcContext ? ctx.currentProcContext() : null;
+  if (procContext) {
+    return evaluateBlockExpressionWithContinuation(ctx, node, env, procContext);
   }
   const blockEnv = new Environment(env);
   let result: RuntimeValue = VOID_VALUE;
@@ -72,7 +72,7 @@ function evaluateBlockExpressionWithContinuation(
             repeatStatement = (continuation as any).consumeRepeatCurrentStatement();
           }
           const asyncCtx = ctx.currentAsyncContext ? ctx.currentAsyncContext() : null;
-          awaitBlocked = asyncCtx && asyncCtx.kind === "proc" ? asyncCtx.handle.awaitBlocked : false;
+          awaitBlocked = asyncCtx ? asyncCtx.handle.awaitBlocked : false;
           if (!repeatStatement && ctx.manualYieldRequested && !awaitBlocked) {
             advanceIndex = true;
           }
@@ -110,13 +110,13 @@ function isGenYieldCall(statement: AST.Statement): boolean {
 }
 
 export function evaluateIfExpression(ctx: Interpreter, node: AST.IfExpression, env: Environment): RuntimeValue {
-  const procContext = ctx.currentProcContext ? ctx.currentProcContext() : null;
-  if (procContext) {
-    return evaluateIfExpressionWithContinuation(ctx, node, env, procContext);
-  }
   const generator = ctx.currentGeneratorContext();
   if (generator) {
     return evaluateIfExpressionWithContinuation(ctx, node, env, generator);
+  }
+  const procContext = ctx.currentProcContext ? ctx.currentProcContext() : null;
+  if (procContext) {
+    return evaluateIfExpressionWithContinuation(ctx, node, env, procContext);
   }
   const cond = ctx.evaluate(node.ifCondition, env);
   if (ctx.isTruthy(cond)) return ctx.evaluate(node.ifBody, env);
@@ -255,13 +255,13 @@ function evaluateIfExpressionWithContinuation(
 }
 
 export function evaluateWhileLoop(ctx: Interpreter, node: AST.WhileLoop, env: Environment): RuntimeValue {
-  const procContext = ctx.currentProcContext ? ctx.currentProcContext() : null;
-  if (procContext) {
-    return evaluateWhileLoopWithContinuation(ctx, node, env, procContext);
-  }
   const generator = ctx.currentGeneratorContext();
   if (generator) {
     return evaluateWhileLoopWithContinuation(ctx, node, env, generator);
+  }
+  const procContext = ctx.currentProcContext ? ctx.currentProcContext() : null;
+  if (procContext) {
+    return evaluateWhileLoopWithContinuation(ctx, node, env, procContext);
   }
   while (true) {
     ctx.checkTimeSlice();
@@ -288,13 +288,13 @@ export function evaluateWhileLoop(ctx: Interpreter, node: AST.WhileLoop, env: En
 }
 
 export function evaluateLoopExpression(ctx: Interpreter, node: AST.LoopExpression, env: Environment): RuntimeValue {
-  const procContext = ctx.currentProcContext ? ctx.currentProcContext() : null;
-  if (procContext) {
-    return evaluateLoopExpressionWithContinuation(ctx, node, env, procContext);
-  }
   const generator = ctx.currentGeneratorContext();
   if (generator) {
     return evaluateLoopExpressionWithContinuation(ctx, node, env, generator);
+  }
+  const procContext = ctx.currentProcContext ? ctx.currentProcContext() : null;
+  if (procContext) {
+    return evaluateLoopExpressionWithContinuation(ctx, node, env, procContext);
   }
   let result: RuntimeValue = VOID_VALUE;
   while (true) {
@@ -496,13 +496,13 @@ export function evaluateContinueStatement(ctx: Interpreter, node: AST.ContinueSt
 
 export function evaluateForLoop(ctx: Interpreter, node: AST.ForLoop, env: Environment): RuntimeValue {
   const iterableValue = ctx.evaluate(node.iterable, env);
-  const procContext = ctx.currentProcContext ? ctx.currentProcContext() : null;
-  if (procContext) {
-    return evaluateForLoopWithContinuation(ctx, node, env, procContext, iterableValue);
-  }
   const generator = ctx.currentGeneratorContext();
   if (generator) {
     return evaluateForLoopWithContinuation(ctx, node, env, generator, iterableValue);
+  }
+  const procContext = ctx.currentProcContext ? ctx.currentProcContext() : null;
+  if (procContext) {
+    return evaluateForLoopWithContinuation(ctx, node, env, procContext, iterableValue);
   }
   const baseEnv = new Environment(env);
   const values: RuntimeValue[] = [];
