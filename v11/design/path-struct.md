@@ -22,10 +22,10 @@ struct Path {
 
 ## Constructors
 
-- `Path.new(parts: Path | string | Array string)`
-- `Path.parse(string)` (alias for `Path.new` with normalization)
-- `Path.from_segments(Array string)` (assumes segments already normalized)
-- `Path.current()` / `Path.home()` (requires runtime support via `fs`)
+- `path.new(parts: Path | string | Array string)`
+- `path.parse(string)` (alias for `path.new` with normalization)
+- `path.from_segments(Array string)` (assumes segments already normalized)
+- `path.current()` / `path.home()` (requires runtime support via `fs`)
 
 ## Core Methods (aligned with Crystal’s API)
 
@@ -66,8 +66,8 @@ struct Path {
 ## Windows Considerations
 
 - Recognize drive letters (`C:`) and UNC prefixes (`\\server\share`).
-- `Path.absolute?` returns true if root is non-empty or UNC.
-- `Path.to_native` inserts `\` separators and reinstates drive/UNC prefixes.
+- `path.absolute?` returns true if root is non-empty or UNC.
+- `path.to_native` inserts `\` separators and reinstates drive/UNC prefixes.
 - Normalize incoming mixed separators (`C:/Users` ➜ `C:/Users`).
 
 ## Integration with `able.io.fs`
@@ -82,4 +82,3 @@ struct Path {
 3. Add tests covering POSIX paths, Windows drive paths, UNC paths, join/relative operations, normalization.
 4. Update `design/io-package.md` to reference `Path` integration points (done).
 5. Once `fs` package lands, add convenience wrappers and runtime-dependent methods.
-

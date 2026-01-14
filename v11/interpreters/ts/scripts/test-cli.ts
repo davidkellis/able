@@ -297,19 +297,33 @@ export function callHarnessDiscover(
   }
 }
 
-export function callHarnessRun(
+export async function callHarnessRun(
   interpreter: V11.Interpreter,
   plan: V11.RuntimeValue,
   options: V11.RuntimeValue,
   reporter: V11.RuntimeValue,
-): HarnessFailure | null {
+): Promise<HarnessFailure | null> {
   const runPlan = getCallableSymbol(interpreter, "able.test.harness", "run_plan");
   if (!runPlan) {
     console.error("able test: unable to find able.test.harness.run_plan");
     return { message: "missing able.test.harness.run_plan", details: null };
   }
+  const callEnv = new V11.Environment(interpreter.globals);
+  const runPlanIdent = "__able_test_run_plan";
+  const planIdent = "__able_test_plan";
+  const optionsIdent = "__able_test_options";
+  const reporterIdent = "__able_test_reporter";
+  callEnv.define(runPlanIdent, runPlan);
+  callEnv.define(planIdent, plan);
+  callEnv.define(optionsIdent, options);
+  callEnv.define(reporterIdent, reporter);
+  const callNode = AST.functionCall(AST.identifier(runPlanIdent), [
+    AST.identifier(planIdent),
+    AST.identifier(optionsIdent),
+    AST.identifier(reporterIdent),
+  ]);
   try {
-    const result = callCallableValue(interpreter as any, runPlan, [plan, options, reporter], interpreter.globals);
+    const result = await interpreter.evaluateAsTask(callNode, callEnv);
     if (result.kind === "nil") {
       return null;
     }
@@ -560,6 +574,14 @@ function extractErrorMessage(err: unknown): string {
   if (!err) return "";
   if (typeof err === "string") return err;
   if (err instanceof Error) {
+    if (process.env.ABLE_TRACE_ERRORS) {
+      const anyErr = err as any;
+      const stack = err.stack ?? err.message;
+      if (anyErr.value && typeof anyErr.value === "object" && "message" in anyErr.value) {
+        return `${stack}\nRaised: ${String(anyErr.value.message)}`;
+      }
+      return stack;
+    }
     const anyErr = err as any;
     if (anyErr.value && typeof anyErr.value === "object" && "message" in anyErr.value) {
       return String(anyErr.value.message);

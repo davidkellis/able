@@ -127,6 +127,10 @@ func (c *Checker) checkBinaryExpression(env *Environment, expr *ast.BinaryExpres
 	case "/":
 		resType, err := resolveDivisionBinaryType(leftType, rightType)
 		if err != "" {
+			if ok, _ := c.typeImplementsInterface(leftType, InterfaceType{InterfaceName: "Div"}, []Type{rightType, UnknownType{}}); ok {
+				resultType = UnknownType{}
+				break
+			}
 			diags = append(diags, Diagnostic{
 				Message: fmt.Sprintf("typechecker: '%s' %s", expr.Operator, err),
 				Node:    expr,

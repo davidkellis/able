@@ -44,4 +44,4 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 
 ## TODO (working queue: tackle in order, move completed items to LOG.md)
 
-- (no queued items)
+No open items.

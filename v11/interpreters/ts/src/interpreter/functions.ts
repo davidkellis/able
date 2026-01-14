@@ -2,10 +2,71 @@ import * as AST from "../ast";
 import { Environment } from "./environment";
 import type { Interpreter } from "./index";
 import type { ConstraintSpec, RuntimeValue } from "./values";
-import { RaiseSignal, ReturnSignal } from "./signals";
-import type { NativeCallState } from "./proc_continuations";
+import { ProcYieldSignal, RaiseSignal, ReturnSignal } from "./signals";
+import type { FunctionCallState, NativeCallState } from "./proc_continuations";
 import { memberAccessOnValue } from "./structs";
 import { collectTypeDispatches } from "./type-dispatch";
+
+const CALL_TRACE_THRESHOLD = 120;
+const callTraceStack: string[] = [];
+let callTraceReported = false;
+let matchesTraceCount = 0;
+
+function describeCallTarget(
+  ctx: Interpreter | null,
+  callee: RuntimeValue,
+  callNode?: AST.FunctionCall,
+): string {
+  const memberName = (() => {
+    if (!callNode) return null;
+    const calleeNode = callNode.callee;
+    if (calleeNode.type === "MemberAccessExpression") {
+      const member = calleeNode.member;
+      if (member.type === "Identifier") return member.name;
+    }
+    if (calleeNode.type === "Identifier") return calleeNode.name;
+    return null;
+  })();
+  const receiverName = (() => {
+    if (!ctx) return null;
+    if (callee.kind === "bound_method") {
+      return ctx.getTypeNameForValue(callee.self);
+    }
+    if (callee.kind === "native_bound_method") {
+      return ctx.getTypeNameForValue(callee.self);
+    }
+    return null;
+  })();
+
+  switch (callee.kind) {
+    case "native_function":
+      return callee.name;
+    case "native_bound_method":
+      return receiverName ? `${receiverName}.${callee.func.name}` : callee.func.name;
+    case "function": {
+      const node = callee.node;
+      const name = node.type === "FunctionDefinition" ? node.id?.name ?? "(fn)" : "(lambda)";
+      return memberName ? name : name;
+    }
+    case "function_overload": {
+      const first = callee.overloads[0];
+      const name = first?.node.type === "FunctionDefinition" ? first.node.id?.name ?? "(overload)" : "(overload)";
+      return name;
+    }
+    case "bound_method": {
+      const name = memberName ?? describeCallTarget(ctx, callee.func);
+      return receiverName ? `${receiverName}.${name}` : name;
+    }
+    case "partial_function":
+      return describeCallTarget(ctx, callee.target, callNode);
+    case "dyn_ref":
+      return `${callee.pkg}.${callee.name}`;
+    default:
+      if (memberName && receiverName) return `${receiverName}.${memberName}`;
+      if (memberName) return memberName;
+      return callee.kind;
+  }
+}
 
 function isGenericTypeReference(typeExpr: AST.TypeExpression | undefined, genericNames: Set<string>): boolean {
   if (!typeExpr || genericNames.size === 0) return false;
@@ -159,6 +220,16 @@ export function evaluateFunctionCall(ctx: Interpreter, node: AST.FunctionCall, e
 
   if (node.callee.type === "MemberAccessExpression") {
     const receiver = ctx.evaluate(node.callee.object, env);
+    if (
+      process.env.ABLE_TRACE_ERRORS &&
+      node.callee.object.type === "Identifier" &&
+      node.callee.object.name === "matcher" &&
+      node.callee.member.type === "Identifier" &&
+      node.callee.member.name === "matches"
+    ) {
+      const receiverType = ctx.getTypeNameForValue(receiver) ?? receiver.kind;
+      console.error(`[trace] matcher.matches receiver ${receiverType} kind=${receiver.kind}`);
+    }
     if (node.callee.isSafe && receiver.kind === "nil") {
       return receiver;
     }
@@ -189,6 +260,32 @@ export function evaluateFunctionCall(ctx: Interpreter, node: AST.FunctionCall, e
 }
 
 export function callCallableValue(ctx: Interpreter, callee: RuntimeValue, args: RuntimeValue[], env: Environment, callNode?: AST.FunctionCall): RuntimeValue {
+  const traceEnabled = !!process.env.ABLE_TRACE_ERRORS;
+  if (traceEnabled) {
+    callTraceStack.push(describeCallTarget(ctx, callee, callNode));
+    if (!callTraceReported && callTraceStack.length >= CALL_TRACE_THRESHOLD) {
+      callTraceReported = true;
+      console.error(`[trace] call depth ${callTraceStack.length}: ${callTraceStack.slice(-30).join(" -> ")}`);
+    }
+    if (
+      callNode?.callee.type === "MemberAccessExpression" &&
+      callNode.callee.member.type === "Identifier" &&
+      callNode.callee.member.name === "matches"
+    ) {
+      const receiver = callee.kind === "bound_method" ? callee.self : null;
+      const receiverName = receiver ? ctx.getTypeNameForValue(receiver) ?? receiver.kind : "<none>";
+      if ((receiverName === "ContainMatcher" || receiverName === "RaiseErrorMatcher") && matchesTraceCount < 50) {
+        matchesTraceCount += 1;
+        console.error(`[trace] matches call receiver ${receiverName} kind=${receiver?.kind ?? "none"}`);
+      }
+    }
+    if (callNode?.callee.type === "Identifier" && callNode.callee.name === "expect" && args.length > 0) {
+      const actual = args[0]!;
+      const actualType = ctx.getTypeNameForValue(actual) ?? actual.kind;
+      console.error(`[trace] expect arg ${actualType} kind=${actual.kind}`);
+    }
+  }
+  try {
   if (callee.kind === "partial_function") {
     const mergedCall = callNode ?? callee.callNode;
     return callCallableValue(ctx, callee.target, [...callee.boundArgs, ...args], env, mergedCall);
@@ -340,70 +437,137 @@ export function callCallableValue(ctx: Interpreter, callee: RuntimeValue, args: 
   if (methodReceiver) {
     enforceMethodSetConstraints(ctx, funcValue, methodReceiver);
   }
-  if (callNode) {
+  const procContext = ctx.currentProcContext ? ctx.currentProcContext() : null;
+  let callState: FunctionCallState | undefined;
+  if (procContext && callNode) {
+    const existing = procContext.getFunctionCallState(callNode);
+    if (existing && existing.suspended && existing.func === funcValue) {
+      callState = existing;
+      callState.suspended = false;
+    }
+  }
+  if (!callState && callNode) {
     ctx.inferTypeArgumentsFromCall(funcNode, callNode, evalArgs);
     ctx.enforceGenericConstraintsIfAny(funcNode, callNode);
   }
-  const funcEnv = new Environment(funcValue.closureEnv);
-  if (callNode) {
-    ctx.bindTypeArgumentsIfAny(funcNode, callNode, funcEnv);
+  let funcEnv: Environment;
+  if (callState) {
+    funcEnv = callState.env;
+  } else {
+    funcEnv = new Environment(funcValue.closureEnv);
+    if (callNode) {
+      ctx.bindTypeArgumentsIfAny(funcNode, callNode, funcEnv);
+    }
   }
 
   if (funcNode.type === "FunctionDefinition") {
+    if (
+      traceEnabled &&
+      funcNode.id?.name === "matches" &&
+      evalArgs.length >= 2 &&
+      evalArgs[0] &&
+      ctx.getTypeNameForValue(evalArgs[0]) === "RaiseErrorMatcher"
+    ) {
+      const invocation = evalArgs[1]!;
+      const invocationType = ctx.getTypeNameForValue(invocation) ?? invocation.kind;
+      console.error(`[trace] RaiseErrorMatcher.matches invocation ${invocationType} kind=${invocation.kind}`);
+    }
+    if (
+      traceEnabled &&
+      funcNode.id?.name === "matches" &&
+      evalArgs.length >= 2 &&
+      evalArgs[0] &&
+      ctx.getTypeNameForValue(evalArgs[0]) === "ContainMatcher"
+    ) {
+      console.error("[trace] ContainMatcher.matches invoked");
+    }
+    if (
+      traceEnabled &&
+      funcNode.id?.name === "to" &&
+      (funcNode as any).structName === "Expectation" &&
+      evalArgs.length >= 2
+    ) {
+      const matcher = evalArgs[1]!;
+      const matcherType = ctx.getTypeNameForValue(matcher) ?? matcher.kind;
+      const typeArgs = matcher.kind === "struct_instance" ? matcher.typeArguments : undefined;
+      const typeArgInfo = typeArgs ? ` typeArgs=${typeArgs.length}` : "";
+      console.error(`[trace] Expectation.to matcher ${matcherType} kind=${matcher.kind}${typeArgInfo}`);
+    }
     const genericNames = new Set((funcNode.genericParams ?? []).map((gp) => gp.name.name));
     const params = funcNode.params;
     const paramCount = params.length;
-    let bindArgs = evalArgs;
-    let implicitReceiver: RuntimeValue | null = null;
-    let hasImplicit = false;
-    if (funcNode.isMethodShorthand) {
-      implicitReceiver = evalArgs[0]!;
-      bindArgs = evalArgs.slice(1);
-      hasImplicit = true;
-    } else if (paramCount > 0 && evalArgs.length > 0) {
-      implicitReceiver = evalArgs[0]!;
-      hasImplicit = true;
-    }
-    if (bindArgs.length !== paramCount) {
-      const name = funcNode.id?.name ?? "(anonymous)";
-      throw new Error(`Arity mismatch calling ${name}: expected ${paramCount}, got ${bindArgs.length}`);
-    }
-    for (let i = 0; i < params.length; i++) {
-      const param = params[i];
-      const argVal = bindArgs[i];
-      if (!param) throw new Error(`Parameter missing at index ${i}`);
-      if (argVal === undefined) throw new Error(`Argument missing at index ${i}`);
-      let coerced = argVal;
-      const skipRuntimeTypeCheck = isGenericTypeReference(param.paramType, genericNames);
-      if (param.paramType && !skipRuntimeTypeCheck) {
-        if (!ctx.matchesType(param.paramType, argVal)) {
-          const pname = (param.name as any).name ?? `param_${i}`;
-          const expected = ctx.typeExpressionToString(param.paramType);
-          const actual = ctx.getTypeNameForValue(argVal) ?? argVal.kind;
-          const origin =
-            callNode && (callNode as any).span && (callNode as any).origin
-              ? `${(callNode as any).origin}:${(callNode as any).span.start.line + 1}:${(callNode as any).span.start.column + 1}`
-              : null;
-          const suffix = origin ? ` at ${origin}` : "";
-          throw new Error(`Parameter type mismatch for '${pname}': expected ${expected}, got ${actual}${suffix}`);
+    let implicitReceiver: RuntimeValue | null = callState ? callState.implicitReceiver : null;
+    let hasImplicit = callState ? callState.hasImplicit : false;
+    if (!callState) {
+      let bindArgs = evalArgs;
+      if (funcNode.isMethodShorthand) {
+        implicitReceiver = evalArgs[0]!;
+        bindArgs = evalArgs.slice(1);
+        hasImplicit = true;
+      } else if (paramCount > 0 && evalArgs.length > 0) {
+        implicitReceiver = evalArgs[0]!;
+        hasImplicit = true;
+      }
+      if (bindArgs.length !== paramCount) {
+        const name = funcNode.id?.name ?? "(anonymous)";
+        throw new Error(`Arity mismatch calling ${name}: expected ${paramCount}, got ${bindArgs.length}`);
+      }
+      for (let i = 0; i < params.length; i++) {
+        const param = params[i];
+        const argVal = bindArgs[i];
+        if (!param) throw new Error(`Parameter missing at index ${i}`);
+        if (argVal === undefined) throw new Error(`Argument missing at index ${i}`);
+        let coerced = argVal;
+        const skipRuntimeTypeCheck = isGenericTypeReference(param.paramType, genericNames);
+        if (param.paramType && !skipRuntimeTypeCheck) {
+          if (!ctx.matchesType(param.paramType, argVal)) {
+            const pname = (param.name as any).name ?? `param_${i}`;
+            const expected = ctx.typeExpressionToString(param.paramType);
+            const actual = ctx.getTypeNameForValue(argVal) ?? argVal.kind;
+            const origin =
+              callNode && (callNode as any).span && (callNode as any).origin
+                ? `${(callNode as any).origin}:${(callNode as any).span.start.line + 1}:${(callNode as any).span.start.column + 1}`
+                : null;
+            const suffix = origin ? ` at ${origin}` : "";
+            throw new Error(`Parameter type mismatch for '${pname}': expected ${expected}, got ${actual}${suffix}`);
+          }
+          coerced = ctx.coerceValueToType(param.paramType, argVal);
+          bindArgs[i] = coerced;
+        } else if (skipRuntimeTypeCheck) {
+          coerced = argVal;
         }
-        coerced = ctx.coerceValueToType(param.paramType, argVal);
-        bindArgs[i] = coerced;
-      } else if (skipRuntimeTypeCheck) {
-        coerced = argVal;
+        if (param.name.type === "Identifier") {
+          funcEnv.define(param.name.name, coerced);
+          if (
+            traceEnabled &&
+            funcNode.id?.name === "to" &&
+            (funcNode as any).structName === "Expectation" &&
+            param.name.name === "matcher"
+          ) {
+            const boundType = ctx.getTypeNameForValue(coerced) ?? coerced.kind;
+            console.error(`[trace] Expectation.to bound matcher ${boundType} kind=${coerced.kind}`);
+          }
+        } else if (param.name.type === "WildcardPattern") {
+          // ignore
+        } else if (param.name.type === "StructPattern" || param.name.type === "ArrayPattern" || param.name.type === "LiteralPattern" || param.name.type === "TypedPattern") {
+          ctx.assignByPattern(param.name as AST.Pattern, coerced, funcEnv, true);
+        } else {
+          throw new Error("Only simple identifier and destructuring params supported for now");
+        }
       }
-      if (param.name.type === "Identifier") {
-        funcEnv.define(param.name.name, coerced);
-      } else if (param.name.type === "WildcardPattern") {
-        // ignore
-      } else if (param.name.type === "StructPattern" || param.name.type === "ArrayPattern" || param.name.type === "LiteralPattern" || param.name.type === "TypedPattern") {
-        ctx.assignByPattern(param.name as AST.Pattern, coerced, funcEnv, true);
-      } else {
-        throw new Error("Only simple identifier and destructuring params supported for now");
+      if (funcNode.isMethodShorthand && implicitReceiver && !funcEnv.hasInCurrentScope("self")) {
+        funcEnv.define("self", implicitReceiver);
       }
-    }
-    if (funcNode.isMethodShorthand && implicitReceiver && !funcEnv.hasInCurrentScope("self")) {
-      funcEnv.define("self", implicitReceiver);
+      if (procContext && callNode) {
+        callState = {
+          func: funcValue,
+          env: funcEnv,
+          implicitReceiver,
+          hasImplicit,
+          suspended: false,
+        };
+        procContext.pushFunctionCallState(callNode, callState);
+      }
     }
     let pushedImplicit = false;
     if (hasImplicit && implicitReceiver) {
@@ -412,15 +576,28 @@ export function callCallableValue(ctx: Interpreter, callee: RuntimeValue, args: 
     }
     try {
       const result = ctx.evaluate(funcNode.body, funcEnv);
+      if (traceEnabled && funcNode.id?.name === "contain") {
+        const resultType = ctx.getTypeNameForValue(result) ?? result.kind;
+        console.error(`[trace] contain() result ${resultType} kind=${result.kind}`);
+      }
       return coerceReturnValue(ctx, funcNode.returnType, result, genericNames, funcValue.closureEnv);
     } catch (e) {
       if (e instanceof ReturnSignal) {
         return coerceReturnValue(ctx, funcNode.returnType, e.value, genericNames, funcValue.closureEnv);
       }
+      if (e instanceof ProcYieldSignal) {
+        if (callState) {
+          callState.suspended = true;
+        }
+        throw e;
+      }
       throw e;
     } finally {
       if (pushedImplicit) {
         ctx.implicitReceiverStack.pop();
+      }
+      if (callState && procContext && callNode && !callState.suspended) {
+        procContext.popFunctionCallState(callNode);
       }
     }
   }
@@ -428,49 +605,83 @@ export function callCallableValue(ctx: Interpreter, callee: RuntimeValue, args: 
   if (funcNode.type === "LambdaExpression") {
     const genericNames = new Set((funcNode.genericParams ?? []).map((gp) => gp.name.name));
     const params = funcNode.params;
-    if (evalArgs.length !== params.length) {
-      throw new Error(`Lambda expects ${params.length} arguments, got ${evalArgs.length}`);
-    }
-    for (let i = 0; i < params.length; i++) {
-      const param = params[i];
-      const argVal = evalArgs[i];
-      if (!param) throw new Error(`Lambda parameter missing at index ${i}`);
-      if (argVal === undefined) throw new Error(`Argument missing at index ${i}`);
-      let coerced = argVal;
-      if (param.paramType) {
-        if (!ctx.matchesType(param.paramType, argVal)) {
-          const pname = (param.name as any).name ?? `param_${i}`;
-          throw new Error(`Parameter type mismatch for '${pname}'`);
-        }
-        coerced = ctx.coerceValueToType(param.paramType, argVal);
-        evalArgs[i] = coerced;
+    let implicitReceiver: RuntimeValue | null = callState ? callState.implicitReceiver : null;
+    let hasImplicit = callState ? callState.hasImplicit : false;
+    if (!callState) {
+      if (evalArgs.length !== params.length) {
+        throw new Error(`Lambda expects ${params.length} arguments, got ${evalArgs.length}`);
       }
-      if (param.name.type === "Identifier") {
-        funcEnv.define(param.name.name, coerced);
-      } else if (param.name.type === "WildcardPattern") {
-        // ignore
-      } else if (param.name.type === "StructPattern" || param.name.type === "ArrayPattern" || param.name.type === "LiteralPattern" || param.name.type === "TypedPattern") {
-        ctx.assignByPattern(param.name as AST.Pattern, coerced, funcEnv, true);
-      } else {
-        throw new Error("Only simple identifier and destructuring params supported for now");
+      for (let i = 0; i < params.length; i++) {
+        const param = params[i];
+        const argVal = evalArgs[i];
+        if (!param) throw new Error(`Lambda parameter missing at index ${i}`);
+        if (argVal === undefined) throw new Error(`Argument missing at index ${i}`);
+        let coerced = argVal;
+        if (param.paramType) {
+          if (!ctx.matchesType(param.paramType, argVal)) {
+            const pname = (param.name as any).name ?? `param_${i}`;
+            throw new Error(`Parameter type mismatch for '${pname}'`);
+          }
+          coerced = ctx.coerceValueToType(param.paramType, argVal);
+          evalArgs[i] = coerced;
+        }
+        if (param.name.type === "Identifier") {
+          funcEnv.define(param.name.name, coerced);
+        } else if (param.name.type === "WildcardPattern") {
+          // ignore
+        } else if (param.name.type === "StructPattern" || param.name.type === "ArrayPattern" || param.name.type === "LiteralPattern" || param.name.type === "TypedPattern") {
+          ctx.assignByPattern(param.name as AST.Pattern, coerced, funcEnv, true);
+        } else {
+          throw new Error("Only simple identifier and destructuring params supported for now");
+        }
+      }
+      if (params.length > 0 && evalArgs.length > 0) {
+        implicitReceiver = evalArgs[0]!;
+        hasImplicit = true;
+      }
+      if (procContext && callNode) {
+        callState = {
+          func: funcValue,
+          env: funcEnv,
+          implicitReceiver,
+          hasImplicit,
+          suspended: false,
+        };
+        procContext.pushFunctionCallState(callNode, callState);
       }
     }
     let pushedImplicit = false;
-    if (params.length > 0 && evalArgs.length > 0) {
-      ctx.implicitReceiverStack.push(evalArgs[0]!);
+    if (hasImplicit && implicitReceiver) {
+      ctx.implicitReceiverStack.push(implicitReceiver);
       pushedImplicit = true;
     }
     try {
       const result = ctx.evaluate(funcNode.body as AST.AstNode, funcEnv);
       return coerceReturnValue(ctx, funcNode.returnType, result, genericNames, funcValue.closureEnv);
+    } catch (e) {
+      if (e instanceof ProcYieldSignal) {
+        if (callState) {
+          callState.suspended = true;
+        }
+        throw e;
+      }
+      throw e;
     } finally {
       if (pushedImplicit) {
         ctx.implicitReceiverStack.pop();
+      }
+      if (callState && procContext && callNode && !callState.suspended) {
+        procContext.popFunctionCallState(callNode);
       }
     }
   }
 
   throw new Error("calling unsupported function declaration");
+  } finally {
+    if (traceEnabled) {
+      callTraceStack.pop();
+    }
+  }
 }
 
 function makePartialFunction(target: RuntimeValue, boundArgs: RuntimeValue[], callNode?: AST.FunctionCall): Extract<RuntimeValue, { kind: "partial_function" }> {
@@ -539,11 +750,12 @@ function selectRuntimeOverload(
         break;
       }
       if (param.paramType) {
-        if (!ctx.matchesType(param.paramType, arg)) {
+        const paramType = substituteSelfType(param.paramType, fn);
+        if (!ctx.matchesType(paramType, arg)) {
           compatible = false;
           break;
         }
-        score += parameterSpecificity(param.paramType, generics);
+        score += parameterSpecificity(paramType, generics);
       }
     }
     if (compatible) {
@@ -570,6 +782,53 @@ function selectRuntimeOverload(
     throw new Error(`Ambiguous overload for ${name}`);
   }
   return best.fn;
+}
+
+function substituteSelfType(typeExpr: AST.TypeExpression, fn: Extract<RuntimeValue, { kind: "function" }>): AST.TypeExpression {
+  const target = (fn as any).methodSetTargetType as AST.TypeExpression | undefined;
+  if (!target) return typeExpr;
+  return replaceSelfTypeExpr(typeExpr, target);
+}
+
+function replaceSelfTypeExpr(typeExpr: AST.TypeExpression, replacement: AST.TypeExpression): AST.TypeExpression {
+  switch (typeExpr.type) {
+    case "SimpleTypeExpression":
+      if (typeExpr.name.name === "Self") return replacement;
+      return typeExpr;
+    case "GenericTypeExpression": {
+      const base = replaceSelfTypeExpr(typeExpr.base, replacement);
+      const args = (typeExpr.arguments ?? []).map((arg) => (arg ? replaceSelfTypeExpr(arg, replacement) : arg));
+      if (base === typeExpr.base && args.every((arg, idx) => arg === (typeExpr.arguments ?? [])[idx])) {
+        return typeExpr;
+      }
+      return AST.genericTypeExpression(base, args);
+    }
+    case "NullableTypeExpression": {
+      const inner = replaceSelfTypeExpr(typeExpr.innerType, replacement);
+      if (inner === typeExpr.innerType) return typeExpr;
+      return AST.nullableTypeExpression(inner);
+    }
+    case "ResultTypeExpression": {
+      const inner = replaceSelfTypeExpr(typeExpr.innerType, replacement);
+      if (inner === typeExpr.innerType) return typeExpr;
+      return AST.resultTypeExpression(inner);
+    }
+    case "UnionTypeExpression": {
+      const members = typeExpr.members.map((member) => replaceSelfTypeExpr(member, replacement));
+      if (members.every((member, idx) => member === typeExpr.members[idx])) return typeExpr;
+      return AST.unionTypeExpression(members);
+    }
+    case "FunctionTypeExpression": {
+      const params = (typeExpr.paramTypes ?? []).map((param) => replaceSelfTypeExpr(param, replacement));
+      const ret = replaceSelfTypeExpr(typeExpr.returnType, replacement);
+      if (ret === typeExpr.returnType && params.every((param, idx) => param === (typeExpr.paramTypes ?? [])[idx])) {
+        return typeExpr;
+      }
+      return AST.functionTypeExpression(params, ret);
+    }
+    default:
+      return typeExpr;
+  }
 }
 
 function resolveMethodSetReceiver(

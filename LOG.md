@@ -1,5 +1,28 @@
 # Able Project Log
 
+# 2026-01-13 — Lowercase path package cleanup (v11)
+- Stdlib: ensured the path module works under the lowercase package name by importing `Path` into stdlib tests and avoiding module shadowing in `fs.write_bytes`.
+- Tests: `./v11/ablets test v11/stdlib/tests/path.test.able`; `./run_stdlib_tests.sh --version=v11`; `./run_all_tests.sh --version=v11`.
+
+# 2026-01-13 — Stdlib fs convenience helpers (v11)
+- Stdlib fs: added `read_lines`, `write_lines`, `copy_file`, `copy_dir`, `touch`, `remove_file`, and `remove_dir` helpers; `touch` now uses host `utimes`/`Chtimes`, `copy_dir` uses an explicit task stack to avoid iterator re-entrancy, and `fs_path` prioritizes string inputs to keep Go/TS behavior aligned.
+- Tests: expanded `v11/stdlib/tests/fs.test.able` to cover line IO, copy helpers + overwrite behavior, touch, and explicit remove wrappers.
+- Tests: `./v11/ablets test v11/stdlib/tests/fs.test.able`; `./v11/ablego test v11/stdlib/tests/fs.test.able`.
+
+# 2026-01-13 — Path API completion (v11)
+- Stdlib Path: added `current`/`home`/`absolute`/`expand_home`/`normalize` helpers, `/` join sugar, and filesystem wrappers (`exists`, `is_file`, `is_dir`, `stat`, `read_text`, `write_text`).
+- Go typechecker: allow `/` to resolve via `Div` interface implementations when operands are non-numeric.
+- Tests: expanded `v11/stdlib/tests/path.test.able` with cwd/home/absolute/expand_home, join sugar, and fs helper coverage.
+- Tests: `./v11/ablets test v11/stdlib/tests/path.test.able`; `./v11/ablego test v11/stdlib/tests/path.test.able`.
+
+# 2026-01-13 — Proc cancellation test alignment (v11)
+- TS tests: move cooperative cancellation check to run after `proc_yield`, aligning with proc resume semantics.
+- Tests: `./run_all_tests.sh --version=v11`.
+
+# 2026-01-13 — TS call continuation yields (v11)
+- TS interpreter: preserve function-call environments across proc yields so async extern calls resume without replaying earlier statements; stop resetting block/module indices on manual yields.
+- Tests: `./run_stdlib_tests.sh`.
+
 # 2026-01-11 — TS concurrency continuation fixes (v11)
 - TS interpreter: added module-level continuation state so entrypoint yields resume without replaying declarations; await commit now resumes across cooperative yields; future/proc awaitBlocked handling unified; proc/future value waits handle immediate waker completion.
 - Tests: `cd v11/interpreters/ts && bun run scripts/run-fixtures.ts`; `./run_all_tests.sh --version=v11`.
@@ -721,3 +744,21 @@ Open items (2025-11-02 audit):
 - Added stdlib `able.repl` module (line editor, `:help`/`:quit`, prints non-`void` results) plus `able repl` CLI support for TS and Go.
 - Spec: documented `ParseError`/`Span` plus dynamic eval APIs and REPL-oriented parse error semantics.
 - Tests: `bun run scripts/run-fixtures.ts`; `./run_all_tests.sh --version=v11`.
+
+### 2026-01-13
+- Ran the full v11 sweep; parity report refreshed at `v11/tmp/parity-report.json`.
+- Tests: `./run_all_tests.sh --version=v11`.
+- Added `able.io.temp` for temp file/dir creation + cleanup helpers, and added `io.puts`/`io.gets` wrappers in `able.io`.
+- Extended stdlib IO tests with temp helper coverage.
+- Tests: `./v11/ablets test v11/stdlib/tests/io.test.able`; `./v11/ablego test v11/stdlib/tests/io.test.able`.
+- Expanded Path tests for mixed separators and UNC roots, and fs tests for missing directory reads.
+- Tests: `./v11/ablets test v11/stdlib/tests/fs.test.able`; `./v11/ablego test v11/stdlib/tests/fs.test.able`; `./v11/ablets test v11/stdlib/tests/path.test.able`; `./v11/ablego test v11/stdlib/tests/path.test.able`.
+- Expanded stdlib IO/Path/fs edge coverage (non-positive reads, empty paths, remove missing, empty read_lines, differing roots).
+- Tests: `./v11/ablets test v11/stdlib/tests/io.test.able`; `./v11/ablego test v11/stdlib/tests/io.test.able`; `./v11/ablets test v11/stdlib/tests/fs.test.able`; `./v11/ablego test v11/stdlib/tests/fs.test.able`; `./v11/ablets test v11/stdlib/tests/path.test.able`; `./v11/ablego test v11/stdlib/tests/path.test.able`.
+- Added a PermissionDenied stdlib fs test and fixed Go extern singleton struct decoding so union kinds map correctly from host strings; tightened permission error detection in Go stdlib error mapping.
+- Tests: `./v11/ablego test v11/stdlib/tests/fs.test.able`.
+- Ran the full v11 sweep; parity report refreshed at `v11/tmp/parity-report.json`.
+- Tests: `./run_all_tests.sh --version=v11`.
+- Lowercased the `able.io.path` package name and updated stdlib/tests/docs imports and call sites to use `path.*`.
+- Tests: `./run_all_tests.sh --version=v11`.
+- Next: finish stdlib IO coverage (errors, path normalization, IO handle edge cases) and keep `./run_all_tests.sh --version=v11` green.

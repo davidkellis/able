@@ -63,9 +63,6 @@ describe("v11 interpreter - proc & spawn handles", () => {
                   )
                 ),
                 AST.functionCall(AST.identifier("proc_yield"), []),
-              ]),
-              [],
-              AST.blockExpression([
                 AST.assignmentExpression(
                   "=",
                   AST.identifier("trace"),

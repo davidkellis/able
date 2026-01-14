@@ -47,6 +47,36 @@ function lookupStructDef(ctx: Interpreter, name: string): AST.StructDefinition |
     const binding = ctx.globals.get(name);
     if (binding && binding.kind === "struct_def") return binding.def;
   } catch {}
+  const current = ctx.currentPackage;
+  if (current) {
+    const bucket = ctx.packageRegistry.get(current);
+    const binding = bucket?.get(name);
+    if (binding && binding.kind === "struct_def") return binding.def;
+  }
+  for (const [pkgName, bucket] of ctx.packageRegistry.entries()) {
+    if (pkgName === current) continue;
+    const binding = bucket.get(name);
+    if (binding && binding.kind === "struct_def") return binding.def;
+  }
+  return null;
+}
+
+function lookupUnionDef(ctx: Interpreter, name: string): AST.UnionDefinition | null {
+  try {
+    const binding = ctx.globals.get(name);
+    if (binding && binding.kind === "union_def") return binding.def;
+  } catch {}
+  const current = ctx.currentPackage;
+  if (current) {
+    const bucket = ctx.packageRegistry.get(current);
+    const binding = bucket?.get(name);
+    if (binding && binding.kind === "union_def") return binding.def;
+  }
+  for (const [pkgName, bucket] of ctx.packageRegistry.entries()) {
+    if (pkgName === current) continue;
+    const binding = bucket.get(name);
+    if (binding && binding.kind === "union_def") return binding.def;
+  }
   return null;
 }
 
@@ -362,6 +392,10 @@ function fromHostValue(ctx: Interpreter, value: any, typeExpr?: AST.TypeExpressi
       const def = lookupStructDef(ctx, name);
       if (def) {
         return structFromHostValue(ctx, value, def);
+      }
+      const unionDef = lookupUnionDef(ctx, name);
+      if (unionDef) {
+        return fromHostValue(ctx, value, { type: "UnionTypeExpression", members: unionDef.variants });
       }
       throw new Error(`unsupported extern return type ${name}`);
     }

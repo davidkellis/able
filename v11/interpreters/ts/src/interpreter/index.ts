@@ -258,6 +258,11 @@ export class Interpreter {
 
   checkTimeSlice(): void {
     if (this.asyncContextStack.length === 0) return;
+    const asyncCtx = this.currentAsyncContext ? this.currentAsyncContext() : null;
+    if (asyncCtx?.kind === "proc" && asyncCtx.handle.entrypoint) {
+      const pending = typeof this.executor.pendingTasks === "function" ? this.executor.pendingTasks() : 0;
+      if (pending === 0) return;
+    }
     this.timeSliceCounter += 1;
     if (this.timeSliceCounter >= this.schedulerMaxSteps) {
       this.timeSliceCounter = 0;
