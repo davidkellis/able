@@ -8,6 +8,7 @@ import (
   "errors"
   "os"
   "runtime"
+  "strings"
   "sync"
   "syscall"
   "unsafe"
@@ -66,10 +67,10 @@ func termErrorKind(err error) string {
     return "Other"
   }
   switch {
+  case os.IsPermission(err) || errors.Is(err, os.ErrPermission) || errors.Is(err, syscall.EACCES) || errors.Is(err, syscall.EPERM) || strings.Contains(strings.ToLower(err.Error()), "permission denied"):
+    return "PermissionDenied"
   case errors.Is(err, os.ErrNotExist):
     return "NotFound"
-  case errors.Is(err, os.ErrPermission):
-    return "PermissionDenied"
   case errors.Is(err, os.ErrExist):
     return "AlreadyExists"
   case errors.Is(err, os.ErrInvalid):

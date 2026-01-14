@@ -32,8 +32,8 @@ function evaluateStringInterpolationWithContinuation(
   continuation: ContinuationContext,
 ): RuntimeValue {
   let state = continuation.getStringInterpolationState(node);
-  if (!state) {
-    state = { index: 0, output: "" };
+  if (!state || state.env !== env) {
+    state = { env, index: 0, output: "" };
     continuation.setStringInterpolationState(node, state);
   }
 

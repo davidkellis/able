@@ -113,137 +113,140 @@ function placeholderValueAt(frame: PlaceholderFrame, index: number): RuntimeValu
 }
 
 function analyzePlaceholderExpression(expr: AST.Expression): PlaceholderPlan | null {
-  const analyzer = new PlaceholderAnalyzer();
-  analyzer.visitExpression(expr);
-  if (!analyzer.hasPlaceholder) return null;
-  const paramCount = analyzer.highestExplicit > 0 ? analyzer.highestExplicit : 1;
-  return {
-    paramCount,
-  };
+  const info = collectPlaceholderInfo(expr);
+  if (!info.hasPlaceholder) return null;
+  const paramCount = info.highestExplicit > 0 ? info.highestExplicit : 1;
+  return { paramCount };
 }
 
-class PlaceholderAnalyzer {
-  highestExplicit = 0;
-  hasPlaceholder = false;
+function collectPlaceholderInfo(
+  root: AST.AstNode | null | undefined,
+): { hasPlaceholder: boolean; highestExplicit: number } {
+  if (!root) return { hasPlaceholder: false, highestExplicit: 0 };
+  const visited = new Set<AST.AstNode>();
+  const stack: AST.AstNode[] = [root];
+  let hasPlaceholder = false;
+  let highestExplicit = 0;
 
-  visitExpression(expr: AST.Expression | null | undefined): void {
-    if (!expr) return;
-    switch (expr.type) {
-      case "PlaceholderExpression":
-        this.hasPlaceholder = true;
-        {
-          const idx = expr.index ?? 1;
-          if (idx <= 0) {
-            throw new Error(`Placeholder index must be positive, found @${idx}`);
-          }
-          if (idx > this.highestExplicit) this.highestExplicit = idx;
+  while (stack.length > 0) {
+    const node = stack.pop();
+    if (!node || visited.has(node)) continue;
+    visited.add(node);
+    switch (node.type) {
+      case "PlaceholderExpression": {
+        hasPlaceholder = true;
+        const idx = node.index ?? 1;
+        if (idx <= 0) {
+          throw new Error(`Placeholder index must be positive, found @${idx}`);
         }
-        return;
+        if (idx > highestExplicit) highestExplicit = idx;
+        break;
+      }
       case "BinaryExpression":
-        this.visitExpression(expr.left);
-        this.visitExpression(expr.right);
-        return;
+        stack.push(node.left, node.right);
+        break;
       case "UnaryExpression":
-        this.visitExpression(expr.operand);
-        return;
+        stack.push(node.operand);
+        break;
       case "TypeCastExpression":
-        this.visitExpression(expr.expression);
-        return;
+        stack.push(node.expression);
+        break;
       case "FunctionCall":
-        this.visitExpression(expr.callee);
-        for (const arg of expr.arguments) {
-          this.visitExpression(arg);
-        }
-        return;
+        stack.push(node.callee, ...node.arguments);
+        break;
       case "MemberAccessExpression":
-        this.visitExpression(expr.object);
-        if (isExpression(expr.member)) {
-          this.visitExpression(expr.member);
+        stack.push(node.object);
+        if (isExpression(node.member)) {
+          stack.push(node.member);
         }
-        return;
-      case "ImplicitMemberExpression":
-        return;
+        break;
       case "IndexExpression":
-        this.visitExpression(expr.object);
-        this.visitExpression(expr.index);
-        return;
+        stack.push(node.object, node.index);
+        break;
       case "BlockExpression":
-        for (const stmt of expr.body) {
-          this.visitStatement(stmt);
-        }
-        return;
+        stack.push(...node.body);
+        break;
       case "AssignmentExpression":
-        this.visitExpression(expr.right);
-        if (isExpression(expr.left)) this.visitExpression(expr.left);
-        return;
+        stack.push(node.right);
+        if (isExpression(node.left)) stack.push(node.left);
+        break;
       case "LoopExpression":
-        this.visitExpression(expr.body);
-        return;
+        stack.push(node.body);
+        break;
       case "StringInterpolation":
-        for (const part of expr.parts) {
-          this.visitExpression(part);
-        }
-        return;
-      case "StructLiteral":
-        for (const field of expr.fields) {
+        stack.push(...node.parts);
+        break;
+      case "StructLiteral": {
+        for (const field of node.fields) {
           if (!field) continue;
-          this.visitExpression(field.value);
+          stack.push(field.value);
         }
-        const legacySource = (expr as any).functionalUpdateSource as AST.Expression | undefined;
-        const updateSources = expr.functionalUpdateSources ?? (legacySource ? [legacySource] : []);
-        for (const src of updateSources) {
-          this.visitExpression(src);
-        }
-        return;
+        const legacySource = (node as any).functionalUpdateSource as AST.Expression | undefined;
+        const updateSources = node.functionalUpdateSources ?? (legacySource ? [legacySource] : []);
+        stack.push(...updateSources);
+        break;
+      }
       case "ArrayLiteral":
-        for (const el of expr.elements) {
-          this.visitExpression(el);
-        }
-        return;
+        stack.push(...node.elements);
+        break;
       case "RangeExpression":
-        this.visitExpression(expr.start);
-        this.visitExpression(expr.end);
-        return;
+        stack.push(node.start, node.end);
+        break;
       case "MatchExpression":
-        this.visitExpression(expr.subject);
-        for (const clause of expr.clauses) {
+        stack.push(node.subject);
+        for (const clause of node.clauses) {
           if (!clause) continue;
-          if (clause.guard) this.visitExpression(clause.guard);
-          this.visitExpression(clause.body);
+          if (clause.guard) stack.push(clause.guard);
+          stack.push(clause.body);
         }
-        return;
+        break;
       case "OrElseExpression":
-        this.visitExpression(expr.expression);
-        this.visitExpression(expr.handler);
-        return;
+        stack.push(node.expression, node.handler);
+        break;
       case "RescueExpression":
-        this.visitExpression(expr.monitoredExpression);
-        for (const clause of expr.clauses) {
+        stack.push(node.monitoredExpression);
+        for (const clause of node.clauses) {
           if (!clause) continue;
-          if (clause.guard) this.visitExpression(clause.guard);
-          this.visitExpression(clause.body);
+          if (clause.guard) stack.push(clause.guard);
+          stack.push(clause.body);
         }
-        return;
+        break;
       case "EnsureExpression":
-        this.visitExpression(expr.tryExpression);
-        this.visitExpression(expr.ensureBlock);
-        return;
+        stack.push(node.tryExpression, node.ensureBlock);
+        break;
       case "IfExpression":
-        this.visitExpression(expr.ifCondition);
-        this.visitExpression(expr.ifBody);
-        for (const clause of expr.elseIfClauses) {
+        stack.push(node.ifCondition, node.ifBody);
+        for (const clause of node.elseIfClauses) {
           if (!clause) continue;
-          this.visitExpression(clause.condition);
-          this.visitExpression(clause.body);
+          stack.push(clause.condition, clause.body);
         }
-        if (expr.elseBody) this.visitExpression(expr.elseBody);
-        return;
+        if (node.elseBody) stack.push(node.elseBody);
+        break;
       case "PropagationExpression":
-        this.visitExpression(expr.expression);
-        return;
+        stack.push(node.expression);
+        break;
       case "AwaitExpression":
-        this.visitExpression(expr.expression);
-        return;
+        stack.push(node.expression);
+        break;
+      case "ReturnStatement":
+        if (node.argument) stack.push(node.argument);
+        break;
+      case "RaiseStatement":
+        if (node.expression) stack.push(node.expression);
+        break;
+      case "ForLoop":
+        stack.push(node.iterable, node.body);
+        break;
+      case "WhileLoop":
+        stack.push(node.condition, node.body);
+        break;
+      case "BreakStatement":
+        if (node.value) stack.push(node.value);
+        break;
+      case "YieldStatement":
+        if (node.expression) stack.push(node.expression);
+        break;
+      case "ImplicitMemberExpression":
       case "IteratorLiteral":
       case "LambdaExpression":
       case "ProcExpression":
@@ -255,174 +258,22 @@ class PlaceholderAnalyzer {
       case "StringLiteral":
       case "CharLiteral":
       case "NilLiteral":
-        return;
+      case "ContinueStatement":
+        break;
       default:
-        return;
+        break;
     }
   }
 
-  visitStatement(stmt: AST.Statement | null | undefined): void {
-    if (!stmt) return;
-    if (isExpression(stmt)) {
-      this.visitExpression(stmt);
-      return;
-    }
-    switch (stmt.type) {
-      case "ReturnStatement":
-        this.visitExpression(stmt.argument ?? null);
-        return;
-      case "RaiseStatement":
-        this.visitExpression(stmt.expression ?? null);
-        return;
-      case "ForLoop":
-        this.visitExpression(stmt.iterable);
-        this.visitExpression(stmt.body);
-        return;
-      case "WhileLoop":
-        this.visitExpression(stmt.condition);
-        this.visitExpression(stmt.body);
-        return;
-      case "BreakStatement":
-        this.visitExpression(stmt.value ?? null);
-        return;
-      case "ContinueStatement":
-        return;
-      case "YieldStatement":
-        this.visitExpression(stmt.expression ?? null);
-        return;
-      default:
-        return;
-    }
-  }
+  return { hasPlaceholder, highestExplicit };
 }
 
 function expressionContainsPlaceholder(expr: AST.Expression | null | undefined): boolean {
-  if (!expr) return false;
-  switch (expr.type) {
-    case "PlaceholderExpression":
-      return true;
-    case "BinaryExpression":
-      return expressionContainsPlaceholder(expr.left) || expressionContainsPlaceholder(expr.right);
-    case "UnaryExpression":
-      return expressionContainsPlaceholder(expr.operand);
-    case "TypeCastExpression":
-      return expressionContainsPlaceholder(expr.expression);
-    case "FunctionCall":
-      if (expressionContainsPlaceholder(expr.callee)) return true;
-      return expr.arguments.some((arg) => expressionContainsPlaceholder(arg));
-    case "MemberAccessExpression":
-      if (expressionContainsPlaceholder(expr.object)) return true;
-      if (isExpression(expr.member)) {
-        return expressionContainsPlaceholder(expr.member);
-      }
-      return false;
-    case "ImplicitMemberExpression":
-      return false;
-    case "IndexExpression":
-      return expressionContainsPlaceholder(expr.object) || expressionContainsPlaceholder(expr.index);
-    case "BlockExpression":
-      return expr.body.some((stmt) => statementContainsPlaceholder(stmt));
-    case "AssignmentExpression":
-      if (expressionContainsPlaceholder(expr.right)) return true;
-      if (isExpression(expr.left)) return expressionContainsPlaceholder(expr.left);
-      return false;
-    case "StringInterpolation":
-      return expr.parts.some((part) => expressionContainsPlaceholder(part));
-    case "StructLiteral":
-      if (expr.fields.some((field) => field && expressionContainsPlaceholder(field.value))) return true;
-      {
-        const legacySource = (expr as any).functionalUpdateSource as AST.Expression | undefined;
-        const updateSources = expr.functionalUpdateSources ?? (legacySource ? [legacySource] : []);
-        for (const src of updateSources) {
-          if (expressionContainsPlaceholder(src)) return true;
-        }
-      }
-      return false;
-    case "ArrayLiteral":
-      return expr.elements.some((el) => expressionContainsPlaceholder(el));
-    case "RangeExpression":
-      return expressionContainsPlaceholder(expr.start) || expressionContainsPlaceholder(expr.end);
-    case "MatchExpression":
-      if (expressionContainsPlaceholder(expr.subject)) return true;
-      return expr.clauses.some(
-        (clause) =>
-          !!clause &&
-          ((clause.guard && expressionContainsPlaceholder(clause.guard)) ||
-            expressionContainsPlaceholder(clause.body)),
-      );
-    case "OrElseExpression":
-      return expressionContainsPlaceholder(expr.expression) || expressionContainsPlaceholder(expr.handler);
-    case "RescueExpression":
-      if (expressionContainsPlaceholder(expr.monitoredExpression)) return true;
-      return expr.clauses.some(
-        (clause) =>
-          !!clause &&
-          ((clause.guard && expressionContainsPlaceholder(clause.guard)) ||
-            expressionContainsPlaceholder(clause.body)),
-      );
-    case "EnsureExpression":
-      return expressionContainsPlaceholder(expr.tryExpression) || expressionContainsPlaceholder(expr.ensureBlock);
-    case "IfExpression":
-      if (expressionContainsPlaceholder(expr.ifCondition) || expressionContainsPlaceholder(expr.ifBody)) return true;
-      if (
-        expr.elseIfClauses.some(
-          (clause) =>
-            !!clause &&
-            (expressionContainsPlaceholder(clause.condition) || expressionContainsPlaceholder(clause.body)),
-        )
-      ) {
-        return true;
-      }
-      return expr.elseBody ? expressionContainsPlaceholder(expr.elseBody) : false;
-    case "PropagationExpression":
-      return expressionContainsPlaceholder(expr.expression);
-    case "AwaitExpression":
-      return expressionContainsPlaceholder(expr.expression);
-    case "LoopExpression":
-      return expressionContainsPlaceholder(expr.body);
-    case "IteratorLiteral":
-    case "LambdaExpression":
-    case "ProcExpression":
-    case "SpawnExpression":
-    case "AwaitExpression":
-    case "Identifier":
-    case "IntegerLiteral":
-    case "FloatLiteral":
-    case "BooleanLiteral":
-    case "StringLiteral":
-    case "CharLiteral":
-    case "NilLiteral":
-      return false;
-    default:
-      return false;
-  }
+  return collectPlaceholderInfo(expr).hasPlaceholder;
 }
 
 function statementContainsPlaceholder(stmt: AST.Statement | null | undefined): boolean {
-  if (!stmt) return false;
-  if (isExpression(stmt)) {
-    return expressionContainsPlaceholder(stmt);
-  }
-  switch (stmt.type) {
-    case "ReturnStatement":
-      return expressionContainsPlaceholder(stmt.argument ?? null);
-    case "RaiseStatement":
-      return expressionContainsPlaceholder(stmt.expression ?? null);
-    case "ForLoop":
-      return (
-        expressionContainsPlaceholder(stmt.iterable) || expressionContainsPlaceholder(stmt.body)
-      );
-    case "WhileLoop":
-      return expressionContainsPlaceholder(stmt.condition) || expressionContainsPlaceholder(stmt.body);
-    case "BreakStatement":
-      return expressionContainsPlaceholder(stmt.value ?? null);
-    case "ContinueStatement":
-      return false;
-    case "YieldStatement":
-      return expressionContainsPlaceholder(stmt.expression ?? null);
-    default:
-      return false;
-  }
+  return collectPlaceholderInfo(stmt).hasPlaceholder;
 }
 
 function isExpression(node: AST.AstNode | null | undefined): node is AST.Expression {

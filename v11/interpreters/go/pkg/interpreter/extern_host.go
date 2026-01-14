@@ -853,7 +853,7 @@ func (i *Interpreter) fromHostValue(typeExpr ast.TypeExpression, value reflect.V
 	}
 	switch t := typeExpr.(type) {
 	case *ast.UnionTypeExpression:
-		var lastErr error
+		memberErrors := make([]string, 0, len(t.Members))
 		for _, member := range t.Members {
 			if member == nil {
 				continue
@@ -862,10 +862,10 @@ func (i *Interpreter) fromHostValue(typeExpr ast.TypeExpression, value reflect.V
 			if err == nil {
 				return converted, nil
 			}
-			lastErr = err
+			memberErrors = append(memberErrors, fmt.Sprintf("%s: %v", typeKey(member), err))
 		}
-		if lastErr != nil {
-			return nil, lastErr
+		if len(memberErrors) > 0 {
+			return nil, fmt.Errorf("unsupported extern return type %s (%s)", typeKey(t), strings.Join(memberErrors, "; "))
 		}
 		return runtime.NilValue{}, nil
 	case *ast.NullableTypeExpression:
@@ -898,7 +898,7 @@ func (i *Interpreter) fromHostValue(typeExpr ast.TypeExpression, value reflect.V
 			}
 			return i.newArrayValue(elements, len(elements)), nil
 		}
-		return nil, fmt.Errorf("unsupported extern return type")
+		return nil, fmt.Errorf("unsupported extern return type %s", typeKey(t))
 	case *ast.SimpleTypeExpression:
 		name := normalizeKernelAliasName(t.Name.Name)
 		switch name {
@@ -939,8 +939,12 @@ func (i *Interpreter) fromHostValue(typeExpr ast.TypeExpression, value reflect.V
 		if def, ok := i.lookupStructDefinition(name); ok {
 			return i.structFromHostValue(def, value)
 		}
+		if unionDef, ok := i.unionDefinitions[name]; ok && unionDef != nil && unionDef.Node != nil {
+			unionExpr := &ast.UnionTypeExpression{Members: unionDef.Node.Variants}
+			return i.fromHostValue(unionExpr, value)
+		}
 	}
-	return nil, fmt.Errorf("unsupported extern return type")
+	return nil, fmt.Errorf("unsupported extern return type %s", typeKey(typeExpr))
 }
 
 func (i *Interpreter) lookupStructDefinition(name string) (*runtime.StructDefinitionValue, bool) {
@@ -954,6 +958,36 @@ func (i *Interpreter) lookupStructDefinition(name string) (*runtime.StructDefini
 		if def, conv := toStructDefinitionValue(val, name); conv == nil && def != nil {
 			return def, true
 		}
+	}
+	if def, ok := i.lookupStructDefinitionInPackage(i.currentPackage, name); ok {
+		return def, true
+	}
+	for pkgName := range i.packageRegistry {
+		if pkgName == i.currentPackage {
+			continue
+		}
+		if def, ok := i.lookupStructDefinitionInPackage(pkgName, name); ok {
+			return def, true
+		}
+	}
+	return nil, false
+}
+
+func (i *Interpreter) lookupStructDefinitionInPackage(pkgName, name string) (*runtime.StructDefinitionValue, bool) {
+	if i == nil || name == "" || pkgName == "" {
+		return nil, false
+	}
+	bucket, ok := i.packageRegistry[pkgName]
+	if !ok || bucket == nil {
+		return nil, false
+	}
+	val, ok := bucket[name]
+	if !ok {
+		return nil, false
+	}
+	def, conv := toStructDefinitionValue(val, name)
+	if conv == nil && def != nil {
+		return def, true
 	}
 	return nil, false
 }
@@ -1024,14 +1058,14 @@ func (i *Interpreter) structFromHostValue(def *runtime.StructDefinitionValue, va
 	if def == nil || def.Node == nil || def.Node.ID == nil {
 		return nil, fmt.Errorf("struct definition missing")
 	}
-	if def.Node.Kind == ast.StructKindSingleton || len(def.Node.Fields) == 0 {
-		return &runtime.StructInstanceValue{Definition: def, Fields: map[string]runtime.Value{}}, nil
-	}
 	if value.Kind() == reflect.Invalid {
 		return nil, fmt.Errorf("expected %s struct value", def.Node.ID.Name)
 	}
-	if value.Kind() == reflect.String && value.String() == def.Node.ID.Name {
-		return &runtime.StructInstanceValue{Definition: def, Fields: map[string]runtime.Value{}}, nil
+	if def.Node.Kind == ast.StructKindSingleton || len(def.Node.Fields) == 0 {
+		if value.Kind() == reflect.String && value.String() == def.Node.ID.Name {
+			return &runtime.StructInstanceValue{Definition: def, Fields: map[string]runtime.Value{}}, nil
+		}
+		return nil, fmt.Errorf("expected %s struct value", def.Node.ID.Name)
 	}
 	if def.Node.Kind == ast.StructKindPositional && value.Kind() == reflect.Slice {
 		positional := make([]runtime.Value, value.Len())

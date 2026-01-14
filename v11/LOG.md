@@ -1,5 +1,9 @@
 # Able Project Log
 
+## 2026-01-12 — Stdlib fs/io/os coverage
+- Added stdlib spec tests for `able.fs`, `able.io`, and `able.os` covering open/read/write, directory ops, metadata, buffered IO, and environment/cwd helpers (`v11/stdlib/tests/fs.test.able`, `v11/stdlib/tests/io.test.able`, `v11/stdlib/tests/os.test.able`).
+- Tests not run.
+
 ## 2025-12-30 — Drop snapshots from testing framework
 - Removed snapshot matchers/stores and the `--update-snapshots` flag across stdlib tests, docs, and CLI design notes; deleted the snapshot store design doc and scrubbed spec references.
 - Regenerated `v11/stdlib/src/spec.able` after removing snapshot exports from the spec DSL.

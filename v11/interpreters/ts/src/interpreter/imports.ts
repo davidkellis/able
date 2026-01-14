@@ -113,9 +113,7 @@ function evaluateModuleWithContinuation(
           if (!repeatStatement && ctx.manualYieldRequested && !awaitBlocked) {
             advanceIndex = true;
           }
-          if (repeatStatement && ctx.manualYieldRequested && !awaitBlocked) {
-            index = 0;
-          } else if (advanceIndex) {
+          if (advanceIndex) {
             index += 1;
           }
           state.index = index;

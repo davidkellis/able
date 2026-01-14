@@ -695,6 +695,9 @@ export function applyConcurrencyAugmentations(cls: typeof Interpreter): void {
         const msg = e instanceof Error ? e.message : "Proc cancelled";
         this.markProcCancelled(handle, msg || "Proc cancelled");
       } else {
+        if (process.env.ABLE_TRACE_ERRORS && e instanceof Error && e.stack) {
+          console.error(e.stack);
+        }
         const msg = e instanceof Error ? e.message : "Proc execution error";
         if (errorMode === "raw") {
           handle.failureInfo = this.makeProcError(msg);

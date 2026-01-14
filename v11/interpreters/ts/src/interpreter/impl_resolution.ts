@@ -212,11 +212,32 @@ export function applyImplResolutionAugmentations(cls: typeof Interpreter): void 
   if (!generics || generics.length === 0) return;
   const args = call.typeArguments ?? [];
   const count = Math.min(generics.length, args.length);
+  const stringifyTypeExpr = (expr: AST.TypeExpression, depth = 0): string => {
+    if (depth > 8) return "<type>";
+    switch (expr.type) {
+      case "SimpleTypeExpression":
+        return expr.name.name;
+      case "GenericTypeExpression":
+        return `${stringifyTypeExpr(expr.base, depth + 1)}<${(expr.arguments ?? []).map((arg) => (arg ? stringifyTypeExpr(arg, depth + 1) : "_")).join(",")}>`;
+      case "NullableTypeExpression":
+        return `${stringifyTypeExpr(expr.innerType, depth + 1)}?`;
+      case "ResultTypeExpression":
+        return `Result<${stringifyTypeExpr(expr.innerType, depth + 1)}>`;
+      case "UnionTypeExpression":
+        return (expr.members ?? []).map((member) => stringifyTypeExpr(member, depth + 1)).join(" | ");
+      case "FunctionTypeExpression":
+        return "fn(...)";
+      case "WildcardTypeExpression":
+        return "_";
+      default:
+        return "<type>";
+    }
+  };
   for (let i = 0; i < count; i++) {
     const gp = generics[i]!;
     const ta = args[i]!;
     const name = `${gp.name.name}_type`;
-    const s = this.typeExpressionToString(ta);
+    const s = stringifyTypeExpr(ta);
     try { env.define(name, { kind: "String", value: s }); } catch {}
   }
 };
@@ -238,6 +259,7 @@ export function applyImplResolutionAugmentations(cls: typeof Interpreter): void 
   return expressions;
 };
 
+  let traceMethodReported = false;
   cls.prototype.findMethod = function findMethod(this: Interpreter, typeName: string, methodName: string, opts?: { typeArgs?: AST.TypeExpression[]; typeArgMap?: Map<string, AST.TypeExpression>; interfaceName?: string }): Extract<RuntimeValue, { kind: "function" | "function_overload" }> | null {
   const includeInherent = opts?.includeInherent !== false;
   if (includeInherent) {
@@ -263,6 +285,15 @@ export function applyImplResolutionAugmentations(cls: typeof Interpreter): void 
     ...(this.implMethods.get(typeName) ?? []),
     ...this.genericImplMethods,
   ];
+  if (
+    process.env.ABLE_TRACE_ERRORS &&
+    !traceMethodReported &&
+    methodName === "matches" &&
+    typeName === "ContainMatcher"
+  ) {
+    const entryTypes = entries.map((entry) => this.typeExpressionToString(entry.def.targetType));
+    console.error(`[trace] matches candidates for ${typeName}: ${entryTypes.join(", ") || "<none>"}`);
+  }
   let constraintError: Error | null = null;
   const matches: Array<{
     method: Extract<RuntimeValue, { kind: "function" }>;
@@ -323,6 +354,16 @@ export function applyImplResolutionAugmentations(cls: typeof Interpreter): void 
     const ifaceName = contenders[0].entry.def.interfaceName.name || methodName;
     const detail = Array.from(new Set(contenders.map(c => `impl ${c.entry.def.interfaceName.name} for ${this.typeExpressionToString(c.entry.def.targetType)}`))).join(", ");
     throw new Error(`ambiguous implementations of ${ifaceName} for ${typeName}: ${detail}`);
+  }
+  if (
+    process.env.ABLE_TRACE_ERRORS &&
+    !traceMethodReported &&
+    methodName === "matches" &&
+    typeName === "ContainMatcher"
+  ) {
+    traceMethodReported = true;
+    const entry = best.entry;
+    console.error(`[trace] matches resolved to impl ${entry.def.interfaceName.name} for ${this.typeExpressionToString(entry.def.targetType)}`);
   }
   return best.method;
 };
