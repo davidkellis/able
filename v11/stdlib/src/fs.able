@@ -1,8 +1,10 @@
 package fs
 
-import able.kernel.{Array}
-import able.io.{IOError, IOErrorKind, unwrap, unwrap_void, read_all, string_to_bytes, bytes_to_string, close}
-import able.io.Path
+import able.kernel.{Array, pop}
+import able.collections.array
+import able.io.{AlreadyExists, IOError, IOErrorKind, NotFound, unwrap, unwrap_void, read_all, write_all, string_to_bytes, bytes_to_string, close}
+import able.io.path
+import able.io.path.{Path, Path::PathType}
 import able.text.string.{String}
 
 prelude go {
@@ -10,7 +12,9 @@ import (
   "errors"
   "os"
   "path/filepath"
+  "strings"
   "syscall"
+  "time"
 )
 
 func fsErrorKind(err error) string {
@@ -18,10 +22,10 @@ func fsErrorKind(err error) string {
     return "Other"
   }
   switch {
+  case os.IsPermission(err) || errors.Is(err, os.ErrPermission) || errors.Is(err, syscall.EACCES) || errors.Is(err, syscall.EPERM) || strings.Contains(strings.ToLower(err.Error()), "permission denied"):
+    return "PermissionDenied"
   case errors.Is(err, os.ErrNotExist):
     return "NotFound"
-  case errors.Is(err, os.ErrPermission):
-    return "PermissionDenied"
   case errors.Is(err, os.ErrExist):
     return "AlreadyExists"
   case errors.Is(err, os.ErrInvalid):
@@ -116,6 +120,7 @@ struct FsOpenFlags {
   truncate: bool
 }
 
+
 struct FsMode {
   bits: i32
 }
@@ -132,6 +137,11 @@ struct DirEntry {
   path: String,
   is_dir: bool,
   is_file: bool
+}
+
+private struct CopyDirTask {
+  src: String,
+  dst: String
 }
 
 fn mode(bits: i32) -> FsMode { FsMode { bits } }
@@ -332,38 +342,82 @@ extern go fn fs_rename(src: String, dst: String) -> IOError | void {
   return nil
 }
 
-fn fs_path(path: Path | String) -> String {
+extern typescript fn fs_touch(path: String) -> IOError | void {
+  return (async () => {
+    try {
+      const now = new Date();
+      try {
+        await fs.promises.utimes(path, now, now);
+      } catch (err) {
+        if (err && err.code === "ENOENT") {
+          const handle = await fs.promises.open(path, "a");
+          await handle.close();
+          await fs.promises.utimes(path, now, now);
+        } else {
+          throw err;
+        }
+      }
+      return null;
+    } catch (err) {
+      return fsErrorFrom(err, path);
+    }
+  })();
+}
+
+extern go fn fs_touch(path: String) -> IOError | void {
+  now := time.Now()
+  if err := os.Chtimes(path, now, now); err != nil {
+    if errors.Is(err, os.ErrNotExist) {
+      file, createErr := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0o644)
+      if createErr != nil {
+        return fsErrorFrom(createErr, &path)
+      }
+      if err := file.Close(); err != nil {
+        return fsErrorFrom(err, &path)
+      }
+      if err := os.Chtimes(path, now, now); err != nil {
+        return fsErrorFrom(err, &path)
+      }
+      return nil
+    }
+    return fsErrorFrom(err, &path)
+  }
+  return nil
+}
+
+fn fs_path(path: PathType | Path | String) -> String {
   path match {
-    case p: Path => p.to_native(),
     case s: String => s,
+    case p: PathType => p.to_native(),
+    case p: Path => p.to_native(),
   }
 }
 
-fn open(path: Path | String, flags: FsOpenFlags, mode: ?FsMode) -> IoHandle {
+fn open(path: PathType | Path | String, flags: FsOpenFlags, mode: ?FsMode) -> IoHandle {
   unwrap(fs_open(fs_path(path), flags, mode))
 }
 
-fn stat(path: Path | String) -> FsMetadata {
+fn stat(path: PathType | Path | String) -> FsMetadata {
   unwrap(fs_stat(fs_path(path)))
 }
 
-fn read_dir(path: Path | String) -> Array DirEntry {
+fn read_dir(path: PathType | Path | String) -> Array DirEntry {
   unwrap(fs_read_dir(fs_path(path)))
 }
 
-fn mkdir(path: Path | String, recursive: bool) -> void {
+fn mkdir(path: PathType | Path | String, recursive: bool) -> void {
   unwrap_void(fs_mkdir(fs_path(path), recursive))
 }
 
-fn remove(path: Path | String, recursive: bool) -> void {
+fn remove(path: PathType | Path | String, recursive: bool) -> void {
   unwrap_void(fs_remove(fs_path(path), recursive))
 }
 
-fn rename(src: Path | String, dst: Path | String) -> void {
+fn rename(src: PathType | Path | String, dst: PathType | Path | String) -> void {
   unwrap_void(fs_rename(fs_path(src), fs_path(dst)))
 }
 
-fn exists(path: Path | String) -> bool {
+fn exists(path: PathType | Path | String) -> bool {
   fs_stat(fs_path(path)) match {
     case IOError { kind: NotFound } => false,
     case err: IOError => { raise err },
@@ -371,7 +425,7 @@ fn exists(path: Path | String) -> bool {
   }
 }
 
-fn read_bytes(path: Path | String) -> Array u8 {
+fn read_bytes(path: PathType | Path | String) -> Array u8 {
   handle := open(path, read_only(), nil)
   do {
     read_all(handle, nil)
@@ -380,23 +434,182 @@ fn read_bytes(path: Path | String) -> Array u8 {
   }
 }
 
-fn write_bytes(path: Path | String, bytes: Array u8, create_dirs: bool) -> void {
+fn write_bytes(target: PathType | Path | String, bytes: Array u8, create_dirs: bool) -> void {
   if create_dirs {
-    parent := Path.new(path).parent()
+    parent := path.new(target).parent()
     if parent.to_string() != "" { mkdir(parent, true) }
   }
-  handle := open(path, write_only(true, true), nil)
+  handle := open(target, write_only(true, true), nil)
   do {
-    able.io.write_all(handle, bytes)
+    write_all(handle, bytes)
   } ensure {
     close(handle)
   }
 }
 
-fn read_text(path: Path | String) -> String {
+fn read_text(path: PathType | Path | String) -> String {
   bytes_to_string(read_bytes(path))
 }
 
-fn write_text(path: Path | String, contents: String, create_dirs: bool) -> void {
+fn write_text(path: PathType | Path | String, contents: String, create_dirs: bool) -> void {
   write_bytes(path, string_to_bytes(contents), create_dirs)
+}
+
+fn normalize_newlines(value: String) -> String {
+  value.replace("\r\n", "\n").replace("\r", "\n")
+}
+
+fn join_lines(lines: Array String, separator: String) -> String {
+  result := ""
+  idx := 0
+  loop {
+    lines.get(idx) match {
+      case nil => { break },
+      case line: String => {
+        if idx > 0 { result = `${result}${separator}` }
+        result = `${result}${line}`
+      }
+    }
+    idx = idx + 1
+  }
+  result
+}
+
+fn read_lines(path: PathType | Path | String) -> Array String {
+  text := read_text(path)
+  if text == "" { return Array.new() }
+  lines := normalize_newlines(text).split("\n")
+  lines.last() match {
+    case value: String => { if value == "" { pop(lines) } },
+    case nil => {}
+  }
+  lines
+}
+
+fn write_lines(path: PathType | Path | String, lines: Array String, newline: ?String) -> void {
+  separator := newline match {
+    case nil => "\n",
+    case value: String => value,
+  }
+  write_text(path, join_lines(lines, separator), false)
+}
+
+fn copy_file(src: PathType | Path | String, dst: PathType | Path | String, overwrite: ?bool) -> void {
+  allow_overwrite := overwrite match {
+    case nil => false,
+    case value: bool => value,
+  }
+  dst_path := fs_path(dst)
+  if !allow_overwrite && exists(dst_path) {
+    raise IOError { kind: AlreadyExists {}, message: `path already exists: ${dst_path}`, path: dst_path }
+  }
+  bytes := read_bytes(src)
+  write_bytes(dst_path, bytes, true)
+}
+
+fn copy_dir(src: PathType | Path | String, dst: PathType | Path | String, overwrite: ?bool) -> void {
+  allow_overwrite := overwrite match {
+    case nil => false,
+    case value: bool => value,
+  }
+  src_path := fs_path(src)
+  dst_path := fs_path(dst)
+  if allow_overwrite {
+    do { remove(dst_path, true) } rescue {
+      case err: IOError => {
+        err.kind match {
+          case NotFound => {},
+          case _ => { raise err }
+        }
+      }
+    }
+  } elsif exists(dst_path) {
+    raise IOError { kind: AlreadyExists {}, message: `path already exists: ${dst_path}`, path: dst_path }
+  }
+  mkdir(dst_path, true)
+  tasks: Array CopyDirTask := Array.new()
+  tasks.push(CopyDirTask { src: src_path, dst: dst_path })
+  task_idx := 0
+  loop {
+    if task_idx >= tasks.len() { break }
+    tasks.get(task_idx) match {
+      case nil => {},
+      case task: CopyDirTask => {
+        entries := read_dir(task.src)
+        dst_root := path.new(task.dst)
+        idx := 0
+        loop {
+          if idx >= entries.len() { break }
+          entries.get(idx) match {
+            case nil => {},
+            case entry: DirEntry => {
+              entry_path := entry.path
+              entry_name := entry.name
+              entry_dir := entry.is_dir
+              entry_file := entry.is_file
+              dest_path := fs_path(dst_root.join(entry_name))
+              if entry_dir {
+                mkdir(dest_path, true)
+                tasks.push(CopyDirTask { src: entry_path, dst: dest_path })
+              } elsif entry_file {
+                copy_file(entry_path, dest_path, true)
+              }
+            }
+          }
+          idx = idx + 1
+        }
+      }
+    }
+    task_idx = task_idx + 1
+  }
+}
+
+fn touch(path: PathType | Path | String) -> void {
+  unwrap_void(fs_touch(fs_path(path)))
+}
+
+fn remove_file(path: PathType | Path | String) -> void {
+  remove(path, false)
+}
+
+fn remove_dir(path: PathType | Path | String, recursive: ?bool) -> void {
+  recursive_flag := recursive match {
+    case nil => false,
+    case value: bool => value,
+  }
+  remove(path, recursive_flag)
+}
+
+methods PathType {
+  fn exists(self: Self) -> bool {
+    fs_stat(fs_path(self)) match {
+      case IOError { kind: NotFound } => false,
+      case err: IOError => { raise err },
+      case _: FsMetadata => true,
+    }
+  }
+
+  fn stat(self: Self) -> FsMetadata {
+    unwrap(fs_stat(fs_path(self)))
+  }
+
+  fn is_file(self: Self) -> bool {
+    self.stat().is_file
+  }
+
+  fn is_dir(self: Self) -> bool {
+    self.stat().is_dir
+  }
+
+  fn read_text(self: Self) -> String {
+    bytes_to_string(read_bytes(self))
+  }
+
+  fn write_text(self: Self, contents: String, create_dirs: ?bool) -> void {
+    flag := create_dirs match {
+      case nil => false,
+      case value: bool => value,
+    }
+    write_bytes(self, string_to_bytes(contents), flag)
+  }
 }

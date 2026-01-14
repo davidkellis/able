@@ -42,7 +42,7 @@ function evaluateBlockExpressionWithContinuation(
   continuation: ContinuationContext,
 ): RuntimeValue {
   let state = continuation.getBlockState(node);
-  if (!state) {
+  if (!state || state.env.enclosing !== env) {
     state = {
       env: new Environment(env),
       index: 0,
@@ -77,9 +77,7 @@ function evaluateBlockExpressionWithContinuation(
             advanceIndex = true;
           }
         }
-        if (continuation.kind === "proc" && repeatStatement && ctx.manualYieldRequested && !awaitBlocked) {
-          index = 0;
-        } else if (advanceIndex) {
+        if (advanceIndex) {
           index += 1;
         }
         state.index = index;
@@ -135,8 +133,9 @@ function evaluateIfExpressionWithContinuation(
   continuation: ContinuationContext,
 ): RuntimeValue {
   let state = continuation.getIfState(node);
-  if (!state) {
+  if (!state || state.env !== env) {
     state = {
+      env,
       stage: "if_condition",
       elseIfIndex: 0,
       result: VOID_VALUE,
@@ -325,8 +324,9 @@ function evaluateLoopExpressionWithContinuation(
 ): RuntimeValue {
   if (!continuation) throw new Error("Continuation context missing");
   let state = continuation.getLoopExpressionState(node);
-  if (!state) {
+  if (!state || state.env !== env) {
     state = {
+      env,
       baseEnv: env,
       result: VOID_VALUE,
       inBody: false,
@@ -396,8 +396,9 @@ function evaluateWhileLoopWithContinuation(
   if (!continuation) throw new Error("Continuation context missing");
 
   let state = continuation.getWhileLoopState(node);
-  if (!state) {
+  if (!state || state.env !== env) {
     state = {
+      env,
       baseEnv: env,
       result: VOID_VALUE,
       inBody: false,
@@ -587,11 +588,12 @@ function evaluateForLoopWithContinuation(
   }
 
   let state = continuation.getForLoopState(loop);
-  if (!state) {
+  if (!state || state.env !== env) {
     const baseEnv = new Environment(env);
     const initialResult: RuntimeValue = VOID_VALUE;
     if (iterableValue.kind === "array") {
       state = {
+        env,
         mode: "static",
         values: [...iterableValue.elements],
         baseEnv,
@@ -601,6 +603,7 @@ function evaluateForLoopWithContinuation(
       };
     } else if (iterableValue.kind === "iterator") {
       state = {
+        env,
         mode: "iterator",
         iterator: iterableValue,
         baseEnv,
@@ -611,6 +614,7 @@ function evaluateForLoopWithContinuation(
     } else {
       const iterator = resolveIteratorValue(ctx, iterableValue, env);
       state = {
+        env,
         mode: "iterator",
         iterator,
         baseEnv,
@@ -659,6 +663,11 @@ function evaluateForLoopWithContinuation(
         try {
           step = iterator.iterator.next();
         } catch (err) {
+          if (isContinuationYield(continuation, err)) {
+            state.result = result;
+            continuation.markStatementIncomplete();
+            throw err;
+          }
           cleanup();
           throw err;
         }
@@ -675,6 +684,11 @@ function evaluateForLoopWithContinuation(
       try {
         bindPattern(ctx, loop.pattern, value!, iterationEnv);
       } catch (err) {
+        if (isContinuationYield(continuation, err)) {
+          state.result = result;
+          continuation.markStatementIncomplete();
+          throw err;
+        }
         cleanup();
         throw err;
       }

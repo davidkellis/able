@@ -9,6 +9,7 @@ import (
   "errors"
   "io"
   "os"
+  "strings"
   "syscall"
 )
 
@@ -17,10 +18,10 @@ func ioErrorKind(err error) string {
     return "Other"
   }
   switch {
+  case os.IsPermission(err) || errors.Is(err, os.ErrPermission) || errors.Is(err, syscall.EACCES) || errors.Is(err, syscall.EPERM) || strings.Contains(strings.ToLower(err.Error()), "permission denied"):
+    return "PermissionDenied"
   case errors.Is(err, os.ErrNotExist):
     return "NotFound"
-  case errors.Is(err, os.ErrPermission):
-    return "PermissionDenied"
   case errors.Is(err, os.ErrExist):
     return "AlreadyExists"
   case errors.Is(err, os.ErrInvalid):
@@ -89,6 +90,13 @@ function ioHandleFd(handle) {
 function ioHandleStream(handle) {
   if (handle && handle.stream) {
     return handle.stream;
+  }
+  return null;
+}
+
+function ioHandleFile(handle) {
+  if (handle && handle.handle) {
+    return handle.handle;
   }
   return null;
 }
@@ -311,10 +319,7 @@ extern go fn io_read(handle: IoHandle, max_bytes: i32) -> IOError | ?Array u8 {
   if max_bytes <= 0 { return []byte{} }
   buf := make([]byte, max_bytes)
   n, err := file.Read(buf)
-  if err != nil {
-    if errors.Is(err, io.EOF) {
-      return nil
-    }
+  if err != nil && !errors.Is(err, io.EOF) {
     return ioErrorFrom(err, nil)
   }
   if n == 0 {
@@ -401,6 +406,11 @@ extern typescript fn io_close(handle: IoHandle) -> IOError | void {
         }
         return null;
       }
+      const fileHandle = ioHandleFile(handle);
+      if (fileHandle && typeof fileHandle.close === "function") {
+        await fileHandle.close();
+        return null;
+      }
       const fd = ioHandleFd(handle);
       if (fd === null) throw new Error("invalid IoHandle");
       await new Promise((resolve, reject) => {
@@ -475,13 +485,21 @@ fn read_all(handle: IoHandle, chunk_size: ?i32) -> Array u8 {
 }
 
 fn read_line(handle: IoHandle) -> ?String {
-  reader := BufferedReader.new(handle, nil)
+  reader := BufferedReader.new(handle, 1)
   reader.read_line()
 }
 
 fn write_line(handle: IoHandle, line: String) -> void {
   write_all(handle, string_to_bytes(line))
   write_all(handle, [10_u8])
+}
+
+fn gets() -> ?String {
+  read_line(stdin())
+}
+
+fn puts(line: String) -> void {
+  write_line(stdout(), line)
 }
 
 struct BufferedReader {

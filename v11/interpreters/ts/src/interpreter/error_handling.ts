@@ -2,8 +2,9 @@ import * as AST from "../ast";
 import { Environment } from "./environment";
 import type { Interpreter } from "./index";
 import { callCallableValue } from "./functions";
-import { RaiseSignal } from "./signals";
+import { GeneratorYieldSignal, ProcYieldSignal, RaiseSignal } from "./signals";
 import { memberAccessOnValue } from "./structs";
+import type { ContinuationContext } from "./continuations";
 import type { RuntimeValue } from "./values";
 
 export function evaluateRaiseStatement(ctx: Interpreter, node: AST.RaiseStatement, env: Environment): never {
@@ -101,6 +102,14 @@ export function evaluatePropagationExpression(ctx: Interpreter, node: AST.Propag
 }
 
 export function evaluateEnsureExpression(ctx: Interpreter, node: AST.EnsureExpression, env: Environment): RuntimeValue {
+  const generator = ctx.currentGeneratorContext();
+  if (generator) {
+    return evaluateEnsureExpressionWithContinuation(ctx, node, env, generator);
+  }
+  const procContext = ctx.currentProcContext ? ctx.currentProcContext() : null;
+  if (procContext) {
+    return evaluateEnsureExpressionWithContinuation(ctx, node, env, procContext);
+  }
   let result: RuntimeValue | null = null;
   let caught: RaiseSignal | null = null;
   try {
@@ -112,6 +121,64 @@ export function evaluateEnsureExpression(ctx: Interpreter, node: AST.EnsureExpre
   }
   if (caught) throw caught;
   return result ?? { kind: "nil", value: null };
+}
+
+function evaluateEnsureExpressionWithContinuation(
+  ctx: Interpreter,
+  node: AST.EnsureExpression,
+  env: Environment,
+  continuation: ContinuationContext,
+): RuntimeValue {
+  let state = continuation.getEnsureState(node);
+  if (!state || state.env !== env) {
+    state = { env, stage: "try" };
+    continuation.setEnsureState(node, state);
+  }
+
+  if (state.stage === "try") {
+    try {
+      state.result = ctx.evaluate(node.tryExpression, env);
+      state.caught = undefined;
+      state.stage = "ensure";
+    } catch (err) {
+      if (isContinuationYield(continuation, err)) {
+        continuation.markStatementIncomplete();
+        throw err;
+      }
+      state.caught = err;
+      state.result = undefined;
+      state.stage = "ensure";
+    }
+    continuation.setEnsureState(node, state);
+  }
+
+  if (state.stage === "ensure") {
+    try {
+      ctx.evaluate(node.ensureBlock, env);
+    } catch (err) {
+      if (isContinuationYield(continuation, err)) {
+        continuation.markStatementIncomplete();
+        throw err;
+      }
+      continuation.clearEnsureState(node);
+      throw err;
+    }
+    continuation.clearEnsureState(node);
+    if (state.caught) {
+      throw state.caught;
+    }
+    return state.result ?? { kind: "nil", value: null };
+  }
+
+  continuation.clearEnsureState(node);
+  return { kind: "nil", value: null };
+}
+
+function isContinuationYield(context: ContinuationContext, err: unknown): boolean {
+  if (context.kind === "generator") {
+    return err instanceof GeneratorYieldSignal || err instanceof ProcYieldSignal;
+  }
+  return err instanceof ProcYieldSignal;
 }
 
 export function evaluateRethrowStatement(ctx: Interpreter, _node: AST.RethrowStatement): never {

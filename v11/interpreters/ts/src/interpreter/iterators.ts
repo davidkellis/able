@@ -1,7 +1,7 @@
 import * as AST from "../ast";
 import { Environment } from "./environment";
 import type { Interpreter } from "./index";
-import { GeneratorStopSignal, GeneratorYieldSignal, ReturnSignal } from "./signals";
+import { GeneratorStopSignal, GeneratorYieldSignal, ProcYieldSignal, ReturnSignal } from "./signals";
 import type { IteratorStep, IteratorValue, RuntimeValue } from "./values";
 import type {
   BlockState,
@@ -12,6 +12,7 @@ import type {
   LoopExpressionState,
   WhileLoopState,
   StringInterpolationState,
+  EnsureState,
 } from "./continuations";
 
 class GeneratorContext implements ContinuationContext {
@@ -28,13 +29,14 @@ class GeneratorContext implements ContinuationContext {
   private resumeCurrentStatement = false;
   private currentStatementIndex = -1;
 
-  private readonly blockStates = new WeakMap<AST.BlockExpression, BlockState>();
-  private readonly forLoopStates = new WeakMap<AST.ForLoop, ForLoopState>();
-  private readonly whileLoopStates = new WeakMap<AST.WhileLoop, WhileLoopState>();
-  private readonly loopStates = new WeakMap<AST.LoopExpression, LoopExpressionState>();
-  private readonly ifStates = new WeakMap<AST.IfExpression, IfExpressionState>();
-  private readonly matchStates = new WeakMap<AST.MatchExpression, MatchExpressionState>();
-  private readonly stringInterpolationStates = new WeakMap<AST.StringInterpolation, StringInterpolationState>();
+  private readonly blockStates = new WeakMap<AST.BlockExpression, BlockState[]>();
+  private readonly forLoopStates = new WeakMap<AST.ForLoop, ForLoopState[]>();
+  private readonly whileLoopStates = new WeakMap<AST.WhileLoop, WhileLoopState[]>();
+  private readonly loopStates = new WeakMap<AST.LoopExpression, LoopExpressionState[]>();
+  private readonly ifStates = new WeakMap<AST.IfExpression, IfExpressionState[]>();
+  private readonly matchStates = new WeakMap<AST.MatchExpression, MatchExpressionState[]>();
+  private readonly stringInterpolationStates = new WeakMap<AST.StringInterpolation, StringInterpolationState[]>();
+  private readonly ensureStates = new WeakMap<AST.EnsureExpression, EnsureState[]>();
 
   constructor(
     private readonly interpreter: Interpreter,
@@ -131,6 +133,15 @@ class GeneratorContext implements ContinuationContext {
             this.finishStatement();
             return { done: false, value };
           }
+          if (err instanceof ProcYieldSignal) {
+            this.pendingValue = null;
+            const repeat = this.resumeCurrentStatement;
+            if (!repeat) {
+              this.index += 1;
+            }
+            this.finishStatement();
+            throw err;
+          }
           if (err instanceof GeneratorStopSignal) {
             this.pendingValue = null;
             this.done = true;
@@ -175,87 +186,171 @@ class GeneratorContext implements ContinuationContext {
   }
 
   getBlockState(node: AST.BlockExpression): BlockState | undefined {
-    return this.blockStates.get(node);
+    const stack = this.blockStates.get(node);
+    return stack ? stack[stack.length - 1] : undefined;
   }
 
   setBlockState(node: AST.BlockExpression, state: BlockState): void {
-    this.blockStates.set(node, state);
+    const stack = this.blockStates.get(node);
+    if (stack) {
+      stack.push(state);
+    } else {
+      this.blockStates.set(node, [state]);
+    }
   }
 
   clearBlockState(node: AST.BlockExpression): void {
-    this.blockStates.delete(node);
+    const stack = this.blockStates.get(node);
+    if (!stack) return;
+    stack.pop();
+    if (stack.length === 0) this.blockStates.delete(node);
   }
 
   getForLoopState(node: AST.ForLoop): ForLoopState | undefined {
-    return this.forLoopStates.get(node);
+    const stack = this.forLoopStates.get(node);
+    return stack ? stack[stack.length - 1] : undefined;
   }
 
   setForLoopState(node: AST.ForLoop, state: ForLoopState): void {
-    this.forLoopStates.set(node, state);
+    const stack = this.forLoopStates.get(node);
+    if (stack) {
+      stack.push(state);
+    } else {
+      this.forLoopStates.set(node, [state]);
+    }
   }
 
   clearForLoopState(node: AST.ForLoop): void {
-    this.forLoopStates.delete(node);
+    const stack = this.forLoopStates.get(node);
+    if (!stack) return;
+    stack.pop();
+    if (stack.length === 0) this.forLoopStates.delete(node);
   }
 
   getWhileLoopState(node: AST.WhileLoop): WhileLoopState | undefined {
-    return this.whileLoopStates.get(node);
+    const stack = this.whileLoopStates.get(node);
+    return stack ? stack[stack.length - 1] : undefined;
   }
 
   setWhileLoopState(node: AST.WhileLoop, state: WhileLoopState): void {
-    this.whileLoopStates.set(node, state);
+    const stack = this.whileLoopStates.get(node);
+    if (stack) {
+      stack.push(state);
+    } else {
+      this.whileLoopStates.set(node, [state]);
+    }
   }
 
   clearWhileLoopState(node: AST.WhileLoop): void {
-    this.whileLoopStates.delete(node);
+    const stack = this.whileLoopStates.get(node);
+    if (!stack) return;
+    stack.pop();
+    if (stack.length === 0) this.whileLoopStates.delete(node);
   }
 
   getLoopExpressionState(node: AST.LoopExpression): LoopExpressionState | undefined {
-    return this.loopStates.get(node);
+    const stack = this.loopStates.get(node);
+    return stack ? stack[stack.length - 1] : undefined;
   }
 
   setLoopExpressionState(node: AST.LoopExpression, state: LoopExpressionState): void {
-    this.loopStates.set(node, state);
+    const stack = this.loopStates.get(node);
+    if (stack) {
+      stack.push(state);
+    } else {
+      this.loopStates.set(node, [state]);
+    }
   }
 
   clearLoopExpressionState(node: AST.LoopExpression): void {
-    this.loopStates.delete(node);
+    const stack = this.loopStates.get(node);
+    if (!stack) return;
+    stack.pop();
+    if (stack.length === 0) this.loopStates.delete(node);
   }
 
   getIfState(node: AST.IfExpression): IfExpressionState | undefined {
-    return this.ifStates.get(node);
+    const stack = this.ifStates.get(node);
+    return stack ? stack[stack.length - 1] : undefined;
   }
 
   setIfState(node: AST.IfExpression, state: IfExpressionState): void {
-    this.ifStates.set(node, state);
+    const stack = this.ifStates.get(node);
+    if (stack) {
+      stack.push(state);
+    } else {
+      this.ifStates.set(node, [state]);
+    }
   }
 
   clearIfState(node: AST.IfExpression): void {
-    this.ifStates.delete(node);
+    const stack = this.ifStates.get(node);
+    if (!stack) return;
+    stack.pop();
+    if (stack.length === 0) this.ifStates.delete(node);
   }
 
   getMatchState(node: AST.MatchExpression): MatchExpressionState | undefined {
-    return this.matchStates.get(node);
+    const stack = this.matchStates.get(node);
+    return stack ? stack[stack.length - 1] : undefined;
   }
 
   setMatchState(node: AST.MatchExpression, state: MatchExpressionState): void {
-    this.matchStates.set(node, state);
+    const stack = this.matchStates.get(node);
+    if (stack) {
+      stack.push(state);
+    } else {
+      this.matchStates.set(node, [state]);
+    }
   }
 
   clearMatchState(node: AST.MatchExpression): void {
-    this.matchStates.delete(node);
+    const stack = this.matchStates.get(node);
+    if (!stack) return;
+    stack.pop();
+    if (stack.length === 0) this.matchStates.delete(node);
   }
 
   getStringInterpolationState(node: AST.StringInterpolation): StringInterpolationState | undefined {
-    return this.stringInterpolationStates.get(node);
+    const stack = this.stringInterpolationStates.get(node);
+    return stack ? stack[stack.length - 1] : undefined;
   }
 
   setStringInterpolationState(node: AST.StringInterpolation, state: StringInterpolationState): void {
-    this.stringInterpolationStates.set(node, state);
+    const stack = this.stringInterpolationStates.get(node);
+    if (stack) {
+      stack.push(state);
+    } else {
+      this.stringInterpolationStates.set(node, [state]);
+    }
   }
 
   clearStringInterpolationState(node: AST.StringInterpolation): void {
-    this.stringInterpolationStates.delete(node);
+    const stack = this.stringInterpolationStates.get(node);
+    if (!stack) return;
+    stack.pop();
+    if (stack.length === 0) this.stringInterpolationStates.delete(node);
+  }
+
+  getEnsureState(node: AST.EnsureExpression): EnsureState | undefined {
+    const stack = this.ensureStates.get(node);
+    return stack ? stack[stack.length - 1] : undefined;
+  }
+
+  setEnsureState(node: AST.EnsureExpression, state: EnsureState): void {
+    const stack = this.ensureStates.get(node);
+    if (stack) {
+      stack.push(state);
+    } else {
+      this.ensureStates.set(node, [state]);
+    }
+  }
+
+  clearEnsureState(node: AST.EnsureExpression): void {
+    const stack = this.ensureStates.get(node);
+    if (!stack) return;
+    stack.pop();
+    if (stack.length === 0) this.ensureStates.delete(node);
   }
 }
 

@@ -2,6 +2,8 @@ import * as AST from "../ast";
 import type { Environment } from "./environment";
 import type { Interpreter } from "./index";
 import type { RuntimeValue } from "./values";
+
+let structLiteralDepth = 0;
 import { makeIntegerFromNumber, numericToNumber } from "./numeric";
 
 function isCallable(value: RuntimeValue): boolean {
@@ -53,41 +55,46 @@ export function evaluateStructDefinition(ctx: Interpreter, node: AST.StructDefin
 }
 
 export function evaluateStructLiteral(ctx: Interpreter, node: AST.StructLiteral, env: Environment): RuntimeValue {
-  if (!node.structType) throw new Error("Struct literal requires explicit struct type");
-  const defVal = env.get(node.structType.name);
-  if (defVal.kind !== "struct_def") throw new Error(`'${node.structType.name}' is not a struct type`);
-  const structDef = defVal.def;
-  const generics = structDef.genericParams;
-  const constraints = ctx.collectConstraintSpecs(generics, structDef.whereClause);
-  if (node.isPositional) {
-    const vals: RuntimeValue[] = node.fields.map(f => ctx.evaluate(f.value, env));
-    let typeArguments: AST.TypeExpression[] | undefined = node.typeArguments;
-    let typeArgMap: Map<string, AST.TypeExpression> | undefined;
-    if (generics && generics.length > 0) {
-      if (typeArguments && typeArguments.length > 0 && typeArguments.length !== generics.length) {
-        throw new Error(`Type '${structDef.id.name}' expects ${generics.length} type arguments, got ${typeArguments.length}`);
-      }
-      if (!typeArguments || typeArguments.length === 0) {
-        typeArguments = inferStructTypeArguments(ctx, structDef, vals);
-      }
-      if (!typeArguments || typeArguments.length === 0) {
-        typeArguments = generics.map(() => AST.wildcardTypeExpression());
-      }
-      typeArgMap = ctx.mapTypeArguments(generics, typeArguments, `instantiating ${structDef.id.name}`);
-      if (constraints.length > 0) {
-        ctx.enforceConstraintSpecs(constraints, typeArgMap, `struct ${structDef.id.name}`);
-      }
-    } else if (node.typeArguments && node.typeArguments.length > 0) {
-      throw new Error(`Type '${structDef.id.name}' does not accept type arguments`);
-    }
-    return {
-      kind: "struct_instance",
-      def: structDef,
-      values: vals,
-      typeArguments,
-      typeArgMap,
-    };
+  structLiteralDepth += 1;
+  if (process.env.ABLE_TRACE_ERRORS && structLiteralDepth > 200) {
+    console.error(`[trace] struct literal depth ${structLiteralDepth} at ${node.structType?.name ?? "<unknown>"}`);
   }
+  try {
+    if (!node.structType) throw new Error("Struct literal requires explicit struct type");
+    const defVal = env.get(node.structType.name);
+    if (defVal.kind !== "struct_def") throw new Error(`'${node.structType.name}' is not a struct type`);
+    const structDef = defVal.def;
+    const generics = structDef.genericParams;
+    const constraints = ctx.collectConstraintSpecs(generics, structDef.whereClause);
+    if (node.isPositional) {
+      const vals: RuntimeValue[] = node.fields.map(f => ctx.evaluate(f.value, env));
+      let typeArguments: AST.TypeExpression[] | undefined = node.typeArguments;
+      let typeArgMap: Map<string, AST.TypeExpression> | undefined;
+      if (generics && generics.length > 0) {
+        if (typeArguments && typeArguments.length > 0 && typeArguments.length !== generics.length) {
+          throw new Error(`Type '${structDef.id.name}' expects ${generics.length} type arguments, got ${typeArguments.length}`);
+        }
+        if (!typeArguments || typeArguments.length === 0) {
+          typeArguments = inferStructTypeArguments(ctx, structDef, vals);
+        }
+        if (!typeArguments || typeArguments.length === 0) {
+          typeArguments = generics.map(() => AST.wildcardTypeExpression());
+        }
+        typeArgMap = ctx.mapTypeArguments(generics, typeArguments, `instantiating ${structDef.id.name}`);
+        if (constraints.length > 0) {
+          ctx.enforceConstraintSpecs(constraints, typeArgMap, `struct ${structDef.id.name}`);
+        }
+      } else if (node.typeArguments && node.typeArguments.length > 0) {
+        throw new Error(`Type '${structDef.id.name}' does not accept type arguments`);
+      }
+      return {
+        kind: "struct_instance",
+        def: structDef,
+        values: vals,
+        typeArguments,
+        typeArgMap,
+      };
+    }
 
   const map = new Map<string, RuntimeValue>();
   const legacySource = (node as any).functionalUpdateSource as AST.Expression | undefined;
@@ -162,13 +169,16 @@ export function evaluateStructLiteral(ctx: Interpreter, node: AST.StructLiteral,
     throw new Error(`Type '${structDef.id.name}' does not accept type arguments`);
   }
 
-  return {
-    kind: "struct_instance",
-    def: structDef,
-    values: map,
-    typeArguments,
-    typeArgMap,
-  };
+    return {
+      kind: "struct_instance",
+      def: structDef,
+      values: map,
+      typeArguments,
+      typeArgMap,
+    };
+  } finally {
+    structLiteralDepth -= 1;
+  }
 }
 
 function inferStructTypeArguments(ctx: Interpreter, def: AST.StructDefinition, values: RuntimeValue[] | Map<string, RuntimeValue>): AST.TypeExpression[] {

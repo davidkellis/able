@@ -43,8 +43,9 @@ function evaluateMatchExpressionWithContinuation(
   continuation: ContinuationContext,
 ): RuntimeValue {
   let state = continuation.getMatchState(node);
-  if (!state) {
+  if (!state || state.env !== env) {
     state = {
+      env,
       stage: "subject",
       clauseIndex: 0,
     };

@@ -448,7 +448,7 @@ func (i *Interpreter) reportOverloadMismatch(fn *runtime.FunctionValue, evalArgs
 		if paramUsesGeneric(param.ParamType, generics) {
 			continue
 		}
-		if i.matchesType(param.ParamType, argsForCheck[idx]) {
+		if i.matchesParamTypeForOverload(fn, param.ParamType, argsForCheck[idx]) {
 			continue
 		}
 		name := fmt.Sprintf("param_%d", idx)
@@ -460,6 +460,18 @@ func (i *Interpreter) reportOverloadMismatch(fn *runtime.FunctionValue, evalArgs
 		return fmt.Errorf("Parameter type mismatch for '%s': expected %s, got %s", name, expected, actual)
 	}
 	return nil
+}
+
+func (i *Interpreter) matchesParamTypeForOverload(fn *runtime.FunctionValue, param ast.TypeExpression, value runtime.Value) bool {
+	if param == nil {
+		return true
+	}
+	if simple, ok := param.(*ast.SimpleTypeExpression); ok && simple != nil && simple.Name != nil && simple.Name.Name == "Self" {
+		if fn != nil && fn.MethodSet != nil && fn.MethodSet.TargetType != nil {
+			return i.matchesType(fn.MethodSet.TargetType, value)
+		}
+	}
+	return i.matchesType(param, value)
 }
 
 func (i *Interpreter) selectRuntimeOverload(overloads []*runtime.FunctionValue, evalArgs []runtime.Value, call *ast.FunctionCall) (*runtime.FunctionValue, error) {
@@ -511,7 +523,7 @@ func (i *Interpreter) selectRuntimeOverload(overloads []*runtime.FunctionValue, 
 					if paramUsesGeneric(param.ParamType, generics) {
 						continue
 					}
-					if !i.matchesType(param.ParamType, argsForCheck[idx]) {
+					if !i.matchesParamTypeForOverload(fn, param.ParamType, argsForCheck[idx]) {
 						compatible = false
 						break
 					}

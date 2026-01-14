@@ -1,7 +1,9 @@
-package Path
+package path
 
 import able.kernel.{Array, pop}
 import able.collections.array
+import able.core.interfaces.{Div}
+import able.os
 import able.text.string
 
 ## Immutable, normalized representation of filesystem paths.
@@ -20,6 +22,17 @@ fn new(parts: Path | String | Array String) -> Path {
     case value: Path => value,
     case value: String => parse(value),
     case value: Array String => from_segments(value),
+  }
+}
+
+fn current() -> Path {
+  parse(os.cwd())
+}
+
+fn home() -> ?Path {
+  os.home_dir() match {
+    case nil => nil,
+    case value: String => parse(value),
   }
 }
 
@@ -117,6 +130,28 @@ methods Path {
     !self.is_absolute()
   }
 
+  fn absolute(self: Self) -> Path {
+    if self.is_absolute() { return self.clean() }
+    current().join(self).clean()
+  }
+
+  fn expand_home(self: Self) -> Path {
+    if self.root != "" { return self }
+    if self.segments.len() == 0 { return self }
+    self.segments.get(0) match {
+      case "~" => {
+        home() match {
+          case nil => self,
+          case home: Path => {
+            suffix := slice_segments(self.segments, 1)
+            if suffix.len() == 0 { home } else { home.join(from_segments(suffix)) }
+          }
+        }
+      },
+      case _ => self,
+    }
+  }
+
   fn to_string(self: Self) -> String {
     build_unix_string(self.root, self.segments)
   }
@@ -130,8 +165,17 @@ methods Path {
     relative_components(self.clean(), base.clean())
   }
 
+  fn normalize(self: Self) -> Path { self.clean() }
+
   fn clean(self: Self) -> Path {
     Path { root: self.root, segments: normalize_segments(self.segments, self.is_absolute()) }
+  }
+
+}
+
+impl Div String Path for Path {
+  fn div(self: Self, rhs: String) -> Path {
+    self.join(rhs)
   }
 }
 
@@ -268,6 +312,20 @@ fn concat_segments(left: Array String, right: Array String) -> Array String {
 fn clone_segments(source: Array String) -> Array String {
   result: Array String := Array.new()
   idx := 0
+  loop {
+    if idx >= source.len() { break }
+    source.get(idx) match {
+      case nil => {},
+      case value: String => result.push(value),
+    }
+    idx = idx + 1
+  }
+  result
+}
+
+fn slice_segments(source: Array String, start: i32) -> Array String {
+  result: Array String := Array.new()
+  idx := start
   loop {
     if idx >= source.len() { break }
     source.get(idx) match {

@@ -16,6 +16,7 @@ export type ModuleState = {
 };
 
 export type ForLoopState = {
+  env: Environment;
   mode: "static" | "iterator";
   values?: RuntimeValue[];
   iterator?: IteratorValue;
@@ -29,6 +30,7 @@ export type ForLoopState = {
 };
 
 export type WhileLoopState = {
+  env: Environment;
   baseEnv: Environment;
   result: RuntimeValue;
   inBody: boolean;
@@ -37,6 +39,7 @@ export type WhileLoopState = {
 };
 
 export type LoopExpressionState = {
+  env: Environment;
   baseEnv: Environment;
   result: RuntimeValue;
   inBody: boolean;
@@ -44,12 +47,14 @@ export type LoopExpressionState = {
 };
 
 export type IfExpressionState = {
-  stage: "if_condition" | "if_body" | "or_condition" | "or_body";
-  orIndex: number;
+  env: Environment;
+  stage: "if_condition" | "if_body" | "elseif_condition" | "elseif_body" | "else_body";
+  elseIfIndex: number;
   result?: RuntimeValue;
 };
 
 export type MatchExpressionState = {
+  env: Environment;
   stage: "subject" | "clause" | "guard" | "body";
   clauseIndex: number;
   subject?: RuntimeValue;
@@ -57,8 +62,16 @@ export type MatchExpressionState = {
 };
 
 export type StringInterpolationState = {
+  env: Environment;
   index: number;
   output: string;
+};
+
+export type EnsureState = {
+  env: Environment;
+  stage: "try" | "ensure";
+  result?: RuntimeValue;
+  caught?: unknown;
 };
 
 export interface ContinuationContext {
@@ -91,4 +104,8 @@ export interface ContinuationContext {
   getStringInterpolationState(node: AST.StringInterpolation): StringInterpolationState | undefined;
   setStringInterpolationState(node: AST.StringInterpolation, state: StringInterpolationState): void;
   clearStringInterpolationState(node: AST.StringInterpolation): void;
+
+  getEnsureState(node: AST.EnsureExpression): EnsureState | undefined;
+  setEnsureState(node: AST.EnsureExpression, state: EnsureState): void;
+  clearEnsureState(node: AST.EnsureExpression): void;
 }

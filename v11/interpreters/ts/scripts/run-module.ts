@@ -386,7 +386,7 @@ async function handleTestCommand(args: string[]): Promise<void> {
     process.exitCode = 2;
     return;
   }
-  const runResult = callHarnessRun(interpreter, testPlan, runOptions, reporter.reporter);
+  const runResult = await callHarnessRun(interpreter, testPlan, runOptions, reporter.reporter);
   if (runResult) {
     process.exitCode = 2;
     return;
@@ -784,6 +784,14 @@ function extractErrorMessage(err: unknown): string {
   if (!err) return "";
   if (typeof err === "string") return err;
   if (err instanceof Error) {
+    if (process.env.ABLE_TRACE_ERRORS) {
+      const anyErr = err as any;
+      const stack = err.stack ?? err.message;
+      if (anyErr.value && typeof anyErr.value === "object" && "message" in anyErr.value) {
+        return `${stack}\nRaised: ${String(anyErr.value.message)}`;
+      }
+      return stack;
+    }
     const anyErr = err as any;
     if (anyErr.value && typeof anyErr.value === "object" && "message" in anyErr.value) {
       return String(anyErr.value.message);
