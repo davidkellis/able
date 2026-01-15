@@ -85,6 +85,9 @@ const errorsFixtures: Fixture[] = [
         description: "Type alias name '_' is reserved",
         expect: {
           errors: ["type alias name '_' is reserved"],
+          typecheckDiagnostics: [
+            "typechecker: v11/fixtures/ast/errors/type_alias_underscore_reserved/source.able:1:1 typechecker: type alias name '_' is reserved",
+          ],
         },
       },
     },
@@ -461,6 +464,9 @@ const errorsFixtures: Fixture[] = [
           errors: [
             "Parameter type mismatch for 'start': expected i32, got Counter at v11/fixtures/ast/errors/ufcs_static_method_not_found/source.able:14:9",
             "Parameter type mismatch for 'start': expected i32, got Counter",
+          ],
+          typecheckDiagnostics: [
+            "typechecker: v11/fixtures/ast/errors/ufcs_static_method_not_found/source.able:13:22 typechecker: argument 1 has type Counter, expected i32",
           ],
         },
       },

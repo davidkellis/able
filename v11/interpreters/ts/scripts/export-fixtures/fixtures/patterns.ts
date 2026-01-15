@@ -200,6 +200,9 @@ const patternsFixtures: Fixture[] = [
         description: "Nested struct and array patterns destructure composite value",
         expect: {
           result: { kind: "i32", value: 35n },
+          typecheckDiagnostics: [
+            "typechecker: v11/fixtures/ast/patterns/nested_struct_destructuring/source.able:12:20 typechecker: '+' requires numeric operands (got i32 and Result i32)",
+          ],
         },
       },
     },
