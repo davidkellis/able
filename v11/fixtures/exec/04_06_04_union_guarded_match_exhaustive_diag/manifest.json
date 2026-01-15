@@ -1,7 +1,9 @@
 {
   "description": "non-exhaustive match over union raises an error",
   "expect": {
-    "stderr": ["Non-exhaustive match"],
+    "stderr": [
+      "runtime: v11/fixtures/exec/04_06_04_union_guarded_match_exhaustive_diag/main.able:11:3 Non-exhaustive match"
+    ],
     "exit": 1
   }
 }

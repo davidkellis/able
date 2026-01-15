@@ -23,6 +23,7 @@ import {
   interceptStdout,
   formatValue,
   extractErrorMessage,
+  formatRuntimeErrorMessage,
   type Manifest,
 } from "./fixture-utils";
 import { startRunTimeout } from "./test-timeouts";
@@ -309,7 +310,7 @@ async function runExecFixture(dir: string): Promise<FixtureResult> {
     }
   }
   if (expected.stderr) {
-    const actualErr = runtimeError ? [extractErrorMessage(runtimeError)] : [];
+    const actualErr = runtimeError ? [formatRuntimeErrorMessage(runtimeError)] : [];
     if (JSON.stringify(actualErr) !== JSON.stringify(expected.stderr)) {
       throw new Error(
         `stderr mismatch for ${dir}: expected ${JSON.stringify(expected.stderr)}, got ${JSON.stringify(actualErr)}`,
@@ -672,15 +673,24 @@ function diffBaselineMaps(
 }
 
 function toDiagnosticKey(entry: string): string {
-  const trimmed = entry.startsWith("typechecker: ") ? entry.slice("typechecker: ".length) : entry;
+  let trimmed = entry;
+  let severityPrefix = "";
+  if (trimmed.startsWith("warning: ")) {
+    severityPrefix = "warning: ";
+    trimmed = trimmed.slice("warning: ".length);
+  }
+  trimmed = trimmed.startsWith("typechecker: ") ? trimmed.slice("typechecker: ".length) : trimmed;
   const firstSpace = trimmed.indexOf(" ");
   if (firstSpace === -1) {
-    return trimmed;
+    return `${severityPrefix}${trimmed}`;
   }
   const location = trimmed.slice(0, firstSpace);
   let message = trimmed.slice(firstSpace + 1);
   if (!message.startsWith("typechecker:")) {
     message = `typechecker: ${message}`;
+  }
+  if (severityPrefix) {
+    message = `${severityPrefix}${message}`;
   }
   const segments = location.split(":");
   let pathSegments = [...segments];

@@ -114,16 +114,9 @@ func (c *Checker) checkFunctionDefinition(env *Environment, def *ast.FunctionDef
 			} else {
 				assignable := typeAssignable(bodyType, expectedReturn)
 				if !assignable {
-					if iface, args, ok := interfaceFromType(expectedReturn); ok {
-						if ok, _ := c.typeImplementsInterface(bodyType, iface, args); ok {
+					if isResultType(expectedReturn) {
+						if ok, _ := c.typeImplementsInterface(bodyType, InterfaceType{InterfaceName: "Error"}, nil); ok {
 							assignable = true
-						}
-					}
-				}
-				if !assignable {
-				if isResultType(expectedReturn) {
-					if ok, _ := c.typeImplementsInterface(bodyType, InterfaceType{InterfaceName: "Error"}, nil); ok {
-						assignable = true
 					} else if name, ok := structName(bodyType); ok && strings.HasSuffix(name, "Error") {
 						assignable = true
 					}
@@ -131,8 +124,13 @@ func (c *Checker) checkFunctionDefinition(env *Environment, def *ast.FunctionDef
 				}
 				if !assignable {
 					diags = append(diags, Diagnostic{
-						Message: fmt.Sprintf("typechecker: function '%s' body returns %s, expected %s", defName(def), typeName(bodyType), typeName(expectedReturn)),
-						Node:    def.Body,
+						Message: fmt.Sprintf(
+							"typechecker: function '%s' body returns %s, expected %s",
+							defName(def),
+							formatTypeForReturnDiagnostic(bodyType),
+							formatTypeForReturnDiagnostic(expectedReturn),
+						),
+						Node: def.Body,
 					})
 				}
 			}
@@ -206,6 +204,57 @@ func defName(def *ast.FunctionDefinition) string {
 		return def.ID.Name
 	}
 	return "<anonymous>"
+}
+
+func formatTypeForReturnDiagnostic(t Type) string {
+	if t == nil {
+		return "Unknown"
+	}
+	switch val := t.(type) {
+	case UnknownType:
+		return "Unknown"
+	case TypeParameterType:
+		return "Unknown"
+	case ArrayType:
+		return strings.TrimSpace("Array " + formatTypeForReturnDiagnostic(val.Element))
+	case NullableType:
+		return formatTypeForReturnDiagnostic(val.Inner) + "?"
+	case RangeType:
+		return strings.TrimSpace("Range " + formatTypeForReturnDiagnostic(val.Element))
+	case IteratorType:
+		return strings.TrimSpace("Iterator " + formatTypeForReturnDiagnostic(val.Element))
+	case ProcType:
+		return strings.TrimSpace("Proc " + formatTypeForReturnDiagnostic(val.Result))
+	case FutureType:
+		return strings.TrimSpace("Future " + formatTypeForReturnDiagnostic(val.Result))
+	case AppliedType:
+		base := formatTypeForReturnDiagnostic(val.Base)
+		if len(val.Arguments) == 0 {
+			return base
+		}
+		args := make([]string, len(val.Arguments))
+		for i, arg := range val.Arguments {
+			args[i] = formatTypeForReturnDiagnostic(arg)
+		}
+		return strings.TrimSpace(base + " " + strings.Join(args, " "))
+	case UnionLiteralType:
+		if len(val.Members) == 0 {
+			return "Union"
+		}
+		members := make([]string, len(val.Members))
+		for i, member := range val.Members {
+			members[i] = formatTypeForReturnDiagnostic(member)
+		}
+		return strings.Join(members, " | ")
+	case FunctionType:
+		params := make([]string, len(val.Params))
+		for i, param := range val.Params {
+			params[i] = formatTypeForReturnDiagnostic(param)
+		}
+		return fmt.Sprintf("fn(%s) -> %s", strings.Join(params, ", "), formatTypeForReturnDiagnostic(val.Return))
+	default:
+		return formatType(t)
+	}
 }
 
 func interfaceFromType(t Type) (InterfaceType, []Type, bool) {

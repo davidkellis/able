@@ -381,9 +381,9 @@ func isUnionLike(t Type) bool {
 func (c *Checker) bindArrayPattern(env *Environment, pat *ast.ArrayPattern, valueType Type, allowDefine bool, intent *patternIntent) []Diagnostic {
 	var diags []Diagnostic
 	elemType := Type(UnknownType{})
-	if arr, ok := valueType.(ArrayType); ok {
-		if arr.Element != nil {
-			elemType = arr.Element
+	if elem, ok := arrayElementType(valueType); ok {
+		if elem != nil {
+			elemType = elem
 		}
 	}
 	for _, elem := range pat.Elements {

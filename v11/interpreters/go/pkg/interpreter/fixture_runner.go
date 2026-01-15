@@ -171,7 +171,6 @@ func runFixtureWithExecutor(t testingT, dir string, rel string, executor Executo
 	})
 
 	checkerDiags := append([]ModuleDiagnostic(nil), check.Diagnostics...)
-	checkerDiags = filterStdlibDiagnostics(checkerDiags)
 	actualDiagnostics := checkFixtureTypecheckDiagnostics(underlying, mode, manifest.Expect.TypecheckDiagnostics, checkerDiags, skipTS)
 	enforceTypecheckBaseline(underlying, rel, mode, actualDiagnostics, skipTS)
 
@@ -436,15 +435,24 @@ func diagnosticKeys(entries []string) []diagKey {
 }
 
 func parseDiagnosticKey(entry string) diagKey {
-	trimmed := strings.TrimPrefix(entry, "typechecker: ")
+	trimmed := entry
+	severityPrefix := ""
+	if strings.HasPrefix(trimmed, "warning: ") {
+		severityPrefix = "warning: "
+		trimmed = strings.TrimPrefix(trimmed, "warning: ")
+	}
+	trimmed = strings.TrimPrefix(trimmed, "typechecker: ")
 	parts := strings.SplitN(trimmed, " ", 2)
 	if len(parts) != 2 {
-		return diagKey{message: trimmed}
+		return diagKey{message: severityPrefix + trimmed}
 	}
 	location := parts[0]
 	message := parts[1]
 	if !strings.HasPrefix(message, "typechecker:") {
 		message = "typechecker: " + message
+	}
+	if severityPrefix != "" {
+		message = severityPrefix + message
 	}
 	path := location
 	line := 0

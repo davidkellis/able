@@ -1,7 +1,7 @@
 {
   "description": "out-of-range numeric literal in typed context raises an error",
   "expect": {
-    "stderr": ["Typed pattern mismatch in assignment: expected u8, got i32"],
+    "stderr": ["runtime: v11/fixtures/exec/06_01_literals_numeric_contextual_diag/main.able:6:3 Typed pattern mismatch in assignment: expected u8, got i32"],
     "exit": 1
   }
 }

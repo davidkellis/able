@@ -6,9 +6,10 @@ import { fileURLToPath } from "node:url";
 
 import { AST, TypeChecker, V11 } from "../index";
 import { Environment } from "../src/interpreter/environment";
+import { ParserDiagnosticError } from "../src/parser/diagnostics";
 import type { PackageSummary, TypecheckerDiagnostic } from "../src/typechecker/diagnostics";
 import { ensureConsolePrint, installRuntimeStubs } from "./runtime-stubs";
-import { formatTypecheckerDiagnostic, printPackageSummaries } from "./typecheck-utils";
+import { buildRuntimeDiagnostic, formatParserDiagnostic, formatRuntimeDiagnostic, formatTypecheckerDiagnostic, printPackageSummaries } from "./typecheck-utils";
 import { resolveTypecheckMode, type TypecheckMode } from "./typecheck-mode";
 import { ModuleLoader, type Program } from "./module-loader";
 import { numericToNumber } from "../src/interpreter/numeric";
@@ -198,7 +199,7 @@ async function handleReplCommand(args: string[]): Promise<void> {
 async function invokeEntryMain(interpreter: V11.Interpreter, entry: Program["entry"]): Promise<void> {
   const packageBucket = interpreter.packageRegistry.get(entry.packageName);
   if (!packageBucket) {
-    console.error(`runtime error: entry package '${entry.packageName}' is not available at runtime`);
+    console.error(formatRuntimeFailure(`entry package '${entry.packageName}' is not available at runtime`, true));
     process.exitCode = 1;
     return;
   }
@@ -219,7 +220,7 @@ async function invokeEntryMain(interpreter: V11.Interpreter, entry: Program["ent
       process.exitCode = error.code;
       return;
     }
-    console.error(`runtime error: ${extractErrorMessage(error)}`);
+    console.error(formatRuntimeFailure(error, true));
     process.exitCode = 1;
   }
 }
@@ -455,6 +456,10 @@ async function loadProgram(entryPath: string): Promise<Program | null> {
   try {
     return await loader.load(entryPath);
   } catch (error) {
+    if (error instanceof ParserDiagnosticError) {
+      console.error(formatParserDiagnostic(error.diagnostic, { absolutePath: true }));
+      return null;
+    }
     console.error(`failed to load program: ${extractErrorMessage(error)}`);
     return null;
   }
@@ -490,7 +495,7 @@ async function evaluateProgram(interpreter: V11.Interpreter, modules: Program["m
         process.exitCode = error.code;
         return false;
       }
-      console.error(`runtime error: ${extractErrorMessage(error)}`);
+      console.error(formatRuntimeFailure(error, true));
       process.exitCode = 1;
       return false;
     }
@@ -743,6 +748,10 @@ function emitDiagnostics(diags: ModuleDiagnosticEntry[]): void {
     seen.add(formatted);
     console.error(formatted);
   }
+}
+
+function formatRuntimeFailure(error: unknown, absolutePath: boolean): string {
+  return formatRuntimeDiagnostic(buildRuntimeDiagnostic(error), { absolutePath });
 }
 
 function printUsage(): void {

@@ -21,6 +21,7 @@ type evalState struct {
 	implicitReceivers []runtime.Value
 	placeholderStack  []placeholderFrame
 	blockFrames       map[*ast.BlockExpression]*blockFrame
+	callStack         []runtimeCallFrame
 }
 
 func newEvalState() *evalState {
@@ -30,6 +31,7 @@ func newEvalState() *evalState {
 		implicitReceivers: make([]runtime.Value, 0),
 		placeholderStack:  make([]placeholderFrame, 0),
 		blockFrames:       make(map[*ast.BlockExpression]*blockFrame),
+		callStack:         make([]runtimeCallFrame, 0),
 	}
 }
 
@@ -138,6 +140,29 @@ func (s *evalState) hasPlaceholderFrame() bool {
 	return s != nil && len(s.placeholderStack) > 0
 }
 
+func (s *evalState) pushCallFrame(node *ast.FunctionCall) {
+	if s == nil || node == nil {
+		return
+	}
+	s.callStack = append(s.callStack, runtimeCallFrame{node: node})
+}
+
+func (s *evalState) popCallFrame() {
+	if s == nil || len(s.callStack) == 0 {
+		return
+	}
+	s.callStack = s.callStack[:len(s.callStack)-1]
+}
+
+func (s *evalState) snapshotCallStack() []runtimeCallFrame {
+	if s == nil || len(s.callStack) == 0 {
+		return nil
+	}
+	out := make([]runtimeCallFrame, len(s.callStack))
+	copy(out, s.callStack)
+	return out
+}
+
 type placeholderFrame struct {
 	args       []runtime.Value
 	paramCount int
@@ -171,6 +196,7 @@ type Interpreter struct {
 	dynamicPackageEnvs    map[string]*runtime.Environment
 	executor              Executor
 	rootState             *evalState
+	nodeOrigins           map[ast.Node]string
 
 	concurrencyReady     bool
 	procErrorStruct      *runtime.StructDefinitionValue
@@ -378,6 +404,19 @@ func (i *Interpreter) SetArgs(args []string) {
 	i.osArgs = append([]string{}, args...)
 }
 
+// SetNodeOrigins seeds per-node origin paths for diagnostic reporting.
+func (i *Interpreter) SetNodeOrigins(origins map[ast.Node]string) {
+	if origins == nil {
+		i.nodeOrigins = nil
+		return
+	}
+	copied := make(map[ast.Node]string, len(origins))
+	for node, origin := range origins {
+		copied[node] = origin
+	}
+	i.nodeOrigins = copied
+}
+
 // EvaluateModule executes a module node and returns the last evaluated value and environment.
 func (i *Interpreter) EvaluateModule(module *ast.Module) (runtime.Value, *runtime.Environment, error) {
 	moduleEnv := i.global
@@ -435,9 +474,10 @@ func (i *Interpreter) EvaluateModule(module *ast.Module) (runtime.Value, *runtim
 	}
 	i.registerExternStatements(module)
 
+	state := i.stateFromEnv(moduleEnv)
 	for _, imp := range module.Imports {
 		if _, err := i.evaluateImportStatement(imp, moduleEnv); err != nil {
-			return nil, nil, err
+			return nil, nil, i.attachRuntimeContext(err, imp, state)
 		}
 	}
 

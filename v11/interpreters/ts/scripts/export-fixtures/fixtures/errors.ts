@@ -42,7 +42,7 @@ const errorsFixtures: Fixture[] = [
         description: "Where clause referencing known type names requires explicit generics",
         expect: {
           typecheckDiagnostics: [
-            "typechecker: ../fixtures/ast/errors/implicit_generic_where_ambiguity/source.able:9:46 typechecker: cannot infer type parameter 'Point' because a type with the same name exists; declare it explicitly or qualify the type",
+            "typechecker: v11/fixtures/ast/errors/implicit_generic_where_ambiguity/source.able:9:46 typechecker: cannot infer type parameter 'Point' because a type with the same name exists; declare it explicitly or qualify the type",
           ],
         },
       },
@@ -70,7 +70,7 @@ const errorsFixtures: Fixture[] = [
         skipTargets: ["go"],
         expect: {
           typecheckDiagnostics: [
-            "typechecker: ../../../fixtures/ast/errors/implicit_generic_redeclaration/source.able:2:3 typechecker: cannot redeclare inferred type parameter 'T' inside fn wrap (inferred at ../../../../fixtures/ast/errors/implicit_generic_redeclaration/source.able:1:16)",
+            "typechecker: v11/fixtures/ast/errors/implicit_generic_redeclaration/source.able:2:3 typechecker: cannot redeclare inferred type parameter 'T' inside fn wrap (inferred at v11/fixtures/ast/errors/implicit_generic_redeclaration/source.able:1:16)",
           ],
         },
       },
@@ -353,7 +353,7 @@ const errorsFixtures: Fixture[] = [
         expect: {
           result: { kind: "nil" },
           typecheckDiagnostics: [
-            "typechecker: ../fixtures/ast/errors/interface_self_pattern_mismatch/source.able:13:1 typechecker: impl PointDisplay for Line must match interface self type 'Point'",
+            "typechecker: v11/fixtures/ast/errors/interface_self_pattern_mismatch/source.able:13:1 typechecker: impl PointDisplay for Line must match interface self type 'Point'",
           ],
         },
       },
@@ -419,7 +419,7 @@ const errorsFixtures: Fixture[] = [
         expect: {
           result: { kind: "nil" },
           typecheckDiagnostics: [
-            "typechecker: ../fixtures/ast/errors/interface_hkt_constructor_mismatch/source.able:8:1 typechecker: impl Mapper for Array i32 must match interface self type 'F _'",
+            "typechecker: v11/fixtures/ast/errors/interface_hkt_constructor_mismatch/source.able:8:1 typechecker: impl Mapper for Array i32 must match interface self type 'F _'",
           ],
         },
       },
@@ -459,7 +459,7 @@ const errorsFixtures: Fixture[] = [
         description: "Type-qualified static method rejects incorrect argument types",
         expect: {
           errors: [
-            "Parameter type mismatch for 'start': expected i32, got Counter at ../../../../fixtures/ast/errors/ufcs_static_method_not_found/source.able:14:22",
+            "Parameter type mismatch for 'start': expected i32, got Counter at v11/fixtures/ast/errors/ufcs_static_method_not_found/source.able:14:9",
             "Parameter type mismatch for 'start': expected i32, got Counter",
           ],
         },
@@ -639,7 +639,7 @@ const errorsFixtures: Fixture[] = [
         expect: {
           errors: ["Ambiguous overload for tag"],
           typecheckDiagnostics: [
-            "typechecker: ../../../fixtures/ast/errors/ufcs_overload_ambiguity/source.able:7:1 typechecker: duplicate declaration 'tag' (previous declaration at ../../../../fixtures/ast/errors/ufcs_overload_ambiguity/source.able:4:1)",
+            "typechecker: v11/fixtures/ast/errors/ufcs_overload_ambiguity/source.able:7:1 typechecker: duplicate declaration 'tag' (previous declaration at v11/fixtures/ast/errors/ufcs_overload_ambiguity/source.able:4:1)",
           ],
         },
       },

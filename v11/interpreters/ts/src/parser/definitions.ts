@@ -34,19 +34,22 @@ import {
   parseIdentifier,
   sameNode,
   sliceText,
+  withActiveNode,
 } from "./shared";
 
 export function registerDefinitionParsers(ctx: MutableParseContext): void {
-  ctx.parseFunctionDefinition = node => parseFunctionDefinition(node, ctx.source);
-  ctx.parseStructDefinition = node => parseStructDefinition(node, ctx.source);
-  ctx.parseMethodsDefinition = node => parseMethodsDefinition(node, ctx.source);
-  ctx.parseImplementationDefinition = node => parseImplementationDefinition(node, ctx.source);
-  ctx.parseNamedImplementationDefinition = node => parseNamedImplementationDefinition(node, ctx.source);
-  ctx.parseUnionDefinition = node => parseUnionDefinition(node, ctx.source);
-  ctx.parseInterfaceDefinition = node => parseInterfaceDefinition(node, ctx.source);
-  ctx.parseTypeAliasDefinition = node => parseTypeAliasDefinition(node, ctx.source);
-  ctx.parsePreludeStatement = node => parsePreludeStatement(node, ctx.source);
-  ctx.parseExternFunction = node => parseExternFunction(node, ctx.source);
+  ctx.parseFunctionDefinition = withActiveNode((node) => parseFunctionDefinition(node, ctx.source));
+  ctx.parseStructDefinition = withActiveNode((node) => parseStructDefinition(node, ctx.source));
+  ctx.parseMethodsDefinition = withActiveNode((node) => parseMethodsDefinition(node, ctx.source));
+  ctx.parseImplementationDefinition = withActiveNode((node) => parseImplementationDefinition(node, ctx.source));
+  ctx.parseNamedImplementationDefinition = withActiveNode((node) =>
+    parseNamedImplementationDefinition(node, ctx.source),
+  );
+  ctx.parseUnionDefinition = withActiveNode((node) => parseUnionDefinition(node, ctx.source));
+  ctx.parseInterfaceDefinition = withActiveNode((node) => parseInterfaceDefinition(node, ctx.source));
+  ctx.parseTypeAliasDefinition = withActiveNode((node) => parseTypeAliasDefinition(node, ctx.source));
+  ctx.parsePreludeStatement = withActiveNode((node) => parsePreludeStatement(node, ctx.source));
+  ctx.parseExternFunction = withActiveNode((node) => parseExternFunction(node, ctx.source));
 }
 
 function parseFunctionDefinition(

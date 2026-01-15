@@ -8,15 +8,16 @@ import (
 
 // declarationCollector walks statements to populate the global environment.
 type declarationCollector struct {
-	env         *Environment
-	origins     map[ast.Node]string
-	declNodes   map[string]ast.Node
-	diags       []Diagnostic
-	impls       []ImplementationSpec
-	methodSets  []MethodSetSpec
-	obligations []ConstraintObligation
-	exports     []exportRecord
-	duplicates  map[*ast.FunctionDefinition]struct{}
+	env            *Environment
+	origins        map[ast.Node]string
+	declNodes      map[string]ast.Node
+	diags          []Diagnostic
+	impls          []ImplementationSpec
+	methodSets     []MethodSetSpec
+	obligations    []ConstraintObligation
+	exports        []exportRecord
+	duplicates     map[*ast.FunctionDefinition]struct{}
+	localTypeNames map[string]struct{}
 }
 
 func (c *Checker) collectDeclarations(module *ast.Module) []Diagnostic {
@@ -29,10 +30,11 @@ func (c *Checker) collectDeclarations(module *ast.Module) []Diagnostic {
 		})
 	}
 	collector := &declarationCollector{
-		env:        rootEnv,
-		origins:    c.nodeOrigins,
-		declNodes:  make(map[string]ast.Node),
-		duplicates: make(map[*ast.FunctionDefinition]struct{}),
+		env:            rootEnv,
+		origins:        c.nodeOrigins,
+		declNodes:      make(map[string]ast.Node),
+		duplicates:     make(map[*ast.FunctionDefinition]struct{}),
+		localTypeNames: make(map[string]struct{}),
 	}
 	// Register built-in primitives in the global scope for convenience.
 	collector.env.Define("true", PrimitiveType{Kind: PrimitiveBool})
@@ -53,6 +55,7 @@ func (c *Checker) collectDeclarations(module *ast.Module) []Diagnostic {
 	c.obligations = collector.obligations
 	c.publicDeclarations = collector.exports
 	c.duplicateFunctions = collector.duplicates
+	c.localTypeNames = collector.localTypeNames
 	return collector.diags
 }
 
@@ -66,24 +69,48 @@ func (c *declarationCollector) predeclareTypeNames(stmts []ast.Statement) {
 			if def.ID == nil || def.ID.Name == "" || c.env.HasInCurrentScope(def.ID.Name) {
 				continue
 			}
+			if c.localTypeNames != nil {
+				c.localTypeNames[def.ID.Name] = struct{}{}
+			}
 			c.env.Define(def.ID.Name, StructType{StructName: def.ID.Name})
 		case *ast.UnionDefinition:
 			if def.ID == nil || def.ID.Name == "" || c.env.HasInCurrentScope(def.ID.Name) {
 				continue
+			}
+			if c.localTypeNames != nil {
+				c.localTypeNames[def.ID.Name] = struct{}{}
 			}
 			c.env.Define(def.ID.Name, UnionType{UnionName: def.ID.Name})
 		case *ast.InterfaceDefinition:
 			if def.ID == nil || def.ID.Name == "" || c.env.HasInCurrentScope(def.ID.Name) {
 				continue
 			}
+			if c.localTypeNames != nil {
+				c.localTypeNames[def.ID.Name] = struct{}{}
+			}
 			c.env.Define(def.ID.Name, InterfaceType{InterfaceName: def.ID.Name})
 		case *ast.TypeAliasDefinition:
 			if def.ID == nil || def.ID.Name == "" || c.env.HasInCurrentScope(def.ID.Name) {
 				continue
 			}
+			if c.localTypeNames != nil {
+				c.localTypeNames[def.ID.Name] = struct{}{}
+			}
 			c.env.Define(def.ID.Name, AliasType{AliasName: def.ID.Name})
 		}
 	}
+}
+
+func (c *declarationCollector) warnRedundantUnionMember(t Type, node ast.Node) {
+	if c == nil {
+		return
+	}
+	message := fmt.Sprintf("typechecker: redundant union member %s", typeName(t))
+	c.diags = append(c.diags, Diagnostic{
+		Severity: SeverityWarning,
+		Message:  message,
+		Node:     node,
+	})
 }
 
 func (c *declarationCollector) registerExternFunction(def *ast.ExternFunctionBody) {
@@ -145,12 +172,20 @@ func (c *declarationCollector) registerTypeDeclaration(stmt ast.Statement) {
 				if paramScope == nil {
 					paramScope = make(map[string]Type)
 				}
+				entries := make([]unionMember, 0, len(s.Variants))
 				for _, variant := range s.Variants {
 					if variant == nil {
 						continue
 					}
-					unionType.Variants = append(unionType.Variants, c.resolveTypeExpression(variant, paramScope))
+					entries = append(entries, unionMember{
+						typ:  c.resolveTypeExpression(variant, paramScope),
+						node: variant,
+					})
 				}
+				normalized := normalizeUnionMembers(entries, unionNormalizationOptions{
+					warnRedundant: c.warnRedundantUnionMember,
+				})
+				unionType.Variants = unionVariantsFromType(normalized)
 			}
 			c.declare(s.ID.Name, unionType, s)
 		}

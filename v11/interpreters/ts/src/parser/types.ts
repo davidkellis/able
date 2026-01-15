@@ -20,15 +20,16 @@ import {
   parseIdentifier,
   sameNode,
   sliceText,
+  withActiveNode,
 } from "./shared";
 
 export function registerTypeParsers(ctx: MutableParseContext): void {
-  ctx.parseReturnType = node => parseReturnType(ctx, node);
-  ctx.parseTypeExpression = node => parseTypeExpression(ctx, node);
-  ctx.parseTypeArgumentList = node => parseTypeArgumentList(ctx, node);
-  ctx.parseTypeParameters = node => parseTypeParameters(ctx, node);
-  ctx.parseTypeBoundList = node => parseTypeBoundList(ctx, node);
-  ctx.parseWhereClause = node => parseWhereClause(ctx, node);
+  ctx.parseReturnType = withActiveNode((node) => parseReturnType(ctx, node));
+  ctx.parseTypeExpression = withActiveNode((node) => parseTypeExpression(ctx, node));
+  ctx.parseTypeArgumentList = withActiveNode((node) => parseTypeArgumentList(ctx, node));
+  ctx.parseTypeParameters = withActiveNode((node) => parseTypeParameters(ctx, node));
+  ctx.parseTypeBoundList = withActiveNode((node) => parseTypeBoundList(ctx, node));
+  ctx.parseWhereClause = withActiveNode((node) => parseWhereClause(ctx, node));
 }
 
 export function applyGenericType(base: TypeExpression | null, args: TypeExpression[]): TypeExpression | null {

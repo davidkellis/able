@@ -8,7 +8,11 @@ import (
 	"able/interpreter-go/pkg/runtime"
 )
 
-func (i *Interpreter) evaluateStatement(node ast.Statement, env *runtime.Environment) (runtime.Value, error) {
+func (i *Interpreter) evaluateStatement(node ast.Statement, env *runtime.Environment) (result runtime.Value, err error) {
+	state := i.stateFromEnv(env)
+	defer func() {
+		err = i.attachRuntimeContext(err, node, state)
+	}()
 	switch n := node.(type) {
 	case ast.Expression:
 		return i.evaluateExpression(n, env)
@@ -218,7 +222,15 @@ func (i *Interpreter) evaluateReturnStatement(stmt *ast.ReturnStatement, env *ru
 		}
 		result = val
 	}
-	return nil, returnSignal{value: result}
+	state := i.stateFromEnv(env)
+	var context *runtimeDiagnosticContext
+	if state != nil {
+		context = &runtimeDiagnosticContext{
+			node:      stmt,
+			callStack: state.snapshotCallStack(),
+		}
+	}
+	return nil, returnSignal{value: result, context: context}
 }
 
 func (i *Interpreter) evaluateForLoop(loop *ast.ForLoop, env *runtime.Environment) (runtime.Value, error) {

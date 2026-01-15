@@ -12,7 +12,14 @@ func (c *Checker) validateImplementations() []Diagnostic {
 	}
 
 	var diags []Diagnostic
-	for _, spec := range c.implementations {
+	start := c.preludeImplCount
+	if start < 0 {
+		start = 0
+	}
+	if start > len(c.implementations) {
+		start = len(c.implementations)
+	}
+	for _, spec := range c.implementations[start:] {
 		if spec.InterfaceName == "" {
 			continue
 		}
@@ -30,7 +37,7 @@ func (c *Checker) validateImplementations() []Diagnostic {
 		}
 
 		subst := buildImplementationSubstitution(spec, iface)
-		label := fmt.Sprintf("impl %s for %s", spec.InterfaceName, describeImplTarget(spec.Target))
+		label := fmt.Sprintf("impl %s for %s", spec.InterfaceName, describeImplTarget(c, spec))
 
 		for name, ifaceMethod := range iface.Methods {
 			expected := substituteFunctionType(ifaceMethod, subst)
@@ -139,6 +146,20 @@ func compareImplementationMethodSignature(label string, spec ImplementationSpec,
 		})
 	}
 
+	if len(expected.Where) != spec.WhereClauseCount {
+		diagNode := node
+		if spec.Definition != nil {
+			diagNode = spec.Definition
+		}
+		diags = append(diags, Diagnostic{
+			Message: fmt.Sprintf(
+				"typechecker: %s method '%s' expects %d where-clause constraint(s), got %d",
+				label, methodName, len(expected.Where), spec.WhereClauseCount,
+			),
+			Node: diagNode,
+		})
+	}
+
 	return diags
 }
 
@@ -157,11 +178,358 @@ func implementationMethodNode(def *ast.ImplementationDefinition, name string) as
 	return def
 }
 
-func describeImplTarget(t Type) string {
-	if t == nil || isUnknownType(t) {
+func describeImplTarget(c *Checker, spec ImplementationSpec) string {
+	if c != nil && spec.Definition != nil && spec.Definition.TargetType != nil {
+		implParams := collectGenericParamNameSet(spec.TypeParams)
+		expr := c.expandTypeAliasesForLabel(spec.Definition.TargetType, make(map[string]struct{}))
+		expr = c.canonicalizeTypeExpressionForLabel(expr, implParams)
+		label := formatTypeExpressionNode(expr)
+		if label != "" && label != "unknown" {
+			return label
+		}
+	}
+	if spec.Target == nil || isUnknownType(spec.Target) {
 		return "<unknown>"
 	}
-	return formatType(t)
+	return formatType(spec.Target)
+}
+
+func (c *Checker) expandTypeAliasesForLabel(expr ast.TypeExpression, seen map[string]struct{}) ast.TypeExpression {
+	if expr == nil || c == nil {
+		return expr
+	}
+	switch node := expr.(type) {
+	case *ast.SimpleTypeExpression:
+		name := identifierName(node.Name)
+		if name == "" || c.global == nil {
+			return expr
+		}
+		typ, ok := c.global.Lookup(name)
+		if !ok {
+			return expr
+		}
+		alias, ok := typ.(AliasType)
+		if !ok || alias.Definition == nil || alias.Definition.TargetType == nil {
+			return expr
+		}
+		if _, ok := seen[name]; ok {
+			return expr
+		}
+		seen[name] = struct{}{}
+		expanded := c.expandTypeAliasesForLabel(alias.Definition.TargetType, seen)
+		delete(seen, name)
+		if expanded != nil {
+			return expanded
+		}
+		return expr
+	case *ast.GenericTypeExpression:
+		baseName := ""
+		if base, ok := node.Base.(*ast.SimpleTypeExpression); ok {
+			baseName = identifierName(base.Name)
+		}
+		expandedBase := c.expandTypeAliasesForLabel(node.Base, seen)
+		expandedArgs := make([]ast.TypeExpression, len(node.Arguments))
+		for i, arg := range node.Arguments {
+			expandedArgs[i] = c.expandTypeAliasesForLabel(arg, seen)
+		}
+		if baseName != "" && c.global != nil {
+			if typ, ok := c.global.Lookup(baseName); ok {
+				if alias, ok := typ.(AliasType); ok && alias.Definition != nil && alias.Definition.TargetType != nil {
+					if _, ok := seen[baseName]; !ok {
+						substitutions := make(map[string]ast.TypeExpression)
+						for i, param := range alias.Definition.GenericParams {
+							paramName := identifierName(param.Name)
+							if paramName == "" {
+								continue
+							}
+							if i < len(expandedArgs) && expandedArgs[i] != nil {
+								substitutions[paramName] = expandedArgs[i]
+							} else {
+								substitutions[paramName] = ast.NewWildcardTypeExpression()
+							}
+						}
+						seen[baseName] = struct{}{}
+						substituted := substituteTypeExpressionForLabel(alias.Definition.TargetType, substitutions)
+						expanded := c.expandTypeAliasesForLabel(substituted, seen)
+						delete(seen, baseName)
+						if expanded != nil {
+							return expanded
+						}
+						return substituted
+					}
+				}
+			}
+		}
+		if expandedBase == nil {
+			return expr
+		}
+		return ast.NewGenericTypeExpression(expandedBase, expandedArgs)
+	case *ast.NullableTypeExpression:
+		inner := c.expandTypeAliasesForLabel(node.InnerType, seen)
+		if inner == nil {
+			return expr
+		}
+		return ast.NewNullableTypeExpression(inner)
+	case *ast.ResultTypeExpression:
+		inner := c.expandTypeAliasesForLabel(node.InnerType, seen)
+		if inner == nil {
+			return expr
+		}
+		return ast.NewResultTypeExpression(inner)
+	case *ast.UnionTypeExpression:
+		members := make([]ast.TypeExpression, len(node.Members))
+		for i, member := range node.Members {
+			members[i] = c.expandTypeAliasesForLabel(member, seen)
+		}
+		return ast.NewUnionTypeExpression(members)
+	case *ast.FunctionTypeExpression:
+		params := make([]ast.TypeExpression, len(node.ParamTypes))
+		for i, param := range node.ParamTypes {
+			params[i] = c.expandTypeAliasesForLabel(param, seen)
+		}
+		ret := c.expandTypeAliasesForLabel(node.ReturnType, seen)
+		if ret == nil {
+			return expr
+		}
+		return ast.NewFunctionTypeExpression(params, ret)
+	default:
+		return expr
+	}
+}
+
+func substituteTypeExpressionForLabel(expr ast.TypeExpression, substitutions map[string]ast.TypeExpression) ast.TypeExpression {
+	if expr == nil {
+		return nil
+	}
+	switch node := expr.(type) {
+	case *ast.SimpleTypeExpression:
+		name := identifierName(node.Name)
+		if name != "" {
+			if sub, ok := substitutions[name]; ok && sub != nil {
+				return sub
+			}
+		}
+		return expr
+	case *ast.GenericTypeExpression:
+		base := substituteTypeExpressionForLabel(node.Base, substitutions)
+		args := make([]ast.TypeExpression, len(node.Arguments))
+		for i, arg := range node.Arguments {
+			args[i] = substituteTypeExpressionForLabel(arg, substitutions)
+		}
+		if base == nil {
+			return expr
+		}
+		return ast.NewGenericTypeExpression(base, args)
+	case *ast.NullableTypeExpression:
+		inner := substituteTypeExpressionForLabel(node.InnerType, substitutions)
+		if inner == nil {
+			return expr
+		}
+		return ast.NewNullableTypeExpression(inner)
+	case *ast.ResultTypeExpression:
+		inner := substituteTypeExpressionForLabel(node.InnerType, substitutions)
+		if inner == nil {
+			return expr
+		}
+		return ast.NewResultTypeExpression(inner)
+	case *ast.UnionTypeExpression:
+		members := make([]ast.TypeExpression, len(node.Members))
+		for i, member := range node.Members {
+			members[i] = substituteTypeExpressionForLabel(member, substitutions)
+		}
+		return ast.NewUnionTypeExpression(members)
+	case *ast.FunctionTypeExpression:
+		params := make([]ast.TypeExpression, len(node.ParamTypes))
+		for i, param := range node.ParamTypes {
+			params[i] = substituteTypeExpressionForLabel(param, substitutions)
+		}
+		ret := substituteTypeExpressionForLabel(node.ReturnType, substitutions)
+		if ret == nil {
+			return expr
+		}
+		return ast.NewFunctionTypeExpression(params, ret)
+	default:
+		return expr
+	}
+}
+
+func (c *Checker) canonicalizeTypeExpressionForLabel(expr ast.TypeExpression, implParams map[string]struct{}) ast.TypeExpression {
+	if expr == nil || c == nil {
+		return expr
+	}
+	switch node := expr.(type) {
+	case *ast.SimpleTypeExpression:
+		name := identifierName(node.Name)
+		if name == "" {
+			return expr
+		}
+		if name == "_" {
+			return ast.NewWildcardTypeExpression()
+		}
+		if _, ok := implParams[name]; ok {
+			return ast.NewWildcardTypeExpression()
+		}
+		if c.localTypeNames != nil {
+			if _, ok := c.localTypeNames[name]; ok {
+				return expr
+			}
+		}
+		if c.global != nil {
+			if typ, ok := c.global.Lookup(name); ok {
+				if resolved := c.typeExpressionForLabelFromType(typ); resolved != nil {
+					return resolved
+				}
+			}
+		}
+		return expr
+	case *ast.GenericTypeExpression:
+		base := c.canonicalizeTypeExpressionForLabel(node.Base, implParams)
+		args := make([]ast.TypeExpression, len(node.Arguments))
+		for i, arg := range node.Arguments {
+			args[i] = c.canonicalizeTypeExpressionForLabel(arg, implParams)
+		}
+		if base == nil {
+			return expr
+		}
+		return ast.NewGenericTypeExpression(base, args)
+	case *ast.NullableTypeExpression:
+		inner := c.canonicalizeTypeExpressionForLabel(node.InnerType, implParams)
+		if inner == nil {
+			return expr
+		}
+		return ast.NewNullableTypeExpression(inner)
+	case *ast.ResultTypeExpression:
+		inner := c.canonicalizeTypeExpressionForLabel(node.InnerType, implParams)
+		if inner == nil {
+			return expr
+		}
+		return ast.NewResultTypeExpression(inner)
+	case *ast.UnionTypeExpression:
+		members := make([]ast.TypeExpression, len(node.Members))
+		for i, member := range node.Members {
+			members[i] = c.canonicalizeTypeExpressionForLabel(member, implParams)
+		}
+		return ast.NewUnionTypeExpression(members)
+	case *ast.FunctionTypeExpression:
+		params := make([]ast.TypeExpression, len(node.ParamTypes))
+		for i, param := range node.ParamTypes {
+			params[i] = c.canonicalizeTypeExpressionForLabel(param, implParams)
+		}
+		ret := c.canonicalizeTypeExpressionForLabel(node.ReturnType, implParams)
+		if ret == nil {
+			return expr
+		}
+		return ast.NewFunctionTypeExpression(params, ret)
+	default:
+		return expr
+	}
+}
+
+func (c *Checker) typeExpressionForLabelFromType(t Type) ast.TypeExpression {
+	if t == nil {
+		return ast.NewWildcardTypeExpression()
+	}
+	switch v := t.(type) {
+	case UnknownType:
+		return ast.NewWildcardTypeExpression()
+	case TypeParameterType:
+		return ast.NewWildcardTypeExpression()
+	case PrimitiveType:
+		return ast.NewSimpleTypeExpression(ast.NewIdentifier(formatType(v)))
+	case IntegerType:
+		return ast.NewSimpleTypeExpression(ast.NewIdentifier(formatType(v)))
+	case FloatType:
+		return ast.NewSimpleTypeExpression(ast.NewIdentifier(formatType(v)))
+	case StructType:
+		return typeExpressionWithWildcards(v.StructName, len(v.TypeParams))
+	case StructInstanceType:
+		if len(v.TypeArgs) > 0 {
+			args := make([]ast.TypeExpression, len(v.TypeArgs))
+			for i, arg := range v.TypeArgs {
+				args[i] = c.typeExpressionForLabelFromType(arg)
+			}
+			return ast.NewGenericTypeExpression(ast.NewSimpleTypeExpression(ast.NewIdentifier(v.StructName)), args)
+		}
+		return ast.NewSimpleTypeExpression(ast.NewIdentifier(v.StructName))
+	case InterfaceType:
+		return typeExpressionWithWildcards(v.InterfaceName, len(v.TypeParams))
+	case ArrayType:
+		return ast.NewGenericTypeExpression(
+			ast.NewSimpleTypeExpression(ast.NewIdentifier("Array")),
+			[]ast.TypeExpression{c.typeExpressionForLabelFromType(v.Element)},
+		)
+	case RangeType:
+		return ast.NewGenericTypeExpression(
+			ast.NewSimpleTypeExpression(ast.NewIdentifier("Range")),
+			[]ast.TypeExpression{c.typeExpressionForLabelFromType(v.Element)},
+		)
+	case IteratorType:
+		return ast.NewGenericTypeExpression(
+			ast.NewSimpleTypeExpression(ast.NewIdentifier("Iterator")),
+			[]ast.TypeExpression{c.typeExpressionForLabelFromType(v.Element)},
+		)
+	case ProcType:
+		return ast.NewGenericTypeExpression(
+			ast.NewSimpleTypeExpression(ast.NewIdentifier("Proc")),
+			[]ast.TypeExpression{c.typeExpressionForLabelFromType(v.Result)},
+		)
+	case FutureType:
+		return ast.NewGenericTypeExpression(
+			ast.NewSimpleTypeExpression(ast.NewIdentifier("Future")),
+			[]ast.TypeExpression{c.typeExpressionForLabelFromType(v.Result)},
+		)
+	case NullableType:
+		return ast.NewNullableTypeExpression(c.typeExpressionForLabelFromType(v.Inner))
+	case UnionLiteralType:
+		members := make([]ast.TypeExpression, len(v.Members))
+		for i, member := range v.Members {
+			members[i] = c.typeExpressionForLabelFromType(member)
+		}
+		return ast.NewUnionTypeExpression(members)
+	case FunctionType:
+		params := make([]ast.TypeExpression, len(v.Params))
+		for i, param := range v.Params {
+			params[i] = c.typeExpressionForLabelFromType(param)
+		}
+		return ast.NewFunctionTypeExpression(params, c.typeExpressionForLabelFromType(v.Return))
+	case AppliedType:
+		base := c.typeExpressionForLabelFromType(v.Base)
+		if len(v.Arguments) == 0 {
+			return base
+		}
+		args := make([]ast.TypeExpression, len(v.Arguments))
+		for i, arg := range v.Arguments {
+			args[i] = c.typeExpressionForLabelFromType(arg)
+		}
+		if base == nil {
+			return ast.NewWildcardTypeExpression()
+		}
+		return ast.NewGenericTypeExpression(base, args)
+	case AliasType:
+		if v.Definition != nil && v.Definition.TargetType != nil {
+			return c.expandTypeAliasesForLabel(v.Definition.TargetType, make(map[string]struct{}))
+		}
+		if v.AliasName != "" {
+			return ast.NewSimpleTypeExpression(ast.NewIdentifier(v.AliasName))
+		}
+		return ast.NewWildcardTypeExpression()
+	default:
+		return ast.NewSimpleTypeExpression(ast.NewIdentifier(formatType(t)))
+	}
+}
+
+func typeExpressionWithWildcards(name string, count int) ast.TypeExpression {
+	if name == "" {
+		return ast.NewWildcardTypeExpression()
+	}
+	if count <= 0 {
+		return ast.NewSimpleTypeExpression(ast.NewIdentifier(name))
+	}
+	args := make([]ast.TypeExpression, count)
+	for i := range args {
+		args[i] = ast.NewWildcardTypeExpression()
+	}
+	return ast.NewGenericTypeExpression(ast.NewSimpleTypeExpression(ast.NewIdentifier(name)), args)
 }
 
 func formatTypeForMessage(t Type) string {

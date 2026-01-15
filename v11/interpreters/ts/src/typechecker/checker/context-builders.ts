@@ -53,6 +53,7 @@ export function buildCheckerContext(checker: any): StatementContext {
     getInterfaceNameFromConstraint: checker.getInterfaceNameFromConstraint.bind(checker),
     getInterfaceNameFromTypeExpression: checker.getInterfaceNameFromTypeExpression.bind(checker),
     report: checker.report.bind(checker),
+    reportWarning: checker.reportWarning.bind(checker),
     describeTypeExpression: checker.describeTypeExpression.bind(checker),
     isKnownTypeName: (name: string) => checker.isKnownTypeName(name),
     hasTypeDefinition: (name: string) =>
@@ -64,6 +65,7 @@ export function buildCheckerContext(checker: any): StatementContext {
     isTypeAssignable: checker.isTypeAssignable.bind(checker),
     describeLiteralMismatch: checker.describeLiteralMismatch.bind(checker),
     resolveTypeExpression: checker.resolveTypeExpression.bind(checker),
+    normalizeUnionType: checker.normalizeUnionType.bind(checker),
     getStructDefinition: (name: string) => checker.structDefinitions.get(name),
     getInterfaceDefinition: (name: string) => checker.interfaceDefinitions.get(name),
     hasInterfaceDefinition: (name: string) => checker.interfaceDefinitions.has(name),

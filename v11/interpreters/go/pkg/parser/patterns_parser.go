@@ -10,6 +10,14 @@ import (
 )
 
 func (ctx *parseContext) parsePattern(node *sitter.Node) (ast.Pattern, error) {
+	pattern, err := ctx.parsePatternInternal(node)
+	if err != nil {
+		return nil, wrapParseError(node, err)
+	}
+	return pattern, nil
+}
+
+func (ctx *parseContext) parsePatternInternal(node *sitter.Node) (ast.Pattern, error) {
 	if node == nil {
 		return nil, fmt.Errorf("parser: nil pattern")
 	}

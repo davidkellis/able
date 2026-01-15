@@ -295,9 +295,6 @@ function collectKernelPackages(origins: Map<string, PackageOrigin>): string[] {
 
 async function parseFile(filePath: string, rootDir: string, rootPackage: string): Promise<FileModule> {
   const moduleAST = await parseModuleFromSource(filePath);
-  if (!moduleAST) {
-    throw new Error(`loader: failed to parse ${filePath}`);
-  }
   const { segments, isPrivate } = buildPackageSegmentsForModule(rootDir, rootPackage, filePath, moduleAST);
   const pkgName = segments.join(".");
   moduleAST.package = AST.packageStatement(segments, isPrivate);

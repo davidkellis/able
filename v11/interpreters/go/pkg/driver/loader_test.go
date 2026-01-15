@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -239,6 +240,42 @@ fn main() -> void {}
 	}
 	if !found {
 		t.Fatalf("expected able.kernel.boot to be auto-loaded; modules: %#v", program.Modules)
+	}
+}
+
+func TestLoaderParserDiagnostics(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "package.yml"), "name: app\n")
+	entry := filepath.Join(root, "main.able")
+	writeFile(t, entry, `
+package main
+
+fn main() -> void {
+`)
+
+	loader, err := NewLoader(nil)
+	if err != nil {
+		t.Fatalf("NewLoader: %v", err)
+	}
+	defer loader.Close()
+
+	_, err = loader.Load(entry)
+	if err == nil {
+		t.Fatalf("expected parse error for incomplete module")
+	}
+	var diagErr *ParserDiagnosticError
+	if !errors.As(err, &diagErr) {
+		t.Fatalf("expected ParserDiagnosticError, got %T: %v", err, err)
+	}
+	formatted := DescribeParserDiagnostic(diagErr.Diagnostic)
+	if !strings.Contains(formatted, "parser:") {
+		t.Fatalf("expected parser prefix, got %q", formatted)
+	}
+	if !strings.Contains(formatted, "main.able:") {
+		t.Fatalf("expected location in diagnostic, got %q", formatted)
+	}
+	if !strings.Contains(formatted, "expected") {
+		t.Fatalf("expected expectation text, got %q", formatted)
 	}
 }
 

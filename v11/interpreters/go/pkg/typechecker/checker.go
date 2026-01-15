@@ -29,16 +29,33 @@ type Checker struct {
 	preludeImplCount     int
 	preludeMethodCount   int
 	publicDeclarations   []exportRecord
+	localTypeNames       map[string]struct{}
 
 	builtinImplementations []ImplementationSpec
 	pendingDiagnostics     []Diagnostic
 	duplicateFunctions     map[*ast.FunctionDefinition]struct{}
 }
 
-// Diagnostic represents a type-checking error or warning.
-type Diagnostic struct {
+// DiagnosticSeverity conveys the diagnostic level.
+type DiagnosticSeverity string
+
+const (
+	SeverityError   DiagnosticSeverity = "error"
+	SeverityWarning DiagnosticSeverity = "warning"
+)
+
+// DiagnosticNote captures secondary context for a diagnostic.
+type DiagnosticNote struct {
 	Message string
 	Node    ast.Node
+}
+
+// Diagnostic represents a type-checking error or warning.
+type Diagnostic struct {
+	Severity DiagnosticSeverity
+	Message  string
+	Node     ast.Node
+	Notes    []DiagnosticNote
 }
 
 type exportRecord struct {
