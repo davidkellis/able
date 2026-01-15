@@ -257,6 +257,33 @@ async function runExecFixture(dir: string): Promise<FixtureResult> {
   const interpreter = new V11.Interpreter();
   installRuntimeStubs(interpreter);
 
+  if (manifest.expect?.typecheckDiagnostics !== undefined) {
+    const typecheckDiagnostics: TypecheckerDiagnostic[] = [];
+    let packageSummaries = new Map<string, PackageSummary>();
+    if (TYPECHECK_MODE !== "off") {
+      const session = new TypeChecker.TypecheckerSession();
+      const seenPkgs = new Set<string>();
+      for (const mod of program.modules) {
+        if (seenPkgs.has(mod.packageName)) continue;
+        seenPkgs.add(mod.packageName);
+        const { diagnostics } = session.checkModule(mod.module);
+        typecheckDiagnostics.push(...diagnostics);
+      }
+      if (!seenPkgs.has(program.entry.packageName)) {
+        const { diagnostics } = session.checkModule(program.entry.module);
+        typecheckDiagnostics.push(...diagnostics);
+      }
+      packageSummaries = session.getPackageSummaries();
+    }
+    maybeReportTypecheckDiagnostics(
+      dir,
+      TYPECHECK_MODE,
+      manifest.expect?.typecheckDiagnostics ?? null,
+      typecheckDiagnostics,
+      packageSummaries,
+    );
+  }
+
   const stdout: string[] = [];
   const nilValue: V11.RuntimeValue = { kind: "nil", value: null };
   interpreter.globals.define(

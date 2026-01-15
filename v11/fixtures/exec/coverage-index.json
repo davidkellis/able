@@ -480,6 +480,12 @@
     "focus": "positional struct literals, indexed access/mutation, and positional destructuring"
   },
   {
+    "id": "exec/04_05_04_struct_literal_generic_inference",
+    "status": "seeded",
+    "spec_sections": ["4.5.2", "6.1.8", "7.1.5"],
+    "focus": "generic struct literal inference from contextual return types"
+  },
+  {
     "id": "exec/06_01_literals_numeric_contextual",
     "status": "seeded",
     "spec_sections": ["6.1.1", "6.1.2"],
