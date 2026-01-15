@@ -273,11 +273,14 @@ export function checkStructLiteral(ctx: ExpressionContext, literal: AST.StructLi
     return unknownType;
   }
   const structName = ctx.getIdentifierName(literal.structType);
-  const typeArguments = Array.isArray(literal.typeArguments)
+  let typeArguments = Array.isArray(literal.typeArguments)
     ? literal.typeArguments.map((arg) => ctx.resolveTypeExpression(arg))
     : [];
   const structBinding = structName ? ctx.lookupIdentifier(structName) : undefined;
   const definition = structName ? ctx.getStructDefinition(structName) : undefined;
+  if (definition?.genericParams?.length && typeArguments.length === 0) {
+    typeArguments = definition.genericParams.map(() => unknownType);
+  }
   if (structName && !definition && structBinding?.kind !== "struct") {
     ctx.report(`typechecker: unknown struct '${structName}'`, literal);
   }

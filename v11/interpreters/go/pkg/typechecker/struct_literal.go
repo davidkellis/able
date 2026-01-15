@@ -243,6 +243,28 @@ func (c *Checker) checkStructLiteral(env *Environment, expr *ast.StructLiteral) 
 		}
 	}
 
+	if hasInfo && len(structInfo.TypeParams) > 0 && len(typeArgs) == 0 {
+		subst := make(map[string]Type)
+		inferred := StructInstanceType{
+			StructName: structName,
+			Fields:     fields,
+			Positional: positional,
+		}
+		diags = append(diags, c.inferStructArguments(structInfo, nil, inferred, subst, expr, -1)...)
+		typeArgs = make([]Type, len(structInfo.TypeParams))
+		for i, param := range structInfo.TypeParams {
+			if param.Name == "" {
+				typeArgs[i] = UnknownType{}
+				continue
+			}
+			if arg, ok := subst[param.Name]; ok && arg != nil {
+				typeArgs[i] = arg
+				continue
+			}
+			typeArgs[i] = UnknownType{}
+		}
+	}
+
 	instance := StructInstanceType{
 		StructName: structName,
 		Fields:     fields,
