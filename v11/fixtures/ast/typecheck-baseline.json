@@ -8,9 +8,7 @@
   "concurrency/await_channel_receive_cancel": [],
   "concurrency/await_channel_send_cancel": [],
   "concurrency/await_mutex_cancel": [],
-  "concurrency/await_timer_default": [
-    "typechecker: v11/stdlib/src/concurrency/channel.able:46:68 typechecker: function 'channel_iterator' body returns ChannelIterator, expected Iterator Unknown"
-  ],
+  "concurrency/await_timer_default": [],
   "concurrency/channel_basic_ops": [],
   "concurrency/channel_error_rescue": [],
   "concurrency/channel_nil_receive_cancel": [],
@@ -133,17 +131,7 @@
   "expressions/index_access": [],
   "expressions/int_addition": [],
   "expressions/integer_suffix": [],
-  "expressions/map_literal_spread": [
-    "typechecker: v11/stdlib/src/collections/hash_map.able:23:1 typechecker: impl Map for HashMap _ _ _ _ method 'get' expects 0 where-clause constraint(s), got 1",
-    "typechecker: v11/stdlib/src/collections/hash_map.able:23:1 typechecker: impl Map for HashMap _ _ _ _ method 'set' expects 0 where-clause constraint(s), got 1",
-    "typechecker: v11/stdlib/src/collections/hash_map.able:23:1 typechecker: impl Map for HashMap _ _ _ _ method 'remove' expects 0 where-clause constraint(s), got 1",
-    "typechecker: v11/stdlib/src/collections/hash_map.able:23:1 typechecker: impl Map for HashMap _ _ _ _ method 'contains' expects 0 where-clause constraint(s), got 1",
-    "typechecker: v11/stdlib/src/collections/hash_map.able:23:1 typechecker: impl Map for HashMap _ _ _ _ method 'size' expects 0 where-clause constraint(s), got 1",
-    "typechecker: v11/stdlib/src/collections/hash_map.able:31:1 typechecker: impl Index for HashMap _ _ _ _ method 'get' expects 0 where-clause constraint(s), got 1",
-    "typechecker: v11/stdlib/src/collections/hash_map.able:40:1 typechecker: impl IndexMut for HashMap _ _ _ _ method 'set' expects 0 where-clause constraint(s), got 1",
-    "typechecker: v11/stdlib/src/collections/hash_map.able:46:1 typechecker: impl Default for HashMap _ _ _ _ method 'default' expects 0 where-clause constraint(s), got 1",
-    "typechecker: v11/stdlib/src/collections/hash_map.able:50:1 typechecker: impl Clone for HashMap _ _ _ _ method 'clone' expects 0 where-clause constraint(s), got 1"
-  ],
+  "expressions/map_literal_spread": [],
   "expressions/mixed_numeric_arithmetic": [],
   "expressions/mixed_numeric_comparison": [],
   "expressions/or_else_success": [],

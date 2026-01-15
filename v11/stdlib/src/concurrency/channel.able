@@ -43,8 +43,8 @@ private fn channel_each<T>(channel: Channel T, visit: T -> void) -> void {
   }
 }
 
-private fn channel_iterator<T>(channel: Channel T) -> (Iterator T) {
-  ChannelIterator { channel: channel }
+private fn channel_iterator<T>(channel: Channel T) -> ChannelIterator T {
+  ChannelIterator T { channel: channel }
 }
 
 methods Channel T {
