@@ -1266,7 +1266,7 @@ Literals are the source code representation of fixed values.
 
 -   **Syntax:** `TypeName { field: value, ... }` for named structs; `TypeName { value1, value2, ... }` for positional structs (named tuples). Spread/functional update forms (`TypeName { ...existing, field: override }`) follow the struct semantics in §4.5.
 -   **Evaluation order:** The struct expression evaluated after its arguments/fields evaluate left-to-right. Each literal produces a fresh heap allocation.
--   **Typing:** The literal's shape must match the struct definition. For named structs all required fields must be assigned exactly once. For positional structs the arity must match. Type inference flows from the struct definition.
+-   **Typing:** The literal's shape must match the struct definition. For named structs all required fields must be assigned exactly once. For positional structs the arity must match. Type inference flows from the struct definition and any surrounding expected type. When a struct type is generic and explicit type arguments are omitted, the compiler infers them from field expressions and contextual expectations (assignment targets, return types, or other expected types). If any type argument remains unbound after inference, it is a compile-time error and must be specified explicitly.
 -   **Examples:**
     ```able
     struct Point { x: f64, y: f64 }
@@ -1274,6 +1274,10 @@ Literals are the source code representation of fixed values.
 
     struct Pair { String, i32 }
     result := Pair { "count", 42 }
+
+    struct Box T { value: T }
+    fn wrap<T>(value: T) -> Box T { Box { value } }
+    boxed: Box u8 = Box { value: 1 }
     ```
 
 #### 6.1.9. Map Literals
