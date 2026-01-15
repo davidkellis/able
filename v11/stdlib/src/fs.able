@@ -4,7 +4,7 @@ import able.kernel.{Array, pop}
 import able.collections.array
 import able.io.{AlreadyExists, IOError, IOErrorKind, NotFound, unwrap, unwrap_void, read_all, write_all, string_to_bytes, bytes_to_string, close}
 import able.io.path
-import able.io.path.{Path, Path::PathType}
+import able.io.path.{Path}
 import able.text.string.{String}
 
 prelude go {
@@ -385,39 +385,38 @@ extern go fn fs_touch(path: String) -> IOError | void {
   return nil
 }
 
-fn fs_path(path: PathType | Path | String) -> String {
+fn fs_path(path: Path | String) -> String {
   path match {
     case s: String => s,
-    case p: PathType => p.to_native(),
     case p: Path => p.to_native(),
   }
 }
 
-fn open(path: PathType | Path | String, flags: FsOpenFlags, mode: ?FsMode) -> IoHandle {
+fn open(path: Path | String, flags: FsOpenFlags, mode: ?FsMode) -> IoHandle {
   unwrap(fs_open(fs_path(path), flags, mode))
 }
 
-fn stat(path: PathType | Path | String) -> FsMetadata {
+fn stat(path: Path | String) -> FsMetadata {
   unwrap(fs_stat(fs_path(path)))
 }
 
-fn read_dir(path: PathType | Path | String) -> Array DirEntry {
+fn read_dir(path: Path | String) -> Array DirEntry {
   unwrap(fs_read_dir(fs_path(path)))
 }
 
-fn mkdir(path: PathType | Path | String, recursive: bool) -> void {
+fn mkdir(path: Path | String, recursive: bool) -> void {
   unwrap_void(fs_mkdir(fs_path(path), recursive))
 }
 
-fn remove(path: PathType | Path | String, recursive: bool) -> void {
+fn remove(path: Path | String, recursive: bool) -> void {
   unwrap_void(fs_remove(fs_path(path), recursive))
 }
 
-fn rename(src: PathType | Path | String, dst: PathType | Path | String) -> void {
+fn rename(src: Path | String, dst: Path | String) -> void {
   unwrap_void(fs_rename(fs_path(src), fs_path(dst)))
 }
 
-fn exists(path: PathType | Path | String) -> bool {
+fn exists(path: Path | String) -> bool {
   fs_stat(fs_path(path)) match {
     case IOError { kind: NotFound } => false,
     case err: IOError => { raise err },
@@ -425,7 +424,7 @@ fn exists(path: PathType | Path | String) -> bool {
   }
 }
 
-fn read_bytes(path: PathType | Path | String) -> Array u8 {
+fn read_bytes(path: Path | String) -> Array u8 {
   handle := open(path, read_only(), nil)
   do {
     read_all(handle, nil)
@@ -434,7 +433,7 @@ fn read_bytes(path: PathType | Path | String) -> Array u8 {
   }
 }
 
-fn write_bytes(target: PathType | Path | String, bytes: Array u8, create_dirs: bool) -> void {
+fn write_bytes(target: Path | String, bytes: Array u8, create_dirs: bool) -> void {
   if create_dirs {
     parent := path.new(target).parent()
     if parent.to_string() != "" { mkdir(parent, true) }
@@ -447,11 +446,11 @@ fn write_bytes(target: PathType | Path | String, bytes: Array u8, create_dirs: b
   }
 }
 
-fn read_text(path: PathType | Path | String) -> String {
+fn read_text(path: Path | String) -> String {
   bytes_to_string(read_bytes(path))
 }
 
-fn write_text(path: PathType | Path | String, contents: String, create_dirs: bool) -> void {
+fn write_text(path: Path | String, contents: String, create_dirs: bool) -> void {
   write_bytes(path, string_to_bytes(contents), create_dirs)
 }
 
@@ -475,7 +474,7 @@ fn join_lines(lines: Array String, separator: String) -> String {
   result
 }
 
-fn read_lines(path: PathType | Path | String) -> Array String {
+fn read_lines(path: Path | String) -> Array String {
   text := read_text(path)
   if text == "" { return Array.new() }
   lines := normalize_newlines(text).split("\n")
@@ -486,7 +485,7 @@ fn read_lines(path: PathType | Path | String) -> Array String {
   lines
 }
 
-fn write_lines(path: PathType | Path | String, lines: Array String, newline: ?String) -> void {
+fn write_lines(path: Path | String, lines: Array String, newline: ?String) -> void {
   separator := newline match {
     case nil => "\n",
     case value: String => value,
@@ -494,7 +493,7 @@ fn write_lines(path: PathType | Path | String, lines: Array String, newline: ?St
   write_text(path, join_lines(lines, separator), false)
 }
 
-fn copy_file(src: PathType | Path | String, dst: PathType | Path | String, overwrite: ?bool) -> void {
+fn copy_file(src: Path | String, dst: Path | String, overwrite: ?bool) -> void {
   allow_overwrite := overwrite match {
     case nil => false,
     case value: bool => value,
@@ -507,7 +506,7 @@ fn copy_file(src: PathType | Path | String, dst: PathType | Path | String, overw
   write_bytes(dst_path, bytes, true)
 }
 
-fn copy_dir(src: PathType | Path | String, dst: PathType | Path | String, overwrite: ?bool) -> void {
+fn copy_dir(src: Path | String, dst: Path | String, overwrite: ?bool) -> void {
   allow_overwrite := overwrite match {
     case nil => false,
     case value: bool => value,
@@ -581,15 +580,15 @@ fn copy_dir(src: PathType | Path | String, dst: PathType | Path | String, overwr
   }
 }
 
-fn touch(path: PathType | Path | String) -> void {
+fn touch(path: Path | String) -> void {
   unwrap_void(fs_touch(fs_path(path)))
 }
 
-fn remove_file(path: PathType | Path | String) -> void {
+fn remove_file(path: Path | String) -> void {
   remove(path, false)
 }
 
-fn remove_dir(path: PathType | Path | String, recursive: ?bool) -> void {
+fn remove_dir(path: Path | String, recursive: ?bool) -> void {
   recursive_flag := recursive match {
     case nil => false,
     case value: bool => value,
@@ -597,7 +596,7 @@ fn remove_dir(path: PathType | Path | String, recursive: ?bool) -> void {
   remove(path, recursive_flag)
 }
 
-methods PathType {
+methods Path {
   fn exists(self: Self) -> bool {
     fs_stat(fs_path(self)) match {
       case IOError { kind: NotFound } => false,

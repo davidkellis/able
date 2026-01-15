@@ -378,6 +378,10 @@ const applyIndexDispatch: Fixture = {
         kind: "i32",
         value: "21",
       },
+      typecheckDiagnostics: [
+        "typechecker: v11/fixtures/ast/interfaces/apply_index_dispatch/source.able:37:11 typechecker: '+' requires numeric operands (got Result Unknown and i32)",
+        "typechecker: v11/fixtures/ast/interfaces/apply_index_dispatch/source.able:38:1 typechecker: '+' requires numeric operands (got Result Unknown and i32)",
+      ],
     },
   },
 };

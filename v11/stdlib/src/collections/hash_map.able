@@ -1,7 +1,7 @@
 package hash_map
 import able.kernel.{HashMap::KernelHashMap, raw_get, raw_set, raw_remove, raw_contains, raw_size, raw_clear, raw_for_each, raw_clone}
 import able.collections.map.{Map}
-import able.core.interfaces.{Clone, Default, Hash, Eq, Index, IndexMut}
+import able.core.interfaces.{Clone, Default, Index, IndexMut}
 import able.core.errors.{IndexError}
 
 ## Re-export kernel HashMap under the stdlib namespace.
@@ -20,7 +20,7 @@ methods HashMap K V {
   fn clone_shallow(self: Self) -> HashMap K V { self.raw_clone() }
 }
 
-impl Map K V for HashMap K V where K: Hash + Eq K {
+impl Map K V for HashMap K V {
   fn get(self: Self, key: K) -> ?V { self.raw_get(key) }
   fn set(self: Self, key: K, value: V) -> void { self.raw_set(key, value) }
   fn remove(self: Self, key: K) -> ?V { self.raw_remove(key) }
@@ -28,7 +28,7 @@ impl Map K V for HashMap K V where K: Hash + Eq K {
   fn size(self: Self) -> i32 { self.raw_size() }
 }
 
-impl Index K V for HashMap K V where K: Hash + Eq K {
+impl Index K V for HashMap K V {
   fn get(self: Self, key: K) -> !V {
     self.raw_get(key) match {
       case nil => IndexError { index: -1, length: self.raw_size() },
@@ -37,16 +37,16 @@ impl Index K V for HashMap K V where K: Hash + Eq K {
   }
 }
 
-impl IndexMut K V for HashMap K V where K: Hash + Eq K {
+impl IndexMut K V for HashMap K V {
   fn set(self: Self, key: K, value: V) -> !void {
     self.raw_set(key, value)
   }
 }
 
-impl Default for HashMap K V where K: Hash + Eq K {
+impl Default for HashMap K V {
   fn default() -> HashMap K V { HashMap.new() }
 }
 
-impl Clone for HashMap K V where K: Hash + Eq K {
+impl Clone for HashMap K V {
   fn clone(self: Self) -> HashMap K V { self.clone_shallow() }
 }

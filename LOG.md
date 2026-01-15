@@ -789,3 +789,7 @@ Open items (2025-11-02 audit):
 - Tests: `./run_all_tests.sh --version=v11` (passed); `./run_stdlib_tests.sh` (TS stdlib failed at `v11/stdlib/tests/fs.test.able:202`, Go stdlib passed).
 - Fixed `fs.copy_dir` overwrite behavior by clearing destination contents after a removal attempt when needed.
 - Tests: `./run_stdlib_tests.sh`; `./run_all_tests.sh --version=v11`.
+- Dropped redundant where-clauses from `HashMap` impls so stdlib typechecking stays clean in strict mode.
+- Updated strict fixture manifests for expected typechecker diagnostics and refreshed the baseline for `expressions/map_literal_spread`.
+- Removed the `PathType` alias from fs helpers; paths now use `Path | String` directly and fs helpers extend `Path`.
+- Tests: `./run_all_tests.sh --version=v11 --typecheck-fixtures-strict --fixture`; `./run_stdlib_tests.sh`.
