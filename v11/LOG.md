@@ -191,3 +191,6 @@ Open items (2025-11-02 audit):
 - Tests: `cd v11/interpreters/ts && bun test test/typechecker/implementation_validation.test.ts`; `cd v11/interpreters/go && go test ./pkg/typechecker`.
 - Added exec fixture `exec/10_02_impl_where_clause` to cover impl-level where clauses without method-level duplication and updated the coverage index.
 - Tests: `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=10_02_impl_where_clause bun run scripts/run-fixtures.ts`.
+- Added exec fixture `exec/04_05_04_struct_literal_generic_inference`, updated the exec coverage index, and enforced exec-fixture typechecking when manifests specify diagnostics (TS + Go).
+- Fixed struct literal generic type-argument handling in the TS and Go typecheckers (placeholder args in TS; inferred args in Go).
+- Tests: `./run_all_tests.sh --version=v11 --typecheck-fixtures-strict`.

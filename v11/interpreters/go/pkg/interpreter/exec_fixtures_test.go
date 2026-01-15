@@ -87,6 +87,31 @@ func runExecFixture(t *testing.T, dir string) {
 		t.Fatalf("load program: %v", err)
 	}
 
+	if manifest.Expect.TypecheckDiagnostics != nil {
+		check, err := TypecheckProgram(program)
+		if err != nil {
+			t.Fatalf("typecheck program: %v", err)
+		}
+		formatted := formatModuleDiagnostics(check.Diagnostics)
+		expected := manifest.Expect.TypecheckDiagnostics
+		if len(expected) == 0 {
+			if len(formatted) != 0 {
+				t.Fatalf("typecheck diagnostics mismatch: expected none, got %v", formatted)
+			}
+		} else {
+			expectedKeys := diagnosticKeys(expected)
+			actualKeys := diagnosticKeys(formatted)
+			if len(expectedKeys) != len(actualKeys) {
+				t.Fatalf("typecheck diagnostics mismatch: expected %v, got %v", expected, formatted)
+			}
+			for i := range expectedKeys {
+				if expectedKeys[i] != actualKeys[i] {
+					t.Fatalf("typecheck diagnostics mismatch: expected %v, got %v", expected, formatted)
+				}
+			}
+		}
+	}
+
 	executor := selectFixtureExecutor(t, manifest.Executor)
 	interp := NewWithExecutor(executor)
 	var stdout []string
