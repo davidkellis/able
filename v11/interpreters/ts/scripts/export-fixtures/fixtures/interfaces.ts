@@ -469,8 +469,8 @@ const applyIndexDiagnostics: Fixture = {
     expect: {
       result: { kind: "String", value: "done" },
       typecheckDiagnostics: [
-        "typechecker: ../../../fixtures/ast/interfaces/apply_index_missing_impls/source.able:23:3 typechecker: cannot call non-callable value ReadOnlyPair (missing Apply implementation)",
-        "typechecker: ../../../fixtures/ast/interfaces/apply_index_missing_impls/source.able:27:10 typechecker: cannot assign via [] without IndexMut implementation on type Index i32 i32",
+        "typechecker: v11/fixtures/ast/interfaces/apply_index_missing_impls/source.able:23:3 typechecker: cannot call non-callable value ReadOnlyPair (missing Apply implementation)",
+        "typechecker: v11/fixtures/ast/interfaces/apply_index_missing_impls/source.able:27:3 typechecker: cannot assign via [] without IndexMut implementation on type Index i32 i32",
       ],
     },
   },

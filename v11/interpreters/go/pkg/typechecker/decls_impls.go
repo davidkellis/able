@@ -51,6 +51,7 @@ func (c *declarationCollector) collectImplementationDefinition(def *ast.Implemen
 		return nil, nil
 	}
 
+	rawWhereCount := len(def.WhereClause)
 	c.ensureImplementationGenericInference(def)
 
 	var diags []Diagnostic
@@ -169,6 +170,7 @@ func (c *declarationCollector) collectImplementationDefinition(def *ast.Implemen
 		InterfaceArgs: interfaceArgs,
 		Methods:       methods,
 		Where:         where,
+		WhereClauseCount: rawWhereCount,
 		UnionVariants: collectUnionVariantLabelsFromType(targetType),
 		Definition:    def,
 	}

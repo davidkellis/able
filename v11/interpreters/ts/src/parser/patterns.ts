@@ -13,10 +13,11 @@ import {
   parseIdentifier,
   sameNode,
   sliceText,
+  withActiveNode,
 } from "./shared";
 
 export function registerPatternParsers(ctx: MutableParseContext): void {
-  ctx.parsePattern = node => parsePattern(node, ctx.source);
+  ctx.parsePattern = withActiveNode((node) => parsePattern(node, ctx.source));
 }
 
 function parsePattern(

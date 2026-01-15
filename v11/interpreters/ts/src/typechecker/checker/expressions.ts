@@ -527,7 +527,8 @@ function stripOptionOrResult(ctx: ExpressionContext, type: TypeInfo): TypeInfo {
       if (members.length === 1) {
         return stripOptionOrResult(ctx, members[0] ?? unknownType);
       }
-      return { kind: "union", members: members.map((member) => stripOptionOrResult(ctx, member)) };
+      const stripped = members.map((member) => stripOptionOrResult(ctx, member));
+      return ctx.normalizeUnionType(stripped);
     }
     default:
       return type;
@@ -557,7 +558,7 @@ function mergeElseTypes(ctx: ExpressionContext, success: TypeInfo, handler: Type
   }
   if (members.length === 0) return unknownType;
   if (members.length === 1) return members[0]!;
-  return { kind: "union", members };
+  return ctx.normalizeUnionType(members);
 }
 
 function blockHasReturn(block: AST.BlockExpression | null | undefined): boolean {

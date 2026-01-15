@@ -52,7 +52,7 @@ func (p *ModuleParser) ParseModule(source []byte) (*ast.Module, error) {
 		return nil, fmt.Errorf("parser: unexpected root node")
 	}
 	if root.HasError() {
-		return nil, fmt.Errorf("parser: syntax errors present")
+		return nil, syntaxError(root)
 	}
 
 	ctx := newParseContext(source)
@@ -72,18 +72,18 @@ func (p *ModuleParser) ParseModule(source []byte) (*ast.Module, error) {
 		case "package_statement":
 			pkg, err := ctx.parsePackageStatement(node)
 			if err != nil {
-				return nil, err
+				return nil, wrapParseError(node, err)
 			}
 			modulePackage = pkg
 		case "import_statement":
 			kindNode := node.ChildByFieldName("kind")
 			if kindNode == nil {
-				return nil, fmt.Errorf("parser: import missing kind")
+				return nil, wrapParseError(node, fmt.Errorf("parser: import missing kind"))
 			}
 
 			path, err := ctx.parseQualifiedIdentifier(node.ChildByFieldName("path"))
 			if err != nil {
-				return nil, err
+				return nil, wrapParseError(node, err)
 			}
 
 			aliasNode := node.ChildByFieldName("alias")
@@ -91,21 +91,21 @@ func (p *ModuleParser) ParseModule(source []byte) (*ast.Module, error) {
 			if aliasNode != nil {
 				alias, err = parseIdentifier(aliasNode, ctx.source)
 				if err != nil {
-					return nil, err
+					return nil, wrapParseError(aliasNode, err)
 				}
 			}
 
 			isWildcard, selectors, err := ctx.parseImportClause(node.ChildByFieldName("clause"))
 			if err != nil {
-				return nil, err
+				return nil, wrapParseError(node, err)
 			}
 
 			if alias != nil && len(selectors) > 0 {
-				return nil, fmt.Errorf("parser: alias cannot be combined with selectors")
+				return nil, wrapParseError(node, fmt.Errorf("parser: alias cannot be combined with selectors"))
 			}
 
 			if alias == nil && !isWildcard && len(selectors) == 0 && hasLegacyImportAlias(node, ctx.source) {
-				return nil, fmt.Errorf("parser: legacy import alias syntax is unsupported; use :: for renames")
+				return nil, wrapParseError(node, fmt.Errorf("parser: legacy import alias syntax is unsupported; use :: for renames"))
 			}
 
 			switch kindNode.Kind() {
@@ -118,12 +118,12 @@ func (p *ModuleParser) ParseModule(source []byte) (*ast.Module, error) {
 				annotateSpan(dyn, node)
 				body = append(body, dyn)
 			default:
-				return nil, fmt.Errorf("parser: unsupported import kind %q", kindNode.Kind())
+				return nil, wrapParseError(kindNode, fmt.Errorf("parser: unsupported import kind %q", kindNode.Kind()))
 			}
 		case "function_definition":
 			fn, err := ctx.parseFunctionDefinition(node)
 			if err != nil {
-				return nil, err
+				return nil, wrapParseError(node, err)
 			}
 			body = append(body, fn)
 		default:
@@ -132,7 +132,7 @@ func (p *ModuleParser) ParseModule(source []byte) (*ast.Module, error) {
 			}
 			stmt, err := ctx.parseStatement(node)
 			if err != nil {
-				return nil, err
+				return nil, wrapParseError(node, err)
 			}
 			if stmt == nil {
 				return nil, fmt.Errorf("parser: unsupported top-level node %q", node.Kind())

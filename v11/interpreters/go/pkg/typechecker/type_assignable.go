@@ -441,40 +441,7 @@ func mergeTypesAllowUnion(a, b Type) Type {
 }
 
 func buildUnionType(types ...Type) Type {
-	var members []Type
-	for _, t := range types {
-		if t == nil || isUnknownType(t) {
-			continue
-		}
-		members = appendUnionMember(members, t)
-	}
-	if len(members) == 0 {
-		return UnknownType{}
-	}
-	if len(members) == 1 {
-		return members[0]
-	}
-	return UnionLiteralType{Members: members}
-}
-
-func appendUnionMember(existing []Type, candidate Type) []Type {
-	if candidate == nil {
-		return existing
-	}
-	switch v := candidate.(type) {
-	case UnionLiteralType:
-		for _, member := range v.Members {
-			existing = appendUnionMember(existing, member)
-		}
-		return existing
-	default:
-		for _, member := range existing {
-			if sameType(member, candidate) {
-				return existing
-			}
-		}
-		return append(existing, candidate)
-	}
+	return normalizeUnionTypes(types)
 }
 
 func sameType(a, b Type) bool {

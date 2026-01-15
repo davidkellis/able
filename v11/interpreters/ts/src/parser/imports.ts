@@ -8,12 +8,13 @@ import {
   Node,
   isIgnorableNode,
   parseIdentifier,
+  withActiveNode,
 } from "./shared";
 
 export function registerImportParsers(ctx: MutableParseContext): void {
-  ctx.parsePackageStatement = node => parsePackageStatement(ctx, node);
-  ctx.parseQualifiedIdentifier = node => parseQualifiedIdentifier(ctx, node);
-  ctx.parseImportClause = node => parseImportClause(ctx, node);
+  ctx.parsePackageStatement = withActiveNode((node) => parsePackageStatement(ctx, node));
+  ctx.parseQualifiedIdentifier = withActiveNode((node) => parseQualifiedIdentifier(ctx, node));
+  ctx.parseImportClause = withActiveNode((node) => parseImportClause(ctx, node));
 }
 
 export function parsePackageStatement(ctx: ParseContext, node: Node): AST.PackageStatement {

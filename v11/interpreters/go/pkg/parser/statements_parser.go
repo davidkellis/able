@@ -32,7 +32,7 @@ func (ctx *parseContext) parseBlock(node *sitter.Node) (*ast.BlockExpression, er
 		if child.Kind() == "break_statement" {
 			stmt, err = ctx.parseStatement(child)
 			if err != nil {
-				return nil, err
+				return nil, wrapParseError(child, err)
 			}
 			if brk, ok := stmt.(*ast.BreakStatement); ok && brk != nil && brk.Value == nil {
 				if next := nextNamedSibling(node, i-1); next != nil && next.Kind() == "expression_statement" {
@@ -40,7 +40,7 @@ func (ctx *parseContext) parseBlock(node *sitter.Node) (*ast.BlockExpression, er
 					if exprNode != nil {
 						expr, exprErr := ctx.parseExpression(exprNode)
 						if exprErr != nil {
-							return nil, exprErr
+							return nil, wrapParseError(exprNode, exprErr)
 						}
 						brk.Value = expr
 						i++
@@ -50,7 +50,7 @@ func (ctx *parseContext) parseBlock(node *sitter.Node) (*ast.BlockExpression, er
 		} else {
 			stmt, err = ctx.parseStatement(child)
 			if err != nil {
-				return nil, err
+				return nil, wrapParseError(child, err)
 			}
 		}
 		if stmt != nil {
@@ -76,7 +76,7 @@ func (ctx *parseContext) parseBlock(node *sitter.Node) (*ast.BlockExpression, er
 						}
 						expr, exprErr := ctx.parseExpression(exprNode)
 						if exprErr != nil {
-							return nil, exprErr
+							return nil, wrapParseError(exprNode, exprErr)
 						}
 						unary, ok := expr.(*ast.UnaryExpression)
 						if !ok || unary.Operator != ast.UnaryOperatorNegate {
@@ -142,7 +142,7 @@ func (ctx *parseContext) parseStatement(node *sitter.Node) (ast.Statement, error
 		}
 		expr, err := ctx.parseExpression(exprNode)
 		if err != nil {
-			return nil, err
+			return nil, wrapParseError(exprNode, err)
 		}
 		return annotateStatement(expr, node), nil
 	case "return_statement":
@@ -152,7 +152,7 @@ func (ctx *parseContext) parseStatement(node *sitter.Node) (ast.Statement, error
 		}
 		expr, err := ctx.parseExpression(valueNode)
 		if err != nil {
-			return nil, err
+			return nil, wrapParseError(valueNode, err)
 		}
 		return annotateStatement(ast.NewReturnStatement(expr), node), nil
 	case "while_statement":
@@ -163,11 +163,11 @@ func (ctx *parseContext) parseStatement(node *sitter.Node) (ast.Statement, error
 		bodyNode := node.NamedChild(1)
 		condition, err := ctx.parseExpression(conditionNode)
 		if err != nil {
-			return nil, err
+			return nil, wrapParseError(conditionNode, err)
 		}
 		body, err := ctx.parseBlock(bodyNode)
 		if err != nil {
-			return nil, err
+			return nil, wrapParseError(bodyNode, err)
 		}
 		return annotateStatement(ast.NewWhileLoop(condition, body), node), nil
 	case "loop_statement":
@@ -177,7 +177,7 @@ func (ctx *parseContext) parseStatement(node *sitter.Node) (ast.Statement, error
 		}
 		body, err := ctx.parseBlock(bodyNode)
 		if err != nil {
-			return nil, err
+			return nil, wrapParseError(bodyNode, err)
 		}
 		return annotateStatement(ast.NewLoopExpression(body), node), nil
 	case "for_statement":
@@ -189,15 +189,15 @@ func (ctx *parseContext) parseStatement(node *sitter.Node) (ast.Statement, error
 		bodyNode := node.NamedChild(2)
 		pattern, err := ctx.parsePattern(patternNode)
 		if err != nil {
-			return nil, err
+			return nil, wrapParseError(patternNode, err)
 		}
 		iterable, err := ctx.parseExpression(iterNode)
 		if err != nil {
-			return nil, err
+			return nil, wrapParseError(iterNode, err)
 		}
 		body, err := ctx.parseBlock(bodyNode)
 		if err != nil {
-			return nil, err
+			return nil, wrapParseError(bodyNode, err)
 		}
 		return annotateStatement(ast.NewForLoop(pattern, iterable, body), node), nil
 	case "break_statement":
@@ -215,7 +215,7 @@ func (ctx *parseContext) parseStatement(node *sitter.Node) (ast.Statement, error
 		if valueNode != nil {
 			expr, err := ctx.parseExpression(valueNode)
 			if err != nil {
-				return nil, err
+				return nil, wrapParseError(valueNode, err)
 			}
 			value = expr
 		}
@@ -229,7 +229,7 @@ func (ctx *parseContext) parseStatement(node *sitter.Node) (ast.Statement, error
 		}
 		expr, err := ctx.parseExpression(valueNode)
 		if err != nil {
-			return nil, err
+			return nil, wrapParseError(valueNode, err)
 		}
 		return annotateStatement(ast.NewRaiseStatement(expr), node), nil
 	case "rethrow_statement":

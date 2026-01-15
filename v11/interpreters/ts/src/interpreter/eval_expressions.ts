@@ -28,6 +28,7 @@ import { ProcContinuationContext } from "./proc_continuations";
 import type { RuntimeValue } from "./values";
 import { ProcYieldSignal, RaiseSignal } from "./signals";
 import { StandardRuntimeError, makeStandardErrorValue } from "./standard_errors";
+import { attachRuntimeDiagnosticContext } from "./runtime_diagnostics";
 
 declare module "./index" {
   interface Interpreter {
@@ -76,13 +77,13 @@ const EXPRESSION_TYPES = new Set<AST.AstNode["type"]>([
 export function applyEvaluationAugmentations(cls: typeof Interpreter): void {
   cls.prototype.evaluate = function evaluate(this: Interpreter, node: AST.AstNode | null, env: Environment = this.globals): RuntimeValue {
     if (!node) return NIL;
-    if (EXPRESSION_TYPES.has(node.type as AST.AstNode["type"]) && !this.hasPlaceholderFrame()) {
-      const placeholderFn = this.tryBuildPlaceholderFunction(node as AST.Expression, env);
-      if (placeholderFn) {
-        return placeholderFn;
-      }
-    }
     try {
+      if (EXPRESSION_TYPES.has(node.type as AST.AstNode["type"]) && !this.hasPlaceholderFrame()) {
+        const placeholderFn = this.tryBuildPlaceholderFunction(node as AST.Expression, env);
+        if (placeholderFn) {
+          return placeholderFn;
+        }
+      }
     switch (node.type) {
       case "StringLiteral":
       case "BooleanLiteral":
@@ -222,12 +223,12 @@ export function applyEvaluationAugmentations(cls: typeof Interpreter): void {
         throw new Error(`Not implemented in milestone: ${node.type}`);
     }
     } catch (err) {
-      if (err instanceof RaiseSignal) {
-        throw err;
-      }
       if (err instanceof StandardRuntimeError) {
-        throw new RaiseSignal(makeStandardErrorValue(this, err));
+        const raised = new RaiseSignal(makeStandardErrorValue(this, err));
+        attachRuntimeDiagnosticContext(raised, { node, callStack: [...this.runtimeCallStack] });
+        throw raised;
       }
+      attachRuntimeDiagnosticContext(err, { node, callStack: [...this.runtimeCallStack] });
       throw err;
     }
   };

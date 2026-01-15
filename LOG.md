@@ -1,5 +1,21 @@
 # Able Project Log
 
+# 2026-01-13 — Runtime diagnostics formatting (v11)
+- Runtime errors now emit `runtime:` diagnostics with locations + call-site notes in both interpreters; CLI/runtime harnesses share the same formatter.
+- Added Go runtime diagnostic formatting test and updated exec fixture stderr expectations to include locations.
+- Tests: `cd v11/interpreters/go && go test ./pkg/interpreter -run RuntimeDiagnostics`; `cd v11/interpreters/ts && bun test test/runtime/runtime_diagnostics.test.ts`.
+
+# 2026-01-13 — Parser diagnostics formatting (v11)
+- Parser diagnostics: route syntax/mapping failures through shared formatting, add span/expectation extraction from tree-sitter/mapper nodes, and normalize parser error messages for CLI output.
+- CLI/tests: TS + Go loaders now surface parser diagnostics in the same format as typechecker output; added parser diagnostic tests for localized expectation messages.
+- Tests: `cd v11/interpreters/ts && bun test test/parser/diagnostics.test.ts`; `cd v11/interpreters/go && go test ./pkg/driver -run ParserDiagnostics`.
+
+# 2026-01-13 — Diagnostics groundwork + union normalization (v11)
+- Design: added diagnostics overhaul note with warning policy, span/notes shape, and union normalization rules (`v11/design/diagnostics-overhaul.md`).
+- Typecheckers: normalized unions with nullable/alias expansion, redundant-member warnings, and single-member collapse (TS + Go); added warning severity plumbing and location end spans.
+- CLI/fixtures: warning-prefixed formatting for typechecker diagnostics in TS + Go; Go CLI diagnostics now use location-first formatting.
+- Tests: `bun test test/typechecker/union_normalization.test.ts`; `go test ./pkg/typechecker -run 'UnionNormalization|NormalizeUnionTypes'`.
+
 # 2026-01-13 — Lowercase path package cleanup (v11)
 - Stdlib: ensured the path module works under the lowercase package name by importing `Path` into stdlib tests and avoiding module shadowing in `fs.write_bytes`.
 - Tests: `./v11/ablets test v11/stdlib/tests/path.test.able`; `./run_stdlib_tests.sh --version=v11`; `./run_all_tests.sh --version=v11`.
@@ -762,3 +778,14 @@ Open items (2025-11-02 audit):
 - Lowercased the `able.io.path` package name and updated stdlib/tests/docs imports and call sites to use `path.*`.
 - Tests: `./run_all_tests.sh --version=v11`.
 - Next: finish stdlib IO coverage (errors, path normalization, IO handle edge cases) and keep `./run_all_tests.sh --version=v11` green.
+
+### 2026-01-14
+- Preserved entrypoint runtime diagnostic context in the TS scheduler so raw runtime errors keep locations/stack notes.
+- Standardized TS diagnostics path normalization to the repo root, added shared path helpers, and normalized fixture origins accordingly.
+- Corrected infix/postfix expression spans so runtime diagnostics point at full expressions instead of suffix/right operands.
+- Propagated return-statement context into return type mismatch errors and refreshed fixture expectations/baselines for new paths/notes.
+- Tests: `bun run scripts/run-fixtures.ts`.
+- Split Go interpreter member resolution into smaller modules (`interpreter_members.go`, `interpreter_method_resolution.go`) to keep files under 900 lines.
+- Tests: `./run_all_tests.sh --version=v11` (passed); `./run_stdlib_tests.sh` (TS stdlib failed at `v11/stdlib/tests/fs.test.able:202`, Go stdlib passed).
+- Fixed `fs.copy_dir` overwrite behavior by clearing destination contents after a removal attempt when needed.
+- Tests: `./run_stdlib_tests.sh`; `./run_all_tests.sh --version=v11`.

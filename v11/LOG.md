@@ -1,5 +1,12 @@
 # Able Project Log
 
+## 2026-01-14 — Go module splits
+- Split the Go constraint solver, literals, and member-access helpers into focused files to keep modules under 900 lines (`v11/interpreters/go/pkg/typechecker/constraint_solver_impls.go`, `v11/interpreters/go/pkg/typechecker/constraint_solver_methods.go`, `v11/interpreters/go/pkg/typechecker/statement_checker.go`, `v11/interpreters/go/pkg/typechecker/member_access_methods.go`, `v11/interpreters/go/pkg/typechecker/member_access_matching.go`) and trimmed `v11/interpreters/go/pkg/typechecker/constraint_solver.go`, `v11/interpreters/go/pkg/typechecker/literals.go`, and `v11/interpreters/go/pkg/typechecker/member_access_helpers.go`.
+- Split the Go extern host into focused files (`v11/interpreters/go/pkg/interpreter/extern_host_cache.go`, `v11/interpreters/go/pkg/interpreter/extern_host_builder.go`, `v11/interpreters/go/pkg/interpreter/extern_host_coercion.go`, `v11/interpreters/go/pkg/interpreter/extern_host_module.go`) and trimmed `v11/interpreters/go/pkg/interpreter/extern_host.go`.
+- Split the Go interpreter type helpers into focused files (`v11/interpreters/go/pkg/interpreter/interpreter_type_info.go`, `v11/interpreters/go/pkg/interpreter/interpreter_interface_lookup.go`, `v11/interpreters/go/pkg/interpreter/interpreter_type_matching.go`, `v11/interpreters/go/pkg/interpreter/interpreter_type_coercion.go`) and removed the oversized `v11/interpreters/go/pkg/interpreter/interpreter_types.go`.
+- Split the Go interpreter operations helpers into focused files (`v11/interpreters/go/pkg/interpreter/interpreter_operations_dispatch.go`, `v11/interpreters/go/pkg/interpreter/interpreter_operations_ratio.go`, `v11/interpreters/go/pkg/interpreter/interpreter_operations_arithmetic.go`, `v11/interpreters/go/pkg/interpreter/interpreter_operations_compare.go`) and removed the oversized `v11/interpreters/go/pkg/interpreter/interpreter_operations.go`.
+- Tests not run.
+
 ## 2026-01-12 — Stdlib fs/io/os coverage
 - Added stdlib spec tests for `able.fs`, `able.io`, and `able.os` covering open/read/write, directory ops, metadata, buffered IO, and environment/cwd helpers (`v11/stdlib/tests/fs.test.able`, `v11/stdlib/tests/io.test.able`, `v11/stdlib/tests/os.test.able`).
 - Tests not run.
@@ -160,3 +167,19 @@ Open items (2025-11-02 audit):
 - Translators and loaders are live in both interpreters: TypeScript’s `ModuleLoader` and Go’s `driver.Loader` now ingest `.able` source via tree-sitter, hydrate canonical AST modules, and feed them to their respective typechecker/interpreter pipelines.
 - End-to-end parse → typecheck → interpret tests exercise both runtimes: `ModuleLoader pipeline with typechecker` (Bun) covers the TS path, and `pkg/interpreter/program_pipeline_test.go` drives the Go loader/interpreter via `GOCACHE=$(pwd)/.gocache go test ./pkg/interpreter`.
 - Diagnostic coverage now rides on the same pipelines: the new Bun test asserts missing import selectors surface typechecker errors before evaluation, and the Go suite verifies that `EvaluateProgram` halts (or proceeds when `AllowDiagnostics` is set) when return-type violations are reported.
+
+### 2026-01-14
+- Go typechecker implementation validation now skips prelude impls, aligns impl target labels with TS by alias-expanding and wildcard-normalizing target type expressions, and tracks local type declarations to avoid rewriting in-module types.
+- Where-clause mismatch diagnostics for impl methods now point at the impl definition node to match fixture baselines.
+- Tests: `./run_all_tests.sh --version=v11`.
+- Ran `./run_stdlib_tests.sh` (TS + Go stdlib suites) to confirm current stdlib coverage remains green.
+- Added a focused Go typechecker test to lock in alias-expanded impl label canonicalization.
+- Split the Go test CLI harness into smaller files (`test_cli*.go`) to keep modules under 900 lines.
+- Tests: `cd v11/interpreters/go && go test ./pkg/typechecker -run ImplementationLabelCanonicalizes && go test ./cmd/able`.
+- Split TS implementation collection helpers into `implementation-collection-helpers.ts` so the main module stays under 900 lines.
+- Split Go program checker helpers into `program_checker_types.go` and `program_checker_summaries.go` for smaller modules.
+- Extracted Go loader helper utilities into `loader_helpers.go`.
+- Moved Able CLI dependency fetchers (registry/git) into `deps_fetchers.go` to shrink `deps_resolver.go`.
+- Tests: `cd v11/interpreters/go && go test ./pkg/typechecker -run ImplementationLabelCanonicalizes && go test ./cmd/able`.
+- Fixed `fs.copy_dir` overwrite behavior by clearing destination contents after a removal attempt when needed.
+- Tests: `./run_stdlib_tests.sh`; `./run_all_tests.sh --version=v11`.

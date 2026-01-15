@@ -4,6 +4,13 @@ export type DiagnosticLocation = {
   path?: string;
   line?: number;
   column?: number;
+  endLine?: number;
+  endColumn?: number;
+};
+
+export type DiagnosticNote = {
+  message: string;
+  location?: DiagnosticLocation;
 };
 
 export type TypecheckerDiagnostic = {
@@ -11,6 +18,7 @@ export type TypecheckerDiagnostic = {
   message: string;
   code?: string;
   location?: DiagnosticLocation;
+  notes?: DiagnosticNote[];
 };
 
 export type ExportedSymbolSummary = {

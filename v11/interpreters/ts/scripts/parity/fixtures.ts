@@ -14,7 +14,7 @@ import {
   loadModuleFromFixture,
   loadModuleFromPath,
   readManifest,
-  extractErrorMessage,
+  formatRuntimeErrorMessage,
   type Manifest,
 } from "../fixture-utils";
 import { TypecheckerSession } from "../../src/typechecker";
@@ -243,7 +243,7 @@ export async function evaluateFixtureTS(dir: string, manifest: Manifest | null, 
 
   const outcome: TSOutcome = { stdout };
   if (evaluationError) {
-    outcome.error = extractErrorMessage(evaluationError);
+    outcome.error = formatRuntimeErrorMessage(evaluationError);
   }
   if (result) {
     outcome.result = result;

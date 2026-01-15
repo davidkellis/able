@@ -888,5 +888,9 @@ func (ctx *parseContext) parseExpressionList(node *sitter.Node) (*ast.BlockExpre
 }
 
 func (ctx *parseContext) parseExpression(node *sitter.Node) (ast.Expression, error) {
-	return parseExpressionInternal(ctx, node)
+	expr, err := parseExpressionInternal(ctx, node)
+	if err != nil {
+		return nil, wrapParseError(node, err)
+	}
+	return expr, nil
 }

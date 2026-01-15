@@ -25,9 +25,14 @@ import type {
 export type Node = SyntaxNode;
 
 export class MapperError extends Error {
-  constructor(message: string) {
+  readonly node?: Node;
+  readonly origin?: string;
+
+  constructor(message: string, node?: Node) {
     super(message);
     this.name = "MapperError";
+    this.node = node ?? ACTIVE_NODE;
+    this.origin = CURRENT_ORIGIN;
   }
 }
 
@@ -38,6 +43,7 @@ interface MutableAstNode extends AST.AstNode {
 
 let CURRENT_ORIGIN: string | undefined;
 let ACTIVE_CONTEXT: ParseContext | undefined;
+let ACTIVE_NODE: Node | undefined;
 
 export function setMapperOrigin(origin: string | undefined): void {
   CURRENT_ORIGIN = origin;
@@ -45,6 +51,22 @@ export function setMapperOrigin(origin: string | undefined): void {
 
 export function clearMapperOrigin(): void {
   CURRENT_ORIGIN = undefined;
+}
+
+export function withActiveNode<T extends Node | null | undefined, R>(fn: (node: T) => R): (node: T) => R {
+  return (node: T) => {
+    const prev = ACTIVE_NODE;
+    ACTIVE_NODE = node ?? undefined;
+    try {
+      return fn(node);
+    } finally {
+      ACTIVE_NODE = prev;
+    }
+  };
+}
+
+export function getActiveNode(): Node | undefined {
+  return ACTIVE_NODE;
 }
 
 export function toSpan(node: Node): AST.Span {
@@ -203,11 +225,11 @@ export function findIdentifier(node: Node | null | undefined, source: string): I
 
 export function parseIdentifier(node: Node | null | undefined, source: string): Identifier {
   if (!node || (node.type !== "identifier" && node.type !== "keyword_identifier")) {
-    throw new MapperError("parser: expected identifier node");
+    throw new MapperError("parser: expected identifier node", node ?? undefined);
   }
   const id = annotate(AST.identifier(sliceText(node, source)), node);
   if (!id) {
-    throw new MapperError("parser: failed to build identifier");
+    throw new MapperError("parser: failed to build identifier", node ?? undefined);
   }
   return id;
 }
@@ -319,14 +341,14 @@ export function getActiveParseContext(): ParseContext {
 
 export function parseLabel(node: Node, source: string): Identifier {
   if (node.type !== "label") {
-    throw new MapperError("parser: expected label");
+    throw new MapperError("parser: expected label", node);
   }
   let content = sliceText(node, source).trim();
   if (content.startsWith("'")) {
     content = content.slice(1);
   }
   if (!content) {
-    throw new MapperError("parser: empty label");
+    throw new MapperError("parser: empty label", node);
   }
   return annotate(AST.identifier(content), node) as Identifier;
 }

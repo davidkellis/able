@@ -193,7 +193,7 @@ func runFixture(dir, entry string, setup []string, executor interpreter.Executor
 	output.Diagnostics = formatDiagnostics(check.Diagnostics)
 	output.Stdout = stdout
 	if err != nil {
-		output.Error = err.Error()
+		output.Error = interpreter.DescribeRuntimeDiagnostic(interp.BuildRuntimeDiagnostic(err))
 		return output, nil
 	}
 	if value != nil {
@@ -291,17 +291,17 @@ func formatDiagnostics(diags []interpreter.ModuleDiagnostic) []string {
 
 func formatModuleDiagnostic(diag interpreter.ModuleDiagnostic) string {
 	location := formatSourceHint(diag.Source)
-	var prefixParts []string
-	if diag.Package != "" {
-		prefixParts = append(prefixParts, diag.Package)
+	prefix := "typechecker: "
+	if diag.Diagnostic.Severity == typechecker.SeverityWarning {
+		prefix = "warning: typechecker: "
 	}
 	if location != "" {
-		prefixParts = append(prefixParts, location)
+		return fmt.Sprintf("%s%s %s", prefix, location, diag.Diagnostic.Message)
 	}
-	if len(prefixParts) > 0 {
-		return fmt.Sprintf("typechecker: %s %s", strings.Join(prefixParts, " "), diag.Diagnostic.Message)
+	if diag.Package != "" {
+		return fmt.Sprintf("%s%s %s", prefix, diag.Package, diag.Diagnostic.Message)
 	}
-	return fmt.Sprintf("typechecker: %s", diag.Diagnostic.Message)
+	return fmt.Sprintf("%s%s", prefix, diag.Diagnostic.Message)
 }
 
 func formatSourceHint(hint typechecker.SourceHint) string {

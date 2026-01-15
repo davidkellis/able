@@ -523,6 +523,23 @@ fn copy_dir(src: PathType | Path | String, dst: PathType | Path | String, overwr
         }
       }
     }
+    if exists(dst_path) {
+      meta := stat(dst_path)
+      if meta.is_dir {
+        entries := read_dir(dst_path)
+        idx := 0
+        loop {
+          if idx >= entries.len() { break }
+          entries.get(idx) match {
+            case nil => {},
+            case entry: DirEntry => { remove(entry.path, true) }
+          }
+          idx = idx + 1
+        }
+      } else {
+        remove(dst_path, false)
+      }
+    }
   } elsif exists(dst_path) {
     raise IOError { kind: AlreadyExists {}, message: `path already exists: ${dst_path}`, path: dst_path }
   }

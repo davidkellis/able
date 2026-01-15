@@ -3,6 +3,7 @@ package interpreter
 import (
 	"fmt"
 
+	"able/interpreter-go/pkg/ast"
 	"able/interpreter-go/pkg/driver"
 	"able/interpreter-go/pkg/runtime"
 )
@@ -27,6 +28,7 @@ func (i *Interpreter) EvaluateProgram(program *driver.Program, opts ProgramEvalu
 	if program.Entry == nil || program.Entry.AST == nil {
 		return nil, nil, ProgramCheckResult{}, fmt.Errorf("interpreter: program missing entry module")
 	}
+	i.SetNodeOrigins(mergeNodeOrigins(program.Modules))
 
 	var check ProgramCheckResult
 	if !opts.SkipTypecheck {
@@ -72,4 +74,26 @@ func (i *Interpreter) EvaluateProgram(program *driver.Program, opts ProgramEvalu
 		entryEnv = i.GlobalEnvironment()
 	}
 	return entryValue, entryEnv, check, nil
+}
+
+func mergeNodeOrigins(modules []*driver.Module) map[ast.Node]string {
+	if len(modules) == 0 {
+		return nil
+	}
+	origins := make(map[ast.Node]string)
+	for _, mod := range modules {
+		if mod == nil || len(mod.NodeOrigins) == 0 {
+			continue
+		}
+		for node, origin := range mod.NodeOrigins {
+			if node == nil {
+				continue
+			}
+			origins[node] = origin
+		}
+	}
+	if len(origins) == 0 {
+		return nil
+	}
+	return origins
 }

@@ -4,7 +4,14 @@ import path from "node:path";
 import * as AST from "../src/ast";
 import { mapSourceFile } from "../src/parser/tree-sitter-mapper";
 import { getTreeSitterParser } from "../src/parser/tree-sitter-loader";
+import {
+  buildMapperErrorDiagnostic,
+  buildSyntaxErrorDiagnostic,
+  ParserDiagnosticError,
+} from "../src/parser/diagnostics";
+import { MapperError } from "../src/parser/shared";
 import { looksLikeKernelPath } from "./module-search-paths";
+import { normalizeRepoRelativePath } from "./path-utils";
 
 export type PackageLocation = {
   rootDir: string;
@@ -12,25 +19,31 @@ export type PackageLocation = {
   files: string[];
 };
 
-export async function parseModuleFromSource(sourcePath: string): Promise<AST.Module | null> {
+export async function parseModuleFromSource(sourcePath: string): Promise<AST.Module> {
+  const source = await fs.readFile(sourcePath, "utf8");
+  const parser = await getTreeSitterParser();
+  const tree = parser.parse(source);
+  if (tree.rootNode.type !== "source_file") {
+    const diagnostic = buildSyntaxErrorDiagnostic(tree.rootNode, sourcePath);
+    throw new ParserDiagnosticError({
+      ...diagnostic,
+      message: `parser: unexpected root node ${tree.rootNode.type}`,
+    });
+  }
+  if ((tree.rootNode as unknown as { hasError?: boolean }).hasError) {
+    throw new ParserDiagnosticError(buildSyntaxErrorDiagnostic(tree.rootNode, sourcePath));
+  }
   try {
-    const source = await fs.readFile(sourcePath, "utf8");
-    const parser = await getTreeSitterParser();
-    const tree = parser.parse(source);
-    if (tree.rootNode.type !== "source_file") {
-      throw new Error(`tree-sitter returned unexpected root ${tree.rootNode.type}`);
-    }
-    if ((tree.rootNode as unknown as { hasError?: boolean }).hasError) {
-      throw new Error("tree-sitter reported syntax errors");
-    }
     const moduleAst = mapSourceFile(tree.rootNode, source, sourcePath);
     if (moduleAst) {
       repairTypeAliasTargets(moduleAst, source);
     }
     return moduleAst;
   } catch (error) {
-    console.error(`Failed to parse ${sourcePath}: ${extractErrorMessage(error)}`);
-    return null;
+    if (error instanceof MapperError) {
+      throw new ParserDiagnosticError(buildMapperErrorDiagnostic(error, sourcePath));
+    }
+    throw error;
   }
 }
 
@@ -136,6 +149,7 @@ export function annotateModuleOrigin(node: unknown, origin: string, seen = new S
   if (!node || typeof node !== "object") {
     return;
   }
+  const normalizedOrigin = normalizeRepoRelativePath(origin);
   if (seen.has(node as object)) {
     return;
   }
@@ -150,7 +164,7 @@ export function annotateModuleOrigin(node: unknown, origin: string, seen = new S
 
   const candidate = node as Partial<AST.AstNode>;
   if (typeof candidate.type === "string" && typeof candidate.origin !== "string") {
-    candidate.origin = origin;
+    candidate.origin = normalizedOrigin;
   }
 
   for (const value of Object.values(node)) {
