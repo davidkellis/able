@@ -2,6 +2,7 @@ import * as AST from "../ast";
 import type { Environment } from "./environment";
 import type { Interpreter } from "./index";
 import type { ProcContinuationContext } from "./proc_continuations";
+import type { RuntimeDiagnosticContext } from "./runtime_diagnostics";
 
 export type IntegerKind = "i8" | "i16" | "i32" | "i64" | "i128" | "u8" | "u16" | "u32" | "u64" | "u128";
 export type FloatKind = "f32" | "f64";
@@ -78,6 +79,7 @@ export type RuntimeValue =
       result?: RuntimeValue;
       error?: RuntimeValue;
       failureInfo?: RuntimeValue;
+      errorContext?: RuntimeDiagnosticContext;
       isEvaluating?: boolean;
       errorMode?: "raw" | "proc";
       cancelRequested?: boolean;

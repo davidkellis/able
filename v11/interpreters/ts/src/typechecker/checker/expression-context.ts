@@ -21,11 +21,13 @@ export interface ExpressionContext {
   hasBreakpointLabel(label: string): boolean;
   getIdentifierName(node: AST.Identifier | null | undefined): string | null;
   report(message: string, node?: AST.Node | null | undefined): void;
+  reportWarning(message: string, node?: AST.Node | null | undefined): void;
   describeTypeExpression(expr: AST.TypeExpression | null | undefined): string | null;
   typeInfosEquivalent(a?: TypeInfo, b?: TypeInfo): boolean;
   isTypeAssignable(actual?: TypeInfo, expected?: TypeInfo): boolean;
   describeLiteralMismatch(actual?: TypeInfo, expected?: TypeInfo): string | null;
   resolveTypeExpression(expr: AST.TypeExpression | null | undefined, substitutions?: Map<string, TypeInfo>): TypeInfo;
+  normalizeUnionType(members: TypeInfo[]): TypeInfo;
   getStructDefinition(name: string): AST.StructDefinition | undefined;
   handlePackageMemberAccess(expression: AST.MemberAccessExpression): boolean;
   inferExpression(expression: AST.Expression | undefined | null): TypeInfo;

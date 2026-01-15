@@ -188,7 +188,7 @@ fn main() {
 	if err == nil {
 		t.Fatalf("expected parse error for prefix match expression")
 	}
-	if !strings.Contains(err.Error(), "syntax errors") {
+	if !strings.Contains(err.Error(), "syntax error") {
 		t.Fatalf("unexpected error for prefix match expression: %v", err)
 	}
 }

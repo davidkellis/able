@@ -13,11 +13,12 @@ import {
   Node,
   parseLabel,
   sameNode,
+  withActiveNode,
 } from "./shared";
 
 export function registerStatementParsers(ctx: MutableParseContext): void {
-  ctx.parseStatement = node => parseStatement(node, ctx.source);
-  ctx.parseBlock = node => parseBlock(node, ctx.source);
+  ctx.parseStatement = withActiveNode((node) => parseStatement(node, ctx.source));
+  ctx.parseBlock = withActiveNode((node) => parseBlock(node, ctx.source));
 }
 
 function parseStatement(node: Node, source: string): Statement | null {

@@ -8,12 +8,14 @@ import type { TypecheckerDiagnostic } from "../src/typechecker/diagnostics";
 import { callCallableValue } from "../src/interpreter/functions";
 import { makeIntegerValue } from "../src/interpreter/numeric";
 import { ExitSignal } from "../src/interpreter/signals";
+import { ParserDiagnosticError } from "../src/parser/diagnostics";
 
 import { ModuleLoader, type Program } from "./module-loader";
 import { collectModuleSearchPaths, type ModuleSearchPath } from "./module-search-paths";
 import { buildExecutionSearchPaths, loadManifestContext } from "./module-deps";
 import { discoverRoot, indexSourceFiles } from "./module-utils";
-import { formatTypecheckerDiagnostic, printPackageSummaries } from "./typecheck-utils";
+import { normalizeRepoRelativePath } from "./path-utils";
+import { buildRuntimeDiagnostic, formatParserDiagnostic, formatRuntimeDiagnostic, formatTypecheckerDiagnostic, printPackageSummaries } from "./typecheck-utils";
 import type { TypecheckMode } from "./typecheck-mode";
 
 export type TestReporterFormat = "doc" | "progress" | "tap" | "json";
@@ -164,6 +166,10 @@ export async function loadTestPrograms(
       const program = await loader.load(plan.entryFile, { includePackages: [...includePackages] });
       programs.push(program);
     } catch (error) {
+      if (error instanceof ParserDiagnosticError) {
+        console.error(formatParserDiagnostic(error.diagnostic, { absolutePath: true }));
+        return null;
+      }
       console.error(`failed to load tests from ${plan.entryFile}: ${extractErrorMessage(error)}`);
       return null;
     }
@@ -199,7 +205,11 @@ export function maybeTypecheckTestModules(
     if (isStdlibPackage(packageName)) {
       continue;
     }
-    for (const diag of result.diagnostics) {
+    const filtered = result.diagnostics.filter((diag) => !isStdlibDiagnostic(diag));
+    if (filtered.length === 0) {
+      continue;
+    }
+    for (const diag of filtered) {
       diagnostics.push({ packageName, diagnostic: diag });
     }
   }
@@ -232,7 +242,7 @@ export async function evaluateTestModules(interpreter: V11.Interpreter, modules:
         process.exitCode = error.code;
         return false;
       }
-      console.error(`runtime error: ${extractErrorMessage(error)}`);
+      console.error(formatRuntimeFailure(error));
       process.exitCode = 2;
       return false;
     }
@@ -555,6 +565,14 @@ function isStdlibPackage(packageName: string | undefined | null): boolean {
   return packageName === "able" || packageName.startsWith("able.");
 }
 
+function isStdlibDiagnostic(diag: TypecheckerDiagnostic): boolean {
+  const rawPath = diag.location?.path;
+  if (!rawPath) return false;
+  const relative = normalizeRepoRelativePath(rawPath);
+  if (relative.startsWith("..")) return false;
+  return relative.startsWith("v11/stdlib/") || relative.startsWith("v11/kernel/");
+}
+
 function emitDiagnostics(diags: ModuleDiagnosticEntry[]): void {
   const seen = new Set<string>();
   for (const entry of diags) {
@@ -568,6 +586,10 @@ function emitDiagnostics(diags: ModuleDiagnosticEntry[]): void {
     seen.add(formatted);
     console.error(formatted);
   }
+}
+
+function formatRuntimeFailure(error: unknown): string {
+  return formatRuntimeDiagnostic(buildRuntimeDiagnostic(error), { absolutePath: true });
 }
 
 function extractErrorMessage(err: unknown): string {

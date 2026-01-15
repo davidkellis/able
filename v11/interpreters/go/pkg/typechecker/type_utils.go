@@ -13,12 +13,12 @@ func typeName(t Type) string {
 
 func formatType(t Type) string {
 	if t == nil {
-		return "unknown"
+		return "Unknown"
 	}
 
 	switch val := t.(type) {
 	case UnknownType:
-		return "unknown"
+		return "Unknown"
 	case PrimitiveType:
 		switch val.Kind {
 		case PrimitiveBool:
@@ -52,7 +52,7 @@ func formatType(t Type) string {
 		return "float"
 	case TypeParameterType:
 		if val.ParameterName == "" {
-			return "unknown"
+			return "Unknown"
 		}
 		return val.ParameterName
 	case StructType:

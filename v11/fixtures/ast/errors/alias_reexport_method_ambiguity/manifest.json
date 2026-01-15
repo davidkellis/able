@@ -10,7 +10,8 @@
       "Ambiguous overload for tag"
     ],
     "typecheckDiagnostics": [
-      "typechecker: fixtures/ast/errors/alias_reexport_method_ambiguity/source.able:8:1 typechecker: ambiguous overload for tag"
+      "typechecker: v11/fixtures/ast/errors/alias_reexport_method_ambiguity/alias_b.able:5:1 typechecker: duplicate declaration 'Local' (previous declaration at v11/fixtures/ast/errors/alias_reexport_method_ambiguity/alias_a.able:5:1)",
+      "typechecker: v11/fixtures/ast/errors/alias_reexport_method_ambiguity/source.able:8:1 typechecker: ambiguous overload for tag"
     ]
   },
   "entry": "source.able"

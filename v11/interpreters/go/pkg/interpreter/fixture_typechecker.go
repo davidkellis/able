@@ -56,13 +56,17 @@ func formatModuleDiagnostics(diags []ModuleDiagnostic) []string {
 
 func formatModuleDiagnostic(diag ModuleDiagnostic) string {
 	location := formatSourceHint(diag.Source)
+	prefix := "typechecker: "
+	if diag.Diagnostic.Severity == typechecker.SeverityWarning {
+		prefix = "warning: typechecker: "
+	}
 	if location != "" {
-		return fmt.Sprintf("typechecker: %s %s", location, diag.Diagnostic.Message)
+		return fmt.Sprintf("%s%s %s", prefix, location, diag.Diagnostic.Message)
 	}
 	if label := inferDiagnosticPackage(diag); label != "" {
-		return fmt.Sprintf("typechecker: %s %s", label, diag.Diagnostic.Message)
+		return fmt.Sprintf("%s%s %s", prefix, label, diag.Diagnostic.Message)
 	}
-	return fmt.Sprintf("typechecker: %s", diag.Diagnostic.Message)
+	return fmt.Sprintf("%s%s", prefix, diag.Diagnostic.Message)
 }
 
 func formatSourceHint(hint typechecker.SourceHint) string {
@@ -104,9 +108,9 @@ func normalizeSourcePath(raw string) string {
 	root := repositoryRoot()
 	anchors := []string{}
 	if root != "" {
+		anchors = append(anchors, root)
 		anchors = append(anchors, filepath.Join(root, "v11", "interpreters", "ts", "scripts"))
 		anchors = append(anchors, filepath.Join(root, "v11"))
-		anchors = append(anchors, root)
 	}
 	for _, anchor := range anchors {
 		if anchor == "" {

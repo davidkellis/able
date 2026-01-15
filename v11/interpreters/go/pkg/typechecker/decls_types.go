@@ -125,11 +125,16 @@ func (c *declarationCollector) resolveTypeExpression(expr ast.TypeExpression, ty
 			Arguments: []Type{inner},
 		}
 	case *ast.UnionTypeExpression:
-		members := make([]Type, len(t.Members))
-		for i, member := range t.Members {
-			members[i] = c.resolveTypeExpression(member, typeParams)
+		entries := make([]unionMember, 0, len(t.Members))
+		for _, member := range t.Members {
+			entries = append(entries, unionMember{
+				typ:  c.resolveTypeExpression(member, typeParams),
+				node: member,
+			})
 		}
-		return UnionLiteralType{Members: members}
+		return normalizeUnionMembers(entries, unionNormalizationOptions{
+			warnRedundant: c.warnRedundantUnionMember,
+		})
 	}
 	return UnknownType{}
 }

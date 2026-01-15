@@ -10,8 +10,10 @@ import (
 )
 
 func (i *Interpreter) evaluateExpression(node ast.Expression, env *runtime.Environment) (result runtime.Value, err error) {
+	state := i.stateFromEnv(env)
 	defer func() {
 		err = i.wrapStandardRuntimeError(err)
+		err = i.attachRuntimeContext(err, node, state)
 	}()
 	if node == nil {
 		return runtime.NilValue{}, nil
@@ -34,7 +36,6 @@ func (i *Interpreter) evaluateExpression(node ast.Expression, env *runtime.Envir
 			serialSync.endSynchronousSection()
 		}
 	}()
-	state := i.stateFromEnv(env)
 	if !state.hasPlaceholderFrame() {
 		if value, ok, err := i.tryBuildPlaceholderFunction(node, env); err != nil {
 			return nil, err

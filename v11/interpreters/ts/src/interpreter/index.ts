@@ -29,6 +29,7 @@ import type { ImplMethodEntry, RuntimeValue, ConstraintSpec } from "./values";
 import { CooperativeExecutor, type Executor } from "./executor";
 import { ProcYieldSignal } from "./signals";
 import type { ProcContinuationContext } from "./proc_continuations";
+import type { RuntimeCallFrame } from "./runtime_diagnostics";
 
 // =============================================================================
 // Interpreter (modular layout)
@@ -59,6 +60,7 @@ export class Interpreter {
   breakpointStack: string[] = [];
   implicitReceiverStack: RuntimeValue[] = [];
   placeholderFrames: PlaceholderFrame[] = [];
+  runtimeCallStack: RuntimeCallFrame[] = [];
 
   procNativeMethods!: {
     status: Extract<RuntimeValue, { kind: "native_function" }>;

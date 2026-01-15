@@ -140,7 +140,7 @@ fn main() -> void {
     if (!tree) throw new Error("failed to parse prefix match sample");
     expect(tree.rootNode.type).toBe("source_file");
     expect(tree.rootNode.hasError).toBe(true);
-    expect(() => mapSourceFile(tree.rootNode, source, "<inline>")).toThrow(/syntax errors present/);
+    expect(() => mapSourceFile(tree.rootNode, source, "<inline>")).toThrow(/syntax error/);
   });
 
   test("splits unparenthesized generic interface arguments", async () => {

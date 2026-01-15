@@ -5,7 +5,7 @@
       "Ambiguous overload for tag"
     ],
     "typecheckDiagnostics": [
-      "typechecker: ../../../fixtures/ast/errors/ufcs_overload_ambiguity/source.able:7:1 typechecker: duplicate declaration 'tag' (previous declaration at ../../../../fixtures/ast/errors/ufcs_overload_ambiguity/source.able:4:1)"
+      "typechecker: v11/fixtures/ast/errors/ufcs_overload_ambiguity/source.able:7:1 typechecker: duplicate declaration 'tag' (previous declaration at v11/fixtures/ast/errors/ufcs_overload_ambiguity/source.able:4:1)"
     ]
   },
   "entry": "module.json"

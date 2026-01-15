@@ -93,6 +93,15 @@ export function extractLocation(node: AST.Node | null | undefined): DiagnosticLo
     location.line = span.start.line;
     location.column = span.start.column;
   }
+  if (
+    span &&
+    span.end &&
+    typeof span.end.line === "number" &&
+    typeof span.end.column === "number"
+  ) {
+    location.endLine = span.end.line;
+    location.endColumn = span.end.column;
+  }
   if (location.path || location.line !== undefined || location.column !== undefined) {
     return location;
   }

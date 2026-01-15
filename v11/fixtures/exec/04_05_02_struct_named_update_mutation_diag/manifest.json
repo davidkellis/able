@@ -1,7 +1,7 @@
 {
   "description": "functional update rejects mismatched struct source",
   "expect": {
-    "stderr": ["Functional update source must be same struct type"],
+    "stderr": ["runtime: v11/fixtures/exec/04_05_02_struct_named_update_mutation_diag/main.able:10:3 Functional update source must be same struct type"],
     "exit": 1
   }
 }

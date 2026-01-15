@@ -10,7 +10,7 @@
       "Unnamed impl for (Taggable, Widget) already exists"
     ],
     "typecheckDiagnostics": [
-      "typechecker: fixtures/ast/errors/alias_reexport_impl_ambiguity/source.able:8:1 typechecker: ambiguous implementations of Taggable for Widget: impl Taggable for Widget"
+      "typechecker: v11/fixtures/ast/errors/alias_reexport_impl_ambiguity/source.able:8:1 typechecker: ambiguous implementations of Taggable for Widget: impl Taggable for Widget"
     ]
   },
   "entry": "source.able"

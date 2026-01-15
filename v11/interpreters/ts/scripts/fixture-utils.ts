@@ -6,9 +6,10 @@ import { AST, V11 } from "../index";
 import { mapSourceFile } from "../src/parser/tree-sitter-mapper";
 import { getTreeSitterParser } from "../src/parser/tree-sitter-loader";
 import { makeIntegerValue, numericToNumber } from "../src/interpreter/numeric";
+import { buildRuntimeDiagnostic, formatRuntimeDiagnostic } from "./typecheck-utils";
+import { normalizeRepoRelativePath } from "./path-utils";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const FIXTURE_ROOT_ORIGIN = path.join("..", "..", "..", "..", "fixtures", "ast");
 const FIXTURE_ROOT = path.resolve(__dirname, "../../../fixtures/ast");
 
 export type Manifest = {
@@ -186,13 +187,7 @@ export function annotateModuleOrigin(module: AST.Module, filePath: string): void
 }
 
 function normalizeFixtureOrigin(filePath: string): string {
-  const absolute = path.resolve(filePath);
-  const relative = path.relative(FIXTURE_ROOT, absolute);
-  if (relative && !relative.startsWith("..") && !path.isAbsolute(relative)) {
-    const combined = path.join(FIXTURE_ROOT_ORIGIN, relative);
-    return combined.split(path.sep).join("/");
-  }
-  return absolute.split(path.sep).join("/");
+  return normalizeRepoRelativePath(filePath);
 }
 
 function copyNodeSpans(target: AST.Node | undefined, source: AST.Node | undefined): void {
@@ -554,4 +549,8 @@ export function extractErrorMessage(err: unknown): string {
     if (typeof anyErr.message === "string") return anyErr.message;
   }
   return String(err);
+}
+
+export function formatRuntimeErrorMessage(err: unknown): string {
+  return formatRuntimeDiagnostic(buildRuntimeDiagnostic(err));
 }

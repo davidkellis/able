@@ -2,7 +2,7 @@
   "description": "Type-qualified static method rejects incorrect argument types",
   "expect": {
     "errors": [
-      "Parameter type mismatch for 'start': expected i32, got Counter at ../../../../fixtures/ast/errors/ufcs_static_method_not_found/source.able:14:22",
+      "Parameter type mismatch for 'start': expected i32, got Counter at v11/fixtures/ast/errors/ufcs_static_method_not_found/source.able:14:9",
       "Parameter type mismatch for 'start': expected i32, got Counter"
     ]
   },

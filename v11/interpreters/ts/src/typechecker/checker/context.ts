@@ -12,6 +12,7 @@ export type CheckerContextHost = {
   getInterfaceNameFromConstraint: StatementContext["getInterfaceNameFromConstraint"];
   getInterfaceNameFromTypeExpression: StatementContext["getInterfaceNameFromTypeExpression"];
   report: StatementContext["report"];
+  reportWarning: StatementContext["reportWarning"];
   describeTypeExpression: StatementContext["describeTypeExpression"];
   isKnownTypeName: (name: string) => boolean;
   hasTypeDefinition: (name: string) => boolean;
@@ -19,6 +20,7 @@ export type CheckerContextHost = {
   isTypeAssignable: StatementContext["isTypeAssignable"];
   describeLiteralMismatch: StatementContext["describeLiteralMismatch"];
   resolveTypeExpression: StatementContext["resolveTypeExpression"];
+  normalizeUnionType: StatementContext["normalizeUnionType"];
   getStructDefinition: (name: string) => AST.StructDefinition | undefined;
   getInterfaceDefinition: (name: string) => AST.InterfaceDefinition | undefined;
   hasInterfaceDefinition: (name: string) => boolean;
@@ -65,6 +67,7 @@ export function createCheckerContext(host: CheckerContextHost): StatementContext
   ctx.getInterfaceNameFromConstraint = host.getInterfaceNameFromConstraint;
   ctx.getInterfaceNameFromTypeExpression = host.getInterfaceNameFromTypeExpression;
   ctx.report = host.report;
+  ctx.reportWarning = host.reportWarning;
   ctx.describeTypeExpression = host.describeTypeExpression;
   ctx.isKnownTypeName = (name: string) => host.isKnownTypeName(name);
   ctx.hasTypeDefinition = (name: string) => host.hasTypeDefinition(name);
@@ -72,6 +75,7 @@ export function createCheckerContext(host: CheckerContextHost): StatementContext
   ctx.isTypeAssignable = host.isTypeAssignable;
   ctx.describeLiteralMismatch = host.describeLiteralMismatch;
   ctx.resolveTypeExpression = host.resolveTypeExpression;
+  ctx.normalizeUnionType = host.normalizeUnionType;
   ctx.getStructDefinition = host.getStructDefinition;
   ctx.getInterfaceDefinition = host.getInterfaceDefinition;
   ctx.hasInterfaceDefinition = host.hasInterfaceDefinition;

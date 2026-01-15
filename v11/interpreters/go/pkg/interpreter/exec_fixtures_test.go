@@ -155,7 +155,7 @@ func runExecFixture(t *testing.T, dir string) {
 	if expected.Stderr != nil {
 		actualErrs := []string{}
 		if runtimeErr != nil {
-			actualErrs = append(actualErrs, extractErrorMessage(runtimeErr))
+			actualErrs = append(actualErrs, DescribeRuntimeDiagnostic(interp.BuildRuntimeDiagnostic(runtimeErr)))
 		}
 		if !reflect.DeepEqual(actualErrs, expected.Stderr) {
 			t.Fatalf("stderr mismatch: expected %v, got %v", expected.Stderr, actualErrs)

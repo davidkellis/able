@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 )
 
@@ -25,17 +26,26 @@ func normalizeDiagnosticPath(raw string) string {
 	root := diagnosticRoot()
 	anchors := []string{}
 	if root != "" {
+		anchors = append(anchors, root)
 		anchors = append(anchors, filepath.Join(root, "v11", "interpreters", "ts", "scripts", "export-fixtures"))
 		anchors = append(anchors, filepath.Join(root, "v11", "interpreters", "ts", "scripts"))
-		anchors = append(anchors, root)
 	}
 	for _, anchor := range anchors {
 		if anchor == "" {
 			continue
 		}
-		if rel, err := filepath.Rel(anchor, path); err == nil {
-			return filepath.ToSlash(rel)
+		rel, err := filepath.Rel(anchor, path)
+		if err != nil {
+			continue
 		}
+		rel = filepath.Clean(rel)
+		if rel == "." || rel == "" {
+			return ""
+		}
+		if strings.HasPrefix(rel, ".."+string(filepath.Separator)) || rel == ".." {
+			continue
+		}
+		return filepath.ToSlash(rel)
 	}
 	return filepath.ToSlash(path)
 }

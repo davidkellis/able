@@ -106,7 +106,7 @@ func (c *Checker) checkBinaryExpression(env *Environment, expr *ast.BinaryExpres
 			if err != "" {
 				diags = append(diags, Diagnostic{
 					Message: fmt.Sprintf("typechecker: '+' %s", err),
-					Node:    expr,
+					Node:    binaryDiagnosticNode(expr),
 				})
 				resultType = UnknownType{}
 			} else {
@@ -118,7 +118,7 @@ func (c *Checker) checkBinaryExpression(env *Environment, expr *ast.BinaryExpres
 		if err != "" {
 			diags = append(diags, Diagnostic{
 				Message: fmt.Sprintf("typechecker: '%s' %s", expr.Operator, err),
-				Node:    expr,
+				Node:    binaryDiagnosticNode(expr),
 			})
 			resultType = UnknownType{}
 			break
@@ -133,7 +133,7 @@ func (c *Checker) checkBinaryExpression(env *Environment, expr *ast.BinaryExpres
 			}
 			diags = append(diags, Diagnostic{
 				Message: fmt.Sprintf("typechecker: '%s' %s", expr.Operator, err),
-				Node:    expr,
+				Node:    binaryDiagnosticNode(expr),
 			})
 			resultType = UnknownType{}
 			break
@@ -144,7 +144,7 @@ func (c *Checker) checkBinaryExpression(env *Environment, expr *ast.BinaryExpres
 		if err != "" {
 			diags = append(diags, Diagnostic{
 				Message: fmt.Sprintf("typechecker: '%s' %s", expr.Operator, err),
-				Node:    expr,
+				Node:    binaryDiagnosticNode(expr),
 			})
 			resultType = UnknownType{}
 			break
@@ -155,7 +155,7 @@ func (c *Checker) checkBinaryExpression(env *Environment, expr *ast.BinaryExpres
 		if err != "" {
 			diags = append(diags, Diagnostic{
 				Message: fmt.Sprintf("typechecker: '%s' %s", expr.Operator, err),
-				Node:    expr,
+				Node:    binaryDiagnosticNode(expr),
 			})
 			resultType = UnknownType{}
 			break
@@ -180,7 +180,7 @@ func (c *Checker) checkBinaryExpression(env *Environment, expr *ast.BinaryExpres
 		if err != "" && !(isUnknownType(leftType) || isUnknownType(rightType)) {
 			diags = append(diags, Diagnostic{
 				Message: fmt.Sprintf("typechecker: '%s' %s", expr.Operator, err),
-				Node:    expr,
+				Node:    binaryDiagnosticNode(expr),
 			})
 		}
 		resultType = boolType
@@ -192,7 +192,7 @@ func (c *Checker) checkBinaryExpression(env *Environment, expr *ast.BinaryExpres
 		if err != "" {
 			diags = append(diags, Diagnostic{
 				Message: fmt.Sprintf("typechecker: '%s' %s", expr.Operator, err),
-				Node:    expr,
+				Node:    binaryDiagnosticNode(expr),
 			})
 			resultType = UnknownType{}
 			break
@@ -203,7 +203,7 @@ func (c *Checker) checkBinaryExpression(env *Environment, expr *ast.BinaryExpres
 		if err != "" {
 			diags = append(diags, Diagnostic{
 				Message: fmt.Sprintf("typechecker: '%s' %s", expr.Operator, err),
-				Node:    expr,
+				Node:    binaryDiagnosticNode(expr),
 			})
 			resultType = UnknownType{}
 			break
@@ -245,6 +245,23 @@ func buildPipeCall(expr *ast.BinaryExpression) *ast.FunctionCall {
 	return ast.NewFunctionCall(expr.Right, []ast.Expression{expr.Left}, nil, false)
 }
 
+func binaryDiagnosticNode(expr *ast.BinaryExpression) ast.Node {
+	if expr == nil {
+		return nil
+	}
+	current := expr.Left
+	for {
+		if bin, ok := current.(*ast.BinaryExpression); ok {
+			current = bin.Right
+			continue
+		}
+		if node, ok := current.(ast.Node); ok {
+			return node
+		}
+		return expr
+	}
+}
+
 func resolveNumericBinaryType(left, right Type) (Type, string) {
 	if isUnknownType(left) || isUnknownType(right) {
 		return UnknownType{}, ""
@@ -254,18 +271,18 @@ func resolveNumericBinaryType(left, right Type) (Type, string) {
 	}
 	if isRatioType(left) || isRatioType(right) {
 		if !isNumericType(left) || !isNumericType(right) {
-			return UnknownType{}, fmt.Sprintf("requires numeric operands, got %s and %s", typeName(left), typeName(right))
+			return UnknownType{}, fmt.Sprintf("requires numeric operands (got %s and %s)", typeName(left), typeName(right))
 		}
 		return StructType{StructName: "Ratio"}, ""
 	}
 	if isFloatType(left) || isFloatType(right) {
 		if !isNumericType(left) || !isNumericType(right) {
-			return UnknownType{}, fmt.Sprintf("requires numeric operands, got %s and %s", typeName(left), typeName(right))
+			return UnknownType{}, fmt.Sprintf("requires numeric operands (got %s and %s)", typeName(left), typeName(right))
 		}
 		return resolveFloatBinaryType(left, right)
 	}
 	if !isNumericType(left) || !isNumericType(right) {
-		return UnknownType{}, fmt.Sprintf("requires numeric operands, got %s and %s", typeName(left), typeName(right))
+		return UnknownType{}, fmt.Sprintf("requires numeric operands (got %s and %s)", typeName(left), typeName(right))
 	}
 	return resolveIntegerBinaryType(left, right)
 }
@@ -279,18 +296,18 @@ func resolveDivisionBinaryType(left, right Type) (Type, string) {
 	}
 	if isRatioType(left) || isRatioType(right) {
 		if !isNumericType(left) || !isNumericType(right) {
-			return UnknownType{}, fmt.Sprintf("requires numeric operands, got %s and %s", typeName(left), typeName(right))
+			return UnknownType{}, fmt.Sprintf("requires numeric operands (got %s and %s)", typeName(left), typeName(right))
 		}
 		return StructType{StructName: "Ratio"}, ""
 	}
 	if isFloatType(left) || isFloatType(right) {
 		if !isNumericType(left) || !isNumericType(right) {
-			return UnknownType{}, fmt.Sprintf("requires numeric operands, got %s and %s", typeName(left), typeName(right))
+			return UnknownType{}, fmt.Sprintf("requires numeric operands (got %s and %s)", typeName(left), typeName(right))
 		}
 		return resolveFloatBinaryType(left, right)
 	}
 	if !isNumericType(left) || !isNumericType(right) {
-		return UnknownType{}, fmt.Sprintf("requires numeric operands, got %s and %s", typeName(left), typeName(right))
+		return UnknownType{}, fmt.Sprintf("requires numeric operands (got %s and %s)", typeName(left), typeName(right))
 	}
 	return FloatType{Suffix: "f64"}, ""
 }
@@ -315,11 +332,11 @@ func resolveIntegerBinaryType(left, right Type) (Type, string) {
 	}
 	leftSuffix, ok := integerSuffixForType(left)
 	if !ok {
-		return UnknownType{}, fmt.Sprintf("requires integer operands, got %s and %s", typeName(left), typeName(right))
+		return UnknownType{}, fmt.Sprintf("requires integer operands (got %s and %s)", typeName(left), typeName(right))
 	}
 	rightSuffix, ok := integerSuffixForType(right)
 	if !ok {
-		return UnknownType{}, fmt.Sprintf("requires integer operands, got %s and %s", typeName(left), typeName(right))
+		return UnknownType{}, fmt.Sprintf("requires integer operands (got %s and %s)", typeName(left), typeName(right))
 	}
 	resultSuffix, errMsg := promoteIntegerSuffixes(leftSuffix, rightSuffix)
 	if errMsg != "" {

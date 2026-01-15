@@ -9,7 +9,7 @@ import { AST, V11 } from "../../index";
 import { Environment } from "../../src/interpreter/environment";
 import { TypecheckerSession } from "../../src/typechecker";
 import type { DiagnosticLocation } from "../../src/typechecker/diagnostics";
-import { ensurePrint, installRuntimeStubs, interceptStdout, extractErrorMessage } from "../fixture-utils";
+import { ensurePrint, installRuntimeStubs, interceptStdout, formatRuntimeErrorMessage } from "../fixture-utils";
 import { ModuleLoader, type Program } from "../module-loader";
 import { collectModuleSearchPaths, type ModuleSearchPath } from "../module-search-paths";
 
@@ -92,7 +92,8 @@ export async function evaluateExampleTS(entryPath: string): Promise<TSExampleOut
     const result = session.checkModule(mod.module);
     const packageName = result.summary?.name ?? mod.packageName ?? "";
     for (const diag of result.diagnostics) {
-      diagnostics.push(canonicalDiagnostic(packageName, diag.location, diag.message));
+      const message = diag.severity === "warning" ? `warning: ${diag.message}` : diag.message;
+      diagnostics.push(canonicalDiagnostic(packageName, diag.location, message));
     }
   }
 
@@ -118,7 +119,7 @@ export async function evaluateExampleTS(entryPath: string): Promise<TSExampleOut
       }
       await invokeEntryMain(interpreter, program.entry);
     } catch (err) {
-      runtimeError = extractErrorMessage(err);
+      runtimeError = formatRuntimeErrorMessage(err);
     }
   });
 
@@ -371,32 +372,65 @@ function parseGoDiagnostics(stderr: string): ParsedDiagnostics {
     .filter((line) => line.length > 0 && line !== "typecheck: ok" && !line.startsWith("---- package export summary ----"));
 
   for (const line of lines) {
-    const match = /^([^:]+): typechecker: (.+)$/.exec(line);
-    if (!match) {
+    let trimmed = line;
+    let severityPrefix = "";
+    if (trimmed.startsWith("warning: ")) {
+      severityPrefix = "warning: ";
+      trimmed = trimmed.slice("warning: ".length);
+    }
+    if (!trimmed.startsWith("typechecker: ")) {
       errors.push(line);
       continue;
     }
-    const [, pkg, rest] = match;
+    const rest = trimmed.slice("typechecker: ".length);
     const { message, location } = splitMessageAndLocation(rest);
-    diagnostics.push(canonicalDiagnostic(pkg, location, message));
+    const pkgMatch = /^([^:]+): (typechecker:.*)$/.exec(message);
+    const pkg = pkgMatch ? pkgMatch[1] : "";
+    const finalMessage = severityPrefix + (pkgMatch ? pkgMatch[2] : message);
+    diagnostics.push(canonicalDiagnostic(pkg, location, finalMessage));
   }
   return { diagnostics, errors };
 }
 
 function splitMessageAndLocation(rest: string): { message: string; location?: DiagnosticLocation } {
   const trimmed = rest.trim();
-  const parenIndex = trimmed.lastIndexOf(" (");
-  if (parenIndex === -1 || !trimmed.endsWith(")")) {
+  if (trimmed === "") {
+    return { message: "" };
+  }
+  if (trimmed.startsWith("line ")) {
+    const match = /^line\s+\d+(?:,\s*column\s+\d+)?/i.exec(trimmed);
+    if (match) {
+      const location = parseLocation(match[0]);
+      const message = trimmed.slice(match[0].length).trim();
+      return { message, location };
+    }
+  }
+  const firstSpace = trimmed.indexOf(" ");
+  if (firstSpace === -1) {
     return { message: trimmed };
   }
-  const message = trimmed.slice(0, parenIndex).trim();
-  const locationRaw = trimmed.slice(parenIndex + 2, trimmed.length - 1);
-  return { message, location: parseLocation(locationRaw) };
+  const locationRaw = trimmed.slice(0, firstSpace).trim();
+  const location = parseLocation(locationRaw);
+  if (location.path || location.line || location.column) {
+    const message = trimmed.slice(firstSpace + 1).trim();
+    return { message, location };
+  }
+  return { message: trimmed };
 }
 
 function parseLocation(raw: string): DiagnosticLocation {
   const cleaned = raw.trim();
   if (cleaned === "") return {};
+  const lineMatch = /^line\s+(\d+)(?:,\s*column\s+(\d+))?$/i.exec(cleaned);
+  if (lineMatch) {
+    const line = Number.parseInt(lineMatch[1] ?? "0", 10);
+    const column = Number.parseInt(lineMatch[2] ?? "0", 10);
+    return {
+      path: "",
+      line: Number.isFinite(line) ? line : 0,
+      column: Number.isFinite(column) ? column : 0,
+    };
+  }
   const segments = cleaned.split(":");
   const numbers: number[] = [];
   while (segments.length > 0) {

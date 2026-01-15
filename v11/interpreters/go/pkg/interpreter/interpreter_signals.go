@@ -31,7 +31,8 @@ func (c continueSignal) Error() string {
 }
 
 type raiseSignal struct {
-	value runtime.Value
+	value   runtime.Value
+	context *runtimeDiagnosticContext
 }
 
 func (r raiseSignal) Error() string {
@@ -42,7 +43,8 @@ func (r raiseSignal) Error() string {
 }
 
 type returnSignal struct {
-	value runtime.Value
+	value   runtime.Value
+	context *runtimeDiagnosticContext
 }
 
 func (r returnSignal) Error() string {

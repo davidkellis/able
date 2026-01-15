@@ -287,11 +287,11 @@ const functionsFixtures: Fixture[] = [
             ],
           },
           typecheckDiagnostics: [
-            "typechecker: ../../../fixtures/ast/functions/overload_resolution_success/source.able:4:1 typechecker: duplicate declaration 'pick' (previous declaration at ../../../../fixtures/ast/functions/overload_resolution_success/source.able:1:1)",
-            "typechecker: ../../../fixtures/ast/functions/overload_resolution_success/source.able:10:1 typechecker: duplicate declaration 'pick' (previous declaration at ../../../../fixtures/ast/functions/overload_resolution_success/source.able:1:1)",
-            "typechecker: ../../../fixtures/ast/functions/overload_resolution_success/source.able:28:7 typechecker: argument 1 has type i32, expected String",
-            "typechecker: ../../../fixtures/ast/functions/overload_resolution_success/source.able:28:15 typechecker: function expects 1 arguments, got 2",
-            "typechecker: ../../../fixtures/ast/functions/overload_resolution_success/source.able:28:45 typechecker: argument 1 has type bool, expected String",
+            "typechecker: v11/fixtures/ast/functions/overload_resolution_success/source.able:4:1 typechecker: duplicate declaration 'pick' (previous declaration at v11/fixtures/ast/functions/overload_resolution_success/source.able:1:1)",
+            "typechecker: v11/fixtures/ast/functions/overload_resolution_success/source.able:10:1 typechecker: duplicate declaration 'pick' (previous declaration at v11/fixtures/ast/functions/overload_resolution_success/source.able:1:1)",
+            "typechecker: v11/fixtures/ast/functions/overload_resolution_success/source.able:28:7 typechecker: argument 1 has type i32, expected String",
+            "typechecker: v11/fixtures/ast/functions/overload_resolution_success/source.able:28:11 typechecker: function expects 1 arguments, got 2",
+            "typechecker: v11/fixtures/ast/functions/overload_resolution_success/source.able:28:45 typechecker: argument 1 has type bool, expected String",
           ],
         },
       },
@@ -319,7 +319,7 @@ const functionsFixtures: Fixture[] = [
         expect: {
           errors: ["Ambiguous overload for collide"],
           typecheckDiagnostics: [
-            "typechecker: ../../../fixtures/ast/functions/overload_function_ambiguity/source.able:4:1 typechecker: duplicate declaration 'collide' (previous declaration at ../../../../fixtures/ast/functions/overload_function_ambiguity/source.able:1:1)",
+            "typechecker: v11/fixtures/ast/functions/overload_function_ambiguity/source.able:4:1 typechecker: duplicate declaration 'collide' (previous declaration at v11/fixtures/ast/functions/overload_function_ambiguity/source.able:1:1)",
           ],
         },
       },
@@ -661,7 +661,7 @@ const functionsFixtures: Fixture[] = [
             ],
           },
           typecheckDiagnostics: [
-            "typechecker: ../../../fixtures/ast/functions/ufcs_generic_overloads/source.able:7:1 typechecker: duplicate declaration 'describe' (previous declaration at ../../../../fixtures/ast/functions/ufcs_generic_overloads/source.able:4:1)",
+            "typechecker: v11/fixtures/ast/functions/ufcs_generic_overloads/source.able:7:1 typechecker: duplicate declaration 'describe' (previous declaration at v11/fixtures/ast/functions/ufcs_generic_overloads/source.able:4:1)",
           ],
         },
       },

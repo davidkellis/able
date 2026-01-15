@@ -28,7 +28,7 @@ export function mapSourceFile(root: Node, source: string, origin?: string): Modu
     throw new MapperError(`parser: unexpected root node ${root.type}`);
   }
   if ((root as unknown as { hasError?: boolean }).hasError) {
-    throw new MapperError("parser: syntax errors present");
+    throw new MapperError("parser: syntax error");
   }
 
   const context = createParseContext(source);
