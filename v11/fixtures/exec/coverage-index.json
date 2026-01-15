@@ -186,6 +186,12 @@
     "focus": "impl specificity ordering, named impl disambiguation, and HKT target dispatch"
   },
   {
+    "id": "exec/10_02_impl_where_clause",
+    "status": "seeded",
+    "spec_sections": ["10.2.1", "4.1.5"],
+    "focus": "impl-level where clauses apply to method bodies without duplicating method constraints"
+  },
+  {
     "id": "exec/13_02_packages_visibility_diag",
     "status": "seeded",
     "spec_sections": ["13.2-13.5"],

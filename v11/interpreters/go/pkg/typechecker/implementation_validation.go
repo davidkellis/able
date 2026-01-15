@@ -146,7 +146,11 @@ func compareImplementationMethodSignature(label string, spec ImplementationSpec,
 		})
 	}
 
-	if len(expected.Where) != spec.WhereClauseCount {
+	methodWhereCount := 0
+	if spec.MethodWhereClauseCounts != nil {
+		methodWhereCount = spec.MethodWhereClauseCounts[methodName]
+	}
+	if len(expected.Where) != methodWhereCount {
 		diagNode := node
 		if spec.Definition != nil {
 			diagNode = spec.Definition
@@ -154,7 +158,7 @@ func compareImplementationMethodSignature(label string, spec ImplementationSpec,
 		diags = append(diags, Diagnostic{
 			Message: fmt.Sprintf(
 				"typechecker: %s method '%s' expects %d where-clause constraint(s), got %d",
-				label, methodName, len(expected.Where), spec.WhereClauseCount,
+				label, methodName, len(expected.Where), methodWhereCount,
 			),
 			Node: diagNode,
 		})

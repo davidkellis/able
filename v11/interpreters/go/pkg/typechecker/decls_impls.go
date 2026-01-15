@@ -51,7 +51,6 @@ func (c *declarationCollector) collectImplementationDefinition(def *ast.Implemen
 		return nil, nil
 	}
 
-	rawWhereCount := len(def.WhereClause)
 	c.ensureImplementationGenericInference(def)
 
 	var diags []Diagnostic
@@ -144,6 +143,7 @@ func (c *declarationCollector) collectImplementationDefinition(def *ast.Implemen
 	implLabel := fmt.Sprintf("impl %s for %s", nonEmpty(interfaceName), targetLabel)
 
 	methods := make(map[string]FunctionType, len(def.Definitions))
+	methodWhereCounts := make(map[string]int, len(def.Definitions))
 	for _, fn := range def.Definitions {
 		if fn == nil || fn.ID == nil {
 			diags = append(diags, Diagnostic{
@@ -160,6 +160,7 @@ func (c *declarationCollector) collectImplementationDefinition(def *ast.Implemen
 		fnType := c.functionTypeFromDefinition(fn, scope, methodOwner, fn)
 		fnType = applyImplicitSelfParam(fn, fnType, targetType)
 		methods[fn.ID.Name] = fnType
+		methodWhereCounts[fn.ID.Name] = len(fn.WhereClause)
 	}
 
 	spec := &ImplementationSpec{
@@ -170,7 +171,7 @@ func (c *declarationCollector) collectImplementationDefinition(def *ast.Implemen
 		InterfaceArgs: interfaceArgs,
 		Methods:       methods,
 		Where:         where,
-		WhereClauseCount: rawWhereCount,
+		MethodWhereClauseCounts: methodWhereCounts,
 		UnionVariants: collectUnionVariantLabelsFromType(targetType),
 		Definition:    def,
 	}

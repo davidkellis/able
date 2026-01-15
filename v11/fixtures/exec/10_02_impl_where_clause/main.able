@@ -1,0 +1,28 @@
+package exec_10_02_impl_where_clause
+
+interface Tag for T {
+  fn tag(self: Self) -> String
+}
+
+interface Renderable for T {
+  fn render(self: Self) -> String
+}
+
+struct Widget T {
+  value: T
+}
+
+impl Tag for String {
+  fn tag(self: Self) -> String { self }
+}
+
+impl Renderable for Widget T where T: Tag {
+  fn render(self: Self) -> String {
+    self.value.tag()
+  }
+}
+
+fn main() -> void {
+  widget := Widget { value: "hello" }
+  print(widget.render())
+}

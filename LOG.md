@@ -793,3 +793,7 @@ Open items (2025-11-02 audit):
 - Updated strict fixture manifests for expected typechecker diagnostics and refreshed the baseline for `expressions/map_literal_spread`.
 - Removed the `PathType` alias from fs helpers; paths now use `Path | String` directly and fs helpers extend `Path`.
 - Tests: `./run_all_tests.sh --version=v11 --typecheck-fixtures-strict --fixture`; `./run_stdlib_tests.sh`.
+- Fixed impl validation to compare interface method where clauses against method-level constraints instead of impl-level where clauses (TS + Go typecheckers).
+- Tests: `cd v11/interpreters/ts && bun test test/typechecker/implementation_validation.test.ts`; `cd v11/interpreters/go && go test ./pkg/typechecker`.
+- Added exec fixture `exec/10_02_impl_where_clause` to cover impl-level where clauses without method-level duplication and updated the coverage index.
+- Tests: `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=10_02_impl_where_clause bun run scripts/run-fixtures.ts`.
