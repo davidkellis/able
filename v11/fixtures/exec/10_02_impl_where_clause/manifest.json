@@ -1,0 +1,7 @@
+{
+  "description": "impl where-clause constraints do not require matching method where clauses",
+  "expect": {
+    "stdout": ["hello"],
+    "exit": 0
+  }
+}

@@ -716,7 +716,7 @@ function validateImplementationMethod(
   }
 
   const interfaceWhere = Array.isArray(signature.whereClause) ? signature.whereClause.length : 0;
-  const implementationWhere = Array.isArray(implementation.whereClause) ? implementation.whereClause.length : 0;
+  const implementationWhere = Array.isArray(method.whereClause) ? method.whereClause.length : 0;
   if (interfaceWhere !== implementationWhere) {
     ctx.report(
       `typechecker: ${label} method '${signature.name?.name ?? "<anonymous>"}' expects ${interfaceWhere} where-clause constraint(s), got ${implementationWhere}`,
