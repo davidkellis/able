@@ -179,7 +179,7 @@ type ImplementationSpec struct {
 	InterfaceArgs []Type
 	Methods       map[string]FunctionType
 	Where         []WhereConstraintSpec
-	WhereClauseCount int
+	MethodWhereClauseCounts map[string]int
 	Obligations   []ConstraintObligation
 	UnionVariants []string
 	IsBuiltin     bool
