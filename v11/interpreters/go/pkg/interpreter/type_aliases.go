@@ -110,8 +110,9 @@ func expandTypeAliases(
 			}
 		}
 		substituted := substituteAliasTypeExpression(alias.TargetType, subst, aliases, seen)
+		expanded := expandTypeAliases(substituted, aliases, seen)
 		delete(seen, baseName)
-		return expandTypeAliases(substituted, aliases, seen)
+		return expanded
 	case *ast.NullableTypeExpression:
 		return &ast.NullableTypeExpression{InnerType: expandTypeAliases(t.InnerType, aliases, seen)}
 	case *ast.ResultTypeExpression:

@@ -47,6 +47,7 @@ function methodExpectsSelf(method: Extract<RuntimeValue, { kind: "function" | "f
 export function evaluateStructDefinition(ctx: Interpreter, node: AST.StructDefinition, env: Environment): RuntimeValue {
   ctx.defineInEnv(env, node.id.name, { kind: "struct_def", def: node });
   ctx.registerSymbol(node.id.name, { kind: "struct_def", def: node });
+  ctx.structs.set(node.id.name, node);
   const qn = ctx.qualifiedName(node.id.name);
   if (qn) {
     try { ctx.globals.define(qn, { kind: "struct_def", def: node }); } catch {}

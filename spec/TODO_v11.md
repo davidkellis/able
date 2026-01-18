@@ -2,4 +2,4 @@
 
 This list tracks the remaining v11 items after audit; completed work has been removed.
 
-No open items.
+- None currently tracked. Use `spec/full_spec_v11.md` and `PLAN.md` for active work.

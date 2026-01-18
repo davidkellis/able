@@ -9,6 +9,9 @@ import (
 )
 
 func waitForStatus(handle *runtime.ProcHandleValue, desired runtime.ProcStatus, timeout time.Duration) bool {
+	if timeout < time.Second {
+		timeout = time.Second
+	}
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
 		if handle.Status() == desired {

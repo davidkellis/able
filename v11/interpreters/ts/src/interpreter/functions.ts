@@ -92,43 +92,47 @@ function isVoidTypeExpression(ctx: Interpreter, expr: AST.TypeExpression): boole
   return expanded.type === "SimpleTypeExpression" && expanded.name.name === "void";
 }
 
-function canonicalizeTypeExpression(ctx: Interpreter, env: Environment, expr: AST.TypeExpression): AST.TypeExpression {
-  const expanded = ctx.expandTypeAliases(expr);
-  switch (expanded.type) {
+function canonicalizeExpandedTypeExpression(ctx: Interpreter, env: Environment, expr: AST.TypeExpression): AST.TypeExpression {
+  switch (expr.type) {
     case "SimpleTypeExpression": {
-      const name = expanded.name.name;
+      const name = expr.name.name;
       let binding: RuntimeValue | null = null;
       try {
         binding = env.get(name);
       } catch {}
-      if (!binding) return expanded;
+      if (!binding) return expr;
       if (binding.kind === "struct_def" || binding.kind === "interface_def" || binding.kind === "union_def") {
         const canonical = binding.def.id.name;
         if (canonical && canonical !== name) {
           return AST.simpleTypeExpression(canonical);
         }
       }
-      return expanded;
+      return expr;
     }
     case "GenericTypeExpression":
       return AST.genericTypeExpression(
-        canonicalizeTypeExpression(ctx, env, expanded.base),
-        (expanded.arguments ?? []).map((arg) => (arg ? canonicalizeTypeExpression(ctx, env, arg) : arg)),
+        canonicalizeExpandedTypeExpression(ctx, env, expr.base),
+        (expr.arguments ?? []).map((arg) => (arg ? canonicalizeExpandedTypeExpression(ctx, env, arg) : arg)),
       );
     case "NullableTypeExpression":
-      return AST.nullableTypeExpression(canonicalizeTypeExpression(ctx, env, expanded.innerType));
+      return AST.nullableTypeExpression(canonicalizeExpandedTypeExpression(ctx, env, expr.innerType));
     case "ResultTypeExpression":
-      return AST.resultTypeExpression(canonicalizeTypeExpression(ctx, env, expanded.innerType));
+      return AST.resultTypeExpression(canonicalizeExpandedTypeExpression(ctx, env, expr.innerType));
     case "UnionTypeExpression":
-      return AST.unionTypeExpression((expanded.members ?? []).map((member) => canonicalizeTypeExpression(ctx, env, member)));
+      return AST.unionTypeExpression((expr.members ?? []).map((member) => canonicalizeExpandedTypeExpression(ctx, env, member)));
     case "FunctionTypeExpression":
       return AST.functionTypeExpression(
-        (expanded.paramTypes ?? []).map((param) => canonicalizeTypeExpression(ctx, env, param)),
-        canonicalizeTypeExpression(ctx, env, expanded.returnType),
+        (expr.paramTypes ?? []).map((param) => canonicalizeExpandedTypeExpression(ctx, env, param)),
+        canonicalizeExpandedTypeExpression(ctx, env, expr.returnType),
       );
     default:
-      return expanded;
+      return expr;
   }
+}
+
+function canonicalizeTypeExpression(ctx: Interpreter, env: Environment, expr: AST.TypeExpression): AST.TypeExpression {
+  const expanded = ctx.expandTypeAliases(expr);
+  return canonicalizeExpandedTypeExpression(ctx, env, expanded);
 }
 
 function coerceReturnValue(

@@ -39,6 +39,7 @@ const FIXTURE_FILTER = process.env.ABLE_FIXTURE_FILTER?.trim() ?? null;
 const BASELINE_ENABLED = TYPECHECK_MODE !== "off" && !FIXTURE_FILTER;
 const STDLIB_ROOT = path.resolve(__dirname, "../../../stdlib/src");
 const KERNEL_ROOT = path.resolve(__dirname, "../../../kernel/src");
+const KERNEL_ENTRY = path.join(KERNEL_ROOT, "kernel.able");
 const STDLIB_STRING_ENTRY = path.join(STDLIB_ROOT, "text", "string.able");
 const STDLIB_CONCURRENCY_ENTRY = path.join(STDLIB_ROOT, "concurrency", "await.able");
 const STDLIB_HASH_MAP_ENTRY = path.join(STDLIB_ROOT, "collections", "hash_map.able");
@@ -46,6 +47,7 @@ const stdlibLoader = new ModuleLoader([STDLIB_ROOT, KERNEL_ROOT]);
 let stdlibStringProgram: Program | null = null;
 let stdlibConcurrencyProgram: Program | null = null;
 let stdlibHashMapProgram: Program | null = null;
+let kernelProgram: Program | null = null;
 const EXEC_ROOT = path.resolve(__dirname, "../../../fixtures/exec");
 
 type FixtureResult = { name: string; description?: string };
@@ -97,6 +99,7 @@ async function main() {
       const needsStdlibString = moduleImportsStdlibString(moduleAst);
       const needsStdlibConcurrency = moduleImportsStdlibConcurrency(moduleAst);
       const needsStdlibHashMap = moduleImportsStdlibHashMap(moduleAst);
+      let needsKernel = moduleImportsKernel(moduleAst);
       const stdlibPrograms: Program[] = [];
       if (needsStdlibString) {
         stdlibPrograms.push(await ensureStdlibStringProgram());
@@ -112,8 +115,17 @@ async function main() {
         for (const setupFile of manifest.setup) {
           const setupPath = path.join(fixtureDir, setupFile);
           const setupModule = await loadModuleFromPath(setupPath);
+          if (!needsKernel && moduleImportsKernel(setupModule)) {
+            needsKernel = true;
+          }
           setupModules.push(setupModule);
         }
+      }
+      const includeKernel =
+        needsKernel && !stdlibPrograms.some((program) => programHasPackage(program, "able.kernel"));
+      const preludePrograms: Program[] = [];
+      if (includeKernel) {
+        preludePrograms.push(await ensureKernelProgram());
       }
 
       const typecheckDiagnostics: TypecheckerDiagnostic[] = [];
@@ -121,6 +133,19 @@ async function main() {
       if (TYPECHECK_MODE !== "off") {
         const session = new TypeChecker.TypecheckerSession();
         const seenPkgs = new Set<string>();
+        for (const preludeProgram of preludePrograms) {
+          for (const mod of preludeProgram.modules) {
+            if (seenPkgs.has(mod.packageName)) continue;
+            seenPkgs.add(mod.packageName);
+            const { diagnostics } = session.checkModule(mod.module);
+            typecheckDiagnostics.push(...diagnostics);
+          }
+          if (!seenPkgs.has(preludeProgram.entry.packageName)) {
+            const { diagnostics } = session.checkModule(preludeProgram.entry.module);
+            typecheckDiagnostics.push(...diagnostics);
+            seenPkgs.add(preludeProgram.entry.packageName);
+          }
+        }
         for (const stdlibProgram of stdlibPrograms) {
           for (const mod of stdlibProgram.modules) {
             if (seenPkgs.has(mod.packageName)) continue;
@@ -160,6 +185,9 @@ async function main() {
       let result: V11.RuntimeValue | undefined;
       await interceptStdout(stdout, async () => {
         try {
+          for (const preludeProgram of preludePrograms) {
+            await evaluateProgram(interpreter, preludeProgram);
+          }
           for (const stdlibProgram of stdlibPrograms) {
             await evaluateProgram(interpreter, stdlibProgram);
           }
@@ -410,6 +438,10 @@ function moduleImportsStdlibHashMap(module: AST.Module): boolean {
   return moduleImportsPackage(module, "able.collections.hash_map");
 }
 
+function moduleImportsKernel(module: AST.Module): boolean {
+  return moduleImportsPackage(module, "able.kernel");
+}
+
 function moduleImportsPackage(module: AST.Module, pkgName: string): boolean {
   return Array.isArray((module as any)?.imports)
     ? (module as any).imports.some((imp: any) => {
@@ -439,6 +471,29 @@ async function ensureStdlibHashMapProgram(): Promise<Program> {
     stdlibHashMapProgram = await stdlibLoader.load(STDLIB_HASH_MAP_ENTRY);
   }
   return stdlibHashMapProgram;
+}
+
+async function ensureKernelProgram(): Promise<Program> {
+  if (!kernelProgram) {
+    const kernelModule = await loadModuleFromPath(KERNEL_ENTRY);
+    kernelModule.package = AST.packageStatement(["able", "kernel"]);
+    kernelProgram = {
+      entry: {
+        packageName: "able.kernel",
+        module: kernelModule,
+        files: [KERNEL_ENTRY],
+        imports: [],
+        dynImports: [],
+      },
+      modules: [],
+    };
+  }
+  return kernelProgram;
+}
+
+function programHasPackage(program: Program, name: string): boolean {
+  if (program.entry.packageName === name) return true;
+  return program.modules.some((mod) => mod.packageName === name);
 }
 
 async function evaluateProgram(interpreter: V11.Interpreter, program: Program): Promise<void> {

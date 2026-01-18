@@ -31,11 +31,12 @@ export interface ExpressionContext {
   getStructDefinition(name: string): AST.StructDefinition | undefined;
   handlePackageMemberAccess(expression: AST.MemberAccessExpression): boolean;
   inferExpression(expression: AST.Expression | undefined | null): TypeInfo;
+  inferExpressionWithExpected(expression: AST.Expression | undefined | null, expected: TypeInfo): TypeInfo;
   checkStatement(node: AST.Statement | AST.Expression | undefined | null): void;
   pushAsyncContext(): void;
   popAsyncContext(): void;
-  checkFunctionCall(call: AST.FunctionCall): void;
-  inferFunctionCallReturnType(call: AST.FunctionCall): TypeInfo;
+  checkFunctionCall(call: AST.FunctionCall, expectedReturn?: TypeInfo): void;
+  inferFunctionCallReturnType(call: AST.FunctionCall, expectedReturn?: TypeInfo): TypeInfo;
   checkFunctionDefinition(definition: AST.FunctionDefinition): void;
   checkReturnStatement(statement: AST.ReturnStatement): void;
   pushScope(): void;

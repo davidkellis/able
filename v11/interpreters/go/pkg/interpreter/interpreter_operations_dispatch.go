@@ -114,7 +114,7 @@ func (i *Interpreter) applyOperatorInterface(op string, left runtime.Value, righ
 	if method == nil {
 		return nil, false, nil
 	}
-	result, err := i.CallFunction(method, []runtime.Value{left, right})
+	result, err := i.CallFunction(method, []runtime.Value{unwrapInterfaceValue(left), unwrapInterfaceValue(right)})
 	return result, true, err
 }
 
@@ -135,7 +135,7 @@ func (i *Interpreter) applyEqualityInterface(op string, left runtime.Value, righ
 		if method == nil {
 			continue
 		}
-		result, err := i.CallFunction(method, []runtime.Value{left, right})
+		result, err := i.CallFunction(method, []runtime.Value{unwrapInterfaceValue(left), unwrapInterfaceValue(right)})
 		if err != nil {
 			return nil, true, err
 		}
@@ -197,7 +197,7 @@ func (i *Interpreter) applyOrderingInterface(op string, left runtime.Value, righ
 		if method == nil {
 			continue
 		}
-		result, err := i.CallFunction(method, []runtime.Value{left, right})
+		result, err := i.CallFunction(method, []runtime.Value{unwrapInterfaceValue(left), unwrapInterfaceValue(right)})
 		if err != nil {
 			return nil, true, err
 		}
@@ -222,6 +222,6 @@ func (i *Interpreter) applyUnaryInterface(op string, operand runtime.Value) (run
 	if method == nil {
 		return nil, false, nil
 	}
-	result, err := i.CallFunction(method, []runtime.Value{operand})
+	result, err := i.CallFunction(method, []runtime.Value{unwrapInterfaceValue(operand)})
 	return result, true, err
 }

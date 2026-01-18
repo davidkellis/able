@@ -1,0 +1,7 @@
+import able.kernel.{KernelHasher, Hasher}
+
+fn probe(hasher: Hasher) -> u64 {
+  hasher.write_u16(515_u16);
+  hasher.finish();
+}
+probe(KernelHasher.new());

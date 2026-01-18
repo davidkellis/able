@@ -1,0 +1,10 @@
+{
+  "description": "Kernel HashMap resolves collisions using Eq",
+  "expect": {
+    "result": {
+      "kind": "bool",
+      "value": true
+    }
+  },
+  "entry": "module.json"
+}

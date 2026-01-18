@@ -11,6 +11,7 @@ import (
 
 func TestHashMapBuiltins(t *testing.T) {
 	interp := New()
+	loadKernelModule(t, interp)
 	global := interp.GlobalEnvironment()
 
 	ctx := &runtime.NativeCallContext{Env: global}
@@ -301,6 +302,7 @@ func TestHasherNativeMethods(t *testing.T) {
 
 func TestHashMapCustomHash(t *testing.T) {
 	interp := New()
+	loadKernelModule(t, interp)
 
 	u64Type := ast.IntegerTypeU64
 	module := ast.Mod([]ast.Statement{
@@ -314,7 +316,8 @@ func TestHashMapCustomHash(t *testing.T) {
 			nil,
 			false,
 		),
-		ast.Methods(
+		ast.Impl(
+			"Hash",
 			ast.Ty("Key"),
 			[]*ast.FunctionDefinition{
 				ast.Fn(
@@ -324,14 +327,29 @@ func TestHashMapCustomHash(t *testing.T) {
 						ast.Param("hasher", nil),
 					},
 					[]ast.Statement{
-						ast.Ret(ast.IntTyped(123, &u64Type)),
+						ast.CallExpr(
+							ast.Member(ast.ID("hasher"), ast.ID("write_u64")),
+							ast.IntTyped(123, &u64Type),
+						),
+						ast.Ret(nil),
 					},
-					ast.Ty("u64"),
+					ast.Ty("void"),
 					nil,
 					nil,
 					false,
 					false,
 				),
+			},
+			nil,
+			nil,
+			nil,
+			nil,
+			false,
+		),
+		ast.Impl(
+			"Eq",
+			ast.Ty("Key"),
+			[]*ast.FunctionDefinition{
 				ast.Fn(
 					"eq",
 					[]*ast.FunctionParameter{
@@ -352,6 +370,9 @@ func TestHashMapCustomHash(t *testing.T) {
 			},
 			nil,
 			nil,
+			nil,
+			nil,
+			false,
 		),
 	}, nil, nil)
 
@@ -381,8 +402,11 @@ func TestHashMapCustomHash(t *testing.T) {
 	if err != nil {
 		t.Fatalf("hash computation failed: %v", err)
 	}
-	if hash != 123 {
-		t.Fatalf("hash = %d, want 123", hash)
+	controlHasher := runtime.NewHasherValue()
+	controlHasher.WriteUint64(123)
+	expectedHash := controlHasher.Finish()
+	if hash != expectedHash {
+		t.Fatalf("hash = %d, want %d", hash, expectedHash)
 	}
 
 	global := interp.GlobalEnvironment()
@@ -408,8 +432,8 @@ func TestHashMapCustomHash(t *testing.T) {
 		t.Fatalf("expected 1 entry, got %d", len(state.Entries))
 	}
 	entry := state.Entries[0]
-	if entry.Hash != hash {
-		t.Fatalf("entry hash = %d, want %d", entry.Hash, hash)
+	if entry.Hash != expectedHash {
+		t.Fatalf("entry hash = %d, want %d", entry.Hash, expectedHash)
 	}
 	if _, ok := entry.Value.(runtime.StringValue); !ok {
 		t.Fatalf("entry value unexpected type %T", entry.Value)
@@ -431,6 +455,162 @@ func TestHashMapCustomHash(t *testing.T) {
 	strVal, ok := retrieved.(runtime.StringValue)
 	if !ok || strVal.Val != "value" {
 		t.Fatalf("get returned unexpected value %#v", retrieved)
+	}
+}
+
+func TestHashMapCollisionHandling(t *testing.T) {
+	interp := New()
+	loadKernelModule(t, interp)
+
+	u64Type := ast.IntegerTypeU64
+	module := ast.Mod([]ast.Statement{
+		ast.StructDef(
+			"CollisionKey",
+			[]*ast.StructFieldDefinition{
+				ast.FieldDef(ast.Ty("i32"), "id"),
+			},
+			ast.StructKindNamed,
+			nil,
+			nil,
+			false,
+		),
+		ast.Impl(
+			"Hash",
+			ast.Ty("CollisionKey"),
+			[]*ast.FunctionDefinition{
+				ast.Fn(
+					"hash",
+					[]*ast.FunctionParameter{
+						ast.Param("self", nil),
+						ast.Param("hasher", nil),
+					},
+					[]ast.Statement{
+						ast.CallExpr(
+							ast.Member(ast.ID("hasher"), ast.ID("write_u64")),
+							ast.IntTyped(1, &u64Type),
+						),
+						ast.Ret(nil),
+					},
+					ast.Ty("void"),
+					nil,
+					nil,
+					false,
+					false,
+				),
+			},
+			nil,
+			nil,
+			nil,
+			nil,
+			false,
+		),
+		ast.Impl(
+			"Eq",
+			ast.Ty("CollisionKey"),
+			[]*ast.FunctionDefinition{
+				ast.Fn(
+					"eq",
+					[]*ast.FunctionParameter{
+						ast.Param("self", nil),
+						ast.Param("other", ast.Ty("CollisionKey")),
+					},
+					[]ast.Statement{
+						ast.Ret(ast.Bin("==",
+							ast.Member(ast.ID("self"), ast.ID("id")),
+							ast.Member(ast.ID("other"), ast.ID("id")))),
+					},
+					ast.Ty("bool"),
+					nil,
+					nil,
+					false,
+					false,
+				),
+			},
+			nil,
+			nil,
+			nil,
+			nil,
+			false,
+		),
+	}, nil, nil)
+
+	if _, _, err := interp.EvaluateModule(module); err != nil {
+		t.Fatalf("module evaluation failed: %v", err)
+	}
+
+	keyExpr := func(value int64) ast.Expression {
+		return ast.StructLit(
+			[]*ast.StructFieldInitializer{
+				ast.FieldInit(ast.Int(value), "id"),
+			},
+			false,
+			"CollisionKey",
+			nil,
+			nil,
+		)
+	}
+
+	global := interp.GlobalEnvironment()
+	ctx := &runtime.NativeCallContext{Env: global}
+	newFn := mustNativeFunction(t, global, "__able_hash_map_new")
+	setFn := mustNativeFunction(t, global, "__able_hash_map_set")
+	getFn := mustNativeFunction(t, global, "__able_hash_map_get")
+	sizeFn := mustNativeFunction(t, global, "__able_hash_map_size")
+
+	handleVal, err := newFn.Impl(ctx, nil)
+	if err != nil {
+		t.Fatalf("__able_hash_map_new failed: %v", err)
+	}
+
+	key1, err := interp.evaluateExpression(keyExpr(1), global)
+	if err != nil {
+		t.Fatalf("key1 eval failed: %v", err)
+	}
+	key2, err := interp.evaluateExpression(keyExpr(2), global)
+	if err != nil {
+		t.Fatalf("key2 eval failed: %v", err)
+	}
+
+	if _, err := setFn.Impl(ctx, []runtime.Value{handleVal, key1, runtime.StringValue{Val: "first"}}); err != nil {
+		t.Fatalf("set key1 failed: %v", err)
+	}
+	if _, err := setFn.Impl(ctx, []runtime.Value{handleVal, key2, runtime.StringValue{Val: "second"}}); err != nil {
+		t.Fatalf("set key2 failed: %v", err)
+	}
+
+	sizeVal, err := sizeFn.Impl(ctx, []runtime.Value{handleVal})
+	if err != nil {
+		t.Fatalf("size failed: %v", err)
+	}
+	sizeInt, ok := sizeVal.(runtime.IntegerValue)
+	if !ok || sizeInt.Val.Int64() != 2 {
+		t.Fatalf("expected size 2, got %#v", sizeVal)
+	}
+
+	lookupKey1, err := interp.evaluateExpression(keyExpr(1), global)
+	if err != nil {
+		t.Fatalf("lookup key1 eval failed: %v", err)
+	}
+	lookup1, err := getFn.Impl(ctx, []runtime.Value{handleVal, lookupKey1})
+	if err != nil {
+		t.Fatalf("get key1 failed: %v", err)
+	}
+	val1, ok := lookup1.(runtime.StringValue)
+	if !ok || val1.Val != "first" {
+		t.Fatalf("lookup1 unexpected value %#v", lookup1)
+	}
+
+	lookupKey2, err := interp.evaluateExpression(keyExpr(2), global)
+	if err != nil {
+		t.Fatalf("lookup key2 eval failed: %v", err)
+	}
+	lookup2, err := getFn.Impl(ctx, []runtime.Value{handleVal, lookupKey2})
+	if err != nil {
+		t.Fatalf("get key2 failed: %v", err)
+	}
+	val2, ok := lookup2.(runtime.StringValue)
+	if !ok || val2.Val != "second" {
+		t.Fatalf("lookup2 unexpected value %#v", lookup2)
 	}
 }
 

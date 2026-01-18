@@ -213,7 +213,11 @@ export function isStringType(type: TypeInfo): boolean {
   return type.kind === "primitive" && type.name === "String";
 }
 
-export function evaluateBlockExpression(ctx: ExpressionContext, block: AST.BlockExpression): TypeInfo {
+export function evaluateBlockExpression(
+  ctx: ExpressionContext,
+  block: AST.BlockExpression,
+  expectedType?: TypeInfo,
+): TypeInfo {
   const statements = Array.isArray(block?.body) ? block.body : [];
   if (!statements.length) {
     return unknownType;
@@ -232,7 +236,10 @@ export function evaluateBlockExpression(ctx: ExpressionContext, block: AST.Block
       const isLast = index === statements.length - 1;
       const isExpr = ctx.isExpression(statement as AST.Node);
       if (isLast && isExpr) {
-        resultType = ctx.inferExpression(statement as AST.Expression);
+        resultType =
+          expectedType && expectedType.kind !== "unknown"
+            ? ctx.inferExpressionWithExpected(statement as AST.Expression, expectedType)
+            : ctx.inferExpression(statement as AST.Expression);
       } else {
         ctx.checkStatement(statement as AST.Statement);
       }

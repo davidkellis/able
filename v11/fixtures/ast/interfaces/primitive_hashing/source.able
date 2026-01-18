@@ -1,0 +1,24 @@
+import able.kernel.{KernelHasher, Hash, Hasher}
+
+fn hash_value<T>(value: T) -> u64 where T: Hash {
+  hasher: Hasher := KernelHasher.new();
+  value.hash(hasher);
+  hasher.finish();
+}
+ok := true;
+if hash_value(true) != 12638152016183539244_u64 {
+  ok = false;
+};
+if hash_value(-42_i32) != 11047133508193088422_u64 {
+  ok = false;
+};
+if hash_value(123_u64) != 12162020487158469588_u64 {
+  ok = false;
+};
+if hash_value('A') != 5559048874771775234_u64 {
+  ok = false;
+};
+if hash_value("Able") != 9016399465655874229_u64 {
+  ok = false;
+};
+ok;

@@ -21,6 +21,14 @@ func canonicalTypeName(env *runtime.Environment, name string) string {
 		if v.Node != nil && v.Node.ID != nil && v.Node.ID.Name != "" {
 			return v.Node.ID.Name
 		}
+	case *runtime.UnionDefinitionValue:
+		if v.Node != nil && v.Node.ID != nil && v.Node.ID.Name != "" {
+			return v.Node.ID.Name
+		}
+	case runtime.UnionDefinitionValue:
+		if v.Node != nil && v.Node.ID != nil && v.Node.ID.Name != "" {
+			return v.Node.ID.Name
+		}
 	case *runtime.InterfaceDefinitionValue:
 		if v.Node != nil && v.Node.ID != nil && v.Node.ID.Name != "" {
 			return v.Node.ID.Name
@@ -29,53 +37,60 @@ func canonicalTypeName(env *runtime.Environment, name string) string {
 	return name
 }
 
-func canonicalizeTypeExpression(expr ast.TypeExpression, env *runtime.Environment, aliases map[string]*ast.TypeAliasDefinition) ast.TypeExpression {
+func canonicalizeExpandedTypeExpression(expr ast.TypeExpression, env *runtime.Environment) ast.TypeExpression {
 	if expr == nil {
 		return nil
 	}
-	expanded := expandTypeAliases(expr, aliases, nil)
-	switch t := expanded.(type) {
+	switch t := expr.(type) {
 	case *ast.SimpleTypeExpression:
 		if t.Name == nil {
-			return expanded
+			return expr
 		}
 		name := canonicalTypeName(env, t.Name.Name)
 		if name == t.Name.Name {
-			return expanded
+			return expr
 		}
 		return ast.Ty(name)
 	case *ast.GenericTypeExpression:
-		base := canonicalizeTypeExpression(t.Base, env, aliases)
+		base := canonicalizeExpandedTypeExpression(t.Base, env)
 		args := make([]ast.TypeExpression, len(t.Arguments))
 		for idx, arg := range t.Arguments {
 			if arg == nil {
 				continue
 			}
-			args[idx] = canonicalizeTypeExpression(arg, env, aliases)
+			args[idx] = canonicalizeExpandedTypeExpression(arg, env)
 		}
 		return ast.Gen(base, args...)
 	case *ast.NullableTypeExpression:
-		return ast.Nullable(canonicalizeTypeExpression(t.InnerType, env, aliases))
+		return ast.Nullable(canonicalizeExpandedTypeExpression(t.InnerType, env))
 	case *ast.ResultTypeExpression:
-		return ast.Result(canonicalizeTypeExpression(t.InnerType, env, aliases))
+		return ast.Result(canonicalizeExpandedTypeExpression(t.InnerType, env))
 	case *ast.UnionTypeExpression:
 		members := make([]ast.TypeExpression, len(t.Members))
 		for idx, member := range t.Members {
 			if member == nil {
 				continue
 			}
-			members[idx] = canonicalizeTypeExpression(member, env, aliases)
+			members[idx] = canonicalizeExpandedTypeExpression(member, env)
 		}
 		return ast.UnionT(members...)
 	case *ast.FunctionTypeExpression:
 		params := make([]ast.TypeExpression, len(t.ParamTypes))
 		for idx, param := range t.ParamTypes {
-			params[idx] = canonicalizeTypeExpression(param, env, aliases)
+			params[idx] = canonicalizeExpandedTypeExpression(param, env)
 		}
-		return ast.FnType(params, canonicalizeTypeExpression(t.ReturnType, env, aliases))
+		return ast.FnType(params, canonicalizeExpandedTypeExpression(t.ReturnType, env))
 	default:
-		return expanded
+		return expr
 	}
+}
+
+func canonicalizeTypeExpression(expr ast.TypeExpression, env *runtime.Environment, aliases map[string]*ast.TypeAliasDefinition) ast.TypeExpression {
+	if expr == nil {
+		return nil
+	}
+	expanded := expandTypeAliases(expr, aliases, nil)
+	return canonicalizeExpandedTypeExpression(expanded, env)
 }
 
 func (i *Interpreter) evaluateFunctionDefinition(def *ast.FunctionDefinition, env *runtime.Environment) (runtime.Value, error) {
@@ -88,9 +103,6 @@ func (i *Interpreter) evaluateFunctionDefinition(def *ast.FunctionDefinition, en
 	fnVal := &runtime.FunctionValue{Declaration: def, Closure: env}
 	i.defineInEnv(env, def.ID.Name, fnVal)
 	i.registerSymbol(def.ID.Name, fnVal)
-	if qn := i.qualifiedName(def.ID.Name); qn != "" {
-		i.global.Define(qn, fnVal)
-	}
 	return runtime.NilValue{}, nil
 }
 
@@ -118,9 +130,6 @@ func (i *Interpreter) evaluateExternFunctionBody(def *ast.ExternFunctionBody, en
 	}
 	env.Define(name, native)
 	i.registerSymbol(name, native)
-	if qn := i.qualifiedName(name); qn != "" {
-		i.global.Define(qn, native)
-	}
 	return runtime.NilValue{}, nil
 }
 
@@ -150,9 +159,6 @@ func (i *Interpreter) evaluateStructDefinition(def *ast.StructDefinition, env *r
 	i.defineInEnv(env, def.ID.Name, structVal)
 	env.DefineStruct(def.ID.Name, structVal)
 	i.registerSymbol(def.ID.Name, structVal)
-	if qn := i.qualifiedName(def.ID.Name); qn != "" {
-		i.global.Define(qn, structVal)
-	}
 	return runtime.NilValue{}, nil
 }
 
@@ -164,9 +170,6 @@ func (i *Interpreter) evaluateUnionDefinition(def *ast.UnionDefinition, env *run
 	i.defineInEnv(env, def.ID.Name, unionVal)
 	i.unionDefinitions[def.ID.Name] = &unionVal
 	i.registerSymbol(def.ID.Name, unionVal)
-	if qn := i.qualifiedName(def.ID.Name); qn != "" {
-		i.global.Define(qn, unionVal)
-	}
 	return runtime.NilValue{}, nil
 }
 
@@ -178,9 +181,6 @@ func (i *Interpreter) evaluateInterfaceDefinition(def *ast.InterfaceDefinition, 
 	i.defineInEnv(env, def.ID.Name, ifaceVal)
 	i.interfaces[def.ID.Name] = ifaceVal
 	i.registerSymbol(def.ID.Name, ifaceVal)
-	if qn := i.qualifiedName(def.ID.Name); qn != "" {
-		i.global.Define(qn, ifaceVal)
-	}
 	return runtime.NilValue{}, nil
 }
 
@@ -285,9 +285,6 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 		}
 		i.defineInEnv(env, name, implVal)
 		i.registerSymbol(name, implVal)
-		if qn := i.qualifiedName(name); qn != "" {
-			i.global.Define(qn, implVal)
-		}
 	}
 	return runtime.NilValue{}, nil
 }
@@ -334,9 +331,6 @@ func (i *Interpreter) evaluateMethodsDefinition(def *ast.MethodsDefinition, env 
 		mergeFunctionLike(bucket, fn.ID.Name, fnVal)
 		i.defineInEnv(env, exportedName, fnVal)
 		i.registerSymbol(exportedName, fnVal)
-		if qn := i.qualifiedName(exportedName); qn != "" {
-			i.global.Define(qn, fnVal)
-		}
 	}
 	return runtime.NilValue{}, nil
 }

@@ -1,0 +1,10 @@
+{
+  "description": "primitive hashing and kernel Hasher availability",
+  "expect": {
+    "stdout": [
+      "primitive_hash true",
+      "kernel_hasher true"
+    ],
+    "exit": 0
+  }
+}

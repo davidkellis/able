@@ -1,5 +1,5 @@
 import * as AST from "../../ast";
-import { formatType, unknownType } from "../types";
+import { formatType, isFloatPrimitiveType, isIntegerPrimitiveType, unknownType } from "../types";
 import type { TypeInfo } from "../types";
 import {
   buildConstraintKeySet,
@@ -87,6 +87,7 @@ export function lookupMethodSetsForCall(
     const info: FunctionInfo = {
       name: methodName,
       fullName: `${record.label}::${methodName}`,
+      definition: method,
       structName: structLabel,
       hasImplicitSelf,
       isTypeQualified,
@@ -124,11 +125,17 @@ export function enforceFunctionConstraints(
   ctx: ImplementationContext,
   info: FunctionInfo,
   call: AST.FunctionCall,
+  selfSubstitutions?: Map<string, TypeInfo>,
 ): void {
   const typeArgs = Array.isArray(call.typeArguments) ? call.typeArguments : [];
   const substitutions = new Map<string, TypeInfo>();
   if (info.methodSetSubstitutions) {
     for (const [key, value] of info.methodSetSubstitutions) {
+      substitutions.set(key, value);
+    }
+  }
+  if (selfSubstitutions) {
+    for (const [key, value] of selfSubstitutions) {
       substitutions.set(key, value);
     }
   } else if (call.callee?.type === "MemberAccessExpression") {
@@ -340,6 +347,8 @@ function implementsBuiltinInterface(type: TypeInfo, interfaceName: string): bool
   if (type.kind !== "primitive") {
     return false;
   }
+  const isInteger = isIntegerPrimitiveType(type);
+  const isFloat = isFloatPrimitiveType(type);
   switch (interfaceName) {
     case "Hash":
     case "Eq":
@@ -347,13 +356,22 @@ function implementsBuiltinInterface(type: TypeInfo, interfaceName: string): bool
         type.name === "String" ||
         type.name === "bool" ||
         type.name === "char" ||
-        type.name === "i32"
+        isInteger
+      );
+    case "PartialEq":
+    case "PartialOrd":
+      return (
+        type.name === "String" ||
+        type.name === "bool" ||
+        type.name === "char" ||
+        isInteger ||
+        isFloat
       );
     case "Display":
     case "Clone":
       return type.name === "String" || type.name === "bool" || type.name === "char" || type.name === "i32" || type.name === "f64";
     case "Ord":
-      return type.name === "i32" || type.name === "String";
+      return type.name === "String" || type.name === "bool" || type.name === "char" || isInteger;
     default:
       return false;
   }

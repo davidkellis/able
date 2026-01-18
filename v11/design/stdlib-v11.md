@@ -110,18 +110,21 @@ Everything else in this document is layered on top of that baseline and must nev
 **Current kernel (native, baked into interpreters)**
 - Scheduler primitives: `proc_yield`, `proc_cancelled`, `proc_flush`, `proc_pending_tasks`.
 - Concurrency bridges: channel helpers (`__able_channel_new/send/receive/try_send/try_receive/await_try_send/await_try_recv/close/is_closed`), mutex helpers (`__able_mutex_new/lock/unlock`), await wakers.
-- Hashing bridges: `__able_hasher_create/write/finish`.
 - String bridges: `__able_string_from_builtin`, `__able_string_to_builtin`, `__able_char_from_codepoint`.
 - **Native helpers that should migrate to stdlib:** array methods (`size`, `push`, `pop`, `get`, `set`, `clear`, `iterator`) and string helpers (`len_*`, `substring`, `split`, `replace`, `starts_with`, `ends_with`, `chars`/`graphemes` iterators) are currently implemented as host natives inside both interpreters.
 
 **Target minimal kernel (host-only)**
-- Keep only scheduler primitives, channel/mutex bridges, hasher bridge, string/char encoding bridges, and low-level array buffer management hooks needed by the stdlib `Array` implementation (`new`, `with_capacity`, slot read/write).
+- Keep only scheduler primitives, channel/mutex bridges, string/char encoding bridges, and low-level array buffer management hooks needed by the stdlib `Array` implementation (`new`, `with_capacity`, slot read/write).
 - Move user-facing array/string helpers into Able code in `stdlib/` (`able.collections.mutable.array`, `able.text.string`) that call the minimal bridges. Runtimes should no longer expose overlapping native methods once the Able implementations are in place.
 
 **Actions**
 - Document the minimal kernel contract in the spec and keep this section updated.
 - Port array/string helpers to Able stdlib and adjust interpreters/typecheckers/fixtures to rely on the stdlib surface.
 - Remove or shim redundant native array/string methods after the stdlib layer owns the behaviour; keep parity harness green during the transition.
+- Plan: move "always available" interfaces (`Eq`, `Hash`, `Display`, etc.) and
+  their primitive impls into the kernel library so they load before the stdlib;
+  `able.core.interfaces` will re-export the kernel definitions. See
+  `v11/design/kernel-interfaces-hash-eq.md` for the detailed plan.
 
 ## 5. Extended Roadmap (Vision, Spec-Consistent)
 

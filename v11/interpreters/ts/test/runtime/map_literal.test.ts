@@ -1,11 +1,16 @@
 import { describe, expect, test } from "bun:test";
+import path from "node:path";
 import * as AST from "../../src/ast";
 import { Interpreter } from "../../src/interpreter";
 import { serializeMapEntries } from "../../src/interpreter/maps";
+import { loadModuleFromPath } from "../../scripts/fixture-utils";
+
+const KERNEL_ENTRY = path.resolve(__dirname, "../../../../kernel/src/kernel.able");
 
 describe("runtime map literals", () => {
-  test("evaluates basic map literal", () => {
+  test("evaluates basic map literal", async () => {
     const interpreter = new Interpreter();
+    await loadKernelModule(interpreter);
     ensureHashMapStruct(interpreter);
     const mapValue = interpreter.evaluate(
       AST.mapLit([
@@ -21,8 +26,9 @@ describe("runtime map literals", () => {
     ]);
   });
 
-  test("applies spreads and overrides duplicates", () => {
+  test("applies spreads and overrides duplicates", async () => {
     const interpreter = new Interpreter();
+    await loadKernelModule(interpreter);
     ensureHashMapStruct(interpreter);
     interpreter.evaluate(
       AST.assign(
@@ -55,6 +61,13 @@ function ensureHashMapStruct(interpreter: Interpreter): void {
     const existing = interpreter.globals.get("HashMap");
     if (existing?.kind === "struct_def") return;
   } catch {}
+  try {
+    const kernelHashMap = interpreter.globals.get("able.kernel.HashMap");
+    if (kernelHashMap?.kind === "struct_def") {
+      interpreter.globals.define("HashMap", kernelHashMap);
+      return;
+    }
+  } catch {}
   interpreter.evaluate(
     AST.structDefinition(
       "HashMap",
@@ -63,6 +76,15 @@ function ensureHashMapStruct(interpreter: Interpreter): void {
       [AST.genericParameter("K"), AST.genericParameter("V")],
     ),
   );
+}
+
+async function loadKernelModule(interpreter: Interpreter): Promise<void> {
+  if (interpreter.packageRegistry.has("able.kernel")) {
+    return;
+  }
+  const kernelModule = await loadModuleFromPath(KERNEL_ENTRY);
+  kernelModule.package = AST.packageStatement(["able", "kernel"]);
+  interpreter.evaluate(kernelModule);
 }
 
 function toSimpleEntries(

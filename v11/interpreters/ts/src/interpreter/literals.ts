@@ -22,7 +22,14 @@ export function evaluateLiteral(ctx: Interpreter, node: AST.AstNode, env: Enviro
     case "IntegerLiteral": {
       const intNode = node as AST.IntegerLiteral;
       const kind = (intNode.integerType ?? "i32") as IntegerKind;
-      const raw = typeof intNode.value === "bigint" ? intNode.value : BigInt(Math.trunc(intNode.value ?? 0));
+      let raw: bigint;
+      if (typeof intNode.value === "bigint") {
+        raw = intNode.value;
+      } else if (typeof intNode.value === "string") {
+        raw = BigInt(intNode.value);
+      } else {
+        raw = BigInt(Math.trunc(intNode.value ?? 0));
+      }
       return makeIntegerValue(kind, raw);
     }
     case "ArrayLiteral": {

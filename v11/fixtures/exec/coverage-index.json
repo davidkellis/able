@@ -318,6 +318,24 @@
     "focus": "operator interfaces for arithmetic/comparison plus display/clone/default helpers"
   },
   {
+    "id": "exec/14_02_hash_eq_float",
+    "status": "seeded",
+    "spec_sections": ["6.3.2", "14.1.5"],
+    "focus": "IEEE float equality/ordering edge cases and HashMap key constraints"
+  },
+  {
+    "id": "exec/14_02_hash_eq_primitives",
+    "status": "seeded",
+    "spec_sections": ["14.1.5"],
+    "focus": "primitive hashing and kernel hasher availability"
+  },
+  {
+    "id": "exec/14_02_hash_eq_custom",
+    "status": "seeded",
+    "spec_sections": ["14.1.5"],
+    "focus": "custom Hash/Eq implementations and collision handling in HashMap"
+  },
+  {
     "id": "exec/14_02_regex_core_match_streaming",
     "status": "planned",
     "spec_sections": ["14.2"],
@@ -514,6 +532,12 @@
     "status": "seeded",
     "spec_sections": ["7.1.3-7.1.5"],
     "focus": "implicit/explicit generics in function definitions with inferred return types"
+  },
+  {
+    "id": "exec/07_08_return_context_generic_call_inference",
+    "status": "seeded",
+    "spec_sections": ["7.1.4", "7.4.1"],
+    "focus": "return-context expected types drive generic call inference (collect without explicit type args)"
   },
   {
     "id": "exec/07_03_explicit_return_flow",

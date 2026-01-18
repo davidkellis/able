@@ -28,7 +28,7 @@ func (c *Checker) validateImplementations() []Diagnostic {
 		if !ok {
 			continue
 		}
-		iface, ok := decl.(InterfaceType)
+		iface, _, ok := resolveInterfaceDecl(decl, spec.InterfaceArgs)
 		if !ok {
 			continue
 		}

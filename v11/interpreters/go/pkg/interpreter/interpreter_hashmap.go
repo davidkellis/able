@@ -1,11 +1,8 @@
 package interpreter
 
 import (
-	"encoding/binary"
 	"fmt"
-	"math"
 	"math/big"
-	"unicode/utf8"
 
 	"able/interpreter-go/pkg/runtime"
 )
@@ -342,219 +339,138 @@ func (i *Interpreter) hashMapInsertEntry(hm *runtime.HashMapValue, key runtime.V
 }
 
 func (i *Interpreter) hashMapKeysEqual(a, b runtime.Value) (bool, error) {
-	if a == b {
-		return true, nil
+	receiver := unwrapInterfaceValue(a)
+	other := unwrapInterfaceValue(b)
+	method, err := i.resolveInterfaceMethod(receiver, "Eq", "eq")
+	if err != nil {
+		return false, err
 	}
-	if valuesEqual(a, b) {
-		return true, nil
+	if method == nil {
+		return false, raiseSignal{value: runtime.ErrorValue{Message: fmt.Sprintf("HashMap key type %s does not implement Eq.eq", i.typeDescForValue(receiver))}}
 	}
-	switch av := a.(type) {
-	case *runtime.ArrayValue:
-		other, ok := b.(*runtime.ArrayValue)
-		if !ok {
-			return false, nil
-		}
-		if len(av.Elements) != len(other.Elements) {
-			return false, nil
-		}
-		for idx := range av.Elements {
-			eq, err := i.hashMapKeysEqual(av.Elements[idx], other.Elements[idx])
-			if err != nil {
-				return false, err
-			}
-			if !eq {
-				return false, nil
-			}
-		}
-		return true, nil
-	case *runtime.StructInstanceValue, *runtime.InterfaceValue, runtime.InterfaceValue:
-		res, handled, err := i.tryInvokeEq(a, b)
-		if err != nil {
-			return false, err
-		}
-		if handled {
-			return res, nil
-		}
-		res, handled, err = i.tryInvokeEq(b, a)
-		if err != nil {
-			return false, err
-		}
-		if handled {
-			return res, nil
-		}
-		typeDesc := fmt.Sprintf("%T", a)
-		if info, ok := i.getTypeInfoForValue(a); ok {
-			if s := typeInfoToString(info); s != "" && s != "<unknown>" {
-				typeDesc = s
-			}
-		}
-		return false, fmt.Errorf("hash map key type %s does not implement eq()", typeDesc)
-	default:
-		return false, nil
+	result, err := i.callCallableValue(method, []runtime.Value{receiver, other}, nil, nil)
+	if err != nil {
+		return false, err
 	}
+	boolResult, ok := result.(runtime.BoolValue)
+	if !ok {
+		if ptr, okPtr := result.(*runtime.BoolValue); okPtr && ptr != nil {
+			boolResult = *ptr
+			ok = true
+		}
+	}
+	if !ok {
+		return false, raiseSignal{value: runtime.ErrorValue{Message: fmt.Sprintf("Eq.eq must return bool (got %s)", result.Kind())}}
+	}
+	return boolResult.Val, nil
 }
 
 func (i *Interpreter) hashMapHashValue(val runtime.Value) (uint64, error) {
-	switch v := val.(type) {
-	case runtime.StringValue:
-		return runtime.HashWithTag('s', []byte(v.Val)), nil
-	case runtime.BoolValue:
-		b := byte(0)
-		if v.Val {
-			b = 1
-		}
-		return runtime.HashWithTag('b', []byte{b}), nil
-	case runtime.CharValue:
-		buf := make([]byte, 4)
-		n := utf8.EncodeRune(buf, v.Val)
-		return runtime.HashWithTag('c', buf[:n]), nil
-	case runtime.NilValue:
-		return runtime.HashWithTag('n', []byte{0}), nil
-	case runtime.IntegerValue:
-		if v.Val == nil {
-			return 0, fmt.Errorf("hash map key: integer missing value")
-		}
-		bytes := v.Val.Bytes()
-		if len(bytes) == 0 {
-			bytes = []byte{0}
-		}
-		sign := byte(0)
-		if v.Val.Sign() < 0 {
-			sign = 1
-		}
-		data := append([]byte{sign}, bytes...)
-		return runtime.HashWithTag('i', data), nil
-	case runtime.FloatValue:
-		if math.IsNaN(v.Val) {
-			return 0, fmt.Errorf("hash map key: NaN is not hashable")
-		}
-		buf := make([]byte, 8)
-		binary.BigEndian.PutUint64(buf, math.Float64bits(v.Val))
-		return runtime.HashWithTag('f', buf), nil
-	case *runtime.ArrayValue:
-		hash := runtime.HashWithTag('a', nil)
-		for _, elem := range v.Elements {
-			elemHash, err := i.hashMapHashValue(elem)
-			if err != nil {
-				return 0, err
-			}
-			buf := make([]byte, 8)
-			binary.BigEndian.PutUint64(buf, elemHash)
-			hash = runtime.HashBytes(hash, buf)
-		}
-		return hash, nil
-	default:
-		return i.hashCustomHashValue(val)
-	}
-}
-
-func (i *Interpreter) hashCustomHashValue(val runtime.Value) (uint64, error) {
-	switch v := val.(type) {
-	case *runtime.StructInstanceValue:
-		return i.invokeHashMethod(v)
-	case *runtime.InterfaceValue:
-		if v == nil || v.Underlying == nil {
-			return 0, fmt.Errorf("hash map key: interface value has no underlying instance")
-		}
-		return i.hashCustomHashValue(v.Underlying)
-	case runtime.InterfaceValue:
-		return i.hashCustomHashValue(&v)
-	default:
-		return 0, fmt.Errorf("hash map key type %T is not supported", val)
-	}
-}
-
-func (i *Interpreter) invokeHashMethod(receiver runtime.Value) (uint64, error) {
-	if receiver == nil {
-		return 0, fmt.Errorf("hash map key: receiver is nil")
-	}
-	info, ok := i.getTypeInfoForValue(receiver)
-	if !ok {
-		return 0, fmt.Errorf("hash map key type %T does not support hashing", receiver)
-	}
-
-	var method runtime.Value
-	if bucket, ok := i.inherentMethods[info.name]; ok {
-		if fn, exists := bucket["hash"]; exists {
-			method = fn
-		}
-	}
-	if method == nil {
-		var err error
-		method, err = i.findMethod(info, "hash", "")
-		if err != nil {
-			return 0, err
-		}
-	}
-	if method == nil {
-		typeDesc := typeInfoToString(info)
-		if typeDesc == "<unknown>" {
-			typeDesc = info.name
-		}
-		return 0, fmt.Errorf("hash map key type %s does not implement hash()", typeDesc)
-	}
-
-	hasher := runtime.NewHasherValue()
-	bound := runtime.BoundMethodValue{Receiver: receiver, Method: method}
-	result, err := i.callCallableValue(bound, []runtime.Value{hasher}, nil, nil)
+	receiver := unwrapInterfaceValue(val)
+	method, err := i.resolveInterfaceMethod(receiver, "Hash", "hash")
 	if err != nil {
 		return 0, err
 	}
+	if method == nil {
+		return 0, raiseSignal{value: runtime.ErrorValue{Message: fmt.Sprintf("HashMap key type %s does not implement Hash.hash", i.typeDescForValue(receiver))}}
+	}
+	hasher, err := i.newKernelHasher()
+	if err != nil {
+		return 0, err
+	}
+	result, err := i.callCallableValue(method, []runtime.Value{receiver, hasher}, nil, nil)
+	if err != nil {
+		return 0, err
+	}
+	if !isVoidOrNil(result) {
+		return 0, raiseSignal{value: runtime.ErrorValue{Message: "Hash.hash must return void"}}
+	}
+	return i.finishKernelHasher(hasher)
+}
 
-	switch rv := result.(type) {
-	case runtime.IntegerValue:
-		if rv.Val == nil {
-			return 0, fmt.Errorf("hash() returned nil integer")
+func unwrapInterfaceValue(val runtime.Value) runtime.Value {
+	for {
+		switch v := val.(type) {
+		case *runtime.InterfaceValue:
+			if v == nil || v.Underlying == nil {
+				return val
+			}
+			val = v.Underlying
+		case runtime.InterfaceValue:
+			if v.Underlying == nil {
+				return val
+			}
+			val = v.Underlying
+		default:
+			return val
 		}
-		if rv.Val.Sign() < 0 {
-			return 0, fmt.Errorf("hash() must return a non-negative integer")
-		}
-		if !rv.Val.IsUint64() {
-			return 0, fmt.Errorf("hash() result exceeds u64 range")
-		}
-		return rv.Val.Uint64(), nil
-	case runtime.NilValue:
-		return hasher.Finish(), nil
-	default:
-		return 0, fmt.Errorf("hash() must return u64 or nil (got %s)", rv.Kind())
 	}
 }
 
-func (i *Interpreter) tryInvokeEq(receiver runtime.Value, other runtime.Value) (bool, bool, error) {
-	if receiver == nil {
-		return false, false, nil
-	}
+func (i *Interpreter) resolveInterfaceMethod(receiver runtime.Value, interfaceName string, methodName string) (runtime.Value, error) {
 	info, ok := i.getTypeInfoForValue(receiver)
 	if !ok {
-		return false, false, nil
+		return nil, nil
 	}
+	return i.findMethod(info, methodName, interfaceName)
+}
 
-	var method runtime.Value
-	if bucket, ok := i.inherentMethods[info.name]; ok {
-		if fn, exists := bucket["eq"]; exists {
-			method = fn
-		}
-	}
-	if method == nil {
-		var err error
-		method, err = i.findMethod(info, "eq", "")
+func (i *Interpreter) newKernelHasher() (runtime.Value, error) {
+	candidates := []string{"KernelHasher.new", "able.kernel.KernelHasher.new"}
+	for _, name := range candidates {
+		val, err := i.global.Get(name)
 		if err != nil {
-			return false, false, err
+			continue
 		}
+		result, err := i.callCallableValue(val, nil, i.global, nil)
+		if err != nil {
+			return nil, err
+		}
+		switch inst := result.(type) {
+		case *runtime.StructInstanceValue:
+			if inst != nil && structInstanceName(inst) == "KernelHasher" {
+				return inst, nil
+			}
+		}
+		return nil, fmt.Errorf("KernelHasher.new returned unexpected value")
+	}
+	return nil, fmt.Errorf("KernelHasher.new is not available")
+}
+
+func (i *Interpreter) finishKernelHasher(hasher runtime.Value) (uint64, error) {
+	method, err := i.resolveInterfaceMethod(hasher, "Hasher", "finish")
+	if err != nil {
+		return 0, err
 	}
 	if method == nil {
-		return false, false, nil
+		return 0, fmt.Errorf("Hasher.finish is not available for KernelHasher")
 	}
-
-	bound := runtime.BoundMethodValue{Receiver: receiver, Method: method}
-	result, err := i.callCallableValue(bound, []runtime.Value{other}, nil, nil)
+	result, err := i.callCallableValue(method, []runtime.Value{hasher}, nil, nil)
 	if err != nil {
-		return false, false, err
+		return 0, err
 	}
+	return integerToUint64(result)
+}
 
-	boolResult, ok := result.(runtime.BoolValue)
-	if !ok {
-		return false, false, fmt.Errorf("eq() must return bool (got %s)", result.Kind())
+func (i *Interpreter) typeDescForValue(val runtime.Value) string {
+	if info, ok := i.getTypeInfoForValue(val); ok {
+		if desc := typeInfoToString(info); desc != "" && desc != "<unknown>" {
+			return desc
+		}
+		if info.name != "" {
+			return info.name
+		}
 	}
-	return boolResult.Val, true, nil
+	return fmt.Sprintf("%T", val)
+}
+
+func isVoidOrNil(val runtime.Value) bool {
+	switch v := val.(type) {
+	case runtime.VoidValue, runtime.NilValue:
+		return true
+	case *runtime.VoidValue, *runtime.NilValue:
+		return v != nil
+	default:
+		return false
+	}
 }

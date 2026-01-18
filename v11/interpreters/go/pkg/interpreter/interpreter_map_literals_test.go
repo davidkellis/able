@@ -11,6 +11,7 @@ import (
 func TestEvaluateMapLiteral(t *testing.T) {
 	interp := New()
 	env := interp.GlobalEnvironment()
+	loadKernelModule(t, interp)
 	seedHashMapStruct(t, interp, env)
 
 	literal := ast.MapLit([]ast.MapLiteralElement{
@@ -57,6 +58,7 @@ func TestEvaluateMapLiteral(t *testing.T) {
 func TestEvaluateMapLiteralWithSpread(t *testing.T) {
 	interp := New()
 	env := interp.GlobalEnvironment()
+	loadKernelModule(t, interp)
 	seedHashMapStruct(t, interp, env)
 
 	defaultsLiteral := ast.MapLit([]ast.MapLiteralElement{
@@ -102,6 +104,16 @@ func TestEvaluateMapLiteralWithSpread(t *testing.T) {
 
 func seedHashMapStruct(t *testing.T, interp *Interpreter, env *runtime.Environment) {
 	t.Helper()
+	if env == nil {
+		t.Fatalf("missing environment")
+	}
+	if existing, err := env.Get("HashMap"); err == nil && existing != nil {
+		return
+	}
+	if kernelHashMap, err := env.Get("able.kernel.HashMap"); err == nil && kernelHashMap != nil {
+		env.Define("HashMap", kernelHashMap)
+		return
+	}
 	keyParam := ast.GenericParam("K", nil)
 	valParam := ast.GenericParam("V", nil)
 	def := ast.StructDef(

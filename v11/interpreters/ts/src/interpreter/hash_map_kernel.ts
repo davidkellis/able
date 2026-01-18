@@ -1,10 +1,13 @@
 import type { Interpreter } from "./index";
 import type { RuntimeValue } from "./values";
-import { makeIntegerFromNumber, numericToNumber, isFloatValue, isIntegerValue } from "./numeric";
+import { makeIntegerFromNumber, numericToNumber, isIntegerValue } from "./numeric";
 import { callCallableValue } from "./functions";
+import { collectTypeDispatches } from "./type-dispatch";
+import { RaiseSignal } from "./signals";
 
 export type HashMapEntry = { key: RuntimeValue; value: RuntimeValue };
-export type HashMapState = { entries: Map<string, HashMapEntry>; order: string[] };
+type HashMapStoredEntry = HashMapEntry & { hash: bigint };
+export type HashMapState = { entries: HashMapStoredEntry[] };
 
 const NIL: Extract<RuntimeValue, { kind: "nil" }> = { kind: "nil", value: null };
 
@@ -25,63 +28,133 @@ const toHandleNumber = (value: RuntimeValue, label: string): number =>
 const hashMapStateForHandle = (interp: Interpreter, handle: number): HashMapState => {
   const state = interp.hashMapStates.get(handle);
   if (!state) {
-    throw new Error(`hash map handle ${handle} is not defined`);
+    throw new RaiseSignal(interp.makeRuntimeError(`hash map handle ${handle} is not defined`));
   }
   return state;
 };
 
 export function hashMapEntries(state: HashMapState): HashMapEntry[] {
-  return state.order.map((label) => {
-    const entry = state.entries.get(label);
-    if (!entry) {
-      throw new Error("HashMap entry missing during serialization");
+  return state.entries;
+}
+
+export function insertHashMapEntry(
+  interp: Interpreter,
+  state: HashMapState,
+  key: RuntimeValue,
+  value: RuntimeValue,
+): void {
+  const hash = hashKey(interp, key);
+  const index = findEntryIndex(interp, state, key, hash);
+  if (index >= 0) {
+    state.entries[index] = { key, value, hash };
+    return;
+  }
+  state.entries.push({ key, value, hash });
+}
+
+function removeHashMapEntry(interp: Interpreter, state: HashMapState, key: RuntimeValue): HashMapEntry | null {
+  const hash = hashKey(interp, key);
+  const index = findEntryIndex(interp, state, key, hash);
+  if (index < 0) return null;
+  const [entry] = state.entries.splice(index, 1);
+  return entry ?? null;
+}
+
+function unwrapInterface(value: RuntimeValue): RuntimeValue {
+  return value.kind === "interface_value" ? value.value : value;
+}
+
+function typeNameForValue(interp: Interpreter, value: RuntimeValue): string {
+  return interp.getTypeNameForValue(value) ?? value.kind;
+}
+
+function resolveInterfaceMethod(
+  interp: Interpreter,
+  receiver: RuntimeValue,
+  interfaceName: string,
+  methodName: string,
+): Extract<RuntimeValue, { kind: "function" | "function_overload" }> | null {
+  const dispatches = collectTypeDispatches(interp, receiver);
+  for (const dispatch of dispatches) {
+    const method = interp.findMethod(dispatch.typeName, methodName, {
+      typeArgs: dispatch.typeArgs,
+      interfaceName,
+      includeInherent: false,
+    });
+    if (method) return method;
+  }
+  return null;
+}
+
+function raiseKernelError(interp: Interpreter, message: string): never {
+  throw new RaiseSignal(interp.makeRuntimeError(message));
+}
+
+function createKernelHasher(interp: Interpreter): RuntimeValue {
+  const method = interp.findMethod("KernelHasher", "new", { includeInherent: true });
+  if (!method) {
+    raiseKernelError(interp, "KernelHasher.new is not available");
+  }
+  const result = callCallableValue(interp, method, [], interp.globals);
+  if (result.kind !== "struct_instance" || result.def.id.name !== "KernelHasher") {
+    raiseKernelError(interp, "KernelHasher.new returned unexpected value");
+  }
+  return result;
+}
+
+function finishKernelHasher(interp: Interpreter, hasher: RuntimeValue): bigint {
+  const method = resolveInterfaceMethod(interp, hasher, "Hasher", "finish");
+  if (!method) {
+    raiseKernelError(interp, "Hasher.finish is not available for KernelHasher");
+  }
+  const result = callCallableValue(interp, method, [hasher], interp.globals);
+  if (!isIntegerValue(result) || result.value < 0n) {
+    raiseKernelError(interp, "Hasher.finish must return u64");
+  }
+  return result.value;
+}
+
+function hashKey(interp: Interpreter, key: RuntimeValue): bigint {
+  const receiver = unwrapInterface(key);
+  const method = resolveInterfaceMethod(interp, receiver, "Hash", "hash");
+  if (!method) {
+    const typeName = typeNameForValue(interp, receiver);
+    raiseKernelError(interp, `HashMap key type ${typeName} does not implement Hash.hash`);
+  }
+  const hasher = createKernelHasher(interp);
+  const result = callCallableValue(interp, method, [receiver, hasher], interp.globals);
+  if (result.kind !== "void" && result.kind !== "nil") {
+    raiseKernelError(interp, "Hash.hash must return void");
+  }
+  return finishKernelHasher(interp, hasher);
+}
+
+function keysEqual(interp: Interpreter, left: RuntimeValue, right: RuntimeValue): boolean {
+  const receiver = unwrapInterface(left);
+  const other = unwrapInterface(right);
+  const method = resolveInterfaceMethod(interp, receiver, "Eq", "eq");
+  if (!method) {
+    const typeName = typeNameForValue(interp, receiver);
+    raiseKernelError(interp, `HashMap key type ${typeName} does not implement Eq.eq`);
+  }
+  const result = callCallableValue(interp, method, [receiver, other], interp.globals);
+  if (result.kind !== "bool") {
+    raiseKernelError(interp, "Eq.eq must return bool");
+  }
+  return result.value;
+}
+
+function findEntryIndex(interp: Interpreter, state: HashMapState, key: RuntimeValue, hash: bigint): number {
+  for (let idx = 0; idx < state.entries.length; idx++) {
+    const entry = state.entries[idx];
+    if (!entry || entry.hash !== hash) {
+      continue;
     }
-    return entry;
-  });
-}
-
-export function insertHashMapEntry(state: HashMapState, key: RuntimeValue, value: RuntimeValue): void {
-  const label = keyLabel(key);
-  if (!state.entries.has(label)) {
-    state.order.push(label);
+    if (keysEqual(interp, entry.key, key)) {
+      return idx;
+    }
   }
-  state.entries.set(label, { key, value });
-}
-
-function removeHashMapEntry(state: HashMapState, key: RuntimeValue): HashMapEntry | null {
-  const label = keyLabel(key);
-  const entry = state.entries.get(label) ?? null;
-  if (!entry) return null;
-  state.entries.delete(label);
-  const idx = state.order.indexOf(label);
-  if (idx >= 0) {
-    state.order.splice(idx, 1);
-  }
-  return entry;
-}
-
-function keyLabel(value: RuntimeValue): string {
-  switch (value.kind) {
-    case "String":
-      return `s:${value.value}`;
-    case "bool":
-      return `b:${value.value ? 1 : 0}`;
-    case "char":
-      return `c:${value.value}`;
-    case "nil":
-      return "n:";
-    default:
-      if (isIntegerValue(value)) {
-        return `i:${value.value.toString()}`;
-      }
-      if (isFloatValue(value)) {
-        if (!Number.isFinite(value.value)) {
-          throw new Error("HashMap keys cannot be NaN or infinite numbers");
-        }
-        return `f:${value.value}`;
-      }
-      throw new Error("HashMap keys must be primitives (String, bool, char, nil, numeric)");
-  }
+  return -1;
 }
 
 export function applyHashMapKernelAugmentations(cls: typeof Interpreter): void {
@@ -93,7 +166,7 @@ export function applyHashMapKernelAugmentations(cls: typeof Interpreter): void {
   };
 
   cls.prototype.createHashMapHandle = function createHashMapHandle(this: Interpreter): number {
-    const state: HashMapState = { entries: new Map(), order: [] };
+    const state: HashMapState = { entries: [] };
     const handle = this.nextHashMapHandle++;
     this.hashMapStates.set(handle, state);
     return handle;
@@ -135,7 +208,9 @@ export function applyHashMapKernelAugmentations(cls: typeof Interpreter): void {
         if (args.length !== 2) throw new Error("__able_hash_map_get expects handle and key");
         const handle = toHandleNumber(args[0], "handle");
         const state = hashMapStateForHandle(interp, handle);
-        const entry = state.entries.get(keyLabel(args[1]));
+        const hash = hashKey(interp, args[1]);
+        const index = findEntryIndex(interp, state, args[1], hash);
+        const entry = index >= 0 ? state.entries[index] : null;
         return entry ? entry.value : NIL;
       }),
     );
@@ -145,7 +220,7 @@ export function applyHashMapKernelAugmentations(cls: typeof Interpreter): void {
         if (args.length !== 3) throw new Error("__able_hash_map_set expects handle, key, and value");
         const handle = toHandleNumber(args[0], "handle");
         const state = hashMapStateForHandle(interp, handle);
-        insertHashMapEntry(state, args[1], args[2] ?? NIL);
+        insertHashMapEntry(interp, state, args[1], args[2] ?? NIL);
         return NIL;
       }),
     );
@@ -155,7 +230,7 @@ export function applyHashMapKernelAugmentations(cls: typeof Interpreter): void {
         if (args.length !== 2) throw new Error("__able_hash_map_remove expects handle and key");
         const handle = toHandleNumber(args[0], "handle");
         const state = hashMapStateForHandle(interp, handle);
-        const entry = removeHashMapEntry(state, args[1]);
+        const entry = removeHashMapEntry(interp, state, args[1]);
         return entry ? entry.value : NIL;
       }),
     );
@@ -165,7 +240,8 @@ export function applyHashMapKernelAugmentations(cls: typeof Interpreter): void {
         if (args.length !== 2) throw new Error("__able_hash_map_contains expects handle and key");
         const handle = toHandleNumber(args[0], "handle");
         const state = hashMapStateForHandle(interp, handle);
-        return { kind: "bool", value: state.entries.has(keyLabel(args[1])) };
+        const hash = hashKey(interp, args[1]);
+        return { kind: "bool", value: findEntryIndex(interp, state, args[1], hash) >= 0 };
       }),
     );
 
@@ -174,7 +250,7 @@ export function applyHashMapKernelAugmentations(cls: typeof Interpreter): void {
         if (args.length !== 1) throw new Error("__able_hash_map_size expects handle");
         const handle = toHandleNumber(args[0], "handle");
         const state = hashMapStateForHandle(interp, handle);
-        return makeIntegerFromNumber("i32", state.entries.size);
+        return makeIntegerFromNumber("i32", state.entries.length);
       }),
     );
 
@@ -183,8 +259,7 @@ export function applyHashMapKernelAugmentations(cls: typeof Interpreter): void {
         if (args.length !== 1) throw new Error("__able_hash_map_clear expects handle");
         const handle = toHandleNumber(args[0], "handle");
         const state = hashMapStateForHandle(interp, handle);
-        state.entries.clear();
-        state.order.length = 0;
+        state.entries.length = 0;
         return NIL;
       }),
     );
@@ -209,8 +284,8 @@ export function applyHashMapKernelAugmentations(cls: typeof Interpreter): void {
         const source = hashMapStateForHandle(interp, handle);
         const next = interp.createHashMapHandle();
         const target = hashMapStateForHandle(interp, next);
-        for (const entry of hashMapEntries(source)) {
-          insertHashMapEntry(target, entry.key, entry.value);
+        for (const entry of source.entries) {
+          target.entries.push({ ...entry });
         }
         return makeIntegerFromNumber("i64", next);
       }),

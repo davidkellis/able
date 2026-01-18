@@ -1,61 +1,44 @@
 package interfaces
-## Ordering enumeration used by comparison interfaces.
-struct Less {}
-struct Equal {}
-struct Greater {}
-union Ordering = Less | Equal | Greater
-
-## Displayable values produce user-facing strings (used by interpolation).
-interface Display for T {
-  fn to_string(self: Self) -> String;
+import able.kernel.{
+  Less::KernelLess,
+  Equal::KernelEqual,
+  Greater::KernelGreater,
+  Ordering::KernelOrdering,
+  Display::KernelDisplay,
+  Clone::KernelClone,
+  Default::KernelDefault,
+  PartialEq::KernelPartialEq,
+  Eq::KernelEq,
+  PartialOrd::KernelPartialOrd,
+  Ord::KernelOrd,
+  Hash::KernelHash,
+  Hasher::KernelHasherInterface
 }
 
-## Cloneable values provide a logical copy operation.
-interface Clone for T {
-  fn clone(self: Self) -> Self;
-}
+## Kernel-resident comparison + hashing types.
+type Less = KernelLess;
+type Equal = KernelEqual;
+type Greater = KernelGreater;
+type Ordering = KernelOrdering;
+Less := KernelLess
+Equal := KernelEqual
+Greater := KernelGreater
+Ordering := KernelOrdering
 
-## Default constructible values expose a zero-argument constructor.
-interface Default for T {
-  fn default() -> Self;
-}
-
-## Hashing support for map/set keys.
-interface Hasher {
-  fn finish(self: Self) -> u64;
-  fn write_bytes(self: Self, bytes: String) -> void;
-}
-
-interface Hash for T {
-  fn hash(self: Self, hasher: Hasher) -> u64;
-}
+type Display = KernelDisplay;
+type Clone = KernelClone;
+type Default = KernelDefault;
+type PartialEq Rhs = KernelPartialEq Rhs;
+type Eq = KernelEq;
+type PartialOrd Rhs = KernelPartialOrd Rhs;
+type Ord = KernelOrd;
+type Hash = KernelHash;
+type Hasher = KernelHasherInterface;
 
 ## Error values participate in raise/rescue.
 interface Error for T {
   fn message(self: Self) -> String;
   fn cause(self: Self) -> ?Error;
-}
-
-## Partial equality comparison. Full Eq types must implement these semantics.
-interface PartialEq Rhs for T {
-  fn eq(self: Self, other: Rhs) -> bool;
-  fn ne(self: Self, other: Rhs) -> bool { !self.eq(other) }
-}
-
-## Equality comparison (total); mirrors PartialEq but with stronger semantic expectations.
-interface Eq for T {
-  fn eq(self: Self, other: Self) -> bool;
-  fn ne(self: Self, other: Self) -> bool { !self.eq(other) }
-}
-
-## Partial ordering returning Ordering.
-interface PartialOrd Rhs for T {
-  fn partial_cmp(self: Self, other: Rhs) -> Ordering;
-}
-
-## Total ordering comparison returning Ordering.
-interface Ord for T {
-  fn cmp(self: Self, other: Self) -> Ordering;
 }
 
 ## Operator families.
@@ -119,36 +102,4 @@ interface Index Idx Output for T {
 
 interface IndexMut Idx Output for T {
   fn set(self: Self, idx: Idx, value: Output) -> !void;
-}
-
-methods i32 {
-  fn cmp(self: Self, other: i32) -> Ordering {
-    if self < other { return Less {} }
-    if self > other { return Greater {} }
-    Equal {}
-  }
-}
-
-methods String {
-  fn cmp(self: Self, other: String) -> Ordering {
-    if self < other { return Less {} }
-    if self > other { return Greater {} }
-    Equal {}
-  }
-}
-
-impl Ord for i32 {
-  fn cmp(self: Self, other: i32) -> Ordering {
-    if self < other { return Less {} }
-    if self > other { return Greater {} }
-    Equal {}
-  }
-}
-
-impl Ord for String {
-  fn cmp(self: Self, other: String) -> Ordering {
-    if self < other { return Less {} }
-    if self > other { return Greater {} }
-    Equal {}
-  }
 }

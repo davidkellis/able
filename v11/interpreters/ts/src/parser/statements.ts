@@ -158,8 +158,21 @@ function parseBlock(node: Node | null | undefined, source: string): BlockExpress
         const exprNode = firstNamedChild(next);
         if (!exprNode) break;
         const expr = ctx.parseExpression(exprNode);
-        if (expr.type !== "UnaryExpression" || expr.operator !== "-") break;
-        assignment.right = inheritMetadata(AST.binaryExpression("-", assignment.right, expr.operand), assignment.right, expr);
+        let operand: Expression | null = null;
+        if (expr.type === "UnaryExpression" && expr.operator === "-") {
+          operand = expr.operand;
+        } else if (expr.type === "IntegerLiteral") {
+          const value = expr.value;
+          const isNegative = typeof value === "bigint" ? value < 0n : Number(value) < 0;
+          if (isNegative) {
+            const absValue = typeof value === "bigint" ? -value : Math.abs(Number(value));
+            operand = AST.integerLiteral(absValue, expr.integerType);
+          }
+        } else if (expr.type === "FloatLiteral" && expr.value < 0) {
+          operand = AST.floatLiteral(-expr.value, expr.floatType);
+        }
+        if (!operand) break;
+        assignment.right = inheritMetadata(AST.binaryExpression("-", assignment.right, operand), assignment.right, expr);
         i++;
         const nextIndex = findNamedChildIndex(node, next);
         if (nextIndex === -1) break;

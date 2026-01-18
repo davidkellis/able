@@ -1,5 +1,36 @@
 # Able Project Log
 
+# 2026-01-15 — Hash/Eq fixture and test coverage (v11)
+- Fixtures: added AST fixtures for primitive hashing, kernel hasher availability, custom Hash/Eq, and collision handling; added exec fixtures for primitive hashing plus custom Hash/Eq + collisions; updated exec coverage index.
+- Tests: added TS + Go unit coverage for hash helper builtins and kernel HashMap dispatch (custom + collision keys).
+- Tests not run (edited code + fixtures only).
+
+# 2026-01-15 — Remove host hasher bridges (v11)
+- Kernel: dropped the `__able_hasher_*` extern declarations and the unused `HasherHandle` alias so hashing flows through `KernelHasher` only.
+- Interpreters: removed host hasher state/builtins from Go + TypeScript, along with runtime stub and typechecker builtin entries.
+- Docs/spec: scrubbed hasher bridge references from the kernel contract and extern execution/design notes.
+- Tests not run (edited code + docs only).
+
+# 2026-01-15 — Kernel Hash/Eq runtime alignment (v11)
+- Kernel: added primitive `Eq`/`Ord`/`Hash` impls (ints/bool/char/String) plus float-only `PartialEq`/`PartialOrd`, and wired the Able-level FNV-1a hasher with raw byte helpers.
+- Stdlib: trimmed duplicate interface impls and routed map hashing through the sink-style `Hash.hash` API.
+- Interpreters: hash map kernels now dispatch `Hash.hash`/`Eq.eq`; numeric equality follows IEEE semantics; Go/TS typecheckers exclude floats from `Eq`/`Hash`.
+- Fixtures: added float equality + hash-map key rejection exec coverage.
+- Tests not run (edited code + docs only).
+
+# 2026-01-15 — Kernel interfaces + Hash/Eq plan (v11)
+- Documented the kernel-resident interface plan for primitive `Hash`/`Eq`, including runtime/stdlib/typechecker alignment, spec deltas, and fixture coverage (`v11/design/kernel-interfaces-hash-eq.md`, `v11/design/stdlib-v11.md`).
+- Captured the spec update checklist in `spec/TODO_v11.md` and expanded the roadmap work breakdown in `PLAN.md`.
+- Tests not run (planning/doc updates only).
+
+# 2026-01-15 — Manual syntax alignment (v11)
+- Manual docs now reflect v11 lexical rules and pipe semantics: line comments use `##`, string literals can be double-quoted or backticks with interpolation, and pipe docs no longer reference a `%` topic token (`v11/docs/manual/manual.md`, `v11/docs/manual/variables.html`).
+- Tests not run (docs-only changes).
+
+# 2026-01-15 — Primitive Hash/Eq constraints (v11)
+- TypeScript typechecker now treats primitive numeric types as satisfying `Hash`/`Eq` constraints (matching Go) and the example iterates directly over `String` so `for` sees an `Iterable` (`v11/interpreters/ts/src/typechecker/checker/implementation-constraints.ts`, `.examples/foo.able`).
+- Tests: `./v11/ablets .examples/foo.able`; `./v11/ablego .examples/foo.able`.
+
 # 2026-01-13 — Runtime diagnostics formatting (v11)
 - Runtime errors now emit `runtime:` diagnostics with locations + call-site notes in both interpreters; CLI/runtime harnesses share the same formatter.
 - Added Go runtime diagnostic formatting test and updated exec fixture stderr expectations to include locations.
@@ -800,3 +831,26 @@ Open items (2025-11-02 audit):
 - Added exec fixture `exec/04_05_04_struct_literal_generic_inference`, updated the exec coverage index, and enforced exec-fixture typechecking when manifests specify diagnostics (TS + Go).
 - Fixed struct literal generic type-argument handling in the TS and Go typecheckers (placeholder args in TS; inferred args in Go).
 - Tests: `./run_all_tests.sh --version=v11 --typecheck-fixtures-strict`.
+- Clarified spec call-site inference to include return-context expected types and documented return-context inference design notes; updated PLAN work queue.
+
+### 2026-01-15
+- TS typechecker now uses expected return types to drive generic call inference (explicit + implicit return paths), with new return-context unit tests.
+- Go typechecker now propagates expected return types through implicit return blocks, plus a focused unit test for implicit-return inference.
+- Added exec fixture `exec/07_08_return_context_generic_call_inference` and updated the exec coverage index.
+- Tests: `cd v11/interpreters/ts && bun test test/typechecker/return_context_inference.test.ts`; `cd v11/interpreters/go && go test ./pkg/typechecker -run TestGenericCallInfersFromImplicitReturnExpectedType`.
+- TS typechecker now treats method-shorthand exports as taking implicit self for overload resolution, and uses receiver substitutions when enforcing method-set where clauses on exported function calls.
+- TS runtime now treats unresolved generic type arguments on struct instances as wildcard matches when comparing against concrete generic types.
+- Tests: `./run_all_tests.sh --version=v11 --typecheck-fixtures-strict`.
+- Documented kernel Hash/Eq decisions (sink-style hashing, IEEE float equality, floats not Eq/Hash), updated spec wording, and expanded the PLAN work breakdown for interpreter alignment.
+- Extended the kernel Hash/Eq plan to move the default `Hasher` implementation into Able with host bitcast helpers; updated spec TODOs and PLAN tasks accordingly.
+- Added a kernel-level FNV-1a Hasher (Able code) with big-endian byte emission, introduced `__able_f32_bits`/`__able_f64_bits`/`__able_u64_mul` helpers in TS/Go, and updated stdlib hashing call sites + tests to use the new sink-style Hash API.
+
+### 2026-01-16
+- Spec: documented the always-loaded `able.kernel` contract (core interfaces, HashMap, KernelHasher, hash bridges) and clarified map literal key constraints plus hash container semantics.
+- Spec: defined the `Hasher` interface and tied primitive Hash/Eq/Ord impls to the kernel library; aligned kernel string/char bridge names.
+- Spec: enumerated kernel-resident types/interfaces/methods and listed the full `Hasher` helper surface with default semantics.
+- TS interpreter: track struct definitions and treat concrete type names as taking precedence over interface names during runtime coercion/matching to fix `Range` vs `Range` interface collisions.
+- Go typechecker: unwrap interface aliases (e.g., `Clone`, `Eq`, `Hash`) when collecting impls, validating impls, and solving constraints.
+- Spec TODOs: cleared the kernel hashing contract items now captured in `spec/full_spec_v11.md`.
+- Tests: `./run_all_tests.sh --version=v11`; `./run_stdlib_tests.sh --version=v11`.
+- Next: resume the PLAN work queue (regex parser + quantifiers).

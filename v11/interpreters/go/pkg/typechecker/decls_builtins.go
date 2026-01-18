@@ -202,22 +202,21 @@ func registerBuiltins(env *Environment) {
 		Params: []Type{charType},
 		Return: i32Type,
 	})
-
-	env.Define("__able_hasher_create", FunctionType{
-		Params: nil,
-		Return: i64Type,
-	})
-	env.Define("__able_hasher_write", FunctionType{
-		Params: []Type{i64Type, stringType},
-		Return: nilType,
-	})
-	env.Define("__able_hasher_finish", FunctionType{
-		Params: []Type{i64Type},
-		Return: i64Type,
-	})
 	env.Define("__able_ratio_from_float", FunctionType{
 		Params: []Type{FloatType{Suffix: "f64"}},
 		Return: StructType{StructName: "Ratio"},
+	})
+	env.Define("__able_f32_bits", FunctionType{
+		Params: []Type{FloatType{Suffix: "f32"}},
+		Return: IntegerType{Suffix: "u32"},
+	})
+	env.Define("__able_f64_bits", FunctionType{
+		Params: []Type{FloatType{Suffix: "f64"}},
+		Return: IntegerType{Suffix: "u64"},
+	})
+	env.Define("__able_u64_mul", FunctionType{
+		Params: []Type{IntegerType{Suffix: "u64"}, IntegerType{Suffix: "u64"}},
+		Return: IntegerType{Suffix: "u64"},
 	})
 
 	env.Define("Less", lessType)

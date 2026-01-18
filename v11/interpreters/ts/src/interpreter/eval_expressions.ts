@@ -16,7 +16,7 @@ import {
 import { evaluateEnsureExpression, evaluateOrElseExpression, evaluatePropagationExpression, evaluateRescueExpression, evaluateRaiseStatement, evaluateRethrowStatement } from "./error_handling";
 import { callCallableValue, evaluateFunctionCall, evaluateFunctionDefinition, evaluateLambdaExpression } from "./functions";
 import { evaluateDynImportStatement, evaluateImportStatement, evaluateModule, evaluatePackageStatement } from "./imports";
-import { evaluateImplementationDefinition, evaluateInterfaceDefinition, evaluateMethodsDefinition, evaluateUnionDefinition } from "./definitions";
+import { canonicalizeTypeExpression, evaluateImplementationDefinition, evaluateInterfaceDefinition, evaluateMethodsDefinition, evaluateUnionDefinition } from "./definitions";
 import { evaluateMatchExpression } from "./match";
 import { evaluateMemberAccessExpression, evaluateStructDefinition, evaluateStructLiteral, evaluateImplicitMemberExpression, memberAccessOnValue } from "./structs";
 import { evaluateLiteral } from "./literals";
@@ -194,13 +194,17 @@ export function applyEvaluationAugmentations(cls: typeof Interpreter): void {
           throw new Error("type alias name '_' is reserved");
         }
         if (node.id?.name) {
-          this.typeAliases.set(node.id.name, node as AST.TypeAliasDefinition);
+          const canonicalTarget = node.targetType ? canonicalizeTypeExpression(this, env, node.targetType) : node.targetType;
+          const aliasDef = canonicalTarget
+            ? { ...node, targetType: canonicalTarget }
+            : (node as AST.TypeAliasDefinition);
+          this.typeAliases.set(node.id.name, aliasDef);
           const targetName =
-            node.targetType?.type === "SimpleTypeExpression"
-              ? node.targetType.name?.name
-              : node.targetType?.type === "GenericTypeExpression"
-                ? node.targetType.base?.type === "SimpleTypeExpression"
-                  ? node.targetType.base.name?.name
+            aliasDef.targetType?.type === "SimpleTypeExpression"
+              ? aliasDef.targetType.name?.name
+              : aliasDef.targetType?.type === "GenericTypeExpression"
+                ? aliasDef.targetType.base?.type === "SimpleTypeExpression"
+                  ? aliasDef.targetType.base.name?.name
                   : null
                 : null;
           if (targetName) {

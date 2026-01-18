@@ -187,11 +187,11 @@ func (c *Checker) interfaceFromName(name string) interfaceResolution {
 	if !ok {
 		return interfaceResolution{err: fmt.Sprintf("references unknown interface '%s'", name), name: name}
 	}
-	iface, ok := decl.(InterfaceType)
+	iface, args, ok := resolveInterfaceDecl(decl, nil)
 	if !ok {
 		return interfaceResolution{err: fmt.Sprintf("references '%s' which is not an interface", name), name: name}
 	}
-	return interfaceResolution{iface: iface, name: iface.InterfaceName}
+	return interfaceResolution{iface: iface, args: args, name: iface.InterfaceName}
 }
 
 func (c *Checker) obligationSatisfied(ob ConstraintObligation, res interfaceResolution) (bool, string) {
@@ -271,6 +271,13 @@ func (c *Checker) typeImplementsInterface(subject Type, iface InterfaceType, arg
 func implementsIntrinsicInterface(subject Type, interfaceName string) bool {
 	switch interfaceName {
 	case "Hash", "Eq":
+		switch val := subject.(type) {
+		case PrimitiveType:
+			return val.Kind == PrimitiveString || val.Kind == PrimitiveBool || val.Kind == PrimitiveChar
+		case IntegerType:
+			return val.Suffix != ""
+		}
+	case "PartialEq", "PartialOrd":
 		switch val := subject.(type) {
 		case PrimitiveType:
 			return val.Kind == PrimitiveString || val.Kind == PrimitiveBool || val.Kind == PrimitiveChar

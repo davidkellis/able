@@ -202,6 +202,10 @@ export class TypeCheckerBase {
     return this.context.inferExpression(expression);
   }
 
+  protected inferExpressionWithExpected(expression: AST.Expression | undefined | null, expected: TypeInfo): TypeInfo {
+    return this.context.inferExpressionWithExpected(expression, expected);
+  }
+
   protected withForkedEnv<T>(fn: () => T): T {
     const previousEnv = this.env;
     this.env = this.env.fork();
@@ -262,8 +266,8 @@ export class TypeCheckerBase {
     }
   }
 
-  protected checkFunctionCall(call: AST.FunctionCall): void {
-    checkFunctionCallHelper(this.functionCallContext(), call);
+  protected checkFunctionCall(call: AST.FunctionCall, expectedReturn?: TypeInfo): void {
+    checkFunctionCallHelper(this.functionCallContext(), call, expectedReturn);
   }
 
   protected checkFunctionDefinition(definition: AST.FunctionDefinition): void {
@@ -292,7 +296,13 @@ export class TypeCheckerBase {
           this.env.define(paramName, paramType ?? unknownType);
         });
       }
-      const bodyType = this.inferExpression(definition.body);
+      const shouldUseExpected =
+        expectedReturn &&
+        expectedReturn.kind !== "unknown" &&
+        !(expectedReturn.kind === "primitive" && expectedReturn.name === "void");
+      const bodyType = shouldUseExpected
+        ? this.inferExpressionWithExpected(definition.body, expectedReturn)
+        : this.inferExpression(definition.body);
       const expectedVoid =
         expectedReturn?.kind === "primitive" && expectedReturn.name === "void";
       if (!expectedVoid && expectedReturn && expectedReturn.kind !== "unknown" && bodyType && bodyType.kind !== "unknown") {
@@ -316,7 +326,15 @@ export class TypeCheckerBase {
   protected checkReturnStatement(statement: AST.ReturnStatement): void {
     if (!statement) return;
     const expected = this.currentReturnType();
-    let actual = statement.argument ? this.inferExpression(statement.argument) : primitiveType("void");
+    const shouldUseExpected =
+      expected &&
+      expected.kind !== "unknown" &&
+      !(expected.kind === "primitive" && expected.name === "void");
+    let actual = statement.argument
+      ? shouldUseExpected
+        ? this.inferExpressionWithExpected(statement.argument, expected)
+        : this.inferExpression(statement.argument)
+      : primitiveType("void");
     if (statement.argument?.type === "FunctionCall" && expected && expected.kind !== "unknown") {
       actual = refineTypeWithExpected(actual, expected);
     }
@@ -467,8 +485,8 @@ export class TypeCheckerBase {
     }
   }
 
-  protected inferFunctionCallReturnType(call: AST.FunctionCall): TypeInfo {
-    return inferFunctionCallReturnTypeHelper(this.functionCallContext(), call);
+  protected inferFunctionCallReturnType(call: AST.FunctionCall, expectedReturn?: TypeInfo): TypeInfo {
+    return inferFunctionCallReturnTypeHelper(this.functionCallContext(), call, expectedReturn);
   }
 
   protected functionCallContext() {
@@ -481,6 +499,7 @@ export class TypeCheckerBase {
         this.resolveTypeExpression(expr, substitutions),
       describeLiteralMismatch: this.describeLiteralMismatch.bind(this),
       isTypeAssignable: this.isTypeAssignable.bind(this),
+      typeExpressionsEquivalent: this.typeExpressionsEquivalent.bind(this),
       report: this.report.bind(this),
       handlePackageMemberAccess: this.handlePackageMemberAccess.bind(this),
       getIdentifierName: this.getIdentifierName.bind(this),

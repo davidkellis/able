@@ -1,10 +1,9 @@
 package persistent_map
 
-import able.kernel.{Array}
+import able.kernel.{Array, KernelHasher}
 import able.collections.array
 import able.collections.enumerable.{Enumerable}
-import able.core.interfaces.{Hash, Hasher, Eq, Clone}
-import able.text.string
+import able.core.interfaces.{Hash, Eq, Clone}
 
 HAMT_BITS: i32 := 5
 HAMT_MASK: i32 := ((1_i32 .<< HAMT_BITS) + (-1_i32))
@@ -45,47 +44,14 @@ struct HamtDissocResult K V {
   removed: bool
 }
 
-struct RuntimeHasher {
-  handle: i64
-}
-
-impl Hasher for RuntimeHasher {
-  fn finish(self: Self) -> u64 { __able_hasher_finish(self.handle) as u64 }
-  fn write_bytes(self: Self, bytes: String) -> void { __able_hasher_write(self.handle, bytes) }
-}
-
-fn make_hasher() -> RuntimeHasher { RuntimeHasher { handle: __able_hasher_create() } }
-
 fn hash_key<K>(key: K) -> u64 where K: Hash {
-  hasher := make_hasher()
-  key match {
-    case value: String => hash_string(hasher, value),
-    case value: i32 => hash_string(hasher, `${value}`),
-    case value: i64 => hash_string(hasher, `${value}`),
-    case value: u32 => hash_string(hasher, `${value}`),
-    case value: u64 => hash_string(hasher, `${value}`),
-    case value: bool => hash_string(hasher, `${value}`),
-    case value: char => hash_string(hasher, `${value}`),
-    case _ => key.hash(hasher)
-  }
+  hasher := KernelHasher.new()
+  key.hash(hasher)
+  hasher.finish()
 }
 
 fn eq_key<K>(left: K, right: K) -> bool where K: Eq K {
-  left match {
-    case value: String => value == right,
-    case value: i32 => value == right,
-    case value: i64 => value == right,
-    case value: u32 => value == right,
-    case value: u64 => value == right,
-    case value: bool => value == right,
-    case value: char => value == right,
-    case _ => left.eq(right)
-  }
-}
-
-fn hash_string(hasher: RuntimeHasher, value: String) -> u64 {
-  hasher.write_bytes(value)
-  hasher.finish()
+  left.eq(right)
 }
 
 fn bitpos(hash: u64, shift: i32) -> i32 {
