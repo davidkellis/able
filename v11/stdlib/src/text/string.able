@@ -1,7 +1,7 @@
 package string
 import able.kernel.{Array}
 import able.collections.array
-import able.core.interfaces.{Clone, Eq, Error, Hash, Hasher}
+import able.core.interfaces.{Clone, Error}
 import able.core.iteration.{Iterable, Iterator, IteratorEnd}
 import able.core.options.{Result}
 import able.core.errors.{RangeError}
@@ -402,29 +402,6 @@ methods String {
 impl Clone for String {
   fn clone(self: Self) -> String {
     self
-  }
-}
-
-impl Eq for String {
-  fn eq(self: Self, other: Self) -> bool {
-    left := validated_bytes(self)
-    right := validated_bytes(other)
-    if left.len() != right.len() { return false }
-    idx := 0
-    length := left.len()
-    loop {
-      if idx >= length { break }
-      if left.read_slot(idx) != right.read_slot(idx) { return false }
-      idx = idx + 1
-    }
-    true
-  }
-}
-
-impl Hash for String {
-  fn hash(self: Self, hasher: Hasher) -> u64 {
-    hasher.write_bytes(unwrap_string(self))
-    hasher.finish()
   }
 }
 

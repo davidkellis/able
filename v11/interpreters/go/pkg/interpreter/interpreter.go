@@ -189,6 +189,7 @@ type Interpreter struct {
 	packageRegistry       map[string]map[string]runtime.Value
 	packageMetadata       map[string]packageMeta
 	externHostPackages    map[string]*externHostPackage
+	externHostMu          sync.Mutex
 	currentPackage        string
 	dynamicDefinitionMode bool
 	dynPackageDefMethod   runtime.NativeFunctionValue
@@ -222,11 +223,6 @@ type Interpreter struct {
 	stringHostReady bool
 	osReady         bool
 	osArgs          []string
-
-	hasherReady      bool
-	hasherMu         sync.Mutex
-	hashers          map[int64]*hasherState
-	nextHasherHandle int64
 	ratioReady       bool
 
 	orderingStructs map[string]*runtime.StructDefinitionValue
@@ -367,7 +363,6 @@ func NewWithExecutor(exec Executor) *Interpreter {
 		mutexes:                 make(map[int64]*mutexState),
 		concurrencyErrorStructs: make(map[string]*runtime.StructDefinitionValue),
 		standardErrorStructs:    make(map[string]*runtime.StructDefinitionValue),
-		hashers:                 make(map[int64]*hasherState),
 		orderingStructs:         make(map[string]*runtime.StructDefinitionValue),
 		arrayStates:             make(map[int64]*arrayState),
 		arraysByHandle:          make(map[int64]map[*runtime.ArrayValue]struct{}),
@@ -383,7 +378,6 @@ func NewWithExecutor(exec Executor) *Interpreter {
 	i.initStringHostBuiltins()
 	i.initOsBuiltins()
 	i.initErrorBuiltins()
-	i.initHasherBuiltins()
 	i.initRatioBuiltins()
 	i.initInterfaceBuiltins()
 	i.initDynamicBuiltins()

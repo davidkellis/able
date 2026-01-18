@@ -139,18 +139,14 @@ func (i *Interpreter) castValueToType(typeExpr ast.TypeExpression, value runtime
 		if info, err := getIntegerInfo(targetKind); err == nil {
 			switch val := rawValue.(type) {
 			case runtime.IntegerValue:
-				if err := ensureFitsInteger(info, val.Val); err != nil {
-					return nil, err
-				}
-				return runtime.IntegerValue{Val: new(big.Int).Set(val.Val), TypeSuffix: targetKind}, nil
+				wrapped := patternToInteger(bitPattern(val.Val, info), info)
+				return runtime.IntegerValue{Val: new(big.Int).Set(wrapped), TypeSuffix: targetKind}, nil
 			case *runtime.IntegerValue:
 				if val == nil {
 					return nil, fmt.Errorf("cannot cast <nil> to %s", targetKind)
 				}
-				if err := ensureFitsInteger(info, val.Val); err != nil {
-					return nil, err
-				}
-				return runtime.IntegerValue{Val: new(big.Int).Set(val.Val), TypeSuffix: targetKind}, nil
+				wrapped := patternToInteger(bitPattern(val.Val, info), info)
+				return runtime.IntegerValue{Val: new(big.Int).Set(wrapped), TypeSuffix: targetKind}, nil
 			case runtime.FloatValue:
 				if math.IsNaN(val.Val) || math.IsInf(val.Val, 0) {
 					return nil, fmt.Errorf("cannot cast non-finite float to %s", targetKind)

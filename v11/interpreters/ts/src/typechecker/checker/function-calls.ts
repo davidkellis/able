@@ -1,5 +1,5 @@
-import type * as AST from "../../ast";
-import { formatType, primitiveType, unknownType, type TypeInfo } from "../types";
+import * as AST from "../../ast";
+import { formatType, unknownType, type TypeInfo } from "../types";
 import type { ImplementationContext } from "./implementations";
 import {
   ambiguousImplementationDetail,
@@ -9,6 +9,7 @@ import {
 } from "./implementations";
 import { mergeBranchTypes as mergeBranchTypesHelper } from "./expressions";
 import type { StatementContext } from "./expression-context";
+import { typeInfoToTypeExpression } from "./type-expression-utils";
 import type { FunctionInfo, InterfaceCheckResult } from "./types";
 
 type FunctionCallContext = {
@@ -19,6 +20,10 @@ type FunctionCallContext = {
   resolveTypeExpression(expr: AST.TypeExpression | null | undefined, substitutions?: Map<string, TypeInfo>): TypeInfo;
   describeLiteralMismatch(actual?: TypeInfo, expected?: TypeInfo): string | null;
   isTypeAssignable(actual?: TypeInfo, expected?: TypeInfo): boolean;
+  typeExpressionsEquivalent(
+    a: AST.TypeExpression | null | undefined,
+    b: AST.TypeExpression | null | undefined,
+  ): boolean;
   report(message: string, node?: AST.Node | null): void;
   handlePackageMemberAccess(expression: AST.MemberAccessExpression): boolean;
   getIdentifierName(node: AST.Identifier | null | undefined): string | null;
@@ -70,7 +75,7 @@ function reportAmbiguousInterfaceMethod(
   return false;
 }
 
-export function checkFunctionCall(ctx: FunctionCallContext, call: AST.FunctionCall): void {
+export function checkFunctionCall(ctx: FunctionCallContext, call: AST.FunctionCall, expectedReturn?: TypeInfo): void {
   if (call.callee.type === "MemberAccessExpression" && call.callee.member?.type === "Identifier") {
     const receiverType = ctx.inferExpression(call.callee.object);
     if (reportAmbiguousInterfaceMethod(ctx, receiverType, call.callee.member.name, call)) {
@@ -141,7 +146,7 @@ export function checkFunctionCall(ctx: FunctionCallContext, call: AST.FunctionCa
     }
     return;
   }
-  const resolution = selectBestOverload(ctx, candidates, call, callArgs, callArgTypes);
+  const resolution = selectBestOverload(ctx, candidates, call, callArgs, callArgTypes, expectedReturn);
   if (resolution.kind === "no-match") {
     const partial = findPartialApplication(candidates, callArgs.length, call);
     if (partial) {
@@ -161,14 +166,22 @@ export function checkFunctionCall(ctx: FunctionCallContext, call: AST.FunctionCa
     ctx.report(`typechecker: ambiguous overload for ${name ?? "function"}`, call);
     return;
   }
-  const { info, params, optionalLast } = resolution;
+  const { info, params, optionalLast, inferredTypeArgs } = resolution;
   const ok = reportArgumentDiagnostics(ctx, info, params, optionalLast, call, callArgs, callArgTypes);
   if (ok) {
-    enforceFunctionConstraintsHelper(ctx.implementationContext, info, call);
+    if ((!call.typeArguments || call.typeArguments.length === 0) && inferredTypeArgs && inferredTypeArgs.length > 0) {
+      call.typeArguments = inferredTypeArgs;
+    }
+    const selfSubstitutions = buildSelfArgSubstitutions(ctx, info, call, callArgTypes, { includeSelf: true });
+    enforceFunctionConstraintsHelper(ctx.implementationContext, info, call, selfSubstitutions ?? undefined);
   }
 }
 
-export function inferFunctionCallReturnType(ctx: FunctionCallContext, call: AST.FunctionCall): TypeInfo {
+export function inferFunctionCallReturnType(
+  ctx: FunctionCallContext,
+  call: AST.FunctionCall,
+  expectedReturn?: TypeInfo,
+): TypeInfo {
   const args = Array.isArray(call.arguments) ? call.arguments : [];
   const argTypes = args.map((arg) => ctx.inferExpression(arg));
   let infos: FunctionInfo[] = [];
@@ -193,9 +206,9 @@ export function inferFunctionCallReturnType(ctx: FunctionCallContext, call: AST.
     const applyMatch = resolveApplyInterface(ctx, call.callee);
     return applyMatch?.returnType ?? unknownType;
   }
-  const resolution = selectBestOverload(ctx, infos, call, callArgs, callArgTypes);
+  const resolution = selectBestOverload(ctx, infos, call, callArgs, callArgTypes, expectedReturn);
   if (resolution.kind === "match") {
-    return resolution.info.returnType ?? unknownType;
+    return resolution.returnType ?? unknownType;
   }
   if (resolution.kind === "no-match") {
     const partial = findPartialApplication(infos, callArgs.length, call);
@@ -217,9 +230,295 @@ export function inferFunctionCallReturnType(ctx: FunctionCallContext, call: AST.
 }
 
 type OverloadResolution =
-  | { kind: "match"; info: FunctionInfo; params: TypeInfo[]; optionalLast: boolean }
+  | {
+      kind: "match";
+      info: FunctionInfo;
+      params: TypeInfo[];
+      optionalLast: boolean;
+      returnType: TypeInfo;
+      inferredTypeArgs?: AST.TypeExpression[];
+    }
   | { kind: "ambiguous"; infos: FunctionInfo[] }
   | { kind: "no-match" };
+
+type CallSignature = {
+  params: TypeInfo[];
+  optionalLast: boolean;
+  returnType: TypeInfo;
+  inferredTypeArgs?: AST.TypeExpression[];
+};
+
+function instantiateCallSignature(
+  ctx: FunctionCallContext,
+  info: FunctionInfo,
+  call: AST.FunctionCall,
+  argTypes: TypeInfo[],
+  expectedReturn?: TypeInfo,
+): CallSignature {
+  const definition = info.definition;
+  if (!definition) {
+    const effective = buildEffectiveParams(info, call);
+    return {
+      params: effective.params,
+      optionalLast: effective.optionalLast,
+      returnType: info.returnType ?? unknownType,
+    };
+  }
+  const genericParamNames = Array.isArray(info.genericParamNames) ? info.genericParamNames : [];
+  const genericNames = new Set(genericParamNames);
+  const substitutions = new Map<string, TypeInfo>();
+  const bindings = new Map<string, AST.TypeExpression>();
+
+  if (info.methodSetSubstitutions) {
+    for (const [key, value] of info.methodSetSubstitutions) {
+      substitutions.set(key, value ?? unknownType);
+      if (genericNames.has(key)) {
+        const expr = typeInfoToTypeExpression(value);
+        if (expr) {
+          bindings.set(key, expr);
+        }
+      }
+    }
+  }
+
+  const selfSubstitutions = buildSelfArgSubstitutions(ctx, info, call, argTypes, { includeSelf: false });
+  if (selfSubstitutions) {
+    for (const [key, value] of selfSubstitutions) {
+      substitutions.set(key, value ?? unknownType);
+      if (genericNames.has(key)) {
+        const expr = typeInfoToTypeExpression(value);
+        if (expr) {
+          bindings.set(key, expr);
+        }
+      }
+    }
+  }
+
+  if (call.callee.type === "MemberAccessExpression" && !substitutions.has("Self")) {
+    const receiverType = ctx.inferExpression(call.callee.object);
+    if (receiverType.kind !== "unknown") {
+      substitutions.set("Self", receiverType);
+    }
+  }
+
+  const explicitTypeArgs = Array.isArray(call.typeArguments) ? call.typeArguments : [];
+  if (explicitTypeArgs.length > 0) {
+    for (let index = 0; index < genericParamNames.length; index += 1) {
+      const name = genericParamNames[index];
+      const argExpr = explicitTypeArgs[index];
+      if (name && argExpr) {
+        bindings.set(name, argExpr);
+      }
+    }
+  } else if (genericParamNames.length > 0) {
+    const params = Array.isArray(definition.params) ? definition.params : [];
+    const skipSelf = info.hasImplicitSelf && call.callee.type === "MemberAccessExpression" ? 1 : 0;
+    const paramCount = Math.min(Math.max(0, params.length - skipSelf), argTypes.length);
+    for (let index = 0; index < paramCount; index += 1) {
+      const param = params[index + skipSelf];
+      if (!param?.paramType) continue;
+      inferTypeArgumentsFromTypeExpression(ctx, param.paramType, argTypes[index], genericNames, bindings);
+    }
+    if (
+      expectedReturn &&
+      expectedReturn.kind !== "unknown" &&
+      !(expectedReturn.kind === "primitive" && expectedReturn.name === "void") &&
+      definition.returnType
+    ) {
+      const needsInference = genericParamNames.some((name) => !bindings.has(name));
+      if (needsInference) {
+        inferTypeArgumentsFromTypeExpression(ctx, definition.returnType, expectedReturn, genericNames, bindings);
+      }
+    }
+  }
+
+  for (const [name, expr] of bindings) {
+    substitutions.set(name, ctx.resolveTypeExpression(expr));
+  }
+
+  let inferredTypeArgs: AST.TypeExpression[] | undefined;
+  if (explicitTypeArgs.length === 0 && genericParamNames.length > 0) {
+    const hasBinding = genericParamNames.some((name) => bindings.has(name));
+    if (hasBinding) {
+      inferredTypeArgs = genericParamNames.map((name) => bindings.get(name) ?? AST.wildcardTypeExpression());
+    }
+  }
+
+  let params = Array.isArray(definition.params)
+    ? definition.params.map((param) => ctx.resolveTypeExpression(param?.paramType, substitutions))
+    : [];
+  if (info.hasImplicitSelf && definition.isMethodShorthand) {
+    const selfParam = substitutions.get("Self") ?? info.parameters?.[0] ?? unknownType;
+    params = [selfParam, ...params];
+  }
+  if (info.hasImplicitSelf && call.callee.type === "MemberAccessExpression" && params.length > 0) {
+    params = params.slice(1);
+  }
+  const optionalLast = params.length > 0 && params[params.length - 1]?.kind === "nullable";
+  const returnType = definition.returnType
+    ? ctx.resolveTypeExpression(definition.returnType, substitutions)
+    : info.returnType ?? unknownType;
+
+  return { params, optionalLast, returnType, inferredTypeArgs };
+}
+
+function buildSelfArgSubstitutions(
+  ctx: FunctionCallContext,
+  info: FunctionInfo,
+  call: AST.FunctionCall,
+  argTypes: TypeInfo[],
+  options?: { includeSelf?: boolean },
+): Map<string, TypeInfo> | null {
+  if (!info.hasImplicitSelf || call.callee?.type === "MemberAccessExpression") {
+    return null;
+  }
+  const selfType = argTypes[0];
+  if (!selfType || selfType.kind === "unknown") {
+    return null;
+  }
+  const substitutions = new Map<string, TypeInfo>();
+  if (options?.includeSelf) {
+    substitutions.set("Self", selfType);
+  }
+  if (selfType.kind !== "struct" || !selfType.name) {
+    return substitutions.size > 0 ? substitutions : null;
+  }
+  const def = ctx.structDefinitions.get(selfType.name);
+  if (!def?.genericParams?.length) {
+    return substitutions.size > 0 ? substitutions : null;
+  }
+  def.genericParams.forEach((param, idx) => {
+    const paramName = ctx.getIdentifierName(param?.name);
+    if (!paramName) return;
+    const arg = Array.isArray(selfType.typeArguments) ? selfType.typeArguments[idx] : undefined;
+    if (arg) {
+      substitutions.set(paramName, arg);
+    }
+  });
+  return substitutions.size > 0 ? substitutions : null;
+}
+
+function inferTypeArgumentsFromTypeExpression(
+  ctx: FunctionCallContext,
+  template: AST.TypeExpression | null | undefined,
+  actualType: TypeInfo,
+  genericNames: Set<string>,
+  bindings: Map<string, AST.TypeExpression>,
+): void {
+  if (!template || !actualType || actualType.kind === "unknown") {
+    return;
+  }
+  const actual = typeInfoToTypeExpression(actualType);
+  if (!actual) {
+    return;
+  }
+  const snapshot = new Map(bindings);
+  if (!matchTypeExpressionTemplate(ctx, template, actual, genericNames, snapshot)) {
+    return;
+  }
+  bindings.clear();
+  for (const [key, value] of snapshot) {
+    bindings.set(key, value);
+  }
+}
+
+function matchTypeExpressionTemplate(
+  ctx: FunctionCallContext,
+  template: AST.TypeExpression,
+  actual: AST.TypeExpression,
+  genericNames: Set<string>,
+  bindings: Map<string, AST.TypeExpression>,
+): boolean {
+  if (template.type === "WildcardTypeExpression" || actual.type === "WildcardTypeExpression") {
+    return true;
+  }
+  if (template.type === "SimpleTypeExpression") {
+    const name = ctx.getIdentifierName(template.name);
+    if (name && genericNames.has(name)) {
+      const existing = bindings.get(name);
+      if (existing) {
+        return ctx.typeExpressionsEquivalent(existing, actual);
+      }
+      bindings.set(name, actual);
+      return true;
+    }
+    return ctx.typeExpressionsEquivalent(template, actual);
+  }
+  if (template.type === "GenericTypeExpression") {
+    if (actual.type !== "GenericTypeExpression") {
+      return false;
+    }
+    if (!matchTypeExpressionTemplate(ctx, template.base, actual.base, genericNames, bindings)) {
+      return false;
+    }
+    const templateArgs = template.arguments ?? [];
+    const actualArgs = actual.arguments ?? [];
+    if (templateArgs.length !== actualArgs.length) {
+      return false;
+    }
+    for (let index = 0; index < templateArgs.length; index += 1) {
+      if (!matchTypeExpressionTemplate(ctx, templateArgs[index]!, actualArgs[index]!, genericNames, bindings)) {
+        return false;
+      }
+    }
+    return true;
+  }
+  if (template.type === "NullableTypeExpression") {
+    if (actual.type !== "NullableTypeExpression") {
+      return false;
+    }
+    return matchTypeExpressionTemplate(ctx, template.innerType, actual.innerType, genericNames, bindings);
+  }
+  if (template.type === "ResultTypeExpression") {
+    if (actual.type !== "ResultTypeExpression") {
+      return false;
+    }
+    return matchTypeExpressionTemplate(ctx, template.innerType, actual.innerType, genericNames, bindings);
+  }
+  if (template.type === "FunctionTypeExpression") {
+    if (actual.type !== "FunctionTypeExpression") {
+      return false;
+    }
+    const templateParams = template.paramTypes ?? [];
+    const actualParams = actual.paramTypes ?? [];
+    if (templateParams.length !== actualParams.length) {
+      return false;
+    }
+    for (let index = 0; index < templateParams.length; index += 1) {
+      if (!matchTypeExpressionTemplate(ctx, templateParams[index]!, actualParams[index]!, genericNames, bindings)) {
+        return false;
+      }
+    }
+    return matchTypeExpressionTemplate(ctx, template.returnType, actual.returnType, genericNames, bindings);
+  }
+  if (template.type === "UnionTypeExpression") {
+    const templateMembers = template.members ?? [];
+    if (actual.type === "UnionTypeExpression") {
+      const actualMembers = actual.members ?? [];
+      if (templateMembers.length !== actualMembers.length) {
+        return false;
+      }
+      for (let index = 0; index < templateMembers.length; index += 1) {
+        if (!matchTypeExpressionTemplate(ctx, templateMembers[index]!, actualMembers[index]!, genericNames, bindings)) {
+          return false;
+        }
+      }
+      return true;
+    }
+    for (const member of templateMembers) {
+      const snapshot = new Map(bindings);
+      if (matchTypeExpressionTemplate(ctx, member!, actual, genericNames, snapshot)) {
+        bindings.clear();
+        for (const [key, value] of snapshot) {
+          bindings.set(key, value);
+        }
+        return true;
+      }
+    }
+    return false;
+  }
+  return ctx.typeExpressionsEquivalent(template, actual);
+}
 
 function selectBestOverload(
   ctx: FunctionCallContext,
@@ -227,14 +526,23 @@ function selectBestOverload(
   call: AST.FunctionCall,
   args: AST.Expression[],
   argTypes: TypeInfo[],
+  expectedReturn?: TypeInfo,
 ): OverloadResolution {
-  const compatible: Array<{ info: FunctionInfo; params: TypeInfo[]; score: number; priority: number }> = [];
+  const compatible: Array<{
+    info: FunctionInfo;
+    params: TypeInfo[];
+    optionalLast: boolean;
+    returnType: TypeInfo;
+    inferredTypeArgs?: AST.TypeExpression[];
+    score: number;
+    priority: number;
+  }> = [];
   for (const info of infos) {
-    const effective = buildEffectiveParams(info, call);
-    if (!arityMatches(effective.params, args.length, effective.optionalLast)) {
+    const instantiated = instantiateCallSignature(ctx, info, call, argTypes, expectedReturn);
+    if (!arityMatches(instantiated.params, args.length, instantiated.optionalLast)) {
       continue;
     }
-    const params = dropOptionalParam(effective.params, args.length, effective.optionalLast);
+    const params = dropOptionalParam(instantiated.params, args.length, instantiated.optionalLast);
     const score = scoreCompatibility(ctx, params, argTypes);
     if (score < 0) {
       continue;
@@ -243,7 +551,10 @@ function selectBestOverload(
     compatible.push({
       info,
       params,
-      score: score - (effective.optionalLast && params.length !== effective.params.length ? 0.5 : 0),
+      optionalLast: instantiated.optionalLast,
+      returnType: instantiated.returnType ?? unknownType,
+      inferredTypeArgs: instantiated.inferredTypeArgs,
+      score: score - (instantiated.optionalLast && params.length !== instantiated.params.length ? 0.5 : 0),
       priority,
     });
   }
@@ -259,8 +570,14 @@ function selectBestOverload(
   if (tied.length > 1) {
     return { kind: "ambiguous", infos: tied.map((entry) => entry.info) };
   }
-  const effective = buildEffectiveParams(best.info, call);
-  return { kind: "match", info: best.info, params: best.params, optionalLast: effective.optionalLast };
+  return {
+    kind: "match",
+    info: best.info,
+    params: best.params,
+    optionalLast: best.optionalLast,
+    returnType: best.returnType ?? unknownType,
+    inferredTypeArgs: best.inferredTypeArgs,
+  };
 }
 
 function buildEffectiveParams(info: FunctionInfo, call: AST.FunctionCall): {

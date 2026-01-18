@@ -32,17 +32,3 @@ describe("String host builtins", () => {
     expect(charVal).toEqual({ kind: "char", value: "😀" });
   });
 });
-
-describe("hasher host builtins", () => {
-  test("__able_hasher_create/write/finish round trips hash state", () => {
-    const I = new Interpreter();
-
-    I.evaluate(AST.assignmentExpression(":=", AST.identifier("hasher"), call("__able_hasher_create")));
-    I.evaluate(call("__able_hasher_write", [AST.identifier("hasher"), AST.stringLiteral("abc")]));
-
-    const result = I.evaluate(call("__able_hasher_finish", [AST.identifier("hasher")])) as any;
-    expect(result.kind).toBe("i64");
-    const hash = Number(result.value);
-    expect(hash >>> 0).toBe(0x1A47E90B);
-  });
-});

@@ -266,6 +266,33 @@ export function inferExpression(ctx: ExpressionContext, expression: AST.Expressi
   }
 }
 
+export function inferExpressionWithExpected(
+  ctx: ExpressionContext,
+  expression: AST.Expression | undefined | null,
+  expectedType: TypeInfo,
+): TypeInfo {
+  if (!expression) return unknownType;
+  if (!expectedType || expectedType.kind === "unknown") {
+    return inferExpression(ctx, expression);
+  }
+  switch (expression.type) {
+    case "FunctionCall":
+      ctx.checkFunctionCall(expression, expectedType);
+      return ctx.inferFunctionCallReturnType(expression, expectedType);
+    case "BlockExpression":
+      return evaluateBlockExpression(ctx, expression, expectedType);
+    case "BinaryExpression":
+      if (expression.operator === "|>" || expression.operator === "|>>") {
+        const call = buildPipeCall(expression);
+        ctx.checkFunctionCall(call, expectedType);
+        return ctx.inferFunctionCallReturnType(call, expectedType);
+      }
+      return inferBinaryExpression(ctx, expression);
+    default:
+      return inferExpression(ctx, expression);
+  }
+}
+
 export function refineTypeWithExpected(actual: TypeInfo | undefined | null, expected: TypeInfo | undefined | null): TypeInfo {
   if (!expected || expected.kind === "unknown") {
     return actual ?? unknownType;

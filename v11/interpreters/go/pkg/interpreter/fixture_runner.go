@@ -19,6 +19,7 @@ var (
 	repoRoot               = repositoryRoot()
 	stdlibRoot             = fallbackPath(filepath.Join(repoRoot, "v11", "stdlib", "src"), filepath.Join("..", "..", "stdlib", "src"))
 	kernelRoot             = fallbackPath(filepath.Join(repoRoot, "v11", "kernel", "src"), filepath.Join("..", "..", "kernel", "src"))
+	kernelEntry            = filepath.Join(kernelRoot, "kernel.able")
 	stdlibStringEntry      = filepath.Join(stdlibRoot, "text", "string.able")
 	typecheckBaselineOnce  sync.Once
 	typecheckBaselineData  map[string][]string
@@ -26,6 +27,9 @@ var (
 	stdlibConcurrencyEntry = filepath.Join(stdlibRoot, "concurrency", "await.able")
 	stdlibHashMapEntry     = filepath.Join(stdlibRoot, "collections", "hash_map.able")
 	stdlibLoader           *driver.Loader
+	kernelModuleOnce       sync.Once
+	kernelModule           *driver.Module
+	kernelModuleErr        error
 )
 
 // runFixtureWithExecutor replays a fixture directory using the provided executor.
@@ -77,7 +81,25 @@ func runFixtureWithExecutor(t testingT, dir string, rel string, executor Executo
 
 	entryModule := fixtureDriverModule(module, moduleOrigin)
 	added[entryModule.Package] = true
-		recordImports(imports, entryModule.Imports)
+	recordImports(imports, entryModule.Imports)
+	if hasImportWithPrefix(imports, "able.kernel") {
+		kernelModuleOnce.Do(func() {
+			mod, err := parseSourceModule(kernelEntry)
+			if err != nil {
+				kernelModuleErr = err
+				return
+			}
+			mod.Package = ast.Pkg([]interface{}{"able", "kernel"}, false)
+			kernelModule = fixtureDriverModule(mod, kernelEntry)
+		})
+		if kernelModuleErr != nil {
+			t.Fatalf("load kernel: %v", kernelModuleErr)
+		}
+		if kernelModule != nil && !added[kernelModule.Package] {
+			programModules = append(programModules, kernelModule)
+			added[kernelModule.Package] = true
+		}
+	}
 	if hasImport(imports, "able.text.string") {
 		if stdlibLoader == nil {
 			loader, err := driver.NewLoader([]driver.SearchPath{

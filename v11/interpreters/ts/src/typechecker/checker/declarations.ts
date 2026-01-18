@@ -76,6 +76,7 @@ export function collectFunctionDefinition(
   const info: FunctionInfo = {
     name,
     fullName,
+    definition,
     structName,
     hasImplicitSelf: expectsSelfParam,
     isTypeQualified,

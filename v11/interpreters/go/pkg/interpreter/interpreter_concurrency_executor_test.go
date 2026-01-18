@@ -202,8 +202,12 @@ func TestSerialExecutorFutureValueReentrancy(t *testing.T) {
 
 func TestSerialExecutorProcValueReentrancy(t *testing.T) {
 	interp := New()
-	if _, ok := interp.executor.(*SerialExecutor); !ok {
+	serial, ok := interp.executor.(*SerialExecutor)
+	if !ok {
 		t.Fatalf("expected SerialExecutor by default")
+	}
+	if serial == nil {
+		t.Fatalf("serial executor is nil")
 	}
 	global := interp.GlobalEnvironment()
 
@@ -222,6 +226,9 @@ func TestSerialExecutorProcValueReentrancy(t *testing.T) {
 			ast.Bin("+", ast.ID("trace"), ast.Str(label)),
 		)
 	}
+
+	serial.beginSynchronousSection()
+	defer serial.endSynchronousSection()
 
 	mustEval(ast.Assign(ast.ID("trace"), ast.Str("")))
 

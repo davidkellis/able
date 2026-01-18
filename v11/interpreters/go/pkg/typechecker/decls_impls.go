@@ -73,11 +73,19 @@ func (c *declarationCollector) collectImplementationDefinition(def *ast.Implemen
 	scope["Self"] = targetType
 	targetLabel := nonEmpty(typeName(targetType))
 
+	interfaceArgs := make([]Type, len(def.InterfaceArgs))
+	for i, arg := range def.InterfaceArgs {
+		interfaceArgs[i] = c.resolveTypeExpression(arg, scope)
+	}
+
 	var ifaceType InterfaceType
 	if interfaceName != "" {
 		if decl, ok := c.env.Lookup(interfaceName); ok {
-			if typed, ok := decl.(InterfaceType); ok {
+			if typed, resolvedArgs, ok := resolveInterfaceDecl(decl, interfaceArgs); ok {
 				ifaceType = typed
+				if resolvedArgs != nil {
+					interfaceArgs = resolvedArgs
+				}
 			} else {
 				c.diags = append(c.diags, Diagnostic{
 					Message: fmt.Sprintf("typechecker: impl references '%s' which is not an interface", interfaceName),
@@ -94,10 +102,6 @@ func (c *declarationCollector) collectImplementationDefinition(def *ast.Implemen
 
 	expectedParams := len(ifaceType.TypeParams)
 	explicitParams := expectedParams
-	interfaceArgs := make([]Type, len(def.InterfaceArgs))
-	for i, arg := range def.InterfaceArgs {
-		interfaceArgs[i] = c.resolveTypeExpression(arg, scope)
-	}
 	if interfaceName != "" {
 		explicitParams = c.interfaceExplicitParamCount(interfaceName, ifaceType)
 	}

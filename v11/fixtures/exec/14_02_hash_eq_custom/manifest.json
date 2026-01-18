@@ -1,0 +1,10 @@
+{
+  "description": "custom Hash/Eq and collision handling in kernel HashMap",
+  "expect": {
+    "stdout": [
+      "custom_hash true",
+      "collision true"
+    ],
+    "exit": 0
+  }
+}

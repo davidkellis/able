@@ -1,0 +1,14 @@
+{
+  "description": "float IEEE equality and hash map key constraints",
+  "expect": {
+    "stdout": [
+      "nan_eq false true",
+      "zero_eq true false",
+      "nan_cmp false false false false",
+      "nan_cmp_rev false false false false",
+      "mix_eq true true",
+      "map_err HashMap key type f64 does not implement Hash.hash"
+    ],
+    "exit": 0
+  }
+}

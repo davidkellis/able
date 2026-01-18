@@ -1,5 +1,36 @@
 # Able Project Log
 
+## 2026-01-15 — Hash/Eq fixture and test coverage
+- Fixtures: added AST fixtures for primitive hashing, kernel hasher availability, custom Hash/Eq, and collision handling; added exec fixtures for primitive hashing plus custom Hash/Eq + collisions; updated exec coverage index.
+- Tests: added TS + Go unit coverage for hash helper builtins and kernel HashMap dispatch (custom + collision keys).
+- Tests not run (edited code + fixtures only).
+
+## 2026-01-15 — Remove host hasher bridges
+- Kernel: dropped the `__able_hasher_*` extern declarations and the unused `HasherHandle` alias so hashing flows through `KernelHasher` only.
+- Interpreters: removed host hasher state/builtins from Go + TypeScript, along with runtime stub and typechecker builtin entries.
+- Docs/spec: scrubbed hasher bridge references from the kernel contract and extern execution/design notes.
+- Tests not run (edited code + docs only).
+
+## 2026-01-15 — Kernel Hash/Eq runtime alignment
+- Kernel: added primitive `Eq`/`Ord`/`Hash` impls (ints/bool/char/String) plus float-only `PartialEq`/`PartialOrd`, and wired the Able-level FNV-1a hasher with raw byte helpers.
+- Stdlib: trimmed duplicate interface impls and routed map hashing through the sink-style `Hash.hash` API.
+- Interpreters: hash map kernels now dispatch `Hash.hash`/`Eq.eq`; numeric equality follows IEEE semantics; Go/TS typecheckers exclude floats from `Eq`/`Hash`.
+- Fixtures: added float equality + hash-map key rejection exec coverage.
+- Tests not run (edited code + docs only).
+
+## 2026-01-15 — Kernel interfaces + Hash/Eq plan
+- Added the kernel interface/primitive Hash/Eq design plan plus stdlib linkage notes (`v11/design/kernel-interfaces-hash-eq.md`, `v11/design/stdlib-v11.md`).
+- Updated `spec/TODO_v11.md` and expanded the detailed work breakdown in `PLAN.md`.
+- Tests not run (planning/doc updates only).
+
+## 2026-01-15 — Manual syntax alignment
+- Updated the v11 manual docs to match spec lexing and pipe semantics (line comments use `##`, string literals can use double quotes or backticks with interpolation, and pipe docs no longer mention a `%` topic token) in `v11/docs/manual/manual.md` and `v11/docs/manual/variables.html`.
+- Tests not run (docs-only changes).
+
+## 2026-01-15 — Primitive Hash/Eq constraints
+- Updated the TS typechecker to treat primitive numeric types as satisfying `Hash`/`Eq` constraints (matching Go) and adjusted the example to iterate directly over `String` so `for` sees an `Iterable` (`v11/interpreters/ts/src/typechecker/checker/implementation-constraints.ts`, `.examples/foo.able`).
+- Tests: `./v11/ablets .examples/foo.able`; `./v11/ablego .examples/foo.able`.
+
 ## 2026-01-14 — Go module splits
 - Split the Go constraint solver, literals, and member-access helpers into focused files to keep modules under 900 lines (`v11/interpreters/go/pkg/typechecker/constraint_solver_impls.go`, `v11/interpreters/go/pkg/typechecker/constraint_solver_methods.go`, `v11/interpreters/go/pkg/typechecker/statement_checker.go`, `v11/interpreters/go/pkg/typechecker/member_access_methods.go`, `v11/interpreters/go/pkg/typechecker/member_access_matching.go`) and trimmed `v11/interpreters/go/pkg/typechecker/constraint_solver.go`, `v11/interpreters/go/pkg/typechecker/literals.go`, and `v11/interpreters/go/pkg/typechecker/member_access_helpers.go`.
 - Split the Go extern host into focused files (`v11/interpreters/go/pkg/interpreter/extern_host_cache.go`, `v11/interpreters/go/pkg/interpreter/extern_host_builder.go`, `v11/interpreters/go/pkg/interpreter/extern_host_coercion.go`, `v11/interpreters/go/pkg/interpreter/extern_host_module.go`) and trimmed `v11/interpreters/go/pkg/interpreter/extern_host.go`.
@@ -194,3 +225,16 @@ Open items (2025-11-02 audit):
 - Added exec fixture `exec/04_05_04_struct_literal_generic_inference`, updated the exec coverage index, and enforced exec-fixture typechecking when manifests specify diagnostics (TS + Go).
 - Fixed struct literal generic type-argument handling in the TS and Go typecheckers (placeholder args in TS; inferred args in Go).
 - Tests: `./run_all_tests.sh --version=v11 --typecheck-fixtures-strict`.
+- Clarified spec call-site inference to include return-context expected types and documented return-context inference design notes; updated PLAN work queue.
+
+### 2026-01-15
+- TS typechecker now uses expected return types to drive generic call inference (explicit + implicit return paths), with new return-context unit tests.
+- Go typechecker now propagates expected return types through implicit return blocks, plus a focused unit test for implicit-return inference.
+- Added exec fixture `exec/07_08_return_context_generic_call_inference` and updated the exec coverage index.
+- Tests: `cd v11/interpreters/ts && bun test test/typechecker/return_context_inference.test.ts`; `cd v11/interpreters/go && go test ./pkg/typechecker -run TestGenericCallInfersFromImplicitReturnExpectedType`.
+- TS typechecker now treats method-shorthand exports as taking implicit self for overload resolution, and uses receiver substitutions when enforcing method-set where clauses on exported function calls.
+- TS runtime now treats unresolved generic type arguments on struct instances as wildcard matches when comparing against concrete generic types.
+- Tests: `./run_all_tests.sh --version=v11 --typecheck-fixtures-strict`.
+- Documented kernel Hash/Eq decisions (sink-style hashing, IEEE float equality, floats not Eq/Hash), updated spec wording, and expanded the PLAN work breakdown for interpreter alignment.
+- Extended the kernel Hash/Eq plan to move the default `Hasher` implementation into Able with host bitcast helpers; updated spec TODOs and PLAN tasks accordingly.
+- Added a kernel-level FNV-1a Hasher (Able code) with big-endian byte emission, introduced `__able_f32_bits`/`__able_f64_bits`/`__able_u64_mul` helpers in TS/Go, and updated stdlib hashing call sites + tests to use the new sink-style Hash API.

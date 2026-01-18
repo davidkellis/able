@@ -13,7 +13,6 @@ import { applyConcurrencyAugmentations } from "./concurrency";
 import { applyIteratorAugmentations } from "./iterators";
 import { applyChannelMutexAugmentations } from "./channels_mutex";
 import { applyStringHostAugmentations } from "./string_host";
-import { applyHasherHostAugmentations } from "./hasher_host";
 import { applyNumericHostAugmentations } from "./numeric_host";
 import { applyOsHostAugmentations } from "./os_host";
 import { applyDynamicAugmentations } from "./dynamic";
@@ -44,6 +43,7 @@ export type InterpreterOptions = {
 export class Interpreter {
   readonly globals = new Environment();
 
+  structs: Map<string, AST.StructDefinition> = new Map();
   interfaces: Map<string, AST.InterfaceDefinition> = new Map();
   unions: Map<string, AST.UnionDefinition> = new Map();
   typeAliases: Map<string, AST.TypeAliasDefinition> = new Map();
@@ -103,7 +103,6 @@ export class Interpreter {
 
   channelMutexBuiltinsInitialized = false;
   stringHostBuiltinsInitialized = false;
-  hasherBuiltinsInitialized = false;
   numericBuiltinsInitialized = false;
   osBuiltinsInitialized = false;
   nextChannelHandle = 1;
@@ -112,8 +111,6 @@ export class Interpreter {
   standardErrorStructs: Map<string, AST.StructDefinition> = new Map();
   nextMutexHandle = 1;
   mutexStates: Map<number, any> = new Map();
-  nextHasherHandle = 1;
-  hasherStates: Map<number, number> = new Map();
   osArgs: string[] = [];
 
   externHostPackages: Map<string, any> = new Map();
@@ -144,7 +141,6 @@ export class Interpreter {
     this.initConcurrencyBuiltins();
     this.ensureChannelMutexBuiltins();
     this.ensureStringHostBuiltins();
-    this.ensureHasherBuiltins();
     this.ensureNumericBuiltins();
     this.ensureOsBuiltins();
     this.ensureDynamicBuiltins();
@@ -297,7 +293,6 @@ applyArrayKernelAugmentations(Interpreter);
 applyHashMapKernelAugmentations(Interpreter);
 applyChannelMutexAugmentations(Interpreter);
 applyStringHostAugmentations(Interpreter);
-applyHasherHostAugmentations(Interpreter);
 applyNumericHostAugmentations(Interpreter);
 applyOsHostAugmentations(Interpreter);
 applyExternHostAugmentations(Interpreter);

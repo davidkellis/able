@@ -37,6 +37,8 @@ func (i *Interpreter) registerExternStatements(module *ast.Module) {
 	if module == nil {
 		return
 	}
+	i.externHostMu.Lock()
+	defer i.externHostMu.Unlock()
 	pkgName := i.currentPackage
 	if pkgName == "" {
 		pkgName = "<root>"
@@ -98,15 +100,19 @@ func (i *Interpreter) invokeExternHostFunction(pkgName string, def *ast.ExternFu
 	if pkgName == "" {
 		pkgName = "<root>"
 	}
+	i.externHostMu.Lock()
 	pkg := i.externHostPackages[pkgName]
 	if pkg == nil {
+		i.externHostMu.Unlock()
 		return nil, fmt.Errorf("extern package %s is not registered", pkgName)
 	}
 	targetState := pkg.targets[def.Target]
 	if targetState == nil {
+		i.externHostMu.Unlock()
 		return nil, fmt.Errorf("extern target %s is not registered", def.Target)
 	}
 	module, err := i.ensureExternHostModule(pkgName, def.Target, targetState, pkg)
+	i.externHostMu.Unlock()
 	if err != nil {
 		return nil, err
 	}

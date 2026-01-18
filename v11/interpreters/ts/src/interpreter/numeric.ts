@@ -384,7 +384,6 @@ function applyFloatOperation(op: string, left: number, right: number, kind: Floa
     case "*":
       return FLOAT_INFO[kind].apply(left * right);
     case "/":
-      if (right === 0) throw new StandardRuntimeError("DivisionByZeroError", "division by zero");
       return FLOAT_INFO[kind].apply(left / right);
     case "^":
       return FLOAT_INFO[kind].apply(left ** right);
@@ -517,6 +516,9 @@ export function applyArithmeticBinary(
   }
 
   if (op === "/") {
+    if (leftClass.tag === "integer" && rightClass.tag === "integer" && rightClass.value === 0n) {
+      throw new StandardRuntimeError("DivisionByZeroError", "division by zero");
+    }
     const targetKind = resolveDivisionFloatKind(leftClass, rightClass);
     const leftFloat = convertToFloat(leftClass, targetKind);
     const rightFloat = convertToFloat(rightClass, targetKind);
@@ -657,6 +659,9 @@ export function applyComparisonBinary(op: string, left: RuntimeValue, right: Run
   if (promotion.tag === "float") {
     const leftFloat = convertToFloat(leftClass, promotion.kind);
     const rightFloat = convertToFloat(rightClass, promotion.kind);
+    if (Number.isNaN(leftFloat) || Number.isNaN(rightFloat)) {
+      return { kind: "bool", value: false };
+    }
     if (leftFloat < rightFloat) comparison = -1;
     else if (leftFloat > rightFloat) comparison = 1;
   } else {
@@ -703,7 +708,7 @@ export function numericEquals(left: RuntimeValue, right: RuntimeValue): boolean 
   }
   const leftFloat = convertToFloat(leftClass, promotion.kind);
   const rightFloat = convertToFloat(rightClass, promotion.kind);
-  return Object.is(leftFloat, rightFloat);
+  return leftFloat === rightFloat;
 }
 
 export function applyBitwiseBinary(op: string, left: RuntimeValue, right: RuntimeValue): RuntimeValue {

@@ -447,9 +447,10 @@ func (i *Interpreter) evaluateUnaryExpression(expr *ast.UnaryExpression, env *ru
 	if err != nil {
 		return nil, err
 	}
+	rawOperand := unwrapInterfaceValue(operand)
 	switch expr.Operator {
 	case "-":
-		switch v := operand.(type) {
+		switch v := rawOperand.(type) {
 		case runtime.IntegerValue:
 			neg := new(big.Int).Neg(v.Val)
 			return runtime.IntegerValue{Val: neg, TypeSuffix: v.TypeSuffix}, nil
@@ -464,7 +465,7 @@ func (i *Interpreter) evaluateUnaryExpression(expr *ast.UnaryExpression, env *ru
 	case "!":
 		return runtime.BoolValue{Val: !i.isTruthy(operand)}, nil
 	case "~", ".~":
-		switch v := operand.(type) {
+		switch v := rawOperand.(type) {
 		case runtime.IntegerValue:
 			if strings.HasPrefix(string(v.TypeSuffix), "u") {
 				width := integerBitWidth(v.TypeSuffix)
@@ -525,14 +526,16 @@ func (i *Interpreter) evaluateBinaryExpression(expr *ast.BinaryExpression, env *
 			return nil, err
 		}
 		if expr.Operator == "+" {
-			if ls, ok := leftVal.(runtime.StringValue); ok {
-				rs, ok := rightVal.(runtime.StringValue)
+			rawLeft := unwrapInterfaceValue(leftVal)
+			rawRight := unwrapInterfaceValue(rightVal)
+			if ls, ok := rawLeft.(runtime.StringValue); ok {
+				rs, ok := rawRight.(runtime.StringValue)
 				if !ok {
 					return nil, fmt.Errorf("Arithmetic requires numeric operands")
 				}
 				return runtime.StringValue{Val: ls.Val + rs.Val}, nil
 			}
-			if _, ok := rightVal.(runtime.StringValue); ok {
+			if _, ok := rawRight.(runtime.StringValue); ok {
 				return nil, fmt.Errorf("Arithmetic requires numeric operands")
 			}
 		}
