@@ -28,6 +28,7 @@ export function installBuiltins(context: BuiltinContext): void {
   const boolType = primitiveType("bool");
   const i32Type = primitiveType("i32");
   const i64Type = primitiveType("i64");
+  const u32Type = primitiveType("u32");
   const u64Type = primitiveType("u64");
   const u8Type = primitiveType("u8");
   const stringType = primitiveType("String");
@@ -84,10 +85,10 @@ export function installBuiltins(context: BuiltinContext): void {
     awaitableUnknown,
   );
 
-  register("__able_hasher_create", [], i64Type);
-  register("__able_hasher_write", [i64Type, stringType], voidType);
-  register("__able_hasher_finish", [i64Type], i64Type);
   register("__able_ratio_from_float", [primitiveType("f64")], ratioType);
+  register("__able_f32_bits", [primitiveType("f32")], u32Type);
+  register("__able_f64_bits", [primitiveType("f64")], u64Type);
+  register("__able_u64_mul", [u64Type, u64Type], u64Type);
 
   context.env.define("dyn", unknownType);
 

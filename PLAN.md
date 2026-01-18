@@ -30,7 +30,7 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 - Keep `AGENTS.md` synced with onboarding steps for new contributors.
 - Historical notes + completed milestones now live in `LOG.md`.
 - Keep this `PLAN.md` file up to date with current progress and immediate next actions, but move completed items to `LOG.md`.
-- Status: interface alignment is in place (Apply/Index/Awaitable + stdlib helpers); parity harness is green with the latest sweep saved to `tmp/parity-report.json`; kernel/stdlib loader auto-detection is bundled; Ratio/numeric conversions are landed; exec fixtures are spec-prefixed with coverage enforced via `scripts/check-exec-coverage.mjs` in `run_all_tests.sh`; regex work is stdlib-only (host hooks removed, regex fixture quarantined) with literal compile/match/find_all now available; next focus is regex parser/quantifiers plus tutorial cleanup.
+- Status: interface alignment is in place (Apply/Index/Awaitable + stdlib helpers); parity harness is green with the latest sweep saved to `tmp/parity-report.json`; kernel/stdlib loader auto-detection is bundled; Ratio/numeric conversions are landed; exec fixtures are spec-prefixed with coverage enforced via `scripts/check-exec-coverage.mjs` in `run_all_tests.sh`; regex work is stdlib-only (host hooks removed, regex fixture quarantined) with literal compile/match/find_all now available; next focus is regex parser/quantifiers.
 
 ## Guardrails (must stay true)
 - `v11/interpreters/ts/scripts/run-parity.ts` remains the authoritative entry point for fixtures/examples parity; `./run_all_tests.sh --version=v11` must stay green (TS + Go unit tests, fixture suites, parity CLI). Run the v10 suite only when explicitly asked to investigate archival regressions.
@@ -43,3 +43,4 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 
 
 ## TODO (working queue: tackle in order, move completed items to LOG.md)
+- Regex parser + quantifier support in `able.text.regex` (parser, NFA compiler, and fixture coverage).

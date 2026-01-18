@@ -1,0 +1,10 @@
+{
+  "description": "Custom Hash/Eq impls drive kernel HashMap lookups",
+  "expect": {
+    "result": {
+      "kind": "bool",
+      "value": true
+    }
+  },
+  "entry": "module.json"
+}

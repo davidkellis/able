@@ -18,6 +18,9 @@ import {
 import { makeIntegerFromNumber } from "./numeric";
 import { valuesEqual } from "./value_equals";
 
+const unwrapInterfaceValue = (value: RuntimeValue): RuntimeValue =>
+  value.kind === "interface_value" ? value.value : value;
+
 export function resolveIndexFunction(
   ctx: Interpreter,
   receiver: RuntimeValue,
@@ -213,15 +216,16 @@ declare module "./index" {
 
 export function evaluateUnaryExpression(ctx: Interpreter, node: AST.UnaryExpression, env: Environment): RuntimeValue {
   const v = ctx.evaluate(node.operand, env);
+  const raw = unwrapInterfaceValue(v);
   if (node.operator === "-") {
-    if (isNumericValue(v)) {
-      return applyNumericUnaryMinus(v);
+    if (isNumericValue(raw)) {
+      return applyNumericUnaryMinus(raw);
     }
     const method = resolveUnaryFunction(ctx, v, UNARY_INTERFACES["-"]);
     if (method) {
-      return callCallableValue(ctx, method, [v], env);
+      return callCallableValue(ctx, method, [raw], env);
     }
-    return applyNumericUnaryMinus(v);
+    return applyNumericUnaryMinus(raw);
   }
   if (node.operator === "!") {
     return { kind: "bool", value: !ctx.isTruthy(v) };
@@ -231,10 +235,10 @@ export function evaluateUnaryExpression(ctx: Interpreter, node: AST.UnaryExpress
     if (dispatch) {
       const method = resolveUnaryFunction(ctx, v, dispatch);
       if (method) {
-        return callCallableValue(ctx, method, [v], env);
+        return callCallableValue(ctx, method, [raw], env);
       }
     }
-    return applyBitwiseNot(v);
+    return applyBitwiseNot(raw);
   }
   throw new Error(`Unknown unary operator ${node.operator}`);
 }
@@ -295,14 +299,16 @@ export function evaluateBinaryExpression(ctx: Interpreter, node: AST.BinaryExpre
 
   const left = ctx.evaluate(b.left, env);
   const right = ctx.evaluate(b.right, env);
+  const leftRaw = unwrapInterfaceValue(left);
+  const rightRaw = unwrapInterfaceValue(right);
 
-  if (b.operator === "+" && left.kind === "String" && right.kind === "String") {
-    return { kind: "String", value: left.value + right.value };
+  if (b.operator === "+" && leftRaw.kind === "String" && rightRaw.kind === "String") {
+    return { kind: "String", value: leftRaw.value + rightRaw.value };
   }
 
   if (["+","-","*","/","//","%","/%","^"].includes(b.operator)) {
-    if (isNumericValue(left) && isNumericValue(right)) {
-      return applyArithmeticBinary(b.operator, left, right, {
+    if (isNumericValue(leftRaw) && isNumericValue(rightRaw)) {
+      return applyArithmeticBinary(b.operator, leftRaw, rightRaw, {
         makeDivMod: (kind, parts) => {
           const structDef = ctx.ensureDivModStruct();
           const typeArg = AST.simpleTypeExpression(kind);
@@ -333,9 +339,9 @@ export function evaluateBinaryExpression(ctx: Interpreter, node: AST.BinaryExpre
     }
     const method = resolveOperatorFunction(ctx, left, b.operator);
     if (method) {
-      return callCallableValue(ctx, method, [left, right], env);
+      return callCallableValue(ctx, method, [unwrapInterfaceValue(left), unwrapInterfaceValue(right)], env);
     }
-    return applyArithmeticBinary(b.operator, left, right, {
+    return applyArithmeticBinary(b.operator, leftRaw, rightRaw, {
       makeDivMod: (kind, parts) => {
         const structDef = ctx.ensureDivModStruct();
         const typeArg = AST.simpleTypeExpression(kind);
@@ -366,36 +372,40 @@ export function evaluateBinaryExpression(ctx: Interpreter, node: AST.BinaryExpre
   }
 
   if ([">","<",">=","<=","==","!="].includes(b.operator)) {
-    if (isNumericValue(left) && isNumericValue(right)) {
-      return applyComparisonBinary(b.operator, left, right);
+    if (isNumericValue(leftRaw) && isNumericValue(rightRaw)) {
+      return applyComparisonBinary(b.operator, leftRaw, rightRaw);
     }
-    if (left.kind === "String" && right.kind === "String") {
+    if (leftRaw.kind === "String" && rightRaw.kind === "String") {
       switch (b.operator) {
-        case ">": return { kind: "bool", value: left.value > right.value };
-        case "<": return { kind: "bool", value: left.value < right.value };
-        case ">=": return { kind: "bool", value: left.value >= right.value };
-        case "<=": return { kind: "bool", value: left.value <= right.value };
-        case "==": return { kind: "bool", value: left.value === right.value };
-        case "!=": return { kind: "bool", value: left.value !== right.value };
+        case ">": return { kind: "bool", value: leftRaw.value > rightRaw.value };
+        case "<": return { kind: "bool", value: leftRaw.value < rightRaw.value };
+        case ">=": return { kind: "bool", value: leftRaw.value >= rightRaw.value };
+        case "<=": return { kind: "bool", value: leftRaw.value <= rightRaw.value };
+        case "==": return { kind: "bool", value: leftRaw.value === rightRaw.value };
+        case "!=": return { kind: "bool", value: leftRaw.value !== rightRaw.value };
       }
     }
     if (b.operator === "==" || b.operator === "!=") {
+      if (leftRaw.kind === "nil" || rightRaw.kind === "nil") {
+        const eq = valuesEqual(leftRaw, rightRaw);
+        return { kind: "bool", value: b.operator === "!=" ? !eq : eq };
+      }
       for (const dispatch of EQUALITY_INTERFACES) {
         const method = resolveComparisonFunction(ctx, left, dispatch);
         if (!method) continue;
-        const result = callCallableValue(ctx, method, [left, right], env);
+        const result = callCallableValue(ctx, method, [unwrapInterfaceValue(left), unwrapInterfaceValue(right)], env);
         if (result.kind !== "bool") {
           throw new Error(`Comparison '${b.operator}' requires a bool result from ${dispatch.interfaceName}.${dispatch.methodName}`);
         }
         return { kind: "bool", value: b.operator === "!=" ? !result.value : result.value };
       }
-      if (b.operator === "==") return { kind: "bool", value: valuesEqual(left, right) };
-      return { kind: "bool", value: !valuesEqual(left, right) };
+      if (b.operator === "==") return { kind: "bool", value: valuesEqual(leftRaw, rightRaw) };
+      return { kind: "bool", value: !valuesEqual(leftRaw, rightRaw) };
     }
     for (const dispatch of ORDERING_INTERFACES) {
       const method = resolveComparisonFunction(ctx, left, dispatch);
       if (!method) continue;
-      const result = callCallableValue(ctx, method, [left, right], env);
+      const result = callCallableValue(ctx, method, [unwrapInterfaceValue(left), unwrapInterfaceValue(right)], env);
       const cmp = orderingToCmp(ctx, result);
       if (cmp === null) {
         throw new Error(`Comparison '${b.operator}' requires Ordering result from ${dispatch.interfaceName}.${dispatch.methodName}`);
@@ -406,7 +416,7 @@ export function evaluateBinaryExpression(ctx: Interpreter, node: AST.BinaryExpre
   }
 
   if ([".&",".|",".^",".<<",".>>"].includes(b.operator)) {
-    return applyBitwiseBinary(b.operator, left, right);
+    return applyBitwiseBinary(b.operator, leftRaw, rightRaw);
   }
 
   throw new Error(`Unknown binary operator ${b.operator}`);

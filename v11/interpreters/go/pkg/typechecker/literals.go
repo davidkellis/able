@@ -343,10 +343,62 @@ func (c *Checker) checkExpressionWithExpectedType(env *Environment, expr ast.Exp
 	if expr == nil || expected == nil || isUnknownType(expected) {
 		return c.checkExpression(env, expr)
 	}
+	if block, ok := expr.(*ast.BlockExpression); ok && block != nil {
+		return c.checkBlockExpressionWithExpectedType(env, block, expected)
+	}
 	if call, ok := expr.(*ast.FunctionCall); ok && call != nil {
 		return c.checkFunctionCallExpressionWithExpectedReturn(env, call, expected)
 	}
 	return c.checkExpression(env, expr)
+}
+
+func (c *Checker) checkBlockExpressionWithExpectedType(env *Environment, e *ast.BlockExpression, expected Type) ([]Diagnostic, Type) {
+	blockEnv := env.Extend()
+	for _, stmt := range e.Body {
+		def, ok := stmt.(*ast.FunctionDefinition)
+		if !ok || def == nil || def.ID == nil {
+			continue
+		}
+		if !blockEnv.HasInCurrentScope(def.ID.Name) {
+			blockEnv.Define(def.ID.Name, c.localFunctionSignature(def))
+		}
+	}
+	var (
+		diags      []Diagnostic
+		resultType Type = UnknownType{}
+	)
+loop:
+	for idx, stmt := range e.Body {
+		switch s := stmt.(type) {
+		case *ast.ReturnStatement:
+			diags = append(diags, c.checkStatement(blockEnv, s)...)
+			break loop
+		case *ast.AssignmentExpression:
+			assignDiags := c.checkStatement(blockEnv, s)
+			diags = append(diags, assignDiags...)
+			if idx == len(e.Body)-1 {
+				if inferred, ok := c.infer.get(s.Right); ok {
+					resultType = inferred
+				}
+			}
+		case ast.Expression:
+			var exprDiags []Diagnostic
+			var exprType Type
+			if idx == len(e.Body)-1 {
+				exprDiags, exprType = c.checkExpressionWithExpectedType(blockEnv, s, expected)
+			} else {
+				exprDiags, exprType = c.checkExpression(blockEnv, s)
+			}
+			diags = append(diags, exprDiags...)
+			if idx == len(e.Body)-1 {
+				resultType = exprType
+			}
+		default:
+			diags = append(diags, c.checkStatement(blockEnv, s)...)
+		}
+	}
+	c.infer.set(e, resultType)
+	return diags, resultType
 }
 
 func (c *Checker) checkFunctionCallExpressionWithExpectedReturn(env *Environment, e *ast.FunctionCall, expectedReturn Type) ([]Diagnostic, Type) {

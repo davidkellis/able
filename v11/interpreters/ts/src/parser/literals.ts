@@ -65,7 +65,15 @@ export function parseNumberLiteral(ctx: ParseContext, node: Node): Expression {
   }
 
   if (typeof numberValue === "bigint") {
-    if (numberValue <= BigInt(Number.MAX_SAFE_INTEGER) && numberValue >= BigInt(Number.MIN_SAFE_INTEGER)) {
+    const preserveBigInt =
+      integerType === "u64" ||
+      integerType === "u128" ||
+      integerType === "i128";
+    if (
+      !preserveBigInt &&
+      numberValue <= BigInt(Number.MAX_SAFE_INTEGER) &&
+      numberValue >= BigInt(Number.MIN_SAFE_INTEGER)
+    ) {
       numberValue = Number(numberValue);
     }
   }

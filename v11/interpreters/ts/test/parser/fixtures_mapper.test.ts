@@ -28,6 +28,9 @@ function normalizeModule(value: unknown): void {
     return;
   }
   const record = value as Record<string, unknown>;
+  if (record.type === "IntegerLiteral" && typeof record.value === "string") {
+    record.value = BigInt(record.value);
+  }
   for (const key of Object.keys(record)) {
     const entry = record[key];
     if (key === "span" || key === "origin") {

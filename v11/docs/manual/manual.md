@@ -80,7 +80,7 @@ Unified harness (runs TS + Go suites and fixtures):
 
 ### 2.1 Lexical Basics
 
-- Line comments: `# comment`. No block comments.
+- Line comments: `## comment`. Block comment syntax is TBD.
 - Identifiers: ASCII letters, digits, `_`; cannot start with a digit.
 - Statement termination: newline or `;`. Trailing commas are allowed in lists/params.
 - Reserved tokens include `:=`, `=`, `->`, `_`, `?`, `!`, `@`/`@n` placeholders, `#`, `|`, `|>`, `...`, `..`, and backtick-string delimiters.
@@ -89,7 +89,7 @@ Unified harness (runs TS + Go suites and fixtures):
 
 - Numbers: `123`, `1_000`, `3.14`, `2e10`, `0xff`, `0b1010`.
 - Booleans: `true`, `false`; Nil: `nil`; Void literal is the absence of value in `void` contexts.
-- Characters: `'a'`, `'\\n'`. Strings: backticks with interpolation `` `Hello ${name}` `` (UTF-8; kernel exposes byte length/iterator, stdlib adds char/grapheme helpers).
+- Characters: `'a'`, `'\\n'`. Strings: double quotes for plain literals (`"hello"`), backticks for interpolation `` `Hello ${name}` `` (UTF-8; kernel exposes byte length/iterator, stdlib adds char/grapheme helpers).
 - Arrays: `[1, 2, 3]` with element type `Array i32`. Structs: `Point { x: 1, y: 2 }`. Map literal support is via stdlib helpers.
 
 ### 2.3 Blocks as Expressions

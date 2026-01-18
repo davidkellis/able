@@ -146,6 +146,57 @@ func TestGenericFunctionCallInfersTypeArguments(t *testing.T) {
 	}
 }
 
+func TestGenericCallInfersFromImplicitReturnExpectedType(t *testing.T) {
+	checker := New()
+	box := ast.StructDef(
+		"Box",
+		[]*ast.StructFieldDefinition{
+			ast.FieldDef(ast.Ty("T"), "value"),
+		},
+		ast.StructKindNamed,
+		[]*ast.GenericParameter{ast.GenericParam("T")},
+		nil,
+		false,
+	)
+	makeFn := ast.Fn(
+		"make",
+		nil,
+		nil,
+		ast.Gen(ast.Ty("Box"), ast.Ty("T")),
+		[]*ast.GenericParameter{ast.GenericParam("T")},
+		nil,
+		false,
+		false,
+	)
+	call := ast.Call("make")
+	buildFn := ast.Fn(
+		"build",
+		nil,
+		[]ast.Statement{call},
+		ast.Gen(ast.Ty("Box"), ast.Ty("i32")),
+		nil,
+		nil,
+		false,
+		false,
+	)
+	module := ast.NewModule([]ast.Statement{box, makeFn, buildFn}, nil, nil)
+
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics, got %v", diags)
+	}
+	typ, ok := checker.infer[call]
+	if !ok {
+		t.Fatalf("expected inferred type for call expression")
+	}
+	if typeName(typ) != "Box i32" {
+		t.Fatalf("expected call to infer Box i32, got %q", typeName(typ))
+	}
+}
+
 func TestGenericFunctionCallConflictingInferenceDiagnostic(t *testing.T) {
 	checker := New()
 	genericParam := ast.GenericParam("T")

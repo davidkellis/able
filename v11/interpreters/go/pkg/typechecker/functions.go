@@ -87,7 +87,13 @@ func (c *Checker) checkFunctionDefinition(env *Environment, def *ast.FunctionDef
 	defer c.popReturnType()
 
 	if def.Body != nil {
-		bodyDiags, bodyType := c.checkExpression(bodyEnv, def.Body)
+		var bodyDiags []Diagnostic
+		var bodyType Type
+		if expectedReturn != nil && !isUnknownType(expectedReturn) && !isVoidType(expectedReturn) {
+			bodyDiags, bodyType = c.checkExpressionWithExpectedType(bodyEnv, def.Body, expectedReturn)
+		} else {
+			bodyDiags, bodyType = c.checkExpression(bodyEnv, def.Body)
+		}
 		diags = append(diags, bodyDiags...)
 
 		if isVoidType(expectedReturn) {

@@ -40,7 +40,6 @@ export function ensureConsolePrint(interpreter: Interpreter): void {
 export function installRuntimeStubs(interpreter: Interpreter): void {
   const channels = new Map<number, { queue: RuntimeValue[]; capacity: number; closed: boolean }>();
   const mutexes = new Map<number, { locked: boolean }>();
-  const hashers = new Map<number, number>();
   const arrays = new Map<number, { values: RuntimeValue[]; capacity: number }>();
   let handleCounter = 1;
   const textEncoder = new TextEncoder();
@@ -454,40 +453,35 @@ export function installRuntimeStubs(interpreter: Interpreter): void {
     }) ?? makeIntegerValue("i64", 0n),
   );
 
-  const FNV_OFFSET = 0x811c9dc5;
-  const FNV_PRIME = 0x01000193;
+  const f32Buffer = new ArrayBuffer(4);
+  const f32View = new DataView(f32Buffer);
+  const f64Buffer = new ArrayBuffer(8);
+  const f64View = new DataView(f64Buffer);
 
-  defineIfMissing("__able_hasher_create", () =>
-    (interpreter as any).makeNativeFunction?.("__able_hasher_create", 0, () => {
-      const handle = handleCounter++;
-      hashers.set(handle, FNV_OFFSET);
-      return makeIntegerValue("i64", BigInt(handle));
-    }) ?? makeIntegerValue("i32", 0n),
+  defineIfMissing("__able_f32_bits", () =>
+    (interpreter as any).makeNativeFunction?.("__able_f32_bits", 1, (_ctx: Interpreter, [value]: RuntimeValue[]) => {
+      if (!value || value.kind !== "f32") throw new Error("__able_f32_bits expects f32 input");
+      f32View.setFloat32(0, value.value, false);
+      return makeIntegerValue("u32", BigInt(f32View.getUint32(0, false)));
+    }) ?? makeIntegerValue("u32", 0n),
   );
 
-  defineIfMissing("__able_hasher_write", () =>
-    (interpreter as any).makeNativeFunction?.("__able_hasher_write", 2, (_ctx: Interpreter, [handleArg, bytesArg]: RuntimeValue[]) => {
-      const handle = toHandle(handleArg);
-      if (!bytesArg || bytesArg.kind !== "String") throw new Error("bytes must be String");
-      const state = hashers.get(handle);
-      if (state === undefined) throw new Error("unknown hasher handle");
-      let hash = state >>> 0;
-      for (const b of textEncoder.encode(bytesArg.value)) {
-        hash ^= b;
-        hash = Math.imul(hash, FNV_PRIME) >>> 0;
+  defineIfMissing("__able_f64_bits", () =>
+    (interpreter as any).makeNativeFunction?.("__able_f64_bits", 1, (_ctx: Interpreter, [value]: RuntimeValue[]) => {
+      if (!value || value.kind !== "f64") throw new Error("__able_f64_bits expects f64 input");
+      f64View.setFloat64(0, value.value, false);
+      return makeIntegerValue("u64", f64View.getBigUint64(0, false));
+    }) ?? makeIntegerValue("u64", 0n),
+  );
+
+  defineIfMissing("__able_u64_mul", () =>
+    (interpreter as any).makeNativeFunction?.("__able_u64_mul", 2, (_ctx: Interpreter, [lhs, rhs]: RuntimeValue[]) => {
+      if (!lhs || lhs.kind !== "u64" || !rhs || rhs.kind !== "u64") {
+        throw new Error("__able_u64_mul expects u64 inputs");
       }
-      hashers.set(handle, hash >>> 0);
-      return { kind: "nil", value: null };
-    }) ?? { kind: "nil", value: null },
+      const result = (lhs.value * rhs.value) & ((1n << 64n) - 1n);
+      return makeIntegerValue("u64", result);
+    }) ?? makeIntegerValue("u64", 0n),
   );
 
-  defineIfMissing("__able_hasher_finish", () =>
-    (interpreter as any).makeNativeFunction?.("__able_hasher_finish", 1, (_ctx: Interpreter, [handleArg]: RuntimeValue[]) => {
-      const handle = toHandle(handleArg);
-      const state = hashers.get(handle);
-      if (state === undefined) throw new Error("unknown hasher handle");
-      hashers.delete(handle);
-      return makeIntegerValue("i64", BigInt(state >>> 0));
-    }) ?? makeIntegerValue("i64", 0n),
-  );
 }

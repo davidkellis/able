@@ -622,6 +622,16 @@ function parseUnaryExpression(node: Node, source: string): Expression {
     return parseExpression(operandNode, source);
   }
   const operand = parseExpression(operandNode, source);
+  if (operatorText === "-") {
+    if (operand.type === "IntegerLiteral" && operand.integerType) {
+      const value = operand.value;
+      const negated = typeof value === "bigint" ? -value : -Number(value);
+      return annotateExpressionNode(AST.integerLiteral(negated, operand.integerType), node);
+    }
+    if (operand.type === "FloatLiteral" && operand.floatType) {
+      return annotateExpressionNode(AST.floatLiteral(-operand.value, operand.floatType), node);
+    }
+  }
   if (operatorText === "-" || operatorText === "!" || operatorText === ".~") {
     return annotateExpressionNode(AST.unaryExpression(operatorText as "-" | "!" | ".~", operand), node);
   }
@@ -667,4 +677,3 @@ function parseRangeExpression(node: Node, source: string): Expression {
   }
   return annotateExpressionNode(AST.rangeExpression(startExpr, endExpr, operatorText === ".."), node);
 }
-

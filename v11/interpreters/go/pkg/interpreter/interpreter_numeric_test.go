@@ -267,6 +267,55 @@ func TestRatioDivisionByZero(t *testing.T) {
 	}
 }
 
+func TestHashHelperBuiltins(t *testing.T) {
+	interp := New()
+	env := interp.GlobalEnvironment()
+	f32Type := ast.FloatTypeF32
+	f64Type := ast.FloatTypeF64
+	u64Type := ast.IntegerTypeU64
+
+	f32Bits, err := interp.evaluateExpression(ast.Call("__able_f32_bits", ast.FltTyped(1.5, &f32Type)), env)
+	if err != nil {
+		t.Fatalf("f32 bits failed: %v", err)
+	}
+	f32Val, ok := f32Bits.(runtime.IntegerValue)
+	if !ok || f32Val.TypeSuffix != runtime.IntegerU32 {
+		t.Fatalf("expected u32 from __able_f32_bits, got %#v", f32Bits)
+	}
+	if f32Val.Val.Cmp(big.NewInt(0x3fc00000)) != 0 {
+		t.Fatalf("unexpected f32 bits %v", f32Val.Val)
+	}
+
+	f64Bits, err := interp.evaluateExpression(ast.Call("__able_f64_bits", ast.FltTyped(1.5, &f64Type)), env)
+	if err != nil {
+		t.Fatalf("f64 bits failed: %v", err)
+	}
+	f64Val, ok := f64Bits.(runtime.IntegerValue)
+	if !ok || f64Val.TypeSuffix != runtime.IntegerU64 {
+		t.Fatalf("expected u64 from __able_f64_bits, got %#v", f64Bits)
+	}
+	if f64Val.Val.Cmp(big.NewInt(0x3ff8000000000000)) != 0 {
+		t.Fatalf("unexpected f64 bits %v", f64Val.Val)
+	}
+
+	max := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 64), big.NewInt(1))
+	u64Mul, err := interp.evaluateExpression(
+		ast.Call("__able_u64_mul", ast.IntBig(max, &u64Type), ast.IntTyped(2, &u64Type)),
+		env,
+	)
+	if err != nil {
+		t.Fatalf("u64 mul failed: %v", err)
+	}
+	mulVal, ok := u64Mul.(runtime.IntegerValue)
+	if !ok || mulVal.TypeSuffix != runtime.IntegerU64 {
+		t.Fatalf("expected u64 from __able_u64_mul, got %#v", u64Mul)
+	}
+	expected := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 64), big.NewInt(2))
+	if mulVal.Val.Cmp(expected) != 0 {
+		t.Fatalf("unexpected u64 mul %v", mulVal.Val)
+	}
+}
+
 func TestMixedNumericComparisons(t *testing.T) {
 	interp := New()
 	env := interp.GlobalEnvironment()

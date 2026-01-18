@@ -46,6 +46,7 @@ export type FunctionContext = {
 export interface FunctionInfo {
   name: string;
   fullName: string;
+  definition?: AST.FunctionDefinition;
   structName?: string;
   hasImplicitSelf?: boolean;
   isTypeQualified?: boolean;

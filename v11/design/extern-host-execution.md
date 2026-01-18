@@ -5,7 +5,7 @@ Status: Draft
 ## Goal
 Make extern host function bodies (§16.1.2) execute as host code, per spec, with
 no per-function interpreter wiring. Preserve the existing kernel bridges for
-arrays/proc/channel/string/hasher/ratio, and keep the kernel surface unchanged.
+arrays/proc/channel/string/ratio, and keep the kernel surface unchanged.
 
 ## Problem
 The current interpreters treat extern bodies as declarations and map a few names
@@ -61,7 +61,6 @@ bodies:
 - Hash map hooks: `__able_hash_map_*`
 - Concurrency: `__able_channel_*`, `__able_mutex_*`, `__able_await_*`
 - String/char bridges: `__able_String_*`, `__able_char_*`
-- Hasher: `__able_hasher_*`
 - Ratio: `__able_ratio_from_float`
 - Scheduler globals: `print`, `proc_yield`, `proc_cancelled`, `proc_flush`,
   `proc_pending_tasks`

@@ -9,8 +9,6 @@ import (
 	"able/interpreter-go/pkg/runtime"
 )
 
-const numericEpsilon = 1e-9
-
 func valuesEqual(left runtime.Value, right runtime.Value) bool {
 	if iv, ok := left.(runtime.InterfaceValue); ok {
 		return valuesEqual(iv.Underlying, right)
@@ -118,14 +116,14 @@ func valuesEqual(left runtime.Value, right runtime.Value) bool {
 		case runtime.IntegerValue:
 			return lv.Val.Cmp(rv.Val) == 0
 		case runtime.FloatValue:
-			return math.Abs(bigIntToFloat(lv.Val)-rv.Val) < numericEpsilon
+			return bigIntToFloat(lv.Val) == rv.Val
 		}
 	case runtime.FloatValue:
 		switch rv := right.(type) {
 		case runtime.FloatValue:
-			return math.Abs(lv.Val-rv.Val) < numericEpsilon
+			return lv.Val == rv.Val
 		case runtime.IntegerValue:
-			return math.Abs(lv.Val-bigIntToFloat(rv.Val)) < numericEpsilon
+			return lv.Val == bigIntToFloat(rv.Val)
 		}
 	}
 	return false
@@ -229,13 +227,20 @@ func evaluateComparison(op string, left runtime.Value, right runtime.Value) (run
 	if err != nil {
 		return nil, err
 	}
+	if math.IsNaN(leftFloat) || math.IsNaN(rightFloat) {
+		switch op {
+		case "!=":
+			return runtime.BoolValue{Val: true}, nil
+		case "==":
+			return runtime.BoolValue{Val: false}, nil
+		default:
+			return runtime.BoolValue{Val: false}, nil
+		}
+	}
 	cmp := 0
-	diff := leftFloat - rightFloat
-	if math.Abs(diff) < numericEpsilon {
-		cmp = 0
-	} else if diff < 0 {
+	if leftFloat < rightFloat {
 		cmp = -1
-	} else {
+	} else if leftFloat > rightFloat {
 		cmp = 1
 	}
 	return runtime.BoolValue{Val: comparisonOp(op, cmp)}, nil

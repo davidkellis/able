@@ -53,6 +53,10 @@ function normalizeKernelAliasName(name: string): string {
   }
 }
 
+function hasConcreteTypeName(ctx: Interpreter, name: string): boolean {
+  return ctx.structs.has(name) || ctx.unions.has(name);
+}
+
 function isErrorValue(ctx: Interpreter, value: RuntimeValue): boolean {
   if (value.kind === "error") return true;
   if (value.kind === "interface_value" && value.interfaceName === "Error") return true;
@@ -503,7 +507,7 @@ export function applyTypesAugmentations(cls: typeof Interpreter): void {
         if (name === "IteratorEnd" && v.kind === "iterator_end") return true;
         if (name === "Iterator" && v.kind === "iterator") return true;
         if (name === "Awaitable" && isAwaitableStructInstance(v)) return true;
-        if (this.interfaces.has(name)) {
+        if (this.interfaces.has(name) && !hasConcreteTypeName(this, name)) {
           if (v.kind === "interface_value") return v.interfaceName === name;
           const typeName = this.getTypeNameForValue(v);
           const canonicalName = typeName
@@ -576,6 +580,10 @@ export function applyTypesAugmentations(cls: typeof Interpreter): void {
               const actual = actualArgs[idx]!;
               if (actual.type === "WildcardTypeExpression") return true;
               if (expected.type === "WildcardTypeExpression") return true;
+              if (actual.type === "SimpleTypeExpression") {
+                const name = actual.name.name;
+                if (name === "Self" || /^[A-Z]/.test(name)) return true;
+              }
               if (expected.type === "SimpleTypeExpression") {
                 const name = expected.name.name;
                 if (name === "Self" || /^[A-Z]/.test(name)) return true;
@@ -715,7 +723,7 @@ export function applyTypesAugmentations(cls: typeof Interpreter): void {
           return makeIntegerValue(targetKind, value.value);
         }
       }
-      if (this.interfaces.has(name)) {
+      if (this.interfaces.has(name) && !hasConcreteTypeName(this, name)) {
         return this.toInterfaceValue(name, value);
       }
       if (FLOAT_KINDS.includes(name as FloatKind)) {
@@ -740,10 +748,19 @@ export function applyTypesAugmentations(cls: typeof Interpreter): void {
       if (INTEGER_KIND_SET.has(name as IntegerKind)) {
         const targetKind = name as IntegerKind;
         if (isIntegerValue(rawValue)) {
-          if (!integerValueWithinRange(rawValue.value, targetKind)) {
-            throw new Error(`value out of range for ${targetKind}`);
+          const info = getIntegerInfo(targetKind);
+          const modulus = 1n << BigInt(info.bits);
+          let normalized = rawValue.value % modulus;
+          if (normalized < 0n) {
+            normalized += modulus;
           }
-          return makeIntegerValue(targetKind, rawValue.value);
+          if (info.signed) {
+            const signBit = 1n << BigInt(info.bits - 1);
+            if (normalized >= signBit) {
+              normalized -= modulus;
+            }
+          }
+          return makeIntegerValue(targetKind, normalized);
         }
         if (isFloatValue(rawValue)) {
           if (!Number.isFinite(rawValue.value)) {
@@ -768,7 +785,7 @@ export function applyTypesAugmentations(cls: typeof Interpreter): void {
       if (name === "Error" && rawValue.kind === "error") {
         return rawValue;
       }
-      if (this.interfaces.has(name)) {
+      if (this.interfaces.has(name) && !hasConcreteTypeName(this, name)) {
         return this.toInterfaceValue(name, value);
       }
     }

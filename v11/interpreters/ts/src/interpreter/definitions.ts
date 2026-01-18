@@ -10,41 +10,45 @@ function canonicalizeIdentifier(env: Environment, name: string): string {
     return name;
   }
   const binding = env.get(name);
-  if (binding.kind === "struct_def" || binding.kind === "interface_def") {
+  if (binding.kind === "struct_def" || binding.kind === "interface_def" || binding.kind === "union_def") {
     return binding.def.id.name ?? name;
   }
   return name;
 }
 
-function canonicalizeTypeExpression(ctx: Interpreter, env: Environment, expr: AST.TypeExpression): AST.TypeExpression {
-  const expanded = ctx.expandTypeAliases(expr);
-  switch (expanded.type) {
+function canonicalizeExpandedTypeExpression(env: Environment, expr: AST.TypeExpression): AST.TypeExpression {
+  switch (expr.type) {
     case "SimpleTypeExpression": {
-      const name = canonicalizeIdentifier(env, expanded.name.name);
-      if (name === expanded.name.name) {
-        return expanded;
+      const name = canonicalizeIdentifier(env, expr.name.name);
+      if (name === expr.name.name) {
+        return expr;
       }
       return AST.simpleTypeExpression(name);
     }
     case "GenericTypeExpression":
       return AST.genericTypeExpression(
-        canonicalizeTypeExpression(ctx, env, expanded.base),
-        (expanded.arguments ?? []).map((arg) => (arg ? canonicalizeTypeExpression(ctx, env, arg) : arg)),
+        canonicalizeExpandedTypeExpression(env, expr.base),
+        (expr.arguments ?? []).map((arg) => (arg ? canonicalizeExpandedTypeExpression(env, arg) : arg)),
       );
     case "NullableTypeExpression":
-      return AST.nullableTypeExpression(canonicalizeTypeExpression(ctx, env, expanded.innerType));
+      return AST.nullableTypeExpression(canonicalizeExpandedTypeExpression(env, expr.innerType));
     case "ResultTypeExpression":
-      return AST.resultTypeExpression(canonicalizeTypeExpression(ctx, env, expanded.innerType));
+      return AST.resultTypeExpression(canonicalizeExpandedTypeExpression(env, expr.innerType));
     case "UnionTypeExpression":
-      return AST.unionTypeExpression((expanded.members ?? []).map((member) => canonicalizeTypeExpression(ctx, env, member)));
+      return AST.unionTypeExpression((expr.members ?? []).map((member) => canonicalizeExpandedTypeExpression(env, member)));
     case "FunctionTypeExpression":
       return AST.functionTypeExpression(
-        (expanded.paramTypes ?? []).map((param) => canonicalizeTypeExpression(ctx, env, param)),
-        canonicalizeTypeExpression(ctx, env, expanded.returnType),
+        (expr.paramTypes ?? []).map((param) => canonicalizeExpandedTypeExpression(env, param)),
+        canonicalizeExpandedTypeExpression(env, expr.returnType),
       );
     default:
-      return expanded;
+      return expr;
   }
+}
+
+export function canonicalizeTypeExpression(ctx: Interpreter, env: Environment, expr: AST.TypeExpression): AST.TypeExpression {
+  const expanded = ctx.expandTypeAliases(expr);
+  return canonicalizeExpandedTypeExpression(env, expanded);
 }
 
 export function evaluateInterfaceDefinition(ctx: Interpreter, node: AST.InterfaceDefinition, env: Environment): RuntimeValue {

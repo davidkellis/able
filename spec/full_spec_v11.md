@@ -1875,13 +1875,101 @@ Note: Empty collections (e.g., `Array T` with size 0) are truthy. Only `false`, 
 
 The interpreters ship a **minimal** “kernel” library implemented in the host runtime. Higher-level helpers described in later subsections are written in Able and layer on top of this kernel surface. The kernel exists so the stdlib can bootstrap itself without depending on host-only functionality.
 
-The kernel exposes only the following:
-- **Global functions:** `print`, `proc_yield`, `proc_cancelled`, `proc_flush`, `proc_pending_tasks`.
-- **Concurrency bridges:** channel primitives `__able_channel_new/send/receive/try_send/try_receive/await_try_send/await_try_recv/close/is_closed`; mutex primitives `__able_mutex_new/lock/unlock`; await waker helpers.
-- **String/char bridges:** `__able_string_from_builtin`, `__able_string_to_builtin`, `__able_char_from_codepoint` (and UTF-8 validation/byte iterators as needed).
-- **Hasher bridges:** `__able_hasher_create`, `__able_hasher_write`, `__able_hasher_finish`.
-- **Array buffer hooks:** host-level allocation and slot access functions (e.g., `__able_array_new/with_capacity`, `__able_array_read`, `__able_array_write`, `__able_array_grow`). These are not user-facing and exist solely so the stdlib `Array` implementation can manage storage.
-- **Error methods:** `message() -> String`, `cause() -> ?error`; `value` field is accessible for payloads.
+The kernel exposes only the following surface and depends on a fixed set of host
+bridge functions. These bridge names are case-sensitive and form the ABI
+contract between an Able implementation and the kernel library.
+
+**Kernel-resident types (always loaded, re-exported by stdlib modules):**
+- `Array T`, `HashMap K V`, `Ratio`, `Range`, `RangeFactory`, `Channel T`, `Mutex`,
+  `AwaitWaker`, `AwaitRegistration`
+- Ordering markers: `Less`, `Equal`, `Greater`, `Ordering`
+
+**Kernel-resident interfaces (always in scope, re-exported by `able.core.interfaces`):**
+- `Display`, `Clone`, `Default`
+- `PartialEq`, `Eq`, `PartialOrd`, `Ord`
+- `Hasher`, `Hash`
+- `Awaitable`
+
+**Kernel-provided methods (defined in Able, not host bridges):**
+- `Array T`: `new`, `with_capacity`, `size`, `len`, `capacity`, `is_empty`, `push`,
+  `pop`, `clear`, `read_slot`, `write_slot`, `reserve`, `clone_shallow`, `refresh_metadata`
+- `HashMap K V`: `new`, `with_capacity`, `raw_get`, `raw_set`, `raw_remove`,
+  `raw_contains`, `raw_size`, `raw_clear`, `raw_for_each`, `raw_clone`
+- `Channel T`: `new`, `send`, `receive`, `try_send`, `try_receive`, `await_receive`,
+  `await_send`, `close`, `is_closed`
+- `Mutex`: `new`, `lock`, `unlock`, `await_lock`
+- `RangeFactory`: `inclusive_range`, `exclusive_range`
+- `Range`: `is_inclusive`
+
+**Kernel handle aliases (opaque to Able code):**
+```able
+type ArrayHandle = i64
+type HashMapHandle = i64
+type ChannelHandle = i64
+type MutexHandle = i64
+```
+
+**Global builtins (host-provided):**
+- `print(value: _) -> void`
+- `proc_yield() -> void`
+- `proc_cancelled() -> bool`
+- `proc_flush() -> void`
+- `proc_pending_tasks() -> i32`
+
+**Array buffer hooks (host-provided):**
+- `__able_array_new() -> ArrayHandle`
+- `__able_array_with_capacity(capacity: i32) -> ArrayHandle`
+- `__able_array_size(handle: ArrayHandle) -> i32`
+- `__able_array_capacity(handle: ArrayHandle) -> i32`
+- `__able_array_set_len(handle: ArrayHandle, length: i32) -> void`
+- `__able_array_read(handle: ArrayHandle, idx: i32) -> _`
+- `__able_array_write(handle: ArrayHandle, idx: i32, value: _) -> void`
+- `__able_array_reserve(handle: ArrayHandle, capacity: i32) -> ArrayHandle`
+- `__able_array_clone(handle: ArrayHandle) -> ArrayHandle`
+
+**HashMap hooks (host-provided):**
+- `__able_hash_map_new() -> HashMapHandle`
+- `__able_hash_map_with_capacity(capacity: i32) -> HashMapHandle`
+- `__able_hash_map_get(handle: HashMapHandle, key: _) -> ?_`
+- `__able_hash_map_set(handle: HashMapHandle, key: _, value: _) -> void`
+- `__able_hash_map_remove(handle: HashMapHandle, key: _) -> ?_`
+- `__able_hash_map_contains(handle: HashMapHandle, key: _) -> bool`
+- `__able_hash_map_size(handle: HashMapHandle) -> i32`
+- `__able_hash_map_clear(handle: HashMapHandle) -> void`
+- `__able_hash_map_for_each(handle: HashMapHandle, visit: (_, _) -> void) -> void`
+- `__able_hash_map_clone(handle: HashMapHandle) -> HashMapHandle`
+
+**String/char bridges (host-provided):**
+- `__able_String_from_builtin(value: String) -> Array u8`
+- `__able_String_to_builtin(bytes: Array u8) -> String`
+- `__able_char_from_codepoint(value: i32) -> char`
+- `__able_char_to_codepoint(value: char) -> i32`
+
+**Concurrency bridges (host-provided):**
+- `__able_channel_new(capacity: i32) -> ChannelHandle`
+- `__able_channel_send(handle: ChannelHandle, value: _) -> void`
+- `__able_channel_receive(handle: ChannelHandle) -> ?_`
+- `__able_channel_try_send(handle: ChannelHandle, value: _) -> bool`
+- `__able_channel_try_receive(handle: ChannelHandle) -> ?_`
+- `__able_channel_await_try_recv(handle: ChannelHandle, callback: fn(?_) -> _) -> (Awaitable _)`
+- `__able_channel_await_try_send(handle: ChannelHandle, value: _, callback: fn() -> _) -> (Awaitable _)`
+- `__able_channel_close(handle: ChannelHandle) -> void`
+- `__able_channel_is_closed(handle: ChannelHandle) -> bool`
+- `__able_mutex_new() -> MutexHandle`
+- `__able_mutex_lock(handle: MutexHandle) -> void`
+- `__able_mutex_unlock(handle: MutexHandle) -> void`
+- `__able_mutex_await_lock(handle: MutexHandle, callback: fn() -> _) -> (Awaitable _)`
+- `__able_await_default(callback: fn() -> _) -> (Awaitable _)`
+- `__able_await_sleep_ms(duration: i64, callback: fn() -> _) -> (Awaitable _)`
+
+**Numeric bridges (host-provided):**
+- `__able_ratio_from_float(value: f64) -> Ratio`
+- `__able_f32_bits(value: f32) -> u32`
+- `__able_f64_bits(value: f64) -> u64`
+- `__able_u64_mul(lhs: u64, rhs: u64) -> u64`
+
+**Required runtime protocols:**
+- **Error methods:** `message() -> String`, `cause() -> ?Error`; the `value` field is accessible for payloads.
 - **Iterator methods:** `next() -> T | IteratorEnd`, `close()`.
 - **Proc/Future methods:** `status()`, `value()`, `cancel()` (future cancel may be a no-op depending on target runtime).
 
@@ -1889,7 +1977,7 @@ All user-facing array and string helpers in §§6.12.1–6.12.2 live in the Able
 
 #### 6.12.1. String & Grapheme Helpers
 
-`String` is the canonical immutable UTF-8 container provided by the language. String literals evaluate to `String` directly. Runtimes may still expose helper functions (e.g., `string_from_builtin`, `string_to_builtin`) to convert to/from host-native encodings, but Able programs always operate on the built-in `String` type. Each `String` owns an `Array u8` buffer; mutation happens only through builders (e.g., `StringBuilder`) that emit a new canonical value.
+`String` is the canonical immutable UTF-8 container provided by the language. String literals evaluate to `String` directly. Runtimes may still expose helper functions (e.g., `__able_String_from_builtin`, `__able_String_to_builtin`) to convert to/from host-native encodings, but Able programs always operate on the built-in `String` type. Each `String` owns an `Array u8` buffer; mutation happens only through builders (e.g., `StringBuilder`) that emit a new canonical value.
 
 **Required operations**
 
@@ -2043,9 +2131,20 @@ fn process(x: i32) -> String {
 #### 7.1.4. Generic Argument Inference and Annotation Rules
 
 - Generic parameters in `fn` definitions may be omitted at call sites; the compiler infers them from argument types and, when needed, the expected return type at the call site.
+- The expected type may come from assignment targets, explicit type annotations, or return positions (explicit `return` or implicit final-expression returns). This expected type participates in generic inference for the call expression so chained calls (e.g., `iter.collect()`) can infer their output type from the enclosing context.
 - Annotations in value positions must be concrete. To accept values of a polymorphic family (e.g., any `Array T`), introduce a generic parameter and use it in the annotation: `fn f<T>(xs: Array T) { ... }`.
 - When inference is insufficient or ambiguous, provide explicit generics: `identity<i64>(0)`.
 - It is a compile-time error to annotate parameters, locals, or fields with unbound type constructors (e.g., `Array`, `Map String _`).
+
+Example (return-context inference):
+
+```able
+fn build_set(input: String) -> HashSet u8 {
+  input
+    .bytes()
+    .collect()
+}
+```
 
 #### 7.1.5. Optional Generic Parameter Declarations
 
@@ -4436,7 +4535,7 @@ Implementers pick whatever `Result`/`Shift` types make sense (often `Self`/`u32`
 
 - `==`/`!=` require `PartialEq` (or the stronger `Eq`).
 - `<`, `<=`, `>`, `>=` require `PartialOrd` (or `Ord`).
-- Hash-based containers use `Hash` together with `Eq`.
+- Hash-based containers use `Hash` together with `Eq`; kernel `HashMap` and stdlib `HashSet` always dispatch to user-defined `Hash`/`Eq` implementations for keys.
 
 ```able
 interface PartialEq Rhs for Self { fn eq(self: Self, other: Rhs) -> bool }
@@ -4446,12 +4545,44 @@ enum Ordering = Less | Equal | Greater
 interface PartialOrd Rhs for Self { fn partial_cmp(self: Self, other: Rhs) -> Ordering }
 interface Ord for Self : PartialOrd Self { fn cmp(self: Self, other: Self) -> Ordering }
 
+interface Hasher for Self {
+  fn finish(self: Self) -> u64;
+  fn write_u8(self: Self, value: u8) -> void;
+  fn write_bool(self: Self, value: bool) -> void;
+  fn write_u16(self: Self, value: u16) -> void;
+  fn write_u32(self: Self, value: u32) -> void;
+  fn write_u64(self: Self, value: u64) -> void;
+  fn write_i8(self: Self, value: i8) -> void;
+  fn write_i16(self: Self, value: i16) -> void;
+  fn write_i32(self: Self, value: i32) -> void;
+  fn write_i64(self: Self, value: i64) -> void;
+  fn write_char(self: Self, value: char) -> void;
+  fn write_f32(self: Self, value: f32) -> void;
+  fn write_f64(self: Self, value: f64) -> void;
+  fn write_bytes(self: Self, value: Array u8) -> void;
+  fn write_string(self: Self, value: String) -> void;
+}
+
 interface Hash for Self {
-  fn hash(self: Self, state: Hasher) -> void ## 'Hasher' is the stdlib sink used by maps/sets
+  fn hash(self: Self, state: Hasher) -> void ## 'Hasher' is the kernel sink used by maps/sets
 }
 ```
 
+The kernel library provides default implementations for the `Hasher` helper
+methods listed above in terms of `write_u8`. Multi-byte helpers (`write_u16`,
+`write_u32`, `write_u64`) emit big-endian byte order; `write_f32`/`write_f64`
+consume `__able_f32_bits`/`__able_f64_bits`, and `write_string` hashes the UTF-8
+bytes obtained from `__able_String_from_builtin`.
+
 Implementations must satisfy the usual algebraic laws (reflexivity, antisymmetry, etc.); violations result in undefined behavior for language-provided containers.
+
+**Numeric comparisons (intrinsic):**
+- Integer and `Ratio` equality are exact and agree across widths after promotion.
+- Float equality uses IEEE `==` semantics (`NaN != NaN`, `+0 == -0`).
+- Mixed int/float equality promotes to the wider float and compares with IEEE `==`, so `0 == 0.0` and `0 == -0.0`.
+- Ordering operators on floats use IEEE comparisons: any comparison involving `NaN` yields `false` for `<`, `<=`, `>`, and `>=`.
+
+Primitive interface impls mirror these intrinsic semantics; users should not expect approximate or epsilon-based equality from `==`.
 
 #### 14.1.6. Display & Errors
 
@@ -4466,8 +4597,15 @@ Implementations must satisfy the usual algebraic laws (reflexivity, antisymmetry
 -   `Proc` / `ProcError` describe asynchronous handles (§12.2).
 
 Built-in implementations:
-- Primitives (`bool`, all integer/float widths, `String`) ship with implicit implementations of `Display`, `Clone`, `Default`, `Eq`/`Ord`, and `Hash` provided by the runtimes. These are always in scope and cannot be redefined by user code.
+- Primitives (`bool`, all integer widths, `char`, `String`) ship with implicit implementations of `Display`, `Clone`, `Default`, `Eq`/`Ord`, and `Hash` provided by the kernel library (`able.kernel`). These are always in scope and cannot be redefined by user code.
+- Floats (`f32`, `f64`) ship with implicit `Display`, `Clone`, `Default`, `PartialEq`, and `PartialOrd` implementations only. They do **not** implement `Eq`, `Ord`, or `Hash`. Use wrapper types (e.g., `NotNaN`, `FloatKey`) when hash-based containers or total ordering are required.
 - Opaque handle primitives (`IoHandle`, `ProcHandle`) ship with implicit implementations of `Display`, `Clone`, `Eq`, and `Hash` using identity semantics. They do **not** implement `Ord` or `Default`.
+- Primitive `Hash` implementations must feed raw bytes into the hasher using a
+  canonical encoding: integers are hashed as fixed-width two's-complement big-endian
+  bytes, `bool` hashes as a single byte `0` or `1`, `char` hashes its Unicode scalar
+  value as a 32-bit unsigned integer, and `String` hashes its UTF-8 bytes. Hashing
+  is deterministic across runtimes; host bridges may provide bitcast helpers for
+  floats, but floats do not implement `Hash` by default.
 - Because the runtimes supply these unnamed impls, the stdlib must avoid re-declaring duplicate unnamed implementations for the same `(Interface, Type)` pairs to keep coherence/ambiguity rules intact. Where additional behavior is needed (e.g., custom hashing for composite structs), define implementations on those composite types instead of reintroducing primitive impls.
 
 These interfaces, along with their implementations, form the contract between the language and the standard library. Authors creating new collection or numeric types should conform to these signatures so their types slot seamlessly into existing syntax.

@@ -12,86 +12,118 @@ import (
 func applyBinaryOperator(i *Interpreter, op string, left runtime.Value, right runtime.Value) (runtime.Value, error) {
 	rawOp := op
 	op, dotted := normalizeOperator(op)
+	rawLeft := unwrapInterfaceValue(left)
+	rawRight := unwrapInterfaceValue(right)
 	switch op {
 	case "+", "-", "*", "^":
 		if op == "^" && dotted {
-			if isIntegerValue(left) && isIntegerValue(right) {
-				return evaluateBitwise(op, left, right)
+			if isIntegerValue(rawLeft) && isIntegerValue(rawRight) {
+				return evaluateBitwise(op, rawLeft, rawRight)
 			}
 			if result, ok, err := i.applyOperatorInterface(rawOp, left, right); ok {
 				return result, err
 			}
-			return evaluateBitwise(op, left, right)
+			return evaluateBitwise(op, rawLeft, rawRight)
 		}
-		if isNumericValue(left) && isNumericValue(right) {
-			return evaluateArithmetic(i, op, left, right)
+		if isNumericValue(rawLeft) && isNumericValue(rawRight) {
+			return evaluateArithmetic(i, op, rawLeft, rawRight)
 		}
 		if op != "^" {
 			if result, ok, err := i.applyOperatorInterface(rawOp, left, right); ok {
 				return result, err
 			}
 		}
-		return evaluateArithmetic(i, op, left, right)
+		return evaluateArithmetic(i, op, rawLeft, rawRight)
 	case "/":
-		if isNumericValue(left) && isNumericValue(right) {
-			return evaluateDivision(i, left, right)
+		if isNumericValue(rawLeft) && isNumericValue(rawRight) {
+			return evaluateDivision(i, rawLeft, rawRight)
 		}
 		if result, ok, err := i.applyOperatorInterface(rawOp, left, right); ok {
 			return result, err
 		}
-		return evaluateDivision(i, left, right)
+		return evaluateDivision(i, rawLeft, rawRight)
 	case "//", "%", "/%":
 		if op == "%" {
-			if isIntegerValue(left) && isIntegerValue(right) {
-				return evaluateDivMod(i, op, left, right)
+			if isIntegerValue(rawLeft) && isIntegerValue(rawRight) {
+				return evaluateDivMod(i, op, rawLeft, rawRight)
 			}
 			if result, ok, err := i.applyOperatorInterface(rawOp, left, right); ok {
 				return result, err
 			}
-			return evaluateDivMod(i, op, left, right)
+			return evaluateDivMod(i, op, rawLeft, rawRight)
 		}
-		return evaluateDivMod(i, op, left, right)
+		return evaluateDivMod(i, op, rawLeft, rawRight)
 	case "<", "<=", ">", ">=":
-		if isNumericValue(left) && isNumericValue(right) {
-			return evaluateComparison(op, left, right)
+		if isNumericValue(rawLeft) && isNumericValue(rawRight) {
+			return evaluateComparison(op, rawLeft, rawRight)
 		}
-		if _, ok := stringFromValue(left); ok {
-			if _, ok := stringFromValue(right); ok {
-				return evaluateComparison(op, left, right)
+		if _, ok := stringFromValue(rawLeft); ok {
+			if _, ok := stringFromValue(rawRight); ok {
+				return evaluateComparison(op, rawLeft, rawRight)
 			}
 		}
 		if result, ok, err := i.applyOrderingInterface(op, left, right); ok {
 			return result, err
 		}
-		return evaluateComparison(op, left, right)
+		return evaluateComparison(op, rawLeft, rawRight)
 	case "==":
-		if ls, ok := stringFromValue(left); ok {
-			if rs, ok := stringFromValue(right); ok {
+		if isNumericValue(rawLeft) && isNumericValue(rawRight) {
+			return evaluateComparison(op, rawLeft, rawRight)
+		}
+		if ls, ok := stringFromValue(rawLeft); ok {
+			if rs, ok := stringFromValue(rawRight); ok {
 				return runtime.BoolValue{Val: ls == rs}, nil
 			}
 		}
+		if _, ok := rawLeft.(runtime.NilValue); ok {
+			return runtime.BoolValue{Val: valuesEqual(rawLeft, rawRight)}, nil
+		}
+		if _, ok := rawRight.(runtime.NilValue); ok {
+			return runtime.BoolValue{Val: valuesEqual(rawLeft, rawRight)}, nil
+		}
+		if _, ok := rawLeft.(*runtime.NilValue); ok {
+			return runtime.BoolValue{Val: valuesEqual(rawLeft, rawRight)}, nil
+		}
+		if _, ok := rawRight.(*runtime.NilValue); ok {
+			return runtime.BoolValue{Val: valuesEqual(rawLeft, rawRight)}, nil
+		}
 		if result, ok, err := i.applyEqualityInterface(op, left, right); ok {
 			return result, err
 		}
-		return runtime.BoolValue{Val: valuesEqual(left, right)}, nil
+		return runtime.BoolValue{Val: valuesEqual(rawLeft, rawRight)}, nil
 	case "!=":
-		if ls, ok := stringFromValue(left); ok {
-			if rs, ok := stringFromValue(right); ok {
+		if isNumericValue(rawLeft) && isNumericValue(rawRight) {
+			return evaluateComparison(op, rawLeft, rawRight)
+		}
+		if ls, ok := stringFromValue(rawLeft); ok {
+			if rs, ok := stringFromValue(rawRight); ok {
 				return runtime.BoolValue{Val: ls != rs}, nil
 			}
 		}
+		if _, ok := rawLeft.(runtime.NilValue); ok {
+			return runtime.BoolValue{Val: !valuesEqual(rawLeft, rawRight)}, nil
+		}
+		if _, ok := rawRight.(runtime.NilValue); ok {
+			return runtime.BoolValue{Val: !valuesEqual(rawLeft, rawRight)}, nil
+		}
+		if _, ok := rawLeft.(*runtime.NilValue); ok {
+			return runtime.BoolValue{Val: !valuesEqual(rawLeft, rawRight)}, nil
+		}
+		if _, ok := rawRight.(*runtime.NilValue); ok {
+			return runtime.BoolValue{Val: !valuesEqual(rawLeft, rawRight)}, nil
+		}
 		if result, ok, err := i.applyEqualityInterface(op, left, right); ok {
 			return result, err
 		}
-		return runtime.BoolValue{Val: !valuesEqual(left, right)}, nil
+		return runtime.BoolValue{Val: !valuesEqual(rawLeft, rawRight)}, nil
 	case "&", "|", "<<", ">>":
-		if isIntegerValue(left) && isIntegerValue(right) {
-			return evaluateBitwise(op, left, right)
+		if isIntegerValue(rawLeft) && isIntegerValue(rawRight) {
+			return evaluateBitwise(op, rawLeft, rawRight)
 		}
 		if result, ok, err := i.applyOperatorInterface(rawOp, left, right); ok {
 			return result, err
 		}
-		return evaluateBitwise(op, left, right)
+		return evaluateBitwise(op, rawLeft, rawRight)
 	default:
 		return nil, fmt.Errorf("unsupported binary operator %s", op)
 	}
@@ -129,9 +161,6 @@ func evaluateDivision(i *Interpreter, left runtime.Value, right runtime.Value) (
 		rightFloat, err := numericToFloat(right)
 		if err != nil {
 			return nil, err
-		}
-		if rightFloat == 0 {
-			return nil, newDivisionByZeroError()
 		}
 		val := normalizeFloat(targetFloatKind, leftFloat/rightFloat)
 		return runtime.FloatValue{Val: val, TypeSuffix: targetFloatKind}, nil

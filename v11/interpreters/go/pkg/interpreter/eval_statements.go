@@ -25,7 +25,14 @@ func (i *Interpreter) evaluateStatement(node ast.Statement, env *runtime.Environ
 			if n.ID.Name == "_" {
 				return nil, errors.New("type alias name '_' is reserved")
 			}
-			i.typeAliases[n.ID.Name] = n
+			alias := n
+			if n.TargetType != nil {
+				canonicalTarget := canonicalizeTypeExpression(n.TargetType, env, i.typeAliases)
+				clone := *n
+				clone.TargetType = canonicalTarget
+				alias = &clone
+			}
+			i.typeAliases[n.ID.Name] = alias
 		}
 		return runtime.NilValue{}, nil
 	case *ast.MethodsDefinition:

@@ -51,7 +51,7 @@ export function evaluateMapLiteral(ctx: Interpreter, node: AST.MapLiteral, env: 
     if (entry.type === "MapLiteralEntry") {
       const keyValue = ctx.evaluate(entry.key, env);
       const value = ctx.evaluate(entry.value, env);
-      insertHashMapEntry(state, keyValue, value);
+      insertHashMapEntry(ctx, state, keyValue, value);
       keyType = mergeTypeExpr(ctx, keyType, ctx.typeExpressionFromValue(keyValue));
       valueType = mergeTypeExpr(ctx, valueType, ctx.typeExpressionFromValue(value));
       continue;
@@ -60,7 +60,7 @@ export function evaluateMapLiteral(ctx: Interpreter, node: AST.MapLiteral, env: 
     const spreadHandle = hashMapHandleFromValue(ctx, spreadValue);
     const spreadState = ctx.hashMapStateForHandle(spreadHandle);
     for (const existing of hashMapEntries(spreadState)) {
-      insertHashMapEntry(state, existing.key, existing.value);
+      insertHashMapEntry(ctx, state, existing.key, existing.value);
     }
     if (spreadValue.kind === "struct_instance") {
       const typeArgs = spreadValue.typeArguments ?? [];

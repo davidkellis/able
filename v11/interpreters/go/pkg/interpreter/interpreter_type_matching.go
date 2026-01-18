@@ -443,13 +443,25 @@ func primitiveImplementsInterfaceMethod(typeName, ifaceName, methodName string) 
 	if !isPrimitiveName(typeName) {
 		return false
 	}
+	isInteger := false
+	if _, err := getIntegerInfo(runtime.IntegerType(typeName)); err == nil {
+		isInteger = true
+	}
+	isFloat := typeName == "f32" || typeName == "f64"
+	isComparable := typeName == "String" || typeName == "bool" || typeName == "char" || isInteger
 	switch ifaceName {
 	case "Hash":
-		return methodName == "hash"
+		return methodName == "hash" && isComparable
 	case "Eq":
-		return methodName == "eq" || methodName == "ne"
+		return (methodName == "eq" || methodName == "ne") && isComparable
+	case "PartialEq":
+		return (methodName == "eq" || methodName == "ne") && (isComparable || isFloat)
 	case "Clone":
 		return methodName == "clone"
+	case "Ord":
+		return methodName == "cmp" && isComparable
+	case "PartialOrd":
+		return methodName == "partial_cmp" && (isComparable || isFloat)
 	default:
 		return false
 	}

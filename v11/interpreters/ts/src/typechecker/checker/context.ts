@@ -1,6 +1,6 @@
 import type * as AST from "../../ast";
 import type { TypeInfo } from "../types";
-import { inferExpression as inferExpressionHelper } from "./expressions";
+import { inferExpression as inferExpressionHelper, inferExpressionWithExpected as inferExpressionWithExpectedHelper } from "./expressions";
 import type { StatementContext } from "./expression-context";
 import { checkStatement as checkStatementHelper } from "./statements";
 import type { InterfaceCheckResult } from "./types";
@@ -28,8 +28,8 @@ export type CheckerContextHost = {
   pushAsyncContext: () => void;
   popAsyncContext: () => void;
   checkReturnStatement: (statement: AST.ReturnStatement) => void;
-  checkFunctionCall: (call: AST.FunctionCall) => void;
-  inferFunctionCallReturnType: (call: AST.FunctionCall) => TypeInfo;
+  checkFunctionCall: (call: AST.FunctionCall, expectedReturn?: TypeInfo) => void;
+  inferFunctionCallReturnType: (call: AST.FunctionCall, expectedReturn?: TypeInfo) => TypeInfo;
   checkFunctionDefinition: (definition: AST.FunctionDefinition) => void;
   pushLoopContext: () => void;
   popLoopContext: () => TypeInfo;
@@ -111,6 +111,8 @@ export function createCheckerContext(host: CheckerContextHost): StatementContext
 
   const expressionCtx = ctx as StatementContext;
   ctx.inferExpression = (expression) => inferExpressionHelper(expressionCtx, expression);
+  ctx.inferExpressionWithExpected = (expression, expected) =>
+    inferExpressionWithExpectedHelper(expressionCtx, expression, expected);
   ctx.checkStatement = (node) => checkStatementHelper(expressionCtx, node);
   return expressionCtx;
 }

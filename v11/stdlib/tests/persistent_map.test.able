@@ -18,9 +18,8 @@ impl Eq for BadKey {
 }
 
 impl Hash for BadKey {
-  fn hash(self: Self, hasher: Hasher) -> u64 {
-    hasher.write_bytes("collision")
-    hasher.finish()
+  fn hash(self: Self, hasher: Hasher) -> void {
+    hasher.write_string("collision")
   }
 }
 
