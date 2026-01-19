@@ -884,3 +884,4 @@ Open items (2025-11-02 audit):
 - Tests: `v11/ablets .examples/foo.able`; `v11/ablego .examples/foo.able`.
 - Stdlib tests: added iteration coverage for `collect` via Default/Extend and package-qualified function values.
 - Tests: `v11/ablets test v11/stdlib/tests/core/iteration.test.able`; `v11/ablego test v11/stdlib/tests/core/iteration.test.able`.
+- Spec: documented the `Default` interface signature and its stdlib helper.
