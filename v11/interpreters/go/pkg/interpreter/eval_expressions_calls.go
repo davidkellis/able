@@ -2,6 +2,7 @@ package interpreter
 
 import (
 	"fmt"
+	"strings"
 
 	"able/interpreter-go/pkg/ast"
 	"able/interpreter-go/pkg/runtime"
@@ -105,6 +106,24 @@ func (i *Interpreter) evaluateFunctionCall(call *ast.FunctionCall, env *runtime.
 			argValues = append(argValues, val)
 		}
 		if lookupErr != nil {
+			if dotIdx := strings.Index(ident.Name, "."); dotIdx > 0 && dotIdx < len(ident.Name)-1 {
+				head := ident.Name[:dotIdx]
+				tail := ident.Name[dotIdx+1:]
+				receiver, err := env.Get(head)
+				if err != nil {
+					if def, ok := env.StructDefinition(head); ok {
+						receiver = def
+					} else {
+						receiver = runtime.TypeRefValue{TypeName: head}
+					}
+				}
+				member := ast.ID(tail)
+				candidate, err := i.memberAccessOnValueWithOptions(receiver, member, env, true)
+				if err != nil {
+					return nil, err
+				}
+				return i.callCallableValue(candidate, argValues, env, call)
+			}
 			return nil, lookupErr
 		}
 		return i.callCallableValue(calleeVal, argValues, env, call)
@@ -739,6 +758,9 @@ func (i *Interpreter) bindTypeArgumentsIfAny(funcNode ast.Node, call *ast.Functi
 		name := gp.Name.Name + "_type"
 		value := runtime.StringValue{Val: typeExpressionToString(ta)}
 		env.Define(name, value)
+		if info, ok := parseTypeExpression(ta); ok {
+			env.Define(gp.Name.Name, runtime.TypeRefValue{TypeName: info.name, TypeArgs: info.typeArgs})
+		}
 	}
 }
 

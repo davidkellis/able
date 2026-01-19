@@ -1,4 +1,5 @@
 package iteration
+import able.core.interfaces.{Default, Extend}
 ## Sentinel returned by Iterator.next() to signal completion.
 struct IteratorEnd {}
 
@@ -23,6 +24,46 @@ interface Iterable T for Self {
   fn iterator(self: Self) -> (Iterator T) {
     Iterator T { gen => self.each(gen.yield) }
   }
+
+  fn collect<C>(self: Self) -> C where C: Default + Extend T {
+    acc: C := C.default();
+    for value in self {
+      acc = acc.extend(value)
+    }
+    acc
+  }
+
+  fn filter(self: Self, visit: T -> bool) -> Iterator T {
+    Iterator T { gen =>
+      self.each { v =>
+        if visit(v) {
+          gen.yield(v)
+        }
+      }
+    }
+  }
+
+  fn map<U>(self: Self, visit: T -> U) -> Iterator U {
+    Iterator U { gen =>
+      self.each { v => gen.yield(visit(v)) }
+    }
+  }
+
+  fn filter_map<U>(self: Self, visit: T -> ?U) -> Iterator U {
+    Iterator U { gen =>
+      self.each { v =>
+        u := visit(v)
+        if u {
+          gen.yield(u)
+        }
+      }
+    }
+  }
+}
+
+## Iterators are iterable by returning themselves as the iterator source.
+impl Iterable T for Iterator T {
+  fn iterator(self: Self) -> (Iterator T) { self }
 }
 
 ## Range construction invoked via `..` and `...` operators.

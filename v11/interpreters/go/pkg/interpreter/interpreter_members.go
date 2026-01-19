@@ -42,6 +42,13 @@ func (i *Interpreter) memberAccessOnValueWithOptions(obj runtime.Value, member a
 			}
 		}
 		return i.structDefinitionMember(&v, member)
+	case runtime.TypeRefValue:
+		return i.typeRefMember(v, member)
+	case *runtime.TypeRefValue:
+		if v == nil {
+			return nil, fmt.Errorf("Type reference member access on nil value")
+		}
+		return i.typeRefMember(*v, member)
 	case runtime.PackageValue:
 		return i.packageMemberAccess(v, member)
 	case *runtime.PackageValue:
@@ -68,7 +75,18 @@ func (i *Interpreter) memberAccessOnValueWithOptions(obj runtime.Value, member a
 	case *runtime.FutureValue:
 		return i.futureMember(v, member)
 	case *runtime.IteratorValue:
-		return i.iteratorMember(v, member)
+		if val, err := i.iteratorMember(v, member); err == nil {
+			return val, nil
+		} else if ident, ok := member.(*ast.Identifier); ok {
+			if bound, err := i.resolveMethodFromPool(env, ident.Name, v, ""); err != nil {
+				return nil, err
+			} else if bound != nil {
+				return bound, nil
+			}
+			return nil, err
+		} else {
+			return nil, err
+		}
 	case runtime.ErrorValue:
 		return i.errorMember(v, member, env)
 	case *runtime.ErrorValue:
@@ -416,6 +434,39 @@ func (i *Interpreter) structDefinitionMember(def *runtime.StructDefinitionValue,
 	}
 	if !found {
 		candidate, err := i.findMethod(typeInfo{name: typeName}, ident.Name, "")
+		if err != nil {
+			return nil, err
+		}
+		method = candidate
+	}
+	if method == nil {
+		return nil, fmt.Errorf("No static method '%s' for %s", ident.Name, typeName)
+	}
+	if fn := firstFunction(method); fn != nil {
+		if fnDef, ok := fn.Declaration.(*ast.FunctionDefinition); ok && fnDef.IsPrivate {
+			return nil, fmt.Errorf("Method '%s' on %s is private", ident.Name, typeName)
+		}
+	}
+	return method, nil
+}
+
+func (i *Interpreter) typeRefMember(ref runtime.TypeRefValue, member ast.Expression) (runtime.Value, error) {
+	ident, ok := member.(*ast.Identifier)
+	if !ok {
+		return nil, fmt.Errorf("Static access expects identifier member")
+	}
+	typeName := ref.TypeName
+	if typeName == "" {
+		return nil, fmt.Errorf("type reference missing name")
+	}
+	bucket := i.inherentMethods[typeName]
+	var method runtime.Value
+	var found bool
+	if bucket != nil {
+		method, found = bucket[ident.Name]
+	}
+	if !found {
+		candidate, err := i.findMethod(typeInfo{name: typeName, typeArgs: ref.TypeArgs}, ident.Name, "")
 		if err != nil {
 			return nil, err
 		}

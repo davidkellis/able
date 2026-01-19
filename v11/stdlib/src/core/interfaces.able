@@ -35,6 +35,14 @@ type Ord = KernelOrd;
 type Hash = KernelHash;
 type Hasher = KernelHasherInterface;
 
+## Default constructor helper.
+fn default<T: Default>() -> T { T.default() }
+
+## Types that can absorb elements (used by Iterable.collect).
+interface Extend T for Self {
+  fn extend(self: Self, value: T) -> Self;
+}
+
 ## Error values participate in raise/rescue.
 interface Error for T {
   fn message(self: Self) -> String;

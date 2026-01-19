@@ -5,12 +5,14 @@ import {
   ambiguousImplementationDetail,
   enforceFunctionConstraints as enforceFunctionConstraintsHelper,
   lookupMethodSetsForCall as lookupMethodSetsForCallHelper,
+  matchImplementationTarget,
   typeImplementsInterface,
 } from "./implementations";
 import { mergeBranchTypes as mergeBranchTypesHelper } from "./expressions";
 import type { StatementContext } from "./expression-context";
 import { typeInfoToTypeExpression } from "./type-expression-utils";
-import type { FunctionInfo, InterfaceCheckResult } from "./types";
+import type { FunctionInfo, ImplementationObligation, InterfaceCheckResult } from "./types";
+import { expectsSelfType } from "./implementation-collection";
 
 type FunctionCallContext = {
   implementationContext: ImplementationContext;
@@ -25,10 +27,11 @@ type FunctionCallContext = {
     b: AST.TypeExpression | null | undefined,
   ): boolean;
   report(message: string, node?: AST.Node | null): void;
-  handlePackageMemberAccess(expression: AST.MemberAccessExpression): boolean;
+  handlePackageMemberAccess(expression: AST.MemberAccessExpression): TypeInfo | null;
   getIdentifierName(node: AST.Identifier | null | undefined): string | null;
   checkBuiltinCallContext(name: string | undefined, call: AST.FunctionCall): void;
   getBuiltinCallName(callee: AST.Expression | undefined | null): string | undefined;
+  getTypeParamConstraints(name: string): AST.TypeExpression[];
   typeImplementsInterface?: (
     type: TypeInfo,
     interfaceName: string,
@@ -258,10 +261,74 @@ function instantiateCallSignature(
   const definition = info.definition;
   if (!definition) {
     const effective = buildEffectiveParams(info, call);
+    let inferredTypeArgs: AST.TypeExpression[] | undefined;
+    let params = effective.params;
+    let returnType = info.returnType ?? unknownType;
+    const genericParamNames = Array.isArray(info.genericParamNames) ? info.genericParamNames : [];
+    if (genericParamNames.length > 0) {
+      const genericNames = new Set(genericParamNames);
+      const bindings = new Map<string, AST.TypeExpression>();
+      const paramCount = Math.min(effective.params.length, argTypes.length);
+      for (let index = 0; index < paramCount; index += 1) {
+        const template = typeInfoToTypeExpression(effective.params[index]);
+        if (!template) continue;
+        inferTypeArgumentsFromTypeExpression(ctx, template, argTypes[index], genericNames, bindings);
+      }
+      if (
+        expectedReturn &&
+        expectedReturn.kind !== "unknown" &&
+        !(expectedReturn.kind === "primitive" && expectedReturn.name === "void")
+      ) {
+        const template = typeInfoToTypeExpression(info.returnType ?? unknownType);
+        if (template) {
+          inferTypeArgumentsFromTypeExpression(ctx, template, expectedReturn, genericNames, bindings);
+        }
+      }
+      if (bindings.size > 0) {
+        const substituteExpression = (expr: AST.TypeExpression): AST.TypeExpression => {
+          switch (expr.type) {
+            case "SimpleTypeExpression": {
+              const name = ctx.getIdentifierName(expr.name);
+              return name && bindings.has(name) ? bindings.get(name)! : expr;
+            }
+            case "GenericTypeExpression":
+              return {
+                ...expr,
+                base: substituteExpression(expr.base),
+                arguments: (expr.arguments ?? []).map((arg) => (arg ? substituteExpression(arg) : arg)),
+              };
+            case "NullableTypeExpression":
+              return { ...expr, innerType: substituteExpression(expr.innerType) };
+            case "ResultTypeExpression":
+              return { ...expr, innerType: substituteExpression(expr.innerType) };
+            case "UnionTypeExpression":
+              return { ...expr, members: (expr.members ?? []).map((member) => substituteExpression(member)) };
+            case "FunctionTypeExpression":
+              return {
+                ...expr,
+                paramTypes: (expr.paramTypes ?? []).map((param) => substituteExpression(param)),
+                returnType: substituteExpression(expr.returnType),
+              };
+            default:
+              return expr;
+          }
+        };
+        const substituteTypeInfo = (typeInfo: TypeInfo): TypeInfo => {
+          const expr = typeInfoToTypeExpression(typeInfo);
+          if (!expr) return typeInfo;
+          const substituted = substituteExpression(expr);
+          return ctx.resolveTypeExpression(substituted);
+        };
+        inferredTypeArgs = genericParamNames.map((name) => bindings.get(name) ?? AST.wildcardTypeExpression());
+        params = effective.params.map((param) => substituteTypeInfo(param ?? unknownType));
+        returnType = substituteTypeInfo(returnType ?? unknownType);
+      }
+    }
     return {
-      params: effective.params,
+      params,
       optionalLast: effective.optionalLast,
-      returnType: info.returnType ?? unknownType,
+      returnType,
+      inferredTypeArgs,
     };
   }
   const genericParamNames = Array.isArray(info.genericParamNames) ? info.genericParamNames : [];
@@ -782,7 +849,8 @@ function buildReceiverLookup(
   memberName: string,
 ): ReceiverLookup | null {
   const objectName = callee.object?.type === "Identifier" ? callee.object.name : null;
-  const isTypeName = objectName ? ctx.structDefinitions.has(objectName) : false;
+  const isTypeName =
+    objectName ? ctx.structDefinitions.has(objectName) || ctx.implementationContext.hasInterfaceDefinition?.(objectName) : false;
   const hasObjectBinding = objectName ? ctx.statementContext.hasBinding?.(objectName) ?? false : true;
   let objectType = ctx.inferExpression(callee.object);
   if (
@@ -800,8 +868,8 @@ function buildReceiverLookup(
   }
   const isTypeReference =
     callee.object?.type === "Identifier" &&
-    objectType.kind === "struct" &&
-    (!hasObjectBinding || isTypeName);
+    (objectType.kind === "struct" || objectType.kind === "interface" || objectType.kind === "type_parameter") &&
+    (!hasObjectBinding || isTypeName || objectType.kind === "type_parameter");
   if (objectType.kind === "array") {
     const lookupType: TypeInfo = {
       kind: "struct",
@@ -810,7 +878,10 @@ function buildReceiverLookup(
     };
     return { lookupType, label: formatType(lookupType), memberName, typeQualifier: "Array" };
   }
-  const typeQualifier = objectType.kind === "struct" ? objectType.name : null;
+  const typeQualifier =
+    objectType.kind === "struct" || objectType.kind === "interface" || objectType.kind === "type_parameter"
+      ? objectType.name
+      : null;
   return { lookupType: objectType, label: formatType(objectType), memberName, isTypeReference, typeQualifier };
 }
 
@@ -885,12 +956,250 @@ function functionInfoFromFieldType(type: TypeInfo, label: string, argCount?: num
   };
 }
 
+function signatureHasImplicitSelf(signature: AST.FunctionSignature): boolean {
+  if (!Array.isArray(signature.params) || signature.params.length === 0) {
+    return false;
+  }
+  const first = signature.params[0];
+  if (!first) return false;
+  if (!first.paramType && first.name?.type === "Identifier") {
+    return first.name.name?.toLowerCase() === "self";
+  }
+  return expectsSelfType(first.paramType);
+}
+
+function collectSignatureWhereObligations(
+  ctx: FunctionCallContext,
+  signature: AST.FunctionSignature,
+): ImplementationObligation[] {
+  const obligations: ImplementationObligation[] = [];
+  const appendObligation = (
+    typeParam: string | null,
+    interfaceType: AST.TypeExpression | null | undefined,
+    context: string,
+  ) => {
+    const interfaceName = ctx.implementationContext.getInterfaceNameFromTypeExpression(interfaceType);
+    if (!typeParam || !interfaceName) {
+      return;
+    }
+    obligations.push({ typeParam, interfaceName, interfaceType: interfaceType ?? undefined, context });
+  };
+  if (Array.isArray(signature.genericParams)) {
+    for (const param of signature.genericParams) {
+      const paramName = ctx.getIdentifierName(param?.name);
+      if (!paramName || !Array.isArray(param?.constraints)) continue;
+      for (const constraint of param.constraints) {
+        appendObligation(paramName, constraint?.interfaceType, "generic constraint");
+      }
+    }
+  }
+  if (Array.isArray(signature.whereClause)) {
+    for (const clause of signature.whereClause) {
+      const typeParamName = ctx.getIdentifierName(clause?.typeParam);
+      if (!typeParamName || !Array.isArray(clause?.constraints)) continue;
+      for (const constraint of clause.constraints) {
+        appendObligation(typeParamName, constraint?.interfaceType, "where clause");
+      }
+    }
+  }
+  return obligations;
+}
+
+function buildInterfaceMethodInfo(
+  ctx: FunctionCallContext,
+  receiverType: TypeInfo,
+  interfaceName: string,
+  interfaceDef: AST.InterfaceDefinition,
+  interfaceArgs: TypeInfo[],
+  signature: AST.FunctionSignature,
+  priority: number,
+): FunctionInfo {
+  const substitutions = new Map<string, TypeInfo>();
+  substitutions.set("Self", receiverType);
+  if (Array.isArray(interfaceDef.genericParams)) {
+    interfaceDef.genericParams.forEach((param, idx) => {
+      const name = ctx.getIdentifierName(param?.name);
+      if (!name) return;
+      const arg = interfaceArgs[idx] ?? unknownType;
+      substitutions.set(name, arg);
+    });
+  }
+  const methodGenericNames = Array.isArray(signature.genericParams)
+    ? signature.genericParams
+        .map((param) => ctx.getIdentifierName(param?.name))
+        .filter((name): name is string => Boolean(name))
+    : [];
+  const signatureSubstitutions = new Map(substitutions);
+  methodGenericNames.forEach((name) => {
+    signatureSubstitutions.set(name, { kind: "type_parameter", name });
+  });
+  const parameterTypes = Array.isArray(signature.params)
+    ? signature.params.map((param) => ctx.resolveTypeExpression(param?.paramType, signatureSubstitutions))
+    : [];
+  const returnType = ctx.resolveTypeExpression(signature.returnType, signatureSubstitutions);
+  const genericConstraints: FunctionInfo["genericConstraints"] = [];
+  if (Array.isArray(signature.genericParams)) {
+    for (const param of signature.genericParams) {
+      const paramName = param.name?.name ?? "T";
+      if (!Array.isArray(param.constraints)) continue;
+      for (const constraint of param.constraints) {
+        const ifaceName = ctx.implementationContext.getInterfaceNameFromConstraint(constraint);
+        if (!ifaceName) continue;
+        genericConstraints.push({
+          paramName,
+          interfaceName: ifaceName,
+          interfaceDefined: ctx.implementationContext.hasInterfaceDefinition(ifaceName),
+          interfaceType: constraint.interfaceType,
+        });
+      }
+    }
+  }
+  return {
+    name: signature.name?.name ?? "<anonymous>",
+    fullName: `${interfaceName}::${signature.name?.name ?? "<anonymous>"}`,
+    definition: undefined,
+    structName: receiverType.kind === "interface" ? receiverType.name : undefined,
+    hasImplicitSelf: signatureHasImplicitSelf(signature),
+    isTypeQualified: !signatureHasImplicitSelf(signature),
+    typeQualifier: !signatureHasImplicitSelf(signature) ? interfaceName : undefined,
+    methodResolutionPriority: priority,
+    parameters: parameterTypes,
+    genericConstraints,
+    genericParamNames: methodGenericNames,
+    whereClause: collectSignatureWhereObligations(ctx, signature),
+    methodSetSubstitutions: Array.from(substitutions.entries()),
+    returnType: returnType ?? unknownType,
+  };
+}
+
+function collectInterfaceMethodCandidates(
+  ctx: FunctionCallContext,
+  receiver: ReceiverLookup,
+  memberName: string,
+): FunctionInfo[] {
+  const receiverType = receiver.lookupType;
+  const candidates: FunctionInfo[] = [];
+  const seen = new Set<string>();
+  const addCandidate = (
+    interfaceName: string,
+    interfaceDef: AST.InterfaceDefinition,
+    interfaceArgs: TypeInfo[],
+    priority: number,
+  ) => {
+    const signature = interfaceDef.signatures?.find(
+      (sig) => sig?.name?.name === memberName,
+    );
+    if (!signature) return;
+    if (!signatureHasImplicitSelf(signature)) return;
+    const key = `${interfaceName}::${memberName}::${interfaceArgs.map(formatType).join("|")}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    candidates.push(
+      buildInterfaceMethodInfo(ctx, receiverType, interfaceName, interfaceDef, interfaceArgs, signature, priority),
+    );
+  };
+
+  if (receiverType.kind === "interface") {
+    const ifaceDef = ctx.implementationContext.getInterfaceDefinition(receiverType.name);
+    if (ifaceDef) {
+      addCandidate(receiverType.name, ifaceDef, receiverType.typeArguments ?? [], -1);
+      const appendBases = (def: AST.InterfaceDefinition, args: TypeInfo[]): void => {
+        if (!def?.baseInterfaces || def.baseInterfaces.length === 0) return;
+        const substitutions = new Map<string, TypeInfo>();
+        substitutions.set("Self", receiverType);
+        if (Array.isArray(def.genericParams)) {
+          def.genericParams.forEach((param, idx) => {
+            const name = ctx.getIdentifierName(param?.name);
+            if (!name) return;
+            substitutions.set(name, args[idx] ?? unknownType);
+          });
+        }
+        for (const base of def.baseInterfaces) {
+          const baseInfo = ctx.resolveTypeExpression(base, substitutions);
+          if (!baseInfo || baseInfo.kind !== "interface") continue;
+          const baseDef = ctx.implementationContext.getInterfaceDefinition(baseInfo.name);
+          if (!baseDef) continue;
+          addCandidate(baseInfo.name, baseDef, baseInfo.typeArguments ?? [], -2);
+          appendBases(baseDef, baseInfo.typeArguments ?? []);
+        }
+      };
+      appendBases(ifaceDef, receiverType.typeArguments ?? []);
+    }
+  }
+
+  for (const record of ctx.implementationContext.getImplementationRecords()) {
+    if (record.definition?.implName?.name) {
+      continue;
+    }
+    const paramNames = new Set(record.genericParams);
+    const substitutions = new Map<string, TypeInfo>();
+    substitutions.set("Self", receiverType);
+    if (!matchImplementationTarget(ctx.implementationContext, receiverType, record.target, paramNames, substitutions)) {
+      continue;
+    }
+    for (const name of paramNames) {
+      if (!substitutions.has(name)) {
+        substitutions.set(name, unknownType);
+      }
+    }
+    const ifaceDef = ctx.implementationContext.getInterfaceDefinition(record.interfaceName);
+    if (!ifaceDef) continue;
+    const interfaceArgs = record.interfaceArgs.map((arg) => ctx.resolveTypeExpression(arg, substitutions));
+    addCandidate(record.interfaceName, ifaceDef, interfaceArgs, -1);
+  }
+
+  return candidates;
+}
+
+function collectTypeParamMethodCandidates(
+  ctx: FunctionCallContext,
+  receiver: ReceiverLookup,
+  memberName: string,
+): FunctionInfo[] {
+  const receiverType = receiver.lookupType;
+  if (receiverType.kind !== "type_parameter") {
+    return [];
+  }
+  const constraints = ctx.getTypeParamConstraints(receiverType.name) ?? [];
+  if (!constraints.length) {
+    return [];
+  }
+  const candidates: FunctionInfo[] = [];
+  for (const constraint of constraints) {
+    const interfaceName = ctx.implementationContext.getInterfaceNameFromTypeExpression(constraint);
+    if (!interfaceName) continue;
+    const ifaceDef = ctx.implementationContext.getInterfaceDefinition(interfaceName);
+    if (!ifaceDef) continue;
+    const signature = ifaceDef.signatures?.find((sig) => sig?.name?.name === memberName);
+    if (!signature) continue;
+    if (signatureHasImplicitSelf(signature)) {
+      continue;
+    }
+    const argSubstitutions = new Map<string, TypeInfo>();
+    argSubstitutions.set("Self", receiverType);
+    argSubstitutions.set(receiverType.name, receiverType);
+    const interfaceArgs =
+      constraint?.type === "GenericTypeExpression"
+        ? (constraint.arguments ?? []).map((arg) => ctx.resolveTypeExpression(arg, argSubstitutions))
+        : [];
+    const info = buildInterfaceMethodInfo(ctx, receiverType, interfaceName, ifaceDef, interfaceArgs, signature, -1);
+    info.isTypeQualified = true;
+    info.typeQualifier = receiverType.name;
+    info.structName = receiverType.name;
+    candidates.push(info);
+  }
+  return candidates;
+}
+
 function collectUnifiedMemberCandidates(
   ctx: FunctionCallContext,
   receiver: ReceiverLookup,
   memberName: string,
 ): FunctionInfo[] {
   if (!receiver.lookupType || receiver.lookupType.kind === "unknown") return [];
+  if (receiver.lookupType.kind === "type_parameter") {
+    return collectTypeParamMethodCandidates(ctx, receiver, memberName);
+  }
   const unqualifiedInScope = ctx.statementContext.hasBinding?.(memberName) ?? false;
   const qualifier = receiver.typeQualifier ?? (receiver.lookupType.kind === "struct" ? receiver.lookupType.name : null);
   const typeQualifiedLabel = qualifier ? `${qualifier}.${memberName}` : null;
@@ -899,10 +1208,16 @@ function collectUnifiedMemberCandidates(
   const isPrimitiveReceiver =
     receiver.lookupType.kind === "primitive" ||
     (receiver.lookupType.kind === "struct" && receiver.lookupType.name === "Array");
-  const typeNameInScope =
-    receiver.lookupType.kind === "struct" && receiver.lookupType.name
-      ? ctx.statementContext.hasBinding?.(receiver.lookupType.name) ?? false
-      : false;
+  const typeNameInScope = (() => {
+    if (!receiver.lookupType.name) return false;
+    if (receiver.lookupType.kind === "struct") {
+      return ctx.statementContext.hasBinding?.(receiver.lookupType.name) ?? false;
+    }
+    if (receiver.lookupType.kind === "interface") {
+      return ctx.implementationContext.hasInterfaceDefinition?.(receiver.lookupType.name) ?? false;
+    }
+    return false;
+  })();
   const allowInherent = unqualifiedInScope || typeNameInScope || isPrimitiveReceiver;
   const bySignature = new Map<string, FunctionInfo>();
   const methodSetDuplicates = new Set<FunctionInfo>();
@@ -991,6 +1306,7 @@ function collectUnifiedMemberCandidates(
     receiver.lookupType,
   );
   append(genericMatches);
+  append(collectInterfaceMethodCandidates(ctx, receiver, memberName));
   if (!methodSignatures.size) {
     append(resolveUfcsFreeFunctionCandidates(ctx, receiver.lookupType, memberName, unqualifiedInScope));
   }

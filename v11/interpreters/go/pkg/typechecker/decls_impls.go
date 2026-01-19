@@ -170,6 +170,7 @@ func (c *declarationCollector) collectImplementationDefinition(def *ast.Implemen
 	spec := &ImplementationSpec{
 		ImplName:      identifierName(def.ImplName),
 		InterfaceName: interfaceName,
+		Interface:     ifaceType,
 		TypeParams:    params,
 		Target:        targetType,
 		InterfaceArgs: interfaceArgs,

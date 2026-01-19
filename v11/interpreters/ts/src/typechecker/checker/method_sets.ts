@@ -141,6 +141,9 @@ function evaluateMethodSetAgainstInterface(
     }
     const method = provided.get(methodName);
     if (!method) {
+      if (signature.defaultImpl) {
+        continue;
+      }
       return { ok: false, detail: `${record.label}: method '${methodName}' not provided` };
     }
     const comparison = compareMethodSetSignature(ctx, record, signature, method, stringSubs, helpers);

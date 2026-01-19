@@ -4,5 +4,6 @@ export {
   ambiguousImplementationDetail,
   enforceFunctionConstraints,
   lookupMethodSetsForCall,
+  matchImplementationTarget,
   typeImplementsInterface,
 } from "./implementation-constraints";

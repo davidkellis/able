@@ -1,0 +1,23 @@
+import able.core.iteration.{Iterable, Iterator}
+
+fn sum(values: Iterable i32) -> i32 {
+  total := 0
+  for value in values {
+    total = total + value
+  }
+  total
+}
+
+iter := Iterator i32 { gen =>
+  gen.yield(1)
+  gen.yield(2)
+  gen.yield(3)
+  gen.yield(4)
+}
+
+mapped := iter.filter_map(fn(value: i32) -> ?i32 {
+  if value % 2 == 0 { return value * 10 }
+  nil
+})
+
+print(sum(mapped))

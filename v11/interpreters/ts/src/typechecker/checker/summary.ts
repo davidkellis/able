@@ -12,6 +12,7 @@ import type {
   ExportedWhereConstraintSummary,
   PackageSummary,
 } from "../diagnostics";
+import { unknownType, type TypeInfo } from "../types";
 import type { ImplementationContext } from "./implementations";
 import type { ImplementationObligation, ImplementationRecord, MethodSetRecord } from "./types";
 
@@ -20,6 +21,7 @@ export function buildPackageSummary(ctx: ImplementationContext, module: AST.Modu
   const visibility = resolvePackageVisibility(module);
   const symbols: Record<string, ExportedSymbolSummary> = {};
   const privateSymbols: Record<string, ExportedSymbolSummary> = {};
+  const symbolTypes: Record<string, TypeInfo> = {};
   const structs: Record<string, ExportedStructSummary> = {};
   const unions: Record<string, ExportedUnionSummary> = {};
   const interfaces: Record<string, ExportedInterfaceSummary> = {};
@@ -71,6 +73,7 @@ export function buildPackageSummary(ctx: ImplementationContext, module: AST.Modu
           break;
         }
         symbols[name] = { type: describeFunctionType(ctx, entry), visibility: "public" };
+        symbolTypes[name] = describeFunctionTypeInfo(ctx, entry, name);
         functions[name] = summarizeFunctionDefinition(ctx, entry);
         break;
       }
@@ -83,6 +86,7 @@ export function buildPackageSummary(ctx: ImplementationContext, module: AST.Modu
           break;
         }
         symbols[name] = { type: describeFunctionType(ctx, def), visibility: "public" };
+        symbolTypes[name] = describeFunctionTypeInfo(ctx, def, name);
         functions[name] = summarizeFunctionDefinition(ctx, def);
         break;
       }
@@ -121,6 +125,7 @@ export function buildPackageSummary(ctx: ImplementationContext, module: AST.Modu
               continue;
             }
             symbols[fnName] = { type: describeFunctionType(ctx, def), visibility: "public" };
+            symbolTypes[fnName] = describeFunctionTypeInfo(ctx, def, fnName);
             functions[fnName] = summarizeFunctionDefinition(ctx, def);
             delete privateSymbols[fnName];
           }
@@ -152,6 +157,7 @@ export function buildPackageSummary(ctx: ImplementationContext, module: AST.Modu
             }
             if (!exportName) continue;
             symbols[exportName] = { type: describeFunctionType(ctx, def), visibility: "public" };
+            symbolTypes[exportName] = describeFunctionTypeInfo(ctx, def, exportName);
             functions[exportName] = summarizeFunctionDefinition(ctx, def);
             delete privateSymbols[exportName];
           }
@@ -191,6 +197,7 @@ export function buildPackageSummary(ctx: ImplementationContext, module: AST.Modu
     unions,
     interfaces,
     functions,
+    symbolTypes,
     implementations,
     methodSets,
   };
@@ -445,6 +452,30 @@ function describeFunctionType(ctx: ImplementationContext, definition: AST.Functi
   const parameters = summarizeParameters(ctx, definition.params);
   const returnType = formatTypeExpressionOrUnknown(ctx, definition.returnType ?? null);
   return `fn(${parameters.join(", ")}) -> ${returnType}`;
+}
+
+function describeFunctionTypeInfo(
+  ctx: ImplementationContext,
+  definition: AST.FunctionDefinition,
+  exportedName: string,
+): TypeInfo {
+  const name = definition.id?.name ?? exportedName;
+  if (name) {
+    const infos = ctx.getFunctionInfos(name) ?? [];
+    const match = infos.find((info) => info.definition === definition);
+    if (match) {
+      return {
+        kind: "function",
+        parameters: match.parameters ?? [],
+        returnType: match.returnType ?? unknownType,
+      };
+    }
+  }
+  const params = Array.isArray(definition.params)
+    ? definition.params.map((param) => ctx.resolveTypeExpression(param?.paramType))
+    : [];
+  const returnType = definition.returnType ? ctx.resolveTypeExpression(definition.returnType) : unknownType;
+  return { kind: "function", parameters: params, returnType };
 }
 
 function summarizeFunctionSignature(

@@ -166,7 +166,7 @@ func (i *Interpreter) typeExpressionFromValue(value runtime.Value) ast.TypeExpre
 		if v == nil {
 			return nil
 		}
-		return ast.Ty("Iterator")
+		return ast.Gen(ast.Ty("Iterator"), ast.NewWildcardTypeExpression())
 	case runtime.ErrorValue:
 		if v.TypeName != nil {
 			return ast.Ty(v.TypeName.Name)
