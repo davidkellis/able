@@ -239,6 +239,12 @@ export function applyImplResolutionAugmentations(cls: typeof Interpreter): void 
     const name = `${gp.name.name}_type`;
     const s = stringifyTypeExpr(ta);
     try { env.define(name, { kind: "String", value: s }); } catch {}
+    const parsed = this.parseTypeExpression(ta);
+    if (parsed) {
+      try {
+        env.define(gp.name.name, { kind: "type_ref", typeName: parsed.name, typeArgs: parsed.typeArgs });
+      } catch {}
+    }
   }
 };
 
@@ -260,7 +266,7 @@ export function applyImplResolutionAugmentations(cls: typeof Interpreter): void 
 };
 
   let traceMethodReported = false;
-  cls.prototype.findMethod = function findMethod(this: Interpreter, typeName: string, methodName: string, opts?: { typeArgs?: AST.TypeExpression[]; typeArgMap?: Map<string, AST.TypeExpression>; interfaceName?: string }): Extract<RuntimeValue, { kind: "function" | "function_overload" }> | null {
+  cls.prototype.findMethod = function findMethod(this: Interpreter, typeName: string, methodName: string, opts?: { typeArgs?: AST.TypeExpression[]; typeArgMap?: Map<string, AST.TypeExpression>; interfaceName?: string; includeInherent?: boolean }): Extract<RuntimeValue, { kind: "function" | "function_overload" }> | null {
   const includeInherent = opts?.includeInherent !== false;
   if (includeInherent) {
     const inherent = this.inherentMethods.get(typeName);
@@ -530,9 +536,13 @@ export function applyImplResolutionAugmentations(cls: typeof Interpreter): void 
     this.matchTypeExpressionTemplate(canonicalTemplate, canonicalSubject, genericNames, bindings);
   }
   const expectedArgs = entry.targetArgTemplates.map(t => this.expandTypeAliases(t));
-  const actualArgs = opts?.typeArgs?.map(t => this.expandTypeAliases(t));
+  let actualArgs = opts?.typeArgs?.map(t => this.expandTypeAliases(t));
+  const hasActualArgs = Boolean(actualArgs && actualArgs.length > 0);
   if (expectedArgs.length > 0) {
-    if (!actualArgs || actualArgs.length !== expectedArgs.length) return null;
+    if (!actualArgs) {
+      actualArgs = expectedArgs.map(() => AST.wildcardTypeExpression());
+    }
+    if (actualArgs.length !== expectedArgs.length) return null;
     for (let i = 0; i < expectedArgs.length; i++) {
       const template = expectedArgs[i]!;
       const actual = actualArgs[i]!;
@@ -545,7 +555,13 @@ export function applyImplResolutionAugmentations(cls: typeof Interpreter): void 
     }
   }
   for (const gp of entry.genericParams) {
-    if (!bindings.has(gp.name.name)) return null;
+    if (!bindings.has(gp.name.name)) {
+      if (!hasActualArgs && expectedArgs.length > 0) {
+        bindings.set(gp.name.name, AST.wildcardTypeExpression());
+        continue;
+      }
+      return null;
+    }
   }
   return bindings;
 };

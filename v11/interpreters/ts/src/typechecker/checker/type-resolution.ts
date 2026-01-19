@@ -316,6 +316,12 @@ export function createTypeResolutionHelpers(context: TypeResolutionContext): Typ
     if (!a || a.kind === "unknown" || !b || b.kind === "unknown") {
       return true;
     }
+    if (a.kind === "type_parameter" || b.kind === "type_parameter") {
+      if (a.kind === "type_parameter" && b.kind === "type_parameter") {
+        return a.name === b.name;
+      }
+      return true;
+    }
     let left: TypeInfo = a;
     let right: TypeInfo = b;
     const normalizedLeft = canonicalizeStructuralType(left);
@@ -389,6 +395,9 @@ export function createTypeResolutionHelpers(context: TypeResolutionContext): Typ
 
   function isTypeAssignable(actual?: TypeInfo, expected?: TypeInfo): boolean {
     if (!actual || actual.kind === "unknown" || !expected || expected.kind === "unknown") {
+      return true;
+    }
+    if (actual.kind === "type_parameter" || expected.kind === "type_parameter") {
       return true;
     }
     const normalizedActual = canonicalizeStructuralType(actual);

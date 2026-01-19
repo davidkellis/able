@@ -30,6 +30,7 @@ export class TypeChecker extends TypeCheckerBase {
     this.implementationIndex = new Map();
     this.declarationOrigins = new Map();
     this.functionGenericStack = [];
+    this.typeParamStack = [];
     this.loopResultStack = [];
     this.breakpointStack = [];
     this.installBuiltins();

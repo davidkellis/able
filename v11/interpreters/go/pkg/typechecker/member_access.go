@@ -374,10 +374,24 @@ func (c *Checker) checkMemberAccessWithOptions(env *Environment, expr *ast.Membe
 		}
 		if ty.Methods != nil {
 			if methodType, ok := ty.Methods[memberName]; ok {
+				subst := map[string]Type{"Self": ty}
+				methodType = substituteFunctionType(methodType, subst)
 				bound := bindMethodType(methodType)
 				final := c.finalizeMemberAccessType(expr, wrapType, bound)
 				return diags, final
 			}
+		}
+		allowMethodSets := allowMethodSetsForMember(env, memberName, receiverScopeNames)
+		if fnType, ok, detail := c.lookupMethod(objectType, memberName, allowMethodSets, false); ok {
+			final := c.finalizeMemberAccessType(expr, wrapType, fnType)
+			return diags, final
+		} else if detail != "" {
+			diags = append(diags, Diagnostic{
+				Message: "typechecker: " + detail,
+				Node:    expr,
+			})
+			c.infer.set(expr, UnknownType{})
+			return diags, UnknownType{}
 		}
 		diags = append(diags, Diagnostic{
 			Message: fmt.Sprintf("typechecker: interface '%s' has no method '%s'", ty.InterfaceName, memberName),
@@ -400,7 +414,8 @@ func (c *Checker) checkMemberAccessWithOptions(env *Environment, expr *ast.Membe
 			}
 			if iface.Methods != nil {
 				if methodType, ok := iface.Methods[memberName]; ok {
-					subst := make(map[string]Type, len(iface.TypeParams))
+					subst := make(map[string]Type, len(iface.TypeParams)+1)
+					subst["Self"] = ty
 					for i, spec := range iface.TypeParams {
 						if i < len(ty.Arguments) && ty.Arguments[i] != nil {
 							subst[spec.Name] = ty.Arguments[i]
@@ -411,6 +426,18 @@ func (c *Checker) checkMemberAccessWithOptions(env *Environment, expr *ast.Membe
 					final := c.finalizeMemberAccessType(expr, wrapType, inst)
 					return diags, final
 				}
+			}
+			allowMethodSets := allowMethodSetsForMember(env, memberName, receiverScopeNames)
+			if fnType, ok, detail := c.lookupMethod(objectType, memberName, allowMethodSets, false); ok {
+				final := c.finalizeMemberAccessType(expr, wrapType, fnType)
+				return diags, final
+			} else if detail != "" {
+				diags = append(diags, Diagnostic{
+					Message: "typechecker: " + detail,
+					Node:    expr,
+				})
+				c.infer.set(expr, UnknownType{})
+				return diags, UnknownType{}
 			}
 			diags = append(diags, Diagnostic{
 				Message: fmt.Sprintf("typechecker: interface '%s' has no method '%s'", iface.InterfaceName, memberName),
@@ -529,12 +556,27 @@ func (c *Checker) checkMemberAccessWithOptions(env *Environment, expr *ast.Membe
 			}
 			final := c.finalizeMemberAccessType(expr, wrapType, fn)
 			return diags, final
-		default:
+		}
+		allowMethodSets := allowMethodSetsForMember(env, memberName, receiverScopeNames)
+		if fnType, ok, detail := c.lookupMethod(objectType, memberName, allowMethodSets, true); ok {
+			final := c.finalizeMemberAccessType(expr, wrapType, fnType)
+			return diags, final
+		} else if detail != "" {
 			diags = append(diags, Diagnostic{
-				Message: fmt.Sprintf("typechecker: iterator has no member '%s'", memberName),
+				Message: "typechecker: " + detail,
 				Node:    expr,
 			})
+			c.infer.set(expr, UnknownType{})
+			return diags, UnknownType{}
 		}
+		if fnType, ok := c.lookupUfcsFreeFunction(env, objectType, memberName); ok {
+			final := c.finalizeMemberAccessType(expr, wrapType, fnType)
+			return diags, final
+		}
+		diags = append(diags, Diagnostic{
+			Message: fmt.Sprintf("typechecker: iterator has no member '%s'", memberName),
+			Node:    expr,
+		})
 	case ProcType:
 		if positionalAccess {
 			diags = append(diags, Diagnostic{

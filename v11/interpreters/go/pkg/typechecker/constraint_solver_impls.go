@@ -19,6 +19,130 @@ func (c *Checker) implementationProvidesInterface(subject Type, iface InterfaceT
 	if len(c.implementations) == 0 {
 		return false, ""
 	}
+	matches, bestDetail := c.collectImplementationMatches(subject, iface, args)
+	if len(matches) == 0 {
+		return false, bestDetail
+	}
+	if len(matches) == 1 {
+		return true, ""
+	}
+	ok, detail := c.selectMostSpecificImplementationMatch(matches, iface, subject)
+	if ok {
+		return true, ""
+	}
+	if detail != "" {
+		return false, detail
+	}
+	return false, bestDetail
+}
+
+func (c *Checker) matchImplementationTarget(subject Type, target Type, params []GenericParamSpec) (map[string]Type, int, bool) {
+	if iface, args, ok := interfaceTargetFromType(target); ok {
+		return c.matchInterfaceTarget(subject, iface, args, params)
+	}
+	return matchMethodTarget(subject, target, params)
+}
+
+func interfaceTargetFromType(t Type) (InterfaceType, []Type, bool) {
+	if t == nil {
+		return InterfaceType{}, nil, false
+	}
+	iface, args, ok := resolveInterfaceDecl(t, nil)
+	if !ok || iface.InterfaceName == "" {
+		return InterfaceType{}, nil, false
+	}
+	return iface, args, true
+}
+
+func (c *Checker) matchInterfaceTarget(subject Type, iface InterfaceType, targetArgs []Type, params []GenericParamSpec) (map[string]Type, int, bool) {
+	if subject == nil || isUnknownType(subject) {
+		return nil, 0, false
+	}
+	if subjIface, subjArgs, ok := interfaceTargetFromType(subject); ok && subjIface.InterfaceName == iface.InterfaceName {
+		return matchInterfaceArgs(subjArgs, targetArgs, params)
+	}
+	if info, ok := structInfoFromType(subject); ok && info.name == iface.InterfaceName && !info.isUnion && !info.isNullable {
+		return matchInterfaceArgs(info.args, targetArgs, params)
+	}
+	return c.matchInterfaceTargetFromImplementations(subject, iface, targetArgs, params)
+}
+
+func matchInterfaceArgs(actualArgs []Type, targetArgs []Type, params []GenericParamSpec) (map[string]Type, int, bool) {
+	if len(targetArgs) == 0 {
+		return finalizeMatchResult(nil, params, 0)
+	}
+	if len(actualArgs) != len(targetArgs) {
+		return nil, 0, false
+	}
+	subst := make(map[string]Type)
+	score := 0
+	for i := range targetArgs {
+		ok, s := matchTypeArgument(actualArgs[i], targetArgs[i], subst)
+		if !ok {
+			return nil, 0, false
+		}
+		score += s
+	}
+	return finalizeMatchResult(subst, params, score)
+}
+
+func (c *Checker) matchInterfaceTargetFromImplementations(subject Type, iface InterfaceType, targetArgs []Type, params []GenericParamSpec) (map[string]Type, int, bool) {
+	matches, _ := c.collectImplementationMatches(subject, iface, nil)
+	if len(matches) == 0 {
+		return nil, 0, false
+	}
+	type candidate struct {
+		match        implementationMatch
+		substitution map[string]Type
+		score        int
+	}
+	var candidates []candidate
+	for _, match := range matches {
+		subst, score, ok := matchInterfaceArgs(match.actualArgs, targetArgs, params)
+		if !ok {
+			continue
+		}
+		candidates = append(candidates, candidate{
+			match:        match,
+			substitution: subst,
+			score:        score,
+		})
+	}
+	if len(candidates) == 0 {
+		return nil, 0, false
+	}
+	if len(candidates) == 1 {
+		return candidates[0].substitution, candidates[0].score, true
+	}
+	best := candidates[0]
+	contenders := []candidate{best}
+	for _, cand := range candidates[1:] {
+		cmp := compareImplementationMatches(cand.match, best.match)
+		if cmp > 0 {
+			best = cand
+			contenders = []candidate{cand}
+			continue
+		}
+		if cmp == 0 {
+			reverse := compareImplementationMatches(best.match, cand.match)
+			if reverse < 0 {
+				best = cand
+				contenders = []candidate{cand}
+			} else if reverse == 0 {
+				contenders = append(contenders, cand)
+			}
+		}
+	}
+	if len(contenders) == 1 {
+		return best.substitution, best.score, true
+	}
+	return nil, 0, false
+}
+
+func (c *Checker) collectImplementationMatches(subject Type, iface InterfaceType, args []Type) ([]implementationMatch, string) {
+	if len(c.implementations) == 0 {
+		return nil, ""
+	}
 	var matches []implementationMatch
 	bestDetail := ""
 	for _, spec := range c.implementations {
@@ -28,7 +152,7 @@ func (c *Checker) implementationProvidesInterface(subject Type, iface InterfaceT
 		if spec.InterfaceName != iface.InterfaceName {
 			continue
 		}
-		subst, _, ok := matchMethodTarget(subject, spec.Target, spec.TypeParams)
+		subst, _, ok := c.matchImplementationTarget(subject, spec.Target, spec.TypeParams)
 		if !ok {
 			continue
 		}
@@ -84,20 +208,7 @@ func (c *Checker) implementationProvidesInterface(subject Type, iface InterfaceT
 			isConcrete:     !implementationTargetUsesTypeParams(spec.Target),
 		})
 	}
-	if len(matches) == 0 {
-		return false, bestDetail
-	}
-	if len(matches) == 1 {
-		return true, ""
-	}
-	ok, detail := c.selectMostSpecificImplementationMatch(matches, iface, subject)
-	if ok {
-		return true, ""
-	}
-	if detail != "" {
-		return false, detail
-	}
-	return false, bestDetail
+	return matches, bestDetail
 }
 
 func interfaceArgsCompatible(actual []Type, expected []Type) bool {

@@ -293,6 +293,16 @@ func structInfoFromType(t Type) (structInfo, bool) {
 		}
 	case ArrayType:
 		return structInfo{name: "Array", args: []Type{v.Element}}, true
+	case IteratorType:
+		return structInfo{name: "Iterator", args: []Type{v.Element}}, true
+	case RangeType:
+		return structInfo{name: "Range", args: []Type{v.Element}}, true
+	case ProcType:
+		return structInfo{name: "Proc", args: []Type{v.Result}}, true
+	case FutureType:
+		return structInfo{name: "Future", args: []Type{v.Result}}, true
+	case MapType:
+		return structInfo{name: "Map", args: []Type{v.Key, v.Value}}, true
 	case AliasType:
 		return structInfoFromType(v.Target)
 	}

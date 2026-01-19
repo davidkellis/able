@@ -344,22 +344,40 @@ func matchTypeExpressionTemplate(template, actual ast.TypeExpression, genericNam
 		}
 		return typeExpressionsEqual(template, actual)
 	case *ast.GenericTypeExpression:
-		other, ok := actual.(*ast.GenericTypeExpression)
-		if !ok {
-			return false
-		}
-		if !matchTypeExpressionTemplate(t.Base, other.Base, genericNames, bindings) {
-			return false
-		}
-		if len(t.Arguments) != len(other.Arguments) {
-			return false
-		}
-		for idx := range t.Arguments {
-			if !matchTypeExpressionTemplate(t.Arguments[idx], other.Arguments[idx], genericNames, bindings) {
+		switch other := actual.(type) {
+		case *ast.GenericTypeExpression:
+			if !matchTypeExpressionTemplate(t.Base, other.Base, genericNames, bindings) {
 				return false
 			}
+			otherArgs := other.Arguments
+			if len(otherArgs) == 0 && len(t.Arguments) > 0 {
+				otherArgs = make([]ast.TypeExpression, len(t.Arguments))
+				for idx := range otherArgs {
+					otherArgs[idx] = ast.NewWildcardTypeExpression()
+				}
+			}
+			if len(t.Arguments) != len(otherArgs) {
+				return false
+			}
+			for idx := range t.Arguments {
+				if !matchTypeExpressionTemplate(t.Arguments[idx], otherArgs[idx], genericNames, bindings) {
+					return false
+				}
+			}
+			return true
+		case *ast.SimpleTypeExpression:
+			if !matchTypeExpressionTemplate(t.Base, other, genericNames, bindings) {
+				return false
+			}
+			for idx := range t.Arguments {
+				if !matchTypeExpressionTemplate(t.Arguments[idx], ast.NewWildcardTypeExpression(), genericNames, bindings) {
+					return false
+				}
+			}
+			return true
+		default:
+			return false
 		}
-		return true
 	case *ast.NullableTypeExpression:
 		other, ok := actual.(*ast.NullableTypeExpression)
 		if !ok {

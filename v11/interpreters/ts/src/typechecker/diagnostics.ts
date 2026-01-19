@@ -1,3 +1,5 @@
+import type { TypeInfo } from "./types";
+
 export type DiagnosticSeverity = "error" | "warning";
 
 export type DiagnosticLocation = {
@@ -95,6 +97,7 @@ export type PackageSummary = {
   visibility: "public" | "private";
   symbols: Record<string, ExportedSymbolSummary>;
   privateSymbols: Record<string, ExportedSymbolSummary>;
+  symbolTypes?: Record<string, TypeInfo>;
   structs: Record<string, ExportedStructSummary>;
   unions: Record<string, ExportedUnionSummary>;
   interfaces: Record<string, ExportedInterfaceSummary>;

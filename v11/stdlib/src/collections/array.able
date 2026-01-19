@@ -1,5 +1,5 @@
 package array
-import able.core.interfaces.{Default, Clone, Index, IndexMut}
+import able.core.interfaces.{Default, Extend, Clone, Index, IndexMut}
 import able.core.iteration.{Iterable, Iterator, IteratorEnd}
 import able.core.errors.{IndexError}
 import able.kernel.{Array::KernelArray}
@@ -94,6 +94,13 @@ methods Array T where T: Clone {
 
 impl Default for Array T {
   fn default() -> Array T { Array.new() }
+}
+
+impl Extend T for Array T {
+  fn extend(self: Self, value: T) -> Self {
+    self.push(value)
+    self
+  }
 }
 
 impl Clone for Array T {

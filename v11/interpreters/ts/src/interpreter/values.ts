@@ -34,6 +34,7 @@ export type RuntimeValue =
   | IteratorEndValue
   | { kind: "function"; node: AST.FunctionDefinition | AST.LambdaExpression; closureEnv: Environment }
   | { kind: "struct_def"; def: AST.StructDefinition }
+  | { kind: "type_ref"; typeName: string; typeArgs?: AST.TypeExpression[] }
   | {
       kind: "struct_instance";
       def: AST.StructDefinition;
@@ -67,8 +68,10 @@ export type RuntimeValue =
       kind: "interface_value";
       interfaceName: string;
       value: RuntimeValue;
+      interfaceArgs?: AST.TypeExpression[];
       typeArguments?: AST.TypeExpression[];
       typeArgMap?: Map<string, AST.TypeExpression>;
+      methods?: Map<string, Extract<RuntimeValue, { kind: "function" | "function_overload" | "native_function" }>>;
     }
   | {
       kind: "proc_handle";

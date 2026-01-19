@@ -34,6 +34,8 @@ export function typeInfoToTypeExpression(type: TypeInfo | undefined): AST.TypeEx
   switch (type.kind) {
     case "primitive":
       return AST.simpleTypeExpression(type.name);
+    case "type_parameter":
+      return AST.simpleTypeExpression(type.name);
     case "struct": {
       const base = AST.simpleTypeExpression(type.name);
       const args =

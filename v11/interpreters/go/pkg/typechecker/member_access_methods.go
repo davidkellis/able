@@ -176,11 +176,25 @@ func (c *Checker) buildImplementationMethodCandidate(spec ImplementationSpec, ob
 	if spec.ImplName != "" {
 		return implementationMethodBuild{}, 0, false, ""
 	}
+	iface := spec.Interface
+	if iface.InterfaceName == "" {
+		if res := c.interfaceFromName(spec.InterfaceName); res.err == "" && res.iface.InterfaceName != "" {
+			iface = res.iface
+		}
+	}
 	method, ok := spec.Methods[name]
+	if !ok {
+		if iface.InterfaceName != "" && iface.DefaultMethods != nil && iface.DefaultMethods[name] {
+			if ifaceMethod, found := iface.Methods[name]; found {
+				method = ifaceMethod
+				ok = true
+			}
+		}
+	}
 	if !ok {
 		return implementationMethodBuild{}, 0, false, ""
 	}
-	subst, score, ok := matchMethodTarget(object, spec.Target, spec.TypeParams)
+	subst, score, ok := c.matchImplementationTarget(object, spec.Target, spec.TypeParams)
 	if !ok {
 		return implementationMethodBuild{}, 0, false, ""
 	}
@@ -191,8 +205,8 @@ func (c *Checker) buildImplementationMethodCandidate(spec ImplementationSpec, ob
 	if object != nil {
 		substitution["Self"] = object
 	}
-	if res := c.interfaceFromName(spec.InterfaceName); res.err == "" && res.iface.InterfaceName != "" {
-		extendImplementationSubstitution(substitution, res.iface, spec.InterfaceArgs)
+	if iface.InterfaceName != "" {
+		extendImplementationSubstitution(substitution, iface, spec.InterfaceArgs)
 	}
 	for _, param := range spec.TypeParams {
 		if param.Name == "" {
@@ -327,7 +341,9 @@ func (c *Checker) lookupImplementationNamespaceMethod(ns ImplementationNamespace
 	if target != nil {
 		substitution["Self"] = target
 	}
-	if res := c.interfaceFromName(ns.Impl.InterfaceName); res.err == "" && res.iface.InterfaceName != "" {
+	if iface := ns.Impl.Interface; iface.InterfaceName != "" {
+		extendImplementationSubstitution(substitution, iface, ns.Impl.InterfaceArgs)
+	} else if res := c.interfaceFromName(ns.Impl.InterfaceName); res.err == "" && res.iface.InterfaceName != "" {
 		extendImplementationSubstitution(substitution, res.iface, ns.Impl.InterfaceArgs)
 	}
 	for _, param := range ns.Impl.TypeParams {

@@ -300,6 +300,11 @@ func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diag
 			c.infer.set(e, typ)
 			return nil, typ
 		}
+		if c.typeParamInScope(e.Name) {
+			typ := TypeParameterType{ParameterName: e.Name}
+			c.infer.set(e, typ)
+			return nil, typ
+		}
 		if c.allowDynamicLookups {
 			c.infer.set(e, UnknownType{})
 			return nil, UnknownType{}

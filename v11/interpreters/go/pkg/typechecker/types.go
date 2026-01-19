@@ -174,6 +174,7 @@ func (u UnionLiteralType) Name() string { return "UnionLiteral" }
 type ImplementationSpec struct {
 	ImplName      string
 	InterfaceName string
+	Interface     InterfaceType
 	TypeParams    []GenericParamSpec
 	Target        Type
 	InterfaceArgs []Type

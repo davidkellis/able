@@ -29,7 +29,7 @@ export interface ExpressionContext {
   resolveTypeExpression(expr: AST.TypeExpression | null | undefined, substitutions?: Map<string, TypeInfo>): TypeInfo;
   normalizeUnionType(members: TypeInfo[]): TypeInfo;
   getStructDefinition(name: string): AST.StructDefinition | undefined;
-  handlePackageMemberAccess(expression: AST.MemberAccessExpression): boolean;
+  handlePackageMemberAccess(expression: AST.MemberAccessExpression): TypeInfo | null;
   inferExpression(expression: AST.Expression | undefined | null): TypeInfo;
   inferExpressionWithExpected(expression: AST.Expression | undefined | null, expected: TypeInfo): TypeInfo;
   checkStatement(node: AST.Statement | AST.Expression | undefined | null): void;
@@ -43,6 +43,8 @@ export interface ExpressionContext {
   popScope(): void;
   withForkedEnv<T>(fn: () => T): T;
   lookupIdentifier(name: string): TypeInfo | undefined;
+  isTypeParamInScope(name: string): boolean;
+  getTypeParamConstraints(name: string): AST.TypeExpression[];
   defineValue(name: string, valueType: TypeInfo): void;
   assignValue(name: string, valueType: TypeInfo): boolean;
   hasBinding(name: string): boolean;

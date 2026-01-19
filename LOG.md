@@ -1,5 +1,10 @@
 # Able Project Log
 
+# 2026-01-17 — Iterable collect type refs (v11)
+- Interpreters: bind generic type parameters as runtime type refs so static interface methods (like `C.default()`) resolve in TS + Go.
+- Stdlib/tests: disambiguate `collect` by terminating the `C.default()` statement and import `able.collections.array` in iteration tests so `Array` impls load for the Go typechecker.
+- Tests: `./v11/ablets test v11/stdlib/tests/core/iteration.test.able`; `./v11/ablego test v11/stdlib/tests/core/iteration.test.able`.
+
 # 2026-01-15 — Hash/Eq fixture and test coverage (v11)
 - Fixtures: added AST fixtures for primitive hashing, kernel hasher availability, custom Hash/Eq, and collision handling; added exec fixtures for primitive hashing plus custom Hash/Eq + collisions; updated exec coverage index.
 - Tests: added TS + Go unit coverage for hash helper builtins and kernel HashMap dispatch (custom + collision keys).
@@ -846,6 +851,8 @@ Open items (2025-11-02 audit):
 - Added a kernel-level FNV-1a Hasher (Able code) with big-endian byte emission, introduced `__able_f32_bits`/`__able_f64_bits`/`__able_u64_mul` helpers in TS/Go, and updated stdlib hashing call sites + tests to use the new sink-style Hash API.
 
 ### 2026-01-16
+- Added common `HashSet` set operations (union/intersect/difference/symmetric difference, subset/superset/disjoint) plus new spec coverage.
+- Tests: `./v11/ablets test v11/stdlib/tests/collections/hash_set.test.able`; `./v11/ablego test v11/stdlib/tests/collections/hash_set.test.able`.
 - Spec: documented the always-loaded `able.kernel` contract (core interfaces, HashMap, KernelHasher, hash bridges) and clarified map literal key constraints plus hash container semantics.
 - Spec: defined the `Hasher` interface and tied primitive Hash/Eq/Ord impls to the kernel library; aligned kernel string/char bridge names.
 - Spec: enumerated kernel-resident types/interfaces/methods and listed the full `Hasher` helper surface with default semantics.
@@ -853,4 +860,25 @@ Open items (2025-11-02 audit):
 - Go typechecker: unwrap interface aliases (e.g., `Clone`, `Eq`, `Hash`) when collecting impls, validating impls, and solving constraints.
 - Spec TODOs: cleared the kernel hashing contract items now captured in `spec/full_spec_v11.md`.
 - Tests: `./run_all_tests.sh --version=v11`; `./run_stdlib_tests.sh --version=v11`.
+- Go typechecker: allow impl targets to be interface types (supporting `impl Iterable T for Iterator T` matches).
+- Go interpreter: treat missing generic args as wildcards when matching impl targets; record iterator values as `Iterator _` for runtime type info.
+- Stdlib: fixed iterable helper signatures in `able.core.iteration` after adding iterator-as-iterable support.
+- Tests: `./v11/ablets test v11/stdlib/tests/core/iteration.test.able`; `./v11/ablego test v11/stdlib/tests/core/iteration.test.able`.
+- Go typechecker: allow interface default methods to satisfy member access when an impl omits the method body.
+- Tests: `./v11/ablego test v11/stdlib/tests/core/iteration.test.able`.
+- Stdlib: added `default<T: Default>()` helper in `able.core.interfaces`.
+- Stdlib/spec: added `Extend` interface + `Iterable.collect` default, with Array/HashSet impls and iteration tests.
 - Next: resume the PLAN work queue (regex parser + quantifiers).
+
+### 2026-01-18
+- Spec: clarified interface dynamic dispatch as dictionary-based (default methods + interface-impl method availability).
+- TS typechecker: added type-parameter tracking in expressions, inference for interface-method generics, and base-interface method candidates.
+- TS interpreter: interface values now carry method dictionaries (incl. iterator natives), interface-member binding handles native methods, and for-loops accept interface-wrapped iterators.
+- Go typechecker: collect transitive impls/method sets for imports, preserve interface metadata on impls for default methods, and write inferred call type arguments into the AST.
+- Stdlib: fixed `Iterable.map`/`filter_map` generic parameter syntax.
+- Tests: `v11/ablets .examples/foo.able`; `v11/ablego .examples/foo.able`; `v11/ablets test v11/stdlib/tests/core/iteration.test.able`; `v11/ablego test v11/stdlib/tests/core/iteration.test.able`; `v11/ablets test v11/stdlib/tests/collections/hash_set.test.able`; `v11/ablego test v11/stdlib/tests/collections/hash_set.test.able`; `v11/ablets test v11/stdlib/tests/collections/hash_set_smoke.test.able`; `v11/ablego test v11/stdlib/tests/collections/hash_set_smoke.test.able`.
+
+### 2026-01-19
+- Spec: documented package-qualified member access as yielding first-class values (type aliases remain type-only).
+- TS typechecker: package member access now resolves symbol types from summaries (function values included), enabling `pkg.fn` usage in expressions.
+- Tests: `v11/ablets .examples/foo.able`; `v11/ablego .examples/foo.able`.

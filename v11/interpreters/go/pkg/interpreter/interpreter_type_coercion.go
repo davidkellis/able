@@ -89,7 +89,11 @@ func (i *Interpreter) coerceValueToType(typeExpr ast.TypeExpression, value runti
 				}
 			}
 			if _, ok := i.interfaces[name]; ok {
-				return i.coerceToInterfaceValue(name, value)
+				var ifaceArgs []ast.TypeExpression
+				if info, ok := parseTypeExpression(typeExpr); ok && len(info.typeArgs) > 0 {
+					ifaceArgs = info.typeArgs
+				}
+				return i.coerceToInterfaceValue(name, value, ifaceArgs)
 			}
 		}
 	}
@@ -203,7 +207,11 @@ func (i *Interpreter) castValueToType(typeExpr ast.TypeExpression, value runtime
 			}
 		}
 		if _, ok := i.interfaces[name]; ok {
-			return i.coerceToInterfaceValue(name, value)
+			var ifaceArgs []ast.TypeExpression
+			if info, ok := parseTypeExpression(typeExpr); ok && len(info.typeArgs) > 0 {
+				ifaceArgs = info.typeArgs
+			}
+			return i.coerceToInterfaceValue(name, value, ifaceArgs)
 		}
 	}
 	if i.matchesType(typeExpr, value) {
@@ -216,7 +224,83 @@ func (i *Interpreter) castValueToType(typeExpr ast.TypeExpression, value runtime
 	return nil, fmt.Errorf("cannot cast %s to %s", typeDesc, typeExpressionToString(typeExpr))
 }
 
-func (i *Interpreter) coerceToInterfaceValue(interfaceName string, value runtime.Value) (runtime.Value, error) {
+func (i *Interpreter) interfaceDispatchSets(interfaceName string) (map[string]struct{}, map[string]struct{}) {
+	base := make(map[string]struct{})
+	impls := make(map[string]struct{})
+	addExpanded := func(name string, target map[string]struct{}) {
+		if name == "" {
+			return
+		}
+		for _, ifaceName := range i.interfaceSearchNames(name, make(map[string]struct{})) {
+			if ifaceName != "" {
+				target[ifaceName] = struct{}{}
+			}
+		}
+	}
+	addExpanded(interfaceName, base)
+	if entries, ok := i.implMethods[interfaceName]; ok {
+		for _, entry := range entries {
+			addExpanded(entry.interfaceName, impls)
+		}
+	}
+	for name := range base {
+		delete(impls, name)
+	}
+	return base, impls
+}
+
+func (i *Interpreter) buildInterfaceMethodDictionary(interfaceName string, ifaceArgs []ast.TypeExpression, info typeInfo) (map[string]runtime.Value, error) {
+	methods := map[string]runtime.Value{}
+	typeArgs := ifaceArgs
+	if len(typeArgs) == 0 && len(info.typeArgs) > 0 {
+		typeArgs = info.typeArgs
+	}
+	base, impls := i.interfaceDispatchSets(interfaceName)
+	collect := func(ifaceName string, targetInfo typeInfo) error {
+		ifaceDef, ok := i.interfaces[ifaceName]
+		if !ok || ifaceDef == nil || ifaceDef.Node == nil {
+			return nil
+		}
+		for _, sig := range ifaceDef.Node.Signatures {
+			if sig == nil || sig.Name == nil {
+				continue
+			}
+			methodName := sig.Name.Name
+			if methodName == "" || methods[methodName] != nil {
+				continue
+			}
+			method, err := i.findMethod(targetInfo, methodName, ifaceName)
+			if err != nil {
+				return err
+			}
+			if method == nil {
+				if ifaceName == interfaceName {
+					return fmt.Errorf("No method '%s' for interface %s", methodName, interfaceName)
+				}
+				continue
+			}
+			methods[methodName] = method
+		}
+		return nil
+	}
+	for ifaceName := range base {
+		if err := collect(ifaceName, info); err != nil {
+			return nil, err
+		}
+	}
+	for ifaceName := range impls {
+		targetInfo := typeInfo{name: interfaceName, typeArgs: typeArgs}
+		if err := collect(ifaceName, targetInfo); err != nil {
+			return nil, err
+		}
+	}
+	if len(methods) == 0 {
+		return nil, nil
+	}
+	return methods, nil
+}
+
+func (i *Interpreter) coerceToInterfaceValue(interfaceName string, value runtime.Value, ifaceArgs []ast.TypeExpression) (runtime.Value, error) {
 	if ifaceVal, ok := value.(*runtime.InterfaceValue); ok {
 		if i.interfaceMatches(ifaceVal, interfaceName) {
 			return value, nil
@@ -246,18 +330,19 @@ func (i *Interpreter) coerceToInterfaceValue(interfaceName string, value runtime
 		}
 		return nil, fmt.Errorf("Type '%s' does not implement interface %s", typeDesc, interfaceName)
 	}
-	candidate, err := i.lookupImplEntry(info, interfaceName)
+	if _, err := i.lookupImplEntry(info, interfaceName); err != nil {
+		return nil, err
+	}
+	methods, err := i.buildInterfaceMethodDictionary(interfaceName, ifaceArgs, info)
 	if err != nil {
 		return nil, err
 	}
-	var methods map[string]runtime.Value
-	if candidate != nil && candidate.entry != nil {
-		methods = make(map[string]runtime.Value, len(candidate.entry.methods))
-		for name, fn := range candidate.entry.methods {
-			methods[name] = fn
-		}
-	}
-	return &runtime.InterfaceValue{Interface: ifaceDef, Underlying: value, Methods: methods}, nil
+	return &runtime.InterfaceValue{
+		Interface:     ifaceDef,
+		Underlying:    value,
+		Methods:       methods,
+		InterfaceArgs: ifaceArgs,
+	}, nil
 }
 
 func rangeEndpoint(val runtime.Value) (int, error) {

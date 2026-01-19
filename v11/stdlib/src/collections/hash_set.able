@@ -4,7 +4,7 @@ import able.collections.array
 import able.collections.hash_map.*
 import able.collections.set.{Set}
 import able.collections.enumerable.{Enumerable}
-import able.core.interfaces.{Clone, Default, Hash, Eq}
+import able.core.interfaces.{Clone, Default, Extend, Hash, Eq}
 import able.core.iteration.{Iterable, Iterator, IteratorEnd}
 
 struct HashSet T {
@@ -47,10 +47,69 @@ methods HashSet T where T: Hash + Eq T {
   fn size(self: Self) -> i32 { self.map.size() }
   fn clear(self: Self) -> void { self.map.clear() }
   fn is_empty(self: Self) -> bool { self.map.size() == 0 }
+
+  fn union(self: Self, other: HashSet T) -> HashSet T {
+    result := self.clone()
+    visit_keys(other.map, fn(value: T) -> void { result.add(value) })
+    result
+  }
+
+  fn intersect(self: Self, other: HashSet T) -> HashSet T {
+    result := HashSet.new()
+    visit_keys(self.map, fn(value: T) -> void {
+      if other.contains(value) { result.add(value) }
+    })
+    result
+  }
+
+  fn difference(self: Self, other: HashSet T) -> HashSet T {
+    result := self.clone()
+    visit_keys(other.map, fn(value: T) -> void { result.remove(value) })
+    result
+  }
+
+  fn symmetric_difference(self: Self, other: HashSet T) -> HashSet T {
+    result := HashSet.new()
+    visit_keys(self.map, fn(value: T) -> void {
+      if !other.contains(value) { result.add(value) }
+    })
+    visit_keys(other.map, fn(value: T) -> void {
+      if !self.contains(value) { result.add(value) }
+    })
+    result
+  }
+
+  fn is_subset(self: Self, other: HashSet T) -> bool {
+    if self.size() > other.size() { return false }
+    ok := true
+    visit_keys(self.map, fn(value: T) -> void {
+      if !other.contains(value) { ok = false }
+    })
+    ok
+  }
+
+  fn is_superset(self: Self, other: HashSet T) -> bool {
+    other.is_subset(self)
+  }
+
+  fn is_disjoint(self: Self, other: HashSet T) -> bool {
+    ok := true
+    visit_keys(self.map, fn(value: T) -> void {
+      if other.contains(value) { ok = false }
+    })
+    ok
+  }
 }
 
 impl Default for HashSet T where T: Hash + Eq T {
   fn default() -> HashSet T { HashSet.new() }
+}
+
+impl Extend T for HashSet T where T: Hash + Eq T {
+  fn extend(self: Self, value: T) -> Self {
+    self.add(value)
+    self
+  }
 }
 
 impl Clone for HashSet T where T: Hash + Eq T {
