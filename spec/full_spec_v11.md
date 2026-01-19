@@ -4603,6 +4603,21 @@ Primitive interface impls mirror these intrinsic semantics; users should not exp
 -   `Range` constructs iterables from `..`/`...` syntax (definitions below).
 -   `Proc` / `ProcError` describe asynchronous handles (§12.2).
 
+`Default` is a static interface method and is invoked on a fully bound type (see §10.3.2):
+
+```able
+interface Default for Self {
+  fn default() -> Self
+}
+
+fn default<T: Default>() -> T { T.default() } ## stdlib convenience
+
+zero_count = i32.default()
+empty = (Array i32).default()
+
+fn make_default<T: Default>() -> T { T.default() }
+```
+
 Built-in implementations:
 - Primitives (`bool`, all integer widths, `char`, `String`) ship with implicit implementations of `Display`, `Clone`, `Default`, `Eq`/`Ord`, and `Hash` provided by the kernel library (`able.kernel`). These are always in scope and cannot be redefined by user code.
 - Floats (`f32`, `f64`) ship with implicit `Display`, `Clone`, `Default`, `PartialEq`, and `PartialOrd` implementations only. They do **not** implement `Eq`, `Ord`, or `Hash`. Use wrapper types (e.g., `NotNaN`, `FloatKey`) when hash-based containers or total ordering are required.
