@@ -99,6 +99,25 @@ func (c *Checker) instantiateFunctionCall(fnType FunctionType, call *ast.Functio
 	}
 
 	inst := substituteFunctionType(fnType, subst)
+	if call != nil && len(call.TypeArguments) == 0 && len(fnType.TypeParams) > 0 {
+		inferred := make([]ast.TypeExpression, len(fnType.TypeParams))
+		hasBinding := false
+		for i, param := range fnType.TypeParams {
+			if param.Name == "" {
+				inferred[i] = ast.NewWildcardTypeExpression()
+				continue
+			}
+			if bound, ok := subst[param.Name]; ok {
+				inferred[i] = c.typeExpressionForLabelFromType(bound)
+				hasBinding = true
+			} else {
+				inferred[i] = ast.NewWildcardTypeExpression()
+			}
+		}
+		if hasBinding {
+			call.TypeArguments = inferred
+		}
+	}
 	if call != nil && len(inst.Obligations) > 0 {
 		for i := range inst.Obligations {
 			node := ast.Node(call)

@@ -83,6 +83,8 @@ export function buildCheckerContext(checker: any): StatementContext {
     popScope: () => checker.env.popScope(),
     withForkedEnv: <T>(fn: () => T) => checker.withForkedEnv(fn),
     lookupIdentifier: (name: string) => checker.env.lookup(name),
+    isTypeParamInScope: (name: string) => checker.isTypeParamInScope(name),
+    getTypeParamConstraints: (name: string) => checker.typeParamConstraints(name),
     defineValue: (name: string, valueType: TypeInfo) => checker.env.define(name, valueType),
     assignValue: (name: string, valueType: TypeInfo) => checker.env.assign(name, valueType),
     hasBinding: (name: string) => checker.env.has(name),

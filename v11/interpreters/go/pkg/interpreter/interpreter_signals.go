@@ -60,7 +60,7 @@ func (i *Interpreter) makeErrorValue(val runtime.Value, env *runtime.Environment
 		"value": val,
 	}
 	if i != nil {
-		if ifaceVal, err := i.coerceToInterfaceValue("Error", val); err == nil {
+		if ifaceVal, err := i.coerceToInterfaceValue("Error", val, nil); err == nil {
 			callEnv := env
 			if callEnv == nil {
 				callEnv = i.global

@@ -262,6 +262,23 @@ export function evaluateFunctionCall(ctx: Interpreter, node: AST.FunctionCall, e
     }
     const callArgs = node.arguments.map((arg) => ctx.evaluate(arg, env));
     if (!calleeValue) {
+      const dotted = node.callee.name;
+      const dotIdx = dotted.indexOf(".");
+      if (dotIdx > 0 && dotIdx < dotted.length - 1) {
+        const head = dotted.slice(0, dotIdx);
+        const tail = dotted.slice(dotIdx + 1);
+        let receiver: RuntimeValue | null = null;
+        try {
+          receiver = env.get(head);
+        } catch {}
+        if (!receiver && (ctx.structs.has(head) || ctx.interfaces.has(head) || ctx.unions.has(head))) {
+          receiver = { kind: "type_ref", typeName: head };
+        }
+        if (receiver) {
+          const memberValue = memberAccessOnValue(ctx, receiver, AST.identifier(tail), env, { preferMethods: true });
+          return callCallableValue(ctx, memberValue, callArgs, env, node);
+        }
+      }
       if (lookupError) {
         throw lookupError;
       }

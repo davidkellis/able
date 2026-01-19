@@ -122,6 +122,9 @@ func methodSetSatisfiesInterface(spec MethodSetSpec, iface InterfaceType, args [
 		expected := substituteFunctionType(ifaceMethod, ifaceSubst)
 		actual, ok := spec.Methods[name]
 		if !ok {
+			if iface.DefaultMethods != nil && iface.DefaultMethods[name] {
+				continue
+			}
 			return false, nil, fmt.Sprintf("method '%s' not provided", name)
 		}
 		actualInst := substituteFunctionType(actual, combined)

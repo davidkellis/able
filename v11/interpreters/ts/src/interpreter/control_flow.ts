@@ -754,6 +754,11 @@ export function resolveIteratorValue(ctx: Interpreter, iterable: RuntimeValue, e
   if (iterable.kind === "iterator") {
     return iterable;
   }
+  if (iterable.kind === "interface_value" && iterable.interfaceName === "Iterator") {
+    if (iterable.value.kind === "iterator") {
+      return iterable.value;
+    }
+  }
   const direct = adaptIteratorValue(ctx, iterable, env);
   if (direct) return direct;
   const tempEnv = new Environment(env);
@@ -764,6 +769,11 @@ export function resolveIteratorValue(ctx: Interpreter, iterable: RuntimeValue, e
     [],
   );
   const result = ctx.evaluate(call, tempEnv);
+  if (result && result.kind === "interface_value" && result.interfaceName === "Iterator") {
+    if (result.value.kind === "iterator") {
+      return result.value;
+    }
+  }
   if (result && result.kind !== "iterator") {
     const adapted = adaptIteratorValue(ctx, result, env);
     if (adapted) return adapted;

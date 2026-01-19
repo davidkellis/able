@@ -106,6 +106,9 @@ export function inferExpression(ctx: ExpressionContext, expression: AST.Expressi
       if (existing) {
         return existing;
       }
+      if (ctx.isTypeParamInScope(name)) {
+        return { kind: "type_parameter", name };
+      }
       const structDefinition = ctx.getStructDefinition(name);
       if (structDefinition) {
         const paramCount = Array.isArray(structDefinition.genericParams) ? structDefinition.genericParams.length : 0;
@@ -257,8 +260,7 @@ export function inferExpression(ctx: ExpressionContext, expression: AST.Expressi
     case "StructLiteral":
       return checkStructLiteral(ctx, expression);
     case "MemberAccessExpression":
-      ctx.handlePackageMemberAccess(expression);
-      return unknownType;
+      return ctx.handlePackageMemberAccess(expression) ?? unknownType;
     case "IteratorLiteral":
       return checkIteratorLiteral(ctx, expression);
     default:

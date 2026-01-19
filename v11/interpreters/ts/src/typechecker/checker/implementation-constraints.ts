@@ -203,6 +203,9 @@ export function typeImplementsInterface(
   if (type.kind === "interface" && type.name === interfaceName) {
     return { ok: true };
   }
+  if (type.kind === "type_parameter") {
+    return { ok: true };
+  }
   if (implementsBuiltinInterface(type, interfaceName)) {
     return { ok: true };
   }
@@ -507,7 +510,7 @@ function lookupImplementationCandidates(ctx: ImplementationContext, type: TypeIn
   return Array.from(seen);
 }
 
-function matchImplementationTarget(
+export function matchImplementationTarget(
   ctx: ImplementationContext,
   actual: TypeInfo,
   target: AST.TypeExpression,
@@ -601,14 +604,19 @@ function matchImplementationTarget(
         substitutions.set(baseName, actual);
         return true;
       }
-      if (actual.kind !== "struct" && actual.kind !== "interface") {
-        return false;
-      }
-      if (actual.name !== baseName) {
-        return false;
-      }
       const expectedArgs = Array.isArray(target.arguments) ? target.arguments : [];
       let actualArgs = actual.typeArguments ?? [];
+      const structuralArgs = getStructuralTypeArguments(actual, baseName);
+      if (structuralArgs) {
+        actualArgs = structuralArgs;
+      } else {
+        if (actual.kind !== "struct" && actual.kind !== "interface") {
+          return false;
+        }
+        if (actual.name !== baseName) {
+          return false;
+        }
+      }
       if (expectedArgs.length !== actualArgs.length) {
         if (paramNames.size > 0 && actualArgs.length === 0) {
           actualArgs = new Array(expectedArgs.length).fill(unknownType);
@@ -679,6 +687,25 @@ function matchImplementationTarget(
       return actual.kind === "function";
     default:
       return formatType(actual) === ctx.formatTypeExpression(target);
+  }
+}
+
+function getStructuralTypeArguments(type: TypeInfo, baseName: string): TypeInfo[] | null {
+  switch (type.kind) {
+    case "array":
+      return baseName === "Array" ? [type.element ?? unknownType] : null;
+    case "iterator":
+      return baseName === "Iterator" ? [type.element ?? unknownType] : null;
+    case "range":
+      return baseName === "Range" ? [type.element ?? unknownType] : null;
+    case "proc":
+      return baseName === "Proc" ? [type.result ?? unknownType] : null;
+    case "future":
+      return baseName === "Future" ? [type.result ?? unknownType] : null;
+    case "map":
+      return baseName === "Map" ? [type.key ?? unknownType, type.value ?? unknownType] : null;
+    default:
+      return null;
   }
 }
 

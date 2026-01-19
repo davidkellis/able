@@ -160,6 +160,7 @@ type packageExports struct {
 	visibility string
 	symbols    map[string]Type
 	private    map[string]Type
+	imports    []string
 	impls      []ImplementationSpec
 	methodSets []MethodSetSpec
 	structs    map[string]StructType

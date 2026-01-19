@@ -3323,7 +3323,8 @@ When calling a method using dot notation `receiver.method_name(args...)`:
     *   This is the most common form of dispatch – efficient and resolved at compile time.
 *   **Dynamic Dispatch:**
     *   This occurs when the `receiver` has an **interface type** (e.g., `Display` used in a type position — see Section [10.3.4](#1034-interface-types-dynamic-dispatch)). The actual concrete type of the value is not known at compile time.
-    *   The call `receiver.method_name(args...)` is dispatched at *runtime*. The `receiver` value (often represented as a "fat pointer" containing a pointer to the data and a pointer to a **vtable**) uses the vtable to find the address of the correct `method_name` implementation for the underlying concrete type and then calls it.
+    *   The call `receiver.method_name(args...)` is dispatched at *runtime*. The `receiver` value carries an **implementation dictionary** (a method table captured at upcast) that maps method names to implementations for the interface view. The runtime looks up `method_name` in this dictionary and calls the selected implementation.
+    *   Dictionary entries may be polymorphic (accept type arguments and constraint dictionaries) so generic/default interface methods can be called on interface-typed values without object-safety restrictions.
     *   This enables runtime polymorphism but incurs a small runtime overhead compared to static dispatch.
 
 ```able
@@ -3407,11 +3408,10 @@ Using an interface name as a type denotes a dynamic/existential interface value:
 *   **Static vs Dynamic Use:**
     -   In constraint positions (`T: Display` or `where T: Display`), `Display` is a static bound; calls are resolved at compile time.
     -   In type positions (`x: Display`, `Array Display`, `Error | T`), `Display` is a dynamic/existential; calls are resolved at runtime.
-*   **Object Safety (minimum rule-set):** Methods callable via interface-typed values must be object-safe:
-    -   No generic method parameters that are not fully constrained by the interface’s type parameters.
-    -   No `Self` in return position unless wrapped in an interface-typed existential (or otherwise erased) defined by the interface.
-    -   `self: Self` receiver only (no by-value moves across dynamic boundary unless the interface specifies the ownership model).
-    Non-object-safe methods remain callable under static bounds (e.g., `T: Interface`) but are unavailable through interface-typed values.
+*   **Dictionary-based dispatch:** Interface-typed values carry an implementation dictionary captured at upcast time. The dictionary includes methods from the interface itself plus any interfaces the interface type implements (including base interfaces and explicit `impl` relationships).
+    -   Default methods are included as callable entries when no override is provided.
+    -   Generic interface methods are callable on interface-typed values; type arguments are supplied at the call site and checked statically.
+    -   `Self` in return position is treated as the interface type in dynamic calls (e.g., `Clone.clone` on a `Clone` interface value returns a `Clone` interface value).
 *   **Import-Scoped Model:** The concrete implementation used for a dynamic/interface-typed value is fixed at the upcast site (where a concrete value is converted to an interface type) based on impls in scope there. Consumers do not need that impl in scope to call methods on the received interface value.
 
 *   **Exhaustiveness reminder:** Because interface types represent open sets of implementors, pattern matching on an interface-typed value is only exhaustively covered with a wildcard or an explicit `case _: Interface` clause.
@@ -4282,6 +4282,7 @@ The `import` statement makes identifiers from other packages available in the cu
     *   `::` in imports is the rename operator only; package traversal continues to use dot (`.`). Outside imports and struct patterns, `::` has no meaning.
 *   **Scope**: Imports can occur at the top level of a file (package scope) or within any local scope (e.g., inside a function).
 *   **Binding Semantics**: Importing an identifier creates a new binding in the current scope. This binding refers to the same underlying definition (function, type, etc.) as the original identifier in the imported package.
+*   **Qualified Access Is First-Class**: A package alias binding supports member access (`pkg.name`) that yields the exported runtime value. The resulting value can be passed around like any other value (e.g., `iter.map(pkg.to_ascii_lower)` or `fn f = pkg.some_helper`). Type aliases remain type-only and do not introduce runtime values.
 *   **Re-exports preserve identity**:
     -   Selective or wildcard imports that are immediately re-exported (e.g., `import able.kernel.{Array}; export Array;` or `export * from able.kernel;`) do **not** create a new type. They bind the same nominal definition to an additional package path.
     -   Method or `impl` blocks declared for a re-exported struct/union/interface extend that original nominal type. Once the exporting package is imported, those methods become available on all values of that type, regardless of where the value was constructed.
@@ -4447,11 +4448,17 @@ interface Iterator T for Self {
 interface Iterable T for Self {
   fn each(self: Self, visit: T -> void) -> void { ... }
   fn iterator(self: Self) -> (Iterator T) { ... }
+  fn collect<C>(self: Self) -> C where C: Default + Extend T { ... }
+}
+
+interface Extend T for Self {
+  fn extend(self: Self, value: T) -> Self
 }
 ```
 
 -   `for element in collection { ... }`, `collection.each(...)`, and generator-based helpers rely on these interfaces (see “Core Iteration Protocol” below for default bodies).
 -   Implementers may override `each` or `iterator` (or both) for efficiency. At least one must be supplied; the companion default derives the other.
+-   `collect` relies on `Default` + `Extend` to build an accumulator and is provided as a default method on `Iterable`.
 
 Example—exposing a custom ring buffer as iterable:
 
@@ -4653,8 +4660,19 @@ interface Iterable T for SelfType {
   fn iterator(self: Self) -> (Iterator T) {
     Iterator { gen => self.each(gen.yield) }
   }
+
+  ## Collects values into an accumulator defined by Default + Extend.
+  fn collect<C>(self: Self) -> C where C: Default + Extend T {
+    acc: C = C.default()
+    for value in self { acc = acc.extend(value) }
+    acc
+  }
 }
 ```
+
+interface Extend T for Self {
+  fn extend(self: Self, value: T) -> Self
+}
 
 #### Range Interface
 
@@ -4956,7 +4974,7 @@ builds remain slim but tests can still share package scope.
 
 *   **Standard Library Implementation:** Core types (`Array`, `Map`?, `Set`?, `Range`, `Option`/`Result` details, `Proc`, `Future`), IO, string methods, Math, `Iterable`/`Iterator` protocol, Operator interfaces. Definition of standard `Error` interface.
 *   **Type System Details:** Full inference rules, Variance, Coercion (if any), HKT limitations/capabilities.
-*   **Object Safety Rules:** Which interface methods are callable from interface-typed values; any boxing/erasure rules; formal vtable capture at upcast.
+*   **Interface Dictionary Semantics:** Finalize dictionary capture at upcast (including generic methods, defaults, and `Self` return behavior) and specify ambiguity handling.
 *   **Pattern Exhaustiveness:** Rules for open sets like `Error` and refutability constraints.
 *   **Re-exports and Named Impl Aliasing:** Precise import/alias collision rules and diagnostics.
 *   **Ranges:** Concrete type vs existential for `..` and `...` results.

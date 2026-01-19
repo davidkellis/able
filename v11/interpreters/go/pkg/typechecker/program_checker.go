@@ -324,6 +324,30 @@ func (pc *ProgramChecker) buildPrelude(imports []*ast.ImportStatement, currentPa
 		hasScope bool
 	)
 	seen := make(map[string]struct{})
+	implSeen := make(map[string]struct{})
+	var collectImpls func(pkg string)
+	collectImpls = func(pkg string) {
+		if pkg == "" {
+			return
+		}
+		if _, ok := implSeen[pkg]; ok {
+			return
+		}
+		implSeen[pkg] = struct{}{}
+		export, ok := pc.exports[pkg]
+		if !ok || export == nil {
+			return
+		}
+		if len(export.impls) > 0 {
+			impls = append(impls, export.impls...)
+		}
+		if len(export.methodSets) > 0 {
+			methods = append(methods, export.methodSets...)
+		}
+		for _, dep := range export.imports {
+			collectImpls(dep)
+		}
+	}
 
 	for _, imp := range imports {
 		if imp == nil {
@@ -348,13 +372,8 @@ func (pc *ProgramChecker) buildPrelude(imports []*ast.ImportStatement, currentPa
 			})
 			continue
 		}
+		collectImpls(pkgName)
 		if _, already := seen[pkgName]; !already {
-			if len(export.impls) > 0 {
-				impls = append(impls, export.impls...)
-			}
-			if len(export.methodSets) > 0 {
-				methods = append(methods, export.methodSets...)
-			}
 			seen[pkgName] = struct{}{}
 		}
 
@@ -474,6 +493,23 @@ func (pc *ProgramChecker) captureExports(mod *driver.Module, checker *Checker) {
 		structs:    make(map[string]StructType),
 		interfaces: make(map[string]InterfaceType),
 		functions:  make(map[string]FunctionType),
+	}
+	if mod.AST != nil && len(mod.AST.Imports) > 0 {
+		seen := make(map[string]struct{})
+		for _, imp := range mod.AST.Imports {
+			if imp == nil {
+				continue
+			}
+			pkgName := joinImportPath(imp.PackagePath)
+			if pkgName == "" {
+				continue
+			}
+			if _, ok := seen[pkgName]; ok {
+				continue
+			}
+			seen[pkgName] = struct{}{}
+			export.imports = append(export.imports, pkgName)
+		}
 	}
 	for _, sym := range checker.ExportedSymbols() {
 		export.symbols[sym.Name] = sym.Type

@@ -30,6 +30,7 @@ export interface PrimitiveTypeInfo {
 
 export type TypeInfo =
   | { kind: "unknown" }
+  | { kind: "type_parameter"; name: string }
   | PrimitiveTypeInfo
   | { kind: "array"; element: TypeInfo }
   | { kind: "map"; key: TypeInfo; value: TypeInfo }
@@ -137,6 +138,8 @@ export function formatType(type: TypeInfo): string {
   switch (type.kind) {
     case "unknown":
       return "Unknown";
+    case "type_parameter":
+      return type.name;
     case "primitive":
       return type.name;
     case "array":

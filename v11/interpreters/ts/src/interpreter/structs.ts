@@ -214,6 +214,20 @@ export function memberAccessOnValue(
   env: Environment,
   opts?: { preferMethods?: boolean },
 ): RuntimeValue {
+  if (obj.kind === "type_ref" && member.type === "Identifier") {
+    const typeName = obj.typeName;
+    const method = ctx.findMethod(typeName, member.name, { typeArgs: obj.typeArgs });
+    if (!method) throw new Error(`No static method '${member.name}' for ${typeName}`);
+    const methodNode = method.kind === "function_overload" ? method.overloads[0]?.node : method.node;
+    if (methodNode?.type === "FunctionDefinition" && methodNode.isPrivate) {
+      throw new Error(`Method '${member.name}' on ${typeName} is private`);
+    }
+    const def = ctx.structs.get(typeName);
+    if (def && isSingletonStruct(def) && methodExpectsSelf(method)) {
+      return { kind: "bound_method", func: method, self: { kind: "struct_def", def } };
+    }
+    return method;
+  }
   if (obj.kind === "struct_def" && member.type === "Identifier") {
     const typeName = obj.def.id.name;
     const method = ctx.findMethod(typeName, member.name);
@@ -277,6 +291,7 @@ export function memberAccessOnValue(
   if (obj.kind === "interface_value") {
     if (member.type !== "Identifier") throw new Error("Interface member access expects identifier");
     const underlying = obj.value;
+    const typeName = ctx.getTypeNameForValue(underlying);
     if (obj.interfaceName === "Error" && member.type === "Identifier") {
       if (member.name === "value") {
         if (underlying.kind === "error") {
@@ -291,19 +306,33 @@ export function memberAccessOnValue(
         }
       }
     }
-    const typeName = ctx.getTypeNameForValue(underlying);
-    if (!typeName) throw new Error(`No method '${member.name}' for interface ${obj.interfaceName}`);
-    const typeArgs = underlying.kind === "struct_instance" ? underlying.typeArguments : undefined;
-    const typeArgMap = underlying.kind === "struct_instance" ? underlying.typeArgMap : undefined;
-    const method = ctx.findMethod(typeName, member.name, {
-      typeArgs,
-      typeArgMap,
-      interfaceName: obj.interfaceName,
-    });
+    let method = obj.methods?.get(member.name);
+    if (!method) {
+      if (!typeName) throw new Error(`No method '${member.name}' for interface ${obj.interfaceName}`);
+      const typeArgs = underlying.kind === "struct_instance" ? underlying.typeArguments : undefined;
+      const typeArgMap = underlying.kind === "struct_instance" ? underlying.typeArgMap : undefined;
+      method = ctx.findMethod(typeName, member.name, {
+        typeArgs,
+        typeArgMap,
+        interfaceName: obj.interfaceName,
+        includeInherent: false,
+      });
+      if (method && obj.methods) {
+        obj.methods.set(member.name, method);
+      }
+    }
     if (!method) throw new Error(`No method '${member.name}' for interface ${obj.interfaceName}`);
-    const methodNode = method.kind === "function_overload" ? method.overloads[0]?.node : method.node;
+    const methodNode =
+      method.kind === "function_overload"
+        ? method.overloads[0]?.node
+        : method.kind === "function"
+          ? method.node
+          : undefined;
     if (methodNode?.type === "FunctionDefinition" && methodNode.isPrivate) {
-      throw new Error(`Method '${member.name}' on ${typeName} is private`);
+      throw new Error(`Method '${member.name}' on ${typeName ?? obj.interfaceName} is private`);
+    }
+    if (method.kind === "native_function") {
+      return { kind: "native_bound_method", func: method, self: underlying };
     }
     return { kind: "bound_method", func: method, self: underlying };
   }
@@ -323,8 +352,10 @@ export function memberAccessOnValue(
     if (member.type !== "Identifier") throw new Error("Iterator member access expects identifier");
     ctx.ensureIteratorBuiltins();
     const fn = (ctx.iteratorNativeMethods as Record<string, Extract<RuntimeValue, { kind: "native_function" }>>)[member.name];
-    if (!fn) throw new Error(`Unknown iterator method '${member.name}'`);
-    return ctx.bindNativeMethod(fn, obj);
+    if (fn) return ctx.bindNativeMethod(fn, obj);
+    const bound = ctx.resolveMethodFromPool(env, member.name, obj);
+    if (bound) return bound;
+    throw new Error(`Unknown iterator method '${member.name}'`);
   }
   if (obj.kind === "error") {
     if (member.type !== "Identifier") throw new Error("Error member access expects identifier");

@@ -97,6 +97,7 @@ export class TypeCheckerBase {
   protected implementationIndex: Map<string, ImplementationRecord[]> = new Map();
   protected declarationOrigins: Map<string, AST.Node> = new Map();
   protected functionGenericStack: FunctionGenericContext[] = [];
+  protected typeParamStack: Array<Map<string, AST.TypeExpression[]>> = [];
   protected packageAliases: Map<string, string> = new Map();
   protected reportedPackageMemberAccess = new WeakSet<AST.MemberAccessExpression>();
   protected asyncDepth = 0;
@@ -286,6 +287,7 @@ export class TypeCheckerBase {
     }
     this.pushReturnType(expectedReturn ?? unknownType);
     this.pushFunctionGenericContext(definition);
+    this.pushTypeParamScope(definition);
     this.env.pushScope();
     try {
       if (Array.isArray(definition.params)) {
@@ -318,6 +320,7 @@ export class TypeCheckerBase {
       }
     } finally {
       this.env.popScope();
+      this.popTypeParamScope();
       this.popFunctionGenericContext();
       this.popReturnType();
     }
@@ -505,6 +508,7 @@ export class TypeCheckerBase {
       getIdentifierName: this.getIdentifierName.bind(this),
       checkBuiltinCallContext: this.checkBuiltinCallContext.bind(this),
       getBuiltinCallName: this.getBuiltinCallName.bind(this),
+      getTypeParamConstraints: (name: string) => this.typeParamConstraints(name),
       typeImplementsInterface: (type, interfaceName, expectedArgs) =>
         typeImplementsInterface(this.implementationContext, type, interfaceName, expectedArgs ?? []),
       statementContext: this.context,
@@ -755,7 +759,7 @@ export class TypeCheckerBase {
     applyDynImportStatementHelper(buildImportContext(this), statement);
   }
 
-  protected handlePackageMemberAccess(expression: AST.MemberAccessExpression): boolean {
+  protected handlePackageMemberAccess(expression: AST.MemberAccessExpression): TypeInfo | null {
     return handlePackageMemberAccessHelper(buildImportContext(this), expression);
   }
 
@@ -825,6 +829,77 @@ export class TypeCheckerBase {
       inferred.set(name, param);
     }
     return inferred;
+  }
+
+  protected pushTypeParamScope(definition: AST.FunctionDefinition): void {
+    const scope = new Map<string, AST.TypeExpression[]>();
+    const params = Array.isArray(definition.genericParams)
+      ? definition.genericParams
+      : Array.isArray(definition.inferredGenericParams)
+        ? definition.inferredGenericParams
+        : [];
+    for (const param of params) {
+      const name = this.getIdentifierName(param?.name);
+      if (!name) continue;
+      if (!scope.has(name)) {
+        scope.set(name, []);
+      }
+      if (Array.isArray(param?.constraints)) {
+        for (const constraint of param.constraints) {
+          if (constraint?.interfaceType) {
+            scope.get(name)!.push(constraint.interfaceType);
+          }
+        }
+      }
+    }
+    if (Array.isArray(definition.whereClause)) {
+      for (const clause of definition.whereClause) {
+        const name = this.getIdentifierName(clause?.typeParam);
+        if (!name) continue;
+        if (!scope.has(name)) {
+          scope.set(name, []);
+        }
+        if (Array.isArray(clause?.constraints)) {
+          for (const constraint of clause.constraints) {
+            if (constraint?.interfaceType) {
+              scope.get(name)!.push(constraint.interfaceType);
+            }
+          }
+        }
+      }
+    }
+    this.typeParamStack.push(scope);
+  }
+
+  protected popTypeParamScope(): void {
+    if (this.typeParamStack.length === 0) {
+      return;
+    }
+    this.typeParamStack.pop();
+  }
+
+  protected isTypeParamInScope(name: string): boolean {
+    if (!name) return false;
+    for (let index = this.typeParamStack.length - 1; index >= 0; index -= 1) {
+      if (this.typeParamStack[index]?.has(name)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  protected typeParamConstraints(name: string): AST.TypeExpression[] {
+    if (!name) return [];
+    const constraints: AST.TypeExpression[] = [];
+    for (let index = this.typeParamStack.length - 1; index >= 0; index -= 1) {
+      const scoped = this.typeParamStack[index];
+      if (!scoped) continue;
+      const entries = scoped.get(name);
+      if (entries && entries.length > 0) {
+        constraints.push(...entries);
+      }
+    }
+    return constraints;
   }
 
   protected checkLocalTypeDeclaration(node: LocalTypeDeclaration): void {

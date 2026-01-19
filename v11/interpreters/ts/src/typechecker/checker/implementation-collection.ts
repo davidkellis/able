@@ -123,7 +123,9 @@ export function collectImplementationDefinition(
       : unknownType;
   const resolvedTargetExpr = typeInfoToTypeExpression(resolvedTarget ?? unknownType);
   const canonicalTarget =
-    resolvedTargetExpr && resolvedTargetExpr.type !== "WildcardTypeExpression"
+    resolvedTargetExpr &&
+    resolvedTargetExpr.type !== "WildcardTypeExpression" &&
+    !containsWildcardTypeExpression(resolvedTargetExpr)
       ? resolvedTargetExpr
       : targetType ?? definition.targetType;
   const resolvedLabel = resolvedTarget && resolvedTarget.kind !== "unknown"
@@ -521,6 +523,30 @@ function patternAllowsBareConstructor(pattern: AST.GenericTypeExpression): boole
 
 function isWildcardTypeExpression(expr: AST.TypeExpression | null | undefined): boolean {
   return expr?.type === "WildcardTypeExpression";
+}
+
+function containsWildcardTypeExpression(expr: AST.TypeExpression | null | undefined): boolean {
+  if (!expr) return false;
+  if (isWildcardTypeExpression(expr)) return true;
+  switch (expr.type) {
+    case "GenericTypeExpression":
+      return (
+        containsWildcardTypeExpression(expr.base) ||
+        (expr.arguments ?? []).some((arg) => containsWildcardTypeExpression(arg))
+      );
+    case "NullableTypeExpression":
+    case "ResultTypeExpression":
+      return containsWildcardTypeExpression(expr.innerType);
+    case "UnionTypeExpression":
+      return (expr.members ?? []).some((member) => containsWildcardTypeExpression(member));
+    case "FunctionTypeExpression":
+      return (
+        (expr.paramTypes ?? []).some((param) => containsWildcardTypeExpression(param)) ||
+        containsWildcardTypeExpression(expr.returnType)
+      );
+    default:
+      return false;
+  }
 }
 
 function isPatternPlaceholderName(

@@ -28,6 +28,7 @@ const (
 	KindNativeFunction
 	KindFunctionOverload
 	KindStructDefinition
+	KindTypeRef
 	KindStructInstance
 	KindInterfaceDefinition
 	KindInterfaceValue
@@ -77,6 +78,8 @@ func (k Kind) String() string {
 		return "function_overload"
 	case KindStructDefinition:
 		return "struct_def"
+	case KindTypeRef:
+		return "type_ref"
 	case KindStructInstance:
 		return "struct_instance"
 	case KindInterfaceDefinition:
@@ -120,6 +123,14 @@ func (k Kind) String() string {
 type Value interface {
 	Kind() Kind
 }
+
+// TypeRefValue represents a type reference bound for generic static calls.
+type TypeRefValue struct {
+	TypeName string
+	TypeArgs []ast.TypeExpression
+}
+
+func (v TypeRefValue) Kind() Kind { return KindTypeRef }
 
 //-----------------------------------------------------------------------------
 // Scalars
@@ -437,6 +448,7 @@ type InterfaceValue struct {
 	Interface  *InterfaceDefinitionValue
 	Underlying Value
 	Methods    map[string]Value
+	InterfaceArgs []ast.TypeExpression
 }
 
 func (v InterfaceValue) Kind() Kind { return KindInterfaceValue }

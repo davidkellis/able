@@ -141,22 +141,26 @@ export function applyDynImportStatement(ctx: ImportContext, statement: AST.DynIm
 export function handlePackageMemberAccess(
   ctx: ImportContext,
   expression: AST.MemberAccessExpression,
-): boolean {
+): TypeInfo | null {
   if (!expression.object || expression.object.type !== "Identifier") {
-    return false;
+    return null;
   }
   const aliasName = expression.object.name;
   if (!aliasName) {
-    return false;
+    return null;
   }
   const packageName = ctx.packageAliases.get(aliasName);
   if (!packageName) {
-    return false;
+    return null;
   }
   const summary = ctx.packageSummaries.get(packageName);
   const memberName = ctx.getIdentifierName(expression.member as AST.Identifier);
   if (!memberName) {
-    return true;
+    return unknownType;
+  }
+  const symbolType = summary?.symbolTypes?.[memberName];
+  if (symbolType) {
+    return symbolType;
   }
   if (!summary?.symbols || !summary.symbols[memberName]) {
     if (!ctx.reportedPackageMemberAccess.has(expression)) {
@@ -166,8 +170,9 @@ export function handlePackageMemberAccess(
       );
       ctx.reportedPackageMemberAccess.add(expression);
     }
+    return unknownType;
   }
-  return true;
+  return resolveImportedSymbolType(summary, memberName);
 }
 
 export function clonePackageSummaries(
@@ -183,6 +188,10 @@ export function clonePackageSummaries(
 }
 
 function resolveImportedSymbolType(summary: PackageSummary, symbolName: string): TypeInfo {
+  const symbolType = summary.symbolTypes?.[symbolName];
+  if (symbolType) {
+    return symbolType;
+  }
   const struct = summary.structs?.[symbolName];
   if (struct) {
     const paramCount = Array.isArray(struct.typeParams) ? struct.typeParams.length : 0;
