@@ -43,7 +43,7 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 
 
 ## TODO (working queue: tackle in order, move completed items to LOG.md)
-- Regex parser + quantifiers: implement parser nodes, update tree-sitter grammar, align AST mapping, add fixtures/tests, update spec TODOs.
-- Interface dictionary dispatch follow-ups: add tests for default methods + generic interface methods on interface-typed values (cross-package), and verify TS/Go parity.
+- Interface dictionary dispatch follow-ups: add tests for default methods + generic interface methods on interface-typed values (cross-package), and verify TS/Go parity. See `v11/design/interface-dispatch-dictionaries.md`.
 - Compiler/interpreter vision: define a typed core IR and expand `v11/design/compiler-interpreter-vision.md` with runtime ABI details.
 - Interpreter performance track: prototype a bytecode VM and add conformance tests against the tree-walker.
+- Regex parser + quantifiers: implement parser nodes, update tree-sitter grammar, align AST mapping, add fixtures/tests, update spec TODOs.
