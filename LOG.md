@@ -882,3 +882,5 @@ Open items (2025-11-02 audit):
 - Spec: documented package-qualified member access as yielding first-class values (type aliases remain type-only).
 - TS typechecker: package member access now resolves symbol types from summaries (function values included), enabling `pkg.fn` usage in expressions.
 - Tests: `v11/ablets .examples/foo.able`; `v11/ablego .examples/foo.able`.
+- Stdlib tests: added iteration coverage for `collect` via Default/Extend and package-qualified function values.
+- Tests: `v11/ablets test v11/stdlib/tests/core/iteration.test.able`; `v11/ablego test v11/stdlib/tests/core/iteration.test.able`.
