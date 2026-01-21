@@ -19,15 +19,15 @@ fn type_examples(arr: Array i32, pair: (i32, String), cb: (i32, String) -> ?Resu
             (type_arrow
               (type_suffix
                 (type_prefix
-                  (type_generic_application
-                    (type_atom
-                      (type_identifier
-                        (qualified_identifier
-                          (identifier))))
-                    (type_atom
-                      (type_identifier
-                        (qualified_identifier
-                          (identifier)))))))))))
+                  (type_atom
+                    (type_identifier
+                      (qualified_identifier
+                        (identifier)))))
+                (type_prefix
+                  (type_atom
+                    (type_identifier
+                      (qualified_identifier
+                        (identifier))))))))))
       (parameter
         (typed_pattern
           (pattern_base
@@ -84,30 +84,30 @@ fn type_examples(arr: Array i32, pair: (i32, String), cb: (i32, String) -> ?Resu
                 (type_suffix
                   (type_prefix
                     (type_prefix
-                      (type_generic_application
-                        (type_atom
-                          (type_identifier
-                            (qualified_identifier
-                              (identifier))))
-                        (type_atom
-                          (type_identifier
-                            (qualified_identifier
-                              (identifier))))))))))))))
+                      (type_atom
+                        (type_identifier
+                          (qualified_identifier
+                            (identifier))))))
+                  (type_prefix
+                    (type_atom
+                      (type_identifier
+                        (qualified_identifier
+                          (identifier))))))))))))
     (return_type
       (type_union
         (type_arrow
           (type_suffix
             (type_prefix
               (type_prefix
-                (type_generic_application
-                  (type_atom
-                    (type_identifier
-                      (qualified_identifier
-                        (identifier))))
-                  (type_atom
-                    (type_identifier
-                      (qualified_identifier
-                        (identifier)))))))))))
+                (type_atom
+                  (type_identifier
+                    (qualified_identifier
+                      (identifier))))))
+            (type_prefix
+              (type_atom
+                (type_identifier
+                  (qualified_identifier
+                    (identifier)))))))))
     (block
       (expression_statement
         (low_precedence_pipe_expression
@@ -186,7 +186,14 @@ fn generic_where<T, U>(value: T, other: U) -> bool where T: Display + Clone, U: 
                     (identifier)))))))))
     (where_clause
       (where_constraint
-        (identifier)
+        (type_union
+          (type_arrow
+            (type_suffix
+              (type_prefix
+                (type_atom
+                  (type_identifier
+                    (qualified_identifier
+                      (identifier))))))))
         (type_bound_list
           (type_union
             (type_arrow
@@ -205,7 +212,14 @@ fn generic_where<T, U>(value: T, other: U) -> bool where T: Display + Clone, U: 
                       (qualified_identifier
                         (identifier))))))))))
       (where_constraint
-        (identifier)
+        (type_union
+          (type_arrow
+            (type_suffix
+              (type_prefix
+                (type_atom
+                  (type_identifier
+                    (qualified_identifier
+                      (identifier))))))))
         (type_bound_list
           (type_union
             (type_arrow

@@ -21,7 +21,7 @@ describe("v11 interpreter - interface dynamic dispatch", () => {
       AST.simpleTypeExpression("Point"),
       [
         AST.functionDefinition(
-          "to_String",
+          "to_string",
           [AST.functionParameter("self", AST.simpleTypeExpression("Point"))],
           AST.blockExpression([
             AST.returnStatement(
@@ -51,7 +51,7 @@ describe("v11 interpreter - interface dynamic dispatch", () => {
     I.evaluate(assign);
 
     const call = AST.functionCall(
-      AST.memberAccessExpression(AST.identifier("value"), "to_String"),
+      AST.memberAccessExpression(AST.identifier("value"), "to_string"),
       []
     );
     expect(I.evaluate(call)).toEqual({ kind: "String", value: "Point(2, 3)" });

@@ -109,10 +109,7 @@ echo ">>> Running TypeScript fixture suite"
 echo ">>> Running cross-interpreter parity harness"
 (
   cd "$ROOT_DIR/interpreters/ts"
-  if [[ -n "$TYPECHECK_FIXTURES_MODE" ]]; then
-    echo ">>> Parity diagnostics disabled (ABLE_TYPECHECK_FIXTURES=off) to focus on runtime parity"
-  fi
-  ABLE_TYPECHECK_FIXTURES="off" bun run scripts/run-parity.ts --suite fixtures --suite examples --report "$PARITY_REPORT_PATH"
+  bun run scripts/run-parity.ts --suite fixtures --suite examples --report "$PARITY_REPORT_PATH"
 )
 echo ">>> Parity JSON report written to $PARITY_REPORT_PATH"
 if [[ -n "${ABLE_PARITY_REPORT_DEST:-}" ]]; then

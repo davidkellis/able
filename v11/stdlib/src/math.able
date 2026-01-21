@@ -218,6 +218,7 @@ fn sqrt(value: f64) -> f64 {
     prev = guess
     iteration = iteration + 1
   }
+  guess
 }
 
 fn pow(base: f64, exponent: i32) -> f64 {

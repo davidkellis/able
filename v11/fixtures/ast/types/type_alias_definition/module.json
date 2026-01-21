@@ -54,8 +54,11 @@
         {
           "type": "WhereClauseConstraint",
           "typeParam": {
-            "type": "Identifier",
-            "name": "T"
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "T"
+            }
           },
           "constraints": [
             {

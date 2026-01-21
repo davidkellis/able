@@ -57,6 +57,20 @@ function hasConcreteTypeName(ctx: Interpreter, name: string): boolean {
   return ctx.structs.has(name) || ctx.unions.has(name);
 }
 
+type TypeImplementsInterfaceOptions = {
+  subjectTypeArgs?: AST.TypeExpression[];
+  interfaceArgs?: AST.TypeExpression[];
+  subjectType?: AST.TypeExpression;
+};
+
+function normalizeTypeImplementsInterfaceOptions(
+  opts?: AST.TypeExpression[] | TypeImplementsInterfaceOptions,
+): TypeImplementsInterfaceOptions {
+  if (!opts) return {};
+  if (Array.isArray(opts)) return { subjectTypeArgs: opts };
+  return opts;
+}
+
 function isErrorValue(ctx: Interpreter, value: RuntimeValue): boolean {
   if (value.kind === "error") return true;
   if (value.kind === "interface_value" && value.interfaceName === "Error") return true;
@@ -117,6 +131,10 @@ function buildInterfaceMethodDictionary(
   const collect = (ifaceName: string, targetTypeName: string, targetTypeArgs?: AST.TypeExpression[], targetTypeArgMap?: Map<string, AST.TypeExpression>): void => {
     const ifaceDef = ctx.interfaces.get(ifaceName);
     if (!ifaceDef || !Array.isArray(ifaceDef.signatures)) return;
+    const ifaceEnv = ctx.interfaceEnvs.get(ifaceName) ?? ctx.globals;
+    const targetTypeExpr = targetTypeArgs && targetTypeArgs.length > 0
+      ? AST.genericTypeExpression(AST.simpleTypeExpression(targetTypeName), targetTypeArgs)
+      : AST.simpleTypeExpression(targetTypeName);
     for (const sig of ifaceDef.signatures) {
       const methodName = sig?.name?.name;
       if (!methodName || dictionary.has(methodName)) continue;
@@ -135,6 +153,14 @@ function buildInterfaceMethodDictionary(
         const native = ctx.iteratorNativeMethods?.[methodName as "next" | "close"];
         if (native) {
           dictionary.set(methodName, native);
+          continue;
+        }
+      }
+      if (sig.defaultImpl) {
+        const typeBindings = ctx.buildSelfTypePatternBindings(ifaceDef, targetTypeExpr);
+        const defaultFunc = ctx.createDefaultMethodFunction(sig, ifaceEnv, targetTypeExpr, typeBindings);
+        if (defaultFunc) {
+          dictionary.set(methodName, defaultFunc);
           continue;
         }
       }
@@ -162,7 +188,7 @@ declare module "./index" {
     typeExpressionFromValue(value: RuntimeValue, seen?: WeakSet<object>): AST.TypeExpression | null;
     matchesType(t: AST.TypeExpression, v: RuntimeValue): boolean;
     getTypeNameForValue(value: RuntimeValue): string | null;
-    typeImplementsInterface(typeName: string, interfaceName: string, typeArgs?: AST.TypeExpression[]): boolean;
+    typeImplementsInterface(typeName: string, interfaceName: string, opts?: AST.TypeExpression[] | TypeImplementsInterfaceOptions): boolean;
     coerceValueToType(typeExpr: AST.TypeExpression | undefined, value: RuntimeValue): RuntimeValue;
     castValueToType(typeExpr: AST.TypeExpression, value: RuntimeValue): RuntimeValue;
     toInterfaceValue(interfaceName: string, rawValue: RuntimeValue, interfaceArgs?: AST.TypeExpression[]): RuntimeValue;
@@ -554,6 +580,7 @@ export function applyTypesAugmentations(cls: typeof Interpreter): void {
         const name = normalizeKernelAliasName(target.name.name);
         if (name === "Self") return true;
         if (/^[A-Z]$/.test(name)) return true;
+        if (name === "Value") return true;
         if (name === "String") return v.kind === "String";
         if (name === "bool") return v.kind === "bool";
         if (name === "char") return v.kind === "char";
@@ -597,8 +624,8 @@ export function applyTypesAugmentations(cls: typeof Interpreter): void {
             return true;
           }
           if (!typeName) return false;
-          const typeArgs = v.kind === "struct_instance" ? v.typeArguments : undefined;
-          return this.typeImplementsInterface(typeName, name, typeArgs);
+          const subjectTypeArgs = v.kind === "struct_instance" ? v.typeArguments : undefined;
+          return this.typeImplementsInterface(typeName, name, { subjectTypeArgs });
         }
         if (v.kind === "struct_instance") {
           const typeName = v.def.id.name;
@@ -609,6 +636,12 @@ export function applyTypesAugmentations(cls: typeof Interpreter): void {
         return false;
       }
       case "GenericTypeExpression": {
+        if (target.base.type === "SimpleTypeExpression") {
+          const baseName = normalizeKernelAliasName(target.base.name.name);
+          if (baseName === "Self" || /^[A-Z]$/.test(baseName)) {
+            return true;
+          }
+        }
         if (
           target.base.type === "SimpleTypeExpression" &&
           normalizeKernelAliasName(target.base.name.name) === "Array"
@@ -624,6 +657,9 @@ export function applyTypesAugmentations(cls: typeof Interpreter): void {
         }
         if (target.base.type === "SimpleTypeExpression") {
           const baseName = normalizeKernelAliasName(target.base.name.name);
+          if (v.kind === "interface_value" && v.interfaceName === baseName) {
+            return true;
+          }
           if (this.unions.has(baseName)) {
             const unionDef = this.unions.get(baseName)!;
             return (unionDef.variants ?? []).some((variant) => this.matchesType(variant, v));
@@ -642,9 +678,10 @@ export function applyTypesAugmentations(cls: typeof Interpreter): void {
             valueTypeName === baseName ||
             (!!canonicalValueName && canonicalValueName === baseName);
           if (!matchesBase) {
-            if (this.interfaces.has(baseName)) {
-              const typeArgs = v.kind === "struct_instance" ? v.typeArguments : undefined;
-              if (valueTypeName && this.typeImplementsInterface(valueTypeName, baseName, typeArgs)) {
+          if (this.interfaces.has(baseName)) {
+              const subjectTypeArgs = v.kind === "struct_instance" ? v.typeArguments : undefined;
+              const interfaceArgs = target.arguments ?? [];
+              if (valueTypeName && this.typeImplementsInterface(valueTypeName, baseName, { subjectTypeArgs, interfaceArgs })) {
                 return true;
               }
             }
@@ -734,7 +771,22 @@ export function applyTypesAugmentations(cls: typeof Interpreter): void {
     }
   };
 
-  cls.prototype.typeImplementsInterface = function typeImplementsInterface(this: Interpreter, typeName: string, interfaceName: string, typeArgs?: AST.TypeExpression[]): boolean {
+  cls.prototype.typeImplementsInterface = function typeImplementsInterface(
+    this: Interpreter,
+    typeName: string,
+    interfaceName: string,
+    opts?: AST.TypeExpression[] | TypeImplementsInterfaceOptions,
+  ): boolean {
+    const options = normalizeTypeImplementsInterfaceOptions(opts);
+    const subjectTypeFor = (name: string): AST.TypeExpression => {
+      if (options.subjectType && name === typeName) {
+        return options.subjectType;
+      }
+      if (options.subjectTypeArgs && options.subjectTypeArgs.length > 0) {
+        return AST.genericTypeExpression(AST.simpleTypeExpression(name), options.subjectTypeArgs);
+      }
+      return AST.simpleTypeExpression(name);
+    };
     const interfaceInfoFromExpr = (expr: AST.TypeExpression | undefined): { name: string; args?: AST.TypeExpression[] } | null => {
       if (!expr) return null;
       if (expr.type === "SimpleTypeExpression") {
@@ -750,16 +802,34 @@ export function applyTypesAugmentations(cls: typeof Interpreter): void {
       if (ifaceName === "Error" && name === "Error") {
         return true;
       }
-      const base: AST.SimpleTypeExpression = { type: "SimpleTypeExpression", name: AST.identifier(name) };
-      const subjectType: AST.TypeExpression = args && args.length > 0 ? { type: "GenericTypeExpression", base, arguments: args } : base;
+      const subjectType = subjectTypeFor(name);
       const entries = [
         ...(this.implMethods.get(name) ?? []),
         ...this.genericImplMethods,
       ];
       if (entries.length === 0) return false;
+      const interfaceArgs = args && args.length > 0 ? args : undefined;
       for (const entry of entries) {
         if (entry.def.interfaceName.name !== ifaceName) continue;
-        if (this.matchImplEntry(entry, { subjectType, typeArgs: args })) return true;
+        if (this.matchImplEntry(entry, { subjectType, typeArgs: options.subjectTypeArgs, interfaceArgs })) return true;
+      }
+      return false;
+    };
+
+    const interfaceExtends = (candidate: string, target: string, visited: Set<string>): boolean => {
+      if (!candidate || !target) return false;
+      if (candidate === target) return true;
+      if (visited.has(candidate)) return false;
+      visited.add(candidate);
+      const ifaceDef = this.interfaces.get(candidate);
+      if (!ifaceDef?.baseInterfaces || ifaceDef.baseInterfaces.length === 0) {
+        return false;
+      }
+      for (const base of ifaceDef.baseInterfaces) {
+        const info = interfaceInfoFromExpr(base);
+        if (!info) continue;
+        if (info.name === target) return true;
+        if (interfaceExtends(info.name, target, visited)) return true;
       }
       return false;
     };
@@ -780,10 +850,20 @@ export function applyTypesAugmentations(cls: typeof Interpreter): void {
           return true;
         }
       }
-      return directImplements(name, ifaceName, args);
+      if (directImplements(name, ifaceName, args)) {
+        return true;
+      }
+      for (const candidate of this.interfaces.keys()) {
+        if (candidate === ifaceName) continue;
+        if (!interfaceExtends(candidate, ifaceName, new Set())) continue;
+        if (directImplements(name, candidate, args)) {
+          return true;
+        }
+      }
+      return false;
     };
-
-    return check(typeName, interfaceName, typeArgs, new Set());
+    const interfaceArgs = options.interfaceArgs;
+    return check(typeName, interfaceName, interfaceArgs, new Set());
   };
 
   cls.prototype.coerceValueToType = function coerceValueToType(this: Interpreter, typeExpr: AST.TypeExpression | undefined, value: RuntimeValue): RuntimeValue {
@@ -885,61 +965,77 @@ export function applyTypesAugmentations(cls: typeof Interpreter): void {
     throw new Error(`cannot cast ${this.getTypeNameForValue(rawValue) ?? rawValue.kind} to ${this.typeExpressionToString(canonical)}`);
   };
 
-  cls.prototype.toInterfaceValue = function toInterfaceValue(this: Interpreter, interfaceName: string, rawValue: RuntimeValue, interfaceArgs?: AST.TypeExpression[]): RuntimeValue {
-  if (!this.interfaces.has(interfaceName)) {
-    throw new Error(`Unknown interface '${interfaceName}'`);
-  }
-  if (rawValue.kind === "interface_value") {
+  cls.prototype.toInterfaceValue = function toInterfaceValue(
+    this: Interpreter,
+    interfaceName: string,
+    rawValue: RuntimeValue,
+    interfaceArgs?: AST.TypeExpression[],
+  ): RuntimeValue {
+    if (!this.interfaces.has(interfaceName)) {
+      throw new Error(`Unknown interface '${interfaceName}'`);
+    }
+    if (rawValue.kind === "interface_value") {
       if (rawValue.interfaceName === interfaceName) return rawValue;
       return this.toInterfaceValue(interfaceName, rawValue.value, interfaceArgs);
     }
-  if (interfaceName === "Iterator" && rawValue.kind === "iterator") {
-    const methods = buildInterfaceMethodDictionary(this, interfaceName, interfaceArgs, rawValue, "Iterator");
+    if (interfaceName === "Error" && rawValue.kind === "error") {
+      return {
+        kind: "interface_value",
+        interfaceName,
+        interfaceArgs,
+        value: rawValue,
+        methods: new Map(),
+      };
+    }
+    if (interfaceName === "Iterator" && rawValue.kind === "iterator") {
+      const methods = buildInterfaceMethodDictionary(this, interfaceName, interfaceArgs, rawValue, "Iterator");
+      return {
+        kind: "interface_value",
+        interfaceName,
+        interfaceArgs,
+        value: rawValue,
+        methods,
+      };
+    }
+    const typeName = this.getTypeNameForValue(rawValue);
+    const subjectTypeArgs = rawValue.kind === "struct_instance" ? rawValue.typeArguments : undefined;
+    if (!typeName || !this.typeImplementsInterface(typeName, interfaceName, { subjectTypeArgs, interfaceArgs })) {
+      throw new Error(`Type '${typeName ?? "<unknown>"}' does not implement interface '${interfaceName}'`);
+    }
+    let typeArguments: AST.TypeExpression[] | undefined;
+    let typeArgMap: Map<string, AST.TypeExpression> | undefined;
+    if (rawValue.kind === "struct_instance") {
+      typeArguments = rawValue.typeArguments;
+      typeArgMap = rawValue.typeArgMap;
+    }
+    const resolution = this.resolveInterfaceImplementation(typeName, interfaceName, {
+      typeArgs: typeArguments,
+      interfaceArgs,
+      typeArgMap,
+    });
+    if (!resolution.ok) {
+      if (resolution.error) {
+        throw resolution.error;
+      }
+      throw new Error(`Type '${typeName ?? "<unknown>"}' does not implement interface '${interfaceName}'`);
+    }
+    const methods = buildInterfaceMethodDictionary(
+      this,
+      interfaceName,
+      interfaceArgs,
+      rawValue,
+      typeName,
+      typeArguments,
+      typeArgMap,
+    );
     return {
       kind: "interface_value",
       interfaceName,
       interfaceArgs,
       value: rawValue,
+      typeArguments,
+      typeArgMap,
       methods,
     };
-  }
-    const typeName = this.getTypeNameForValue(rawValue);
-  if (!typeName || !this.typeImplementsInterface(typeName, interfaceName, rawValue.kind === "struct_instance" ? rawValue.typeArguments : undefined)) {
-    throw new Error(`Type '${typeName ?? "<unknown>"}' does not implement interface '${interfaceName}'`);
-  }
-  let typeArguments: AST.TypeExpression[] | undefined;
-  let typeArgMap: Map<string, AST.TypeExpression> | undefined;
-  if (rawValue.kind === "struct_instance") {
-    typeArguments = rawValue.typeArguments;
-    typeArgMap = rawValue.typeArgMap;
-  }
-  const resolution = this.resolveInterfaceImplementation(typeName, interfaceName, {
-    typeArgs: typeArguments,
-    typeArgMap,
-  });
-  if (!resolution.ok) {
-    if (resolution.error) {
-      throw resolution.error;
-    }
-    throw new Error(`Type '${typeName ?? "<unknown>"}' does not implement interface '${interfaceName}'`);
-  }
-  const methods = buildInterfaceMethodDictionary(
-    this,
-    interfaceName,
-    interfaceArgs,
-    rawValue,
-    typeName,
-    typeArguments,
-    typeArgMap,
-  );
-  return {
-    kind: "interface_value",
-    interfaceName,
-    interfaceArgs,
-    value: rawValue,
-    typeArguments,
-    typeArgMap,
-    methods,
   };
-};
 }

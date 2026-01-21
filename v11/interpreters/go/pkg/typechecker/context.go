@@ -120,16 +120,18 @@ func (c *Checker) pushConstraintScope(params []GenericParamSpec, where []WhereCo
 		}
 	}
 	for _, clause := range where {
-		if clause.TypeParam == "" {
+		paramType, ok := clause.Subject.(TypeParameterType)
+		if !ok || paramType.ParameterName == "" {
 			continue
 		}
-		if _, ok := scope[clause.TypeParam]; !ok {
-			scope[clause.TypeParam] = nil
+		name := paramType.ParameterName
+		if _, ok := scope[name]; !ok {
+			scope[name] = nil
 		}
 		if len(clause.Constraints) > 0 {
 			copied := make([]Type, len(clause.Constraints))
 			copy(copied, clause.Constraints)
-			scope[clause.TypeParam] = append(scope[clause.TypeParam], copied...)
+			scope[name] = append(scope[name], copied...)
 		}
 	}
 	c.constraintStack = append(c.constraintStack, scope)

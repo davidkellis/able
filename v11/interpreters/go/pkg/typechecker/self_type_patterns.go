@@ -58,6 +58,14 @@ func (c *declarationCollector) validateImplementationSelfTypePattern(
 	}
 	if pattern != nil {
 		interfaceGenerics := collectGenericParamNameSet(iface.TypeParams)
+		if patternAllowsBareConstructor(pattern) && !targetsBareTypeConstructor(def.TargetType, implGenericNames, c.env) {
+			expected := formatTypeExpressionNode(pattern)
+			c.diags = append(c.diags, Diagnostic{
+				Message: fmt.Sprintf("typechecker: impl %s for %s must match interface self type '%s'", interfaceLabel, targetLabel, expected),
+				Node:    def,
+			})
+			return false
+		}
 		if def.TargetType == nil || !c.doesSelfPatternMatchTarget(pattern, def.TargetType, interfaceGenerics) {
 			expected := formatTypeExpressionNode(pattern)
 			c.diags = append(c.diags, Diagnostic{
@@ -115,11 +123,9 @@ func (c *declarationCollector) matchSelfTypePattern(
 		return identifierName(actual.Name) == name
 	case *ast.GenericTypeExpression:
 		if patternAllowsBareConstructor(pt) {
-			actual, ok := target.(*ast.SimpleTypeExpression)
-			if !ok {
-				return false
+			if actual, ok := target.(*ast.SimpleTypeExpression); ok {
+				return c.matchSelfTypePattern(pt.Base, actual, interfaceGenericNames, bindings)
 			}
-			return c.matchSelfTypePattern(pt.Base, actual, interfaceGenericNames, bindings)
 		}
 		actual, ok := target.(*ast.GenericTypeExpression)
 		if !ok {
@@ -128,10 +134,14 @@ func (c *declarationCollector) matchSelfTypePattern(
 		if !c.matchSelfTypePattern(pt.Base, actual.Base, interfaceGenericNames, bindings) {
 			return false
 		}
-		if len(pt.Arguments) != len(actual.Arguments) {
+		if !selfPatternArgsCompatible(pt.Arguments, actual.Arguments) {
 			return false
 		}
-		for idx := range pt.Arguments {
+		limit := len(pt.Arguments)
+		if len(actual.Arguments) < limit {
+			limit = len(actual.Arguments)
+		}
+		for idx := 0; idx < limit; idx++ {
 			expectedArg := pt.Arguments[idx]
 			actualArg := actual.Arguments[idx]
 			if expectedArg == nil || actualArg == nil {
@@ -151,6 +161,26 @@ func (c *declarationCollector) matchSelfTypePattern(
 	default:
 		return typeExpressionsEquivalent(pattern, target)
 	}
+}
+
+func selfPatternArgsCompatible(patternArgs, targetArgs []ast.TypeExpression) bool {
+	if len(patternArgs) == len(targetArgs) {
+		return true
+	}
+	if len(patternArgs) > len(targetArgs) {
+		return trailingSelfPatternWildcardOnly(patternArgs[len(targetArgs):])
+	}
+	return trailingSelfPatternWildcardOnly(targetArgs[len(patternArgs):])
+}
+
+func trailingSelfPatternWildcardOnly(args []ast.TypeExpression) bool {
+	for _, arg := range args {
+		if arg == nil || isWildcardTypeExpression(arg) {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func bindSelfPatternPlaceholder(name string, target ast.TypeExpression, bindings map[string]ast.TypeExpression) bool {
@@ -209,11 +239,24 @@ func isWildcardTypeExpression(expr ast.TypeExpression) bool {
 	if expr == nil {
 		return false
 	}
-	_, ok := expr.(*ast.WildcardTypeExpression)
-	return ok
+	if _, ok := expr.(*ast.WildcardTypeExpression); ok {
+		return true
+	}
+	if simple, ok := expr.(*ast.SimpleTypeExpression); ok {
+		return identifierName(simple.Name) == "_"
+	}
+	return false
 }
 
 func targetsBareTypeConstructor(
+	target ast.TypeExpression,
+	implementationGenericNames map[string]struct{},
+	env *Environment,
+) bool {
+	return isTypeConstructorTarget(target, implementationGenericNames, env)
+}
+
+func isTypeConstructorTarget(
 	target ast.TypeExpression,
 	implementationGenericNames map[string]struct{},
 	env *Environment,
@@ -229,31 +272,59 @@ func targetsBareTypeConstructor(
 				return false
 			}
 		}
-		if _, ok := primitiveTypeNameSet[name]; ok {
-			return false
-		}
-		if env == nil {
-			return false
-		}
-		decl, ok := env.Lookup(name)
-		if !ok {
-			return false
-		}
-		structType, ok := decl.(StructType)
-		if !ok {
-			return false
-		}
-		return len(structType.TypeParams) > 0
+		expected, ok := expectedTypeArgumentCount(name, lookupTypeName(env, name))
+		return ok && expected > 0
 	case *ast.GenericTypeExpression:
-		for _, arg := range tt.Arguments {
-			if isWildcardTypeExpression(arg) {
-				return true
+		if containsWildcardArgument(tt.Arguments) {
+			return true
+		}
+		baseName := typeExpressionBaseName(tt.Base)
+		if baseName == "" {
+			return false
+		}
+		if implementationGenericNames != nil {
+			if _, ok := implementationGenericNames[baseName]; ok {
+				return false
 			}
 		}
-		return false
+		expected, ok := expectedTypeArgumentCount(baseName, lookupTypeName(env, baseName))
+		if !ok {
+			return false
+		}
+		return len(tt.Arguments) < expected
 	default:
 		return false
 	}
+}
+
+func typeExpressionBaseName(expr ast.TypeExpression) string {
+	switch node := expr.(type) {
+	case *ast.SimpleTypeExpression:
+		return identifierName(node.Name)
+	case *ast.GenericTypeExpression:
+		return typeExpressionBaseName(node.Base)
+	default:
+		return ""
+	}
+}
+
+func lookupTypeName(env *Environment, name string) Type {
+	if env == nil || name == "" {
+		return nil
+	}
+	if decl, ok := env.Lookup(name); ok {
+		return decl
+	}
+	return nil
+}
+
+func containsWildcardArgument(args []ast.TypeExpression) bool {
+	for _, arg := range args {
+		if isWildcardTypeExpression(arg) {
+			return true
+		}
+	}
+	return false
 }
 
 func formatTypeExpressionNode(expr ast.TypeExpression) string {

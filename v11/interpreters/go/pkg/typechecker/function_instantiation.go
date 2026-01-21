@@ -289,6 +289,17 @@ func (c *Checker) lookupStructType(name string) (StructType, bool) {
 		if st, ok := decl.(StructType); ok {
 			return st, true
 		}
+		if alias, ok := decl.(AliasType); ok {
+			inst, _ := instantiateAlias(alias, nil)
+			switch resolved := inst.(type) {
+			case StructType:
+				return resolved, true
+			case AppliedType:
+				if st, ok := resolved.Base.(StructType); ok {
+					return st, true
+				}
+			}
+		}
 	}
 	return StructType{}, false
 }

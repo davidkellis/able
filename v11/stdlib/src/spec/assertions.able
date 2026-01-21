@@ -28,7 +28,7 @@ struct MatcherResult {
 }
 
 interface Matcher T for M {
-  fn matches(self: M, actual: T) -> MatcherResult
+  fn matches(self: Self, actual: T) -> MatcherResult
 }
 
 struct Expectation T {
@@ -94,8 +94,8 @@ struct BeNilMatcher {}
 
 fn be_nil() -> BeNilMatcher { BeNilMatcher }
 
-impl Matcher (?T) for BeNilMatcher {
-  fn matches(self: Self, actual: ?T) -> MatcherResult {
+impl Matcher (?Value) for BeNilMatcher {
+  fn matches(self: Self, actual: ?Value) -> MatcherResult {
     actual match {
       case nil => MatcherResult {
         passed: true,
@@ -326,14 +326,14 @@ impl Matcher String for IncludeSubstringMatcher {
   }
 }
 
-struct BeEmptyArrayMatcher T {}
+struct BeEmptyArrayMatcher Item {}
 
-fn be_empty_array<T>() -> BeEmptyArrayMatcher T {
-  BeEmptyArrayMatcher T {}
+fn be_empty_array<Item>() -> BeEmptyArrayMatcher Item {
+  BeEmptyArrayMatcher Item {}
 }
 
-impl Matcher (Array T) for BeEmptyArrayMatcher T {
-  fn matches(self: Self, actual: Array T) -> MatcherResult {
+impl Matcher (Array Item) for BeEmptyArrayMatcher Item {
+  fn matches(self: Self, actual: Array Item) -> MatcherResult {
     if actual.len() == 0 {
       MatcherResult {
         passed: true,
@@ -352,22 +352,22 @@ impl Matcher (Array T) for BeEmptyArrayMatcher T {
   }
 }
 
-struct ContainMatcher T {
-  expected: T
+struct ContainMatcher Item {
+  expected: Item
 }
 
-fn contain<T>(value: T) -> ContainMatcher T {
+fn contain<Item>(value: Item) -> ContainMatcher Item {
   ContainMatcher { expected: value }
 }
 
-impl Matcher (Array T) for ContainMatcher T where T: Eq T {
-  fn matches(self: Self, actual: Array T) -> MatcherResult {
+impl Matcher (Array Item) for ContainMatcher Item where Item: Eq {
+  fn matches(self: Self, actual: Array Item) -> MatcherResult {
     idx := 0
     loop {
       if idx >= actual.len() { break }
       actual.get(idx) match {
         case nil => {},
-        case value: T => {
+        case value: Item => {
           if value == self.expected {
             return MatcherResult {
               passed: true,
@@ -435,23 +435,23 @@ impl Matcher i64 for BeLessThanMatcher i64 {
   }
 }
 
-struct ContainAllMatcher T {
-  expected: Array T
+struct ContainAllMatcher Item {
+  expected: Array Item
 }
 
-fn contain_all<T>(values: Array T) -> ContainAllMatcher T {
+fn contain_all<Item>(values: Array Item) -> ContainAllMatcher Item {
   ContainAllMatcher { expected: values }
 }
 
-impl Matcher (Array T) for ContainAllMatcher T where T: Eq T {
-  fn matches(self: Self, actual: Array T) -> MatcherResult {
+impl Matcher (Array Item) for ContainAllMatcher Item where Item: Eq {
+  fn matches(self: Self, actual: Array Item) -> MatcherResult {
     missing_count := 0
     idx := 0
     loop {
       if idx >= self.expected.len() { break }
       self.expected.get(idx) match {
         case nil => {},
-        case value: T => {
+        case value: Item => {
           if !array_contains(actual, value) {
             missing_count = missing_count + 1
           }
@@ -478,7 +478,7 @@ impl Matcher (Array T) for ContainAllMatcher T where T: Eq T {
   }
 }
 
-fn array_contains<T>(array: Array T, target: T) -> bool where T: Eq T {
+fn array_contains<T>(array: Array T, target: T) -> bool where T: Eq {
   idx := 0
   loop {
     if idx >= array.len() { break }

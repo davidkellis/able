@@ -8,6 +8,18 @@ import (
 	"able/interpreter-go/pkg/runtime"
 )
 
+var reexportedSymbols = map[string]string{
+	"able.collections.array.Array":       "able.kernel.Array",
+	"able.collections.range.Range":       "able.kernel.Range",
+	"able.collections.range.RangeFactory": "able.kernel.RangeFactory",
+	"able.core.numeric.Ratio":            "able.kernel.Ratio",
+	"able.concurrency.Channel":           "able.kernel.Channel",
+	"able.concurrency.Mutex":             "able.kernel.Mutex",
+	"able.concurrency.Awaitable":          "able.kernel.Awaitable",
+	"able.concurrency.AwaitWaker":         "able.kernel.AwaitWaker",
+	"able.concurrency.AwaitRegistration":  "able.kernel.AwaitRegistration",
+}
+
 func isPrivateSymbol(val runtime.Value) bool {
 	switch v := val.(type) {
 	case *runtime.FunctionValue, *runtime.FunctionOverloadValue:
@@ -115,6 +127,52 @@ func copyPublicSymbols(bucket map[string]runtime.Value) map[string]runtime.Value
 	return public
 }
 
+func addReexportsToEnv(i *Interpreter, pkg string, env *runtime.Environment) {
+	prefix := pkg + "."
+	for fq, target := range reexportedSymbols {
+		if !strings.HasPrefix(fq, prefix) {
+			continue
+		}
+		name := strings.TrimPrefix(fq, prefix)
+		val, err := i.global.Get(target)
+		if err != nil || val == nil {
+			continue
+		}
+		i.defineInEnv(env, name, val)
+		defineStructBinding(env, name, val)
+	}
+}
+
+func addReexportsToSymbols(i *Interpreter, pkg string, symbols map[string]runtime.Value) {
+	prefix := pkg + "."
+	for fq, target := range reexportedSymbols {
+		if !strings.HasPrefix(fq, prefix) {
+			continue
+		}
+		name := strings.TrimPrefix(fq, prefix)
+		if _, exists := symbols[name]; exists {
+			continue
+		}
+		val, err := i.global.Get(target)
+		if err != nil || val == nil {
+			continue
+		}
+		symbols[name] = val
+	}
+}
+
+func resolveReexportedSymbol(i *Interpreter, pkg, name string) (runtime.Value, bool) {
+	target, ok := reexportedSymbols[pkg+"."+name]
+	if !ok {
+		return nil, false
+	}
+	val, err := i.global.Get(target)
+	if err != nil || val == nil {
+		return nil, false
+	}
+	return val, true
+}
+
 func defineStructBinding(env *runtime.Environment, name string, val runtime.Value) {
 	if env == nil || name == "" || val == nil {
 		return
@@ -171,6 +229,7 @@ func (i *Interpreter) processImport(packagePath []*ast.Identifier, isWildcard bo
 			i.defineInEnv(env, name, val)
 			defineStructBinding(env, name, val)
 		}
+		addReexportsToEnv(i, pkgName, env)
 		return runtime.NilValue{}, nil
 	}
 
@@ -220,6 +279,7 @@ func (i *Interpreter) processImport(packagePath []*ast.Identifier, isWildcard bo
 			return nil, fmt.Errorf("Import error: package '%s' not found", pkgName)
 		}
 		public := copyPublicSymbols(bucket)
+		addReexportsToSymbols(i, pkgName, public)
 		meta := i.getPackageMeta(pkgName, pkgParts)
 		aliasName := pkgName
 		if len(pkgParts) > 0 {
@@ -353,6 +413,11 @@ func (i *Interpreter) lookupImportSymbol(pkgName, symbol string) (runtime.Value,
 	}
 	if val, err := i.global.Get(symbol); err == nil {
 		return val, nil
+	}
+	if pkgName != "" {
+		if val, ok := resolveReexportedSymbol(i, pkgName, symbol); ok {
+			return val, nil
+		}
 	}
 	if pkgName != "" {
 		return nil, fmt.Errorf("Import error: symbol '%s' from '%s' not found in globals", symbol, pkgName)

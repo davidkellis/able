@@ -159,12 +159,17 @@ func (c *Checker) resolveTypeReference(expr ast.TypeExpression) Type {
 			return StructType{StructName: name}
 		}
 	case *ast.GenericTypeExpression:
+		var baseName string
 		if simple, ok := t.Base.(*ast.SimpleTypeExpression); ok && simple.Name != nil && !c.typeParamInScope(simple.Name.Name) {
-			if typ, ok := c.global.Lookup(simple.Name.Name); ok {
+			baseName = simple.Name.Name
+			if typ, ok := c.global.Lookup(baseName); ok {
 				if alias, ok := typ.(AliasType); ok {
 					args := make([]Type, len(t.Arguments))
 					for i, arg := range t.Arguments {
 						args[i] = c.resolveTypeReference(arg)
+					}
+					if expected, ok := expectedTypeArgumentCount(baseName, alias); ok && len(args) > expected {
+						c.addDiagnostic(typeArgumentArityDiagnostic(baseName, expected, len(args), t))
 					}
 					inst, subst := instantiateAlias(alias, args)
 					c.verifyAliasConstraints(alias, subst, t)
@@ -176,6 +181,18 @@ func (c *Checker) resolveTypeReference(expr ast.TypeExpression) Type {
 		args := make([]Type, len(t.Arguments))
 		for i, arg := range t.Arguments {
 			args[i] = c.resolveTypeReference(arg)
+		}
+		if baseName != "" {
+			if _, known := c.global.Lookup(baseName); known {
+				if expected, ok := expectedTypeArgumentCount(baseName, base); ok && len(args) > expected {
+					c.addDiagnostic(typeArgumentArityDiagnostic(baseName, expected, len(args), t))
+				}
+			} else if expected, ok := builtinTypeArgumentArity[baseName]; ok && len(args) > expected {
+				c.addDiagnostic(typeArgumentArityDiagnostic(baseName, expected, len(args), t))
+			}
+		}
+		if unionBase, ok := base.(UnionType); ok {
+			return instantiateUnionTypeArgs(unionBase, args)
 		}
 		if base == nil {
 			return UnknownType{}
@@ -198,22 +215,54 @@ func (c *Checker) bindStructPattern(env *Environment, pat *ast.StructPattern, va
 	hasInfo := false
 
 	if isUnknownType(valueType) {
-		for _, field := range pat.Fields {
-			if field == nil {
-				continue
-			}
-			bind := func(target ast.AssignmentTarget) {
-				if target != nil {
-					diags = append(diags, c.bindPattern(env, target, UnknownType{}, allowDefine, intent)...)
+		if allowDefine && intent != nil {
+			for _, field := range pat.Fields {
+				if field == nil {
+					continue
+				}
+				bind := func(target ast.AssignmentTarget) {
+					if target != nil {
+						diags = append(diags, c.bindPattern(env, target, UnknownType{}, allowDefine, intent)...)
+					}
+				}
+				bind(field.Binding)
+				if inner, ok := field.Pattern.(ast.AssignmentTarget); ok {
+					bind(inner)
 				}
 			}
-			bind(field.Binding)
-			if inner, ok := field.Pattern.(ast.AssignmentTarget); ok {
-				bind(inner)
+			c.infer.set(pat, valueType)
+			return diags
+		}
+		if pat.StructType != nil && pat.StructType.Name != "" {
+			if st, ok := c.lookupStructType(pat.StructType.Name); ok {
+				structInfo = st
+				hasInfo = true
+				valueType = st
+			} else {
+				diags = append(diags, Diagnostic{
+					Message: fmt.Sprintf("typechecker: unknown struct '%s'", pat.StructType.Name),
+					Node:    pat,
+				})
 			}
 		}
-		c.infer.set(pat, valueType)
-		return diags
+		if !hasInfo {
+			for _, field := range pat.Fields {
+				if field == nil {
+					continue
+				}
+				bind := func(target ast.AssignmentTarget) {
+					if target != nil {
+						diags = append(diags, c.bindPattern(env, target, UnknownType{}, allowDefine, intent)...)
+					}
+				}
+				bind(field.Binding)
+				if inner, ok := field.Pattern.(ast.AssignmentTarget); ok {
+					bind(inner)
+				}
+			}
+			c.infer.set(pat, valueType)
+			return diags
+		}
 	}
 
 	if inst, ok := valueType.(StructInstanceType); ok {
@@ -255,11 +304,9 @@ func (c *Checker) bindStructPattern(env *Environment, pat *ast.StructPattern, va
 	}
 
 	if !hasInfo && pat.StructType != nil && pat.StructType.Name != "" {
-		if typ, ok := c.global.Lookup(pat.StructType.Name); ok {
-			if st, ok := typ.(StructType); ok {
-				structInfo = st
-				hasInfo = true
-			}
+		if st, ok := c.lookupStructType(pat.StructType.Name); ok {
+			structInfo = st
+			hasInfo = true
 		}
 	}
 
@@ -281,7 +328,12 @@ func (c *Checker) bindStructPattern(env *Environment, pat *ast.StructPattern, va
 		}
 	}
 
-	if pat.IsPositional {
+	isPositional := pat.IsPositional
+	if !isPositional && hasInfo && len(structInfo.Positional) > 0 {
+		isPositional = true
+	}
+
+	if isPositional {
 		for idx, field := range pat.Fields {
 			expected := Type(UnknownType{})
 			if hasInfo && idx < len(structInfo.Positional) {

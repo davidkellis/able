@@ -1,0 +1,8 @@
+{
+  "description": "type application is left-associative without parentheses",
+  "expect": {
+    "typecheckDiagnostics": [
+      "typechecker: v11/fixtures/exec/04_03_type_expression_associativity_diag/main.able:6:14 typechecker: type 'Map' expects 2 type argument(s), got 3"
+    ]
+  }
+}

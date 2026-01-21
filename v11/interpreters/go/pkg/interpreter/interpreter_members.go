@@ -42,6 +42,10 @@ func (i *Interpreter) memberAccessOnValueWithOptions(obj runtime.Value, member a
 			}
 		}
 		return i.structDefinitionMember(&v, member)
+	case runtime.InterfaceDefinitionValue:
+		return i.interfaceDefinitionMember(&v, member)
+	case *runtime.InterfaceDefinitionValue:
+		return i.interfaceDefinitionMember(v, member)
 	case runtime.TypeRefValue:
 		return i.typeRefMember(v, member)
 	case *runtime.TypeRefValue:
@@ -387,33 +391,45 @@ func (i *Interpreter) iteratorMember(iter *runtime.IteratorValue, member ast.Exp
 	}
 	switch ident.Name {
 	case "next":
-		fn := runtime.NativeFunctionValue{
-			Name:  "iterator.next",
-			Arity: 0,
-			Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
-				if len(args) != 1 {
-					return nil, fmt.Errorf("next expects only a receiver")
-				}
-				receiver, ok := args[0].(*runtime.IteratorValue)
-				if !ok {
-					return nil, fmt.Errorf("next receiver must be an iterator")
-				}
-				value, done, err := receiver.Next()
-				if err != nil {
-					return nil, err
-				}
-				if done {
-					return runtime.IteratorEnd, nil
-				}
-				if value == nil {
-					return runtime.NilValue{}, nil
-				}
-				return value, nil
-			},
-		}
+		fn := iteratorNextNativeMethod()
 		return &runtime.NativeBoundMethodValue{Receiver: iter, Method: fn}, nil
 	default:
+		if ifaceVal, err := i.coerceToInterfaceValue("Iterator", iter, nil); err == nil {
+			if iface, ok := ifaceVal.(*runtime.InterfaceValue); ok {
+				return i.interfaceMember(iface, member)
+			}
+			if iface, ok := ifaceVal.(runtime.InterfaceValue); ok {
+				return i.interfaceMember(&iface, member)
+			}
+		}
 		return nil, fmt.Errorf("iterator has no member '%s'", ident.Name)
+	}
+}
+
+func iteratorNextNativeMethod() runtime.NativeFunctionValue {
+	return runtime.NativeFunctionValue{
+		Name:  "iterator.next",
+		Arity: 0,
+		Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+			if len(args) != 1 {
+				return nil, fmt.Errorf("next expects only a receiver")
+			}
+			receiver, ok := args[0].(*runtime.IteratorValue)
+			if !ok {
+				return nil, fmt.Errorf("next receiver must be an iterator")
+			}
+			value, done, err := receiver.Next()
+			if err != nil {
+				return nil, err
+			}
+			if done {
+				return runtime.IteratorEnd, nil
+			}
+			if value == nil {
+				return runtime.NilValue{}, nil
+			}
+			return value, nil
+		},
 	}
 }
 
@@ -448,6 +464,49 @@ func (i *Interpreter) structDefinitionMember(def *runtime.StructDefinitionValue,
 		}
 	}
 	return method, nil
+}
+
+func (i *Interpreter) interfaceDefinitionMember(def *runtime.InterfaceDefinitionValue, member ast.Expression) (runtime.Value, error) {
+	ident, ok := member.(*ast.Identifier)
+	if !ok {
+		return nil, fmt.Errorf("Interface access expects identifier member")
+	}
+	if def == nil || def.Node == nil || def.Node.ID == nil {
+		return nil, fmt.Errorf("interface definition missing identifier")
+	}
+	ifaceName := def.Node.ID.Name
+	var sig *ast.FunctionSignature
+	for _, candidate := range def.Node.Signatures {
+		if candidate == nil || candidate.Name == nil || candidate.Name.Name != ident.Name {
+			continue
+		}
+		sig = candidate
+		break
+	}
+	if sig == nil {
+		return nil, fmt.Errorf("No method '%s' for interface %s", ident.Name, ifaceName)
+	}
+	arity := len(sig.Params)
+	fn := runtime.NativeFunctionValue{
+		Name:  fmt.Sprintf("%s.%s", ifaceName, ident.Name),
+		Arity: arity,
+		Impl: func(ctx *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
+			if len(args) < 1 {
+				return nil, fmt.Errorf("%s.%s requires a receiver", ifaceName, ident.Name)
+			}
+			receiver := unwrapInterfaceValue(args[0])
+			method, err := i.resolveInterfaceMethod(receiver, ifaceName, ident.Name)
+			if err != nil {
+				return nil, err
+			}
+			if method == nil {
+				return nil, fmt.Errorf("No method '%s' for interface %s", ident.Name, ifaceName)
+			}
+			callArgs := append([]runtime.Value{receiver}, args[1:]...)
+			return i.callCallableValue(method, callArgs, ctx.Env, nil)
+		},
+	}
+	return fn, nil
 }
 
 func (i *Interpreter) typeRefMember(ref runtime.TypeRefValue, member ast.Expression) (runtime.Value, error) {

@@ -38,6 +38,7 @@ import {
 } from "./checker/implementations";
 import { buildPackageSummary as buildPackageSummaryHelper } from "./checker/summary";
 import {
+  declarationKey as declarationKeyHelper,
   formatNodeOrigin as formatNodeOriginHelper,
   registerImplementationRecord as registerImplementationRecordHelper,
   registerInterfaceDefinition as registerInterfaceDefinitionHelper,
@@ -179,9 +180,10 @@ export class TypeCheckerBase {
     if (!name) {
       return;
     }
-    const existing = this.declarationOrigins.get(name);
+    const key = declarationKeyHelper(this.registryContext(), name, extern);
+    const existing = this.declarationOrigins.get(key);
     if (!existing) {
-      this.declarationOrigins.set(name, extern);
+      this.declarationOrigins.set(key, extern);
       this.collectFunctionDefinition(extern.signature, undefined);
       return;
     }
@@ -316,6 +318,68 @@ export class TypeCheckerBase {
             `typechecker: function '${name}' body returns ${formatType(bodyType)}, expected ${formatType(expectedReturn)}`,
             definition.body ?? definition,
           );
+        }
+      }
+
+      const genericNames = new Set<string>();
+      const addGenericName = (param?: AST.GenericParameter | null) => {
+        const paramName = this.getIdentifierName(param?.name);
+        if (paramName) {
+          genericNames.add(paramName);
+        }
+      };
+      (definition.genericParams ?? []).forEach(addGenericName);
+      (definition.inferredGenericParams ?? []).forEach(addGenericName);
+      if (Array.isArray(definition.whereClause) && definition.whereClause.length > 0) {
+        const subjectUsesGeneric = (expr: AST.TypeExpression | null | undefined): boolean => {
+          if (!expr) return false;
+          switch (expr.type) {
+            case "SimpleTypeExpression": {
+              const id = this.getIdentifierName(expr.name);
+              return id ? genericNames.has(id) || id === "Self" : false;
+            }
+            case "GenericTypeExpression":
+              if (subjectUsesGeneric(expr.base)) return true;
+              return Array.isArray(expr.arguments) && expr.arguments.some((arg) => subjectUsesGeneric(arg));
+            case "NullableTypeExpression":
+            case "ResultTypeExpression":
+              return subjectUsesGeneric(expr.innerType);
+            case "UnionTypeExpression":
+              return Array.isArray(expr.members) && expr.members.some((member) => subjectUsesGeneric(member));
+            case "FunctionTypeExpression":
+              if (Array.isArray(expr.paramTypes) && expr.paramTypes.some((param) => subjectUsesGeneric(param))) {
+                return true;
+              }
+              return subjectUsesGeneric(expr.returnType);
+            default:
+              return false;
+          }
+        };
+        for (const clause of definition.whereClause) {
+          if (!clause?.typeParam || !Array.isArray(clause.constraints)) {
+            continue;
+          }
+          if (subjectUsesGeneric(clause.typeParam)) {
+            continue;
+          }
+          const subject = this.resolveTypeExpression(clause.typeParam);
+          for (const constraint of clause.constraints) {
+            const interfaceName = this.getInterfaceNameFromConstraint(constraint);
+            if (!interfaceName) continue;
+            const expectedArgs =
+              constraint?.interfaceType?.type === "GenericTypeExpression"
+                ? (constraint.interfaceType.arguments ?? []).map((arg) => this.formatTypeExpression(arg))
+                : [];
+            const result = typeImplementsInterface(this.implementationContext, subject, interfaceName, expectedArgs);
+            if (!result.ok) {
+              const subjectLabel = this.describeTypeArgument(subject);
+              const detailSuffix = result.detail ? `: ${result.detail}` : "";
+              const message =
+                `typechecker: fn ${name} constraint on ${this.formatTypeExpression(clause.typeParam)} is not satisfied: ` +
+                `${subjectLabel} does not implement ${interfaceName}${detailSuffix}`;
+              this.report(message, constraint?.interfaceType ?? clause.typeParam ?? definition);
+            }
+          }
         }
       }
     } finally {
@@ -585,7 +649,7 @@ export class TypeCheckerBase {
       }
       const exists = normalized.some((existing) => equivalentForUnion(existing.type, entry.type));
       if (exists) {
-        if (warnRedundant && entry.node) {
+        if (warnRedundant && entry.node && entry.type.kind !== "unknown") {
           this.reportWarning(`typechecker: redundant union member ${formatType(entry.type)}`, entry.node);
         }
         return;
@@ -854,7 +918,9 @@ export class TypeCheckerBase {
     }
     if (Array.isArray(definition.whereClause)) {
       for (const clause of definition.whereClause) {
-        const name = this.getIdentifierName(clause?.typeParam);
+        const name = clause?.typeParam?.type === "SimpleTypeExpression"
+          ? this.getIdentifierName(clause.typeParam.name)
+          : null;
         if (!name) continue;
         if (!scope.has(name)) {
           scope.set(name, []);

@@ -1,10 +1,10 @@
-fn tag_list_contains(tags: Array string, needle: string) -> bool {
+fn tag_list_contains(tags: Array String, needle: String) -> bool {
   idx := 0
   loop {
     if idx >= tags.len() { break }
     tags.get(idx) match {
       case nil => {},
-      case value: string => {
+      case value: String => {
         if value == needle { return true }
       }
     }
@@ -19,4 +19,4 @@ fn __clear_examples_for_tests() -> void {
   SUITE_STACK = Array.new()
 }
 
-register_framework(SpecFramework)
+register_framework(SpecFramework {})

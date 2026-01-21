@@ -2,6 +2,7 @@ import * as AST from "../ast";
 import type { Environment } from "./environment";
 import type { Interpreter } from "./index";
 import type { RuntimeValue } from "./values";
+import { callCallableValue } from "./functions";
 
 let structLiteralDepth = 0;
 import { makeIntegerFromNumber, numericToNumber } from "./numeric";
@@ -241,6 +242,42 @@ export function memberAccessOnValue(
     }
     return method;
   }
+  if (obj.kind === "interface_def" && member.type === "Identifier") {
+    const ifaceName = obj.def.id.name;
+    const signature = obj.def.signatures?.find(sig => sig?.name?.name === member.name);
+    if (!signature) {
+      throw new Error(`No method '${member.name}' for interface ${ifaceName}`);
+    }
+    const arity = signature.params?.length ?? 0;
+    return {
+      kind: "native_function",
+      name: `${ifaceName}.${member.name}`,
+      arity,
+      impl: (interp, args) => {
+        if (args.length < 1) {
+          throw new Error(`${ifaceName}.${member.name} requires a receiver`);
+        }
+        const receiver = args[0]!;
+        const rawReceiver = receiver.kind === "interface_value" ? receiver.value : receiver;
+        const typeName = interp.getTypeNameForValue(rawReceiver);
+        if (!typeName) {
+          throw new Error(`No method '${member.name}' for interface ${ifaceName}`);
+        }
+        const typeArgs = rawReceiver.kind === "struct_instance" ? rawReceiver.typeArguments : undefined;
+        const typeArgMap = rawReceiver.kind === "struct_instance" ? rawReceiver.typeArgMap : undefined;
+        const method = interp.findMethod(typeName, member.name, {
+          typeArgs,
+          typeArgMap,
+          interfaceName: ifaceName,
+          includeInherent: false,
+        });
+        if (!method) {
+          throw new Error(`No method '${member.name}' for interface ${ifaceName}`);
+        }
+        return callCallableValue(interp, method, [rawReceiver, ...args.slice(1)], interp.globals);
+      },
+    };
+  }
   if (obj.kind === "package") {
     if (member.type !== "Identifier") throw new Error("Package member access expects identifier");
     const sym = obj.symbols.get(member.name);
@@ -355,6 +392,16 @@ export function memberAccessOnValue(
     if (fn) return ctx.bindNativeMethod(fn, obj);
     const bound = ctx.resolveMethodFromPool(env, member.name, obj);
     if (bound) return bound;
+    const ifaceValue = ctx.toInterfaceValue("Iterator", obj);
+    if (ifaceValue.kind === "interface_value") {
+      const method = ifaceValue.methods?.get(member.name);
+      if (method) {
+        if (method.kind === "native_function") {
+          return { kind: "native_bound_method", func: method, self: obj };
+        }
+        return { kind: "bound_method", func: method, self: obj };
+      }
+    }
     throw new Error(`Unknown iterator method '${member.name}'`);
   }
   if (obj.kind === "error") {

@@ -1,20 +1,11 @@
 package queue
 import able.collections.deque.*
 import able.collections.enumerable.{Enumerable}
-import able.core.interfaces.{Clone, Default}
+import able.core.interfaces.{Clone, Default, Extend}
 import able.core.iteration.{Iterable, Iterator}
 
 struct Queue T {
   data: Deque T
-}
-
-interface QueueOps T for Q {
-  fn enqueue(self: Self, value: T) -> void;
-  fn dequeue(self: Self) -> ?T;
-  fn peek(self: Self) -> ?T;
-  fn size(self: Self) -> i32;
-  fn is_empty(self: Self) -> bool { self.size() == 0 }
-  fn clear(self: Self) -> void;
 }
 
 methods Queue T {
@@ -26,12 +17,6 @@ methods Queue T {
     Queue { data: Deque.with_capacity(capacity) }
   }
 
-  fn is_empty(self: Self) -> bool {
-    self.data.len() == 0
-  }
-}
-
-impl QueueOps T for Queue T {
   fn enqueue(self: Self, value: T) -> void {
     self.data.push_back(value)
   }
@@ -48,29 +33,38 @@ impl QueueOps T for Queue T {
     self.data.len()
   }
 
+  fn is_empty(self: Self) -> bool {
+    self.data.len() == 0
+  }
+
   fn clear(self: Self) -> void {
     self.data.clear()
   }
 }
 
-impl Default for Queue T {
+impl<T> Default for Queue T {
   fn default() -> Queue T { Queue.new() }
 }
 
-impl Clone for Queue T {
+impl<T> Extend T for Queue T {
+  fn extend(self: Self, value: T) -> Self {
+    self.enqueue(value)
+    self
+  }
+}
+
+impl<T> Clone for Queue T {
   fn clone(self: Self) -> Queue T {
     Queue { data: self.data.clone() }
   }
 }
 
-impl Iterable T for Queue T {
-  fn iterator(self: Self) -> (Iterator T) {
-    self.data.iterator()
-  }
-}
-
-impl Enumerable T for Queue T {
-  fn each(self: Self, visit: T -> void) -> void {
+impl<A> Enumerable A for Queue {
+  fn each(self: Self, visit: A -> void) -> void {
     self.data.each(visit)
+  }
+
+  fn iterator(self: Self) -> (Iterator A) {
+    self.data.iterator()
   }
 }

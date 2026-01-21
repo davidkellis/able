@@ -19,9 +19,9 @@ fn to_csv(list: List String) -> String {
   first := true
   loop {
     if cursor == nil { break }
-    if first { acc = cursor.value } else { acc = `${acc},${cursor.value}` }
+    if first { acc = cursor!.value } else { acc = `${acc},${cursor!.value}` }
     first = false
-    cursor = cursor.next
+    cursor = cursor!.next
   }
   `list ${acc}`
 }

@@ -25,7 +25,8 @@ const (
 func configureFixtureTypechecker(interp *Interpreter) fixtureTypecheckMode {
 	modeVal, ok := os.LookupEnv(fixtureTypecheckEnv)
 	if !ok {
-		return typecheckModeOff
+		interp.EnableTypechecker(TypecheckConfig{FailFast: true})
+		return typecheckModeStrict
 	}
 	mode := strings.TrimSpace(strings.ToLower(modeVal))
 	switch mode {

@@ -43,7 +43,8 @@ func (c *Checker) lookupMethodInMethodSets(object Type, name string, allowMethod
 		}
 		method, ok := spec.Methods[name]
 		derivedFromConstraints := false
-		if spec.TypeQualified != nil && spec.TypeQualified[name] && !allowTypeQualified {
+		isTypeQualified := spec.TypeQualified != nil && spec.TypeQualified[name]
+		if isTypeQualified && !allowTypeQualified {
 			continue
 		}
 		if !ok {
@@ -56,7 +57,7 @@ func (c *Checker) lookupMethodInMethodSets(object Type, name string, allowMethod
 		if !ok {
 			continue
 		}
-		if spec.TypeQualified != nil && spec.TypeQualified[name] && len(substitution) > 0 {
+		if isTypeQualified && len(substitution) > 0 {
 			for _, param := range spec.TypeParams {
 				if param.Name == "" {
 					continue
@@ -84,7 +85,7 @@ func (c *Checker) lookupMethodInMethodSets(object Type, name string, allowMethod
 				method.Obligations = append(method.Obligations, obligations...)
 			}
 		}
-		if shouldBindSelfParam(method, object) {
+		if shouldBindSelfParam(method, object) && !isTypeQualified {
 			method = bindMethodType(method)
 		}
 		candidates = append(candidates, candidate{fn: method, score: score})

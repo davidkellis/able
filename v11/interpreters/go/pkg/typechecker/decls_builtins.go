@@ -280,6 +280,62 @@ func registerBuiltins(env *Environment) {
 	env.Define("Display", displayIface)
 	env.Define("Clone", cloneIface)
 	env.Define("Error", errorIface)
+
+	selfType := TypeParameterType{ParameterName: "Self"}
+	iteratorParam := TypeParameterType{ParameterName: "T"}
+	iteratorIface := InterfaceType{
+		InterfaceName: "Iterator",
+		TypeParams:    []GenericParamSpec{{Name: "T"}},
+	}
+	env.Define("IteratorEnd", StructType{StructName: "IteratorEnd"})
+	iteratorOf := func(elem Type) AppliedType {
+		return AppliedType{Base: iteratorIface, Arguments: []Type{elem}}
+	}
+	iteratorIface.Methods = map[string]FunctionType{
+		"next": {
+			Params: []Type{selfType},
+			Return: UnionLiteralType{Members: []Type{iteratorParam, StructType{StructName: "IteratorEnd"}}},
+		},
+		"filter": {
+			Params: []Type{
+				selfType,
+				FunctionType{Params: []Type{iteratorParam}, Return: boolType},
+			},
+			Return: iteratorOf(iteratorParam),
+		},
+		"map": {
+			Params: []Type{
+				selfType,
+				FunctionType{Params: []Type{iteratorParam}, Return: TypeParameterType{ParameterName: "U"}},
+			},
+			Return: iteratorOf(TypeParameterType{ParameterName: "U"}),
+			TypeParams: []GenericParamSpec{
+				{Name: "U"},
+			},
+		},
+		"filter_map": {
+			Params: []Type{
+				selfType,
+				FunctionType{
+					Params: []Type{iteratorParam},
+					Return: NullableType{Inner: TypeParameterType{ParameterName: "U"}},
+				},
+			},
+			Return: iteratorOf(TypeParameterType{ParameterName: "U"}),
+			TypeParams: []GenericParamSpec{
+				{Name: "U"},
+			},
+		},
+		"collect": {
+			Params: []Type{selfType},
+			Return: TypeParameterType{ParameterName: "C"},
+			TypeParams: []GenericParamSpec{
+				{Name: "C"},
+			},
+		},
+	}
+	env.Define("Iterator", iteratorIface)
+
 	ratioFields := map[string]Type{
 		"num": i64Type,
 		"den": i64Type,
@@ -300,8 +356,27 @@ func registerBuiltins(env *Environment) {
 	procErrorFields := map[string]Type{
 		"details": stringType,
 	}
-	env.Define("ProcError", StructType{
+	procErrorType := StructType{
 		StructName: "ProcError",
 		Fields:     procErrorFields,
+	}
+	env.Define("ProcError", procErrorType)
+
+	pendingType := StructType{StructName: "Pending"}
+	resolvedType := StructType{StructName: "Resolved"}
+	cancelledType := StructType{StructName: "Cancelled"}
+	failedType := StructType{
+		StructName: "Failed",
+		Fields: map[string]Type{
+			"error": procErrorType,
+		},
+	}
+	env.Define("Pending", pendingType)
+	env.Define("Resolved", resolvedType)
+	env.Define("Cancelled", cancelledType)
+	env.Define("Failed", failedType)
+	env.Define("ProcStatus", UnionType{
+		UnionName: "ProcStatus",
+		Variants:  []Type{pendingType, resolvedType, cancelledType, failedType},
 	})
 }

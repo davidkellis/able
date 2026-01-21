@@ -4443,12 +4443,12 @@ struct IteratorEnd;
 
 interface Iterator T for Self {
   fn next(self: Self) -> T | IteratorEnd;
+  fn collect<C>(self: Self) -> C where C: Default + Extend T { ... }
 }
 
 interface Iterable T for Self {
   fn each(self: Self, visit: T -> void) -> void { ... }
   fn iterator(self: Self) -> (Iterator T) { ... }
-  fn collect<C>(self: Self) -> C where C: Default + Extend T { ... }
 }
 
 interface Extend T for Self {
@@ -4456,9 +4456,33 @@ interface Extend T for Self {
 }
 ```
 
--   `for element in collection { ... }`, `collection.each(...)`, and generator-based helpers rely on these interfaces (see “Core Iteration Protocol” below for default bodies).
+Lazy adapters live on `Iterator` (not `Iterable`) and return new iterators; `collect`
+is an eager helper on `Iterator` for materializing results:
+
+```able
+interface Iterator T for Self {
+  fn next(self: Self) -> T | IteratorEnd;
+  fn map<U>(self: Self, f: T -> U) -> Iterator U { ... }
+  fn filter(self: Self, f: T -> bool) -> Iterator T { ... }
+  fn filter_map<U>(self: Self, f: T -> ?U) -> Iterator U { ... }
+}
+```
+
+Eager, type-preserving transforms live on `Enumerable` (HKT), using `Default` + `Extend`:
+
+```able
+interface Enumerable A for C _ : Iterable A {
+  fn lazy(self: C A) -> (Iterator A) { self.iterator() }
+
+  fn map<B>(self: C A, f: A -> B) -> C B
+    where C B: Default + Extend B { ... }
+}
+```
+
+-   `for element in collection { ... }`, `collection.each(...)`, and generator-based helpers rely on `Iterable` (see “Core Iteration Protocol” below for default bodies).
 -   Implementers may override `each` or `iterator` (or both) for efficiency. At least one must be supplied; the companion default derives the other.
--   `collect` relies on `Default` + `Extend` to build an accumulator and is provided as a default method on `Iterable`.
+-   `collect` relies on `Default` + `Extend` to build an accumulator and is provided as a default method on `Iterator`.
+-   Collections implement `Enumerable` for eager, type-preserving transforms; call `collection.lazy()` (or `collection.iterator()`) to opt into lazy adapters.
 
 Example—exposing a custom ring buffer as iterable:
 
@@ -4647,6 +4671,12 @@ interface Iterator T for SelfType {
   ## Returns the element (of type T) or IteratorEnd if iteration is complete.
   ## This method typically mutates the iterator's internal state.
   fn next(self: Self) -> T | IteratorEnd;
+
+  ## Lazy adapter example (returns a new iterator).
+  fn map<U>(self: Self, f: T -> U) -> Iterator U { ... }
+
+  ## Collects values into an accumulator defined by Default + Extend.
+  fn collect<C>(self: Self) -> C where C: Default + Extend T { ... }
 }
 
 ## Interface for types that can produce an iterator over elements of type T.
@@ -4675,11 +4705,19 @@ interface Iterable T for SelfType {
   fn iterator(self: Self) -> (Iterator T) {
     Iterator { gen => self.each(gen.yield) }
   }
+}
+```
 
-  ## Collects values into an accumulator defined by Default + Extend.
-  fn collect<C>(self: Self) -> C where C: Default + Extend T {
-    acc: C = C.default()
-    for value in self { acc = acc.extend(value) }
+Eager, type-preserving transforms live on `Enumerable` (HKT):
+
+```able
+interface Enumerable A for C _ : Iterable A {
+  fn lazy(self: C A) -> (Iterator A) { self.iterator() }
+
+  fn map<B>(self: C A, f: A -> B) -> C B
+    where C B: Default + Extend B {
+    acc: C B = C.default()
+    for value in self { acc = acc.extend(f(value)) }
     acc
   }
 }

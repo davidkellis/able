@@ -19,12 +19,42 @@ func (c *Checker) checkStructLiteral(env *Environment, expr *ast.StructLiteral) 
 		typeArgs    []Type
 		structSubst map[string]Type
 	)
+	if len(expr.TypeArguments) > 0 {
+		typeArgs = make([]Type, len(expr.TypeArguments))
+		for i, arg := range expr.TypeArguments {
+			typeArgs[i] = c.resolveTypeReference(arg)
+		}
+	}
 	if expr.StructType != nil && expr.StructType.Name != "" {
 		structName = expr.StructType.Name
 		if typ, ok := c.global.Lookup(structName); ok {
-			if st, ok := typ.(StructType); ok {
-				structInfo = st
+			switch resolved := typ.(type) {
+			case StructType:
+				structInfo = resolved
 				hasInfo = true
+			case AppliedType:
+				if st, ok := resolved.Base.(StructType); ok {
+					structInfo = st
+					hasInfo = true
+					if len(typeArgs) == 0 {
+						typeArgs = append([]Type(nil), resolved.Arguments...)
+					}
+				}
+			case AliasType:
+				inst, _ := instantiateAlias(resolved, typeArgs)
+				switch target := inst.(type) {
+				case StructType:
+					structInfo = target
+					hasInfo = true
+				case AppliedType:
+					if st, ok := target.Base.(StructType); ok {
+						structInfo = st
+						hasInfo = true
+						if len(typeArgs) == 0 {
+							typeArgs = append([]Type(nil), target.Arguments...)
+						}
+					}
+				}
 			}
 		}
 		if !hasInfo {
@@ -34,12 +64,8 @@ func (c *Checker) checkStructLiteral(env *Environment, expr *ast.StructLiteral) 
 			})
 		}
 	}
-
-	if len(expr.TypeArguments) > 0 {
-		typeArgs = make([]Type, len(expr.TypeArguments))
-		for i, arg := range expr.TypeArguments {
-			typeArgs[i] = c.resolveTypeReference(arg)
-		}
+	if hasInfo && structInfo.StructName != "" {
+		structName = structInfo.StructName
 	}
 
 	if hasInfo {

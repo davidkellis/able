@@ -159,7 +159,17 @@ export function applyConcurrencyAwait(cls: typeof Interpreter): void {
 
     const awaitableStruct = AST.structDefinition("AwaitHelper", [], "named");
 
-    const makeDefaultAwaitable = (callback?: RuntimeValue): Extract<RuntimeValue, { kind: "struct_instance" }> => {
+    const wrapAwaitable = (
+      inst: Extract<RuntimeValue, { kind: "struct_instance" }>,
+      methods: Map<string, Extract<RuntimeValue, { kind: "function" | "function_overload" | "native_function" }>>,
+    ): RuntimeValue => ({
+      kind: "interface_value",
+      interfaceName: "Awaitable",
+      value: inst,
+      methods,
+    });
+
+    const makeDefaultAwaitable = (callback?: RuntimeValue): RuntimeValue => {
       const inst: Extract<RuntimeValue, { kind: "struct_instance" }> = {
         kind: "struct_instance",
         def: awaitableStruct,
@@ -179,10 +189,15 @@ export function applyConcurrencyAwait(cls: typeof Interpreter): void {
       values.set("register", this.bindNativeMethod(register, inst));
       values.set("commit", this.bindNativeMethod(commit, inst));
       values.set("is_default", this.bindNativeMethod(isDefault, inst));
-      return inst;
+      const methods = new Map<string, Extract<RuntimeValue, { kind: "function" | "function_overload" | "native_function" }>>();
+      methods.set("is_ready", isReady);
+      methods.set("register", register);
+      methods.set("commit", commit);
+      methods.set("is_default", isDefault);
+      return wrapAwaitable(inst, methods);
     };
 
-    const makeTimerAwaitable = (durationMs: number, callback?: RuntimeValue): Extract<RuntimeValue, { kind: "struct_instance" }> => {
+    const makeTimerAwaitable = (durationMs: number, callback?: RuntimeValue): RuntimeValue => {
       const state: TimerAwaitableState = {
         deadlineMs: Date.now() + durationMs,
         ready: durationMs <= 0,
@@ -256,7 +271,12 @@ export function applyConcurrencyAwait(cls: typeof Interpreter): void {
       values.set("register", this.bindNativeMethod(register, inst));
       values.set("commit", this.bindNativeMethod(commit, inst));
       values.set("is_default", this.bindNativeMethod(isDefault, inst));
-      return inst;
+      const methods = new Map<string, Extract<RuntimeValue, { kind: "function" | "function_overload" | "native_function" }>>();
+      methods.set("is_ready", isReady);
+      methods.set("register", register);
+      methods.set("commit", commit);
+      methods.set("is_default", isDefault);
+      return wrapAwaitable(inst, methods);
     };
 
     const awaitDefault = this.makeNativeFunction("__able_await_default", 1, (_nativeInterp, args) => {

@@ -35,6 +35,7 @@ impl Eq for Box {
 }
 
 impl Ord for Box {
+  fn partial_cmp(self: Self, other: Self) -> Ordering { self.cmp(other) }
   fn cmp(self: Self, other: Self) -> Ordering {
     if self.value < other.value { return Less {} }
     if self.value > other.value { return Greater {} }

@@ -829,6 +829,9 @@ function resolveMemberAccessCandidates(
   if (!memberName) return { candidates: [] };
   const receiver = buildReceiverLookup(ctx, callee, memberName);
   if (!receiver) return { candidates: [] };
+  if (receiver.lookupType.kind === "future" && memberName === "cancel") {
+    return { candidates: [], fieldError: "future handles do not support cancel()" };
+  }
   const fieldResolution = resolveCallableFieldCandidate(ctx, receiver, memberName, argCount);
   if (fieldResolution?.callable) {
     return { candidates: [fieldResolution.callable] };
@@ -977,12 +980,13 @@ function collectSignatureWhereObligations(
     typeParam: string | null,
     interfaceType: AST.TypeExpression | null | undefined,
     context: string,
+    subjectExpr?: AST.TypeExpression,
   ) => {
     const interfaceName = ctx.implementationContext.getInterfaceNameFromTypeExpression(interfaceType);
     if (!typeParam || !interfaceName) {
       return;
     }
-    obligations.push({ typeParam, interfaceName, interfaceType: interfaceType ?? undefined, context });
+    obligations.push({ typeParam, interfaceName, interfaceType: interfaceType ?? undefined, context, subjectExpr });
   };
   if (Array.isArray(signature.genericParams)) {
     for (const param of signature.genericParams) {
@@ -995,14 +999,95 @@ function collectSignatureWhereObligations(
   }
   if (Array.isArray(signature.whereClause)) {
     for (const clause of signature.whereClause) {
-      const typeParamName = ctx.getIdentifierName(clause?.typeParam);
+      const subjectExpr = clause?.typeParam;
+      const typeParamName = subjectExpr ? ctx.implementationContext.formatTypeExpression(subjectExpr) : null;
       if (!typeParamName || !Array.isArray(clause?.constraints)) continue;
       for (const constraint of clause.constraints) {
-        appendObligation(typeParamName, constraint?.interfaceType, "where clause");
+        appendObligation(typeParamName, constraint?.interfaceType, "where clause", subjectExpr);
       }
     }
   }
   return obligations;
+}
+
+function isSelfPatternPlaceholderName(
+  ctx: FunctionCallContext,
+  name: string,
+  interfaceGenericNames: Set<string>,
+): boolean {
+  if (!name || name === "Self") {
+    return false;
+  }
+  if (interfaceGenericNames.has(name)) {
+    return false;
+  }
+  if (ctx.implementationContext.isKnownTypeName(name)) {
+    return false;
+  }
+  return true;
+}
+
+function collectSelfPatternPlaceholderNames(
+  ctx: FunctionCallContext,
+  expr: AST.TypeExpression | null | undefined,
+  interfaceGenericNames: Set<string>,
+  out: Set<string> = new Set(),
+): Set<string> {
+  if (!expr) return out;
+  switch (expr.type) {
+    case "SimpleTypeExpression": {
+      const name = ctx.getIdentifierName(expr.name);
+      if (name && isSelfPatternPlaceholderName(ctx, name, interfaceGenericNames)) {
+        out.add(name);
+      }
+      return out;
+    }
+    case "GenericTypeExpression": {
+      collectSelfPatternPlaceholderNames(ctx, expr.base, interfaceGenericNames, out);
+      (expr.arguments ?? []).forEach((arg) =>
+        collectSelfPatternPlaceholderNames(ctx, arg, interfaceGenericNames, out),
+      );
+      return out;
+    }
+    case "FunctionTypeExpression": {
+      (expr.paramTypes ?? []).forEach((param) =>
+        collectSelfPatternPlaceholderNames(ctx, param, interfaceGenericNames, out),
+      );
+      collectSelfPatternPlaceholderNames(ctx, expr.returnType, interfaceGenericNames, out);
+      return out;
+    }
+    case "NullableTypeExpression":
+    case "ResultTypeExpression":
+      return collectSelfPatternPlaceholderNames(ctx, expr.innerType, interfaceGenericNames, out);
+    case "UnionTypeExpression":
+      (expr.members ?? []).forEach((member) =>
+        collectSelfPatternPlaceholderNames(ctx, member, interfaceGenericNames, out),
+      );
+      return out;
+    default:
+      return out;
+  }
+}
+
+function normalizeSelfTypeConstructor(ctx: FunctionCallContext, receiverType: TypeInfo): TypeInfo {
+  if (receiverType.kind === "struct") {
+    const def = receiverType.definition ?? ctx.getStructDefinition(receiverType.name);
+    return { kind: "struct", name: receiverType.name, typeArguments: [], definition: def };
+  }
+  if (receiverType.kind === "interface") {
+    const def =
+      receiverType.definition ?? ctx.implementationContext.getInterfaceDefinition?.(receiverType.name) ?? undefined;
+    return { kind: "interface", name: receiverType.name, typeArguments: [], definition: def };
+  }
+  if (receiverType.kind === "array") {
+    const def = ctx.getStructDefinition("Array");
+    return { kind: "struct", name: "Array", typeArguments: [], definition: def ?? undefined };
+  }
+  if (receiverType.kind === "iterator") {
+    const def = ctx.implementationContext.getInterfaceDefinition?.("Iterator");
+    return { kind: "interface", name: "Iterator", typeArguments: [], definition: def ?? undefined };
+  }
+  return receiverType;
 }
 
 function buildInterfaceMethodInfo(
@@ -1016,6 +1101,11 @@ function buildInterfaceMethodInfo(
 ): FunctionInfo {
   const substitutions = new Map<string, TypeInfo>();
   substitutions.set("Self", receiverType);
+  const interfaceGenericNames = new Set(
+    (interfaceDef.genericParams ?? [])
+      .map((param) => ctx.getIdentifierName(param?.name))
+      .filter((name): name is string => Boolean(name)),
+  );
   if (Array.isArray(interfaceDef.genericParams)) {
     interfaceDef.genericParams.forEach((param, idx) => {
       const name = ctx.getIdentifierName(param?.name);
@@ -1023,6 +1113,15 @@ function buildInterfaceMethodInfo(
       const arg = interfaceArgs[idx] ?? unknownType;
       substitutions.set(name, arg);
     });
+  }
+  const placeholderNames = collectSelfPatternPlaceholderNames(ctx, interfaceDef.selfTypePattern, interfaceGenericNames);
+  if (placeholderNames.size > 0) {
+    const constructorType = normalizeSelfTypeConstructor(ctx, receiverType);
+    for (const name of placeholderNames) {
+      if (!substitutions.has(name)) {
+        substitutions.set(name, constructorType);
+      }
+    }
   }
   const methodGenericNames = Array.isArray(signature.genericParams)
     ? signature.genericParams

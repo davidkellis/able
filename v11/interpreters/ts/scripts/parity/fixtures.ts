@@ -205,7 +205,7 @@ export async function evaluateFixtureTS(dir: string, manifest: Manifest | null, 
   let evaluationError: unknown;
   let result: NormalizedValue | undefined;
   const diagnostics: string[] = [];
-  const typecheckMode = (process.env.ABLE_TYPECHECK_FIXTURES ?? "off").toLowerCase();
+  const typecheckMode = (process.env.ABLE_TYPECHECK_FIXTURES ?? "strict").toLowerCase();
 
   if (typecheckMode !== "off") {
     const session = new TypecheckerSession();
@@ -260,6 +260,7 @@ export async function evaluateFixtureGo(
   entry: string,
   manifest: Manifest | null,
 ): Promise<GoOutcome> {
+  const typecheckMode = (process.env.ABLE_TYPECHECK_FIXTURES ?? "strict").toLowerCase();
   return new Promise((resolve, reject) => {
     const cliPath = path.resolve(REPO_ROOT, "v11/interpreters/go");
     const executor = manifest?.executor?.trim() || "serial";
@@ -267,7 +268,7 @@ export async function evaluateFixtureGo(
       cwd: cliPath,
       env: {
         ...process.env,
-        ABLE_TYPECHECK_FIXTURES: process.env.ABLE_TYPECHECK_FIXTURES ?? "off",
+        ABLE_TYPECHECK_FIXTURES: typecheckMode,
       },
       stdio: ["ignore", "pipe", "pipe"],
     });

@@ -125,7 +125,7 @@ export interface GenericParameter extends AstNode {
   constraints?: InterfaceConstraint[];
   isInferred?: boolean;
 }
-export interface WhereClauseConstraint extends AstNode { type: 'WhereClauseConstraint'; typeParam: Identifier; constraints: InterfaceConstraint[]; }
+export interface WhereClauseConstraint extends AstNode { type: 'WhereClauseConstraint'; typeParam: TypeExpression; constraints: InterfaceConstraint[]; }
 
 export function interfaceConstraint(interfaceType: TypeExpression): InterfaceConstraint { return { type: 'InterfaceConstraint', interfaceType }; }
 export function genericParameter(
@@ -140,8 +140,13 @@ export function genericParameter(
     isInferred: options?.isInferred,
   };
 }
-export function whereClauseConstraint(typeParam: Identifier | string, constraints: InterfaceConstraint[]): WhereClauseConstraint {
-  return { type: 'WhereClauseConstraint', typeParam: typeof typeParam === 'string' ? identifier(typeParam) : typeParam, constraints };
+export function whereClauseConstraint(typeParam: TypeExpression | Identifier | string, constraints: InterfaceConstraint[]): WhereClauseConstraint {
+  const expr = typeof typeParam === 'string'
+    ? simpleTypeExpression(typeParam)
+    : (typeParam as any).type === "Identifier"
+      ? simpleTypeExpression(typeParam as Identifier)
+      : typeParam as TypeExpression;
+  return { type: 'WhereClauseConstraint', typeParam: expr, constraints };
 }
 
 // -----------------------------------------------------------------------------

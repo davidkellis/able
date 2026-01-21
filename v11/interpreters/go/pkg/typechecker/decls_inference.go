@@ -1,7 +1,6 @@
 package typechecker
 
 import (
-	"fmt"
 	"strings"
 
 	"able/interpreter-go/pkg/ast"
@@ -36,6 +35,7 @@ var reservedTypeNames = map[string]struct{}{
 	"Map":      {},
 	"Range":    {},
 	"Iterator": {},
+	"IteratorEnd": {},
 	"Result":   {},
 	"Option":   {},
 	"Proc":     {},
@@ -126,15 +126,9 @@ func (c *declarationCollector) selectInferredGenericParameters(
 		known[param.Name.Name] = struct{}{}
 	}
 	var inferred []*ast.GenericParameter
-	reportedKnownType := make(map[string]bool)
 	for _, occ := range occs {
-		infer, reason := c.shouldInferGenericParameter(occ.name, known)
+		infer, _ := c.shouldInferGenericParameter(occ.name, known)
 		if !infer {
-			if reason == skipKnownType && occ.fromWhereClause && occ.name != "" && !reportedKnownType[occ.name] {
-				msg := fmt.Sprintf("typechecker: cannot infer type parameter '%s' because a type with the same name exists; declare it explicitly or qualify the type", occ.name)
-				c.diags = append(c.diags, Diagnostic{Message: msg, Node: occ.node})
-				reportedKnownType[occ.name] = true
-			}
 			continue
 		}
 		param := newInferredGenericParameter(occ.name, occ.node)
@@ -275,7 +269,7 @@ func collectFunctionTypeOccurrences(def *ast.FunctionDefinition) []typeIdentifie
 		if clause == nil || clause.TypeParam == nil {
 			continue
 		}
-		occs = append(occs, typeIdentifierOccurrence{name: clause.TypeParam.Name, node: clause.TypeParam, fromWhereClause: true})
+		collectTypeExpressionOccurrencesWithFlag(clause.TypeParam, &occs, true)
 	}
 	return occs
 }
@@ -296,37 +290,41 @@ func collectSignatureTypeOccurrences(sig *ast.FunctionSignature) []typeIdentifie
 		if clause == nil || clause.TypeParam == nil {
 			continue
 		}
-		occs = append(occs, typeIdentifierOccurrence{name: clause.TypeParam.Name, node: clause.TypeParam, fromWhereClause: true})
+		collectTypeExpressionOccurrencesWithFlag(clause.TypeParam, &occs, true)
 	}
 	return occs
 }
 
 func collectTypeExpressionOccurrences(expr ast.TypeExpression, occs *[]typeIdentifierOccurrence) {
+	collectTypeExpressionOccurrencesWithFlag(expr, occs, false)
+}
+
+func collectTypeExpressionOccurrencesWithFlag(expr ast.TypeExpression, occs *[]typeIdentifierOccurrence, fromWhereClause bool) {
 	if expr == nil {
 		return
 	}
 	switch t := expr.(type) {
 	case *ast.SimpleTypeExpression:
 		if t.Name != nil {
-			*occs = append(*occs, typeIdentifierOccurrence{name: t.Name.Name, node: t.Name})
+			*occs = append(*occs, typeIdentifierOccurrence{name: t.Name.Name, node: t.Name, fromWhereClause: fromWhereClause})
 		}
 	case *ast.GenericTypeExpression:
-		collectTypeExpressionOccurrences(t.Base, occs)
+		collectTypeExpressionOccurrencesWithFlag(t.Base, occs, fromWhereClause)
 		for _, arg := range t.Arguments {
-			collectTypeExpressionOccurrences(arg, occs)
+			collectTypeExpressionOccurrencesWithFlag(arg, occs, fromWhereClause)
 		}
 	case *ast.FunctionTypeExpression:
 		for _, param := range t.ParamTypes {
-			collectTypeExpressionOccurrences(param, occs)
+			collectTypeExpressionOccurrencesWithFlag(param, occs, fromWhereClause)
 		}
-		collectTypeExpressionOccurrences(t.ReturnType, occs)
+		collectTypeExpressionOccurrencesWithFlag(t.ReturnType, occs, fromWhereClause)
 	case *ast.NullableTypeExpression:
-		collectTypeExpressionOccurrences(t.InnerType, occs)
+		collectTypeExpressionOccurrencesWithFlag(t.InnerType, occs, fromWhereClause)
 	case *ast.ResultTypeExpression:
-		collectTypeExpressionOccurrences(t.InnerType, occs)
+		collectTypeExpressionOccurrencesWithFlag(t.InnerType, occs, fromWhereClause)
 	case *ast.UnionTypeExpression:
 		for _, member := range t.Members {
-			collectTypeExpressionOccurrences(member, occs)
+			collectTypeExpressionOccurrencesWithFlag(member, occs, fromWhereClause)
 		}
 	}
 }
@@ -363,11 +361,7 @@ func collectWhereClauseOccurrences(where []*ast.WhereClauseConstraint, occs *[]t
 			continue
 		}
 		if clause.TypeParam != nil {
-			*occs = append(*occs, typeIdentifierOccurrence{
-				name:            clause.TypeParam.Name,
-				node:            clause.TypeParam,
-				fromWhereClause: true,
-			})
+			collectTypeExpressionOccurrencesWithFlag(clause.TypeParam, occs, true)
 		}
 		for _, constraint := range clause.Constraints {
 			if constraint == nil || constraint.InterfaceType == nil {
@@ -388,7 +382,12 @@ func hoistWhereConstraints(where []*ast.WhereClauseConstraint, inferred map[stri
 			kept = append(kept, clause)
 			continue
 		}
-		name := clause.TypeParam.Name
+		simple, ok := clause.TypeParam.(*ast.SimpleTypeExpression)
+		if !ok || simple.Name == nil {
+			kept = append(kept, clause)
+			continue
+		}
+		name := simple.Name.Name
 		param := inferred[name]
 		if param == nil {
 			kept = append(kept, clause)

@@ -87,33 +87,37 @@ func runExecFixture(t *testing.T, dir string) {
 		t.Fatalf("load program: %v", err)
 	}
 
-	if manifest.Expect.TypecheckDiagnostics != nil {
+	expectedTypecheck := manifest.Expect.TypecheckDiagnostics
+	if expectedTypecheck != nil {
 		check, err := TypecheckProgram(program)
 		if err != nil {
 			t.Fatalf("typecheck program: %v", err)
 		}
 		formatted := formatModuleDiagnostics(check.Diagnostics)
-		expected := manifest.Expect.TypecheckDiagnostics
-		if len(expected) == 0 {
+		if len(expectedTypecheck) == 0 {
 			if len(formatted) != 0 {
 				t.Fatalf("typecheck diagnostics mismatch: expected none, got %v", formatted)
 			}
 		} else {
-			expectedKeys := diagnosticKeys(expected)
+			expectedKeys := diagnosticKeys(expectedTypecheck)
 			actualKeys := diagnosticKeys(formatted)
 			if len(expectedKeys) != len(actualKeys) {
-				t.Fatalf("typecheck diagnostics mismatch: expected %v, got %v", expected, formatted)
+				t.Fatalf("typecheck diagnostics mismatch: expected %v, got %v", expectedTypecheck, formatted)
 			}
 			for i := range expectedKeys {
 				if expectedKeys[i] != actualKeys[i] {
-					t.Fatalf("typecheck diagnostics mismatch: expected %v, got %v", expected, formatted)
+					t.Fatalf("typecheck diagnostics mismatch: expected %v, got %v", expectedTypecheck, formatted)
 				}
 			}
 		}
 	}
+	if expectedTypecheck != nil && len(expectedTypecheck) > 0 {
+		return
+	}
 
 	executor := selectFixtureExecutor(t, manifest.Executor)
 	interp := NewWithExecutor(executor)
+	mode := configureFixtureTypechecker(interp)
 	var stdout []string
 	registerPrint(interp, &stdout)
 
@@ -123,8 +127,8 @@ func runExecFixture(t *testing.T, dir string) {
 
 	entryEnv := interp.GlobalEnvironment()
 	_, entryEnv, _, err = interp.EvaluateProgram(program, ProgramEvaluationOptions{
-		SkipTypecheck:    true,
-		AllowDiagnostics: true,
+		SkipTypecheck:    mode == typecheckModeOff,
+		AllowDiagnostics: mode != typecheckModeOff,
 	})
 	if err != nil {
 		if code, ok := ExitCodeFromError(err); ok {

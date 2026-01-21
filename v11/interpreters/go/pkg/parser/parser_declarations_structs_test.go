@@ -371,7 +371,7 @@ func TestParseGenericFunctionDefinition(t *testing.T) {
 
 	genericParam := ast.NewGenericParameter(ast.ID("T"), nil)
 	whereClause := ast.NewWhereClauseConstraint(
-		ast.ID("T"),
+		ast.Ty("T"),
 		[]*ast.InterfaceConstraint{
 			ast.NewInterfaceConstraint(ast.TyID(ast.ID("Display"))),
 		},
@@ -595,7 +595,7 @@ func TestParseInterfaceCompositeGenerics(t *testing.T) {
 
 	genericParam := ast.NewGenericParameter(ast.ID("T"), nil)
 	whereConstraint := ast.NewWhereClauseConstraint(
-		ast.ID("T"),
+		ast.Ty("T"),
 		[]*ast.InterfaceConstraint{
 			ast.NewInterfaceConstraint(ast.TyID(ast.ID("Display"))),
 		},

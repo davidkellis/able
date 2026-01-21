@@ -539,11 +539,15 @@ func obligationsFromSpecs(owner string, params []GenericParamSpec, where []Where
 					constraintNode = n
 				}
 			}
+			subject := clause.Subject
+			if subject == nil {
+				subject = UnknownType{}
+			}
 			obligations = append(obligations, ConstraintObligation{
 				Owner:      owner,
 				TypeParam:  clause.TypeParam,
 				Constraint: constraint,
-				Subject:    TypeParameterType{ParameterName: clause.TypeParam},
+				Subject:    subject,
 				Node:       constraintNode,
 			})
 		}

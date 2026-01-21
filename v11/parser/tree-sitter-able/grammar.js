@@ -287,7 +287,7 @@ module.exports = grammar({
     ),
 
     where_constraint: $ => seq(
-      $.identifier,
+      field("subject", $.type_expression),
       ":",
       $.type_bound_list,
     ),
@@ -361,7 +361,11 @@ module.exports = grammar({
       "interface",
       field("name", $.identifier),
       field("type_parameters", optional($.declaration_type_parameters)),
-      optional(seq("for", field("self_type", $.type_expression))),
+      optional(seq(
+        "for",
+        field("self_type", $.type_expression),
+        optional(seq(":", field("base_interfaces", $.interface_composition))),
+      )),
       field("where_clause", optional($.where_clause)),
       choice(
         seq(
@@ -1169,17 +1173,20 @@ module.exports = grammar({
       $.type_suffix,
     ),
 
-    type_suffix: $ => prec.left(
-      seq(
-        $.type_prefix,
-        repeat(choice($.type_prefix, $.type_arguments)),
+    type_suffix: $ => choice(
+      prec.left(
+        PREC.type_application,
+        seq(
+          $.type_prefix,
+          repeat1(choice($.type_prefix, $.type_arguments)),
+        ),
       ),
+      $.type_prefix,
     ),
 
     type_prefix: $ => choice(
       seq("?", $.type_prefix),
       seq("!", $.type_prefix),
-      $.type_generic_application,
       $.type_atom,
     ),
 

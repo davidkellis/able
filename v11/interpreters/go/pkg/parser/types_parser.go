@@ -96,6 +96,19 @@ func parseTypeExpression(node *sitter.Node, source []byte) ast.TypeExpression {
 					args = append(args, typeArgumentExpressions(child, source)...)
 					continue
 				}
+				if child.Kind() == "type_generic_application" {
+					for j := uint(0); j < child.NamedChildCount(); j++ {
+						argNode := child.NamedChild(j)
+						if argNode == nil || !argNode.IsNamed() {
+							continue
+						}
+						arg := parseTypeExpression(argNode, source)
+						if arg != nil {
+							args = append(args, arg)
+						}
+					}
+					continue
+				}
 				arg := parseTypeExpression(child, source)
 				if arg != nil {
 					args = append(args, arg)
@@ -416,17 +429,25 @@ func parseWhereConstraint(node *sitter.Node, source []byte) (*ast.WhereClauseCon
 	if node.NamedChildCount() == 0 {
 		return nil, fmt.Errorf("parser: empty where constraint")
 	}
-	nameNode := node.NamedChild(0)
-	if nameNode == nil || nameNode.Kind() != "identifier" {
-		return nil, fmt.Errorf("parser: where constraint missing identifier")
+	subjectNode := node.ChildByFieldName("subject")
+	if subjectNode == nil {
+		subjectNode = node.NamedChild(0)
 	}
-	name, err := parseIdentifier(nameNode, source)
-	if err != nil {
-		return nil, err
+	if subjectNode == nil {
+		return nil, fmt.Errorf("parser: where constraint missing subject")
+	}
+	subject := parseTypeExpression(subjectNode, source)
+	if subject == nil {
+		return nil, fmt.Errorf("parser: where constraint subject must be a type expression")
 	}
 	var constraintNode *sitter.Node
-	if node.NamedChildCount() > 1 {
-		constraintNode = node.NamedChild(1)
+	for i := uint(0); i < node.NamedChildCount(); i++ {
+		child := node.NamedChild(i)
+		if child == nil || sameNode(child, subjectNode) {
+			continue
+		}
+		constraintNode = child
+		break
 	}
 	typeExprs, err := parseTypeBoundList(constraintNode, source)
 	if err != nil {
@@ -439,7 +460,7 @@ func parseWhereConstraint(node *sitter.Node, source []byte) (*ast.WhereClauseCon
 	for _, expr := range typeExprs {
 		interfaceConstraints = append(interfaceConstraints, ast.NewInterfaceConstraint(expr))
 	}
-	constraint := ast.NewWhereClauseConstraint(name, interfaceConstraints)
+	constraint := ast.NewWhereClauseConstraint(subject, interfaceConstraints)
 	annotateSpan(constraint, node)
 	return constraint, nil
 }

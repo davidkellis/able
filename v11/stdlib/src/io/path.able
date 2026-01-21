@@ -1,8 +1,8 @@
 package path
 
-import able.kernel.{Array, pop}
+import able.kernel.{Array}
 import able.collections.array
-import able.core.interfaces.{Div}
+import able.core.interfaces.{Div, Error}
 import able.os
 import able.text.string
 
@@ -63,8 +63,8 @@ methods Path {
   fn parent(self: Self) -> Path {
     if self.segments.len() == 0 { return self }
     segments := clone_segments(self.segments)
-    pop(segments)
-    Path { root: self.root, segments }
+    segments.pop();
+    return Path { root: self.root, segments }
   }
 
   fn basename(self: Self) -> String {
@@ -85,7 +85,7 @@ methods Path {
       case ext: String => {
         name_len := string_len(name)
         ext_len := string_len(ext)
-        name.substring(0, name_len - ext_len - 1)
+        substring_unchecked(name, 0, name_len - ext_len - 1)
       },
     }
   }
@@ -101,7 +101,7 @@ methods Path {
         case ch: String => {
           if ch == "." {
             if idx == 0 { return nil }
-            return name.substring(idx + 1, name_len - (idx + 1))
+            return substring_unchecked(name, idx + 1, name_len - (idx + 1))
           }
           if ch == "/" || ch == "\\" { break }
         }
@@ -185,9 +185,16 @@ fn trim_trailing_separator(value: String) -> String {
   if value == "/" || value == "" { return value }
   if value.ends_with("/") || value.ends_with("\\") {
     value_len := string_len(value)
-    value.substring(0, value_len - 1)
+    substring_unchecked(value, 0, value_len - 1)
   } else {
     value
+  }
+}
+
+fn substring_unchecked(value: String, start: i32, length: i32) -> String {
+  value.substring(start, length) match {
+    case err: Error => { raise err },
+    case result: String => result
   }
 }
 
@@ -203,7 +210,7 @@ fn normalize_path(input: String) -> Path {
 fn split_root(path: String) -> PathSplit {
   path_len := string_len(path)
   if path.starts_with("//") {
-    without := path.substring(2, path_len - 2)
+    without := substring_unchecked(path, 2, path_len - 2)
     segments := without.split("/")
     segments.get(0) match {
       case nil => PathSplit { root: `//${without}`, remainder: "" },
@@ -211,25 +218,29 @@ fn split_root(path: String) -> PathSplit {
         if segments.len() <= 1 {
           PathSplit { root: `//${share}`, remainder: "" }
         } else {
-          PathSplit { root: `//${share}`, remainder: join_segments(segments, 1) }
+          PathSplit { root: `//${share}`, remainder: join_segments_from(segments, 1) }
         }
       }
     }
   } elsif is_drive_prefix(path, path_len) {
-    drive := path.substring(0, 2)
+    drive := substring_unchecked(path, 0, 2)
     rest := if path_len > 2 {
       char_at(path, 2) match {
         case next: String => {
-          if next == "/" { path.substring(3, path_len - 3) } else { path.substring(2, path_len - 2) }
+          if next == "/" {
+            substring_unchecked(path, 3, path_len - 3)
+          } else {
+            substring_unchecked(path, 2, path_len - 2)
+          }
         },
-        case _ => path.substring(2, path_len - 2)
+        case _ => substring_unchecked(path, 2, path_len - 2)
       }
     } else {
       ""
     }
     PathSplit { root: drive, remainder: rest }
   } elsif path.starts_with("/") {
-    PathSplit { root: "/", remainder: path.substring(1, path_len - 1) }
+    PathSplit { root: "/", remainder: substring_unchecked(path, 1, path_len - 1) }
   } else {
     PathSplit { root: "", remainder: path }
   }
@@ -246,7 +257,7 @@ fn char_at(value: String, idx: i32) -> ?String {
   }
 }
 
-fn join_segments(segments: Array String, start: i32) -> String {
+fn join_segments_from(segments: Array String, start: i32) -> String {
   result := ""
   idx := start
   loop {
@@ -281,7 +292,7 @@ fn normalize_segments(source: Array String, absolute: bool) -> Array String {
         if segment == "" || segment == "." { idx = idx + 1; continue }
         if segment == ".." {
           if result.len() > 0 && result.get(result.len() - 1) != ".." {
-            pop(result)
+            result.pop()
           } elsif !absolute {
             result.push("..")
           }

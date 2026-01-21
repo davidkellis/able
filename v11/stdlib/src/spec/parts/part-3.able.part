@@ -1,8 +1,8 @@
-fn push_suite(name: string) -> SuiteBuilder {
+fn push_suite(name: String) -> SuiteBuilder {
   parent_index := SUITE_STACK.len() - 1
-  path: Array string := Array.new()
+  path: Array String := Array.new()
   module_path := ""
-  tags: Array string := Array.new()
+  tags: Array String := Array.new()
   before_each: Array (ExampleContext -> void) := Array.new()
   after_each: Array (ExampleContext -> void) := Array.new()
   before_all: Array (ExampleContext -> void) := Array.new()
@@ -106,7 +106,7 @@ fn register_suite(state: SuiteState) -> void {
   SUITES_ARCHIVE.push(definition)
 }
 
-fn find_suite(key: string) -> ?SuiteDefinition {
+fn find_suite(key: String) -> ?SuiteDefinition {
   idx := 0
   loop {
     if idx >= SUITES.len() { break }
@@ -132,7 +132,7 @@ fn find_suite(key: string) -> ?SuiteDefinition {
   nil
 }
 
-fn find_example(id: string) -> ?ExampleDefinition {
+fn find_example(id: String) -> ?ExampleDefinition {
   idx := 0
   loop {
     if idx >= EXAMPLES.len() { break }
@@ -158,30 +158,30 @@ fn find_example(id: string) -> ?ExampleDefinition {
   nil
 }
 
-fn build_suite_key(path: Array string) -> string {
+fn build_suite_key(path: Array String) -> String {
   join_segments(path, "::")
 }
 
-fn build_example_id(path: Array string, name: string) -> string {
+fn build_example_id(path: Array String, name: String) -> String {
   segments := clone_string_array(path)
   segments.push(name)
   join_segments(segments, "::")
 }
 
-fn build_example_display(path: Array string, name: string) -> string {
+fn build_example_display(path: Array String, name: String) -> String {
   segments := clone_string_array(path)
   segments.push(name)
   join_segments(segments, " ")
 }
 
-fn join_segments(segments: Array string, separator: string) -> string {
+fn join_segments(segments: Array String, separator: String) -> String {
   result := ""
   idx := 0
   loop {
     if idx >= segments.len() { break }
     segments.get(idx) match {
       case nil => {},
-      case segment: string => {
+      case segment: String => {
         if result == "" {
           result = segment
         } else {

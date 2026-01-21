@@ -15,6 +15,9 @@ func extendImplementationSubstitution(subst map[string]Type, iface InterfaceType
 		if idx < len(args) && args[idx] != nil {
 			arg = substituteType(args[idx], subst)
 		}
+		if existing, ok := subst[param.Name]; ok && !isUnknownType(existing) {
+			continue
+		}
 		subst[param.Name] = arg
 	}
 }

@@ -24,7 +24,7 @@ fn recover<T>(pair: MaybePair T, fallback: T) -> T {
 
 fn main() -> void {
   numbers: Duo i32 = make_duo(5)
-  print(`sum ${numbers[0] + numbers[1]}`)
+  print(`sum ${numbers[0]! + numbers[1]!}`)
 
   words := make_duo("hi")
   print(`first ${first(words)}`)

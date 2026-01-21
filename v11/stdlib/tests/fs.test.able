@@ -16,9 +16,9 @@ FS_TEMP_SEQ := 0
 fn next_temp_path(label: String) -> String {
   FS_TEMP_SEQ = FS_TEMP_SEQ + 1
   base := path.parse(os.temp_dir())
-  temp_path := base.join(`able-${label}-${FS_TEMP_SEQ}`).to_string()
+  temp_path := base.join(`able-${label}-${FS_TEMP_SEQ}`)
   if fs.exists(temp_path) { fs.remove(temp_path, true) }
-  temp_path
+  temp_path.to_string()
 }
 
 fn cleanup_path(path: String) -> void {

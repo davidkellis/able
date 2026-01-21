@@ -172,21 +172,19 @@ func (ctx *parseContext) parseStructPattern(node *sitter.Node) (ast.Pattern, err
 		if err != nil {
 			return nil, err
 		}
-		field := ast.NewStructPatternField(pattern, nil, nil, nil)
+		var fieldName *ast.Identifier
+		if structType != nil {
+			if ident, ok := pattern.(*ast.Identifier); ok && ident != nil {
+				fieldName = ident
+			}
+		}
+		field := ast.NewStructPatternField(pattern, fieldName, nil, nil)
 		annotateSpan(field, elem)
 		fields = append(fields, field)
 	}
 
-	structKind, hasStructKind := ctx.resolveStructKind(structType)
-	if hasStructKind && structKind == ast.StructKindPositional {
-		for _, field := range fields {
-			field.FieldName = nil
-		}
-	}
-
-	isPositional := structKind == ast.StructKindPositional || hasPositionalStructFields(fields)
-
-	pattern := ast.NewStructPattern(fields, isPositional, structType)
+	pattern := ast.NewStructPattern(fields, false, structType)
+	ctx.normalizeStructPattern(pattern)
 	annotatePattern(pattern, node)
 	return pattern, nil
 }
@@ -198,6 +196,52 @@ func hasPositionalStructFields(fields []*ast.StructPatternField) bool {
 		}
 	}
 	return false
+}
+
+func (ctx *parseContext) normalizeStructPattern(pattern *ast.StructPattern) {
+	if pattern == nil || ctx == nil {
+		return
+	}
+	structType := pattern.StructType
+	structKind, hasStructKind := ctx.resolveStructKind(structType)
+	if structType != nil && (!hasStructKind || structKind != ast.StructKindPositional) {
+		for _, field := range pattern.Fields {
+			if field == nil || field.FieldName != nil || field.Pattern == nil {
+				continue
+			}
+			if ident, ok := field.Pattern.(*ast.Identifier); ok && ident != nil {
+				field.FieldName = ident
+			}
+		}
+	}
+	isPositional := false
+	if structType == nil {
+		isPositional = true
+	} else if hasStructKind && structKind == ast.StructKindPositional {
+		isPositional = true
+	} else if hasStructKind && structKind == ast.StructKindNamed {
+		isPositional = false
+	} else {
+		isPositional = hasPositionalStructFields(pattern.Fields)
+	}
+	pattern.IsPositional = isPositional
+}
+
+func extractIdentifierName(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+	end := 0
+	for end < len(raw) {
+		ch := raw[end]
+		if (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == '_' || (ch >= '0' && ch <= '9') {
+			end++
+			continue
+		}
+		break
+	}
+	return strings.TrimSpace(raw[:end])
 }
 
 func (ctx *parseContext) parseStructPatternField(node *sitter.Node) (*ast.StructPatternField, error) {
@@ -230,6 +274,25 @@ func (ctx *parseContext) parseStructPatternField(node *sitter.Node) (*ast.Struct
 		}
 	}
 
+	raw := strings.TrimSpace(sliceContent(node, ctx.source))
+	prefix := raw
+	if idx := strings.Index(prefix, ":"); idx >= 0 {
+		prefix = strings.TrimSpace(prefix[:idx])
+	}
+	if strings.Contains(prefix, "::") {
+		parts := strings.SplitN(prefix, "::", 2)
+		if len(parts) == 2 {
+			left := extractIdentifierName(strings.TrimSpace(parts[0]))
+			right := extractIdentifierName(strings.TrimSpace(parts[1]))
+			if left != "" && right != "" {
+				if fieldName == nil || fieldName.Name != left {
+					fieldName = ast.ID(left)
+				}
+				binding = ast.ID(right)
+			}
+		}
+	}
+
 	var pattern ast.Pattern
 	if valueNode := node.ChildByFieldName("value"); valueNode != nil {
 		valuePattern, err := ctx.parsePattern(valueNode)
@@ -251,6 +314,7 @@ func (ctx *parseContext) parseStructPatternField(node *sitter.Node) (*ast.Struct
 	if sp, ok := pattern.(*ast.StructPattern); ok && sp.StructType == nil {
 		if simple, ok := typeAnnotation.(*ast.SimpleTypeExpression); ok && simple.Name != nil {
 			sp.StructType = simple.Name
+			ctx.normalizeStructPattern(sp)
 		}
 	}
 

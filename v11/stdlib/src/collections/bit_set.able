@@ -1,7 +1,6 @@
 package bit_set
 import able.kernel.{Array}
 import able.collections.array
-import able.collections.enumerable.{Enumerable}
 import able.core.iteration.{Iterable, Iterator}
 
 struct BitSet {
@@ -15,19 +14,22 @@ fn word_index(bit: i32) -> i32 {
 }
 
 fn bit_mask(bit: i32) -> u64 {
-  1_u64 .<< (bit % word_bits())
+  1_u64 .<< ((bit % word_bits()) as u64)
 }
 
 fn visit_bits(set: BitSet, visit: i32 -> void) -> void {
   bits_per_word := word_bits()
   idx := 0
   while idx < set.words.len() {
-    word := set.words.get(idx)!
+    word := set.words.get(idx) match {
+      case nil => 0_u64,
+      case value: u64 => value
+    }
     if word != 0 {
       bit := 0
       while bit < bits_per_word {
         global_bit := (idx * bits_per_word) + bit
-        if (word .& (1_u64 .<< bit)) != 0 {
+        if (word .& (1_u64 .<< (bit as u64))) != 0 {
           visit(global_bit)
         }
         bit = bit + 1
@@ -94,12 +96,6 @@ methods BitSet {
   }
 }
 
-impl Enumerable i32 for BitSet {
-  fn each(self: Self, visit: i32 -> void) -> void {
-    visit_bits(self, visit)
-  }
-}
-
 impl Iterable i32 for BitSet {
   fn iterator(self: Self) -> (Iterator i32) {
     Iterator { gen =>
@@ -111,7 +107,7 @@ impl Iterable i32 for BitSet {
           bit := 0
           while bit < bits_per_word {
             global_bit := (idx * bits_per_word) + bit
-            if (word .& (1_u64 .<< bit)) != 0 {
+            if (word .& (1_u64 .<< (bit as u64))) != 0 {
               gen.yield(global_bit)
             }
             bit = bit + 1
