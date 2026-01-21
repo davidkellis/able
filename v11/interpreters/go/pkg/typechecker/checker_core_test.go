@@ -93,7 +93,7 @@ func TestCollectorCapturesGenericFunctionMetadata(t *testing.T) {
 	displayIface := ast.Iface("Display", nil, nil, nil, nil, nil, false)
 	genericParam := ast.GenericParam("T", ast.InterfaceConstr(ast.Ty("Display")))
 	whereClause := []*ast.WhereClauseConstraint{
-		ast.WhereConstraint("T", ast.InterfaceConstr(ast.Ty("Display"))),
+		ast.WhereConstraint(ast.Ty("T"), ast.InterfaceConstr(ast.Ty("Display"))),
 	}
 	fn := ast.Fn(
 		"identity",

@@ -151,14 +151,7 @@ func typecheckTestModules(modules []*driver.Module, mode testTypecheckMode) (boo
 }
 
 func filterDiagnostics(diags []interpreter.ModuleDiagnostic) []interpreter.ModuleDiagnostic {
-	out := make([]interpreter.ModuleDiagnostic, 0, len(diags))
-	for _, diag := range diags {
-		if isStdlibPackage(diag.Package) {
-			continue
-		}
-		out = append(out, diag)
-	}
-	return out
+	return diags
 }
 
 func isStdlibPackage(name string) bool {

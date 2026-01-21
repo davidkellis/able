@@ -55,7 +55,7 @@ fn main() -> void {
 	var logs []string
 	registerTestPrint(interp, &logs)
 
-	_, entryEnv, _, err := interp.EvaluateProgram(program, ProgramEvaluationOptions{SkipTypecheck: true})
+	_, entryEnv, _, err := interp.EvaluateProgram(program, ProgramEvaluationOptions{})
 	if err != nil {
 		t.Fatalf("EvaluateProgram error: %v", err)
 	}
@@ -183,7 +183,7 @@ fn main() {
 	}
 
 	interp := New()
-	if _, _, _, err := interp.EvaluateProgram(program, ProgramEvaluationOptions{SkipTypecheck: true}); err != nil {
+	if _, _, _, err := interp.EvaluateProgram(program, ProgramEvaluationOptions{}); err != nil {
 		t.Fatalf("EvaluateProgram error: %v", err)
 	}
 }

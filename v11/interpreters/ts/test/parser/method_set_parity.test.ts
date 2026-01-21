@@ -46,7 +46,8 @@ describe("tree-sitter Able mapper - method-set coverage", () => {
     const whereClause = methods.whereClause ?? [];
     expect(whereClause.length).toBe(1);
     const constraint = whereClause[0] as WhereClauseConstraint;
-    expect(constraint.typeParam?.name).toBe("Self");
+    expect(constraint.typeParam?.type).toBe("SimpleTypeExpression");
+    expect(constraint.typeParam?.name?.name).toBe("Self");
     expect(constraint.constraints?.length).toBe(1);
 
     const interfaceConstraint = constraint.constraints?.[0];

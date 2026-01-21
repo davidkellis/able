@@ -90,8 +90,8 @@ func GenericParam(name string, constraints ...*InterfaceConstraint) *GenericPara
 	return NewGenericParameter(ID(name), constraints)
 }
 
-func WhereConstraint(typeParam string, constraints ...*InterfaceConstraint) *WhereClauseConstraint {
-	return NewWhereClauseConstraint(ID(typeParam), constraints)
+func WhereConstraint(subject TypeExpression, constraints ...*InterfaceConstraint) *WhereClauseConstraint {
+	return NewWhereClauseConstraint(subject, constraints)
 }
 
 // Pattern helpers.

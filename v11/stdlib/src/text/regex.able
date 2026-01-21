@@ -112,7 +112,7 @@ fn is_meta_byte(byte: u8) -> bool {
   )
 }
 
-fn literal_bytes(pattern: String) -> Array u8 | Error {
+fn literal_bytes(pattern: String) -> Result (Array u8) {
   bytes := __able_String_from_builtin(pattern)
   idx := 0
   loop {

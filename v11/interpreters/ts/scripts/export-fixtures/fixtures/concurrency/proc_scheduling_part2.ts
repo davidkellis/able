@@ -247,6 +247,9 @@ export const procSchedulingPart2: Fixture[] = [
               { kind: "bool", value: true },
             ],
           },
+          typecheckDiagnostics: [
+            "typechecker: v11/fixtures/ast/concurrency/future_cancel_nested/source.able:26:1 typechecker: future handles do not support cancel()",
+          ],
         },
       },
     },

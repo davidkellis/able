@@ -6,6 +6,49 @@ import { ProcYieldSignal } from "./signals";
 import { ProcContinuationContext } from "./proc_continuations";
 
 const NIL: RuntimeValue = { kind: "nil", value: null };
+const REEXPORTS: Record<string, string> = {
+  "able.collections.array.Array": "able.kernel.Array",
+  "able.collections.range.Range": "able.kernel.Range",
+  "able.collections.range.RangeFactory": "able.kernel.RangeFactory",
+  "able.core.numeric.Ratio": "able.kernel.Ratio",
+  "able.concurrency.Channel": "able.kernel.Channel",
+  "able.concurrency.Mutex": "able.kernel.Mutex",
+  "able.concurrency.Awaitable": "able.kernel.Awaitable",
+  "able.concurrency.AwaitWaker": "able.kernel.AwaitWaker",
+  "able.concurrency.AwaitRegistration": "able.kernel.AwaitRegistration",
+};
+
+function addReexportsToEnv(ctx: Interpreter, pkg: string, env: Environment): void {
+  const prefix = `${pkg}.`;
+  for (const [fq, target] of Object.entries(REEXPORTS)) {
+    if (!fq.startsWith(prefix)) continue;
+    const name = fq.slice(prefix.length);
+    let val: RuntimeValue | null = null;
+    try { val = ctx.globals.get(target); } catch {}
+    if (!val) continue;
+    try { ctx.defineInEnv(env, name, val); } catch {}
+  }
+}
+
+function addReexportsToPackageSymbols(ctx: Interpreter, pkg: string, symbols: Map<string, RuntimeValue>): void {
+  const prefix = `${pkg}.`;
+  for (const [fq, target] of Object.entries(REEXPORTS)) {
+    if (!fq.startsWith(prefix)) continue;
+    const name = fq.slice(prefix.length);
+    if (symbols.has(name)) continue;
+    let val: RuntimeValue | null = null;
+    try { val = ctx.globals.get(target); } catch {}
+    if (!val) continue;
+    symbols.set(name, val);
+  }
+}
+
+function resolveReexportedSymbol(ctx: Interpreter, pkg: string, name: string): RuntimeValue | null {
+  const fallback = REEXPORTS[`${pkg}.${name}`];
+  if (!fallback) return null;
+  try { return ctx.globals.get(fallback); } catch {}
+  return null;
+}
 
 export function evaluateModule(ctx: Interpreter, node: AST.Module): RuntimeValue {
   const procContext = ctx.currentProcContext ? ctx.currentProcContext() : null;
@@ -152,6 +195,7 @@ export function evaluateImportStatement(ctx: Interpreter, node: AST.ImportStatem
       if (val.kind === "union_def" && val.def.isPrivate) continue;
       filtered.set(name, val);
     }
+    addReexportsToPackageSymbols(ctx, pkg, filtered);
     const alias = node.alias?.name ?? defaultPackageAlias(pkg);
     ctx.defineInEnv(env, alias, { kind: "package", name: pkg, symbols: filtered });
   } else if (node.isWildcard) {
@@ -165,6 +209,7 @@ export function evaluateImportStatement(ctx: Interpreter, node: AST.ImportStatem
       if (val.kind === "union_def" && val.def.isPrivate) continue;
       try { ctx.defineInEnv(env, name, val); } catch {}
     }
+    addReexportsToEnv(ctx, pkg, env);
   } else if (node.selectors && node.selectors.length > 0) {
     const pkg = node.packagePath.map(p => p.name).join(".");
     for (const sel of node.selectors) {
@@ -177,18 +222,6 @@ export function evaluateImportStatement(ctx: Interpreter, node: AST.ImportStatem
           val = bucket.get(original) ?? null;
         }
       }
-      const fq = pkg ? `${pkg}.${original}` : original;
-      const reexports: Record<string, string> = {
-        "able.collections.array.Array": "able.kernel.Array",
-        "able.collections.range.Range": "able.kernel.Range",
-        "able.collections.range.RangeFactory": "able.kernel.RangeFactory",
-        "able.core.numeric.Ratio": "able.kernel.Ratio",
-        "able.concurrency.Channel": "able.kernel.Channel",
-        "able.concurrency.Mutex": "able.kernel.Mutex",
-        "able.concurrency.Awaitable": "able.kernel.Awaitable",
-        "able.concurrency.AwaitWaker": "able.kernel.AwaitWaker",
-        "able.concurrency.AwaitRegistration": "able.kernel.AwaitRegistration",
-      };
       if (pkg) {
         try { val = ctx.globals.get(`${pkg}.${original}`); } catch {}
       }
@@ -198,11 +231,8 @@ export function evaluateImportStatement(ctx: Interpreter, node: AST.ImportStatem
       if (!val && pkg) {
         try { val = ctx.globals.get(`${pkg}.${original}`); } catch {}
       }
-      if (!val) {
-        const fallback = reexports[fq];
-        if (fallback) {
-          try { val = ctx.globals.get(fallback); } catch {}
-        }
+      if (!val && pkg) {
+        val = resolveReexportedSymbol(ctx, pkg, original);
       }
       if (!val) {
         const aliasDef = ctx.typeAliases.get(original);

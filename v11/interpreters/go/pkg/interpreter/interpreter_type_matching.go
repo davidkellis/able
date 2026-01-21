@@ -186,6 +186,9 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 		if base, ok := t.Base.(*ast.SimpleTypeExpression); ok && base.Name != nil {
 			baseName = normalizeKernelAliasName(base.Name.Name)
 		}
+		if baseName == "Self" || (len(baseName) == 1 && baseName[0] >= 'A' && baseName[0] <= 'Z') {
+			return true
+		}
 		if baseName == "Iterator" {
 			if _, ok := value.(*runtime.IteratorValue); ok {
 				return true

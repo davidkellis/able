@@ -422,14 +422,12 @@ fn main() -> i32 {
 	if err != nil {
 		t.Fatalf("typecheck: %v", err)
 	}
-	diags := filterStdlibDiagnostics(check.Diagnostics)
-	if len(diags) != 0 {
-		t.Fatalf("unexpected diagnostics: %v", diags)
+	if len(check.Diagnostics) != 0 {
+		t.Fatalf("unexpected diagnostics: %v", check.Diagnostics)
 	}
-	t.Logf("typecheck diags (non-stdlib): %d", len(diags))
 
 	interp := New()
-	value, env, _, err := interp.EvaluateProgram(program, ProgramEvaluationOptions{SkipTypecheck: true})
+	value, env, _, err := interp.EvaluateProgram(program, ProgramEvaluationOptions{})
 	if err != nil {
 		t.Fatalf("evaluate program: %v", err)
 	}

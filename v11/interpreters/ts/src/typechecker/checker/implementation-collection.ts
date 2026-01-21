@@ -25,9 +25,23 @@ const PRIMITIVE_TYPE_NAMES = new Set([
   "f64",
   "bool",
   "String",
+  "IoHandle",
+  "ProcHandle",
   "char",
   "nil",
   "void",
+]);
+
+const BUILTIN_TYPE_ARITY = new Map<string, number>([
+  ["Array", 1],
+  ["Iterator", 1],
+  ["Range", 1],
+  ["Proc", 1],
+  ["Future", 1],
+  ["Map", 2],
+  ["HashMap", 2],
+  ["Channel", 1],
+  ["Mutex", 0],
 ]);
 
 export function collectMethodsDefinition(ctx: ImplementationContext, definition: AST.MethodsDefinition): void {
@@ -113,7 +127,9 @@ export function collectImplementationDefinition(
     interfaceName,
   );
   const interfaceGenericNames = collectInterfaceGenericParamNames(ctx, interfaceDefinition);
-  const implementationGenericNames = collectImplementationGenericParamNames(ctx, definition);
+  const explicitImplementationGenerics = collectImplementationGenericParamNames(ctx, definition);
+  const targetParamNames = collectTargetTypeParams(ctx, targetType);
+  const implementationGenericNames = [...new Set([...explicitImplementationGenerics, ...targetParamNames])];
   const implementationGenericNameSet = new Set(implementationGenericNames);
   const substitutionMap = new Map<string, TypeInfo>();
   implementationGenericNames.forEach((name) => substitutionMap.set(name, unknownType));
@@ -184,12 +200,13 @@ function extractMethodSetObligations(
     typeParam: string | null,
     interfaceType: AST.TypeExpression | null | undefined,
     context: string,
+    subjectExpr?: AST.TypeExpression,
   ) => {
     const interfaceName = ctx.getInterfaceNameFromTypeExpression(interfaceType);
     if (!typeParam || !interfaceName) {
       return;
     }
-    obligations.push({ typeParam, interfaceName, interfaceType: interfaceType ?? undefined, context });
+    obligations.push({ typeParam, interfaceName, interfaceType: interfaceType ?? undefined, context, subjectExpr });
   };
 
   if (Array.isArray(definition.genericParams)) {
@@ -204,10 +221,11 @@ function extractMethodSetObligations(
 
   if (Array.isArray(definition.whereClause)) {
     for (const clause of definition.whereClause) {
-      const typeParamName = ctx.getIdentifierName(clause?.typeParam);
+      const subjectExpr = clause?.typeParam;
+      const typeParamName = subjectExpr ? ctx.formatTypeExpression(subjectExpr) : null;
       if (!typeParamName || !Array.isArray(clause?.constraints)) continue;
       for (const constraint of clause.constraints) {
-        appendObligation(typeParamName, constraint?.interfaceType, "where clause");
+        appendObligation(typeParamName, constraint?.interfaceType, "where clause", subjectExpr);
       }
     }
   }
@@ -249,12 +267,13 @@ function extractImplementationObligations(
     typeParam: string | null,
     interfaceType: AST.TypeExpression | null | undefined,
     context: string,
+    subjectExpr?: AST.TypeExpression,
   ) => {
     const interfaceName = ctx.getInterfaceNameFromTypeExpression(interfaceType);
     if (!typeParam || !interfaceName) {
       return;
     }
-    obligations.push({ typeParam, interfaceName, interfaceType: interfaceType ?? undefined, context });
+    obligations.push({ typeParam, interfaceName, interfaceType: interfaceType ?? undefined, context, subjectExpr });
   };
 
   if (Array.isArray(definition.genericParams)) {
@@ -269,10 +288,11 @@ function extractImplementationObligations(
 
   if (Array.isArray(definition.whereClause)) {
     for (const clause of definition.whereClause) {
-      const typeParamName = ctx.getIdentifierName(clause?.typeParam);
+      const subjectExpr = clause?.typeParam;
+      const typeParamName = subjectExpr ? ctx.formatTypeExpression(subjectExpr) : null;
       if (!typeParamName || !Array.isArray(clause?.constraints)) continue;
       for (const constraint of clause.constraints) {
-        appendObligation(typeParamName, constraint?.interfaceType, "where clause");
+        appendObligation(typeParamName, constraint?.interfaceType, "where clause", subjectExpr);
       }
     }
   }
@@ -398,6 +418,18 @@ function validateImplementationSelfTypePattern(
   }
   const selfPattern = interfaceDefinition.selfTypePattern;
   if (selfPattern) {
+    if (
+      selfPattern.type === "GenericTypeExpression" &&
+      patternAllowsBareConstructor(selfPattern) &&
+      !isTypeConstructorTarget(ctx, subject, implementationGenericNames)
+    ) {
+      const expected = ctx.formatTypeExpression(selfPattern);
+      ctx.report(
+        `typechecker: impl ${interfaceName} for ${targetLabel} must match interface self type '${expected}'`,
+        implementation,
+      );
+      return false;
+    }
     const matches = doesSelfPatternMatchTarget(ctx, selfPattern, subject, interfaceGenericNames);
     if (!matches) {
       const expected = ctx.formatTypeExpression(selfPattern);
@@ -446,6 +478,9 @@ function matchSelfTypePattern(
       if (!patternName) {
         return typeExpressionsEquivalent(ctx, pattern, target);
       }
+      if (patternName === "_") {
+        return true;
+      }
       if (isPatternPlaceholderName(ctx, patternName, interfaceGenericNames)) {
         return bindPlaceholder(ctx, patternName, target, bindings);
       }
@@ -456,10 +491,7 @@ function matchSelfTypePattern(
       return !!targetName && targetName === patternName;
     }
     case "GenericTypeExpression": {
-      if (patternAllowsBareConstructor(pattern)) {
-        if (target.type !== "SimpleTypeExpression") {
-          return false;
-        }
+      if (patternAllowsBareConstructor(pattern) && target.type === "SimpleTypeExpression") {
         return matchSelfTypePattern(ctx, pattern.base, target, interfaceGenericNames, bindings);
       }
       if (target.type !== "GenericTypeExpression") {
@@ -470,10 +502,11 @@ function matchSelfTypePattern(
       }
       const patternArgs = Array.isArray(pattern.arguments) ? pattern.arguments : [];
       const targetArgs = Array.isArray(target.arguments) ? target.arguments : [];
-      if (patternArgs.length !== targetArgs.length) {
+      if (!selfPatternArgsCompatible(patternArgs, targetArgs)) {
         return false;
       }
-      for (let index = 0; index < patternArgs.length; index += 1) {
+      const sharedLength = Math.min(patternArgs.length, targetArgs.length);
+      for (let index = 0; index < sharedLength; index += 1) {
         const expectedArg = patternArgs[index];
         const actualArg = targetArgs[index];
         if (!expectedArg || !actualArg) {
@@ -522,7 +555,22 @@ function patternAllowsBareConstructor(pattern: AST.GenericTypeExpression): boole
 }
 
 function isWildcardTypeExpression(expr: AST.TypeExpression | null | undefined): boolean {
-  return expr?.type === "WildcardTypeExpression";
+  if (!expr) return false;
+  if (expr.type === "WildcardTypeExpression") return true;
+  return expr.type === "SimpleTypeExpression" && expr.name?.name === "_";
+}
+
+function selfPatternArgsCompatible(
+  patternArgs: AST.TypeExpression[],
+  targetArgs: AST.TypeExpression[],
+): boolean {
+  if (patternArgs.length === targetArgs.length) {
+    return true;
+  }
+  if (patternArgs.length > targetArgs.length) {
+    return patternArgs.slice(targetArgs.length).every((arg) => isWildcardTypeExpression(arg));
+  }
+  return targetArgs.slice(patternArgs.length).every((arg) => isWildcardTypeExpression(arg));
 }
 
 function containsWildcardTypeExpression(expr: AST.TypeExpression | null | undefined): boolean {
@@ -557,6 +605,9 @@ function isPatternPlaceholderName(
   if (!name) {
     return false;
   }
+  if (name === "_") {
+    return false;
+  }
   if (name === "Self") {
     return true;
   }
@@ -580,6 +631,14 @@ function targetsBareTypeConstructor(
   target: AST.TypeExpression,
   implementationGenericNames: Set<string>,
 ): boolean {
+  return isTypeConstructorTarget(ctx, target, implementationGenericNames);
+}
+
+function isTypeConstructorTarget(
+  ctx: ImplementationContext,
+  target: AST.TypeExpression,
+  implementationGenericNames: Set<string>,
+): boolean {
   switch (target.type) {
     case "SimpleTypeExpression": {
       const name = ctx.getIdentifierName(target.name);
@@ -589,21 +648,54 @@ function targetsBareTypeConstructor(
       if (implementationGenericNames.has(name)) {
         return false;
       }
-      if (PRIMITIVE_TYPE_NAMES.has(name)) {
-        return false;
-      }
-      const structDefinition = ctx.getStructDefinition(name);
-      return !!structDefinition && Array.isArray(structDefinition.genericParams) && structDefinition.genericParams.length > 0;
+      const expected = expectedTypeArgumentCount(ctx, name);
+      return expected !== null && expected > 0;
     }
     case "GenericTypeExpression": {
-      if (!Array.isArray(target.arguments)) {
+      if (containsWildcardTypeExpression(target)) {
+        return true;
+      }
+      const baseName = ctx.getIdentifierNameFromTypeExpression(target.base);
+      if (!baseName || implementationGenericNames.has(baseName)) {
         return false;
       }
-      return target.arguments.some((arg) => isWildcardTypeExpression(arg));
+      const expected = expectedTypeArgumentCount(ctx, baseName);
+      if (expected === null) {
+        return false;
+      }
+      const provided = Array.isArray(target.arguments) ? target.arguments.length : 0;
+      return provided < expected;
     }
     default:
       return false;
   }
+}
+
+function expectedTypeArgumentCount(ctx: ImplementationContext, name: string): number | null {
+  const alias = ctx.getTypeAlias?.(name);
+  if (alias) {
+    return Array.isArray(alias.genericParams) ? alias.genericParams.length : 0;
+  }
+  const structDef = ctx.getStructDefinition(name);
+  if (structDef) {
+    return Array.isArray(structDef.genericParams) ? structDef.genericParams.length : 0;
+  }
+  const unionDef = ctx.getUnionDefinition?.(name);
+  if (unionDef) {
+    return Array.isArray(unionDef.genericParams) ? unionDef.genericParams.length : 0;
+  }
+  const ifaceDef = ctx.getInterfaceDefinition(name);
+  if (ifaceDef) {
+    return Array.isArray(ifaceDef.genericParams) ? ifaceDef.genericParams.length : 0;
+  }
+  const builtinArity = BUILTIN_TYPE_ARITY.get(name);
+  if (builtinArity !== undefined) {
+    return builtinArity;
+  }
+  if (PRIMITIVE_TYPE_NAMES.has(name)) {
+    return 0;
+  }
+  return null;
 }
 
 function ensureImplementationMethods(
@@ -628,7 +720,7 @@ function ensureImplementationMethods(
     }
   }
 
-  const signatures = Array.isArray(interfaceDefinition.signatures) ? interfaceDefinition.signatures : [];
+  const signatures = collectInterfaceSignatures(ctx, interfaceDefinition);
   if (signatures.length === 0) {
     return true;
   }
@@ -667,6 +759,130 @@ function ensureImplementationMethods(
   }
 
   return allRequiredPresent;
+}
+
+function collectInterfaceSignatures(
+  ctx: ImplementationContext,
+  interfaceDefinition: AST.InterfaceDefinition,
+): AST.FunctionSignature[] {
+  const signatures: AST.FunctionSignature[] = [];
+  const seenMethods = new Set<string>();
+  const seenInterfaces = new Set<string>();
+
+  const addSignature = (sig: AST.FunctionSignature | null | undefined): void => {
+    if (!sig) return;
+    const name = ctx.getIdentifierName(sig.name);
+    if (!name || seenMethods.has(name)) return;
+    seenMethods.add(name);
+    signatures.push(sig);
+  };
+
+  const substituteTypeExpression = (
+    expr: AST.TypeExpression | null | undefined,
+    substitutions: Map<string, AST.TypeExpression>,
+  ): AST.TypeExpression | null | undefined => {
+    if (!expr) return expr;
+    switch (expr.type) {
+      case "SimpleTypeExpression": {
+        const name = ctx.getIdentifierName(expr.name);
+        if (name && substitutions.has(name)) {
+          return substitutions.get(name);
+        }
+        return expr;
+      }
+      case "GenericTypeExpression":
+        return {
+          ...expr,
+          base: substituteTypeExpression(expr.base, substitutions) ?? expr.base,
+          arguments: (expr.arguments ?? []).map((arg) => substituteTypeExpression(arg, substitutions) ?? arg),
+        };
+      case "NullableTypeExpression":
+        return { ...expr, innerType: substituteTypeExpression(expr.innerType, substitutions) ?? expr.innerType };
+      case "ResultTypeExpression":
+        return { ...expr, innerType: substituteTypeExpression(expr.innerType, substitutions) ?? expr.innerType };
+      case "UnionTypeExpression":
+        return {
+          ...expr,
+          members: (expr.members ?? []).map((member) => substituteTypeExpression(member, substitutions) ?? member),
+        };
+      case "FunctionTypeExpression":
+        return {
+          ...expr,
+          paramTypes: (expr.paramTypes ?? []).map((param) => substituteTypeExpression(param, substitutions) ?? param),
+          returnType: substituteTypeExpression(expr.returnType, substitutions) ?? expr.returnType,
+        };
+      default:
+        return expr;
+    }
+  };
+
+  const substituteSignature = (
+    sig: AST.FunctionSignature,
+    substitutions: Map<string, AST.TypeExpression>,
+  ): AST.FunctionSignature => {
+    const params = Array.isArray(sig.params)
+      ? sig.params.map((param) =>
+          param && param.paramType
+            ? { ...param, paramType: substituteTypeExpression(param.paramType, substitutions) ?? param.paramType }
+            : param,
+        )
+      : sig.params;
+    const returnType = substituteTypeExpression(sig.returnType, substitutions) ?? sig.returnType;
+    const whereClause = Array.isArray(sig.whereClause)
+      ? sig.whereClause.map((clause) => {
+          if (!clause) return clause;
+          return {
+            ...clause,
+            typeParam: substituteTypeExpression(clause.typeParam, substitutions) ?? clause.typeParam,
+            constraints: Array.isArray(clause.constraints)
+              ? clause.constraints.map((constraint) =>
+                  constraint
+                    ? {
+                        ...constraint,
+                        interfaceType: substituteTypeExpression(constraint.interfaceType, substitutions) ?? constraint.interfaceType,
+                      }
+                    : constraint,
+                )
+              : clause.constraints,
+          };
+        })
+      : sig.whereClause;
+    return { ...sig, params, returnType, whereClause };
+  };
+
+  const walkInterface = (def: AST.InterfaceDefinition | null | undefined, substitutions: Map<string, AST.TypeExpression>): void => {
+    if (!def) return;
+    const defName = ctx.getIdentifierName(def.id);
+    if (defName) {
+      if (seenInterfaces.has(defName)) return;
+      seenInterfaces.add(defName);
+    }
+    const defSignatures = Array.isArray(def.signatures) ? def.signatures : [];
+    for (const sig of defSignatures) {
+      addSignature(substituteSignature(sig, substitutions));
+    }
+    const bases = Array.isArray(def.baseInterfaces) ? def.baseInterfaces : [];
+    for (const baseExpr of bases) {
+      if (!baseExpr) continue;
+      const substitutedBase = substituteTypeExpression(baseExpr, substitutions) ?? baseExpr;
+      const baseName = ctx.getInterfaceNameFromTypeExpression(substitutedBase);
+      if (!baseName) continue;
+      const baseDef = ctx.getInterfaceDefinition(baseName);
+      if (!baseDef) continue;
+      const baseArgs = substitutedBase.type === "GenericTypeExpression" ? substitutedBase.arguments ?? [] : [];
+      const baseSubstitutions = new Map<string, AST.TypeExpression>();
+      const baseParams = Array.isArray(baseDef.genericParams) ? baseDef.genericParams : [];
+      baseParams.forEach((param, index) => {
+        const paramName = ctx.getIdentifierName(param?.name);
+        if (!paramName) return;
+        baseSubstitutions.set(paramName, baseArgs[index] ?? AST.wildcardTypeExpression());
+      });
+      walkInterface(baseDef, baseSubstitutions);
+    }
+  };
+
+  walkInterface(interfaceDefinition, new Map());
+  return signatures;
 }
 
 function validateImplementationMethod(
@@ -770,15 +986,32 @@ function buildImplementationSubstitutions(
   targetType: AST.TypeExpression | null | undefined,
 ): Map<string, string> {
   const substitutions = new Map<string, string>();
-  const implGenerics = Array.isArray(implementation.genericParams) ? implementation.genericParams : [];
-  implGenerics.forEach((param) => {
+  const explicitGenerics = Array.isArray(implementation.genericParams) ? implementation.genericParams : [];
+  const genericNames = new Set<string>();
+  for (const param of explicitGenerics) {
     const name = ctx.getIdentifierName(param?.name);
     if (name) {
-      substitutions.set(name, name);
+      genericNames.add(name);
     }
-  });
+  }
+  if (targetType) {
+    collectTargetTypeParams(ctx, targetType).forEach((name) => {
+      if (name) {
+        genericNames.add(name);
+      }
+    });
+  }
+  for (const name of genericNames) {
+    substitutions.set(name, name);
+  }
   const formattedSelf = targetType ? ctx.formatTypeExpression(targetType, substitutions) : null;
   substitutions.set("Self", formattedSelf ?? targetLabel);
+  if (interfaceDefinition.selfTypePattern?.type === "SimpleTypeExpression") {
+    const selfPatternName = ctx.getIdentifierName(interfaceDefinition.selfTypePattern.name);
+    if (selfPatternName && selfPatternName !== "Self" && !substitutions.has(selfPatternName)) {
+      substitutions.set(selfPatternName, formattedSelf ?? targetLabel);
+    }
+  }
   const interfaceArgs = Array.isArray(implementation.interfaceArgs) ? implementation.interfaceArgs : [];
   const interfaceParams = Array.isArray(interfaceDefinition.genericParams) ? interfaceDefinition.genericParams : [];
   interfaceParams.forEach((param, index) => {

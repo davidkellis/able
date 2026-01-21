@@ -162,12 +162,13 @@ function extractFunctionWhereObligations(
     typeParam: string | null,
     interfaceType: AST.TypeExpression | null | undefined,
     context: string,
+    subjectExpr?: AST.TypeExpression,
   ) => {
     const interfaceName = ctx.getInterfaceNameFromTypeExpression(interfaceType);
     if (!typeParam || !interfaceName) {
       return;
     }
-    obligations.push({ typeParam, interfaceName, interfaceType: interfaceType ?? undefined, context });
+    obligations.push({ typeParam, interfaceName, interfaceType: interfaceType ?? undefined, context, subjectExpr });
   };
 
   if (Array.isArray(definition.genericParams)) {
@@ -182,10 +183,11 @@ function extractFunctionWhereObligations(
 
   if (Array.isArray(definition.whereClause)) {
     for (const clause of definition.whereClause) {
-      const typeParamName = ctx.getIdentifierName(clause?.typeParam);
+      const subjectExpr = clause?.typeParam;
+      const typeParamName = subjectExpr ? ctx.describeTypeExpression(subjectExpr) : null;
       if (!typeParamName || !Array.isArray(clause?.constraints)) continue;
       for (const constraint of clause.constraints) {
-        appendObligation(typeParamName, constraint?.interfaceType, "where clause");
+        appendObligation(typeParamName, constraint?.interfaceType, "where clause", subjectExpr);
       }
     }
   }
@@ -295,17 +297,9 @@ function inferGenericsForNode(
   }
   const inferred: AST.GenericParameter[] = [];
   const inferredMap = new Map<string, AST.GenericParameter>();
-  const reportedKnownTypes = new Set<string>();
   for (const occurrence of occurrences) {
     const decision = classifyInferenceCandidate(ctx, occurrence.name, known);
     if (decision === "known-type") {
-      if (occurrence.kind === "where" && occurrence.name && !reportedKnownTypes.has(occurrence.name)) {
-        ctx.report(
-          `typechecker: cannot infer type parameter '${occurrence.name}' because a type with the same name exists; declare it explicitly or qualify the type`,
-          occurrence.node,
-        );
-        reportedKnownTypes.add(occurrence.name);
-      }
       continue;
     }
     if (decision !== "infer") {
@@ -343,51 +337,54 @@ function collectFunctionLikeOccurrences(node: FunctionLikeNode): TypeOccurrence[
   }
   if (Array.isArray(node.whereClause)) {
     for (const clause of node.whereClause) {
-      const name = clause?.typeParam?.name;
-      if (name) {
-        occurrences.push({ name, node: clause?.typeParam ?? clause, kind: "where" });
+      if (clause?.typeParam) {
+        collectTypeExpressionOccurrences(clause.typeParam, occurrences, "where");
       }
     }
   }
   return occurrences;
 }
 
-function collectTypeExpressionOccurrences(expr: AST.TypeExpression | null | undefined, acc: TypeOccurrence[]): void {
+function collectTypeExpressionOccurrences(
+  expr: AST.TypeExpression | null | undefined,
+  acc: TypeOccurrence[],
+  kind: TypeOccurrence["kind"] = "type",
+): void {
   if (!expr) {
     return;
   }
   switch (expr.type) {
     case "SimpleTypeExpression":
       if (expr.name?.name) {
-        acc.push({ name: expr.name.name, node: expr, kind: "type" });
+        acc.push({ name: expr.name.name, node: expr, kind });
       }
       break;
     case "GenericTypeExpression":
-      collectTypeExpressionOccurrences(expr.base, acc);
+      collectTypeExpressionOccurrences(expr.base, acc, kind);
       if (Array.isArray(expr.arguments)) {
         for (const arg of expr.arguments) {
-          collectTypeExpressionOccurrences(arg, acc);
+          collectTypeExpressionOccurrences(arg, acc, kind);
         }
       }
       break;
     case "FunctionTypeExpression":
       if (Array.isArray(expr.paramTypes)) {
         for (const paramType of expr.paramTypes) {
-          collectTypeExpressionOccurrences(paramType, acc);
+          collectTypeExpressionOccurrences(paramType, acc, kind);
         }
       }
-      collectTypeExpressionOccurrences(expr.returnType, acc);
+      collectTypeExpressionOccurrences(expr.returnType, acc, kind);
       break;
     case "NullableTypeExpression":
-      collectTypeExpressionOccurrences(expr.innerType, acc);
+      collectTypeExpressionOccurrences(expr.innerType, acc, kind);
       break;
     case "ResultTypeExpression":
-      collectTypeExpressionOccurrences(expr.innerType, acc);
+      collectTypeExpressionOccurrences(expr.innerType, acc, kind);
       break;
     case "UnionTypeExpression":
       if (Array.isArray(expr.members)) {
         for (const member of expr.members) {
-          collectTypeExpressionOccurrences(member, acc);
+          collectTypeExpressionOccurrences(member, acc, kind);
         }
       }
       break;
@@ -440,7 +437,9 @@ function hoistWhereClauses(
   }
   const remaining: AST.WhereClauseConstraint[] = [];
   for (const clause of clauses) {
-    const clauseName = clause?.typeParam?.name;
+    const clauseName = clause?.typeParam?.type === "SimpleTypeExpression"
+      ? clause.typeParam.name?.name
+      : null;
     if (!clauseName) {
       remaining.push(clause);
       continue;

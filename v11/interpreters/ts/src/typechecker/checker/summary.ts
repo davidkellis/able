@@ -344,11 +344,22 @@ function summarizeFunctionCollection(
     if (!fn || fn.isPrivate || !fn.id?.name) continue;
     if (!options?.includeMethodShorthand && fn.isMethodShorthand) continue;
     const firstParam = Array.isArray(fn.params) ? fn.params[0] : undefined;
+    const firstParamTypeName =
+      firstParam?.paramType?.type === "SimpleTypeExpression"
+        ? ctx.getIdentifierName(firstParam.paramType.name)
+        : null;
+    const firstParamBaseName =
+      firstParam?.paramType?.type === "GenericTypeExpression"
+        ? ctx.getIdentifierNameFromTypeExpression(firstParam.paramType.base)
+        : firstParamTypeName;
     const expectsSelf =
       Boolean(fn.isMethodShorthand) ||
       (firstParam?.name?.type === "Identifier" && firstParam.name.name?.toLowerCase() === "self") ||
       (firstParam?.paramType?.type === "SimpleTypeExpression" &&
-        ctx.getIdentifierName(firstParam.paramType.name) === "Self");
+        ctx.getIdentifierName(firstParam.paramType.name) === "Self") ||
+      (Boolean(options?.typeQualifier) &&
+        Boolean(firstParamBaseName) &&
+        firstParamBaseName === options?.typeQualifier);
     const exportName = !options?.typeQualifier || expectsSelf ? fn.id.name : `${options.typeQualifier}.${fn.id.name}`;
     methods[exportName] = summarizeFunctionDefinition(ctx, fn);
   }
@@ -398,7 +409,7 @@ function summarizeWhereClauses(
   const summaries: ExportedWhereConstraintSummary[] = [];
   for (const clause of clauses) {
     if (!clause) continue;
-    const typeParam = ctx.getIdentifierName(clause.typeParam);
+    const typeParam = clause.typeParam ? ctx.formatTypeExpression(clause.typeParam) : null;
     if (!typeParam) continue;
     const constraints = summarizeInterfaceConstraints(ctx, clause.constraints);
     summaries.push({ typeParam, constraints });
@@ -420,7 +431,9 @@ function summarizeObligations(
     constraint: obligation.interfaceType
       ? ctx.formatTypeExpression(obligation.interfaceType)
       : obligation.interfaceName,
-    subject: obligation.typeParam,
+    subject: obligation.subjectExpr
+      ? ctx.formatTypeExpression(obligation.subjectExpr)
+      : obligation.typeParam,
     context: obligation.context,
   }));
 }

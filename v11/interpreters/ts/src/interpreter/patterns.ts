@@ -12,6 +12,45 @@ const isSingletonStructDef = (value: RuntimeValue): value is { kind: "struct_def
   return def.kind === "named" && def.fields.length === 0;
 };
 
+const INTEGER_KIND_SET = new Set([
+  "i8",
+  "i16",
+  "i32",
+  "i64",
+  "i128",
+  "u8",
+  "u16",
+  "u32",
+  "u64",
+  "u128",
+]);
+
+const FLOAT_KIND_SET = new Set(["f32", "f64"]);
+
+const BUILTIN_TYPE_SET = new Set([
+  "String",
+  "bool",
+  "char",
+  "nil",
+  "void",
+  "Error",
+  "Iterator",
+  "IteratorEnd",
+  "Awaitable",
+  "IoHandle",
+  "ProcHandle",
+]);
+
+function isKnownTypeName(ctx: Interpreter, name: string): boolean {
+  if (BUILTIN_TYPE_SET.has(name)) return true;
+  if (INTEGER_KIND_SET.has(name) || FLOAT_KIND_SET.has(name)) return true;
+  if (ctx.structs.has(name)) return true;
+  if (ctx.interfaces.has(name)) return true;
+  if (ctx.unions.has(name)) return true;
+  if (ctx.typeAliases.has(name)) return true;
+  return false;
+}
+
 interface PatternAssignmentOptions {
   declarationNames?: Set<string>;
   fallbackToDeclaration?: boolean;
@@ -106,8 +145,25 @@ export function applyPatternAugmentations(cls: typeof Interpreter): void {
     }
     if ((pattern as any).type === "TypedPattern") {
       const tp = pattern as AST.TypedPattern;
-      if (!this.matchesType(tp.typeAnnotation, value)) return null;
-      const coerced = this.coerceValueToType(tp.typeAnnotation, value);
+      let annotation = tp.typeAnnotation;
+      let resolvedTypeRef = false;
+      if (annotation.type === "SimpleTypeExpression") {
+        const name = annotation.name.name;
+        try {
+          const binding = baseEnv.get(name);
+          if (binding && binding.kind === "type_ref") {
+            annotation = binding.typeArgs && binding.typeArgs.length > 0
+              ? AST.genericTypeExpression(AST.simpleTypeExpression(binding.typeName), binding.typeArgs)
+              : AST.simpleTypeExpression(binding.typeName);
+            resolvedTypeRef = true;
+          }
+        } catch {}
+        if (!resolvedTypeRef && !isKnownTypeName(this, name)) {
+          return this.tryMatchPattern(tp.pattern, value, baseEnv);
+        }
+      }
+      if (!this.matchesType(annotation, value)) return null;
+      const coerced = this.coerceValueToType(annotation, value);
       return this.tryMatchPattern(tp.pattern, coerced, baseEnv);
     }
     return null;

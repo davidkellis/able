@@ -289,14 +289,28 @@ func (i *Interpreter) invokeFunction(fn *runtime.FunctionValue, args []runtime.V
 			state.pushImplicitReceiver(implicitReceiver)
 			defer state.popImplicitReceiver()
 		}
+		lambdaGenerics := genericNameSet(decl.GenericParams)
 		result, err := i.evaluateExpression(decl.Body, localEnv)
 		if err != nil {
+			if ret, ok := err.(returnSignal); ok {
+				retVal := ret.value
+				if retVal == nil {
+					retVal = runtime.NilValue{}
+				}
+				coerced, err := i.coerceReturnValue(decl.ReturnType, retVal, lambdaGenerics, localEnv)
+				if err != nil {
+					if ret.context != nil {
+						return nil, runtimeDiagnosticError{err: err, context: ret.context}
+					}
+					return nil, err
+				}
+				return coerced, nil
+			}
 			return nil, err
 		}
 		if result == nil {
 			result = runtime.NilValue{}
 		}
-		lambdaGenerics := genericNameSet(decl.GenericParams)
 		return i.coerceReturnValue(decl.ReturnType, result, lambdaGenerics, localEnv)
 	default:
 		return nil, fmt.Errorf("calling unsupported function declaration %T", fn.Declaration)

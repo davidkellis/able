@@ -1,6 +1,7 @@
 package list_tests
 
 import able.collections.list.{List}
+import able.collections.array.{Array}
 import able.core.iteration.{IteratorEnd}
 
 fn assert(condition: bool, message: String) -> void {

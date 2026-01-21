@@ -2,6 +2,7 @@ package lazy_seq
 import able.kernel.{Array}
 import able.collections.array
 import able.collections.enumerable.{Enumerable}
+import able.core.interfaces.{Default, Extend}
 import able.core.iteration.{Iterator, IteratorEnd, Iterable}
 
 struct LazySeq T {
@@ -176,15 +177,29 @@ methods LazySeq T {
   }
 }
 
-impl Enumerable T for LazySeq T {
-  fn each(self: Self, visit: T -> void) -> void {
-    mut_copy := self
-    mut_copy.for_each(visit)
+impl Default for LazySeq T {
+  fn default() -> LazySeq T {
+    LazySeq T { source: nil, cache: Array.new(), exhausted: true }
   }
 }
 
-impl Iterable T for LazySeq T {
-  fn iterator(self: Self) -> (Iterator T) {
+impl Extend T for LazySeq T {
+  fn extend(self: Self, value: T) -> Self {
+    self.ensure_all()
+    self.cache.push(value)
+    self.exhausted = true
+    self.source = nil
+    self
+  }
+}
+
+impl Enumerable A for LazySeq {
+  fn each(self: Self, visit: A -> void) -> void {
+    mut_copy := self
+    mut_copy.for_each(visit)
+  }
+
+  fn iterator(self: Self) -> (Iterator A) {
     mut_copy := self
     Iterator { gen => mut_copy.for_each(gen.yield) }
   }

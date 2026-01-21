@@ -1,0 +1,6 @@
+package exec_04_03_type_expression_arity_diag
+
+struct Foo {}
+struct Bar {}
+
+fn main(arg: Array Foo Bar) -> void { }

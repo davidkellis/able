@@ -2,6 +2,7 @@ package linked_list
 import able.kernel.{Array}
 import able.collections.array
 import able.collections.enumerable.{Enumerable}
+import able.core.interfaces.{Default, Extend}
 import able.core.iteration.{Iterable, Iterator, IteratorEnd}
 
 struct ListNode T {
@@ -129,9 +130,14 @@ methods LinkedList T {
   }
 }
 
-impl Iterable T for LinkedList T {
-  fn iterator(self: Self) -> (Iterator T) {
-    LinkedListIterator { current: self.head }
+impl Default for LinkedList T {
+  fn default() -> LinkedList T { LinkedList.new() }
+}
+
+impl Extend T for LinkedList T {
+  fn extend(self: Self, value: T) -> Self {
+    self.push_back(value)
+    self
   }
 }
 
@@ -147,8 +153,12 @@ impl Iterator T for LinkedListIterator T {
   }
 }
 
-impl Enumerable T for LinkedList T {
-  fn each(self: Self, visit: T -> void) -> void {
+impl Enumerable A for LinkedList {
+  fn each(self: Self, visit: A -> void) -> void {
     self.for_each(visit)
+  }
+
+  fn iterator(self: Self) -> (Iterator A) {
+    LinkedListIterator { current: self.head }
   }
 }

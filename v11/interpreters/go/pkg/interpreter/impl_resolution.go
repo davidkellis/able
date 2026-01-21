@@ -35,7 +35,7 @@ type methodMatch struct {
 }
 
 type constraintSpec struct {
-	typeParam string
+	subject   ast.TypeExpression
 	ifaceType ast.TypeExpression
 }
 
@@ -281,7 +281,7 @@ func (i *Interpreter) buildConstraintKeySet(constraints []constraintSpec) map[st
 		}
 		expressions := i.collectInterfaceConstraintStrings(c.ifaceType, make(map[string]struct{}))
 		for _, expr := range expressions {
-			key := fmt.Sprintf("%s->%s", c.typeParam, expr)
+			key := fmt.Sprintf("%s->%s", typeExpressionToString(c.subject), expr)
 			set[key] = struct{}{}
 		}
 	}

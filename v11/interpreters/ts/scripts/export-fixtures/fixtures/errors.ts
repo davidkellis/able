@@ -42,7 +42,7 @@ const errorsFixtures: Fixture[] = [
         description: "Where clause referencing known type names requires explicit generics",
         expect: {
           typecheckDiagnostics: [
-            "typechecker: v11/fixtures/ast/errors/implicit_generic_where_ambiguity/source.able:9:46 typechecker: cannot infer type parameter 'Point' because a type with the same name exists; declare it explicitly or qualify the type",
+            "typechecker: v11/fixtures/ast/errors/implicit_generic_where_ambiguity/source.able:9:53 typechecker: fn format_point constraint on Point is not satisfied: Point does not implement Show",
           ],
         },
       },

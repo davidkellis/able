@@ -206,7 +206,8 @@ func runFixture(dir, entry string, setup []string, executor interpreter.Executor
 func configureTypechecker(interp *interpreter.Interpreter) typecheckMode {
 	modeVal, ok := os.LookupEnv("ABLE_TYPECHECK_FIXTURES")
 	if !ok {
-		return modeOff
+		interp.EnableTypechecker(interpreter.TypecheckConfig{FailFast: true})
+		return modeStrict
 	}
 	mode := strings.TrimSpace(strings.ToLower(modeVal))
 	switch mode {

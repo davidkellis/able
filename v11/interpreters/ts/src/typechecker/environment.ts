@@ -53,6 +53,18 @@ export class Environment {
     return this.scopes[this.scopes.length - 1].has(name);
   }
 
+  hasBindingOutsideGlobal(name: string): boolean {
+    if (this.scopes.length <= 1) {
+      return false;
+    }
+    for (let i = this.scopes.length - 1; i > 0; i -= 1) {
+      if (this.scopes[i].has(name)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   fork(): Environment {
     const forked = new Environment();
     forked.scopes.length = 0;

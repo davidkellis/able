@@ -6,13 +6,23 @@ import (
 	"able/interpreter-go/pkg/ast"
 )
 
-func procMemberFunction(name string, proc ProcType, node ast.Node) (Type, []Diagnostic) {
+func (c *Checker) procStatusType() Type {
+	if c == nil || c.global == nil {
+		return StructType{StructName: "ProcStatus"}
+	}
+	if typ, ok := c.global.Lookup("ProcStatus"); ok && typ != nil {
+		return typ
+	}
+	return StructType{StructName: "ProcStatus"}
+}
+
+func (c *Checker) procMemberFunction(name string, proc ProcType, node ast.Node) (Type, []Diagnostic) {
 	var diags []Diagnostic
 	switch name {
 	case "status":
 		return FunctionType{
 			Params: nil,
-			Return: StructType{StructName: "ProcStatus"},
+			Return: c.procStatusType(),
 		}, diags
 	case "value":
 		return FunctionType{
@@ -33,13 +43,13 @@ func procMemberFunction(name string, proc ProcType, node ast.Node) (Type, []Diag
 	}
 }
 
-func futureMemberFunction(name string, future FutureType, node ast.Node) (Type, []Diagnostic) {
+func (c *Checker) futureMemberFunction(name string, future FutureType, node ast.Node) (Type, []Diagnostic) {
 	var diags []Diagnostic
 	switch name {
 	case "status":
 		return FunctionType{
 			Params: nil,
-			Return: StructType{StructName: "ProcStatus"},
+			Return: c.procStatusType(),
 		}, diags
 	case "value":
 		return FunctionType{

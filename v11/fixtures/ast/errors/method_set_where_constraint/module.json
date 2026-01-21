@@ -51,7 +51,10 @@
       "whereClause": [
         {
           "type": "WhereClauseConstraint",
-          "typeParam": { "type": "Identifier", "name": "Self" },
+          "typeParam": {
+            "type": "SimpleTypeExpression",
+            "name": { "type": "Identifier", "name": "Self" }
+          },
           "constraints": [
             {
               "type": "InterfaceConstraint",

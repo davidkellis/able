@@ -46,4 +46,17 @@ describe("String methods") { suite =>
     expect(parts.get(0)!).to(eq("a"))
     expect(parts.get(1)!).to(eq("b"))
   }
+
+  suite.it("maps and filters characters eagerly") { _ctx =>
+    value := s("abC")
+    upper := value.map(fn(ch: char) -> char {
+      if ch == 'a' { return 'A' }
+      if ch == 'b' { return 'B' }
+      ch
+    })
+    expect(upper).to(eq("ABC"))
+
+    filtered := value.filter(fn(ch: char) -> bool { ch != 'b' })
+    expect(filtered).to(eq("aC"))
+  }
 }

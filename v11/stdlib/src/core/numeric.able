@@ -2,11 +2,7 @@ package numeric
 import able.core.errors.{DivisionByZeroError, OverflowError}
 import able.core.interfaces.{Error}
 import able.core.options.{Result}
-import able.kernel.{Ratio::KernelRatio, ratio_from_float}
-
-## Re-export kernel Ratio under the stdlib namespace.
-type Ratio = KernelRatio;
-Ratio := KernelRatio
+import able.kernel.{Ratio, ratio_from_float}
 
 ## Error raised when a numeric conversion cannot be performed without loss.
 struct NumericConversionError {
@@ -113,8 +109,8 @@ fn ratio_normalize(num: i128, den: i128) -> Ratio {
     d = 1_i128
   } else {
     divisor := ratio_gcd(ratio_abs(n), d)
-    n = n / divisor
-    d = d / divisor
+    n = n // divisor
+    d = d // divisor
   }
 
   if n < I64_MIN_I128 || n > I64_MAX_I128 {

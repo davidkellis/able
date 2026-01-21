@@ -195,9 +195,7 @@ export class TypeChecker extends TypeCheckerBase {
   }
 
   protected ensureUniqueDeclaration(name: string | null | undefined, node: AST.Node | null | undefined): boolean {
-    const pkg = this.currentPackageName ?? "<unknown>";
-    const key = name ? `${pkg}::${name}` : name;
-    return ensureUniqueDeclarationHelper(this.registryContext(), key, node);
+    return ensureUniqueDeclarationHelper(this.registryContext(), name, node);
   }
 
   protected isKnownTypeName(name: string | null | undefined): boolean {

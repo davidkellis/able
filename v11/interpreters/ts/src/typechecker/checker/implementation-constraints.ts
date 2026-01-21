@@ -176,7 +176,13 @@ export function enforceFunctionConstraints(
 
   if (info.whereClause.length > 0) {
     for (const obligation of info.whereClause) {
-      const subject = lookupObligationSubject(ctx, obligation.typeParam, substitutions, substitutions.get("Self") ?? unknownType);
+      const subject = lookupObligationSubject(
+        ctx,
+        obligation.subjectExpr,
+        obligation.typeParam,
+        substitutions,
+        substitutions.get("Self") ?? unknownType,
+      );
       if (!subject) {
         continue;
       }
@@ -312,7 +318,7 @@ export function ambiguousImplementationDetail(
     }
     let failed = false;
     for (const obligation of record.obligations) {
-      const subject = lookupObligationSubject(ctx, obligation.typeParam, substitutions, type);
+      const subject = lookupObligationSubject(ctx, obligation.subjectExpr, obligation.typeParam, substitutions, type);
       if (!subject) {
         continue;
       }
@@ -446,7 +452,7 @@ function implementationProvidesInterface(
     }
     let failedDetail: string | undefined;
     for (const obligation of record.obligations) {
-      const subject = lookupObligationSubject(ctx, obligation.typeParam, substitutions, type);
+      const subject = lookupObligationSubject(ctx, obligation.subjectExpr, obligation.typeParam, substitutions, type);
       if (!subject) {
         continue;
       }
@@ -711,10 +717,14 @@ function getStructuralTypeArguments(type: TypeInfo, baseName: string): TypeInfo[
 
 function lookupObligationSubject(
   ctx: ImplementationContext,
+  subjectExpr: AST.TypeExpression | undefined,
   typeParam: string,
   substitutions: Map<string, TypeInfo>,
   selfType: TypeInfo,
 ): TypeInfo | null {
+  if (subjectExpr) {
+    return ctx.resolveTypeExpression(subjectExpr, substitutions);
+  }
   if (typeParam === "Self") {
     return selfType;
   }

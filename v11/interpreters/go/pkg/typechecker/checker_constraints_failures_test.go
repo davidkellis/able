@@ -136,7 +136,7 @@ func TestConstraintSolverMethodSetGenericWhereFails(t *testing.T) {
 			ast.GenericParam("T"),
 		},
 		[]*ast.WhereClauseConstraint{
-			ast.WhereConstraint("T", ast.InterfaceConstr(ast.Ty("Display"))),
+			ast.WhereConstraint(ast.Ty("T"), ast.InterfaceConstr(ast.Ty("Display"))),
 		},
 		false,
 		false,
@@ -263,7 +263,7 @@ func TestConstraintSolverMethodSetSelfWhereAppliedConstraintFails(t *testing.T) 
 		[]*ast.FunctionDefinition{describeMethod},
 		nil,
 		[]*ast.WhereClauseConstraint{
-			ast.WhereConstraint("Self", ast.InterfaceConstr(ast.Gen(ast.Ty("Formatter"), ast.Ty("String")))),
+			ast.WhereConstraint(ast.Ty("Self"), ast.InterfaceConstr(ast.Gen(ast.Ty("Formatter"), ast.Ty("String")))),
 		},
 	)
 	genericParam := ast.GenericParam("S", ast.InterfaceConstr(ast.Ty("Describable")))
@@ -366,7 +366,7 @@ func TestConstraintSolverMethodSetGenericObligationFails(t *testing.T) {
 			ast.GenericParam("T"),
 		},
 		[]*ast.WhereClauseConstraint{
-			ast.WhereConstraint("T", ast.InterfaceConstr(ast.Ty("Display"))),
+			ast.WhereConstraint(ast.Ty("T"), ast.InterfaceConstr(ast.Ty("Display"))),
 		},
 	)
 	wrapperLiteral := ast.StructLit(

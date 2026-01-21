@@ -282,6 +282,71 @@ func (c *Checker) checkLambdaExpression(env *Environment, expr *ast.LambdaExpres
 
 	lambdaEnv := env.Extend()
 	var diags []Diagnostic
+	var typeParams []GenericParamSpec
+	var whereSpecs []WhereConstraintSpec
+
+	if len(expr.GenericParams) > 0 || len(expr.WhereClause) > 0 {
+		tempParams := make([]GenericParamSpec, 0, len(expr.GenericParams))
+		for _, param := range expr.GenericParams {
+			if param == nil || param.Name == nil || param.Name.Name == "" {
+				continue
+			}
+			tempParams = append(tempParams, GenericParamSpec{Name: param.Name.Name})
+		}
+		if len(tempParams) > 0 {
+			c.pushConstraintScope(tempParams, nil)
+		}
+		for _, param := range expr.GenericParams {
+			if param == nil || param.Name == nil || param.Name.Name == "" {
+				continue
+			}
+			name := param.Name.Name
+			constraints := make([]Type, 0, len(param.Constraints))
+			constraintNodes := make([]ast.TypeExpression, 0, len(param.Constraints))
+			for _, constraint := range param.Constraints {
+				if constraint == nil || constraint.InterfaceType == nil {
+					continue
+				}
+				constraints = append(constraints, c.resolveTypeReference(constraint.InterfaceType))
+				constraintNodes = append(constraintNodes, constraint.InterfaceType)
+			}
+			typeParams = append(typeParams, GenericParamSpec{
+				Name:            name,
+				Constraints:     constraints,
+				ConstraintNodes: constraintNodes,
+				IsInferred:      param.IsInferred,
+			})
+		}
+		for _, clause := range expr.WhereClause {
+			if clause == nil || clause.TypeParam == nil {
+				continue
+			}
+			label := formatTypeExpressionNode(clause.TypeParam)
+			subject := c.resolveTypeReference(clause.TypeParam)
+			constraints := make([]Type, 0, len(clause.Constraints))
+			constraintNodes := make([]ast.TypeExpression, 0, len(clause.Constraints))
+			for _, constraint := range clause.Constraints {
+				if constraint == nil || constraint.InterfaceType == nil {
+					continue
+				}
+				constraints = append(constraints, c.resolveTypeReference(constraint.InterfaceType))
+				constraintNodes = append(constraintNodes, constraint.InterfaceType)
+			}
+			whereSpecs = append(whereSpecs, WhereConstraintSpec{
+				TypeParam:       label,
+				Subject:         subject,
+				Constraints:     constraints,
+				ConstraintNodes: constraintNodes,
+			})
+		}
+		if len(tempParams) > 0 {
+			c.popConstraintScope()
+		}
+	}
+	if len(typeParams) > 0 || len(whereSpecs) > 0 {
+		c.pushConstraintScope(typeParams, whereSpecs)
+		defer c.popConstraintScope()
+	}
 
 	paramTypes := make([]Type, len(expr.Params))
 	for idx, param := range expr.Params {
@@ -358,8 +423,10 @@ func (c *Checker) checkLambdaExpression(env *Environment, expr *ast.LambdaExpres
 	}
 
 	fnType := FunctionType{
-		Params: paramTypes,
-		Return: bodyType,
+		Params:     paramTypes,
+		Return:     bodyType,
+		TypeParams: typeParams,
+		Where:      whereSpecs,
 	}
 	c.infer.set(expr, fnType)
 	return diags, fnType

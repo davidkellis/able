@@ -55,6 +55,17 @@ func (i *Interpreter) findMethod(info typeInfo, methodName string, interfaceFilt
 	if len(matches) == 0 {
 		return nil, err
 	}
+	if interfaceFilter != "" {
+		direct := make([]implCandidate, 0, len(matches))
+		for _, cand := range matches {
+			if cand.entry != nil && cand.entry.interfaceName == interfaceFilter {
+				direct = append(direct, cand)
+			}
+		}
+		if len(direct) > 0 {
+			matches = direct
+		}
+	}
 	methodMatches := make([]methodMatch, 0, len(matches))
 	for _, cand := range matches {
 		method := cand.entry.methods[methodName]

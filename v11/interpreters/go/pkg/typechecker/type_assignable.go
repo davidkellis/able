@@ -522,6 +522,14 @@ func normalizeSpecialType(t Type) Type {
 	}
 	switch v := t.(type) {
 	case AppliedType:
+		if unionBase, ok := v.Base.(UnionType); ok {
+			return instantiateUnionTypeArgs(unionBase, v.Arguments)
+		}
+		if iface, ok := v.Base.(InterfaceType); ok {
+			if converted, ok := convertSpecialAppliedType(iface.InterfaceName, v.Arguments); ok {
+				return converted
+			}
+		}
 		if name, ok := structName(v); ok {
 			if converted, ok := convertSpecialAppliedType(name, v.Arguments); ok {
 				return converted

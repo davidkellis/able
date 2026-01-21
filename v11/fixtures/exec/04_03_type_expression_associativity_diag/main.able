@@ -1,0 +1,6 @@
+package exec_04_03_type_expression_associativity_diag
+
+struct Box T {}
+struct Map K V {}
+
+fn main(arg: Map String Box i32) -> void { }

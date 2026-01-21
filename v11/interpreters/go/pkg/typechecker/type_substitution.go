@@ -105,8 +105,8 @@ func substituteWhereSpecs(specs []WhereConstraintSpec, subst map[string]Type) []
 	}
 	out := make([]WhereConstraintSpec, 0, len(specs))
 	for _, spec := range specs {
-		if spec.TypeParam != "" {
-			if _, ok := subst[spec.TypeParam]; ok {
+		if param, ok := spec.Subject.(TypeParameterType); ok && param.ParameterName != "" {
+			if _, ok := subst[param.ParameterName]; ok {
 				// This where-clause references a type parameter that has been
 				// substituted with a concrete type; drop the clause because the
 				// obligation is now captured via the substituted constraints.
@@ -117,8 +117,13 @@ func substituteWhereSpecs(specs []WhereConstraintSpec, subst map[string]Type) []
 		for j, constraint := range spec.Constraints {
 			constraints[j] = substituteType(constraint, subst)
 		}
+		var subject Type
+		if spec.Subject != nil {
+			subject = substituteType(spec.Subject, subst)
+		}
 		out = append(out, WhereConstraintSpec{
 			TypeParam:   spec.TypeParam,
+			Subject:     subject,
 			Constraints: constraints,
 		})
 	}
@@ -147,6 +152,31 @@ func substituteObligations(obligations []ConstraintObligation, subst map[string]
 		}
 	}
 	return out
+}
+
+func instantiateUnionTypeArgs(union UnionType, args []Type) UnionType {
+	if len(union.TypeParams) == 0 {
+		return union
+	}
+	subst := make(map[string]Type, len(union.TypeParams))
+	for idx, param := range union.TypeParams {
+		if param.Name == "" {
+			continue
+		}
+		if idx < len(args) && args[idx] != nil {
+			subst[param.Name] = args[idx]
+		} else {
+			subst[param.Name] = UnknownType{}
+		}
+	}
+	inst := substituteType(union, subst)
+	if resolved, ok := inst.(UnionType); ok {
+		if len(args) >= len(union.TypeParams) {
+			resolved.TypeParams = nil
+		}
+		return resolved
+	}
+	return union
 }
 
 func instantiateAlias(alias AliasType, args []Type) (Type, map[string]Type) {

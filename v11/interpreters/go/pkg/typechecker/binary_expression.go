@@ -22,6 +22,10 @@ func (c *Checker) checkUnaryExpression(env *Environment, expr *ast.UnaryExpressi
 			break
 		}
 		if !isNumericType(operandType) {
+			if opType, ok := c.resolveUnaryOperatorInterface(operandType, "Neg", "neg"); ok {
+				resultType = opType
+				break
+			}
 			diags = append(diags, Diagnostic{
 				Message: fmt.Sprintf("typechecker: unary '%s' requires numeric operand (got %s)", expr.Operator, typeName(operandType)),
 				Node:    expr,
@@ -39,6 +43,10 @@ func (c *Checker) checkUnaryExpression(env *Environment, expr *ast.UnaryExpressi
 			break
 		}
 		if !isIntegerType(operandType) {
+			if opType, ok := c.resolveUnaryOperatorInterface(operandType, "Not", "not"); ok {
+				resultType = opType
+				break
+			}
 			diags = append(diags, Diagnostic{
 				Message: fmt.Sprintf("typechecker: unary '%s' requires integer operand (got %s)", expr.Operator, typeName(operandType)),
 				Node:    expr,
@@ -104,16 +112,50 @@ func (c *Checker) checkBinaryExpression(env *Environment, expr *ast.BinaryExpres
 		default:
 			resType, err := resolveNumericBinaryType(leftType, rightType)
 			if err != "" {
-				diags = append(diags, Diagnostic{
-					Message: fmt.Sprintf("typechecker: '+' %s", err),
-					Node:    binaryDiagnosticNode(expr),
-				})
-				resultType = UnknownType{}
+				if opType, ok := c.resolveBinaryOperatorInterface(leftType, rightType, "Add", "add"); ok {
+					resultType = opType
+				} else {
+					diags = append(diags, Diagnostic{
+						Message: fmt.Sprintf("typechecker: '+' %s", err),
+						Node:    binaryDiagnosticNode(expr),
+					})
+					resultType = UnknownType{}
+				}
 			} else {
 				resultType = resType
 			}
 		}
-	case "-", "*", "^":
+	case "-":
+		resType, err := resolveNumericBinaryType(leftType, rightType)
+		if err != "" {
+			if opType, ok := c.resolveBinaryOperatorInterface(leftType, rightType, "Sub", "sub"); ok {
+				resultType = opType
+				break
+			}
+			diags = append(diags, Diagnostic{
+				Message: fmt.Sprintf("typechecker: '%s' %s", expr.Operator, err),
+				Node:    binaryDiagnosticNode(expr),
+			})
+			resultType = UnknownType{}
+			break
+		}
+		resultType = resType
+	case "*":
+		resType, err := resolveNumericBinaryType(leftType, rightType)
+		if err != "" {
+			if opType, ok := c.resolveBinaryOperatorInterface(leftType, rightType, "Mul", "mul"); ok {
+				resultType = opType
+				break
+			}
+			diags = append(diags, Diagnostic{
+				Message: fmt.Sprintf("typechecker: '%s' %s", expr.Operator, err),
+				Node:    binaryDiagnosticNode(expr),
+			})
+			resultType = UnknownType{}
+			break
+		}
+		resultType = resType
+	case "^":
 		resType, err := resolveNumericBinaryType(leftType, rightType)
 		if err != "" {
 			diags = append(diags, Diagnostic{
@@ -127,8 +169,8 @@ func (c *Checker) checkBinaryExpression(env *Environment, expr *ast.BinaryExpres
 	case "/":
 		resType, err := resolveDivisionBinaryType(leftType, rightType)
 		if err != "" {
-			if ok, _ := c.typeImplementsInterface(leftType, InterfaceType{InterfaceName: "Div"}, []Type{rightType, UnknownType{}}); ok {
-				resultType = UnknownType{}
+			if opType, ok := c.resolveBinaryOperatorInterface(leftType, rightType, "Div", "div"); ok {
+				resultType = opType
 				break
 			}
 			diags = append(diags, Diagnostic{
@@ -139,9 +181,24 @@ func (c *Checker) checkBinaryExpression(env *Environment, expr *ast.BinaryExpres
 			break
 		}
 		resultType = resType
-	case "//", "%":
+	case "//":
 		intType, err := resolveIntegerBinaryType(leftType, rightType)
 		if err != "" {
+			diags = append(diags, Diagnostic{
+				Message: fmt.Sprintf("typechecker: '%s' %s", expr.Operator, err),
+				Node:    binaryDiagnosticNode(expr),
+			})
+			resultType = UnknownType{}
+			break
+		}
+		resultType = intType
+	case "%":
+		intType, err := resolveIntegerBinaryType(leftType, rightType)
+		if err != "" {
+			if opType, ok := c.resolveBinaryOperatorInterface(leftType, rightType, "Rem", "rem"); ok {
+				resultType = opType
+				break
+			}
 			diags = append(diags, Diagnostic{
 				Message: fmt.Sprintf("typechecker: '%s' %s", expr.Operator, err),
 				Node:    binaryDiagnosticNode(expr),
@@ -178,6 +235,10 @@ func (c *Checker) checkBinaryExpression(env *Environment, expr *ast.BinaryExpres
 		}
 		_, err := resolveNumericBinaryType(leftType, rightType)
 		if err != "" && !(isUnknownType(leftType) || isUnknownType(rightType)) {
+			if c.supportsComparisonInterface(leftType, rightType) {
+				resultType = boolType
+				break
+			}
 			diags = append(diags, Diagnostic{
 				Message: fmt.Sprintf("typechecker: '%s' %s", expr.Operator, err),
 				Node:    binaryDiagnosticNode(expr),
@@ -187,9 +248,13 @@ func (c *Checker) checkBinaryExpression(env *Environment, expr *ast.BinaryExpres
 	case "==", "!=":
 		// Equality comparisons are defined for all types; we only assign bool.
 		resultType = boolType
-	case ".&", "&", ".|", "|", ".^":
+	case ".&", "&":
 		intType, err := resolveIntegerBinaryType(leftType, rightType)
 		if err != "" {
+			if opType, ok := c.resolveBinaryOperatorInterface(leftType, rightType, "BitAnd", "bit_and"); ok {
+				resultType = opType
+				break
+			}
 			diags = append(diags, Diagnostic{
 				Message: fmt.Sprintf("typechecker: '%s' %s", expr.Operator, err),
 				Node:    binaryDiagnosticNode(expr),
@@ -198,9 +263,58 @@ func (c *Checker) checkBinaryExpression(env *Environment, expr *ast.BinaryExpres
 			break
 		}
 		resultType = intType
-	case ".<<", "<<", ".>>", ">>":
+	case ".|", "|":
 		intType, err := resolveIntegerBinaryType(leftType, rightType)
 		if err != "" {
+			if opType, ok := c.resolveBinaryOperatorInterface(leftType, rightType, "BitOr", "bit_or"); ok {
+				resultType = opType
+				break
+			}
+			diags = append(diags, Diagnostic{
+				Message: fmt.Sprintf("typechecker: '%s' %s", expr.Operator, err),
+				Node:    binaryDiagnosticNode(expr),
+			})
+			resultType = UnknownType{}
+			break
+		}
+		resultType = intType
+	case ".^":
+		intType, err := resolveIntegerBinaryType(leftType, rightType)
+		if err != "" {
+			if opType, ok := c.resolveBinaryOperatorInterface(leftType, rightType, "BitXor", "bit_xor"); ok {
+				resultType = opType
+				break
+			}
+			diags = append(diags, Diagnostic{
+				Message: fmt.Sprintf("typechecker: '%s' %s", expr.Operator, err),
+				Node:    binaryDiagnosticNode(expr),
+			})
+			resultType = UnknownType{}
+			break
+		}
+		resultType = intType
+	case ".<<", "<<":
+		intType, err := resolveIntegerBinaryType(leftType, rightType)
+		if err != "" {
+			if opType, ok := c.resolveBinaryOperatorInterface(leftType, rightType, "Shl", "shl"); ok {
+				resultType = opType
+				break
+			}
+			diags = append(diags, Diagnostic{
+				Message: fmt.Sprintf("typechecker: '%s' %s", expr.Operator, err),
+				Node:    binaryDiagnosticNode(expr),
+			})
+			resultType = UnknownType{}
+			break
+		}
+		resultType = intType
+	case ".>>", ">>":
+		intType, err := resolveIntegerBinaryType(leftType, rightType)
+		if err != "" {
+			if opType, ok := c.resolveBinaryOperatorInterface(leftType, rightType, "Shr", "shr"); ok {
+				resultType = opType
+				break
+			}
 			diags = append(diags, Diagnostic{
 				Message: fmt.Sprintf("typechecker: '%s' %s", expr.Operator, err),
 				Node:    binaryDiagnosticNode(expr),
@@ -223,6 +337,62 @@ func (c *Checker) checkBinaryExpression(env *Environment, expr *ast.BinaryExpres
 
 	c.infer.set(expr, resultType)
 	return diags, resultType
+}
+
+func (c *Checker) resolveBinaryOperatorInterface(leftType, rightType Type, ifaceName, methodName string) (Type, bool) {
+	if leftType == nil || isUnknownType(leftType) {
+		return UnknownType{}, false
+	}
+	iface := InterfaceType{InterfaceName: ifaceName}
+	args := []Type{rightType, UnknownType{}}
+	if ok, _ := c.typeImplementsInterface(leftType, iface, args); !ok {
+		return UnknownType{}, false
+	}
+	fnType, ok, _ := c.lookupMethod(leftType, methodName, true, true)
+	if !ok {
+		return UnknownType{}, true
+	}
+	if len(fnType.Params) > 0 {
+		expected := fnType.Params[0]
+		if rightType != nil && !isUnknownType(rightType) && expected != nil && !isUnknownType(expected) && !typeAssignable(rightType, expected) {
+			return UnknownType{}, false
+		}
+	}
+	if fnType.Return == nil {
+		return UnknownType{}, true
+	}
+	return fnType.Return, true
+}
+
+func (c *Checker) resolveUnaryOperatorInterface(operandType Type, ifaceName, methodName string) (Type, bool) {
+	if operandType == nil || isUnknownType(operandType) {
+		return UnknownType{}, false
+	}
+	iface := InterfaceType{InterfaceName: ifaceName}
+	if ok, _ := c.typeImplementsInterface(operandType, iface, []Type{UnknownType{}}); !ok {
+		return UnknownType{}, false
+	}
+	fnType, ok, _ := c.lookupMethod(operandType, methodName, true, true)
+	if !ok {
+		return UnknownType{}, true
+	}
+	if fnType.Return == nil {
+		return UnknownType{}, true
+	}
+	return fnType.Return, true
+}
+
+func (c *Checker) supportsComparisonInterface(leftType, rightType Type) bool {
+	if leftType == nil || rightType == nil {
+		return false
+	}
+	if ok, _ := c.typeImplementsInterface(leftType, InterfaceType{InterfaceName: "PartialOrd"}, []Type{rightType}); ok {
+		return true
+	}
+	if ok, _ := c.typeImplementsInterface(leftType, InterfaceType{InterfaceName: "Ord"}, nil); ok {
+		return typeAssignable(leftType, rightType) && typeAssignable(rightType, leftType)
+	}
+	return false
 }
 
 func buildPipeCall(expr *ast.BinaryExpression) *ast.FunctionCall {

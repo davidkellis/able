@@ -373,11 +373,14 @@ func (c *Checker) checkMemberAccessWithOptions(env *Environment, expr *ast.Membe
 			}
 		}
 		if ty.Methods != nil {
-			if methodType, ok := ty.Methods[memberName]; ok {
-				subst := map[string]Type{"Self": ty}
-				methodType = substituteFunctionType(methodType, subst)
-				bound := bindMethodType(methodType)
-				final := c.finalizeMemberAccessType(expr, wrapType, bound)
+			if methodType, ok := c.interfaceMemberFunction(ty, nil, ty, memberName); ok {
+				final := c.finalizeMemberAccessType(expr, wrapType, methodType)
+				return diags, final
+			}
+		}
+		if res := c.interfaceFromName(ty.InterfaceName); res.err == "" {
+			if methodType, ok := c.interfaceMemberFunction(res.iface, res.args, ty, memberName); ok {
+				final := c.finalizeMemberAccessType(expr, wrapType, methodType)
 				return diags, final
 			}
 		}
@@ -412,18 +415,17 @@ func (c *Checker) checkMemberAccessWithOptions(env *Environment, expr *ast.Membe
 					return diags, final
 				}
 			}
-			if iface.Methods != nil {
-				if methodType, ok := iface.Methods[memberName]; ok {
-					subst := make(map[string]Type, len(iface.TypeParams)+1)
-					subst["Self"] = ty
-					for i, spec := range iface.TypeParams {
-						if i < len(ty.Arguments) && ty.Arguments[i] != nil {
-							subst[spec.Name] = ty.Arguments[i]
-						}
-					}
-					inst := substituteFunctionType(methodType, subst)
-					inst = bindMethodType(inst)
-					final := c.finalizeMemberAccessType(expr, wrapType, inst)
+			if methodType, ok := c.interfaceMemberFunction(iface, ty.Arguments, ty, memberName); ok {
+				final := c.finalizeMemberAccessType(expr, wrapType, methodType)
+				return diags, final
+			}
+			if res := c.interfaceFromName(iface.InterfaceName); res.err == "" {
+				args := ty.Arguments
+				if len(args) == 0 {
+					args = res.args
+				}
+				if methodType, ok := c.interfaceMemberFunction(res.iface, args, ty, memberName); ok {
+					final := c.finalizeMemberAccessType(expr, wrapType, methodType)
 					return diags, final
 				}
 			}
@@ -557,6 +559,16 @@ func (c *Checker) checkMemberAccessWithOptions(env *Environment, expr *ast.Membe
 			final := c.finalizeMemberAccessType(expr, wrapType, fn)
 			return diags, final
 		}
+		if res := c.interfaceFromName("Iterator"); res.err == "" {
+			elem := ty.Element
+			if elem == nil {
+				elem = UnknownType{}
+			}
+			if methodType, ok := c.interfaceMemberFunction(res.iface, []Type{elem}, ty, memberName); ok {
+				final := c.finalizeMemberAccessType(expr, wrapType, methodType)
+				return diags, final
+			}
+		}
 		allowMethodSets := allowMethodSetsForMember(env, memberName, receiverScopeNames)
 		if fnType, ok, detail := c.lookupMethod(objectType, memberName, allowMethodSets, true); ok {
 			final := c.finalizeMemberAccessType(expr, wrapType, fnType)
@@ -585,7 +597,7 @@ func (c *Checker) checkMemberAccessWithOptions(env *Environment, expr *ast.Membe
 			})
 			break
 		}
-		fnType, procDiags := procMemberFunction(memberName, ty, expr)
+		fnType, procDiags := c.procMemberFunction(memberName, ty, expr)
 		diags = append(diags, procDiags...)
 		final := c.finalizeMemberAccessType(expr, wrapType, fnType)
 		return diags, final
@@ -597,7 +609,7 @@ func (c *Checker) checkMemberAccessWithOptions(env *Environment, expr *ast.Membe
 			})
 			break
 		}
-		fnType, futureDiags := futureMemberFunction(memberName, ty, expr)
+		fnType, futureDiags := c.futureMemberFunction(memberName, ty, expr)
 		diags = append(diags, futureDiags...)
 		final := c.finalizeMemberAccessType(expr, wrapType, fnType)
 		return diags, final
@@ -749,4 +761,30 @@ func allowMethodSetsForMember(env *Environment, memberName string, receiverNames
 		}
 	}
 	return false
+}
+
+func (c *Checker) interfaceMemberFunction(iface InterfaceType, args []Type, self Type, name string) (FunctionType, bool) {
+	if iface.InterfaceName == "" || iface.Methods == nil {
+		return FunctionType{}, false
+	}
+	methodType, ok := iface.Methods[name]
+	if !ok {
+		return FunctionType{}, false
+	}
+	subst := map[string]Type{"Self": self}
+	if len(iface.TypeParams) > 0 {
+		for i, spec := range iface.TypeParams {
+			if spec.Name == "" {
+				continue
+			}
+			arg := Type(UnknownType{})
+			if i < len(args) && args[i] != nil {
+				arg = args[i]
+			}
+			subst[spec.Name] = arg
+		}
+	}
+	methodType = substituteFunctionType(methodType, subst)
+	methodType = bindMethodType(methodType)
+	return methodType, true
 }

@@ -137,7 +137,7 @@ export type HashMapValue = Extract<RuntimeValue, { kind: "hash_map" }>;
 export type HashMapEntry = { key: RuntimeValue; value: RuntimeValue };
 
 export type ConstraintSpec = {
-  typeParam: string;
+  subjectExpr: AST.TypeExpression;
   ifaceType: AST.TypeExpression;
 };
 

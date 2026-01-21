@@ -32,7 +32,7 @@ import { ExitSignal } from "../src/interpreter/signals";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_ROOT = path.resolve(__dirname, "../../../fixtures/ast");
-const TYPECHECK_MODE = resolveTypecheckMode(process.env.ABLE_TYPECHECK_FIXTURES);
+const TYPECHECK_MODE = resolveTypecheckMode(process.env.ABLE_TYPECHECK_FIXTURES ?? "strict");
 const TYPECHECK_BASELINE_PATH = path.join(FIXTURE_ROOT, "typecheck-baseline.json");
 const WRITE_TYPECHECK_BASELINE = process.argv.includes("--write-typecheck-baseline");
 const FIXTURE_FILTER = process.env.ABLE_FIXTURE_FILTER?.trim() ?? null;
@@ -312,6 +312,17 @@ async function runExecFixture(dir: string): Promise<FixtureResult> {
     );
   }
 
+  const expected = manifest.expect ?? {};
+  const expectsRuntime =
+    expected.result !== undefined ||
+    expected.stdout !== undefined ||
+    expected.stderr !== undefined ||
+    expected.exit !== undefined ||
+    expected.errors !== undefined;
+  if (!expectsRuntime && expected.typecheckDiagnostics !== undefined) {
+    return { name: `exec/${path.basename(dir)}`, description: manifest.description };
+  }
+
   const stdout: string[] = [];
   const nilValue: V11.RuntimeValue = { kind: "nil", value: null };
   interpreter.globals.define(
@@ -351,7 +362,6 @@ async function runExecFixture(dir: string): Promise<FixtureResult> {
     }
   }
 
-  const expected = manifest.expect ?? {};
   if (runtimeError) {
     if (expected.exit === undefined || exitCode !== expected.exit) {
       throw runtimeError instanceof Error ? runtimeError : new Error(String(runtimeError));

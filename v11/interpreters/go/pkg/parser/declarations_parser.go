@@ -553,14 +553,17 @@ func (ctx *parseContext) parseInterfaceDefinition(node *sitter.Node) (ast.Statem
 		return nil, err
 	}
 
-	compositeNode := node.ChildByFieldName("composite")
+	baseNode := node.ChildByFieldName("base_interfaces")
+	if baseNode == nil {
+		baseNode = node.ChildByFieldName("composite")
+	}
 	signatures := make([]*ast.FunctionSignature, 0)
 	for i := uint(0); i < node.NamedChildCount(); i++ {
 		child := node.NamedChild(i)
 		if child == nil {
 			continue
 		}
-		if sameNode(child, nameNode) || sameNode(child, typeParamsNode) || sameNode(child, selfNode) || sameNode(child, whereNode) || sameNode(child, compositeNode) {
+		if sameNode(child, nameNode) || sameNode(child, typeParamsNode) || sameNode(child, selfNode) || sameNode(child, whereNode) || sameNode(child, baseNode) {
 			continue
 		}
 		if child.Kind() != "interface_member" {
@@ -585,8 +588,8 @@ func (ctx *parseContext) parseInterfaceDefinition(node *sitter.Node) (ast.Statem
 	}
 
 	var baseInterfaces []ast.TypeExpression
-	if compositeNode != nil {
-		bounds, err := parseTypeBoundList(compositeNode, source)
+	if baseNode != nil {
+		bounds, err := parseTypeBoundList(baseNode, source)
 		if err != nil {
 			return nil, err
 		}

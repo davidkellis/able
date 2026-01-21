@@ -28,6 +28,7 @@ export function buildRegistryContext(checker: any) {
     implementationIndex: checker.implementationIndex,
     declarationOrigins: checker.declarationOrigins,
     declarationsContext: checker.declarationsContext,
+    currentPackageName: checker.currentPackageName,
     getIdentifierName: (identifier: AST.Identifier | null | undefined) => checker.getIdentifierName(identifier),
     report: checker.report.bind(checker),
   };
@@ -42,6 +43,7 @@ export function buildTypeResolutionContext(checker: any) {
     getUnionDefinition: (name: string) => checker.unionDefinitions.get(name),
     hasUnionDefinition: (name: string) => checker.unionDefinitions.has(name),
     getIdentifierName: (identifier: AST.Identifier | null | undefined) => checker.getIdentifierName(identifier),
+    report: checker.report.bind(checker),
   };
 }
 
@@ -106,6 +108,8 @@ export function buildCheckerContext(checker: any): StatementContext {
 
 export function buildImplementationContext(checker: any): ImplementationContext {
   const ctx = checker.declarationsContext as ImplementationContext;
+  ctx.getTypeAlias = (name: string) => checker.typeAliases.get(name);
+  ctx.getUnionDefinition = (name: string) => checker.unionDefinitions.get(name);
   ctx.formatImplementationTarget = checker.formatImplementationTarget.bind(checker);
   ctx.formatImplementationLabel = checker.formatImplementationLabel.bind(checker);
   ctx.registerMethodSet = (record) => {

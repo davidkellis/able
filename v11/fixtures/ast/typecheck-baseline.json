@@ -18,7 +18,9 @@
   "concurrency/channel_send_receive_progress": [],
   "concurrency/fairness_proc_future": [],
   "concurrency/fairness_proc_round_robin": [],
-  "concurrency/future_cancel_nested": [],
+  "concurrency/future_cancel_nested": [
+    "typechecker: v11/fixtures/ast/concurrency/future_cancel_nested/source.able:26:1 typechecker: future handles do not support cancel()"
+  ],
   "concurrency/future_error_cause": [],
   "concurrency/future_memoization": [],
   "concurrency/future_time_slicing": [],
@@ -56,7 +58,6 @@
     "typechecker: v11/fixtures/ast/errors/alias_reexport_impl_ambiguity/source.able:8:1 typechecker: ambiguous implementations of Taggable for Widget: impl Taggable for Widget"
   ],
   "errors/alias_reexport_method_ambiguity": [
-    "typechecker: v11/fixtures/ast/errors/alias_reexport_method_ambiguity/alias_b.able:5:1 typechecker: duplicate declaration 'Local' (previous declaration at v11/fixtures/ast/errors/alias_reexport_method_ambiguity/alias_a.able:5:1)",
     "typechecker: v11/fixtures/ast/errors/alias_reexport_method_ambiguity/source.able:8:1 typechecker: ambiguous overload for tag"
   ],
   "errors/array_destructure_mismatch": [],
@@ -73,7 +74,7 @@
     "typechecker: v11/fixtures/ast/errors/implicit_generic_redeclaration/source.able:2:3 typechecker: cannot redeclare inferred type parameter 'T' inside fn wrap (inferred at v11/fixtures/ast/errors/implicit_generic_redeclaration/source.able:1:16)"
   ],
   "errors/implicit_generic_where_ambiguity": [
-    "typechecker: v11/fixtures/ast/errors/implicit_generic_where_ambiguity/source.able:9:46 typechecker: cannot infer type parameter 'Point' because a type with the same name exists; declare it explicitly or qualify the type"
+    "typechecker: v11/fixtures/ast/errors/implicit_generic_where_ambiguity/source.able:9:53 typechecker: fn format_point constraint on Point is not satisfied: Point does not implement Show"
   ],
   "errors/interface_hkt_constructor_mismatch": [
     "typechecker: v11/fixtures/ast/errors/interface_hkt_constructor_mismatch/source.able:8:1 typechecker: impl Mapper for Array i32 must match interface self type 'F _'"

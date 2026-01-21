@@ -7,6 +7,7 @@ export interface ImplementationObligation {
   interfaceName: string;
   interfaceType?: AST.TypeExpression;
   context: string;
+  subjectExpr?: AST.TypeExpression;
 }
 
 export interface ImplementationRecord {

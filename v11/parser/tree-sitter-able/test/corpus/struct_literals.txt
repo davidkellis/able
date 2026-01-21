@@ -51,8 +51,12 @@ fn build_structs(base, x, y) {
                                               (postfix_expression
                                                 (primary_expression
                                                   (struct_literal
-                                                    (qualified_identifier
-                                                      (identifier))
+                                                    (type_suffix
+                                                      (type_prefix
+                                                        (type_atom
+                                                          (type_identifier
+                                                            (qualified_identifier
+                                                              (identifier))))))
                                                     (struct_literal_element
                                                       (struct_literal_field
                                                         (identifier)
@@ -107,8 +111,12 @@ fn build_structs(base, x, y) {
                                               (postfix_expression
                                                 (primary_expression
                                                   (struct_literal
-                                                    (qualified_identifier
-                                                      (identifier))
+                                                    (type_suffix
+                                                      (type_prefix
+                                                        (type_atom
+                                                          (type_identifier
+                                                            (qualified_identifier
+                                                              (identifier))))))
                                                     (struct_literal_element
                                                       (struct_literal_spread
                                                         (low_precedence_pipe_expression
@@ -192,30 +200,15 @@ fn build_structs(base, x, y) {
                                               (postfix_expression
                                                 (primary_expression
                                                   (struct_literal
-                                                    (qualified_identifier
-                                                      (identifier))
+                                                    (type_suffix
+                                                      (type_prefix
+                                                        (type_atom
+                                                          (type_identifier
+                                                            (qualified_identifier
+                                                              (identifier))))))
                                                     (struct_literal_element
-                                                      (low_precedence_pipe_expression
-                                                        (assignment_expression
-                                                          (pipe_expression
-                                                            (matchable_expression
-                                                              (pipe_operand_base
-                                                                (range_expression
-                                                                  (logical_or_expression
-                                                                    (logical_and_expression
-                                                                      (bitwise_or_expression
-                                                                        (bitwise_xor_expression
-                                                                          (bitwise_and_expression
-                                                                            (equality_expression
-                                                                              (comparison_expression
-                                                                                (shift_expression
-                                                                                  (additive_expression
-                                                                                    (multiplicative_expression
-                                                                                      (unary_expression
-                                                                                        (exponent_expression
-                                                                                          (postfix_expression
-                                                                                            (primary_expression
-                                                                                              (identifier))))))))))))))))))))))
+                                                      (struct_literal_shorthand_field
+                                                        (identifier)))
                                                     (struct_literal_element
                                                       (struct_literal_shorthand_field
                                                         (identifier))))))))))))))))))))))))))
@@ -246,8 +239,12 @@ fn build_structs(base, x, y) {
                                               (postfix_expression
                                                 (primary_expression
                                                   (struct_literal
-                                                    (qualified_identifier
-                                                      (identifier))
+                                                    (type_suffix
+                                                      (type_prefix
+                                                        (type_atom
+                                                          (type_identifier
+                                                            (qualified_identifier
+                                                              (identifier))))))
                                                     (struct_literal_element
                                                       (low_precedence_pipe_expression
                                                         (assignment_expression

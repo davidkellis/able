@@ -5,6 +5,8 @@ import able.spec.*
 import able.kernel.{Array}
 import able.collections.array
 import able.collections.enumerable.{Indexed}
+import able.collections.hash_set.{HashSet}
+import able.core.iteration.{IteratorEnd}
 import able.text.string.{String}
 
 describe("Enumerable helpers") { suite =>
@@ -101,5 +103,49 @@ describe("Enumerable helpers") { suite =>
         expect(entry.index).to(eq(1))
       }
     }
+  }
+
+  suite.it("distinguishes eager and lazy mapping") { _ctx =>
+    values: Array i32 := Array.new()
+    values.push(1)
+    values.push(2)
+
+    counter := 0
+    eager := values.map(fn(value: i32) -> i32 {
+      counter = counter + 1
+      value * 2
+    })
+    expect(counter).to(eq(2))
+    expect(eager.len()).to(eq(2))
+
+    counter = 0
+    lazy := values.lazy().map(fn(value: i32) -> i32 {
+      counter = counter + 1
+      value * 2
+    })
+    expect(counter).to(eq(0))
+    lazy.next() match {
+      case _: i32 => {},
+      case _ => { raise AssertionError { message: "expected first lazy value", details: nil, location: nil } }
+    }
+    expect(counter).to(eq(1))
+    lazy.next() match {
+      case _: i32 => {},
+      case _ => { raise AssertionError { message: "expected second lazy value", details: nil, location: nil } }
+    }
+    expect(counter).to(eq(2))
+    lazy.next() match {
+      case IteratorEnd {} => {},
+      case _ => { raise AssertionError { message: "expected lazy iterator to end", details: nil, location: nil } }
+    }
+  }
+
+  suite.it("preserves collection type for eager map") { _ctx =>
+    set: HashSet i32 := HashSet.new()
+    set.add(1)
+    set.add(2)
+    mapped := set.map(fn(value: i32) -> i32 { value + 1 })
+    expect(mapped.contains(2)).to(be_truthy())
+    expect(mapped.contains(3)).to(be_truthy())
   }
 }

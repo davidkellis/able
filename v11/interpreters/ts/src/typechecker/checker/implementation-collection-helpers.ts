@@ -5,6 +5,7 @@ import { typeInfoToTypeExpression } from "./type-expression-utils";
 export function canonicalizeTargetType(
   ctx: ImplementationContext,
   expr: AST.TypeExpression | null | undefined,
+  stripTypeArguments = false,
 ): AST.TypeExpression | null | undefined {
   const expanded = expandTypeAliases(ctx, expr);
   switch (expanded?.type) {
@@ -14,6 +15,9 @@ export function canonicalizeTargetType(
         const binding = ctx.lookupIdentifier?.(name);
         const canonical = binding ? typeInfoToTypeExpression(binding) : null;
         if (canonical) {
+          if (stripTypeArguments && canonical.type === "GenericTypeExpression") {
+            return canonical.base;
+          }
           return canonical;
         }
       }
@@ -22,7 +26,7 @@ export function canonicalizeTargetType(
     case "GenericTypeExpression":
       return {
         ...expanded,
-        base: canonicalizeTargetType(ctx, expanded.base) ?? expanded.base,
+        base: canonicalizeTargetType(ctx, expanded.base, true) ?? expanded.base,
         arguments: (expanded.arguments ?? []).map((arg) => canonicalizeTargetType(ctx, arg) ?? arg),
       };
     case "NullableTypeExpression":
@@ -56,7 +60,20 @@ export function expandTypeAliases(
       const alias = ctx.getTypeAlias(name);
       if (!alias?.targetType) return expr;
       seen.add(name);
-      const expanded = expandTypeAliases(ctx, alias.targetType, seen);
+      let expanded: AST.TypeExpression | null | undefined;
+      if (Array.isArray(alias.genericParams) && alias.genericParams.length > 0) {
+        const substitutions = new Map<string, AST.TypeExpression>();
+        for (const param of alias.genericParams) {
+          const paramName = ctx.getIdentifierName(param?.name);
+          if (paramName) {
+            substitutions.set(paramName, AST.wildcardTypeExpression());
+          }
+        }
+        const substituted = substituteTypeExpression(ctx, alias.targetType, substitutions, seen);
+        expanded = expandTypeAliases(ctx, substituted, seen) ?? substituted;
+      } else {
+        expanded = expandTypeAliases(ctx, alias.targetType, seen);
+      }
       seen.delete(name);
       return expanded ?? expr;
     }

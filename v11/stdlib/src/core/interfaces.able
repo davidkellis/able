@@ -34,11 +34,12 @@ type PartialOrd Rhs = KernelPartialOrd Rhs;
 type Ord = KernelOrd;
 type Hash = KernelHash;
 type Hasher = KernelHasherInterface;
+Eq := KernelEq
 
 ## Default constructor helper.
 fn default<T: Default>() -> T { T.default() }
 
-## Types that can absorb elements (used by Iterable.collect).
+## Types that can absorb elements (used by Iterator.collect).
 interface Extend T for Self {
   fn extend(self: Self, value: T) -> Self;
 }

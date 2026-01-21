@@ -97,10 +97,23 @@ fn check_for_each() -> void {
   assert(value_sum == 25, "for_each should visit every value")
 }
 
+fn check_map_values() -> void {
+  map := HashMap.new()
+  map.set(1, 10)
+  map.set(2, 20)
+
+  doubled := map.map(fn(value: i32) -> i32 { value * 2 })
+  expect_i32(doubled.get(1), 20, "map should transform values")
+  expect_i32(doubled.get(2), 40, "map should preserve keys")
+  assert(doubled.size() == 2, "map should keep entry count")
+  expect_i32(map.get(1), 10, "map should not mutate the source")
+}
+
 fn main() -> void {
   check_basic_set_and_get()
   check_overwrite_and_remove()
   check_resize_and_lookup()
   check_index_operator_and_clear()
   check_for_each()
+  check_map_values()
 }

@@ -6,17 +6,9 @@ func (c *Checker) checkPropagationExpression(env *Environment, expr *ast.Propaga
 	bodyDiags, bodyType := c.checkExpression(env, expr.Expression)
 	var diags []Diagnostic
 	diags = append(diags, bodyDiags...)
-
-	if union, ok := bodyType.(UnionLiteralType); ok {
-		if len(union.Members) == 2 && unionContainsProcError(union) {
-			// Treat propagation as extracting the success branch.
-			success := unionSuccessBranch(union)
-			c.infer.set(expr, success)
-			return diags, success
-		}
-	}
-	c.infer.set(expr, bodyType)
-	return diags, bodyType
+	success := stripOptionOrResultType(c, bodyType)
+	c.infer.set(expr, success)
+	return diags, success
 }
 
 func unionContainsProcError(union UnionLiteralType) bool {
@@ -38,6 +30,49 @@ func unionSuccessBranch(union UnionLiteralType) Type {
 		}
 	}
 	return UnknownType{}
+}
+
+func stripOptionOrResultType(c *Checker, t Type) Type {
+	if t == nil || isUnknownType(t) {
+		return t
+	}
+	switch v := t.(type) {
+	case NullableType:
+		return stripOptionOrResultType(c, v.Inner)
+	case AppliedType:
+		if name, ok := structName(v.Base); ok && name == "Result" && len(v.Arguments) > 0 {
+			return stripOptionOrResultType(c, v.Arguments[0])
+		}
+		if unionBase, ok := v.Base.(UnionType); ok {
+			inst := instantiateUnionTypeArgs(unionBase, v.Arguments)
+			return stripOptionOrResultType(c, inst)
+		}
+	case UnionLiteralType:
+		var members []Type
+		for _, member := range v.Members {
+			if member == nil || isUnknownType(member) {
+				continue
+			}
+			if isFailureType(c, member) {
+				continue
+			}
+			members = append(members, stripOptionOrResultType(c, member))
+		}
+		return buildUnionType(members...)
+	case UnionType:
+		var members []Type
+		for _, member := range v.Variants {
+			if member == nil || isUnknownType(member) {
+				continue
+			}
+			if isFailureType(c, member) {
+				continue
+			}
+			members = append(members, stripOptionOrResultType(c, member))
+		}
+		return buildUnionType(members...)
+	}
+	return t
 }
 
 func (c *Checker) lookupErrorType() Type {
@@ -110,44 +145,7 @@ func (c *Checker) checkOrElseExpression(env *Environment, expr *ast.OrElseExpres
 	exprDiags, exprType := c.checkExpression(env, expr.Expression)
 	diags = append(diags, exprDiags...)
 
-	var stripOptionOrResult func(t Type) Type
-	stripOptionOrResult = func(t Type) Type {
-		switch v := t.(type) {
-		case NullableType:
-			return stripOptionOrResult(v.Inner)
-		case AppliedType:
-			if name, ok := structName(v.Base); ok && name == "Result" && len(v.Arguments) > 0 {
-				return stripOptionOrResult(v.Arguments[0])
-			}
-		case UnionLiteralType:
-			var members []Type
-			for _, member := range v.Members {
-				if member == nil || isUnknownType(member) {
-					continue
-				}
-				if isFailureType(c, member) {
-					continue
-				}
-				members = append(members, stripOptionOrResult(member))
-			}
-			return buildUnionType(members...)
-		case UnionType:
-			var members []Type
-			for _, member := range v.Variants {
-				if member == nil || isUnknownType(member) {
-					continue
-				}
-				if isFailureType(c, member) {
-					continue
-				}
-				members = append(members, stripOptionOrResult(member))
-			}
-			return buildUnionType(members...)
-		}
-		return t
-	}
-
-	successType := stripOptionOrResult(exprType)
+	successType := stripOptionOrResultType(c, exprType)
 
 	handlerType := Type(PrimitiveType{Kind: PrimitiveNil})
 	handlerReturns := false

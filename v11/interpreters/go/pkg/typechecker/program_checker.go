@@ -8,6 +8,18 @@ import (
 	"able/interpreter-go/pkg/driver"
 )
 
+var reexportedSymbols = map[string]string{
+	"able.collections.array.Array":       "able.kernel.Array",
+	"able.collections.range.Range":       "able.kernel.Range",
+	"able.collections.range.RangeFactory": "able.kernel.RangeFactory",
+	"able.core.numeric.Ratio":            "able.kernel.Ratio",
+	"able.concurrency.Channel":           "able.kernel.Channel",
+	"able.concurrency.Mutex":             "able.kernel.Mutex",
+	"able.concurrency.Awaitable":          "able.kernel.Awaitable",
+	"able.concurrency.AwaitWaker":         "able.kernel.AwaitWaker",
+	"able.concurrency.AwaitRegistration":  "able.kernel.AwaitRegistration",
+}
+
 // ProgramChecker coordinates typechecking across dependency-ordered modules.
 type ProgramChecker struct {
 	exports map[string]*packageExports
@@ -80,13 +92,17 @@ func (pc *ProgramChecker) collectAliasDuplicateDiagnostics(mod *driver.Module, s
 			continue
 		}
 		name := def.ID.Name
+		key := name
+		if mod.Package != "" {
+			key = mod.Package + "::" + name
+		}
 		var origin string
 		if mod.NodeOrigins != nil {
 			if path, ok := mod.NodeOrigins[def]; ok {
 				origin = path
 			}
 		}
-		if prev, ok := seen[name]; ok {
+		if prev, ok := seen[key]; ok {
 			if prev.path != "" && origin != "" && prev.path == origin {
 				continue
 			}
@@ -100,7 +116,7 @@ func (pc *ProgramChecker) collectAliasDuplicateDiagnostics(mod *driver.Module, s
 			})
 			continue
 		}
-		seen[name] = aliasDeclInfo{node: def, origins: mod.NodeOrigins, path: origin}
+		seen[key] = aliasDeclInfo{node: def, origins: mod.NodeOrigins, path: origin}
 	}
 	return diags
 }
@@ -312,6 +328,73 @@ func (pc *ProgramChecker) clonePackageSummaries() map[string]PackageSummary {
 	return result
 }
 
+func (pc *ProgramChecker) resolveReexportTarget(target string) (Type, bool) {
+	if target == "" {
+		return nil, false
+	}
+	parts := strings.Split(target, ".")
+	if len(parts) < 2 {
+		return nil, false
+	}
+	pkg := strings.Join(parts[:len(parts)-1], ".")
+	sym := parts[len(parts)-1]
+	export, ok := pc.exports[pkg]
+	if !ok || export == nil || len(export.symbols) == 0 {
+		return nil, false
+	}
+	typ, ok := export.symbols[sym]
+	if !ok || typ == nil {
+		return nil, false
+	}
+	return typ, true
+}
+
+func (pc *ProgramChecker) resolveReexportedSymbol(pkgName, symbol string) (Type, bool) {
+	target, ok := reexportedSymbols[pkgName+"."+symbol]
+	if !ok {
+		return nil, false
+	}
+	return pc.resolveReexportTarget(target)
+}
+
+func (pc *ProgramChecker) addReexportsToEnv(pkgName string, env *Environment) {
+	if env == nil || pkgName == "" {
+		return
+	}
+	prefix := pkgName + "."
+	for fq, target := range reexportedSymbols {
+		if !strings.HasPrefix(fq, prefix) {
+			continue
+		}
+		name := strings.TrimPrefix(fq, prefix)
+		if env.HasInCurrentScope(name) {
+			continue
+		}
+		if typ, ok := pc.resolveReexportTarget(target); ok {
+			env.Define(name, typ)
+		}
+	}
+}
+
+func (pc *ProgramChecker) addReexportsToSymbols(pkgName string, symbols map[string]Type) {
+	if pkgName == "" || symbols == nil {
+		return
+	}
+	prefix := pkgName + "."
+	for fq, target := range reexportedSymbols {
+		if !strings.HasPrefix(fq, prefix) {
+			continue
+		}
+		name := strings.TrimPrefix(fq, prefix)
+		if _, exists := symbols[name]; exists {
+			continue
+		}
+		if typ, ok := pc.resolveReexportTarget(target); ok {
+			symbols[name] = typ
+		}
+	}
+}
+
 func (pc *ProgramChecker) buildPrelude(imports []*ast.ImportStatement, currentPackage string) (*Environment, []ImplementationSpec, []MethodSetSpec, []Diagnostic) {
 	if len(imports) == 0 {
 		return nil, nil, nil, nil
@@ -385,6 +468,7 @@ func (pc *ProgramChecker) buildPrelude(imports []*ast.ImportStatement, currentPa
 				env.Define(name, typ)
 				hasScope = true
 			}
+			pc.addReexportsToEnv(pkgName, env)
 			continue
 		}
 
@@ -398,6 +482,11 @@ func (pc *ProgramChecker) buildPrelude(imports []*ast.ImportStatement, currentPa
 					alias = sel.Alias.Name
 				}
 				if typ, exists := export.symbols[sel.Name.Name]; exists && typ != nil {
+					env.Define(alias, typ)
+					hasScope = true
+					continue
+				}
+				if typ, ok := pc.resolveReexportedSymbol(pkgName, sel.Name.Name); ok && typ != nil {
 					env.Define(alias, typ)
 					hasScope = true
 					continue
@@ -434,7 +523,12 @@ func (pc *ProgramChecker) buildPrelude(imports []*ast.ImportStatement, currentPa
 			Symbols: nil,
 		}
 		if export != nil {
-			pkgType.Symbols = export.symbols
+			symbols := make(map[string]Type, len(export.symbols))
+			for name, typ := range export.symbols {
+				symbols[name] = typ
+			}
+			pc.addReexportsToSymbols(pkgName, symbols)
+			pkgType.Symbols = symbols
 			pkgType.PrivateSymbols = export.private
 		} else {
 			pkgType.Symbols = map[string]Type{}
@@ -528,27 +622,8 @@ func (pc *ProgramChecker) captureExports(mod *driver.Module, checker *Checker) {
 		}
 		export.impls = append(export.impls, impl)
 	}
-	for _, impl := range export.impls {
-		privacy := make(map[string]bool)
-		if impl.Definition != nil {
-			for _, fn := range impl.Definition.Definitions {
-				if fn == nil || fn.ID == nil {
-					continue
-				}
-				privacy[fn.ID.Name] = fn.IsPrivate
-			}
-		}
-		for name, fn := range impl.Methods {
-			export.functions[name] = fn
-			if privacy[name] {
-				export.private[name] = fn
-				delete(export.symbols, name)
-			} else {
-				export.symbols[name] = fn
-				delete(export.private, name)
-			}
-		}
-	}
+	// Note: impl methods are not exported as standalone symbols. They are
+	// resolved via interface/method lookup instead of importable names.
 	for _, methods := range checker.ModuleMethodSets() {
 		export.methodSets = append(export.methodSets, methods)
 	}
