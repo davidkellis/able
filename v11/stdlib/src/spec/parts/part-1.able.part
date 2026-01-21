@@ -2,6 +2,7 @@ package spec
 
 import able.collections.array.{Array}
 import able.core.interfaces.{Error}
+import able.text.string.{String}
 import able.spec.assertions.{
   AssertionError,
   BeFalseMatcher,
@@ -77,10 +78,10 @@ struct SuiteConfig {
 }
 
 struct SuiteState {
-  key: string,
-  path: Array string,
-  module_path: string,
-  tags: Array string,
+  key: String,
+  path: Array String,
+  module_path: String,
+  tags: Array String,
   before_each: Array (ExampleContext -> void),
   after_each: Array (ExampleContext -> void),
   before_all: Array (ExampleContext -> void),
@@ -89,8 +90,8 @@ struct SuiteState {
 }
 
 struct SuiteDefinition {
-  key: string,
-  path: Array string,
+  key: String,
+  path: Array String,
   before_all: Array (ExampleContext -> void),
   after_all: Array (ExampleContext -> void)
 }
@@ -102,15 +103,15 @@ struct SuiteBuilder {
 struct ExampleContext {}
 
 struct ExampleDefinition {
-  id: string,
-  display_name: string,
-  suite_key: string,
-  suite_path: Array string,
-  tags: Array string,
+  id: String,
+  display_name: String,
+  suite_key: String,
+  suite_path: Array String,
+  tags: Array String,
   before_each: Array (ExampleContext -> void),
   after_each: Array (ExampleContext -> void),
   body: ExampleContext -> void,
-  module_path: string,
+  module_path: String,
   skip: bool,
   focus: bool
 }
@@ -122,7 +123,7 @@ EXAMPLES: Array ExampleDefinition := Array.new()
 EXAMPLES_ARCHIVE: Array ExampleDefinition := Array.new()
 
 struct ExampleOptions {
-  tags: Array string,
+  tags: Array String,
   skip: bool,
   focus: bool
 }
@@ -132,18 +133,18 @@ fn example_options() -> ExampleOptions {
 }
 
 methods ExampleOptions {
-  fn tag(self: ExampleOptions, tag: string) -> ExampleOptions {
+  fn tag(self: ExampleOptions, tag: String) -> ExampleOptions {
     self.tags.push(tag)
     self
   }
 
-  fn tags(self: ExampleOptions, tags: Array string) -> ExampleOptions {
+  fn tags(self: ExampleOptions, tags: Array String) -> ExampleOptions {
     idx := 0
     loop {
       if idx >= tags.len() { break }
       tags.get(idx) match {
         case nil => {},
-        case value: string => self.tags.push(value)
+        case value: String => self.tags.push(value)
       }
       idx = idx + 1
     }
@@ -169,7 +170,7 @@ fn eq<T>(expected: T) -> EqMatcher T {
   assertions_eq(expected)
 }
 
-fn eq_string(expected: string) -> StringEqMatcher {
+fn eq_string(expected: String) -> StringEqMatcher {
   assertions_eq_string(expected)
 }
 
@@ -209,7 +210,7 @@ fn be_less_than(value: i64) -> BeLessThanMatcher i64 {
   assertions_be_less_than(value)
 }
 
-fn match_regex(pattern: string) -> MatchRegexMatcher {
+fn match_regex(pattern: String) -> MatchRegexMatcher {
   assertions_match_regex(pattern)
 }
 
@@ -217,31 +218,31 @@ fn be_between(lower: i64, upper: i64) -> BeBetweenMatcher i64 {
   assertions_be_between(lower, upper)
 }
 
-fn start_with(prefix: string) -> StartsWithMatcher {
+fn start_with(prefix: String) -> StartsWithMatcher {
   assertions_start_with(prefix)
 }
 
-fn end_with(suffix: string) -> EndsWithMatcher {
+fn end_with(suffix: String) -> EndsWithMatcher {
   assertions_end_with(suffix)
 }
 
-fn include_substring(substring: string) -> IncludeSubstringMatcher {
+fn include_substring(substring: String) -> IncludeSubstringMatcher {
   assertions_include_substring(substring)
 }
 
 fn matcher<T>(
-  message: string,
-  negated_message: string,
+  message: String,
+  negated_message: String,
   predicate: T -> bool
 ) -> CustomMatcher T {
   assertions_matcher(message, negated_message, predicate)
 }
 
 fn matcher_with_details<T>(
-  message: string,
-  negated_message: string,
+  message: String,
+  negated_message: String,
   predicate: T -> bool,
-  detail: T -> ?string
+  detail: T -> ?String
 ) -> CustomMatcher T {
   assertions_matcher_with_details(message, negated_message, predicate, detail)
 }
@@ -250,6 +251,6 @@ fn raise_error() -> RaiseErrorMatcher {
   assertions_raise_error()
 }
 
-fn raise_error_with_message(message: string) -> RaiseErrorMatcher {
+fn raise_error_with_message(message: String) -> RaiseErrorMatcher {
   assertions_raise_error_with_message(message)
 }

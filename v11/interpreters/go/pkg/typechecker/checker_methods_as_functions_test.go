@@ -181,7 +181,7 @@ func TestMethodFunctionEnforcesMethodSetConstraints(t *testing.T) {
 		},
 		nil,
 		[]*ast.WhereClauseConstraint{
-			ast.WhereConstraint("Self", ast.InterfaceConstr(ast.Ty("Display"))),
+			ast.WhereConstraint(ast.Ty("Self"), ast.InterfaceConstr(ast.Ty("Display"))),
 		},
 	)
 	call := ast.CallExpr(

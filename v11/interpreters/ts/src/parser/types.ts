@@ -115,6 +115,15 @@ export function parseTypeExpression(ctx: ParseContext, node: Node | null | undef
             if (typeArgs) args.push(...typeArgs);
             continue;
           }
+          if (child.type === "type_generic_application") {
+            for (let j = 0; j < child.namedChildCount; j++) {
+              const argNode = child.namedChild(j);
+              if (!argNode || !argNode.isNamed || isIgnorableNode(argNode)) continue;
+              const arg = parseTypeExpression(ctx, argNode);
+              if (arg) args.push(arg);
+            }
+            continue;
+          }
           const arg = parseTypeExpression(ctx, child);
           if (arg) args.push(arg);
         }
@@ -368,15 +377,18 @@ export function parseWhereConstraint(ctx: ParseContext, node: Node): WhereClause
     throw new MapperError("parser: empty where constraint");
   }
   const { source } = ctx;
-  const nameNode = firstNamedChild(node);
-  if (!nameNode || nameNode.type !== "identifier") {
-    throw new MapperError("parser: where constraint missing identifier");
+  const subjectNode = node.childForFieldName("subject") ?? firstNamedChild(node);
+  if (!subjectNode) {
+    throw new MapperError("parser: where constraint missing subject");
   }
-  const name = parseIdentifier(nameNode, source);
+  const subject = ctx.parseTypeExpression(subjectNode);
+  if (!subject) {
+    throw new MapperError("parser: where constraint subject must be a type expression");
+  }
   let constraintNode: Node | null = null;
   for (let i = 0; i < node.namedChildCount; i++) {
     const child = node.namedChild(i);
-    if (!child || isIgnorableNode(child) || sameNode(child, nameNode)) continue;
+    if (!child || isIgnorableNode(child) || sameNode(child, subjectNode)) continue;
     constraintNode = child;
     break;
   }
@@ -385,5 +397,5 @@ export function parseWhereConstraint(ctx: ParseContext, node: Node): WhereClause
     throw new MapperError("parser: where constraint missing bounds");
   }
   const interfaceConstraints = typeExprs.map(expr => inheritMetadata(AST.interfaceConstraint(expr), expr));
-  return annotate(AST.whereClauseConstraint(name, interfaceConstraints), node) as WhereClauseConstraint;
+  return annotate(AST.whereClauseConstraint(subject, interfaceConstraints), node) as WhereClauseConstraint;
 }

@@ -115,10 +115,10 @@ func NewGenericParameter(name *Identifier, constraints []*InterfaceConstraint) *
 type WhereClauseConstraint struct {
 	nodeImpl
 
-	TypeParam   *Identifier            `json:"typeParam"`
+	TypeParam   TypeExpression         `json:"typeParam"`
 	Constraints []*InterfaceConstraint `json:"constraints"`
 }
 
-func NewWhereClauseConstraint(typeParam *Identifier, constraints []*InterfaceConstraint) *WhereClauseConstraint {
+func NewWhereClauseConstraint(typeParam TypeExpression, constraints []*InterfaceConstraint) *WhereClauseConstraint {
 	return &WhereClauseConstraint{nodeImpl: newNodeImpl(NodeWhereClauseConstraint), TypeParam: typeParam, Constraints: constraints}
 }

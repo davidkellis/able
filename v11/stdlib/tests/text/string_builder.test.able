@@ -54,4 +54,25 @@ describe("StringBuilder") { suite =>
       case err: Error => { raise err }
     }
   }
+
+  suite.it("maps and filters builder chars eagerly") { _ctx =>
+    builder := StringBuilder.new()
+    builder.push_string(make_string("abC"))
+
+    mapped := builder.map(fn(ch: char) -> char {
+      if ch == 'a' { return 'A' }
+      if ch == 'b' { return 'B' }
+      ch
+    })
+    mapped.finish() match {
+      case s: String => expect(s).to(eq("ABC")),
+      case err: Error => { raise err }
+    }
+
+    filtered := builder.filter(fn(ch: char) -> bool { ch != 'b' })
+    filtered.finish() match {
+      case s: String => expect(s).to(eq("aC")),
+      case err: Error => { raise err }
+    }
+  }
 }

@@ -374,8 +374,12 @@ func decodeWhereClauseConstraint(node map[string]any) (*ast.WhereClauseConstrain
 	if err != nil {
 		return nil, err
 	}
-	typeParam, ok := typeParamNode.(*ast.Identifier)
-	if !ok {
+	var typeParam ast.TypeExpression
+	if expr, ok := typeParamNode.(ast.TypeExpression); ok {
+		typeParam = expr
+	} else if id, ok := typeParamNode.(*ast.Identifier); ok {
+		typeParam = ast.NewSimpleTypeExpression(id)
+	} else {
 		return nil, fmt.Errorf("invalid where clause type param %T", typeParamNode)
 	}
 	constraintsRaw, _ := node["constraints"].([]any)

@@ -2,8 +2,10 @@ package persistent_map
 
 import able.kernel.{Array, KernelHasher}
 import able.collections.array
+import able.collections.map.{MapEntry}
 import able.collections.enumerable.{Enumerable}
-import able.core.interfaces.{Hash, Eq, Clone}
+import able.core.iteration.{Iterable}
+import able.core.interfaces.{Hash, Eq, Clone, Default, Extend}
 
 HAMT_BITS: i32 := 5
 HAMT_MASK: i32 := ((1_i32 .<< HAMT_BITS) + (-1_i32))
@@ -29,11 +31,6 @@ struct HamtNode K V {
   children: Array (HamtSlot K V)
 }
 
-struct MapEntry K V {
-  key: K,
-  value: V
-}
-
 struct HamtAssocResult K V {
   slot: HamtSlot K V,
   added: bool
@@ -44,18 +41,22 @@ struct HamtDissocResult K V {
   removed: bool
 }
 
+fn empty_node_like<K, V>(_sample: HamtSlot K V) -> HamtNode K V {
+  HamtNode { bitmap: 0_i32, children: Array.with_capacity(0) }
+}
+
 fn hash_key<K>(key: K) -> u64 where K: Hash {
   hasher := KernelHasher.new()
   key.hash(hasher)
   hasher.finish()
 }
 
-fn eq_key<K>(left: K, right: K) -> bool where K: Eq K {
-  left.eq(right)
+fn eq_key<K>(left: K, right: K) -> bool where K: Eq {
+  left == right
 }
 
 fn bitpos(hash: u64, shift: i32) -> i32 {
-  bit := ((hash .>> shift) .& (HAMT_MASK as u64)) as i32
+  bit := ((hash .>> (shift as u64)) .& (HAMT_MASK as u64)) as i32
   1_i32 .<< bit
 }
 
@@ -90,29 +91,31 @@ fn node_children_clone<K, V>(children: Array (HamtSlot K V)) -> Array (HamtSlot 
   cloned
 }
 
-fn node_with_child<K, V>(node: HamtNode K V, bit: i32, child: HamtSlot K V) -> HamtNode K V {
-  if (node.bitmap .& bit) != 0 {
-    idx := bitmap_index(node.bitmap, bit)
-    cloned := node_children_clone(node.children)
-    (cloned).write_slot(idx, child)
-    HamtNode { bitmap: node.bitmap, children: cloned }
-  } else {
-    idx := bitmap_index(node.bitmap, bit)
-    len := node.children.len()
-    new_children := Array.with_capacity(len + 1)
-    i := 0
-    loop {
-      if i >= len { break }
-      if i == idx {
+methods HamtNode K V {
+  fn with_child(self: Self, bit: i32, child: HamtSlot K V) -> HamtNode K V {
+    if (self.bitmap .& bit) != 0 {
+      idx := bitmap_index(self.bitmap, bit)
+      cloned := node_children_clone(self.children)
+      (cloned).write_slot(idx, child)
+      HamtNode { bitmap: self.bitmap, children: cloned }
+    } else {
+      idx := bitmap_index(self.bitmap, bit)
+      len := self.children.len()
+      new_children := Array.with_capacity(len + 1)
+      i := 0
+      loop {
+        if i >= len { break }
+        if i == idx {
+          new_children.push(child)
+        }
+        new_children.push(self.children.read_slot(i))
+        i = i + 1
+      }
+      if idx == len {
         new_children.push(child)
       }
-      new_children.push(node.children.read_slot(i))
-      i = i + 1
+      HamtNode { bitmap: self.bitmap .| bit, children: new_children }
     }
-    if idx == len {
-      new_children.push(child)
-    }
-    HamtNode { bitmap: node.bitmap .| bit, children: new_children }
   }
 }
 
@@ -141,24 +144,26 @@ fn create_branching_node<K, V>(shift: i32, leaf: HamtLeaf K V, other: HamtLeaf K
   bit1 := bitpos(leaf.hash, shift)
   bit2 := bitpos(other.hash, shift)
   if bit1 == bit2 {
-    child := create_branching_node(shift + HAMT_BITS, leaf, other)
-    children := Array.with_capacity(1)
-    children.push(child)
-    HamtSlotNode { node: HamtNode { bitmap: bit1, children: children } }
+    child: HamtSlot K V := create_branching_node(shift + HAMT_BITS, leaf, other)
+    node := empty_node_like(child)
+    node = (node).with_child(bit1, child)
+    HamtSlotNode { node }
   } else {
-    children := Array.with_capacity(2)
+    leaf_slot: HamtSlot K V := leaf
+    other_slot: HamtSlot K V := other
+    node := empty_node_like(leaf_slot)
     if bit1 < bit2 {
-      children.push(leaf)
-      children.push(other)
+      node = (node).with_child(bit1, leaf_slot)
+      node = (node).with_child(bit2, other_slot)
     } else {
-      children.push(other)
-      children.push(leaf)
+      node = (node).with_child(bit2, other_slot)
+      node = (node).with_child(bit1, leaf_slot)
     }
-    HamtSlotNode { node: HamtNode { bitmap: bit1 .| bit2, children: children } }
+    HamtSlotNode { node }
   }
 }
 
-fn assoc_slot<K, V>(slot: HamtSlot K V, hash: u64, key: K, value: V, shift: i32) -> HamtAssocResult K V where K: Hash + Eq K + Clone, V: Clone {
+fn assoc_slot<K, V>(slot: HamtSlot K V, hash: u64, key: K, value: V, shift: i32) -> HamtAssocResult K V where K: Hash + Eq + Clone, V: Clone {
   slot match {
     case HamtSlotEmpty {} => {
       HamtAssocResult {
@@ -266,7 +271,7 @@ fn assoc_slot<K, V>(slot: HamtSlot K V, hash: u64, key: K, value: V, shift: i32)
   }
 }
 
-fn dissoc_slot<K, V>(slot: HamtSlot K V, hash: u64, key: K, shift: i32) -> HamtDissocResult K V where K: Hash + Eq K + Clone, V: Clone {
+fn dissoc_slot<K, V>(slot: HamtSlot K V, hash: u64, key: K, shift: i32) -> HamtDissocResult K V where K: Hash + Eq + Clone, V: Clone {
   slot match {
     case HamtSlotEmpty {} => HamtDissocResult { slot: slot, removed: false },
     case HamtLeaf { key::existing_key, value, hash::existing_hash } => {
@@ -339,7 +344,7 @@ fn dissoc_slot<K, V>(slot: HamtSlot K V, hash: u64, key: K, shift: i32) -> HamtD
   }
 }
 
-fn hamt_get<K, V>(slot: HamtSlot K V, hash: u64, key: K, shift: i32) -> ?V where K: Hash + Eq K + Clone, V: Clone {
+fn hamt_get<K, V>(slot: HamtSlot K V, hash: u64, key: K, shift: i32) -> ?V where K: Hash + Eq + Clone, V: Clone {
   slot match {
     case HamtSlotEmpty {} => nil,
     case HamtLeaf { key::existing_key, value, hash::existing_hash } => {
@@ -365,7 +370,7 @@ fn hamt_get<K, V>(slot: HamtSlot K V, hash: u64, key: K, shift: i32) -> ?V where
   }
 }
 
-fn hamt_contains<K, V>(slot: HamtSlot K V, hash: u64, key: K, shift: i32) -> bool where K: Hash + Eq K + Clone, V: Clone {
+fn hamt_contains<K, V>(slot: HamtSlot K V, hash: u64, key: K, shift: i32) -> bool where K: Hash + Eq + Clone, V: Clone {
   slot match {
     case HamtSlotEmpty {} => false,
     case HamtLeaf { key::existing_key, hash::existing_hash } => existing_hash == hash && eq_key(existing_key, key),
@@ -416,13 +421,13 @@ fn hamt_each<K, V>(slot: HamtSlot K V, visit: MapEntry K V -> void) -> void wher
 struct PersistentMap K V {
   root: HamtSlot K V,
   count: i32
-} where K: Hash + Eq K + Clone, V: Clone
+} where K: Hash + Eq + Clone, V: Clone
 
 struct PersistentMapBuilder K V {
   entries: Array (MapEntry K V)
-} where K: Hash + Eq K + Clone, V: Clone
+} where K: Hash + Eq + Clone, V: Clone
 
-methods PersistentMap K V where K: Hash + Eq K + Clone, V: Clone {
+methods PersistentMap K V where K: Hash + Eq + Clone, V: Clone {
   fn empty() -> PersistentMap K V {
     PersistentMap { root: HamtSlotEmpty {}, count: 0_i32 }
   }
@@ -460,13 +465,13 @@ methods PersistentMap K V where K: Hash + Eq K + Clone, V: Clone {
   }
 }
 
-impl Enumerable (MapEntry K V) for PersistentMap K V where K: Hash + Eq K + Clone, V: Clone {
+impl Iterable (MapEntry K V) for PersistentMap K V where K: Hash + Eq + Clone, V: Clone {
   fn each(self: Self, visit: MapEntry K V -> void) -> void {
     self.for_each(visit)
   }
 }
 
-methods PersistentMapBuilder K V where K: Hash + Eq K + Clone, V: Clone {
+methods PersistentMapBuilder K V where K: Hash + Eq + Clone, V: Clone {
   fn new() -> PersistentMapBuilder K V {
     PersistentMapBuilder { entries: Array.new() }
   }
@@ -495,13 +500,13 @@ methods PersistentMapBuilder K V where K: Hash + Eq K + Clone, V: Clone {
 
 struct PersistentSet T {
   map: PersistentMap T nil
-} where T: Hash + Eq T + Clone
+} where T: Hash + Eq + Clone
 
 struct PersistentSetBuilder T {
   builder: PersistentMapBuilder T nil
-} where T: Hash + Eq T + Clone
+} where T: Hash + Eq + Clone
 
-methods PersistentSet T where T: Hash + Eq T + Clone {
+methods PersistentSet T where T: Hash + Eq + Clone {
   fn empty() -> PersistentSet T {
     PersistentSet { map: PersistentMap.empty() }
   }
@@ -545,13 +550,23 @@ methods PersistentSet T where T: Hash + Eq T + Clone {
   }
 }
 
-impl Enumerable T for PersistentSet T where T: Hash + Eq T + Clone {
-  fn each(self: Self, visit: T -> void) -> void {
+impl Default for PersistentSet T where T: Hash + Eq + Clone {
+  fn default() -> PersistentSet T { PersistentSet.empty() }
+}
+
+impl Extend T for PersistentSet T where T: Hash + Eq + Clone {
+  fn extend(self: Self, value: T) -> Self {
+    self.insert(value)
+  }
+}
+
+impl Enumerable A for PersistentSet where A: Hash + Eq + Clone {
+  fn each(self: Self, visit: A -> void) -> void {
     self.for_each(visit)
   }
 }
 
-methods PersistentSetBuilder T where T: Hash + Eq T + Clone {
+methods PersistentSetBuilder T where T: Hash + Eq + Clone {
   fn new() -> PersistentSetBuilder T {
     PersistentSetBuilder { builder: PersistentMapBuilder.new() }
   }

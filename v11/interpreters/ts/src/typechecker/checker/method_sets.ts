@@ -23,6 +23,7 @@ export interface MethodSetHelpers {
   expectsSelfType: (expr: AST.TypeExpression | null | undefined) => boolean;
   lookupObligationSubject: (
     ctx: ImplementationContext,
+    subjectExpr: AST.TypeExpression | undefined,
     typeParam: string,
     substitutions: Map<string, TypeInfo>,
     selfType: TypeInfo,
@@ -258,7 +259,7 @@ function enforceMethodSetObligations(
     return undefined;
   }
   for (const obligation of obligations) {
-    const subject = helpers.lookupObligationSubject(ctx, obligation.typeParam, substitutions, type);
+    const subject = helpers.lookupObligationSubject(ctx, obligation.subjectExpr, obligation.typeParam, substitutions, type);
     if (!subject) {
       continue;
     }
@@ -309,7 +310,8 @@ function extractFunctionObligations(
   }
   if (Array.isArray(fn.whereClause)) {
     for (const clause of fn.whereClause) {
-      const typeParamName = ctx.getIdentifierName(clause?.typeParam);
+      const subjectExpr = clause?.typeParam;
+      const typeParamName = subjectExpr ? ctx.formatTypeExpression(subjectExpr) : null;
       if (!typeParamName || !Array.isArray(clause?.constraints)) continue;
       for (const constraint of clause.constraints) {
         const interfaceName = ctx.getInterfaceNameFromConstraint(constraint);
@@ -319,6 +321,7 @@ function extractFunctionObligations(
           interfaceName,
           interfaceType: constraint?.interfaceType ?? undefined,
           context,
+          subjectExpr,
         });
       }
     }

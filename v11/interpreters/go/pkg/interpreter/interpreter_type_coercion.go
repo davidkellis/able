@@ -315,6 +315,21 @@ func (i *Interpreter) coerceToInterfaceValue(interfaceName string, value runtime
 	if !ok {
 		return nil, fmt.Errorf("Interface '%s' is not defined", interfaceName)
 	}
+	if interfaceName == "Iterator" {
+		switch value.(type) {
+		case *runtime.IteratorValue:
+			methods, err := i.iteratorInterfaceMethodDictionary(ifaceDef)
+			if err != nil {
+				return nil, err
+			}
+			return &runtime.InterfaceValue{
+				Interface:     ifaceDef,
+				Underlying:    value,
+				Methods:       methods,
+				InterfaceArgs: ifaceArgs,
+			}, nil
+		}
+	}
 	info, ok := i.getTypeInfoForValue(value)
 	if !ok {
 		return nil, fmt.Errorf("Value does not implement interface %s", interfaceName)
@@ -343,6 +358,36 @@ func (i *Interpreter) coerceToInterfaceValue(interfaceName string, value runtime
 		Methods:       methods,
 		InterfaceArgs: ifaceArgs,
 	}, nil
+}
+
+func (i *Interpreter) iteratorInterfaceMethodDictionary(ifaceDef *runtime.InterfaceDefinitionValue) (map[string]runtime.Value, error) {
+	if ifaceDef == nil || ifaceDef.Node == nil || ifaceDef.Node.ID == nil {
+		return nil, fmt.Errorf("Iterator interface is not defined")
+	}
+	methods := make(map[string]runtime.Value)
+	for _, sig := range ifaceDef.Node.Signatures {
+		if sig == nil || sig.Name == nil {
+			continue
+		}
+		name := sig.Name.Name
+		if name == "" || methods[name] != nil {
+			continue
+		}
+		if name == "next" {
+			methods[name] = iteratorNextNativeMethod()
+			continue
+		}
+		if sig.DefaultImpl != nil {
+			defaultDef := ast.NewFunctionDefinition(sig.Name, sig.Params, sig.DefaultImpl, sig.ReturnType, sig.GenericParams, sig.WhereClause, false, false)
+			methods[name] = &runtime.FunctionValue{Declaration: defaultDef, Closure: ifaceDef.Env, MethodPriority: -1}
+			continue
+		}
+		return nil, fmt.Errorf("No method '%s' for interface %s", name, ifaceDef.Node.ID.Name)
+	}
+	if len(methods) == 0 {
+		return nil, nil
+	}
+	return methods, nil
 }
 
 func rangeEndpoint(val runtime.Value) (int, error) {

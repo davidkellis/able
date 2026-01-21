@@ -20,6 +20,28 @@ type targetVariant struct {
 	signature    string
 }
 
+var integerTypes = map[string]struct{}{
+	"i8": {}, "i16": {}, "i32": {}, "i64": {}, "i128": {},
+	"u8": {}, "u16": {}, "u32": {}, "u64": {}, "u128": {},
+	"isize": {}, "usize": {},
+}
+
+var floatTypes = map[string]struct{}{"f32": {}, "f64": {}}
+
+func isPrimitiveTypeName(name string) bool {
+	switch name {
+	case "bool", "String", "string", "IoHandle", "ProcHandle", "char", "nil", "void":
+		return true
+	}
+	if _, ok := integerTypes[name]; ok {
+		return true
+	}
+	if _, ok := floatTypes[name]; ok {
+		return true
+	}
+	return false
+}
+
 func expandImplementationTargetVariants(target ast.TypeExpression, aliases map[string]*ast.TypeAliasDefinition) ([]targetVariant, []string, error) {
 	target = expandTypeAliases(target, aliases, nil)
 	switch t := target.(type) {
@@ -83,7 +105,7 @@ func collectConstraintSpecs(generics []*ast.GenericParameter, whereClause []*ast
 			if constraint == nil || constraint.InterfaceType == nil {
 				continue
 			}
-			specs = append(specs, constraintSpec{typeParam: gp.Name.Name, ifaceType: constraint.InterfaceType})
+			specs = append(specs, constraintSpec{subject: ast.NewSimpleTypeExpression(gp.Name), ifaceType: constraint.InterfaceType})
 		}
 	}
 	for _, clause := range whereClause {
@@ -94,7 +116,7 @@ func collectConstraintSpecs(generics []*ast.GenericParameter, whereClause []*ast
 			if constraint == nil || constraint.InterfaceType == nil {
 				continue
 			}
-			specs = append(specs, constraintSpec{typeParam: clause.TypeParam.Name, ifaceType: constraint.InterfaceType})
+			specs = append(specs, constraintSpec{subject: clause.TypeParam, ifaceType: constraint.InterfaceType})
 		}
 	}
 	return specs
@@ -106,7 +128,7 @@ func constraintSignature(specs []constraintSpec, stringify func(ast.TypeExpressi
 	}
 	parts := make([]string, 0, len(specs))
 	for _, spec := range specs {
-		parts = append(parts, fmt.Sprintf("%s->%s", spec.typeParam, stringify(spec.ifaceType)))
+		parts = append(parts, fmt.Sprintf("%s->%s", stringify(spec.subject), stringify(spec.ifaceType)))
 	}
 	sort.Strings(parts)
 	return strings.Join(parts, "&")
@@ -428,16 +450,118 @@ func mapTypeArguments(generics []*ast.GenericParameter, provided []ast.TypeExpre
 }
 
 func (i *Interpreter) enforceConstraintSpecs(constraints []constraintSpec, typeArgMap map[string]ast.TypeExpression) error {
-	for _, spec := range constraints {
-		actual, ok := typeArgMap[spec.typeParam]
-		if !ok {
-			return fmt.Errorf("Missing type argument for '%s' required by constraints", spec.typeParam)
+	var substituteTypeParams func(ast.TypeExpression) ast.TypeExpression
+	substituteTypeParams = func(expr ast.TypeExpression) ast.TypeExpression {
+		switch t := expr.(type) {
+		case *ast.SimpleTypeExpression:
+			if t.Name != nil {
+				if replacement, ok := typeArgMap[t.Name.Name]; ok {
+					return replacement
+				}
+			}
+			return t
+		case *ast.GenericTypeExpression:
+			base := substituteTypeParams(t.Base)
+			args := make([]ast.TypeExpression, len(t.Arguments))
+			for idx, arg := range t.Arguments {
+				args[idx] = substituteTypeParams(arg)
+			}
+			return ast.NewGenericTypeExpression(base, args)
+		case *ast.FunctionTypeExpression:
+			params := make([]ast.TypeExpression, len(t.ParamTypes))
+			for idx, param := range t.ParamTypes {
+				params[idx] = substituteTypeParams(param)
+			}
+			return ast.NewFunctionTypeExpression(params, substituteTypeParams(t.ReturnType))
+		case *ast.NullableTypeExpression:
+			return ast.NewNullableTypeExpression(substituteTypeParams(t.InnerType))
+		case *ast.ResultTypeExpression:
+			return ast.NewResultTypeExpression(substituteTypeParams(t.InnerType))
+		case *ast.UnionTypeExpression:
+			members := make([]ast.TypeExpression, len(t.Members))
+			for idx, member := range t.Members {
+				members[idx] = substituteTypeParams(member)
+			}
+			return ast.NewUnionTypeExpression(members)
+		default:
+			return expr
 		}
-		tInfo, ok := parseTypeExpression(actual)
+	}
+	isKnownTypeName := func(name string) bool {
+		if name == "" || name == "_" || name == "Self" {
+			return false
+		}
+		if isPrimitiveTypeName(name) {
+			return true
+		}
+		if _, ok := i.interfaces[name]; ok {
+			return true
+		}
+		if _, ok := i.unionDefinitions[name]; ok {
+			return true
+		}
+		if _, ok := i.typeAliases[name]; ok {
+			return true
+		}
+		if _, ok := i.lookupStructDefinition(name); ok {
+			return true
+		}
+		return false
+	}
+	var hasUnknownNames func(ast.TypeExpression) bool
+	hasUnknownNames = func(expr ast.TypeExpression) bool {
+		switch t := expr.(type) {
+		case *ast.SimpleTypeExpression:
+			if t.Name == nil {
+				return true
+			}
+			return !isKnownTypeName(t.Name.Name)
+		case *ast.GenericTypeExpression:
+			if hasUnknownNames(t.Base) {
+				return true
+			}
+			for _, arg := range t.Arguments {
+				if hasUnknownNames(arg) {
+					return true
+				}
+			}
+			return false
+		case *ast.FunctionTypeExpression:
+			if hasUnknownNames(t.ReturnType) {
+				return true
+			}
+			for _, param := range t.ParamTypes {
+				if hasUnknownNames(param) {
+					return true
+				}
+			}
+			return false
+		case *ast.NullableTypeExpression:
+			return hasUnknownNames(t.InnerType)
+		case *ast.ResultTypeExpression:
+			return hasUnknownNames(t.InnerType)
+		case *ast.UnionTypeExpression:
+			for _, member := range t.Members {
+				if hasUnknownNames(member) {
+					return true
+				}
+			}
+			return false
+		default:
+			return true
+		}
+	}
+	for _, spec := range constraints {
+		subject := substituteTypeParams(spec.subject)
+		if hasUnknownNames(subject) {
+			continue
+		}
+		tInfo, ok := parseTypeExpression(subject)
 		if !ok {
 			continue
 		}
-		if err := i.ensureTypeSatisfiesInterface(tInfo, spec.ifaceType, spec.typeParam, make(map[string]struct{})); err != nil {
+		context := typeExpressionToString(subject)
+		if err := i.ensureTypeSatisfiesInterface(tInfo, spec.ifaceType, context, make(map[string]struct{})); err != nil {
 			return err
 		}
 	}

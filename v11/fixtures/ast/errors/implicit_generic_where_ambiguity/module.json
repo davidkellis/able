@@ -129,8 +129,11 @@
         {
           "type": "WhereClauseConstraint",
           "typeParam": {
-            "type": "Identifier",
-            "name": "Point"
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "Point"
+            }
           },
           "constraints": [
             {

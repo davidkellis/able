@@ -1,7 +1,7 @@
 package string
 import able.kernel.{Array}
 import able.collections.array
-import able.core.interfaces.{Clone, Error}
+import able.core.interfaces.{Clone, Default, Extend, Error}
 import able.core.iteration.{Iterable, Iterator, IteratorEnd}
 import able.core.options.{Result}
 import able.core.errors.{RangeError}
@@ -97,7 +97,7 @@ methods String {
   }
 
   fn concat(strings: Array String) -> String {
-    builder := StringBuilder.new()
+    builder := StringBuilder.new();
     idx := 0
     loop {
       strings.get(idx) match {
@@ -110,7 +110,7 @@ methods String {
   }
 
   fn join(strings: Array String, separator: String) -> String {
-    builder := StringBuilder.new()
+    builder := StringBuilder.new();
     sep := unwrap_string(separator)
     idx := 0
     loop {
@@ -397,11 +397,48 @@ methods String {
     data := validated_bytes(self)
     RawStringGraphemesIter { bytes: data, offset: 0, len_bytes: data.len() }
   }
+
+  fn map(self: Self, f: char -> char) -> String {
+    builder := StringBuilder.new();
+    for ch in self.chars() {
+      builder.push_char(f(ch))
+    }
+    builder.finish() match {
+      case result: String => wrap_string(result),
+      case err: Error => { raise err }
+    }
+  }
+
+  fn filter(self: Self, predicate: char -> bool) -> String {
+    builder := StringBuilder.new();
+    for ch in self.chars() {
+      if predicate(ch) { builder.push_char(ch) }
+    }
+    builder.finish() match {
+      case result: String => wrap_string(result),
+      case err: Error => { raise err }
+    }
+  }
 }
 
 impl Clone for String {
   fn clone(self: Self) -> String {
     self
+  }
+}
+
+impl Default for String {
+  fn default() -> String { String.empty() }
+}
+
+impl Extend char for String {
+  fn extend(self: Self, value: char) -> Self {
+    builder := self.to_builder()
+    builder.push_char(value)
+    builder.finish() match {
+      case result: String => wrap_string(result),
+      case err: Error => { raise err }
+    }
   }
 }
 
@@ -454,6 +491,33 @@ methods StringBuilder {
   fn finish(self: Self) -> Result String {
     to_result_string(String.from_bytes(self.buffer))
   }
+
+  fn map(self: Self, f: char -> char) -> StringBuilder {
+    result := StringBuilder.new();
+    for ch in self {
+      result.push_char(f(ch))
+    }
+    result
+  }
+
+  fn filter(self: Self, predicate: char -> bool) -> StringBuilder {
+    result := StringBuilder.new();
+    for ch in self {
+      if predicate(ch) { result.push_char(ch) }
+    }
+    result
+  }
+}
+
+impl Default for StringBuilder {
+  fn default() -> StringBuilder { StringBuilder.new() }
+}
+
+impl Extend char for StringBuilder {
+  fn extend(self: Self, value: char) -> Self {
+    self.push_char(value)
+    self
+  }
 }
 
 impl Iterable u8 for String {
@@ -503,6 +567,12 @@ impl Iterator u8 for StringBytesIter {
 
 impl Iterable char for String {
   fn iterator(self: Self) -> (Iterator char) { self.chars() }
+}
+
+impl Iterable char for StringBuilder {
+  fn iterator(self: Self) -> (Iterator char) {
+    RawStringCharsIter { bytes: self.buffer.clone(), offset: 0, len_bytes: self.buffer.len() }
+  }
 }
 
 impl Iterator char for RawStringCharsIter {

@@ -153,6 +153,9 @@ export function handlePackageMemberAccess(
   if (!packageName) {
     return null;
   }
+  if (ctx.env.hasBindingOutsideGlobal(aliasName)) {
+    return null;
+  }
   const summary = ctx.packageSummaries.get(packageName);
   const memberName = ctx.getIdentifierName(expression.member as AST.Identifier);
   if (!memberName) {

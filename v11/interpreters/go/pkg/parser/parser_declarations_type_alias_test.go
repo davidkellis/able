@@ -42,7 +42,7 @@ private type ResultValue E T where E: Error + Display = E | T
 		},
 		[]*ast.WhereClauseConstraint{
 			ast.WhereConstraint(
-				"E",
+				ast.Ty("E"),
 				ast.InterfaceConstr(ast.Ty("Error")),
 				ast.InterfaceConstr(ast.Ty("Display")),
 			),

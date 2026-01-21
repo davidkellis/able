@@ -33,7 +33,9 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 - Status: interface alignment is in place (Apply/Index/Awaitable + stdlib helpers); parity harness is green with the latest sweep saved to `tmp/parity-report.json`; kernel/stdlib loader auto-detection is bundled; Ratio/numeric conversions are landed; exec fixtures are spec-prefixed with coverage enforced via `scripts/check-exec-coverage.mjs` in `run_all_tests.sh`; regex work is stdlib-only (host hooks removed, regex fixture quarantined) with literal compile/match/find_all now available; next focus is regex parser/quantifiers.
 
 ## Guardrails (must stay true)
-- `v11/interpreters/ts/scripts/run-parity.ts` remains the authoritative entry point for fixtures/examples parity; `./run_all_tests.sh --version=v11` must stay green (TS + Go unit tests, fixture suites, parity CLI). Run the v10 suite only when explicitly asked to investigate archival regressions.
+- `./run_all_tests.sh --version=v11` must stay green (TS + Go unit tests, fixture suites, parity CLI); it may take up to 10 minutes to run
+- `./run_stdlib_tests.sh` must stay green; it may take up to 10 minutes to run
+- `v11/interpreters/ts/scripts/run-parity.ts` remains the authoritative entry point for fixtures/examples parity. Run the v10 suite only when explicitly asked to investigate archival regressions.
 - `v11/interpreters/ts/testdata/examples/` remains curated; add programs only when parser/runtime support is complete (see the corresponding `design/parity-examples-plan.md` for the active roster).
 - Diagnostics parity is mandatory: both interpreters emit identical runtime + typechecker output for every fixture when `ABLE_TYPECHECK_FIXTURES` is `warn|strict`. (✅ CLI now enforces diagnostics comparison; ✅ Go typechecker infers implicit `self`/iterator helpers so warn/strict runs match.)
 - The JSON parity report (`tmp/parity-report.json`) must be archived in CI via `ABLE_PARITY_REPORT_DEST`/`CI_ARTIFACTS_DIR` to keep regression triage fast.
@@ -43,6 +45,23 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 
 
 ## TODO (working queue: tackle in order, move completed items to LOG.md)
+- **Typechecker enforcement + stdlib alignment (priority)**:
+  - Fix HKT self-type matching for partially applied constructors (`C _` should accept `HashMap K`/`Array`) in both Go + TS typecheckers.
+  - Ensure interface self-type placeholders (`for M`) are treated as in-scope for interface method signatures (avoid inferred method generics for `M`) and re-run stdlib.
+  - Fix stdlib constraints to match non-generic interfaces (`Eq`, `Ord`, `Hash`) and ensure kernel aliases are used without type args.
+  - Make stdlib typecheck in both interpreters; verify `.examples/foo.able` runs with strict typechecking.
+  - Enable typechecker by default in fixture/parity/test harnesses; keep any `off` usage behind explicit, documented exceptions.
+  - Refresh/update typecheck baselines after fixes and add regression tests for HKT + constraint arity.
+- **Typechecker coverage expansion**:
+  - Add cross-interpreter tests for typechecker parity (HKT self patterns, interface constraints, builtin type arity, partial application).
+  - Add regression cases for interface self-pattern placeholders (avoid `matches` generic-count mismatches).
+  - Add package-scoped duplicate declaration coverage (same symbol name across packages should not conflict).
+  - Extend fixtures/exec coverage to include typechecker diagnostics for mismatches vs. runtime behavior.
+- **TS file size refactors (keep <1000 lines)**:
+  - Split `v11/interpreters/ts/src/interpreter/types.ts` into `types/primitives.ts`, `types/structs.ts`, `types/unions.ts`, `types/format.ts`, and shared helpers.
+  - Split `v11/interpreters/ts/src/interpreter/impl_resolution.ts` into resolution stages/modules (candidate collection, specificity ranking, constraint binding, diagnostics).
+  - Split `v11/interpreters/ts/src/typechecker/checker/implementation-collection.ts` into collection (`implementation-collection.ts`) vs. validation/self-pattern helpers (`implementation-validation.ts`).
+  - Split `v11/interpreters/ts/src/typechecker/checker/function-calls.ts` into call-shape parsing, overload resolution, and diagnostics helpers (`function-call-parse.ts`, `function-call-resolve.ts`, `function-call-errors.ts`).
 - Interface dictionary dispatch follow-ups: add tests for default methods + generic interface methods on interface-typed values (cross-package), and verify TS/Go parity. See `v11/design/interface-dispatch-dictionaries.md`.
 - Compiler/interpreter vision: define a typed core IR and expand `v11/design/compiler-interpreter-vision.md` with runtime ABI details.
 - Interpreter performance track: prototype a bytecode VM and add conformance tests against the tree-walker.

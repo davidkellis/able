@@ -58,6 +58,7 @@ type GenericParamSpec struct {
 // WhereConstraintSpec records a where-clause constraint (e.g. `where T: Display`).
 type WhereConstraintSpec struct {
 	TypeParam       string
+	Subject         Type
 	Constraints     []Type
 	ConstraintNodes []ast.TypeExpression
 }

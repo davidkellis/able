@@ -174,7 +174,7 @@ export function evaluateImplementationDefinition(ctx: Interpreter, node: AST.Imp
   } else {
     const constraintSpecs = ctx.collectConstraintSpecs(implNode.genericParams, implNode.whereClause);
     const baseConstraintSig = constraintSpecs
-      .map(c => `${c.typeParam}->${ctx.typeExpressionToString(c.ifaceType)}`)
+      .map(c => `${ctx.typeExpressionToString(c.subjectExpr)}->${ctx.typeExpressionToString(c.ifaceType)}`)
       .sort()
       .join("&") || "<none>";
     const genericNames = new Set((implNode.genericParams ?? []).map(gp => gp.name.name));

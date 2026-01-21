@@ -1,7 +1,8 @@
 package fs
 
-import able.kernel.{Array, pop}
+import able.kernel.{Array}
 import able.collections.array
+import able.core.interfaces.{Error}
 import able.io.{AlreadyExists, IOError, IOErrorKind, NotFound, unwrap, unwrap_void, read_all, write_all, string_to_bytes, bytes_to_string, close}
 import able.io.path
 import able.io.path.{Path}
@@ -435,7 +436,10 @@ fn read_bytes(path: Path | String) -> Array u8 {
 
 fn write_bytes(target: Path | String, bytes: Array u8, create_dirs: bool) -> void {
   if create_dirs {
-    parent := path.new(target).parent()
+    parent := target match {
+      case value: Path => value.parent(),
+      case value: String => path.parse(value).parent()
+    }
     if parent.to_string() != "" { mkdir(parent, true) }
   }
   handle := open(target, write_only(true, true), nil)
@@ -479,7 +483,7 @@ fn read_lines(path: Path | String) -> Array String {
   if text == "" { return Array.new() }
   lines := normalize_newlines(text).split("\n")
   lines.last() match {
-    case value: String => { if value == "" { pop(lines) } },
+    case value: String => { if value == "" { lines.pop() } },
     case nil => {}
   }
   lines
@@ -515,9 +519,14 @@ fn copy_dir(src: Path | String, dst: Path | String, overwrite: ?bool) -> void {
   dst_path := fs_path(dst)
   if allow_overwrite {
     do { remove(dst_path, true) } rescue {
-      case err: IOError => {
-        err.kind match {
-          case NotFound => {},
+      case err: Error => {
+        err.value match {
+          case io_err: IOError => {
+            io_err.kind match {
+              case NotFound => {},
+              case _ => { raise io_err }
+            }
+          },
           case _ => { raise err }
         }
       }

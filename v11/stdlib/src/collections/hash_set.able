@@ -16,17 +16,17 @@ struct HashSetIterator T {
   index: i32
 }
 
-fn collect_keys<T>(source: HashMap T bool) -> HashSetIterator T where T: Hash + Eq T {
+fn collect_keys<T>(source: HashMap T bool) -> HashSetIterator T where T: Hash + Eq {
   keys: Array T := Array.with_capacity(source.size())
   source.for_each({ key, _value => keys.push(key) })
   HashSetIterator { keys: keys, index: 0 }
 }
 
-fn visit_keys<T>(source: HashMap T bool, visit: T -> void) -> void where T: Hash + Eq T {
+fn visit_keys<T>(source: HashMap T bool, visit: T -> void) -> void where T: Hash + Eq {
   source.for_each({ key, _value => visit(key) })
 }
 
-methods HashSet T where T: Hash + Eq T {
+methods HashSet T where T: Hash + Eq {
   fn new() -> HashSet T {
     HashSet { map: HashMap.new() }
   }
@@ -79,6 +79,22 @@ methods HashSet T where T: Hash + Eq T {
     result
   }
 
+  fn map<B>(self: Self, f: T -> B) -> HashSet B where B: Hash + Eq {
+    result: HashSet B := HashSet.new()
+    self.each(fn(value: T) -> void {
+      result.add(f(value))
+    })
+    result
+  }
+
+  fn filter(self: Self, predicate: T -> bool) -> HashSet T {
+    result: HashSet T := HashSet.new()
+    self.each(fn(value: T) -> void {
+      if predicate(value) { result.add(value) }
+    })
+    result
+  }
+
   fn is_subset(self: Self, other: HashSet T) -> bool {
     if self.size() > other.size() { return false }
     ok := true
@@ -101,22 +117,22 @@ methods HashSet T where T: Hash + Eq T {
   }
 }
 
-impl Default for HashSet T where T: Hash + Eq T {
+impl Default for HashSet T where T: Hash + Eq {
   fn default() -> HashSet T { HashSet.new() }
 }
 
-impl Extend T for HashSet T where T: Hash + Eq T {
+impl Extend T for HashSet T where T: Hash + Eq {
   fn extend(self: Self, value: T) -> Self {
     self.add(value)
     self
   }
 }
 
-impl Clone for HashSet T where T: Hash + Eq T {
+impl Clone for HashSet T where T: Hash + Eq {
   fn clone(self: Self) -> HashSet T { HashSet { map: self.map.clone() } }
 }
 
-impl Set T for HashSet T where T: Hash + Eq T {
+impl Set T for HashSet T where T: Hash + Eq {
   fn add(self: Self, value: T) -> bool {
     existed := self.map.contains(value)
     self.map.set(value, true)
@@ -131,18 +147,12 @@ impl Set T for HashSet T where T: Hash + Eq T {
   fn is_empty(self: Self) -> bool { self.map.size() == 0 }
 }
 
-impl Iterable T for HashSet T where T: Hash + Eq T {
-  fn iterator(self: Self) -> (Iterator T) {
+impl Enumerable A for HashSet where A: Hash + Eq {
+  fn iterator(self: Self) -> (Iterator A) {
     collect_keys(self.map)
   }
 
-  fn each(self: Self, visit: T -> void) -> void {
-    visit_keys(self.map, visit)
-  }
-}
-
-impl Enumerable T for HashSet T where T: Hash + Eq T {
-  fn each(self: Self, visit: T -> void) -> void {
+  fn each(self: Self, visit: A -> void) -> void {
     visit_keys(self.map, visit)
   }
 }

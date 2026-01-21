@@ -2,7 +2,7 @@ package list
 import able.kernel.{Array}
 import able.collections.array
 import able.collections.enumerable.{Enumerable}
-import able.core.interfaces.{Default}
+import able.core.interfaces.{Default, Extend}
 import able.core.iteration.{Iterable, Iterator, IteratorEnd}
 
 struct ListNode T {
@@ -154,9 +154,9 @@ impl Default for List T {
   fn default() -> List T { List.empty() }
 }
 
-impl Iterable T for List T {
-  fn iterator(self: Self) -> (Iterator T) {
-    ListIterator { current: self.head }
+impl Extend T for List T {
+  fn extend(self: Self, value: T) -> Self {
+    self.append(value)
   }
 }
 
@@ -172,8 +172,8 @@ impl Iterator T for ListIterator T {
   }
 }
 
-impl Enumerable T for List T {
-  fn each(self: Self, visit: T -> void) -> void {
+impl Enumerable A for List {
+  fn each(self: Self, visit: A -> void) -> void {
     current := self.head
     loop {
       current match {
@@ -184,5 +184,9 @@ impl Enumerable T for List T {
         }
       }
     }
+  }
+
+  fn iterator(self: Self) -> (Iterator A) {
+    ListIterator { current: self.head }
   }
 }

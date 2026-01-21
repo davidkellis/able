@@ -2,7 +2,7 @@ package deque
 import able.kernel.{Array}
 import able.collections.array
 import able.collections.enumerable.{Enumerable}
-import able.core.interfaces.{Clone, Default}
+import able.core.interfaces.{Clone, Default, Extend}
 import able.core.iteration.{Iterable, Iterator}
 
 struct Deque T {
@@ -122,6 +122,13 @@ impl Default for Deque T {
   fn default() -> Deque T { Deque.new() }
 }
 
+impl Extend T for Deque T {
+  fn extend(self: Self, value: T) -> Self {
+    self.push_back(value)
+    self
+  }
+}
+
 impl Clone for Deque T {
   fn clone(self: Self) -> Deque T {
     result := Deque.with_capacity(self.capacity())
@@ -137,8 +144,21 @@ impl Clone for Deque T {
   }
 }
 
-impl Iterable T for Deque T {
-  fn iterator(self: Self) -> (Iterator T) {
+impl Enumerable A for Deque {
+  fn each(self: Self, visit: A -> void) -> void {
+    count := self.count
+    capacity := self.capacity()
+    i := 0
+    loop {
+      if i >= count { break }
+      idx := wrap_index(self.head + i, capacity)
+      value := self.data.read_slot(idx)
+      visit(value)
+      i = i + 1
+    }
+  }
+
+  fn iterator(self: Self) -> (Iterator A) {
     start_head := self.head
     start_count := self.count
     start_capacity := self.capacity()
@@ -152,21 +172,6 @@ impl Iterable T for Deque T {
         gen.yield(value)
         i = i + 1
       }
-    }
-  }
-}
-
-impl Enumerable T for Deque T {
-  fn each(self: Self, visit: T -> void) -> void {
-    count := self.count
-    capacity := self.capacity()
-    i := 0
-    loop {
-      if i >= count { break }
-      idx := wrap_index(self.head + i, capacity)
-      value := self.data.read_slot(idx)
-      visit(value)
-      i = i + 1
     }
   }
 }

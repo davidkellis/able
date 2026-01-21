@@ -784,7 +784,14 @@ function printGenericParameter(param: AST.GenericParameter): String {
 }
 
 function printWhereClause(clause: AST.WhereClauseConstraint): String {
-  return `${printIdentifier(clause.typeParam)}: ${clause.constraints.map((c) => printTypeExpression(c.interfaceType)).join(" + ")}`;
+  const subject = clause.typeParam;
+  const subjectText =
+    typeof subject === "string" || subject?.type === "Identifier"
+      ? printIdentifier(subject)
+      : subject
+      ? printTypeExpression(subject)
+      : "";
+  return `${subjectText}: ${clause.constraints.map((c) => printTypeExpression(c.interfaceType)).join(" + ")}`;
 }
 
 function printTypeExpression(typeExpr: AST.TypeExpression): String {

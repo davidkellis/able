@@ -322,7 +322,7 @@ fn build_concat(builder: NFABuilder, parts: Array AutomataExpr) -> AutomataFragm
   }
 
   first_expr := parts.get(0) match {
-    case nil => AutomataExpr { node: AutomataNodeEpsilon {} },
+    case nil => AutomataDSL.epsilon(),
     case expr: AutomataExpr => expr
   }
 
@@ -334,7 +334,7 @@ fn build_concat(builder: NFABuilder, parts: Array AutomataExpr) -> AutomataFragm
   loop {
     if idx >= parts.len() { break }
     next_expr := parts.get(idx) match {
-      case nil => AutomataExpr { node: AutomataNodeEpsilon {} },
+      case nil => AutomataDSL.epsilon(),
       case expr: AutomataExpr => expr
     }
     next_fragment := build_expr(next_expr, builder)

@@ -75,13 +75,20 @@ func (c *declarationCollector) resolveTypeExpression(expr ast.TypeExpression, ty
 			}
 		}
 	case *ast.GenericTypeExpression:
+		var baseName string
 		if simple, ok := t.Base.(*ast.SimpleTypeExpression); ok && simple.Name != nil {
-			if _, exists := typeParams[simple.Name.Name]; !exists {
-				if decl, ok := c.env.Lookup(simple.Name.Name); ok {
+			baseName = simple.Name.Name
+			if _, exists := typeParams[baseName]; !exists {
+				if decl, ok := c.env.Lookup(baseName); ok {
 					if alias, ok := decl.(AliasType); ok {
 						args := make([]Type, len(t.Arguments))
 						for i, arg := range t.Arguments {
 							args[i] = c.resolveTypeExpression(arg, typeParams)
+						}
+						if !shouldSkipTypeArgumentCheck(baseName, c.localTypeNames, c.declNodes) {
+							if expected, ok := expectedTypeArgumentCount(baseName, alias); ok && len(args) > expected {
+								c.diags = append(c.diags, typeArgumentArityDiagnostic(baseName, expected, len(args), t))
+							}
 						}
 						inst, _ := instantiateAlias(alias, args)
 						return inst
@@ -93,6 +100,15 @@ func (c *declarationCollector) resolveTypeExpression(expr ast.TypeExpression, ty
 		args := make([]Type, len(t.Arguments))
 		for i, arg := range t.Arguments {
 			args[i] = c.resolveTypeExpression(arg, typeParams)
+		}
+		if baseName != "" && !shouldSkipTypeArgumentCheck(baseName, c.localTypeNames, c.declNodes) {
+			if _, known := c.env.Lookup(baseName); known {
+				if expected, ok := expectedTypeArgumentCount(baseName, base); ok && len(args) > expected {
+					c.diags = append(c.diags, typeArgumentArityDiagnostic(baseName, expected, len(args), t))
+				}
+			} else if expected, ok := builtinTypeArgumentArity[baseName]; ok && len(args) > expected {
+				c.diags = append(c.diags, typeArgumentArityDiagnostic(baseName, expected, len(args), t))
+			}
 		}
 		if unionBase, ok := base.(UnionType); ok {
 			return c.instantiateUnionType(unionBase, args)
@@ -140,28 +156,7 @@ func (c *declarationCollector) resolveTypeExpression(expr ast.TypeExpression, ty
 }
 
 func (c *declarationCollector) instantiateUnionType(union UnionType, args []Type) UnionType {
-	if len(union.TypeParams) == 0 {
-		return union
-	}
-	subst := make(map[string]Type, len(union.TypeParams))
-	for idx, param := range union.TypeParams {
-		if param.Name == "" {
-			continue
-		}
-		if idx < len(args) && args[idx] != nil {
-			subst[param.Name] = args[idx]
-		} else {
-			subst[param.Name] = UnknownType{}
-		}
-	}
-	inst := substituteType(union, subst)
-	if resolved, ok := inst.(UnionType); ok {
-		if len(args) >= len(union.TypeParams) {
-			resolved.TypeParams = nil
-		}
-		return resolved
-	}
-	return union
+	return instantiateUnionTypeArgs(union, args)
 }
 
 func (c *declarationCollector) convertGenericParams(params []*ast.GenericParameter) ([]GenericParamSpec, map[string]Type) {
@@ -209,7 +204,8 @@ func (c *declarationCollector) convertWhereClause(where []*ast.WhereClauseConstr
 		if clause == nil || clause.TypeParam == nil {
 			continue
 		}
-		name := clause.TypeParam.Name
+		label := formatTypeExpressionNode(clause.TypeParam)
+		subject := c.resolveTypeExpression(clause.TypeParam, typeParams)
 		constraints := make([]Type, 0, len(clause.Constraints))
 		constraintNodes := make([]ast.TypeExpression, 0, len(clause.Constraints))
 		for _, constraint := range clause.Constraints {
@@ -223,7 +219,8 @@ func (c *declarationCollector) convertWhereClause(where []*ast.WhereClauseConstr
 			constraintNodes = append(constraintNodes, constraint.InterfaceType)
 		}
 		specs = append(specs, WhereConstraintSpec{
-			TypeParam:       name,
+			TypeParam:       label,
+			Subject:         subject,
 			Constraints:     constraints,
 			ConstraintNodes: constraintNodes,
 		})
@@ -236,13 +233,18 @@ func (c *declarationCollector) collectStructFields(def *ast.StructDefinition, sc
 		return nil, nil
 	}
 	fields := make(map[string]Type, len(def.Fields))
-	positional := make([]Type, len(def.Fields))
+	var positional []Type
+	if def.Kind == ast.StructKindPositional {
+		positional = make([]Type, len(def.Fields))
+	}
 	for idx, field := range def.Fields {
 		if field == nil || field.FieldType == nil {
 			continue
 		}
 		typ := c.resolveTypeExpression(field.FieldType, scope)
-		positional[idx] = typ
+		if positional != nil {
+			positional[idx] = typ
+		}
 		if field.Name != nil {
 			fields[field.Name.Name] = typ
 		}
@@ -251,10 +253,10 @@ func (c *declarationCollector) collectStructFields(def *ast.StructDefinition, sc
 }
 
 func (c *declarationCollector) collectInterfaceMethods(def *ast.InterfaceDefinition, baseScope map[string]Type) (map[string]FunctionType, map[string]bool) {
-	if def == nil || len(def.Signatures) == 0 {
+	if def == nil {
 		return nil, nil
 	}
-	methods := make(map[string]FunctionType, len(def.Signatures))
+	methods := make(map[string]FunctionType)
 	defaults := make(map[string]bool)
 	for _, sig := range def.Signatures {
 		if sig == nil || sig.Name == nil {
@@ -275,10 +277,90 @@ func (c *declarationCollector) collectInterfaceMethods(def *ast.InterfaceDefinit
 			defaults[name] = true
 		}
 	}
+	if len(def.BaseInterfaces) > 0 {
+		for _, baseExpr := range def.BaseInterfaces {
+			if baseExpr == nil {
+				continue
+			}
+			baseType := c.resolveTypeExpression(baseExpr, baseScope)
+			iface, args, ok := resolveInterfaceDecl(baseType, nil)
+			if !ok {
+				if baseName := interfaceBaseName(baseExpr); baseName != "" && c.shouldSkipUnknownInterfaceBase(baseName, baseScope) {
+					continue
+				}
+				c.diags = append(c.diags, Diagnostic{
+					Message: fmt.Sprintf("typechecker: interface base must be an interface (got %s)", typeName(baseType)),
+					Node:    def,
+				})
+				continue
+			}
+			substitution := make(map[string]Type)
+			for idx, param := range iface.TypeParams {
+				if param.Name == "" {
+					continue
+				}
+				var arg Type = UnknownType{}
+				if idx < len(args) && args[idx] != nil {
+					arg = args[idx]
+				}
+				substitution[param.Name] = arg
+			}
+			for name, method := range iface.Methods {
+				if _, exists := methods[name]; exists {
+					continue
+				}
+				if len(substitution) > 0 {
+					method = substituteFunctionType(method, substitution)
+				}
+				methods[name] = method
+				if iface.DefaultMethods != nil && iface.DefaultMethods[name] {
+					defaults[name] = true
+				}
+			}
+		}
+	}
+	if len(methods) == 0 {
+		return nil, nil
+	}
 	if len(defaults) == 0 {
 		defaults = nil
 	}
 	return methods, defaults
+}
+
+func interfaceBaseName(expr ast.TypeExpression) string {
+	if expr == nil {
+		return ""
+	}
+	switch t := expr.(type) {
+	case *ast.SimpleTypeExpression:
+		if t.Name != nil {
+			return t.Name.Name
+		}
+	case *ast.GenericTypeExpression:
+		if simple, ok := t.Base.(*ast.SimpleTypeExpression); ok && simple != nil && simple.Name != nil {
+			return simple.Name.Name
+		}
+	}
+	return ""
+}
+
+func (c *declarationCollector) shouldSkipUnknownInterfaceBase(name string, scope map[string]Type) bool {
+	if name == "" {
+		return false
+	}
+	if scope != nil {
+		if _, ok := scope[name]; ok {
+			return true
+		}
+	}
+	if c == nil || c.env == nil {
+		return false
+	}
+	if _, ok := c.env.Lookup(name); ok {
+		return false
+	}
+	return true
 }
 
 func (c *declarationCollector) convertFunctionSignature(sig *ast.FunctionSignature, baseScope map[string]Type) (FunctionType, []Diagnostic) {

@@ -9,6 +9,40 @@ import {
 } from "../types";
 import { getIntegerTypeInfo, hasIntegerBounds, integerBounds } from "../numeric";
 
+const PRIMITIVE_TYPE_NAMES = new Set<PrimitiveName>([
+  "i8",
+  "i16",
+  "i32",
+  "i64",
+  "i128",
+  "u8",
+  "u16",
+  "u32",
+  "u64",
+  "u128",
+  "f32",
+  "f64",
+  "bool",
+  "String",
+  "IoHandle",
+  "ProcHandle",
+  "char",
+  "nil",
+  "void",
+]);
+
+const BUILTIN_TYPE_ARITY = new Map<string, number>([
+  ["Array", 1],
+  ["Iterator", 1],
+  ["Range", 1],
+  ["Proc", 1],
+  ["Future", 1],
+  ["Map", 2],
+  ["HashMap", 2],
+  ["Channel", 1],
+  ["Mutex", 0],
+]);
+
 export type TypeResolutionContext = {
   getTypeAlias(name: string): AST.TypeAliasDefinition | undefined;
   getInterfaceDefinition(name: string): AST.InterfaceDefinition | undefined;
@@ -17,6 +51,7 @@ export type TypeResolutionContext = {
   getUnionDefinition(name: string): AST.UnionDefinition | undefined;
   hasUnionDefinition(name: string): boolean;
   getIdentifierName(node: AST.Identifier | null | undefined): string | null;
+  report?: (message: string, node?: AST.Node | null) => void;
 };
 
 export type TypeResolutionHelpers = {
@@ -51,6 +86,51 @@ export type TypeResolutionHelpers = {
 };
 
 export function createTypeResolutionHelpers(context: TypeResolutionContext): TypeResolutionHelpers {
+  const reportedTypeArgumentArity = new WeakSet<AST.TypeExpression>();
+
+  const expectedTypeArgumentCount = (name: string): number | null => {
+    const alias = context.getTypeAlias(name);
+    if (alias) {
+      return Array.isArray(alias.genericParams) ? alias.genericParams.length : 0;
+    }
+    const structDef = context.getStructDefinition(name);
+    if (structDef) {
+      return Array.isArray(structDef.genericParams) ? structDef.genericParams.length : 0;
+    }
+    const unionDef = context.getUnionDefinition(name);
+    if (unionDef) {
+      return Array.isArray(unionDef.genericParams) ? unionDef.genericParams.length : 0;
+    }
+    const ifaceDef = context.getInterfaceDefinition(name);
+    if (ifaceDef) {
+      return Array.isArray(ifaceDef.genericParams) ? ifaceDef.genericParams.length : 0;
+    }
+    const builtinArity = BUILTIN_TYPE_ARITY.get(name);
+    if (builtinArity !== undefined) {
+      return builtinArity;
+    }
+    if (PRIMITIVE_TYPE_NAMES.has(name as PrimitiveName)) {
+      return 0;
+    }
+    return null;
+  };
+
+  const reportTypeArgumentArity = (
+    name: string,
+    expected: number,
+    actual: number,
+    node: AST.TypeExpression,
+  ) => {
+    if (!context.report || reportedTypeArgumentArity.has(node)) {
+      return;
+    }
+    reportedTypeArgumentArity.add(node);
+    context.report(
+      `typechecker: type '${name}' expects ${expected} type argument(s), got ${actual}`,
+      node,
+    );
+  };
+
   function resolveTypeExpression(
     expr: AST.TypeExpression | null | undefined,
     substitutions?: Map<string, TypeInfo>,
@@ -123,6 +203,26 @@ export function createTypeResolutionHelpers(context: TypeResolutionContext): Typ
           ...(Array.isArray(expr.arguments) ? expr.arguments : []),
         ] as Array<AST.TypeExpression | null | undefined>;
         const typeArguments = rawArgs.map((arg) => resolveTypeExpression(arg, substitutions));
+        if (!substitutions?.has(baseName) && baseName !== "Self") {
+          const expected = expectedTypeArgumentCount(baseName);
+          if (expected !== null && typeArguments.length > expected) {
+            reportTypeArgumentArity(baseName, expected, typeArguments.length, expr);
+          }
+        }
+        const substitutedBase = substitutions?.get(baseName);
+        if (substitutedBase) {
+          if (substitutedBase.kind === "struct") {
+            const def = substitutedBase.definition ?? context.getStructDefinition(substitutedBase.name);
+            return { kind: "struct", name: substitutedBase.name, typeArguments, definition: def };
+          }
+          if (substitutedBase.kind === "interface") {
+            const def = substitutedBase.definition ?? context.getInterfaceDefinition(substitutedBase.name);
+            return { kind: "interface", name: substitutedBase.name, typeArguments, definition: def };
+          }
+          if (substitutedBase.kind === "type_parameter") {
+            return unknownType;
+          }
+        }
         const structDef = context.getStructDefinition(baseName);
         if (structDef) {
           return {
@@ -426,6 +526,9 @@ export function createTypeResolutionHelpers(context: TypeResolutionContext): Typ
         return true;
       }
       return false;
+    }
+    if (normalizedExpected.kind === "union" && normalizedActual.kind === "union") {
+      return normalizedActual.members.every((member) => isTypeAssignable(member, normalizedExpected));
     }
     if (normalizedExpected.kind === "union" && Array.isArray(normalizedExpected.members)) {
       return normalizedExpected.members.some((member) => isTypeAssignable(normalizedActual, member));

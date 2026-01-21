@@ -1,7 +1,7 @@
 package uint128
 
 import able.core.errors.{OverflowError, DivisionByZeroError}
-import able.core.interfaces.{Eq, Ord, Less, Greater, Equal, Display, Ordering}
+import able.core.interfaces.{PartialEq, PartialOrd, Eq, Ord, Less, Greater, Equal, Display, Ordering}
 import able.core.numeric.{
   Numeric,
   Unsigned,
@@ -210,13 +210,29 @@ impl Display for UInt128 {
   fn to_string(self: Self) -> String { self.to_string() }
 }
 
+impl PartialEq UInt128 for UInt128 {
+  fn eq(self: Self, other: UInt128) -> bool {
+    self.high == other.high && self.low == other.low
+  }
+}
+
 impl Eq for UInt128 {
   fn eq(self: Self, other: UInt128) -> bool {
     self.high == other.high && self.low == other.low
   }
 }
 
-impl Ord UInt128 for UInt128 {
+impl PartialOrd UInt128 for UInt128 {
+  fn partial_cmp(self: Self, other: UInt128) -> Ordering {
+    self.compare(other)
+  }
+}
+
+impl Ord for UInt128 {
+  fn partial_cmp(self: Self, other: UInt128) -> Ordering {
+    self.compare(other)
+  }
+
   fn cmp(self: Self, other: UInt128) -> Ordering {
     self.compare(other)
   }

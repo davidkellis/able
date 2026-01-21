@@ -2,6 +2,8 @@ package persistent_queue
 
 import able.collections.list.{List}
 import able.collections.enumerable.{Enumerable}
+import able.core.iteration.{Iterable}
+import able.core.interfaces.{Default, Extend}
 
 struct PersistentQueue T {
   front: List T,
@@ -71,8 +73,18 @@ methods PersistentQueue T {
   }
 }
 
-impl Enumerable T for PersistentQueue T {
-  fn each(self: Self, visit: T -> void) -> void {
+impl Default for PersistentQueue T {
+  fn default() -> PersistentQueue T { PersistentQueue.empty() }
+}
+
+impl Extend T for PersistentQueue T {
+  fn extend(self: Self, value: T) -> Self {
+    self.enqueue(value)
+  }
+}
+
+impl Enumerable A for PersistentQueue {
+  fn each(self: Self, visit: A -> void) -> void {
     self.for_each(visit)
   }
 }

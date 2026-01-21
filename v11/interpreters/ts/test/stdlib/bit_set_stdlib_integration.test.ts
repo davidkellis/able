@@ -24,19 +24,16 @@ function evaluateAllModules(interpreter: V11.Interpreter, program: { modules: an
 function typecheckProgram(
   session: TypeChecker.TypecheckerSession,
   program: { modules: any[]; entry: any },
-  options: { ignoreNonEntryDiagnostics?: boolean } = {},
 ): string[] {
   const diagnostics: string[] = [];
   for (const mod of program.modules) {
     if (mod.packageName !== program.entry.packageName) {
       const result = session.checkModule(mod.module);
-      if (!options.ignoreNonEntryDiagnostics) {
-        result.diagnostics.forEach((diag) => {
-          const { location } = diag;
-          const loc = location ? `${location.path ?? ""}:${location.line ?? "?"}:${location.column ?? "?"}` : "";
-          diagnostics.push(loc ? `${diag.message} (${loc})` : diag.message);
-        });
-      }
+      result.diagnostics.forEach((diag) => {
+        const { location } = diag;
+        const loc = location ? `${location.path ?? ""}:${location.line ?? "?"}:${location.column ?? "?"}` : "";
+        diagnostics.push(loc ? `${diag.message} (${loc})` : diag.message);
+      });
     }
   }
   const entryResult = session.checkModule(program.entry.module);
@@ -93,7 +90,7 @@ fn main() -> i32 {
       const program = await loader.load(path.join(tmpRoot, "main.able"));
 
       const session = new TypeChecker.TypecheckerSession();
-      const diagnostics = typecheckProgram(session, program, { ignoreNonEntryDiagnostics: true });
+      const diagnostics = typecheckProgram(session, program);
       expect(diagnostics).toEqual([]);
 
       const interpreter = new V11.Interpreter();

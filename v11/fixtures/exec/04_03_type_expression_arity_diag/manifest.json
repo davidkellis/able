@@ -1,0 +1,8 @@
+{
+  "description": "generic application arity rejects extra type arguments",
+  "expect": {
+    "typecheckDiagnostics": [
+      "typechecker: v11/fixtures/exec/04_03_type_expression_arity_diag/main.able:6:14 typechecker: type 'Array' expects 1 type argument(s), got 2"
+    ]
+  }
+}

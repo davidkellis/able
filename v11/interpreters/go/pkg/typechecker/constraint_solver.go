@@ -91,11 +91,7 @@ func (c *Checker) evaluateObligation(ob ConstraintObligation) []Diagnostic {
 	if explicitParams == 0 && expectedParams == 1 && providedArgs == 0 {
 		arg := ob.Subject
 		if arg == nil || isUnknownType(arg) {
-			if ob.TypeParam != "" {
-				arg = TypeParameterType{ParameterName: ob.TypeParam}
-			} else {
-				arg = UnknownType{}
-			}
+			arg = UnknownType{}
 		}
 		res.args = []Type{arg}
 		providedArgs = 1
@@ -196,7 +192,7 @@ func (c *Checker) interfaceFromName(name string) interfaceResolution {
 
 func (c *Checker) obligationSatisfied(ob ConstraintObligation, res interfaceResolution) (bool, string) {
 	subject := ob.Subject
-	if subject == nil || isUnknownType(subject) || isTypeParameter(subject) {
+	if subject == nil || isUnknownType(subject) || isTypeParameter(subject) || implementationTargetUsesTypeParams(subject) {
 		return true, ""
 	}
 	ok, detail := c.typeImplementsInterface(subject, res.iface, res.args)
@@ -207,7 +203,7 @@ func (c *Checker) obligationSatisfied(ob ConstraintObligation, res interfaceReso
 }
 
 func (c *Checker) typeImplementsInterface(subject Type, iface InterfaceType, args []Type) (bool, string) {
-	if implementsIntrinsicInterface(subject, iface.InterfaceName) {
+	if implementsIntrinsicInterface(subject, iface.InterfaceName, args) {
 		return true, ""
 	}
 	var implDetail string
@@ -268,7 +264,17 @@ func (c *Checker) typeImplementsInterface(subject Type, iface InterfaceType, arg
 	return false, ""
 }
 
-func implementsIntrinsicInterface(subject Type, interfaceName string) bool {
+func implementsIntrinsicInterface(subject Type, interfaceName string, args []Type) bool {
+	compatibleRhs := func() bool {
+		if len(args) == 0 {
+			return true
+		}
+		rhs := args[0]
+		if rhs == nil || isUnknownType(rhs) || isTypeParameter(rhs) {
+			return true
+		}
+		return typeAssignable(rhs, subject)
+	}
 	switch interfaceName {
 	case "Hash", "Eq":
 		switch val := subject.(type) {
@@ -278,6 +284,9 @@ func implementsIntrinsicInterface(subject Type, interfaceName string) bool {
 			return val.Suffix != ""
 		}
 	case "PartialEq", "PartialOrd":
+		if !compatibleRhs() {
+			return false
+		}
 		switch val := subject.(type) {
 		case PrimitiveType:
 			return val.Kind == PrimitiveString || val.Kind == PrimitiveBool || val.Kind == PrimitiveChar

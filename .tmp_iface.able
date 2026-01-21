@@ -1,0 +1,4 @@
+package test
+interface Eq for T : PartialEq T {
+  fn eq(self: Self, other: Self) -> bool;
+}

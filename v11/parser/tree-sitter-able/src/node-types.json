@@ -1257,6 +1257,16 @@
     "type": "interface_definition",
     "named": true,
     "fields": {
+      "base_interfaces": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "interface_composition",
+            "named": true
+          }
+        ]
+      },
       "composite": {
         "multiple": false,
         "required": false,
@@ -3088,21 +3098,6 @@
     }
   },
   {
-    "type": "type_generic_application",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": true,
-      "required": true,
-      "types": [
-        {
-          "type": "type_atom",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
     "type": "type_identifier",
     "named": true,
     "fields": {},
@@ -3161,10 +3156,6 @@
       "types": [
         {
           "type": "type_atom",
-          "named": true
-        },
-        {
-          "type": "type_generic_application",
           "named": true
         },
         {
@@ -3356,15 +3347,22 @@
   {
     "type": "where_constraint",
     "named": true,
-    "fields": {},
+    "fields": {
+      "subject": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "type_expression",
+            "named": true
+          }
+        ]
+      }
+    },
     "children": {
-      "multiple": true,
+      "multiple": false,
       "required": true,
       "types": [
-        {
-          "type": "identifier",
-          "named": true
-        },
         {
           "type": "type_bound_list",
           "named": true

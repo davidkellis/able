@@ -174,7 +174,7 @@ func TestImplResolutionWhereClauseSupersetPreferred(t *testing.T) {
 				[]*ast.GenericParameter{ast.GenericParam("T")},
 				nil,
 				[]*ast.WhereClauseConstraint{
-					ast.WhereConstraint("T", ast.InterfaceConstr(ast.Ty("Readable"))),
+					ast.WhereConstraint(ast.Ty("T"), ast.InterfaceConstr(ast.Ty("Readable"))),
 				},
 				false,
 			),
@@ -201,7 +201,7 @@ func TestImplResolutionWhereClauseSupersetPreferred(t *testing.T) {
 				[]*ast.GenericParameter{ast.GenericParam("T")},
 				nil,
 				[]*ast.WhereClauseConstraint{
-					ast.WhereConstraint("T", ast.InterfaceConstr(ast.Ty("Readable")), ast.InterfaceConstr(ast.Ty("Writable"))),
+					ast.WhereConstraint(ast.Ty("T"), ast.InterfaceConstr(ast.Ty("Readable")), ast.InterfaceConstr(ast.Ty("Writable"))),
 				},
 				false,
 			),
@@ -423,8 +423,8 @@ func TestImplResolutionWhereClauseMultiParamPreferred(t *testing.T) {
 				[]*ast.GenericParameter{ast.GenericParam("A"), ast.GenericParam("B")},
 				nil,
 				[]*ast.WhereClauseConstraint{
-					ast.WhereConstraint("A", ast.InterfaceConstr(ast.Ty("Readable"))),
-					ast.WhereConstraint("B", ast.InterfaceConstr(ast.Ty("Readable"))),
+					ast.WhereConstraint(ast.Ty("A"), ast.InterfaceConstr(ast.Ty("Readable"))),
+					ast.WhereConstraint(ast.Ty("B"), ast.InterfaceConstr(ast.Ty("Readable"))),
 				},
 				false,
 			),
@@ -451,8 +451,8 @@ func TestImplResolutionWhereClauseMultiParamPreferred(t *testing.T) {
 				[]*ast.GenericParameter{ast.GenericParam("A"), ast.GenericParam("B")},
 				nil,
 				[]*ast.WhereClauseConstraint{
-					ast.WhereConstraint("A", ast.InterfaceConstr(ast.Ty("Readable"))),
-					ast.WhereConstraint("B", ast.InterfaceConstr(ast.Ty("Readable")), ast.InterfaceConstr(ast.Ty("Writable"))),
+					ast.WhereConstraint(ast.Ty("A"), ast.InterfaceConstr(ast.Ty("Readable"))),
+					ast.WhereConstraint(ast.Ty("B"), ast.InterfaceConstr(ast.Ty("Readable")), ast.InterfaceConstr(ast.Ty("Writable"))),
 				},
 				false,
 			),

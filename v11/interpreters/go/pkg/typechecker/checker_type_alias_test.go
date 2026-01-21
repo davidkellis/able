@@ -76,7 +76,7 @@ func TestTypeAliasWhereClauseEnforced(t *testing.T) {
 		ast.ID("DisplayOnly"),
 		ast.Ty("T"),
 		[]*ast.GenericParameter{ast.GenericParam("T")},
-		[]*ast.WhereClauseConstraint{ast.WhereConstraint("T", ast.InterfaceConstr(ast.Ty("Display")))},
+		[]*ast.WhereClauseConstraint{ast.WhereConstraint(ast.Ty("T"), ast.InterfaceConstr(ast.Ty("Display")))},
 		false,
 	)
 	structDef := ast.StructDef(

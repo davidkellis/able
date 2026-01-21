@@ -81,10 +81,29 @@ function describeCallTarget(
 
 function isGenericTypeReference(typeExpr: AST.TypeExpression | undefined, genericNames: Set<string>): boolean {
   if (!typeExpr || genericNames.size === 0) return false;
-  if (typeExpr.type === "SimpleTypeExpression") {
-    return genericNames.has(typeExpr.name.name);
+  switch (typeExpr.type) {
+    case "SimpleTypeExpression":
+      return genericNames.has(typeExpr.name.name);
+    case "GenericTypeExpression":
+      return (
+        isGenericTypeReference(typeExpr.base, genericNames) ||
+        (typeExpr.arguments ?? []).some((arg) => isGenericTypeReference(arg, genericNames))
+      );
+    case "NullableTypeExpression":
+      return isGenericTypeReference(typeExpr.innerType, genericNames);
+    case "ResultTypeExpression":
+      return isGenericTypeReference(typeExpr.innerType, genericNames);
+    case "UnionTypeExpression":
+      return (typeExpr.members ?? []).some((member) => isGenericTypeReference(member, genericNames));
+    case "FunctionTypeExpression":
+      return (
+        (typeExpr.paramTypes ?? []).some((param) => isGenericTypeReference(param, genericNames)) ||
+        isGenericTypeReference(typeExpr.returnType, genericNames)
+      );
+    case "WildcardTypeExpression":
+    default:
+      return false;
   }
-  return false;
 }
 
 function isVoidTypeExpression(ctx: Interpreter, expr: AST.TypeExpression): boolean {
@@ -531,6 +550,12 @@ export function callCallableValue(ctx: Interpreter, callee: RuntimeValue, args: 
       console.error(`[trace] Expectation.to matcher ${matcherType} kind=${matcher.kind}${typeArgInfo}`);
     }
     const genericNames = new Set((funcNode.genericParams ?? []).map((gp) => gp.name.name));
+    const methodSetGenerics = (funcValue as any).methodSetGenericParams as AST.GenericParameter[] | undefined;
+    if (methodSetGenerics) {
+      for (const gp of methodSetGenerics) {
+        if (gp?.name?.name) genericNames.add(gp.name.name);
+      }
+    }
     const params = funcNode.params;
     const paramCount = params.length;
     let implicitReceiver: RuntimeValue | null = callState ? callState.implicitReceiver : null;
@@ -544,6 +569,17 @@ export function callCallableValue(ctx: Interpreter, callee: RuntimeValue, args: 
       } else if (paramCount > 0 && evalArgs.length > 0) {
         implicitReceiver = evalArgs[0]!;
         hasImplicit = true;
+      }
+      if (implicitReceiver?.kind === "struct_instance" && implicitReceiver.typeArgMap) {
+        for (const [name, expr] of implicitReceiver.typeArgMap.entries()) {
+          genericNames.add(name);
+          const parsed = ctx.parseTypeExpression(expr);
+          if (parsed) {
+            try {
+              funcEnv.define(name, { kind: "type_ref", typeName: parsed.name, typeArgs: parsed.typeArgs });
+            } catch {}
+          }
+        }
       }
       if (bindArgs.length !== paramCount) {
         const name = funcNode.id?.name ?? "(anonymous)";
@@ -704,6 +740,17 @@ export function callCallableValue(ctx: Interpreter, callee: RuntimeValue, args: 
       const result = ctx.evaluate(funcNode.body as AST.AstNode, funcEnv);
       return coerceReturnValue(ctx, funcNode.returnType, result, genericNames, funcValue.closureEnv);
     } catch (e) {
+      if (e instanceof ReturnSignal) {
+        try {
+          return coerceReturnValue(ctx, funcNode.returnType, e.value, genericNames, funcValue.closureEnv);
+        } catch (err) {
+          const context = getRuntimeDiagnosticContext(e);
+          if (context) {
+            attachRuntimeDiagnosticContext(err, context);
+          }
+          throw err;
+        }
+      }
       if (e instanceof ProcYieldSignal) {
         if (callState) {
           callState.suspended = true;

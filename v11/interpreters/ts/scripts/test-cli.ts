@@ -202,14 +202,7 @@ export function maybeTypecheckTestModules(
     }
     const packageName =
       result.summary?.name ?? mod.packageName ?? resolveModulePackageName(mod.module);
-    if (isStdlibPackage(packageName)) {
-      continue;
-    }
-    const filtered = result.diagnostics.filter((diag) => !isStdlibDiagnostic(diag));
-    if (filtered.length === 0) {
-      continue;
-    }
-    for (const diag of filtered) {
+    for (const diag of result.diagnostics) {
       diagnostics.push({ packageName, diagnostic: diag });
     }
   }

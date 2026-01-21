@@ -3,6 +3,7 @@
 package spec
 import able.collections.array.{Array}
 import able.core.interfaces.{Error}
+import able.text.string.{String}
 import able.spec.assertions.{
   AssertionError,
   BeFalseMatcher,
@@ -74,10 +75,10 @@ struct SuiteConfig {
   allow_parallel: bool
 }
 struct SuiteState {
-  key: string,
-  path: Array string,
-  module_path: string,
-  tags: Array string,
+  key: String,
+  path: Array String,
+  module_path: String,
+  tags: Array String,
   before_each: Array (ExampleContext -> void),
   after_each: Array (ExampleContext -> void),
   before_all: Array (ExampleContext -> void),
@@ -85,8 +86,8 @@ struct SuiteState {
   config: SuiteConfig
 }
 struct SuiteDefinition {
-  key: string,
-  path: Array string,
+  key: String,
+  path: Array String,
   before_all: Array (ExampleContext -> void),
   after_all: Array (ExampleContext -> void)
 }
@@ -95,15 +96,15 @@ struct SuiteBuilder {
 }
 struct ExampleContext {}
 struct ExampleDefinition {
-  id: string,
-  display_name: string,
-  suite_key: string,
-  suite_path: Array string,
-  tags: Array string,
+  id: String,
+  display_name: String,
+  suite_key: String,
+  suite_path: Array String,
+  tags: Array String,
   before_each: Array (ExampleContext -> void),
   after_each: Array (ExampleContext -> void),
   body: ExampleContext -> void,
-  module_path: string,
+  module_path: String,
   skip: bool,
   focus: bool
 }
@@ -113,7 +114,7 @@ SUITES_ARCHIVE: Array SuiteDefinition := Array.new()
 EXAMPLES: Array ExampleDefinition := Array.new()
 EXAMPLES_ARCHIVE: Array ExampleDefinition := Array.new()
 struct ExampleOptions {
-  tags: Array string,
+  tags: Array String,
   skip: bool,
   focus: bool
 }
@@ -121,17 +122,17 @@ fn example_options() -> ExampleOptions {
   ExampleOptions { tags: Array.new(), skip: false, focus: false }
 }
 methods ExampleOptions {
-  fn tag(self: ExampleOptions, tag: string) -> ExampleOptions {
+  fn tag(self: ExampleOptions, tag: String) -> ExampleOptions {
     self.tags.push(tag)
     self
   }
-  fn tags(self: ExampleOptions, tags: Array string) -> ExampleOptions {
+  fn tags(self: ExampleOptions, tags: Array String) -> ExampleOptions {
     idx := 0
     loop {
       if idx >= tags.len() { break }
       tags.get(idx) match {
         case nil => {},
-        case value: string => self.tags.push(value)
+        case value: String => self.tags.push(value)
       }
       idx = idx + 1
     }
@@ -152,7 +153,7 @@ fn expect<T>(value: T) -> Expectation T {
 fn eq<T>(expected: T) -> EqMatcher T {
   assertions_eq(expected)
 }
-fn eq_string(expected: string) -> StringEqMatcher {
+fn eq_string(expected: String) -> StringEqMatcher {
   assertions_eq_string(expected)
 }
 fn be_nil() -> BeNilMatcher {
@@ -182,70 +183,70 @@ fn be_greater_than(value: i64) -> BeGreaterThanMatcher i64 {
 fn be_less_than(value: i64) -> BeLessThanMatcher i64 {
   assertions_be_less_than(value)
 }
-fn match_regex(pattern: string) -> MatchRegexMatcher {
+fn match_regex(pattern: String) -> MatchRegexMatcher {
   assertions_match_regex(pattern)
 }
 fn be_between(lower: i64, upper: i64) -> BeBetweenMatcher i64 {
   assertions_be_between(lower, upper)
 }
-fn start_with(prefix: string) -> StartsWithMatcher {
+fn start_with(prefix: String) -> StartsWithMatcher {
   assertions_start_with(prefix)
 }
-fn end_with(suffix: string) -> EndsWithMatcher {
+fn end_with(suffix: String) -> EndsWithMatcher {
   assertions_end_with(suffix)
 }
-fn include_substring(substring: string) -> IncludeSubstringMatcher {
+fn include_substring(substring: String) -> IncludeSubstringMatcher {
   assertions_include_substring(substring)
 }
 fn matcher<T>(
-  message: string,
-  negated_message: string,
+  message: String,
+  negated_message: String,
   predicate: T -> bool
 ) -> CustomMatcher T {
   assertions_matcher(message, negated_message, predicate)
 }
 fn matcher_with_details<T>(
-  message: string,
-  negated_message: string,
+  message: String,
+  negated_message: String,
   predicate: T -> bool,
-  detail: T -> ?string
+  detail: T -> ?String
 ) -> CustomMatcher T {
   assertions_matcher_with_details(message, negated_message, predicate, detail)
 }
 fn raise_error() -> RaiseErrorMatcher {
   assertions_raise_error()
 }
-fn raise_error_with_message(message: string) -> RaiseErrorMatcher {
+fn raise_error_with_message(message: String) -> RaiseErrorMatcher {
   assertions_raise_error_with_message(message)
 }
-fn describe(name: string, body: SuiteBuilder -> void) -> void {
+fn describe(name: String, body: SuiteBuilder -> void) -> void {
   builder := push_suite(name)
   body(builder)
   pop_suite()
 }
-fn context(name: string, body: SuiteBuilder -> void) -> void {
+fn context(name: String, body: SuiteBuilder -> void) -> void {
   describe(name, body)
 }
 methods SuiteBuilder {
-  fn it(self: Self, name: string, body: ExampleContext -> void) -> void {
+  fn it(self: Self, name: String, body: ExampleContext -> void) -> void {
     self.register_example(name, empty_string_array(), body, false, false)
   }
-  fn it_tags(self: Self, name: string, tags: Array string, body: ExampleContext -> void) -> void {
+  fn it_tags(self: Self, name: String, tags: Array String, body: ExampleContext -> void) -> void {
     self.register_example(name, tags, body, false, false)
   }
-  fn it_skip(self: Self, name: string, body: ExampleContext -> void) -> void {
+  fn it_skip(self: Self, name: String, body: ExampleContext -> void) -> void {
     self.register_example(name, empty_string_array(), body, true, false)
   }
-  fn it_only(self: Self, name: string, body: ExampleContext -> void) -> void {
+  fn it_only(self: Self, name: String, body: ExampleContext -> void) -> void {
     self.register_example(name, empty_string_array(), body, false, true)
   }
-  fn it_opts(self: Self, name: string, options: ExampleOptions, body: ExampleContext -> void) -> void {
+  fn it_opts(self: Self, name: String, options: ExampleOptions, body: ExampleContext -> void) -> void {
     self.register_example(name, clone_string_array(options.tags), body, options.skip, options.focus)
   }
-  fn describe(self: Self, name: string, body: SuiteBuilder -> void) -> void {
+  fn describe(self: Self, name: String, body: SuiteBuilder -> void) -> void {
     describe(name, body)
   }
-  fn context(self: Self, name: string, body: SuiteBuilder -> void) -> void {
+  fn context(self: Self, name: String, body: SuiteBuilder -> void) -> void {
     describe(name, body)
   }
   fn before_each(self: Self, hook: ExampleContext -> void) -> void {
@@ -292,7 +293,7 @@ methods SuiteBuilder {
       }
     }
   }
-  fn tag(self: Self, tag: string) -> void {
+  fn tag(self: Self, tag: String) -> void {
     if self.state_index < 0 { return }
     SUITE_STACK.get(self.state_index) match {
       case nil => {},
@@ -303,18 +304,18 @@ methods SuiteBuilder {
       }
     }
   }
-  fn tags(self: Self, tags: Array string) -> void {
+  fn tags(self: Self, tags: Array String) -> void {
     idx := 0
     loop {
       if idx >= tags.len() { break }
       tags.get(idx) match {
         case nil => {},
-        case tag: string => self.tag(tag)
+        case tag: String => self.tag(tag)
       }
       idx = idx + 1
     }
   }
-  fn module_path(self: Self, path: string) -> void {
+  fn module_path(self: Self, path: String) -> void {
     if self.state_index < 0 { return }
     SUITE_STACK.get(self.state_index) match {
       case nil => {},
@@ -327,8 +328,8 @@ methods SuiteBuilder {
   }
   fn register_example(
     self: Self,
-    name: string,
-    tags: Array string,
+    name: String,
+    tags: Array String,
     body: ExampleContext -> void,
     skip: bool,
     focus: bool
@@ -381,11 +382,11 @@ methods SuiteBuilder {
     }
   }
 }
-fn push_suite(name: string) -> SuiteBuilder {
+fn push_suite(name: String) -> SuiteBuilder {
   parent_index := SUITE_STACK.len() - 1
-  path: Array string := Array.new()
+  path: Array String := Array.new()
   module_path := ""
-  tags: Array string := Array.new()
+  tags: Array String := Array.new()
   before_each: Array (ExampleContext -> void) := Array.new()
   after_each: Array (ExampleContext -> void) := Array.new()
   before_all: Array (ExampleContext -> void) := Array.new()
@@ -481,7 +482,7 @@ fn register_suite(state: SuiteState) -> void {
   }
   SUITES_ARCHIVE.push(definition)
 }
-fn find_suite(key: string) -> ?SuiteDefinition {
+fn find_suite(key: String) -> ?SuiteDefinition {
   idx := 0
   loop {
     if idx >= SUITES.len() { break }
@@ -506,7 +507,7 @@ fn find_suite(key: string) -> ?SuiteDefinition {
   }
   nil
 }
-fn find_example(id: string) -> ?ExampleDefinition {
+fn find_example(id: String) -> ?ExampleDefinition {
   idx := 0
   loop {
     if idx >= EXAMPLES.len() { break }
@@ -531,27 +532,27 @@ fn find_example(id: string) -> ?ExampleDefinition {
   }
   nil
 }
-fn build_suite_key(path: Array string) -> string {
+fn build_suite_key(path: Array String) -> String {
   join_segments(path, "::")
 }
-fn build_example_id(path: Array string, name: string) -> string {
+fn build_example_id(path: Array String, name: String) -> String {
   segments := clone_string_array(path)
   segments.push(name)
   join_segments(segments, "::")
 }
-fn build_example_display(path: Array string, name: string) -> string {
+fn build_example_display(path: Array String, name: String) -> String {
   segments := clone_string_array(path)
   segments.push(name)
   join_segments(segments, " ")
 }
-fn join_segments(segments: Array string, separator: string) -> string {
+fn join_segments(segments: Array String, separator: String) -> String {
   result := ""
   idx := 0
   loop {
     if idx >= segments.len() { break }
     segments.get(idx) match {
       case nil => {},
-      case segment: string => {
+      case segment: String => {
         if result == "" {
           result = segment
         } else {
@@ -563,14 +564,14 @@ fn join_segments(segments: Array string, separator: string) -> string {
   }
   result
 }
-fn clone_string_array(source: Array string) -> Array string {
-  result: Array string := Array.new()
+fn clone_string_array(source: Array String) -> Array String {
+  result: Array String := Array.new()
   idx := 0
   loop {
     if idx >= source.len() { break }
     source.get(idx) match {
       case nil => {},
-      case value: string => result.push(value)
+      case value: String => result.push(value)
     }
     idx = idx + 1
   }
@@ -589,28 +590,28 @@ fn clone_hook_array(source: Array (ExampleContext -> void)) -> Array (ExampleCon
   }
   result
 }
-fn merge_tags(base: Array string, extra: Array string) -> Array string {
+fn merge_tags(base: Array String, extra: Array String) -> Array String {
   result := clone_string_array(base)
   idx := 0
   loop {
     if idx >= extra.len() { break }
     extra.get(idx) match {
       case nil => {},
-      case value: string => result.push(value)
+      case value: String => result.push(value)
     }
     idx = idx + 1
   }
   result
 }
-fn empty_string_array() -> Array string { Array.new() }
-fn contains_substring(target: string, needles: Array string) -> bool {
+fn empty_string_array() -> Array String { Array.new() }
+fn contains_substring(target: String, needles: Array String) -> bool {
   if needles.len() == 0 { return false }
   idx := 0
   loop {
     if idx >= needles.len() { break }
     needles.get(idx) match {
       case nil => {},
-      case needle: string => {
+      case needle: String => {
         if needle == "" { return true }
         if target == needle { return true }
       }
@@ -619,13 +620,13 @@ fn contains_substring(target: string, needles: Array string) -> bool {
   }
   false
 }
-fn array_contains(array: Array string, value: string) -> bool {
+fn array_contains(array: Array String, value: String) -> bool {
   idx := 0
   loop {
     if idx >= array.len() { break }
     array.get(idx) match {
       case nil => {},
-      case element: string => {
+      case element: String => {
         if element == value { return true }
       }
     }
@@ -633,13 +634,13 @@ fn array_contains(array: Array string, value: string) -> bool {
   }
   false
 }
-fn matches_tags(tags: Array string, include: Array string, exclude: Array string) -> bool {
+fn matches_tags(tags: Array String, include: Array String, exclude: Array String) -> bool {
   idx := 0
   loop {
     if idx >= include.len() { break }
     include.get(idx) match {
       case nil => {},
-      case tag: string => {
+      case tag: String => {
         if !array_contains(tags, tag) { return false }
       }
     }
@@ -650,7 +651,7 @@ fn matches_tags(tags: Array string, include: Array string, exclude: Array string
     if idx >= exclude.len() { break }
     exclude.get(idx) match {
       case nil => {},
-      case tag: string => {
+      case tag: String => {
         if array_contains(tags, tag) { return false }
       }
     }
@@ -658,7 +659,7 @@ fn matches_tags(tags: Array string, include: Array string, exclude: Array string
   }
   true
 }
-fn matches_names(example: ExampleDefinition, include: Array string, exclude: Array string) -> bool {
+fn matches_names(example: ExampleDefinition, include: Array String, exclude: Array String) -> bool {
   id := example.id
   name := example.display_name
   if include.len() > 0 {
@@ -671,7 +672,7 @@ fn matches_names(example: ExampleDefinition, include: Array string, exclude: Arr
   }
   true
 }
-fn matches_paths(module_path: string, include: Array string, exclude: Array string) -> bool {
+fn matches_paths(module_path: String, include: Array String, exclude: Array String) -> bool {
   if include.len() > 0 {
     if module_path == "" { return false }
     if !contains_substring(module_path, include) { return false }
@@ -691,18 +692,18 @@ fn matches_filters(example: ExampleDefinition, request: DiscoveryRequest) -> boo
   }
   true
 }
-fn suite_prefix_keys(path: Array string) -> Array string {
-  keys: Array string := Array.new()
+fn suite_prefix_keys(path: Array String) -> Array String {
+  keys: Array String := Array.new()
   idx := 0
   loop {
     if idx >= path.len() { break }
-    prefix: Array string := Array.new()
+    prefix: Array String := Array.new()
     inner := 0
     loop {
       if inner > idx { break }
       path.get(inner) match {
         case nil => {},
-        case segment: string => prefix.push(segment)
+        case segment: String => prefix.push(segment)
       }
       inner = inner + 1
     }
@@ -711,13 +712,13 @@ fn suite_prefix_keys(path: Array string) -> Array string {
   }
   keys
 }
-fn contains_string(array: Array string, needle: string) -> bool {
+fn contains_string(array: Array String, needle: String) -> bool {
   idx := 0
   loop {
     if idx >= array.len() { break }
     array.get(idx) match {
       case nil => {},
-      case value: string => {
+      case value: String => {
         if value == needle { return true }
       }
     }
@@ -729,25 +730,20 @@ fn run_hook_sequence(hooks: Array (ExampleContext -> void), ctx: ExampleContext)
   idx := 0
   loop {
     if idx >= hooks.len() { break }
-    hooks.get(idx) match {
-      case nil => {},
-      case hook: (ExampleContext -> void) => {
-        failure: ?Failure := nil
-        do { hook(ctx) } rescue {
-          case assertion: AssertionError => {
-            failure = failure_from_assertion(assertion)
-            nil
-          },
-          case err: Error => {
-            failure = Failure { message: err.message(), details: nil, location: nil }
-            nil
-          }
+    hook := hooks.read_slot(idx)
+    failure: ?Failure := nil
+    do { hook(ctx) } rescue {
+      case err: Error => {
+        err.value match {
+          case assertion: AssertionError => { failure = failure_from_assertion(assertion) },
+          case _ => { failure = Failure { message: err.message(), details: nil, location: nil } }
         }
-        failure match {
-          case nil => {},
-          case _ => { return failure }
-        }
+        nil
       }
+    }
+    failure match {
+      case nil => {},
+      case _ => { return failure }
     }
     idx = idx + 1
   }
@@ -757,31 +753,26 @@ fn run_hook_sequence_reverse(hooks: Array (ExampleContext -> void), ctx: Example
   idx := hooks.len() - 1
   loop {
     if idx < 0 { break }
-    hooks.get(idx) match {
-      case nil => {},
-      case hook: (ExampleContext -> void) => {
-        failure: ?Failure := nil
-        do { hook(ctx) } rescue {
-          case assertion: AssertionError => {
-            failure = failure_from_assertion(assertion)
-            nil
-          },
-          case err: Error => {
-            failure = Failure { message: err.message(), details: nil, location: nil }
-            nil
-          }
+    hook := hooks.read_slot(idx)
+    failure: ?Failure := nil
+    do { hook(ctx) } rescue {
+      case err: Error => {
+        err.value match {
+          case assertion: AssertionError => { failure = failure_from_assertion(assertion) },
+          case _ => { failure = Failure { message: err.message(), details: nil, location: nil } }
         }
-        failure match {
-          case nil => {},
-          case _ => { return failure }
-        }
+        nil
       }
+    }
+    failure match {
+      case nil => {},
+      case _ => { return failure }
     }
     idx = idx - 1
   }
   nil
 }
-fn run_before_all_for_suite(key: string, executed: Array string) -> ?Failure {
+fn run_before_all_for_suite(key: String, executed: Array String) -> ?Failure {
   find_suite(key) match {
     case nil => nil,
     case suite: SuiteDefinition => {
@@ -796,13 +787,13 @@ fn run_before_all_for_suite(key: string, executed: Array string) -> ?Failure {
     }
   }
 }
-fn run_after_all_for_suites(keys: Array string, reporter: Reporter) -> void {
+fn run_after_all_for_suites(keys: Array String, reporter: Reporter) -> void {
   idx := keys.len() - 1
   loop {
     if idx < 0 { break }
     keys.get(idx) match {
       case nil => {},
-      case key: string => {
+      case key: String => {
         find_suite(key) match {
           case nil => {},
           case suite: SuiteDefinition => {
@@ -819,7 +810,7 @@ fn run_after_all_for_suites(keys: Array string, reporter: Reporter) -> void {
   }
 }
 impl Framework for SpecFramework {
-  fn id(self: Self) -> string { FRAMEWORK_ID }
+  fn id(self: Self) -> String { FRAMEWORK_ID }
   fn discover(
     self: Self,
     request: DiscoveryRequest,
@@ -863,7 +854,7 @@ impl Framework for SpecFramework {
     options: RunOptions,
     reporter: Reporter
   ) -> ?Failure {
-    executed_suite_keys: Array string := Array.new()
+    executed_suite_keys: Array String := Array.new()
     idx := 0
     loop {
       if idx >= plan.descriptors.len() { break }
@@ -892,7 +883,7 @@ impl Framework for SpecFramework {
                 if prefix_idx >= prefix_keys.len() { break }
                 prefix_keys.get(prefix_idx) match {
                   case nil => {},
-                  case key: string => {
+                  case key: String => {
                     run_before_all_for_suite(key, executed_suite_keys) match {
                       case nil => {
                         if !contains_string(executed_suite_keys, key) {
@@ -919,12 +910,11 @@ impl Framework for SpecFramework {
               if failure == nil {
                 body_failure: ?Failure := nil
                 do { example.body(ctx) } rescue {
-                  case assertion: AssertionError => {
-                    body_failure = failure_from_assertion(assertion)
-                    nil
-                  },
                   case err: Error => {
-                    body_failure = Failure { message: err.message(), details: nil, location: nil }
+                    err.value match {
+                      case assertion: AssertionError => { body_failure = failure_from_assertion(assertion) },
+                      case _ => { body_failure = Failure { message: err.message(), details: nil, location: nil } }
+                    }
                     nil
                   }
                 }
@@ -965,13 +955,13 @@ impl Framework for SpecFramework {
     nil
   }
 }
-fn tag_list_contains(tags: Array string, needle: string) -> bool {
+fn tag_list_contains(tags: Array String, needle: String) -> bool {
   idx := 0
   loop {
     if idx >= tags.len() { break }
     tags.get(idx) match {
       case nil => {},
-      case value: string => {
+      case value: String => {
         if value == needle { return true }
       }
     }
@@ -984,4 +974,4 @@ fn __clear_examples_for_tests() -> void {
   SUITES = Array.new()
   SUITE_STACK = Array.new()
 }
-register_framework(SpecFramework)
+register_framework(SpecFramework {})

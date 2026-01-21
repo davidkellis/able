@@ -1,11 +1,11 @@
-fn clone_string_array(source: Array string) -> Array string {
-  result: Array string := Array.new()
+fn clone_string_array(source: Array String) -> Array String {
+  result: Array String := Array.new()
   idx := 0
   loop {
     if idx >= source.len() { break }
     source.get(idx) match {
       case nil => {},
-      case value: string => result.push(value)
+      case value: String => result.push(value)
     }
     idx = idx + 1
   }
@@ -26,30 +26,30 @@ fn clone_hook_array(source: Array (ExampleContext -> void)) -> Array (ExampleCon
   result
 }
 
-fn merge_tags(base: Array string, extra: Array string) -> Array string {
+fn merge_tags(base: Array String, extra: Array String) -> Array String {
   result := clone_string_array(base)
   idx := 0
   loop {
     if idx >= extra.len() { break }
     extra.get(idx) match {
       case nil => {},
-      case value: string => result.push(value)
+      case value: String => result.push(value)
     }
     idx = idx + 1
   }
   result
 }
 
-fn empty_string_array() -> Array string { Array.new() }
+fn empty_string_array() -> Array String { Array.new() }
 
-fn contains_substring(target: string, needles: Array string) -> bool {
+fn contains_substring(target: String, needles: Array String) -> bool {
   if needles.len() == 0 { return false }
   idx := 0
   loop {
     if idx >= needles.len() { break }
     needles.get(idx) match {
       case nil => {},
-      case needle: string => {
+      case needle: String => {
         if needle == "" { return true }
         if target == needle { return true }
       }
@@ -59,13 +59,13 @@ fn contains_substring(target: string, needles: Array string) -> bool {
   false
 }
 
-fn array_contains(array: Array string, value: string) -> bool {
+fn array_contains(array: Array String, value: String) -> bool {
   idx := 0
   loop {
     if idx >= array.len() { break }
     array.get(idx) match {
       case nil => {},
-      case element: string => {
+      case element: String => {
         if element == value { return true }
       }
     }
@@ -74,13 +74,13 @@ fn array_contains(array: Array string, value: string) -> bool {
   false
 }
 
-fn matches_tags(tags: Array string, include: Array string, exclude: Array string) -> bool {
+fn matches_tags(tags: Array String, include: Array String, exclude: Array String) -> bool {
   idx := 0
   loop {
     if idx >= include.len() { break }
     include.get(idx) match {
       case nil => {},
-      case tag: string => {
+      case tag: String => {
         if !array_contains(tags, tag) { return false }
       }
     }
@@ -92,7 +92,7 @@ fn matches_tags(tags: Array string, include: Array string, exclude: Array string
     if idx >= exclude.len() { break }
     exclude.get(idx) match {
       case nil => {},
-      case tag: string => {
+      case tag: String => {
         if array_contains(tags, tag) { return false }
       }
     }
@@ -101,7 +101,7 @@ fn matches_tags(tags: Array string, include: Array string, exclude: Array string
   true
 }
 
-fn matches_names(example: ExampleDefinition, include: Array string, exclude: Array string) -> bool {
+fn matches_names(example: ExampleDefinition, include: Array String, exclude: Array String) -> bool {
   id := example.id
   name := example.display_name
   if include.len() > 0 {
@@ -115,7 +115,7 @@ fn matches_names(example: ExampleDefinition, include: Array string, exclude: Arr
   true
 }
 
-fn matches_paths(module_path: string, include: Array string, exclude: Array string) -> bool {
+fn matches_paths(module_path: String, include: Array String, exclude: Array String) -> bool {
   if include.len() > 0 {
     if module_path == "" { return false }
     if !contains_substring(module_path, include) { return false }

@@ -1,5 +1,25 @@
 # Able Project Log
 
+# 2026-01-20 — Go typechecker builtin arity fallback (v11)
+- Go typechecker: prefer builtin arity when generic base names are not found in the env, fixing Array T without explicit imports in parity examples.
+- State: `./run_all_tests.sh --version=v11` green; parity examples passing.
+- Next: resume PLAN TODOs (regex parser + quantifiers).
+
+# 2026-01-19 — Eager/lazy collections verification (v11)
+- Design: noted that `String`/`StringBuilder` keep bespoke eager `map`/`filter` (char-only) until an HKT wrapper exists (`v11/design/collections-eager-lazy-split.md`).
+- Plan/spec: removed the eager/lazy TODO item from `PLAN.md` and cleared the resolved spec TODO entry (`spec/TODO_v11.md`).
+- Tests: `./v11/ablets test v11/stdlib/tests/enumerable.test.able --format tap`; `./v11/ablego test v11/stdlib/tests/enumerable.test.able --format tap`; `./v11/ablets test v11/stdlib/tests/text/string_methods.test.able --format tap`; `./v11/ablego test v11/stdlib/tests/text/string_methods.test.able --format tap`; `./v11/ablets test v11/stdlib/tests/text/string_builder.test.able --format tap`; `./v11/ablego test v11/stdlib/tests/text/string_builder.test.able --format tap`; `./v11/ablets test v11/stdlib/tests/collections/hash_map_smoke.test.able --format tap` (no tests found); `./v11/ablego test v11/stdlib/tests/collections/hash_map_smoke.test.able --format tap` (no tests found).
+
+# 2026-01-19 — Iterator.map generator yield fix (v11)
+- Stdlib: wrapped `Iterator.map` match-arm yields in a block so generator resumes advance instead of repeating the same value.
+- Tests: `./v11/ablets test v11/stdlib/tests/enumerable.test.able --format tap`; `./v11/ablets test v11/stdlib/tests/collections/hash_map_smoke.test.able --format tap` (no tests found).
+
+# 2026-01-19 — Eager/lazy collections wiring (v11)
+- Stdlib: moved lazy adapters to `Iterator`, introduced HKT `Enumerable` + `lazy` bridge, and refactored collection `Enumerable` impls/`Iterable` overrides.
+- Collections: added shared `MapEntry` in `able.collections.map`, switched `PersistentMap` to `Iterable` entries, removed `Enumerable` from `BitSet`, and added HashMap value iteration plus value-based `map` (keys preserved).
+- Plan: removed completed eager/lazy sub-steps from `PLAN.md`.
+- Tests not run (stdlib + plan updates only).
+
 # 2026-01-17 — Iterable collect type refs (v11)
 - Interpreters: bind generic type parameters as runtime type refs so static interface methods (like `C.default()`) resolve in TS + Go.
 - Stdlib/tests: disambiguate `collect` by terminating the `C.default()` statement and import `able.collections.array` in iteration tests so `Array` impls load for the Go typechecker.
@@ -885,3 +905,43 @@ Open items (2025-11-02 audit):
 - Stdlib tests: added iteration coverage for `collect` via Default/Extend and package-qualified function values.
 - Tests: `v11/ablets test v11/stdlib/tests/core/iteration.test.able`; `v11/ablego test v11/stdlib/tests/core/iteration.test.able`.
 - Spec: documented the `Default` interface signature and its stdlib helper.
+- Design: captured the eager vs lazy collections split (`Iterable` minimal, lazy adapters on `Iterator`, eager `Enumerable`).
+- Spec: documented the `Enumerable` interface and lazy/eager split in the iteration section; updated core iteration protocol.
+- Stdlib: made `Enumerable` parseable under current grammar (removed base-interface clause and HKT `where` constraints); documented `Iterable`’s "implement either each/iterator" intent; moved `Queue` operations to inherent methods.
+- TS interpreter: added Error/Awaitable/Iterator interface-value handling for native values (default methods + await helpers), and allow generic interface values to satisfy `matchesType`.
+- TS tests: aligned `Display` dispatch test with `to_string`.
+- Tests: `bun test` in `v11/interpreters/ts`; `go test ./...` in `v11/interpreters/go`.
+- Stdlib: added explicit `Enumerable.lazy` impl for `Array` to keep lazy iterators reachable under Go.
+- Tests: `./v11/ablego test v11/stdlib/tests/enumerable.test.able --format tap`.
+
+### 2026-01-20
+- Go typechecker: instantiate generic unions when resolving type annotations and normalize applied union types for assignability.
+- Parser/typechecker: where-clause subjects now accept type expressions; interface bases parse via `for ... : ...`; fixture printer updated and AST fixtures regenerated with new `where` shape.
+- Typechecker: base interface signatures now participate in impl validation; self-type pattern names map to concrete `Self` substitutions.
+- Kernel/stdlib: added `PartialEq`/`PartialOrd` impls for non-float primitives and big-number types; `Ord` impls now define `partial_cmp` to satisfy base interface contracts.
+- Runtime: impl method resolution now prefers direct interface matches over base interface matches to avoid ambiguity (TS + Go).
+- Fixtures: updated `implicit_generic_where_ambiguity` diagnostics + typecheck baseline; adjusted TreeMap stdlib test to include `partial_cmp` on custom `Ord` keys.
+- Tests: `bun run scripts/export-fixtures.ts`; `cd v11/interpreters/ts && bun test`; `cd v11/interpreters/go && GOCACHE=$(pwd)/.gocache go test -a ./...`.
+- Kernel: compare String bytes for `PartialEq`/`Eq` to avoid recursive `==` on struct-backed strings.
+- TS/Go interpreters: lambdas now treat `return` as local by catching return signals.
+- Tests: `./v11/ablets test v11/stdlib/tests/text/string_methods.test.able --format tap`; `./v11/ablets test v11/stdlib/tests/text/string_builder.test.able --format tap`.
+
+### 2026-01-21
+- Typechecker: higher-kinded self patterns now reject concrete targets unless the impl is still a type constructor (arity-aware in TS + Go).
+- Parser: type application parsing prefers left-associative space-delimited arguments; tree-sitter assets + corpus refreshed and Go parser relinked.
+- Stdlib: removed Array overrides from `Enumerable` impl to rely on interface defaults; added exec fixtures for type-arg arity + associativity diagnostics.
+- Tests: `cd v11/parser/tree-sitter-able && tree-sitter test -u`; `cd v11/interpreters/go && GOCACHE=$(pwd)/.gocache go test -a ./pkg/parser`; `./run_all_tests.sh --version=v11`.
+- TS interpreter: separate interface vs subject type arguments in impl resolution (`findMethod`, `resolveInterfaceImplementation`, `matchImplEntry`, `typeImplementsInterface`) and widen runtime generic skipping for nested type expressions.
+- TS interpreter: bind receiver type arguments into function env as `type_ref` and allow typed patterns to resolve generic type refs (fallback to wildcard for unknown generic names) to avoid non-exhaustive matches in generic matchers.
+- Tests: `/home/david/sync/projects/able/v11/ablets test /home/david/sync/projects/able/v11/stdlib/tests/assertions.test.able`; `/home/david/sync/projects/able/v11/ablets test /home/david/sync/projects/able/v11/stdlib/tests` (timed out after 60s).
+
+### 2026-01-22
+- Stdlib: moved `collect` to the `Iterator` interface and kept `Iterable` focused on `each`/`iterator`.
+- Spec: documented `Iterator.collect` in both iteration sections and removed `collect` from `Iterable`.
+- Design: updated the eager/lazy collections split doc to reflect `Iterator.collect`.
+- Tests not run (docs + stdlib interface change only).
+
+### 2026-01-23
+- Typechecker (TS): scope duplicate declaration tracking by package (prelude-safe) and allow local bindings to shadow package aliases during member access.
+- Kernel: added `__able_os_args`/`__able_os_exit` externs to `v11/kernel/src/kernel.able` for kernel/stdlib alignment.
+- Tests: `./run_stdlib_tests.sh --version=v11`; `./run_all_tests.sh --version=v11`.

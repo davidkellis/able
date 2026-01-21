@@ -215,7 +215,7 @@ func TestImplResolutionInterfaceInheritancePrefersDeeper(t *testing.T) {
 			[]*ast.GenericParameter{ast.GenericParam("T")},
 			nil,
 			[]*ast.WhereClauseConstraint{
-				ast.WhereConstraint("T", ast.InterfaceConstr(ast.Ty("FancyShow"))),
+				ast.WhereConstraint(ast.Ty("T"), ast.InterfaceConstr(ast.Ty("FancyShow"))),
 			},
 			false,
 		),
@@ -242,7 +242,7 @@ func TestImplResolutionInterfaceInheritancePrefersDeeper(t *testing.T) {
 			[]*ast.GenericParameter{ast.GenericParam("T")},
 			nil,
 			[]*ast.WhereClauseConstraint{
-				ast.WhereConstraint("T", ast.InterfaceConstr(ast.Ty("ShinyShow"))),
+				ast.WhereConstraint(ast.Ty("T"), ast.InterfaceConstr(ast.Ty("ShinyShow"))),
 			},
 			false,
 		),
@@ -427,7 +427,7 @@ func TestImplResolutionNestedGenericConstraintsPreferred(t *testing.T) {
 			[]*ast.GenericParameter{ast.GenericParam("T")},
 			nil,
 			[]*ast.WhereClauseConstraint{
-				ast.WhereConstraint("T", ast.InterfaceConstr(ast.Ty("Readable"))),
+				ast.WhereConstraint(ast.Ty("T"), ast.InterfaceConstr(ast.Ty("Readable"))),
 			},
 			false,
 		),
@@ -450,7 +450,7 @@ func TestImplResolutionNestedGenericConstraintsPreferred(t *testing.T) {
 			[]*ast.GenericParameter{ast.GenericParam("T")},
 			nil,
 			[]*ast.WhereClauseConstraint{
-				ast.WhereConstraint("T", ast.InterfaceConstr(ast.Ty("Readable")), ast.InterfaceConstr(ast.Ty("Comparable"))),
+				ast.WhereConstraint(ast.Ty("T"), ast.InterfaceConstr(ast.Ty("Readable")), ast.InterfaceConstr(ast.Ty("Comparable"))),
 			},
 			false,
 		),

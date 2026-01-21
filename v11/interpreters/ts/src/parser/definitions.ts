@@ -538,8 +538,8 @@ function parseInterfaceDefinition(
   const whereNode = node.childForFieldName("where_clause");
   const whereClause = ctx.parseWhereClause(whereNode);
 
-  const compositeNode = node.childForFieldName("composite");
-  const baseInterfaces = parseInterfaceBases(compositeNode, ctx);
+  const baseNode = node.childForFieldName("base_interfaces") ?? node.childForFieldName("composite");
+  const baseInterfaces = parseInterfaceBases(baseNode, ctx);
   const isPrivate = hasLeadingPrivate(node) ? true : undefined;
 
   const signatures: FunctionSignature[] = [];
@@ -551,7 +551,7 @@ function parseInterfaceDefinition(
       sameNode(child, typeParamsNode) ||
       sameNode(child, selfNode) ||
       sameNode(child, whereNode) ||
-      sameNode(child, compositeNode)
+      sameNode(child, baseNode)
     ) {
       continue;
     }

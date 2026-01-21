@@ -3,7 +3,8 @@ package persistent_sorted_set
 import able.kernel.{Array}
 import able.collections.array
 import able.collections.enumerable.{Enumerable}
-import able.core.interfaces.{Ord, Clone, Less, Greater, Equal}
+import able.core.iteration.{Iterable}
+import able.core.interfaces.{Ord, Clone, Less, Greater, Equal, Default, Extend}
 
 struct TreeEmpty {}
 struct TreeNode T {
@@ -34,7 +35,7 @@ struct MinRemoveResult T {
 struct PersistentSortedSet T {
   root: Tree T,
   size: i32
-} where T: Ord T + Clone
+} where T: Ord + Clone
 
 fn tree_height<T>(tree: Tree T) -> i32 {
   tree match {
@@ -50,7 +51,7 @@ fn tree_size<T>(tree: Tree T) -> i32 {
   }
 }
 
-fn make_node<T>(value: T, left: Tree T, right: Tree T) -> Tree T where T: Ord T + Clone {
+fn make_node<T>(value: T, left: Tree T, right: Tree T) -> Tree T where T: Ord + Clone {
   lh := tree_height(left)
   rh := tree_height(right)
   height := (if lh > rh { lh } else { rh }) + 1
@@ -63,7 +64,7 @@ fn make_node<T>(value: T, left: Tree T, right: Tree T) -> Tree T where T: Ord T 
   }
 }
 
-fn rotate_left<T>(tree: Tree T) -> Tree T where T: Ord T + Clone {
+fn rotate_left<T>(tree: Tree T) -> Tree T where T: Ord + Clone {
   tree match {
     case TreeEmpty {} => tree,
     case TreeNode { value, left, right } => {
@@ -78,7 +79,7 @@ fn rotate_left<T>(tree: Tree T) -> Tree T where T: Ord T + Clone {
   }
 }
 
-fn rotate_right<T>(tree: Tree T) -> Tree T where T: Ord T + Clone {
+fn rotate_right<T>(tree: Tree T) -> Tree T where T: Ord + Clone {
   tree match {
     case TreeEmpty {} => tree,
     case TreeNode { value, left, right } => {
@@ -93,7 +94,7 @@ fn rotate_right<T>(tree: Tree T) -> Tree T where T: Ord T + Clone {
   }
 }
 
-fn balance_tree<T>(tree: Tree T) -> Tree T where T: Ord T + Clone {
+fn balance_tree<T>(tree: Tree T) -> Tree T where T: Ord + Clone {
   tree match {
     case TreeEmpty {} => tree,
     case TreeNode { value, left, right } => {
@@ -129,7 +130,7 @@ fn balance_tree<T>(tree: Tree T) -> Tree T where T: Ord T + Clone {
   }
 }
 
-fn insert_tree<T>(tree: Tree T, value: T) -> TreeInsertResult T where T: Ord T + Clone {
+fn insert_tree<T>(tree: Tree T, value: T) -> TreeInsertResult T where T: Ord + Clone {
   tree match {
     case TreeEmpty {} => TreeInsertResult { tree: make_node(value, TreeEmpty {}, TreeEmpty {}), added: true },
     case TreeNode { value::node_value, left, right } => {
@@ -155,7 +156,7 @@ fn insert_tree<T>(tree: Tree T, value: T) -> TreeInsertResult T where T: Ord T +
   }
 }
 
-fn remove_min_node<T>(node: TreeNode T) -> MinRemoveResult T where T: Ord T + Clone {
+fn remove_min_node<T>(node: TreeNode T) -> MinRemoveResult T where T: Ord + Clone {
   node.left match {
     case TreeEmpty {} => MinRemoveResult { tree: node.right, value: node.value },
     case left_child: TreeNode T => {
@@ -166,7 +167,7 @@ fn remove_min_node<T>(node: TreeNode T) -> MinRemoveResult T where T: Ord T + Cl
   }
 }
 
-fn remove_tree<T>(tree: Tree T, target: T) -> TreeRemoveResult T where T: Ord T + Clone {
+fn remove_tree<T>(tree: Tree T, target: T) -> TreeRemoveResult T where T: Ord + Clone {
   tree match {
     case TreeEmpty {} => TreeRemoveResult { tree: tree, removed: false },
     case TreeNode { value::node_value, left, right } => {
@@ -211,7 +212,7 @@ fn remove_tree<T>(tree: Tree T, target: T) -> TreeRemoveResult T where T: Ord T 
   }
 }
 
-methods PersistentSortedSet T where T: Ord T + Clone {
+methods PersistentSortedSet T where T: Ord + Clone {
   fn empty() -> PersistentSortedSet T {
     PersistentSortedSet { root: TreeEmpty {}, size: 0 }
   }
@@ -300,8 +301,18 @@ fn traverse<T>(tree: Tree T, visit: T -> void) -> void {
   }
 }
 
-impl Enumerable T for PersistentSortedSet T where T: Ord T + Clone {
-  fn each(self: Self, visit: T -> void) -> void {
+impl Default for PersistentSortedSet T where T: Ord + Clone {
+  fn default() -> PersistentSortedSet T { PersistentSortedSet.empty() }
+}
+
+impl Extend T for PersistentSortedSet T where T: Ord + Clone {
+  fn extend(self: Self, value: T) -> Self {
+    self.insert(value)
+  }
+}
+
+impl Enumerable A for PersistentSortedSet where A: Ord + Clone {
+  fn each(self: Self, visit: A -> void) -> void {
     self.for_each(visit)
   }
 }

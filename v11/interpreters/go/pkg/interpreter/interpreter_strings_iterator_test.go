@@ -22,7 +22,7 @@ func TestStringIteratorRunsAfterStdlibImport(t *testing.T) {
 	}
 
 	interp := New()
-	if _, _, _, err := interp.EvaluateProgram(stdlibProgram, ProgramEvaluationOptions{SkipTypecheck: true}); err != nil {
+	if _, _, _, err := interp.EvaluateProgram(stdlibProgram, ProgramEvaluationOptions{}); err != nil {
 		t.Fatalf("evaluate stdlib string: %v", err)
 	}
 

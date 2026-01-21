@@ -1,15 +1,15 @@
-fn suite_prefix_keys(path: Array string) -> Array string {
-  keys: Array string := Array.new()
+fn suite_prefix_keys(path: Array String) -> Array String {
+  keys: Array String := Array.new()
   idx := 0
   loop {
     if idx >= path.len() { break }
-    prefix: Array string := Array.new()
+    prefix: Array String := Array.new()
     inner := 0
     loop {
       if inner > idx { break }
       path.get(inner) match {
         case nil => {},
-        case segment: string => prefix.push(segment)
+        case segment: String => prefix.push(segment)
       }
       inner = inner + 1
     }
@@ -19,13 +19,13 @@ fn suite_prefix_keys(path: Array string) -> Array string {
   keys
 }
 
-fn contains_string(array: Array string, needle: string) -> bool {
+fn contains_string(array: Array String, needle: String) -> bool {
   idx := 0
   loop {
     if idx >= array.len() { break }
     array.get(idx) match {
       case nil => {},
-      case value: string => {
+      case value: String => {
         if value == needle { return true }
       }
     }
@@ -43,12 +43,11 @@ fn run_hook_sequence(hooks: Array (ExampleContext -> void), ctx: ExampleContext)
       case hook: (ExampleContext -> void) => {
         failure: ?Failure := nil
         do { hook(ctx) } rescue {
-          case assertion: AssertionError => {
-            failure = failure_from_assertion(assertion)
-            nil
-          },
           case err: Error => {
-            failure = Failure { message: err.message(), details: nil, location: nil }
+            err.value match {
+              case assertion: AssertionError => { failure = failure_from_assertion(assertion) },
+              case _ => { failure = Failure { message: err.message(), details: nil, location: nil } }
+            }
             nil
           }
         }
@@ -72,12 +71,11 @@ fn run_hook_sequence_reverse(hooks: Array (ExampleContext -> void), ctx: Example
       case hook: (ExampleContext -> void) => {
         failure: ?Failure := nil
         do { hook(ctx) } rescue {
-          case assertion: AssertionError => {
-            failure = failure_from_assertion(assertion)
-            nil
-          },
           case err: Error => {
-            failure = Failure { message: err.message(), details: nil, location: nil }
+            err.value match {
+              case assertion: AssertionError => { failure = failure_from_assertion(assertion) },
+              case _ => { failure = Failure { message: err.message(), details: nil, location: nil } }
+            }
             nil
           }
         }
@@ -92,7 +90,7 @@ fn run_hook_sequence_reverse(hooks: Array (ExampleContext -> void), ctx: Example
   nil
 }
 
-fn run_before_all_for_suite(key: string, executed: Array string) -> ?Failure {
+fn run_before_all_for_suite(key: String, executed: Array String) -> ?Failure {
   find_suite(key) match {
     case nil => nil,
     case suite: SuiteDefinition => {
@@ -108,13 +106,13 @@ fn run_before_all_for_suite(key: string, executed: Array string) -> ?Failure {
   }
 }
 
-fn run_after_all_for_suites(keys: Array string, reporter: Reporter) -> void {
+fn run_after_all_for_suites(keys: Array String, reporter: Reporter) -> void {
   idx := keys.len() - 1
   loop {
     if idx < 0 { break }
     keys.get(idx) match {
       case nil => {},
-      case key: string => {
+      case key: String => {
         find_suite(key) match {
           case nil => {},
           case suite: SuiteDefinition => {
@@ -132,7 +130,7 @@ fn run_after_all_for_suites(keys: Array string, reporter: Reporter) -> void {
 }
 
 impl Framework for SpecFramework {
-  fn id(self: Self) -> string { FRAMEWORK_ID }
+  fn id(self: Self) -> String { FRAMEWORK_ID }
 
   fn discover(
     self: Self,
@@ -180,7 +178,7 @@ impl Framework for SpecFramework {
     options: RunOptions,
     reporter: Reporter
   ) -> ?Failure {
-    executed_suite_keys: Array string := Array.new()
+    executed_suite_keys: Array String := Array.new()
     idx := 0
     loop {
       if idx >= plan.descriptors.len() { break }
@@ -210,7 +208,7 @@ impl Framework for SpecFramework {
                 if prefix_idx >= prefix_keys.len() { break }
                 prefix_keys.get(prefix_idx) match {
                   case nil => {},
-                  case key: string => {
+                  case key: String => {
                     run_before_all_for_suite(key, executed_suite_keys) match {
                       case nil => {
                         if !contains_string(executed_suite_keys, key) {
@@ -239,12 +237,11 @@ impl Framework for SpecFramework {
               if failure == nil {
                 body_failure: ?Failure := nil
                 do { example.body(ctx) } rescue {
-                  case assertion: AssertionError => {
-                    body_failure = failure_from_assertion(assertion)
-                    nil
-                  },
                   case err: Error => {
-                    body_failure = Failure { message: err.message(), details: nil, location: nil }
+                    err.value match {
+                      case assertion: AssertionError => { body_failure = failure_from_assertion(assertion) },
+                      case _ => { body_failure = Failure { message: err.message(), details: nil, location: nil } }
+                    }
                     nil
                   }
                 }

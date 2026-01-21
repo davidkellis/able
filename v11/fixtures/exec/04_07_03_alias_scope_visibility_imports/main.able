@@ -10,6 +10,6 @@ fn main() -> void {
   group: PublicListAlias = [first, tag("lang")]
   merged := wrap(group)
 
-  print(`first ${merged[0]}`)
-  print(aliases.describe(merged[1]))
+  print(`first ${merged[0]!}`)
+  print(aliases.describe(merged[1]!))
 }

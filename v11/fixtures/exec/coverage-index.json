@@ -468,6 +468,18 @@
     "focus": "nested type expressions with generic application and unions"
   },
   {
+    "id": "exec/04_03_type_expression_arity_diag",
+    "status": "seeded",
+    "spec_sections": ["4.3"],
+    "focus": "generic application arity rejects extra space-delimited arguments"
+  },
+  {
+    "id": "exec/04_03_type_expression_associativity_diag",
+    "status": "seeded",
+    "spec_sections": ["4.3"],
+    "focus": "unparenthesized type application does not group right-associatively"
+  },
+  {
     "id": "exec/04_04_reserved_underscore_types",
     "status": "seeded",
     "spec_sections": ["4.4"],
