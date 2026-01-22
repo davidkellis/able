@@ -46,6 +46,7 @@ export type CheckerContextHost = {
   hasBindingInCurrentScope: (name: string) => boolean;
   allowDynamicLookup: () => boolean;
   getCurrentPackageName?: () => string;
+  registerSymbolOrigin?: (name: string, packageName: string) => void;
   getFunctionInfos: (key: string) => any[];
   addFunctionInfo: (key: string, info: any) => void;
   isExpression: (node: AST.Node | undefined | null) => node is AST.Expression;
@@ -104,6 +105,7 @@ export function createCheckerContext(host: CheckerContextHost): StatementContext
   ctx.hasBindingInCurrentScope = host.hasBindingInCurrentScope;
   ctx.allowDynamicLookup = host.allowDynamicLookup;
   ctx.getCurrentPackageName = host.getCurrentPackageName;
+  ctx.registerSymbolOrigin = host.registerSymbolOrigin;
   ctx.getFunctionInfos = host.getFunctionInfos;
   ctx.addFunctionInfo = host.addFunctionInfo;
   ctx.isExpression = host.isExpression;

@@ -235,19 +235,25 @@ export function resolveFunctionInfos(ctx: FunctionCallContext, callee: AST.Expre
       return [];
     }
     const infos = ctx.functionInfos.get(callee.name) ?? [];
-    const inScope = infos.filter((info) => {
-      if (!info.packageName) {
-        return true;
-      }
-      if (ctx.currentPackageName && info.packageName === ctx.currentPackageName) {
-        return true;
-      }
-      return ctx.importedPackages ? ctx.importedPackages.has(info.packageName) : false;
-    });
+    const inScope = filterBySymbolScope(ctx, infos, callee.name);
     const nonMethodInfos = inScope.filter((info) => !info.structName);
     return nonMethodInfos.length > 0 ? nonMethodInfos : inScope;
   }
   return [];
+}
+
+function filterBySymbolScope(
+  ctx: FunctionCallContext,
+  infos: FunctionInfo[],
+  symbolName: string,
+): FunctionInfo[] {
+  if (!infos.length) return infos;
+  const isBuiltin = (info: FunctionInfo) => !info.packageName || info.packageName === "<builtin>";
+  const origin = ctx.symbolOrigins?.get(symbolName);
+  if (origin) {
+    return infos.filter((info) => info.packageName === origin);
+  }
+  return infos.filter((info) => isBuiltin(info));
 }
 
 export function resolveMemberAccessCandidates(
@@ -937,7 +943,7 @@ function resolveUfcsFreeFunctionCandidates(
 ): FunctionInfo[] {
   if (!inScope) return [];
   const candidates: FunctionInfo[] = [];
-  const entries = ctx.functionInfos.get(memberName) ?? [];
+  const entries = filterBySymbolScope(ctx, ctx.functionInfos.get(memberName) ?? [], memberName);
   for (const entry of entries) {
     const params = Array.isArray(entry.parameters) ? entry.parameters : [];
     if (!params.length) continue;

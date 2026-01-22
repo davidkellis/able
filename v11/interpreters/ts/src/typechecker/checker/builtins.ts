@@ -152,6 +152,7 @@ function registerBuiltinFunction(
     {
       name,
       fullName: name,
+      packageName: "<builtin>",
       parameters: params,
       genericConstraints: [],
       genericParamNames: [],

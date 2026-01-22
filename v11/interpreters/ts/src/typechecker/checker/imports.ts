@@ -9,7 +9,7 @@ type ImportContext = {
   packageAliases: Map<string, string>;
   reportedPackageMemberAccess: WeakSet<AST.MemberAccessExpression>;
   currentPackageName: string;
-  registerImportedPackage?: (name: string) => void;
+  registerImportedSymbol?: (name: string, packageName: string) => void;
   report(message: string, node?: AST.Node | null): void;
   getIdentifierName(node: AST.Identifier | null | undefined): string | null;
 };
@@ -67,13 +67,16 @@ export function applyImportStatement(ctx: ImportContext, imp: AST.ImportStatemen
     ctx.report(`typechecker: package '${summary.name}' is private`, imp);
     return;
   }
-  ctx.registerImportedPackage?.(summary.name ?? packageName);
   if (imp.isWildcard) {
     if (summary.symbols) {
       for (const symbolName of Object.keys(summary.symbols)) {
-        if (!ctx.env.has(symbolName)) {
-          const resolved = resolveImported(symbolName);
-          ctx.env.define(symbolName, resolved.type);
+        if (ctx.env.has(symbolName)) {
+          continue;
+        }
+        const resolved = resolveImported(symbolName);
+        ctx.env.define(symbolName, resolved.type);
+        if (packageName) {
+          ctx.registerImportedSymbol?.(symbolName, packageName);
         }
       }
     }
@@ -98,6 +101,9 @@ export function applyImportStatement(ctx: ImportContext, imp: AST.ImportStatemen
       }
       if (!ctx.env.has(aliasName)) {
         ctx.env.define(aliasName, resolved.type);
+        if (packageName) {
+          ctx.registerImportedSymbol?.(aliasName, packageName);
+        }
       }
     }
     return;
