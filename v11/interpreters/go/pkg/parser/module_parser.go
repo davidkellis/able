@@ -51,7 +51,7 @@ func (p *ModuleParser) ParseModule(source []byte) (*ast.Module, error) {
 	if root == nil || root.Kind() != "source_file" {
 		return nil, fmt.Errorf("parser: unexpected root node")
 	}
-	if root.HasError() {
+	if root.HasError() && !recoverableInterfaceBaseErrors(root, source) {
 		return nil, syntaxError(root)
 	}
 

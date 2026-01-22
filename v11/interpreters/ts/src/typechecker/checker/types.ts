@@ -11,6 +11,7 @@ export interface ImplementationObligation {
 }
 
 export interface ImplementationRecord {
+  packageName?: string;
   interfaceName: string;
   label: string;
   target: AST.TypeExpression;
@@ -29,6 +30,7 @@ export interface InterfaceCheckResult {
 }
 
 export interface MethodSetRecord {
+  packageName?: string;
   label: string;
   target: AST.TypeExpression;
   resolvedTarget?: TypeInfo;

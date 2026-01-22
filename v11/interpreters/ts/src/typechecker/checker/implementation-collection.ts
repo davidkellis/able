@@ -45,6 +45,7 @@ export function collectMethodsDefinition(ctx: ImplementationContext, definition:
     obligations: extractMethodSetObligations(ctx, definition),
     definition,
     resolvedTarget: selfType ?? unknownType,
+    packageName: ctx.getCurrentPackageName?.(),
   };
   ctx.registerMethodSet(record);
   const methodObligations = Array.isArray(record.obligations) ? record.obligations : [];
@@ -297,6 +298,7 @@ function createImplementationRecord(
   const obligations = extractImplementationObligations(ctx, definition);
   const unionVariants = collectUnionVariantLabels(ctx, resolvedTarget);
   return {
+    packageName: ctx.getCurrentPackageName?.(),
     interfaceName,
     label: ctx.formatImplementationLabel(interfaceName, targetLabel),
     target: resolvedTargetExpr,
