@@ -18,6 +18,7 @@ import {
   cloneFunctionInfoMap,
   clonePrelude,
   LocalTypeDeclaration,
+  RESERVED_TYPE_NAMES,
   TypeCheckerOptions,
   TypeCheckerPrelude,
 } from "./checker/core";
@@ -84,6 +85,11 @@ type FunctionGenericContext = {
   inferred: Map<string, AST.GenericParameter>;
 };
 
+type TypeSymbolOrigin = {
+  packageName: string;
+  canonicalName: string;
+};
+
 export class TypeCheckerBase {
   protected env: Environment;
   protected readonly options: TypeCheckerOptions;
@@ -99,7 +105,9 @@ export class TypeCheckerBase {
   protected implementationRecords: ImplementationRecord[] = [];
   protected implementationIndex: Map<string, ImplementationRecord[]> = new Map();
   protected declarationOrigins: Map<string, AST.Node> = new Map();
-  protected symbolOrigins: Map<string, string> = new Map();
+  protected symbolOrigins: Map<string, Set<string>> = new Map();
+  protected typeSymbolOrigins: Map<string, TypeSymbolOrigin> = new Map();
+  protected typeCanonicalOrigins: Map<string, Set<string>> = new Map();
   protected functionGenericStack: FunctionGenericContext[] = [];
   protected typeParamStack: Array<Map<string, AST.TypeExpression[]>> = [];
   protected packageAliases: Map<string, string> = new Map();
@@ -161,13 +169,84 @@ export class TypeCheckerBase {
 
   protected registerImportedSymbol(name: string, packageName: string): void {
     if (!name || !packageName) return;
-    if (this.symbolOrigins.has(name)) return;
-    this.symbolOrigins.set(name, packageName);
+    const bucket = this.symbolOrigins.get(name);
+    if (bucket) {
+      bucket.add(packageName);
+    } else {
+      this.symbolOrigins.set(name, new Set([packageName]));
+    }
   }
 
   protected registerLocalSymbol(name: string, packageName: string): void {
     if (!name || !packageName) return;
-    this.symbolOrigins.set(name, packageName);
+    const bucket = this.symbolOrigins.get(name);
+    if (bucket) {
+      bucket.add(packageName);
+    } else {
+      this.symbolOrigins.set(name, new Set([packageName]));
+    }
+  }
+
+  protected registerImportedTypeSymbol(name: string, packageName: string, canonicalName?: string): void {
+    if (!name || !packageName) return;
+    if (!this.typeSymbolOrigins.has(name)) {
+      this.typeSymbolOrigins.set(name, { packageName, canonicalName: canonicalName ?? name });
+    }
+    const canonical = canonicalName ?? name;
+    const bucket = this.typeCanonicalOrigins.get(canonical);
+    if (bucket) {
+      bucket.add(packageName);
+    } else {
+      this.typeCanonicalOrigins.set(canonical, new Set([packageName]));
+    }
+  }
+
+  protected registerLocalTypeSymbol(name: string, packageName: string): void {
+    if (!name || !packageName) return;
+    this.typeSymbolOrigins.set(name, { packageName, canonicalName: name });
+    const bucket = this.typeCanonicalOrigins.get(name);
+    if (bucket) {
+      bucket.add(packageName);
+    } else {
+      this.typeCanonicalOrigins.set(name, new Set([packageName]));
+    }
+  }
+
+  protected isTypeNameInScope(name: string): boolean {
+    if (!name) return false;
+    if (RESERVED_TYPE_NAMES.has(name)) return true;
+    if (this.isBuiltinTypeName(name)) return true;
+    return this.typeSymbolOrigins.has(name);
+  }
+
+  protected typeOriginsForSymbol(name: string): Set<string> | null {
+    if (!name) return null;
+    if (RESERVED_TYPE_NAMES.has(name) || this.isBuiltinTypeName(name)) {
+      return new Set(["<builtin>"]);
+    }
+    const origin = this.typeSymbolOrigins.get(name);
+    if (!origin) return null;
+    return new Set([origin.packageName]);
+  }
+
+  protected typeOriginsForCanonical(name: string): Set<string> | null {
+    if (!name) return null;
+    if (RESERVED_TYPE_NAMES.has(name) || this.isBuiltinTypeName(name)) {
+      return new Set(["<builtin>"]);
+    }
+    return this.typeCanonicalOrigins.get(name) ?? null;
+  }
+
+  private isBuiltinTypeName(name: string): boolean {
+    const structDef = this.structDefinitions.get(name) as unknown as { _builtin?: boolean };
+    if (structDef?._builtin) return true;
+    const ifaceDef = this.interfaceDefinitions.get(name) as unknown as { _builtin?: boolean };
+    if (ifaceDef?._builtin) return true;
+    const aliasDef = this.typeAliases.get(name) as unknown as { _builtin?: boolean };
+    if (aliasDef?._builtin) return true;
+    const unionDef = this.unionDefinitions.get(name) as unknown as { _builtin?: boolean };
+    if (unionDef?._builtin) return true;
+    return false;
   }
 
   protected collectFunctionDefinition(definition: AST.FunctionDefinition, context: FunctionContext | undefined): void {
@@ -364,6 +443,10 @@ export class TypeCheckerBase {
       structDefinitions: this.structDefinitions,
       currentPackageName: this.currentPackageName,
       symbolOrigins: this.symbolOrigins,
+      typeSymbolOrigins: this.typeSymbolOrigins,
+      typeCanonicalOrigins: this.typeCanonicalOrigins,
+      getTypeOriginsForSymbol: (name: string) => this.typeOriginsForSymbol(name),
+      getTypeOriginsForCanonical: (name: string) => this.typeOriginsForCanonical(name),
       getStructDefinition: (name: string) => this.structDefinitions.get(name),
       inferExpression: (expression: AST.Expression | undefined | null) => this.inferExpression(expression),
       resolveTypeExpression: (expr: AST.TypeExpression | null | undefined, substitutions?: Map<string, TypeInfo>) =>

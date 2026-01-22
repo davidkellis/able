@@ -39,6 +39,7 @@ export type CheckerContextHost = {
   withForkedEnv<T>(fn: () => T): T;
   lookupIdentifier: (name: string) => TypeInfo | undefined;
   isTypeParamInScope: (name: string) => boolean;
+  isTypeNameInScope: (name: string) => boolean;
   getTypeParamConstraints: (name: string) => AST.TypeExpression[];
   defineValue: (name: string, valueType: TypeInfo) => void;
   assignValue: (name: string, valueType: TypeInfo) => void;
@@ -98,6 +99,7 @@ export function createCheckerContext(host: CheckerContextHost): StatementContext
   ctx.withForkedEnv = <T>(fn: () => T) => host.withForkedEnv(fn);
   ctx.lookupIdentifier = host.lookupIdentifier;
   ctx.isTypeParamInScope = host.isTypeParamInScope;
+  ctx.isTypeNameInScope = host.isTypeNameInScope;
   ctx.getTypeParamConstraints = host.getTypeParamConstraints;
   ctx.defineValue = host.defineValue;
   ctx.assignValue = host.assignValue;

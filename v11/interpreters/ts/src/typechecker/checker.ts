@@ -30,6 +30,8 @@ export class TypeChecker extends TypeCheckerBase {
     this.implementationIndex = new Map();
     this.declarationOrigins = new Map();
     this.symbolOrigins = new Map();
+    this.typeSymbolOrigins = new Map();
+    this.typeCanonicalOrigins = new Map();
     this.functionGenericStack = [];
     this.typeParamStack = [];
     this.loopResultStack = [];
@@ -123,15 +125,27 @@ export class TypeChecker extends TypeCheckerBase {
     if (!node) return;
     switch (node.type) {
       case "StructDefinition":
+        if (node.id?.name) {
+          this.registerLocalTypeSymbol(node.id.name, this.currentPackageName);
+        }
         this.registerStructDefinition(node);
         break;
       case "InterfaceDefinition":
+        if (node.id?.name) {
+          this.registerLocalTypeSymbol(node.id.name, this.currentPackageName);
+        }
         this.registerInterfaceDefinition(node);
         break;
       case "UnionDefinition":
+        if (node.id?.name) {
+          this.registerLocalTypeSymbol(node.id.name, this.currentPackageName);
+        }
         this.registerUnionDefinition(node);
         break;
       case "TypeAliasDefinition":
+        if (node.id?.name) {
+          this.registerLocalTypeSymbol(node.id.name, this.currentPackageName);
+        }
         this.registerTypeAlias(node);
         break;
       default:

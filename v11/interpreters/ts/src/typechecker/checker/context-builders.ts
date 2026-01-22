@@ -15,6 +15,8 @@ export function buildImportContext(checker: any) {
     reportedPackageMemberAccess: checker.reportedPackageMemberAccess,
     currentPackageName: checker.currentPackageName,
     registerImportedSymbol: (symbol: string, pkg: string) => checker.registerImportedSymbol(symbol, pkg),
+    registerImportedTypeSymbol: (symbol: string, pkg: string, canonical?: string) =>
+      checker.registerImportedTypeSymbol(symbol, pkg, canonical),
     report: checker.report.bind(checker),
     getIdentifierName: checker.getIdentifierName.bind(checker),
   };
@@ -87,6 +89,7 @@ export function buildCheckerContext(checker: any): StatementContext {
     withForkedEnv: <T>(fn: () => T) => checker.withForkedEnv(fn),
     lookupIdentifier: (name: string) => checker.env.lookup(name),
     isTypeParamInScope: (name: string) => checker.isTypeParamInScope(name),
+    isTypeNameInScope: (name: string) => checker.isTypeNameInScope(name),
     getTypeParamConstraints: (name: string) => checker.typeParamConstraints(name),
     defineValue: (name: string, valueType: TypeInfo) => checker.env.define(name, valueType),
     assignValue: (name: string, valueType: TypeInfo) => checker.env.assign(name, valueType),

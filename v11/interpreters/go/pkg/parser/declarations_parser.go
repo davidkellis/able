@@ -541,21 +541,25 @@ func (ctx *parseContext) parseInterfaceDefinition(node *sitter.Node) (ast.Statem
 		return nil, err
 	}
 
-	var selfType ast.TypeExpression
-	selfNode := node.ChildByFieldName("self_type")
-	if selfNode != nil {
-		selfType = ctx.parseTypeExpression(selfNode)
-	}
-
 	whereNode := node.ChildByFieldName("where_clause")
 	whereClause, err := parseWhereClause(whereNode, source)
 	if err != nil {
 		return nil, err
 	}
 
+	selfNode := node.ChildByFieldName("self_type")
 	baseNode := node.ChildByFieldName("base_interfaces")
+	compositeNode := node.ChildByFieldName("composite")
+	var recoveredSelfType ast.TypeExpression
+	if baseNode == nil && compositeNode == nil {
+		if recoveredType, recoveredBase, ok := recoverInterfaceBaseSelfType(node, source); ok {
+			recoveredSelfType = recoveredType
+			selfNode = nil
+			baseNode = recoveredBase
+		}
+	}
 	if baseNode == nil {
-		baseNode = node.ChildByFieldName("composite")
+		baseNode = compositeNode
 	}
 	signatures := make([]*ast.FunctionSignature, 0)
 	for i := uint(0); i < node.NamedChildCount(); i++ {
@@ -594,6 +598,13 @@ func (ctx *parseContext) parseInterfaceDefinition(node *sitter.Node) (ast.Statem
 			return nil, err
 		}
 		baseInterfaces = append(baseInterfaces, bounds...)
+	}
+
+	var selfType ast.TypeExpression
+	if recoveredSelfType != nil {
+		selfType = recoveredSelfType
+	} else if selfNode != nil {
+		selfType = ctx.parseTypeExpression(selfNode)
 	}
 
 	iface := ast.NewInterfaceDefinition(name, signatures, typeParams, selfType, whereClause, baseInterfaces, hasLeadingPrivate(node))

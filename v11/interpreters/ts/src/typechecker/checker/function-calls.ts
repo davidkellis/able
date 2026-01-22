@@ -30,7 +30,11 @@ export type FunctionCallContext = {
   functionInfos: Map<string, FunctionInfo[]>;
   structDefinitions: Map<string, AST.StructDefinition>;
   currentPackageName?: string;
-  symbolOrigins?: Map<string, string>;
+  symbolOrigins?: Map<string, Set<string>>;
+  typeSymbolOrigins?: Map<string, { packageName: string; canonicalName: string }>;
+  typeCanonicalOrigins?: Map<string, Set<string>>;
+  getTypeOriginsForSymbol?: (name: string) => Set<string> | null;
+  getTypeOriginsForCanonical?: (name: string) => Set<string> | null;
   getStructDefinition(name: string): AST.StructDefinition | undefined;
   inferExpression(expression: AST.Expression | undefined | null): TypeInfo;
   resolveTypeExpression(expr: AST.TypeExpression | null | undefined, substitutions?: Map<string, TypeInfo>): TypeInfo;

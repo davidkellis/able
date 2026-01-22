@@ -43,6 +43,18 @@ func applyGenericType(base ast.TypeExpression, args []ast.TypeExpression) ast.Ty
 	}
 }
 
+func flattenGenericApplication(expr ast.TypeExpression) []ast.TypeExpression {
+	if expr == nil {
+		return nil
+	}
+	if generic, ok := expr.(*ast.GenericTypeExpression); ok {
+		parts := flattenGenericApplication(generic.Base)
+		parts = append(parts, generic.Arguments...)
+		return parts
+	}
+	return []ast.TypeExpression{expr}
+}
+
 func typeArgumentExpressions(node *sitter.Node, source []byte) []ast.TypeExpression {
 	args, err := parseTypeArgumentList(node, source)
 	if err != nil {
@@ -53,6 +65,23 @@ func typeArgumentExpressions(node *sitter.Node, source []byte) []ast.TypeExpress
 
 func parseReturnType(node *sitter.Node, source []byte) ast.TypeExpression {
 	return parseTypeExpression(node, source)
+}
+
+func isParenthesizedTypeNode(node *sitter.Node) bool {
+	for node != nil {
+		switch node.Kind() {
+		case "parenthesized_type":
+			return true
+		case "type_prefix", "interface_type_prefix", "type_atom", "interface_type_atom":
+			if node.NamedChildCount() == 0 {
+				return false
+			}
+			node = node.NamedChild(0)
+		default:
+			return false
+		}
+	}
+	return false
 }
 
 func parseTypeExpression(node *sitter.Node, source []byte) ast.TypeExpression {
@@ -111,7 +140,11 @@ func parseTypeExpression(node *sitter.Node, source []byte) ast.TypeExpression {
 				}
 				arg := parseTypeExpression(child, source)
 				if arg != nil {
-					args = append(args, arg)
+					if _, ok := arg.(*ast.GenericTypeExpression); ok && !isParenthesizedTypeNode(child) {
+						args = append(args, flattenGenericApplication(arg)...)
+					} else {
+						args = append(args, arg)
+					}
 				}
 			}
 			if base != nil && len(args) > 0 {
