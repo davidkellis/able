@@ -7,42 +7,42 @@ import (
 )
 
 var reservedTypeNames = map[string]struct{}{
-	"bool":     {},
-	"string":   {},
-	"String":   {},
-	"IoHandle": {},
-	"ProcHandle": {},
-	"char":     {},
-	"nil":      {},
-	"void":     {},
-	"Self":     {},
-	"_":        {},
-	"i8":       {},
-	"i16":      {},
-	"i32":      {},
-	"i64":      {},
-	"i128":     {},
-	"isize":    {},
-	"u8":       {},
-	"u16":      {},
-	"u32":      {},
-	"u64":      {},
-	"u128":     {},
-	"usize":    {},
-	"f32":      {},
-	"f64":      {},
-	"Array":    {},
-	"Map":      {},
-	"Range":    {},
-	"Iterator": {},
+	"bool":        {},
+	"string":      {},
+	"String":      {},
+	"IoHandle":    {},
+	"ProcHandle":  {},
+	"char":        {},
+	"nil":         {},
+	"void":        {},
+	"Self":        {},
+	"_":           {},
+	"i8":          {},
+	"i16":         {},
+	"i32":         {},
+	"i64":         {},
+	"i128":        {},
+	"isize":       {},
+	"u8":          {},
+	"u16":         {},
+	"u32":         {},
+	"u64":         {},
+	"u128":        {},
+	"usize":       {},
+	"f32":         {},
+	"f64":         {},
+	"Array":       {},
+	"Map":         {},
+	"Range":       {},
+	"Iterator":    {},
 	"IteratorEnd": {},
-	"Result":   {},
-	"Option":   {},
-	"Proc":     {},
-	"Future":   {},
-	"Channel":  {},
-	"Mutex":    {},
-	"Error":    {},
+	"Result":      {},
+	"Option":      {},
+	"Proc":        {},
+	"Future":      {},
+	"Channel":     {},
+	"Mutex":       {},
+	"Error":       {},
 }
 
 type typeIdentifierOccurrence struct {
@@ -161,7 +161,9 @@ func (c *declarationCollector) shouldInferGenericParameter(name string, known ma
 	}
 	if c.env != nil {
 		if decl, exists := c.env.Lookup(name); exists {
-			if _, isFn := decl.(FunctionType); !isFn {
+			switch decl.(type) {
+			case FunctionType, FunctionOverloadType:
+			default:
 				return false, skipKnownType
 			}
 		}

@@ -428,22 +428,49 @@ func (c *Checker) lookupUfcsInherentMethod(object Type, name string) (FunctionTy
 	return bestFn, found
 }
 
-func (c *Checker) lookupUfcsFreeFunction(env *Environment, object Type, name string) (FunctionType, bool) {
+func (c *Checker) lookupUfcsFreeFunction(env *Environment, object Type, name string) (Type, bool) {
 	if env == nil {
-		return FunctionType{}, false
+		return nil, false
 	}
 	typ, ok := env.Lookup(name)
 	if !ok {
-		return FunctionType{}, false
+		return nil, false
 	}
-	fnType, ok := typ.(FunctionType)
-	if !ok {
-		return FunctionType{}, false
+	switch fnType := typ.(type) {
+	case FunctionType:
+		if !shouldBindSelfParam(fnType, object) {
+			return nil, false
+		}
+		return bindMethodType(fnType), true
+	case FunctionOverloadType:
+		matches := make([]FunctionType, 0, len(fnType.Overloads))
+		for _, overload := range fnType.Overloads {
+			if !shouldBindSelfParam(overload, object) {
+				continue
+			}
+			bound := bindMethodType(overload)
+			duplicate := false
+			for _, existing := range matches {
+				if functionSignaturesEquivalent(existing, bound) {
+					duplicate = true
+					break
+				}
+			}
+			if duplicate {
+				continue
+			}
+			matches = append(matches, bound)
+		}
+		if len(matches) == 0 {
+			return nil, false
+		}
+		if len(matches) == 1 {
+			return matches[0], true
+		}
+		return FunctionOverloadType{Overloads: matches}, true
+	default:
+		return nil, false
 	}
-	if !shouldBindSelfParam(fnType, object) {
-		return FunctionType{}, false
-	}
-	return bindMethodType(fnType), true
 }
 
 func (c *Checker) lookupTypeParamMethod(paramName, methodName string) (FunctionType, bool) {

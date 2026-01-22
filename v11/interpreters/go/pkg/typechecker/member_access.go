@@ -129,8 +129,13 @@ func (c *Checker) checkMemberAccessWithOptions(env *Environment, expr *ast.Membe
 				return diags, final
 			}
 		}
-		if fnType, ok := c.lookupUfcsFreeFunction(env, objectType, memberName); ok && !methodFound {
-			candidates = append(candidates, fnType)
+		if ufcsType, ok := c.lookupUfcsFreeFunction(env, objectType, memberName); ok && !methodFound {
+			var done bool
+			var final Type
+			candidates, final, done = c.appendUfcsCandidate(candidates, ufcsType, expr, wrapType)
+			if done {
+				return diags, final
+			}
 		}
 		if len(candidates) > 1 {
 			diags = append(diags, Diagnostic{
@@ -199,8 +204,13 @@ func (c *Checker) checkMemberAccessWithOptions(env *Environment, expr *ast.Membe
 				return diags, final
 			}
 		}
-		if fnType, ok := c.lookupUfcsFreeFunction(env, objectType, memberName); ok && !methodFound {
-			candidates = append(candidates, fnType)
+		if ufcsType, ok := c.lookupUfcsFreeFunction(env, objectType, memberName); ok && !methodFound {
+			var done bool
+			var final Type
+			candidates, final, done = c.appendUfcsCandidate(candidates, ufcsType, expr, wrapType)
+			if done {
+				return diags, final
+			}
 		}
 		if len(candidates) > 1 {
 			diags = append(diags, Diagnostic{
@@ -243,8 +253,13 @@ func (c *Checker) checkMemberAccessWithOptions(env *Environment, expr *ast.Membe
 			c.infer.set(expr, UnknownType{})
 			return diags, UnknownType{}
 		}
-		if fnType, ok := c.lookupUfcsFreeFunction(env, objectType, memberName); ok && !methodFound {
-			candidates = append(candidates, fnType)
+		if ufcsType, ok := c.lookupUfcsFreeFunction(env, objectType, memberName); ok && !methodFound {
+			var done bool
+			var final Type
+			candidates, final, done = c.appendUfcsCandidate(candidates, ufcsType, expr, wrapType)
+			if done {
+				return diags, final
+			}
 		}
 		if len(candidates) > 1 {
 			diags = append(diags, Diagnostic{
@@ -286,8 +301,13 @@ func (c *Checker) checkMemberAccessWithOptions(env *Environment, expr *ast.Membe
 			c.infer.set(expr, UnknownType{})
 			return diags, UnknownType{}
 		}
-		if fnType, ok := c.lookupUfcsFreeFunction(env, objectType, memberName); ok && !methodFound {
-			candidates = append(candidates, fnType)
+		if ufcsType, ok := c.lookupUfcsFreeFunction(env, objectType, memberName); ok && !methodFound {
+			var done bool
+			var final Type
+			candidates, final, done = c.appendUfcsCandidate(candidates, ufcsType, expr, wrapType)
+			if done {
+				return diags, final
+			}
 		}
 		if len(candidates) > 1 {
 			diags = append(diags, Diagnostic{
@@ -329,8 +349,13 @@ func (c *Checker) checkMemberAccessWithOptions(env *Environment, expr *ast.Membe
 				c.infer.set(expr, UnknownType{})
 				return diags, UnknownType{}
 			}
-			if fnType, ok := c.lookupUfcsFreeFunction(env, objectType, memberName); ok && !methodFound {
-				candidates = append(candidates, fnType)
+			if ufcsType, ok := c.lookupUfcsFreeFunction(env, objectType, memberName); ok && !methodFound {
+				var done bool
+				var final Type
+				candidates, final, done = c.appendUfcsCandidate(candidates, ufcsType, expr, wrapType)
+				if done {
+					return diags, final
+				}
 			}
 			if len(candidates) > 1 {
 				diags = append(diags, Diagnostic{
@@ -350,8 +375,8 @@ func (c *Checker) checkMemberAccessWithOptions(env *Environment, expr *ast.Membe
 			})
 			break
 		}
-		if fnType, ok := c.lookupUfcsFreeFunction(env, objectType, memberName); ok {
-			final := c.finalizeMemberAccessType(expr, wrapType, fnType)
+		if ufcsType, ok := c.lookupUfcsFreeFunction(env, objectType, memberName); ok {
+			final := c.finalizeMemberAccessType(expr, wrapType, ufcsType)
 			return diags, final
 		}
 		diags = append(diags, Diagnostic{
@@ -506,8 +531,13 @@ func (c *Checker) checkMemberAccessWithOptions(env *Environment, expr *ast.Membe
 			c.infer.set(expr, UnknownType{})
 			return diags, UnknownType{}
 		}
-		if fnType, ok := c.lookupUfcsFreeFunction(env, objectType, memberName); ok && !methodFound {
-			candidates = append(candidates, fnType)
+		if ufcsType, ok := c.lookupUfcsFreeFunction(env, objectType, memberName); ok && !methodFound {
+			var done bool
+			var final Type
+			candidates, final, done = c.appendUfcsCandidate(candidates, ufcsType, expr, wrapType)
+			if done {
+				return diags, final
+			}
 		}
 		if len(candidates) > 1 {
 			diags = append(diags, Diagnostic{
@@ -581,8 +611,8 @@ func (c *Checker) checkMemberAccessWithOptions(env *Environment, expr *ast.Membe
 			c.infer.set(expr, UnknownType{})
 			return diags, UnknownType{}
 		}
-		if fnType, ok := c.lookupUfcsFreeFunction(env, objectType, memberName); ok {
-			final := c.finalizeMemberAccessType(expr, wrapType, fnType)
+		if ufcsType, ok := c.lookupUfcsFreeFunction(env, objectType, memberName); ok {
+			final := c.finalizeMemberAccessType(expr, wrapType, ufcsType)
 			return diags, final
 		}
 		diags = append(diags, Diagnostic{
@@ -704,8 +734,13 @@ func (c *Checker) checkMemberAccessWithOptions(env *Environment, expr *ast.Membe
 			c.infer.set(expr, UnknownType{})
 			return diags, UnknownType{}
 		}
-		if fnType, ok := c.lookupUfcsFreeFunction(env, objectType, memberName); ok && !methodFound {
-			candidates = append(candidates, fnType)
+		if ufcsType, ok := c.lookupUfcsFreeFunction(env, objectType, memberName); ok && !methodFound {
+			var done bool
+			var final Type
+			candidates, final, done = c.appendUfcsCandidate(candidates, ufcsType, expr, wrapType)
+			if done {
+				return diags, final
+			}
 		}
 		if len(candidates) > 1 {
 			diags = append(diags, Diagnostic{

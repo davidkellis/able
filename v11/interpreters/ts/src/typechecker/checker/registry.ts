@@ -67,6 +67,9 @@ export function ensureUniqueDeclaration(
       ctx.declarationOrigins.set(key, node);
       return true;
     }
+    if (node.type === "FunctionDefinition" && existing.type === "FunctionDefinition") {
+      return true;
+    }
     const location = formatNodeOrigin(existing);
     const displayName = name.startsWith("<anonymous>::") ? name.slice("<anonymous>::".length) : name;
     ctx.report(`typechecker: duplicate declaration '${displayName}' (previous declaration at ${location})`, node);

@@ -658,5 +658,11 @@
     "status": "seeded",
     "spec_sections": ["8.1.2", "8.2.2", "11.3"],
     "focus": "match-driven control flow with raise/rescue inside a loop"
+  },
+  {
+    "id": "exec/11_01_return_statement_typecheck_diag",
+    "status": "seeded",
+    "spec_sections": ["7.3"],
+    "focus": "typechecker flags return type mismatches that would surface at runtime"
   }
 ]

@@ -331,7 +331,8 @@ async function handleTestCommand(args: string[]): Promise<void> {
   }
 
   const session = new TypeChecker.TypecheckerSession();
-  const typecheckOk = maybeTypecheckTestModules(session, loadResult.modules, TYPECHECK_MODE);
+  const effectiveTypecheckMode = config.listOnly || config.dryRun ? "off" : TYPECHECK_MODE;
+  const typecheckOk = maybeTypecheckTestModules(session, loadResult.modules, effectiveTypecheckMode);
   if (!typecheckOk) {
     return;
   }

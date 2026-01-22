@@ -30,6 +30,7 @@ type Checker struct {
 	preludeMethodCount   int
 	publicDeclarations   []exportRecord
 	localTypeNames       map[string]struct{}
+	functionDecls        map[*ast.FunctionDefinition]FunctionType
 
 	builtinImplementations []ImplementationSpec
 	pendingDiagnostics     []Diagnostic
@@ -130,6 +131,7 @@ func (c *Checker) CheckModule(module *ast.Module) ([]Diagnostic, error) {
 	c.preludeMethodCount = 0
 	c.pendingDiagnostics = nil
 	c.duplicateFunctions = nil
+	c.functionDecls = nil
 	declDiags := c.collectDeclarations(module)
 	var diagnostics []Diagnostic
 	diagnostics = append(diagnostics, declDiags...)

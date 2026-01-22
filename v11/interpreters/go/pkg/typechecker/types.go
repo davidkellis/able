@@ -13,12 +13,12 @@ type Type interface {
 type PrimitiveKind string
 
 const (
-	PrimitiveNil    PrimitiveKind = "Nil"
-	PrimitiveBool   PrimitiveKind = "Bool"
-	PrimitiveChar   PrimitiveKind = "Char"
-	PrimitiveString PrimitiveKind = "String"
-	PrimitiveInt    PrimitiveKind = "Int"
-	PrimitiveFloat  PrimitiveKind = "Float"
+	PrimitiveNil        PrimitiveKind = "Nil"
+	PrimitiveBool       PrimitiveKind = "Bool"
+	PrimitiveChar       PrimitiveKind = "Char"
+	PrimitiveString     PrimitiveKind = "String"
+	PrimitiveInt        PrimitiveKind = "Int"
+	PrimitiveFloat      PrimitiveKind = "Float"
 	PrimitiveIoHandle   PrimitiveKind = "IoHandle"
 	PrimitiveProcHandle PrimitiveKind = "ProcHandle"
 )
@@ -141,6 +141,12 @@ type FunctionType struct {
 
 func (f FunctionType) Name() string { return "Function" }
 
+type FunctionOverloadType struct {
+	Overloads []FunctionType
+}
+
+func (f FunctionOverloadType) Name() string { return "FunctionOverload" }
+
 type ProcType struct {
 	Result Type
 }
@@ -173,19 +179,19 @@ type UnionLiteralType struct {
 func (u UnionLiteralType) Name() string { return "UnionLiteral" }
 
 type ImplementationSpec struct {
-	ImplName      string
-	InterfaceName string
-	Interface     InterfaceType
-	TypeParams    []GenericParamSpec
-	Target        Type
-	InterfaceArgs []Type
-	Methods       map[string]FunctionType
-	Where         []WhereConstraintSpec
+	ImplName                string
+	InterfaceName           string
+	Interface               InterfaceType
+	TypeParams              []GenericParamSpec
+	Target                  Type
+	InterfaceArgs           []Type
+	Methods                 map[string]FunctionType
+	Where                   []WhereConstraintSpec
 	MethodWhereClauseCounts map[string]int
-	Obligations   []ConstraintObligation
-	UnionVariants []string
-	IsBuiltin     bool
-	Definition    *ast.ImplementationDefinition
+	Obligations             []ConstraintObligation
+	UnionVariants           []string
+	IsBuiltin               bool
+	Definition              *ast.ImplementationDefinition
 }
 
 type ImplementationNamespaceType struct {

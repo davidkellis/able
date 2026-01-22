@@ -9,12 +9,12 @@ import (
 )
 
 var reexportedSymbols = map[string]string{
-	"able.collections.array.Array":       "able.kernel.Array",
-	"able.collections.range.Range":       "able.kernel.Range",
+	"able.collections.array.Array":        "able.kernel.Array",
+	"able.collections.range.Range":        "able.kernel.Range",
 	"able.collections.range.RangeFactory": "able.kernel.RangeFactory",
-	"able.core.numeric.Ratio":            "able.kernel.Ratio",
-	"able.concurrency.Channel":           "able.kernel.Channel",
-	"able.concurrency.Mutex":             "able.kernel.Mutex",
+	"able.core.numeric.Ratio":             "able.kernel.Ratio",
+	"able.concurrency.Channel":            "able.kernel.Channel",
+	"able.concurrency.Mutex":              "able.kernel.Mutex",
 	"able.concurrency.Awaitable":          "able.kernel.Awaitable",
 	"able.concurrency.AwaitWaker":         "able.kernel.AwaitWaker",
 	"able.concurrency.AwaitRegistration":  "able.kernel.AwaitRegistration",
@@ -748,6 +748,9 @@ func (pc *ProgramChecker) hintForNode(mod *driver.Module, node ast.Node) SourceH
 			hint.Path = path
 			return hint
 		}
+	}
+	if node != nil && hint.Line == 0 && hint.Column == 0 && hint.EndLine == 0 && hint.EndColumn == 0 {
+		return hint
 	}
 	if len(mod.Files) > 0 {
 		hint.Path = mod.Files[0]

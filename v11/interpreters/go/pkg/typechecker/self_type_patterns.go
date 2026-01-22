@@ -131,7 +131,20 @@ func (c *declarationCollector) matchSelfTypePattern(
 		if !ok {
 			return false
 		}
-		if !c.matchSelfTypePattern(pt.Base, actual.Base, interfaceGenericNames, bindings) {
+		if patternAllowsBareConstructor(pt) {
+			if simple, ok := pt.Base.(*ast.SimpleTypeExpression); ok {
+				name := identifierName(simple.Name)
+				if c.isPatternPlaceholderName(name, interfaceGenericNames) {
+					if !bindSelfPatternPlaceholder(name, target, bindings) {
+						return false
+					}
+				} else if !c.matchSelfTypePattern(pt.Base, actual.Base, interfaceGenericNames, bindings) {
+					return false
+				}
+			} else if !c.matchSelfTypePattern(pt.Base, actual.Base, interfaceGenericNames, bindings) {
+				return false
+			}
+		} else if !c.matchSelfTypePattern(pt.Base, actual.Base, interfaceGenericNames, bindings) {
 			return false
 		}
 		if !selfPatternArgsCompatible(pt.Arguments, actual.Arguments) {
