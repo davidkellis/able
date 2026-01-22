@@ -1,5 +1,10 @@
 # Able Project Log
 
+# 2026-01-22 — TS typechecker import symbol scoping (v11)
+- Typechecker (TS): record symbol origins for imports/locals and filter unqualified/UFCS free-function resolution to the explicitly imported symbol source; builtins tagged for scope filtering.
+- Tests: `bun test test/typechecker/function_calls.test.ts` and `bun test test/typechecker/duplicates.test.ts` in `v11/interpreters/ts`.
+- Tests: `./run_stdlib_tests.sh --version=v11`.
+
 # 2026-01-21 — TS typechecker import scoping for functions (v11)
 - Typechecker (TS): track current package for function infos, filter call resolution to imported packages, and avoid cross-package duplicate declaration errors in stdlib/test runs.
 - Tests: `./run_stdlib_tests.sh --version=v11`.
