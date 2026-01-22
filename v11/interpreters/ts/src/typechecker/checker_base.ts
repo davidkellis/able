@@ -99,11 +99,11 @@ export class TypeCheckerBase {
   protected implementationRecords: ImplementationRecord[] = [];
   protected implementationIndex: Map<string, ImplementationRecord[]> = new Map();
   protected declarationOrigins: Map<string, AST.Node> = new Map();
+  protected symbolOrigins: Map<string, string> = new Map();
   protected functionGenericStack: FunctionGenericContext[] = [];
   protected typeParamStack: Array<Map<string, AST.TypeExpression[]>> = [];
   protected packageAliases: Map<string, string> = new Map();
   protected reportedPackageMemberAccess = new WeakSet<AST.MemberAccessExpression>();
-  protected importedPackages: Set<string> = new Set();
   protected asyncDepth = 0;
   protected returnTypeStack: TypeInfo[] = [];
   protected loopResultStack: TypeInfo[] = [];
@@ -158,6 +158,17 @@ export class TypeCheckerBase {
   }
 
   protected registerImplementationRecord(record: ImplementationRecord): void { registerImplementationRecordHelper(this.registryContext(), record); }
+
+  protected registerImportedSymbol(name: string, packageName: string): void {
+    if (!name || !packageName) return;
+    if (this.symbolOrigins.has(name)) return;
+    this.symbolOrigins.set(name, packageName);
+  }
+
+  protected registerLocalSymbol(name: string, packageName: string): void {
+    if (!name || !packageName) return;
+    this.symbolOrigins.set(name, packageName);
+  }
 
   protected collectFunctionDefinition(definition: AST.FunctionDefinition, context: FunctionContext | undefined): void {
     collectFunctionDefinitionHelper(this.declarationsContext, definition, context);
@@ -352,7 +363,7 @@ export class TypeCheckerBase {
       functionInfos: this.functionInfos,
       structDefinitions: this.structDefinitions,
       currentPackageName: this.currentPackageName,
-      importedPackages: this.importedPackages,
+      symbolOrigins: this.symbolOrigins,
       getStructDefinition: (name: string) => this.structDefinitions.get(name),
       inferExpression: (expression: AST.Expression | undefined | null) => this.inferExpression(expression),
       resolveTypeExpression: (expr: AST.TypeExpression | null | undefined, substitutions?: Map<string, TypeInfo>) =>

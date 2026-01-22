@@ -29,6 +29,7 @@ export class TypeChecker extends TypeCheckerBase {
     this.implementationRecords = [];
     this.implementationIndex = new Map();
     this.declarationOrigins = new Map();
+    this.symbolOrigins = new Map();
     this.functionGenericStack = [];
     this.typeParamStack = [];
     this.loopResultStack = [];
@@ -36,7 +37,6 @@ export class TypeChecker extends TypeCheckerBase {
     this.installBuiltins();
     this.installPrelude();
     this.packageAliases.clear();
-    this.importedPackages = new Set();
     this.reportedPackageMemberAccess = new WeakSet();
     this.allowDynamicLookups = false;
     this.currentPackageName = resolvePackageName(module);

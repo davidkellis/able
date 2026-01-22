@@ -150,6 +150,9 @@ export function collectFunctionDefinition(
           parameters: parameterTypes,
           returnType,
         });
+        if (currentPackageName) {
+          ctx.registerSymbolOrigin?.(exportedName, currentPackageName);
+        }
       }
     } else {
       ctx.addFunctionInfo(name, info);
@@ -158,6 +161,9 @@ export function collectFunctionDefinition(
         parameters: parameterTypes,
         returnType,
       });
+      if (currentPackageName) {
+        ctx.registerSymbolOrigin?.(definition.id.name, currentPackageName);
+      }
     }
   }
 }

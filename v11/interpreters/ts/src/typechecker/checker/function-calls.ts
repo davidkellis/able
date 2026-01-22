@@ -30,7 +30,7 @@ export type FunctionCallContext = {
   functionInfos: Map<string, FunctionInfo[]>;
   structDefinitions: Map<string, AST.StructDefinition>;
   currentPackageName?: string;
-  importedPackages?: Set<string>;
+  symbolOrigins?: Map<string, string>;
   getStructDefinition(name: string): AST.StructDefinition | undefined;
   inferExpression(expression: AST.Expression | undefined | null): TypeInfo;
   resolveTypeExpression(expr: AST.TypeExpression | null | undefined, substitutions?: Map<string, TypeInfo>): TypeInfo;

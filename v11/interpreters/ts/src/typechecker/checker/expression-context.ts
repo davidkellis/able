@@ -51,6 +51,7 @@ export interface ExpressionContext {
   hasBindingInCurrentScope(name: string): boolean;
   allowDynamicLookup(): boolean;
   getCurrentPackageName?(): string;
+  registerSymbolOrigin?(name: string, packageName: string): void;
   typeImplementsInterface?(
     type: TypeInfo,
     interfaceName: string,
