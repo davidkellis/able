@@ -87,6 +87,7 @@ export function lookupMethodSetsForCall(
     const info: FunctionInfo = {
       name: methodName,
       fullName: `${record.label}::${methodName}`,
+      packageName: record.packageName,
       definition: method,
       structName: structLabel,
       hasImplicitSelf,

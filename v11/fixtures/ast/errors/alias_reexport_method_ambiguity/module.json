@@ -20,26 +20,26 @@
       ],
       "isWildcard": false
     },
-    {
-      "type": "ImportStatement",
-      "packagePath": [
-        {
-          "type": "Identifier",
-          "name": "alias_reexport_method_ambiguity_a"
-        }
-      ],
-      "isWildcard": false
-    },
-    {
-      "type": "ImportStatement",
-      "packagePath": [
-        {
-          "type": "Identifier",
-          "name": "alias_reexport_method_ambiguity_b"
-        }
-      ],
-      "isWildcard": false
-    }
+  {
+    "type": "ImportStatement",
+    "packagePath": [
+      {
+        "type": "Identifier",
+        "name": "alias_reexport_method_ambiguity_a"
+      }
+    ],
+    "isWildcard": true
+  },
+  {
+    "type": "ImportStatement",
+    "packagePath": [
+      {
+        "type": "Identifier",
+        "name": "alias_reexport_method_ambiguity_b"
+      }
+    ],
+    "isWildcard": true
+  }
   ],
   "body": [
     {

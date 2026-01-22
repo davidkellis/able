@@ -36,6 +36,7 @@ type ReceiverLookup = {
   memberName: string;
   isTypeReference?: boolean;
   typeQualifier?: string | null;
+  referenceName?: string | null;
 };
 
 export function selectBestOverload(
@@ -250,8 +251,11 @@ function filterBySymbolScope(
   if (!infos.length) return infos;
   const isBuiltin = (info: FunctionInfo) => !info.packageName || info.packageName === "<builtin>";
   const origin = ctx.symbolOrigins?.get(symbolName);
-  if (origin) {
-    return infos.filter((info) => info.packageName === origin);
+  if (origin && origin.size > 0) {
+    if (origin.has("<builtin>")) {
+      return infos;
+    }
+    return infos.filter((info) => !info.packageName || origin.has(info.packageName));
   }
   return infos.filter((info) => isBuiltin(info));
 }
@@ -357,14 +361,15 @@ function buildReceiverLookup(
   memberName: string,
 ): ReceiverLookup | null {
   const objectName = callee.object?.type === "Identifier" ? callee.object.name : null;
-  const isTypeName =
-    objectName ? ctx.structDefinitions.has(objectName) || ctx.implementationContext.hasInterfaceDefinition?.(objectName) : false;
+  const referenceName = objectName;
+  const typeNameInScope = referenceName ? ctx.statementContext.isTypeNameInScope?.(referenceName) ?? false : false;
   const hasObjectBinding = objectName ? ctx.statementContext.hasBinding?.(objectName) ?? false : true;
   let objectType = ctx.inferExpression(callee.object);
   if (
     objectType.kind !== "struct" &&
     callee.object?.type === "Identifier" &&
     callee.object.name &&
+    typeNameInScope &&
     ctx.structDefinitions.has(callee.object.name)
   ) {
     objectType = {
@@ -377,20 +382,27 @@ function buildReceiverLookup(
   const isTypeReference =
     callee.object?.type === "Identifier" &&
     (objectType.kind === "struct" || objectType.kind === "interface" || objectType.kind === "type_parameter") &&
-    (!hasObjectBinding || isTypeName || objectType.kind === "type_parameter");
+    (objectType.kind === "type_parameter" || typeNameInScope || !hasObjectBinding);
   if (objectType.kind === "array") {
     const lookupType: TypeInfo = {
       kind: "struct",
       name: "Array",
       typeArguments: [objectType.element ?? unknownType],
     };
-    return { lookupType, label: formatType(lookupType), memberName, typeQualifier: "Array" };
+    return { lookupType, label: formatType(lookupType), memberName, typeQualifier: "Array", referenceName };
   }
   const typeQualifier =
     objectType.kind === "struct" || objectType.kind === "interface" || objectType.kind === "type_parameter"
       ? objectType.name
       : null;
-  return { lookupType: objectType, label: formatType(objectType), memberName, isTypeReference, typeQualifier };
+  return {
+    lookupType: objectType,
+    label: formatType(objectType),
+    memberName,
+    isTypeReference,
+    typeQualifier,
+    referenceName,
+  };
 }
 
 function resolveCallableFieldCandidate(
@@ -658,9 +670,11 @@ function buildInterfaceMethodInfo(
       }
     }
   }
+  const packageName = (interfaceDef as unknown as { _package?: string })._package;
   return {
     name: signature.name?.name ?? "<anonymous>",
     fullName: `${interfaceName}::${signature.name?.name ?? "<anonymous>"}`,
+    packageName,
     definition: undefined,
     structName: receiverType.kind === "interface" ? receiverType.name : undefined,
     hasImplicitSelf: signatureHasImplicitSelf(signature),
@@ -806,23 +820,19 @@ function collectUnifiedMemberCandidates(
   }
   const unqualifiedInScope = ctx.statementContext.hasBinding?.(memberName) ?? false;
   const qualifier = receiver.typeQualifier ?? (receiver.lookupType.kind === "struct" ? receiver.lookupType.name : null);
-  const typeQualifiedLabel = qualifier ? `${qualifier}.${memberName}` : null;
-  const typeQualifiedInScope = typeQualifiedLabel ? ctx.statementContext.hasBinding?.(typeQualifiedLabel) ?? false : false;
-  const allowTypeQualified = Boolean(receiver.isTypeReference);
+  const referenceName = receiver.referenceName ?? null;
+  const symbolPackages = referenceName ? ctx.getTypeOriginsForSymbol?.(referenceName) ?? null : null;
+  const hasSymbolScope = Boolean(symbolPackages && symbolPackages.size > 0);
+  const canonicalName =
+    receiver.typeQualifier ??
+    (receiver.lookupType.kind === "struct" || receiver.lookupType.kind === "interface" ? receiver.lookupType.name : null);
+  const canonicalPackages = canonicalName ? ctx.getTypeOriginsForCanonical?.(canonicalName) ?? null : null;
+  const hasCanonicalScope = Boolean(canonicalPackages && canonicalPackages.size > 0);
+  const allowTypeQualified = Boolean(receiver.isTypeReference) && hasSymbolScope;
   const isPrimitiveReceiver =
     receiver.lookupType.kind === "primitive" ||
     (receiver.lookupType.kind === "struct" && receiver.lookupType.name === "Array");
-  const typeNameInScope = (() => {
-    if (!receiver.lookupType.name) return false;
-    if (receiver.lookupType.kind === "struct") {
-      return ctx.statementContext.hasBinding?.(receiver.lookupType.name) ?? false;
-    }
-    if (receiver.lookupType.kind === "interface") {
-      return ctx.implementationContext.hasInterfaceDefinition?.(receiver.lookupType.name) ?? false;
-    }
-    return false;
-  })();
-  const allowInherent = unqualifiedInScope || typeNameInScope || isPrimitiveReceiver;
+  const allowInherent = hasCanonicalScope || isPrimitiveReceiver;
   const bySignature = new Map<string, FunctionInfo>();
   const methodSetDuplicates = new Set<FunctionInfo>();
   const signatureKey = (entry: FunctionInfo): string => {
@@ -833,15 +843,26 @@ function collectUnifiedMemberCandidates(
     return `${receiverLabel}::${baseName}::${methodFlag}::${paramSig}`;
   };
   const methodSignatures = new Set<string>();
+  const matchesPackage = (entry: FunctionInfo, allowed: Set<string> | null): boolean => {
+    if (!entry?.packageName || !allowed || allowed.size === 0) {
+      return true;
+    }
+    if (allowed.has("<builtin>")) {
+      return true;
+    }
+    return allowed.has(entry.packageName);
+  };
   const candidateAllowed = (entry: FunctionInfo): boolean => {
     if (!entry) return false;
     if (entry.isTypeQualified) {
       if (!allowTypeQualified) return false;
       if (entry.typeQualifier && qualifier && entry.typeQualifier !== qualifier) return false;
-      return typeQualifiedInScope || allowTypeQualified;
+      if (!matchesPackage(entry, symbolPackages)) return false;
+      return true;
     }
     if (entry.structName && !entry.isTypeQualified) {
-      return allowInherent;
+      if (!allowInherent) return false;
+      return true;
     }
     return unqualifiedInScope;
   };
@@ -912,7 +933,15 @@ function collectUnifiedMemberCandidates(
   append(genericMatches);
   append(collectInterfaceMethodCandidates(ctx, receiver, memberName));
   if (!methodSignatures.size) {
-    append(resolveUfcsFreeFunctionCandidates(ctx, receiver.lookupType, memberName, unqualifiedInScope));
+    append(
+      resolveUfcsFreeFunctionCandidates(
+        ctx,
+        receiver.lookupType,
+        memberName,
+        unqualifiedInScope,
+        hasCanonicalScope || isPrimitiveReceiver || receiver.lookupType.kind === "type_parameter",
+      ),
+    );
   }
   const results = Array.from(bySignature.values());
   if (methodSetDuplicates.size > 0) {
@@ -940,8 +969,9 @@ function resolveUfcsFreeFunctionCandidates(
   receiverType: TypeInfo,
   memberName: string,
   inScope: boolean,
+  receiverInScope: boolean,
 ): FunctionInfo[] {
-  if (!inScope) return [];
+  if (!inScope || !receiverInScope) return [];
   const candidates: FunctionInfo[] = [];
   const entries = filterBySymbolScope(ctx, ctx.functionInfos.get(memberName) ?? [], memberName);
   for (const entry of entries) {

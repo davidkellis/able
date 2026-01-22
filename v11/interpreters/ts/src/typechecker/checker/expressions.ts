@@ -110,7 +110,7 @@ export function inferExpression(ctx: ExpressionContext, expression: AST.Expressi
         return { kind: "type_parameter", name };
       }
       const structDefinition = ctx.getStructDefinition(name);
-      if (structDefinition) {
+      if (structDefinition && ctx.isTypeNameInScope(name)) {
         const paramCount = Array.isArray(structDefinition.genericParams) ? structDefinition.genericParams.length : 0;
         const typeArguments = paramCount > 0 ? Array.from({ length: paramCount }, () => unknownType) : [];
         return { kind: "struct", name, typeArguments, definition: structDefinition };

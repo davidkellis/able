@@ -1,5 +1,9 @@
 # Able Project Log
 
+# 2026-01-22 — Go parser nested generics fix (v11)
+- Go parser: avoid flattening parenthesized generic applications in type argument lists so nested types like `Iterable (Option String)` stay nested; fixes `TestParseInterfaceCompositeNestedGenerics` and exec fixture `04_03_type_expression_syntax`.
+- Tests: `cd v11/interpreters/go && go test ./pkg/parser -run TestParseInterfaceCompositeNestedGenerics -count=1`; `cd v11/interpreters/go && go test ./pkg/interpreter -run TestExecFixtures/04_03_type_expression_syntax -count=1`; `./run_all_tests.sh --version=v11`; `./run_stdlib_tests.sh`.
+
 # 2026-01-22 — TS typechecker import symbol scoping (v11)
 - Typechecker (TS): record symbol origins for imports/locals and filter unqualified/UFCS free-function resolution to the explicitly imported symbol source; builtins tagged for scope filtering.
 - Tests: `bun test test/typechecker/function_calls.test.ts` and `bun test test/typechecker/duplicates.test.ts` in `v11/interpreters/ts`.

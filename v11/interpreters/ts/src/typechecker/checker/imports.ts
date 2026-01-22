@@ -10,6 +10,7 @@ type ImportContext = {
   reportedPackageMemberAccess: WeakSet<AST.MemberAccessExpression>;
   currentPackageName: string;
   registerImportedSymbol?: (name: string, packageName: string) => void;
+  registerImportedTypeSymbol?: (name: string, packageName: string, canonicalName?: string) => void;
   report(message: string, node?: AST.Node | null): void;
   getIdentifierName(node: AST.Identifier | null | undefined): string | null;
 };
@@ -40,6 +41,30 @@ export function applyImportStatement(ctx: ImportContext, imp: AST.ImportStatemen
     "able.concurrency.AwaitWaker": { pkg: "able.kernel", symbol: "AwaitWaker" },
     "able.concurrency.AwaitRegistration": { pkg: "able.kernel", symbol: "AwaitRegistration" },
   };
+  const isTypeSymbol = (summaryInfo: PackageSummary | undefined, symbolName: string): boolean => {
+    if (!summaryInfo) return false;
+    if (summaryInfo.structs?.[symbolName]) return true;
+    if (summaryInfo.unions?.[symbolName]) return true;
+    if (summaryInfo.interfaces?.[symbolName]) return true;
+    if (summaryInfo.functions?.[symbolName]) return false;
+    return Boolean(summaryInfo.symbols?.[symbolName]);
+  };
+  const resolveImportedMeta = (
+    symbolName: string,
+  ): { originPackage: string | null; isTypeSymbol: boolean } => {
+    const hasSymbol = !!summary?.symbols?.[symbolName];
+    const reexportKey = packageName ? `${packageName}.${symbolName}` : symbolName;
+    const fallback = reexportKey ? reexports[reexportKey] : undefined;
+    const fallbackSummary = fallback ? ctx.packageSummaries.get(fallback.pkg) : undefined;
+    const hasFallback = !!fallbackSummary?.symbols?.[fallback?.symbol ?? ""];
+    if (hasSymbol) {
+      return { originPackage: packageName ?? null, isTypeSymbol: isTypeSymbol(summary, symbolName) };
+    }
+    if (hasFallback && fallback) {
+      return { originPackage: fallback.pkg, isTypeSymbol: isTypeSymbol(fallbackSummary, fallback.symbol) };
+    }
+    return { originPackage: packageName ?? null, isTypeSymbol: false };
+  };
   const resolveImported = (
     symbolName: string,
   ): { type: TypeInfo; hasSymbol: boolean; hasFallback: boolean } => {
@@ -67,16 +92,20 @@ export function applyImportStatement(ctx: ImportContext, imp: AST.ImportStatemen
     ctx.report(`typechecker: package '${summary.name}' is private`, imp);
     return;
   }
-  if (imp.isWildcard) {
+    if (imp.isWildcard) {
     if (summary.symbols) {
       for (const symbolName of Object.keys(summary.symbols)) {
-        if (ctx.env.has(symbolName)) {
-          continue;
+        const alreadyDefined = ctx.env.has(symbolName);
+        if (!alreadyDefined) {
+          const resolved = resolveImported(symbolName);
+          ctx.env.define(symbolName, resolved.type);
         }
-        const resolved = resolveImported(symbolName);
-        ctx.env.define(symbolName, resolved.type);
         if (packageName) {
           ctx.registerImportedSymbol?.(symbolName, packageName);
+        }
+        const meta = resolveImportedMeta(symbolName);
+        if (meta.isTypeSymbol && meta.originPackage) {
+          ctx.registerImportedTypeSymbol?.(symbolName, meta.originPackage, symbolName);
         }
       }
     }
@@ -101,9 +130,13 @@ export function applyImportStatement(ctx: ImportContext, imp: AST.ImportStatemen
       }
       if (!ctx.env.has(aliasName)) {
         ctx.env.define(aliasName, resolved.type);
-        if (packageName) {
-          ctx.registerImportedSymbol?.(aliasName, packageName);
-        }
+      }
+      if (packageName) {
+        ctx.registerImportedSymbol?.(aliasName, packageName);
+      }
+      const meta = resolveImportedMeta(selectorName);
+      if (meta.isTypeSymbol && meta.originPackage) {
+        ctx.registerImportedTypeSymbol?.(aliasName, meta.originPackage, selectorName);
       }
     }
     return;

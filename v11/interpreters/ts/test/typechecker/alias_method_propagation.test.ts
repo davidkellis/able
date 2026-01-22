@@ -79,7 +79,7 @@ function buildConsumerModule() {
 
   return AST.module(
     [arrBinding, callHead, callToString],
-    [AST.importStatement(["pkg"])],
+    [AST.importStatement(["pkg"], true)],
     AST.packageStatement(["app"]),
   );
 }
