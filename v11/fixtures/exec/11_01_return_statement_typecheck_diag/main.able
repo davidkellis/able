@@ -1,0 +1,14 @@
+package exec_11_01_return_statement_typecheck_diag
+
+## Typechecker: return statements must match the declared return type.
+
+fn strict(flag: bool) -> i32 {
+  if flag {
+    return
+  }
+  return 5
+}
+
+fn main() -> void {
+  strict(true)
+}

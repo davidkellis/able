@@ -36,7 +36,7 @@ func (c *Checker) validateImplementations() []Diagnostic {
 			continue
 		}
 
-		subst := buildImplementationSubstitution(spec, iface)
+		subst := buildImplementationSubstitution(c, spec, iface)
 		label := fmt.Sprintf("impl %s for %s", spec.InterfaceName, describeImplTarget(c, spec))
 
 		for name, ifaceMethod := range iface.Methods {
@@ -58,10 +58,20 @@ func (c *Checker) validateImplementations() []Diagnostic {
 	return diags
 }
 
-func buildImplementationSubstitution(spec ImplementationSpec, iface InterfaceType) map[string]Type {
+func buildImplementationSubstitution(c *Checker, spec ImplementationSpec, iface InterfaceType) map[string]Type {
 	subst := make(map[string]Type, len(iface.TypeParams)+1)
-	if spec.Target != nil && !isUnknownType(spec.Target) {
-		subst["Self"] = spec.Target
+	selfType := spec.Target
+	if spec.Definition != nil && spec.Definition.TargetType != nil && len(spec.InterfaceArgs) > 0 {
+		explicitParams := interfaceExplicitParamCountFromType(iface)
+		if explicitParams > 0 {
+			implNames := collectGenericParamNameSet(spec.TypeParams)
+			if isTypeConstructorTarget(spec.Definition.TargetType, implNames, c.global) {
+				selfType = applyInterfaceArgsToTargetType(selfType, spec.InterfaceArgs)
+			}
+		}
+	}
+	if selfType != nil && !isUnknownType(selfType) {
+		subst["Self"] = selfType
 	} else {
 		subst["Self"] = UnknownType{}
 	}
@@ -75,7 +85,94 @@ func buildImplementationSubstitution(spec ImplementationSpec, iface InterfaceTyp
 		}
 		subst[param.Name] = replacement
 	}
+	applySelfPatternBindings(c, subst, spec, iface)
 	return subst
+}
+
+func applySelfPatternBindings(c *Checker, subst map[string]Type, spec ImplementationSpec, iface InterfaceType) {
+	if spec.Definition == nil || spec.Definition.TargetType == nil || iface.SelfTypePattern == nil {
+		return
+	}
+	if c == nil || c.global == nil {
+		return
+	}
+	interfaceGenerics := collectGenericParamNameSet(iface.TypeParams)
+	bindings := make(map[string]ast.TypeExpression)
+	matcher := &declarationCollector{env: c.global, localTypeNames: c.localTypeNames}
+	if !matcher.matchSelfTypePattern(iface.SelfTypePattern, spec.Definition.TargetType, interfaceGenerics, bindings) {
+		return
+	}
+	scope := make(map[string]Type, len(spec.TypeParams)+len(subst))
+	for name, typ := range subst {
+		scope[name] = typ
+	}
+	for _, param := range spec.TypeParams {
+		if param.Name == "" {
+			continue
+		}
+		if _, ok := scope[param.Name]; ok {
+			continue
+		}
+		scope[param.Name] = TypeParameterType{ParameterName: param.Name}
+	}
+	for name, expr := range bindings {
+		if name == "" {
+			continue
+		}
+		if existing, ok := subst[name]; ok {
+			if !isUnknownType(existing) {
+				if param, ok := existing.(TypeParameterType); !ok || param.ParameterName != name {
+					continue
+				}
+			}
+		}
+		subst[name] = matcher.resolveTypeExpression(expr, scope)
+	}
+}
+
+func applyInterfaceArgsToTargetType(target Type, args []Type) Type {
+	if target == nil || len(args) == 0 {
+		return target
+	}
+	if isUnknownType(target) {
+		return target
+	}
+	base, baseArgs, ok := flattenAppliedType(target)
+	if !ok {
+		return AppliedType{Base: target, Arguments: append([]Type{}, args...)}
+	}
+	combined := append([]Type{}, baseArgs...)
+	argIdx := 0
+	for i := range combined {
+		if argIdx >= len(args) {
+			break
+		}
+		if isUnknownType(combined[i]) {
+			combined[i] = args[argIdx]
+			argIdx++
+		}
+	}
+	if argIdx < len(args) {
+		combined = append(combined, args[argIdx:]...)
+	}
+	return AppliedType{Base: base, Arguments: combined}
+}
+
+func flattenAppliedType(target Type) (Type, []Type, bool) {
+	applied, ok := target.(AppliedType)
+	if !ok {
+		return target, nil, false
+	}
+	base := applied.Base
+	args := append([]Type{}, applied.Arguments...)
+	for {
+		next, ok := base.(AppliedType)
+		if !ok {
+			return base, args, true
+		}
+		args = append(append([]Type{}, next.Arguments...), args...)
+		base = next.Base
+	}
 }
 
 func compareImplementationMethodSignature(label string, spec ImplementationSpec, methodName string, expected, actual FunctionType) []Diagnostic {

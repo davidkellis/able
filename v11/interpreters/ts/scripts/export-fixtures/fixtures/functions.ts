@@ -286,13 +286,6 @@ const functionsFixtures: Fixture[] = [
               { kind: "i32", value: 205n },
             ],
           },
-          typecheckDiagnostics: [
-            "typechecker: v11/fixtures/ast/functions/overload_resolution_success/source.able:4:1 typechecker: duplicate declaration 'pick' (previous declaration at v11/fixtures/ast/functions/overload_resolution_success/source.able:1:1)",
-            "typechecker: v11/fixtures/ast/functions/overload_resolution_success/source.able:10:1 typechecker: duplicate declaration 'pick' (previous declaration at v11/fixtures/ast/functions/overload_resolution_success/source.able:1:1)",
-            "typechecker: v11/fixtures/ast/functions/overload_resolution_success/source.able:28:7 typechecker: argument 1 has type i32, expected String",
-            "typechecker: v11/fixtures/ast/functions/overload_resolution_success/source.able:28:11 typechecker: function expects 1 arguments, got 2",
-            "typechecker: v11/fixtures/ast/functions/overload_resolution_success/source.able:28:45 typechecker: argument 1 has type bool, expected String",
-          ],
         },
       },
     },
@@ -660,9 +653,6 @@ const functionsFixtures: Fixture[] = [
               { kind: "i32", value: 1n },
             ],
           },
-          typecheckDiagnostics: [
-            "typechecker: v11/fixtures/ast/functions/ufcs_generic_overloads/source.able:7:1 typechecker: duplicate declaration 'describe' (previous declaration at v11/fixtures/ast/functions/ufcs_generic_overloads/source.able:4:1)",
-          ],
         },
       },
     },

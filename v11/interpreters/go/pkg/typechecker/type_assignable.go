@@ -97,6 +97,21 @@ func typeAssignable(from, to Type) bool {
 		if applied, ok := from.(AppliedType); ok {
 			return appliedTypesAssignable(applied, target)
 		}
+		if inst, ok := from.(StructInstanceType); ok {
+			if name, ok := structName(target.Base); ok && inst.StructName == name {
+				if len(inst.TypeArgs) > 0 {
+					if len(inst.TypeArgs) != len(target.Arguments) {
+						return false
+					}
+					for i := range inst.TypeArgs {
+						if !typeAssignable(inst.TypeArgs[i], target.Arguments[i]) {
+							return false
+						}
+					}
+				}
+				return true
+			}
+		}
 		if name, ok := structName(from); ok {
 			if base, ok := target.Base.(StructType); ok && base.StructName == name {
 				return true

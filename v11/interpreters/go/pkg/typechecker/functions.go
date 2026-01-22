@@ -44,9 +44,16 @@ func (c *Checker) checkFunctionDefinition(env *Environment, def *ast.FunctionDef
 
 	var fnType FunctionType
 	if def.ID != nil {
-		if typ, ok := env.Lookup(def.ID.Name); ok {
-			if sig, ok := typ.(FunctionType); ok {
+		if c.functionDecls != nil {
+			if sig, ok := c.functionDecls[def]; ok {
 				fnType = sig
+			}
+		}
+		if fnType.Params == nil && fnType.Return == nil {
+			if typ, ok := env.Lookup(def.ID.Name); ok {
+				if sig, ok := typ.(FunctionType); ok {
+					fnType = sig
+				}
 			}
 		}
 		if fnType.Params == nil && fnType.Return == nil {
@@ -123,10 +130,10 @@ func (c *Checker) checkFunctionDefinition(env *Environment, def *ast.FunctionDef
 					if isResultType(expectedReturn) {
 						if ok, _ := c.typeImplementsInterface(bodyType, InterfaceType{InterfaceName: "Error"}, nil); ok {
 							assignable = true
-					} else if name, ok := structName(bodyType); ok && strings.HasSuffix(name, "Error") {
-						assignable = true
+						} else if name, ok := structName(bodyType); ok && strings.HasSuffix(name, "Error") {
+							assignable = true
+						}
 					}
-				}
 				}
 				if !assignable {
 					diags = append(diags, Diagnostic{
@@ -258,6 +265,8 @@ func formatTypeForReturnDiagnostic(t Type) string {
 			params[i] = formatTypeForReturnDiagnostic(param)
 		}
 		return fmt.Sprintf("fn(%s) -> %s", strings.Join(params, ", "), formatTypeForReturnDiagnostic(val.Return))
+	case FunctionOverloadType:
+		return "<function overload>"
 	default:
 		return formatType(t)
 	}
@@ -499,12 +508,12 @@ func (c *Checker) checkReturnStatement(env *Environment, stmt *ast.ReturnStateme
 					}
 				}
 				if !assignable {
-				if isResultType(expected) {
-					if ok, _ := c.typeImplementsInterface(returnType, InterfaceType{InterfaceName: "Error"}, nil); ok {
-						assignable = true
-					} else if name, ok := structName(returnType); ok && strings.HasSuffix(name, "Error") {
-						assignable = true
-					}
+					if isResultType(expected) {
+						if ok, _ := c.typeImplementsInterface(returnType, InterfaceType{InterfaceName: "Error"}, nil); ok {
+							assignable = true
+						} else if name, ok := structName(returnType); ok && strings.HasSuffix(name, "Error") {
+							assignable = true
+						}
 					}
 				}
 				if !assignable {

@@ -326,6 +326,39 @@ func TestProgramCheckerExposesPublicExports(t *testing.T) {
 	}
 }
 
+func TestProgramCheckerAllowsDuplicateNamesAcrossPackages(t *testing.T) {
+	first := ast.Mod(
+		[]ast.Statement{
+			ast.NewTypeAliasDefinition(ast.ID("Thing"), ast.Ty("i32"), nil, nil, false),
+		},
+		nil,
+		ast.Pkg([]interface{}{"dep"}, false),
+	)
+	second := ast.Mod(
+		[]ast.Statement{
+			ast.NewTypeAliasDefinition(ast.ID("Thing"), ast.Ty("String"), nil, nil, false),
+		},
+		nil,
+		ast.Pkg([]interface{}{"app"}, false),
+	)
+
+	depModule := annotatedModule("dep", first, "dep.able", nil)
+	appModule := annotatedModule("app", second, "app.able", nil)
+	program := &driver.Program{
+		Modules: []*driver.Module{depModule, appModule},
+		Entry:   appModule,
+	}
+
+	pc := NewProgramChecker()
+	result, err := pc.Check(program)
+	if err != nil {
+		t.Fatalf("Check returned error: %v", err)
+	}
+	if len(result.Diagnostics) != 0 {
+		t.Fatalf("expected no diagnostics, got %v", result.Diagnostics)
+	}
+}
+
 func TestProgramCheckerCapturesPackageVisibility(t *testing.T) {
 	privMod := annotatedModule("app.private_pkg", ast.Mod(nil, nil, ast.Pkg([]interface{}{"app", "private_pkg"}, true)), "priv.able", nil)
 	program := &driver.Program{

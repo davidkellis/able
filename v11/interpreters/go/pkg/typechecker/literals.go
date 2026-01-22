@@ -446,6 +446,14 @@ func (c *Checker) checkFunctionCallExpressionWithExpectedReturn(env *Environment
 	}
 
 	resultType := Type(UnknownType{})
+	if overloads, ok := calleeType.(FunctionOverloadType); ok {
+		overloadDiags, overloadType := c.checkOverloadedFunctionCall(e, overloads.Overloads, argsForCheck, argTypesForCheck, expectedReturn)
+		diags = append(diags, overloadDiags...)
+		resultType = overloadType
+		diags = append(diags, c.checkBuiltinCallContext(builtinName, e)...)
+		c.infer.set(e, resultType)
+		return diags, resultType
+	}
 	if fnType, ok := calleeType.(FunctionType); ok {
 		if isUnknownFunctionSignature(fnType) {
 			resultType = UnknownType{}

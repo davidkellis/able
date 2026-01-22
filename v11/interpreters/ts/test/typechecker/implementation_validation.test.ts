@@ -252,6 +252,48 @@ describe("TypeChecker implementation validation", () => {
     expect(checker.checkModule(moduleAst).diagnostics).toEqual([]);
   });
 
+  test("accepts partially applied constructor when interface declares higher-kinded self pattern", () => {
+    const eachSignature = AST.functionSignature(
+      "each",
+      [
+        AST.functionParameter(
+          "self",
+          AST.genericTypeExpression(AST.simpleTypeExpression("C"), [AST.simpleTypeExpression("A")]),
+        ),
+      ],
+      AST.simpleTypeExpression("void"),
+    );
+    const interfaceDef = AST.interfaceDefinition(
+      "Enumerable",
+      [eachSignature],
+      [AST.genericParameter("A")],
+      AST.genericTypeExpression(AST.simpleTypeExpression("C"), [AST.wildcardTypeExpression()]),
+    );
+    const hashMapStruct = AST.structDefinition(
+      "HashMap",
+      [],
+      "named",
+      [AST.genericParameter("K"), AST.genericParameter("V")],
+    );
+    const eachDefinition = AST.functionDefinition(
+      "each",
+      [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
+      AST.blockExpression([]),
+      AST.simpleTypeExpression("void"),
+    );
+    const impl = AST.implementationDefinition(
+      interfaceDef.id,
+      AST.genericTypeExpression(AST.simpleTypeExpression("HashMap"), [AST.simpleTypeExpression("K")]),
+      [eachDefinition],
+      undefined,
+      [AST.genericParameter("K"), AST.genericParameter("V")],
+      [AST.simpleTypeExpression("V")],
+    );
+    const moduleAst = AST.module([interfaceDef, hashMapStruct, impl]);
+    const checker = new TypeChecker();
+    expect(checker.checkModule(moduleAst).diagnostics).toEqual([]);
+  });
+
   test("accepts bare constructor when higher-kinded interface methods use generics", () => {
     const wrapSignature = AST.functionSignature(
       "wrap",
@@ -299,6 +341,54 @@ describe("TypeChecker implementation validation", () => {
           ),
         ),
       ]),
+      AST.genericTypeExpression(AST.simpleTypeExpression("Holder"), [AST.simpleTypeExpression("T")]),
+      [AST.genericParameter("T")],
+    );
+    const implementation = AST.implementationDefinition(
+      wrapperInterface.id,
+      AST.simpleTypeExpression("Holder"),
+      [wrapDefinition],
+    );
+    const moduleAst = AST.module([wrapperInterface, holderStruct, implementation]);
+    const checker = new TypeChecker();
+    expect(checker.checkModule(moduleAst).diagnostics).toEqual([]);
+  });
+
+  test("accepts higher-kinded self placeholders in interface method signatures", () => {
+    const wrapSignature = AST.functionSignature(
+      "wrap",
+      [
+        AST.functionParameter(
+          "self",
+          AST.genericTypeExpression(AST.simpleTypeExpression("M"), [AST.simpleTypeExpression("T")]),
+        ),
+        AST.functionParameter("value", AST.simpleTypeExpression("T")),
+      ],
+      AST.genericTypeExpression(AST.simpleTypeExpression("M"), [AST.simpleTypeExpression("T")]),
+      [AST.genericParameter("T")],
+    );
+    const wrapperInterface = AST.interfaceDefinition(
+      "Wrapper",
+      [wrapSignature],
+      undefined,
+      AST.genericTypeExpression(AST.simpleTypeExpression("M"), [AST.wildcardTypeExpression()]),
+    );
+    const holderStruct = AST.structDefinition(
+      "Holder",
+      [],
+      "named",
+      [AST.genericParameter("T")],
+    );
+    const wrapDefinition = AST.functionDefinition(
+      "wrap",
+      [
+        AST.functionParameter(
+          "self",
+          AST.genericTypeExpression(AST.simpleTypeExpression("Holder"), [AST.simpleTypeExpression("T")]),
+        ),
+        AST.functionParameter("value", AST.simpleTypeExpression("T")),
+      ],
+      AST.blockExpression([AST.returnStatement(AST.identifier("self"))]),
       AST.genericTypeExpression(AST.simpleTypeExpression("Holder"), [AST.simpleTypeExpression("T")]),
       [AST.genericParameter("T")],
     );
