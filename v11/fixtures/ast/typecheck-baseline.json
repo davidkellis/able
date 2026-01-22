@@ -117,7 +117,7 @@
   ],
   "errors/type_qualified_method_call": [],
   "errors/ufcs_overload_ambiguity": [
-    "typechecker: v11/fixtures/ast/errors/ufcs_overload_ambiguity/source.able:7:1 typechecker: duplicate declaration 'tag' (previous declaration at v11/fixtures/ast/errors/ufcs_overload_ambiguity/source.able:4:1)"
+    "typechecker: v11/fixtures/ast/errors/ufcs_overload_ambiguity/source.able:11:1 typechecker: no overloads of tag match provided arguments"
   ],
   "errors/ufcs_static_method_not_found": [
     "typechecker: v11/fixtures/ast/errors/ufcs_static_method_not_found/source.able:13:22 typechecker: argument 1 has type Counter, expected i32"
@@ -150,17 +150,9 @@
     "typechecker: v11/fixtures/ast/functions/overload_function_ambiguity/source.able:4:1 typechecker: duplicate declaration 'collide' (previous declaration at v11/fixtures/ast/functions/overload_function_ambiguity/source.able:1:1)"
   ],
   "functions/overload_method_ambiguity": [],
-  "functions/overload_resolution_success": [
-    "typechecker: v11/fixtures/ast/functions/overload_resolution_success/source.able:4:1 typechecker: duplicate declaration 'pick' (previous declaration at v11/fixtures/ast/functions/overload_resolution_success/source.able:1:1)",
-    "typechecker: v11/fixtures/ast/functions/overload_resolution_success/source.able:10:1 typechecker: duplicate declaration 'pick' (previous declaration at v11/fixtures/ast/functions/overload_resolution_success/source.able:1:1)",
-    "typechecker: v11/fixtures/ast/functions/overload_resolution_success/source.able:28:7 typechecker: argument 1 has type i32, expected String",
-    "typechecker: v11/fixtures/ast/functions/overload_resolution_success/source.able:28:11 typechecker: function expects 1 arguments, got 2",
-    "typechecker: v11/fixtures/ast/functions/overload_resolution_success/source.able:28:45 typechecker: argument 1 has type bool, expected String"
-  ],
+  "functions/overload_resolution_success": [],
   "functions/trailing_lambda_call": [],
-  "functions/ufcs_generic_overloads": [
-    "typechecker: v11/fixtures/ast/functions/ufcs_generic_overloads/source.able:7:1 typechecker: duplicate declaration 'describe' (previous declaration at v11/fixtures/ast/functions/ufcs_generic_overloads/source.able:4:1)"
-  ],
+  "functions/ufcs_generic_overloads": [],
   "functions/ufcs_inherent_methods": [],
   "imports/dynimport_private_selector_error": [],
   "imports/dynimport_selector_alias": [],

@@ -24,6 +24,24 @@ func (c *Checker) finalizeMemberAccessType(expr *ast.MemberAccessExpression, obj
 	return final
 }
 
+func (c *Checker) appendUfcsCandidate(
+	candidates []FunctionType,
+	ufcs Type,
+	expr *ast.MemberAccessExpression,
+	wrapType Type,
+) ([]FunctionType, Type, bool) {
+	switch fn := ufcs.(type) {
+	case FunctionType:
+		return append(candidates, fn), nil, false
+	case FunctionOverloadType:
+		if len(candidates) == 0 {
+			final := c.finalizeMemberAccessType(expr, wrapType, fn)
+			return candidates, final, true
+		}
+	}
+	return candidates, nil, false
+}
+
 func makeValueUnion(success Type) Type {
 	procErr := StructType{StructName: "ProcError"}
 	members := []Type{success, procErr}

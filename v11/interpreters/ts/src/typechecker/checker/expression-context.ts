@@ -50,6 +50,7 @@ export interface ExpressionContext {
   hasBinding(name: string): boolean;
   hasBindingInCurrentScope(name: string): boolean;
   allowDynamicLookup(): boolean;
+  getCurrentPackageName?(): string;
   typeImplementsInterface?(
     type: TypeInfo,
     interfaceName: string,

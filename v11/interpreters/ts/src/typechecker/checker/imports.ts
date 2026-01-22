@@ -9,6 +9,7 @@ type ImportContext = {
   packageAliases: Map<string, string>;
   reportedPackageMemberAccess: WeakSet<AST.MemberAccessExpression>;
   currentPackageName: string;
+  registerImportedPackage?: (name: string) => void;
   report(message: string, node?: AST.Node | null): void;
   getIdentifierName(node: AST.Identifier | null | undefined): string | null;
 };
@@ -66,6 +67,7 @@ export function applyImportStatement(ctx: ImportContext, imp: AST.ImportStatemen
     ctx.report(`typechecker: package '${summary.name}' is private`, imp);
     return;
   }
+  ctx.registerImportedPackage?.(summary.name ?? packageName);
   if (imp.isWildcard) {
     if (summary.symbols) {
       for (const symbolName of Object.keys(summary.symbols)) {

@@ -110,6 +110,8 @@ func formatType(t Type) string {
 			params[i] = formatType(param)
 		}
 		return fmt.Sprintf("fn(%s) -> %s", strings.Join(params, ", "), formatType(val.Return))
+	case FunctionOverloadType:
+		return "<function overload>"
 	case ImplementationNamespaceType:
 		if val.Impl != nil && val.Impl.ImplName != "" {
 			return val.Impl.ImplName

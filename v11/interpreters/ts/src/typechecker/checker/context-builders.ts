@@ -14,6 +14,7 @@ export function buildImportContext(checker: any) {
     packageAliases: checker.packageAliases,
     reportedPackageMemberAccess: checker.reportedPackageMemberAccess,
     currentPackageName: checker.currentPackageName,
+    registerImportedPackage: (name: string) => checker.importedPackages.add(name),
     report: checker.report.bind(checker),
     getIdentifierName: checker.getIdentifierName.bind(checker),
   };
@@ -92,6 +93,7 @@ export function buildCheckerContext(checker: any): StatementContext {
     hasBinding: (name: string) => checker.env.has(name),
     hasBindingInCurrentScope: (name: string) => checker.env.hasInCurrentScope(name),
     allowDynamicLookup: () => checker.allowDynamicLookups,
+    getCurrentPackageName: () => checker.currentPackageName,
     getFunctionInfos: (key: string) => checker.getFunctionInfos(key),
     addFunctionInfo: (key: string, info: FunctionInfo) => checker.addFunctionInfo(key, info),
     isExpression: (node: AST.Node | undefined | null): node is AST.Expression => checker.isExpression(node),

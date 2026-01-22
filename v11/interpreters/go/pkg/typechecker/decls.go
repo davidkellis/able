@@ -17,6 +17,7 @@ type declarationCollector struct {
 	obligations    []ConstraintObligation
 	exports        []exportRecord
 	duplicates     map[*ast.FunctionDefinition]struct{}
+	functionDecls  map[*ast.FunctionDefinition]FunctionType
 	localTypeNames map[string]struct{}
 }
 
@@ -34,6 +35,7 @@ func (c *Checker) collectDeclarations(module *ast.Module) []Diagnostic {
 		origins:        c.nodeOrigins,
 		declNodes:      make(map[string]ast.Node),
 		duplicates:     make(map[*ast.FunctionDefinition]struct{}),
+		functionDecls:  make(map[*ast.FunctionDefinition]FunctionType),
 		localTypeNames: make(map[string]struct{}),
 	}
 	// Register built-in primitives in the global scope for convenience.
@@ -55,6 +57,7 @@ func (c *Checker) collectDeclarations(module *ast.Module) []Diagnostic {
 	c.obligations = collector.obligations
 	c.publicDeclarations = collector.exports
 	c.duplicateFunctions = collector.duplicates
+	c.functionDecls = collector.functionDecls
 	c.localTypeNames = collector.localTypeNames
 	return collector.diags
 }
@@ -123,14 +126,27 @@ func (c *declarationCollector) registerExternFunction(def *ast.ExternFunctionBod
 	fnType := c.functionTypeFromDefinition(sig, nil, owner, sig)
 	if prev, exists := c.declNodes[name]; exists {
 		if existing, ok := c.env.Lookup(name); ok {
-			if prevFn, ok := existing.(FunctionType); ok && typesEquivalentForSignature(prevFn, fnType) {
+			if hasExactFunctionSignature(existing, fnType) {
+				return
+			}
+			if merged, okMerge, duplicate := mergeFunctionOverload(existing, fnType); okMerge {
+				if duplicate {
+					location := formatNodeLocation(prev, c.origins)
+					msg := fmt.Sprintf("typechecker: duplicate declaration '%s' (previous declaration at %s)", name, location)
+					c.diags = append(c.diags, Diagnostic{Message: msg, Node: def})
+					if c.duplicates != nil && def.Signature != nil {
+						c.duplicates[def.Signature] = struct{}{}
+					}
+				} else {
+					c.env.Define(name, merged)
+				}
 				return
 			}
 		}
 		location := formatNodeLocation(prev, c.origins)
 		msg := fmt.Sprintf("typechecker: duplicate declaration '%s' (previous declaration at %s)", name, location)
 		c.diags = append(c.diags, Diagnostic{Message: msg, Node: def})
-		if c.duplicates != nil {
+		if c.duplicates != nil && def.Signature != nil {
 			c.duplicates[def.Signature] = struct{}{}
 		}
 		return
@@ -225,6 +241,9 @@ func (c *declarationCollector) visitStatement(stmt ast.Statement) {
 		if s.ID != nil {
 			owner := fmt.Sprintf("fn %s", functionName(s))
 			sig := c.functionTypeFromDefinition(s, nil, owner, s)
+			if c.functionDecls != nil {
+				c.functionDecls[s] = sig
+			}
 			c.declare(s.ID.Name, sig, s)
 		}
 	case *ast.ExternFunctionBody:
@@ -249,6 +268,28 @@ func (c *declarationCollector) declare(name string, typ Type, node ast.Node) {
 		return
 	}
 	if prev, exists := c.declNodes[name]; exists {
+		if fn, ok := typ.(FunctionType); ok {
+			switch prev.(type) {
+			case *ast.FunctionDefinition, *ast.FunctionSignature:
+				if existing, ok := c.env.Lookup(name); ok {
+					if merged, okMerge, duplicate := mergeFunctionOverload(existing, fn); okMerge {
+						if duplicate {
+							location := formatNodeLocation(prev, c.origins)
+							msg := fmt.Sprintf("typechecker: duplicate declaration '%s' (previous declaration at %s)", name, location)
+							c.diags = append(c.diags, Diagnostic{Message: msg, Node: node})
+							if fnNode, ok := node.(*ast.FunctionDefinition); ok {
+								if c.duplicates != nil {
+									c.duplicates[fnNode] = struct{}{}
+								}
+							}
+						} else {
+							c.env.Define(name, merged)
+						}
+						return
+					}
+				}
+			}
+		}
 		location := formatNodeLocation(prev, c.origins)
 		msg := fmt.Sprintf("typechecker: duplicate declaration '%s' (previous declaration at %s)", name, location)
 		c.diags = append(c.diags, Diagnostic{Message: msg, Node: node})

@@ -607,6 +607,55 @@ func TestImplementationAllowsBareConstructorWithSelfPattern(t *testing.T) {
 	}
 }
 
+func TestImplementationAllowsPartiallyAppliedConstructorWithSelfPattern(t *testing.T) {
+	checker := New()
+	selfPattern := ast.Gen(ast.Ty("C"), ast.WildT())
+	eachSig := ast.FnSig(
+		"each",
+		[]*ast.FunctionParameter{
+			ast.Param("self", ast.Gen(ast.Ty("C"), ast.Ty("A"))),
+		},
+		ast.Ty("void"),
+		nil,
+		nil,
+		nil,
+	)
+	iface := ast.Iface("Enumerable", []*ast.FunctionSignature{eachSig}, []*ast.GenericParameter{ast.GenericParam("A")}, selfPattern, nil, nil, false)
+	hashMapStruct := buildGenericStructDefinition("HashMap", []string{"K", "V"})
+	implTarget := ast.Gen(ast.Ty("HashMap"), ast.Ty("K"))
+	eachMethod := ast.Fn(
+		"each",
+		[]*ast.FunctionParameter{
+			ast.Param("self", ast.Ty("Self")),
+		},
+		nil,
+		ast.Ty("void"),
+		nil,
+		nil,
+		false,
+		false,
+	)
+	impl := ast.Impl(
+		"Enumerable",
+		implTarget,
+		[]*ast.FunctionDefinition{eachMethod},
+		nil,
+		[]*ast.GenericParameter{ast.GenericParam("K"), ast.GenericParam("V")},
+		[]ast.TypeExpression{ast.Ty("V")},
+		nil,
+		false,
+	)
+	module := ast.NewModule([]ast.Statement{iface, hashMapStruct, impl}, nil, nil)
+
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics, got %v", diags)
+	}
+}
+
 func TestImplementationAllowsBareConstructorWithMethodGenerics(t *testing.T) {
 	checker := New()
 	selfPattern := ast.Gen(ast.Ty("F"), ast.WildT())
@@ -644,6 +693,49 @@ func TestImplementationAllowsBareConstructorWithMethodGenerics(t *testing.T) {
 					[]ast.TypeExpression{ast.Ty("T")},
 				),
 			),
+		},
+		ast.Gen(ast.Ty("Holder"), ast.Ty("T")),
+		[]*ast.GenericParameter{ast.GenericParam("T")},
+		nil,
+		false,
+		false,
+	)
+	impl := ast.Impl("Wrapper", ast.Ty("Holder"), []*ast.FunctionDefinition{wrapFn}, nil, nil, nil, nil, false)
+	module := ast.NewModule([]ast.Statement{wrapperIface, holderStruct, impl}, nil, nil)
+
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics, got %v", diags)
+	}
+}
+
+func TestImplementationAllowsSelfPatternPlaceholderInMethodSignature(t *testing.T) {
+	checker := New()
+	selfPattern := ast.Gen(ast.Ty("M"), ast.WildT())
+	wrapSig := ast.FnSig(
+		"wrap",
+		[]*ast.FunctionParameter{
+			ast.Param("self", ast.Gen(ast.Ty("M"), ast.Ty("T"))),
+			ast.Param("value", ast.Ty("T")),
+		},
+		ast.Gen(ast.Ty("M"), ast.Ty("T")),
+		[]*ast.GenericParameter{ast.GenericParam("T")},
+		nil,
+		nil,
+	)
+	wrapperIface := ast.Iface("Wrapper", []*ast.FunctionSignature{wrapSig}, nil, selfPattern, nil, nil, false)
+	holderStruct := buildGenericStructDefinition("Holder", []string{"T"})
+	wrapFn := ast.Fn(
+		"wrap",
+		[]*ast.FunctionParameter{
+			ast.Param("self", ast.Gen(ast.Ty("Holder"), ast.Ty("T"))),
+			ast.Param("value", ast.Ty("T")),
+		},
+		[]ast.Statement{
+			ast.Ret(ast.ID("self")),
 		},
 		ast.Gen(ast.Ty("Holder"), ast.Ty("T")),
 		[]*ast.GenericParameter{ast.GenericParam("T")},

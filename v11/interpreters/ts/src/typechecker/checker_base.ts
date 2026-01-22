@@ -67,8 +67,10 @@ import {
   checkFunctionCall as checkFunctionCallHelper,
   inferFunctionCallReturnType as inferFunctionCallReturnTypeHelper,
 } from "./checker/function-calls";
-import { refineTypeWithExpected } from "./checker/expressions";
-import { checkReturnStatement as checkReturnStatementHelper } from "./checker/statements";
+import {
+  checkFunctionDefinition as checkFunctionDefinitionHelper,
+  checkReturnStatement as checkReturnStatementBaseHelper,
+} from "./checker/checker_base_functions";
 import { getFunctionDefinitionName } from "./checker/names";
 import {
   checkBreakStatement as checkBreakStatementHelper,
@@ -101,6 +103,7 @@ export class TypeCheckerBase {
   protected typeParamStack: Array<Map<string, AST.TypeExpression[]>> = [];
   protected packageAliases: Map<string, string> = new Map();
   protected reportedPackageMemberAccess = new WeakSet<AST.MemberAccessExpression>();
+  protected importedPackages: Set<string> = new Set();
   protected asyncDepth = 0;
   protected returnTypeStack: TypeInfo[] = [];
   protected loopResultStack: TypeInfo[] = [];
@@ -122,17 +125,11 @@ export class TypeCheckerBase {
     this.declarationsContext = this.context as DeclarationsContext;
     this.implementationContext = buildImplementationContext(this);
   }
-  protected formatNodeOrigin(node: AST.Node | null | undefined): string {
-    return formatNodeOriginHelper(node);
-  }
+  protected formatNodeOrigin(node: AST.Node | null | undefined): string { return formatNodeOriginHelper(node); }
 
-  protected registerStructDefinition(definition: AST.StructDefinition): void {
-    registerStructDefinitionHelper(this.registryContext(), definition);
-  }
+  protected registerStructDefinition(definition: AST.StructDefinition): void { registerStructDefinitionHelper(this.registryContext(), definition); }
 
-  protected registerInterfaceDefinition(definition: AST.InterfaceDefinition): void {
-    registerInterfaceDefinitionHelper(this.registryContext(), definition);
-  }
+  protected registerInterfaceDefinition(definition: AST.InterfaceDefinition): void { registerInterfaceDefinitionHelper(this.registryContext(), definition); }
 
   protected registerTypeAlias(definition: AST.TypeAliasDefinition): void {
     registerTypeAliasHelper(this.registryContext(), definition);
@@ -148,12 +145,8 @@ export class TypeCheckerBase {
 
   protected registerUnionDefinition(definition: AST.UnionDefinition): void {
     const name = definition.id?.name;
-    if (!name) {
-      return;
-    }
-    if (!this.ensureUniqueDeclaration(name, definition)) {
-      return;
-    }
+    if (!name) return;
+    if (!this.ensureUniqueDeclaration(name, definition)) return;
     this.unionDefinitions.set(name, definition);
     if (Array.isArray(definition.variants) && definition.variants.length > 0) {
       const members = definition.variants.map((variant) => ({
@@ -164,14 +157,9 @@ export class TypeCheckerBase {
     }
   }
 
-  protected registerImplementationRecord(record: ImplementationRecord): void {
-    registerImplementationRecordHelper(this.registryContext(), record);
-  }
+  protected registerImplementationRecord(record: ImplementationRecord): void { registerImplementationRecordHelper(this.registryContext(), record); }
 
-  protected collectFunctionDefinition(
-    definition: AST.FunctionDefinition,
-    context: FunctionContext | undefined,
-  ): void {
+  protected collectFunctionDefinition(definition: AST.FunctionDefinition, context: FunctionContext | undefined): void {
     collectFunctionDefinitionHelper(this.declarationsContext, definition, context);
   }
 
@@ -192,22 +180,13 @@ export class TypeCheckerBase {
     }
   }
 
-  protected formatImplementationLabel(interfaceName: string, targetName: string): string {
-    return `impl ${interfaceName} for ${targetName}`;
-  }
+  protected formatImplementationLabel(interfaceName: string, targetName: string): string { return `impl ${interfaceName} for ${targetName}`; }
 
-  protected formatImplementationTarget(targetType: AST.TypeExpression | null | undefined): string | null {
-    if (!targetType) return null;
-    return this.formatTypeExpression(targetType);
-  }
+  protected formatImplementationTarget(targetType: AST.TypeExpression | null | undefined): string | null { return targetType ? this.formatTypeExpression(targetType) : null; }
 
-  protected inferExpression(expression: AST.Expression | undefined | null): TypeInfo {
-    return this.context.inferExpression(expression);
-  }
+  protected inferExpression(expression: AST.Expression | undefined | null): TypeInfo { return this.context.inferExpression(expression); }
 
-  protected inferExpressionWithExpected(expression: AST.Expression | undefined | null, expected: TypeInfo): TypeInfo {
-    return this.context.inferExpressionWithExpected(expression, expected);
-  }
+  protected inferExpressionWithExpected(expression: AST.Expression | undefined | null, expected: TypeInfo): TypeInfo { return this.context.inferExpressionWithExpected(expression, expected); }
 
   protected withForkedEnv<T>(fn: () => T): T {
     const previousEnv = this.env;
@@ -219,29 +198,15 @@ export class TypeCheckerBase {
     }
   }
 
-  protected pushAsyncContext(): void {
-    this.asyncDepth += 1;
-  }
+  protected pushAsyncContext(): void { this.asyncDepth += 1; }
 
-  protected popAsyncContext(): void {
-    if (this.asyncDepth > 0) {
-      this.asyncDepth -= 1;
-    }
-  }
+  protected popAsyncContext(): void { if (this.asyncDepth > 0) this.asyncDepth -= 1; }
 
-  protected inAsyncContext(): boolean {
-    return this.asyncDepth > 0;
-  }
+  protected inAsyncContext(): boolean { return this.asyncDepth > 0; }
 
-  protected pushReturnType(type: TypeInfo): void {
-    this.returnTypeStack.push(type ?? unknownType);
-  }
+  protected pushReturnType(type: TypeInfo): void { this.returnTypeStack.push(type ?? unknownType); }
 
-  protected popReturnType(): void {
-    if (this.returnTypeStack.length > 0) {
-      this.returnTypeStack.pop();
-    }
-  }
+  protected popReturnType(): void { if (this.returnTypeStack.length > 0) this.returnTypeStack.pop(); }
 
   protected currentReturnType(): TypeInfo | undefined {
     if (!this.returnTypeStack.length) return undefined;
@@ -274,186 +239,11 @@ export class TypeCheckerBase {
   }
 
   protected checkFunctionDefinition(definition: AST.FunctionDefinition): void {
-    if (!definition) return;
-    const name = definition.id?.name ?? "<anonymous>";
-    const paramTypes = Array.isArray(definition.params)
-      ? definition.params.map((param) => this.resolveTypeExpression(param?.paramType))
-      : [];
-    const expectedReturn = this.resolveTypeExpression(definition.returnType);
-    if (definition.id?.name) {
-      this.env.define(definition.id.name, {
-        kind: "function",
-        parameters: paramTypes,
-        returnType: expectedReturn ?? unknownType,
-      });
-    }
-    this.pushReturnType(expectedReturn ?? unknownType);
-    this.pushFunctionGenericContext(definition);
-    this.pushTypeParamScope(definition);
-    this.env.pushScope();
-    try {
-      if (Array.isArray(definition.params)) {
-        definition.params.forEach((param, index) => {
-          const paramName = this.getIdentifierName(param?.name);
-          if (!paramName) return;
-          const paramType = paramTypes[index] ?? unknownType;
-          this.env.define(paramName, paramType ?? unknownType);
-        });
-      }
-      const shouldUseExpected =
-        expectedReturn &&
-        expectedReturn.kind !== "unknown" &&
-        !(expectedReturn.kind === "primitive" && expectedReturn.name === "void");
-      const bodyType = shouldUseExpected
-        ? this.inferExpressionWithExpected(definition.body, expectedReturn)
-        : this.inferExpression(definition.body);
-      const expectedVoid =
-        expectedReturn?.kind === "primitive" && expectedReturn.name === "void";
-      if (!expectedVoid && expectedReturn && expectedReturn.kind !== "unknown" && bodyType && bodyType.kind !== "unknown") {
-        const literalMessage = this.describeLiteralMismatch(bodyType, expectedReturn);
-        if (literalMessage) {
-          this.report(literalMessage, definition.body ?? definition);
-        } else if (!this.isTypeAssignable(bodyType, expectedReturn)) {
-          this.report(
-            `typechecker: function '${name}' body returns ${formatType(bodyType)}, expected ${formatType(expectedReturn)}`,
-            definition.body ?? definition,
-          );
-        }
-      }
-
-      const genericNames = new Set<string>();
-      const addGenericName = (param?: AST.GenericParameter | null) => {
-        const paramName = this.getIdentifierName(param?.name);
-        if (paramName) {
-          genericNames.add(paramName);
-        }
-      };
-      (definition.genericParams ?? []).forEach(addGenericName);
-      (definition.inferredGenericParams ?? []).forEach(addGenericName);
-      if (Array.isArray(definition.whereClause) && definition.whereClause.length > 0) {
-        const subjectUsesGeneric = (expr: AST.TypeExpression | null | undefined): boolean => {
-          if (!expr) return false;
-          switch (expr.type) {
-            case "SimpleTypeExpression": {
-              const id = this.getIdentifierName(expr.name);
-              return id ? genericNames.has(id) || id === "Self" : false;
-            }
-            case "GenericTypeExpression":
-              if (subjectUsesGeneric(expr.base)) return true;
-              return Array.isArray(expr.arguments) && expr.arguments.some((arg) => subjectUsesGeneric(arg));
-            case "NullableTypeExpression":
-            case "ResultTypeExpression":
-              return subjectUsesGeneric(expr.innerType);
-            case "UnionTypeExpression":
-              return Array.isArray(expr.members) && expr.members.some((member) => subjectUsesGeneric(member));
-            case "FunctionTypeExpression":
-              if (Array.isArray(expr.paramTypes) && expr.paramTypes.some((param) => subjectUsesGeneric(param))) {
-                return true;
-              }
-              return subjectUsesGeneric(expr.returnType);
-            default:
-              return false;
-          }
-        };
-        for (const clause of definition.whereClause) {
-          if (!clause?.typeParam || !Array.isArray(clause.constraints)) {
-            continue;
-          }
-          if (subjectUsesGeneric(clause.typeParam)) {
-            continue;
-          }
-          const subject = this.resolveTypeExpression(clause.typeParam);
-          for (const constraint of clause.constraints) {
-            const interfaceName = this.getInterfaceNameFromConstraint(constraint);
-            if (!interfaceName) continue;
-            const expectedArgs =
-              constraint?.interfaceType?.type === "GenericTypeExpression"
-                ? (constraint.interfaceType.arguments ?? []).map((arg) => this.formatTypeExpression(arg))
-                : [];
-            const result = typeImplementsInterface(this.implementationContext, subject, interfaceName, expectedArgs);
-            if (!result.ok) {
-              const subjectLabel = this.describeTypeArgument(subject);
-              const detailSuffix = result.detail ? `: ${result.detail}` : "";
-              const message =
-                `typechecker: fn ${name} constraint on ${this.formatTypeExpression(clause.typeParam)} is not satisfied: ` +
-                `${subjectLabel} does not implement ${interfaceName}${detailSuffix}`;
-              this.report(message, constraint?.interfaceType ?? clause.typeParam ?? definition);
-            }
-          }
-        }
-      }
-    } finally {
-      this.env.popScope();
-      this.popTypeParamScope();
-      this.popFunctionGenericContext();
-      this.popReturnType();
-    }
+    checkFunctionDefinitionHelper(this, definition);
   }
 
   protected checkReturnStatement(statement: AST.ReturnStatement): void {
-    if (!statement) return;
-    const expected = this.currentReturnType();
-    const shouldUseExpected =
-      expected &&
-      expected.kind !== "unknown" &&
-      !(expected.kind === "primitive" && expected.name === "void");
-    let actual = statement.argument
-      ? shouldUseExpected
-        ? this.inferExpressionWithExpected(statement.argument, expected)
-        : this.inferExpression(statement.argument)
-      : primitiveType("void");
-    if (statement.argument?.type === "FunctionCall" && expected && expected.kind !== "unknown") {
-      actual = refineTypeWithExpected(actual, expected);
-    }
-    if (!expected) {
-      this.report("typechecker: return statement outside function", statement);
-      return;
-    }
-    if (expected.kind === "unknown") {
-      return;
-    }
-    if (expected.kind === "primitive" && expected.name === "void") {
-      return;
-    }
-    if (!actual || actual.kind === "unknown") {
-      return;
-    }
-    const literalMessage = this.describeLiteralMismatch(actual, expected);
-    if (literalMessage) {
-      this.report(literalMessage, statement.argument ?? statement);
-      return;
-    }
-    if (expected.kind === "result") {
-      if (this.isTypeAssignable(actual, expected.inner)) {
-        return;
-      }
-      if (typeImplementsInterface(this.implementationContext, actual, "Error", [] as string[]).ok) {
-        return;
-      }
-    }
-    const unionMatches = (member: TypeInfo | undefined): boolean => {
-      if (!member) return false;
-      if (member.kind === "union") {
-        return member.members?.some((inner) => unionMatches(inner)) ?? false;
-      }
-      if (member.kind === "interface") {
-        const args = (member.typeArguments ?? []).map((arg) => formatType(arg));
-        return typeImplementsInterface(this.implementationContext, actual, member.name, args).ok;
-      }
-      if (member.kind === "struct" && member.name === "Error") {
-        return typeImplementsInterface(this.implementationContext, actual, "Error", []).ok;
-      }
-      return false;
-    };
-    if (expected.kind === "union" && expected.members?.some((member) => unionMatches(member))) {
-      return;
-    }
-    if (!this.isTypeAssignable(actual, expected)) {
-      this.report(
-        `typechecker: return expects ${formatType(expected)}, got ${formatType(actual)}`,
-        statement.argument ?? statement,
-      );
-    }
+    checkReturnStatementBaseHelper(this, statement);
   }
 
   protected pushLoopContext(): void {
@@ -561,6 +351,9 @@ export class TypeCheckerBase {
       implementationContext: this.implementationContext,
       functionInfos: this.functionInfos,
       structDefinitions: this.structDefinitions,
+      currentPackageName: this.currentPackageName,
+      importedPackages: this.importedPackages,
+      getStructDefinition: (name: string) => this.structDefinitions.get(name),
       inferExpression: (expression: AST.Expression | undefined | null) => this.inferExpression(expression),
       resolveTypeExpression: (expr: AST.TypeExpression | null | undefined, substitutions?: Map<string, TypeInfo>) =>
         this.resolveTypeExpression(expr, substitutions),
@@ -845,10 +638,42 @@ export class TypeCheckerBase {
 
   protected addFunctionInfo(key: string, info: FunctionInfo): void {
     const existing = this.functionInfos.get(key) ?? [];
-    if (existing.some((entry) => entry.fullName === info.fullName)) {
-      return;
+    for (const entry of existing) {
+      if (entry.fullName !== info.fullName) {
+        continue;
+      }
+      if (entry.definition === info.definition) {
+        return;
+      }
+      if (this.functionParamsEquivalent(entry.parameters, info.parameters)) {
+        return;
+      }
     }
     this.functionInfos.set(key, [...existing, info]);
+  }
+
+  private functionParamsEquivalent(left?: TypeInfo[], right?: TypeInfo[]): boolean {
+    const leftParams = Array.isArray(left) ? left : [];
+    const rightParams = Array.isArray(right) ? right : [];
+    if (leftParams.length !== rightParams.length) {
+      return false;
+    }
+    for (let index = 0; index < leftParams.length; index += 1) {
+      if (!this.signatureTypesEquivalent(leftParams[index], rightParams[index])) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private signatureTypesEquivalent(left?: TypeInfo, right?: TypeInfo): boolean {
+    if (!left || left.kind === "unknown" || !right || right.kind === "unknown") {
+      return true;
+    }
+    if (left.kind === "type_parameter" || right.kind === "type_parameter") {
+      return left.kind === "type_parameter" && right.kind === "type_parameter";
+    }
+    return this.typeInfosEquivalent(left, right);
   }
 
   protected getFunctionInfos(key: string): FunctionInfo[] {

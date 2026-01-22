@@ -2,9 +2,11 @@ import * as AST from "../../ast";
 import { unknownType } from "../types";
 import type { TypeInfo } from "../types";
 import type { FunctionContext, FunctionInfo, ImplementationObligation } from "./types";
+import { formatNodeOrigin } from "./registry";
 import type { StatementContext } from "./expression-context";
 
 export interface DeclarationsContext extends StatementContext {
+  getCurrentPackageName?: () => string;
   getIdentifierName(node: AST.Identifier | null | undefined): string | null;
   getIdentifierNameFromTypeExpression(expr: AST.TypeExpression | null | undefined): string | null;
   getInterfaceNameFromConstraint(constraint: AST.GenericConstraint | null | undefined): string | null;
@@ -27,6 +29,7 @@ export function collectFunctionDefinition(
   scope: FunctionContext | undefined,
 ): void {
   inferFunctionGenerics(ctx, definition, scope);
+  const currentPackageName = ctx.getCurrentPackageName?.();
   const name = definition.id?.name ?? "<anonymous>";
   const structName = scope?.structName;
   const structBaseName = scope?.structBaseName ?? structName;
@@ -76,6 +79,7 @@ export function collectFunctionDefinition(
   const info: FunctionInfo = {
     name,
     fullName,
+    packageName: currentPackageName,
     definition,
     structName,
     hasImplicitSelf: expectsSelfParam,
@@ -94,6 +98,22 @@ export function collectFunctionDefinition(
   };
   if (scope?.fromMethodSet) {
     info.fromMethodSet = true;
+  }
+
+  if (!structName && definition.id?.name) {
+    const existing = ctx.getFunctionInfos(definition.id.name);
+    const matches = existing.find(
+      (entry) =>
+        !entry.structName &&
+        (!entry.packageName || !currentPackageName || entry.packageName === currentPackageName) &&
+        functionParamsEquivalent(ctx, entry.parameters, info.parameters),
+    );
+    if (matches?.definition) {
+      const location = formatNodeOrigin(matches.definition);
+      const displayName = name.startsWith("<anonymous>::") ? name.slice("<anonymous>::".length) : name;
+      ctx.report(`typechecker: duplicate declaration '${displayName}' (previous declaration at ${location})`, definition);
+      return;
+    }
   }
 
   if (Array.isArray(definition.genericParams)) {
@@ -140,6 +160,38 @@ export function collectFunctionDefinition(
       });
     }
   }
+}
+
+function functionParamsEquivalent(
+  ctx: DeclarationsContext,
+  leftParams: TypeInfo[] | undefined,
+  rightParams: TypeInfo[] | undefined,
+): boolean {
+  const left = Array.isArray(leftParams) ? leftParams : [];
+  const right = Array.isArray(rightParams) ? rightParams : [];
+  if (left.length !== right.length) {
+    return false;
+  }
+  for (let index = 0; index < left.length; index += 1) {
+    if (!signatureTypesEquivalent(ctx, left[index], right[index])) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function signatureTypesEquivalent(
+  ctx: DeclarationsContext,
+  left: TypeInfo | undefined,
+  right: TypeInfo | undefined,
+): boolean {
+  if (!left || left.kind === "unknown" || !right || right.kind === "unknown") {
+    return true;
+  }
+  if (left.kind === "type_parameter" || right.kind === "type_parameter") {
+    return left.kind === "type_parameter" && right.kind === "type_parameter";
+  }
+  return ctx.typeInfosEquivalent(left, right);
 }
 
 function resolveFunctionParameterTypes(

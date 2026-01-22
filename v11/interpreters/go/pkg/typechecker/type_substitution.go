@@ -84,6 +84,11 @@ func substituteType(t Type, subst map[string]Type) Type {
 		for i, arg := range v.Arguments {
 			args[i] = substituteType(arg, subst)
 		}
+		if appliedBase, ok := base.(AppliedType); ok {
+			combined := append([]Type{}, appliedBase.Arguments...)
+			combined = append(combined, args...)
+			return AppliedType{Base: appliedBase.Base, Arguments: combined}
+		}
 		return AppliedType{Base: base, Arguments: args}
 	case UnionLiteralType:
 		members := make([]Type, len(v.Members))

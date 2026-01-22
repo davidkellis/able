@@ -70,7 +70,6 @@ func (c *declarationCollector) collectImplementationDefinition(def *ast.Implemen
 	if targetType == nil {
 		targetType = UnknownType{}
 	}
-	scope["Self"] = targetType
 	targetLabel := nonEmpty(typeName(targetType))
 
 	interfaceArgs := make([]Type, len(def.InterfaceArgs))
@@ -135,6 +134,15 @@ func (c *declarationCollector) collectImplementationDefinition(def *ast.Implemen
 		}
 	}
 
+	selfType := targetType
+	if ifaceType.SelfTypePattern != nil && len(interfaceArgs) > 0 && explicitParams > 0 {
+		implGenericNames := collectGenericParamNameSet(params)
+		if isTypeConstructorTarget(def.TargetType, implGenericNames, c.env) {
+			selfType = applyInterfaceArgsToTargetType(targetType, interfaceArgs)
+		}
+	}
+	scope["Self"] = selfType
+
 	implGenericNames := collectGenericParamNameSet(params)
 	if ifaceType.InterfaceName != "" {
 		targetValid := c.validateImplementationSelfTypePattern(def, ifaceType, interfaceName, targetLabel, implGenericNames)
@@ -162,7 +170,7 @@ func (c *declarationCollector) collectImplementationDefinition(def *ast.Implemen
 		}
 		methodOwner := fmt.Sprintf("%s::%s", implLabel, functionName(fn))
 		fnType := c.functionTypeFromDefinition(fn, scope, methodOwner, fn)
-		fnType = applyImplicitSelfParam(fn, fnType, targetType)
+		fnType = applyImplicitSelfParam(fn, fnType, selfType)
 		methods[fn.ID.Name] = fnType
 		methodWhereCounts[fn.ID.Name] = len(fn.WhereClause)
 	}
@@ -224,7 +232,7 @@ func (c *declarationCollector) inferInterfaceArgsFromSelfPattern(
 
 func (c *declarationCollector) interfaceExplicitParamCount(name string, iface InterfaceType) int {
 	if name == "" {
-		return len(iface.TypeParams)
+		return interfaceExplicitParamCountFromType(iface)
 	}
 	if c != nil && c.declNodes != nil {
 		if node, ok := c.declNodes[name]; ok {
@@ -240,6 +248,41 @@ func (c *declarationCollector) interfaceExplicitParamCount(name string, iface In
 			}
 		}
 	}
+	if len(iface.TypeParams) == 0 {
+		return 0
+	}
+	count := 0
+	seenInferred := false
+	for _, param := range iface.TypeParams {
+		if param.IsInferred {
+			seenInferred = true
+		}
+		if param.Name == "" || param.IsInferred {
+			continue
+		}
+		count++
+	}
+	if seenInferred {
+		return count
+	}
+	selfNames := collectSelfPatternNames(iface.SelfTypePattern)
+	if len(selfNames) == 0 {
+		return len(iface.TypeParams)
+	}
+	count = 0
+	for _, param := range iface.TypeParams {
+		if param.Name == "" {
+			continue
+		}
+		if _, ok := selfNames[param.Name]; ok {
+			continue
+		}
+		count++
+	}
+	return count
+}
+
+func interfaceExplicitParamCountFromType(iface InterfaceType) int {
 	if len(iface.TypeParams) == 0 {
 		return 0
 	}

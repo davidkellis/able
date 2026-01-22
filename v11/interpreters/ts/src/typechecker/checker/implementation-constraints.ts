@@ -14,7 +14,7 @@ import {
   expectsSelfType,
   isImplicitSelfParameter,
   typeExpressionsEquivalent,
-} from "./implementation-collection";
+} from "./implementation-validation";
 import type {
   FunctionInfo,
   ImplementationObligation,

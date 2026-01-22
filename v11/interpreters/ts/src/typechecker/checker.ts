@@ -36,6 +36,7 @@ export class TypeChecker extends TypeCheckerBase {
     this.installBuiltins();
     this.installPrelude();
     this.packageAliases.clear();
+    this.importedPackages = new Set();
     this.reportedPackageMemberAccess = new WeakSet();
     this.allowDynamicLookups = false;
     this.currentPackageName = resolvePackageName(module);

@@ -1,5 +1,40 @@
 # Able Project Log
 
+# 2026-01-21 — TS typechecker import scoping for functions (v11)
+- Typechecker (TS): track current package for function infos, filter call resolution to imported packages, and avoid cross-package duplicate declaration errors in stdlib/test runs.
+- Tests: `./run_stdlib_tests.sh --version=v11`.
+
+# 2026-01-21 — Full test runs (v11)
+- Tests: `./run_all_tests.sh --version=v11`.
+
+# 2026-01-21 — Full test runs (v11)
+- Tests: `./run_all_tests.sh --version=v11` (passed).
+- Tests: `./run_stdlib_tests.sh --version=v11` failed in TS stdlib due to duplicate declaration diagnostics (e.g., `able.text.regex` vs `able.text.string`, `able.spec` vs `able.spec.assertions`, and duplicated helpers across stdlib collection smoke tests); Go stdlib tests passed.
+
+# 2026-01-21 — TS interpreter types refactor (v11)
+- Refactored `v11/interpreters/ts/src/interpreter/types.ts` into `types/format.ts`, `types/primitives.ts`, `types/unions.ts`, `types/structs.ts`, and `types/helpers.ts` while keeping the public augmentations unchanged.
+- Tests not run (refactor only).
+
+# 2026-01-21 — TS impl resolution refactor (v11)
+- Split `v11/interpreters/ts/src/interpreter/impl_resolution.ts` into stage modules for constraints, candidates, specificity ranking, defaults, and diagnostics under `v11/interpreters/ts/src/interpreter/impl_resolution/`.
+- Tests not run (refactor only).
+
+# 2026-01-21 — TS implementation collection refactor (v11)
+- Split `v11/interpreters/ts/src/typechecker/checker/implementation-collection.ts` into collection vs validation/self-pattern helpers in `implementation-validation.ts`.
+- Tests: `cd v11/interpreters/ts && bun test test/typechecker/implementation_validation.test.ts`.
+
+# 2026-01-21 — TS function call refactor (v11)
+- Split `v11/interpreters/ts/src/typechecker/checker/function-calls.ts` into call-shape parsing, overload resolution, and diagnostics helpers (`function-call-parse.ts`, `function-call-resolve.ts`, `function-call-errors.ts`).
+- Tests: `cd v11/interpreters/ts && bun test test/typechecker/function_calls.test.ts`; `cd v11/interpreters/ts && bun test test/typechecker/method_sets.test.ts`; `cd v11/interpreters/ts && bun test test/typechecker/apply_interface.test.ts`.
+
+# 2026-01-21 — TypeCheckerBase size trim (v11)
+- Extracted `checkFunctionDefinition`/`checkReturnStatement` into `v11/interpreters/ts/src/typechecker/checker/checker_base_functions.ts` and trimmed `v11/interpreters/ts/src/typechecker/checker_base.ts` under 900 lines.
+- Tests not run (refactor only).
+
+# 2026-01-21 — Interfaces fixture refactor (v11)
+- Split `v11/interpreters/ts/scripts/export-fixtures/fixtures/interfaces.ts` into modular fixture files under `v11/interpreters/ts/scripts/export-fixtures/fixtures/interfaces/`.
+- Tests not run (fixture refactor only).
+
 # 2026-01-20 — Go typechecker builtin arity fallback (v11)
 - Go typechecker: prefer builtin arity when generic base names are not found in the env, fixing Array T without explicit imports in parity examples.
 - State: `./run_all_tests.sh --version=v11` green; parity examples passing.
@@ -934,6 +969,22 @@ Open items (2025-11-02 audit):
 - TS interpreter: separate interface vs subject type arguments in impl resolution (`findMethod`, `resolveInterfaceImplementation`, `matchImplEntry`, `typeImplementsInterface`) and widen runtime generic skipping for nested type expressions.
 - TS interpreter: bind receiver type arguments into function env as `type_ref` and allow typed patterns to resolve generic type refs (fallback to wildcard for unknown generic names) to avoid non-exhaustive matches in generic matchers.
 - Tests: `/home/david/sync/projects/able/v11/ablets test /home/david/sync/projects/able/v11/stdlib/tests/assertions.test.able`; `/home/david/sync/projects/able/v11/ablets test /home/david/sync/projects/able/v11/stdlib/tests` (timed out after 60s).
+- Typechecker: overload resolution now prefers non-generic matches over generic, with generic specificity ranking aligned across TS + Go; unknown argument types no longer satisfy overload sets in Go to match TS (UFCS ambiguity case).
+- CLI: test runner skips typechecking in `--list`/`--dry-run` modes to avoid spurious stdlib diagnostics.
+- Fixtures: updated UFCS overload expectations and typecheck baseline entries; refreshed export-fixtures manifests for overload cases.
+- Tests: `GOCACHE=$(pwd)/.gocache go test ./pkg/typechecker` in `v11/interpreters/go`; `bun test test/parity/fixtures_parity.test.ts -t "functions/ufcs_generic_overloads"`; `ABLE_FIXTURE_FILTER=errors/ufcs_overload_ambiguity bun run scripts/run-fixtures.ts`; `./run_all_tests.sh --version=v11`.
+- Typechecker: bind higher-kinded self pattern placeholders to partially applied targets and apply interface args to `Self` when the impl target is still a type constructor (TS + Go); flatten applied types during substitution for nested constructor applications.
+- Tests: `go test ./pkg/typechecker -run TestImplementationAllowsPartiallyAppliedConstructorWithSelfPattern` in `v11/interpreters/go`; `bun test test/typechecker/implementation_validation.test.ts -t "partially applied constructor"` in `v11/interpreters/ts`.
+- Typechecker (Go): only apply explicit interface args to `Self` for constructor targets so inferred self-pattern args don't double-apply in method validation.
+- Tests: `GOCACHE=/tmp/able-gocache go test ./pkg/typechecker` in `v11/interpreters/go`; `bun test test/typechecker` in `v11/interpreters/ts`.
+- Typechecker (TS): avoid overriding impl generic substitutions with self-pattern bindings during impl validation to prevent nested applied types in stdlib interface checks.
+- Tests: `./run_all_tests.sh --version=v11`.
+- Typechecker: add regression coverage to ensure self-pattern placeholders remain in-scope for interface method signatures (TS + Go).
+- Tests: `GOCACHE=/tmp/able-gocache go test ./pkg/typechecker -run TestImplementationAllowsSelfPatternPlaceholderInMethodSignature` in `v11/interpreters/go`; `bun test test/typechecker/implementation_validation.test.ts -t "self placeholders"` in `v11/interpreters/ts`.
+- Typechecker: add package-scoped duplicate declaration coverage so same symbol names across packages do not conflict (TS session + Go program checker).
+- Tests: `GOCACHE=/tmp/able-gocache go test ./pkg/typechecker -run TestProgramCheckerAllowsDuplicateNamesAcrossPackages` in `v11/interpreters/go`; `bun test test/typechecker/duplicates.test.ts -t "same symbol name"` in `v11/interpreters/ts`.
+- Fixtures: added exec coverage for typechecker return mismatch diagnostics to mirror runtime behavior checks (`exec/11_01_return_statement_typecheck_diag`).
+- Tests: `ABLE_FIXTURE_FILTER=11_01_return_statement_typecheck_diag bun run scripts/run-fixtures.ts` in `v11/interpreters/ts`; `GOCACHE=/tmp/able-gocache go test ./pkg/interpreter -run TestExecFixtures/11_01_return_statement_typecheck_diag` in `v11/interpreters/go`.
 
 ### 2026-01-22
 - Stdlib: moved `collect` to the `Iterator` interface and kept `Iterable` focused on `each`/`iterator`.
