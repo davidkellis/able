@@ -45,8 +45,6 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 
 ## TODO (working queue: tackle in order, move completed items to LOG.md)
 - **Typechecker enforcement + stdlib alignment (priority)**:
-  - Ensure interface self-type placeholders (`for M`) are treated as in-scope for interface method signatures (avoid inferred method generics for `M`) and re-run stdlib.
-  - Fix stdlib constraints to match non-generic interfaces (`Eq`, `Ord`, `Hash`) and ensure kernel aliases are used without type args.
   - Make stdlib typecheck in both interpreters; verify `.examples/foo.able` runs with strict typechecking.
   - Enable typechecker by default in fixture/parity/test harnesses; keep any `off` usage behind explicit, documented exceptions.
   - Refresh/update typecheck baselines after fixes and add regression tests for HKT + constraint arity.
