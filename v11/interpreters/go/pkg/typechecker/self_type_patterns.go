@@ -456,3 +456,131 @@ func typeExpressionsEquivalent(a, b ast.TypeExpression) bool {
 		return formatTypeExpressionNode(a) == formatTypeExpressionNode(b)
 	}
 }
+
+func (c *Checker) applySelfPatternConstructorSubstitution(subst map[string]Type, iface InterfaceType, self Type) {
+	if c == nil || subst == nil || iface.SelfTypePattern == nil || self == nil {
+		return
+	}
+	names := c.collectSelfPatternConstructorPlaceholders(iface)
+	if len(names) == 0 {
+		return
+	}
+	constructor := c.selfTypeConstructor(self)
+	if constructor == nil || isUnknownType(constructor) {
+		return
+	}
+	for name := range names {
+		if existing, ok := subst[name]; ok && !shouldOverrideSelfPatternPlaceholder(existing, name) {
+			continue
+		}
+		subst[name] = constructor
+	}
+}
+
+func shouldOverrideSelfPatternPlaceholder(existing Type, name string) bool {
+	if existing == nil || isUnknownType(existing) {
+		return true
+	}
+	if param, ok := existing.(TypeParameterType); ok && param.ParameterName == name {
+		return true
+	}
+	return false
+}
+
+func (c *Checker) collectSelfPatternConstructorPlaceholders(iface InterfaceType) map[string]struct{} {
+	if c == nil || iface.SelfTypePattern == nil {
+		return nil
+	}
+	interfaceGenerics := collectGenericParamNameSet(iface.TypeParams)
+	matcher := &declarationCollector{env: c.global, localTypeNames: c.localTypeNames}
+	placeholders := map[string]struct{}{}
+	var walk func(ast.TypeExpression)
+	walk = func(expr ast.TypeExpression) {
+		if expr == nil {
+			return
+		}
+		switch t := expr.(type) {
+		case *ast.GenericTypeExpression:
+			if simple, ok := t.Base.(*ast.SimpleTypeExpression); ok {
+				name := identifierName(simple.Name)
+				if matcher.isPatternPlaceholderName(name, interfaceGenerics) {
+					placeholders[name] = struct{}{}
+				}
+			} else {
+				walk(t.Base)
+			}
+			for _, arg := range t.Arguments {
+				walk(arg)
+			}
+		case *ast.FunctionTypeExpression:
+			for _, param := range t.ParamTypes {
+				walk(param)
+			}
+			walk(t.ReturnType)
+		case *ast.NullableTypeExpression:
+			walk(t.InnerType)
+		case *ast.ResultTypeExpression:
+			walk(t.InnerType)
+		case *ast.UnionTypeExpression:
+			for _, member := range t.Members {
+				walk(member)
+			}
+		}
+	}
+	walk(iface.SelfTypePattern)
+	if len(placeholders) == 0 {
+		return nil
+	}
+	return placeholders
+}
+
+func (c *Checker) selfTypeConstructor(self Type) Type {
+	if self == nil || isUnknownType(self) {
+		return UnknownType{}
+	}
+	if base, _, ok := flattenAppliedType(self); ok {
+		return c.selfTypeConstructor(base)
+	}
+	switch v := self.(type) {
+	case AliasType:
+		return c.selfTypeConstructor(v.Target)
+	case InterfaceType:
+		if c.global != nil {
+			if decl, ok := c.global.Lookup(v.InterfaceName); ok {
+				if iface, ok := decl.(InterfaceType); ok {
+					return iface
+				}
+			}
+		}
+		return InterfaceType{InterfaceName: v.InterfaceName}
+	}
+	if info, ok := structInfoFromType(self); ok && info.name != "" {
+		if c.global != nil {
+			if decl, ok := c.global.Lookup(info.name); ok {
+				switch typed := decl.(type) {
+				case StructType:
+					return typed
+				case InterfaceType:
+					return typed
+				case UnionType:
+					return typed
+				}
+			}
+		}
+		if info.isUnion {
+			return UnionType{UnionName: info.name}
+		}
+		return StructType{StructName: info.name}
+	}
+	if name, ok := unionName(self); ok && name != "" {
+		if c.global != nil {
+			if decl, ok := c.global.Lookup(name); ok {
+				if union, ok := decl.(UnionType); ok {
+					return union
+				}
+			}
+		}
+		return UnionType{UnionName: name}
+	}
+	return self
+}

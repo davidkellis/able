@@ -819,6 +819,7 @@ func (c *Checker) interfaceMemberFunction(iface InterfaceType, args []Type, self
 			subst[spec.Name] = arg
 		}
 	}
+	c.applySelfPatternConstructorSubstitution(subst, iface, self)
 	methodType = substituteFunctionType(methodType, subst)
 	methodType = bindMethodType(methodType)
 	return methodType, true

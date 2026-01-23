@@ -1,5 +1,9 @@
 # Able Project Log
 
+# 2026-01-22 — Stdlib Eq/Ord/Hash audit (v11)
+- Stdlib: audited `v11/stdlib/src` for generic `Eq`/`Ord`/`Hash` constraints and kernel alias usage; no type-arg uses remain, so the PLAN item was cleared.
+- Tests not run (audit + plan/log updates only).
+
 # 2026-01-22 — Go parser nested generics fix (v11)
 - Go parser: avoid flattening parenthesized generic applications in type argument lists so nested types like `Iterable (Option String)` stay nested; fixes `TestParseInterfaceCompositeNestedGenerics` and exec fixture `04_03_type_expression_syntax`.
 - Tests: `cd v11/interpreters/go && go test ./pkg/parser -run TestParseInterfaceCompositeNestedGenerics -count=1`; `cd v11/interpreters/go && go test ./pkg/interpreter -run TestExecFixtures/04_03_type_expression_syntax -count=1`; `./run_all_tests.sh --version=v11`; `./run_stdlib_tests.sh`.

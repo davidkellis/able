@@ -208,6 +208,8 @@ func (c *Checker) buildImplementationMethodCandidate(spec ImplementationSpec, ob
 	}
 	if iface.InterfaceName != "" {
 		extendImplementationSubstitution(substitution, iface, spec.InterfaceArgs)
+		applySelfPatternBindings(c, substitution, spec, iface)
+		c.applySelfPatternConstructorSubstitution(substitution, iface, object)
 	}
 	for _, param := range spec.TypeParams {
 		if param.Name == "" {
