@@ -811,6 +811,46 @@ func TestImplementationRejectsGenericSelfPatternMismatch(t *testing.T) {
 	}
 }
 
+func TestInterfaceMethodAllowsSelfPatternConstructorPlaceholder(t *testing.T) {
+	checker := New()
+	wrapSig := ast.FnSig(
+		"wrap",
+		[]*ast.FunctionParameter{
+			ast.Param("self", ast.Gen(ast.Ty("M"), ast.Ty("T"))),
+			ast.Param("value", ast.Ty("T")),
+		},
+		ast.Gen(ast.Ty("M"), ast.Ty("T")),
+		[]*ast.GenericParameter{ast.GenericParam("T")},
+		nil,
+		nil,
+	)
+	wrapperIface := ast.Iface("Wrapper", []*ast.FunctionSignature{wrapSig}, nil, ast.Gen(ast.Ty("M"), ast.WildT()), nil, nil, false)
+	holderStruct := buildGenericStructDefinition("Holder", []string{"T"})
+	wrapDef := ast.Fn(
+		"wrap",
+		[]*ast.FunctionParameter{
+			ast.Param("self", ast.Gen(ast.Ty("Holder"), ast.Ty("T"))),
+			ast.Param("value", ast.Ty("T")),
+		},
+		[]ast.Statement{ast.Ret(ast.ID("self"))},
+		ast.Gen(ast.Ty("Holder"), ast.Ty("T")),
+		[]*ast.GenericParameter{ast.GenericParam("T")},
+		nil,
+		false,
+		false,
+	)
+	impl := ast.Impl("Wrapper", ast.Ty("Holder"), []*ast.FunctionDefinition{wrapDef}, nil, nil, nil, nil, false)
+	module := ast.NewModule([]ast.Statement{wrapperIface, holderStruct, impl}, nil, nil)
+
+	diags, err := checker.CheckModule(module)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics, got %v", diags)
+	}
+}
+
 func TestImplementationRejectsConcreteTargetForHigherKindedPattern(t *testing.T) {
 	checker := New()
 	selfPattern := ast.Gen(ast.Ty("F"), ast.WildT())

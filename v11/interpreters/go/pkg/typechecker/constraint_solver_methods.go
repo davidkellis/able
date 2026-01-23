@@ -16,7 +16,7 @@ func (c *Checker) methodSetProvidesInterface(subject Type, iface InterfaceType, 
 		if !ok {
 			continue
 		}
-		satisfied, obligations, detail := methodSetSatisfiesInterface(spec, iface, args, subject, subst)
+		satisfied, obligations, detail := methodSetSatisfiesInterface(c, spec, iface, args, subject, subst)
 		if detail != "" {
 			annotated := annotateMethodSetFailure(detail, spec, subject, subst, ConstraintObligation{})
 			if score > bestScore || (score == bestScore && len(annotated) > len(bestDetail)) {
@@ -84,7 +84,7 @@ func formatMethodSetCandidateLabel(spec MethodSetSpec, subject Type, subst map[s
 	return fmt.Sprintf("methods for %s", name)
 }
 
-func methodSetSatisfiesInterface(spec MethodSetSpec, iface InterfaceType, args []Type, subject Type, subst map[string]Type) (bool, []ConstraintObligation, string) {
+func methodSetSatisfiesInterface(c *Checker, spec MethodSetSpec, iface InterfaceType, args []Type, subject Type, subst map[string]Type) (bool, []ConstraintObligation, string) {
 	if len(spec.Methods) == 0 || len(iface.Methods) == 0 {
 		return false, nil, "method set is empty"
 	}
@@ -115,6 +115,8 @@ func methodSetSatisfiesInterface(spec MethodSetSpec, iface InterfaceType, args [
 		}
 		ifaceSubst[param.Name] = replacement
 	}
+	c.applySelfPatternConstructorSubstitution(combined, iface, subject)
+	c.applySelfPatternConstructorSubstitution(ifaceSubst, iface, subject)
 
 	var obligations []ConstraintObligation
 
