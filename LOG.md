@@ -1,10 +1,48 @@
 # Able Project Log
 
+# 2026-01-24 — Unified Future regression passes + fs rename fix (v11)
+- Stdlib fs (TS): switched `fs_remove`/`fs_rename` externs to sync Node calls to avoid flaky exists checks during stdlib runs.
+- Plan: removed the unified Future regression-pass TODO after completing the full sweeps.
+- Tests: `./run_all_tests.sh --version=v11`; `./run_stdlib_tests.sh`.
+
+# 2026-01-24 — Go test wording cleanup (v11)
+- Go tests: updated concurrency/await diagnostics to say “future handle” instead of “proc handle”.
+- Tests not run (text-only change).
+
+# 2026-01-24 — Unified Future model naming cleanup (v11)
+- TypeScript tests: renamed `proc_spawn_*` concurrency tests/helpers to `future_spawn_*` and updated imports (including await tests).
+- Docs: updated `v11/interpreters/ts/README.md` and `v11/stdlib/src/README.md` to use Future terminology.
+- Plan: collapsed the unified Future model checklist to the remaining regression-pass item.
+- Tests not run (rename + docs + plan updates only).
+
+# 2026-01-24 — Bytecode VM prototype (v11)
+- TypeScript interpreter: added a minimal stack-based bytecode VM plus a small AST->bytecode lowering path (literals, identifiers, `:=`/`=`, `+`, blocks).
+- Tests: added VM-vs-tree-walker conformance checks for literals, assignment + arithmetic, and module bodies.
+- Tests: `cd v11/interpreters/ts && bun test test/vm/bytecode_vm.test.ts`.
+
+# 2026-01-24 — Core IR + runtime ABI design (v11)
+- Design: expanded `v11/design/compiler-interpreter-vision.md` with a typed core IR outline and runtime ABI surface (interface dictionaries, concurrency, errors, dynamic hooks).
+- Tests not run (design-only update).
+
+# 2026-01-24 — Stdlib copy helpers speedup (v11)
+- Stdlib fs: routed `copy_file`/`copy_dir` through host externs (Go + TS) and removed the Able-level directory traversal to keep `copy_dir` under the test-time budget.
+- Tests: `./v11/ablets test v11/stdlib/tests/fs.test.able --format tap --name "able.fs::copies directory trees with overwrite control"` (≈59.6s); `./run_stdlib_tests.sh`; `./run_all_tests.sh --version=v11`.
+
+# 2026-01-24 — Interface dispatch fixture coverage (v11)
+- Exec fixtures: added `exec_10_04_interface_dispatch_defaults_generics` to cover cross-package default interface methods + generic interface method calls on interface-typed values.
+- Coverage index: registered the new exec fixture entry.
+- Tests: `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=10_04_interface_dispatch_defaults_generics bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter`.
+
 # 2026-01-24 — Future handle test/fixture cleanup (v11)
 - TypeScript tests: align await stdlib integration helper with `Future.value() -> !T` by returning `!Array bool`.
 - Exec fixtures: update `12_04_future_handle_value_view` stdout expectations to match the renamed output text.
 - Go tests: disambiguate duplicate future-handle/serial-executor test names introduced during the future renames.
 - Tests: `./v11/export_fixtures.sh`; `./run_all_tests.sh --version=v11`; `./run_stdlib_tests.sh`.
+
+# 2026-01-24 — Regex quantifier parsing + scan (v11)
+- Stdlib regex: implemented literal-token parsing with quantifiers (`*`, `+`, `?`, `{m}`, `{m,}`, `{m,n}`), updated match/find_all/scan to use token spans, and fixed a match-case return syntax issue.
+- Design: updated `v11/design/regex-plan.md` to reflect the partial Phase 1 status and active regex fixture.
+- Tests: `./v11/ablets check v11/stdlib/src/text/regex.able`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=14_02_regex_core_match_streaming bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter`.
 
 # 2026-01-23 — Constraint arity regression coverage (v11)
 - Typechecker (TS): added constraint interface arity diagnostics for missing/mismatched interface type arguments.

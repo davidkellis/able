@@ -3,9 +3,9 @@ import * as AST from "../../src/ast";
 import { Interpreter } from "../../src/interpreter";
 import type { RuntimeValue } from "../../src/interpreter";
 
-import { appendToTrace, drainScheduler, expectErrorValue, expectStructInstance, flushScheduler } from "./proc_spawn.helpers";
+import { appendToTrace, drainScheduler, expectErrorValue, expectStructInstance, flushScheduler } from "./future_spawn.helpers";
 
-describe("v11 interpreter - proc & spawn handles", () => {
+describe("v11 interpreter - future & spawn handles", () => {
   test("future resolves after scheduler tick", async () => {
     const I = new Interpreter();
 
@@ -57,7 +57,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
     expect(I.evaluate(AST.identifier("count"))).toEqual({ kind: "i32", value: 1n });
   });
 
-  test("proc yield allows interleaving tasks", async () => {
+  test("future yield allows interleaving tasks", async () => {
     const I = new Interpreter();
 
     I.evaluate(
@@ -175,7 +175,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
     expect(fastStatus.def.id.name).toBe("Resolved");
   });
 
-  test("proc and future interleave across multiple yields", () => {
+  test("spawned tasks interleave across multiple yields", () => {
     const I = new Interpreter();
 
     I.evaluate(
@@ -385,7 +385,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
     expect(finalPending.value).toBe(0n);
   });
 
-  test("proc awaiting future with nested yields resolves cleanly", () => {
+  test("spawned task awaiting future with nested yields resolves cleanly", () => {
     const I = new Interpreter();
 
     I.evaluate(

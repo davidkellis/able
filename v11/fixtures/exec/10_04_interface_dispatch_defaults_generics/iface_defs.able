@@ -1,0 +1,14 @@
+package iface_defs
+
+## Semantics: default + generic interface methods live in the defining package.
+
+struct Tagged T { tag: String, value: T }
+
+interface Describer for Self {
+  fn name(self: Self) -> String
+  fn describe(self: Self) -> String { `desc:${self.name()}` }
+}
+
+interface Tokenizer for Self {
+  fn token<T>(self: Self, value: T) -> Tagged T
+}

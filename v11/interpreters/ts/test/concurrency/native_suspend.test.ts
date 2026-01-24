@@ -6,7 +6,7 @@ import type { RuntimeValue } from "../../src/interpreter";
 const NIL: RuntimeValue = { kind: "nil", value: null };
 
 describe("v11 interpreter - async native suspension", () => {
-  test("async native calls suspend only the current proc", async () => {
+  test("async native calls suspend only the current task", async () => {
     const I = new Interpreter();
     I.evaluate(AST.assign("record", AST.stringLiteral("")));
 

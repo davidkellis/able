@@ -3,7 +3,7 @@ import * as AST from "../../src/ast";
 import { Interpreter } from "../../src/interpreter";
 import type { RuntimeValue } from "../../src/interpreter";
 
-import { appendToTrace, drainScheduler, expectErrorValue, expectStructInstance, flushScheduler } from "./proc_spawn.helpers";
+import { appendToTrace, drainScheduler, expectErrorValue, expectStructInstance, flushScheduler } from "./future_spawn.helpers";
 
 describe("v11 interpreter - future & spawn handles", () => {
   test("future task observes cancellation cooperatively", () => {

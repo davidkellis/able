@@ -1,0 +1,16 @@
+package impls
+
+import exec_10_04_interface_dispatch_defaults_generics.iface_defs.{Describer, Tokenizer, Tagged}
+
+struct Thing { name: String }
+struct Prefixer { prefix: String }
+
+impl Describer for Thing {
+  fn name(self: Self) -> String { self.name }
+}
+
+impl Tokenizer for Prefixer {
+  fn token<T>(self: Self, value: T) -> Tagged T {
+    Tagged T { tag: self.prefix, value: value }
+  }
+}
