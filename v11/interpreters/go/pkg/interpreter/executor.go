@@ -15,9 +15,8 @@ import (
 // ProcTask represents a unit of asynchronous Able work executed by an Executor.
 type ProcTask func(ctx context.Context) (runtime.Value, error)
 
-// Executor abstracts the underlying scheduling strategy used for proc/spawn.
+// Executor abstracts the underlying scheduling strategy used for spawn tasks.
 type Executor interface {
-	RunProc(task ProcTask) *runtime.ProcHandleValue
 	RunFuture(task ProcTask) *runtime.FutureValue
 	Flush()
 	PendingTasks() int
@@ -35,14 +34,12 @@ type asyncContextKind int
 
 const (
 	asyncContextNone asyncContextKind = iota
-	asyncContextProc
 	asyncContextFuture
 )
 
 type asyncContextPayload struct {
 	kind   asyncContextKind
-	handle *runtime.ProcHandleValue
-	future *runtime.FutureValue
+	handle *runtime.FutureValue
 	state  *evalState
 	// awaitBlocked is set when an await expression is pending and should
 	// prevent the serial executor from automatically rescheduling the task.
@@ -95,18 +92,18 @@ func (b *executorBase) safeInvoke(ctx context.Context, task ProcTask) (runtime.V
 	return result, err
 }
 
-func (b *executorBase) applyOutcome(handle *runtime.ProcHandleValue, result runtime.Value, err error) {
+func (b *executorBase) applyOutcome(handle *runtime.FutureValue, result runtime.Value, err error) {
 	switch {
 	case err == nil:
 		handle.Resolve(result)
 	case errors.Is(err, context.Canceled):
 		handle.Cancel(nil)
 	default:
-		if taskErr, ok := err.(procTaskError); ok {
+		if taskErr, ok := err.(taskStatusError); ok {
 			switch taskErr.Status() {
-			case runtime.ProcCancelled:
+			case runtime.FutureCancelled:
 				handle.Cancel(taskErr.FailureValue())
-			case runtime.ProcFailed:
+			case runtime.FutureFailed:
 				handle.Fail(taskErr.FailureValue())
 			default:
 				handle.Fail(taskErr.FailureValue())
@@ -135,23 +132,13 @@ func NewGoroutineExecutor(panicHandler panicValueFunc) *GoroutineExecutor {
 	}
 }
 
-func (e *GoroutineExecutor) RunProc(task ProcTask) *runtime.ProcHandleValue {
-	ctx, cancel := context.WithCancel(context.Background())
-	handle := runtime.NewProcHandleWithContext(ctx, cancel)
-	e.registerHandle(handle)
-	e.pending.Add(1)
-	go e.runTask(handle, nil, task, asyncContextProc)
-	return handle
-}
-
 func (e *GoroutineExecutor) RunFuture(task ProcTask) *runtime.FutureValue {
 	ctx, cancel := context.WithCancel(context.Background())
-	handle := runtime.NewProcHandleWithContext(ctx, cancel)
-	future := runtime.NewFutureFromHandle(handle)
+	handle := runtime.NewFutureWithContext(ctx, cancel)
 	e.registerHandle(handle)
 	e.pending.Add(1)
-	go e.runTask(handle, future, task, asyncContextFuture)
-	return future
+	go e.runTask(handle, task, asyncContextFuture)
+	return handle
 }
 
 func (e *GoroutineExecutor) Flush() {
@@ -176,13 +163,13 @@ func (e *GoroutineExecutor) PendingTasks() int {
 	return int(pending)
 }
 
-func (e *GoroutineExecutor) runTask(handle *runtime.ProcHandleValue, future *runtime.FutureValue, task ProcTask, kind asyncContextKind) {
+func (e *GoroutineExecutor) runTask(handle *runtime.FutureValue, task ProcTask, kind asyncContextKind) {
 	defer e.unregisterHandle(handle)
 	ctx := handle.Context()
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	payload := &asyncContextPayload{kind: kind, handle: handle, future: future}
+	payload := &asyncContextPayload{kind: kind, handle: handle}
 	ctx = contextWithPayload(ctx, payload)
 	handle.MarkStarted()
 	result, err := e.safeInvoke(ctx, task)
@@ -190,14 +177,14 @@ func (e *GoroutineExecutor) runTask(handle *runtime.ProcHandleValue, future *run
 	e.pending.Add(-1)
 }
 
-func (e *GoroutineExecutor) registerHandle(handle *runtime.ProcHandleValue) {
+func (e *GoroutineExecutor) registerHandle(handle *runtime.FutureValue) {
 	if handle == nil {
 		return
 	}
 	e.handles.Store(handle, &goroutineHandleState{})
 }
 
-func (e *GoroutineExecutor) unregisterHandle(handle *runtime.ProcHandleValue) {
+func (e *GoroutineExecutor) unregisterHandle(handle *runtime.FutureValue) {
 	if handle == nil {
 		return
 	}
@@ -210,7 +197,7 @@ func (e *GoroutineExecutor) unregisterHandle(handle *runtime.ProcHandleValue) {
 	}
 }
 
-func (e *GoroutineExecutor) MarkBlocked(handle *runtime.ProcHandleValue) {
+func (e *GoroutineExecutor) MarkBlocked(handle *runtime.FutureValue) {
 	if handle == nil {
 		return
 	}
@@ -223,7 +210,7 @@ func (e *GoroutineExecutor) MarkBlocked(handle *runtime.ProcHandleValue) {
 	}
 }
 
-func (e *GoroutineExecutor) MarkUnblocked(handle *runtime.ProcHandleValue) {
+func (e *GoroutineExecutor) MarkUnblocked(handle *runtime.FutureValue) {
 	if handle == nil {
 		return
 	}
@@ -237,8 +224,7 @@ func (e *GoroutineExecutor) MarkUnblocked(handle *runtime.ProcHandleValue) {
 }
 
 type serialTask struct {
-	handle  *runtime.ProcHandleValue
-	future  *runtime.FutureValue
+	handle  *runtime.FutureValue
 	kind    asyncContextKind
 	task    ProcTask
 	payload *asyncContextPayload
@@ -251,9 +237,10 @@ type SerialExecutor struct {
 	mu        sync.Mutex
 	cond      *sync.Cond
 	queue     []serialTask
+	blocked   map[*runtime.FutureValue]serialTask
 	closed    bool
 	active    bool
-	current   *runtime.ProcHandleValue
+	current   *runtime.FutureValue
 	paused    bool
 	syncDepth int
 	forceAuto int
@@ -285,36 +272,23 @@ func (e *SerialExecutor) endSynchronousSection() {
 func NewSerialExecutor(panicHandler panicValueFunc) *SerialExecutor {
 	exec := &SerialExecutor{
 		executorBase: executorBase{panicValue: panicHandler},
+		blocked:      make(map[*runtime.FutureValue]serialTask),
 	}
 	exec.cond = sync.NewCond(&exec.mu)
 	go exec.loop()
 	return exec
 }
 
-func (e *SerialExecutor) RunProc(task ProcTask) *runtime.ProcHandleValue {
-	ctx, cancel := context.WithCancel(context.Background())
-	handle := runtime.NewProcHandleWithContext(ctx, cancel)
-	e.enqueue(serialTask{
-		handle:  handle,
-		kind:    asyncContextProc,
-		task:    task,
-		payload: &asyncContextPayload{kind: asyncContextProc, handle: handle},
-	})
-	return handle
-}
-
 func (e *SerialExecutor) RunFuture(task ProcTask) *runtime.FutureValue {
 	ctx, cancel := context.WithCancel(context.Background())
-	handle := runtime.NewProcHandleWithContext(ctx, cancel)
-	future := runtime.NewFutureFromHandle(handle)
+	handle := runtime.NewFutureWithContext(ctx, cancel)
 	e.enqueue(serialTask{
 		handle:  handle,
-		future:  future,
 		kind:    asyncContextFuture,
 		task:    task,
-		payload: &asyncContextPayload{kind: asyncContextFuture, handle: handle, future: future},
+		payload: &asyncContextPayload{kind: asyncContextFuture, handle: handle},
 	})
-	return future
+	return handle
 }
 
 func (e *SerialExecutor) enqueue(task serialTask) {
@@ -384,11 +358,11 @@ func (e *SerialExecutor) PendingTasks() int {
 // Drive executes the task associated with the provided handle on the current goroutine
 // until the handle transitions out of the pending state, mirroring the cooperative
 // scheduler semantics used by the TypeScript interpreter.
-func (e *SerialExecutor) Drive(handle *runtime.ProcHandleValue) {
+func (e *SerialExecutor) Drive(handle *runtime.FutureValue) {
 	if handle == nil {
 		return
 	}
-	for handle.Status() == runtime.ProcPending {
+	for handle.Status() == runtime.FuturePending {
 		task, ok := e.stealTask(handle)
 		if !ok {
 			// Nothing queued for this handle; assume it is already running or resolved.
@@ -400,7 +374,7 @@ func (e *SerialExecutor) Drive(handle *runtime.ProcHandleValue) {
 	}
 }
 
-func (e *SerialExecutor) suspendCurrent(handle *runtime.ProcHandleValue) {
+func (e *SerialExecutor) suspendCurrent(handle *runtime.FutureValue) {
 	if handle == nil {
 		return
 	}
@@ -413,7 +387,7 @@ func (e *SerialExecutor) suspendCurrent(handle *runtime.ProcHandleValue) {
 	e.mu.Unlock()
 }
 
-func (e *SerialExecutor) resumeCurrent(handle *runtime.ProcHandleValue) {
+func (e *SerialExecutor) resumeCurrent(handle *runtime.FutureValue) {
 	if handle == nil {
 		return
 	}
@@ -426,15 +400,34 @@ func (e *SerialExecutor) resumeCurrent(handle *runtime.ProcHandleValue) {
 	e.mu.Unlock()
 }
 
-// procTaskError carries the Proc status and associated failure value.
-type procTaskError interface {
+func (e *SerialExecutor) ResumeHandle(handle *runtime.FutureValue) {
+	if e == nil || handle == nil {
+		return
+	}
+	var task serialTask
+	var ok bool
+	e.mu.Lock()
+	if e.blocked != nil {
+		task, ok = e.blocked[handle]
+		if ok {
+			delete(e.blocked, handle)
+		}
+	}
+	e.mu.Unlock()
+	if ok {
+		e.enqueue(task)
+	}
+}
+
+// taskStatusError carries the task status and associated failure value.
+type taskStatusError interface {
 	error
-	Status() runtime.ProcStatus
+	Status() runtime.FutureStatus
 	FailureValue() runtime.Value
 }
 
 type taskError struct {
-	status  runtime.ProcStatus
+	status  runtime.FutureStatus
 	failure runtime.Value
 	message string
 }
@@ -444,16 +437,16 @@ func (e taskError) Error() string {
 		return e.message
 	}
 	switch e.status {
-	case runtime.ProcCancelled:
+	case runtime.FutureCancelled:
 		return "task cancelled"
-	case runtime.ProcFailed:
+	case runtime.FutureFailed:
 		return "task failed"
 	default:
 		return "task error"
 	}
 }
 
-func (e taskError) Status() runtime.ProcStatus {
+func (e taskError) Status() runtime.FutureStatus {
 	return e.status
 }
 
@@ -462,11 +455,11 @@ func (e taskError) FailureValue() runtime.Value {
 }
 
 func newTaskFailure(value runtime.Value, message string) error {
-	return taskError{status: runtime.ProcFailed, failure: value, message: message}
+	return taskError{status: runtime.FutureFailed, failure: value, message: message}
 }
 
 func newTaskCancellation(value runtime.Value, message string) error {
-	return taskError{status: runtime.ProcCancelled, failure: value, message: message}
+	return taskError{status: runtime.FutureCancelled, failure: value, message: message}
 }
 
 func (e *SerialExecutor) nextTask() (serialTask, bool) {
@@ -483,7 +476,7 @@ func (e *SerialExecutor) nextTask() (serialTask, bool) {
 	return task, true
 }
 
-func (e *SerialExecutor) stealTask(handle *runtime.ProcHandleValue) (serialTask, bool) {
+func (e *SerialExecutor) stealTask(handle *runtime.FutureValue) (serialTask, bool) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	for idx, task := range e.queue {
@@ -499,20 +492,35 @@ func (e *SerialExecutor) runSerialTask(task serialTask) error {
 	if task.handle == nil {
 		return nil
 	}
+	if task.handle.Status() != runtime.FuturePending {
+		e.mu.Lock()
+		e.cond.Broadcast()
+		e.mu.Unlock()
+		return nil
+	}
+	e.mu.Lock()
+	if e.blocked != nil {
+		delete(e.blocked, task.handle)
+	}
+	e.mu.Unlock()
 	ctx := task.handle.Context()
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	payload := task.payload
 	if payload == nil {
-		payload = &asyncContextPayload{kind: task.kind, handle: task.handle, future: task.future}
+		payload = &asyncContextPayload{kind: task.kind, handle: task.handle}
 		task.payload = payload
 	}
 	payload.kind = task.kind
 	payload.handle = task.handle
-	payload.future = task.future
 	payload.awaitBlocked = false
 	payload.resume = func() {
+		e.mu.Lock()
+		if e.blocked != nil {
+			delete(e.blocked, task.handle)
+		}
+		e.mu.Unlock()
 		e.enqueue(task)
 	}
 	ctx = contextWithPayload(ctx, payload)
@@ -525,6 +533,11 @@ func (e *SerialExecutor) runSerialTask(task serialTask) error {
 	if errors.Is(err, errSerialYield) {
 		if payload != nil && payload.awaitBlocked {
 			// Awaiting an external wake; the waker will reschedule via resume().
+			e.mu.Lock()
+			if e.blocked != nil {
+				e.blocked[task.handle] = task
+			}
+			e.mu.Unlock()
 			return err
 		}
 		e.enqueue(task)
@@ -534,7 +547,7 @@ func (e *SerialExecutor) runSerialTask(task serialTask) error {
 	return err
 }
 
-func (e *SerialExecutor) swapCurrent(handle *runtime.ProcHandleValue) (*runtime.ProcHandleValue, bool, bool) {
+func (e *SerialExecutor) swapCurrent(handle *runtime.FutureValue) (*runtime.FutureValue, bool, bool) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	prev := e.current
@@ -546,7 +559,7 @@ func (e *SerialExecutor) swapCurrent(handle *runtime.ProcHandleValue) (*runtime.
 	return prev, prevActive, prevPaused
 }
 
-func (e *SerialExecutor) restoreCurrent(prev *runtime.ProcHandleValue, prevActive bool, prevPaused bool) {
+func (e *SerialExecutor) restoreCurrent(prev *runtime.FutureValue, prevActive bool, prevPaused bool) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	e.current = prev

@@ -1,0 +1,11 @@
+trace := "";
+handle := spawn {
+  trace = trace + "A";
+  handle.cancel();
+  if future_cancelled() {
+    trace = trace + "C";
+  };
+  0;
+};
+_result := handle.value();
+trace;

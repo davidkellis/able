@@ -1,5 +1,5 @@
 import * as AST from "../../ast";
-import { formatType, unknownType, type TypeInfo } from "../types";
+import { formatType, primitiveType, unknownType, type TypeInfo } from "../types";
 import {
   lookupMethodSetsForCall as lookupMethodSetsForCallHelper,
   matchImplementationTarget,
@@ -191,8 +191,6 @@ function typeSpecificityScore(type: TypeInfo): number {
       return 1 + typeSpecificityScore(type.element) + (type.bounds ?? []).reduce((acc, bound) => acc + typeSpecificityScore(bound), 0);
     case "iterator":
       return 1 + typeSpecificityScore(type.element);
-    case "proc":
-      return 1 + typeSpecificityScore(type.result);
     case "future":
       return 1 + typeSpecificityScore(type.result);
     case "struct": {
@@ -272,8 +270,9 @@ export function resolveMemberAccessCandidates(
   if (!memberName) return { candidates: [] };
   const receiver = buildReceiverLookup(ctx, callee, memberName);
   if (!receiver) return { candidates: [] };
-  if (receiver.lookupType.kind === "future" && memberName === "cancel") {
-    return { candidates: [], fieldError: "future handles do not support cancel()" };
+  const futureMember = resolveFutureHandleMember(ctx, receiver.lookupType, memberName);
+  if (futureMember) {
+    return { candidates: [futureMember] };
   }
   const fieldResolution = resolveCallableFieldCandidate(ctx, receiver, memberName, argCount);
   if (fieldResolution?.callable) {
@@ -287,6 +286,42 @@ export function resolveMemberAccessCandidates(
     return { candidates: [], fieldError: `field '${memberName}' is not callable` };
   }
   return { candidates: [] };
+}
+
+function resolveFutureHandleMember(
+  ctx: FunctionCallContext,
+  receiverType: TypeInfo,
+  memberName: string,
+): FunctionInfo | null {
+  if (!receiverType || receiverType.kind !== "future") {
+    return null;
+  }
+  const resultType = receiverType.result ?? unknownType;
+  let returnType: TypeInfo;
+  switch (memberName) {
+    case "status":
+      returnType = ctx.resolveTypeExpression(AST.simpleTypeExpression("FutureStatus"));
+      break;
+    case "value":
+      returnType = { kind: "result", inner: resultType };
+      break;
+    case "cancel":
+      returnType = primitiveType("void");
+      break;
+    default:
+      return null;
+  }
+  return {
+    name: memberName,
+    fullName: `Future::${memberName}`,
+    structName: "Future",
+    hasImplicitSelf: true,
+    parameters: [receiverType],
+    genericConstraints: [],
+    genericParamNames: [],
+    whereClause: [],
+    returnType,
+  };
 }
 
 export function resolveFunctionTypeCandidate(

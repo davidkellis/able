@@ -1,0 +1,35 @@
+{
+  "description": "Yielding futures make progress without one jumping ahead of the other",
+  "expect": {
+    "result": {
+      "kind": "array",
+      "elements": [
+        {
+          "kind": "bool",
+          "value": true
+        },
+        {
+          "kind": "bool",
+          "value": true
+        },
+        {
+          "kind": "bool",
+          "value": true
+        },
+        {
+          "kind": "bool",
+          "value": true
+        },
+        {
+          "kind": "bool",
+          "value": true
+        },
+        {
+          "kind": "bool",
+          "value": true
+        }
+      ]
+    }
+  },
+  "entry": "module.json"
+}

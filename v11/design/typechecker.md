@@ -39,7 +39,7 @@ confidently extend it.
 | `types.go` | Type definitions (`PrimitiveType`, `StructType`, `InterfaceType`, `FunctionType`, etc.) plus helper structs (`GenericParamSpec`, `WhereConstraintSpec`, `ConstraintObligation`) |
 | `inference.go` | `InferenceMap` (AST node → resolved type) |
 | `literals.go`, `member_access.go`, `patterns.go`, `range_expression.go`, `array_literal.go`, etc. | Expression/statement/pattern checkers grouped by feature |
-| `concurrency.go` | Async-specific helpers (`proc`, `spawn`, `proc_*` builtins) |
+| `concurrency.go` | Async-specific helpers (`spawn`, `future_*` builtins) |
 | `constraint_solver.go` | Obligation resolution (see “Constraint Solving” below) |
 | `type_utils.go` | Substitution helpers used across checking and solving |
 
@@ -54,7 +54,7 @@ breakdown.
 
 1. **Initialisation**
    - Reset the `InferenceMap`, diagnostics slice, and internal state.
-   - Seed the global environment with builtins (e.g. `print`, `proc_*`).
+   - Seed the global environment with builtins (e.g. `print`, `future_*`).
 
 2. **Declaration Collection (`decls.go`)**
    - Walk top-level statements and register structs, unions, interfaces,
@@ -108,7 +108,7 @@ inspection.
   clauses, and any constraints collected during checking.
 - **AppliedType** – generic application (e.g. `Array<T>`); used for both type
   expressions and constraint arguments.
-- **ProcType / FutureType** – async handle representation.
+- **FutureType** – async handle representation.
 - **UnknownType** – placeholder when inference cannot resolve a type.
 
 ### Environments (`env.go`)
@@ -239,8 +239,8 @@ readable.
     consistent after the guard.
 
 - **Async (`concurrency.go`)**
-  - `proc`/`spawn` produce `ProcType`/`FutureType` results.
-  - Async helper calls (`proc_cancelled`, `proc_yield`, `proc_flush`) enforce
+  - `spawn` produces `FutureType` results.
+  - Async helper calls (`future_cancelled`, `future_yield`, `future_flush`) enforce
     context rules via diagnostics and maintain the same semantics as the Go
     interpreter.
 

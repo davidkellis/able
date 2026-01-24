@@ -249,7 +249,6 @@ function collectPlaceholderInfo(
       case "ImplicitMemberExpression":
       case "IteratorLiteral":
       case "LambdaExpression":
-      case "ProcExpression":
       case "SpawnExpression":
       case "Identifier":
       case "IntegerLiteral":
@@ -297,7 +296,6 @@ function isExpression(node: AST.AstNode | null | undefined): node is AST.Express
     case "MemberAccessExpression":
     case "IndexExpression":
     case "LambdaExpression":
-    case "ProcExpression":
     case "SpawnExpression":
     case "PropagationExpression":
     case "OrElseExpression":

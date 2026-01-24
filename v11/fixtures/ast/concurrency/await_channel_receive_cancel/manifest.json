@@ -1,5 +1,5 @@
 {
-  "description": "await receive arm cancels registrations when the awaiting proc is cancelled",
+  "description": "await receive arm cancels registrations when the awaiting task is cancelled",
   "expect": {
     "result": {
       "kind": "array",

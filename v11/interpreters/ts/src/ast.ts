@@ -219,7 +219,6 @@ export interface MemberAccessExpression extends AstNode {
 }
 export interface IndexExpression extends AstNode { type: 'IndexExpression'; object: Expression; index: Expression; }
 export interface LambdaExpression extends AstNode { type: 'LambdaExpression'; genericParams?: GenericParameter[]; params: FunctionParameter[]; returnType?: TypeExpression; body: Expression | BlockExpression; whereClause?: WhereClauseConstraint[]; isVerboseSyntax: boolean; }
-export interface ProcExpression extends AstNode { type: 'ProcExpression'; expression: FunctionCall | BlockExpression; }
 export interface SpawnExpression extends AstNode { type: 'SpawnExpression'; expression: FunctionCall | BlockExpression; }
 export interface AwaitExpression extends AstNode { type: 'AwaitExpression'; expression: Expression; }
 export interface PropagationExpression extends AstNode { type: 'PropagationExpression'; expression: Expression; }
@@ -248,7 +247,6 @@ export type Expression =
   | MemberAccessExpression
   | IndexExpression
   | LambdaExpression
-  | ProcExpression
   | SpawnExpression
   | AwaitExpression
   | PropagationExpression
@@ -297,10 +295,6 @@ export function lambdaExpression(
   isVerboseSyntax = false,
 ): LambdaExpression {
   return { type: 'LambdaExpression', params, body, returnType, genericParams, whereClause, isVerboseSyntax };
-}
-
-export function procExpression(expression: FunctionCall | BlockExpression): ProcExpression {
-  return { type: 'ProcExpression', expression };
 }
 
 export function spawnExpression(expression: FunctionCall | BlockExpression): SpawnExpression {
@@ -767,7 +761,6 @@ export const interp = stringInterpolation;
 export const member = memberAccessExpression;
 export const index = indexExpression;
 export const lam = lambdaExpression;
-export const proc = procExpression;
 export const spawn = spawnExpression;
 export const prop = propagationExpression;
 export function orelse(expression: Expression, handlerStmts: Statement[], errorBinding?: Identifier | string): OrElseExpression {

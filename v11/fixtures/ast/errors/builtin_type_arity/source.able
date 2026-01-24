@@ -1,0 +1,6 @@
+fn bad_array(value: Array) -> void {
+}
+fn bad_map(value: Map i32) -> void {
+}
+fn bad_mutex(value: Mutex i32) -> void {
+}

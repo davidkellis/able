@@ -25,8 +25,8 @@ Able is an experimental programming language. This workspace hosts the actively 
 4. Use `PLAN.md` for roadmap updates and `AGENTS.md` for onboarding guidance specific to the v11 effort.
 
 ## Getting Started
-- **Go interpreter**: install Go ≥ 1.22 and run `go test ./...` inside `interpreters/go/`. Before handing off work, prefer `./run_all_tests.sh --version=v11 --typecheck-fixtures=strict` from the repo root.
-- **TypeScript interpreter**: inside `interpreters/ts/`, run `bun install`, `bun test`, and `ABLE_TYPECHECK_FIXTURES=strict bun run scripts/run-fixtures.ts` to keep the checker aligned with Go.
+- **Go interpreter**: install Go ≥ 1.22 and run `go test ./...` inside `interpreters/go/`. Before handing off work, prefer `./run_all_tests.sh --version=v11` from the repo root (fixtures/typechecker default to strict).
+- **TypeScript interpreter**: inside `interpreters/ts/`, run `bun install`, `bun test`, and `bun run scripts/run-fixtures.ts` (defaults to strict typechecking; set `ABLE_TYPECHECK_FIXTURES=warn|off` to relax).
 - **Specs**: edit `spec/full_spec_v11.md` for new behaviour; consult archived specs only to understand the baseline.
 
 Combined test suites:
@@ -35,9 +35,9 @@ Combined test suites:
 # Run TypeScript + Go tests and shared fixtures for v11
 ./run_all_tests.sh --version=v11
 
-# Include Go fixture typechecking (warn logs diagnostics, strict enforces them)
+# Override fixture typechecking (warn logs diagnostics, off disables)
 ./run_all_tests.sh --version=v11 --typecheck-fixtures=warn
-./run_all_tests.sh --version=v11 --typecheck-fixtures=strict
+./run_all_tests.sh --version=v11 --typecheck-fixtures=off
 
 # Fixture-only sweep (TS fixtures + parity + Go fixture runner)
 ./run_all_tests.sh --version=v11 --fixture

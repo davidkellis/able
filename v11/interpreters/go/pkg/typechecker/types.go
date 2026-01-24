@@ -147,12 +147,6 @@ type FunctionOverloadType struct {
 
 func (f FunctionOverloadType) Name() string { return "FunctionOverload" }
 
-type ProcType struct {
-	Result Type
-}
-
-func (p ProcType) Name() string { return "Proc" }
-
 type FutureType struct {
 	Result Type
 }

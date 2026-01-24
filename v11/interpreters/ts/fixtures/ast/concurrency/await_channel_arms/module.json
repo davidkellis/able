@@ -56,7 +56,7 @@
         "name": "receiver"
       },
       "right": {
-        "type": "ProcExpression",
+        "type": "SpawnExpression",
         "expression": {
           "type": "BlockExpression",
           "body": [
@@ -123,7 +123,7 @@
         "name": "sender"
       },
       "right": {
-        "type": "ProcExpression",
+        "type": "SpawnExpression",
         "expression": {
           "type": "BlockExpression",
           "body": [
@@ -182,7 +182,7 @@
       "type": "FunctionCall",
       "callee": {
         "type": "Identifier",
-        "name": "proc_flush"
+        "name": "future_flush"
       },
       "arguments": [],
       "isTrailingLambda": false

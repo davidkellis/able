@@ -128,6 +128,7 @@ export function enforceFunctionConstraints(
   call: AST.FunctionCall,
   selfSubstitutions?: Map<string, TypeInfo>,
 ): void {
+  const ownerLabel = info.structName ? `methods for ${info.structName}::${info.name}` : `fn ${info.name}`;
   const typeArgs = Array.isArray(call.typeArguments) ? call.typeArguments : [];
   const substitutions = new Map<string, TypeInfo>();
   if (info.methodSetSubstitutions) {
@@ -162,7 +163,18 @@ export function enforceFunctionConstraints(
         ctx.report(message, typeArgExpr ?? call);
         return;
       }
-      const expectedArgs = resolveInterfaceArgumentLabels(ctx, constraint.interfaceType, substitutions);
+      const expectedArgs = resolveConstraintInterfaceArgs(
+        ctx,
+        constraint.interfaceName,
+        constraint.interfaceType,
+        substitutions,
+        ownerLabel,
+        constraint.paramName,
+        typeArgExpr ?? call,
+      );
+      if (!expectedArgs) {
+        return;
+      }
       const result = typeImplementsInterface(ctx, typeArg, constraint.interfaceName, expectedArgs);
       if (!result.ok) {
         const typeName = ctx.describeTypeArgument(typeArg);
@@ -188,7 +200,18 @@ export function enforceFunctionConstraints(
         continue;
       }
       const subjectLabel = ctx.describeTypeArgument(subject);
-      const obligationArgs = resolveInterfaceArgumentLabels(ctx, obligation.interfaceType, substitutions);
+      const obligationArgs = resolveConstraintInterfaceArgs(
+        ctx,
+        obligation.interfaceName,
+        obligation.interfaceType,
+        substitutions,
+        ownerLabel,
+        obligation.typeParam,
+        call,
+      );
+      if (!obligationArgs) {
+        continue;
+      }
       const result = typeImplementsInterface(ctx, subject, obligation.interfaceName, obligationArgs);
       if (!result.ok) {
         const detailSuffix = result.detail ? `: ${result.detail}` : "";
@@ -396,6 +419,38 @@ function resolveInterfaceArgumentLabels(
     return [];
   }
   return resolveInterfaceArgumentLabelsFromArray(ctx, expr.arguments ?? [], substitutions);
+}
+
+function resolveConstraintInterfaceArgs(
+  ctx: ImplementationContext,
+  interfaceName: string,
+  interfaceExpr: AST.TypeExpression | null | undefined,
+  substitutions: Map<string, TypeInfo>,
+  ownerLabel: string,
+  typeParamLabel: string,
+  node: AST.Node | null | undefined,
+): string[] | null {
+  const ifaceDef = ctx.getInterfaceDefinition?.(interfaceName);
+  if (ifaceDef) {
+    const expected = Array.isArray(ifaceDef.genericParams) ? ifaceDef.genericParams.length : 0;
+    const provided =
+      interfaceExpr?.type === "GenericTypeExpression" ? (interfaceExpr.arguments ?? []).length : 0;
+    if (expected > 0 && provided === 0) {
+      ctx.report(
+        `typechecker: ${ownerLabel} constraint on ${typeParamLabel} requires ${expected} type argument(s) for interface '${interfaceName}'`,
+        node ?? interfaceExpr ?? null,
+      );
+      return null;
+    }
+    if (provided !== 0 && expected !== provided) {
+      ctx.report(
+        `typechecker: ${ownerLabel} constraint on ${typeParamLabel} expected ${expected} type argument(s) for interface '${interfaceName}', got ${provided}`,
+        node ?? interfaceExpr ?? null,
+      );
+      return null;
+    }
+  }
+  return resolveInterfaceArgumentLabels(ctx, interfaceExpr, substitutions);
 }
 
 function resolveInterfaceArgumentLabelsFromArray(
@@ -705,8 +760,6 @@ function getStructuralTypeArguments(type: TypeInfo, baseName: string): TypeInfo[
       return baseName === "Iterator" ? [type.element ?? unknownType] : null;
     case "range":
       return baseName === "Range" ? [type.element ?? unknownType] : null;
-    case "proc":
-      return baseName === "Proc" ? [type.result ?? unknownType] : null;
     case "future":
       return baseName === "Future" ? [type.result ?? unknownType] : null;
     case "map":

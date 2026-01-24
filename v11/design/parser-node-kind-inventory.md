@@ -31,7 +31,6 @@ This note records the tree-sitter node kinds we must handle in the Go parser for
 | Or-else expression (`else {}`) | — | No dedicated rule; needs grammar support (likely `or_else_expression`). |
 | Rescue / ensure expressions | `rescue_expression`, `rescue_block`, `match_clause`, `ensure_expression` | Present. |
 | Breakpoint expression | `breakpoint_expression`, `label`, `block` | Present. |
-| Proc expression | `proc_expression`, `block` / `do_expression` / `call_target` | Present. |
 | Spawn expression | `spawn_expression`, `block` / `do_expression` / `call_target` | Present. |
 | Generator literal (`Iterator {}`) | — | No iterator literal rule yet. |
 
@@ -102,8 +101,8 @@ This note records the tree-sitter node kinds we must handle in the Go parser for
 ## Concurrency & Async
 | Feature | Tree-sitter node kinds | Grammar notes |
 |---------|-----------------------|---------------|
-| `proc` block/expression | `proc_expression`, `block` / `do_expression` / `call_target` | Present. |
-| `proc` helpers (`proc_yield`, etc.) | Standard `postfix_expression` + `identifier` calls | No dedicated grammar; handled as regular call expressions. |
+| `spawn` expression | `spawn_expression`, `block` / `do_expression` / `call_target` | Present. |
+| `future_*` helpers (`future_yield`, etc.) | Standard `postfix_expression` + `identifier` calls | No dedicated grammar; handled as regular call expressions. |
 | `spawn` expression | `spawn_expression`, `block` / `do_expression` / `call_target` | Present. |
 | Channel literal/ops | — | No send/receive (`<-`) rules yet; grammar addition required. |
 | Mutex helper (`mutex`) | Standard `postfix_expression` call | No dedicated grammar; regular call mapping. |
@@ -125,7 +124,7 @@ This note records the tree-sitter node kinds we must handle in the Go parser for
 ## Mapping Helper Backlog (parser.go)
 - **Expression literals:** add handlers for `boolean_literal`, `nil_literal`, `array_literal`, and extend `parseNumberLiteral` for floats/suffixes; introduce `parseCharacterLiteral` and interpolation-aware string parsing once grammar lands.
 - **Struct/Array literals:** implement `parseStructLiteral` (named + positional) and upgrade `parseArrayLiteral` to emit typed initialisers.
-- **Control-flow expressions:** add dedicated parsers for `if_expression`, `match_expression`, `rescue_expression`, `ensure_expression`, `proc_expression`, `spawn_expression`, `breakpoint_expression`, and future `or_else_expression` / `iterator_literal`.
+- **Control-flow expressions:** add dedicated parsers for `if_expression`, `match_expression`, `rescue_expression`, `ensure_expression`, `spawn_expression`, `breakpoint_expression`, and future `or_else_expression` / `iterator_literal`.
 - **Binary/unary operators:** replace the current "first child" shortcut with operator-aware folding that covers every infix node (`additive_expression` … `logical_or_expression`) and prefix unary forms.
 - **Call chains:** expand trailing lambda handling to ensure type arguments + lambda arguments survive multi-call pipelines.
 - **Patterns:** extend `parsePattern` to handle `struct_pattern`, `array_pattern`, `typed_pattern`, nested bindings, and guards.

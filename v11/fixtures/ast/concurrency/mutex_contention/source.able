@@ -2,13 +2,13 @@ mutex := __able_mutex_new();
 trace := "";
 __able_mutex_lock(mutex);
 trace = trace + "A";
-worker := proc {
+worker := spawn {
   __able_mutex_lock(mutex);
   trace = trace + "C";
   __able_mutex_unlock(mutex);
   nil;
 };
-proc_flush();
+future_flush();
 status_initial := (worker.status() match {
   case Pending {  } => "Pending",
   case Resolved {  } => "Resolved",

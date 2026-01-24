@@ -7,8 +7,8 @@ export function applyConcurrencyBuiltins(cls: typeof Interpreter): void {
     if (this.concurrencyBuiltinsInitialized) return;
     this.concurrencyBuiltinsInitialized = true;
 
-    const procErrorDefAst = AST.structDefinition(
-      "ProcError",
+    const futureErrorDefAst = AST.structDefinition(
+      "FutureError",
       [AST.structFieldDefinition(AST.simpleTypeExpression("String"), "details")],
       "named"
     );
@@ -17,18 +17,18 @@ export function applyConcurrencyBuiltins(cls: typeof Interpreter): void {
     const cancelledDefAst = AST.structDefinition("Cancelled", [], "named");
     const failedDefAst = AST.structDefinition(
       "Failed",
-      [AST.structFieldDefinition(AST.simpleTypeExpression("ProcError"), "error")],
+      [AST.structFieldDefinition(AST.simpleTypeExpression("FutureError"), "error")],
       "named"
     );
 
-    this.evaluate(procErrorDefAst, this.globals);
+    this.evaluate(futureErrorDefAst, this.globals);
     this.evaluate(pendingDefAst, this.globals);
     this.evaluate(resolvedDefAst, this.globals);
     this.evaluate(cancelledDefAst, this.globals);
     this.evaluate(failedDefAst, this.globals);
     this.evaluate(
       AST.unionDefinition(
-        "ProcStatus",
+        "FutureStatus",
         [
           AST.simpleTypeExpression("Pending"),
           AST.simpleTypeExpression("Resolved"),
@@ -48,17 +48,17 @@ export function applyConcurrencyBuiltins(cls: typeof Interpreter): void {
       return val.def;
     };
 
-    this.procErrorStruct = getStructDef("ProcError");
-    this.procStatusStructs = {
+    this.futureErrorStruct = getStructDef("FutureError");
+    this.futureStatusStructs = {
       Pending: getStructDef("Pending"),
       Resolved: getStructDef("Resolved"),
       Cancelled: getStructDef("Cancelled"),
       Failed: getStructDef("Failed"),
     };
 
-    this.procStatusPendingValue = this.makeNamedStructInstance(this.procStatusStructs.Pending, []);
-    this.procStatusResolvedValue = this.makeNamedStructInstance(this.procStatusStructs.Resolved, []);
-    this.procStatusCancelledValue = this.makeNamedStructInstance(this.procStatusStructs.Cancelled, []);
+    this.futureStatusPendingValue = this.makeNamedStructInstance(this.futureStatusStructs.Pending, []);
+    this.futureStatusResolvedValue = this.makeNamedStructInstance(this.futureStatusStructs.Resolved, []);
+    this.futureStatusCancelledValue = this.makeNamedStructInstance(this.futureStatusStructs.Cancelled, []);
 
     const awaitWakerDefAst = AST.structDefinition("AwaitWaker", [], "named");
     const awaitRegistrationDefAst = AST.structDefinition("AwaitRegistration", [], "named");

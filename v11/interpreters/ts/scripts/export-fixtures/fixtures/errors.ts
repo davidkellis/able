@@ -429,6 +429,171 @@ const errorsFixtures: Fixture[] = [
     },
 
   {
+      name: "errors/constraint_interface_arity",
+      module: AST.module([
+        AST.interfaceDefinition(
+          "Pair",
+          [
+            AST.functionSignature(
+              "pair",
+              [
+                AST.functionParameter("self", AST.simpleTypeExpression("Self")),
+                AST.functionParameter("a", AST.simpleTypeExpression("A")),
+                AST.functionParameter("b", AST.simpleTypeExpression("B")),
+              ],
+              AST.simpleTypeExpression("String"),
+            ),
+          ],
+          [AST.genericParameter("A"), AST.genericParameter("B")],
+          AST.simpleTypeExpression("T"),
+        ),
+        AST.structDefinition(
+          "Box",
+          [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "value")],
+          "named",
+        ),
+        AST.implementationDefinition(
+          "Pair",
+          AST.simpleTypeExpression("Box"),
+          [
+            AST.fn(
+              "pair",
+              [
+                AST.param("self", AST.simpleTypeExpression("Box")),
+                AST.param("a", AST.simpleTypeExpression("i32")),
+                AST.param("b", AST.simpleTypeExpression("i32")),
+              ],
+              [AST.returnStatement(AST.stringLiteral("ok"))],
+              AST.simpleTypeExpression("String"),
+            ),
+          ],
+          undefined,
+          undefined,
+          [AST.simpleTypeExpression("i32"), AST.simpleTypeExpression("i32")],
+        ),
+        AST.fn(
+          "use_missing",
+          [AST.param("value", AST.simpleTypeExpression("T"))],
+          [],
+          AST.simpleTypeExpression("void"),
+          [AST.genericParameter("T", [AST.interfaceConstraint(AST.simpleTypeExpression("Pair"))])],
+        ),
+        AST.fn(
+          "use_mismatch",
+          [AST.param("value", AST.simpleTypeExpression("T"))],
+          [],
+          AST.simpleTypeExpression("void"),
+          [
+            AST.genericParameter(
+              "T",
+              [
+                AST.interfaceConstraint(
+                  AST.genericTypeExpression(AST.simpleTypeExpression("Pair"), [AST.simpleTypeExpression("i32")]),
+                ),
+              ],
+            ),
+          ],
+        ),
+        AST.fn(
+          "run_checks",
+          [],
+          [
+            AST.callT(
+              "use_missing",
+              [AST.simpleTypeExpression("Box")],
+              AST.structLiteral([AST.structFieldInitializer(AST.integerLiteral(1), "value")], false, "Box"),
+            ),
+            AST.callT(
+              "use_mismatch",
+              [AST.simpleTypeExpression("Box")],
+              AST.structLiteral([AST.structFieldInitializer(AST.integerLiteral(2), "value")], false, "Box"),
+            ),
+          ],
+          AST.simpleTypeExpression("void"),
+        ),
+      ]),
+      manifest: {
+        description: "Constraint interface arguments must match declared arity",
+        expect: {
+          typecheckDiagnostics: [
+            "typechecker: v11/fixtures/ast/errors/constraint_interface_arity/source.able:19:3 typechecker: fn use_missing constraint on T requires 2 type argument(s) for interface 'Pair'",
+            "typechecker: v11/fixtures/ast/errors/constraint_interface_arity/source.able:19:15 typechecker: fn use_missing constraint on T requires 2 type argument(s) for interface 'Pair'",
+            "typechecker: v11/fixtures/ast/errors/constraint_interface_arity/source.able:20:3 typechecker: fn use_mismatch constraint on T expected 2 type argument(s) for interface 'Pair', got 1",
+            "typechecker: v11/fixtures/ast/errors/constraint_interface_arity/source.able:20:16 typechecker: fn use_mismatch constraint on T expected 2 type argument(s) for interface 'Pair', got 1",
+          ],
+        },
+      },
+    },
+
+  {
+      name: "errors/builtin_type_arity",
+      module: AST.module([
+        AST.fn("bad_array", [AST.param("value", AST.simpleTypeExpression("Array"))], [], AST.simpleTypeExpression("void")),
+        AST.fn(
+          "bad_map",
+          [
+            AST.param(
+              "value",
+              AST.genericTypeExpression(AST.simpleTypeExpression("Map"), [AST.simpleTypeExpression("i32")]),
+            ),
+          ],
+          [],
+          AST.simpleTypeExpression("void"),
+        ),
+        AST.fn(
+          "bad_mutex",
+          [
+            AST.param(
+              "value",
+              AST.genericTypeExpression(AST.simpleTypeExpression("Mutex"), [AST.simpleTypeExpression("i32")]),
+            ),
+          ],
+          [],
+          AST.simpleTypeExpression("void"),
+        ),
+      ]),
+      manifest: {
+        description: "Builtin type arguments must match declared arity",
+        expect: {
+          typecheckDiagnostics: [
+            "typechecker: v11/fixtures/ast/errors/builtin_type_arity/source.able:1:21 typechecker: type 'Array' expects 1 type argument(s), got 0",
+            "typechecker: v11/fixtures/ast/errors/builtin_type_arity/source.able:3:19 typechecker: type 'Map' expects 2 type argument(s), got 1",
+            "typechecker: v11/fixtures/ast/errors/builtin_type_arity/source.able:5:21 typechecker: type 'Mutex' expects 0 type argument(s), got 1",
+          ],
+        },
+      },
+    },
+
+  {
+      name: "errors/partial_application_arity",
+      module: AST.module([
+        AST.fn(
+          "add",
+          [AST.param("a", AST.simpleTypeExpression("i32")), AST.param("b", AST.simpleTypeExpression("i32"))],
+          [AST.returnStatement(AST.bin("+", AST.id("a"), AST.id("b")))],
+          AST.simpleTypeExpression("i32"),
+        ),
+        AST.fn(
+          "run_checks",
+          [],
+          [
+            AST.assign("inc", AST.functionCall(AST.id("add"), [AST.int(1)])),
+            AST.assign("bad", AST.functionCall(AST.id("inc"), [AST.int(1), AST.int(2)])),
+          ],
+          AST.simpleTypeExpression("void"),
+        ),
+      ]),
+      manifest: {
+        description: "Partial application yields expected callable arity",
+        expect: {
+          typecheckDiagnostics: [
+            "typechecker: v11/fixtures/ast/errors/partial_application_arity/source.able:6:10 typechecker: function expects 1 arguments, got 2",
+          ],
+        },
+      },
+    },
+
+  {
       name: "errors/ufcs_static_method_not_found",
       module: AST.module([
         AST.structDefinition("Counter", [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "value")], "named"),

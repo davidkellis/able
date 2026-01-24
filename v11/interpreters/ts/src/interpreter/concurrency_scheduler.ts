@@ -34,7 +34,6 @@ export function applyConcurrencyScheduler(cls: typeof Interpreter): void {
   };
 
   cls.prototype.currentAsyncContext = function currentAsyncContext(this: Interpreter):
-    | { kind: "proc"; handle: Extract<RuntimeValue, { kind: "proc_handle" }> }
     | { kind: "future"; handle: Extract<RuntimeValue, { kind: "future" }> }
     | null {
     if (this.asyncContextStack.length === 0) return null;
@@ -43,9 +42,9 @@ export function applyConcurrencyScheduler(cls: typeof Interpreter): void {
 
   cls.prototype.procYield = function procYield(this: Interpreter, allowEntrypoint = false): RuntimeValue {
     const ctx = this.currentAsyncContext();
-    if (!ctx) throw new Error("proc_yield must be called inside an asynchronous task");
-    if (!allowEntrypoint && ctx.kind === "proc" && ctx.handle.entrypoint) {
-      throw new Error("proc_yield must be called inside an asynchronous task");
+    if (!ctx) throw new Error("future_yield must be called inside an asynchronous task");
+    if (!allowEntrypoint && ctx.handle.entrypoint) {
+      throw new Error("future_yield must be called inside an asynchronous task");
     }
     this.manualYieldRequested = true;
     throw new ProcYieldSignal();
@@ -53,14 +52,11 @@ export function applyConcurrencyScheduler(cls: typeof Interpreter): void {
 
   cls.prototype.procCancelled = function procCancelled(this: Interpreter, allowEntrypoint = false): RuntimeValue {
     const ctx = this.currentAsyncContext();
-    if (!ctx) throw new Error("proc_cancelled must be called inside an asynchronous task");
-    if (!allowEntrypoint && ctx.kind === "proc" && ctx.handle.entrypoint) {
-      throw new Error("proc_cancelled must be called inside an asynchronous task");
+    if (!ctx) throw new Error("future_cancelled must be called inside an asynchronous task");
+    if (!allowEntrypoint && ctx.handle.entrypoint) {
+      throw new Error("future_cancelled must be called inside an asynchronous task");
     }
-    if (ctx.kind === "proc") {
-      return { kind: "bool", value: !!ctx.handle.cancelRequested };
-    }
-    return { kind: "bool", value: false };
+    return { kind: "bool", value: !!ctx.handle.cancelRequested };
   };
 
   cls.prototype.procFlush = function procFlush(this: Interpreter): RuntimeValue {

@@ -43,7 +43,6 @@ const (
 	NodeMemberAccessExpression   NodeType = "MemberAccessExpression"
 	NodeIndexExpression          NodeType = "IndexExpression"
 	NodeLambdaExpression         NodeType = "LambdaExpression"
-	NodeProcExpression           NodeType = "ProcExpression"
 	NodeSpawnExpression          NodeType = "SpawnExpression"
 	NodePropagationExpression    NodeType = "PropagationExpression"
 	NodeAwaitExpression          NodeType = "AwaitExpression"
@@ -559,18 +558,6 @@ type LambdaExpression struct {
 
 func NewLambdaExpression(params []*FunctionParameter, body Expression, returnType TypeExpression, generics []*GenericParameter, whereClause []*WhereClauseConstraint, isVerbose bool) *LambdaExpression {
 	return &LambdaExpression{nodeImpl: newNodeImpl(NodeLambdaExpression), Params: params, Body: body, ReturnType: returnType, GenericParams: generics, WhereClause: whereClause, IsVerboseSyntax: isVerbose}
-}
-
-type ProcExpression struct {
-	nodeImpl
-	expressionMarker
-	statementMarker
-
-	Expression Expression `json:"expression"`
-}
-
-func NewProcExpression(expr Expression) *ProcExpression {
-	return &ProcExpression{nodeImpl: newNodeImpl(NodeProcExpression), Expression: expr}
 }
 
 type SpawnExpression struct {

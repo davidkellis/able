@@ -11,7 +11,7 @@ else {
 future := spawn {
   raise "boom"
 };
-proc_flush();
+future_flush();
 summary := future.value()! or {
   err =>
   describe_error(err);

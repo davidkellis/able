@@ -1,0 +1,7 @@
+fn add(a: i32, b: i32) -> i32 {
+  return a + b
+}
+fn run_checks() -> void {
+  inc := add(1);
+  bad := inc(1, 2);
+}

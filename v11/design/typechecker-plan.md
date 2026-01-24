@@ -31,7 +31,7 @@ Owner: Able Agents
    unions, interfaces, and function signatures. Produces a global environment.
 2. **Implementation collection** – Validate inherent/trait impl headers and
    record available methods for later resolution.
-3. **Body checking** – For each function/proc/spawn, create a scoped environment
+3. **Body checking** – For each function/spawn, create a scoped environment
    and recursively check expressions/statements, populating an inference map.
 4. **Constraint solving** – After body checks, ensure where-clause constraints
    and trait obligations hold. Reuse logic from `impl_resolution.go` where
@@ -40,7 +40,7 @@ Owner: Able Agents
 ### Data structures
 
 - `TypeInfo` union covering primitives, structs with generics, unions, function
-  types, interface references, and proc/future handles.
+  types, interface references, and future handles.
 - `InferenceMap` keyed by `ast.Node` (pointer) storing resolved `TypeInfo`.
 - `Diagnostic` capturing message, optional `Span` (when available), and context
   (e.g., offending identifier).
@@ -154,8 +154,8 @@ export metadata.
 
 ## Open questions
 
-- **Proc/future typing** – represent handles as nominal `Proc<T>`/`Future<T>` to
-  mirror runtime behaviour.
+- **Future typing** – represent handles as nominal `Future<T>` to mirror runtime
+  behaviour.
 - **Interfaces vs traits** – ensure checker reuses the same resolution order as
   `impl_resolution.go` to avoid divergent semantics.
 - **Interop with compiler** – capture enough metadata (inference map, resolved

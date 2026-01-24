@@ -1,0 +1,27 @@
+trace := "";
+firstStage := 0;
+secondStage := 0;
+first := spawn {
+  if firstStage == 0 {
+    trace = trace + "A";
+    firstStage = 1;
+    future_yield();
+  };
+  if firstStage == 1 {
+    trace = trace + "B";
+    firstStage = 2;
+  };
+};
+second := spawn {
+  if secondStage == 0 {
+    trace = trace + "1";
+    secondStage = 1;
+    future_yield();
+  };
+  if secondStage == 1 {
+    trace = trace + "2";
+    secondStage = 2;
+  };
+};
+future_flush();
+trace;

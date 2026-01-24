@@ -86,7 +86,7 @@ func (c *Checker) initBuiltinInterfaces() {
 		{"Ord", IntegerType{Suffix: "u32"}},
 		{"Ord", IntegerType{Suffix: "u64"}},
 		{"Ord", IntegerType{Suffix: "u128"}},
-		{"Error", StructType{StructName: "ProcError"}},
+		{"Error", StructType{StructName: "FutureError"}},
 	} {
 		interfaceArgs := []Type{entry.typ}
 		methods := map[string]FunctionType{}

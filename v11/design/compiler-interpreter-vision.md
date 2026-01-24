@@ -28,14 +28,14 @@ This document captures the long-term execution strategy: fast compiled programs 
   - Use inline caches for member/method lookups and dictionary dispatch.
   - Keep value representations shared with the runtime to reduce conversions.
 - Start with a stack-based bytecode to minimize compiler complexity, then consider register-based once stabilized.
-- Maintain determinism for concurrency semantics (`proc`/`spawn`) while improving throughput.
+- Maintain determinism for concurrency semantics (`spawn` / `Future` handles) while improving throughput.
 
 ## Compiler direction (Go first)
 - Emit Go code from typed IR.
 - Generate explicit runtime calls for:
   - interface coercion + dictionary dispatch
   - dynamic metaprogramming (expr-eval)
-  - concurrency scheduling (`proc`/`spawn`)
+  - concurrency scheduling (`spawn`)
 - Keep the runtime ABI stable so the interpreter and compiler stay in lockstep.
 
 ## Immediate next steps

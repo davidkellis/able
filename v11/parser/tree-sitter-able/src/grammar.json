@@ -2185,10 +2185,6 @@
       "members": [
         {
           "type": "SYMBOL",
-          "name": "proc_expression"
-        },
-        {
-          "type": "SYMBOL",
           "name": "spawn_expression"
         },
         {
@@ -2545,32 +2541,6 @@
         {
           "type": "STRING",
           "value": "}"
-        }
-      ]
-    },
-    "proc_expression": {
-      "type": "SEQ",
-      "members": [
-        {
-          "type": "STRING",
-          "value": "proc"
-        },
-        {
-          "type": "CHOICE",
-          "members": [
-            {
-              "type": "SYMBOL",
-              "name": "block"
-            },
-            {
-              "type": "SYMBOL",
-              "name": "do_expression"
-            },
-            {
-              "type": "SYMBOL",
-              "name": "call_target"
-            }
-          ]
         }
       ]
     },
@@ -3299,10 +3269,6 @@
               },
               {
                 "type": "SYMBOL",
-                "name": "proc_expression"
-              },
-              {
-                "type": "SYMBOL",
                 "name": "spawn_expression"
               },
               {
@@ -3374,10 +3340,6 @@
               {
                 "type": "SYMBOL",
                 "name": "primary_expression"
-              },
-              {
-                "type": "SYMBOL",
-                "name": "proc_expression"
               },
               {
                 "type": "SYMBOL",
@@ -3497,10 +3459,6 @@
               {
                 "type": "SYMBOL",
                 "name": "primary_expression"
-              },
-              {
-                "type": "SYMBOL",
-                "name": "proc_expression"
               },
               {
                 "type": "SYMBOL",
@@ -5700,10 +5658,6 @@
       "lambda_parameter",
       "pattern_base",
       "struct_pattern_field"
-    ],
-    [
-      "proc_expression",
-      "primary_expression"
     ],
     [
       "spawn_expression",

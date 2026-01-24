@@ -11,7 +11,7 @@ This document compares the canonical schema (see `design/ast-schema-v11.md`) wit
 
 - `ArrayPattern.restPattern` in TypeScript is constrained to `Identifier | WildcardPattern`. The schema allows any `Pattern` but documents that only identifiers or wildcards are semantically valid; no code change necessary.
 - `FunctionCall.isTrailingLambda` defaults to `false` in TypeScript; the schema records the flag but does not prescribe a default. Implementations should maintain the same behaviour.
-- `ProcExpression` / `SpawnExpression` accept `FunctionCall | BlockExpression`, matching the schema’s narrow definition. Ensure future editors keep this restriction rather than widening to arbitrary expressions.
+- `SpawnExpression` accepts `FunctionCall | BlockExpression`, matching the schema’s narrow definition. Ensure future editors keep this restriction rather than widening to arbitrary expressions.
 
 ## Action Items
 

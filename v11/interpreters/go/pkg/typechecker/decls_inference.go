@@ -38,7 +38,6 @@ var reservedTypeNames = map[string]struct{}{
 	"IteratorEnd": {},
 	"Result":      {},
 	"Option":      {},
-	"Proc":        {},
 	"Future":      {},
 	"Channel":     {},
 	"Mutex":       {},
@@ -231,28 +230,32 @@ func (c *declarationCollector) ensureMethodsGenericInference(def *ast.MethodsDef
 	def.GenericParams = append(def.GenericParams, inferred...)
 }
 
-func (c *declarationCollector) ensureInterfaceGenericInference(def *ast.InterfaceDefinition) {
-	if def == nil || def.SelfTypePattern == nil {
+func (c *declarationCollector) addSelfPatternParamsToScope(def *ast.InterfaceDefinition, scope map[string]Type) {
+	if def == nil || def.SelfTypePattern == nil || scope == nil {
 		return
 	}
 	var occs []typeIdentifierOccurrence
 	collectTypeExpressionOccurrences(def.SelfTypePattern, &occs)
-	scope := map[string]Type{
-		"Self": TypeParameterType{ParameterName: "Self"},
-	}
-	inferred := c.selectInferredGenericParameters(occs, def.GenericParams, scope)
-	if len(inferred) == 0 {
+	if len(occs) == 0 {
 		return
 	}
-	paramMap := make(map[string]*ast.GenericParameter, len(inferred))
-	for _, param := range inferred {
-		if param == nil || param.Name == nil {
+	known := make(map[string]struct{}, len(scope))
+	for name := range scope {
+		if name != "" {
+			known[name] = struct{}{}
+		}
+	}
+	for _, occ := range occs {
+		if occ.name == "" {
 			continue
 		}
-		paramMap[param.Name.Name] = param
+		infer, _ := c.shouldInferGenericParameter(occ.name, known)
+		if !infer {
+			continue
+		}
+		scope[occ.name] = TypeParameterType{ParameterName: occ.name}
+		known[occ.name] = struct{}{}
 	}
-	def.WhereClause = hoistWhereConstraints(def.WhereClause, paramMap)
-	def.GenericParams = append(def.GenericParams, inferred...)
 }
 
 func collectFunctionTypeOccurrences(def *ast.FunctionDefinition) []typeIdentifierOccurrence {

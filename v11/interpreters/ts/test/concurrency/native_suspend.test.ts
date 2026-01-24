@@ -25,7 +25,7 @@ describe("v11 interpreter - async native suspension", () => {
       );
 
     I.evaluate(
-      AST.procExpression(
+      AST.spawnExpression(
         AST.blockExpression([
           append("A"),
           AST.functionCall(AST.identifier("async_wait"), []),
@@ -36,7 +36,7 @@ describe("v11 interpreter - async native suspension", () => {
     );
 
     I.evaluate(
-      AST.procExpression(
+      AST.spawnExpression(
         AST.blockExpression([
           append("B"),
           AST.integerLiteral(0),

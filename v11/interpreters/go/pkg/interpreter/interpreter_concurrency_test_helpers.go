@@ -8,18 +8,25 @@ import (
 	"able/interpreter-go/pkg/runtime"
 )
 
-func waitForStatus(handle *runtime.ProcHandleValue, desired runtime.ProcStatus, timeout time.Duration) bool {
+func waitForStatus(handle *runtime.FutureValue, desired runtime.FutureStatus, timeout time.Duration) bool {
 	if timeout < time.Second {
 		timeout = time.Second
 	}
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
-		if handle.Status() == desired {
+		if futureStatus(handle) == desired {
 			return true
 		}
 		time.Sleep(time.Millisecond)
 	}
-	return handle.Status() == desired
+	return futureStatus(handle) == desired
+}
+
+func futureStatus(handle *runtime.FutureValue) runtime.FutureStatus {
+	if handle == nil {
+		return runtime.FutureResolved
+	}
+	return handle.Status()
 }
 
 func waitForEnvString(t *testing.T, env *runtime.Environment, name string, desired string, timeout time.Duration) bool {
@@ -71,8 +78,8 @@ type stubExecutor struct {
 	flushCalls int
 }
 
-func (s *stubExecutor) RunProc(task ProcTask) *runtime.ProcHandleValue {
-	handle := runtime.NewProcHandle()
+func (s *stubExecutor) RunFuture(task ProcTask) *runtime.FutureValue {
+	handle := runtime.NewFuture()
 	go func() {
 		if task != nil {
 			if _, err := task(context.Background()); err != nil {
@@ -83,11 +90,6 @@ func (s *stubExecutor) RunProc(task ProcTask) *runtime.ProcHandleValue {
 		handle.Resolve(runtime.NilValue{})
 	}()
 	return handle
-}
-
-func (s *stubExecutor) RunFuture(task ProcTask) *runtime.FutureValue {
-	handle := s.RunProc(task)
-	return runtime.NewFutureFromHandle(handle)
 }
 
 func (s *stubExecutor) Flush() {

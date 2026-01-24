@@ -79,7 +79,7 @@ Expression :=
   FunctionCall | BlockExpression | AssignmentExpression |
   RangeExpression | StringInterpolation | MemberAccessExpression |
   IndexExpression | ImplicitMemberExpression | LambdaExpression |
-  ProcExpression | SpawnExpression | PropagationExpression |
+  SpawnExpression | PropagationExpression |
   OrElseExpression | BreakpointExpression | PlaceholderExpression |
   TopicReferenceExpression | IfExpression | MatchExpression |
   StructLiteral | RescueExpression | EnsureExpression
@@ -101,12 +101,11 @@ Node definitions:
 | `IndexExpression` | `object: Expression`, `index: Expression`
 | `ImplicitMemberExpression` | `member: Identifier` *(shorthand `#member`; treated as an `Expression` and valid assignment target)*
 | `LambdaExpression` | `generic_params?: GenericParameter[]`, `params: FunctionParameter[]`, `return_type?: TypeExpression`, `body: Expression | BlockExpression`, `where_clause?: WhereClauseConstraint[]`, `is_verbose_syntax: bool`
-| `ProcExpression` | `expression: FunctionCall | BlockExpression`
 | `SpawnExpression` | `expression: FunctionCall | BlockExpression`
 | `PropagationExpression` | `expression: Expression` (postfix `!`)
 | `OrElseExpression` | `expression: Expression`, `handler: BlockExpression`, `error_binding?: Identifier`
 | `BreakpointExpression` | `label: Identifier`, `body: BlockExpression`
-| `PlaceholderExpression` | `index?: integer` *(un-numbered `@` omits `index`; numbered `@n` stores 1-based `index`)* — detection is expression-local; placeholders nested inside explicit lambdas, iterator literals, `proc`, or `spawn` remain scoped to those constructs per §7.6.3. 
+| `PlaceholderExpression` | `index?: integer` *(un-numbered `@` omits `index`; numbered `@n` stores 1-based `index`)* — detection is expression-local; placeholders nested inside explicit lambdas, iterator literals, or `spawn` remain scoped to those constructs per §7.6.3. 
 | `TopicReferenceExpression` | *(represents pipe-topic `%` while piping expressions)*
 
 Assignment targets are any `Pattern`, `MemberAccessExpression`, `ImplicitMemberExpression`, `IndexExpression`, or `Identifier`.
@@ -210,7 +209,7 @@ Statement :=
 - **Pattern system** matches destructuring/`match` semantics (§5, §9).
 - **Error handling** implements `raise`, `rescue`, `ensure`, `expr!`, `rethrow` (§10).
 - **Interface & implementation** nodes encode the structure from §11 (Interfaces & Methods).
-- **Concurrency** is represented by `ProcExpression`, `SpawnExpression`, and associated runtime expectations (§12). The AST carries no scheduler logic; implementations must provide the behaviors defined in the spec.
+- **Concurrency** is represented by `SpawnExpression` and associated runtime expectations (§12). The AST carries no scheduler logic; implementations must provide the behaviors defined in the spec.
 - **Modules/imports** follow §13 (Packages & Imports). Dynamic imports are kept explicit to support `dynimport` semantics.
 - **Host interop** nodes are placeholders for §14; interpreters may ignore code bodies on unsupported targets but must preserve the structures for tooling.
 

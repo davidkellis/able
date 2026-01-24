@@ -7,6 +7,7 @@ import {
 import { mergeBranchTypes as mergeBranchTypesHelper } from "./expressions";
 import type { StatementContext } from "./expression-context";
 import type { FunctionInfo, InterfaceCheckResult } from "./types";
+import type { TypeResolutionOptions } from "./type-resolution";
 import {
   buildEffectiveParams,
   buildSelfArgSubstitutions,
@@ -37,7 +38,11 @@ export type FunctionCallContext = {
   getTypeOriginsForCanonical?: (name: string) => Set<string> | null;
   getStructDefinition(name: string): AST.StructDefinition | undefined;
   inferExpression(expression: AST.Expression | undefined | null): TypeInfo;
-  resolveTypeExpression(expr: AST.TypeExpression | null | undefined, substitutions?: Map<string, TypeInfo>): TypeInfo;
+  resolveTypeExpression(
+    expr: AST.TypeExpression | null | undefined,
+    substitutions?: Map<string, TypeInfo>,
+    options?: TypeResolutionOptions,
+  ): TypeInfo;
   describeLiteralMismatch(actual?: TypeInfo, expected?: TypeInfo): string | null;
   isTypeAssignable(actual?: TypeInfo, expected?: TypeInfo): boolean;
   typeExpressionsEquivalent(

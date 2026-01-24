@@ -84,22 +84,6 @@ export function evaluateBreakpointExpression(ctx: Interpreter, node: AST.Breakpo
   }
 }
 
-export function evaluateProcExpression(ctx: Interpreter, node: AST.ProcExpression, env: Environment): RuntimeValue {
-  const capturedEnv = new Environment(env);
-  const handle: Extract<RuntimeValue, { kind: "proc_handle" }> = {
-    kind: "proc_handle",
-    state: "pending",
-    expression: node.expression,
-    env: capturedEnv,
-    runner: null,
-    cancelRequested: false,
-    awaitBlocked: false,
-  };
-  handle.runner = () => ctx.runProcHandle(handle);
-  ctx.scheduleAsync(handle.runner);
-  return handle;
-}
-
 export function evaluateSpawnExpression(ctx: Interpreter, node: AST.SpawnExpression, env: Environment): RuntimeValue {
   const capturedEnv = new Environment(env);
   const future: Extract<RuntimeValue, { kind: "future" }> = {

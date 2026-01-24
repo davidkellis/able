@@ -243,8 +243,6 @@ func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diag
 		return c.checkBreakpointExpression(env, e)
 	case *ast.StringInterpolation:
 		return c.checkStringInterpolation(env, e)
-	case *ast.ProcExpression:
-		return c.checkProcExpression(env, e)
 	case *ast.SpawnExpression:
 		return c.checkSpawnExpression(env, e)
 	case *ast.AwaitExpression:
@@ -269,7 +267,7 @@ func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diag
 				matched = true
 			} else if name, ok := structName(t.Base); ok {
 				switch name {
-				case "Future", "Proc":
+				case "Future":
 					if len(t.Arguments) > 0 {
 						resultType = t.Arguments[0]
 					}
@@ -278,9 +276,6 @@ func (c *Checker) checkExpression(env *Environment, expr ast.Expression) ([]Diag
 			}
 		case InterfaceType:
 		case FutureType:
-			resultType = t.Result
-			matched = true
-		case ProcType:
 			resultType = t.Result
 			matched = true
 		default:

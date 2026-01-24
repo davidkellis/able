@@ -1,9 +1,0 @@
-{
-  "description": "proc_cancelled raises when called outside of proc/spawn",
-  "expect": {
-    "errors": [
-      "proc_cancelled must be called inside an asynchronous task"
-    ]
-  },
-  "entry": "module.json"
-}

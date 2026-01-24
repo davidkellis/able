@@ -2,6 +2,7 @@ import * as AST from "../../ast";
 import { unknownType } from "../types";
 import type { TypeInfo } from "../types";
 import type { FunctionContext, FunctionInfo, ImplementationObligation } from "./types";
+import type { TypeResolutionOptions } from "./type-resolution";
 import { formatNodeOrigin } from "./registry";
 import type { StatementContext } from "./expression-context";
 
@@ -11,7 +12,11 @@ export interface DeclarationsContext extends StatementContext {
   getIdentifierNameFromTypeExpression(expr: AST.TypeExpression | null | undefined): string | null;
   getInterfaceNameFromConstraint(constraint: AST.GenericConstraint | null | undefined): string | null;
   getInterfaceNameFromTypeExpression(expr: AST.TypeExpression | null | undefined): string | null;
-  resolveTypeExpression(expr: AST.TypeExpression | null | undefined, substitutions?: Map<string, TypeInfo>): TypeInfo;
+  resolveTypeExpression(
+    expr: AST.TypeExpression | null | undefined,
+    substitutions?: Map<string, TypeInfo>,
+    options?: TypeResolutionOptions,
+  ): TypeInfo;
   describeTypeExpression(expr: AST.TypeExpression | null | undefined, substitutions?: Map<string, string>): string | null;
   report(message: string, node?: AST.Node | null | undefined): void;
   defineValue(name: string, type: TypeInfo): void;

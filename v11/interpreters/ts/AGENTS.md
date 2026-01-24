@@ -30,8 +30,8 @@ bun run typecheck      # TypeScript typecheck (no emit)
   - `function` (closure with `node` + `closureEnv`), `bound_method` (function + `self`), `native_function`, `native_bound_method`
   - `struct_def`, `struct_instance` (named/positional fields)
   - `interface_def`, `interface_value` (dynamic wrapper around a concrete value implementing the interface)
-  - `proc_handle`, `future`
-  - `error` (message, optional value / `ProcError` payload)
+  - `future`
+  - `error` (message, optional value / `FutureError` payload)
 - `Environment` provides lexical scoping (`define`, `assign`, `get`) with nesting.
 - Control-flow uses signals (Errors): `ReturnSignal`, `RaiseSignal`, internal `BreakSignal` shim, and `BreakLabelSignal` for labeled non-local jumps.
 - Method lookup merges:
@@ -56,11 +56,11 @@ bun run typecheck      # TypeScript typecheck (no emit)
 - Modules/imports: executes in global module env; selector imports + aliasing; private functions cannot be imported
 - Methods/impls: inherent and interface-based, with precedence resolved by explicit lookup order. Interface signatures may supply default bodies; impls that omit them inherit the default. Interface-typed bindings coerce to dynamic wrappers so method calls dispatch to the underlying type’s implementation.
   - Union-target impls participate in resolution; smaller variant sets win over larger ones. Constraint supersets (inheriting interface requirements) rank higher, and ambiguity errors now surface candidate details. Dynamic interface containers (arrays/ranges) automatically pick the most specific impl during iteration.
-- Concurrency handles: `proc`/`spawn` schedule work asynchronously and return handles exposing `status()`, `value()` (`!T` – success or `ProcError`), and `cancel()`.
+- Concurrency handles: `spawn` schedules work asynchronously and returns handles exposing `status()`, `value()` (`!T` – success or `FutureError`), and `cancel()`.
   - We keep scheduling inside the interpreter (simple cooperative queue) rather than using JavaScript `async`/`await` so evaluation stays synchronous/ deterministic and cancellation can flip pending tasks immediately without relying on host promise semantics.
-  - Cooperative helpers are available to Able code: `proc_yield()` triggers a `ProcYieldSignal`, re-queueing the current runner, and `proc_cancelled()` surfaces the `cancelRequested` flag on the active handle. The interpreter keeps an `asyncContextStack` so these helpers know which async value is executing.
-  - `runProcHandle`/`runFuture` push the active handle on the stack before evaluating and pop it in `finally`. They also prevent cancellation from short-circuiting once evaluation has begun via a `hasStarted` flag.
-  - `procHandleCancel` now schedules the existing runner instead of marking the handle immediately; cancellation is finalized inside the next `runProcHandle` tick so task code can poll `proc_cancelled()` and exit cooperatively. Tests may call `runProcHandle` directly (via `Interpreter` cast to `any`) when they need fine-grained control over staging.
+  - Cooperative helpers are available to Able code: `future_yield()` triggers a `ProcYieldSignal`, re-queueing the current runner, and `future_cancelled()` surfaces the `cancelRequested` flag on the active handle. The interpreter keeps an `asyncContextStack` so these helpers know which async value is executing.
+  - `runFuture` pushes the active handle on the stack before evaluating and pops it in `finally`. It also prevents cancellation from short-circuiting once evaluation has begun via a `hasStarted` flag.
+  - Cancellation now schedules the existing runner instead of marking the handle immediately; cancellation is finalized inside the next `runFuture` tick so task code can poll `future_cancelled()` and exit cooperatively. Tests may call `runFuture` directly (via `Interpreter` cast to `any`) when they need fine-grained control over staging.
   - When you add additional async helpers, mirror this pattern: throw a dedicated signal, schedule the existing runner if the task should resume, and avoid leaking the helper into normal synchronous execution.
 
 See `README.md` for human-facing details and examples.

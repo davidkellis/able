@@ -5,20 +5,20 @@ import { RaiseSignal } from "./signals";
 import { makeIntegerValue, numericToNumber } from "./numeric";
 import { callCallableValue } from "./functions";
 import { memberAccessOnValue } from "./structs";
+import type { AsyncHandle } from "./concurrency_shared";
 
-type ProcHandleValue = Extract<RuntimeValue, { kind: "proc_handle" }>;
 type BoolValue = Extract<RuntimeValue, { kind: "bool" }>;
 type NilValue = Extract<RuntimeValue, { kind: "nil" }>;
 type ErrorValue = Extract<RuntimeValue, { kind: "error" }>;
 
 interface ChannelSendWaiter {
-  handle: ProcHandleValue;
+  handle: AsyncHandle;
   value: RuntimeValue;
   error?: ErrorValue;
 }
 
 interface ChannelReceiveWaiter {
-  handle: ProcHandleValue;
+  handle: AsyncHandle;
 }
 
 interface ChannelState {
@@ -35,8 +35,8 @@ interface ChannelState {
 interface MutexState {
   id: number;
   locked: boolean;
-  owner: ProcHandleValue | null;
-  waiters: ProcHandleValue[];
+  owner: AsyncHandle | null;
+  waiters: AsyncHandle[];
   awaitRegistrations?: Set<MutexAwaitRegistration>;
 }
 
@@ -66,32 +66,14 @@ declare module "./index" {
   }
 }
 
-declare module "./values" {
-  interface ProcHandleValue {
-    waitingMutex?: MutexState;
-    waitingChannelSend?: {
-      state: ChannelState;
-      value: RuntimeValue;
-      delivered?: boolean;
-      error?: ErrorValue;
-    };
-    waitingChannelReceive?: {
-      state: ChannelState;
-      ready?: boolean;
-      value?: RuntimeValue;
-      closed?: boolean;
-    };
-  }
-}
-
 function toHandleNumber(value: RuntimeValue, label: string): number {
   return Math.trunc(numericToNumber(value, label, { requireSafeInteger: true }));
 }
 
 function blockOnNilChannel(interp: Interpreter): RuntimeValue {
   const ctx = interp.currentAsyncContext();
-  if (!ctx || ctx.kind !== "proc") {
-    throw new Error("Nil channel operations must occur inside a proc");
+  if (!ctx) {
+    throw new Error("Nil channel operations must occur inside an asynchronous task");
   }
   ctx.handle.awaitBlocked = true;
   const cancelled = interp.procCancelled(true) as BoolValue;
@@ -102,18 +84,18 @@ function blockOnNilChannel(interp: Interpreter): RuntimeValue {
   return NIL;
 }
 
-function requireProcContext(interp: Interpreter, action: string): ProcHandleValue {
+function requireFutureContext(interp: Interpreter, action: string): AsyncHandle {
   const ctx = interp.currentAsyncContext();
-  if (!ctx || ctx.kind !== "proc") {
-    throw new Error(`${action} must occur inside a proc`);
+  if (!ctx) {
+    throw new Error(`${action} must occur inside an asynchronous task`);
   }
   return ctx.handle;
 }
 
-function scheduleProc(interp: Interpreter, handle: ProcHandleValue): void {
+function scheduleFuture(interp: Interpreter, handle: AsyncHandle): void {
   handle.awaitBlocked = false;
   if (!handle.runner) {
-    handle.runner = () => interp.runProcHandle(handle);
+    handle.runner = () => interp.runFuture(handle);
   }
   interp.scheduleAsync(handle.runner);
 }
@@ -386,7 +368,7 @@ export function applyChannelMutexAugmentations(cls: typeof Interpreter): void {
         }
 
         const ctx = interp.currentAsyncContext();
-        const procHandle = ctx && ctx.kind === "proc" ? ctx.handle : null;
+        const procHandle = ctx ? ctx.handle : null;
         let payload = incomingPayload;
         const pending = procHandle ? (procHandle as any).waitingChannelSend : undefined;
 
@@ -409,7 +391,7 @@ export function applyChannelMutexAugmentations(cls: typeof Interpreter): void {
         if (procHandle && procHandle.cancelRequested) {
           state.sendWaiters = state.sendWaiters.filter((entry) => entry.handle !== procHandle);
           delete (procHandle as any).waitingChannelSend;
-          throw new Error("Proc cancelled");
+          throw new Error("Future cancelled");
         }
 
         if (state.closed) {
@@ -424,7 +406,7 @@ export function applyChannelMutexAugmentations(cls: typeof Interpreter): void {
             receiverPending.ready = true;
             receiverPending.value = payload;
           }
-          scheduleProc(interp, receiverHandle);
+          scheduleFuture(interp, receiverHandle);
           if (procHandle) {
             delete (procHandle as any).waitingChannelSend;
           }
@@ -441,7 +423,7 @@ export function applyChannelMutexAugmentations(cls: typeof Interpreter): void {
         }
 
         if (!procHandle) {
-          throw new Error("Channel send would block outside of proc context");
+          throw new Error("Channel send would block outside of async context");
         }
 
         const hadSendWaiters = state.sendWaiters.length;
@@ -484,7 +466,7 @@ export function applyChannelMutexAugmentations(cls: typeof Interpreter): void {
         }
 
         const ctx = interp.currentAsyncContext();
-        const procHandle = ctx && ctx.kind === "proc" ? ctx.handle : null;
+        const procHandle = ctx ? ctx.handle : null;
         const pending = procHandle ? (procHandle as any).waitingChannelReceive : undefined;
 
         if (pending && pending.state !== state) {
@@ -502,7 +484,7 @@ export function applyChannelMutexAugmentations(cls: typeof Interpreter): void {
         if (procHandle && procHandle.cancelRequested) {
           state.receiveWaiters = state.receiveWaiters.filter((entry) => entry.handle !== procHandle);
           delete (procHandle as any).waitingChannelReceive;
-          throw new Error("Proc cancelled");
+          throw new Error("Future cancelled");
         }
 
         if (state.queue.length > 0) {
@@ -514,7 +496,7 @@ export function applyChannelMutexAugmentations(cls: typeof Interpreter): void {
             if (senderPending && senderPending.state === state) {
               senderPending.delivered = true;
             }
-            scheduleProc(interp, nextSender.handle);
+            scheduleFuture(interp, nextSender.handle);
           }
           notifyChannelAwaiters(interp, state, "send");
           if (state.queue.length > 0) {
@@ -529,7 +511,7 @@ export function applyChannelMutexAugmentations(cls: typeof Interpreter): void {
           if (senderPending && senderPending.state === state) {
             senderPending.delivered = true;
           }
-          scheduleProc(interp, sender.handle);
+          scheduleFuture(interp, sender.handle);
           notifyChannelAwaiters(interp, state, "send");
           return sender.value ?? NIL;
         }
@@ -539,7 +521,7 @@ export function applyChannelMutexAugmentations(cls: typeof Interpreter): void {
         }
 
         if (!procHandle) {
-          throw new Error("Channel receive would block outside of proc context");
+          throw new Error("Channel receive would block outside of async context");
         }
 
         const existing = (procHandle as any).waitingChannelReceive;
@@ -584,7 +566,7 @@ export function applyChannelMutexAugmentations(cls: typeof Interpreter): void {
             receiverPending.ready = true;
             receiverPending.value = payload;
           }
-          scheduleProc(interp, receiver.handle);
+          scheduleFuture(interp, receiver.handle);
           return { kind: "bool", value: true };
         }
         if (state.capacity > 0 && state.queue.length < state.capacity) {
@@ -615,7 +597,7 @@ export function applyChannelMutexAugmentations(cls: typeof Interpreter): void {
             if (senderPending && senderPending.state === state) {
               senderPending.delivered = true;
             }
-            scheduleProc(interp, nextSender.handle);
+            scheduleFuture(interp, nextSender.handle);
           }
           notifyChannelAwaiters(interp, state, "send");
           if (state.queue.length > 0) {
@@ -629,7 +611,7 @@ export function applyChannelMutexAugmentations(cls: typeof Interpreter): void {
           if (senderPending && senderPending.state === state) {
             senderPending.delivered = true;
           }
-          scheduleProc(interp, sender.handle);
+          scheduleFuture(interp, sender.handle);
           notifyChannelAwaiters(interp, state, "send");
           return sender.value ?? NIL;
         }
@@ -680,7 +662,7 @@ export function applyChannelMutexAugmentations(cls: typeof Interpreter): void {
             pending.closed = true;
             pending.value = undefined;
           }
-          scheduleProc(interp, receiver.handle);
+          scheduleFuture(interp, receiver.handle);
         }
 
         while (state.sendWaiters.length > 0) {
@@ -689,7 +671,7 @@ export function applyChannelMutexAugmentations(cls: typeof Interpreter): void {
           if (pending && pending.state === state) {
             pending.error = makeChannelErrorValue(interp, "ChannelSendOnClosed", "send on closed channel");
           }
-          scheduleProc(interp, sender.handle);
+          scheduleFuture(interp, sender.handle);
         }
 
         notifyChannelAwaiters(interp, state, "receive");
@@ -731,7 +713,7 @@ export function applyChannelMutexAugmentations(cls: typeof Interpreter): void {
 
         const procHandle = (() => {
           const ctx = interp.currentAsyncContext();
-          return ctx && ctx.kind === "proc" ? ctx.handle : null;
+          return ctx ? ctx.handle : null;
         })();
 
         if (state.locked) {
@@ -772,7 +754,7 @@ export function applyChannelMutexAugmentations(cls: typeof Interpreter): void {
           if ((next as any).waitingMutex === state) {
             delete (next as any).waitingMutex;
           }
-          scheduleProc(interp, next);
+          scheduleFuture(interp, next);
         }
 
         return NIL;

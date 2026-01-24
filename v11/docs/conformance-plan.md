@@ -18,7 +18,7 @@ its conventions.
 | 15.1, 15.6, 6.6 | Program entry, print output, implicit `void` main | `exec/15_01_program_entry_hello_world` | Seeded (renamed from `exec_hello_world`); covers entry point signature + stdout |
 | 15.2 | Main signature uses `void` and args accessed via `os.args()` | `exec/15_02_entry_args_signature` | Seeded; args array provided via stdlib `os` helper |
 | 15.3 | Custom exit status via `os.exit` | `exec/15_03_exit_status_return_value` | Seeded; exit code overrides default completion status |
-| 15.4 | Background work not awaited on exit | `exec/15_04_background_work_flush` | Seeded; pending proc stays blocked when `main` returns |
+| 15.4 | Background work not awaited on exit | `exec/15_04_background_work_flush` | Seeded; pending task stays blocked when `main` returns |
 | 16 | Host interop via inline `extern` bodies | `exec/16_01_host_interop_inline_extern` | Seeded; extern bindings resolved for active runtime target |
 | 8.1.1, 8.2.2, 6.3 | `if/elsif/else` + `for` range iteration | `exec/08_01_control_flow_fizzbuzz` | Seeded (renamed from `exec_fizzbuzz`); ensures branch ordering + range inclusivity |
 | 8.1.1, 6.11 | `if` truthiness and expression result values | `exec/08_01_if_truthiness_value` | Seeded; truthiness drives branch selection and nil when no else |
@@ -58,10 +58,10 @@ its conventions.
 | 11.3 | Standard arithmetic/index errors rescued, rethrown, and ensured | `exec/11_03_rescue_rethrow_standard_errors` | Seeded; rescue and rethrow preserve standard error payloads |
 | 8.1.2, 8.2.2, 11.3 | Composition: match + loop + rescue | `exec/11_00_errors_match_loop_combo` | Seeded; raise/rescue within loop with match-driven branches |
 | 12.5 | Channels: buffered send/receive, close terminates iteration | `exec/12_05_concurrency_channel_ping_pong` | Seeded; validates rendezvous order and nil on close |
-| 12.2, 12.3, 12.6 | `proc` vs `spawn` vs `await` scheduling | `exec/12_02_async_proc_spawn_combo` | Seeded: cooperative scheduling with `proc_yield` + `proc_flush`, future status/value |
-| 12.2.5 | Runtime helper fairness/cancellation | `exec/12_02_proc_fairness_cancellation` | Seeded: `proc_yield`, `proc_cancelled`, `proc_flush` queue drain |
+| 12.2, 12.3, 12.6 | `spawn` + `await` scheduling | `exec/12_02_async_spawn_combo` | Seeded: cooperative scheduling with `future_yield` + `future_flush`, future status/value |
+| 12.2.5 | Runtime helper fairness/cancellation | `exec/12_02_future_fairness_cancellation` | Seeded: `future_yield`, `future_cancelled`, `future_flush` queue drain |
 | 12.3 | Future status/value/error propagation | `exec/12_03_spawn_future_status_error` | Seeded: resolved/failed statuses and `Future.value()` error handling |
-| 12.4 | Proc vs spawn semantics | `exec/12_04_proc_vs_spawn_differences` | Seeded: handle vs future access, error labels, proc cancellation |
+| 12.4 | Future handle vs value semantics | `exec/12_04_future_handle_value_view` | Seeded: handle vs value access, error labels, cancellation |
 | 12.5 | Mutex lock/unlock | `exec/12_05_mutex_lock_unlock` | Seeded: lock/unlock, helper usage, unlock error |
 | 12.6 | Await fairness/cancellation | `exec/12_06_await_fairness_cancellation` | Seeded: fair selection, default arm, cancellation during await |
 | 12.7 | Channel/mutex error payload types | `exec/12_07_channel_mutex_error_types` | Seeded: rescue matches ChannelNil/ChannelClosed/ChannelSendOnClosed/MutexUnlocked |

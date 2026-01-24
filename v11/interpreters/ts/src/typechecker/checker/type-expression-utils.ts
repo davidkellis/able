@@ -75,11 +75,6 @@ export function typeInfoToTypeExpression(type: TypeInfo | undefined): AST.TypeEx
         AST.simpleTypeExpression("Iterator"),
         [typeInfoToTypeExpression(type.element) ?? AST.wildcardTypeExpression()],
       );
-    case "proc":
-      return AST.genericTypeExpression(
-        AST.simpleTypeExpression("Proc"),
-        [typeInfoToTypeExpression(type.result) ?? AST.wildcardTypeExpression()],
-      );
     case "future":
       return AST.genericTypeExpression(
         AST.simpleTypeExpression("Future"),

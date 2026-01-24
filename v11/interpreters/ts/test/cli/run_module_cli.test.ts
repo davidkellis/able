@@ -42,6 +42,10 @@ package dep
 fn helper() -> void {}
 `,
       },
+      env: {
+        ABLE_MODULE_PATHS: "",
+        ABLE_PATH: "",
+      },
     });
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("typechecker:");

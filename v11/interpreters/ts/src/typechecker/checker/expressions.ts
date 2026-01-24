@@ -11,7 +11,6 @@ import {
   isNumeric,
   isRatioType,
   primitiveType,
-  procType,
   rangeType,
   unknownType,
   type PrimitiveName,
@@ -235,12 +234,6 @@ export function inferExpression(ctx: ExpressionContext, expression: AST.Expressi
       }
       return bodyType ?? unknownType;
     }
-    case "ProcExpression": {
-      ctx.pushAsyncContext();
-      const bodyType = ctx.inferExpression(expression.expression);
-      ctx.popAsyncContext();
-      return procType(bodyType);
-    }
     case "SpawnExpression": {
       ctx.pushAsyncContext();
       const bodyType = ctx.inferExpression(expression.expression);
@@ -318,8 +311,6 @@ export function refineTypeWithExpected(actual: TypeInfo | undefined | null, expe
       return { kind: "range", element: refineTypeWithExpected(actual.element, expected.element), bounds: actual.bounds };
     case "iterator":
       return { kind: "iterator", element: refineTypeWithExpected(actual.element, expected.element) };
-    case "proc":
-      return { kind: "proc", result: refineTypeWithExpected(actual.result, expected.result) };
     case "future":
       return { kind: "future", result: refineTypeWithExpected(actual.result, expected.result) };
     case "nullable":
@@ -670,9 +661,6 @@ function inferAwaitExpression(ctx: ExpressionContext, expression: AST.AwaitExpre
     matched = true;
     resultType = (elementType.typeArguments ?? [])[0] ?? unknownType;
   } else if (elementType.kind === "future") {
-    matched = true;
-    resultType = elementType.result ?? unknownType;
-  } else if (elementType.kind === "proc") {
     matched = true;
     resultType = elementType.result ?? unknownType;
   }

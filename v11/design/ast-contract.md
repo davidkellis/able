@@ -71,7 +71,7 @@ Key nodes and metadata:
 - Control flow: `IfExpression` with `ElseIfClause` + optional else body, `MatchExpression` with clause
   patterns & guards, `RescueExpression`, `EnsureExpression`, `OrElseExpression`,
   `PropagationExpression`.
-- Async: `ProcExpression`, `SpawnExpression`, `BreakpointExpression`.
+- Async: `SpawnExpression`, `BreakpointExpression`.
 - Structs: `StructLiteral` with named/positional initialisers, optional type
   arguments, and functional update base expression.
 
@@ -95,9 +95,9 @@ Every syntax form surfaced in the spec is present as its own node:
 - **Type annotations** – Present on parameters, struct fields, function return
   types, and typed patterns. Local bindings rely on `AssignmentDeclare` combined
   with optional typed patterns.
-- **Async helpers** – `ProcExpression`/`SpawnExpression` nodes are unique and
-  carry their body expressions directly, so schedulers and typecheckers can
-  recognise async contexts.
+- **Async helpers** – `SpawnExpression` nodes are unique and carry their body
+  expressions directly, so schedulers and typecheckers can recognise async
+  contexts.
 - **Implementations** – `ImplementationDefinition` includes interface name,
   generic arguments, target type, and body definitions; `MethodsDefinition`
   covers inherent impl blocks.

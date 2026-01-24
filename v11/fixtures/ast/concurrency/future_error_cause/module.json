@@ -161,7 +161,7 @@
       "type": "FunctionCall",
       "callee": {
         "type": "Identifier",
-        "name": "proc_flush"
+        "name": "future_flush"
       },
       "arguments": [],
       "isTrailingLambda": false

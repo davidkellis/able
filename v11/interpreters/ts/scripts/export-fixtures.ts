@@ -406,10 +406,6 @@ function printExpression(expr: AST.Expression | string, level: number): string {
       return `${printExpression(expr.object, level)}[${printExpression(expr.index, level)}]`;
     case "RangeExpression":
       return `${printExpression(expr.start, level)} ${expr.inclusive ? ".." : "..."} ${printExpression(expr.end, level)}`;
-    case "ProcExpression":
-      return expr.expression.type === "BlockExpression"
-        ? `proc ${printBlock(expr.expression, level)}`
-        : `proc ${printExpression(expr.expression, level)}`;
     case "SpawnExpression":
       return expr.expression.type === "BlockExpression"
         ? `spawn ${printBlock(expr.expression, level)}`

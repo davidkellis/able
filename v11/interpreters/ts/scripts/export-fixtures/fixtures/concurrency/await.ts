@@ -17,7 +17,7 @@ const awaitFixtures: Fixture[] = [
       assign(
         ":=",
         "receiver",
-        AST.procExpression(
+        AST.spawnExpression(
           AST.blockExpression([
             assign(
               "=",
@@ -38,7 +38,7 @@ const awaitFixtures: Fixture[] = [
       assign(
         ":=",
         "sender",
-        AST.procExpression(
+        AST.spawnExpression(
           AST.blockExpression([
             assign(
               "=",
@@ -57,7 +57,7 @@ const awaitFixtures: Fixture[] = [
           ]),
         ),
       ),
-      call("proc_flush", []),
+      call("future_flush", []),
       AST.arrayLiteral([
         AST.identifier("receiver_result"),
         AST.identifier("sender_result"),
@@ -93,7 +93,7 @@ const awaitFixtures: Fixture[] = [
       assign(
         ":=",
         "runner",
-        AST.procExpression(
+        AST.spawnExpression(
           AST.blockExpression([
             assign(
               "=",
@@ -195,7 +195,7 @@ const awaitFixtures: Fixture[] = [
         assign(
           ":=",
           "runner",
-          AST.procExpression(
+          AST.spawnExpression(
             AST.blockExpression([
               assign(
                 ":=",
@@ -240,7 +240,7 @@ const awaitFixtures: Fixture[] = [
             ]),
           ),
         ),
-        call("proc_flush", []),
+        call("future_flush", []),
         call(AST.memberAccessExpression(AST.identifier("runner"), AST.identifier("value")), []),
       ],
       [AST.importStatement(["able", "concurrency"], false, [AST.importSelector("Await")])],
@@ -267,7 +267,7 @@ const awaitFixtures: Fixture[] = [
       assign(
         ":=",
         "runner",
-        AST.procExpression(
+        AST.spawnExpression(
           AST.blockExpression([
             assign(
               "=",
@@ -296,9 +296,9 @@ const awaitFixtures: Fixture[] = [
           ]),
         ),
       ),
-      call("proc_flush", []),
+      call("future_flush", []),
       call(AST.memberAccessExpression(AST.identifier("runner"), AST.identifier("cancel")), []),
-      call("proc_flush", []),
+      call("future_flush", []),
       assign(":=", "late_send", call("__able_channel_try_send", [AST.identifier("ch"), AST.stringLiteral("late")])),
       AST.arrayLiteral([
         AST.binaryExpression("==", AST.identifier("hits"), AST.integerLiteral(0)),
@@ -306,7 +306,7 @@ const awaitFixtures: Fixture[] = [
       ]),
     ]),
     manifest: {
-      description: "await send arm cancels registrations when the awaiting proc is cancelled",
+      description: "await send arm cancels registrations when the awaiting task is cancelled",
       expect: {
         result: {
           kind: "array",
@@ -326,7 +326,7 @@ const awaitFixtures: Fixture[] = [
       assign(
         ":=",
         "runner",
-        AST.procExpression(
+        AST.spawnExpression(
           AST.blockExpression([
             assign(
               "=",
@@ -354,9 +354,9 @@ const awaitFixtures: Fixture[] = [
           ]),
         ),
       ),
-      call("proc_flush", []),
+      call("future_flush", []),
       call(AST.memberAccessExpression(AST.identifier("runner"), AST.identifier("cancel")), []),
-      call("proc_flush", []),
+      call("future_flush", []),
       assign(":=", "late_send", call("__able_channel_try_send", [AST.identifier("ch"), AST.stringLiteral("late")])),
       AST.arrayLiteral([
         AST.binaryExpression("==", AST.identifier("hits"), AST.integerLiteral(0)),
@@ -364,7 +364,7 @@ const awaitFixtures: Fixture[] = [
       ]),
     ]),
     manifest: {
-      description: "await receive arm cancels registrations when the awaiting proc is cancelled",
+      description: "await receive arm cancels registrations when the awaiting task is cancelled",
       expect: {
         result: {
           kind: "array",
@@ -385,7 +385,7 @@ const awaitFixtures: Fixture[] = [
       assign(
         ":=",
         "runner",
-        AST.procExpression(
+        AST.spawnExpression(
           AST.blockExpression([
             assign(
               "=",
@@ -413,9 +413,9 @@ const awaitFixtures: Fixture[] = [
           ]),
         ),
       ),
-      call("proc_flush", []),
+      call("future_flush", []),
       call(AST.memberAccessExpression(AST.identifier("runner"), AST.identifier("cancel")), []),
-      call("proc_flush", []),
+      call("future_flush", []),
       call("__able_mutex_unlock", [AST.identifier("mtx")]),
       assign(":=", "lock_again", call("__able_mutex_lock", [AST.identifier("mtx")])),
       call("__able_mutex_unlock", [AST.identifier("mtx")]),
@@ -425,7 +425,7 @@ const awaitFixtures: Fixture[] = [
       ]),
     ]),
     manifest: {
-      description: "await mutex lock cancels registrations when the awaiting proc is cancelled",
+      description: "await mutex lock cancels registrations when the awaiting task is cancelled",
       expect: {
         result: {
           kind: "array",

@@ -561,8 +561,6 @@ func (pc *ProgramChecker) captureExports(mod *driver.Module, checker *Checker) {
 			return "Range"
 		case IteratorType:
 			return "Iterator"
-		case ProcType:
-			return "Proc"
 		case FutureType:
 			return "Future"
 		case NullableType:

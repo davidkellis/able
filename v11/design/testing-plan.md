@@ -120,7 +120,7 @@ the Go interpreter.
 
 ## Determinism and Concurrency
 
-Tests may use `proc_flush()` and `proc_pending_tasks()` for deterministic
+Tests may use `future_flush()` and `future_pending_tasks()` for deterministic
 coordination. The CLI should not attempt to manage scheduling directly; it only
 controls ordering and repeat/shuffle. Runtime determinism remains the
 interpreter's job (cooperative scheduler in TS, goroutine executor in Go with a

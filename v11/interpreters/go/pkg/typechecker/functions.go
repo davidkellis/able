@@ -236,8 +236,6 @@ func formatTypeForReturnDiagnostic(t Type) string {
 		return strings.TrimSpace("Range " + formatTypeForReturnDiagnostic(val.Element))
 	case IteratorType:
 		return strings.TrimSpace("Iterator " + formatTypeForReturnDiagnostic(val.Element))
-	case ProcType:
-		return strings.TrimSpace("Proc " + formatTypeForReturnDiagnostic(val.Result))
 	case FutureType:
 		return strings.TrimSpace("Future " + formatTypeForReturnDiagnostic(val.Result))
 	case AppliedType:

@@ -1,0 +1,33 @@
+package exec_12_02_async_spawn_combo
+
+## Semantics: cooperative scheduling across spawned tasks; `future_yield` interleaves work, `future_flush` drains tasks, and future status/value reflect completion.
+
+fn status_name(status) -> String {
+  status match {
+    case Pending { } => "Pending",
+    case Resolved { } => "Resolved",
+    case Cancelled { } => "Cancelled",
+    case Failed { } => "Failed",
+    case _ => "Unknown"
+  }
+}
+
+fn main() -> void {
+  spawn {
+    print("spawn:start")
+    future_yield()
+    print("spawn:end")
+  }
+
+  future := spawn {
+    print("spawn:start")
+    future_yield()
+    print("spawn:end")
+    "done"
+  }
+
+  print(`future initial ${status_name(future.status())}`)
+  future_flush()
+  print(`future final ${status_name(future.status())}`)
+  print(`future value ${future.value()}`)
+}

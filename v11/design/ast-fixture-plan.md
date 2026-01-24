@@ -48,7 +48,7 @@ Each fixture directory includes an optional `manifest.json`:
 - Pattern matching & destructuring
 - Structs/unions/interfaces/impls
 - Error handling (`raise`, `rescue`, `ensure`, `expr!`)
-- Concurrency (`proc`, `spawn`, cancellation, yield)
+- Concurrency (`spawn` / `Future` handles, cancellation, yield)
 - Modules/imports (selector, wildcard, alias, privacy)
 - Host interop placeholders (ensure nodes round-trip even if not executed)
 

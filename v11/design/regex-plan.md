@@ -115,14 +115,14 @@
    - Regex execution remains in Able code using the automata primitives; no host extern hooks.
 
 4. **Caching & Thread Safety**  
-   - `RegexHandle` wraps compiled program state and is shareable across threads/procs.  
+- `RegexHandle` wraps compiled program state and is shareable across threads/tasks.  
    - Memoize compiled handles per pattern/options combination to avoid duplicate compilation.
 
 5. **RegexSet Implementation**  
    - Combine patterns into a single automaton by building a unified start state with tagged accept states.
 
 6. **Streaming Scanner**  
-   - Stdlib manages incremental matching state, chunk boundaries, and `proc`-friendly yielding.
+- Stdlib manages incremental matching state, chunk boundaries, and `future_yield`-friendly yielding.
 
 ## Testing & Tooling
 - Add Able-level unit tests covering:

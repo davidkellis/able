@@ -126,7 +126,7 @@ func applySelfPatternBindings(c *Checker, subst map[string]Type, spec Implementa
 				}
 			}
 		}
-		subst[name] = matcher.resolveTypeExpression(expr, scope)
+		subst[name] = matcher.resolveTypeExpressionWithOptions(expr, scope, typeResolutionOptions{allowTypeConstructors: true})
 	}
 }
 
@@ -569,11 +569,6 @@ func (c *Checker) typeExpressionForLabelFromType(t Type) ast.TypeExpression {
 			ast.NewSimpleTypeExpression(ast.NewIdentifier("Iterator")),
 			[]ast.TypeExpression{c.typeExpressionForLabelFromType(v.Element)},
 		)
-	case ProcType:
-		return ast.NewGenericTypeExpression(
-			ast.NewSimpleTypeExpression(ast.NewIdentifier("Proc")),
-			[]ast.TypeExpression{c.typeExpressionForLabelFromType(v.Result)},
-		)
 	case FutureType:
 		return ast.NewGenericTypeExpression(
 			ast.NewSimpleTypeExpression(ast.NewIdentifier("Future")),
@@ -722,10 +717,6 @@ func typesEquivalentForSignature(a, b Type) bool {
 			}
 		}
 		return typesEquivalentForSignature(av.Return, bv.Return)
-	case ProcType:
-		if bv, ok := b.(ProcType); ok {
-			return typesEquivalentForSignature(av.Result, bv.Result)
-		}
 	case FutureType:
 		if bv, ok := b.(FutureType); ok {
 			return typesEquivalentForSignature(av.Result, bv.Result)

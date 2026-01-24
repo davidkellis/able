@@ -1,0 +1,38 @@
+package concurrency
+
+fn slow_double(x: i32) -> i32 { x * 2 }
+
+fn main() -> void {
+  doubled := spawn do {
+    future_yield()
+    slow_double(10)
+  }
+  greeting := spawn do {
+    future_yield()
+    "hello from a task"
+  }
+
+  print(`Pending tasks before flush: ${future_pending_tasks()}`)
+  future_flush()
+
+  print(`doubled -> ${doubled.value()}`)
+  print(`greeting -> ${greeting.value()}`)
+
+  future := spawn do {
+    future_yield()
+    slow_double(5)
+  }
+  print(`first future read blocks then memoizes -> ${future.value()}`)
+  print(`second future read is memoized -> ${future.value()}`)
+
+  cancel_me := spawn do {
+    loop {
+      if future_cancelled() { break }
+      future_yield()
+    }
+  }
+
+  cancel_me.cancel()
+  future_flush()
+  print(`cancelled future status -> ${cancel_me.status()}`)
+}

@@ -1,0 +1,138 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "FunctionDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "bad_array"
+      },
+      "params": [
+        {
+          "type": "FunctionParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "value"
+          },
+          "paramType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "Array"
+            }
+          }
+        }
+      ],
+      "body": {
+        "type": "BlockExpression",
+        "body": []
+      },
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "void"
+        }
+      },
+      "isMethodShorthand": false,
+      "isPrivate": false
+    },
+    {
+      "type": "FunctionDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "bad_map"
+      },
+      "params": [
+        {
+          "type": "FunctionParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "value"
+          },
+          "paramType": {
+            "type": "GenericTypeExpression",
+            "base": {
+              "type": "SimpleTypeExpression",
+              "name": {
+                "type": "Identifier",
+                "name": "Map"
+              }
+            },
+            "arguments": [
+              {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "i32"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "body": {
+        "type": "BlockExpression",
+        "body": []
+      },
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "void"
+        }
+      },
+      "isMethodShorthand": false,
+      "isPrivate": false
+    },
+    {
+      "type": "FunctionDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "bad_mutex"
+      },
+      "params": [
+        {
+          "type": "FunctionParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "value"
+          },
+          "paramType": {
+            "type": "GenericTypeExpression",
+            "base": {
+              "type": "SimpleTypeExpression",
+              "name": {
+                "type": "Identifier",
+                "name": "Mutex"
+              }
+            },
+            "arguments": [
+              {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "i32"
+                }
+              }
+            ]
+          }
+        }
+      ],
+      "body": {
+        "type": "BlockExpression",
+        "body": []
+      },
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "void"
+        }
+      },
+      "isMethodShorthand": false,
+      "isPrivate": false
+    }
+  ]
+}

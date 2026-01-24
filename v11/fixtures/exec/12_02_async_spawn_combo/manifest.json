@@ -1,0 +1,15 @@
+{
+  "description": "spawn vs spawn scheduling with cooperative yields and future status/value",
+  "expect": {
+    "stdout": [
+      "future initial Pending",
+      "spawn:start",
+      "spawn:start",
+      "spawn:end",
+      "spawn:end",
+      "future final Resolved",
+      "future value done"
+    ],
+    "exit": 0
+  }
+}

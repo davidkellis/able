@@ -66,7 +66,6 @@ export function applyStringifyAugmentations(cls: typeof Interpreter): void {
       case "package": return `<package ${v.name}>`;
       case "impl_namespace": return `<impl ${v.def.interfaceName.name} for ${v.meta.target.type === "SimpleTypeExpression" ? v.meta.target.name.name : "target"}>`;
       case "interface_value": return `<interface ${v.interfaceName}>`;
-      case "proc_handle": return `<proc ${v.state}>`;
       case "future": return `<future ${v.state}>`;
       case "iterator": return "<iterator>";
       case "iterator_end": return "IteratorEnd";

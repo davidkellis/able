@@ -638,7 +638,7 @@ const channelConcurrencyFixtures: Fixture[] = [
         module: AST.module([
           AST.assign(
             "handle",
-            AST.procExpression(
+            AST.spawnExpression(
               AST.blockExpression([
                 AST.functionCall(
                   AST.identifier("__able_channel_send"),
@@ -711,7 +711,7 @@ const channelConcurrencyFixtures: Fixture[] = [
                       AST.memberAccessExpression(AST.identifier("err"), "message"),
                       [],
                     ),
-                    AST.stringLiteral("Proc cancelled"),
+                    AST.stringLiteral("Future cancelled"),
                   ),
                 ),
                 AST.matchClause(AST.wildcardPattern(), AST.bool(false)),
@@ -721,7 +721,7 @@ const channelConcurrencyFixtures: Fixture[] = [
           AST.arrayLiteral([AST.identifier("status_ok"), AST.identifier("value_ok")]),
         ]),
         manifest: {
-          description: "Nil channel send blocks until the proc is cancelled",
+          description: "Nil channel send blocks until the task is cancelled",
           expect: {
             result: {
               kind: "array",
@@ -739,7 +739,7 @@ const channelConcurrencyFixtures: Fixture[] = [
         module: AST.module([
           AST.assign(
             "handle",
-            AST.procExpression(
+            AST.spawnExpression(
               AST.blockExpression([
                 AST.functionCall(
                   AST.identifier("__able_channel_receive"),
@@ -812,7 +812,7 @@ const channelConcurrencyFixtures: Fixture[] = [
                       AST.memberAccessExpression(AST.identifier("err"), "message"),
                       [],
                     ),
-                    AST.stringLiteral("Proc cancelled"),
+                    AST.stringLiteral("Future cancelled"),
                   ),
                 ),
                 AST.matchClause(AST.wildcardPattern(), AST.bool(false)),
@@ -822,7 +822,7 @@ const channelConcurrencyFixtures: Fixture[] = [
           AST.arrayLiteral([AST.identifier("status_ok"), AST.identifier("value_ok")]),
         ]),
         manifest: {
-          description: "Nil channel receive blocks until the proc is cancelled",
+          description: "Nil channel receive blocks until the task is cancelled",
           expect: {
             result: {
               kind: "array",

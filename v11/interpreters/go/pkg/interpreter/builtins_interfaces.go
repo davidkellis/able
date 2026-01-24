@@ -149,7 +149,7 @@ func makeCloneImpl(typeName string) *ast.ImplementationDefinition {
 }
 
 func makeErrorImpl() *ast.ImplementationDefinition {
-	selfType := ast.NewSimpleTypeExpression(ast.NewIdentifier("ProcError"))
+	selfType := ast.NewSimpleTypeExpression(ast.NewIdentifier("FutureError"))
 
 	messageFn := ast.NewFunctionDefinition(
 		ast.NewIdentifier("message"),

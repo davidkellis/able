@@ -12,7 +12,7 @@
 | `control_flow` | `for` loop, arithmetic accumulation | ✅ |
 | `errors_rescue` | `raise`/`rescue` control flow | ✅ |
 | `structs_translate` | struct construction + destructuring assignment | ✅ |
-| `concurrency_proc` | proc memoization + `value()` reuse | ✅ |
+| `concurrency_future` | Future memoization + `value()` reuse | ✅ |
 | `generics_typeclass` | generic helpers + type arguments | ✅ |
 | `patterns_match` | `match` guards + struct patterns + ordered fallbacks | ✅ Added to parity suite (parser + mapper now stable) |
 | `patterns_destructure` | struct destructuring inside loops + matches | ✅ |
@@ -23,7 +23,7 @@
 ## Pending Examples & Blockers
 | Candidate | Desired Focus | Blockers | Notes |
 |-----------|---------------|----------|-------|
-| `channel_select` | Multi-branch `select` exercising channel send/receive readiness, default clauses, and cancellation helpers (`proc_cancelled`, `proc_flush`). | Tree-sitter + Go/TS interpreters lack `select` syntax/evaluator support; spec work tracked in `spec/todo.md` (`Channel select semantics`). | Draft the program once the parser + runtimes expose the `select` AST nodes. Should cover buffered/unbuffered channels plus cancellation. |
+| `channel_select` | Multi-branch `select` exercising channel send/receive readiness, default clauses, and cancellation helpers (`future_cancelled`, `future_flush`). | Tree-sitter + Go/TS interpreters lack `select` syntax/evaluator support; spec work tracked in `spec/todo.md` (`Channel select semantics`). | Draft the program once the parser + runtimes expose the `select` AST nodes. Should cover buffered/unbuffered channels plus cancellation. |
 
 ## Next Steps
 1. Keep the new parity samples green—update them whenever the underlying semantics change (match guards, destructuring assignment rules, or pipe semantics).

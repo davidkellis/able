@@ -200,11 +200,11 @@ type Interpreter struct {
 	nodeOrigins           map[ast.Node]string
 
 	concurrencyReady     bool
-	procErrorStruct      *runtime.StructDefinitionValue
-	procStatusStructs    map[string]*runtime.StructDefinitionValue
-	procStatusPending    runtime.Value
-	procStatusResolved   runtime.Value
-	procStatusCancelled  runtime.Value
+	futureErrorStruct      *runtime.StructDefinitionValue
+	futureStatusStructs    map[string]*runtime.StructDefinitionValue
+	futureStatusPending    runtime.Value
+	futureStatusResolved   runtime.Value
+	futureStatusCancelled  runtime.Value
 	awaitWakerStruct     *runtime.StructDefinitionValue
 	awaitRoundRobinIndex int
 
@@ -212,8 +212,8 @@ type Interpreter struct {
 	channelMu               sync.Mutex
 	channels                map[int64]*channelState
 	nextChannelHandle       int64
-	pendingChannelSends     map[*runtime.ProcHandleValue]*channelSendWaiter
-	pendingChannelReceives  map[*runtime.ProcHandleValue]*channelReceiveWaiter
+	pendingChannelSends     map[*runtime.FutureValue]*channelSendWaiter
+	pendingChannelReceives  map[*runtime.FutureValue]*channelReceiveWaiter
 	mutexMu                 sync.Mutex
 	mutexes                 map[int64]*mutexState
 	nextMutexHandle         int64
@@ -351,15 +351,15 @@ func NewWithExecutor(exec Executor) *Interpreter {
 		dynamicPackageEnvs:   make(map[string]*runtime.Environment),
 		executor:             exec,
 		rootState:            newEvalState(),
-		procStatusStructs: map[string]*runtime.StructDefinitionValue{
+		futureStatusStructs: map[string]*runtime.StructDefinitionValue{
 			"Pending":   nil,
 			"Resolved":  nil,
 			"Cancelled": nil,
 			"Failed":    nil,
 		},
 		channels:                make(map[int64]*channelState),
-		pendingChannelSends:     make(map[*runtime.ProcHandleValue]*channelSendWaiter),
-		pendingChannelReceives:  make(map[*runtime.ProcHandleValue]*channelReceiveWaiter),
+		pendingChannelSends:     make(map[*runtime.FutureValue]*channelSendWaiter),
+		pendingChannelReceives:  make(map[*runtime.FutureValue]*channelReceiveWaiter),
 		mutexes:                 make(map[int64]*mutexState),
 		concurrencyErrorStructs: make(map[string]*runtime.StructDefinitionValue),
 		standardErrorStructs:    make(map[string]*runtime.StructDefinitionValue),

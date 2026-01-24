@@ -237,7 +237,6 @@ func (p *placeholderAnalyzer) visitExpression(expr ast.Expression) error {
 		return p.visitExpression(e.Body)
 	case *ast.IteratorLiteral,
 		*ast.LambdaExpression,
-		*ast.ProcExpression,
 		*ast.SpawnExpression,
 		*ast.Identifier,
 		*ast.IntegerLiteral,

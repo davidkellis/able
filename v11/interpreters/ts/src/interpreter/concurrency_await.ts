@@ -41,28 +41,6 @@ export function applyConcurrencyAwait(cls: typeof Interpreter): void {
     }
   };
 
-  cls.prototype.registerProcAwaiter = function registerProcAwaiter(
-    this: Interpreter,
-    handle: Extract<RuntimeValue, { kind: "proc_handle" }>,
-    waker: Extract<RuntimeValue, { kind: "struct_instance" }>,
-  ): Extract<RuntimeValue, { kind: "struct_instance" }> {
-    if (!handle || handle.state !== "pending") {
-      this.invokeAwaitWaker(waker);
-      return this.makeAwaitRegistration();
-    }
-    const bucket: Set<{ waker: typeof waker; cancelled: boolean }> =
-      (handle as any).awaitRegistrations ?? new Set();
-    (handle as any).awaitRegistrations = bucket;
-    const entry = { waker, cancelled: false };
-    bucket.add(entry);
-    return this.makeAwaitRegistration(() => {
-      entry.cancelled = true;
-      bucket.delete(entry);
-      if (bucket.size === 0) {
-        delete (handle as any).awaitRegistrations;
-      }
-    });
-  };
 
   cls.prototype.registerFutureAwaiter = function registerFutureAwaiter(
     this: Interpreter,
@@ -87,20 +65,6 @@ export function applyConcurrencyAwait(cls: typeof Interpreter): void {
     });
   };
 
-  cls.prototype.triggerProcAwaiters = function triggerProcAwaiters(
-    this: Interpreter,
-    handle: Extract<RuntimeValue, { kind: "proc_handle" }>,
-  ): void {
-    const bucket: Set<{ waker: Extract<RuntimeValue, { kind: "struct_instance" }>; cancelled: boolean }> | undefined = (handle as any)
-      .awaitRegistrations;
-    if (!bucket || bucket.size === 0) return;
-    delete (handle as any).awaitRegistrations;
-    for (const entry of bucket) {
-      if (!entry.cancelled) {
-        this.invokeAwaitWaker(entry.waker);
-      }
-    }
-  };
 
   cls.prototype.triggerFutureAwaiters = function triggerFutureAwaiters(
     this: Interpreter,
@@ -136,11 +100,7 @@ export function applyConcurrencyAwait(cls: typeof Interpreter): void {
         handle.awaitBlocked = false;
         if (!handle.runner) {
           handle.runner = () => {
-            if (handle.kind === "proc_handle") {
-              this.runProcHandle(handle);
-            } else {
-              this.runFuture(handle);
-            }
+            this.runFuture(handle);
           };
         }
         this.scheduleAsync(handle.runner);

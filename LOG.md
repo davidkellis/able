@@ -1,5 +1,27 @@
 # Able Project Log
 
+# 2026-01-24 — Future handle test/fixture cleanup (v11)
+- TypeScript tests: align await stdlib integration helper with `Future.value() -> !T` by returning `!Array bool`.
+- Exec fixtures: update `12_04_future_handle_value_view` stdout expectations to match the renamed output text.
+- Go tests: disambiguate duplicate future-handle/serial-executor test names introduced during the future renames.
+- Tests: `./v11/export_fixtures.sh`; `./run_all_tests.sh --version=v11`; `./run_stdlib_tests.sh`.
+
+# 2026-01-23 — Constraint arity regression coverage (v11)
+- Typechecker (TS): added constraint interface arity diagnostics for missing/mismatched interface type arguments.
+- Fixtures/tests: added `errors/constraint_interface_arity` fixture (calls wrapped in a non-invoked helper to avoid runtime errors), plus new TS/Go typechecker regression tests for constraint arity.
+- Baseline: regenerated `v11/fixtures/ast/typecheck-baseline.json` after the fixes.
+- Tests: `./v11/export_fixtures.sh`; `cd v11/interpreters/ts && bun run scripts/run-fixtures.ts --write-typecheck-baseline`.
+
+# 2026-01-23 — Typechecker default enforcement (v11)
+- Harnesses: defaulted fixture/test/parity typechecking to strict, with explicit warn/off overrides; run_all_tests now always passes `ABLE_TYPECHECK_FIXTURES` (strict by default) into fixture/parity/Go test runs.
+- Docs: refreshed v11 + interpreter readmes and parity reporting notes to reflect strict defaults and explicit overrides.
+- Tests not run (docs + harness configuration only).
+
+# 2026-01-23 — Stdlib typecheck verification (v11)
+- Verified stdlib packages typecheck cleanly in TS + Go by importing all stdlib packages via a temporary stdlib typecheck harness.
+- Verified `.examples/foo.able` runs with strict typechecking in both interpreters.
+- Tests: `./v11/ablets check tmp/stdlib_typecheck.able`; `./v11/ablego check tmp/stdlib_typecheck.able`; `./v11/ablets .examples/foo.able`; `./v11/ablego .examples/foo.able`.
+
 # 2026-01-22 — Stdlib Eq/Ord/Hash audit (v11)
 - Stdlib: audited `v11/stdlib/src` for generic `Eq`/`Ord`/`Hash` constraints and kernel alias usage; no type-arg uses remain, so the PLAN item was cleared.
 - Tests not run (audit + plan/log updates only).
@@ -330,18 +352,18 @@
 - Tests: `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=15_02_entry_args_signature bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter -run TestExecFixtures/15_02_entry_args_signature$`.
 - Added `os.exit` runtime support (TS/Go) with CLI/fixture harness handling; added exec fixture `exec/15_03_exit_status_return_value` plus coverage/conformance updates and removed the PLAN item.
 - Tests: `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=15_03_exit_status_return_value bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter -run TestExecFixtures/15_03_exit_status_return_value$`.
-- Added exec fixture `exec/15_04_background_work_flush` to assert background procs are not awaited on exit; updated coverage/conformance and removed the PLAN item.
+- Added exec fixture `exec/15_04_background_work_flush` to assert background tasks are not awaited on exit; updated coverage/conformance and removed the PLAN item.
 - Tests: `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=15_04_background_work_flush bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter -run TestExecFixtures/15_04_background_work_flush$`.
 - Added exec fixture `exec/16_01_host_interop_inline_extern` covering extern host bindings; updated coverage/conformance and removed the PLAN item.
 - Tests: `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=16_01_host_interop_inline_extern bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter -run TestExecFixtures/16_01_host_interop_inline_extern$`.
 
 # 2025-12-28 — Exec fixtures for errors + concurrency (v11)
 - Added `exec/11_03_rescue_rethrow_standard_errors` covering arithmetic/indexing runtime errors, rescue/ensure, and rethrow semantics; updated the exec coverage index and removed the PLAN backlog item.
-- Added `exec/12_02_proc_fairness_cancellation` covering `proc_yield` fairness, cancellation via `proc_cancelled`, and `proc_flush` queue drains; updated the exec coverage index + conformance plan and removed the PLAN backlog item.
-- Added `exec/12_03_spawn_future_status_error` and `exec/12_04_proc_vs_spawn_differences` for future status/value/error propagation and proc-vs-spawn behaviour; updated the exec coverage index + conformance plan and cleared the PLAN items.
+- Added `exec/12_02_future_fairness_cancellation` covering `future_yield` fairness, cancellation via `future_cancelled`, and `future_flush` queue drains; updated the exec coverage index + conformance plan and removed the PLAN backlog item.
+- Added `exec/12_03_spawn_future_status_error` and `exec/12_04_future_handle_value_view` for future status/value/error propagation and handle/value behaviour; updated the exec coverage index + conformance plan and cleared the PLAN items.
 - Added `exec/12_05_mutex_lock_unlock` and `exec/12_06_await_fairness_cancellation` for mutex/await semantics; updated the exec coverage index + conformance plan and cleared the PLAN items.
 - TS/Go runtimes now raise standard errors (`DivisionByZeroError`, `OverflowError`, `ShiftOutOfRangeError`, `IndexError`) with `Error.value` payloads for rescue matching; `!` propagation now raises any `Error` value and index fallback returns `IndexError` payloads.
-- Tests: `cd v11/interpreters/ts && bun run scripts/export-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=11_03_rescue_rethrow_standard_errors bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=12_02_proc_fairness_cancellation bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=12_03_spawn_future_status_error bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=12_04_proc_vs_spawn_differences bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=12_05_mutex_lock_unlock bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=12_06_await_fairness_cancellation bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter`.
+- Tests: `cd v11/interpreters/ts && bun run scripts/export-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=11_03_rescue_rethrow_standard_errors bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=12_02_future_fairness_cancellation bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=12_03_spawn_future_status_error bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=12_04_future_handle_value_view bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=12_05_mutex_lock_unlock bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=12_06_await_fairness_cancellation bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter`.
 - Added `exec/12_07_channel_mutex_error_types` and `exec/13_03_package_config_prelude` for channel/mutex error payloads and package.yml root-name/prelude parsing; updated the exec coverage index + conformance plan and cleared the PLAN items.
 - Tests: `cd v11/interpreters/ts && bun run scripts/export-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=12_07_channel_mutex_error_types bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=13_03_package_config_prelude bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter -run 'TestExecFixtures/(12_07_channel_mutex_error_types|13_03_package_config_prelude)$'`.
 - Added `exec/13_04_import_alias_selective_dynimport` covering import aliases, selective renames, and dynimport bindings; updated the exec coverage index + conformance plan and removed the PLAN backlog item.
@@ -1009,3 +1031,17 @@ Open items (2025-11-02 audit):
 - Typechecker (TS): scope duplicate declaration tracking by package (prelude-safe) and allow local bindings to shadow package aliases during member access.
 - Kernel: added `__able_os_args`/`__able_os_exit` externs to `v11/kernel/src/kernel.able` for kernel/stdlib alignment.
 - Tests: `./run_stdlib_tests.sh --version=v11`; `./run_all_tests.sh --version=v11`.
+- Typechecker: enforce missing type-argument diagnostics for concrete type annotations (TS + Go), while allowing constructor targets for impls/method sets; avoid duplicate arity diagnostics for constraints.
+- Fixtures: added builtin type-arity + partial-application regression fixtures; refreshed typecheck baseline.
+- Tests: `./v11/export_fixtures.sh`; `cd v11/interpreters/ts && bun run scripts/run-fixtures.ts --write-typecheck-baseline`; `cd v11/interpreters/ts && bun test test/typechecker/constraint_arity.test.ts`; `cd v11/interpreters/go && GOCACHE=$(pwd)/.gocache go test ./pkg/typechecker`.
+- Fixtures: updated nested struct destructuring + Apply/Index dispatch fixtures to unwrap index results (`!`) so happy-path tests typecheck cleanly; refreshed typecheck baseline.
+- Tests: `./v11/export_fixtures.sh`; `cd v11/interpreters/ts && bun run scripts/run-fixtures.ts --write-typecheck-baseline`.
+- Spec: unified async model around `spawn`/`Future`, removed `proc`, renamed helpers to `future_*`, and rewrote Section 12 accordingly.
+- Design: added `v11/design/future-unification.md`; updated concurrency/AST/typechecker/stdlib design notes to align with unified Future semantics.
+- Plan: added a comprehensive implementation breakdown for the unified Future change.
+- Tests not run (docs/spec/plan changes only).
+- Parser/AST: removed `proc` keyword/`proc_expression` from tree-sitter, regenerated grammar artifacts, updated parser corpus; removed `ProcExpression` from TS/Go AST schemas and parser mappers; fixture JSON now uses `SpawnExpression`.
+- Runtime: await/channel helpers now accept future contexts (TS + Go), and `proc_cancelled` works inside spawned futures in Go.
+- Typechecker: future `cancel()` is allowed (TS + Go), and concurrency/typechecker tests updated to use spawn/future semantics.
+- Fixtures: `.able` sources updated from `proc` → `spawn`, and expected error strings updated from `Proc failed/cancelled` → `Future failed/cancelled`.
+- Tests not run (parser + runtime + fixture changes only).

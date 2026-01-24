@@ -2,8 +2,8 @@ package runtime
 
 import "testing"
 
-func TestProcHandleCancelRequestedFlag(t *testing.T) {
-	h := NewProcHandle()
+func TestFutureCancelRequestedFlag(t *testing.T) {
+	h := NewFuture()
 	if h.CancelRequested() {
 		t.Fatalf("expected cancelRequested to be false initially")
 	}
@@ -14,15 +14,14 @@ func TestProcHandleCancelRequestedFlag(t *testing.T) {
 	}
 }
 
-func TestFutureValueAwaitFailure(t *testing.T) {
-	handle := NewProcHandle()
-	future := NewFutureFromHandle(handle)
+func TestFutureAwaitFailure(t *testing.T) {
+	future := NewFuture()
 
 	errVal := ErrorValue{Message: "boom"}
-	handle.Fail(errVal)
+	future.Fail(errVal)
 
 	val, err, status := future.Await()
-	if status != ProcFailed {
+	if status != FutureFailed {
 		t.Fatalf("expected failed status, got %v", status)
 	}
 	if val != nil {
