@@ -55,6 +55,9 @@
   "errors/alias_reexport_method_ambiguity": [
     "typechecker: v11/fixtures/ast/errors/alias_reexport_method_ambiguity/source.able:8:1 typechecker: ambiguous overload for tag"
   ],
+  "errors/ambiguous_impl_generic_concrete": [
+    "typechecker: v11/fixtures/ast/errors/ambiguous_impl_generic_concrete/source.able:41:3 typechecker: ambiguous implementations of Show for Wrapper Unknown: impl Show for Wrapper T"
+  ],
   "errors/array_destructure_mismatch": [],
   "errors/array_destructure_short": [],
   "errors/bitshift_out_of_range": [],
@@ -82,6 +85,9 @@
   ],
   "errors/interface_hkt_constructor_mismatch": [
     "typechecker: v11/fixtures/ast/errors/interface_hkt_constructor_mismatch/source.able:8:1 typechecker: impl Mapper for Array i32 must match interface self type 'F _'"
+  ],
+  "errors/interface_missing_method": [
+    "typechecker: v11/fixtures/ast/errors/interface_missing_method/source.able:13:3 typechecker: fn use constraint on T is not satisfied: Widget does not implement Greeter"
   ],
   "errors/interface_self_pattern_mismatch": [
     "typechecker: v11/fixtures/ast/errors/interface_self_pattern_mismatch/source.able:13:1 typechecker: impl PointDisplay for Line must match interface self type 'Point'"

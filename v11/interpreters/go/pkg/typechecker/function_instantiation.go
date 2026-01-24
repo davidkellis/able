@@ -124,24 +124,6 @@ func (c *Checker) instantiateFunctionCall(fnType FunctionType, call *ast.Functio
 			node := ast.Node(call)
 			if argNode, ok := argNodes[inst.Obligations[i].TypeParam]; ok {
 				node = argNode
-				if call != nil {
-					clone := inst.Obligations[i]
-					clone.Node = call
-					extraObligations = append(extraObligations, clone)
-				}
-			} else if len(callArgumentNodes) > 0 && len(argTypes) == len(callArgumentNodes) {
-				obSubject := inst.Obligations[i].Subject
-				if obSubject != nil && !isUnknownType(obSubject) && !isTypeParameter(obSubject) {
-					for idx, argType := range argTypes {
-						if callArgumentNodes[idx] == nil {
-							continue
-						}
-						if typesEquivalentForSignature(argType, obSubject) {
-							node = callArgumentNodes[idx]
-							break
-						}
-					}
-				}
 			} else if call != nil {
 				if memberExpr, ok := call.Callee.(*ast.MemberAccessExpression); ok && memberExpr != nil {
 					if memberNode, ok := memberExpr.Member.(ast.Node); ok && memberNode != nil {

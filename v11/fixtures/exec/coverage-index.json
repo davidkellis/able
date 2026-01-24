@@ -955,6 +955,80 @@
     "focus": "generic constraints and interface-typed parameters dispatch across packages"
   },
   {
+    "id": "exec/10_07_interface_default_chain",
+    "status": "seeded",
+    "spec_sections": [
+      "10.1.2",
+      "10.3.4"
+    ],
+    "focus": "default methods can call other defaults through interface-typed values"
+  },
+  {
+    "id": "exec/10_08_interface_default_override",
+    "status": "seeded",
+    "spec_sections": [
+      "10.1.2",
+      "10.3.4"
+    ],
+    "focus": "default methods dispatch to overridden impl methods"
+  },
+  {
+    "id": "exec/10_09_interface_named_impl_inherent",
+    "status": "seeded",
+    "spec_sections": [
+      "10.1.2",
+      "10.3.3",
+      "9.1"
+    ],
+    "focus": "named impl defaults can call inherent methods on the receiver"
+  },
+  {
+    "id": "exec/10_10_interface_inheritance_defaults",
+    "status": "seeded",
+    "spec_sections": [
+      "10.1.2",
+      "10.3.4"
+    ],
+    "focus": "child interface values inherit base interface defaults"
+  },
+  {
+    "id": "exec/10_11_interface_generic_args_dispatch",
+    "status": "seeded",
+    "spec_sections": [
+      "10.1.1",
+      "10.3.4"
+    ],
+    "focus": "interface-typed values choose impls based on interface arguments"
+  },
+  {
+    "id": "exec/10_12_interface_union_target_dispatch",
+    "status": "seeded",
+    "spec_sections": [
+      "10.2.1",
+      "10.3.4",
+      "4.6"
+    ],
+    "focus": "union-target impls dispatch via interface dictionaries"
+  },
+  {
+    "id": "exec/10_13_interface_param_generic_args",
+    "status": "seeded",
+    "spec_sections": [
+      "10.1.1",
+      "10.3.4"
+    ],
+    "focus": "interface-typed parameters select impls using interface arguments"
+  },
+  {
+    "id": "exec/10_14_interface_return_generic_args",
+    "status": "seeded",
+    "spec_sections": [
+      "10.1.1",
+      "10.3.4"
+    ],
+    "focus": "interface-typed return values preserve interface arguments"
+  },
+  {
     "id": "exec/13_01_package_structure_modules",
     "status": "seeded",
     "spec_sections": [

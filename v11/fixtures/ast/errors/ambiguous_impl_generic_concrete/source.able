@@ -1,0 +1,42 @@
+interface Show for Self
+{
+  fn show (self: Self) -> String
+}
+interface Copyable for Self
+{
+  fn clone (self: Self) -> Self
+}
+struct Point {
+  x: i32
+}
+impl Show for Point
+{
+  fn show(self: Point) -> String {
+    return "point"
+  }
+}
+impl Copyable for Point
+{
+  fn clone(self: Point) -> Point {
+    return self
+  }
+}
+struct Wrapper <T> {
+  value: T
+}
+impl <T: Show> Show for Wrapper T
+{
+  fn show(self: Self) -> String {
+    return "show"
+  }
+}
+impl <T: Copyable> Show for Wrapper T
+{
+  fn show(self: Self) -> String {
+    return "copy"
+  }
+}
+fn main() -> void {
+  wrapped := Wrapper { value: (Point { x: 1 }) };
+  wrapped.show();
+}

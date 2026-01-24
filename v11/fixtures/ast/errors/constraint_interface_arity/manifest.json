@@ -2,9 +2,7 @@
   "description": "Constraint interface arguments must match declared arity",
   "expect": {
     "typecheckDiagnostics": [
-      "typechecker: v11/fixtures/ast/errors/constraint_interface_arity/source.able:19:3 typechecker: fn use_missing constraint on T requires 2 type argument(s) for interface 'Pair'",
       "typechecker: v11/fixtures/ast/errors/constraint_interface_arity/source.able:19:15 typechecker: fn use_missing constraint on T requires 2 type argument(s) for interface 'Pair'",
-      "typechecker: v11/fixtures/ast/errors/constraint_interface_arity/source.able:20:3 typechecker: fn use_mismatch constraint on T expected 2 type argument(s) for interface 'Pair', got 1",
       "typechecker: v11/fixtures/ast/errors/constraint_interface_arity/source.able:20:16 typechecker: fn use_mismatch constraint on T expected 2 type argument(s) for interface 'Pair', got 1"
     ]
   },

@@ -1,0 +1,10 @@
+{
+  "description": "interface-typed parameters select impls based on interface arguments",
+  "expect": {
+    "stdout": [
+      "S:p:hi",
+      "I:p:9"
+    ],
+    "exit": 0
+  }
+}

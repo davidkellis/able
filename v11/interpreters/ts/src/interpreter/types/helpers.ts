@@ -127,12 +127,23 @@ export function buildInterfaceMethodDictionary(
 ): Map<string, Extract<RuntimeValue, { kind: "function" | "function_overload" | "native_function" }>> {
   const dictionary = new Map<string, Extract<RuntimeValue, { kind: "function" | "function_overload" | "native_function" }>>();
   const ifaceTypeArgs = interfaceArgs && interfaceArgs.length > 0 ? interfaceArgs : typeArguments;
+  const baseInterfaceArgs = new Map<string, AST.TypeExpression[]>();
+  const rootIface = ctx.interfaces.get(interfaceName);
+  if (rootIface?.baseInterfaces) {
+    for (const base of rootIface.baseInterfaces) {
+      const info = ctx.parseTypeExpression(base);
+      if (info?.name) {
+        baseInterfaceArgs.set(info.name, info.typeArgs ?? []);
+      }
+    }
+  }
   const dispatchSets = collectInterfaceDispatchSets(ctx, interfaceName);
   const collect = (
     ifaceName: string,
     targetTypeName: string,
     targetTypeArgs?: AST.TypeExpression[],
     targetTypeArgMap?: Map<string, AST.TypeExpression>,
+    ifaceArgs?: AST.TypeExpression[],
   ): void => {
     const ifaceDef = ctx.interfaces.get(ifaceName);
     if (!ifaceDef || !Array.isArray(ifaceDef.signatures)) return;
@@ -147,6 +158,7 @@ export function buildInterfaceMethodDictionary(
         typeArgs: targetTypeArgs,
         typeArgMap: targetTypeArgMap,
         interfaceName: ifaceName,
+        interfaceArgs: ifaceArgs,
         includeInherent: false,
       });
       if (method) {
@@ -175,7 +187,8 @@ export function buildInterfaceMethodDictionary(
     }
   };
   for (const ifaceName of dispatchSets.baseInterfaces) {
-    collect(ifaceName, typeName, typeArguments, typeArgMap);
+    const args = ifaceName === interfaceName ? interfaceArgs : baseInterfaceArgs.get(ifaceName);
+    collect(ifaceName, typeName, typeArguments, typeArgMap, args);
   }
   for (const ifaceName of dispatchSets.implInterfaces) {
     collect(ifaceName, interfaceName, ifaceTypeArgs);

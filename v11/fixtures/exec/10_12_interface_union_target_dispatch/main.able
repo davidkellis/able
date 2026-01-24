@@ -1,0 +1,26 @@
+package exec_10_12_interface_union_target_dispatch
+
+## Semantics: union-target impls dispatch through interface dictionaries.
+
+interface Tag for Self {
+  fn tag(self: Self) -> String
+}
+
+struct Alpha {}
+struct Beta {}
+
+impl Tag for Alpha | Beta {
+  fn tag(self: Self) -> String {
+    self match {
+      case Alpha => "alpha",
+      case Beta => "beta",
+    }
+  }
+}
+
+fn main() -> void {
+  first: Tag = Alpha {}
+  second: Tag = Beta {}
+  print(first.tag())
+  print(second.tag())
+}

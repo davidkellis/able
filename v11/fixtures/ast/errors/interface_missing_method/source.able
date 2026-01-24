@@ -1,0 +1,14 @@
+interface Greeter for Self
+{
+  fn greet (self: Self) -> String
+}
+struct Widget {
+  id: i32
+}
+fn use<T: Greeter>(value: T) -> String {
+  value.greet();
+}
+fn main() -> void {
+  widget := Widget { id: 1 };
+  use(widget);
+}
