@@ -164,15 +164,15 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 			if _, ok := i.interfaces[name]; ok {
 				switch v := value.(type) {
 				case *runtime.InterfaceValue:
-					return i.interfaceMatches(v, name)
+					return i.interfaceMatches(v, name, nil)
 				case runtime.InterfaceValue:
-					return i.interfaceMatches(&v, name)
+					return i.interfaceMatches(&v, name, nil)
 				default:
 					info, ok := i.getTypeInfoForValue(value)
 					if !ok {
 						return false
 					}
-					okImpl, err := i.typeImplementsInterface(info, name, make(map[string]struct{}))
+					okImpl, err := i.typeImplementsInterface(info, name, nil, make(map[string]struct{}))
 					return err == nil && okImpl
 				}
 			}
@@ -249,7 +249,7 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 				}
 			}
 			if info, ok := i.getTypeInfoForValue(value); ok {
-				okImpl, err := i.typeImplementsInterface(info, "Error", make(map[string]struct{}))
+				okImpl, err := i.typeImplementsInterface(info, "Error", nil, make(map[string]struct{}))
 				return err == nil && okImpl
 			}
 			return false
@@ -264,15 +264,15 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 			if _, ok := i.interfaces[baseName]; ok {
 				switch v := value.(type) {
 				case *runtime.InterfaceValue:
-					return i.interfaceMatches(v, baseName)
+					return i.interfaceMatches(v, baseName, t.Arguments)
 				case runtime.InterfaceValue:
-					return i.interfaceMatches(&v, baseName)
+					return i.interfaceMatches(&v, baseName, t.Arguments)
 				default:
 					info, ok := i.getTypeInfoForValue(value)
 					if !ok {
 						return false
 					}
-					okImpl, err := i.typeImplementsInterface(info, baseName, make(map[string]struct{}))
+					okImpl, err := i.typeImplementsInterface(info, baseName, t.Arguments, make(map[string]struct{}))
 					return err == nil && okImpl
 				}
 			}
@@ -340,7 +340,7 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 			}
 		}
 		if info, ok := i.getTypeInfoForValue(value); ok {
-			okImpl, err := i.typeImplementsInterface(info, "Error", make(map[string]struct{}))
+			okImpl, err := i.typeImplementsInterface(info, "Error", nil, make(map[string]struct{}))
 			return err == nil && okImpl
 		}
 		return false

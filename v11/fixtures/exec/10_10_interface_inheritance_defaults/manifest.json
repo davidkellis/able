@@ -1,0 +1,10 @@
+{
+  "description": "child interfaces inherit default methods from base interfaces",
+  "expect": {
+    "stdout": [
+      "P:id-3",
+      "C:P:id-3"
+    ],
+    "exit": 0
+  }
+}

@@ -1,0 +1,18 @@
+package exec_10_07_interface_default_chain
+
+## Semantics: default interface methods can chain to other defaults.
+
+interface Chain for Self {
+  fn b(self: Self) -> String { "b" }
+  fn a(self: Self) -> String { `a:${self.b()}` }
+}
+
+struct Widget { id: i32 }
+
+impl Chain for Widget {}
+
+fn main() -> void {
+  value: Chain = Widget { id: 1 }
+  print(value.a())
+  print(value.b())
+}

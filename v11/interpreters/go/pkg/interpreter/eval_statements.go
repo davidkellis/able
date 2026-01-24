@@ -397,7 +397,13 @@ func (i *Interpreter) resolveIteratorValue(iterable runtime.Value, env *runtime.
 }
 
 func (i *Interpreter) adaptIteratorValue(candidate runtime.Value, env *runtime.Environment) (*runtime.IteratorValue, error) {
+	if iter, ok := candidate.(*runtime.IteratorValue); ok && iter != nil {
+		return iter, nil
+	}
 	if iface, ok := candidate.(*runtime.InterfaceValue); ok && iface != nil {
+		return i.adaptIteratorValue(iface.Underlying, env)
+	}
+	if iface, ok := candidate.(runtime.InterfaceValue); ok {
 		return i.adaptIteratorValue(iface.Underlying, env)
 	}
 	inst, ok := candidate.(*runtime.StructInstanceValue)

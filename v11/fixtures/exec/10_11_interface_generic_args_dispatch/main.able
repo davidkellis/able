@@ -1,0 +1,25 @@
+package exec_10_11_interface_generic_args_dispatch
+
+## Semantics: interface-typed values select impls using interface arguments.
+
+interface Formatter <T> for Self {
+  fn format(self: Self, value: T) -> String
+}
+
+struct Printer { tag: String }
+
+impl Formatter String for Printer {
+  fn format(self: Self, value: String) -> String { `S:${self.tag}:${value}` }
+}
+
+impl Formatter i32 for Printer {
+  fn format(self: Self, value: i32) -> String { `I:${self.tag}:${value}` }
+}
+
+fn main() -> void {
+  printer := Printer { tag: "p" }
+  as_string: Formatter String = printer
+  as_int: Formatter i32 = printer
+  print(as_string.format("hi"))
+  print(as_int.format(7))
+}

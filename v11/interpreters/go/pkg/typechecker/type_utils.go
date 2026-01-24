@@ -58,7 +58,14 @@ func formatType(t Type) string {
 	case StructType:
 		return val.StructName
 	case StructInstanceType:
-		return val.StructName
+		if len(val.TypeArgs) == 0 {
+			return val.StructName
+		}
+		args := make([]string, len(val.TypeArgs))
+		for i, arg := range val.TypeArgs {
+			args[i] = formatType(arg)
+		}
+		return strings.TrimSpace(val.StructName + " " + strings.Join(args, " "))
 	case InterfaceType:
 		return val.InterfaceName
 	case AliasType:

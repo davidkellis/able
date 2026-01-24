@@ -247,7 +247,7 @@ func (i *Interpreter) findIndexMethod(val runtime.Value, methodName string, ifac
 	if !ok {
 		return nil, nil
 	}
-	return i.findMethod(info, methodName, iface)
+	return i.findMethod(info, methodName, iface, nil)
 }
 
 func (i *Interpreter) findApplyMethod(val runtime.Value) (runtime.Value, error) {
@@ -262,7 +262,7 @@ func (i *Interpreter) findApplyMethod(val runtime.Value) (runtime.Value, error) 
 	if !ok {
 		return nil, nil
 	}
-	return i.findMethod(info, "apply", "Apply")
+	return i.findMethod(info, "apply", "Apply", nil)
 }
 
 func indexFromValue(val runtime.Value) (int, error) {
@@ -447,7 +447,7 @@ func (i *Interpreter) structDefinitionMember(def *runtime.StructDefinitionValue,
 		method, found = bucket[ident.Name]
 	}
 	if !found {
-		candidate, err := i.findMethod(typeInfo{name: typeName}, ident.Name, "")
+		candidate, err := i.findMethod(typeInfo{name: typeName}, ident.Name, "", nil)
 		if err != nil {
 			return nil, err
 		}
@@ -523,7 +523,7 @@ func (i *Interpreter) typeRefMember(ref runtime.TypeRefValue, member ast.Express
 		method, found = bucket[ident.Name]
 	}
 	if !found {
-		candidate, err := i.findMethod(typeInfo{name: typeName, typeArgs: ref.TypeArgs}, ident.Name, "")
+		candidate, err := i.findMethod(typeInfo{name: typeName, typeArgs: ref.TypeArgs}, ident.Name, "", nil)
 		if err != nil {
 			return nil, err
 		}
@@ -634,7 +634,7 @@ func (i *Interpreter) interfaceMember(val *runtime.InterfaceValue, member ast.Ex
 	}
 	if method == nil {
 		if info, ok := i.getTypeInfoForValue(val.Underlying); ok {
-			resolved, err := i.findMethod(info, ident.Name, ifaceName)
+			resolved, err := i.findMethod(info, ident.Name, ifaceName, val.InterfaceArgs)
 			if err != nil {
 				return nil, err
 			}
@@ -655,7 +655,31 @@ func (i *Interpreter) interfaceMember(val *runtime.InterfaceValue, member ast.Ex
 			return nil, fmt.Errorf("Method '%s' on %s is private", ident.Name, ifaceName)
 		}
 	}
-	return &runtime.BoundMethodValue{Receiver: val.Underlying, Method: method}, nil
+	switch fn := method.(type) {
+	case runtime.NativeFunctionValue:
+		return &runtime.NativeBoundMethodValue{Receiver: val.Underlying, Method: fn}, nil
+	case *runtime.NativeFunctionValue:
+		if fn == nil {
+			return nil, fmt.Errorf("native method '%s' is nil", ident.Name)
+		}
+		return &runtime.NativeBoundMethodValue{Receiver: val.Underlying, Method: *fn}, nil
+	case runtime.NativeBoundMethodValue:
+		return &runtime.NativeBoundMethodValue{Receiver: val.Underlying, Method: fn.Method}, nil
+	case *runtime.NativeBoundMethodValue:
+		if fn == nil {
+			return nil, fmt.Errorf("native method '%s' is nil", ident.Name)
+		}
+		return &runtime.NativeBoundMethodValue{Receiver: val.Underlying, Method: fn.Method}, nil
+	case runtime.BoundMethodValue:
+		return &runtime.BoundMethodValue{Receiver: val.Underlying, Method: fn.Method}, nil
+	case *runtime.BoundMethodValue:
+		if fn == nil {
+			return nil, fmt.Errorf("method '%s' is nil", ident.Name)
+		}
+		return &runtime.BoundMethodValue{Receiver: val.Underlying, Method: fn.Method}, nil
+	default:
+		return &runtime.BoundMethodValue{Receiver: val.Underlying, Method: method}, nil
+	}
 }
 
 func (i *Interpreter) resolveDynRef(ref runtime.DynRefValue) (runtime.Value, error) {

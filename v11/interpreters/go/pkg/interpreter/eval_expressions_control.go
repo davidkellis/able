@@ -41,7 +41,7 @@ func (i *Interpreter) isTruthy(val runtime.Value) bool {
 		}
 	}
 	if info, ok := i.getTypeInfoForValue(val); ok {
-		if entry, _ := i.lookupImplEntry(info, "Error"); entry != nil {
+		if entry, _ := i.lookupImplEntry(info, "Error", nil); entry != nil {
 			return false
 		}
 	}

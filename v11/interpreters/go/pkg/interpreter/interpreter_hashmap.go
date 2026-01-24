@@ -412,7 +412,7 @@ func (i *Interpreter) resolveInterfaceMethod(receiver runtime.Value, interfaceNa
 	if !ok {
 		return nil, nil
 	}
-	return i.findMethod(info, methodName, interfaceName)
+	return i.findMethod(info, methodName, interfaceName, nil)
 }
 
 func (i *Interpreter) newKernelHasher() (runtime.Value, error) {

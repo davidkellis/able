@@ -1,0 +1,10 @@
+{
+  "description": "function return types preserve interface arguments for interface values",
+  "expect": {
+    "stdout": [
+      "S:p:hi",
+      "I:p:4"
+    ],
+    "exit": 0
+  }
+}

@@ -540,15 +540,6 @@ function collectSignatureWhereObligations(
     }
     obligations.push({ typeParam, interfaceName, interfaceType: interfaceType ?? undefined, context, subjectExpr });
   };
-  if (Array.isArray(signature.genericParams)) {
-    for (const param of signature.genericParams) {
-      const paramName = ctx.getIdentifierName(param?.name);
-      if (!paramName || !Array.isArray(param?.constraints)) continue;
-      for (const constraint of param.constraints) {
-        appendObligation(paramName, constraint?.interfaceType, "generic constraint");
-      }
-    }
-  }
   if (Array.isArray(signature.whereClause)) {
     for (const clause of signature.whereClause) {
       const subjectExpr = clause?.typeParam;

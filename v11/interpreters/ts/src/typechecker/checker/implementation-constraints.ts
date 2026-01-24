@@ -22,6 +22,7 @@ import type {
   InterfaceCheckResult,
   MethodSetRecord,
 } from "./types";
+import { extractLocation } from "./types";
 
 function methodDefinitionHasImplicitSelf(ctx: ImplementationContext, method: AST.FunctionDefinition): boolean {
   if (Array.isArray(method.params) && method.params.length > 0) {
@@ -156,11 +157,12 @@ export function enforceFunctionConstraints(
     info.genericConstraints.forEach((constraint, index) => {
       const typeArgExpr = typeArgs[index];
       const typeArg = ctx.resolveTypeExpression(typeArgExpr);
+      const constraintNode = extractLocation(typeArgExpr) ? typeArgExpr : call;
       if (!constraint.interfaceDefined) {
         const message = info.structName
           ? `typechecker: methods for ${info.structName}::${info.name} constraint on ${constraint.paramName} references unknown interface '${constraint.interfaceName}'`
           : `typechecker: fn ${info.name} constraint on ${constraint.paramName} references unknown interface '${constraint.interfaceName}'`;
-        ctx.report(message, typeArgExpr ?? call);
+        ctx.report(message, constraintNode);
         return;
       }
       const expectedArgs = resolveConstraintInterfaceArgs(
@@ -170,7 +172,7 @@ export function enforceFunctionConstraints(
         substitutions,
         ownerLabel,
         constraint.paramName,
-        typeArgExpr ?? call,
+        constraintNode,
       );
       if (!expectedArgs) {
         return;
@@ -182,7 +184,7 @@ export function enforceFunctionConstraints(
         const message = info.structName
           ? `typechecker: methods for ${info.structName}::${info.name} constraint on ${constraint.paramName} is not satisfied: ${typeName} does not implement ${constraint.interfaceName}${detailSuffix}`
           : `typechecker: fn ${info.name} constraint on ${constraint.paramName} is not satisfied: ${typeName} does not implement ${constraint.interfaceName}${detailSuffix}`;
-        ctx.report(message, typeArgExpr ?? call);
+        ctx.report(message, constraintNode);
       }
     });
   }

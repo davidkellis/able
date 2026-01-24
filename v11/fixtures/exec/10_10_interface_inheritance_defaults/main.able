@@ -1,0 +1,26 @@
+package exec_10_10_interface_inheritance_defaults
+
+## Semantics: interface inheritance propagates default methods to child interface values.
+
+interface Parent for Self {
+  fn tag(self: Self) -> String
+  fn label(self: Self) -> String { `P:${self.tag()}` }
+}
+
+interface Child for Self: Parent {
+  fn child(self: Self) -> String { `C:${self.label()}` }
+}
+
+struct Widget { id: i32 }
+
+impl Parent for Widget {
+  fn tag(self: Self) -> String { `id-${self.id}` }
+}
+
+impl Child for Widget {}
+
+fn main() -> void {
+  value: Child = Widget { id: 3 }
+  print(value.label())
+  print(value.child())
+}

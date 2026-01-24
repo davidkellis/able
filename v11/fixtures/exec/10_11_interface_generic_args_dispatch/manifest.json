@@ -1,0 +1,10 @@
+{
+  "description": "interface arguments participate in interface dictionary selection",
+  "expect": {
+    "stdout": [
+      "S:p:hi",
+      "I:p:7"
+    ],
+    "exit": 0
+  }
+}

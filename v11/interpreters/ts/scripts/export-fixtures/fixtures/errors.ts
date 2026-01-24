@@ -515,12 +515,10 @@ const errorsFixtures: Fixture[] = [
       manifest: {
         description: "Constraint interface arguments must match declared arity",
         expect: {
-          typecheckDiagnostics: [
-            "typechecker: v11/fixtures/ast/errors/constraint_interface_arity/source.able:19:3 typechecker: fn use_missing constraint on T requires 2 type argument(s) for interface 'Pair'",
+        typecheckDiagnostics: [
             "typechecker: v11/fixtures/ast/errors/constraint_interface_arity/source.able:19:15 typechecker: fn use_missing constraint on T requires 2 type argument(s) for interface 'Pair'",
-            "typechecker: v11/fixtures/ast/errors/constraint_interface_arity/source.able:20:3 typechecker: fn use_mismatch constraint on T expected 2 type argument(s) for interface 'Pair', got 1",
             "typechecker: v11/fixtures/ast/errors/constraint_interface_arity/source.able:20:16 typechecker: fn use_mismatch constraint on T expected 2 type argument(s) for interface 'Pair', got 1",
-          ],
+        ],
         },
       },
     },
@@ -811,6 +809,176 @@ const errorsFixtures: Fixture[] = [
           errors: ["Ambiguous overload for tag"],
           typecheckDiagnostics: [
             "typechecker: v11/fixtures/ast/errors/ufcs_overload_ambiguity/source.able:11:1 typechecker: no overloads of tag match provided arguments",
+          ],
+        },
+      },
+    },
+  {
+      name: "errors/ambiguous_impl_generic_concrete",
+      module: AST.module([
+        AST.interfaceDefinition(
+          "Show",
+          [
+            AST.functionSignature(
+              "show",
+              [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
+              AST.simpleTypeExpression("String"),
+            ),
+          ],
+          undefined,
+          AST.simpleTypeExpression("Self"),
+        ),
+        AST.interfaceDefinition(
+          "Copyable",
+          [
+            AST.functionSignature(
+              "clone",
+              [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
+              AST.simpleTypeExpression("Self"),
+            ),
+          ],
+          undefined,
+          AST.simpleTypeExpression("Self"),
+        ),
+        AST.structDefinition(
+          "Point",
+          [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "x")],
+          "named",
+        ),
+        AST.implementationDefinition(
+          "Show",
+          AST.simpleTypeExpression("Point"),
+          [
+            AST.fn(
+              "show",
+              [AST.param("self", AST.simpleTypeExpression("Point"))],
+              [AST.ret(AST.stringLiteral("point"))],
+              AST.simpleTypeExpression("String"),
+            ),
+          ],
+        ),
+        AST.implementationDefinition(
+          "Copyable",
+          AST.simpleTypeExpression("Point"),
+          [
+            AST.fn(
+              "clone",
+              [AST.param("self", AST.simpleTypeExpression("Point"))],
+              [AST.ret(AST.id("self"))],
+              AST.simpleTypeExpression("Point"),
+            ),
+          ],
+        ),
+        AST.structDefinition(
+          "Wrapper",
+          [AST.structFieldDefinition(AST.simpleTypeExpression("T"), "value")],
+          "named",
+          [AST.genericParameter("T")],
+        ),
+        AST.implementationDefinition(
+          "Show",
+          AST.genericTypeExpression(AST.simpleTypeExpression("Wrapper"), [AST.simpleTypeExpression("T")]),
+          [
+            AST.fn(
+              "show",
+              [AST.param("self", AST.simpleTypeExpression("Self"))],
+              [AST.ret(AST.stringLiteral("show"))],
+              AST.simpleTypeExpression("String"),
+            ),
+          ],
+          undefined,
+          [AST.genericParameter("T", [AST.interfaceConstraint(AST.simpleTypeExpression("Show"))])],
+        ),
+        AST.implementationDefinition(
+          "Show",
+          AST.genericTypeExpression(AST.simpleTypeExpression("Wrapper"), [AST.simpleTypeExpression("T")]),
+          [
+            AST.fn(
+              "show",
+              [AST.param("self", AST.simpleTypeExpression("Self"))],
+              [AST.ret(AST.stringLiteral("copy"))],
+              AST.simpleTypeExpression("String"),
+            ),
+          ],
+          undefined,
+          [AST.genericParameter("T", [AST.interfaceConstraint(AST.simpleTypeExpression("Copyable"))])],
+        ),
+        AST.fn(
+          "main",
+          [],
+          [
+            AST.assign(
+              "wrapped",
+              AST.structLiteral(
+                [
+                  AST.structFieldInitializer(
+                    AST.structLiteral([AST.structFieldInitializer(AST.int(1), "x")], false, "Point"),
+                    "value",
+                  ),
+                ],
+                false,
+                "Wrapper",
+              ),
+            ),
+            AST.call(AST.member(AST.id("wrapped"), "show")),
+          ],
+          AST.simpleTypeExpression("void"),
+        ),
+      ]),
+      manifest: {
+        description: "Ambiguous impls with incomparable generic constraints on the same target",
+        expect: {
+          typecheckDiagnostics: [
+            "typechecker: v11/fixtures/ast/errors/ambiguous_impl_generic_concrete/source.able:41:3 typechecker: ambiguous implementations of Show for Wrapper Unknown: impl Show for Wrapper T",
+          ],
+        },
+      },
+    },
+  {
+      name: "errors/interface_missing_method",
+      module: AST.module([
+        AST.interfaceDefinition(
+          "Greeter",
+          [
+            AST.functionSignature(
+              "greet",
+              [AST.functionParameter("self", AST.simpleTypeExpression("Self"))],
+              AST.simpleTypeExpression("String"),
+            ),
+          ],
+          undefined,
+          AST.simpleTypeExpression("Self"),
+        ),
+        AST.structDefinition(
+          "Widget",
+          [AST.structFieldDefinition(AST.simpleTypeExpression("i32"), "id")],
+          "named",
+        ),
+        AST.fn(
+          "use",
+          [AST.param("value", AST.simpleTypeExpression("T"))],
+          [AST.call(AST.member(AST.id("value"), "greet"))],
+          AST.simpleTypeExpression("String"),
+          [AST.genericParameter("T", [AST.interfaceConstraint(AST.simpleTypeExpression("Greeter"))])],
+        ),
+        AST.fn(
+          "main",
+          [],
+          [
+            AST.assign(
+              "widget",
+              AST.structLiteral([AST.structFieldInitializer(AST.int(1), "id")], false, "Widget"),
+            ),
+            AST.call("use", AST.id("widget")),
+          ],
+          AST.simpleTypeExpression("void"),
+        ),
+      ]),
+      manifest: {
+        description: "Missing interface methods surface via generic constraints",
+        expect: {
+          typecheckDiagnostics: [
+            "typechecker: v11/fixtures/ast/errors/interface_missing_method/source.able:13:3 typechecker: fn use constraint on T is not satisfied: Widget does not implement Greeter",
           ],
         },
       },

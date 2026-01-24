@@ -1,0 +1,9 @@
+{
+  "description": "default methods dispatch to overridden impl methods",
+  "expect": {
+    "stdout": [
+      "desc:neo"
+    ],
+    "exit": 0
+  }
+}
