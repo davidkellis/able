@@ -44,3 +44,22 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 - It is expected that some new fixtures will fail due to interpreter bugs/deficiencies.We should implement fixtures strictly in accordance with the v11 spec semantics. Do not weaken or sidestep the behavior under test to "make tests pass". If a fixture fails under a given interpreter, follow up by fixing the interpreter so the implementation honors the spec. The interpreters should perfectly implement all the semantics described in the v11 spec. You need to figure out whether each of the fixture failures is due to a bug in the typechecker, or an issue with the expectation encoded in the test fixture, because you have encoded a bunch of expectations in the fixtures to assume that the typechecker will emit an error that in the past you had just ignored as a means to work around a limitation in the typechecker. We are in a state now where the fixtures didn't trust the typechecker to produce a correct results, and so you  worked around those previous typechecker limitations by just "baselining" them with an understanding that errors would be emitted but you would ignore them and just  run things without the typechecker. We made a lot of progress like that, but now it's time to correct that approach. We should never ignore errors or warnings and just work around them like we did in the past. Now it is time to correct those mistakes. When we observe failures, you need to figure out if the failure is due to a bug in the typechecker or a bug in the interpreter or if the expectation encoded in the test fixture (or elsewhere) is an incorrect expectation that should no longer be expected or assumed, because the most important thing is that we have correct language semantics and we judge correctness by conformance to the v11 spec. All behavior must conform to the v11 spec. Any test expectation that doesn't conform to the v11 spec's well-defined semantics should be changed to conform to the v11 spec.
 
 ## TODO (working queue: tackle in order, move completed items to LOG.md)
+- Compiler/interpreter vision: typed core IR + runtime ABI implementation track
+  - Define the concrete IR node set and type system (values, blocks, control flow, call/impl dispatch, async/await surfaces).
+  - Add an IR serialization format (JSON + stable schema) and a small loader for tests/tooling.
+  - Implement a lowering pass from AST → IR with type annotations (start with literals, bindings, blocks, calls).
+  - Add an IR interpreter or verification pass to validate execution semantics against the tree-walker.
+  - Add conformance fixtures that execute both AST and IR paths (shared harness).
+  - Update `v11/design/compiler-interpreter-vision.md` as the IR contract stabilizes.
+- Interpreter performance track: bytecode VM expansion
+  - Expand bytecode instruction set (control flow, functions/closures, structs, arrays, member access, interface dispatch).
+  - Lower more AST nodes to bytecode; keep tree-walker fallback for unsupported nodes.
+  - Add VM/AST parity tests for each newly supported feature (unit + fixtures).
+  - Gate VM behind a CLI/runtime flag and add perf harness to compare VM vs tree-walker.
+  - Document the bytecode format + calling convention in `v11/design/compiler-interpreter-vision.md`.
+- Regex parser + quantifiers (syntax-level)
+  - Add regex AST nodes and grammar in tree-sitter (quantifiers, groups, classes, alternation).
+  - Wire AST mapping for regex nodes in TS + Go parsers.
+  - Add fixtures/tests for regex AST output and exec behavior; keep stdlib engine parity.
+  - Update `spec/TODO_v11.md` with remaining regex syntax/semantics gaps.
+  - Align stdlib regex implementation with parser outputs as grammar coverage expands.

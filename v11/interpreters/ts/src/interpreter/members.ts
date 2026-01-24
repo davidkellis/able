@@ -1,5 +1,6 @@
 import * as AST from "../ast";
 import { Environment } from "./environment";
+import { IMPL_NAMESPACE_BINDING } from "./impl_namespace";
 import type { Interpreter } from "./index";
 import type { RuntimeValue } from "./values";
 
@@ -22,6 +23,15 @@ export function applyMemberAugmentations(cls: typeof Interpreter): void {
     receiver: RuntimeValue,
     opts?: { interfaceName?: string },
   ): Extract<RuntimeValue, { kind: "bound_method" }> | null {
+    let implNamespace: Extract<RuntimeValue, { kind: "impl_namespace" }> | null = null;
+    if (env?.has(IMPL_NAMESPACE_BINDING)) {
+      try {
+        const binding = env.get(IMPL_NAMESPACE_BINDING);
+        if (binding?.kind === "impl_namespace") {
+          implNamespace = binding;
+        }
+      } catch {}
+    }
     const typeName = this.getTypeNameForValue(receiver);
     let typeArgs = receiver.kind === "struct_instance" ? receiver.typeArguments : undefined;
     const typeArgMap = receiver.kind === "struct_instance" ? receiver.typeArgMap : undefined;
@@ -67,6 +77,30 @@ export function applyMemberAugmentations(cls: typeof Interpreter): void {
         candidates.push(fn);
       }
     };
+
+    if (
+      implNamespace &&
+      (!opts?.interfaceName || opts.interfaceName === implNamespace.meta.interfaceName) &&
+      this.matchesType(implNamespace.meta.target, receiver)
+    ) {
+      const implMethod = implNamespace.symbols.get(funcName);
+      if (implMethod) {
+        const instanceCallable = selectInstanceCallable(implMethod, receiver, this);
+        if (instanceCallable) {
+          const privacyContext = implNamespace.def.implName?.name ?? implNamespace.meta.interfaceName;
+          const functions = instanceCallable.kind === "function_overload"
+            ? instanceCallable.overloads
+            : [instanceCallable];
+          for (const fn of functions) {
+            if (!fn) continue;
+            if (fn.node?.type === "FunctionDefinition" && fn.node.isPrivate) {
+              throw new Error(`Method '${funcName}' on ${privacyContext} is private`);
+            }
+          }
+          return { kind: "bound_method", func: instanceCallable, self: receiver };
+        }
+      }
+    }
 
     for (const name of candidateTypeNames) {
       const bucket = this.inherentMethods.get(name);

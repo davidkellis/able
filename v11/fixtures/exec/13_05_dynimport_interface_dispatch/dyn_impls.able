@@ -1,0 +1,13 @@
+package dyn_impls
+
+import exec_13_05_dynimport_interface_dispatch.iface_defs.{Greeter}
+
+struct Person { name: String }
+
+impl Greeter for Person {
+  fn greet(self: Self) -> String { `hi ${self.name}` }
+}
+
+fn make(name: String) -> Greeter {
+  Person { name }
+}

@@ -1,0 +1,13 @@
+{
+  "description": "named impls across packages use default interface methods and stay explicit",
+  "setup": ["iface_defs.able", "types.able", "impls_fancy.able", "impls_plain.able"],
+  "expect": {
+    "stdout": [
+      "desc:fancy-7",
+      "desc:plain-7",
+      "fancy-7",
+      "plain-7"
+    ],
+    "exit": 0
+  }
+}

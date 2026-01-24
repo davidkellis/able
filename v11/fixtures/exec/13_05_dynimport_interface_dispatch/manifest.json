@@ -1,0 +1,10 @@
+{
+  "description": "dynimported packages can return interface-typed values with working dispatch",
+  "setup": ["iface_defs.able", "dyn_impls.able"],
+  "expect": {
+    "stdout": [
+      "hi Ada"
+    ],
+    "exit": 0
+  }
+}

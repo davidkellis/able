@@ -8,6 +8,13 @@ import (
 	"able/interpreter-go/pkg/runtime"
 )
 
+type implMethodContext struct {
+	implName      string
+	interfaceName string
+	target        ast.TypeExpression
+	methods       map[string]runtime.Value
+}
+
 func (i *Interpreter) resolveMethodFromPool(env *runtime.Environment, funcName string, receiver runtime.Value, ifaceFilter string) (runtime.Value, error) {
 	functionCandidates := make([]*runtime.FunctionValue, 0)
 	nativeCandidates := make([]runtime.Value, 0)
@@ -118,6 +125,25 @@ func (i *Interpreter) resolveMethodFromPool(env *runtime.Environment, funcName s
 			nativeCandidates = append(nativeCandidates, *fn)
 		}
 		return nil
+	}
+
+	if env != nil {
+		if data := env.RuntimeData(); data != nil {
+			if ctx, ok := data.(*implMethodContext); ok && ctx != nil && ctx.target != nil && receiver != nil {
+				if ifaceFilter == "" || ifaceFilter == ctx.interfaceName {
+					if i.matchesType(ctx.target, receiver) {
+						if method := ctx.methods[funcName]; method != nil {
+							if callable, ok := i.selectUfcsCallable(method, receiver, true, nil); ok {
+								if err := checkPrivateMethod(funcName, ctx.implName, callable); err != nil {
+									return nil, err
+								}
+								return &runtime.BoundMethodValue{Receiver: receiver, Method: callable}, nil
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 
 	if hasInfo {
@@ -312,6 +338,35 @@ func (i *Interpreter) selectUfcsCallable(method runtime.Value, receiver runtime.
 	default:
 		return nil, false
 	}
+}
+
+func checkPrivateMethod(funcName, context string, callable runtime.Value) error {
+	name := context
+	if name == "" {
+		name = "<unknown>"
+	}
+	switch fn := callable.(type) {
+	case *runtime.FunctionValue:
+		if fn == nil {
+			return nil
+		}
+		if def, ok := fn.Declaration.(*ast.FunctionDefinition); ok && def != nil && def.IsPrivate {
+			return fmt.Errorf("Method '%s' on %s is private", funcName, name)
+		}
+	case *runtime.FunctionOverloadValue:
+		if fn == nil {
+			return nil
+		}
+		for _, entry := range fn.Overloads {
+			if entry == nil {
+				continue
+			}
+			if def, ok := entry.Declaration.(*ast.FunctionDefinition); ok && def != nil && def.IsPrivate {
+				return fmt.Errorf("Method '%s' on %s is private", funcName, name)
+			}
+		}
+	}
+	return nil
 }
 
 func functionExpectsSelf(fn *runtime.FunctionValue) bool {
