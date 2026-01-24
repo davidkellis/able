@@ -276,6 +276,13 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 		}
 	}
 	if canonicalDef.ImplName != nil {
+		implCtx := &implMethodContext{
+			implName:      canonicalDef.ImplName.Name,
+			interfaceName: canonicalDef.InterfaceName.Name,
+			target:        canonicalDef.TargetType,
+			methods:       methods,
+		}
+		attachImplMethodContext(methods, implCtx)
 		name := canonicalDef.ImplName.Name
 		implVal := runtime.ImplementationNamespaceValue{
 			Name:          canonicalDef.ImplName,
@@ -287,6 +294,35 @@ func (i *Interpreter) evaluateImplementationDefinition(def *ast.ImplementationDe
 		i.registerSymbol(name, implVal)
 	}
 	return runtime.NilValue{}, nil
+}
+
+func attachImplMethodContext(methods map[string]runtime.Value, ctx *implMethodContext) {
+	if ctx == nil {
+		return
+	}
+	for _, method := range methods {
+		switch fn := method.(type) {
+		case *runtime.FunctionValue:
+			if fn == nil {
+				continue
+			}
+			wrapped := runtime.NewEnvironment(fn.Closure)
+			wrapped.SetRuntimeData(ctx)
+			fn.Closure = wrapped
+		case *runtime.FunctionOverloadValue:
+			if fn == nil {
+				continue
+			}
+			for _, entry := range fn.Overloads {
+				if entry == nil {
+					continue
+				}
+				wrapped := runtime.NewEnvironment(entry.Closure)
+				wrapped.SetRuntimeData(ctx)
+				entry.Closure = wrapped
+			}
+		}
+	}
 }
 
 func (i *Interpreter) evaluateMethodsDefinition(def *ast.MethodsDefinition, env *runtime.Environment) (runtime.Value, error) {

@@ -137,6 +137,7 @@ export function applyImplDefaultAugmentations(cls: typeof Interpreter): void {
       isPrivate: false,
     };
     const func: Extract<RuntimeValue, { kind: "function" }> = { kind: "function", node: fnDef, closureEnv };
+    (func as any).isDefaultInterfaceMethod = true;
     (func as any).methodResolutionPriority = -2;
     return func;
   };

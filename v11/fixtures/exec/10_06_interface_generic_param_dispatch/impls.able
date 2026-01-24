@@ -1,0 +1,9 @@
+package impls
+
+import exec_10_06_interface_generic_param_dispatch.iface_defs.{Show}
+
+struct Thing { label: String }
+
+impl Show for Thing {
+  fn show(self: Self) -> String { `show:${self.label}` }
+}

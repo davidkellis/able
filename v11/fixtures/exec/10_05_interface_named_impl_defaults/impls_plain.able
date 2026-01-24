@@ -1,0 +1,8 @@
+package impls_plain
+
+import exec_10_05_interface_named_impl_defaults.iface_defs.{Describer}
+import exec_10_05_interface_named_impl_defaults.types.{Widget}
+
+Plain = impl Describer for Widget {
+  fn name(self: Self) -> String { `plain-${self.id}` }
+}
