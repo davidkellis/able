@@ -213,14 +213,9 @@ func (i *Interpreter) evaluateExpression(node ast.Expression, env *runtime.Envir
 		return i.evaluateIfExpression(n, env)
 	case *ast.RescueExpression:
 		return i.evaluateRescueExpression(n, env)
-	case *ast.ProcExpression:
-		i.ensureConcurrencyBuiltins()
-		task := i.makeAsyncTask(asyncContextProc, n.Expression, env)
-		handle := i.executor.RunProc(task)
-		return handle, nil
 	case *ast.SpawnExpression:
 		i.ensureConcurrencyBuiltins()
-		task := i.makeAsyncTask(asyncContextFuture, n.Expression, env)
+		task := i.makeAsyncTask(n.Expression, env)
 		future := i.executor.RunFuture(task)
 		return future, nil
 	case *ast.AwaitExpression:
@@ -714,7 +709,7 @@ func (p *placeholderAnalyzer) visitExpression(expr ast.Expression) error {
 		return nil
 	case *ast.LambdaExpression:
 		return nil
-	case *ast.ProcExpression, *ast.SpawnExpression, *ast.AwaitExpression:
+	case *ast.SpawnExpression, *ast.AwaitExpression:
 		return nil
 	case *ast.Identifier,
 		*ast.IntegerLiteral,

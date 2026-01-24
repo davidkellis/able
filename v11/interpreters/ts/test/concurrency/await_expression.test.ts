@@ -118,7 +118,7 @@ describe("v11 interpreter - await expression", () => {
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("arm"), manualArm));
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("result"), AST.integerLiteral(0)));
 
-    const awaitProc = AST.procExpression(
+    const awaitFuture = AST.spawnExpression(
       AST.blockExpression([
         AST.assignmentExpression(
           "=",
@@ -127,10 +127,10 @@ describe("v11 interpreter - await expression", () => {
         ),
       ]),
     );
-    I.evaluate(AST.assignmentExpression(":=", AST.identifier("handle"), awaitProc));
+    I.evaluate(AST.assignmentExpression(":=", AST.identifier("handle"), awaitFuture));
 
     const handleVal = I.evaluate(AST.identifier("handle"));
-    (I as any).runProcHandle(handleVal);
+    (I as any).runFuture(handleVal);
 
     const pendingResult = I.evaluate(AST.identifier("result"));
     expect(pendingResult).toEqual({ kind: "i32", value: 0n });
@@ -156,7 +156,7 @@ describe("v11 interpreter - await expression", () => {
       ),
     );
 
-    (I as any).runProcHandle(handleVal);
+    (I as any).runFuture(handleVal);
 
     const finalResult = I.evaluate(AST.identifier("result"));
     expect(finalResult).toEqual({ kind: "i32", value: 42n });
@@ -248,7 +248,7 @@ describe("v11 interpreter - await expression", () => {
     const iterator = AST.iteratorLiteral([AST.yieldStatement(AST.identifier("arm"))]);
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("arms"), iterator));
 
-    const procExpr = AST.procExpression(
+    const futureExpr = AST.spawnExpression(
       AST.blockExpression([
         AST.assignmentExpression(
           "=",
@@ -257,11 +257,11 @@ describe("v11 interpreter - await expression", () => {
         ),
       ]),
     );
-    I.evaluate(AST.assignmentExpression(":=", AST.identifier("handle"), procExpr));
+    I.evaluate(AST.assignmentExpression(":=", AST.identifier("handle"), futureExpr));
 
     const handleVal = I.evaluate(AST.identifier("handle"));
     while ((handleVal as any).state === "pending") {
-      (I as any).runProcHandle(handleVal);
+      (I as any).runFuture(handleVal);
     }
 
     const final = I.evaluate(AST.identifier("result"));
@@ -282,7 +282,7 @@ describe("v11 interpreter - await expression", () => {
       ),
     );
 
-    const consumer = AST.procExpression(
+    const consumer = AST.spawnExpression(
       AST.blockExpression([
         AST.assignmentExpression(
           "=",
@@ -295,9 +295,9 @@ describe("v11 interpreter - await expression", () => {
 
     const handleVal = I.evaluate(AST.identifier("handle")) as any;
     const futureVal = I.evaluate(AST.identifier("fut")) as any;
-    (I as any).runProcHandle(handleVal);
+    (I as any).runFuture(handleVal);
     (I as any).runFuture(futureVal);
-    (I as any).runProcHandle(handleVal);
+    (I as any).runFuture(handleVal);
     expect(futureVal.state).toBe("resolved");
     expect((handleVal as any).state).toBe("resolved");
 
@@ -305,7 +305,7 @@ describe("v11 interpreter - await expression", () => {
     expect(final).toEqual({ kind: "i32", value: 99n });
   });
 
-  test("await resolves Proc handles", () => {
+  test("await resolves Future handles", () => {
     const I = new Interpreter();
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("result"), AST.integerLiteral(0)));
 
@@ -313,13 +313,13 @@ describe("v11 interpreter - await expression", () => {
       AST.assignmentExpression(
         ":=",
         AST.identifier("worker"),
-        AST.procExpression(
+        AST.spawnExpression(
           AST.blockExpression([AST.integerLiteral(12)]),
         ),
       ),
     );
 
-    const consumer = AST.procExpression(
+    const consumer = AST.spawnExpression(
       AST.blockExpression([
         AST.assignmentExpression(
           "=",
@@ -332,9 +332,9 @@ describe("v11 interpreter - await expression", () => {
 
     const workerHandle = I.evaluate(AST.identifier("worker")) as any;
     const consumerHandle = I.evaluate(AST.identifier("handle")) as any;
-    (I as any).runProcHandle(consumerHandle);
-    (I as any).runProcHandle(workerHandle);
-    (I as any).runProcHandle(consumerHandle);
+    (I as any).runFuture(consumerHandle);
+    (I as any).runFuture(workerHandle);
+    (I as any).runFuture(consumerHandle);
     expect((workerHandle as any).state).toBe("resolved");
     expect((consumerHandle as any).state).toBe("resolved");
 
@@ -439,7 +439,7 @@ describe("v11 interpreter - await expression", () => {
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("second"), AST.integerLiteral(0)));
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("third"), AST.integerLiteral(0)));
 
-    const procExpr = AST.procExpression(
+    const futureExpr = AST.spawnExpression(
       AST.blockExpression([
         AST.assignmentExpression(
           "=",
@@ -458,10 +458,10 @@ describe("v11 interpreter - await expression", () => {
         ),
       ]),
     );
-    I.evaluate(AST.assignmentExpression(":=", AST.identifier("handle"), procExpr));
+    I.evaluate(AST.assignmentExpression(":=", AST.identifier("handle"), futureExpr));
     const handleVal = I.evaluate(AST.identifier("handle")) as any;
     while (handleVal.state === "pending") {
-      (I as any).runProcHandle(handleVal);
+      (I as any).runFuture(handleVal);
     }
 
     const first = I.evaluate(AST.identifier("first"));
@@ -491,7 +491,7 @@ describe("v11 interpreter - await expression", () => {
     const defaultArm = AST.functionCall(AST.identifier("__able_await_default"), [
       AST.lambdaExpression([], AST.stringLiteral("fallback")),
     ]);
-    const procExpr = AST.procExpression(
+    const futureExpr = AST.spawnExpression(
       AST.blockExpression([
         AST.assignmentExpression(
           "=",
@@ -500,17 +500,17 @@ describe("v11 interpreter - await expression", () => {
         ),
       ]),
     );
-    I.evaluate(AST.assignmentExpression(":=", AST.identifier("handle"), procExpr));
+    I.evaluate(AST.assignmentExpression(":=", AST.identifier("handle"), futureExpr));
 
     const handleVal = I.evaluate(AST.identifier("handle")) as any;
-    (I as any).runProcHandle(handleVal);
+    (I as any).runFuture(handleVal);
 
     const result = I.evaluate(AST.identifier("result"));
     expect(result).toEqual({ kind: "String", value: "fallback" });
 
     await flushScheduler();
     await new Promise((resolve) => setTimeout(resolve, 15));
-    I.evaluate(AST.functionCall(AST.identifier("proc_flush"), []));
+    I.evaluate(AST.functionCall(AST.identifier("future_flush"), []));
 
     const timerHits = I.evaluate(AST.identifier("timer_hits"));
     expect(timerHits).toEqual({ kind: "i32", value: 0n });
@@ -524,7 +524,7 @@ describe("v11 interpreter - await expression", () => {
       AST.integerLiteral(5),
       AST.lambdaExpression([], AST.stringLiteral("timer")),
     ]);
-    const procExpr = AST.procExpression(
+    const futureExpr = AST.spawnExpression(
       AST.blockExpression([
         AST.assignmentExpression(
           "=",
@@ -533,14 +533,14 @@ describe("v11 interpreter - await expression", () => {
         ),
       ]),
     );
-    I.evaluate(AST.assignmentExpression(":=", AST.identifier("handle"), procExpr));
+    I.evaluate(AST.assignmentExpression(":=", AST.identifier("handle"), futureExpr));
     const handleVal = I.evaluate(AST.identifier("handle")) as any;
 
-    (I as any).runProcHandle(handleVal);
+    (I as any).runFuture(handleVal);
     expect((handleVal as any).state).toBe("pending");
 
     await new Promise((resolve) => setTimeout(resolve, 15));
-    I.evaluate(AST.functionCall(AST.identifier("proc_flush"), []));
+    I.evaluate(AST.functionCall(AST.identifier("future_flush"), []));
 
     expect((handleVal as any).state).toBe("resolved");
     const result = I.evaluate(AST.identifier("result"));
@@ -566,7 +566,7 @@ describe("v11 interpreter - await expression", () => {
         ]),
       ),
     ]);
-    const procExpr = AST.procExpression(
+    const futureExpr = AST.spawnExpression(
       AST.blockExpression([
         AST.assignmentExpression(
           "=",
@@ -575,17 +575,17 @@ describe("v11 interpreter - await expression", () => {
         ),
       ]),
     );
-    I.evaluate(AST.assignmentExpression(":=", AST.identifier("handle"), procExpr));
+    I.evaluate(AST.assignmentExpression(":=", AST.identifier("handle"), futureExpr));
 
     const handleVal = I.evaluate(AST.identifier("handle")) as any;
-    (I as any).runProcHandle(handleVal);
+    (I as any).runFuture(handleVal);
     expect(handleVal.state).toBe("pending");
 
     I.evaluate(AST.functionCall(AST.memberAccessExpression(AST.identifier("handle"), "cancel"), []));
-    (I as any).runProcHandle(handleVal);
+    (I as any).runFuture(handleVal);
 
     await new Promise((resolve) => setTimeout(resolve, 30));
-    I.evaluate(AST.functionCall(AST.identifier("proc_flush"), []));
+    I.evaluate(AST.functionCall(AST.identifier("future_flush"), []));
 
     const status = I.evaluate(
       AST.functionCall(AST.memberAccessExpression(AST.identifier("handle"), "status"), []),
@@ -605,7 +605,7 @@ describe("v11 interpreter - await expression", () => {
     expect(finalResult).toEqual({ kind: "String", value: "pending" });
   });
 
-  test("await channel awaitable registers + cancels on proc cancellation", async () => {
+  test("await channel awaitable registers + cancels on future cancellation", async () => {
     const I = new Interpreter();
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("ch"), AST.functionCall(AST.identifier("__able_channel_new"), [AST.integerLiteral(1)])));
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("hits"), AST.integerLiteral(0)));
@@ -626,7 +626,7 @@ describe("v11 interpreter - await expression", () => {
       ),
     ]);
 
-    const procExpr = AST.procExpression(
+    const futureExpr = AST.spawnExpression(
       AST.blockExpression([
         AST.assignmentExpression(
           "=",
@@ -635,17 +635,17 @@ describe("v11 interpreter - await expression", () => {
         ),
       ]),
     );
-    I.evaluate(AST.assignmentExpression(":=", AST.identifier("handle"), procExpr));
+    I.evaluate(AST.assignmentExpression(":=", AST.identifier("handle"), futureExpr));
     const handleVal = I.evaluate(AST.identifier("handle")) as any;
-    (I as any).runProcHandle(handleVal);
+    (I as any).runFuture(handleVal);
     expect(handleVal.state).toBe("pending");
 
     I.evaluate(AST.functionCall(AST.memberAccessExpression(AST.identifier("handle"), "cancel"), []));
-    (I as any).runProcHandle(handleVal);
+    (I as any).runFuture(handleVal);
 
     I.evaluate(AST.functionCall(AST.identifier("__able_channel_send"), [AST.identifier("ch"), AST.stringLiteral("payload")]));
     await new Promise((resolve) => setTimeout(resolve, 10));
-    I.evaluate(AST.functionCall(AST.identifier("proc_flush"), []));
+    I.evaluate(AST.functionCall(AST.identifier("future_flush"), []));
 
     const status = I.evaluate(
       AST.functionCall(AST.memberAccessExpression(AST.identifier("handle"), "status"), []),
@@ -685,7 +685,7 @@ describe("v11 interpreter - await expression", () => {
       ),
     ]);
 
-    const procExpr = AST.procExpression(
+    const futureExpr = AST.spawnExpression(
       AST.blockExpression([
         AST.assignmentExpression(
           "=",
@@ -694,13 +694,13 @@ describe("v11 interpreter - await expression", () => {
         ),
       ]),
     );
-    I.evaluate(AST.assignmentExpression(":=", AST.identifier("handle"), procExpr));
+    I.evaluate(AST.assignmentExpression(":=", AST.identifier("handle"), futureExpr));
     const handleVal = I.evaluate(AST.identifier("handle")) as any;
-    (I as any).runProcHandle(handleVal);
+    (I as any).runFuture(handleVal);
     expect(handleVal.state).toBe("pending");
 
     I.evaluate(AST.functionCall(AST.memberAccessExpression(AST.identifier("handle"), "cancel"), []));
-    (I as any).runProcHandle(handleVal);
+    (I as any).runFuture(handleVal);
 
     const tryRecv = I.evaluate(AST.functionCall(AST.identifier("__able_channel_try_receive"), [AST.identifier("ch")]));
     expect(tryRecv).toEqual({ kind: "nil", value: null });

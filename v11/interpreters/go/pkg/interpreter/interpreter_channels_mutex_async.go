@@ -28,7 +28,7 @@ type channelState struct {
 }
 
 type channelSendWaiter struct {
-	handle    *runtime.ProcHandleValue
+	handle    *runtime.FutureValue
 	payload   *asyncContextPayload
 	state     *channelState
 	value     runtime.Value
@@ -37,7 +37,7 @@ type channelSendWaiter struct {
 }
 
 type channelReceiveWaiter struct {
-	handle  *runtime.ProcHandleValue
+	handle  *runtime.FutureValue
 	payload *asyncContextPayload
 	ready   bool
 	value   runtime.Value
@@ -49,7 +49,7 @@ type mutexState struct {
 	mu           sync.Mutex
 	cond         *sync.Cond
 	locked       bool
-	owner        *runtime.ProcHandleValue
+	owner        *runtime.FutureValue
 	waiters      int
 	awaitWaiters map[*mutexAwaitRegistration]struct{}
 }
@@ -141,7 +141,7 @@ func (i *Interpreter) contextFromCall(callCtx *runtime.NativeCallContext) contex
 	return context.Background()
 }
 
-func (i *Interpreter) getProcHandle(callCtx *runtime.NativeCallContext) *runtime.ProcHandleValue {
+func (i *Interpreter) getFutureHandle(callCtx *runtime.NativeCallContext) *runtime.FutureValue {
 	if callCtx == nil {
 		return nil
 	}
@@ -151,23 +151,23 @@ func (i *Interpreter) getProcHandle(callCtx *runtime.NativeCallContext) *runtime
 	return nil
 }
 
-func (i *Interpreter) markBlocked(handle *runtime.ProcHandleValue) {
+func (i *Interpreter) markBlocked(handle *runtime.FutureValue) {
 	if handle == nil {
 		return
 	}
 	if exec, ok := i.executor.(interface {
-		MarkBlocked(*runtime.ProcHandleValue)
+		MarkBlocked(*runtime.FutureValue)
 	}); ok {
 		exec.MarkBlocked(handle)
 	}
 }
 
-func (i *Interpreter) markUnblocked(handle *runtime.ProcHandleValue) {
+func (i *Interpreter) markUnblocked(handle *runtime.FutureValue) {
 	if handle == nil {
 		return
 	}
 	if exec, ok := i.executor.(interface {
-		MarkUnblocked(*runtime.ProcHandleValue)
+		MarkUnblocked(*runtime.FutureValue)
 	}); ok {
 		exec.MarkUnblocked(handle)
 	}
@@ -204,11 +204,11 @@ func (i *Interpreter) mutexStateFromHandle(handle int64) (*mutexState, error) {
 
 func (i *Interpreter) blockOnNilChannel(callCtx *runtime.NativeCallContext) (runtime.Value, error) {
 	if callCtx == nil {
-		return nil, fmt.Errorf("channel operation on nil handle outside proc context")
+		return nil, fmt.Errorf("channel operation on nil handle outside async context")
 	}
-	handle := i.getProcHandle(callCtx)
+	handle := i.getFutureHandle(callCtx)
 	if handle == nil {
-		return nil, fmt.Errorf("channel operation on nil handle outside proc context")
+		return nil, fmt.Errorf("channel operation on nil handle outside async context")
 	}
 	ctx := i.contextFromCall(callCtx)
 	i.markBlocked(handle)
@@ -266,7 +266,7 @@ func resumePayload(payload *asyncContextPayload) {
 	}
 }
 
-func (i *Interpreter) pendingSendWaiter(handle *runtime.ProcHandleValue) *channelSendWaiter {
+func (i *Interpreter) pendingSendWaiter(handle *runtime.FutureValue) *channelSendWaiter {
 	if handle == nil {
 		return nil
 	}
@@ -281,13 +281,13 @@ func (i *Interpreter) setPendingSendWaiter(waiter *channelSendWaiter) {
 	}
 	i.channelMu.Lock()
 	if i.pendingChannelSends == nil {
-		i.pendingChannelSends = make(map[*runtime.ProcHandleValue]*channelSendWaiter)
+		i.pendingChannelSends = make(map[*runtime.FutureValue]*channelSendWaiter)
 	}
 	i.pendingChannelSends[waiter.handle] = waiter
 	i.channelMu.Unlock()
 }
 
-func (i *Interpreter) clearPendingSendWaiter(handle *runtime.ProcHandleValue) {
+func (i *Interpreter) clearPendingSendWaiter(handle *runtime.FutureValue) {
 	if handle == nil {
 		return
 	}
@@ -296,7 +296,7 @@ func (i *Interpreter) clearPendingSendWaiter(handle *runtime.ProcHandleValue) {
 	i.channelMu.Unlock()
 }
 
-func (i *Interpreter) pendingReceiveWaiter(handle *runtime.ProcHandleValue) *channelReceiveWaiter {
+func (i *Interpreter) pendingReceiveWaiter(handle *runtime.FutureValue) *channelReceiveWaiter {
 	if handle == nil {
 		return nil
 	}
@@ -311,13 +311,13 @@ func (i *Interpreter) setPendingReceiveWaiter(waiter *channelReceiveWaiter) {
 	}
 	i.channelMu.Lock()
 	if i.pendingChannelReceives == nil {
-		i.pendingChannelReceives = make(map[*runtime.ProcHandleValue]*channelReceiveWaiter)
+		i.pendingChannelReceives = make(map[*runtime.FutureValue]*channelReceiveWaiter)
 	}
 	i.pendingChannelReceives[waiter.handle] = waiter
 	i.channelMu.Unlock()
 }
 
-func (i *Interpreter) clearPendingReceiveWaiter(handle *runtime.ProcHandleValue) {
+func (i *Interpreter) clearPendingReceiveWaiter(handle *runtime.FutureValue) {
 	if handle == nil {
 		return
 	}
@@ -348,31 +348,31 @@ func upsertChannelReceiveWaiter(waiters []*channelReceiveWaiter, waiter *channel
 
 func (i *Interpreter) channelSendSerial(callCtx *runtime.NativeCallContext, state *channelState, payload runtime.Value) (runtime.Value, error) {
 	payloadCtx := payloadFromState(callCtx.State)
-	procHandle := i.getProcHandle(callCtx)
+	futureHandle := i.getFutureHandle(callCtx)
 
 	state.mu.Lock()
-	pending := i.pendingSendWaiter(procHandle)
+	pending := i.pendingSendWaiter(futureHandle)
 	if pending != nil && pending.state != state {
-		i.clearPendingSendWaiter(procHandle)
+		i.clearPendingSendWaiter(futureHandle)
 		pending = nil
 	}
 	if pending != nil {
 		payload = pending.value
 		if pending.err != nil {
-			i.clearPendingSendWaiter(procHandle)
+			i.clearPendingSendWaiter(futureHandle)
 			state.mu.Unlock()
 			return nil, pending.err
 		}
 		if pending.delivered {
-			i.clearPendingSendWaiter(procHandle)
+			i.clearPendingSendWaiter(futureHandle)
 			state.mu.Unlock()
 			return runtime.NilValue{}, nil
 		}
 	}
 
-	if procHandle != nil && procHandle.CancelRequested() {
-		i.clearPendingSendWaiter(procHandle)
-		state.serialSendWaiters = filterChannelSendWaiters(state.serialSendWaiters, procHandle)
+	if futureHandle != nil && futureHandle.CancelRequested() {
+		i.clearPendingSendWaiter(futureHandle)
+		state.serialSendWaiters = filterChannelSendWaiters(state.serialSendWaiters, futureHandle)
 		state.mu.Unlock()
 		return nil, context.Canceled
 	}
@@ -391,27 +391,27 @@ func (i *Interpreter) channelSendSerial(callCtx *runtime.NativeCallContext, stat
 			receiver.closed = false
 			resumePayload(receiver.payload)
 		}
-		i.clearPendingSendWaiter(procHandle)
+		i.clearPendingSendWaiter(futureHandle)
 		state.mu.Unlock()
 		return runtime.NilValue{}, nil
 	}
 
 	if state.capacity > 0 && len(state.serialQueue) < state.capacity {
 		state.serialQueue = append(state.serialQueue, payload)
-		i.clearPendingSendWaiter(procHandle)
+		i.clearPendingSendWaiter(futureHandle)
 		state.mu.Unlock()
 		i.notifyChannelAwaiters(state, channelAwaitRecv)
 		return runtime.NilValue{}, nil
 	}
 
-	if procHandle == nil || payloadCtx == nil {
+	if futureHandle == nil || payloadCtx == nil {
 		state.mu.Unlock()
-		return nil, fmt.Errorf("channel send would block outside of proc context")
+		return nil, fmt.Errorf("channel send would block outside of async context")
 	}
 
 	waiter := pending
 	if waiter == nil {
-		waiter = &channelSendWaiter{handle: procHandle, state: state}
+		waiter = &channelSendWaiter{handle: futureHandle, state: state}
 	}
 	waiter.value = payload
 	waiter.payload = payloadCtx
@@ -431,18 +431,18 @@ func (i *Interpreter) channelSendSerial(callCtx *runtime.NativeCallContext, stat
 
 func (i *Interpreter) channelReceiveSerial(callCtx *runtime.NativeCallContext, state *channelState) (runtime.Value, error) {
 	payloadCtx := payloadFromState(callCtx.State)
-	procHandle := i.getProcHandle(callCtx)
+	futureHandle := i.getFutureHandle(callCtx)
 
 	state.mu.Lock()
-	pending := i.pendingReceiveWaiter(procHandle)
+	pending := i.pendingReceiveWaiter(futureHandle)
 	if pending != nil && pending.state != state {
-		i.clearPendingReceiveWaiter(procHandle)
+		i.clearPendingReceiveWaiter(futureHandle)
 		pending = nil
 	}
 	if pending != nil && pending.ready {
 		val := pending.value
 		closed := pending.closed
-		i.clearPendingReceiveWaiter(procHandle)
+		i.clearPendingReceiveWaiter(futureHandle)
 		state.mu.Unlock()
 		if closed || val == nil {
 			return runtime.NilValue{}, nil
@@ -450,9 +450,9 @@ func (i *Interpreter) channelReceiveSerial(callCtx *runtime.NativeCallContext, s
 		return val, nil
 	}
 
-	if procHandle != nil && procHandle.CancelRequested() {
-		i.clearPendingReceiveWaiter(procHandle)
-		state.serialRecvWaiters = filterChannelReceiveWaiters(state.serialRecvWaiters, procHandle)
+	if futureHandle != nil && futureHandle.CancelRequested() {
+		i.clearPendingReceiveWaiter(futureHandle)
+		state.serialRecvWaiters = filterChannelReceiveWaiters(state.serialRecvWaiters, futureHandle)
 		state.mu.Unlock()
 		return nil, context.Canceled
 	}
@@ -504,14 +504,14 @@ func (i *Interpreter) channelReceiveSerial(callCtx *runtime.NativeCallContext, s
 		return runtime.NilValue{}, nil
 	}
 
-	if procHandle == nil || payloadCtx == nil {
+	if futureHandle == nil || payloadCtx == nil {
 		state.mu.Unlock()
-		return nil, fmt.Errorf("channel receive would block outside of proc context")
+		return nil, fmt.Errorf("channel receive would block outside of async context")
 	}
 
 	waiter := pending
 	if waiter == nil {
-		waiter = &channelReceiveWaiter{handle: procHandle, state: state}
+		waiter = &channelReceiveWaiter{handle: futureHandle, state: state}
 	}
 	waiter.payload = payloadCtx
 	waiter.ready = false
@@ -529,7 +529,7 @@ func (i *Interpreter) channelReceiveSerial(callCtx *runtime.NativeCallContext, s
 	return nil, errSerialYield
 }
 
-func filterChannelSendWaiters(waiters []*channelSendWaiter, handle *runtime.ProcHandleValue) []*channelSendWaiter {
+func filterChannelSendWaiters(waiters []*channelSendWaiter, handle *runtime.FutureValue) []*channelSendWaiter {
 	out := waiters[:0]
 	for _, w := range waiters {
 		if w == nil || w.handle == handle {
@@ -540,7 +540,7 @@ func filterChannelSendWaiters(waiters []*channelSendWaiter, handle *runtime.Proc
 	return out
 }
 
-func filterChannelReceiveWaiters(waiters []*channelReceiveWaiter, handle *runtime.ProcHandleValue) []*channelReceiveWaiter {
+func filterChannelReceiveWaiters(waiters []*channelReceiveWaiter, handle *runtime.FutureValue) []*channelReceiveWaiter {
 	out := waiters[:0]
 	for _, w := range waiters {
 		if w == nil || w.handle == handle {
@@ -600,9 +600,9 @@ func (i *Interpreter) channelSendOp(callCtx *runtime.NativeCallContext, handleVa
 	}()
 
 	ctx := i.contextFromCall(callCtx)
-	handleValProc := i.getProcHandle(callCtx)
-	i.markBlocked(handleValProc)
-	defer i.markUnblocked(handleValProc)
+	handleValFuture := i.getFutureHandle(callCtx)
+	i.markBlocked(handleValFuture)
+	defer i.markUnblocked(handleValFuture)
 
 	select {
 	case ch <- payload:
@@ -661,9 +661,9 @@ func (i *Interpreter) channelReceiveOp(callCtx *runtime.NativeCallContext, handl
 	}()
 
 	ctx := i.contextFromCall(callCtx)
-	handleValProc := i.getProcHandle(callCtx)
-	i.markBlocked(handleValProc)
-	defer i.markUnblocked(handleValProc)
+	handleValFuture := i.getFutureHandle(callCtx)
+	i.markBlocked(handleValFuture)
+	defer i.markUnblocked(handleValFuture)
 
 	select {
 	case value, ok := <-ch:

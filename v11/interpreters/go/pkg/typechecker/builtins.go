@@ -8,16 +8,16 @@ func (c *Checker) checkBuiltinCallContext(name string, call *ast.FunctionCall) [
 	}
 
 	switch name {
-	case "proc_yield":
+	case "future_yield":
 		if !c.inAsyncContext() {
 			return []Diagnostic{{
-				Message: "typechecker: proc_yield() may only be called from within proc or spawn bodies",
+				Message: "typechecker: future_yield() may only be called from within an asynchronous task",
 				Node:    call,
 			}}
 		}
-	case "proc_cancelled":
+	case "future_cancelled":
 		return nil
-	case "proc_flush":
+	case "future_flush":
 		return nil
 	}
 

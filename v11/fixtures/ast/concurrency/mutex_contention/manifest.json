@@ -1,5 +1,5 @@
 {
-  "description": "Mutex contention ensures the waiting proc resumes only after unlock",
+  "description": "Mutex contention ensures the waiting task resumes only after unlock",
   "expect": {
     "result": {
       "kind": "String",

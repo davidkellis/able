@@ -36,7 +36,6 @@ export type TypeInfo =
   | { kind: "map"; key: TypeInfo; value: TypeInfo }
   | { kind: "range"; element: TypeInfo; bounds?: TypeInfo[] }
   | { kind: "iterator"; element: TypeInfo }
-  | { kind: "proc"; result: TypeInfo }
   | { kind: "future"; result: TypeInfo }
   | {
       kind: "struct";
@@ -78,10 +77,6 @@ export function arrayType(element?: TypeInfo): TypeInfo {
 
 export function rangeType(element?: TypeInfo, bounds?: TypeInfo[]): TypeInfo {
   return { kind: "range", element: element ?? unknownType, bounds };
-}
-
-export function procType(result?: TypeInfo): TypeInfo {
-  return { kind: "proc", result: result ?? unknownType };
 }
 
 export function futureType(result?: TypeInfo): TypeInfo {
@@ -150,8 +145,6 @@ export function formatType(type: TypeInfo): string {
       return `Range ${formatType(type.element)}`;
     case "iterator":
       return `Iterator ${formatType(type.element)}`;
-    case "proc":
-      return `Proc ${formatType(type.result)}`;
     case "future":
       return `Future ${formatType(type.result)}`;
     case "struct": {

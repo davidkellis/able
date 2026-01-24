@@ -1,8 +1,8 @@
 ==================
-Proc and Spawn Expressions
+Spawn Expressions
 ==================
 
-handle := proc task()
+handle := spawn task()
 future := spawn task()
 
 ---
@@ -33,7 +33,7 @@ future := spawn task()
                                       (unary_expression
                                         (exponent_expression
                                           (postfix_expression
-                                            (proc_expression
+                                            (spawn_expression
                                               (call_target
                                                 (primary_expression
                                                   (identifier))

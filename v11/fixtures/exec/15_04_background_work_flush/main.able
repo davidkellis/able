@@ -1,6 +1,6 @@
 package exec_15_04_background_work_flush
 
-## Semantics: program exit does not wait for background procs to complete.
+## Semantics: program exit does not wait for background tasks to complete.
 struct Channel { handle: i64 }
 
 methods Channel {
@@ -14,7 +14,7 @@ fn make_channel() -> Channel {
 
 fn main() -> void {
   channel := make_channel()
-  proc {
+  spawn {
     channel.receive()
     print("background")
   }

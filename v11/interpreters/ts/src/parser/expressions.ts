@@ -41,7 +41,6 @@ import {
   parseIfExpression,
   parseLambdaExpression,
   parseMatchExpression,
-  parseProcExpression,
   parseRescueExpression,
   parseSpawnExpression,
   parseVerboseLambdaExpression,
@@ -134,8 +133,6 @@ function parseExpression(node: Node | null | undefined, source: string): Express
       const isSafe = operatorText === "?.";
       return annotateExpressionNode(AST.memberAccessExpression(objectExpr, memberExpr, { isSafe }), node);
     }
-    case "proc_expression":
-      return parseProcExpression(node, source);
     case "spawn_expression":
       return parseSpawnExpression(node, source);
     case "await_expression":

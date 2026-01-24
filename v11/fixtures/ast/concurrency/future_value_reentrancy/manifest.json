@@ -1,5 +1,5 @@
 {
-  "description": "Nested future.value() calls (re-entrancy) resolve without deadlock",
+  "description": "Nested future value() calls resolve without deadlock under the serial executor",
   "expect": {
     "result": {
       "kind": "array",

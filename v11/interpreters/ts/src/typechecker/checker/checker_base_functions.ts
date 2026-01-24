@@ -3,6 +3,7 @@ import { formatType, primitiveType, unknownType, type TypeInfo } from "../types"
 import { refineTypeWithExpected } from "./expressions";
 import { typeImplementsInterface } from "./implementations";
 import type { ImplementationContext } from "./implementations";
+import type { TypeResolutionOptions } from "./type-resolution";
 
 export type CheckerBaseFunctionHost = {
   env: {
@@ -11,7 +12,11 @@ export type CheckerBaseFunctionHost = {
     popScope(): void;
   };
   implementationContext: ImplementationContext;
-  resolveTypeExpression(expr: AST.TypeExpression | null | undefined, substitutions?: Map<string, TypeInfo>): TypeInfo;
+  resolveTypeExpression(
+    expr: AST.TypeExpression | null | undefined,
+    substitutions?: Map<string, TypeInfo>,
+    options?: TypeResolutionOptions,
+  ): TypeInfo;
   getIdentifierName(node: AST.Identifier | null | undefined): string | null;
   inferExpression(expression: AST.Expression | undefined | null): TypeInfo;
   inferExpressionWithExpected(expression: AST.Expression | undefined | null, expected: TypeInfo): TypeInfo;

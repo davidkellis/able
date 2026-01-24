@@ -7,7 +7,7 @@ fn status_name(status) -> String {
     case Failed {  } => "Failed"
   };
 }
-sender_a := proc {
+sender_a := spawn {
   sent := false;
   attempts := 0;
   while sent == false && attempts < 32 {
@@ -16,12 +16,12 @@ sender_a := proc {
     }
 else {
       attempts += 1;
-      proc_yield();
+      future_yield();
     };
   }
   sent;
 };
-sender_b := proc {
+sender_b := spawn {
   sent := false;
   attempts := 0;
   while sent == false && attempts < 32 {
@@ -30,12 +30,12 @@ sender_b := proc {
     }
 else {
       attempts += 1;
-      proc_yield();
+      future_yield();
     };
   }
   sent;
 };
-receiver := proc {
+receiver := spawn {
   received := 0;
   attempts := 0;
   sum := 0;
@@ -43,7 +43,7 @@ receiver := proc {
     value := __able_channel_try_receive(handle);
     if value == nil {
       attempts += 1;
-      proc_yield();
+      future_yield();
     }
 else {
       sum += value;
@@ -60,19 +60,19 @@ status_sender_b := status_name(sender_b.status());
 status_receiver := status_name(receiver.status());
 flushes := 0;
 while (status_sender_a == "Pending" || (status_sender_b == "Pending" || status_receiver == "Pending")) && flushes < 16 {
-  proc_flush();
+  future_flush();
   flushes += 1;
   status_sender_a = status_name(sender_a.status());
   status_sender_b = status_name(sender_b.status());
   status_receiver = status_name(receiver.status());
 }
 if status_sender_a == "Resolved" {
-  sender_a_value = sender_a.value();
+  sender_a_value = sender_a.value()!;
 };
 if status_sender_b == "Resolved" {
-  sender_b_value = sender_b.value();
+  sender_b_value = sender_b.value()!;
 };
 if status_receiver == "Resolved" {
-  receiver_sum = receiver.value();
+  receiver_sum = receiver.value()!;
 };
 [status_sender_a == "Resolved", status_sender_b == "Resolved", status_receiver == "Resolved", sender_a_value == true, sender_b_value == true, receiver_sum == 30, flushes > 0];

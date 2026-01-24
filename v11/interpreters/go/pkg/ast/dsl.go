@@ -221,10 +221,6 @@ func LamBlock(params []*FunctionParameter, body *BlockExpression) *LambdaExpress
 	return NewLambdaExpression(params, body, nil, nil, nil, true)
 }
 
-func Proc(expr Expression) *ProcExpression {
-	return NewProcExpression(expr)
-}
-
 func Spawn(expr Expression) *SpawnExpression {
 	return NewSpawnExpression(expr)
 }

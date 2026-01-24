@@ -76,14 +76,14 @@ func (p *asyncContextPayload) clearAwaitState(expr *ast.AwaitExpression) {
 
 func payloadFromEnv(env *runtime.Environment) (*asyncContextPayload, error) {
 	if env == nil {
-		return nil, fmt.Errorf("await expressions must run inside a proc")
+		return nil, fmt.Errorf("await expressions must run inside an asynchronous task")
 	}
 	if data := env.RuntimeData(); data != nil {
 		if payload, ok := data.(*asyncContextPayload); ok && payload != nil {
 			return payload, nil
 		}
 	}
-	return nil, fmt.Errorf("await expressions must run inside a proc")
+	return nil, fmt.Errorf("await expressions must run inside an asynchronous task")
 }
 
 func (i *Interpreter) evaluateAwaitExpression(expr *ast.AwaitExpression, env *runtime.Environment) (runtime.Value, error) {
@@ -91,8 +91,8 @@ func (i *Interpreter) evaluateAwaitExpression(expr *ast.AwaitExpression, env *ru
 	if err != nil {
 		return nil, err
 	}
-	if payload.kind != asyncContextProc {
-		return nil, fmt.Errorf("await expressions must run inside a proc")
+	if payload.kind != asyncContextFuture {
+		return nil, fmt.Errorf("await expressions must run inside an asynchronous task")
 	}
 
 	state := payload.getAwaitState(expr)
@@ -139,7 +139,7 @@ func (i *Interpreter) evaluateAwaitExpression(expr *ast.AwaitExpression, env *ru
 			return nil, errSerialYield
 		}
 
-		var handle *runtime.ProcHandleValue
+		var handle *runtime.FutureValue
 		if payload != nil {
 			handle = payload.handle
 		}

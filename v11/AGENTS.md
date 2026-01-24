@@ -47,8 +47,8 @@ Unconditionally read PLAN.md and spec/full_spec_v11.md (using archived specs as 
 - Tests should run quickly; no test should take more than one minute to complete.
 
 ## Concurrency Expectations
-- TypeScript interpreter uses a cooperative scheduler to emulate Able `proc`/`spawn` semantics; the helper functions `proc_yield()`, `proc_cancelled()`, `proc_flush()`, and the diagnostic `proc_pending_tasks()` are available inside Able code so fixtures/tests can drive (and introspect) the scheduler deterministically.
-- Go interpreter must implement these semantics with goroutines/channels while preserving observable behavior (status, value, cancellation, cooperative helpers). The Go runtime exposes the same helper surface (including `proc_flush`) via native functions.
+- TypeScript interpreter uses a cooperative scheduler to emulate Able `spawn`/`Future` semantics; the helper functions `future_yield()`, `future_cancelled()`, `future_flush()`, and the diagnostic `future_pending_tasks()` are available inside Able code so fixtures/tests can drive (and introspect) the scheduler deterministically.
+- Go interpreter must implement these semantics with goroutines/channels while preserving observable behavior (status, value, cancellation, cooperative helpers). The Go runtime exposes the same helper surface (including `future_flush`) via native functions.
 - Document any deviations or extensions; tests should exercise cancellation, yielding, and memoization scenarios.
 
 ## When in Doubt

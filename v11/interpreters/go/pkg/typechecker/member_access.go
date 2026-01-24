@@ -619,18 +619,6 @@ func (c *Checker) checkMemberAccessWithOptions(env *Environment, expr *ast.Membe
 			Message: fmt.Sprintf("typechecker: iterator has no member '%s'", memberName),
 			Node:    expr,
 		})
-	case ProcType:
-		if positionalAccess {
-			diags = append(diags, Diagnostic{
-				Message: "typechecker: positional member access not supported on proc handles",
-				Node:    expr,
-			})
-			break
-		}
-		fnType, procDiags := c.procMemberFunction(memberName, ty, expr)
-		diags = append(diags, procDiags...)
-		final := c.finalizeMemberAccessType(expr, wrapType, fnType)
-		return diags, final
 	case FutureType:
 		if positionalAccess {
 			diags = append(diags, Diagnostic{

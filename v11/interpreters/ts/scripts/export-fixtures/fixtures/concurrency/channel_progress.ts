@@ -41,7 +41,7 @@ const channelProgressFixtures: Fixture[] = [
       ),
       AST.assign(
         "sender_a",
-        AST.procExpression(
+        AST.spawnExpression(
           AST.blockExpression([
             AST.assignmentExpression(
               ":=",
@@ -87,7 +87,7 @@ const channelProgressFixtures: Fixture[] = [
                     AST.identifier("attempts"),
                     AST.integerLiteral(1),
                   ),
-                  AST.functionCall(AST.identifier("proc_yield"), []),
+                  AST.functionCall(AST.identifier("future_yield"), []),
                 ]),
               ),
             ]),
@@ -98,7 +98,7 @@ const channelProgressFixtures: Fixture[] = [
       ),
       AST.assign(
         "sender_b",
-        AST.procExpression(
+        AST.spawnExpression(
           AST.blockExpression([
             AST.assignmentExpression(
               ":=",
@@ -144,7 +144,7 @@ const channelProgressFixtures: Fixture[] = [
                       AST.identifier("attempts"),
                       AST.integerLiteral(1),
                     ),
-                    AST.functionCall(AST.identifier("proc_yield"), []),
+                    AST.functionCall(AST.identifier("future_yield"), []),
                   ]),
                 ),
               ]),
@@ -155,7 +155,7 @@ const channelProgressFixtures: Fixture[] = [
       ),
       AST.assign(
         "receiver",
-        AST.procExpression(
+        AST.spawnExpression(
           AST.blockExpression([
             AST.assignmentExpression(
               ":=",
@@ -206,7 +206,7 @@ const channelProgressFixtures: Fixture[] = [
                     AST.identifier("attempts"),
                     AST.integerLiteral(1),
                   ),
-                  AST.functionCall(AST.identifier("proc_yield"), []),
+                  AST.functionCall(AST.identifier("future_yield"), []),
                 ]),
                 [],
                 AST.blockExpression([
@@ -290,7 +290,7 @@ const channelProgressFixtures: Fixture[] = [
           ),
         ),
         AST.blockExpression([
-          AST.functionCall(AST.identifier("proc_flush"), []),
+          AST.functionCall(AST.identifier("future_flush"), []),
           AST.assignmentExpression(
             "+=",
             AST.identifier("flushes"),
@@ -338,9 +338,11 @@ const channelProgressFixtures: Fixture[] = [
           AST.assignmentExpression(
             "=",
             AST.identifier("sender_a_value"),
-            AST.functionCall(
-              AST.memberAccessExpression(AST.identifier("sender_a"), "value"),
-              [],
+            AST.propagationExpression(
+              AST.functionCall(
+                AST.memberAccessExpression(AST.identifier("sender_a"), "value"),
+                [],
+              ),
             ),
           ),
         ]),
@@ -356,9 +358,11 @@ const channelProgressFixtures: Fixture[] = [
           AST.assignmentExpression(
             "=",
             AST.identifier("sender_b_value"),
-            AST.functionCall(
-              AST.memberAccessExpression(AST.identifier("sender_b"), "value"),
-              [],
+            AST.propagationExpression(
+              AST.functionCall(
+                AST.memberAccessExpression(AST.identifier("sender_b"), "value"),
+                [],
+              ),
             ),
           ),
         ]),
@@ -374,9 +378,11 @@ const channelProgressFixtures: Fixture[] = [
           AST.assignmentExpression(
             "=",
             AST.identifier("receiver_sum"),
-            AST.functionCall(
-              AST.memberAccessExpression(AST.identifier("receiver"), "value"),
-              [],
+            AST.propagationExpression(
+              AST.functionCall(
+                AST.memberAccessExpression(AST.identifier("receiver"), "value"),
+                [],
+              ),
             ),
           ),
         ]),

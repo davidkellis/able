@@ -214,24 +214,6 @@ describe("typechecker typed patterns", () => {
     expect(diagnostics[0]?.message).toContain("literal 512 does not fit in u8");
   });
 
-  test("typed proc pattern reports literal overflow for result expressions", () => {
-    const checker = new TypeChecker();
-    const procBlock = AST.blockExpression([AST.integerLiteral(512) as unknown as AST.Statement]);
-    const module = AST.module([
-      AST.assignmentExpression(
-        ":=",
-        AST.typedPattern(
-          AST.identifier("handle"),
-          AST.genericTypeExpression(AST.simpleTypeExpression("Proc"), [AST.simpleTypeExpression("u8")]),
-        ),
-        AST.procExpression(procBlock),
-      ) as unknown as AST.Statement,
-    ]);
-    const { diagnostics } = checker.checkModule(module);
-    expect(diagnostics).toHaveLength(1);
-    expect(diagnostics[0]?.message).toContain("literal 512 does not fit in u8");
-  });
-
   test("typed future pattern reports literal overflow for spawn bodies", () => {
     const checker = new TypeChecker();
     const futureBlock = AST.blockExpression([AST.integerLiteral(512) as unknown as AST.Statement]);

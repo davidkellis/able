@@ -1,5 +1,5 @@
 {
-  "description": "background procs are not awaited at program exit",
+  "description": "background tasks are not awaited at program exit",
   "expect": {
     "stdout": ["main done"],
     "exit": 0

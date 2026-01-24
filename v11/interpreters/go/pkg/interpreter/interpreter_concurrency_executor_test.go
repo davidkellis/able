@@ -11,7 +11,7 @@ import (
 	"able/interpreter-go/pkg/runtime"
 )
 
-func TestSerialExecutorProcYieldFairness(t *testing.T) {
+func TestSerialExecutorFutureYieldFairness(t *testing.T) {
 	interp := New()
 	if _, ok := interp.executor.(*SerialExecutor); !ok {
 		t.Fatalf("expected SerialExecutor by default")
@@ -42,13 +42,13 @@ func TestSerialExecutorProcYieldFairness(t *testing.T) {
 		return ast.AssignOp(ast.AssignmentAssign, ast.ID(name), ast.Int(value))
 	}
 
-	mustEval(ast.Assign(ast.ID("worker"), ast.Proc(ast.Block(
+	mustEval(ast.Assign(ast.ID("worker"), ast.Spawn(ast.Block(
 		ast.IfExpr(
 			ast.Bin("==", ast.ID("stage_a"), ast.Int(0)),
 			ast.Block(
 				appendTrace("A1"),
 				assignStage("stage_a", 1),
-				ast.Call("proc_yield"),
+				ast.Call("future_yield"),
 			),
 		),
 		ast.IfExpr(
@@ -61,13 +61,13 @@ func TestSerialExecutorProcYieldFairness(t *testing.T) {
 		ast.Int(0),
 	))))
 
-	mustEval(ast.Assign(ast.ID("other"), ast.Proc(ast.Block(
+	mustEval(ast.Assign(ast.ID("other"), ast.Spawn(ast.Block(
 		ast.IfExpr(
 			ast.Bin("==", ast.ID("stage_b"), ast.Int(0)),
 			ast.Block(
 				appendTrace("B1"),
 				assignStage("stage_b", 1),
-				ast.Call("proc_yield"),
+				ast.Call("future_yield"),
 			),
 		),
 		ast.IfExpr(
@@ -80,7 +80,7 @@ func TestSerialExecutorProcYieldFairness(t *testing.T) {
 		ast.Int(0),
 	))))
 
-	mustEval(ast.Call("proc_flush"))
+	mustEval(ast.Call("future_flush"))
 
 	traceVal := mustEval(ast.ID("trace"))
 	traceStr, ok := traceVal.(runtime.StringValue)
@@ -91,8 +91,8 @@ func TestSerialExecutorProcYieldFairness(t *testing.T) {
 		t.Fatalf("expected trace to be A1B1A2B2, got %q", traceStr.Val)
 	}
 
-	getStatusName := func(handle *runtime.ProcHandleValue) string {
-		val := interp.procHandleStatus(handle)
+	getStatusName := func(handle *runtime.FutureValue) string {
+		val := interp.futureStatus(handle)
 		inst, ok := val.(*runtime.StructInstanceValue)
 		if !ok {
 			t.Fatalf("expected struct instance status, got %#v", val)
@@ -107,7 +107,7 @@ func TestSerialExecutorProcYieldFairness(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to read worker handle: %v", err)
 	}
-	workerHandle, ok := workerHandleVal.(*runtime.ProcHandleValue)
+	workerHandle, ok := workerHandleVal.(*runtime.FutureValue)
 	if !ok {
 		t.Fatalf("expected worker handle, got %#v", workerHandleVal)
 	}
@@ -115,7 +115,7 @@ func TestSerialExecutorProcYieldFairness(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to read other handle: %v", err)
 	}
-	otherHandle, ok := otherHandleVal.(*runtime.ProcHandleValue)
+	otherHandle, ok := otherHandleVal.(*runtime.FutureValue)
 	if !ok {
 		t.Fatalf("expected other handle, got %#v", otherHandleVal)
 	}
@@ -200,7 +200,7 @@ func TestSerialExecutorFutureValueReentrancy(t *testing.T) {
 	}
 }
 
-func TestSerialExecutorProcValueReentrancy(t *testing.T) {
+func TestSerialExecutorFutureValueReentrancySynchronousSection(t *testing.T) {
 	interp := New()
 	serial, ok := interp.executor.(*SerialExecutor)
 	if !ok {
@@ -234,7 +234,7 @@ func TestSerialExecutorProcValueReentrancy(t *testing.T) {
 
 	mustEval(ast.Assign(
 		ast.ID("inner"),
-		ast.Proc(ast.Block(
+		ast.Spawn(ast.Block(
 			appendTrace("I"),
 			appendTrace("J"),
 			ast.Str("X"),
@@ -243,7 +243,7 @@ func TestSerialExecutorProcValueReentrancy(t *testing.T) {
 
 	mustEval(ast.Assign(
 		ast.ID("outer"),
-		ast.Proc(ast.Block(
+		ast.Spawn(ast.Block(
 			appendTrace("O"),
 			ast.Assign(
 				ast.ID("result"),
@@ -268,12 +268,12 @@ func TestSerialExecutorProcValueReentrancy(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected string value, got %#v", val)
 	}
-	if str.Val != "OIJXdone" {
+	if str.Val != "IJOXdone" {
 		t.Fatalf("unexpected trace output %q", str.Val)
 	}
 }
 
-func TestProcHandleValueMemoizesResult(t *testing.T) {
+func TestFutureValueMemoizesResult(t *testing.T) {
 	interp := New()
 	if serial, ok := interp.executor.(*SerialExecutor); ok {
 		serial.Close()
@@ -291,17 +291,17 @@ func TestProcHandleValueMemoizesResult(t *testing.T) {
 
 	mustEval(ast.Assign(ast.ID("count"), ast.Int(0)))
 
-	handleVal := mustEval(ast.Proc(ast.Block(
+	handleVal := mustEval(ast.Spawn(ast.Block(
 		ast.AssignOp(ast.AssignmentAdd, ast.ID("count"), ast.Int(1)),
 		ast.Int(21),
 	)))
-	handle, ok := handleVal.(*runtime.ProcHandleValue)
+	handle, ok := handleVal.(*runtime.FutureValue)
 	if !ok {
 		t.Fatalf("expected proc handle, got %#v", handleVal)
 	}
 
-	first := interp.procHandleValue(handle)
-	second := interp.procHandleValue(handle)
+	first := interp.futureValue(handle)
+	second := interp.futureValue(handle)
 
 	intVal, ok := first.(runtime.IntegerValue)
 	if !ok || intVal.Val.Cmp(bigInt(21)) != 0 {
@@ -322,36 +322,38 @@ func TestProcHandleValueMemoizesResult(t *testing.T) {
 	}
 }
 
-func TestProcHandleValueCancellationMemoized(t *testing.T) {
+func TestFutureValueCancellationMemoized(t *testing.T) {
 	interp := New()
 	global := interp.GlobalEnvironment()
 
 	handleVal, err := interp.evaluateExpression(
-		ast.Proc(ast.Block(ast.Int(5))),
+		ast.Spawn(ast.Block(ast.Int(5))),
 		global,
 	)
 	if err != nil {
 		t.Fatalf("proc expression evaluation failed: %v", err)
 	}
-	handle, ok := handleVal.(*runtime.ProcHandleValue)
+	handle, ok := handleVal.(*runtime.FutureValue)
 	if !ok {
 		t.Fatalf("expected proc handle, got %#v", handleVal)
 	}
 
-	handle.RequestCancel()
+	if handle != nil {
+		handle.RequestCancel()
+	}
 
-	first := interp.procHandleValue(handle)
-	second := interp.procHandleValue(handle)
+	first := interp.futureValue(handle)
+	second := interp.futureValue(handle)
 
 	if valueToString(first) != valueToString(second) {
 		t.Fatalf("expected repeated value() calls to return identical errors, got %q vs %q", valueToString(first), valueToString(second))
 	}
-	if !strings.Contains(valueToString(first), "Proc cancelled") {
+	if !strings.Contains(valueToString(first), "Future cancelled") {
 		t.Fatalf("expected cancellation error, got %q", valueToString(first))
 	}
 }
 
-func TestConcurrentProcsSharedStateWithMutex(t *testing.T) {
+func TestConcurrentFuturesSharedStateWithMutex(t *testing.T) {
 	interp := New()
 	if serial, ok := interp.executor.(*SerialExecutor); ok {
 		serial.Close()
@@ -390,9 +392,9 @@ func TestConcurrentProcsSharedStateWithMutex(t *testing.T) {
 	mustEval(ast.Assign(ast.ID("trace"), ast.Str("")))
 
 	letters := []string{"A", "B", "C", "D"}
-	handles := make([]*runtime.ProcHandleValue, 0, len(letters))
+	handles := make([]*runtime.FutureValue, 0, len(letters))
 	for _, letter := range letters {
-		handleVal := mustEval(ast.Proc(ast.Block(
+		handleVal := mustEval(ast.Spawn(ast.Block(
 			ast.Call("lock_acquire"),
 			ast.AssignOp(
 				ast.AssignmentAssign,
@@ -402,7 +404,7 @@ func TestConcurrentProcsSharedStateWithMutex(t *testing.T) {
 			ast.Call("lock_release"),
 			ast.Int(0),
 		)))
-		handle, ok := handleVal.(*runtime.ProcHandleValue)
+		handle, ok := handleVal.(*runtime.FutureValue)
 		if !ok {
 			t.Fatalf("expected proc handle, got %#v", handleVal)
 		}
@@ -410,7 +412,7 @@ func TestConcurrentProcsSharedStateWithMutex(t *testing.T) {
 	}
 
 	for _, handle := range handles {
-		val := interp.procHandleValue(handle)
+		val := interp.futureValue(handle)
 		if _, ok := val.(runtime.IntegerValue); !ok {
 			if _, isNil := val.(runtime.NilValue); !isNil {
 				t.Fatalf("expected proc to resolve with value, got %#v", val)
@@ -436,7 +438,7 @@ func TestConcurrentProcsSharedStateWithMutex(t *testing.T) {
 	}
 }
 
-func TestGoroutineExecutorRunsProcsInParallel(t *testing.T) {
+func TestGoroutineExecutorRunsFuturesInParallel(t *testing.T) {
 	interp := New()
 	if serial, ok := interp.executor.(*SerialExecutor); ok {
 		serial.Close()
@@ -471,10 +473,10 @@ func TestGoroutineExecutorRunsProcsInParallel(t *testing.T) {
 	)
 
 	start := time.Now()
-	handles := make([]*runtime.ProcHandleValue, 0, taskCount)
+	handles := make([]*runtime.FutureValue, 0, taskCount)
 	for idx := 0; idx < taskCount; idx++ {
 		handleVal, err := interp.evaluateExpression(
-			ast.Proc(ast.Block(
+			ast.Spawn(ast.Block(
 				ast.Call("sleep_ms", ast.Int(sleepDelay)),
 				ast.Int(int64(idx)),
 			)),
@@ -483,7 +485,7 @@ func TestGoroutineExecutorRunsProcsInParallel(t *testing.T) {
 		if err != nil {
 			t.Fatalf("proc evaluation failed: %v", err)
 		}
-		handle, ok := handleVal.(*runtime.ProcHandleValue)
+		handle, ok := handleVal.(*runtime.FutureValue)
 		if !ok {
 			t.Fatalf("expected proc handle, got %#v", handleVal)
 		}
@@ -491,7 +493,7 @@ func TestGoroutineExecutorRunsProcsInParallel(t *testing.T) {
 	}
 
 	for _, handle := range handles {
-		result := interp.procHandleValue(handle)
+		result := interp.futureValue(handle)
 		if _, ok := result.(runtime.IntegerValue); !ok {
 			t.Fatalf("expected integer result, got %#v", result)
 		}

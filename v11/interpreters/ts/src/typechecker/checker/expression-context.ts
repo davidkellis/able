@@ -1,5 +1,6 @@
 import type * as AST from "../../ast";
 import type { TypeInfo } from "../types";
+import type { TypeResolutionOptions } from "./type-resolution";
 import type { InterfaceCheckResult } from "./types";
 
 export type TypeDeclarationNode =
@@ -26,7 +27,11 @@ export interface ExpressionContext {
   typeInfosEquivalent(a?: TypeInfo, b?: TypeInfo): boolean;
   isTypeAssignable(actual?: TypeInfo, expected?: TypeInfo): boolean;
   describeLiteralMismatch(actual?: TypeInfo, expected?: TypeInfo): string | null;
-  resolveTypeExpression(expr: AST.TypeExpression | null | undefined, substitutions?: Map<string, TypeInfo>): TypeInfo;
+  resolveTypeExpression(
+    expr: AST.TypeExpression | null | undefined,
+    substitutions?: Map<string, TypeInfo>,
+    options?: TypeResolutionOptions,
+  ): TypeInfo;
   normalizeUnionType(members: TypeInfo[]): TypeInfo;
   getStructDefinition(name: string): AST.StructDefinition | undefined;
   handlePackageMemberAccess(expression: AST.MemberAccessExpression): TypeInfo | null;

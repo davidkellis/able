@@ -1,0 +1,16 @@
+{
+  "description": "spawn handles vs spawn futures (value access, errors, cancellation)",
+  "expect": {
+    "stdout": [
+      "values first=10 second=20",
+      "status Resolved Resolved",
+      "first error Future failed: boom",
+      "second error Future failed: boom",
+      "first raised Future failed: boom",
+      "second raised Future failed: boom",
+      "cancel seen true",
+      "cancel status Cancelled"
+    ],
+    "exit": 0
+  }
+}

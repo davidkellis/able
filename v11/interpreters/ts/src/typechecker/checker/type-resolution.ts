@@ -35,7 +35,6 @@ const BUILTIN_TYPE_ARITY = new Map<string, number>([
   ["Array", 1],
   ["Iterator", 1],
   ["Range", 1],
-  ["Proc", 1],
   ["Future", 1],
   ["Map", 2],
   ["HashMap", 2],
@@ -54,10 +53,15 @@ export type TypeResolutionContext = {
   report?: (message: string, node?: AST.Node | null) => void;
 };
 
+export type TypeResolutionOptions = {
+  allowTypeConstructors?: boolean;
+};
+
 export type TypeResolutionHelpers = {
   resolveTypeExpression(
     expr: AST.TypeExpression | null | undefined,
     substitutions?: Map<string, TypeInfo>,
+    options?: TypeResolutionOptions,
   ): TypeInfo;
   instantiateTypeAlias(
     definition: AST.TypeAliasDefinition,
@@ -134,6 +138,7 @@ export function createTypeResolutionHelpers(context: TypeResolutionContext): Typ
   function resolveTypeExpression(
     expr: AST.TypeExpression | null | undefined,
     substitutions?: Map<string, TypeInfo>,
+    options?: TypeResolutionOptions,
   ): TypeInfo {
     if (!expr) return unknownType;
     switch (expr.type) {
@@ -142,6 +147,12 @@ export function createTypeResolutionHelpers(context: TypeResolutionContext): Typ
         if (!name) return unknownType;
         if (substitutions?.has(name)) {
           return substitutions.get(name) ?? unknownType;
+        }
+        if (name !== "Self" && !options?.allowTypeConstructors) {
+          const expected = expectedTypeArgumentCount(name);
+          if (expected !== null && expected > 0) {
+            reportTypeArgumentArity(name, expected, 0, expr);
+          }
         }
         switch (name) {
           case "i8":
@@ -202,11 +213,14 @@ export function createTypeResolutionHelpers(context: TypeResolutionContext): Typ
           ...baseArgs,
           ...(Array.isArray(expr.arguments) ? expr.arguments : []),
         ] as Array<AST.TypeExpression | null | undefined>;
-        const typeArguments = rawArgs.map((arg) => resolveTypeExpression(arg, substitutions));
+        const typeArguments = rawArgs.map((arg) => resolveTypeExpression(arg, substitutions, options));
         if (!substitutions?.has(baseName) && baseName !== "Self") {
           const expected = expectedTypeArgumentCount(baseName);
-          if (expected !== null && typeArguments.length > expected) {
-            reportTypeArgumentArity(baseName, expected, typeArguments.length, expr);
+          if (expected !== null) {
+            const allowConstructors = options?.allowTypeConstructors;
+            if (typeArguments.length > expected || (!allowConstructors && typeArguments.length < expected)) {
+              reportTypeArgumentArity(baseName, expected, typeArguments.length, expr);
+            }
           }
         }
         const substitutedBase = substitutions?.get(baseName);
@@ -252,24 +266,24 @@ export function createTypeResolutionHelpers(context: TypeResolutionContext): Typ
       case "NullableTypeExpression":
         return {
           kind: "nullable",
-          inner: resolveTypeExpression(expr.innerType, substitutions),
+          inner: resolveTypeExpression(expr.innerType, substitutions, options),
         };
       case "ResultTypeExpression":
         return {
           kind: "result",
-          inner: resolveTypeExpression(expr.innerType, substitutions),
+          inner: resolveTypeExpression(expr.innerType, substitutions, options),
         };
       case "UnionTypeExpression": {
         const members = Array.isArray(expr.members)
-          ? expr.members.map((member) => resolveTypeExpression(member, substitutions))
+          ? expr.members.map((member) => resolveTypeExpression(member, substitutions, options))
           : [];
         return { kind: "union", members };
       }
       case "FunctionTypeExpression": {
         const parameters = Array.isArray(expr.paramTypes)
-          ? expr.paramTypes.map((param) => resolveTypeExpression(param, substitutions))
+          ? expr.paramTypes.map((param) => resolveTypeExpression(param, substitutions, options))
           : [];
-        const returnType = resolveTypeExpression(expr.returnType, substitutions);
+        const returnType = resolveTypeExpression(expr.returnType, substitutions, options);
         return {
           kind: "function",
           parameters,
@@ -338,8 +352,6 @@ export function createTypeResolutionHelpers(context: TypeResolutionContext): Typ
         return { kind: "iterator", element: firstArg ?? unknownType };
       case "Range":
         return { kind: "range", element: firstArg ?? unknownType };
-      case "Proc":
-        return { kind: "proc", result: firstArg ?? unknownType };
       case "Future":
         return { kind: "future", result: firstArg ?? unknownType };
       case "Map": {
@@ -360,8 +372,6 @@ export function createTypeResolutionHelpers(context: TypeResolutionContext): Typ
         return { kind: "iterator", element: typeArguments[0] ?? unknownType };
       case "Range":
         return { kind: "range", element: typeArguments[0] ?? unknownType };
-      case "Proc":
-        return { kind: "proc", result: typeArguments[0] ?? unknownType };
       case "Future":
         return { kind: "future", result: typeArguments[0] ?? unknownType };
       case "Map":
@@ -457,7 +467,6 @@ export function createTypeResolutionHelpers(context: TypeResolutionContext): Typ
         const other = right as Extract<TypeInfo, { kind: typeof left.kind }>;
         return typeInfosEquivalent(left.element, other.element);
       }
-      case "proc":
       case "future": {
         const other = right as Extract<TypeInfo, { kind: typeof left.kind }>;
         return typeInfosEquivalent(left.result, other.result);
@@ -526,6 +535,9 @@ export function createTypeResolutionHelpers(context: TypeResolutionContext): Typ
         return true;
       }
       return false;
+    }
+    if (normalizedActual.kind === "future" && normalizedExpected.kind !== "future") {
+      return isTypeAssignable(normalizedActual.result, normalizedExpected);
     }
     if (normalizedExpected.kind === "union" && normalizedActual.kind === "union") {
       return normalizedActual.members.every((member) => isTypeAssignable(member, normalizedExpected));
@@ -645,9 +657,6 @@ export function createTypeResolutionHelpers(context: TypeResolutionContext): Typ
         }
       }
       return null;
-    }
-    if (normalizedActual.kind === "proc" && normalizedExpected.kind === "proc") {
-      return describeLiteralMismatch(normalizedActual.result, normalizedExpected.result);
     }
     if (normalizedActual.kind === "future" && normalizedExpected.kind === "future") {
       return describeLiteralMismatch(normalizedActual.result, normalizedExpected.result);

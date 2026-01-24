@@ -6,6 +6,11 @@ import (
 	"able/interpreter-go/pkg/ast"
 )
 
+type typeResolutionOptions struct {
+	allowTypeConstructors bool
+	skipArityCheck        bool
+}
+
 func (c *declarationCollector) collectTypeAliasDefinition(def *ast.TypeAliasDefinition) {
 	if def == nil || def.ID == nil || def.ID.Name == "" {
 		return
@@ -32,6 +37,10 @@ func (c *declarationCollector) collectTypeAliasDefinition(def *ast.TypeAliasDefi
 }
 
 func (c *declarationCollector) resolveTypeExpression(expr ast.TypeExpression, typeParams map[string]Type) Type {
+	return c.resolveTypeExpressionWithOptions(expr, typeParams, typeResolutionOptions{})
+}
+
+func (c *declarationCollector) resolveTypeExpressionWithOptions(expr ast.TypeExpression, typeParams map[string]Type, opts typeResolutionOptions) Type {
 	if expr == nil {
 		return UnknownType{}
 	}
@@ -41,6 +50,9 @@ func (c *declarationCollector) resolveTypeExpression(expr ast.TypeExpression, ty
 			name := t.Name.Name
 			if local, ok := typeParams[name]; ok {
 				return local
+			}
+			if name == "Self" || name == "_" {
+				return UnknownType{}
 			}
 			switch name {
 			case "bool":
@@ -57,13 +69,20 @@ func (c *declarationCollector) resolveTypeExpression(expr ast.TypeExpression, ty
 				return PrimitiveType{Kind: PrimitiveChar}
 			case "nil":
 				return PrimitiveType{Kind: PrimitiveNil}
-			case "_":
-				return UnknownType{}
 			case "i8", "i16", "i32", "i64", "i128", "isize", "u8", "u16", "u32", "u64", "u128", "usize":
 				return IntegerType{Suffix: name}
 			case "f32", "f64":
 				return FloatType{Suffix: name}
 			default:
+			if !opts.skipArityCheck && !opts.allowTypeConstructors && !shouldSkipTypeArgumentCheck(name, c.localTypeNames, c.declNodes) {
+				if decl, ok := c.env.Lookup(name); ok {
+					if expected, ok := expectedTypeArgumentCount(name, decl); ok && expected > 0 {
+						c.diags = append(c.diags, typeArgumentArityDiagnostic(name, expected, 0, t))
+					}
+					} else if expected, ok := builtinTypeArgumentArity[name]; ok && expected > 0 {
+						c.diags = append(c.diags, typeArgumentArityDiagnostic(name, expected, 0, t))
+					}
+				}
 				if decl, ok := c.env.Lookup(name); ok {
 					if alias, ok := decl.(AliasType); ok {
 						inst, _ := instantiateAlias(alias, nil)
@@ -83,11 +102,13 @@ func (c *declarationCollector) resolveTypeExpression(expr ast.TypeExpression, ty
 					if alias, ok := decl.(AliasType); ok {
 						args := make([]Type, len(t.Arguments))
 						for i, arg := range t.Arguments {
-							args[i] = c.resolveTypeExpression(arg, typeParams)
+							args[i] = c.resolveTypeExpressionWithOptions(arg, typeParams, opts)
 						}
-						if !shouldSkipTypeArgumentCheck(baseName, c.localTypeNames, c.declNodes) {
-							if expected, ok := expectedTypeArgumentCount(baseName, alias); ok && len(args) > expected {
-								c.diags = append(c.diags, typeArgumentArityDiagnostic(baseName, expected, len(args), t))
+						if !opts.skipArityCheck && !shouldSkipTypeArgumentCheck(baseName, c.localTypeNames, c.declNodes) {
+							if expected, ok := expectedTypeArgumentCount(baseName, alias); ok {
+								if len(args) > expected || (!opts.allowTypeConstructors && len(args) < expected) {
+									c.diags = append(c.diags, typeArgumentArityDiagnostic(baseName, expected, len(args), t))
+								}
 							}
 						}
 						inst, _ := instantiateAlias(alias, args)
@@ -96,18 +117,26 @@ func (c *declarationCollector) resolveTypeExpression(expr ast.TypeExpression, ty
 				}
 			}
 		}
-		base := c.resolveTypeExpression(t.Base, typeParams)
+		baseOpts := opts
+		baseOpts.skipArityCheck = true
+		base := c.resolveTypeExpressionWithOptions(t.Base, typeParams, baseOpts)
 		args := make([]Type, len(t.Arguments))
+		argOpts := opts
+		argOpts.allowTypeConstructors = true
 		for i, arg := range t.Arguments {
-			args[i] = c.resolveTypeExpression(arg, typeParams)
+			args[i] = c.resolveTypeExpressionWithOptions(arg, typeParams, argOpts)
 		}
-		if baseName != "" && !shouldSkipTypeArgumentCheck(baseName, c.localTypeNames, c.declNodes) {
+		if baseName != "" && !opts.skipArityCheck && !shouldSkipTypeArgumentCheck(baseName, c.localTypeNames, c.declNodes) {
 			if _, known := c.env.Lookup(baseName); known {
-				if expected, ok := expectedTypeArgumentCount(baseName, base); ok && len(args) > expected {
+				if expected, ok := expectedTypeArgumentCount(baseName, base); ok {
+					if len(args) > expected || (!opts.allowTypeConstructors && len(args) < expected) {
+						c.diags = append(c.diags, typeArgumentArityDiagnostic(baseName, expected, len(args), t))
+					}
+				}
+			} else if expected, ok := builtinTypeArgumentArity[baseName]; ok {
+				if len(args) > expected || (!opts.allowTypeConstructors && len(args) < expected) {
 					c.diags = append(c.diags, typeArgumentArityDiagnostic(baseName, expected, len(args), t))
 				}
-			} else if expected, ok := builtinTypeArgumentArity[baseName]; ok && len(args) > expected {
-				c.diags = append(c.diags, typeArgumentArityDiagnostic(baseName, expected, len(args), t))
 			}
 		}
 		if unionBase, ok := base.(UnionType); ok {
@@ -120,13 +149,13 @@ func (c *declarationCollector) resolveTypeExpression(expr ast.TypeExpression, ty
 	case *ast.FunctionTypeExpression:
 		params := make([]Type, len(t.ParamTypes))
 		for i, param := range t.ParamTypes {
-			params[i] = c.resolveTypeExpression(param, typeParams)
+			params[i] = c.resolveTypeExpressionWithOptions(param, typeParams, opts)
 		}
-		return FunctionType{Params: params, Return: c.resolveTypeExpression(t.ReturnType, typeParams)}
+		return FunctionType{Params: params, Return: c.resolveTypeExpressionWithOptions(t.ReturnType, typeParams, opts)}
 	case *ast.NullableTypeExpression:
-		return NullableType{Inner: c.resolveTypeExpression(t.InnerType, typeParams)}
+		return NullableType{Inner: c.resolveTypeExpressionWithOptions(t.InnerType, typeParams, opts)}
 	case *ast.ResultTypeExpression:
-		inner := c.resolveTypeExpression(t.InnerType, typeParams)
+		inner := c.resolveTypeExpressionWithOptions(t.InnerType, typeParams, opts)
 		if decl, ok := c.env.Lookup("Result"); ok {
 			if union, ok := decl.(UnionType); ok {
 				return c.instantiateUnionType(union, []Type{inner})
@@ -182,7 +211,7 @@ func (c *declarationCollector) convertGenericParams(params []*ast.GenericParamet
 			if constraint.InterfaceType == nil {
 				continue
 			}
-			constraints = append(constraints, c.resolveTypeExpression(constraint.InterfaceType, typeScope))
+			constraints = append(constraints, c.resolveTypeExpressionWithOptions(constraint.InterfaceType, typeScope, typeResolutionOptions{skipArityCheck: true}))
 			constraintNodes = append(constraintNodes, constraint.InterfaceType)
 		}
 		specs = append(specs, GenericParamSpec{
@@ -215,7 +244,7 @@ func (c *declarationCollector) convertWhereClause(where []*ast.WhereClauseConstr
 			if constraint.InterfaceType == nil {
 				continue
 			}
-			constraints = append(constraints, c.resolveTypeExpression(constraint.InterfaceType, typeParams))
+			constraints = append(constraints, c.resolveTypeExpressionWithOptions(constraint.InterfaceType, typeParams, typeResolutionOptions{skipArityCheck: true}))
 			constraintNodes = append(constraintNodes, constraint.InterfaceType)
 		}
 		specs = append(specs, WhereConstraintSpec{

@@ -135,7 +135,7 @@
         "name": "sender_a"
       },
       "right": {
-        "type": "ProcExpression",
+        "type": "SpawnExpression",
         "expression": {
           "type": "BlockExpression",
           "body": [
@@ -253,7 +253,7 @@
                           "type": "FunctionCall",
                           "callee": {
                             "type": "Identifier",
-                            "name": "proc_yield"
+                            "name": "future_yield"
                           },
                           "arguments": [],
                           "isTrailingLambda": false
@@ -280,7 +280,7 @@
         "name": "sender_b"
       },
       "right": {
-        "type": "ProcExpression",
+        "type": "SpawnExpression",
         "expression": {
           "type": "BlockExpression",
           "body": [
@@ -398,7 +398,7 @@
                           "type": "FunctionCall",
                           "callee": {
                             "type": "Identifier",
-                            "name": "proc_yield"
+                            "name": "future_yield"
                           },
                           "arguments": [],
                           "isTrailingLambda": false
@@ -425,7 +425,7 @@
         "name": "receiver"
       },
       "right": {
-        "type": "ProcExpression",
+        "type": "SpawnExpression",
         "expression": {
           "type": "BlockExpression",
           "body": [
@@ -553,7 +553,7 @@
                           "type": "FunctionCall",
                           "callee": {
                             "type": "Identifier",
-                            "name": "proc_yield"
+                            "name": "future_yield"
                           },
                           "arguments": [],
                           "isTrailingLambda": false
@@ -825,7 +825,7 @@
             "type": "FunctionCall",
             "callee": {
               "type": "Identifier",
-              "name": "proc_flush"
+              "name": "future_flush"
             },
             "arguments": [],
             "isTrailingLambda": false
@@ -972,20 +972,23 @@
               "name": "sender_a_value"
             },
             "right": {
-              "type": "FunctionCall",
-              "callee": {
-                "type": "MemberAccessExpression",
-                "object": {
-                  "type": "Identifier",
-                  "name": "sender_a"
+              "type": "PropagationExpression",
+              "expression": {
+                "type": "FunctionCall",
+                "callee": {
+                  "type": "MemberAccessExpression",
+                  "object": {
+                    "type": "Identifier",
+                    "name": "sender_a"
+                  },
+                  "member": {
+                    "type": "Identifier",
+                    "name": "value"
+                  }
                 },
-                "member": {
-                  "type": "Identifier",
-                  "name": "value"
-                }
-              },
-              "arguments": [],
-              "isTrailingLambda": false
+                "arguments": [],
+                "isTrailingLambda": false
+              }
             }
           }
         ]
@@ -1017,20 +1020,23 @@
               "name": "sender_b_value"
             },
             "right": {
-              "type": "FunctionCall",
-              "callee": {
-                "type": "MemberAccessExpression",
-                "object": {
-                  "type": "Identifier",
-                  "name": "sender_b"
+              "type": "PropagationExpression",
+              "expression": {
+                "type": "FunctionCall",
+                "callee": {
+                  "type": "MemberAccessExpression",
+                  "object": {
+                    "type": "Identifier",
+                    "name": "sender_b"
+                  },
+                  "member": {
+                    "type": "Identifier",
+                    "name": "value"
+                  }
                 },
-                "member": {
-                  "type": "Identifier",
-                  "name": "value"
-                }
-              },
-              "arguments": [],
-              "isTrailingLambda": false
+                "arguments": [],
+                "isTrailingLambda": false
+              }
             }
           }
         ]
@@ -1062,20 +1068,23 @@
               "name": "receiver_sum"
             },
             "right": {
-              "type": "FunctionCall",
-              "callee": {
-                "type": "MemberAccessExpression",
-                "object": {
-                  "type": "Identifier",
-                  "name": "receiver"
+              "type": "PropagationExpression",
+              "expression": {
+                "type": "FunctionCall",
+                "callee": {
+                  "type": "MemberAccessExpression",
+                  "object": {
+                    "type": "Identifier",
+                    "name": "receiver"
+                  },
+                  "member": {
+                    "type": "Identifier",
+                    "name": "value"
+                  }
                 },
-                "member": {
-                  "type": "Identifier",
-                  "name": "value"
-                }
-              },
-              "arguments": [],
-              "isTrailingLambda": false
+                "arguments": [],
+                "isTrailingLambda": false
+              }
             }
           }
         ]

@@ -16,28 +16,23 @@
   "concurrency/channel_receive_loop": [],
   "concurrency/channel_send_on_closed_error": [],
   "concurrency/channel_send_receive_progress": [],
-  "concurrency/fairness_proc_future": [],
-  "concurrency/fairness_proc_round_robin": [],
-  "concurrency/future_cancel_nested": [
-    "typechecker: v11/fixtures/ast/concurrency/future_cancel_nested/source.able:26:1 typechecker: future handles do not support cancel()"
-  ],
+  "concurrency/fairness_future_interleaving": [],
+  "concurrency/fairness_future_round_robin": [],
+  "concurrency/future_cancel_value": [],
+  "concurrency/future_cancelled_helper": [],
+  "concurrency/future_cancelled_outside_error": [],
+  "concurrency/future_cancel_nested": [],
   "concurrency/future_error_cause": [],
+  "concurrency/future_executor_diagnostics": [],
+  "concurrency/future_flush_fairness": [],
   "concurrency/future_memoization": [],
   "concurrency/future_time_slicing": [],
+  "concurrency/future_value_cancel_memoization": [],
+  "concurrency/future_value_memoization": [],
   "concurrency/future_value_reentrancy": [],
+  "concurrency/future_yield_flush": [],
   "concurrency/mutex_contention": [],
   "concurrency/mutex_locking": [],
-  "concurrency/proc_cancel_value": [],
-  "concurrency/proc_cancelled_helper": [],
-  "concurrency/proc_cancelled_outside_error": [],
-  "concurrency/proc_error_cause": [],
-  "concurrency/proc_executor_diagnostics": [],
-  "concurrency/proc_flush_fairness": [],
-  "concurrency/proc_time_slicing": [],
-  "concurrency/proc_value_cancel_memoization": [],
-  "concurrency/proc_value_memoization": [],
-  "concurrency/proc_value_reentrancy": [],
-  "concurrency/proc_yield_flush": [],
   "control/for_continue": [],
   "control/for_range_break": [],
   "control/for_sum": [],
@@ -63,6 +58,15 @@
   "errors/array_destructure_mismatch": [],
   "errors/array_destructure_short": [],
   "errors/bitshift_out_of_range": [],
+  "errors/builtin_type_arity": [
+    "typechecker: v11/fixtures/ast/errors/builtin_type_arity/source.able:1:21 typechecker: type 'Array' expects 1 type argument(s), got 0",
+    "typechecker: v11/fixtures/ast/errors/builtin_type_arity/source.able:3:19 typechecker: type 'Map' expects 2 type argument(s), got 1",
+    "typechecker: v11/fixtures/ast/errors/builtin_type_arity/source.able:5:21 typechecker: type 'Mutex' expects 0 type argument(s), got 1"
+  ],
+  "errors/constraint_interface_arity": [
+    "typechecker: v11/fixtures/ast/errors/constraint_interface_arity/source.able:19:15 typechecker: fn use_missing constraint on T requires 2 type argument(s) for interface 'Pair'",
+    "typechecker: v11/fixtures/ast/errors/constraint_interface_arity/source.able:20:16 typechecker: fn use_mismatch constraint on T expected 2 type argument(s) for interface 'Pair', got 1"
+  ],
   "errors/ensure_runs": [],
   "errors/generic_constraint_unsatisfied": [
     "typechecker: v11/fixtures/ast/errors/generic_constraint_unsatisfied/source.able:21:15 typechecker: methods for Point::accept_show constraint on T is not satisfied: i32 does not implement Show"
@@ -88,6 +92,9 @@
     "typechecker: v11/fixtures/ast/errors/method_set_where_constraint/source.able:16:1 typechecker: methods for Wrapper::describe constraint on Self is not satisfied: Wrapper does not implement CustomDisplay: methods for Wrapper: method 'show' not provided"
   ],
   "errors/or_else_handler": [],
+  "errors/partial_application_arity": [
+    "typechecker: v11/fixtures/ast/errors/partial_application_arity/source.able:6:10 typechecker: function expects 1 arguments, got 2"
+  ],
   "errors/raise_manifest": [],
   "errors/range_non_numeric": [
     "typechecker: v11/fixtures/ast/errors/range_non_numeric/source.able:1:1 typechecker: range start must be numeric"
@@ -168,21 +175,22 @@
   "imports/static_wildcard_private_error": [
     "typechecker: v11/fixtures/ast/imports/static_wildcard_private_error/source.able:3:1 typechecker: undefined identifier 'priv_fn'"
   ],
-  "interfaces/apply_index_dispatch": [
-    "typechecker: v11/fixtures/ast/interfaces/apply_index_dispatch/source.able:37:11 typechecker: '+' requires numeric operands (got Result Unknown and i32)",
-    "typechecker: v11/fixtures/ast/interfaces/apply_index_dispatch/source.able:38:1 typechecker: '+' requires numeric operands (got Result Unknown and i32)"
-  ],
+  "interfaces/apply_index_dispatch": [],
   "interfaces/apply_index_missing_impls": [
     "typechecker: v11/fixtures/ast/interfaces/apply_index_missing_impls/source.able:23:3 typechecker: cannot call non-callable value ReadOnlyPair (missing Apply implementation)",
     "typechecker: v11/fixtures/ast/interfaces/apply_index_missing_impls/source.able:27:3 typechecker: cannot assign via [] without IndexMut implementation on type Index i32 i32"
   ],
   "interfaces/composite_generic": [],
+  "interfaces/custom_hash_eq": [],
   "interfaces/dynamic_interface_collections": [],
+  "interfaces/hash_collision_handling": [],
   "interfaces/impl_specificity": [],
   "interfaces/impl_specificity_ambiguity": [
     "typechecker: v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able:21:1 typechecker: ambiguous implementations of Ambig for Named: impl Ambig for T"
   ],
   "interfaces/imported_impl_dispatch": [],
+  "interfaces/kernel_interface_availability": [],
+  "interfaces/primitive_hashing": [],
   "match/guard_clause": [],
   "match/identifier_literal": [],
   "match/struct_guard": [],
@@ -191,9 +199,7 @@
   "patterns/array_destructuring": [],
   "patterns/for_array_pattern": [],
   "patterns/named_struct_destructuring": [],
-  "patterns/nested_struct_destructuring": [
-    "typechecker: v11/fixtures/ast/patterns/nested_struct_destructuring/source.able:12:20 typechecker: '+' requires numeric operands (got i32 and Result i32)"
-  ],
+  "patterns/nested_struct_destructuring": [],
   "patterns/struct_pattern_rename": [],
   "patterns/struct_positional_destructuring": [],
   "patterns/typed_assignment": [],
@@ -210,6 +216,7 @@
   "stdlib/range_iterator": [],
   "strings/interpolation_basic": [],
   "strings/interpolation_struct_to_String": [],
+  "strings/String_methods": [],
   "structs/functional_update": [],
   "structs/named_literal": [],
   "structs/positional_literal": [],

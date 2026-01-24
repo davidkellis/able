@@ -28,26 +28,39 @@ func (i *Interpreter) initConcurrencyBuiltins() {
 	stringIdent := ast.NewIdentifier("String")
 	stringType := ast.NewSimpleTypeExpression(stringIdent)
 	detailsField := ast.NewStructFieldDefinition(stringType, ast.NewIdentifier("details"))
-	procErrorDef := ast.NewStructDefinition(ast.NewIdentifier("ProcError"), []*ast.StructFieldDefinition{detailsField}, ast.StructKindNamed, nil, nil, false)
-	_, _ = i.evaluateStructDefinition(procErrorDef, i.global)
+	futureErrorDef := ast.NewStructDefinition(ast.NewIdentifier("FutureError"), []*ast.StructFieldDefinition{detailsField}, ast.StructKindNamed, nil, nil, false)
+	_, _ = i.evaluateStructDefinition(futureErrorDef, i.global)
 
 	pendingDef := ast.NewStructDefinition(ast.NewIdentifier("Pending"), nil, ast.StructKindNamed, nil, nil, false)
 	resolvedDef := ast.NewStructDefinition(ast.NewIdentifier("Resolved"), nil, ast.StructKindNamed, nil, nil, false)
 	cancelledDef := ast.NewStructDefinition(ast.NewIdentifier("Cancelled"), nil, ast.StructKindNamed, nil, nil, false)
-	errorField := ast.NewStructFieldDefinition(ast.NewSimpleTypeExpression(ast.NewIdentifier("ProcError")), ast.NewIdentifier("error"))
+	errorField := ast.NewStructFieldDefinition(ast.NewSimpleTypeExpression(ast.NewIdentifier("FutureError")), ast.NewIdentifier("error"))
 	failedDef := ast.NewStructDefinition(ast.NewIdentifier("Failed"), []*ast.StructFieldDefinition{errorField}, ast.StructKindNamed, nil, nil, false)
 	_, _ = i.evaluateStructDefinition(pendingDef, i.global)
 	_, _ = i.evaluateStructDefinition(resolvedDef, i.global)
 	_, _ = i.evaluateStructDefinition(cancelledDef, i.global)
 	_, _ = i.evaluateStructDefinition(failedDef, i.global)
+	futureStatusDef := ast.NewUnionDefinition(
+		ast.NewIdentifier("FutureStatus"),
+		[]ast.TypeExpression{
+			ast.NewSimpleTypeExpression(ast.NewIdentifier("Pending")),
+			ast.NewSimpleTypeExpression(ast.NewIdentifier("Resolved")),
+			ast.NewSimpleTypeExpression(ast.NewIdentifier("Cancelled")),
+			ast.NewSimpleTypeExpression(ast.NewIdentifier("Failed")),
+		},
+		nil,
+		nil,
+		false,
+	)
+	_, _ = i.evaluateUnionDefinition(futureStatusDef, i.global)
 	awaitWakerDef := ast.NewStructDefinition(ast.NewIdentifier("AwaitWaker"), nil, ast.StructKindNamed, nil, nil, false)
 	awaitRegistrationDef := ast.NewStructDefinition(ast.NewIdentifier("AwaitRegistration"), nil, ast.StructKindNamed, nil, nil, false)
 	_, _ = i.evaluateStructDefinition(awaitWakerDef, i.global)
 	_, _ = i.evaluateStructDefinition(awaitRegistrationDef, i.global)
 
-	if val, err := i.global.Get("ProcError"); err == nil {
-		if def, conv := toStructDefinitionValue(val, "ProcError"); conv == nil {
-			i.procErrorStruct = def
+	if val, err := i.global.Get("FutureError"); err == nil {
+		if def, conv := toStructDefinitionValue(val, "FutureError"); conv == nil {
+			i.futureErrorStruct = def
 		}
 	}
 
@@ -63,43 +76,43 @@ func (i *Interpreter) initConcurrencyBuiltins() {
 		return def
 	}
 
-	if i.procStatusStructs == nil {
-		i.procStatusStructs = make(map[string]*runtime.StructDefinitionValue)
+	if i.futureStatusStructs == nil {
+		i.futureStatusStructs = make(map[string]*runtime.StructDefinitionValue)
 	}
-	i.procStatusStructs["Pending"] = loadStruct("Pending")
-	i.procStatusStructs["Resolved"] = loadStruct("Resolved")
-	i.procStatusStructs["Cancelled"] = loadStruct("Cancelled")
-	i.procStatusStructs["Failed"] = loadStruct("Failed")
+	i.futureStatusStructs["Pending"] = loadStruct("Pending")
+	i.futureStatusStructs["Resolved"] = loadStruct("Resolved")
+	i.futureStatusStructs["Cancelled"] = loadStruct("Cancelled")
+	i.futureStatusStructs["Failed"] = loadStruct("Failed")
 	if i.awaitWakerStruct == nil {
 		i.awaitWakerStruct = loadStruct("AwaitWaker")
 	}
 
-	if def := i.procStatusStructs["Pending"]; def != nil {
-		i.procStatusPending = &runtime.StructInstanceValue{Definition: def}
+	if def := i.futureStatusStructs["Pending"]; def != nil {
+		i.futureStatusPending = &runtime.StructInstanceValue{Definition: def}
 	} else {
-		i.procStatusPending = runtime.NilValue{}
+		i.futureStatusPending = runtime.NilValue{}
 	}
-	if def := i.procStatusStructs["Resolved"]; def != nil {
-		i.procStatusResolved = &runtime.StructInstanceValue{Definition: def}
+	if def := i.futureStatusStructs["Resolved"]; def != nil {
+		i.futureStatusResolved = &runtime.StructInstanceValue{Definition: def}
 	} else {
-		i.procStatusResolved = runtime.NilValue{}
+		i.futureStatusResolved = runtime.NilValue{}
 	}
-	if def := i.procStatusStructs["Cancelled"]; def != nil {
-		i.procStatusCancelled = &runtime.StructInstanceValue{Definition: def}
+	if def := i.futureStatusStructs["Cancelled"]; def != nil {
+		i.futureStatusCancelled = &runtime.StructInstanceValue{Definition: def}
 	} else {
-		i.procStatusCancelled = runtime.NilValue{}
+		i.futureStatusCancelled = runtime.NilValue{}
 	}
 
-	procYield := &runtime.NativeFunctionValue{
-		Name:  "proc_yield",
+	futureYield := &runtime.NativeFunctionValue{
+		Name:  "future_yield",
 		Arity: 0,
 		Impl: func(callCtx *runtime.NativeCallContext, _ []runtime.Value) (runtime.Value, error) {
 			if callCtx == nil {
-				return nil, fmt.Errorf("proc_yield must be called inside an asynchronous task")
+				return nil, fmt.Errorf("future_yield must be called inside an asynchronous task")
 			}
 			payload := payloadFromState(callCtx.State)
-			if payload == nil || (payload.kind != asyncContextProc && payload.kind != asyncContextFuture) {
-				return nil, fmt.Errorf("proc_yield must be called inside an asynchronous task")
+			if payload == nil || payload.kind != asyncContextFuture || payload.handle == nil {
+				return nil, fmt.Errorf("future_yield must be called inside an asynchronous task")
 			}
 			if _, ok := i.executor.(*SerialExecutor); ok {
 				return nil, errSerialYield
@@ -108,33 +121,33 @@ func (i *Interpreter) initConcurrencyBuiltins() {
 			return runtime.NilValue{}, nil
 		},
 	}
-	i.global.Define("proc_yield", procYield)
+	i.global.Define("future_yield", futureYield)
 
-	procCancelled := &runtime.NativeFunctionValue{
-		Name:  "proc_cancelled",
+	futureCancelled := &runtime.NativeFunctionValue{
+		Name:  "future_cancelled",
 		Arity: 0,
 		Impl: func(ctx *runtime.NativeCallContext, _ []runtime.Value) (runtime.Value, error) {
 			payload := payloadFromState(ctx.State)
-			if payload == nil || payload.handle == nil || payload.kind != asyncContextProc {
-				return nil, fmt.Errorf("proc_cancelled must be called inside an asynchronous task")
+			if payload == nil || payload.kind != asyncContextFuture || payload.handle == nil {
+				return nil, fmt.Errorf("future_cancelled must be called inside an asynchronous task")
 			}
 			return runtime.BoolValue{Val: payload.handle.CancelRequested()}, nil
 		},
 	}
-	i.global.Define("proc_cancelled", procCancelled)
+	i.global.Define("future_cancelled", futureCancelled)
 
-	procFlush := &runtime.NativeFunctionValue{
-		Name:  "proc_flush",
+	futureFlush := &runtime.NativeFunctionValue{
+		Name:  "future_flush",
 		Arity: 0,
 		Impl: func(_ *runtime.NativeCallContext, _ []runtime.Value) (runtime.Value, error) {
 			i.executor.Flush()
 			return runtime.NilValue{}, nil
 		},
 	}
-	i.global.Define("proc_flush", procFlush)
+	i.global.Define("future_flush", futureFlush)
 
-	procPendingTasks := &runtime.NativeFunctionValue{
-		Name:  "proc_pending_tasks",
+	futurePendingTasks := &runtime.NativeFunctionValue{
+		Name:  "future_pending_tasks",
 		Arity: 0,
 		Impl: func(_ *runtime.NativeCallContext, _ []runtime.Value) (runtime.Value, error) {
 			pending := i.executor.PendingTasks()
@@ -147,7 +160,7 @@ func (i *Interpreter) initConcurrencyBuiltins() {
 			}, nil
 		},
 	}
-	i.global.Define("proc_pending_tasks", procPendingTasks)
+	i.global.Define("future_pending_tasks", futurePendingTasks)
 
 	awaitDefault := &runtime.NativeFunctionValue{
 		Name:  "__able_await_default",
@@ -186,14 +199,14 @@ func (i *Interpreter) initConcurrencyBuiltins() {
 	i.concurrencyReady = true
 }
 
-func (i *Interpreter) makeAsyncTask(kind asyncContextKind, node ast.Expression, env *runtime.Environment) ProcTask {
+func (i *Interpreter) makeAsyncTask(node ast.Expression, env *runtime.Environment) ProcTask {
 	capturedEnv := runtime.NewEnvironment(env)
 	return func(ctx context.Context) (runtime.Value, error) {
 		payload := payloadFromContext(ctx)
 		if payload == nil {
-			payload = &asyncContextPayload{kind: kind}
+			payload = &asyncContextPayload{kind: asyncContextFuture}
 		} else {
-			payload.kind = kind
+			payload.kind = asyncContextFuture
 		}
 		return i.runAsyncEvaluation(payload, node, capturedEnv)
 	}
@@ -229,7 +242,7 @@ func (i *Interpreter) asyncFailure(payload *asyncContextPayload, err error) erro
 	}
 	switch sig := err.(type) {
 	case raiseSignal:
-		return i.procFailure(payload, sig.value, "task failed")
+		return i.futureFailure(payload, sig.value, "task failed")
 	default:
 		failure := runtime.ErrorValue{Message: err.Error()}
 		return newTaskFailure(failure, failure.Message)
@@ -237,87 +250,33 @@ func (i *Interpreter) asyncFailure(payload *asyncContextPayload, err error) erro
 }
 
 func (i *Interpreter) asyncCancelled(payload *asyncContextPayload) error {
-	label := "Proc"
-	if payload != nil && payload.kind == asyncContextFuture {
-		label = "Future"
-	}
-	message := fmt.Sprintf("%s cancelled", label)
-	procErr := i.makeProcError(message)
-	runtimeErr := i.makeProcRuntimeError(message, procErr)
+	message := "Future cancelled"
+	futureErr := i.makeFutureError(message)
+	runtimeErr := i.makeFutureRuntimeError(message, futureErr)
 	return newTaskCancellation(runtimeErr, runtimeErr.Message)
 }
 
-func (i *Interpreter) procFailure(payload *asyncContextPayload, value runtime.Value, fallback string) error {
-	label := "Proc"
-	if payload != nil && payload.kind == asyncContextFuture {
-		label = "Future"
-	}
-	procErr := i.toProcError(value, fallback)
-	details := i.procErrorDetails(procErr)
-	message := fmt.Sprintf("%s failed: %s", label, details)
-	runtimeErr := i.makeProcRuntimeError(message, procErr)
+func (i *Interpreter) futureFailure(payload *asyncContextPayload, value runtime.Value, fallback string) error {
+	futureErr := i.toFutureError(value, fallback)
+	details := i.futureErrorDetails(futureErr)
+	message := fmt.Sprintf("Future failed: %s", details)
+	runtimeErr := i.makeFutureRuntimeError(message, futureErr)
 	return newTaskFailure(runtimeErr, runtimeErr.Message)
 }
 
-func (i *Interpreter) procHandleStatus(handle *runtime.ProcHandleValue) runtime.Value {
-	_, failure, status := handle.Snapshot()
-	switch status {
-	case runtime.ProcPending:
-		return i.procStatusPending
-	case runtime.ProcResolved:
-		return i.procStatusResolved
-	case runtime.ProcCancelled:
-		return i.procStatusCancelled
-	case runtime.ProcFailed:
-		return i.makeProcStatusFailed(failure)
-	default:
-		return i.procStatusPending
-	}
-}
-
-func (i *Interpreter) procHandleValue(handle *runtime.ProcHandleValue) runtime.Value {
-	if serial, ok := i.executor.(*SerialExecutor); ok {
-		serial.Drive(handle)
-	}
-	result, failure, status := handle.Await()
-	switch status {
-	case runtime.ProcResolved:
-		if result == nil {
-			return runtime.NilValue{}
-		}
-		return result
-	case runtime.ProcCancelled:
-		if failure == nil {
-			failure = i.makeProcRuntimeError("Proc cancelled", i.makeProcError("Proc cancelled"))
-		}
-		return failure
-	case runtime.ProcFailed:
-		if failure == nil {
-			failure = i.makeProcRuntimeError("Proc failed", i.makeProcError("Proc failed"))
-		}
-		return failure
-	default:
-		return i.makeProcRuntimeError("Proc pending", i.makeProcError("Proc pending"))
-	}
-}
-
 func (i *Interpreter) futureStatus(future *runtime.FutureValue) runtime.Value {
-	handle := future.Handle()
-	if handle == nil {
-		return i.procStatusPending
-	}
-	_, failure, status := handle.Snapshot()
+	_, failure, status := future.Snapshot()
 	switch status {
-	case runtime.ProcPending:
-		return i.procStatusPending
-	case runtime.ProcResolved:
-		return i.procStatusResolved
-	case runtime.ProcCancelled:
-		return i.procStatusCancelled
-	case runtime.ProcFailed:
-		return i.makeProcStatusFailed(failure)
+	case runtime.FuturePending:
+		return i.futureStatusPending
+	case runtime.FutureResolved:
+		return i.futureStatusResolved
+	case runtime.FutureCancelled:
+		return i.futureStatusCancelled
+	case runtime.FutureFailed:
+		return i.makeFutureStatusFailed(failure)
 	default:
-		return i.procStatusPending
+		return i.futureStatusPending
 	}
 }
 
@@ -326,68 +285,66 @@ func (i *Interpreter) futureValue(future *runtime.FutureValue) runtime.Value {
 }
 
 func (i *Interpreter) futureValueWithPayload(future *runtime.FutureValue, payload *asyncContextPayload) runtime.Value {
-	if handle := future.Handle(); handle != nil {
-		if serial, ok := i.executor.(*SerialExecutor); ok {
-			if payload == nil {
-				// Calls from synchronous contexts should respect queue order before awaiting the target future.
-				serial.Flush()
-			}
-			serial.Drive(handle)
+	if serial, ok := i.executor.(*SerialExecutor); ok {
+		if payload == nil {
+			// Calls from synchronous contexts should respect queue order before awaiting the target future.
+			serial.Flush()
 		}
+		serial.Drive(future)
 	}
 	value, failure, status := future.Await()
 	switch status {
-	case runtime.ProcResolved:
+	case runtime.FutureResolved:
 		if value == nil {
 			return runtime.NilValue{}
 		}
 		return value
-	case runtime.ProcCancelled:
+	case runtime.FutureCancelled:
 		if failure == nil {
-			failure = i.makeProcRuntimeError("Future cancelled", i.makeProcError("Future cancelled"))
+			failure = i.makeFutureRuntimeError("Future cancelled", i.makeFutureError("Future cancelled"))
 		}
 		return failure
-	case runtime.ProcFailed:
+	case runtime.FutureFailed:
 		if failure == nil {
-			failure = i.makeProcRuntimeError("Future failed", i.makeProcError("Future failed"))
+			failure = i.makeFutureRuntimeError("Future failed", i.makeFutureError("Future failed"))
 		}
 		return failure
 	default:
-		return i.makeProcRuntimeError("Future pending", i.makeProcError("Future pending"))
+		return i.makeFutureRuntimeError("Future pending", i.makeFutureError("Future pending"))
 	}
 }
 
-func (i *Interpreter) makeProcStatusFailed(failure runtime.Value) runtime.Value {
-	def := i.procStatusStructs["Failed"]
+func (i *Interpreter) makeFutureStatusFailed(failure runtime.Value) runtime.Value {
+	def := i.futureStatusStructs["Failed"]
 	if def == nil {
-		return runtime.ErrorValue{Message: "Proc failed", Payload: map[string]runtime.Value{
-			"proc_error": i.toProcError(failure, "Proc failed"),
+		return runtime.ErrorValue{Message: "Future failed", Payload: map[string]runtime.Value{
+			"future_error": i.toFutureError(failure, "Future failed"),
 		}}
 	}
-	procErr := i.toProcError(failure, "Proc failed")
+	futureErr := i.toFutureError(failure, "Future failed")
 	return &runtime.StructInstanceValue{
 		Definition: def,
 		Fields: map[string]runtime.Value{
-			"error": procErr,
+			"error": futureErr,
 		},
 	}
 }
 
-func (i *Interpreter) makeProcError(details string) runtime.Value {
-	if i.procErrorStruct == nil {
+func (i *Interpreter) makeFutureError(details string) runtime.Value {
+	if i.futureErrorStruct == nil {
 		return runtime.ErrorValue{Message: details}
 	}
 	return &runtime.StructInstanceValue{
-		Definition: i.procErrorStruct,
+		Definition: i.futureErrorStruct,
 		Fields: map[string]runtime.Value{
 			"details": runtime.StringValue{Val: details},
 		},
 	}
 }
 
-func (i *Interpreter) procErrorDetails(val runtime.Value) string {
+func (i *Interpreter) futureErrorDetails(val runtime.Value) string {
 	if v, ok := val.(*runtime.StructInstanceValue); ok {
-		if v != nil && i.procErrorStruct != nil && v.Definition == i.procErrorStruct {
+		if v != nil && i.futureErrorStruct != nil && v.Definition == i.futureErrorStruct {
 			if detail, ok := v.Fields["details"]; ok {
 				if str, ok := detail.(runtime.StringValue); ok {
 					return str.Val
@@ -401,44 +358,44 @@ func (i *Interpreter) procErrorDetails(val runtime.Value) string {
 	return valueToString(val)
 }
 
-func (i *Interpreter) makeProcRuntimeError(message string, procErr runtime.Value) runtime.ErrorValue {
+func (i *Interpreter) makeFutureRuntimeError(message string, futureErr runtime.Value) runtime.ErrorValue {
 	payload := map[string]runtime.Value{
-		"proc_error": procErr,
+		"future_error": futureErr,
 	}
-	if procErr != nil {
-		payload["value"] = procErr
-		payload["cause"] = procErr
+	if futureErr != nil {
+		payload["value"] = futureErr
+		payload["cause"] = futureErr
 	}
 	return runtime.ErrorValue{Message: message, Payload: payload}
 }
 
-func (i *Interpreter) toProcError(val runtime.Value, fallback string) runtime.Value {
+func (i *Interpreter) toFutureError(val runtime.Value, fallback string) runtime.Value {
 	if val == nil {
-		return i.makeProcError(fallback)
+		return i.makeFutureError(fallback)
 	}
 	switch v := val.(type) {
 	case *runtime.StructInstanceValue:
-		if v != nil && i.procErrorStruct != nil && v.Definition == i.procErrorStruct {
+		if v != nil && i.futureErrorStruct != nil && v.Definition == i.futureErrorStruct {
 			return v
 		}
 	case runtime.ErrorValue:
 		if v.Payload != nil {
-			if procVal, ok := v.Payload["proc_error"]; ok {
-				return i.toProcError(procVal, fallback)
+			if futureVal, ok := v.Payload["future_error"]; ok {
+				return i.toFutureError(futureVal, fallback)
 			}
 		}
 		if v.Message != "" {
-			return i.makeProcError(v.Message)
+			return i.makeFutureError(v.Message)
 		}
 	default:
-		return i.makeProcError(valueToString(val))
+		return i.makeFutureError(valueToString(val))
 	}
-	return i.makeProcError(fallback)
+	return i.makeFutureError(fallback)
 }
 
-func (i *Interpreter) registerHandleAwaiter(handle *runtime.ProcHandleValue, waker runtime.Value) (runtime.Value, error) {
+func (i *Interpreter) registerHandleAwaiter(handle *runtime.FutureValue, waker runtime.Value) (runtime.Value, error) {
 	if handle == nil {
-		return nil, fmt.Errorf("register requires proc handle")
+		return nil, fmt.Errorf("register requires future handle")
 	}
 	structWaker, ok := waker.(*runtime.StructInstanceValue)
 	if !ok || structWaker == nil {
@@ -452,127 +409,6 @@ func (i *Interpreter) registerHandleAwaiter(handle *runtime.ProcHandleValue, wak
 		i.invokeAwaitWaker(structWaker, i.global)
 	})
 	return i.makeAwaitRegistrationValue(func() { cancelled.Store(true) }), nil
-}
-
-func (i *Interpreter) procHandleMember(handle *runtime.ProcHandleValue, member ast.Expression) (runtime.Value, error) {
-	ident, ok := member.(*ast.Identifier)
-	if !ok {
-		return nil, fmt.Errorf("Proc handle member access expects identifier")
-	}
-	switch ident.Name {
-	case "status":
-		fn := runtime.NativeFunctionValue{
-			Name:  "proc_handle.status",
-			Arity: 0,
-			Impl: func(ctx *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
-				if len(args) == 0 {
-					return nil, fmt.Errorf("status requires receiver")
-				}
-				recv, ok := args[0].(*runtime.ProcHandleValue)
-				if !ok {
-					return nil, fmt.Errorf("status receiver must be a proc handle")
-				}
-				return i.procHandleStatus(recv), nil
-			},
-		}
-		return &runtime.NativeBoundMethodValue{Receiver: handle, Method: fn}, nil
-	case "value":
-		fn := runtime.NativeFunctionValue{
-			Name:  "proc_handle.value",
-			Arity: 0,
-			Impl: func(ctx *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
-				if len(args) == 0 {
-					return nil, fmt.Errorf("value requires receiver")
-				}
-				recv, ok := args[0].(*runtime.ProcHandleValue)
-				if !ok {
-					return nil, fmt.Errorf("value receiver must be a proc handle")
-				}
-				return i.procHandleValue(recv), nil
-			},
-		}
-		return &runtime.NativeBoundMethodValue{Receiver: handle, Method: fn}, nil
-	case "cancel":
-		fn := runtime.NativeFunctionValue{
-			Name:  "proc_handle.cancel",
-			Arity: 0,
-			Impl: func(ctx *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
-				if len(args) == 0 {
-					return nil, fmt.Errorf("cancel requires receiver")
-				}
-				recv, ok := args[0].(*runtime.ProcHandleValue)
-				if !ok {
-					return nil, fmt.Errorf("cancel receiver must be a proc handle")
-				}
-				if recv.Status() == runtime.ProcPending {
-					recv.Cancel(nil)
-					return runtime.NilValue{}, nil
-				}
-				recv.RequestCancel()
-				return runtime.NilValue{}, nil
-			},
-		}
-		return &runtime.NativeBoundMethodValue{Receiver: handle, Method: fn}, nil
-	case "is_ready":
-		fn := runtime.NativeFunctionValue{
-			Name:  "proc_handle.is_ready",
-			Arity: 0,
-			Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
-				if len(args) == 0 {
-					return nil, fmt.Errorf("is_ready requires receiver")
-				}
-				recv, ok := args[0].(*runtime.ProcHandleValue)
-				if !ok {
-					return nil, fmt.Errorf("is_ready receiver must be a proc handle")
-				}
-				return runtime.BoolValue{Val: recv.Status() != runtime.ProcPending}, nil
-			},
-		}
-		return &runtime.NativeBoundMethodValue{Receiver: handle, Method: fn}, nil
-	case "register":
-		fn := runtime.NativeFunctionValue{
-			Name:  "proc_handle.register",
-			Arity: 1,
-			Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
-				if len(args) < 2 {
-					return nil, fmt.Errorf("register requires receiver and waker")
-				}
-				recv, ok := args[0].(*runtime.ProcHandleValue)
-				if !ok {
-					return nil, fmt.Errorf("register receiver must be a proc handle")
-				}
-				return i.registerHandleAwaiter(recv, args[1])
-			},
-		}
-		return &runtime.NativeBoundMethodValue{Receiver: handle, Method: fn}, nil
-	case "commit":
-		fn := runtime.NativeFunctionValue{
-			Name:  "proc_handle.commit",
-			Arity: 0,
-			Impl: func(_ *runtime.NativeCallContext, args []runtime.Value) (runtime.Value, error) {
-				if len(args) == 0 {
-					return nil, fmt.Errorf("commit requires receiver")
-				}
-				recv, ok := args[0].(*runtime.ProcHandleValue)
-				if !ok {
-					return nil, fmt.Errorf("commit receiver must be a proc handle")
-				}
-				return i.procHandleValue(recv), nil
-			},
-		}
-		return &runtime.NativeBoundMethodValue{Receiver: handle, Method: fn}, nil
-	case "is_default":
-		fn := runtime.NativeFunctionValue{
-			Name:  "proc_handle.is_default",
-			Arity: 0,
-			Impl: func(_ *runtime.NativeCallContext, _ []runtime.Value) (runtime.Value, error) {
-				return runtime.BoolValue{Val: false}, nil
-			},
-		}
-		return &runtime.NativeBoundMethodValue{Receiver: handle, Method: fn}, nil
-	default:
-		return nil, fmt.Errorf("Unknown proc handle method '%s'", ident.Name)
-	}
 }
 
 func (i *Interpreter) futureMember(future *runtime.FutureValue, member ast.Expression) (runtime.Value, error) {
@@ -629,8 +465,15 @@ func (i *Interpreter) futureMember(future *runtime.FutureValue, member ast.Expre
 				if !ok {
 					return nil, fmt.Errorf("cancel receiver must be a future")
 				}
-				if handle := recv.Handle(); handle != nil {
-					handle.RequestCancel()
+				if recv.Status() != runtime.FuturePending {
+					return runtime.NilValue{}, nil
+				}
+				recv.RequestCancel()
+				if !recv.Started() {
+					recv.Cancel(nil)
+				}
+				if serial, ok := i.executor.(*SerialExecutor); ok {
+					serial.ResumeHandle(recv)
 				}
 				return runtime.NilValue{}, nil
 			},
@@ -648,10 +491,7 @@ func (i *Interpreter) futureMember(future *runtime.FutureValue, member ast.Expre
 				if !ok {
 					return nil, fmt.Errorf("is_ready receiver must be a future")
 				}
-				if handle := recv.Handle(); handle != nil {
-					return runtime.BoolValue{Val: handle.Status() != runtime.ProcPending}, nil
-				}
-				return runtime.BoolValue{Val: true}, nil
+				return runtime.BoolValue{Val: recv.Status() != runtime.FuturePending}, nil
 			},
 		}
 		return &runtime.NativeBoundMethodValue{Receiver: future, Method: fn}, nil
@@ -667,11 +507,7 @@ func (i *Interpreter) futureMember(future *runtime.FutureValue, member ast.Expre
 				if !ok {
 					return nil, fmt.Errorf("register receiver must be a future")
 				}
-				handle := recv.Handle()
-				if handle == nil {
-					return i.makeAwaitRegistrationValue(nil), nil
-				}
-				return i.registerHandleAwaiter(handle, args[1])
+				return i.registerHandleAwaiter(recv, args[1])
 			},
 		}
 		return &runtime.NativeBoundMethodValue{Receiver: future, Method: fn}, nil

@@ -57,9 +57,9 @@ This separation mirrors the TypeScript interpreter’s feature boundaries, keeps
 ## Concurrency model
 
 - **Executors:** `New()` boots with `SerialExecutor` to keep tests deterministic; production callers should swap to `NewGoroutineExecutor` for real concurrency. Both implementations satisfy the same `Executor` contract.
-- **Thread-safe environments:** `runtime.Environment` guards scope maps with an `RWMutex`, allowing goroutines spawned by `proc`/`spawn` to share globals safely.
+- **Thread-safe environments:** `runtime.Environment` guards scope maps with an `RWMutex`, allowing goroutines spawned by `spawn` to share globals safely.
 - **Async task state:** Breakpoint and raise stacks live inside an `evalState` that is stored on the async payload, so each goroutine carries its own interpreter state without serialising the entire runtime.
-- **Cooperative helpers:** `proc_yield`, `proc_cancelled`, and `proc_flush` are exposed as native functions. `proc_cancelled` now errors when called outside an async task; tests cover the happy path and misuse.
+- **Cooperative helpers:** `future_yield`, `future_cancelled`, and `future_flush` are exposed as native functions. `future_cancelled` now errors when called outside an async task; tests cover the happy path and misuse.
 - **User-managed synchronisation:** The runtime ensures its internal structures are safe; user code must still guard shared data (e.g. via native mutex helpers) when true parallelism is enabled.
 
 See `design/go-concurrency.md` for a deeper dive and open follow-ups.
@@ -70,17 +70,16 @@ See `design/go-concurrency.md` for a deeper dive and open follow-ups.
   (declarations, expressions, patterns, constraint solving).
 - Design notes and future enhancement ideas live in `design/typechecker.md` and
   `design/typechecker-plan.md` (spans, incremental checking, TS parity).
-- Use the checker to gate fixtures with `ABLE_TYPECHECK_FIXTURES=strict` before
-  running the interpreter; diagnostics surface contextual method-set failures
-  (e.g., `"via method 'format'"`, `"via method set"`).
+- Fixture/test harnesses default to strict typechecking; set
+  `ABLE_TYPECHECK_FIXTURES=warn` (log diagnostics) or `ABLE_TYPECHECK_FIXTURES=off`
+  explicitly when you need to relax enforcement during debugging.
 
 ### Typechecker integration
 
 - `Interpreter.EnableTypechecker` wires the checker into module evaluation. Use
   `TypecheckConfig{FailFast: true}` to abort execution on diagnostics.
-- Fixture runs can enable the checker via `ABLE_TYPECHECK_FIXTURES=warn` (log
-  diagnostics) or `ABLE_TYPECHECK_FIXTURES=strict` (fail before evaluation).
-  The default remains disabled so existing fixtures continue to run unchanged.
+- Fixture runs respect `ABLE_TYPECHECK_FIXTURES=warn|off` for explicit overrides;
+  strict enforcement is the default when the variable is unset.
 
 ## Running the Go test suites
 

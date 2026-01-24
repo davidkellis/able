@@ -11,9 +11,9 @@ func (c *Checker) checkPropagationExpression(env *Environment, expr *ast.Propaga
 	return diags, success
 }
 
-func unionContainsProcError(union UnionLiteralType) bool {
+func unionContainsFutureError(union UnionLiteralType) bool {
 	for _, member := range union.Members {
-		if member != nil && member.Name() == "Struct:ProcError" {
+		if member != nil && member.Name() == "Struct:FutureError" {
 			return true
 		}
 	}
@@ -25,7 +25,7 @@ func unionSuccessBranch(union UnionLiteralType) Type {
 		if member == nil {
 			continue
 		}
-		if member.Name() != "Struct:ProcError" {
+		if member.Name() != "Struct:FutureError" {
 			return member
 		}
 	}

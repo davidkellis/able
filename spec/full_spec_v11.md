@@ -117,14 +117,15 @@
         *   [11.3.3. Runtime Exceptions (no panic abstraction)](#1133-runtime-exceptions-no-panic-abstraction)
 12. [Concurrency](#12-concurrency)
     *   [12.1. Concurrency Model Overview](#121-concurrency-model-overview)
-    *   [12.2. Asynchronous Execution (`proc`)](#122-asynchronous-execution-proc)
+    *   [12.2. Asynchronous Execution (`spawn`)](#122-asynchronous-execution-spawn)
         *   [12.2.1. Syntax](#1221-syntax)
         *   [12.2.2. Semantics](#1222-semantics)
-        *   [12.2.3. Process Handle (`Proc T` Interface)](#1223-process-handle-proc-t-interface)
-    *   [12.3. Future-Based Asynchronous Execution (`spawn`)](#123-future-based-asynchronous-execution-spawn)
-        *   [12.3.1. Syntax](#1231-syntax)
-        *   [12.3.2. Semantics](#1232-semantics)
-    *   [12.4. Key Differences (`proc` vs `spawn`)](#124-key-differences-proc-vs-spawn)
+        *   [12.2.3. Future Handle (`Future T` Interface)](#1223-future-handle-future-t-interface)
+    *   [12.3. Future Evaluation Semantics (Implicit Value View)](#123-future-evaluation-semantics-implicit-value-view)
+        *   [12.3.1. Implicit Blocking Evaluation](#1231-implicit-blocking-evaluation)
+        *   [12.3.2. Handle View vs Value View](#1232-handle-view-vs-value-view)
+        *   [12.3.3. Example](#1233-example)
+    *   [12.4. Using the Handle View vs the Value View](#124-using-the-handle-view-vs-the-value-view)
     *   [12.5. Synchronization Primitives (Crystal-style APIs, Go semantics)](#125-synchronization-primitives-crystal-style-apis-go-semantics)
     *   [12.6. `await` Expression and the `Awaitable` Protocol](#126-await-expression-and-the-awaitable-protocol)
     *   [12.7. Channel and Mutex Error Types](#127-channel-and-mutex-error-types)
@@ -160,7 +161,7 @@ Defines how raw text is converted into tokens.
 
 *   **Character Set:** UTF-8 source files are recommended.
 *   **Identifiers:** Start with a letter (`a-z`, `A-Z`) or underscore (`_`), followed by letters, digits (`0-9`), or underscores. Typically `[a-zA-Z_][a-zA-Z0-9_]*`. Identifiers are case-sensitive. Package/directory names mapping to identifiers treat hyphens (`-`) as underscores. The identifier `_` is reserved as the wildcard pattern (see Section [5.2.2](#522-wildcard-pattern-_)) and for unbound type parameters (see Section [4.4](#44-reserved-identifier-_-in-types)). The tokens `@` and `@n` (e.g., `@1`, `@2`, ...) are reserved for expression placeholders and cannot be used as identifiers.
-*   **Keywords:** Reserved words that cannot be used as identifiers: `fn`, `struct`, `union`, `interface`, `impl`, `methods`, `type`, `package`, `import`, `dynimport`, `extern`, `prelude`, `private`, `Self`, `do`, `return`, `if`, `elsif`, `else`, `or`, `while`, `for`, `in`, `match`, `case`, `breakpoint`, `break`, `raise`, `rescue`, `ensure`, `rethrow`, `proc`, `spawn`, `nil`, `void`, `true`, `false`.
+*   **Keywords:** Reserved words that cannot be used as identifiers: `fn`, `struct`, `union`, `interface`, `impl`, `methods`, `type`, `package`, `import`, `dynimport`, `extern`, `prelude`, `private`, `Self`, `do`, `return`, `if`, `elsif`, `else`, `or`, `while`, `for`, `in`, `match`, `case`, `breakpoint`, `break`, `raise`, `rescue`, `ensure`, `rethrow`, `spawn`, `nil`, `void`, `true`, `false`.
 *   **Reserved Tokens (non-identifiers):** `@` and numbered placeholders `@n` (e.g., `@1`, `@2`, ...), used for expression placeholder lambdas.
 *   **Operators:** Symbols with specific meanings (See Section [6.3](#63-operators)). Includes assignment/declaration operators `:=` and `=`.
 *   **Literals:** Source code representations of fixed values (See Section [4.2](#42-primitive-types) and Section [6.1](#61-literals)).
@@ -374,7 +375,7 @@ Able includes opaque host-handle primitives used by the IO/OS/process stdlib:
 `IoHandle` and `ProcHandle`. These values wrap host runtime objects (file
 handles, processes, sockets, etc.) and are **not** inspectable from Able code.
 They are only constructible by host externs or stdlib helpers and are distinct
-from the concurrency `Proc` handle in §12 (which represents an Able async task).
+from the concurrency `Future` handle in §12 (which represents an Able async task).
 
 Semantics:
 - Equality/inequality use **identity** (two handles are equal iff they wrap the
@@ -1911,10 +1912,10 @@ type MutexHandle = i64
 
 **Global builtins (host-provided):**
 - `print(value: _) -> void`
-- `proc_yield() -> void`
-- `proc_cancelled() -> bool`
-- `proc_flush() -> void`
-- `proc_pending_tasks() -> i32`
+- `future_yield() -> void`
+- `future_cancelled() -> bool`
+- `future_flush() -> void`
+- `future_pending_tasks() -> i32`
 
 **Array buffer hooks (host-provided):**
 - `__able_array_new() -> ArrayHandle`
@@ -1971,7 +1972,7 @@ type MutexHandle = i64
 **Required runtime protocols:**
 - **Error methods:** `message() -> String`, `cause() -> ?Error`; the `value` field is accessible for payloads.
 - **Iterator methods:** `next() -> T | IteratorEnd`, `close()`.
-- **Proc/Future methods:** `status()`, `value()`, `cancel()` (future cancel may be a no-op depending on target runtime).
+- **Future methods:** `status()`, `value()`, `cancel()`.
 
 All user-facing array and string helpers in §§6.12.1–6.12.2 live in the Able stdlib. Some runtimes currently ship temporary native shims for these helpers; they are **not** part of the kernel contract and will be removed once the stdlib owns the behaviour.
 
@@ -2457,7 +2458,7 @@ Placeholders in expression positions create anonymous functions.
 *   Mixing is allowed; arity is the maximum placeholder index used:
     *   `f(@1, @2, @3)` → `{ x, y, z => f(x, y, z) }`
 *   Scope: The smallest enclosing expression that expects a function determines the lambda boundary. If a placeholder spans a whole block, the entire block becomes the lambda body. Parentheses may be used for clarity without changing scope.
-*   Nesting: Placeholders inside an explicit lambda (`{ ... }`), iterator body, `proc`, or `spawn` are scoped to that construct; they do not implicitly convert the outer expression into a placeholder lambda.
+*   Nesting: Placeholders inside an explicit lambda (`{ ... }`), iterator body, or `spawn` are scoped to that construct; they do not implicitly convert the outer expression into a placeholder lambda.
 *   Errors:
     *   Using `@`/`@n` where a named identifier is required (outside expression placeholders) is a compile-time error.
     *   Arity mismatches between inferred placeholder lambdas and the expected function type at the call site are compile-time errors.
@@ -2823,7 +2824,7 @@ break ['LabelName] [ValueExpression]
     }                    ## i32 | String (C1/B1)
     ```
 
-4.  **Asynchrony boundary**: `break` only unwinds the current synchronous call stack. It cannot cross asynchronous boundaries introduced by `proc` or `spawn`. Attempting to target a `breakpoint` that is not in the current synchronous stack is a compile-time error when detectable, otherwise a runtime error.
+4.  **Asynchrony boundary**: `break` only unwinds the current synchronous call stack. It cannot cross asynchronous boundaries introduced by `spawn`. Attempting to target a `breakpoint` that is not in the current synchronous stack is a compile-time error when detectable, otherwise a runtime error.
 
 #### 8.3.4. Example
 
@@ -3731,119 +3732,99 @@ Able does not have a distinct panic mechanism. All exceptional conditions are mo
 
 ## 12. Concurrency
 
-Able provides lightweight concurrency primitives inspired by Go, allowing asynchronous execution of functions and blocks using the `proc` and `spawn` keywords. The underlying scheduling and progress guarantees are inherited from the chosen compilation target (e.g., Go, Crystal) and are implementation-defined.
+Able provides lightweight concurrency primitives inspired by Go. Asynchronous execution uses the `spawn` keyword, which returns a `Future T` handle that also supports implicit evaluation to `T` when a value is required.
 
 ### 12.1. Concurrency Model Overview
 
--   Able supports concurrent execution, allowing multiple tasks to run seemingly in parallel.
+-   Able supports concurrent execution, allowing multiple spawned tasks to run seemingly in parallel.
 -   The underlying mechanism (e.g., OS threads, green threads, thread pool, event loop) is implementation-defined but guarantees the potential for concurrent progress.
 -   Communication and synchronization between concurrent tasks (e.g., channels, mutexes) are not defined in this section but would typically be provided by the standard library.
 
-### 12.2. Asynchronous Execution (`proc`)
+### 12.2. Asynchronous Execution (`spawn`)
 
-The `proc` keyword initiates asynchronous execution of a function call or a block, returning a handle (`Proc T`) to manage the asynchronous process.
+The `spawn` keyword initiates asynchronous execution of a function call or a block, returning a handle (`Future T`) that can be inspected, cancelled, or implicitly evaluated to obtain its result.
 
 #### 12.2.1. Syntax
 
 ```able
-proc FunctionCall
-proc BlockExpression
+spawn FunctionCall
+spawn BlockExpression
 ```
 
--   **`proc`**: Keyword initiating asynchronous execution.
+-   **`spawn`**: Keyword initiating asynchronous execution.
 -   **`FunctionCall`**: A standard function or method call expression (e.g., `my_function(arg1)`, `instance.method()`).
 -   **`BlockExpression`**: A `do { ... }` block expression.
 
 #### 12.2.2. Semantics
 
 1.  **Asynchronous Start**: The target `FunctionCall` or `BlockExpression` is submitted to the runtime *executor*—a scheduling abstraction that may be backed by goroutines/threads (Go) or a cooperative queue (TypeScript). Execution starts independently of the caller, and the current task does *not* block.
-2.  **Return Value**: The `proc` expression immediately returns a value whose type implements the `Proc T` interface.
+2.  **Return Value**: The `spawn` expression immediately returns a value of the special built-in type `Future T`.
     -   `T` is the return type of the `FunctionCall` or the type of the value the `BlockExpression` evaluates to.
-    -   If the function/block returns `void`, the return type is `Proc void`.
+    -   If the function/block returns `void`, the return type is `Future void`.
 3.  **Independent Execution**: The asynchronous task runs independently until it completes, fails, or is cancelled.
+4.  **Two Views of the Same Value**: A `Future T` value acts as a handle in non-`T` contexts (see §12.2.3) and as a value in `T` contexts (see §12.3).
 
-#### 12.2.3. Example
+#### 12.2.3. Future Handle (`Future T` Interface)
 
-```able
-fn fetch_data(url: String) -> String {
-  ## ... perform network request ...
-  "Data from {url}"
-}
-
-proc_handle = proc fetch_data("http://example.com") ## Starts fetching data
-## proc_handle has type `Proc String`
-
-computation_handle = proc do {
-  x = compute_part1()
-  y = compute_part2()
-  x + y ## Block evaluates to the sum
-} ## computation_handle has type `Proc i32` (assuming sum is i32)
-
-side_effect_proc = proc { log_message("Starting background task...") } ## Returns Proc void
-```
-
-#### 12.2.4. Process Handle (`Proc T` Interface)
-
-The `Proc T` interface provides methods to interact with an ongoing asynchronous process started by `proc`. The structs, union, and interface below form the canonical runtime surface; every interpreter/runtime MUST expose them with the exact spellings shown because shared fixtures and the Go/TypeScript typecheckers target these names.
+The `Future T` interface provides methods to interact with an ongoing asynchronous task started by `spawn`. The structs, union, and interface below form the canonical runtime surface; every interpreter/runtime MUST expose them with the exact spellings shown because shared fixtures and the Go/TypeScript typecheckers target these names.
 
 ##### Definition (Conceptual)
 
 ```able
-## Represents the status of an asynchronous process
-## Status of a Proc; variants are singleton structs. 'Failed' carries ProcError.
+## Represents the status of an asynchronous task.
+## Status variants are singleton structs. 'Failed' carries FutureError.
 struct Pending;
 struct Resolved;
 struct Cancelled;
-struct Failed { error: ProcError }
-union ProcStatus = Pending | Resolved | Cancelled | Failed
+struct Failed { error: FutureError }
+union FutureStatus = Pending | Resolved | Cancelled | Failed
 
-## Represents an error occurring during process execution (details TBD)
-## Could wrap exception information or specific error types.
-struct ProcError { details: String } ## Example structure
-impl Error for ProcError {
+## Represents an error occurring during async execution (details TBD).
+struct FutureError { details: String } ## Example structure
+impl Error for FutureError {
   fn message(self: Self) -> String { self.details }
   fn cause(self: Self) -> ?Error { nil } ## May wrap underlying error in future
 }
 
-## Interface for interacting with a process handle
-interface Proc T for HandleType { ## HandleType is the concrete type returned by 'proc'
-  ## Get the current status of the process
-  fn status(self: Self) -> ProcStatus
+## Interface for interacting with a future handle
+interface Future T for HandleType { ## HandleType is the concrete type returned by 'spawn'
+  ## Get the current status of the task.
+  fn status(self: Self) -> FutureStatus
 
   ## Attempt to retrieve the result value.
-  ## Blocks the *calling* thread until the process status is Resolved, Failed, or Cancelled.
-  ## Returns 'T' on success, or an Error on failure/cancelled. 'ProcError' implements Error.
+  ## Blocks the *calling* thread until the task status is Resolved, Failed, or Cancelled.
+  ## Returns 'T' on success, or an Error on failure/cancelled. 'FutureError' implements Error.
   fn value(self: Self) -> !T
 
-  ## Request cancellation of the asynchronous process.
+  ## Request cancellation of the asynchronous task.
   ## Best-effort and idempotent: if Pending, may transition to Cancelled; if Resolved, no effect.
   ## Races are allowed; whichever terminal state is reached first wins.
   fn cancel(self: Self) -> void
 }
 ```
 
-Implementations may enrich `ProcError` with platform-specific fields, but they MUST preserve the `message()` contract and keep `status()`, `value()`, and `cancel()` available with the semantics spelled out below.
+Implementations may enrich `FutureError` with platform-specific fields, but they MUST preserve the `message()` contract and keep `status()`, `value()`, and `cancel()` available with the semantics spelled out below.
 
 ##### Semantics of Methods
 
 -   **`status()`**: Returns the current state (`Pending`, `Resolved`, `Cancelled`, `Failed`) without blocking.
--   **`value()`**: Blocks the caller until the process finishes (resolves, fails, or is definitively cancelled).
+-   **`value()`**: Blocks the caller until the task finishes (resolves, fails, or is definitively cancelled).
     -   If `Resolved`, returns `value` where `value` has type `T`.
-    -   If `Failed`, returns an error value of type `ProcError` (which implements `Error`) containing error details.
-    -   If `Cancelled`, returns an error value of type `ProcError` indicating cancellation.
+    -   If `Failed`, returns an error value of type `FutureError` (which implements `Error`) containing error details.
+    -   If `Cancelled`, returns an error value of type `FutureError` indicating cancellation.
 -   **`cancel()`**: Sends a cancellation signal to the asynchronous task. The task is not guaranteed to stop immediately or at all unless designed to check for cancellation signals.
 
-##### Example Usage
+##### Example Usage (Handle View)
 
 ```able
-data_proc: Proc String = proc fetch_data("http://example.com")
+data_future: Future String = spawn fetch_data("http://example.com")
 
 ## Check status without blocking
-current_status = data_proc.status()
+current_status = data_future.status()
 if match current_status { case Pending => true } { print("Still working...") }
 
 ## Block until done and get result (handle potential errors)
-result = data_proc.value()
+result = data_future.value()
 final_data = result match {
   case d: T => `Success: ${d}`,
   case e: Error => `Failed: ${e.message()}`
@@ -3851,19 +3832,19 @@ final_data = result match {
 print(final_data)
 
 ## Request cancellation (fire and forget)
-data_proc.cancel()
+data_future.cancel()
 ```
 
-Propagation inside `proc` tasks:
+Propagation inside spawned tasks:
 
-- Within a `proc` task body, the postfix `!` operator behaves as usual inside the task. Early returns triggered by `!` return from the task’s function. Observers then see the resulting `Proc` state:
-  - If the task function returns `!T`, callers of `value()` receive that `!T` as-is (success or error) wrapped in the `Proc` protocol.
-  - If the task function raises an exception (unhandled), `value()` returns `ProcError` describing the failure (or re-raises under a target that maps exceptions directly).
+- Within a spawned task body, the postfix `!` operator behaves as usual. Early returns triggered by `!` return from the task’s function. Observers then see the resulting `Future` state:
+  - If the task function returns `!T`, callers of `value()` receive that `!T` as-is (success or error) wrapped in the `Future` protocol.
+  - If the task function raises an exception (unhandled), `value()` returns `FutureError` describing the failure (or re-raises under a target that maps exceptions directly).
 
 Cancellation example:
 
 ``` able
-handle = proc do {
+handle = spawn do {
   ch = Channel.new(0)
   ## ... periodically check a user-provided cancellation flag or channel ...
   ## on cancel, exit early (return void)
@@ -3872,14 +3853,14 @@ handle.cancel()
 st = handle.status()
 ```
 
-#### 12.2.5. Runtime Helpers and Scheduling
+#### 12.2.4. Runtime Helpers and Scheduling
 
 Able exposes a small set of helper functions for coordinating asynchronous work. These functions are implemented natively by each runtime but share the same observable behaviour:
 
--   **`proc_yield()`** &mdash; May only be called from inside a `proc`/`spawn` task. Signals the executor that the current task is willing to yield so other queued work can run. Cooperative executors MUST requeue the yielding task behind any currently runnable work (providing a round-robin effect when multiple tasks yield). On Go’s goroutine executor the call is a no-op advisory hint: Go’s scheduler decides when the goroutine runs next. Programs MUST NOT rely on fairness guarantees beyond “other tasks have an opportunity to make progress”.
--   **`proc_cancelled()`** &mdash; May be called from inside a `proc` task to observe whether cancellation has been requested. Returns `true` when the task’s handle has been cancelled; `false` otherwise. Calling it outside asynchronous context raises a runtime error. Implementations SHOULD integrate this check with their cancellation primitives (e.g., Go `context.Context`).
--   **`proc_flush(limit?: i32)`** &mdash; Drains work from the executor’s queue up to an optional step limit (defaulting to 1024). Provided primarily for deterministic testing and fixture harnesses. Production runtimes with preemptive schedulers (e.g., Go) may treat it as a no-op because work progresses independently; cooperative schedulers MUST honour the limit to avoid starvation.
--   **`proc_pending_tasks()`** &mdash; Returns an `i32` count of runnable tasks currently queued on the executor. Cooperative runtimes MUST surface their queue length so fixtures/tests can assert that drains complete. Pre-emptive runtimes MAY return `0` (or a best-effort approximation of outstanding work) when their host scheduler does not expose per-queue metrics. The helper is diagnostic-only; programs MUST NOT rely on its value for functional correctness.
+-   **`future_yield()`** - May only be called from inside a `spawn` task. Signals the executor that the current task is willing to yield so other queued work can run. Cooperative executors MUST requeue the yielding task behind any currently runnable work (providing a round-robin effect when multiple tasks yield). On Go’s goroutine executor the call is a no-op advisory hint: Go’s scheduler decides when the goroutine runs next. Programs MUST NOT rely on fairness guarantees beyond “other tasks have an opportunity to make progress”.
+-   **`future_cancelled()`** - May be called from inside a `spawn` task to observe whether cancellation has been requested. Returns `true` when the task’s handle has been cancelled; `false` otherwise. Calling it outside asynchronous context raises a runtime error. Implementations SHOULD integrate this check with their cancellation primitives (e.g., Go `context.Context`).
+-   **`future_flush(limit?: i32)`** - Drains work from the executor’s queue up to an optional step limit (defaulting to 1024). Provided primarily for deterministic testing and fixture harnesses. Production runtimes with preemptive schedulers (e.g., Go) may treat it as a no-op because work progresses independently; cooperative schedulers MUST honour the limit to avoid starvation.
+-   **`future_pending_tasks()`** - Returns an `i32` count of runnable tasks currently queued on the executor. Cooperative runtimes MUST surface their queue length so fixtures/tests can assert that drains complete. Pre-emptive runtimes MAY return `0` (or a best-effort approximation of outstanding work) when their host scheduler does not expose per-queue metrics. The helper is diagnostic-only; programs MUST NOT rely on its value for functional correctness.
 
 The helpers rely on the executor contract:
 
@@ -3897,7 +3878,7 @@ Runtimes can provide different executor implementations (goroutine-backed, coope
 
 ##### Scheduler fairness
 
-Runtime schedulers are expected to provide eventual forward progress for runnable procs, matching the behaviour of the Go runtime. Hosts that already provide pre-emptive scheduling—such as Go—inherit this property automatically and require no additional instrumentation. Cooperative implementations SHOULD emulate the same effect (for example, by yielding after bounded interpreter work or after blocking operations) so user-visible semantics remain aligned across runtimes. Implementations may offer additional test-only executors that enforce deterministic interleavings (e.g., always running the next ready task after a `proc_yield()`), but those guarantees are outside the core language contract.
+Runtime schedulers are expected to provide eventual forward progress for runnable tasks, matching the behaviour of the Go runtime. Hosts that already provide pre-emptive scheduling—such as Go—inherit this property automatically and require no additional instrumentation. Cooperative implementations SHOULD emulate the same effect (for example, by yielding after bounded interpreter work or after blocking operations) so user-visible semantics remain aligned across runtimes. Implementations may offer additional test-only executors that enforce deterministic interleavings (e.g., always running the next ready task after a `future_yield()`), but those guarantees are outside the core language contract.
 
 ##### Blocking operations (host + IO)
 
@@ -3909,48 +3890,43 @@ Cooperative runtimes MUST integrate blocking host operations with the scheduler
 (e.g., suspend the current task and resume on completion, or offload the host
 call to a worker thread). This guarantee applies even when blocking operations
 occur in the entrypoint; runtimes MAY execute `main`/top-level evaluation as an
-implicit task to preserve progress for other procs. From Able code, these calls
+implicit task to preserve progress for other spawned tasks. From Able code, these calls
 remain synchronous; the suspension is an implementation detail.
 
 ##### Re-entrant waits
 
-`proc_handle.value()` and `future.value()` may themselves be called from within other `proc`/`spawn` tasks (and even nested inside additional `value()` calls). Implementations MUST treat these operations as re-entrant:
+`future.value()` may itself be called from within other spawned tasks (and even nested inside additional `value()` calls). Implementations MUST treat these operations as re-entrant:
 
 - If the awaited task has already completed, `value()` returns immediately with the memoized result/error just as it would in top-level code.
 - If the awaited task is still pending, the caller simply blocks until the awaited task resolves. Cooperative executors MUST continue to make progress by either resuming the awaited task inline (e.g., by draining the deterministic queue) or by ensuring it stays scheduled; they may not deadlock merely because the wait originated from another task.
 - Pre-emptive runtimes (e.g., the Go goroutine executor) can rely on the host scheduler, but they must still guarantee that nested waits eventually unblock once the awaited task finishes.
 
-This requirement ensures programs like nested futures/procs (see the shared `concurrency/future_value_reentrancy` and `concurrency/proc_value_reentrancy` fixtures) behave the same way across interpreters and targets.
+This requirement ensures programs with nested future waits (see the shared re-entrancy fixtures) behave the same way across interpreters and targets.
 
-### 12.3. Future-Based Asynchronous Execution (`spawn`)
+### 12.3. Future Evaluation Semantics (Implicit Value View)
 
-The `spawn` keyword initiates asynchronous execution and returns a `Future T` value, which implicitly blocks and yields the result when evaluated in a `T` context. The result of a `Future T` is memoized: the first evaluation computes the result; subsequent evaluations return the memoized value (or error).
+#### 12.3.1. Implicit Blocking Evaluation
 
-#### 12.3.1. Syntax
+The core feature of `Future T` is its evaluation behavior. When a value of type `Future T` is used in a context requiring a value of type `T` (e.g., assignment, passing as argument, part of an expression), the current thread **blocks** until the associated asynchronous computation completes. The result is memoized: the first evaluation computes the result; subsequent evaluations return the memoized value (or error).
 
-```able
-spawn FunctionCall
-spawn BlockExpression
-```
+*   If the computation completes successfully with value `v` (type `T`), the evaluation of the `Future T` yields `v`.
+*   If the computation fails (raises an unhandled exception), evaluating the `Future T` re-raises that exception in the evaluating context. Use `rescue` to handle such failures.
+*   If the computation itself returns a `!T` (i.e., the underlying function returns `Error | T`), evaluating the `Future !T` yields that union value unchanged; no implicit wrapping occurs beyond memoization.
+*   Evaluating a `Future void` blocks until completion. If successful, it yields `void`. If the underlying task fails, it raises the exception to the evaluating context.
+*   If the task is cancelled, implicit evaluation raises a `FutureError` that can be handled via `rescue`.
 
--   **`spawn`**: Keyword initiating thunk-based asynchronous execution.
--   **`FunctionCall` / `BlockExpression`**: Same as for `proc`.
+Interaction with `!`:
 
-#### 12.3.2. Semantics
+- Since `Future !T` evaluates to `!T`, the postfix `!` operator can be applied directly to a `Future !T` value. `future_result!` will block until completion, then propagate the `Error` early or return the unwrapped `T`.
 
-1.  **Asynchronous Start**: Starts the function or block execution asynchronously, similar to `proc`. The current thread does not block.
-2.  **Return Value**: Immediately returns a value of the special built-in type `Future T`.
-    -   `T` is the return type of the function or the evaluation type of the block.
-    *   If the function/block returns `void`, the return type is `Future void`.
-3.  **Implicit Blocking Evaluation**: The core feature of `Future T` is its evaluation behavior. When a value of type `Future T` is used in a context requiring a value of type `T` (e.g., assignment, passing as argument, part of an expression), the current thread **blocks** until the associated asynchronous computation completes.
-    *   If the computation completes successfully with value `v` (type `T`), the evaluation of the `Future T` yields `v`.
-    *   If the computation fails (raises an unhandled exception), evaluating the `Future T` re-raises that exception in the evaluating context. Use `rescue` to handle such failures.
-    *   If the computation itself returns a `!T` (i.e., the underlying function returns `Error | T`), evaluating the `Future !T` yields that union value unchanged; no implicit wrapping occurs beyond memoization.
-    *   Evaluating a `Future void` blocks until completion. If successful, it yields `void`. If the underlying task fails, it raises the exception to the evaluating context.
+#### 12.3.2. Handle View vs Value View
 
-    Interaction with `!`:
+`Future T` is a single value that supports two interpretations:
 
-    - Since `Future !T` evaluates to `!T`, the postfix `!` operator can be applied directly to a `Future !T` value. `future_result!` will block until completion, then propagate the `Error` early or return the unwrapped `T`.
+- **Handle view (explicit):** Any time the expected type is `Future T` (or a supertype such as an interface) the value remains a handle. Method calls like `future.status()`, `future.value()`, and `future.cancel()` use the handle view and do **not** trigger implicit evaluation.
+- **Value view (implicit):** Any time a `T` is required, the value is implicitly evaluated using the rules in §12.3.1.
+
+This distinction allows user code to inspect and control asynchronous tasks without forcing evaluation, while still providing ergonomic “just use the value” semantics when desired.
 
 #### 12.3.3. Example
 
@@ -3965,7 +3941,10 @@ future_void: Future void = spawn { log_message("Background log started...") }
 
 print("Spawned tasks...") ## Executes immediately
 
-## Evaluation blocks here until expensive_calc(10) finishes:
+## Handle view: non-blocking status check
+print(future_result.status())
+
+## Value view: evaluation blocks here until expensive_calc(10) finishes:
 final_value = future_result
 print(`Calculation result: ${final_value}`) ## Prints "Calculation result: 100"
 
@@ -3974,36 +3953,11 @@ _ = future_void ## Assigning to _ forces evaluation/synchronization
 print("Background log finished.")
 ```
 
-#### 12.3.4. Future Handle (Canonical Interface)
+### 12.4. Using the Handle View vs the Value View
 
-Even though values of type `Future T` behave like `T` when evaluated, the runtime also exposes an explicit handle so tooling and user code can inspect or await futures without forcing implicit evaluation in expression position. The handle reuses the `ProcStatus`/`ProcError` structs from Section 12.2.4 and MUST provide the following methods:
-
-```able
-interface Future T for FutureHandle {
-  ## Non-blocking inspection of the memoized computation.
-  fn status(self: Self) -> ProcStatus
-
-  ## Blocks until the underlying asynchronous work settles and returns the memoized !T payload.
-  ## Successful futures yield the resolved value; cancelled/failed futures yield ProcError.
-  fn value(self: Self) -> !T
-}
-```
-
--   Futures are read-only views. There is intentionally no `cancel()` method; cancellation is requested via the originating `Proc` handle (if the program retained one) or by wiring cancellation-aware channels/flags into the asynchronous work.
--   `Future.status()` mirrors `Proc.status()` and MUST return the singleton structs `Pending`, `Resolved`, `Cancelled`, or `Failed`.
--   `Future.value()` is idempotent: once the future resolves, every subsequent call returns the cached result or error without re-running the computation. Typecheckers therefore model the return type as `!T`.
-
-Implementations may expose additional helper functions (e.g., scheduler instrumentation) but MUST keep the methods above available so that diagnostics and fixtures can reason about futures uniformly across runtimes.
-
-### 12.4. Using `proc` vs `spawn`
-
--   **Return Type:** `proc` returns `Proc T` (an interface handle); `spawn` returns `Future T` (a transparent, memoized result).
--   **Control:** `Proc T` offers explicit control (check status, attempt cancellation, get result via method call potentially handling errors).
--   **Result Access:** `Future T` provides implicit result access; evaluating the future blocks and returns the value directly. If the underlying computation raises, evaluation re-raises that exception in the evaluating context; use `rescue` to handle it.
-    -   Accessing a `Future T` value has the same semantics as accessing a variable of type `T`; the access blocks until the value is available and yields the value directly (or re-raises on failure).
--   **Use Cases:**
-    *   Use `proc` when you need to manage the lifecycle of the async task, check its progress, handle failures explicitly, or potentially cancel it.
-    *   Use `spawn` for minimal syntax and transparent, memoized result delivery.
+-   **Handle view:** Use `status()`, `value()`, or `cancel()` when you need explicit lifecycle control, non-blocking inspection, or explicit error handling (`!T`).
+-   **Value view:** Use implicit evaluation when you just need the result and want the simplest syntax.
+-   **Error handling:** The handle view returns `!T` (so you can pattern-match `Error | T`), while implicit evaluation raises on failure/cancellation and is best paired with `rescue`.
 
 ### 12.5. Synchronization Primitives (Crystal-style APIs, Go semantics)
 
@@ -4057,7 +4011,7 @@ Semantics (Go-compatible):
 -   Sending on a closed channel raises a `SendOnClosedChannelError`.
 -   `receive()` returns `?T` and yields `nil` when the channel is closed and drained.
 -   Nil channels (uninitialized variables) block forever on send/receive; closing a nil channel raises a `NilChannelError`.
--   Cancellation is cooperative: if a suspended send/receive observes that its owning `proc` has been cancelled before progress is made, it unwinds with a cancellation error (mirroring Go’s `context` cancellation). Cancellation does **not** implicitly close the channel.
+-   Cancellation is cooperative: if a suspended send/receive observes that its owning spawned task has been cancelled before progress is made, it unwinds with a cancellation error (mirroring Go’s `context` cancellation). Cancellation does **not** implicitly close the channel.
 -   Happens-before: a send happens-before the corresponding receive; closing happens-before a receive that returns the closed indication.
 
 Iteration:
@@ -4188,7 +4142,7 @@ Because `await` accepts any iterable, callers can build arm lists dynamically.
 
 -   **Fair selection:** When multiple arms become ready, runtimes must choose fairly so no arm is starved by source order (shuffle, rotating cursor, etc.).
 -   **Blocking:** Only the winning arm’s operation commits; others remain pending for future `await` invocations.
--   **Cancellation:** If the enclosing `proc` is cancelled while blocked, runtimes must wake the awaiting task and propagate the same cancellation error used by other blocking primitives.
+-   **Cancellation:** If the enclosing spawned task is cancelled while blocked, runtimes must wake the awaiting task and propagate the same cancellation error used by other blocking primitives.
 
 ### 12.7. Channel and Mutex Error Types
 
@@ -4625,7 +4579,7 @@ Primitive interface impls mirror these intrinsic semantics; users should not exp
 -   `Clone` produces deep-ish copies where needed (e.g., copying values out of borrowed containers).
 -   `Default` provides fallback initialization (`fn default() -> Self`).
 -   `Range` constructs iterables from `..`/`...` syntax (definitions below).
--   `Proc` / `ProcError` describe asynchronous handles (§12.2).
+-   `Future` / `FutureError` describe asynchronous handles (§12.2).
 
 `Default` is a static interface method and is invoked on a fully bound type (see §10.3.2):
 
@@ -4812,7 +4766,7 @@ All structs are shareable across threads/procs; compiled programs are immutable 
     -   `fn is_match(self: RegexSet, haystack: String) -> bool`
     -   `fn matches(self: RegexSet, haystack: String) -> Array u64` (indices of patterns that matched)
     -   `fn iter(self: RegexSet, haystack: String) -> (Iterator RegexSetMatch)` where `RegexSetMatch { pattern_index: u64, span: Span }`
--   `RegexScanner` exposes `fn feed(self: RegexScanner, chunk: String) -> void` and `fn next(self: RegexScanner) -> Match | IteratorEnd`. Scanners must honour Able’s cooperative scheduling: long-running scans call `proc_yield()` between chunks when running under the interpreter.
+-   `RegexScanner` exposes `fn feed(self: RegexScanner, chunk: String) -> void` and `fn next(self: RegexScanner) -> Match | IteratorEnd`. Scanners must honour Able’s cooperative scheduling: long-running scans call `future_yield()` between chunks when running under the interpreter.
 -   Streaming scanners and regex sets share the same deterministic guarantees as single-pattern regexes. Partial matches that span chunk boundaries buffer the necessary bytes internally until a decision can be made.
 
 #### 14.2.5. Integration Points
@@ -4842,7 +4796,7 @@ Able programs may define one or more executables via `main` functions located in
 
 ### 15.4. Background Work
 
--   The process terminates when `main` returns; background `proc`/`spawn` tasks are not awaited (fire-and-forget unless explicitly joined).
+-   The process terminates when `main` returns; background spawned tasks are not awaited (fire-and-forget unless explicitly joined).
 
 ### 15.5. Constraints
 
@@ -5025,7 +4979,7 @@ builds remain slim but tests can still share package scope.
 
 # Todo
 
-*   **Standard Library Implementation:** Core types (`Array`, `Map`?, `Set`?, `Range`, `Option`/`Result` details, `Proc`, `Future`), IO, string methods, Math, `Iterable`/`Iterator` protocol, Operator interfaces. Definition of standard `Error` interface.
+*   **Standard Library Implementation:** Core types (`Array`, `Map`?, `Set`?, `Range`, `Option`/`Result` details, `Future`), IO, string methods, Math, `Iterable`/`Iterator` protocol, Operator interfaces. Definition of standard `Error` interface.
 *   **Type System Details:** Full inference rules, Variance, Coercion (if any), HKT limitations/capabilities.
 *   **Interface Dictionary Semantics:** Finalize dictionary capture at upcast (including generic methods, defaults, and `Self` return behavior) and specify ambiguity handling.
 *   **Pattern Exhaustiveness:** Rules for open sets like `Error` and refutability constraints.

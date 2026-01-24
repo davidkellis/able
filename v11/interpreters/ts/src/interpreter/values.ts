@@ -74,7 +74,7 @@ export type RuntimeValue =
       methods?: Map<string, Extract<RuntimeValue, { kind: "function" | "function_overload" | "native_function" }>>;
     }
   | {
-      kind: "proc_handle";
+      kind: "future";
       state: "pending" | "resolved" | "failed" | "cancelled";
       expression: AST.AstNode;
       env: Environment;
@@ -84,27 +84,11 @@ export type RuntimeValue =
       failureInfo?: RuntimeValue;
       errorContext?: RuntimeDiagnosticContext;
       isEvaluating?: boolean;
-      errorMode?: "raw" | "proc";
+      errorMode?: "raw" | "future";
+      continuation?: ProcContinuationContext;
       cancelRequested?: boolean;
       hasStarted?: boolean;
       entrypoint?: boolean;
-      waitingMutex?: unknown;
-      continuation?: ProcContinuationContext;
-      awaitBlocked?: boolean;
-    }
-  | {
-      kind: "future";
-      state: "pending" | "resolved" | "failed" | "cancelled";
-      expression: AST.AstNode;
-      env: Environment;
-      runner: (() => void) | null;
-      result?: RuntimeValue;
-      error?: RuntimeValue;
-      failureInfo?: RuntimeValue;
-      isEvaluating?: boolean;
-      continuation?: ProcContinuationContext;
-      cancelRequested?: boolean;
-      hasStarted?: boolean;
       awaitBlocked?: boolean;
       waitingChannelSend?: {
         state: any;

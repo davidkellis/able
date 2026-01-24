@@ -413,7 +413,7 @@ func (i *Interpreter) initChannelMutexBuiltins() {
 				return nil, err
 			}
 			ctx := contextFromCall(callCtx)
-			var procHandle *runtime.ProcHandleValue
+			var procHandle *runtime.FutureValue
 			if callCtx != nil {
 				if payload := payloadFromState(callCtx.State); payload != nil && payload.handle != nil {
 					procHandle = payload.handle

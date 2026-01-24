@@ -1,0 +1,21 @@
+interface Pair <A, B> for T
+{
+  fn pair (self: Self, a: A, b: B) -> String
+}
+struct Box {
+  value: i32
+}
+impl Pair i32 i32 for Box
+{
+  fn pair(self: Box, a: i32, b: i32) -> String {
+    return "ok"
+  }
+}
+fn use_missing<T: Pair>(value: T) -> void {
+}
+fn use_mismatch<T: Pair i32>(value: T) -> void {
+}
+fn run_checks() -> void {
+  use_missing<Box>(Box { value: 1 });
+  use_mismatch<Box>(Box { value: 2 });
+}

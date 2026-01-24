@@ -95,11 +95,11 @@ function errorImplForErrorValue(): AST.ImplementationDefinition {
   );
 }
 
-function errorImplForProcError(): AST.ImplementationDefinition {
+function errorImplForFutureError(): AST.ImplementationDefinition {
   const selfIdent = AST.identifier("self");
   const messageFn = AST.functionDefinition(
     "message",
-    [AST.functionParameter("self", AST.simpleTypeExpression("ProcError"))],
+    [AST.functionParameter("self", AST.simpleTypeExpression("FutureError"))],
     AST.blockExpression([
       AST.returnStatement(AST.memberAccessExpression(selfIdent, AST.identifier("details"))),
     ]),
@@ -107,13 +107,13 @@ function errorImplForProcError(): AST.ImplementationDefinition {
   );
   const causeFn = AST.functionDefinition(
     "cause",
-    [AST.functionParameter("self", AST.simpleTypeExpression("ProcError"))],
+    [AST.functionParameter("self", AST.simpleTypeExpression("FutureError"))],
     AST.blockExpression([AST.returnStatement(AST.nilLiteral())]),
     AST.nullableTypeExpression(AST.simpleTypeExpression("Error")),
   );
   return AST.implementationDefinition(
     "Error",
-    AST.simpleTypeExpression("ProcError"),
+    AST.simpleTypeExpression("FutureError"),
     [messageFn, causeFn],
   );
 }
@@ -140,7 +140,7 @@ export function buildStandardInterfaceBuiltins(): BuiltinInterfaceBundle {
     cloneImpl("bool"),
     cloneImpl("char"),
     cloneImpl("f64"),
-    errorImplForProcError(),
+    errorImplForFutureError(),
   ];
 
   return { interfaces, implementations };

@@ -76,6 +76,10 @@ func simpleTypeName(expr ast.TypeExpression) (string, bool) {
 		if t.Name != nil {
 			return t.Name.Name, true
 		}
+	case *ast.GenericTypeExpression:
+		if base, ok := t.Base.(*ast.SimpleTypeExpression); ok && base != nil && base.Name != nil {
+			return base.Name.Name, true
+		}
 	}
 	return "", false
 }

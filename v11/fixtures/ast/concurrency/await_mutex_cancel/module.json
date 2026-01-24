@@ -53,7 +53,7 @@
         "name": "runner"
       },
       "right": {
-        "type": "ProcExpression",
+        "type": "SpawnExpression",
         "expression": {
           "type": "BlockExpression",
           "body": [
@@ -133,7 +133,7 @@
       "type": "FunctionCall",
       "callee": {
         "type": "Identifier",
-        "name": "proc_flush"
+        "name": "future_flush"
       },
       "arguments": [],
       "isTrailingLambda": false
@@ -158,7 +158,7 @@
       "type": "FunctionCall",
       "callee": {
         "type": "Identifier",
-        "name": "proc_flush"
+        "name": "future_flush"
       },
       "arguments": [],
       "isTrailingLambda": false

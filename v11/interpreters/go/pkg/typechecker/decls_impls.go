@@ -66,7 +66,7 @@ func (c *declarationCollector) collectImplementationDefinition(def *ast.Implemen
 	params, paramScope := c.convertGenericParams(def.GenericParams)
 	scope := copyTypeScope(paramScope)
 
-	targetType := c.resolveTypeExpression(def.TargetType, scope)
+	targetType := c.resolveTypeExpressionWithOptions(def.TargetType, scope, typeResolutionOptions{allowTypeConstructors: true})
 	if targetType == nil {
 		targetType = UnknownType{}
 	}
@@ -222,7 +222,7 @@ func (c *declarationCollector) inferInterfaceArgsFromSelfPattern(
 			continue
 		}
 		if bound, ok := bindings[param.Name]; ok {
-			args[idx] = c.resolveTypeExpression(bound, scope)
+			args[idx] = c.resolveTypeExpressionWithOptions(bound, scope, typeResolutionOptions{allowTypeConstructors: true})
 		} else {
 			args[idx] = UnknownType{}
 		}
@@ -367,7 +367,7 @@ func (c *declarationCollector) collectMethodsDefinition(def *ast.MethodsDefiniti
 	params, paramScope := c.convertGenericParams(def.GenericParams)
 	scope := copyTypeScope(paramScope)
 
-	targetType := c.resolveTypeExpression(def.TargetType, scope)
+	targetType := c.resolveTypeExpressionWithOptions(def.TargetType, scope, typeResolutionOptions{allowTypeConstructors: true})
 	if targetType == nil {
 		targetType = UnknownType{}
 	}

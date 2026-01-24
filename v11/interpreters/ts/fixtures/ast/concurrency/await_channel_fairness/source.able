@@ -5,7 +5,7 @@ __able_channel_send(ch2, "B1")
 __able_channel_send(ch1, "A2")
 __able_channel_send(ch2, "B2")
 trace := ""
-runner := proc {
+runner := spawn {
   trace = trace + await [__able_channel_await_try_recv(ch1, { v => v}), __able_channel_await_try_recv(ch2, { v => v})]
   trace = trace + await [__able_channel_await_try_recv(ch1, { v => v}), __able_channel_await_try_recv(ch2, { v => v})]
   trace = trace + await [__able_channel_await_try_recv(ch1, { v => v}), __able_channel_await_try_recv(ch2, { v => v})]

@@ -29,7 +29,6 @@ const BUILTIN_TYPE_ARITY = new Map<string, number>([
   ["Array", 1],
   ["Iterator", 1],
   ["Range", 1],
-  ["Proc", 1],
   ["Future", 1],
   ["Map", 2],
   ["HashMap", 2],

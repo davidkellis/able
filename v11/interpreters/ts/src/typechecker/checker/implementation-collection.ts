@@ -27,7 +27,7 @@ export function collectMethodsDefinition(ctx: ImplementationContext, definition:
   const genericParams = [...new Set([...targetParams, ...explicitParams])];
   const substitutionMap = new Map<string, TypeInfo>();
   genericParams.forEach((name) => substitutionMap.set(name, unknownType));
-  const selfType = ctx.resolveTypeExpression(targetType, substitutionMap);
+  const selfType = ctx.resolveTypeExpression(targetType, substitutionMap, { allowTypeConstructors: true });
   const canonicalTarget = targetType ?? definition.targetType;
   const structLabel =
     ctx.describeTypeArgument(selfType ?? unknownType) ??
@@ -108,7 +108,7 @@ export function collectImplementationDefinition(
   implementationGenericNames.forEach((name) => substitutionMap.set(name, unknownType));
   const resolvedTarget =
     targetType ?? definition.targetType
-      ? ctx.resolveTypeExpression(targetType ?? definition.targetType, substitutionMap)
+      ? ctx.resolveTypeExpression(targetType ?? definition.targetType, substitutionMap, { allowTypeConstructors: true })
       : unknownType;
   const resolvedTargetExpr = typeInfoToTypeExpression(resolvedTarget ?? unknownType);
   const canonicalTarget =

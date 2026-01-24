@@ -17,10 +17,10 @@ bun run typecheck
 
 ### Required checks
 
-Before sending code for review, run the shared fixtures with the strict typechecker enabled so Bun stays aligned with the Go runtime:
+Before sending code for review, run the shared fixtures with strict typechecking (default) so Bun stays aligned with the Go runtime:
 
 ```bash
-ABLE_TYPECHECK_FIXTURES=strict bun run scripts/run-fixtures.ts
+bun run scripts/run-fixtures.ts
 ```
 
 This command exercises every fixture (including the TypeScript checker diagnostics) and will fail fast if new errors appear or if the baseline drifts.
@@ -34,7 +34,7 @@ bun run scripts/run-parity.ts --suite fixtures --suite examples
 ```
 
 - `ABLE_PARITY_MAX_FIXTURES` limits the number of AST fixtures processed (helpful when debugging a single failure).
-- `ABLE_TYPECHECK_FIXTURES=warn|strict` flows through to both interpreters so diagnostics stay in sync with fixture expectations.
+- `ABLE_TYPECHECK_FIXTURES` defaults to `strict`; set `warn` (log diagnostics) or `off` explicitly to relax the parity run.
 - The CLI always writes `tmp/parity-report.json` under the repo root; pass `--report path/to/report.json` to override the destination or combine it with `--json` when you also need stdout output.
 - Define `ABLE_PARITY_REPORT_DEST=/abs/path/to/artifact.json` or `CI_ARTIFACTS_DIR=/abs/path` to copy the generated report automatically (works for both the parity CLI and `run_all_tests.sh`).
 
@@ -50,7 +50,7 @@ bun run scripts/run-module.ts run path/to/main.able
 bun run scripts/run-module.ts check path/to/main.able
 ```
 
-The upcoming `able test` workflow is reserved for the stdlib-backed testing harness (see `design/testing-cli-design.md`). The CLI already wires `ABLE_TYPECHECK_FIXTURES` so `warn` mode logs diagnostics but proceeds, while `strict` mode fails fast.
+The upcoming `able test` workflow is reserved for the stdlib-backed testing harness (see `design/testing-cli-design.md`). The CLI defaults to strict typechecking and honors `ABLE_TYPECHECK_FIXTURES=warn|off` to relax or disable enforcement explicitly.
 
 ### Language spec
 
@@ -67,7 +67,7 @@ The Go interpreter is the designated reference runtime, but every interpreter in
 - `scripts/run-fixtures.ts`: executes every fixture module against this interpreter and checks manifest expectations (also used to keep the Go harness in sync).
 - `fixtures/ast/`: JSON fixtures and manifests shared with the Go interpreter and future runtimes.
 
-> Tip: set `ABLE_TYPECHECK_FIXTURES=warn` or `ABLE_TYPECHECK_FIXTURES=strict` when running `scripts/run-fixtures.ts` to keep behaviour aligned with the Go runner. When either mode is enabled, the Bun harness now diffs diagnostics against `fixtures/ast/typecheck-baseline.json` and fails on unexpected output, mirroring the Go fixture enforcement.
+> Tip: `ABLE_TYPECHECK_FIXTURES` defaults to `strict`. Set `warn` to log diagnostics while continuing or `off` to disable fixture typechecking explicitly. When enabled, the Bun harness diffs diagnostics against `fixtures/ast/typecheck-baseline.json` and fails on unexpected output, mirroring the Go fixture enforcement.
 
 ### Interpreter architecture
 
@@ -80,9 +80,9 @@ The interpreter evaluates AST nodes directly (tree-walk). Key pieces:
 
 ### Recent updates
 
-- Concurrency handles now execute asynchronously, expose `ProcStatus` structs, and surface `ProcError` payloads through `value()` so downstream code can use `!`/pattern matching without special cases.
-- Cooperative helpers `proc_yield()`, `proc_cancelled()`, and `proc_flush()` allow long-running tasks to yield control, observe cancellation, and force queued work to run from the current step respectively.
-- Cancellation requests queue the handle’s runner instead of flipping state immediately, so tasks can poll `proc_cancelled()` and clean up before `status()` reports `Cancelled`.
+- Concurrency handles now execute asynchronously, expose `FutureStatus` structs, and surface `FutureError` payloads through `value()` so downstream code can use `!`/pattern matching without special cases.
+- Cooperative helpers `future_yield()`, `future_cancelled()`, and `future_flush()` allow long-running tasks to yield control, observe cancellation, and force queued work to run from the current step respectively.
+- Cancellation requests queue the handle’s runner instead of flipping state immediately, so tasks can poll `future_cancelled()` and clean up before `status()` reports `Cancelled`.
 - Interfaces support default method bodies; impls inherit them automatically, with `Self` substituted for the concrete target type.
 - Values typed as an interface are wrapped as dynamic `interface_value` instances so member access dispatches to the underlying implementation.
 - Typed patterns and function parameters annotated with interfaces coerce values into these dynamic wrappers, enabling runtime type checks against interface names.
@@ -97,7 +97,7 @@ High-level evaluation flow:
 6) Pattern matching: identifier, wildcard, literal, struct, array, typed patterns (minimal runtime checks).
 7) Error handling: raise, rescue (with guards), or-else, propagation `expr!`, ensure, rethrow (with raise stack).
 8) Modules/imports: executes body in a module/global env; selector imports and aliasing; privacy enforced for functions/types/interfaces/unions. Wildcard imports bring only public symbols. `import pkg::Alias` binds a `package` value exposing public members. `dynimport` binds late-resolving `dyn_ref`s or `dyn_package` aliases.
-9) Concurrency: `proc` returns a lightweight handle (`status`, `value`, `cancel`) backed by `ProcStatus` (`Pending`, `Resolved`, `Cancelled`, `Failed`) and `ProcError`; `spawn` returns a memoizing future handle with the same `status`/`value` API. Tasks start asynchronously; `value()` blocks and returns `!T` (either the underlying value or an `error` whose payload is a `ProcError`, so `!`/pattern matching work naturally).
+9) Concurrency: `spawn` returns a lightweight handle (`status`, `value`, `cancel`) backed by `FutureStatus` (`Pending`, `Resolved`, `Cancelled`, `Failed`) and `FutureError`. Tasks start asynchronously; `value()` blocks and returns `!T` (either the underlying value or an `error` whose payload is a `FutureError`, so `!`/pattern matching work naturally). The first `value()` drives the computation; later calls reuse the cached success or failure.
 
 ### Using the interpreter
 
@@ -154,30 +154,30 @@ const result = interp.evaluate(mod as any); // { kind: 'i32', value: 5 }
 
 #### Concurrency handles
 
-- `proc expr` captures the current environment, schedules the work asynchronously (microtask or `setTimeout(0)` fallback), and returns a handle with
-  - `status()` → one of `Pending`, `Resolved`, `Cancelled`, `Failed` (struct instances stored in `ProcStatus`).
-  - `value()` → blocks until the task finishes and returns `!T` (either the success value or an `error` containing a `ProcError { details }`). Cancels/failures therefore compose with `!` and pattern matching without special cases.
-  - `cancel()` → best-effort cancellation that flips the status to `Cancelled` and memoizes a `ProcError` for subsequent `status`/`value` calls.
-- `spawn expr` behaves similarly but returns a memoizing future handle. The first `value()` drives the computation; later calls reuse the cached success or failure.
+- `spawn expr` captures the current environment, schedules the work asynchronously (microtask or `setTimeout(0)` fallback), and returns a handle with
+  - `status()` → one of `Pending`, `Resolved`, `Cancelled`, `Failed` (struct instances stored in `FutureStatus`).
+  - `value()` → blocks until the task finishes and returns `!T` (either the success value or an `error` containing a `FutureError { details }`). Cancels/failures therefore compose with `!` and pattern matching without special cases.
+  - `cancel()` → best-effort cancellation that flips the status to `Cancelled` and memoizes a `FutureError` for subsequent `status`/`value` calls.
+- The first `value()` drives the computation; later calls reuse the cached success or failure.
 - The interpreter manages a cooperative run queue instead of using JavaScript `async`/`await`. Keeping evaluation synchronous preserves deterministic ordering for tests, avoids turning every `evaluate` call into a promise, and lets cancellation flip pending tasks to `Cancelled` without depending on host-specific microtask behaviour.
-- Long-running tasks can call `proc_yield()` to reschedule themselves and `proc_cancelled()` to check whether cancellation has been requested, making observability explicit in task bodies.
+- Long-running tasks can call `future_yield()` to reschedule themselves and `future_cancelled()` to check whether cancellation has been requested, making observability explicit in task bodies.
 - `cancel()` now defers its terminal transition until the next scheduled evaluation so cooperative tasks can observe the flag, perform their own unwinding, and then allow the interpreter to flip the handle to `Cancelled`.
 
 ### Cooperative concurrency helpers
 
-`proc_yield()`, `proc_cancelled()`, and `proc_flush()` are exposed as global native functions so Able code can cooperate with the interpreter’s scheduler:
+`future_yield()`, `future_cancelled()`, and `future_flush()` are exposed as global native functions so Able code can cooperate with the interpreter’s scheduler:
 
-- `proc_yield()` throws an internal `ProcYieldSignal`. The interpreter catches it, re-queues the current task’s runner, and unwinds to the scheduler. Use it inside tight loops to give other work an opportunity to progress.
-- `proc_cancelled()` returns a boolean indicating whether cancellation has been requested on the current `proc` handle. Tasks can poll it and exit early with their own clean-up logic.
-- `proc_flush()` drains the cooperative scheduler queue immediately, ensuring any pending procs/futures run to completion before control returns to Able code.
+- `future_yield()` throws an internal `ProcYieldSignal`. The interpreter catches it, re-queues the current task’s runner, and unwinds to the scheduler. Use it inside tight loops to give other work an opportunity to progress.
+- `future_cancelled()` returns a boolean indicating whether cancellation has been requested on the current task. Tasks can poll it and exit early with their own clean-up logic.
+- `future_flush()` drains the cooperative scheduler queue immediately, ensuring any pending tasks run to completion before control returns to Able code.
 
-Under the hood the interpreter maintains an `asyncContextStack` so helper invocations can discover the active async value. Both helpers must run inside a `proc`/`spawn` body or they will raise an error. Tests in `test/proc_spawn.test.ts` exercise interleaving (`trace` becomes "ABC") and cooperative cancellation (`trace` becomes "wx" when a loop notices cancellation before the interpreter finalises the handle).
+Under the hood the interpreter maintains an `asyncContextStack` so helper invocations can discover the active async value. Both helpers must run inside a spawned task or they will raise an error. Tests in `test/concurrency/proc_spawn_*.test.ts` exercise interleaving (`trace` becomes "ABC") and cooperative cancellation (`trace` becomes "wx" when a loop notices cancellation before the interpreter finalises the handle).
 
 #### Recommended concurrency patterns
 
-- Let helpers or recursive routines call `proc_yield()` directly. The interpreter keeps the active handle on `asyncContextStack`, so even yields several frames deep reschedule the correct task without losing progress.
-- Combine `proc` and `spawn` orchestration freely: a proc can spawn futures, yield, and later call `future.value()` to drive nested work to completion. `value()` will run the future through any additional `proc_yield()` calls before returning, so callers can treat the result like a regular `!T`.
-- Persist handles in a shared scope when you need monitoring. Assign them to module-level bindings (e.g., `future_handle := spawn ...`) so other code can poll `status()` or `value()` after cooperative scheduling completes—mirroring the patterns used in `test/concurrency/proc_spawn.test.ts`.
+- Let helpers or recursive routines call `future_yield()` directly. The interpreter keeps the active handle on `asyncContextStack`, so even yields several frames deep reschedule the correct task without losing progress.
+- Combine spawned tasks freely: a task can spawn futures, yield, and later call `future.value()` to drive nested work to completion. `value()` will run the future through any additional `future_yield()` calls before returning, so callers can treat the result like a regular `!T`.
+- Persist handles in a shared scope when you need monitoring. Assign them to module-level bindings (e.g., `future_handle := spawn ...`) so other code can poll `status()` or `value()` after cooperative scheduling completes—mirroring the patterns used in `test/concurrency/proc_spawn_*.test.ts`.
 
 #### Interface defaults & dynamic dispatch
 
@@ -189,11 +189,11 @@ Under the hood the interpreter maintains an `asyncContextStack` so helper invoca
 
 - New node: add to `RuntimeValue` if needed, add a case in `evaluate`, and tests under `test/`.
 - Performance: consider caching method lookups and optimizing environment chains.
-- Concurrency: evolve `proc`/`spawn` to real async handles with `join`.
+- Concurrency: evolve `spawn` to real async handles with `join`.
 
 ### Roadmap highlights
 
-- Concurrency semantics: add cooperative yielding hooks, richer cancellation observability, and broaden proc/future stress tests.
+- Concurrency semantics: add cooperative yielding hooks, richer cancellation observability, and broaden future stress tests.
 - Interface completeness: cover higher-kinded/inherited constraint chains, mixed visibility scenarios, and strengthen tooling guidance for disambiguation.
 - Dynamic collections: exercise ranges/maps of interface values so iteration keeps using the most specific available implementation.
 

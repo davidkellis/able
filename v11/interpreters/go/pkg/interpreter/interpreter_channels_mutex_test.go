@@ -18,7 +18,7 @@ func newAsyncInterpreter(t *testing.T) *Interpreter {
 	return interp
 }
 
-func TestChannelSendReceiveBetweenProcs(t *testing.T) {
+func TestChannelSendReceiveBetweenFutures(t *testing.T) {
 	interp := newAsyncInterpreter(t)
 	global := interp.GlobalEnvironment()
 
@@ -33,7 +33,7 @@ func TestChannelSendReceiveBetweenProcs(t *testing.T) {
 	mustEval(ast.Assign(ast.ID("ch"), ast.Call("__able_channel_new", ast.Int(0))))
 	mustEval(ast.Assign(ast.ID("received"), ast.Nil()))
 
-	consumer := mustEval(ast.Proc(ast.Block(
+	consumer := mustEval(ast.Spawn(ast.Block(
 		ast.AssignOp(
 			ast.AssignmentAssign,
 			ast.ID("received"),
@@ -41,25 +41,25 @@ func TestChannelSendReceiveBetweenProcs(t *testing.T) {
 		),
 		ast.Nil(),
 	)))
-	consumerHandle, ok := consumer.(*runtime.ProcHandleValue)
+	consumerHandle, ok := consumer.(*runtime.FutureValue)
 	if !ok {
 		t.Fatalf("expected proc handle for consumer, got %#v", consumer)
 	}
 
-	producer := mustEval(ast.Proc(ast.Block(
+	producer := mustEval(ast.Spawn(ast.Block(
 		ast.Call("__able_channel_send", ast.ID("ch"), ast.Str("hello")),
 		ast.Nil(),
 	)))
-	producerHandle, ok := producer.(*runtime.ProcHandleValue)
+	producerHandle, ok := producer.(*runtime.FutureValue)
 	if !ok {
 		t.Fatalf("expected proc handle for producer, got %#v", producer)
 	}
 
-	if !waitForStatus(consumerHandle, runtime.ProcResolved, 500*time.Millisecond) {
-		t.Fatalf("consumer did not resolve: %v", consumerHandle.Status())
+	if !waitForStatus(consumerHandle, runtime.FutureResolved, 500*time.Millisecond) {
+		t.Fatalf("consumer did not resolve: %v", futureStatus(consumerHandle))
 	}
-	if !waitForStatus(producerHandle, runtime.ProcResolved, 500*time.Millisecond) {
-		t.Fatalf("producer did not resolve: %v", producerHandle.Status())
+	if !waitForStatus(producerHandle, runtime.FutureResolved, 500*time.Millisecond) {
+		t.Fatalf("producer did not resolve: %v", futureStatus(producerHandle))
 	}
 
 	if got := mustGetString(t, global, "received"); got != "hello" {
@@ -126,7 +126,7 @@ func TestChannelCloseWakesReceivers(t *testing.T) {
 	mustEval(ast.Assign(ast.ID("ch"), ast.Call("__able_channel_new", ast.Int(0))))
 	mustEval(ast.Assign(ast.ID("result"), ast.Str("unset")))
 
-	receiver := mustEval(ast.Proc(ast.Block(
+	receiver := mustEval(ast.Spawn(ast.Block(
 		ast.AssignOp(
 			ast.AssignmentAssign,
 			ast.ID("result"),
@@ -134,7 +134,7 @@ func TestChannelCloseWakesReceivers(t *testing.T) {
 		),
 		ast.Nil(),
 	)))
-	receiverHandle, ok := receiver.(*runtime.ProcHandleValue)
+	receiverHandle, ok := receiver.(*runtime.FutureValue)
 	if !ok {
 		t.Fatalf("expected proc handle for receiver, got %#v", receiver)
 	}
@@ -143,8 +143,8 @@ func TestChannelCloseWakesReceivers(t *testing.T) {
 		t.Fatalf("channel close failed: %v", err)
 	}
 
-	if !waitForStatus(receiverHandle, runtime.ProcResolved, 500*time.Millisecond) {
-		t.Fatalf("receiver did not resolve after close: %v", receiverHandle.Status())
+	if !waitForStatus(receiverHandle, runtime.FutureResolved, 500*time.Millisecond) {
+		t.Fatalf("receiver did not resolve after close: %v", futureStatus(receiverHandle))
 	}
 
 	val, err := global.Get("result")
@@ -222,7 +222,7 @@ func TestChannelErrorRescueExposesStructValue(t *testing.T) {
 	}
 }
 
-func TestMutexLocksCoordinateProcs(t *testing.T) {
+func TestMutexLocksCoordinateFutures(t *testing.T) {
 	interp := newAsyncInterpreter(t)
 	global := interp.GlobalEnvironment()
 
@@ -246,16 +246,16 @@ func TestMutexLocksCoordinateProcs(t *testing.T) {
 		)
 	}
 
-	first := mustEval(ast.Proc(ast.Block(
+	first := mustEval(ast.Spawn(ast.Block(
 		ast.Call("__able_mutex_lock", ast.ID("m")),
 		appendTrace("A"),
 		ast.AssignOp(ast.AssignmentAssign, ast.ID("stage"), ast.Str("locked")),
-		ast.Call("proc_yield"),
+		ast.Call("future_yield"),
 		appendTrace("B"),
 		ast.Call("__able_mutex_unlock", ast.ID("m")),
 		ast.Nil(),
 	)))
-	firstHandle, ok := first.(*runtime.ProcHandleValue)
+	firstHandle, ok := first.(*runtime.FutureValue)
 	if !ok {
 		t.Fatalf("expected proc handle for first worker, got %#v", first)
 	}
@@ -264,22 +264,22 @@ func TestMutexLocksCoordinateProcs(t *testing.T) {
 		t.Fatalf("expected stage to reach 'locked'")
 	}
 
-	second := mustEval(ast.Proc(ast.Block(
+	second := mustEval(ast.Spawn(ast.Block(
 		ast.Call("__able_mutex_lock", ast.ID("m")),
 		appendTrace("C"),
 		ast.Call("__able_mutex_unlock", ast.ID("m")),
 		ast.Nil(),
 	)))
-	secondHandle, ok := second.(*runtime.ProcHandleValue)
+	secondHandle, ok := second.(*runtime.FutureValue)
 	if !ok {
 		t.Fatalf("expected proc handle for second worker, got %#v", second)
 	}
 
-	if !waitForStatus(firstHandle, runtime.ProcResolved, 500*time.Millisecond) {
-		t.Fatalf("first worker did not resolve: %v", firstHandle.Status())
+	if !waitForStatus(firstHandle, runtime.FutureResolved, 500*time.Millisecond) {
+		t.Fatalf("first worker did not resolve: %v", futureStatus(firstHandle))
 	}
-	if !waitForStatus(secondHandle, runtime.ProcResolved, 500*time.Millisecond) {
-		t.Fatalf("second worker did not resolve: %v", secondHandle.Status())
+	if !waitForStatus(secondHandle, runtime.FutureResolved, 500*time.Millisecond) {
+		t.Fatalf("second worker did not resolve: %v", futureStatus(secondHandle))
 	}
 
 	if got := mustGetString(t, global, "trace"); got != "ABC" {
@@ -299,23 +299,25 @@ func TestNilChannelSendBlocksUntilCancelled(t *testing.T) {
 		return val
 	}
 
-	val := mustEval(ast.Proc(ast.Block(
+	val := mustEval(ast.Spawn(ast.Block(
 		ast.Call("__able_channel_send", ast.Int(0), ast.Str("value")),
 		ast.Nil(),
 	)))
-	handle, ok := val.(*runtime.ProcHandleValue)
+	handle, ok := val.(*runtime.FutureValue)
 	if !ok {
 		t.Fatalf("expected proc handle, got %#v", val)
 	}
 
 	time.Sleep(10 * time.Millisecond)
-	if status := handle.Status(); status != runtime.ProcPending {
+	if status := futureStatus(handle); status != runtime.FuturePending {
 		t.Fatalf("expected pending status before cancel, got %v", status)
 	}
 
-	handle.RequestCancel()
-	if !waitForStatus(handle, runtime.ProcCancelled, 200*time.Millisecond) {
-		t.Fatalf("expected handle to cancel after request, got %v", handle.Status())
+	if handle != nil {
+		handle.RequestCancel()
+	}
+	if !waitForStatus(handle, runtime.FutureCancelled, 200*time.Millisecond) {
+		t.Fatalf("expected handle to cancel after request, got %v", futureStatus(handle))
 	}
 }
 
@@ -331,23 +333,25 @@ func TestNilChannelReceiveBlocksUntilCancelled(t *testing.T) {
 		return val
 	}
 
-	val := mustEval(ast.Proc(ast.Block(
+	val := mustEval(ast.Spawn(ast.Block(
 		ast.Call("__able_channel_receive", ast.Int(0)),
 		ast.Nil(),
 	)))
-	handle, ok := val.(*runtime.ProcHandleValue)
+	handle, ok := val.(*runtime.FutureValue)
 	if !ok {
 		t.Fatalf("expected proc handle, got %#v", val)
 	}
 
 	time.Sleep(10 * time.Millisecond)
-	if status := handle.Status(); status != runtime.ProcPending {
+	if status := futureStatus(handle); status != runtime.FuturePending {
 		t.Fatalf("expected pending status before cancel, got %v", status)
 	}
 
-	handle.RequestCancel()
-	if !waitForStatus(handle, runtime.ProcCancelled, 200*time.Millisecond) {
-		t.Fatalf("expected handle to cancel after request, got %v", handle.Status())
+	if handle != nil {
+		handle.RequestCancel()
+	}
+	if !waitForStatus(handle, runtime.FutureCancelled, 200*time.Millisecond) {
+		t.Fatalf("expected handle to cancel after request, got %v", futureStatus(handle))
 	}
 }
 

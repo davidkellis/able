@@ -79,26 +79,35 @@ func (c *Checker) evaluateObligation(ob ConstraintObligation) []Diagnostic {
 		}
 		return diags
 	}
-	expectedParams := len(res.iface.TypeParams)
-	explicitParams := explicitInterfaceParamCount(res.iface)
+	totalParams := len(res.iface.TypeParams)
+	explicitParams := interfaceExplicitParamCountFromType(res.iface)
 	providedArgs := len(res.args)
+	subjectIsParam := ob.Subject == nil || isUnknownType(ob.Subject) || isTypeParameter(ob.Subject)
 	if explicitParams > 0 && providedArgs == 0 {
+		if subjectIsParam {
+			return nil
+		}
 		return []Diagnostic{{
 			Message: fmt.Sprintf("typechecker: %s constraint on %s%s requires %d type argument(s) for interface '%s'", ob.Owner, ob.TypeParam, contextLabel, explicitParams, res.iface.InterfaceName),
 			Node:    ob.Node,
 		}}
 	}
-	if explicitParams == 0 && expectedParams == 1 && providedArgs == 0 {
+	inferredArgs := false
+	if explicitParams == 0 && totalParams == 1 && providedArgs == 0 {
 		arg := ob.Subject
 		if arg == nil || isUnknownType(arg) {
 			arg = UnknownType{}
 		}
 		res.args = []Type{arg}
 		providedArgs = 1
+		inferredArgs = true
 	}
-	if expectedParams != providedArgs && providedArgs != 0 {
+	if providedArgs != 0 && !inferredArgs && explicitParams != providedArgs {
+		if subjectIsParam {
+			return nil
+		}
 		return []Diagnostic{{
-			Message: fmt.Sprintf("typechecker: %s constraint on %s%s expected %d type argument(s) for interface '%s', got %d", ob.Owner, ob.TypeParam, contextLabel, expectedParams, res.iface.InterfaceName, providedArgs),
+			Message: fmt.Sprintf("typechecker: %s constraint on %s%s expected %d type argument(s) for interface '%s', got %d", ob.Owner, ob.TypeParam, contextLabel, explicitParams, res.iface.InterfaceName, providedArgs),
 			Node:    ob.Node,
 		}}
 	}
@@ -115,41 +124,6 @@ func (c *Checker) evaluateObligation(ob ConstraintObligation) []Diagnostic {
 		}}
 	}
 	return nil
-}
-
-func explicitInterfaceParamCount(iface InterfaceType) int {
-	if len(iface.TypeParams) == 0 {
-		return 0
-	}
-	count := 0
-	seenInferred := false
-	for _, param := range iface.TypeParams {
-		if param.IsInferred {
-			seenInferred = true
-		}
-		if param.Name == "" || param.IsInferred {
-			continue
-		}
-		count++
-	}
-	if seenInferred {
-		return count
-	}
-	selfNames := collectSelfPatternNames(iface.SelfTypePattern)
-	if len(selfNames) == 0 {
-		return len(iface.TypeParams)
-	}
-	count = 0
-	for _, param := range iface.TypeParams {
-		if param.Name == "" {
-			continue
-		}
-		if _, ok := selfNames[param.Name]; ok {
-			continue
-		}
-		count++
-	}
-	return count
 }
 
 func (c *Checker) resolveConstraintInterfaceType(t Type) interfaceResolution {

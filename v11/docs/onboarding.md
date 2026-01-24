@@ -338,41 +338,26 @@ process := fn() -> String {
 
 ## Concurrency
 
-### Async Processes
+### Async Tasks
 
 ```able
-# Start async process
-handle := proc fetch_data("http://example.com")
+# Start async task
+handle := spawn fetch_data("http://example.com")
 
-# Wait for result
-data := handle.await()
+# Wait for result (handle errors with else)
+data := handle.value() else { err => `failed: ${err.message()}` }
 
 # Async block
-result := proc do {
+result := spawn do {
   part1 := compute_part1()
   part2 := compute_part2()
   combine(part1, part2)
 }
 
-# Process interface
-if !handle.pending() {
-  print("Process completed")
-  if handle.failed() {
-    print("Error occurred")
-  }
-}
-```
-
-### Future-based Concurrency
-
-```able
-# Spawn future
-future := spawn expensive_calculation()
-
-# Chain operations
-result := future.then(|value| value * 2)
-               .catch(|err| handle_error(err))
-               .await()
+# Inspect status or cancel
+status := handle.status()
+if match status { case Pending => true } { print("Still running") }
+handle.cancel()
 ```
 
 ## Modules and Imports
@@ -450,7 +435,7 @@ methods Point {
 | Union | `union Name { Variant(type) }` | `union Result { Ok(String) }` |
 | Interface | `interface Name for T { fn sig }` | `interface Display for T { fn to_string(self: Self) -> String }` |
 | Implementation | `impl Interface for Type { body }` | `impl Display for Person { ... }` |
-| Async | `proc expression` | `handle := proc fetch_data()` |
+| Async | `spawn expression` | `handle := spawn fetch_data()` |
 | Nullable | `?Type` | `?String` |
 | Result | `!Type` | `!String` |
 

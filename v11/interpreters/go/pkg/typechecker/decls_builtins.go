@@ -77,10 +77,10 @@ func registerBuiltins(env *Environment) {
 		Return: UnknownType{},
 	}
 
-	env.Define("proc_yield", procYield)
-	env.Define("proc_cancelled", procCancelled)
-	env.Define("proc_flush", procFlush)
-	env.Define("proc_pending_tasks", procPendingTasks)
+	env.Define("future_yield", procYield)
+	env.Define("future_cancelled", procCancelled)
+	env.Define("future_flush", procFlush)
+	env.Define("future_pending_tasks", procPendingTasks)
 	env.Define("print", printFn)
 	env.Define("dyn", anyType)
 	env.Define("AwaitWaker", StructType{StructName: "AwaitWaker"})
@@ -353,14 +353,14 @@ func registerBuiltins(env *Environment) {
 		StructName: "Ratio",
 		Fields:     ratioFields,
 	})
-	procErrorFields := map[string]Type{
+	futureErrorFields := map[string]Type{
 		"details": stringType,
 	}
-	procErrorType := StructType{
-		StructName: "ProcError",
-		Fields:     procErrorFields,
+	futureErrorType := StructType{
+		StructName: "FutureError",
+		Fields:     futureErrorFields,
 	}
-	env.Define("ProcError", procErrorType)
+	env.Define("FutureError", futureErrorType)
 
 	pendingType := StructType{StructName: "Pending"}
 	resolvedType := StructType{StructName: "Resolved"}
@@ -368,15 +368,15 @@ func registerBuiltins(env *Environment) {
 	failedType := StructType{
 		StructName: "Failed",
 		Fields: map[string]Type{
-			"error": procErrorType,
+			"error": futureErrorType,
 		},
 	}
 	env.Define("Pending", pendingType)
 	env.Define("Resolved", resolvedType)
 	env.Define("Cancelled", cancelledType)
 	env.Define("Failed", failedType)
-	env.Define("ProcStatus", UnionType{
-		UnionName: "ProcStatus",
+	env.Define("FutureStatus", UnionType{
+		UnionName: "FutureStatus",
 		Variants:  []Type{pendingType, resolvedType, cancelledType, failedType},
 	})
 }

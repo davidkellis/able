@@ -12,13 +12,7 @@ export type AwaitWakerPayload = {
   wake: () => void;
 };
 
-export type AsyncHandle = Extract<RuntimeValue, { kind: "proc_handle" | "future" }>;
-
-export type ProcValueWaitState = {
-  target: Extract<RuntimeValue, { kind: "proc_handle" }>;
-  registration?: RuntimeValue;
-  wakePending?: boolean;
-};
+export type AsyncHandle = Extract<RuntimeValue, { kind: "future" }>;
 
 export type FutureValueWaitState = {
   target: Extract<RuntimeValue, { kind: "future" }>;
@@ -67,22 +61,14 @@ declare module "./index" {
     initConcurrencyBuiltins(): void;
     scheduleAsync(fn: () => void): void;
     ensureSchedulerTick(): void;
-    currentAsyncContext():
-      | { kind: "proc"; handle: Extract<RuntimeValue, { kind: "proc_handle" }> }
-      | { kind: "future"; handle: Extract<RuntimeValue, { kind: "future" }> }
-      | null;
+    currentAsyncContext(): { kind: "future"; handle: Extract<RuntimeValue, { kind: "future" }> } | null;
     createAwaitWaker(handle: AsyncHandle, state: unknown): Extract<RuntimeValue, { kind: "struct_instance" }>;
     makeAwaitRegistration(cancelFn?: () => void): Extract<RuntimeValue, { kind: "struct_instance" }>;
     invokeAwaitWaker(waker: RuntimeValue): void;
-    registerProcAwaiter(
-      handle: Extract<RuntimeValue, { kind: "proc_handle" }>,
-      waker: Extract<RuntimeValue, { kind: "struct_instance" }>,
-    ): Extract<RuntimeValue, { kind: "struct_instance" }>;
     registerFutureAwaiter(
       future: Extract<RuntimeValue, { kind: "future" }>,
       waker: Extract<RuntimeValue, { kind: "struct_instance" }>,
     ): Extract<RuntimeValue, { kind: "struct_instance" }>;
-    triggerProcAwaiters(handle: Extract<RuntimeValue, { kind: "proc_handle" }>): void;
     triggerFutureAwaiters(future: Extract<RuntimeValue, { kind: "future" }>): void;
     procYield(allowEntrypoint?: boolean): RuntimeValue;
     procCancelled(allowEntrypoint?: boolean): RuntimeValue;
@@ -90,14 +76,12 @@ declare module "./index" {
     procPendingTasks(): RuntimeValue;
     processScheduler(limit?: number): void;
     makeNamedStructInstance(def: AST.StructDefinition, entries: Array<[string, RuntimeValue]>): RuntimeValue;
-    makeProcError(details: string): RuntimeValue;
-    getProcErrorDetails(procError: RuntimeValue): string;
-    makeProcStatusFailed(procError: RuntimeValue): RuntimeValue;
-    markProcCancelled(handle: Extract<RuntimeValue, { kind: "proc_handle" }>, message?: string): void;
+    makeFutureError(details: string): RuntimeValue;
+    getFutureErrorDetails(procError: RuntimeValue): string;
+    makeFutureStatusFailed(procError: RuntimeValue): RuntimeValue;
     markFutureCancelled(future: Extract<RuntimeValue, { kind: "future" }>, message?: string): void;
-    procHandleStatus(handle: Extract<RuntimeValue, { kind: "proc_handle" }>): RuntimeValue;
     futureStatus(future: Extract<RuntimeValue, { kind: "future" }>): RuntimeValue;
-    toProcError(value: RuntimeValue | undefined, fallback: string): RuntimeValue;
+    toFutureError(value: RuntimeValue | undefined, fallback: string): RuntimeValue;
     makeNativeFunction(
       name: string,
       arity: number,
@@ -107,12 +91,9 @@ declare module "./index" {
       func: Extract<RuntimeValue, { kind: "native_function" }>,
       self: RuntimeValue,
     ): Extract<RuntimeValue, { kind: "native_bound_method" }>;
-    procHandleValue(handle: Extract<RuntimeValue, { kind: "proc_handle" }>): RuntimeValue;
-    procHandleCancel(handle: Extract<RuntimeValue, { kind: "proc_handle" }>): void;
     futureCancel(future: Extract<RuntimeValue, { kind: "future" }>): void;
     futureValue(future: Extract<RuntimeValue, { kind: "future" }>): RuntimeValue;
     evaluateAsTask(node: AST.AstNode, env?: Environment): Promise<RuntimeValue>;
-    runProcHandle(handle: Extract<RuntimeValue, { kind: "proc_handle" }>): void;
     runFuture(future: Extract<RuntimeValue, { kind: "future" }>): void;
     makeRuntimeError(message: string, value?: RuntimeValue, cause?: RuntimeValue): RuntimeValue;
     executor: Executor;

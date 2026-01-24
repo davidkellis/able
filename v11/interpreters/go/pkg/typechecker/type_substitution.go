@@ -96,8 +96,6 @@ func substituteType(t Type, subst map[string]Type) Type {
 			members[i] = substituteType(member, subst)
 		}
 		return UnionLiteralType{Members: members}
-	case ProcType:
-		return ProcType{Result: substituteType(v.Result, subst)}
 	case FutureType:
 		return FutureType{Result: substituteType(v.Result, subst)}
 	}

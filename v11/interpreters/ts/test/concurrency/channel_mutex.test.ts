@@ -25,7 +25,7 @@ describe("channel helpers", () => {
       AST.assignmentExpression(
         ":=",
         AST.identifier("sender"),
-        AST.procExpression(
+        AST.spawnExpression(
           AST.blockExpression([
             call("__able_channel_send", [AST.identifier("ch"), AST.stringLiteral("value")]),
             AST.stringLiteral("done"),
@@ -34,7 +34,7 @@ describe("channel helpers", () => {
       ),
     );
 
-    I.evaluate(call("proc_flush"));
+    I.evaluate(call("future_flush"));
 
     const statusPending = I.evaluate(memberCall("sender", "status")) as any;
     expect(statusPending.kind).toBe("struct_instance");
@@ -44,13 +44,13 @@ describe("channel helpers", () => {
       AST.assignmentExpression(
         ":=",
         AST.identifier("receiver"),
-        AST.procExpression(
+        AST.spawnExpression(
           AST.blockExpression([call("__able_channel_receive", [AST.identifier("ch")])]),
         ),
       ),
     );
 
-    I.evaluate(call("proc_flush"));
+    I.evaluate(call("future_flush"));
 
     const senderStatus = I.evaluate(memberCall("sender", "status")) as any;
     expect(senderStatus.def.id.name).toBe("Resolved");
@@ -79,7 +79,7 @@ describe("channel helpers", () => {
       AST.assignmentExpression(
         ":=",
         AST.identifier("blocked"),
-        AST.procExpression(
+        AST.spawnExpression(
           AST.blockExpression([
             call("__able_channel_send", [AST.identifier("ch"), AST.stringLiteral("second")]),
             AST.stringLiteral("sent"),
@@ -88,7 +88,7 @@ describe("channel helpers", () => {
       ),
     );
 
-    I.evaluate(call("proc_flush"));
+    I.evaluate(call("future_flush"));
 
     const blockedStatus = I.evaluate(memberCall("blocked", "status")) as any;
     expect(blockedStatus.def.id.name).toBe("Pending");
@@ -96,7 +96,7 @@ describe("channel helpers", () => {
     const firstValue = I.evaluate(call("__able_channel_receive", [AST.identifier("ch")])) as any;
     expect(firstValue).toEqual({ kind: "String", value: "first" });
 
-    I.evaluate(call("proc_flush"));
+    I.evaluate(call("future_flush"));
 
     const blockedStatusAfter = I.evaluate(memberCall("blocked", "status")) as any;
     expect(blockedStatusAfter.def.id.name).toBe("Resolved");
@@ -122,16 +122,16 @@ describe("channel helpers", () => {
       AST.assignmentExpression(
         ":=",
         AST.identifier("waitingReceiver"),
-        AST.procExpression(
+        AST.spawnExpression(
           AST.blockExpression([call("__able_channel_receive", [AST.identifier("ch")])]),
         ),
       ),
     );
 
-    I.evaluate(call("proc_flush"));
+    I.evaluate(call("future_flush"));
 
     I.evaluate(call("__able_channel_close", [AST.identifier("ch")]));
-    I.evaluate(call("proc_flush"));
+    I.evaluate(call("future_flush"));
 
     const receiverStatus = I.evaluate(memberCall("waitingReceiver", "status")) as any;
     expect(receiverStatus.def.id.name).toBe("Resolved");
@@ -142,7 +142,7 @@ describe("channel helpers", () => {
       AST.assignmentExpression(
         ":=",
         AST.identifier("failingSender"),
-        AST.procExpression(
+        AST.spawnExpression(
           AST.blockExpression([
             call("__able_channel_send", [AST.identifier("ch"), AST.stringLiteral("payload")]),
             AST.stringLiteral("unreachable"),
@@ -151,7 +151,7 @@ describe("channel helpers", () => {
       ),
     );
 
-    I.evaluate(call("proc_flush"));
+    I.evaluate(call("future_flush"));
 
     const senderStatus = I.evaluate(memberCall("failingSender", "status")) as any;
     expect(senderStatus.def.id.name).toBe("Failed");
@@ -175,7 +175,7 @@ describe("channel helpers", () => {
       AST.assignmentExpression(
         ":=",
         AST.identifier("blockedSender"),
-        AST.procExpression(
+        AST.spawnExpression(
           AST.blockExpression([
             call("__able_channel_send", [AST.identifier("ch"), AST.stringLiteral("first")]),
             AST.stringLiteral("unreachable"),
@@ -184,13 +184,13 @@ describe("channel helpers", () => {
       ),
     );
 
-    I.evaluate(call("proc_flush"));
+    I.evaluate(call("future_flush"));
 
     const sendStatus = I.evaluate(memberCall("blockedSender", "status")) as any;
     expect(sendStatus.def.id.name).toBe("Pending");
 
     I.evaluate(memberCall("blockedSender", "cancel"));
-    I.evaluate(call("proc_flush"));
+    I.evaluate(call("future_flush"));
 
     const cancelledStatus = I.evaluate(memberCall("blockedSender", "status")) as any;
     expect(cancelledStatus.def.id.name).toBe("Cancelled");
@@ -205,7 +205,7 @@ describe("channel helpers", () => {
       AST.assignmentExpression(
         ":=",
         AST.identifier("receiver2"),
-        AST.procExpression(
+        AST.spawnExpression(
           AST.blockExpression([call("__able_channel_receive", [AST.identifier("ch")])]),
         ),
       ),
@@ -215,7 +215,7 @@ describe("channel helpers", () => {
       AST.assignmentExpression(
         ":=",
         AST.identifier("sender2"),
-        AST.procExpression(
+        AST.spawnExpression(
           AST.blockExpression([
             call("__able_channel_send", [AST.identifier("ch"), AST.stringLiteral("second")]),
             AST.stringLiteral("ok"),
@@ -224,7 +224,7 @@ describe("channel helpers", () => {
       ),
     );
 
-    I.evaluate(call("proc_flush"));
+    I.evaluate(call("future_flush"));
 
     const sender2Status = I.evaluate(memberCall("sender2", "status")) as any;
     expect(sender2Status.def.id.name).toBe("Resolved");
@@ -234,7 +234,7 @@ describe("channel helpers", () => {
     const receiver2Value = I.evaluate(memberCall("receiver2", "value")) as any;
     expect(receiver2Value).toEqual({ kind: "String", value: "second" });
 
-    I.evaluate(call("proc_flush"));
+    I.evaluate(call("future_flush"));
   });
 
   test("nil channel send blocks until cancellation", () => {
@@ -244,7 +244,7 @@ describe("channel helpers", () => {
       AST.assignmentExpression(
         ":=",
         AST.identifier("blockedSender"),
-        AST.procExpression(
+        AST.spawnExpression(
           AST.blockExpression([
             call("__able_channel_send", [AST.integerLiteral(0), AST.stringLiteral("value")]),
             AST.stringLiteral("unreachable"),
@@ -253,13 +253,13 @@ describe("channel helpers", () => {
       ),
     );
 
-    I.evaluate(call("proc_flush"));
+    I.evaluate(call("future_flush"));
 
     const pendingStatus = I.evaluate(memberCall("blockedSender", "status")) as any;
     expect(pendingStatus.def.id.name).toBe("Pending");
 
     I.evaluate(memberCall("blockedSender", "cancel"));
-    I.evaluate(call("proc_flush"));
+    I.evaluate(call("future_flush"));
 
     const cancelledStatus = I.evaluate(memberCall("blockedSender", "status")) as any;
     expect(cancelledStatus.def.id.name).toBe("Cancelled");
@@ -275,7 +275,7 @@ describe("channel helpers", () => {
       AST.assignmentExpression(
         ":=",
         AST.identifier("blockedReceiver"),
-        AST.procExpression(
+        AST.spawnExpression(
           AST.blockExpression([
             call("__able_channel_receive", [AST.integerLiteral(0)]),
             AST.stringLiteral("unreachable"),
@@ -284,13 +284,13 @@ describe("channel helpers", () => {
       ),
     );
 
-    I.evaluate(call("proc_flush"));
+    I.evaluate(call("future_flush"));
 
     const pendingStatus = I.evaluate(memberCall("blockedReceiver", "status")) as any;
     expect(pendingStatus.def.id.name).toBe("Pending");
 
     I.evaluate(memberCall("blockedReceiver", "cancel"));
-    I.evaluate(call("proc_flush"));
+    I.evaluate(call("future_flush"));
 
     const cancelledStatus = I.evaluate(memberCall("blockedReceiver", "status")) as any;
     expect(cancelledStatus.def.id.name).toBe("Cancelled");
@@ -342,7 +342,7 @@ describe("channel helpers", () => {
       AST.assignmentExpression(
         ":=",
         AST.identifier("receiver"),
-        AST.procExpression(
+        AST.spawnExpression(
           AST.blockExpression([
             AST.assignmentExpression(
               "=",
@@ -365,7 +365,7 @@ describe("channel helpers", () => {
       AST.assignmentExpression(
         ":=",
         AST.identifier("sender"),
-        AST.procExpression(
+        AST.spawnExpression(
           AST.blockExpression([
             call("__able_channel_send", [AST.identifier("ch"), AST.stringLiteral("ping")]),
             AST.stringLiteral("done"),
@@ -374,7 +374,7 @@ describe("channel helpers", () => {
       ),
     );
 
-    I.evaluate(call("proc_flush"));
+    I.evaluate(call("future_flush"));
 
     const receiverStatus = I.evaluate(memberCall("receiver", "status")) as any;
     const senderStatus = I.evaluate(memberCall("sender", "status")) as any;
@@ -400,7 +400,7 @@ describe("channel helpers", () => {
       AST.assignmentExpression(
         ":=",
         AST.identifier("sender"),
-        AST.procExpression(
+        AST.spawnExpression(
           AST.blockExpression([
             AST.assignmentExpression(
               "=",
@@ -424,7 +424,7 @@ describe("channel helpers", () => {
       AST.assignmentExpression(
         ":=",
         AST.identifier("receiver"),
-        AST.procExpression(
+        AST.spawnExpression(
           AST.blockExpression([
             call("__able_channel_receive", [AST.identifier("ch")]),
           ]),
@@ -432,7 +432,7 @@ describe("channel helpers", () => {
       ),
     );
 
-    I.evaluate(call("proc_flush"));
+    I.evaluate(call("future_flush"));
 
     const senderStatus = I.evaluate(memberCall("sender", "status")) as any;
     const receiverStatus = I.evaluate(memberCall("receiver", "status")) as any;

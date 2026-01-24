@@ -116,6 +116,10 @@ func isErrorTypeAnnotation(t Type) bool {
 }
 
 func (c *Checker) resolveTypeReference(expr ast.TypeExpression) Type {
+	return c.resolveTypeReferenceWithOptions(expr, false)
+}
+
+func (c *Checker) resolveTypeReferenceWithOptions(expr ast.TypeExpression, skipArityCheck bool) Type {
 	if expr == nil {
 		return UnknownType{}
 	}
@@ -128,6 +132,9 @@ func (c *Checker) resolveTypeReference(expr ast.TypeExpression) Type {
 		if c.typeParamInScope(name) {
 			return TypeParameterType{ParameterName: name}
 		}
+		if name == "Self" || name == "_" {
+			return UnknownType{}
+		}
 		switch name {
 		case "bool":
 			return PrimitiveType{Kind: PrimitiveBool}
@@ -139,8 +146,6 @@ func (c *Checker) resolveTypeReference(expr ast.TypeExpression) Type {
 			return PrimitiveType{Kind: PrimitiveChar}
 		case "nil":
 			return PrimitiveType{Kind: PrimitiveNil}
-		case "_":
-			return UnknownType{}
 		case "i8", "i16", "i32", "i64", "i128", "isize":
 			return IntegerType{Suffix: name}
 		case "u8", "u16", "u32", "u64", "u128", "usize":
@@ -148,6 +153,15 @@ func (c *Checker) resolveTypeReference(expr ast.TypeExpression) Type {
 		case "f32", "f64":
 			return FloatType{Suffix: name}
 		default:
+			if !skipArityCheck {
+				if decl, ok := c.global.Lookup(name); ok {
+					if expected, ok := expectedTypeArgumentCount(name, decl); ok && expected > 0 {
+						c.addDiagnostic(typeArgumentArityDiagnostic(name, expected, 0, t))
+					}
+				} else if expected, ok := builtinTypeArgumentArity[name]; ok && expected > 0 {
+					c.addDiagnostic(typeArgumentArityDiagnostic(name, expected, 0, t))
+				}
+			}
 			if typ, ok := c.global.Lookup(name); ok {
 				if alias, ok := typ.(AliasType); ok {
 					inst, subst := instantiateAlias(alias, nil)
@@ -168,8 +182,10 @@ func (c *Checker) resolveTypeReference(expr ast.TypeExpression) Type {
 					for i, arg := range t.Arguments {
 						args[i] = c.resolveTypeReference(arg)
 					}
-					if expected, ok := expectedTypeArgumentCount(baseName, alias); ok && len(args) > expected {
-						c.addDiagnostic(typeArgumentArityDiagnostic(baseName, expected, len(args), t))
+					if expected, ok := expectedTypeArgumentCount(baseName, alias); ok {
+						if len(args) != expected {
+							c.addDiagnostic(typeArgumentArityDiagnostic(baseName, expected, len(args), t))
+						}
 					}
 					inst, subst := instantiateAlias(alias, args)
 					c.verifyAliasConstraints(alias, subst, t)
@@ -177,18 +193,22 @@ func (c *Checker) resolveTypeReference(expr ast.TypeExpression) Type {
 				}
 			}
 		}
-		base := c.resolveTypeReference(t.Base)
+		base := c.resolveTypeReferenceWithOptions(t.Base, true)
 		args := make([]Type, len(t.Arguments))
 		for i, arg := range t.Arguments {
 			args[i] = c.resolveTypeReference(arg)
 		}
 		if baseName != "" {
 			if _, known := c.global.Lookup(baseName); known {
-				if expected, ok := expectedTypeArgumentCount(baseName, base); ok && len(args) > expected {
+				if expected, ok := expectedTypeArgumentCount(baseName, base); ok {
+					if len(args) != expected {
+						c.addDiagnostic(typeArgumentArityDiagnostic(baseName, expected, len(args), t))
+					}
+				}
+			} else if expected, ok := builtinTypeArgumentArity[baseName]; ok {
+				if len(args) != expected {
 					c.addDiagnostic(typeArgumentArityDiagnostic(baseName, expected, len(args), t))
 				}
-			} else if expected, ok := builtinTypeArgumentArity[baseName]; ok && len(args) > expected {
-				c.addDiagnostic(typeArgumentArityDiagnostic(baseName, expected, len(args), t))
 			}
 		}
 		if unionBase, ok := base.(UnionType); ok {

@@ -1,0 +1,115 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "count"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 0
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "handle"
+      },
+      "right": {
+        "type": "SpawnExpression",
+        "expression": {
+          "type": "BlockExpression",
+          "body": [
+            {
+              "type": "AssignmentExpression",
+              "operator": "+=",
+              "left": {
+                "type": "Identifier",
+                "name": "count"
+              },
+              "right": {
+                "type": "IntegerLiteral",
+                "value": 1
+              }
+            },
+            {
+              "type": "IntegerLiteral",
+              "value": 21
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "first"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "handle"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "value"
+          }
+        },
+        "arguments": [],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "second"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "MemberAccessExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "handle"
+          },
+          "member": {
+            "type": "Identifier",
+            "name": "value"
+          }
+        },
+        "arguments": [],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "ArrayLiteral",
+      "elements": [
+        {
+          "type": "Identifier",
+          "name": "first"
+        },
+        {
+          "type": "Identifier",
+          "name": "second"
+        },
+        {
+          "type": "Identifier",
+          "name": "count"
+        }
+      ]
+    }
+  ]
+}

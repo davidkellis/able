@@ -81,8 +81,6 @@ func formatType(t Type) string {
 		return strings.TrimSpace("Range " + formatType(val.Element))
 	case IteratorType:
 		return strings.TrimSpace("Iterator " + formatType(val.Element))
-	case ProcType:
-		return strings.TrimSpace("Proc " + formatType(val.Result))
 	case FutureType:
 		return strings.TrimSpace("Future " + formatType(val.Result))
 	case AppliedType:

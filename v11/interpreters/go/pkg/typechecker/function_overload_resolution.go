@@ -199,8 +199,6 @@ func containsUnknownType(t Type) bool {
 			}
 		}
 		return false
-	case ProcType:
-		return containsUnknownType(v.Result)
 	case FutureType:
 		return containsUnknownType(v.Result)
 	default:
@@ -257,8 +255,6 @@ func overloadTypeSpecificity(t Type) int {
 			score += overloadTypeSpecificity(param)
 		}
 		return score
-	case ProcType:
-		return 1 + overloadTypeSpecificity(v.Result)
 	case FutureType:
 		return 1 + overloadTypeSpecificity(v.Result)
 	default:

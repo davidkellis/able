@@ -37,7 +37,7 @@ fn main() -> void {
   ch1.send("A2")
   ch2.send("B2")
 
-  runner := proc {
+  runner := spawn {
     trace := ""
     trace = trace + await [await_recv(ch1, { v => v }), await_recv(ch2, { v => v })]
     trace = trace + await [await_recv(ch1, { v => v }), await_recv(ch2, { v => v })]
@@ -46,11 +46,11 @@ fn main() -> void {
     trace
   }
 
-  default_runner := proc {
+  default_runner := spawn {
     await [Await.default({ => "idle" })]
   }
 
-  proc_flush()
+  future_flush()
 
   trace := runner.value()
   default_value := default_runner.value()
@@ -59,13 +59,13 @@ fn main() -> void {
 
   hits := 0
   block_ch := make_channel(0)
-  blocker := proc {
+  blocker := spawn {
     await [await_recv(block_ch, { v => do { hits = hits + 1; v } })]
   }
 
-  proc_flush()
+  future_flush()
   blocker.cancel()
-  proc_flush()
+  future_flush()
 
   print(`cancel hits ${hits}`)
   print(`cancel status ${status_name(blocker.status())}`)

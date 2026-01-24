@@ -450,11 +450,7 @@ export function callCallableValue(ctx: Interpreter, callee: RuntimeValue, args: 
         handle.awaitBlocked = false;
         if (!handle.runner) {
           handle.runner = () => {
-            if (asyncCtx.kind === "proc") {
-              ctx.runProcHandle(handle);
-            } else {
-              ctx.runFuture(handle);
-            }
+            ctx.runFuture(handle);
           };
         }
         ctx.scheduleAsync(handle.runner);

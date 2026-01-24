@@ -8,7 +8,6 @@ import {
   isNumeric,
   isUnknown,
   primitiveType,
-  procType,
   rangeType,
   unknownType,
   type IntegerPrimitive,
@@ -56,7 +55,11 @@ import {
   extractLocation,
 } from "./checker/types";
 import type { DiagnosticSeverity, TypecheckerDiagnostic, PackageSummary } from "./diagnostics";
-import { createTypeResolutionHelpers, type TypeResolutionHelpers } from "./checker/type-resolution";
+import {
+  createTypeResolutionHelpers,
+  type TypeResolutionHelpers,
+  type TypeResolutionOptions,
+} from "./checker/type-resolution";
 import {
   applyDynImportStatement as applyDynImportStatementHelper,
   applyImportStatement as applyImportStatementHelper,
@@ -314,9 +317,9 @@ export class TypeCheckerBase {
   protected checkBuiltinCallContext(name: string | undefined, call: AST.FunctionCall): void {
     if (!name) return;
     switch (name) {
-      case "proc_yield":
+      case "future_yield":
         if (!this.inAsyncContext()) {
-          this.report("typechecker: proc_yield() may only be called from within proc or spawn bodies", call);
+          this.report("typechecker: future_yield() may only be called from within an asynchronous task", call);
         }
         break;
       default:
@@ -449,8 +452,11 @@ export class TypeCheckerBase {
       getTypeOriginsForCanonical: (name: string) => this.typeOriginsForCanonical(name),
       getStructDefinition: (name: string) => this.structDefinitions.get(name),
       inferExpression: (expression: AST.Expression | undefined | null) => this.inferExpression(expression),
-      resolveTypeExpression: (expr: AST.TypeExpression | null | undefined, substitutions?: Map<string, TypeInfo>) =>
-        this.resolveTypeExpression(expr, substitutions),
+      resolveTypeExpression: (
+        expr: AST.TypeExpression | null | undefined,
+        substitutions?: Map<string, TypeInfo>,
+        options?: TypeResolutionOptions,
+      ) => this.resolveTypeExpression(expr, substitutions, options),
       describeLiteralMismatch: this.describeLiteralMismatch.bind(this),
       isTypeAssignable: this.isTypeAssignable.bind(this),
       typeExpressionsEquivalent: this.typeExpressionsEquivalent.bind(this),
@@ -482,17 +488,18 @@ export class TypeCheckerBase {
   protected resolveTypeExpression(
     expr: AST.TypeExpression | null | undefined,
     substitutions?: Map<string, TypeInfo>,
+    options?: TypeResolutionOptions,
   ): TypeInfo {
     if (expr?.type === "UnionTypeExpression") {
       const members = Array.isArray(expr.members)
         ? expr.members.map((member) => ({
-            type: this.typeResolution.resolveTypeExpression(member, substitutions),
+            type: this.typeResolution.resolveTypeExpression(member, substitutions, options),
             node: member ?? expr,
           }))
         : [];
       return this.normalizeUnionMembers(members, true);
     }
-    const resolved = this.typeResolution.resolveTypeExpression(expr, substitutions);
+    const resolved = this.typeResolution.resolveTypeExpression(expr, substitutions, options);
     if (resolved.kind === "union") {
       return this.normalizeUnionMembers(resolved.members.map((member) => ({ type: member })), false);
     }
