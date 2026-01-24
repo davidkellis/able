@@ -129,7 +129,7 @@ const mutexConcurrencyFixtures: Fixture[] = [
           ),
           AST.assign(
             "worker",
-            AST.procExpression(
+            AST.spawnExpression(
               AST.blockExpression([
                 AST.functionCall(
                   AST.identifier("__able_mutex_lock"),
@@ -152,7 +152,7 @@ const mutexConcurrencyFixtures: Fixture[] = [
               ]),
             ),
           ),
-          AST.functionCall(AST.identifier("proc_flush"), []),
+          AST.functionCall(AST.identifier("future_flush"), []),
           AST.assign(
             "status_initial",
             AST.matchExpression(
@@ -235,7 +235,7 @@ const mutexConcurrencyFixtures: Fixture[] = [
           ]),
         ]),
         manifest: {
-          description: "Mutex contention ensures the waiting proc resumes only after unlock",
+          description: "Mutex contention ensures the waiting task resumes only after unlock",
           expect: {
             result: { kind: "String", value: "Pending:Resolved:ABC" },
           },

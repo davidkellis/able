@@ -373,12 +373,6 @@ export function memberAccessOnValue(
     }
     return { kind: "bound_method", func: method, self: underlying };
   }
-  if (obj.kind === "proc_handle") {
-    if (member.type !== "Identifier") throw new Error("Proc handle member access expects identifier");
-    const fn = (ctx.procNativeMethods as Record<string, Extract<RuntimeValue, { kind: "native_function" }>>)[member.name];
-    if (!fn) throw new Error(`Unknown proc handle method '${member.name}'`);
-    return ctx.bindNativeMethod(fn, obj);
-  }
   if (obj.kind === "future") {
     if (member.type !== "Identifier") throw new Error("Future member access expects identifier");
     const fn = (ctx.futureNativeMethods as Record<string, Extract<RuntimeValue, { kind: "native_function" }>>)[member.name];

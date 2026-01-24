@@ -25,7 +25,7 @@ Status: Draft
 - Fallback to `able.io.read_line` when `is_tty` is false.
 - Continuation prompts are used for incomplete input (see parse errors).
 - The REPL loop runs under the scheduler so blocking IO suspends only the
-  current task, allowing other procs to keep making progress.
+  current task, allowing other tasks to keep making progress.
 
 ## Parse Errors and Continuations
 - `dyn.Package.eval` returns `ParseError { message, span, is_incomplete }`.

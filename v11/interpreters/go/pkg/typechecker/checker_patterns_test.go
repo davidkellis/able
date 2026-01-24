@@ -395,28 +395,6 @@ func TestTypedIteratorPatternReportsLiteralOverflow(t *testing.T) {
 	}
 }
 
-func TestTypedProcPatternReportsLiteralOverflow(t *testing.T) {
-	checker := New()
-	assign := ast.Assign(
-		ast.TypedP(
-			ast.ID("handle"),
-			ast.Gen(ast.Ty("Proc"), ast.Ty("u8")),
-		),
-		ast.Proc(ast.Int(512)),
-	)
-	module := ast.NewModule([]ast.Statement{assign}, nil, nil)
-	diags, err := checker.CheckModule(module)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(diags) != 1 {
-		t.Fatalf("expected diagnostic for proc literal overflow, got %v", diags)
-	}
-	if !strings.Contains(diags[0].Message, "literal 512 does not fit in u8") {
-		t.Fatalf("expected literal overflow message, got %q", diags[0].Message)
-	}
-}
-
 func TestTypedFuturePatternReportsLiteralOverflow(t *testing.T) {
 	checker := New()
 	assign := ast.Assign(

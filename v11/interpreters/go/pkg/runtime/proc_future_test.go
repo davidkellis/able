@@ -4,10 +4,10 @@ import (
 	"testing"
 )
 
-func TestProcHandleResolve(t *testing.T) {
-	h := NewProcHandle()
+func TestFutureResolve(t *testing.T) {
+	h := NewFuture()
 
-	if status := h.Status(); status != ProcPending {
+	if status := h.Status(); status != FuturePending {
 		t.Fatalf("expected pending status, got %v", status)
 	}
 
@@ -15,7 +15,7 @@ func TestProcHandleResolve(t *testing.T) {
 	h.Resolve(result)
 
 	val, err, status := h.Await()
-	if status != ProcResolved {
+	if status != FutureResolved {
 		t.Fatalf("expected resolved status, got %v", status)
 	}
 	if err != nil {
@@ -26,12 +26,12 @@ func TestProcHandleResolve(t *testing.T) {
 	}
 }
 
-func TestProcHandleCancel(t *testing.T) {
-	h := NewProcHandle()
+func TestFutureCancel(t *testing.T) {
+	h := NewFuture()
 	errVal := ErrorValue{Message: "cancelled"}
 	h.Cancel(errVal)
 	_, err, status := h.Await()
-	if status != ProcCancelled {
+	if status != FutureCancelled {
 		t.Fatalf("expected cancelled status, got %v", status)
 	}
 	if err == nil {
@@ -39,15 +39,14 @@ func TestProcHandleCancel(t *testing.T) {
 	}
 }
 
-func TestFutureValueAwaitResolved(t *testing.T) {
-	handle := NewProcHandle()
-	future := NewFutureFromHandle(handle)
+func TestFutureAwaitResolved(t *testing.T) {
+	future := NewFuture()
 
 	expected := IntegerValue{Val: bigInt(5), TypeSuffix: IntegerI32}
-	handle.Resolve(expected)
+	future.Resolve(expected)
 
 	val, err, status := future.Await()
-	if status != ProcResolved {
+	if status != FutureResolved {
 		t.Fatalf("expected resolved status, got %v", status)
 	}
 	if err != nil {

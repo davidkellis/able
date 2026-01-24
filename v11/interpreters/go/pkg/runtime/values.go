@@ -41,7 +41,6 @@ const (
 	KindBoundMethod
 	KindNativeBoundMethod
 	KindImplementationNamespace
-	KindProcHandle
 	KindFuture
 	KindIterator
 	KindIteratorEnd
@@ -104,8 +103,6 @@ func (k Kind) String() string {
 		return "native_bound_method"
 	case KindImplementationNamespace:
 		return "impl_namespace"
-	case KindProcHandle:
-		return "proc_handle"
 	case KindFuture:
 		return "future"
 	case KindIterator:
@@ -499,23 +496,23 @@ type ErrorValue struct {
 func (v ErrorValue) Kind() Kind { return KindError }
 
 //-----------------------------------------------------------------------------
-// Concurrency handles (proc/spawn)
+// Concurrency handles (Future/spawn)
 //-----------------------------------------------------------------------------
 
-type ProcStatus int
+type FutureStatus int
 
 const (
-	ProcPending ProcStatus = iota
-	ProcResolved
-	ProcCancelled
-	ProcFailed
+	FuturePending FutureStatus = iota
+	FutureResolved
+	FutureCancelled
+	FutureFailed
 )
 
-type ProcHandleValue struct {
+type FutureValue struct {
 	mu              sync.Mutex
-	status          ProcStatus
+	status          FutureStatus
 	result          Value
-	err             Value // usually ErrorValue wrapping ProcError
+	err             Value // usually ErrorValue wrapping FutureError
 	cancelRequested bool
 	ctx             context.Context
 	cancel          context.CancelFunc
@@ -524,15 +521,15 @@ type ProcHandleValue struct {
 	awaiters        []func()
 }
 
-func NewProcHandle() *ProcHandleValue {
-	return NewProcHandleWithContext(context.Background(), nil)
+func NewFuture() *FutureValue {
+	return NewFutureWithContext(context.Background(), nil)
 }
 
-func NewProcHandleWithContext(ctx context.Context, cancel context.CancelFunc) *ProcHandleValue {
+func NewFutureWithContext(ctx context.Context, cancel context.CancelFunc) *FutureValue {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	h := &ProcHandleValue{
+	h := &FutureValue{
 		ctx:    ctx,
 		cancel: cancel,
 	}
@@ -540,50 +537,50 @@ func NewProcHandleWithContext(ctx context.Context, cancel context.CancelFunc) *P
 	return h
 }
 
-func (v *ProcHandleValue) Kind() Kind { return KindProcHandle }
+func (v *FutureValue) Kind() Kind { return KindFuture }
 
-func (v *ProcHandleValue) Context() context.Context {
+func (v *FutureValue) Context() context.Context {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	return v.ctx
 }
 
-func (v *ProcHandleValue) CancelFunc() context.CancelFunc {
+func (v *FutureValue) CancelFunc() context.CancelFunc {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	return v.cancel
 }
 
-func (v *ProcHandleValue) MarkStarted() {
+func (v *FutureValue) MarkStarted() {
 	v.mu.Lock()
 	v.started = true
 	v.mu.Unlock()
 }
 
-func (v *ProcHandleValue) Started() bool {
+func (v *FutureValue) Started() bool {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	return v.started
 }
 
-func (v *ProcHandleValue) Status() ProcStatus {
+func (v *FutureValue) Status() FutureStatus {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	return v.status
 }
 
-func (v *ProcHandleValue) Snapshot() (Value, Value, ProcStatus) {
+func (v *FutureValue) Snapshot() (Value, Value, FutureStatus) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	return v.result, v.err, v.status
 }
 
-func (v *ProcHandleValue) AddAwaiter(cb func()) {
+func (v *FutureValue) AddAwaiter(cb func()) {
 	if cb == nil {
 		return
 	}
 	v.mu.Lock()
-	if v.status != ProcPending {
+	if v.status != FuturePending {
 		v.mu.Unlock()
 		cb()
 		return
@@ -592,20 +589,20 @@ func (v *ProcHandleValue) AddAwaiter(cb func()) {
 	v.mu.Unlock()
 }
 
-func (v *ProcHandleValue) Await() (Value, Value, ProcStatus) {
+func (v *FutureValue) Await() (Value, Value, FutureStatus) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
-	for v.status == ProcPending {
+	for v.status == FuturePending {
 		v.done.Wait()
 	}
 	return v.result, v.err, v.status
 }
 
-func (v *ProcHandleValue) Resolve(val Value) {
+func (v *FutureValue) Resolve(val Value) {
 	var awaiters []func()
 	v.mu.Lock()
-	if v.status == ProcPending {
-		v.status = ProcResolved
+	if v.status == FuturePending {
+		v.status = FutureResolved
 		v.result = val
 		awaiters = v.awaiters
 		v.awaiters = nil
@@ -619,11 +616,11 @@ func (v *ProcHandleValue) Resolve(val Value) {
 	}
 }
 
-func (v *ProcHandleValue) Fail(err Value) {
+func (v *FutureValue) Fail(err Value) {
 	var awaiters []func()
 	v.mu.Lock()
-	if v.status == ProcPending {
-		v.status = ProcFailed
+	if v.status == FuturePending {
+		v.status = FutureFailed
 		v.err = err
 		awaiters = v.awaiters
 		v.awaiters = nil
@@ -637,11 +634,11 @@ func (v *ProcHandleValue) Fail(err Value) {
 	}
 }
 
-func (v *ProcHandleValue) Cancel(err Value) {
+func (v *FutureValue) Cancel(err Value) {
 	var awaiters []func()
 	v.mu.Lock()
-	if v.status == ProcPending {
-		v.status = ProcCancelled
+	if v.status == FuturePending {
+		v.status = FutureCancelled
 		v.err = err
 		v.cancelRequested = true
 		awaiters = v.awaiters
@@ -656,7 +653,7 @@ func (v *ProcHandleValue) Cancel(err Value) {
 	}
 }
 
-func (v *ProcHandleValue) RequestCancel() {
+func (v *FutureValue) RequestCancel() {
 	v.mu.Lock()
 	already := v.cancelRequested
 	cancel := v.cancel
@@ -667,32 +664,10 @@ func (v *ProcHandleValue) RequestCancel() {
 	}
 }
 
-func (v *ProcHandleValue) CancelRequested() bool {
+func (v *FutureValue) CancelRequested() bool {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	return v.cancelRequested
-}
-
-// FutureValue references a ProcHandleValue and exposes its result memoization.
-type FutureValue struct {
-	handle *ProcHandleValue
-}
-
-func NewFutureFromHandle(handle *ProcHandleValue) *FutureValue {
-	return &FutureValue{handle: handle}
-}
-
-func (v *FutureValue) Kind() Kind { return KindFuture }
-
-func (v *FutureValue) Handle() *ProcHandleValue {
-	return v.handle
-}
-
-func (v *FutureValue) Await() (Value, Value, ProcStatus) {
-	if v.handle == nil {
-		return nil, nil, ProcResolved
-	}
-	return v.handle.Await()
 }
 
 //-----------------------------------------------------------------------------

@@ -69,7 +69,6 @@ const KEYWORDS = [
   "rescue",
   "ensure",
   "rethrow",
-  "proc",
   "spawn",
   "await",
   "as",
@@ -141,7 +140,6 @@ module.exports = grammar({
     [$.primary_expression, $.pattern_base, $.struct_pattern_field],
     [$.primary_expression, $.pattern_base, $.qualified_identifier],
     [$.lambda_parameter, $.pattern_base, $.struct_pattern_field],
-    [$.proc_expression, $.primary_expression],
     [$.spawn_expression, $.primary_expression],
     [$.array_literal, $.array_pattern],
     [$.pattern, $.typed_pattern],
@@ -535,7 +533,6 @@ module.exports = grammar({
     ),
 
     pipe_operand_base: $ => choice(
-      $.proc_expression,
       $.spawn_expression,
       $.await_expression,
       $.breakpoint_expression,
@@ -599,15 +596,6 @@ module.exports = grammar({
       commaSep1($.match_clause),
       optional(","),
       "}",
-    ),
-
-    proc_expression: $ => seq(
-      "proc",
-      choice(
-        $.block,
-        $.do_expression,
-        $.call_target,
-      ),
     ),
 
     spawn_expression: $ => seq(
@@ -778,7 +766,6 @@ module.exports = grammar({
         seq(
           choice(
             $.primary_expression,
-            $.proc_expression,
             $.spawn_expression,
             $.await_expression,
             $.breakpoint_expression,
@@ -800,7 +787,6 @@ module.exports = grammar({
       seq(
         choice(
           $.primary_expression,
-          $.proc_expression,
           $.spawn_expression,
           $.breakpoint_expression,
         ),
@@ -835,7 +821,6 @@ module.exports = grammar({
       seq(
         choice(
           $.primary_expression,
-          $.proc_expression,
           $.spawn_expression,
           $.breakpoint_expression,
         ),

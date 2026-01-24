@@ -24,7 +24,7 @@ fn main() -> void {
     raise "boom"
   }
 
-  proc_flush()
+  future_flush()
 
   ok_value_first := ok_future.value()
   ok_value_second := ok_future.value()

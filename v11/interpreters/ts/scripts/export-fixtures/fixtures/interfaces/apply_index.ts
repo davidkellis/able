@@ -147,7 +147,11 @@ const writeLeft = AST.assignIndex(
 const writeRight = AST.assignIndex(
   AST.id("pair"),
   AST.int(1),
-  AST.bin("+", AST.index(AST.id("pair"), AST.int(0)), AST.call(AST.id("pair"), AST.int(1))),
+  AST.bin(
+    "+",
+    AST.propagationExpression(AST.index(AST.id("pair"), AST.int(0))),
+    AST.call(AST.id("pair"), AST.int(1)),
+  ),
 );
 
 export const applyIndexDispatch: Fixture = {
@@ -163,7 +167,11 @@ export const applyIndexDispatch: Fixture = {
     bindPair,
     writeLeft,
     writeRight,
-    AST.bin("+", AST.index(AST.id("pair"), AST.int(0)), AST.call(AST.id("pair"), AST.int(1))),
+    AST.bin(
+      "+",
+      AST.propagationExpression(AST.index(AST.id("pair"), AST.int(0))),
+      AST.call(AST.id("pair"), AST.int(1)),
+    ),
   ]),
   manifest: {
     description: "Callable values dispatch to Apply.apply and []/[]= dispatch to Index/IndexMut implementations",
@@ -172,10 +180,6 @@ export const applyIndexDispatch: Fixture = {
         kind: "i32",
         value: "21",
       },
-      typecheckDiagnostics: [
-        "typechecker: v11/fixtures/ast/interfaces/apply_index_dispatch/source.able:37:11 typechecker: '+' requires numeric operands (got Result Unknown and i32)",
-        "typechecker: v11/fixtures/ast/interfaces/apply_index_dispatch/source.able:38:1 typechecker: '+' requires numeric operands (got Result Unknown and i32)",
-      ],
     },
   },
 };

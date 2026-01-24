@@ -207,9 +207,7 @@ func (c *declarationCollector) registerTypeDeclaration(stmt ast.Statement) {
 		}
 	case *ast.InterfaceDefinition:
 		if s.ID != nil {
-			c.ensureInterfaceGenericInference(s)
 			params, paramScope := c.convertGenericParams(s.GenericParams)
-			where := c.convertWhereClause(s.WhereClause, paramScope)
 			if paramScope == nil {
 				paramScope = make(map[string]Type)
 			}
@@ -219,6 +217,8 @@ func (c *declarationCollector) registerTypeDeclaration(stmt ast.Statement) {
 			if _, exists := paramScope["Self"]; !exists {
 				paramScope["Self"] = TypeParameterType{ParameterName: "Self"}
 			}
+			c.addSelfPatternParamsToScope(s, paramScope)
+			where := c.convertWhereClause(s.WhereClause, paramScope)
 			methods, defaults := c.collectInterfaceMethods(s, paramScope)
 			ifaceType := InterfaceType{
 				InterfaceName:   s.ID.Name,

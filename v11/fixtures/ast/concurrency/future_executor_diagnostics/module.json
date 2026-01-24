@@ -1,0 +1,292 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "initial_pending"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "Identifier",
+          "name": "future_pending_tasks"
+        },
+        "arguments": [],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "IfExpression",
+      "ifCondition": {
+        "type": "BinaryExpression",
+        "operator": "!=",
+        "left": {
+          "type": "Identifier",
+          "name": "initial_pending"
+        },
+        "right": {
+          "type": "IntegerLiteral",
+          "value": 0
+        }
+      },
+      "ifBody": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "RaiseStatement",
+            "expression": {
+              "type": "StringLiteral",
+              "value": "executor should start empty"
+            }
+          }
+        ]
+      },
+      "elseIfClauses": []
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "_first"
+      },
+      "right": {
+        "type": "SpawnExpression",
+        "expression": {
+          "type": "BlockExpression",
+          "body": [
+            {
+              "type": "IntegerLiteral",
+              "value": 1
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "_second"
+      },
+      "right": {
+        "type": "SpawnExpression",
+        "expression": {
+          "type": "BlockExpression",
+          "body": [
+            {
+              "type": "IntegerLiteral",
+              "value": 2
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "pending_mid"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "Identifier",
+          "name": "future_pending_tasks"
+        },
+        "arguments": [],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "IfExpression",
+      "ifCondition": {
+        "type": "BinaryExpression",
+        "operator": "<=",
+        "left": {
+          "type": "Identifier",
+          "name": "pending_mid"
+        },
+        "right": {
+          "type": "IntegerLiteral",
+          "value": 0
+        }
+      },
+      "ifBody": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "RaiseStatement",
+            "expression": {
+              "type": "StringLiteral",
+              "value": "expected pending tasks after spawn"
+            }
+          }
+        ]
+      },
+      "elseIfClauses": []
+    },
+    {
+      "type": "FunctionCall",
+      "callee": {
+        "type": "Identifier",
+        "name": "future_flush"
+      },
+      "arguments": [],
+      "isTrailingLambda": false
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "pending_end"
+      },
+      "right": {
+        "type": "FunctionCall",
+        "callee": {
+          "type": "Identifier",
+          "name": "future_pending_tasks"
+        },
+        "arguments": [],
+        "isTrailingLambda": false
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "attempts"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 0
+      }
+    },
+    {
+      "type": "AssignmentExpression",
+      "operator": ":=",
+      "left": {
+        "type": "Identifier",
+        "name": "max_attempts"
+      },
+      "right": {
+        "type": "IntegerLiteral",
+        "value": 8
+      }
+    },
+    {
+      "type": "WhileLoop",
+      "condition": {
+        "type": "BinaryExpression",
+        "operator": "&&",
+        "left": {
+          "type": "BinaryExpression",
+          "operator": ">",
+          "left": {
+            "type": "Identifier",
+            "name": "pending_end"
+          },
+          "right": {
+            "type": "IntegerLiteral",
+            "value": 0
+          }
+        },
+        "right": {
+          "type": "BinaryExpression",
+          "operator": "<",
+          "left": {
+            "type": "Identifier",
+            "name": "attempts"
+          },
+          "right": {
+            "type": "Identifier",
+            "name": "max_attempts"
+          }
+        }
+      },
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "FunctionCall",
+            "callee": {
+              "type": "Identifier",
+              "name": "future_flush"
+            },
+            "arguments": [],
+            "isTrailingLambda": false
+          },
+          {
+            "type": "AssignmentExpression",
+            "operator": "=",
+            "left": {
+              "type": "Identifier",
+              "name": "pending_end"
+            },
+            "right": {
+              "type": "FunctionCall",
+              "callee": {
+                "type": "Identifier",
+                "name": "future_pending_tasks"
+              },
+              "arguments": [],
+              "isTrailingLambda": false
+            }
+          },
+          {
+            "type": "AssignmentExpression",
+            "operator": "+=",
+            "left": {
+              "type": "Identifier",
+              "name": "attempts"
+            },
+            "right": {
+              "type": "IntegerLiteral",
+              "value": 1
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "IfExpression",
+      "ifCondition": {
+        "type": "BinaryExpression",
+        "operator": "!=",
+        "left": {
+          "type": "Identifier",
+          "name": "pending_end"
+        },
+        "right": {
+          "type": "IntegerLiteral",
+          "value": 0
+        }
+      },
+      "ifBody": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "RaiseStatement",
+            "expression": {
+              "type": "StringLiteral",
+              "value": "executor should be drained after future_flush"
+            }
+          }
+        ]
+      },
+      "elseIfClauses": []
+    },
+    {
+      "type": "BooleanLiteral",
+      "value": true
+    }
+  ]
+}

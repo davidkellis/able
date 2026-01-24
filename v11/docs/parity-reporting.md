@@ -11,7 +11,7 @@ bun run scripts/run-parity.ts --suite fixtures --suite examples --json
 
 - `--suite` selects which suites to execute (fixtures, examples, or both).
 - `ABLE_PARITY_MAX_FIXTURES` limits the number of AST fixtures processed (handy while debugging).
-- `ABLE_TYPECHECK_FIXTURES=warn|strict` keeps diagnostics aligned between interpreters during parity runs.
+- `ABLE_TYPECHECK_FIXTURES` defaults to `strict`; set `warn` or `off` explicitly to relax parity typechecking.
 - The CLI always writes `tmp/parity-report.json` relative to the repo root; pass `--report <path>` if you want to override the destination while optionally mirroring the payload to stdout with `--json`.
 
 ## CI workflow
@@ -27,7 +27,7 @@ That ensures every full test run copies `tmp/parity-report.json` into a location
 - name: Run Able parity suite
   run: |
     export ABLE_PARITY_REPORT_DEST="$GITHUB_WORKSPACE/artifacts/parity-report.json"
-    ./run_all_tests.sh --typecheck-fixtures=warn
+    ./run_all_tests.sh
 - name: Upload parity report
   uses: actions/upload-artifact@v4
   with:

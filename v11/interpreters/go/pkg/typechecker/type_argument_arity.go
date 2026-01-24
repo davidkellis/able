@@ -10,7 +10,6 @@ var builtinTypeArgumentArity = map[string]int{
 	"Array":    1,
 	"Iterator": 1,
 	"Range":    1,
-	"Proc":     1,
 	"Future":   1,
 	"Map":      2,
 	"HashMap":  2,
@@ -20,9 +19,6 @@ var builtinTypeArgumentArity = map[string]int{
 
 func expectedTypeArgumentCount(name string, base Type) (int, bool) {
 	if expected, ok := expectedTypeArgumentCountFromBase(base); ok {
-		if builtin, ok := builtinTypeArgumentArity[name]; ok && expected == 0 {
-			return builtin, true
-		}
 		return expected, true
 	}
 	if builtin, ok := builtinTypeArgumentArity[name]; ok {

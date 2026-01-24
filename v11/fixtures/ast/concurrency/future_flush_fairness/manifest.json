@@ -1,0 +1,10 @@
+{
+  "description": "future_flush drains the queue in creation order to keep scheduling fair",
+  "expect": {
+    "result": {
+      "kind": "String",
+      "value": "A1B2"
+    }
+  },
+  "entry": "module.json"
+}

@@ -74,8 +74,6 @@ func (i *Interpreter) memberAccessOnValueWithOptions(obj runtime.Value, member a
 		return i.arrayMemberWithOverrides(v, member, env, preferMethods)
 	case *runtime.HasherValue:
 		return i.hasherMember(v, member)
-	case *runtime.ProcHandleValue:
-		return i.procHandleMember(v, member)
 	case *runtime.FutureValue:
 		return i.futureMember(v, member)
 	case *runtime.IteratorValue:

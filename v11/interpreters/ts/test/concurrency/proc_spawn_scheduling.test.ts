@@ -80,7 +80,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
       AST.assignmentExpression(
         ":=",
         AST.identifier("slow"),
-        AST.procExpression(
+        AST.spawnExpression(
           AST.blockExpression([
             AST.ifExpression(
               AST.binaryExpression(
@@ -103,7 +103,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
                   AST.identifier("stage"),
                   AST.integerLiteral(1)
                 ),
-                AST.functionCall(AST.identifier("proc_yield"), []),
+                AST.functionCall(AST.identifier("future_yield"), []),
               ]),
               [],
               AST.blockExpression([
@@ -128,7 +128,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
       AST.assignmentExpression(
         ":=",
         AST.identifier("fast"),
-        AST.procExpression(
+        AST.spawnExpression(
           AST.blockExpression([
             AST.assignmentExpression(
               "=",
@@ -204,7 +204,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
       AST.assignmentExpression(
         ":=",
         AST.identifier("worker"),
-        AST.procExpression(
+        AST.spawnExpression(
           AST.blockExpression([
             AST.ifExpression(
               AST.binaryExpression(
@@ -219,7 +219,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
                   AST.identifier("worker_stage"),
                   AST.integerLiteral(1)
                 ),
-                AST.functionCall(AST.identifier("proc_yield"), []),
+                AST.functionCall(AST.identifier("future_yield"), []),
                 AST.integerLiteral(0),
               ]),
               [
@@ -236,7 +236,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
                       AST.identifier("worker_stage"),
                       AST.integerLiteral(2)
                     ),
-                    AST.functionCall(AST.identifier("proc_yield"), []),
+                    AST.functionCall(AST.identifier("future_yield"), []),
                     AST.integerLiteral(0),
                   ]),
                 ),
@@ -283,7 +283,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
                   AST.identifier("future_stage"),
                   AST.integerLiteral(1)
                 ),
-                AST.functionCall(AST.identifier("proc_yield"), []),
+                AST.functionCall(AST.identifier("future_yield"), []),
                 AST.integerLiteral(0),
               ]),
               [
@@ -345,9 +345,9 @@ describe("v11 interpreter - proc & spawn handles", () => {
     expect(I.evaluate(futureValueCall)).toEqual({ kind: "i32", value: 0n });
   });
 
-  test("proc_pending_tasks reports queued cooperative work", () => {
+  test("future_pending_tasks reports queued cooperative work", () => {
     const I = new Interpreter();
-    const pendingCall = () => AST.functionCall(AST.identifier("proc_pending_tasks"), []);
+    const pendingCall = () => AST.functionCall(AST.identifier("future_pending_tasks"), []);
 
     const initial = I.evaluate(pendingCall()) as RuntimeValue;
     expect(initial).toEqual({ kind: "i32", value: 0n });
@@ -367,7 +367,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
 
     let drained = false;
     for (let attempt = 0; attempt < 16; attempt += 1) {
-      I.evaluate(AST.functionCall(AST.identifier("proc_flush"), []));
+      I.evaluate(AST.functionCall(AST.identifier("future_flush"), []));
       const pendingAfterFlush = I.evaluate(pendingCall()) as RuntimeValue;
       expect(pendingAfterFlush.kind).toBe("i32");
       if (pendingAfterFlush.kind !== "i32") throw new Error("expected integer result");
@@ -421,7 +421,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
       AST.assignmentExpression(
         ":=",
         AST.identifier("outer"),
-        AST.procExpression(
+        AST.spawnExpression(
           AST.blockExpression([
             AST.ifExpression(
               AST.binaryExpression(
@@ -449,7 +449,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
                             AST.identifier("inner_stage"),
                             AST.integerLiteral(1)
                           ),
-                          AST.functionCall(AST.identifier("proc_yield"), []),
+                          AST.functionCall(AST.identifier("future_yield"), []),
                           AST.integerLiteral(7),
                         ]),
                         [
@@ -480,7 +480,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
                 AST.identifier("outer_stage"),
                 AST.integerLiteral(1)
               ),
-              AST.functionCall(AST.identifier("proc_yield"), []),
+              AST.functionCall(AST.identifier("future_yield"), []),
               AST.integerLiteral(0),
             ]),
             [

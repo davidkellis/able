@@ -65,7 +65,6 @@ export const RESERVED_TYPE_NAMES = new Set<string>([
   "Iterator",
   "Result",
   "Option",
-  "Proc",
   "Future",
   "Channel",
   "Mutex",

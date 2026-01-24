@@ -10,7 +10,7 @@
         "name": "handle"
       },
       "right": {
-        "type": "ProcExpression",
+        "type": "SpawnExpression",
         "expression": {
           "type": "BlockExpression",
           "body": [
@@ -250,7 +250,7 @@
               },
               "right": {
                 "type": "StringLiteral",
-                "value": "Proc cancelled"
+                "value": "Future cancelled"
               }
             }
           },

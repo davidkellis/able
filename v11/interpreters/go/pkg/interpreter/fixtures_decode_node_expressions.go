@@ -236,16 +236,6 @@ func decodeExpressionNodes(node map[string]any, typ string) (ast.Node, bool, err
 			return nil, true, fmt.Errorf("invalid ensure block %T", ensureNode)
 		}
 		return ast.NewEnsureExpression(tryExpr, ensureBlock), true, nil
-	case "ProcExpression":
-		bodyNode, err := decodeNode(node["expression"].(map[string]any))
-		if err != nil {
-			return nil, true, err
-		}
-		body, ok := bodyNode.(ast.Expression)
-		if !ok {
-			return nil, true, fmt.Errorf("invalid proc expression body %T", bodyNode)
-		}
-		return ast.NewProcExpression(body), true, nil
 	case "SpawnExpression":
 		bodyNode, err := decodeNode(node["expression"].(map[string]any))
 		if err != nil {

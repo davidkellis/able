@@ -6,9 +6,9 @@ import (
 	"testing"
 )
 
-func TestProcExpressionReturnsProcType(t *testing.T) {
+func TestSpawnExpressionReturnsFutureType(t *testing.T) {
 	checker := New()
-	expr := ast.Proc(ast.Int(42))
+	expr := ast.Spawn(ast.Int(42))
 	module := ast.NewModule([]ast.Statement{expr}, nil, nil)
 	diags, err := checker.CheckModule(module)
 	if err != nil {
@@ -17,23 +17,23 @@ func TestProcExpressionReturnsProcType(t *testing.T) {
 	if len(diags) != 0 {
 		t.Fatalf("expected no diagnostics, got %v", diags)
 	}
-	procType, ok := checker.infer[expr]
+	futureType, ok := checker.infer[expr]
 	if !ok {
-		t.Fatalf("expected proc inference entry")
+		t.Fatalf("expected future inference entry")
 	}
-	pt, ok := procType.(ProcType)
+	pt, ok := futureType.(FutureType)
 	if !ok {
-		t.Fatalf("expected ProcType, got %#v", procType)
+		t.Fatalf("expected FutureType, got %#v", futureType)
 	}
 	if pt.Result == nil || typeName(pt.Result) != "i32" {
-		t.Fatalf("expected proc result i32, got %#v", pt.Result)
+		t.Fatalf("expected future result i32, got %#v", pt.Result)
 	}
 }
-func TestProcHandleMethodsHaveExpectedTypes(t *testing.T) {
+func TestSpawnHandleMethodsHaveExpectedTypes(t *testing.T) {
 	checker := New()
 	assign := ast.Assign(
 		ast.ID("handle"),
-		ast.Proc(ast.Int(1)),
+		ast.Spawn(ast.Int(1)),
 	)
 	statusMember := ast.Member(ast.ID("handle"), "status")
 	valueMember := ast.Member(ast.ID("handle"), "value")
@@ -56,8 +56,8 @@ func TestProcHandleMethodsHaveExpectedTypes(t *testing.T) {
 		t.Fatalf("expected status member inference")
 	}
 	fn, ok := statusType.(FunctionType)
-	if !ok || typeName(fn.Return) != "ProcStatus" {
-		t.Fatalf("expected status to return ProcStatus function, got %#v", statusType)
+	if !ok || typeName(fn.Return) != "FutureStatus" {
+		t.Fatalf("expected status to return FutureStatus function, got %#v", statusType)
 	}
 	valueType, ok := checker.infer[valueMember]
 	if !ok {
@@ -74,8 +74,8 @@ func TestProcHandleMethodsHaveExpectedTypes(t *testing.T) {
 	if union.Members[0] == nil || typeName(union.Members[0]) != "i32" {
 		t.Fatalf("expected union first member i32, got %#v", union.Members[0])
 	}
-	if union.Members[1] == nil || typeName(union.Members[1]) != "ProcError" {
-		t.Fatalf("expected union second member ProcError, got %#v", union.Members[1])
+	if union.Members[1] == nil || typeName(union.Members[1]) != "FutureError" {
+		t.Fatalf("expected union second member FutureError, got %#v", union.Members[1])
 	}
 	cancelType, ok := checker.infer[cancelMember]
 	if !ok {
@@ -86,7 +86,7 @@ func TestProcHandleMethodsHaveExpectedTypes(t *testing.T) {
 		t.Fatalf("expected cancel() to return nil, got %#v", cancelType)
 	}
 }
-func TestFutureCancelProducesDiagnostic(t *testing.T) {
+func TestFutureCancelAllowed(t *testing.T) {
 	checker := New()
 	assign := ast.Assign(
 		ast.ID("future"),
@@ -101,116 +101,106 @@ func TestFutureCancelProducesDiagnostic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(diags) == 0 {
-		t.Fatalf("expected diagnostic for future cancel()")
-	}
-	found := false
-	for _, d := range diags {
-		if strings.Contains(d.Message, "future handles do not support cancel") {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("expected future cancel diagnostic, got %v", diags)
+	if len(diags) != 0 {
+		t.Fatalf("expected no diagnostics for future cancel(), got %v", diags)
 	}
 }
-func TestProcCancelledRequiresAsyncContext(t *testing.T) {
+func TestFutureCancelledRequiresAsyncContext(t *testing.T) {
 	checker := New()
-	call := ast.Call("proc_cancelled")
+	call := ast.Call("future_cancelled")
 	module := ast.NewModule([]ast.Statement{call}, nil, nil)
 	diags, err := checker.CheckModule(module)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(diags) != 0 {
-		t.Fatalf("expected no diagnostics for proc_cancelled outside async context, got %v", diags)
+		t.Fatalf("expected no diagnostics for future_cancelled outside async context, got %v", diags)
 	}
 }
-func TestProcCancelledAllowedInsideProc(t *testing.T) {
+func TestFutureCancelledAllowedInsideSpawn(t *testing.T) {
 	checker := New()
-	procExpr := ast.Proc(ast.Call("proc_cancelled"))
-	module := ast.NewModule([]ast.Statement{procExpr}, nil, nil)
+	spawnExpr := ast.Spawn(ast.Call("future_cancelled"))
+	module := ast.NewModule([]ast.Statement{spawnExpr}, nil, nil)
 	diags, err := checker.CheckModule(module)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(diags) != 0 {
-		t.Fatalf("expected no diagnostics for proc_cancelled inside proc, got %v", diags)
+		t.Fatalf("expected no diagnostics for future_cancelled inside spawn, got %v", diags)
 	}
-	typ, ok := checker.infer[procExpr]
+	typ, ok := checker.infer[spawnExpr]
 	if !ok {
-		t.Fatalf("expected inference entry for proc expression")
+		t.Fatalf("expected inference entry for spawn expression")
 	}
-	procType, ok := typ.(ProcType)
+	futureType, ok := typ.(FutureType)
 	if !ok {
-		t.Fatalf("expected ProcType, got %#v", typ)
+		t.Fatalf("expected FutureType, got %#v", typ)
 	}
-	if procType.Result == nil || typeName(procType.Result) != "bool" {
-		t.Fatalf("expected proc result bool, got %#v", procType.Result)
+	if futureType.Result == nil || typeName(futureType.Result) != "bool" {
+		t.Fatalf("expected future result bool, got %#v", futureType.Result)
 	}
 }
-func TestProcYieldRequiresAsyncContext(t *testing.T) {
+func TestFutureYieldRequiresAsyncContext(t *testing.T) {
 	checker := New()
-	call := ast.Call("proc_yield")
+	call := ast.Call("future_yield")
 	module := ast.NewModule([]ast.Statement{call}, nil, nil)
 	diags, err := checker.CheckModule(module)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(diags) == 0 {
-		t.Fatalf("expected diagnostic for proc_yield outside async context")
+		t.Fatalf("expected diagnostic for future_yield outside async context")
 	}
 	found := false
 	for _, d := range diags {
-		if strings.Contains(d.Message, "proc_yield() may only be called") {
+		if strings.Contains(d.Message, "future_yield() may only be called") {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Fatalf("expected proc_yield context diagnostic, got %v", diags)
+		t.Fatalf("expected future_yield context diagnostic, got %v", diags)
 	}
 }
-func TestProcYieldAllowedInsideProc(t *testing.T) {
+func TestFutureYieldAllowedInsideSpawn(t *testing.T) {
 	checker := New()
-	procExpr := ast.Proc(ast.Call("proc_yield"))
-	module := ast.NewModule([]ast.Statement{procExpr}, nil, nil)
+	spawnExpr := ast.Spawn(ast.Call("future_yield"))
+	module := ast.NewModule([]ast.Statement{spawnExpr}, nil, nil)
 	diags, err := checker.CheckModule(module)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(diags) != 0 {
-		t.Fatalf("expected no diagnostics for proc_yield inside proc, got %v", diags)
+		t.Fatalf("expected no diagnostics for future_yield inside spawn, got %v", diags)
 	}
-	typ, ok := checker.infer[procExpr]
+	typ, ok := checker.infer[spawnExpr]
 	if !ok {
-		t.Fatalf("expected inference entry for proc expression")
+		t.Fatalf("expected inference entry for spawn expression")
 	}
-	procType, ok := typ.(ProcType)
+	futureType, ok := typ.(FutureType)
 	if !ok {
-		t.Fatalf("expected ProcType, got %#v", typ)
+		t.Fatalf("expected FutureType, got %#v", typ)
 	}
-	if procType.Result == nil || typeName(procType.Result) != "nil" {
-		t.Fatalf("expected proc result nil, got %#v", procType.Result)
+	if futureType.Result == nil || typeName(futureType.Result) != "nil" {
+		t.Fatalf("expected future result nil, got %#v", futureType.Result)
 	}
 }
-func TestProcFlushReturnsNil(t *testing.T) {
+func TestFutureFlushReturnsNil(t *testing.T) {
 	checker := New()
-	call := ast.Call("proc_flush")
+	call := ast.Call("future_flush")
 	module := ast.NewModule([]ast.Statement{call}, nil, nil)
 	diags, err := checker.CheckModule(module)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(diags) != 0 {
-		t.Fatalf("expected no diagnostics for proc_flush call, got %v", diags)
+		t.Fatalf("expected no diagnostics for future_flush call, got %v", diags)
 	}
 	typ, ok := checker.infer[call]
 	if !ok {
-		t.Fatalf("expected inference entry for proc_flush call")
+		t.Fatalf("expected inference entry for future_flush call")
 	}
 	if typ == nil || typeName(typ) != "nil" {
-		t.Fatalf("expected proc_flush to return nil, got %#v", typ)
+		t.Fatalf("expected future_flush to return nil, got %#v", typ)
 	}
 }

@@ -1,16 +1,16 @@
 mtx := __able_mutex_new();
 __able_mutex_lock(mtx);
 hits := 0;
-runner := proc {
+runner := spawn {
   result = await [__able_mutex_await_lock(mtx, { => {
     hits = hits + 1;
     "locked";
   }})];
   result;
 };
-proc_flush();
+future_flush();
 runner.cancel();
-proc_flush();
+future_flush();
 __able_mutex_unlock(mtx);
 lock_again := __able_mutex_lock(mtx);
 __able_mutex_unlock(mtx);

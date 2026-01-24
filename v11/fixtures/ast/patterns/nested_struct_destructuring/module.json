@@ -411,14 +411,17 @@
         }
       },
       "right": {
-        "type": "IndexExpression",
-        "object": {
-          "type": "Identifier",
-          "name": "rest_values"
-        },
-        "index": {
-          "type": "IntegerLiteral",
-          "value": 0
+        "type": "PropagationExpression",
+        "expression": {
+          "type": "IndexExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "rest_values"
+          },
+          "index": {
+            "type": "IntegerLiteral",
+            "value": 0
+          }
         }
       }
     }

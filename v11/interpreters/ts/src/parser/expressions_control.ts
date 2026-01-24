@@ -463,18 +463,6 @@ export function parseDoExpression(node: Node, _source: string): Expression {
   return getActiveParseContext().parseBlock(bodyNode);
 }
 
-export function parseProcExpression(node: Node, _source: string): Expression {
-  const bodyNode = firstNamedChild(node);
-  if (!bodyNode) {
-    throw new MapperError("parser: proc expression missing body");
-  }
-  const expr = getActiveParseContext().parseExpression(bodyNode);
-  if (expr.type !== "FunctionCall" && expr.type !== "BlockExpression") {
-    throw new MapperError("parser: proc expression requires function call or block");
-  }
-  return annotateExpressionNode(AST.procExpression(expr as FunctionCall | BlockExpression), node);
-}
-
 export function parseSpawnExpression(node: Node, _source: string): Expression {
   const bodyNode = firstNamedChild(node);
   if (!bodyNode) {

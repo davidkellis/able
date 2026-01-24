@@ -41,6 +41,12 @@ func typeAssignable(from, to Type) bool {
 			}
 		}
 	}
+	if future, ok := from.(FutureType); ok {
+		if targetFuture, ok := to.(FutureType); ok {
+			return typeAssignable(future.Result, targetFuture.Result)
+		}
+		return typeAssignable(future.Result, to)
+	}
 	switch target := to.(type) {
 	case StructType:
 		if name, ok := structName(from); ok {
@@ -266,10 +272,6 @@ func literalMismatchMessage(from, to Type) (string, bool) {
 	case IteratorType:
 		if expected, ok := to.(IteratorType); ok {
 			return literalMismatchMessage(actual.Element, expected.Element)
-		}
-	case ProcType:
-		if expected, ok := to.(ProcType); ok {
-			return literalMismatchMessage(actual.Result, expected.Result)
 		}
 	case FutureType:
 		if expected, ok := to.(FutureType); ok {
@@ -503,10 +505,6 @@ func sameType(a, b Type) bool {
 		if bv, ok := b.(IteratorType); ok {
 			return sameType(av.Element, bv.Element)
 		}
-	case ProcType:
-		if bv, ok := b.(ProcType); ok {
-			return sameType(av.Result, bv.Result)
-		}
 	case FutureType:
 		if bv, ok := b.(FutureType); ok {
 			return sameType(av.Result, bv.Result)
@@ -578,8 +576,6 @@ func convertSpecialAppliedType(name string, args []Type) (Type, bool) {
 		return MapType{Key: argumentOrUnknown(args, 0), Value: argumentOrUnknown(args, 1)}, true
 	case "HashMap":
 		return MapType{Key: argumentOrUnknown(args, 0), Value: argumentOrUnknown(args, 1)}, true
-	case "Proc":
-		return ProcType{Result: argumentOrUnknown(args, 0)}, true
 	case "Future":
 		return FutureType{Result: argumentOrUnknown(args, 0)}, true
 	default:

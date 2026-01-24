@@ -1,0 +1,455 @@
+{
+  "type": "Module",
+  "imports": [],
+  "body": [
+    {
+      "type": "InterfaceDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "Pair"
+      },
+      "genericParams": [
+        {
+          "type": "GenericParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "A"
+          }
+        },
+        {
+          "type": "GenericParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "B"
+          }
+        }
+      ],
+      "selfTypePattern": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "T"
+        }
+      },
+      "signatures": [
+        {
+          "type": "FunctionSignature",
+          "name": {
+            "type": "Identifier",
+            "name": "pair"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Self"
+                }
+              }
+            },
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "a"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "A"
+                }
+              }
+            },
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "b"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "B"
+                }
+              }
+            }
+          ],
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "String"
+            }
+          }
+        }
+      ],
+      "isPrivate": false
+    },
+    {
+      "type": "StructDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "Box"
+      },
+      "fields": [
+        {
+          "type": "StructFieldDefinition",
+          "name": {
+            "type": "Identifier",
+            "name": "value"
+          },
+          "fieldType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "i32"
+            }
+          }
+        }
+      ],
+      "kind": "named"
+    },
+    {
+      "type": "ImplementationDefinition",
+      "interfaceName": {
+        "type": "Identifier",
+        "name": "Pair"
+      },
+      "interfaceArgs": [
+        {
+          "type": "SimpleTypeExpression",
+          "name": {
+            "type": "Identifier",
+            "name": "i32"
+          }
+        },
+        {
+          "type": "SimpleTypeExpression",
+          "name": {
+            "type": "Identifier",
+            "name": "i32"
+          }
+        }
+      ],
+      "targetType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "Box"
+        }
+      },
+      "definitions": [
+        {
+          "type": "FunctionDefinition",
+          "id": {
+            "type": "Identifier",
+            "name": "pair"
+          },
+          "params": [
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "self"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Box"
+                }
+              }
+            },
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "a"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "i32"
+                }
+              }
+            },
+            {
+              "type": "FunctionParameter",
+              "name": {
+                "type": "Identifier",
+                "name": "b"
+              },
+              "paramType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "i32"
+                }
+              }
+            }
+          ],
+          "body": {
+            "type": "BlockExpression",
+            "body": [
+              {
+                "type": "ReturnStatement",
+                "argument": {
+                  "type": "StringLiteral",
+                  "value": "ok"
+                }
+              }
+            ]
+          },
+          "returnType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "String"
+            }
+          },
+          "isMethodShorthand": false,
+          "isPrivate": false
+        }
+      ]
+    },
+    {
+      "type": "FunctionDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "use_missing"
+      },
+      "params": [
+        {
+          "type": "FunctionParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "value"
+          },
+          "paramType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "T"
+            }
+          }
+        }
+      ],
+      "body": {
+        "type": "BlockExpression",
+        "body": []
+      },
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "void"
+        }
+      },
+      "genericParams": [
+        {
+          "type": "GenericParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "T"
+          },
+          "constraints": [
+            {
+              "type": "InterfaceConstraint",
+              "interfaceType": {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Pair"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "isMethodShorthand": false,
+      "isPrivate": false
+    },
+    {
+      "type": "FunctionDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "use_mismatch"
+      },
+      "params": [
+        {
+          "type": "FunctionParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "value"
+          },
+          "paramType": {
+            "type": "SimpleTypeExpression",
+            "name": {
+              "type": "Identifier",
+              "name": "T"
+            }
+          }
+        }
+      ],
+      "body": {
+        "type": "BlockExpression",
+        "body": []
+      },
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "void"
+        }
+      },
+      "genericParams": [
+        {
+          "type": "GenericParameter",
+          "name": {
+            "type": "Identifier",
+            "name": "T"
+          },
+          "constraints": [
+            {
+              "type": "InterfaceConstraint",
+              "interfaceType": {
+                "type": "GenericTypeExpression",
+                "base": {
+                  "type": "SimpleTypeExpression",
+                  "name": {
+                    "type": "Identifier",
+                    "name": "Pair"
+                  }
+                },
+                "arguments": [
+                  {
+                    "type": "SimpleTypeExpression",
+                    "name": {
+                      "type": "Identifier",
+                      "name": "i32"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "isMethodShorthand": false,
+      "isPrivate": false
+    },
+    {
+      "type": "FunctionDefinition",
+      "id": {
+        "type": "Identifier",
+        "name": "run_checks"
+      },
+      "params": [],
+      "body": {
+        "type": "BlockExpression",
+        "body": [
+          {
+            "type": "FunctionCall",
+            "callee": {
+              "type": "Identifier",
+              "name": "use_missing"
+            },
+            "arguments": [
+              {
+                "type": "StructLiteral",
+                "structType": {
+                  "type": "Identifier",
+                  "name": "Box"
+                },
+                "fields": [
+                  {
+                    "type": "StructFieldInitializer",
+                    "name": {
+                      "type": "Identifier",
+                      "name": "value"
+                    },
+                    "value": {
+                      "type": "IntegerLiteral",
+                      "value": 1
+                    },
+                    "isShorthand": false
+                  }
+                ],
+                "isPositional": false
+              }
+            ],
+            "typeArguments": [
+              {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Box"
+                }
+              }
+            ],
+            "isTrailingLambda": false
+          },
+          {
+            "type": "FunctionCall",
+            "callee": {
+              "type": "Identifier",
+              "name": "use_mismatch"
+            },
+            "arguments": [
+              {
+                "type": "StructLiteral",
+                "structType": {
+                  "type": "Identifier",
+                  "name": "Box"
+                },
+                "fields": [
+                  {
+                    "type": "StructFieldInitializer",
+                    "name": {
+                      "type": "Identifier",
+                      "name": "value"
+                    },
+                    "value": {
+                      "type": "IntegerLiteral",
+                      "value": 2
+                    },
+                    "isShorthand": false
+                  }
+                ],
+                "isPositional": false
+              }
+            ],
+            "typeArguments": [
+              {
+                "type": "SimpleTypeExpression",
+                "name": {
+                  "type": "Identifier",
+                  "name": "Box"
+                }
+              }
+            ],
+            "isTrailingLambda": false
+          }
+        ]
+      },
+      "returnType": {
+        "type": "SimpleTypeExpression",
+        "name": {
+          "type": "Identifier",
+          "name": "void"
+        }
+      },
+      "isMethodShorthand": false,
+      "isPrivate": false
+    }
+  ]
+}

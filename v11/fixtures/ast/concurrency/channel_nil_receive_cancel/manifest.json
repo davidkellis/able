@@ -1,5 +1,5 @@
 {
-  "description": "Nil channel receive blocks until the proc is cancelled",
+  "description": "Nil channel receive blocks until the task is cancelled",
   "expect": {
     "result": {
       "kind": "array",

@@ -119,10 +119,16 @@ func (c *Checker) instantiateFunctionCall(fnType FunctionType, call *ast.Functio
 		}
 	}
 	if call != nil && len(inst.Obligations) > 0 {
+		var extraObligations []ConstraintObligation
 		for i := range inst.Obligations {
 			node := ast.Node(call)
 			if argNode, ok := argNodes[inst.Obligations[i].TypeParam]; ok {
 				node = argNode
+				if call != nil {
+					clone := inst.Obligations[i]
+					clone.Node = call
+					extraObligations = append(extraObligations, clone)
+				}
 			} else if len(callArgumentNodes) > 0 && len(argTypes) == len(callArgumentNodes) {
 				obSubject := inst.Obligations[i].Subject
 				if obSubject != nil && !isUnknownType(obSubject) && !isTypeParameter(obSubject) {
@@ -148,6 +154,9 @@ func (c *Checker) instantiateFunctionCall(fnType FunctionType, call *ast.Functio
 				}
 			}
 			inst.Obligations[i].Node = node
+		}
+		if len(extraObligations) > 0 {
+			inst.Obligations = append(inst.Obligations, extraObligations...)
 		}
 	}
 	return inst, diags
@@ -225,10 +234,6 @@ func (c *Checker) inferTypeArguments(expected Type, actual Type, subst map[strin
 			}
 			result = append(result, c.inferTypeArguments(exp.Return, fn.Return, subst, node, index)...)
 			return result
-		}
-	case ProcType:
-		if proc, ok := actual.(ProcType); ok {
-			return c.inferTypeArguments(exp.Result, proc.Result, subst, node, index)
 		}
 	case FutureType:
 		if future, ok := actual.(FutureType); ok {

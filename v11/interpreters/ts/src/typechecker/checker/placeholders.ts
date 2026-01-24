@@ -99,7 +99,6 @@ export function expressionContainsPlaceholder(expr: AST.Expression | null | unde
       return expressionContainsPlaceholder(expr.body);
     case "IteratorLiteral":
     case "LambdaExpression":
-    case "ProcExpression":
     case "SpawnExpression":
     case "Identifier":
     case "IntegerLiteral":
@@ -255,7 +254,6 @@ class PlaceholderAnalyzer {
         return;
       case "IteratorLiteral":
       case "LambdaExpression":
-      case "ProcExpression":
       case "SpawnExpression":
       case "Identifier":
       case "IntegerLiteral":
@@ -326,7 +324,6 @@ function isExpression(node: AST.AstNode | null | undefined): node is AST.Express
     case "MemberAccessExpression":
     case "IndexExpression":
     case "LambdaExpression":
-    case "ProcExpression":
     case "SpawnExpression":
     case "PropagationExpression":
     case "OrElseExpression":

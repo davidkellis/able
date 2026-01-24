@@ -5,8 +5,8 @@ import type { RuntimeValue } from "../../src/interpreter";
 
 import { appendToTrace, drainScheduler, expectErrorValue, expectStructInstance, flushScheduler } from "./proc_spawn.helpers";
 
-describe("v11 interpreter - proc & spawn handles", () => {
-  test("proc task observes cancellation cooperatively", () => {
+describe("v11 interpreter - future & spawn handles", () => {
+  test("future task observes cancellation cooperatively", () => {
     const I = new Interpreter();
 
     I.evaluate(
@@ -35,7 +35,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
       AST.assignmentExpression(
         ":=",
         AST.identifier("handle"),
-        AST.procExpression(
+        AST.spawnExpression(
           AST.blockExpression([
             AST.assignmentExpression(
               "=",
@@ -62,7 +62,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
                     AST.stringLiteral("w")
                   )
                 ),
-                AST.functionCall(AST.identifier("proc_yield"), []),
+                AST.functionCall(AST.identifier("future_yield"), []),
                 AST.assignmentExpression(
                   "=",
                   AST.identifier("trace"),
@@ -75,7 +75,7 @@ describe("v11 interpreter - proc & spawn handles", () => {
                 AST.assignmentExpression(
                   "=",
                   AST.identifier("saw_cancel"),
-                  AST.functionCall(AST.identifier("proc_cancelled"), [])
+                  AST.functionCall(AST.identifier("future_cancelled"), [])
                 ),
                 AST.integerLiteral(0),
               ])
@@ -87,11 +87,11 @@ describe("v11 interpreter - proc & spawn handles", () => {
     );
 
     const handleVal = I.evaluate(AST.identifier("handle"));
-    (I as any).runProcHandle(handleVal);
+    (I as any).runFuture(handleVal);
     expect(I.evaluate(AST.identifier("trace"))).toEqual({ kind: "String", value: "w" });
 
     handleVal.cancelRequested = true;
-    (I as any).runProcHandle(handleVal);
+    (I as any).runFuture(handleVal);
 
     const statusCall = AST.functionCall(
       AST.memberAccessExpression(AST.identifier("handle"), "status"),
@@ -117,13 +117,13 @@ describe("v11 interpreter - proc & spawn handles", () => {
     expect(trace.value).toBe("wx");
   });
 
-  test("automatic time slicing yields progress without explicit proc_yield", () => {
+  test("automatic time slicing yields progress without explicit future_yield", () => {
     const I = new Interpreter({ schedulerMaxSteps: 4 });
 
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("counter"), AST.integerLiteral(0)));
     I.evaluate(AST.assignmentExpression(":=", AST.identifier("done"), AST.booleanLiteral(false)));
 
-    const handleProc = AST.procExpression(
+    const handleFuture = AST.spawnExpression(
       AST.blockExpression([
         AST.assignmentExpression(":=", AST.identifier("i"), AST.integerLiteral(0)),
         AST.whileLoop(
@@ -145,11 +145,11 @@ describe("v11 interpreter - proc & spawn handles", () => {
       AST.assignmentExpression(
         ":=",
         AST.identifier("slice_handle"),
-        handleProc,
+        handleFuture,
       ),
     );
 
-    const flushCall = AST.functionCall(AST.identifier("proc_flush"), []);
+    const flushCall = AST.functionCall(AST.identifier("future_flush"), []);
     I.evaluate(flushCall);
 
     const doneValue = I.evaluate(AST.identifier("done")) as any;

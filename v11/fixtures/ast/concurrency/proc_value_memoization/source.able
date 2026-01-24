@@ -1,8 +1,0 @@
-count := 0;
-handle := proc {
-  count += 1;
-  21;
-};
-first := handle.value();
-second := handle.value();
-[first, second, count];

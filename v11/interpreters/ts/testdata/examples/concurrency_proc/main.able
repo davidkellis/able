@@ -1,8 +1,8 @@
-package proc
+package spawn
 
 fn main() {
   count := 0
-  handle := proc {
+  handle := spawn {
     count = count + 1
     count
   }

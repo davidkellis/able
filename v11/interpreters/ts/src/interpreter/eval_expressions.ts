@@ -22,7 +22,7 @@ import { evaluateMemberAccessExpression, evaluateStructDefinition, evaluateStruc
 import { evaluateLiteral } from "./literals";
 import { evaluateMapLiteral } from "./maps";
 import { evaluateIndexExpression, evaluateRangeExpression, evaluateBinaryExpression, evaluateUnaryExpression } from "./operations";
-import { evaluateProcExpression, evaluateSpawnExpression, evaluateBreakpointExpression, evaluateStringInterpolation, evaluateExternFunctionBody } from "./runtime_extras";
+import { evaluateSpawnExpression, evaluateBreakpointExpression, evaluateStringInterpolation, evaluateExternFunctionBody } from "./runtime_extras";
 import { evaluateIteratorLiteral, evaluateYieldStatement } from "./iterators";
 import { ProcContinuationContext } from "./proc_continuations";
 import type { RuntimeValue } from "./values";
@@ -57,7 +57,6 @@ const EXPRESSION_TYPES = new Set<AST.AstNode["type"]>([
   "MemberAccessExpression",
   "IndexExpression",
   "LambdaExpression",
-  "ProcExpression",
   "SpawnExpression",
   "AwaitExpression",
   "PropagationExpression",
@@ -167,8 +166,6 @@ export function applyEvaluationAugmentations(cls: typeof Interpreter): void {
       case "RethrowStatement":
         evaluateRethrowStatement(this, node as AST.RethrowStatement);
         return NIL;
-      case "ProcExpression":
-        return evaluateProcExpression(this, node as AST.ProcExpression, env);
       case "SpawnExpression":
         return evaluateSpawnExpression(this, node as AST.SpawnExpression, env);
       case "AwaitExpression":
@@ -256,12 +253,12 @@ type AwaitEvaluationState = {
 
 function evaluateAwaitExpression(ctx: Interpreter, node: AST.AwaitExpression, env: Environment): RuntimeValue {
   const asyncCtx = ctx.currentAsyncContext();
-  if (!asyncCtx || asyncCtx.kind !== "proc") {
-    throw new Error("await expressions must run inside a proc");
+  if (!asyncCtx) {
+    throw new Error("await expressions must run inside an asynchronous task");
   }
   const procContext = ctx.currentProcContext();
   if (!procContext) {
-    throw new Error("await expressions require a proc continuation context");
+    throw new Error("await expressions require an async continuation context");
   }
 
   let state = procContext.getAwaitState(node) as AwaitEvaluationState | undefined;
@@ -285,7 +282,7 @@ function evaluateAwaitExpression(ctx: Interpreter, node: AST.AwaitExpression, en
 
   if (asyncCtx.handle.cancelRequested) {
     cleanupAwaitState(ctx, procContext, node, state, asyncCtx.handle);
-    throw new Error("Proc cancelled during await");
+    throw new Error("Future cancelled during await");
   }
 
   if (!state.waiting) {
@@ -300,7 +297,7 @@ function initializeAwaitState(
   ctx: Interpreter,
   node: AST.AwaitExpression,
   env: Environment,
-  handle: Extract<RuntimeValue, { kind: "proc_handle" }>,
+  handle: Extract<RuntimeValue, { kind: "future" }>,
 ): AwaitEvaluationState {
   const iterableValue = ctx.evaluate(node.expression, env);
   const arms = collectAwaitArms(ctx, iterableValue, env);
@@ -389,7 +386,7 @@ function cleanupAwaitState(
   procContext: ProcContinuationContext,
   node: AST.AwaitExpression,
   state: AwaitEvaluationState,
-  handle?: Extract<RuntimeValue, { kind: "proc_handle" }>,
+  handle?: Extract<RuntimeValue, { kind: "future" }>,
 ): void {
   procContext.clearAwaitState(node);
   for (const arm of state.arms) {
@@ -410,7 +407,7 @@ function completeAwait(
   node: AST.AwaitExpression,
   state: AwaitEvaluationState,
   winner: AwaitArmState,
-  handle: Extract<RuntimeValue, { kind: "proc_handle" }>,
+  handle: Extract<RuntimeValue, { kind: "future" }>,
 ): RuntimeValue {
   for (const arm of state.arms) {
     if (arm === winner) continue;

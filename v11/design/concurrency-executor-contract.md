@@ -5,8 +5,8 @@ Owners: Able Agents
 
 ## Purpose
 
-Able v11 runtimes now share a minimal executor abstraction that drives `proc` and
-`spawn` evaluation. This note documents the contract so TypeScript, Go, and any
+Able v11 runtimes now share a minimal executor abstraction that drives `spawn`
+evaluation. This note documents the contract so TypeScript, Go, and any
 future runtimes implement compatible semantics while retaining freedom over the
 underlying scheduling strategy.
 
@@ -32,7 +32,7 @@ underlying scheduling strategy.
   - `ensureTick` guarantees queued tasks will run “soon” (microtask/timer or
     immediate dispatch depending on the host).
   - `flush` progresses the queue synchronously up to an optional `limit`. This
-    powers `proc_flush`, deterministic testing, and fixture harnesses.
+    powers `future_flush`, deterministic testing, and fixture harnesses.
   - `pendingTasks` is optional and only used by test helpers to assert the queue
     drained. Runtimes that cannot cheaply expose this count should omit it and
     adjust their tests accordingly.
@@ -44,13 +44,13 @@ underlying scheduling strategy.
   use the goroutine executor; TypeScript relies on the cooperative implementation.
 
 - **Helper semantics.**
-  - `proc_yield` must yield control to the executor without completing the task,
+  - `future_yield` must yield control to the executor without completing the task,
     allowing other queued work to run.
-  - `proc_cancelled` inspects the async payload set by the executor and raises
-    when called outside a proc/future context.
-  - `proc_flush` delegates to `executor.flush(limit)` to advance the queue
+  - `future_cancelled` inspects the async payload set by the executor and raises
+    when called outside a spawned-task context.
+  - `future_flush` delegates to `executor.flush(limit)` to advance the queue
     deterministically.
-  - `proc_pending_tasks` surfaces `executor.pendingTasks` as an Able helper so
+  - `future_pending_tasks` surfaces `executor.pendingTasks` as an Able helper so
     fixtures/tests can assert that cooperative queues drain. Pre-emptive
     executors may return `0` (or a best-effort count of outstanding tasks) when
     their host runtime does not expose runnable-queue details; programs must not
@@ -59,8 +59,8 @@ underlying scheduling strategy.
     boundaries (statement iterations, loop bodies, pattern matches). Once a task
     reaches the configured `schedulerMaxSteps`, it should raise the shared yield
     signal, persist its evaluation state, and reschedule itself so long-running
-    procs make forward progress even without explicit `proc_yield` calls. Manual
-    `proc_yield` invocations must remain supported and should not re-run already
+    tasks make forward progress even without explicit `future_yield` calls. Manual
+    `future_yield` invocations must remain supported and should not re-run already
     completed statements when resumed.
 
 - **Determinism expectations.** Fixtures and unit tests assume that calling
@@ -79,17 +79,17 @@ underlying scheduling strategy.
   - Fixtures automatically pick up the updated behaviour; no additional wiring
     is required.
   - The evaluator records continuation state for blocks, loops, and match expressions.
-    When a `ProcYieldSignal` is raised (either by `proc_yield` or because
+    When a `FutureYieldSignal` is raised (either by `future_yield` or because
     `checkTimeSlice()` saw `schedulerMaxSteps` ticks), the interpreter snapshots
     the current node state, unwinds, and later resumes from the recorded point.
     This continuation layer is what lets a single-threaded JS host emulate Go-like
     pre-emption without user code changes.
 
 - **Go (`interpreter-go/`).**
-  - **Production executor.** `GoroutineExecutor` launches each Able `proc`/`spawn`
+  - **Production executor.** `GoroutineExecutor` launches each Able `spawn`
     as a native goroutine. Go’s scheduler handles suspension, resumption, and
     fair progress automatically; we do not maintain an explicit continuation layer.
-    The interpreter simply exposes the same Proc/Future API (`status`, `value`,
+    The interpreter simply exposes the same Future API (`status`, `value`,
     `cancel`), delegating real concurrency to the host runtime.
   - **Deterministic test executor.** `SerialExecutor` keeps the same `Executor`
     surface for parity tests. It queues goroutine entry functions and drives them
@@ -116,7 +116,7 @@ underlying scheduling strategy.
 The cooperative TypeScript executor (and the Go serial executor that mimics it
 in parity tests) charges “time slices” as the interpreter evaluates loop bodies,
 pattern matches, and statement boundaries. Once the interpreter accrues
-`schedulerMaxSteps` slices it raises a `ProcYieldSignal`, unwinds, and reschedules
+`schedulerMaxSteps` slices it raises a `FutureYieldSignal`, unwinds, and reschedules
 the task so that other queued work can run. The default budget is **1024**
 steps per flush; this value balances throughput with fairness for the current
 fixture corpus.
@@ -124,7 +124,7 @@ fixture corpus.
 - **Configuring the budget.** `new Interpreter({ schedulerMaxSteps: N })`
   overrides the default for TypeScript runs (CLI tools expose the same option
   when they construct interpreters). Lower values make fairness fixtures
-  (e.g. `concurrency/fairness_proc_round_robin`) more sensitive by forcing the
+  (e.g. `concurrency/fairness_future_round_robin`) more sensitive by forcing the
   cooperative executor to yield more often. Higher values are useful for
   benchmark runs that would otherwise spend too much time snapshotting continuations.
 - **Go executors.** The production `GoroutineExecutor` ignores this budget
@@ -138,7 +138,7 @@ fixture corpus.
     inspect the new fairness fixtures for additional hints.
   - If benchmarks regress because the interpreter spends too much time yielding,
     raise the budget in controlled increments; once the fairness fixtures no
-    longer report progress (or `proc_yield_flush` hangs) the budget is too high.
+    longer report progress (or `future_yield_flush` hangs) the budget is too high.
 
 Keep the default at 1024 unless a workload justifies a different balance. Any
 changes that ship to other contributors should include updated fixture coverage
@@ -146,7 +146,7 @@ or design notes so the cooperative and goroutine executors stay aligned.
 
 ## Follow-ups
 
-- Document `proc_yield`/`proc_flush` guarantees in the v11 specification once
+- Document `future_yield`/`future_flush` guarantees in the v11 specification once
   wording is final.
 - Investigate fairness fixtures that rely on specific scheduling orders; any
   additional coordination helpers must be added to both executors (or guarded by

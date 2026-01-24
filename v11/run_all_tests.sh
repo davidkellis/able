@@ -7,7 +7,7 @@ PARITY_REPORT_DIR="$ROOT_DIR/tmp"
 PARITY_REPORT_PATH="$PARITY_REPORT_DIR/parity-report.json"
 declare -a PARITY_REPORT_COPIES=()
 
-TYPECHECK_FIXTURES_MODE=""
+TYPECHECK_FIXTURES_MODE="strict"
 FIXTURE_ONLY=false
 
 while [[ $# -gt 0 ]]; do
@@ -38,7 +38,7 @@ Usage: run_all_tests.sh [options]
 
 Options:
   --fixture                 Run only fixture suites (TS fixtures, parity, Go fixture tests).
-  --typecheck-fixtures[=MODE]  Enable Go fixture typechecking (MODE: warn|strict, default warn).
+  --typecheck-fixtures[=MODE]  Set fixture typechecking (MODE: off|warn|strict, default strict).
   --typecheck-fixtures-warn    Shorthand for --typecheck-fixtures=warn.
   --typecheck-fixtures-strict  Shorthand for --typecheck-fixtures=strict.
   -h, --help                   Show this help text.
@@ -52,9 +52,7 @@ EOF
   esac
 done
 
-if [[ -n "$TYPECHECK_FIXTURES_MODE" ]]; then
-  echo ">>> Enabling Go fixture typechecking: $TYPECHECK_FIXTURES_MODE"
-fi
+echo ">>> Fixture typechecking mode: $TYPECHECK_FIXTURES_MODE"
 
 mkdir -p "$PARITY_REPORT_DIR"
 
@@ -99,17 +97,13 @@ fi
 echo ">>> Running TypeScript fixture suite"
 (
   cd "$ROOT_DIR/interpreters/ts"
-  if [[ -n "$TYPECHECK_FIXTURES_MODE" ]]; then
-    ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" bun run scripts/run-fixtures.ts
-  else
-    bun run scripts/run-fixtures.ts
-  fi
+  ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" bun run scripts/run-fixtures.ts
 )
 
 echo ">>> Running cross-interpreter parity harness"
 (
   cd "$ROOT_DIR/interpreters/ts"
-  bun run scripts/run-parity.ts --suite fixtures --suite examples --report "$PARITY_REPORT_PATH"
+  ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" bun run scripts/run-parity.ts --suite fixtures --suite examples --report "$PARITY_REPORT_PATH"
 )
 echo ">>> Parity JSON report written to $PARITY_REPORT_PATH"
 if [[ -n "${ABLE_PARITY_REPORT_DEST:-}" ]]; then
@@ -125,17 +119,9 @@ echo ">>> Running Go tests"
   tmp_gocache="$(mktemp -d)"
   trap 'rm -rf "$tmp_gocache"' EXIT
   if [[ "$FIXTURE_ONLY" == true ]]; then
-    if [[ -n "$TYPECHECK_FIXTURES_MODE" ]]; then
-      ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" GOCACHE="$tmp_gocache" go test ./pkg/interpreter -run 'Fixture' -count=1
-    else
-      GOCACHE="$tmp_gocache" go test ./pkg/interpreter -run 'Fixture' -count=1
-    fi
+    ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" GOCACHE="$tmp_gocache" go test ./pkg/interpreter -run 'Fixture' -count=1
   else
-    if [[ -n "$TYPECHECK_FIXTURES_MODE" ]]; then
-      ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" GOCACHE="$tmp_gocache" go test ./...
-    else
-      GOCACHE="$tmp_gocache" go test ./...
-    fi
+    ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" GOCACHE="$tmp_gocache" go test ./...
   fi
 )
 

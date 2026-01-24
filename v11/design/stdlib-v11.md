@@ -9,7 +9,7 @@ This document consolidates the earlier “stdlib notes” and “stdlib vision�
 - Define the canonical Able v11 standard library packaged under `stdlib/`.
 - Capture a cohesive vision that aligns with the language specification and ongoing interpreter work.
 - Provide a target inventory of packages, protocols, and core data types that every runtime must support.
-- Ensure spec-described syntax (`[]`, `..`, `proc`, etc.) has a concrete stdlib implementation.
+- Ensure spec-described syntax (`[]`, `..`, `spawn`, etc.) has a concrete stdlib implementation.
 - Offer a reference for Go and TypeScript runtime contributors so both implementations converge on identical semantics.
 - Document design inspirations (Scala, Crystal, Ruby, Rust, Go) and how their strengths inform Able.
 - Record open decisions so we can converge quickly as implementation work begins.
@@ -33,7 +33,7 @@ This document consolidates the earlier “stdlib notes” and “stdlib vision�
 
 **Runtime & Concurrency Integration**
 - Collections and protocols must cooperate with Able’s cooperative scheduler and Go’s goroutines.
-- Respect cancellation semantics for iterators and async constructs (e.g., `Sequence#each_proc` must yield).
+- Respect cancellation semantics for iterators and async constructs (e.g., `Sequence#each_future` must yield).
 
 ## 2. Alignment With the v11 Specification
 
@@ -42,8 +42,8 @@ This document consolidates the earlier “stdlib notes” and “stdlib vision�
 | 6.8 Arrays | Mutable `Array T` with literals, indexing, `size() -> u64`, `get`, `set`, `slice`, `push`, `pop`; indexing raises `IndexError`. | `able.collections.mutable.array` must provide these APIs, raising the right errors and exposing `Index`/`IndexMut`. |
 | 6.10 Dynamic metaprogramming | Host helpers drive dynamic packages. | Expose bridge modules under `able.core.host` without diverging semantics. |
 | 11.2 Option/Result | `Option T = nil | T`, `Result T = Error | T`, `!` propagation helpers. | `able.core.option_result` supplies unions and helper methods consistent with the spec. |
-| 11.3 Errors | `DivisionByZeroError`, `OverflowError`, `ShiftOutOfRangeError`, `IndexError`, `ProcError` (plus message contracts). | Core error structs live in `able.core.errors`; runtimes raise them as described. |
-| 12.2 Proc | `Proc T` interface (`status`, `value`, `cancel`) and `ProcStatus` union. | `able.concurrent.proc` defines the interface/structs and extern hooks per spec semantics. |
+| 11.3 Errors | `DivisionByZeroError`, `OverflowError`, `ShiftOutOfRangeError`, `IndexError`, `FutureError` (plus message contracts). | Core error structs live in `able.core.errors`; runtimes raise them as described. |
+| 12.2 Future | `Future T` interface (`status`, `value`, `cancel`) and `FutureStatus` union. | `able.concurrent.future` defines the interface/structs and extern hooks per spec semantics. |
 | 12.3 Future | Transparent, memoised evaluation of `Future T` on demand. | `able.concurrent.future` wraps host handles and enforces implicit blocking semantics. |
 | 12.5 Synchronisation | `Channel T` API (`new`, `send`, `receive`, `try_*`, `close`, `is_closed`) and `Mutex` with `lock`/`unlock`/`with_lock`. Errors: `ClosedChannelError`, `SendOnClosedChannelError`, `NilChannelError`. | `able.concurrent.channel` and `.mutex` provide these types, forwarding to native helpers with the exact spec names/behaviour. |
 | 13 Imports | Package layout dictates module paths (hyphen → underscore). | Standard library directory structure and manifest must respect the loader rules. |
@@ -58,7 +58,7 @@ Everything else in this document is layered on top of that baseline and must nev
 | --- | --- | --- |
 | Prelude | `able` | Thin façade automatically imported by tooling; re-exports Option/Result helpers, core interfaces, and commonly used aliases. |
 | Core | `able.core.*` | Spec-mandated interfaces, Option/Result, error types, range helpers, tuple utilities, host bridges. |
-| Concurrency | `able.concurrent.*` | `Proc`, `Future`, `Channel`, `Mutex`, scheduler helpers, concurrency collections. |
+| Concurrency | `able.concurrent.*` | `Future`, `Channel`, `Mutex`, scheduler helpers, concurrency collections. |
 | Collections (mutable) | `able.collections.mutable.*` | Array, Deque, LinkedList, HashMap, HashSet, TreeMap, TreeSet, Heap, BitSet, SmallVec. |
 | Collections (persistent) | `able.collections.immutable.*` | Persistent Vector, List, Set, Map, SortedSet, LazySeq, Queue with structural sharing. |
 | Text | `able.text.*` | String, SubString, builders, Unicode helpers, ByteString. |
@@ -88,8 +88,8 @@ Everything else in this document is layered on top of that baseline and must nev
 
 ### 4.3 Concurrency Surface
 
-- `ProcStatus` union (`Pending`, `Resolved`, `Cancelled`, `Failed { error: ProcError }`) and `ProcError` struct exactly match Section 12.2.
-- `Proc T` implements `status`, `value`, and `cancel` with the blocking semantics described in the spec.
+- `FutureStatus` union (`Pending`, `Resolved`, `Cancelled`, `Failed { error: FutureError }`) and `FutureError` struct exactly match Section 12.2.
+- `Future T` implements `status`, `value`, and `cancel` with the blocking semantics described in the spec.
 - `Future T` behaves transparently: evaluating it in a `T` context blocks until completion and memoises the result (Section 12.3). No explicit `poll` API is required at the Able level.
 - `Channel T` and `Mutex` wrappers expose the precise methods spelled out in Section 12.5, forwarding to runtime helpers while preserving Go-compatible semantics. Channel iteration blocks until closed and drained.
 
@@ -101,14 +101,14 @@ Everything else in this document is layered on top of that baseline and must nev
 
 ### 4.5 Testing & Fixtures
 
-- Shared fixtures under `fixtures/ast` must cover every spec-mandated stdlib surface (Array operations, channel send/receive, Proc/Future semantics).
+- Shared fixtures under `fixtures/ast` must cover every spec-mandated stdlib surface (Array operations, channel send/receive, Future semantics).
 - Runtimes continue running `bun run scripts/run-fixtures.ts` and `go test ./pkg/interpreter`.
 - Whenever stdlib behaviour changes, update `spec/todo.md` if wording adjustments are required and extend both interpreters’ test suites.
 
 ### 4.6 Kernel vs stdlib split (current → target)
 
 **Current kernel (native, baked into interpreters)**
-- Scheduler primitives: `proc_yield`, `proc_cancelled`, `proc_flush`, `proc_pending_tasks`.
+- Scheduler primitives: `future_yield`, `future_cancelled`, `future_flush`, `future_pending_tasks`.
 - Concurrency bridges: channel helpers (`__able_channel_new/send/receive/try_send/try_receive/await_try_send/await_try_recv/close/is_closed`), mutex helpers (`__able_mutex_new/lock/unlock`), await wakers.
 - String bridges: `__able_string_from_builtin`, `__able_string_to_builtin`, `__able_char_from_codepoint`.
 - **Native helpers that should migrate to stdlib:** array methods (`size`, `push`, `pop`, `get`, `set`, `clear`, `iterator`) and string helpers (`len_*`, `substring`, `split`, `replace`, `starts_with`, `ends_with`, `chars`/`graphemes` iterators) are currently implemented as host natives inside both interpreters.
@@ -149,7 +149,7 @@ These items expand the stdlib once the baseline is green. They reuse material fr
 | `Collectable C` | Realise iterators | `collect(source: Iterator Item) -> C` |
 | `Builder C` | Efficient construction | `push`, `extend`, `finish -> C` |
 | `Serializable` | Structured persistence | `serialize`, `deserialize` (phase 2 goal) |
-| `ProcLike` | Callable values | Aligns with `Apply`; used for passing closures/procs |
+| `Callable` | Callable values | Aligns with `Apply`; used for passing callables/closures |
 
 Notes:
 - Interfaces live in `able.core.interfaces` with Crystal-style module naming (`Iterator T`, `Iterable T`, `Collection T`).
@@ -233,7 +233,7 @@ By convention `import able.collections.Map` resolves to the mutable `HashMap K V
 - Iterator adapters: `MapIterator`, `FilterIterator`, `Enumerate`, `Zip`, `Chain`, `TakeWhile`, `DropWhile`, `Flatten`, `Chunk`, `Window`, `Partition`, `Sliding`.
 - `Iterator#lazy` returns self but signals intent; pipelines remain lazy until realised via `to_*` / `collect`.
 - `Collectable` implementations (`ArrayCollectable`, `VectorCollectable`, `SetCollectable`, `MapCollectable`) materialise iterators without coupling to constructors.
-- `Enumerator` bridges yield elements through Able `proc` while respecting scheduler semantics.
+- `Enumerator` bridges yield elements through Able `spawn` while respecting scheduler semantics.
 
 #### 5.1.6 Common Operations & Naming Conventions
 
@@ -243,7 +243,7 @@ By convention `import able.collections.Map` resolves to the mutable `HashMap K V
 - Access helpers: `first`, `last`, `nth`, `take`, `drop`, `split_at`, `chunks`, `windows`.
 - Boolean combinators: `any?`, `all?`, `none?`, `one?` with lazy short-circuit semantics.
 - Numeric reductions: `sum`, `product`, `min`, `max`.
-- Concurrency hook: `each_proc` yields via Able `proc` for deterministic scheduling tests.
+- Concurrency hook: `each_future` yields via Able `spawn` for deterministic scheduling tests.
 - Collections implement `Display`, `Debug`, `Clone`, `Equatable`, `Hashable` when element types allow.
 - Methods ending with `?` return `bool`; `!` suffix denotes raising variants (`fetch!`).
 - Expose both total (`get`, returning `Option`) and partial (`get!`, raising `IndexError`) accessors.
@@ -382,8 +382,8 @@ Lawfulness: document associativity/identity/inverses for each algebraic interfac
 ### 5.4 Concurrency Extensions
 
 - Add higher-level helpers (`select`, timer channels, async iteration helpers) built atop spec-backed primitives.
-- Provide concurrency-aware collections (`ConcurrentQueue`, `AsyncStream`) that integrate with `proc`/`spawn`.
-- Offer guidance (but no automatic behaviour) for cooperative scheduling, e.g., optional helper adapters that invoke `proc_yield` for test harnesses in the TypeScript runtime.
+- Provide concurrency-aware collections (`ConcurrentQueue`, `AsyncStream`) that integrate with `spawn`/`Future` tasks.
+- Offer guidance (but no automatic behaviour) for cooperative scheduling, e.g., optional helper adapters that invoke `future_yield` for test harnesses in the TypeScript runtime.
 
 ### 5.5 Regular Expression & Pattern Matching Vision
 
@@ -412,7 +412,7 @@ Implementation considerations:
 - Arrays, hash maps, strings, channels, and mutexes use opaque handles managed by the interpreters to guarantee deterministic behaviour.
 - All host-specific shims live in `able.core.host.*`, keeping dependencies explicit for future targets.
 - Default hashing uses FNV-1a seeded with a per-process random value to mitigate collision attacks; allow opt-in deterministic modes for tooling later.
-- Long-running stdlib routines (iterator pipelines, blocking operations) should integrate with `proc_cancelled` / `proc_yield`.
+- Long-running stdlib routines (iterator pipelines, blocking operations) should integrate with `future_cancelled` / `future_yield`.
 - Go runtime backs mutable collections with slices/maps; TypeScript uses JS arrays/maps while enforcing identical semantics. Persistent structures can be written in Able and shared across runtimes.
 - Extern shims exist for heavy operations (`String#encode_utf8`, `HashMap#rehash`) to keep interpreters performant.
 - Ensure `Serializable` implementations cooperate with runtime-specific IO backends (Go JSON, TypeScript JSON).
@@ -426,7 +426,7 @@ The goal is to keep the interpreter-provided surface area tiny and fast while im
 | `Array T` | Allocate/free storage, grow/shrink capacity, load/store elements, clone backing buffer, expose length/capacity, ensure GC-visible references. | Public API (`push`, `pop`, `get`, `set`, `slice`), iteration helpers, higher-order methods, builders, persistent conversions. |
 | `HashMap K V` / `HashSet T` | Allocate table, compute seeded hash, probe/update slots, resize/rehash, expose iterator over live entries efficiently. | Interface (`Map K V`), error handling, iteration adapters, convenience APIs, persistent wrappers. |
 | `String` / `SubString` / `StringBuilder` | Own host string/byte buffers, convert to/from UTF-8, slice by grapheme, lazily materialise byte views, bridge to host APIs. | Public string API, builders, text algorithms, formatting helpers, Unicode utilities layered on the primitive hooks. |
-| `Proc`, `Future` | Schedule work, memoise results, propagate cancellation, map exceptions into `ProcError`, integrate with host executor. | Interface definition, ergonomic helpers, fixture utilities; user code treats them as ordinary Able values. |
+| `Future` | Schedule work, memoise results, propagate cancellation, map exceptions into `FutureError`, integrate with host executor. | Interface definition, ergonomic helpers, fixture utilities; user code treats them as ordinary Able values. |
 | `Channel T`, `Mutex` | Create/destroy handles, send/receive/close with correct blocking semantics, lock/unlock, interact with cancellation, wake waiters. | Type wrappers, iteration, error mapping, helper functions such as `with_lock`. |
 | Dynamic packages / host bridges (`able.core.host.*`) | Lookup host packages, call extern functions, manage opaque handles. | Higher-level abstractions that expose those capabilities safely to Able code. |
 | `Hasher` | Low-level FNV-1a implementation seeded per process, byte ingestion, finalisation. | Trait definition, convenience wrappers, hashing utilities that compose the primitive operations. |
@@ -528,7 +528,7 @@ Implementation strategy:
 - Allocation-reduction roadmap will land Iterator Fusion first (Section 5.1.7 Option A).
 - Default hashing uses per-process random seeds (FNV-1a baseline) with an opt-in deterministic mode for tooling.
 - Persistent builders mirror Scala/Clojure designs with dedicated accumulators that flush directly to the persistent representation.
-- Stdlib iterators do not auto-call `proc_yield`; cooperative scheduling remains an explicit concern for callers/tests (primarily in the TypeScript runtime).
+- Stdlib iterators do not auto-call `future_yield`; cooperative scheduling remains an explicit concern for callers/tests (primarily in the TypeScript runtime).
 
 **Pending**
 - None at present.
@@ -536,7 +536,7 @@ Implementation strategy:
 ## 10. Brainstorm Backlog
 
 - Implement persistent collections once in Able and share across runtimes.
-- Explore Ruby-style `Enumerator` objects to bridge synchronous iteration with `proc`-based concurrency.
+- Explore Ruby-style `Enumerator` objects to bridge synchronous iteration with `spawn`-based concurrency.
 - Support multi-arity `map`/`zip` similar to Scala.
 - Provide structural pattern-matching helpers (e.g., `Vector::Unapply`) after parser support is available.
 - Offer `Lens`-style utilities for immutable updates (inspiration from Scala and Functional Java).

@@ -3,7 +3,7 @@ package exec_12_08_blocking_io_concurrency
 import able.io.{read, write, close, string_to_bytes}
 import able.concurrency.{Channel, Mutex}
 
-## Semantics: blocking io reads suspend only the current proc while others run.
+## Semantics: blocking io reads suspend only the current spawn while others run.
 
 prelude typescript {
 import { PassThrough } from "node:stream";
@@ -68,7 +68,7 @@ fn main() -> void {
     trace_lock.unlock()
   }
 
-  reader := proc {
+  reader := spawn {
     push("R")
     ready.send(true)
     bytes := read(reader_handle, 4)
@@ -80,7 +80,7 @@ fn main() -> void {
     }
   }
 
-  writer := proc {
+  writer := spawn {
     ready.receive()
     push("W")
     push("w")

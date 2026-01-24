@@ -138,7 +138,7 @@
         "name": "runner"
       },
       "right": {
-        "type": "ProcExpression",
+        "type": "SpawnExpression",
         "expression": {
           "type": "BlockExpression",
           "body": [

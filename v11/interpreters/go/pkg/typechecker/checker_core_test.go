@@ -637,32 +637,9 @@ func TestRangeExpressionRejectsNonIntegerBounds(t *testing.T) {
 		t.Fatalf("expected range end numeric diagnostic, got %v", diags)
 	}
 }
-func TestSpawnExpressionReturnsFutureType(t *testing.T) {
-	checker := New()
-	expr := ast.Spawn(ast.Int(7))
-	module := ast.NewModule([]ast.Statement{expr}, nil, nil)
-	diags, err := checker.CheckModule(module)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if len(diags) != 0 {
-		t.Fatalf("expected no diagnostics, got %v", diags)
-	}
-	futureType, ok := checker.infer[expr]
-	if !ok {
-		t.Fatalf("expected future inference entry")
-	}
-	ft, ok := futureType.(FutureType)
-	if !ok {
-		t.Fatalf("expected FutureType, got %#v", futureType)
-	}
-	if ft.Result == nil || typeName(ft.Result) != "i32" {
-		t.Fatalf("expected future result i32, got %#v", ft.Result)
-	}
-}
 func TestPropagationExtractsSuccessBranch(t *testing.T) {
 	checker := New()
-	assign := ast.Assign(ast.ID("handle"), ast.Proc(ast.Int(10)))
+	assign := ast.Assign(ast.ID("handle"), ast.Spawn(ast.Int(10)))
 	valueCall := ast.CallExpr(ast.Member(ast.ID("handle"), "value"))
 	prop := ast.Prop(valueCall)
 	module := ast.NewModule([]ast.Statement{assign, prop}, nil, nil)
@@ -681,7 +658,7 @@ func TestPropagationExtractsSuccessBranch(t *testing.T) {
 		t.Fatalf("expected propagation to produce i32, got %#v", propType)
 	}
 }
-func TestPropagationRequiresProcErrorUnion(t *testing.T) {
+func TestPropagationRequiresFutureErrorUnion(t *testing.T) {
 	checker := New()
 	prop := ast.Prop(ast.Int(5))
 	module := ast.NewModule([]ast.Statement{prop}, nil, nil)

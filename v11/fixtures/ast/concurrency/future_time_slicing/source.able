@@ -21,7 +21,7 @@ pending_observed := first_status == "Pending";
 flushes := 0;
 current_status := first_status;
 while current_status == "Pending" && flushes < 12 {
-  proc_flush();
+  future_flush();
   flushes += 1;
   current_status = status_name(future.status());
   pending_observed = pending_observed || current_status == "Pending";

@@ -162,12 +162,6 @@ func parseExpressionInternal(ctx *parseContext, node *sitter.Node) (ast.Expressi
 			}
 		}
 		return annotateExpression(memberAccess, node), nil
-	case "proc_expression":
-		expr, err := ctx.parseProcExpression(node)
-		if err != nil {
-			return nil, err
-		}
-		return annotateExpression(expr, node), nil
 	case "spawn_expression":
 		expr, err := ctx.parseSpawnExpression(node)
 		if err != nil {

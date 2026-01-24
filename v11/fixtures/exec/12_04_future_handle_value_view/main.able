@@ -1,0 +1,97 @@
+package exec_12_04_future_handle_value_view
+
+## Semantics: spawn returns a Future handle with explicit status/value/cancel control; handle vs value view share the same memoized task.
+
+fn status_name(status) -> String {
+  status match {
+    case Pending { } => "Pending",
+    case Resolved { } => "Resolved",
+    case Cancelled { } => "Cancelled",
+    case Failed { } => "Failed",
+    case _ => "Unknown"
+  }
+}
+
+fn main() -> void {
+  handle_a := spawn {
+    future_yield()
+    10
+  }
+
+  handle_b := spawn {
+    future_yield()
+    20
+  }
+
+  future_flush()
+
+  value_a := handle_a.value()
+  value_b := handle_b.value()
+
+  print(`values first=${value_a} second=${value_b}`)
+  print(`status ${status_name(handle_a.status())} ${status_name(handle_b.status())}`)
+
+  handle_fail_a := spawn {
+    raise "boom"
+  }
+
+  handle_fail_b := spawn {
+    raise "boom"
+  }
+
+  future_flush()
+
+  err_a := handle_fail_a.value()
+  err_b := handle_fail_b.value()
+
+  print(`first error ${err_a.message()}`)
+  print(`second error ${err_b.message()}`)
+
+  raised_a := (do {
+    handle_fail_a.value()!
+    "no"
+  } rescue {
+    case err => err.message()
+  })
+
+  raised_b := (do {
+    handle_fail_b.value()!
+    "no"
+  } rescue {
+    case err => err.message()
+  })
+
+  print(`first raised ${raised_a}`)
+  print(`second raised ${raised_b}`)
+
+  cancel_stage := 0
+  cancelled_seen := false
+
+  cancellable := spawn {
+    if cancel_stage == 0 {
+      cancel_stage = 1
+      future_yield()
+    }
+    if cancel_stage == 1 {
+      cancelled_seen = future_cancelled()
+      cancel_stage = 2
+    }
+  }
+
+  canceller := spawn {
+    cancellable.cancel()
+  }
+
+  future_flush()
+
+  cancel_status := cancellable.status() match {
+    case Pending { } => "Pending",
+    case Resolved { } => "Resolved",
+    case Cancelled { } => "Cancelled",
+    case Failed { } => "Failed",
+    case _ => "Unknown"
+  }
+
+  print(`cancel seen ${cancelled_seen}`)
+  print(`cancel status ${cancel_status}`)
+}

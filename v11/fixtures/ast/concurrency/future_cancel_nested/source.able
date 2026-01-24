@@ -16,17 +16,17 @@ future := spawn {
   future_started = true;
   while future_iteration < iterations {
     future_iteration = future_iteration + 1;
-    proc_yield();
+    future_yield();
   }
   future_completed = true;
   "done";
 };
-proc_flush();
+future_flush();
 status_before := status_name(future.status());
 future.cancel();
-proc_flush();
+future_flush();
 status_after := status_name(future.status());
-outer := proc {
+outer := spawn {
   outer_waited = true;
   value := future.value();
   summary := (value match {

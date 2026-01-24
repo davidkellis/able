@@ -359,13 +359,13 @@ Use `ensure` for finally-style cleanup and `rethrow` to propagate within `rescue
 
 Able mirrors Go-style semantics with shared interfaces across runtimes.
 
-### 9.1 `proc` (Cooperative Tasks)
+### 9.1 `spawn` (Futures)
 
-`proc expr` spawns an asynchronous task and returns `Proc T`:
+`spawn expr` starts an asynchronous task and returns `Future T`:
 
 ```able
-handle: Proc String = proc fetch(url)
-proc_flush(32) ## advance cooperative scheduler (TS runtime exposes this helper)
+handle: Future String = spawn fetch(url)
+future_flush(32) ## advance cooperative scheduler (TS runtime exposes this helper)
 
 handle.status() match {
   case Pending => log("waiting..."),
@@ -377,11 +377,11 @@ handle.status() match {
 body = handle.value() else { "fallback" }
 ```
 
-`Proc` exposes `status()`, `value() -> !T`, and `cancel()`. Helpers inside async bodies: `proc_yield()`, `proc_cancelled()`, `proc_flush(limit?)`, `proc_pending_tasks()` (diagnostic).
+`Future` exposes `status()`, `value() -> !T`, and `cancel()`. Helpers inside async bodies: `future_yield()`, `future_cancelled()`, `future_flush(limit?)`, `future_pending_tasks()` (diagnostic).
 
-### 9.2 `spawn` (Futures)
+### 9.2 Future handle vs value view
 
-`spawn expr` returns `Future T`; evaluating it blocks and yields `T`, re-raising task exceptions. Futures memoize results and also expose `status()`/`value()` via a handle. Use when lifecycle control is unnecessary.
+`Future T` acts as a handle in non-`T` contexts and as a value in `T` contexts. Evaluating it (or calling `value()`) blocks until the task resolves, re-raising task exceptions. Futures memoize results and expose `status()`/`value()` via the handle when lifecycle control is needed.
 
 ### 9.3 `await` & `Awaitable`
 
@@ -462,7 +462,7 @@ Syntax sugar lowers to stdlib interfaces:
 - Operators: arithmetic/bitwise, comparison, hashing
 - Display & Error: `Display`, `Error`
 - Object utilities: `Clone`, `Default`
-- Concurrency: `Proc`, `ProcError`, `Awaitable`
+- Concurrency: `Future`, `FutureError`, `Awaitable`
 
 Collection and async types in stdlib implement the relevant interfaces.
 
@@ -482,7 +482,7 @@ Embed host-language code via package-scope `prelude <target> { ... }` and `exter
 
 - Any package with public `fn main() -> void` produces a binary named after the package path. Multiple binaries are allowed.
 - `os.args()` provides CLI args; returning from `main` exits 0; unhandled exceptions exit 1; use `os.exit(code)` for custom codes.
-- Background `proc`/`spawn` tasks are not awaited when `main` returns—join explicitly if needed.
+- Background `spawn` tasks are not awaited when `main` returns—join explicitly if needed.
 - Language implementation testing (fixtures/parity): keep TS + Go interpreters in sync. Run `bun test`, `go test ./...`, `bun run scripts/run-fixtures.ts`, `go test ./pkg/interpreter`, and `./run_all_tests.sh --version=v11` before landing changes.
 - Fixtures: update `v11/fixtures`, export via `bun run scripts/export-fixtures.ts`, and ensure parity stays green.
 - User-facing testing (Able programs): `able test` plus the `able.spec` DSL (backed by `able.test.*`) are planned for end-user test suites and are separate from fixture/parity work.

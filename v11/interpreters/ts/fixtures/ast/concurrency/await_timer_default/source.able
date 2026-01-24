@@ -44,11 +44,11 @@ fn default_arm(value: String) -> DefaultArm {
   DefaultArm { value: value }
 }
 timer := Timer { ready: true }
-runner := proc {
+runner := spawn {
   first := await [default_arm("fallback")]
   second := await [timer]
   third := await [timer]
   [first == "fallback", second == "timer", third == "timer"]
 }
-proc_flush()
+future_flush()
 runner.value()

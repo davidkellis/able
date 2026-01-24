@@ -9,23 +9,23 @@ import (
 	"able/interpreter-go/pkg/runtime"
 )
 
-func TestProcHandleResolvesValue(t *testing.T) {
+func TestFutureHandleResolvesValue(t *testing.T) {
 	interp := New()
 	global := interp.GlobalEnvironment()
 
 	handleVal, err := interp.evaluateExpression(
-		ast.Proc(ast.Block(ast.Int(5))),
+		ast.Spawn(ast.Block(ast.Int(5))),
 		global,
 	)
 	if err != nil {
-		t.Fatalf("proc expression evaluation failed: %v", err)
+		t.Fatalf("spawn expression evaluation failed: %v", err)
 	}
-	handle, ok := handleVal.(*runtime.ProcHandleValue)
+	handle, ok := handleVal.(*runtime.FutureValue)
 	if !ok {
-		t.Fatalf("expected proc handle, got %#v", handleVal)
+		t.Fatalf("expected future handle, got %#v", handleVal)
 	}
 
-	valueVal := interp.procHandleValue(handle)
+	valueVal := interp.futureValue(handle)
 	intVal, ok := valueVal.(runtime.IntegerValue)
 	if !ok {
 		t.Fatalf("expected integer result, got %#v", valueVal)
@@ -34,7 +34,7 @@ func TestProcHandleResolvesValue(t *testing.T) {
 		t.Fatalf("expected value 5, got %v", intVal.Val)
 	}
 
-	statusVal := interp.procHandleStatus(handle)
+	statusVal := interp.futureStatus(handle)
 	statusInst, ok := statusVal.(*runtime.StructInstanceValue)
 	if !ok {
 		t.Fatalf("expected struct status value, got %#v", statusVal)
@@ -48,32 +48,32 @@ func TestProcHandleResolvesValue(t *testing.T) {
 	}
 }
 
-func TestProcHandleFailureStatusAndValue(t *testing.T) {
+func TestFutureHandleFailureStatusAndValue(t *testing.T) {
 	interp := New()
 	global := interp.GlobalEnvironment()
 
 	handleVal, err := interp.evaluateExpression(
-		ast.Proc(ast.Block(ast.Raise(ast.Str("boom")))),
+		ast.Spawn(ast.Block(ast.Raise(ast.Str("boom")))),
 		global,
 	)
 	if err != nil {
-		t.Fatalf("proc evaluation failed: %v", err)
+		t.Fatalf("spawn evaluation failed: %v", err)
 	}
-	handle, ok := handleVal.(*runtime.ProcHandleValue)
+	handle, ok := handleVal.(*runtime.FutureValue)
 	if !ok {
-		t.Fatalf("expected proc handle, got %#v", handleVal)
+		t.Fatalf("expected future handle, got %#v", handleVal)
 	}
 
-	valueVal := interp.procHandleValue(handle)
+	valueVal := interp.futureValue(handle)
 	errValue, ok := valueVal.(runtime.ErrorValue)
 	if !ok {
 		t.Fatalf("expected runtime error value, got %#v", valueVal)
 	}
-	if errValue.Message != "Proc failed: boom" {
+	if errValue.Message != "Future failed: boom" {
 		t.Fatalf("unexpected error message %q", errValue.Message)
 	}
 
-	statusVal := interp.procHandleStatus(handle)
+	statusVal := interp.futureStatus(handle)
 	statusInst, ok := statusVal.(*runtime.StructInstanceValue)
 	if !ok {
 		t.Fatalf("expected struct status value, got %#v", statusVal)
@@ -89,8 +89,8 @@ func TestProcHandleFailureStatusAndValue(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected error field on Failed status")
 	}
-	if details := interp.procErrorDetails(errField); details != "boom" {
-		t.Fatalf("expected proc error details 'boom', got %q", details)
+	if details := interp.futureErrorDetails(errField); details != "boom" {
+		t.Fatalf("expected future error details 'boom', got %q", details)
 	}
 }
 
@@ -133,7 +133,7 @@ func TestSpawnFutureValue(t *testing.T) {
 	}
 }
 
-func TestProcCancelBeforeStart(t *testing.T) {
+func TestFutureCancelBeforeStart(t *testing.T) {
 	interp := New()
 	if serial, ok := interp.executor.(*SerialExecutor); ok {
 		serial.Close()
@@ -142,8 +142,8 @@ func TestProcCancelBeforeStart(t *testing.T) {
 	global := interp.GlobalEnvironment()
 
 	handleVal, err := interp.evaluateExpression(
-		ast.Proc(ast.Block(
-			ast.Call("proc_yield"),
+		ast.Spawn(ast.Block(
+			ast.Call("future_yield"),
 			ast.Int(42),
 		)),
 		global,
@@ -151,26 +151,28 @@ func TestProcCancelBeforeStart(t *testing.T) {
 	if err != nil {
 		t.Fatalf("proc evaluation failed: %v", err)
 	}
-	handle, ok := handleVal.(*runtime.ProcHandleValue)
+	handle, ok := handleVal.(*runtime.FutureValue)
 	if !ok {
 		t.Fatalf("expected proc handle, got %#v", handleVal)
 	}
 
-	handle.RequestCancel()
-	if !waitForStatus(handle, runtime.ProcCancelled, 100*time.Millisecond) {
-		t.Fatalf("expected handle to enter cancelled state, got %v", handle.Status())
+	if handle != nil {
+		handle.RequestCancel()
+	}
+	if !waitForStatus(handle, runtime.FutureCancelled, 100*time.Millisecond) {
+		t.Fatalf("expected handle to enter cancelled state, got %v", futureStatus(handle))
 	}
 
-	valueVal := interp.procHandleValue(handle)
+	valueVal := interp.futureValue(handle)
 	errValue, ok := valueVal.(runtime.ErrorValue)
 	if !ok {
 		t.Fatalf("expected runtime error value, got %#v", valueVal)
 	}
-	if errValue.Message != "Proc cancelled" {
+	if errValue.Message != "Future cancelled" {
 		t.Fatalf("unexpected error message %q", errValue.Message)
 	}
 
-	statusVal := interp.procHandleStatus(handle)
+	statusVal := interp.futureStatus(handle)
 	statusInst, ok := statusVal.(*runtime.StructInstanceValue)
 	if !ok {
 		t.Fatalf("expected struct status value, got %#v", statusVal)
@@ -184,7 +186,7 @@ func TestProcCancelBeforeStart(t *testing.T) {
 	}
 }
 
-func TestProcTaskObservesCancellation(t *testing.T) {
+func TestFutureTaskObservesCancellation(t *testing.T) {
 	interp := New()
 	if serial, ok := interp.executor.(*SerialExecutor); ok {
 		serial.Close()
@@ -204,20 +206,20 @@ func TestProcTaskObservesCancellation(t *testing.T) {
 	mustEval(ast.Assign(ast.ID("saw_cancel"), ast.Bool(false)))
 	mustEval(ast.Assign(ast.ID("stage"), ast.Int(0)))
 
-	handleVal := mustEval(ast.Proc(ast.Block(
+	handleVal := mustEval(ast.Spawn(ast.Block(
 		ast.AssignOp(ast.AssignmentAssign, ast.ID("stage"), ast.Bin("+", ast.ID("stage"), ast.Int(1))),
 		ast.AssignOp(ast.AssignmentAssign, ast.ID("trace"), ast.Bin("+", ast.ID("trace"), ast.Str("w"))),
 		ast.While(
-			ast.Un("!", ast.Call("proc_cancelled")),
+			ast.Un("!", ast.Call("future_cancelled")),
 			ast.Block(
-				ast.Call("proc_yield"),
+				ast.Call("future_yield"),
 			),
 		),
 		ast.AssignOp(ast.AssignmentAssign, ast.ID("trace"), ast.Bin("+", ast.ID("trace"), ast.Str("x"))),
-		ast.AssignOp(ast.AssignmentAssign, ast.ID("saw_cancel"), ast.Call("proc_cancelled")),
+		ast.AssignOp(ast.AssignmentAssign, ast.ID("saw_cancel"), ast.Call("future_cancelled")),
 		ast.Int(0),
 	)))
-	handle, ok := handleVal.(*runtime.ProcHandleValue)
+	handle, ok := handleVal.(*runtime.FutureValue)
 	if !ok {
 		t.Fatalf("expected proc handle, got %#v", handleVal)
 	}
@@ -226,17 +228,19 @@ func TestProcTaskObservesCancellation(t *testing.T) {
 		t.Fatalf("expected trace to be \"w\" before cancellation, got %q", mustGetString(t, global, "trace"))
 	}
 
-	handle.RequestCancel()
-	if !waitForStatus(handle, runtime.ProcCancelled, 200*time.Millisecond) {
-		t.Fatalf("expected cancelled status, got %v", handle.Status())
+	if handle != nil {
+		handle.RequestCancel()
+	}
+	if !waitForStatus(handle, runtime.FutureCancelled, 200*time.Millisecond) {
+		t.Fatalf("expected cancelled status, got %v", futureStatus(handle))
 	}
 
-	valueVal := interp.procHandleValue(handle)
+	valueVal := interp.futureValue(handle)
 	errValue, ok := valueVal.(runtime.ErrorValue)
 	if !ok {
 		t.Fatalf("expected runtime error value, got %#v", valueVal)
 	}
-	if errValue.Message != "Proc cancelled" {
+	if errValue.Message != "Future cancelled" {
 		t.Fatalf("unexpected error message %q", errValue.Message)
 	}
 
@@ -340,42 +344,42 @@ func TestFutureFailurePropagates(t *testing.T) {
 	}
 }
 
-func TestProcCancelledOutsideProc(t *testing.T) {
+func TestFutureCancelledOutsideTask(t *testing.T) {
 	interp := New()
 	global := interp.GlobalEnvironment()
 
-	if _, err := interp.evaluateExpression(ast.Call("proc_cancelled"), global); err == nil {
-		t.Fatalf("expected proc_cancelled outside async context to error")
-	} else if !strings.Contains(err.Error(), "proc_cancelled must be called inside an asynchronous task") {
+	if _, err := interp.evaluateExpression(ast.Call("future_cancelled"), global); err == nil {
+		t.Fatalf("expected future_cancelled outside async context to error")
+	} else if !strings.Contains(err.Error(), "future_cancelled must be called inside an asynchronous task") {
 		t.Fatalf("unexpected error message %q", err.Error())
 	}
 }
 
-func TestProcFlushDelegatesToExecutor(t *testing.T) {
+func TestFutureFlushDelegatesToExecutor(t *testing.T) {
 	interp := New()
 	stub := &stubExecutor{}
 	interp.executor = stub
 	global := interp.GlobalEnvironment()
 
-	val, err := interp.evaluateExpression(ast.Call("proc_flush"), global)
+	val, err := interp.evaluateExpression(ast.Call("future_flush"), global)
 	if err != nil {
-		t.Fatalf("proc_flush evaluation failed: %v", err)
+		t.Fatalf("future_flush evaluation failed: %v", err)
 	}
 	if _, ok := val.(runtime.NilValue); !ok {
-		t.Fatalf("expected proc_flush to return nil, got %#v", val)
+		t.Fatalf("expected future_flush to return nil, got %#v", val)
 	}
 	if stub.flushCalls != 1 {
 		t.Fatalf("expected executor flush to be called exactly once, got %d", stub.flushCalls)
 	}
 }
 
-func TestProcPendingTasksSerialExecutor(t *testing.T) {
+func TestFuturePendingTasksSerialExecutor(t *testing.T) {
 	interp := New()
 	global := interp.GlobalEnvironment()
 
-	initialVal, err := interp.evaluateExpression(ast.Call("proc_pending_tasks"), global)
+	initialVal, err := interp.evaluateExpression(ast.Call("future_pending_tasks"), global)
 	if err != nil {
-		t.Fatalf("proc_pending_tasks failed: %v", err)
+		t.Fatalf("future_pending_tasks failed: %v", err)
 	}
 	if got := intFromValue(t, initialVal); got != 0 {
 		t.Fatalf("expected empty queue, got %d", got)
@@ -391,28 +395,28 @@ func TestProcPendingTasksSerialExecutor(t *testing.T) {
 		t.Fatalf("spawn failed: %v", err)
 	}
 
-	pendingMid, err := interp.evaluateExpression(ast.Call("proc_pending_tasks"), global)
+	pendingMid, err := interp.evaluateExpression(ast.Call("future_pending_tasks"), global)
 	if err != nil {
-		t.Fatalf("proc_pending_tasks failed: %v", err)
+		t.Fatalf("future_pending_tasks failed: %v", err)
 	}
 	if got := intFromValue(t, pendingMid); got <= 0 {
 		t.Fatalf("expected pending tasks after spawn, got %d", got)
 	}
 
-	if _, err := interp.evaluateExpression(ast.Call("proc_flush"), global); err != nil {
-		t.Fatalf("proc_flush failed: %v", err)
+	if _, err := interp.evaluateExpression(ast.Call("future_flush"), global); err != nil {
+		t.Fatalf("future_flush failed: %v", err)
 	}
 
-	pendingEnd, err := interp.evaluateExpression(ast.Call("proc_pending_tasks"), global)
+	pendingEnd, err := interp.evaluateExpression(ast.Call("future_pending_tasks"), global)
 	if err != nil {
-		t.Fatalf("proc_pending_tasks failed: %v", err)
+		t.Fatalf("future_pending_tasks failed: %v", err)
 	}
 	if got := intFromValue(t, pendingEnd); got != 0 {
 		t.Fatalf("expected queue to drain after flush, got %d", got)
 	}
 }
 
-func TestProcPendingTasksGoroutineExecutor(t *testing.T) {
+func TestFuturePendingTasksGoroutineExecutor(t *testing.T) {
 	interp := New()
 	if serial, ok := interp.executor.(*SerialExecutor); ok {
 		serial.Close()
@@ -426,9 +430,9 @@ func TestProcPendingTasksGoroutineExecutor(t *testing.T) {
 		t.Fatalf("spawn failed: %v", err)
 	}
 
-	value, err := interp.evaluateExpression(ast.Call("proc_pending_tasks"), global)
+	value, err := interp.evaluateExpression(ast.Call("future_pending_tasks"), global)
 	if err != nil {
-		t.Fatalf("proc_pending_tasks failed: %v", err)
+		t.Fatalf("future_pending_tasks failed: %v", err)
 	}
 	if got := intFromValue(t, value); got < 0 {
 		t.Fatalf("goroutine executor pending tasks must be non-negative, got %d", got)

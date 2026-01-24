@@ -6,20 +6,20 @@ import (
 	"able/interpreter-go/pkg/ast"
 )
 
-func TestParseProcExpressionForms(t *testing.T) {
+func TestParseSpawnExpressionForms(t *testing.T) {
 	source := `fn worker(n: i32) -> i32 {
   n
 }
 
-handle := proc do {
+handle := spawn do {
   worker(1)
 }
 
-inline := proc {
+inline := spawn {
   worker(2)
 }
 
-call := proc worker(3)
+call := spawn worker(3)
 `
 
 	p, err := NewModuleParser()
@@ -49,7 +49,7 @@ call := proc worker(3)
 	handleAssign := ast.NewAssignmentExpression(
 		ast.AssignmentDeclare,
 		ast.ID("handle"),
-		ast.NewProcExpression(
+		ast.NewSpawnExpression(
 			ast.Block(
 				ast.NewFunctionCall(
 					ast.ID("worker"),
@@ -64,7 +64,7 @@ call := proc worker(3)
 	inlineAssign := ast.NewAssignmentExpression(
 		ast.AssignmentDeclare,
 		ast.ID("inline"),
-		ast.NewProcExpression(
+		ast.NewSpawnExpression(
 			ast.Block(
 				ast.NewFunctionCall(
 					ast.ID("worker"),
@@ -79,7 +79,7 @@ call := proc worker(3)
 	callAssign := ast.NewAssignmentExpression(
 		ast.AssignmentDeclare,
 		ast.ID("call"),
-		ast.NewProcExpression(
+		ast.NewSpawnExpression(
 			ast.NewFunctionCall(
 				ast.ID("worker"),
 				[]ast.Expression{ast.Int(3)},
@@ -104,7 +104,7 @@ call := proc worker(3)
 	assertModulesEqual(t, expected, mod)
 }
 
-func TestParseSpawnExpressionForms(t *testing.T) {
+func TestParseSpawnExpressionFormsWithCallTargets(t *testing.T) {
 	source := `fn task() -> i32 {
   1
 }
@@ -218,15 +218,15 @@ call := spawn run(3)
 	assertModulesEqual(t, expected, mod)
 }
 
-func TestParseProcHelpers(t *testing.T) {
-	source := `handle := proc do {
-  proc_yield()
+func TestParseSpawnHelpers(t *testing.T) {
+	source := `handle := spawn do {
+  future_yield()
   0
 }
 
-proc_yield()
-isCancelled := proc_cancelled()
-proc_flush(handle)
+future_yield()
+isCancelled := future_cancelled()
+future_flush(handle)
 `
 
 	p, err := NewModuleParser()
@@ -243,10 +243,10 @@ proc_flush(handle)
 	handleAssign := ast.NewAssignmentExpression(
 		ast.AssignmentDeclare,
 		ast.ID("handle"),
-		ast.NewProcExpression(
+		ast.NewSpawnExpression(
 			ast.Block(
 				ast.NewFunctionCall(
-					ast.ID("proc_yield"),
+					ast.ID("future_yield"),
 					[]ast.Expression{},
 					nil,
 					false,
@@ -257,7 +257,7 @@ proc_flush(handle)
 	)
 
 	yieldCall := ast.NewFunctionCall(
-		ast.ID("proc_yield"),
+		ast.ID("future_yield"),
 		[]ast.Expression{},
 		nil,
 		false,
@@ -267,7 +267,7 @@ proc_flush(handle)
 		ast.AssignmentDeclare,
 		ast.ID("isCancelled"),
 		ast.NewFunctionCall(
-			ast.ID("proc_cancelled"),
+			ast.ID("future_cancelled"),
 			[]ast.Expression{},
 			nil,
 			false,
@@ -275,7 +275,7 @@ proc_flush(handle)
 	)
 
 	flushCall := ast.NewFunctionCall(
-		ast.ID("proc_flush"),
+		ast.ID("future_flush"),
 		[]ast.Expression{ast.ID("handle")},
 		nil,
 		false,

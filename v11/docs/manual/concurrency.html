@@ -27,15 +27,15 @@
       <main class="content">
         <h1>10. Concurrency &amp; Async</h1>
         <p>
-          Able mirrors Go-style semantics with cooperative <code>proc</code>,
-          memoised <code>spawn</code>, channel/mutex primitives, and an
-          <code>await</code> expression that multiplexes <code>Awaitable</code>s
-          (channels, timers, futures, sockets, custom callbacks).
+          Able mirrors Go-style semantics with <code>spawn</code> futures,
+          channel/mutex primitives, and an <code>await</code> expression that
+          multiplexes <code>Awaitable</code>s (channels, timers, futures, sockets,
+          custom callbacks).
         </p>
-        <h2 id="proc">10.1 <code>proc</code> (cooperative tasks)</h2>
-        <pre><code class="language-able">handle: Proc String = proc fetch_data(url)
+        <h2 id="spawn">10.1 <code>spawn</code> (futures)</h2>
+        <pre><code class="language-able">handle: Future String = spawn fetch_data(url)
 
-proc_flush(32) ## advance cooperative scheduler (TS runtime helper)
+future_flush(32) ## advance cooperative scheduler (TS runtime helper)
 
 handle.status() match {
   case Pending =&gt; log("still fetching..."),
@@ -46,14 +46,14 @@ handle.status() match {
 
 body = handle.value() else { "fallback" }</code></pre>
         <p>
-          <code>Proc</code> exposes <code>status()</code>,
+          <code>Future</code> exposes <code>status()</code>,
           <code>value() -&gt; !T</code>, and <code>cancel()</code>. Inside async
-          bodies, use <code>proc_yield()</code>, <code>proc_cancelled()</code>,
-          <code>proc_flush(limit?)</code>, and <code>proc_pending_tasks()</code>
+          bodies, use <code>future_yield()</code>, <code>future_cancelled()</code>,
+          <code>future_flush(limit?)</code>, and <code>future_pending_tasks()</code>
           (diagnostic). Blocking operations must notice cancellation; nested
           <code>value()</code> calls are re-entrant.
         </p>
-        <h2 id="spawn">10.2 <code>spawn</code> (futures)</h2>
+        <h2 id="future">10.2 Future handle vs value view</h2>
         <pre><code class="language-able">future_total: Future i64 = spawn sum_big_array(data)
 
 print("Computing...")
@@ -78,7 +78,7 @@ print(`Total: ${total}`)</code></pre>
         <h2 id="channels">10.4 Channels &amp; Mutexes</h2>
         <pre><code class="language-able">ch: Channel String = Channel.new(0)
 
-producer = proc do {
+producer = spawn do {
   for name in names { ch.send(name) }
   ch.close()
 }

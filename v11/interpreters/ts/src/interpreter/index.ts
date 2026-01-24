@@ -53,7 +53,7 @@ export class Interpreter {
   genericImplMethods: ImplMethodEntry[] = [];
   rangeImplementations: RangeImplementationRecord[] = [];
   unnamedImplsSeen: Map<string, Map<string, Set<string>>> = new Map();
-  implDuplicateAllowlist: Set<string> = new Set(["Error::ProcError", "Clone::String", "Clone::Grapheme"]);
+  implDuplicateAllowlist: Set<string> = new Set(["Error::FutureError", "Clone::String", "Clone::Grapheme"]);
   raiseStack: RuntimeValue[] = [];
   packageRegistry: Map<string, Map<string, RuntimeValue>> = new Map();
   currentPackage: string | null = null;
@@ -62,16 +62,14 @@ export class Interpreter {
   placeholderFrames: PlaceholderFrame[] = [];
   runtimeCallStack: RuntimeCallFrame[] = [];
 
-  procNativeMethods!: {
-    status: Extract<RuntimeValue, { kind: "native_function" }>;
-    value: Extract<RuntimeValue, { kind: "native_function" }>;
-    cancel: Extract<RuntimeValue, { kind: "native_function" }>;
-  };
-
   futureNativeMethods!: {
     status: Extract<RuntimeValue, { kind: "native_function" }>;
     value: Extract<RuntimeValue, { kind: "native_function" }>;
     cancel: Extract<RuntimeValue, { kind: "native_function" }>;
+    is_ready: Extract<RuntimeValue, { kind: "native_function" }>;
+    register: Extract<RuntimeValue, { kind: "native_function" }>;
+    commit: Extract<RuntimeValue, { kind: "native_function" }>;
+    is_default: Extract<RuntimeValue, { kind: "native_function" }>;
   };
 
   errorNativeMethods!: {
@@ -89,16 +87,16 @@ export class Interpreter {
   hashMapStates: Map<number, HashMapState> = new Map();
 
   concurrencyBuiltinsInitialized = false;
-  procErrorStruct!: AST.StructDefinition;
-  procStatusStructs!: {
+  futureErrorStruct!: AST.StructDefinition;
+  futureStatusStructs!: {
     Pending: AST.StructDefinition;
     Resolved: AST.StructDefinition;
     Cancelled: AST.StructDefinition;
     Failed: AST.StructDefinition;
   };
-  procStatusPendingValue!: RuntimeValue;
-  procStatusResolvedValue!: RuntimeValue;
-  procStatusCancelledValue!: RuntimeValue;
+  futureStatusPendingValue!: RuntimeValue;
+  futureStatusResolvedValue!: RuntimeValue;
+  futureStatusCancelledValue!: RuntimeValue;
   awaitHelpersBuiltinsInitialized = false;
 
   channelMutexBuiltinsInitialized = false;
@@ -125,10 +123,7 @@ export class Interpreter {
   executor: Executor;
   timeSliceCounter = 0;
   manualYieldRequested = false;
-  asyncContextStack: Array<
-    { kind: "proc"; handle: Extract<RuntimeValue, { kind: "proc_handle" }> } |
-    { kind: "future"; handle: Extract<RuntimeValue, { kind: "future" }> }
-  > = [];
+  asyncContextStack: Array<{ kind: "future"; handle: Extract<RuntimeValue, { kind: "future" }> }> = [];
   procContextStack: ProcContinuationContext[] = [];
   awaitRoundRobinIndex = 0;
 
@@ -144,43 +139,6 @@ export class Interpreter {
     this.ensureNumericBuiltins();
     this.ensureOsBuiltins();
     this.ensureDynamicBuiltins();
-    this.procNativeMethods = {
-      status: this.makeNativeFunction("Proc.status", 1, (interp, args) => {
-        const self = args[0];
-        if (!self || self.kind !== "proc_handle") throw new Error("Proc.status called on non-proc handle");
-        return interp.procHandleStatus(self);
-      }),
-      value: this.makeNativeFunction("Proc.value", 1, (interp, args) => {
-        const self = args[0];
-        if (!self || self.kind !== "proc_handle") throw new Error("Proc.value called on non-proc handle");
-        return interp.procHandleValue(self);
-      }),
-      cancel: this.makeNativeFunction("Proc.cancel", 1, (interp, args) => {
-        const self = args[0];
-        if (!self || self.kind !== "proc_handle") throw new Error("Proc.cancel called on non-proc handle");
-        interp.procHandleCancel(self);
-        return { kind: "nil", value: null };
-      }),
-      is_ready: this.makeNativeFunction("Proc.is_ready", 1, (_interp, args) => {
-        const self = args[0];
-        if (!self || self.kind !== "proc_handle") throw new Error("Proc.is_ready called on non-proc handle");
-        return { kind: "bool", value: self.state !== "pending" };
-      }),
-      register: this.makeNativeFunction("Proc.register", 2, (interp, args) => {
-        const self = args[0];
-        const waker = args[1];
-        if (!self || self.kind !== "proc_handle") throw new Error("Proc.register called on non-proc handle");
-        if (!waker || waker.kind !== "struct_instance") throw new Error("Proc.register expects AwaitWaker");
-        return interp.registerProcAwaiter(self, waker);
-      }),
-      commit: this.makeNativeFunction("Proc.commit", 1, (interp, args) => {
-        const self = args[0];
-        if (!self || self.kind !== "proc_handle") throw new Error("Proc.commit called on non-proc handle");
-        return interp.procHandleValue(self);
-      }),
-      is_default: this.makeNativeFunction("Proc.is_default", 1, () => ({ kind: "bool", value: false })),
-    };
-
     this.futureNativeMethods = {
       status: this.makeNativeFunction("Future.status", 1, (interp, args) => {
         const self = args[0];
@@ -237,14 +195,14 @@ export class Interpreter {
       }),
     };
 
-    const procYieldFn = this.makeNativeFunction("proc_yield", 0, (interp) => interp.procYield());
-    const procCancelledFn = this.makeNativeFunction("proc_cancelled", 0, (interp) => interp.procCancelled());
-    const procFlushFn = this.makeNativeFunction("proc_flush", 0, (interp) => interp.procFlush());
-    const procPendingTasksFn = this.makeNativeFunction("proc_pending_tasks", 0, (interp) => interp.procPendingTasks());
-    this.globals.define("proc_yield", procYieldFn);
-    this.globals.define("proc_cancelled", procCancelledFn);
-    this.globals.define("proc_flush", procFlushFn);
-    this.globals.define("proc_pending_tasks", procPendingTasksFn);
+    const procYieldFn = this.makeNativeFunction("future_yield", 0, (interp) => interp.procYield());
+    const procCancelledFn = this.makeNativeFunction("future_cancelled", 0, (interp) => interp.procCancelled());
+    const procFlushFn = this.makeNativeFunction("future_flush", 0, (interp) => interp.procFlush());
+    const procPendingTasksFn = this.makeNativeFunction("future_pending_tasks", 0, (interp) => interp.procPendingTasks());
+    this.globals.define("future_yield", procYieldFn);
+    this.globals.define("future_cancelled", procCancelledFn);
+    this.globals.define("future_flush", procFlushFn);
+    this.globals.define("future_pending_tasks", procPendingTasksFn);
     this.ensureArrayKernelBuiltins();
     this.ensureHashMapKernelBuiltins();
     this.installBuiltinInterfaces();
@@ -257,7 +215,7 @@ export class Interpreter {
   checkTimeSlice(): void {
     if (this.asyncContextStack.length === 0) return;
     const asyncCtx = this.currentAsyncContext ? this.currentAsyncContext() : null;
-    if (asyncCtx?.kind === "proc" && asyncCtx.handle.entrypoint) {
+    if (asyncCtx?.handle.entrypoint) {
       const pending = typeof this.executor.pendingTasks === "function" ? this.executor.pendingTasks() : 0;
       if (pending === 0) return;
     }

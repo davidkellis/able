@@ -274,17 +274,25 @@ func TestFunctionConstraintRequiresTypeArguments(t *testing.T) {
 		false,
 		false,
 	)
-	module := ast.NewModule([]ast.Statement{wrapperIface, fn}, nil, nil)
+	call := ast.Call("printer", ast.Int(1))
+	module := ast.NewModule([]ast.Statement{wrapperIface, fn, call}, nil, nil)
 
 	diags, err := checker.CheckModule(module)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(diags) != 1 {
-		t.Fatalf("expected 1 diagnostic, got %v", diags)
+	if len(diags) == 0 {
+		t.Fatalf("expected diagnostics, got %v", diags)
 	}
-	if want := "requires 1 type argument"; !strings.Contains(diags[0].Message, want) {
-		t.Fatalf("expected diagnostic containing %q, got %q", want, diags[0].Message)
+	found := false
+	for _, diag := range diags {
+		if strings.Contains(diag.Message, "requires 1 type argument") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected diagnostic containing %q, got %v", "requires 1 type argument", diags)
 	}
 }
 

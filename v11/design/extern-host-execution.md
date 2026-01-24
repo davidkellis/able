@@ -5,7 +5,7 @@ Status: Draft
 ## Goal
 Make extern host function bodies (§16.1.2) execute as host code, per spec, with
 no per-function interpreter wiring. Preserve the existing kernel bridges for
-arrays/proc/channel/string/ratio, and keep the kernel surface unchanged.
+arrays/future/channel/string/ratio, and keep the kernel surface unchanged.
 
 ## Problem
 The current interpreters treat extern bodies as declarations and map a few names
@@ -62,8 +62,8 @@ bodies:
 - Concurrency: `__able_channel_*`, `__able_mutex_*`, `__able_await_*`
 - String/char bridges: `__able_String_*`, `__able_char_*`
 - Ratio: `__able_ratio_from_float`
-- Scheduler globals: `print`, `proc_yield`, `proc_cancelled`, `proc_flush`,
-  `proc_pending_tasks`
+- Scheduler globals: `print`, `future_yield`, `future_cancelled`, `future_flush`,
+  `future_pending_tasks`
 
 ### Extern Resolution Rules
 - If an extern body is non-empty, compile and bind via the host engine.
@@ -95,10 +95,10 @@ either:
 When a host extern suspends, the interpreter marks the current task as blocked,
 returns control to the scheduler, and resumes the task with the result/error
 once available. This preserves the synchronous Able API while ensuring other
-procs keep running, matching the spec requirement that blocking operations only
+tasks keep running, matching the spec requirement that blocking operations only
 block the calling task.
 
-To ensure entrypoint code can suspend without stalling other procs, the
+To ensure entrypoint code can suspend without stalling other tasks, the
 interpreter runs top-level evaluation (including `main`) as an implicit task in
 the cooperative scheduler.
 

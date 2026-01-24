@@ -193,16 +193,15 @@ const patternsFixtures: Fixture[] = [
             ),
             AST.identifier("first_value"),
           ),
-          AST.index(AST.identifier("rest_values"), AST.integerLiteral(0)),
+          AST.propagationExpression(
+            AST.index(AST.identifier("rest_values"), AST.integerLiteral(0)),
+          ),
         ),
       ]),
       manifest: {
         description: "Nested struct and array patterns destructure composite value",
         expect: {
           result: { kind: "i32", value: 35n },
-          typecheckDiagnostics: [
-            "typechecker: v11/fixtures/ast/patterns/nested_struct_destructuring/source.able:12:20 typechecker: '+' requires numeric operands (got i32 and Result i32)",
-          ],
         },
       },
     },

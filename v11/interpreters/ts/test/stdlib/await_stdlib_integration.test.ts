@@ -49,14 +49,14 @@ package main
 
 import able.concurrency.{Await}
 
-fn main() -> Array bool {
-  runner := proc {
+fn main() -> !Array bool {
+  runner := spawn {
     first := await [Await.default({ => "fallback"})]
     second := await [Await.sleep(0.seconds(), { => "timer"})]
     third := await [Await.sleep_ms(0, { => "timer"})]
     [first == "fallback", second == "timer", third == "timer"]
   }
-  proc_flush()
+  future_flush()
   runner.value()
 }
 `.trimStart(),

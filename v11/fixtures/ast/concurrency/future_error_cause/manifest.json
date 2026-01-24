@@ -1,5 +1,5 @@
 {
-  "description": "Future value failures expose ProcError causes to handlers",
+  "description": "Future value failures expose FutureError causes to handlers",
   "expect": {
     "result": {
       "kind": "String",

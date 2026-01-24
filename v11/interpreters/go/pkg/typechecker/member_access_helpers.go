@@ -43,8 +43,8 @@ func (c *Checker) appendUfcsCandidate(
 }
 
 func makeValueUnion(success Type) Type {
-	procErr := StructType{StructName: "ProcError"}
-	members := []Type{success, procErr}
+	futureErr := StructType{StructName: "FutureError"}
+	members := []Type{success, futureErr}
 	return UnionLiteralType{Members: members}
 }
 

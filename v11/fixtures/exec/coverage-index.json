@@ -21,7 +21,7 @@
     "id": "exec/15_04_background_work_flush",
     "status": "seeded",
     "spec_sections": ["15.4"],
-    "focus": "background procs are not awaited at program exit"
+    "focus": "background tasks are not awaited at program exit"
   },
   {
     "id": "exec/16_01_host_interop_inline_extern",
@@ -114,16 +114,16 @@
     "focus": "channel send/receive, close returning nil to consumer"
   },
   {
-    "id": "exec/12_02_async_proc_spawn_combo",
+    "id": "exec/12_02_async_spawn_combo",
     "status": "seeded",
     "spec_sections": ["12.2", "12.3", "12.6"],
-    "focus": "proc vs spawn vs await scheduling, cancellation, fairness"
+    "focus": "spawn task scheduling, cancellation, fairness, and await integration"
   },
   {
-    "id": "exec/12_02_proc_fairness_cancellation",
+    "id": "exec/12_02_future_fairness_cancellation",
     "status": "seeded",
     "spec_sections": ["12.2.5"],
-    "focus": "proc_yield fairness, proc_cancelled, and proc_flush draining"
+    "focus": "future_yield fairness, future_cancelled, and future_flush draining"
   },
   {
     "id": "exec/12_03_spawn_future_status_error",
@@ -132,10 +132,10 @@
     "focus": "future status/value memoization and error propagation"
   },
   {
-    "id": "exec/12_04_proc_vs_spawn_differences",
+    "id": "exec/12_04_future_handle_value_view",
     "status": "seeded",
     "spec_sections": ["12.4"],
-    "focus": "proc vs spawn value access, errors, and cancellation"
+    "focus": "future handle vs value view, error propagation, and cancellation"
   },
   {
     "id": "exec/12_05_mutex_lock_unlock",
@@ -159,7 +159,7 @@
     "id": "exec/12_08_blocking_io_concurrency",
     "status": "seeded",
     "spec_sections": ["12.2.5", "16.4"],
-    "focus": "blocking io reads suspend only the current proc while peers continue"
+    "focus": "blocking io reads suspend only the current task while peers continue"
   },
   {
     "id": "exec/09_04_methods_ufcs_basics",

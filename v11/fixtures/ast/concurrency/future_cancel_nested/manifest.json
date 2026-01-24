@@ -1,5 +1,5 @@
 {
-  "description": "Proc awaiting a spawned future observes cancellation results and statuses",
+  "description": "Awaiting a spawned future observes cancellation results and statuses",
   "expect": {
     "result": {
       "kind": "array",
@@ -37,10 +37,7 @@
           "value": true
         }
       ]
-    },
-    "typecheckDiagnostics": [
-      "typechecker: v11/fixtures/ast/concurrency/future_cancel_nested/source.able:26:1 typechecker: future handles do not support cancel()"
-    ]
+    }
   },
   "entry": "module.json"
 }

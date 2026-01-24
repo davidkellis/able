@@ -63,6 +63,7 @@ export class TypeChecker extends TypeCheckerBase {
       registerStructDefinition: (definition) => this.registerStructDefinition(definition),
       registerTypeAlias: (definition) => this.registerTypeAlias(definition),
       registerInterfaceDefinition: (definition) => this.registerInterfaceDefinition(definition),
+      registerUnionDefinition: (definition) => this.registerUnionDefinition(definition),
       collectImplementationDefinition: (definition) =>
         collectImplementationDefinitionHelper(this.implementationContext, definition),
       collectMethodsDefinition: (definition) => collectMethodsDefinitionHelper(this.implementationContext, definition),

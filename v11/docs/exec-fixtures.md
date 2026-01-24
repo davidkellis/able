@@ -37,4 +37,4 @@ Naming follows the conformance plan (`v11/docs/conformance-plan.md`): directorie
 - Go harness failures show up in `go test ./pkg/interpreter -run ExecFixtures`; rerun with `-v` for verbose output.
 
 ## Adding New Cases
-Target breadth over complexity: add fixtures that cover control flow (loops/match/rescue), data types (unions/structs/arrays), interfaces/impls, pipelines/UFCS, and concurrency (proc/spawn/channel/mutex). Ensure expectations reflect spec-defined behavior and stay interpreter-agnostic.
+Target breadth over complexity: add fixtures that cover control flow (loops/match/rescue), data types (unions/structs/arrays), interfaces/impls, pipelines/UFCS, and concurrency (spawn/future/channel/mutex). Ensure expectations reflect spec-defined behavior and stay interpreter-agnostic.

@@ -26,7 +26,6 @@ const (
     KindInterfaceValue
     KindUnionDef
     KindPackage
-    KindProcHandle
     KindFuture
     KindError
     KindBoundMethod
@@ -66,7 +65,7 @@ type Environment struct {
 Model non-local exits using custom error types:
 
 - `returnSignal` carries an optional value.
-- `raiseSignal` wraps an `ErrorValue` (Able `error` union instances, `ProcError`, etc.).
+- `raiseSignal` wraps an `ErrorValue` (Able `error` union instances, `FutureError`, etc.).
 - `breakSignal` carries optional label + value.
 - `breakLabelSignal` for `break some_label` semantics.
 
@@ -100,27 +99,27 @@ Within `Evaluate`, dispatch on `expr.NodeType()` and implement behavior matching
 - Enforce arity and generic parameter counts at call time.
 - Bind `Self`/`self` during method invocation via `boundMethod` values that inject the receiver.
 
-## 7. Concurrency (`proc` / `spawn`)
+## 7. Concurrency (`spawn` / `Future`)
 
 Adopt Go primitives while keeping observable semantics identical to the spec:
 
-- `proc` launches a goroutine that writes into a `ProcHandle` struct containing:
+- `spawn` launches a goroutine that writes into a `Future` handle containing:
   - `status` (enum: Pending | Resolved | Cancelled | Failed)
   - `result` channel for success value
-  - `error` channel or field carrying `ProcError`
+  - `error` channel or field carrying `FutureError`
   - synchronization via `sync.Mutex` + `sync.Cond` for deterministic blocking semantics
-- Cancellation: store a `cancelRequested` flag and expose `Cancel()`; cooperative checks happen via `proc_cancelled()` native function.
-- `spawn` behaves like `proc` but memoizes the result; first consumer drives the computation (use `sync.Once` + channels).
+- Cancellation: store a `cancelRequested` flag and expose `Cancel()`; cooperative checks happen via `future_cancelled()` native function.
+- Memoize the result on first completion so repeated `value()` calls and implicit evaluations reuse the cached value/error.
 - Provide scheduler utilities similar to TypeScript’s cooperative queue so unit tests remain deterministic (e.g., maintain an internal run loop when evaluating top-level expressions). Evaluate whether a simple goroutine launch with buffered channels is sufficient or if a custom scheduler is needed to preserve ordering.
 
 Helper natives:
 
-- `proc_yield()` causes the task to reschedule (can be modelled via channels + re-queuing on an internal worker loop).
-- `proc_cancelled()` inspects the current handle’s `cancelRequested` flag.
+- `future_yield()` causes the task to reschedule (can be modelled via channels + re-queuing on an internal worker loop).
+- `future_cancelled()` inspects the current handle’s `cancelRequested` flag.
 
 ## 8. Builtins & Modules
 
-- Seed the global environment with runtime functions (`print`, numeric ops, `proc_yield`, etc.) as specified.
+- Seed the global environment with runtime functions (`print`, numeric ops, `future_yield`, etc.) as specified.
 - Implement module privacy rules: track `is_private` flags on functions/structs/interfaces/unions, enforce during import resolution, expose packages as `package` values (map of exported symbols).
 - `DynImportStatement` should produce a lazy handle (e.g., `DynRef`) that resolves members on demand; structure mirrors TypeScript’s `dyn_import` handling.
 

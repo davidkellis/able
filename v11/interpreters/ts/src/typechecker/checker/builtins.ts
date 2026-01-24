@@ -8,6 +8,7 @@ import {
   simpleTypeExpression,
   structDefinition,
   structFieldDefinition,
+  unionDefinition,
 } from "../../ast";
 import type { Environment } from "../environment";
 import type { FunctionInfo } from "./types";
@@ -19,6 +20,7 @@ type BuiltinContext = {
   registerStructDefinition(definition: unknown): void;
   registerTypeAlias(definition: unknown): void;
   registerInterfaceDefinition(definition: unknown): void;
+  registerUnionDefinition(definition: unknown): void;
   collectImplementationDefinition(definition: unknown): void;
   collectMethodsDefinition(definition: unknown): void;
 };
@@ -42,10 +44,10 @@ export function installBuiltins(context: BuiltinContext): void {
   };
 
   register("print", [unknown], voidType);
-  register("proc_yield", [], voidType);
-  register("proc_cancelled", [], boolType);
-  register("proc_flush", [], voidType);
-  register("proc_pending_tasks", [], i32Type);
+  register("future_yield", [], voidType);
+  register("future_cancelled", [], boolType);
+  register("future_flush", [], voidType);
+  register("future_pending_tasks", [], i32Type);
 
   register("__able_channel_new", [i32Type], i64Type);
   register("__able_channel_send", [unknown, unknown], voidType);
@@ -131,6 +133,42 @@ export function installBuiltins(context: BuiltinContext): void {
   (errorInterface as any)._builtin = true;
   (errorInterface as any).origin = "<builtin>";
   context.registerInterfaceDefinition(errorInterface as any);
+
+  const futureErrorStruct = structDefinition(
+    "FutureError",
+    [structFieldDefinition(simpleTypeExpression("String"), "details")],
+    "named",
+  );
+  (futureErrorStruct as any)._builtin = true;
+  (futureErrorStruct as any).origin = "<builtin>";
+  context.registerStructDefinition(futureErrorStruct as any);
+
+  const pendingStruct = structDefinition("Pending", [], "singleton");
+  const resolvedStruct = structDefinition("Resolved", [], "singleton");
+  const cancelledStruct = structDefinition("Cancelled", [], "singleton");
+  const failedStruct = structDefinition(
+    "Failed",
+    [structFieldDefinition(simpleTypeExpression("FutureError"), "error")],
+    "named",
+  );
+  for (const def of [pendingStruct, resolvedStruct, cancelledStruct, failedStruct]) {
+    (def as any)._builtin = true;
+    (def as any).origin = "<builtin>";
+    context.registerStructDefinition(def as any);
+  }
+
+  const futureStatusUnion = unionDefinition(
+    "FutureStatus",
+    [
+      simpleTypeExpression("Pending"),
+      simpleTypeExpression("Resolved"),
+      simpleTypeExpression("Cancelled"),
+      simpleTypeExpression("Failed"),
+    ],
+  );
+  (futureStatusUnion as any)._builtin = true;
+  (futureStatusUnion as any).origin = "<builtin>";
+  context.registerUnionDefinition(futureStatusUnion as any);
 }
 
 function registerBuiltinFunction(

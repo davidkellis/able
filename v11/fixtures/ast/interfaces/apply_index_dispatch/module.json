@@ -697,14 +697,17 @@
         "type": "BinaryExpression",
         "operator": "+",
         "left": {
-          "type": "IndexExpression",
-          "object": {
-            "type": "Identifier",
-            "name": "pair"
-          },
-          "index": {
-            "type": "IntegerLiteral",
-            "value": 0
+          "type": "PropagationExpression",
+          "expression": {
+            "type": "IndexExpression",
+            "object": {
+              "type": "Identifier",
+              "name": "pair"
+            },
+            "index": {
+              "type": "IntegerLiteral",
+              "value": 0
+            }
           }
         },
         "right": {
@@ -727,14 +730,17 @@
       "type": "BinaryExpression",
       "operator": "+",
       "left": {
-        "type": "IndexExpression",
-        "object": {
-          "type": "Identifier",
-          "name": "pair"
-        },
-        "index": {
-          "type": "IntegerLiteral",
-          "value": 0
+        "type": "PropagationExpression",
+        "expression": {
+          "type": "IndexExpression",
+          "object": {
+            "type": "Identifier",
+            "name": "pair"
+          },
+          "index": {
+            "type": "IntegerLiteral",
+            "value": 0
+          }
         }
       },
       "right": {
