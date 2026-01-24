@@ -1,7 +1,8 @@
 import * as AST from "../ast";
-import type { Environment } from "./environment";
+import { Environment } from "./environment";
 import type { Interpreter } from "./index";
 import type { ImplMethodEntry, RuntimeValue } from "./values";
+import { IMPL_NAMESPACE_BINDING } from "./impl_namespace";
 
 const NIL: RuntimeValue = { kind: "nil", value: null };
 
@@ -167,6 +168,25 @@ export function evaluateImplementationDefinition(ctx: Interpreter, node: AST.Imp
       symbols: symMap,
       meta: { interfaceName: implNode.interfaceName.name, target: implNode.targetType, interfaceArgs: implNode.interfaceArgs },
     };
+    const wrapImplMethodEnv = (callable: Extract<RuntimeValue, { kind: "function" | "function_overload" }>): void => {
+      const wrap = (fn: Extract<RuntimeValue, { kind: "function" }>): void => {
+        const wrapped = new Environment(fn.closureEnv);
+        wrapped.define(IMPL_NAMESPACE_BINDING, implVal);
+        fn.closureEnv = wrapped;
+      };
+      if (callable.kind === "function") {
+        wrap(callable);
+        return;
+      }
+      for (const fn of callable.overloads) {
+        if (!fn) continue;
+        wrap(fn);
+      }
+    };
+    for (const method of funcs.values()) {
+      if (!method) continue;
+      wrapImplMethodEnv(method);
+    }
     ctx.defineInEnv(env, name, implVal);
     ctx.registerSymbol(name, implVal);
     const qn = ctx.qualifiedName(name);

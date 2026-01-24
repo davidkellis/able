@@ -1,5 +1,9 @@
 # Able Project Log
 
+# 2026-01-24 — Named impl method resolution fix (v11)
+- Interpreters (TS + Go): attach named-impl context to impl methods so default methods (and peers) can resolve sibling methods via `self.method()` in the same impl.
+- Tests: `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=10_05_interface_named_impl_defaults bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=10_06_interface_generic_param_dispatch bun run scripts/run-fixtures.ts`; `cd v11/interpreters/ts && ABLE_FIXTURE_FILTER=13_05_dynimport_interface_dispatch bun run scripts/run-fixtures.ts`; `cd v11/interpreters/go && go test ./pkg/interpreter -run TestExecFixtures/10_05_interface_named_impl_defaults`; `cd v11/interpreters/go && go test ./pkg/interpreter -run TestExecFixtures/10_06_interface_generic_param_dispatch`; `cd v11/interpreters/go && go test ./pkg/interpreter -run TestExecFixtures/13_05_dynimport_interface_dispatch`.
+
 # 2026-01-24 — Unified Future regression passes + fs rename fix (v11)
 - Stdlib fs (TS): switched `fs_remove`/`fs_rename` externs to sync Node calls to avoid flaky exists checks during stdlib runs.
 - Plan: removed the unified Future regression-pass TODO after completing the full sweeps.
@@ -8,6 +12,11 @@
 # 2026-01-24 — Go test wording cleanup (v11)
 - Go tests: updated concurrency/await diagnostics to say “future handle” instead of “proc handle”.
 - Tests not run (text-only change).
+
+# 2026-01-24 — Interface dictionary exec coverage expansion (v11)
+- Exec fixtures: added coverage for named impl disambiguation across packages with defaults, generic-constraint dispatch across packages, and dynimport-returned interface values.
+- Coverage index: registered `exec/10_05_interface_named_impl_defaults`, `exec/10_06_interface_generic_param_dispatch`, and `exec/13_05_dynimport_interface_dispatch`.
+- Tests not run (fixture-only changes).
 
 # 2026-01-24 — Unified Future model naming cleanup (v11)
 - TypeScript tests: renamed `proc_spawn_*` concurrency tests/helpers to `future_spawn_*` and updated imports (including await tests).
