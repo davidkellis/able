@@ -26,10 +26,10 @@
 - Error handling uses `Result`/`RegexError` with precise location data; mis-specified patterns never panic.
 - Keep the regex engine entirely in Able stdlib with no host regex hooks.
 
-## Current Implementation Notes (Phase 1 Stub)
-- The stdlib regex module is stubbed; compile/match/find_all/scan raise `RegexUnsupportedFeature`.
-- `match_regex` falls back to string equality while the stdlib engine is pending.
-- The exec fixture coverage for regex is quarantined until the pure-Able implementation lands.
+## Current Implementation Notes (Phase 1 Partial)
+- The stdlib regex module now supports literal-byte tokens with escapes and quantifiers (`*`, `+`, `?`, `{m}`, `{m,}`, `{m,n}`), plus `match`/`find_all` and streaming `scan`.
+- Unsupported metacharacters still return `RegexUnsupportedFeature`; `match_regex` continues to fall back to string equality when compilation fails.
+- The regex exec fixture is active again (`exec/14_02_regex_core_match_streaming`).
 
 ## Module Layout
 - New package namespace: `able.text.regex`.

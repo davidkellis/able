@@ -193,7 +193,7 @@ func TestSerialExecutorFutureValueReentrancy(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected string value, got %#v", val)
 	}
-	// The SerialExecutor runs the inner proc to completion when outer calls value();
+	// The SerialExecutor runs the inner future to completion when outer calls value();
 	// the observed trace reflects inner first, then the outer append + concatenation.
 	if str.Val != "IJOXdone" {
 		t.Fatalf("unexpected trace output %q", str.Val)
@@ -297,7 +297,7 @@ func TestFutureValueMemoizesResult(t *testing.T) {
 	)))
 	handle, ok := handleVal.(*runtime.FutureValue)
 	if !ok {
-		t.Fatalf("expected proc handle, got %#v", handleVal)
+		t.Fatalf("expected future handle, got %#v", handleVal)
 	}
 
 	first := interp.futureValue(handle)
@@ -331,11 +331,11 @@ func TestFutureValueCancellationMemoized(t *testing.T) {
 		global,
 	)
 	if err != nil {
-		t.Fatalf("proc expression evaluation failed: %v", err)
+		t.Fatalf("spawn expression evaluation failed: %v", err)
 	}
 	handle, ok := handleVal.(*runtime.FutureValue)
 	if !ok {
-		t.Fatalf("expected proc handle, got %#v", handleVal)
+		t.Fatalf("expected future handle, got %#v", handleVal)
 	}
 
 	if handle != nil {
@@ -406,7 +406,7 @@ func TestConcurrentFuturesSharedStateWithMutex(t *testing.T) {
 		)))
 		handle, ok := handleVal.(*runtime.FutureValue)
 		if !ok {
-			t.Fatalf("expected proc handle, got %#v", handleVal)
+			t.Fatalf("expected future handle, got %#v", handleVal)
 		}
 		handles = append(handles, handle)
 	}
@@ -415,7 +415,7 @@ func TestConcurrentFuturesSharedStateWithMutex(t *testing.T) {
 		val := interp.futureValue(handle)
 		if _, ok := val.(runtime.IntegerValue); !ok {
 			if _, isNil := val.(runtime.NilValue); !isNil {
-				t.Fatalf("expected proc to resolve with value, got %#v", val)
+				t.Fatalf("expected future to resolve with value, got %#v", val)
 			}
 		}
 	}
@@ -483,11 +483,11 @@ func TestGoroutineExecutorRunsFuturesInParallel(t *testing.T) {
 			global,
 		)
 		if err != nil {
-			t.Fatalf("proc evaluation failed: %v", err)
+			t.Fatalf("future evaluation failed: %v", err)
 		}
 		handle, ok := handleVal.(*runtime.FutureValue)
 		if !ok {
-			t.Fatalf("expected proc handle, got %#v", handleVal)
+			t.Fatalf("expected future handle, got %#v", handleVal)
 		}
 		handles = append(handles, handle)
 	}

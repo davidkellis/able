@@ -43,7 +43,7 @@ func TestChannelSendReceiveBetweenFutures(t *testing.T) {
 	)))
 	consumerHandle, ok := consumer.(*runtime.FutureValue)
 	if !ok {
-		t.Fatalf("expected proc handle for consumer, got %#v", consumer)
+		t.Fatalf("expected future handle for consumer, got %#v", consumer)
 	}
 
 	producer := mustEval(ast.Spawn(ast.Block(
@@ -52,7 +52,7 @@ func TestChannelSendReceiveBetweenFutures(t *testing.T) {
 	)))
 	producerHandle, ok := producer.(*runtime.FutureValue)
 	if !ok {
-		t.Fatalf("expected proc handle for producer, got %#v", producer)
+		t.Fatalf("expected future handle for producer, got %#v", producer)
 	}
 
 	if !waitForStatus(consumerHandle, runtime.FutureResolved, 500*time.Millisecond) {
@@ -136,7 +136,7 @@ func TestChannelCloseWakesReceivers(t *testing.T) {
 	)))
 	receiverHandle, ok := receiver.(*runtime.FutureValue)
 	if !ok {
-		t.Fatalf("expected proc handle for receiver, got %#v", receiver)
+		t.Fatalf("expected future handle for receiver, got %#v", receiver)
 	}
 
 	if _, err := interp.evaluateExpression(ast.Call("__able_channel_close", ast.ID("ch")), global); err != nil {
@@ -257,7 +257,7 @@ func TestMutexLocksCoordinateFutures(t *testing.T) {
 	)))
 	firstHandle, ok := first.(*runtime.FutureValue)
 	if !ok {
-		t.Fatalf("expected proc handle for first worker, got %#v", first)
+		t.Fatalf("expected future handle for first worker, got %#v", first)
 	}
 
 	if !waitForEnvString(t, global, "stage", "locked", 200*time.Millisecond) {
@@ -272,7 +272,7 @@ func TestMutexLocksCoordinateFutures(t *testing.T) {
 	)))
 	secondHandle, ok := second.(*runtime.FutureValue)
 	if !ok {
-		t.Fatalf("expected proc handle for second worker, got %#v", second)
+		t.Fatalf("expected future handle for second worker, got %#v", second)
 	}
 
 	if !waitForStatus(firstHandle, runtime.FutureResolved, 500*time.Millisecond) {
@@ -305,7 +305,7 @@ func TestNilChannelSendBlocksUntilCancelled(t *testing.T) {
 	)))
 	handle, ok := val.(*runtime.FutureValue)
 	if !ok {
-		t.Fatalf("expected proc handle, got %#v", val)
+		t.Fatalf("expected future handle, got %#v", val)
 	}
 
 	time.Sleep(10 * time.Millisecond)
@@ -339,7 +339,7 @@ func TestNilChannelReceiveBlocksUntilCancelled(t *testing.T) {
 	)))
 	handle, ok := val.(*runtime.FutureValue)
 	if !ok {
-		t.Fatalf("expected proc handle, got %#v", val)
+		t.Fatalf("expected future handle, got %#v", val)
 	}
 
 	time.Sleep(10 * time.Millisecond)

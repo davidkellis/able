@@ -1,0 +1,17 @@
+package exec_10_04_interface_dispatch_defaults_generics
+
+import exec_10_04_interface_dispatch_defaults_generics.iface_defs.{Describer, Tokenizer}
+import exec_10_04_interface_dispatch_defaults_generics.impls.{Thing, Prefixer}
+
+## Semantics: interface-typed values dispatch default + generic methods across packages.
+
+fn main() -> void {
+  thing: Describer = Thing { name: "Quill" }
+  print(thing.describe())
+
+  packer: Tokenizer = Prefixer { prefix: "tok" }
+  first := packer.token("alpha")
+  print(`token ${first.tag} ${first.value}`)
+  second := packer.token<i32>(42)
+  print(`token ${second.tag} ${second.value}`)
+}

@@ -337,9 +337,9 @@
   },
   {
     "id": "exec/14_02_regex_core_match_streaming",
-    "status": "planned",
+    "status": "seeded",
     "spec_sections": ["14.2"],
-    "focus": "regex compile/match/find_all and streaming scanner spans (quarantined until stdlib engine)"
+    "focus": "regex compile/match/find_all and streaming scanner spans"
   },
   {
     "id": "exec/06_03_safe_navigation_nil_short_circuit",
@@ -640,6 +640,12 @@
     "status": "seeded",
     "spec_sections": ["10.3"],
     "focus": "interface-typed values dispatch to concrete impl methods"
+  },
+  {
+    "id": "exec/10_04_interface_dispatch_defaults_generics",
+    "status": "seeded",
+    "spec_sections": ["10.1.2", "10.3.4"],
+    "focus": "interface-typed values dispatch default + generic methods across packages"
   },
   {
     "id": "exec/13_01_package_structure_modules",

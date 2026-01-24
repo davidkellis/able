@@ -149,11 +149,11 @@ func TestFutureCancelBeforeStart(t *testing.T) {
 		global,
 	)
 	if err != nil {
-		t.Fatalf("proc evaluation failed: %v", err)
+		t.Fatalf("future evaluation failed: %v", err)
 	}
 	handle, ok := handleVal.(*runtime.FutureValue)
 	if !ok {
-		t.Fatalf("expected proc handle, got %#v", handleVal)
+		t.Fatalf("expected future handle, got %#v", handleVal)
 	}
 
 	if handle != nil {
@@ -221,7 +221,7 @@ func TestFutureTaskObservesCancellation(t *testing.T) {
 	)))
 	handle, ok := handleVal.(*runtime.FutureValue)
 	if !ok {
-		t.Fatalf("expected proc handle, got %#v", handleVal)
+		t.Fatalf("expected future handle, got %#v", handleVal)
 	}
 
 	if !waitForEnvString(t, global, "trace", "w", 200*time.Millisecond) {

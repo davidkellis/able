@@ -171,13 +171,13 @@ const result = interp.evaluate(mod as any); // { kind: 'i32', value: 5 }
 - `future_cancelled()` returns a boolean indicating whether cancellation has been requested on the current task. Tasks can poll it and exit early with their own clean-up logic.
 - `future_flush()` drains the cooperative scheduler queue immediately, ensuring any pending tasks run to completion before control returns to Able code.
 
-Under the hood the interpreter maintains an `asyncContextStack` so helper invocations can discover the active async value. Both helpers must run inside a spawned task or they will raise an error. Tests in `test/concurrency/proc_spawn_*.test.ts` exercise interleaving (`trace` becomes "ABC") and cooperative cancellation (`trace` becomes "wx" when a loop notices cancellation before the interpreter finalises the handle).
+Under the hood the interpreter maintains an `asyncContextStack` so helper invocations can discover the active async value. Both helpers must run inside a spawned task or they will raise an error. Tests in `test/concurrency/future_spawn_*.test.ts` exercise interleaving (`trace` becomes "ABC") and cooperative cancellation (`trace` becomes "wx" when a loop notices cancellation before the interpreter finalises the handle).
 
 #### Recommended concurrency patterns
 
 - Let helpers or recursive routines call `future_yield()` directly. The interpreter keeps the active handle on `asyncContextStack`, so even yields several frames deep reschedule the correct task without losing progress.
 - Combine spawned tasks freely: a task can spawn futures, yield, and later call `future.value()` to drive nested work to completion. `value()` will run the future through any additional `future_yield()` calls before returning, so callers can treat the result like a regular `!T`.
-- Persist handles in a shared scope when you need monitoring. Assign them to module-level bindings (e.g., `future_handle := spawn ...`) so other code can poll `status()` or `value()` after cooperative scheduling completes—mirroring the patterns used in `test/concurrency/proc_spawn_*.test.ts`.
+- Persist handles in a shared scope when you need monitoring. Assign them to module-level bindings (e.g., `future_handle := spawn ...`) so other code can poll `status()` or `value()` after cooperative scheduling completes—mirroring the patterns used in `test/concurrency/future_spawn_*.test.ts`.
 
 #### Interface defaults & dynamic dispatch
 

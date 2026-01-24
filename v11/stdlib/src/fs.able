@@ -11,6 +11,7 @@ import able.text.string.{String}
 prelude go {
 import (
   "errors"
+  "io"
   "os"
   "path/filepath"
   "strings"
@@ -138,11 +139,6 @@ struct DirEntry {
   path: String,
   is_dir: bool,
   is_file: bool
-}
-
-private struct CopyDirTask {
-  src: String,
-  dst: String
 }
 
 fn mode(bits: i32) -> FsMode { FsMode { bits } }
@@ -277,6 +273,96 @@ extern go fn fs_read_dir(path: String) -> IOError | Array DirEntry {
   return results
 }
 
+extern typescript fn fs_copy_file(src: String, dst: String) -> IOError | void {
+  return (async () => {
+    try {
+      await fs.promises.mkdir(path.dirname(dst), { recursive: true });
+      await fs.promises.copyFile(src, dst);
+      return null;
+    } catch (err) {
+      return fsErrorFrom(err, src);
+    }
+  })();
+}
+
+extern go fn fs_copy_file(src: String, dst: String) -> IOError | void {
+  if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+    return fsErrorFrom(err, &dst)
+  }
+  input, err := os.Open(src)
+  if err != nil {
+    return fsErrorFrom(err, &src)
+  }
+  defer input.Close()
+  output, err := os.Create(dst)
+  if err != nil {
+    return fsErrorFrom(err, &dst)
+  }
+  defer output.Close()
+  if _, err := io.Copy(output, input); err != nil {
+    return fsErrorFrom(err, &dst)
+  }
+  if err := output.Sync(); err != nil {
+    return fsErrorFrom(err, &dst)
+  }
+  return nil
+}
+
+extern typescript fn fs_copy_dir(src: String, dst: String) -> IOError | void {
+  return (async () => {
+    try {
+      await fs.promises.mkdir(dst, { recursive: true });
+      await fs.promises.cp(src, dst, { recursive: true, force: true });
+      return null;
+    } catch (err) {
+      return fsErrorFrom(err, src);
+    }
+  })();
+}
+
+extern go fn fs_copy_dir(src: String, dst: String) -> IOError | void {
+  if err := os.MkdirAll(dst, 0o755); err != nil {
+    return fsErrorFrom(err, &dst)
+  }
+  err := filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+    if err != nil {
+      return err
+    }
+    rel, relErr := filepath.Rel(src, path)
+    if relErr != nil {
+      return relErr
+    }
+    if rel == "." {
+      return nil
+    }
+    target := filepath.Join(dst, rel)
+    if info.IsDir() {
+      return os.MkdirAll(target, 0o755)
+    }
+    if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+      return err
+    }
+    input, err := os.Open(path)
+    if err != nil {
+      return err
+    }
+    defer input.Close()
+    output, err := os.Create(target)
+    if err != nil {
+      return err
+    }
+    defer output.Close()
+    if _, err := io.Copy(output, input); err != nil {
+      return err
+    }
+    return output.Sync()
+  })
+  if err != nil {
+    return fsErrorFrom(err, &src)
+  }
+  return nil
+}
+
 extern typescript fn fs_mkdir(path: String, recursive: bool) -> IOError | void {
   return (async () => {
     try {
@@ -302,14 +388,12 @@ extern go fn fs_mkdir(path: String, recursive: bool) -> IOError | void {
 }
 
 extern typescript fn fs_remove(path: String, recursive: bool) -> IOError | void {
-  return (async () => {
-    try {
-      await fs.promises.rm(path, { recursive, force: false });
-      return null;
-    } catch (err) {
-      return fsErrorFrom(err, path);
-    }
-  })();
+  try {
+    fs.rmSync(path, { recursive, force: false });
+    return null;
+  } catch (err) {
+    return fsErrorFrom(err, path);
+  }
 }
 
 extern go fn fs_remove(path: String, recursive: bool) -> IOError | void {
@@ -326,14 +410,12 @@ extern go fn fs_remove(path: String, recursive: bool) -> IOError | void {
 }
 
 extern typescript fn fs_rename(src: String, dst: String) -> IOError | void {
-  return (async () => {
-    try {
-      await fs.promises.rename(src, dst);
-      return null;
-    } catch (err) {
-      return fsErrorFrom(err, src);
-    }
-  })();
+  try {
+    fs.renameSync(src, dst);
+    return null;
+  } catch (err) {
+    return fsErrorFrom(err, src);
+  }
 }
 
 extern go fn fs_rename(src: String, dst: String) -> IOError | void {
@@ -506,8 +588,7 @@ fn copy_file(src: Path | String, dst: Path | String, overwrite: ?bool) -> void {
   if !allow_overwrite && exists(dst_path) {
     raise IOError { kind: AlreadyExists {}, message: `path already exists: ${dst_path}`, path: dst_path }
   }
-  bytes := read_bytes(src)
-  write_bytes(dst_path, bytes, true)
+  unwrap_void(fs_copy_file(fs_path(src), dst_path))
 }
 
 fn copy_dir(src: Path | String, dst: Path | String, overwrite: ?bool) -> void {
@@ -551,42 +632,7 @@ fn copy_dir(src: Path | String, dst: Path | String, overwrite: ?bool) -> void {
   } elsif exists(dst_path) {
     raise IOError { kind: AlreadyExists {}, message: `path already exists: ${dst_path}`, path: dst_path }
   }
-  mkdir(dst_path, true)
-  tasks: Array CopyDirTask := Array.new()
-  tasks.push(CopyDirTask { src: src_path, dst: dst_path })
-  task_idx := 0
-  loop {
-    if task_idx >= tasks.len() { break }
-    tasks.get(task_idx) match {
-      case nil => {},
-      case task: CopyDirTask => {
-        entries := read_dir(task.src)
-        dst_root := path.new(task.dst)
-        idx := 0
-        loop {
-          if idx >= entries.len() { break }
-          entries.get(idx) match {
-            case nil => {},
-            case entry: DirEntry => {
-              entry_path := entry.path
-              entry_name := entry.name
-              entry_dir := entry.is_dir
-              entry_file := entry.is_file
-              dest_path := fs_path(dst_root.join(entry_name))
-              if entry_dir {
-                mkdir(dest_path, true)
-                tasks.push(CopyDirTask { src: entry_path, dst: dest_path })
-              } elsif entry_file {
-                copy_file(entry_path, dest_path, true)
-              }
-            }
-          }
-          idx = idx + 1
-        }
-      }
-    }
-    task_idx = task_idx + 1
-  }
+  unwrap_void(fs_copy_dir(src_path, dst_path))
 }
 
 fn touch(path: Path | String) -> void {

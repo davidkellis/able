@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import * as AST from "../../src/ast";
 import { Interpreter } from "../../src/interpreter";
-import { flushScheduler } from "./proc_spawn.helpers";
+import { flushScheduler } from "./future_spawn.helpers";
 
 describe("v11 interpreter - await expression", () => {
   test("await resolves manual awaitable once waker fires", () => {
