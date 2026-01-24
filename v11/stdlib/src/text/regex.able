@@ -34,8 +34,14 @@ methods RegexOptions {
   }
 }
 
+struct RegexToken {
+  byte: u8,
+  min: i32,
+  max: i32
+}
+
 struct RegexHandle {
-  literal: Array u8
+  tokens: Array RegexToken
 }
 
 struct Regex {
@@ -102,58 +108,169 @@ fn clamp_offset(offset: u64, len: i32) -> i32 {
   if offset > to_u64(len) { len } else { offset as i32 }
 }
 
-fn is_meta_byte(byte: u8) -> bool {
+fn invalid_pattern(message: String, start: i32, end: i32) -> RegexInvalidPattern {
+  RegexInvalidPattern { message, span: Span { start: to_u64(start), end: to_u64(end) } }
+}
+
+fn is_unsupported_meta(byte: u8) -> bool {
   (
     byte == 36_u8 || byte == 40_u8 || byte == 41_u8 ||
-    byte == 42_u8 || byte == 43_u8 || byte == 46_u8 ||
-    byte == 63_u8 || byte == 91_u8 || byte == 92_u8 ||
-    byte == 93_u8 || byte == 94_u8 || byte == 123_u8 ||
-    byte == 124_u8 || byte == 125_u8
+    byte == 46_u8 || byte == 91_u8 || byte == 93_u8 ||
+    byte == 94_u8 || byte == 124_u8
   )
 }
 
-fn literal_bytes(pattern: String) -> Result (Array u8) {
+fn is_quantifier_byte(byte: u8) -> bool {
+  byte == 42_u8 || byte == 43_u8 || byte == 63_u8 || byte == 123_u8 || byte == 125_u8
+}
+
+struct NumberParse {
+  value: i32,
+  next: i32
+}
+
+fn parse_number(bytes: Array u8, start: i32) -> ?NumberParse {
+  idx := start
+  if idx >= bytes.len() { return nil }
+  digit := bytes.read_slot(idx)
+  if digit < 48_u8 || digit > 57_u8 { return nil }
+  value := 0
+  loop {
+    if idx >= bytes.len() { break }
+    digit = bytes.read_slot(idx)
+    if digit < 48_u8 || digit > 57_u8 { break }
+    value = value * 10 + (digit as i32 - 48)
+    idx = idx + 1
+  }
+  NumberParse { value, next: idx }
+}
+
+fn parse_tokens(pattern: String) -> Result (Array RegexToken) {
   bytes := __able_String_from_builtin(pattern)
+  tokens: Array RegexToken := Array.new()
   idx := 0
   loop {
     if idx >= bytes.len() { break }
-    if is_meta_byte(bytes.read_slot(idx)) {
-      return unsupported("pattern metacharacters")
+    byte := bytes.read_slot(idx)
+    escaped := false
+    if byte == 92_u8 {
+      idx = idx + 1
+      if idx >= bytes.len() {
+        return invalid_pattern("dangling escape", idx - 1, idx)
+      }
+      byte = bytes.read_slot(idx)
+      escaped = true
     }
+    if !escaped {
+      if is_quantifier_byte(byte) {
+        return invalid_pattern("quantifier missing atom", idx, idx + 1)
+      }
+      if is_unsupported_meta(byte) {
+        return unsupported("pattern metacharacters")
+      }
+    }
+    min := 1
+    max := 1
+    if idx + 1 < bytes.len() {
+      next := bytes.read_slot(idx + 1)
+      if next == 42_u8 {
+        min = 0
+        max = -1
+        idx = idx + 1
+      } elsif next == 43_u8 {
+        min = 1
+        max = -1
+        idx = idx + 1
+      } elsif next == 63_u8 {
+        min = 0
+        max = 1
+        idx = idx + 1
+      } elsif next == 123_u8 {
+        quant_start := idx + 1
+        parse_number(bytes, idx + 2) match {
+          case nil => { return invalid_pattern("invalid quantifier", quant_start, quant_start + 1) },
+          case parsed: NumberParse => {
+            min = parsed.value
+            idx = parsed.next
+            if idx >= bytes.len() {
+              return invalid_pattern("unterminated quantifier", quant_start, idx)
+            }
+            byte = bytes.read_slot(idx)
+            if byte == 125_u8 {
+              max = min
+            } elsif byte == 44_u8 {
+              if idx + 1 >= bytes.len() {
+                return invalid_pattern("unterminated quantifier", quant_start, idx + 1)
+              }
+              if bytes.read_slot(idx + 1) == 125_u8 {
+                max = -1
+                idx = idx + 1
+              } else {
+                parse_number(bytes, idx + 1) match {
+                  case nil => { return invalid_pattern("invalid quantifier", quant_start, idx + 1) },
+                  case parsed_max: NumberParse => {
+                    max = parsed_max.value
+                    idx = parsed_max.next
+                  }
+                }
+                if idx >= bytes.len() || bytes.read_slot(idx) != 125_u8 {
+                  return invalid_pattern("unterminated quantifier", quant_start, idx)
+                }
+              }
+            } else {
+              return invalid_pattern("invalid quantifier", quant_start, idx + 1)
+            }
+          }
+        }
+      }
+    }
+    tokens.push(RegexToken { byte, min, max })
     idx = idx + 1
   }
-  bytes
+  tokens
 }
 
-fn find_literal_span(haystack: Array u8, needle: Array u8, start: i32) -> ?Span {
-  hay_len := haystack.len()
-  needle_len := needle.len()
-  if needle_len > hay_len { return nil }
+fn match_from(tokens: Array RegexToken, token_idx: i32, haystack: Array u8, pos: i32) -> ?i32 {
+  if token_idx >= tokens.len() { return pos }
+  tokens.get(token_idx) match {
+    case nil => pos,
+    case token: RegexToken => {
+      hay_len := haystack.len()
+      max_run := 0
+      loop {
+        if pos + max_run >= hay_len { break }
+        if haystack.read_slot(pos + max_run) != token.byte { break }
+        if token.max >= 0 && max_run >= token.max { break }
+        max_run = max_run + 1
+      }
+      if max_run < token.min { return nil }
+      run := max_run
+      loop {
+        if run < token.min { break }
+        match_from(tokens, token_idx + 1, haystack, pos + run) match {
+          case nil => {},
+          case end: i32 => { return end }
+        }
+        run = run - 1
+      }
+      nil
+    }
+  }
+}
 
+fn find_token_span(tokens: Array RegexToken, haystack: Array u8, start: i32) -> ?Span {
   pos := start
   if pos < 0 { pos = 0 }
-  if needle_len == 0 {
-    if pos > hay_len { return nil }
+  if tokens.len() == 0 {
+    if pos > haystack.len() { return nil }
     return Span { start: to_u64(pos), end: to_u64(pos) }
   }
-  if pos > hay_len - needle_len { return nil }
-
   loop {
-    if pos > hay_len - needle_len { break }
-    matched := true
-    j := 0
-    loop {
-      if j >= needle_len { break }
-      if haystack.read_slot(pos + j) != needle.read_slot(j) {
-        matched = false
-        break
-      }
-      j = j + 1
+    if pos > haystack.len() { break }
+    match_from(tokens, 0, haystack, pos) match {
+      case nil => { pos = pos + 1 },
+      case end: i32 => { return Span { start: to_u64(pos), end: to_u64(end) } }
     }
-    if matched {
-      return Span { start: to_u64(pos), end: to_u64(pos + needle_len) }
-    }
-    pos = pos + 1
   }
   nil
 }
@@ -211,8 +328,8 @@ impl Iterator Match for RegexIter {
     if self.done { return IteratorEnd {} }
     hay_bytes := __able_String_from_builtin(self.haystack)
     start := clamp_offset(self.offset, hay_bytes.len())
-    literal := self.regex.program.literal
-    find_literal_span(hay_bytes, literal, start) match {
+    tokens := self.regex.program.tokens
+    find_token_span(tokens, hay_bytes, start) match {
       case nil => {
         self.done = true
         IteratorEnd {}
@@ -244,11 +361,27 @@ struct RegexScanner {
 
 methods RegexScanner {
   fn feed(self: Self, chunk: String) -> void {
-    raise unsupported("scan")
+    self.buffer = `${self.buffer}${chunk}`
   }
 
   fn next(self: Self) -> Match | IteratorEnd {
-    raise unsupported("scan")
+    hay_bytes := __able_String_from_builtin(self.buffer)
+    start := clamp_offset(self.offset, hay_bytes.len())
+    tokens := self.regex.program.tokens
+    find_token_span(tokens, hay_bytes, start) match {
+      case nil => IteratorEnd {},
+      case span: Span => {
+        result := build_match(hay_bytes, span)
+        next_offset := span.end
+        if span.end == span.start { next_offset = next_offset + 1_u64 }
+        if next_offset > to_u64(hay_bytes.len()) {
+          self.offset = to_u64(hay_bytes.len())
+        } else {
+          self.offset = next_offset
+        }
+        result
+      }
+    }
   }
 }
 
@@ -260,12 +393,12 @@ methods Regex {
   fn compile_with_options(pattern: String, options: RegexOptions) -> Regex | Error {
     validate_options(options) match {
       case err: RegexUnsupportedFeature => err,
-      case nil => literal_bytes(pattern) match {
+      case nil => parse_tokens(pattern) match {
         case err: Error => err,
-        case bytes: Array u8 => Regex {
+        case tokens: Array RegexToken => Regex {
           pattern,
           options,
-          program: RegexHandle { literal: bytes }
+          program: RegexHandle { tokens: tokens }
         }
       }
     }
@@ -280,8 +413,8 @@ methods Regex {
 
   fn match(self: Self, haystack: String) -> ?Match {
     hay_bytes := __able_String_from_builtin(haystack)
-    literal := self.program.literal
-    find_literal_span(hay_bytes, literal, 0) match {
+    tokens := self.program.tokens
+    find_token_span(tokens, hay_bytes, 0) match {
       case nil => nil,
       case span: Span => build_match(hay_bytes, span)
     }
@@ -300,7 +433,7 @@ methods Regex {
   }
 
   fn scan(self: Self, haystack: String) -> RegexScanner {
-    raise unsupported("scan")
+    RegexScanner { regex: self, buffer: haystack, offset: 0 }
   }
 }
 

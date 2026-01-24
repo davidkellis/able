@@ -125,12 +125,12 @@ func TestAwaitExpressionManualWaker(t *testing.T) {
 	))
 	mustEvalExpr(ast.Assign(ast.ID("handle"), awaitFuture))
 
-	// Drive the proc to the await point.
+	// Drive the future to the await point.
 	mustEvalExpr(ast.Call("future_flush"))
 
 	handleVal, ok := mustEvalExpr(ast.ID("handle")).(*runtime.FutureValue)
 	if !ok {
-		t.Fatalf("expected handle to be a proc handle")
+		t.Fatalf("expected handle to be a future handle")
 	}
 	if status := futureStatus(handleVal); status != runtime.FuturePending {
 		t.Fatalf("expected pending handle after await, got %v (value=%#v)", status, interp.futureValue(handleVal))
@@ -188,7 +188,7 @@ func TestAwaitExpressionChannelReceive(t *testing.T) {
 	)))
 	consumerHandle, ok := consumer.(*runtime.FutureValue)
 	if !ok {
-		t.Fatalf("expected consumer proc handle, got %#v", consumer)
+		t.Fatalf("expected consumer future handle, got %#v", consumer)
 	}
 
 	producer := mustEval(ast.Spawn(ast.Block(
@@ -198,7 +198,7 @@ func TestAwaitExpressionChannelReceive(t *testing.T) {
 	)))
 	producerHandle, ok := producer.(*runtime.FutureValue)
 	if !ok {
-		t.Fatalf("expected producer proc handle, got %#v", producer)
+		t.Fatalf("expected producer future handle, got %#v", producer)
 	}
 
 	if !waitForStatus(consumerHandle, runtime.FutureResolved, 500*time.Millisecond) {
@@ -243,7 +243,7 @@ func TestAwaitChannelArmsSerialExecutor(t *testing.T) {
 	)))
 	receiverHandle, ok := receiver.(*runtime.FutureValue)
 	if !ok {
-		t.Fatalf("expected receiver proc handle, got %#v", receiver)
+		t.Fatalf("expected receiver future handle, got %#v", receiver)
 	}
 
 	sendArm := ast.Call(
@@ -261,7 +261,7 @@ func TestAwaitChannelArmsSerialExecutor(t *testing.T) {
 	)))
 	senderHandle, ok := sender.(*runtime.FutureValue)
 	if !ok {
-		t.Fatalf("expected sender proc handle, got %#v", sender)
+		t.Fatalf("expected sender future handle, got %#v", sender)
 	}
 
 	if !waitForStatus(receiverHandle, runtime.FutureResolved, 500*time.Millisecond) {
@@ -306,7 +306,7 @@ func TestAwaitFutureHandle(t *testing.T) {
 	)))
 	consumerHandle, ok := consumer.(*runtime.FutureValue)
 	if !ok {
-		t.Fatalf("expected consumer proc handle, got %#v", consumer)
+		t.Fatalf("expected consumer future handle, got %#v", consumer)
 	}
 
 	if !waitForStatus(consumerHandle, runtime.FutureResolved, 500*time.Millisecond) {
@@ -345,13 +345,13 @@ func TestAwaitFutureHandleResolvesWorker(t *testing.T) {
 	)))
 	consumerHandle, ok := consumer.(*runtime.FutureValue)
 	if !ok {
-		t.Fatalf("expected consumer proc handle, got %#v", consumer)
+		t.Fatalf("expected consumer future handle, got %#v", consumer)
 	}
 
 	workerVal := mustEval(ast.ID("worker"))
 	workerHandle, ok := workerVal.(*runtime.FutureValue)
 	if !ok {
-		t.Fatalf("expected worker proc handle, got %#v", workerVal)
+		t.Fatalf("expected worker future handle, got %#v", workerVal)
 	}
 
 	if !waitForStatus(workerHandle, runtime.FutureResolved, 500*time.Millisecond) {
@@ -388,7 +388,7 @@ func TestAwaitDefaultHelper(t *testing.T) {
 	)))
 	handle, ok := consumer.(*runtime.FutureValue)
 	if !ok {
-		t.Fatalf("expected consumer proc handle, got %#v", consumer)
+		t.Fatalf("expected consumer future handle, got %#v", consumer)
 	}
 
 	if !waitForStatus(handle, runtime.FutureResolved, 500*time.Millisecond) {
@@ -422,7 +422,7 @@ func TestAwaitSleepMsHelper(t *testing.T) {
 	)))
 	handle, ok := consumer.(*runtime.FutureValue)
 	if !ok {
-		t.Fatalf("expected consumer proc handle, got %#v", consumer)
+		t.Fatalf("expected consumer future handle, got %#v", consumer)
 	}
 
 	if !waitForStatus(handle, runtime.FutureResolved, 500*time.Millisecond) {
@@ -533,18 +533,18 @@ func TestAwaitReadyArmsRoundRobin(t *testing.T) {
 	mustEvalExpr(ast.Assign(ast.ID("second"), ast.Int(0)))
 	mustEvalExpr(ast.Assign(ast.ID("third"), ast.Int(0)))
 
-	procHandleVal := mustEvalExpr(ast.Spawn(ast.Block(
+	futureHandleVal := mustEvalExpr(ast.Spawn(ast.Block(
 		ast.AssignOp(ast.AssignmentAssign, ast.ID("first"), ast.Await(ast.ID("arms"))),
 		ast.AssignOp(ast.AssignmentAssign, ast.ID("second"), ast.Await(ast.ID("arms"))),
 		ast.AssignOp(ast.AssignmentAssign, ast.ID("third"), ast.Await(ast.ID("arms"))),
 	)))
-	handle, ok := procHandleVal.(*runtime.FutureValue)
+	handle, ok := futureHandleVal.(*runtime.FutureValue)
 	if !ok {
-		t.Fatalf("expected proc handle, got %#v", procHandleVal)
+		t.Fatalf("expected future handle, got %#v", futureHandleVal)
 	}
 
 	if !waitForStatus(handle, runtime.FutureResolved, 200*time.Millisecond) {
-		t.Fatalf("proc did not resolve, status=%v", futureStatus(handle))
+		t.Fatalf("future did not resolve, status=%v", futureStatus(handle))
 	}
 
 	if got := intFromValue(t, mustEvalExpr(ast.ID("first"))); got != 1 {
@@ -591,7 +591,7 @@ func TestAwaitCancellationStopsPendingArms(t *testing.T) {
 	)))
 	handle, ok := consumer.(*runtime.FutureValue)
 	if !ok {
-		t.Fatalf("expected proc handle, got %#v", consumer)
+		t.Fatalf("expected future handle, got %#v", consumer)
 	}
 
 	time.Sleep(5 * time.Millisecond)
@@ -615,7 +615,7 @@ func TestAwaitCancellationStopsPendingArms(t *testing.T) {
 	valueVal := interp.futureValue(handle)
 	errValue, ok := valueVal.(runtime.ErrorValue)
 	if !ok {
-		t.Fatalf("expected runtime error from cancelled proc, got %#v", valueVal)
+		t.Fatalf("expected runtime error from cancelled future, got %#v", valueVal)
 	}
 	if !strings.Contains(errValue.Message, "cancelled") {
 		t.Fatalf("expected cancellation message, got %q", errValue.Message)
@@ -657,7 +657,7 @@ func TestAwaitChannelSendCancellation(t *testing.T) {
 	)))
 	handle, ok := consumer.(*runtime.FutureValue)
 	if !ok {
-		t.Fatalf("expected proc handle, got %#v", consumer)
+		t.Fatalf("expected future handle, got %#v", consumer)
 	}
 
 	if handle != nil {
@@ -680,7 +680,7 @@ func TestAwaitChannelSendCancellation(t *testing.T) {
 	valueVal := interp.futureValue(handle)
 	errValue, ok := valueVal.(runtime.ErrorValue)
 	if !ok {
-		t.Fatalf("expected runtime error from cancelled proc, got %#v", valueVal)
+		t.Fatalf("expected runtime error from cancelled future, got %#v", valueVal)
 	}
 	if !strings.Contains(errValue.Message, "cancelled") {
 		t.Fatalf("expected cancellation message, got %q", errValue.Message)
@@ -721,7 +721,7 @@ func TestAwaitChannelCancellationStopsRegistrations(t *testing.T) {
 	)))
 	handle, ok := consumer.(*runtime.FutureValue)
 	if !ok {
-		t.Fatalf("expected proc handle, got %#v", consumer)
+		t.Fatalf("expected future handle, got %#v", consumer)
 	}
 
 	if futureStatus(handle) != runtime.FuturePending {
@@ -749,7 +749,7 @@ func TestAwaitChannelCancellationStopsRegistrations(t *testing.T) {
 	valueVal := interp.futureValue(handle)
 	errValue, ok := valueVal.(runtime.ErrorValue)
 	if !ok {
-		t.Fatalf("expected runtime error from cancelled proc, got %#v", valueVal)
+		t.Fatalf("expected runtime error from cancelled future, got %#v", valueVal)
 	}
 	if !strings.Contains(errValue.Message, "cancelled") {
 		t.Fatalf("expected cancellation message, got %q", errValue.Message)

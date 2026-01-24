@@ -449,7 +449,7 @@ describe("channel helpers", () => {
 });
 
 describe("mutex helpers", () => {
-  test("lock/unlock errors when reentered outside procs", () => {
+  test("lock/unlock errors when reentered outside async tasks", () => {
     const I = new Interpreter();
 
     I.evaluate(
