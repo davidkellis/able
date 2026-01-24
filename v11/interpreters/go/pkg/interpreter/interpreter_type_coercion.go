@@ -96,6 +96,13 @@ func (i *Interpreter) coerceValueToType(typeExpr ast.TypeExpression, value runti
 				return i.coerceToInterfaceValue(name, value, ifaceArgs)
 			}
 		}
+	case *ast.GenericTypeExpression:
+		if info, ok := parseTypeExpression(typeExpr); ok && info.name != "" {
+			name := normalizeKernelAliasName(info.name)
+			if _, ok := i.interfaces[name]; ok {
+				return i.coerceToInterfaceValue(name, value, info.typeArgs)
+			}
+		}
 	}
 	return value, nil
 }
@@ -255,8 +262,20 @@ func (i *Interpreter) buildInterfaceMethodDictionary(interfaceName string, iface
 	if len(typeArgs) == 0 && len(info.typeArgs) > 0 {
 		typeArgs = info.typeArgs
 	}
+	baseInterfaceArgs := make(map[string][]ast.TypeExpression)
+	if ifaceDef, ok := i.interfaces[interfaceName]; ok && ifaceDef != nil && ifaceDef.Node != nil {
+		for _, base := range ifaceDef.Node.BaseInterfaces {
+			baseInfo, ok := parseTypeExpression(base)
+			if !ok || baseInfo.name == "" {
+				continue
+			}
+			if len(baseInfo.typeArgs) > 0 {
+				baseInterfaceArgs[baseInfo.name] = baseInfo.typeArgs
+			}
+		}
+	}
 	base, impls := i.interfaceDispatchSets(interfaceName)
-	collect := func(ifaceName string, targetInfo typeInfo) error {
+	collect := func(ifaceName string, targetInfo typeInfo, ifaceArgs []ast.TypeExpression) error {
 		ifaceDef, ok := i.interfaces[ifaceName]
 		if !ok || ifaceDef == nil || ifaceDef.Node == nil {
 			return nil
@@ -269,7 +288,7 @@ func (i *Interpreter) buildInterfaceMethodDictionary(interfaceName string, iface
 			if methodName == "" || methods[methodName] != nil {
 				continue
 			}
-			method, err := i.findMethod(targetInfo, methodName, ifaceName)
+			method, err := i.findMethod(targetInfo, methodName, ifaceName, ifaceArgs)
 			if err != nil {
 				return err
 			}
@@ -284,13 +303,17 @@ func (i *Interpreter) buildInterfaceMethodDictionary(interfaceName string, iface
 		return nil
 	}
 	for ifaceName := range base {
-		if err := collect(ifaceName, info); err != nil {
+		args := ifaceArgs
+		if ifaceName != interfaceName {
+			args = baseInterfaceArgs[ifaceName]
+		}
+		if err := collect(ifaceName, info, args); err != nil {
 			return nil, err
 		}
 	}
 	for ifaceName := range impls {
 		targetInfo := typeInfo{name: interfaceName, typeArgs: typeArgs}
-		if err := collect(ifaceName, targetInfo); err != nil {
+		if err := collect(ifaceName, targetInfo, nil); err != nil {
 			return nil, err
 		}
 	}
@@ -302,12 +325,12 @@ func (i *Interpreter) buildInterfaceMethodDictionary(interfaceName string, iface
 
 func (i *Interpreter) coerceToInterfaceValue(interfaceName string, value runtime.Value, ifaceArgs []ast.TypeExpression) (runtime.Value, error) {
 	if ifaceVal, ok := value.(*runtime.InterfaceValue); ok {
-		if i.interfaceMatches(ifaceVal, interfaceName) {
+		if i.interfaceMatches(ifaceVal, interfaceName, ifaceArgs) {
 			return value, nil
 		}
 	}
 	if ifaceVal, ok := value.(runtime.InterfaceValue); ok {
-		if i.interfaceMatches(&ifaceVal, interfaceName) {
+		if i.interfaceMatches(&ifaceVal, interfaceName, ifaceArgs) {
 			return value, nil
 		}
 	}
@@ -334,7 +357,7 @@ func (i *Interpreter) coerceToInterfaceValue(interfaceName string, value runtime
 	if !ok {
 		return nil, fmt.Errorf("Value does not implement interface %s", interfaceName)
 	}
-	okImpl, err := i.typeImplementsInterface(info, interfaceName, make(map[string]struct{}))
+	okImpl, err := i.typeImplementsInterface(info, interfaceName, ifaceArgs, make(map[string]struct{}))
 	if err != nil {
 		return nil, err
 	}
@@ -345,7 +368,7 @@ func (i *Interpreter) coerceToInterfaceValue(interfaceName string, value runtime
 		}
 		return nil, fmt.Errorf("Type '%s' does not implement interface %s", typeDesc, interfaceName)
 	}
-	if _, err := i.lookupImplEntry(info, interfaceName); err != nil {
+	if _, err := i.lookupImplEntry(info, interfaceName, ifaceArgs); err != nil {
 		return nil, err
 	}
 	methods, err := i.buildInterfaceMethodDictionary(interfaceName, ifaceArgs, info)

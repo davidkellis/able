@@ -46,20 +46,23 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 ## TODO (working queue: tackle in order, move completed items to LOG.md)
 - Compiler/interpreter vision: typed core IR + runtime ABI implementation track
   - Define the concrete IR node set and type system (values, blocks, control flow, call/impl dispatch, async/await surfaces).
+  - Specify runtime ABI hooks for interface dictionaries, error payloads, and future handles (and add a checklist for Go/TS parity).
   - Add an IR serialization format (JSON + stable schema) and a small loader for tests/tooling.
   - Implement a lowering pass from AST → IR with type annotations (start with literals, bindings, blocks, calls).
   - Add an IR interpreter or verification pass to validate execution semantics against the tree-walker.
-  - Add conformance fixtures that execute both AST and IR paths (shared harness).
+  - Add unit tests for IR serialization + validation; add conformance fixtures that execute both AST and IR paths (shared harness).
   - Update `v11/design/compiler-interpreter-vision.md` as the IR contract stabilizes.
 - Interpreter performance track: bytecode VM expansion
   - Expand bytecode instruction set (control flow, functions/closures, structs, arrays, member access, interface dispatch).
   - Lower more AST nodes to bytecode; keep tree-walker fallback for unsupported nodes.
   - Add VM/AST parity tests for each newly supported feature (unit + fixtures).
+  - Add bytecode conformance fixtures that run through both VM + tree-walker paths.
   - Gate VM behind a CLI/runtime flag and add perf harness to compare VM vs tree-walker.
   - Document the bytecode format + calling convention in `v11/design/compiler-interpreter-vision.md`.
 - Regex parser + quantifiers (syntax-level)
   - Add regex AST nodes and grammar in tree-sitter (quantifiers, groups, classes, alternation).
   - Wire AST mapping for regex nodes in TS + Go parsers.
   - Add fixtures/tests for regex AST output and exec behavior; keep stdlib engine parity.
+  - Add parser corpus cases that cover nested groups, alternation, and escaped quantifiers.
   - Update `spec/TODO_v11.md` with remaining regex syntax/semantics gaps.
   - Align stdlib regex implementation with parser outputs as grammar coverage expands.

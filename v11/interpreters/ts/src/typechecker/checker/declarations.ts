@@ -234,16 +234,6 @@ function extractFunctionWhereObligations(
     obligations.push({ typeParam, interfaceName, interfaceType: interfaceType ?? undefined, context, subjectExpr });
   };
 
-  if (Array.isArray(definition.genericParams)) {
-    for (const param of definition.genericParams) {
-      const paramName = ctx.getIdentifierName(param?.name);
-      if (!paramName || !Array.isArray(param?.constraints)) continue;
-      for (const constraint of param.constraints) {
-        appendObligation(paramName, constraint?.interfaceType, "generic constraint");
-      }
-    }
-  }
-
   if (Array.isArray(definition.whereClause)) {
     for (const clause of definition.whereClause) {
       const subjectExpr = clause?.typeParam;

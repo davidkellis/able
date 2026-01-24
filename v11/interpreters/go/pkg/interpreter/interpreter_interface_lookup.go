@@ -8,8 +8,8 @@ import (
 	"able/interpreter-go/pkg/runtime"
 )
 
-func (i *Interpreter) lookupImplEntry(info typeInfo, interfaceName string) (*implCandidate, error) {
-	matches, err := i.collectImplCandidates(info, interfaceName, "")
+func (i *Interpreter) lookupImplEntry(info typeInfo, interfaceName string, ifaceArgs []ast.TypeExpression) (*implCandidate, error) {
+	matches, err := i.collectImplCandidates(info, interfaceName, "", ifaceArgs)
 	if len(matches) == 0 {
 		return nil, err
 	}
@@ -28,11 +28,11 @@ func (i *Interpreter) lookupImplEntry(info typeInfo, interfaceName string) (*imp
 	return best, nil
 }
 
-func (i *Interpreter) findMethod(info typeInfo, methodName string, interfaceFilter string) (runtime.Value, error) {
+func (i *Interpreter) findMethod(info typeInfo, methodName string, interfaceFilter string, ifaceArgs []ast.TypeExpression) (runtime.Value, error) {
 	var matches []implCandidate
 	var err error
 	if interfaceFilter == "" {
-		matches, err = i.collectImplCandidates(info, "", methodName)
+		matches, err = i.collectImplCandidates(info, "", methodName, nil)
 	} else {
 		names := i.interfaceSearchNames(interfaceFilter, make(map[string]struct{}))
 		if len(names) == 0 {
@@ -40,7 +40,7 @@ func (i *Interpreter) findMethod(info typeInfo, methodName string, interfaceFilt
 		}
 		var constraintErr error
 		for _, name := range names {
-			candidates, candErr := i.collectImplCandidates(info, name, methodName)
+			candidates, candErr := i.collectImplCandidates(info, name, methodName, ifaceArgs)
 			if candErr != nil && constraintErr == nil {
 				constraintErr = candErr
 			}
@@ -169,14 +169,22 @@ func (i *Interpreter) interfaceSearchNames(interfaceName string, visited map[str
 	return names
 }
 
-func (i *Interpreter) typeImplementsInterface(info typeInfo, interfaceName string, visited map[string]struct{}) (bool, error) {
+func (i *Interpreter) typeImplementsInterface(info typeInfo, interfaceName string, ifaceArgs []ast.TypeExpression, visited map[string]struct{}) (bool, error) {
 	if info.name == "" || interfaceName == "" {
 		return false, nil
 	}
 	if interfaceName == "Error" && info.name == "Error" {
 		return true, nil
 	}
-	key := interfaceName + "::" + typeInfoToString(info)
+	argSig := "<none>"
+	if len(ifaceArgs) > 0 {
+		parts := make([]string, 0, len(ifaceArgs))
+		for _, arg := range ifaceArgs {
+			parts = append(parts, typeExpressionToString(arg))
+		}
+		argSig = strings.Join(parts, "|")
+	}
+	key := interfaceName + "::" + typeInfoToString(info) + "::" + argSig
 	if _, seen := visited[key]; seen {
 		return true, nil
 	}
@@ -188,7 +196,7 @@ func (i *Interpreter) typeImplementsInterface(info typeInfo, interfaceName strin
 			if !ok || baseInfo.name == "" {
 				return false, nil
 			}
-			okImpl, err := i.typeImplementsInterface(info, baseInfo.name, visited)
+			okImpl, err := i.typeImplementsInterface(info, baseInfo.name, baseInfo.typeArgs, visited)
 			if err != nil || !okImpl {
 				return okImpl, err
 			}
@@ -197,19 +205,19 @@ func (i *Interpreter) typeImplementsInterface(info typeInfo, interfaceName strin
 			return true, nil
 		}
 	}
-	entry, err := i.lookupImplEntry(info, interfaceName)
+	entry, err := i.lookupImplEntry(info, interfaceName, ifaceArgs)
 	if err != nil {
 		return false, err
 	}
 	return entry != nil, nil
 }
 
-func (i *Interpreter) interfaceMatches(val *runtime.InterfaceValue, interfaceName string) bool {
+func (i *Interpreter) interfaceMatches(val *runtime.InterfaceValue, interfaceName string, ifaceArgs []ast.TypeExpression) bool {
 	if val == nil {
 		return false
 	}
 	if val.Interface != nil && val.Interface.Node != nil && val.Interface.Node.ID != nil {
-		if val.Interface.Node.ID.Name == interfaceName {
+		if val.Interface.Node.ID.Name == interfaceName && interfaceArgsEqual(i, val.InterfaceArgs, ifaceArgs) {
 			return true
 		}
 	}
@@ -217,8 +225,30 @@ func (i *Interpreter) interfaceMatches(val *runtime.InterfaceValue, interfaceNam
 	if !ok {
 		return false
 	}
-	okImpl, err := i.typeImplementsInterface(info, interfaceName, make(map[string]struct{}))
+	okImpl, err := i.typeImplementsInterface(info, interfaceName, ifaceArgs, make(map[string]struct{}))
 	return err == nil && okImpl
+}
+
+func interfaceArgsEqual(i *Interpreter, a, b []ast.TypeExpression) bool {
+	if len(a) == 0 && len(b) == 0 {
+		return true
+	}
+	if len(a) != len(b) {
+		return false
+	}
+	for idx := range a {
+		left := a[idx]
+		right := b[idx]
+		if left == nil || right == nil {
+			return false
+		}
+		left = expandTypeAliases(left, i.typeAliases, nil)
+		right = expandTypeAliases(right, i.typeAliases, nil)
+		if !typeExpressionsEqual(left, right) {
+			return false
+		}
+	}
+	return true
 }
 
 func (i *Interpreter) selectStructMethod(inst *runtime.StructInstanceValue, methodName string) (runtime.Value, error) {
@@ -229,5 +259,5 @@ func (i *Interpreter) selectStructMethod(inst *runtime.StructInstanceValue, meth
 	if !ok {
 		return nil, nil
 	}
-	return i.findMethod(info, methodName, "")
+	return i.findMethod(info, methodName, "", nil)
 }

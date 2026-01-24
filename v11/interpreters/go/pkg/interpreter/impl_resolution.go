@@ -144,7 +144,34 @@ func (i *Interpreter) matchImplEntry(entry *implEntry, info typeInfo) (map[strin
 	return bindings, true
 }
 
-func (i *Interpreter) collectImplCandidates(info typeInfo, interfaceFilter string, methodFilter string) ([]implCandidate, error) {
+func (i *Interpreter) matchInterfaceArgs(entry *implEntry, ifaceArgs []ast.TypeExpression, bindings map[string]ast.TypeExpression) bool {
+	if len(ifaceArgs) == 0 {
+		return true
+	}
+	if entry == nil || entry.definition == nil || len(entry.definition.InterfaceArgs) == 0 {
+		return false
+	}
+	if len(entry.definition.InterfaceArgs) != len(ifaceArgs) {
+		return false
+	}
+	genericNames := collectImplGenericNames(entry)
+	for idx, tmpl := range entry.definition.InterfaceArgs {
+		if tmpl == nil || ifaceArgs[idx] == nil {
+			return false
+		}
+		if !matchTypeExpressionTemplate(
+			expandTypeAliases(tmpl, i.typeAliases, nil),
+			expandTypeAliases(ifaceArgs[idx], i.typeAliases, nil),
+			genericNames,
+			bindings,
+		) {
+			return false
+		}
+	}
+	return true
+}
+
+func (i *Interpreter) collectImplCandidates(info typeInfo, interfaceFilter string, methodFilter string, ifaceArgs []ast.TypeExpression) ([]implCandidate, error) {
 	if info.name == "" {
 		return nil, nil
 	}
@@ -171,6 +198,9 @@ func (i *Interpreter) collectImplCandidates(info typeInfo, interfaceFilter strin
 		entryInfo := info
 		bindings, ok := i.matchImplEntry(entry, entryInfo)
 		if !ok {
+			continue
+		}
+		if len(ifaceArgs) > 0 && !i.matchInterfaceArgs(entry, ifaceArgs, bindings) {
 			continue
 		}
 		constraints := collectConstraintSpecs(entry.genericParams, entry.whereClause)

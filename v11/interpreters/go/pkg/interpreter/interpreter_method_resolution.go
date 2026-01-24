@@ -161,7 +161,7 @@ func (i *Interpreter) resolveMethodFromPool(env *runtime.Environment, funcName s
 			}
 		}
 		existing := len(functionCandidates) + len(nativeCandidates)
-		if method, err := i.findMethod(info, funcName, ifaceFilter); err == nil && method != nil {
+		if method, err := i.findMethod(info, funcName, ifaceFilter, nil); err == nil && method != nil {
 			if callable, ok := i.selectUfcsCallable(method, receiver, true, nil); ok {
 				if err := addCallable(callable, info.name); err != nil {
 					return nil, err
