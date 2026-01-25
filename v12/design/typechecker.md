@@ -1,9 +1,9 @@
-# Able v11 Typechecker (Go)
+# Able v12 Typechecker (Go)
 
 Date: 2025-10-21  
 Maintainers: Able Agents
 
-The Go typechecker is now feature-complete for the v11 surface. This document
+The Go typechecker is now feature-complete for the v12 surface. This document
 explains the architecture, the checking pipeline, and—most importantly—how the
 constraint solver enforces interface/impl obligations. The goal is that any new
 contributor can read this file, understand how the checker works end-to-end, and
@@ -13,8 +13,8 @@ confidently extend it.
 
 ## High-level Goals
 
-1. **Spec fidelity** – evaluate Able v11 modules exactly as described in
-   `spec/full_spec_v11.md`, including generics, where clauses, interfaces, and
+1. **Spec fidelity** – evaluate Able v12 modules exactly as described in
+   `spec/full_spec_v12.md`, including generics, where clauses, interfaces, and
    async helpers.
 2. **Inference-first** – minimise explicit annotations. The checker infers types
    for expressions, patterns, and statements, recording results in side tables

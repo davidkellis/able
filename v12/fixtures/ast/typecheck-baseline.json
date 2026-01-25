@@ -50,60 +50,60 @@
   "control/range_inclusive": [],
   "control/while_sum": [],
   "errors/alias_reexport_impl_ambiguity": [
-    "typechecker: v11/fixtures/ast/errors/alias_reexport_impl_ambiguity/source.able:8:1 typechecker: ambiguous implementations of Taggable for Widget: impl Taggable for Widget"
+    "typechecker: v12/fixtures/ast/errors/alias_reexport_impl_ambiguity/source.able:8:1 typechecker: ambiguous implementations of Taggable for Widget: impl Taggable for Widget"
   ],
   "errors/alias_reexport_method_ambiguity": [
-    "typechecker: v11/fixtures/ast/errors/alias_reexport_method_ambiguity/source.able:8:1 typechecker: ambiguous overload for tag"
+    "typechecker: v12/fixtures/ast/errors/alias_reexport_method_ambiguity/source.able:8:1 typechecker: ambiguous overload for tag"
   ],
   "errors/ambiguous_impl_generic_concrete": [
-    "typechecker: v11/fixtures/ast/errors/ambiguous_impl_generic_concrete/source.able:41:3 typechecker: ambiguous implementations of Show for Wrapper Unknown: impl Show for Wrapper T"
+    "typechecker: v12/fixtures/ast/errors/ambiguous_impl_generic_concrete/source.able:41:3 typechecker: ambiguous implementations of Show for Wrapper Unknown: impl Show for Wrapper T"
   ],
   "errors/array_destructure_mismatch": [],
   "errors/array_destructure_short": [],
   "errors/bitshift_out_of_range": [],
   "errors/builtin_type_arity": [
-    "typechecker: v11/fixtures/ast/errors/builtin_type_arity/source.able:1:21 typechecker: type 'Array' expects 1 type argument(s), got 0",
-    "typechecker: v11/fixtures/ast/errors/builtin_type_arity/source.able:3:19 typechecker: type 'Map' expects 2 type argument(s), got 1",
-    "typechecker: v11/fixtures/ast/errors/builtin_type_arity/source.able:5:21 typechecker: type 'Mutex' expects 0 type argument(s), got 1"
+    "typechecker: v12/fixtures/ast/errors/builtin_type_arity/source.able:1:21 typechecker: type 'Array' expects 1 type argument(s), got 0",
+    "typechecker: v12/fixtures/ast/errors/builtin_type_arity/source.able:3:19 typechecker: type 'Map' expects 2 type argument(s), got 1",
+    "typechecker: v12/fixtures/ast/errors/builtin_type_arity/source.able:5:21 typechecker: type 'Mutex' expects 0 type argument(s), got 1"
   ],
   "errors/constraint_interface_arity": [
-    "typechecker: v11/fixtures/ast/errors/constraint_interface_arity/source.able:19:15 typechecker: fn use_missing constraint on T requires 2 type argument(s) for interface 'Pair'",
-    "typechecker: v11/fixtures/ast/errors/constraint_interface_arity/source.able:20:16 typechecker: fn use_mismatch constraint on T expected 2 type argument(s) for interface 'Pair', got 1"
+    "typechecker: v12/fixtures/ast/errors/constraint_interface_arity/source.able:19:15 typechecker: fn use_missing constraint on T requires 2 type argument(s) for interface 'Pair'",
+    "typechecker: v12/fixtures/ast/errors/constraint_interface_arity/source.able:20:16 typechecker: fn use_mismatch constraint on T expected 2 type argument(s) for interface 'Pair', got 1"
   ],
   "errors/ensure_runs": [],
   "errors/generic_constraint_unsatisfied": [
-    "typechecker: v11/fixtures/ast/errors/generic_constraint_unsatisfied/source.able:21:15 typechecker: methods for Point::accept_show constraint on T is not satisfied: i32 does not implement Show"
+    "typechecker: v12/fixtures/ast/errors/generic_constraint_unsatisfied/source.able:21:15 typechecker: methods for Point::accept_show constraint on T is not satisfied: i32 does not implement Show"
   ],
   "errors/generic_type_mismatch": [
-    "typechecker: v11/fixtures/ast/errors/generic_type_mismatch/source.able:5:10 typechecker: fn identity constraint on T is not satisfied: i32 does not implement Error"
+    "typechecker: v12/fixtures/ast/errors/generic_type_mismatch/source.able:5:10 typechecker: fn identity constraint on T is not satisfied: i32 does not implement Error"
   ],
   "errors/implicit_generic_redeclaration": [
-    "typechecker: v11/fixtures/ast/errors/implicit_generic_redeclaration/source.able:2:3 typechecker: cannot redeclare inferred type parameter 'T' inside fn wrap (inferred at v11/fixtures/ast/errors/implicit_generic_redeclaration/source.able:1:16)"
+    "typechecker: v12/fixtures/ast/errors/implicit_generic_redeclaration/source.able:2:3 typechecker: cannot redeclare inferred type parameter 'T' inside fn wrap (inferred at v12/fixtures/ast/errors/implicit_generic_redeclaration/source.able:1:16)"
   ],
   "errors/implicit_generic_where_ambiguity": [
-    "typechecker: v11/fixtures/ast/errors/implicit_generic_where_ambiguity/source.able:9:53 typechecker: fn format_point constraint on Point is not satisfied: Point does not implement Show"
+    "typechecker: v12/fixtures/ast/errors/implicit_generic_where_ambiguity/source.able:9:53 typechecker: fn format_point constraint on Point is not satisfied: Point does not implement Show"
   ],
   "errors/interface_hkt_constructor_mismatch": [
-    "typechecker: v11/fixtures/ast/errors/interface_hkt_constructor_mismatch/source.able:8:1 typechecker: impl Mapper for Array i32 must match interface self type 'F _'"
+    "typechecker: v12/fixtures/ast/errors/interface_hkt_constructor_mismatch/source.able:8:1 typechecker: impl Mapper for Array i32 must match interface self type 'F _'"
   ],
   "errors/interface_missing_method": [
-    "typechecker: v11/fixtures/ast/errors/interface_missing_method/source.able:13:3 typechecker: fn use constraint on T is not satisfied: Widget does not implement Greeter"
+    "typechecker: v12/fixtures/ast/errors/interface_missing_method/source.able:13:3 typechecker: fn use constraint on T is not satisfied: Widget does not implement Greeter"
   ],
   "errors/interface_self_pattern_mismatch": [
-    "typechecker: v11/fixtures/ast/errors/interface_self_pattern_mismatch/source.able:13:1 typechecker: impl PointDisplay for Line must match interface self type 'Point'"
+    "typechecker: v12/fixtures/ast/errors/interface_self_pattern_mismatch/source.able:13:1 typechecker: impl PointDisplay for Line must match interface self type 'Point'"
   ],
   "errors/logic_operand_type": [],
   "errors/method_scope_missing_import": [],
   "errors/method_set_where_constraint": [
-    "typechecker: v11/fixtures/ast/errors/method_set_where_constraint/source.able:16:1 typechecker: methods for Wrapper::describe constraint on Self is not satisfied: Wrapper does not implement CustomDisplay: methods for Wrapper: method 'show' not provided"
+    "typechecker: v12/fixtures/ast/errors/method_set_where_constraint/source.able:16:1 typechecker: methods for Wrapper::describe constraint on Self is not satisfied: Wrapper does not implement CustomDisplay: methods for Wrapper: method 'show' not provided"
   ],
   "errors/or_else_handler": [],
   "errors/partial_application_arity": [
-    "typechecker: v11/fixtures/ast/errors/partial_application_arity/source.able:6:10 typechecker: function expects 1 arguments, got 2"
+    "typechecker: v12/fixtures/ast/errors/partial_application_arity/source.able:6:10 typechecker: function expects 1 arguments, got 2"
   ],
   "errors/raise_manifest": [],
   "errors/range_non_numeric": [
-    "typechecker: v11/fixtures/ast/errors/range_non_numeric/source.able:1:1 typechecker: range start must be numeric"
+    "typechecker: v12/fixtures/ast/errors/range_non_numeric/source.able:1:1 typechecker: range start must be numeric"
   ],
   "errors/rescue_catch": [],
   "errors/rescue_guard": [],
@@ -111,29 +111,29 @@
   "errors/result_error_accessors": [],
   "errors/struct_destructure_mismatch": [],
   "errors/struct_functional_update_positional": [
-    "typechecker: v11/fixtures/ast/errors/struct_functional_update_positional/source.able:3:25 typechecker: struct 'Pair' has no field 'x'"
+    "typechecker: v12/fixtures/ast/errors/struct_functional_update_positional/source.able:3:25 typechecker: struct 'Pair' has no field 'x'"
   ],
   "errors/struct_functional_update_source": [
-    "typechecker: v11/fixtures/ast/errors/struct_functional_update_source/source.able:5:23 typechecker: functional update expects struct Point, got Array i32"
+    "typechecker: v12/fixtures/ast/errors/struct_functional_update_source/source.able:5:23 typechecker: functional update expects struct Point, got Array i32"
   ],
   "errors/struct_functional_update_type": [
-    "typechecker: v11/fixtures/ast/errors/struct_functional_update_type/source.able:10:24 typechecker: functional update expects struct Vector, got Point"
+    "typechecker: v12/fixtures/ast/errors/struct_functional_update_type/source.able:10:24 typechecker: functional update expects struct Vector, got Point"
   ],
   "errors/struct_named_missing_field": [
-    "typechecker: v11/fixtures/ast/errors/struct_named_missing_field/source.able:7:12 typechecker: struct pattern field 'z' not found"
+    "typechecker: v12/fixtures/ast/errors/struct_named_missing_field/source.able:7:12 typechecker: struct pattern field 'z' not found"
   ],
   "errors/struct_type_mismatch": [
-    "typechecker: v11/fixtures/ast/errors/struct_type_mismatch/source.able:10:10 typechecker: struct pattern field 'dx' not found"
+    "typechecker: v12/fixtures/ast/errors/struct_type_mismatch/source.able:10:10 typechecker: struct pattern field 'dx' not found"
   ],
   "errors/type_alias_underscore_reserved": [
-    "typechecker: v11/fixtures/ast/errors/type_alias_underscore_reserved/source.able:1:1 typechecker: type alias name '_' is reserved"
+    "typechecker: v12/fixtures/ast/errors/type_alias_underscore_reserved/source.able:1:1 typechecker: type alias name '_' is reserved"
   ],
   "errors/type_qualified_method_call": [],
   "errors/ufcs_overload_ambiguity": [
-    "typechecker: v11/fixtures/ast/errors/ufcs_overload_ambiguity/source.able:11:1 typechecker: no overloads of tag match provided arguments"
+    "typechecker: v12/fixtures/ast/errors/ufcs_overload_ambiguity/source.able:11:1 typechecker: no overloads of tag match provided arguments"
   ],
   "errors/ufcs_static_method_not_found": [
-    "typechecker: v11/fixtures/ast/errors/ufcs_static_method_not_found/source.able:13:22 typechecker: argument 1 has type Counter, expected i32"
+    "typechecker: v12/fixtures/ast/errors/ufcs_static_method_not_found/source.able:13:22 typechecker: argument 1 has type Counter, expected i32"
   ],
   "expressions/array_literal_empty": [],
   "expressions/assignment_declare": [],
@@ -160,7 +160,7 @@
   "functions/method_scope_imports": [],
   "functions/method_set_where_constraint_ok": [],
   "functions/overload_function_ambiguity": [
-    "typechecker: v11/fixtures/ast/functions/overload_function_ambiguity/source.able:4:1 typechecker: duplicate declaration 'collide' (previous declaration at v11/fixtures/ast/functions/overload_function_ambiguity/source.able:1:1)"
+    "typechecker: v12/fixtures/ast/functions/overload_function_ambiguity/source.able:4:1 typechecker: duplicate declaration 'collide' (previous declaration at v12/fixtures/ast/functions/overload_function_ambiguity/source.able:1:1)"
   ],
   "functions/overload_method_ambiguity": [],
   "functions/overload_resolution_success": [],
@@ -172,19 +172,19 @@
   "imports/dynimport_wildcard": [],
   "imports/implicit_generic_import": [],
   "imports/static_alias_private_error": [
-    "typechecker: v11/fixtures/ast/imports/static_alias_private_error/source.able:3:3 typechecker: package 'util_static' has no symbol 'hidden'"
+    "typechecker: v12/fixtures/ast/imports/static_alias_private_error/source.able:3:3 typechecker: package 'util_static' has no symbol 'hidden'"
   ],
   "imports/static_alias_public": [],
   "imports/static_reexport": [],
   "imports/static_reexport_multihop": [],
   "imports/static_wildcard": [],
   "imports/static_wildcard_private_error": [
-    "typechecker: v11/fixtures/ast/imports/static_wildcard_private_error/source.able:3:1 typechecker: undefined identifier 'priv_fn'"
+    "typechecker: v12/fixtures/ast/imports/static_wildcard_private_error/source.able:3:1 typechecker: undefined identifier 'priv_fn'"
   ],
   "interfaces/apply_index_dispatch": [],
   "interfaces/apply_index_missing_impls": [
-    "typechecker: v11/fixtures/ast/interfaces/apply_index_missing_impls/source.able:23:3 typechecker: cannot call non-callable value ReadOnlyPair (missing Apply implementation)",
-    "typechecker: v11/fixtures/ast/interfaces/apply_index_missing_impls/source.able:27:3 typechecker: cannot assign via [] without IndexMut implementation on type Index i32 i32"
+    "typechecker: v12/fixtures/ast/interfaces/apply_index_missing_impls/source.able:23:3 typechecker: cannot call non-callable value ReadOnlyPair (missing Apply implementation)",
+    "typechecker: v12/fixtures/ast/interfaces/apply_index_missing_impls/source.able:27:3 typechecker: cannot assign via [] without IndexMut implementation on type Index i32 i32"
   ],
   "interfaces/composite_generic": [],
   "interfaces/custom_hash_eq": [],
@@ -192,7 +192,7 @@
   "interfaces/hash_collision_handling": [],
   "interfaces/impl_specificity": [],
   "interfaces/impl_specificity_ambiguity": [
-    "typechecker: v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able:21:1 typechecker: ambiguous implementations of Ambig for Named: impl Ambig for T"
+    "typechecker: v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able:21:1 typechecker: ambiguous implementations of Ambig for Named: impl Ambig for T"
   ],
   "interfaces/imported_impl_dispatch": [],
   "interfaces/kernel_interface_availability": [],

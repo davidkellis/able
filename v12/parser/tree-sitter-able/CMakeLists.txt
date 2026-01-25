@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.13)
 
 project(tree-sitter-able
         VERSION "0.1.0"
-        DESCRIPTION "Able language parser (v11 spec)"
+        DESCRIPTION "Able language parser (v12 spec)"
         HOMEPAGE_URL "https://github.com/davidkellis/able"
         LANGUAGES C)
 

@@ -1,6 +1,6 @@
 # Shared AST Fixture Plan
 
-Goal: validate that the Go and TypeScript interpreters consume identical Able v11 AST structures and produce the same observable behaviour.
+Goal: validate that the Go tree-walker and bytecode interpreters consume identical Able v12 AST structures and produce the same observable behaviour.
 
 These fixtures are **language implementation tests** and are not related to the
 user-facing `able test` framework or its conventions.
@@ -13,8 +13,8 @@ user-facing `able test` framework or its conventions.
 
 ## 2. Generation
 
-1. Author fixtures using the TypeScript AST DSL (`v11/interpreters/ts/src/ast.ts` helpers) to maintain a single source of truth.
-2. Add a Bun script (`v11/interpreters/ts/scripts/export-fixtures.ts`) that constructs ASTs with the DSL and writes JSON into `fixtures/ast/` using a stable serialization order (sorted object keys, arrays preserved).
+1. Author fixtures using a Go-based fixture DSL (to be implemented) to maintain a single source of truth.
+2. Implement a Go fixture exporter that writes JSON into `fixtures/ast/` using a stable serialization order (sorted object keys, arrays preserved).
 3. Commit the generated JSON alongside a manifest describing expected outcomes (see below).
 
 ## 3. Manifest Structure
@@ -38,8 +38,7 @@ Each fixture directory includes an optional `manifest.json`:
 
 ## 4. Interpreter Harnesses
 
-- **TypeScript**: add a Bun test runner that reads the manifest, loads the JSON into AST objects (simple recursive builder), evaluates the program, and asserts expectations.
-- **Go**: mirror the harness using Go’s testing framework. Deserialize JSON into the Go AST structs, run `InterpretModule`, and compare results with the manifest.
+- **Go**: use Go’s testing framework for both execution modes. Deserialize JSON into the Go AST structs, run the tree-walker and bytecode evaluators, and compare results with the manifest.
 
 ## 5. Coverage Targets
 
@@ -54,7 +53,7 @@ Each fixture directory includes an optional `manifest.json`:
 
 ## 6. Workflow
 
-1. When adding a new language feature, create or update fixtures in the TypeScript project.
+1. When adding a new language feature, create or update fixtures via the Go DSL.
 2. Regenerate fixture JSON, run both interpreters’ fixture suites, and commit the updated files.
 3. Fail CI if either interpreter diverges from the manifest expectations.
 

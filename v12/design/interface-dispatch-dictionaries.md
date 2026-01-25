@@ -1,4 +1,4 @@
-# Interface Dispatch via Dictionaries (v11)
+# Interface Dispatch via Dictionaries (v12)
 
 This document captures the decision to use dictionary dispatch for interface values, plus the resulting typechecker/runtime behavior and follow-ups.
 
@@ -33,7 +33,7 @@ This document captures the decision to use dictionary dispatch for interface val
 - Go runtime: interface coercion builds dictionaries with interface args; interface member access uses dictionaries.
 - TS/Go typecheckers: include default interface methods as callable candidates; allow generic interface methods; infer and record missing type arguments; include base interfaces in method lookup; collect transitive impls/method sets from imports.
 - Stdlib: `Iterable.map`/`filter_map` made explicitly generic; `collect` uses `C.default()`; `Extend` returns `Self`.
-- Spec: `spec/full_spec_v11.md` updated to describe dictionary-based dynamic dispatch.
+- Spec: `spec/full_spec_v12.md` updated to describe dictionary-based dynamic dispatch.
 
 ## Follow-ups
 - Add tests that exercise default methods and generic methods on interface-typed values across package boundaries.

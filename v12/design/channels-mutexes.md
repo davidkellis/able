@@ -1,7 +1,7 @@
 # Channels & Mutexes – Host-Backed Concurrency Primitives
 
 Status: Draft – interpreter implementation pending  
-Owners: Able v11 interpreter team
+Owners: Able v12 interpreter team
 
 ## Overview
 - Provide first-class `Channel<T>` and `Mutex` types with Crystal-style APIs.
@@ -29,7 +29,7 @@ Owners: Able v11 interpreter team
 
 3. **Spec Alignment**
    - No new AST nodes or syntax required; all operations remain standard method/struct usage.
-   - Update v11 spec concurrency section to document Channel/Mutex as host-backed primitives available via stdlib + extern.
+   - Update v12 spec concurrency section to document Channel/Mutex as host-backed primitives available via stdlib + extern.
 
 4. **Testing & Fixtures**
    - After runtime support lands, add AST fixtures covering:
@@ -65,7 +65,7 @@ With the executor contract shared across Go and TypeScript, the next milestone i
    - Surface `"send on closed channel"` / `"receive on closed channel"` errors consistently with the Go runtime.
    - Guard against double-enqueue by clearing pending state when a task is cancelled; cancellation should remove the waiter entry and propagate an appropriate error when the task resumes.
 
-Implementation landed in `v11/interpreters/ts/src/interpreter/channels_mutex.ts` (with supporting future-handle metadata) and is covered by dedicated Bun tests plus the existing AST fixtures. Remaining follow-ups:
+Implementation landed in `v12/interpreters/ts/src/interpreter/channels_mutex.ts` (with supporting future-handle metadata) and is covered by dedicated Bun tests plus the existing AST fixtures. Remaining follow-ups:
 
 - Mirror any future Go enhancements (e.g., select/timeouts) once spec language settles.
 - Audit nil-channel cancellation paths under heavier load; consider property tests around cancellation race behaviour.
@@ -74,6 +74,6 @@ Implementation landed in `v11/interpreters/ts/src/interpreter/channels_mutex.ts`
 ## 2025-11-05 Wiring Audit (Phase α wrap-up)
 
 - **Runtime helpers registered in both interpreters.** Verified that `Interpreter.ensureChannelMutexBuiltins` and the Go `initChannelMutexBuiltins` install the full helper set (`__able_channel_new/send/receive/try_send/try_receive/close/is_closed`, `__able_mutex_new/lock/unlock`) and seed per-handle state (TS: cooperative queues; Go: buffered `chan`/`sync.Mutex`).
-- **Typechecker/fixture coverage.** Confirmed the helper signatures are declared in `v11/interpreters/ts/src/typechecker/checker.ts` and `interpreter-go/pkg/typechecker/decls.go`, and that the shared AST fixture suite already exercises channel/mutex semantics (`fixtures/ast/concurrency/*`, `fixtures/ast/stdlib/channel_mutex_helpers`). No schema drift detected between TS and Go decoders.
-- **New interpreter smoke tests.** Added Bun tests for nil-channel cancellation and mutex re-entry errors (`v11/interpreters/ts/test/concurrency/channel_mutex.test.ts`) to mirror the Go parity suite behaviour.
+- **Typechecker/fixture coverage.** Confirmed the helper signatures are declared in `v12/interpreters/ts/src/typechecker/checker.ts` and `interpreter-go/pkg/typechecker/decls.go`, and that the shared AST fixture suite already exercises channel/mutex semantics (`fixtures/ast/concurrency/*`, `fixtures/ast/stdlib/channel_mutex_helpers`). No schema drift detected between TS and Go decoders.
+- **New interpreter smoke tests.** Added Bun tests for nil-channel cancellation and mutex re-entry errors (`v12/interpreters/ts/test/concurrency/channel_mutex.test.ts`) to mirror the Go parity suite behaviour.
 - **Outstanding parity TODO.** Native helpers still raise generic runtime errors (`"send on closed channel"`, `"channel already closed"`) instead of materialising the stdlib `ChannelClosed/ChannelNil/ChannelSendOnClosed` structs. Capture conversion logic on both runtimes before we graduate Phase β; tracked in `PLAN.md` and `spec/todo.md`.

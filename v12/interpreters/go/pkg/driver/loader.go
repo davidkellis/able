@@ -113,7 +113,7 @@ func (l *Loader) Close() {
 	}
 }
 
-// Load aggregates the entry package and its dependencies according to the v11 package rules.
+// Load aggregates the entry package and its dependencies according to the v12 package rules.
 func (l *Loader) Load(entry string) (*Program, error) {
 	return l.LoadWithOptions(entry, LoadOptions{})
 }

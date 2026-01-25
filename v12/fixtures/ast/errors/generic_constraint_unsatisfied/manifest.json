@@ -6,7 +6,7 @@
       "typechecker: methods for Point::accept_show constraint on T is not satisfied: i32 does not implement Show"
     ],
     "typecheckDiagnostics": [
-      "typechecker: v11/fixtures/ast/errors/generic_constraint_unsatisfied/source.able:21:15 typechecker: methods for Point::accept_show constraint on T is not satisfied: i32 does not implement Show"
+      "typechecker: v12/fixtures/ast/errors/generic_constraint_unsatisfied/source.able:21:15 typechecker: methods for Point::accept_show constraint on T is not satisfied: i32 does not implement Show"
     ]
   },
   "entry": "source.able"

@@ -357,7 +357,7 @@ func (e *SerialExecutor) PendingTasks() int {
 
 // Drive executes the task associated with the provided handle on the current goroutine
 // until the handle transitions out of the pending state, mirroring the cooperative
-// scheduler semantics used by the TypeScript interpreter.
+// scheduler semantics expected by the Able runtime.
 func (e *SerialExecutor) Drive(handle *runtime.FutureValue) {
 	if handle == nil {
 		return

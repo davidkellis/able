@@ -51,7 +51,7 @@ return type to infer the call's generic parameters, mirroring Rust-style
   explicit type arguments.
 - Add typechecker unit tests (TS + Go) that assert generic inference in return
   contexts for call chains and method calls.
-- Run `./run_all_tests.sh --version=v11 --typecheck-fixtures-strict` after
+- Run `./run_all_tests.sh --version=v12 --typecheck-fixtures-strict` after
   implementation.
 
 ## Open Questions

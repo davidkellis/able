@@ -9,7 +9,7 @@
       "note 4 hi"
     ],
     "stderr": [
-      "runtime: v11/fixtures/exec/07_07_overload_resolution_runtime/main.able:33:3 Ambiguous overload for collide"
+      "runtime: v12/fixtures/exec/07_07_overload_resolution_runtime/main.able:33:3 Ambiguous overload for collide"
     ],
     "exit": 1
   }

@@ -1,9 +1,0 @@
-package hello
-
-fn greet(name: String) -> String {
-  `Hello ${name}`
-}
-
-fn main() {
-  print(greet("Able"))
-}

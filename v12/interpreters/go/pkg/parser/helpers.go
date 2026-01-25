@@ -9,9 +9,8 @@ import (
 	"able/interpreter-go/pkg/ast"
 )
 
-// parseContext mirrors the TypeScript ParseContext glue: it carries immutable
-// parser state (currently the module source bytes) so helpers can share the
-// same view of the file without threading arguments everywhere.
+// parseContext carries immutable parser state (the module source bytes) so
+// helpers can share the same view of the file without threading arguments everywhere.
 type parseContext struct {
 	source      []byte
 	structKinds map[string]ast.StructKind

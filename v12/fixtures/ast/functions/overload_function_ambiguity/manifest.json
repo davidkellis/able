@@ -5,7 +5,7 @@
       "Ambiguous overload for collide"
     ],
     "typecheckDiagnostics": [
-      "typechecker: v11/fixtures/ast/functions/overload_function_ambiguity/source.able:4:1 typechecker: duplicate declaration 'collide' (previous declaration at v11/fixtures/ast/functions/overload_function_ambiguity/source.able:1:1)"
+      "typechecker: v12/fixtures/ast/functions/overload_function_ambiguity/source.able:4:1 typechecker: duplicate declaration 'collide' (previous declaration at v12/fixtures/ast/functions/overload_function_ambiguity/source.able:1:1)"
     ]
   },
   "entry": "module.json"

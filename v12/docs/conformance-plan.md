@@ -1,14 +1,14 @@
-# v11 Exec Conformance Plan
+# v12 Exec Conformance Plan
 
-This document tracks end-to-end exec fixtures for Able v11 and maps them to the specification. Every fixture should focus on a narrow semantic slice, emit deterministic output, and include inline `##` comments that describe the exact behaviour being asserted.
+This document tracks end-to-end exec fixtures for Able v12 and maps them to the specification. Every fixture should focus on a narrow semantic slice, emit deterministic output, and include inline `##` comments that describe the exact behaviour being asserted.
 
 These fixtures are **language implementation tests** (parser/runtime parity and
 spec coverage). They are unrelated to the user-facing `able test` framework and
 its conventions.
 
 ## Naming
-- Place fixtures under `v11/fixtures/exec`.
-- Use `<section>_<feature>[_variation]` directories under `v11/fixtures/exec` (e.g., `exec/08_01_control_flow_fizzbuzz`, `exec/11_03_rescue_ensure`). Sections are zero-padded when helpful for sorting and can group related headings (e.g., `06` for expressions/types, `11` for errors).
+- Place fixtures under `v12/fixtures/exec`.
+- Use `<section>_<feature>[_variation]` directories under `v12/fixtures/exec` (e.g., `exec/08_01_control_flow_fizzbuzz`, `exec/11_03_rescue_ensure`). Sections are zero-padded when helpful for sorting and can group related headings (e.g., `06` for expressions/types, `11` for errors).
 - Use `_diag` for diagnostic/error-only cases and `_combo` for multi-feature compositions.
 
 ## Coverage Matrix (seeded + planned)
@@ -117,9 +117,8 @@ its conventions.
 | 11.2 | `!`/`or` propagation for `Option`/`Result` | `exec/11_02_option_result_propagation` | Seeded: Option unwrap + error handling via `! or {}` |
 | 11.2.3 | `or {}` handlers for `Option`/`Result` + `Error` unions | `exec/11_02_option_result_or_handlers` | Seeded; `or` binds errors and treats `Error`-implementers as failure values |
 
-The matrix is also materialized as `v11/fixtures/exec/coverage-index.json` to enable tooling/CI checks.
+The matrix is also materialized as `v12/fixtures/exec/coverage-index.json` to enable tooling/CI checks.
 
 ## Execution + Reporting
-- TS harness: `cd v11/interpreters/ts && bun run scripts/run-fixtures.ts`.
-- Go harness: `cd v11/interpreters/go && go test ./pkg/interpreter -run ExecFixtures`.
-- Coverage index lives at `v11/fixtures/exec/coverage-index.json`; `v11/scripts/check-exec-coverage.mjs` (invoked by `run_all_tests.sh`) validates seeded IDs stay in sync with the fixture directories.
+- Go harness: `cd v12/interpreters/go && go test ./pkg/interpreter -run ExecFixtures`.
+- Coverage index lives at `v12/fixtures/exec/coverage-index.json`; `v12/scripts/check-exec-coverage.mjs` (invoked by `run_all_tests.sh`) validates seeded IDs stay in sync with the fixture directories.

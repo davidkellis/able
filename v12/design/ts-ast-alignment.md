@@ -1,6 +1,9 @@
-# TypeScript AST Alignment Notes (Able v11)
+# TypeScript AST Alignment Notes (Able v12)
 
-This document compares the canonical schema (see `design/ast-schema-v11.md`) with the existing TypeScript AST implementation in `v11/interpreters/ts/src/ast.ts`.
+> Archived: the TypeScript interpreter was removed from v12. This document is kept
+> for historical context only.
+
+This document compares the canonical schema (see `design/ast-schema-v12.md`) with the existing TypeScript AST implementation in `v12/interpreters/ts/src/ast.ts`.
 
 ## Summary
 

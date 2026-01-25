@@ -135,8 +135,8 @@ func runFixture(dir, entry string, setup []string, executor interpreter.Executor
 
 	loadStdlib := func(entryFile string) error {
 		repoRoot := filepath.Clean(filepath.Join("..", "..", ".."))
-		stdlibRoot := filepath.Join(repoRoot, "v11", "stdlib", "src")
-		kernelRoot := filepath.Join(repoRoot, "v11", "kernel", "src")
+		stdlibRoot := filepath.Join(repoRoot, "v12", "stdlib", "src")
+		kernelRoot := filepath.Join(repoRoot, "v12", "kernel", "src")
 		loader, err := driver.NewLoader([]driver.SearchPath{
 			{Path: stdlibRoot, Kind: driver.RootStdlib},
 			{Path: kernelRoot, Kind: driver.RootStdlib},

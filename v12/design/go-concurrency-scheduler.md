@@ -1,11 +1,11 @@
 # Go Concurrency Design
 
-This document captures the implementation strategy for Able v11 concurrency inside the Go interpreter.  
+This document captures the implementation strategy for Able v12 concurrency inside the Go interpreter.  
 The guiding requirement is to **express Able’s unified `spawn`/`Future` semantics directly in terms of Go’s native concurrency primitives** (goroutines, channels, contexts, sync utilities) while keeping the runtime abstraction as thin as possible. The TypeScript interpreter now implements the same executor contract (see `design/concurrency-executor-contract.md`) on top of its cooperative scheduler, so both runtimes share identical helper semantics.
 
 ## 1. Goals and Constraints
 
-* **Spec compliance.** Implement Section 12 of the v11 spec (`spawn`, `Future` interface, cancellation, status reporting, `future_yield`, `future_cancelled`) and surface the expected status/value/cancellation behaviours.
+* **Spec compliance.** Implement Section 12 of the v12 spec (`spawn`, `Future` interface, cancellation, status reporting, `future_yield`, `future_cancelled`) and surface the expected status/value/cancellation behaviours.
 * **Go-native execution.** Launch asynchronous work with goroutines, use `context.Context` (and/or simple channels) for cancellation, and rely on Go’s blocking primitives for `value()`/future evaluation.
 * **Lightweight abstraction.** Avoid building a bespoke scheduler. Instead manage bookkeeping around goroutines so the interpreter can translate between Able constructs and Go handles.
 * **Deterministic tests.** Provide a deterministic execution mode for unit tests (single-threaded executor with controlled scheduling points) so parity suites remain repeatable.

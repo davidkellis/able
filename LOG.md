@@ -1,5 +1,17 @@
 # Able Project Log
 
+# 2026-01-25 — Go fixture exporter + interface runtime fixes (v12)
+- Tooling: added a Go fixture exporter (`v12/interpreters/go/cmd/fixture-exporter`) and wired `v12/export_fixtures.sh` to use it; moved fixture normalization into the parser package and updated JSON encoding for integer literals.
+- Runtime: fixed interface-method receiver selection + generic `Self` checks so interface dictionaries and generic impls no longer trip runtime type mismatches; relaxed impl matching to treat wildcard generics as compatible with concrete args.
+- Docs: removed the outdated “Go exporter TODO” note from the manual.
+- Tests: `./run_all_tests.sh`; `./run_stdlib_tests.sh`.
+
+# 2026-01-25 — v12 fork + Go-only toolchain
+- Forked v11 → v12 and added `spec/full_spec_v12.md` plus `spec/TODO_v12.md`.
+- Removed the TypeScript interpreter from v12; introduced Go-only CLI wrappers `abletw` (tree-walker) and `ablebc` (bytecode).
+- Updated root docs/scripts to default to v12 and Go-only test runners; v10/v11 frozen.
+- Tests not run (workspace + docs refactor).
+
 # 2026-01-24 — Iterator interface returns + constraint-arity fixture cleanup (v11)
 - Go interpreter: treat Iterator interface return values as iterators during for/each by accepting `IteratorValue` in `adaptIteratorValue`.
 - Fixtures: removed duplicate constraint-interface-arity diagnostics from exported manifests via the TS fixture definitions; re-exported fixtures.

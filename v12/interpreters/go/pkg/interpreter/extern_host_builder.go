@@ -14,7 +14,7 @@ import (
 )
 
 func buildExternModule(pkgName string, target ast.HostTarget, state *externTargetState, hash string) (*externHostModule, error) {
-	cacheDir := filepath.Join(os.TempDir(), "able-v11-extern-go", sanitizePackageName(pkgName), hash)
+	cacheDir := filepath.Join(os.TempDir(), "able-v12-extern-go", sanitizePackageName(pkgName), hash)
 	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
 		return nil, fmt.Errorf("extern cache mkdir: %w", err)
 	}

@@ -14,7 +14,7 @@ var serialOnlyConcurrencyFixtures = map[string]struct{}{
 }
 
 func TestFixtureParityStringLiteral(t *testing.T) {
-	root := filepath.Join(repositoryRoot(), "v11", "fixtures", "ast")
+	root := filepath.Join(repositoryRoot(), "v12", "fixtures", "ast")
 	if _, err := os.Stat(root); os.IsNotExist(err) {
 		root = filepath.Join("..", "..", "fixtures", "ast")
 	}

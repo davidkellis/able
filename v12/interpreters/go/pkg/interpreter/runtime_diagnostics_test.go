@@ -17,7 +17,7 @@ func TestRuntimeDiagnosticsFormatting(t *testing.T) {
 		t.Fatalf("expected diagnostic root path")
 	}
 
-	path := filepath.Join(root, "v11/fixtures/exec/11_03_raise_exit_unhandled/main.able")
+	path := filepath.Join(root, "v12/fixtures/exec/11_03_raise_exit_unhandled/main.able")
 	errorNode := ast.ID("boom")
 	callNode := ast.Call("boom")
 	ast.SetSpan(errorNode, ast.Span{

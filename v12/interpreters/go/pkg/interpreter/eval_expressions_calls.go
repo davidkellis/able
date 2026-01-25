@@ -514,6 +514,12 @@ func (i *Interpreter) matchesParamTypeForOverload(fn *runtime.FunctionValue, par
 	}
 	if simple, ok := param.(*ast.SimpleTypeExpression); ok && simple != nil && simple.Name != nil && simple.Name.Name == "Self" {
 		if fn != nil && fn.MethodSet != nil && fn.MethodSet.TargetType != nil {
+			if len(fn.MethodSet.GenericParams) > 0 {
+				genericNames := genericNameSet(fn.MethodSet.GenericParams)
+				if typeExpressionUsesGenerics(fn.MethodSet.TargetType, genericNames) {
+					return true
+				}
+			}
 			return i.matchesType(fn.MethodSet.TargetType, value)
 		}
 	}
