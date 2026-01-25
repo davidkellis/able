@@ -1,0 +1,7 @@
+package iface_defs
+
+## Semantics: interface-typed values keep dictionaries when stored in structs.
+
+interface Greeter for Self {
+  fn greet(self: Self) -> String
+}

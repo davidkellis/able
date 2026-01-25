@@ -10,8 +10,8 @@ The parity harness is TODO. Once wired, it should:
 - emit a machine-readable JSON report for CI.
 
 ## Planned CLI contract
-- `ABLE_EXEC_MODE=treewalker|bytecode` selects the interpreter mode.
-- `./run_all_tests.sh --fixture` runs the Go fixture suite (future: both modes).
+- `--exec-mode=treewalker|bytecode` selects the interpreter mode.
+- `./run_all_tests.sh --fixture` runs the Go fixture suite in both exec modes.
 - A dedicated parity runner should write `v12/tmp/parity-report.json`.
 
 ## CI integration (planned)

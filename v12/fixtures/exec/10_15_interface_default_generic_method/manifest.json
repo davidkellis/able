@@ -1,0 +1,11 @@
+{
+  "description": "interface default generic methods dispatch through dictionary entries",
+  "setup": ["iface_defs.able", "impls.able"],
+  "expect": {
+    "stdout": [
+      "tag L alpha",
+      "tag L 7"
+    ],
+    "exit": 0
+  }
+}

@@ -71,9 +71,11 @@ echo ">>> Running Go tests"
   tmp_gocache="$(mktemp -d)"
   trap 'rm -rf "$tmp_gocache"' EXIT
   if [[ "$FIXTURE_ONLY" == true ]]; then
-    ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" GOCACHE="$tmp_gocache" go test ./pkg/interpreter -run 'Fixture' -count=1
+    ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" GOCACHE="$tmp_gocache" go test ./pkg/interpreter -run 'Fixture' -count=1 -exec-mode=treewalker
+    ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" GOCACHE="$tmp_gocache" go test ./pkg/interpreter -run 'Fixture' -count=1 -exec-mode=bytecode
   else
     ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" GOCACHE="$tmp_gocache" go test ./...
+    ABLE_TYPECHECK_FIXTURES="$TYPECHECK_FIXTURES_MODE" GOCACHE="$tmp_gocache" go test ./pkg/interpreter -run 'Fixture' -count=1 -exec-mode=bytecode
   fi
 )
 

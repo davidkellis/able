@@ -9,11 +9,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"able/interpreter-go/pkg/interpreter"
 )
 
-func runTest(args []string) int {
+func runTest(args []string, execMode interpreterMode) int {
 	config, err := parseTestArguments(args)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "able test: %v\n", err)
@@ -48,7 +46,7 @@ func runTest(args []string) int {
 		return code
 	}
 
-	interp := interpreter.New()
+	interp := newInterpreter(execMode)
 	registerPrint(interp)
 
 	if ok, code := evaluateTestModules(interp, loadResult.modules); !ok {

@@ -162,9 +162,10 @@ fi
 ensure_go_dir
 mkdir -p "$GO_CACHE"
 build_go_args "${cmd_args[@]}"
+GO_ARGS=(--exec-mode="$EXEC_MODE" "${GO_ARGS[@]}")
 
 echo "[Able v12 Bytecode] go run ./cmd/able ${GO_ARGS[*]}"
-if env GOCACHE="$GO_CACHE" ABLE_EXEC_MODE="$EXEC_MODE" go run -C "$GO_DIR" ./cmd/able "${GO_ARGS[@]}"; then
+if env GOCACHE="$GO_CACHE" go run -C "$GO_DIR" ./cmd/able "${GO_ARGS[@]}"; then
   exit 0
 else
   code=$?

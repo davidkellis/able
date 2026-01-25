@@ -1,0 +1,14 @@
+package exec_10_15_interface_default_generic_method
+
+import exec_10_15_interface_default_generic_method.iface_defs.{Tagger}
+import exec_10_15_interface_default_generic_method.impls.{Labeler}
+
+## Semantics: interface-typed values call default generic methods via dictionaries.
+
+fn main() -> void {
+  labeler: Tagger = Labeler { label: "L" }
+  first := labeler.tagged("alpha")
+  second := labeler.tagged<i32>(7)
+  print(`tag ${first.tag} ${first.value}`)
+  print(`tag ${second.tag} ${second.value}`)
+}

@@ -13,15 +13,15 @@ import (
 	"able/interpreter-go/pkg/interpreter"
 )
 
-func runEntry(args []string) int {
-	return runEntryWithMode(args, modeRun)
+func runEntry(args []string, execMode interpreterMode) int {
+	return runEntryWithMode(args, modeRun, execMode)
 }
 
-func runCheck(args []string) int {
-	return runEntryWithMode(args, modeCheck)
+func runCheck(args []string, execMode interpreterMode) int {
+	return runEntryWithMode(args, modeCheck, execMode)
 }
 
-func runRepl(args []string) int {
+func runRepl(args []string, execMode interpreterMode) int {
 	if len(args) > 0 {
 		fmt.Fprintf(os.Stderr, "able repl does not take arguments (received %s)\n", strings.Join(args, " "))
 		return 1
@@ -50,10 +50,10 @@ func runRepl(args []string) int {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		return 1
 	}
-	return executeEntry(entryPath, manifest, lock, modeRun, nil)
+	return executeEntry(entryPath, manifest, lock, modeRun, execMode, nil)
 }
 
-func runEntryWithMode(args []string, mode executionMode) int {
+func runEntryWithMode(args []string, mode executionMode, execMode interpreterMode) int {
 	var manifest *driver.Manifest
 	var manifestErr error
 	programArgs := []string{}
@@ -103,7 +103,7 @@ func runEntryWithMode(args []string, mode executionMode) int {
 			fmt.Fprintf(os.Stderr, "failed to resolve target entrypoint: %v\n", err)
 			return 1
 		}
-		return executeEntry(entryPath, manifest, lock, mode, programArgs)
+		return executeEntry(entryPath, manifest, lock, mode, execMode, programArgs)
 	}
 
 	candidate := args[0]
@@ -120,7 +120,7 @@ func runEntryWithMode(args []string, mode executionMode) int {
 				fmt.Fprintf(os.Stderr, "%v\n", err)
 				return 1
 			}
-			return executeEntry(entryPath, manifest, lock, mode, programArgs)
+			return executeEntry(entryPath, manifest, lock, mode, execMode, programArgs)
 		}
 	}
 
@@ -147,10 +147,10 @@ func runEntryWithMode(args []string, mode executionMode) int {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		return 1
 	}
-	return executeEntry(candidate, activeManifest, lock, mode, programArgs)
+	return executeEntry(candidate, activeManifest, lock, mode, execMode, programArgs)
 }
 
-func executeEntry(entry string, manifest *driver.Manifest, lock *driver.Lockfile, mode executionMode, programArgs []string) int {
+func executeEntry(entry string, manifest *driver.Manifest, lock *driver.Lockfile, mode executionMode, execMode interpreterMode, programArgs []string) int {
 	entry = strings.TrimSpace(entry)
 	if entry == "" {
 		fmt.Fprintf(os.Stderr, "%s requires a source file\n", modeCommandLabel(mode))
@@ -201,7 +201,7 @@ func executeEntry(entry string, manifest *driver.Manifest, lock *driver.Lockfile
 		return 0
 	}
 
-	interp := interpreter.New()
+	interp := newInterpreter(execMode)
 	interp.SetArgs(programArgs)
 	registerPrint(interp)
 
