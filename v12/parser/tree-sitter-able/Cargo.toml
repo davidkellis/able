@@ -1,6 +1,6 @@
 [package]
 name = "tree-sitter-able"
-description = "Able language parser (v11 spec)"
+description = "Able language parser (v12 spec)"
 version = "0.1.0"
 authors = ["David Ellis <david@conquerthelawn.com>"]
 license = "epl-2.0"

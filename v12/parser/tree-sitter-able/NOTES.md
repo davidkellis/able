@@ -1,6 +1,6 @@
-# Able v11 Parsing Notes
+# Able v12 Parsing Notes
 
-This workspace tracks reference data pulled from `spec/full_spec_v11.md` while
+This workspace tracks reference data pulled from `spec/full_spec_v12.md` while
 the grammar comes together. Nothing here is authoritative; the spec remains the
 source of truth.
 
@@ -14,7 +14,7 @@ source of truth.
 
 The grammar should treat these as reserved tokens when parsing identifiers.
 
-## Operator precedence (v11)
+## Operator precedence (v12)
 
 Pulled from §6.3.1. Highest precedence is listed first.
 
@@ -39,14 +39,14 @@ Pulled from §6.3.1. Highest precedence is listed first.
 | 0    | `\\|>`                                                                    | Pipe-forward                          |
 
 Notes:
-- Safe navigation (`?.`) is *not* part of v11; postpone until the v11 grammar.
+- Safe navigation (`?.`) is *not* part of v12; postpone until the v12 grammar.
 - Equality/comparison operators are non-associative (no chaining without
   explicit parentheses).
 - Pipe-forward is the only operator defined below assignment.
 
 ## Immediate parser TODOs
 
-1. Confirm the v11 story for `type` aliases / module metadata before adding
+1. Confirm the v12 story for `type` aliases / module metadata before adding
    syntax; declaration generics + composite interfaces + host interop are now
    covered.
 2. Thread placeholder tokens and enriched async/error nodes through the AST

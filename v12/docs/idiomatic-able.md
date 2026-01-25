@@ -1,7 +1,7 @@
 # Idiomatic Able Code Guide
 
-This guide captures conventions for writing idiomatic Able v11. The spec
-(`spec/full_spec_v11.md`) remains authoritative; this document focuses on
+This guide captures conventions for writing idiomatic Able v12. The spec
+(`spec/full_spec_v12.md`) remains authoritative; this document focuses on
 readability, predictable control flow, and consistency across projects.
 
 ## Core Principles

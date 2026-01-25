@@ -2,13 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Able v11 Manual — Stdlib, Interop, Tooling</title>
+    <title>Able v12 Manual — Stdlib, Interop, Tooling</title>
     <link rel="stylesheet" href="manual.css" />
   </head>
   <body>
     <div class="layout">
       <nav class="sidebar">
-        <span class="brand">Able v11 Manual</span>
+        <span class="brand">Able v12 Manual</span>
         <ul>
           <li><a href="index.html">Getting Started</a></li>
           <li><a href="variables.html">Syntax &amp; Expressions</a></li>
@@ -48,7 +48,7 @@
         <p>
           Embed host-language code with <code>prelude &lt;target&gt; { ... }</code>
           at package scope and <code>extern &lt;target&gt; fn ... { ... }</code>
-          bodies (Go, Crystal, TypeScript, Python, Ruby). Supported mappings
+          bodies (Go, Crystal, JavaScript, Python, Ruby). Supported mappings
           cover primitives, <code>String</code>, arrays (copy-in/copy-out),
           <code>?T</code>, and <code>!T</code>. Use <code>host_error(msg)</code>
           to convert host failures to Able <code>Error</code>s. Dynamic packages
@@ -62,22 +62,21 @@
         </p>
         <p>Language implementation tests (interpreter/spec work):</p>
         <ul>
-          <li><code>bun test</code> in <code>v11/interpreters/ts</code></li>
-          <li><code>go test ./...</code> in <code>v11/interpreters/go</code></li>
-          <li>Fixtures: edit under <code>v11/fixtures</code>, export via <code>bun run scripts/export-fixtures.ts</code>, run with <code>bun run scripts/run-fixtures.ts</code> and <code>go test ./pkg/interpreter</code>.</li>
-          <li>Full suite: <code>./run_all_tests.sh --version=v11</code></li>
+          <li><code>go test ./...</code> in <code>v12/interpreters/go</code></li>
+          <li>Fixtures: edit under <code>v12/fixtures</code>, export via <code>./v12/export_fixtures.sh</code>, run with <code>go test ./pkg/interpreter</code>.</li>
+          <li>Full suite: <code>./run_all_tests.sh --version=v12</code></li>
         </ul>
         <p>User-facing testing framework (Able program tests):</p>
         <ul>
-          <li><code>able test</code> (planned; see <code>v11/design/testing-cli-design.md</code>)</li>
+          <li><code>able test</code> (planned; see <code>v12/design/testing-cli-design.md</code>)</li>
           <li>Matchers and DSL live under <code>able.spec</code>; the CLI contract and harness live under <code>able.test.*</code>.</li>
         </ul>
         <p>
-          When semantics are uncertain, consult <code>spec/full_spec_v11.md</code>,
+          When semantics are uncertain, consult <code>spec/full_spec_v12.md</code>,
           add fixtures, and compare both interpreters before landing changes.
         </p>
         <footer class="manual-footer">
-          Able v11 manual · Stdlib, Interop, Tooling
+          Able v12 manual · Stdlib, Interop, Tooling
         </footer>
       </main>
     </div>

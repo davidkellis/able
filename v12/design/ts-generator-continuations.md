@@ -1,10 +1,13 @@
 # TypeScript Generator Continuations
 
+> Archived: the TypeScript interpreter was removed from v12. This document is kept
+> for historical context only.
+
 Status: Draft – implementation pending  
-Owners: Able v11 TypeScript interpreter track
+Owners: Able v12 TypeScript interpreter track
 
 ## Goals
-- Add lazy iterator semantics to the TypeScript interpreter that match §6.7 / §14 of the v11 spec and the new Go runtime implementation.
+- Add lazy iterator semantics to the TypeScript interpreter that match §6.7 / §14 of the v12 spec and the new Go runtime implementation.
 - Support generator literals (`Iterator { gen => ... }`) and the `Iterator`/`Iterable` protocol without forcing eager precomputation of elements.
 - Keep the implementation incremental: surface the iterator runtime primitives first, then port `for` loops and stdlib helpers to consume them lazily.
 
@@ -90,7 +93,7 @@ Owners: Able v11 TypeScript interpreter track
    - Surface `IteratorEnd`, ensure `iterator()` dispatch works, and update stdlib/channel helpers once runtime is stable.
 
 ## Testing Strategy
-- Mirror the Go tests in `interpreter-go/pkg/interpreter/interpreter_iterators_test.go` with Bun tests under `v11/interpreters/ts/test/runtime/iterators.test.ts`.
+- Mirror the Go tests in `interpreter-go/pkg/interpreter/interpreter_iterators_test.go` with Bun tests under `v12/interpreters/ts/test/runtime/iterators.test.ts`.
 - Add fixture coverage (`fixtures/ast/*`) once the runtime semantics are solid so both interpreters stay in lockstep.
 - Run `./run_all_tests.sh` before landing to keep TypeScript + Go parity green.
 

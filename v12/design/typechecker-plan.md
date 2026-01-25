@@ -1,4 +1,4 @@
-# Able v11 Typechecker Plan (Go)
+# Able v12 Typechecker Plan (Go)
 
 Date: 2025‑10‑19  
 Owner: Able Agents
@@ -97,13 +97,13 @@ next passes should prioritise:
   module (name, exported symbol map, struct/interface/function metadata, and the
   implementation/method-set registries) along with any recorded obligations or
   where-clause requirements. The TypeScript definition lives in
-  `v11/interpreters/ts/src/typechecker/diagnostics.ts` and mirrors the Go struct in
+  `v12/interpreters/ts/src/typechecker/diagnostics.ts` and mirrors the Go struct in
   `interpreter-go/pkg/typechecker/program_checker.go`.
 - **Go CLI**: `interpreter-go/cmd/able/main.go` prints the summary block under
   `---- package export summary ----` whenever `able run` exits due to
   typechecker errors (see the assertions in `main_test.go`). This keeps users
   informed about which packages failed to export complete surfaces.
-- **Bun CLI/harness**: the Bun fixture runner (`v11/interpreters/ts/scripts/run-fixtures.ts`)
+- **Bun CLI/harness**: the Bun fixture runner (`v12/interpreters/ts/scripts/run-fixtures.ts`)
   now emits the same summary block whenever diagnostics appear while running
   with `ABLE_TYPECHECK_FIXTURES=warn|strict`. This mirrors the Go output so Bun
   developers and tooling receive the same signals while we wire the broader CLI
@@ -113,7 +113,7 @@ Documenting the shared surface up front makes it easier to extend future CLI
 commands (`able check`, `able test`) and editor tooling without re-deriving the
 export metadata.
 
-### Multi-package typechecking roadmap (v11 alignment)
+### Multi-package typechecking roadmap (v12 alignment)
 
 - **Session model** – introduce a `ProgramChecker` (or similar) that owns a
   single `Checker`, a registry of package exports, and the dependency-ordered
@@ -130,7 +130,7 @@ export metadata.
   dedicated package namespace type that exposes the exported identifiers via
   member access (`foo.Bar`, `foo.main`). Selective and aliased imports bind the
   same export entries directly into scope, and `import foo.*;` splats every
-  public symbol (detecting duplicates per v11 rules).
+  public symbol (detecting duplicates per v12 rules).
 - **Impl propagation** – ensure implementations and method sets defined in one
   package remain available when another package imports it. Merge per-package
   tables into the session export data during capture so cross-package interface
@@ -141,7 +141,7 @@ export metadata.
   describe the new behaviour.
 - **Fixtures/tests** – add cross-package fixtures that exercise imports,
   privacy, aliasing, wildcard splats, and impl visibility. Gate them in both the
-  Go CLI tests and the checker’s unit suite so parity with the v11 spec stays
+  Go CLI tests and the checker’s unit suite so parity with the v12 spec stays
   enforced, and mirror the cases in Bun once parity lands.
 
 ## Dependencies / assumptions

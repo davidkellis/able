@@ -5,7 +5,7 @@
       "type alias name '_' is reserved"
     ],
     "typecheckDiagnostics": [
-      "typechecker: v11/fixtures/ast/errors/type_alias_underscore_reserved/source.able:1:1 typechecker: type alias name '_' is reserved"
+      "typechecker: v12/fixtures/ast/errors/type_alias_underscore_reserved/source.able:1:1 typechecker: type alias name '_' is reserved"
     ]
   },
   "entry": "module.json"

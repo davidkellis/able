@@ -1,5 +1,5 @@
 /**
- * @file Able language parser (v11 spec)
+ * @file Able language parser (v12 spec)
  * @author David Ellis <david@conquerthelawn.com>
  * @license epl-2.0
  */

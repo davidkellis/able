@@ -1,11 +1,11 @@
-# Able v11 AST Contract (Go)
+# Able v12 AST Contract (Go)
 
 Date: 2025‑10‑19  
 Maintainer: Able Agents
 
 ## Purpose
 
-This note captures the v11 AST shape implemented in `interpreter-go/pkg/ast`
+This note captures the v12 AST shape implemented in `interpreter-go/pkg/ast`
 and highlights the metadata that downstream tooling (typechecker, parser,
 compiler) can rely on. The AST is shared across interpreters; changes must be
 treated as breaking for all runtimes and fixture exporters.
@@ -22,15 +22,14 @@ project maintains three independent test layers around the AST contract:
 2. **Parser (CST) conformance** — The tree-sitter grammar corpus (`parser10/tree-sitter-able/test/corpus`
    and Go `pkg/parser/parser_test.go`) exercises pure parsing, asserting that
    Able source text yields the expected concrete syntax trees.
-3. **Parser→AST mapping** — Mapper tests (Go: `pkg/parser/parser_test.go`,
-   TS: `test/parser/fixtures_mapper.test.ts`) convert parse trees into AST
-   nodes and compare them against the canonical `module.json` fixtures.
+3. **Parser→AST mapping** — Mapper tests (Go: `pkg/parser/parser_test.go`)
+   convert parse trees into AST nodes and compare them against the canonical
+   `module.json` fixtures.
 
 These layers must remain independent: AST semantics do not rely on parser
 output, and parser regressions cannot silently skew interpreter behaviour.
-End-to-end fixture runs (`pkg/interpreter/fixtures_parity_test.go`,
-`v11/interpreters/ts/scripts/run-fixtures.ts`) sit on top of the three layers to
-verify the full pipeline but do not replace the isolated suites.
+End-to-end fixture runs (`pkg/interpreter/fixtures_parity_test.go`) sit on top of
+the three layers to verify the full pipeline but do not replace the isolated suites.
 Fixture manifests may include setup modules (for example, `package.json`) that
 now point at dedicated `<name>.able` sources; loader helpers fall back to
 `source.able` only for the primary module, keeping multi-module fixtures in

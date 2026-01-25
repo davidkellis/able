@@ -1,4 +1,4 @@
-# Able v11 Parser Roadmap
+# Able v12 Parser Roadmap
 
 Date: 2025‑10‑19  
 Owner: Able Agents
@@ -9,12 +9,12 @@ Owner: Able Agents
 - Typechecker plan established (`design/typechecker-plan.md`); any structural
   changes must land there before parser implementation begins.
 - Concurrency semantics anchored on the Go interpreter’s goroutine model.
-- Safe navigation (`?.`) is deferred to the v11 language cycle; the v11 parser
+- Safe navigation (`?.`) is deferred to the v12 language cycle; the v12 parser
   must only recognise the existing `.` member access operator.
 
 ## Objectives
 
-1. Parse Able v11 source into the existing AST without introducing new node
+1. Parse Able v12 source into the existing AST without introducing new node
    shapes.
 2. Provide meaningful syntax diagnostics (line/column) while still allowing the
    interpreter to execute well-formed inputs.
@@ -24,7 +24,7 @@ Owner: Able Agents
 ## High-level phases
 
 1. **Grammar definition**
-   - Derive a formal grammar from `spec/full_spec_v11.md` and validate it
+   - Derive a formal grammar from `spec/full_spec_v12.md` and validate it
      against existing fixtures.
    - Encode precedence/associativity rules for expressions, including async
      constructs and cooperative helpers.

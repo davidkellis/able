@@ -12,7 +12,7 @@ import (
 )
 
 func TestExecFixtures(t *testing.T) {
-	root := filepath.Join(repositoryRoot(), "v11", "fixtures", "exec")
+	root := filepath.Join(repositoryRoot(), "v12", "fixtures", "exec")
 	if _, err := os.Stat(root); os.IsNotExist(err) {
 		root = filepath.Join("..", "..", "fixtures", "exec")
 	}
@@ -343,7 +343,7 @@ func findKernelRoots(start string) []string {
 	for {
 		for _, candidate := range []string{
 			filepath.Join(dir, "kernel", "src"),
-			filepath.Join(dir, "v11", "kernel", "src"),
+			filepath.Join(dir, "v12", "kernel", "src"),
 			filepath.Join(dir, "ablekernel", "src"),
 			filepath.Join(dir, "able_kernel", "src"),
 		} {
@@ -372,8 +372,8 @@ func findStdlibRoots(start string) []string {
 	for {
 		for _, candidate := range []string{
 			filepath.Join(dir, "stdlib", "src"),
-			filepath.Join(dir, "v11", "stdlib", "src"),
-			filepath.Join(dir, "stdlib", "v11", "src"),
+			filepath.Join(dir, "v12", "stdlib", "src"),
+			filepath.Join(dir, "stdlib", "v12", "src"),
 			filepath.Join(dir, "able-stdlib", "src"),
 			filepath.Join(dir, "able_stdlib", "src"),
 		} {

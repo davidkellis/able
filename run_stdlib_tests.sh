@@ -3,7 +3,7 @@ set -u
 set -o pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TEST_DIR="$ROOT/v11/stdlib/tests"
+TEST_DIR="$ROOT/v12/stdlib/tests"
 
 run_cmd() {
   local label="$1"
@@ -16,17 +16,17 @@ run_cmd() {
 
 status=0
 
-if run_cmd "Able v11 TypeScript stdlib tests" "\"$ROOT/v11/ablets\" test \"$TEST_DIR\""; then
-  echo "TypeScript stdlib tests passed."
+if run_cmd "Able v12 Go treewalker stdlib tests" "\"$ROOT/v12/abletw\" test \"$TEST_DIR\""; then
+  echo "Treewalker stdlib tests passed."
 else
-  echo "TypeScript stdlib tests failed."
+  echo "Treewalker stdlib tests failed."
   status=1
 fi
 
-if run_cmd "Able v11 Go stdlib tests" "\"$ROOT/v11/ablego\" test \"$TEST_DIR\""; then
-  echo "Go stdlib tests passed."
+if run_cmd "Able v12 Go bytecode stdlib tests" "\"$ROOT/v12/ablebc\" test \"$TEST_DIR\""; then
+  echo "Bytecode stdlib tests passed."
 else
-  echo "Go stdlib tests failed."
+  echo "Bytecode stdlib tests failed."
   status=1
 fi
 

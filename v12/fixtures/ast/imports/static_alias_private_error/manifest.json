@@ -5,7 +5,7 @@
       "No public member 'hidden' on package util_static"
     ],
     "typecheckDiagnostics": [
-      "typechecker: v11/fixtures/ast/imports/static_alias_private_error/source.able:3:1 typechecker: package 'util_static' has no symbol 'hidden'"
+      "typechecker: v12/fixtures/ast/imports/static_alias_private_error/source.able:3:1 typechecker: package 'util_static' has no symbol 'hidden'"
     ]
   },
   "entry": "source.able",

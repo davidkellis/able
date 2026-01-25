@@ -5,7 +5,7 @@ import (
 	"math/big"
 )
 
-// Type represents an Able v11 type understood by the checker.
+// Type represents an Able v12 type understood by the checker.
 type Type interface {
 	Name() string
 }

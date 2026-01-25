@@ -1,6 +1,6 @@
-# Able v11 Go Runtime Outline
+# Able v12 Go Runtime Outline
 
-This document sketches the runtime design for the Go reference interpreter (Phase 2 of the project plan). It targets Go 1.22+ and mirrors the semantics in `spec/full_spec_v11.md` and the existing TypeScript interpreter while embracing Go-native concurrency primitives.
+This document sketches the runtime design for the Go reference interpreter (Phase 2 of the project plan). It targets Go 1.22+ and mirrors the semantics in `spec/full_spec_v12.md` and the existing TypeScript interpreter while embracing Go-native concurrency primitives.
 
 ## 1. Core Value Representation
 

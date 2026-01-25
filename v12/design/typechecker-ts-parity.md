@@ -1,5 +1,8 @@
 # TypeScript Typechecker Parity Plan
 
+> Archived: the TypeScript interpreter was removed from v12. This document is kept
+> for historical context only.
+
 Date: 2025-10-20  
 Owner: Able Agents
 
@@ -19,7 +22,7 @@ Before the TypeScript checker is enabled, we need parity so both runtimes agree 
 ## Plan of record
 
 1. **Scaffold the TypeScript checker**
-   - Establish a `v11/interpreters/ts/src/typechecker/` module with `checker.ts`, `environment.ts`, `types.ts`, and `inference.ts` mirroring the Go structure.
+   - Establish a `v12/interpreters/ts/src/typechecker/` module with `checker.ts`, `environment.ts`, `types.ts`, and `inference.ts` mirroring the Go structure.
    - Port declaration collection and builtin registration first so scopes/builtins align.
 
 2. **Port permissive rules**

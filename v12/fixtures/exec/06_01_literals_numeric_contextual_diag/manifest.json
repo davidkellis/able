@@ -2,7 +2,7 @@
   "description": "out-of-range numeric literal in typed context raises an error",
   "expect": {
     "typecheckDiagnostics": [
-      "typechecker: v11/fixtures/exec/06_01_literals_numeric_contextual_diag/main.able:6:3 typechecker: literal 300 does not fit in u8"
+      "typechecker: v12/fixtures/exec/06_01_literals_numeric_contextual_diag/main.able:6:3 typechecker: literal 300 does not fit in u8"
     ]
   }
 }

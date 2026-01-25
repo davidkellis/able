@@ -2,7 +2,7 @@
   "description": "raises an error and exits non-zero",
   "expect": {
     "stderr": [
-      "runtime: v11/fixtures/exec/11_03_raise_exit_unhandled/main.able:6:3 boom"
+      "runtime: v12/fixtures/exec/11_03_raise_exit_unhandled/main.able:6:3 boom"
     ],
     "exit": 1
   }

@@ -5,7 +5,7 @@
       "Functional update source must be a struct instance"
     ],
     "typecheckDiagnostics": [
-      "typechecker: v11/fixtures/ast/errors/struct_functional_update_source/source.able:5:23 typechecker: functional update expects struct Point, got Array i32"
+      "typechecker: v12/fixtures/ast/errors/struct_functional_update_source/source.able:5:23 typechecker: functional update expects struct Point, got Array i32"
     ]
   },
   "entry": "module.json"

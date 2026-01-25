@@ -2,7 +2,7 @@
   "description": "typechecker flags return type mismatch before runtime",
   "expect": {
     "typecheckDiagnostics": [
-      "typechecker: v11/fixtures/exec/11_01_return_statement_typecheck_diag/main.able:7:5 typechecker: return expects i32, got void"
+      "typechecker: v12/fixtures/exec/11_01_return_statement_typecheck_diag/main.able:7:5 typechecker: return expects i32, got void"
     ]
   }
 }

@@ -10,7 +10,7 @@ import (
 	"able/interpreter-go/pkg/parser/language"
 )
 
-// ModuleParser wraps a tree-sitter parser configured for Able v11 modules.
+// ModuleParser wraps a tree-sitter parser configured for Able v12 modules.
 type ModuleParser struct {
 	parser *sitter.Parser
 }

@@ -1,20 +1,16 @@
-# Able v11 Go Interpreter
+# Able v12 Go Interpreter
 
-This package hosts the Go reference interpreter for the Able v11 language. The Go implementation is the canonical runtime that must match `spec/full_spec_v11.md` exactly and stay in lockstep with other interpreters on the shared AST and semantics.
+This package hosts the Go reference interpreters for the Able v12 language. The Go implementation is the canonical runtime that must match `spec/full_spec_v12.md` exactly and keep the tree-walking and bytecode modes in lockstep on the shared AST and semantics.
 
 This repository now hosts the stable, canonical runtime. Shared AST fixtures
-(`fixtures/ast`) and the strict test harness keep the Go and Bun interpreters in
-lockstep with the specification (`./run_all_tests.sh --typecheck-fixtures=strict`).
+(`fixtures/ast`) and the strict test harness keep the Go interpreters aligned
+with the specification (`./run_all_tests.sh --typecheck-fixtures=strict`).
 
-## Cross-interpreter parity harness
+## Tree-walker + bytecode parity
 
-Run `./run_all_tests.sh` (or `bun run scripts/run-parity.ts` inside `v11/interpreters/ts/`) to evaluate both interpreters against the shared AST fixtures and curated examples. The script:
-
-- Builds the Go fixture CLI (`cmd/fixture`) and example runner (`cmd/able`) once per run.
-- Executes Bun + Go for every fixture/example, diffing results, stdout, and diagnostics.
-- Drops a machine-readable JSON summary at `tmp/parity-report.json` (overridable via `--report`). Set `ABLE_PARITY_REPORT_DEST=/path/to/artifact.json` or `CI_ARTIFACTS_DIR=/path/to/artifacts` to copy the report automatically for both the parity CLI and `run_all_tests.sh`.
-
-Keep this harness green before landing changes—parity failures mean one interpreter diverged from the canonical semantics.
+Run `./run_all_tests.sh` to evaluate fixtures and unit tests. As the bytecode VM
+expands, add parity checks that run fixtures through both execution modes and
+diff results, stdout, and diagnostics. Keep parity green before landing changes.
 
 ## API documentation
 
@@ -50,9 +46,9 @@ Test suites:
 - `pkg/interpreter/interpreter_patterns_test.go` – pattern matching, destructuring, loop patterns.
 - `pkg/interpreter/interpreter_structs_test.go` – struct literals, mutation, array index helpers.
 - `pkg/interpreter/interpreter_interfaces_test.go` – interface dispatch, defaults, union specificity checks.
-- `pkg/interpreter/impl_resolution_test.go` – focused trait resolution parity cases carried over from TypeScript.
+- `pkg/interpreter/impl_resolution_test.go` – focused trait resolution parity cases.
 
-This separation mirrors the TypeScript interpreter’s feature boundaries, keeps diffs small, and allows future contributors to extend a subsystem without wading through a monolithic file. When adding new language features, prefer extending the relevant feature file or creating a new one instead of growing `interpreter.go` or the umbrella tests.
+This separation mirrors subsystem boundaries, keeps diffs small, and allows future contributors to extend a subsystem without wading through a monolithic file. When adding new language features, prefer extending the relevant feature file or creating a new one instead of growing `interpreter.go` or the umbrella tests.
 
 ## Concurrency model
 
@@ -66,10 +62,10 @@ See `design/go-concurrency.md` for a deeper dive and open follow-ups.
 
 ## Typechecker status
 
-- The Go-native typechecker in `pkg/typechecker` now covers the full v11 surface
+- The Go-native typechecker in `pkg/typechecker` now covers the full v12 surface
   (declarations, expressions, patterns, constraint solving).
 - Design notes and future enhancement ideas live in `design/typechecker.md` and
-  `design/typechecker-plan.md` (spans, incremental checking, TS parity).
+  `design/typechecker-plan.md` (spans, incremental checking, perf).
 - Fixture/test harnesses default to strict typechecking; set
   `ABLE_TYPECHECK_FIXTURES=warn` (log diagnostics) or `ABLE_TYPECHECK_FIXTURES=off`
   explicitly when you need to relax enforcement during debugging.

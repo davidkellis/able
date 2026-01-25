@@ -27,126 +27,6 @@ func checkSpan(t testing.TB, label string, span ast.Span, startLine, startCol, e
 	}
 }
 
-func normalizeFixtureModule(mod *ast.Module) {
-	if mod == nil {
-		return
-	}
-	for _, stmt := range mod.Body {
-		normalizeFixtureNode(stmt)
-	}
-}
-
-func normalizeFixtureNode(node ast.Node) {
-	switch n := node.(type) {
-	case *ast.FunctionDefinition:
-		if len(n.GenericParams) == 0 {
-			n.GenericParams = nil
-		}
-		if len(n.WhereClause) == 0 {
-			n.WhereClause = nil
-		}
-		if n.Body != nil {
-			normalizeFixtureNode(n.Body)
-		}
-	case *ast.FunctionSignature:
-		if len(n.GenericParams) == 0 {
-			n.GenericParams = nil
-		}
-		if len(n.WhereClause) == 0 {
-			n.WhereClause = nil
-		}
-		if n.DefaultImpl != nil {
-			normalizeFixtureNode(n.DefaultImpl)
-		}
-	case *ast.MethodsDefinition:
-		for _, def := range n.Definitions {
-			normalizeFixtureNode(def)
-		}
-	case *ast.InterfaceDefinition:
-		if len(n.GenericParams) == 0 {
-			n.GenericParams = nil
-		}
-		if len(n.WhereClause) == 0 {
-			n.WhereClause = nil
-		}
-		for _, sig := range n.Signatures {
-			normalizeFixtureNode(sig)
-		}
-	case *ast.ExternFunctionBody:
-		if len(n.Signature.GenericParams) == 0 {
-			n.Signature.GenericParams = nil
-		}
-		if len(n.Signature.WhereClause) == 0 {
-			n.Signature.WhereClause = nil
-		}
-	case *ast.StructDefinition:
-		if len(n.GenericParams) == 0 {
-			n.GenericParams = nil
-		}
-		if len(n.WhereClause) == 0 {
-			n.WhereClause = nil
-		}
-	case *ast.StructLiteral:
-		for _, field := range n.Fields {
-			if field != nil {
-				normalizeFixtureNode(field.Value)
-			}
-		}
-	case *ast.StructFieldInitializer:
-		normalizeFixtureNode(n.Value)
-	case *ast.FunctionCall:
-		if len(n.TypeArguments) == 0 {
-			n.TypeArguments = nil
-		}
-		for _, arg := range n.Arguments {
-			normalizeFixtureNode(arg)
-		}
-	case *ast.AssignmentExpression:
-		normalizeFixtureNode(n.Right)
-	case *ast.BlockExpression:
-		for _, stmt := range n.Body {
-			normalizeFixtureNode(stmt)
-		}
-	case *ast.ArrayLiteral:
-		for _, elem := range n.Elements {
-			normalizeFixtureNode(elem)
-		}
-	case *ast.GenericTypeExpression:
-		if len(n.Arguments) == 0 {
-			n.Arguments = nil
-		}
-	case *ast.NullableTypeExpression:
-		if n.InnerType != nil {
-			normalizeFixtureNode(n.InnerType)
-		}
-	case *ast.ResultTypeExpression:
-		if n.InnerType != nil {
-			normalizeFixtureNode(n.InnerType)
-		}
-	case *ast.UnionTypeExpression:
-		for _, member := range n.Members {
-			normalizeFixtureNode(member)
-		}
-	case *ast.RescueExpression:
-		normalizeFixtureNode(n.MonitoredExpression)
-		for _, clause := range n.Clauses {
-			normalizeFixtureNode(clause)
-		}
-	case *ast.EnsureExpression:
-		normalizeFixtureNode(n.TryExpression)
-		if n.EnsureBlock != nil {
-			normalizeFixtureNode(n.EnsureBlock)
-		}
-	case *ast.MatchClause:
-		normalizeFixtureNode(n.Body)
-		if n.Guard != nil {
-			normalizeFixtureNode(n.Guard)
-		}
-	case *ast.Module:
-		normalizeFixtureModule(n)
-	}
-}
-
 func assertModulesEqual(t testing.TB, expected interface{}, actual interface{}) {
 	t.Helper()
 	if reflect.DeepEqual(expected, actual) {
@@ -185,7 +65,7 @@ func runFixtureCases(t *testing.T, cases []fixtureCase) {
 			if err != nil {
 				t.Fatalf("ParseModule error for %s: %v", tc.name, err)
 			}
-			normalizeFixtureModule(mod)
+			NormalizeFixtureModule(mod)
 
 			expected := loadFixtureModule(t, tc.name)
 			assertModulesEqual(t, expected, mod)

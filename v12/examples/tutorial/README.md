@@ -1,10 +1,10 @@
-# Able v11 Tutorial Programs
+# Able v12 Tutorial Programs
 
-Each file in this folder demonstrates one major Able language concept with small, runnable samples. Use the TypeScript interpreter helper from the repo root:
+Each file in this folder demonstrates one major Able language concept with small, runnable samples. Use the Go tree-walker helper from the repo root:
 
 ```
-./v11/ablets examples/tutorial/01_basics_and_bindings.able
-./v11/ablets check examples/tutorial/01_basics_and_bindings.able
+./v12/abletw examples/tutorial/01_basics_and_bindings.able
+./v12/abletw check examples/tutorial/01_basics_and_bindings.able
 ```
 
 Examples (run in order):
@@ -22,4 +22,4 @@ Examples (run in order):
 - `11_concurrency_spawn_and_futures.able` — `spawn` tasks, cooperative helpers (`future_yield`, `future_flush`, `future_pending_tasks`), and memoization of futures.
 - `12_channels_mutex_and_await.able` — channel creation, buffered/unbuffered sends, `try_*` helpers, `await` with defaults, and a simple mutex guard.
 - `13_packages_and_imports_main.able` — package naming, visibility with `private`, re-exports, and static imports across sibling modules (entrypoint uses helper packages `tutorial13_math.able` and `tutorial13_strings.able`).
-- `14_host_interop.able` — `prelude <target>` setup, `extern` host bodies for Go/TypeScript, and a pure Able fallback.
+- `14_host_interop.able` — `prelude <target>` setup, `extern` host bodies for Go/JS targets, and a pure Able fallback.

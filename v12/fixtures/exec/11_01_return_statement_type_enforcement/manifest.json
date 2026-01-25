@@ -8,7 +8,7 @@
       "5"
     ],
     "stderr": [
-      "runtime: v11/fixtures/exec/11_01_return_statement_type_enforcement/main.able:17:5 Return type mismatch: expected i32, got void\nnote: v11/fixtures/exec/11_01_return_statement_type_enforcement/main.able:26:3 called from here"
+      "runtime: v12/fixtures/exec/11_01_return_statement_type_enforcement/main.able:17:5 Return type mismatch: expected i32, got void\nnote: v12/fixtures/exec/11_01_return_statement_type_enforcement/main.able:26:3 called from here"
     ],
     "exit": 1
   }

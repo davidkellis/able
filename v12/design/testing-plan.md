@@ -16,22 +16,22 @@ TypeScript runtime mirrors behavior.
 ## Current Assets (Source of Truth)
 
 Design docs:
-- `v11/design/testing-cli-protocol.md` (framework protocol)
-- `v11/design/testing-cli-design.md` (CLI behavior)
-- `v11/docs/testing-matchers.md` (matcher catalog)
+- `v12/design/testing-cli-protocol.md` (framework protocol)
+- `v12/design/testing-cli-design.md` (CLI behavior)
+- `v12/docs/testing-matchers.md` (matcher catalog)
 
 Implementation (quarantine; planned rename):
-- `v11/stdlib/quarantine/src/testing/*` (protocol, registry, harness, spec-style DSL,
+- `v12/stdlib/quarantine/src/testing/*` (protocol, registry, harness, spec-style DSL,
   reporters, matchers) → split into `able.test.*` + `able.spec`
-- `v11/stdlib/quarantine/tests/*.test.able` (early tests using the spec-style DSL)
+- `v12/stdlib/quarantine/tests/*.test.able` (early tests using the spec-style DSL)
 
 Tooling:
-- `v11/interpreters/ts/scripts/run-module.ts` (able test CLI skeleton)
-- `v11/interpreters/ts/test/cli/run_module_cli.test.ts` (CLI skeleton tests)
-- `v11/fixtures/` + `v11/docs/conformance-plan.md` (fixture and spec coverage)
+- `v12/interpreters/ts/scripts/run-module.ts` (able test CLI skeleton)
+- `v12/interpreters/ts/test/cli/run_module_cli.test.ts` (CLI skeleton tests)
+- `v12/fixtures/` + `v12/docs/conformance-plan.md` (fixture and spec coverage)
 
 Spec:
-- `spec/full_spec_v11.md` has a TODO placeholder for "Tooling: testing framework".
+- `spec/full_spec_v12.md` has a TODO placeholder for "Tooling: testing framework".
 
 ## Separation (Non-Negotiable)
 
@@ -128,7 +128,7 @@ serial mode for tests).
 
 ## Spec and Documentation Updates
 
-We should add a minimal "Tooling: Testing framework" section to the v11 spec
+We should add a minimal "Tooling: Testing framework" section to the v12 spec
 that codifies:
 - test module suffixes,
 - `--with-tests` behavior,
