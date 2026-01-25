@@ -1,0 +1,9 @@
+package impls
+
+import exec_10_15_interface_default_generic_method.iface_defs.{Tagger}
+
+struct Labeler { label: String }
+
+impl Tagger for Labeler {
+  fn tag(self: Self) -> String { self.label }
+}

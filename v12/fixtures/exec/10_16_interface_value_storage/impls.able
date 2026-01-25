@@ -1,0 +1,14 @@
+package impls
+
+import exec_10_16_interface_value_storage.iface_defs.{Greeter}
+
+struct Bot { id: i32 }
+struct Person { name: String }
+
+impl Greeter for Bot {
+  fn greet(self: Self) -> String { `bot-${self.id}` }
+}
+
+impl Greeter for Person {
+  fn greet(self: Self) -> String { `hi ${self.name}` }
+}

@@ -1,0 +1,11 @@
+{
+  "description": "interface values preserve dispatch when stored in structs",
+  "setup": ["iface_defs.able", "impls.able", "helpers.able"],
+  "expect": {
+    "stdout": [
+      "bot-3",
+      "hi Ada"
+    ],
+    "exit": 0
+  }
+}

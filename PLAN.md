@@ -41,13 +41,7 @@ Proceed with next steps as suggested; don't talk about doing it - do it. We need
 
 ## TODO (working queue: tackle in order, move completed items to LOG.md)
 - Tree-walker + bytecode parity harness
-  - Add an execution-mode switch in the Go CLI/runtime (`ABLE_EXEC_MODE` or flag).
-  - Ensure fixtures run against both interpreters in CI scripts.
   - Add parity tests that compare output + diagnostics for tree-walker vs bytecode.
-- Interface dictionary exec fixture expansion
-  - Audit existing interface fixtures for dictionary dispatch gaps (generic args, unions, defaults, named impls, dynimport).
-  - Add targeted exec fixtures for missing dictionary behaviors and update the coverage index.
-  - Ensure tree-walker + bytecode parity expectations stay aligned for the new fixtures.
 - Interpreter performance track: bytecode VM expansion
   - Expand bytecode instruction set (control flow, functions/closures, structs, arrays, member access, interface dispatch).
   - Lower more AST nodes to bytecode; keep tree-walker fallback for unsupported nodes.

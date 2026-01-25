@@ -12,6 +12,7 @@ import (
 )
 
 func TestExecFixtures(t *testing.T) {
+	execMode := resolveTestExecMode(t)
 	root := filepath.Join(repositoryRoot(), "v12", "fixtures", "exec")
 	if _, err := os.Stat(root); os.IsNotExist(err) {
 		root = filepath.Join("..", "..", "fixtures", "exec")
@@ -24,7 +25,7 @@ func TestExecFixtures(t *testing.T) {
 			t.Fatalf("relative path for %s: %v", dir, err)
 		}
 		t.Run(filepath.ToSlash(rel), func(t *testing.T) {
-			runExecFixture(t, dir)
+			runExecFixture(t, dir, execMode)
 		})
 	}
 }
@@ -61,7 +62,7 @@ func collectExecFixtures(t *testing.T, root string) []string {
 	return dirs
 }
 
-func runExecFixture(t *testing.T, dir string) {
+func runExecFixture(t *testing.T, dir string, execMode testExecMode) {
 	t.Helper()
 
 	manifest := readManifest(t, dir)
@@ -116,7 +117,7 @@ func runExecFixture(t *testing.T, dir string) {
 	}
 
 	executor := selectFixtureExecutor(t, manifest.Executor)
-	interp := NewWithExecutor(executor)
+	interp := newTestInterpreter(t, execMode, executor)
 	mode := configureFixtureTypechecker(interp)
 	var stdout []string
 	registerPrint(interp, &stdout)

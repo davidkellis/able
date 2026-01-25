@@ -1,0 +1,13 @@
+package iface_defs
+
+## Semantics: default generic interface methods dispatch through interface dictionaries.
+
+struct Tagged T { tag: String, value: T }
+
+interface Tagger for Self {
+  fn tag(self: Self) -> String
+
+  fn tagged<T>(self: Self, value: T) -> Tagged T {
+    Tagged T { tag: self.tag(), value: value }
+  }
+}

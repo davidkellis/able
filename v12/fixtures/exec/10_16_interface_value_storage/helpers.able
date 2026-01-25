@@ -1,0 +1,13 @@
+package helpers
+
+import exec_10_16_interface_value_storage.iface_defs.{Greeter}
+
+struct Holder { greeter: Greeter }
+
+fn wrap(value: Greeter) -> Holder {
+  Holder { greeter: value }
+}
+
+fn render(holder: Holder) -> String {
+  holder.greeter.greet()
+}
