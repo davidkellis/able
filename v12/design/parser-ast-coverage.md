@@ -1,7 +1,7 @@
-# Parser & AST Coverage Checklist (Able v11)
+# Parser & AST Coverage Checklist (Able v12)
 
 ## Purpose
-- Track every surface feature defined in [`spec/full_spec_v11.md`](../spec/full_spec_v11.md) and confirm that:
+- Track every surface feature defined in [`spec/full_spec_v12.md`](../spec/full_spec_v12.md) and confirm that:
   - the parser produces the correct concrete syntax tree and canonical AST, and
   - the shared AST fixture suite exercises the feature (both interpreters consume these fixtures).
 - Serve as the canonical backlog for parser/AST gaps until every item is verified by dedicated tests/fixtures.
@@ -13,9 +13,9 @@
 
 > **Note:** As of the latest audit, every feature now has AST fixtures (`TODO` appears only in the “Parser Tests” column). Remaining `TODO` entries indicate missing parser assertions, not fixture gaps.
 
-> **Note:** “Parser Tests” refers to focused assertions in `interpreter-go/pkg/parser/*`. “AST Fixtures” refers to entries under `fixtures/ast` exported via `v11/interpreters/ts/scripts/export-fixtures.ts`.
+> **Note:** “Parser Tests” refers to focused assertions in `interpreter-go/pkg/parser/*`. “AST Fixtures” refers to entries under `fixtures/ast` exported via the Go fixture exporter (TODO).
 
-> **Note:** Fixtures that include a `source.able` file are automatically round-tripped by the TypeScript harness (`v11/interpreters/ts/test/parser/fixtures_parser.test.ts`), which shells out to the Go parser CLI for now.
+> **Note:** Fixtures that include a `source.able` file should be round-tripped by the Go parser harness once the Go exporter + fixture driver are wired for v12.
 
 ---
 
@@ -144,7 +144,7 @@
 ---
 
 ## Next Steps (Execution Order)
-1. **AST Fixtures First** – Expand `fixtures/ast` (via `export-fixtures.ts`) until every feature in the table has a representative module that can be consumed by both interpreters.
-2. **Interpreter Verification Second** – Extend the interpreter test suites (TS + Go) so each fixture is evaluated and its behavior/assertions are checked, guaranteeing runtime support for every AST form.
+1. **AST Fixtures First** – Expand `fixtures/ast` (via `v12/export_fixtures.sh`) until every feature in the table has a representative module that can be consumed by the Go runtimes.
+2. **Interpreter Verification Second** – Extend the Go tree-walker + bytecode test suites so each fixture is evaluated and its behavior/assertions are checked, guaranteeing runtime support for every AST form.
 3. **Parser Coverage Third** – Once fixtures/interpreter checks exist, add focused parser unit tests that parse the surface syntax into the canonical AST and confirm round-trips for each feature.
-4. Keep this checklist current—mark rows `Done` only when all three stages above are satisfied and validated (`bun run scripts/run-fixtures.ts`, interpreter suites, `go test ./...`).
+4. Keep this checklist current—mark rows `Done` only when all three stages above are satisfied and validated (`./run_all_tests.sh`, interpreter suites, `go test ./...`).

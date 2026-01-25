@@ -1,4 +1,4 @@
-# Extern Host Execution (v11)
+# Extern Host Execution (v12)
 
 Status: Draft
 
@@ -9,7 +9,7 @@ arrays/future/channel/string/ratio, and keep the kernel surface unchanged.
 
 ## Problem
 The current interpreters treat extern bodies as declarations and map a few names
-(`now_nanos`, `read_text`) to native handlers. This violates the v11 spec, which
+(`now_nanos`, `read_text`) to native handlers. This violates the v12 spec, which
 requires executing the host code in extern bodies (and in preludes) directly.
 
 ## Spec Requirements (Summary)

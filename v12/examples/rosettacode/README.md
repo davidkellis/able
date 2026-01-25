@@ -2,11 +2,10 @@
 
 This directory collects small, single-file Able programs that solve
 popular [Rosetta Code](https://rosettacode.org/) tasks.  Each example is
-written against the Able v11 specification and contains its own
+written against the Able v12 specification and contains its own
 `main` function so it can be executed directly with whichever Able
-runtime you have available (for example, the TypeScript interpreter via
-`bun run v11/interpreters/ts/src/cli.ts examples/rosettacode/<file>.able` or
-the Go interpreter’s CLI once built).
+runtime you have available (for example, `./v12/abletw examples/rosettacode/<file>.able`
+or `./v12/ablebc examples/rosettacode/<file>.able`).
 
 ## Starter Set — “Simplest Five”
 

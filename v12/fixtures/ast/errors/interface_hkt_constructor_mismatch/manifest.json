@@ -5,7 +5,7 @@
       "kind": "nil"
     },
     "typecheckDiagnostics": [
-      "typechecker: v11/fixtures/ast/errors/interface_hkt_constructor_mismatch/source.able:8:1 typechecker: impl Mapper for Array i32 must match interface self type 'F _'"
+      "typechecker: v12/fixtures/ast/errors/interface_hkt_constructor_mismatch/source.able:8:1 typechecker: impl Mapper for Array i32 must match interface self type 'F _'"
     ]
   },
   "entry": "module.json"

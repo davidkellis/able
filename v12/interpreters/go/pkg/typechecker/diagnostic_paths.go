@@ -27,8 +27,8 @@ func normalizeDiagnosticPath(raw string) string {
 	anchors := []string{}
 	if root != "" {
 		anchors = append(anchors, root)
-		anchors = append(anchors, filepath.Join(root, "v11", "interpreters", "ts", "scripts", "export-fixtures"))
-		anchors = append(anchors, filepath.Join(root, "v11", "interpreters", "ts", "scripts"))
+		anchors = append(anchors, filepath.Join(root, "v12", "interpreters", "go", "cmd", "fixture-exporter"))
+		anchors = append(anchors, filepath.Join(root, "v12", "interpreters", "go"))
 	}
 	for _, anchor := range anchors {
 		if anchor == "" {

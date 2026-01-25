@@ -1,7 +1,10 @@
 # Parity Examples Expansion Plan
 
+> Archived: the TypeScript interpreter was removed from v12. This document is kept
+> for historical context only.
+
 ## Goals
-- Provide curated Able programs under `v11/interpreters/ts/testdata/examples/` that exercise language features end-to-end (parse → typecheck → interpret) while remaining deterministic and fast.
+- Provide curated Able programs under `v12/interpreters/ts/testdata/examples/` that exercise language features end-to-end (parse → typecheck → interpret) while remaining deterministic and fast.
 - Keep the curated suite aligned with the parser/AST readiness checklist and the Go runtime capabilities so parity tests stay green.
 - Capture blockers discovered while prototyping new examples (pattern guards, advanced pipes) so future contributors know what needs to land before expanding the suite.
 
@@ -18,7 +21,7 @@
 | `patterns_destructure` | struct destructuring inside loops + matches | ✅ |
 | `pipes_topics` | pipeline callables, placeholder-based transforms, method pipes | ✅ |
 | `dynimport_parity` | `dynimport` aliasing, dyn packages, selector imports | ✅ |
-| `dynimport_multiroot` | Multi-root `dynimport` (external package roots via `ABLE_MODULE_PATHS`) | ✅ Added with shared deps under `v11/interpreters/ts/testdata/examples/deps/` |
+| `dynimport_multiroot` | Multi-root `dynimport` (external package roots via `ABLE_MODULE_PATHS`) | ✅ Added with shared deps under `v12/interpreters/ts/testdata/examples/deps/` |
 
 ## Pending Examples & Blockers
 | Candidate | Desired Focus | Blockers | Notes |
@@ -28,7 +31,7 @@
 ## Next Steps
 1. Keep the new parity samples green—update them whenever the underlying semantics change (match guards, destructuring assignment rules, or pipe semantics).
 2. Brainstorm the next curated additions once upcoming work (e.g., channel select, advanced dynimport scenarios) lands and the parser/Go runtime expose the new constructs.
-3. Continue updating `v11/interpreters/ts/test/parity/examples_parity.test.ts` and this plan whenever examples are added/removed so downstream contributors know the current coverage.
+3. Continue updating `v12/interpreters/ts/test/parity/examples_parity.test.ts` and this plan whenever examples are added/removed so downstream contributors know the current coverage.
 
 ## Notes
 - Each curated program should complete in milliseconds, avoid randomness, and print concise output so parity diffs stay readable.

@@ -17,7 +17,7 @@
             "column": 17
           }
         },
-        "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
       },
       "selfTypePattern": {
         "type": "SimpleTypeExpression",
@@ -34,7 +34,7 @@
               "column": 23
             }
           },
-          "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
         },
         "span": {
           "start": {
@@ -46,7 +46,7 @@
             "column": 23
           }
         },
-        "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
       },
       "signatures": [],
       "isPrivate": false,
@@ -60,7 +60,7 @@
           "column": 26
         }
       },
-      "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+      "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
     },
     {
       "type": "InterfaceDefinition",
@@ -77,7 +77,7 @@
             "column": 17
           }
         },
-        "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
       },
       "selfTypePattern": {
         "type": "SimpleTypeExpression",
@@ -94,7 +94,7 @@
               "column": 23
             }
           },
-          "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
         },
         "span": {
           "start": {
@@ -106,7 +106,7 @@
             "column": 23
           }
         },
-        "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
       },
       "signatures": [],
       "isPrivate": false,
@@ -120,7 +120,7 @@
           "column": 26
         }
       },
-      "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+      "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
     },
     {
       "type": "InterfaceDefinition",
@@ -137,7 +137,7 @@
             "column": 16
           }
         },
-        "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
       },
       "selfTypePattern": {
         "type": "SimpleTypeExpression",
@@ -154,7 +154,7 @@
               "column": 22
             }
           },
-          "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
         },
         "span": {
           "start": {
@@ -166,7 +166,7 @@
             "column": 22
           }
         },
-        "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
       },
       "signatures": [
         {
@@ -184,7 +184,7 @@
                 "column": 9
               }
             },
-            "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
           },
           "params": [
             {
@@ -202,7 +202,7 @@
                     "column": 14
                   }
                 },
-                "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
               },
               "paramType": {
                 "type": "SimpleTypeExpression",
@@ -220,7 +220,7 @@
                     "column": 20
                   }
                 },
-                "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
               },
               "span": {
                 "start": {
@@ -232,7 +232,7 @@
                   "column": 20
                 }
               },
-              "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
             }
           ],
           "returnType": {
@@ -250,7 +250,7 @@
                   "column": 31
                 }
               },
-              "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
             },
             "span": {
               "start": {
@@ -262,7 +262,7 @@
                 "column": 31
               }
             },
-            "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
           },
           "span": {
             "start": {
@@ -274,7 +274,7 @@
               "column": 31
             }
           },
-          "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
         }
       ],
       "isPrivate": false,
@@ -288,7 +288,7 @@
           "column": 2
         }
       },
-      "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+      "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
     },
     {
       "type": "StructDefinition",
@@ -305,7 +305,7 @@
             "column": 13
           }
         },
-        "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
       },
       "fields": [],
       "kind": "named",
@@ -319,7 +319,7 @@
           "column": 16
         }
       },
-      "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+      "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
     },
     {
       "type": "ImplementationDefinition",
@@ -336,7 +336,7 @@
             "column": 12
           }
         },
-        "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
       },
       "targetType": {
         "type": "SimpleTypeExpression",
@@ -353,7 +353,7 @@
               "column": 22
             }
           },
-          "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
         },
         "span": {
           "start": {
@@ -365,7 +365,7 @@
             "column": 22
           }
         },
-        "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
       },
       "definitions": [],
       "span": {
@@ -378,7 +378,7 @@
           "column": 25
         }
       },
-      "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+      "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
     },
     {
       "type": "ImplementationDefinition",
@@ -395,7 +395,7 @@
             "column": 12
           }
         },
-        "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
       },
       "targetType": {
         "type": "SimpleTypeExpression",
@@ -412,7 +412,7 @@
               "column": 22
             }
           },
-          "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
         },
         "span": {
           "start": {
@@ -424,7 +424,7 @@
             "column": 22
           }
         },
-        "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
       },
       "definitions": [],
       "span": {
@@ -437,7 +437,7 @@
           "column": 25
         }
       },
-      "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+      "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
     },
     {
       "type": "ImplementationDefinition",
@@ -457,7 +457,7 @@
                 "column": 7
               }
             },
-            "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
           },
           "constraints": [
             {
@@ -477,7 +477,7 @@
                       "column": 15
                     }
                   },
-                  "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+                  "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
                 },
                 "span": {
                   "start": {
@@ -489,7 +489,7 @@
                     "column": 15
                   }
                 },
-                "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
               },
               "span": {
                 "start": {
@@ -501,7 +501,7 @@
                   "column": 15
                 }
               },
-              "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
             }
           ],
           "span": {
@@ -514,7 +514,7 @@
               "column": 15
             }
           },
-          "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
         }
       ],
       "interfaceName": {
@@ -530,7 +530,7 @@
             "column": 22
           }
         },
-        "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
       },
       "targetType": {
         "type": "SimpleTypeExpression",
@@ -547,7 +547,7 @@
               "column": 28
             }
           },
-          "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
         },
         "span": {
           "start": {
@@ -559,7 +559,7 @@
             "column": 28
           }
         },
-        "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
       },
       "definitions": [
         {
@@ -577,7 +577,7 @@
                 "column": 9
               }
             },
-            "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
           },
           "params": [
             {
@@ -595,7 +595,7 @@
                     "column": 14
                   }
                 },
-                "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
               },
               "paramType": {
                 "type": "SimpleTypeExpression",
@@ -613,7 +613,7 @@
                     "column": 20
                   }
                 },
-                "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
               },
               "span": {
                 "start": {
@@ -625,7 +625,7 @@
                   "column": 20
                 }
               },
-              "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
             }
           ],
           "body": {
@@ -644,7 +644,7 @@
                     "column": 37
                   }
                 },
-                "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
               }
             ],
             "span": {
@@ -657,7 +657,7 @@
                 "column": 39
               }
             },
-            "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
           },
           "returnType": {
             "type": "SimpleTypeExpression",
@@ -674,7 +674,7 @@
                   "column": 31
                 }
               },
-              "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
             },
             "span": {
               "start": {
@@ -686,7 +686,7 @@
                 "column": 31
               }
             },
-            "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
           },
           "isMethodShorthand": false,
           "isPrivate": false,
@@ -700,7 +700,7 @@
               "column": 39
             }
           },
-          "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
         }
       ],
       "span": {
@@ -713,7 +713,7 @@
           "column": 2
         }
       },
-      "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+      "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
     },
     {
       "type": "ImplementationDefinition",
@@ -733,7 +733,7 @@
                 "column": 7
               }
             },
-            "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
           },
           "constraints": [
             {
@@ -753,7 +753,7 @@
                       "column": 15
                     }
                   },
-                  "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+                  "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
                 },
                 "span": {
                   "start": {
@@ -765,7 +765,7 @@
                     "column": 15
                   }
                 },
-                "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
               },
               "span": {
                 "start": {
@@ -777,7 +777,7 @@
                   "column": 15
                 }
               },
-              "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
             }
           ],
           "span": {
@@ -790,7 +790,7 @@
               "column": 15
             }
           },
-          "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
         }
       ],
       "interfaceName": {
@@ -806,7 +806,7 @@
             "column": 22
           }
         },
-        "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
       },
       "targetType": {
         "type": "SimpleTypeExpression",
@@ -823,7 +823,7 @@
               "column": 28
             }
           },
-          "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
         },
         "span": {
           "start": {
@@ -835,7 +835,7 @@
             "column": 28
           }
         },
-        "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
       },
       "definitions": [
         {
@@ -853,7 +853,7 @@
                 "column": 9
               }
             },
-            "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
           },
           "params": [
             {
@@ -871,7 +871,7 @@
                     "column": 14
                   }
                 },
-                "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
               },
               "paramType": {
                 "type": "SimpleTypeExpression",
@@ -889,7 +889,7 @@
                     "column": 20
                   }
                 },
-                "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
               },
               "span": {
                 "start": {
@@ -901,7 +901,7 @@
                   "column": 20
                 }
               },
-              "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
             }
           ],
           "body": {
@@ -920,7 +920,7 @@
                     "column": 37
                   }
                 },
-                "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+                "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
               }
             ],
             "span": {
@@ -933,7 +933,7 @@
                 "column": 39
               }
             },
-            "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
           },
           "returnType": {
             "type": "SimpleTypeExpression",
@@ -950,7 +950,7 @@
                   "column": 31
                 }
               },
-              "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+              "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
             },
             "span": {
               "start": {
@@ -962,7 +962,7 @@
                 "column": 31
               }
             },
-            "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+            "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
           },
           "isMethodShorthand": false,
           "isPrivate": false,
@@ -976,7 +976,7 @@
               "column": 39
             }
           },
-          "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
         }
       ],
       "span": {
@@ -989,7 +989,7 @@
           "column": 2
         }
       },
-      "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+      "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
     },
     {
       "type": "AssignmentExpression",
@@ -1007,7 +1007,7 @@
             "column": 6
           }
         },
-        "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
       },
       "right": {
         "type": "StructLiteral",
@@ -1024,7 +1024,7 @@
               "column": 15
             }
           },
-          "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
         },
         "fields": [],
         "isPositional": false,
@@ -1038,7 +1038,7 @@
             "column": 18
           }
         },
-        "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
       },
       "span": {
         "start": {
@@ -1050,7 +1050,7 @@
           "column": 18
         }
       },
-      "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+      "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
     },
     {
       "type": "FunctionCall",
@@ -1069,7 +1069,7 @@
               "column": 6
             }
           },
-          "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
         },
         "member": {
           "type": "Identifier",
@@ -1084,7 +1084,7 @@
               "column": 10
             }
           },
-          "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+          "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
         },
         "span": {
           "start": {
@@ -1096,7 +1096,7 @@
             "column": 10
           }
         },
-        "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+        "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
       },
       "arguments": [],
       "isTrailingLambda": false,
@@ -1110,7 +1110,7 @@
           "column": 12
         }
       },
-      "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+      "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
     }
   ],
   "span": {
@@ -1123,5 +1123,5 @@
       "column": 1
     }
   },
-  "origin": "/home/david/sync/projects/able/v11/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
+  "origin": "/home/david/sync/projects/able/v12/fixtures/ast/interfaces/impl_specificity_ambiguity/source.able"
 }

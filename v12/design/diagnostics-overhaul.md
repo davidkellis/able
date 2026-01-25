@@ -1,8 +1,8 @@
-# Diagnostics Overhaul (v11)
+# Diagnostics Overhaul (v12)
 
 ## Goals
 - Provide a shared diagnostics shape for parser, typechecker, and runtime errors.
-- Emit consistent human-readable messages across `ablets` and `ablego`.
+- Emit consistent human-readable messages across `abletw` and `ablebc`.
 - Preserve warning/error severity while keeping diagnostics non-fatal in warn mode.
 
 ## Diagnostic Shape

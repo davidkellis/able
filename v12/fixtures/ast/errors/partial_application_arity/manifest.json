@@ -2,7 +2,7 @@
   "description": "Partial application yields expected callable arity",
   "expect": {
     "typecheckDiagnostics": [
-      "typechecker: v11/fixtures/ast/errors/partial_application_arity/source.able:6:10 typechecker: function expects 1 arguments, got 2"
+      "typechecker: v12/fixtures/ast/errors/partial_application_arity/source.able:6:10 typechecker: function expects 1 arguments, got 2"
     ]
   },
   "entry": "module.json"

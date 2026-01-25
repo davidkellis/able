@@ -1,11 +1,10 @@
-# Exec Fixtures (v11)
+# Exec Fixtures (v12)
 
-Exec fixtures are end-to-end Able programs that run through each interpreter and assert observable behavior (stdout/stderr/exit). They live under `v11/fixtures/exec`, and both the TypeScript and Go harnesses execute them:
+Exec fixtures are end-to-end Able programs that run through each interpreter and assert observable behavior (stdout/stderr/exit). They live under `v12/fixtures/exec`, and the Go harness executes them:
 
-- TS: `cd v11/interpreters/ts && bun run scripts/run-fixtures.ts`
-- Go: `cd v11/interpreters/go && go test ./pkg/interpreter -run ExecFixtures`
-- Combined (fixture-only): `./run_all_tests.sh --version=v11 --fixture`
-- Coverage index guard: keep `v11/fixtures/exec/coverage-index.json` in sync with fixture directories; `v11/scripts/check-exec-coverage.mjs` (called by `run_all_tests.sh`) fails when entries drift.
+- Go: `cd v12/interpreters/go && go test ./pkg/interpreter -run ExecFixtures`
+- Combined (fixture-only): `./run_all_tests.sh --version=v12 --fixture`
+- Coverage index guard: keep `v12/fixtures/exec/coverage-index.json` in sync with fixture directories; `v12/scripts/check-exec-coverage.mjs` (called by `run_all_tests.sh`) fails when entries drift.
 
 ## Layout
 Each exec fixture directory contains:
@@ -23,7 +22,7 @@ Each exec fixture directory contains:
   }
   ```
 
-Naming follows the conformance plan (`v11/docs/conformance-plan.md`): directories use `exec/<section>_<heading>_<feature>[_variation]/` keyed to spec headings (zero-padded when helpful), and package names mirror the directory with an `exec_` prefix (e.g., `exec_08_01_control_flow_fizzbuzz`).
+Naming follows the conformance plan (`v12/docs/conformance-plan.md`): directories use `exec/<section>_<heading>_<feature>[_variation]/` keyed to spec headings (zero-padded when helpful), and package names mirror the directory with an `exec_` prefix (e.g., `exec_08_01_control_flow_fizzbuzz`).
 
 ## Authoring Guidelines
 - Keep programs minimal and focused on one semantic slice (loops, pattern matching, rescue/ensure, concurrency, etc.).
@@ -32,8 +31,7 @@ Naming follows the conformance plan (`v11/docs/conformance-plan.md`): directorie
 - If the program raises and should exit non-zero, set `expect.exit` and optionally `expect.stderr` to the error message.
 
 ## Running and Debugging
-- Filter to a specific exec fixture in TS with `ABLE_FIXTURE_FILTER=exec/<name> bun run scripts/run-fixtures.ts`.
-- Parity mismatches surface in `v11/tmp/parity-report.json` when running `run_all_tests.sh`.
+- Filter to a specific exec fixture in Go with `go test ./pkg/interpreter -run ExecFixtures/<name>`.
 - Go harness failures show up in `go test ./pkg/interpreter -run ExecFixtures`; rerun with `-v` for verbose output.
 
 ## Adding New Cases

@@ -5,7 +5,7 @@ Owners: Able Agents
 
 ## Purpose
 
-Able v11 runtimes now share a minimal executor abstraction that drives `spawn`
+Able v12 runtimes now share a minimal executor abstraction that drives `spawn`
 evaluation. This note documents the contract so TypeScript, Go, and any
 future runtimes implement compatible semantics while retaining freedom over the
 underlying scheduling strategy.
@@ -70,7 +70,7 @@ underlying scheduling strategy.
 
 ## Runtime mappings
 
-- **TypeScript (`v11/interpreters/ts/`).**
+- **TypeScript (`v12/interpreters/ts/`).**
   - `CooperativeExecutor` maintains the existing FIFO queue, wrapping the former
     `schedulerQueue`/`processScheduler` logic. The interpreter delegates all
     scheduling to this executor.
@@ -146,7 +146,7 @@ or design notes so the cooperative and goroutine executors stay aligned.
 
 ## Follow-ups
 
-- Document `future_yield`/`future_flush` guarantees in the v11 specification once
+- Document `future_yield`/`future_flush` guarantees in the v12 specification once
   wording is final.
 - Investigate fairness fixtures that rely on specific scheduling orders; any
   additional coordination helpers must be added to both executors (or guarded by

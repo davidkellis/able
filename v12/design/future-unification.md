@@ -2,11 +2,11 @@
 
 Date: 2026-01-23  
 Status: Approved (spec + design alignment pending implementation)  
-Owners: Able v11 maintainers
+Owners: Able v12 maintainers
 
 ## Summary
 
-Able v11 now defines a single async facility: `spawn` returns a `Future T` handle that also supports implicit evaluation to `T` when a value is required. This unifies the previously separate `Proc T` and `Future T` concepts into one coherent model with two views:
+Able v12 now defines a single async facility: `spawn` returns a `Future T` handle that also supports implicit evaluation to `T` when a value is required. This unifies the previously separate `Proc T` and `Future T` concepts into one coherent model with two views:
 
 - **Handle view:** explicit `status()`, `value()`, `cancel()` methods.
 - **Value view:** implicit blocking evaluation to `T` in `T`-typed contexts.

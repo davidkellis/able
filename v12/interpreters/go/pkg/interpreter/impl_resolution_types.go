@@ -359,6 +359,17 @@ func matchTypeExpressionTemplate(template, actual ast.TypeExpression, genericNam
 		name := t.Name.Name
 		if _, isGeneric := genericNames[name]; isGeneric {
 			if existing, ok := bindings[name]; ok {
+				if _, ok := existing.(*ast.WildcardTypeExpression); ok {
+					if actual != nil {
+						if _, ok := actual.(*ast.WildcardTypeExpression); !ok {
+							bindings[name] = actual
+						}
+					}
+					return true
+				}
+				if _, ok := actual.(*ast.WildcardTypeExpression); ok {
+					return true
+				}
 				return typeExpressionsEqual(existing, actual)
 			}
 			bindings[name] = actual

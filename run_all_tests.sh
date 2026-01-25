@@ -4,7 +4,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-VERSION="v11"
+VERSION="v12"
 ARGS=()
 
 while [[ $# -gt 0 ]]; do
@@ -35,8 +35,11 @@ case "$VERSION" in
   v11)
     TARGET="$SCRIPT_DIR/v11/run_all_tests.sh"
     ;;
+  v12)
+    TARGET="$SCRIPT_DIR/v12/run_all_tests.sh"
+    ;;
   *)
-    echo "Unknown version '$VERSION'. Expected v10 or v11." >&2
+    echo "Unknown version '$VERSION'. Expected v10, v11, or v12." >&2
     exit 1
     ;;
 esac

@@ -207,11 +207,11 @@ func TestFindStdlibRootsPreferFlattenedLayout(t *testing.T) {
 	}
 }
 
-func TestFindStdlibRootsDetectsV11Layout(t *testing.T) {
+func TestFindStdlibRootsDetectsV12Layout(t *testing.T) {
 	tempDir := t.TempDir()
 	repoRoot := filepath.Join(tempDir, "repo")
 	workDir := filepath.Join(repoRoot, "workspace")
-	stdlibDir := filepath.Join(repoRoot, "v11", "stdlib", "src")
+	stdlibDir := filepath.Join(repoRoot, "v12", "stdlib", "src")
 
 	if err := os.MkdirAll(workDir, 0o755); err != nil {
 		t.Fatalf("mkdir workspace: %v", err)
@@ -233,11 +233,11 @@ func TestFindStdlibRootsDetectsV11Layout(t *testing.T) {
 	}
 }
 
-func TestFindKernelRootsDetectsV11Layout(t *testing.T) {
+func TestFindKernelRootsDetectsV12Layout(t *testing.T) {
 	tempDir := t.TempDir()
 	repoRoot := filepath.Join(tempDir, "repo")
 	workDir := filepath.Join(repoRoot, "workspace")
-	kernelDir := filepath.Join(repoRoot, "v11", "kernel", "src")
+	kernelDir := filepath.Join(repoRoot, "v12", "kernel", "src")
 
 	if err := os.MkdirAll(workDir, 0o755); err != nil {
 		t.Fatalf("mkdir workspace: %v", err)
@@ -259,10 +259,10 @@ func TestFindKernelRootsDetectsV11Layout(t *testing.T) {
 	}
 }
 
-func TestRunFileAutoDetectsBundledV11Stdlib(t *testing.T) {
+func TestRunFileAutoDetectsBundledV12Stdlib(t *testing.T) {
 	root := t.TempDir()
 	repoRoot := filepath.Join(root, "repo")
-	stdlibSrc := filepath.Join(repoRoot, "v11", "stdlib", "src")
+	stdlibSrc := filepath.Join(repoRoot, "v12", "stdlib", "src")
 	appRoot := filepath.Join(repoRoot, "app")
 
 	if err := os.MkdirAll(stdlibSrc, 0o755); err != nil {
@@ -272,7 +272,7 @@ func TestRunFileAutoDetectsBundledV11Stdlib(t *testing.T) {
 		t.Fatalf("mkdir app: %v", err)
 	}
 
-	writeFile(t, filepath.Join(repoRoot, "v11", "stdlib", "package.yml"), "name: able\n")
+	writeFile(t, filepath.Join(repoRoot, "v12", "stdlib", "package.yml"), "name: able\n")
 	writeFile(t, filepath.Join(stdlibSrc, "custom.able"), `
 package custom
 

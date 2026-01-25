@@ -5,7 +5,7 @@ Author: Able Agents
 
 ## Overview
 
-The Go interpreter is the reference implementation for Able v11 concurrency. It
+The Go interpreter is the reference implementation for Able v12 concurrency. It
 expands `spawn` expressions into goroutine-backed tasks that share a
 thread-safe runtime environment. The goal is to make parallel execution safe
 for the interpreter itself while leaving synchronisation of user-managed data

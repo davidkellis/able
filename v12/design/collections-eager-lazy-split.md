@@ -1,4 +1,4 @@
-# Collections: Eager vs Lazy Split (v11)
+# Collections: Eager vs Lazy Split (v12)
 
 ## Goals
 - Keep lazy pipelines available (`Iterator.map`/`filter`/etc.) without ambiguity.

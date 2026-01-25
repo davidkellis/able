@@ -175,7 +175,7 @@ func (f *placeholderFrame) valueAt(index int) (runtime.Value, error) {
 	return f.args[index-1], nil
 }
 
-// Interpreter drives evaluation of Able v11 AST nodes.
+// Interpreter drives evaluation of Able v12 AST nodes.
 type Interpreter struct {
 	global                *runtime.Environment
 	inherentMethods       map[string]map[string]runtime.Value

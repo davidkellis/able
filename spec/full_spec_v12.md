@@ -1,6 +1,6 @@
 # Able Language Specification (Draft)
 
-**Version:** 2026-01-24
+**Version:** 2026-01-25
 **Status:** Draft
 
 ## Table of Contents
@@ -1283,7 +1283,7 @@ Literals are the source code representation of fixed values.
 
 #### 6.1.9. Map Literals
 
-Able v11 introduces a dedicated literal form for hash-map values. Map literals construct the standard library `HashMap K V` (from `able.collections.hash_map`), which implements the `Map` interface.
+Able v12 introduces a dedicated literal form for hash-map values. Map literals construct the standard library `HashMap K V` (from `able.collections.hash_map`), which implements the `Map` interface.
 
 -   **Syntax:** `#{ KeyExpr: ValueExpr, ... }`. Entries are comma-delimited; trailing commas and multiline formatting are permitted. Whitespace is insignificant outside expressions. The empty literal is written `#{}`.
 -   **Type inference:** Literal entries must agree on a single key type `K` and value type `V`. The compiler infers `HashMap K V` from the entries when possible. If either dimension cannot be inferred (e.g., `#{}`), provide context or an explicit annotation (either `HashMap K V` or the `Map K V` interface):
@@ -1993,7 +1993,7 @@ All user-facing array and string helpers in §§6.12.1–6.12.2 live in the Able
 | `starts_with(prefix)` | `fn starts_with(self: Self, prefix: String) -> bool` | Tests byte-prefix equality (`prefix.len_bytes()` must fit wholly inside the receiver). |
 | `ends_with(suffix)` | `fn ends_with(self: Self, suffix: String) -> bool` | Tests byte-suffix equality. |
 
-Implementations may surface richer helpers (`to_lower`, `to_upper`, normalization utilities, builders, etc.), but the methods above are the portable baseline expected by the v11 spec.
+Implementations may surface richer helpers (`to_lower`, `to_upper`, normalization utilities, builders, etc.), but the methods above are the portable baseline expected by the v12 spec.
 
 **Iteration & views**
 
@@ -2733,7 +2733,7 @@ continue
 
 -   `continue` statements may only appear inside a loop. Encountering `continue` transfers control to the loop's next iteration (or terminates the loop if its condition is now false or the iterator is exhausted).
 -   `continue` never carries a value and always evaluates to `nil`.
--   **Labeled continues are not part of Able v11.** Attempting to write `continue 'label` (or any variant with a label) is a static error when detectable by tooling; interpreters must raise a runtime error with message `"Labeled continue not supported"` if such syntax is executed.
+-   **Labeled continues are not part of Able v12.** Attempting to write `continue 'label` (or any variant with a label) is a static error when detectable by tooling; interpreters must raise a runtime error with message `"Labeled continue not supported"` if such syntax is executed.
 
 ##### Example
 
@@ -3071,7 +3071,7 @@ Within the interface definition (and corresponding `impl` blocks):
 
 Note on recursive `Self` constraints:
 
-- Interfaces may reference `Self` in their own signatures (e.g., `fn next(self: Self) -> ?Self`). Recursive constraints over `Self` (e.g., requiring `Self: Interface` within the same interface) are allowed only when well-founded (no infinite regress) and remain an advanced feature; implementations must satisfy such constraints explicitly. Full formal rules are out of scope for v11 and may be tightened in a future revision.
+- Interfaces may reference `Self` in their own signatures (e.g., `fn next(self: Self) -> ?Self`). Recursive constraints over `Self` (e.g., requiring `Self: Interface` within the same interface) are allowed only when well-founded (no infinite regress) and remain an advanced feature; implementations must satisfy such constraints explicitly. Full formal rules are out of scope for v12 and may be tightened in a future revision.
 
 #### 10.1.4. Examples of Interface Definitions
 
@@ -4320,7 +4320,7 @@ Typing and dynamic imports:
 ### 13.6. Standard Library Packaging (`able.*`)
 
 -   Able distributes Able-authored kernel and standard library bundles versioned with the toolchain. The kernel lives under `<tool-root>/kernel/src` and is automatically injected ahead of workspace code to surface host bridges (scheduler/channel/mutex/string/hasher shims).
--   The standard library is a normal package named `able` resolved through the usual search path + lockfile rules. When no pinned dependency is present, tooling falls back to the bundled copy at `<tool-root>/stdlib/src` (or `<tool-root>/stdlib/v11/src` when installed in a multi-version layout).
+-   The standard library is a normal package named `able` resolved through the usual search path + lockfile rules. When no pinned dependency is present, tooling falls back to the bundled copy at `<tool-root>/stdlib/src` (or `<tool-root>/stdlib/v12/src` when installed in a multi-version layout).
 -   `import able.*` always resolves against whichever `able` root the loader selects. User code MUST NOT publish an `able` namespace; any root whose manifest declares `name: able` is treated as the stdlib, and the loader reports collisions rather than shadowing.
 -   Tooling treats the bundled kernel/stdlib as read-only. Local edits rely on the dependency resolver (lockfile pin) or general search-path overrides (`ABLE_MODULE_PATHS`/workspace deps); there is no stdlib-specific environment knob.
 
@@ -4344,7 +4344,7 @@ Many language features rely on interfaces expected to be in the standard library
 
 Editorial note on built-ins vs. stdlib:
 
-- Aside from primitives (`i*`, `u*`, `f*`, `bool`, `char`, `nil`, `void`), core collection/concurrency types used in this spec (e.g., `String`, `Array T`, `HashMap K V`, `Channel T`, `Mutex`, `Range`, plus interfaces like `Map K V`) are defined in the standard library. Syntactic constructs that reference them (array literals/patterns, indexing, ranges `..`/`...`) rely on those stdlib interfaces being in scope (e.g., `Index`, `Iterable`, `Range`). Implementations MUST provide a canonical stdlib that satisfies these expectations for the syntax to be usable. The kernel library bundled with the interpreter (v11 loads `v11/kernel`) supplies the foundational interfaces and minimal implementations; the stdlib is a normal dependency resolved via the package manager (defaulting to the bundled `able` stdlib when unspecified).
+- Aside from primitives (`i*`, `u*`, `f*`, `bool`, `char`, `nil`, `void`), core collection/concurrency types used in this spec (e.g., `String`, `Array T`, `HashMap K V`, `Channel T`, `Mutex`, `Range`, plus interfaces like `Map K V`) are defined in the standard library. Syntactic constructs that reference them (array literals/patterns, indexing, ranges `..`/`...`) rely on those stdlib interfaces being in scope (e.g., `Index`, `Iterable`, `Range`). Implementations MUST provide a canonical stdlib that satisfies these expectations for the syntax to be usable. The kernel library bundled with the interpreter (v12 loads `v12/kernel`) supplies the foundational interfaces and minimal implementations; the stdlib is a normal dependency resolved via the package manager (defaulting to the bundled `able` stdlib when unspecified).
 
 ### 14.1. Language-Supported Interface Catalogue
 

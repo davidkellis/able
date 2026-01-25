@@ -1,4 +1,4 @@
-# Able v11 String & Text Plan
+# Able v12 String & Text Plan
 
 ## Goals
 - Treat `String` as the canonical, host-independent representation of textual data while preserving the existing `string` primitive for literals and interoperable APIs.
@@ -125,7 +125,7 @@ Each phase should update `PLAN.md` + spec references and add parity tests before
 ## Open Questions & Risks
 - **Normalization data:** Do we embed Unicode tables in the interpreters or rely on host ICU APIs? Decision impacts wasm portability and bundle size.
 - **Caching strategy:** Should `String` cache `len_chars`/`len_graphemes`? Pros: faster queries. Cons: extra memory + invalidation complexity when cloning builders.
-- **Locale handling:** How many locales do we expose via `String::compare` / `to_title(locale)`? Minimal viable plan is locale-agnostic binary comparison; full locale support may slip to v11.
+- **Locale handling:** How many locales do we expose via `String::compare` / `to_title(locale)`? Minimal viable plan is locale-agnostic binary comparison; full locale support may slip to v12.
 - **View lifetime:** `StringView` holds a `String` by value (ref-counted via shared `Array u8`). Need to confirm GC/runtime semantics keep the underlying buffer alive.
 - **Mutable slices:** We deliberately avoid exposing mutable views to preserve `String` immutability. Builders remain the only mutation path.
 - **Interop with primitive `string`:** Long term we may alias `string` literals to the stdlib `String` without copies; this requires interpreter work (interning, lifetime tracking) and is outside this plan’s first three phases.

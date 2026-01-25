@@ -6,8 +6,6 @@ MAX_LINES="${MAX_LINES:-1000}"
 
 paths=(
   "$ROOT/interpreters/go/pkg"
-  "$ROOT/interpreters/ts/src"
-  "$ROOT/interpreters/ts/test"
   "$ROOT/parser"
   "$ROOT/stdlib"
   "$ROOT/examples"

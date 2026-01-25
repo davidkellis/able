@@ -92,11 +92,21 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 		case "IteratorEnd":
 			return i.isIteratorEnd(value)
 		case "Iterator":
-			switch value.(type) {
+			switch v := value.(type) {
 			case *runtime.IteratorValue:
 				return true
+			case *runtime.InterfaceValue:
+				return i.interfaceMatches(v, name, nil)
+			case runtime.InterfaceValue:
+				return i.interfaceMatches(&v, name, nil)
+			default:
+				info, ok := i.getTypeInfoForValue(value)
+				if !ok {
+					return false
+				}
+				okImpl, err := i.typeImplementsInterface(info, name, nil, make(map[string]struct{}))
+				return err == nil && okImpl
 			}
-			return false
 		case "i8", "i16", "i32", "i64", "i128", "u8", "u16", "u32", "u64", "u128":
 			var iv runtime.IntegerValue
 			switch val := value.(type) {
@@ -190,8 +200,20 @@ func (i *Interpreter) matchesType(typeExpr ast.TypeExpression, value runtime.Val
 			return true
 		}
 		if baseName == "Iterator" {
-			if _, ok := value.(*runtime.IteratorValue); ok {
+			switch v := value.(type) {
+			case *runtime.IteratorValue:
 				return true
+			case *runtime.InterfaceValue:
+				return i.interfaceMatches(v, baseName, t.Arguments)
+			case runtime.InterfaceValue:
+				return i.interfaceMatches(&v, baseName, t.Arguments)
+			default:
+				info, ok := i.getTypeInfoForValue(value)
+				if !ok {
+					return false
+				}
+				okImpl, err := i.typeImplementsInterface(info, baseName, t.Arguments, make(map[string]struct{}))
+				return err == nil && okImpl
 			}
 		}
 		if baseName == "Array" {

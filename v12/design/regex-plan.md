@@ -1,12 +1,12 @@
-# Able v11 Regex Module Design
+# Able v12 Regex Module Design
 
 ## Background
 - `match_regex` in `able.spec` is a placeholder that delegates to string equality.
-- Section 5.5 of `design/stdlib-v11.md` outlines a long-term vision: an RE2-grade engine with deterministic performance and layered APIs (`Regex`, `RegexSet`, automata export, builders, streaming).
+- Section 5.5 of `design/stdlib-v12.md` outlines a long-term vision: an RE2-grade engine with deterministic performance and layered APIs (`Regex`, `RegexSet`, automata export, builders, streaming).
 - No runtime support or parser exists today; the interpreters expose no regex primitives.
 
 ## Goals
-- Provide a consistent, spec-backed `Regex` library for Able v11 with identical semantics across Go and TypeScript runtimes.
+- Provide a consistent, spec-backed `Regex` library for Able v12 with identical semantics across Go and TypeScript runtimes.
 - Guarantee linear-time matching (no catastrophic backtracking) while supporting Unicode-aware patterns, lookaround, and rich replacement APIs.
 - Expose layered functionality: immediate matching helpers, compiled regex handles, multi-pattern search, streaming scanners, and automata inspection.
 - Keep the Able stdlib surface idiomatic: ergonomic modules, strong typing, clear error reporting, and integration with the existing testing matchers.

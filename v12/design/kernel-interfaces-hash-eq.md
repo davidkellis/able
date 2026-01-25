@@ -5,7 +5,7 @@ Last updated: 2026-01-15
 
 ## Context
 
-The v11 spec says primitive types ship with always-available implementations of
+The v12 spec says primitive types ship with always-available implementations of
 `Display`, `Clone`, `Default`, `Eq`/`Ord`, and `Hash`. Today those interfaces live
 in `able.core.interfaces` (stdlib), but the implementations are implicit in the
 interpreters. This yields three problems:
@@ -134,7 +134,7 @@ available even when the stdlib is absent.
 
 ### 7) Spec Updates Required
 
-The v11 spec should be updated to:
+The v12 spec should be updated to:
 - Describe the kernel library and which interfaces live there.
 - Define the canonical `Hash`/`Hasher` signatures (resolve the current mismatch
   between spec and stdlib).

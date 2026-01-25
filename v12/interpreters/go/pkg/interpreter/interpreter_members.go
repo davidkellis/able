@@ -655,31 +655,64 @@ func (i *Interpreter) interfaceMember(val *runtime.InterfaceValue, member ast.Ex
 			return nil, fmt.Errorf("Method '%s' on %s is private", ident.Name, ifaceName)
 		}
 	}
+	receiver := interfaceMethodReceiver(i, val, method)
 	switch fn := method.(type) {
 	case runtime.NativeFunctionValue:
-		return &runtime.NativeBoundMethodValue{Receiver: val.Underlying, Method: fn}, nil
+		return &runtime.NativeBoundMethodValue{Receiver: receiver, Method: fn}, nil
 	case *runtime.NativeFunctionValue:
 		if fn == nil {
 			return nil, fmt.Errorf("native method '%s' is nil", ident.Name)
 		}
-		return &runtime.NativeBoundMethodValue{Receiver: val.Underlying, Method: *fn}, nil
+		return &runtime.NativeBoundMethodValue{Receiver: receiver, Method: *fn}, nil
 	case runtime.NativeBoundMethodValue:
-		return &runtime.NativeBoundMethodValue{Receiver: val.Underlying, Method: fn.Method}, nil
+		return &runtime.NativeBoundMethodValue{Receiver: receiver, Method: fn.Method}, nil
 	case *runtime.NativeBoundMethodValue:
 		if fn == nil {
 			return nil, fmt.Errorf("native method '%s' is nil", ident.Name)
 		}
-		return &runtime.NativeBoundMethodValue{Receiver: val.Underlying, Method: fn.Method}, nil
+		return &runtime.NativeBoundMethodValue{Receiver: receiver, Method: fn.Method}, nil
 	case runtime.BoundMethodValue:
-		return &runtime.BoundMethodValue{Receiver: val.Underlying, Method: fn.Method}, nil
+		return &runtime.BoundMethodValue{Receiver: receiver, Method: fn.Method}, nil
 	case *runtime.BoundMethodValue:
 		if fn == nil {
 			return nil, fmt.Errorf("method '%s' is nil", ident.Name)
 		}
-		return &runtime.BoundMethodValue{Receiver: val.Underlying, Method: fn.Method}, nil
+		return &runtime.BoundMethodValue{Receiver: receiver, Method: fn.Method}, nil
 	default:
-		return &runtime.BoundMethodValue{Receiver: val.Underlying, Method: method}, nil
+		return &runtime.BoundMethodValue{Receiver: receiver, Method: method}, nil
 	}
+}
+
+func interfaceMethodReceiver(i *Interpreter, val *runtime.InterfaceValue, method runtime.Value) runtime.Value {
+	if val == nil {
+		return nil
+	}
+	receiver := runtime.Value(val.Underlying)
+	if method == nil {
+		return receiver
+	}
+	candidate := method
+	switch fn := method.(type) {
+	case runtime.BoundMethodValue:
+		candidate = fn.Method
+	case *runtime.BoundMethodValue:
+		if fn != nil {
+			candidate = fn.Method
+		}
+	}
+	for _, fn := range runtime.FlattenFunctionOverloads(candidate) {
+		if fn == nil || fn.MethodSet == nil || fn.MethodSet.TargetType == nil {
+			continue
+		}
+		info, ok := parseTypeExpression(fn.MethodSet.TargetType)
+		if !ok || info.name == "" {
+			continue
+		}
+		if _, ok := i.interfaces[info.name]; ok {
+			return val
+		}
+	}
+	return receiver
 }
 
 func (i *Interpreter) resolveDynRef(ref runtime.DynRefValue) (runtime.Value, error) {

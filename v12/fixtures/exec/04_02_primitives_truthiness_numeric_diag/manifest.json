@@ -1,7 +1,7 @@
 {
   "description": "division by zero raises DivisionByZeroError",
   "expect": {
-    "stderr": ["runtime: v11/fixtures/exec/04_02_primitives_truthiness_numeric_diag/main.able:6:9 division by zero"],
+    "stderr": ["runtime: v12/fixtures/exec/04_02_primitives_truthiness_numeric_diag/main.able:6:9 division by zero"],
     "exit": 1
   }
 }

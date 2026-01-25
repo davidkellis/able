@@ -1,6 +1,6 @@
-# Compiler + Interpreter Vision (v11)
+# Compiler + Interpreter Vision (v12)
 
-This document captures the long-term execution strategy: fast compiled programs with dynamic fallbacks, plus a faster interpreter. It should stay consistent with `spec/full_spec_v11.md` and the runtime semantics.
+This document captures the long-term execution strategy: fast compiled programs with dynamic fallbacks, plus a faster interpreter. It should stay consistent with `spec/full_spec_v12.md` and the runtime semantics.
 
 ## Goals
 - Keep full Able expressiveness (dynamic interface values, metaprogramming, concurrency).
@@ -17,7 +17,7 @@ This document captures the long-term execution strategy: fast compiled programs 
 - Dynamic features route to runtime or VM entry points when static compilation is not possible.
 
 ## Interface dispatch in compiled + interpreted code
-- Interface values carry dictionaries (see `v11/design/interface-dispatch-dictionaries.md`).
+- Interface values carry dictionaries (see `v12/design/interface-dispatch-dictionaries.md`).
 - Static code uses direct calls where the concrete type is known.
 - Dynamic interface calls use dictionary dispatch; default methods can be inlined or invoked through the dictionary entry.
 - Dictionaries are constructed at interface coercion time and can be cached by the runtime.
@@ -41,7 +41,7 @@ This document captures the long-term execution strategy: fast compiled programs 
 ## Typed Core IR (proposed)
 The core IR is a typed, SSA-like, control-flow graph used by both the VM and
 codegen. It is intentionally small and explicit about runtime calls so we can
-preserve v11 semantics while keeping backends simple.
+preserve v12 semantics while keeping backends simple.
 
 ### IR units
 - **Program**: list of packages + entrypoints.

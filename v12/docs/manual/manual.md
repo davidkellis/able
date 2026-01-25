@@ -1,6 +1,6 @@
-# Able v11 Manual
+# Able v12 Manual
 
-Able couples a concise, block-oriented syntax with static types, algebraic data types, async/runtime helpers, and host interop. This manual mirrors the Julia language manual’s progression (getting started → basics → control flow → types → methods/interfaces → modules → async/parallelism → metaprogramming/interop) while staying faithful to the v11 specification (`spec/full_spec_v11.md`). Treat the spec as the authority; the manual is the definitive learning resource and bridges directly to runnable interpreter behaviour.
+Able couples a concise, block-oriented syntax with static types, algebraic data types, async/runtime helpers, and host interop. This manual mirrors the Julia language manual’s progression (getting started → basics → control flow → types → methods/interfaces → modules → async/parallelism → metaprogramming/interop) while staying faithful to the v12 specification (`spec/full_spec_v12.md`). Treat the spec as the authority; the manual is the definitive learning resource and bridges directly to runnable interpreter behaviour.
 
 ## Contents
 - 1. Getting Started
@@ -36,42 +36,41 @@ Blocks are expressions; the last expression is the value. Braces delimit blocks�
 
 ### 1.2 Resources
 
-- Spec (authoritative semantics): `spec/full_spec_v11.md`
+- Spec (authoritative semantics): `spec/full_spec_v12.md`
 - Roadmap/status: `PLAN.md`
-- Interpreters: `v11/interpreters/ts` (Bun) and `v11/interpreters/go`
-- Fixtures/examples: `v11/fixtures`, `v11/interpreters/ts/testdata/examples`
+- Interpreters: `v12/interpreters/go` (tree-walker + bytecode)
+- Fixtures/examples: `v12/fixtures`, `v12/examples`
 - Design notes: `design/` (e.g., parity plans, typechecker plan, regex plan)
 
 ### 1.3 Toolchain Setup
 
 ```bash
-# TypeScript interpreter
-cd v11/interpreters/ts
-bun install
-bun test
+# Go interpreters
+cd v12/interpreters/go
+go test ./...
 
 # Go interpreter
 cd ../go
 go test ./...
 ```
 
-Unified harness (runs TS + Go suites and fixtures):
+Unified harness (runs Go suites and fixtures):
 
 ```bash
-./run_all_tests.sh --version=v11
+./run_all_tests.sh --version=v12
 ```
 
 ### 1.4 Running Able Code
 
-- Execute fixtures via TS interpreter: `bun run scripts/run-fixtures.ts [--filter name]`
-- Export fixtures after edits: `bun run scripts/export-fixtures.ts`
+- Execute fixtures via Go harness: `go test ./pkg/interpreter -run ExecFixtures`
+- Export fixtures after edits: run the Go exporter via `v12/export_fixtures.sh`
 - Go parity: `go test ./pkg/interpreter`
 - Add ad-hoc `.able` files under `examples/` or a package and run through the interpreter CLIs.
 
 ### 1.5 Project Layout
 
-- `v11/`: active workspace (interpreters, parser, stdlib, fixtures)
-- `spec/`: language specs (v1–v11). Use only v11 for behaviour.
+- `v12/`: active workspace (interpreters, parser, stdlib, fixtures)
+- `spec/`: language specs (v1–v12). Use only v12 for behaviour.
 - Archived workspace at the repo root: frozen—do not edit unless explicitly requested.
 - Standard library ships as `able.*` packages; the namespace is reserved.
 - Kernel builtins are minimal: host-provided globals (print, scheduler, channels/mutexes/hashers), array helpers, and String byte view only (`len_bytes`, `bytes`). Higher-level string/regex/collection helpers live in the Able stdlib layered on top.
@@ -476,15 +475,15 @@ Interpreted execution can create/extend dynamic packages and import them via `dy
 
 ## 13. Host Interop
 
-Embed host-language code via package-scope `prelude <target> { ... }` and `extern <target> fn ... { ... }` bodies (Go, Crystal, TypeScript, Python, Ruby). Only core primitive/container mappings are supported (copy-in/copy-out for arrays). `host_error(message)` converts host failures to Able `Error`s. Extern bodies execute in-place and may block; dynamic packages cannot contain extern bodies. Multiple extern targets may back a function; Able bodies act as fallback when present.
+Embed host-language code via package-scope `prelude <target> { ... }` and `extern <target> fn ... { ... }` bodies (Go, Crystal, JavaScript, Python, Ruby). Only core primitive/container mappings are supported (copy-in/copy-out for arrays). `host_error(message)` converts host failures to Able `Error`s. Extern bodies execute in-place and may block; dynamic packages cannot contain extern bodies. Multiple extern targets may back a function; Able bodies act as fallback when present.
 
 ## 14. Program Entry & Tooling
 
 - Any package with public `fn main() -> void` produces a binary named after the package path. Multiple binaries are allowed.
 - `os.args()` provides CLI args; returning from `main` exits 0; unhandled exceptions exit 1; use `os.exit(code)` for custom codes.
 - Background `spawn` tasks are not awaited when `main` returns—join explicitly if needed.
-- Language implementation testing (fixtures/parity): keep TS + Go interpreters in sync. Run `bun test`, `go test ./...`, `bun run scripts/run-fixtures.ts`, `go test ./pkg/interpreter`, and `./run_all_tests.sh --version=v11` before landing changes.
-- Fixtures: update `v11/fixtures`, export via `bun run scripts/export-fixtures.ts`, and ensure parity stays green.
+- Language implementation testing (fixtures/parity): keep tree-walker + bytecode interpreters in sync. Run `go test ./...`, `go test ./pkg/interpreter`, and `./run_all_tests.sh --version=v12` before landing changes.
+- Fixtures: update `v12/fixtures`, export via the Go exporter (TODO), and ensure tree-walker/bytecode parity stays green.
 - User-facing testing (Able programs): `able test` plus the `able.spec` DSL (backed by `able.test.*`) are planned for end-user test suites and are separate from fixture/parity work.
 
-Able emphasises clarity, parity between interpreters, and spec-first behaviour. When in doubt, check the v11 spec, add fixtures, and validate in both runtimes.
+Able emphasises clarity, parity between interpreters, and spec-first behaviour. When in doubt, check the v12 spec, add fixtures, and validate in both runtimes.

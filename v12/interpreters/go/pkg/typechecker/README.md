@@ -1,4 +1,4 @@
-# Able v11 Typechecker (Go)
+# Able v12 Typechecker (Go)
 
 Status: in-progress (2025-10-19)
 
@@ -17,7 +17,7 @@ Status: in-progress (2025-10-19)
 - Next steps:
 - Flesh out documentation/design notes for the completed surface.
 - Expand diagnostics with span data once the AST carries source locations.
-- Continue parity validation against the TypeScript interpreter (async helper diagnostics, concurrency fixtures, etc.).
+- Continue parity validation across tree-walker + bytecode interpreters (async helper diagnostics, concurrency fixtures, etc.).
 
 Design background: see `design/typechecker.md` and `design/typechecker-plan.md`.
 

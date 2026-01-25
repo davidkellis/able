@@ -2,9 +2,9 @@
   "description": "Builtin type arguments must match declared arity",
   "expect": {
     "typecheckDiagnostics": [
-      "typechecker: v11/fixtures/ast/errors/builtin_type_arity/source.able:1:21 typechecker: type 'Array' expects 1 type argument(s), got 0",
-      "typechecker: v11/fixtures/ast/errors/builtin_type_arity/source.able:3:19 typechecker: type 'Map' expects 2 type argument(s), got 1",
-      "typechecker: v11/fixtures/ast/errors/builtin_type_arity/source.able:5:21 typechecker: type 'Mutex' expects 0 type argument(s), got 1"
+      "typechecker: v12/fixtures/ast/errors/builtin_type_arity/source.able:1:21 typechecker: type 'Array' expects 1 type argument(s), got 0",
+      "typechecker: v12/fixtures/ast/errors/builtin_type_arity/source.able:3:19 typechecker: type 'Map' expects 2 type argument(s), got 1",
+      "typechecker: v12/fixtures/ast/errors/builtin_type_arity/source.able:5:21 typechecker: type 'Mutex' expects 0 type argument(s), got 1"
     ]
   },
   "entry": "module.json"

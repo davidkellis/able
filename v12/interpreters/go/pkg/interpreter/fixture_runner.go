@@ -17,8 +17,8 @@ import (
 
 var (
 	repoRoot               = repositoryRoot()
-	stdlibRoot             = fallbackPath(filepath.Join(repoRoot, "v11", "stdlib", "src"), filepath.Join("..", "..", "stdlib", "src"))
-	kernelRoot             = fallbackPath(filepath.Join(repoRoot, "v11", "kernel", "src"), filepath.Join("..", "..", "kernel", "src"))
+	stdlibRoot             = fallbackPath(filepath.Join(repoRoot, "v12", "stdlib", "src"), filepath.Join("..", "..", "stdlib", "src"))
+	kernelRoot             = fallbackPath(filepath.Join(repoRoot, "v12", "kernel", "src"), filepath.Join("..", "..", "kernel", "src"))
 	kernelEntry            = filepath.Join(kernelRoot, "kernel.able")
 	stdlibStringEntry      = filepath.Join(stdlibRoot, "text", "string.able")
 	typecheckBaselineOnce  sync.Once
@@ -370,7 +370,7 @@ func enforceTypecheckBaseline(t *testing.T, rel string, mode fixtureTypecheckMod
 func getTypecheckBaseline(t testingT) map[string][]string {
 	t.Helper()
 	typecheckBaselineOnce.Do(func() {
-		path := filepath.Join(repoRoot, "v11", "fixtures", "ast", "typecheck-baseline.json")
+		path := filepath.Join(repoRoot, "v12", "fixtures", "ast", "typecheck-baseline.json")
 		if _, err := os.Stat(path); os.IsNotExist(err) {
 			path = filepath.Join("..", "..", "fixtures", "ast", "typecheck-baseline.json")
 		}

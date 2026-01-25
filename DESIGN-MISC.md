@@ -1,9 +1,9 @@
 
 • Here’s how this lines up with the spec and what the typecheckers need to change.
 
-  Spec anchors (v11)
+  Spec anchors (v12)
 
-  - spec/full_spec_v11.md §9.4: method-call resolution includes interface methods for interfaces that the receiver type implements.
+  - spec/full_spec_v12.md §9.4: method-call resolution includes interface methods for interfaces that the receiver type implements.
   - §10.3.2: static methods are called on a TypeExpr, including a type parameter T when T: Interface.
   - §10.3.4: interface‑typed values are dynamically dispatched and only object‑safe methods are callable.
 
@@ -78,7 +78,7 @@
   defaults) in lookup. For static dispatch (concrete or generically constrained types), generic methods with fresh type parameters are allowed and monomorphized. To support calls like T.default() where T is a type parameter
   constrained by an interface with a static method, typecheckers must treat type parameters as valid type expressions in static method calls and support explicit or inferred type arguments. Overall, extending typecheckers
   requires expanding method candidate collection to include interface default methods, properly checking object safety for dynamic calls, supporting interface-to-interface impls, and enabling static calls on type parameters
-  in generic contexts per the v11 spec.
+  in generic contexts per the v12 spec.
 
   Clarifying default methods, object safety, and static calls on type parameters
 
@@ -91,7 +91,7 @@
 
   Regarding static interface calls on type parameters, the spec permits calling static methods like T.default() when T is a type parameter constrained by an interface providing such a method. Typecheckers need to treat type
   parameters as valid type expressions (not value variables) in such static calls, supporting explicit or inferred type arguments accordingly. This requires tracking type parameters in scope and resolving their static methods
-  properly, consistent with v11 spec sections 9.4 (method resolution), 10.1.2 (defaults), and 10.3.4 (object safety).
+  properly, consistent with v12 spec sections 9.4 (method resolution), 10.1.2 (defaults), and 10.3.4 (object safety).
 
   In summary, extending typecheckers means enhancing method lookup to include default interface methods for impls lacking definitions, enforcing object-safety restrictions on interface-typed dynamic calls, supporting
   interface-to-interface method resolution, and properly handling static calls on generic type parameters, all in line with the specification.
@@ -292,7 +292,7 @@
 
   ### Which redesign matches your stated priorities?
 
-  You said correctness to v11 spec is most important. As written, §10.3.4 already defines object‑safety, which implies generic methods like map<U> are not allowed on interface‑typed values.
+  You said correctness to v12 spec is most important. As written, §10.3.4 already defines object‑safety, which implies generic methods like map<U> are not allowed on interface‑typed values.
 
   So to keep correctness, we have two options:
 

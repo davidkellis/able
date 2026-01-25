@@ -103,9 +103,9 @@ func repoStdlibPath(t *testing.T) string {
 	if !ok {
 		t.Fatalf("runtime.Caller failed")
 	}
-	base := filepath.Dir(current) // .../v11/interpreters/go/cmd/able
+	base := filepath.Dir(current) // .../v12/interpreters/go/cmd/able
 	repoRoot := filepath.Clean(filepath.Join(base, "..", "..", "..", "..", ".."))
-	path := filepath.Join(repoRoot, "v11", "stdlib", "src")
+	path := filepath.Join(repoRoot, "v12", "stdlib", "src")
 	if info, err := os.Stat(path); err != nil || !info.IsDir() {
 		t.Fatalf("stdlib path %s invalid: %v", path, err)
 	}
@@ -120,7 +120,7 @@ func repoKernelPath(t *testing.T) string {
 	}
 	base := filepath.Dir(current)
 	repoRoot := filepath.Clean(filepath.Join(base, "..", "..", "..", "..", ".."))
-	path := filepath.Join(repoRoot, "v11", "kernel", "src")
+	path := filepath.Join(repoRoot, "v12", "kernel", "src")
 	if info, err := os.Stat(path); err != nil || !info.IsDir() {
 		t.Fatalf("kernel path %s invalid: %v", path, err)
 	}
