@@ -27,7 +27,17 @@ func run(args []string) int {
 		return 1
 	}
 
-	switch args[0] {
+	execMode, remaining, err := parseExecMode(args)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	if len(remaining) == 0 {
+		printUsage()
+		return 1
+	}
+
+	switch remaining[0] {
 	case "--help", "-h":
 		printUsage()
 		return 0
@@ -35,16 +45,16 @@ func run(args []string) int {
 		fmt.Fprintln(os.Stdout, cliToolVersion)
 		return 0
 	case "run":
-		return runEntry(args[1:])
+		return runEntry(remaining[1:], execMode)
 	case "repl":
-		return runRepl(args[1:])
+		return runRepl(remaining[1:], execMode)
 	case "check":
-		return runCheck(args[1:])
+		return runCheck(remaining[1:], execMode)
 	case "test":
-		return runTest(args[1:])
+		return runTest(remaining[1:], execMode)
 	case "deps":
-		return runDeps(args[1:])
+		return runDeps(remaining[1:])
 	default:
-		return runEntry(args)
+		return runEntry(remaining, execMode)
 	}
 }

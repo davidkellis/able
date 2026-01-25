@@ -1,5 +1,11 @@
 # Able Project Log
 
+## 2026-01-25 — Exec-mode flag + fixture mode runs
+- CLI: added `--exec-mode=treewalker|bytecode` global flag and wired treewalker/bytecode wrappers to pass it.
+- Tests: added an exec-mode flag for interpreter fixture tests and updated `v12/run_all_tests.sh` to run fixtures in bytecode mode.
+- Docs: parity reporting notes now reference the exec-mode flag.
+- Tests: `./run_all_tests.sh`; `./run_stdlib_tests.sh`.
+
 ## 2026-01-25 — Go fixture exporter + interface runtime fixes
 - Tooling: added a Go fixture exporter (`v12/interpreters/go/cmd/fixture-exporter`) and wired `v12/export_fixtures.sh`; exposed parser-side fixture normalization and tightened integer literal JSON output.
 - Runtime: fixed interface-method receivers and generic `Self` checks for interface dictionaries; wildcard generic bindings now accept concrete interface args so `Iterator` values satisfy `Iterable` at runtime.
@@ -11,6 +17,11 @@
 - Removed the TypeScript interpreter from v12; introduced Go-only CLI wrappers `abletw` (tree-walker) and `ablebc` (bytecode).
 - Updated v12 docs and harnesses to reference v12 paths and Go-only workflows; parity docs now target tree-walker/bytecode.
 - Tests not run (workspace + docs refactor).
+
+## 2026-01-25 — Interface dictionary fixture coverage
+- Fixtures: added exec coverage for default generic interface methods and interface-value storage (`exec/10_15_interface_default_generic_method`, `exec/10_16_interface_value_storage`) and updated the exec coverage index.
+- Plan: removed the interface dictionary fixture-expansion item from `PLAN.md`.
+- Tests: `./run_all_tests.sh`; `./run_stdlib_tests.sh`.
 
 ## 2026-01-24 — Iterator interface returns + constraint-arity fixture cleanup
 - Go interpreter: treat Iterator interface return values as iterators during for/each by accepting `IteratorValue` in `adaptIteratorValue`.

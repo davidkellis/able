@@ -16,13 +16,13 @@ func modeCommandLabel(mode executionMode) string {
 
 func printUsage() {
 	fmt.Fprintln(os.Stderr, "Usage:")
-	fmt.Fprintln(os.Stderr, "  able run [target]")
-	fmt.Fprintln(os.Stderr, "  able run <file.able>")
-	fmt.Fprintln(os.Stderr, "  able <file.able>")
-	fmt.Fprintln(os.Stderr, "  able check [target]")
-	fmt.Fprintln(os.Stderr, "  able check <file.able>")
-	fmt.Fprintln(os.Stderr, "  able test [paths]")
-	fmt.Fprintln(os.Stderr, "  able repl")
+	fmt.Fprintln(os.Stderr, "  able [--exec-mode=treewalker|bytecode] run [target]")
+	fmt.Fprintln(os.Stderr, "  able [--exec-mode=treewalker|bytecode] run <file.able>")
+	fmt.Fprintln(os.Stderr, "  able [--exec-mode=treewalker|bytecode] <file.able>")
+	fmt.Fprintln(os.Stderr, "  able [--exec-mode=treewalker|bytecode] check [target]")
+	fmt.Fprintln(os.Stderr, "  able [--exec-mode=treewalker|bytecode] check <file.able>")
+	fmt.Fprintln(os.Stderr, "  able [--exec-mode=treewalker|bytecode] test [paths]")
+	fmt.Fprintln(os.Stderr, "  able [--exec-mode=treewalker|bytecode] repl")
 	fmt.Fprintln(os.Stderr, "  able deps install")
 	fmt.Fprintln(os.Stderr, "  able deps update [dependency ...]")
 }

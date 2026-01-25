@@ -1029,6 +1029,24 @@
     "focus": "interface-typed return values preserve interface arguments"
   },
   {
+    "id": "exec/10_15_interface_default_generic_method",
+    "status": "seeded",
+    "spec_sections": [
+      "10.1.1",
+      "10.1.2",
+      "10.3.4"
+    ],
+    "focus": "default generic interface methods dispatch via interface dictionaries"
+  },
+  {
+    "id": "exec/10_16_interface_value_storage",
+    "status": "seeded",
+    "spec_sections": [
+      "10.3.4"
+    ],
+    "focus": "interface-typed values retain dispatch when stored in structs"
+  },
+  {
     "id": "exec/13_01_package_structure_modules",
     "status": "seeded",
     "spec_sections": [

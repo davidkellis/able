@@ -1,0 +1,17 @@
+package exec_10_16_interface_value_storage
+
+import exec_10_16_interface_value_storage.iface_defs.{Greeter}
+import exec_10_16_interface_value_storage.impls.{Bot, Person}
+import exec_10_16_interface_value_storage.helpers.{render, wrap}
+
+## Semantics: interface-typed values stored in structs preserve dispatch behavior.
+
+fn main() -> void {
+  bot: Greeter = Bot { id: 3 }
+  holder := wrap(bot)
+  print(render(holder))
+
+  person: Greeter = Person { name: "Ada" }
+  second := wrap(person)
+  print(render(second))
+}

@@ -30,7 +30,7 @@ fn main() {
 }
 `)
 
-	if code := runEntry([]string{"main.able"}); code != 0 {
+	if code := runEntry([]string{"main.able"}, interpreterTreewalker); code != 0 {
 		t.Fatalf("runEntry returned exit code %d, want 0", code)
 	}
 }
@@ -61,7 +61,7 @@ fn main() {
 }
 `)
 
-	if code := runEntry([]string{"worker.able"}); code != 0 {
+	if code := runEntry([]string{"worker.able"}, interpreterTreewalker); code != 0 {
 		t.Fatalf("runEntry returned exit code %d, want 0", code)
 	}
 }
